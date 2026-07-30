@@ -203,6 +203,7 @@
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
       <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
       <div class="compteur" id="etatMicro" style="display:block;font-weight:700;"></div>
+      <div id="diagMicro" style="text-align:center;font-size:10px;color:#7A7A7A;margin-top:2px;"></div>
       <div class="compteur" id="compteur"></div>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
@@ -1249,16 +1250,27 @@ let interruptions = 0;
 /* Vrai uniquement quand une session de reconnaissance tourne réellement.
    Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
 let sessionActive = false;
-let dernierMot = 0;   /* horodatage du dernier mot réellement capté */
+let demarrageEnCours = false;   /* évite d'empiler les démarrages */
+let dernierMot = 0;
+let dernierEvenement = '—';     /* diagnostic */
+
+function marquerActif(nomEvenement){
+  sessionActive = true;
+  demarrageEnCours = false;
+  dernierEvenement = nomEvenement;
+}
 
 function relancerMicro(){
-  if(!isRecording || sessionActive || !recognition) return;
+  if(!isRecording || sessionActive || demarrageEnCours || !recognition) return;
+  demarrageEnCours = true;
+  dernierEvenement = 'start()';
   try{
     recognition.start();
   }catch(e){
-    /* Souvent "already started" ou refus car page cachée :
-       la surveillance réessaiera dans quelques secondes. */
+    dernierEvenement = 'start refusé: ' + (e && e.name ? e.name : e);
   }
+  /* Laisse à Chrome le temps d'ouvrir la session avant tout nouvel essai */
+  setTimeout(() => { demarrageEnCours = false; }, 1500);
 }
 
 /* Surveillance : relance le micro s'il est mort, et signale
@@ -1266,9 +1278,11 @@ function relancerMicro(){
 setInterval(() => {
   if(!isRecording) return;
   const etat = $('etatMicro');
+  const diag = $('diagMicro');
+  if(diag) diag.textContent = 'état : ' + dernierEvenement;
 
   if(!sessionActive){
-    etat.textContent = '⏸️ micro coupé — reprise…';
+    etat.textContent = demarrageEnCours ? '⏳ démarrage…' : '⏸️ micro coupé — reprise…';
     etat.style.color = '#FFC9BB';
     relancerMicro();
     return;
@@ -1379,15 +1393,21 @@ if(!SR){
 } else {
   recognition = new SR();
   recognition.lang = 'fr-FR';
-  recognition.continuous = true;
+  /* Android ignore le mode continu et peut mal se comporter avec :
+     on le desactive et on relance nous-memes a chaque fin de session. */
+  const estAndroid = /Android/i.test(navigator.userAgent || '');
+  recognition.continuous = !estAndroid;
   /* Provisoires désactivés : sur Android ils sont empilés et non remplacés,
      ce qui provoquait la duplication du texte. */
   recognition.interimResults = false;
 
   recognition.onstart = () => {
-    sessionActive = true;
+    marquerActif('onstart');
     if(!dernierMot) dernierMot = Date.now();
   };
+  recognition.onaudiostart = () => marquerActif('audio');
+  recognition.onsoundstart = () => marquerActif('son détecté');
+  recognition.onspeechstart = () => marquerActif('parole détectée');
 
   recognition.onresult = event => {
     /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu d'ajouter
@@ -1399,6 +1419,7 @@ if(!SR){
     const sessionText = fusionner(chunks);
     finalTranscript = fusionner([committedTranscript, sessionText]);
     if(sessionText) dernierMot = Date.now();
+    marquerActif('résultat reçu');
 
     const box = $('transcriptBox');
     box.textContent = finalTranscript;
@@ -1408,7 +1429,9 @@ if(!SR){
 
   recognition.onerror = event => {
     sessionActive = false;
+    demarrageEnCours = false;
     const err = String(event && event.error || '');
+    dernierEvenement = 'erreur: ' + err;
     if(err === 'no-speech' || err === 'network' || err === 'aborted') return;
     if(err === 'not-allowed' || err === 'service-not-allowed'){
       $('status').textContent = "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
@@ -1435,6 +1458,8 @@ if(!SR){
     /* Le micro se coupe régulièrement de lui-même : on fige le texte acquis
        avant de relancer, sinon la session suivante repart de zéro. */
     sessionActive = false;
+    demarrageEnCours = false;
+    dernierEvenement = 'session terminée';
     committedTranscript = finalTranscript;
     relancerMicro();
   };
@@ -1443,7 +1468,9 @@ if(!SR){
 function arreterUI(){
   isRecording = false;
   sessionActive = false;
+  demarrageEnCours = false;
   $('etatMicro').textContent = '';
+  if($('diagMicro')) $('diagMicro').textContent = '';
   const b = $('recBtn');
   b.classList.remove('recording');
   b.classList.add('idle');
@@ -1712,6 +1739,7 @@ $('newLessonBtn').addEventListener('click', () => {
   committedTranscript = '';
   interruptions = 0;
   dernierMot = 0;
+  dernierEvenement = '—';
   libererEcran();
   $('etatMicro').textContent = '';
   $('pauseWarn').style.display = 'none';
