@@ -1210,6 +1210,47 @@ let currentLessonMeta = null;
 /* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
 let committedTranscript = '';
 
+/* Vérifie explicitement l'accès au micro et renvoie un message clair */
+async function verifierMicro(){
+  if(!window.isSecureContext){
+    return 'La page doit être ouverte en https:// pour accéder au micro.';
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    return 'Ce navigateur ne donne pas accès au micro. Utilise Chrome sur Android.';
+  }
+  try{
+    const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
+    flux.getTracks().forEach(t => t.stop());   // on relâche aussitôt
+    return null;                                // tout va bien
+  }catch(e){
+    const nom = String(e && e.name || '');
+    if(nom === 'NotAllowedError' || nom === 'SecurityError'){
+      return "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
+    }
+    if(nom === 'NotFoundError' || nom === 'DevicesNotFoundError'){
+      return 'Aucun micro détecté sur cet appareil.';
+    }
+    if(nom === 'NotReadableError'){
+      return 'Le micro est déjà utilisé par une autre application. Ferme-la puis réessaie.';
+    }
+    return 'Micro indisponible (' + (nom || 'erreur inconnue') + ').';
+  }
+}
+
+/* Démarre la reconnaissance en tolérant le cas "déjà démarrée" */
+function demarrerReconnaissance(){
+  try{
+    recognition.start();
+    return { ok: true };
+  }catch(e){
+    if(String(e && e.name) === 'InvalidStateError'){
+      sessionActive = true;      // une session tourne déjà : c'est bon
+      return { ok: true };
+    }
+    return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
+  }
+}
+
 /* Maintien de l'écran allumé : Chrome coupe le micro dès que
    l'écran s'éteint ou que la page passe en arrière-plan. */
 let wakeLock = null;
@@ -1366,11 +1407,27 @@ if(!SR){
 
   recognition.onerror = event => {
     sessionActive = false;
-    if(event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') return;
-    if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
-      $('status').textContent = "Micro refusé — autorise l'accès au micro pour ce site.";
+    const err = String(event && event.error || '');
+    if(err === 'no-speech' || err === 'network' || err === 'aborted') return;
+    if(err === 'not-allowed' || err === 'service-not-allowed'){
+      $('status').textContent = "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
+      libererEcran();
       arreterUI();
+      return;
     }
+    if(err === 'audio-capture'){
+      $('status').textContent = 'Aucun micro accessible. Vérifie qu\'aucune autre application ne l\'utilise.';
+      libererEcran();
+      arreterUI();
+      return;
+    }
+    if(err === 'language-not-supported'){
+      $('status').textContent = 'Le français n\'est pas disponible pour la dictée sur cet appareil.';
+      libererEcran();
+      arreterUI();
+      return;
+    }
+    $('status').textContent = 'Erreur micro : ' + err;
   };
 
   recognition.onend = () => {
@@ -1393,35 +1450,54 @@ function arreterUI(){
 }
 
 $('recBtn').addEventListener('click', async () => {
-  if(!isRecording){
-    if(!finalTranscript){
-      $('transcriptBox').textContent = '';
-      $('transcriptBox').style.display = 'block';
-      $('compteur').style.display = 'block';
-    }
-    try{
-      recognition.start();
-      isRecording = true;
-      const b = $('recBtn');
-      b.classList.remove('idle');
-      b.classList.add('recording');
-      b.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
-      $('finishBtn').style.display = 'block';
-      ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = true);
-
-      const ecranTenu = await garderEcranAllume();
-      $('status').textContent = ecranTenu
-        ? '🔴 Le micro écoute — écran maintenu allumé. Laisse cette page affichée.'
-        : '🔴 Le micro écoute. ⚠️ Laisse cette page affichée et empêche l\'écran de s\'éteindre.';
-    }catch(e){
-      $('status').textContent = "Impossible de démarrer le micro.";
-    }
-  } else {
+  if(isRecording){
     recognition.stop();
     libererEcran();
     arreterUI();
     $('status').textContent = 'En pause. Appuie sur "Terminer" pour générer le bilan.';
+    return;
   }
+
+  const btn = $('recBtn');
+  btn.disabled = true;
+  $('status').textContent = 'Vérification du micro…';
+
+  /* 1. Autorisation micro — message précis si ça coince */
+  const probleme = await verifierMicro();
+  if(probleme){
+    $('status').textContent = probleme;
+    btn.disabled = false;
+    return;
+  }
+
+  /* 2. Démarrage de la reconnaissance */
+  if(!finalTranscript){
+    $('transcriptBox').textContent = '';
+    $('transcriptBox').style.display = 'block';
+    $('compteur').style.display = 'block';
+  }
+
+  const res = demarrerReconnaissance();
+  btn.disabled = false;
+
+  if(!res.ok){
+    $('status').textContent = 'Le micro n\'a pas démarré : ' + res.message;
+    return;
+  }
+
+  isRecording = true;
+  btn.classList.remove('idle');
+  btn.classList.add('recording');
+  btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
+  $('finishBtn').style.display = 'block';
+  ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = true);
+
+  /* 3. Maintien de l'écran — hors du chemin critique :
+        un échec ici ne doit pas passer pour une panne de micro. */
+  const ecranTenu = await garderEcranAllume();
+  $('status').textContent = ecranTenu
+    ? 'Écran maintenu allumé. Laisse cette page affichée.'
+    : '⚠️ Empêche l\'écran de s\'éteindre et laisse cette page affichée.';
 });
 
 /* ---------- Génération ---------- */
