@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bilan de conduite — Évolution Conduites</title>
+<style>
+  :root{
+    --navy: #0F1F3D;
+    --navy-deep: #081326;
+    --orange: #F2811D;
+    --orange-soft: #FFDCB0;
+    --cream: #FAF7F1;
+    --ink: #1B2333;
+    --green: #2FA84F;
+    --red: #E4572E;
+    --line: #26365C;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--navy);
+    color: var(--cream);
+    min-height:100vh;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 60px;}
+  header{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:8px 0 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom:20px;
+  }
+  .logo{
+    width:44px;height:44px;border-radius:12px;
+    background: linear-gradient(135deg, var(--orange), #ffb35c);
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:var(--navy-deep);font-size:18px;
+    flex-shrink:0;
+  }
+  header h1{font-size:17px;margin:0;line-height:1.3;}
+  header p{margin:2px 0 0;font-size:12px;color:#9FB0D6;}
+
+  .card{
+    background: var(--navy-deep);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  label{display:block;font-size:12px;color:#9FB0D6;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+  input[type=text], select{
+    width:100%;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:11px 12px;
+    border-radius:10px;
+    font-size:15px;
+    margin-bottom:14px;
+  }
+  input[type=text]:focus, select:focus, textarea:focus{outline:2px solid var(--orange);outline-offset:1px;}
+
+  .rec-btn{
+    width:100%;
+    padding:20px;
+    border:none;
+    border-radius:16px;
+    font-size:17px;
+    font-weight:700;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    transition: background .15s ease;
+  }
+  .rec-btn.idle{background: var(--orange); color: var(--navy-deep);}
+  .rec-btn.recording{background: var(--red); color: white; animation: pulse 1.6s infinite;}
+  .rec-btn:disabled{opacity:.5;cursor:not-allowed;animation:none;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(228,87,46,.5);}
+    70%{box-shadow:0 0 0 14px rgba(228,87,46,0);}
+    100%{box-shadow:0 0 0 0 rgba(228,87,46,0);}
+  }
+  .status{text-align:center;font-size:13px;color:#9FB0D6;margin-top:10px;min-height:18px;}
+
+  .transcript-box{
+    margin-top:14px;
+    max-height:140px;
+    overflow-y:auto;
+    background: var(--navy);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:13px;
+    line-height:1.5;
+    color:#C7D2EC;
+    white-space:pre-wrap;
+  }
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:13px 18px;border-radius:10px;border:none;font-size:14px;font-weight:700;
+    cursor:pointer; width:100%;
+  }
+  .btn-primary{background:var(--orange);color:var(--navy-deep);}
+  .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--cream);}
+  .btn-row{display:flex;gap:10px;margin-top:10px;}
+  .btn-row .btn{flex:1;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  textarea.result{
+    width:100%;
+    min-height:420px;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:14px;
+    border-radius:12px;
+    font-size:14px;
+    line-height:1.6;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    white-space:pre-wrap;
+  }
+
+  .spinner{
+    width:20px;height:20px;border-radius:50%;
+    border:3px solid rgba(255,255,255,.25);
+    border-top-color: var(--orange);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .empty{text-align:center;color:#9FB0D6;font-size:13px;padding:24px 10px;}
+  .history-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:12px 4px;border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .history-item:last-child{border-bottom:none;}
+  .history-item .meta strong{display:block;font-size:14px;}
+  .history-item .meta span{font-size:12px;color:#9FB0D6;}
+  .history-item .arrow{color:var(--orange);font-size:18px;}
+
+  .badge{
+    display:inline-block;font-size:11px;padding:3px 8px;border-radius:999px;
+    background: rgba(242,129,29,.15); color:var(--orange); margin-left:6px;
+  }
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background: var(--green); color:white; padding:10px 18px; border-radius:999px;
+    font-size:13px; font-weight:600; opacity:0; pointer-events:none;
+    transition: opacity .2s ease, transform .2s ease;
+    z-index:50;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+
+  .unsupported{
+    background: rgba(228,87,46,.12); border:1px solid var(--red); color:#FFD7C7;
+    padding:14px; border-radius:12px; font-size:13px; line-height:1.5; margin-bottom:16px;
+  }
+  h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:#9FB0D6;margin:0 0 12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">EC</div>
+    <div>
+      <h1>Bilan de conduite</h1>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac</p>
+    </div>
+  </header>
+
+  <div id="unsupportedBox"></div>
+
+  <!-- SETUP + RECORDING -->
+  <div id="recordView">
+    <div class="card">
+      <label for="monitorName">Prénom du moniteur</label>
+      <input type="text" id="monitorName" placeholder="Ex : Julien">
+
+      <label for="studentName">Prénom de l'élève</label>
+      <input type="text" id="studentName" placeholder="Ex : Camille">
+
+      <label for="site">Site</label>
+      <select id="site">
+        <option>Saint-Brieuc</option>
+        <option>Loudéac</option>
+      </select>
+
+      <label for="lessonDate">Date du cours</label>
+      <input type="date" id="lessonDate">
+
+      <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
+      <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
+      <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
+    </div>
+
+    <button class="btn btn-primary" id="finishBtn" style="display:none;">✅ Terminer et générer le bilan</button>
+  </div>
+
+  <!-- GENERATING -->
+  <div id="generatingView" class="card" style="display:none; text-align:center;">
+    <div class="spinner" style="margin:10px auto;"></div>
+    <div style="margin-top:12px;font-size:14px;color:#C7D2EC;">Génération du bilan en cours…</div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="resultView" style="display:none;">
+    <div class="card">
+      <label>Bilan généré (modifiable avant envoi)</label>
+      <textarea class="result" id="resultText"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="copyBtn">📋 Copier</button>
+        <button class="btn btn-secondary" id="newLessonBtn">➕ Nouveau cours</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="exportSheetsBtn">📊 Exporter vers Sheets</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="card">
+    <h2 class="section-title">Bilans récents</h2>
+    <div id="historyList"><div class="empty">Aucun bilan enregistré pour l'instant.</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// À remplir après avoir déployé le script Apps Script (voir instructions fournies) :
+const CONFIG = {
+  SHEETS_WEBHOOK_URL: 'https://script.google.com/macros/s/AKfycbxPS0rG2MJxTce4_ENu-XLjl_lvh6S5KhmlB7kkqNFYHHqLX5KHxLsTqmILAd3yh8Xsng/exec' // colle ici l'URL "Web app" fournie par Apps Script
+};
+
+const $ = id => document.getElementById(id);
+const recBtn = $('recBtn');
+const finishBtn = $('finishBtn');
+const statusEl = $('status');
+const transcriptBox = $('transcriptBox');
+const recordView = $('recordView');
+const generatingView = $('generatingView');
+const resultView = $('resultView');
+const resultText = $('resultText');
+const historyList = $('historyList');
+const toast = $('toast');
+
+let recognition = null;
+let isRecording = false;
+let finalTranscript = '';
+let currentLessonMeta = null;
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), 1800);
+}
+
+// ---------- Speech recognition setup ----------
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if(!SR){
+  $('unsupportedBox').innerHTML = `<div class="unsupported">
+    ⚠️ La reconnaissance vocale n'est pas disponible dans ce navigateur.
+    Ouvre cette page avec <strong>Chrome sur Android</strong> pour que l'enregistrement fonctionne.
+  </div>`;
+  recBtn.disabled = true;
+} else {
+  recognition = new SR();
+  recognition.lang = 'fr-FR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    for(let i = event.resultIndex; i < event.results.length; i++){
+      const chunk = event.results[i][0].transcript;
+      if(event.results[i].isFinal){
+        finalTranscript += chunk + ' ';
+      } else {
+        interim += chunk;
+      }
+    }
+    transcriptBox.textContent = finalTranscript + interim;
+    transcriptBox.scrollTop = transcriptBox.scrollHeight;
+  };
+
+  recognition.onerror = (event) => {
+    if(event.error === 'no-speech' || event.error === 'network'){
+      return; // will auto-restart via onend
+    }
+    if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+      statusEl.textContent = "Micro refusé — autorise l'accès au micro pour ce site.";
+      isRecording = false;
+      recBtn.classList.remove('recording');
+      recBtn.classList.add('idle');
+      recBtn.textContent = '🎙️ Démarrer le cours';
+    }
+  };
+
+  recognition.onend = () => {
+    if(isRecording){
+      try{ recognition.start(); }catch(e){}
+    }
+  };
+}
+
+recBtn.addEventListener('click', () => {
+  if(!isRecording){
+    finalTranscript = '';
+    transcriptBox.textContent = '';
+    transcriptBox.style.display = 'block';
+    try{
+      recognition.start();
+      isRecording = true;
+      recBtn.classList.remove('idle');
+      recBtn.classList.add('recording');
+      recBtn.textContent = '⏺️ Enregistrement en cours — appuie pour arrêter';
+      statusEl.textContent = 'Le micro écoute. Tu peux continuer le cours normalement.';
+      finishBtn.style.display = 'block';
+      $('studentName').disabled = true;
+      $('site').disabled = true;
+      $('monitorName').disabled = true;
+      $('lessonDate').disabled = true;
+    }catch(e){
+      statusEl.textContent = "Impossible de démarrer le micro.";
+    }
+  } else {
+    isRecording = false;
+    recognition.stop();
+    recBtn.classList.remove('recording');
+    recBtn.classList.add('idle');
+    recBtn.textContent = "🎙️ Reprendre l'enregistrement";
+    statusEl.textContent = 'Enregistrement en pause. Appuie sur "Terminer" pour générer le bilan.';
+  }
+});
+
+finishBtn.addEventListener('click', async () => {
+  if(isRecording){
+    isRecording = false;
+    recognition.stop();
+  }
+  const studentName = $('studentName').value.trim() || "l'élève";
+  const monitorName = $('monitorName').value.trim();
+  const site = $('site').value;
+  const rawDate = $('lessonDate').value; // yyyy-mm-dd or ''
+  const dateObj = rawDate ? new Date(rawDate + 'T12:00:00') : new Date();
+  const dateStr = dateObj.toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
+
+  if(finalTranscript.trim().length < 15){
+    showToast("Transcription trop courte, réessaie.");
+    return;
+  }
+
+  currentLessonMeta = { studentName, monitorName, site, dateStr, ts: Date.now() };
+  recordView.style.display = 'none';
+  generatingView.style.display = 'block';
+  const errBox = $('generatingError');
+  if(errBox) errBox.textContent = '';
+
+  try{
+    const bilan = await generateBilan(finalTranscript, studentName, monitorName, site, dateStr);
+    resultText.value = bilan;
+    generatingView.style.display = 'none';
+    resultView.style.display = 'block';
+    await saveLesson(currentLessonMeta, bilan);
+    await refreshHistory();
+  }catch(err){
+    console.error('Erreur génération bilan:', err);
+    generatingView.style.display = 'none';
+    recordView.style.display = 'block';
+    showToast("Erreur lors de la génération — voir détail sous le bouton.");
+    let detail = $('genErrorDetail');
+    if(!detail){
+      detail = document.createElement('div');
+      detail.id = 'genErrorDetail';
+      detail.style.cssText = 'margin-top:10px;font-size:12px;color:#FFD7C7;background:rgba(228,87,46,.12);border:1px solid var(--red);padding:10px;border-radius:8px;';
+      finishBtn.insertAdjacentElement('afterend', detail);
+    }
+    detail.textContent = 'Détail : ' + (err && err.message ? err.message : String(err));
+  }
+});
+
+$('copyBtn').addEventListener('click', () => {
+  resultText.select();
+  navigator.clipboard.writeText(resultText.value).then(()=>{
+    showToast('Bilan copié ✅');
+  }).catch(()=>{
+    document.execCommand('copy');
+    showToast('Bilan copié ✅');
+  });
+});
+
+$('exportSheetsBtn').addEventListener('click', async () => {
+  if(!CONFIG.SHEETS_WEBHOOK_URL){
+    showToast("Lien Google Sheets non configuré pour l'instant.");
+    return;
+  }
+  $('exportSheetsBtn').disabled = true;
+  $('exportSheetsBtn').textContent = 'Export en cours…';
+  try{
+    await fetch(CONFIG.SHEETS_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        date: currentLessonMeta ? currentLessonMeta.dateStr : '',
+        site: currentLessonMeta ? currentLessonMeta.site : '',
+        monitorName: currentLessonMeta ? currentLessonMeta.monitorName : '',
+        studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
+        bilan: resultText.value
+      })
+    });
+    showToast('Exporté vers Sheets ✅');
+  }catch(e){
+    console.error('Erreur export Sheets:', e);
+    showToast("Erreur lors de l'export vers Sheets.");
+  }finally{
+    $('exportSheetsBtn').disabled = false;
+    $('exportSheetsBtn').textContent = '📊 Exporter vers Sheets';
+  }
+});
+
+$('newLessonBtn').addEventListener('click', () => {
+  finalTranscript = '';
+  transcriptBox.textContent = '';
+  transcriptBox.style.display = 'none';
+  $('studentName').value = '';
+  $('studentName').disabled = false;
+  $('site').disabled = false;
+  $('monitorName').disabled = false;
+  $('lessonDate').disabled = false;
+  $('lessonDate').value = new Date().toISOString().slice(0,10);
+  const detail = $('genErrorDetail');
+  if(detail) detail.remove();
+  recBtn.textContent = '🎙️ Démarrer le cours';
+  statusEl.textContent = "Appuie pour lancer l'enregistrement en début de cours.";
+  finishBtn.style.display = 'none';
+  resultView.style.display = 'none';
+  recordView.style.display = 'block';
+});
+
+// ---------- Claude API summarization ----------
+async function generateBilan(transcript, studentName, monitorName, site, dateStr){
+  const systemPrompt = `Tu rédiges, pour une auto-école (Évolution Conduites), le bilan de fin de leçon adressé directement à l'élève, à partir de la transcription automatique (imparfaite, orale, parfois décousue) d'un cours de conduite enregistré en voiture.
+
+Consignes de fond :
+- Tutoie l'élève, ton chaleureux, encourageant et direct, comme un moniteur qui parle à son élève.
+- Ne mentionne QUE ce qui a été réellement abordé dans la transcription. Si une catégorie n'a pas été évoquée, écris simplement "Rien à signaler ce cours-ci" ou une ligne très courte — n'invente rien.
+- Reste concis : 1 à 3 phrases maximum par catégorie.
+- Pour les rubriques à cocher (Carte SD, Installation, Passager, Voyants), mets ✅ si c'est en ordre / acquis, ❌ si problème signalé, ou "non évoqué" si non mentionné.
+- Pour la FICHE VÉHICULE, ne liste QUE les exercices/manœuvres réellement pratiqués pendant ce cours (parmi : MALD, demi-tour, MAR (angle de rue), arrêt de précision, créneau droit (CD), créneau gauche (CG), bataille droit (BD), bataille gauche (BG), bataille avant droit (BAD), bataille avant gauche (BAG), épi, utilisation radio, utilisation téléphone, "faire peur", parking avec ticket, GPS, régulateur, conduite libre ("va où tu veux fais ce que tu veux"), ouverture du capot), avec un très court retour pour chacun. Si aucun exercice de manœuvre n'a été pratiqué, écris "Pas de manœuvre travaillée ce cours-ci".
+
+Structure et ordre à respecter EXACTEMENT (garde les mêmes titres et émojis) :
+
+👋 BILAN DE TA CONDUITE 👀
+
+🗂️ CARTE SD
+[✅/❌/non évoqué + commentaire bref. Rappelle si pertinent que tous les cours sont filmés (caméra avant/arrière + son) et peuvent être revus avant le prochain cours.]
+
+INSTALLATION
+[✅/❌/non évoqué]
+
+PASSAGER
+[✅/❌/non évoqué]
+
+VOYANTS (/2 points jour du permis)
+[✅/❌/non évoqué + commentaire]
+
+VÉRIFICATIONS (/3 points jour du permis)
+[commentaire bref]
+
+🚙 MANIPULATION DES COMMANDES
+[commentaire]
+
+👀 TRAJECTOIRE
+[commentaire]
+
+🍩 GIRATOIRES
+[commentaire]
+
+🛣️ VA VD
+[commentaire]
+
+❌ PAD
+[commentaire]
+
+🏎️💨 ALLURES
+[commentaire]
+
+👀 CONTRÔLES
+[commentaire]
+
+🧠 DIVERS
+[commentaire]
+
+🚙🚗🚙 MANŒUVRES
+[commentaire général sur les manœuvres]
+
+🦉 FICHE VÉHICULE
+[liste des exercices pratiqués avec retour bref, une ligne par exercice]
+
+Termine par une courte phrase d'encouragement et à bientôt, avec un emoji 🚗💨${monitorName ? `, signée avec le prénom du moniteur (${monitorName})` : ''}.
+
+Réponds UNIQUEMENT avec le texte final du bilan, sans préambule, sans note explicative, sans guillemets, sans balises markdown de type \`\`\`.`;
+
+  const userMsg = `Moniteur : ${monitorName || 'non renseigné'}
+Élève : ${studentName}
+Site : ${site}
+Date : ${dateStr}
+
+Transcription brute du cours :
+"""
+${transcript}
+"""`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMsg }]
+    })
+  });
+
+  if(!response.ok){
+    let bodyText = '';
+    try{ bodyText = await response.text(); }catch(e){}
+    throw new Error(`HTTP ${response.status} — ${bodyText.slice(0,300)}`);
+  }
+
+  const data = await response.json();
+  if(data.type === 'error' || data.error){
+    throw new Error((data.error && data.error.message) || JSON.stringify(data).slice(0,300));
+  }
+  const textBlocks = (data.content || []).filter(b => b.type === "text").map(b => b.text);
+  const result = textBlocks.join("\\n").trim();
+  if(!result){
+    throw new Error("Réponse vide de l'API — contenu reçu : " + JSON.stringify(data).slice(0,300));
+  }
+  return result;
+}
+
+// ---------- Persistent storage (history) ----------
+async function saveLesson(meta, bilanText){
+  try{
+    const key = `bilan:${meta.ts}`;
+    await window.storage.set(key, JSON.stringify({...meta, text: bilanText}), false);
+  }catch(e){ console.error('save failed', e); }
+}
+
+async function refreshHistory(){
+  try{
+    const listResult = await window.storage.list('bilan:', false);
+    const keys = (listResult && listResult.keys) ? listResult.keys : [];
+    if(keys.length === 0){
+      historyList.innerHTML = "<div class=\"empty\">Aucun bilan enregistré pour l'instant.</div>";
+      return;
+    }
+    const items = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, false);
+        if(r && r.value) items.push(JSON.parse(r.value));
+      }catch(e){}
+    }
+    items.sort((a,b) => b.ts - a.ts);
+    historyList.innerHTML = '';
+    items.slice(0, 15).forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      row.innerHTML = `<div class="meta"><strong>${item.studentName}</strong><span>${item.dateStr} · ${item.site}${item.monitorName ? ' · ' + item.monitorName : ''}</span></div><div class="arrow">›</div>`;
+      row.addEventListener('click', () => {
+        resultText.value = item.text;
+        recordView.style.display = 'none';
+        generatingView.style.display = 'none';
+        resultView.style.display = 'block';
+      });
+      historyList.appendChild(row);
+    });
+  }catch(e){
+    console.error('history load failed', e);
+  }
+}
+
+$('lessonDate').value = new Date().toISOString().slice(0,10);
+refreshHistory();
+</script>
+</body>
+</html>
