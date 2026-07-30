@@ -80,15 +80,16 @@
     100%{box-shadow:0 0 0 0 rgba(255,92,51,0);}
   }
   .status{text-align:center;font-size:13px;color:#B5B5B5;margin-top:10px;min-height:18px;}
-  .compteur{text-align:center;font-size:11px;color:var(--orange);margin-top:6px;display:none;}
+  .compteur{text-align:center;font-size:15px;font-weight:700;color:var(--orange);margin-top:8px;display:none;}
 
   .transcript-box{
-    margin-top:14px;max-height:150px;overflow-y:auto;
+    margin-top:14px;
+    min-height:200px;max-height:340px;overflow-y:auto;
     background: var(--navy);
     border:1px solid var(--line);
     border-radius:10px;
-    padding:10px 12px;
-    font-size:13px;line-height:1.5;color:#E0E0E0;
+    padding:14px 16px;
+    font-size:17px;line-height:1.6;color:#F0F0F0;
     white-space:pre-wrap;
   }
 
@@ -150,6 +151,26 @@
     padding:14px;border-radius:12px;
     font-size:13px;line-height:1.5;margin-bottom:16px;
   }
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.82);
+    display:none;align-items:center;justify-content:center;
+    padding:20px;z-index:100;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--navy-deep);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:22px;
+    max-width:420px;width:100%;
+  }
+  .modal h3{margin:0 0 14px;font-size:18px;}
+  .recap{
+    background:var(--navy);border:1px solid var(--line);
+    border-radius:12px;padding:14px;margin-bottom:16px;
+    font-size:15px;line-height:1.7;
+  }
+  .recap b{color:var(--orange);}
   h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:#B5B5B5;margin:0 0 12px;}
   .hint{font-size:11px;color:#8A8A8A;margin:-8px 0 14px;line-height:1.4;}
 </style>
@@ -160,7 +181,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--orange);font-weight:700;">v8</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--orange);font-weight:700;">v9</span></p>
     </div>
   </header>
 
@@ -202,14 +223,15 @@
 
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
       <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
-      <div class="compteur" id="etatMicro" style="display:block;font-weight:700;"></div>
-      <div id="diagMicro" style="text-align:center;font-size:10px;color:#7A7A7A;margin-top:2px;"></div>
+      <div id="etatMicro" style="text-align:center;font-size:26px;font-weight:800;margin-top:14px;line-height:1.3;"></div>
+      <div id="diagMicro" style="text-align:center;font-size:14px;color:#9A9A9A;margin-top:6px;"></div>
       <div class="compteur" id="compteur"></div>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
     </div>
 
-    <button class="btn btn-primary" id="finishBtn" style="display:none;">✅ Terminer et générer le bilan</button>
+    <button class="btn btn-primary" id="finishBtn"
+            style="display:none;margin-top:46px;padding:20px;font-size:16px;">✅ Terminer et générer le bilan</button>
   </div>
 
   <div id="generatingView" class="card" style="display:none; text-align:center;">
@@ -232,6 +254,14 @@
     </div>
   </div>
 
+  <div class="card">
+    <h2 class="section-title">Retrouver un élève</h2>
+    <label for="searchName">Nom et prénom de l'élève</label>
+    <input type="text" id="searchName" placeholder="Ex : Maëlys Le Gall">
+    <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
+    <div id="searchResults" style="margin-top:14px;"></div>
+  </div>
+
   <div class="card" id="adminCard" style="display:none;">
     <h2 class="section-title">⚙️ Administration des accès</h2>
     <div id="adminList"><div class="empty">Chargement…</div></div>
@@ -251,19 +281,19 @@
     </div>
   </div>
 
-  <div class="card">
-    <h2 class="section-title">Retrouver un élève</h2>
-    <label for="searchName">Nom et prénom de l'élève</label>
-    <input type="text" id="searchName" placeholder="Ex : Maëlys Le Gall">
-    <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
-    <div id="searchResults" style="margin-top:14px;"></div>
-  </div>
-
-  <div class="card">
-    <h2 class="section-title">Bilans récents</h2>
-    <div id="historyList"><div class="empty">Aucun bilan enregistré pour l'instant.</div></div>
-  </div>
   </div><!-- /appView -->
+</div>
+
+<div class="overlay" id="confirmOverlay">
+  <div class="modal">
+    <h3>Générer le bilan ?</h3>
+    <div class="recap" id="confirmRecap"></div>
+    <div id="confirmAlerte" style="font-size:14px;color:#FFC9BB;margin-bottom:14px;display:none;"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="cancelGen">Annuler</button>
+      <button class="btn btn-primary" id="confirmGen">Générer</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1556,9 +1586,50 @@ $('recBtn').addEventListener('click', async () => {
 });
 
 /* ---------- Génération ---------- */
-$('finishBtn').addEventListener('click', async () => {
-  if(isRecording){ isRecording = false; recognition.stop(); }
+/* Le bouton n'enclenche plus rien directement : il demande confirmation */
+$('finishBtn').addEventListener('click', () => {
+  if(isRecording){
+    isRecording = false;
+    try{ recognition.stop(); }catch(e){}
+    arreterUI();
+  }
   libererEcran();
+
+  const mots = finalTranscript.trim().split(/\s+/).filter(Boolean).length;
+  const modele = MODELES[$('modele').value];
+
+  $('confirmRecap').innerHTML =
+    'Type : <b>' + (modele ? modele.label : '—') + '</b><br>' +
+    'Élève : <b>' + ($('studentName').value.trim() || '(non renseigné)') + '</b><br>' +
+    'Moniteur : <b>' + ($('monitorName').value.trim() || '(non renseigné)') + '</b><br>' +
+    'Mots captés : <b>' + mots + '</b>';
+
+  const alerte = $('confirmAlerte');
+  const soucis = [];
+  if(!$('studentName').value.trim()) soucis.push("le nom de l'élève n'est pas renseigné");
+  if(mots < 60) soucis.push('la transcription est très courte (' + mots + ' mots)');
+  if(interruptions > 0) soucis.push("l'enregistrement a été interrompu " + interruptions + ' fois');
+
+  if(soucis.length){
+    alerte.style.display = 'block';
+    alerte.innerHTML = '⚠️ Attention : ' + soucis.join(', ') + '.';
+  }else{
+    alerte.style.display = 'none';
+  }
+
+  $('confirmOverlay').classList.add('show');
+});
+
+$('cancelGen').addEventListener('click', () => {
+  $('confirmOverlay').classList.remove('show');
+});
+
+$('confirmOverlay').addEventListener('click', e => {
+  if(e.target === $('confirmOverlay')) $('confirmOverlay').classList.remove('show');
+});
+
+$('confirmGen').addEventListener('click', async () => {
+  $('confirmOverlay').classList.remove('show');
 
   const modeleCle = $('modele').value;
   const modele = MODELES[modeleCle];
@@ -1800,6 +1871,9 @@ async function saveLesson(meta, bilanText){
 }
 
 async function refreshHistory(){
+  /* Carte retirée de l'interface : ce stockage ne fonctionne pas
+     sur un site hébergé, la recherche par élève le remplace. */
+  if(!document.getElementById('historyList')) return;
   try{
     const res = await window.storage.list('bilan:', false);
     const keys = (res && res.keys) ? res.keys : [];
