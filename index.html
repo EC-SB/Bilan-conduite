@@ -181,7 +181,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--orange);font-weight:700;">v9</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--orange);font-weight:700;">v10</span></p>
     </div>
   </header>
 
@@ -224,7 +224,7 @@
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
       <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
       <div id="etatMicro" style="text-align:center;font-size:26px;font-weight:800;margin-top:14px;line-height:1.3;"></div>
-      <div id="diagMicro" style="text-align:center;font-size:14px;color:#9A9A9A;margin-top:6px;"></div>
+      <div id="diagMicro" style="text-align:center;font-size:21px;font-weight:700;color:#9A9A9A;margin-top:8px;line-height:1.35;"></div>
       <div class="compteur" id="compteur"></div>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
@@ -1319,7 +1319,22 @@ setInterval(() => {
   if(!isRecording) return;
   const etat = $('etatMicro');
   const diag = $('diagMicro');
-  if(diag) diag.textContent = 'état : ' + dernierEvenement;
+
+  if(diag){
+    const depuis = dernierMot ? Math.round((Date.now() - dernierMot) / 1000) : null;
+    const capteRecemment = depuis !== null && depuis <= 12;
+
+    if(capteRecemment){
+      diag.textContent = '🗣️ paroles captées il y a ' + depuis + ' s';
+      diag.style.color = 'var(--orange)';
+    }else if(depuis !== null && sessionActive){
+      diag.textContent = '🤫 rien capté depuis ' + depuis + ' s';
+      diag.style.color = '#FFC9BB';
+    }else{
+      diag.textContent = 'état : ' + dernierEvenement;
+      diag.style.color = '#9A9A9A';
+    }
+  }
 
   if(!sessionActive){
     etat.textContent = demarrageEnCours ? '⏳ démarrage…' : '⏸️ micro coupé — reprise…';
