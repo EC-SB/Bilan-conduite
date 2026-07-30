@@ -1218,7 +1218,7 @@ function verifierContexte(){
   if(!window.isSecureContext){
     return 'La page doit être ouverte en https:// pour accéder au micro.';
   }
-  if(!recognition){
+  if(!SR){
     return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
   }
   return null;
@@ -1227,17 +1227,12 @@ function verifierContexte(){
 /* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
    seul l'événement onstart fait foi, sinon l'indicateur ment. */
 function demarrerReconnaissance(){
+  /* On repart systématiquement d'un objet neuf : évite d'hériter
+     d'une session figée par un cours précédent. */
   try{
-    recognition.start();
+    recreerEtDemarrer();
     return { ok: true };
   }catch(e){
-    if(String(e && e.name) === 'InvalidStateError'){
-      /* Une session précédente traîne encore : on la coupe net
-         et on relance juste après. */
-      try{ recognition.abort(); }catch(_){}
-      setTimeout(() => { if(isRecording) relancerMicro(); }, 400);
-      return { ok: true };
-    }
     return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
   }
 }
@@ -1261,13 +1256,28 @@ function marquerActif(nomEvenement){
 }
 
 function relancerMicro(){
-  if(!isRecording || sessionActive || demarrageEnCours || !recognition) return;
+  if(!isRecording || sessionActive || demarrageEnCours) return;
   demarrageEnCours = true;
   dernierEvenement = 'start()';
+
+  if(!recognition){
+    recreerEtDemarrer();
+    setTimeout(() => { demarrageEnCours = false; }, 1500);
+    return;
+  }
+
   try{
     recognition.start();
   }catch(e){
-    dernierEvenement = 'start refusé: ' + (e && e.name ? e.name : e);
+    const nom = String(e && e.name || '');
+    if(nom === 'InvalidStateError'){
+      /* Session fantôme : elle se croit démarrée mais n'émet plus rien.
+         On ne la réanime pas, on la remplace. */
+      dernierEvenement = 'session figée → recréation';
+      recreerEtDemarrer();
+    }else{
+      dernierEvenement = 'start refusé: ' + (nom || e);
+    }
   }
   /* Laisse à Chrome le temps d'ouvrir la session avant tout nouvel essai */
   setTimeout(() => { demarrageEnCours = false; }, 1500);
@@ -1386,32 +1396,37 @@ function showToast(msg){
 
 /* ---------- Reconnaissance vocale ---------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const estAndroid = /Android/i.test(navigator.userAgent || '');
 
 if(!SR){
   $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale n\'est pas disponible dans ce navigateur. Ouvre cette page avec <strong>Chrome sur Android</strong>.</div>';
   $('recBtn').disabled = true;
-} else {
-  recognition = new SR();
-  recognition.lang = 'fr-FR';
-  /* Android ignore le mode continu et peut mal se comporter avec :
-     on le desactive et on relance nous-memes a chaque fin de session. */
-  const estAndroid = /Android/i.test(navigator.userAgent || '');
-  recognition.continuous = !estAndroid;
-  /* Provisoires désactivés : sur Android ils sont empilés et non remplacés,
-     ce qui provoquait la duplication du texte. */
-  recognition.interimResults = false;
+}
 
-  recognition.onstart = () => {
+/* Fabrique un objet de reconnaissance NEUF, entièrement câblé.
+   Sur Android, une session peut se figer sans rien émettre : le seul
+   remède fiable est de jeter l'objet et d'en construire un autre. */
+function creerReconnaissance(){
+  const r = new SR();
+  r.lang = 'fr-FR';
+  /* Android ignore le mode continu et se comporte mal avec :
+     on relance nous-mêmes à chaque fin de session. */
+  r.continuous = !estAndroid;
+  /* Provisoires désactivés : sur Android ils sont empilés et non
+     remplacés, ce qui provoquait la duplication du texte. */
+  r.interimResults = false;
+
+  r.onstart = () => {
     marquerActif('onstart');
     if(!dernierMot) dernierMot = Date.now();
   };
-  recognition.onaudiostart = () => marquerActif('audio');
-  recognition.onsoundstart = () => marquerActif('son détecté');
-  recognition.onspeechstart = () => marquerActif('parole détectée');
+  r.onaudiostart = () => marquerActif('audio');
+  r.onsoundstart = () => marquerActif('son détecté');
+  r.onspeechstart = () => marquerActif('parole détectée');
 
-  recognition.onresult = event => {
-    /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu d'ajouter
-       à la suite : impossible d'accumuler des doublons de cette façon. */
+  r.onresult = event => {
+    /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu
+       d'ajouter à la suite : impossible d'accumuler des doublons. */
     const chunks = [];
     for(let i = 0; i < event.results.length; i++){
       chunks.push(event.results[i][0].transcript);
@@ -1427,42 +1442,60 @@ if(!SR){
     $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length + ' mots';
   };
 
-  recognition.onerror = event => {
+  r.onerror = event => {
     sessionActive = false;
     demarrageEnCours = false;
     const err = String(event && event.error || '');
     dernierEvenement = 'erreur: ' + err;
+
     if(err === 'no-speech' || err === 'network' || err === 'aborted') return;
+
     if(err === 'not-allowed' || err === 'service-not-allowed'){
       $('status').textContent = "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
-      libererEcran();
-      arreterUI();
-      return;
+      libererEcran(); arreterUI(); return;
     }
     if(err === 'audio-capture'){
       $('status').textContent = 'Aucun micro accessible. Vérifie qu\'aucune autre application ne l\'utilise.';
-      libererEcran();
-      arreterUI();
-      return;
+      libererEcran(); arreterUI(); return;
     }
     if(err === 'language-not-supported'){
       $('status').textContent = 'Le français n\'est pas disponible pour la dictée sur cet appareil.';
-      libererEcran();
-      arreterUI();
-      return;
+      libererEcran(); arreterUI(); return;
     }
     $('status').textContent = 'Erreur micro : ' + err;
   };
 
-  recognition.onend = () => {
-    /* Le micro se coupe régulièrement de lui-même : on fige le texte acquis
-       avant de relancer, sinon la session suivante repart de zéro. */
+  r.onend = () => {
+    /* Le micro se coupe régulièrement de lui-même : on fige le texte
+       acquis avant de relancer, sinon la session suivante repart de zéro. */
     sessionActive = false;
     demarrageEnCours = false;
     dernierEvenement = 'session terminée';
     committedTranscript = finalTranscript;
     relancerMicro();
   };
+
+  return r;
+}
+
+/* Détruit la session figée et repart sur un objet neuf */
+function recreerEtDemarrer(){
+  try{
+    if(recognition){
+      recognition.onend = null;      /* évite de déclencher une relance */
+      recognition.onerror = null;
+      recognition.abort();
+    }
+  }catch(e){}
+
+  recognition = creerReconnaissance();
+  sessionActive = false;
+  try{
+    recognition.start();
+    dernierEvenement = 'nouvelle session';
+  }catch(e){
+    dernierEvenement = 'échec après recréation: ' + (e && e.name ? e.name : e);
+  }
 }
 
 function arreterUI(){
@@ -1479,7 +1512,8 @@ function arreterUI(){
 
 $('recBtn').addEventListener('click', async () => {
   if(isRecording){
-    recognition.stop();
+    isRecording = false;                 /* avant stop() : bloque la relance */
+    try{ recognition.stop(); }catch(e){}
     libererEcran();
     arreterUI();
     $('status').textContent = 'En pause. Appuie sur "Terminer" pour générer le bilan.';
