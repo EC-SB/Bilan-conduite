@@ -166,6 +166,20 @@
 
   <div id="unsupportedBox"></div>
 
+  <!-- ÉCRAN DE DÉVERROUILLAGE -->
+  <div id="lockView">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:34px;margin-bottom:4px;">🔒</div>
+      <h2 class="section-title" style="text-align:center;">Code d'accès</h2>
+      <input type="password" id="codeInput" inputmode="numeric" autocomplete="off"
+             maxlength="8" placeholder="••••••"
+             style="text-align:center;letter-spacing:.5em;font-size:24px;padding:14px;">
+      <button class="btn btn-primary" id="codeBtn">Déverrouiller</button>
+      <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:#B5B5B5;"></div>
+    </div>
+  </div>
+
+  <div id="appView" style="display:none;">
   <div id="recordView">
     <div class="card">
       <label for="modele">Type de bilan</label>
@@ -215,6 +229,25 @@
     </div>
   </div>
 
+  <div class="card" id="adminCard" style="display:none;">
+    <h2 class="section-title">⚙️ Administration des accès</h2>
+    <div id="adminList"><div class="empty">Chargement…</div></div>
+
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+      <label for="newCode">Nouveau code (6 à 8 chiffres)</label>
+      <input type="text" id="newCode" inputmode="numeric" maxlength="8" minlength="6" placeholder="Ex : 573914">
+      <label for="newName">Prénom</label>
+      <input type="text" id="newName" placeholder="Ex : David">
+      <label for="newRole">Rôle</label>
+      <select id="newRole">
+        <option value="moniteur">Moniteur</option>
+        <option value="admin">Administrateur</option>
+      </select>
+      <button class="btn btn-primary" id="createBtn">➕ Créer l'accès</button>
+      <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+    </div>
+  </div>
+
   <div class="card">
     <h2 class="section-title">Retrouver un élève</h2>
     <label for="searchName">Nom et prénom de l'élève</label>
@@ -227,6 +260,7 @@
     <h2 class="section-title">Bilans récents</h2>
     <div id="historyList"><div class="empty">Aucun bilan enregistré pour l'instant.</div></div>
   </div>
+  </div><!-- /appView -->
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1138,8 +1172,24 @@ function construireConsignes(modeleCle){
 const CONFIG = {
   WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev'
 };
-CONFIG.CLAUDE_PROXY_URL = CONFIG.WORKER_URL;
+CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
+CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
+CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
+
+/* Code d'accès de la session — jamais stocké sur l'appareil,
+   il est redemandé à chaque ouverture de la page. */
+let ACCES = { code: null, moniteur: '', role: '' };
+
+function verrouiller(message){
+  ACCES = { code: null, moniteur: '', role: '' };
+  $('appView').style.display = 'none';
+  $('adminCard').style.display = 'none';
+  $('lockView').style.display = 'block';
+  $('codeInput').value = '';
+  $('codeMsg').textContent = message || '';
+  $('codeMsg').style.color = message ? '#FFC9BB' : '#B5B5B5';
+}
 
 const $ = id => document.getElementById(id);
 
@@ -1342,16 +1392,24 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
     'Date : ' + dateStr + '\n\n' +
     'Transcription brute du cours :\n"""\n' + transcript + '\n"""';
 
-  const response = await fetch(CONFIG.CLAUDE_PROXY_URL, {
+  const response = await fetch(CONFIG.IA_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-5',
-      max_tokens: 4000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMsg }]
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }]
+      }
     })
   });
+
+  if(response.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé — code invalide.');
+  }
 
   if(!response.ok){
     let body = '';
@@ -1398,6 +1456,7 @@ $('exportSheetsBtn').addEventListener('click', async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'append',
+        code: ACCES.code,
         data: {
           date: currentLessonMeta ? currentLessonMeta.dateStr : '',
           site: currentLessonMeta ? currentLessonMeta.site : '',
@@ -1435,8 +1494,12 @@ async function rechercherEleve(){
     const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', eleve: nom })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
     });
+    if(r.status === 403){
+      verrouiller('Session expirée, saisis ton code à nouveau.');
+      return;
+    }
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
     const res = (data && data.resultats) || [];
@@ -1556,6 +1619,168 @@ async function refreshHistory(){
     });
   }catch(e){ console.error('history load failed', e); }
 }
+
+/* ---------- Administration des accès ---------- */
+function messageAdmin(texte, erreur){
+  const m = $('adminMsg');
+  m.textContent = texte || '';
+  m.style.color = erreur ? '#FFC9BB' : 'var(--orange)';
+}
+
+async function appelAdmin(corps){
+  const r = await fetch(CONFIG.ADMIN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
+  });
+  if(r.status === 403 && !ACCES.code){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Session expirée');
+  }
+  const data = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+
+async function chargerUtilisateurs(){
+  const zone = $('adminList');
+  zone.innerHTML = '<div class="empty">Chargement…</div>';
+  try{
+    const data = await appelAdmin({ action: 'list' });
+    if(data.kv === false){
+      zone.innerHTML = '<div class="unsupported">⚠️ Le stockage KV n\'est pas configuré sur le Worker : impossible d\'enregistrer de nouveaux accès. Vérifie le binding <strong>UTILISATEURS</strong>.</div>';
+      return;
+    }
+    const liste = data.utilisateurs || [];
+    zone.innerHTML = '';
+    liste.forEach(u => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const nom = document.createElement('strong');
+      nom.textContent = u.nom + (u.role === 'admin' ? ' — admin' : '');
+      const sous = document.createElement('span');
+      sous.textContent = 'Code ' + u.code + (u.principal ? ' · compte principal' : (u.cree ? ' · créé le ' + u.cree : ''));
+      meta.appendChild(nom);
+      meta.appendChild(sous);
+      row.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+
+      if(!u.principal && u.code !== ACCES.code){
+        const bRole = document.createElement('button');
+        bRole.className = 'btn btn-secondary';
+        bRole.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;';
+        bRole.textContent = u.role === 'admin' ? '↓ moniteur' : '↑ admin';
+        bRole.addEventListener('click', async () => {
+          try{
+            await appelAdmin({ action:'role', cible:u.code, role: u.role === 'admin' ? 'moniteur' : 'admin' });
+            messageAdmin('Rôle de ' + u.nom + ' modifié.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); }
+        });
+        actions.appendChild(bRole);
+
+        const bDel = document.createElement('button');
+        bDel.className = 'btn btn-secondary';
+        bDel.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;color:#FF5C33;border-color:#FF5C33;';
+        bDel.textContent = '✕';
+        bDel.addEventListener('click', async () => {
+          if(!confirm('Supprimer l\'accès de ' + u.nom + ' (code ' + u.code + ') ?')) return;
+          try{
+            await appelAdmin({ action:'delete', cible:u.code });
+            messageAdmin('Accès de ' + u.nom + ' supprimé.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); }
+        });
+        actions.appendChild(bDel);
+      } else {
+        const verrou = document.createElement('div');
+        verrou.style.cssText = 'font-size:11px;color:#8A8A8A;';
+        verrou.textContent = u.principal ? '🔒' : '(toi)';
+        actions.appendChild(verrou);
+      }
+
+      row.appendChild(actions);
+      zone.appendChild(row);
+    });
+  }catch(e){
+    zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+  }
+}
+
+$('createBtn').addEventListener('click', async () => {
+  const btn = $('createBtn');
+  btn.disabled = true;
+  try{
+    await appelAdmin({
+      action: 'create',
+      nouveauCode: $('newCode').value.trim(),
+      nom: $('newName').value.trim(),
+      role: $('newRole').value
+    });
+    messageAdmin('Accès créé pour ' + $('newName').value.trim() + '.');
+    $('newCode').value = '';
+    $('newName').value = '';
+    $('newRole').value = 'moniteur';
+    chargerUtilisateurs();
+  }catch(e){
+    messageAdmin(e.message, true);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+/* ---------- Déverrouillage ---------- */
+async function deverrouiller(){
+  const code = $('codeInput').value.trim();
+  const msg = $('codeMsg');
+  if(code.length < 6){
+    msg.style.color = '#FFC9BB';
+    msg.textContent = 'Le code compte au moins 6 chiffres.';
+    return;
+  }
+  const btn = $('codeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Vérification…';
+  msg.style.color = '#B5B5B5';
+  msg.textContent = '';
+  try{
+    const r = await fetch(CONFIG.AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    });
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok || !data.ok){
+      msg.style.color = '#FFC9BB';
+      msg.textContent = 'Code incorrect.';
+      $('codeInput').value = '';
+      return;
+    }
+    ACCES = { code: code, moniteur: data.moniteur || '', role: data.role || 'moniteur' };
+    $('lockView').style.display = 'none';
+    $('appView').style.display = 'block';
+    if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
+    if(ACCES.role === 'admin'){
+      $('adminCard').style.display = 'block';
+      chargerUtilisateurs();
+    }
+    showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
+  }catch(e){
+    msg.style.color = '#FFC9BB';
+    msg.textContent = 'Connexion impossible : ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Déverrouiller';
+  }
+}
+
+$('codeBtn').addEventListener('click', deverrouiller);
+$('codeInput').addEventListener('keydown', e => { if(e.key === 'Enter') deverrouiller(); });
 
 /* ---------- Init ---------- */
 remplirModeles();
