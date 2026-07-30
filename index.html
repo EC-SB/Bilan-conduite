@@ -1210,41 +1210,31 @@ let currentLessonMeta = null;
 /* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
 let committedTranscript = '';
 
-/* Vérifie explicitement l'accès au micro et renvoie un message clair */
-async function verifierMicro(){
+/* Contrôles préalables — sans toucher au micro :
+   sur Android, ouvrir puis fermer le micro juste avant la dictée
+   empêche la reconnaissance de capter le son. */
+function verifierContexte(){
   if(!window.isSecureContext){
     return 'La page doit être ouverte en https:// pour accéder au micro.';
   }
-  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    return 'Ce navigateur ne donne pas accès au micro. Utilise Chrome sur Android.';
+  if(!recognition){
+    return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
   }
-  try{
-    const flux = await navigator.mediaDevices.getUserMedia({ audio: true });
-    flux.getTracks().forEach(t => t.stop());   // on relâche aussitôt
-    return null;                                // tout va bien
-  }catch(e){
-    const nom = String(e && e.name || '');
-    if(nom === 'NotAllowedError' || nom === 'SecurityError'){
-      return "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
-    }
-    if(nom === 'NotFoundError' || nom === 'DevicesNotFoundError'){
-      return 'Aucun micro détecté sur cet appareil.';
-    }
-    if(nom === 'NotReadableError'){
-      return 'Le micro est déjà utilisé par une autre application. Ferme-la puis réessaie.';
-    }
-    return 'Micro indisponible (' + (nom || 'erreur inconnue') + ').';
-  }
+  return null;
 }
 
-/* Démarre la reconnaissance en tolérant le cas "déjà démarrée" */
+/* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
+   seul l'événement onstart fait foi, sinon l'indicateur ment. */
 function demarrerReconnaissance(){
   try{
     recognition.start();
     return { ok: true };
   }catch(e){
     if(String(e && e.name) === 'InvalidStateError'){
-      sessionActive = true;      // une session tourne déjà : c'est bon
+      /* Une session précédente traîne encore : on la coupe net
+         et on relance juste après. */
+      try{ recognition.abort(); }catch(_){}
+      setTimeout(() => { if(isRecording) relancerMicro(); }, 400);
       return { ok: true };
     }
     return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
@@ -1259,6 +1249,7 @@ let interruptions = 0;
 /* Vrai uniquement quand une session de reconnaissance tourne réellement.
    Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
 let sessionActive = false;
+let dernierMot = 0;   /* horodatage du dernier mot réellement capté */
 
 function relancerMicro(){
   if(!isRecording || sessionActive || !recognition) return;
@@ -1270,20 +1261,26 @@ function relancerMicro(){
   }
 }
 
-/* Surveillance : si l'enregistrement est censé tourner mais que la
-   reconnaissance est morte, on la relance. Couvre les coupures
-   invisibles (arrière-plan, appel entrant, écran éteint). */
+/* Surveillance : relance le micro s'il est mort, et signale
+   franchement quand rien n'est capté depuis longtemps. */
 setInterval(() => {
   if(!isRecording) return;
-  if(sessionActive){
-    if($('etatMicro').textContent !== '🔴 en écoute'){
-      $('etatMicro').textContent = '🔴 en écoute';
-      $('etatMicro').style.color = 'var(--orange)';
-    }
-  } else {
-    $('etatMicro').textContent = '⏸️ micro coupé — reprise…';
-    $('etatMicro').style.color = '#FFC9BB';
+  const etat = $('etatMicro');
+
+  if(!sessionActive){
+    etat.textContent = '⏸️ micro coupé — reprise…';
+    etat.style.color = '#FFC9BB';
     relancerMicro();
+    return;
+  }
+
+  const silence = Math.round((Date.now() - dernierMot) / 1000);
+  if(silence >= 30){
+    etat.textContent = '⚠️ aucun son capté depuis ' + silence + ' s';
+    etat.style.color = '#FFC9BB';
+  } else {
+    etat.textContent = '🔴 en écoute';
+    etat.style.color = 'var(--orange)';
   }
 }, 2500);
 
@@ -1387,7 +1384,10 @@ if(!SR){
      ce qui provoquait la duplication du texte. */
   recognition.interimResults = false;
 
-  recognition.onstart = () => { sessionActive = true; };
+  recognition.onstart = () => {
+    sessionActive = true;
+    if(!dernierMot) dernierMot = Date.now();
+  };
 
   recognition.onresult = event => {
     /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu d'ajouter
@@ -1398,6 +1398,7 @@ if(!SR){
     }
     const sessionText = fusionner(chunks);
     finalTranscript = fusionner([committedTranscript, sessionText]);
+    if(sessionText) dernierMot = Date.now();
 
     const box = $('transcriptBox');
     box.textContent = finalTranscript;
@@ -1459,18 +1460,12 @@ $('recBtn').addEventListener('click', async () => {
   }
 
   const btn = $('recBtn');
-  btn.disabled = true;
-  $('status').textContent = 'Vérification du micro…';
-
-  /* 1. Autorisation micro — message précis si ça coince */
-  const probleme = await verifierMicro();
+  const probleme = verifierContexte();
   if(probleme){
     $('status').textContent = probleme;
-    btn.disabled = false;
     return;
   }
 
-  /* 2. Démarrage de la reconnaissance */
   if(!finalTranscript){
     $('transcriptBox').textContent = '';
     $('transcriptBox').style.display = 'block';
@@ -1478,22 +1473,21 @@ $('recBtn').addEventListener('click', async () => {
   }
 
   const res = demarrerReconnaissance();
-  btn.disabled = false;
-
   if(!res.ok){
     $('status').textContent = 'Le micro n\'a pas démarré : ' + res.message;
     return;
   }
 
   isRecording = true;
+  dernierMot = Date.now();
   btn.classList.remove('idle');
   btn.classList.add('recording');
   btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
   $('finishBtn').style.display = 'block';
   ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = true);
 
-  /* 3. Maintien de l'écran — hors du chemin critique :
-        un échec ici ne doit pas passer pour une panne de micro. */
+  /* Maintien de l'écran — hors du chemin critique :
+     un échec ici ne doit pas passer pour une panne de micro. */
   const ecranTenu = await garderEcranAllume();
   $('status').textContent = ecranTenu
     ? 'Écran maintenu allumé. Laisse cette page affichée.'
@@ -1717,6 +1711,7 @@ $('newLessonBtn').addEventListener('click', () => {
   finalTranscript = '';
   committedTranscript = '';
   interruptions = 0;
+  dernierMot = 0;
   libererEcran();
   $('etatMicro').textContent = '';
   $('pauseWarn').style.display = 'none';
