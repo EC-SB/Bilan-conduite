@@ -203,6 +203,7 @@
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
       <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
       <div class="compteur" id="compteur"></div>
+      <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
     </div>
 
@@ -1208,6 +1209,48 @@ let currentLessonMeta = null;
 /* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
 let committedTranscript = '';
 
+/* Maintien de l'écran allumé : Chrome coupe le micro dès que
+   l'écran s'éteint ou que la page passe en arrière-plan. */
+let wakeLock = null;
+let interruptions = 0;
+
+async function garderEcranAllume(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+      return true;
+    }
+  }catch(e){
+    console.warn('Maintien de l\'écran refusé :', e);
+  }
+  return false;
+}
+
+function libererEcran(){
+  if(wakeLock){
+    try{ wakeLock.release(); }catch(e){}
+    wakeLock = null;
+  }
+}
+
+/* Prévient le moniteur si l'enregistrement a été coupé */
+document.addEventListener('visibilitychange', () => {
+  if(!isRecording) return;
+  if(document.hidden){
+    interruptions++;
+  } else {
+    garderEcranAllume();
+    if(interruptions > 0){
+      const w = $('pauseWarn');
+      w.style.display = 'block';
+      w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
+        (interruptions > 1 ? ' fois' : ' fois') +
+        ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
+    }
+  }
+});
+
 /* Fusionne les versions successives d'une même phrase.
    Chrome sur Android empile les résultats provisoires
    ("oui" / "oui ta" / "oui ta priorité"...) au lieu de les remplacer :
@@ -1310,7 +1353,7 @@ function arreterUI(){
   b.textContent = "🎙️ Reprendre l'enregistrement";
 }
 
-$('recBtn').addEventListener('click', () => {
+$('recBtn').addEventListener('click', async () => {
   if(!isRecording){
     if(!finalTranscript){
       $('transcriptBox').textContent = '';
@@ -1324,14 +1367,19 @@ $('recBtn').addEventListener('click', () => {
       b.classList.remove('idle');
       b.classList.add('recording');
       b.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
-      $('status').textContent = 'Le micro écoute. Tu peux conduire normalement.';
       $('finishBtn').style.display = 'block';
       ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = true);
+
+      const ecranTenu = await garderEcranAllume();
+      $('status').textContent = ecranTenu
+        ? '🔴 Le micro écoute — écran maintenu allumé. Laisse cette page affichée.'
+        : '🔴 Le micro écoute. ⚠️ Laisse cette page affichée et empêche l\'écran de s\'éteindre.';
     }catch(e){
       $('status').textContent = "Impossible de démarrer le micro.";
     }
   } else {
     recognition.stop();
+    libererEcran();
     arreterUI();
     $('status').textContent = 'En pause. Appuie sur "Terminer" pour générer le bilan.';
   }
@@ -1340,6 +1388,7 @@ $('recBtn').addEventListener('click', () => {
 /* ---------- Génération ---------- */
 $('finishBtn').addEventListener('click', async () => {
   if(isRecording){ isRecording = false; recognition.stop(); }
+  libererEcran();
 
   const modeleCle = $('modele').value;
   const modele = MODELES[modeleCle];
@@ -1552,6 +1601,9 @@ $('searchName').addEventListener('keydown', e => { if(e.key === 'Enter') recherc
 $('newLessonBtn').addEventListener('click', () => {
   finalTranscript = '';
   committedTranscript = '';
+  interruptions = 0;
+  libererEcran();
+  $('pauseWarn').style.display = 'none';
   $('transcriptBox').textContent = '';
   $('transcriptBox').style.display = 'none';
   $('compteur').style.display = 'none';
