@@ -202,6 +202,7 @@
 
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
       <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
+      <div class="compteur" id="etatMicro" style="display:block;font-weight:700;"></div>
       <div class="compteur" id="compteur"></div>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
@@ -1214,6 +1215,37 @@ let committedTranscript = '';
 let wakeLock = null;
 let interruptions = 0;
 
+/* Vrai uniquement quand une session de reconnaissance tourne réellement.
+   Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
+let sessionActive = false;
+
+function relancerMicro(){
+  if(!isRecording || sessionActive || !recognition) return;
+  try{
+    recognition.start();
+  }catch(e){
+    /* Souvent "already started" ou refus car page cachée :
+       la surveillance réessaiera dans quelques secondes. */
+  }
+}
+
+/* Surveillance : si l'enregistrement est censé tourner mais que la
+   reconnaissance est morte, on la relance. Couvre les coupures
+   invisibles (arrière-plan, appel entrant, écran éteint). */
+setInterval(() => {
+  if(!isRecording) return;
+  if(sessionActive){
+    if($('etatMicro').textContent !== '🔴 en écoute'){
+      $('etatMicro').textContent = '🔴 en écoute';
+      $('etatMicro').style.color = 'var(--orange)';
+    }
+  } else {
+    $('etatMicro').textContent = '⏸️ micro coupé — reprise…';
+    $('etatMicro').style.color = '#FFC9BB';
+    relancerMicro();
+  }
+}, 2500);
+
 async function garderEcranAllume(){
   try{
     if('wakeLock' in navigator){
@@ -1241,6 +1273,7 @@ document.addEventListener('visibilitychange', () => {
     interruptions++;
   } else {
     garderEcranAllume();
+    relancerMicro();
     if(interruptions > 0){
       const w = $('pauseWarn');
       w.style.display = 'block';
@@ -1313,6 +1346,8 @@ if(!SR){
      ce qui provoquait la duplication du texte. */
   recognition.interimResults = false;
 
+  recognition.onstart = () => { sessionActive = true; };
+
   recognition.onresult = event => {
     /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu d'ajouter
        à la suite : impossible d'accumuler des doublons de cette façon. */
@@ -1330,6 +1365,7 @@ if(!SR){
   };
 
   recognition.onerror = event => {
+    sessionActive = false;
     if(event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') return;
     if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
       $('status').textContent = "Micro refusé — autorise l'accès au micro pour ce site.";
@@ -1340,13 +1376,16 @@ if(!SR){
   recognition.onend = () => {
     /* Le micro se coupe régulièrement de lui-même : on fige le texte acquis
        avant de relancer, sinon la session suivante repart de zéro. */
+    sessionActive = false;
     committedTranscript = finalTranscript;
-    if(isRecording){ try{ recognition.start(); }catch(e){} }
+    relancerMicro();
   };
 }
 
 function arreterUI(){
   isRecording = false;
+  sessionActive = false;
+  $('etatMicro').textContent = '';
   const b = $('recBtn');
   b.classList.remove('recording');
   b.classList.add('idle');
@@ -1603,6 +1642,7 @@ $('newLessonBtn').addEventListener('click', () => {
   committedTranscript = '';
   interruptions = 0;
   libererEcran();
+  $('etatMicro').textContent = '';
   $('pauseWarn').style.display = 'none';
   $('transcriptBox').textContent = '';
   $('transcriptBox').style.display = 'none';
