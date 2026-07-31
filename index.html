@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v16</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v17</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -298,8 +298,17 @@
 
   <div id="resultView" style="display:none;">
     <div class="card">
-      <div id="noteBanner" style="display:none;background:var(--warn-bg);border:1px solid var(--red);
-           border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:15px;line-height:1.5;"></div>
+      <div style="background:var(--warn-bg);border:1px solid var(--red);
+           border-radius:12px;padding:14px;margin-bottom:16px;">
+        <label for="noteResult" style="margin-bottom:8px;">📌 Note interne — moniteurs uniquement</label>
+        <input type="text" id="noteResult" maxlength="140"
+               placeholder="Ex : ne pas mettre sur 4 voies, revoir les giratoires"
+               style="margin-bottom:6px;">
+        <div style="font-size:12px;color:var(--muted);line-height:1.4;">
+          Jamais transmise à l'élève. Visible par le moniteur suivant lors d'une recherche.
+          Enregistrée avec le bilan quand tu appuies sur « Exporter vers Sheets ».
+        </div>
+      </div>
       <label>Bilan généré — relis et complète avant envoi</label>
       <div class="hint">Les cases laissées en ✅❌ / ❓ sont à compléter par toi : notes chiffrées, nombre d'heures, choix de branche.</div>
       <textarea class="result" id="resultText"></textarea>
@@ -1934,7 +1943,7 @@ $('confirmGen').addEventListener('click', async () => {
     let bilan = modele.build(donnees, { manoeuvresAvant: manoeuvresAvant });
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
-    afficherNote(currentLessonMeta.noteInterne);
+    afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
     await saveLesson(currentLessonMeta, bilan);
@@ -2034,13 +2043,8 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
 }
 
 function afficherNote(note){
-  const b = $('noteBanner');
-  if(!b) return;
-  const n = (note || '').trim();
-  if(!n){ b.style.display = 'none'; b.textContent = ''; return; }
-  b.style.display = 'block';
-  b.innerHTML = '📌 <b>Note interne</b> — non transmise à l\'élève<br>' +
-    n.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const champ = $('noteResult');
+  if(champ) champ.value = (note || '').trim();
 }
 
 /* ---------- Actions ---------- */
@@ -2069,13 +2073,14 @@ $('exportSheetsBtn').addEventListener('click', async () => {
           monitorName: currentLessonMeta ? currentLessonMeta.monitorName : '',
           studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
           typeBilan: currentLessonMeta ? currentLessonMeta.modeleLabel : '',
-          noteInterne: currentLessonMeta ? (currentLessonMeta.noteInterne || '') : '',
+          noteInterne: $('noteResult').value.trim(),
           bilan: $('resultText').value
         }
       })
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
-    showToast('Exporté vers Sheets ✅');
+    const avecNote = $('noteResult').value.trim();
+    showToast(avecNote ? 'Exporté avec la note 📌 ✅' : 'Exporté vers Sheets ✅');
   }catch(e){
     console.error('Erreur export Sheets:', e);
     showToast("Erreur lors de l'export : " + e.message);
