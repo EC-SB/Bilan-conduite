@@ -222,7 +222,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v14</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v15</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1832,7 +1832,6 @@ $('recBtn').addEventListener('click', async () => {
   btn.classList.add('recording');
   btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
   $('finishBtn').style.display = 'block';
-  ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = true);
 
   /* Maintien de l'écran — hors du chemin critique :
      un échec ici ne doit pas passer pour une panne de micro. */
@@ -2145,7 +2144,7 @@ $('newLessonBtn').addEventListener('click', () => {
   $('transcriptAide').style.display = 'none';
   $('compteur').style.display = 'none';
   $('studentName').value = '';
-  ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = false);
+  ['modele','monitorName','studentName','site','lessonDate'].forEach(id => { $(id).disabled = false; });
   $('lessonDate').value = todayLocal();
   $('recBtn').textContent = '🎙️ Démarrer le cours';
   $('status').textContent = "Appuie pour lancer l'enregistrement en début de cours.";
