@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v18</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v19</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1923,8 +1923,11 @@ $('confirmGen').addEventListener('click', async () => {
     return;
   }
 
+  const p2 = n => String(n).padStart(2, '0');
+  const dateCourte = p2(dateObj.getDate()) + '/' + p2(dateObj.getMonth() + 1) + '/' + dateObj.getFullYear();
+
   currentLessonMeta = {
-    modeleLabel: modele.label, studentName, monitorName, site, dateStr,
+    modeleLabel: modele.label, studentName, monitorName, site, dateStr, dateCourte,
     noteInterne: $('noteInterne').value.trim(),
     ts: Date.now()
   };
@@ -2080,7 +2083,7 @@ $('exportSheetsBtn').addEventListener('click', async () => {
         action: 'append',
         code: ACCES.code,
         data: {
-          date: currentLessonMeta ? currentLessonMeta.dateStr : '',
+          date: currentLessonMeta ? (currentLessonMeta.dateCourte || currentLessonMeta.dateStr) : '',
           site: currentLessonMeta ? currentLessonMeta.site : '',
           monitorName: currentLessonMeta ? currentLessonMeta.monitorName : '',
           studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
@@ -2172,10 +2175,17 @@ async function rechercherEleve(){
         t.textContent = item.type || 'Bilan';
       }
       const s = document.createElement('span');
-      s.textContent = [item.horodatage || item.date, item.site, item.moniteur, note ? item.type : '']
+      s.textContent = 'Cours du ' + (item.date || '?') +
+                      [' ', item.site, item.moniteur, note ? item.type : '']
                         .filter(Boolean).join(' · ');
+
+      const h = document.createElement('span');
+      h.style.opacity = '.75';
+      h.textContent = item.horodatage ? 'Bilan généré le ' + item.horodatage : '';
+
       meta.appendChild(t);
       meta.appendChild(s);
+      if(item.horodatage) meta.appendChild(h);
       const arrow = document.createElement('div');
       arrow.className = 'arrow';
       arrow.textContent = '›';
