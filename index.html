@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v21</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v22</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1267,6 +1267,8 @@ const SCHEMAS = {
   '  "groupesTravail": "✅" ou "❌" ou "",\n' +
   '  "ecoutes": "✅" ou "❌" ou ""\n}\n\n' +
   '"texteDicte" : reprends TOUT ce que le moniteur a dit pendant le cours, dans l\'ordre. ' +
+  'PONCTUE ENTIÈREMENT le texte : points, virgules, majuscules, points d\'interrogation. ' +
+  'Découpe en paragraphes quand le sujet change. ' +
   'Tu corriges uniquement les fautes de transcription, la ponctuation et les répétitions parasites. ' +
   'Tu ne résumes pas, tu ne coupes pas, tu ne reformules pas les idées : c\'est le cours tel qu\'il a été dicté, en propre.\n\n' +
   '"resume" : c\'est le cœur du bilan. Regroupe les erreurs par thème (trajectoire, giratoires, priorités, contrôles, allure, manœuvres, manipulation des commandes...) ' +
@@ -1594,8 +1596,12 @@ function fusionner(chunks){
     if(!c) return;
     const last = out.length ? out[out.length - 1] : null;
     if(last){
-      if(c.startsWith(last)){ out[out.length - 1] = c; return; }
-      if(last.startsWith(c)) return;
+      /* Comparaison sans la ponctuation finale, sinon un point
+         empêcherait de reconnaître une version étendue. */
+      const lastNu = sansPonctuationFinale(last);
+      const cNu = sansPonctuationFinale(c);
+      if(cNu.startsWith(lastNu)){ out[out.length - 1] = c; return; }
+      if(lastNu.startsWith(cNu)) return;
     }
     out.push(c);
   });
@@ -1713,6 +1719,47 @@ function corrigerVocabulaire(texte){
   return t;
 }
 
+
+/* ============================================================
+   PONCTUATION AUTOMATIQUE
+   Chrome ne ponctue pas le français : on pose les points sur les
+   pauses réelles du moniteur, plus les virgules évidentes.
+   ============================================================ */
+function sansPonctuationFinale(s){
+  return String(s || '').replace(/[.!?…,;:]+$/, '').trim();
+}
+
+/* Clôt une phrase : appelé quand une pause met fin à une session */
+function terminerPhrase(texte){
+  const t = String(texte || '').trim();
+  if(!t) return '';
+  if(/[.!?…]$/.test(t)) return t;
+  return t.replace(/[,;:]$/, '') + '.';
+}
+
+/* Connecteurs qui prennent presque toujours une virgule devant eux */
+const CONNECTEURS = ['mais','donc','car','parce que','alors que','tandis que','sauf que','pourtant','cependant'];
+
+function poserVirgules(texte){
+  let t = String(texte || '');
+  CONNECTEURS.forEach(mot => {
+    const re = new RegExp('([a-zà-ÿ0-9])\\s+(' + mot + ')\\b', 'gi');
+    t = t.replace(re, '$1, $2');
+  });
+  return t;
+}
+
+function majusculer(texte){
+  return String(texte || '').replace(
+    /(^|[.!?…]\s+)([a-zà-ÿ])/g,
+    (m, avant, lettre) => avant + lettre.toUpperCase()
+  );
+}
+
+function mettreEnForme(texte){
+  return majusculer(poserVirgules(String(texte || '').replace(/\s+/g, ' ').trim()));
+}
+
 /* Fabrique un objet de reconnaissance NEUF, entièrement câblé.
    Sur Android, une session peut se figer sans rien émettre : le seul
    remède fiable est de jeter l'objet et d'en construire un autre. */
@@ -1745,7 +1792,7 @@ function creerReconnaissance(){
       chunks.push(meilleureProposition(event.results[i]));
     }
     const sessionText = corrigerVocabulaire(fusionner(chunks));
-    finalTranscript = fusionner([committedTranscript, sessionText]);
+    finalTranscript = mettreEnForme(fusionner([committedTranscript, sessionText]));
     if(sessionText) dernierMot = Date.now();
     marquerActif('résultat reçu');
 
@@ -1785,7 +1832,11 @@ function creerReconnaissance(){
     sessionActive = false;
     demarrageEnCours = false;
     dernierEvenement = 'session terminée';
-    committedTranscript = finalTranscript;
+    /* Une pause = une fin de phrase */
+    committedTranscript = terminerPhrase(finalTranscript);
+    finalTranscript = committedTranscript;
+    const zone = $('transcriptBox');
+    if(zone) zone.value = finalTranscript;
     relancerMicro();
   };
 
