@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v20</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v21</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -247,6 +247,16 @@
   </div>
 
   <div id="appView" style="display:none;">
+
+  <div id="repriseBanner" class="card" style="display:none;border-color:var(--orange);">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">💾 Cours interrompu retrouvé</div>
+    <div id="repriseInfo" style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="repriseOui">Reprendre</button>
+      <button class="btn btn-secondary" id="repriseNon">Ignorer</button>
+    </div>
+  </div>
+
   <div id="recordView">
     <div class="card">
       <label for="modele">Type de bilan</label>
@@ -283,7 +293,8 @@
       <textarea class="transcript-box" id="transcriptBox" style="display:none;"
                 placeholder="Le texte capté apparaîtra ici. Tu peux le corriger avant de générer le bilan."></textarea>
       <div id="transcriptAide" style="display:none;font-size:13px;color:var(--muted);margin-top:6px;text-align:center;">
-        ✏️ Mets en pause pour corriger le texte à la main avant de générer.
+        ✏️ Mets en pause pour corriger le texte à la main avant de générer.<br>
+        💾 Sauvegarde automatique dans ce téléphone : en cas de plantage, tout est récupérable.
       </div>
     </div>
 
@@ -1497,6 +1508,7 @@ function relancerMicro(){
    franchement quand rien n'est capté depuis longtemps. */
 setInterval(() => {
   if(!isRecording) return;
+  sauvegarderLocal();
   const etat = $('etatMicro');
   const diag = $('diagMicro');
 
@@ -1741,6 +1753,7 @@ function creerReconnaissance(){
     box.value = finalTranscript;
     box.scrollTop = box.scrollHeight;
     $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length + ' mots';
+    sauvegarderLocal();
   };
 
   r.onerror = event => {
@@ -1948,6 +1961,7 @@ $('confirmGen').addEventListener('click', async () => {
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
+    sauvegarderLocal(true);
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
     await saveLesson(currentLessonMeta, bilan);
@@ -2230,6 +2244,7 @@ $('newLessonBtn').addEventListener('click', () => {
   $('transcriptBox').style.display = 'none';
   $('transcriptAide').style.display = 'none';
   $('compteur').style.display = 'none';
+  effacerSauvegarde();
   $('studentName').value = '';
   $('noteInterne').value = '';
   afficherNote('');
@@ -2449,6 +2464,7 @@ async function deverrouiller(){
       $('adminCard').style.display = 'block';
       chargerUtilisateurs();
     }
+    proposerReprise();
     showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
   }catch(e){
     msg.style.color = 'var(--warn-text)';
@@ -2461,6 +2477,103 @@ async function deverrouiller(){
 
 $('codeBtn').addEventListener('click', deverrouiller);
 $('codeInput').addEventListener('keydown', e => { if(e.key === 'Enter') deverrouiller(); });
+
+
+/* ============================================================
+   SAUVEGARDE LOCALE — récupération après plantage
+   Tout est conservé dans le téléphone, rien n'est envoyé.
+   ============================================================ */
+const CLE_SAUVEGARDE = 'bilan_en_cours';
+let derniereSauvegarde = 0;
+
+function sauvegarderLocal(force){
+  const maintenant = Date.now();
+  if(!force && maintenant - derniereSauvegarde < 4000) return;   /* au plus toutes les 4 s */
+  derniereSauvegarde = maintenant;
+  try{
+    const champ = $('transcriptBox');
+    const texte = (champ && champ.value) ? champ.value : finalTranscript;
+    const resultat = $('resultText');
+    localStorage.setItem(CLE_SAUVEGARDE, JSON.stringify({
+      ts: maintenant,
+      modele: $('modele').value,
+      moniteur: $('monitorName').value,
+      eleve: $('studentName').value,
+      site: $('site').value,
+      date: $('lessonDate').value,
+      note: $('noteInterne').value,
+      transcript: texte || '',
+      bilan: resultat ? resultat.value : '',
+      noteResult: $('noteResult') ? $('noteResult').value : ''
+    }));
+  }catch(e){
+    /* stockage plein ou indisponible : on continue sans sauvegarde */
+  }
+}
+
+function lireSauvegarde(){
+  try{
+    const brut = localStorage.getItem(CLE_SAUVEGARDE);
+    return brut ? JSON.parse(brut) : null;
+  }catch(e){ return null; }
+}
+
+function effacerSauvegarde(){
+  try{ localStorage.removeItem(CLE_SAUVEGARDE); }catch(e){}
+  derniereSauvegarde = 0;
+}
+
+/* Propose de reprendre un cours interrompu */
+function proposerReprise(){
+  const s = lireSauvegarde();
+  const banniere = $('repriseBanner');
+  if(!banniere) return;
+  if(!s || (!s.transcript && !s.bilan)){ banniere.style.display = 'none'; return; }
+
+  const mots = String(s.transcript || '').trim().split(/\s+/).filter(Boolean).length;
+  const quand = new Date(s.ts || Date.now());
+  const p2 = n => String(n).padStart(2, '0');
+  const quandTexte = p2(quand.getDate()) + '/' + p2(quand.getMonth() + 1) +
+                     ' à ' + p2(quand.getHours()) + ':' + p2(quand.getMinutes());
+
+  $('repriseInfo').textContent =
+    (s.eleve ? s.eleve + ' — ' : '') + mots + ' mots' +
+    (s.bilan ? ' + bilan généré' : '') + ' · interrompu le ' + quandTexte;
+  banniere.style.display = 'block';
+}
+
+function reprendreCours(){
+  const s = lireSauvegarde();
+  if(!s) return;
+  if(s.modele) $('modele').value = s.modele;
+  $('monitorName').value = s.moniteur || $('monitorName').value;
+  $('studentName').value = s.eleve || '';
+  if(s.site) $('site').value = s.site;
+  if(s.date) $('lessonDate').value = s.date;
+  $('noteInterne').value = s.note || '';
+
+  finalTranscript = s.transcript || '';
+  committedTranscript = finalTranscript;
+  if(finalTranscript){
+    $('transcriptBox').value = finalTranscript;
+    $('transcriptBox').style.display = 'block';
+    $('transcriptAide').style.display = 'block';
+    $('compteur').style.display = 'block';
+    $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length + ' mots';
+    $('finishBtn').style.display = 'block';
+    $('recBtn').textContent = "🎙️ Reprendre l'enregistrement";
+  }
+
+  if(s.bilan){
+    $('resultText').value = s.bilan;
+    afficherNote(s.noteResult || s.note || '');
+    $('recordView').style.display = 'none';
+    $('resultView').style.display = 'block';
+  }
+
+  $('repriseBanner').style.display = 'none';
+  showToast('Cours récupéré ✅');
+}
 
 /* ---------- Thème clair / sombre ---------- */
 function appliquerTheme(clair){
@@ -2481,6 +2594,21 @@ function appliquerTheme(clair){
   }
   appliquerTheme(clair);
 })();
+
+$('repriseOui').addEventListener('click', reprendreCours);
+$('repriseNon').addEventListener('click', () => {
+  if(confirm('Supprimer définitivement ce cours interrompu ?')){
+    effacerSauvegarde();
+    $('repriseBanner').style.display = 'none';
+  }
+});
+
+/* Sauvegarde aussi les corrections manuelles et les champs du formulaire */
+['transcriptBox','studentName','monitorName','noteInterne','resultText','noteResult']
+  .forEach(id => {
+    const el = $(id);
+    if(el) el.addEventListener('input', () => sauvegarderLocal());
+  });
 
 $('themeBtn').addEventListener('click', () => {
   appliquerTheme(!document.body.classList.contains('clair'));
