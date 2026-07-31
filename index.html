@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v17</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v18</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1388,6 +1388,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
+CONFIG.VERSION_SCRIPT_ATTENDUE = 3;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -1974,6 +1975,10 @@ async function manoeuvresAnterieures(nomEleve){
     });
     if(!r.ok) return [];
     const data = await r.json();
+    if(!verifierVersionScript(data)){
+      zone.innerHTML = '<div class="empty">Script Google à mettre à jour (voir le message).</div>';
+      return;
+    }
     const res = (data && data.resultats) || [];
     const cumul = [];
     res.forEach(item => {
@@ -2042,6 +2047,13 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
   }
 }
 
+function horodatageLisible(ts){
+  const d = ts ? new Date(ts) : new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+         ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
 function afficherNote(note){
   const champ = $('noteResult');
   if(champ) champ.value = (note || '').trim();
@@ -2074,11 +2086,14 @@ $('exportSheetsBtn').addEventListener('click', async () => {
           studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
           typeBilan: currentLessonMeta ? currentLessonMeta.modeleLabel : '',
           noteInterne: $('noteResult').value.trim(),
+          horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
           bilan: $('resultText').value
         }
       })
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
+    const rep = await r.json().catch(() => ({}));
+    if(!verifierVersionScript(rep)) return;
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Exporté avec la note 📌 ✅' : 'Exporté vers Sheets ✅');
   }catch(e){
@@ -2089,6 +2104,21 @@ $('exportSheetsBtn').addEventListener('click', async () => {
     btn.textContent = '📊 Exporter vers Sheets';
   }
 });
+
+/* Vérifie que le script Google déployé est bien à jour */
+function verifierVersionScript(reponse){
+  const v = reponse && reponse.versionScript ? Number(reponse.versionScript) : 0;
+  if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
+  alert(
+    "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v3') + '\n' +
+    'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
+    "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
+    'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
+    'puis Déployer > Gérer les déploiements > crayon ✏️ > Nouvelle version > Déployer.'
+  );
+  return false;
+}
 
 /* ---------- Recherche des anciens bilans d'un élève ---------- */
 async function rechercherEleve(){
@@ -2114,6 +2144,10 @@ async function rechercherEleve(){
     }
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
+    if(!verifierVersionScript(data)){
+      zone.innerHTML = '<div class="empty">Script Google à mettre à jour (voir le message).</div>';
+      return;
+    }
     const res = (data && data.resultats) || [];
     if(!res.length){
       zone.innerHTML = '<div class="empty">Aucun bilan trouvé pour cet élève.<br>Vérifie que le nom et le prénom sont écrits comme lors des cours précédents.</div>';
@@ -2138,7 +2172,7 @@ async function rechercherEleve(){
         t.textContent = item.type || 'Bilan';
       }
       const s = document.createElement('span');
-      s.textContent = [item.date, item.site, item.moniteur, note ? item.type : '']
+      s.textContent = [item.horodatage || item.date, item.site, item.moniteur, note ? item.type : '']
                         .filter(Boolean).join(' · ');
       meta.appendChild(t);
       meta.appendChild(s);
