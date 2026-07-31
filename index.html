@@ -111,6 +111,10 @@
   .compteur{text-align:center;font-size:15px;font-weight:700;color:var(--orange);margin-top:8px;display:none;}
 
   .transcript-box{
+    width:100%;
+    display:block;
+    resize:vertical;
+    font-family:inherit;
     margin-top:14px;
     min-height:200px;max-height:340px;overflow-y:auto;
     background: var(--navy);
@@ -218,7 +222,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v12</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v14</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -268,7 +272,11 @@
       <div id="diagMicro" style="text-align:center;font-size:21px;font-weight:700;color:var(--muted);margin-top:8px;line-height:1.35;"></div>
       <div class="compteur" id="compteur"></div>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
-      <div class="transcript-box" id="transcriptBox" style="display:none;"></div>
+      <textarea class="transcript-box" id="transcriptBox" style="display:none;"
+                placeholder="Le texte capté apparaîtra ici. Tu peux le corriger avant de générer le bilan."></textarea>
+      <div id="transcriptAide" style="display:none;font-size:13px;color:var(--muted);margin-top:6px;text-align:center;">
+        ✏️ Mets en pause pour corriger le texte à la main avant de générer.
+      </div>
     </div>
 
     <button class="btn btn-primary" id="finishBtn"
@@ -394,6 +402,29 @@ const BLOC = {
     'Utilisation Radio', 'Utilisation téléphone', 'Faire peur',
     'Parking avec ticket', 'GPS', 'Régulateur',
     'va où tu veux fais ce que tu veux', 'Ouverture du capot'
+  ],
+
+  /* Libellés développés — modèle Conduite */
+  ficheListeConduite: [
+    'MALD Marche arrière en ligne droite',
+    '1/2 tour',
+    'MAR (marche arrière en angle de rue)',
+    'Arrêt de précision',
+    'CD Créneau droit',
+    'CG Créneau gauche',
+    'BD Bataille droit',
+    'BG Bataille Gauche',
+    'BAD bataille avant droit',
+    'BAG bataille avant gauche',
+    'Epi',
+    'Utilisation Radio',
+    'Utilisation téléphone',
+    'Faire peur',
+    'Parking avec ticket',
+    'GPS',
+    'Régulateur',
+    'va où tu veux fais ce que tu veux',
+    'Ouverture du capot'
   ],
 
   ficheListeAacAuto: [
@@ -976,36 +1007,100 @@ function buildRvp(ai){
   return parts.join('\n');
 }
 
+
+/* ============================================================
+   MODÈLE CONDUITE (remplace boîte manuelle et boîte automatique)
+   Structure : texte dicté intégral + résumé, sans les 9 rubriques.
+   ============================================================ */
+const MARQUE_FAITE = '✅';
+
+/* Fiche véhicule : coche les manœuvres faites, en reprenant
+   celles déjà validées lors des cours précédents. */
+function blocFicheConduite(faitesAujourdhui, faitesAvant){
+  const vues = {};
+  (faitesAvant || []).forEach(n => { vues[normaliserMot(n)] = true; });
+  (faitesAujourdhui || []).forEach(n => { vues[normaliserMot(n)] = true; });
+
+  const lignes = ['🦉𝔽𝕀ℂℍ𝔼 𝕍𝔼ℍ𝕀ℂ𝕌𝕃𝔼 : '];
+  BLOC.ficheListeConduite.forEach(libelle => {
+    const cle = normaliserMot(libelle);
+    let faite = !!vues[cle];
+    if(!faite){
+      /* Tolérance : "CD" doit reconnaître "CD Créneau droit" */
+      for(const v in vues){
+        if(v && (cle.indexOf(v) === 0 || v.indexOf(cle) === 0)){ faite = true; break; }
+      }
+    }
+    lignes.push(libelle + (faite ? ' ' + MARQUE_FAITE : ''));
+  });
+  return lignes.join('\n');
+}
+
+/* Retrouve les manœuvres déjà cochées dans un bilan précédent */
+function manoeuvresDejaFaites(texteBilanPrecedent){
+  const trouvees = [];
+  if(!texteBilanPrecedent) return trouvees;
+  const lignes = String(texteBilanPrecedent).split('\n');
+  lignes.forEach(l => {
+    const ligne = l.trim();
+    if(!ligne || ligne.indexOf(MARQUE_FAITE) === -1) return;
+    const sansMarque = ligne.split(MARQUE_FAITE)[0].trim();
+    if(!sansMarque) return;
+    BLOC.ficheListeConduite.forEach(libelle => {
+      if(normaliserMot(libelle) === normaliserMot(sansMarque)) trouvees.push(libelle);
+    });
+  });
+  return trouvees;
+}
+
+function buildConduite(ai, faitesAvant){
+  ai = ai || {};
+  const parts = [];
+
+  parts.push('👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝔸 ℂ𝕆ℕ𝔻𝕌𝕀𝕋𝔼 👀');
+  parts.push('Rappel : dsl pour les fautes, écriture orale automatique 😅');
+  parts.push('');
+  parts.push('𝘾𝙖𝙧𝙩𝙚 𝙎𝘿  ' + (ai.carteSD === '❌' ? '❌' : '✅'));
+  parts.push("N'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes cours sont filmés, par une caméra avant et une arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours). ");
+  parts.push('');
+  parts.push('𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣  ' + (ai.installation === '❌' ? '❌' : '✅') + ' https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
+  parts.push('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + (ai.passager === '❌' ? '❌' : '✅'));
+  parts.push('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ai.voyants === '❌' ? '❌' : '✅'));
+  parts.push('/2 points jour du permis ');
+  parts.push('');
+  parts.push('𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 https://www.facebook.com/groups/864826058258637 ');
+  parts.push('/3 points jour du permis ');
+  parts.push('');
+  parts.push('🎙️ 𝕋𝕆ℕ ℂ𝕆𝕌ℝ𝕊 :');
+  parts.push(txt(ai.texteDicte));
+  parts.push('');
+  parts.push('🧠 🚘👀🅴🆁🆁🅴🆄🆁🆂  🅲🅴  🅹🅾🆄🆁 : ');
+  parts.push(txt(ai.resume));
+  parts.push('');
+  parts.push(blocFicheConduite(ai.manoeuvres, faitesAvant));
+  parts.push('');
+  parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?' + st(ai.groupesTravail));
+  parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? " + st(ai.ecoutes) + ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
+  parts.push("💡Tu n'as pas possibilité de partir en Conduite supervisée ??");
+  parts.push(' https://www.facebook.com/groups/963972327360861/permalink/1122235844867841/');
+  parts.push('➡️  Rappel de ta FRISE DE FORMATION EN VOITURE : ');
+  parts.push('10 leçons de 2h + exam blanc + 2 leçons de 2h (4h) + 3h avant examen');
+
+  return parts.join('\n');
+}
+
 /* ============================================================
    DÉFINITION DES 13 MODÈLES
    ============================================================ */
 const MODELES = {
   /* --- Conduite --- */
   'conduite-manuelle': {
-    label: 'Conduite — Boîte manuelle', groupe: 'Conduite', schema: 'conduite',
-    opts: { verifs:true, fiche:true },
-    build: ai => [
-      BLOC.entete, '',
-      BLOC.carteSD(ai.carteSD), '',
-      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
-      BLOC.verifications, '',
-      blocRubriques(ai.rubriques),
-      blocFiche(ai.ficheVehicule, BLOC.ficheListe), '',
-      RAPPEL_GROUPES_1
-    ].join('\n')
+    label: 'Conduite — Boîte manuelle', groupe: 'Conduite', schema: 'conduiteResume',
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant)
   },
   'conduite-auto': {
-    label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduite',
-    opts: { verifs:true, fiche:true },
-    build: ai => [
-      BLOC.entete, '',
-      BLOC.carteSD(ai.carteSD), '',
-      BLOC.installPassVoyants(ai.installation, ai.passager, ai.voyants), '',
-      BLOC.verifications, '',
-      blocRubriques(ai.rubriques),
-      blocFiche(ai.ficheVehicule, BLOC.ficheListe), '',
-      RAPPEL_GROUPES_1
-    ].join('\n')
+    label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduiteResume',
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant)
   },
   'aac-manuelle': {
     label: 'AAC — Boîte manuelle', groupe: 'Conduite accompagnée', schema: 'conduite',
@@ -1130,6 +1225,30 @@ const RUB_DESC =
 '  "manoeuvres" : manœuvres travaillées (créneau, bataille, épi, demi-tour...)\n';
 
 const SCHEMAS = {
+
+  conduiteResume: () => REGLES_COMMUNES + '\nRenvoie exactement cette structure JSON :\n{\n' +
+  '  "carteSD": "✅" ou "❌",\n' +
+  '  "installation": "✅" ou "❌",\n' +
+  '  "passager": "✅" ou "❌",\n' +
+  '  "voyants": "✅" ou "❌",\n' +
+  '  "texteDicte": "la transcription entière, corrigée et remise en forme",\n' +
+  '  "resume": "le résumé des erreurs regroupées et de ce qui est à travailler",\n' +
+  '  "manoeuvres": ["libellé exact des manœuvres réellement pratiquées"],\n' +
+  '  "groupesTravail": "✅" ou "❌" ou "",\n' +
+  '  "ecoutes": "✅" ou "❌" ou ""\n}\n\n' +
+  '"texteDicte" : reprends TOUT ce que le moniteur a dit pendant le cours, dans l\'ordre. ' +
+  'Tu corriges uniquement les fautes de transcription, la ponctuation et les répétitions parasites. ' +
+  'Tu ne résumes pas, tu ne coupes pas, tu ne reformules pas les idées : c\'est le cours tel qu\'il a été dicté, en propre.\n\n' +
+  '"resume" : c\'est le cœur du bilan. Regroupe les erreurs par thème (trajectoire, giratoires, priorités, contrôles, allure, manœuvres, manipulation des commandes...) ' +
+  'plutôt que dans l\'ordre où elles sont apparues, puis termine par ce qui est à travailler pour la prochaine leçon. ' +
+  'Utilise des puces courtes, tutoie l\'élève, reste encourageant. N\'invente aucune erreur qui n\'a pas été signalée.\n\n' +
+  '"manoeuvres" : uniquement celles réellement pratiquées pendant CE cours. Reprends exactement l\'un de ces libellés : ' +
+  'MALD Marche arrière en ligne droite, 1/2 tour, MAR (marche arrière en angle de rue), Arrêt de précision, ' +
+  'CD Créneau droit, CG Créneau gauche, BD Bataille droit, BG Bataille Gauche, BAD bataille avant droit, ' +
+  'BAG bataille avant gauche, Epi, Utilisation Radio, Utilisation téléphone, Faire peur, Parking avec ticket, ' +
+  'GPS, Régulateur, va où tu veux fais ce que tu veux, Ouverture du capot. Tableau vide si aucune manœuvre.\n\n' +
+  '"groupesTravail" : "❌" si le moniteur signale que l\'élève ne travaille pas ses groupes, "✅" s\'il confirme qu\'il les travaille, "" si le sujet n\'est pas évoqué.\n' +
+  '"ecoutes" : "❌" si le moniteur signale un manque d\'écoutes pédagogiques, "✅" si c\'est en ordre, "" si non évoqué.\n',
 
   conduite: opts => {
     const o = opts || {};
@@ -1489,6 +1608,79 @@ if(!SR){
   $('recBtn').disabled = true;
 }
 
+
+/* ============================================================
+   AIDE À LA RECONNAISSANCE — vocabulaire auto-école
+   Chrome propose plusieurs transcriptions possibles ; on retient
+   celle qui contient le plus de termes du métier.
+   ============================================================ */
+const LEXIQUE = [
+  'giratoire','giratoires','créneau','créneaux','bataille','épi','manœuvre','manœuvres',
+  'embrayage','embrayer','débrayer','débraye','débrayes','embraye','point d\'attaque',
+  'angle mort','angles morts','rétroviseur','rétroviseurs','rétro','clignotant','clignotants',
+  'cédez le passage','priorité','priorité à droite','stop','feu rouge','carrefour','rond-point',
+  'trajectoire','allure','allures','contrôle','contrôles','vérification','vérifications',
+  'marche arrière','demi-tour','arrêt de précision','voie','voies','chaussée','trottoir',
+  'accélération','décélération','régulateur','frein','freiner','frein à main','accélérateur',
+  'seconde','première','troisième','quatrième','cinquième','vitesse','vitesses','rapport',
+  'volant','pédale','pédales','ceinture','installation','voyant','voyants','tableau de bord',
+  'intersection','dépassement','doubler','insertion','rabattre','serrer','déporte',
+  'piéton','piétons','cycliste','bande cyclable','examen','permis','boîte','automatique',
+  'manuelle','simulateur','tours minute','kilomètre','kilomètres','calé','caler','démarrage'
+];
+
+function normaliserMot(s){
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+const LEXIQUE_NORM = LEXIQUE.map(normaliserMot);
+
+function scoreMetier(texte){
+  const t = normaliserMot(texte);
+  let score = 0;
+  for(let i = 0; i < LEXIQUE_NORM.length; i++){
+    if(t.indexOf(LEXIQUE_NORM[i]) !== -1) score++;
+  }
+  return score;
+}
+
+/* Retient la proposition la plus « métier » parmi celles de Chrome */
+function meilleureProposition(resultat){
+  if(!resultat || !resultat.length) return '';
+  let meilleur = resultat[0].transcript;
+  let meilleurScore = scoreMetier(meilleur);
+  for(let i = 1; i < resultat.length; i++){
+    const t = resultat[i].transcript;
+    const s = scoreMetier(t);
+    if(s > meilleurScore){ meilleur = t; meilleurScore = s; }
+  }
+  return meilleur;
+}
+
+/* Corrections sûres : uniquement des confusions récurrentes et sans ambiguïté */
+const CORRECTIONS = [
+  [/\bgyratoire[s]?\b/gi, 'giratoire'],
+  [/\bgyrophare\b/gi, 'giratoire'],
+  [/\bcr[ée]do\b/gi, 'créneau'],
+  [/\bcr[ée]dneau\b/gi, 'créneau'],
+  [/\bcr[ée]neau?x?\b/gi, 'créneau'],
+  [/\bangle m[oô]r\b/gi, 'angle mort'],
+  [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
+  [/\bpriorit[ée] a droite\b/gi, 'priorité à droite'],
+  [/\bd[ée]brailles?\b/gi, 'débrayes'],
+  [/\bemb?railles?\b/gi, 'embrayes'],
+  [/\bmarche arri[eè]re?\b/gi, 'marche arrière'],
+  [/\bdemi tour\b/gi, 'demi-tour'],
+  [/\brond point\b/gi, 'rond-point'],
+  [/\bva v[ée]\b/gi, 'VA VD'],
+  [/\bp\.?a\.?d\.?\b/gi, 'PAD']
+];
+
+function corrigerVocabulaire(texte){
+  let t = String(texte || '');
+  CORRECTIONS.forEach(([motif, remplacement]) => { t = t.replace(motif, remplacement); });
+  return t;
+}
+
 /* Fabrique un objet de reconnaissance NEUF, entièrement câblé.
    Sur Android, une session peut se figer sans rien émettre : le seul
    remède fiable est de jeter l'objet et d'en construire un autre. */
@@ -1501,6 +1693,9 @@ function creerReconnaissance(){
   /* Provisoires désactivés : sur Android ils sont empilés et non
      remplacés, ce qui provoquait la duplication du texte. */
   r.interimResults = false;
+  /* Chrome propose plusieurs transcriptions : on les compare
+     au vocabulaire du métier au lieu de prendre la première. */
+  r.maxAlternatives = 4;
 
   r.onstart = () => {
     marquerActif('onstart');
@@ -1515,15 +1710,15 @@ function creerReconnaissance(){
        d'ajouter à la suite : impossible d'accumuler des doublons. */
     const chunks = [];
     for(let i = 0; i < event.results.length; i++){
-      chunks.push(event.results[i][0].transcript);
+      chunks.push(meilleureProposition(event.results[i]));
     }
-    const sessionText = fusionner(chunks);
+    const sessionText = corrigerVocabulaire(fusionner(chunks));
     finalTranscript = fusionner([committedTranscript, sessionText]);
     if(sessionText) dernierMot = Date.now();
     marquerActif('résultat reçu');
 
     const box = $('transcriptBox');
-    box.textContent = finalTranscript;
+    box.value = finalTranscript;
     box.scrollTop = box.scrollHeight;
     $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length + ' mots';
   };
@@ -1614,9 +1809,15 @@ $('recBtn').addEventListener('click', async () => {
   }
 
   if(!finalTranscript){
-    $('transcriptBox').textContent = '';
+    $('transcriptBox').value = '';
     $('transcriptBox').style.display = 'block';
+    $('transcriptAide').style.display = 'block';
     $('compteur').style.display = 'block';
+  }else{
+    /* Reprise après pause : on repart du texte affiché,
+       corrections manuelles comprises. */
+    finalTranscript = $('transcriptBox').value.trim();
+    committedTranscript = finalTranscript;
   }
 
   const res = demarrerReconnaissance();
@@ -1651,6 +1852,8 @@ $('finishBtn').addEventListener('click', () => {
   }
   libererEcran();
 
+  finalTranscript = $('transcriptBox').value.trim();   /* corrections manuelles prises en compte */
+  committedTranscript = finalTranscript;
   const mots = finalTranscript.trim().split(/\s+/).filter(Boolean).length;
   const modele = MODELES[$('modele').value];
 
@@ -1708,8 +1911,14 @@ $('confirmGen').addEventListener('click', async () => {
   if(oldDetail) oldDetail.remove();
 
   try{
+    /* Modèle Conduite : on reprend les manœuvres validées les cours précédents */
+    let manoeuvresAvant = [];
+    if(modele.schema === 'conduiteResume'){
+      manoeuvresAvant = await manoeuvresAnterieures(studentName);
+    }
+
     const donnees = await appelIA(modeleCle, finalTranscript, studentName, monitorName, site, dateStr);
-    let bilan = modele.build(donnees);
+    let bilan = modele.build(donnees, { manoeuvresAvant: manoeuvresAvant });
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
     $('generatingView').style.display = 'none';
@@ -1728,6 +1937,33 @@ $('confirmGen').addEventListener('click', async () => {
     $('finishBtn').insertAdjacentElement('afterend', d);
   }
 });
+
+
+/* Va chercher dans Sheets les manœuvres déjà validées pour cet élève,
+   afin de les reporter sur le nouveau bilan. */
+async function manoeuvresAnterieures(nomEleve){
+  if(!nomEleve || nomEleve.length < 2) return [];
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve })
+    });
+    if(!r.ok) return [];
+    const data = await r.json();
+    const res = (data && data.resultats) || [];
+    const cumul = [];
+    res.forEach(item => {
+      manoeuvresDejaFaites(item.bilan).forEach(m => {
+        if(cumul.indexOf(m) === -1) cumul.push(m);
+      });
+    });
+    return cumul;
+  }catch(e){
+    console.warn('Manœuvres antérieures indisponibles :', e);
+    return [];   /* on continue sans, plutôt que de bloquer le bilan */
+  }
+}
 
 async function appelIA(modeleCle, transcript, studentName, monitorName, site, dateStr){
   const systemPrompt = construireConsignes(modeleCle);
@@ -1904,8 +2140,9 @@ $('newLessonBtn').addEventListener('click', () => {
   libererEcran();
   $('etatMicro').textContent = '';
   $('pauseWarn').style.display = 'none';
-  $('transcriptBox').textContent = '';
+  $('transcriptBox').value = '';
   $('transcriptBox').style.display = 'none';
+  $('transcriptAide').style.display = 'none';
   $('compteur').style.display = 'none';
   $('studentName').value = '';
   ['modele','monitorName','studentName','site','lessonDate'].forEach(id => $(id).disabled = false);
