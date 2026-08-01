@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v83</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v84</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -456,12 +456,19 @@
           <option value="examblanc">📝 Examen blanc</option>
           <option value="simu">🌙 Simulateur nuit et risques</option>
         </select>
-        <label for="addDate">Date</label>
-        <input type="date" id="addDate">
-        <label for="addLecons">Leçons restantes avant cette date (facultatif)</label>
+        <label for="addEtat">Situation</label>
+        <select id="addEtat">
+          <option value="aprevoir">À prévoir — pas encore de date</option>
+          <option value="date">Date fixée</option>
+        </select>
+        <div id="addZoneDate" style="display:none;">
+          <label for="addDate">Date</label>
+          <input type="date" id="addDate">
+        </div>
+        <label for="addLecons">Leçons restantes (facultatif)</label>
         <input type="text" id="addLecons" inputmode="numeric" placeholder="Ex : 3">
-        <button class="btn btn-primary" id="addBtn">📅 Enregistrer la date</button>
-        <div id="addEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+        <button class="btn btn-primary" id="addBtn">📌 Enregistrer</button>
+        <div id="addEtatMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
       </div>
     </details>
 
@@ -4743,13 +4750,18 @@ let etatBureau = { eleves: [], consignes: [], suivi: [] };
 /* Décode les phrases produites par le questionnaire */
 function analyserNote(note){
   const t = String(note || '');
-  const r = { examBlanc:null, examBlancN:null, simuNuit:null, permis:null,
+  const r = { examBlanc:null, examBlancN:null, examBlancDate:null,
+              simuNuit:null, simuDate:null, permis:null,
               permisDate:null, permisN:null, lecon:null, leconTotal:null,
               friseDepassee:false, finirFiche:false };
   let m;
 
   if(/Ne pas prévoir d'examen blanc/i.test(t)) r.examBlanc = 'impossible';
   else if(/Examen blanc passé/i.test(t)) r.examBlanc = 'passe';
+  else if((m = t.match(/Examen blanc fixé au ([^—·(]+)/i))){
+    r.examBlanc = 'reserve';
+    r.examBlancDate = m[1].trim();
+  }
   else if((m = t.match(/Examen blanc réservé dans (\d+)/i))){ r.examBlanc='reserve'; r.examBlancN=+m[1]; }
   else if(/La prochaine leçon, c'est l'examen blanc/i.test(t)){ r.examBlanc='reserve'; r.examBlancN=0; }
   else if(/Examen blanc réservé/i.test(t)) r.examBlanc = 'reserve';
@@ -4757,11 +4769,19 @@ function analyserNote(note){
   else if(/Examen blanc à prévoir dès la prochaine/i.test(t)){ r.examBlanc='aprevoir'; r.examBlancN=0; }
   else if(/Examen blanc à prévoir/i.test(t)) r.examBlanc = 'aprevoir';
 
-  if(/Simulateur nuit et risques fait/i.test(t)) r.simuNuit = 'fait';
+  if((m = t.match(/Simulateur nuit et risques fixé au ([^—·(]+)/i))){
+    r.simuNuit = 'prevu';
+    r.simuDate = m[1].trim();
+  }
+  else if(/Simulateur nuit et risques fait/i.test(t)) r.simuNuit = 'fait';
   else if(/Simulateur nuit et risques déjà prévu/i.test(t)) r.simuNuit = 'prevu';
   else if(/Simulateur nuit et risques à prévoir/i.test(t)) r.simuNuit = 'aprevoir';
 
-  if(/Examen du permis.*annulé/i.test(t)) r.permis = 'annule';
+  if((m = t.match(/Examen du permis fixé au ([^—·(]+)/i))){
+    r.permis = 'prevu';
+    r.permisDate = m[1].trim();
+  }
+  else if(/Examen du permis.*annulé/i.test(t)) r.permis = 'annule';
   else if(/Date d'examen à prévoir/i.test(t)) r.permis = 'aprevoir';
   else if((m = t.match(/Examen prévu le ([^—·]+)/i))){ r.permis='prevu'; r.permisDate=m[1].trim(); }
   if((m = t.match(/Examen prévu le [^—·]+— encore (\d+) leçon/i))) r.permisN = +m[1];
@@ -4794,12 +4814,30 @@ async function chargerBureau(){
 
   etatBureau.consignes = consignes;
   etatBureau.suivi = (data && data.suivi) || [];
+  /* Un élève peut n'exister que par une consigne du bureau */
+  const connus = eleves.map(x => normaliserMot(x.eleve));
+  consignes.forEach(cs => {
+    if(cs.traite === 'oui' || cs.type === 'urgence') return;
+    const k = normaliserMot(cs.eleve);
+    if(!k || connus.indexOf(k) !== -1) return;
+    connus.push(k);
+    eleves.push({ eleve: cs.eleve, note: '', date: cs.creeLe || '', type: '',
+                  horodatage: '', moniteur: '', boite: '', ants: '', lecons: 0 });
+  });
+
   etatBureau.eleves = eleves.map(e => {
-    const a = analyserNote(e.note);
-    /* Une consigne du bureau non traitée prime sur la note du moniteur */
     const enAttente = consignes.filter(cs =>
       normaliserMot(cs.eleve) === normaliserMot(e.eleve) &&
       cs.traite !== 'oui' && cs.type !== 'urgence');
+
+    /* Une consigne du bureau non traitée prime sur la note du moniteur */
+    const a = analyserNote(e.note);
+    if(enAttente.length){
+      const ajout = analyserNote(enAttente.map(x => x.texte).join(' · '));
+      Object.keys(ajout).forEach(k => {
+        if(ajout[k] !== null && ajout[k] !== false) a[k] = ajout[k];
+      });
+    }
     const urg = consignes.find(cs =>
       normaliserMot(cs.eleve) === normaliserMot(e.eleve) && cs.type === 'urgence');
     return Object.assign({}, e, {
@@ -5453,30 +5491,43 @@ async function afficherConsignesEnAttente(){
 async function ajouterDateBureau(){
   const eleve = $('addEleve').value.trim();
   const type = $('addType').value;
+  const situation = $('addEtat').value;
   const iso = $('addDate').value;
   const nLecons = $('addLecons').value.trim();
-  const etat = $('addEtat');
+  const etat = $('addEtatMsg');
 
   if(eleve.length < 2){
     etat.style.color = 'var(--warn-text)';
     etat.textContent = "Saisis le nom de l'élève.";
     return;
   }
-  if(!iso){
+  if(situation === 'date' && !iso){
     etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Choisis une date.';
+    etat.textContent = 'Choisis une date ou passe en « à prévoir ».';
     return;
   }
 
-  const quand = dateEnToutesLettres(iso);
   const suite = nLecons
-    ? ' — encore ' + nLecons + ' leçon' + (parseInt(nLecons, 10) > 1 ? 's' : '') + ' avant'
+    ? ' — encore ' + nLecons + ' leçon' + (parseInt(nLecons, 10) > 1 ? 's' : '')
     : '';
 
   let texte;
-  if(type === 'permis') texte = 'Examen du permis fixé au ' + quand + suite + ' (bureau)';
-  else if(type === 'examblanc') texte = 'Examen blanc fixé au ' + quand + suite + ' (bureau)';
-  else texte = 'Simulateur nuit et risques fixé au ' + quand + ' (bureau)';
+  if(situation === 'date'){
+    const quand = dateEnToutesLettres(iso);
+    if(type === 'permis') texte = 'Examen du permis fixé au ' + quand + suite + ' avant (bureau)';
+    else if(type === 'examblanc') texte = 'Examen blanc fixé au ' + quand + suite + ' avant (bureau)';
+    else texte = 'Simulateur nuit et risques fixé au ' + quand + ' (bureau)';
+  }else{
+    if(type === 'permis'){
+      texte = "Date d'examen à prévoir" + (suite ? ' (' + suite.replace(' — ', '') + ')' : '') + ' (bureau)';
+    }else if(type === 'examblanc'){
+      texte = 'Examen blanc à prévoir' +
+              (nLecons ? ' dans ' + nLecons + ' leçon' + (parseInt(nLecons,10) > 1 ? 's' : '') : '') +
+              ' (bureau)';
+    }else{
+      texte = 'Simulateur nuit et risques à prévoir (bureau)';
+    }
+  }
 
   const btn = $('addBtn');
   btn.disabled = true;
@@ -5487,6 +5538,7 @@ async function ajouterDateBureau(){
     etat.textContent = '✅ ' + texte;
     $('addLecons').value = '';
     await afficherConsignesEnAttente();
+    await afficherBureau();
   }catch(e){
     etat.style.color = 'var(--warn-text)';
     etat.textContent = 'Erreur : ' + e.message;
@@ -5568,6 +5620,11 @@ $('filtrePP').addEventListener('change', () => afficherBureau());
 $('filtreDate').addEventListener('change', () => afficherBureau());
 $('msgBtn').addEventListener('click', envoyerMessageBureau);
 $('addBtn').addEventListener('click', ajouterDateBureau);
+$('addEtat').addEventListener('change', () => {
+  const avecDate = ($('addEtat').value === 'date');
+  $('addZoneDate').style.display = avecDate ? 'block' : 'none';
+  $('addBtn').textContent = avecDate ? '📅 Enregistrer la date' : '📌 Enregistrer';
+});
 $('permisBtn').addEventListener('click', preparerPermis);
 $('permisNom').addEventListener('change', preparerPermis);
 
