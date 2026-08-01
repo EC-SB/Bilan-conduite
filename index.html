@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v30</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v31</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -336,7 +336,9 @@
 
   <div id="generatingView" class="card" style="display:none; text-align:center;">
     <div class="spinner" style="margin:10px auto;"></div>
-    <div style="margin-top:12px;font-size:14px;color:var(--soft);">Génération du bilan en cours…</div>
+    <div style="margin-top:12px;font-size:15px;color:var(--soft);">Génération du bilan en cours…</div>
+    <div id="progressionGen" style="margin-top:8px;font-size:14px;color:var(--accent-text);font-weight:600;"></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);">Un cours de 2h prend environ une minute.</div>
   </div>
 
   <div id="resultView" style="display:none;">
@@ -1315,7 +1317,9 @@ const SCHEMAS = {
   '  "groupesTravail": "✅" ou "❌" ou "",\n' +
   '  "ecoutes": "✅" ou "❌" ou ""\n}\n\n' +
   'IMPORTANT : ne recopie PAS la transcription dans ta réponse. Elle est déjà en possession de l\'application, ' +
-  'qui l\'insérera elle-même dans le bilan. Tu ne produis que le résumé et les informations listées ci-dessus.\n\n' +
+  'qui l\'insérera elle-même dans le bilan, intégralement. Tu ne produis que le résumé et les informations listées ci-dessus.\n\n' +
+  'Si le moniteur demande explicitement une explication dans le cours (par exemple « explique la règle de... »), ' +
+  'intègre cette explication à la fin du résumé.\n\n' +
   '"resume" : c\'est le cœur du bilan. Regroupe les erreurs par thème (trajectoire, giratoires, priorités, contrôles, allure, manœuvres, manipulation des commandes...) ' +
   'plutôt que dans l\'ordre où elles sont apparues, puis termine par ce qui est à travailler pour la prochaine leçon. ' +
   'Utilise des puces courtes, tutoie l\'élève, reste encourageant. N\'invente aucune erreur qui n\'a pas été signalée.\n\n' +
@@ -2042,20 +2046,31 @@ $('confirmGen').addEventListener('click', async () => {
   };
   $('recordView').style.display = 'none';
   $('generatingView').style.display = 'block';
+  $('progressionGen').textContent = 'Préparation…';
   const oldDetail = $('genErrorDetail');
   if(oldDetail) oldDetail.remove();
 
   try{
     /* Modèle Conduite : on reprend les manœuvres validées les cours précédents */
     let manoeuvresAvant = [];
+    let coursCorrige = finalTranscript;
+
     if(modele.schema === 'conduiteResume'){
       manoeuvresAvant = await manoeuvresAnterieures(studentName);
+
+      /* Remise au propre du cours, par tranches */
+      coursCorrige = await corrigerCours(finalTranscript, (n, total) => {
+        $('progressionGen').textContent = total > 1
+          ? 'Correction du cours — partie ' + n + ' sur ' + total + '…'
+          : 'Correction du cours…';
+      });
+      $('progressionGen').textContent = 'Rédaction du résumé…';
     }
 
-    const donnees = await appelIA(modeleCle, finalTranscript, studentName, monitorName, site, dateStr);
+    const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
     let bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
-      transcript: finalTranscript
+      transcript: coursCorrige
     });
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
@@ -2082,6 +2097,97 @@ $('confirmGen').addEventListener('click', async () => {
 
 /* Va chercher dans Sheets les manœuvres déjà validées pour cet élève,
    afin de les reporter sur le nouveau bilan. */
+
+/* ============================================================
+   CORRECTION DU COURS PAR TRANCHES
+   Corriger un cours entier en un seul appel dépasse la taille
+   maximale de réponse : on découpe, on corrige, on recolle.
+   ============================================================ */
+const TAILLE_TRANCHE = 6000;   /* caractères */
+
+const CONSIGNE_CORRECTION =
+'Tu remets au propre la transcription automatique d\'un cours de conduite enregistré en voiture.\n' +
+'\n' +
+'RÈGLES ABSOLUES :\n' +
+'- Tu CONSERVES TOUT ce qui a été dit, sans exception : les consignes de conduite, mais aussi les discussions, ' +
+'les digressions, les anecdotes et les échanges personnels. Tu ne censures rien, tu ne résumes rien, tu ne coupes rien.\n' +
+'- Tu corriges UNIQUEMENT la forme : fautes d\'orthographe, de grammaire, de conjugaison, mots mal transcrits ' +
+'par la reconnaissance vocale, ponctuation, majuscules.\n' +
+'- Tu supprimes les répétitions parasites de la transcription (mots répétés deux fois de suite par erreur, ' +
+'bégaiements de la machine) mais PAS les répétitions volontaires du moniteur.\n' +
+'- Tu corriges le vocabulaire auto-école mal transcrit : giratoire, créneau, bataille, épi, angle mort, ' +
+'PAD (priorité à droite), VA/VD, MALD, embrayage, débrayer, rétroviseur, clignotant.\n' +
+'- Tu découpes en paragraphes cohérents et tu sautes une ligne entre les sujets.\n' +
+'- Tu NE reformules PAS les idées et tu n\'ajoutes AUCUN commentaire de ta part.\n' +
+'- Le texte reste à la première personne du moniteur, tel qu\'il a parlé.\n' +
+'\n' +
+'Réponds UNIQUEMENT avec le texte corrigé. Pas de préambule, pas de titre, pas de balises.';
+
+/* Découpe en respectant les fins de phrase */
+function decouperEnTranches(texte, taille){
+  const t = String(texte || '').trim();
+  if(t.length <= taille) return t ? [t] : [];
+  const tranches = [];
+  let reste = t;
+  while(reste.length > taille){
+    let coupe = reste.lastIndexOf('. ', taille);
+    if(coupe < taille * 0.5) coupe = reste.lastIndexOf(' ', taille);
+    if(coupe < taille * 0.5) coupe = taille;
+    tranches.push(reste.slice(0, coupe + 1).trim());
+    reste = reste.slice(coupe + 1).trim();
+  }
+  if(reste) tranches.push(reste);
+  return tranches;
+}
+
+/* Corrige le cours entier, tranche par tranche */
+async function corrigerCours(transcript, surProgres){
+  const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
+  if(!tranches.length) return '';
+  const corrigees = [];
+
+  for(let i = 0; i < tranches.length; i++){
+    if(surProgres) surProgres(i + 1, tranches.length);
+    const contexte = tranches.length > 1
+      ? '\n\n(Partie ' + (i + 1) + ' sur ' + tranches.length +
+        ' d\'un même cours : ne réintroduis aucune introduction ni conclusion.)'
+      : '';
+    try{
+      const txt = await appelBrutIA(CONSIGNE_CORRECTION + contexte, tranches[i], 8000);
+      corrigees.push(txt || tranches[i]);
+    }catch(e){
+      console.warn('Tranche ' + (i + 1) + ' non corrigée :', e);
+      corrigees.push(tranches[i]);      /* on garde le brut plutôt que de perdre le passage */
+    }
+  }
+  return corrigees.join('\n\n');
+}
+
+/* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
+async function appelBrutIA(systemPrompt, message, maxTokens){
+  const r = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: maxTokens || 8000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: message }]
+      }
+    })
+  });
+  if(r.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé');
+  }
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  if(data.error) throw new Error(data.error.message || 'erreur API');
+  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+}
+
 async function manoeuvresAnterieures(nomEleve){
   if(!nomEleve || nomEleve.length < 2) return [];
   try{
