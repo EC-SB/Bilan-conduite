@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v32</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v33</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1320,9 +1320,18 @@ const SCHEMAS = {
   'qui l\'insérera elle-même dans le bilan, intégralement. Tu ne produis que le résumé et les informations listées ci-dessus.\n\n' +
   'Si le moniteur demande explicitement une explication dans le cours (par exemple « explique la règle de... »), ' +
   'intègre cette explication à la fin du résumé.\n\n' +
-  '"resume" : c\'est le cœur du bilan. Regroupe les erreurs par thème (trajectoire, giratoires, priorités, contrôles, allure, manœuvres, manipulation des commandes...) ' +
-  'plutôt que dans l\'ordre où elles sont apparues, puis termine par ce qui est à travailler pour la prochaine leçon. ' +
-  'Utilise des puces courtes, tutoie l\'élève, reste encourageant. N\'invente aucune erreur qui n\'a pas été signalée.\n\n' +
+  '"resume" : c\'est le cœur du bilan. Tu retiens TROIS types de contenu, sans en oublier aucun :\n' +
+  '  1. les ERREURS commises par l\'élève et corrigées par le moniteur ;\n' +
+  '  2. les CONSEILS et mises en garde du moniteur, même quand l\'élève n\'a rien fait de mal ' +
+  '(pièges de la route, feux particuliers, comportements à adopter, points de vigilance, repères) ;\n' +
+  '  3. les EXPLICATIONS techniques ou théoriques données pendant le cours (procédures, règles, méthodes de manœuvre).\n' +
+  'Un conseil donné sans erreur associée a autant de valeur qu\'une correction : l\'élève doit le retrouver dans son bilan. ' +
+  'Exemple : si le moniteur signale qu\'un feu passe au rouge en même temps que le bonhomme piéton, c\'est un conseil à conserver ' +
+  'même si l\'élève n\'a commis aucune faute à cet endroit.\n' +
+  'Regroupe le tout par thème (contrôles, priorités, trajectoire, giratoires, allure, manœuvres, manipulation des commandes, ' +
+  'points de vigilance...) plutôt que dans l\'ordre d\'apparition, puis termine par ce qui est à travailler pour la prochaine leçon. ' +
+  'Utilise des puces courtes, tutoie l\'élève, reste encourageant. ' +
+  'N\'invente rien : tout ce que tu écris doit venir de ce qui a été réellement dit.\n\n' +
   '"manoeuvres" : uniquement celles réellement pratiquées pendant CE cours. Reprends exactement l\'un de ces libellés : ' +
   'MALD Marche arrière en ligne droite, 1/2 tour, MAR (marche arrière en angle de rue), Arrêt de précision, ' +
   'CD Créneau droit, CG Créneau gauche, BD Bataille droit, BG Bataille Gauche, BAD bataille avant droit, ' +
