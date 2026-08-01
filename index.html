@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v53</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v54</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2852,7 +2852,14 @@ async function ouvrirQuestionnaireDepart(){
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qFinFormation" style="width:20px;height:20px;">' +
         'Fin de formation à prévoir' +
-      '</label>';
+      '</label>' +
+
+      '<label for="qLibre">Autre note pour le prochain moniteur</label>' +
+      '<textarea id="qLibre" rows="3" maxlength="400" ' +
+      'placeholder="Ex : élève très stressé, ne pas mettre sur 4 voies" ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+      'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.5;font-family:inherit;' +
+      'resize:vertical;margin-bottom:6px;"></textarea>';
 
     const rangee = document.createElement('div');
     rangee.className = 'btn-row';
@@ -2951,6 +2958,7 @@ async function ouvrirQuestionnaireDepart(){
         finirFiche: boite.querySelector('#qFinirFiche').checked,
         simuNuit: boite.querySelector('#qSimuNuit').checked,
         finFormation: boite.querySelector('#qFinFormation').checked,
+        libre: boite.querySelector('#qLibre').value.trim(),
         leconsFaites: faites,
         manoeuvresFaites: manoeuvresAvant.length,
         totalManoeuvres: totalManoeuvres
@@ -3011,6 +3019,7 @@ function noteDepuisQuestionnaire(q){
   }
   if(q.simuNuit) bouts.push('Simulateur nuit et risques à prévoir');
   if(q.finFormation) bouts.push('Fin de formation à prévoir');
+  if(q.libre) bouts.push(q.libre);
 
   return bouts.join(' · ');
 }
