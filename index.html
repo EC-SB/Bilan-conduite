@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v40</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v41</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1313,9 +1313,9 @@ const REGLES_COMMUNES =
 '\n' +
 'RÈGLES ABSOLUES :\n' +
 '- Tu réponds UNIQUEMENT avec un objet JSON valide. Aucun texte avant, aucun texte après, pas de balises markdown, pas de ```.\n' +
-'- ATTENTION JSON : à l\'intérieur des chaînes, tout retour à la ligne doit être écrit \\\\n (barre oblique inverse suivie de n), ' +
-'JAMAIS un vrai saut de ligne. Un saut de ligne brut rend la réponse illisible et fait échouer le bilan. ' +
-'Les guillemets à l\'intérieur d\'une chaîne doivent aussi être échappés.\n' +
+'- ATTENTION JSON : les retours à la ligne à l\'intérieur des chaînes doivent utiliser la séquence d\'échappement JSON standard. ' +
+'Ils doivent être interprétés comme de vrais retours à la ligne quand la chaîne est lue, et NON apparaître ' +
+'tels quels dans le texte lu par l\'élève. Les guillemets internes doivent aussi être échappés.\n' +
 '- Tu n\'inventes RIEN. Si un sujet n\'a pas été abordé dans la transcription, tu laisses la chaîne vide "" (ou tu omets l\'élément). Une case vide est BIEN meilleure qu\'une case inventée.\n' +
 '- Tu n\'écris aucun lien internet, aucune procédure pédagogique générale, aucun rappel de règles : uniquement ce que le moniteur a réellement observé chez cet élève pendant CE cours.\n' +
 '- Tu tutoies l\'élève, ton chaleureux et direct, comme un moniteur qui parle à son élève.\n' +
@@ -1357,10 +1357,19 @@ const SCHEMAS = {
   'Un conseil donné sans erreur associée a autant de valeur qu\'une correction : l\'élève doit le retrouver dans son bilan. ' +
   'Exemple : si le moniteur signale qu\'un feu passe au rouge en même temps que le bonhomme piéton, c\'est un conseil à conserver ' +
   'même si l\'élève n\'a commis aucune faute à cet endroit.\n' +
-  'Regroupe le tout par thème (contrôles, priorités, trajectoire, giratoires, allure, manœuvres, manipulation des commandes, ' +
-  'points de vigilance...) plutôt que dans l\'ordre d\'apparition, puis termine par ce qui est à travailler pour la prochaine leçon. ' +
-  'Utilise des puces courtes, tutoie l\'élève, reste encourageant. ' +
+  'RANGEMENT IMPOSÉ — tu utilises ces rubriques, dans cet ordre, et tu ne gardes que celles qui ont de la matière :\n' +
+  '  👀 Contrôles / 🚦 Priorités et feux / 👀 Trajectoire / 🍩 Giratoires / 🏎️ Allures / ' +
+  '🚙 Manœuvres / 🧠 Points de vigilance / 📚 Explication demandée / ➡️ À travailler la prochaine fois\n' +
+  'Chaque rubrique commence par son titre sur sa propre ligne, suivi de puces « • » courtes. ' +
+  'Une information ne doit apparaître que dans UNE seule rubrique, jamais répétée ailleurs. ' +
+  'Tutoie l\'élève, reste encourageant, va à l\'essentiel.\n' +
   'N\'invente rien : tout ce que tu écris doit venir de ce qui a été réellement dit.\n\n' +
+  'RUBRIQUE « 📚 Explication demandée » : uniquement si le moniteur a demandé une explication pendant le cours. ' +
+  'Tu dois alors donner la règle EXACTE du code de la route français, sans te tromper. ' +
+  'Attention en particulier : tourner à gauche à une intersection oblige à céder le passage aux véhicules venant ' +
+  'EN FACE (qu\'ils aillent tout droit ou tournent à droite) et aux piétons traversant la voie où l\'on s\'engage ; ' +
+  'ce n\'est PAS la priorité à droite, qui concerne les véhicules arrivant de la droite à une intersection sans signalisation. ' +
+  'Si tu n\'es pas certain d\'une règle, formule-la prudemment plutôt que d\'affirmer une erreur.\n\n' +
   '"manoeuvres" : uniquement celles réellement pratiquées pendant CE cours. Reprends exactement l\'un de ces libellés : ' +
   'MALD Marche arrière en ligne droite, 1/2 tour, MAR (marche arrière en angle de rue), Arrêt de précision, ' +
   'CD Créneau droit, CG Créneau gauche, BD Bataille droit, BG Bataille Gauche, BAD bataille avant droit, ' +
@@ -2422,12 +2431,27 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
 
   const corps = brut.slice(debut, fin + 1);
 
+  /* Certaines réponses contiennent la suite « \n » sous forme de texte
+     au lieu d'un vrai retour à la ligne : on rétablit. */
+  function nettoyerRetours(obj){
+    if(typeof obj === 'string'){
+      return obj.replace(/\\n/g, '\n').replace(/\\t/g, ' ');
+    }
+    if(Array.isArray(obj)) return obj.map(nettoyerRetours);
+    if(obj && typeof obj === 'object'){
+      const o = {};
+      for(const k in obj) o[k] = nettoyerRetours(obj[k]);
+      return o;
+    }
+    return obj;
+  }
+
   try{
-    return JSON.parse(corps);
+    return nettoyerRetours(JSON.parse(corps));
   }catch(e){
     /* Deuxième chance : on échappe les retours à la ligne bruts */
     try{
-      return JSON.parse(reparerJson(corps));
+      return nettoyerRetours(JSON.parse(reparerJson(corps)));
     }catch(e2){
       if(data.stop_reason === 'max_tokens'){
         throw new Error('Réponse coupée en cours de route : le cours est trop long. Découpe-le en deux bilans.');
