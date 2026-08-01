@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v34</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v36</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1089,6 +1089,32 @@ function buildRvp(ai){
 }
 
 
+
+/* ============================================================
+   FRISE DE FORMATION
+   Elle est saisie dans la note interne ; le bilan la reprend
+   telle quelle. Sans note, on laisse les ❓ à compléter.
+   ============================================================ */
+const FRISE_VIDE = '❓ leçons de 2h + exam blanc + ❓ leçons de 2h (❓h) + 3h avant examen';
+
+/* Retrouve une frise dans un texte de note interne */
+function extraireFrise(note){
+  const t = String(note || '');
+  /* Une frise contient toujours « exam blanc » et « leçons de 2h » */
+  const morceaux = t.split('·');
+  for(let i = 0; i < morceaux.length; i++){
+    const m = morceaux[i].trim();
+    if(/le[çc]ons? de 2h/i.test(m) && /exam(en)? blanc/i.test(m)) return m;
+  }
+  return '';
+}
+
+/* Nombre de leçons prévues AVANT l'examen blanc, d'après la frise */
+function leconsAvantExamenBlanc(frise){
+  const m = String(frise || '').match(/(\d+)\s*le[çc]ons?\s+de\s+2h[^]*?exam/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 /* ============================================================
    MODÈLE CONDUITE (remplace boîte manuelle et boîte automatique)
    Structure : texte dicté intégral + résumé, sans les 9 rubriques.
@@ -1134,7 +1160,7 @@ function manoeuvresDejaFaites(texteBilanPrecedent){
   return trouvees;
 }
 
-function buildConduite(ai, faitesAvant, texteCours){
+function buildConduite(ai, faitesAvant, texteCours, noteInterne){
   ai = ai || {};
   const parts = [];
 
@@ -1165,7 +1191,7 @@ function buildConduite(ai, faitesAvant, texteCours){
   parts.push("💡Tu n'as pas possibilité de partir en Conduite supervisée ??");
   parts.push(' https://www.facebook.com/groups/963972327360861/permalink/1122235844867841/');
   parts.push('➡️  Rappel de ta FRISE DE FORMATION EN VOITURE : ');
-  parts.push('10 leçons de 2h + exam blanc + 2 leçons de 2h (4h) + 3h avant examen');
+  parts.push(extraireFrise(noteInterne) || FRISE_VIDE);
 
   return parts.join('\n');
 }
@@ -1177,11 +1203,11 @@ const MODELES = {
   /* --- Conduite --- */
   'conduite-manuelle': {
     label: 'Conduite — Boîte manuelle', groupe: 'Conduite', schema: 'conduiteResume',
-    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript)
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
   },
   'conduite-auto': {
     label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduiteResume',
-    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript)
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
   },
   'aac-manuelle': {
     label: 'AAC — Boîte manuelle', groupe: 'Conduite accompagnée', schema: 'conduite',
@@ -1725,7 +1751,10 @@ const LEXIQUE = [
   'volant','pédale','pédales','ceinture','installation','voyant','voyants','tableau de bord',
   'intersection','dépassement','doubler','insertion','rabattre','serrer','déporte',
   'piéton','piétons','cycliste','bande cyclable','examen','permis','boîte','automatique',
-  'manuelle','simulateur','tours minute','kilomètre','kilomètres','calé','caler','démarrage'
+  'manuelle','simulateur','tours minute','kilomètre','kilomètres','calé','caler','démarrage',
+  'bosse','bosses','verrouille','verrouiller','roues droites','braquer','rebraquer',
+  'chicane','bordure','borne','feu vert','feu rouge','bonhomme','passage piéton',
+  'insérer','insertion','décélération','se rabattre','rabats-toi'
 ];
 
 function normaliserMot(s){
@@ -1771,6 +1800,10 @@ const CORRECTIONS = [
   [/\bdemi tour\b/gi, 'demi-tour'],
   [/\brond point\b/gi, 'rond-point'],
   [/\bva v[ée]\b/gi, 'VA VD'],
+  [/\broues? droit(?:e|es)?\b/gi, 'roues droites'],
+  [/\bd[ée]verrouille\s+(ton|le)\s+volant\b/gi, 'verrouille $1 volant'],
+  [/\bles\s+bus\b(?=[^.]*coller|[^.]*droite)/gi, 'les bosses'],
+  [/\bmarche arri[eè]re en ligne droite\b/gi, 'MALD'],
   [/\bp\.?a\.?d\.?\b/gi, 'PAD']
 ];
 
@@ -2084,7 +2117,8 @@ $('confirmGen').addEventListener('click', async () => {
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
     let bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
-      transcript: coursCorrige
+      transcript: coursCorrige,
+      note: $('noteInterne').value.trim()
     });
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
@@ -2137,6 +2171,14 @@ const CONSIGNE_CORRECTION =
 'PAD (priorité à droite), VA/VD, MALD, embrayage, débrayer, rétroviseur, clignotant.\n' +
 '- Tu découpes en paragraphes cohérents et tu sautes une ligne entre les sujets.\n' +
 '- Tu NE reformules PAS les idées et tu n\'ajoutes AUCUN commentaire de ta part.\n' +
+'- RÈGLE CAPITALE : si un mot ou une phrase est ambigu, tu le laisses TEL QUEL. Tu ne devines jamais. ' +
+'Mieux vaut un mot bizarre conservé qu\'un mot inventé qui change le sens : ce texte est relu par un élève ' +
+'qui appliquera ce qu\'il lit.\n' +
+'- Tu n\'inverses JAMAIS une consigne technique. « verrouille » ne devient pas « déverrouille », ' +
+'« ne cherche pas les problèmes sur un feu vert » ne devient pas « attends le feu vert », ' +
+'« roues droites » ne devient pas « tourne les roues ». En cas de doute sur une consigne, recopie-la mot pour mot.\n' +
+'- Attention aux mots proches en français : bosse/bus, mois/mouettes, roue/route, voie/voix, ' +
+'peur/pire. Choisis toujours celui qui a un sens dans le contexte de la conduite ; si aucun ne convient, garde l\'original.\n' +
 '- Le texte reste à la première personne du moniteur, tel qu\'il a parlé.\n' +
 '\n' +
 'Réponds UNIQUEMENT avec le texte corrigé. Pas de préambule, pas de titre, pas de balises.';
@@ -2580,9 +2622,8 @@ const RACCOURCIS_NOTE = [
     demandes: ['Nombre de leçons de 2h AVANT examen blanc ?', 'Nombre de leçons de 2h APRÈS examen blanc ?']
   },
   {
-    libelle: '❓ Leçons',
-    modele: '❓ Leçons',
-    demandes: ['Nombre de leçons ?']
+    libelle: 'N° de leçon',
+    special: 'lecon'
   },
   {
     libelle: 'Examen blanc',
@@ -2613,6 +2654,51 @@ const RACCOURCIS_NOTE = [
     modele: 'CS BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
   }
 ];
+
+
+/* Numéro de la leçon du jour, situé par rapport à la frise si elle
+   est déjà notée. Sinon on affiche simplement le rang. */
+function construireLecon(champ){
+  const rep = prompt('Numéro de la leçon du jour ?\n(1 pour la première, 2 pour la deuxième…)');
+  if(rep === null) return null;
+  const n = parseInt(String(rep).trim(), 10);
+  if(!n || n < 1){
+    alert('Numéro invalide.');
+    return null;
+  }
+
+  const rang = (n === 1) ? '1ère' : n + 'ème';
+  const frise = extraireFrise(champ ? champ.value : '');
+  const prevues = leconsAvantExamenBlanc(frise);
+
+  if(prevues === null){
+    /* Pas de frise saisie : on reste factuel */
+    return rang + ' leçon';
+  }
+
+  if(n < prevues){
+    const reste = prevues - n;
+    return rang + ' leçon sur ' + prevues + ' — encore ' +
+           reste + ' leçon' + (reste > 1 ? 's' : '') + ' avant l\'examen blanc';
+  }
+  if(n === prevues){
+    return rang + ' leçon sur ' + prevues + ' — dernière avant l\'examen blanc';
+  }
+  /* Frise dépassée : le moniteur tranche */
+  const sup = prompt(
+    'Frise dépassée (' + n + 'ème leçon pour ' + prevues + ' prévues).\n\n' +
+    'Combien de leçons encore avant l\'examen blanc ?\n' +
+    'Laisse vide si ce n\'est pas déterminable pour le moment.'
+  );
+  if(sup === null) return null;
+  const s = String(sup).trim();
+  if(!s){
+    return rang + ' leçon — frise dépassée (' + prevues +
+           ' prévues), examen blanc non planifiable pour le moment';
+  }
+  return rang + ' leçon — frise dépassée (' + prevues + ' prévues), encore ' +
+         s + ' leçon(s) avant l\'examen blanc';
+}
 
 /* Remplace les ❓ un par un par les réponses du moniteur */
 function completerModele(raccourci){
@@ -2648,7 +2734,12 @@ function creerRaccourcis(idConteneur, idChamp){
     b.className = 'raccourci';
     b.textContent = r.libelle;
     b.addEventListener('click', () => {
-      const texte = (r.demandes && r.demandes.length) ? completerModele(r) : r.modele;
+      let texte;
+      if(r.special === 'lecon'){
+        texte = construireLecon($(idChamp));
+      }else{
+        texte = (r.demandes && r.demandes.length) ? completerModele(r) : r.modele;
+      }
       if(texte) ajouterANote($(idChamp), texte);
     });
     zone.appendChild(b);
