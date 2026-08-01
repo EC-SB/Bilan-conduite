@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v42</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v43</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -297,7 +297,8 @@
       <label for="studentName">Nom et prénom de l'élève</label>
       <input type="text" id="studentName" list="listeEleves" autocomplete="off"
              placeholder="Ex : Maëlys Le Gall">
-      <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
+      <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
+      <div id="historiqueEleve" style="display:none;margin-bottom:14px;"></div>
 
       <label for="site">Site</label>
       <select id="site">
@@ -2878,6 +2879,103 @@ function creerRaccourcis(idConteneur, idChamp){
   });
 }
 
+
+/* ---------- Historique affiché dès la saisie de l'élève ---------- */
+let minuteurHistorique = null;
+let dernierEleveCharge = '';
+
+function planifierHistorique(){
+  clearTimeout(minuteurHistorique);
+  /* On attend que le moniteur ait fini de taper : une recherche
+     par lettre saturerait Sheets pour rien. */
+  minuteurHistorique = setTimeout(chargerHistoriqueEleve, 700);
+}
+
+async function chargerHistoriqueEleve(){
+  const zone = $('historiqueEleve');
+  if(!zone) return;
+  const nom = $('studentName').value.trim();
+
+  if(nom.length < 3){
+    zone.style.display = 'none';
+    zone.innerHTML = '';
+    dernierEleveCharge = '';
+    return;
+  }
+  if(normaliserMot(nom) === dernierEleveCharge) return;   /* déjà affiché */
+  dernierEleveCharge = normaliserMot(nom);
+
+  zone.style.display = 'block';
+  zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Recherche des cours précédents…</div>';
+
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json().catch(() => ({}));
+    const res = (data && data.resultats) || [];
+
+    if(!res.length){
+      zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Aucun cours précédent pour cet élève.</div>';
+      return;
+    }
+
+    const dernier = res[0];
+    const note = (dernier.note || '').trim();
+
+    zone.innerHTML = '';
+    const carte = document.createElement('div');
+    carte.style.cssText = 'border:1px solid ' + (note ? 'var(--orange)' : 'var(--line)') +
+      ';border-radius:12px;padding:12px 14px;background:' +
+      (note ? 'rgba(182,255,14,.08)' : 'transparent') + ';';
+
+    const titre = document.createElement('div');
+    titre.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
+    titre.textContent = res.length + ' cours précédent' + (res.length > 1 ? 's' : '') +
+      ' · dernier le ' + (dernier.date || '?') +
+      (dernier.moniteur ? ' avec ' + dernier.moniteur : '');
+    carte.appendChild(titre);
+
+    if(note){
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);line-height:1.45;white-space:pre-wrap;';
+      n.textContent = '📌 ' + note;
+      carte.appendChild(n);
+    }else{
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:13px;color:var(--muted);';
+      n.textContent = 'Pas de note laissée par le moniteur précédent.';
+      carte.appendChild(n);
+    }
+
+    const lien = document.createElement('button');
+    lien.type = 'button';
+    lien.className = 'btn btn-secondary';
+    lien.style.cssText = 'margin-top:10px;font-size:13px;padding:9px 12px;';
+    lien.textContent = '👁️ Voir le dernier bilan';
+    lien.addEventListener('click', () => {
+      currentLessonMeta = {
+        modeleLabel: dernier.type, studentName: dernier.eleve, monitorName: dernier.moniteur,
+        site: dernier.site, dateStr: dernier.date, noteInterne: dernier.note || '', ts: Date.now()
+      };
+      $('resultText').value = dernier.bilan;
+      afficherNote(dernier.note);
+      marquerExport(true);
+      $('recordView').style.display = 'none';
+      $('resultView').style.display = 'block';
+      window.scrollTo(0, 0);
+    });
+    carte.appendChild(lien);
+
+    zone.appendChild(carte);
+  }catch(e){
+    zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Historique indisponible.</div>';
+  }
+}
+
 /* ---------- Suppression du dossier d'un élève ---------- */
 let eleveAffiche = '';
 let nbBilansAffiches = 0;
@@ -3064,8 +3162,14 @@ async function rechercherEleve(){
 $('searchBtn').addEventListener('click', rechercherEleve);
 $('searchName').addEventListener('input', () => verifierNomEleve('searchName', 'eleveInfo', false));
 $('searchName').addEventListener('change', () => { verifierNomEleve('searchName', 'eleveInfo', false); rechercherEleve(); });
-$('studentName').addEventListener('input', () => verifierNomEleve('studentName', 'studentInfo', true));
-$('studentName').addEventListener('change', () => verifierNomEleve('studentName', 'studentInfo', true));
+$('studentName').addEventListener('input', () => {
+  verifierNomEleve('studentName', 'studentInfo', true);
+  planifierHistorique();
+});
+$('studentName').addEventListener('change', () => {
+  verifierNomEleve('studentName', 'studentInfo', true);
+  chargerHistoriqueEleve();       /* choix dans la liste : immédiat */
+});
 $('searchName').addEventListener('keydown', e => { if(e.key === 'Enter') rechercherEleve(); });
 
 $('newLessonBtn').addEventListener('click', () => {
