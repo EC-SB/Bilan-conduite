@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v60</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v61</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2025,8 +2025,10 @@ $('recBtn').addEventListener('click', async () => {
     return;
   }
 
-  /* Questionnaire au tout début du cours seulement */
-  if(!finalTranscript && !contexteDepart){
+  /* Questionnaire au tout début du cours seulement.
+     Évaluation et examen : rien à demander avant, tout se décide après. */
+  const profilDepart = profilQuestionnaire($('modele').value);
+  if(!finalTranscript && !contexteDepart && profilDepart !== 'evaluation' && profilDepart !== 'examen'){
     btn.disabled = true;
     btn.textContent = 'Préparation…';
     try{
@@ -2804,6 +2806,20 @@ const FRISES_FIXES = {
 /* Parcours proposé par défaut selon le type de bilan */
 const PARCOURS_PAR_TYPE = { 'aac-auto': 'aacbea', 'aac-manuelle': 'aacbv' };
 
+/* Ce que le questionnaire doit afficher selon le type de bilan.
+   Sur simulateur, tout le reste se passe en voiture : seule la frise compte. */
+const PROFILS_QUESTIONNAIRE = {
+  'simu-manuelle': 'simulateur',
+  'simu-auto': 'simulateur',
+  'eval-manuelle': 'evaluation',
+  'eval-auto': 'evaluation',
+  'examen-officiel': 'examen'
+};
+
+function profilQuestionnaire(modeleCle){
+  return PROFILS_QUESTIONNAIRE[modeleCle] || 'complet';
+}
+
 let contexteDepart = null;        /* mémorise les réponses du questionnaire */
 let noteQuestionnaire = '';       /* dernière note produite par le questionnaire */
 let questionnaireOuvert = false;  /* empêche deux ouvertures simultanées */
@@ -2836,6 +2852,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
 
   /* Informations déjà connues */
   /* Frise entièrement déduite du type de bilan (cas AAC) */
+  const profil = profilQuestionnaire(modeleCle);
   const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
   /* Clé de conduite supervisée correspondant à la boîte du bilan */
   const cleCS = /auto/i.test(modeleCle) ? 'csbea' : 'csbv';
@@ -2857,8 +2874,12 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
       '<h3>' + (titre || 'Avant de démarrer') + '</h3>' +
       '<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">' +
         (eleve ? '<strong style="color:var(--cream);font-size:15px;">' + eleve + '</strong><br>' : '') +
-        '🦉 Manœuvres de la fiche véhicule : ' + manoeuvresAvant.length + ' sur ' + totalManoeuvres + ' validées' +
-        (restantes ? ' — il en reste ' + restantes : ' — fiche terminée ✅') +
+        (profil === 'complet'
+          ? '🦉 Manœuvres de la fiche véhicule : ' + manoeuvresAvant.length + ' sur ' + totalManoeuvres +
+            ' validées' + (restantes ? ' — il en reste ' + restantes : ' — fiche terminée ✅')
+          : (profil === 'simulateur' ? 'Séance sur simulateur — seule la frise est demandée ici.'
+            : profil === 'evaluation' ? 'Évaluation de départ — la frise se définit en fin de séance.'
+            : 'Examen officiel — note interne uniquement.')) +
       '</div>' +
 
       '<label>Frise de formation</label>' +
@@ -2976,6 +2997,27 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
 
     const blocAacCs = boite.querySelector('#qBlocAacCs');
 
+    /* Adaptation au profil : on retire ce qui ne concerne pas ce type de cours */
+    if(profil !== 'complet'){
+      const aMasquer = (profil === 'examen')
+        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
+           '#qSimuNuit', '#qFinFormation', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe', '#qCS']
+        : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
+           '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
+           '#qFinirFiche', '#qSimuNuit', '#qFinFormation', '#qBlocAacCs'];
+
+      aMasquer.forEach(sel => {
+        const el = boite.querySelector(sel);
+        if(!el) return;
+        /* On masque aussi l'étiquette qui précède le champ */
+        const lab = boite.querySelector('label[for="' + sel.slice(1) + '"]');
+        if(lab) lab.style.display = 'none';
+        const parent = el.closest('label');
+        if(parent) parent.style.display = 'none';
+        else el.style.display = 'none';
+      });
+    }
+
     function majParcours(){
       const fixe = friseDeduite || ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '');
       if(fixe){
@@ -2987,7 +3029,13 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
         zoneFixe.style.display = 'none';
       }
       /* Formation accompagnateur et RDV préalable ne concernent que AAC et CS */
-      if(blocAacCs) blocAacCs.style.display = fixe ? 'block' : 'none';
+      if(blocAacCs && profil === 'complet'){
+        blocAacCs.style.display = fixe ? 'block' : 'none';
+      }
+      if(profil === 'examen'){
+        zoneClassique.style.display = 'none';
+        zoneFixe.style.display = 'none';
+      }
     }
     /* Reprise de la conduite supervisée notée les cours précédents */
     if(caseCS && /^CS /.test(prec.frise || frisePrecedente || '')) caseCS.checked = true;
