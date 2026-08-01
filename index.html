@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v47</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v49</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -420,6 +420,7 @@
     <h3>Générer le bilan ?</h3>
     <div class="recap" id="confirmRecap"></div>
     <div id="confirmAlerte" style="font-size:14px;color:var(--warn-text);margin-bottom:14px;display:none;"></div>
+    <div id="confirmCorrectif" style="display:none;margin-bottom:16px;"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" id="cancelGen">Annuler</button>
       <button class="btn btn-primary" id="confirmGen">Générer</button>
@@ -2003,6 +2004,27 @@ $('recBtn').addEventListener('click', async () => {
     return;
   }
 
+  /* Questionnaire au tout début du cours seulement */
+  if(!finalTranscript && !contexteDepart){
+    btn.disabled = true;
+    btn.textContent = 'Préparation…';
+    try{
+      const rep = await ouvrirQuestionnaireDepart();
+      if(rep){
+        contexteDepart = rep;
+        const note = noteDepuisQuestionnaire(rep);
+        if(note){
+          const champ = $('noteInterne');
+          champ.value = champ.value.trim() ? champ.value.trim() + ' · ' + note : note;
+          sauvegarderLocal(true);
+        }
+      }
+    }finally{
+      btn.disabled = false;
+      btn.textContent = '🎙️ Démarrer le cours';
+    }
+  }
+
   if(!finalTranscript){
     $('transcriptBox').value = '';
     $('transcriptBox').style.display = 'block';
@@ -2070,6 +2092,23 @@ $('finishBtn').addEventListener('click', () => {
     alerte.style.display = 'none';
   }
 
+  /* Correctif de fin : le moniteur réévalue après le cours */
+  const zoneCorr = $('confirmCorrectif');
+  if(zoneCorr){
+    const prevues = leconsAvantExamenBlanc($('noteInterne').value);
+    const nLecon = contexteDepart ? parseInt(contexteDepart.lecon, 10) : null;
+    const restant = (prevues && nLecon) ? Math.max(prevues - nLecon, 0) : null;
+
+    zoneCorr.style.display = 'block';
+    zoneCorr.innerHTML =
+      '<label for="corrExamBlanc" style="margin-bottom:6px;">Après ce cours — leçons avant l\'examen blanc</label>' +
+      '<input type="text" id="corrExamBlanc" inputmode="numeric" ' +
+      'placeholder="' + (restant !== null ? 'Estimation actuelle : ' + restant : 'Non déterminé') + '" ' +
+      'style="margin-bottom:4px;">' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.4;">' +
+      'Laisse vide si rien ne change.</div>';
+  }
+
   $('confirmOverlay').classList.add('show');
 });
 
@@ -2082,6 +2121,14 @@ $('confirmOverlay').addEventListener('click', e => {
 });
 
 $('confirmGen').addEventListener('click', async () => {
+  const corr = $('corrExamBlanc');
+  if(corr && corr.value.trim()){
+    const v = corr.value.trim();
+    const champ = $('noteInterne');
+    const ajout = 'Après ce cours : ' + v + ' leçon' + (parseInt(v, 10) > 1 ? 's' : '') +
+                  " avant l'examen blanc";
+    champ.value = champ.value.trim() ? champ.value.trim() + ' · ' + ajout : ajout;
+  }
   $('confirmOverlay').classList.remove('show');
 
   const modeleCle = $('modele').value;
@@ -2688,6 +2735,10 @@ const RACCOURCIS_NOTE = [
     libelle: 'Examen prévu',
     special: 'dateExamen'
   },
+  {
+    libelle: 'Examen annulé',
+    special: 'examenAnnule'
+  },
   { libelle: 'Frise dépassée', modele: 'Frise dépasée' },
   { libelle: 'Finir fiche', modele: 'Finir Fiche' },
   {
@@ -2712,6 +2763,205 @@ const RACCOURCIS_NOTE = [
 
 
 
+
+
+/* ============================================================
+   QUESTIONNAIRE DE DÉPART
+   Un seul écran, tout pré-rempli : le moniteur ne corrige que
+   ce qui a changé, puis démarre.
+   ============================================================ */
+
+/* Frises fixes, connues d'après le type de bilan */
+const FRISES_TYPE = {
+  'aac-auto': 'AAC BEA👼⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable',
+  'aac-manuelle': 'AAC BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
+};
+
+let contexteDepart = null;   /* mémorise les réponses du démarrage */
+
+async function ouvrirQuestionnaireDepart(){
+  const eleve = $('studentName').value.trim();
+  const modeleCle = $('modele').value;
+
+  /* Informations déjà connues */
+  const frisePrecedente = FRISES_TYPE[modeleCle] || await friseAnterieure(eleve);
+  const faites = await leconsDejaFaites(eleve);
+  const manoeuvresAvant = await manoeuvresAnterieures(eleve);
+  const totalManoeuvres = BLOC.ficheListeConduite.length;
+
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:440px;max-height:88vh;overflow-y:auto;';
+
+    const restantes = totalManoeuvres - manoeuvresAvant.length;
+    boite.innerHTML =
+      '<h3>Avant de démarrer</h3>' +
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">' +
+        (eleve ? eleve + ' — ' : '') +
+        'Fiche véhicule : ' + manoeuvresAvant.length + '/' + totalManoeuvres +
+        (restantes ? ' (' + restantes + ' restante' + (restantes > 1 ? 's' : '') + ')' : ' — terminée ✅') +
+      '</div>' +
+
+      '<label for="qFrise">Frise de formation</label>' +
+      '<input type="text" id="qFrise" placeholder="Non renseignée">' +
+
+      '<label for="qLecon">Leçon n°</label>' +
+      '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
+
+      '<label for="qExamBlanc">Examen blanc</label>' +
+      '<select id="qExamBlanc">' +
+        '<option value="">— non évoqué —</option>' +
+        '<option value="aprevoir">Pas encore prévu</option>' +
+        '<option value="reserve">Réservé</option>' +
+        '<option value="passe">Déjà passé</option>' +
+        '<option value="impossible">Non planifiable pour le moment</option>' +
+      '</select>' +
+      '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
+
+      '<label for="qExamPermis">Examen du permis</label>' +
+      '<select id="qExamPermis">' +
+        '<option value="">— pas de date —</option>' +
+        '<option value="prevu">Prévu le…</option>' +
+        '<option value="annule">Annulé</option>' +
+      '</select>' +
+      '<input type="date" id="qExamDate" style="display:none;">' +
+
+      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
+        '<input type="checkbox" id="qFinirFiche" style="width:20px;height:20px;">' +
+        'Fiche véhicule à finir en priorité' +
+      '</label>' +
+
+      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
+        '<input type="checkbox" id="qSimuNuit" style="width:20px;height:20px;">' +
+        'Simulateur nuit et risques à prévoir' +
+      '</label>' +
+
+      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
+        '<input type="checkbox" id="qFinFormation" style="width:20px;height:20px;">' +
+        'Fin de formation à prévoir' +
+      '</label>';
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const passer = document.createElement('button');
+    passer.className = 'btn btn-secondary';
+    passer.textContent = 'Passer';
+    const valider = document.createElement('button');
+    valider.className = 'btn btn-primary';
+    valider.textContent = 'Démarrer';
+    rangee.appendChild(passer);
+    rangee.appendChild(valider);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    /* Pré-remplissage */
+    boite.querySelector('#qFrise').value = frisePrecedente || '';
+    boite.querySelector('#qLecon').value = (faites !== null) ? (faites + 1) : '';
+    if(restantes > 0 && restantes <= 4) boite.querySelector('#qFinirFiche').checked = true;
+
+    /* Champs conditionnels */
+    const selEB = boite.querySelector('#qExamBlanc');
+    const nEB = boite.querySelector('#qExamBlancN');
+    selEB.addEventListener('change', () => {
+      const v = selEB.value;
+      nEB.style.display = (v === 'reserve' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
+      nEB.placeholder = (v === 'passe')
+        ? 'Leçons prévues avant le permis'
+        : 'Dans combien de leçons ?';
+    });
+
+    const selEP = boite.querySelector('#qExamPermis');
+    const dEP = boite.querySelector('#qExamDate');
+    selEP.addEventListener('change', () => {
+      dEP.style.display = (selEP.value === 'prevu' || selEP.value === 'annule') ? 'block' : 'none';
+      if(dEP.style.display === 'block' && !dEP.value) dEP.value = todayLocal();
+    });
+
+    function fermer(reponses){
+      document.body.removeChild(fond);
+      resolve(reponses);
+    }
+
+    passer.addEventListener('click', () => fermer(null));
+    valider.addEventListener('click', () => {
+      fermer({
+        frise: boite.querySelector('#qFrise').value.trim(),
+        lecon: boite.querySelector('#qLecon').value.trim(),
+        examBlanc: selEB.value,
+        examBlancN: nEB.value.trim(),
+        examPermis: selEP.value,
+        examDate: dEP.value,
+        finirFiche: boite.querySelector('#qFinirFiche').checked,
+        simuNuit: boite.querySelector('#qSimuNuit').checked,
+        finFormation: boite.querySelector('#qFinFormation').checked,
+        leconsFaites: faites,
+        manoeuvresFaites: manoeuvresAvant.length,
+        totalManoeuvres: totalManoeuvres
+      });
+    });
+  });
+}
+
+/* Transforme les réponses en texte de note interne */
+function noteDepuisQuestionnaire(q){
+  if(!q) return '';
+  const bouts = [];
+
+  if(q.frise) bouts.push(q.frise);
+
+  if(q.lecon){
+    const n = parseInt(q.lecon, 10);
+    const rang = (n === 1) ? '1ère' : n + 'ème';
+    const prevues = leconsAvantExamenBlanc(q.frise);
+    if(prevues && n < prevues){
+      bouts.push(rang + ' leçon sur ' + prevues + ' — encore ' + (prevues - n) +
+                 ' leçon' + ((prevues - n) > 1 ? 's' : '') + " avant l'examen blanc");
+    }else if(prevues && n === prevues){
+      bouts.push(rang + ' leçon sur ' + prevues + " — dernière avant l'examen blanc");
+    }else if(prevues && n > prevues){
+      bouts.push(rang + ' leçon — frise dépassée (' + prevues + ' prévues)');
+    }else{
+      bouts.push(rang + ' leçon');
+    }
+  }
+
+  const n = q.examBlancN;
+  const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
+  if(q.examBlanc === 'passe'){
+    bouts.push(n ? 'Examen blanc passé — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
+                   ' avant le permis (+ 3h avant examen)'
+                 : 'Examen blanc déjà passé');
+  }else if(q.examBlanc === 'reserve'){
+    bouts.push(n ? 'Examen blanc réservé dans ' + n + ' leçon' + pl(n) : 'Examen blanc réservé');
+  }else if(q.examBlanc === 'aprevoir'){
+    bouts.push(n ? 'Examen blanc à prévoir dans ' + n + ' leçon' + pl(n)
+                 : 'Examen blanc à prévoir');
+  }else if(q.examBlanc === 'impossible'){
+    bouts.push("Ne pas prévoir d'examen blanc pour le moment");
+  }
+
+  if(q.examPermis === 'prevu' && q.examDate){
+    bouts.push('Examen prévu le ' + dateEnToutesLettres(q.examDate));
+  }else if(q.examPermis === 'annule'){
+    bouts.push(q.examDate
+      ? 'Examen du permis annulé — reprogrammé le ' + dateEnToutesLettres(q.examDate)
+      : 'Examen du permis annulé — nouvelle date en attente');
+  }
+
+  if(q.finirFiche){
+    const reste = q.totalManoeuvres - q.manoeuvresFaites;
+    bouts.push('Finir Fiche' + (reste ? ' (' + reste + ' manœuvre' + (reste > 1 ? 's' : '') + ')' : ''));
+  }
+  if(q.simuNuit) bouts.push('Simulateur nuit et risques à prévoir');
+  if(q.finFormation) bouts.push('Fin de formation à prévoir');
+
+  return bouts.join(' · ');
+}
 
 /* Choix d'une date au calendrier plutôt qu'à la saisie manuelle */
 function choisirDate(titre){
@@ -2769,13 +3019,50 @@ function choisirDate(titre){
 
 /* Date d'examen, au format lisible */
 async function construireDateExamen(){
-  const iso = await choisirDate("Date de l'examen");
+  const iso = await choisirDate("Date de l'examen du permis");
   if(!iso) return null;
+  const texte = dateEnToutesLettres(iso);
+
+  const rep = prompt(
+    'Examen prévu le ' + texte + '.\n\n' +
+    'Combien de leçons restent avant l\'examen ?\n' +
+    '(hors 3h avant examen · laisse vide si non déterminé)'
+  );
+  if(rep === null) return null;
+  const n = String(rep).trim();
+
+  if(!n) return 'Examen prévu le ' + texte;
+  if(parseInt(n, 10) === 0){
+    return 'Examen prévu le ' + texte + ' — plus que les 3h avant examen';
+  }
+  return 'Examen prévu le ' + texte + ' — encore ' + n + ' leçon' +
+         (parseInt(n, 10) > 1 ? 's' : '') + ' + 3h avant examen';
+}
+
+/* Examen du permis annulé par la DDTM */
+async function construireExamenAnnule(){
+  const connue = confirm(
+    'Examen du permis ANNULÉ.\n\n' +
+    'Une nouvelle date est-elle déjà connue ?\n\n' +
+    'OK = oui, je la saisis\n' +
+    'Annuler = non, en attente'
+  );
+
+  if(!connue){
+    return 'Examen du permis annulé — nouvelle date en attente';
+  }
+
+  const iso = await choisirDate('Nouvelle date d\'examen');
+  if(!iso) return 'Examen du permis annulé — nouvelle date en attente';
+  return 'Examen du permis annulé — reprogrammé le ' + dateEnToutesLettres(iso);
+}
+
+/* Date ISO -> texte lisible en français */
+function dateEnToutesLettres(iso){
   const d = new Date(iso + 'T12:00:00');
-  const texte = d.toLocaleDateString('fr-FR', {
+  return d.toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
-  return 'Examen prévu le ' + texte;
 }
 
 /* Frise : reprise du dernier cours, modifiable si elle a changé */
@@ -2821,15 +3108,14 @@ function construireExamenBlanc(){
   if(dejaPasse){
     const apres = prompt(
       'Examen blanc déjà passé.\n\n' +
-      'Combien de leçons restent avant le permis ?\n' +
-      '0 = prêt pour le permis · vide = non déterminé'
+      'Nombre de leçons prévues avant le permis, déterminé lors de l\'examen blanc ?\n' +
+      '(hors 3h avant examen · laisse vide si non déterminé)'
     );
     if(apres === null) return null;
     const a = String(apres).trim();
     if(!a) return 'Examen blanc déjà passé';
-    if(parseInt(a, 10) === 0) return 'Examen blanc passé — prêt pour le permis (+ 3h avant examen)';
-    return 'Examen blanc passé — encore ' + a + ' leçon' + (parseInt(a, 10) > 1 ? 's' : '') +
-           ' avant le permis (+ 3h avant examen)';
+    return 'Examen blanc passé — ' + a + ' leçon' + (parseInt(a, 10) > 1 ? 's' : '') +
+           ' prévue' + (parseInt(a, 10) > 1 ? 's' : '') + ' avant le permis (+ 3h avant examen)';
   }
 
   const reserve = confirm(
@@ -2972,19 +3258,17 @@ async function construireLecon(champ){
   if(dejaFait){
     const apres = prompt(
       'Examen blanc déjà passé.\n\n' +
-      'Combien de leçons restent à faire avant le permis ?\n' +
-      '(laisse vide si non déterminé)'
+      'Nombre de leçons prévues avant le permis, déterminé lors de l\'examen blanc ?\n' +
+      '(hors 3h avant examen · laisse vide si non déterminé)'
     );
     if(apres === null) return null;
     const a = String(apres).trim();
     if(!a){
       return rang + ' leçon — examen blanc déjà passé, frise dépassée (' + prevues + ' prévues)';
     }
-    if(parseInt(a, 10) === 0){
-      return rang + ' leçon — examen blanc déjà passé, prêt pour le permis (+ 3h avant examen)';
-    }
-    return rang + ' leçon — examen blanc déjà passé, encore ' + a +
-           ' leçon' + (parseInt(a, 10) > 1 ? 's' : '') + ' avant le permis (+ 3h avant examen)';
+    return rang + ' leçon — examen blanc déjà passé, ' + a +
+           ' leçon' + (parseInt(a, 10) > 1 ? 's' : '') + ' prévue' + (parseInt(a, 10) > 1 ? 's' : '') +
+           ' avant le permis (+ 3h avant examen)';
   }
 
   const sup = prompt(
@@ -3060,6 +3344,8 @@ function creerRaccourcis(idConteneur, idChamp){
         }
       }else if(r.special === 'dateExamen'){
         texte = await construireDateExamen();
+      }else if(r.special === 'examenAnnule'){
+        texte = await construireExamenAnnule();
       }else if(r.special === 'examenBlanc'){
         texte = construireExamenBlanc();
       }else{
@@ -3368,6 +3654,7 @@ $('newLessonBtn').addEventListener('click', () => {
   finalTranscript = '';
   committedTranscript = '';
   interruptions = 0;
+  contexteDepart = null;
   dernierMot = 0;
   dernierEvenement = '—';
   libererEcran();
