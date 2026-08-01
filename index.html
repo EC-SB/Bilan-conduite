@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v74</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v75</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -451,12 +451,6 @@
 
     <div style="margin-top:18px;">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
-        📝 Examens blancs à prévoir</div>
-      <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
-    </div>
-
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🌙 Simulateurs nuit et risques</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         À faire obligatoirement avant l'examen blanc.</div>
@@ -465,8 +459,22 @@
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        📝 Examens blancs à prévoir</div>
+      <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🚗 Examens du permis à prévoir</div>
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        📆 Permis prévus — préparation</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        Seule la date remonte dans les notes du moniteur ; le reste est interne au bureau.</div>
+      <div id="listePermisPrevu"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
@@ -1639,7 +1647,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 9;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 10;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -4511,7 +4519,7 @@ async function preparerNouveauCours(){
    Lecture de l'état de tous les élèves, et consignes du bureau
    qui remontent au moniteur lors de la prochaine leçon.
    ============================================================ */
-let etatBureau = { eleves: [], consignes: [] };
+let etatBureau = { eleves: [], consignes: [], suivi: [] };
 
 /* Décode les phrases produites par le questionnaire */
 function analyserNote(note){
@@ -4566,6 +4574,7 @@ async function chargerBureau(){
   const consignes = (data && data.consignes) || [];
 
   etatBureau.consignes = consignes;
+  etatBureau.suivi = (data && data.suivi) || [];
   etatBureau.eleves = eleves.map(e => {
     const a = analyserNote(e.note);
     /* Une consigne du bureau non traitée prime sur la note du moniteur */
@@ -4592,6 +4601,143 @@ async function envoyerConsigne(eleve, type, texte, valeur){
   });
 }
 
+
+
+/* Fiche de préparation administrative d'un passage au permis */
+function ficheSuiviPermis(e){
+  const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(e.eleve)) || {};
+
+  const d = document.createElement('details');
+  d.style.cssText = 'margin-top:8px;';
+  d.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:14px;">' +
+    '📋 Fiche de préparation' + (s.majLe ? ' — mise à jour le ' + s.majLe : '') + '</summary>';
+
+  const f = document.createElement('div');
+  f.style.cssText = 'margin-top:12px;padding:12px;background:var(--navy);' +
+    'border:1px solid var(--line);border-radius:10px;';
+
+  const id = 'sv' + Math.random().toString(36).slice(2, 8);
+  f.innerHTML =
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
+      '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">Élève à remplacer</label>' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
+      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">Date à donner à l\'élève</label>' +
+
+    '<label for="' + id + 'pay">Reste à payer</label>' +
+    '<input type="text" id="' + id + 'pay" placeholder="Ex : 240 €">' +
+    '<label for="' + id + 'qd">Paiement prévu le</label>' +
+    '<input type="date" id="' + id + 'qd">' +
+    '<label for="' + id + 'rel">Relancé le</label>' +
+    '<input type="date" id="' + id + 'rel">' +
+
+    '<label for="' + id + 'nat">À faire par l\'élève</label>' +
+    '<select id="' + id + 'nat">' +
+      '<option value="">— rien —</option>' +
+      '<option value="acheter">À acheter</option>' +
+      '<option value="reserver">À réserver</option>' +
+      '<option value="both">À acheter et réserver</option>' +
+    '</select>' +
+    '<label for="' + id + 'l2">Leçons de 2h</label>' +
+    '<input type="text" id="' + id + 'l2" inputmode="numeric" placeholder="Ex : 3">' +
+    '<label for="' + id + 'l1">Leçons d\'1h</label>' +
+    '<input type="text" id="' + id + 'l1" inputmode="numeric" placeholder="Ex : 1">' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
+      '<input type="checkbox" id="' + id + 'acc" style="width:19px;height:19px;">Accompagnement à l\'examen</label>' +
+    '<label for="' + id + 'aut">Autre à prévoir</label>' +
+    '<textarea id="' + id + 'aut" rows="2" style="width:100%;background:var(--navy-deep);' +
+      'border:1px solid var(--line);color:var(--cream);padding:10px;border-radius:10px;' +
+      'font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
+
+    '<label for="' + id + 'res">Réservations faites sur le planning</label>' +
+    '<textarea id="' + id + 'res" rows="2" placeholder="Ex : 10/09 14h-16h et 11/09 9h-12h" ' +
+      'style="width:100%;background:var(--navy-deep);border:1px solid var(--line);color:var(--cream);' +
+      'padding:10px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>';
+
+  const bEnr = document.createElement('button');
+  bEnr.className = 'btn btn-primary';
+  bEnr.textContent = '💾 Enregistrer la fiche';
+  f.appendChild(bEnr);
+  const etat = document.createElement('div');
+  etat.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  f.appendChild(etat);
+
+  d.appendChild(f);
+
+  /* Valeurs déjà enregistrées */
+  setTimeout(() => {
+    const g = k => document.getElementById(id + k);
+    if(g('rem')) g('rem').checked = (s.aRemplacer === 'oui');
+    if(g('don')) g('don').checked = (s.dateADonner === 'oui');
+    if(g('pay')) g('pay').value = s.resteAPayer || '';
+    if(g('qd')) g('qd').value = s.paiementPrevu || '';
+    if(g('rel')) g('rel').value = s.relanceLe || '';
+    if(g('nat')) g('nat').value = s.nature || '';
+    if(g('l2')) g('l2').value = s.lecons2h || '';
+    if(g('l1')) g('l1').value = s.lecons1h || '';
+    if(g('acc')) g('acc').checked = (s.accompagnement === 'oui');
+    if(g('aut')) g('aut').value = s.autre || '';
+    if(g('res')) g('res').value = s.reservations || '';
+  }, 0);
+
+  bEnr.addEventListener('click', async () => {
+    const g = k => document.getElementById(id + k);
+    bEnr.disabled = true;
+    bEnr.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({
+        action: 'suiviSet',
+        eleve: e.eleve,
+        datePermis: (e.etat && e.etat.permisDate) || s.datePermis || '',
+        aRemplacer: g('rem').checked ? 'oui' : '',
+        dateADonner: g('don').checked ? 'oui' : '',
+        resteAPayer: g('pay').value.trim(),
+        paiementPrevu: g('qd').value,
+        relanceLe: g('rel').value,
+        nature: g('nat').value,
+        lecons2h: g('l2').value.trim(),
+        lecons1h: g('l1').value.trim(),
+        accompagnement: g('acc').checked ? 'oui' : '',
+        autre: g('aut').value.trim(),
+        reservations: g('res').value.trim(),
+        par: ACCES.moniteur || ''
+      });
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ Fiche enregistrée.';
+      await chargerBureau();
+    }catch(err){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Erreur : ' + err.message;
+    }finally{
+      bEnr.disabled = false;
+      bEnr.textContent = '💾 Enregistrer la fiche';
+    }
+  });
+
+  return d;
+}
+
+/* Résumé court de la fiche, affiché sous le nom */
+function resumeSuivi(eleve){
+  const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
+  if(!s) return '';
+  const bouts = [];
+  if(s.aRemplacer === 'oui') bouts.push('⚠️ à remplacer');
+  if(s.dateADonner === 'oui') bouts.push('📢 date à donner');
+  if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
+  if(s.paiementPrevu) bouts.push('paiement ' + s.paiementPrevu);
+  if(s.relanceLe) bouts.push('relancé ' + s.relanceLe);
+  const nat = { acheter:'à acheter', reserver:'à réserver', both:'à acheter et réserver' }[s.nature];
+  if(nat){
+    const det = [];
+    if(s.lecons2h) det.push(s.lecons2h + '×2h');
+    if(s.lecons1h) det.push(s.lecons1h + '×1h');
+    if(s.accompagnement === 'oui') det.push('accompagnement');
+    if(s.autre) det.push(s.autre);
+    bouts.push(nat + (det.length ? ' : ' + det.join(', ') : ''));
+  }
+  if(s.reservations) bouts.push('📅 ' + s.reservations);
+  return bouts.join(' · ');
+}
 
 /* Construit une ligne d'élève avec ses actions */
 function ligneBureau(e, options){
@@ -4635,6 +4781,16 @@ function ligneBureau(e, options){
     haut.appendChild(a);
   }
   row.appendChild(haut);
+
+  if(options.resume){
+    const r = options.resume(e);
+    if(r){
+      const rr = document.createElement('span');
+      rr.style.cssText = 'display:block;font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px;';
+      rr.textContent = r;
+      meta.appendChild(rr);
+    }
+  }
 
   const actions = document.createElement('div');
   actions.style.cssText = 'margin-top:10px;';
@@ -4739,6 +4895,52 @@ async function afficherBureau(){
           }));
         }
       }));
+    });
+  }
+
+  /* ---- 4. Permis prévus : préparation administrative ---- */
+  const zPP = $('listePermisPrevu');
+  const prevus = tous.filter(e => e.etat.permis === 'prevu');
+  /* Élèves dont seule la fiche de suivi porte une date */
+  etatBureau.suivi.forEach(s => {
+    if(!s.datePermis) return;
+    if(prevus.some(x => normaliserMot(x.eleve) === normaliserMot(s.eleve))) return;
+    const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(s.eleve));
+    if(base) prevus.push(base);
+  });
+
+  zPP.innerHTML = '';
+  if(!prevus.length){
+    zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
+  }else{
+    prevus.forEach(e => {
+      const l = ligneBureau(e, {
+        info: x => {
+          const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
+          const dt = (x.etat.permisDate) || (s && s.datePermis) || 'date inconnue';
+          return 'Permis le ' + dt +
+                 (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '');
+        },
+        resume: x => resumeSuivi(x.eleve),
+        alerte: x => {
+          const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
+          if(s && s.aRemplacer === 'oui') return 'Élève à remplacer';
+          if(s && s.dateADonner === 'oui') return 'Date à donner à l\'élève';
+          return null;
+        },
+        actions: (x, zone) => {
+          zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
+            await envoyerConsigne(x.eleve, 'permis',
+              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            await appelPrep({ action:'suiviSet', eleve:x.eleve,
+                              datePermis: dateEnToutesLettres(iso), par: ACCES.moniteur || '' });
+            showToast('Date transmise ✅');
+            afficherBureau();
+          }));
+          zone.appendChild(ficheSuiviPermis(x));
+        }
+      });
+      zPP.appendChild(l);
     });
   }
 
@@ -4998,7 +5200,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v9') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v10') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
