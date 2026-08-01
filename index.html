@@ -257,6 +257,106 @@
   .recap b{color:var(--orange);}
   h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;}
   .hint{font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;}
+
+  /* ============================================================
+     ADAPTATION AUX ÉCRANS
+     Téléphone par défaut ; tablette et ordinateur élargissent.
+     ============================================================ */
+
+  /* ---- Tablette : 700 px et plus ---- */
+  @media (min-width: 700px){
+    .wrap{max-width:900px;padding:24px 24px 60px;}
+    header h1{font-size:20px;}
+    .card{padding:22px;}
+
+    /* Les champs courts se placent côte à côte */
+    .duo{display:flex;gap:14px;}
+    .duo > *{flex:1;min-width:0;}
+
+    textarea.result{min-height:520px;font-size:14px;}
+    .transcript-box{max-height:420px;}
+    .modal{max-width:520px !important;}
+  }
+
+  /* ---- Ordinateur : 1100 px et plus ---- */
+  @media (min-width: 1100px){
+    .wrap{max-width:1280px;padding:28px 32px 70px;}
+
+    /* Deux colonnes : le travail à gauche, la consultation à droite */
+    #appView{
+      display:grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap:20px;
+      align-items:start;
+    }
+    /* Les modules larges occupent toute la largeur */
+    #appView > [data-section="bureau"],
+    #appView > [data-section="admin"],
+    #appView > #resultView,
+    #appView > #repriseBanner{
+      grid-column: 1 / -1;
+    }
+
+    /* À l'intérieur du suivi bureau : listes en colonnes */
+    [data-section="bureau"] .grille-bureau{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap:18px;
+      align-items:start;
+    }
+
+    /* Les lignes d'élève deviennent plus compactes */
+    .history-item .meta strong{font-size:15px;}
+    .history-item .meta span{font-size:12.5px;}
+
+    textarea.result{min-height:600px;}
+    .transcript-box{max-height:480px;}
+
+    /* Les boutons pleine largeur n'ont plus de sens sur grand écran */
+    .card > .btn, .btn-row .btn{max-width:100%;}
+    #recBtn{font-size:19px;padding:24px;}
+  }
+
+  /* ---- Très grand écran ---- */
+  @media (min-width: 1600px){
+    .wrap{max-width:1500px;}
+    #appView{grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);}
+    #appView > [data-section="bureau"],
+    #appView > [data-section="admin"],
+    #appView > #resultView,
+    #appView > #repriseBanner{ grid-column: 1 / -1; }
+  }
+
+
+  /* Fiche de préparation permis et réglage des places : en colonnes */
+  @media (min-width: 1100px){
+    .fiche-permis{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap:0 16px;
+      align-items:start;
+    }
+    .fiche-permis > .pleine-largeur{grid-column: 1 / -1;}
+
+    .mois-places{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap:16px;
+      align-items:start;
+    }
+
+    /* Les filtres tiennent sur une ligne */
+    .barre-filtres{display:flex;gap:10px;flex-wrap:wrap;}
+    .barre-filtres > select{flex:1;min-width:180px;margin-bottom:0;}
+  }
+
+  /* Confort au clavier et à la souris */
+  @media (hover: hover){
+    .btn:hover:not(:disabled){filter:brightness(1.08);}
+    .history-item:hover{background:rgba(127,127,127,.06);}
+    .raccourci:hover{border-color:var(--orange);}
+  }
+
 </style>
 </head>
 <body>
@@ -265,7 +365,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v93</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v95</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -347,14 +447,19 @@
       <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
       <div id="historiqueEleve" style="display:none;margin-bottom:14px;"></div>
 
-      <label for="site">Site</label>
-      <select id="site">
-        <option>Saint-Brieuc</option>
-        <option>Loudéac</option>
-      </select>
-
-      <label for="lessonDate">Date du cours</label>
-      <input type="date" id="lessonDate">
+      <div class="duo">
+        <div>
+          <label for="site">Site</label>
+          <select id="site">
+            <option>Saint-Brieuc</option>
+            <option>Loudéac</option>
+          </select>
+        </div>
+        <div>
+          <label for="lessonDate">Date du cours</label>
+          <input type="date" id="lessonDate">
+        </div>
+      </div>
 
       <label for="noteInterne">📌 Note interne — moniteurs uniquement</label>
       <textarea id="noteInterne" rows="3" maxlength="600"
@@ -425,16 +530,22 @@
            placeholder="Choisis dans la liste ou tape un nom">
     <datalist id="listeEleves"></datalist>
     <div id="eleveInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
-    <label for="searchMoniteur">Moniteur</label>
-    <select id="searchMoniteur">
-      <option value="">Tous les moniteurs</option>
-    </select>
-    <label for="searchSite">Site</label>
-    <select id="searchSite">
-      <option value="">Tous les sites</option>
-      <option value="Saint-Brieuc">Saint-Brieuc</option>
-      <option value="Loudéac">Loudéac</option>
-    </select>
+    <div class="duo">
+      <div>
+        <label for="searchMoniteur">Moniteur</label>
+        <select id="searchMoniteur">
+          <option value="">Tous les moniteurs</option>
+        </select>
+      </div>
+      <div>
+        <label for="searchSite">Site</label>
+        <select id="searchSite">
+          <option value="">Tous les sites</option>
+          <option value="Saint-Brieuc">Saint-Brieuc</option>
+          <option value="Loudéac">Loudéac</option>
+        </select>
+      </div>
+    </div>
     <div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">
       Laisse le nom de l'élève vide et choisis un moniteur pour voir tous ses bilans.
     </div>
@@ -491,7 +602,8 @@
       </div>
     </details>
 
-    <div style="margin-top:18px;" data-section="bureau_simu">
+    <div class="grille-bureau" style="margin-top:18px;">
+    <div data-section="bureau_simu">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🌙 Simulateurs nuit et risques</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
@@ -499,10 +611,11 @@
       <div id="listeSimu"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_examblanc">
+    <div data-section="bureau_examblanc">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📝 Examens blancs à prévoir</div>
       <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
     </div>
 
     <div style="margin-top:22px;padding-top:18px;border-top:2px solid var(--line);" data-section="bureau_places">
@@ -539,7 +652,7 @@
 
       <div id="recapDates" style="margin-bottom:12px;"></div>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <div class="barre-filtres" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <select id="filtrePP" style="flex:1;min-width:150px;margin-bottom:0;">
           <option value="">— choisis un filtre —</option>
           <option value="tous">Tous les élèves</option>
@@ -3358,7 +3471,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     const boite = document.createElement('div');
     boite.className = 'modal';
-    boite.style.cssText = 'max-width:440px;max-height:88vh;overflow-y:auto;';
+    boite.style.cssText = 'max-width:min(560px, 94vw);max-height:88vh;overflow-y:auto;';
 
     const restantes = totalManoeuvres - manoeuvresAvant.length;
     boite.innerHTML =
@@ -4976,6 +5089,7 @@ function ficheSuiviPermis(e){
     '📋 Fiche de préparation' + (s.majLe ? ' — mise à jour le ' + s.majLe : '') + '</summary>';
 
   const f = document.createElement('div');
+  f.className = 'fiche-permis';
   f.style.cssText = 'margin-top:12px;padding:12px;background:var(--navy);' +
     'border:1px solid var(--line);border-radius:10px;';
 
@@ -5043,16 +5157,19 @@ function ficheSuiviPermis(e){
       'border:1px solid var(--line);color:var(--cream);padding:10px;border-radius:10px;' +
       'font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
 
+    '<div class="pleine-largeur">' +
     '<label for="' + id + 'res">Réservations faites sur le planning</label>' +
     '<textarea id="' + id + 'res" rows="2" placeholder="Ex : 10/09 14h-16h et 11/09 9h-12h" ' +
       'style="width:100%;background:var(--navy-deep);border:1px solid var(--line);color:var(--cream);' +
-      'padding:10px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>';
+      'padding:10px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
+    '</div>';
 
   const bEnr = document.createElement('button');
-  bEnr.className = 'btn btn-primary';
+  bEnr.className = 'btn btn-primary pleine-largeur';
   bEnr.textContent = '💾 Enregistrer la fiche';
   f.appendChild(bEnr);
   const etat = document.createElement('div');
+  etat.className = 'pleine-largeur';
   etat.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
   f.appendChild(etat);
 
@@ -5363,6 +5480,7 @@ function afficherPlaces(stats){
   det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:700;' +
     'font-size:14px;">⚙️ Régler les places disponibles</summary>';
   const corps = document.createElement('div');
+  corps.className = 'mois-places';
   corps.style.cssText = 'margin-top:12px;';
   det.appendChild(corps);
   zone.appendChild(det);
