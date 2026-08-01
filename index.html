@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v70</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v71</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -440,6 +440,31 @@
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🚗 Examens du permis à prévoir</div>
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        📨 Message à un moniteur</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
+        S'affichera au moniteur au prochain cours de cet élève, sans avoir à générer de bilan.
+      </div>
+      <label for="msgEleve">Nom et prénom de l'élève</label>
+      <input type="text" id="msgEleve" list="listeEleves" autocomplete="off"
+             placeholder="Choisis dans la liste ou tape un nom">
+      <label for="msgTexte">Message</label>
+      <textarea id="msgTexte" rows="3" maxlength="400"
+                placeholder="Ex : examen blanc déplacé au 18/09, prévenir l'élève"
+                style="width:100%;background:var(--navy);border:1px solid var(--line);
+                       color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;
+                       line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+      <button class="btn btn-primary" id="msgBtn">📨 Envoyer au moniteur</button>
+      <div id="msgEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+
+      <div style="margin-top:18px;">
+        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;">
+          Messages en attente de lecture</div>
+        <div id="listeConsignes"><div class="empty">Appuie sur Actualiser.</div></div>
+      </div>
     </div>
   </div>
 
@@ -4716,6 +4741,85 @@ async function afficherBureau(){
   }
 }
 
+
+/* Message libre du bureau vers le moniteur, sans passer par un bilan */
+async function envoyerMessageBureau(){
+  const eleve = $('msgEleve').value.trim();
+  const texte = $('msgTexte').value.trim();
+  const etat = $('msgEtat');
+
+  if(eleve.length < 2){ etat.style.color='var(--warn-text)'; etat.textContent="Saisis le nom de l'élève."; return; }
+  if(!texte){ etat.style.color='var(--warn-text)'; etat.textContent='Saisis un message.'; return; }
+
+  const btn = $('msgBtn');
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+  try{
+    await envoyerConsigne(eleve, 'message', texte);
+    etat.style.color = 'var(--accent-text)';
+    etat.textContent = '✅ Message enregistré pour ' + eleve +
+                       ' — il le verra au prochain cours.';
+    $('msgTexte').value = '';
+    await afficherConsignesEnAttente();
+  }catch(e){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Erreur : ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '📨 Envoyer au moniteur';
+  }
+}
+
+/* Messages déjà envoyés mais pas encore lus par un moniteur */
+async function afficherConsignesEnAttente(){
+  const zone = $('listeConsignes');
+  if(!zone) return;
+  try{
+    const data = await appelPrep({ action: 'consigneList' });
+    const liste = ((data && data.consignes) || [])
+      .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
+
+    if(!liste.length){
+      zone.innerHTML = '<div class="empty">Aucun message en attente.</div>';
+      return;
+    }
+    zone.innerHTML = '';
+    liste.forEach(cs => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const nom = document.createElement('strong');
+      nom.textContent = cs.eleve;
+      const t = document.createElement('span');
+      t.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
+      t.textContent = '📨 ' + cs.texte;
+      const d = document.createElement('span');
+      d.textContent = 'Envoyé le ' + cs.creeLe + (cs.par ? ' par ' + cs.par : '');
+      meta.appendChild(nom); meta.appendChild(t); meta.appendChild(d);
+      row.appendChild(meta);
+
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;color:var(--red);border-color:var(--red);flex-shrink:0;';
+      b.textContent = '✕';
+      b.title = 'Annuler ce message';
+      b.addEventListener('click', async () => {
+        if(!confirm('Annuler ce message ?')) return;
+        b.disabled = true;
+        try{
+          await appelPrep({ action: 'consigneDone', id: cs.id });
+          afficherConsignesEnAttente();
+        }catch(e){ showToast('Erreur : ' + e.message); b.disabled = false; }
+      });
+      row.appendChild(b);
+      zone.appendChild(row);
+    });
+  }catch(e){
+    zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+  }
+}
+
 /* ---------- Suppression du dossier d'un élève ---------- */
 let eleveAffiche = '';
 let nbBilansAffiches = 0;
@@ -4783,7 +4887,8 @@ async function supprimerDossierEleve(){
 }
 
 $('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
-$('bureauBtn').addEventListener('click', afficherBureau);
+$('bureauBtn').addEventListener('click', () => { afficherBureau(); afficherConsignesEnAttente(); });
+$('msgBtn').addEventListener('click', envoyerMessageBureau);
 $('permisBtn').addEventListener('click', preparerPermis);
 $('permisNom').addEventListener('change', preparerPermis);
 
