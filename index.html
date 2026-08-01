@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v85</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v86</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -290,7 +290,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" data-section="cours">
     <h2 class="section-title">📅 Mes cours préparés</h2>
     <label style="display:flex;align-items:center;gap:10px;text-transform:none;
                   font-size:14px;color:var(--muted);margin-bottom:10px;">
@@ -320,7 +320,7 @@
     </details>
   </div>
 
-  <div id="recordView">
+  <div id="recordView" data-section="cours">
     <div class="card">
       <label for="modele">Type de bilan</label>
       <select id="modele"></select>
@@ -405,7 +405,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" data-section="recherche">
     <h2 class="section-title">Retrouver un élève</h2>
     <label for="searchName">Nom et prénom de l'élève</label>
     <input type="text" id="searchName" list="listeEleves" autocomplete="off"
@@ -434,7 +434,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" data-section="bureau">
     <h2 class="section-title">🏢 Suivi bureau</h2>
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
     <div id="blocPlaces" style="margin-top:14px;"></div>
@@ -549,7 +549,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" data-section="permis">
     <h2 class="section-title">🎓 Élève ayant obtenu son permis</h2>
     <label for="permisNom">Nom et prénom de l'élève</label>
     <input type="text" id="permisNom" list="listeEleves" autocomplete="off"
@@ -569,8 +569,9 @@
       <input type="text" id="newName" placeholder="Ex : David">
       <label for="newRole">Rôle</label>
       <select id="newRole">
-        <option value="moniteur">Moniteur</option>
-        <option value="admin">Administrateur</option>
+        <option value="moniteur">Moniteur — cours et recherche</option>
+        <option value="bureau">Bureau — recherche, suivi et permis</option>
+        <option value="admin">Administrateur — tout</option>
       </select>
       <button class="btn btn-primary" id="createBtn">➕ Créer l'accès</button>
       <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
@@ -1701,12 +1702,35 @@ CONFIG.VERSION_SCRIPT_ATTENDUE = 15;   /* voir apps-script.js */
 const CLE_SESSION = 'session_acces';
 const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
 
-let ACCES = { code: null, moniteur: '', role: '' };
+let ACCES = { code: null, moniteur: '', role: '', droits: [] };
 
-function memoriserSession(code, moniteur, role){
+/* Sections de l'application soumises à autorisation */
+const SECTIONS = [
+  { cle:'cours',     nom:'Cours et enregistrement' },
+  { cle:'recherche', nom:'Recherche d\'élève' },
+  { cle:'bureau',    nom:'Suivi bureau' },
+  { cle:'permis',    nom:'Élève ayant obtenu son permis' },
+  { cle:'admin',     nom:'Administration des accès' }
+];
+
+function aDroit(section){
+  return !ACCES.droits || !ACCES.droits.length || ACCES.droits.indexOf(section) !== -1;
+}
+
+/* Masque les parties de l'écran auxquelles la personne n'a pas accès */
+function appliquerDroits(){
+  document.querySelectorAll('[data-section]').forEach(el => {
+    el.style.display = aDroit(el.getAttribute('data-section')) ? '' : 'none';
+  });
+  if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
+  $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
+}
+
+function memoriserSession(code, moniteur, role, droits){
   try{
     localStorage.setItem(CLE_SESSION, JSON.stringify({
-      code: code, moniteur: moniteur, role: role, ts: Date.now()
+      code: code, moniteur: moniteur, role: role,
+      droits: droits || [], ts: Date.now()
     }));
   }catch(e){}
 }
@@ -1728,7 +1752,7 @@ function oublierSession(){
 
 function verrouiller(message, garderSession){
   if(!garderSession) oublierSession();
-  ACCES = { code: null, moniteur: '', role: '' };
+  ACCES = { code: null, moniteur: '', role: '', droits: [] };
   $('appView').style.display = 'none';
   $('adminCard').style.display = 'none';
   if($('logoutBtn')) $('logoutBtn').style.display = 'none';
@@ -6262,18 +6286,23 @@ async function chargerUtilisateurs(){
       actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
 
       if(!u.principal && u.code !== ACCES.code){
-        const bRole = document.createElement('button');
-        bRole.className = 'btn btn-secondary';
-        bRole.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;';
-        bRole.textContent = u.role === 'admin' ? '↓ moniteur' : '↑ admin';
-        bRole.addEventListener('click', async () => {
-          try{
-            await appelAdmin({ action:'role', cible:u.code, role: u.role === 'admin' ? 'moniteur' : 'admin' });
-            messageAdmin('Rôle de ' + u.nom + ' modifié.');
-            chargerUtilisateurs();
-          }catch(e){ messageAdmin(e.message, true); }
+        const selRole = document.createElement('select');
+        selRole.style.cssText = 'width:auto;margin:0;padding:7px 8px;font-size:12px;';
+        [['moniteur','Moniteur'],['bureau','Bureau'],['admin','Admin']].forEach(([v, l]) => {
+          const o = document.createElement('option');
+          o.value = v; o.textContent = l;
+          selRole.appendChild(o);
         });
-        actions.appendChild(bRole);
+        selRole.value = u.role;
+        selRole.addEventListener('change', async () => {
+          selRole.disabled = true;
+          try{
+            await appelAdmin({ action:'role', cible:u.code, role: selRole.value });
+            messageAdmin('Rôle de ' + u.nom + ' modifié — accès repris du rôle.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); selRole.disabled = false; }
+        });
+        actions.appendChild(selRole);
 
         const bDel = document.createElement('button');
         bDel.className = 'btn btn-secondary';
@@ -6297,6 +6326,48 @@ async function chargerUtilisateurs(){
 
       row.appendChild(actions);
       zone.appendChild(row);
+
+      /* Réglage fin de ce que cette personne voit */
+      if(!u.principal){
+        const det = document.createElement('details');
+        det.style.cssText = 'margin:-6px 0 10px 4px;';
+        det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
+          'Ce que ' + u.nom + ' voit (' + (u.droits || []).length + ' section' +
+          ((u.droits || []).length > 1 ? 's' : '') + ')</summary>';
+        const z = document.createElement('div');
+        z.style.cssText = 'padding:8px 0 8px 6px;';
+        SECTIONS.forEach(sec => {
+          const l = document.createElement('label');
+          l.style.cssText = 'display:flex;align-items:center;gap:8px;text-transform:none;' +
+            'font-size:14px;color:var(--cream);margin:0 0 6px;';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.value = sec.cle;
+          cb.className = 'drt-' + u.code;
+          cb.style.cssText = 'width:17px;height:17px;';
+          cb.checked = (u.droits || []).indexOf(sec.cle) !== -1;
+          l.appendChild(cb);
+          l.appendChild(document.createTextNode(sec.nom));
+          z.appendChild(l);
+        });
+        const b = document.createElement('button');
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'padding:8px;font-size:12px;';
+        b.textContent = '💾 Enregistrer les accès';
+        b.addEventListener('click', async () => {
+          const choisis = Array.prototype.slice
+            .call(document.querySelectorAll('.drt-' + u.code + ':checked')).map(x => x.value);
+          b.disabled = true;
+          try{
+            await appelAdmin({ action:'droits', cible:u.code, droits: choisis });
+            messageAdmin('Accès de ' + u.nom + ' enregistrés.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); b.disabled = false; }
+        });
+        z.appendChild(b);
+        det.appendChild(z);
+        zone.appendChild(det);
+      }
     });
   }catch(e){
     zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
@@ -6327,22 +6398,23 @@ $('createBtn').addEventListener('click', async () => {
 
 
 /* Ouvre la session et met en place l'interface */
-function ouvrirSession(code, moniteur, role, saluer){
-  ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur' };
-  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role);
+function ouvrirSession(code, moniteur, role, saluer, droits){
+  ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur',
+            droits: droits || [] };
+  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits);
 
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
   $('logoutBtn').style.display = 'block';
   if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
-  if(ACCES.role === 'admin'){
-    $('adminCard').style.display = 'block';
-    chargerUtilisateurs();
-  }
+
+  appliquerDroits();
+  if(aDroit('admin') && ACCES.role === 'admin') chargerUtilisateurs();
+
   proposerReprise();
   chargerEleves();
   chargerMoniteurs();
-  afficherPrepares();
+  if(aDroit('cours')) afficherPrepares();
   if(saluer) showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
 }
 
@@ -6358,11 +6430,11 @@ async function reprendreSession(){
     });
     const data = await r.json().catch(() => ({}));
     if(!r.ok || !data.ok){ oublierSession(); return false; }
-    ouvrirSession(s.code, data.moniteur, data.role, false);
+    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits);
     return true;
   }catch(e){
     /* Hors ligne : on fait confiance à la session mémorisée */
-    ouvrirSession(s.code, s.moniteur, s.role, false);
+    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits);
     return true;
   }
 }
@@ -6394,7 +6466,7 @@ async function deverrouiller(){
       $('codeInput').value = '';
       return;
     }
-    ouvrirSession(code, data.moniteur, data.role, true);
+    ouvrirSession(code, data.moniteur, data.role, true, data.droits);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Connexion impossible : ' + e.message;
