@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v36</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v37</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2656,10 +2656,49 @@ const RACCOURCIS_NOTE = [
 ];
 
 
+
+/* Compte les leçons de conduite déjà enregistrées pour un élève.
+   Seuls les bilans de type « Conduite » comptent : simulateur,
+   évaluation, RDV préalable et examen ne sont pas des leçons. */
+async function leconsDejaFaites(nomEleve){
+  if(!nomEleve || nomEleve.trim().length < 2) return null;
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+    });
+    if(!r.ok) return null;
+    const data = await r.json().catch(() => ({}));
+    const res = (data && data.resultats) || [];
+    let n = 0;
+    res.forEach(item => {
+      const type = String(item.type || '');
+      if(/^Conduite/i.test(type) || /^AAC/i.test(type)) n++;
+    });
+    return n;
+  }catch(e){
+    console.warn('Comptage des leçons indisponible :', e);
+    return null;
+  }
+}
+
 /* Numéro de la leçon du jour, situé par rapport à la frise si elle
    est déjà notée. Sinon on affiche simplement le rang. */
-function construireLecon(champ){
-  const rep = prompt('Numéro de la leçon du jour ?\n(1 pour la première, 2 pour la deuxième…)');
+async function construireLecon(champ){
+  /* Proposition calculée d'après les bilans déjà enregistrés */
+  const eleve = $('studentName').value.trim();
+  const faites = await leconsDejaFaites(eleve);
+  const propose = (faites !== null) ? faites + 1 : '';
+
+  const question = (faites !== null)
+    ? 'Numéro de la leçon du jour ?\n\n' +
+      faites + ' bilan(s) de conduite déjà enregistré(s) pour ' + eleve + '.\n' +
+      'Proposition : leçon n°' + propose + '.\n\n' +
+      'Valide ou corrige si besoin.'
+    : 'Numéro de la leçon du jour ?\n(1 pour la première, 2 pour la deuxième…)';
+
+  const rep = prompt(question, propose);
   if(rep === null) return null;
   const n = parseInt(String(rep).trim(), 10);
   if(!n || n < 1){
@@ -2733,10 +2772,17 @@ function creerRaccourcis(idConteneur, idChamp){
     b.type = 'button';
     b.className = 'raccourci';
     b.textContent = r.libelle;
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
       let texte;
       if(r.special === 'lecon'){
-        texte = construireLecon($(idChamp));
+        b.disabled = true;
+        b.textContent = '…';
+        try{
+          texte = await construireLecon($(idChamp));
+        }finally{
+          b.disabled = false;
+          b.textContent = r.libelle;
+        }
       }else{
         texte = (r.demandes && r.demandes.length) ? completerModele(r) : r.modele;
       }
