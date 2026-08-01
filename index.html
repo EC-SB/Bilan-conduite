@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v37</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v38</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2627,8 +2627,7 @@ const RACCOURCIS_NOTE = [
   },
   {
     libelle: 'Examen blanc',
-    modele: 'Examen blanc prévue ❌✅ si oui dans ❓ leçon(s)',
-    demandes: ['Nombre de leçons avant examen blanc ? (laisse vide pour garder ❓)']
+    special: 'examenBlanc'
   },
   {
     libelle: 'Examen prévu',
@@ -2656,6 +2655,35 @@ const RACCOURCIS_NOTE = [
 ];
 
 
+
+
+/* Examen blanc : réservé ou non, puis dans combien de leçons */
+function construireExamenBlanc(){
+  const reserve = confirm(
+    'Examen blanc déjà réservé ?\n\n' +
+    'OK = oui, il est réservé\n' +
+    'Annuler = non, pas encore réservé'
+  );
+
+  if(reserve){
+    const rep = prompt('Examen blanc réservé dans combien de leçons ?\n(laisse vide si non déterminé)');
+    if(rep === null) return null;
+    const n = String(rep).trim();
+    return n
+      ? 'Examen blanc réservé dans ' + n + ' leçon' + (parseInt(n, 10) > 1 ? 's' : '')
+      : 'Examen blanc réservé';
+  }
+
+  const rep = prompt(
+    'Examen blanc à prévoir dans combien de leçons ?\n\n' +
+    "Laisse vide s'il ne faut pas en prévoir pour le moment."
+  );
+  if(rep === null) return null;
+  const n = String(rep).trim();
+  return n
+    ? 'Examen blanc à prévoir dans ' + n + ' leçon' + (parseInt(n, 10) > 1 ? 's' : '')
+    : "Ne pas prévoir d'examen blanc pour le moment";
+}
 
 /* Compte les leçons de conduite déjà enregistrées pour un élève.
    Seuls les bilans de type « Conduite » comptent : simulateur,
@@ -2783,6 +2811,8 @@ function creerRaccourcis(idConteneur, idChamp){
           b.disabled = false;
           b.textContent = r.libelle;
         }
+      }else if(r.special === 'examenBlanc'){
+        texte = construireExamenBlanc();
       }else{
         texte = (r.demandes && r.demandes.length) ? completerModele(r) : r.modele;
       }
