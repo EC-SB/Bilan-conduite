@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v61</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v62</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1528,7 +1528,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 6;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 7;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -2587,6 +2587,8 @@ async function exporterVersSheets(silencieux){
           studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
           typeBilan: currentLessonMeta ? currentLessonMeta.modeleLabel : '',
           noteInterne: $('noteResult').value.trim(),
+          boite: contexteDepart ? (contexteDepart.boite || '') : '',
+          ants: contexteDepart ? (contexteDepart.ants || '') : '',
           horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
           bilan: $('resultText').value
         }
@@ -2882,6 +2884,21 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
             : 'Examen officiel — note interne uniquement.')) +
       '</div>' +
 
+      '<label for="qBoite">Boîte</label>' +
+      '<select id="qBoite">' +
+        '<option value="bv">BV — boîte manuelle</option>' +
+        '<option value="bea">BEA — boîte automatique</option>' +
+      '</select>' +
+
+      '<label for="qAnts">Dossier ANTS</label>' +
+      '<select id="qAnts">' +
+        '<option value="">— non renseigné —</option>' +
+        '<option value="eleve">Fait par l\'élève</option>' +
+        '<option value="nous">Fait par nous</option>' +
+      '</select>' +
+      '<div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">' +
+      'Information interne, jamais reprise dans les notes ni dans le bilan.</div>' +
+
       '<label>Frise de formation</label>' +
       (friseDeduite
         ? ''
@@ -2922,6 +2939,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
       '<label for="qExamPermis">Examen du permis</label>' +
       '<select id="qExamPermis">' +
         '<option value="">— pas de date —</option>' +
+        '<option value="aprevoir">Date à prévoir</option>' +
         '<option value="prevu">Prévu le…</option>' +
         '<option value="annule">Annulé</option>' +
       '</select>' +
@@ -2938,10 +2956,13 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
         'Manœuvres à finir en priorité' +
       '</label>' +
 
-      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-        '<input type="checkbox" id="qSimuNuit" style="width:20px;height:20px;">' +
-        'Simulateur nuit et risques à prévoir' +
-      '</label>' +
+      '<label for="qSimuNuit">Simulateur nuit et risques</label>' +
+      '<select id="qSimuNuit">' +
+        '<option value="">— non évoqué —</option>' +
+        '<option value="aprevoir">À prévoir</option>' +
+        '<option value="prevu">Déjà prévu</option>' +
+        '<option value="fait">Fait ✅</option>' +
+      '</select>' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qFinFormation" style="width:20px;height:20px;">' +
@@ -2963,6 +2984,12 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
           '<option value="prevu">Déjà prévu</option>' +
           '<option value="fait">Déjà fait</option>' +
         '</select>' +
+      '</div>' +
+
+      '<div id="qBlocManoeuvres" style="display:none;">' +
+        '<label>Manœuvres restantes — coche celles à travailler</label>' +
+        '<div id="qManoeuvres" style="background:var(--navy);border:1px solid var(--line);' +
+        'border-radius:10px;padding:10px 12px;margin-bottom:14px;max-height:200px;overflow-y:auto;"></div>' +
       '</div>' +
 
       '<label for="qLibre">Autre note pour le prochain moniteur</label>' +
@@ -3066,11 +3093,41 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
     boite.querySelector('#qLecon').value = prec.lecon || ((faites !== null) ? (faites + 1) : '');
     boite.querySelector('#qFinirFiche').checked =
       (prec.finirFiche !== undefined) ? prec.finirFiche : (restantes > 0 && restantes <= 4);
-    boite.querySelector('#qSimuNuit').checked = !!prec.simuNuit;
+    boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
     boite.querySelector('#qFinFormation').checked = !!prec.finFormation;
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
     boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
     boite.querySelector('#qLibre').value = prec.libre || '';
+
+    /* Boîte déduite du type de bilan, ANTS repris s'il est connu */
+    boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
+    boite.querySelector('#qAnts').value = prec.ants || '';
+
+    /* Manœuvres qui restent à faire */
+    const zoneMan = boite.querySelector('#qManoeuvres');
+    const blocMan = boite.querySelector('#qBlocManoeuvres');
+    const dejaFaites = manoeuvresAvant.map(normaliserMot);
+    const restantesListe = BLOC.ficheListeConduite.filter(m => dejaFaites.indexOf(normaliserMot(m)) === -1);
+
+    if(profil === 'complet' && restantesListe.length){
+      blocMan.style.display = 'block';
+      zoneMan.innerHTML = '';
+      const prioritaires = (prec.manoeuvresCibles || []);
+      restantesListe.forEach(nom => {
+        const l = document.createElement('label');
+        l.style.cssText = 'display:flex;align-items:center;gap:10px;padding:5px 0;' +
+          'font-size:15px;color:var(--cream);text-transform:none;margin:0;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = nom;
+        cb.className = 'qMan';
+        cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;';
+        if(prioritaires.indexOf(nom) !== -1) cb.checked = true;
+        l.appendChild(cb);
+        l.appendChild(document.createTextNode(nom));
+        zoneMan.appendChild(l);
+      });
+    }
 
     /* Champs conditionnels */
     const selEB = boite.querySelector('#qExamBlanc');
@@ -3134,12 +3191,16 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
         examPermis: selEP.value,
         examDate: dEP.value,
         finirFiche: boite.querySelector('#qFinirFiche').checked,
-        simuNuit: boite.querySelector('#qSimuNuit').checked,
+        simuNuit: boite.querySelector('#qSimuNuit').value,
         finFormation: boite.querySelector('#qFinFormation').checked,
         examPermisN: nEP.value.trim(),
         nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
         rvPrealable: boite.querySelector('#qRvPrealable').value,
+        boite: boite.querySelector('#qBoite').value,
+        ants: boite.querySelector('#qAnts').value,
+        manoeuvresCibles: Array.prototype.slice
+          .call(boite.querySelectorAll('.qMan:checked')).map(x => x.value),
         libre: boite.querySelector('#qLibre').value.trim(),
         leconsFaites: faites,
         manoeuvresFaites: manoeuvresAvant.length,
@@ -3210,7 +3271,9 @@ function ajouterSuite(bouts, q){
     bouts.push("Ne pas prévoir d'examen blanc pour le moment");
   }
 
-  if(q.examPermis === 'prevu' && q.examDate){
+  if(q.examPermis === 'aprevoir'){
+    bouts.push("Date d'examen à prévoir");
+  }else if(q.examPermis === 'prevu' && q.examDate){
     const np = q.examPermisN;
     let phrase = 'Examen prévu le ' + dateEnToutesLettres(q.examDate);
     if(np){
@@ -3234,7 +3297,13 @@ function ajouterSuite(bouts, q){
     bouts.push('Finir Fiche' + (reste ? ' — ' + reste + ' manœuvre' + (reste > 1 ? 's' : '') +
                ' restante' + (reste > 1 ? 's' : '') : ''));
   }
-  if(q.simuNuit) bouts.push('Simulateur nuit et risques à prévoir');
+  if(q.simuNuit === 'aprevoir') bouts.push('Simulateur nuit et risques à prévoir');
+  else if(q.simuNuit === 'prevu') bouts.push('Simulateur nuit et risques déjà prévu');
+  else if(q.simuNuit === 'fait') bouts.push('Simulateur nuit et risques fait ✅');
+
+  if(q.manoeuvresCibles && q.manoeuvresCibles.length){
+    bouts.push('À travailler : ' + q.manoeuvresCibles.join(', '));
+  }
 
   if(q.formAccomp === 'aprevoir') bouts.push('Formation accompagnateur à prévoir');
   else if(q.formAccomp === 'prevue') bouts.push('Formation accompagnateur déjà prévue');
@@ -3799,7 +3868,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v6') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v7') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
