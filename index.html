@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v73</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v74</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -3030,17 +3030,25 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   const eleve = $('studentName').value.trim();
   const modeleCle = $('modele').value;
 
-  /* Informations déjà connues */
-  /* Frise entièrement déduite du type de bilan (cas AAC) */
   const profil = profilQuestionnaire(modeleCle);
-  /* Consignes laissées par le bureau depuis le dernier cours */
+
+  /* Dossier de l'élève et consignes du bureau : chargés ensemble */
+  const fermerAttente = ouvrirAttente('Récupération du dossier…');
+  let dossier = { frise:'', lecons:null, manoeuvres:[], derniereNote:'', dernierHorodatage:'' };
   let consignesBureau = [];
-  if(eleve.length >= 2){
-    try{
-      const cd = await appelPrep({ action: 'consigneList', eleve: eleve });
-      consignesBureau = ((cd && cd.consignes) || [])
-        .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
-    }catch(e){ /* sans réseau, on continue */ }
+  try{
+    const taches = [chargerDossierEleve(eleve)];
+    taches.push(eleve.length >= 2
+      ? appelPrep({ action: 'consigneList', eleve: eleve }).catch(() => ({}))
+      : Promise.resolve({}));
+    const [d, cd] = await Promise.all(taches);
+    dossier = d || dossier;
+    consignesBureau = ((cd && cd.consignes) || [])
+      .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
+  }catch(e){
+    console.warn('Dossier partiellement indisponible :', e);
+  }finally{
+    fermerAttente();
   }
 
   /* Sans réponses antérieures, on repart de l'état du dernier cours */
@@ -3048,12 +3056,13 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     prec = defautsDepuisNote(dossier.derniereNote);
   }
 
+  /* Frise entièrement déduite du type de bilan (cas AAC) */
   const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
   /* Clé de conduite supervisée correspondant à la boîte du bilan */
   const cleCS = /auto/i.test(modeleCle) ? 'csbea' : 'csbv';
-  const frisePrecedente = friseDeduite || await friseAnterieure(eleve);
-  const faites = await leconsDejaFaites(eleve);
-  const manoeuvresAvant = await manoeuvresAnterieures(eleve);
+  const frisePrecedente = friseDeduite || dossier.frise;
+  const faites = dossier.lecons;
+  const manoeuvresAvant = dossier.manoeuvres || [];
   const totalManoeuvres = BLOC.ficheListeConduite.length;
 
   return new Promise(resolve => {
