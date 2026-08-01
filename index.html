@@ -209,6 +209,19 @@
   }
   #noteInterne:focus, #noteResult:focus{outline:2px solid var(--orange);outline-offset:1px;}
   body.clair #noteInterne, body.clair #noteResult{background:#FBFBF7;}
+  .lecture-seule button:not(.raccourci),
+  .lecture-seule input, .lecture-seule select, .lecture-seule textarea{
+    pointer-events:none;
+    opacity:.55;
+  }
+  .lecture-seule::before{
+    content:'👁️ Lecture seule';
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    margin-bottom:6px;
+    letter-spacing:.04em;
+  }
   .raccourcis{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
   .raccourci{
     background:transparent;
@@ -252,7 +265,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v88</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v89</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -290,7 +303,7 @@
     </div>
   </div>
 
-  <div class="card" data-section="cours">
+  <div class="card" data-section="prepares">
     <h2 class="section-title">📅 Mes cours préparés</h2>
     <label style="display:flex;align-items:center;gap:10px;text-transform:none;
                   font-size:14px;color:var(--muted);margin-bottom:10px;">
@@ -472,7 +485,7 @@
       </div>
     </details>
 
-    <div style="margin-top:18px;">
+    <div style="margin-top:18px;" data-section="bureau_simu">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🌙 Simulateurs nuit et risques</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
@@ -480,18 +493,18 @@
       <div id="listeSimu"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_examblanc">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📝 Examens blancs à prévoir</div>
       <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:22px;padding-top:18px;border-top:2px solid var(--line);">
+    <div style="margin-top:22px;padding-top:18px;border-top:2px solid var(--line);" data-section="bureau_places">
       <div style="font-size:15px;font-weight:700;margin-bottom:8px;">🚗 PERMIS</div>
       <div id="blocPlaces" style="margin-bottom:14px;"></div>
     </div>
 
-    <div style="margin-top:16px;">
+    <div style="margin-top:16px;" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:6px;">
         🚗 Examens du permis à prévoir</div>
       <select id="filtrePermis" style="margin-bottom:10px;">
@@ -504,7 +517,7 @@
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🗓️ Élèves permis — à placer sur une date</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
@@ -512,7 +525,7 @@
       <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📆 Permis prévus — préparation</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
@@ -534,7 +547,7 @@
       <div id="listePermisPrevu"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_messages">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📨 Message à un moniteur</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
@@ -552,11 +565,14 @@
       <button class="btn btn-primary" id="msgBtn">📨 Envoyer au moniteur</button>
       <div id="msgEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
 
-      <div style="margin-top:18px;">
-        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px;">
-          Messages en attente de lecture</div>
-        <div id="listeConsignes"><div class="empty">Appuie sur Actualiser.</div></div>
-      </div>
+      <details style="margin-top:18px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);">
+          📬 Messages en attente de lecture <span id="nbConsignes"></span>
+        </summary>
+        <div id="listeConsignes" style="margin-top:8px;">
+          <div class="empty">Appuie sur Actualiser.</div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -1717,22 +1733,41 @@ let ACCES = { code: null, moniteur: '', role: '', droits: [] };
 
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
-  { cle:'cours',     nom:'Cours et enregistrement' },
-  { cle:'recherche', nom:'Recherche d\'élève' },
-  { cle:'bureau',    nom:'Suivi bureau' },
-  { cle:'permis',    nom:'Élève ayant obtenu son permis' },
-  { cle:'admin',     nom:'Administration des accès' }
+  { cle:'prepares',         nom:'📅 Mes cours préparés' },
+  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
+  { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
+  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
+  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
+  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
+  { cle:'bureau_permis',    nom:'🚗 Permis : à prévoir, à placer, prévus' },
+  { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
+  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
+  { cle:'admin',            nom:'⚙️ Administration des accès' }
 ];
 
-function aDroit(section){
-  return !ACCES.droits || !ACCES.droits.length || ACCES.droits.indexOf(section) !== -1;
+/* Niveau d'accès : 'm' modifier, 'v' voir, '' rien */
+function niveauDroit(section){
+  const d = ACCES.droits;
+  if(!d || !Object.keys(d).length) return 'm';   /* compte sans réglage : tout */
+  return d[section] || '';
 }
+function aDroit(section){ return niveauDroit(section) !== ''; }
+function peutModifier(section){ return niveauDroit(section) === 'm'; }
 
-/* Masque les parties de l'écran auxquelles la personne n'a pas accès */
+/* Masque ou passe en lecture seule selon le niveau accordé */
 function appliquerDroits(){
+  /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
+  const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
+                         'bureau_permis','bureau_messages'];
+  const bureauVisible = partiesBureau.some(aDroit);
+
   document.querySelectorAll('[data-section]').forEach(el => {
-    el.style.display = aDroit(el.getAttribute('data-section')) ? '' : 'none';
+    const s = el.getAttribute('data-section');
+    const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
+    el.style.display = visible ? '' : 'none';
+    el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
   });
+
   if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
 }
@@ -5911,6 +5946,7 @@ async function afficherConsignesEnAttente(){
     const liste = ((data && data.consignes) || [])
       .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
 
+    if($('nbConsignes')) $('nbConsignes').textContent = '(' + liste.length + ')';
     if(!liste.length){
       zone.innerHTML = '<div class="empty">Aucun message en attente.</div>';
       return;
@@ -6437,31 +6473,39 @@ async function chargerUtilisateurs(){
         const det = document.createElement('details');
         det.style.cssText = 'margin:-6px 0 10px 4px;';
         det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
-          'Ce que ' + u.nom + ' voit (' + (u.droits || []).length + ' section' +
-          ((u.droits || []).length > 1 ? 's' : '') + ')</summary>';
+          'Ce que ' + u.nom + ' voit (' + Object.keys(u.droits || {}).length +
+          ' section' + (Object.keys(u.droits || {}).length > 1 ? 's' : '') + ')</summary>';
         const z = document.createElement('div');
         z.style.cssText = 'padding:8px 0 8px 6px;';
+        const dr = u.droits || {};
         SECTIONS.forEach(sec => {
-          const l = document.createElement('label');
-          l.style.cssText = 'display:flex;align-items:center;gap:8px;text-transform:none;' +
-            'font-size:14px;color:var(--cream);margin:0 0 6px;';
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.value = sec.cle;
-          cb.className = 'drt-' + u.code;
-          cb.style.cssText = 'width:17px;height:17px;';
-          cb.checked = (u.droits || []).indexOf(sec.cle) !== -1;
-          l.appendChild(cb);
-          l.appendChild(document.createTextNode(sec.nom));
+          const l = document.createElement('div');
+          l.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 6px;';
+          const t = document.createElement('span');
+          t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;';
+          t.textContent = sec.nom;
+          const s = document.createElement('select');
+          s.className = 'drt-' + u.code;
+          s.setAttribute('data-cle', sec.cle);
+          s.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:12px;flex-shrink:0;';
+          [['', 'Rien'], ['v', '👁️ Voir'], ['m', '✏️ Modifier']].forEach(([v, lab]) => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = lab;
+            s.appendChild(o);
+          });
+          s.value = dr[sec.cle] || '';
+          l.appendChild(t); l.appendChild(s);
           z.appendChild(l);
         });
         const b = document.createElement('button');
         b.className = 'btn btn-secondary';
-        b.style.cssText = 'padding:8px;font-size:12px;';
+        b.style.cssText = 'padding:8px;font-size:12px;margin-top:6px;';
         b.textContent = '💾 Enregistrer les accès';
         b.addEventListener('click', async () => {
-          const choisis = Array.prototype.slice
-            .call(document.querySelectorAll('.drt-' + u.code + ':checked')).map(x => x.value);
+          const choisis = {};
+          document.querySelectorAll('.drt-' + u.code).forEach(x => {
+            if(x.value) choisis[x.getAttribute('data-cle')] = x.value;
+          });
           b.disabled = true;
           try{
             await appelAdmin({ action:'droits', cible:u.code, droits: choisis });
