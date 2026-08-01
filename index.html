@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v87</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v88</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -492,8 +492,15 @@
     </div>
 
     <div style="margin-top:16px;">
-      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:6px;">
         🚗 Examens du permis à prévoir</div>
+      <select id="filtrePermis" style="margin-bottom:10px;">
+        <option value="">Tous — par priorité</option>
+        <option value="urgent">🔴 Urgents seulement</option>
+        <option value="aprevoir">Date à prévoir</option>
+        <option value="annule">❌ Examens annulés</option>
+        <option value="sansprio">Sans priorité définie</option>
+      </select>
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
@@ -5737,16 +5744,20 @@ async function afficherBureau(){
           const bAnn = document.createElement('button');
           bAnn.className = 'btn btn-secondary';
           bAnn.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-          bAnn.textContent = (s.statut === 'annule') ? '↩️ Réactiver' : '❌ Annuler l\'examen';
+          bAnn.textContent = '❌ Annuler l\'examen';
           bAnn.addEventListener('click', async () => {
             const annuler = (s.statut !== 'annule');
             if(annuler && !confirm('Annuler l\'examen de ' + x.eleve + ' ?')) return;
             bAnn.disabled = true;
             try{
-              await majSuivi(x.eleve, { statut: annuler ? 'annule' : '' });
               if(annuler){
+                /* L'examen n'existe plus : l'élève retourne dans « à prévoir » */
                 await envoyerConsigne(x.eleve, 'permis',
-                  'Examen du permis annulé — nouvelle date à prévoir (bureau)');
+                  "Examen du permis annulé — date d'examen à prévoir (bureau)");
+                await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+                showToast(x.eleve + ' est repassé en « à prévoir »');
+              }else{
+                await majSuivi(x.eleve, { statut: '' });
               }
               afficherBureau();
             }catch(e){ showToast('Erreur : ' + e.message); bAnn.disabled = false; }
@@ -5778,11 +5789,28 @@ async function afficherBureau(){
   }
 
   /* ---- 3. Examens du permis ---- */
-  const per = tous.filter(e => e.etat.permis === 'aprevoir' || e.etat.permis === 'annule');
-  per.sort((a, b) => (b.urgence || '0').localeCompare(a.urgence || '0'));
+  let per = tous.filter(e => (e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') &&
+                             suiviDe(e.eleve).aPlanifier !== 'oui');
+
+  /* Filtre par état */
+  const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
+  if(fPer === 'annule') per = per.filter(e => e.etat.permis === 'annule');
+  else if(fPer === 'aprevoir') per = per.filter(e => e.etat.permis === 'aprevoir');
+  else if(fPer === 'urgent') per = per.filter(e => String(e.urgence || '') >= '4');
+  else if(fPer === 'sansprio') per = per.filter(e => !e.urgence);
+
+  /* Priorité décroissante, puis demande la plus ancienne */
+  per.sort((a, b) => {
+    const ua = parseInt(a.urgence || '0', 10);
+    const ub = parseInt(b.urgence || '0', 10);
+    if(ub !== ua) return ub - ua;
+    return String(a.date || '').localeCompare(String(b.date || ''));
+  });
   zPer.innerHTML = '';
   if(!per.length){
-    zPer.innerHTML = '<div class="empty">Aucun examen du permis à prévoir.</div>';
+    zPer.innerHTML = '<div class="empty">' +
+      (fPer ? 'Aucun élève ne correspond à ce filtre.'
+            : 'Aucun examen du permis à prévoir.') + '</div>';
   }else{
     per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
@@ -6055,6 +6083,7 @@ async function supprimerDossierEleve(){
 $('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
 $('bureauBtn').addEventListener('click', () => { afficherBureau(); afficherConsignesEnAttente(); });
 $('filtrePP').addEventListener('change', () => afficherBureau());
+$('filtrePermis').addEventListener('change', () => afficherBureau());
 $('filtreDate').addEventListener('change', () => afficherBureau());
 $('msgBtn').addEventListener('click', envoyerMessageBureau);
 $('addBtn').addEventListener('click', ajouterDateBureau);
