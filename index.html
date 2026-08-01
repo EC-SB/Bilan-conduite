@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v44</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v46</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2674,8 +2674,7 @@ document.addEventListener('click', e => {
 const RACCOURCIS_NOTE = [
   {
     libelle: 'Frise formation',
-    modele: '❓ leçons de 2h + exam blanc + ❓ leçons de 2h (4h) + 3h avant examen',
-    demandes: ['Nombre de leçons de 2h AVANT examen blanc ?', 'Nombre de leçons de 2h APRÈS examen blanc ?']
+    special: 'frise'
   },
   {
     libelle: 'N° de leçon',
@@ -2713,8 +2712,61 @@ const RACCOURCIS_NOTE = [
 
 
 
+
+/* Frise : reprise du dernier cours, modifiable si elle a changé */
+async function construireFrise(){
+  const eleve = $('studentName').value.trim();
+  const precedente = await friseAnterieure(eleve);
+
+  if(precedente){
+    const inchangee = confirm(
+      'Frise du dernier cours :\n\n' + precedente + '\n\n' +
+      'Toujours d\'actualité ?\n\n' +
+      'OK = oui, on la reprend\n' +
+      'Annuler = non, elle a changé'
+    );
+    if(inchangee) return precedente;
+  }
+
+  const avant = prompt(
+    (precedente ? 'Nouvelle frise.\n\n' : '') +
+    'Nombre de leçons de 2h AVANT examen blanc ?'
+  );
+  if(avant === null) return null;
+  const apres = prompt('Nombre de leçons de 2h APRÈS examen blanc ?');
+  if(apres === null) return null;
+
+  const a = String(avant).trim();
+  const b = String(apres).trim();
+  const heures = b ? (parseInt(b, 10) * 2) + 'h' : '❓h';
+
+  return (a || '❓') + ' leçons de 2h + exam blanc + ' + (b || '❓') +
+         ' leçons de 2h (' + heures + ') + 3h avant examen';
+}
+
 /* Examen blanc : réservé ou non, puis dans combien de leçons */
 function construireExamenBlanc(){
+  /* Trois situations possibles : déjà passé, réservé, ou ni l'un ni l'autre */
+  const dejaPasse = confirm(
+    'Examen blanc déjà PASSÉ ?\n\n' +
+    'OK = oui, il a déjà eu lieu\n' +
+    'Annuler = non, pas encore passé'
+  );
+
+  if(dejaPasse){
+    const apres = prompt(
+      'Examen blanc déjà passé.\n\n' +
+      'Combien de leçons restent avant le permis ?\n' +
+      '0 = prêt pour le permis · vide = non déterminé'
+    );
+    if(apres === null) return null;
+    const a = String(apres).trim();
+    if(!a) return 'Examen blanc déjà passé';
+    if(parseInt(a, 10) === 0) return 'Examen blanc passé — prêt pour le permis (+ 3h avant examen)';
+    return 'Examen blanc passé — encore ' + a + ' leçon' + (parseInt(a, 10) > 1 ? 's' : '') +
+           ' avant le permis (+ 3h avant examen)';
+  }
+
   const reserve = confirm(
     'Examen blanc déjà réservé ?\n\n' +
     'OK = oui, il est réservé\n' +
@@ -2772,6 +2824,38 @@ async function leconsDejaFaites(nomEleve){
   }
 }
 
+
+/* Retrouve la frise du dernier bilan de l'élève : elle est fixée à
+   l'évaluation et ne change quasiment jamais. */
+async function friseAnterieure(nomEleve){
+  if(!nomEleve || nomEleve.trim().length < 2) return '';
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+    });
+    if(!r.ok) return '';
+    const data = await r.json().catch(() => ({}));
+    const res = (data && data.resultats) || [];
+    /* Du plus récent au plus ancien : on garde la première trouvée */
+    for(let i = 0; i < res.length; i++){
+      const f = extraireFrise(res[i].note) || extraireFriseTexte(res[i].bilan);
+      if(f) return f;
+    }
+    return '';
+  }catch(e){
+    return '';
+  }
+}
+
+/* Retrouve la frise inscrite dans le corps d'un bilan précédent */
+function extraireFriseTexte(bilan){
+  const t = String(bilan || '');
+  const m = t.match(/(\d+\s*le[çc]ons? de 2h[^\n]*exam[^\n]*)/i);
+  return m ? m[1].trim() : '';
+}
+
 /* Numéro de la leçon du jour, situé par rapport à la frise si elle
    est déjà notée. Sinon on affiche simplement le rang. */
 async function construireLecon(champ){
@@ -2812,9 +2896,34 @@ async function construireLecon(champ){
   if(n === prevues){
     return rang + ' leçon sur ' + prevues + ' — dernière avant l\'examen blanc';
   }
-  /* Frise dépassée : le moniteur tranche */
-  const sup = prompt(
+  /* Frise dépassée : l'examen blanc est-il déjà passé ? */
+  const dejaFait = confirm(
     'Frise dépassée (' + n + 'ème leçon pour ' + prevues + ' prévues).\n\n' +
+    'L\'examen blanc a-t-il déjà été passé ?\n\n' +
+    'OK = oui, déjà passé\n' +
+    'Annuler = non, pas encore'
+  );
+
+  if(dejaFait){
+    const apres = prompt(
+      'Examen blanc déjà passé.\n\n' +
+      'Combien de leçons restent à faire avant le permis ?\n' +
+      '(laisse vide si non déterminé)'
+    );
+    if(apres === null) return null;
+    const a = String(apres).trim();
+    if(!a){
+      return rang + ' leçon — examen blanc déjà passé, frise dépassée (' + prevues + ' prévues)';
+    }
+    if(parseInt(a, 10) === 0){
+      return rang + ' leçon — examen blanc déjà passé, prêt pour le permis (+ 3h avant examen)';
+    }
+    return rang + ' leçon — examen blanc déjà passé, encore ' + a +
+           ' leçon' + (parseInt(a, 10) > 1 ? 's' : '') + ' avant le permis (+ 3h avant examen)';
+  }
+
+  const sup = prompt(
+    'Examen blanc pas encore passé.\n\n' +
     'Combien de leçons encore avant l\'examen blanc ?\n' +
     'Laisse vide si ce n\'est pas déterminable pour le moment.'
   );
@@ -2824,8 +2933,11 @@ async function construireLecon(champ){
     return rang + ' leçon — frise dépassée (' + prevues +
            ' prévues), examen blanc non planifiable pour le moment';
   }
+  if(parseInt(s, 10) === 0){
+    return rang + ' leçon — frise dépassée (' + prevues + ' prévues), examen blanc à la prochaine leçon';
+  }
   return rang + ' leçon — frise dépassée (' + prevues + ' prévues), encore ' +
-         s + ' leçon(s) avant l\'examen blanc';
+         s + ' leçon' + (parseInt(s, 10) > 1 ? 's' : '') + ' avant l\'examen blanc';
 }
 
 /* Remplace les ❓ un par un par les réponses du moniteur */
@@ -2868,6 +2980,15 @@ function creerRaccourcis(idConteneur, idChamp){
         b.textContent = '…';
         try{
           texte = await construireLecon($(idChamp));
+        }finally{
+          b.disabled = false;
+          b.textContent = r.libelle;
+        }
+      }else if(r.special === 'frise'){
+        b.disabled = true;
+        b.textContent = '…';
+        try{
+          texte = await construireFrise();
         }finally{
           b.disabled = false;
           b.textContent = r.libelle;
