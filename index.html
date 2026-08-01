@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v56</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v58</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2110,7 +2110,7 @@ $('finishBtn').addEventListener('click', async () => {
 
   /* Le questionnaire revient, pré-rempli : tout reste modifiable
      après le cours, notamment les leçons avant l'examen blanc. */
-  const maj = await ouvrirQuestionnaireDepart(contexteDepart, 'Après ce cours');
+  const maj = await ouvrirQuestionnaireDepart(contexteDepart, 'Après ce cours', 'Terminer');
   if(maj){
     contexteDepart = maj;
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
@@ -2766,7 +2766,7 @@ function appliquerNoteQuestionnaire(nouvelle){
   sauvegarderLocal(true);
 }
 
-async function ouvrirQuestionnaireDepart(prec, titre){
+async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
   prec = prec || {};
   const eleve = $('studentName').value.trim();
   const modeleCle = $('modele').value;
@@ -2842,6 +2842,8 @@ async function ouvrirQuestionnaireDepart(prec, titre){
         '<option value="annule">Annulé</option>' +
       '</select>' +
       '<input type="date" id="qExamDate" style="display:none;">' +
+      '<input type="text" id="qExamPermisN" inputmode="numeric" ' +
+      'placeholder="Leçons restantes avant l\'examen" style="display:none;">' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qFinirFiche" style="width:20px;height:20px;">' +
@@ -2859,14 +2861,20 @@ async function ouvrirQuestionnaireDepart(prec, titre){
       '</label>' +
 
       '<div id="qBlocAacCs" style="display:none;">' +
-        '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-          '<input type="checkbox" id="qFormAccomp" style="width:20px;height:20px;">' +
-          'Formation accompagnateur à prévoir' +
-        '</label>' +
-        '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-          '<input type="checkbox" id="qRvPrealable" style="width:20px;height:20px;">' +
-          'Rendez-vous préalable à prévoir' +
-        '</label>' +
+        '<label for="qFormAccomp">Formation accompagnateur</label>' +
+        '<select id="qFormAccomp">' +
+          '<option value="">— non évoquée —</option>' +
+          '<option value="aprevoir">À prévoir</option>' +
+          '<option value="prevue">Déjà prévue</option>' +
+          '<option value="faite">Déjà faite</option>' +
+        '</select>' +
+        '<label for="qRvPrealable">Rendez-vous préalable</label>' +
+        '<select id="qRvPrealable">' +
+          '<option value="">— non évoqué —</option>' +
+          '<option value="aprevoir">À prévoir</option>' +
+          '<option value="prevu">Déjà prévu</option>' +
+          '<option value="fait">Déjà fait</option>' +
+        '</select>' +
       '</div>' +
 
       '<label for="qLibre">Autre note pour le prochain moniteur</label>' +
@@ -2883,7 +2891,7 @@ async function ouvrirQuestionnaireDepart(prec, titre){
     passer.textContent = 'Passer';
     const valider = document.createElement('button');
     valider.className = 'btn btn-primary';
-    valider.textContent = 'Démarrer';
+    valider.textContent = libelleValider || 'Démarrer';
     rangee.appendChild(passer);
     rangee.appendChild(valider);
     boite.appendChild(rangee);
@@ -2945,8 +2953,8 @@ async function ouvrirQuestionnaireDepart(prec, titre){
       (prec.finirFiche !== undefined) ? prec.finirFiche : (restantes > 0 && restantes <= 4);
     boite.querySelector('#qSimuNuit').checked = !!prec.simuNuit;
     boite.querySelector('#qFinFormation').checked = !!prec.finFormation;
-    boite.querySelector('#qFormAccomp').checked = !!prec.formAccomp;
-    boite.querySelector('#qRvPrealable').checked = !!prec.rvPrealable;
+    boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
+    boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
     boite.querySelector('#qLibre').value = prec.libre || '';
 
     /* Champs conditionnels */
@@ -2966,9 +2974,13 @@ async function ouvrirQuestionnaireDepart(prec, titre){
     const dEP = boite.querySelector('#qExamDate');
     selEP.value = prec.examPermis || '';
     dEP.value = prec.examDate || '';
+    const nEP = boite.querySelector('#qExamPermisN');
+    nEP.value = prec.examPermisN || '';
     selEP.addEventListener('change', () => {
       dEP.style.display = (selEP.value === 'prevu' || selEP.value === 'annule') ? 'block' : 'none';
       if(dEP.style.display === 'block' && !dEP.value) dEP.value = todayLocal();
+      /* Le nombre de leçons n'a de sens que si une date est fixée */
+      nEP.style.display = (selEP.value === 'prevu') ? 'block' : 'none';
     });
 
     function fermer(reponses){
@@ -2993,8 +3005,9 @@ async function ouvrirQuestionnaireDepart(prec, titre){
         finirFiche: boite.querySelector('#qFinirFiche').checked,
         simuNuit: boite.querySelector('#qSimuNuit').checked,
         finFormation: boite.querySelector('#qFinFormation').checked,
-        formAccomp: boite.querySelector('#qFormAccomp').checked,
-        rvPrealable: boite.querySelector('#qRvPrealable').checked,
+        examPermisN: nEP.value.trim(),
+        formAccomp: boite.querySelector('#qFormAccomp').value,
+        rvPrealable: boite.querySelector('#qRvPrealable').value,
         libre: boite.querySelector('#qLibre').value.trim(),
         leconsFaites: faites,
         manoeuvresFaites: manoeuvresAvant.length,
@@ -3066,7 +3079,14 @@ function ajouterSuite(bouts, q){
   }
 
   if(q.examPermis === 'prevu' && q.examDate){
-    bouts.push('Examen prévu le ' + dateEnToutesLettres(q.examDate));
+    const np = q.examPermisN;
+    let phrase = 'Examen prévu le ' + dateEnToutesLettres(q.examDate);
+    if(np){
+      phrase += (parseInt(np, 10) === 0)
+        ? ' — plus que les 3h avant examen'
+        : ' — encore ' + np + ' leçon' + pl(np) + ' + 3h avant examen';
+    }
+    bouts.push(phrase);
   }else if(q.examPermis === 'annule'){
     bouts.push(q.examDate
       ? 'Examen du permis annulé — reprogrammé le ' + dateEnToutesLettres(q.examDate)
@@ -3079,8 +3099,14 @@ function ajouterSuite(bouts, q){
                ' restante' + (reste > 1 ? 's' : '') : ''));
   }
   if(q.simuNuit) bouts.push('Simulateur nuit et risques à prévoir');
-  if(q.formAccomp) bouts.push('Formation accompagnateur à prévoir');
-  if(q.rvPrealable) bouts.push('Rendez-vous préalable à prévoir');
+
+  if(q.formAccomp === 'aprevoir') bouts.push('Formation accompagnateur à prévoir');
+  else if(q.formAccomp === 'prevue') bouts.push('Formation accompagnateur déjà prévue');
+  else if(q.formAccomp === 'faite') bouts.push('Formation accompagnateur faite');
+
+  if(q.rvPrealable === 'aprevoir') bouts.push('Rendez-vous préalable à prévoir');
+  else if(q.rvPrealable === 'prevu') bouts.push('Rendez-vous préalable déjà prévu');
+  else if(q.rvPrealable === 'fait') bouts.push('Rendez-vous préalable fait');
   if(q.finFormation) bouts.push('Fin de formation à prévoir');
   if(q.libre) bouts.push(q.libre);
 }
@@ -3450,7 +3476,7 @@ function creerRaccourcis(idConteneur, idChamp){
         b.disabled = true;
         b.textContent = '…';
         try{
-          const rep = await ouvrirQuestionnaireDepart(contexteDepart, 'Compléter les infos');
+          const rep = await ouvrirQuestionnaireDepart(contexteDepart, 'Compléter les infos', 'Valider');
           if(rep){
             contexteDepart = rep;
             appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
