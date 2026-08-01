@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v79</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v80</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1661,6 +1661,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
+CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
 CONFIG.VERSION_SCRIPT_ATTENDUE = 12;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
@@ -2782,6 +2783,74 @@ function marquerExport(ok){
   }
 }
 
+
+
+/* Liste des moniteurs actifs — noms seuls, sans les codes */
+let moniteursActifs = [];
+
+async function chargerMoniteurs(){
+  try{
+    const r = await fetch(CONFIG.MONITEURS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: ACCES.code })
+    });
+    if(!r.ok) return;
+    const data = await r.json().catch(() => ({}));
+    moniteursActifs = (data && data.moniteurs) || [];
+  }catch(e){
+    console.warn('Liste des moniteurs indisponible :', e);
+  }
+}
+
+/* Petite fenêtre de choix dans une liste */
+function choisirDansListe(titre, options, valeurActuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = '340px';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    const sel = document.createElement('select');
+    sel.style.fontSize = '16px';
+    if(!options.length){
+      const o = document.createElement('option');
+      o.value = ''; o.textContent = '(aucun moniteur trouvé)';
+      sel.appendChild(o);
+    }
+    options.forEach(nom => {
+      const o = document.createElement('option');
+      o.value = nom; o.textContent = nom;
+      sel.appendChild(o);
+    });
+    if(valeurActuelle && options.indexOf(valeurActuelle) !== -1) sel.value = valeurActuelle;
+    boite.appendChild(sel);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const annuler = document.createElement('button');
+    annuler.className = 'btn btn-secondary';
+    annuler.textContent = 'Annuler';
+    const valider = document.createElement('button');
+    valider.className = 'btn btn-primary';
+    valider.textContent = 'Valider';
+    rangee.appendChild(annuler);
+    rangee.appendChild(valider);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = v => { document.body.removeChild(fond); resolve(v); };
+    annuler.addEventListener('click', () => fermer(null));
+    valider.addEventListener('click', () => fermer(sel.value || null));
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+  });
+}
 
 /* ---------- Liste des élèves déjà enregistrés ---------- */
 let elevesConnus = [];
@@ -4390,13 +4459,11 @@ async function afficherPrepares(recharger){
     bDonner.textContent = '👤';
     bDonner.title = 'Donner ce cours à un autre moniteur';
     bDonner.addEventListener('click', async () => {
-      const nom = prompt('Donner ce cours à quel moniteur ?\n\n' +
-                         'Élève : ' + (cours.eleve || '') + '\n' +
-                         'Date : ' + libelleDate(cours.date),
-                         cours.moniteur || '');
-      if(nom === null) return;
-      const cible = String(nom).trim();
-      if(!cible){ showToast('Nom de moniteur vide.'); return; }
+      if(!moniteursActifs.length) await chargerMoniteurs();
+      const cible = await choisirDansListe(
+        'Donner le cours de ' + (cours.eleve || 'cet élève') + ' à :',
+        moniteursActifs, cours.moniteur || '');
+      if(!cible) return;
       bDonner.disabled = true;
       try{
         await appelPrep({ action: 'prepAssign', id: cours.id, moniteur: cible });
@@ -5785,6 +5852,7 @@ async function deverrouiller(){
     }
     proposerReprise();
     chargerEleves();
+    chargerMoniteurs();
     afficherPrepares();
     showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
   }catch(e){
