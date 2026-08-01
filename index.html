@@ -365,7 +365,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v95</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v96</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -6568,6 +6568,9 @@ async function rechercherEleve(){
       return;
     }
 
+    /* On repart d'une zone vide avant d'empiler les blocs */
+    zone.innerHTML = '';
+
     /* La suppression de dossier ne concerne qu'une recherche par élève */
     eleveAffiche = (nom.length >= 2 && res[0]) ? res[0].eleve : '';
     nbBilansAffiches = (nom.length >= 2) ? res.length : 0;
@@ -6600,7 +6603,7 @@ async function rechercherEleve(){
         (res.length >= 200 ? ' <span style="color:var(--warn-text);">(200 plus récents)</span>' : '');
       zone.appendChild(entete);
     }
-    zone.innerHTML = '';
+
     res.forEach(item => {
       const row = document.createElement('div');
       row.className = 'history-item';
