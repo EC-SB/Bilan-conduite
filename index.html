@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v68</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v70</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2814,7 +2814,7 @@ const RACCOURCIS_NOTE = [
 
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
 async function chargerDossierEleve(nomEleve){
-  const vide = { frise: '', lecons: null, manoeuvres: [] };
+  const vide = { frise: '', lecons: null, manoeuvres: [], derniereNote: '', dernierHorodatage: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
   try{
     const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
@@ -2829,6 +2829,8 @@ async function chargerDossierEleve(nomEleve){
     let frise = '';
     let lecons = 0;
     const manoeuvres = [];
+    /* Le premier résultat est le plus récent */
+    const dernier = res[0] || {};
 
     res.forEach(item => {
       if(!frise) frise = extraireFrise(item.note) || extraireFriseTexte(item.bilan);
@@ -2839,7 +2841,9 @@ async function chargerDossierEleve(nomEleve){
       });
     });
 
-    return { frise: frise, lecons: lecons, manoeuvres: manoeuvres };
+    return { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
+             derniereNote: dernier.note || '',
+             dernierHorodatage: dernier.horodatage || dernier.date || '' };
   }catch(e){
     console.warn('Dossier élève indisponible :', e);
     return vide;
@@ -2857,6 +2861,45 @@ function ouvrirAttente(message){
     '</div>';
   document.body.appendChild(fond);
   return () => { if(fond.parentNode) document.body.removeChild(fond); };
+}
+
+/* Reprend l'état décrit dans la note du dernier cours pour
+   pré-remplir le questionnaire. */
+function defautsDepuisNote(note){
+  const a = analyserNote(note);
+  const d = {};
+  if(a.examBlanc){
+    d.examBlanc = a.examBlanc;
+    if(a.examBlancN !== null) d.examBlancN = String(a.examBlancN);
+  }
+  if(a.simuNuit) d.simuNuit = a.simuNuit;
+  if(a.permis === 'aprevoir') d.examPermis = 'aprevoir';
+  /* Une date déjà fixée est conservée telle quelle dans la note ;
+     on ne la réintroduit pas ici pour ne pas la dupliquer. */
+  if(/Formation accompagnateur faite/i.test(note || '')) d.formAccomp = 'faite';
+  else if(/Formation accompagnateur déjà prévue/i.test(note || '')) d.formAccomp = 'prevue';
+  else if(/Formation accompagnateur à prévoir/i.test(note || '')) d.formAccomp = 'aprevoir';
+  if(/Rendez-vous préalable fait/i.test(note || '')) d.rvPrealable = 'fait';
+  else if(/Rendez-vous préalable déjà prévu/i.test(note || '')) d.rvPrealable = 'prevu';
+  else if(/Rendez-vous préalable à prévoir/i.test(note || '')) d.rvPrealable = 'aprevoir';
+  return d;
+}
+
+/* Champs factuels : toujours recalculés, jamais figés par la préparation */
+const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres'];
+
+/* Fusionne : le jugement du moniteur l'emporte, les faits sont rafraîchis */
+function fusionnerContexte(saisi, defauts){
+  const out = Object.assign({}, defauts || {});
+  Object.keys(saisi || {}).forEach(k => {
+    if(CHAMPS_FACTUELS.indexOf(k) !== -1 &&
+       defauts && defauts[k] !== undefined && defauts[k] !== '') return;
+    const v = saisi[k];
+    const vide = (v === '' || v === null || v === undefined ||
+                  (Array.isArray(v) && !v.length));
+    if(!vide) out[k] = v;
+  });
+  return out;
 }
 
 /* ============================================================
@@ -2931,6 +2974,11 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
       consignesBureau = ((cd && cd.consignes) || [])
         .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
     }catch(e){ /* sans réseau, on continue */ }
+  }
+
+  /* Sans réponses antérieures, on repart de l'état du dernier cours */
+  if(!Object.keys(prec).length && dossier.derniereNote){
+    prec = defautsDepuisNote(dossier.derniereNote);
   }
 
   const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
@@ -4254,8 +4302,10 @@ async function retirerPreparationFaite(){
   }
 }
 
-/* Charge un cours préparé dans le formulaire : plus qu'à démarrer */
-function chargerPrepare(cours){
+/* Charge un cours préparé dans le formulaire : plus qu'à démarrer.
+   Si un cours a eu lieu depuis la préparation, les informations sont
+   rafraîchies sans effacer ce que le moniteur avait saisi. */
+async function chargerPrepare(cours){
   if(finalTranscript && !confirm('Un enregistrement est en cours. Le remplacer ?')) return;
 
   prepareEnCours = cours;
@@ -4264,11 +4314,38 @@ function chargerPrepare(cours){
   $('studentName').value = cours.eleve || '';
   if(cours.site) $('site').value = cours.site;
   if(cours.date) $('lessonDate').value = cours.date;
-  $('noteInterne').value = cours.note || '';
+
+  let contexte = cours.contexte || null;
+  let note = cours.note || '';
+
+  if(contexte){
+    try{
+      const d = await chargerDossierEleve(cours.eleve);
+      const source = contexte.source || '';
+      const plusRecent = d.dernierHorodatage && d.dernierHorodatage !== source;
+
+      if(plusRecent){
+        /* Un cours a eu lieu depuis : on repart de son état, en gardant
+           tout ce que le moniteur avait renseigné à la préparation. */
+        const frais = defautsDepuisNote(d.derniereNote);
+        if(d.frise) frais.frise = d.frise;
+        if(d.lecons !== null) frais.lecon = String(d.lecons + 1);
+        frais.manoeuvresFaites = d.manoeuvres.length;
+        frais.totalManoeuvres = BLOC.ficheListeConduite.length;
+
+        contexte = fusionnerContexte(contexte, frais);
+        contexte.source = d.dernierHorodatage;
+        note = noteDepuisQuestionnaire(contexte);
+        showToast('Infos mises à jour depuis le dernier cours ✅');
+      }
+    }catch(e){ /* hors ligne : on garde la préparation telle quelle */ }
+  }
+
+  $('noteInterne').value = note;
 
   /* Le questionnaire a déjà été rempli à la préparation : on ne le redemande pas */
-  contexteDepart = cours.contexte || null;
-  noteQuestionnaire = cours.note || '';
+  contexteDepart = contexte;
+  noteQuestionnaire = note;
 
   finalTranscript = '';
   committedTranscript = '';
@@ -4309,6 +4386,13 @@ async function preparerNouveauCours(){
   $('modele').value = modeleCle;
   $('lessonDate').value = date;
 
+  /* Repère du cours le plus récent au moment de la préparation */
+  let sourceHorodatage = '';
+  try{
+    const d = await chargerDossierEleve(eleve);
+    sourceHorodatage = d.dernierHorodatage || '';
+  }catch(e){}
+
   let rep = null;
   try{
     rep = await ouvrirQuestionnaireDepart(null, 'Préparer le cours de ' + eleve, 'Enregistrer');
@@ -4331,7 +4415,7 @@ async function preparerNouveauCours(){
       modeleLabel: MODELES[modeleCle] ? MODELES[modeleCle].label : '',
       site: $('site').value,
       note: noteDepuisQuestionnaire(rep),
-      contexte: JSON.stringify(rep),
+      contexte: JSON.stringify(Object.assign({}, rep, { source: sourceHorodatage })),
       moniteur: ACCES.moniteur || ''
     });
     $('prepEleve').value = '';
