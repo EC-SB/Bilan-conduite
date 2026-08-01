@@ -157,14 +157,15 @@
 
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 10px;}
   .history-item{
-    display:flex;justify-content:space-between;align-items:center;
-    padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer;
+    display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
+    padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;
   }
   .history-item:last-child{border-bottom:none;}
   .history-item .meta{min-width:0;}
   .history-item .meta strong{display:block;font-size:14px;}
   .history-item .meta{padding-right:8px;}
-  .history-item .meta span{display:block;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .history-item .meta span{display:block;font-size:12px;color:var(--muted);line-height:1.45;}
+  .history-item .meta strong{overflow-wrap:anywhere;}
   .history-item .arrow{color:var(--orange);font-size:18px;padding-left:10px;}
 
   body.clair .transcript-box,
@@ -193,6 +194,34 @@
     padding:14px;border-radius:12px;
     font-size:13px;line-height:1.5;margin-bottom:16px;
   }
+  #noteInterne, #noteResult{
+    width:100%;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:11px 12px;
+    border-radius:10px;
+    font-size:15px;
+    line-height:1.5;
+    font-family:inherit;
+    resize:vertical;
+    margin-bottom:14px;
+  }
+  #noteInterne:focus, #noteResult:focus{outline:2px solid var(--orange);outline-offset:1px;}
+  body.clair #noteInterne, body.clair #noteResult{background:#FBFBF7;}
+  .raccourcis{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
+  .raccourci{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--cream);
+    border-radius:999px;
+    padding:7px 12px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .raccourci:active{background:var(--orange);color:var(--on-accent);border-color:var(--orange);}
   .overlay{
     position:fixed;inset:0;background:rgba(0,0,0,.82);
     display:none;align-items:center;justify-content:center;
@@ -223,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v28</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v30</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -280,9 +309,10 @@
       <input type="date" id="lessonDate">
 
       <label for="noteInterne">📌 Note interne — moniteurs uniquement</label>
-      <input type="text" id="noteInterne" maxlength="140"
-             placeholder="Ex : ne pas mettre sur 4 voies, revoir les giratoires">
-      <div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">
+      <textarea id="noteInterne" rows="3" maxlength="600"
+                placeholder="Ex : ne pas mettre sur 4 voies, revoir les giratoires"></textarea>
+      <div class="raccourcis" id="raccourcisNote"></div>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 14px;line-height:1.4;">
         Jamais incluse dans le bilan de l'élève. Elle s'affichera au moniteur suivant lors d'une recherche.
       </div>
 
@@ -314,12 +344,13 @@
       <div style="background:var(--warn-bg);border:1px solid var(--red);
            border-radius:12px;padding:14px;margin-bottom:16px;">
         <label for="noteResult" style="margin-bottom:8px;">📌 Note interne — moniteurs uniquement</label>
-        <input type="text" id="noteResult" maxlength="140"
-               placeholder="Ex : ne pas mettre sur 4 voies, revoir les giratoires"
-               style="margin-bottom:6px;">
-        <div style="font-size:12px;color:var(--muted);line-height:1.4;">
+        <textarea id="noteResult" rows="3" maxlength="600"
+                  placeholder="Ex : ne pas mettre sur 4 voies, revoir les giratoires"
+                  style="margin-bottom:6px;"></textarea>
+        <div class="raccourcis" id="raccourcisNoteResult"></div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px;">
           Jamais transmise à l'élève. Visible par le moniteur suivant lors d'une recherche.
-          Enregistrée avec le bilan quand tu appuies sur « Exporter vers Sheets ».
+          Enregistrée quand tu appuies sur « Copier et enregistrer ».
         </div>
       </div>
       <label>Bilan généré — relis et complète avant envoi</label>
@@ -2339,6 +2370,94 @@ document.addEventListener('click', e => {
 });
 
 
+
+/* ============================================================
+   RACCOURCIS DE NOTE INTERNE
+   `demandes` : questions posées au moniteur, dans l'ordre.
+   Chaque réponse remplace le ❓ correspondant dans le modèle.
+   ============================================================ */
+const RACCOURCIS_NOTE = [
+  {
+    libelle: 'Frise formation',
+    modele: '❓ leçons de 2h + exam blanc + ❓ leçons de 2h (4h) + 3h avant examen',
+    demandes: ['Nombre de leçons de 2h AVANT examen blanc ?', 'Nombre de leçons de 2h APRÈS examen blanc ?']
+  },
+  {
+    libelle: '❓ Leçons',
+    modele: '❓ Leçons',
+    demandes: ['Nombre de leçons ?']
+  },
+  {
+    libelle: 'Examen blanc',
+    modele: 'Examen blanc prévue ❌✅ si oui tant ❓ leçon(s)',
+    demandes: ['Nombre de leçons avant examen blanc ? (laisse vide pour garder ❓)']
+  },
+  {
+    libelle: 'Examen prévu',
+    modele: 'Examen prévue le ❓',
+    demandes: ['Date de l\'examen ? (laisse vide pour garder ❓)']
+  },
+  { libelle: 'Frise dépassée', modele: 'Frise dépasée' },
+  { libelle: 'Finir fiche', modele: 'Finir Fiche' },
+  {
+    libelle: 'AAC BEA',
+    modele: 'AAC BEA👼⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
+  },
+  {
+    libelle: 'AAC BV',
+    modele: 'AAC BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
+  },
+  {
+    libelle: 'CS BEA',
+    modele: 'CS BEA⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
+  },
+  {
+    libelle: 'CS BV',
+    modele: 'CS BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
+  }
+];
+
+/* Remplace les ❓ un par un par les réponses du moniteur */
+function completerModele(raccourci){
+  let texte = raccourci.modele;
+  const demandes = raccourci.demandes || [];
+  for(let i = 0; i < demandes.length; i++){
+    const rep = prompt(demandes[i]);
+    if(rep === null) return null;              /* annulation */
+    const valeur = String(rep).trim();
+    if(valeur) texte = texte.replace('❓', valeur);
+  }
+  return texte;
+}
+
+/* Ajoute le texte à la note, sans jamais écraser ce qui est déjà écrit */
+function ajouterANote(champ, texte){
+  if(!champ || !texte) return;
+  const actuel = champ.value.trim();
+  champ.value = actuel ? actuel + ' · ' + texte : texte;
+  champ.focus();
+  try{ champ.setSelectionRange(champ.value.length, champ.value.length); }catch(e){}
+  sauvegarderLocal();
+}
+
+/* Construit la rangée de boutons sous un champ de note */
+function creerRaccourcis(idConteneur, idChamp){
+  const zone = $(idConteneur);
+  if(!zone) return;
+  zone.innerHTML = '';
+  RACCOURCIS_NOTE.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'raccourci';
+    b.textContent = r.libelle;
+    b.addEventListener('click', () => {
+      const texte = (r.demandes && r.demandes.length) ? completerModele(r) : r.modele;
+      if(texte) ajouterANote($(idChamp), texte);
+    });
+    zone.appendChild(b);
+  });
+}
+
 /* ---------- Suppression du dossier d'un élève ---------- */
 let eleveAffiche = '';
 let nbBilansAffiches = 0;
@@ -2471,11 +2590,13 @@ async function rechercherEleve(){
       const t = document.createElement('strong');
       if(note){
         /* La note interne prend la place du titre : c'est ce que le
-           moniteur suivant doit voir en premier. */
+           moniteur suivant doit voir en premier, en entier. */
         t.textContent = '📌 ' + note;
         t.style.color = 'var(--accent-text)';
-        t.style.whiteSpace = 'normal';
-        t.style.lineHeight = '1.4';
+        t.style.whiteSpace = 'pre-wrap';
+        t.style.lineHeight = '1.45';
+        t.style.overflow = 'visible';
+        t.style.textOverflow = 'clip';
       }else{
         t.textContent = item.type || 'Bilan';
       }
@@ -2923,6 +3044,8 @@ window.addEventListener('beforeunload', e => {
 });
 
 /* ---------- Init ---------- */
+creerRaccourcis('raccourcisNote', 'noteInterne');
+creerRaccourcis('raccourcisNoteResult', 'noteResult');
 remplirModeles();
 $('lessonDate').value = todayLocal();
 refreshHistory();
