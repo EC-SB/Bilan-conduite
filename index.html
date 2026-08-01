@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v39</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v40</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2124,8 +2124,11 @@ $('confirmGen').addEventListener('click', async () => {
     $('resultText').value = bilan;
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
     if(dernierEchecCorrection){
-      const parties = dernierEchecCorrection.map(e => e.n).join(', ');
-      showToast('⚠️ Partie(s) ' + parties + ' non corrigée(s) — texte brut conservé');
+      const detail = dernierEchecCorrection
+        .map(e => 'partie ' + e.n + ' (' + e.motif + ')').join(', ');
+      alert('⚠️ Correction incomplète\n\n' + detail + '\n\n' +
+            'Le texte brut a été conservé pour ces passages : rien n\'est perdu, ' +
+            'mais ils ne sont pas corrigés. Relis-les avant d\'envoyer.');
     }
     sauvegarderLocal(true);
     $('generatingView').style.display = 'none';
@@ -2155,7 +2158,7 @@ $('confirmGen').addEventListener('click', async () => {
    Corriger un cours entier en un seul appel dépasse la taille
    maximale de réponse : on découpe, on corrige, on recolle.
    ============================================================ */
-const TAILLE_TRANCHE = 3500;   /* caractères — tranches courtes = corrections fiables */
+const TAILLE_TRANCHE = 2500;   /* caractères — tranches courtes = corrections fiables */
 
 const CONSIGNE_CORRECTION =
 'Tu remets au propre la transcription automatique d\'un cours de conduite enregistré en voiture.\n' +
@@ -2182,6 +2185,13 @@ const CONSIGNE_CORRECTION =
 '- Le texte reste à la première personne du moniteur, tel qu\'il a parlé.\n' +
 '\n' +
 'Réponds UNIQUEMENT avec le texte corrigé. Pas de préambule, pas de titre, pas de balises.';
+
+/* Une réponse complète se termine par une ponctuation forte */
+function finDePhrase(texte){
+  const t = String(texte || '').trim();
+  if(!t) return false;
+  return /[.!?…»"]$/.test(t);
+}
 
 /* Découpe en respectant les fins de phrase */
 function decouperEnTranches(texte, taille){
@@ -2227,10 +2237,20 @@ async function corrigerCours(transcript, surProgres){
           await new Promise(r => setTimeout(r, 1500 * essai));
         }
         const txt = await appelBrutIA(CONSIGNE_CORRECTION + contexte, tranches[i], 8000);
-        if(txt && txt.trim().length > tranches[i].length * 0.4){
-          obtenu = txt.trim();
+        const propre = (txt || '').trim();
+
+        /* Une correction fait forcément une longueur comparable à
+           l'original : trop court = réponse tronquée. */
+        if(!propre){
+          derniereErreur = new Error('réponse vide');
+        }else if(propre.length < tranches[i].length * 0.75){
+          derniereErreur = new Error('réponse tronquée (' +
+            Math.round(propre.length / tranches[i].length * 100) + '% de l\'original)');
+        }else if(!finDePhrase(propre)){
+          /* Une correction complète se termine proprement */
+          derniereErreur = new Error('réponse coupée en pleine phrase');
         }else{
-          derniereErreur = new Error('réponse trop courte ou vide');
+          obtenu = propre;
         }
       }catch(e){
         derniereErreur = e;
@@ -2631,7 +2651,7 @@ const RACCOURCIS_NOTE = [
   },
   {
     libelle: 'Examen prévu',
-    modele: 'Examen prévu le ❓',
+    modele: 'Examen prévue le ❓',
     demandes: ['Date de l\'examen ? (laisse vide pour garder ❓)']
   },
   { libelle: 'Frise dépassée', modele: 'Frise dépasée' },
