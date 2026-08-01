@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v80</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v81</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1662,7 +1662,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 12;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 13;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -2730,6 +2730,7 @@ async function exporterVersSheets(silencieux){
           noteInterne: $('noteResult').value.trim(),
           boite: contexteDepart ? (contexteDepart.boite || '') : '',
           ants: contexteDepart ? (contexteDepart.ants || '') : '',
+          manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | '),
           horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
           bilan: $('resultText').value
         }
@@ -2963,11 +2964,26 @@ async function chargerDossierEleve(nomEleve){
     const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+      body: JSON.stringify({ action: 'search', code: ACCES.code,
+                             eleve: nomEleve.trim(), leger: true })
     });
     if(!r.ok) return vide;
     const data = await r.json().catch(() => ({}));
-    const res = (data && data.resultats) || [];
+    let res = (data && data.resultats) || [];
+
+    /* Anciennes lignes sans colonne Manœuvres : on relit en entier */
+    const besoinTexte = res.length && res.every(x => !x.manoeuvres);
+    if(besoinTexte){
+      const r2 = await fetch(CONFIG.SHEETS_PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+      });
+      if(r2.ok){
+        const d2 = await r2.json().catch(() => ({}));
+        res = (d2 && d2.resultats) || res;
+      }
+    }
 
     let frise = '';
     let lecons = 0;
@@ -2979,7 +2995,10 @@ async function chargerDossierEleve(nomEleve){
       if(!frise) frise = extraireFrise(item.note) || extraireFriseTexte(item.bilan);
       const type = String(item.type || '');
       if(/^Conduite/i.test(type) || /^AAC/i.test(type)) lecons++;
-      manoeuvresDejaFaites(item.bilan).forEach(m => {
+      const liste = item.manoeuvres
+        ? String(item.manoeuvres).split('|').map(x => x.trim()).filter(Boolean)
+        : manoeuvresDejaFaites(item.bilan);
+      liste.forEach(m => {
         if(manoeuvres.indexOf(m) === -1) manoeuvres.push(m);
       });
     });
@@ -5491,7 +5510,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v12') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v13') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
