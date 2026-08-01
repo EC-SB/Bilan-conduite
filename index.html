@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v33</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v34</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1287,6 +1287,9 @@ const REGLES_COMMUNES =
 '\n' +
 'RÈGLES ABSOLUES :\n' +
 '- Tu réponds UNIQUEMENT avec un objet JSON valide. Aucun texte avant, aucun texte après, pas de balises markdown, pas de ```.\n' +
+'- ATTENTION JSON : à l\'intérieur des chaînes, tout retour à la ligne doit être écrit \\\\n (barre oblique inverse suivie de n), ' +
+'JAMAIS un vrai saut de ligne. Un saut de ligne brut rend la réponse illisible et fait échouer le bilan. ' +
+'Les guillemets à l\'intérieur d\'une chaîne doivent aussi être échappés.\n' +
 '- Tu n\'inventes RIEN. Si un sujet n\'a pas été abordé dans la transcription, tu laisses la chaîne vide "" (ou tu omets l\'élément). Une case vide est BIEN meilleure qu\'une case inventée.\n' +
 '- Tu n\'écris aucun lien internet, aucune procédure pédagogique générale, aucun rappel de règles : uniquement ce que le moniteur a réellement observé chez cet élève pendant CE cours.\n' +
 '- Tu tutoies l\'élève, ton chaleureux et direct, comme un moniteur qui parle à son élève.\n' +
@@ -2217,6 +2220,33 @@ async function corrigerCours(transcript, surProgres){
 
 let dernierEchecCorrection = null;
 
+
+/* Répare les JSON contenant des retours à la ligne bruts dans les
+   chaînes : c'est le défaut le plus fréquent des réponses longues. */
+function reparerJson(brut){
+  let sortie = '';
+  let dansChaine = false;
+  let echappe = false;
+
+  for(let i = 0; i < brut.length; i++){
+    const ch = brut[i];
+
+    if(echappe){ sortie += ch; echappe = false; continue; }
+    if(ch === '\\'){ sortie += ch; echappe = true; continue; }
+    if(ch === '"'){ dansChaine = !dansChaine; sortie += ch; continue; }
+
+    if(dansChaine){
+      /* Caractères de contrôle interdits dans une chaîne JSON */
+      if(ch === '\n'){ sortie += '\\n'; continue; }
+      if(ch === '\r'){ sortie += '\\r'; continue; }
+      if(ch === '\t'){ sortie += '\\t'; continue; }
+      if(ch.charCodeAt(0) < 32){ continue; }
+    }
+    sortie += ch;
+  }
+  return sortie;
+}
+
 /* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
 async function appelBrutIA(systemPrompt, message, maxTokens){
   const r = await fetch(CONFIG.IA_URL, {
@@ -2328,13 +2358,20 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
   const fin = brut.lastIndexOf('}');
   if(debut === -1 || fin === -1) throw new Error('Réponse non exploitable : ' + brut.slice(0, 200));
 
+  const corps = brut.slice(debut, fin + 1);
+
   try{
-    return JSON.parse(brut.slice(debut, fin + 1));
+    return JSON.parse(corps);
   }catch(e){
-    if(data.stop_reason === 'max_tokens'){
-      throw new Error('Réponse coupée en cours de route : le cours est trop long. Découpe-le en deux bilans.');
+    /* Deuxième chance : on échappe les retours à la ligne bruts */
+    try{
+      return JSON.parse(reparerJson(corps));
+    }catch(e2){
+      if(data.stop_reason === 'max_tokens'){
+        throw new Error('Réponse coupée en cours de route : le cours est trop long. Découpe-le en deux bilans.');
+      }
+      throw new Error('JSON illisible : ' + e.message + ' — début reçu : ' + brut.slice(0, 120));
     }
-    throw new Error('JSON illisible : ' + e.message + ' — début reçu : ' + brut.slice(0, 120));
   }
 }
 
