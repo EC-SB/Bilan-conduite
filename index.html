@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v77</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v78</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -480,7 +480,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <select id="filtrePP" style="flex:1;min-width:150px;margin-bottom:0;">
           <option value="">Tous les élèves</option>
-          <option value="donner">📢 Dates à donner à l'élève</option>
+          <option value="donner">📢 Dates à donner à un autre élève</option>
           <option value="remplacer">🔄 Places à remplacer</option>
         </select>
         <select id="filtreDate" style="flex:1;min-width:150px;margin-bottom:0;">
@@ -1661,7 +1661,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 10;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 11;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -4362,7 +4362,8 @@ async function afficherPrepares(recharger){
     const nom = document.createElement('strong');
     nom.textContent = cours.eleve || '(sans nom)';
     const sous = document.createElement('span');
-    sous.textContent = [cours.modeleLabel, cours.moniteur].filter(Boolean).join(' · ');
+    sous.textContent = [cours.modeleLabel,
+                        cours.moniteur ? '👤 ' + cours.moniteur : ''].filter(Boolean).join(' · ');
     meta.appendChild(nom);
     meta.appendChild(sous);
     if(cours.note){
@@ -4382,6 +4383,31 @@ async function afficherPrepares(recharger){
     bOuvrir.textContent = '▶ Ouvrir';
     bOuvrir.addEventListener('click', () => chargerPrepare(cours));
     actions.appendChild(bOuvrir);
+
+    const bDonner = document.createElement('button');
+    bDonner.className = 'btn btn-secondary';
+    bDonner.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;';
+    bDonner.textContent = '👤';
+    bDonner.title = 'Donner ce cours à un autre moniteur';
+    bDonner.addEventListener('click', async () => {
+      const nom = prompt('Donner ce cours à quel moniteur ?\n\n' +
+                         'Élève : ' + (cours.eleve || '') + '\n' +
+                         'Date : ' + libelleDate(cours.date),
+                         cours.moniteur || '');
+      if(nom === null) return;
+      const cible = String(nom).trim();
+      if(!cible){ showToast('Nom de moniteur vide.'); return; }
+      bDonner.disabled = true;
+      try{
+        await appelPrep({ action: 'prepAssign', id: cours.id, moniteur: cible });
+        showToast('Cours donné à ' + cible + ' ✅');
+        afficherPrepares();
+      }catch(e){
+        showToast('Transfert impossible : ' + e.message);
+        bDonner.disabled = false;
+      }
+    });
+    actions.appendChild(bDonner);
 
     const bSupp = document.createElement('button');
     bSupp.className = 'btn btn-secondary';
@@ -4663,7 +4689,17 @@ function ficheSuiviPermis(e){
       'Place à remplacer (à donner à un autre élève)</label>' +
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
       '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">' +
-      'Date à donner à cet élève</label>' +
+      'Date à donner à un autre élève</label>' +
+    '<div id="' + id + 'zone" style="display:none;padding:10px;margin-bottom:14px;' +
+      'background:var(--navy-deep);border:1px solid var(--orange);border-radius:10px;">' +
+      '<label for="' + id + 'nouv">Nouveau candidat</label>' +
+      '<input type="text" id="' + id + 'nouv" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Nom et prénom du repreneur">' +
+      '<button class="btn btn-primary" id="' + id + 'trf" style="font-size:14px;padding:11px;">' +
+      '➡️ Transférer la date à ce candidat</button>' +
+      '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;">' +
+      'La date passe au nouveau candidat et sera transmise à son moniteur au prochain cours.</div>' +
+    '</div>' +
 
     '<label for="' + id + 'pay">Reste à payer</label>' +
     '<input type="text" id="' + id + 'pay" placeholder="Ex : 240 €">' +
@@ -4721,6 +4757,49 @@ function ficheSuiviPermis(e){
     if(g('res')) g('res').value = s.reservations || '';
   }, 0);
 
+  /* Affichage conditionnel du repreneur */
+  setTimeout(() => {
+    const cb = document.getElementById(id + 'don');
+    const zn = document.getElementById(id + 'zone');
+    if(!cb || !zn) return;
+    const maj = () => { zn.style.display = cb.checked ? 'block' : 'none'; };
+    cb.addEventListener('change', maj);
+    maj();
+
+    const bTrf = document.getElementById(id + 'trf');
+    if(bTrf) bTrf.addEventListener('click', async () => {
+      const nouveau = document.getElementById(id + 'nouv').value.trim();
+      if(nouveau.length < 2){ showToast('Saisis le nom du repreneur.'); return; }
+      const dateP = (e.etat && e.etat.permisDate) || s.datePermis || '';
+      if(!dateP){ showToast('Aucune date de permis à transférer.'); return; }
+      if(!confirm('Transférer l\'examen du ' + dateP + '\n\nde ' + e.eleve +
+                  '\nvers ' + nouveau + ' ?')) return;
+
+      bTrf.disabled = true;
+      bTrf.textContent = 'Transfert…';
+      try{
+        /* Le repreneur hérite de la date */
+        await envoyerConsigne(nouveau, 'permis',
+          'Examen du permis fixé au ' + dateP + ' (repris de ' + e.eleve + ')');
+        await appelPrep({ action:'suiviSet', eleve: nouveau, datePermis: dateP,
+                          par: ACCES.moniteur || '' });
+
+        /* L'élève précédent perd la date */
+        await envoyerConsigne(e.eleve, 'permis',
+          'Examen du ' + dateP + ' redonné à un autre candidat — nouvelle date à prévoir');
+        await appelPrep({ action:'suiviSet', eleve: e.eleve, datePermis: '',
+                          aRemplacer: '', dateADonner: '', par: ACCES.moniteur || '' });
+
+        showToast('Date transférée à ' + nouveau + ' ✅');
+        afficherBureau();
+      }catch(err){
+        showToast('Transfert impossible : ' + err.message);
+        bTrf.disabled = false;
+        bTrf.textContent = '➡️ Transférer la date à ce candidat';
+      }
+    });
+  }, 0);
+
   bEnr.addEventListener('click', async () => {
     const g = k => document.getElementById(id + k);
     bEnr.disabled = true;
@@ -4764,7 +4843,7 @@ function resumeSuivi(eleve){
   if(!s) return '';
   const bouts = [];
   if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
-  if(s.dateADonner === 'oui') bouts.push('📢 date à donner à l\'élève');
+  if(s.dateADonner === 'oui') bouts.push('📢 date à donner à un autre élève');
   if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
   if(s.paiementPrevu) bouts.push('paiement ' + s.paiementPrevu);
   if(s.relanceLe) bouts.push('relancé ' + s.relanceLe);
@@ -5033,7 +5112,7 @@ async function afficherBureau(){
         alerte: x => {
           const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
           if(s && s.aRemplacer === 'oui') return 'Place à remplacer';
-          if(s && s.dateADonner === 'oui') return 'Date à donner à cet élève';
+          if(s && s.dateADonner === 'oui') return 'Date à donner à un autre élève';
           return null;
         },
         actions: (x, zone) => {
@@ -5310,7 +5389,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v10') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v11') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
