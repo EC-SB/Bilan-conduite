@@ -265,7 +265,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v89</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v90</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -535,9 +535,13 @@
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <select id="filtrePP" style="flex:1;min-width:150px;margin-bottom:0;">
-          <option value="">Tous les élèves</option>
-          <option value="donner">🏫 Dates à donner à une autre auto-école</option>
+          <option value="">— choisis un filtre —</option>
+          <option value="tous">Tous les élèves</option>
+          <option value="fantome">👻 Places fantômes</option>
           <option value="remplacer">🔄 Places à remplacer</option>
+          <option value="donner">🏫 Dates à donner à une autre auto-école</option>
+          <option value="ok">✅ Tout est OK</option>
+          <option value="pasok">⏳ Dossiers pas encore prêts</option>
         </select>
         <select id="filtreDate" style="flex:1;min-width:150px;margin-bottom:0;">
           <option value="">Toutes les dates</option>
@@ -1722,7 +1726,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 15;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 16;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -4969,6 +4973,11 @@ function ficheSuiviPermis(e){
 
   const id = 'sv' + Math.random().toString(36).slice(2, 8);
   f.innerHTML =
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
+      'color:var(--accent-text);font-weight:700;margin-bottom:14px;">' +
+      '<input type="checkbox" id="' + id + 'ok" style="width:19px;height:19px;">' +
+      '✅ Tout est OK — dossier prêt</label>' +
+
     '<label for="' + id + 'typ">Type d\'examen</label>' +
     '<select id="' + id + 'typ">' +
       '<option value="bv">🅑 BV — boîte manuelle</option>' +
@@ -5059,6 +5068,7 @@ function ficheSuiviPermis(e){
       ((e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase());
     if(g('ae')) g('ae').value = s.autoEcole || '';
     if(g('fan')) g('fan').checked = (s.fantome === 'oui');
+    if(g('ok')) g('ok').checked = (s.toutOk === 'oui');
   }, 0);
 
   /* Affichages conditionnels */
@@ -5135,6 +5145,7 @@ function ficheSuiviPermis(e){
         typeExamen: g('typ').value,
         autoEcole: g('ae').value.trim(),
         fantome: g('fan').checked ? 'oui' : '',
+        toutOk: g('ok').checked ? 'oui' : '',
         statut: s.statut || '',
         aPlanifier: s.aPlanifier || '',
         semaine: s.semaine || '',
@@ -5161,6 +5172,7 @@ function resumeSuivi(eleve){
   const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
   if(!s) return '';
   const bouts = [];
+  if(s.toutOk === 'oui') bouts.push('✅ tout est OK');
   if(s.statut === 'annule') bouts.push('❌ examen annulé');
   if(s.fantome === 'oui') bouts.push('👻 place fantôme');
   if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
@@ -5730,8 +5742,11 @@ async function afficherBureau(){
   const fEtat = $('filtrePP').value;
   const fDate = selD.value;
   let visibles = prevus.slice();
-  if(fEtat === 'donner') visibles = visibles.filter(e => e._suivi.dateADonner === 'oui');
+  if(fEtat === 'donner')    visibles = visibles.filter(e => e._suivi.dateADonner === 'oui');
   if(fEtat === 'remplacer') visibles = visibles.filter(e => e._suivi.aRemplacer === 'oui');
+  if(fEtat === 'fantome')   visibles = visibles.filter(e => e._suivi.fantome === 'oui');
+  if(fEtat === 'ok')        visibles = visibles.filter(e => e._suivi.toutOk === 'oui');
+  if(fEtat === 'pasok')     visibles = visibles.filter(e => e._suivi.toutOk !== 'oui');
   if(fDate) visibles = visibles.filter(e => (e._datePermis || 'Date inconnue') === fDate);
   visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
 
@@ -5747,6 +5762,10 @@ async function afficherBureau(){
   zPP.innerHTML = '';
   if(!prevus.length){
     zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
+  }else if(!fEtat && !fDate){
+    /* Liste souvent longue : on ne l'affiche qu'à la demande */
+    zPP.innerHTML = '<div class="empty">' + prevus.length + ' permis prévu(s).<br>' +
+      'Choisis un filtre ou une date ci-dessus pour afficher les élèves.</div>';
   }else if(!visibles.length){
     zPP.innerHTML = '<div class="empty">Aucun élève ne correspond à ce filtre.</div>';
   }else{
@@ -6137,7 +6156,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v15') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v16') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
