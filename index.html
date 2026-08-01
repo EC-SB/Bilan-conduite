@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v66</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v67</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2247,6 +2247,8 @@ $('confirmGen').addEventListener('click', async () => {
             'mais ils ne sont pas corrigés. Relis-les avant d\'envoyer.');
     }
     sauvegarderLocal(true);
+    /* Le cours est fait : sa préparation sort de la liste */
+    retirerPreparationFaite();
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
     marquerExport(false);
@@ -2641,17 +2643,7 @@ async function exporterVersSheets(silencieux){
     marquerExport(true);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
-    /* Le cours préparé correspondant n'a plus lieu d'être */
-    if(currentLessonMeta && currentLessonMeta.studentName){
-      const cible = normaliserMot(currentLessonMeta.studentName);
-      const aSupprimer = prepares.filter(x => normaliserMot(x.eleve || '') === cible);
-      if(aSupprimer.length){
-        for(const x of aSupprimer){
-          try{ await appelPrep({ action: 'prepDelete', id: x.id }); }catch(e){}
-        }
-        afficherPrepares();
-      }
-    }
+
     return true;
   }catch(e){
     console.error('Erreur export Sheets:', e);
@@ -4049,6 +4041,7 @@ function afficherPermis(nom, dossier){
    ============================================================ */
 const CLE_CACHE_PREP = 'cache_prepares';
 let prepares = [];
+let prepareEnCours = null;   /* préparation ouverte, à retirer une fois le cours fait */
 
 /* Cache local : la liste reste consultable même sans réseau dans la voiture */
 function lireCachePrepares(){
@@ -4191,9 +4184,33 @@ async function afficherPrepares(recharger){
   });
 }
 
+/* Retire de la liste la préparation du cours qui vient d'être fait.
+   Ciblée : les autres cours du même élève sont conservés. */
+async function retirerPreparationFaite(){
+  let cible = prepareEnCours;
+
+  /* Cours non ouvert depuis la liste : on retrouve celui du jour */
+  if(!cible && currentLessonMeta && currentLessonMeta.studentName){
+    const nom = normaliserMot(currentLessonMeta.studentName);
+    const jour = $('lessonDate').value;
+    cible = prepares.find(x => normaliserMot(x.eleve || '') === nom && x.date === jour) || null;
+  }
+  if(!cible) return;
+
+  try{
+    await appelPrep({ action: 'prepDelete', id: cible.id });
+    prepareEnCours = null;
+    afficherPrepares();
+  }catch(e){
+    console.warn('Préparation non retirée :', e);
+  }
+}
+
 /* Charge un cours préparé dans le formulaire : plus qu'à démarrer */
 function chargerPrepare(cours){
   if(finalTranscript && !confirm('Un enregistrement est en cours. Le remplacer ?')) return;
+
+  prepareEnCours = cours;
 
   if(cours.modele) $('modele').value = cours.modele;
   $('studentName').value = cours.eleve || '';
@@ -4483,6 +4500,7 @@ $('newLessonBtn').addEventListener('click', () => {
   committedTranscript = '';
   interruptions = 0;
   contexteDepart = null;
+  prepareEnCours = null;
   noteQuestionnaire = '';
   dernierMot = 0;
   dernierEvenement = '—';
