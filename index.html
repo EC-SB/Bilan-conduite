@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v82</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v83</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -412,6 +412,13 @@
            placeholder="Choisis dans la liste ou tape un nom">
     <datalist id="listeEleves"></datalist>
     <div id="eleveInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
+    <label for="searchMoniteur">Moniteur</label>
+    <select id="searchMoniteur">
+      <option value="">Tous les moniteurs</option>
+    </select>
+    <div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">
+      Laisse le nom de l'élève vide et choisis un moniteur pour voir tous ses bilans.
+    </div>
     <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
     <div id="searchResults" style="margin-top:14px;"></div>
 
@@ -1671,7 +1678,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 13;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 14;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -2836,6 +2843,17 @@ async function chargerMoniteurs(){
     if(!r.ok) return;
     const data = await r.json().catch(() => ({}));
     moniteursActifs = (data && data.moniteurs) || [];
+    const sel = $('searchMoniteur');
+    if(sel){
+      const choix = sel.value;
+      sel.innerHTML = '<option value="">Tous les moniteurs</option>';
+      moniteursActifs.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n; o.textContent = n;
+        sel.appendChild(o);
+      });
+      sel.value = choix;
+    }
   }catch(e){
     console.warn('Liste des moniteurs indisponible :', e);
   }
@@ -5559,7 +5577,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v13') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v14') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
@@ -5571,9 +5589,11 @@ function verifierVersionScript(reponse){
 /* ---------- Recherche des anciens bilans d'un élève ---------- */
 async function rechercherEleve(){
   const nom = $('searchName').value.trim();
+  const moniteur = $('searchMoniteur') ? $('searchMoniteur').value : '';
   const zone = $('searchResults');
-  if(nom.length < 2){
-    zone.innerHTML = '<div class="empty">Saisis au moins 2 caractères.</div>';
+
+  if(nom.length < 2 && !moniteur){
+    zone.innerHTML = '<div class="empty">Saisis un nom d\'élève ou choisis un moniteur.</div>';
     return;
   }
   const btn = $('searchBtn');
@@ -5584,7 +5604,8 @@ async function rechercherEleve(){
     const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
+      body: JSON.stringify({ action: 'search', code: ACCES.code,
+                             eleve: nom, moniteur: moniteur })
     });
     if(r.status === 403){
       verrouiller('Session expirée, saisis ton code à nouveau.');
@@ -5598,15 +5619,37 @@ async function rechercherEleve(){
     }
     const res = (data && data.resultats) || [];
     if(!res.length){
-      zone.innerHTML = '<div class="empty">Aucun bilan trouvé pour cet élève.<br>Vérifie que le nom et le prénom sont écrits comme lors des cours précédents.</div>';
+      zone.innerHTML = '<div class="empty">' +
+        (nom.length >= 2
+          ? 'Aucun bilan trouvé pour cet élève' + (moniteur ? ' avec ce moniteur' : '') +
+            '.<br>Vérifie que le nom et le prénom sont écrits comme lors des cours précédents.'
+          : 'Aucun bilan trouvé pour ce moniteur.') + '</div>';
       eleveAffiche = '';
       nbBilansAffiches = 0;
       majZoneSuppression();
       return;
     }
-    eleveAffiche = (res[0] && res[0].eleve) ? res[0].eleve : nom;
-    nbBilansAffiches = res.length;
+
+    /* La suppression de dossier ne concerne qu'une recherche par élève */
+    eleveAffiche = (nom.length >= 2 && res[0]) ? res[0].eleve : '';
+    nbBilansAffiches = (nom.length >= 2) ? res.length : 0;
     majZoneSuppression();
+
+    /* Recherche par moniteur : on annonce le nombre d'élèves distincts */
+    if(nom.length < 2){
+      const eleves = [];
+      res.forEach(x => {
+        const k = normaliserMot(x.eleve || '');
+        if(k && eleves.indexOf(k) === -1) eleves.push(k);
+      });
+      const entete = document.createElement('div');
+      entete.style.cssText = 'padding:10px 12px;margin-bottom:10px;background:var(--navy);' +
+        'border:1px solid var(--line);border-radius:10px;font-size:14px;';
+      entete.innerHTML = '<strong>' + moniteur + '</strong> — ' + res.length +
+        ' bilan(s) pour ' + eleves.length + ' élève(s)' +
+        (res.length >= 200 ? ' <span style="color:var(--warn-text);">(200 plus récents)</span>' : '');
+      zone.appendChild(entete);
+    }
     zone.innerHTML = '';
     res.forEach(item => {
       const row = document.createElement('div');
@@ -5615,7 +5658,10 @@ async function rechercherEleve(){
       meta.className = 'meta';
       const note = (item.note || '').trim();
       const t = document.createElement('strong');
-      if(note){
+      if(!nom || nom.length < 2){
+        /* Recherche par moniteur : on met l'élève en avant */
+        t.textContent = item.eleve || '(sans nom)';
+      }else if(note){
         /* La note interne prend la place du titre : c'est ce que le
            moniteur suivant doit voir en premier, en entier. */
         t.textContent = '📌 ' + note;
@@ -5669,6 +5715,7 @@ async function rechercherEleve(){
 }
 
 $('searchBtn').addEventListener('click', rechercherEleve);
+$('searchMoniteur').addEventListener('change', rechercherEleve);
 $('searchName').addEventListener('input', () => verifierNomEleve('searchName', 'eleveInfo', false));
 $('searchName').addEventListener('change', () => { verifierNomEleve('searchName', 'eleveInfo', false); rechercherEleve(); });
 $('studentName').addEventListener('input', () => {
