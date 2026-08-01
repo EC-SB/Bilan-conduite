@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v49</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v51</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1115,6 +1115,22 @@ function extraireFrise(note){
 function leconsAvantExamenBlanc(frise){
   const m = String(frise || '').match(/(\d+)\s*le[çc]ons?\s+de\s+2h[^]*?exam/i);
   return m ? parseInt(m[1], 10) : null;
+}
+
+/* Nombre de leçons prévues APRÈS l'examen blanc */
+function leconsApresExamenBlanc(frise){
+  const m = String(frise || '').match(/exam(?:en)?\s+blanc\s*\+\s*(\d+)\s*le[çc]ons?/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/* Construit la phrase de frise à partir des deux nombres */
+function composerFrise(avant, apres){
+  const a = String(avant || '').trim();
+  const b = String(apres || '').trim();
+  if(!a && !b) return '';
+  const heures = b ? (parseInt(b, 10) * 2) + 'h' : '❓h';
+  return (a || '❓') + ' leçons de 2h + exam blanc + ' + (b || '❓') +
+         ' leçons de 2h (' + heures + ') + 3h avant examen';
 }
 
 /* ============================================================
@@ -2784,7 +2800,8 @@ async function ouvrirQuestionnaireDepart(){
   const modeleCle = $('modele').value;
 
   /* Informations déjà connues */
-  const frisePrecedente = FRISES_TYPE[modeleCle] || await friseAnterieure(eleve);
+  const friseFixe = FRISES_TYPE[modeleCle] || '';
+  const frisePrecedente = friseFixe || await friseAnterieure(eleve);
   const faites = await leconsDejaFaites(eleve);
   const manoeuvresAvant = await manoeuvresAnterieures(eleve);
   const totalManoeuvres = BLOC.ficheListeConduite.length;
@@ -2801,13 +2818,28 @@ async function ouvrirQuestionnaireDepart(){
     boite.innerHTML =
       '<h3>Avant de démarrer</h3>' +
       '<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">' +
-        (eleve ? eleve + ' — ' : '') +
-        'Fiche véhicule : ' + manoeuvresAvant.length + '/' + totalManoeuvres +
-        (restantes ? ' (' + restantes + ' restante' + (restantes > 1 ? 's' : '') + ')' : ' — terminée ✅') +
+        (eleve ? '<strong style="color:var(--cream);font-size:15px;">' + eleve + '</strong><br>' : '') +
+        '🦉 Manœuvres de la fiche véhicule : ' + manoeuvresAvant.length + ' sur ' + totalManoeuvres + ' validées' +
+        (restantes ? ' — il en reste ' + restantes : ' — fiche terminée ✅') +
       '</div>' +
 
-      '<label for="qFrise">Frise de formation</label>' +
-      '<input type="text" id="qFrise" placeholder="Non renseignée">' +
+      '<label>Frise de formation</label>' +
+      (friseFixe
+        ? '<div style="background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+          'padding:11px 12px;font-size:14px;line-height:1.5;margin-bottom:14px;">' +
+          friseFixe.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'
+        : '<div style="background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+          'padding:12px;margin-bottom:6px;font-size:15px;line-height:2;">' +
+            '<input type="text" id="qFriseAvant" inputmode="numeric" maxlength="2" ' +
+            'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;text-align:center;font-size:16px;">' +
+            ' leçons de 2h + exam blanc +' +
+            '<input type="text" id="qFriseApres" inputmode="numeric" maxlength="2" ' +
+            'style="width:52px;display:inline-block;margin:0 4px;padding:7px;text-align:center;font-size:16px;">' +
+            ' leçons de 2h <span id="qFriseHeures" style="color:var(--accent-text);font-weight:700;"></span>' +
+            ' + 3h avant examen' +
+          '</div>' +
+          '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4;">' +
+          'Laisse vide si la frise n\'est pas encore déterminée.</div>') +
 
       '<label for="qLecon">Leçon n°</label>' +
       '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
@@ -2832,7 +2864,7 @@ async function ouvrirQuestionnaireDepart(){
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qFinirFiche" style="width:20px;height:20px;">' +
-        'Fiche véhicule à finir en priorité' +
+        'Manœuvres à finir en priorité' +
       '</label>' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
@@ -2860,7 +2892,25 @@ async function ouvrirQuestionnaireDepart(){
     document.body.appendChild(fond);
 
     /* Pré-remplissage */
-    boite.querySelector('#qFrise').value = frisePrecedente || '';
+    const chAvant = boite.querySelector('#qFriseAvant');
+    const chApres = boite.querySelector('#qFriseApres');
+    const chHeures = boite.querySelector('#qFriseHeures');
+
+    if(chAvant){
+      const av = leconsAvantExamenBlanc(frisePrecedente);
+      const ap = leconsApresExamenBlanc(frisePrecedente);
+      chAvant.value = av !== null ? av : '';
+      /* Presque toujours 2 leçons après l'examen blanc */
+      chApres.value = ap !== null ? ap : '2';
+
+      const majHeures = () => {
+        const b = chApres.value.trim();
+        chHeures.textContent = b ? '(' + (parseInt(b, 10) * 2) + 'h)' : '';
+      };
+      chApres.addEventListener('input', majHeures);
+      majHeures();
+    }
+
     boite.querySelector('#qLecon').value = (faites !== null) ? (faites + 1) : '';
     if(restantes > 0 && restantes <= 4) boite.querySelector('#qFinirFiche').checked = true;
 
@@ -2890,7 +2940,10 @@ async function ouvrirQuestionnaireDepart(){
     passer.addEventListener('click', () => fermer(null));
     valider.addEventListener('click', () => {
       fermer({
-        frise: boite.querySelector('#qFrise').value.trim(),
+        frise: friseFixe || composerFrise(
+          chAvant ? chAvant.value : '',
+          chApres ? chApres.value : ''
+        ),
         lecon: boite.querySelector('#qLecon').value.trim(),
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
@@ -2955,7 +3008,7 @@ function noteDepuisQuestionnaire(q){
 
   if(q.finirFiche){
     const reste = q.totalManoeuvres - q.manoeuvresFaites;
-    bouts.push('Finir Fiche' + (reste ? ' (' + reste + ' manœuvre' + (reste > 1 ? 's' : '') + ')' : ''));
+    bouts.push('Finir Fiche' + (reste ? ' — ' + reste + ' manœuvre' + (reste > 1 ? 's' : '') + ' restante' + (reste > 1 ? 's' : '') : ''));
   }
   if(q.simuNuit) bouts.push('Simulateur nuit et risques à prévoir');
   if(q.finFormation) bouts.push('Fin de formation à prévoir');
