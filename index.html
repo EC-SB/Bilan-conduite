@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v27</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v28</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -346,6 +346,17 @@
     <div id="eleveInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
     <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
     <div id="searchResults" style="margin-top:14px;"></div>
+
+    <div id="zoneSuppression" style="display:none;margin-top:18px;padding-top:16px;
+         border-top:1px solid var(--line);">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        🗑️ Permis obtenu ou départ de l'auto-école ? Tu peux effacer définitivement
+        tous les bilans de cet élève. Action irréversible.
+      </div>
+      <button class="btn btn-secondary" id="supprimerEleveBtn"
+              style="color:var(--red);border-color:var(--red);">🗑️ Supprimer tous ses bilans</button>
+      <div id="suppressionMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+    </div>
   </div>
 
   <div class="card" id="adminCard" style="display:none;">
@@ -1404,7 +1415,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 5;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 6;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -2327,13 +2338,82 @@ document.addEventListener('click', e => {
   }
 });
 
+
+/* ---------- Suppression du dossier d'un élève ---------- */
+let eleveAffiche = '';
+let nbBilansAffiches = 0;
+
+function majZoneSuppression(){
+  const zone = $('zoneSuppression');
+  if(!zone) return;
+  /* Réservée aux administrateurs, et seulement si des bilans sont affichés */
+  zone.style.display = (ACCES.role === 'admin' && eleveAffiche && nbBilansAffiches > 0)
+    ? 'block' : 'none';
+  const msg = $('suppressionMsg');
+  if(msg) msg.textContent = '';
+  const btn = $('supprimerEleveBtn');
+  if(btn && eleveAffiche){
+    btn.textContent = '🗑️ Supprimer les ' + nbBilansAffiches + ' bilan(s) de ' + eleveAffiche;
+  }
+}
+
+async function supprimerDossierEleve(){
+  if(!eleveAffiche) return;
+
+  /* Première confirmation */
+  if(!confirm('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+              'Tous les bilans de ' + eleveAffiche + ' (' + nbBilansAffiches + ') vont être effacés.\n\n' +
+              'Cette action est IRRÉVERSIBLE : ni toi ni personne ne pourra les récupérer.\n\n' +
+              'Continuer ?')) return;
+
+  /* Seconde confirmation : le nom doit être retapé */
+  const saisi = prompt('Pour confirmer, recopie exactement le nom de l\'élève :\n\n' + eleveAffiche);
+  if(saisi === null) return;
+  if(normaliserMot(saisi) !== normaliserMot(eleveAffiche)){
+    alert('Le nom saisi ne correspond pas. Suppression annulée.');
+    return;
+  }
+
+  const btn = $('supprimerEleveBtn');
+  const msg = $('suppressionMsg');
+  btn.disabled = true;
+  btn.textContent = 'Suppression…';
+
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: eleveAffiche })
+    });
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
+
+    msg.style.color = 'var(--accent-text)';
+    msg.textContent = '✅ ' + (data.supprimees || 0) + ' bilan(s) supprimé(s) définitivement.';
+    showToast('Dossier supprimé ✅');
+
+    $('searchResults').innerHTML = '<div class="empty">Dossier supprimé.</div>';
+    eleveAffiche = '';
+    nbBilansAffiches = 0;
+    $('zoneSuppression').style.display = 'none';
+    chargerEleves();
+  }catch(e){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Erreur : ' + e.message;
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+$('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
+
 /* Vérifie que le script Google déployé est bien à jour */
 function verifierVersionScript(reponse){
   const v = reponse && reponse.versionScript ? Number(reponse.versionScript) : 0;
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v5') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v6') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
@@ -2373,8 +2453,14 @@ async function rechercherEleve(){
     const res = (data && data.resultats) || [];
     if(!res.length){
       zone.innerHTML = '<div class="empty">Aucun bilan trouvé pour cet élève.<br>Vérifie que le nom et le prénom sont écrits comme lors des cours précédents.</div>';
+      eleveAffiche = '';
+      nbBilansAffiches = 0;
+      majZoneSuppression();
       return;
     }
+    eleveAffiche = (res[0] && res[0].eleve) ? res[0].eleve : nom;
+    nbBilansAffiches = res.length;
+    majZoneSuppression();
     zone.innerHTML = '';
     res.forEach(item => {
       const row = document.createElement('div');
