@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v84</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v85</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -437,6 +437,7 @@
   <div class="card">
     <h2 class="section-title">🏢 Suivi bureau</h2>
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
+    <div id="blocPlaces" style="margin-top:14px;"></div>
 
     <details style="margin-top:16px;">
       <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
@@ -490,6 +491,14 @@
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🚗 Examens du permis à prévoir</div>
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        🗓️ Élèves permis — à placer sur une date</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        Cochés depuis la liste précédente. Indique qui prend la date et sur quelle semaine.</div>
+      <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
@@ -1685,7 +1694,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 14;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 15;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -4814,6 +4823,7 @@ async function chargerBureau(){
 
   etatBureau.consignes = consignes;
   etatBureau.suivi = (data && data.suivi) || [];
+  chargerPlaces(data && data.places);
   /* Un élève peut n'exister que par une consigne du bureau */
   const connus = eleves.map(x => normaliserMot(x.eleve));
   consignes.forEach(cs => {
@@ -4860,6 +4870,20 @@ async function envoyerConsigne(eleve, type, texte, valeur){
 
 
 
+
+/* Fiche de suivi d'un élève, ou objet vide */
+function suiviDe(eleve){
+  return etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve)) || {};
+}
+
+/* Met à jour quelques champs sans écraser le reste */
+async function majSuivi(eleve, champs){
+  const s = suiviDe(eleve);
+  await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
+    eleve: eleve, par: ACCES.moniteur || ''
+  }));
+}
+
 /* Fiche de préparation administrative d'un passage au permis */
 function ficheSuiviPermis(e){
   const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(e.eleve)) || {};
@@ -4882,6 +4906,9 @@ function ficheSuiviPermis(e){
       '<option value="handicap">♿ Handicap</option>' +
     '</select>' +
 
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
+      '<input type="checkbox" id="' + id + 'fan" style="width:19px;height:19px;">' +
+      '👻 Place fantôme — nom posé, repreneur encore inconnu</label>' +
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
       '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">' +
       'Place à remplacer — à donner à un autre élève</label>' +
@@ -4961,6 +4988,7 @@ function ficheSuiviPermis(e){
     if(g('typ')) g('typ').value = s.typeExamen ||
       ((e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase());
     if(g('ae')) g('ae').value = s.autoEcole || '';
+    if(g('fan')) g('fan').checked = (s.fantome === 'oui');
   }, 0);
 
   /* Affichages conditionnels */
@@ -5001,8 +5029,8 @@ function ficheSuiviPermis(e){
         /* L'élève précédent perd la date */
         await envoyerConsigne(e.eleve, 'permis',
           'Examen du ' + dateP + ' redonné à un autre candidat — nouvelle date à prévoir');
-        await appelPrep({ action:'suiviSet', eleve: e.eleve, datePermis: '',
-                          aRemplacer: '', dateADonner: '', par: ACCES.moniteur || '' });
+        /* L'ancien candidat sort complètement de la liste des permis prévus */
+        await appelPrep({ action:'suiviDelete', eleve: e.eleve });
 
         showToast('Date transférée à ' + nouveau + ' ✅');
         afficherBureau();
@@ -5036,6 +5064,11 @@ function ficheSuiviPermis(e){
         reservations: g('res').value.trim(),
         typeExamen: g('typ').value,
         autoEcole: g('ae').value.trim(),
+        fantome: g('fan').checked ? 'oui' : '',
+        statut: s.statut || '',
+        aPlanifier: s.aPlanifier || '',
+        semaine: s.semaine || '',
+        moniteurDate: s.moniteurDate || '',
         par: ACCES.moniteur || ''
       });
       etat.style.color = 'var(--accent-text)';
@@ -5058,6 +5091,8 @@ function resumeSuivi(eleve){
   const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
   if(!s) return '';
   const bouts = [];
+  if(s.statut === 'annule') bouts.push('❌ examen annulé');
+  if(s.fantome === 'oui') bouts.push('👻 place fantôme');
   if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
   if(s.dateADonner === 'oui'){
     bouts.push('🏫 date à donner à une autre auto-école' +
@@ -5077,6 +5112,165 @@ function resumeSuivi(eleve){
   }
   if(s.reservations) bouts.push('📅 ' + s.reservations);
   return bouts.join(' · ');
+}
+
+
+/* ============================================================
+   RÉPARTITION DES PLACES D'EXAMEN
+   ============================================================ */
+let placesConfig = { mois:'', total:'', q1:'', q2:'', semaines:[] };
+
+function chargerPlaces(brut){
+  try{
+    const o = brut ? JSON.parse(brut) : null;
+    if(o && typeof o === 'object'){
+      placesConfig = Object.assign({ mois:'', total:'', q1:'', q2:'', semaines:[] }, o);
+      if(!Array.isArray(placesConfig.semaines)) placesConfig.semaines = [];
+    }
+  }catch(e){}
+}
+
+async function enregistrerPlaces(){
+  await appelPrep({ action:'configSet', cle:'places',
+                    valeur: JSON.stringify(placesConfig) });
+}
+
+function afficherPlaces(stats){
+  const zone = $('blocPlaces');
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  const p = placesConfig;
+  const nb = v => { const n = parseInt(v, 10); return isNaN(n) ? 0 : n; };
+  const restant = nb(p.total) - stats.prevus;
+
+  /* Récapitulatif */
+  const recap = document.createElement('div');
+  recap.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+    'border-radius:10px;padding:12px;margin-bottom:10px;font-size:14px;line-height:1.7;';
+  recap.innerHTML =
+    '<div style="font-size:15px;font-weight:700;margin-bottom:6px;">' +
+      '📊 ' + (p.mois || 'Période non renseignée') + '</div>' +
+    '<div><strong>' + stats.prevus + '</strong> candidat(s) prévu(s) sur <strong>' +
+      (p.total || '?') + '</strong> place(s)' +
+      (p.total ? ' — <span style="color:' + (restant < 0 ? 'var(--red)' : 'var(--accent-text)') +
+        ';font-weight:700;">' + (restant >= 0 ? restant + ' à donner' : Math.abs(restant) + ' en trop') +
+        '</span>' : '') + '</div>' +
+    (p.q1 || p.q2
+      ? '<div style="color:var(--muted);font-size:13px;">1ʳᵉ quinzaine : ' + (p.q1 || '?') +
+        ' · 2ᵉ quinzaine : ' + (p.q2 || '?') + '</div>'
+      : '') +
+    '<div>🔄 <strong>' + stats.remplacements + '</strong> remplacement(s) · ' +
+      '👻 <strong>' + stats.fantomes + '</strong> place(s) fantôme(s)' +
+      (stats.aDonner ? ' · 🏫 <strong>' + stats.aDonner + '</strong> à donner à une autre AE' : '') +
+    '</div>';
+  zone.appendChild(recap);
+
+  /* Semaines ouvertes */
+  if(p.semaines.length){
+    const s = document.createElement('div');
+    s.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+      'padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.8;';
+    s.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">Semaines ouvertes</div>' +
+      p.semaines.map(w =>
+        '• ' + (w.du || '?') + ' au ' + (w.au || '?') + ' — <strong>' + (w.places || '?') +
+        '</strong> place(s)' + (w.detail ? ' · ' + w.detail.replace(/</g,'&lt;') : '')
+      ).join('<br>');
+    zone.appendChild(s);
+  }
+
+  /* Formulaire de saisie */
+  const det = document.createElement('details');
+  det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:700;' +
+    'font-size:14px;">⚙️ Régler les places disponibles</summary>';
+  const f = document.createElement('div');
+  f.style.cssText = 'margin-top:12px;';
+  f.innerHTML =
+    '<label for="plMois">Période</label>' +
+    '<input type="text" id="plMois" placeholder="Ex : Septembre 2026">' +
+    '<label for="plTotal">Places pour la période</label>' +
+    '<input type="text" id="plTotal" inputmode="numeric" placeholder="Ex : 20">' +
+    '<label for="plQ1">Places 1ʳᵉ quinzaine</label>' +
+    '<input type="text" id="plQ1" inputmode="numeric">' +
+    '<label for="plQ2">Places 2ᵉ quinzaine</label>' +
+    '<input type="text" id="plQ2" inputmode="numeric">' +
+    '<div id="plSemaines" style="margin-top:10px;"></div>' +
+    '<button class="btn btn-secondary" id="plAjout" style="margin-bottom:10px;">➕ Ajouter une semaine</button>' +
+    '<button class="btn btn-primary" id="plEnr">💾 Enregistrer</button>';
+  det.appendChild(f);
+  zone.appendChild(det);
+
+  $('plMois').value = p.mois || '';
+  $('plTotal').value = p.total || '';
+  $('plQ1').value = p.q1 || '';
+  $('plQ2').value = p.q2 || '';
+
+  function dessinerSemaines(){
+    const z = $('plSemaines');
+    z.innerHTML = '';
+    placesConfig.semaines.forEach((w, i) => {
+      const l = document.createElement('div');
+      l.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
+      l.innerHTML =
+        '<div style="display:flex;gap:6px;margin-bottom:6px;">' +
+          '<input type="date" class="plDu" value="' + (w.du || '') + '" style="flex:1;margin:0;">' +
+          '<input type="date" class="plAu" value="' + (w.au || '') + '" style="flex:1;margin:0;">' +
+        '</div>' +
+        '<div style="display:flex;gap:6px;">' +
+          '<input type="text" class="plNb" inputmode="numeric" placeholder="Places" ' +
+            'value="' + (w.places || '') + '" style="width:90px;margin:0;">' +
+          '<input type="text" class="plDet" placeholder="Détail (ex : 6 j SB, 1 j Loudéac)" ' +
+            'value="' + String(w.detail || '').replace(/"/g, '&quot;') + '" style="flex:1;margin:0;">' +
+        '</div>';
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'margin-top:8px;padding:7px;font-size:12px;color:var(--red);border-color:var(--red);';
+      b.textContent = '✕ Retirer cette semaine';
+      b.addEventListener('click', () => {
+        placesConfig.semaines.splice(i, 1);
+        dessinerSemaines();
+      });
+      l.appendChild(b);
+      z.appendChild(l);
+    });
+  }
+  dessinerSemaines();
+
+  $('plAjout').addEventListener('click', () => {
+    lireSemainesSaisies();
+    placesConfig.semaines.push({ du:'', au:'', places:'', detail:'' });
+    dessinerSemaines();
+  });
+
+  function lireSemainesSaisies(){
+    const dus = document.querySelectorAll('.plDu');
+    const aus = document.querySelectorAll('.plAu');
+    const nbs = document.querySelectorAll('.plNb');
+    const dts = document.querySelectorAll('.plDet');
+    placesConfig.semaines = Array.prototype.map.call(dus, (x, i) => ({
+      du: x.value,
+      au: aus[i] ? aus[i].value : '',
+      places: nbs[i] ? nbs[i].value.trim() : '',
+      detail: dts[i] ? dts[i].value.trim() : ''
+    }));
+  }
+
+  $('plEnr').addEventListener('click', async () => {
+    lireSemainesSaisies();
+    placesConfig.mois = $('plMois').value.trim();
+    placesConfig.total = $('plTotal').value.trim();
+    placesConfig.q1 = $('plQ1').value.trim();
+    placesConfig.q2 = $('plQ2').value.trim();
+    const b = $('plEnr');
+    b.disabled = true;
+    b.textContent = 'Enregistrement…';
+    try{
+      await enregistrerPlaces();
+      showToast('Places enregistrées ✅');
+      afficherBureau();
+    }catch(e){ showToast('Erreur : ' + e.message); }
+    finally{ b.disabled = false; b.textContent = '💾 Enregistrer'; }
+  });
 }
 
 /* Construit une ligne d'élève avec ses actions */
@@ -5238,6 +5432,83 @@ async function afficherBureau(){
     });
   }
 
+  /* ---- 3 bis. Élèves permis : à placer sur une date ---- */
+  const zAP = $('listeAPlacer');
+  const aPlacer = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
+                                   suiviDe(e.eleve).statut !== 'annule');
+  zAP.innerHTML = '';
+  if(!aPlacer.length){
+    zAP.innerHTML = '<div class="empty">Aucun élève en attente de date.</div>';
+  }else{
+    aPlacer.forEach(e => {
+      zAP.appendChild(ligneBureau(e, {
+        info: x => {
+          const s = suiviDe(x.eleve);
+          const t = (s.typeExamen === 'bea' ? '🅰 BEA'
+                     : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
+          return t + (s.moniteurDate ? ' · date prise par ' + s.moniteurDate : ' · moniteur à définir') +
+                 (s.semaine ? ' · semaine ' + s.semaine : '');
+        },
+        resume: x => resumeSuivi(x.eleve),
+        alerte: x => (!suiviDe(x.eleve).moniteurDate) ? 'Moniteur non défini' : null,
+        actions: (x, zone) => {
+          const s = suiviDe(x.eleve);
+
+          const selM = document.createElement('select');
+          selM.style.marginBottom = '8px';
+          selM.innerHTML = '<option value="">— moniteur qui prend la date —</option>';
+          moniteursActifs.forEach(n => {
+            const o = document.createElement('option');
+            o.value = n; o.textContent = n;
+            selM.appendChild(o);
+          });
+          selM.value = s.moniteurDate || '';
+          selM.addEventListener('change', async () => {
+            selM.disabled = true;
+            try{ await majSuivi(x.eleve, { moniteurDate: selM.value }); await chargerBureau(); }
+            catch(e){ showToast('Erreur : ' + e.message); }
+            selM.disabled = false;
+          });
+          zone.appendChild(selM);
+
+          const selS = document.createElement('select');
+          selS.style.marginBottom = '8px';
+          selS.innerHTML = '<option value="">— semaine à viser —</option>';
+          (placesConfig.semaines || []).forEach(w => {
+            const lib = (w.du || '?') + ' au ' + (w.au || '?') +
+                        (w.places ? ' (' + w.places + ' pl.)' : '');
+            const o = document.createElement('option');
+            o.value = lib; o.textContent = lib;
+            selS.appendChild(o);
+          });
+          if(s.semaine && !(placesConfig.semaines || []).some(w =>
+              ((w.du||'?') + ' au ' + (w.au||'?') + (w.places?' ('+w.places+' pl.)':'')) === s.semaine)){
+            const o = document.createElement('option');
+            o.value = s.semaine; o.textContent = s.semaine;
+            selS.appendChild(o);
+          }
+          selS.value = s.semaine || '';
+          selS.addEventListener('change', async () => {
+            selS.disabled = true;
+            try{ await majSuivi(x.eleve, { semaine: selS.value }); await chargerBureau(); }
+            catch(e){ showToast('Erreur : ' + e.message); }
+            selS.disabled = false;
+          });
+          zone.appendChild(selS);
+
+          zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
+            await envoyerConsigne(x.eleve, 'permis',
+              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
+                                      aPlanifier: '', statut: '' });
+            showToast('Date transmise ✅');
+            afficherBureau();
+          }));
+        }
+      }));
+    });
+  }
+
   /* ---- 4. Permis prévus : préparation administrative ---- */
   const zPP = $('listePermisPrevu');
   const prevus = tous.filter(e => e.etat.permis === 'prevu');
@@ -5322,6 +5593,15 @@ async function afficherBureau(){
   if(fDate) visibles = visibles.filter(e => (e._datePermis || 'Date inconnue') === fDate);
   visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
 
+  /* Statistiques pour la répartition des places */
+  const actifs = prevus.filter(e => suiviDe(e.eleve).statut !== 'annule');
+  afficherPlaces({
+    prevus: actifs.length,
+    remplacements: actifs.filter(e => suiviDe(e.eleve).aRemplacer === 'oui').length,
+    fantomes: actifs.filter(e => suiviDe(e.eleve).fantome === 'oui').length,
+    aDonner: actifs.filter(e => suiviDe(e.eleve).dateADonner === 'oui').length
+  });
+
   zPP.innerHTML = '';
   if(!prevus.length){
     zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
@@ -5350,6 +5630,46 @@ async function afficherBureau(){
             showToast('Date transmise ✅');
             afficherBureau();
           }));
+          const rangee = document.createElement('div');
+          rangee.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;';
+
+          const s = suiviDe(x.eleve);
+          const bAnn = document.createElement('button');
+          bAnn.className = 'btn btn-secondary';
+          bAnn.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+          bAnn.textContent = (s.statut === 'annule') ? '↩️ Réactiver' : '❌ Annuler l\'examen';
+          bAnn.addEventListener('click', async () => {
+            const annuler = (s.statut !== 'annule');
+            if(annuler && !confirm('Annuler l\'examen de ' + x.eleve + ' ?')) return;
+            bAnn.disabled = true;
+            try{
+              await majSuivi(x.eleve, { statut: annuler ? 'annule' : '' });
+              if(annuler){
+                await envoyerConsigne(x.eleve, 'permis',
+                  'Examen du permis annulé — nouvelle date à prévoir (bureau)');
+              }
+              afficherBureau();
+            }catch(e){ showToast('Erreur : ' + e.message); bAnn.disabled = false; }
+          });
+          rangee.appendChild(bAnn);
+
+          const bSup = document.createElement('button');
+          bSup.className = 'btn btn-secondary';
+          bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
+            'color:var(--red);border-color:var(--red);';
+          bSup.textContent = '🗑️ Retirer de la liste';
+          bSup.addEventListener('click', async () => {
+            if(!confirm('Retirer ' + x.eleve + ' de la liste des permis prévus ?\n\n' +
+                        'Ses bilans ne sont pas touchés.')) return;
+            bSup.disabled = true;
+            try{
+              await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+              afficherBureau();
+            }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+          });
+          rangee.appendChild(bSup);
+          zone.appendChild(rangee);
+
           zone.appendChild(ficheSuiviPermis(x));
         }
       });
@@ -5376,6 +5696,24 @@ async function afficherBureau(){
         },
         alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
         actions: (x, zone) => {
+          const lab = document.createElement('label');
+          lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
+            'font-size:15px;color:var(--cream);margin-bottom:10px;';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.style.cssText = 'width:19px;height:19px;';
+          cb.checked = (suiviDe(x.eleve).aPlanifier === 'oui');
+          cb.addEventListener('change', async () => {
+            cb.disabled = true;
+            try{
+              await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '' });
+              afficherBureau();
+            }catch(e){ showToast('Erreur : ' + e.message); cb.disabled = false; }
+          });
+          lab.appendChild(cb);
+          lab.appendChild(document.createTextNode('Passer dans « Élèves permis »'));
+          zone.appendChild(lab);
+
           zone.appendChild(boutonDate('📅 Date de permis', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
               'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
@@ -5634,7 +5972,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v14') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v15') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
