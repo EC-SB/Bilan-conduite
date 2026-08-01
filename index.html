@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v75</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v76</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2923,6 +2923,21 @@ function ouvrirAttente(message){
   return () => { if(fond.parentNode) document.body.removeChild(fond); };
 }
 
+/* Convertit « mardi 4 août 2026 » en « 2026-08-04 » pour le calendrier */
+const MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet',
+                 'août','septembre','octobre','novembre','décembre'];
+
+function dateFrVersIso(texte){
+  const t = normaliserMot(texte || '');
+  const m = t.match(/(\d{1,2})\s+([a-z\u00e0-\u00ff]+)\s+(\d{4})/);
+  if(!m) return '';
+  const jour = parseInt(m[1], 10);
+  const mois = MOIS_FR.findIndex(x => normaliserMot(x) === m[2]);
+  if(mois === -1) return '';
+  const p2 = n => String(n).padStart(2, '0');
+  return m[3] + '-' + p2(mois + 1) + '-' + p2(jour);
+}
+
 /* Reprend l'état décrit dans la note du dernier cours pour
    pré-remplir le questionnaire. */
 function defautsDepuisNote(note){
@@ -2933,9 +2948,20 @@ function defautsDepuisNote(note){
     if(a.examBlancN !== null) d.examBlancN = String(a.examBlancN);
   }
   if(a.simuNuit) d.simuNuit = a.simuNuit;
-  if(a.permis === 'aprevoir') d.examPermis = 'aprevoir';
-  /* Une date déjà fixée est conservée telle quelle dans la note ;
-     on ne la réintroduit pas ici pour ne pas la dupliquer. */
+  if(a.permis === 'aprevoir'){
+    d.examPermis = 'aprevoir';
+  }else if(a.permis === 'prevu'){
+    d.examPermis = 'prevu';
+    const iso = dateFrVersIso(a.permisDate);
+    if(iso) d.examDate = iso;
+    if(a.permisN !== null) d.examPermisN = String(a.permisN);
+  }else if(a.permis === 'annule'){
+    d.examPermis = 'annule';
+    const m = (note || '').match(/Examen du permis du ([^—·]+?) annulé/i);
+    if(m){ const iso = dateFrVersIso(m[1]); if(iso) d.examDate = iso; }
+    const n = (note || '').match(/reprogrammé le ([^—·]+)/i);
+    if(n){ const iso = dateFrVersIso(n[1]); if(iso) d.nouvelleDate = iso; }
+  }
   if(/Formation accompagnateur faite/i.test(note || '')) d.formAccomp = 'faite';
   else if(/Formation accompagnateur déjà prévue/i.test(note || '')) d.formAccomp = 'prevue';
   else if(/Formation accompagnateur à prévoir/i.test(note || '')) d.formAccomp = 'aprevoir';
