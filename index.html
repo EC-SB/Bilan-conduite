@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v59</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v60</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2904,9 +2904,13 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
         '<option value="prevu">Prévu le…</option>' +
         '<option value="annule">Annulé</option>' +
       '</select>' +
+      '<div id="qLibExamDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;"></div>' +
       '<input type="date" id="qExamDate" style="display:none;">' +
       '<input type="text" id="qExamPermisN" inputmode="numeric" ' +
       'placeholder="Leçons restantes avant l\'examen" style="display:none;">' +
+      '<div id="qLibNouvelleDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;">' +
+      'Nouvelle date (laisse vide si en attente)</div>' +
+      '<input type="date" id="qNouvelleDate" style="display:none;">' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qFinirFiche" style="width:20px;height:20px;">' +
@@ -3038,12 +3042,27 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
     selEP.value = prec.examPermis || '';
     dEP.value = prec.examDate || '';
     const nEP = boite.querySelector('#qExamPermisN');
+    const nvDate = boite.querySelector('#qNouvelleDate');
+    const libDate = boite.querySelector('#qLibExamDate');
+    const libNv = boite.querySelector('#qLibNouvelleDate');
     nEP.value = prec.examPermisN || '';
+    nvDate.value = prec.nouvelleDate || '';
+
     selEP.addEventListener('change', () => {
-      dEP.style.display = (selEP.value === 'prevu' || selEP.value === 'annule') ? 'block' : 'none';
-      if(dEP.style.display === 'block' && !dEP.value) dEP.value = todayLocal();
-      /* Le nombre de leçons n'a de sens que si une date est fixée */
-      nEP.style.display = (selEP.value === 'prevu') ? 'block' : 'none';
+      const v = selEP.value;
+      const avecDate = (v === 'prevu' || v === 'annule');
+
+      dEP.style.display = avecDate ? 'block' : 'none';
+      libDate.style.display = avecDate ? 'block' : 'none';
+      libDate.textContent = (v === 'annule')
+        ? "Date à laquelle l'examen était prévu"
+        : "Date de l'examen";
+      /* Pas de date du jour pour un examen annulé : elle est passée */
+      if(v === 'prevu' && !dEP.value) dEP.value = todayLocal();
+
+      nEP.style.display = (v === 'prevu') ? 'block' : 'none';
+      nvDate.style.display = (v === 'annule') ? 'block' : 'none';
+      libNv.style.display = (v === 'annule') ? 'block' : 'none';
     });
 
     function fermer(reponses){
@@ -3070,6 +3089,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
         simuNuit: boite.querySelector('#qSimuNuit').checked,
         finFormation: boite.querySelector('#qFinFormation').checked,
         examPermisN: nEP.value.trim(),
+        nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
         rvPrealable: boite.querySelector('#qRvPrealable').value,
         libre: boite.querySelector('#qLibre').value.trim(),
@@ -3152,9 +3172,13 @@ function ajouterSuite(bouts, q){
     }
     bouts.push(phrase);
   }else if(q.examPermis === 'annule'){
-    bouts.push(q.examDate
-      ? 'Examen du permis annulé — reprogrammé le ' + dateEnToutesLettres(q.examDate)
-      : 'Examen du permis annulé — nouvelle date en attente');
+    let phrase = q.examDate
+      ? 'Examen du permis du ' + dateEnToutesLettres(q.examDate) + ' annulé'
+      : 'Examen du permis annulé';
+    phrase += q.nouvelleDate
+      ? ' — reprogrammé le ' + dateEnToutesLettres(q.nouvelleDate)
+      : ' — nouvelle date en attente';
+    bouts.push(phrase);
   }
 
   if(q.finirFiche){
