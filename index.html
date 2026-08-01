@@ -265,7 +265,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v90</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v91</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -4860,13 +4860,15 @@ function analyserNote(note){
   else if(/Simulateur nuit et risques déjà prévu/i.test(t)) r.simuNuit = 'prevu';
   else if(/Simulateur nuit et risques à prévoir/i.test(t)) r.simuNuit = 'aprevoir';
 
-  if((m = t.match(/Examen du permis fixé au ([^—·(]+)/i))){
+  /* L'annulation prime sur toute date déjà annoncée */
+  if(/annulé/i.test(t) && /permis|examen/i.test(t)) r.permis = 'annule';
+  else if((m = t.match(/Examen du permis fixé au ([^—·(]+)/i))){
     r.permis = 'prevu';
     r.permisDate = m[1].trim();
   }
-  else if(/Examen du permis.*annulé/i.test(t)) r.permis = 'annule';
   else if(/Date d'examen à prévoir/i.test(t)) r.permis = 'aprevoir';
   else if((m = t.match(/Examen prévu le ([^—·]+)/i))){ r.permis='prevu'; r.permisDate=m[1].trim(); }
+  if(r.permis === 'annule') r.permisDate = null;
   if((m = t.match(/Examen prévu le [^—·]+— encore (\d+) leçon/i))) r.permisN = +m[1];
 
   if((m = t.match(/(\d+)(?:ère|ème) leçon sur (\d+)/i))){ r.lecon=+m[1]; r.leconTotal=+m[2]; }
@@ -5805,6 +5807,12 @@ async function afficherBureau(){
             bAnn.disabled = true;
             try{
               if(annuler){
+                /* Les anciennes consignes de date n'ont plus lieu d'être */
+                const obsoletes = (x.enAttente || []).filter(cs =>
+                  /permis|examen/i.test(cs.type + ' ' + cs.texte));
+                for(const cs of obsoletes){
+                  try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
+                }
                 /* L'examen n'existe plus : l'élève retourne dans « à prévoir » */
                 await envoyerConsigne(x.eleve, 'permis',
                   "Examen du permis annulé — date d'examen à prévoir (bureau)");
@@ -6815,3 +6823,4 @@ refreshHistory();
 </script>
 </body>
 </html>
+  
