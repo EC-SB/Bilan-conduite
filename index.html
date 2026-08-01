@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v25</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v27</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -266,7 +266,9 @@
       <input type="text" id="monitorName" placeholder="Ex : Chrystel">
 
       <label for="studentName">Nom et prénom de l'élève</label>
-      <input type="text" id="studentName" placeholder="Ex : Maëlys Le Gall">
+      <input type="text" id="studentName" list="listeEleves" autocomplete="off"
+             placeholder="Ex : Maëlys Le Gall">
+      <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
 
       <label for="site">Site</label>
       <select id="site">
@@ -338,7 +340,10 @@
   <div class="card">
     <h2 class="section-title">Retrouver un élève</h2>
     <label for="searchName">Nom et prénom de l'élève</label>
-    <input type="text" id="searchName" placeholder="Ex : Maëlys Le Gall">
+    <input type="text" id="searchName" list="listeEleves" autocomplete="off"
+           placeholder="Choisis dans la liste ou tape un nom">
+    <datalist id="listeEleves"></datalist>
+    <div id="eleveInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
     <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
     <div id="searchResults" style="margin-top:14px;"></div>
   </div>
@@ -1399,7 +1404,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 4;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 5;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -2196,6 +2201,7 @@ async function exporterVersSheets(silencieux){
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Enregistré avec la note 📌 ✅' : 'Enregistré dans Sheets ✅');
     marquerExport(true);
+    chargerEleves();          /* un nouvel élève peut venir d'apparaître */
     return true;
   }catch(e){
     console.error('Erreur export Sheets:', e);
@@ -2235,13 +2241,99 @@ function marquerExport(ok){
   }
 }
 
+
+/* ---------- Liste des élèves déjà enregistrés ---------- */
+let elevesConnus = [];
+
+async function chargerEleves(){
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'eleves', code: ACCES.code })
+    });
+    if(!r.ok) return;
+    const data = await r.json().catch(() => ({}));
+    elevesConnus = (data && data.eleves) || [];
+
+    const liste = $('listeEleves');
+    if(liste){
+      liste.innerHTML = '';
+      elevesConnus.forEach(nom => {
+        const o = document.createElement('option');
+        o.value = nom;
+        liste.appendChild(o);
+      });
+    }
+    verifierNomEleve('searchName', 'eleveInfo', false);
+    verifierNomEleve('studentName', 'studentInfo', true);
+  }catch(e){
+    console.warn('Liste des élèves indisponible :', e);
+  }
+}
+
+/* Prévient quand un nom saisi ne correspond à aucun élève connu :
+   c'est presque toujours une variante d'orthographe. */
+function verifierNomEleve(idChamp, idInfo, contexteCours){
+  const info = $(idInfo);
+  const champ = $(idChamp);
+  if(!info || !champ) return;
+
+  const saisi = champ.value.trim();
+  if(!saisi || !elevesConnus.length){
+    info.style.color = 'var(--muted)';
+    info.textContent = elevesConnus.length
+      ? elevesConnus.length + ' élève(s) enregistré(s) — appuie sur le champ pour voir la liste.'
+      : 'Aucun élève enregistré pour le moment.';
+    return;
+  }
+
+  const cle = normaliserMot(saisi);
+  if(elevesConnus.some(n => normaliserMot(n) === cle)){
+    info.style.color = 'var(--accent-text)';
+    info.textContent = '✓ Élève connu';
+    return;
+  }
+
+  const proches = elevesConnus.filter(n => normaliserMot(n).indexOf(cle) !== -1).slice(0, 3);
+  if(proches.length){
+    info.style.color = 'var(--warn-text)';
+    info.innerHTML = '⚠️ Élève existant sous une autre orthographe ?<br>' +
+      proches.map(n => '<span class="suggestion" data-nom="' +
+        n.replace(/"/g, '&quot;') + '" data-cible="' + idChamp +
+        '" style="text-decoration:underline;cursor:pointer;">' +
+        n.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</span>').join(' · ');
+    return;
+  }
+
+  info.style.color = 'var(--muted)';
+  info.textContent = contexteCours
+    ? 'Nouvel élève — ses prochains bilans seront regroupés sous cette orthographe.'
+    : 'Nouveau nom — aucun bilan existant sous cette orthographe.';
+}
+
+/* Un clic sur une suggestion remplit le champ correspondant */
+document.addEventListener('click', e => {
+  const s = e.target && e.target.closest ? e.target.closest('.suggestion') : null;
+  if(!s) return;
+  const champ = $(s.getAttribute('data-cible'));
+  if(!champ) return;
+  champ.value = s.getAttribute('data-nom');
+  if(s.getAttribute('data-cible') === 'studentName'){
+    verifierNomEleve('studentName', 'studentInfo', true);
+  }else{
+    verifierNomEleve('searchName', 'eleveInfo', false);
+    rechercherEleve();
+  }
+});
+
 /* Vérifie que le script Google déployé est bien à jour */
 function verifierVersionScript(reponse){
   const v = reponse && reponse.versionScript ? Number(reponse.versionScript) : 0;
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v4') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v5') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
@@ -2343,6 +2435,10 @@ async function rechercherEleve(){
 }
 
 $('searchBtn').addEventListener('click', rechercherEleve);
+$('searchName').addEventListener('input', () => verifierNomEleve('searchName', 'eleveInfo', false));
+$('searchName').addEventListener('change', () => { verifierNomEleve('searchName', 'eleveInfo', false); rechercherEleve(); });
+$('studentName').addEventListener('input', () => verifierNomEleve('studentName', 'studentInfo', true));
+$('studentName').addEventListener('change', () => verifierNomEleve('studentName', 'studentInfo', true));
 $('searchName').addEventListener('keydown', e => { if(e.key === 'Enter') rechercherEleve(); });
 
 $('newLessonBtn').addEventListener('click', () => {
@@ -2360,6 +2456,7 @@ $('newLessonBtn').addEventListener('click', () => {
   $('compteur').style.display = 'none';
   effacerSauvegarde();
   $('studentName').value = '';
+  verifierNomEleve('studentName', 'studentInfo', true);
   $('noteInterne').value = '';
   afficherNote('');
   ['modele','monitorName','studentName','site','lessonDate'].forEach(id => { $(id).disabled = false; });
@@ -2579,6 +2676,7 @@ async function deverrouiller(){
       chargerUtilisateurs();
     }
     proposerReprise();
+    chargerEleves();
     showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
   }catch(e){
     msg.style.color = 'var(--warn-text)';
