@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v72</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v73</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -3011,6 +3011,21 @@ function appliquerNoteQuestionnaire(nouvelle){
 async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
   if(questionnaireOuvert) return null;   /* double appui ignoré */
   questionnaireOuvert = true;
+  /* Filet : le verrou ne doit jamais rester bloqué */
+  const secours = setTimeout(() => { questionnaireOuvert = false; }, 30000);
+  try{
+    return await construireQuestionnaire(prec, titre, libelleValider);
+  }catch(e){
+    questionnaireOuvert = false;
+    console.error('Questionnaire :', e);
+    alert('Le questionnaire n\'a pas pu s\'ouvrir.\n\nDétail : ' + (e && e.message ? e.message : e));
+    return null;
+  }finally{
+    clearTimeout(secours);
+  }
+}
+
+async function construireQuestionnaire(prec, titre, libelleValider){
   prec = prec || {};
   const eleve = $('studentName').value.trim();
   const modeleCle = $('modele').value;
@@ -3354,6 +3369,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
         appelPrep({ action: 'consigneDone', id: x.id }).catch(() => {});
       });
       fermer({
+        source: dossier.dernierHorodatage || '',
         consignes: consignesBureau.map(x => x.texte),
         frise: friseDeduite ||
                ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '') ||
@@ -4438,17 +4454,16 @@ async function preparerNouveauCours(){
   $('modele').value = modeleCle;
   $('lessonDate').value = date;
 
-  /* Repère du cours le plus récent au moment de la préparation */
-  let sourceHorodatage = '';
-  try{
-    const d = await chargerDossierEleve(eleve);
-    sourceHorodatage = d.dernierHorodatage || '';
-  }catch(e){}
+  const btnPrep = $('prepBtn');
+  btnPrep.disabled = true;
+  btnPrep.textContent = 'Ouverture…';
 
   let rep = null;
   try{
     rep = await ouvrirQuestionnaireDepart(null, 'Préparer le cours de ' + eleve, 'Enregistrer');
   }finally{
+    btnPrep.disabled = false;
+    btnPrep.textContent = '📝 Préparer les notes';
     $('studentName').value = sauve.eleve;
     $('modele').value = sauve.modele;
     $('lessonDate').value = sauve.date;
@@ -4467,7 +4482,7 @@ async function preparerNouveauCours(){
       modeleLabel: MODELES[modeleCle] ? MODELES[modeleCle].label : '',
       site: $('site').value,
       note: noteDepuisQuestionnaire(rep),
-      contexte: JSON.stringify(Object.assign({}, rep, { source: sourceHorodatage })),
+      contexte: JSON.stringify(rep),
       moniteur: ACCES.moniteur || ''
     });
     $('prepEleve').value = '';
