@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v71</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v72</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -421,6 +421,33 @@
   <div class="card">
     <h2 class="section-title">🏢 Suivi bureau</h2>
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
+
+    <details style="margin-top:16px;">
+      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
+        ➕ Ajouter une date manuellement
+      </summary>
+      <div style="margin-top:14px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+          Pour un élève qui n'apparaît pas dans les listes. La date rejoint
+          directement ses notes internes au prochain cours.
+        </div>
+        <label for="addEleve">Nom et prénom de l'élève</label>
+        <input type="text" id="addEleve" list="listeEleves" autocomplete="off"
+               placeholder="Choisis dans la liste ou tape un nom">
+        <label for="addType">Type</label>
+        <select id="addType">
+          <option value="permis">🚗 Examen du permis</option>
+          <option value="examblanc">📝 Examen blanc</option>
+          <option value="simu">🌙 Simulateur nuit et risques</option>
+        </select>
+        <label for="addDate">Date</label>
+        <input type="date" id="addDate">
+        <label for="addLecons">Leçons restantes avant cette date (facultatif)</label>
+        <input type="text" id="addLecons" inputmode="numeric" placeholder="Ex : 3">
+        <button class="btn btn-primary" id="addBtn">📅 Enregistrer la date</button>
+        <div id="addEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+      </div>
+    </details>
 
     <div style="margin-top:18px;">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
@@ -4820,6 +4847,54 @@ async function afficherConsignesEnAttente(){
   }
 }
 
+
+/* Ajout manuel d'une date depuis le bureau, hors des listes */
+async function ajouterDateBureau(){
+  const eleve = $('addEleve').value.trim();
+  const type = $('addType').value;
+  const iso = $('addDate').value;
+  const nLecons = $('addLecons').value.trim();
+  const etat = $('addEtat');
+
+  if(eleve.length < 2){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = "Saisis le nom de l'élève.";
+    return;
+  }
+  if(!iso){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Choisis une date.';
+    return;
+  }
+
+  const quand = dateEnToutesLettres(iso);
+  const suite = nLecons
+    ? ' — encore ' + nLecons + ' leçon' + (parseInt(nLecons, 10) > 1 ? 's' : '') + ' avant'
+    : '';
+
+  let texte;
+  if(type === 'permis') texte = 'Examen du permis fixé au ' + quand + suite + ' (bureau)';
+  else if(type === 'examblanc') texte = 'Examen blanc fixé au ' + quand + suite + ' (bureau)';
+  else texte = 'Simulateur nuit et risques fixé au ' + quand + ' (bureau)';
+
+  const btn = $('addBtn');
+  btn.disabled = true;
+  btn.textContent = 'Enregistrement…';
+  try{
+    await envoyerConsigne(eleve, type, texte);
+    etat.style.color = 'var(--accent-text)';
+    etat.textContent = '✅ ' + texte;
+    $('addLecons').value = '';
+    await afficherConsignesEnAttente();
+  }catch(e){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Erreur : ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '📅 Enregistrer la date';
+  }
+}
+
 /* ---------- Suppression du dossier d'un élève ---------- */
 let eleveAffiche = '';
 let nbBilansAffiches = 0;
@@ -4889,6 +4964,7 @@ async function supprimerDossierEleve(){
 $('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
 $('bureauBtn').addEventListener('click', () => { afficherBureau(); afficherConsignesEnAttente(); });
 $('msgBtn').addEventListener('click', envoyerMessageBureau);
+$('addBtn').addEventListener('click', ajouterDateBureau);
 $('permisBtn').addEventListener('click', preparerPermis);
 $('permisNom').addEventListener('change', preparerPermis);
 
@@ -5423,6 +5499,7 @@ $('prepBtn').addEventListener('click', preparerNouveauCours);
 
 /* ---------- Init ---------- */
 $('prepDate').value = todayLocal();
+$('addDate').value = todayLocal();
 creerRaccourcis('raccourcisNote', 'noteInterne');
 creerRaccourcis('raccourcisNoteResult', 'noteResult');
 remplirModeles();
