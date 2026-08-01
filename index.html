@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v58</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v59</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2077,6 +2077,13 @@ $('recBtn').addEventListener('click', async () => {
 /* ---------- Génération ---------- */
 /* Le bouton n'enclenche plus rien directement : il demande confirmation */
 $('finishBtn').addEventListener('click', async () => {
+  const bFin = $('finishBtn');
+  if(bFin.disabled) return;
+  bFin.disabled = true;
+  const libelleFin = bFin.textContent;
+  bFin.textContent = 'Préparation…';
+  try{
+
   if(isRecording){
     isRecording = false;
     try{ recognition.stop(); }catch(e){}
@@ -2117,6 +2124,11 @@ $('finishBtn').addEventListener('click', async () => {
   }
 
   $('confirmOverlay').classList.add('show');
+
+  }finally{
+    bFin.disabled = false;
+    bFin.textContent = libelleFin;
+  }
 });
 
 $('cancelGen').addEventListener('click', () => {
@@ -2727,6 +2739,54 @@ const RACCOURCIS_NOTE = [
 
 
 
+
+/* Une seule requête pour tout ce dont le questionnaire a besoin */
+async function chargerDossierEleve(nomEleve){
+  const vide = { frise: '', lecons: null, manoeuvres: [] };
+  if(!nomEleve || nomEleve.trim().length < 2) return vide;
+  try{
+    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+    });
+    if(!r.ok) return vide;
+    const data = await r.json().catch(() => ({}));
+    const res = (data && data.resultats) || [];
+
+    let frise = '';
+    let lecons = 0;
+    const manoeuvres = [];
+
+    res.forEach(item => {
+      if(!frise) frise = extraireFrise(item.note) || extraireFriseTexte(item.bilan);
+      const type = String(item.type || '');
+      if(/^Conduite/i.test(type) || /^AAC/i.test(type)) lecons++;
+      manoeuvresDejaFaites(item.bilan).forEach(m => {
+        if(manoeuvres.indexOf(m) === -1) manoeuvres.push(m);
+      });
+    });
+
+    return { frise: frise, lecons: lecons, manoeuvres: manoeuvres };
+  }catch(e){
+    console.warn('Dossier élève indisponible :', e);
+    return vide;
+  }
+}
+
+/* Voyant d'attente pendant le chargement */
+function ouvrirAttente(message){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  fond.innerHTML =
+    '<div class="modal" style="max-width:280px;text-align:center;">' +
+      '<div class="spinner" style="margin:6px auto 14px;"></div>' +
+      '<div style="font-size:15px;color:var(--soft);">' + (message || 'Chargement…') + '</div>' +
+    '</div>';
+  document.body.appendChild(fond);
+  return () => { if(fond.parentNode) document.body.removeChild(fond); };
+}
+
 /* ============================================================
    QUESTIONNAIRE DE DÉPART
    Un seul écran, tout pré-rempli : le moniteur ne corrige que
@@ -2746,6 +2806,7 @@ const PARCOURS_PAR_TYPE = { 'aac-auto': 'aacbea', 'aac-manuelle': 'aacbv' };
 
 let contexteDepart = null;        /* mémorise les réponses du questionnaire */
 let noteQuestionnaire = '';       /* dernière note produite par le questionnaire */
+let questionnaireOuvert = false;  /* empêche deux ouvertures simultanées */
 
 /* Remplace la note du questionnaire sans écraser ce que le moniteur
    a écrit à la main à côté. */
@@ -2767,6 +2828,8 @@ function appliquerNoteQuestionnaire(nouvelle){
 }
 
 async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
+  if(questionnaireOuvert) return null;   /* double appui ignoré */
+  questionnaireOuvert = true;
   prec = prec || {};
   const eleve = $('studentName').value.trim();
   const modeleCle = $('modele').value;
@@ -2984,6 +3047,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
     });
 
     function fermer(reponses){
+      questionnaireOuvert = false;
       document.body.removeChild(fond);
       resolve(reponses);
     }
