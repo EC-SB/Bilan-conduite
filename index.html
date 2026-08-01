@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v38</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v39</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2666,23 +2666,28 @@ function construireExamenBlanc(){
   );
 
   if(reserve){
-    const rep = prompt('Examen blanc réservé dans combien de leçons ?\n(laisse vide si non déterminé)');
+    const rep = prompt(
+      'Examen blanc réservé dans combien de leçons ?\n\n' +
+      '0 = la prochaine séance est l\'examen blanc\n' +
+      'Laisse vide si le nombre n\'est pas déterminé.'
+    );
     if(rep === null) return null;
     const n = String(rep).trim();
-    return n
-      ? 'Examen blanc réservé dans ' + n + ' leçon' + (parseInt(n, 10) > 1 ? 's' : '')
-      : 'Examen blanc réservé';
+    if(!n) return 'Examen blanc réservé';
+    if(parseInt(n, 10) === 0) return 'La prochaine leçon, c\'est l\'examen blanc';
+    return 'Examen blanc réservé dans ' + n + ' leçon' + (parseInt(n, 10) > 1 ? 's' : '');
   }
 
   const rep = prompt(
     'Examen blanc à prévoir dans combien de leçons ?\n\n' +
+    '0 = à prévoir dès la prochaine séance\n' +
     "Laisse vide s'il ne faut pas en prévoir pour le moment."
   );
   if(rep === null) return null;
   const n = String(rep).trim();
-  return n
-    ? 'Examen blanc à prévoir dans ' + n + ' leçon' + (parseInt(n, 10) > 1 ? 's' : '')
-    : "Ne pas prévoir d'examen blanc pour le moment";
+  if(!n) return "Ne pas prévoir d'examen blanc pour le moment";
+  if(parseInt(n, 10) === 0) return "Examen blanc à prévoir dès la prochaine leçon";
+  return 'Examen blanc à prévoir dans ' + n + ' leçon' + (parseInt(n, 10) > 1 ? 's' : '');
 }
 
 /* Compte les leçons de conduite déjà enregistrées pour un élève.
