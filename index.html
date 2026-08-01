@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v67</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v68</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -415,6 +415,31 @@
       <button class="btn btn-secondary" id="supprimerEleveBtn"
               style="color:var(--red);border-color:var(--red);">🗑️ Supprimer tous ses bilans</button>
       <div id="suppressionMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">🏢 Suivi bureau</h2>
+    <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
+
+    <div style="margin-top:18px;">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        📝 Examens blancs à prévoir</div>
+      <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        🌙 Simulateurs nuit et risques</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        À faire obligatoirement avant l'examen blanc.</div>
+      <div id="listeSimu"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        🚗 Examens du permis à prévoir</div>
+      <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
   </div>
 
@@ -1562,7 +1587,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 8;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 9;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -2898,6 +2923,16 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
   /* Informations déjà connues */
   /* Frise entièrement déduite du type de bilan (cas AAC) */
   const profil = profilQuestionnaire(modeleCle);
+  /* Consignes laissées par le bureau depuis le dernier cours */
+  let consignesBureau = [];
+  if(eleve.length >= 2){
+    try{
+      const cd = await appelPrep({ action: 'consigneList', eleve: eleve });
+      consignesBureau = ((cd && cd.consignes) || [])
+        .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
+    }catch(e){ /* sans réseau, on continue */ }
+  }
+
   const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
   /* Clé de conduite supervisée correspondant à la boîte du bilan */
   const cleCS = /auto/i.test(modeleCle) ? 'csbea' : 'csbv';
@@ -2934,6 +2969,13 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
           : (profil === 'simulateur' ? 'Séance sur simulateur — seule la frise est demandée ici.'
             : profil === 'evaluation' ? 'Évaluation de départ — la frise se définit en fin de séance.'
             : 'Examen officiel — note interne uniquement.')) +
+        (consignesBureau.length
+          ? '<div style="margin-top:10px;padding:10px 12px;background:rgba(182,255,14,.10);' +
+            'border:1px solid var(--orange);border-radius:10px;color:var(--accent-text);' +
+            'font-size:14px;font-weight:600;line-height:1.5;">📨 Message du bureau<br>' +
+            consignesBureau.map(x => x.texte.replace(/&/g,'&amp;').replace(/</g,'&lt;')).join('<br>') +
+            '</div>'
+          : '') +
       '</div>' +
 
       '<label for="qBoite">Boîte</label>' +
@@ -3207,7 +3249,12 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
 
     passer.addEventListener('click', () => fermer(null));
     valider.addEventListener('click', () => {
+      /* Les consignes du bureau rejoignent la note et sont marquées traitées */
+      consignesBureau.forEach(x => {
+        appelPrep({ action: 'consigneDone', id: x.id }).catch(() => {});
+      });
       fermer({
+        consignes: consignesBureau.map(x => x.texte),
         frise: friseDeduite ||
                ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '') ||
                composerFrise(
@@ -3338,6 +3385,7 @@ function ajouterSuite(bouts, q){
   else if(q.rvPrealable === 'fait') bouts.push('Rendez-vous préalable fait');
   if(q.finFormation) bouts.push('Fin de formation à prévoir');
   if(q.libre) bouts.push(q.libre);
+  (q.consignes || []).forEach(t => bouts.push(t));
 }
 
 /* Choix d'une date au calendrier plutôt qu'à la saisie manuelle */
@@ -4297,6 +4345,293 @@ async function preparerNouveauCours(){
   }
 }
 
+
+/* ============================================================
+   LISTES BUREAU
+   Lecture de l'état de tous les élèves, et consignes du bureau
+   qui remontent au moniteur lors de la prochaine leçon.
+   ============================================================ */
+let etatBureau = { eleves: [], consignes: [] };
+
+/* Décode les phrases produites par le questionnaire */
+function analyserNote(note){
+  const t = String(note || '');
+  const r = { examBlanc:null, examBlancN:null, simuNuit:null, permis:null,
+              permisDate:null, permisN:null, lecon:null, leconTotal:null,
+              friseDepassee:false, finirFiche:false };
+  let m;
+
+  if(/Ne pas prévoir d'examen blanc/i.test(t)) r.examBlanc = 'impossible';
+  else if(/Examen blanc passé/i.test(t)) r.examBlanc = 'passe';
+  else if((m = t.match(/Examen blanc réservé dans (\d+)/i))){ r.examBlanc='reserve'; r.examBlancN=+m[1]; }
+  else if(/La prochaine leçon, c'est l'examen blanc/i.test(t)){ r.examBlanc='reserve'; r.examBlancN=0; }
+  else if(/Examen blanc réservé/i.test(t)) r.examBlanc = 'reserve';
+  else if((m = t.match(/Examen blanc à prévoir dans (\d+)/i))){ r.examBlanc='aprevoir'; r.examBlancN=+m[1]; }
+  else if(/Examen blanc à prévoir dès la prochaine/i.test(t)){ r.examBlanc='aprevoir'; r.examBlancN=0; }
+  else if(/Examen blanc à prévoir/i.test(t)) r.examBlanc = 'aprevoir';
+
+  if(/Simulateur nuit et risques fait/i.test(t)) r.simuNuit = 'fait';
+  else if(/Simulateur nuit et risques déjà prévu/i.test(t)) r.simuNuit = 'prevu';
+  else if(/Simulateur nuit et risques à prévoir/i.test(t)) r.simuNuit = 'aprevoir';
+
+  if(/Examen du permis.*annulé/i.test(t)) r.permis = 'annule';
+  else if(/Date d'examen à prévoir/i.test(t)) r.permis = 'aprevoir';
+  else if((m = t.match(/Examen prévu le ([^—·]+)/i))){ r.permis='prevu'; r.permisDate=m[1].trim(); }
+  if((m = t.match(/Examen prévu le [^—·]+— encore (\d+) leçon/i))) r.permisN = +m[1];
+
+  if((m = t.match(/(\d+)(?:ère|ème) leçon sur (\d+)/i))){ r.lecon=+m[1]; r.leconTotal=+m[2]; }
+  else if((m = t.match(/(\d+)(?:ère|ème) leçon/i))) r.lecon = +m[1];
+  if(/frise dépassée/i.test(t)) r.friseDepassee = true;
+  if(/Finir Fiche/i.test(t)) r.finirFiche = true;
+  return r;
+}
+
+const URGENCES = [
+  { v:'', l:'— normal —', c:'var(--muted)' },
+  { v:'1', l:'🟢 Peut attendre', c:'var(--muted)' },
+  { v:'2', l:'🟡 À planifier', c:'var(--accent-text)' },
+  { v:'3', l:'🟠 Assez pressé', c:'#E8A33D' },
+  { v:'4', l:'🔴 Urgent', c:'var(--red)' },
+  { v:'5', l:'🚨 Prioritaire absolu', c:'var(--red)' }
+];
+
+function libelleUrgence(v){
+  const u = URGENCES.find(x => x.v === String(v || ''));
+  return u || URGENCES[0];
+}
+
+async function chargerBureau(){
+  const data = await appelPrep({ action: 'bureauEtat' });
+  const eleves = (data && data.eleves) || [];
+  const consignes = (data && data.consignes) || [];
+
+  etatBureau.consignes = consignes;
+  etatBureau.eleves = eleves.map(e => {
+    const a = analyserNote(e.note);
+    /* Une consigne du bureau non traitée prime sur la note du moniteur */
+    const enAttente = consignes.filter(cs =>
+      normaliserMot(cs.eleve) === normaliserMot(e.eleve) &&
+      cs.traite !== 'oui' && cs.type !== 'urgence');
+    const urg = consignes.find(cs =>
+      normaliserMot(cs.eleve) === normaliserMot(e.eleve) && cs.type === 'urgence');
+    return Object.assign({}, e, {
+      etat: a,
+      enAttente: enAttente,
+      urgence: urg ? urg.valeur : ''
+    });
+  });
+  return etatBureau;
+}
+
+/* Enregistre une consigne : elle sera injectée dans la note du prochain cours */
+async function envoyerConsigne(eleve, type, texte, valeur){
+  await appelPrep({
+    action: 'consigneAdd',
+    eleve: eleve, type: type, texte: texte, valeur: valeur || '',
+    par: ACCES.moniteur || ''
+  });
+}
+
+
+/* Construit une ligne d'élève avec ses actions */
+function ligneBureau(e, options){
+  const row = document.createElement('div');
+  row.className = 'history-item';
+  row.style.flexDirection = 'column';
+  row.style.alignItems = 'stretch';
+
+  const haut = document.createElement('div');
+  haut.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:8px;';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const nom = document.createElement('strong');
+  nom.textContent = e.eleve;
+  meta.appendChild(nom);
+
+  const info = document.createElement('span');
+  info.textContent = options.info(e);
+  meta.appendChild(info);
+
+  const sous = document.createElement('span');
+  sous.textContent = 'Dernier cours le ' + (e.date || '?') +
+                     (e.moniteur ? ' avec ' + e.moniteur : '');
+  meta.appendChild(sous);
+
+  if(e.enAttente.length){
+    const att = document.createElement('span');
+    att.style.color = 'var(--accent-text)';
+    att.textContent = '📨 ' + e.enAttente.map(x => x.texte).join(' · ') +
+                      ' (transmis au prochain cours)';
+    meta.appendChild(att);
+  }
+  haut.appendChild(meta);
+
+  if(options.alerte && options.alerte(e)){
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:22px;flex-shrink:0;';
+    a.textContent = '⚠️';
+    a.title = options.alerte(e);
+    haut.appendChild(a);
+  }
+  row.appendChild(haut);
+
+  const actions = document.createElement('div');
+  actions.style.cssText = 'margin-top:10px;';
+  options.actions(e, actions);
+  row.appendChild(actions);
+
+  return row;
+}
+
+/* Bouton + calendrier pour fixer une date depuis le bureau */
+function boutonDate(libelle, onChoisi){
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+  b.textContent = libelle;
+  b.addEventListener('click', async () => {
+    const iso = await choisirDate(libelle);
+    if(!iso) return;
+    b.disabled = true;
+    b.textContent = 'Enregistrement…';
+    try{
+      await onChoisi(iso);
+    }finally{
+      b.disabled = false;
+      b.textContent = libelle;
+    }
+  });
+  return b;
+}
+
+async function afficherBureau(){
+  const zEB = $('listeExamBlanc');
+  const zSim = $('listeSimu');
+  const zPer = $('listePermis');
+  if(!zEB) return;
+
+  [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Chargement…</div>');
+
+  try{
+    await chargerBureau();
+  }catch(e){
+    [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>');
+    return;
+  }
+
+  const tous = etatBureau.eleves;
+
+  /* ---- 1. Examens blancs à prévoir ---- */
+  const eb = tous.filter(e => e.etat.examBlanc === 'aprevoir' || e.etat.examBlanc === 'reserve');
+  eb.sort((a, b) => (a.etat.examBlancN === null ? 99 : a.etat.examBlancN) -
+                    (b.etat.examBlancN === null ? 99 : b.etat.examBlancN));
+  zEB.innerHTML = '';
+  if(!eb.length){
+    zEB.innerHTML = '<div class="empty">Aucun examen blanc à prévoir.</div>';
+  }else{
+    eb.forEach(e => {
+      zEB.appendChild(ligneBureau(e, {
+        info: x => {
+          const n = x.etat.examBlancN;
+          const etat = (x.etat.examBlanc === 'reserve') ? 'Réservé' : 'À prévoir';
+          if(n === null) return etat + ' — nombre de leçons non précisé';
+          if(n === 0) return etat + ' — dès la prochaine leçon';
+          return etat + ' — dans ' + n + ' leçon' + (n > 1 ? 's' : '');
+        },
+        alerte: x => (x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
+                     ? 'Plus qu\'une leçon avant l\'examen blanc' : null,
+        actions: (x, zone) => {
+          zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
+            await envoyerConsigne(x.eleve, 'examblanc',
+              'Examen blanc fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            showToast('Date transmise ✅');
+            afficherBureau();
+          }));
+        }
+      }));
+    });
+  }
+
+  /* ---- 2. Simulateurs nuit et risques ---- */
+  const sim = tous.filter(e => e.etat.simuNuit === 'aprevoir' || e.etat.simuNuit === 'prevu');
+  zSim.innerHTML = '';
+  if(!sim.length){
+    zSim.innerHTML = '<div class="empty">Aucun simulateur nuit et risques en attente.</div>';
+  }else{
+    sim.forEach(e => {
+      zSim.appendChild(ligneBureau(e, {
+        info: x => (x.etat.simuNuit === 'prevu' ? 'Déjà prévu' : 'À prévoir') +
+                   (x.etat.examBlanc === 'reserve'
+                     ? ' — examen blanc réservé' +
+                       (x.etat.examBlancN !== null ? ' dans ' + x.etat.examBlancN + ' leçon(s)' : '')
+                     : ''),
+        /* Le simulateur doit être fait avant l'examen blanc */
+        alerte: x => (x.etat.simuNuit === 'aprevoir' && x.etat.examBlanc === 'reserve' &&
+                      x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
+                     ? 'Examen blanc imminent et simulateur non fait' : null,
+        actions: (x, zone) => {
+          zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
+            await envoyerConsigne(x.eleve, 'simu',
+              'Simulateur nuit et risques fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            showToast('Date transmise ✅');
+            afficherBureau();
+          }));
+        }
+      }));
+    });
+  }
+
+  /* ---- 3. Examens du permis ---- */
+  const per = tous.filter(e => e.etat.permis === 'aprevoir' || e.etat.permis === 'annule');
+  per.sort((a, b) => (b.urgence || '0').localeCompare(a.urgence || '0'));
+  zPer.innerHTML = '';
+  if(!per.length){
+    zPer.innerHTML = '<div class="empty">Aucun examen du permis à prévoir.</div>';
+  }else{
+    per.forEach(e => {
+      zPer.appendChild(ligneBureau(e, {
+        info: x => {
+          const base = (x.etat.permis === 'annule') ? 'Examen annulé — à reprogrammer'
+                                                    : 'Date à prévoir';
+          const dem = x.date ? ' · demandé le ' + x.date : '';
+          const lec = (x.etat.permisN !== null) ? ' · ' + x.etat.permisN + ' leçon(s) à prévoir' : '';
+          const u = libelleUrgence(x.urgence);
+          return base + dem + lec + (x.urgence ? ' · ' + u.l : '');
+        },
+        alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
+        actions: (x, zone) => {
+          zone.appendChild(boutonDate('📅 Date de permis', async iso => {
+            await envoyerConsigne(x.eleve, 'permis',
+              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            showToast('Date transmise ✅');
+            afficherBureau();
+          }));
+
+          const sel = document.createElement('select');
+          sel.style.cssText = 'margin-top:8px;margin-bottom:0;';
+          URGENCES.forEach(u => {
+            const o = document.createElement('option');
+            o.value = u.v; o.textContent = u.l;
+            sel.appendChild(o);
+          });
+          sel.value = x.urgence || '';
+          sel.addEventListener('change', async () => {
+            sel.disabled = true;
+            try{
+              await envoyerConsigne(x.eleve, 'urgence', '', sel.value);
+              showToast('Priorité enregistrée ✅');
+              await chargerBureau();
+            }catch(e){ showToast('Erreur : ' + e.message); }
+            sel.disabled = false;
+          });
+          zone.appendChild(sel);
+        }
+      }));
+    });
+  }
+}
+
 /* ---------- Suppression du dossier d'un élève ---------- */
 let eleveAffiche = '';
 let nbBilansAffiches = 0;
@@ -4364,6 +4699,7 @@ async function supprimerDossierEleve(){
 }
 
 $('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
+$('bureauBtn').addEventListener('click', afficherBureau);
 $('permisBtn').addEventListener('click', preparerPermis);
 $('permisNom').addEventListener('change', preparerPermis);
 
@@ -4373,7 +4709,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v8') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v9') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
