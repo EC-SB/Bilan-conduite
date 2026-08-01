@@ -223,7 +223,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v23</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v25</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -324,11 +324,13 @@
       <div class="hint">Les cases laissées en ✅❌ / ❓ sont à compléter par toi : notes chiffrées, nombre d'heures, choix de branche.</div>
       <textarea class="result" id="resultText"></textarea>
       <div class="btn-row">
-        <button class="btn btn-primary" id="copyBtn">📋 Copier</button>
+        <button class="btn btn-primary" id="copyBtn">📋 Copier et enregistrer</button>
         <button class="btn btn-secondary" id="newLessonBtn">➕ Nouveau cours</button>
       </div>
+      <div id="exportEtat" style="display:none;border:1px solid var(--line);border-radius:12px;
+           padding:12px 14px;margin-top:14px;font-size:14px;line-height:1.5;"></div>
       <div class="btn-row">
-        <button class="btn btn-secondary" id="exportSheetsBtn">📊 Exporter vers Sheets</button>
+        <button class="btn btn-secondary" id="exportSheetsBtn">📊 Enregistrer sans copier</button>
       </div>
     </div>
   </div>
@@ -2014,6 +2016,7 @@ $('confirmGen').addEventListener('click', async () => {
     sauvegarderLocal(true);
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
+    marquerExport(false);
     await saveLesson(currentLessonMeta, bilan);
     await refreshHistory();
   }catch(err){
@@ -2141,15 +2144,30 @@ function afficherNote(note){
 }
 
 /* ---------- Actions ---------- */
-$('copyBtn').addEventListener('click', () => {
+$('copyBtn').addEventListener('click', async () => {
   const ta = $('resultText');
   ta.select();
-  navigator.clipboard.writeText(ta.value)
-    .then(() => showToast('Bilan copié ✅'))
-    .catch(() => { document.execCommand('copy'); showToast('Bilan copié ✅'); });
+
+  /* 1. La copie d'abord : c'est ce que le moniteur attend immédiatement */
+  try{
+    await navigator.clipboard.writeText(ta.value);
+  }catch(e){
+    try{ document.execCommand('copy'); }catch(_){}
+  }
+
+  /* 2. Puis l'enregistrement de la version relue et corrigée */
+  if(bilanEnregistre){
+    showToast('Bilan copié ✅');
+    return;
+  }
+  showToast('Bilan copié ✅ — enregistrement…');
+  const ok = await exporterVersSheets(true);
+  if(!ok){
+    showToast("⚠️ Copié, mais NON enregistré dans Sheets");
+  }
 });
 
-$('exportSheetsBtn').addEventListener('click', async () => {
+async function exporterVersSheets(silencieux){
   const btn = $('exportSheetsBtn');
   btn.disabled = true;
   btn.textContent = 'Export en cours…';
@@ -2174,17 +2192,48 @@ $('exportSheetsBtn').addEventListener('click', async () => {
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const rep = await r.json().catch(() => ({}));
-    if(!verifierVersionScript(rep)) return;
+    if(!verifierVersionScript(rep)){ marquerExport(false); return false; }
     const avecNote = $('noteResult').value.trim();
-    showToast(avecNote ? 'Exporté avec la note 📌 ✅' : 'Exporté vers Sheets ✅');
+    showToast(avecNote ? 'Enregistré avec la note 📌 ✅' : 'Enregistré dans Sheets ✅');
+    marquerExport(true);
+    return true;
   }catch(e){
     console.error('Erreur export Sheets:', e);
-    showToast("Erreur lors de l'export : " + e.message);
+    marquerExport(false);
+    if(!silencieux) showToast("Erreur lors de l'enregistrement : " + e.message);
+    return false;
   }finally{
     btn.disabled = false;
-    btn.textContent = '📊 Exporter vers Sheets';
   }
-});
+}
+
+$('exportSheetsBtn').addEventListener('click', () => exporterVersSheets(false));
+
+
+/* ---------- Suivi de l'enregistrement dans Sheets ---------- */
+let bilanEnregistre = false;
+
+function marquerExport(ok){
+  bilanEnregistre = !!ok;
+  const b = $('exportEtat');
+  const btn = $('exportSheetsBtn');
+  if(!b) return;
+  if(ok){
+    b.style.display = 'block';
+    b.style.background = 'rgba(182,255,14,.12)';
+    b.style.borderColor = 'var(--orange)';
+    b.style.color = 'var(--accent-text)';
+    b.textContent = '✅ Bilan enregistré dans Sheets — le prochain moniteur y aura accès.';
+    if(btn) btn.textContent = '📊 Réenregistrer (après modification)';
+  }else{
+    b.style.display = 'block';
+    b.style.background = 'var(--warn-bg)';
+    b.style.borderColor = 'var(--red)';
+    b.style.color = 'var(--warn-text)';
+    b.textContent = "📋 Relis et complète le bilan, puis appuie sur « Copier et enregistrer » : il sera copié pour Messenger et enregistré dans Sheets.";
+    if(btn) btn.textContent = '📊 Enregistrer sans copier';
+  }
+}
 
 /* Vérifie que le script Google déployé est bien à jour */
 function verifierVersionScript(reponse){
@@ -2276,6 +2325,7 @@ async function rechercherEleve(){
         };
         $('resultText').value = item.bilan;
         afficherNote(item.note);
+        marquerExport(true);
         $('recordView').style.display = 'none';
         $('generatingView').style.display = 'none';
         $('resultView').style.display = 'block';
@@ -2631,6 +2681,7 @@ function reprendreCours(){
   if(s.bilan){
     $('resultText').value = s.bilan;
     afficherNote(s.noteResult || s.note || '');
+    marquerExport(false);
     $('recordView').style.display = 'none';
     $('resultView').style.display = 'block';
   }
@@ -2676,6 +2727,15 @@ $('repriseNon').addEventListener('click', () => {
 
 $('themeBtn').addEventListener('click', () => {
   appliquerTheme(!document.body.classList.contains('clair'));
+});
+
+/* Avertit si on ferme l'onglet avec un bilan non enregistré */
+window.addEventListener('beforeunload', e => {
+  if($('resultText') && $('resultText').value.trim() && !bilanEnregistre){
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
 });
 
 /* ---------- Init ---------- */
