@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v86</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v87</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -437,7 +437,6 @@
   <div class="card" data-section="bureau">
     <h2 class="section-title">🏢 Suivi bureau</h2>
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
-    <div id="blocPlaces" style="margin-top:14px;"></div>
 
     <details style="margin-top:16px;">
       <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
@@ -487,7 +486,12 @@
       <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <div style="margin-top:22px;padding-top:18px;border-top:2px solid var(--line);">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">🚗 PERMIS</div>
+      <div id="blocPlaces" style="margin-bottom:14px;"></div>
+    </div>
+
+    <div style="margin-top:16px;">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         🚗 Examens du permis à prévoir</div>
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
@@ -5159,6 +5163,50 @@ async function enregistrerPlaces(){
                     valeur: JSON.stringify(placesConfig) });
 }
 
+/* « du mardi 1 au vendredi 4 septembre » */
+function libelleSemaine(w){
+  if(!w.du && !w.au) return 'Semaine à définir';
+  const fmt = (iso, avecMois) => {
+    if(!iso) return '?';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('fr-FR', avecMois
+      ? { weekday:'long', day:'numeric', month:'long' }
+      : { weekday:'long', day:'numeric' });
+  };
+  return 'du ' + fmt(w.du, false) + ' au ' + fmt(w.au, true);
+}
+
+/* Semaines de travail (lundi→vendredi) d'un mois donné */
+function semainesDuMois(isoMois){
+  if(!isoMois) return [];
+  const [an, mo] = isoMois.split('-').map(Number);
+  if(!an || !mo) return [];
+  const p2 = n => String(n).padStart(2, '0');
+  const dernier = new Date(an, mo, 0).getDate();
+  const out = [];
+  let jour = 1;
+  while(jour <= dernier){
+    const d = new Date(an, mo - 1, jour);
+    const js = d.getDay();                       /* 0 dimanche, 6 samedi */
+    if(js === 0 || js === 6){ jour++; continue; }
+    /* Début de bloc : on va jusqu'au vendredi ou à la fin du mois */
+    const debut = jour;
+    let fin = jour;
+    while(fin + 1 <= dernier){
+      const suivant = new Date(an, mo - 1, fin + 1).getDay();
+      if(suivant === 0 || suivant === 6) break;
+      fin++;
+    }
+    out.push({
+      du: an + '-' + p2(mo) + '-' + p2(debut),
+      au: an + '-' + p2(mo) + '-' + p2(fin),
+      sb: '', lo: ''
+    });
+    jour = fin + 1;
+  }
+  return out;
+}
+
 function afficherPlaces(stats){
   const zone = $('blocPlaces');
   if(!zone) return;
@@ -5174,7 +5222,9 @@ function afficherPlaces(stats){
     'border-radius:10px;padding:12px;margin-bottom:10px;font-size:14px;line-height:1.7;';
   recap.innerHTML =
     '<div style="font-size:15px;font-weight:700;margin-bottom:6px;">' +
-      '📊 ' + (p.mois || 'Période non renseignée') + '</div>' +
+      '📊 ' + (p.mois ? new Date(p.mois + '-15T12:00:00')
+        .toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
+        : 'Période non renseignée') + '</div>' +
     '<div><strong>' + stats.prevus + '</strong> candidat(s) prévu(s) sur <strong>' +
       (p.total || '?') + '</strong> place(s)' +
       (p.total ? ' — <span style="color:' + (restant < 0 ? 'var(--red)' : 'var(--accent-text)') +
@@ -5194,12 +5244,16 @@ function afficherPlaces(stats){
   if(p.semaines.length){
     const s = document.createElement('div');
     s.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-      'padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.8;';
-    s.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">Semaines ouvertes</div>' +
+      'padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.9;';
+    let totSB = 0, totLO = 0;
+    p.semaines.forEach(w => { totSB += nb(w.sb); totLO += nb(w.lo); });
+    s.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">Jours ouverts à la prise de date</div>' +
       p.semaines.map(w =>
-        '• ' + (w.du || '?') + ' au ' + (w.au || '?') + ' — <strong>' + (w.places || '?') +
-        '</strong> place(s)' + (w.detail ? ' · ' + w.detail.replace(/</g,'&lt;') : '')
-      ).join('<br>');
+        '• ' + libelleSemaine(w) + ' — 🚗 <strong>' + (w.sb || 0) +
+        '</strong> j Saint-Brieuc · <strong>' + (w.lo || 0) + '</strong> j Loudéac'
+      ).join('<br>') +
+      '<div style="margin-top:6px;color:var(--muted);">Total : ' + totSB +
+      ' jour(s) Saint-Brieuc · ' + totLO + ' jour(s) Loudéac</div>';
     zone.appendChild(s);
   }
 
@@ -5210,8 +5264,12 @@ function afficherPlaces(stats){
   const f = document.createElement('div');
   f.style.cssText = 'margin-top:12px;';
   f.innerHTML =
-    '<label for="plMois">Période</label>' +
-    '<input type="text" id="plMois" placeholder="Ex : Septembre 2026">' +
+    '<label for="plMois">Mois</label>' +
+    '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
+      '<input type="month" id="plMois" style="flex:1;margin:0;">' +
+      '<button class="btn btn-secondary" id="plGen" style="width:auto;padding:11px 12px;' +
+      'font-size:13px;white-space:nowrap;">🗓️ Générer</button>' +
+    '</div>' +
     '<label for="plTotal">Places pour la période</label>' +
     '<input type="text" id="plTotal" inputmode="numeric" placeholder="Ex : 20">' +
     '<label for="plQ1">Places 1ʳᵉ quinzaine</label>' +
@@ -5225,6 +5283,17 @@ function afficherPlaces(stats){
   zone.appendChild(det);
 
   $('plMois').value = p.mois || '';
+  $('plGen').addEventListener('click', () => {
+    const m = $('plMois').value;
+    if(!m){ showToast('Choisis un mois.'); return; }
+    const nouvelles = semainesDuMois(m);
+    if(placesConfig.semaines.length &&
+       !confirm('Remplacer les ' + placesConfig.semaines.length +
+                ' semaine(s) existante(s) par les ' + nouvelles.length +
+                ' semaines de ce mois ?')) return;
+    placesConfig.semaines = nouvelles;
+    dessinerSemaines();
+  });
   $('plTotal').value = p.total || '';
   $('plQ1').value = p.q1 || '';
   $('plQ2').value = p.q2 || '';
@@ -5236,15 +5305,22 @@ function afficherPlaces(stats){
       const l = document.createElement('div');
       l.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
       l.innerHTML =
+        '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">' +
+          libelleSemaine(w) + '</div>' +
         '<div style="display:flex;gap:6px;margin-bottom:6px;">' +
           '<input type="date" class="plDu" value="' + (w.du || '') + '" style="flex:1;margin:0;">' +
           '<input type="date" class="plAu" value="' + (w.au || '') + '" style="flex:1;margin:0;">' +
         '</div>' +
-        '<div style="display:flex;gap:6px;">' +
-          '<input type="text" class="plNb" inputmode="numeric" placeholder="Places" ' +
-            'value="' + (w.places || '') + '" style="width:90px;margin:0;">' +
-          '<input type="text" class="plDet" placeholder="Détail (ex : 6 j SB, 1 j Loudéac)" ' +
-            'value="' + String(w.detail || '').replace(/"/g, '&quot;') + '" style="flex:1;margin:0;">' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<span style="font-size:13px;color:var(--muted);white-space:nowrap;">Jours 🚗</span>' +
+          '<input type="text" class="plSB" inputmode="decimal" placeholder="St-Brieuc" ' +
+            'value="' + (w.sb || '') + '" style="flex:1;margin:0;text-align:center;">' +
+          '<input type="text" class="plLO" inputmode="decimal" placeholder="Loudéac" ' +
+            'value="' + (w.lo || '') + '" style="flex:1;margin:0;text-align:center;">' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;font-size:11px;color:var(--muted);margin-top:2px;">' +
+          '<span style="flex:1;text-align:center;">Saint-Brieuc</span>' +
+          '<span style="flex:1;text-align:center;">Loudéac</span>' +
         '</div>';
       const b = document.createElement('button');
       b.className = 'btn btn-secondary';
@@ -5262,20 +5338,20 @@ function afficherPlaces(stats){
 
   $('plAjout').addEventListener('click', () => {
     lireSemainesSaisies();
-    placesConfig.semaines.push({ du:'', au:'', places:'', detail:'' });
+    placesConfig.semaines.push({ du:'', au:'', sb:'', lo:'' });
     dessinerSemaines();
   });
 
   function lireSemainesSaisies(){
     const dus = document.querySelectorAll('.plDu');
     const aus = document.querySelectorAll('.plAu');
-    const nbs = document.querySelectorAll('.plNb');
-    const dts = document.querySelectorAll('.plDet');
+    const sbs = document.querySelectorAll('.plSB');
+    const los = document.querySelectorAll('.plLO');
     placesConfig.semaines = Array.prototype.map.call(dus, (x, i) => ({
       du: x.value,
       au: aus[i] ? aus[i].value : '',
-      places: nbs[i] ? nbs[i].value.trim() : '',
-      detail: dts[i] ? dts[i].value.trim() : ''
+      sb: sbs[i] ? sbs[i].value.trim() : '',
+      lo: los[i] ? los[i].value.trim() : ''
     }));
   }
 
@@ -5499,14 +5575,14 @@ async function afficherBureau(){
           selS.style.marginBottom = '8px';
           selS.innerHTML = '<option value="">— semaine à viser —</option>';
           (placesConfig.semaines || []).forEach(w => {
-            const lib = (w.du || '?') + ' au ' + (w.au || '?') +
-                        (w.places ? ' (' + w.places + ' pl.)' : '');
+            const lib = libelleSemaine(w) +
+                        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
             const o = document.createElement('option');
             o.value = lib; o.textContent = lib;
             selS.appendChild(o);
           });
           if(s.semaine && !(placesConfig.semaines || []).some(w =>
-              ((w.du||'?') + ' au ' + (w.au||'?') + (w.places?' ('+w.places+' pl.)':'')) === s.semaine)){
+              (libelleSemaine(w) + ((w.sb || w.lo) ? ' (' + (w.sb||0) + ' SB / ' + (w.lo||0) + ' LO)' : '')) === s.semaine)){
             const o = document.createElement('option');
             o.value = s.semaine; o.textContent = s.semaine;
             selS.appendChild(o);
