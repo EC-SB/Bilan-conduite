@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v78</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v79</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -480,7 +480,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <select id="filtrePP" style="flex:1;min-width:150px;margin-bottom:0;">
           <option value="">Tous les élèves</option>
-          <option value="donner">📢 Dates à donner à un autre élève</option>
+          <option value="donner">🏫 Dates à donner à une autre auto-école</option>
           <option value="remplacer">🔄 Places à remplacer</option>
         </select>
         <select id="filtreDate" style="flex:1;min-width:150px;margin-bottom:0;">
@@ -1661,7 +1661,7 @@ CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 11;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 12;   /* voir apps-script.js */
 
 /* Code d'accès de la session — jamais stocké sur l'appareil,
    il est redemandé à chaque ouverture de la page. */
@@ -4684,12 +4684,16 @@ function ficheSuiviPermis(e){
 
   const id = 'sv' + Math.random().toString(36).slice(2, 8);
   f.innerHTML =
+    '<label for="' + id + 'typ">Type d\'examen</label>' +
+    '<select id="' + id + 'typ">' +
+      '<option value="bv">🅑 BV — boîte manuelle</option>' +
+      '<option value="bea">🅰 BEA — boîte automatique</option>' +
+      '<option value="handicap">♿ Handicap</option>' +
+    '</select>' +
+
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
       '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">' +
-      'Place à remplacer (à donner à un autre élève)</label>' +
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">' +
-      'Date à donner à un autre élève</label>' +
+      'Place à remplacer — à donner à un autre élève</label>' +
     '<div id="' + id + 'zone" style="display:none;padding:10px;margin-bottom:14px;' +
       'background:var(--navy-deep);border:1px solid var(--orange);border-radius:10px;">' +
       '<label for="' + id + 'nouv">Nouveau candidat</label>' +
@@ -4699,6 +4703,14 @@ function ficheSuiviPermis(e){
       '➡️ Transférer la date à ce candidat</button>' +
       '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;">' +
       'La date passe au nouveau candidat et sera transmise à son moniteur au prochain cours.</div>' +
+    '</div>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
+      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">' +
+      'Date à donner à une autre auto-école</label>' +
+    '<div id="' + id + 'zae" style="display:none;margin-bottom:14px;">' +
+      '<label for="' + id + 'ae">Auto-école destinataire</label>' +
+      '<input type="text" id="' + id + 'ae" placeholder="Nom de l\'auto-école">' +
     '</div>' +
 
     '<label for="' + id + 'pay">Reste à payer</label>' +
@@ -4755,16 +4767,27 @@ function ficheSuiviPermis(e){
     if(g('acc')) g('acc').checked = (s.accompagnement === 'oui');
     if(g('aut')) g('aut').value = s.autre || '';
     if(g('res')) g('res').value = s.reservations || '';
+    if(g('typ')) g('typ').value = s.typeExamen ||
+      ((e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase());
+    if(g('ae')) g('ae').value = s.autoEcole || '';
   }, 0);
 
-  /* Affichage conditionnel du repreneur */
+  /* Affichages conditionnels */
   setTimeout(() => {
-    const cb = document.getElementById(id + 'don');
+    const cbRem = document.getElementById(id + 'rem');
     const zn = document.getElementById(id + 'zone');
-    if(!cb || !zn) return;
-    const maj = () => { zn.style.display = cb.checked ? 'block' : 'none'; };
-    cb.addEventListener('change', maj);
-    maj();
+    if(cbRem && zn){
+      const maj = () => { zn.style.display = cbRem.checked ? 'block' : 'none'; };
+      cbRem.addEventListener('change', maj);
+      maj();
+    }
+    const cbDon = document.getElementById(id + 'don');
+    const zae = document.getElementById(id + 'zae');
+    if(cbDon && zae){
+      const majAE = () => { zae.style.display = cbDon.checked ? 'block' : 'none'; };
+      cbDon.addEventListener('change', majAE);
+      majAE();
+    }
 
     const bTrf = document.getElementById(id + 'trf');
     if(bTrf) bTrf.addEventListener('click', async () => {
@@ -4820,6 +4843,8 @@ function ficheSuiviPermis(e){
         accompagnement: g('acc').checked ? 'oui' : '',
         autre: g('aut').value.trim(),
         reservations: g('res').value.trim(),
+        typeExamen: g('typ').value,
+        autoEcole: g('ae').value.trim(),
         par: ACCES.moniteur || ''
       });
       etat.style.color = 'var(--accent-text)';
@@ -4843,7 +4868,10 @@ function resumeSuivi(eleve){
   if(!s) return '';
   const bouts = [];
   if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
-  if(s.dateADonner === 'oui') bouts.push('📢 date à donner à un autre élève');
+  if(s.dateADonner === 'oui'){
+    bouts.push('🏫 date à donner à une autre auto-école' +
+               (s.autoEcole ? ' : ' + s.autoEcole : ''));
+  }
   if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
   if(s.paiementPrevu) bouts.push('paiement ' + s.paiementPrevu);
   if(s.relanceLe) bouts.push('relancé ' + s.relanceLe);
@@ -5036,16 +5064,19 @@ async function afficherBureau(){
     e._suivi = s || {};
     e._datePermis = (e.etat.permisDate) || (s && s.datePermis) || '';
     e._iso = dateFrVersIso(e._datePermis) || '';
-    e._boite = (e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
+    e._boite = ((s && s.typeExamen) || e.boite ||
+                (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
   });
 
   /* Récapitulatif : nombre d'examens par date */
   const parDate = {};
   prevus.forEach(e => {
     const k = e._datePermis || 'Date inconnue';
-    if(!parDate[k]) parDate[k] = { iso: e._iso, bv: 0, bea: 0, total: 0 };
+    if(!parDate[k]) parDate[k] = { iso: e._iso, bv: 0, bea: 0, handicap: 0, total: 0 };
     parDate[k].total++;
-    if(e._boite === 'bea') parDate[k].bea++; else parDate[k].bv++;
+    if(e._boite === 'bea') parDate[k].bea++;
+    else if(e._boite === 'handicap') parDate[k].handicap++;
+    else parDate[k].bv++;
   });
 
   const dates = Object.keys(parDate).sort((a, b) =>
@@ -5056,7 +5087,9 @@ async function afficherBureau(){
   if(dates.length){
     dates.forEach(k => {
       const d = parDate[k];
-      const mixte = (d.bv > 0 && d.bea > 0);
+      /* Alerte si plusieurs types d'examen tombent le même jour */
+      const types = [d.bv, d.bea, d.handicap].filter(x => x > 0).length;
+      const mixte = (types > 1);
       const l = document.createElement('div');
       l.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;' +
         'padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:14px;' +
@@ -5067,11 +5100,12 @@ async function afficherBureau(){
         '<span style="color:var(--muted);"> — ' + d.total + ' examen' + (d.total>1?'s':'') + '</span>';
       const dr = document.createElement('div');
       dr.style.cssText = 'flex-shrink:0;font-size:13px;font-weight:700;';
-      dr.innerHTML = (d.bv ? '<span style="color:var(--accent-text);">' + d.bv + ' BV</span>' : '') +
-        (d.bv && d.bea ? ' · ' : '') +
-        (d.bea ? '<span style="color:#E8A33D;">' + d.bea + ' BEA</span>' : '') +
-        (mixte ? ' ⚠️' : '');
-      dr.title = mixte ? 'BV et BEA le même jour' : '';
+      const parts = [];
+      if(d.bv) parts.push('<span style="color:var(--accent-text);">' + d.bv + ' BV</span>');
+      if(d.bea) parts.push('<span style="color:#E8A33D;">' + d.bea + ' BEA</span>');
+      if(d.handicap) parts.push('<span style="color:#7FB3FF;">' + d.handicap + ' ♿</span>');
+      dr.innerHTML = parts.join(' · ') + (mixte ? ' ⚠️' : '');
+      dr.title = mixte ? 'Plusieurs types d\'examen le même jour' : '';
       l.appendChild(g); l.appendChild(dr);
       zRecap.appendChild(l);
     });
@@ -5105,14 +5139,15 @@ async function afficherBureau(){
   }else{
     visibles.forEach(e => {
       const l = ligneBureau(e, {
-        info: x => (x._boite === 'bea' ? '🅰 BEA' : '🅑 BV') +
+        info: x => (x._boite === 'bea' ? '🅰 BEA'
+                    : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
                    ' · Permis le ' + (x._datePermis || 'date inconnue') +
                    (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : ''),
         resume: x => resumeSuivi(x.eleve),
         alerte: x => {
           const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
           if(s && s.aRemplacer === 'oui') return 'Place à remplacer';
-          if(s && s.dateADonner === 'oui') return 'Date à donner à un autre élève';
+          if(s && s.dateADonner === 'oui') return 'Date à donner à une autre auto-école';
           return null;
         },
         actions: (x, zone) => {
@@ -5389,7 +5424,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v11') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v12') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
