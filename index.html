@@ -252,10 +252,14 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v81</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v82</span></p>
     </div>
+    <button id="logoutBtn" title="Se déconnecter" style="display:none;
+            margin-left:auto;background:transparent;border:1px solid var(--line);
+            color:var(--cream);border-radius:10px;width:44px;height:44px;
+            font-size:18px;cursor:pointer;flex-shrink:0;">🔓</button>
     <button id="themeBtn" title="Changer de thème"
-            style="margin-left:auto;background:transparent;border:1px solid var(--line);
+            style="margin-left:8px;background:transparent;border:1px solid var(--line);
                    color:var(--cream);border-radius:10px;width:44px;height:44px;
                    font-size:20px;cursor:pointer;flex-shrink:0;">🌙</button>
   </header>
@@ -288,6 +292,11 @@
 
   <div class="card">
     <h2 class="section-title">📅 Mes cours préparés</h2>
+    <label style="display:flex;align-items:center;gap:10px;text-transform:none;
+                  font-size:14px;color:var(--muted);margin-bottom:10px;">
+      <input type="checkbox" id="prepTous" style="width:18px;height:18px;">
+      Voir aussi les cours des autres moniteurs
+    </label>
     <div id="listePrepares"></div>
 
     <details style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
@@ -1664,14 +1673,42 @@ CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
 CONFIG.VERSION_SCRIPT_ATTENDUE = 13;   /* voir apps-script.js */
 
-/* Code d'accès de la session — jamais stocké sur l'appareil,
-   il est redemandé à chaque ouverture de la page. */
+/* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
+   le redemander à chaque rafraîchissement, avec une durée de validité. */
+const CLE_SESSION = 'session_acces';
+const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
+
 let ACCES = { code: null, moniteur: '', role: '' };
 
-function verrouiller(message){
+function memoriserSession(code, moniteur, role){
+  try{
+    localStorage.setItem(CLE_SESSION, JSON.stringify({
+      code: code, moniteur: moniteur, role: role, ts: Date.now()
+    }));
+  }catch(e){}
+}
+
+function lireSession(){
+  try{
+    const brut = localStorage.getItem(CLE_SESSION);
+    if(!brut) return null;
+    const s = JSON.parse(brut);
+    if(!s || !s.code) return null;
+    if(Date.now() - (s.ts || 0) > DUREE_SESSION){ oublierSession(); return null; }
+    return s;
+  }catch(e){ return null; }
+}
+
+function oublierSession(){
+  try{ localStorage.removeItem(CLE_SESSION); }catch(e){}
+}
+
+function verrouiller(message, garderSession){
+  if(!garderSession) oublierSession();
   ACCES = { code: null, moniteur: '', role: '' };
   $('appView').style.display = 'none';
   $('adminCard').style.display = 'none';
+  if($('logoutBtn')) $('logoutBtn').style.display = 'none';
   $('lockView').style.display = 'block';
   $('codeInput').value = '';
   $('codeMsg').textContent = message || '';
@@ -4418,11 +4455,23 @@ async function afficherPrepares(recharger){
       showToast('Hors ligne — liste en cache');
     }
   }
-  const liste = prepares.slice();
+  /* Chacun ne voit que ses cours, sauf demande explicite */
+  const tousMoniteurs = $('prepTous') && $('prepTous').checked;
+  const moi = normaliserMot(ACCES.moniteur || '');
+  let liste = prepares.slice();
+  if(!tousMoniteurs && moi){
+    liste = liste.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi);
+  }
 
   if(!liste.length){
-    zone.innerHTML = '<div class="empty">Aucun cours préparé.<br>' +
-      'Prépare tes cours la veille : le jour J, tu choisis l\'élève et tu démarres.</div>';
+    const autres = prepares.length;
+    zone.innerHTML = '<div class="empty">' +
+      (autres && !tousMoniteurs
+        ? 'Aucun cours préparé à ton nom.<br>' + autres +
+          ' cours préparé(s) par d\'autres moniteurs — coche la case ci-dessus pour les voir.'
+        : 'Aucun cours préparé.<br>Prépare tes cours à l\'avance : le jour J, ' +
+          'tu choisis l\'élève et tu démarres.') +
+      '</div>';
     return;
   }
 
@@ -5834,6 +5883,48 @@ $('createBtn').addEventListener('click', async () => {
   }
 });
 
+
+/* Ouvre la session et met en place l'interface */
+function ouvrirSession(code, moniteur, role, saluer){
+  ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur' };
+  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role);
+
+  $('lockView').style.display = 'none';
+  $('appView').style.display = 'block';
+  $('logoutBtn').style.display = 'block';
+  if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
+  if(ACCES.role === 'admin'){
+    $('adminCard').style.display = 'block';
+    chargerUtilisateurs();
+  }
+  proposerReprise();
+  chargerEleves();
+  chargerMoniteurs();
+  afficherPrepares();
+  if(saluer) showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
+}
+
+/* Reprend la session mémorisée, après vérification du code */
+async function reprendreSession(){
+  const s = lireSession();
+  if(!s) return false;
+  try{
+    const r = await fetch(CONFIG.AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: s.code })
+    });
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok || !data.ok){ oublierSession(); return false; }
+    ouvrirSession(s.code, data.moniteur, data.role, false);
+    return true;
+  }catch(e){
+    /* Hors ligne : on fait confiance à la session mémorisée */
+    ouvrirSession(s.code, s.moniteur, s.role, false);
+    return true;
+  }
+}
+
 /* ---------- Déverrouillage ---------- */
 async function deverrouiller(){
   const code = $('codeInput').value.trim();
@@ -5861,19 +5952,7 @@ async function deverrouiller(){
       $('codeInput').value = '';
       return;
     }
-    ACCES = { code: code, moniteur: data.moniteur || '', role: data.role || 'moniteur' };
-    $('lockView').style.display = 'none';
-    $('appView').style.display = 'block';
-    if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
-    if(ACCES.role === 'admin'){
-      $('adminCard').style.display = 'block';
-      chargerUtilisateurs();
-    }
-    proposerReprise();
-    chargerEleves();
-    chargerMoniteurs();
-    afficherPrepares();
-    showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
+    ouvrirSession(code, data.moniteur, data.role, true);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Connexion impossible : ' + e.message;
@@ -5882,6 +5961,12 @@ async function deverrouiller(){
     btn.textContent = 'Déverrouiller';
   }
 }
+
+$('logoutBtn').addEventListener('click', () => {
+  if(!confirm('Se déconnecter ?')) return;
+  verrouiller('');
+  showToast('Déconnecté');
+});
 
 $('codeBtn').addEventListener('click', deverrouiller);
 $('codeInput').addEventListener('keydown', e => { if(e.key === 'Enter') deverrouiller(); });
@@ -6033,8 +6118,10 @@ window.addEventListener('beforeunload', e => {
 });
 
 $('prepBtn').addEventListener('click', preparerNouveauCours);
+$('prepTous').addEventListener('change', () => afficherPrepares(false));
 
 /* ---------- Init ---------- */
+reprendreSession();
 $('prepDate').value = todayLocal();
 $('addDate').value = todayLocal();
 creerRaccourcis('raccourcisNote', 'noteInterne');
