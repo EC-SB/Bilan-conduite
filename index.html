@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v76</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v77</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -472,8 +472,22 @@
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📆 Permis prévus — préparation</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
         Seule la date remonte dans les notes du moniteur ; le reste est interne au bureau.</div>
+
+      <div id="recapDates" style="margin-bottom:12px;"></div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <select id="filtrePP" style="flex:1;min-width:150px;margin-bottom:0;">
+          <option value="">Tous les élèves</option>
+          <option value="donner">📢 Dates à donner à l'élève</option>
+          <option value="remplacer">🔄 Places à remplacer</option>
+        </select>
+        <select id="filtreDate" style="flex:1;min-width:150px;margin-bottom:0;">
+          <option value="">Toutes les dates</option>
+        </select>
+      </div>
+
       <div id="listePermisPrevu"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
@@ -4645,9 +4659,11 @@ function ficheSuiviPermis(e){
   const id = 'sv' + Math.random().toString(36).slice(2, 8);
   f.innerHTML =
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">Élève à remplacer</label>' +
+      '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">' +
+      'Place à remplacer (à donner à un autre élève)</label>' +
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">Date à donner à l\'élève</label>' +
+      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">' +
+      'Date à donner à cet élève</label>' +
 
     '<label for="' + id + 'pay">Reste à payer</label>' +
     '<input type="text" id="' + id + 'pay" placeholder="Ex : 240 €">' +
@@ -4747,8 +4763,8 @@ function resumeSuivi(eleve){
   const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
   if(!s) return '';
   const bouts = [];
-  if(s.aRemplacer === 'oui') bouts.push('⚠️ à remplacer');
-  if(s.dateADonner === 'oui') bouts.push('📢 date à donner');
+  if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
+  if(s.dateADonner === 'oui') bouts.push('📢 date à donner à l\'élève');
   if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
   if(s.paiementPrevu) bouts.push('paiement ' + s.paiementPrevu);
   if(s.relanceLe) bouts.push('relancé ' + s.relanceLe);
@@ -4935,23 +4951,89 @@ async function afficherBureau(){
     if(base) prevus.push(base);
   });
 
+  /* Date et boîte de chaque élève, pour le récapitulatif et les filtres */
+  prevus.forEach(e => {
+    const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
+    e._suivi = s || {};
+    e._datePermis = (e.etat.permisDate) || (s && s.datePermis) || '';
+    e._iso = dateFrVersIso(e._datePermis) || '';
+    e._boite = (e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
+  });
+
+  /* Récapitulatif : nombre d'examens par date */
+  const parDate = {};
+  prevus.forEach(e => {
+    const k = e._datePermis || 'Date inconnue';
+    if(!parDate[k]) parDate[k] = { iso: e._iso, bv: 0, bea: 0, total: 0 };
+    parDate[k].total++;
+    if(e._boite === 'bea') parDate[k].bea++; else parDate[k].bv++;
+  });
+
+  const dates = Object.keys(parDate).sort((a, b) =>
+    (parDate[a].iso || '9999').localeCompare(parDate[b].iso || '9999'));
+
+  const zRecap = $('recapDates');
+  zRecap.innerHTML = '';
+  if(dates.length){
+    dates.forEach(k => {
+      const d = parDate[k];
+      const mixte = (d.bv > 0 && d.bea > 0);
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;' +
+        'padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:14px;' +
+        'background:' + (mixte ? 'var(--warn-bg)' : 'var(--navy)') + ';' +
+        'border:1px solid ' + (mixte ? 'var(--red)' : 'var(--line)') + ';';
+      const g = document.createElement('div');
+      g.innerHTML = '<strong>' + k.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</strong>' +
+        '<span style="color:var(--muted);"> — ' + d.total + ' examen' + (d.total>1?'s':'') + '</span>';
+      const dr = document.createElement('div');
+      dr.style.cssText = 'flex-shrink:0;font-size:13px;font-weight:700;';
+      dr.innerHTML = (d.bv ? '<span style="color:var(--accent-text);">' + d.bv + ' BV</span>' : '') +
+        (d.bv && d.bea ? ' · ' : '') +
+        (d.bea ? '<span style="color:#E8A33D;">' + d.bea + ' BEA</span>' : '') +
+        (mixte ? ' ⚠️' : '');
+      dr.title = mixte ? 'BV et BEA le même jour' : '';
+      l.appendChild(g); l.appendChild(dr);
+      zRecap.appendChild(l);
+    });
+  }
+
+  /* Menu des dates disponibles */
+  const selD = $('filtreDate');
+  const choixD = selD.value;
+  selD.innerHTML = '<option value="">Toutes les dates</option>';
+  dates.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = k + ' (' + parDate[k].total + ')';
+    selD.appendChild(o);
+  });
+  selD.value = choixD;
+
+  /* Application des filtres */
+  const fEtat = $('filtrePP').value;
+  const fDate = selD.value;
+  let visibles = prevus.slice();
+  if(fEtat === 'donner') visibles = visibles.filter(e => e._suivi.dateADonner === 'oui');
+  if(fEtat === 'remplacer') visibles = visibles.filter(e => e._suivi.aRemplacer === 'oui');
+  if(fDate) visibles = visibles.filter(e => (e._datePermis || 'Date inconnue') === fDate);
+  visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
+
   zPP.innerHTML = '';
   if(!prevus.length){
     zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
+  }else if(!visibles.length){
+    zPP.innerHTML = '<div class="empty">Aucun élève ne correspond à ce filtre.</div>';
   }else{
-    prevus.forEach(e => {
+    visibles.forEach(e => {
       const l = ligneBureau(e, {
-        info: x => {
-          const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
-          const dt = (x.etat.permisDate) || (s && s.datePermis) || 'date inconnue';
-          return 'Permis le ' + dt +
-                 (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '');
-        },
+        info: x => (x._boite === 'bea' ? '🅰 BEA' : '🅑 BV') +
+                   ' · Permis le ' + (x._datePermis || 'date inconnue') +
+                   (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : ''),
         resume: x => resumeSuivi(x.eleve),
         alerte: x => {
           const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
-          if(s && s.aRemplacer === 'oui') return 'Élève à remplacer';
-          if(s && s.dateADonner === 'oui') return 'Date à donner à l\'élève';
+          if(s && s.aRemplacer === 'oui') return 'Place à remplacer';
+          if(s && s.dateADonner === 'oui') return 'Date à donner à cet élève';
           return null;
         },
         actions: (x, zone) => {
@@ -5215,6 +5297,8 @@ async function supprimerDossierEleve(){
 
 $('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
 $('bureauBtn').addEventListener('click', () => { afficherBureau(); afficherConsignesEnAttente(); });
+$('filtrePP').addEventListener('change', () => afficherBureau());
+$('filtreDate').addEventListener('change', () => afficherBureau());
 $('msgBtn').addEventListener('click', envoyerMessageBureau);
 $('addBtn').addEventListener('click', ajouterDateBureau);
 $('permisBtn').addEventListener('click', preparerPermis);
