@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v51</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v53</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2735,44 +2735,7 @@ document.addEventListener('click', e => {
    Chaque réponse remplace le ❓ correspondant dans le modèle.
    ============================================================ */
 const RACCOURCIS_NOTE = [
-  {
-    libelle: 'Frise formation',
-    special: 'frise'
-  },
-  {
-    libelle: 'N° de leçon',
-    special: 'lecon'
-  },
-  {
-    libelle: 'Examen blanc',
-    special: 'examenBlanc'
-  },
-  {
-    libelle: 'Examen prévu',
-    special: 'dateExamen'
-  },
-  {
-    libelle: 'Examen annulé',
-    special: 'examenAnnule'
-  },
-  { libelle: 'Frise dépassée', modele: 'Frise dépasée' },
-  { libelle: 'Finir fiche', modele: 'Finir Fiche' },
-  {
-    libelle: 'AAC BEA',
-    modele: 'AAC BEA👼⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
-  },
-  {
-    libelle: 'AAC BV',
-    modele: 'AAC BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
-  },
-  {
-    libelle: 'CS BEA',
-    modele: 'CS BEA⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
-  },
-  {
-    libelle: 'CS BV',
-    modele: 'CS BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
-  }
+  { libelle: '📋 Compléter les infos', special: 'questionnaire' }
 ];
 
 
@@ -2788,10 +2751,15 @@ const RACCOURCIS_NOTE = [
    ============================================================ */
 
 /* Frises fixes, connues d'après le type de bilan */
-const FRISES_TYPE = {
-  'aac-auto': 'AAC BEA👼⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable',
-  'aac-manuelle': 'AAC BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
+const FRISES_FIXES = {
+  'aacbea': 'AAC BEA👼⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable',
+  'aacbv': 'AAC BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable',
+  'csbea': 'CS BEA⚠️que 4 leçons voiture pour faire fiche véhicule ⚠️3 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable',
+  'csbv': 'CS BV👼⚠️que 6 leçons voiture pour faire fiche véhicule ⚠️5 leçons de 2 heures + simu nuit et risques + 1 leçons de 2 heures + 1h formation accompagnateur + 2h rendez vous préalable'
 };
+
+/* Parcours proposé par défaut selon le type de bilan */
+const PARCOURS_PAR_TYPE = { 'aac-auto': 'aacbea', 'aac-manuelle': 'aacbv' };
 
 let contexteDepart = null;   /* mémorise les réponses du démarrage */
 
@@ -2800,8 +2768,11 @@ async function ouvrirQuestionnaireDepart(){
   const modeleCle = $('modele').value;
 
   /* Informations déjà connues */
-  const friseFixe = FRISES_TYPE[modeleCle] || '';
-  const frisePrecedente = friseFixe || await friseAnterieure(eleve);
+  /* Frise entièrement déduite du type de bilan (cas AAC) */
+  const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
+  /* Clé de conduite supervisée correspondant à la boîte du bilan */
+  const cleCS = /auto/i.test(modeleCle) ? 'csbea' : 'csbv';
+  const frisePrecedente = friseDeduite || await friseAnterieure(eleve);
   const faites = await leconsDejaFaites(eleve);
   const manoeuvresAvant = await manoeuvresAnterieures(eleve);
   const totalManoeuvres = BLOC.ficheListeConduite.length;
@@ -2824,22 +2795,28 @@ async function ouvrirQuestionnaireDepart(){
       '</div>' +
 
       '<label>Frise de formation</label>' +
-      (friseFixe
-        ? '<div style="background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-          'padding:11px 12px;font-size:14px;line-height:1.5;margin-bottom:14px;">' +
-          friseFixe.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'
-        : '<div style="background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-          'padding:12px;margin-bottom:6px;font-size:15px;line-height:2;">' +
-            '<input type="text" id="qFriseAvant" inputmode="numeric" maxlength="2" ' +
-            'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;text-align:center;font-size:16px;">' +
-            ' leçons de 2h + exam blanc +' +
-            '<input type="text" id="qFriseApres" inputmode="numeric" maxlength="2" ' +
-            'style="width:52px;display:inline-block;margin:0 4px;padding:7px;text-align:center;font-size:16px;">' +
-            ' leçons de 2h <span id="qFriseHeures" style="color:var(--accent-text);font-weight:700;"></span>' +
-            ' + 3h avant examen' +
-          '</div>' +
-          '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4;">' +
-          'Laisse vide si la frise n\'est pas encore déterminée.</div>') +
+      (friseDeduite
+        ? ''
+        : '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+          'font-size:15px;color:var(--cream);margin-bottom:10px;">' +
+            '<input type="checkbox" id="qCS" style="width:20px;height:20px;">' +
+            'Conduite supervisée' +
+          '</label>') +
+
+      '<div id="qFriseClassique" style="background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;padding:12px;margin-bottom:6px;font-size:15px;line-height:2;">' +
+        '<input type="text" id="qFriseAvant" inputmode="numeric" maxlength="2" ' +
+        'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;text-align:center;font-size:16px;">' +
+        ' leçons de 2h + exam blanc +' +
+        '<input type="text" id="qFriseApres" inputmode="numeric" maxlength="2" ' +
+        'style="width:52px;display:inline-block;margin:0 4px;padding:7px;text-align:center;font-size:16px;">' +
+        ' leçons de 2h <span id="qFriseHeures" style="color:var(--accent-text);font-weight:700;"></span>' +
+        ' + 3h avant examen' +
+      '</div>' +
+      '<div id="qFriseFixe" style="display:none;background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;padding:11px 12px;font-size:14px;line-height:1.5;margin-bottom:6px;"></div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4;">' +
+      'Laisse vide si la frise n\'est pas encore déterminée.</div>' +
 
       '<label for="qLecon">Leçon n°</label>' +
       '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
@@ -2896,6 +2873,26 @@ async function ouvrirQuestionnaireDepart(){
     const chApres = boite.querySelector('#qFriseApres');
     const chHeures = boite.querySelector('#qFriseHeures');
 
+    const caseCS = boite.querySelector('#qCS');
+    const zoneClassique = boite.querySelector('#qFriseClassique');
+    const zoneFixe = boite.querySelector('#qFriseFixe');
+
+    function majParcours(){
+      const fixe = friseDeduite || ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '');
+      if(fixe){
+        zoneClassique.style.display = 'none';
+        zoneFixe.style.display = 'block';
+        zoneFixe.textContent = fixe;
+      }else{
+        zoneClassique.style.display = 'block';
+        zoneFixe.style.display = 'none';
+      }
+    }
+    /* Reprise de la conduite supervisée notée les cours précédents */
+    if(caseCS && /^CS /.test(frisePrecedente || '')) caseCS.checked = true;
+    if(caseCS) caseCS.addEventListener('change', majParcours);
+    majParcours();
+
     if(chAvant){
       const av = leconsAvantExamenBlanc(frisePrecedente);
       const ap = leconsApresExamenBlanc(frisePrecedente);
@@ -2940,7 +2937,9 @@ async function ouvrirQuestionnaireDepart(){
     passer.addEventListener('click', () => fermer(null));
     valider.addEventListener('click', () => {
       fermer({
-        frise: friseFixe || composerFrise(
+        frise: friseDeduite ||
+               ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '') ||
+               composerFrise(
           chAvant ? chAvant.value : '',
           chApres ? chApres.value : ''
         ),
@@ -3377,32 +3376,19 @@ function creerRaccourcis(idConteneur, idChamp){
     b.textContent = r.libelle;
     b.addEventListener('click', async () => {
       let texte;
-      if(r.special === 'lecon'){
+      if(r.special === 'questionnaire'){
         b.disabled = true;
         b.textContent = '…';
         try{
-          texte = await construireLecon($(idChamp));
+          const rep = await ouvrirQuestionnaireDepart();
+          if(rep){
+            contexteDepart = rep;
+            texte = noteDepuisQuestionnaire(rep);
+          }
         }finally{
           b.disabled = false;
           b.textContent = r.libelle;
         }
-      }else if(r.special === 'frise'){
-        b.disabled = true;
-        b.textContent = '…';
-        try{
-          texte = await construireFrise();
-        }finally{
-          b.disabled = false;
-          b.textContent = r.libelle;
-        }
-      }else if(r.special === 'dateExamen'){
-        texte = await construireDateExamen();
-      }else if(r.special === 'examenAnnule'){
-        texte = await construireExamenAnnule();
-      }else if(r.special === 'examenBlanc'){
-        texte = construireExamenBlanc();
-      }else{
-        texte = (r.demandes && r.demandes.length) ? completerModele(r) : r.modele;
       }
       if(texte) ajouterANote($(idChamp), texte);
     });
