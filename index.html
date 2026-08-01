@@ -252,7 +252,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v46</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v47</span></p>
     </div>
     <button id="themeBtn" title="Changer de thème"
             style="margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -2686,8 +2686,7 @@ const RACCOURCIS_NOTE = [
   },
   {
     libelle: 'Examen prévu',
-    modele: 'Examen prévue le ❓',
-    demandes: ['Date de l\'examen ? (laisse vide pour garder ❓)']
+    special: 'dateExamen'
   },
   { libelle: 'Frise dépassée', modele: 'Frise dépasée' },
   { libelle: 'Finir fiche', modele: 'Finir Fiche' },
@@ -2712,6 +2711,72 @@ const RACCOURCIS_NOTE = [
 
 
 
+
+
+/* Choix d'une date au calendrier plutôt qu'à la saisie manuelle */
+function choisirDate(titre){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = '360px';
+
+    const h = document.createElement('h3');
+    h.textContent = titre || 'Choisis une date';
+    boite.appendChild(h);
+
+    const champ = document.createElement('input');
+    champ.type = 'date';
+    champ.style.cssText = 'width:100%;font-size:18px;padding:14px;text-align:center;';
+    /* Pré-rempli à aujourd'hui : le calendrier s'ouvre au bon mois */
+    champ.value = todayLocal();
+    boite.appendChild(champ);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+
+    const annuler = document.createElement('button');
+    annuler.className = 'btn btn-secondary';
+    annuler.textContent = 'Annuler';
+
+    const valider = document.createElement('button');
+    valider.className = 'btn btn-primary';
+    valider.textContent = 'Valider';
+
+    rangee.appendChild(annuler);
+    rangee.appendChild(valider);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    function fermer(valeur){
+      document.body.removeChild(fond);
+      resolve(valeur);
+    }
+    annuler.addEventListener('click', () => fermer(null));
+    valider.addEventListener('click', () => fermer(champ.value || null));
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+
+    /* Ouvre directement le calendrier sur mobile */
+    setTimeout(() => {
+      champ.focus();
+      if(champ.showPicker){ try{ champ.showPicker(); }catch(e){} }
+    }, 80);
+  });
+}
+
+/* Date d'examen, au format lisible */
+async function construireDateExamen(){
+  const iso = await choisirDate("Date de l'examen");
+  if(!iso) return null;
+  const d = new Date(iso + 'T12:00:00');
+  const texte = d.toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+  return 'Examen prévu le ' + texte;
+}
 
 /* Frise : reprise du dernier cours, modifiable si elle a changé */
 async function construireFrise(){
@@ -2993,6 +3058,8 @@ function creerRaccourcis(idConteneur, idChamp){
           b.disabled = false;
           b.textContent = r.libelle;
         }
+      }else if(r.special === 'dateExamen'){
+        texte = await construireDateExamen();
       }else if(r.special === 'examenBlanc'){
         texte = construireExamenBlanc();
       }else{
