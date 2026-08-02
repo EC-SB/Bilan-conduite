@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v114</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v115</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -3594,16 +3594,28 @@ async function fetchFiable(url, options, delaiMs, essais){
    ============================================================ */
 
 /* Ce que le moniteur doit renseigner, selon le modèle choisi */
+/* Les rubriques du résumé, dans l'ordre du bilan */
+const THEMES_ERREURS = [
+  { cle:'controles',  nom:'👀 Contrôles' },
+  { cle:'priorites',  nom:'🚦 Priorités et feux' },
+  { cle:'trajectoire',nom:'👀 Trajectoire' },
+  { cle:'giratoires', nom:'🍩 Giratoires' },
+  { cle:'allures',    nom:'🏎️ Allures' },
+  { cle:'manoeuvres', nom:'🚙 Manœuvres' },
+  { cle:'vigilance',  nom:'🧠 Points de vigilance' },
+  { cle:'explication',nom:'📚 Explication demandée' },
+  { cle:'travailler', nom:'➡️ À travailler la prochaine fois' }
+];
+
 const CHAMPS_MANUELS = {
   conduiteResume: [
     { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
     { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
     { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
     { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
-    { cle:'texteDicte',  type:'texte', nom:'🎙️ Ton cours', lignes:10,
-      aide:'Ce que tu as dit pendant le cours.' },
-    { cle:'resume',      type:'texte', nom:'🧠 Erreurs de ce jour', lignes:12,
-      aide:'Les erreurs et conseils, regroupés par thème.' },
+    { cle:'texteDicte',  type:'texte', nom:'🎙️ Ton cours', lignes:8,
+      aide:'Ce que tu as dit pendant le cours. Peut rester vide.' },
+    { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
     { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
     { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
     { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
@@ -3613,7 +3625,7 @@ const CHAMPS_MANUELS = {
     { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
     { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
     { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
-    { cle:'resume',      type:'texte', nom:'🧠 Erreurs de ce jour', lignes:12 },
+    { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
     { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
     { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
     { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
@@ -4108,6 +4120,56 @@ async function genererBilanManuel(){
         champsManuels[ch.cle] = f.name;
       });
 
+    }else if(ch.type === 'themes'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      a.textContent = 'Remplis seulement les rubriques utiles : les autres ne sortiront pas.';
+      bloc.appendChild(a);
+
+      THEMES_ERREURS.forEach(th => {
+        const b = document.createElement('div');
+        b.style.cssText = 'margin-bottom:10px;';
+        const t2 = document.createElement('div');
+        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+        t2.textContent = th.nom;
+        b.appendChild(t2);
+
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+        const t = document.createElement('textarea');
+        t.rows = 2;
+        t.className = 'themeErreur';
+        t.setAttribute('data-theme', th.nom);
+        t.placeholder = 'Une remarque par ligne';
+        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:16px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = 'btn btn-secondary';
+        mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
+        mic.textContent = '🎙️';
+        mic.title = 'Dicter dans ' + th.nom;
+        mic.addEventListener('click', () => dicterDans(t, mic));
+        r.appendChild(t); r.appendChild(mic);
+        b.appendChild(r);
+        bloc.appendChild(b);
+      });
+
+    }else if(ch.type === 'themes'){
+      /* Chaque rubrique remplie devient un paragraphe du résumé */
+      const bouts = [];
+      document.querySelectorAll('.themeErreur').forEach(t => {
+        const v = t.value.trim();
+        if(!v) return;
+        const lignes = v.split('\n').map(x => x.trim()).filter(Boolean);
+        bouts.push(t.getAttribute('data-theme') + '\n' +
+                   lignes.map(x => (x.startsWith('•') ? x : '• ' + x)).join('\n'));
+      });
+      champsManuels[ch.cle] = bouts.join('\n\n');
     }else if(ch.type === 'niveau' || ch.type === 'ouinon'){
       /* déjà renseigné par les boutons */
     }else if(ch.type === 'cepc'){
