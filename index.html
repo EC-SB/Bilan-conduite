@@ -255,6 +255,51 @@
     font-size:15px;line-height:1.7;
   }
   .recap b{color:var(--orange);}
+
+  /* ---------- Modules en tiroirs ---------- */
+  details.card{padding:0;overflow:hidden;}
+  details.card > summary{
+    list-style:none;
+    cursor:pointer;
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:15px;
+    font-weight:700;
+    color:var(--cream);
+    user-select:none;
+  }
+  details.card > summary::-webkit-details-marker{display:none;}
+  details.card > summary::after{
+    content:'▾';
+    margin-left:auto;
+    font-size:16px;
+    color:var(--muted);
+    transition:transform .18s ease;
+    flex-shrink:0;
+  }
+  details.card[open] > summary::after{transform:rotate(180deg);}
+  details.card[open] > summary{
+    border-bottom:1px solid var(--line);
+    color:var(--accent-text);
+  }
+  details.card > .contenu-tiroir{padding:16px 18px 18px;}
+  details.card > summary .compteur{
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    background:var(--navy);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:2px 9px;
+    flex-shrink:0;
+  }
+  @media (min-width: 700px){
+    details.card > summary{padding:18px 22px;font-size:16px;}
+    details.card > .contenu-tiroir{padding:18px 22px 22px;}
+  }
+
   h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;}
   .hint{font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;}
 
@@ -365,7 +410,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v96</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v98</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -403,8 +448,10 @@
     </div>
   </div>
 
-  <div class="card" data-section="prepares">
-    <h2 class="section-title">📅 Mes cours préparés</h2>
+  <details class="card" data-section="prepares" data-tiroir="prepares">
+    <summary>📅 Mes cours préparés <span class="compteur" id="cptPrepares"></span></summary>
+  </details>
+    <div class="contenu-tiroir">
     <label style="display:flex;align-items:center;gap:10px;text-transform:none;
                   font-size:14px;color:var(--muted);margin-bottom:10px;">
       <input type="checkbox" id="prepTous" style="width:18px;height:18px;">
@@ -434,7 +481,9 @@
   </div>
 
   <div id="recordView" data-section="cours">
-    <div class="card">
+    <details class="card" data-tiroir="cours" open>
+      <summary>🎙️ Cours et enregistrement</summary>
+      <div class="contenu-tiroir">
       <label for="modele">Type de bilan</label>
       <select id="modele"></select>
 
@@ -482,6 +531,7 @@
         💾 Sauvegarde automatique dans ce téléphone : en cas de plantage, tout est récupérable.
       </div>
     </div>
+    </details>
 
     <button class="btn btn-primary" id="finishBtn"
             style="display:none;margin-top:46px;padding:20px;font-size:16px;">✅ Terminer et générer le bilan</button>
@@ -523,8 +573,10 @@
     </div>
   </div>
 
-  <div class="card" data-section="recherche">
-    <h2 class="section-title">Retrouver un élève</h2>
+  <details class="card" data-section="recherche" data-tiroir="recherche">
+    <summary>🔍 Retrouver un élève</summary>
+  </details>
+    <div class="contenu-tiroir">
     <label for="searchName">Nom et prénom de l'élève</label>
     <input type="text" id="searchName" list="listeEleves" autocomplete="off"
            placeholder="Choisis dans la liste ou tape un nom">
@@ -564,9 +616,14 @@
     </div>
   </div>
 
-  <div class="card" data-section="bureau">
-    <h2 class="section-title">🏢 Suivi bureau</h2>
+  <details class="card" data-section="bureau" data-tiroir="bureau">
+    <summary>🏢 Suivi bureau</summary>
+  </details>
+    <div class="contenu-tiroir">
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">
+      Actualisation automatique toutes les 90 s, sauf pendant une saisie.
+    </div>
 
     <details style="margin-top:16px;">
       <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
@@ -638,7 +695,7 @@
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
-        🗓️ Élèves permis — à placer sur une date</div>
+        🗓️ Liste RDV PERMIS</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         Cochés depuis la liste précédente. Indique qui prend la date et sur quelle semaine.</div>
       <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
@@ -699,8 +756,10 @@
     </div>
   </div>
 
-  <div class="card" data-section="permis">
-    <h2 class="section-title">🎓 Élève ayant obtenu son permis</h2>
+  <details class="card" data-section="permis" data-tiroir="permis">
+    <summary>🎓 Élève ayant obtenu son permis</summary>
+  </details>
+    <div class="contenu-tiroir">
     <label for="permisNom">Nom et prénom de l'élève</label>
     <input type="text" id="permisNom" list="listeEleves" autocomplete="off"
            placeholder="Choisis dans la liste ou tape un nom">
@@ -708,8 +767,10 @@
     <div id="permisResultat" style="margin-top:16px;"></div>
   </div>
 
-  <div class="card" id="adminCard" style="display:none;">
-    <h2 class="section-title">⚙️ Administration des accès</h2>
+  <details class="card" id="adminCard" data-tiroir="admin" style="display:none;">
+    <summary>⚙️ Administration des accès</summary>
+  </details>
+    <div class="contenu-tiroir">
     <div id="adminList"><div class="empty">Chargement…</div></div>
 
     <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
@@ -1845,7 +1906,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 17;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 18;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -1920,6 +1981,8 @@ function oublierSession(){
 }
 
 function verrouiller(message, garderSession){
+  clearInterval(minuteurBureau);
+  bureauDejaCharge = false;
   if(!garderSession) oublierSession();
   ACCES = { code: null, moniteur: '', role: '', droits: [] };
   $('appView').style.display = 'none';
@@ -2604,6 +2667,7 @@ $('confirmGen').addEventListener('click', async () => {
     retirerPreparationFaite();
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
+    window.scrollTo(0, 0);
     marquerExport(false);
     await saveLesson(currentLessonMeta, bilan);
     await refreshHistory();
@@ -3115,6 +3179,55 @@ function choisirDansListe(titre, options, valeurActuelle){
     valider.addEventListener('click', () => fermer(sel.value || null));
     fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
   });
+}
+
+
+/* ---------- Tiroirs : mémorisation de ce qui est ouvert ---------- */
+const CLE_TIROIRS = 'tiroirs_ouverts';
+
+function lireTiroirs(){
+  try{
+    const b = localStorage.getItem(CLE_TIROIRS);
+    const l = b ? JSON.parse(b) : null;
+    return Array.isArray(l) ? l : null;
+  }catch(e){ return null; }
+}
+
+function ecrireTiroirs(){
+  try{
+    const ouverts = [];
+    document.querySelectorAll('[data-tiroir]').forEach(d => {
+      if(d.open) ouverts.push(d.getAttribute('data-tiroir'));
+    });
+    localStorage.setItem(CLE_TIROIRS, JSON.stringify(ouverts));
+  }catch(e){}
+}
+
+function initTiroirs(){
+  const memo = lireTiroirs();
+  document.querySelectorAll('[data-tiroir]').forEach(d => {
+    const cle = d.getAttribute('data-tiroir');
+    if(memo){
+      d.open = (memo.indexOf(cle) !== -1);
+    }else{
+      /* Premier lancement : seuls les cours préparés sont ouverts */
+      d.open = (cle === 'prepares');
+    }
+    d.addEventListener('toggle', () => {
+      ecrireTiroirs();
+      /* On ne charge le suivi bureau qu'à sa première ouverture */
+      if(cle === 'bureau' && d.open && !bureauDejaCharge){
+        afficherBureau();
+        afficherConsignesEnAttente();
+      }
+    });
+  });
+}
+
+/* Compteur affiché dans l'en-tête d'un tiroir */
+function majCompteur(id, valeur){
+  const el = $(id);
+  if(el) el.textContent = valeur ? String(valeur) : '';
 }
 
 /* ---------- Liste des élèves déjà enregistrés ---------- */
@@ -4690,6 +4803,8 @@ async function afficherPrepares(recharger){
     liste = liste.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi);
   }
 
+  majCompteur('cptPrepares', liste.length);
+
   if(!liste.length){
     const autres = prepares.length;
     zone.innerHTML = '<div class="empty">' +
@@ -5688,6 +5803,37 @@ function tableauAPlacer(liste){
   return bloc;
 }
 
+
+/* ---------- Actualisation automatique du suivi bureau ---------- */
+let minuteurBureau = null;
+let bureauDejaCharge = false;
+
+/* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
+function bureauOccupe(){
+  const a = document.activeElement;
+  if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return true;
+  if(document.querySelector('.overlay.show')) return true;
+  /* Une fiche de préparation ouverte est probablement en cours d'édition */
+  const ouverts = document.querySelectorAll('[data-section="bureau"] details[open]');
+  for(let i = 0; i < ouverts.length; i++){
+    if(ouverts[i].querySelector('input, textarea, select')) return true;
+  }
+  return false;
+}
+
+function lancerActualisationAuto(){
+  clearInterval(minuteurBureau);
+  minuteurBureau = setInterval(() => {
+    if(!ACCES.code) return;
+    const carte = document.querySelector('[data-section="bureau"]');
+    if(!carte || carte.style.display === 'none') return;   /* section non autorisée */
+    if(!bureauDejaCharge) return;                          /* pas encore ouverte une fois */
+    if(bureauOccupe()) return;
+    afficherBureau(true);
+    afficherConsignesEnAttente();
+  }, 90000);   /* toutes les 90 secondes */
+}
+
 /* Construit une ligne d'élève avec ses actions */
 function ligneBureau(e, options){
   const row = document.createElement('div');
@@ -5770,20 +5916,30 @@ function boutonDate(libelle, onChoisi){
   return b;
 }
 
-async function afficherBureau(){
+async function afficherBureau(silencieux){
   const zEB = $('listeExamBlanc');
   const zSim = $('listeSimu');
   const zPer = $('listePermis');
   if(!zEB) return;
 
-  [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Chargement…</div>');
+  const btn = $('bureauBtn');
+  if(silencieux){
+    if(btn) btn.textContent = '🔄 Actualisation…';
+  }else{
+    [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Chargement…</div>');
+  }
 
   try{
     await chargerBureau();
+    bureauDejaCharge = true;
   }catch(e){
-    [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>');
+    if(btn) btn.textContent = '🔄 Actualiser les listes';
+    if(!silencieux){
+      [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>');
+    }
     return;
   }
+  if(btn) btn.textContent = '🔄 Actualiser les listes';
 
   const tous = etatBureau.eleves;
 
@@ -5853,7 +6009,7 @@ async function afficherBureau(){
                                    suiviDe(e.eleve).statut !== 'annule');
   zAP.innerHTML = '';
   if(!aPlacer.length){
-    zAP.innerHTML = '<div class="empty">Aucun élève en attente de date.</div>';
+    zAP.innerHTML = '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>';
   }else{
     zAP.appendChild(tableauAPlacer(aPlacer));
     aPlacer.forEach(e => {
@@ -6142,7 +6298,8 @@ async function afficherBureau(){
 
   /* ---- 3. Examens du permis ---- */
   let per = tous.filter(e => (e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') &&
-                             suiviDe(e.eleve).aPlanifier !== 'oui');
+                             suiviDe(e.eleve).aPlanifier !== 'oui' &&
+                             suiviDe(e.eleve).retireAPrevoir !== 'oui');
 
   /* Filtre par état */
   const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
@@ -6186,13 +6343,34 @@ async function afficherBureau(){
           cb.addEventListener('change', async () => {
             cb.disabled = true;
             try{
-              await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '' });
+              await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '',
+                                        retireAPrevoir: '' });
               afficherBureau();
             }catch(e){ showToast('Erreur : ' + e.message); cb.disabled = false; }
           });
           lab.appendChild(cb);
-          lab.appendChild(document.createTextNode('Passer dans « Élèves permis »'));
+          lab.appendChild(document.createTextNode('Mettre dans la liste RDV PERMIS'));
           zone.appendChild(lab);
+
+          const bRet = document.createElement('button');
+          bRet.className = 'btn btn-secondary';
+          bRet.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin-right:6px;' +
+            'color:var(--red);border-color:var(--red);';
+          bRet.textContent = '🗑️ Retirer de la liste';
+          bRet.addEventListener('click', async () => {
+            if(!confirm('Retirer ' + x.eleve + ' des examens à prévoir ?\n\n' +
+                        'Il y reviendra si un moniteur le signale à nouveau.')) return;
+            bRet.disabled = true;
+            try{
+              /* Les consignes en attente ne doivent plus le faire réapparaître */
+              for(const cs of (x.enAttente || [])){
+                try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
+              }
+              await majSuivi(x.eleve, { retireAPrevoir: 'oui' });
+              afficherBureau();
+            }catch(e){ showToast('Erreur : ' + e.message); bRet.disabled = false; }
+          });
+          zone.appendChild(bRet);
 
           zone.appendChild(boutonDate('📅 Date de permis', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
@@ -6454,7 +6632,7 @@ function verifierVersionScript(reponse){
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
   alert(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
-    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v17') + '\n' +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v18') + '\n' +
     'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
     "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
     'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
@@ -6957,7 +7135,9 @@ function ouvrirSession(code, moniteur, role, saluer, droits){
   proposerReprise();
   chargerEleves();
   chargerMoniteurs();
+  initTiroirs();
   if(aDroit('cours')) afficherPrepares();
+  lancerActualisationAuto();
   if(saluer) showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
 }
 
