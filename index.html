@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v111</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v112</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1427,6 +1427,93 @@ function buildEval(ai, avecBea){
 /* ============================================================
    EXAMEN OFFICIEL
    ============================================================ */
+
+/* Compétences du CEPC, dans l'ordre officiel */
+const CEPC_COMPETENCES = [
+  { groupe:'Connaître et maîtriser son véhicule', items:[
+    "Savoir s'installer et assurer la sécurité à bord",
+    'Effectuer des vérifications du véhicule',
+    'Connaître et utiliser les commandes' ]},
+  { groupe:'Appréhender la route', items:[
+    "Prendre l'information",
+    'Adapter son allure aux circonstances',
+    'Appliquer la réglementation' ]},
+  { groupe:'Partager la route avec les autres usagers', items:[
+    'Communiquer avec les autres usagers',
+    'Partager la chaussée',
+    'Maintenir les espaces de sécurité' ]}
+];
+
+const CEPC_AUTONOMIE = ['Analyse des situations', 'Adaptation aux situations', 'Conduite autonome'];
+
+function buildExamenBlanc(ai, ctx){
+  ai = ai || {};
+  const c = ai.cepc || {};
+  const parts = [
+    '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 👀',
+    '',
+    '📋 𝗖𝗘𝗥𝗧𝗜𝗙𝗜𝗖𝗔𝗧 𝗗\'𝗘𝗫𝗔𝗠𝗘𝗡 — bilan des compétences',
+    'Niveaux : E · 0 · 1 · 2 · 3',
+    ''
+  ];
+
+  let total = 0, notes = 0;
+  CEPC_COMPETENCES.forEach(g => {
+    parts.push('▸ ' + g.groupe);
+    g.items.forEach(it => {
+      const v = c[it];
+      parts.push('   ' + it + ' : ' + (v === undefined || v === '' ? '—' : v));
+      const n = parseInt(v, 10);
+      if(!isNaN(n)){ total += n; notes++; }
+    });
+    parts.push('');
+  });
+
+  parts.push('▸ Autonomie et conscience du risque');
+  CEPC_AUTONOMIE.forEach(a => {
+    parts.push('   ' + a + ' : ' + (c[a] === undefined || c[a] === '' ? '—' : c[a]));
+    const n = parseInt(c[a], 10);
+    if(!isNaN(n)){ total += n; notes++; }
+  });
+  parts.push('');
+
+  if(c['Conduite économique'] !== undefined && c['Conduite économique'] !== ''){
+    parts.push('Conduite économique et respectueuse : ' + c['Conduite économique']);
+  }
+  if(c['Courtoisie'] !== undefined && c['Courtoisie'] !== ''){
+    parts.push('Courtoisie : ' + c['Courtoisie']);
+  }
+  parts.push('');
+  parts.push('𝗧𝗢𝗧𝗔𝗟 : ' + total + ' / ' + (notes * 3 || 0) +
+             (notes ? '   (' + notes + ' compétence(s) évaluée(s))' : ''));
+  parts.push('Rappel : 20 points minimum pour un résultat favorable.');
+  parts.push('');
+
+  if(txt(ai.resume)){
+    parts.push('🧠 𝗖𝗘 𝗤𝗨\'𝗜𝗟 𝗙𝗔𝗨𝗧 𝗧𝗥𝗔𝗩𝗔𝗜𝗟𝗟𝗘𝗥 :');
+    parts.push(txt(ai.resume));
+    parts.push('');
+  }
+
+  if(txt(ai.conclusion)){
+    parts.push('➡️ ' + txt(ai.conclusion));
+    parts.push('');
+  }
+
+  if(ai.photo){
+    parts.push('📷 Photo du CEPC jointe au bilan.');
+    parts.push('');
+  }
+
+  const note = (ctx && ctx.note) || '';
+  const frise = extraireFrise(note);
+  if(frise){
+    parts.push('➡️  Rappel de ta FRISE DE FORMATION EN VOITURE : ');
+    parts.push(frise);
+  }
+  return parts.join('\n');
+}
+
 function buildExamen(ai){
   const a = (ai && ai.avantExamen) || {};
   const e = (ai && ai.examen) || {};
@@ -1808,6 +1895,10 @@ const MODELES = {
   },
 
   /* --- Examen --- */
+  'examen-blanc': {
+    label: 'Examen blanc', groupe: 'Examen', schema: 'examenblanc',
+    build: buildExamenBlanc
+  },
   'examen-officiel': {
     label: 'Examen officiel', groupe: 'Examen', schema: 'examen',
     build: buildExamen
@@ -3178,6 +3269,7 @@ async function exporterVersSheets(silencieux){
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Enregistré avec la note 📌 ✅' : 'Enregistré dans Sheets ✅');
     marquerExport(true);
+    viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
 
@@ -3427,7 +3519,14 @@ const CHAMPS_MANUELS = {
     { cle:'leconsAvant', type:'court', nom:'Leçons avant examen blanc' },
     { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
   ],
+  examenblanc: [
+    { cle:'cepc',       type:'cepc',  nom:'Bilan des compétences (CEPC)' },
+    { cle:'resume',     type:'texte', nom:'🧠 Ce qu\'il faut travailler', lignes:10 },
+    { cle:'conclusion', type:'texte', nom:'➡️ Conclusion pour l\'élève', lignes:3 },
+    { cle:'photo',      type:'photo', nom:'📷 Photo du CEPC' }
+  ],
   examen: [
+    { cle:'photo',       type:'photo', nom:'📷 Photo du bilan d\'examen' },
     { cle:'installation',type:'ok',    nom:'Installation', defaut:'' },
     { cle:'passager',    type:'ok',    nom:'Passager',     defaut:'' },
     { cle:'voyants',     type:'ok',    nom:'Voyants',      defaut:'' },
@@ -3498,6 +3597,42 @@ function dicterDans(champ, bouton){
 }
 
 
+
+/* Une ligne du CEPC : la compétence et son niveau */
+function ligneCepc(nom){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;';
+  const t = document.createElement('span');
+  t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;min-width:0;';
+  t.textContent = nom;
+  const s = document.createElement('select');
+  s.className = 'cepcNiveau';
+  s.setAttribute('data-comp', nom);
+  s.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:15px;flex-shrink:0;';
+  ['', 'E', '0', '1', '2', '3'].forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v || '—';
+    s.appendChild(o);
+  });
+  s.addEventListener('change', majTotalCepc);
+  l.appendChild(t); l.appendChild(s);
+  return l;
+}
+
+function majTotalCepc(){
+  const z = document.getElementById('cepcTotal');
+  if(!z) return;
+  let total = 0, notes = 0;
+  document.querySelectorAll('.cepcNiveau').forEach(s => {
+    const n = parseInt(s.value, 10);
+    if(!isNaN(n)){ total += n; notes++; }
+  });
+  const favorable = (total >= 20);
+  z.innerHTML = 'Total : ' + total + ' / ' + (notes * 3) +
+    (notes ? ' · <span style="color:' + (favorable ? 'var(--accent-text)' : 'var(--warn-text)') +
+      ';">' + (favorable ? 'FAVORABLE' : 'insuffisant — 20 minimum') + '</span>' : '');
+}
+
 /* Construit le formulaire du bilan manuel */
 async function ouvrirBilanManuel(){
   const probleme = verifierContexte();
@@ -3512,6 +3647,17 @@ async function ouvrirBilanManuel(){
   const btn = $('manuelBtn');
   btn.disabled = true;
   btn.textContent = 'Préparation…';
+
+  /* Le questionnaire alimente la note interne, comme pour un cours enregistré */
+  if(!contexteDepart){
+    try{
+      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de remplir le bilan', 'Continuer');
+      if(rep){
+        contexteDepart = rep;
+        appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
+      }
+    }catch(e){}
+  }
 
   /* Ce qui se remplit tout seul : frise, manœuvres déjà validées */
   let dossier = { manoeuvres: [], frise: '' };
@@ -3585,6 +3731,69 @@ async function ouvrirBilanManuel(){
         z.appendChild(lab);
       });
       bloc.appendChild(z);
+
+    }else if(ch.type === 'cepc'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom + ' — E, 0, 1, 2 ou 3';
+      bloc.appendChild(l);
+
+      const z = document.createElement('div');
+      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
+      const lignes = [];
+      CEPC_COMPETENCES.forEach(g => {
+        const t = document.createElement('div');
+        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
+        t.textContent = g.groupe;
+        z.appendChild(t);
+        g.items.forEach(it => lignes.push(it));
+        g.items.forEach(it => z.appendChild(ligneCepc(it)));
+      });
+      const t2 = document.createElement('div');
+      t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:10px 0 4px;';
+      t2.textContent = 'Autonomie et conscience du risque';
+      z.appendChild(t2);
+      CEPC_AUTONOMIE.forEach(a => z.appendChild(ligneCepc(a)));
+      ['Conduite économique', 'Courtoisie'].forEach(a => z.appendChild(ligneCepc(a)));
+
+      const tot = document.createElement('div');
+      tot.id = 'cepcTotal';
+      tot.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--line);' +
+        'font-size:15px;font-weight:700;color:var(--accent-text);';
+      z.appendChild(tot);
+      bloc.appendChild(z);
+      setTimeout(majTotalCepc, 0);
+
+    }else if(ch.type === 'photo'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/*';
+      inp.id = 'photo_' + ch.cle;
+      inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px;border-radius:10px;font-size:14px;';
+      bloc.appendChild(inp);
+      const apercu = document.createElement('div');
+      apercu.id = 'apercu_' + ch.cle;
+      apercu.style.cssText = 'margin-top:8px;';
+      bloc.appendChild(apercu);
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;';
+      aide.textContent = "La photo reste sur ce téléphone : elle sert au moniteur pendant " +
+        "le rendez-vous, elle n'est pas envoyée dans le bilan.";
+      bloc.appendChild(aide);
+
+      inp.addEventListener('change', () => {
+        const f = inp.files && inp.files[0];
+        apercu.innerHTML = '';
+        if(!f) return;
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
+        apercu.appendChild(img);
+        champsManuels[ch.cle] = f.name;
+      });
 
     }else if(ch.type === 'observations'){
       const l = document.createElement('label');
@@ -3663,6 +3872,13 @@ function ajouterObservationManuelle(zone){
 
 /* Assemble le bilan à partir de ce qui a été saisi */
 async function genererBilanManuel(){
+  /* Mise à jour des infos, comme à la fin d'un cours enregistré */
+  const maj = await ouvrirQuestionnaireDepart(contexteDepart, 'Après ce cours', 'Terminer');
+  if(maj){
+    contexteDepart = maj;
+    appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
+  }
+
   const modeleCle = $('modele').value;
   const modele = MODELES[modeleCle];
   const champs = CHAMPS_MANUELS[modele.schema];
@@ -3672,6 +3888,77 @@ async function genererBilanManuel(){
       champsManuels[ch.cle] = Array.prototype.slice
         .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
         .map(x => ({ nom: x.value, fait: true }));
+    }else if(ch.type === 'cepc'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom + ' — E, 0, 1, 2 ou 3';
+      bloc.appendChild(l);
+
+      const z = document.createElement('div');
+      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
+      const lignes = [];
+      CEPC_COMPETENCES.forEach(g => {
+        const t = document.createElement('div');
+        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
+        t.textContent = g.groupe;
+        z.appendChild(t);
+        g.items.forEach(it => lignes.push(it));
+        g.items.forEach(it => z.appendChild(ligneCepc(it)));
+      });
+      const t2 = document.createElement('div');
+      t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:10px 0 4px;';
+      t2.textContent = 'Autonomie et conscience du risque';
+      z.appendChild(t2);
+      CEPC_AUTONOMIE.forEach(a => z.appendChild(ligneCepc(a)));
+      ['Conduite économique', 'Courtoisie'].forEach(a => z.appendChild(ligneCepc(a)));
+
+      const tot = document.createElement('div');
+      tot.id = 'cepcTotal';
+      tot.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--line);' +
+        'font-size:15px;font-weight:700;color:var(--accent-text);';
+      z.appendChild(tot);
+      bloc.appendChild(z);
+      setTimeout(majTotalCepc, 0);
+
+    }else if(ch.type === 'photo'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/*';
+      inp.id = 'photo_' + ch.cle;
+      inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px;border-radius:10px;font-size:14px;';
+      bloc.appendChild(inp);
+      const apercu = document.createElement('div');
+      apercu.id = 'apercu_' + ch.cle;
+      apercu.style.cssText = 'margin-top:8px;';
+      bloc.appendChild(apercu);
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;';
+      aide.textContent = "La photo reste sur ce téléphone : elle sert au moniteur pendant " +
+        "le rendez-vous, elle n'est pas envoyée dans le bilan.";
+      bloc.appendChild(aide);
+
+      inp.addEventListener('change', () => {
+        const f = inp.files && inp.files[0];
+        apercu.innerHTML = '';
+        if(!f) return;
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
+        apercu.appendChild(img);
+        champsManuels[ch.cle] = f.name;
+      });
+
+    }else if(ch.type === 'cepc'){
+      const cepc = {};
+      document.querySelectorAll('.cepcNiveau').forEach(s => {
+        if(s.value) cepc[s.getAttribute('data-comp')] = s.value;
+      });
+      champsManuels[ch.cle] = cepc;
+    }else if(ch.type === 'photo'){
+      /* déjà renseigné au choix du fichier */
     }else if(ch.type === 'observations'){
       const obs = [];
       document.querySelectorAll('#obsManuel > div').forEach(d => {
@@ -3782,6 +4069,31 @@ function verifierBoiteModele(boite){
   zone.appendChild(b);
 }
 
+
+/* ============================================================
+   CACHE
+   Apps Script met plusieurs secondes à répondre. On garde les
+   résultats un court instant plutôt que de le réinterroger.
+   ============================================================ */
+const cacheDossiers = {};      /* par élève */
+let cacheBureau = null;
+const DUREE_CACHE = 60000;     /* 1 minute */
+
+function lireCacheDossier(nom){
+  const k = normaliserMot(nom);
+  const e = cacheDossiers[k];
+  if(e && Date.now() - e.ts < DUREE_CACHE) return e.data;
+  return null;
+}
+function ecrireCacheDossier(nom, data){
+  cacheDossiers[normaliserMot(nom)] = { ts: Date.now(), data: data };
+}
+function viderCaches(nom){
+  if(nom) delete cacheDossiers[normaliserMot(nom)];
+  else Object.keys(cacheDossiers).forEach(k => delete cacheDossiers[k]);
+  cacheBureau = null;
+}
+
 /* ---------- Liste des élèves déjà enregistrés ---------- */
 let elevesConnus = [];
 
@@ -3890,6 +4202,10 @@ async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], derniereNote: '',
                  dernierHorodatage: '', boite: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
+
+  const enCache = lireCacheDossier(nomEleve);
+  if(enCache) return enCache;
+
   try{
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
@@ -3941,10 +4257,12 @@ async function chargerDossierEleve(nomEleve){
       if(!boite && /manuelle/i.test(it.type || '')) boite = 'bv';
     });
 
-    return { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
-             derniereNote: dernier.note || '',
-             dernierHorodatage: dernier.horodatage || dernier.date || '',
-             boite: boite };
+    const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
+                       derniereNote: dernier.note || '',
+                       dernierHorodatage: dernier.horodatage || dernier.date || '',
+                       boite: boite };
+    ecrireCacheDossier(nomEleve, resultat);
+    return resultat;
   }catch(e){
     console.warn('Dossier élève indisponible :', e);
     return vide;
@@ -4267,15 +4585,17 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '</select>' +
       '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
 
-      '<label for="qEBPasse">Examen blanc passé aujourd\'hui ?</label>' +
-      '<select id="qEBPasse">' +
-        '<option value="">— non, cours ordinaire —</option>' +
-        '<option value="3h">✅ Passé — plus que les 3h avant examen</option>' +
-        '<option value="lecons">⏳ Passé — encore des leçons avant examen</option>' +
-        '<option value="pasleniveau">⛔ Passé — pas le niveau</option>' +
-      '</select>' +
-      '<input type="text" id="qEBLecons" inputmode="numeric" ' +
-      'placeholder="Combien de leçons avant l\'examen ?" style="display:none;">' +
+      (modeleCle === 'examen-blanc'
+        ? '<label for="qEBPasse">Conclusion de l\'examen blanc</label>' +
+          '<select id="qEBPasse">' +
+            '<option value="">— à renseigner —</option>' +
+            '<option value="3h">✅ Plus que les 3h avant examen</option>' +
+            '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
+            '<option value="pasleniveau">⛔ Pas le niveau</option>' +
+          '</select>' +
+          '<input type="text" id="qEBLecons" inputmode="numeric" ' +
+          'placeholder="Combien de leçons avant l\'examen ?" style="display:none;">'
+        : '') +
 
       '<label for="qExamPermis">Examen du permis</label>' +
       '<select id="qExamPermis">' +
@@ -4479,13 +4799,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     /* Le nombre de leçons ne se demande que si l'examen blanc en appelle */
     const selEB2 = boite.querySelector('#qEBPasse');
     const nEB2 = boite.querySelector('#qEBLecons');
-    selEB2.value = prec.ebPasse || '';
-    nEB2.value = prec.ebLecons || '';
-    const majEB2 = () => {
-      nEB2.style.display = (selEB2.value === 'lecons') ? 'block' : 'none';
-    };
-    selEB2.addEventListener('change', majEB2);
-    setTimeout(majEB2, 0);
+    if(selEB2 && nEB2){
+      selEB2.value = prec.ebPasse || '';
+      nEB2.value = prec.ebLecons || '';
+      const majEB2 = () => {
+        nEB2.style.display = (selEB2.value === 'lecons') ? 'block' : 'none';
+      };
+      selEB2.addEventListener('change', majEB2);
+      setTimeout(majEB2, 0);
+    }
 
     const nEP = boite.querySelector('#qExamPermisN');
     const nvDate = boite.querySelector('#qNouvelleDate');
@@ -4540,8 +4862,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         finirFiche: boite.querySelector('#qFinirFiche').checked,
         simuNuit: boite.querySelector('#qSimuNuit').value,
         finFormation: boite.querySelector('#qFinFormation').checked,
-        ebPasse: selEB2.value,
-        ebLecons: nEB2.value.trim(),
+        ebPasse: selEB2 ? selEB2.value : '',
+        ebLecons: nEB2 ? nEB2.value.trim() : '',
         examPermisN: nEP.value.trim(),
         nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
@@ -5942,8 +6264,14 @@ function libelleUrgence(v){
   return u || URGENCES[0];
 }
 
-async function chargerBureau(){
-  const data = await appelPrep({ action: 'bureauEtat' });
+async function chargerBureau(forcer){
+  let data;
+  if(!forcer && cacheBureau && Date.now() - cacheBureau.ts < 30000){
+    data = cacheBureau.data;
+  }else{
+    data = await appelPrep({ action: 'bureauEtat' });
+    cacheBureau = { ts: Date.now(), data: data };
+  }
   const eleves = (data && data.eleves) || [];
   const consignes = (data && data.consignes) || [];
 
@@ -5991,6 +6319,7 @@ async function chargerBureau(){
 
 /* Enregistre une consigne : elle sera injectée dans la note du prochain cours */
 async function envoyerConsigne(eleve, type, texte, valeur){
+  cacheBureau = null;
   await appelPrep({
     action: 'consigneAdd',
     eleve: eleve, type: type, texte: texte, valeur: valeur || '',
@@ -6008,6 +6337,7 @@ function suiviDe(eleve){
 
 /* Met à jour quelques champs sans écraser le reste */
 async function majSuivi(eleve, champs){
+  cacheBureau = null;
   const s = suiviDe(eleve);
   await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
     eleve: eleve, par: ACCES.moniteur || ''
@@ -6914,7 +7244,7 @@ async function afficherBureau(silencieux){
   }
 
   try{
-    await chargerBureau();
+    await chargerBureau(!silencieux);
     bureauDejaCharge = true;
   }catch(e){
     if(btn){ btn.disabled = false; btn.textContent = '🔄 Actualiser les listes'; }
