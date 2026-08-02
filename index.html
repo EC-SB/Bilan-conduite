@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v115</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v116</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1433,33 +1433,36 @@ function buildEval(ai, avecBea){
    Trois barèmes différents selon le bloc, total sur 31.
    ============================================================ */
 const CEPC_BLOCS = [
-  { titre:'Connaître et maîtriser son véhicule', bareme:'note', items:[
-    "Savoir s'installer et assurer la sécurité à bord",
-    'Effectuer des vérifications du véhicule',
-    'Connaître et utiliser les commandes' ]},
-  { titre:'Appréhender la route', bareme:'note', items:[
-    "Prendre l'information",
-    'Adapter son allure aux circonstances',
-    'Appliquer la réglementation' ]},
-  { titre:'Partager la route avec les autres usagers', bareme:'note', items:[
-    'Communiquer avec les autres usagers',
-    'Partager la chaussée',
-    'Maintenir les espaces de sécurité' ]},
-  { titre:'Autonomie, conscience du risque', bareme:'demi', items:[
-    'Analyse des situations',
-    'Adaptation aux situations',
-    'Conduite autonome' ]},
-  { titre:'Conduite respectueuse', bareme:'binaire', items:[
-    "Conduite économique et respectueuse de l'environnement" ]},
-  /* La courtoisie est relevée mais n'entre pas dans le total sur 31 */
-  { titre:'Courtoisie', bareme:'binaire', horsTotal:true, items:['Courtoisie'] }
+  { titre:'Connaître et maîtriser son véhicule', items:[
+    /* Pas d'éliminatoire ici, et l'installation est notée sur 2 */
+    { nom:"Savoir s'installer et assurer la sécurité à bord", valeurs:['0','1','2'] },
+    { nom:'Effectuer des vérifications du véhicule',          valeurs:['0','1','2','3'] },
+    { nom:'Connaître et utiliser les commandes',              valeurs:['E','0','1','2','3'] } ]},
+  { titre:'Appréhender la route', items:[
+    { nom:"Prendre l'information",                 valeurs:['E','0','1','2','3'] },
+    { nom:'Adapter son allure aux circonstances',  valeurs:['E','0','1','2','3'] },
+    { nom:'Appliquer la réglementation',           valeurs:['E','0','1','2','3'] } ]},
+  { titre:'Partager la route avec les autres usagers', items:[
+    { nom:'Communiquer avec les autres usagers',   valeurs:['E','0','1','2','3'] },
+    { nom:'Partager la chaussée',                  valeurs:['E','0','1','2','3'] },
+    { nom:'Maintenir les espaces de sécurité',     valeurs:['E','0','1','2','3'] } ]},
+  { titre:'Autonomie, conscience du risque', items:[
+    { nom:'Analyse des situations',    valeurs:['0','0.5','1'] },
+    { nom:'Adaptation aux situations', valeurs:['0','0.5','1'] },
+    { nom:'Conduite autonome',         valeurs:['0','0.5','1'] } ]},
+  { titre:'Conduite respectueuse', items:[
+    { nom:"Conduite économique et respectueuse de l'environnement", valeurs:['0','1'] },
+    { nom:'Courtoisie',                                             valeurs:['0','1'] } ]}
 ];
 
-const CEPC_VALEURS = {
-  note:    ['E', '0', '1', '2', '3'],
-  demi:    ['0', '0.5', '1'],
-  binaire: ['0', '1']
-};
+/* Note maximale possible, pour vérification */
+function totalMaxCepc(){
+  let m = 0;
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
+    m += Math.max.apply(null, it.valeurs.filter(v => v !== 'E').map(Number));
+  }));
+  return m;
+}
 
 /* Total et éliminatoire : un seul E suffit à éliminer */
 function calculerCepc(c){
@@ -1467,15 +1470,16 @@ function calculerCepc(c){
   let total = 0;
   let eliminatoires = [];
   CEPC_BLOCS.forEach(b => b.items.forEach(it => {
-    if(b.horsTotal) return;         /* la courtoisie ne compte pas */
-    const v = c[it];
+    const v = c[it.nom];
     if(v === undefined || v === '') return;
-    if(v === 'E'){ eliminatoires.push(it); return; }
+    if(v === 'E'){ eliminatoires.push(it.nom); return; }
     const n = parseFloat(String(v).replace(',', '.'));
     if(!isNaN(n)) total += n;
   }));
-  return { total: total, eliminatoires: eliminatoires,
-           elimine: eliminatoires.length > 0, favorable: (total >= 20 && !eliminatoires.length) };
+  const max = totalMaxCepc();
+  return { total: total, max: max, eliminatoires: eliminatoires,
+           elimine: eliminatoires.length > 0,
+           favorable: (total >= 20 && !eliminatoires.length) };
 }
 
 function buildExamenBlanc(ai, ctx){
@@ -1533,14 +1537,14 @@ function buildExamenBlanc(ai, ctx){
   L('🧾𝙍𝙚́𝙨𝙪𝙡𝙩𝙖𝙩 :');
   CEPC_BLOCS.forEach(b => {
     const lignes = b.items
-      .filter(it => (ai.cepc || {})[it] !== undefined && (ai.cepc || {})[it] !== '')
-      .map(it => '   ' + it + ' : ' + (ai.cepc[it] === 'E' ? '𝗘 ❌' : ai.cepc[it]));
+      .filter(it => (ai.cepc || {})[it.nom] !== undefined && (ai.cepc || {})[it.nom] !== '')
+      .map(it => '   ' + it.nom + ' : ' + (ai.cepc[it.nom] === 'E' ? '𝗘 ❌' : ai.cepc[it.nom]));
     if(!lignes.length) return;
     L('▸ ' + b.titre);
     lignes.forEach(L);
   });
   L('');
-  L('𝗧𝗢𝗧𝗔𝗟 : ' + cep.total + ' / 31');
+  L('𝗧𝗢𝗧𝗔𝗟 : ' + cep.total + ' / ' + cep.max);
   if(cep.elimine){
     L('❌ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘 — ' + cep.eliminatoires.length + ' compétence(s) en E :');
     cep.eliminatoires.forEach(e => L('   • ' + e));
@@ -1552,7 +1556,7 @@ function buildExamenBlanc(ai, ctx){
     L('👉 Observations :');
     ligneParLigne(ai.observations).forEach(o => L('   ' + o));
   }
-  L('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/31 et aucune fautes éliminatoires.');
+  L('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/' + cep.max + ' et aucune faute éliminatoire.');
   L('');
 
   L('𝟯-𝘽𝙄𝙇𝘼𝙉 𝙀𝙍𝙍𝙀𝙐𝙍𝙎 :');
@@ -3786,7 +3790,7 @@ function majTotalCepc(){
   }else{
     etat = 'insuffisant — 20 minimum'; couleur = 'var(--warn-text)';
   }
-  z.innerHTML = 'Total : ' + r.total + ' / 31 · <span style="color:' + couleur + ';">' +
+  z.innerHTML = 'Total : ' + r.total + ' / ' + r.max + ' · <span style="color:' + couleur + ';">' +
     etat + '</span>';
 }
 
@@ -3929,7 +3933,7 @@ async function ouvrirBilanManuel(){
         t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
         t.textContent = g.titre;
         z.appendChild(t);
-        g.items.forEach(it => z.appendChild(ligneCepc(it, CEPC_VALEURS[g.bareme])));
+        g.items.forEach(it => z.appendChild(ligneCepc(it.nom, it.valeurs)));
       });
 
       const tot = document.createElement('div');
@@ -4077,7 +4081,7 @@ async function genererBilanManuel(){
         t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
         t.textContent = g.titre;
         z.appendChild(t);
-        g.items.forEach(it => z.appendChild(ligneCepc(it, CEPC_VALEURS[g.bareme])));
+        g.items.forEach(it => z.appendChild(ligneCepc(it.nom, it.valeurs)));
       });
 
       const tot = document.createElement('div');
