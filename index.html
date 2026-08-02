@@ -410,7 +410,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v98</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v99</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -3441,6 +3441,11 @@ function defautsDepuisNote(note){
     const n = (note || '').match(/reprogrammé le ([^—·]+)/i);
     if(n){ const iso = dateFrVersIso(n[1]); if(iso) d.nouvelleDate = iso; }
   }
+  const n = String(note || '');
+  if(/♿ Conduite aménagée/i.test(n)){
+    d.handicap = 'oui';
+    d.amenagements = AMENAGEMENTS.filter(a => n.indexOf(a.nom) !== -1).map(a => a.cle);
+  }
   if(/Formation accompagnateur faite/i.test(note || '')) d.formAccomp = 'faite';
   else if(/Formation accompagnateur déjà prévue/i.test(note || '')) d.formAccomp = 'prevue';
   else if(/Formation accompagnateur à prévoir/i.test(note || '')) d.formAccomp = 'aprevoir';
@@ -3483,6 +3488,20 @@ const FRISES_FIXES = {
 
 /* Parcours proposé par défaut selon le type de bilan */
 const PARCOURS_PAR_TYPE = { 'aac-auto': 'aacbea', 'aac-manuelle': 'aacbv' };
+
+/* Aménagements possibles d'un véhicule adapté */
+const AMENAGEMENTS = [
+  { cle:'boule_g',  court:'🔘⬅️', nom:'Boule avec commande à gauche' },
+  { cle:'boule_d',  court:'🔘➡️', nom:'Boule avec commande à droite' },
+  { cle:'boule',    court:'🔘',   nom:'Boule simple' },
+  { cle:'accel_g',  court:'🦶⬅️', nom:'Accélérateur à gauche' },
+  { cle:'retros',   court:'🪞',   nom:'Rétroviseurs additionnels' }
+];
+
+function libelleAmenagement(cle){
+  const a = AMENAGEMENTS.find(x => x.cle === cle);
+  return a ? a.court + ' ' + a.nom : cle;
+}
 
 /* Ce que le questionnaire doit afficher selon le type de bilan.
    Sur simulateur, tout le reste se passe en voiture : seule la frise compte. */
@@ -3620,6 +3639,20 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '<option value="bv">BV — boîte manuelle</option>' +
         '<option value="bea">BEA — boîte automatique</option>' +
       '</select>' +
+
+      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
+        'color:var(--cream);margin-bottom:10px;">' +
+        '<input type="checkbox" id="qHandicap" style="width:19px;height:19px;">' +
+        '♿ Conduite aménagée</label>' +
+      '<div id="qZoneHandicap" style="display:none;padding:10px 12px;margin-bottom:14px;' +
+        'background:var(--navy);border:1px solid var(--orange);border-radius:10px;">' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Aménagements du véhicule</div>' +
+        AMENAGEMENTS.map(a =>
+          '<label style="display:flex;align-items:center;gap:9px;text-transform:none;' +
+          'font-size:15px;color:var(--cream);margin:0 0 7px;">' +
+          '<input type="checkbox" class="qAmg" value="' + a.cle + '" style="width:18px;height:18px;">' +
+          a.court + ' ' + a.nom + '</label>').join('') +
+      '</div>' +
 
       '<label for="qAnts">Dossier ANTS</label>' +
       '<select id="qAnts">' +
@@ -3828,6 +3861,18 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
     boite.querySelector('#qAnts').value = prec.ants || '';
 
+    /* Conduite aménagée */
+    const cbH = boite.querySelector('#qHandicap');
+    const znH = boite.querySelector('#qZoneHandicap');
+    const dejaAmg = prec.amenagements || [];
+    cbH.checked = (prec.handicap === 'oui') || dejaAmg.length > 0;
+    boite.querySelectorAll('.qAmg').forEach(x => {
+      x.checked = dejaAmg.indexOf(x.value) !== -1;
+    });
+    const majH = () => { znH.style.display = cbH.checked ? 'block' : 'none'; };
+    cbH.addEventListener('change', majH);
+    majH();
+
     /* Manœuvres qui restent à faire — affichage seul */
     const zoneRestantes = boite.querySelector('#qListeRestantes');
     if(zoneRestantes){
@@ -3912,6 +3957,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         formAccomp: boite.querySelector('#qFormAccomp').value,
         rvPrealable: boite.querySelector('#qRvPrealable').value,
         boite: boite.querySelector('#qBoite').value,
+        handicap: boite.querySelector('#qHandicap').checked ? 'oui' : '',
+        amenagements: Array.prototype.slice
+          .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
         ants: boite.querySelector('#qAnts').value,
         libre: boite.querySelector('#qLibre').value.trim(),
         leconsFaites: faites,
@@ -3926,6 +3974,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 function noteDepuisQuestionnaire(q){
   if(!q) return '';
   const bouts = [];
+
+  /* Les aménagements passent en premier : le moniteur doit les voir d'emblée */
+  if(q.handicap === 'oui'){
+    const amg = (q.amenagements || []).map(libelleAmenagement);
+    bouts.push('♿ Conduite aménagée' + (amg.length ? ' — ' + amg.join(' · ') : ''));
+  }
 
   if(q.frise) bouts.push(q.frise);
 
@@ -5134,6 +5188,10 @@ async function chargerBureau(){
   etatBureau.consignes = consignes;
   etatBureau.suivi = (data && data.suivi) || [];
   chargerPlaces(data && data.places);
+  /* Les périodes terminées sortent d'elles-mêmes */
+  if(nettoyerPeriodesEchues()){
+    try{ await enregistrerPlaces(); }catch(e){}
+  }
   /* Un élève peut n'exister que par une consigne du bureau */
   const connus = eleves.map(x => normaliserMot(x.eleve));
   consignes.forEach(cs => {
@@ -5465,6 +5523,28 @@ function chargerPlaces(brut){
   placesConfig.mois.sort((a, b) => String(a.mois).localeCompare(String(b.mois)));
 }
 
+/* Retire les semaines terminées et les mois écoulés.
+   Renvoie true si quelque chose a été retiré, pour enregistrer ensuite. */
+function nettoyerPeriodesEchues(){
+  const auj = todayLocal();
+  const moisCourant = auj.slice(0, 7);
+  let modifie = false;
+
+  placesConfig.mois.forEach(m => {
+    const avant = (m.semaines || []).length;
+    /* Une semaine disparaît le lendemain de sa date de fin */
+    m.semaines = (m.semaines || []).filter(w => !w.au || w.au >= auj);
+    if(m.semaines.length !== avant) modifie = true;
+  });
+
+  const avantMois = placesConfig.mois.length;
+  /* Un mois disparaît quand il est entièrement écoulé */
+  placesConfig.mois = placesConfig.mois.filter(m => !m.mois || m.mois >= moisCourant);
+  if(placesConfig.mois.length !== avantMois) modifie = true;
+
+  return modifie;
+}
+
 /* Toutes les semaines, tous mois confondus */
 function toutesSemaines(){
   const out = [];
@@ -5571,8 +5651,13 @@ function afficherPlaces(stats){
       s.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--line);' +
         'font-size:13px;line-height:1.8;';
       s.innerHTML = '<div style="font-weight:700;margin-bottom:2px;">Jours ouverts à la prise de date</div>' +
-        m.semaines.map(w => '• ' + libelleSemaine(w) + ' — 🚗 <strong>' + (w.sb || 0) +
-          '</strong> j Saint-Brieuc · <strong>' + (w.lo || 0) + '</strong> j Loudéac').join('<br>') +
+        m.semaines.map(w => {
+          const n = (stats.parSemaine && stats.parSemaine[w.du + '>' + w.au]) || 0;
+          return '• ' + libelleSemaine(w) + ' — 🚗 <strong>' + (w.sb || 0) +
+            '</strong> j Saint-Brieuc · <strong>' + (w.lo || 0) + '</strong> j Loudéac' +
+            ' · <span style="color:' + (n ? 'var(--accent-text)' : 'var(--muted)') + ';">' +
+            n + ' examen' + (n > 1 ? 's' : '') + ' prévu' + (n > 1 ? 's' : '') + '</span>';
+        }).join('<br>') +
         '<div style="margin-top:4px;color:var(--muted);">Total : ' + tsb +
         ' j Saint-Brieuc · ' + tlo + ' j Loudéac</div>';
       r.appendChild(s);
@@ -6205,7 +6290,15 @@ async function afficherBureau(silencieux){
     if(s.dateADonner === 'oui') parMois[k].aDonner++;
   });
 
-  afficherPlaces({ parMois: parMois, horsMois: horsMois });
+  /* Nombre d'examens tombant dans chaque semaine ouverte */
+  const parSemaine = {};
+  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
+    if(!w.du || !w.au) return;
+    const cle = w.du + '>' + w.au;
+    parSemaine[cle] = actifs.filter(e => e._iso && e._iso >= w.du && e._iso <= w.au).length;
+  }));
+
+  afficherPlaces({ parMois: parMois, horsMois: horsMois, parSemaine: parSemaine });
 
   zPP.innerHTML = '';
   if(!prevus.length){
