@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v112</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v114</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -1428,91 +1428,200 @@ function buildEval(ai, avecBea){
    EXAMEN OFFICIEL
    ============================================================ */
 
-/* Compétences du CEPC, dans l'ordre officiel */
-const CEPC_COMPETENCES = [
-  { groupe:'Connaître et maîtriser son véhicule', items:[
+/* ============================================================
+   CEPC — certificat d'examen du permis de conduire
+   Trois barèmes différents selon le bloc, total sur 31.
+   ============================================================ */
+const CEPC_BLOCS = [
+  { titre:'Connaître et maîtriser son véhicule', bareme:'note', items:[
     "Savoir s'installer et assurer la sécurité à bord",
     'Effectuer des vérifications du véhicule',
     'Connaître et utiliser les commandes' ]},
-  { groupe:'Appréhender la route', items:[
+  { titre:'Appréhender la route', bareme:'note', items:[
     "Prendre l'information",
     'Adapter son allure aux circonstances',
     'Appliquer la réglementation' ]},
-  { groupe:'Partager la route avec les autres usagers', items:[
+  { titre:'Partager la route avec les autres usagers', bareme:'note', items:[
     'Communiquer avec les autres usagers',
     'Partager la chaussée',
-    'Maintenir les espaces de sécurité' ]}
+    'Maintenir les espaces de sécurité' ]},
+  { titre:'Autonomie, conscience du risque', bareme:'demi', items:[
+    'Analyse des situations',
+    'Adaptation aux situations',
+    'Conduite autonome' ]},
+  { titre:'Conduite respectueuse', bareme:'binaire', items:[
+    "Conduite économique et respectueuse de l'environnement" ]},
+  /* La courtoisie est relevée mais n'entre pas dans le total sur 31 */
+  { titre:'Courtoisie', bareme:'binaire', horsTotal:true, items:['Courtoisie'] }
 ];
 
-const CEPC_AUTONOMIE = ['Analyse des situations', 'Adaptation aux situations', 'Conduite autonome'];
+const CEPC_VALEURS = {
+  note:    ['E', '0', '1', '2', '3'],
+  demi:    ['0', '0.5', '1'],
+  binaire: ['0', '1']
+};
+
+/* Total et éliminatoire : un seul E suffit à éliminer */
+function calculerCepc(c){
+  c = c || {};
+  let total = 0;
+  let eliminatoires = [];
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
+    if(b.horsTotal) return;         /* la courtoisie ne compte pas */
+    const v = c[it];
+    if(v === undefined || v === '') return;
+    if(v === 'E'){ eliminatoires.push(it); return; }
+    const n = parseFloat(String(v).replace(',', '.'));
+    if(!isNaN(n)) total += n;
+  }));
+  return { total: total, eliminatoires: eliminatoires,
+           elimine: eliminatoires.length > 0, favorable: (total >= 20 && !eliminatoires.length) };
+}
 
 function buildExamenBlanc(ai, ctx){
   ai = ai || {};
-  const c = ai.cepc || {};
-  const parts = [
-    '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 👀',
-    '',
-    '📋 𝗖𝗘𝗥𝗧𝗜𝗙𝗜𝗖𝗔𝗧 𝗗\'𝗘𝗫𝗔𝗠𝗘𝗡 — bilan des compétences',
-    'Niveaux : E · 0 · 1 · 2 · 3',
-    ''
-  ];
+  const cep = calculerCepc(ai.cepc);
+  const av = ai.avant || {};
+  const ex = ai.examen || {};
+  const P = [];
+  const L = s => P.push(s);
 
-  let total = 0, notes = 0;
-  CEPC_COMPETENCES.forEach(g => {
-    parts.push('▸ ' + g.groupe);
-    g.items.forEach(it => {
-      const v = c[it];
-      parts.push('   ' + it + ' : ' + (v === undefined || v === '' ? '—' : v));
-      const n = parseInt(v, 10);
-      if(!isNaN(n)){ total += n; notes++; }
-    });
-    parts.push('');
+  L('👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 👀');
+  L('');
+  L('𝟭-𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ');
+  L('');
+  L('𝟭-𝟭. 𝗖𝗮𝗿𝘁𝗲 𝗦𝗗 ' + st(av.carteSD));
+  L("N'oublie pas de la regarder et si tu as un souci, contacte-nous !");
+  L('💡Rappel, tous tes cours sont filmés, par une caméra avant et arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours !');
+  L('');
+  L('𝟭-𝟮. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(av.installation) + ' ');
+  L('https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
+  L('𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ' + st(av.passager));
+  L('𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ' + st(av.voyants));
+  L('𝙉𝙤𝙩𝙚 :  /2 ');
+  L('');
+  L("𝟭-𝟯. 𝙀𝙧𝙧𝙚𝙪𝙧𝙨 𝙦𝙪𝙚 𝙩𝙪 𝙖𝙨 𝙛𝙖𝙞𝙩𝙚𝙨 𝙚𝙣 𝙖𝙡𝙡𝙖𝙣𝙩 𝙖𝙪 𝙘𝙚𝙣𝙩𝙧𝙚 𝙙'𝙚𝙭𝙖𝙢𝙚𝙣 :");
+  L('');
+  const routeErr = ligneParLigne(av.erreursRoute);
+  for(let i = 0; i < Math.max(routeErr.length, 5); i++){
+    L('');
+    L('👉' + (routeErr[i] ? ' ' + routeErr[i] : ''));
+    L('');
+  }
+  L('');
+  L('𝟮-𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ');
+  L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : l'examen blanc consiste à se mettre en conditions réelles d'examen ! L'enseignant N'EST PLUS enseignant MAIS inspecteur du permis de conduire 👮");
+  L('');
+  L('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(ex.installation));
+  if(txt(ex.remarqueInstallation)) L('❌ ' + txt(ex.remarqueInstallation));
+  L('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧' + st(ex.passager));
+  L('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + st(ex.voyants));
+  L('𝙉𝙤𝙩𝙚 :  /2 ');
+  L('');
+  L('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion));
+  L('𝙉𝙤𝙩𝙚 :  /3');
+  L('https://www.facebook.com/groups/864826058258637');
+  L(' ');
+  L('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
+  const refl = ligneParLigne(ex.reflexions);
+  for(let i = 0; i < Math.max(refl.length, 22); i++){
+    L('👨‍✈️' + (refl[i] ? ' ' + refl[i] : ''));
+  }
+  L('');
+
+  /* ---- Le CEPC ---- */
+  L('🧾𝙍𝙚́𝙨𝙪𝙡𝙩𝙖𝙩 :');
+  CEPC_BLOCS.forEach(b => {
+    const lignes = b.items
+      .filter(it => (ai.cepc || {})[it] !== undefined && (ai.cepc || {})[it] !== '')
+      .map(it => '   ' + it + ' : ' + (ai.cepc[it] === 'E' ? '𝗘 ❌' : ai.cepc[it]));
+    if(!lignes.length) return;
+    L('▸ ' + b.titre);
+    lignes.forEach(L);
   });
-
-  parts.push('▸ Autonomie et conscience du risque');
-  CEPC_AUTONOMIE.forEach(a => {
-    parts.push('   ' + a + ' : ' + (c[a] === undefined || c[a] === '' ? '—' : c[a]));
-    const n = parseInt(c[a], 10);
-    if(!isNaN(n)){ total += n; notes++; }
-  });
-  parts.push('');
-
-  if(c['Conduite économique'] !== undefined && c['Conduite économique'] !== ''){
-    parts.push('Conduite économique et respectueuse : ' + c['Conduite économique']);
+  L('');
+  L('𝗧𝗢𝗧𝗔𝗟 : ' + cep.total + ' / 31');
+  if(cep.elimine){
+    L('❌ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘 — ' + cep.eliminatoires.length + ' compétence(s) en E :');
+    cep.eliminatoires.forEach(e => L('   • ' + e));
+  }else{
+    L(cep.favorable ? '✅ 𝗙𝗔𝗩𝗢𝗥𝗔𝗕𝗟𝗘' : '❌ 𝗜𝗡𝗦𝗨𝗙𝗙𝗜𝗦𝗔𝗡𝗧 — il faut 20 points minimum');
   }
-  if(c['Courtoisie'] !== undefined && c['Courtoisie'] !== ''){
-    parts.push('Courtoisie : ' + c['Courtoisie']);
+  if(txt(ai.observations)){
+    L('');
+    L('👉 Observations :');
+    ligneParLigne(ai.observations).forEach(o => L('   ' + o));
   }
-  parts.push('');
-  parts.push('𝗧𝗢𝗧𝗔𝗟 : ' + total + ' / ' + (notes * 3 || 0) +
-             (notes ? '   (' + notes + ' compétence(s) évaluée(s))' : ''));
-  parts.push('Rappel : 20 points minimum pour un résultat favorable.');
-  parts.push('');
+  L('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/31 et aucune fautes éliminatoires.');
+  L('');
 
-  if(txt(ai.resume)){
-    parts.push('🧠 𝗖𝗘 𝗤𝗨\'𝗜𝗟 𝗙𝗔𝗨𝗧 𝗧𝗥𝗔𝗩𝗔𝗜𝗟𝗟𝗘𝗥 :');
-    parts.push(txt(ai.resume));
-    parts.push('');
-  }
-
-  if(txt(ai.conclusion)){
-    parts.push('➡️ ' + txt(ai.conclusion));
-    parts.push('');
+  L('𝟯-𝘽𝙄𝙇𝘼𝙉 𝙀𝙍𝙍𝙀𝙐𝙍𝙎 :');
+  const bil = ligneParLigne(ai.bilanErreurs);
+  for(let i = 0; i < Math.max(bil.length, 5); i++){
+    L('👉 ' + (bil[i] || ''));
+    L("- qu'en penses-tu ?");
+    L('- quelles sont TES solutions ?');
+    L('- ce que je te PROPOSE : ');
+    L('');
+    L('');
   }
 
-  if(ai.photo){
-    parts.push('📷 Photo du CEPC jointe au bilan.');
-    parts.push('');
+  L('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
+  L('');
+  const niveau = ai.niveau || '';
+  if(niveau === 'non'){
+    L('𝟰-𝟭👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !');
+    L("Continue de travailler, écoutes pédagogiques, groupes de travail et continue tes leçons de conduites. Revoit avec tes moniteurs si ton niveau s'est amélioré pour permettre de re-prévoir un planning de fin de formation. ");
+    L('');
+    L('💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ');
+    L('- tu peux partir en conduite supervisée pour réduire ton nombre d\'heures et améliorer ton niveau, lien explicatif ici : https://m.facebook.com/groups/963972327360861/permalink/1122235844867841/ ');
+    L('- tu peux passer en boite auto si tu es en boite de vitesse et que tu as de gros soucis mécaniques, lien ici : https://m.facebook.com/groups/963972327360861/permalink/1121120328312726/');
+  }else if(niveau === 'oui'){
+    L('𝟰-𝟭👉 𝙊𝙐𝙄 ✅');
+    L('');
+    L("❓ 𝘾𝙤𝙢𝙗𝙞𝙚𝙣 𝙙'𝙝𝙚𝙪𝙧𝙚𝙨 𝙖𝙫𝙖𝙣𝙩 𝙥𝙚𝙧𝙢𝙞𝙨 : " + (txt(ai.heuresAvant) || ' ?') +
+      ' + 3h avant permis (sous réserve de progression). ');
+    L('');
+    L('❓Cela correspond à ta frise chronologique de formation selon ton évaluation ?  : ');
+    L('- avant examen blanc  : ' + (ai.friseAvant === 'oui' ? '✅OUI' : '❌ NON + ' + (txt(ai.friseAvantH) || ' ') + 'h'));
+    L('- post permis : ' + (ai.frisePost === 'oui' ? '✅OUI' : '❌ NON + ' + (txt(ai.frisePostH) || ' ') + 'h'));
+    L('');
+    if(ai.aDate === 'oui'){
+      L('❓𝙏𝙐 𝘼𝙎 𝘿𝙀́𝙅𝘼̀ 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀 👮 :');
+      L('- as-tu planifié tes heures avant permis ? : ' + st(ai.heuresPlanifiees));
+      L('- si tu ne trouves pas de place sur le planning, contacte nous EN URGENCE. ');
+      L("💡𝙍𝙖𝙥𝙥𝙚𝙡 : 𝙨𝙞 𝙩𝙚𝙨 𝙝𝙚𝙪𝙧𝙚𝙨 𝙚𝙩 𝙩𝙤𝙣 𝙥𝙖𝙨𝙨𝙖𝙜𝙚 𝙖̀ 𝙡'𝙚𝙭𝙖𝙢𝙚𝙣 𝙣'𝙤𝙣𝙩 𝙥𝙖𝙨 𝙚́𝙩𝙚́ 𝙖𝙘𝙝𝙚𝙩𝙚́𝙨,  𝘁𝗼𝗻 𝗲𝘅𝗮𝗺𝗲𝗻 𝗱𝘂 𝗽𝗲𝗿𝗺𝗶𝘀 𝗱𝗲 𝗰𝗼𝗻𝗱𝘂𝗶𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗲́𝗰𝗮𝗹𝗲́.");
+    }else{
+      L('❓𝙏𝙐 𝙉\'𝘼𝙎 𝙋𝘼𝙎 𝙀𝙉𝘾𝙊𝙍𝙀 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀⏳  : ');
+      L('- as-tu posé tes heures, en gardant 2 leçons de 2h + 1 leçon de 1h (2+3) pour les planifier au plus proche de ta prochaine date de permis ?  : ' + st(ai.heuresPosees));
+      L('- ton passage à l\'examen a bien été acheté ?');
+    }
   }
+  L('');
 
-  const note = (ctx && ctx.note) || '';
-  const frise = extraireFrise(note);
-  if(frise){
-    parts.push('➡️  Rappel de ta FRISE DE FORMATION EN VOITURE : ');
-    parts.push(frise);
-  }
-  return parts.join('\n');
+  L('𝟱- 𝙍𝙀𝙁𝘼𝙄𝙎 𝗧𝗢𝗡 𝗕𝗜𝗟𝗔𝗡 𝗔𝗣𝗥𝗘̀𝗦 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 𝘼𝙑𝙀𝘾 𝘾𝙊𝙍𝙍𝙀𝘾𝙏𝙄𝙊𝙉 𝘿𝙀 𝙇𝘼 𝙍𝙀𝙎𝙋𝙊𝙉𝙎𝘼𝘽𝙇𝙀 𝙋𝙀́𝘿𝘼𝙂𝙊𝙂𝙄𝙌𝙐𝙀 (𝙜𝙧𝙖𝙩𝙪𝙞𝙩 𝙨𝙪𝙧 𝙢𝙚𝙨𝙨𝙚𝙣𝙜𝙚𝙧) :');
+  L('Pour être sûr(e) que tu as compris, ton bilan avec ton moniteur (trice). ');
+  L("Il faut que tu sois capable de t'auto-évaluer pour éviter de te planter !");
+  L('Toutes les consignes sont sur le lien  https://www.facebook.com/share/p/18sc7wKjbg/');
+  L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : 𝙚𝙣 𝙘𝙖𝙨 𝙙'𝙚́𝙘𝙝𝙚𝙘, 𝙩𝙪 𝙖𝙪𝙧𝙖𝙨 𝙈𝙄𝙉𝙄𝙈𝙐𝙈 𝟰𝙝 (𝟮 𝙡𝙚𝙘̧𝙤𝙣𝙨 𝙙𝙚 𝟮𝙝) + 𝟯𝙝 (𝟮𝙝 𝙡𝙖 𝙫𝙚𝙞𝙡𝙡𝙚 𝙙𝙪 𝙥𝙚𝙧𝙢𝙞𝙨 𝙚𝙩 𝟭𝙝 𝙡𝙚 𝙟𝙤𝙪𝙧 𝙢𝙚̂𝙢𝙚) 𝙖̀ 𝙚𝙛𝙛𝙚𝙘𝙩𝙪𝙚𝙧 𝘼𝙑𝘼𝙉𝙏 𝙙𝙚 𝙧𝙚𝙥𝙖𝙨𝙨𝙚𝙧.");
+  L('');
+  L('𝟲- 𝙅𝙊𝙐𝙍 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 🔎');
+  L("Tu vas être ajouté(e) dans un groupe Messenger qui t'indiquera le programme de ta journée et toutes les procédures à apprendre pour l'examen : PATIENCE ÇA VA ARRIVER 🙂");
+  L('');
+  L('𝟳- 𝘾𝙊𝙉𝙏𝙄𝙉𝙐𝙀 𝘿𝙀 𝙏𝙍𝘼𝙑𝘼𝙄𝙇𝙇𝙀𝙍  🧠');
+  L('Réserves en plus des écoutes pédagogiques et bosse bien tes groupes ! ');
+  L('');
+  L('𝟴- 𝙇𝘼 𝙑𝙀𝙄𝙇𝙇𝙀 𝘿𝙀 𝙏𝙊𝙉 𝙀𝙓𝘼𝙈𝙀𝙉 🆔');
+  L("N'oublie pas de nous donner ta carte d'identité et en attendant envoie-moi la photo de ta carte d'identité recto verso ici (pour s'assurer qu'elle est bien en ta possession, car pas de carte d'identité, pas de permis !)");
+
+  return P.join('\n');
 }
+
+/* Découpe un texte en lignes utiles */
+function ligneParLigne(s){
+  return String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
+}
+
 
 function buildExamen(ai){
   const a = (ai && ai.avantExamen) || {};
@@ -3520,13 +3629,42 @@ const CHAMPS_MANUELS = {
     { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
   ],
   examenblanc: [
-    { cle:'cepc',       type:'cepc',  nom:'Bilan des compétences (CEPC)' },
-    { cle:'resume',     type:'texte', nom:'🧠 Ce qu\'il faut travailler', lignes:10 },
-    { cle:'conclusion', type:'texte', nom:'➡️ Conclusion pour l\'élève', lignes:3 },
-    { cle:'photo',      type:'photo', nom:'📷 Photo du CEPC' }
+    { cle:'avant.carteSD',      type:'ok', nom:'1-1 · Carte SD', defaut:'✅' },
+    { cle:'avant.installation', type:'ok', nom:'1-2 · Installation', defaut:'✅' },
+    { cle:'avant.passager',     type:'ok', nom:'1-2 · Passager', defaut:'✅' },
+    { cle:'avant.voyants',      type:'ok', nom:'1-2 · Voyants', defaut:'✅' },
+    { cle:'avant.erreursRoute', type:'texte', lignes:5,
+      nom:"1-3 · Erreurs en allant au centre d'examen",
+      aide:'Une erreur par ligne.' },
+
+    { cle:'examen.installation', type:'ok', nom:'2-1 · Installation', defaut:'' },
+    { cle:'examen.remarqueInstallation', type:'court', nom:'2-1 · Remarque sur l\'installation' },
+    { cle:'examen.passager',     type:'ok', nom:'2-1 · Passager', defaut:'' },
+    { cle:'examen.voyants',      type:'ok', nom:'2-1 · Voyants', defaut:'' },
+    { cle:'examen.verifQuestion',type:'court', nom:'2-2 · Vérifications, question n°' },
+    { cle:'examen.reflexions',   type:'texte', lignes:10,
+      nom:'2-3 · Réflexions inspecteur et explications',
+      aide:'Une réflexion par ligne.' },
+
+    { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
+    { cle:'observations',type:'texte', lignes:4,
+      nom:'Observations et fautes éliminatoires',
+      aide:'Une observation par ligne.' },
+
+    { cle:'bilanErreurs',type:'texte', lignes:6, nom:'3 · Bilan erreurs',
+      aide:'Une erreur par ligne : chacune reçoit les trois questions.' },
+
+    { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
+    { cle:'heuresAvant', type:'court',  nom:"4 · Combien d'heures avant permis" },
+    { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
+    { cle:'friseAvantH', type:'court',  nom:'4 · Si non, heures en plus' },
+    { cle:'frisePost',   type:'ouinon', nom:'4 · Frise respectée post permis' },
+    { cle:'frisePostH',  type:'court',  nom:'4 · Si non, heures en plus' },
+    { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
+    { cle:'heuresPlanifiees', type:'ok', nom:'4 · Heures avant permis planifiées', defaut:'' },
+    { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
   ],
   examen: [
-    { cle:'photo',       type:'photo', nom:'📷 Photo du bilan d\'examen' },
     { cle:'installation',type:'ok',    nom:'Installation', defaut:'' },
     { cle:'passager',    type:'ok',    nom:'Passager',     defaut:'' },
     { cle:'voyants',     type:'ok',    nom:'Voyants',      defaut:'' },
@@ -3599,7 +3737,7 @@ function dicterDans(champ, bouton){
 
 
 /* Une ligne du CEPC : la compétence et son niveau */
-function ligneCepc(nom){
+function ligneCepc(nom, valeurs){
   const l = document.createElement('div');
   l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;';
   const t = document.createElement('span');
@@ -3609,7 +3747,7 @@ function ligneCepc(nom){
   s.className = 'cepcNiveau';
   s.setAttribute('data-comp', nom);
   s.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:15px;flex-shrink:0;';
-  ['', 'E', '0', '1', '2', '3'].forEach(v => {
+  [''].concat(valeurs || ['E','0','1','2','3']).forEach(v => {
     const o = document.createElement('option');
     o.value = v; o.textContent = v || '—';
     s.appendChild(o);
@@ -3622,15 +3760,22 @@ function ligneCepc(nom){
 function majTotalCepc(){
   const z = document.getElementById('cepcTotal');
   if(!z) return;
-  let total = 0, notes = 0;
+  const c = {};
   document.querySelectorAll('.cepcNiveau').forEach(s => {
-    const n = parseInt(s.value, 10);
-    if(!isNaN(n)){ total += n; notes++; }
+    if(s.value) c[s.getAttribute('data-comp')] = s.value;
   });
-  const favorable = (total >= 20);
-  z.innerHTML = 'Total : ' + total + ' / ' + (notes * 3) +
-    (notes ? ' · <span style="color:' + (favorable ? 'var(--accent-text)' : 'var(--warn-text)') +
-      ';">' + (favorable ? 'FAVORABLE' : 'insuffisant — 20 minimum') + '</span>' : '');
+  const r = calculerCepc(c);
+  let etat, couleur;
+  if(r.elimine){
+    etat = 'ÉLIMINATOIRE — ' + r.eliminatoires.length + ' compétence(s) en E';
+    couleur = 'var(--red)';
+  }else if(r.favorable){
+    etat = 'FAVORABLE'; couleur = 'var(--accent-text)';
+  }else{
+    etat = 'insuffisant — 20 minimum'; couleur = 'var(--warn-text)';
+  }
+  z.innerHTML = 'Total : ' + r.total + ' / 31 · <span style="color:' + couleur + ';">' +
+    etat + '</span>';
 }
 
 /* Construit le formulaire du bilan manuel */
@@ -3676,7 +3821,35 @@ async function ouvrirBilanManuel(){
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
 
-    if(ch.type === 'ok'){
+    if(ch.type === 'niveau' || ch.type === 'ouinon'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:8px;';
+      const choix = (ch.type === 'niveau')
+        ? [['✅ Oui', 'oui'], ['❌ Pas le niveau', 'non'], ['—', '']]
+        : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
+      choix.forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
+        b.textContent = lab;
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle] = val;
+          Array.prototype.forEach.call(r.children, x => {
+            x.style.borderColor = 'var(--line)';
+            x.style.color = 'var(--cream)';
+          });
+          b.style.borderColor = 'var(--orange)';
+          b.style.color = 'var(--accent-text)';
+        });
+        r.appendChild(b);
+      });
+      bloc.appendChild(r);
+
+    }else if(ch.type === 'ok'){
       /* Trois états : ✅ ❌ ou rien */
       const l = document.createElement('label');
       l.textContent = ch.nom;
@@ -3739,21 +3912,13 @@ async function ouvrirBilanManuel(){
 
       const z = document.createElement('div');
       z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
-      const lignes = [];
-      CEPC_COMPETENCES.forEach(g => {
+      CEPC_BLOCS.forEach(g => {
         const t = document.createElement('div');
         t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
-        t.textContent = g.groupe;
+        t.textContent = g.titre;
         z.appendChild(t);
-        g.items.forEach(it => lignes.push(it));
-        g.items.forEach(it => z.appendChild(ligneCepc(it)));
+        g.items.forEach(it => z.appendChild(ligneCepc(it, CEPC_VALEURS[g.bareme])));
       });
-      const t2 = document.createElement('div');
-      t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:10px 0 4px;';
-      t2.textContent = 'Autonomie et conscience du risque';
-      z.appendChild(t2);
-      CEPC_AUTONOMIE.forEach(a => z.appendChild(ligneCepc(a)));
-      ['Conduite économique', 'Courtoisie'].forEach(a => z.appendChild(ligneCepc(a)));
 
       const tot = document.createElement('div');
       tot.id = 'cepcTotal';
@@ -3826,7 +3991,7 @@ async function ouvrirBilanManuel(){
       r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
       const t = document.createElement('textarea');
       t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
-      t.id = 'man_' + ch.cle;
+      t.id = 'man_' + ch.cle.replace('.', '_');
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
@@ -3895,21 +4060,13 @@ async function genererBilanManuel(){
 
       const z = document.createElement('div');
       z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
-      const lignes = [];
-      CEPC_COMPETENCES.forEach(g => {
+      CEPC_BLOCS.forEach(g => {
         const t = document.createElement('div');
         t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
-        t.textContent = g.groupe;
+        t.textContent = g.titre;
         z.appendChild(t);
-        g.items.forEach(it => lignes.push(it));
-        g.items.forEach(it => z.appendChild(ligneCepc(it)));
+        g.items.forEach(it => z.appendChild(ligneCepc(it, CEPC_VALEURS[g.bareme])));
       });
-      const t2 = document.createElement('div');
-      t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:10px 0 4px;';
-      t2.textContent = 'Autonomie et conscience du risque';
-      z.appendChild(t2);
-      CEPC_AUTONOMIE.forEach(a => z.appendChild(ligneCepc(a)));
-      ['Conduite économique', 'Courtoisie'].forEach(a => z.appendChild(ligneCepc(a)));
 
       const tot = document.createElement('div');
       tot.id = 'cepcTotal';
@@ -3951,6 +4108,8 @@ async function genererBilanManuel(){
         champsManuels[ch.cle] = f.name;
       });
 
+    }else if(ch.type === 'niveau' || ch.type === 'ouinon'){
+      /* déjà renseigné par les boutons */
     }else if(ch.type === 'cepc'){
       const cepc = {};
       document.querySelectorAll('.cepcNiveau').forEach(s => {
@@ -3968,7 +4127,7 @@ async function genererBilanManuel(){
       });
       champsManuels[ch.cle] = obs;
     }else if(ch.type !== 'ok'){
-      const t = $('man_' + ch.cle);
+      const t = document.getElementById('man_' + ch.cle.replace('.', '_'));
       if(t) champsManuels[ch.cle] = t.value.trim();
     }
   });
@@ -3983,11 +4142,27 @@ async function genererBilanManuel(){
   /* Les manœuvres du jour sont au format attendu par le constructeur */
   const liste = (champsManuels.manoeuvres || []).map(x => x.nom || x);
 
-  const bilan = modele.build(Object.assign({}, champsManuels, { manoeuvres: liste }), {
-    manoeuvresAvant: manoeuvresAvant,
-    transcript: champsManuels.texteDicte || '',
-    note: $('noteInterne').value.trim()
+  /* Les clés « avant.carteSD » deviennent des objets imbriqués */
+  const donnees = { manoeuvres: liste };
+  Object.keys(champsManuels).forEach(k => {
+    if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
+    const [pere, fils] = k.split('.');
+    if(!donnees[pere]) donnees[pere] = {};
+    donnees[pere][fils] = champsManuels[k];
   });
+
+  let bilan;
+  try{
+    bilan = modele.build(donnees, {
+      manoeuvresAvant: manoeuvresAvant,
+      transcript: champsManuels.texteDicte || '',
+      note: $('noteInterne').value.trim()
+    });
+  }catch(e){
+    console.error('Composition du bilan :', e);
+    alert('Le bilan n\'a pas pu être composé.\n\nDétail : ' + (e && e.message ? e.message : e));
+    return;
+  }
 
   currentLessonMeta = {
     modeleLabel: modele.label,
