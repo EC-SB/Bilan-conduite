@@ -410,7 +410,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v102</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v103</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -732,14 +732,6 @@
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
-        🏁 Examens passés — résultat à saisir</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-        Apparaissent automatiquement le lendemain de la date d'examen.</div>
-      <div id="listePostExamen"><div class="empty">Appuie sur Actualiser.</div></div>
-    </div>
-
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📆 Permis prévus — préparation</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
         Seule la date remonte dans les notes du moniteur ; le reste est interne au bureau.</div>
@@ -764,7 +756,21 @@
       <div id="listePermisPrevu"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_messages">
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+        🏁 Examens passés — résultat à saisir</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        Apparaissent automatiquement le lendemain de la date d'examen.</div>
+      <div id="listePostExamen"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+
+
+  </div>
+  </details>
+
+  <details class="card" data-section="bureau_messages" data-tiroir="messages">
+    <summary>📨 Messages aux moniteurs <span class="compteur" id="cptMessages"></span></summary>
+    <div class="contenu-tiroir">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📨 Message à un moniteur</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
@@ -791,7 +797,6 @@
         </div>
       </details>
     </div>
-  </div>
   </details>
 
   <details class="card" data-section="permis" data-tiroir="permis">
@@ -3256,8 +3261,8 @@ function initTiroirs(){
       /* On ne charge le suivi bureau qu'à sa première ouverture */
       if(cle === 'bureau' && d.open && !bureauDejaCharge){
         afficherBureau();
-        afficherConsignesEnAttente();
       }
+      if(cle === 'messages' && d.open) afficherConsignesEnAttente();
     });
   });
 }
@@ -6106,7 +6111,8 @@ function lancerActualisationAuto(){
     if(!bureauDejaCharge) return;                          /* pas encore ouverte une fois */
     if(bureauOccupe()) return;
     afficherBureau(true);
-    afficherConsignesEnAttente();
+    const tm = document.querySelector('[data-tiroir="messages"]');
+    if(tm && tm.open) afficherConsignesEnAttente();
   }, 90000);   /* toutes les 90 secondes */
 }
 
@@ -6521,12 +6527,6 @@ async function afficherBureau(silencieux){
     });
   }
 
-  await afficherPostExamen(prevus.concat(
-    tous.filter(e => suiviDe(e.eleve).datePermis &&
-                     !prevus.some(p => normaliserMot(p.eleve) === normaliserMot(e.eleve)))
-        .map(e => Object.assign({}, e, { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }))
-  ));
-
   /* ---- 3 bis. Élèves permis : à placer sur une date ---- */
   const zAP = $('listeAPlacer');
   const aPlacer = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
@@ -6828,6 +6828,13 @@ async function afficherBureau(silencieux){
     });
   }
 
+  /* ---- 5. Examens passés : résultat à saisir ---- */
+  await afficherPostExamen(prevus.concat(
+    tous.filter(e => suiviDe(e.eleve).datePermis &&
+                     !prevus.some(p => normaliserMot(p.eleve) === normaliserMot(e.eleve)))
+        .map(e => Object.assign({}, e, { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }))
+  ));
+
   /* ---- 3. Examens du permis ---- */
   let per = tous.filter(e => (e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') &&
                              suiviDe(e.eleve).aPlanifier !== 'oui' &&
@@ -6988,6 +6995,7 @@ async function afficherConsignesEnAttente(){
       .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
 
     if($('nbConsignes')) $('nbConsignes').textContent = '(' + liste.length + ')';
+    majCompteur('cptMessages', liste.length);
     if(!liste.length){
       zone.innerHTML = '<div class="empty">Aucun message en attente.</div>';
       return;
@@ -7158,7 +7166,7 @@ async function supprimerDossierEleve(){
 }
 
 $('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
-$('bureauBtn').addEventListener('click', () => { afficherBureau(); afficherConsignesEnAttente(); });
+$('bureauBtn').addEventListener('click', () => afficherBureau());
 $('filtrePP').addEventListener('change', () => afficherBureau());
 $('filtrePermis').addEventListener('change', () => afficherBureau());
 $('filtreDate').addEventListener('change', () => afficherBureau());
