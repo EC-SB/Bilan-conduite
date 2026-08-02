@@ -410,7 +410,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v100</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v102</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -450,7 +450,6 @@
 
   <details class="card" data-section="prepares" data-tiroir="prepares">
     <summary>📅 Mes cours préparés <span class="compteur" id="cptPrepares"></span></summary>
-  </details>
     <div class="contenu-tiroir">
     <label style="display:flex;align-items:center;gap:10px;text-transform:none;
                   font-size:14px;color:var(--muted);margin-bottom:10px;">
@@ -479,6 +478,7 @@
       </div>
     </details>
   </div>
+  </details>
 
   <div id="recordView" data-section="cours">
     <details class="card" data-tiroir="cours" open>
@@ -603,7 +603,6 @@
 
   <details class="card" data-section="recherche" data-tiroir="recherche">
     <summary>🔍 Retrouver un élève</summary>
-  </details>
     <div class="contenu-tiroir">
     <label for="searchName">Nom et prénom de l'élève</label>
     <input type="text" id="searchName" list="listeEleves" autocomplete="off"
@@ -643,10 +642,10 @@
       <div id="suppressionMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
     </div>
   </div>
+  </details>
 
   <details class="card" data-section="bureau" data-tiroir="bureau">
     <summary>🏢 Suivi bureau</summary>
-  </details>
     <div class="contenu-tiroir">
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
     <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">
@@ -793,10 +792,10 @@
       </details>
     </div>
   </div>
+  </details>
 
   <details class="card" data-section="permis" data-tiroir="permis">
     <summary>🎓 Élève ayant obtenu son permis</summary>
-  </details>
     <div class="contenu-tiroir">
     <label for="permisNom">Nom et prénom de l'élève</label>
     <input type="text" id="permisNom" list="listeEleves" autocomplete="off"
@@ -804,10 +803,10 @@
     <button class="btn btn-primary" id="permisBtn">🎓 Préparer</button>
     <div id="permisResultat" style="margin-top:16px;"></div>
   </div>
+  </details>
 
   <details class="card" id="adminCard" data-tiroir="admin" style="display:none;">
     <summary>⚙️ Administration des accès</summary>
-  </details>
     <div class="contenu-tiroir">
     <div id="adminList"><div class="empty">Chargement…</div></div>
 
@@ -826,6 +825,7 @@
       <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
     </div>
   </div>
+  </details>
 
   </div><!-- /appView -->
 </div>
@@ -3268,6 +3268,42 @@ function majCompteur(id, valeur){
   if(el) el.textContent = valeur ? String(valeur) : '';
 }
 
+
+/* ============================================================
+   RÉSEAU
+   Au changement de wifi/4G, une connexion morte peut bloquer
+   une requête très longtemps. On borne l'attente et on réessaie.
+   ============================================================ */
+async function fetchFiable(url, options, delaiMs, essais){
+  const limite = delaiMs || 12000;
+  const max = essais || 2;
+  let derniere = null;
+
+  for(let i = 1; i <= max; i++){
+    const ctrl = new AbortController();
+    const minuteur = setTimeout(() => ctrl.abort(), limite);
+    try{
+      const r = await fetch(url, Object.assign({}, options, {
+        signal: ctrl.signal,
+        cache: 'no-store'
+      }));
+      clearTimeout(minuteur);
+      return r;
+    }catch(e){
+      clearTimeout(minuteur);
+      derniere = e;
+      /* Une connexion morte échoue vite une fois abandonnée :
+         la tentative suivante en ouvre une neuve. */
+      if(i < max) await new Promise(r => setTimeout(r, 400));
+    }
+  }
+  throw new Error(
+    (derniere && derniere.name === 'AbortError')
+      ? 'Le réseau ne répond pas. Vérifie ta connexion et réessaie.'
+      : 'Connexion impossible : ' + (derniere ? derniere.message : 'erreur inconnue')
+  );
+}
+
 /* ---------- Liste des élèves déjà enregistrés ---------- */
 let elevesConnus = [];
 
@@ -3376,7 +3412,7 @@ async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], derniereNote: '', dernierHorodatage: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'search', code: ACCES.code,
@@ -4834,11 +4870,13 @@ function ecrireCachePrepares(liste){
 }
 
 async function appelPrep(corps){
-  const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+  /* Le suivi bureau est plus lourd : on lui laisse plus de temps */
+  const long = (corps && corps.action === 'bureauEtat');
+  const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
-  });
+  }, long ? 25000 : 12000, 2);
   if(!r.ok) throw new Error('HTTP ' + r.status);
   return await r.json().catch(() => ({}));
 }
@@ -6046,6 +6084,19 @@ function bureauOccupe(){
   return false;
 }
 
+/* Au retour du réseau, on relance ce qui avait échoué */
+let reseauEcoute = false;
+function ecouterReseau(){
+  if(reseauEcoute) return;
+  reseauEcoute = true;
+  window.addEventListener('online', () => {
+    showToast('Connexion rétablie');
+    const carte = document.querySelector('[data-section="bureau"]');
+    if(carte && carte.style.display !== 'none' && carte.open) afficherBureau(true);
+    chargerEleves();
+  });
+}
+
 function lancerActualisationAuto(){
   clearInterval(minuteurBureau);
   minuteurBureau = setInterval(() => {
@@ -6379,20 +6430,34 @@ async function afficherBureau(silencieux){
   if(silencieux){
     if(btn) btn.textContent = '🔄 Actualisation…';
   }else{
-    [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Chargement…</div>');
+    if(btn){ btn.disabled = true; btn.textContent = '🔄 Chargement…'; }
+    zSim.innerHTML = '<div class="empty">Chargement du suivi…<br>' +
+      '<span style="font-size:12px;">Le premier chargement prend quelques secondes.</span></div>';
+    zEB.innerHTML = '';
+    zPer.innerHTML = '';
   }
 
   try{
     await chargerBureau();
     bureauDejaCharge = true;
   }catch(e){
-    if(btn) btn.textContent = '🔄 Actualiser les listes';
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 Actualiser les listes'; }
     if(!silencieux){
-      [zEB, zSim, zPer].forEach(z => z.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>');
+      zSim.innerHTML = '';
+      const err = document.createElement('div');
+      err.className = 'empty';
+      err.innerHTML = '⚠️ ' + e.message.replace(/</g,'&lt;') + '<br>';
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'margin-top:10px;width:auto;padding:10px 16px;';
+      b.textContent = '🔄 Réessayer';
+      b.addEventListener('click', () => afficherBureau());
+      err.appendChild(b);
+      zSim.appendChild(err);
     }
     return;
   }
-  if(btn) btn.textContent = '🔄 Actualiser les listes';
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Actualiser les listes'; }
 
   const tous = etatBureau.eleves;
 
@@ -7617,6 +7682,7 @@ function ouvrirSession(code, moniteur, role, saluer, droits){
   chargerEleves();
   chargerMoniteurs();
   initTiroirs();
+  ecouterReseau();
   if(aDroit('cours')) afficherPrepares();
   lancerActualisationAuto();
   if(saluer) showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
