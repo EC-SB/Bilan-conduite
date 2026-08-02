@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v117</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v118</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -3600,15 +3600,15 @@ async function fetchFiable(url, options, delaiMs, essais){
 /* Ce que le moniteur doit renseigner, selon le modèle choisi */
 /* Les rubriques du résumé, dans l'ordre du bilan */
 const THEMES_ERREURS = [
-  { cle:'controles',  nom:'👀 Contrôles' },
-  { cle:'priorites',  nom:'🚦 Priorités et feux' },
-  { cle:'trajectoire',nom:'👀 Trajectoire' },
-  { cle:'giratoires', nom:'🍩 Giratoires' },
-  { cle:'allures',    nom:'🏎️ Allures' },
-  { cle:'manoeuvres', nom:'🚙 Manœuvres' },
-  { cle:'vigilance',  nom:'🧠 Points de vigilance' },
-  { cle:'explication',nom:'📚 Explication demandée' },
-  { cle:'travailler', nom:'➡️ À travailler la prochaine fois' }
+  { cle:'commandes',   nom:'🚙 MANIPULATION DES COMMANDES' },
+  { cle:'trajectoire', nom:'👀 TRAJECTOIRE' },
+  { cle:'giratoires',  nom:'🍩 GIRATOIRES' },
+  { cle:'vavd',        nom:'🛣️ VA VD' },
+  { cle:'pad',         nom:'❌ PAD' },
+  { cle:'allures',     nom:'🏎️💨 ALLURES' },
+  { cle:'controles',   nom:'👀 CONTRÔLES' },
+  { cle:'divers',      nom:'🧠 DIVERS' },
+  { cle:'manoeuvres',  nom:'🚙🚗🚙 MANŒUVRES' }
 ];
 
 const CHAMPS_MANUELS = {
