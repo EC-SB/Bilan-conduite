@@ -9,7 +9,7 @@
    Tout est conservé dans le téléphone, rien n'est envoyé.
    ============================================================ */
 const CLE_SAUVEGARDE = 'bilan_en_cours';
-let derniereSauvegarde = 0;
+/* derniereSauvegarde : déclaré dans ec-etat.js */
 
 function sauvegarderLocal(force){
   const maintenant = Date.now();
