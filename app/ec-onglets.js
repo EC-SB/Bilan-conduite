@@ -116,14 +116,14 @@ const VUES = {
   eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
            ['permis',     '🎓 Permis obtenu',      'permis'],
            ['depart',     '🚪 Départ',             'depart']],
-  outils: [['messages',   '📨 Messages',    'bureau_messages'],
-           ['textes',     '📄 Modèles',     'textes'],
-           ['procedures', '🚦 Procédures',  'procedures'],
-           ['bilans',     '📋 Bilans',      'bilans'],
-           ['sms',        '💬 SMS',         'sms'],
-           ['stats',      '📈 Réussite',    'stats'],
-           ['journal',    '📊 Journal',     'journal'],
-           ['admin',      '⚙️ Accès',       'admin']]
+  outils: [['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
+           ['textes',     '📄 Textes types',           'textes'],
+           ['procedures', '🚦 Procédures',             'procedures'],
+           ['bilans',     '📋 Modèles de bilan',       'bilans'],
+           ['sms',        '💬 SMS',                    'sms'],
+           ['stats',      '📈 Réussite',               'stats'],
+           ['journal',    '📊 Journal',                'journal'],
+           ['admin',      '⚙️ Accès',                  'admin']]
 };
 
 const vueActive = {};
