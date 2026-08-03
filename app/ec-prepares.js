@@ -368,8 +368,11 @@ async function preparerNouveauCours(){
   }
 }
 
+let captureRdvPost = null;
+
 function ouvrirRdvPost(cours){
   rdvPostEnCours = cours;
+  captureRdvPost = null;
   const s = suiviDe(cours.eleve) || {};
 
   $('rdvPostEleve').textContent = cours.eleve || '';
@@ -393,11 +396,15 @@ function ouvrirRdvPost(cours){
     zc.appendChild(img);
   }else{
     const v = document.createElement('div');
-    v.className = 'empty';
-    v.style.cssText = 'padding:10px;font-size:12px;';
-    v.textContent = 'Pas de capture du CEPC déposée par le bureau.';
+    v.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;';
+    v.textContent = "Le bureau n'a pas déposé de capture du CEPC. " +
+      'Tu peux la prendre maintenant.';
     zc.appendChild(v);
   }
+
+  /* Dans tous les cas, on peut ajouter ou remplacer la capture */
+  zc.appendChild(blocImageCepc(cours.eleve, s.cepcImage || '',
+    v => { captureRdvPost = v; }));
 
   /* Le bilan d'examen officiel : dans la note préparée, ou dans la fiche */
   const note = String(cours.note || '');
@@ -469,7 +476,7 @@ async function terminerRdvPost(){
   try{
     const eleve = rdvPostEnCours.eleve;
 
-    await majSuivi(eleve, {
+    const majs = {
       bilanExamen: $('rdvPostBilan').value.trim(),
       bilanEleve: $('rdvPostEleveBilan').value.trim(),
       texteMoniteur: $('rdvPostTexte').value.trim(),
@@ -480,7 +487,10 @@ async function terminerRdvPost(){
       /* L'élève rejoint la liste qui correspond à la conclusion */
       retireAPrevoir: (suite === 'impossible') ? 'oui' : '',
       par: ACCES.moniteur || ''
-    });
+    };
+    /* Une capture prise au rendez-vous complète le dossier */
+    if(captureRdvPost) majs.cepcImage = captureRdvPost;
+    await majSuivi(eleve, majs);
 
     /* Le bureau est informé, et la note oriente les listes */
     const conclusion = libelleSuite(suite) +
