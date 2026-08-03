@@ -119,6 +119,11 @@ function verrouiller(message, garderSession){
   $('adminCard').style.display = 'none';
   if($('logoutBtn')) $('logoutBtn').style.display = 'none';
   if($('qui')) $('qui').style.display = 'none';
+
+  /* Rien d'autre que le code d'accès sur l'écran de connexion */
+  if($('barreOnglets')) $('barreOnglets').style.display = 'none';
+  document.querySelectorAll('.barre-vues').forEach(b => { b.style.display = 'none'; });
+  document.body.classList.remove('avec-onglets');
   $('lockView').style.display = 'block';
   $('codeInput').value = '';
   $('codeMsg').textContent = message || '';
