@@ -174,7 +174,9 @@ async function afficherPrepares(recharger, silencieux){
     actions.appendChild(bDonner);
 
     /* On ne supprime que ses propres préparations, sauf administrateur */
-    const aMoi = !cours.moniteur ||
+    /* Seul le moniteur à qui le cours est attribué peut le supprimer.
+       Une préparation sans moniteur ne l'est que par un administrateur. */
+    const aMoi = !!cours.moniteur &&
                  normaliserMot(cours.moniteur) === normaliserMot(ACCES.moniteur || '');
     if(aMoi || ACCES.role === 'admin'){
       const bSupp = document.createElement('button');
