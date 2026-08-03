@@ -237,100 +237,7 @@ async function retirerPreparationFaite(){
 /* ---------- Côté moniteur : le rendez-vous post-permis ---------- */
 /* rdvPostEnCours : déclaré dans ec-etat.js */
 
-function ouvrirRdvPost(cours){
-  rdvPostEnCours = cours;
-
-  $('rdvPostEleve').textContent = cours.eleve || '';
-  $('rdvPostInfo').textContent = 'Prévu le ' + libelleDate(cours.date) +
-    (cours.moniteur ? ' · ' + cours.moniteur : '');
-
-  /* Le bilan est dans la note préparée par le bureau */
-  const note = String(cours.note || '');
-  const sep = "BILAN DE L'EXAMEN À CORRIGER :";
-  const i = note.indexOf(sep);
-  $('rdvPostBilan').value = (i !== -1) ? note.slice(i + sep.length).trim() : '';
-
-  const sel = $('rdvPostSuite');
-  sel.innerHTML = '<option value="">— à définir —</option>';
-  SUITES_POST.forEach(s => {
-    const o = document.createElement('option');
-    o.value = s.cle; o.textContent = s.nom;
-    sel.appendChild(o);
-  });
-  sel.value = '';
-  $('rdvPostCom').value = '';
-  $('rdvPostMsg').textContent = '';
-
-  document.querySelectorAll('[data-tiroir]').forEach(d => { d.open = false; });
-  $('recordView').style.display = 'none';
-  $('resultView').style.display = 'none';
-  $('rdvPostView').style.display = 'block';
-  window.scrollTo(0, 0);
-}
-
-function fermerRdvPost(){
-  rdvPostEnCours = null;
-  $('rdvPostView').style.display = 'none';
-  $('recordView').style.display = 'block';
-  const t = document.querySelector('[data-tiroir="cours"]');
-  if(t) t.open = true;
-}
-
-async function terminerRdvPost(){
-  if(!rdvPostEnCours) return;
-  const suite = $('rdvPostSuite').value;
-  const msg = $('rdvPostMsg');
-
-  if(!suite){
-    msg.style.color = 'var(--warn-text)';
-    msg.textContent = 'Indique la suite à donner avant de terminer.';
-    return;
-  }
-
-  const b = $('rdvPostEnr');
-  b.disabled = true;
-  b.textContent = 'Enregistrement…';
-  try{
-    /* On récupère la fiche pour ne pas écraser le reste */
-    const d = await appelPrep({ action:'bureauEtat' });
-    const liste = (d && d.suivi) || [];
-    const s = liste.find(x => normaliserMot(x.eleve) === normaliserMot(rdvPostEnCours.eleve)) || {};
-
-    await appelPrep(Object.assign({ action:'suiviSet' }, s, {
-      eleve: rdvPostEnCours.eleve,
-      bilanExamen: $('rdvPostBilan').value.trim(),
-      suite: suite,
-      commentaireMoniteur: $('rdvPostCom').value.trim(),
-      rdvPostFait: 'oui',
-      par: ACCES.moniteur || ''
-    }));
-
-    /* Le bureau est informé de la conclusion */
-    await envoyerConsigne(rdvPostEnCours.eleve, 'permis',
-      'Rendez-vous post-permis fait — ' + libelleSuite(suite) +
-      ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
-
-    /* Le cours préparé n'a plus lieu d'être */
-    if(rdvPostEnCours.id){
-      try{ await appelPrep({ action:'prepDelete', id: rdvPostEnCours.id }); }catch(e){}
-    }
-
-    msg.style.color = 'var(--accent-text)';
-    msg.textContent = '✅ Rendez-vous enregistré, le bureau est informé.';
-    showToast('Rendez-vous terminé ✅');
-    await afficherPrepares();
-    setTimeout(fermerRdvPost, 1200);
-  }catch(e){
-    msg.style.color = 'var(--warn-text)';
-    msg.textContent = 'Erreur : ' + e.message;
-  }finally{
-    b.disabled = false;
-    b.textContent = '✅ Terminer le rendez-vous';
-  }
-}
-
-/* Charge un cours préparé dans le formulaire : plus qu'à démarrer.
-   Si un cours a eu lieu depuis la préparation, les informations sont
+/* Charge un cours préparé dans le formulaire : les informations sont
    rafraîchies sans effacer ce que le moniteur avait saisi. */
 async function chargerPrepare(cours){
   if(finalTranscript && !await confirmer('Un enregistrement est en cours. Le remplacer ?')) return;
@@ -458,6 +365,155 @@ async function preparerNouveauCours(){
   }finally{
     btn.disabled = false;
     btn.textContent = '📝 Préparer les notes';
+  }
+}
+
+function ouvrirRdvPost(cours){
+  rdvPostEnCours = cours;
+  const s = suiviDe(cours.eleve) || {};
+
+  $('rdvPostEleve').textContent = cours.eleve || '';
+  $('rdvPostInfo').textContent = 'Prévu le ' + libelleDate(cours.date) +
+    (cours.moniteur ? ' · ' + cours.moniteur : '') +
+    (s.nbAjournements ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : '');
+
+  /* La capture du CEPC, telle que le bureau l'a déposée */
+  const zc = $('rdvPostCepc');
+  zc.innerHTML = '';
+  if(s.cepcImage){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
+    t.textContent = '📷 CEPC de l\'examen';
+    zc.appendChild(t);
+    const img = document.createElement('img');
+    img.src = s.cepcImage;
+    img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;';
+    img.title = 'Appuie pour agrandir';
+    img.addEventListener('click', () => agrandirImage(s.cepcImage, cours.eleve));
+    zc.appendChild(img);
+  }else{
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.style.cssText = 'padding:10px;font-size:12px;';
+    v.textContent = 'Pas de capture du CEPC déposée par le bureau.';
+    zc.appendChild(v);
+  }
+
+  /* Le bilan d'examen officiel : dans la note préparée, ou dans la fiche */
+  const note = String(cours.note || '');
+  const sep = "BILAN DE L'EXAMEN À CORRIGER :";
+  const i = note.indexOf(sep);
+  $('rdvPostBilan').value = (i !== -1) ? note.slice(i + sep.length).trim()
+                                       : (s.bilanExamen || '');
+
+  /* Ce que l'élève a écrit, et ce que le moniteur ajoute */
+  $('rdvPostEleveBilan').value = s.bilanEleve || '';
+  $('rdvPostTexte').value = s.texteMoniteur || '';
+
+  const sel = $('rdvPostSuite');
+  sel.innerHTML = '<option value="">— à définir —</option>';
+  SUITES_POST.forEach(x => {
+    const o = document.createElement('option');
+    o.value = x.cle; o.textContent = x.nom;
+    sel.appendChild(o);
+  });
+  sel.value = s.suite || '';
+
+  /* Le nombre d'heures ne se demande que si un repassage est envisagé */
+  const hh = $('rdvPostHeures');
+  hh.value = s.heuresRepassage || '';
+  const majH = () => {
+    hh.style.display = (sel.value && sel.value !== 'impossible') ? 'block' : 'none';
+  };
+  sel.onchange = majH;
+  majH();
+
+  $('rdvPostCom').value = s.commentaireMoniteur || '';
+  $('rdvPostMsg').textContent = '';
+
+  document.querySelectorAll('[data-tiroir]').forEach(d => { d.open = false; });
+  $('recordView').style.display = 'none';
+  $('resultView').style.display = 'none';
+  $('rdvPostView').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function fermerRdvPost(){
+  rdvPostEnCours = null;
+  $('rdvPostView').style.display = 'none';
+  $('recordView').style.display = 'block';
+  const t = document.querySelector('[data-tiroir="cours"]');
+  if(t) t.open = true;
+}
+
+async function terminerRdvPost(){
+  if(!rdvPostEnCours) return;
+  const suite = $('rdvPostSuite').value;
+  const heures = $('rdvPostHeures').value.trim();
+  const msg = $('rdvPostMsg');
+
+  if(!suite){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Indique la suite à donner avant de terminer.';
+    return;
+  }
+  if(suite !== 'impossible' && !heures){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = "Indique le nombre d'heures avant le repassage.";
+    return;
+  }
+
+  const b = $('rdvPostEnr');
+  b.disabled = true;
+  b.textContent = 'Enregistrement…';
+  try{
+    const eleve = rdvPostEnCours.eleve;
+
+    await majSuivi(eleve, {
+      bilanExamen: $('rdvPostBilan').value.trim(),
+      bilanEleve: $('rdvPostEleveBilan').value.trim(),
+      texteMoniteur: $('rdvPostTexte').value.trim(),
+      suite: suite,
+      heuresRepassage: (suite === 'impossible') ? '' : heures,
+      commentaireMoniteur: $('rdvPostCom').value.trim(),
+      rdvPostFait: 'oui',
+      /* L'élève rejoint la liste qui correspond à la conclusion */
+      retireAPrevoir: (suite === 'impossible') ? 'oui' : '',
+      par: ACCES.moniteur || ''
+    });
+
+    /* Le bureau est informé, et la note oriente les listes */
+    const conclusion = libelleSuite(suite) +
+      (suite !== 'impossible' && heures ? ' — ' + heures + 'h à faire' : '');
+
+    if(suite === 'impossible'){
+      await envoyerConsigne(eleve, 'permis',
+        'Rendez-vous post-permis fait — ⛔ pas de repassage pour le moment. ' +
+        'Reprise des leçons avant de se décider.' +
+        ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+    }else{
+      await envoyerConsigne(eleve, 'permis',
+        'Rendez-vous post-permis fait — ' + conclusion +
+        " · Date d'examen à prévoir" +
+        ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+    }
+
+    /* Le cours préparé n'a plus lieu d'être */
+    if(rdvPostEnCours.id){
+      try{ await appelPrep({ action: 'prepDelete', id: rdvPostEnCours.id }); }catch(e){}
+    }
+
+    msg.style.color = 'var(--accent-text)';
+    msg.textContent = '✅ ' + conclusion + ' — le bureau est informé.';
+    showToast('Rendez-vous terminé ✅');
+    await afficherPrepares();
+    setTimeout(fermerRdvPost, 1400);
+  }catch(e){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Erreur : ' + e.message;
+  }finally{
+    b.disabled = false;
+    b.textContent = '✅ Terminer le rendez-vous';
   }
 }
 
