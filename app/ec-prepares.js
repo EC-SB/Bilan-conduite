@@ -71,12 +71,12 @@ function libelleDate(iso){
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-async function afficherPrepares(recharger){
+async function afficherPrepares(recharger, silencieux){
   const zone = $('listePrepares');
   if(!zone) return;
 
   if(recharger !== false){
-    zone.innerHTML = '<div class="empty">Chargement…</div>';
+    if(!silencieux) zone.innerHTML = '<div class="empty">Chargement…</div>';
     const enLigne = await chargerPrepares();
     if(!enLigne && prepares.length){
       showToast('Hors ligne — liste en cache');
