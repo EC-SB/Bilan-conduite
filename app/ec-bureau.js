@@ -1371,34 +1371,6 @@ async function afficherBureau(silencieux){
   const dates = Object.keys(parDate).sort((a, b) =>
     (parDate[a].iso || '9999').localeCompare(parDate[b].iso || '9999'));
 
-  const zRecap = $('recapDates');
-  zRecap.innerHTML = '';
-  if(dates.length){
-    dates.forEach(k => {
-      const d = parDate[k];
-      /* Alerte si plusieurs types d'examen tombent le même jour */
-      const types = [d.bv, d.bea, d.handicap].filter(x => x > 0).length;
-      const mixte = (types > 1);
-      const l = document.createElement('div');
-      l.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px;' +
-        'padding:8px 10px;border-radius:8px;margin-bottom:4px;font-size:14px;' +
-        'background:' + (mixte ? 'var(--warn-bg)' : 'var(--navy)') + ';' +
-        'border:1px solid ' + (mixte ? 'var(--red)' : 'var(--line)') + ';';
-      const g = document.createElement('div');
-      g.innerHTML = '<strong>' + k.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</strong>' +
-        '<span style="color:var(--muted);"> — ' + d.total + ' examen' + (d.total>1?'s':'') + '</span>';
-      const dr = document.createElement('div');
-      dr.style.cssText = 'flex-shrink:0;font-size:13px;font-weight:700;';
-      const parts = [];
-      if(d.bv) parts.push('<span style="color:var(--accent-text);">' + d.bv + ' BV</span>');
-      if(d.bea) parts.push('<span style="color:#E8A33D;">' + d.bea + ' BEA</span>');
-      if(d.handicap) parts.push('<span style="color:#7FB3FF;">' + d.handicap + ' ♿</span>');
-      dr.innerHTML = parts.join(' · ') + (mixte ? ' ⚠️' : '');
-      dr.title = mixte ? 'Plusieurs types d\'examen le même jour' : '';
-      l.appendChild(g); l.appendChild(dr);
-      zRecap.appendChild(l);
-    });
-  }
 
   /* Menu des dates disponibles */
   const selD = $('filtreDate');
@@ -2083,11 +2055,19 @@ function legendePermis(){
 function apercuPermisPrevus(prevus){
   const bloc = document.createElement('div');
 
+  const nOk = prevus.filter(e => suiviDe(e.eleve).toutOk === 'oui').length;
+  const nBV = prevus.filter(e => e._boite !== 'bea' && e._boite !== 'handicap').length;
+  const nBEA = prevus.filter(e => e._boite === 'bea').length;
+  const nHand = prevus.filter(e => e._boite === 'handicap').length;
+
   const t = document.createElement('div');
   t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);padding:2px 2px 6px;';
-  const nOk = prevus.filter(e => suiviDe(e.eleve).toutOk === 'oui').length;
-  t.textContent = prevus.length + ' permis prévu(s) · ' + nOk + ' prêt(s), ' +
-                  (prevus.length - nOk) + ' à compléter';
+  t.innerHTML = prevus.length + ' permis prévu(s) — ' +
+    '<span style="color:var(--accent-text);">' + nBV + ' BV</span> · ' +
+    '<span style="color:#E8A33D;">' + nBEA + ' BEA</span>' +
+    (nHand ? ' · <span style="color:#7FB3FF;">' + nHand + ' ♿</span>' : '') +
+    '<br><span style="font-weight:600;color:var(--muted);">' +
+    nOk + ' prêt(s), ' + (prevus.length - nOk) + ' à compléter</span>';
   bloc.appendChild(t);
   bloc.appendChild(legendePermis());
 
@@ -2109,9 +2089,24 @@ function apercuPermisPrevus(prevus){
     d.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
       'border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13px;line-height:1.6;';
 
+    const bv = groupe.filter(e => e._boite !== 'bea' && e._boite !== 'handicap').length;
+    const bea = groupe.filter(e => e._boite === 'bea').length;
+    const hand = groupe.filter(e => e._boite === 'handicap').length;
+    /* Plusieurs types le même jour : à surveiller pour les véhicules */
+    const mixte = [bv, bea, hand].filter(x => x > 0).length > 1;
+
+    if(mixte){
+      d.style.background = 'var(--warn-bg)';
+      d.style.borderColor = 'var(--red)';
+    }
+
     const h = document.createElement('div');
     h.style.cssText = 'font-weight:700;margin-bottom:3px;';
-    h.textContent = '📅 ' + date + ' — ' + groupe.length + ' élève(s)';
+    h.innerHTML = '📅 ' + date.replace(/</g, '&lt;') + ' — ' + groupe.length + ' élève(s) · ' +
+      [bv ? bv + ' BV' : '', bea ? bea + ' BEA' : '', hand ? hand + ' ♿' : '']
+        .filter(Boolean).join(' · ') +
+      (mixte ? ' ⚠️' : '');
+    if(mixte) h.title = "Plusieurs types d'examen le même jour";
     d.appendChild(h);
 
     groupe.forEach(e => {
@@ -2121,7 +2116,8 @@ function apercuPermisPrevus(prevus){
 
       const nom = document.createElement('span');
       nom.style.cssText = 'flex:1;min-width:0;color:var(--cream);';
-      nom.textContent = e.eleve;
+      nom.textContent = (e._boite === 'bea' ? '🅰 ' :
+                         e._boite === 'handicap' ? '♿ ' : '🅑 ') + e.eleve;
       l.appendChild(nom);
 
       const rep = document.createElement('span');
