@@ -152,6 +152,8 @@ window.addEventListener('beforeunload', e => {
 $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
 if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
+if($('messengerBtn')) $('messengerBtn').addEventListener('click', afficherMessengerPermis);
+if($('messengerDate')) $('messengerDate').addEventListener('change', afficherMessengerPermis);
 $('manuelGen').addEventListener('click', async () => {
   const b = $('manuelGen');
   b.disabled = true;
