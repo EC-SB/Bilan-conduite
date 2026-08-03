@@ -219,6 +219,119 @@ document.addEventListener('click', e => {
   }
 });
 
+
+/* ============================================================
+   RÉPERTOIRE DES ÉLÈVES
+   Importer la liste réelle de l'auto-école, pour que les élèves
+   sans bilan soient proposés eux aussi.
+   ============================================================ */
+async function importerListeEleves(){
+  const zone = $('importEleves');
+  const etat = $('importEtat');
+  const btn = $('importBtn');
+  if(!zone || !etat) return;
+
+  const liste = zone.value.trim();
+  if(!liste){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Colle la liste des élèves.';
+    return;
+  }
+
+  const combien = liste.split(/[\n;,]+/).filter(x => x.trim().length >= 3).length;
+  if(!await confirmer('Importer ' + combien + ' nom(s) dans le répertoire ?\n\n' +
+                      'Les doublons sont ignorés, rien n\'est écrasé.')) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Import…';
+  etat.style.color = 'var(--muted)';
+  etat.textContent = 'Envoi de la liste…';
+
+  try{
+    const r = await appelPrep({ action: 'elevesImport', liste: liste });
+    etat.style.color = 'var(--accent-text)';
+    etat.textContent = '✅ ' + (r.ajoutes || 0) + ' élève(s) ajouté(s)' +
+      (r.doublons ? ' · ' + r.doublons + ' déjà présent(s)' : '') +
+      ' · ' + (r.total || 0) + ' au total';
+    zone.value = '';
+    await chargerEleves();
+    afficherRepertoire();
+  }catch(e){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Erreur : ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '📥 Importer la liste';
+  }
+}
+
+/* Ce que l'application connaît aujourd'hui */
+function afficherRepertoire(){
+  const zone = $('repertoireListe');
+  if(!zone) return;
+
+  zone.innerHTML = '';
+  if(!elevesConnus.length){
+    zone.innerHTML = '<div class="empty">Aucun élève connu pour le moment.</div>';
+    return;
+  }
+
+  const det = document.createElement('details');
+  det.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">👥 ' + elevesConnus.length +
+    ' élève(s) proposé(s) dans les listes</summary>';
+
+  const rech = document.createElement('input');
+  rech.type = 'text';
+  rech.placeholder = '🔍 Filtrer';
+  rech.style.cssText = 'margin:8px 0;';
+  det.appendChild(rech);
+
+  const l = document.createElement('div');
+  l.style.cssText = 'font-size:13px;line-height:1.9;max-height:320px;overflow-y:auto;';
+  det.appendChild(l);
+
+  function dessiner(){
+    const q = normaliserMot(rech.value);
+    l.innerHTML = '';
+    elevesConnus
+      .filter(n => !q || normaliserMot(n).indexOf(q) !== -1)
+      .forEach(n => {
+        const ligne = document.createElement('div');
+        ligne.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        const s = document.createElement('span');
+        s.style.cssText = 'flex:1;min-width:0;';
+        s.textContent = n;
+        ligne.appendChild(s);
+
+        if(ACCES.role === 'admin'){
+          const x = document.createElement('button');
+          x.className = 'btn btn-secondary';
+          x.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;' +
+            'color:var(--red);border-color:var(--red);';
+          x.textContent = '✕';
+          x.title = 'Retirer du répertoire — les bilans sont conservés';
+          x.addEventListener('click', async () => {
+            if(!await confirmer('Retirer ' + n + ' du répertoire ?\n\n' +
+                                'Ses bilans sont conservés. S\'il en a, il restera proposé.')) return;
+            x.disabled = true;
+            try{
+              await appelPrep({ action: 'eleveRetirer', eleve: n });
+              await chargerEleves();
+              afficherRepertoire();
+            }catch(e){ showToast('Erreur : ' + e.message); x.disabled = false; }
+          });
+          ligne.appendChild(x);
+        }
+        l.appendChild(ligne);
+      });
+  }
+  rech.addEventListener('input', dessiner);
+  dessiner();
+
+  zone.appendChild(det);
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-fenetres.js'] = true;
