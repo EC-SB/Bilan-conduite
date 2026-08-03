@@ -412,6 +412,7 @@ function afficherRdvPermis(tous){
   if(!aPlacer.length){
     zAP.innerHTML = '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>';
   }else{
+    majVolet('cptAPlacer', aPlacer.length);
     zAP.appendChild(tableauAPlacer(aPlacer));
 
     /* Seuls les dossiers incomplets méritent une fiche détaillée :
@@ -539,6 +540,7 @@ function afficherPermisPrevus(tous){
   });
 
   /* Date et boîte de chaque élève, pour le récapitulatif et les filtres */
+  majVolet('cptPrevus', prevus.length);
   prevus.forEach(e => {
     const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
     e._suivi = s || {};
@@ -834,7 +836,8 @@ function afficherExamensPermis(tous){
       (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
     zPer.appendChild(cpt);
     signalerAjout(zPer);
-    per.forEach(e => {
+    majVolet('cptAPrevoir', per.length);
+  per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
         replier: true,
         info: x => {
@@ -1224,6 +1227,7 @@ function afficherPasDeRepassage(tous){
     return;
   }
 
+  majVolet('cptPasRep', liste.length);
   liste.forEach(e => {
     const s = suiviDe(e.eleve);
     zone.appendChild(ligneBureau(e, {
