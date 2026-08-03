@@ -88,9 +88,9 @@ async function afficherPostExamen(tous){
         });
         r.appendChild(bOk);
 
-        /* La capture du CEPC, que le moniteur verra au rendez-vous */
-        let captureCepc = s.cepcImage || '';
-        boite.appendChild(blocImageCepc(x.eleve, captureCepc, v => { captureCepc = v; }));
+        /* Les captures du CEPC : elles vous servent à décider ici,
+           et suivront jusqu'au rendez-vous post-permis. */
+        boite.appendChild(blocCaptures(x.eleve, iso));
 
         const bNon = document.createElement('button');
         bNon.className = 'btn btn-secondary';
@@ -110,7 +110,6 @@ async function afficherPostExamen(tous){
               resultat: 'ajourne',
               nbAjournements: String(n),
               dateAjournement: dateAjo,
-              cepcImage: captureCepc,
               datePermis: '', aPlanifier: '', retireAPrevoir: '',
               toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
               rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
@@ -269,10 +268,9 @@ function blocRdvPost(e){
     '<label for="' + id + 'm">Moniteur qui le reçoit</label>' +
     '<select id="' + id + 'm"><option value="">— à définir —</option></select>';
 
-  /* La capture du CEPC : le bureau peut la déposer ici s'il ne l'a pas
-     fait au moment de la saisie du résultat. */
-  let capture = s.cepcImage || '';
-  f.appendChild(blocImageCepc(e.eleve, capture, v => { capture = v; }));
+  /* Les captures du CEPC, ajoutables ici si ça n'a pas été fait
+     au moment de la saisie du résultat. */
+  f.appendChild(blocCaptures(e.eleve, dateFrVersIso(s.datePermis || '')));
 
   const bEnr = document.createElement('button');
   bEnr.className = 'btn btn-primary';
@@ -325,8 +323,7 @@ function blocRdvPost(e){
     if(!date || !mon){
       bEnr.disabled = true;
       try{
-        await majSuivi(e.eleve, { bilanExamen: bilan, bilanEleve: bilanEl,
-                                  cepcImage: capture });
+        await majSuivi(e.eleve, { bilanExamen: bilan, bilanEleve: bilanEl });
         msg.style.color = 'var(--accent-text)';
         msg.textContent = '✅ Enregistré. Ajoute la date et le moniteur pour préparer le cours.';
         afficherBureau();
@@ -341,8 +338,7 @@ function blocRdvPost(e){
     bEnr.textContent = 'Enregistrement…';
     try{
       await majSuivi(e.eleve, { rdvPostDate: date, rdvPostMoniteur: mon,
-                                bilanExamen: bilan, bilanEleve: bilanEl,
-                                cepcImage: capture });
+                                bilanExamen: bilan, bilanEleve: bilanEl });
 
       const n = parseInt(s.nbAjournements, 10) || 1;
       const note = '🔁 RENDEZ-VOUS POST-PERMIS · ' +
@@ -669,58 +665,119 @@ function compresserImage(fichier){
   });
 }
 
-/* Zone d'ajout et d'aperçu d'une capture */
-function blocImageCepc(eleve, valeurActuelle, auChangement){
+/* ============================================================
+   PLUSIEURS CAPTURES PAR ÉLÈVE
+   Le CEPC tient rarement sur une seule image : recto, verso,
+   observations. On les garde toutes.
+   ============================================================ */
+async function chargerCaptures(eleve){
+  try{
+    const d = await appelPrep({ action: 'captureList', eleve: eleve });
+    return (d && d.captures) || [];
+  }catch(e){ console.warn('Captures :', e); return []; }
+}
+
+/* Galerie : aperçu, ajout et retrait */
+function blocCaptures(eleve, dateExamen){
   const d = document.createElement('div');
   d.style.cssText = 'margin-bottom:12px;';
 
   const l = document.createElement('label');
-  l.textContent = '📷 Capture du CEPC';
+  l.textContent = '📷 Captures du CEPC';
   d.appendChild(l);
 
-  const apercu = document.createElement('div');
-  apercu.style.cssText = 'margin-bottom:8px;';
-  d.appendChild(apercu);
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+  aide.textContent = 'Ajoute autant de captures que nécessaire : recto, verso, observations. ' +
+    'Elles sont réduites automatiquement et suivront jusqu\'au rendez-vous post-permis.';
+  d.appendChild(aide);
 
-  function dessiner(src){
-    apercu.innerHTML = '';
-    if(!src) return;
-    const img = document.createElement('img');
-    img.src = src;
-    img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);' +
-      'cursor:zoom-in;';
-    img.title = 'Appuie pour agrandir';
-    img.addEventListener('click', () => agrandirImage(src, eleve));
-    apercu.appendChild(img);
+  const galerie = document.createElement('div');
+  galerie.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;';
+  d.appendChild(galerie);
+
+  async function dessiner(){
+    galerie.innerHTML = '<div style="font-size:12px;color:var(--muted);">Chargement…</div>';
+    const liste = await chargerCaptures(eleve);
+    galerie.innerHTML = '';
+
+    if(!liste.length){
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12px;color:var(--muted);';
+      v.textContent = 'Aucune capture pour le moment.';
+      galerie.appendChild(v);
+      return;
+    }
+
+    liste.forEach((cap, i) => {
+      const vig = document.createElement('div');
+      vig.style.cssText = 'position:relative;width:96px;flex-shrink:0;';
+
+      const img = document.createElement('img');
+      img.src = cap.image;
+      img.style.cssText = 'width:100%;height:96px;object-fit:cover;border-radius:8px;' +
+        'border:1px solid var(--line);cursor:zoom-in;display:block;';
+      img.title = 'Capture ' + (i + 1) + ' — appuie pour agrandir';
+      img.addEventListener('click', () => agrandirImage(cap.image, eleve));
+      vig.appendChild(img);
+
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.style.cssText = 'position:absolute;top:2px;right:2px;width:24px;height:24px;' +
+        'border-radius:12px;border:none;background:rgba(0,0,0,.65);color:#fff;' +
+        'font-size:13px;cursor:pointer;line-height:1;';
+      x.textContent = '✕';
+      x.title = 'Retirer cette capture';
+      x.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if(!await confirmer('Retirer cette capture ?')) return;
+        try{
+          await appelPrep({ action: 'captureDelete', id: cap.id });
+          dessiner();
+        }catch(e){ showToast('Erreur : ' + e.message); }
+      });
+      vig.appendChild(x);
+
+      galerie.appendChild(vig);
+    });
   }
-  dessiner(valeurActuelle);
+  dessiner();
 
   const inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'image/*';
+  inp.multiple = true;
   inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
     'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;margin-bottom:6px;';
   d.appendChild(inp);
 
   const etat = document.createElement('div');
-  etat.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;';
-  etat.textContent = "La capture est réduite automatiquement pour tenir dans le suivi.";
+  etat.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;min-height:14px;';
   d.appendChild(etat);
 
   inp.addEventListener('change', async () => {
-    const f = inp.files && inp.files[0];
-    if(!f) return;
-    etat.style.color = 'var(--muted)';
-    etat.textContent = 'Réduction de l\'image…';
-    try{
-      const donnees = await compresserImage(f);
-      dessiner(donnees);
+    const fichiers = Array.prototype.slice.call(inp.files || []);
+    if(!fichiers.length) return;
+
+    let ok = 0;
+    for(let i = 0; i < fichiers.length; i++){
+      etat.style.color = 'var(--muted)';
+      etat.textContent = 'Capture ' + (i + 1) + ' sur ' + fichiers.length + '…';
+      try{
+        const donnees = await compresserImage(fichiers[i]);
+        await appelPrep({ action: 'captureAdd', eleve: eleve,
+                          dateExamen: dateExamen || '', image: donnees });
+        ok++;
+      }catch(e){
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = 'Capture ' + (i + 1) + ' : ' + e.message;
+      }
+    }
+    inp.value = '';
+    if(ok){
       etat.style.color = 'var(--accent-text)';
-      etat.textContent = '✅ Capture prête (' + Math.round(donnees.length / 1024) + ' Ko)';
-      if(auChangement) auChangement(donnees);
-    }catch(e){
-      etat.style.color = 'var(--warn-text)';
-      etat.textContent = e.message;
+      etat.textContent = '✅ ' + ok + ' capture(s) ajoutée(s)';
+      dessiner();
     }
   });
 
