@@ -808,7 +808,20 @@ async function reprendreSession(){
       body: JSON.stringify({ code: s.code })
     });
     const data = await r.json().catch(() => ({}));
-    if(!r.ok || !data.ok){ oublierSession(); return false; }
+
+    /* On n'oublie la session que si le code est vraiment refusé.
+       Un serveur occupé ou un blocage temporaire ne doit pas
+       déconnecter quelqu'un dont le code est valable. */
+    if(!r.ok || !data.ok){
+      if(r.status === 403 && data.error && /incorrect|inconnu/i.test(data.error)){
+        oublierSession();
+        return false;
+      }
+      /* Doute : on garde la session mémorisée */
+      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits);
+      return true;
+    }
+
     ouvrirSession(s.code, data.moniteur, data.role, false, data.droits);
     return true;
   }catch(e){
