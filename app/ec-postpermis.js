@@ -80,8 +80,10 @@ async function afficherPostExamen(tous){
             await appelPrep({ action:'suiviDelete', eleve: x.eleve });
 
             $('permisNom').value = x.eleve;
-            const tiroir = document.querySelector('[data-tiroir="permis"]');
-            if(tiroir) tiroir.open = true;
+            if(typeof afficherOnglet === 'function'){
+              afficherOnglet('eleves');
+              afficherVue('eleves', 'permis');
+            }
             await preparerPermis();
             afficherBureau();
             showToast('Messages prêts dans le module permis ✅');
