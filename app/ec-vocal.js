@@ -1005,6 +1005,7 @@ function initTiroirs(){
       if(cle === 'procedures' && d.open) afficherProcedures();
       if(cle === 'bilans' && d.open) afficherTextesBilan();
       if(cle === 'stats' && d.open) afficherStats();
+      if(cle === 'sms' && d.open) chargerCadreSms();
     });
   });
 }
