@@ -5,6 +5,9 @@
    ============================================================ */
 
 function afficherExamensBlancs(tous){
+  const zEB = $('listeExamBlanc');
+  if(!zEB) return;
+
   const eb = tous.filter(e => (e.etat.examBlanc === 'aprevoir' || e.etat.examBlanc === 'reserve') &&
                               e.etat.ebSuite !== 'pasleniveau');
   eb.sort((a, b) => (a.etat.examBlancN === null ? 99 : a.etat.examBlancN) -
@@ -75,6 +78,9 @@ function afficherExamensBlancs(tous){
 
 /* Simulateurs nuit et risques */
 function afficherSimulateurs(tous){
+  const zSim = $('listeSimu');
+  if(!zSim) return;
+
   const sim = tous.filter(e => e.etat.simuNuit === 'aprevoir' || e.etat.simuNuit === 'prevu');
   zSim.innerHTML = '';
   if(!sim.length){
