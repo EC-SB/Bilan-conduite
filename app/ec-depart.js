@@ -832,3 +832,7 @@ $('logoutBtn').addEventListener('click', async () => {
 
 $('codeBtn').addEventListener('click', deverrouiller);
 $('codeInput').addEventListener('keydown', e => { if(e.key === 'Enter') deverrouiller(); });
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-depart.js'] = true;

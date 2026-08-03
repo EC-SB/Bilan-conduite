@@ -1005,3 +1005,7 @@ function majCompteur(id, valeur){
   const el = $(id);
   if(el) el.textContent = valeur ? String(valeur) : '';
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-vocal.js'] = true;

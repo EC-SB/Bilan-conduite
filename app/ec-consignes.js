@@ -196,3 +196,7 @@ function construireConsignes(modeleCle){
   if(m.schema === 'simu') return f(m.comps);
   return f();
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-consignes.js'] = true;

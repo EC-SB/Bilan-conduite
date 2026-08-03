@@ -38,3 +38,7 @@ async function fetchFiable(url, options, delaiMs, essais){
       : 'Connexion impossible : ' + (derniere ? derniere.message : 'erreur inconnue')
   );
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-reseau.js'] = true;

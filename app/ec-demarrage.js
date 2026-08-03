@@ -182,3 +182,7 @@ remplirModeles();
 $('modele').addEventListener('change', () => verifierBoiteModele(derniereBoiteEleve));
 $('lessonDate').value = todayLocal();
 refreshHistory();
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-demarrage.js'] = true;

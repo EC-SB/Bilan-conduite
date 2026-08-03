@@ -352,3 +352,35 @@ if(!SR){
     bm.style.marginTop = '12px';
   }
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-noyau.js'] = true;
+
+/* ============================================================
+   CONTRÔLE DES MODULES
+   Un fichier absent du serveur ne provoque aucune erreur visible :
+   des boutons cessent simplement de répondre. On le signale.
+   ============================================================ */
+const EC_ATTENDUS = ["ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-depart.js", "ec-demarrage.js"];
+
+function verifierModules(){
+  const charges = window.EC_MODULES || {};
+  const manquants = EC_ATTENDUS.filter(function(m){ return !charges[m]; });
+  if(!manquants.length) return;
+
+  const z = document.createElement('div');
+  z.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;' +
+    'background:#B3261E;color:#fff;padding:14px 16px;font-size:14px;line-height:1.5;' +
+    'font-family:inherit;box-shadow:0 2px 12px rgba(0,0,0,.4);';
+  z.innerHTML = '<strong>⚠️ Application incomplète</strong><br>' +
+    manquants.length + ' fichier(s) manquant(s) dans le dossier <code>app/</code> :<br>' +
+    manquants.join(', ') + '<br>' +
+    '<span style="font-size:12px;opacity:.9;">Certaines fonctions ne répondront pas ' +
+    'tant que ces fichiers ne sont pas en ligne.</span>';
+  document.body.insertBefore(z, document.body.firstChild);
+  console.error('Modules manquants :', manquants);
+}
+
+/* On laisse le temps aux derniers scripts d'arriver */
+setTimeout(verifierModules, 2500);

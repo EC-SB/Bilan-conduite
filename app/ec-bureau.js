@@ -1754,3 +1754,7 @@ async function ajouterDateBureau(){
     btn.textContent = '📅 Enregistrer la date';
   }
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-bureau.js'] = true;
