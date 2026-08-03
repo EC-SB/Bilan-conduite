@@ -62,9 +62,14 @@ const MSG_PERMIS = {
   ]
 };
 
-let elevePermis = null;
+/* elevePermis : déclaré dans ec-etat.js */
 
 async function preparerPermis(){
+  /* Le nom vient soit de la liste des examens passés, soit de la saisie repliée */
+  const manuel = $('permisNomManuel');
+  if(manuel && manuel.value.trim().length >= 2){
+    $('permisNom').value = manuel.value.trim();
+  }
   const nom = $('permisNom').value.trim();
   const zone = $('permisResultat');
   if(nom.length < 2){
