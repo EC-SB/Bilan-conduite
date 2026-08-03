@@ -32,11 +32,10 @@ const SECTIONS = [
   { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
   { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
   { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
-  { cle:'bureau_permis',    nom:'🚗 Permis : à prévoir, à placer, prévus' },
+  { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
   { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
-  { cle:'messenger',        nom:'📣 Message groupe Messenger' },
   { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
   { cle:'admin',            nom:'⚙️ Administration des accès' }
 ];
