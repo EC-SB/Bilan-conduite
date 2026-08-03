@@ -369,7 +369,7 @@ function tableauAPlacer(liste){
           bDel.title = 'Retirer de la liste RDV PERMIS';
           bDel.addEventListener('click', async () => {
             if(!await confirmer('Retirer ' + e.eleve + ' de la liste RDV PERMIS ?\n\n' +
-                        'Il retourne dans « Examens du permis à prévoir ».')) return;
+                        'Il retourne dans « Élèves prêts au permis ».')) return;
             bDel.disabled = true;
             try{
               await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: '' });
@@ -757,7 +757,7 @@ async function afficherPostExamenDepuisPrevus(tous, prevus){
 }
 
 
-/* Examens du permis à prévoir */
+/* Élèves prêts au permis */
 function afficherExamensPermis(tous){
   const zPer = $('listePermis');
   if(!zPer) return;
@@ -825,7 +825,7 @@ function afficherExamensPermis(tous){
     const v = document.createElement('div');
     v.className = 'empty';
     v.textContent = fPer ? 'Aucun élève ne correspond à ce filtre.'
-                         : 'Aucun examen du permis à prévoir.';
+                         : 'Aucun élève prêt au permis.';
     zPer.appendChild(v);
   }else{
     const cpt = document.createElement('div');
@@ -1255,7 +1255,7 @@ function afficherPasDeRepassage(tous){
         b.textContent = '✅ Le niveau est revenu — remettre en examen à prévoir';
         b.addEventListener('click', async () => {
           if(!await confirmer('Remettre ' + x.eleve +
-                              ' dans les examens du permis à prévoir ?')) return;
+                              ' dans les élèves prêts au permis ?')) return;
           b.disabled = true;
           try{
             await majSuivi(x.eleve, { suite: '', retireAPrevoir: '' });
