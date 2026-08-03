@@ -4,6 +4,16 @@
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
+/* Branche un gestionnaire sans faire tomber le reste du fichier
+   si l'élément a disparu de la page. */
+function brancher(id, evenement, action){
+  const el = document.getElementById(id);
+  if(!el){ console.warn('Élément absent de la page : ' + id); return null; }
+  el.addEventListener(evenement, action);
+  return el;
+}
+
+
 /* ============================================================
    DÉPART DE L'AUTO-ÉCOLE
    Même principe que « permis obtenu » : liste de tâches,
@@ -227,22 +237,22 @@ async function supprimerDossierEleve(){
   }
 }
 
-$('supprimerEleveBtn').addEventListener('click', supprimerDossierEleve);
-$('bureauBtn').addEventListener('click', () => afficherBureau());
-$('filtrePP').addEventListener('change', () => afficherBureau());
-$('filtrePermis').addEventListener('change', () => afficherBureau());
-$('filtreDate').addEventListener('change', () => afficherBureau());
-$('msgBtn').addEventListener('click', envoyerMessageBureau);
-$('addBtn').addEventListener('click', ajouterDateBureau);
-$('addEtat').addEventListener('change', () => {
+brancher('supprimerEleveBtn', 'click', supprimerDossierEleve);
+brancher('bureauBtn', 'click', () => afficherBureau());
+brancher('filtrePP', 'change', () => afficherBureau());
+brancher('filtrePermis', 'change', () => afficherBureau());
+brancher('filtreDate', 'change', () => afficherBureau());
+brancher('msgBtn', 'click', envoyerMessageBureau);
+brancher('addBtn', 'click', ajouterDateBureau);
+brancher('addEtat', 'change', () => {
   const avecDate = ($('addEtat').value === 'date');
   $('addZoneDate').style.display = avecDate ? 'block' : 'none';
   $('addBtn').textContent = avecDate ? '📅 Enregistrer la date' : '📌 Enregistrer';
 });
-$('permisBtn').addEventListener('click', preparerPermis);
-$('departBtn').addEventListener('click', preparerDepart);
-$('departDate').value = todayLocal();
-$('permisNom').addEventListener('change', preparerPermis);
+brancher('permisBtn', 'click', preparerPermis);
+brancher('departBtn', 'click', preparerDepart);
+if($('departDate')) $('departDate').value = todayLocal();
+brancher('permisNom', 'change', preparerPermis);
 
 /* Vérifie que le script Google déployé est bien à jour */
 async function verifierVersionScript(reponse){
@@ -469,22 +479,22 @@ async function rechercherEleve(){
   }
 }
 
-$('searchBtn').addEventListener('click', rechercherEleve);
-$('searchMoniteur').addEventListener('change', rechercherEleve);
-$('searchSite').addEventListener('change', rechercherEleve);
-$('searchName').addEventListener('input', () => verifierNomEleve('searchName', 'eleveInfo', false));
-$('searchName').addEventListener('change', () => { verifierNomEleve('searchName', 'eleveInfo', false); rechercherEleve(); });
-$('studentName').addEventListener('input', () => {
+brancher('searchBtn', 'click', rechercherEleve);
+brancher('searchMoniteur', 'change', rechercherEleve);
+brancher('searchSite', 'change', rechercherEleve);
+brancher('searchName', 'input', () => verifierNomEleve('searchName', 'eleveInfo', false));
+brancher('searchName', 'change', () => { verifierNomEleve('searchName', 'eleveInfo', false); rechercherEleve(); });
+brancher('studentName', 'input', () => {
   verifierNomEleve('studentName', 'studentInfo', true);
   planifierHistorique();
 });
-$('studentName').addEventListener('change', () => {
+brancher('studentName', 'change', () => {
   verifierNomEleve('studentName', 'studentInfo', true);
   chargerHistoriqueEleve();       /* choix dans la liste : immédiat */
 });
-$('searchName').addEventListener('keydown', e => { if(e.key === 'Enter') rechercherEleve(); });
+brancher('searchName', 'keydown', e => { if(e.key === 'Enter') rechercherEleve(); });
 
-$('newLessonBtn').addEventListener('click', () => {
+brancher('newLessonBtn', 'click', () => {
   finalTranscript = '';
   committedTranscript = '';
   interruptions = 0;
@@ -747,7 +757,7 @@ async function chargerUtilisateurs(){
   }
 }
 
-$('createBtn').addEventListener('click', async () => {
+brancher('createBtn', 'click', async () => {
   const btn = $('createBtn');
   btn.disabled = true;
   try{
@@ -876,14 +886,14 @@ async function deverrouiller(){
   }
 }
 
-$('logoutBtn').addEventListener('click', async () => {
+brancher('logoutBtn', 'click', async () => {
   if(!await confirmer('Se déconnecter ?')) return;
   verrouiller('');
   showToast('Déconnecté');
 });
 
-$('codeBtn').addEventListener('click', deverrouiller);
-$('codeInput').addEventListener('keydown', e => { if(e.key === 'Enter') deverrouiller(); });
+/* Le bouton Déverrouiller est branché dans la page elle-même,
+   pour qu'aucun module ne puisse l'empêcher de répondre. */
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
