@@ -420,7 +420,6 @@ function ouvrirRdvPost(cours){
   $('rdvPostCom').value = s.commentaireMoniteur || '';
   $('rdvPostMsg').textContent = '';
 
-  document.querySelectorAll('[data-tiroir]').forEach(d => { d.open = false; });
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
   $('rdvPostView').style.display = 'block';
@@ -431,8 +430,7 @@ function fermerRdvPost(){
   rdvPostEnCours = null;
   $('rdvPostView').style.display = 'none';
   $('recordView').style.display = 'block';
-  const t = document.querySelector('[data-tiroir="cours"]');
-  if(t) t.open = true;
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
 }
 
 async function terminerRdvPost(){
