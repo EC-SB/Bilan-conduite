@@ -209,6 +209,12 @@
   }
   #noteInterne:focus, #noteResult:focus{outline:2px solid var(--orange);outline-offset:1px;}
   body.clair #noteInterne, body.clair #noteResult{background:#FBFBF7;}
+
+  /* Volets par élève dans les listes longues */
+  .history-item details > summary::-webkit-details-marker{display:none;}
+  .history-item details > summary{outline:none;}
+  .history-item details[open] > summary{margin-bottom:6px;}
+
   /* Repassage : liseré et fond distincts */
   .history-item.repassage{
     border-left:4px solid #E8A33D;
@@ -420,7 +426,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v130</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v131</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -939,21 +945,21 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=130"></script>
-<script src="app/ec-modeles.js?v=130"></script>
-<script src="app/ec-consignes.js?v=130"></script>
-<script src="app/ec-noyau.js?v=130"></script>
-<script src="app/ec-vocal.js?v=130"></script>
-<script src="app/ec-reseau.js?v=130"></script>
-<script src="app/ec-manuel.js?v=130"></script>
-<script src="app/ec-fenetres.js?v=130"></script>
-<script src="app/ec-questionnaire.js?v=130"></script>
-<script src="app/ec-permis.js?v=130"></script>
-<script src="app/ec-prepares.js?v=130"></script>
-<script src="app/ec-bureau.js?v=130"></script>
-<script src="app/ec-postpermis.js?v=130"></script>
-<script src="app/ec-depart.js?v=130"></script>
-<script src="app/ec-demarrage.js?v=130"></script>
+<script src="app/ec-etat.js?v=131"></script>
+<script src="app/ec-modeles.js?v=131"></script>
+<script src="app/ec-consignes.js?v=131"></script>
+<script src="app/ec-noyau.js?v=131"></script>
+<script src="app/ec-vocal.js?v=131"></script>
+<script src="app/ec-reseau.js?v=131"></script>
+<script src="app/ec-manuel.js?v=131"></script>
+<script src="app/ec-fenetres.js?v=131"></script>
+<script src="app/ec-questionnaire.js?v=131"></script>
+<script src="app/ec-permis.js?v=131"></script>
+<script src="app/ec-prepares.js?v=131"></script>
+<script src="app/ec-bureau.js?v=131"></script>
+<script src="app/ec-postpermis.js?v=131"></script>
+<script src="app/ec-depart.js?v=131"></script>
+<script src="app/ec-demarrage.js?v=131"></script>
 
 </body>
 </html>
