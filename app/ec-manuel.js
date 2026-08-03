@@ -111,6 +111,12 @@ const CHAMPS_MANUELS = {
   ]
 };
 
+/* La boîte automatique part du même formulaire que la boîte manuelle,
+   puis les deux évoluent séparément. */
+CHAMPS_MANUELS.conduiteResumeAuto =
+  JSON.parse(JSON.stringify(CHAMPS_MANUELS.conduiteResume));
+
+
 /* champsManuels : déclaré dans ec-etat.js */
 /* modeManuel : déclaré dans ec-etat.js */
 
