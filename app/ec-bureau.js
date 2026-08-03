@@ -251,6 +251,11 @@ function ligneBureau(e, options){
 
   /* Les listes longues se replient : l'essentiel reste visible,
      les actions ne s'ouvrent qu'à la demande. */
+  /* De quoi faire le ménage, sur toutes les listes */
+  if(options.menage !== false && aDroit('bureau_permis')){
+    actions.appendChild(boutonMenage(e.eleve, actions));
+  }
+
   if(options.replier){
     const det = document.createElement('details');
     det.style.cssText = 'margin-top:6px;';
@@ -581,6 +586,60 @@ function majVolet(id, nombre, alerte){
   if(!el) return;
   el.textContent = nombre ? String(nombre) : '';
   el.classList.toggle('alerte', !!alerte);
+}
+
+/* Retire complètement un élève depuis n'importe quelle liste du bureau.
+   Sert quand un dossier de test ou abandonné traîne dans les listes. */
+function boutonMenage(eleve, zoneParente){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;' +
+    'color:var(--red);border-color:var(--red);';
+  b.textContent = '🗑️ Retirer ' + eleve + ' de toutes les listes';
+  b.title = "Efface ses messages, sa fiche de suivi et ses cours à venir. " +
+            'Ses bilans sont conservés.';
+
+  b.addEventListener('click', async () => {
+    if(!await confirmer('Retirer ' + eleve + ' de toutes les listes du bureau ?\n\n' +
+        '• ses messages au bureau\n• sa fiche de suivi et ses examens\n' +
+        '• ses cours à venir\n\n' +
+        'Ses bilans sont conservés. Pour tout effacer, passe par le répertoire.')) return;
+
+    b.disabled = true;
+    b.textContent = 'Nettoyage…';
+    const faits = [];
+    try{
+      try{
+        const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: eleve });
+        if(r && r.effacees) faits.push(r.effacees + ' message(s)');
+      }catch(e){}
+
+      try{
+        const d = await appelPrep({ action: 'prepList' });
+        const siens = ((d && d.preparations) || [])
+          .filter(x => normaliserMot(x.eleve || '') === normaliserMot(eleve));
+        for(const pr of siens){
+          try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
+        }
+        if(siens.length) faits.push(siens.length + ' cours préparé(s)');
+      }catch(e){}
+
+      try{
+        await appelPrep({ action: 'suiviDelete', eleve: eleve });
+        faits.push('fiche de suivi');
+      }catch(e){}
+
+      viderCaches(eleve);
+      showToast('✅ ' + eleve + ' retiré — ' + (faits.join(' · ') || 'rien à retirer'));
+      afficherBureau();
+    }catch(e){
+      showToast('Erreur : ' + e.message);
+      b.disabled = false;
+      b.textContent = '🗑️ Retirer ' + eleve + ' de toutes les listes';
+    }
+  });
+
+  return b;
 }
 
 /* Signale que ce module est bien chargé */
