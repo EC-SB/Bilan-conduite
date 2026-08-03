@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v119</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v120</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -558,7 +558,7 @@
     <h2 class="section-title">✍️ Bilan à remplir à la main</h2>
     <div id="manuelInfo" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;"></div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
-      Remplis chaque rubrique. Le 🎙️ à côté d'un champ permet de dicter au lieu d'écrire.
+      <span id="aideManuel">Remplis chaque rubrique.</span>
     </div>
     <div id="manuelChamps"></div>
     <button class="btn btn-primary" id="manuelGen">📄 Composer le bilan</button>
@@ -2547,8 +2547,17 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const estAndroid = /Android/i.test(navigator.userAgent || '');
 
 if(!SR){
-  $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale n\'est pas disponible dans ce navigateur. Ouvre cette page avec <strong>Chrome sur Android</strong>.</div>';
+  $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale demande ' +
+    '<strong>Chrome sur Android</strong>.<br>Le <strong>bilan à remplir à la main</strong> ' +
+    'reste utilisable normalement sur ce navigateur.</div>';
   $('recBtn').disabled = true;
+  $('recBtn').style.opacity = '.45';
+  /* Le mode manuel est mis en avant puisque c'est le seul disponible */
+  const bm = $('manuelBtn');
+  if(bm){
+    bm.className = 'btn btn-primary';
+    bm.style.marginTop = '12px';
+  }
 }
 
 
@@ -3701,10 +3710,15 @@ const CHAMPS_MANUELS = {
 let champsManuels = {};     /* valeurs saisies */
 let modeManuel = false;
 
+/* La dictée est-elle possible sur ce navigateur ? */
+function dicteePossible(){
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
 /* Dictée dans un champ précis, sans toucher au reste */
 function dicterDans(champ, bouton){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ showToast('La dictée demande Chrome.'); return; }
+  if(!SR){ showToast('La dictée demande Chrome sur Android.'); return; }
 
   if(bouton.dataset.actif === 'oui'){
     if(bouton._sr) try{ bouton._sr.stop(); }catch(e){}
@@ -3948,14 +3962,17 @@ async function ouvrirBilanManuel(){
         t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
           'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:16px;' +
           'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
-        const mic = document.createElement('button');
-        mic.type = 'button';
-        mic.className = 'btn btn-secondary';
-        mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
-        mic.textContent = '🎙️';
-        mic.title = 'Dicter dans ' + th.nom;
-        mic.addEventListener('click', () => dicterDans(t, mic));
-        r.appendChild(t); r.appendChild(mic);
+        r.appendChild(t);
+        if(dicteePossible()){
+          const mic = document.createElement('button');
+          mic.type = 'button';
+          mic.className = 'btn btn-secondary';
+          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
+          mic.textContent = '🎙️';
+          mic.title = 'Dicter dans ' + th.nom;
+          mic.addEventListener('click', () => dicterDans(t, mic));
+          r.appendChild(mic);
+        }
         b.appendChild(r);
         bloc.appendChild(b);
       });
@@ -4050,15 +4067,17 @@ async function ouvrirBilanManuel(){
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
-      const mic = document.createElement('button');
-      mic.type = 'button';
-      mic.className = 'btn btn-secondary';
-      mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
-      mic.textContent = '🎙️';
-      mic.title = 'Dicter dans ce champ';
-      mic.addEventListener('click', () => dicterDans(t, mic));
       r.appendChild(t);
-      r.appendChild(mic);
+      if(dicteePossible()){
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = 'btn btn-secondary';
+        mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
+        mic.textContent = '🎙️';
+        mic.title = 'Dicter dans ce champ';
+        mic.addEventListener('click', () => dicterDans(t, mic));
+        r.appendChild(mic);
+      }
       bloc.appendChild(r);
     }
 
@@ -4066,9 +4085,19 @@ async function ouvrirBilanManuel(){
   });
 
   /* Frise récupérée automatiquement */
+  const aide = $('aideManuel');
+  if(aide){
+    aide.textContent = dicteePossible()
+      ? "Remplis chaque rubrique. Le 🎙️ à côté d'un champ permet de dicter au lieu d'écrire."
+      : "Remplis chaque rubrique en écrivant. La dictée demanderait Chrome sur Android, "
+        + "mais tout le reste fonctionne normalement ici.";
+  }
+
   const info = $('manuelInfo');
   const frise = dossier.frise || extraireFrise($('noteInterne').value);
+  const versionApp = (document.querySelector('.version') || {}).textContent || '';
   info.innerHTML = '<strong>' + (eleve || '') + '</strong> · ' + modele.label +
+    (versionApp ? ' · <span style="color:var(--muted);">' + versionApp + '</span>' : '') +
     (frise ? '<br>Frise reprise : ' + frise.replace(/</g,'&lt;') : '') +
     ((dossier.manoeuvres || []).length
       ? '<br>' + dossier.manoeuvres.length + ' manœuvre(s) déjà validée(s), reprises automatiquement'
