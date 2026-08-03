@@ -13,7 +13,11 @@
 
 /* Décode les phrases produites par le questionnaire */
 function analyserNote(note){
-  const t = String(note || '');
+  /* Les téléphones remplacent l'apostrophe droite par une typographique :
+     sans cette normalisation, les repères du bilan ne sont plus reconnus. */
+  const t = String(note || '')
+    .replace(/[\u2018\u2019\u02BC]/g, "'")
+    .replace(/[\u00A0\u202F\u2007]/g, ' ');
   const r = { repassages:null, dateAjournement:null,
               ebSuite:null, ebDate:null, ebLecons:null,
               examBlanc:null, examBlancN:null, examBlancDate:null,
@@ -68,7 +72,7 @@ function analyserNote(note){
     r.permis = 'prevu';
     r.permisDate = m[1].trim();
   }
-  else if(/Date d'examen à prévoir/i.test(t)) r.permis = 'aprevoir';
+  else if(/(date d'examen|examen(?: du permis)?)\s*(?:est\s*)?à pr[ée]voir/i.test(t)) r.permis = 'aprevoir';
   else if((m = t.match(/Examen prévu le ([^—·]+)/i))){ r.permis='prevu'; r.permisDate=m[1].trim(); }
   if(r.permis === 'annule') r.permisDate = null;
   if((m = t.match(/Examen prévu le [^—·]+— encore (\d+) leçon/i))) r.permisN = +m[1];
