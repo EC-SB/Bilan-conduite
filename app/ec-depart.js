@@ -641,12 +641,40 @@ async function chargerUtilisateurs(){
         });
         actions.appendChild(selRole);
 
+        /* Changer le code d'accès, sans toucher au reste du compte */
+        const bCode = document.createElement('button');
+        bCode.className = 'btn btn-secondary';
+        bCode.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;';
+        bCode.textContent = '🔑';
+        bCode.title = 'Changer le code de ' + u.nom;
+        bCode.addEventListener('click', async () => {
+          const nouveau = await demander(
+            'Nouveau code pour ' + u.nom + '\n\n' +
+            'De 6 à 8 chiffres. Son rôle, ses accès et ses cours préparés sont conservés.',
+            '', 'Changer le code');
+          if(nouveau === null) return;
+          const v = String(nouveau).trim();
+          if(!/^[0-9]{6,8}$/.test(v)){
+            messageAdmin('Le code doit contenir de 6 à 8 chiffres.', true);
+            return;
+          }
+          bCode.disabled = true;
+          try{
+            await appelAdmin({ action:'changerCode', cible:u.code, nouveauCode:v });
+            messageAdmin('Code de ' + u.nom + ' changé — préviens-le de son nouveau code : ' + v);
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); bCode.disabled = false; }
+        });
+        actions.appendChild(bCode);
+
         const bDel = document.createElement('button');
         bDel.className = 'btn btn-secondary';
         bDel.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;color:var(--red);border-color:var(--red);';
         bDel.textContent = '✕';
         bDel.addEventListener('click', async () => {
-          if(!await confirmer('Supprimer l\'accès de ' + u.nom + ' (code ' + u.code + ') ?')) return;
+          if(!await confirmer('Supprimer l\'accès de ' + u.nom + ' (code ' + u.code + ') ?\n\n' +
+                              'Ses bilans, cours préparés et fiches restent en place :\n' +
+                              "seule sa connexion est retirée.")) return;
           try{
             await appelAdmin({ action:'delete', cible:u.code });
             messageAdmin('Accès de ' + u.nom + ' supprimé.');
