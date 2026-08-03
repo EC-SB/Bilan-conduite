@@ -841,7 +841,15 @@ async function deverrouiller(){
     const data = await r.json().catch(() => ({}));
     if(!r.ok || !data.ok){
       msg.style.color = 'var(--warn-text)';
-      msg.textContent = 'Code incorrect.';
+      /* Le serveur dit pourquoi : essais restants, blocage temporaire.
+         Le masquer derrière « code incorrect » empêche de comprendre. */
+      msg.textContent = data.error || 'Code incorrect.';
+      if(r.status === 429){
+        msg.innerHTML = '⏳ ' + (data.error || 'Accès bloqué un moment.') +
+          '<br><span style="font-size:12px;color:var(--muted);">' +
+          'Après plusieurs codes erronés, l\'accès se bloque quinze minutes. ' +
+          'Patiente, ou passe par un autre réseau.</span>';
+      }
       $('codeInput').value = '';
       return;
     }
