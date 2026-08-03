@@ -597,7 +597,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v174</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v175</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -630,6 +630,51 @@
       <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:var(--muted);"></div>
     </div>
   </div>
+
+  <script>
+  /* ============================================================
+     CONNEXION DE SECOURS
+     Le bouton Déverrouiller est branché ici, dans la page même :
+     aucun module défaillant ne peut l'empêcher de fonctionner.
+     ============================================================ */
+  (function(){
+    var bouton = document.getElementById('codeBtn');
+    var champ  = document.getElementById('codeInput');
+    var msg    = document.getElementById('codeMsg');
+    if(!bouton) return;
+
+    function essayer(){
+      if(typeof deverrouiller === 'function'){ deverrouiller(); return; }
+
+      /* Les modules n'ont pas tous été chargés : on dit lesquels */
+      var attendus = ['ec-etat.js','ec-modeles.js','ec-consignes.js','ec-noyau.js',
+        'ec-vocal.js','ec-reseau.js','ec-manuel.js','ec-fenetres.js','ec-questionnaire.js',
+        'ec-permis.js','ec-prepares.js','ec-bureau.js','ec-places.js','ec-listes.js',
+        'ec-permis-listes.js','ec-postpermis.js','ec-textes.js','ec-correction.js',
+        'ec-bilans.js','ec-sms.js','ec-stats.js','ec-messenger.js','ec-journal.js',
+        'ec-onglets.js','ec-depart.js','ec-demarrage.js'];
+      var charges = window.EC_MODULES || {};
+      var manque = attendus.filter(function(f){ return !charges[f]; });
+
+      if(msg){
+        msg.style.color = 'var(--warn-text)';
+        msg.innerHTML = manque.length
+          ? '⚠️ Fichier(s) absent(s) sur le serveur :<br><strong>' +
+            manque.join('<br>') + '</strong><br>' +
+            '<span style="font-size:12px;">Vérifie qu\'ils sont bien dans le dossier app/ ' +
+            'sur GitHub, puis recharge la page.</span>'
+          : "⚠️ L'application n'a pas fini de charger. Recharge la page.";
+      }
+    }
+
+    bouton.addEventListener('click', essayer);
+    if(champ){
+      champ.addEventListener('keydown', function(e){
+        if(e.key === 'Enter') essayer();
+      });
+    }
+  })();
+  </script>
 
     <nav id="barreOnglets" role="tablist" aria-label="Navigation" style="display:none;">
     <button class="onglet" data-cible="cours"  type="button"><span>🎙️</span>Cours</button>
@@ -1313,32 +1358,32 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=174"></script>
-<script src="app/ec-modeles.js?v=174"></script>
-<script src="app/ec-consignes.js?v=174"></script>
-<script src="app/ec-noyau.js?v=174"></script>
-<script src="app/ec-vocal.js?v=174"></script>
-<script src="app/ec-reseau.js?v=174"></script>
-<script src="app/ec-manuel.js?v=174"></script>
-<script src="app/ec-fenetres.js?v=174"></script>
-<script src="app/ec-questionnaire.js?v=174"></script>
-<script src="app/ec-permis.js?v=174"></script>
-<script src="app/ec-prepares.js?v=174"></script>
-<script src="app/ec-bureau.js?v=174"></script>
-<script src="app/ec-places.js?v=174"></script>
-<script src="app/ec-listes.js?v=174"></script>
-<script src="app/ec-permis-listes.js?v=174"></script>
-<script src="app/ec-postpermis.js?v=174"></script>
-<script src="app/ec-textes.js?v=174"></script>
-<script src="app/ec-correction.js?v=174"></script>
-<script src="app/ec-bilans.js?v=174"></script>
-<script src="app/ec-sms.js?v=174"></script>
-<script src="app/ec-stats.js?v=174"></script>
-<script src="app/ec-messenger.js?v=174"></script>
-<script src="app/ec-journal.js?v=174"></script>
-<script src="app/ec-depart.js?v=174"></script>
-<script src="app/ec-onglets.js?v=174"></script>
-<script src="app/ec-demarrage.js?v=174"></script>
+<script src="app/ec-etat.js?v=175"></script>
+<script src="app/ec-modeles.js?v=175"></script>
+<script src="app/ec-consignes.js?v=175"></script>
+<script src="app/ec-noyau.js?v=175"></script>
+<script src="app/ec-vocal.js?v=175"></script>
+<script src="app/ec-reseau.js?v=175"></script>
+<script src="app/ec-manuel.js?v=175"></script>
+<script src="app/ec-fenetres.js?v=175"></script>
+<script src="app/ec-questionnaire.js?v=175"></script>
+<script src="app/ec-permis.js?v=175"></script>
+<script src="app/ec-prepares.js?v=175"></script>
+<script src="app/ec-bureau.js?v=175"></script>
+<script src="app/ec-places.js?v=175"></script>
+<script src="app/ec-listes.js?v=175"></script>
+<script src="app/ec-permis-listes.js?v=175"></script>
+<script src="app/ec-postpermis.js?v=175"></script>
+<script src="app/ec-textes.js?v=175"></script>
+<script src="app/ec-correction.js?v=175"></script>
+<script src="app/ec-bilans.js?v=175"></script>
+<script src="app/ec-sms.js?v=175"></script>
+<script src="app/ec-stats.js?v=175"></script>
+<script src="app/ec-messenger.js?v=175"></script>
+<script src="app/ec-journal.js?v=175"></script>
+<script src="app/ec-depart.js?v=175"></script>
+<script src="app/ec-onglets.js?v=175"></script>
+<script src="app/ec-demarrage.js?v=175"></script>
 
 </body>
 </html>
