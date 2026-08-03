@@ -577,7 +577,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v166</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v168</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -633,8 +633,8 @@
     </div>
   </div>
 
-  <details class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
-    <summary>📅 Mes cours préparés <span class="compteur" id="cptPrepares"></span></summary>
+  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
+    <h2 class="section-title">📅 Cours préparés <span class="compteur" id="cptPrepares"></span></h2>
     <div class="contenu-tiroir">
     <label style="display:flex;align-items:center;gap:10px;text-transform:none;
                   font-size:14px;color:var(--muted);margin-bottom:10px;">
@@ -645,7 +645,7 @@
 
     <details style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
       <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
-        ➕ Préparer un cours
+        ➕ Préparer un cours pour plus tard
       </summary>
       <div style="margin-top:14px;">
         <label for="prepDate">Date du cours</label>
@@ -663,11 +663,11 @@
       </div>
     </details>
   </div>
-  </details>
+  </div>
 
   <div id="recordView" data-onglet="cours" data-section="cours">
-    <details class="card" data-tiroir="cours" open>
-      <summary>🎙️ Cours et enregistrement</summary>
+    <div class="card">
+      <h2 class="section-title">🎙️ Démarrer un cours</h2>
       <div class="contenu-tiroir">
       <label for="modele">Type de bilan</label>
       <select id="modele"></select>
@@ -723,7 +723,7 @@
         💾 Sauvegarde automatique dans ce téléphone : en cas de plantage, tout est récupérable.
       </div>
     </div>
-    </details>
+    </div>
 
     <button class="btn btn-primary" id="finishBtn"
             style="display:none;margin-top:46px;padding:20px;font-size:16px;">✅ Terminer et générer le bilan</button>
@@ -830,8 +830,8 @@
     </div>
   </div>
 
-  <details class="card" data-section="recherche" data-vue="recherche" data-onglet="eleves">
-    <summary>🔍 Retrouver un élève</summary>
+  <div class="card" data-section="recherche" data-vue="recherche" data-onglet="eleves">
+    <h2 class="section-title">🔍 Retrouver un élève</h2>
     <div class="contenu-tiroir">
     <label for="searchName">Nom et prénom de l'élève</label>
     <input type="text" id="searchName" list="listeEleves" autocomplete="off"
@@ -871,7 +871,7 @@
       <div id="suppressionMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
     </div>
   </div>
-  </details>
+  </div>
   <div class="card" data-section="bureau" data-onglet="suivi">
     <h2 class="section-title">🌙 Suivi simulateurs et examens blancs</h2>
     <div class="contenu-tiroir">
@@ -1036,8 +1036,8 @@
 
     </div>
   </div>
-  <details class="card" data-section="permis" data-vue="permis" data-onglet="eleves">
-    <summary>🎓 Élève ayant obtenu son permis</summary>
+  <div class="card" data-section="permis" data-vue="permis" data-onglet="eleves">
+    <h2 class="section-title">🎓 Élève ayant obtenu son permis</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Les messages se préparent tout seuls quand vous cochez
@@ -1062,10 +1062,10 @@
         </div>
       </details>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="depart" data-vue="depart" data-onglet="eleves">
-    <summary>🚪 Départ de l'auto-école</summary>
+  <div class="card" data-section="depart" data-vue="depart" data-onglet="eleves">
+    <h2 class="section-title">🚪 Départ de l'auto-école</h2>
     <div class="contenu-tiroir">
     <div id="blocDepart" style="
                                 ">
@@ -1091,10 +1091,10 @@
       <div id="departResultat" style="margin-top:16px;"></div>
     </div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="bureau_messages" data-vue="messages" data-onglet="outils">
-    <summary>📨 Messages aux moniteurs <span class="compteur" id="cptMessages"></span></summary>
+  <div class="card" data-section="bureau_messages" data-vue="messages" data-onglet="outils">
+    <h2 class="section-title">📨 Messages aux moniteurs <span class="compteur" id="cptMessages"></span></h2>
     <div class="contenu-tiroir">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         📨 Message à un moniteur</div>
@@ -1122,10 +1122,10 @@
         </div>
       </details>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="textes" data-vue="textes" data-onglet="outils">
-    <summary>📄 Mes modèles de message</summary>
+  <div class="card" data-section="textes" data-vue="textes" data-onglet="outils">
+    <h2 class="section-title">📄 Mes modèles de message</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Rédige ici tes textes une bonne fois. Ils remplaceront ceux proposés
@@ -1133,10 +1133,10 @@
       </div>
       <div id="textesZone"><div class="empty">Chargement…</div></div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="sms" data-vue="sms" data-onglet="outils">
-    <summary>💬 Envoi de SMS</summary>
+  <div class="card" data-section="sms" data-vue="sms" data-onglet="outils">
+    <h2 class="section-title">💬 Envoi de SMS</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
         L'outil d'envoi, directement ici. La connexion se fait toute seule ;
@@ -1156,10 +1156,10 @@
                   display:inline-flex;align-items:center;">↗️ Ouvrir à part</a>
       </div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="stats" data-vue="stats" data-onglet="outils">
-    <summary>📈 Taux de réussite</summary>
+  <div class="card" data-section="stats" data-vue="stats" data-onglet="outils">
+    <h2 class="section-title">📈 Taux de réussite</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Calculés à partir des résultats saisis dans « Examens passés ».
@@ -1188,10 +1188,10 @@
         <div class="empty">Appuie sur Calculer.</div>
       </div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="bilans" data-vue="bilans" data-onglet="outils">
-    <summary>📋 Modèles de bilan</summary>
+  <div class="card" data-section="bilans" data-vue="bilans" data-onglet="outils">
+    <h2 class="section-title">📋 Modèles de bilan</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Les modèles disponibles dans la liste des types de bilan.
@@ -1200,10 +1200,10 @@
       </div>
       <div id="bilansZone"><div class="empty">Chargement…</div></div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" data-section="procedures" data-vue="procedures" data-onglet="outils">
-    <summary>🚦 Procédures de conduite</summary>
+  <div class="card" data-section="procedures" data-vue="procedures" data-onglet="outils">
+    <h2 class="section-title">🚦 Procédures de conduite</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Les procédures de référence : consultables par tous, modifiables ici.
@@ -1211,10 +1211,10 @@
       </div>
       <div id="proceduresZone"><div class="empty">Chargement…</div></div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" id="journalCard" data-vue="journal" data-onglet="outils" style="display:none;">
-    <summary>📊 Journal d'activité</summary>
+  <div class="card" id="journalCard" data-vue="journal" data-onglet="outils" style="display:none;">
+    <h2 class="section-title">📊 Journal d'activité</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Qui a fait quoi, et quand. Visible uniquement par les administrateurs.
@@ -1245,10 +1245,10 @@
         <div class="empty">Appuie sur Actualiser.</div>
       </div>
     </div>
-  </details>
+  </div>
 
-  <details class="card" id="adminCard" data-vue="admin" data-onglet="outils" style="display:none;">
-    <summary>⚙️ Administration des accès</summary>
+  <div class="card" id="adminCard" data-vue="admin" data-onglet="outils" style="display:none;">
+    <h2 class="section-title">⚙️ Administration des accès</h2>
     <div class="contenu-tiroir">
     <div id="adminList"><div class="empty">Chargement…</div></div>
 
@@ -1267,7 +1267,7 @@
       <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
     </div>
   </div>
-  </details>
+  </div>
 
 
 
@@ -1294,32 +1294,32 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=166"></script>
-<script src="app/ec-modeles.js?v=166"></script>
-<script src="app/ec-consignes.js?v=166"></script>
-<script src="app/ec-noyau.js?v=166"></script>
-<script src="app/ec-vocal.js?v=166"></script>
-<script src="app/ec-reseau.js?v=166"></script>
-<script src="app/ec-manuel.js?v=166"></script>
-<script src="app/ec-fenetres.js?v=166"></script>
-<script src="app/ec-questionnaire.js?v=166"></script>
-<script src="app/ec-permis.js?v=166"></script>
-<script src="app/ec-prepares.js?v=166"></script>
-<script src="app/ec-bureau.js?v=166"></script>
-<script src="app/ec-places.js?v=166"></script>
-<script src="app/ec-listes.js?v=166"></script>
-<script src="app/ec-permis-listes.js?v=166"></script>
-<script src="app/ec-postpermis.js?v=166"></script>
-<script src="app/ec-textes.js?v=166"></script>
-<script src="app/ec-correction.js?v=166"></script>
-<script src="app/ec-bilans.js?v=166"></script>
-<script src="app/ec-sms.js?v=166"></script>
-<script src="app/ec-stats.js?v=166"></script>
-<script src="app/ec-messenger.js?v=166"></script>
-<script src="app/ec-journal.js?v=166"></script>
-<script src="app/ec-depart.js?v=166"></script>
-<script src="app/ec-onglets.js?v=166"></script>
-<script src="app/ec-demarrage.js?v=166"></script>
+<script src="app/ec-etat.js?v=168"></script>
+<script src="app/ec-modeles.js?v=168"></script>
+<script src="app/ec-consignes.js?v=168"></script>
+<script src="app/ec-noyau.js?v=168"></script>
+<script src="app/ec-vocal.js?v=168"></script>
+<script src="app/ec-reseau.js?v=168"></script>
+<script src="app/ec-manuel.js?v=168"></script>
+<script src="app/ec-fenetres.js?v=168"></script>
+<script src="app/ec-questionnaire.js?v=168"></script>
+<script src="app/ec-permis.js?v=168"></script>
+<script src="app/ec-prepares.js?v=168"></script>
+<script src="app/ec-bureau.js?v=168"></script>
+<script src="app/ec-places.js?v=168"></script>
+<script src="app/ec-listes.js?v=168"></script>
+<script src="app/ec-permis-listes.js?v=168"></script>
+<script src="app/ec-postpermis.js?v=168"></script>
+<script src="app/ec-textes.js?v=168"></script>
+<script src="app/ec-correction.js?v=168"></script>
+<script src="app/ec-bilans.js?v=168"></script>
+<script src="app/ec-sms.js?v=168"></script>
+<script src="app/ec-stats.js?v=168"></script>
+<script src="app/ec-messenger.js?v=168"></script>
+<script src="app/ec-journal.js?v=168"></script>
+<script src="app/ec-depart.js?v=168"></script>
+<script src="app/ec-onglets.js?v=168"></script>
+<script src="app/ec-demarrage.js?v=168"></script>
 
 </body>
 </html>
