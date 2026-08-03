@@ -1121,15 +1121,49 @@ async function afficherBureau(silencieux){
           if(n === 0) return etat + ' — dès la prochaine leçon';
           return etat + ' — dans ' + n + ' leçon' + (n > 1 ? 's' : '');
         },
-        alerte: x => (x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
-                     ? 'Plus qu\'une leçon avant l\'examen blanc' : null,
+        alerte: x => {
+          const s = suiviDe(x.eleve);
+          if(s.ebDatePrevue && !s.ebMoniteur) return 'Moniteur à désigner';
+          if(!s.ebMessage) return 'Message Messenger à envoyer';
+          return (x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
+                 ? "Plus qu'une leçon avant l'examen blanc" : null;
+        },
         actions: (x, zone) => {
-          zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
-            await envoyerConsigne(x.eleve, 'examblanc',
-              'Examen blanc fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            showToast('Date transmise ✅');
-            afficherBureau();
-          }));
+          const s = suiviDe(x.eleve);
+
+          /* Suivi de l'envoi du message à l'élève */
+          const lab = document.createElement('label');
+          lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
+            'font-size:15px;color:var(--cream);margin:0 0 10px;';
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = (s.ebMessage === 'oui');
+          cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;';
+          cb.addEventListener('change', async () => {
+            cb.disabled = true;
+            try{
+              await majSuivi(x.eleve, { ebMessage: cb.checked ? 'oui' : '' });
+              showToast(cb.checked ? 'Message noté comme envoyé ✅' : 'Message à renvoyer');
+              afficherBureau(true);
+            }catch(err){ showToast('Erreur : ' + err.message); cb.checked = !cb.checked; }
+            cb.disabled = false;
+          });
+          lab.appendChild(cb);
+          lab.appendChild(document.createTextNode('💬 Message Messenger envoyé à l\'élève'));
+          zone.appendChild(lab);
+
+          /* Date de l'examen blanc */
+          if(!s.ebDatePrevue){
+            zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
+              await majSuivi(x.eleve, { ebDatePrevue: iso });
+              await envoyerConsigne(x.eleve, 'examblanc',
+                'Examen blanc fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+              showToast('Date transmise ✅');
+              afficherBureau();
+            }));
+          }else{
+            zone.appendChild(blocExamenBlancMoniteur(x, s));
+          }
         }
       }));
     });
@@ -1845,6 +1879,88 @@ function ecouterReseau(){
     if(tiroirOuvert('bureau') && bureauDejaCharge) afficherBureau(true);
     chargerEleves();
   });
+}
+
+/* Une fois la date fixée, on attribue l'examen blanc à un moniteur
+   et on lui prépare sa fiche automatiquement. */
+function blocExamenBlancMoniteur(x, s){
+  const d = document.createElement('div');
+  d.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+    'padding:10px 12px;margin-top:4px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:8px;';
+  t.textContent = '📅 Examen blanc le ' + dateEnToutesLettres(s.ebDatePrevue) +
+                  (s.ebMoniteur ? ' · ' + s.ebMoniteur : '');
+  d.appendChild(t);
+
+  if(s.ebMoniteur){
+    const ok = document.createElement('div');
+    ok.style.cssText = 'font-size:13px;color:var(--accent-text);';
+    ok.textContent = '✅ Fiche préparée pour ' + s.ebMoniteur;
+    d.appendChild(ok);
+  }else{
+    const sel = document.createElement('select');
+    sel.style.marginBottom = '8px';
+    sel.innerHTML = '<option value="">— moniteur qui le fait passer —</option>';
+    moniteursActifs.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      sel.appendChild(o);
+    });
+    d.appendChild(sel);
+
+    const b = document.createElement('button');
+    b.className = 'btn btn-primary';
+    b.style.cssText = 'padding:10px;font-size:13px;';
+    b.textContent = '📝 Attribuer et préparer la fiche';
+    b.addEventListener('click', async () => {
+      if(!sel.value){ showToast('Choisis un moniteur.'); return; }
+      b.disabled = true;
+      b.textContent = 'Préparation…';
+      try{
+        await majSuivi(x.eleve, { ebMoniteur: sel.value });
+        await appelPrep({
+          action: 'prepAdd',
+          date: s.ebDatePrevue,
+          eleve: x.eleve,
+          modele: 'examen-blanc',
+          modeleLabel: 'Examen blanc',
+          site: '',
+          note: "📝 EXAMEN BLANC · fiche à remplir pendant l'épreuve",
+          contexte: JSON.stringify({ examenBlanc: true, eleve: x.eleve }),
+          moniteur: sel.value
+        });
+        await envoyerConsigne(x.eleve, 'examblanc',
+          'Examen blanc le ' + dateEnToutesLettres(s.ebDatePrevue) +
+          ' avec ' + sel.value + ' (bureau)');
+        showToast('Fiche préparée pour ' + sel.value + ' ✅');
+        afficherBureau();
+      }catch(err){
+        showToast('Erreur : ' + err.message);
+        b.disabled = false;
+        b.textContent = '📝 Attribuer et préparer la fiche';
+      }
+    });
+    d.appendChild(b);
+  }
+
+  /* Annuler la date */
+  const a = document.createElement('button');
+  a.className = 'btn btn-secondary';
+  a.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;color:var(--red);border-color:var(--red);';
+  a.textContent = '✕ Annuler cette date';
+  a.addEventListener('click', async () => {
+    if(!await confirmer("Annuler la date d'examen blanc de " + x.eleve + ' ?')) return;
+    a.disabled = true;
+    try{
+      await majSuivi(x.eleve, { ebDatePrevue: '', ebMoniteur: '' });
+      afficherBureau();
+    }catch(err){ showToast('Erreur : ' + err.message); a.disabled = false; }
+  });
+  d.appendChild(a);
+
+  return d;
 }
 
 /* Signale que ce module est bien chargé */
