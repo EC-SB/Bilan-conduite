@@ -197,22 +197,47 @@ function afficherPermis(nom, dossier){
     });
     contenu.appendChild(bloc);
 
-    /* Suppression du dossier — administrateurs uniquement */
-    if(ACCES.role === 'admin' && dossier.nb > 0){
-      const supp = document.createElement('div');
-      supp.style.cssText = 'margin-top:18px;padding-top:16px;border-top:1px solid var(--line);';
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'color:var(--red);border-color:var(--red);';
-      b.textContent = '🗑️ Supprimer les ' + dossier.nb + ' bilan(s) de ' + nom;
-      b.addEventListener('click', () => {
-        eleveAffiche = nom;
-        nbBilansAffiches = dossier.nb;
-        supprimerDossierEleve();
-      });
-      supp.appendChild(b);
-      contenu.appendChild(supp);
+    /* Clôture du dossier, une fois tout envoyé */
+    const fin = document.createElement('div');
+    fin.style.cssText = 'margin-top:20px;padding-top:16px;border-top:2px solid var(--line);';
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+    t.textContent = '🏁 Clôturer le dossier';
+    fin.appendChild(t);
+
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;';
+    a.textContent = "Une fois les messages envoyés et les tâches faites, " +
+      "retire l'élève de toutes les listes.";
+    fin.appendChild(a);
+
+    const bFiches = document.createElement('button');
+    bFiches.className = 'btn btn-secondary';
+    bFiches.style.cssText = 'padding:10px;font-size:13px;';
+    bFiches.textContent = '🧹 Retirer de toutes les listes';
+    bFiches.title = 'Fiche de suivi, messages en attente, cours préparés. Les bilans sont conservés.';
+    bFiches.addEventListener('click', () => nettoyerDossierPermis(nom, false, bFiches));
+    fin.appendChild(bFiches);
+
+    /* Suppression totale — administrateurs uniquement */
+    if(ACCES.role === 'admin'){
+      const bTout = document.createElement('button');
+      bTout.className = 'btn btn-secondary';
+      bTout.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;' +
+        'color:var(--red);border-color:var(--red);';
+      bTout.textContent = '🗑️ Supprimer toutes ses fiches' +
+        (dossier.nb ? ' et ses ' + dossier.nb + ' bilan(s)' : '');
+      bTout.addEventListener('click', () => nettoyerDossierPermis(nom, true, bTout, dossier.nb));
+      fin.appendChild(bTout);
     }
+
+    const etat = document.createElement('div');
+    etat.id = 'permisNettoyage';
+    etat.style.cssText = 'margin-top:10px;font-size:13px;min-height:18px;line-height:1.5;';
+    fin.appendChild(etat);
+
+    contenu.appendChild(fin);
   }
 
   if(dossier.ants) $('permisAnts').value = dossier.ants;
@@ -220,6 +245,122 @@ function afficherPermis(nom, dossier){
   $('permisAnts').addEventListener('change', rendre);
   $('permisBoite').addEventListener('change', rendre);
   rendre();
+}
+
+
+/* ============================================================
+   CLÔTURE DU DOSSIER
+   Deux niveaux : retirer des listes, ou tout effacer.
+   ============================================================ */
+async function nettoyerDossierPermis(nom, toutEffacer, bouton, nbBilans){
+  const etat = $('permisNettoyage');
+  const dire = (t, couleur) => {
+    if(!etat) return;
+    etat.style.color = couleur || 'var(--muted)';
+    etat.textContent = t;
+  };
+
+  if(toutEffacer){
+    if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+        'Tout ce qui concerne ' + nom + ' va être effacé :\n' +
+        (nbBilans ? '• ses ' + nbBilans + ' bilan(s)\n' : '') +
+        '• sa fiche de suivi\n• ses captures de CEPC\n' +
+        '• ses cours préparés et messages en attente\n\n' +
+        'Cette action est IRRÉVERSIBLE. Continuer ?')) return;
+
+    const saisi = await demander("Pour confirmer, recopie exactement le nom de l'élève :\n\n" + nom);
+    if(saisi === null) return;
+    if(normaliserMot(saisi) !== normaliserMot(nom)){
+      await informer('Le nom saisi ne correspond pas. Suppression annulée.');
+      return;
+    }
+  }else{
+    if(!await confirmer('Retirer ' + nom + ' de toutes les listes de suivi ?\n\n' +
+                        'Ses bilans et ses captures sont conservés.')) return;
+  }
+
+  bouton.disabled = true;
+  const texteInitial = bouton.textContent;
+  bouton.textContent = 'Nettoyage…';
+
+  let faits = [];
+  try{
+    /* Les messages en attente ne doivent plus le faire réapparaître */
+    dire('Messages en attente…');
+    try{
+      const d = await appelPrep({ action:'consigneList', eleve: nom });
+      const enAttente = ((d && d.consignes) || []).filter(x => x.traite !== 'oui');
+      for(const cs of enAttente){
+        try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
+      }
+      if(enAttente.length) faits.push(enAttente.length + ' message(s) soldé(s)');
+    }catch(e){}
+
+    /* Les cours préparés à son nom */
+    dire('Cours préparés…');
+    try{
+      const d = await appelPrep({ action:'prepList' });
+      const siens = ((d && d.preparations) || [])
+        .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+      for(const pr of siens){
+        try{ await appelPrep({ action:'prepDelete', id: pr.id }); }catch(e){}
+      }
+      if(siens.length) faits.push(siens.length + ' cours préparé(s) retiré(s)');
+    }catch(e){}
+
+    /* La fiche de suivi */
+    dire('Fiche de suivi…');
+    try{
+      await appelPrep({ action:'suiviDelete', eleve: nom });
+      faits.push('fiche de suivi supprimée');
+    }catch(e){}
+
+    if(toutEffacer){
+      /* Les captures du CEPC */
+      dire('Captures du CEPC…');
+      try{
+        const d = await appelPrep({ action:'captureList', eleve: nom });
+        const caps = (d && d.captures) || [];
+        for(const cap of caps){
+          try{ await appelPrep({ action:'captureDelete', id: cap.id }); }catch(e){}
+        }
+        if(caps.length) faits.push(caps.length + ' capture(s) supprimée(s)');
+      }catch(e){}
+
+      /* Les bilans */
+      dire('Bilans…');
+      try{
+        const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: nom })
+        }, 25000, 2);
+        if(r.ok) faits.push('bilans supprimés');
+      }catch(e){}
+    }
+
+    viderCaches(nom);
+    dire('✅ ' + nom + ' — ' + (faits.join(' · ') || 'rien à retirer'), 'var(--accent-text)');
+
+    /* Le module se remet à zéro : le dossier est clos */
+    setTimeout(() => {
+      if($('permisNom')) $('permisNom').value = '';
+      if($('permisNomManuel')) $('permisNomManuel').value = '';
+      const z = $('permisResultat');
+      if(z){
+        z.innerHTML = '<div class="empty">✅ Dossier de ' +
+          nom.replace(/</g, '&lt;') + ' clôturé.<br>' +
+          '<span style="font-size:12px;">Aucun élève en cours.</span></div>';
+      }
+      chargerEleves();
+      if(typeof afficherBureau === 'function') afficherBureau(true);
+    }, 1600);
+
+  }catch(e){
+    dire('Erreur : ' + e.message, 'var(--warn-text)');
+    bouton.disabled = false;
+    bouton.textContent = texteInitial;
+  }
 }
 
 /* Signale que ce module est bien chargé */
