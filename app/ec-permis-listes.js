@@ -757,6 +757,9 @@ async function afficherPostExamenDepuisPrevus(tous, prevus){
 
 /* Examens du permis à prévoir */
 function afficherExamensPermis(tous){
+  const zPer = $('listePermis');
+  if(!zPer) return;
+
   const candidats = tous.filter(e => e.etat.permis === 'aprevoir' || e.etat.permis === 'annule');
   const masques = candidats.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' ||
                                         suiviDe(e.eleve).retireAPrevoir === 'oui');
