@@ -998,12 +998,12 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne){
    ============================================================ */
 const MODELES = {
   /* --- Conduite --- */
-  'conduite-manuelle': {
-    label: 'Conduite — Boîte manuelle', groupe: 'Conduite', schema: 'conduiteResume',
-    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
-  },
   'conduite-auto': {
     label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduiteResumeAuto',
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
+  },
+  'conduite-manuelle': {
+    label: 'Conduite — Boîte manuelle', groupe: 'Conduite', schema: 'conduiteResume',
     build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
   },
   'aac-manuelle': {
