@@ -523,7 +523,6 @@ async function ouvrirBilanManuel(){
       ? '<br>' + dossier.manoeuvres.length + ' manœuvre(s) déjà validée(s), reprises automatiquement'
       : '');
 
-  document.querySelectorAll('[data-tiroir]').forEach(d => { d.open = false; });
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
   $('manuelView').style.display = 'block';
@@ -673,8 +672,7 @@ function fermerBilanManuel(){
   modeManuel = false;
   $('manuelView').style.display = 'none';
   $('recordView').style.display = 'block';
-  const t = document.querySelector('[data-tiroir="cours"]');
-  if(t) t.open = true;
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
 }
 
 
