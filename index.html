@@ -357,13 +357,33 @@
     border:1px solid var(--line);
     color:var(--cream);
     font-family:inherit;
-    font-size:13px;
+    font-size:14px;
     font-weight:600;
-    padding:11px 12px;
+    padding:13px 12px;
     border-radius:11px;
     cursor:pointer;
     white-space:nowrap;
     transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+
+  /* L'onglet Cours sert au volant : ses deux boutons sont plus grands.
+     Plusieurs moniteurs ont une vue diminuée. */
+  .barre-vues[data-pour="cours"]{ gap:10px; margin-bottom:18px; }
+  .barre-vues[data-pour="cours"] button{
+    font-size:18px;
+    font-weight:700;
+    padding:22px 14px;
+    border-radius:14px;
+    border-width:2px;
+    line-height:1.3;
+    white-space:normal;
+  }
+  .barre-vues[data-pour="cours"] button.actif{
+    border-color:var(--orange);
+    background:rgba(182,255,14,.14);
+  }
+  @media (min-width: 700px){
+    .barre-vues[data-pour="cours"] button{ font-size:20px; padding:26px 16px; }
   }
   .barre-vues button.actif{
     border-color:var(--orange);
@@ -577,7 +597,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v170</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v171</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -984,17 +1004,16 @@
       <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
     </details>
 
-      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-        <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
-          📣 Message groupe Messenger</div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-          Choisis une date, saisis l'heure du premier examen : les deux messages se composent seuls.</div>
-        <label for="messengerDate">Date de l'examen</label>
-        <select id="messengerDate"><option value="">— appuie sur Actualiser —</option></select>
-        <button class="btn btn-secondary" id="messengerBtn">🔄 Actualiser les dates</button>
-        <div id="messengerZone" style="margin-top:12px;">
-          <div class="empty">Appuie sur Actualiser.</div></div>
-      </div>
+    <details class="volet-liste" style="margin-top:20px;" data-section="bureau_permis">
+      <summary>📣 Message groupe Messenger</summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
+        Choisis une date, saisis l'heure du premier examen : les deux messages se composent seuls.</div>
+      <label for="messengerDate">Date de l'examen</label>
+      <select id="messengerDate"><option value="">— appuie sur Actualiser —</option></select>
+      <button class="btn btn-secondary" id="messengerBtn">🔄 Actualiser les dates</button>
+      <div id="messengerZone" style="margin-top:12px;">
+        <div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
 
     <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
@@ -1294,32 +1313,32 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=170"></script>
-<script src="app/ec-modeles.js?v=170"></script>
-<script src="app/ec-consignes.js?v=170"></script>
-<script src="app/ec-noyau.js?v=170"></script>
-<script src="app/ec-vocal.js?v=170"></script>
-<script src="app/ec-reseau.js?v=170"></script>
-<script src="app/ec-manuel.js?v=170"></script>
-<script src="app/ec-fenetres.js?v=170"></script>
-<script src="app/ec-questionnaire.js?v=170"></script>
-<script src="app/ec-permis.js?v=170"></script>
-<script src="app/ec-prepares.js?v=170"></script>
-<script src="app/ec-bureau.js?v=170"></script>
-<script src="app/ec-places.js?v=170"></script>
-<script src="app/ec-listes.js?v=170"></script>
-<script src="app/ec-permis-listes.js?v=170"></script>
-<script src="app/ec-postpermis.js?v=170"></script>
-<script src="app/ec-textes.js?v=170"></script>
-<script src="app/ec-correction.js?v=170"></script>
-<script src="app/ec-bilans.js?v=170"></script>
-<script src="app/ec-sms.js?v=170"></script>
-<script src="app/ec-stats.js?v=170"></script>
-<script src="app/ec-messenger.js?v=170"></script>
-<script src="app/ec-journal.js?v=170"></script>
-<script src="app/ec-depart.js?v=170"></script>
-<script src="app/ec-onglets.js?v=170"></script>
-<script src="app/ec-demarrage.js?v=170"></script>
+<script src="app/ec-etat.js?v=171"></script>
+<script src="app/ec-modeles.js?v=171"></script>
+<script src="app/ec-consignes.js?v=171"></script>
+<script src="app/ec-noyau.js?v=171"></script>
+<script src="app/ec-vocal.js?v=171"></script>
+<script src="app/ec-reseau.js?v=171"></script>
+<script src="app/ec-manuel.js?v=171"></script>
+<script src="app/ec-fenetres.js?v=171"></script>
+<script src="app/ec-questionnaire.js?v=171"></script>
+<script src="app/ec-permis.js?v=171"></script>
+<script src="app/ec-prepares.js?v=171"></script>
+<script src="app/ec-bureau.js?v=171"></script>
+<script src="app/ec-places.js?v=171"></script>
+<script src="app/ec-listes.js?v=171"></script>
+<script src="app/ec-permis-listes.js?v=171"></script>
+<script src="app/ec-postpermis.js?v=171"></script>
+<script src="app/ec-textes.js?v=171"></script>
+<script src="app/ec-correction.js?v=171"></script>
+<script src="app/ec-bilans.js?v=171"></script>
+<script src="app/ec-sms.js?v=171"></script>
+<script src="app/ec-stats.js?v=171"></script>
+<script src="app/ec-messenger.js?v=171"></script>
+<script src="app/ec-journal.js?v=171"></script>
+<script src="app/ec-depart.js?v=171"></script>
+<script src="app/ec-onglets.js?v=171"></script>
+<script src="app/ec-demarrage.js?v=171"></script>
 
 </body>
 </html>
