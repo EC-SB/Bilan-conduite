@@ -309,17 +309,41 @@ function afficherRepertoire(){
           x.className = 'btn btn-secondary';
           x.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;' +
             'color:var(--red);border-color:var(--red);';
-          x.textContent = '✕';
-          x.title = 'Retirer du répertoire — les bilans sont conservés';
+          x.textContent = '🗑️';
+          x.title = 'Tout supprimer pour cet élève';
           x.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + n + ' du répertoire ?\n\n' +
-                                'Ses bilans sont conservés. S\'il en a, il restera proposé.')) return;
+            if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+                'Tout ce qui concerne ' + n + ' va être effacé :\n' +
+                '• ses bilans\n• sa fiche de suivi et ses examens\n' +
+                '• ses cours à venir\n• ses captures de CEPC\n' +
+                '• ses messages en attente\n\n' +
+                "Il n'apparaîtra plus nulle part. Cette action est IRRÉVERSIBLE.")) return;
+
+            const saisi = await demander("Pour confirmer, recopie exactement son nom :\n\n" + n);
+            if(saisi === null) return;
+            if(normaliserMot(saisi) !== normaliserMot(n)){
+              await informer('Le nom saisi ne correspond pas. Suppression annulée.');
+              return;
+            }
+
             x.disabled = true;
+            const etat = $('importEtat');
             try{
-              await appelPrep({ action: 'eleveRetirer', eleve: n });
+              const faits = await supprimerEleveComplet(n, t => {
+                if(etat){ etat.style.color = 'var(--muted)'; etat.textContent = n + ' — ' + t; }
+              });
+              if(etat){
+                etat.style.color = 'var(--accent-text)';
+                etat.textContent = '✅ ' + n + ' supprimé — ' +
+                  (faits.join(' · ') || 'rien à retirer');
+              }
               await chargerEleves();
               afficherRepertoire();
-            }catch(e){ showToast('Erreur : ' + e.message); x.disabled = false; }
+              if(typeof afficherBureau === 'function') afficherBureau(true);
+            }catch(e){
+              if(etat){ etat.style.color = 'var(--warn-text)'; etat.textContent = 'Erreur : ' + e.message; }
+              x.disabled = false;
+            }
           });
           ligne.appendChild(x);
         }
@@ -330,6 +354,198 @@ function afficherRepertoire(){
   dessiner();
 
   zone.appendChild(det);
+}
+
+
+/* ============================================================
+   SUPPRESSION COMPLÈTE D'UN ÉLÈVE
+   Tout ce qui le concerne disparaît : bilans, fiche de suivi,
+   captures, cours à venir, messages, répertoire.
+   Sert au ménage depuis le répertoire.
+   ============================================================ */
+async function supprimerEleveComplet(nom, rapporter){
+  const dire = t => { if(typeof rapporter === 'function') rapporter(t); };
+  const faits = [];
+
+  /* Messages en attente */
+  dire('Messages en attente…');
+  try{
+    const d = await appelPrep({ action: 'consigneList', eleve: nom });
+    const cs = ((d && d.consignes) || []).filter(x => x.traite !== 'oui');
+    for(const m of cs){
+      try{ await appelPrep({ action: 'consigneDone', id: m.id }); }catch(e){}
+    }
+    if(cs.length) faits.push(cs.length + ' message(s)');
+  }catch(e){}
+
+  /* Cours préparés, passés comme à venir */
+  dire('Cours préparés…');
+  try{
+    const d = await appelPrep({ action: 'prepList' });
+    const siens = ((d && d.preparations) || [])
+      .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+    for(const pr of siens){
+      try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
+    }
+    if(siens.length) faits.push(siens.length + ' cours préparé(s)');
+  }catch(e){}
+
+  /* Fiche de suivi : examens, dates, disponibilités */
+  dire('Fiche de suivi…');
+  try{
+    await appelPrep({ action: 'suiviDelete', eleve: nom });
+    faits.push('fiche de suivi');
+  }catch(e){}
+
+  /* Captures du CEPC */
+  dire('Captures du CEPC…');
+  try{
+    const d = await appelPrep({ action: 'captureList', eleve: nom });
+    const caps = (d && d.captures) || [];
+    for(const cap of caps){
+      try{ await appelPrep({ action: 'captureDelete', id: cap.id }); }catch(e){}
+    }
+    if(caps.length) faits.push(caps.length + ' capture(s)');
+  }catch(e){}
+
+  /* Bilans */
+  dire('Bilans…');
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: nom })
+    }, 25000, 2);
+    if(r.ok){
+      const d = await r.json().catch(() => ({}));
+      faits.push((d.supprimees || 0) + ' bilan(s)');
+    }
+  }catch(e){}
+
+  /* Répertoire */
+  dire('Répertoire…');
+  try{ await appelPrep({ action: 'eleveRetirer', eleve: nom }); }catch(e){}
+
+  viderCaches(nom);
+  return faits;
+}
+
+
+/* ============================================================
+   IMPORT D'UN FICHIER CSV
+   Les exports d'auto-école ont des colonnes variées : on cherche
+   celle qui contient les noms plutôt que d'imposer un format.
+   ============================================================ */
+const ENTETES_NOM = ['nom', 'eleve', 'élève', 'candidat', 'prenom', 'prénom',
+                     'nom complet', 'nom et prenom', 'apprenant', 'stagiaire'];
+
+function decouperLigneCsv(ligne, sep){
+  const cases = [];
+  let courant = '';
+  let guillemets = false;
+  for(let i = 0; i < ligne.length; i++){
+    const ch = ligne[i];
+    if(ch === '"'){
+      if(guillemets && ligne[i + 1] === '"'){ courant += '"'; i++; }
+      else guillemets = !guillemets;
+    }else if(ch === sep && !guillemets){
+      cases.push(courant); courant = '';
+    }else courant += ch;
+  }
+  cases.push(courant);
+  return cases.map(x => x.trim());
+}
+
+/* Analyse le fichier et en tire une liste de noms */
+function lireCsvEleves(texte){
+  const lignes = texte.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if(!lignes.length) return { noms: [], info: 'Fichier vide.' };
+
+  /* Le séparateur le plus fréquent sur la première ligne */
+  const sep = [';', ',', '\t'].map(s => ({ s: s, n: (lignes[0].split(s).length) }))
+                               .sort((a, b) => b.n - a.n)[0].s;
+
+  const premiere = decouperLigneCsv(lignes[0], sep);
+  const bas = premiere.map(x => normaliserMot(x));
+
+  /* Une colonne « nom » et une colonne « prénom » séparées ? */
+  const iNom = bas.findIndex(x => x === 'nom');
+  const iPrenom = bas.findIndex(x => x === 'prenom' || x === 'prénom');
+  let colonnes = null;
+  let entete = false;
+
+  if(iNom !== -1 && iPrenom !== -1){
+    colonnes = [iPrenom, iNom];
+    entete = true;
+  }else{
+    const i = bas.findIndex(x => ENTETES_NOM.indexOf(x) !== -1);
+    if(i !== -1){ colonnes = [i]; entete = true; }
+  }
+
+  /* Sans en-tête reconnu : la colonne qui ressemble le plus à des noms */
+  if(!colonnes){
+    const nb = premiere.length;
+    let meilleure = 0, meilleurScore = -1;
+    for(let col = 0; col < nb; col++){
+      let score = 0;
+      lignes.slice(0, 25).forEach(l => {
+        const v = (decouperLigneCsv(l, sep)[col] || '').trim();
+        if(v.length >= 4 && /[a-zà-ÿ]/i.test(v) && !/^\d+$/.test(v) && v.split(' ').length <= 5) score++;
+      });
+      if(score > meilleurScore){ meilleurScore = score; meilleure = col; }
+    }
+    colonnes = [meilleure];
+  }
+
+  const noms = [];
+  lignes.forEach((l, i) => {
+    if(entete && i === 0) return;
+    const cases = decouperLigneCsv(l, sep);
+    const morceaux = colonnes.map(c => (cases[c] || '').trim()).filter(Boolean);
+    const nom = morceaux.join(' ').replace(/\s+/g, ' ').trim();
+    if(nom.length >= 3 && !/^\d+$/.test(nom)) noms.push(nom);
+  });
+
+  const info = noms.length + ' nom(s) trouvé(s) · séparateur « ' +
+    (sep === '\t' ? 'tabulation' : sep) + ' » · colonne(s) ' +
+    colonnes.map(c => premiere[c] || ('n°' + (c + 1))).join(' + ');
+
+  return { noms: noms, info: info };
+}
+
+/* Le fichier choisi remplit la zone de texte, pour relecture */
+function brancherFichierCsv(){
+  const inp = $('importFichier');
+  const zone = $('importEleves');
+  const etat = $('importEtat');
+  if(!inp || !zone) return;
+
+  inp.addEventListener('change', () => {
+    const f = inp.files && inp.files[0];
+    if(!f) return;
+
+    const lecteur = new FileReader();
+    lecteur.onerror = () => {
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Lecture du fichier impossible.';
+    };
+    lecteur.onload = () => {
+      const r = lireCsvEleves(String(lecteur.result || ''));
+      inp.value = '';
+      if(!r.noms.length){
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = "Aucun nom trouvé dans ce fichier. " +
+          'Colle la liste à la main, ou vérifie le fichier.';
+        return;
+      }
+      zone.value = r.noms.join('\n');
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '📄 ' + r.info +
+        '\nRelis la liste ci-dessus, puis appuie sur Importer.';
+    };
+    /* Les exports français sont souvent en Windows-1252 */
+    lecteur.readAsText(f, 'utf-8');
+  });
 }
 
 /* Signale que ce module est bien chargé */
