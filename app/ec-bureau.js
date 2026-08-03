@@ -1422,14 +1422,20 @@ async function afficherBureau(silencieux){
 
   afficherPlaces({ parMois: parMois, horsMois: horsMois, parSemaine: parSemaine });
 
+  /* La vue d'ensemble reste au-dessus des filtres, quel que soit le filtre */
+  const zApercu = $('apercuPermis');
+  if(zApercu){
+    zApercu.innerHTML = '';
+    if(prevus.length) zApercu.appendChild(apercuPermisPrevus(prevus));
+    else zApercu.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
+  }
+
   zPP.innerHTML = '';
   if(!prevus.length){
     zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
   }else if(!fEtat && !fDate){
-    /* Liste souvent longue : on ne l'affiche qu'à la demande */
-    /* Sans filtre : la vue d'ensemble, sans ouvrir les fiches */
-    zPP.innerHTML = '';
-    zPP.appendChild(apercuPermisPrevus(prevus));
+    zPP.innerHTML = '<div class="empty">Choisis un filtre ou une date, ' +
+      'ou appuie sur un nom dans la vue d\'ensemble.</div>';
   }else if(!visibles.length){
     zPP.innerHTML = '<div class="empty">Aucun élève ne correspond à ce filtre.</div>';
   }else{
@@ -1513,6 +1519,7 @@ async function afficherBureau(silencieux){
       });
       zPP.appendChild(l);
     });
+    deplierFicheDemandee();
   }
 
   /* ---- 5. Examens passés : résultat à saisir ---- */
@@ -2035,6 +2042,8 @@ function blocExamenBlancMoniteur(x, s){
 /* Repères d'un dossier, en un coup d'œil */
 function emojisPermis(s){
   const e = [];
+  if(doitDeLArgent(s))        e.push('💰');   /* reste à payer */
+  if(aPlanifier(s))           e.push('📆');   /* leçons à poser sur le planning */
   if(s.aRemplacer === 'oui')  e.push('🔄');   /* place à remplacer */
   if(s.fantome === 'oui')     e.push('👻');   /* place fantôme */
   if(s.dateADonner === 'oui') e.push('🏫');   /* à donner à une autre auto-école */
@@ -2042,12 +2051,29 @@ function emojisPermis(s){
   return e.join('');
 }
 
+/* Un solde saisi et non nul signifie qu'il reste à payer */
+function doitDeLArgent(s){
+  const v = String(s.resteAPayer || '').trim();
+  if(!v) return false;
+  const n = parseFloat(v.replace(',', '.').replace(/[^\d.\-]/g, ''));
+  if(!isNaN(n)) return n > 0;
+  return !/^(0|non|rien|soldé|solde|ok|à jour|a jour)$/i.test(v);
+}
+
+/* Les réservations ne sont pas encore posées sur le planning */
+function aPlanifier(s){
+  const v = String(s.reservations || '').trim();
+  if(!v) return true;
+  return /à faire|a faire|non|pas encore|à poser|a poser|manque/i.test(v);
+}
+
 function legendePermis(){
   const d = document.createElement('div');
   d.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;' +
     'padding:6px 2px 10px;';
-  d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose · ' +
-    '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage';
+  d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose<br>' +
+    '💰 reste à payer · 📆 leçons à planifier · 🔄 place à remplacer · ' +
+    '👻 fantôme · 🏫 à donner · 🔁 repassage';
   return d;
 }
 
@@ -2114,10 +2140,16 @@ function apercuPermisPrevus(prevus){
       const l = document.createElement('div');
       l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0 2px 8px;';
 
-      const nom = document.createElement('span');
-      nom.style.cssText = 'flex:1;min-width:0;color:var(--cream);';
+      const nom = document.createElement('button');
+      nom.type = 'button';
+      nom.style.cssText = 'flex:1;min-width:0;text-align:left;background:none;border:none;' +
+        'color:var(--cream);font-size:13px;font-family:inherit;padding:2px 0;cursor:pointer;' +
+        'text-decoration:underline;text-decoration-color:var(--line);' +
+        'text-underline-offset:3px;';
       nom.textContent = (e._boite === 'bea' ? '🅰 ' :
                          e._boite === 'handicap' ? '♿ ' : '🅑 ') + e.eleve;
+      nom.title = 'Ouvrir la fiche de ' + e.eleve;
+      nom.addEventListener('click', () => ouvrirFichePermis(e));
       l.appendChild(nom);
 
       const rep = document.createElement('span');
@@ -2138,12 +2170,51 @@ function apercuPermisPrevus(prevus){
   });
 
   const aide = document.createElement('div');
-  aide.className = 'empty';
-  aide.style.cssText = 'padding:10px;font-size:12px;';
-  aide.textContent = 'Choisis un filtre ou une date ci-dessus pour ouvrir les fiches.';
+  aide.style.cssText = 'font-size:11px;color:var(--muted);padding:6px 2px 0;line-height:1.5;';
+  aide.textContent = 'Appuie sur un nom pour ouvrir sa fiche.';
   bloc.appendChild(aide);
 
   return bloc;
+}
+
+/* Ouvre directement la fiche d'un élève depuis le résumé :
+   on filtre sur sa date, puis on déplie son volet. */
+let elevePermisAOuvrir = '';
+
+function ouvrirFichePermis(e){
+  elevePermisAOuvrir = e.eleve;
+  const selD = $('filtreDate');
+  if(selD){
+    const cible = e._datePermis || '';
+    const existe = Array.prototype.some.call(selD.options, o => o.value === cible);
+    selD.value = existe ? cible : '';
+  }
+  afficherBureau(true);
+}
+
+/* Après affichage, on déplie la fiche demandée */
+function deplierFicheDemandee(){
+  if(!elevePermisAOuvrir) return;
+  const cible = normaliserMot(elevePermisAOuvrir);
+  elevePermisAOuvrir = '';
+
+  setTimeout(() => {
+    const zone = $('listePermisPrevu');
+    if(!zone) return;
+    const lignes = zone.querySelectorAll('.history-item');
+    for(let i = 0; i < lignes.length; i++){
+      const nom = lignes[i].querySelector('.meta strong');
+      if(nom && normaliserMot(nom.textContent) === cible){
+        const det = lignes[i].querySelector('details');
+        if(det) det.open = true;
+        lignes[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        lignes[i].style.outline = '2px solid var(--orange)';
+        lignes[i].style.outlineOffset = '3px';
+        setTimeout(() => { lignes[i].style.outline = ''; }, 2500);
+        return;
+      }
+    }
+  }, 120);
 }
 
 /* Signale que ce module est bien chargé */
