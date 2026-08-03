@@ -8,8 +8,10 @@
 /* Les emplacements où un modèle peut être utilisé.
    Chaque usage annonce les variables qu'il sait remplacer. */
 const USAGES_MODELE = [
-  { cle:'permis_jour',    nom:'📣 Groupe Messenger — jour du permis',
-    variables:['{date}', '{centre}', '{liste}', '{note}'] },
+  { cle:'permis_jour',    nom:'📣 Groupe Messenger — planning du jour',
+    variables:['{date}', '{centre}', '{rendezvous}', '{liste}', '{note}'] },
+  { cle:'permis_rappels', nom:'📌 Groupe Messenger — rappels avant examen',
+    variables:[] },
   { cle:'permis_obtenu',  nom:'🎓 Élève ayant obtenu son permis',
     variables:['{eleve}', '{date}'] },
   { cle:'examen_blanc',   nom:'📝 Examen blanc — message à l\'élève',
