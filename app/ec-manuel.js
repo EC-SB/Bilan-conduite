@@ -111,8 +111,8 @@ const CHAMPS_MANUELS = {
   ]
 };
 
-let champsManuels = {};     /* valeurs saisies */
-let modeManuel = false;
+/* champsManuels : déclaré dans ec-etat.js */
+/* modeManuel : déclaré dans ec-etat.js */
 
 /* La dictée est-elle possible sur ce navigateur ? */
 function dicteePossible(){
@@ -214,8 +214,8 @@ function majTotalCepc(){
 
 /* Construit le formulaire du bilan manuel */
 async function ouvrirBilanManuel(){
-  const probleme = verifierContexte();
-  if(probleme){ $('status').textContent = probleme; return; }
+  const probleme = verifierContexteManuel();
+  if(probleme){ showToast(probleme); return; }
 
   const modeleCle = $('modele').value;
   const modele = MODELES[modeleCle];
