@@ -22,7 +22,7 @@ CONFIG.VERSION_SCRIPT_ATTENDUE = 21;   /* voir apps-script.js */
 const CLE_SESSION = 'session_acces';
 const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
 
-let ACCES = { code: null, moniteur: '', role: '', droits: [] };
+/* ACCES : déclaré dans ec-etat.js */
 
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
@@ -35,6 +35,7 @@ const SECTIONS = [
   { cle:'bureau_permis',    nom:'🚗 Permis : à prévoir, à placer, prévus' },
   { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
+  { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
   { cle:'admin',            nom:'⚙️ Administration des accès' }
 ];
 
@@ -62,10 +63,10 @@ function appliquerDroits(){
   });
 
   /* Le départ d'un élève ne concerne que le bureau */
-  const bd = $('blocDepart');
+  const bd = document.querySelector('[data-tiroir="depart"]');
   if(bd){
-    bd.style.display = (aDroit('permis') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
-      ? 'block' : 'none';
+    bd.style.display = (aDroit('depart') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
+      ? '' : 'none';
   }
 
   if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
@@ -119,17 +120,18 @@ function todayLocal(){
   return d.getFullYear() + '-' + mm + '-' + dd;
 }
 
-let recognition = null;
-let isRecording = false;
-let finalTranscript = '';
-let currentLessonMeta = null;
+/* recognition : déclaré dans ec-etat.js */
+/* isRecording : déclaré dans ec-etat.js */
+/* finalTranscript : déclaré dans ec-etat.js */
+/* currentLessonMeta : déclaré dans ec-etat.js */
 
 /* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
-let committedTranscript = '';
+/* committedTranscript : déclaré dans ec-etat.js */
 
 /* Contrôles préalables — sans toucher au micro :
    sur Android, ouvrir puis fermer le micro juste avant la dictée
    empêche la reconnaissance de capter le son. */
+/* Contexte requis pour ENREGISTRER un cours (micro nécessaire) */
 function verifierContexte(){
   if(!window.isSecureContext){
     return 'La page doit être ouverte en https:// pour accéder au micro.';
@@ -137,7 +139,23 @@ function verifierContexte(){
   if(!SR){
     return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
   }
+  return verifierEleve();
+}
+
+/* Sans élève identifié, le bilan ne peut être rattaché à personne */
+function verifierEleve(){
+  const nom = $('studentName').value.trim();
+  if(nom.length < 2) return "Saisis le nom et le prénom de l'élève avant de démarrer.";
+  if(nom.split(/\s+/).length < 2) return "Il faut le nom ET le prénom de l'élève.";
+  if(!$('modele').value) return 'Choisis un type de bilan.';
+  if(!$('lessonDate').value) return 'Choisis la date du cours.';
   return null;
+}
+
+/* Contexte requis pour un bilan à remplir à la main : aucun micro,
+   donc rien n'empêche de s'en servir sur n'importe quel navigateur. */
+function verifierContexteManuel(){
+  return verifierEleve();
 }
 
 /* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
@@ -155,15 +173,15 @@ function demarrerReconnaissance(){
 
 /* Maintien de l'écran allumé : Chrome coupe le micro dès que
    l'écran s'éteint ou que la page passe en arrière-plan. */
-let wakeLock = null;
-let interruptions = 0;
+/* wakeLock : déclaré dans ec-etat.js */
+/* interruptions : déclaré dans ec-etat.js */
 
 /* Vrai uniquement quand une session de reconnaissance tourne réellement.
    Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
-let sessionActive = false;
-let demarrageEnCours = false;   /* évite d'empiler les démarrages */
-let dernierMot = 0;
-let dernierEvenement = '—';     /* diagnostic */
+/* sessionActive : déclaré dans ec-etat.js */
+/* demarrageEnCours : déclaré dans ec-etat.js */
+/* dernierMot : déclaré dans ec-etat.js */
+/* dernierEvenement : déclaré dans ec-etat.js */
 
 function marquerActif(nomEvenement){
   sessionActive = true;
@@ -362,7 +380,7 @@ window.EC_MODULES['ec-noyau.js'] = true;
    Un fichier absent du serveur ne provoque aucune erreur visible :
    des boutons cessent simplement de répondre. On le signale.
    ============================================================ */
-const EC_ATTENDUS = ["ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-depart.js", "ec-demarrage.js"];
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-depart.js", "ec-demarrage.js"];
 
 function verifierModules(){
   const charges = window.EC_MODULES || {};
