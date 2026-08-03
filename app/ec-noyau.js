@@ -116,6 +116,7 @@ function verrouiller(message, garderSession){
   $('appView').style.display = 'none';
   $('adminCard').style.display = 'none';
   if($('logoutBtn')) $('logoutBtn').style.display = 'none';
+  if($('qui')) $('qui').style.display = 'none';
   $('lockView').style.display = 'block';
   $('codeInput').value = '';
   $('codeMsg').textContent = message || '';
@@ -380,6 +381,25 @@ if(!SR){
     bm.className = 'btn btn-primary';
     bm.style.marginTop = '12px';
   }
+}
+
+/* Qui est connecté, en haut de l'écran.
+   Utile quand plusieurs moniteurs se partagent un téléphone. */
+const LIBELLE_ROLE = { admin: 'Administrateur', bureau: 'Bureau', moniteur: 'Moniteur' };
+
+function afficherIdentite(){
+  const z = $('qui');
+  const n = $('quiNom');
+  const r = $('quiRole');
+  if(!z || !n) return;
+
+  if(!ACCES.code){
+    z.style.display = 'none';
+    return;
+  }
+  z.style.display = 'block';
+  n.textContent = ACCES.moniteur || '';
+  if(r) r.textContent = LIBELLE_ROLE[ACCES.role] || ACCES.role || '';
 }
 
 /* Signale que ce module est bien chargé */
