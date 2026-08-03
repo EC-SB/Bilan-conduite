@@ -155,6 +155,10 @@ if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
 if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrectionMoniteur);
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('smsRecharger')) $('smsRecharger').addEventListener('click', rechargerCadreSms);
+if($('smsOublier')) $('smsOublier').addEventListener('click', async () => {
+  if(!await confirmer('Oublier le code SMS mémorisé ?')) return;
+  oublierCodeSms(); rechargerCadreSms();
+});
 if($('statsPeriode')) $('statsPeriode').addEventListener('change', afficherStats);
 if($('statsRang')) $('statsRang').addEventListener('change', afficherStats);
 if($('messengerBtn')) $('messengerBtn').addEventListener('click', afficherMessengerPermis);
