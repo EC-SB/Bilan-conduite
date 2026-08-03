@@ -833,6 +833,7 @@ function afficherExamensPermis(tous){
     cpt.textContent = per.length + ' élève(s)' +
       (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
     zPer.appendChild(cpt);
+    signalerAjout(zPer);
     per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
         replier: true,
@@ -975,8 +976,13 @@ async function ajouterDateBureau(){
     etat.style.color = 'var(--accent-text)';
     etat.textContent = '✅ ' + texte;
     $('addLecons').value = '';
-    await afficherConsignesEnAttente();
-    await afficherBureau();
+
+    /* Rafraîchissement discret : les listes ne se vident pas.
+       Les messages ne sont relus que si leur tiroir est ouvert. */
+    eleveAjouteRecemment = eleve;
+    const travaux = [afficherBureau(true)];
+    if(tiroirOuvert('messages')) travaux.push(afficherConsignesEnAttente());
+    await Promise.all(travaux);
   }catch(e){
     etat.style.color = 'var(--warn-text)';
     etat.textContent = 'Erreur : ' + e.message;
@@ -1261,7 +1267,31 @@ function afficherPasDeRepassage(tous){
   });
 }
 
-/* Signale que ce module est bien chargé */
+/* Le dernier élève ajouté à la main, pour le retrouver dans la liste */
+let eleveAjouteRecemment = '';
+
+/* Amène l'élève qui vient d'être ajouté sous les yeux */
+function signalerAjout(zone){
+  if(!eleveAjouteRecemment || !zone) return;
+  const cible = normaliserMot(eleveAjouteRecemment);
+  eleveAjouteRecemment = '';
+
+  setTimeout(() => {
+    const lignes = zone.querySelectorAll('.history-item');
+    for(let i = 0; i < lignes.length; i++){
+      const nom = lignes[i].querySelector('.meta strong');
+      if(nom && normaliserMot(nom.textContent) === cible){
+        lignes[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        lignes[i].style.outline = '2px solid var(--orange)';
+        lignes[i].style.outlineOffset = '3px';
+        setTimeout(() => { lignes[i].style.outline = ''; }, 2500);
+        return;
+      }
+    }
+  }, 100);
+}
+
+
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
