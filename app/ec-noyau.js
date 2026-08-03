@@ -1,0 +1,354 @@
+/* ============================================================
+   ec-noyau.js
+   Configuration, session, droits, utilitaires communs
+   Application Bilan de conduite — Évolution Conduites
+   ============================================================ */
+
+/* ============================================================
+   APPLICATION
+   ============================================================ */
+const CONFIG = {
+  WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev'
+};
+CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
+CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
+CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
+CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
+CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
+CONFIG.VERSION_SCRIPT_ATTENDUE = 21;   /* voir apps-script.js */
+
+/* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
+   le redemander à chaque rafraîchissement, avec une durée de validité. */
+const CLE_SESSION = 'session_acces';
+const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
+
+let ACCES = { code: null, moniteur: '', role: '', droits: [] };
+
+/* Sections de l'application soumises à autorisation */
+const SECTIONS = [
+  { cle:'prepares',         nom:'📅 Mes cours préparés' },
+  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
+  { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
+  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
+  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
+  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
+  { cle:'bureau_permis',    nom:'🚗 Permis : à prévoir, à placer, prévus' },
+  { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
+  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
+  { cle:'admin',            nom:'⚙️ Administration des accès' }
+];
+
+/* Niveau d'accès : 'm' modifier, 'v' voir, '' rien */
+function niveauDroit(section){
+  const d = ACCES.droits;
+  if(!d || !Object.keys(d).length) return 'm';   /* compte sans réglage : tout */
+  return d[section] || '';
+}
+function aDroit(section){ return niveauDroit(section) !== ''; }
+function peutModifier(section){ return niveauDroit(section) === 'm'; }
+
+/* Masque ou passe en lecture seule selon le niveau accordé */
+function appliquerDroits(){
+  /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
+  const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
+                         'bureau_permis','bureau_messages'];
+  const bureauVisible = partiesBureau.some(aDroit);
+
+  document.querySelectorAll('[data-section]').forEach(el => {
+    const s = el.getAttribute('data-section');
+    const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
+    el.style.display = visible ? '' : 'none';
+    el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
+  });
+
+  /* Le départ d'un élève ne concerne que le bureau */
+  const bd = $('blocDepart');
+  if(bd){
+    bd.style.display = (aDroit('permis') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
+      ? 'block' : 'none';
+  }
+
+  if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
+  $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
+}
+
+function memoriserSession(code, moniteur, role, droits){
+  try{
+    localStorage.setItem(CLE_SESSION, JSON.stringify({
+      code: code, moniteur: moniteur, role: role,
+      droits: droits || [], ts: Date.now()
+    }));
+  }catch(e){}
+}
+
+function lireSession(){
+  try{
+    const brut = localStorage.getItem(CLE_SESSION);
+    if(!brut) return null;
+    const s = JSON.parse(brut);
+    if(!s || !s.code) return null;
+    if(Date.now() - (s.ts || 0) > DUREE_SESSION){ oublierSession(); return null; }
+    return s;
+  }catch(e){ return null; }
+}
+
+function oublierSession(){
+  try{ localStorage.removeItem(CLE_SESSION); }catch(e){}
+}
+
+function verrouiller(message, garderSession){
+  clearInterval(minuteurBureau);
+  bureauDejaCharge = false;
+  if(!garderSession) oublierSession();
+  ACCES = { code: null, moniteur: '', role: '', droits: [] };
+  $('appView').style.display = 'none';
+  $('adminCard').style.display = 'none';
+  if($('logoutBtn')) $('logoutBtn').style.display = 'none';
+  $('lockView').style.display = 'block';
+  $('codeInput').value = '';
+  $('codeMsg').textContent = message || '';
+  $('codeMsg').style.color = message ? 'var(--warn-text)' : 'var(--muted)';
+}
+
+const $ = id => document.getElementById(id);
+
+function todayLocal(){
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+let recognition = null;
+let isRecording = false;
+let finalTranscript = '';
+let currentLessonMeta = null;
+
+/* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
+let committedTranscript = '';
+
+/* Contrôles préalables — sans toucher au micro :
+   sur Android, ouvrir puis fermer le micro juste avant la dictée
+   empêche la reconnaissance de capter le son. */
+function verifierContexte(){
+  if(!window.isSecureContext){
+    return 'La page doit être ouverte en https:// pour accéder au micro.';
+  }
+  if(!SR){
+    return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
+  }
+  return null;
+}
+
+/* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
+   seul l'événement onstart fait foi, sinon l'indicateur ment. */
+function demarrerReconnaissance(){
+  /* On repart systématiquement d'un objet neuf : évite d'hériter
+     d'une session figée par un cours précédent. */
+  try{
+    recreerEtDemarrer();
+    return { ok: true };
+  }catch(e){
+    return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
+  }
+}
+
+/* Maintien de l'écran allumé : Chrome coupe le micro dès que
+   l'écran s'éteint ou que la page passe en arrière-plan. */
+let wakeLock = null;
+let interruptions = 0;
+
+/* Vrai uniquement quand une session de reconnaissance tourne réellement.
+   Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
+let sessionActive = false;
+let demarrageEnCours = false;   /* évite d'empiler les démarrages */
+let dernierMot = 0;
+let dernierEvenement = '—';     /* diagnostic */
+
+function marquerActif(nomEvenement){
+  sessionActive = true;
+  demarrageEnCours = false;
+  dernierEvenement = nomEvenement;
+}
+
+function relancerMicro(){
+  if(!isRecording || sessionActive || demarrageEnCours) return;
+  demarrageEnCours = true;
+  dernierEvenement = 'start()';
+
+  if(!recognition){
+    recreerEtDemarrer();
+    setTimeout(() => { demarrageEnCours = false; }, 1500);
+    return;
+  }
+
+  try{
+    recognition.start();
+  }catch(e){
+    const nom = String(e && e.name || '');
+    if(nom === 'InvalidStateError'){
+      /* Session fantôme : elle se croit démarrée mais n'émet plus rien.
+         On ne la réanime pas, on la remplace. */
+      dernierEvenement = 'session figée → recréation';
+      recreerEtDemarrer();
+    }else{
+      dernierEvenement = 'start refusé: ' + (nom || e);
+    }
+  }
+  /* Laisse à Chrome le temps d'ouvrir la session avant tout nouvel essai */
+  setTimeout(() => { demarrageEnCours = false; }, 1500);
+}
+
+/* Surveillance : relance le micro s'il est mort, et signale
+   franchement quand rien n'est capté depuis longtemps. */
+setInterval(() => {
+  if(!isRecording) return;
+  sauvegarderLocal();
+  const etat = $('etatMicro');
+  const diag = $('diagMicro');
+
+  if(diag){
+    const depuis = dernierMot ? Math.round((Date.now() - dernierMot) / 1000) : null;
+    const capteRecemment = depuis !== null && depuis <= 12;
+
+    if(capteRecemment){
+      diag.textContent = '🗣️ paroles captées il y a ' + depuis + ' s';
+      diag.style.color = 'var(--orange)';
+    }else if(depuis !== null && sessionActive){
+      diag.textContent = '🤫 rien capté depuis ' + depuis + ' s';
+      diag.style.color = 'var(--warn-text)';
+    }else{
+      diag.textContent = 'état : ' + dernierEvenement;
+      diag.style.color = 'var(--muted)';
+    }
+  }
+
+  if(!sessionActive){
+    etat.textContent = demarrageEnCours ? '⏳ démarrage…' : '⏸️ micro coupé — reprise…';
+    etat.style.color = 'var(--warn-text)';
+    relancerMicro();
+    return;
+  }
+
+  const silence = Math.round((Date.now() - dernierMot) / 1000);
+  if(silence >= 30){
+    etat.textContent = '⚠️ aucun son capté depuis ' + silence + ' s';
+    etat.style.color = 'var(--warn-text)';
+  } else {
+    etat.textContent = '🔴 en écoute';
+    etat.style.color = 'var(--orange)';
+  }
+}, 2500);
+
+async function garderEcranAllume(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+      return true;
+    }
+  }catch(e){
+    console.warn('Maintien de l\'écran refusé :', e);
+  }
+  return false;
+}
+
+function libererEcran(){
+  if(wakeLock){
+    try{ wakeLock.release(); }catch(e){}
+    wakeLock = null;
+  }
+}
+
+/* Prévient le moniteur si l'enregistrement a été coupé */
+document.addEventListener('visibilitychange', () => {
+  if(!isRecording) return;
+  if(document.hidden){
+    interruptions++;
+  } else {
+    garderEcranAllume();
+    relancerMicro();
+    if(interruptions > 0){
+      const w = $('pauseWarn');
+      w.style.display = 'block';
+      w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
+        (interruptions > 1 ? ' fois' : ' fois') +
+        ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
+    }
+  }
+});
+
+/* Fusionne les versions successives d'une même phrase.
+   Chrome sur Android empile les résultats provisoires
+   ("oui" / "oui ta" / "oui ta priorité"...) au lieu de les remplacer :
+   on ne garde donc que la version la plus complète. */
+function fusionner(chunks){
+  const out = [];
+  (chunks || []).forEach(raw => {
+    const c = String(raw).replace(/\s+/g, ' ').trim();
+    if(!c) return;
+    const last = out.length ? out[out.length - 1] : null;
+    if(last){
+      /* Comparaison sans la ponctuation finale, sinon un point
+         empêcherait de reconnaître une version étendue. */
+      const lastNu = sansPonctuationFinale(last);
+      const cNu = sansPonctuationFinale(c);
+      if(cNu.startsWith(lastNu)){ out[out.length - 1] = c; return; }
+      if(lastNu.startsWith(cNu)) return;
+    }
+    out.push(c);
+  });
+  return out.join(' ');
+}
+
+/* ---------- Menu des modèles ---------- */
+function remplirModeles(){
+  remplirUnMenuModeles($('modele'));
+  remplirUnMenuModeles($('prepModele'));
+}
+
+function remplirUnMenuModeles(sel){
+  if(!sel) return;
+  const groupes = {};
+  Object.keys(MODELES).forEach(cle => {
+    const g = MODELES[cle].groupe;
+    if(!groupes[g]) groupes[g] = [];
+    groupes[g].push(cle);
+  });
+  Object.keys(groupes).forEach(g => {
+    const og = document.createElement('optgroup');
+    og.label = g;
+    groupes[g].forEach(cle => {
+      const opt = document.createElement('option');
+      opt.value = cle;
+      opt.textContent = MODELES[cle].label;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+}
+
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- Reconnaissance vocale ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const estAndroid = /Android/i.test(navigator.userAgent || '');
+
+if(!SR){
+  $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale demande ' +
+    '<strong>Chrome sur Android</strong>.<br>Le <strong>bilan à remplir à la main</strong> ' +
+    'reste utilisable normalement sur ce navigateur.</div>';
+  $('recBtn').disabled = true;
+  $('recBtn').style.opacity = '.45';
+  /* Le mode manuel est mis en avant puisque c'est le seul disponible */
+  const bm = $('manuelBtn');
+  if(bm){
+    bm.className = 'btn btn-primary';
+    bm.style.marginTop = '12px';
+  }
+}
