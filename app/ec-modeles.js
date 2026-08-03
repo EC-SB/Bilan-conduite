@@ -1093,6 +1093,11 @@ const MODELES = {
   },
 
   /* --- Examen --- */
+  'rdv-post': {
+    label: 'RDV post-permis', groupe: 'Examen', schema: 'rdvpost',
+    /* Cet écran est particulier : il ne passe pas par l'assembleur */
+    build: (ai, ctx) => String((ctx && ctx.note) || '')
+  },
   'examen-blanc': {
     label: 'Examen blanc', groupe: 'Examen', schema: 'examenblanc',
     build: buildExamenBlanc
