@@ -426,7 +426,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v131</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v132</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -906,6 +906,40 @@
     </div>
   </details>
 
+  <details class="card" id="journalCard" data-tiroir="journal" style="display:none;">
+    <summary>📊 Journal d'activité</summary>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Qui a fait quoi, et quand. Visible uniquement par les administrateurs.
+      </div>
+
+      <div class="duo">
+        <div>
+          <label for="journalQui">Utilisateur</label>
+          <input type="text" id="journalQui" placeholder="Tous" autocomplete="off">
+        </div>
+        <div>
+          <label for="journalEleve">Élève</label>
+          <input type="text" id="journalEleve" placeholder="Tous" autocomplete="off">
+        </div>
+      </div>
+
+      <label for="journalPeriode">Période</label>
+      <select id="journalPeriode">
+        <option value="1">Aujourd'hui et hier</option>
+        <option value="7" selected>7 derniers jours</option>
+        <option value="30">30 derniers jours</option>
+        <option value="90">90 derniers jours</option>
+        <option value="tout">Tout ce qui est conservé</option>
+      </select>
+
+      <button class="btn btn-primary" id="journalBtn">🔄 Actualiser le journal</button>
+      <div id="journalListe" style="margin-top:14px;">
+        <div class="empty">Appuie sur Actualiser.</div>
+      </div>
+    </div>
+  </details>
+
   <details class="card" id="adminCard" data-tiroir="admin" style="display:none;">
     <summary>⚙️ Administration des accès</summary>
     <div class="contenu-tiroir">
@@ -945,21 +979,22 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=131"></script>
-<script src="app/ec-modeles.js?v=131"></script>
-<script src="app/ec-consignes.js?v=131"></script>
-<script src="app/ec-noyau.js?v=131"></script>
-<script src="app/ec-vocal.js?v=131"></script>
-<script src="app/ec-reseau.js?v=131"></script>
-<script src="app/ec-manuel.js?v=131"></script>
-<script src="app/ec-fenetres.js?v=131"></script>
-<script src="app/ec-questionnaire.js?v=131"></script>
-<script src="app/ec-permis.js?v=131"></script>
-<script src="app/ec-prepares.js?v=131"></script>
-<script src="app/ec-bureau.js?v=131"></script>
-<script src="app/ec-postpermis.js?v=131"></script>
-<script src="app/ec-depart.js?v=131"></script>
-<script src="app/ec-demarrage.js?v=131"></script>
+<script src="app/ec-etat.js?v=132"></script>
+<script src="app/ec-modeles.js?v=132"></script>
+<script src="app/ec-consignes.js?v=132"></script>
+<script src="app/ec-noyau.js?v=132"></script>
+<script src="app/ec-vocal.js?v=132"></script>
+<script src="app/ec-reseau.js?v=132"></script>
+<script src="app/ec-manuel.js?v=132"></script>
+<script src="app/ec-fenetres.js?v=132"></script>
+<script src="app/ec-questionnaire.js?v=132"></script>
+<script src="app/ec-permis.js?v=132"></script>
+<script src="app/ec-prepares.js?v=132"></script>
+<script src="app/ec-bureau.js?v=132"></script>
+<script src="app/ec-postpermis.js?v=132"></script>
+<script src="app/ec-journal.js?v=132"></script>
+<script src="app/ec-depart.js?v=132"></script>
+<script src="app/ec-demarrage.js?v=132"></script>
 
 </body>
 </html>
