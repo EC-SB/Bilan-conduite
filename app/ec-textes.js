@@ -162,7 +162,7 @@ async function afficherModelesTexte(){
 }
 
 
-function ouvrirEditeurModele(modele){
+function ouvrirEditeurModele(modele, usageImpose){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -235,6 +235,12 @@ function ouvrirEditeurModele(modele){
     g('mdUsage').value = modele.usage || 'libre';
     g('mdContenu').value = modele.contenu || '';
   }
+  /* Depuis le tiroir des procédures, l'usage est déjà connu */
+  if(usageImpose){
+    g('mdUsage').value = usageImpose;
+    g('mdUsage').disabled = true;
+    g('mdUsage').style.opacity = '.6';
+  }
   majVars();
 
   bAnn.addEventListener('click', () => document.body.removeChild(fond));
@@ -256,8 +262,9 @@ function ouvrirEditeurModele(modele){
         contenu: contenu
       });
       document.body.removeChild(fond);
-      showToast('Modèle enregistré ✅');
-      afficherModelesTexte();
+      showToast('Enregistré ✅');
+      if(usageImpose === 'procedure') afficherProcedures();
+      else afficherModelesTexte();
     }catch(e){
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Erreur : ' + e.message;
@@ -267,6 +274,121 @@ function ouvrirEditeurModele(modele){
   });
 }
 
+
+
+/* ============================================================
+   PROCÉDURES DE CONDUITE
+   Les mêmes fiches, présentées à part : c'est ce que les
+   moniteurs consultent et ce qui sert aux corrections.
+   ============================================================ */
+async function afficherProcedures(){
+  const zone = $('proceduresZone');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Chargement des procédures…</div>';
+  await chargerModelesTexte();
+  const liste = (modelesTexte || []).filter(m => m.usage === 'procedure')
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+
+  zone.innerHTML = '';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.marginBottom = '12px';
+  b.textContent = '➕ Nouvelle procédure';
+  b.addEventListener('click', () => ouvrirEditeurModele(null, 'procedure'));
+  zone.appendChild(b);
+
+  /* Recherche, car la liste va s'allonger */
+  if(liste.length > 4){
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.placeholder = '🔍 Filtrer les procédures';
+    rech.style.marginBottom = '10px';
+    rech.addEventListener('input', () => {
+      const q = normaliserMot(rech.value);
+      zone.querySelectorAll('[data-procedure]').forEach(el => {
+        const ok = !q || normaliserMot(el.getAttribute('data-procedure')).indexOf(q) !== -1;
+        el.style.display = ok ? '' : 'none';
+      });
+    });
+    zone.appendChild(rech);
+  }
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune procédure enregistrée.<br>' +
+      '<span style="font-size:12px;">Ajoute ici tes procédures : giratoire, priorité à droite, ' +
+      "créneau… Elles serviront aux corrections d'erreur et resteront consultables par tous.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  liste.forEach(m => {
+    const d = document.createElement('details');
+    d.setAttribute('data-procedure', m.nom);
+    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+      'margin-bottom:8px;';
+
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
+      'list-style:none;';
+    som.textContent = '🚦 ' + m.nom;
+    d.appendChild(som);
+
+    const corps = document.createElement('div');
+    corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
+    corps.textContent = m.contenu;
+    d.appendChild(corps);
+
+    const pied = document.createElement('div');
+    pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;';
+    pied.textContent = (m.maj ? 'modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '');
+    d.appendChild(pied);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const bCop = document.createElement('button');
+    bCop.className = 'btn btn-secondary';
+    bCop.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+    bCop.textContent = '📋 Copier';
+    bCop.addEventListener('click', () => {
+      navigator.clipboard.writeText(m.contenu).then(
+        () => showToast('Procédure copiée ✅'),
+        () => showToast('Copie impossible'));
+    });
+    r.appendChild(bCop);
+
+    const bMod = document.createElement('button');
+    bMod.className = 'btn btn-secondary';
+    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bMod.textContent = '✏️ Modifier';
+    bMod.addEventListener('click', () => ouvrirEditeurModele(m, 'procedure'));
+    r.appendChild(bMod);
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '✕';
+    bSup.title = 'Supprimer';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer la procédure « ' + m.nom + ' » ?')) return;
+      bSup.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: m.id });
+        showToast('Procédure supprimée');
+        afficherProcedures();
+      }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+    });
+    r.appendChild(bSup);
+
+    d.appendChild(r);
+    zone.appendChild(d);
+  });
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
