@@ -9,7 +9,7 @@
    Lecture de l'état de tous les élèves, et consignes du bureau
    qui remontent au moniteur lors de la prochaine leçon.
    ============================================================ */
-let etatBureau = { eleves: [], consignes: [], suivi: [] };
+/* etatBureau : déclaré dans ec-etat.js */
 
 /* Décode les phrases produites par le questionnaire */
 function analyserNote(note){
@@ -423,7 +423,7 @@ function resumeSuivi(eleve){
    RÉPARTITION DES PLACES D'EXAMEN
    ============================================================ */
 /* Une entrée par mois : on planifie en général sur le mois en cours, M+1 et M+2 */
-let placesConfig = { mois: [] };
+/* placesConfig : déclaré dans ec-etat.js */
 
 function moisVide(iso){
   return { mois: iso || '', total:'', q1:'', q2:'', semaines: [] };
@@ -1490,9 +1490,11 @@ async function afficherBureau(silencieux){
   ));
 
   /* ---- 3. Examens du permis ---- */
-  let per = tous.filter(e => (e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') &&
-                             suiviDe(e.eleve).aPlanifier !== 'oui' &&
-                             suiviDe(e.eleve).retireAPrevoir !== 'oui');
+  const candidats = tous.filter(e => e.etat.permis === 'aprevoir' || e.etat.permis === 'annule');
+  const masques = candidats.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' ||
+                                        suiviDe(e.eleve).retireAPrevoir === 'oui');
+  let per = candidats.filter(e => suiviDe(e.eleve).aPlanifier !== 'oui' &&
+                                  suiviDe(e.eleve).retireAPrevoir !== 'oui');
 
   /* Filtre par état */
   const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
@@ -1515,10 +1517,43 @@ async function afficherBureau(silencieux){
   afficherAlertePrise(per);
 
   zPer.innerHTML = '';
+
+  /* Un élève écarté par un drapeau doit rester repérable */
+  if(masques.length){
+    const m = document.createElement('div');
+    m.style.cssText = 'font-size:12px;color:var(--muted);padding:8px 10px;margin-bottom:8px;' +
+      'background:var(--navy);border:1px solid var(--line);border-radius:8px;line-height:1.5;';
+    m.innerHTML = 'ℹ️ ' + masques.length + ' élève(s) masqué(s) : ' +
+      masques.map(x => {
+        const s = suiviDe(x.eleve);
+        return x.eleve.replace(/</g,'&lt;') +
+          (s.aPlanifier === 'oui' ? ' (dans RDV PERMIS)' : ' (retiré de la liste)');
+      }).join(' · ');
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;';
+    b.textContent = '↩️ Les remettre dans la liste';
+    b.addEventListener('click', async () => {
+      if(!await confirmer('Remettre ces ' + masques.length +
+                          ' élève(s) dans les examens à prévoir ?')) return;
+      b.disabled = true;
+      try{
+        for(const x of masques){
+          await majSuivi(x.eleve, { aPlanifier: '', retireAPrevoir: '' });
+        }
+        afficherBureau();
+      }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
+    });
+    m.appendChild(b);
+    zPer.appendChild(m);
+  }
+
   if(!per.length){
-    zPer.innerHTML = '<div class="empty">' +
-      (fPer ? 'Aucun élève ne correspond à ce filtre.'
-            : 'Aucun examen du permis à prévoir.') + '</div>';
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = fPer ? 'Aucun élève ne correspond à ce filtre.'
+                         : 'Aucun examen du permis à prévoir.';
+    zPer.appendChild(v);
   }else{
     per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
