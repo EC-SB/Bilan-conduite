@@ -1462,6 +1462,7 @@ async function afficherBureau(silencieux){
   }else{
     visibles.forEach(e => {
       const l = ligneBureau(e, {
+        replier: true,
         info: x => (x._boite === 'bea' ? '🅰 BEA'
                     : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
                    ' · Permis le ' + (x._datePermis || 'date inconnue') +
