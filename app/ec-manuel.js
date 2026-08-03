@@ -219,6 +219,16 @@ async function ouvrirBilanManuel(){
 
   const modeleCle = $('modele').value;
   const modele = MODELES[modeleCle];
+
+  /* Le rendez-vous post-permis a son propre écran */
+  if(modeleCle === 'rdv-post'){
+    const nom = $('studentName').value.trim();
+    if(nom.length < 2){ showToast("Saisis le nom de l'élève."); return; }
+    ouvrirRdvPost({ eleve: nom, date: $('lessonDate').value,
+                    moniteur: ACCES.moniteur || '', note: '', modele: 'rdv-post' });
+    return;
+  }
+
   const champs = CHAMPS_MANUELS[modele.schema];
   if(!champs){ showToast('Ce modèle ne se remplit pas encore à la main.'); return; }
 
