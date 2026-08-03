@@ -152,6 +152,7 @@ window.addEventListener('beforeunload', e => {
 $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
 if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
+if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrectionMoniteur);
 if($('messengerBtn')) $('messengerBtn').addEventListener('click', afficherMessengerPermis);
 if($('permisBureauBtn')) $('permisBureauBtn').addEventListener('click', () => afficherBureau());
 if($('messengerDate')) $('messengerDate').addEventListener('change', afficherMessengerPermis);
