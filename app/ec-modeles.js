@@ -1003,7 +1003,7 @@ const MODELES = {
     build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
   },
   'conduite-auto': {
-    label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduiteResume',
+    label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduiteResumeAuto',
     build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
   },
   'aac-manuelle': {
