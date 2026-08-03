@@ -87,6 +87,10 @@ async function afficherPostExamen(tous){
         });
         r.appendChild(bOk);
 
+        /* La capture du CEPC, que le moniteur verra au rendez-vous */
+        let captureCepc = s.cepcImage || '';
+        boite.appendChild(blocImageCepc(x.eleve, captureCepc, v => { captureCepc = v; }));
+
         const bNon = document.createElement('button');
         bNon.className = 'btn btn-secondary';
         bNon.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;' +
@@ -104,6 +108,7 @@ async function afficherPostExamen(tous){
               resultat: 'ajourne',
               nbAjournements: String(n),
               dateAjournement: dateAjo,
+              cepcImage: captureCepc,
               datePermis: '', aPlanifier: '', retireAPrevoir: '',
               toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
               rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
@@ -563,6 +568,112 @@ function blocDispo(e){
   return det;
 }
 
+
+/* ============================================================
+   IMAGE DU CEPC
+   Une cellule de tableur accepte 50 000 caractères : on réduit
+   l'image jusqu'à tenir dedans, sinon rien ne s'enregistre.
+   ============================================================ */
+const TAILLE_MAX_IMAGE = 45000;   /* caractères, marge de sécurité */
+
+function compresserImage(fichier){
+  return new Promise((resolve, reject) => {
+    const lecteur = new FileReader();
+    lecteur.onerror = () => reject(new Error("Lecture de l'image impossible."));
+    lecteur.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image illisible."));
+      img.onload = () => {
+        /* On réduit progressivement jusqu'à tenir dans la cellule */
+        const essais = [[1100, 0.65], [900, 0.55], [750, 0.45], [600, 0.4], [480, 0.35]];
+        for(let i = 0; i < essais.length; i++){
+          const [largeurMax, qualite] = essais[i];
+          const ratio = Math.min(1, largeurMax / img.width);
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * ratio);
+          c.height = Math.round(img.height * ratio);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          const donnees = c.toDataURL('image/jpeg', qualite);
+          if(donnees.length <= TAILLE_MAX_IMAGE) return resolve(donnees);
+        }
+        reject(new Error("L'image reste trop lourde. Recadre la capture sur le CEPC seul."));
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
+/* Zone d'ajout et d'aperçu d'une capture */
+function blocImageCepc(eleve, valeurActuelle, auChangement){
+  const d = document.createElement('div');
+  d.style.cssText = 'margin-bottom:12px;';
+
+  const l = document.createElement('label');
+  l.textContent = '📷 Capture du CEPC';
+  d.appendChild(l);
+
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'margin-bottom:8px;';
+  d.appendChild(apercu);
+
+  function dessiner(src){
+    apercu.innerHTML = '';
+    if(!src) return;
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);' +
+      'cursor:zoom-in;';
+    img.title = 'Appuie pour agrandir';
+    img.addEventListener('click', () => agrandirImage(src, eleve));
+    apercu.appendChild(img);
+  }
+  dessiner(valeurActuelle);
+
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;margin-bottom:6px;';
+  d.appendChild(inp);
+
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;';
+  etat.textContent = "La capture est réduite automatiquement pour tenir dans le suivi.";
+  d.appendChild(etat);
+
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    if(!f) return;
+    etat.style.color = 'var(--muted)';
+    etat.textContent = 'Réduction de l\'image…';
+    try{
+      const donnees = await compresserImage(f);
+      dessiner(donnees);
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ Capture prête (' + Math.round(donnees.length / 1024) + ' Ko)';
+      if(auChangement) auChangement(donnees);
+    }catch(e){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = e.message;
+    }
+  });
+
+  return d;
+}
+
+function agrandirImage(src, titre){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  fond.style.cursor = 'zoom-out';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:96vw;max-height:92vh;border-radius:10px;';
+  img.alt = titre || '';
+  fond.appendChild(img);
+  fond.addEventListener('click', () => document.body.removeChild(fond));
+  document.body.appendChild(fond);
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
