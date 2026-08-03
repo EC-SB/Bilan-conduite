@@ -992,14 +992,14 @@ function initTiroirs(){
     d.addEventListener('toggle', () => {
       ecrireTiroirs();
       /* On ne charge le suivi bureau qu'à sa première ouverture */
-      if(cle === 'bureau' && d.open && !bureauDejaCharge){
+      if((cle === 'bureau' || cle === 'permisbureau') && d.open && !bureauDejaCharge){
         afficherBureau();
       }
       if(cle === 'messages' && d.open) afficherConsignesEnAttente();
       /* Les cours préparés changent souvent : on relit à chaque ouverture */
       if(cle === 'prepares' && d.open && aDroit('cours')) afficherPrepares(true, true);
       if(cle === 'journal' && d.open && ACCES.role === 'admin') afficherJournal();
-      if(cle === 'messenger' && d.open) afficherMessengerPermis();
+      if(cle === 'permisbureau' && d.open) afficherMessengerPermis();
       if(cle === 'textes' && d.open) afficherModelesTexte();
     });
   });
