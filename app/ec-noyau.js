@@ -65,12 +65,14 @@ function appliquerDroits(){
   document.querySelectorAll('[data-section]').forEach(el => {
     const s = el.getAttribute('data-section');
     const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
-    el.style.display = visible ? '' : 'none';
+    /* Une vue non sélectionnée reste masquée : les onglets décident */
+    if(visible && el.classList.contains('hors-vue')) el.style.display = 'none';
+    else el.style.display = visible ? '' : 'none';
     el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
   });
 
   /* Le départ d'un élève ne concerne que le bureau */
-  const bd = document.querySelector('[data-tiroir="depart"]');
+  const bd = document.querySelector('[data-vue="depart"]');
   if(bd){
     bd.style.display = (aDroit('depart') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
       ? '' : 'none';
