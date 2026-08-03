@@ -84,10 +84,10 @@ async function preparerPermis(){
 
   let dossier = { ants: '', boite: '', nb: 0 };
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom, leger: true })
     });
     if(r.ok){
       const data = await r.json().catch(() => ({}));
