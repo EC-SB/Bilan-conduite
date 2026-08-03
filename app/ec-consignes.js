@@ -190,6 +190,13 @@ const SCHEMAS = {
 function construireConsignes(modeleCle){
   const m = MODELES[modeleCle];
   if(!m) throw new Error('Modèle inconnu : ' + modeleCle);
+
+  /* Des consignes réécrites par l auto-école remplacent celles d origine */
+  if(typeof consignesPersonnalisees === 'function'){
+    const perso = consignesPersonnalisees(m.schema);
+    if(perso) return perso;
+  }
+
   const f = SCHEMAS[m.schema];
   if(!f) throw new Error('Schéma inconnu : ' + m.schema);
   if(m.schema === 'conduite') return f(m.opts);
