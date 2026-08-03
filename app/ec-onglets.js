@@ -41,6 +41,11 @@ function afficherOnglet(cle, memoriser){
     el.classList.toggle('hors-onglet', el.getAttribute('data-onglet') !== cle);
   });
 
+  document.querySelectorAll('.barre-vues').forEach(b => {
+    b.style.display = (b.getAttribute('data-pour') === cle && !b.hidden) ? 'flex' : 'none';
+  });
+  if(VUES[cle]) afficherVue(cle, vueActive[cle] || (VUES[cle][0] || [])[0]);
+
   document.querySelectorAll('#barreOnglets .onglet').forEach(b => {
     b.classList.toggle('actif', b.getAttribute('data-cible') === cle);
     b.setAttribute('aria-selected', b.getAttribute('data-cible') === cle ? 'true' : 'false');
@@ -75,6 +80,13 @@ function initOnglets(){
   if(!barre) return;
 
   document.body.classList.add('avec-onglets');
+
+  /* Les boutons de chaque onglet, selon les droits */
+  Object.keys(VUES).forEach(o => {
+    try{ vueActive[o] = localStorage.getItem('vue_' + o) || ''; }catch(e){}
+  });
+  construireBarresVues();
+
   const dispo = ongletsDisponibles();
 
   barre.querySelectorAll('.onglet').forEach(b => {
@@ -96,27 +108,113 @@ function initOnglets(){
 
 
 /* ============================================================
+   NAVIGATION PAR BOUTONS À L'INTÉRIEUR D'UN ONGLET
+   Un onglet qui contient plusieurs modules les présente en
+   boutons : on voit d'emblée ce qui existe, sans dérouler.
+   ============================================================ */
+const VUES = {
+  cours:  [['prepares',   '📅 Mes cours préparés', 'prepares'],
+           ['cours',      '🎙️ Nouveau cours',      'cours']],
+  eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
+           ['permis',     '🎓 Permis obtenu',      'permis'],
+           ['depart',     '🚪 Départ',             'depart']],
+  outils: [['messages',   '📨 Messages',    'bureau_messages'],
+           ['textes',     '📄 Modèles',     'textes'],
+           ['procedures', '🚦 Procédures',  'procedures'],
+           ['bilans',     '📋 Bilans',      'bilans'],
+           ['sms',        '💬 SMS',         'sms'],
+           ['stats',      '📈 Réussite',    'stats'],
+           ['journal',    '📊 Journal',     'journal'],
+           ['admin',      '⚙️ Accès',       'admin']]
+};
+
+const vueActive = {};
+
+function construireBarresVues(){
+  Object.keys(VUES).forEach(onglet => {
+    const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
+    if(!barre) return;
+
+    barre.innerHTML = '';
+    const dispo = VUES[onglet].filter(([cle, , section]) => {
+      if(cle === 'journal') return ACCES.role === 'admin';
+      if(cle === 'admin')   return ACCES.role === 'admin';
+      return typeof aDroit !== 'function' || aDroit(section);
+    });
+
+    if(dispo.length < 2){
+      /* Un seul module : le bouton n'apporte rien */
+      barre.hidden = true;
+      vueActive[onglet] = dispo.length ? dispo[0][0] : '';
+      return;
+    }
+    barre.hidden = false;
+
+    dispo.forEach(([cle, libelle]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = libelle;
+      b.setAttribute('data-vue-cible', cle);
+      b.addEventListener('click', () => afficherVue(onglet, cle));
+      barre.appendChild(b);
+    });
+
+    if(!vueActive[onglet] || !dispo.some(x => x[0] === vueActive[onglet])){
+      vueActive[onglet] = dispo[0][0];
+    }
+  });
+}
+
+function afficherVue(onglet, cle){
+  vueActive[onglet] = cle;
+
+  document.querySelectorAll('[data-vue][data-onglet="' + onglet + '"]').forEach(el => {
+    el.classList.toggle('hors-vue', el.getAttribute('data-vue') !== cle);
+  });
+
+  const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
+  if(barre){
+    barre.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('actif', b.getAttribute('data-vue-cible') === cle);
+    });
+  }
+
+  try{ localStorage.setItem('vue_' + onglet, cle); }catch(e){}
+  reveillerVue(cle);
+}
+
+/* Chaque module charge ce dont il a besoin en s'affichant */
+function reveillerVue(cle){
+  const actions = {
+    prepares:   () => aDroit('cours') && afficherPrepares(true, true),
+    messages:   () => afficherConsignesEnAttente(),
+    textes:     () => afficherModelesTexte(),
+    procedures: () => afficherProcedures(),
+    bilans:     () => afficherTextesBilan(),
+    sms:        () => chargerCadreSms(),
+    stats:      () => afficherStats(),
+    journal:    () => ACCES.role === 'admin' && afficherJournal(),
+    admin:      () => chargerUtilisateurs()
+  };
+  const f = actions[cle];
+  if(typeof f === 'function'){
+    try{ f(); }catch(e){ console.warn('Vue ' + cle + ' :', e); }
+  }
+}
+
+/* ============================================================
    PREMIER GESTE DU MONITEUR
    S'il a un cours préparé pour aujourd'hui, c'est ce qu'il ouvre.
    Sinon, il démarre un cours directement.
    ============================================================ */
 function ouvrirLeBonTiroirDuJour(){
-  const tPrep = document.querySelector('[data-tiroir="prepares"]');
-  const tCours = document.querySelector('[data-tiroir="cours"]');
-  if(!tPrep || !tCours) return;
-
   const auj = todayLocal();
   const moi = normaliserMot(ACCES.moniteur || '');
   const duJour = (prepares || []).filter(x =>
     x.date === auj && (!x.moniteur || normaliserMot(x.moniteur) === moi));
 
-  if(duJour.length){
-    tPrep.open = true;
-    tCours.open = false;
-  }else{
-    tPrep.open = false;
-    tCours.open = true;
-  }
+  /* Un cours préparé aujourd'hui : c'est ce qu'il ouvre en premier */
+  afficherVue('cours', duJour.length ? 'prepares' : 'cours');
 }
 
 
