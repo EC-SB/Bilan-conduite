@@ -1794,6 +1794,59 @@ async function ajouterDateBureau(){
   }
 }
 
+/* ============================================================
+   ACTUALISATION AUTOMATIQUE
+   Le suivi bureau et les cours préparés changent sans qu'on le
+   sache : d'autres personnes les modifient. On rafraîchit seul.
+   ============================================================ */
+
+/* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
+function bureauOccupe(){
+  const a = document.activeElement;
+  if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName || '')) return true;
+  if(document.querySelector('.overlay.show')) return true;
+  const ouverts = document.querySelectorAll('[data-tiroir] details[open]');
+  for(let i = 0; i < ouverts.length; i++){
+    if(ouverts[i].querySelector('input, textarea, select')) return true;
+  }
+  return false;
+}
+
+function tiroirOuvert(cle){
+  const d = document.querySelector('[data-tiroir="' + cle + '"]');
+  return !!(d && d.open && d.style.display !== 'none');
+}
+
+function lancerActualisationAuto(){
+  clearInterval(minuteurBureau);
+  minuteurBureau = setInterval(() => {
+    if(!ACCES.code) return;
+    if(bureauOccupe()) return;
+
+    /* Les cours préparés : d'autres moniteurs en ajoutent */
+    if(tiroirOuvert('prepares') && aDroit('cours')) afficherPrepares(true, true);
+
+    /* Le suivi bureau, seulement s'il a déjà été ouvert une fois */
+    if(tiroirOuvert('bureau') && bureauDejaCharge) afficherBureau(true);
+
+    if(tiroirOuvert('messages')) afficherConsignesEnAttente();
+  }, 90000);   /* toutes les 90 secondes */
+}
+
+/* Au retour du réseau, on relance ce qui avait échoué */
+let reseauEcoute = false;
+function ecouterReseau(){
+  if(reseauEcoute) return;
+  reseauEcoute = true;
+  window.addEventListener('online', () => {
+    showToast('Connexion rétablie');
+    viderCaches();
+    if(aDroit('cours')) afficherPrepares(true, true);
+    if(tiroirOuvert('bureau') && bureauDejaCharge) afficherBureau(true);
+    chargerEleves();
+  });
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-bureau.js'] = true;
