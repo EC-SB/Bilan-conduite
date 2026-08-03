@@ -1,1113 +1,900 @@
-/* =========================================================
-   Bilans de conduite — Évolution Conduites
-   À coller dans Extensions > Apps Script de la feuille.
-
-   Colonnes : A Date | B Site | C Moniteur | D Élève | E Bilan
-              F Type de bilan | G Note interne | H Enregistré le
-              I Boîte | J Dossier ANTS | K Manœuvres validées
-
-   Deux onglets annexes sont créés automatiquement : « Preparations »
-   « Consignes » (messages du bureau vers les moniteurs) et
-   « SuiviPermis » (préparation administrative des passages).
-   Colonnes : A Id | B Date du cours | C Élève | D Type | E Libellé
-              F Site | G Note | H Contexte | I Préparé par | J Créé le
-   ========================================================= */
-
-/* Numéro de version : l'application le lit et prévient si le
-   script déployé n'est pas à jour. NE PAS SUPPRIMER. */
-var VERSION_SCRIPT = 31;
-
-function feuille() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-}
-
-function reponseJson(objet) {
-  objet.versionScript = VERSION_SCRIPT;
-  return ContentService
-    .createTextOutput(JSON.stringify(objet))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/* Normalise un nom : minuscules, sans accents, espaces internes réduits */
-function normaliser(valeur) {
-  return String(valeur || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ');
-}
-
-/* Sheets convertit parfois une date en objet : on la remet en texte lisible */
-function texteCellule(valeur, avecHeure) {
-  if (valeur instanceof Date) {
-    /* Anciennes lignes converties en date par Sheets : on utilise le
-       fuseau de la FEUILLE, pas celui du script, qui peut différer. */
-    var fuseau = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-    var format = avecHeure ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy';
-    return Utilities.formatDate(valeur, fuseau, format);
-  }
-  return String(valeur || '');
-}
-
-/* ---------- ÉCRITURE : enregistrer un bilan ---------- */
 /* ============================================================
-   JOURNAL D'ACTIVITÉ
-   Qui a fait quoi, et quand. Réservé aux administrateurs.
-   L'écriture se fait ici, dans la même exécution que l'action :
-   aucun appel réseau supplémentaire côté application.
+   ec-depart.js
+   Départ de l'auto-école et administration des accès
+   Application Bilan de conduite — Évolution Conduites
    ============================================================ */
-var JOURS_CONSERVATION = 90;      /* au-delà, les lignes sont effacées */
-var MAX_LIGNES_JOURNAL = 20000;   /* garde-fou si le volume explose */
 
-var LIBELLES_ACTION = {
-  append:          'Bilan enregistré',
-  supprimerEleve:  'Dossier élève supprimé',
-  prepAdd:         'Cours préparé',
-  prepDelete:      'Cours préparé supprimé',
-  prepAssign:      'Cours réattribué',
-  consigneAdd:     'Message au moniteur',
-  consigneDone:    'Message traité',
-  suiviSet:        'Fiche de suivi modifiée',
-  suiviDelete:     'Fiche de suivi supprimée',
-  modeleSet:       'Modèle de message modifié',
-  modeleDelete:    'Modèle de message supprimé',
-  resultatAdd:     "Résultat d'examen enregistré",
-  captureAdd:      'Capture CEPC ajoutée',
-  captureDelete:   'Capture CEPC supprimée',
-  configSet:       'Réglage des places'
+/* Branche un gestionnaire sans faire tomber le reste du fichier
+   si l'élément a disparu de la page. */
+function brancher(id, evenement, action){
+  const el = document.getElementById(id);
+  if(!el){ console.warn('Élément absent de la page : ' + id); return null; }
+  el.addEventListener(evenement, action);
+  return el;
+}
+
+
+/* ============================================================
+   DÉPART DE L'AUTO-ÉCOLE
+   Même principe que « permis obtenu » : liste de tâches,
+   message prêt à envoyer, puis retrait des listes de suivi.
+   ============================================================ */
+const MOTIFS_DEPART = {
+  'autre-ae':      'transfert vers une autre auto-école',
+  'demenagement':  'déménagement',
+  'arret':         'arrêt de la formation',
+  'financier':     'motif financier',
+  'sansnouvelles': "sans nouvelles de l'élève",
+  'autre':         'autre motif'
 };
 
-function feuilleJournal() {
-  var f = classeur();
-  var sh = f.getSheetByName('Journal');
-  if (!sh) {
-    sh = f.insertSheet('Journal');
-    sh.appendRow(['Horodatage', 'Utilisateur', 'Rôle', 'Action', 'Élève', 'Détail']);
-    sh.setFrozenRows(1);
+const TACHES_DEPART = [
+  ['Retirer des groupes Facebook (sauf le général)',
+   'Facebook > Ouvrir tous les groupes avec la molette > Membres > 🔍 Nom de l\'élève > ... > Supprimer'],
+  ['Clôturer le dossier sur Drivup', 'Profil > Formule & Permis'],
+  ['Vérifier le solde du compte élève', 'Régularisation ou remboursement selon le cas'],
+  ['Annuler les réservations à venir sur le planning', ''],
+  ['Retirer des listes de suivi permis', 'Fait automatiquement ci-dessous'],
+  ['Enpc-center : désactiver les accès', ''],
+  ['Archiver le dossier papier', '']
+];
+
+const TACHES_TRANSFERT = [
+  ['Éditer le certificat de fin de formation / attestation de suivi', ''],
+  ['Transmettre le dossier ANTS à la nouvelle auto-école', ''],
+  ['Restituer les pièces du dossier à l\'élève', ''],
+  ['Établir le solde de tout compte', '']
+];
+
+const MSG_DEPART = "Bonjour,\n\n" +
+  "Nous prenons acte de la fin de ta formation chez Évolution Conduites.\n\n" +
+  "Ton dossier est clôturé. Si tu as besoin d'une attestation de suivi de formation " +
+  "ou du transfert de ton dossier ANTS, dis-le nous, nous préparons cela rapidement.\n\n" +
+  "Nous te souhaitons une bonne continuation, et la route reste ouverte si tu " +
+  "souhaites revenir un jour 🤝\n\n" +
+  "Évolution Conduites";
+
+async function preparerDepart(){
+  const nom = $('departNom').value.trim();
+  const motif = $('departMotif').value;
+  const date = $('departDate').value;
+  const zone = $('departResultat');
+
+  if(nom.length < 2){
+    zone.innerHTML = '<div class="empty">Saisis le nom de l\'élève.</div>';
+    return;
   }
-  return sh;
-}
 
-function journaliser(action, params) {
-  try {
-    var demandeur = String((params && params.demandeur) || '').trim();
-    if (!demandeur) return;                       /* action non identifiée : on n'invente pas */
-    if (!LIBELLES_ACTION[action]) return;         /* seules les actions qui modifient */
+  const btn = $('departBtn');
+  btn.disabled = true;
+  btn.textContent = 'Recherche…';
+  zone.innerHTML = '<div class="empty">Récupération du dossier…</div>';
 
-    var sh = feuilleJournal();
-    sh.appendRow([
-      new Date(),
-      demandeur,
-      String((params && params.role) || ''),
-      LIBELLES_ACTION[action],
-      String((params && params.eleve) || ''),
-      detailAction(action, params)
-    ]);
-
-    /* Nettoyage occasionnel, pour ne pas ralentir chaque écriture */
-    if (Math.random() < 0.02) purgerJournal(sh);
-  } catch (e) { /* le journal ne doit jamais bloquer une action */ }
-}
-
-function detailAction(action, p) {
-  p = p || {};
-  if (action === 'prepAdd' || action === 'prepAssign') {
-    return String(p.modeleLabel || p.modele || '') +
-           (p.moniteur ? ' → ' + p.moniteur : '') +
-           (p.date ? ' le ' + p.date : '');
-  }
-  if (action === 'consigneAdd') return String(p.texte || '').slice(0, 200);
-  if (action === 'append')      return String(p.type || '') + (p.site ? ' · ' + p.site : '');
-  if (action === 'suiviSet') {
-    var bouts = [];
-    ['datePermis', 'centre', 'moniteurDate', 'semaine', 'resultat', 'ebDatePrevue', 'ebMoniteur']
-      .forEach(function (k) { if (p[k]) bouts.push(k + ' = ' + p[k]); });
-    return bouts.join(' · ').slice(0, 300);
-  }
-  return '';
-}
-
-function purgerJournal(sh) {
-  var lignes = sh.getDataRange().getValues();
-  if (lignes.length < 2) return;
-
-  var limite = new Date();
-  limite.setDate(limite.getDate() - JOURS_CONSERVATION);
-
-  var aSupprimer = 0;
-  for (var i = 1; i < lignes.length; i++) {
-    var d = lignes[i][0];
-    if (d instanceof Date && d >= limite) break;   /* la feuille est chronologique */
-    aSupprimer++;
-  }
-  /* Garde-fou de volume, même si les lignes sont récentes */
-  var trop = (lignes.length - 1) - MAX_LIGNES_JOURNAL;
-  if (trop > aSupprimer) aSupprimer = trop;
-
-  if (aSupprimer > 0) sh.deleteRows(2, aSupprimer);
-}
-
-/* ============================================================
-   ALERTES DU JOURNAL
-   Une activité inhabituelle se repère sur des volumes, pas sur
-   des actions isolées. On les calcule à la lecture du journal.
-   ============================================================ */
-var SEUIL_SUPPRESSIONS = 5;    /* suppressions par personne et par jour */
-var SEUIL_ACTIONS = 80;        /* actions par personne et par jour */
-var HEURE_TARDIVE = 22;        /* au-delà, on le signale */
-var HEURE_MATINALE = 6;
-
-function alertesJournal(lignes) {
-  var parJourEtQui = {};
-
-  lignes.forEach(function (l) {
-    if (!l.jour || !l.qui) return;
-    var k = l.jour + '|' + l.qui;
-    if (!parJourEtQui[k]) {
-      parJourEtQui[k] = { jour: l.jour, qui: l.qui, total: 0,
-                          suppressions: 0, tardives: 0, eleves: {} };
+  let nb = 0;
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom, leger: true })
+    }, 15000, 2);
+    if(r.ok){
+      const d = await r.json().catch(() => ({}));
+      nb = ((d && d.resultats) || []).length;
     }
-    var g = parJourEtQui[k];
-    g.total++;
-    if (/supprim/i.test(l.action)) g.suppressions++;
-    if (l.eleve) g.eleves[l.eleve] = true;
+  }catch(e){ /* on continue sans le compte */ }
 
-    var h = parseInt(String(l.quand).slice(-5, -3), 10);
-    if (!isNaN(h) && (h >= HEURE_TARDIVE || h < HEURE_MATINALE)) g.tardives++;
+  btn.disabled = false;
+  btn.textContent = '🚪 Préparer le départ';
+
+  zone.innerHTML = '';
+  const tete = document.createElement('div');
+  tete.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;';
+  tete.innerHTML = '<strong style="color:var(--cream);font-size:15px;">' +
+    nom.replace(/</g,'&lt;') + '</strong><br>' +
+    'Départ pour ' + MOTIFS_DEPART[motif] +
+    (date ? ' · le ' + dateEnToutesLettres(date) : '') + '<br>' +
+    nb + ' bilan(s) enregistré(s)';
+  zone.appendChild(tete);
+
+  /* Message à envoyer */
+  zone.appendChild(blocCopiable('Message à l\'élève', MSG_DEPART));
+
+  /* Liste de tâches, enrichie pour un transfert */
+  const taches = TACHES_DEPART.slice();
+  if(motif === 'autre-ae'){
+    TACHES_TRANSFERT.forEach(t => taches.unshift(t));
+  }
+
+  const bloc = document.createElement('div');
+  bloc.style.cssText = 'margin-top:20px;padding-top:16px;border-top:1px solid var(--line);';
+  bloc.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);' +
+    'margin-bottom:10px;">✅ À faire au bureau</div>';
+  taches.forEach(t => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:8px 0;' +
+      'border-bottom:1px solid var(--line);text-transform:none;margin:0;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;margin-top:2px;';
+    const txt = document.createElement('div');
+    txt.innerHTML = '<div style="font-size:15px;color:var(--cream);line-height:1.4;">' +
+      t[0].replace(/</g,'&lt;') + '</div>' +
+      (t[1] ? '<div style="font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px;">' +
+        t[1].replace(/</g,'&lt;') + '</div>' : '');
+    l.appendChild(cb); l.appendChild(txt);
+    bloc.appendChild(l);
   });
+  zone.appendChild(bloc);
 
-  var out = [];
-  Object.keys(parJourEtQui).forEach(function (k) {
-    var g = parJourEtQui[k];
+  /* Retrait des listes de suivi */
+  const actions = document.createElement('div');
+  actions.style.cssText = 'margin-top:18px;padding-top:16px;border-top:1px solid var(--line);';
 
-    if (g.suppressions >= SEUIL_SUPPRESSIONS) {
-      out.push({
-        gravite: 'haute', jour: g.jour, qui: g.qui,
-        titre: g.suppressions + ' suppressions en une journée',
-        detail: 'Vérifie que c\'est bien voulu.'
-      });
-    }
-    if (g.total >= SEUIL_ACTIONS) {
-      out.push({
-        gravite: 'moyenne', jour: g.jour, qui: g.qui,
-        titre: g.total + ' actions en une journée',
-        detail: 'Volume inhabituel, sur ' + Object.keys(g.eleves).length + ' élève(s).'
-      });
-    }
-    if (g.tardives >= 10) {
-      out.push({
-        gravite: 'basse', jour: g.jour, qui: g.qui,
-        titre: g.tardives + ' actions entre 22h et 6h',
-        detail: 'Travail en dehors des heures habituelles.'
-      });
+  const bSuivi = document.createElement('button');
+  bSuivi.className = 'btn btn-secondary';
+  bSuivi.textContent = '🧹 Retirer de toutes les listes de suivi';
+  bSuivi.addEventListener('click', async () => {
+    if(!await confirmer('Retirer ' + nom + ' de toutes les listes de suivi ?\n\n' +
+                'Ses bilans sont conservés.')) return;
+    bSuivi.disabled = true;
+    try{
+      const d = await appelPrep({ action:'consigneList', eleve: nom });
+      for(const cs of ((d && d.consignes) || [])){
+        if(cs.traite !== 'oui'){
+          try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
+        }
+      }
+      await appelPrep({ action:'suiviDelete', eleve: nom });
+      showToast(nom + ' retiré des listes ✅');
+      bSuivi.textContent = '✅ Retiré des listes';
+    }catch(e){
+      showToast('Erreur : ' + e.message);
+      bSuivi.disabled = false;
     }
   });
+  actions.appendChild(bSuivi);
 
-  out.sort(function (a, b) { return b.jour.localeCompare(a.jour); });
-  return out;
-}
-
-function lireJournal(params) {
-  var sh = feuilleJournal();
-  var lignes = sh.getDataRange().getValues();
-  var out = [];
-
-  var qui = normaliser((params && params.qui) || '');
-  var eleve = normaliser((params && params.eleve) || '');
-  var depuis = (params && params.depuis) ? String(params.depuis) : '';
-  var max = parseInt((params && params.max) || '300', 10);
-
-  for (var i = lignes.length - 1; i >= 1 && out.length < max; i--) {
-    if (!lignes[i][0]) continue;
-    var iso = (lignes[i][0] instanceof Date)
-      ? Utilities.formatDate(lignes[i][0], 'Europe/Paris', 'yyyy-MM-dd')
-      : '';
-    if (depuis && iso && iso < depuis) break;
-    if (qui && normaliser(lignes[i][1]).indexOf(qui) === -1) continue;
-    if (eleve && normaliser(lignes[i][4]).indexOf(eleve) === -1) continue;
-
-    out.push({
-      quand: (lignes[i][0] instanceof Date)
-        ? Utilities.formatDate(lignes[i][0], 'Europe/Paris', 'dd/MM/yyyy HH:mm')
-        : String(lignes[i][0]),
-      jour: iso,
-      qui: texteCellule(lignes[i][1], false),
-      role: texteCellule(lignes[i][2], false),
-      action: texteCellule(lignes[i][3], false),
-      eleve: texteCellule(lignes[i][4], false),
-      detail: texteCellule(lignes[i][5], false)
+  /* Suppression complète, administrateurs seulement */
+  if(ACCES.role === 'admin' && nb > 0){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'margin-top:8px;color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️ Supprimer les ' + nb + ' bilan(s) de ' + nom;
+    bSup.addEventListener('click', () => {
+      eleveAffiche = nom;
+      nbBilansAffiches = nb;
+      supprimerDossierEleve();
     });
+    actions.appendChild(bSup);
   }
 
-  return { status: 'ok', lignes: out, conservation: JOURS_CONSERVATION,
-           total: Math.max(lignes.length - 1, 0),
-           alertes: alertesJournal(out) };
+  zone.appendChild(actions);
 }
 
-/* ============================================================
-   MODÈLES DE MESSAGE
-   Textes rédigés par l'auto-école, modifiables depuis l'app.
-   ============================================================ */
-function feuilleModeles() {
-  var f = classeur();
-  var sh = f.getSheetByName('Modeles');
-  if (!sh) {
-    sh = f.insertSheet('Modeles');
-    sh.appendRow(['Id', 'Usage', 'Nom', 'Contenu', 'Mis à jour le', 'Par']);
-    sh.setFrozenRows(1);
+/* ---------- Suppression du dossier d'un élève ---------- */
+/* eleveAffiche : déclaré dans ec-etat.js */
+/* nbBilansAffiches : déclaré dans ec-etat.js */
+
+function majZoneSuppression(){
+  const zone = $('zoneSuppression');
+  if(!zone) return;
+  /* Réservée aux administrateurs, et seulement si des bilans sont affichés */
+  zone.style.display = (ACCES.role === 'admin' && eleveAffiche && nbBilansAffiches > 0)
+    ? 'block' : 'none';
+  const msg = $('suppressionMsg');
+  if(msg) msg.textContent = '';
+  const btn = $('supprimerEleveBtn');
+  if(btn && eleveAffiche){
+    btn.textContent = '🗑️ Supprimer les ' + nbBilansAffiches + ' bilan(s) de ' + eleveAffiche;
   }
-  return sh;
 }
 
-function listerModeles() {
-  var lignes = feuilleModeles().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      usage: texteCellule(lignes[i][1], false),
-      nom: texteCellule(lignes[i][2], false),
-      contenu: texteCellule(lignes[i][3], false),
-      maj: texteCellule(lignes[i][4], false),
-      par: texteCellule(lignes[i][5], false)
+async function supprimerDossierEleve(){
+  if(!eleveAffiche) return;
+
+  /* Première confirmation */
+  if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+              'Tous les bilans de ' + eleveAffiche + ' (' + nbBilansAffiches + ') vont être effacés.\n\n' +
+              'Cette action est IRRÉVERSIBLE : ni toi ni personne ne pourra les récupérer.\n\n' +
+              'Continuer ?')) return;
+
+  /* Seconde confirmation : le nom doit être retapé */
+  const saisi = await demander('Pour confirmer, recopie exactement le nom de l\'élève :\n\n' + eleveAffiche);
+  if(saisi === null) return;
+  if(normaliserMot(saisi) !== normaliserMot(eleveAffiche)){
+    await informer('Le nom saisi ne correspond pas. Suppression annulée.');
+    return;
+  }
+
+  const btn = $('supprimerEleveBtn');
+  const msg = $('suppressionMsg');
+  btn.disabled = true;
+  btn.textContent = 'Suppression…';
+
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: eleveAffiche })
     });
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
+
+    msg.style.color = 'var(--accent-text)';
+    msg.textContent = '✅ ' + (data.supprimees || 0) + ' bilan(s) supprimé(s) définitivement.';
+    showToast('Dossier supprimé ✅');
+
+    $('searchResults').innerHTML = '<div class="empty">Dossier supprimé.</div>';
+    eleveAffiche = '';
+    nbBilansAffiches = 0;
+    $('zoneSuppression').style.display = 'none';
+    chargerEleves();
+  }catch(e){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Erreur : ' + e.message;
+  }finally{
+    btn.disabled = false;
   }
-  return { status: 'ok', modeles: out };
 }
 
-function enregistrerModele(d) {
-  var sh = feuilleModeles();
-  var lignes = sh.getDataRange().getValues();
-  var id = String(d.id || '').trim();
-  var maintenant = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm');
-  var ligne = [
-    id || ('m' + Date.now()),
-    String(d.usage || 'libre'),
-    String(d.nom || 'Sans titre'),
-    String(d.contenu || ''),
-    maintenant,
-    String(d.demandeur || '')
-  ];
+brancher('supprimerEleveBtn', 'click', supprimerDossierEleve);
+brancher('bureauBtn', 'click', () => afficherBureau());
+brancher('filtrePP', 'change', () => afficherBureau());
+brancher('filtrePermis', 'change', () => afficherBureau());
+brancher('filtreDate', 'change', () => afficherBureau());
+brancher('msgBtn', 'click', envoyerMessageBureau);
+brancher('addBtn', 'click', ajouterDateBureau);
+brancher('addEtat', 'change', () => {
+  const avecDate = ($('addEtat').value === 'date');
+  $('addZoneDate').style.display = avecDate ? 'block' : 'none';
+  $('addBtn').textContent = avecDate ? '📅 Enregistrer la date' : '📌 Enregistrer';
+});
+brancher('permisBtn', 'click', preparerPermis);
+brancher('departBtn', 'click', preparerDepart);
+if($('departDate')) $('departDate').value = todayLocal();
+brancher('permisNom', 'change', preparerPermis);
 
-  if (id) {
-    for (var i = 1; i < lignes.length; i++) {
-      if (String(lignes[i][0]) === id) {
-        sh.getRange(i + 1, 1, 1, ligne.length).setValues([ligne]);
-        return { status: 'ok', id: id };
-      }
-    }
-  }
-  sh.appendRow(ligne);
-  return { status: 'ok', id: ligne[0] };
+/* Vérifie que le script Google déployé est bien à jour */
+async function verifierVersionScript(reponse){
+  const v = reponse && reponse.versionScript ? Number(reponse.versionScript) : 0;
+  if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
+  await informer(
+    "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
+    'Version déployée : ' + (v ? 'v' + v : 'antérieure à v21') + '\n' +
+    'Version attendue : v' + CONFIG.VERSION_SCRIPT_ATTENDUE + '\n\n' +
+    "La note interne et l'heure ne peuvent pas être enregistrées.\n\n" +
+    'Dans la feuille : Extensions > Apps Script, colle le nouveau code, ' +
+    'puis Déployer > Gérer les déploiements > crayon ✏️ > Nouvelle version > Déployer.'
+  );
+  return false;
 }
 
-function supprimerModele(id) {
-  var sh = feuilleModeles();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.deleteRow(i + 1);
-      return { status: 'ok' };
-    }
-  }
-  return { status: 'ok', message: 'Déjà supprimé.' };
-}
 
-/* ============================================================
-   RÉSULTATS D'EXAMEN
-   Conservés à part : la fiche de suivi disparaît quand l'élève
-   obtient son permis, il faut donc une trace durable.
-   ============================================================ */
-function feuilleResultats() {
-  var f = classeur();
-  var sh = f.getSheetByName('Resultats');
-  if (!sh) {
-    sh = f.insertSheet('Resultats');
-    sh.appendRow(['Date examen', 'Élève', 'Résultat', 'Boîte', 'Parcours',
-                  'Moniteur', 'Centre', 'Rang', 'Enregistré le', 'Par']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
+/* Où en est l'élève dans son parcours, d'après son dernier bilan
+   et les consignes du bureau encore en attente. */
+function etapesEleve(note, consignes){
+  const t = String(note || '') + ' · ' + (consignes || []).map(x => x.texte).join(' · ');
+  const a = analyserNote(t);
+  const etapes = [];
 
-function enregistrerResultat(d) {
-  var sh = feuilleResultats();
-  var eleve = String(d.eleve || '').trim();
-  if (!eleve) return { status: 'error', message: 'Élève manquant.' };
-
-  var dateEx = String(d.dateExamen || '');
-  var lignes = sh.getDataRange().getValues();
-
-  /* Un même examen ne doit pas compter deux fois */
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][1]) === normaliser(eleve) &&
-        String(lignes[i][0]) === dateEx) {
-      sh.getRange(i + 1, 3).setValue(String(d.resultat || ''));
-      return { status: 'ok', message: 'Résultat mis à jour.' };
-    }
+  if(a.repassages){
+    etapes.push({ ok:false, txt: '🔁 ' + a.repassages +
+      (a.repassages === 1 ? 'er' : 'e') + ' repassage' +
+      (a.dateAjournement ? ' — ajourné le ' + a.dateAjournement : '') });
   }
 
-  sh.appendRow([
-    dateEx,
-    eleve,
-    String(d.resultat || ''),
-    String(d.boite || ''),
-    String(d.parcours || ''),
-    String(d.moniteur || ''),
-    String(d.centre || ''),
-    String(d.rang || '1'),
-    Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'),
-    String(d.demandeur || '')
-  ]);
-  return { status: 'ok' };
+  if(a.lecon){
+    etapes.push({ ok:true, txt: a.lecon + (a.lecon === 1 ? 'ère' : 'ème') + ' leçon' +
+      (a.leconTotal ? ' sur ' + a.leconTotal : '') + (a.friseDepassee ? ' — frise dépassée' : '') });
+  }
+
+  if(a.simuNuit === 'fait') etapes.push({ ok:true, txt:'Simulateur nuit et risques fait' });
+  else if(a.simuNuit === 'prevu') etapes.push({ ok:null, txt:'Simulateur nuit et risques prévu' });
+  else if(a.simuNuit === 'aprevoir') etapes.push({ ok:false, txt:'Simulateur nuit et risques à prévoir' });
+
+  if(a.examBlanc === 'passe') etapes.push({ ok:true, txt:'Examen blanc passé' });
+  else if(a.examBlanc === 'reserve'){
+    etapes.push({ ok:null, txt:'Examen blanc réservé' +
+      (a.examBlancDate ? ' le ' + a.examBlancDate
+        : (a.examBlancN !== null ? ' dans ' + a.examBlancN + ' leçon(s)' : '')) });
+  }
+  else if(a.examBlanc === 'aprevoir'){
+    etapes.push({ ok:false, txt:'Examen blanc à prévoir' +
+      (a.examBlancN !== null ? ' dans ' + a.examBlancN + ' leçon(s)' : '') });
+  }
+  else if(a.examBlanc === 'impossible') etapes.push({ ok:false, txt:'Examen blanc non planifiable' });
+
+  if(a.permis === 'prevu'){
+    etapes.push({ ok:true, txt:'Examen du permis prévu' + (a.permisDate ? ' le ' + a.permisDate : '') +
+      (a.permisN !== null ? ' — encore ' + a.permisN + ' leçon(s)' : '') });
+  }
+  else if(a.permis === 'annule') etapes.push({ ok:false, txt:'Examen du permis annulé' });
+  else if(a.permis === 'aprevoir') etapes.push({ ok:false, txt:'Date d\'examen à prévoir' });
+
+  if(a.finirFiche) etapes.push({ ok:false, txt:'Fiche véhicule à terminer' });
+  return etapes;
 }
 
-function listerResultats(params) {
-  var lignes = feuilleResultats().getDataRange().getValues();
-  var out = [];
-  var depuis = String((params && params.depuis) || '');
+/* Encadré « où en est cet élève » */
+function blocParcours(eleve, note, consignes){
+  const etapes = etapesEleve(note, consignes);
+  if(!etapes.length) return null;
 
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][1]) continue;
-    var iso = dateVersIso(lignes[i][0]);
-    if (depuis && iso && iso < depuis) continue;
-    out.push({
-      date: texteCellule(lignes[i][0], false),
-      iso: iso,
-      eleve: texteCellule(lignes[i][1], false),
-      resultat: texteCellule(lignes[i][2], false),
-      boite: texteCellule(lignes[i][3], false),
-      parcours: texteCellule(lignes[i][4], false),
-      moniteur: texteCellule(lignes[i][5], false),
-      centre: texteCellule(lignes[i][6], false),
-      rang: texteCellule(lignes[i][7], false)
+  const d = document.createElement('div');
+  d.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+    'padding:12px;margin-bottom:12px;font-size:14px;line-height:1.8;';
+  d.innerHTML = '<div style="font-weight:700;margin-bottom:6px;">📍 Où en est ' +
+    eleve.replace(/</g,'&lt;') + '</div>' +
+    etapes.map(e => {
+      const icone = (e.ok === true) ? '✅' : (e.ok === false ? '⏳' : '📌');
+      const couleur = (e.ok === true) ? 'var(--accent-text)'
+                    : (e.ok === false ? 'var(--warn-text)' : 'var(--cream)');
+      return '<div style="color:' + couleur + ';">' + icone + ' ' +
+             e.txt.replace(/</g,'&lt;') + '</div>';
+    }).join('');
+  return d;
+}
+
+/* ---------- Recherche des anciens bilans d'un élève ---------- */
+async function rechercherEleve(){
+  const nom = $('searchName').value.trim();
+  const moniteur = $('searchMoniteur') ? $('searchMoniteur').value : '';
+  const site = $('searchSite') ? $('searchSite').value : '';
+  const zone = $('searchResults');
+
+  if(nom.length < 2 && !moniteur){
+    zone.innerHTML = '<div class="empty">Saisis un nom d\'élève ou choisis un moniteur.</div>';
+    return;
+  }
+  const btn = $('searchBtn');
+  btn.disabled = true;
+  btn.textContent = 'Recherche…';
+  zone.innerHTML = '<div class="empty">Recherche en cours…</div>';
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code,
+                             eleve: nom, moniteur: moniteur, site: site })
     });
-  }
-  return { status: 'ok', resultats: out };
-}
-
-/* Convertit une date française en format triable */
-function dateVersIso(v) {
-  if (v instanceof Date) {
-    return Utilities.formatDate(v, 'Europe/Paris', 'yyyy-MM-dd');
-  }
-  var t = String(v || '');
-  var m = t.match(/(\d{1,2})[\/\s-](\d{1,2})[\/\s-](\d{4})/);
-  if (m) {
-    return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
-  }
-  m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
-  return m ? m[0] : '';
-}
-
-/* ============================================================
-   CAPTURES DU CEPC
-   Une feuille à part : une image par ligne, plusieurs par élève.
-   Le suivi ne peut en contenir qu'une, faute de place.
-   ============================================================ */
-function feuilleCaptures() {
-  var f = classeur();
-  var sh = f.getSheetByName('Captures');
-  if (!sh) {
-    sh = f.insertSheet('Captures');
-    sh.appendRow(['Id', 'Élève', 'Date examen', 'Légende', 'Image', 'Ajouté le', 'Par']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-
-function ajouterCapture(d) {
-  var eleve = String(d.eleve || '').trim();
-  if (!eleve) return { status: 'error', message: 'Élève manquant.' };
-  if (!d.image) return { status: 'error', message: 'Image manquante.' };
-
-  feuilleCaptures().appendRow([
-    'c' + Date.now(),
-    eleve,
-    String(d.dateExamen || ''),
-    String(d.legende || ''),
-    String(d.image),
-    Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'),
-    String(d.demandeur || '')
-  ]);
-  return { status: 'ok' };
-}
-
-function listerCaptures(params) {
-  var lignes = feuilleCaptures().getDataRange().getValues();
-  var eleve = normaliser((params && params.eleve) || '');
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    if (eleve && normaliser(lignes[i][1]) !== eleve) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      eleve: texteCellule(lignes[i][1], false),
-      dateExamen: texteCellule(lignes[i][2], false),
-      legende: texteCellule(lignes[i][3], false),
-      image: String(lignes[i][4] || ''),
-      ajoute: texteCellule(lignes[i][5], false)
-    });
-  }
-  return { status: 'ok', captures: out };
-}
-
-function supprimerCapture(id) {
-  var sh = feuilleCaptures();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.deleteRow(i + 1);
-      return { status: 'ok' };
+    if(r.status === 403){
+      verrouiller('Session expirée, saisis ton code à nouveau.');
+      return;
     }
-  }
-  return { status: 'ok', message: 'Déjà supprimée.' };
-}
-
-/* ============================================================
-   ACCÈS AU CLASSEUR
-   Ouvrir le classeur coûte du temps : on le fait une seule fois
-   par exécution, pas à chaque fonction.
-   ============================================================ */
-var _classeur = null;
-function classeur() {
-  if (!_classeur) _classeur = SpreadsheetApp.getActiveSpreadsheet();
-  return _classeur;
-}
-
-/* Feuille mémorisée, créée au besoin.
-   Ne pas confondre avec feuille(), qui renvoie la feuille des bilans. */
-var _feuilles = {};
-function feuilleNommee(nom, entetes) {
-  if (_feuilles[nom]) return _feuilles[nom];
-  var f = classeur();
-  var sh = f.getSheetByName(nom);
-  if (!sh) {
-    sh = f.insertSheet(nom);
-    if (entetes && entetes.length) {
-      sh.appendRow(entetes);
-      sh.setFrozenRows(1);
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    if(!verifierVersionScript(data)){
+      zone.innerHTML = '<div class="empty">Script Google à mettre à jour (voir le message).</div>';
+      return;
     }
-  }
-  _feuilles[nom] = sh;
-  return sh;
-}
-
-function doPost(e) {
-  try {
-    var data = JSON.parse(e.postData.contents);
-
-    /* Suppression complète du dossier d'un élève */
-    if (data.action === 'supprimerEleve') {
-      return reponseJson(supprimerEleve(data.eleve));
+    const res = (data && data.resultats) || [];
+    if(!res.length){
+      zone.innerHTML = '<div class="empty">' +
+        (nom.length >= 2
+          ? 'Aucun bilan trouvé pour cet élève' + (moniteur ? ' avec ce moniteur' : '') +
+            '.<br>Vérifie que le nom et le prénom sont écrits comme lors des cours précédents.'
+          : 'Aucun bilan trouvé pour ce moniteur.') + '</div>';
+      eleveAffiche = '';
+      nbBilansAffiches = 0;
+      majZoneSuppression();
+      return;
     }
 
-    /* Cours préparés à l'avance */
-    if (data.action === 'prepAdd') {
-      return reponseJson(ajouterPreparation(data));
-    }
-    if (data.action === 'captureAdd') {
-      return reponse(ajouterCapture(data));
-    }
-    if (data.action === 'captureList') {
-      return reponse(listerCaptures(data));
-    }
-    if (data.action === 'captureDelete') {
-      return reponse(supprimerCapture(data.id));
-    }
+    /* On repart d'une zone vide avant d'empiler les blocs */
+    zone.innerHTML = '';
 
-    if (data.action === 'resultatAdd') {
-      return reponse(enregistrerResultat(data));
-    }
-    if (data.action === 'resultatList') {
-      return reponse(listerResultats(data));
-    }
+    /* La suppression de dossier ne concerne qu'une recherche par élève */
+    eleveAffiche = (nom.length >= 2 && res[0]) ? res[0].eleve : '';
+    nbBilansAffiches = (nom.length >= 2) ? res.length : 0;
+    majZoneSuppression();
 
-    if (data.action === 'modeleList') {
-      return reponse(listerModeles());
-    }
-    if (data.action === 'modeleSet') {
-      return reponse(enregistrerModele(data));
-    }
-    if (data.action === 'modeleDelete') {
-      return reponse(supprimerModele(data.id));
+    /* Recherche par élève : on résume son parcours */
+    if(nom.length >= 2 && res[0]){
+      let enAttente = [];
+      try{
+        const cd = await appelPrep({ action:'consigneList', eleve: res[0].eleve });
+        enAttente = ((cd && cd.consignes) || [])
+          .filter(y => y.traite !== 'oui' && y.type !== 'urgence');
+      }catch(e){}
+      const p = blocParcours(res[0].eleve, res[0].note, enAttente);
+      if(p) zone.appendChild(p);
     }
 
-    if (data.action === 'journalList') {
-      return reponse(lireJournal(data));
-    }
-
-    journaliser(data.action, data);
-
-    if (data.action === 'prepDelete') {
-      return reponseJson(supprimerPreparation(data.id, data.demandeur, data.role));
-    }
-    if (data.action === 'prepAssign') {
-      return reponseJson(reattribuerPreparation(data.id, data.moniteur));
-    }
-    if (data.action === 'prepList') {
-      return reponseJson({ preparations: listerPreparations() });
-    }
-
-    /* Consignes du bureau */
-    if (data.action === 'consigneAdd') {
-      return reponseJson(ajouterConsigne(data));
-    }
-    if (data.action === 'consigneList') {
-      return reponseJson({ consignes: listerConsignes(data.eleve) });
-    }
-    if (data.action === 'consigneDone') {
-      return reponseJson(marquerConsigneTraitee(data.id));
-    }
-    if (data.action === 'bureauEtat') {
-      return reponseJson({ eleves: etatEleves(), consignes: listerConsignes(''),
-                           suivi: listerSuivi(),
-                           places: lireConfig('places') });
-    }
-    if (data.action === 'suiviSet') {
-      return reponseJson(enregistrerSuivi(data));
-    }
-    if (data.action === 'suiviDelete') {
-      return reponseJson(supprimerSuivi(data.eleve));
-    }
-    if (data.action === 'configSet') {
-      return reponseJson(ecrireConfig(data.cle, data.valeur));
-    }
-
-    var horodatage = String(data.horodatage || '');
-    if (!horodatage) {
-      var fuseauFeuille = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-      horodatage = Utilities.formatDate(new Date(), fuseauFeuille, 'dd/MM/yyyy HH:mm');
-    }
-
-    var valeurs = [
-      String(data.date || ''),
-      String(data.site || ''),
-      String(data.monitorName || ''),
-      String(data.studentName || ''),
-      String(data.bilan || ''),
-      String(data.typeBilan || ''),
-      String(data.noteInterne || ''),
-      horodatage,
-      String(data.boite || ''),
-      String(data.ants || ''),
-      String(data.manoeuvres || '')
-    ];
-
-    var sh = feuille();
-    var ligne = sh.getLastRow() + 1;
-    var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-
-    /* Format texte imposé AVANT l'écriture : sans cela Sheets
-       transforme les dates et décale les heures. */
-    plage.setNumberFormat('@');
-    plage.setValues([valeurs]);
-
-    return reponseJson({ status: 'ok', noteRecue: !!data.noteInterne });
-  } catch (err) {
-    return reponseJson({ status: 'error', message: err.message });
-  }
-}
-
-/* ---------- PRÉPARATIONS : cours préparés à l'avance ---------- */
-var NOM_ONGLET_PREP = 'Preparations';
-
-function feuillePreparations() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_PREP);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_PREP);
-    sh.appendRow(['Id', 'Date du cours', 'Élève', 'Type', 'Libellé',
-                  'Site', 'Note', 'Contexte', 'Préparé par', 'Créé le']);
-  }
-  return sh;
-}
-
-function listerPreparations() {
-  var lignes = feuillePreparations().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      date: texteCellule(lignes[i][1], false),
-      eleve: texteCellule(lignes[i][2], false),
-      modele: texteCellule(lignes[i][3], false),
-      modeleLabel: texteCellule(lignes[i][4], false),
-      site: texteCellule(lignes[i][5], false),
-      note: texteCellule(lignes[i][6], false),
-      contexte: texteCellule(lignes[i][7], false),
-      moniteur: texteCellule(lignes[i][8], false)
-    });
-  }
-  return out;
-}
-
-function ajouterPreparation(data) {
-  var sh = feuillePreparations();
-  var id = String(data.id || new Date().getTime());
-  var ligne = sh.getLastRow() + 1;
-  var valeurs = [
-    id,
-    String(data.date || ''),
-    String(data.eleve || ''),
-    String(data.modele || ''),
-    String(data.modeleLabel || ''),
-    String(data.site || ''),
-    String(data.note || ''),
-    String(data.contexte || ''),
-    String(data.moniteur || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')
-  ];
-  var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-  plage.setNumberFormat('@');
-  plage.setValues([valeurs]);
-  return { status: 'ok', id: id };
-}
-
-/* Réattribue un cours préparé à un autre moniteur */
-function reattribuerPreparation(id, moniteur) {
-  var sh = feuillePreparations();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.getRange(i + 1, 9).setValue(String(moniteur || ''));
-      return { status: 'ok' };
-    }
-  }
-  return { status: 'error', message: 'Préparation introuvable.' };
-}
-
-function supprimerPreparation(id, demandeur, role) {
-  var sh = feuillePreparations();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (String(lignes[i][0]) !== String(id)) continue;
-
-    var proprietaire = String(lignes[i][8] || '');
-    var admin = (String(role || '') === 'admin');
-
-    /* Seul le moniteur à qui le cours est attribué peut le supprimer.
-       Sans moniteur attribué, seul un administrateur le peut. */
-    if (!admin) {
-      if (!proprietaire) {
-        return { status: 'error',
-                 message: 'Ce cours n\'est attribué à personne. Seul un administrateur peut le supprimer.' };
-      }
-      if (!demandeur || normaliser(proprietaire) !== normaliser(demandeur)) {
-        return { status: 'error',
-                 message: 'Ce cours est attribué à ' + proprietaire +
-                          '. Tu peux le lui laisser ou le réattribuer, mais pas le supprimer.' };
-      }
-    }
-    sh.deleteRow(i + 1);
-    return { status: 'ok' };
-  }
-  return { status: 'ok', message: 'Déjà supprimée.' };
-}
-
-/* ---------- CONSIGNES : du bureau vers les moniteurs ---------- */
-var NOM_ONGLET_CONS = 'Consignes';
-
-function feuilleConsignes() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_CONS);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_CONS);
-    sh.appendRow(['Id', 'Élève', 'Type', 'Valeur', 'Texte', 'Créé le', 'Par', 'Traité']);
-  }
-  return sh;
-}
-
-function ajouterConsigne(data) {
-  var sh = feuilleConsignes();
-  var type = String(data.type || '');
-  var eleve = String(data.eleve || '');
-
-  /* Une seule urgence par élève : on remplace la précédente */
-  if (type === 'urgence') {
-    var l = sh.getDataRange().getValues();
-    for (var i = l.length - 1; i >= 1; i--) {
-      if (String(l[i][2]) === 'urgence' && normaliser(l[i][1]) === normaliser(eleve)) {
-        sh.deleteRow(i + 1);
-      }
-    }
-  }
-
-  var id = String(data.id || new Date().getTime());
-  var ligne = sh.getLastRow() + 1;
-  var valeurs = [
-    id, eleve, type,
-    String(data.valeur || ''),
-    String(data.texte || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm'),
-    String(data.par || ''),
-    'non'
-  ];
-  var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-  plage.setNumberFormat('@');
-  plage.setValues([valeurs]);
-  return { status: 'ok', id: id };
-}
-
-function listerConsignes(eleve) {
-  var lignes = feuilleConsignes().getDataRange().getValues();
-  var filtre = eleve ? normaliser(eleve) : '';
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    if (filtre && normaliser(lignes[i][1]) !== filtre) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      eleve: texteCellule(lignes[i][1], false),
-      type: texteCellule(lignes[i][2], false),
-      valeur: texteCellule(lignes[i][3], false),
-      texte: texteCellule(lignes[i][4], false),
-      creeLe: texteCellule(lignes[i][5], false),
-      par: texteCellule(lignes[i][6], false),
-      traite: String(lignes[i][7] || 'non')
-    });
-  }
-  return out;
-}
-
-function marquerConsigneTraitee(id) {
-  var sh = feuilleConsignes();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.getRange(i + 1, 8).setValue('oui');
-      return { status: 'ok' };
-    }
-  }
-  return { status: 'ok', message: 'Introuvable.' };
-}
-
-/* ---------- SUIVI PERMIS : préparation administrative ---------- */
-var NOM_ONGLET_SUIVI = 'SuiviPermis';
-var COLS_SUIVI = ['Élève', 'Date du permis', 'Place à remplacer', 'Date à donner (autre AE)',
-                  'Reste à payer', 'Paiement prévu le', 'Relancé le',
-                  'Nature', 'Leçons 2h', 'Leçons 1h', 'Accompagnement examen',
-                  'Autre à prévoir', 'Réservations planning', 'Mis à jour le', 'Par',
-                  'Type examen', 'Auto-école destinataire',
-                  'Fantôme', 'Statut', 'À planifier', 'Semaine cible', 'Moniteur date',
-                  'Tout est OK', 'Centre d\'examen', 'Retiré de à prévoir',
-                  'Résultat', 'Nb ajournements', 'RDV post date', 'RDV post moniteur',
-                  'Bilan examen', 'Suite à donner', 'Commentaire moniteur', 'RDV post fait',
-                  'Disponible à partir du', 'Indisponible du', 'Indisponible au',
-                  'Date du dernier ajournement',
-                  'EB message envoyé', 'EB date', 'EB moniteur',
-                  'CEPC image', 'Bilan élève', 'Texte moniteur', 'Heures repassage'];
-
-function feuilleSuivi() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_SUIVI);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_SUIVI);
-    sh.appendRow(COLS_SUIVI);
-  }
-  return sh;
-}
-
-function listerSuivi() {
-  var lignes = feuilleSuivi().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    out.push({
-      eleve: texteCellule(lignes[i][0], false),
-      datePermis: texteCellule(lignes[i][1], false),
-      aRemplacer: texteCellule(lignes[i][2], false),
-      dateADonner: texteCellule(lignes[i][3], false),
-      resteAPayer: texteCellule(lignes[i][4], false),
-      paiementPrevu: texteCellule(lignes[i][5], false),
-      relanceLe: texteCellule(lignes[i][6], false),
-      nature: texteCellule(lignes[i][7], false),
-      lecons2h: texteCellule(lignes[i][8], false),
-      lecons1h: texteCellule(lignes[i][9], false),
-      accompagnement: texteCellule(lignes[i][10], false),
-      autre: texteCellule(lignes[i][11], false),
-      reservations: texteCellule(lignes[i][12], false),
-      majLe: texteCellule(lignes[i][13], true),
-      par: texteCellule(lignes[i][14], false),
-      typeExamen: texteCellule(lignes[i][15], false),
-      autoEcole: texteCellule(lignes[i][16], false),
-      fantome: texteCellule(lignes[i][17], false),
-      statut: texteCellule(lignes[i][18], false),
-      aPlanifier: texteCellule(lignes[i][19], false),
-      semaine: texteCellule(lignes[i][20], false),
-      moniteurDate: texteCellule(lignes[i][21], false),
-      toutOk: texteCellule(lignes[i][22], false),
-      centre: texteCellule(lignes[i][23], false),
-      retireAPrevoir: texteCellule(lignes[i][24], false),
-      resultat: texteCellule(lignes[i][25], false),
-      nbAjournements: texteCellule(lignes[i][26], false),
-      rdvPostDate: texteCellule(lignes[i][27], false),
-      rdvPostMoniteur: texteCellule(lignes[i][28], false),
-      bilanExamen: texteCellule(lignes[i][29], false),
-      suite: texteCellule(lignes[i][30], false),
-      commentaireMoniteur: texteCellule(lignes[i][31], false),
-      rdvPostFait: texteCellule(lignes[i][32], false),
-      dispoDu: texteCellule(lignes[i][33], false),
-      indispoDu: texteCellule(lignes[i][34], false),
-      indispoAu: texteCellule(lignes[i][35], false),
-      dateAjournement: texteCellule(lignes[i][36], false),
-      ebMessage: texteCellule(lignes[i][37], false),
-      ebDatePrevue: texteCellule(lignes[i][38], false),
-      ebMoniteur: texteCellule(lignes[i][39], false),
-      cepcImage: texteCellule(lignes[i][40], false),
-      bilanEleve: texteCellule(lignes[i][41], false),
-      texteMoniteur: texteCellule(lignes[i][42], false),
-      heuresRepassage: texteCellule(lignes[i][43], false)
-    });
-  }
-  return out;
-}
-
-function enregistrerSuivi(d) {
-  var sh = feuilleSuivi();
-  var lignes = sh.getDataRange().getValues();
-  var cible = normaliser(d.eleve);
-  var ligne = -1;
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][0]) === cible) { ligne = i + 1; break; }
-  }
-  if (ligne === -1) ligne = sh.getLastRow() + 1;
-
-  var valeurs = [
-    String(d.eleve || ''), String(d.datePermis || ''), String(d.aRemplacer || ''),
-    String(d.dateADonner || ''), String(d.resteAPayer || ''), String(d.paiementPrevu || ''),
-    String(d.relanceLe || ''), String(d.nature || ''), String(d.lecons2h || ''),
-    String(d.lecons1h || ''), String(d.accompagnement || ''), String(d.autre || ''),
-    String(d.reservations || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm'),
-    String(d.par || ''),
-    String(d.typeExamen || ''),
-    String(d.autoEcole || ''),
-    String(d.fantome || ''),
-    String(d.statut || ''),
-    String(d.aPlanifier || ''),
-    String(d.semaine || ''),
-    String(d.moniteurDate || ''),
-    String(d.toutOk || ''),
-    String(d.centre || ''),
-    String(d.retireAPrevoir || ''),
-    String(d.resultat || ''),
-    String(d.nbAjournements || ''),
-    String(d.rdvPostDate || ''),
-    String(d.rdvPostMoniteur || ''),
-    String(d.bilanExamen || ''),
-    String(d.suite || ''),
-    String(d.commentaireMoniteur || ''),
-    String(d.rdvPostFait || ''),
-    String(d.dispoDu || ''),
-    String(d.indispoDu || ''),
-    String(d.indispoAu || ''),
-    String(d.dateAjournement || ''),
-    String(d.ebMessage || ''),
-    String(d.ebDatePrevue || ''),
-    String(d.ebMoniteur || ''),
-    String(d.cepcImage || ''),
-    String(d.bilanEleve || ''),
-    String(d.texteMoniteur || ''),
-    String(d.heuresRepassage || '')
-  ];
-  var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-  plage.setNumberFormat('@');
-  plage.setValues([valeurs]);
-  return { status: 'ok' };
-}
-
-function supprimerSuivi(eleve) {
-  var sh = feuilleSuivi();
-  var lignes = sh.getDataRange().getValues();
-  var cible = normaliser(eleve);
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (normaliser(lignes[i][0]) === cible) sh.deleteRow(i + 1);
-  }
-  return { status: 'ok' };
-}
-
-/* ---------- CONFIGURATION : places d'examen par période ---------- */
-var NOM_ONGLET_CONFIG = 'Config';
-
-function feuilleConfig() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_CONFIG);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_CONFIG);
-    sh.appendRow(['Clé', 'Valeur', 'Mis à jour le']);
-  }
-  return sh;
-}
-
-function lireConfig(cle) {
-  var lignes = feuilleConfig().getDataRange().getValues();
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(cle)) return String(lignes[i][1] || '');
-  }
-  return '';
-}
-
-function ecrireConfig(cle, valeur) {
-  var sh = feuilleConfig();
-  var lignes = sh.getDataRange().getValues();
-  var ligne = -1;
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(cle)) { ligne = i + 1; break; }
-  }
-  if (ligne === -1) ligne = sh.getLastRow() + 1;
-  var plage = sh.getRange(ligne, 1, 1, 3);
-  plage.setNumberFormat('@');
-  plage.setValues([[String(cle), String(valeur || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')]]);
-  return { status: 'ok' };
-}
-
-/* ---------- ÉTAT DES ÉLÈVES pour les listes du bureau ---------- */
-function etatEleves() {
-  var sh = feuille();
-  var nb = sh.getLastRow();
-  if (nb < 2) return [];
-
-  /* On saute volontairement la colonne E : le texte des cours pèse
-     l'essentiel du classeur et n'est pas utile ici. */
-  var blocA = sh.getRange(2, 1, nb - 1, 4).getValues();   // A-D
-  var blocF = sh.getRange(2, 6, nb - 1, 5).getValues();   // F-J
-
-  var parEleve = {};
-  for (var i = 0; i < blocA.length; i++) {
-    var nom = texteCellule(blocA[i][3], false).trim();
-    if (!nom) continue;
-    var cle = normaliser(nom);
-    var type = texteCellule(blocF[i][0], false);
-
-    if (!parEleve[cle]) {
-      parEleve[cle] = { eleve: nom, note: '', date: '', type: '', horodatage: '',
-                        moniteur: '', boite: '', ants: '', lecons: 0 };
-    }
-    var e = parEleve[cle];
-    if (/^Conduite/i.test(type) || /^AAC/i.test(type)) e.lecons++;
-    if (!e.boite && blocF[i][3]) e.boite = texteCellule(blocF[i][3], false);
-    if (!e.ants && blocF[i][4]) e.ants = texteCellule(blocF[i][4], false);
-
-    /* La dernière ligne rencontrée est la plus récente */
-    e.note = texteCellule(blocF[i][1], false);
-    e.date = texteCellule(blocA[i][0], false);
-    e.type = type;
-    e.horodatage = texteCellule(blocF[i][2], true);
-    e.moniteur = texteCellule(blocA[i][2], false);
-  }
-
-  var out = [];
-  for (var k in parEleve) out.push(parEleve[k]);
-  return out;
-}
-
-/* ---------- SUPPRESSION : effacer tous les bilans d'un élève ---------- */
-function supprimerEleve(nomEleve) {
-  var recherche = normaliser(nomEleve);
-  if (recherche.length < 2) {
-    return { status: 'error', message: 'Nom trop court.' };
-  }
-
-  var sh = feuille();
-  var lignes = sh.getDataRange().getValues();
-  var aSupprimer = [];
-
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][3]) === recherche) {
-      aSupprimer.push(i + 1);          // numéro de ligne réel (1-indexé)
-    }
-  }
-
-  if (!aSupprimer.length) {
-    return { status: 'ok', supprimees: 0, message: 'Aucun bilan trouvé.' };
-  }
-
-  /* On supprime en partant du bas : sinon les numéros de ligne
-     se décalent au fur et à mesure et on efface les mauvaises. */
-  aSupprimer.sort(function (a, b) { return b - a; });
-  for (var k = 0; k < aSupprimer.length; k++) {
-    sh.deleteRow(aSupprimer[k]);
-  }
-
-  return { status: 'ok', supprimees: aSupprimer.length };
-}
-
-/* ---------- LECTURE ---------- */
-function doGet(e) {
-  try {
-    var params = (e && e.parameter) ? e.parameter : {};
-
-    /* Liste des élèves déjà enregistrés (pour le menu déroulant) */
-    if (params.action === 'eleves') {
-      var toutes = feuille().getDataRange().getValues();
-      var vus = {};
-      var noms = [];
-      for (var j = 1; j < toutes.length; j++) {
-        var nom = texteCellule(toutes[j][3], false).trim();
-        if (!nom) continue;
-        var cle = normaliser(nom);
-        if (vus[cle]) continue;
-        vus[cle] = true;
-        noms.push(nom);
-      }
-      noms.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
-      return reponseJson({ eleves: noms });
-    }
-
-    var recherche = normaliser(params.eleve);
-    var filtreMoniteur = normaliser(params.moniteur);
-    var filtreSite = normaliser(params.site);
-
-    /* Il faut au moins un critère : élève ou moniteur */
-    if (recherche.length < 2 && filtreMoniteur.length < 2) {
-      return reponseJson({ resultats: [] });
-    }
-
-    var leger = (params.leger === '1' || params.leger === 'true');
-    var sh = feuille();
-    var nb = sh.getLastRow();
-    if (nb < 2) return reponseJson({ resultats: [] });
-
-    /* En mode léger on ne charge pas la colonne E (texte du cours),
-       de loin la plus volumineuse. */
-    var blocA = sh.getRange(2, 1, nb - 1, 4).getValues();          // A-D
-    var blocF = sh.getRange(2, 6, nb - 1, 6).getValues();          // F-K
-    var blocE = leger ? null : sh.getRange(2, 5, nb - 1, 1).getValues();
-
-    var resultats = [];
-    for (var i = 0; i < blocA.length; i++) {
-      if (recherche.length >= 2 && normaliser(blocA[i][3]) !== recherche) continue;
-      if (filtreMoniteur.length >= 2 && normaliser(blocA[i][2]) !== filtreMoniteur) continue;
-      if (filtreSite.length >= 2 && normaliser(blocA[i][1]) !== filtreSite) continue;
-      resultats.push({
-        date: texteCellule(blocA[i][0], false),
-        site: texteCellule(blocA[i][1], false),
-        moniteur: texteCellule(blocA[i][2], false),
-        eleve: texteCellule(blocA[i][3], false),
-        bilan: leger ? '' : texteCellule(blocE[i][0], false),
-        type: texteCellule(blocF[i][0], false),
-        note: texteCellule(blocF[i][1], false),
-        horodatage: texteCellule(blocF[i][2], true),
-        boite: texteCellule(blocF[i][3], false),
-        ants: texteCellule(blocF[i][4], false),
-        manoeuvres: texteCellule(blocF[i][5], false)
+    /* Recherche par moniteur : on annonce le nombre d'élèves distincts */
+    if(nom.length < 2){
+      const eleves = [];
+      res.forEach(x => {
+        const k = normaliserMot(x.eleve || '');
+        if(k && eleves.indexOf(k) === -1) eleves.push(k);
       });
+      const entete = document.createElement('div');
+      entete.style.cssText = 'padding:10px 12px;margin-bottom:10px;background:var(--navy);' +
+        'border:1px solid var(--line);border-radius:10px;font-size:14px;';
+      entete.innerHTML = '<strong>' + moniteur + '</strong> — ' + res.length +
+        ' bilan(s) pour ' + eleves.length + ' élève(s)' +
+        (res.length >= 200 ? ' <span style="color:var(--warn-text);">(200 plus récents)</span>' : '');
+      zone.appendChild(entete);
     }
 
-    resultats.reverse();                        // le plus récent en premier
-    var limite = (recherche.length >= 2) ? 30 : 200;
-    return reponseJson({ resultats: resultats.slice(0, limite) });
+    res.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const note = (item.note || '').trim();
+      const t = document.createElement('strong');
+      if(!nom || nom.length < 2){
+        /* Recherche par moniteur : on met l'élève en avant */
+        t.textContent = item.eleve || '(sans nom)';
+      }else if(note){
+        /* La note interne prend la place du titre : c'est ce que le
+           moniteur suivant doit voir en premier, en entier. */
+        t.textContent = '📌 ' + note;
+        t.style.color = 'var(--accent-text)';
+        t.style.whiteSpace = 'pre-wrap';
+        t.style.lineHeight = '1.45';
+        t.style.overflow = 'visible';
+        t.style.textOverflow = 'clip';
+      }else{
+        t.textContent = item.type || 'Bilan';
+      }
+      const s = document.createElement('span');
+      s.textContent = 'Cours du ' + (item.date || '?') +
+                      [' ', item.site, item.moniteur, note ? item.type : '']
+                        .filter(Boolean).join(' · ');
 
-  } catch (err) {
-    return reponseJson({ resultats: [], error: err.message });
+      const h = document.createElement('span');
+      h.style.opacity = '.75';
+      h.textContent = item.horodatage ? 'Bilan généré le ' + item.horodatage : '';
+
+      meta.appendChild(t);
+      meta.appendChild(s);
+      if(item.horodatage) meta.appendChild(h);
+      const arrow = document.createElement('div');
+      arrow.className = 'arrow';
+      arrow.textContent = '›';
+      row.appendChild(meta);
+      row.appendChild(arrow);
+      row.addEventListener('click', () => {
+        currentLessonMeta = {
+          modeleLabel: item.type, studentName: item.eleve, monitorName: item.moniteur,
+          site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now()
+        };
+        $('resultText').value = item.bilan;
+        afficherNote(item.note);
+        marquerExport(true);
+        $('recordView').style.display = 'none';
+        $('generatingView').style.display = 'none';
+        $('resultView').style.display = 'block';
+        window.scrollTo(0, 0);
+      });
+      zone.appendChild(row);
+    });
+  }catch(e){
+    console.error('Erreur recherche:', e);
+    zone.innerHTML = '<div class="empty">Erreur de recherche : ' + e.message + '</div>';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '🔍 Rechercher';
   }
 }
+
+brancher('searchBtn', 'click', rechercherEleve);
+brancher('searchMoniteur', 'change', rechercherEleve);
+brancher('searchSite', 'change', rechercherEleve);
+brancher('searchName', 'input', () => verifierNomEleve('searchName', 'eleveInfo', false));
+brancher('searchName', 'change', () => { verifierNomEleve('searchName', 'eleveInfo', false); rechercherEleve(); });
+brancher('studentName', 'input', () => {
+  verifierNomEleve('studentName', 'studentInfo', true);
+  planifierHistorique();
+});
+brancher('studentName', 'change', () => {
+  verifierNomEleve('studentName', 'studentInfo', true);
+  chargerHistoriqueEleve();       /* choix dans la liste : immédiat */
+});
+brancher('searchName', 'keydown', e => { if(e.key === 'Enter') rechercherEleve(); });
+
+brancher('newLessonBtn', 'click', () => {
+  finalTranscript = '';
+  committedTranscript = '';
+  interruptions = 0;
+  contexteDepart = null;
+  prepareEnCours = null;
+  noteQuestionnaire = '';
+  dernierMot = 0;
+  dernierEvenement = '—';
+  libererEcran();
+  $('etatMicro').textContent = '';
+  $('pauseWarn').style.display = 'none';
+  $('transcriptBox').value = '';
+  $('transcriptBox').style.display = 'none';
+  $('transcriptAide').style.display = 'none';
+  $('compteur').style.display = 'none';
+  effacerSauvegarde();
+  $('studentName').value = '';
+  verifierNomEleve('studentName', 'studentInfo', true);
+  $('noteInterne').value = '';
+  afficherNote('');
+  ['modele','monitorName','studentName','site','lessonDate'].forEach(id => { $(id).disabled = false; });
+  $('lessonDate').value = todayLocal();
+  $('recBtn').textContent = '🎙️ Démarrer le cours';
+  $('status').textContent = "Appuie pour lancer l'enregistrement en début de cours.";
+  $('finishBtn').style.display = 'none';
+  $('resultView').style.display = 'none';
+  $('recordView').style.display = 'block';
+  const d = $('genErrorDetail');
+  if(d) d.remove();
+});
+
+/* ---------- Historique ---------- */
+async function saveLesson(meta, bilanText){
+  try{
+    await window.storage.set('bilan:' + meta.ts, JSON.stringify(Object.assign({}, meta, { text: bilanText })), false);
+  }catch(e){ console.error('save failed', e); }
+}
+
+async function refreshHistory(){
+  /* Carte retirée de l'interface : ce stockage ne fonctionne pas
+     sur un site hébergé, la recherche par élève le remplace. */
+  if(!document.getElementById('historyList')) return;
+  try{
+    const res = await window.storage.list('bilan:', false);
+    const keys = (res && res.keys) ? res.keys : [];
+    if(!keys.length){
+      $('historyList').innerHTML = '<div class="empty">Aucun bilan enregistré pour l\'instant.</div>';
+      return;
+    }
+    const items = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, false);
+        if(r && r.value) items.push(JSON.parse(r.value));
+      }catch(e){}
+    }
+    items.sort((a, b) => b.ts - a.ts);
+    const list = $('historyList');
+    list.innerHTML = '';
+    items.slice(0, 20).forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const nom = document.createElement('strong');
+      nom.textContent = item.studentName;
+      const sous = document.createElement('span');
+      sous.textContent = [item.dateStr, item.site, item.monitorName, item.modeleLabel].filter(Boolean).join(' · ');
+      meta.appendChild(nom);
+      meta.appendChild(sous);
+      const arrow = document.createElement('div');
+      arrow.className = 'arrow';
+      arrow.textContent = '›';
+      row.appendChild(meta);
+      row.appendChild(arrow);
+      row.addEventListener('click', () => {
+        currentLessonMeta = item;
+        $('resultText').value = item.text;
+        $('recordView').style.display = 'none';
+        $('generatingView').style.display = 'none';
+        $('resultView').style.display = 'block';
+      });
+      list.appendChild(row);
+    });
+  }catch(e){ console.error('history load failed', e); }
+}
+
+/* ---------- Administration des accès ---------- */
+function messageAdmin(texte, erreur){
+  const m = $('adminMsg');
+  m.textContent = texte || '';
+  m.style.color = erreur ? 'var(--warn-text)' : 'var(--orange)';
+}
+
+async function appelAdmin(corps){
+  const r = await fetchFiable(CONFIG.ADMIN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
+  });
+  if(r.status === 403 && !ACCES.code){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Session expirée');
+  }
+  const data = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+
+async function chargerUtilisateurs(){
+  const zone = $('adminList');
+  zone.innerHTML = '<div class="empty">Chargement…</div>';
+  try{
+    const data = await appelAdmin({ action: 'list' });
+    if(data.kv === false){
+      zone.innerHTML = '<div class="unsupported">⚠️ Le stockage KV n\'est pas configuré sur le Worker : impossible d\'enregistrer de nouveaux accès. Vérifie le binding <strong>UTILISATEURS</strong>.</div>';
+      return;
+    }
+    const liste = data.utilisateurs || [];
+    zone.innerHTML = '';
+    liste.forEach(u => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const nom = document.createElement('strong');
+      nom.textContent = u.nom + (u.role === 'admin' ? ' — admin' : '');
+      const sous = document.createElement('span');
+      sous.textContent = 'Code ' + u.code + (u.principal ? ' · compte principal' : (u.cree ? ' · créé le ' + u.cree : ''));
+      meta.appendChild(nom);
+      meta.appendChild(sous);
+      row.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+
+      if(!u.principal && u.code !== ACCES.code){
+        const selRole = document.createElement('select');
+        selRole.style.cssText = 'width:auto;margin:0;padding:7px 8px;font-size:12px;';
+        [['moniteur','Moniteur'],['bureau','Bureau'],['admin','Admin']].forEach(([v, l]) => {
+          const o = document.createElement('option');
+          o.value = v; o.textContent = l;
+          selRole.appendChild(o);
+        });
+        selRole.value = u.role;
+        selRole.addEventListener('change', async () => {
+          selRole.disabled = true;
+          try{
+            await appelAdmin({ action:'role', cible:u.code, role: selRole.value });
+            messageAdmin('Rôle de ' + u.nom + ' modifié — accès repris du rôle.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); selRole.disabled = false; }
+        });
+        actions.appendChild(selRole);
+
+        /* Changer le code d'accès, sans toucher au reste du compte */
+        const bCode = document.createElement('button');
+        bCode.className = 'btn btn-secondary';
+        bCode.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;';
+        bCode.textContent = '🔑';
+        bCode.title = 'Changer le code de ' + u.nom;
+        bCode.addEventListener('click', async () => {
+          const nouveau = await demander(
+            'Nouveau code pour ' + u.nom + '\n\n' +
+            'De 6 à 8 chiffres. Son rôle, ses accès et ses cours préparés sont conservés.',
+            '', 'Changer le code');
+          if(nouveau === null) return;
+          const v = String(nouveau).trim();
+          if(!/^[0-9]{6,8}$/.test(v)){
+            messageAdmin('Le code doit contenir de 6 à 8 chiffres.', true);
+            return;
+          }
+          bCode.disabled = true;
+          try{
+            await appelAdmin({ action:'changerCode', cible:u.code, nouveauCode:v });
+            messageAdmin('Code de ' + u.nom + ' changé — préviens-le de son nouveau code : ' + v);
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); bCode.disabled = false; }
+        });
+        actions.appendChild(bCode);
+
+        const bDel = document.createElement('button');
+        bDel.className = 'btn btn-secondary';
+        bDel.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;color:var(--red);border-color:var(--red);';
+        bDel.textContent = '✕';
+        bDel.addEventListener('click', async () => {
+          if(!await confirmer('Supprimer l\'accès de ' + u.nom + ' (code ' + u.code + ') ?\n\n' +
+                              'Ses bilans, cours préparés et fiches restent en place :\n' +
+                              "seule sa connexion est retirée.")) return;
+          try{
+            await appelAdmin({ action:'delete', cible:u.code });
+            messageAdmin('Accès de ' + u.nom + ' supprimé.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); }
+        });
+        actions.appendChild(bDel);
+      } else {
+        const verrou = document.createElement('div');
+        verrou.style.cssText = 'font-size:11px;color:var(--muted);';
+        verrou.textContent = u.principal ? '🔒' : '(toi)';
+        actions.appendChild(verrou);
+      }
+
+      row.appendChild(actions);
+      zone.appendChild(row);
+
+      /* Réglage fin de ce que cette personne voit */
+      if(!u.principal){
+        const det = document.createElement('details');
+        det.style.cssText = 'margin:-6px 0 10px 4px;';
+        det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
+          'Ce que ' + u.nom + ' voit (' + Object.keys(u.droits || {}).length +
+          ' section' + (Object.keys(u.droits || {}).length > 1 ? 's' : '') + ')</summary>';
+        const z = document.createElement('div');
+        z.style.cssText = 'padding:8px 0 8px 6px;';
+        const dr = u.droits || {};
+        SECTIONS.forEach(sec => {
+          const l = document.createElement('div');
+          l.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 6px;';
+          const t = document.createElement('span');
+          t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;';
+          t.textContent = sec.nom;
+          const s = document.createElement('select');
+          s.className = 'drt-' + u.code;
+          s.setAttribute('data-cle', sec.cle);
+          s.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:12px;flex-shrink:0;';
+          [['', 'Rien'], ['v', '👁️ Voir'], ['m', '✏️ Modifier']].forEach(([v, lab]) => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = lab;
+            s.appendChild(o);
+          });
+          s.value = dr[sec.cle] || '';
+          l.appendChild(t); l.appendChild(s);
+          z.appendChild(l);
+        });
+        const b = document.createElement('button');
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'padding:8px;font-size:12px;margin-top:6px;';
+        b.textContent = '💾 Enregistrer les accès';
+        b.addEventListener('click', async () => {
+          const choisis = {};
+          document.querySelectorAll('.drt-' + u.code).forEach(x => {
+            if(x.value) choisis[x.getAttribute('data-cle')] = x.value;
+          });
+          b.disabled = true;
+          try{
+            await appelAdmin({ action:'droits', cible:u.code, droits: choisis });
+            messageAdmin('Accès de ' + u.nom + ' enregistrés.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); b.disabled = false; }
+        });
+        z.appendChild(b);
+        det.appendChild(z);
+        zone.appendChild(det);
+      }
+    });
+  }catch(e){
+    zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+  }
+}
+
+brancher('createBtn', 'click', async () => {
+  const btn = $('createBtn');
+  btn.disabled = true;
+  try{
+    await appelAdmin({
+      action: 'create',
+      nouveauCode: $('newCode').value.trim(),
+      nom: $('newName').value.trim(),
+      role: $('newRole').value
+    });
+    messageAdmin('Accès créé pour ' + $('newName').value.trim() + '.');
+    $('newCode').value = '';
+    $('newName').value = '';
+    $('newRole').value = 'moniteur';
+    chargerUtilisateurs();
+  }catch(e){
+    messageAdmin(e.message, true);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+
+/* Ouvre la session et met en place l'interface */
+function ouvrirSession(code, moniteur, role, saluer, droits){
+  ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur',
+            droits: droits || [] };
+  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits);
+
+  $('lockView').style.display = 'none';
+  $('appView').style.display = 'block';
+  $('logoutBtn').style.display = 'block';
+  afficherIdentite();
+  if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
+
+  appliquerDroits();
+  if(aDroit('admin') && ACCES.role === 'admin') chargerUtilisateurs();
+
+  proposerReprise();
+  chargerEleves();
+  chargerMoniteurs();
+  initTiroirs();
+  initOnglets();
+  appliquerTextesBilan();
+  ecouterReseau();
+  if(aDroit('cours')) afficherPrepares();
+  lancerActualisationAuto();
+  if(saluer) showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
+}
+
+/* Reprend la session mémorisée, après vérification du code */
+async function reprendreSession(){
+  const s = lireSession();
+  if(!s) return false;
+  try{
+    const r = await fetchFiable(CONFIG.AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: s.code })
+    });
+    const data = await r.json().catch(() => ({}));
+
+    /* On n'oublie la session que si le code est vraiment refusé.
+       Un serveur occupé ou un blocage temporaire ne doit pas
+       déconnecter quelqu'un dont le code est valable. */
+    if(!r.ok || !data.ok){
+      if(r.status === 403 && data.error && /incorrect|inconnu/i.test(data.error)){
+        oublierSession();
+        return false;
+      }
+      /* Doute : on garde la session mémorisée */
+      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits);
+      return true;
+    }
+
+    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits);
+    return true;
+  }catch(e){
+    /* Hors ligne : on fait confiance à la session mémorisée */
+    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits);
+    return true;
+  }
+}
+
+/* ---------- Déverrouillage ---------- */
+async function deverrouiller(){
+  const code = $('codeInput').value.trim();
+  const msg = $('codeMsg');
+  if(code.length < 6){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Le code compte au moins 6 chiffres.';
+    return;
+  }
+  const btn = $('codeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Vérification…';
+  msg.style.color = 'var(--muted)';
+  msg.textContent = '';
+  try{
+    const r = await fetchFiable(CONFIG.AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code })
+    });
+    const data = await r.json().catch(() => ({}));
+    if(!r.ok || !data.ok){
+      msg.style.color = 'var(--warn-text)';
+      /* Le serveur dit pourquoi : essais restants, blocage temporaire.
+         Le masquer derrière « code incorrect » empêche de comprendre. */
+      msg.textContent = data.error || 'Code incorrect.';
+      if(r.status === 429){
+        msg.innerHTML = '⏳ ' + (data.error || 'Accès bloqué un moment.') +
+          '<br><span style="font-size:12px;color:var(--muted);">' +
+          'Après plusieurs codes erronés, l\'accès se bloque quinze minutes. ' +
+          'Patiente, ou passe par un autre réseau.</span>';
+      }
+      $('codeInput').value = '';
+      return;
+    }
+    ouvrirSession(code, data.moniteur, data.role, true, data.droits);
+  }catch(e){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Connexion impossible : ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Déverrouiller';
+  }
+}
+
+brancher('logoutBtn', 'click', async () => {
+  if(!await confirmer('Se déconnecter ?')) return;
+  verrouiller('');
+  showToast('Déconnecté');
+});
+
+/* Le bouton Déverrouiller est branché dans la page elle-même,
+   pour qu'aucun module ne puisse l'empêcher de répondre. */
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-depart.js'] = true;
