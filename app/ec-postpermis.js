@@ -1,1302 +1,836 @@
 /* ============================================================
-   ec-permis-listes.js
-   RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
+   ec-postpermis.js
+   Après l'examen : résultat, repassage, rendez-vous post-permis.
+   Calendrier de prise des dates et disponibilités des élèves.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-function ficheSuiviPermis(e){
-  const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(e.eleve)) || {};
+/* ============================================================
+   SUITE À DONNER APRÈS UN RENDEZ-VOUS POST-PERMIS
+   ============================================================ */
+const SUITES_POST = [
+  { cle:'3h',         nom:'➕ 3h avant repassage' },
+  { cle:'2h',         nom:'🚗 Une leçon de 2h pour refaire le point' },
+  { cle:'impossible', nom:'⛔ Pas de repassage possible pour le moment' }
+];
 
-  const d = document.createElement('details');
-  d.style.cssText = 'margin-top:8px;';
-  d.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:14px;">' +
-    '📋 Fiche de préparation' + (s.majLe ? ' — mise à jour le ' + s.majLe : '') + '</summary>';
-
-  const f = document.createElement('div');
-  f.className = 'fiche-permis';
-  f.style.cssText = 'margin-top:12px;padding:12px;background:var(--navy);' +
-    'border:1px solid var(--line);border-radius:10px;';
-
-  const id = 'sv' + Math.random().toString(36).slice(2, 8);
-  f.innerHTML =
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
-      'color:var(--accent-text);font-weight:700;margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'ok" style="width:19px;height:19px;">' +
-      '✅ Tout est OK — dossier prêt</label>' +
-
-    '<label for="' + id + 'typ">Type d\'examen</label>' +
-    '<select id="' + id + 'typ">' +
-      '<option value="bv">🅑 BV — boîte manuelle</option>' +
-      '<option value="bea">🅰 BEA — boîte automatique</option>' +
-      '<option value="handicap">♿ Handicap</option>' +
-    '</select>' +
-
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'fan" style="width:19px;height:19px;">' +
-      '👻 Place fantôme — nom posé, repreneur encore inconnu</label>' +
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">' +
-      'Place à remplacer — à donner à un autre élève</label>' +
-    '<div id="' + id + 'zone" style="display:none;padding:10px;margin-bottom:14px;' +
-      'background:var(--navy-deep);border:1px solid var(--orange);border-radius:10px;">' +
-      '<label for="' + id + 'nouv">Nouveau candidat</label>' +
-      '<input type="text" id="' + id + 'nouv" list="listeEleves" autocomplete="off" ' +
-      'placeholder="Nom et prénom du repreneur">' +
-      '<button class="btn btn-primary" id="' + id + 'trf" style="font-size:14px;padding:11px;">' +
-      '➡️ Transférer la date à ce candidat</button>' +
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;">' +
-      'La date passe au nouveau candidat et sera transmise à son moniteur au prochain cours.</div>' +
-    '</div>' +
-
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">' +
-      'Date à donner à une autre auto-école</label>' +
-    '<div id="' + id + 'zae" style="display:none;margin-bottom:14px;">' +
-      '<label for="' + id + 'ae">Auto-école destinataire</label>' +
-      '<input type="text" id="' + id + 'ae" placeholder="Nom de l\'auto-école">' +
-    '</div>' +
-
-    '<label for="' + id + 'pay">Reste à payer</label>' +
-    '<input type="text" id="' + id + 'pay" placeholder="Ex : 240 €">' +
-    '<label for="' + id + 'qd">Paiement prévu le</label>' +
-    '<input type="date" id="' + id + 'qd">' +
-    '<label for="' + id + 'rel">Relancé le</label>' +
-    '<input type="date" id="' + id + 'rel">' +
-
-    '<label for="' + id + 'nat">À faire par l\'élève</label>' +
-    '<select id="' + id + 'nat">' +
-      '<option value="">— rien —</option>' +
-      '<option value="acheter">À acheter</option>' +
-      '<option value="reserver">À réserver</option>' +
-      '<option value="both">À acheter et réserver</option>' +
-    '</select>' +
-    '<label for="' + id + 'l2">Leçons de 2h</label>' +
-    '<input type="text" id="' + id + 'l2" inputmode="numeric" placeholder="Ex : 3">' +
-    '<label for="' + id + 'l1">Leçons d\'1h</label>' +
-    '<input type="text" id="' + id + 'l1" inputmode="numeric" placeholder="Ex : 1">' +
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'acc" style="width:19px;height:19px;">Accompagnement à l\'examen</label>' +
-    '<label for="' + id + 'aut">Autre à prévoir</label>' +
-    '<textarea id="' + id + 'aut" rows="2" style="width:100%;background:var(--navy-deep);' +
-      'border:1px solid var(--line);color:var(--cream);padding:10px;border-radius:10px;' +
-      'font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
-
-    '<div class="pleine-largeur">' +
-    '<label for="' + id + 'res">Réservations faites sur le planning</label>' +
-    '<textarea id="' + id + 'res" rows="2" placeholder="Ex : 10/09 14h-16h et 11/09 9h-12h" ' +
-      'style="width:100%;background:var(--navy-deep);border:1px solid var(--line);color:var(--cream);' +
-      'padding:10px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
-    '</div>';
-
-  const bEnr = document.createElement('button');
-  bEnr.className = 'btn btn-primary pleine-largeur';
-  bEnr.textContent = '💾 Enregistrer la fiche';
-  f.appendChild(bEnr);
-  const etat = document.createElement('div');
-  etat.className = 'pleine-largeur';
-  etat.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
-  f.appendChild(etat);
-
-  d.appendChild(f);
-
-  /* Valeurs déjà enregistrées */
-  setTimeout(() => {
-    const g = k => document.getElementById(id + k);
-    if(g('rem')) g('rem').checked = (s.aRemplacer === 'oui');
-    if(g('don')) g('don').checked = (s.dateADonner === 'oui');
-    if(g('pay')) g('pay').value = s.resteAPayer || '';
-    if(g('qd')) g('qd').value = s.paiementPrevu || '';
-    if(g('rel')) g('rel').value = s.relanceLe || '';
-    if(g('nat')) g('nat').value = s.nature || '';
-    if(g('l2')) g('l2').value = s.lecons2h || '';
-    if(g('l1')) g('l1').value = s.lecons1h || '';
-    if(g('acc')) g('acc').checked = (s.accompagnement === 'oui');
-    if(g('aut')) g('aut').value = s.autre || '';
-    if(g('res')) g('res').value = s.reservations || '';
-    if(g('typ')) g('typ').value = s.typeExamen ||
-      ((e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase());
-    if(g('ae')) g('ae').value = s.autoEcole || '';
-    if(g('fan')) g('fan').checked = (s.fantome === 'oui');
-    if(g('ok')) g('ok').checked = (s.toutOk === 'oui');
-  }, 0);
-
-  /* Affichages conditionnels */
-  setTimeout(() => {
-    const cbRem = document.getElementById(id + 'rem');
-    const zn = document.getElementById(id + 'zone');
-    if(cbRem && zn){
-      const maj = () => { zn.style.display = cbRem.checked ? 'block' : 'none'; };
-      cbRem.addEventListener('change', maj);
-      maj();
-    }
-    const cbDon = document.getElementById(id + 'don');
-    const zae = document.getElementById(id + 'zae');
-    if(cbDon && zae){
-      const majAE = () => { zae.style.display = cbDon.checked ? 'block' : 'none'; };
-      cbDon.addEventListener('change', majAE);
-      majAE();
-    }
-
-    const bTrf = document.getElementById(id + 'trf');
-    if(bTrf) bTrf.addEventListener('click', async () => {
-      const nouveau = document.getElementById(id + 'nouv').value.trim();
-      if(nouveau.length < 2){ showToast('Saisis le nom du repreneur.'); return; }
-      const dateP = (e.etat && e.etat.permisDate) || s.datePermis || '';
-      if(!dateP){ showToast('Aucune date de permis à transférer.'); return; }
-      if(!await confirmer('Transférer l\'examen du ' + dateP + '\n\nde ' + e.eleve +
-                  '\nvers ' + nouveau + ' ?')) return;
-
-      bTrf.disabled = true;
-      bTrf.textContent = 'Transfert…';
-      try{
-        /* Le repreneur hérite de la date */
-        await envoyerConsigne(nouveau, 'permis',
-          'Examen du permis fixé au ' + dateP + ' (repris de ' + e.eleve + ')');
-        await appelPrep({ action:'suiviSet', eleve: nouveau, datePermis: dateP,
-                          par: ACCES.moniteur || '' });
-
-        /* L'élève précédent perd la date */
-        await envoyerConsigne(e.eleve, 'permis',
-          'Examen du ' + dateP + ' redonné à un autre candidat — nouvelle date à prévoir');
-        /* L'ancien candidat sort complètement de la liste des permis prévus */
-        await appelPrep({ action:'suiviDelete', eleve: e.eleve });
-
-        showToast('Date transférée à ' + nouveau + ' ✅');
-        afficherBureau();
-      }catch(err){
-        showToast('Transfert impossible : ' + err.message);
-        bTrf.disabled = false;
-        bTrf.textContent = '➡️ Transférer la date à ce candidat';
-      }
-    });
-  }, 0);
-
-  bEnr.addEventListener('click', async () => {
-    const g = k => document.getElementById(id + k);
-    bEnr.disabled = true;
-    bEnr.textContent = 'Enregistrement…';
-    try{
-      await appelPrep({
-        action: 'suiviSet',
-        eleve: e.eleve,
-        datePermis: (e.etat && e.etat.permisDate) || s.datePermis || '',
-        aRemplacer: g('rem').checked ? 'oui' : '',
-        dateADonner: g('don').checked ? 'oui' : '',
-        resteAPayer: g('pay').value.trim(),
-        paiementPrevu: g('qd').value,
-        relanceLe: g('rel').value,
-        nature: g('nat').value,
-        lecons2h: g('l2').value.trim(),
-        lecons1h: g('l1').value.trim(),
-        accompagnement: g('acc').checked ? 'oui' : '',
-        autre: g('aut').value.trim(),
-        reservations: g('res').value.trim(),
-        typeExamen: g('typ').value,
-        autoEcole: g('ae').value.trim(),
-        fantome: g('fan').checked ? 'oui' : '',
-        toutOk: g('ok').checked ? 'oui' : '',
-        statut: s.statut || '',
-        aPlanifier: s.aPlanifier || '',
-        semaine: s.semaine || '',
-        moniteurDate: s.moniteurDate || '',
-        par: ACCES.moniteur || ''
-      });
-      etat.style.color = 'var(--accent-text)';
-      etat.textContent = '✅ Fiche enregistrée.';
-      await chargerBureau();
-      /* Signal pour la fenêtre, qui se referme d'elle-même */
-      f.dataset.enregistre = 'oui';
-    }catch(err){
-      etat.style.color = 'var(--warn-text)';
-      etat.textContent = 'Erreur : ' + err.message;
-    }finally{
-      bEnr.disabled = false;
-      bEnr.textContent = '💾 Enregistrer la fiche';
-    }
-  });
-
-  return d;
+function libelleSuite(cle){
+  const s = SUITES_POST.find(x => x.cle === cle);
+  return s ? s.nom : '';
 }
 
-/* Résumé court de la fiche, affiché sous le nom */
-function resumeSuivi(eleve){
-  const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
-  if(!s) return '';
-  const bouts = [];
-  if(s.toutOk === 'oui') bouts.push('✅ tout est OK');
-  if(s.statut === 'annule') bouts.push('❌ examen annulé');
-  if(s.fantome === 'oui') bouts.push('👻 place fantôme');
-  if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
-  if(s.dateADonner === 'oui'){
-    bouts.push('🏫 date à donner à une autre auto-école' +
-               (s.autoEcole ? ' : ' + s.autoEcole : ''));
-  }
-  if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
-  if(s.paiementPrevu) bouts.push('paiement ' + s.paiementPrevu);
-  if(s.relanceLe) bouts.push('relancé ' + s.relanceLe);
-  const nat = { acheter:'à acheter', reserver:'à réserver', both:'à acheter et réserver' }[s.nature];
-  if(nat){
-    const det = [];
-    if(s.lecons2h) det.push(s.lecons2h + '×2h');
-    if(s.lecons1h) det.push(s.lecons1h + '×1h');
-    if(s.accompagnement === 'oui') det.push('accompagnement');
-    if(s.autre) det.push(s.autre);
-    bouts.push(nat + (det.length ? ' : ' + det.join(', ') : ''));
-  }
-  if(s.reservations) bouts.push('📅 ' + s.reservations);
-  return bouts.join(' · ');
+/* Mention du repassage, telle qu'elle apparaît dans les notes */
+function mentionAjournements(n, date){
+  const v = parseInt(n, 10);
+  if(!v) return '';
+  return '🔁 ' + v + (v === 1 ? 'er' : 'e') + ' repassage' +
+         (date ? ' (ajourné le ' + dateEnToutesLettres(date) + ')' : '');
 }
 
 
 /* ============================================================
-   RÉPARTITION DES PLACES D'EXAMEN
+   1. EXAMENS PASSÉS — résultat à saisir
+   Le lendemain de la date, l'élève attend son résultat.
    ============================================================ */
-/* Une entrée par mois : on planifie en général sur le mois en cours, M+1 et M+2 */
-/* placesConfig : déclaré dans ec-etat.js */
-
-function tableauAPlacer(liste){
-  const bloc = document.createElement('div');
-  if(!liste.length) return bloc;
-
-  const nb = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; };
-  const CENTRES = ['Saint-Brieuc', 'Loudéac'];
-
-  /* Regroupement par semaine puis par centre */
-  const parSemaine = {};
-  liste.forEach(e => {
-    const s = suiviDe(e.eleve);
-    const se = s.semaine || '— semaine à définir —';
-    const ce = s.centre || '— centre à définir —';
-    if(!parSemaine[se]) parSemaine[se] = {};
-    if(!parSemaine[se][ce]) parSemaine[se][ce] = [];
-    parSemaine[se][ce].push(e);
-  });
-
-  /* Jours ouverts de chaque semaine, pour comparer à la demande */
-  const joursDe = {};
-  toutesSemaines().forEach(w => {
-    const lib = libelleSemaine(w) +
-      ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-    joursDe[lib] = { 'Saint-Brieuc': nb(w.sb), 'Loudéac': nb(w.lo) };
-  });
-
-  const det = document.createElement('details');
-  det.open = true;
-  det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:700;' +
-    'font-size:14px;margin-bottom:8px;">📊 Répartition des places — ' +
-    liste.length + ' élève(s) dans la liste</summary>';
-
-  const corps = document.createElement('div');
-  corps.style.cssText = 'margin-bottom:12px;';
-
-  /* Les semaines datées d'abord, les indéfinies à la fin */
-  Object.keys(parSemaine).sort((a, b) => {
-    const ia = a.startsWith('—') ? 1 : 0, ib = b.startsWith('—') ? 1 : 0;
-    return ia !== ib ? ia - ib : a.localeCompare(b);
-  }).forEach(se => {
-    const bs = document.createElement('div');
-    bs.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-      'padding:10px 12px;margin-bottom:8px;font-size:13px;line-height:1.6;';
-
-    let total = 0;
-    Object.keys(parSemaine[se]).forEach(ce => { total += parSemaine[se][ce].length; });
-
-    const tete = document.createElement('div');
-    tete.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
-    tete.textContent = '🗓️ ' + se + ' — ' + total + ' élève(s)';
-    bs.appendChild(tete);
-
-    /* Chaque centre, avec les jours ouverts en regard */
-    const centresPresents = Object.keys(parSemaine[se]);
-    CENTRES.concat(centresPresents.filter(x => CENTRES.indexOf(x) === -1))
-      .forEach(ce => {
-        const eleves = parSemaine[se][ce];
-        const dispo = joursDe[se] ? joursDe[se][ce] : undefined;
-        if(!eleves && !dispo) return;
-
-        const n = eleves ? eleves.length : 0;
-        const ligne = document.createElement('div');
-        ligne.style.cssText = 'margin-top:4px;';
-
-        let etat = '';
-        if(dispo !== undefined){
-          /* Un jour d'examen accueille plusieurs candidats : on affiche les deux */
-          etat = ' · <span style="color:var(--muted);">' + dispo + ' jour(s) ouvert(s)</span>';
-          if(dispo === 0 && n > 0){
-            etat += ' <span style="color:var(--red);font-weight:700;">⚠️ aucun jour ici</span>';
-          }
-        }
-        ligne.innerHTML = '<strong>📍 ' + ce.replace(/</g,'&lt;') + '</strong> — ' +
-          n + ' élève(s)' + etat;
-        bs.appendChild(ligne);
-
-        (eleves || []).forEach(e => {
-          const s = suiviDe(e.eleve);
-          const l = document.createElement('div');
-          l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0 4px 18px;';
-
-          const nom = document.createElement('span');
-          nom.style.cssText = 'flex:1;color:var(--cream);font-size:14px;min-width:0;';
-          nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
-            (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir');
-          l.appendChild(nom);
-
-          const bCal = document.createElement('button');
-          bCal.className = 'btn btn-secondary';
-          bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
-          bCal.textContent = '📅';
-          bCal.title = 'Date obtenue pour ' + e.eleve;
-          bCal.addEventListener('click', async () => {
-            const iso = await choisirDate('Date obtenue — ' + e.eleve);
-            if(!iso) return;
-            bCal.disabled = true;
-            try{
-              await envoyerConsigne(e.eleve, 'permis',
-                'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-              await majSuivi(e.eleve, { datePermis: dateEnToutesLettres(iso),
-                                        aPlanifier: '', statut: '' });
-              showToast('Date transmise ✅');
-              afficherBureau();
-            }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
-          });
-          l.appendChild(bCal);
-
-          const bDel = document.createElement('button');
-          bDel.className = 'btn btn-secondary';
-          bDel.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;' +
-            'color:var(--red);border-color:var(--red);';
-          bDel.textContent = '✕';
-          bDel.title = 'Retirer de la liste RDV PERMIS';
-          bDel.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + e.eleve + ' de la liste RDV PERMIS ?\n\n' +
-                        'Il retourne dans « Examens du permis à prévoir ».')) return;
-            bDel.disabled = true;
-            try{
-              await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: '' });
-              showToast(e.eleve + ' est retourné en « à prévoir »');
-              afficherBureau();
-            }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
-          });
-          l.appendChild(bDel);
-
-          bs.appendChild(l);
-        });
-      });
-
-    corps.appendChild(bs);
-  });
-
-  /* Rappel du total par moniteur, sous forme compacte */
-  const parMoniteur = {};
-  liste.forEach(e => {
-    const m = suiviDe(e.eleve).moniteurDate || '— à définir —';
-    parMoniteur[m] = (parMoniteur[m] || 0) + 1;
-  });
-  const pied = document.createElement('div');
-  pied.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;padding:4px 2px;';
-  pied.innerHTML = '👤 ' + Object.keys(parMoniteur).sort()
-    .map(m => m.replace(/</g,'&lt;') + ' (' + parMoniteur[m] + ')').join(' · ');
-  corps.appendChild(pied);
-
-  det.appendChild(corps);
-  bloc.appendChild(det);
-  return bloc;
-}
-
-/* Élèves dont l'examen blanc a montré qu'ils n'avaient pas le niveau */
-function afficherRdvPermis(tous){
-  const zAP = $('listeAPlacer');
-  const aPlacer = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
-                                   suiviDe(e.eleve).statut !== 'annule');
-  zAP.innerHTML = '';
-  if(!aPlacer.length){
-    zAP.innerHTML = '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>';
-  }else{
-    majVolet('cptAPlacer', aPlacer.length);
-    zAP.appendChild(tableauAPlacer(aPlacer));
-
-    /* Seuls les dossiers incomplets méritent une fiche détaillée :
-       les autres se gèrent depuis la synthèse ci-dessus. */
-    const incomplets = aPlacer.filter(e => {
-      const s = suiviDe(e.eleve);
-      return !s.centre || !s.moniteurDate || !s.semaine;
-    });
-
-    if(!incomplets.length){
-      const ok = document.createElement('div');
-      ok.className = 'empty';
-      ok.innerHTML = '✅ Tous les dossiers sont complets.<br>' +
-        '<span style="font-size:12px;">Utilise la synthèse ci-dessus pour saisir les dates obtenues.</span>';
-      zAP.appendChild(ok);
-    }else{
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:13px;font-weight:700;color:var(--warn-text);margin:12px 0 6px;';
-      t.textContent = '⏳ À compléter (' + incomplets.length + ')';
-      zAP.appendChild(t);
-    }
-
-    incomplets.forEach(e => {
-      zAP.appendChild(ligneBureau(e, {
-        info: x => {
-          const s = suiviDe(x.eleve);
-          const t = (s.typeExamen === 'bea' ? '🅰 BEA'
-                     : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
-          return t + ' · ' + (s.centre || 'centre à définir') +
-                 (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
-                 (s.semaine ? ' · ' + s.semaine : '');
-        },
-        resume: x => resumeSuivi(x.eleve),
-        alerte: x => {
-          const s = suiviDe(x.eleve);
-          if(!s.centre) return 'Centre d\'examen non défini';
-          if(!s.moniteurDate) return 'Moniteur non défini';
-          return null;
-        },
-        actions: (x, zone) => {
-          const s = suiviDe(x.eleve);
-
-          const selC = document.createElement('select');
-          selC.style.marginBottom = '8px';
-          selC.innerHTML = '<option value="">— centre d\'examen —</option>' +
-            '<option value="Saint-Brieuc">Saint-Brieuc</option>' +
-            '<option value="Loudéac">Loudéac</option>';
-          selC.value = s.centre || '';
-          selC.addEventListener('change', async () => {
-            selC.disabled = true;
-            try{ await majSuivi(x.eleve, { centre: selC.value }); await chargerBureau(); afficherBureau(); }
-            catch(e){ showToast('Erreur : ' + e.message); }
-            selC.disabled = false;
-          });
-          zone.appendChild(selC);
-
-          const selM = document.createElement('select');
-          selM.style.marginBottom = '8px';
-          selM.innerHTML = '<option value="">— moniteur qui prend la date —</option>';
-          moniteursActifs.forEach(n => {
-            const o = document.createElement('option');
-            o.value = n; o.textContent = n;
-            selM.appendChild(o);
-          });
-          selM.value = s.moniteurDate || '';
-          selM.addEventListener('change', async () => {
-            selM.disabled = true;
-            try{ await majSuivi(x.eleve, { moniteurDate: selM.value }); await chargerBureau(); }
-            catch(e){ showToast('Erreur : ' + e.message); }
-            selM.disabled = false;
-          });
-          zone.appendChild(selM);
-
-          const selS = document.createElement('select');
-          selS.style.marginBottom = '8px';
-          selS.innerHTML = '<option value="">— semaine à viser —</option>';
-          toutesSemaines().forEach(w => {
-            const lib = libelleSemaine(w) +
-                        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-            const o = document.createElement('option');
-            o.value = lib; o.textContent = lib;
-            selS.appendChild(o);
-          });
-          if(s.semaine && !toutesSemaines().some(w =>
-              (libelleSemaine(w) + ((w.sb || w.lo) ? ' (' + (w.sb||0) + ' SB / ' + (w.lo||0) + ' LO)' : '')) === s.semaine)){
-            const o = document.createElement('option');
-            o.value = s.semaine; o.textContent = s.semaine;
-            selS.appendChild(o);
-          }
-          selS.value = s.semaine || '';
-          selS.addEventListener('change', async () => {
-            selS.disabled = true;
-            try{ await majSuivi(x.eleve, { semaine: selS.value }); await chargerBureau(); }
-            catch(e){ showToast('Erreur : ' + e.message); }
-            selS.disabled = false;
-          });
-          zone.appendChild(selS);
-
-          zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
-                                      aPlanifier: '', statut: '' });
-            showToast('Date transmise ✅');
-            afficherBureau();
-          }));
-        }
-      }));
-    });
-  }
-}
-
-
-/* Permis prévus : préparation administrative.
-   Renvoie la liste, réutilisée par les examens passés. */
-function afficherPermisPrevus(tous){
-  const zPP = $('listePermisPrevu');
-  const prevus = tous.filter(e => e.etat.permis === 'prevu');
-  /* Élèves dont seule la fiche de suivi porte une date */
-  etatBureau.suivi.forEach(s => {
-    if(!s.datePermis) return;
-    if(prevus.some(x => normaliserMot(x.eleve) === normaliserMot(s.eleve))) return;
-    const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(s.eleve));
-    if(base) prevus.push(base);
-  });
-
-  /* Date et boîte de chaque élève, pour le récapitulatif et les filtres */
-  majVolet('cptPrevus', prevus.length);
-  prevus.forEach(e => {
-    const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
-    e._suivi = s || {};
-    e._datePermis = (e.etat.permisDate) || (s && s.datePermis) || '';
-    e._iso = dateFrVersIso(e._datePermis) || '';
-    e._boite = ((s && s.typeExamen) || e.boite ||
-                (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
-  });
-
-  /* Récapitulatif : nombre d'examens par date */
-  const parDate = {};
-  prevus.forEach(e => {
-    const k = e._datePermis || 'Date inconnue';
-    if(!parDate[k]) parDate[k] = { iso: e._iso, bv: 0, bea: 0, handicap: 0, total: 0 };
-    parDate[k].total++;
-    if(e._boite === 'bea') parDate[k].bea++;
-    else if(e._boite === 'handicap') parDate[k].handicap++;
-    else parDate[k].bv++;
-  });
-
-  const dates = Object.keys(parDate).sort((a, b) =>
-    (parDate[a].iso || '9999').localeCompare(parDate[b].iso || '9999'));
-
-
-  /* Menu des dates disponibles */
-  const selD = $('filtreDate');
-  const choixD = selD.value;
-  selD.innerHTML = '<option value="">Toutes les dates</option>';
-  dates.forEach(k => {
-    const o = document.createElement('option');
-    o.value = k; o.textContent = k + ' (' + parDate[k].total + ')';
-    selD.appendChild(o);
-  });
-  selD.value = choixD;
-
-  /* Application des filtres */
-  const fEtat = $('filtrePP').value;
-  const fDate = selD.value;
-  let visibles = prevus.slice();
-  if(fEtat === 'donner')    visibles = visibles.filter(e => e._suivi.dateADonner === 'oui');
-  if(fEtat === 'remplacer') visibles = visibles.filter(e => e._suivi.aRemplacer === 'oui');
-  if(fEtat === 'fantome')   visibles = visibles.filter(e => e._suivi.fantome === 'oui');
-  if(fEtat === 'ok')        visibles = visibles.filter(e => e._suivi.toutOk === 'oui');
-  if(fEtat === 'pasok')     visibles = visibles.filter(e => e._suivi.toutOk !== 'oui');
-  if(fDate) visibles = visibles.filter(e => (e._datePermis || 'Date inconnue') === fDate);
-  visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
-
-  /* Statistiques ventilées par mois d'examen */
-  const actifs = prevus.filter(e => suiviDe(e.eleve).statut !== 'annule');
-  const parMois = {};
-  let horsMois = 0;
-  const moisConnus = placesConfig.mois.map(m => m.mois).filter(Boolean);
-
-  actifs.forEach(e => {
-    const k = (e._iso || '').slice(0, 7);
-    if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
-    if(!parMois[k]) parMois[k] = { prevus:0, remplacements:0, fantomes:0, aDonner:0 };
-    const s = suiviDe(e.eleve);
-    parMois[k].prevus++;
-    if(s.aRemplacer === 'oui') parMois[k].remplacements++;
-    if(s.fantome === 'oui') parMois[k].fantomes++;
-    if(s.dateADonner === 'oui') parMois[k].aDonner++;
-  });
-
-  /* Nombre d'examens tombant dans chaque semaine ouverte */
-  const parSemaine = {};
-  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
-    if(!w.du || !w.au) return;
-    const cle = w.du + '>' + w.au;
-    parSemaine[cle] = actifs.filter(e => e._iso && e._iso >= w.du && e._iso <= w.au).length;
-  }));
-
-  afficherPlaces({ parMois: parMois, horsMois: horsMois, parSemaine: parSemaine });
-
-  /* La vue d'ensemble reste au-dessus des filtres, quel que soit le filtre */
-  const zApercu = $('apercuPermis');
-  if(zApercu){
-    zApercu.innerHTML = '';
-    if(prevus.length) zApercu.appendChild(apercuPermisPrevus(prevus));
-    else zApercu.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
-  }
-
-  zPP.innerHTML = '';
-
-  /* Un filtre actif se voit et se retire facilement */
-  if(prevus.length && (fEtat || fDate)){
-    const b = document.createElement('div');
-    b.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;' +
-      'background:var(--navy);border:1px solid var(--orange);border-radius:8px;' +
-      'margin-bottom:10px;font-size:13px;';
-    const t = document.createElement('span');
-    t.style.cssText = 'flex:1;min-width:0;color:var(--accent-text);';
-    t.textContent = '🔎 Filtre actif' + (fDate ? ' · ' + fDate : '');
-    b.appendChild(t);
-    const x = document.createElement('button');
-    x.className = 'btn btn-secondary';
-    x.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;flex-shrink:0;';
-    x.textContent = '✕ Tout afficher';
-    x.addEventListener('click', () => {
-      if($('filtrePP')) $('filtrePP').value = '';
-      if($('filtreDate')) $('filtreDate').value = '';
-      afficherBureau(true);
-    });
-    b.appendChild(x);
-    zPP.appendChild(b);
-  }
-
-  const vide = t => {
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.textContent = t;
-    zPP.appendChild(v);
-  };
-
-  if(!prevus.length){
-    vide('Aucun permis prévu.');
-  }else if(!fEtat && !fDate){
-    vide("Choisis un filtre ou une date, ou appuie sur un nom dans la vue d'ensemble.");
-  }else if(!visibles.length){
-    vide('Aucun élève ne correspond à ce filtre.');
-  }else{
-    visibles.forEach(e => {
-      const l = ligneBureau(e, {
-        replier: true,
-        info: x => emojisPermis(suiviDe(x.eleve)) +
-                   (suiviDe(x.eleve).toutOk === 'oui' ? ' ✅ ' : ' ⚠️ ') +
-                   (x._boite === 'bea' ? '🅰 BEA'
-                    : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
-                   ' · Permis le ' + (x._datePermis || 'date inconnue') +
-                   (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : ''),
-        resume: x => resumeSuivi(x.eleve),
-        alerte: x => {
-          const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
-          if(s && s.aRemplacer === 'oui') return 'Place à remplacer';
-          if(s && s.dateADonner === 'oui') return 'Date à donner à une autre auto-école';
-          return null;
-        },
-        actions: (x, zone) => {
-          zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            await appelPrep({ action:'suiviSet', eleve:x.eleve,
-                              datePermis: dateEnToutesLettres(iso), par: ACCES.moniteur || '' });
-            showToast('Date transmise ✅');
-            afficherBureau();
-          }));
-          const rangee = document.createElement('div');
-          rangee.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;';
-
-          const s = suiviDe(x.eleve);
-          const bAnn = document.createElement('button');
-          bAnn.className = 'btn btn-secondary';
-          bAnn.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-          bAnn.textContent = '❌ Annuler l\'examen';
-          bAnn.addEventListener('click', async () => {
-            const annuler = (s.statut !== 'annule');
-            if(annuler && !await confirmer('Annuler l\'examen de ' + x.eleve + ' ?')) return;
-            bAnn.disabled = true;
-            try{
-              if(annuler){
-                /* Les anciennes consignes de date n'ont plus lieu d'être */
-                const obsoletes = (x.enAttente || []).filter(cs =>
-                  /permis|examen/i.test(cs.type + ' ' + cs.texte));
-                for(const cs of obsoletes){
-                  try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
-                }
-                /* L'examen n'existe plus : l'élève retourne dans « à prévoir » */
-                await envoyerConsigne(x.eleve, 'permis',
-                  "Examen du permis annulé — date d'examen à prévoir (bureau)");
-                await appelPrep({ action:'suiviDelete', eleve: x.eleve });
-                showToast(x.eleve + ' est repassé en « à prévoir »');
-              }else{
-                await majSuivi(x.eleve, { statut: '' });
-              }
-              afficherBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); bAnn.disabled = false; }
-          });
-          rangee.appendChild(bAnn);
-
-          const bSup = document.createElement('button');
-          bSup.className = 'btn btn-secondary';
-          bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
-            'color:var(--red);border-color:var(--red);';
-          bSup.textContent = '🗑️ Retirer de la liste';
-          bSup.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + x.eleve + ' de la liste des permis prévus ?\n\n' +
-                        'Ses bilans ne sont pas touchés.')) return;
-            bSup.disabled = true;
-            try{
-              await appelPrep({ action:'suiviDelete', eleve: x.eleve });
-              afficherBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
-          });
-          rangee.appendChild(bSup);
-          zone.appendChild(rangee);
-
-          zone.appendChild(ficheSuiviPermis(x));
-        }
-      });
-      zPP.appendChild(l);
-    });
-  }
-  return prevus;
-}
-
-
-/* Examens passés : résultat à saisir */
-async function afficherPostExamenDepuisPrevus(tous, prevus){
-  await afficherPostExamen(prevus.concat(
-    tous.filter(e => suiviDe(e.eleve).datePermis &&
-                     !prevus.some(p => normaliserMot(p.eleve) === normaliserMot(e.eleve)))
-        .map(e => Object.assign({}, e, { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }))
-  ));
-}
-
-
-/* Examens du permis à prévoir */
-function afficherExamensPermis(tous){
-  const zPer = $('listePermis');
-  if(!zPer) return;
-
-  const candidats = tous.filter(e => e.etat.permis === 'aprevoir' || e.etat.permis === 'annule');
-  const masques = candidats.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' ||
-                                        suiviDe(e.eleve).retireAPrevoir === 'oui');
-  let per = candidats.filter(e => suiviDe(e.eleve).aPlanifier !== 'oui' &&
-                                  suiviDe(e.eleve).retireAPrevoir !== 'oui');
-
-  /* Filtre par état */
-  const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
-  if(fPer === 'annule') per = per.filter(e => e.etat.permis === 'annule');
-  else if(fPer === 'aprevoir') per = per.filter(e => e.etat.permis === 'aprevoir');
-  else if(fPer === 'urgent') per = per.filter(e => String(e.urgence || '') >= '4');
-  else if(fPer === 'sansprio') per = per.filter(e => !e.urgence);
-  else if(fPer === 'repassage') per = per.filter(e => suiviDe(e.eleve).nbAjournements);
-  else if(fPer === 'premier') per = per.filter(e => !suiviDe(e.eleve).nbAjournements);
-
-  /* Priorité décroissante, puis demande la plus ancienne */
-  per.sort((a, b) => {
-    const ua = parseInt(a.urgence || '0', 10);
-    const ub = parseInt(b.urgence || '0', 10);
-    if(ub !== ua) return ub - ua;
-    return String(a.date || '').localeCompare(String(b.date || ''));
-  });
-  afficherPasNiveau(tous);
-  afficherAttenteBilan(tous);
-  afficherPasDeRepassage(tous);
-  afficherAlertePrise(per);
-
-  zPer.innerHTML = '';
-
-  /* Un élève écarté par un drapeau doit rester repérable */
-  if(masques.length){
-    const m = document.createElement('div');
-    m.style.cssText = 'font-size:12px;color:var(--muted);padding:8px 10px;margin-bottom:8px;' +
-      'background:var(--navy);border:1px solid var(--line);border-radius:8px;line-height:1.5;';
-    m.innerHTML = 'ℹ️ ' + masques.length + ' élève(s) masqué(s) : ' +
-      masques.map(x => {
-        const s = suiviDe(x.eleve);
-        return x.eleve.replace(/</g,'&lt;') +
-          (s.aPlanifier === 'oui' ? ' (dans RDV PERMIS)' : ' (retiré de la liste)');
-      }).join(' · ');
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;';
-    b.textContent = '↩️ Les remettre dans la liste';
-    b.addEventListener('click', async () => {
-      if(!await confirmer('Remettre ces ' + masques.length +
-                          ' élève(s) dans les examens à prévoir ?')) return;
-      b.disabled = true;
-      try{
-        for(const x of masques){
-          await majSuivi(x.eleve, { aPlanifier: '', retireAPrevoir: '' });
-        }
-        afficherBureau();
-      }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
-    });
-    m.appendChild(b);
-    zPer.appendChild(m);
-  }
-
-  if(!per.length){
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.textContent = fPer ? 'Aucun élève ne correspond à ce filtre.'
-                         : 'Aucun examen du permis à prévoir.';
-    zPer.appendChild(v);
-  }else{
-    const cpt = document.createElement('div');
-    cpt.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
-      'padding:4px 2px 8px;';
-    const nRep = per.filter(x => suiviDe(x.eleve).nbAjournements).length;
-    cpt.textContent = per.length + ' élève(s)' +
-      (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
-    zPer.appendChild(cpt);
-    signalerAjout(zPer);
-    majVolet('cptAPrevoir', per.length);
-  per.forEach(e => {
-      zPer.appendChild(ligneBureau(e, {
-        replier: true,
-        info: x => {
-          const sv = suiviDe(x.eleve);
-          const rep = sv.nbAjournements ? '🔁 ' + mentionAjournements(sv.nbAjournements).replace('🔁 ','') + ' · ' : '🆕 ';
-          const att = (sv.resultat === 'ajourne' && !sv.rdvPostFait)
-            ? (sv.rdvPostDate ? ' · RDV post-permis le ' + dateEnToutesLettres(sv.rdvPostDate)
-                              : ' · en attente du RDV post-permis')
-            : '';
-          const suite = sv.rdvPostFait === 'oui' && sv.suite ? ' · ' + libelleSuite(sv.suite) : '';
-          const dispo = sv.dispoDu ? ' · 📅 à partir du ' + dateEnToutesLettres(sv.dispoDu) : '';
-          const base = rep + ((x.etat.permis === 'annule') ? 'Examen annulé — à reprogrammer'
-                                                          : 'Date à prévoir') + att + suite + dispo;
-          const dem = x.date ? ' · demandé le ' + x.date : '';
-          const lec = (x.etat.permisN !== null) ? ' · ' + x.etat.permisN + ' leçon(s) à prévoir' : '';
-          const u = libelleUrgence(x.urgence);
-          return base + dem + lec + (x.urgence ? ' · ' + u.l : '');
-        },
-        alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
-        actions: (x, zone) => {
-          const lab = document.createElement('label');
-          lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
-            'font-size:15px;color:var(--cream);margin-bottom:10px;';
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.style.cssText = 'width:19px;height:19px;';
-          cb.checked = (suiviDe(x.eleve).aPlanifier === 'oui');
-          cb.addEventListener('change', async () => {
-            cb.disabled = true;
-            try{
-              await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '',
-                                        retireAPrevoir: '' });
-              afficherBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); cb.disabled = false; }
-          });
-          lab.appendChild(cb);
-          lab.appendChild(document.createTextNode('Mettre dans la liste RDV PERMIS'));
-          zone.appendChild(lab);
-
-          const bRet = document.createElement('button');
-          bRet.className = 'btn btn-secondary';
-          bRet.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin-right:6px;' +
-            'color:var(--red);border-color:var(--red);';
-          bRet.textContent = '🗑️ Retirer de la liste';
-          bRet.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + x.eleve + ' des examens à prévoir ?\n\n' +
-                        'Il y reviendra si un moniteur le signale à nouveau.')) return;
-            bRet.disabled = true;
-            try{
-              /* Les consignes en attente ne doivent plus le faire réapparaître */
-              for(const cs of (x.enAttente || [])){
-                try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
-              }
-              await majSuivi(x.eleve, { retireAPrevoir: 'oui' });
-              afficherBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); bRet.disabled = false; }
-          });
-          zone.appendChild(bRet);
-
-          zone.appendChild(blocDispo(x));
-
-          zone.appendChild(boutonDate('📅 Date de permis', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            showToast('Date transmise ✅');
-            afficherBureau();
-          }));
-
-          const sel = document.createElement('select');
-          sel.style.cssText = 'margin-top:8px;margin-bottom:0;';
-          URGENCES.forEach(u => {
-            const o = document.createElement('option');
-            o.value = u.v; o.textContent = u.l;
-            sel.appendChild(o);
-          });
-          sel.value = x.urgence || '';
-          sel.addEventListener('change', async () => {
-            sel.disabled = true;
-            try{
-              await envoyerConsigne(x.eleve, 'urgence', '', sel.value);
-              showToast('Priorité enregistrée ✅');
-              await chargerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); }
-            sel.disabled = false;
-          });
-          zone.appendChild(sel);
-        }
-      }));
-    });
-  }
-}
-
-async function ajouterDateBureau(){
-  const eleve = $('addEleve').value.trim();
-  const type = $('addType').value;
-  const situation = $('addEtat').value;
-  const iso = $('addDate').value;
-  const nLecons = $('addLecons').value.trim();
-  const etat = $('addEtatMsg');
-
-  if(eleve.length < 2){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = "Saisis le nom de l'élève.";
-    return;
-  }
-  if(situation === 'date' && !iso){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Choisis une date ou passe en « à prévoir ».';
-    return;
-  }
-
-  const suite = nLecons
-    ? ' — encore ' + nLecons + ' leçon' + (parseInt(nLecons, 10) > 1 ? 's' : '')
-    : '';
-
-  let texte;
-  if(situation === 'date'){
-    const quand = dateEnToutesLettres(iso);
-    if(type === 'permis') texte = 'Examen du permis fixé au ' + quand + suite + ' avant (bureau)';
-    else if(type === 'examblanc') texte = 'Examen blanc fixé au ' + quand + suite + ' avant (bureau)';
-    else texte = 'Simulateur nuit et risques fixé au ' + quand + ' (bureau)';
-  }else{
-    if(type === 'permis'){
-      texte = "Date d'examen à prévoir" + (suite ? ' (' + suite.replace(' — ', '') + ')' : '') + ' (bureau)';
-    }else if(type === 'examblanc'){
-      texte = 'Examen blanc à prévoir' +
-              (nLecons ? ' dans ' + nLecons + ' leçon' + (parseInt(nLecons,10) > 1 ? 's' : '') : '') +
-              ' (bureau)';
-    }else{
-      texte = 'Simulateur nuit et risques à prévoir (bureau)';
-    }
-  }
-
-  const btn = $('addBtn');
-  btn.disabled = true;
-  btn.textContent = 'Enregistrement…';
-  try{
-    await envoyerConsigne(eleve, type, texte);
-    etat.style.color = 'var(--accent-text)';
-    etat.textContent = '✅ ' + texte;
-    $('addLecons').value = '';
-
-    /* Rafraîchissement discret : les listes ne se vident pas.
-       Les messages ne sont relus que si leur tiroir est ouvert. */
-    eleveAjouteRecemment = eleve;
-    const travaux = [afficherBureau(true)];
-    if(tiroirOuvert('messages')) travaux.push(afficherConsignesEnAttente());
-    await Promise.all(travaux);
-  }catch(e){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Erreur : ' + e.message;
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '📅 Enregistrer la date';
-  }
-}
-
-/* ============================================================
-   ACTUALISATION AUTOMATIQUE
-   Le suivi bureau et les cours préparés changent sans qu'on le
-   sache : d'autres personnes les modifient. On rafraîchit seul.
-   ============================================================ */
-
-/* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
-function emojisPermis(s){
-  const e = [];
-  if(doitDeLArgent(s))        e.push('💰');   /* reste à payer */
-  if(aPlanifier(s))           e.push('📆');   /* leçons à poser sur le planning */
-  if(s.aRemplacer === 'oui')  e.push('🔄');   /* place à remplacer */
-  if(s.fantome === 'oui')     e.push('👻');   /* place fantôme */
-  if(s.dateADonner === 'oui') e.push('🏫');   /* à donner à une autre auto-école */
-  if(s.nbAjournements)        e.push('🔁');   /* repassage */
-  return e.join('');
-}
-
-/* Un solde saisi et non nul signifie qu'il reste à payer */
-function doitDeLArgent(s){
-  const v = String(s.resteAPayer || '').trim();
-  if(!v) return false;
-  const n = parseFloat(v.replace(',', '.').replace(/[^\d.\-]/g, ''));
-  if(!isNaN(n)) return n > 0;
-  return !/^(0|non|rien|soldé|solde|ok|à jour|a jour)$/i.test(v);
-}
-
-/* Les réservations ne sont pas encore posées sur le planning */
-function aPlanifier(s){
-  const v = String(s.reservations || '').trim();
-  if(!v) return true;
-  return /à faire|a faire|non|pas encore|à poser|a poser|manque/i.test(v);
-}
-
-function legendePermis(){
-  const d = document.createElement('div');
-  d.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;' +
-    'padding:6px 2px 10px;';
-  d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose<br>' +
-    '💰 reste à payer · 📆 leçons à planifier · 🔄 place à remplacer · ' +
-    '👻 fantôme · 🏫 à donner · 🔁 repassage';
-  return d;
-}
-
-/* Vue d'ensemble des permis prévus : par date, noms et état */
-function apercuPermisPrevus(prevus){
-  const bloc = document.createElement('div');
-
-  const nOk = prevus.filter(e => suiviDe(e.eleve).toutOk === 'oui').length;
-  const nBV = prevus.filter(e => e._boite !== 'bea' && e._boite !== 'handicap').length;
-  const nBEA = prevus.filter(e => e._boite === 'bea').length;
-  const nHand = prevus.filter(e => e._boite === 'handicap').length;
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);padding:2px 2px 6px;';
-  t.innerHTML = prevus.length + ' permis prévu(s) — ' +
-    '<span style="color:var(--accent-text);">' + nBV + ' BV</span> · ' +
-    '<span style="color:#E8A33D;">' + nBEA + ' BEA</span>' +
-    (nHand ? ' · <span style="color:#7FB3FF;">' + nHand + ' ♿</span>' : '') +
-    '<br><span style="font-weight:600;color:var(--muted);">' +
-    nOk + ' prêt(s), ' + (prevus.length - nOk) + ' à compléter</span>';
-  bloc.appendChild(t);
-  bloc.appendChild(legendePermis());
-
-  /* Regroupement par date d'examen */
-  const parDate = {};
-  prevus.forEach(e => {
-    const k = e._datePermis || 'Date inconnue';
-    if(!parDate[k]) parDate[k] = [];
-    parDate[k].push(e);
-  });
-
-  Object.keys(parDate).sort((a, b) => {
-    const ia = parDate[a][0]._iso || '9999', ib = parDate[b][0]._iso || '9999';
-    return ia.localeCompare(ib);
-  }).forEach(date => {
-    const groupe = parDate[date];
-
-    const d = document.createElement('div');
-    d.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-      'border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13px;line-height:1.6;';
-
-    const bv = groupe.filter(e => e._boite !== 'bea' && e._boite !== 'handicap').length;
-    const bea = groupe.filter(e => e._boite === 'bea').length;
-    const hand = groupe.filter(e => e._boite === 'handicap').length;
-    /* Plusieurs types le même jour : à surveiller pour les véhicules */
-    const mixte = [bv, bea, hand].filter(x => x > 0).length > 1;
-
-    if(mixte){
-      d.style.background = 'var(--warn-bg)';
-      d.style.borderColor = 'var(--red)';
-    }
-
-    const h = document.createElement('div');
-    h.style.cssText = 'font-weight:700;margin-bottom:3px;';
-    h.innerHTML = '📅 ' + date.replace(/</g, '&lt;') + ' — ' + groupe.length + ' élève(s) · ' +
-      [bv ? bv + ' BV' : '', bea ? bea + ' BEA' : '', hand ? hand + ' ♿' : '']
-        .filter(Boolean).join(' · ') +
-      (mixte ? ' ⚠️' : '');
-    if(mixte) h.title = "Plusieurs types d'examen le même jour";
-    d.appendChild(h);
-
-    groupe.forEach(e => {
-      const s = suiviDe(e.eleve);
-      const l = document.createElement('div');
-      l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0 2px 8px;';
-
-      const nom = document.createElement('button');
-      nom.type = 'button';
-      nom.style.cssText = 'flex:1;min-width:0;text-align:left;background:none;border:none;' +
-        'color:var(--cream);font-size:13px;font-family:inherit;padding:2px 0;cursor:pointer;' +
-        'text-decoration:underline;text-decoration-color:var(--line);' +
-        'text-underline-offset:3px;';
-      nom.textContent = (e._boite === 'bea' ? '🅰 ' :
-                         e._boite === 'handicap' ? '♿ ' : '🅑 ') + e.eleve;
-      nom.title = 'Ouvrir la fiche de ' + e.eleve;
-      nom.addEventListener('click', () => ouvrirFichePermis(e));
-      l.appendChild(nom);
-
-      const rep = document.createElement('span');
-      rep.style.cssText = 'flex-shrink:0;font-size:14px;letter-spacing:1px;';
-      rep.textContent = emojisPermis(s);
-      l.appendChild(rep);
-
-      const etat = document.createElement('span');
-      etat.style.cssText = 'flex-shrink:0;font-size:15px;';
-      etat.textContent = (s.toutOk === 'oui') ? '✅' : '⚠️';
-      etat.title = (s.toutOk === 'oui') ? 'Dossier prêt' : 'Il manque quelque chose';
-      l.appendChild(etat);
-
-      d.appendChild(l);
-    });
-
-    bloc.appendChild(d);
-  });
-
-  const aide = document.createElement('div');
-  aide.style.cssText = 'font-size:11px;color:var(--muted);padding:6px 2px 0;line-height:1.5;';
-  aide.textContent = 'Appuie sur un nom pour ouvrir sa fiche.';
-  bloc.appendChild(aide);
-
-  return bloc;
-}
-
-/* Ouvre directement la fiche d'un élève depuis le résumé :
-   on filtre sur sa date, puis on déplie son volet. */
-/* Ouvre la fiche d'un élève dans une fenêtre, sans toucher aux filtres */
-function ouvrirFichePermis(e){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
-
-  const s = suiviDe(e.eleve);
-
-  const tete = document.createElement('div');
-  tete.style.cssText = 'display:flex;align-items:flex-start;gap:10px;margin-bottom:4px;';
-
-  const titre = document.createElement('div');
-  titre.style.cssText = 'flex:1;min-width:0;';
-  titre.innerHTML = '<h3 style="margin:0;">' +
-    (e._boite === 'bea' ? '🅰 ' : e._boite === 'handicap' ? '♿ ' : '🅑 ') +
-    e.eleve.replace(/</g, '&lt;') + '</h3>' +
-    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-top:2px;">' +
-    '📅 ' + (e._datePermis || 'date inconnue') +
-    (s.centre ? ' · ' + s.centre.replace(/</g, '&lt;') : '') +
-    (s.moniteurDate ? ' · ' + s.moniteurDate.replace(/</g, '&lt;') : '') + '</div>' +
-    (emojisPermis(s)
-      ? '<div style="font-size:16px;margin-top:4px;letter-spacing:2px;">' +
-        emojisPermis(s) + (s.toutOk === 'oui' ? ' ✅' : ' ⚠️') + '</div>'
-      : '<div style="font-size:16px;margin-top:4px;">' +
-        (s.toutOk === 'oui' ? '✅' : '⚠️') + '</div>');
-  tete.appendChild(titre);
-
-  const bX = document.createElement('button');
-  bX.className = 'btn btn-secondary';
-  bX.style.cssText = 'width:auto;padding:8px 12px;font-size:16px;margin:0;flex-shrink:0;';
-  bX.textContent = '✕';
-  bX.title = 'Fermer';
-  bX.addEventListener('click', () => fermer());
-  tete.appendChild(bX);
-
-  boite.appendChild(tete);
-
-  /* La fiche complète, telle qu'elle apparaît dans la liste */
-  const fiche = ficheSuiviPermis(e);
-  fiche.style.marginTop = '10px';
-  boite.appendChild(fiche);
-
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-
-  /* Un appui hors de la fenêtre la referme */
-  fond.addEventListener('click', ev => { if(ev.target === fond) fermer(); });
-
-  let ferme = false;
-  function fermer(){
-    if(ferme) return;
-    ferme = true;
-    if(fond.parentNode) document.body.removeChild(fond);
-    afficherBureau(true);
-  }
-
-  /* On referme dès que la fiche est enregistrée */
-  const observateur = setInterval(() => {
-    if(!fond.parentNode){ clearInterval(observateur); return; }
-    const etat = fiche.querySelector('div');
-    if(fiche.dataset && fiche.dataset.enregistre === 'oui'){
-      clearInterval(observateur);
-      setTimeout(fermer, 700);
-    }
-  }, 400);
-}
-
-/* Élèves pour qui le repassage n'est pas envisageable pour le moment */
-function afficherPasDeRepassage(tous){
-  const zone = $('listePasRepassage');
+async function afficherPostExamen(tous){
+  const zone = $('listePostExamen');
   if(!zone) return;
+  const auj = todayLocal();
 
-  const liste = tous.filter(e => {
+  const attente = tous.filter(e => {
     const s = suiviDe(e.eleve);
-    return s.rdvPostFait === 'oui' && s.suite === 'impossible';
+    if(s.resultat) return false;
+    const iso = e._iso || dateFrVersIso(s.datePermis || '');
+    return iso && iso < auj;
   });
 
   zone.innerHTML = '';
-  if(!liste.length){
-    zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
+  if(!attente.length){
+    zone.innerHTML = '<div class="empty">Aucun résultat en attente.</div>';
     return;
   }
 
-  majVolet('cptPasRep', liste.length);
-  liste.forEach(e => {
+  majVolet('cptPasses', attente.length, attente.length > 0);
+  attente.forEach(e => {
     const s = suiviDe(e.eleve);
+    const iso = e._iso || dateFrVersIso(s.datePermis || '');
     zone.appendChild(ligneBureau(e, {
-      replier: true,
-      info: () => mentionAjournements(s.nbAjournements, s.dateAjournement) +
-                  ' · ⛔ pas de repassage pour le moment',
-      resume: () => s.commentaireMoniteur || '',
-      alerte: () => 'Reprise des leçons à suivre',
+      info: x => 'Examen passé le ' + (x._datePermis || s.datePermis || iso) +
+                 (s.nbAjournements
+                   ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : ''),
+      resume: () => '',
+      alerte: () => 'Résultat à saisir',
       actions: (x, boite) => {
-        /* Revoir ou compléter le rendez-vous déjà fait */
-        const bRev = document.createElement('button');
-        bRev.className = 'btn btn-secondary';
-        bRev.style.cssText = 'padding:9px;font-size:13px;margin-bottom:8px;';
-        bRev.textContent = '↗️ Revoir le rendez-vous post-permis';
-        bRev.addEventListener('click', () => {
-          const s2 = suiviDe(x.eleve);
-          ouvrirRdvPost({ eleve: x.eleve, date: s2.rdvPostDate,
-                          moniteur: s2.rdvPostMoniteur, note: '', modele: 'rdv-post' });
-        });
-        boite.appendChild(bRev);
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
 
-        const b = document.createElement('button');
-        b.className = 'btn btn-primary';
-        b.style.cssText = 'padding:10px;font-size:13px;';
-        b.textContent = '✅ Le niveau est revenu — remettre en examen à prévoir';
-        b.addEventListener('click', async () => {
-          if(!await confirmer('Remettre ' + x.eleve +
-                              ' dans les examens du permis à prévoir ?')) return;
-          b.disabled = true;
+        const bOk = document.createElement('button');
+        bOk.className = 'btn btn-primary';
+        bOk.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
+        bOk.textContent = '✅ Permis obtenu';
+        bOk.addEventListener('click', async () => {
+          if(!await confirmer(x.eleve + ' a obtenu son permis ?')) return;
+          bOk.disabled = true;
           try{
-            await majSuivi(x.eleve, { suite: '', retireAPrevoir: '' });
-            await envoyerConsigne(x.eleve, 'permis',
-              "Niveau revenu — date d'examen à prévoir (bureau)");
-            showToast(x.eleve + ' est de retour en « à prévoir »');
+            await consignerResultat(x, 'obtenu', iso);
+            /* Il sort de toutes les listes de suivi */
+            for(const cs of (x.enAttente || [])){
+              try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+            }
+            await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+
+            $('permisNom').value = x.eleve;
+            const tiroir = document.querySelector('[data-tiroir="permis"]');
+            if(tiroir) tiroir.open = true;
+            await preparerPermis();
             afficherBureau();
-          }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
+            showToast('Messages prêts dans le module permis ✅');
+          }catch(err){ showToast('Erreur : ' + err.message); bOk.disabled = false; }
         });
-        boite.appendChild(b);
+        r.appendChild(bOk);
+
+        /* Les captures du CEPC : elles vous servent à décider ici,
+           et suivront jusqu'au rendez-vous post-permis. */
+        boite.appendChild(blocCaptures(x.eleve, iso));
+
+        const bNon = document.createElement('button');
+        bNon.className = 'btn btn-secondary';
+        bNon.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;' +
+          'color:var(--red);border-color:var(--red);';
+        bNon.textContent = '❌ Ajourné';
+        bNon.addEventListener('click', async () => {
+          if(!await confirmer(x.eleve + " est ajourné ?\n\n" +
+                              "Il passe en attente de son bilan d'examen,\n" +
+                              'puis du rendez-vous post-permis.')) return;
+          bNon.disabled = true;
+          try{
+            await consignerResultat(x, 'ajourne', iso);
+            const n = (parseInt(s.nbAjournements, 10) || 0) + 1;
+            const dateAjo = iso || todayLocal();
+            await majSuivi(x.eleve, {
+              resultat: 'ajourne',
+              nbAjournements: String(n),
+              dateAjournement: dateAjo,
+              datePermis: '', aPlanifier: '', retireAPrevoir: '',
+              toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
+              rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
+              bilanExamen: '', suite: '', commentaireMoniteur: ''
+            });
+            for(const cs of (x.enAttente || [])){
+              try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+            }
+            await envoyerConsigne(x.eleve, 'permis',
+              'Ajourné le ' + dateEnToutesLettres(dateAjo) + ' — ' +
+              mentionAjournements(n) +
+              " · bilan d'examen et rendez-vous post-permis à prévoir (bureau)");
+            showToast(x.eleve + ' est en attente de son bilan');
+            afficherBureau();
+          }catch(err){ showToast('Erreur : ' + err.message); bNon.disabled = false; }
+        });
+        r.appendChild(bNon);
+
+        boite.appendChild(r);
       }
     }));
   });
 }
 
-/* Le dernier élève ajouté à la main, pour le retrouver dans la liste */
-let eleveAjouteRecemment = '';
 
-/* Amène l'élève qui vient d'être ajouté sous les yeux */
-function signalerAjout(zone){
-  if(!eleveAjouteRecemment || !zone) return;
-  const cible = normaliserMot(eleveAjouteRecemment);
-  eleveAjouteRecemment = '';
+/* ============================================================
+   2. EN ATTENTE DU BILAN D'EXAMEN
+   Ajournés dont le bilan ou le rendez-vous manque encore.
+   ============================================================ */
+function afficherAttenteBilan(tous){
+  const zone = $('listeAttenteBilan');
+  if(!zone) return;
 
-  setTimeout(() => {
-    const lignes = zone.querySelectorAll('.history-item');
-    for(let i = 0; i < lignes.length; i++){
-      const nom = lignes[i].querySelector('.meta strong');
-      if(nom && normaliserMot(nom.textContent) === cible){
-        lignes[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        lignes[i].style.outline = '2px solid var(--orange)';
-        lignes[i].style.outlineOffset = '3px';
-        setTimeout(() => { lignes[i].style.outline = ''; }, 2500);
-        return;
-      }
-    }
-  }, 100);
+  const ajournes = tous.filter(e => {
+    const s = suiviDe(e.eleve);
+    return s.resultat === 'ajourne' && s.rdvPostFait !== 'oui';
+  });
+
+  /* Dossier complet : bilan reçu, date et moniteur fixés.
+     Il n'y a plus rien à faire ici, le cours est préparé. */
+  const complet = s => !!(s.bilanExamen && s.rdvPostDate && s.rdvPostMoniteur);
+  const liste = ajournes.filter(e => !complet(suiviDe(e.eleve)));
+  const prets = ajournes.filter(e => complet(suiviDe(e.eleve)));
+
+  zone.innerHTML = '';
+
+  /* Les dossiers bouclés restent consultables, sans encombrer */
+  if(prets.length){
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-bottom:8px;';
+    det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">✅ ' +
+      prets.length + ' rendez-vous déjà organisé(s)</summary>';
+    const l = document.createElement('div');
+    l.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;padding:6px 2px;';
+    prets.forEach(e => {
+      const s = suiviDe(e.eleve);
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;';
+
+      const t = document.createElement('span');
+      t.style.cssText = 'flex:1;min-width:0;';
+      t.textContent = e.eleve + ' — ' + dateEnToutesLettres(s.rdvPostDate) +
+                      ' avec ' + s.rdvPostMoniteur;
+      ligne.appendChild(t);
+
+      /* Reprendre le rendez-vous, s'il a été interrompu */
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;flex-shrink:0;';
+      b.textContent = '↗️ Reprendre';
+      b.title = 'Rouvrir le rendez-vous post-permis';
+      b.addEventListener('click', () => {
+        ouvrirRdvPost({ eleve: e.eleve, date: s.rdvPostDate,
+                        moniteur: s.rdvPostMoniteur, note: '', modele: 'rdv-post' });
+      });
+      ligne.appendChild(b);
+
+      l.appendChild(ligne);
+    });
+    det.appendChild(l);
+    zone.appendChild(det);
+  }
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = prets.length
+      ? 'Tous les rendez-vous sont organisés.'
+      : 'Aucun élève en attente.';
+    zone.appendChild(v);
+    return;
+  }
+
+  /* Le bilan manquant passe devant */
+  liste.sort((a, b) => {
+    const sa = suiviDe(a.eleve), sb = suiviDe(b.eleve);
+    return (sa.bilanExamen ? 1 : 0) - (sb.bilanExamen ? 1 : 0);
+  });
+
+  majVolet('cptAttente', liste.length, liste.length > 0);
+  liste.forEach(e => {
+    const s = suiviDe(e.eleve);
+    const aBilan = !!s.bilanExamen;
+    const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
+
+    zone.appendChild(ligneBureau(e, {
+      replier: true,
+      info: () => mentionAjournements(s.nbAjournements, s.dateAjournement) +
+                  (aBilan
+                    ? (aRdv
+                        ? ' · rendez-vous le ' + dateEnToutesLettres(s.rdvPostDate) +
+                          ' avec ' + s.rdvPostMoniteur
+                        : ' · bilan reçu, rendez-vous à fixer')
+                    : " · bilan d'examen à récupérer"),
+      resume: () => '',
+      alerte: () => aBilan ? (aRdv ? null : 'Rendez-vous à fixer')
+                           : "Bilan d'examen manquant",
+      actions: (x, boite) => { boite.appendChild(blocRdvPost(x)); }
+    }));
+  });
 }
 
 
+/* Préparation d'un rendez-vous post-permis pour un ajourné */
+function blocRdvPost(e){
+  const s = suiviDe(e.eleve);
+  const id = 'rp' + Math.random().toString(36).slice(2, 8);
+
+  const det = document.createElement('details');
+  det.style.cssText = 'margin-top:10px;';
+  det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;' +
+    'font-size:14px;">🔁 Rendez-vous post-permis' +
+    (s.rdvPostDate ? ' — ' + dateEnToutesLettres(s.rdvPostDate) : ' — à prévoir') + '</summary>';
+
+  const f = document.createElement('div');
+  f.style.cssText = 'margin-top:10px;padding:12px;background:var(--navy);' +
+    'border:1px solid var(--line);border-radius:10px;';
+  const zoneTexte = 'width:100%;background:var(--navy-deep);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;line-height:1.5;' +
+    'font-family:inherit;resize:vertical;margin-bottom:14px;';
+
+  f.innerHTML =
+    '<label for="' + id + 'b">📄 Bilan de l\'examen officiel</label>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;">' +
+      "Le rapport de l'inspecteur. Laisse vide s'il n'y en a pas.</div>" +
+    '<textarea id="' + id + 'b" rows="5" placeholder="Rapport transmis par l\'inspecteur" ' +
+      'style="' + zoneTexte + '"></textarea>' +
+
+    '<label for="' + id + 'e">📝 Bilan écrit par l\'élève</label>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;">' +
+      'Ce que l\'élève a envoyé par Messenger. Le moniteur le corrigera avec lui.</div>' +
+    '<textarea id="' + id + 'e" rows="5" placeholder="Bilan envoyé par l\'élève" ' +
+      'style="' + zoneTexte + '"></textarea>' +
+
+    '<label for="' + id + 'd">Date du rendez-vous</label>' +
+    '<input type="date" id="' + id + 'd">' +
+    '<label for="' + id + 'm">Moniteur qui le reçoit</label>' +
+    '<select id="' + id + 'm"><option value="">— à définir —</option></select>';
+
+  /* Les captures du CEPC, ajoutables ici si ça n'a pas été fait
+     au moment de la saisie du résultat. */
+  f.appendChild(blocCaptures(e.eleve, dateFrVersIso(s.datePermis || '')));
+
+  const bEnr = document.createElement('button');
+  bEnr.className = 'btn btn-primary';
+  bEnr.textContent = '💾 Enregistrer et préparer le cours';
+  f.appendChild(bEnr);
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  f.appendChild(msg);
+
+  /* Retour du moniteur, une fois le rendez-vous fait */
+  if(s.rdvPostFait === 'oui'){
+    const ret = document.createElement('div');
+    ret.style.cssText = 'margin-top:12px;padding:10px 12px;background:rgba(182,255,14,.08);' +
+      'border:1px solid var(--orange);border-radius:10px;font-size:14px;line-height:1.6;';
+    ret.innerHTML = '<div style="font-weight:700;color:var(--accent-text);margin-bottom:4px;">' +
+      '✅ Rendez-vous fait</div>' +
+      (s.suite ? '<div>' + libelleSuite(s.suite).replace(/</g, '&lt;') + '</div>' : '') +
+      (s.commentaireMoniteur
+        ? '<div style="white-space:pre-wrap;">' +
+          s.commentaireMoniteur.replace(/</g, '&lt;') + '</div>' : '');
+    f.appendChild(ret);
+  }
+
+  det.appendChild(f);
+
+  setTimeout(() => {
+    const g = k => document.getElementById(id + k);
+    if(g('d')) g('d').value = s.rdvPostDate || '';
+    const sm = g('m');
+    if(sm){
+      moniteursActifs.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n; o.textContent = n;
+        sm.appendChild(o);
+      });
+      sm.value = s.rdvPostMoniteur || '';
+    }
+    if(g('b')) g('b').value = s.bilanExamen || '';
+    if(g('e')) g('e').value = s.bilanEleve || '';
+  }, 0);
+
+  bEnr.addEventListener('click', async () => {
+    const g = k => document.getElementById(id + k);
+    const date = g('d').value;
+    const mon = g('m').value;
+    const bilan = g('b').value.trim();
+    const bilanEl = g('e').value.trim();
+
+    /* On enregistre ce qui est là ; le rendez-vous peut venir après */
+    if(!date || !mon){
+      bEnr.disabled = true;
+      try{
+        await majSuivi(e.eleve, { bilanExamen: bilan, bilanEleve: bilanEl });
+        msg.style.color = 'var(--accent-text)';
+        msg.textContent = '✅ Enregistré. Ajoute la date et le moniteur pour préparer le cours.';
+        afficherBureau();
+      }catch(err){
+        msg.style.color = 'var(--warn-text)';
+        msg.textContent = 'Erreur : ' + err.message;
+      }finally{ bEnr.disabled = false; }
+      return;
+    }
+
+    bEnr.disabled = true;
+    bEnr.textContent = 'Enregistrement…';
+    try{
+      await majSuivi(e.eleve, { rdvPostDate: date, rdvPostMoniteur: mon,
+                                bilanExamen: bilan, bilanEleve: bilanEl });
+
+      const n = parseInt(s.nbAjournements, 10) || 1;
+      const note = '🔁 RENDEZ-VOUS POST-PERMIS · ' +
+                   mentionAjournements(n, s.dateAjournement) +
+                   (bilan ? "\n\nBILAN DE L'EXAMEN OFFICIEL :\n" + bilan : '');
+      await appelPrep({
+        action: 'prepAdd',
+        date: date,
+        eleve: e.eleve,
+        modele: 'rdv-post',
+        modeleLabel: '🔁 Rendez-vous post-permis',
+        site: '',
+        note: note,
+        contexte: JSON.stringify({ rdvPost: true, eleve: e.eleve }),
+        moniteur: mon
+      });
+
+      await envoyerConsigne(e.eleve, 'permis',
+        'Rendez-vous post-permis le ' + dateEnToutesLettres(date) + ' avec ' + mon + ' (bureau)');
+
+      msg.style.color = 'var(--accent-text)';
+      msg.textContent = '✅ Cours préparé pour ' + mon + ' le ' + dateEnToutesLettres(date);
+      afficherBureau();
+    }catch(err){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + err.message;
+    }finally{
+      bEnr.disabled = false;
+      bEnr.textContent = '💾 Enregistrer et préparer le cours';
+    }
+  });
+
+  return det;
+}
+
+
+/* ============================================================
+   3. CALENDRIER DE PRISE DES DATES D'EXAMEN
+   1er mardi du mois  → places de la 1ʳᵉ quinzaine du mois suivant
+   2e mardi du mois   → places de la 2ᵉ quinzaine du mois suivant
+   ============================================================ */
+function mardisDuMois(an, mois){
+  const out = [];
+  const dernier = new Date(an, mois, 0).getDate();
+  for(let j = 1; j <= dernier; j++){
+    if(new Date(an, mois - 1, j).getDay() === 2) out.push(j);
+  }
+  return out;
+}
+
+function memeJour(a, b){
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+function joursAvant(iso){
+  const a = new Date(iso + 'T12:00:00');
+  const b = new Date(); b.setHours(12, 0, 0, 0);
+  return Math.round((a - b) / 86400000);
+}
+
+/* Les deux prochaines échéances de prise de dates */
+function prochainesPrises(){
+  const p2 = n => String(n).padStart(2, '0');
+  const auj = new Date();
+  auj.setHours(12, 0, 0, 0);
+  const out = [];
+
+  for(let d = 0; d < 3; d++){
+    const ref = new Date(auj.getFullYear(), auj.getMonth() + d, 1);
+    const an = ref.getFullYear(), mo = ref.getMonth() + 1;
+    const mardis = mardisDuMois(an, mo);
+
+    [0, 1].forEach(i => {
+      if(mardis[i] === undefined) return;
+      const jour = new Date(an, mo - 1, mardis[i], 12);
+      if(jour < auj && !memeJour(jour, auj)) return;
+
+      /* Le mois visé est le suivant */
+      const cible = new Date(an, mo, 1);
+      const anC = cible.getFullYear(), moC = cible.getMonth() + 1;
+      const finMois = new Date(anC, moC, 0).getDate();
+
+      out.push({
+        date: an + '-' + p2(mo) + '-' + p2(mardis[i]),
+        quinzaine: i + 1,
+        moisCible: anC + '-' + p2(moC),
+        du: (i === 0) ? anC + '-' + p2(moC) + '-01' : anC + '-' + p2(moC) + '-16',
+        au: (i === 0) ? anC + '-' + p2(moC) + '-15'
+                      : anC + '-' + p2(moC) + '-' + p2(finMois)
+      });
+    });
+  }
+  out.sort((a, b) => a.date.localeCompare(b.date));
+  return out.slice(0, 2);
+}
+
+/* Un élève peut-il passer sur cette période ? */
+function disponibleSur(s, du, au){
+  if(s.dispoDu && s.dispoDu > au) return false;                 /* pas encore possible */
+  if(s.indispoDu && s.indispoAu){
+    if(!(s.indispoAu < du || s.indispoDu > au)) return false;    /* absent sur la période */
+  }
+  return true;
+}
+
+function raisonIndispo(s, du, au){
+  if(s.dispoDu && s.dispoDu > au){
+    return 'possible seulement à partir du ' + dateEnToutesLettres(s.dispoDu);
+  }
+  if(s.indispoDu && s.indispoAu && !(s.indispoAu < du || s.indispoDu > au)){
+    return 'absent du ' + dateEnToutesLettres(s.indispoDu) +
+           ' au ' + dateEnToutesLettres(s.indispoAu);
+  }
+  return '';
+}
+
+/* Bandeau : la prochaine prise de dates et les élèves à présenter */
+function afficherAlertePrise(candidats){
+  const zone = $('alertePrise');
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  prochainesPrises().forEach(p => {
+    const j = joursAvant(p.date);
+    if(j < 0 || j > 10) return;   /* on ne montre que ce qui arrive bientôt */
+
+    const eligibles = candidats.filter(e => disponibleSur(suiviDe(e.eleve), p.du, p.au));
+    const ecartes = candidats.filter(e => !disponibleSur(suiviDe(e.eleve), p.du, p.au));
+    const urgent = (j <= 1);
+
+    const d = document.createElement('div');
+    d.style.cssText = 'border-radius:10px;padding:12px;margin-bottom:8px;font-size:14px;' +
+      'line-height:1.7;border:1px solid ' + (urgent ? 'var(--red)' : 'var(--orange)') + ';' +
+      'background:' + (urgent ? 'var(--warn-bg)' : 'rgba(182,255,14,.08)') + ';';
+
+    const quand = (j === 0) ? "aujourd'hui" : (j === 1) ? 'demain' : 'dans ' + j + ' jours';
+    const libP = new Date(p.date + 'T12:00:00')
+      .toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+    const libM = new Date(p.moisCible + '-15T12:00:00')
+      .toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+
+    d.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">' +
+      (urgent ? '🔔' : '📆') + ' Prise de dates ' + quand + ' — ' + libP + '</div>' +
+      '<div>Places de la <strong>' + (p.quinzaine === 1 ? '1ʳᵉ' : '2ᵉ') +
+      ' quinzaine de ' + libM + '</strong> (' +
+      new Date(p.du + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric' }) + ' au ' +
+      new Date(p.au + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long' }) +
+      ')</div>' +
+      '<div style="margin-top:4px;"><strong>' + eligibles.length +
+      '</strong> élève(s) présentable(s)' +
+      (ecartes.length ? ' · <span style="color:var(--muted);">' + ecartes.length +
+        ' écarté(s) pour indisponibilité</span>' : '') + '</div>';
+
+    if(eligibles.length){
+      const det = document.createElement('details');
+      det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;' +
+        'margin-top:6px;">Voir les ' + eligibles.length + ' élèves</summary>';
+      const l = document.createElement('div');
+      l.style.cssText = 'margin-top:6px;font-size:13px;line-height:1.9;';
+
+      eligibles.forEach(e => {
+        const s = suiviDe(e.eleve);
+        const ligne = document.createElement('div');
+        ligne.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        const nom = document.createElement('span');
+        nom.style.cssText = 'flex:1;min-width:0;';
+        nom.textContent = (s.nbAjournements ? '🔁 ' : '🆕 ') + e.eleve;
+        const b = document.createElement('button');
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;flex-shrink:0;';
+        b.textContent = '→ RDV PERMIS';
+        b.addEventListener('click', async () => {
+          b.disabled = true;
+          try{
+            await majSuivi(e.eleve, { aPlanifier: 'oui', retireAPrevoir: '' });
+            afficherBureau();
+          }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
+        });
+        ligne.appendChild(nom); ligne.appendChild(b);
+        l.appendChild(ligne);
+      });
+
+      const bTous = document.createElement('button');
+      bTous.className = 'btn btn-primary';
+      bTous.style.cssText = 'margin-top:10px;font-size:13px;padding:10px;';
+      bTous.textContent = '📋 Mettre les ' + eligibles.length + ' dans la liste RDV PERMIS';
+      bTous.addEventListener('click', async () => {
+        if(!await confirmer('Ajouter ces ' + eligibles.length +
+                            ' élèves à la liste RDV PERMIS ?')) return;
+        bTous.disabled = true;
+        bTous.textContent = 'Enregistrement…';
+        try{
+          for(const e of eligibles){
+            await majSuivi(e.eleve, { aPlanifier: 'oui', retireAPrevoir: '' });
+          }
+          showToast(eligibles.length + ' élèves ajoutés ✅');
+          afficherBureau();
+        }catch(err){ showToast('Erreur : ' + err.message); bTous.disabled = false; }
+      });
+      l.appendChild(bTous);
+      det.appendChild(l);
+      d.appendChild(det);
+    }
+
+    if(ecartes.length){
+      const det2 = document.createElement('details');
+      det2.innerHTML = '<summary style="cursor:pointer;color:var(--muted);font-size:13px;' +
+        'margin-top:6px;">Écartés (' + ecartes.length + ')</summary>';
+      const l2 = document.createElement('div');
+      l2.style.cssText = 'margin-top:4px;font-size:12px;color:var(--muted);line-height:1.7;';
+      l2.innerHTML = ecartes.map(e =>
+        '• ' + e.eleve.replace(/</g, '&lt;') + ' — ' +
+        raisonIndispo(suiviDe(e.eleve), p.du, p.au)).join('<br>');
+      det2.appendChild(l2);
+      d.appendChild(det2);
+    }
+
+    zone.appendChild(d);
+  });
+}
+
+
+/* ============================================================
+   4. DISPONIBILITÉS D'UN ÉLÈVE
+   AAC pas encore éligible, vacances, absences.
+   ============================================================ */
+function blocDispo(e){
+  const s = suiviDe(e.eleve);
+  const id = 'dp' + Math.random().toString(36).slice(2, 8);
+  const pose = (s.dispoDu || s.indispoDu);
+
+  const det = document.createElement('details');
+  det.style.cssText = 'margin-top:8px;';
+  det.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:600;color:' +
+    (pose ? 'var(--accent-text)' : 'var(--muted)') + ';">📅 Disponibilités' +
+    (s.dispoDu ? ' — à partir du ' + dateEnToutesLettres(s.dispoDu) : '') +
+    (s.indispoDu && s.indispoAu ? ' — absent du ' + dateEnToutesLettres(s.indispoDu) +
+      ' au ' + dateEnToutesLettres(s.indispoAu) : '') + '</summary>';
+
+  const f = document.createElement('div');
+  f.style.cssText = 'margin-top:8px;padding:10px 12px;background:var(--navy);' +
+    'border:1px solid var(--line);border-radius:10px;';
+  f.innerHTML =
+    '<label for="' + id + 'a">Peut passer à partir du</label>' +
+    '<input type="date" id="' + id + 'a">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Pour un AAC pas encore éligible, par exemple.</div>' +
+    '<label>Indisponible (vacances, absence)</label>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<input type="date" id="' + id + 'du" style="flex:1;">' +
+      '<input type="date" id="' + id + 'au" style="flex:1;">' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;font-size:11px;color:var(--muted);margin:-8px 0 12px;">' +
+      '<span style="flex:1;text-align:center;">du</span>' +
+      '<span style="flex:1;text-align:center;">au</span>' +
+    '</div>';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'padding:9px;font-size:13px;';
+  b.textContent = '💾 Enregistrer';
+  f.appendChild(b);
+  det.appendChild(f);
+
+  setTimeout(() => {
+    const g = k => document.getElementById(id + k);
+    if(g('a')) g('a').value = s.dispoDu || '';
+    if(g('du')) g('du').value = s.indispoDu || '';
+    if(g('au')) g('au').value = s.indispoAu || '';
+  }, 0);
+
+  b.addEventListener('click', async () => {
+    const g = k => document.getElementById(id + k);
+    b.disabled = true;
+    try{
+      await majSuivi(e.eleve, {
+        dispoDu: g('a').value,
+        indispoDu: g('du').value,
+        indispoAu: g('au').value
+      });
+      showToast('Disponibilités enregistrées ✅');
+      afficherBureau();
+    }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
+  });
+
+  return det;
+}
+
+
+/* ============================================================
+   IMAGE DU CEPC
+   Une cellule de tableur accepte 50 000 caractères : on réduit
+   l'image jusqu'à tenir dedans, sinon rien ne s'enregistre.
+   ============================================================ */
+const TAILLE_MAX_IMAGE = 45000;   /* caractères, marge de sécurité */
+
+function compresserImage(fichier){
+  return new Promise((resolve, reject) => {
+    const lecteur = new FileReader();
+    lecteur.onerror = () => reject(new Error("Lecture de l'image impossible."));
+    lecteur.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Image illisible."));
+      img.onload = () => {
+        /* On réduit progressivement jusqu'à tenir dans la cellule */
+        const essais = [[1100, 0.65], [900, 0.55], [750, 0.45], [600, 0.4], [480, 0.35]];
+        for(let i = 0; i < essais.length; i++){
+          const [largeurMax, qualite] = essais[i];
+          const ratio = Math.min(1, largeurMax / img.width);
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * ratio);
+          c.height = Math.round(img.height * ratio);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          const donnees = c.toDataURL('image/jpeg', qualite);
+          if(donnees.length <= TAILLE_MAX_IMAGE) return resolve(donnees);
+        }
+        reject(new Error("L'image reste trop lourde. Recadre la capture sur le CEPC seul."));
+      };
+      img.src = lecteur.result;
+    };
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
+/* ============================================================
+   PLUSIEURS CAPTURES PAR ÉLÈVE
+   Le CEPC tient rarement sur une seule image : recto, verso,
+   observations. On les garde toutes.
+   ============================================================ */
+async function chargerCaptures(eleve){
+  try{
+    const d = await appelPrep({ action: 'captureList', eleve: eleve });
+    return (d && d.captures) || [];
+  }catch(e){ console.warn('Captures :', e); return []; }
+}
+
+/* Galerie : aperçu, ajout et retrait */
+function blocCaptures(eleve, dateExamen){
+  const d = document.createElement('div');
+  d.style.cssText = 'margin-bottom:12px;';
+
+  const l = document.createElement('label');
+  l.textContent = '📷 Captures du CEPC';
+  d.appendChild(l);
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+  aide.textContent = 'Ajoute autant de captures que nécessaire : recto, verso, observations. ' +
+    'Elles sont réduites automatiquement et suivront jusqu\'au rendez-vous post-permis.';
+  d.appendChild(aide);
+
+  const galerie = document.createElement('div');
+  galerie.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;';
+  d.appendChild(galerie);
+
+  async function dessiner(){
+    galerie.innerHTML = '<div style="font-size:12px;color:var(--muted);">Chargement…</div>';
+    const liste = await chargerCaptures(eleve);
+    galerie.innerHTML = '';
+
+    if(!liste.length){
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12px;color:var(--muted);';
+      v.textContent = 'Aucune capture pour le moment.';
+      galerie.appendChild(v);
+      return;
+    }
+
+    liste.forEach((cap, i) => {
+      const vig = document.createElement('div');
+      vig.style.cssText = 'position:relative;width:96px;flex-shrink:0;';
+
+      const img = document.createElement('img');
+      img.src = cap.image;
+      img.style.cssText = 'width:100%;height:96px;object-fit:cover;border-radius:8px;' +
+        'border:1px solid var(--line);cursor:zoom-in;display:block;';
+      img.title = 'Capture ' + (i + 1) + ' — appuie pour agrandir';
+      img.addEventListener('click', () => agrandirImage(cap.image, eleve));
+      vig.appendChild(img);
+
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.style.cssText = 'position:absolute;top:2px;right:2px;width:24px;height:24px;' +
+        'border-radius:12px;border:none;background:rgba(0,0,0,.65);color:#fff;' +
+        'font-size:13px;cursor:pointer;line-height:1;';
+      x.textContent = '✕';
+      x.title = 'Retirer cette capture';
+      x.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if(!await confirmer('Retirer cette capture ?')) return;
+        try{
+          await appelPrep({ action: 'captureDelete', id: cap.id });
+          dessiner();
+        }catch(e){ showToast('Erreur : ' + e.message); }
+      });
+      vig.appendChild(x);
+
+      galerie.appendChild(vig);
+    });
+  }
+  dessiner();
+
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.multiple = true;
+  inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;margin-bottom:6px;';
+  d.appendChild(inp);
+
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;min-height:14px;';
+  d.appendChild(etat);
+
+  inp.addEventListener('change', async () => {
+    const fichiers = Array.prototype.slice.call(inp.files || []);
+    if(!fichiers.length) return;
+
+    let ok = 0;
+    for(let i = 0; i < fichiers.length; i++){
+      etat.style.color = 'var(--muted)';
+      etat.textContent = 'Capture ' + (i + 1) + ' sur ' + fichiers.length + '…';
+      try{
+        const donnees = await compresserImage(fichiers[i]);
+        await appelPrep({ action: 'captureAdd', eleve: eleve,
+                          dateExamen: dateExamen || '', image: donnees });
+        ok++;
+      }catch(e){
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = 'Capture ' + (i + 1) + ' : ' + e.message;
+      }
+    }
+    inp.value = '';
+    if(ok){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ ' + ok + ' capture(s) ajoutée(s)';
+      dessiner();
+    }
+  });
+
+  return d;
+}
+
+function agrandirImage(src, titre){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  fond.style.cursor = 'zoom-out';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:96vw;max-height:92vh;border-radius:10px;';
+  img.alt = titre || '';
+  fond.appendChild(img);
+  fond.addEventListener('click', () => document.body.removeChild(fond));
+  document.body.appendChild(fond);
+}
+
+/* Le parcours de l'élève, d'après sa frise de formation */
+function parcoursDe(e){
+  const t = String((e && e.note) || '') + ' ' + String((e && e.etat && e.etat.frise) || '');
+  if(/\bAAC\b|conduite accompagnée/i.test(t)) return 'AAC';
+  return 'CS';
+}
+
+function boiteDe(e){
+  const s = suiviDe(e.eleve) || {};
+  if(e._boite === 'bea' || /bea|automatique/i.test(s.typeExamen || '')) return 'BEA';
+  if(e._boite === 'handicap') return 'Handicap';
+  return 'BV';
+}
+
+/* Consigne le résultat, pour les statistiques */
+async function consignerResultat(e, resultat, iso){
+  const s = suiviDe(e.eleve) || {};
+  try{
+    await appelPrep({
+      action: 'resultatAdd',
+      eleve: e.eleve,
+      dateExamen: iso || '',
+      resultat: resultat,
+      boite: boiteDe(e),
+      parcours: parcoursDe(e),
+      moniteur: s.moniteurDate || e.moniteur || '',
+      centre: s.centre || '',
+      rang: String((parseInt(s.nbAjournements, 10) || 0) + 1)
+    });
+  }catch(err){ console.warn('Résultat non consigné :', err); }
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-permis-listes.js'] = true;
+window.EC_MODULES['ec-postpermis.js'] = true;
