@@ -13,8 +13,10 @@
 
 /* Ce que produit chaque squelette, en clair */
 const DESCRIPTION_SCHEMA = {
-  conduiteResume: "Bilan de conduite complet : carte SD, installation, ton cours, " +
-                  "erreurs par rubrique, fiche véhicule, frise.",
+  conduiteResume: "Bilan de conduite en boîte manuelle : carte SD, installation, " +
+                  "ton cours, erreurs par rubrique, fiche véhicule, frise.",
+  conduiteResumeAuto: "Bilan de conduite en boîte automatique. Même structure au " +
+                  "départ que la boîte manuelle, modifiable indépendamment.",
   conduite:       "Bilan de conduite détaillé, sans reprise du cours dicté.",
   rvp:            "Rendez-vous pédagogique AAC : déroulé de la séance.",
   accompagnateur: "Formation accompagnateur, rédigée au vouvoiement.",
