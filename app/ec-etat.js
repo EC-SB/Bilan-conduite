@@ -45,10 +45,14 @@ var derniereSauvegarde = 0;
 var minuteurBureau = null;
 var bureauDejaCharge = false;
 
+var premierAffichagePrepares = false;
+
 window.EC_MODULES = window.EC_MODULES || {};
 /* Suivi bureau — ces deux-là étaient utilisées sans être déclarées,
    ce qui faisait échouer la déconnexion. */
 var minuteurBureau = null;
 var bureauDejaCharge = false;
+
+var premierAffichagePrepares = false;
 
 window.EC_MODULES['ec-etat.js'] = true;
