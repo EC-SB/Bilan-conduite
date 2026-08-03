@@ -162,8 +162,8 @@ async function preparerDepart(){
 }
 
 /* ---------- Suppression du dossier d'un élève ---------- */
-let eleveAffiche = '';
-let nbBilansAffiches = 0;
+/* eleveAffiche : déclaré dans ec-etat.js */
+/* nbBilansAffiches : déclaré dans ec-etat.js */
 
 function majZoneSuppression(){
   const zone = $('zoneSuppression');
