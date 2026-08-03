@@ -381,6 +381,8 @@ function ficheSuiviPermis(e){
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ Fiche enregistrée.';
       await chargerBureau();
+      /* Signal pour la fenêtre, qui se referme d'elle-même */
+      f.dataset.enregistre = 'oui';
     }catch(err){
       etat.style.color = 'var(--warn-text)';
       etat.textContent = 'Erreur : ' + err.message;
@@ -1431,13 +1433,43 @@ async function afficherBureau(silencieux){
   }
 
   zPP.innerHTML = '';
+
+  /* Un filtre actif se voit et se retire facilement */
+  if(prevus.length && (fEtat || fDate)){
+    const b = document.createElement('div');
+    b.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;' +
+      'background:var(--navy);border:1px solid var(--orange);border-radius:8px;' +
+      'margin-bottom:10px;font-size:13px;';
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;color:var(--accent-text);';
+    t.textContent = '🔎 Filtre actif' + (fDate ? ' · ' + fDate : '');
+    b.appendChild(t);
+    const x = document.createElement('button');
+    x.className = 'btn btn-secondary';
+    x.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;flex-shrink:0;';
+    x.textContent = '✕ Tout afficher';
+    x.addEventListener('click', () => {
+      if($('filtrePP')) $('filtrePP').value = '';
+      if($('filtreDate')) $('filtreDate').value = '';
+      afficherBureau(true);
+    });
+    b.appendChild(x);
+    zPP.appendChild(b);
+  }
+
+  const vide = t => {
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = t;
+    zPP.appendChild(v);
+  };
+
   if(!prevus.length){
-    zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
+    vide('Aucun permis prévu.');
   }else if(!fEtat && !fDate){
-    zPP.innerHTML = '<div class="empty">Choisis un filtre ou une date, ' +
-      'ou appuie sur un nom dans la vue d\'ensemble.</div>';
+    vide("Choisis un filtre ou une date, ou appuie sur un nom dans la vue d'ensemble.");
   }else if(!visibles.length){
-    zPP.innerHTML = '<div class="empty">Aucun élève ne correspond à ce filtre.</div>';
+    vide('Aucun élève ne correspond à ce filtre.');
   }else{
     visibles.forEach(e => {
       const l = ligneBureau(e, {
@@ -1519,7 +1551,6 @@ async function afficherBureau(silencieux){
       });
       zPP.appendChild(l);
     });
-    deplierFicheDemandee();
   }
 
   /* ---- 5. Examens passés : résultat à saisir ---- */
@@ -2179,42 +2210,74 @@ function apercuPermisPrevus(prevus){
 
 /* Ouvre directement la fiche d'un élève depuis le résumé :
    on filtre sur sa date, puis on déplie son volet. */
-let elevePermisAOuvrir = '';
-
+/* Ouvre la fiche d'un élève dans une fenêtre, sans toucher aux filtres */
 function ouvrirFichePermis(e){
-  elevePermisAOuvrir = e.eleve;
-  const selD = $('filtreDate');
-  if(selD){
-    const cible = e._datePermis || '';
-    const existe = Array.prototype.some.call(selD.options, o => o.value === cible);
-    selD.value = existe ? cible : '';
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  const s = suiviDe(e.eleve);
+
+  const tete = document.createElement('div');
+  tete.style.cssText = 'display:flex;align-items:flex-start;gap:10px;margin-bottom:4px;';
+
+  const titre = document.createElement('div');
+  titre.style.cssText = 'flex:1;min-width:0;';
+  titre.innerHTML = '<h3 style="margin:0;">' +
+    (e._boite === 'bea' ? '🅰 ' : e._boite === 'handicap' ? '♿ ' : '🅑 ') +
+    e.eleve.replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-top:2px;">' +
+    '📅 ' + (e._datePermis || 'date inconnue') +
+    (s.centre ? ' · ' + s.centre.replace(/</g, '&lt;') : '') +
+    (s.moniteurDate ? ' · ' + s.moniteurDate.replace(/</g, '&lt;') : '') + '</div>' +
+    (emojisPermis(s)
+      ? '<div style="font-size:16px;margin-top:4px;letter-spacing:2px;">' +
+        emojisPermis(s) + (s.toutOk === 'oui' ? ' ✅' : ' ⚠️') + '</div>'
+      : '<div style="font-size:16px;margin-top:4px;">' +
+        (s.toutOk === 'oui' ? '✅' : '⚠️') + '</div>');
+  tete.appendChild(titre);
+
+  const bX = document.createElement('button');
+  bX.className = 'btn btn-secondary';
+  bX.style.cssText = 'width:auto;padding:8px 12px;font-size:16px;margin:0;flex-shrink:0;';
+  bX.textContent = '✕';
+  bX.title = 'Fermer';
+  bX.addEventListener('click', () => fermer());
+  tete.appendChild(bX);
+
+  boite.appendChild(tete);
+
+  /* La fiche complète, telle qu'elle apparaît dans la liste */
+  const fiche = ficheSuiviPermis(e);
+  fiche.style.marginTop = '10px';
+  boite.appendChild(fiche);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  /* Un appui hors de la fenêtre la referme */
+  fond.addEventListener('click', ev => { if(ev.target === fond) fermer(); });
+
+  let ferme = false;
+  function fermer(){
+    if(ferme) return;
+    ferme = true;
+    if(fond.parentNode) document.body.removeChild(fond);
+    afficherBureau(true);
   }
-  afficherBureau(true);
-}
 
-/* Après affichage, on déplie la fiche demandée */
-function deplierFicheDemandee(){
-  if(!elevePermisAOuvrir) return;
-  const cible = normaliserMot(elevePermisAOuvrir);
-  elevePermisAOuvrir = '';
-
-  setTimeout(() => {
-    const zone = $('listePermisPrevu');
-    if(!zone) return;
-    const lignes = zone.querySelectorAll('.history-item');
-    for(let i = 0; i < lignes.length; i++){
-      const nom = lignes[i].querySelector('.meta strong');
-      if(nom && normaliserMot(nom.textContent) === cible){
-        const det = lignes[i].querySelector('details');
-        if(det) det.open = true;
-        lignes[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        lignes[i].style.outline = '2px solid var(--orange)';
-        lignes[i].style.outlineOffset = '3px';
-        setTimeout(() => { lignes[i].style.outline = ''; }, 2500);
-        return;
-      }
+  /* On referme dès que la fiche est enregistrée */
+  const observateur = setInterval(() => {
+    if(!fond.parentNode){ clearInterval(observateur); return; }
+    const etat = fiche.querySelector('div');
+    if(fiche.dataset && fiche.dataset.enregistre === 'oui'){
+      clearInterval(observateur);
+      setTimeout(fermer, 700);
     }
-  }, 120);
+  }, 400);
 }
 
 /* Signale que ce module est bien chargé */
