@@ -225,9 +225,9 @@ function profilQuestionnaire(modeleCle){
   return PROFILS_QUESTIONNAIRE[modeleCle] || 'complet';
 }
 
-let contexteDepart = null;        /* mémorise les réponses du questionnaire */
-let noteQuestionnaire = '';       /* dernière note produite par le questionnaire */
-let questionnaireOuvert = false;  /* empêche deux ouvertures simultanées */
+/* contexteDepart : déclaré dans ec-etat.js */
+/* noteQuestionnaire : déclaré dans ec-etat.js */
+/* questionnaireOuvert : déclaré dans ec-etat.js */
 
 /* Remplace la note du questionnaire sans écraser ce que le moniteur
    a écrit à la main à côté. */
@@ -1003,9 +1003,9 @@ function creerRaccourcis(idConteneur, idChamp){
 
 
 /* ---------- Historique affiché dès la saisie de l'élève ---------- */
-let minuteurHistorique = null;
-let derniereBoiteEleve = '';
-let dernierEleveCharge = '';
+/* minuteurHistorique : déclaré dans ec-etat.js */
+/* derniereBoiteEleve : déclaré dans ec-etat.js */
+/* dernierEleveCharge : déclaré dans ec-etat.js */
 
 function planifierHistorique(){
   clearTimeout(minuteurHistorique);
