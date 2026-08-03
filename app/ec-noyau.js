@@ -38,6 +38,7 @@ const SECTIONS = [
   { cle:'textes',           nom:'📄 Mes modèles de message' },
   { cle:'sms',              nom:'💬 Envoi de SMS' },
   { cle:'stats',            nom:'📈 Taux de réussite' },
+  { cle:'eleves',           nom:'👥 Répertoire des élèves' },
   { cle:'bilans',           nom:'📋 Modèles de bilan' },
   { cle:'procedures',       nom:'🚦 Procédures de conduite' },
   { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
