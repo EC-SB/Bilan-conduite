@@ -1455,15 +1455,18 @@ async function afficherBureau(silencieux){
     zPP.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
   }else if(!fEtat && !fDate){
     /* Liste souvent longue : on ne l'affiche qu'à la demande */
-    zPP.innerHTML = '<div class="empty">' + prevus.length + ' permis prévu(s).<br>' +
-      'Choisis un filtre ou une date ci-dessus pour afficher les élèves.</div>';
+    /* Sans filtre : la vue d'ensemble, sans ouvrir les fiches */
+    zPP.innerHTML = '';
+    zPP.appendChild(apercuPermisPrevus(prevus));
   }else if(!visibles.length){
     zPP.innerHTML = '<div class="empty">Aucun élève ne correspond à ce filtre.</div>';
   }else{
     visibles.forEach(e => {
       const l = ligneBureau(e, {
         replier: true,
-        info: x => (x._boite === 'bea' ? '🅰 BEA'
+        info: x => emojisPermis(suiviDe(x.eleve)) +
+                   (suiviDe(x.eleve).toutOk === 'oui' ? ' ✅ ' : ' ⚠️ ') +
+                   (x._boite === 'bea' ? '🅰 BEA'
                     : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
                    ' · Permis le ' + (x._datePermis || 'date inconnue') +
                    (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : ''),
@@ -2055,6 +2058,96 @@ function blocExamenBlancMoniteur(x, s){
   d.appendChild(a);
 
   return d;
+}
+
+/* Repères d'un dossier, en un coup d'œil */
+function emojisPermis(s){
+  const e = [];
+  if(s.aRemplacer === 'oui')  e.push('🔄');   /* place à remplacer */
+  if(s.fantome === 'oui')     e.push('👻');   /* place fantôme */
+  if(s.dateADonner === 'oui') e.push('🏫');   /* à donner à une autre auto-école */
+  if(s.nbAjournements)        e.push('🔁');   /* repassage */
+  return e.join('');
+}
+
+function legendePermis(){
+  const d = document.createElement('div');
+  d.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;' +
+    'padding:6px 2px 10px;';
+  d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose · ' +
+    '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage';
+  return d;
+}
+
+/* Vue d'ensemble des permis prévus : par date, noms et état */
+function apercuPermisPrevus(prevus){
+  const bloc = document.createElement('div');
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);padding:2px 2px 6px;';
+  const nOk = prevus.filter(e => suiviDe(e.eleve).toutOk === 'oui').length;
+  t.textContent = prevus.length + ' permis prévu(s) · ' + nOk + ' prêt(s), ' +
+                  (prevus.length - nOk) + ' à compléter';
+  bloc.appendChild(t);
+  bloc.appendChild(legendePermis());
+
+  /* Regroupement par date d'examen */
+  const parDate = {};
+  prevus.forEach(e => {
+    const k = e._datePermis || 'Date inconnue';
+    if(!parDate[k]) parDate[k] = [];
+    parDate[k].push(e);
+  });
+
+  Object.keys(parDate).sort((a, b) => {
+    const ia = parDate[a][0]._iso || '9999', ib = parDate[b][0]._iso || '9999';
+    return ia.localeCompare(ib);
+  }).forEach(date => {
+    const groupe = parDate[date];
+
+    const d = document.createElement('div');
+    d.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13px;line-height:1.6;';
+
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:700;margin-bottom:3px;';
+    h.textContent = '📅 ' + date + ' — ' + groupe.length + ' élève(s)';
+    d.appendChild(h);
+
+    groupe.forEach(e => {
+      const s = suiviDe(e.eleve);
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0 2px 8px;';
+
+      const nom = document.createElement('span');
+      nom.style.cssText = 'flex:1;min-width:0;color:var(--cream);';
+      nom.textContent = e.eleve;
+      l.appendChild(nom);
+
+      const rep = document.createElement('span');
+      rep.style.cssText = 'flex-shrink:0;font-size:14px;letter-spacing:1px;';
+      rep.textContent = emojisPermis(s);
+      l.appendChild(rep);
+
+      const etat = document.createElement('span');
+      etat.style.cssText = 'flex-shrink:0;font-size:15px;';
+      etat.textContent = (s.toutOk === 'oui') ? '✅' : '⚠️';
+      etat.title = (s.toutOk === 'oui') ? 'Dossier prêt' : 'Il manque quelque chose';
+      l.appendChild(etat);
+
+      d.appendChild(l);
+    });
+
+    bloc.appendChild(d);
+  });
+
+  const aide = document.createElement('div');
+  aide.className = 'empty';
+  aide.style.cssText = 'padding:10px;font-size:12px;';
+  aide.textContent = 'Choisis un filtre ou une date ci-dessus pour ouvrir les fiches.';
+  bloc.appendChild(aide);
+
+  return bloc;
 }
 
 /* Signale que ce module est bien chargé */
