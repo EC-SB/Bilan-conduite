@@ -743,6 +743,11 @@ async function chargerUtilisateurs(){
           b.disabled = true;
           try{
             await appelAdmin({ action:'droits', cible:u.code, droits: choisis });
+            /* Aucun droit coché est un choix, pas un oubli : on le dit */
+            if(!Object.keys(choisis).length){
+              messageAdmin('Rien de coché pour ' + u.nom +
+                ' : il ne verra que l\'écran d\'accueil.');
+            }
             messageAdmin('Accès de ' + u.nom + ' enregistrés.');
             chargerUtilisateurs();
           }catch(e){ messageAdmin(e.message, true); b.disabled = false; }
