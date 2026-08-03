@@ -368,11 +368,8 @@ async function preparerNouveauCours(){
   }
 }
 
-let captureRdvPost = null;
-
 function ouvrirRdvPost(cours){
   rdvPostEnCours = cours;
-  captureRdvPost = null;
   const s = suiviDe(cours.eleve) || {};
 
   $('rdvPostEleve').textContent = cours.eleve || '';
@@ -380,31 +377,10 @@ function ouvrirRdvPost(cours){
     (cours.moniteur ? ' · ' + cours.moniteur : '') +
     (s.nbAjournements ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : '');
 
-  /* La capture du CEPC, telle que le bureau l'a déposée */
+  /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
   const zc = $('rdvPostCepc');
   zc.innerHTML = '';
-  if(s.cepcImage){
-    const t = document.createElement('div');
-    t.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
-    t.textContent = '📷 CEPC de l\'examen';
-    zc.appendChild(t);
-    const img = document.createElement('img');
-    img.src = s.cepcImage;
-    img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;';
-    img.title = 'Appuie pour agrandir';
-    img.addEventListener('click', () => agrandirImage(s.cepcImage, cours.eleve));
-    zc.appendChild(img);
-  }else{
-    const v = document.createElement('div');
-    v.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;';
-    v.textContent = "Le bureau n'a pas déposé de capture du CEPC. " +
-      'Tu peux la prendre maintenant.';
-    zc.appendChild(v);
-  }
-
-  /* Dans tous les cas, on peut ajouter ou remplacer la capture */
-  zc.appendChild(blocImageCepc(cours.eleve, s.cepcImage || '',
-    v => { captureRdvPost = v; }));
+  zc.appendChild(blocCaptures(cours.eleve, ''));
 
   /* Le bilan d'examen officiel : dans la note préparée, ou dans la fiche */
   const note = String(cours.note || '');
@@ -488,8 +464,6 @@ async function terminerRdvPost(){
       retireAPrevoir: (suite === 'impossible') ? 'oui' : '',
       par: ACCES.moniteur || ''
     };
-    /* Une capture prise au rendez-vous complète le dossier */
-    if(captureRdvPost) majs.cepcImage = captureRdvPost;
     await majSuivi(eleve, majs);
 
     /* Le bureau est informé, et la note oriente les listes */
