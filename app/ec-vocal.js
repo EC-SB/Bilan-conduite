@@ -651,10 +651,10 @@ async function appelBrutIA(systemPrompt, message, maxTokens){
 async function manoeuvresAnterieures(nomEleve){
   if(!nomEleve || nomEleve.length < 2) return [];
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve, leger: true })
     });
     if(!r.ok) return [];
     const data = await r.json();
@@ -807,7 +807,7 @@ async function exporterVersSheets(silencieux){
   btn.disabled = true;
   btn.textContent = 'Export en cours…';
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -884,7 +884,7 @@ function marquerExport(ok){
 
 async function chargerMoniteurs(){
   try{
-    const r = await fetch(CONFIG.MONITEURS_URL, {
+    const r = await fetchFiable(CONFIG.MONITEURS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: ACCES.code })
