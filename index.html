@@ -392,6 +392,36 @@
   }
   [data-vue].hors-vue{ display:none !important; }
 
+
+  /* Préparer un cours : un vrai bouton, pas une ligne discrète.
+     C'est une action fréquente, elle doit se voir. */
+  details.volet-preparer{
+    border:2px solid var(--orange);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  details.volet-preparer > summary{
+    list-style:none;
+    cursor:pointer;
+    padding:20px 16px;
+    font-size:18px;
+    font-weight:700;
+    color:var(--accent-text);
+    background:rgba(182,255,14,.09);
+    text-align:center;
+    user-select:none;
+  }
+  details.volet-preparer > summary::-webkit-details-marker{ display:none; }
+  details.volet-preparer[open] > summary{
+    border-bottom:1px solid var(--line);
+  }
+  details.volet-preparer > *:not(summary){
+    margin:14px;
+  }
+  @media (min-width: 700px){
+    details.volet-preparer > summary{ font-size:20px; padding:24px 18px; }
+  }
+
   /* Volets des listes, dans le suivi */
   details.volet-liste{
     border:1px solid var(--line);
@@ -597,7 +627,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v176</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v177</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -699,7 +729,7 @@
   </div>
 
   <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
-    <h2 class="section-title">📅 Cours préparés <span class="compteur" id="cptPrepares"></span></h2>
+    <h2 class="section-title">📅 Mes prochains cours <span class="compteur" id="cptPrepares"></span></h2>
     <div class="contenu-tiroir">
     <label style="display:flex;align-items:center;gap:10px;text-transform:none;
                   font-size:14px;color:var(--muted);margin-bottom:10px;">
@@ -1015,7 +1045,7 @@
       <div id="blocPlaces" style="margin-bottom:14px;"></div>
     </div>
     <details class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
-      <summary>⏳ En attente du bilan d'examen <span class="compteur" id="cptAttente"></span></summary>
+      <summary>⏳ Attente bilan post-permis <span class="compteur" id="cptAttente"></span></summary>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         Élèves ajournés : colle leur bilan puis fixe le rendez-vous post-permis.</div>
       <div id="listeAttenteBilan"><div class="empty">Appuie sur Actualiser.</div></div>
@@ -1029,7 +1059,7 @@
     </details>
 
     <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-      <summary>🚗 Examens du permis à prévoir <span class="compteur" id="cptAPrevoir"></span></summary>
+      <summary>🚗 Élèves prêts au permis <span class="compteur" id="cptAPrevoir"></span></summary>
       <select id="filtrePermis" style="margin-bottom:10px;">
         <option value="">Tous — par priorité</option>
         <option value="premier">🆕 Premier passage</option>
@@ -1406,32 +1436,32 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=176"></script>
-<script src="app/ec-modeles.js?v=176"></script>
-<script src="app/ec-consignes.js?v=176"></script>
-<script src="app/ec-noyau.js?v=176"></script>
-<script src="app/ec-vocal.js?v=176"></script>
-<script src="app/ec-reseau.js?v=176"></script>
-<script src="app/ec-manuel.js?v=176"></script>
-<script src="app/ec-fenetres.js?v=176"></script>
-<script src="app/ec-questionnaire.js?v=176"></script>
-<script src="app/ec-permis.js?v=176"></script>
-<script src="app/ec-prepares.js?v=176"></script>
-<script src="app/ec-bureau.js?v=176"></script>
-<script src="app/ec-places.js?v=176"></script>
-<script src="app/ec-listes.js?v=176"></script>
-<script src="app/ec-permis-listes.js?v=176"></script>
-<script src="app/ec-postpermis.js?v=176"></script>
-<script src="app/ec-textes.js?v=176"></script>
-<script src="app/ec-correction.js?v=176"></script>
-<script src="app/ec-bilans.js?v=176"></script>
-<script src="app/ec-sms.js?v=176"></script>
-<script src="app/ec-stats.js?v=176"></script>
-<script src="app/ec-messenger.js?v=176"></script>
-<script src="app/ec-journal.js?v=176"></script>
-<script src="app/ec-depart.js?v=176"></script>
-<script src="app/ec-onglets.js?v=176"></script>
-<script src="app/ec-demarrage.js?v=176"></script>
+  <script src="app/ec-etat.js?v=177"></script>
+<script src="app/ec-modeles.js?v=177"></script>
+<script src="app/ec-consignes.js?v=177"></script>
+<script src="app/ec-noyau.js?v=177"></script>
+<script src="app/ec-vocal.js?v=177"></script>
+<script src="app/ec-reseau.js?v=177"></script>
+<script src="app/ec-manuel.js?v=177"></script>
+<script src="app/ec-fenetres.js?v=177"></script>
+<script src="app/ec-questionnaire.js?v=177"></script>
+<script src="app/ec-permis.js?v=177"></script>
+<script src="app/ec-prepares.js?v=177"></script>
+<script src="app/ec-bureau.js?v=177"></script>
+<script src="app/ec-places.js?v=177"></script>
+<script src="app/ec-listes.js?v=177"></script>
+<script src="app/ec-permis-listes.js?v=177"></script>
+<script src="app/ec-postpermis.js?v=177"></script>
+<script src="app/ec-textes.js?v=177"></script>
+<script src="app/ec-correction.js?v=177"></script>
+<script src="app/ec-bilans.js?v=177"></script>
+<script src="app/ec-sms.js?v=177"></script>
+<script src="app/ec-stats.js?v=177"></script>
+<script src="app/ec-messenger.js?v=177"></script>
+<script src="app/ec-journal.js?v=177"></script>
+<script src="app/ec-depart.js?v=177"></script>
+<script src="app/ec-onglets.js?v=177"></script>
+<script src="app/ec-demarrage.js?v=177"></script>
 
 </body>
 </html>
