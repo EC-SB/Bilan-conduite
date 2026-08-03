@@ -10,7 +10,7 @@
    résultats un court instant plutôt que de le réinterroger.
    ============================================================ */
 const cacheDossiers = {};      /* par élève */
-let cacheBureau = null;
+/* cacheBureau : déclaré dans ec-etat.js */
 const DUREE_CACHE = 60000;     /* 1 minute */
 
 function lireCacheDossier(nom){
@@ -135,7 +135,7 @@ function informer(message, titre){
 }
 
 /* ---------- Liste des élèves déjà enregistrés ---------- */
-let elevesConnus = [];
+/* elevesConnus : déclaré dans ec-etat.js */
 
 async function chargerEleves(){
   try{
