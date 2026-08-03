@@ -597,7 +597,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v175</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v176</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1358,32 +1358,80 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=175"></script>
-<script src="app/ec-modeles.js?v=175"></script>
-<script src="app/ec-consignes.js?v=175"></script>
-<script src="app/ec-noyau.js?v=175"></script>
-<script src="app/ec-vocal.js?v=175"></script>
-<script src="app/ec-reseau.js?v=175"></script>
-<script src="app/ec-manuel.js?v=175"></script>
-<script src="app/ec-fenetres.js?v=175"></script>
-<script src="app/ec-questionnaire.js?v=175"></script>
-<script src="app/ec-permis.js?v=175"></script>
-<script src="app/ec-prepares.js?v=175"></script>
-<script src="app/ec-bureau.js?v=175"></script>
-<script src="app/ec-places.js?v=175"></script>
-<script src="app/ec-listes.js?v=175"></script>
-<script src="app/ec-permis-listes.js?v=175"></script>
-<script src="app/ec-postpermis.js?v=175"></script>
-<script src="app/ec-textes.js?v=175"></script>
-<script src="app/ec-correction.js?v=175"></script>
-<script src="app/ec-bilans.js?v=175"></script>
-<script src="app/ec-sms.js?v=175"></script>
-<script src="app/ec-stats.js?v=175"></script>
-<script src="app/ec-messenger.js?v=175"></script>
-<script src="app/ec-journal.js?v=175"></script>
-<script src="app/ec-depart.js?v=175"></script>
-<script src="app/ec-onglets.js?v=175"></script>
-<script src="app/ec-demarrage.js?v=175"></script>
+  <script>
+  /* Rapporteur d'erreur : un script qui échoue ne doit pas rester muet.
+     Placé avant tous les autres pour ne rien manquer. */
+  (function(){
+    var vues = [];
+    function montrer(texte){
+      if(vues.indexOf(texte) !== -1) return;
+      vues.push(texte);
+      var z = document.getElementById('rapportErreur');
+      if(!z){
+        z = document.createElement('div');
+        z.id = 'rapportErreur';
+        z.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;' +
+          'background:#B3261E;color:#fff;padding:12px 14px;font:13px/1.5 system-ui,sans-serif;' +
+          'max-height:45vh;overflow:auto;box-shadow:0 -2px 12px rgba(0,0,0,.4);';
+        var t = document.createElement('div');
+        t.style.cssText = 'font-weight:700;margin-bottom:6px;';
+        t.textContent = '⚠️ Erreur au chargement — copie ce texte';
+        z.appendChild(t);
+        var x = document.createElement('button');
+        x.textContent = 'Masquer';
+        x.style.cssText = 'position:absolute;top:8px;right:10px;background:#fff;color:#B3261E;' +
+          'border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;';
+        x.onclick = function(){ z.style.display = 'none'; };
+        z.appendChild(x);
+        (document.body || document.documentElement).appendChild(z);
+      }
+      var l = document.createElement('div');
+      l.style.cssText = 'margin-top:4px;word-break:break-word;';
+      l.textContent = '• ' + texte;
+      z.appendChild(l);
+    }
+
+    window.addEventListener('error', function(e){
+      if(e.target && e.target.tagName === 'SCRIPT'){
+        montrer('Fichier introuvable : ' + (e.target.src || '?').split('/').pop());
+        return;
+      }
+      montrer((e.message || 'erreur') + '  —  ' +
+              String(e.filename || '').split('/').pop() + ' ligne ' + (e.lineno || '?'));
+    }, true);
+
+    window.addEventListener('unhandledrejection', function(e){
+      montrer('Promesse rejetée : ' + ((e.reason && e.reason.message) || e.reason));
+    });
+  })();
+  </script>
+
+  <script src="app/ec-etat.js?v=176"></script>
+<script src="app/ec-modeles.js?v=176"></script>
+<script src="app/ec-consignes.js?v=176"></script>
+<script src="app/ec-noyau.js?v=176"></script>
+<script src="app/ec-vocal.js?v=176"></script>
+<script src="app/ec-reseau.js?v=176"></script>
+<script src="app/ec-manuel.js?v=176"></script>
+<script src="app/ec-fenetres.js?v=176"></script>
+<script src="app/ec-questionnaire.js?v=176"></script>
+<script src="app/ec-permis.js?v=176"></script>
+<script src="app/ec-prepares.js?v=176"></script>
+<script src="app/ec-bureau.js?v=176"></script>
+<script src="app/ec-places.js?v=176"></script>
+<script src="app/ec-listes.js?v=176"></script>
+<script src="app/ec-permis-listes.js?v=176"></script>
+<script src="app/ec-postpermis.js?v=176"></script>
+<script src="app/ec-textes.js?v=176"></script>
+<script src="app/ec-correction.js?v=176"></script>
+<script src="app/ec-bilans.js?v=176"></script>
+<script src="app/ec-sms.js?v=176"></script>
+<script src="app/ec-stats.js?v=176"></script>
+<script src="app/ec-messenger.js?v=176"></script>
+<script src="app/ec-journal.js?v=176"></script>
+<script src="app/ec-depart.js?v=176"></script>
+<script src="app/ec-onglets.js?v=176"></script>
+<script src="app/ec-demarrage.js?v=176"></script>
 
 </body>
 </html>
