@@ -151,6 +151,7 @@ window.addEventListener('beforeunload', e => {
 
 $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
+if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
 $('manuelGen').addEventListener('click', async () => {
   const b = $('manuelGen');
   b.disabled = true;
