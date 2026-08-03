@@ -20,6 +20,8 @@ const USAGES_MODELE = [
     variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
   { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
     variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'procedure',      nom:'🚦 Procédure de conduite',
+    variables:[] },
   { cle:'libre',          nom:'📄 Texte libre',
     variables:['{eleve}', '{date}'] }
 ];
