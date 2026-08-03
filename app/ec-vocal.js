@@ -999,6 +999,7 @@ function initTiroirs(){
       /* Les cours préparés changent souvent : on relit à chaque ouverture */
       if(cle === 'prepares' && d.open && aDroit('cours')) afficherPrepares(true, true);
       if(cle === 'journal' && d.open && ACCES.role === 'admin') afficherJournal();
+      if(cle === 'messenger' && d.open) afficherMessengerPermis();
     });
   });
 }
