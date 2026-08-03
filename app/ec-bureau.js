@@ -1896,8 +1896,11 @@ function blocExamenBlancMoniteur(x, s){
 
   if(s.ebMoniteur){
     const ok = document.createElement('div');
-    ok.style.cssText = 'font-size:13px;color:var(--accent-text);';
-    ok.textContent = '✅ Fiche préparée pour ' + s.ebMoniteur;
+    ok.style.cssText = 'font-size:13px;color:var(--accent-text);line-height:1.6;';
+    ok.innerHTML = '✅ Fiche préparée pour ' + s.ebMoniteur.replace(/</g,'&lt;') + '<br>' +
+      (s.datePermis
+        ? '📅 Examen du permis le ' + s.datePermis
+        : '⏳ Examen du permis à prévoir — il est dans la liste');
     d.appendChild(ok);
   }else{
     const sel = document.createElement('select');
@@ -1910,16 +1913,66 @@ function blocExamenBlancMoniteur(x, s){
     });
     d.appendChild(sel);
 
+    /* L'examen du permis : déjà daté, ou à prévoir ? Le moniteur
+       doit le savoir, sa fiche d'examen blanc en dépend. */
+    const lp = document.createElement('label');
+    lp.textContent = "Examen du permis de l'élève";
+    d.appendChild(lp);
+
+    const selP = document.createElement('select');
+    selP.style.marginBottom = '8px';
+    selP.innerHTML =
+      '<option value="">— à renseigner —</option>' +
+      '<option value="aprevoir">⏳ Pas encore de date — à prévoir</option>' +
+      '<option value="prevu">📅 Il a déjà sa date</option>';
+    if(x.etat.permis === 'prevu') selP.value = 'prevu';
+    else if(x.etat.permis === 'aprevoir') selP.value = 'aprevoir';
+    d.appendChild(selP);
+
+    const dateP = document.createElement('input');
+    dateP.type = 'date';
+    dateP.style.cssText = 'display:none;margin-bottom:8px;';
+    if(s.datePermis) dateP.value = dateFrVersIso(s.datePermis) || '';
+    d.appendChild(dateP);
+
+    const majP = () => { dateP.style.display = (selP.value === 'prevu') ? 'block' : 'none'; };
+    selP.addEventListener('change', majP);
+    setTimeout(majP, 0);
+
     const b = document.createElement('button');
     b.className = 'btn btn-primary';
     b.style.cssText = 'padding:10px;font-size:13px;';
     b.textContent = '📝 Attribuer et préparer la fiche';
     b.addEventListener('click', async () => {
       if(!sel.value){ showToast('Choisis un moniteur.'); return; }
+      if(!selP.value){ showToast("Indique où en est l'examen du permis."); return; }
+      if(selP.value === 'prevu' && !dateP.value){ showToast("Saisis la date d'examen."); return; }
+
       b.disabled = true;
       b.textContent = 'Préparation…';
       try{
-        await majSuivi(x.eleve, { ebMoniteur: sel.value });
+        const maj = { ebMoniteur: sel.value };
+        let ligneExamen;
+
+        if(selP.value === 'prevu'){
+          const jour = dateEnToutesLettres(dateP.value);
+          maj.datePermis = jour;
+          maj.aPlanifier = '';
+          maj.retireAPrevoir = '';
+          ligneExamen = '📅 Examen du permis prévu le ' + jour;
+          await envoyerConsigne(x.eleve, 'permis',
+            'Examen du permis fixé au ' + jour + ' (bureau)');
+        }else{
+          /* Il rejoint la liste des examens à prévoir */
+          maj.datePermis = '';
+          maj.retireAPrevoir = '';
+          ligneExamen = "⏳ Examen du permis : date à prévoir";
+          await envoyerConsigne(x.eleve, 'permis',
+            "Date d'examen à prévoir (bureau)");
+        }
+
+        await majSuivi(x.eleve, maj);
+
         await appelPrep({
           action: 'prepAdd',
           date: s.ebDatePrevue,
@@ -1927,13 +1980,22 @@ function blocExamenBlancMoniteur(x, s){
           modele: 'examen-blanc',
           modeleLabel: 'Examen blanc',
           site: '',
-          note: "📝 EXAMEN BLANC · fiche à remplir pendant l'épreuve",
-          contexte: JSON.stringify({ examenBlanc: true, eleve: x.eleve }),
+          note: "📝 EXAMEN BLANC · fiche à remplir pendant l'épreuve\n" + ligneExamen,
+          contexte: JSON.stringify({
+            examenBlanc: true,
+            eleve: x.eleve,
+            /* Pré-remplit le questionnaire du moniteur */
+            examPermis: (selP.value === 'prevu') ? 'prevu' : 'aprevoir',
+            examPermisDate: (selP.value === 'prevu') ? dateEnToutesLettres(dateP.value) : '',
+            examBlanc: 'reserve',
+            examBlancDate: dateEnToutesLettres(s.ebDatePrevue)
+          }),
           moniteur: sel.value
         });
         await envoyerConsigne(x.eleve, 'examblanc',
           'Examen blanc le ' + dateEnToutesLettres(s.ebDatePrevue) +
           ' avec ' + sel.value + ' (bureau)');
+
         showToast('Fiche préparée pour ' + sel.value + ' ✅');
         afficherBureau();
       }catch(err){
