@@ -367,15 +367,12 @@ async function supprimerEleveComplet(nom, rapporter){
   const dire = t => { if(typeof rapporter === 'function') rapporter(t); };
   const faits = [];
 
-  /* Messages en attente */
-  dire('Messages en attente…');
+  /* Messages au bureau : on les efface, pas seulement les marquer traités.
+     Ce sont eux qui décrivent l'état de l'élève dans les listes. */
+  dire('Messages au bureau…');
   try{
-    const d = await appelPrep({ action: 'consigneList', eleve: nom });
-    const cs = ((d && d.consignes) || []).filter(x => x.traite !== 'oui');
-    for(const m of cs){
-      try{ await appelPrep({ action: 'consigneDone', id: m.id }); }catch(e){}
-    }
-    if(cs.length) faits.push(cs.length + ' message(s)');
+    const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: nom });
+    if(r && r.effacees) faits.push(r.effacees + ' message(s)');
   }catch(e){}
 
   /* Cours préparés, passés comme à venir */
