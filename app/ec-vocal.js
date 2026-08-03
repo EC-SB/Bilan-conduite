@@ -958,57 +958,9 @@ function choisirDansListe(titre, options, valeurActuelle){
 }
 
 
-/* ---------- Tiroirs : mémorisation de ce qui est ouvert ---------- */
-const CLE_TIROIRS = 'tiroirs_ouverts';
-
-function lireTiroirs(){
-  try{
-    const b = localStorage.getItem(CLE_TIROIRS);
-    const l = b ? JSON.parse(b) : null;
-    return Array.isArray(l) ? l : null;
-  }catch(e){ return null; }
-}
-
-function ecrireTiroirs(){
-  try{
-    const ouverts = [];
-    document.querySelectorAll('[data-tiroir]').forEach(d => {
-      if(d.open) ouverts.push(d.getAttribute('data-tiroir'));
-    });
-    localStorage.setItem(CLE_TIROIRS, JSON.stringify(ouverts));
-  }catch(e){}
-}
-
-function initTiroirs(){
-  const memo = lireTiroirs();
-  document.querySelectorAll('[data-tiroir]').forEach(d => {
-    const cle = d.getAttribute('data-tiroir');
-    if(memo){
-      d.open = (memo.indexOf(cle) !== -1);
-    }else{
-      /* Premier lancement : seuls les cours préparés sont ouverts */
-      d.open = (cle === 'prepares');
-    }
-    d.addEventListener('toggle', () => {
-      ecrireTiroirs();
-      /* On ne charge le suivi bureau qu'à sa première ouverture */
-      /* À chaque ouverture : premier chargement visible, sinon discret */
-      if((cle === 'bureau' || cle === 'permisbureau') && d.open){
-        afficherBureau(bureauDejaCharge);
-      }
-      if(cle === 'messages' && d.open) afficherConsignesEnAttente();
-      /* Les cours préparés changent souvent : on relit à chaque ouverture */
-      if(cle === 'prepares' && d.open && aDroit('cours')) afficherPrepares(true, true);
-      if(cle === 'journal' && d.open && ACCES.role === 'admin') afficherJournal();
-      if(cle === 'permisbureau' && d.open) afficherMessengerPermis();
-      if(cle === 'textes' && d.open) afficherModelesTexte();
-      if(cle === 'procedures' && d.open) afficherProcedures();
-      if(cle === 'bilans' && d.open) afficherTextesBilan();
-      if(cle === 'stats' && d.open) afficherStats();
-      if(cle === 'sms' && d.open) chargerCadreSms();
-    });
-  });
-}
+/* Les modules s'affichent par onglets et par boutons :
+   il n'y a plus de tiroir à mémoriser. */
+function initTiroirs(){ /* conservé pour compatibilité */ }
 
 /* Compteur affiché dans l'en-tête d'un tiroir */
 function majCompteur(id, valeur){
