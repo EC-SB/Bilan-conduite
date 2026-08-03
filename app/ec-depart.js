@@ -792,18 +792,27 @@ function ouvrirSession(code, moniteur, role, saluer, droits){
   afficherIdentite();
   if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
 
-  appliquerDroits();
-  if(aDroit('admin') && ACCES.role === 'admin') chargerUtilisateurs();
-
-  proposerReprise();
-  chargerEleves();
-  chargerMoniteurs();
-  initTiroirs();
-  initOnglets();
-  appliquerTextesBilan();
-  ecouterReseau();
-  if(aDroit('cours')) afficherPrepares();
-  lancerActualisationAuto();
+  /* Chaque mise en place est isolée : un module absent ne doit pas
+     empêcher d'utiliser le reste de l'application. */
+  const etapes = [
+    ['droits',        () => appliquerDroits()],
+    ['utilisateurs',  () => { if(aDroit('admin') && ACCES.role === 'admin') chargerUtilisateurs(); }],
+    ['reprise',       () => proposerReprise()],
+    ['élèves',        () => chargerEleves()],
+    ['moniteurs',     () => chargerMoniteurs()],
+    ['onglets',       () => initOnglets()],
+    ['modèles',       () => appliquerTextesBilan()],
+    ['réseau',        () => ecouterReseau()],
+    ['cours préparés',() => { if(aDroit('cours')) afficherPrepares(); }],
+    ['actualisation', () => lancerActualisationAuto()]
+  ];
+  const ratees = [];
+  etapes.forEach(([nom, f]) => {
+    try{ f(); }catch(e){ ratees.push(nom); console.warn('Étape « ' + nom + ' » :', e); }
+  });
+  if(ratees.length){
+    showToast('⚠️ Chargement incomplet : ' + ratees.join(', '));
+  }
   if(saluer) showToast('Bonjour ' + (ACCES.moniteur || '') + ' 👋');
 }
 
