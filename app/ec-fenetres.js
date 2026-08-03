@@ -139,7 +139,7 @@ function informer(message, titre){
 
 async function chargerEleves(){
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'eleves', code: ACCES.code })
