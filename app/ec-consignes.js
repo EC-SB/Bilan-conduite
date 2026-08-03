@@ -187,6 +187,11 @@ const SCHEMAS = {
   'IMPORTANT : n\'invente AUCUNE note chiffrée et n\'annonce AUCUN résultat d\'examen. Les notes sont saisies par le moniteur.\n'
 };
 
+/* La conduite en boîte automatique a sa propre structure, pour que
+   son formulaire et ses consignes puissent différer de la boîte manuelle.
+   Au départ, les deux sont identiques. */
+SCHEMAS.conduiteResumeAuto = SCHEMAS.conduiteResume;
+
 function construireConsignes(modeleCle){
   const m = MODELES[modeleCle];
   if(!m) throw new Error('Modèle inconnu : ' + modeleCle);
