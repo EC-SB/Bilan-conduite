@@ -26,7 +26,7 @@ const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
 
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
-  { cle:'prepares',         nom:'📅 Mes cours préparés' },
+  { cle:'prepares',         nom:'📅 Mes prochains cours' },
   { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
   { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
   { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
