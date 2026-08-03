@@ -426,7 +426,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v132</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v133</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -877,6 +877,24 @@
       </details>
     </div>
   </details>
+  <details class="card" data-section="messenger" data-tiroir="messenger">
+    <summary>📣 Message groupe Messenger — jour du permis</summary>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Choisis une date d'examen, saisis les heures de passage,
+        le message du groupe se compose tout seul.
+      </div>
+      <label for="messengerDate">Date de l'examen</label>
+      <select id="messengerDate">
+        <option value="">— appuie sur Actualiser —</option>
+      </select>
+      <button class="btn btn-secondary" id="messengerBtn">🔄 Actualiser les dates</button>
+      <div id="messengerZone" style="margin-top:14px;">
+        <div class="empty">Appuie sur Actualiser.</div>
+      </div>
+    </div>
+  </details>
+
   <details class="card" data-section="depart" data-tiroir="depart">
     <summary>🚪 Départ de l'auto-école</summary>
     <div class="contenu-tiroir">
@@ -979,22 +997,23 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=132"></script>
-<script src="app/ec-modeles.js?v=132"></script>
-<script src="app/ec-consignes.js?v=132"></script>
-<script src="app/ec-noyau.js?v=132"></script>
-<script src="app/ec-vocal.js?v=132"></script>
-<script src="app/ec-reseau.js?v=132"></script>
-<script src="app/ec-manuel.js?v=132"></script>
-<script src="app/ec-fenetres.js?v=132"></script>
-<script src="app/ec-questionnaire.js?v=132"></script>
-<script src="app/ec-permis.js?v=132"></script>
-<script src="app/ec-prepares.js?v=132"></script>
-<script src="app/ec-bureau.js?v=132"></script>
-<script src="app/ec-postpermis.js?v=132"></script>
-<script src="app/ec-journal.js?v=132"></script>
-<script src="app/ec-depart.js?v=132"></script>
-<script src="app/ec-demarrage.js?v=132"></script>
+<script src="app/ec-etat.js?v=133"></script>
+<script src="app/ec-modeles.js?v=133"></script>
+<script src="app/ec-consignes.js?v=133"></script>
+<script src="app/ec-noyau.js?v=133"></script>
+<script src="app/ec-vocal.js?v=133"></script>
+<script src="app/ec-reseau.js?v=133"></script>
+<script src="app/ec-manuel.js?v=133"></script>
+<script src="app/ec-fenetres.js?v=133"></script>
+<script src="app/ec-questionnaire.js?v=133"></script>
+<script src="app/ec-permis.js?v=133"></script>
+<script src="app/ec-prepares.js?v=133"></script>
+<script src="app/ec-bureau.js?v=133"></script>
+<script src="app/ec-postpermis.js?v=133"></script>
+<script src="app/ec-messenger.js?v=133"></script>
+<script src="app/ec-journal.js?v=133"></script>
+<script src="app/ec-depart.js?v=133"></script>
+<script src="app/ec-demarrage.js?v=133"></script>
 
 </body>
 </html>
