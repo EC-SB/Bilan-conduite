@@ -565,6 +565,15 @@ function ecouterReseau(){
 /* Une fois la date fixée, on attribue l'examen blanc à un moniteur
    et on lui prépare sa fiche automatiquement. */
 
+/* Compteur affiché dans le titre d'un volet de liste.
+   Vide s'il n'y a rien : un « 0 » n'apprend rien. */
+function majVolet(id, nombre, alerte){
+  const el = $(id);
+  if(!el) return;
+  el.textContent = nombre ? String(nombre) : '';
+  el.classList.toggle('alerte', !!alerte);
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-bureau.js'] = true;
