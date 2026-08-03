@@ -202,7 +202,7 @@ async function supprimerDossierEleve(){
   btn.textContent = 'Suppression…';
 
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: eleveAffiche })
@@ -341,7 +341,7 @@ async function rechercherEleve(){
   btn.textContent = 'Recherche…';
   zone.innerHTML = '<div class="empty">Recherche en cours…</div>';
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'search', code: ACCES.code,
@@ -580,7 +580,7 @@ function messageAdmin(texte, erreur){
 }
 
 async function appelAdmin(corps){
-  const r = await fetch(CONFIG.ADMIN_URL, {
+  const r = await fetchFiable(CONFIG.ADMIN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
@@ -771,7 +771,7 @@ async function reprendreSession(){
   const s = lireSession();
   if(!s) return false;
   try{
-    const r = await fetch(CONFIG.AUTH_URL, {
+    const r = await fetchFiable(CONFIG.AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: s.code })
@@ -802,7 +802,7 @@ async function deverrouiller(){
   msg.style.color = 'var(--muted)';
   msg.textContent = '';
   try{
-    const r = await fetch(CONFIG.AUTH_URL, {
+    const r = await fetchFiable(CONFIG.AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: code })
