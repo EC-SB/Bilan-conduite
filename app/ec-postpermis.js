@@ -71,6 +71,7 @@ async function afficherPostExamen(tous){
           if(!await confirmer(x.eleve + ' a obtenu son permis ?')) return;
           bOk.disabled = true;
           try{
+            await consignerResultat(x, 'obtenu', iso);
             /* Il sort de toutes les listes de suivi */
             for(const cs of (x.enAttente || [])){
               try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
@@ -102,6 +103,7 @@ async function afficherPostExamen(tous){
                               'puis du rendez-vous post-permis.')) return;
           bNon.disabled = true;
           try{
+            await consignerResultat(x, 'ajourne', iso);
             const n = (parseInt(s.nbAjournements, 10) || 0) + 1;
             const dateAjo = iso || todayLocal();
             await majSuivi(x.eleve, {
@@ -142,14 +144,44 @@ function afficherAttenteBilan(tous){
   const zone = $('listeAttenteBilan');
   if(!zone) return;
 
-  const liste = tous.filter(e => {
+  const ajournes = tous.filter(e => {
     const s = suiviDe(e.eleve);
     return s.resultat === 'ajourne' && s.rdvPostFait !== 'oui';
   });
 
+  /* Dossier complet : bilan reçu, date et moniteur fixés.
+     Il n'y a plus rien à faire ici, le cours est préparé. */
+  const complet = s => !!(s.bilanExamen && s.rdvPostDate && s.rdvPostMoniteur);
+  const liste = ajournes.filter(e => !complet(suiviDe(e.eleve)));
+  const prets = ajournes.filter(e => complet(suiviDe(e.eleve)));
+
   zone.innerHTML = '';
+
+  /* Les dossiers bouclés restent consultables, sans encombrer */
+  if(prets.length){
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-bottom:8px;';
+    det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">✅ ' +
+      prets.length + ' rendez-vous déjà organisé(s)</summary>';
+    const l = document.createElement('div');
+    l.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;padding:6px 2px;';
+    l.innerHTML = prets.map(e => {
+      const s = suiviDe(e.eleve);
+      return '• ' + e.eleve.replace(/</g, '&lt;') + ' — ' +
+             dateEnToutesLettres(s.rdvPostDate) + ' avec ' +
+             s.rdvPostMoniteur.replace(/</g, '&lt;');
+    }).join('<br>');
+    det.appendChild(l);
+    zone.appendChild(det);
+  }
+
   if(!liste.length){
-    zone.innerHTML = '<div class="empty">Aucun élève en attente.</div>';
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = prets.length
+      ? 'Tous les rendez-vous sont organisés.'
+      : 'Aucun élève en attente.';
+    zone.appendChild(v);
     return;
   }
 
@@ -673,6 +705,38 @@ function agrandirImage(src, titre){
   fond.appendChild(img);
   fond.addEventListener('click', () => document.body.removeChild(fond));
   document.body.appendChild(fond);
+}
+
+/* Le parcours de l'élève, d'après sa frise de formation */
+function parcoursDe(e){
+  const t = String((e && e.note) || '') + ' ' + String((e && e.etat && e.etat.frise) || '');
+  if(/\bAAC\b|conduite accompagnée/i.test(t)) return 'AAC';
+  return 'CS';
+}
+
+function boiteDe(e){
+  const s = suiviDe(e.eleve) || {};
+  if(e._boite === 'bea' || /bea|automatique/i.test(s.typeExamen || '')) return 'BEA';
+  if(e._boite === 'handicap') return 'Handicap';
+  return 'BV';
+}
+
+/* Consigne le résultat, pour les statistiques */
+async function consignerResultat(e, resultat, iso){
+  const s = suiviDe(e.eleve) || {};
+  try{
+    await appelPrep({
+      action: 'resultatAdd',
+      eleve: e.eleve,
+      dateExamen: iso || '',
+      resultat: resultat,
+      boite: boiteDe(e),
+      parcours: parcoursDe(e),
+      moniteur: s.moniteurDate || e.moniteur || '',
+      centre: s.centre || '',
+      rang: String((parseInt(s.nbAjournements, 10) || 0) + 1)
+    });
+  }catch(err){ console.warn('Résultat non consigné :', err); }
 }
 
 /* Signale que ce module est bien chargé */
