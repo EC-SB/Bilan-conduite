@@ -2306,6 +2306,18 @@ function afficherPasDeRepassage(tous){
       resume: () => s.commentaireMoniteur || '',
       alerte: () => 'Reprise des leçons à suivre',
       actions: (x, boite) => {
+        /* Revoir ou compléter le rendez-vous déjà fait */
+        const bRev = document.createElement('button');
+        bRev.className = 'btn btn-secondary';
+        bRev.style.cssText = 'padding:9px;font-size:13px;margin-bottom:8px;';
+        bRev.textContent = '↗️ Revoir le rendez-vous post-permis';
+        bRev.addEventListener('click', () => {
+          const s2 = suiviDe(x.eleve);
+          ouvrirRdvPost({ eleve: x.eleve, date: s2.rdvPostDate,
+                          moniteur: s2.rdvPostMoniteur, note: '', modele: 'rdv-post' });
+        });
+        boite.appendChild(bRev);
+
         const b = document.createElement('button');
         b.className = 'btn btn-primary';
         b.style.cssText = 'padding:10px;font-size:13px;';
