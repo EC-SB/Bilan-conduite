@@ -75,7 +75,7 @@ async function afficherModelesTexte(){
   const bNouveau = document.createElement('button');
   bNouveau.className = 'btn btn-primary';
   bNouveau.style.marginBottom = '14px';
-  bNouveau.textContent = '➕ Nouveau modèle';
+  bNouveau.textContent = '➕ Nouveau texte type';
   bNouveau.addEventListener('click', () => ouvrirEditeurModele(null));
   zone.appendChild(bNouveau);
 
@@ -83,8 +83,9 @@ async function afficherModelesTexte(){
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucun modèle enregistré.<br>' +
-      '<span style="font-size:12px;">Crée tes textes ici : ils remplaceront ceux ' +
-      'que l\'application propose par défaut.</span>';
+      '<span style="font-size:12px;">Ajoute ici les textes que tu envoies souvent : ' +
+      "message du groupe permis, félicitations, examen blanc… " +
+      "L'application les reprendra à ta place.</span>";
     zone.appendChild(v);
     return;
   }
@@ -170,11 +171,11 @@ function ouvrirEditeurModele(modele, usageImpose){
   boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
 
   const h = document.createElement('h3');
-  h.textContent = modele ? 'Modifier le modèle' : 'Nouveau modèle';
+  h.textContent = modele ? 'Modifier le texte' : 'Nouveau texte type';
   boite.appendChild(h);
 
   boite.insertAdjacentHTML('beforeend',
-    '<label for="mdNom">Nom du modèle</label>' +
+    '<label for="mdNom">Nom de ce texte</label>' +
     '<input type="text" id="mdNom" placeholder="Ex : Jour du permis — Saint-Brieuc">' +
     '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
     '<select id="mdUsage">' +
