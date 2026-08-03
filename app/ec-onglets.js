@@ -111,7 +111,7 @@ function initOnglets(){
    boutons : on voit d'emblée ce qui existe, sans dérouler.
    ============================================================ */
 const VUES = {
-  cours:  [['prepares',   '📅 Mes cours préparés',  'prepares'],
+  cours:  [['prepares',   '📅 Mes prochains cours',  'prepares'],
            ['cours',      '🎙️ Démarrer un cours',   'cours']],
   eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
            ['permis',     '🎓 Permis obtenu',      'permis'],
