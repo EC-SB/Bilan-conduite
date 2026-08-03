@@ -1888,7 +1888,9 @@ function lancerActualisationAuto(){
     if(tiroirOuvert('prepares') && aDroit('cours')) afficherPrepares(true, true);
 
     /* Le suivi bureau, seulement s'il a déjà été ouvert une fois */
-    if(tiroirOuvert('bureau') && bureauDejaCharge) afficherBureau(true);
+    if((tiroirOuvert('bureau') || tiroirOuvert('permisbureau')) && bureauDejaCharge){
+      afficherBureau(true);
+    }
 
     if(tiroirOuvert('messages')) afficherConsignesEnAttente();
   }, 90000);   /* toutes les 90 secondes */
@@ -1903,7 +1905,9 @@ function ecouterReseau(){
     showToast('Connexion rétablie');
     viderCaches();
     if(aDroit('cours')) afficherPrepares(true, true);
-    if(tiroirOuvert('bureau') && bureauDejaCharge) afficherBureau(true);
+    if((tiroirOuvert('bureau') || tiroirOuvert('permisbureau')) && bureauDejaCharge){
+      afficherBureau(true);
+    }
     chargerEleves();
   });
 }
