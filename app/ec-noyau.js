@@ -37,7 +37,7 @@ const SECTIONS = [
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
   { cle:'stats',            nom:'📈 Taux de réussite' },
-  { cle:'bilans',           nom:'📝 Textes des bilans' },
+  { cle:'bilans',           nom:'📋 Modèles de bilan' },
   { cle:'procedures',       nom:'🚦 Procédures de conduite' },
   { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
   { cle:'admin',            nom:'⚙️ Administration des accès' }
