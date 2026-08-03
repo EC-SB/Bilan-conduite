@@ -779,6 +779,7 @@ function ouvrirSession(code, moniteur, role, saluer, droits){
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
   $('logoutBtn').style.display = 'block';
+  afficherIdentite();
   if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
 
   appliquerDroits();
