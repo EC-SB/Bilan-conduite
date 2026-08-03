@@ -16,7 +16,7 @@ const SECTIONS_ONGLET = {
   suivi:  ['bureau_simu', 'bureau_examblanc'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'admin']
+           'sms', 'stats', 'eleves', 'admin']
 };
 
 let ongletActif = '';
@@ -120,7 +120,7 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
-           ['eleves',     '👥 Répertoire élèves',      'admin'],
+           ['eleves',     '👥 Répertoire élèves',      'eleves'],
            ['sms',        '💬 SMS',                    'sms'],
            ['stats',      '📈 Réussite',               'stats'],
            ['journal',    '📊 Journal',                'journal'],
@@ -138,7 +138,7 @@ function construireBarresVues(){
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
       if(cle === 'admin')   return ACCES.role === 'admin';
-      if(cle === 'eleves')  return aDroit('admin');
+
       return typeof aDroit !== 'function' || aDroit(section);
     });
 
