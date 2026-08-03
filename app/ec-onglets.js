@@ -120,6 +120,7 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
+           ['eleves',     '👥 Répertoire élèves',      'admin'],
            ['sms',        '💬 SMS',                    'sms'],
            ['stats',      '📈 Réussite',               'stats'],
            ['journal',    '📊 Journal',                'journal'],
@@ -137,6 +138,7 @@ function construireBarresVues(){
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
       if(cle === 'admin')   return ACCES.role === 'admin';
+      if(cle === 'eleves')  return aDroit('recherche');
       return typeof aDroit !== 'function' || aDroit(section);
     });
 
@@ -196,7 +198,8 @@ function reveillerVue(cle){
     sms:        () => chargerCadreSms(),
     stats:      () => afficherStats(),
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
-    admin:      () => chargerUtilisateurs()
+    admin:      () => chargerUtilisateurs(),
+    eleves:     () => afficherRepertoire()
   };
   const f = actions[cle];
   if(typeof f === 'function'){
