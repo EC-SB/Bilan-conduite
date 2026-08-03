@@ -420,7 +420,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v123</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v124</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -847,15 +847,36 @@
   <details class="card" data-section="permis" data-tiroir="permis">
     <summary>🎓 Élève ayant obtenu son permis</summary>
     <div class="contenu-tiroir">
-    <label for="permisNom">Nom et prénom de l'élève</label>
-    <input type="text" id="permisNom" list="listeEleves" autocomplete="off"
-           placeholder="Choisis dans la liste ou tape un nom">
-    <button class="btn btn-primary" id="permisBtn">🎓 Préparer</button>
-    <div id="permisResultat" style="margin-top:16px;"></div>
-
-    <div id="blocDepart" style="display:none;margin-top:22px;padding-top:18px;
-                                border-top:2px solid var(--line);">
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">🚪 Départ de l'auto-école</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les messages se préparent tout seuls quand vous cochez
+        <strong>✅ Permis obtenu</strong> dans « 🏁 Examens passés — résultat à saisir ».
+      </div>
+      <input type="hidden" id="permisNom">
+      <div id="permisResultat">
+        <div class="empty">Aucun élève en cours.<br>
+          <span style="font-size:12px;">Passe par la liste des examens passés,
+          ou saisis un nom ci-dessous si besoin.</span>
+        </div>
+      </div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;font-size:13px;color:var(--muted);">
+          Préparer manuellement pour un élève
+        </summary>
+        <div style="margin-top:10px;">
+          <label for="permisNomManuel">Nom et prénom de l'élève</label>
+          <input type="text" id="permisNomManuel" list="listeEleves" autocomplete="off"
+                 placeholder="Choisis dans la liste ou tape un nom">
+          <button class="btn btn-secondary" id="permisBtn">🎓 Préparer les messages</button>
+        </div>
+      </details>
+    </div>
+  </details>
+  <details class="card" data-section="depart" data-tiroir="depart">
+    <summary>🚪 Départ de l'auto-école</summary>
+    <div class="contenu-tiroir">
+    <div id="blocDepart" style="
+                                ">
+      
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
         Élève qui arrête sa formation ou part ailleurs. Réservé au bureau.
       </div>
@@ -876,7 +897,7 @@
       <button class="btn btn-primary" id="departBtn">🚪 Préparer le départ</button>
       <div id="departResultat" style="margin-top:16px;"></div>
     </div>
-  </div>
+    </div>
   </details>
 
   <details class="card" id="adminCard" data-tiroir="admin" style="display:none;">
@@ -918,20 +939,20 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=123"></script>
-<script src="app/ec-modeles.js?v=123"></script>
-<script src="app/ec-consignes.js?v=123"></script>
-<script src="app/ec-noyau.js?v=123"></script>
-<script src="app/ec-vocal.js?v=123"></script>
-<script src="app/ec-reseau.js?v=123"></script>
-<script src="app/ec-manuel.js?v=123"></script>
-<script src="app/ec-fenetres.js?v=123"></script>
-<script src="app/ec-questionnaire.js?v=123"></script>
-<script src="app/ec-permis.js?v=123"></script>
-<script src="app/ec-prepares.js?v=123"></script>
-<script src="app/ec-bureau.js?v=123"></script>
-<script src="app/ec-depart.js?v=123"></script>
-<script src="app/ec-demarrage.js?v=123"></script>
+<script src="app/ec-etat.js?v=124"></script>
+<script src="app/ec-modeles.js?v=124"></script>
+<script src="app/ec-consignes.js?v=124"></script>
+<script src="app/ec-noyau.js?v=124"></script>
+<script src="app/ec-vocal.js?v=124"></script>
+<script src="app/ec-reseau.js?v=124"></script>
+<script src="app/ec-manuel.js?v=124"></script>
+<script src="app/ec-fenetres.js?v=124"></script>
+<script src="app/ec-questionnaire.js?v=124"></script>
+<script src="app/ec-permis.js?v=124"></script>
+<script src="app/ec-prepares.js?v=124"></script>
+<script src="app/ec-bureau.js?v=124"></script>
+<script src="app/ec-depart.js?v=124"></script>
+<script src="app/ec-demarrage.js?v=124"></script>
 
 </body>
 </html>
