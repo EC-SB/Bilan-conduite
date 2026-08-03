@@ -1,214 +1,384 @@
 /* ============================================================
    ec-bilans.js
-   Les textes fixes des bilans, modifiables depuis l'application.
-   Ce qui est calculé — frise, manœuvres cumulées, numéro de leçon,
-   rubriques d'erreurs — reste calculé : seuls les textes changent.
-   Les modifications valent pour les deux modes, vocal et manuel.
+   Gestion des modèles de bilan.
+
+   Deux choses distinctes, que l'on modifie séparément :
+   • le SQUELETTE, qui produit le texte du bilan — il est commun
+     au mode vocal et au mode manuel ;
+   • les CONSIGNES À L'IA, utilisées seulement en mode vocal pour
+     transformer la transcription du cours en éléments du bilan.
+
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* Les textes que l'on peut réécrire, et où ils apparaissent.
-   La clé sert à retrouver le texte ; « chemin » dit quoi remplacer. */
-const TEXTES_BILAN = [
-  { cle:'bilan_entete',        nom:'En-tête du bilan',
-    ou:'Tout en haut de chaque bilan de conduite',
-    lire:() => BLOC.entete,
-    ecrire:(v) => { BLOC.entete = v; } },
+/* Ce que produit chaque squelette, en clair */
+const DESCRIPTION_SCHEMA = {
+  conduiteResume: "Bilan de conduite complet : carte SD, installation, ton cours, " +
+                  "erreurs par rubrique, fiche véhicule, frise.",
+  conduite:       "Bilan de conduite détaillé, sans reprise du cours dicté.",
+  rvp:            "Rendez-vous pédagogique AAC : déroulé de la séance.",
+  accompagnateur: "Formation accompagnateur, rédigée au vouvoiement.",
+  simu:           "Simulateur : compétences travaillées et remarques.",
+  eval:           "Évaluation de départ : bilan, heures et frise prévisionnelle.",
+  examen:         "Examen officiel : vérifications et observations de l'inspecteur.",
+  examenblanc:    "Examen blanc : CEPC noté, bilan erreurs, niveau permis.",
+  rdvpost:        "Rendez-vous post-permis : écran dédié, sans texte assemblé."
+};
 
-  { cle:'bilan_cartesd',       nom:'Carte SD',
-    ou:'Le paragraphe sur la caméra et le visionnage des cours',
-    aide:'La coche ✅ ou ❌ est ajoutée automatiquement après le titre.',
-    lire:() => "N'oublie pas de la regarder et si soucis demande nous !! " +
-      '(rappel, tous tes cours sont filmés, par une caméra avant et une arrière, ' +
-      'avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, ' +
-      'avant de revenir à ton prochain cours). ',
-    ecrire:(v) => {
-      const t = String(v);
-      BLOC.carteSD = c => '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿  ' + st(c) + '\n' + t;
-    } },
+/* Les groupes, dans l'ordre d'affichage */
+const GROUPES_MODELE = ['Conduite', 'Conduite accompagnée', 'Rendez-vous préalable',
+                        'Simulateur', 'Évaluation', 'Examen'];
 
-  { cle:'bilan_installation',  nom:'Installation, passager, voyants',
-    ou:'Le bloc des trois vérifications et son lien Facebook',
-    aide:'Utilise {i} {p} {v} pour placer les coches, et garde les liens.',
-    lire:() =>
-      '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣  {i}https://www.facebook.com/groups/963972327360861/permalink/969918630099564/\n' +
-      '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 {p}\n' +
-      '𝙑𝙤𝙮𝙖𝙣𝙩𝙨 {v}\n' +
-      '/2 points jour du permis ',
-    ecrire:(v) => {
-      const t = String(v);
-      BLOC.installPassVoyants = (i, p, vo) =>
-        t.split('{i}').join(st(i)).split('{p}').join(st(p)).split('{v}').join(st(vo));
-    } },
+/* Modèles ajoutés par l'auto-école, en plus des modèles d'origine */
+let modelesAjoutes = [];
 
-  { cle:'bilan_verifications', nom:'Vérifications',
-    ou:'Le bloc des vérifications et son lien Facebook',
-    lire:() => BLOC.verifications,
-    ecrire:(v) => { BLOC.verifications = v; } },
-
-  { cle:'bilan_manoeuvres',    nom:'Liste des manœuvres — fiche véhicule',
-    ou:'Les manœuvres proposées, une par ligne',
-    aide:"L'ordre est respecté. Une manœuvre retirée disparaît des bilans à venir.",
-    liste:true,
-    lire:() => BLOC.ficheListeConduite.join('\n'),
-    ecrire:(v) => {
-      const l = String(v).split('\n').map(x => x.trim()).filter(Boolean);
-      if(l.length) BLOC.ficheListeConduite = l;
-    } },
-
-  { cle:'bilan_rubriques',     nom:"Rubriques d'erreurs",
-    ou:'Les catégories du résumé, en vocal comme en manuel',
-    aide:'Une rubrique par ligne, émoji compris. Elles servent aussi au bilan manuel.',
-    liste:true,
-    lire:() => (typeof THEMES_ERREURS !== 'undefined')
-      ? THEMES_ERREURS.map(t => t.nom).join('\n') : '',
-    ecrire:(v) => {
-      if(typeof THEMES_ERREURS === 'undefined') return;
-      const l = String(v).split('\n').map(x => x.trim()).filter(Boolean);
-      if(!l.length) return;
-      THEMES_ERREURS.length = 0;
-      l.forEach((nom, i) => THEMES_ERREURS.push({ cle: 'r' + i, nom: nom }));
-    } }
-];
-
-/* Ce qui reste calculé, et qu'on ne peut donc pas réécrire ici */
-const CALCULE_NON_MODIFIABLE = [
-  'La frise de formation et le numéro de leçon',
-  'Les manœuvres déjà validées, cumulées depuis les cours précédents',
-  "Le contenu des erreurs, dicté par le moniteur ou résumé par l'IA",
-  'Les totaux du CEPC et le calcul éliminatoire'
-];
-
-
-/* ---------- Application des textes enregistrés ---------- */
-
-let textesBilanCharges = false;
-
-async function appliquerTextesBilan(){
+async function chargerModelesBilan(){
   try{
-    if(typeof chargerModelesTexte !== 'function') return;
-    await chargerModelesTexte();
-    (modelesTexte || []).forEach(m => {
-      const t = TEXTES_BILAN.find(x => x.cle === m.usage);
-      if(t && m.contenu) {
-        try{ t.ecrire(m.contenu); }catch(e){ console.warn('Texte ' + t.cle + ' :', e); }
-      }
-    });
-    textesBilanCharges = true;
-  }catch(e){
-    console.warn('Textes de bilan indisponibles :', e);
-  }
+    if(typeof chargerModelesTexte === 'function') await chargerModelesTexte();
+    modelesAjoutes = (modelesTexte || []).filter(m => m.usage === 'modele_bilan');
+  }catch(e){ console.warn('Modèles de bilan :', e); }
+  return modelesAjoutes;
+}
+
+/* Ajoute les modèles enregistrés à la liste des types de bilan */
+function appliquerModelesAjoutes(){
+  modelesAjoutes.forEach(m => {
+    let d;
+    try{ d = JSON.parse(m.contenu); }catch(e){ return; }
+    if(!d || !d.cle || !d.schema) return;
+
+    /* On reprend le fonctionnement d'un modèle existant du même squelette */
+    const source = Object.keys(MODELES).find(k => MODELES[k].schema === d.schema &&
+                                                  !MODELES[k].ajoute);
+    if(!source) return;
+
+    MODELES[d.cle] = {
+      label:  d.label || m.nom,
+      groupe: d.groupe || 'Conduite',
+      schema: d.schema,
+      opts:   MODELES[source].opts,
+      comps:  MODELES[source].comps,
+      build:  MODELES[source].build,
+      ajoute: true
+    };
+  });
+}
+
+/* Les consignes IA réécrites par l'auto-école */
+function consignesPersonnalisees(schema){
+  const m = (modelesTexte || []).find(x => x.usage === 'consignes_' + schema);
+  return m ? m.contenu : null;
 }
 
 
-/* ---------- Interface ---------- */
-
+/* ============================================================
+   AFFICHAGE
+   ============================================================ */
 async function afficherTextesBilan(){
   const zone = $('bilansZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Chargement des textes…</div>';
-  await chargerModelesTexte();
+  zone.innerHTML = '<div class="empty">Chargement des modèles…</div>';
+  await chargerModelesBilan();
+  appliquerModelesAjoutes();
   zone.innerHTML = '';
 
-  /* Ce qui n'est pas modifiable, dit d'emblée */
-  const info = document.createElement('details');
-  info.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);' +
-    'margin-bottom:10px;">Ce qui reste calculé automatiquement</summary>';
-  const li = document.createElement('div');
-  li.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px;';
-  li.innerHTML = CALCULE_NON_MODIFIABLE.map(x => '• ' + x).join('<br>');
-  info.appendChild(li);
+  /* Rappel de la distinction, une fois pour toutes */
+  const info = document.createElement('div');
+  info.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.6;' +
+    'padding:9px 11px;background:var(--navy);border:1px solid var(--line);' +
+    'border-radius:8px;margin-bottom:12px;';
+  info.innerHTML =
+    "🎙️ <strong>Mode vocal</strong> : l'IA lit la transcription et remplit le modèle. " +
+    'Ses consignes sont modifiables ci-dessous.<br>' +
+    '✍️ <strong>Mode manuel</strong> : le moniteur remplit lui-même les mêmes rubriques, ' +
+    "sans IA.<br>Le texte produit est identique dans les deux cas.";
   zone.appendChild(info);
 
-  TEXTES_BILAN.forEach(t => {
-    const enregistre = (modelesTexte || []).find(m => m.usage === t.cle);
-    const actuel = enregistre ? enregistre.contenu : t.lire();
-    const modifie = !!enregistre;
+  const bNouveau = document.createElement('button');
+  bNouveau.className = 'btn btn-primary';
+  bNouveau.style.marginBottom = '14px';
+  bNouveau.textContent = '➕ Ajouter un modèle de bilan';
+  bNouveau.addEventListener('click', () => ouvrirEditeurModeleBilan());
+  zone.appendChild(bNouveau);
 
-    const d = document.createElement('details');
-    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
-      'margin-bottom:8px;' + (modifie ? 'border-color:var(--orange);' : '');
+  /* Les modèles, groupés */
+  const parGroupe = {};
+  Object.keys(MODELES).forEach(cle => {
+    const m = MODELES[cle];
+    const g = m.groupe || 'Autre';
+    if(!parGroupe[g]) parGroupe[g] = [];
+    parGroupe[g].push({ cle: cle, m: m });
+  });
 
-    const som = document.createElement('summary');
-    som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
-      'list-style:none;';
-    som.innerHTML = (t.liste ? '📋 ' : '✍️ ') + t.nom +
-      (modifie ? ' <span style="font-size:11px;color:var(--accent-text);">· modifié</span>' : '');
-    d.appendChild(som);
+  const ordre = GROUPES_MODELE.concat(
+    Object.keys(parGroupe).filter(g => GROUPES_MODELE.indexOf(g) === -1));
 
-    const ou = document.createElement('div');
-    ou.style.cssText = 'font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5;';
-    ou.textContent = t.ou + (t.aide ? ' — ' + t.aide : '');
-    d.appendChild(ou);
+  let compte = 0;
+  ordre.forEach(g => {
+    if(!parGroupe[g]) return;
 
-    const zt = document.createElement('textarea');
-    zt.rows = t.liste ? 10 : 6;
-    zt.value = actuel;
-    zt.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-      'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:14px;' +
-      'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
-    d.appendChild(zt);
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin:14px 0 6px;';
+    t.textContent = g;
+    zone.appendChild(t);
 
-    const r = document.createElement('div');
-    r.style.cssText = 'display:flex;gap:8px;';
+    parGroupe[g].forEach(({ cle, m }) => {
+      compte++;
+      const d = document.createElement('details');
+      d.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+        'padding:10px 12px;margin-bottom:7px;' +
+        (m.ajoute ? 'border-color:var(--orange);' : '');
 
-    const bEnr = document.createElement('button');
-    bEnr.className = 'btn btn-primary';
-    bEnr.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
-    bEnr.textContent = '💾 Enregistrer';
-    bEnr.addEventListener('click', async () => {
-      const v = zt.value.trim();
-      if(!v){ showToast('Le texte est vide.'); return; }
-      bEnr.disabled = true;
-      bEnr.textContent = 'Enregistrement…';
-      try{
-        await appelPrep({
-          action: 'modeleSet',
-          id: enregistre ? enregistre.id : '',
-          usage: t.cle,
-          nom: t.nom,
-          contenu: v
-        });
-        t.ecrire(v);
-        showToast('Texte enregistré ✅');
-        afficherTextesBilan();
-      }catch(e){
-        showToast('Erreur : ' + e.message);
-        bEnr.disabled = false;
-        bEnr.textContent = '💾 Enregistrer';
-      }
+      const som = document.createElement('summary');
+      som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;' +
+        'color:var(--cream);list-style:none;';
+      som.innerHTML = m.label.replace(/</g, '&lt;') +
+        (m.ajoute ? ' <span style="font-size:11px;color:var(--accent-text);">· ajouté</span>' : '');
+      d.appendChild(som);
+
+      const desc = document.createElement('div');
+      desc.style.cssText = 'font-size:12px;color:var(--muted);margin:6px 0 10px;line-height:1.5;';
+      desc.textContent = DESCRIPTION_SCHEMA[m.schema] || 'Structure : ' + m.schema;
+      d.appendChild(desc);
+
+      /* Consignes IA, propres au squelette */
+      if(m.schema !== 'rdvpost') d.appendChild(blocConsignesIA(m.schema));
+
+      if(m.ajoute) d.appendChild(boutonRetirerModele(cle, m));
+
+      zone.appendChild(d);
     });
-    r.appendChild(bEnr);
-
-    if(modifie){
-      const bRaz = document.createElement('button');
-      bRaz.className = 'btn btn-secondary';
-      bRaz.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
-      bRaz.textContent = '↩️ Texte d\'origine';
-      bRaz.title = "Revenir au texte proposé par l'application";
-      bRaz.addEventListener('click', async () => {
-        if(!await confirmer('Revenir au texte d\'origine pour « ' + t.nom + ' » ?')) return;
-        bRaz.disabled = true;
-        try{
-          await appelPrep({ action: 'modeleDelete', id: enregistre.id });
-          showToast('Texte d\'origine rétabli — recharge la page pour le voir appliqué');
-          afficherTextesBilan();
-        }catch(e){ showToast('Erreur : ' + e.message); bRaz.disabled = false; }
-      });
-      r.appendChild(bRaz);
-    }
-
-    d.appendChild(r);
-    zone.appendChild(d);
   });
 
   const pied = document.createElement('div');
-  pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;';
-  pied.textContent = "Les textes modifiés s'appliquent aux prochains bilans, " +
-    'en enregistrement vocal comme en saisie manuelle. ' +
-    'Les bilans déjà enregistrés ne changent pas.';
+  pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6;';
+  pied.textContent = compte + ' modèles disponibles dans la liste des types de bilan.';
   zone.appendChild(pied);
+}
+
+
+function boutonRetirerModele(cle, m){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-top:10px;padding:8px;font-size:12px;' +
+    'color:var(--red);border-color:var(--red);';
+  b.textContent = '🗑️ Retirer ce modèle';
+  b.addEventListener('click', async () => {
+    if(!await confirmer('Retirer le modèle « ' + m.label + ' » ?\n\n' +
+                        'Les bilans déjà enregistrés ne changent pas.')) return;
+    const src = modelesAjoutes.find(x => {
+      try{ return JSON.parse(x.contenu).cle === cle; }catch(e){ return false; }
+    });
+    if(!src) return;
+    b.disabled = true;
+    try{
+      await appelPrep({ action: 'modeleDelete', id: src.id });
+      delete MODELES[cle];
+      if(typeof remplirModeles === 'function') remplirModeles();
+      showToast('Modèle retiré');
+      afficherTextesBilan();
+    }catch(e){ showToast('Erreur : ' + e.message); b.disabled = false; }
+  });
+  return b;
+}
+
+
+/* Les consignes données à l'IA pour un squelette donné */
+function blocConsignesIA(schema){
+  const d = document.createElement('details');
+  d.style.cssText = 'margin-top:6px;';
+
+  const perso = consignesPersonnalisees(schema);
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:600;color:' +
+    (perso ? 'var(--accent-text)' : 'var(--muted)') + ";\">🎙️ Consignes données à l'IA" +
+    (perso ? ' · modifiées' : '') + '</summary>';
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);margin:6px 0;line-height:1.5;';
+  a.textContent = 'Ces consignes valent pour tous les modèles qui partagent cette ' +
+    "structure, et ne servent qu'en mode vocal.";
+  d.appendChild(a);
+
+  let actuel = perso;
+  if(actuel === null){
+    try{ actuel = SCHEMAS[schema] ? consignesDOrigine(schema) : ''; }
+    catch(e){ actuel = ''; }
+  }
+
+  const zt = document.createElement('textarea');
+  zt.rows = 12;
+  zt.value = actuel || '(consignes indisponibles pour cette structure)';
+  zt.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.6;font-family:ui-monospace, monospace;resize:vertical;margin-bottom:8px;';
+  d.appendChild(zt);
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;';
+
+  const bEnr = document.createElement('button');
+  bEnr.className = 'btn btn-secondary';
+  bEnr.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+  bEnr.textContent = '💾 Enregistrer les consignes';
+  bEnr.addEventListener('click', async () => {
+    const v = zt.value.trim();
+    if(!v){ showToast('Les consignes sont vides.'); return; }
+    bEnr.disabled = true;
+    try{
+      const src = (modelesTexte || []).find(x => x.usage === 'consignes_' + schema);
+      await appelPrep({
+        action: 'modeleSet',
+        id: src ? src.id : '',
+        usage: 'consignes_' + schema,
+        nom: 'Consignes IA — ' + schema,
+        contenu: v
+      });
+      showToast('Consignes enregistrées ✅');
+      afficherTextesBilan();
+    }catch(e){ showToast('Erreur : ' + e.message); bEnr.disabled = false; }
+  });
+  r.appendChild(bEnr);
+
+  if(perso){
+    const bRaz = document.createElement('button');
+    bRaz.className = 'btn btn-secondary';
+    bRaz.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bRaz.textContent = '↩️';
+    bRaz.title = "Revenir aux consignes d'origine";
+    bRaz.addEventListener('click', async () => {
+      if(!await confirmer("Revenir aux consignes d'origine ?")) return;
+      const src = (modelesTexte || []).find(x => x.usage === 'consignes_' + schema);
+      if(!src) return;
+      bRaz.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: src.id });
+        showToast("Consignes d'origine rétablies");
+        afficherTextesBilan();
+      }catch(e){ showToast('Erreur : ' + e.message); bRaz.disabled = false; }
+    });
+    r.appendChild(bRaz);
+  }
+
+  d.appendChild(r);
+  return d;
+}
+
+/* Les consignes telles que l'application les produit */
+function consignesDOrigine(schema){
+  const cle = Object.keys(MODELES).find(k => MODELES[k].schema === schema);
+  if(!cle) return '';
+  return construireConsignes(cle);
+}
+
+
+/* ============================================================
+   AJOUT D'UN MODÈLE
+   ============================================================ */
+function ouvrirEditeurModeleBilan(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  /* On ne propose que les structures réellement disponibles */
+  const schemas = [];
+  Object.keys(MODELES).forEach(k => {
+    const s = MODELES[k].schema;
+    if(s && s !== 'rdvpost' && schemas.indexOf(s) === -1) schemas.push(s);
+  });
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>➕ Nouveau modèle de bilan</h3>' +
+    '<div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:14px;">' +
+      "Le nouveau modèle reprend la structure d'un modèle existant : même bilan " +
+      'produit, même fonctionnement en vocal et en manuel. Seuls son nom et son ' +
+      'groupe changent. Ses consignes IA restent celles de la structure choisie.' +
+    '</div>' +
+    '<label for="mbNom">Nom du modèle</label>' +
+    '<input type="text" id="mbNom" placeholder="Ex : Conduite — Perfectionnement">' +
+    '<label for="mbGroupe">Groupe</label>' +
+    '<select id="mbGroupe">' +
+      GROUPES_MODELE.map(g => '<option value="' + g + '">' + g + '</option>').join('') +
+    '</select>' +
+    '<label for="mbSchema">Structure de bilan reprise</label>' +
+    '<select id="mbSchema">' +
+      schemas.map(s => '<option value="' + s + '">' + s + '</option>').join('') +
+    '</select>' +
+    '<div id="mbDesc" style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.5;"></div>');
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Ajouter';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const selS = boite.querySelector('#mbSchema');
+  const desc = boite.querySelector('#mbDesc');
+  const majDesc = () => { desc.textContent = DESCRIPTION_SCHEMA[selS.value] || ''; };
+  selS.addEventListener('change', majDesc);
+  majDesc();
+
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#mbNom').value.trim();
+    if(!nom){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Donne un nom.'; return; }
+
+    const cle = 'perso-' + normaliserMot(nom).replace(/[^a-z0-9]+/g, '-').slice(0, 28) +
+                '-' + Date.now().toString(36).slice(-4);
+
+    bOk.disabled = true;
+    bOk.textContent = 'Ajout…';
+    try{
+      await appelPrep({
+        action: 'modeleSet',
+        usage: 'modele_bilan',
+        nom: nom,
+        contenu: JSON.stringify({
+          cle: cle,
+          label: nom,
+          groupe: boite.querySelector('#mbGroupe').value,
+          schema: selS.value
+        })
+      });
+      document.body.removeChild(fond);
+      await chargerModelesBilan();
+      appliquerModelesAjoutes();
+      if(typeof remplirModeles === 'function') remplirModeles();
+      showToast('Modèle ajouté ✅');
+      afficherTextesBilan();
+    }catch(e){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bOk.disabled = false;
+      bOk.textContent = '💾 Ajouter';
+    }
+  });
+}
+
+
+/* Chargé à l'ouverture de session, pour que les modèles ajoutés
+   apparaissent dans la liste des types de bilan. */
+async function appliquerTextesBilan(){
+  await chargerModelesBilan();
+  appliquerModelesAjoutes();
+  if(typeof remplirModeles === 'function') remplirModeles();
 }
 
 
