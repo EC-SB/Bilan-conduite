@@ -426,7 +426,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v135</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v136</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -677,9 +677,8 @@
     </div>
   </div>
   </details>
-
   <details class="card" data-section="bureau" data-tiroir="bureau">
-    <summary>🏢 Suivi bureau</summary>
+    <summary>🌙 Suivi simulateurs et examens blancs</summary>
     <div class="contenu-tiroir">
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
     <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">
@@ -744,12 +743,17 @@
     </div>
     </div>
 
-    <div style="margin-top:22px;padding-top:18px;border-top:2px solid var(--line);" data-section="bureau_places">
-      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">🚗 PERMIS</div>
+    </div>
+  </details>
+
+  <details class="card" data-section="bureau_permis" data-tiroir="permisbureau">
+    <summary>🚗 Suivi permis</summary>
+    <div class="contenu-tiroir">
+    <button class="btn btn-secondary" id="permisBureauBtn">🔄 Actualiser les listes</button>
+    <div data-section="bureau_places">
       <div id="alertePrise" style="margin-bottom:12px;"></div>
       <div id="blocPlaces" style="margin-bottom:14px;"></div>
     </div>
-
     <div style="margin-top:16px;" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
         ⏳ En attente du bilan d'examen</div>
@@ -780,6 +784,19 @@
         Cochés depuis la liste précédente. Indique qui prend la date et sur quelle semaine.</div>
       <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="messenger">
+        <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
+          📣 Message groupe Messenger</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+          Choisis une date, saisis l'heure du premier examen : les deux messages se composent seuls.</div>
+        <label for="messengerDate">Date de l'examen</label>
+        <select id="messengerDate"><option value="">— appuie sur Actualiser —</option></select>
+        <button class="btn btn-secondary" id="messengerBtn">🔄 Actualiser les dates</button>
+        <div id="messengerZone" style="margin-top:12px;">
+          <div class="empty">Appuie sur Actualiser.</div></div>
+      </div>
+
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
@@ -815,8 +832,63 @@
       <div id="listePostExamen"><div class="empty">Appuie sur Actualiser.</div></div>
     </div>
 
+    </div>
+  </details>
+  <details class="card" data-section="permis" data-tiroir="permis">
+    <summary>🎓 Élève ayant obtenu son permis</summary>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les messages se préparent tout seuls quand vous cochez
+        <strong>✅ Permis obtenu</strong> dans « 🏁 Examens passés — résultat à saisir ».
+      </div>
+      <input type="hidden" id="permisNom">
+      <div id="permisResultat">
+        <div class="empty">Aucun élève en cours.<br>
+          <span style="font-size:12px;">Passe par la liste des examens passés,
+          ou saisis un nom ci-dessous si besoin.</span>
+        </div>
+      </div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;font-size:13px;color:var(--muted);">
+          Préparer manuellement pour un élève
+        </summary>
+        <div style="margin-top:10px;">
+          <label for="permisNomManuel">Nom et prénom de l'élève</label>
+          <input type="text" id="permisNomManuel" list="listeEleves" autocomplete="off"
+                 placeholder="Choisis dans la liste ou tape un nom">
+          <button class="btn btn-secondary" id="permisBtn">🎓 Préparer les messages</button>
+        </div>
+      </details>
+    </div>
+  </details>
 
-  </div>
+  <details class="card" data-section="depart" data-tiroir="depart">
+    <summary>🚪 Départ de l'auto-école</summary>
+    <div class="contenu-tiroir">
+    <div id="blocDepart" style="
+                                ">
+      
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+        Élève qui arrête sa formation ou part ailleurs. Réservé au bureau.
+      </div>
+      <label for="departNom">Nom et prénom de l'élève</label>
+      <input type="text" id="departNom" list="listeEleves" autocomplete="off"
+             placeholder="Choisis dans la liste ou tape un nom">
+      <label for="departMotif">Motif</label>
+      <select id="departMotif">
+        <option value="autre-ae">Transfert vers une autre auto-école</option>
+        <option value="demenagement">Déménagement</option>
+        <option value="arret">Arrêt de la formation</option>
+        <option value="financier">Motif financier</option>
+        <option value="sansnouvelles">Sans nouvelles de l'élève</option>
+        <option value="autre">Autre</option>
+      </select>
+      <label for="departDate">Date du départ</label>
+      <input type="date" id="departDate">
+      <button class="btn btn-primary" id="departBtn">🚪 Préparer le départ</button>
+      <div id="departResultat" style="margin-top:16px;"></div>
+    </div>
+    </div>
   </details>
 
   <details class="card" data-section="bureau_messages" data-tiroir="messages">
@@ -850,33 +922,6 @@
     </div>
   </details>
 
-  <details class="card" data-section="permis" data-tiroir="permis">
-    <summary>🎓 Élève ayant obtenu son permis</summary>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Les messages se préparent tout seuls quand vous cochez
-        <strong>✅ Permis obtenu</strong> dans « 🏁 Examens passés — résultat à saisir ».
-      </div>
-      <input type="hidden" id="permisNom">
-      <div id="permisResultat">
-        <div class="empty">Aucun élève en cours.<br>
-          <span style="font-size:12px;">Passe par la liste des examens passés,
-          ou saisis un nom ci-dessous si besoin.</span>
-        </div>
-      </div>
-      <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:13px;color:var(--muted);">
-          Préparer manuellement pour un élève
-        </summary>
-        <div style="margin-top:10px;">
-          <label for="permisNomManuel">Nom et prénom de l'élève</label>
-          <input type="text" id="permisNomManuel" list="listeEleves" autocomplete="off"
-                 placeholder="Choisis dans la liste ou tape un nom">
-          <button class="btn btn-secondary" id="permisBtn">🎓 Préparer les messages</button>
-        </div>
-      </details>
-    </div>
-  </details>
   <details class="card" data-section="textes" data-tiroir="textes">
     <summary>📄 Mes modèles de message</summary>
     <div class="contenu-tiroir">
@@ -885,53 +930,6 @@
         par l'application, et restent modifiables à tout moment.
       </div>
       <div id="textesZone"><div class="empty">Chargement…</div></div>
-    </div>
-  </details>
-
-  <details class="card" data-section="messenger" data-tiroir="messenger">
-    <summary>📣 Message groupe Messenger — jour du permis</summary>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Choisis une date d'examen, saisis les heures de passage,
-        le message du groupe se compose tout seul.
-      </div>
-      <label for="messengerDate">Date de l'examen</label>
-      <select id="messengerDate">
-        <option value="">— appuie sur Actualiser —</option>
-      </select>
-      <button class="btn btn-secondary" id="messengerBtn">🔄 Actualiser les dates</button>
-      <div id="messengerZone" style="margin-top:14px;">
-        <div class="empty">Appuie sur Actualiser.</div>
-      </div>
-    </div>
-  </details>
-
-  <details class="card" data-section="depart" data-tiroir="depart">
-    <summary>🚪 Départ de l'auto-école</summary>
-    <div class="contenu-tiroir">
-    <div id="blocDepart" style="
-                                ">
-      
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
-        Élève qui arrête sa formation ou part ailleurs. Réservé au bureau.
-      </div>
-      <label for="departNom">Nom et prénom de l'élève</label>
-      <input type="text" id="departNom" list="listeEleves" autocomplete="off"
-             placeholder="Choisis dans la liste ou tape un nom">
-      <label for="departMotif">Motif</label>
-      <select id="departMotif">
-        <option value="autre-ae">Transfert vers une autre auto-école</option>
-        <option value="demenagement">Déménagement</option>
-        <option value="arret">Arrêt de la formation</option>
-        <option value="financier">Motif financier</option>
-        <option value="sansnouvelles">Sans nouvelles de l'élève</option>
-        <option value="autre">Autre</option>
-      </select>
-      <label for="departDate">Date du départ</label>
-      <input type="date" id="departDate">
-      <button class="btn btn-primary" id="departBtn">🚪 Préparer le départ</button>
-      <div id="departResultat" style="margin-top:16px;"></div>
-    </div>
     </div>
   </details>
 
@@ -991,6 +989,14 @@
   </div>
   </details>
 
+
+
+
+
+
+
+
+
   </div><!-- /appView -->
 </div>
 
@@ -1008,24 +1014,24 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=135"></script>
-<script src="app/ec-modeles.js?v=135"></script>
-<script src="app/ec-consignes.js?v=135"></script>
-<script src="app/ec-noyau.js?v=135"></script>
-<script src="app/ec-vocal.js?v=135"></script>
-<script src="app/ec-reseau.js?v=135"></script>
-<script src="app/ec-manuel.js?v=135"></script>
-<script src="app/ec-fenetres.js?v=135"></script>
-<script src="app/ec-questionnaire.js?v=135"></script>
-<script src="app/ec-permis.js?v=135"></script>
-<script src="app/ec-prepares.js?v=135"></script>
-<script src="app/ec-bureau.js?v=135"></script>
-<script src="app/ec-postpermis.js?v=135"></script>
-<script src="app/ec-textes.js?v=135"></script>
-<script src="app/ec-messenger.js?v=135"></script>
-<script src="app/ec-journal.js?v=135"></script>
-<script src="app/ec-depart.js?v=135"></script>
-<script src="app/ec-demarrage.js?v=135"></script>
+<script src="app/ec-etat.js?v=136"></script>
+<script src="app/ec-modeles.js?v=136"></script>
+<script src="app/ec-consignes.js?v=136"></script>
+<script src="app/ec-noyau.js?v=136"></script>
+<script src="app/ec-vocal.js?v=136"></script>
+<script src="app/ec-reseau.js?v=136"></script>
+<script src="app/ec-manuel.js?v=136"></script>
+<script src="app/ec-fenetres.js?v=136"></script>
+<script src="app/ec-questionnaire.js?v=136"></script>
+<script src="app/ec-permis.js?v=136"></script>
+<script src="app/ec-prepares.js?v=136"></script>
+<script src="app/ec-bureau.js?v=136"></script>
+<script src="app/ec-postpermis.js?v=136"></script>
+<script src="app/ec-textes.js?v=136"></script>
+<script src="app/ec-messenger.js?v=136"></script>
+<script src="app/ec-journal.js?v=136"></script>
+<script src="app/ec-depart.js?v=136"></script>
+<script src="app/ec-demarrage.js?v=136"></script>
 
 </body>
 </html>
