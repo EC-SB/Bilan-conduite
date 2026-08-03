@@ -992,8 +992,9 @@ function initTiroirs(){
     d.addEventListener('toggle', () => {
       ecrireTiroirs();
       /* On ne charge le suivi bureau qu'à sa première ouverture */
-      if((cle === 'bureau' || cle === 'permisbureau') && d.open && !bureauDejaCharge){
-        afficherBureau();
+      /* À chaque ouverture : premier chargement visible, sinon discret */
+      if((cle === 'bureau' || cle === 'permisbureau') && d.open){
+        afficherBureau(bureauDejaCharge);
       }
       if(cle === 'messages' && d.open) afficherConsignesEnAttente();
       /* Les cours préparés changent souvent : on relit à chaque ouverture */
