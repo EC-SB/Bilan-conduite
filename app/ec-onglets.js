@@ -95,6 +95,7 @@ function initOnglets(){
     }
   });
 
+  /* Un seul onglet accessible : la barre n'apporte rien */
   barre.style.display = (dispo.length > 1) ? 'flex' : 'none';
 
   let depart = '';
