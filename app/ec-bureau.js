@@ -1036,7 +1036,25 @@ function ligneBureau(e, options){
   const actions = document.createElement('div');
   actions.style.cssText = 'margin-top:10px;';
   options.actions(e, actions);
-  row.appendChild(actions);
+
+  /* Les listes longues se replient : l'essentiel reste visible,
+     les actions ne s'ouvrent qu'à la demande. */
+  if(options.replier){
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-top:6px;';
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600;' +
+      'color:var(--accent-text);padding:4px 0;list-style:none;';
+    som.textContent = '▸ Ouvrir la fiche';
+    det.appendChild(som);
+    det.appendChild(actions);
+    det.addEventListener('toggle', () => {
+      som.textContent = det.open ? '▾ Refermer' : '▸ Ouvrir la fiche';
+    });
+    row.appendChild(det);
+  }else{
+    row.appendChild(actions);
+  }
 
   return row;
 }
@@ -1114,6 +1132,7 @@ async function afficherBureau(silencieux){
   }else{
     eb.forEach(e => {
       zEB.appendChild(ligneBureau(e, {
+        replier: true,
         info: x => {
           const n = x.etat.examBlancN;
           const etat = (x.etat.examBlanc === 'reserve') ? 'Réservé' : 'À prévoir';
@@ -1593,8 +1612,16 @@ async function afficherBureau(silencieux){
                          : 'Aucun examen du permis à prévoir.';
     zPer.appendChild(v);
   }else{
+    const cpt = document.createElement('div');
+    cpt.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'padding:4px 2px 8px;';
+    const nRep = per.filter(x => suiviDe(x.eleve).nbAjournements).length;
+    cpt.textContent = per.length + ' élève(s)' +
+      (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
+    zPer.appendChild(cpt);
     per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
+        replier: true,
         info: x => {
           const sv = suiviDe(x.eleve);
           const rep = sv.nbAjournements ? '🔁 ' + mentionAjournements(sv.nbAjournements).replace('🔁 ','') + ' · ' : '🆕 ';
