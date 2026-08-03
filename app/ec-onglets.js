@@ -63,14 +63,11 @@ function afficherOnglet(cle, memoriser){
 
 /* Ce qu'il faut mettre à jour en arrivant sur un onglet */
 function reveillerOnglet(cle){
-  if(cle === 'cours' && typeof afficherPrepares === 'function' && aDroit('cours')){
-    afficherPrepares(true, true);
-  }
   if((cle === 'suivi' || cle === 'permis') && typeof afficherBureau === 'function'){
     afficherBureau(bureauDejaCharge);
   }
   if(cle === 'permis' && typeof afficherMessengerPermis === 'function'){
-    /* La liste des dates suit les permis prévus */
+    afficherMessengerPermis();
   }
 }
 
@@ -113,8 +110,8 @@ function initOnglets(){
    boutons : on voit d'emblée ce qui existe, sans dérouler.
    ============================================================ */
 const VUES = {
-  cours:  [['prepares',   '📅 Mes cours préparés', 'prepares'],
-           ['cours',      '🎙️ Nouveau cours',      'cours']],
+  cours:  [['prepares',   '📅 Cours préparés',      'prepares'],
+           ['cours',      '🎙️ Démarrer un cours',   'cours']],
   eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
            ['permis',     '🎓 Permis obtenu',      'permis'],
            ['depart',     '🚪 Départ',             'depart']],
@@ -169,7 +166,11 @@ function afficherVue(onglet, cle){
   vueActive[onglet] = cle;
 
   document.querySelectorAll('[data-vue][data-onglet="' + onglet + '"]').forEach(el => {
-    el.classList.toggle('hors-vue', el.getAttribute('data-vue') !== cle);
+    const cache = el.getAttribute('data-vue') !== cle;
+    el.classList.toggle('hors-vue', cache);
+    /* Les droits touchent aussi au style : on ne laisse pas de doute */
+    if(cache) el.style.display = 'none';
+    else if(el.style.display === 'none') el.style.display = '';
   });
 
   const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
