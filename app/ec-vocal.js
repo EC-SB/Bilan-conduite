@@ -996,6 +996,8 @@ function initTiroirs(){
         afficherBureau();
       }
       if(cle === 'messages' && d.open) afficherConsignesEnAttente();
+      /* Les cours préparés changent souvent : on relit à chaque ouverture */
+      if(cle === 'prepares' && d.open && aDroit('cours')) afficherPrepares(true, true);
     });
   });
 }
