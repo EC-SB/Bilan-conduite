@@ -54,7 +54,9 @@ function appliquerDroits(){
   /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
   const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
                          'bureau_permis','bureau_messages'];
-  const bureauVisible = partiesBureau.some(aDroit);
+  /* La carte « simulateurs et examens blancs » ne dépend plus que
+     de ses propres sous-sections, le permis ayant sa carte à part. */
+  const bureauVisible = ['bureau_simu', 'bureau_examblanc'].some(aDroit);
 
   document.querySelectorAll('[data-section]').forEach(el => {
     const s = el.getAttribute('data-section');
