@@ -515,16 +515,25 @@ function bureauOccupe(){
   const a = document.activeElement;
   if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName || '')) return true;
   if(document.querySelector('.overlay.show')) return true;
-  const ouverts = document.querySelectorAll('[data-tiroir] details[open]');
+  const ouverts = document.querySelectorAll('.card details[open]');
   for(let i = 0; i < ouverts.length; i++){
     if(ouverts[i].querySelector('input, textarea, select')) return true;
   }
   return false;
 }
 
+/* Un module est « ouvert » s'il est dans l'onglet affiché et
+   qu'aucune autre vue ne le masque. */
 function tiroirOuvert(cle){
-  const d = document.querySelector('[data-tiroir="' + cle + '"]');
-  return !!(d && d.open && d.style.display !== 'none');
+  const correspond = { bureau: 'suivi', permisbureau: 'permis' };
+  const onglet = correspond[cle];
+  if(onglet) return (typeof ongletActif !== 'undefined') && ongletActif === onglet;
+
+  const el = document.querySelector('[data-vue="' + cle + '"]');
+  if(!el) return false;
+  return !el.classList.contains('hors-vue') &&
+         !el.classList.contains('hors-onglet') &&
+         el.style.display !== 'none';
 }
 
 function lancerActualisationAuto(){
