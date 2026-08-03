@@ -92,6 +92,12 @@ async function afficherPrepares(recharger, silencieux){
 
   majCompteur('cptPrepares', liste.length);
 
+  /* Au premier chargement, on ouvre le tiroir le plus utile */
+  if(!premierAffichagePrepares){
+    premierAffichagePrepares = true;
+    if(typeof ouvrirLeBonTiroirDuJour === 'function') ouvrirLeBonTiroirDuJour();
+  }
+
   if(!liste.length){
     const autres = prepares.length;
     zone.innerHTML = '<div class="empty">' +
