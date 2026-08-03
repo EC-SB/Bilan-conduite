@@ -16,6 +16,7 @@ function afficherExamensBlancs(tous){
   if(!eb.length){
     zEB.innerHTML = '<div class="empty">Aucun examen blanc à prévoir.</div>';
   }else{
+    if(typeof signalerAjout === 'function') signalerAjout(zEB);
     eb.forEach(e => {
       zEB.appendChild(ligneBureau(e, {
         replier: true,
@@ -86,6 +87,7 @@ function afficherSimulateurs(tous){
   if(!sim.length){
     zSim.innerHTML = '<div class="empty">Aucun simulateur nuit et risques en attente.</div>';
   }else{
+    if(typeof signalerAjout === 'function') signalerAjout(zSim);
     sim.forEach(e => {
       zSim.appendChild(ligneBureau(e, {
         info: x => (x.etat.simuNuit === 'prevu' ? 'Déjà prévu' : 'À prévoir') +
