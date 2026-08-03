@@ -15,7 +15,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 23;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 24;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -68,6 +68,10 @@ function appliquerDroits(){
     bd.style.display = (aDroit('depart') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
       ? '' : 'none';
   }
+
+  /* Le journal d'activité n'est visible que des administrateurs */
+  const jc = $('journalCard');
+  if(jc) jc.style.display = (ACCES.role === 'admin') ? '' : 'none';
 
   if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
@@ -380,7 +384,7 @@ window.EC_MODULES['ec-noyau.js'] = true;
    Un fichier absent du serveur ne provoque aucune erreur visible :
    des boutons cessent simplement de répondre. On le signale.
    ============================================================ */
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-postpermis.js", "ec-depart.js", "ec-demarrage.js"];
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-postpermis.js", "ec-journal.js", "ec-depart.js", "ec-demarrage.js"];
 
 function verifierModules(){
   const charges = window.EC_MODULES || {};
