@@ -81,6 +81,7 @@ async function afficherTextesBilan(){
   zone.innerHTML = '<div class="empty">Chargement des modèles…</div>';
   await chargerModelesBilan();
   appliquerModelesAjoutes();
+  appliquerChampsManuels();
   zone.innerHTML = '';
 
   /* Rappel de la distinction, une fois pour toutes */
@@ -143,8 +144,11 @@ async function afficherTextesBilan(){
       desc.textContent = DESCRIPTION_SCHEMA[m.schema] || 'Structure : ' + m.schema;
       d.appendChild(desc);
 
-      /* Consignes IA, propres au squelette */
-      if(m.schema !== 'rdvpost') d.appendChild(blocConsignesIA(m.schema));
+      /* Le formulaire manuel, puis les consignes IA */
+      if(m.schema !== 'rdvpost'){
+        d.appendChild(blocFormulaireManuel(m.schema));
+        d.appendChild(blocConsignesIA(m.schema));
+      }
 
       if(m.ajoute) d.appendChild(boutonRetirerModele(cle, m));
 
@@ -307,6 +311,10 @@ function ouvrirEditeurModeleBilan(){
     '<select id="mbSchema">' +
       schemas.map(s => '<option value="' + s + '">' + s + '</option>').join('') +
     '</select>' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:14px;color:var(--cream);margin-bottom:12px;">' +
+      '<input type="checkbox" id="mbFormulaire" style="width:18px;height:18px;">' +
+      'Ouvrir le formulaire manuel après création</label>' +
     '<div id="mbDesc" style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
       'line-height:1.5;"></div>');
 
@@ -357,12 +365,33 @@ function ouvrirEditeurModeleBilan(){
           schema: selS.value
         })
       });
+      const ouvrirForm = boite.querySelector('#mbFormulaire').checked;
+      const schemaChoisi = selS.value;
       document.body.removeChild(fond);
       await chargerModelesBilan();
       appliquerModelesAjoutes();
       if(typeof remplirModeles === 'function') remplirModeles();
       showToast('Modèle ajouté ✅');
-      afficherTextesBilan();
+      await afficherTextesBilan();
+
+      /* On amène directement au formulaire du nouveau modèle */
+      if(ouvrirForm){
+        setTimeout(() => {
+          const zone = $('bilansZone');
+          if(!zone) return;
+          const blocs = zone.querySelectorAll('details');
+          for(let i = 0; i < blocs.length; i++){
+            const s = blocs[i].querySelector('summary');
+            if(s && s.textContent.indexOf(nom) !== -1){
+              blocs[i].open = true;
+              const sous = blocs[i].querySelectorAll('details');
+              if(sous[0]) sous[0].open = true;
+              blocs[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+            }
+          }
+        }, 150);
+      }
     }catch(e){
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Erreur : ' + e.message;
@@ -378,9 +407,219 @@ function ouvrirEditeurModeleBilan(){
 async function appliquerTextesBilan(){
   await chargerModelesBilan();
   appliquerModelesAjoutes();
+  appliquerChampsManuels();
   if(typeof remplirModeles === 'function') remplirModeles();
 }
 
+
+/* ============================================================
+   FORMULAIRE DU BILAN MANUEL
+   Les rubriques que le moniteur remplit lui-même, modèle par
+   modèle. Modifiables, réordonnables, avec ajout et retrait.
+   ============================================================ */
+const TYPES_CHAMP = [
+  { cle:'ok',          nom:'✅❌ Trois états',      aide:'Coche verte, croix, ou rien' },
+  { cle:'texte',       nom:'✍️ Texte libre',        aide:'Zone de saisie, dictée possible' },
+  { cle:'court',       nom:'▪️ Ligne courte',       aide:'Une seule ligne' },
+  { cle:'themes',      nom:"🧠 Rubriques d'erreurs", aide:'Une zone par rubrique' },
+  { cle:'manoeuvres',  nom:'🦉 Fiche manœuvres',    aide:'Cases à cocher' },
+  { cle:'competences', nom:'📋 Compétences',        aide:'Cases à cocher du simulateur' },
+  { cle:'cepc',        nom:'🧾 CEPC noté',          aide:'Grille officielle' },
+  { cle:'observations',nom:'👮 Observations',       aide:'Constat et explication' },
+  { cle:'niveau',      nom:'🎯 Niveau permis',      aide:'Oui / Pas le niveau' },
+  { cle:'ouinon',      nom:'👍 Oui ou non',         aide:'Deux états' },
+  { cle:'photo',       nom:'📷 Photo',              aide:'Capture, non envoyée dans le bilan' }
+];
+
+function nomTypeChamp(cle){
+  const t = TYPES_CHAMP.find(x => x.cle === cle);
+  return t ? t.nom : cle;
+}
+
+/* Les champs enregistrés par l'auto-école pour une structure */
+function champsPersonnalises(schema){
+  const m = (modelesTexte || []).find(x => x.usage === 'champs_' + schema);
+  if(!m) return null;
+  try{ return JSON.parse(m.contenu); }catch(e){ return null; }
+}
+
+/* Applique les formulaires enregistrés */
+function appliquerChampsManuels(){
+  if(typeof CHAMPS_MANUELS === 'undefined') return;
+  Object.keys(CHAMPS_MANUELS).forEach(schema => {
+    const perso = champsPersonnalises(schema);
+    if(perso && perso.length) CHAMPS_MANUELS[schema] = perso;
+  });
+}
+
+
+/* L'éditeur du formulaire manuel d'une structure */
+function blocFormulaireManuel(schema){
+  const d = document.createElement('details');
+  d.style.cssText = 'margin-top:8px;';
+
+  const perso = champsPersonnalises(schema);
+  const dispo = (typeof CHAMPS_MANUELS !== 'undefined') && CHAMPS_MANUELS[schema];
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:600;color:' +
+    (perso ? 'var(--accent-text)' : 'var(--muted)') + ';">✍️ Formulaire du bilan manuel' +
+    (perso ? ' · modifié' : '') + '</summary>';
+
+  if(!dispo){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12px;color:var(--muted);margin:8px 0;line-height:1.5;';
+    v.textContent = "Cette structure n'a pas de formulaire manuel : " +
+      "elle passe par un écran dédié.";
+    d.appendChild(v);
+    return d;
+  }
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);margin:6px 0 8px;line-height:1.5;';
+  a.textContent = 'Les rubriques que le moniteur remplit, dans l\'ordre. ' +
+    'Elles valent pour tous les modèles de cette structure.';
+  d.appendChild(a);
+
+  /* Copie de travail : on n'écrit qu'à l'enregistrement */
+  let champs = JSON.parse(JSON.stringify(CHAMPS_MANUELS[schema]));
+
+  const liste = document.createElement('div');
+  d.appendChild(liste);
+
+  function dessiner(){
+    liste.innerHTML = '';
+    champs.forEach((ch, i) => {
+      const l = document.createElement('div');
+      l.style.cssText = 'border:1px solid var(--line);border-radius:8px;padding:8px 10px;' +
+        'margin-bottom:6px;';
+
+      const h = document.createElement('div');
+      h.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+
+      const nom = document.createElement('input');
+      nom.type = 'text';
+      nom.value = ch.nom || '';
+      nom.placeholder = 'Nom de la rubrique';
+      nom.style.cssText = 'flex:1;margin:0;font-size:14px;padding:8px 9px;min-width:0;';
+      nom.addEventListener('input', () => { ch.nom = nom.value; });
+      h.appendChild(nom);
+
+      if(i > 0){
+        const bh = document.createElement('button');
+        bh.type = 'button';
+        bh.className = 'btn btn-secondary';
+        bh.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;flex-shrink:0;';
+        bh.textContent = '↑';
+        bh.title = 'Monter';
+        bh.addEventListener('click', () => {
+          const t = champs[i - 1]; champs[i - 1] = champs[i]; champs[i] = t;
+          dessiner();
+        });
+        h.appendChild(bh);
+      }
+
+      const bx = document.createElement('button');
+      bx.type = 'button';
+      bx.className = 'btn btn-secondary';
+      bx.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;flex-shrink:0;' +
+        'color:var(--red);border-color:var(--red);';
+      bx.textContent = '✕';
+      bx.title = 'Retirer';
+      bx.addEventListener('click', () => { champs.splice(i, 1); dessiner(); });
+      h.appendChild(bx);
+
+      l.appendChild(h);
+
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:6px;';
+
+      const st = document.createElement('select');
+      st.style.cssText = 'flex:1;margin:0;font-size:13px;padding:7px 8px;min-width:0;';
+      st.innerHTML = TYPES_CHAMP.map(t =>
+        '<option value="' + t.cle + '">' + t.nom + '</option>').join('');
+      st.value = ch.type || 'texte';
+      st.addEventListener('change', () => { ch.type = st.value; });
+      r.appendChild(st);
+
+      const opt = document.createElement('input');
+      opt.type = 'text';
+      opt.style.cssText = 'width:90px;margin:0;font-size:13px;padding:7px 8px;flex-shrink:0;';
+      opt.placeholder = (ch.type === 'ok') ? 'défaut' : 'lignes';
+      opt.value = (ch.type === 'ok') ? (ch.defaut || '') : (ch.lignes || '');
+      opt.addEventListener('input', () => {
+        if(ch.type === 'ok') ch.defaut = opt.value;
+        else { const n = parseInt(opt.value, 10); if(!isNaN(n)) ch.lignes = n; }
+      });
+      r.appendChild(opt);
+
+      l.appendChild(r);
+      liste.appendChild(l);
+    });
+  }
+  dessiner();
+
+  const bAdd = document.createElement('button');
+  bAdd.className = 'btn btn-secondary';
+  bAdd.style.cssText = 'padding:8px;font-size:12px;margin-bottom:8px;';
+  bAdd.textContent = '➕ Ajouter une rubrique';
+  bAdd.addEventListener('click', () => {
+    champs.push({ cle: 'r' + Date.now().toString(36).slice(-5),
+                  type: 'texte', nom: 'Nouvelle rubrique', lignes: 4 });
+    dessiner();
+  });
+  d.appendChild(bAdd);
+
+  const r2 = document.createElement('div');
+  r2.style.cssText = 'display:flex;gap:8px;';
+
+  const bEnr = document.createElement('button');
+  bEnr.className = 'btn btn-secondary';
+  bEnr.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+  bEnr.textContent = '💾 Enregistrer le formulaire';
+  bEnr.addEventListener('click', async () => {
+    const propres = champs.filter(x => (x.nom || '').trim());
+    if(!propres.length){ showToast('Le formulaire est vide.'); return; }
+    bEnr.disabled = true;
+    try{
+      const src = (modelesTexte || []).find(x => x.usage === 'champs_' + schema);
+      await appelPrep({
+        action: 'modeleSet',
+        id: src ? src.id : '',
+        usage: 'champs_' + schema,
+        nom: 'Formulaire manuel — ' + schema,
+        contenu: JSON.stringify(propres)
+      });
+      CHAMPS_MANUELS[schema] = propres;
+      showToast('Formulaire enregistré ✅');
+      afficherTextesBilan();
+    }catch(e){ showToast('Erreur : ' + e.message); bEnr.disabled = false; }
+  });
+  r2.appendChild(bEnr);
+
+  if(perso){
+    const bRaz = document.createElement('button');
+    bRaz.className = 'btn btn-secondary';
+    bRaz.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bRaz.textContent = '↩️';
+    bRaz.title = "Revenir au formulaire d'origine";
+    bRaz.addEventListener('click', async () => {
+      if(!await confirmer("Revenir au formulaire d'origine ?\n\n" +
+                          'Recharge la page pour le voir appliqué.')) return;
+      const src = (modelesTexte || []).find(x => x.usage === 'champs_' + schema);
+      if(!src) return;
+      bRaz.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: src.id });
+        showToast("Formulaire d'origine rétabli");
+        afficherTextesBilan();
+      }catch(e){ showToast('Erreur : ' + e.message); bRaz.disabled = false; }
+    });
+    r2.appendChild(bRaz);
+  }
+
+  d.appendChild(r2);
+  return d;
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
