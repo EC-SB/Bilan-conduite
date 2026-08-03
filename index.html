@@ -426,7 +426,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v158</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v159</span></p>
     </div>
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:auto;background:transparent;border:1px solid var(--line);
@@ -979,14 +979,17 @@
     <summary>💬 Envoi de SMS</summary>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-        L'outil d'envoi, directement ici. Il garde sa propre connexion
-        et son propre journal d'envoi.
+        L'outil d'envoi, directement ici. La connexion se fait toute seule ;
+        son code n'est demandé qu'une fois s'il diffère du tien.
       </div>
       <div id="smsCadre" style="border:1px solid var(--line);border-radius:10px;
            overflow:hidden;background:var(--navy);"></div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button class="btn btn-secondary" id="smsRecharger"
                 style="flex:1;padding:9px;font-size:13px;margin:0;">🔄 Recharger</button>
+        <button class="btn btn-secondary" id="smsOublier"
+                style="width:auto;padding:9px 12px;font-size:13px;margin:0;"
+                title="Oublier le code SMS mémorisé">🔑</button>
         <a href="https://ec-sb.github.io/SMS2/" target="_blank" rel="noopener"
            class="btn btn-secondary"
            style="width:auto;padding:9px 12px;font-size:13px;margin:0;text-decoration:none;
@@ -1131,31 +1134,31 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app/ec-etat.js?v=158"></script>
-<script src="app/ec-modeles.js?v=158"></script>
-<script src="app/ec-consignes.js?v=158"></script>
-<script src="app/ec-noyau.js?v=158"></script>
-<script src="app/ec-vocal.js?v=158"></script>
-<script src="app/ec-reseau.js?v=158"></script>
-<script src="app/ec-manuel.js?v=158"></script>
-<script src="app/ec-fenetres.js?v=158"></script>
-<script src="app/ec-questionnaire.js?v=158"></script>
-<script src="app/ec-permis.js?v=158"></script>
-<script src="app/ec-prepares.js?v=158"></script>
-<script src="app/ec-bureau.js?v=158"></script>
-<script src="app/ec-places.js?v=158"></script>
-<script src="app/ec-listes.js?v=158"></script>
-<script src="app/ec-permis-listes.js?v=158"></script>
-<script src="app/ec-postpermis.js?v=158"></script>
-<script src="app/ec-textes.js?v=158"></script>
-<script src="app/ec-correction.js?v=158"></script>
-<script src="app/ec-bilans.js?v=158"></script>
-<script src="app/ec-sms.js?v=158"></script>
-<script src="app/ec-stats.js?v=158"></script>
-<script src="app/ec-messenger.js?v=158"></script>
-<script src="app/ec-journal.js?v=158"></script>
-<script src="app/ec-depart.js?v=158"></script>
-<script src="app/ec-demarrage.js?v=158"></script>
+<script src="app/ec-etat.js?v=159"></script>
+<script src="app/ec-modeles.js?v=159"></script>
+<script src="app/ec-consignes.js?v=159"></script>
+<script src="app/ec-noyau.js?v=159"></script>
+<script src="app/ec-vocal.js?v=159"></script>
+<script src="app/ec-reseau.js?v=159"></script>
+<script src="app/ec-manuel.js?v=159"></script>
+<script src="app/ec-fenetres.js?v=159"></script>
+<script src="app/ec-questionnaire.js?v=159"></script>
+<script src="app/ec-permis.js?v=159"></script>
+<script src="app/ec-prepares.js?v=159"></script>
+<script src="app/ec-bureau.js?v=159"></script>
+<script src="app/ec-places.js?v=159"></script>
+<script src="app/ec-listes.js?v=159"></script>
+<script src="app/ec-permis-listes.js?v=159"></script>
+<script src="app/ec-postpermis.js?v=159"></script>
+<script src="app/ec-textes.js?v=159"></script>
+<script src="app/ec-correction.js?v=159"></script>
+<script src="app/ec-bilans.js?v=159"></script>
+<script src="app/ec-sms.js?v=159"></script>
+<script src="app/ec-stats.js?v=159"></script>
+<script src="app/ec-messenger.js?v=159"></script>
+<script src="app/ec-journal.js?v=159"></script>
+<script src="app/ec-depart.js?v=159"></script>
+<script src="app/ec-demarrage.js?v=159"></script>
 
 </body>
 </html>
