@@ -1585,6 +1585,7 @@ async function afficherBureau(silencieux){
   });
   afficherPasNiveau(tous);
   afficherAttenteBilan(tous);
+  afficherPasDeRepassage(tous);
   afficherAlertePrise(per);
 
   zPer.innerHTML = '';
@@ -2278,6 +2279,53 @@ function ouvrirFichePermis(e){
       setTimeout(fermer, 700);
     }
   }, 400);
+}
+
+/* Élèves pour qui le repassage n'est pas envisageable pour le moment */
+function afficherPasDeRepassage(tous){
+  const zone = $('listePasRepassage');
+  if(!zone) return;
+
+  const liste = tous.filter(e => {
+    const s = suiviDe(e.eleve);
+    return s.rdvPostFait === 'oui' && s.suite === 'impossible';
+  });
+
+  zone.innerHTML = '';
+  if(!liste.length){
+    zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
+    return;
+  }
+
+  liste.forEach(e => {
+    const s = suiviDe(e.eleve);
+    zone.appendChild(ligneBureau(e, {
+      replier: true,
+      info: () => mentionAjournements(s.nbAjournements, s.dateAjournement) +
+                  ' · ⛔ pas de repassage pour le moment',
+      resume: () => s.commentaireMoniteur || '',
+      alerte: () => 'Reprise des leçons à suivre',
+      actions: (x, boite) => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-primary';
+        b.style.cssText = 'padding:10px;font-size:13px;';
+        b.textContent = '✅ Le niveau est revenu — remettre en examen à prévoir';
+        b.addEventListener('click', async () => {
+          if(!await confirmer('Remettre ' + x.eleve +
+                              ' dans les examens du permis à prévoir ?')) return;
+          b.disabled = true;
+          try{
+            await majSuivi(x.eleve, { suite: '', retireAPrevoir: '' });
+            await envoyerConsigne(x.eleve, 'permis',
+              "Niveau revenu — date d'examen à prévoir (bureau)");
+            showToast(x.eleve + ' est de retour en « à prévoir »');
+            afficherBureau();
+          }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
+        });
+        boite.appendChild(b);
+      }
+    }));
+  });
 }
 
 /* Signale que ce module est bien chargé */
