@@ -24,7 +24,108 @@ function actionSensible(action){
   return /supprim/i.test(action || '');
 }
 
-async function afficherJournal(){
+/* ============================================================
+   ALERTES
+   Une activité inhabituelle mérite un coup d'œil, sans accuser
+   personne : ce sont des repères, pas des verdicts.
+   ============================================================ */
+const COULEUR_GRAVITE = {
+  haute:   { bord:'var(--red)',    fond:'var(--warn-bg)',        icone:'🔴' },
+  moyenne: { bord:'#E8A33D',       fond:'rgba(232,163,61,.10)',  icone:'🟠' },
+  basse:   { bord:'var(--line)',   fond:'var(--navy)',           icone:'🔵' }
+};
+
+function blocAlertes(alertes){
+  const d = document.createElement('div');
+  if(!alertes || !alertes.length){
+    d.style.cssText = 'font-size:12px;color:var(--muted);padding:8px 10px;' +
+      'background:var(--navy);border:1px solid var(--line);border-radius:8px;' +
+      'margin-bottom:10px;';
+    d.textContent = '✅ Rien d\'inhabituel sur cette période.';
+    return d;
+  }
+
+  const det = document.createElement('details');
+  det.open = alertes.some(a => a.gravite === 'haute');
+  det.style.cssText = 'margin-bottom:10px;';
+  det.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--warn-text);">⚠️ ' + alertes.length + ' point(s) à regarder</summary>';
+
+  const liste = document.createElement('div');
+  liste.style.cssText = 'margin-top:8px;';
+
+  alertes.forEach(a => {
+    const g = COULEUR_GRAVITE[a.gravite] || COULEUR_GRAVITE.basse;
+    const l = document.createElement('div');
+    l.style.cssText = 'border:1px solid ' + g.bord + ';background:' + g.fond + ';' +
+      'border-radius:8px;padding:9px 11px;margin-bottom:6px;font-size:13px;line-height:1.5;';
+    l.innerHTML = g.icone + ' <strong>' + a.qui.replace(/</g, '&lt;') + '</strong> — ' +
+      a.titre.replace(/</g, '&lt;') +
+      '<div style="font-size:12px;color:var(--muted);margin-top:2px;">' +
+      dateEnToutesLettres(a.jour) + ' · ' + a.detail.replace(/</g, '&lt;') + '</div>';
+
+    /* Voir le détail de cette journée, pour cette personne */
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'margin-top:6px;width:auto;padding:5px 10px;font-size:12px;';
+    b.textContent = '🔍 Voir ce jour-là';
+    b.addEventListener('click', () => {
+      if($('journalQui')) $('journalQui').value = a.qui;
+      if($('journalPeriode')) $('journalPeriode').value = 'tout';
+      afficherJournal(a.jour);
+    });
+    l.appendChild(b);
+
+    liste.appendChild(l);
+  });
+
+  det.appendChild(liste);
+  d.appendChild(det);
+  return d;
+}
+
+
+/* ============================================================
+   EXPORT
+   Le journal en tableur, pour le conserver ou l'examiner ailleurs.
+   ============================================================ */
+function exporterJournal(lignes){
+  if(!lignes || !lignes.length){ showToast('Rien à exporter.'); return; }
+
+  const enTete = ['Date', 'Heure', 'Utilisateur', 'Rôle', 'Action', 'Élève', 'Détail'];
+  const cellule = v => {
+    const t = String(v === undefined || v === null ? '' : v);
+    /* Le point-virgule sépare les colonnes en France : on protège */
+    return /[";\n]/.test(t) ? '"' + t.split('"').join('""') + '"' : t;
+  };
+
+  const rangs = lignes.map(l => {
+    const quand = String(l.quand || '');
+    return [
+      quand.slice(0, 10),
+      quand.slice(-5),
+      l.qui, l.role, l.action, l.eleve, l.detail
+    ].map(cellule).join(';');
+  });
+
+  /* Le BOM évite les accents cassés à l'ouverture dans Excel */
+  const contenu = '\uFEFF' + enTete.join(';') + '\n' + rangs.join('\n');
+  const blob = new Blob([contenu], { type: 'text/csv;charset=utf-8;' });
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'journal-activite-' + todayLocal() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+  }, 500);
+
+  showToast(lignes.length + ' ligne(s) exportée(s) ✅');
+}
+
+async function afficherJournal(jourPrecis){
   const zone = $('journalListe');
   if(!zone) return;
 
@@ -33,7 +134,8 @@ async function afficherJournal(){
   const periode = ($('journalPeriode') && $('journalPeriode').value) || '7';
 
   let depuis = '';
-  if(periode !== 'tout'){
+  if(jourPrecis) depuis = jourPrecis;
+  else if(periode !== 'tout'){
     const d = new Date();
     d.setDate(d.getDate() - parseInt(periode, 10));
     depuis = d.toISOString().slice(0, 10);
@@ -54,8 +156,13 @@ async function afficherJournal(){
   }
   if(btn){ btn.disabled = false; btn.textContent = '🔄 Actualiser le journal'; }
 
-  const lignes = (data && data.lignes) || [];
+  let lignes = (data && data.lignes) || [];
+  /* Venu d'une alerte : on ne garde que la journée concernée */
+  if(jourPrecis) lignes = lignes.filter(l => l.jour === jourPrecis);
   zone.innerHTML = '';
+
+  /* Les points à regarder, avant le détail */
+  zone.appendChild(blocAlertes((data && data.alertes) || []));
 
   /* Récapitulatif : qui a fait combien de choses */
   const parPersonne = {};
@@ -77,6 +184,15 @@ async function afficherJournal(){
     ((data && data.conservation) || 90) + ' jours · ' +
     ((data && data.total) || 0) + ' ligne(s) au total</span>';
   zone.appendChild(tete);
+
+  if(lignes.length){
+    const bExp = document.createElement('button');
+    bExp.className = 'btn btn-secondary';
+    bExp.style.cssText = 'padding:9px;font-size:13px;margin-bottom:10px;';
+    bExp.textContent = '📥 Exporter en tableur (' + lignes.length + ' lignes)';
+    bExp.addEventListener('click', () => exporterJournal(lignes));
+    zone.appendChild(bExp);
+  }
 
   if(!lignes.length){
     const v = document.createElement('div');
