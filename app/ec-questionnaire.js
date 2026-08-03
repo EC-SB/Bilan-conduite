@@ -43,10 +43,10 @@ async function chargerDossierEleve(nomEleve){
     /* Anciennes lignes sans colonne Manœuvres : on relit en entier */
     const besoinTexte = res.length && res.every(x => !x.manoeuvres);
     if(besoinTexte){
-      const r2 = await fetch(CONFIG.SHEETS_PROXY_URL, {
+      const r2 = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+        body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim(), leger: true })
       });
       if(r2.ok){
         const d2 = await r2.json().catch(() => ({}));
@@ -905,10 +905,10 @@ function dateEnToutesLettres(iso){
 async function leconsDejaFaites(nomEleve){
   if(!nomEleve || nomEleve.trim().length < 2) return null;
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim(), leger: true })
     });
     if(!r.ok) return null;
     const data = await r.json().catch(() => ({}));
@@ -931,10 +931,10 @@ async function leconsDejaFaites(nomEleve){
 async function friseAnterieure(nomEleve){
   if(!nomEleve || nomEleve.trim().length < 2) return '';
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim(), leger: true })
     });
     if(!r.ok) return '';
     const data = await r.json().catch(() => ({}));
@@ -1034,10 +1034,10 @@ async function chargerHistoriqueEleve(){
   zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Recherche des cours précédents…</div>';
 
   try{
-    const r = await fetch(CONFIG.SHEETS_PROXY_URL, {
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom, leger: true })
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json().catch(() => ({}));
