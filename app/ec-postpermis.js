@@ -165,12 +165,31 @@ function afficherAttenteBilan(tous){
       prets.length + ' rendez-vous déjà organisé(s)</summary>';
     const l = document.createElement('div');
     l.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;padding:6px 2px;';
-    l.innerHTML = prets.map(e => {
+    prets.forEach(e => {
       const s = suiviDe(e.eleve);
-      return '• ' + e.eleve.replace(/</g, '&lt;') + ' — ' +
-             dateEnToutesLettres(s.rdvPostDate) + ' avec ' +
-             s.rdvPostMoniteur.replace(/</g, '&lt;');
-    }).join('<br>');
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;align-items:center;gap:8px;padding:3px 0;';
+
+      const t = document.createElement('span');
+      t.style.cssText = 'flex:1;min-width:0;';
+      t.textContent = e.eleve + ' — ' + dateEnToutesLettres(s.rdvPostDate) +
+                      ' avec ' + s.rdvPostMoniteur;
+      ligne.appendChild(t);
+
+      /* Reprendre le rendez-vous, s'il a été interrompu */
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;flex-shrink:0;';
+      b.textContent = '↗️ Reprendre';
+      b.title = 'Rouvrir le rendez-vous post-permis';
+      b.addEventListener('click', () => {
+        ouvrirRdvPost({ eleve: e.eleve, date: s.rdvPostDate,
+                        moniteur: s.rdvPostMoniteur, note: '', modele: 'rdv-post' });
+      });
+      ligne.appendChild(b);
+
+      l.appendChild(ligne);
+    });
     det.appendChild(l);
     zone.appendChild(det);
   }
@@ -228,17 +247,32 @@ function blocRdvPost(e){
   const f = document.createElement('div');
   f.style.cssText = 'margin-top:10px;padding:12px;background:var(--navy);' +
     'border:1px solid var(--line);border-radius:10px;';
+  const zoneTexte = 'width:100%;background:var(--navy-deep);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;line-height:1.5;' +
+    'font-family:inherit;resize:vertical;margin-bottom:14px;';
+
   f.innerHTML =
-    '<label for="' + id + 'b">Bilan de l\'examen — à coller ici</label>' +
-    '<textarea id="' + id + 'b" rows="6" placeholder="Colle ici le bilan transmis par l\'inspecteur. ' +
-      'Le moniteur le corrigera pendant le rendez-vous." ' +
-      'style="width:100%;background:var(--navy-deep);border:1px solid var(--line);color:var(--cream);' +
-      'padding:10px;border-radius:10px;font-size:14px;line-height:1.5;font-family:inherit;' +
-      'resize:vertical;margin-bottom:14px;"></textarea>' +
+    '<label for="' + id + 'b">📄 Bilan de l\'examen officiel</label>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;">' +
+      "Le rapport de l'inspecteur. Laisse vide s'il n'y en a pas.</div>" +
+    '<textarea id="' + id + 'b" rows="5" placeholder="Rapport transmis par l\'inspecteur" ' +
+      'style="' + zoneTexte + '"></textarea>' +
+
+    '<label for="' + id + 'e">📝 Bilan écrit par l\'élève</label>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;">' +
+      'Ce que l\'élève a envoyé par Messenger. Le moniteur le corrigera avec lui.</div>' +
+    '<textarea id="' + id + 'e" rows="5" placeholder="Bilan envoyé par l\'élève" ' +
+      'style="' + zoneTexte + '"></textarea>' +
+
     '<label for="' + id + 'd">Date du rendez-vous</label>' +
     '<input type="date" id="' + id + 'd">' +
     '<label for="' + id + 'm">Moniteur qui le reçoit</label>' +
     '<select id="' + id + 'm"><option value="">— à définir —</option></select>';
+
+  /* La capture du CEPC : le bureau peut la déposer ici s'il ne l'a pas
+     fait au moment de la saisie du résultat. */
+  let capture = s.cepcImage || '';
+  f.appendChild(blocImageCepc(e.eleve, capture, v => { capture = v; }));
 
   const bEnr = document.createElement('button');
   bEnr.className = 'btn btn-primary';
@@ -277,6 +311,7 @@ function blocRdvPost(e){
       sm.value = s.rdvPostMoniteur || '';
     }
     if(g('b')) g('b').value = s.bilanExamen || '';
+    if(g('e')) g('e').value = s.bilanEleve || '';
   }, 0);
 
   bEnr.addEventListener('click', async () => {
@@ -284,20 +319,16 @@ function blocRdvPost(e){
     const date = g('d').value;
     const mon = g('m').value;
     const bilan = g('b').value.trim();
+    const bilanEl = g('e').value.trim();
 
-    if(!bilan){
-      msg.style.color = 'var(--warn-text)';
-      msg.textContent = "Colle d'abord le bilan de l'examen.";
-      return;
-    }
-
-    /* On peut enregistrer le bilan seul, le rendez-vous viendra après */
+    /* On enregistre ce qui est là ; le rendez-vous peut venir après */
     if(!date || !mon){
       bEnr.disabled = true;
       try{
-        await majSuivi(e.eleve, { bilanExamen: bilan });
+        await majSuivi(e.eleve, { bilanExamen: bilan, bilanEleve: bilanEl,
+                                  cepcImage: capture });
         msg.style.color = 'var(--accent-text)';
-        msg.textContent = '✅ Bilan enregistré. Ajoute la date et le moniteur pour préparer le cours.';
+        msg.textContent = '✅ Enregistré. Ajoute la date et le moniteur pour préparer le cours.';
         afficherBureau();
       }catch(err){
         msg.style.color = 'var(--warn-text)';
@@ -309,12 +340,14 @@ function blocRdvPost(e){
     bEnr.disabled = true;
     bEnr.textContent = 'Enregistrement…';
     try{
-      await majSuivi(e.eleve, { rdvPostDate: date, rdvPostMoniteur: mon, bilanExamen: bilan });
+      await majSuivi(e.eleve, { rdvPostDate: date, rdvPostMoniteur: mon,
+                                bilanExamen: bilan, bilanEleve: bilanEl,
+                                cepcImage: capture });
 
       const n = parseInt(s.nbAjournements, 10) || 1;
       const note = '🔁 RENDEZ-VOUS POST-PERMIS · ' +
                    mentionAjournements(n, s.dateAjournement) +
-                   "\n\nBILAN DE L'EXAMEN À CORRIGER :\n" + bilan;
+                   (bilan ? "\n\nBILAN DE L'EXAMEN OFFICIEL :\n" + bilan : '');
       await appelPrep({
         action: 'prepAdd',
         date: date,
