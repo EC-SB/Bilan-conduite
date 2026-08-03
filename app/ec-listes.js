@@ -17,7 +17,8 @@ function afficherExamensBlancs(tous){
     zEB.innerHTML = '<div class="empty">Aucun examen blanc à prévoir.</div>';
   }else{
     if(typeof signalerAjout === 'function') signalerAjout(zEB);
-    eb.forEach(e => {
+    majVolet('cptEB', eb.length);
+  eb.forEach(e => {
       zEB.appendChild(ligneBureau(e, {
         replier: true,
         info: x => {
@@ -88,7 +89,8 @@ function afficherSimulateurs(tous){
     zSim.innerHTML = '<div class="empty">Aucun simulateur nuit et risques en attente.</div>';
   }else{
     if(typeof signalerAjout === 'function') signalerAjout(zSim);
-    sim.forEach(e => {
+    majVolet('cptSimu', sim.length);
+  sim.forEach(e => {
       zSim.appendChild(ligneBureau(e, {
         info: x => (x.etat.simuNuit === 'prevu' ? 'Déjà prévu' : 'À prévoir') +
                    (x.etat.examBlanc === 'reserve'
@@ -125,6 +127,7 @@ function afficherPasNiveau(tous){
     return;
   }
 
+  majVolet('cptPasNiveau', liste.length, liste.length > 0);
   liste.forEach(e => {
     zone.appendChild(ligneBureau(e, {
       info: x => 'Examen blanc du ' + (x.etat.ebDate || '?') + ' — pas le niveau',
