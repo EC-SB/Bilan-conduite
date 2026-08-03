@@ -1002,6 +1002,7 @@ function initTiroirs(){
       if(cle === 'permisbureau' && d.open) afficherMessengerPermis();
       if(cle === 'textes' && d.open) afficherModelesTexte();
       if(cle === 'procedures' && d.open) afficherProcedures();
+      if(cle === 'bilans' && d.open) afficherTextesBilan();
     });
   });
 }
