@@ -1001,6 +1001,7 @@ function initTiroirs(){
       if(cle === 'journal' && d.open && ACCES.role === 'admin') afficherJournal();
       if(cle === 'permisbureau' && d.open) afficherMessengerPermis();
       if(cle === 'textes' && d.open) afficherModelesTexte();
+      if(cle === 'procedures' && d.open) afficherProcedures();
     });
   });
 }
