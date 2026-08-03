@@ -303,26 +303,37 @@ async function afficherBureau(silencieux){
   const zPer = $('listePermis');
   if(!zEB) return;
 
-  const btn = $('bureauBtn');
+  /* Les deux tiroirs ont leur bouton : on les anime tous les deux,
+     sinon on croit que celui du permis ne répond pas. */
+  const boutons = [$('bureauBtn'), $('permisBureauBtn')].filter(Boolean);
+  const majBoutons = (t, off) => boutons.forEach(b => {
+    b.textContent = t;
+    b.disabled = !!off;
+  });
+
   if(silencieux){
-    if(btn) btn.textContent = '🔄 Actualisation…';
+    majBoutons('🔄 Actualisation…', false);
   }else{
-    if(btn){ btn.disabled = true; btn.textContent = '🔄 Chargement…'; }
-    zSim.innerHTML = '<div class="empty">Chargement du suivi…<br>' +
+    majBoutons('🔄 Chargement…', true);
+    const attente = '<div class="empty">Chargement du suivi…<br>' +
       '<span style="font-size:12px;">Le premier chargement prend quelques secondes.</span></div>';
-    zEB.innerHTML = '';
-    zPer.innerHTML = '';
+    /* Le message s'affiche dans le tiroir réellement ouvert */
+    if(tiroirOuvert('permisbureau')) zPer.innerHTML = attente;
+    else zSim.innerHTML = attente;
+    if(!tiroirOuvert('permisbureau')) zEB.innerHTML = '';
   }
 
   try{
     await chargerBureau(!silencieux);
     bureauDejaCharge = true;
   }catch(e){
-    if(btn){ btn.disabled = false; btn.textContent = '🔄 Actualiser les listes'; }
-    if(!silencieux) afficherErreurBureau(zSim, e);
+    majBoutons('🔄 Actualiser les listes', false);
+    if(!silencieux){
+      afficherErreurBureau(tiroirOuvert('permisbureau') ? zPer : zSim, e);
+    }
     return;
   }
-  if(btn){ btn.disabled = false; btn.textContent = '🔄 Actualiser les listes'; }
+  majBoutons('🔄 Actualiser les listes', false);
 
   const tous = etatBureau.eleves;
 
@@ -525,7 +536,7 @@ function lancerActualisationAuto(){
     /* Les cours préparés : d'autres moniteurs en ajoutent */
     if(tiroirOuvert('prepares') && aDroit('cours')) afficherPrepares(true, true);
 
-    /* Le suivi bureau, seulement s'il a déjà été ouvert une fois */
+    /* Les deux tiroirs de suivi se rafraîchissent d'eux-mêmes */
     if((tiroirOuvert('bureau') || tiroirOuvert('permisbureau')) && bureauDejaCharge){
       afficherBureau(true);
     }
@@ -543,6 +554,7 @@ function ecouterReseau(){
     showToast('Connexion rétablie');
     viderCaches();
     if(aDroit('cours')) afficherPrepares(true, true);
+    /* Les deux tiroirs de suivi se rafraîchissent d'eux-mêmes */
     if((tiroirOuvert('bureau') || tiroirOuvert('permisbureau')) && bureauDejaCharge){
       afficherBureau(true);
     }
