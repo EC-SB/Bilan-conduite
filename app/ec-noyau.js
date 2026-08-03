@@ -36,6 +36,7 @@ const SECTIONS = [
   { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
+  { cle:'procedures',       nom:'🚦 Procédures de conduite' },
   { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
   { cle:'admin',            nom:'⚙️ Administration des accès' }
 ];
