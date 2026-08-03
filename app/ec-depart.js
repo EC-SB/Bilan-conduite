@@ -760,6 +760,7 @@ function ouvrirSession(code, moniteur, role, saluer, droits){
   chargerEleves();
   chargerMoniteurs();
   initTiroirs();
+  appliquerTextesBilan();
   ecouterReseau();
   if(aDroit('cours')) afficherPrepares();
   lancerActualisationAuto();
