@@ -40,13 +40,14 @@ async function chargerDossierEleve(nomEleve){
     const data = await r.json().catch(() => ({}));
     let res = (data && data.resultats) || [];
 
-    /* Anciennes lignes sans colonne Manœuvres : on relit en entier */
+    /* Anciennes lignes sans colonne Manœuvres : on relit avec le texte.
+       Le mode léger était redemandé, ce qui coûtait un appel pour rien. */
     const besoinTexte = res.length && res.every(x => !x.manoeuvres);
     if(besoinTexte){
       const r2 = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim(), leger: true })
+        body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
       });
       if(r2.ok){
         const d2 = await r2.json().catch(() => ({}));
@@ -278,12 +279,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   let consignesBureau = [];
   try{
     const taches = [chargerDossierEleve(eleve)];
-    taches.push(eleve.length >= 2
-      ? appelPrep({ action: 'consigneList', eleve: eleve }).catch(() => ({}))
-      : Promise.resolve({}));
+    taches.push(consignesDe(eleve).catch(() => []));
     const [d, cd] = await Promise.all(taches);
     dossier = d || dossier;
-    consignesBureau = ((cd && cd.consignes) || [])
+    consignesBureau = (cd || [])
       .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
   }catch(e){
     console.warn('Dossier partiellement indisponible :', e);
