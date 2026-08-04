@@ -1,897 +1,647 @@
 /* ============================================================
-   ec-rappels.js
-   Rappels de cours par SMS.
-
-   On dépose la capture du planning, l'IA en tire la liste des
-   cours, l'application retrouve les élèves dans le répertoire
-   et compose un message pour chacun.
-
-   Rien ne part sans relecture : les envois groupés se trompent
-   de destinataire bien plus facilement qu'on ne le croit.
+   ec-textes.js
+   Bibliothèque de modèles de message, rédigés et modifiables
+   depuis l'application, enregistrés dans le classeur.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-const CONSIGNES_PLANNING =
-  "Tu lis la capture d'écran d'un planning d'auto-école. " +
-  "Extrais chaque cours visible.\n\n" +
-  "Réponds UNIQUEMENT avec un tableau JSON, sans texte autour, sans balises Markdown :\n" +
-  '[{"eleve":"Nom Prénom","date":"AAAA-MM-JJ","heure":"14h00",' +
-  '"duree":"2h","moniteur":"Prénom","site":"Saint-Brieuc"}]\n\n' +
-  "Règles :\n" +
-  "- « eleve » est obligatoire ; ignore les créneaux sans nom d'élève " +
-  "(pauses, indisponibilités, examens sans candidat nommé).\n" +
-  "- Recopie les noms EXACTEMENT comme ils apparaissent, sans corriger " +
-  "l'orthographe : ils servent à retrouver la fiche de l'élève.\n" +
-  "- Si la date n'est pas lisible, mets une chaîne vide.\n" +
-  "- Les heures au format 14h00.\n" +
-  "- Si tu ne vois aucun cours, réponds [].";
+/* Les emplacements où un modèle peut être utilisé.
+   Chaque usage annonce les variables qu'il sait remplacer. */
+const USAGES_MODELE = [
+  { cle:'permis_jour',    nom:'📣 Groupe Messenger — planning du jour',
+    variables:['{date}', '{centre}', '{rendezvous}', '{liste}', '{note}'] },
+  { cle:'permis_rappels', nom:'📌 Groupe Messenger — rappels avant examen',
+    variables:[] },
+  { cle:'permis_obtenu',  nom:'🎓 Élève ayant obtenu son permis',
+    variables:['{eleve}', '{date}'] },
+  { cle:'examen_blanc',   nom:'📝 Examen blanc — message à l\'élève',
+    variables:['{eleve}', '{date}', '{moniteur}'] },
+  { cle:'post_permis',    nom:'🔁 Rendez-vous post-permis',
+    variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
+  { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
+    variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
+    variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
+               '{note}', '{prenom}', '{eleve}',
+               '{date}', '{heure}', '{duree}', '{moniteur}', '{site}'] },
+  { cle:'procedure',      nom:'🚦 Procédure de conduite',
+    variables:[] },
+  { cle:'libre',          nom:'📄 Texte libre',
+    variables:['{eleve}', '{date}'] }
+];
 
-let coursDuPlanning = [];
+function nomUsage(cle){
+  const u = USAGES_MODELE.find(x => x.cle === cle);
+  return u ? u.nom : cle;
+}
 
-/* ---------- Lecture de la capture ---------- */
-async function lirePlanning(){
-  const inp = $('rappelFichier');
-  const zone = $('rappelZone');
-  const btn = $('rappelLire');
-  if(!inp || !zone) return;
+/* ============================================================
+   CATÉGORIES LIBRES
+   Les emplacements techniques (jour du permis, rappels…) restent
+   fixes : l'application sait où les utiliser. Les catégories,
+   elles, servent au rangement et sont créées librement.
+   ============================================================ */
+function categoriesExistantes(){
+  const vues = [];
+  (modelesTexte || []).forEach(m => {
+    const cat = (m.categorie || '').trim();
+    if(cat && vues.indexOf(cat) === -1) vues.push(cat);
+  });
+  return vues.sort((a, b) => a.localeCompare(b, 'fr'));
+}
 
-  const fichiers = Array.prototype.slice.call(inp.files || []);
-  if(!fichiers.length){ showToast('Choisis une capture du planning.'); return; }
+/* La catégorie est rangée dans le nom, faute de colonne dédiée :
+   « Permis › Félicitations ». Simple et rétrocompatible. */
+function separerCategorie(nom){
+  const i = String(nom || '').indexOf(' › ');
+  if(i === -1) return { categorie: '', titre: String(nom || '') };
+  return { categorie: nom.slice(0, i).trim(), titre: nom.slice(i + 3).trim() };
+}
 
-  btn.disabled = true;
-  btn.textContent = 'Lecture…';
-  zone.innerHTML = '<div class="empty">Lecture du planning par l\'IA…<br>' +
-    '<span style="font-size:12px;">Quelques secondes selon la taille de l\'image.</span></div>';
+function assemblerNom(categorie, titre){
+  const c = String(categorie || '').trim();
+  return c ? c + ' › ' + String(titre || '').trim() : String(titre || '').trim();
+}
 
+let modelesTexte = [];
+
+async function chargerModelesTexte(){
   try{
-    /* Toutes les captures partent dans un même message : un planning
-       tient rarement sur une seule image. */
-    const contenu = [];
-    for(const f of fichiers){
-      const donnees = await compresserImage(f);
-      const virgule = donnees.indexOf(',');
-      contenu.push({
-        type: 'image',
-        source: { type: 'base64', media_type: 'image/jpeg',
-                  data: donnees.slice(virgule + 1) }
-      });
-    }
-    contenu.push({ type: 'text', text: CONSIGNES_PLANNING });
-
-    const r = await fetch(CONFIG.IA_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: ACCES.code, payload: {
-        model: CONFIG.MODELE_IA || 'claude-sonnet-5',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: contenu }]
-      }})
+    const d = await appelPrep({ action: 'modeleList' });
+    modelesTexte = ((d && d.modeles) || []).map(m => {
+      const s = separerCategorie(m.nom);
+      return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
     });
-    if(!r.ok) throw new Error('Lecture impossible (HTTP ' + r.status + ')');
-
-    const data = await r.json();
-    const texte = (data.content || []).filter(x => x.type === 'text')
-                                      .map(x => x.text).join('\n');
-    const propre = texte.replace(/```json|```/g, '').trim();
-
-    let liste;
-    try{ liste = JSON.parse(propre); }
-    catch(e){ throw new Error("La lecture n'a rien donné d'exploitable. Réessaie avec une capture plus nette."); }
-    if(!Array.isArray(liste)) liste = [];
-
-    coursDuPlanning = liste
-      .filter(x => x && String(x.eleve || '').trim().length >= 3)
-      .map(x => ({
-        eleve: String(x.eleve).trim(),
-        date: String(x.date || '').trim(),
-        heure: String(x.heure || '').trim(),
-        duree: String(x.duree || '').trim(),
-        moniteur: String(x.moniteur || '').trim(),
-        site: String(x.site || '').trim(),
-        envoye: false
-      }));
-
-    inp.value = '';
-    afficherRappels();
   }catch(e){
-    zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '🔎 Lire le planning';
+    console.warn('Modèles indisponibles :', e);
   }
+  return modelesTexte;
 }
 
-
-
-/* ============================================================
-   RAPPROCHEMENT AVEC LE RÉPERTOIRE
-   Un planning n'affiche souvent qu'un mot : « Dupont », ou
-   « Pierre ». Deux élèves peuvent répondre au même mot, et un
-   rappel envoyé au mauvais destinataire ne se rattrape pas.
-   ============================================================ */
-function motsDe(nom){
-  return normaliserMot(nom).split(/[\s-]+/).filter(x => x.length >= 2);
+/* Le premier modèle enregistré pour cet usage, s'il en existe un */
+function modelePour(usage){
+  return modelesTexte.find(m => m.usage === usage) || null;
 }
 
-/* Renvoie les élèves du répertoire compatibles avec ce qui a été lu */
-function candidatsPour(nomLu){
-  const lus = motsDe(nomLu);
-  if(!lus.length) return { exact: null, candidats: [] };
-
-  const tous = (fichesEleves || []).map(f => f.eleve);
-  /* Les élèves connus par leurs bilans comptent aussi */
-  (elevesConnus || []).forEach(n => {
-    if(!tous.some(x => normaliserMot(x) === normaliserMot(n))) tous.push(n);
+/* Remplace les {variables} par leurs valeurs.
+   Une variable absente disparaît, plutôt que de laisser {truc} dans le texte. */
+function appliquerModele(contenu, valeurs){
+  let t = String(contenu || '');
+  Object.keys(valeurs || {}).forEach(k => {
+    t = t.split('{' + k + '}').join(String(valeurs[k] === undefined ? '' : valeurs[k]));
   });
-
-  /* Correspondance parfaite : on ne cherche pas plus loin */
-  const exact = tous.find(n => normaliserMot(n) === normaliserMot(nomLu));
-  if(exact) return { exact: exact, candidats: [exact] };
-
-  /* Sinon : tous ceux dont un mot correspond exactement à un mot lu.
-     On n'accepte pas les correspondances partielles : « Mar » ne doit
-     pas rapprocher Marine, Marc et Marie. */
-  const candidats = tous.filter(n => {
-    const mots = motsDe(n);
-    return lus.every(l => mots.indexOf(l) !== -1) ||
-           lus.some(l => mots.indexOf(l) !== -1 && l.length >= 3);
-  });
-
-  return { exact: candidats.length === 1 ? candidats[0] : null,
-           candidats: candidats };
-}
-
-/* ---------- Le message envoyé à un élève ---------- */
-function messageRappel(c){
-  const perso = (typeof modelePour === 'function') ? modelePour('rappel_cours') : null;
-  const nom = c.choisi || c.eleve;
-  const valeurs = {
-    eleve: nom,
-    prenom: nom.split(' ')[0],
-    date: c.date ? dateEnToutesLettres(c.date) : '',
-    heure: c.heure,
-    duree: c.duree,
-    moniteur: c.moniteur,
-    site: c.site
-  };
-
-  if(perso && perso.contenu) return appliquerModele(perso.contenu, valeurs);
-
-  /* Modèle proposé tant qu'aucun n'est enregistré */
-  return 'Bonjour ' + valeurs.prenom + ',\n' +
-    'Petit rappel de ton cours de conduite' +
-    (valeurs.date ? ' le ' + valeurs.date : '') +
-    (c.heure ? ' à ' + c.heure : '') +
-    (c.duree ? ' (' + c.duree + ')' : '') +
-    (c.moniteur ? ' avec ' + c.moniteur : '') +
-    (c.site ? ' — ' + c.site : '') + '.\n' +
-    "Merci de prévenir au plus vite en cas d'empêchement.\n" +
-    'Évolution Conduites';
+  /* Nettoyage des variables non fournies */
+  t = t.replace(/\{[a-zA-Zéèêàçùî_]+\}/g, '');
+  return t;
 }
 
 
-/* ---------- Affichage et envoi ---------- */
-async function afficherRappels(){
-  const zone = $('rappelZone');
+/* ---------- Interface de gestion ---------- */
+
+async function afficherModelesTexte(){
+  const zone = $('textesZone');
   if(!zone) return;
 
-  if(!coursDuPlanning.length){
-    zone.innerHTML = '<div class="empty">Aucun cours lu pour le moment.</div>';
-    return;
-  }
-
-  zone.innerHTML = '<div class="empty">Recherche des numéros…</div>';
-  if(typeof chargerFiches === 'function') await chargerFiches();
-  if(typeof chargerModelesTexte === 'function') await chargerModelesTexte();
+  zone.innerHTML = '<div class="empty">Chargement des modèles…</div>';
+  await chargerModelesTexte();
   zone.innerHTML = '';
 
-  /* Chaque cours est rapproché du répertoire, sans jamais deviner */
-  coursDuPlanning.forEach(c => {
-    if(!c.choisi){
-      const r = candidatsPour(c.eleve);
-      c.candidats = r.candidats;
-      c.choisi = r.exact || '';
-    }
-    const f = c.choisi && typeof ficheDe === 'function' ? ficheDe(c.choisi) : null;
-    c.telephone = f && f.telephone ? f.telephone : '';
-  });
+  /* Nouveau modèle */
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
 
-  const prets = coursDuPlanning.filter(c => c.telephone);
-  const aChoisir = coursDuPlanning.filter(c => !c.choisi && c.candidats.length > 1);
-  const sans = coursDuPlanning.filter(c => !c.telephone && !aChoisir.includes(c));
+  const bNouveau = document.createElement('button');
+  bNouveau.className = 'btn btn-primary';
+  bNouveau.style.cssText = 'flex:1;margin:0;';
+  bNouveau.textContent = '➕ Nouveau texte type';
+  bNouveau.addEventListener('click', () => ouvrirEditeurModele(null));
+  r.appendChild(bNouveau);
 
-  const tete = document.createElement('div');
-  tete.style.cssText = 'padding:10px 12px;background:var(--navy);border:1px solid var(--line);' +
-    'border-radius:10px;margin-bottom:12px;font-size:13px;line-height:1.6;';
-  tete.innerHTML = '<strong>' + coursDuPlanning.length + ' cours lu(s)</strong> · ' +
-    '<span style="color:var(--accent-text);">' + prets.length + ' prêt(s) à envoyer</span>' +
-    (aChoisir.length ? ' · <span style="color:var(--warn-text);">' + aChoisir.length +
-      ' à départager</span>' : '') +
-    (sans.length ? ' · <span style="color:var(--muted);">' + sans.length +
-      ' sans numéro</span>' : '') +
-    (modelePour && modelePour('rappel_cours')
-      ? '<br><span style="font-size:12px;color:var(--muted);">Modèle : « ' +
-        modelePour('rappel_cours').titre + ' »</span>'
-      : '<br><span style="font-size:12px;color:var(--muted);">Aucun modèle enregistré : ' +
-        "texte proposé par l'application. Crée-en un dans « Textes types », usage " +
-        '« Rappel de cours ».</span>');
-  zone.appendChild(tete);
+  const bImport = document.createElement('button');
+  bImport.className = 'btn btn-secondary';
+  bImport.style.cssText = 'width:auto;padding:0 16px;margin:0;font-size:14px;';
+  bImport.textContent = '📥 Importer';
+  bImport.title = 'Coller plusieurs modèles d\'un coup';
+  bImport.addEventListener('click', ouvrirImportModeles);
+  r.appendChild(bImport);
 
-  if(sans.length){
-    const a = document.createElement('div');
-    a.style.cssText = 'background:var(--warn-bg);border:1px solid var(--red);border-radius:9px;' +
-      'padding:9px 11px;margin-bottom:12px;font-size:12px;line-height:1.6;color:var(--warn-text);';
-    a.innerHTML = "⚠️ Sans numéro dans le répertoire :<br>" +
-      sans.map(c => '• ' + c.eleve.replace(/</g, '&lt;')).join('<br>') +
-      '<br><span style="color:var(--muted);">Complète leur fiche dans « Répertoire élèves », ' +
-      'ou vérifie l\'orthographe lue sur le planning.</span>';
-    zone.appendChild(a);
-  }
+  zone.appendChild(r);
 
-  coursDuPlanning.forEach((c, i) => zone.appendChild(ligneRappel(c, i)));
-
-  /* Tout copier, pour un envoi groupé depuis l'outil SMS */
-  if(prets.length){
-    /* Envoi de toute la journée, un par un et jamais en aveugle */
-    const bTous = document.createElement('button');
-    bTous.className = 'btn btn-primary';
-    bTous.style.cssText = 'margin-top:12px;padding:13px;font-size:14px;';
-    const restants = prets.filter(x => !x.envoye);
-    bTous.textContent = '📤 Envoyer les ' + restants.length + ' SMS restants';
-    bTous.disabled = !restants.length;
-    bTous.addEventListener('click', async () => {
-      if(!await confirmer('Envoyer ' + restants.length + ' SMS ?\n\n' +
-          restants.map(x => '• ' + (x.choisi || x.eleve)).join('\n') +
-          '\n\nIls partent un par un ; tu peux suivre l\'avancement.')) return;
-
-      bTous.disabled = true;
-      let ok = 0, rates = [];
-      for(let i = 0; i < restants.length; i++){
-        const cr = restants[i];
-        bTous.textContent = 'Envoi ' + (i + 1) + ' sur ' + restants.length + '…';
-        try{
-          await envoyerSmsAllo(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
-          cr.envoye = true;
-          ok++;
-        }catch(e){
-          rates.push((cr.choisi || cr.eleve) + ' : ' + e.message);
-          /* Quota atteint : inutile d'insister, les suivants échoueront */
-          if(/quota/i.test(e.message)){
-            await informer('Quota Allo atteint. Les envois restants sont interrompus.\n\n' +
-                           e.message);
-            break;
-          }
-        }
-      }
-      showToast(ok + ' SMS envoyé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
-      if(rates.length) await informer('Envois manqués :\n\n' + rates.join('\n'));
-      afficherRappels();
-    });
-    zone.appendChild(bTous);
-
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-top:8px;padding:11px;font-size:13px;';
-    b.textContent = '📋 Copier les ' + prets.length + ' messages avec les numéros';
-    b.addEventListener('click', () => {
-      const texte = prets.map(c => c.telephone + '\t' + messageRappel(c).replace(/\n/g, ' | '))
-                         .join('\n');
-      navigator.clipboard.writeText(texte).then(
-        () => showToast(prets.length + ' messages copiés ✅'),
-        () => showToast('Copie impossible'));
-    });
-    zone.appendChild(b);
-  }
-}
-
-function ligneRappel(c, i){
-  const d = document.createElement('div');
-  d.style.cssText = 'border:1px solid ' + (c.telephone ? 'var(--line)' : 'var(--red)') +
-    ';border-radius:10px;padding:10px 12px;margin-bottom:7px;' +
-    (c.envoye ? 'opacity:.55;' : '');
-
-  const h = document.createElement('div');
-  h.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
-
-  const info = document.createElement('div');
-  info.style.cssText = 'flex:1;min-width:0;';
-  info.innerHTML = '<strong>' + (c.envoye ? '✅ ' : '') +
-    (c.choisi || c.eleve).replace(/</g, '&lt;') + '</strong>' +
-    (c.choisi && normaliserMot(c.choisi) !== normaliserMot(c.eleve)
-      ? ' <span style="font-size:11px;color:var(--muted);">lu : ' +
-        c.eleve.replace(/</g, '&lt;') + '</span>' : '') +
-    '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
-    [c.date ? dateEnToutesLettres(c.date) : '', c.heure, c.duree, c.moniteur, c.site]
-      .filter(Boolean).join(' · ') +
-    (c.telephone ? '<br>📱 ' + telLisible(c.telephone) : '<br>📱 numéro inconnu') +
-    '</div>';
-  h.appendChild(info);
-
-  if(c.telephone && !c.envoye){
-    const a = document.createElement('button');
-    a.className = 'btn btn-primary';
-    a.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;flex-shrink:0;';
-    a.textContent = '💬 Envoyer';
-    a.addEventListener('click', async () => {
-      a.disabled = true;
-      a.textContent = 'Envoi…';
-      try{
-        await envoyerSmsAllo(c.telephone, messageRappel(c), c.choisi || c.eleve);
-        c.envoye = true;
-        showToast('SMS envoyé à ' + (c.choisi || c.eleve));
-        afficherRappels();
-      }catch(e){
-        showToast('Erreur : ' + e.message);
-        a.disabled = false;
-        a.textContent = '💬 Envoyer';
-      }
-    });
-    h.appendChild(a);
-  }
-
-  d.appendChild(h);
-
-  /* Plusieurs élèves possibles : on demande, on ne devine pas */
-  if(!c.choisi){
-    const z = document.createElement('div');
-    z.style.cssText = 'margin-top:8px;';
-
-    if(c.candidats.length > 1){
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:12px;color:var(--warn-text);margin-bottom:5px;';
-      a.textContent = '⚠️ ' + c.candidats.length + ' élèves portent ce nom. Lequel ?';
-      z.appendChild(a);
-    }
-
-    const sel = document.createElement('select');
-    sel.style.margin = '0';
-    sel.innerHTML = '<option value="">— choisis l\'élève —</option>' +
-      c.candidats.map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">' +
-        x + (ficheDe(x) && ficheDe(x).telephone ? '' : ' (sans numéro)') +
-        '</option>').join('') +
-      (c.candidats.length ? '<option value="__autre">— un autre élève —</option>' : '');
-    sel.addEventListener('change', () => {
-      if(sel.value === '__autre'){ choisirAutreEleve(c); return; }
-      c.choisi = sel.value;
-      afficherRappels();
-    });
-    z.appendChild(sel);
-
-    if(!c.candidats.length){
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'margin-top:6px;padding:8px;font-size:12px;';
-      b.textContent = '🔍 Chercher « ' + c.eleve + ' » dans le répertoire';
-      b.addEventListener('click', () => choisirAutreEleve(c));
-      z.appendChild(b);
-    }
-
-    d.appendChild(z);
-  }
-
-  /* Le texte exact, relisible et modifiable avant envoi */
-  const det = document.createElement('details');
-  det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);' +
-    'margin-top:6px;">Voir le message</summary>';
-  const t = document.createElement('div');
-  t.style.cssText = 'margin-top:6px;font-size:13px;line-height:1.5;white-space:pre-wrap;' +
-    'color:var(--cream);background:var(--navy);padding:9px 11px;border-radius:8px;';
-  t.textContent = messageRappel(c);
-  det.appendChild(t);
-  d.appendChild(det);
-
-  return d;
-}
-
-
-
-
-/* Choisir un élève dans tout le répertoire, quand la lecture
-   n'a rien donné ou que le bon nom n'est pas proposé. */
-async function choisirAutreEleve(c){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(480px, 94vw);max-height:85vh;overflow-y:auto;';
-
-  boite.insertAdjacentHTML('beforeend',
-    '<h3>Quel élève ?</h3>' +
-    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">' +
-      'Le planning indique « <strong>' + c.eleve.replace(/</g, '&lt;') + '</strong> ». ' +
-      'Choisis à qui envoyer le rappel.</div>' +
-    '<input type="text" id="chAutre" placeholder="🔍 Filtrer">');
-
-  const liste = document.createElement('div');
-  liste.style.cssText = 'max-height:44vh;overflow-y:auto;margin:8px 0 12px;';
-  boite.appendChild(liste);
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  boite.appendChild(bAnn);
-
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-
-  const tous = (fichesEleves || []).map(f => f.eleve)
-    .concat((elevesConnus || []).filter(n =>
-      !(fichesEleves || []).some(f => normaliserMot(f.eleve) === normaliserMot(n))))
-    .sort((a, b) => a.localeCompare(b, 'fr'));
-
-  const rech = boite.querySelector('#chAutre');
-  function dessiner(){
-    const q = normaliserMot(rech.value);
-    liste.innerHTML = '';
-    tous.filter(n => !q || normaliserMot(n).indexOf(q) !== -1).forEach(n => {
-      const f = ficheDe(n);
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'text-align:left;padding:10px 12px;font-size:14px;margin:0 0 5px;';
-      b.textContent = n + (f && f.telephone ? '  📱' : '  (sans numéro)');
-      b.addEventListener('click', () => {
-        c.choisi = n;
-        document.body.removeChild(fond);
-        afficherRappels();
-      });
-      liste.appendChild(b);
-    });
-    if(!liste.children.length){
-      liste.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
-    }
-  }
-  rech.addEventListener('input', dessiner);
-  dessiner();
-  setTimeout(() => rech.focus(), 100);
-}
-
-/* ============================================================
-   COMPOSITION D'UN RAPPEL À LA MAIN
-   Le message est toujours le même ; seules quelques mentions
-   changent d'un élève à l'autre.
-   ============================================================ */
-/* Les types de rappel viennent tous de « Textes types ».
-   L'application n'en propose plus d'elle-même : les vôtres sont
-   les bons, et deux listes concurrentes prêtaient à confusion. */
-const TYPES_RAPPEL = [];
-
-const JOURS_RAPPEL = ['𝗗𝗘𝗠𝗔𝗜𝗡', "𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
-                      '𝗠𝗘𝗥𝗖𝗥𝗘𝗗𝗜', '𝗝𝗘𝗨𝗗𝗜', '𝗩𝗘𝗡𝗗𝗥𝗘𝗗𝗜', '𝗦𝗔𝗠𝗘𝗗𝗜', '𝗗𝗜𝗠𝗔𝗡𝗖𝗛𝗘'];
-
-const EMPLACEMENTS = [
-  { cle:'cour', texte:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿 𝗶𝗻𝘁𝗲́𝗿𝗶𝗲𝘂𝗿𝗲 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
-  { cle:'rue',  texte:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
-  { cle:'',     texte:'' }
-];
-
-const OPTIONS_RAPPEL = [
-  { cle:'retard',  nom:'⏰ Le moniteur peut avoir du retard (retour de permis)',
-    texte:'Ta monitrice sera peut-être un peu en retard, car elle reviendra de permis.' },
-  { cle:'ci',      nom:"🆔 Déposer sa carte d'identité au bureau",
-    texte:"𝗡'𝗢𝗨𝗕𝗟𝗜𝗘 𝗣𝗔𝗦 𝗗𝗘 𝗡𝗢𝗨𝗦 𝗗𝗘́𝗣𝗢𝗦𝗘𝗥 𝗧𝗔 𝗖𝗔𝗥𝗧𝗘 𝗗'𝗜𝗗𝗘𝗡𝗧𝗜𝗧𝗘́ 𝗔𝗨 𝗕𝗨𝗥𝗘𝗔𝗨 𝗢𝗕𝗟𝗜𝗚𝗔𝗧𝗢𝗜𝗥𝗘𝗠𝗘𝗡𝗧\n" +
-          'Passe au bureau 5 min avant ton cours nous donner ta carte d\'identité !\n' +
-          '(On te la rend après ton permis 😉)' },
-  { cle:'sd',      nom:'💾 Récupérer sa carte SD au bureau',
-    texte:'Passe au bureau 5 min avant ton cours que l\'on te donne ta carte SD ' +
-          'comprise dans ton forfait 😉\n(Pour revisionner tes cours ensuite de chez toi)' },
-  { cle:'1er-bv',  nom:'🚙 Premier cours en voiture — boîte manuelle',
-    texte:"J'espère que tu as bien bossé avant ton 1ᵉʳ cours en voiture : t'es-tu entrainé " +
-          'à tourner le volant chez toi (assiette ou autre), revu la position de la main ' +
-          'sur le levier de vitesse comme indiqué sur ton dernier rapport en simulateur ?\n' +
-          'Je rappelle que tu peux te filmer en t\'entrainant et que je peux te corriger ' +
-          'gratuitement sur Messenger !' },
-  { cle:'1er-bea', nom:'🅰 Premier cours en voiture — boîte automatique',
-    texte:"J'espère que tu as bien bossé avant ton 1ᵉʳ cours en voiture : t'es-tu entrainé " +
-          'à tourner le volant chez toi (assiette ou autre), revu les erreurs indiquées ' +
-          'sur ton dernier rapport en simulateur ?\n' +
-          'Je rappelle que tu peux te filmer en t\'entrainant et que je peux te corriger ' +
-          'gratuitement sur Messenger !' }
-];
-
-/* Les types disponibles : ceux de l'application, plus les vôtres.
-   Un texte enregistré dans « Textes types » avec l'usage
-   « Rappel de cours » devient un type à part entière. */
-function typesDisponibles(){
-  const perso = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
-    .filter(m => m.usage === 'rappel_cours')
-    .map(m => ({ cle: 'perso:' + m.id, titre: m.titre || m.nom,
-                 contenu: m.contenu, perso: true }));
-  return TYPES_RAPPEL.concat(perso);
-}
-
-/* Allo compte 1000 caractères par SMS ; on garde une marge. */
-const LIMITE_SMS = 950;
-
-/* Le message assemblé à partir des choix */
-function composerRappel(r){
-  const tous = typesDisponibles();
-  if(!tous.length){
-    return "Aucun modèle de rappel enregistré.\n\n" +
-      "Va dans ⚙️ Outils → 📄 Textes types, crée un texte avec l'usage " +
-      '« 🔔 Rappel de cours par SMS », et il apparaîtra ici.';
-  }
-  const type = tous.find(x => x.cle === r.type) || tous[0];
-
-  const empl = EMPLACEMENTS.find(x => x.cle === r.emplacement);
-  const mentions = (r.options || [])
-    .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
-    .filter(Boolean).join('\n\n');
-
-  return appliquerModele(type.contenu || '', {
-    jour: r.jour || '',
-    voiture: r.voiture || '',
-    emplacement: (empl && empl.texte) || '',
-    mentions: mentions,
-    note: (r.libre || '').trim(),
-    eleve: r.eleve || '',
-    prenom: (r.eleve || '').split(' ')[0]
-  });
-}
-
-/* ---------- L'écran de composition manuelle ---------- */
-/* Ce qui reste d'un élève au suivant : on enchaîne les rappels
-   d'une même journée, il serait pénible de tout ressaisir. */
-let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', voiture:'',
-                    emplacement:'cour', options:[], libre:'' };
-
-const CLE_RAPPEL = 'rappel_reglages';
-
-function memoriserChoixRappel(){
-  try{
-    const r = lireChoixRappel();
-    delete r.libre;   /* propre à un élève, on ne le reporte pas */
-    localStorage.setItem(CLE_RAPPEL, JSON.stringify(r));
-  }catch(e){}
-}
-
-function relireChoixRappel(){
-  try{
-    const brut = localStorage.getItem(CLE_RAPPEL);
-    if(brut) choixRappel = Object.assign(choixRappel, JSON.parse(brut));
-  }catch(e){}
-  return choixRappel;
-}
-
-async function afficherRappelManuel(){
-  const zone = $('rappelManuelZone');
-  if(!zone) return;
-
-  zone.innerHTML = '<div class="empty">Chargement des élèves…</div>';
-  if(typeof chargerFiches === 'function') await chargerFiches();
-  zone.innerHTML = '';
-
-  /* Choix de l'élève */
-  const lab = document.createElement('label');
-  lab.textContent = "Élève — le numéro vient de sa fiche";
-  zone.appendChild(lab);
-
-  /* Saisie libre avec suggestions : plus rapide que de dérouler
-     une liste de plusieurs centaines d'élèves. */
-  const sel = document.createElement('input');
-  sel.type = 'text';
-  sel.id = 'rappelEleve';
-  sel.setAttribute('list', 'listeRappelEleves');
-  sel.autocomplete = 'off';
-  sel.placeholder = 'Tape les premières lettres, ou laisse vide';
-  zone.appendChild(sel);
-
-  const dl = document.createElement('datalist');
-  dl.id = 'listeRappelEleves';
-  const noms = (fichesEleves || []).map(f => f.eleve);
-  (elevesConnus || []).forEach(n => {
-    if(!noms.some(x => normaliserMot(x) === normaliserMot(n))) noms.push(n);
-  });
-  noms.sort((a, b) => a.localeCompare(b, 'fr')).forEach(n => {
-    const o = document.createElement('option');
-    const f = ficheDe(n);
-    o.value = n;
-    o.textContent = (f && f.telephone) ? telLisible(f.telephone) : 'sans numéro';
-    dl.appendChild(o);
-  });
-  zone.appendChild(dl);
-
-  const etatEleve = document.createElement('div');
-  etatEleve.id = 'rappelEleveEtat';
-  etatEleve.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
-  zone.appendChild(etatEleve);
-
-  /* Un élève absent du répertoire, ou un numéro ponctuel */
-  const lt = document.createElement('label');
-  lt.textContent = 'Numéro — laisse vide pour prendre celui de sa fiche';
-  zone.appendChild(lt);
-
-  const tel = document.createElement('input');
-  tel.type = 'tel';
-  tel.id = 'rapTel';
-  tel.inputMode = 'tel';
-  tel.placeholder = '06 12 34 56 78';
-  zone.appendChild(tel);
-
-  /* Les réglages du message */
-  /* Sans modèle enregistré, l'outil ne peut rien composer */
-  if(!typesDisponibles().length){
+  if(!modelesTexte.length){
     const v = document.createElement('div');
     v.className = 'empty';
-    v.style.cssText = 'padding:16px;line-height:1.6;';
-    v.innerHTML = '📄 <strong>Aucun modèle de rappel enregistré.</strong><br>' +
-      '<span style="font-size:12px;">Va dans <strong>📄 Textes types</strong>, ' +
-      'crée un texte avec l\'usage « 🔔 Rappel de cours par SMS », ' +
-      'et il apparaîtra ici.<br>' +
-      'Le bouton 📥 Importer permet d\'en coller plusieurs d\'un coup.</span>';
+    v.innerHTML = 'Aucun modèle enregistré.<br>' +
+      '<span style="font-size:12px;">Ajoute ici les textes que tu envoies souvent : ' +
+      "message du groupe permis, félicitations, examen blanc… " +
+      "L'application les reprendra à ta place.</span>";
     zone.appendChild(v);
     return;
   }
 
-  const grille = document.createElement('div');
-  grille.className = 'duo';
-  grille.innerHTML =
-    '<div><label for="rapType">Type de séance</label><select id="rapType">' +
-      typesDisponibles().map(t => '<option value="' + t.cle + '">' +
-        String(t.titre).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô'’-]/g, '') +
-        '</option>').join('') +
-    '</select></div>' +
-    '<div><label for="rapJour">Quand</label><select id="rapJour">' +
-      JOURS_RAPPEL.map(j => '<option value="' + j + '">' +
-        j.normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô']/g, '') + '</option>').join('') +
-    '</select></div>';
-  zone.appendChild(grille);
-
-  const grille2 = document.createElement('div');
-  grille2.className = 'duo';
-  grille2.innerHTML =
-    '<div><label for="rapVoiture">N° de voiture</label>' +
-      '<input type="text" id="rapVoiture" inputmode="numeric" placeholder="Ex : 5"></div>' +
-    '<div><label for="rapEmpl">Où est la voiture</label><select id="rapEmpl">' +
-      '<option value="cour">Cour intérieure</option>' +
-      '<option value="rue">Rue, le long du trottoir</option>' +
-      '<option value="">Ne pas préciser</option>' +
-    '</select></div>';
-  zone.appendChild(grille2);
-
-  /* Les mentions à ajouter */
-  const t = document.createElement('label');
-  t.textContent = 'Mentions à ajouter';
-  zone.appendChild(t);
-
-  OPTIONS_RAPPEL.forEach(o => {
-    const l = document.createElement('label');
-    l.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
-      'font-size:14px;color:var(--cream);margin:0 0 8px;font-weight:400;';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = o.cle;
-    cb.className = 'optionRappel';
-    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
-    cb.addEventListener('change', apercuRappel);
-    l.appendChild(cb);
-    l.appendChild(document.createTextNode(o.nom));
-    zone.appendChild(l);
+  /* Regroupement par catégorie, puis par usage à l'intérieur */
+  const parCategorie = {};
+  modelesTexte.forEach(m => {
+    const cat = m.categorie || 'Sans catégorie';
+    if(!parCategorie[cat]) parCategorie[cat] = [];
+    parCategorie[cat].push(m);
   });
 
-  const lLibre = document.createElement('label');
-  lLibre.textContent = 'À ajouter pour cet élève (facultatif)';
-  lLibre.style.marginTop = '8px';
-  zone.appendChild(lLibre);
-  const libre = document.createElement('textarea');
-  libre.id = 'rapLibre';
-  libre.rows = 2;
-  libre.placeholder = 'Une précision propre à cet élève';
-  libre.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-    'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:15px;' +
-    'line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:12px;';
-  zone.appendChild(libre);
-
-  /* Aperçu, toujours visible : on envoie ce qu'on a relu */
-  const compteur = document.createElement('div');
-  compteur.id = 'rappelCompteur';
-  compteur.style.cssText = 'font-size:12px;text-align:right;margin-bottom:4px;min-height:16px;';
-  zone.appendChild(compteur);
-
-  const ap = document.createElement('div');
-  ap.id = 'rappelApercu';
-  ap.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-    'padding:12px 14px;font-size:13px;line-height:1.55;white-space:pre-wrap;' +
-    'max-height:340px;overflow-y:auto;margin-bottom:12px;';
-  zone.appendChild(ap);
-
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:8px;';
-
-  const bEnv = document.createElement('button');
-  bEnv.id = 'rappelEnvoi';
-  bEnv.className = 'btn btn-primary';
-  bEnv.style.cssText = 'flex:1;padding:13px;font-size:14px;margin:0;';
-  bEnv.textContent = '💬 Envoyer par SMS';
-  bEnv.addEventListener('click', envoyerRappelManuel);
-  r.appendChild(bEnv);
-
-  const bCop = document.createElement('button');
-  bCop.className = 'btn btn-secondary';
-  bCop.style.cssText = 'width:auto;padding:13px 16px;font-size:14px;margin:0;';
-  bCop.textContent = '📋';
-  bCop.title = 'Copier le message';
-  bCop.addEventListener('click', () => {
-    navigator.clipboard.writeText(composerRappel(lireChoixRappel())).then(
-      () => showToast('Message copié ✅'),
-      () => showToast('Copie impossible'));
+  const cats = Object.keys(parCategorie).sort((a, b) => {
+    if(a === 'Sans catégorie') return 1;
+    if(b === 'Sans catégorie') return -1;
+    return a.localeCompare(b, 'fr');
   });
-  r.appendChild(bCop);
-  zone.appendChild(r);
 
-  ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve', 'rapTel']
-    .forEach(id => {
-      const el = $(id);
-      if(el){
-        el.addEventListener('change', () => { apercuRappel(); memoriserChoixRappel(); });
-        el.addEventListener('input', apercuRappel);
-      }
+  cats.forEach(cat => {
+    const bloc = document.createElement('details');
+    bloc.open = true;
+    bloc.style.cssText = 'margin-bottom:10px;';
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;' +
+      'color:var(--accent-text);padding:6px 0;display:flex;align-items:center;gap:8px;';
+    som.innerHTML = '<span style="flex:1;min-width:0;">📁 ' + cat.replace(/</g, '&lt;') +
+      ' <span style="font-size:12px;color:var(--muted);font-weight:400;">(' +
+      parCategorie[cat].length + ')</span></span>';
+
+    /* Vider un dossier d'un coup : les imports ratés se corrigent vite */
+    const bVider = document.createElement('button');
+    bVider.className = 'btn btn-secondary';
+    bVider.style.cssText = 'width:auto;padding:4px 9px;font-size:11px;margin:0;' +
+      'flex-shrink:0;color:var(--red);border-color:var(--red);';
+    bVider.textContent = '🗑️ Vider';
+    bVider.title = 'Supprimer les ' + parCategorie[cat].length + ' textes de ce dossier';
+    bVider.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await viderDossier(cat, parCategorie[cat], bVider);
     });
+    som.appendChild(bVider);
+    bloc.appendChild(som);
 
-  /* On reprend les réglages du rappel précédent */
-  const m = relireChoixRappel();
-  if($('rapType') && m.type){
-    const existe = Array.prototype.some.call($('rapType').options, o => o.value === m.type);
-    if(existe) $('rapType').value = m.type;
-  }
-  if($('rapJour') && m.jour) $('rapJour').value = m.jour;
-  if($('rapVoiture') && m.voiture) $('rapVoiture').value = m.voiture;
-  if($('rapEmpl') && m.emplacement !== undefined) $('rapEmpl').value = m.emplacement;
-  (m.options || []).forEach(cle => {
-    const cb = document.querySelector('.optionRappel[value="' + cle + '"]');
-    if(cb) cb.checked = true;
+    const liste = parCategorie[cat];
+    const t = document.createElement('div');
+    bloc.appendChild(t);
+    zone.appendChild(bloc);
+
+    liste.forEach(m => {
+      const d = document.createElement('div');
+      d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+        'margin-bottom:8px;';
+
+      const h = document.createElement('div');
+      h.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      const n = document.createElement('div');
+      n.style.cssText = 'flex:1;min-width:0;';
+      n.innerHTML = '<strong style="font-size:14px;">' +
+        (m.titre || m.nom).replace(/</g, '&lt;') + '</strong>' +
+        '<div style="font-size:11px;color:var(--muted);">' + nomUsage(m.usage) +
+        (m.maj ? ' · modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '') + '</div>';
+      h.appendChild(n);
+
+      const bMod = document.createElement('button');
+      bMod.className = 'btn btn-secondary';
+      bMod.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
+      bMod.textContent = '✏️';
+      bMod.title = 'Modifier';
+      bMod.addEventListener('click', () => ouvrirEditeurModele(m));
+      h.appendChild(bMod);
+
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;' +
+        'color:var(--red);border-color:var(--red);';
+      bSup.textContent = '✕';
+      bSup.title = 'Supprimer';
+      bSup.addEventListener('click', async () => {
+        if(!await confirmer('Supprimer le modèle « ' + m.nom + ' » ?')) return;
+        bSup.disabled = true;
+        try{
+          await appelPrep({ action: 'modeleDelete', id: m.id });
+          showToast('Modèle supprimé');
+          afficherModelesTexte();
+        }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+      });
+      h.appendChild(bSup);
+      d.appendChild(h);
+
+      /* Aperçu replié */
+      const det = document.createElement('details');
+      det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);' +
+        'margin-top:6px;">Voir le texte</summary>';
+      const p = document.createElement('div');
+      p.style.cssText = 'margin-top:6px;font-size:13px;line-height:1.5;white-space:pre-wrap;' +
+        'color:var(--muted);max-height:200px;overflow-y:auto;';
+      p.textContent = m.contenu;
+      det.appendChild(p);
+      d.appendChild(det);
+
+      bloc.appendChild(d);
+    });
   });
-
-  apercuRappel();
 }
 
-function lireChoixRappel(){
-  const options = [];
-  document.querySelectorAll('.optionRappel').forEach(cb => {
-    if(cb.checked) options.push(cb.value);
-  });
-  return {
-    eleve: $('rappelEleve') ? $('rappelEleve').value : '',
-    type: $('rapType') ? $('rapType').value : 'cours',
-    jour: $('rapJour') ? $('rapJour').value : '',
-    voiture: $('rapVoiture') ? $('rapVoiture').value.trim() : '',
-    emplacement: $('rapEmpl') ? $('rapEmpl').value : 'cour',
-    options: options,
-    libre: $('rapLibre') ? $('rapLibre').value : ''
+
+function ouvrirEditeurModele(modele, usageImpose){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  const h = document.createElement('h3');
+  h.textContent = modele ? 'Modifier le texte' : 'Nouveau texte type';
+  boite.appendChild(h);
+
+  boite.insertAdjacentHTML('beforeend',
+    '<label for="mdCat">📁 Catégorie</label>' +
+    '<input type="text" id="mdCat" list="listeCategories" ' +
+      'placeholder="Ex : Permis, Examen blanc, Relances… (libre)">' +
+    '<datalist id="listeCategories">' +
+      categoriesExistantes().map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">').join('') +
+    '</datalist>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Crée autant de catégories que tu veux : tape un nom nouveau, ' +
+      'ou choisis-en une déjà utilisée.</div>' +
+    '<label for="mdNom">Nom de ce texte</label>' +
+    '<input type="text" id="mdNom" placeholder="Ex : Jour du permis — Saint-Brieuc">' +
+    '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
+    '<select id="mdUsage">' +
+      USAGES_MODELE.map(u => '<option value="' + u.cle + '">' + u.nom + '</option>').join('') +
+    '</select>' +
+    '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.6;"></div>' +
+    '<label for="mdContenu">Texte du message</label>' +
+    '<textarea id="mdContenu" rows="14" ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+      'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;font-family:inherit;' +
+      'resize:vertical;margin-bottom:12px;"></textarea>');
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const g = id => boite.querySelector('#' + id);
+
+  /* Rappel des variables disponibles, avec insertion en un appui */
+  const majVars = () => {
+    const u = USAGES_MODELE.find(x => x.cle === g('mdUsage').value);
+    const z = g('mdVars');
+    z.innerHTML = 'Variables disponibles — appuie pour insérer :<br>';
+    (u ? u.variables : []).forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:4px 4px 0 0;';
+      b.textContent = v;
+      b.addEventListener('click', () => {
+        const t = g('mdContenu');
+        const p = t.selectionStart || t.value.length;
+        t.value = t.value.slice(0, p) + v + t.value.slice(p);
+        t.focus();
+      });
+      z.appendChild(b);
+    });
   };
-}
+  g('mdUsage').addEventListener('change', majVars);
 
-function apercuRappel(){
-  const ap = $('rappelApercu');
-  if(!ap) return;
-  const texte = composerRappel(lireChoixRappel());
-  ap.textContent = texte;
-
-  /* On voit tout de suite si le message passe */
-  const cp = $('rappelCompteur');
-  if(cp){
-    const n = texte.length;
-    const trop = n > LIMITE_SMS;
-    cp.style.color = trop ? 'var(--warn-text)'
-                    : (n > LIMITE_SMS - 100 ? '#E8A33D' : 'var(--muted)');
-    cp.textContent = n + ' / ' + LIMITE_SMS + ' caractères' +
-      (trop ? ' — trop long de ' + (n - LIMITE_SMS) + ', il faut raccourcir' : '');
+  if(modele){
+    g('mdCat').value = modele.categorie || '';
+    g('mdNom').value = modele.titre || modele.nom || '';
+    g('mdUsage').value = modele.usage || 'libre';
+    g('mdContenu').value = modele.contenu || '';
   }
-
-  const bEnv = $('rappelEnvoi');
-  const nom = $('rappelEleve') ? $('rappelEleve').value.trim() : '';
-  const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
-
-  /* On dit ce qu'on a trouvé, pour éviter les fautes de frappe */
-  const et = $('rappelEleveEtat');
-  if(et){
-    if(!nom) et.textContent = '';
-    else if(f && f.telephone) et.innerHTML =
-      '<span style="color:var(--accent-text);">✅ ' + telLisible(f.telephone) + '</span>';
-    else if(f) et.innerHTML =
-      '<span style="color:var(--warn-text);">⚠️ Fiche trouvée, mais sans numéro</span>';
-    else et.innerHTML =
-      '<span style="color:var(--warn-text);">⚠️ Élève inconnu — saisis son numéro ci-dessous</span>';
+  /* Depuis le tiroir des procédures, l'usage est déjà connu */
+  if(usageImpose){
+    g('mdUsage').value = usageImpose;
+    g('mdUsage').disabled = true;
+    g('mdUsage').style.opacity = '.6';
   }
+  majVars();
 
-  /* Le numéro saisi à la main l'emporte sur celui de la fiche */
-  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
-  const numero = saisi || (f && f.telephone) || '';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
 
-  if(bEnv){
-    if(numero){
-      bEnv.disabled = false;
-      bEnv.textContent = '💬 Envoyer à ' + (nom || telLisible(numero));
-    }else{
-      bEnv.disabled = true;
-      bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro — saisis-le'
-                             : '💬 Choisis un élève ou saisis un numéro';
+  bOk.addEventListener('click', async () => {
+    const nom = g('mdNom').value.trim();
+    const contenu = g('mdContenu').value.trim();
+    if(!nom){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Donne un nom au modèle.'; return; }
+    if(!contenu){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Le texte est vide.'; return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({
+        action: 'modeleSet',
+        id: modele ? modele.id : '',
+        usage: g('mdUsage').value,
+        nom: assemblerNom(g('mdCat') ? g('mdCat').value : '', nom),
+        contenu: contenu
+      });
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      if(usageImpose === 'procedure') afficherProcedures();
+      else afficherModelesTexte();
+    }catch(e){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
     }
-  }
+  });
 }
 
 
-/* Bascule entre saisie manuelle et lecture du planning */
-function modeRappel(mode){
-  const m = $('rappelManuel'), pl = $('rappelPlanning');
-  const bm = $('rappelModeManuel'), bp = $('rappelModePlanning');
-  if(!m || !pl) return;
 
-  const manuel = (mode !== 'planning');
-  m.style.display = manuel ? 'block' : 'none';
-  pl.style.display = manuel ? 'none' : 'block';
+/* ============================================================
+   PROCÉDURES DE CONDUITE
+   Les mêmes fiches, présentées à part : c'est ce que les
+   moniteurs consultent et ce qui sert aux corrections.
+   ============================================================ */
+async function afficherProcedures(){
+  const zone = $('proceduresZone');
+  if(!zone) return;
 
-  [[bm, manuel], [bp, !manuel]].forEach(([b, actif]) => {
-    if(!b) return;
-    b.style.borderColor = actif ? 'var(--orange)' : 'var(--line)';
-    b.style.color = actif ? 'var(--accent-text)' : 'var(--cream)';
-    b.style.background = actif ? 'rgba(182,255,14,.09)' : 'var(--navy)';
+  zone.innerHTML = '<div class="empty">Chargement des procédures…</div>';
+  await chargerModelesTexte();
+  const liste = (modelesTexte || []).filter(m => m.usage === 'procedure')
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+
+  zone.innerHTML = '';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.marginBottom = '12px';
+  b.textContent = '➕ Nouvelle procédure';
+  b.addEventListener('click', () => ouvrirEditeurModele(null, 'procedure'));
+  zone.appendChild(b);
+
+  /* Recherche, car la liste va s'allonger */
+  if(liste.length > 4){
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.placeholder = '🔍 Filtrer les procédures';
+    rech.style.marginBottom = '10px';
+    rech.addEventListener('input', () => {
+      const q = normaliserMot(rech.value);
+      zone.querySelectorAll('[data-procedure]').forEach(el => {
+        const ok = !q || normaliserMot(el.getAttribute('data-procedure')).indexOf(q) !== -1;
+        el.style.display = ok ? '' : 'none';
+      });
+    });
+    zone.appendChild(rech);
+  }
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune procédure enregistrée.<br>' +
+      '<span style="font-size:12px;">Ajoute ici tes procédures : giratoire, priorité à droite, ' +
+      "créneau… Elles serviront aux corrections d'erreur et resteront consultables par tous.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  liste.forEach(m => {
+    const d = document.createElement('details');
+    d.setAttribute('data-procedure', m.nom);
+    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+      'margin-bottom:8px;';
+
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
+      'list-style:none;';
+    som.textContent = '🚦 ' + m.nom;
+    d.appendChild(som);
+
+    const corps = document.createElement('div');
+    corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
+    corps.textContent = m.contenu;
+    d.appendChild(corps);
+
+    const pied = document.createElement('div');
+    pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;';
+    pied.textContent = (m.maj ? 'modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '');
+    d.appendChild(pied);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const bCop = document.createElement('button');
+    bCop.className = 'btn btn-secondary';
+    bCop.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+    bCop.textContent = '📋 Copier';
+    bCop.addEventListener('click', () => {
+      navigator.clipboard.writeText(m.contenu).then(
+        () => showToast('Procédure copiée ✅'),
+        () => showToast('Copie impossible'));
+    });
+    r.appendChild(bCop);
+
+    const bMod = document.createElement('button');
+    bMod.className = 'btn btn-secondary';
+    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bMod.textContent = '✏️ Modifier';
+    bMod.addEventListener('click', () => ouvrirEditeurModele(m, 'procedure'));
+    r.appendChild(bMod);
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '✕';
+    bSup.title = 'Supprimer';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer la procédure « ' + m.nom + ' » ?')) return;
+      bSup.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: m.id });
+        showToast('Procédure supprimée');
+        afficherProcedures();
+      }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+    });
+    r.appendChild(bSup);
+
+    d.appendChild(r);
+    zone.appendChild(d);
   });
-
-  if(manuel) afficherRappelManuel();
 }
 
 
 /* ============================================================
-   ENVOI DIRECT PAR L'API ALLO
-   Le SMS part de l'auto-école, sans passer par le téléphone
-   du moniteur. La clé reste dans le Worker.
+   IMPORT EN MASSE
+   Coller ses modèles un par un est décourageant quand on en a
+   quinze. On les colle tous, séparés par une ligne de titre.
    ============================================================ */
-async function envoyerSmsAllo(numero, texte, eleve){
-  const r = await fetchFiable(CONFIG.SMS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: ACCES.code, to: numero,
-                           message: texte, eleve: eleve || '' })
-  }, 20000, 1);
+const SEPARATEUR_AIDE =
+  'Sépare tes modèles par une ligne contenant seulement le titre entre === :\n\n' +
+  '=== RDV accompagnateur ===\n' +
+  'Bonjour 😁\n' +
+  "N'OUBLIE PAS LA FORMATION DE TON ACCOMPAGNATEUR {jour}…\n\n" +
+  '=== RDV préalable ===\n' +
+  'Bonjour 😁\n…';
 
-  const d = await r.json().catch(() => ({}));
-  if(!r.ok || d.error) throw new Error(d.error || ('Envoi refusé (' + r.status + ')'));
-  return d;
+/* Découpe un texte collé en plusieurs modèles */
+function decouperModeles(brut){
+  const lignes = String(brut || '').split('\n');
+  const out = [];
+  let courant = null;
+
+  lignes.forEach(l => {
+    /* Une ligne de titre : === Nom === ou ___ Nom ___ */
+    const m = l.match(/^\s*(?:=|_){2,}\s*(.+?)\s*(?:=|_){2,}\s*$/);
+    if(m && m[1].length >= 2){
+      if(courant) out.push(courant);
+      courant = { titre: m[1].trim(), lignes: [] };
+      return;
+    }
+    if(courant) courant.lignes.push(l);
+  });
+  if(courant) out.push(courant);
+
+  return out
+    .map(x => ({ titre: x.titre, contenu: x.lignes.join('\n').trim() }))
+    .filter(x => x.contenu.length >= 10);
+}
+
+async function ouvrirImportModeles(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:92vh;overflow-y:auto;';
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>📥 Importer plusieurs textes</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">' +
+      'Colle tous tes modèles d\'un coup. Sépare-les par une ligne de titre ' +
+      'entre <strong>===</strong>, comme dans l\'exemple.</div>' +
+    '<label for="imCat">📁 Catégorie</label>' +
+    '<input type="text" id="imCat" list="listeCategories" placeholder="Ex : Rappels">' +
+    '<label for="imUsage">Usage de ces textes</label>' +
+    '<select id="imUsage">' +
+      USAGES_MODELE.map(u => '<option value="' + u.cle + '">' + u.nom + '</option>').join('') +
+    '</select>' +
+    '<label for="imTexte">Tes modèles</label>');
+
+  const zone = document.createElement('textarea');
+  zone.id = 'imTexte';
+  zone.rows = 14;
+  zone.placeholder = SEPARATEUR_AIDE;
+  zone.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:14px;' +
+    'line-height:1.55;font-family:inherit;resize:vertical;margin-bottom:8px;';
+  boite.appendChild(zone);
+
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;' +
+    'margin-bottom:12px;min-height:18px;';
+  boite.appendChild(apercu);
+
+  zone.addEventListener('input', () => {
+    const t = decouperModeles(zone.value);
+    apercu.innerHTML = t.length
+      ? '✅ ' + t.length + ' modèle(s) reconnu(s) :<br>' +
+        t.map(x => '• ' + x.titre.replace(/</g, '&lt;') +
+          ' <span style="opacity:.7;">(' + x.contenu.length + ' caractères)</span>').join('<br>')
+      : (zone.value.trim()
+          ? '⚠️ Aucun titre entre === trouvé. Ajoute une ligne <strong>=== Nom ===</strong> ' +
+            'avant chaque modèle.'
+          : '');
+  });
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '📥 Importer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  bOk.addEventListener('click', async () => {
+    const liste = decouperModeles(zone.value);
+    if(!liste.length){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Aucun modèle reconnu. Vérifie les lignes de titre.';
+      return;
+    }
+
+    const cat = boite.querySelector('#imCat').value.trim();
+    const usage = boite.querySelector('#imUsage').value;
+
+    bOk.disabled = true;
+    let ok = 0;
+    const rates = [];
+    for(let i = 0; i < liste.length; i++){
+      bOk.textContent = 'Import ' + (i + 1) + ' sur ' + liste.length + '…';
+      try{
+        await appelPrep({ action: 'modeleSet', id: '', usage: usage,
+                          nom: assemblerNom(cat, liste[i].titre),
+                          contenu: liste[i].contenu });
+        ok++;
+      }catch(e){ rates.push(liste[i].titre + ' : ' + e.message); }
+    }
+
+    document.body.removeChild(fond);
+    showToast(ok + ' modèle(s) importé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+    if(rates.length) await informer('Modèles non importés :\n\n' + rates.join('\n'));
+    afficherModelesTexte();
+  });
+
+  setTimeout(() => zone.focus(), 100);
 }
 
 
-/* Envoi depuis l'écran de composition */
-async function envoyerRappelManuel(){
-  const b = $('rappelEnvoi');
-  const nom = $('rappelEleve') ? $('rappelEleve').value : '';
-  const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
-  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
-  const numero = saisi || (f && f.telephone) || '';
-  if(!numero) return;
+/* Supprime tous les textes d'un dossier, en une fois */
+async function viderDossier(nom, liste, bouton){
+  if(!await confirmer('Supprimer les ' + liste.length + ' texte(s) du dossier « ' +
+      nom + '» ?\n\n' +
+      liste.slice(0, 8).map(m => '• ' + (m.titre || m.nom)).join('\n') +
+      (liste.length > 8 ? '\n• … et ' + (liste.length - 8) + ' autre(s)' : '') +
+      '\n\nCette action est irréversible.')) return;
 
-  const texte = composerRappel(lireChoixRappel());
+  bouton.disabled = true;
+  const initial = bouton.textContent;
+  let ok = 0;
+  const rates = [];
 
-  if(texte.length > LIMITE_SMS){
-    await informer('Message trop long : ' + texte.length + ' caractères pour ' +
-      LIMITE_SMS + ' autorisés.\n\nRaccourcis le texte ou retire une mention.');
-    return;
+  for(let i = 0; i < liste.length; i++){
+    bouton.textContent = (i + 1) + '/' + liste.length;
+    try{
+      await appelPrep({ action: 'modeleDelete', id: liste[i].id });
+      ok++;
+    }catch(e){ rates.push((liste[i].titre || liste[i].nom) + ' : ' + e.message); }
   }
 
-  if(!await confirmer('Envoyer ce SMS' + (nom ? ' à ' + nom : '') +
-      '\nau ' + telLisible(numero) + ' ?\n\n' +
-      texte.length + ' / ' + LIMITE_SMS + ' caractères.')) return;
-
-  b.disabled = true;
-  b.textContent = 'Envoi…';
-  try{
-    await envoyerSmsAllo(numero, texte, nom);
-    b.textContent = '✅ Envoyé';
-    showToast('SMS envoyé ✅');
-    /* On passe à l'élève suivant, les réglages sont conservés */
-    setTimeout(() => {
-      if($('rappelEleve')) $('rappelEleve').value = '';
-      if($('rapTel')) $('rapTel').value = '';
-      if($('rapLibre')) $('rapLibre').value = '';
-      apercuRappel();
-    }, 900);
-  }catch(e){
-    showToast('Erreur : ' + e.message);
-    b.disabled = false;
-    apercuRappel();
-  }
+  showToast(ok + ' texte(s) supprimé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+  if(rates.length) await informer('Textes non supprimés :\n\n' + rates.join('\n'));
+  bouton.textContent = initial;
+  afficherModelesTexte();
 }
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-rappels.js'] = true;
+window.EC_MODULES['ec-textes.js'] = true;
