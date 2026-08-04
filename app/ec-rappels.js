@@ -250,7 +250,7 @@ async function afficherRappels(){
         const cr = restants[i];
         bTous.textContent = 'Envoi ' + (i + 1) + ' sur ' + restants.length + '…';
         try{
-          await envoyerSmsAllo(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
+          await envoyerMessageComplet(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
           cr.envoye = true;
           ok++;
         }catch(e){
@@ -316,9 +316,9 @@ function ligneRappel(c, i){
       a.disabled = true;
       a.textContent = 'Envoi…';
       try{
-        await envoyerSmsAllo(c.telephone, messageRappel(c), c.choisi || c.eleve);
+        await envoyerMessageComplet(c.telephone, messageRappel(c), c.choisi || c.eleve);
         c.envoye = true;
-        showToast('SMS envoyé à ' + (c.choisi || c.eleve));
+        showToast('Envoyé à ' + (c.choisi || c.eleve));
         afficherRappels();
       }catch(e){
         showToast('Erreur : ' + e.message);
@@ -451,18 +451,11 @@ async function choisirAutreEleve(c){
    Le message est toujours le même ; seules quelques mentions
    changent d'un élève à l'autre.
    ============================================================ */
-const TYPES_RAPPEL = [
-  { cle:'cours',        titre:'𝗖𝗢𝗨𝗥𝗦' },
-  { cle:'test-eval',    titre:"𝗧𝗘𝗦𝗧 𝗗'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘" },
-  { cle:'evaluation',   titre:'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡' },
-  { cle:'examen-blanc', titre:'𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖',
-    ajout:"🐥 Rappel ton ou ta monitrice devient un(e) inspecteur(trice). " +
-          'Tu dois être autonome !' },
-  { cle:'permis',       titre:'𝗣𝗘𝗥𝗠𝗜𝗦' },
-  { cle:'accompagnateur', titre:"𝗟𝗔 𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡 𝗗𝗘 𝗧𝗢𝗡 𝗔𝗖𝗖𝗢𝗠𝗣𝗔𝗚𝗡𝗔𝗧𝗘𝗨𝗥" }
-];
+/* Les types de rappel viennent tous de « Textes types ».
+   L'application n'en propose plus d'elle-même : les vôtres sont
+   les bons, et deux listes concurrentes prêtaient à confusion. */
+const TYPES_RAPPEL = [];
 
-/* Les rappels partent la veille : « demain » est le cas courant */
 const JOURS_RAPPEL = ['𝗗𝗘𝗠𝗔𝗜𝗡', "𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
                       '𝗠𝗘𝗥𝗖𝗥𝗘𝗗𝗜', '𝗝𝗘𝗨𝗗𝗜', '𝗩𝗘𝗡𝗗𝗥𝗘𝗗𝗜', '𝗦𝗔𝗠𝗘𝗗𝗜', '𝗗𝗜𝗠𝗔𝗡𝗖𝗛𝗘'];
 
@@ -513,61 +506,28 @@ const LIMITE_SMS = 950;
 /* Le message assemblé à partir des choix */
 function composerRappel(r){
   const tous = typesDisponibles();
+  if(!tous.length){
+    return "Aucun modèle de rappel enregistré.\n\n" +
+      "Va dans ⚙️ Outils → 📄 Textes types, crée un texte avec l'usage " +
+      '« 🔔 Rappel de cours par SMS », et il apparaîtra ici.';
+  }
   const type = tous.find(x => x.cle === r.type) || tous[0];
 
-  /* Un type à vous : c'est votre texte qui fait foi, avec ses variables */
-  if(type && type.perso){
-    const empl2 = EMPLACEMENTS.find(x => x.cle === r.emplacement);
-    const opts = (r.options || [])
-      .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
-      .filter(Boolean).join('\n\n');
-    return appliquerModele(type.contenu, {
-      jour: r.jour || '',
-      voiture: r.voiture || '',
-      emplacement: (empl2 && empl2.texte) || '',
-      mentions: opts,
-      note: (r.libre || '').trim(),
-      eleve: r.eleve || '',
-      prenom: (r.eleve || '').split(' ')[0]
-    });
-  }
   const empl = EMPLACEMENTS.find(x => x.cle === r.emplacement);
-  const P = [];
+  const mentions = (r.options || [])
+    .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
+    .filter(Boolean).join('\n\n');
 
-  P.push('Bonjour 😁');
-  P.push('');
-  P.push("𝗡'𝗢𝗨𝗕𝗟𝗜𝗘 𝗣𝗔𝗦 𝗧𝗢𝗡 " + type.titre + ' ' + (r.jour || '') +
-         (r.voiture ? '   𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗡𝗨𝗠𝗘́𝗥𝗢 ' + r.voiture : ''));
-  P.push('');
-
-  if(empl && empl.texte){
-    P.push(empl.texte);
-    P.push('Le numéro de ta voiture est en bas à droite du pare-brise.');
-    P.push('');
-  }
-
-  if(type.ajout){ P.push(type.ajout); P.push(''); }
-
-  /* Les mentions ponctuelles, dans l'ordre où elles ont du sens */
-  (r.options || []).forEach(cle => {
-    const o = OPTIONS_RAPPEL.find(x => x.cle === cle);
-    if(o){ P.push(o.texte); P.push(''); }
+  return appliquerModele(type.contenu || '', {
+    jour: r.jour || '',
+    voiture: r.voiture || '',
+    emplacement: (empl && empl.texte) || '',
+    mentions: mentions,
+    note: (r.libre || '').trim(),
+    eleve: r.eleve || '',
+    prenom: (r.eleve || '').split(' ')[0]
   });
-
-  if(r.libre && r.libre.trim()){ P.push(r.libre.trim()); P.push(''); }
-
-  P.push('📅 Tu vois toutes tes heures sur ton planning, depuis ton interface élève Drivup.');
-  P.push('📧 Si jamais tu as du retard, préviens ton moniteur sur son Messenger ' +
-         'et le bureau sur le Messenger Évolution Conduites.');
-  P.push('⚠️ Toute leçon non décommandée 48 heures avant est facturée.');
-  P.push('');
-  P.push("📼 N'oublie pas de réviser toutes tes procédures et viens avec ta carte SD " +
-         '(sauf premier cours en voiture, évaluations et simulateurs)');
-  P.push('🚨 Rappel méthodologie : https://urlr.me/9K3g7 🚨');
-
-  return P.join('\n');
 }
-
 
 /* ---------- L'écran de composition manuelle ---------- */
 /* Ce qui reste d'un élève au suivant : on enchaîne les rappels
@@ -646,15 +606,29 @@ async function afficherRappelManuel(){
   tel.id = 'rapTel';
   tel.inputMode = 'tel';
   tel.placeholder = '06 12 34 56 78';
+  tel.style.width = '100%';
   zone.appendChild(tel);
 
   /* Les réglages du message */
+  /* Sans modèle enregistré, l'outil ne peut rien composer */
+  if(!typesDisponibles().length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.style.cssText = 'padding:16px;line-height:1.6;';
+    v.innerHTML = '📄 <strong>Aucun modèle de rappel enregistré.</strong><br>' +
+      '<span style="font-size:12px;">Va dans <strong>📄 Textes types</strong>, ' +
+      'crée un texte avec l\'usage « 🔔 Rappel de cours par SMS », ' +
+      'et il apparaîtra ici.<br>' +
+      'Le bouton 📥 Importer permet d\'en coller plusieurs d\'un coup.</span>';
+    zone.appendChild(v);
+    return;
+  }
+
   const grille = document.createElement('div');
   grille.className = 'duo';
   grille.innerHTML =
     '<div><label for="rapType">Type de séance</label><select id="rapType">' +
       typesDisponibles().map(t => '<option value="' + t.cle + '">' +
-        (t.perso ? '★ ' : '') +
         String(t.titre).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô'’-]/g, '') +
         '</option>').join('') +
     '</select></div>' +
@@ -798,11 +772,10 @@ function apercuRappel(){
   const cp = $('rappelCompteur');
   if(cp){
     const n = texte.length;
-    const trop = n > LIMITE_SMS;
-    cp.style.color = trop ? 'var(--warn-text)'
-                    : (n > LIMITE_SMS - 100 ? '#E8A33D' : 'var(--muted)');
-    cp.textContent = n + ' / ' + LIMITE_SMS + ' caractères' +
-      (trop ? ' — trop long de ' + (n - LIMITE_SMS) + ', il faut raccourcir' : '');
+    const parts = decouperMessage(texte, LIMITE_SMS).length;
+    cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
+    cp.textContent = n + ' caractères' +
+      (parts > 1 ? ' — envoyé en ' + parts + ' SMS' : ' — 1 SMS');
   }
 
   const bEnv = $('rappelEnvoi');
@@ -889,22 +862,20 @@ async function envoyerRappelManuel(){
 
   const texte = composerRappel(lireChoixRappel());
 
-  if(texte.length > LIMITE_SMS){
-    await informer('Message trop long : ' + texte.length + ' caractères pour ' +
-      LIMITE_SMS + ' autorisés.\n\nRaccourcis le texte ou retire une mention.');
-    return;
-  }
+  const parts = decouperMessage(texte, LIMITE_SMS).length;
 
-  if(!await confirmer('Envoyer ce SMS' + (nom ? ' à ' + nom : '') +
+  if(!await confirmer('Envoyer' + (nom ? ' à ' + nom : '') +
       '\nau ' + telLisible(numero) + ' ?\n\n' +
-      texte.length + ' / ' + LIMITE_SMS + ' caractères.')) return;
+      texte.length + ' caractères' +
+      (parts > 1 ? ' — découpé en ' + parts + ' SMS, facturés séparément.'
+                 : ' — 1 SMS.'))) return;
 
   b.disabled = true;
   b.textContent = 'Envoi…';
   try{
-    await envoyerSmsAllo(numero, texte, nom);
+    const n = await envoyerMessageComplet(numero, texte, nom);
     b.textContent = '✅ Envoyé';
-    showToast('SMS envoyé ✅');
+    showToast(n > 1 ? n + ' SMS envoyés ✅' : 'SMS envoyé ✅');
     /* On passe à l'élève suivant, les réglages sont conservés */
     setTimeout(() => {
       if($('rappelEleve')) $('rappelEleve').value = '';
@@ -917,6 +888,46 @@ async function envoyerRappelManuel(){
     b.disabled = false;
     apercuRappel();
   }
+}
+
+
+/* ============================================================
+   MESSAGES TROP LONGS
+   Certains rappels dépassent la limite d'un SMS. Plutôt que de
+   refuser, on découpe proprement — sur un saut de ligne, jamais
+   au milieu d'un mot.
+   ============================================================ */
+function decouperMessage(texte, limite){
+  const max = (limite || LIMITE_SMS) - 10;   /* place pour « (1/2) » */
+  if(texte.length <= (limite || LIMITE_SMS)) return [texte];
+
+  const morceaux = [];
+  let reste = texte;
+
+  while(reste.length > max){
+    /* On coupe au dernier saut de ligne avant la limite */
+    let coupe = reste.lastIndexOf('\n\n', max);
+    if(coupe < max * 0.5) coupe = reste.lastIndexOf('\n', max);
+    if(coupe < max * 0.5) coupe = reste.lastIndexOf(' ', max);
+    if(coupe < max * 0.5) coupe = max;
+    morceaux.push(reste.slice(0, coupe).trim());
+    reste = reste.slice(coupe).trim();
+  }
+  if(reste) morceaux.push(reste);
+
+  const total = morceaux.length;
+  return morceaux.map((m, i) => '(' + (i + 1) + '/' + total + ')\n' + m);
+}
+
+/* Envoie un message, en plusieurs SMS s'il le faut */
+async function envoyerMessageComplet(numero, texte, eleve){
+  const parties = decouperMessage(texte, LIMITE_SMS);
+  for(let i = 0; i < parties.length; i++){
+    await envoyerSmsAllo(numero, parties[i], eleve);
+    /* Un court délai garde l'ordre d'arrivée */
+    if(i < parties.length - 1) await new Promise(r => setTimeout(r, 600));
+  }
+  return parties.length;
 }
 
 /* Signale que ce module est bien chargé */
