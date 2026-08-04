@@ -690,9 +690,11 @@ async function genererBilanManuel(){
 
   const eleve = $('studentName').value.trim();
   let manoeuvresAvant = [];
+  let marquesAvant = null;
   try{
     const d = await chargerDossierEleve(eleve);
     manoeuvresAvant = d.manoeuvres || [];
+    marquesAvant = d.marques || null;
   }catch(e){}
 
   /* Les manœuvres du jour sont au format attendu par le constructeur */
@@ -713,6 +715,7 @@ async function genererBilanManuel(){
   try{
     bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
+      marquesAvant: marquesAvant,
       transcript: champsManuels.texteDicte || '',
       note: $('noteInterne').value.trim()
     });
