@@ -201,7 +201,7 @@ function reveillerVue(cle){
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
-    rappels:    () => afficherRappels()
+    rappels:    () => modeRappel('manuel')
   };
   const f = actions[cle];
   if(typeof f === 'function'){
