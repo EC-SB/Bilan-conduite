@@ -662,6 +662,26 @@ async function chargerUtilisateurs(){
         });
         actions.appendChild(selRole);
 
+        /* L'émoji, modifiable sans toucher au reste */
+        const bEmo = document.createElement('button');
+        bEmo.className = 'btn btn-secondary';
+        bEmo.style.cssText = 'width:auto;padding:7px 10px;font-size:14px;';
+        bEmo.textContent = u.emoji || '🙂';
+        bEmo.title = 'Émoji de ' + u.nom + ' sur la fiche manœuvres';
+        bEmo.addEventListener('click', async () => {
+          const v = await demander(
+            'Émoji de ' + u.nom + "\n\nIl signe les manœuvres qu'il fait retravailler.\n" +
+            'Laisse vide pour ne rien signer.', u.emoji || '', 'Émoji');
+          if(v === null) return;
+          bEmo.disabled = true;
+          try{
+            await appelAdmin({ action:'emoji', cible:u.code, emoji: String(v).trim() });
+            messageAdmin('Émoji de ' + u.nom + ' enregistré.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); bEmo.disabled = false; }
+        });
+        actions.appendChild(bEmo);
+
         /* Changer le code d'accès, sans toucher au reste du compte */
         const bCode = document.createElement('button');
         bCode.className = 'btn btn-secondary';
@@ -781,11 +801,13 @@ brancher('createBtn', 'click', async () => {
       action: 'create',
       nouveauCode: $('newCode').value.trim(),
       nom: $('newName').value.trim(),
-      role: $('newRole').value
+      role: $('newRole').value,
+      emoji: $('newEmoji') ? $('newEmoji').value.trim() : ''
     });
     messageAdmin('Accès créé pour ' + $('newName').value.trim() + '.');
     $('newCode').value = '';
     $('newName').value = '';
+    if($('newEmoji')) $('newEmoji').value = '';
     $('newRole').value = 'moniteur';
     chargerUtilisateurs();
   }catch(e){
@@ -797,10 +819,11 @@ brancher('createBtn', 'click', async () => {
 
 
 /* Ouvre la session et met en place l'interface */
-function ouvrirSession(code, moniteur, role, saluer, droits){
+function ouvrirSession(code, moniteur, role, saluer, droits, emoji){
   ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur',
+            emoji: emoji || '',
             droits: droits || [] };
-  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits);
+  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits, ACCES.emoji);
 
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
@@ -853,15 +876,15 @@ async function reprendreSession(){
         return false;
       }
       /* Doute : on garde la session mémorisée */
-      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits);
+      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji);
       return true;
     }
 
-    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits);
+    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits, data.emoji);
     return true;
   }catch(e){
     /* Hors ligne : on fait confiance à la session mémorisée */
-    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits);
+    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji);
     return true;
   }
 }
@@ -901,7 +924,7 @@ async function deverrouiller(){
       $('codeInput').value = '';
       return;
     }
-    ouvrirSession(code, data.moniteur, data.role, true, data.droits);
+    ouvrirSession(code, data.moniteur, data.role, true, data.droits, data.emoji);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Connexion impossible : ' + e.message;
