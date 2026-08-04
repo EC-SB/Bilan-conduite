@@ -295,6 +295,17 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     prec = defautsDepuisNote(dossier.derniereNote);
   }
 
+  /* Les messages du bureau sont plus récents que le dernier bilan :
+     une date d'examen qu'il vient de fixer doit se retrouver dans le
+     champ, pas seulement dans l'encadré vert. */
+  if(consignesBureau.length){
+    const duBureau = defautsDepuisNote(consignesBureau.map(x => x.texte).join(' · '));
+    Object.keys(duBureau).forEach(k => {
+      /* Le bureau fait foi sur ce qu'il vient d'annoncer */
+      if(duBureau[k] !== undefined && duBureau[k] !== '') prec[k] = duBureau[k];
+    });
+  }
+
   /* Frise entièrement déduite du type de bilan (cas AAC) */
   const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
   /* Clé de conduite supervisée correspondant à la boîte du bilan */
@@ -471,7 +482,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
-      'placeholder="Ex : autres notes internes" ' +
+      'placeholder="Ex : autre notes importante" ' +
       'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
       'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.5;font-family:inherit;' +
       'resize:vertical;margin-bottom:6px;"></textarea>';
