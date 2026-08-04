@@ -13,7 +13,18 @@
    ============================================================ */
 const DUREE_CONDUITE  = 55;   /* minutes de conduite par élève */
 const DUREE_EXAMEN    = 30;   /* durée d'un passage à l'examen */
-const BATTEMENT_AVANT = 10;   /* entre la fin de conduite et le 1er examen */
+/* Entre la fin des conduites et le premier examen : le temps de
+   déposer et reprendre tout le monde. 5 minutes par candidat,
+   3 seulement quand les leçons sont courtes. */
+const MINUTES_PAR_ELEVE       = 5;
+const MINUTES_PAR_ELEVE_COURT = 3;
+const LECON_COURTE            = 30;
+
+function battementAvantExamen(nbEleves, dureeConduite){
+  const parEleve = (dureeConduite <= LECON_COURTE)
+    ? MINUTES_PAR_ELEVE_COURT : MINUTES_PAR_ELEVE;
+  return nbEleves * parEleve;
+}
 const AVANCE_ARRIVEE  = 5;    /* on arrive avant de démarrer */
 
 function enMinutes(hhmm){
@@ -44,7 +55,10 @@ function planningJournee(heureDepart, nbEleves, reglages){
   const r = reglages || {};
   const conduite  = r.conduite  || DUREE_CONDUITE;
   const examen    = r.examen    || DUREE_EXAMEN;
-  const battement = (r.battement === undefined) ? BATTEMENT_AVANT : r.battement;
+  /* Calculé, pas réglé à la main : il dépend du nombre de candidats
+     et de la durée des leçons. */
+  const battement = (r.battement === undefined)
+    ? battementAvantExamen(nbEleves, conduite) : r.battement;
 
   const debutConduite = enMinutes(heureDepart);
   if(debutConduite === null || nbEleves < 1) return null;
@@ -330,21 +344,13 @@ async function afficherMessengerPermis(){
         '<option value="45">45 minutes</option>' +
         '<option value="60">1 heure</option>' +
       '</select></div>' +
-    '<div><label for="msgBattement">Avant le 1er examen</label>' +
-      '<select id="msgBattement">' +
-        '<option value="20">20 minutes</option>' +
-        '<option value="10">10 minutes</option>' +
-        '<option value="12">12 minutes</option>' +
-        '<option value="15">15 minutes</option>' +
-        '<option value="30">30 minutes</option>' +
-      '</select></div>';
+    '<div><label for="msgPauseDe">Pause du midi — début</label>' +
+      '<input type="time" id="msgPauseDe" value="11:00"></div>';
   zone.appendChild(g1);
 
   const g2 = document.createElement('div');
   g2.className = 'duo';
   g2.innerHTML =
-    '<div><label for="msgPauseDe">Pause du midi — début</label>' +
-      '<input type="time" id="msgPauseDe" value="11:00"></div>' +
     '<div><label for="msgPauseDuree">Durée de la pause</label>' +
       '<select id="msgPauseDuree">' +
         '<option value="60">1 heure</option>' +
@@ -352,13 +358,16 @@ async function afficherMessengerPermis(){
         '<option value="75">1 h 15</option>' +
         '<option value="90">1 h 30</option>' +
         '<option value="0">Pas de pause</option>' +
-      '</select></div>';
+      '</select></div>' +
+    '<div></div>';
   zone.appendChild(g2);
 
   const aide2 = document.createElement('div');
   aide2.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;';
   aide2.textContent = 'La pause peut être décalée : les conduites qui ne tiennent pas avant ' +
-    'reprennent après. « Pas de pause » convient aux journées qui finissent avant midi.';
+    'reprennent après. « Pas de pause » convient aux journées qui finissent avant midi. ' +
+    "Le délai avant le premier examen se calcule seul : 5 minutes par candidat, " +
+    '3 quand les leçons durent 30 minutes.';
   zone.appendChild(aide2);
 
   /* Ce que le calcul doit prendre en compte */
@@ -367,7 +376,7 @@ async function afficherMessengerPermis(){
     const duree = v('msgPauseDuree');
     return {
       conduite:   v('msgConduite')  || 55,
-      battement:  isNaN(v('msgBattement')) ? 20 : v('msgBattement'),
+      /* battement laissé au calcul automatique */
       examen:     DUREE_EXAMEN,
       pauseDe:    duree ? formaterHeure(($('msgPauseDe') || {}).value || '') : null,
       pauseDuree: duree
