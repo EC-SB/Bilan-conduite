@@ -250,21 +250,36 @@ function messageRappels(){
 function datesPermisAVenir(){
   const auj = todayLocal();
   const parDate = {};
+  const vus = {};
 
-  (etatBureau.suivi || []).forEach(s => {
-    if(!s.datePermis) return;
-    if(s.resultat) return;                       /* déjà passé */
-    if(s.statut === 'annule') return;
-    const iso = dateFrVersIso(s.datePermis);
+  function ajouter(nom, dateFr, s){
+    const cle = normaliserMot(nom || '');
+    if(!cle || vus[cle]) return;
+    if(s && s.resultat) return;                  /* déjà passé */
+    if(s && s.statut === 'annule') return;
+    const iso = dateFrVersIso(dateFr);
     if(!iso || iso < auj) return;                /* on ne propose que l'à-venir */
+    vus[cle] = true;
     if(!parDate[iso]) parDate[iso] = [];
     parDate[iso].push({
-      nom: s.eleve,
-      centre: s.centre || '',
-      moniteur: s.moniteurDate || '',
-      repassage: !!s.nbAjournements,
+      nom: nom,
+      centre: (s && s.centre) || '',
+      moniteur: (s && s.moniteurDate) || '',
+      repassage: !!(s && s.nbAjournements),
       heure: ''
     });
+  }
+
+  /* Deux sources, comme la liste « Permis prévus » : la fiche de
+     suivi, et l'état déduit des bilans. Un élève dont seule l'une
+     porte la date manquait au groupe. */
+  (etatBureau.suivi || []).forEach(s => ajouter(s.eleve, s.datePermis, s));
+
+  (etatBureau.eleves || []).forEach(e => {
+    if(!e.etat || e.etat.permis !== 'prevu') return;
+    const s = (etatBureau.suivi || []).find(
+      y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
+    ajouter(e.eleve, e.etat.permisDate || (s && s.datePermis) || '', s);
   });
 
   return Object.keys(parDate).sort().map(iso => ({
