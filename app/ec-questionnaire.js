@@ -469,7 +469,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '</select>' +
       '</div>' +
 
-      '<label for="qLibre">Autre note pour le prochain moniteur</label>' +
+      '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
       'placeholder="Ex : élève très stressé, ne pas mettre sur 4 voies" ' +
       'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
