@@ -156,10 +156,27 @@ async function afficherModelesTexte(){
     const bloc = document.createElement('details');
     bloc.open = true;
     bloc.style.cssText = 'margin-bottom:10px;';
-    bloc.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
-      'color:var(--accent-text);padding:6px 0;">📁 ' + cat.replace(/</g, '&lt;') +
-      ' <span style="font-size:12px;color:var(--muted);">(' +
-      parCategorie[cat].length + ')</span></summary>';
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;' +
+      'color:var(--accent-text);padding:6px 0;display:flex;align-items:center;gap:8px;';
+    som.innerHTML = '<span style="flex:1;min-width:0;">📁 ' + cat.replace(/</g, '&lt;') +
+      ' <span style="font-size:12px;color:var(--muted);font-weight:400;">(' +
+      parCategorie[cat].length + ')</span></span>';
+
+    /* Vider un dossier d'un coup : les imports ratés se corrigent vite */
+    const bVider = document.createElement('button');
+    bVider.className = 'btn btn-secondary';
+    bVider.style.cssText = 'width:auto;padding:4px 9px;font-size:11px;margin:0;' +
+      'flex-shrink:0;color:var(--red);border-color:var(--red);';
+    bVider.textContent = '🗑️ Vider';
+    bVider.title = 'Supprimer les ' + parCategorie[cat].length + ' textes de ce dossier';
+    bVider.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await viderDossier(cat, parCategorie[cat], bVider);
+    });
+    som.appendChild(bVider);
+    bloc.appendChild(som);
 
     const liste = parCategorie[cat];
     const t = document.createElement('div');
@@ -595,6 +612,34 @@ async function ouvrirImportModeles(){
   });
 
   setTimeout(() => zone.focus(), 100);
+}
+
+
+/* Supprime tous les textes d'un dossier, en une fois */
+async function viderDossier(nom, liste, bouton){
+  if(!await confirmer('Supprimer les ' + liste.length + ' texte(s) du dossier « ' +
+      nom + '» ?\n\n' +
+      liste.slice(0, 8).map(m => '• ' + (m.titre || m.nom)).join('\n') +
+      (liste.length > 8 ? '\n• … et ' + (liste.length - 8) + ' autre(s)' : '') +
+      '\n\nCette action est irréversible.')) return;
+
+  bouton.disabled = true;
+  const initial = bouton.textContent;
+  let ok = 0;
+  const rates = [];
+
+  for(let i = 0; i < liste.length; i++){
+    bouton.textContent = (i + 1) + '/' + liste.length;
+    try{
+      await appelPrep({ action: 'modeleDelete', id: liste[i].id });
+      ok++;
+    }catch(e){ rates.push((liste[i].titre || liste[i].nom) + ' : ' + e.message); }
+  }
+
+  showToast(ok + ' texte(s) supprimé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+  if(rates.length) await informer('Textes non supprimés :\n\n' + rates.join('\n'));
+  bouton.textContent = initial;
+  afficherModelesTexte();
 }
 
 /* Signale que ce module est bien chargé */
