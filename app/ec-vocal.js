@@ -409,18 +409,31 @@ $('confirmGen').addEventListener('click', async () => {
     let coursCorrige = finalTranscript;
 
     if(modele.schema === 'conduiteResume'){
-      manoeuvresAvant = await manoeuvresAnterieures(studentName);
-      marquesAvant = await marquesAnterieures(studentName);
+      /* Les bilans précédents se lisent pendant la correction,
+         pas avant : les deux n'ont rien à s'attendre. */
+      const promesseHistorique = bilansAnterieurs(studentName);
 
       /* Remise au propre du cours, par tranches */
       coursCorrige = await corrigerCours(finalTranscript, (n, total, essai) => {
         let msg = total > 1
-          ? 'Correction du cours — partie ' + n + ' sur ' + total + '…'
+          ? 'Correction du cours — ' + n + ' partie(s) sur ' + total + '…'
           : 'Correction du cours…';
-        if(essai && essai > 1) msg += ' (nouvelle tentative ' + essai + ')';
+        if(essai && essai > 1) msg += ' (nouvelle tentative)';
         $('progressionGen').textContent = msg;
       });
       $('progressionGen').textContent = 'Rédaction du résumé…';
+
+      const historique = await promesseHistorique;
+      historique.forEach(item => {
+        manoeuvresDejaFaites(item.bilan).forEach(m => {
+          if(manoeuvresAvant.indexOf(m) === -1) manoeuvresAvant.push(m);
+        });
+      });
+      marquesAvant = {};
+      historique.slice().reverse().forEach(item => {
+        const mk = marquesDejaPosees(item.bilan);
+        Object.keys(mk).forEach(k => { marquesAvant[k] = mk[k]; });
+      });
     }
 
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
@@ -472,7 +485,7 @@ $('confirmGen').addEventListener('click', async () => {
    Corriger un cours entier en un seul appel dépasse la taille
    maximale de réponse : on découpe, on corrige, on recolle.
    ============================================================ */
-const TAILLE_TRANCHE = 2500;   /* caractères — tranches courtes = corrections fiables */
+const TAILLE_TRANCHE = 3500;   /* caractères par appel à l'IA */
 
 const CONSIGNE_CORRECTION =
 'Tu remets au propre la transcription automatique d\'un cours de conduite enregistré en voiture.\n' +
@@ -529,67 +542,87 @@ function decouperEnTranches(texte, taille){
 }
 
 /* Corrige le cours entier, tranche par tranche */
-async function corrigerCours(transcript, surProgres){
-  const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
-  if(!tranches.length) return '';
-  const corrigees = [];
+/* Corrige une tranche, avec ses tentatives. */
+async function corrigerUneTranche(tranche, i, total, surEssai){
+  const contexte = total > 1
+    ? '\n\n(Partie ' + (i + 1) + ' sur ' + total +
+      ' d\'un même cours : ne réintroduis aucune introduction ni conclusion.)'
+    : '';
 
-  const echecs = [];
+  let derniereErreur = null;
 
-  for(let i = 0; i < tranches.length; i++){
-    if(surProgres) surProgres(i + 1, tranches.length);
-    const contexte = tranches.length > 1
-      ? '\n\n(Partie ' + (i + 1) + ' sur ' + tranches.length +
-        ' d\'un même cours : ne réintroduis aucune introduction ni conclusion.)'
-      : '';
-
-    let obtenu = '';
-    let derniereErreur = null;
-
-    /* Jusqu'à 3 tentatives : un échec ponctuel ne doit pas laisser
-       une partie du cours en texte brut. */
-    for(let essai = 1; essai <= 3 && !obtenu; essai++){
-      try{
-        if(essai > 1){
-          if(surProgres) surProgres(i + 1, tranches.length, essai);
-          await new Promise(r => setTimeout(r, 1500 * essai));
-        }
-        const txt = await appelBrutIA(CONSIGNE_CORRECTION + contexte, tranches[i], 8000);
-        const propre = (txt || '').trim();
-
-        /* Une correction fait forcément une longueur comparable à
-           l'original : trop court = réponse tronquée. */
-        if(!propre){
-          derniereErreur = new Error('réponse vide');
-        }else if(propre.length < tranches[i].length * 0.75){
-          derniereErreur = new Error('réponse tronquée (' +
-            Math.round(propre.length / tranches[i].length * 100) + '% de l\'original)');
-        }else if(!finDePhrase(propre)){
-          /* Une correction complète se termine proprement */
-          derniereErreur = new Error('réponse coupée en pleine phrase');
-        }else{
-          obtenu = propre;
-        }
-      }catch(e){
-        derniereErreur = e;
-        console.warn('Tranche ' + (i + 1) + ', essai ' + essai + ' :', e);
+  /* Jusqu'à 3 tentatives : un échec ponctuel ne doit pas laisser
+     une partie du cours en texte brut. */
+  for(let essai = 1; essai <= 3; essai++){
+    try{
+      if(essai > 1){
+        if(surEssai) surEssai(essai);
+        await new Promise(r => setTimeout(r, 1500 * essai));
       }
-    }
+      const txt = await appelBrutIA(CONSIGNE_CORRECTION + contexte, tranche, 8000);
+      const propre = (txt || '').trim();
 
-    /* Petite pause entre les tranches : évite les rejets pour cadence */
-    if(i < tranches.length - 1) await new Promise(r => setTimeout(r, 400));
-
-    if(obtenu){
-      corrigees.push(obtenu);
-    }else{
-      echecs.push({ n: i + 1, motif: derniereErreur ? derniereErreur.message : 'inconnu' });
-      corrigees.push(tranches[i]);      /* on garde le brut plutôt que de perdre le passage */
+      /* Une correction fait forcément une longueur comparable à
+         l'original : trop court = réponse tronquée. */
+      if(!propre){
+        derniereErreur = new Error('réponse vide');
+      }else if(propre.length < tranche.length * 0.75){
+        derniereErreur = new Error('réponse tronquée (' +
+          Math.round(propre.length / tranche.length * 100) + '% de l\'original)');
+      }else if(!finDePhrase(propre)){
+        derniereErreur = new Error('réponse coupée en pleine phrase');
+      }else{
+        return { texte: propre };
+      }
+    }catch(e){
+      derniereErreur = e;
+      console.warn('Tranche ' + (i + 1) + ', essai ' + essai + ' :', e);
     }
   }
 
+  return { texte: tranche,   /* on garde le brut plutôt que de perdre le passage */
+           echec: { n: i + 1, motif: derniereErreur ? derniereErreur.message : 'inconnu' } };
+}
+
+/* Combien de tranches traitées en même temps.
+   Au-delà, l'IA rejette pour cadence trop élevée. */
+const TRANCHES_SIMULTANEES = 4;
+
+async function corrigerCours(transcript, surProgres){
+  const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
+  if(!tranches.length) return '';
+
+  const corrigees = new Array(tranches.length);
+  const echecs = [];
+  let terminees = 0;
+  let suivante = 0;
+
+  const avancer = () => {
+    terminees++;
+    if(surProgres) surProgres(terminees, tranches.length);
+  };
+
+  /* Les tranches partent par groupes plutôt qu'une par une :
+     un cours d'une heure passait de longues minutes à attendre. */
+  async function ouvrier(){
+    while(true){
+      const i = suivante++;
+      if(i >= tranches.length) return;
+      const r = await corrigerUneTranche(tranches[i], i, tranches.length,
+        essai => { if(surProgres) surProgres(terminees, tranches.length, essai); });
+      corrigees[i] = r.texte;
+      if(r.echec) echecs.push(r.echec);
+      avancer();
+    }
+  }
+
+  const combien = Math.min(TRANCHES_SIMULTANEES, tranches.length);
+  await Promise.all(Array.from({ length: combien }, ouvrier));
+
   if(echecs.length){
-    /* On ne masque plus l'échec : le moniteur doit savoir que
+    /* On ne masque pas l'échec : le moniteur doit savoir que
        certaines parties sont restées non corrigées. */
+    echecs.sort((a, b) => a.n - b.n);
     dernierEchecCorrection = echecs;
   }else{
     dernierEchecCorrection = null;
@@ -809,9 +842,18 @@ $('copyBtn').addEventListener('click', async () => {
     try{ document.execCommand('copy'); }catch(_){}
   }
 
-  /* 2. Puis l'enregistrement de la version relue et corrigée */
+  /* 2. Puis l'enregistrement de la version relue et corrigée.
+     Une note ajoutée après coup doit partir, elle aussi : le
+     moniteur ne comprendrait pas qu'elle reste dans le vide. */
   if(bilanEnregistre){
-    showToast('Bilan copié ✅');
+    if(!bilanModifieDepuisEnregistrement()){
+      showToast('Bilan copié ✅');
+      return;
+    }
+    showToast('Bilan copié ✅ — mise à jour…');
+    const maj = await mettreAJourBilan();
+    showToast(maj ? 'Bilan et note mis à jour ✅'
+                  : '⚠️ Copié, mais la mise à jour a échoué');
     return;
   }
   showToast('Bilan copié ✅ — enregistrement…');
@@ -851,8 +893,9 @@ async function exporterVersSheets(silencieux){
     const rep = await r.json().catch(() => ({}));
     if(!verifierVersionScript(rep)){ marquerExport(false); return false; }
     const avecNote = $('noteResult').value.trim();
-    showToast(avecNote ? 'Enregistré avec la note 📌 ✅' : 'Enregistré dans Sheets ✅');
+    showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
     marquerExport(true);
+    retenirEtatEnregistre(rep && rep.ligne);
     viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
@@ -873,6 +916,52 @@ $('exportSheetsBtn').addEventListener('click', () => exporterVersSheets(false));
 
 /* ---------- Suivi de l'enregistrement dans Sheets ---------- */
 /* bilanEnregistre : déclaré dans ec-etat.js */
+
+
+/* ============================================================
+   MISE À JOUR D'UN BILAN DÉJÀ ENREGISTRÉ
+   Corriger le texte ou la note doit remplacer la ligne existante,
+   pas en écrire une seconde.
+   ============================================================ */
+let etatEnregistre = { bilan: '', note: '', ligne: null };
+
+function retenirEtatEnregistre(ligne){
+  etatEnregistre = {
+    bilan: $('resultText') ? $('resultText').value : '',
+    note: $('noteResult') ? $('noteResult').value : '',
+    ligne: ligne || etatEnregistre.ligne
+  };
+}
+
+function bilanModifieDepuisEnregistrement(){
+  const b = $('resultText') ? $('resultText').value : '';
+  const n = $('noteResult') ? $('noteResult').value : '';
+  return b !== etatEnregistre.bilan || n !== etatEnregistre.note;
+}
+
+async function mettreAJourBilan(){
+  if(!etatEnregistre.ligne){
+    /* Ligne inconnue : on enregistre normalement plutôt que de perdre la note */
+    return await exporterVersSheets(true);
+  }
+  try{
+    const r = await appelPrep({
+      action: 'bilanMaj',
+      ligne: etatEnregistre.ligne,
+      eleve: currentLessonMeta ? currentLessonMeta.studentName : '',
+      bilan: $('resultText').value,
+      noteInterne: $('noteResult').value.trim(),
+      manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | ')
+    });
+    if(r && r.status === 'error') throw new Error(r.message);
+    retenirEtatEnregistre(etatEnregistre.ligne);
+    viderCaches(currentLessonMeta && currentLessonMeta.studentName);
+    return true;
+  }catch(e){
+    console.error('Mise à jour du bilan :', e);
+    return false;
+  }
+}
 
 function marquerExport(ok){
   bilanEnregistre = !!ok;
