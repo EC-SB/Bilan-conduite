@@ -10,8 +10,10 @@
    résultats un court instant plutôt que de le réinterroger.
    ============================================================ */
 const cacheDossiers = {};      /* par élève */
+const cacheConsignes = {};     /* messages du bureau, par élève */
 /* cacheBureau : déclaré dans ec-etat.js */
-const DUREE_CACHE = 60000;     /* 1 minute */
+const DUREE_CACHE = 600000;    /* 10 minutes — le temps d'un début de cours.
+                                  Un bilan enregistré vide le cache de l'élève. */
 
 function lireCacheDossier(nom){
   const k = normaliserMot(nom);
@@ -22,9 +24,33 @@ function lireCacheDossier(nom){
 function ecrireCacheDossier(nom, data){
   cacheDossiers[normaliserMot(nom)] = { ts: Date.now(), data: data };
 }
+
+/* Les messages du bureau : mêmes règles que le dossier.
+   Sans ce cache, le préchargement ne servirait à rien. */
+async function consignesDe(nomEleve, forcer){
+  const k = normaliserMot(nomEleve || '');
+  if(!k || k.length < 2) return [];
+
+  const e = cacheConsignes[k];
+  if(!forcer && e && Date.now() - e.ts < DUREE_CACHE) return e.data;
+
+  try{
+    const d = await appelPrep({ action: 'consigneList', eleve: nomEleve });
+    const liste = (d && d.consignes) || [];
+    cacheConsignes[k] = { ts: Date.now(), data: liste };
+    return liste;
+  }catch(err){
+    return (e && e.data) || [];
+  }
+}
 function viderCaches(nom){
-  if(nom) delete cacheDossiers[normaliserMot(nom)];
-  else Object.keys(cacheDossiers).forEach(k => delete cacheDossiers[k]);
+  if(nom){
+    delete cacheDossiers[normaliserMot(nom)];
+    delete cacheConsignes[normaliserMot(nom)];
+  }else{
+    Object.keys(cacheDossiers).forEach(k => delete cacheDossiers[k]);
+    Object.keys(cacheConsignes).forEach(k => delete cacheConsignes[k]);
+  }
   cacheBureau = null;
 }
 
@@ -854,6 +880,15 @@ async function chargerMessengerEleve(){
 
   majLienMessenger();
   if(nom.length < 3){ champ.value = ''; messengerCharge = ''; return; }
+
+  /* Le dossier est récupéré dès la saisie du nom, pendant que le
+     moniteur remplit le reste : au démarrage, tout est déjà prêt. */
+  if(typeof chargerDossierEleve === 'function'){
+    chargerDossierEleve(nom).catch(() => {});
+  }
+  if(typeof consignesDe === 'function'){
+    consignesDe(nom).catch(() => {});
+  }
 
   try{
     if(!fichesEleves.length) await chargerFiches();
