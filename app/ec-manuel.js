@@ -326,17 +326,15 @@ async function ouvrirBilanManuel(){
       });
       bloc.appendChild(r);
 
-    }else if(ch.type === 'manoeuvres' || ch.type === 'competences'){
-      const liste = (ch.type === 'manoeuvres')
-        ? BLOC.ficheListeConduite
-        : (modele.comps || []).map(x => x.nom || x);
+    }else if(ch.type === 'manoeuvres'){
+      const liste = BLOC.ficheListeConduite;
       const dejaFaites = (dossier.manoeuvres || []).map(normaliserMot);
 
-      const l = document.createElement('label');
-      l.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
-      bloc.appendChild(l);
-      const z = document.createElement('div');
-      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+      const lm = document.createElement('label');
+      lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
+      bloc.appendChild(lm);
+      const zm = document.createElement('div');
+      zm.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
         'padding:10px 12px;max-height:260px;overflow-y:auto;';
       liste.forEach(nom => {
         const dejaOk = dejaFaites.indexOf(normaliserMot(nom)) !== -1;
@@ -350,10 +348,69 @@ async function ouvrirBilanManuel(){
         cb.className = 'chManuel-' + ch.cle;
         cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
         lab.appendChild(cb);
-        lab.appendChild(document.createTextNode(nom + (dejaOk ? ' — déjà validée' : '')));
-        z.appendChild(lab);
+        lab.appendChild(document.createTextNode(nom + (dejaOk ? '  (déjà validée)' : '')));
+        zm.appendChild(lab);
       });
-      bloc.appendChild(z);
+      bloc.appendChild(zm);
+
+    }else if(ch.type === 'competences'){
+      /* Le modèle attend un statut ET des erreurs par compétence :
+         une simple case à cocher ne suffisait pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      aide.textContent = 'Laisse « non travaillé » pour les compétences non abordées ' +
+        "aujourd'hui : elles n'apparaîtront pas dans le bilan.";
+      bloc.appendChild(aide);
+
+      (modele.comps || []).forEach(comp => {
+        const cle = comp.cle || '';
+        const titre = comp.titre || comp.nom || cle;
+
+        const zc = document.createElement('div');
+        zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+          'padding:9px 11px;margin-bottom:7px;';
+
+        const h = document.createElement('div');
+        h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+
+        const t = document.createElement('span');
+        t.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:600;';
+        t.textContent = titre;
+        h.appendChild(t);
+
+        const sel = document.createElement('select');
+        sel.className = 'compStatut';
+        sel.setAttribute('data-comp', cle);
+        sel.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:14px;flex-shrink:0;';
+        /* Les valeurs sont les émojis attendus par l'assembleur */
+        sel.innerHTML = '<option value="">— non travaillé —</option>' +
+          '<option value="✅">✅ Acquis</option>' +
+          '<option value="🟠">🟠 En cours</option>' +
+          '<option value="❌">❌ À revoir</option>';
+        h.appendChild(sel);
+        zc.appendChild(h);
+
+        const err = document.createElement('textarea');
+        err.className = 'compErreurs';
+        err.setAttribute('data-comp', cle);
+        err.rows = 2;
+        err.placeholder = 'Erreurs à corriger, une par ligne';
+        err.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:8px 10px;border-radius:8px;font-size:14px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;display:none;margin:0;';
+        zc.appendChild(err);
+
+        /* Les erreurs n'ont de sens que si la compétence a été travaillée */
+        sel.addEventListener('change', () => {
+          err.style.display = sel.value ? 'block' : 'none';
+        });
+
+        bloc.appendChild(zc);
+      });
 
     }else if(ch.type === 'themes'){
       const l = document.createElement('label');
@@ -546,10 +603,24 @@ function lireChampsManuels(){
   if(!champs) return;
 
   champs.forEach(ch => {
-    if(ch.type === 'manoeuvres' || ch.type === 'competences'){
+    if(ch.type === 'manoeuvres'){
       champsManuels[ch.cle] = Array.prototype.slice
         .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
         .map(x => ({ nom: x.value, fait: true }));
+
+    }else if(ch.type === 'competences'){
+      /* Format attendu par le constructeur : { clé : { statut, erreurs } } */
+      const comps = {};
+      document.querySelectorAll('.compStatut').forEach(sel => {
+        const cle = sel.getAttribute('data-comp');
+        if(!cle || !sel.value) return;
+        const zone = document.querySelector('.compErreurs[data-comp="' + cle + '"]');
+        const erreurs = zone
+          ? zone.value.split('\n').map(x => x.trim()).filter(Boolean)
+          : [];
+        comps[cle] = { statut: sel.value, erreurs: erreurs };
+      });
+      champsManuels[ch.cle] = comps;
     }else if(ch.type === 'themes'){
       const bouts = [];
       document.querySelectorAll('.themeErreur').forEach(t => {
@@ -629,6 +700,8 @@ async function genererBilanManuel(){
 
   /* Les clés « avant.carteSD » deviennent des objets imbriqués */
   const donnees = { manoeuvres: liste };
+  /* Le simulateur attend « competences », rangé par clé */
+  if(champsManuels.competences) donnees.competences = champsManuels.competences;
   Object.keys(champsManuels).forEach(k => {
     if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
     const [pere, fils] = k.split('.');
