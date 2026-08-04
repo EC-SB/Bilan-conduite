@@ -73,12 +73,12 @@ const CHAMPS_MANUELS = {
     { cle:'examen.verifQuestion',type:'court', nom:'2-2 · Vérifications, question n°' },
     { cle:'examen.reflexions',   type:'texte', lignes:10,
       nom:'2-3 · Réflexions inspecteur et explications',
-      aide:'Une réflexion par ligne.' },
+      aide:'Une réflexion par ligne.', lignes:12, mort:true },
 
     { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
-    { cle:'observations',type:'texte', lignes:4,
+    { cle:'observations',type:'texte', lignes:20, mort:true,
       nom:'Observations et fautes éliminatoires',
-      aide:'Une observation par ligne.' },
+      aide:'Une observation par ligne. Le bouton ☠️ marque une faute éliminatoire.' },
 
     { cle:'bilanErreurs',type:'texte', lignes:6, nom:'3 · Bilan erreurs',
       aide:'Une erreur par ligne : chacune reçoit les trois questions.' },
@@ -296,12 +296,30 @@ async function ouvrirBilanManuel(){
         b.textContent = lab;
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
+
+          /* Le choix doit sauter aux yeux : une bordure seule se
+             remarque mal, surtout à bout de bras dans la voiture. */
           Array.prototype.forEach.call(r.children, x => {
             x.style.borderColor = 'var(--line)';
             x.style.color = 'var(--cream)';
+            x.style.background = 'var(--navy)';
+            x.style.fontWeight = '400';
+            x.style.transform = 'none';
+            x.style.boxShadow = 'none';
           });
-          b.style.borderColor = 'var(--orange)';
-          b.style.color = 'var(--accent-text)';
+
+          const couleurs = {
+            '✅': ['var(--orange)', '#0B0B0B'],
+            '❌': ['var(--red)', '#FFFFFF'],
+            '':   ['var(--muted)', '#0B0B0B']
+          };
+          const [fond, texte] = couleurs[val] || couleurs[''];
+          b.style.background = fond;
+          b.style.borderColor = fond;
+          b.style.color = texte;
+          b.style.fontWeight = '700';
+          b.style.transform = 'scale(1.04)';
+          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
         });
         r.appendChild(b);
       });
@@ -318,16 +336,35 @@ async function ouvrirBilanManuel(){
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'btn btn-secondary';
-        b.style.cssText = 'flex:1;padding:12px;font-size:17px;margin:0;';
+        b.style.cssText = 'flex:1;padding:14px;font-size:19px;margin:0;' +
+          'transition:transform .1s, background .1s;';
         b.textContent = lab;
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
+
+          /* Le choix doit sauter aux yeux : une bordure seule se
+             remarque mal, surtout à bout de bras dans la voiture. */
           Array.prototype.forEach.call(r.children, x => {
             x.style.borderColor = 'var(--line)';
             x.style.color = 'var(--cream)';
+            x.style.background = 'var(--navy)';
+            x.style.fontWeight = '400';
+            x.style.transform = 'none';
+            x.style.boxShadow = 'none';
           });
-          b.style.borderColor = 'var(--orange)';
-          b.style.color = 'var(--accent-text)';
+
+          const couleurs = {
+            '✅': ['var(--orange)', '#0B0B0B'],
+            '❌': ['var(--red)', '#FFFFFF'],
+            '':   ['var(--muted)', '#0B0B0B']
+          };
+          const [fond, texte] = couleurs[val] || couleurs[''];
+          b.style.background = fond;
+          b.style.borderColor = fond;
+          b.style.color = texte;
+          b.style.fontWeight = '700';
+          b.style.transform = 'scale(1.04)';
+          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
         });
         if((ch.defaut || '') === val) setTimeout(() => b.click(), 0);
         r.appendChild(b);
@@ -531,7 +568,10 @@ async function ouvrirBilanManuel(){
       b.textContent = '➕ Ajouter une observation';
       b.addEventListener('click', () => ajouterObservationManuelle(z));
       bloc.appendChild(b);
-      ajouterObservationManuelle(z);
+
+      /* Vingt lignes prêtes : un examen en compte facilement autant,
+         et ajouter une ligne à chaque fois cassait le rythme. */
+      for(let i = 0; i < 20; i++) ajouterObservationManuelle(z);
 
     }else{
       /* Texte libre, avec dictée possible */
@@ -563,6 +603,35 @@ async function ouvrirBilanManuel(){
         mic.addEventListener('click', () => dicterDans(t, mic));
         r.appendChild(mic);
       }
+
+      /* Marquer une faute éliminatoire, là où c'est utile */
+      if(ch.mort){
+        const bm = document.createElement('button');
+        bm.type = 'button';
+        bm.className = 'btn btn-secondary';
+        bm.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
+        bm.textContent = '☠️';
+        bm.title = 'Insérer le marqueur de faute éliminatoire';
+        bm.addEventListener('click', () => {
+          /* Sur la ligne où se trouve le curseur, pas ailleurs */
+          const v = t.value;
+          const pos = t.selectionStart || 0;
+          const debut = v.lastIndexOf('\n', Math.max(0, pos - 1)) + 1;
+          let fin = v.indexOf('\n', pos);
+          if(fin === -1) fin = v.length;
+          const ligne = v.slice(debut, fin);
+
+          const nouvelle = (ligne.indexOf('☠️') !== -1)
+            ? ligne.split('☠️').join('').replace(/\s+/g, ' ').trim()
+            : ('☠️ ' + ligne).trim();
+
+          t.value = v.slice(0, debut) + nouvelle + v.slice(fin);
+          t.focus();
+          t.setSelectionRange(debut + nouvelle.length, debut + nouvelle.length);
+        });
+        r.appendChild(bm);
+      }
+
       bloc.appendChild(r);
     }
 
