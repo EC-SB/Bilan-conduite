@@ -253,7 +253,15 @@ async function afficherRappels(){
           await envoyerSmsAllo(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
           cr.envoye = true;
           ok++;
-        }catch(e){ rates.push((cr.choisi || cr.eleve) + ' : ' + e.message); }
+        }catch(e){
+          rates.push((cr.choisi || cr.eleve) + ' : ' + e.message);
+          /* Quota atteint : inutile d'insister, les suivants échoueront */
+          if(/quota/i.test(e.message)){
+            await informer('Quota Allo atteint. Les envois restants sont interrompus.\n\n' +
+                           e.message);
+            break;
+          }
+        }
       }
       showToast(ok + ' SMS envoyé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
       if(rates.length) await informer('Envois manqués :\n\n' + rates.join('\n'));
@@ -499,6 +507,9 @@ function typesDisponibles(){
   return TYPES_RAPPEL.concat(perso);
 }
 
+/* Allo compte 1000 caractères par SMS ; on garde une marge. */
+const LIMITE_SMS = 950;
+
 /* Le message assemblé à partir des choix */
 function composerRappel(r){
   const tous = typesDisponibles();
@@ -699,6 +710,11 @@ async function afficherRappelManuel(){
   zone.appendChild(libre);
 
   /* Aperçu, toujours visible : on envoie ce qu'on a relu */
+  const compteur = document.createElement('div');
+  compteur.id = 'rappelCompteur';
+  compteur.style.cssText = 'font-size:12px;text-align:right;margin-bottom:4px;min-height:16px;';
+  zone.appendChild(compteur);
+
   const ap = document.createElement('div');
   ap.id = 'rappelApercu';
   ap.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
@@ -777,6 +793,17 @@ function apercuRappel(){
   if(!ap) return;
   const texte = composerRappel(lireChoixRappel());
   ap.textContent = texte;
+
+  /* On voit tout de suite si le message passe */
+  const cp = $('rappelCompteur');
+  if(cp){
+    const n = texte.length;
+    const trop = n > LIMITE_SMS;
+    cp.style.color = trop ? 'var(--warn-text)'
+                    : (n > LIMITE_SMS - 100 ? '#E8A33D' : 'var(--muted)');
+    cp.textContent = n + ' / ' + LIMITE_SMS + ' caractères' +
+      (trop ? ' — trop long de ' + (n - LIMITE_SMS) + ', il faut raccourcir' : '');
+  }
 
   const bEnv = $('rappelEnvoi');
   const nom = $('rappelEleve') ? $('rappelEleve').value.trim() : '';
@@ -862,11 +889,15 @@ async function envoyerRappelManuel(){
 
   const texte = composerRappel(lireChoixRappel());
 
+  if(texte.length > LIMITE_SMS){
+    await informer('Message trop long : ' + texte.length + ' caractères pour ' +
+      LIMITE_SMS + ' autorisés.\n\nRaccourcis le texte ou retire une mention.');
+    return;
+  }
+
   if(!await confirmer('Envoyer ce SMS' + (nom ? ' à ' + nom : '') +
       '\nau ' + telLisible(numero) + ' ?\n\n' +
-      texte.length + ' caractères' +
-      (texte.length > 160 ? ' — soit ' + Math.ceil(texte.length / 153) +
-        ' SMS facturés.' : '.'))) return;
+      texte.length + ' / ' + LIMITE_SMS + ' caractères.')) return;
 
   b.disabled = true;
   b.textContent = 'Envoi…';
