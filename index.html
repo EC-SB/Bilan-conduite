@@ -1,1591 +1,854 @@
-<!DOCTYPE html>
-<!-- ============================================================
-     BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
+/* ============================================================
+   ec-manuel.js
+   Bilan à remplir à la main
+   Application Bilan de conduite — Évolution Conduites
+   ============================================================ */
 
-     VERSION APPLICATION : v216
-     VERSION APPS SCRIPT REQUISE : v42
-     Mis à jour le : 03/08/2026
+/* ============================================================
+   BILAN MANUEL — sans micro ni résumé automatique
+   Le moniteur remplit chaque rubrique ; il peut dicter dans
+   chaque champ séparément s'il le souhaite.
+   ============================================================ */
 
-     Vérifie que ce numéro correspond à celui affiché en haut de
-     l'application. S'ils diffèrent, c'est le cache du navigateur :
-     recharge en forçant (Ctrl+Maj+R).
+/* Ce que le moniteur doit renseigner, selon le modèle choisi */
+/* Les rubriques du résumé, dans l'ordre du bilan */
+const THEMES_ERREURS = [
+  { cle:'commandes',   nom:'🚙 MANIPULATION DES COMMANDES' },
+  { cle:'trajectoire', nom:'👀 TRAJECTOIRE' },
+  { cle:'giratoires',  nom:'🍩 GIRATOIRES' },
+  { cle:'vavd',        nom:'🛣️ VA VD' },
+  { cle:'pad',         nom:'❌ PAD' },
+  { cle:'allures',     nom:'🏎️💨 ALLURES' },
+  { cle:'controles',   nom:'👀 CONTRÔLES' },
+  { cle:'divers',      nom:'🧠 DIVERS' },
+  { cle:'manoeuvres',  nom:'🚙🚗🚙 MANŒUVRES' }
+];
 
-     Ce fichier appelle 27 modules dans le dossier app/.
-     S'il en manque un, un bandeau rouge le signale au démarrage.
-     ============================================================ -->
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bilan de conduite — Évolution Conduites</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
-<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
-<meta name="theme-color" content="#B6FF0E">
-<meta name="description" content="Bilans de conduite — Évolution Conduites, Saint-Brieuc et Loudéac">
-<style>
-  :root{
-    /* Thème sombre (par défaut) */
-    --navy: #000000;          /* fond de page   */
-    --navy-deep: #0B0B0B;     /* fond des cartes */
-    --orange: #B6FF0E;        /* accent (fonds de boutons) */
-    --accent-text: #B6FF0E;   /* accent lisible en texte   */
-    --on-accent: #0B0B0B;     /* texte posé sur l'accent   */
-    --orange-soft: #E4FFA8;
-    --cream: #F4F4F4;         /* texte principal */
-    --soft: #E0E0E0;          /* texte secondaire */
-    --muted: #B5B5B5;         /* texte discret */
-    --ink: #111111;
-    --green: #B6FF0E;
-    --red: #FF5C33;
-    --warn-text: #FFC9BB;
-    --warn-bg: rgba(255,92,51,.12);
-    --line: #262626;
-    --logo-2: #D8FF6E;
-  }
+const CHAMPS_MANUELS = {
+  conduiteResume: [
+    { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
+    { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
+    { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
+    { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
+    { cle:'texteDicte',  type:'texte', nom:'🎙️ Ton cours', lignes:8,
+      aide:'Ce que tu as dit pendant le cours. Peut rester vide.' },
+    { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
+    { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
+    { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
+    { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
+  ],
+  conduite: [
+    { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
+    { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
+    { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
+    { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
+    { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
+    { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
+    { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
+    { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
+  ],
+  simu: [
+    { cle:'competences', type:'competences', nom:'Compétences travaillées' },
+    { cle:'resume',      type:'texte', nom:'🧠 Remarques du cours', lignes:10 }
+  ],
+  eval: [
+    { cle:'resume',      type:'texte', nom:'Bilan de l\'évaluation', lignes:12 },
+    { cle:'simuHeures',  type:'court', nom:'Heures de simulateur' },
+    { cle:'leconsAvant', type:'court', nom:'Leçons avant examen blanc' },
+    { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
+  ],
+  examenblanc: [
+    { cle:'avant.carteSD',      type:'ok', nom:'1-1 · Carte SD', defaut:'✅' },
+    { cle:'avant.installation', type:'ok', nom:'1-2 · Installation', defaut:'✅' },
+    { cle:'avant.passager',     type:'ok', nom:'1-2 · Passager', defaut:'✅' },
+    { cle:'avant.voyants',      type:'ok', nom:'1-2 · Voyants', defaut:'✅' },
+    { cle:'avant.erreursRoute', type:'texte', lignes:5,
+      nom:"1-3 · Erreurs en allant au centre d'examen",
+      aide:'Une erreur par ligne.' },
 
-  body.clair{
-    /* Thème clair */
-    --navy: #F2F2EC;
-    --navy-deep: #FFFFFF;
-    --orange: #B6FF0E;
-    --accent-text: #3B6900;   /* le vert vif est illisible sur blanc */
-    --on-accent: #0B0B0B;
-    --orange-soft: #EEFFC7;
-    --cream: #14161B;
-    --soft: #2C2F36;
-    --muted: #64655F;
-    --ink: #14161B;
-    --green: #B6FF0E;
-    --red: #C33A12;
-    --warn-text: #8F2E0E;
-    --warn-bg: rgba(195,58,18,.10);
-    --line: #DCDCD3;
-    --logo-2: #9EDB2A;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: var(--navy);
-    color: var(--cream);
-    min-height:100vh;
-  }
-  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 60px;}
-  header{
-    display:flex;align-items:center;gap:12px;
-    padding:8px 0 20px;
-    border-bottom: 1px solid var(--line);
-    margin-bottom:20px;
-  }
-  .logo{
-    width:44px;height:44px;border-radius:12px;
-    background: linear-gradient(135deg, var(--orange), var(--logo-2));
-    display:flex;align-items:center;justify-content:center;
-    font-weight:800;color:var(--navy-deep);font-size:18px;
-    flex-shrink:0;
-  }
-  header h1{font-size:17px;margin:0;line-height:1.3;}
-  header p{margin:2px 0 0;font-size:12px;color:var(--muted);}
+    { cle:'examen.installation', type:'ok', nom:'2-1 · Installation', defaut:'' },
+    { cle:'examen.remarqueInstallation', type:'court', nom:'2-1 · Remarque sur l\'installation' },
+    { cle:'examen.passager',     type:'ok', nom:'2-1 · Passager', defaut:'' },
+    { cle:'examen.voyants',      type:'ok', nom:'2-1 · Voyants', defaut:'' },
+    { cle:'examen.verifQuestion',type:'court', nom:'2-2 · Vérifications, question n°' },
+    { cle:'examen.reflexions',   type:'texte', lignes:10,
+      nom:'2-3 · Réflexions inspecteur et explications',
+      aide:'Une réflexion par ligne.' },
 
-  .card{
-    background: var(--navy-deep);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:18px;
-    margin-bottom:16px;
-  }
-  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
-  input[type=text], input[type=date], select{
-    width:100%;
-    background: var(--navy);
-    border:1px solid var(--line);
-    color: var(--cream);
-    padding:11px 12px;
-    border-radius:10px;
-    font-size:15px;
-    margin-bottom:14px;
-  }
-  input[type=text]:focus, input[type=date]:focus, select:focus, textarea:focus{outline:2px solid var(--orange);outline-offset:1px;}
-  input[type=date]{text-align:center;color-scheme: dark;}
-  select:disabled, input:disabled{opacity:.55;}
-  select optgroup{background: var(--navy-deep); color:var(--muted);}
-  select option{background: var(--navy-deep); color: var(--cream);}
+    { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
+    { cle:'observations',type:'texte', lignes:4,
+      nom:'Observations et fautes éliminatoires',
+      aide:'Une observation par ligne.' },
 
-  .rec-btn{
-    width:100%;padding:20px;border:none;border-radius:16px;
-    font-size:17px;font-weight:700;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:10px;
-    transition: background .15s ease;
-  }
-  .rec-btn.idle{background: var(--orange); color: var(--navy-deep);}
-  .rec-btn.recording{background: var(--red); color: #fff; animation: pulse 1.6s infinite;}
-  .rec-btn:disabled{opacity:.5;cursor:not-allowed;animation:none;}
-  @keyframes pulse{
-    0%{box-shadow:0 0 0 0 rgba(255,92,51,.5);}
-    70%{box-shadow:0 0 0 14px rgba(255,92,51,0);}
-    100%{box-shadow:0 0 0 0 rgba(255,92,51,0);}
-  }
-  .status{text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;}
-  .compteur{text-align:center;font-size:15px;font-weight:700;color:var(--orange);margin-top:8px;display:none;}
+    { cle:'bilanErreurs',type:'texte', lignes:6, nom:'3 · Bilan erreurs',
+      aide:'Une erreur par ligne : chacune reçoit les trois questions.' },
 
-  .transcript-box{
-    width:100%;
-    display:block;
-    resize:vertical;
-    font-family:inherit;
-    margin-top:14px;
-    min-height:200px;max-height:340px;overflow-y:auto;
-    background: var(--navy);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:14px 16px;
-    font-size:22px;line-height:1.55;color:var(--cream);
-    white-space:pre-wrap;
-  }
+    { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
+    { cle:'heuresAvant', type:'court',  nom:"4 · Combien d'heures avant permis" },
+    { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
+    { cle:'friseAvantH', type:'court',  nom:'4 · Si non, heures en plus' },
+    { cle:'frisePost',   type:'ouinon', nom:'4 · Frise respectée post permis' },
+    { cle:'frisePostH',  type:'court',  nom:'4 · Si non, heures en plus' },
+    { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
+    { cle:'heuresPlanifiees', type:'ok', nom:'4 · Heures avant permis planifiées', defaut:'' },
+    { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
+  ],
+  examen: [
+    /* Le trajet jusqu'au centre : la partie « avant examen » du bilan.
+       Sans ces champs, elle sortait vide en saisie manuelle. */
+    { cle:'avantExamen.installation', type:'ok', nom:'AVANT — Installation', defaut:'' },
+    { cle:'avantExamen.passager',     type:'ok', nom:'AVANT — Passager',     defaut:'' },
+    { cle:'avantExamen.voyants',      type:'ok', nom:'AVANT — Voyants',      defaut:'' },
+    { cle:'avantExamen.erreurs',      type:'texte', lignes:5,
+      nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)' },
 
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    padding:13px 18px;border-radius:10px;border:none;
-    font-size:14px;font-weight:700;cursor:pointer;width:100%;
-  }
-  .btn-primary{background:var(--orange);color:var(--navy-deep);}
-  .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--cream);}
-  .btn-row{display:flex;gap:10px;margin-top:10px;}
-  .btn-row .btn{flex:1;}
-  .btn:disabled{opacity:.5;cursor:not-allowed;}
+    { cle:'installation',type:'ok',    nom:'EXAMEN — Installation', defaut:'' },
+    { cle:'passager',    type:'ok',    nom:'EXAMEN — Passager',     defaut:'' },
+    { cle:'voyants',     type:'ok',    nom:'EXAMEN — Voyants',      defaut:'' },
+    { cle:'verifQuestion', type:'court', nom:'N° de la question de vérification' },
+    { cle:'vi',          type:'ok',    nom:'Vérification', defaut:'' },
+    { cle:'qser',        type:'ok',    nom:'Question sécurité routière', defaut:'' },
+    { cle:'secours',     type:'ok',    nom:'Premiers secours', defaut:'' },
+    { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' }
+  ],
+  rvp: [
+    { cle:'resume',      type:'texte', nom:'Déroulé du rendez-vous', lignes:12 }
+  ],
+  accompagnateur: [
+    { cle:'resume',      type:'texte', nom:'Déroulé de la formation', lignes:12 }
+  ]
+};
 
-  textarea.result{
-    width:100%;min-height:460px;
-    background: var(--navy);
-    border:1px solid var(--line);
-    color: var(--cream);
-    padding:14px;border-radius:12px;
-    font-size:13px;line-height:1.6;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    white-space:pre-wrap;
-  }
-
-  .spinner{
-    width:20px;height:20px;border-radius:50%;
-    border:3px solid rgba(255,255,255,.25);
-    border-top-color: var(--orange);
-    animation: spin .8s linear infinite;
-  }
-  @keyframes spin{to{transform:rotate(360deg);}}
-
-  .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 10px;}
-  .history-item{
-    display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
-    padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;
-  }
-  .history-item:last-child{border-bottom:none;}
-  .history-item .meta{min-width:0;}
-  .history-item .meta strong{display:block;font-size:14px;}
-  .history-item .meta{padding-right:8px;}
-  .history-item .meta span{display:block;font-size:12px;color:var(--muted);line-height:1.45;}
-  .history-item .meta strong{overflow-wrap:anywhere;}
-  .history-item .arrow{color:var(--orange);font-size:18px;padding-left:10px;}
-
-  body.clair .transcript-box,
-  body.clair input[type=text], body.clair input[type=date],
-  body.clair select, body.clair textarea.result{
-    background:#FBFBF7;
-  }
-  body.clair .card{box-shadow:0 1px 2px rgba(0,0,0,.05);}
-  body.clair input[type=date]{color-scheme: light;}
-  body.clair .spinner{border-color:rgba(0,0,0,.15);border-top-color:var(--orange);}
-  body.clair .rec-btn.recording{color:#fff;}
-  .toast{
-    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-    background: var(--green); color:var(--on-accent);
-    padding:10px 18px;border-radius:999px;
-    font-size:13px;font-weight:600;opacity:0;pointer-events:none;
-    transition: opacity .2s ease, transform .2s ease;
-    z-index:50;max-width:90vw;text-align:center;
-  }
-  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
-
-  .unsupported{
-    background: var(--warn-bg);
-    border:1px solid var(--red);
-    color:var(--warn-text);
-    padding:14px;border-radius:12px;
-    font-size:13px;line-height:1.5;margin-bottom:16px;
-  }
-  #noteInterne, #noteResult{
-    width:100%;
-    background: var(--navy);
-    border:1px solid var(--line);
-    color: var(--cream);
-    padding:11px 12px;
-    border-radius:10px;
-    font-size:15px;
-    line-height:1.5;
-    font-family:inherit;
-    resize:vertical;
-    margin-bottom:14px;
-  }
-  #noteInterne:focus, #noteResult:focus{outline:2px solid var(--orange);outline-offset:1px;}
-  body.clair #noteInterne, body.clair #noteResult{background:#FBFBF7;}
-
-  /* Volets par élève dans les listes longues */
-  .history-item details > summary::-webkit-details-marker{display:none;}
-  .history-item details > summary{outline:none;}
-  .history-item details[open] > summary{margin-bottom:6px;}
-
-  /* Repassage : liseré et fond distincts */
-  .history-item.repassage{
-    border-left:4px solid #E8A33D;
-    background:rgba(232,163,61,.07);
-    padding-left:10px;
-  }
-  .history-item.repassage .meta strong::before{
-    content:'🔁 ';
-  }
-
-  .lecture-seule button:not(.raccourci),
-  .lecture-seule input, .lecture-seule select, .lecture-seule textarea{
-    pointer-events:none;
-    opacity:.55;
-  }
-  .lecture-seule::before{
-    content:'👁️ Lecture seule';
-    display:block;
-    font-size:11px;
-    color:var(--muted);
-    margin-bottom:6px;
-    letter-spacing:.04em;
-  }
-  .raccourcis{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
-  .raccourci{
-    background:transparent;
-    border:1px solid var(--line);
-    color:var(--cream);
-    border-radius:999px;
-    padding:7px 12px;
-    font-size:13px;
-    font-weight:600;
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .raccourci:active{background:var(--orange);color:var(--on-accent);border-color:var(--orange);}
-  .overlay{
-    position:fixed;inset:0;background:rgba(0,0,0,.82);
-    display:none;align-items:center;justify-content:center;
-    padding:20px;z-index:100;
-  }
-  .overlay.show{display:flex;}
-  .modal{
-    background:var(--navy-deep);
-    border:1px solid var(--line);
-    border-radius:18px;
-    padding:22px;
-    max-width:420px;width:100%;
-  }
-  .modal h3{margin:0 0 14px;font-size:18px;}
-  .recap{
-    background:var(--navy);border:1px solid var(--line);
-    border-radius:12px;padding:14px;margin-bottom:16px;
-    font-size:15px;line-height:1.7;
-  }
-  .recap b{color:var(--orange);}
+/* La boîte automatique part du même formulaire que la boîte manuelle,
+   puis les deux évoluent séparément. */
+CHAMPS_MANUELS.conduiteResumeAuto =
+  JSON.parse(JSON.stringify(CHAMPS_MANUELS.conduiteResume));
 
 
-  /* ============================================================
-     NAVIGATION PAR ONGLETS
-     En bas sur téléphone, sur le côté sur grand écran.
-     ============================================================ */
-  #barreOnglets{
-    position:fixed;
-    left:0; right:0; bottom:0;
-    z-index:80;
-    display:flex;
-    background:var(--navy-deep, #10131a);
-    border-top:1px solid var(--line);
-    padding:4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
-    box-shadow:0 -2px 14px rgba(0,0,0,.35);
-  }
-  #barreOnglets .onglet{
-    flex:1;
-    min-width:0;
-    background:none;
-    border:none;
-    color:var(--muted);
-    font-family:inherit;
-    font-size:11px;
-    font-weight:600;
-    padding:7px 2px 5px;
-    border-radius:10px;
-    cursor:pointer;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:2px;
-    line-height:1.2;
-    transition:color .15s ease, background .15s ease;
-  }
-  #barreOnglets .onglet span{ font-size:19px; line-height:1; }
-  #barreOnglets .onglet.actif{
-    color:var(--accent-text);
-    background:rgba(182,255,14,.10);
-  }
-  #barreOnglets .onglet[hidden]{ display:none; }
+/* champsManuels : déclaré dans ec-etat.js */
+/* modeManuel : déclaré dans ec-etat.js */
 
-  /* Le contenu ne doit pas passer sous la barre */
-  body.avec-onglets .wrap{ padding-bottom:86px; }
+/* La dictée est-elle possible sur ce navigateur ? */
+function dicteePossible(){
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
 
-  /* Un bloc qui n'appartient pas à l'onglet courant disparaît */
-  [data-onglet].hors-onglet{ display:none !important; }
+/* Dictée dans un champ précis, sans toucher au reste */
+function dicterDans(champ, bouton){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ showToast('La dictée demande Chrome sur Android.'); return; }
 
-  @media (min-width: 1100px){
-    #barreOnglets{
-      position:sticky;
-      top:0; bottom:auto;
-      max-width:1280px;
-      margin:0 auto 14px;
-      border-top:none;
-      border-bottom:1px solid var(--line);
-      border-radius:0 0 14px 14px;
-      padding:6px;
-      box-shadow:0 2px 14px rgba(0,0,0,.25);
-    }
-    #barreOnglets .onglet{
-      flex-direction:row;
-      gap:8px;
-      font-size:14px;
-      padding:11px 10px;
-    }
-    #barreOnglets .onglet span{ font-size:17px; }
-    body.avec-onglets .wrap{ padding-bottom:60px; }
+  if(bouton.dataset.actif === 'oui'){
+    if(bouton._sr) try{ bouton._sr.stop(); }catch(e){}
+    return;
   }
 
+  const sr = new SR();
+  sr.lang = 'fr-FR';
+  sr.continuous = true;
+  sr.interimResults = false;
+  sr.maxAlternatives = 3;
 
-  /* Navigation par boutons à l'intérieur d'un onglet */
-  .barre-vues{
-    display:flex;
-    gap:6px;
-    flex-wrap:wrap;
-    margin:0 0 14px;
-  }
-  .barre-vues[hidden]{ display:none; }
-  .barre-vues button{
-    flex:1 1 auto;
-    min-width:0;
-    background:var(--navy);
-    border:1px solid var(--line);
-    color:var(--cream);
-    font-family:inherit;
-    font-size:14px;
-    font-weight:600;
-    padding:13px 12px;
-    border-radius:11px;
-    cursor:pointer;
-    white-space:nowrap;
-    transition:border-color .15s ease, color .15s ease, background .15s ease;
-  }
+  const depart = champ.value;
+  let ajoute = '';
 
-  /* L'onglet Cours sert au volant : ses deux boutons sont plus grands.
-     Plusieurs moniteurs ont une vue diminuée. */
-  .barre-vues[data-pour="cours"]{ gap:10px; margin-bottom:18px; }
-  .barre-vues[data-pour="cours"] button{
-    font-size:18px;
-    font-weight:700;
-    padding:22px 14px;
-    border-radius:14px;
-    border-width:2px;
-    line-height:1.3;
-    white-space:normal;
-  }
-  .barre-vues[data-pour="cours"] button.actif{
-    border-color:var(--orange);
-    background:rgba(182,255,14,.14);
-  }
-  @media (min-width: 700px){
-    .barre-vues[data-pour="cours"] button{ font-size:20px; padding:26px 16px; }
-  }
-  .barre-vues button.actif{
-    border-color:var(--orange);
-    color:var(--accent-text);
-    background:rgba(182,255,14,.09);
-  }
-  [data-vue].hors-vue{ display:none !important; }
-
-
-  /* Préparer un cours : un vrai bouton, pas une ligne discrète.
-     C'est une action fréquente, elle doit se voir. */
-  details.volet-preparer{
-    border:2px solid var(--orange);
-    border-radius:14px;
-    overflow:hidden;
-  }
-  details.volet-preparer > summary{
-    list-style:none;
-    cursor:pointer;
-    padding:20px 16px;
-    font-size:18px;
-    font-weight:700;
-    color:var(--accent-text);
-    background:rgba(182,255,14,.09);
-    text-align:center;
-    user-select:none;
-  }
-  details.volet-preparer > summary::-webkit-details-marker{ display:none; }
-  details.volet-preparer[open] > summary{
-    border-bottom:1px solid var(--line);
-  }
-  details.volet-preparer > *:not(summary){
-    margin:14px;
-  }
-  @media (min-width: 700px){
-    details.volet-preparer > summary{ font-size:20px; padding:24px 18px; }
-  }
-
-  /* Volets des listes, dans le suivi */
-  details.volet-liste{
-    border:1px solid var(--line);
-    border-radius:11px;
-    padding:0;
-    margin-bottom:9px;
-    overflow:hidden;
-  }
-  details.volet-liste > summary{
-    list-style:none;
-    cursor:pointer;
-    padding:12px 14px;
-    display:flex;
-    align-items:center;
-    gap:9px;
-    font-size:14px;
-    font-weight:700;
-    color:var(--cream);
-    user-select:none;
-  }
-  details.volet-liste > summary::-webkit-details-marker{ display:none; }
-  details.volet-liste > summary::after{
-    content:'▾';
-    margin-left:auto;
-    font-size:15px;
-    color:var(--muted);
-    transition:transform .18s ease;
-    flex-shrink:0;
-  }
-  details.volet-liste[open] > summary{
-    border-bottom:1px solid var(--line);
-    color:var(--accent-text);
-  }
-  details.volet-liste[open] > summary::after{ transform:rotate(180deg); }
-  details.volet-liste > *:not(summary){ margin-left:14px; margin-right:14px; }
-  details.volet-liste > *:last-child{ margin-bottom:12px; }
-  details.volet-liste .compteur{
-    font-size:12px;
-    font-weight:600;
-    color:var(--muted);
-    background:var(--navy);
-    border:1px solid var(--line);
-    border-radius:20px;
-    padding:2px 9px;
-    flex-shrink:0;
-  }
-  details.volet-liste .compteur.alerte{
-    color:var(--warn-text);
-    border-color:var(--red);
-  }
-
-  /* ---------- Modules en tiroirs ---------- */
-  details.card{padding:0;overflow:hidden;}
-  details.card > summary{
-    list-style:none;
-    cursor:pointer;
-    padding:16px 18px;
-    display:flex;
-    align-items:center;
-    gap:10px;
-    font-size:15px;
-    font-weight:700;
-    color:var(--cream);
-    user-select:none;
-  }
-  details.card > summary::-webkit-details-marker{display:none;}
-  details.card > summary::after{
-    content:'▾';
-    margin-left:auto;
-    font-size:16px;
-    color:var(--muted);
-    transition:transform .18s ease;
-    flex-shrink:0;
-  }
-  details.card[open] > summary::after{transform:rotate(180deg);}
-  details.card[open] > summary{
-    border-bottom:1px solid var(--line);
-    color:var(--accent-text);
-  }
-  details.card > .contenu-tiroir{padding:16px 18px 18px;}
-  details.card > summary .compteur{
-    font-size:12px;
-    font-weight:600;
-    color:var(--muted);
-    background:var(--navy);
-    border:1px solid var(--line);
-    border-radius:20px;
-    padding:2px 9px;
-    flex-shrink:0;
-  }
-  @media (min-width: 700px){
-    details.card > summary{padding:18px 22px;font-size:16px;}
-    details.card > .contenu-tiroir{padding:18px 22px 22px;}
-  }
-
-  h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;}
-  .hint{font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;}
-
-  /* ============================================================
-     ADAPTATION AUX ÉCRANS
-     Téléphone par défaut ; tablette et ordinateur élargissent.
-     ============================================================ */
-
-  /* ---- Tablette : 700 px et plus ---- */
-  @media (min-width: 700px){
-    .wrap{max-width:900px;padding:24px 24px 60px;}
-    header h1{font-size:20px;}
-    .card{padding:22px;}
-
-    /* Les champs courts se placent côte à côte */
-    .duo{display:flex;gap:14px;}
-    .duo > *{flex:1;min-width:0;}
-
-    textarea.result{min-height:520px;font-size:14px;}
-    .transcript-box{max-height:420px;}
-    .modal{max-width:520px !important;}
-  }
-
-  /* ---- Ordinateur : 1100 px et plus ---- */
-  @media (min-width: 1100px){
-    .wrap{max-width:1280px;padding:28px 32px 70px;}
-
-    /* Deux colonnes : le travail à gauche, la consultation à droite */
-    #appView{
-      display:grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap:20px;
-      align-items:start;
-    }
-    /* Les modules larges occupent toute la largeur */
-    #appView > [data-section="bureau"],
-    #appView > [data-section="admin"],
-    #appView > #resultView,
-    #appView > #repriseBanner{
-      grid-column: 1 / -1;
-    }
-
-    /* À l'intérieur du suivi bureau : listes en colonnes */
-    [data-section="bureau"] .grille-bureau{
-      display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-      gap:18px;
-      align-items:start;
-    }
-
-    /* Les lignes d'élève deviennent plus compactes */
-    .history-item .meta strong{font-size:15px;}
-    .history-item .meta span{font-size:12.5px;}
-
-    textarea.result{min-height:600px;}
-    .transcript-box{max-height:480px;}
-
-    /* Les boutons pleine largeur n'ont plus de sens sur grand écran */
-    .card > .btn, .btn-row .btn{max-width:100%;}
-    #recBtn{font-size:19px;padding:24px;}
-  }
-
-  /* ---- Très grand écran ---- */
-  @media (min-width: 1600px){
-    .wrap{max-width:1500px;}
-    #appView{grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);}
-    #appView > [data-section="bureau"],
-    #appView > [data-section="admin"],
-    #appView > #resultView,
-    #appView > #repriseBanner{ grid-column: 1 / -1; }
-  }
-
-
-  /* Fiche de préparation permis et réglage des places : en colonnes */
-  @media (min-width: 1100px){
-    .fiche-permis{
-      display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap:0 16px;
-      align-items:start;
-    }
-    .fiche-permis > .pleine-largeur{grid-column: 1 / -1;}
-
-    .mois-places{
-      display:grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap:16px;
-      align-items:start;
-    }
-
-    /* Les filtres tiennent sur une ligne */
-    .barre-filtres{display:flex;gap:10px;flex-wrap:wrap;}
-    .barre-filtres > select{flex:1;min-width:180px;margin-bottom:0;}
-  }
-
-  /* Confort au clavier et à la souris */
-  @media (hover: hover){
-    .btn:hover:not(:disabled){filter:brightness(1.08);}
-    .history-item:hover{background:rgba(127,127,127,.06);}
-    .raccourci:hover{border-color:var(--orange);}
-  }
-
-</style>
-</head>
-<body>
-<div class="wrap">
-  <header>
-    <div class="logo">EC</div>
-    <div>
-      <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v216</span></p>
-    </div>
-    <div id="qui" style="display:none;margin-left:auto;text-align:right;
-         line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
-      <div id="quiNom" style="font-size:14px;font-weight:700;color:var(--cream);
-           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-      <div id="quiRole" style="font-size:11px;color:var(--muted);
-           white-space:nowrap;"></div>
-    </div>
-    <button id="logoutBtn" title="Se déconnecter" style="display:none;
-            margin-left:8px;background:transparent;border:1px solid var(--line);
-            color:var(--cream);border-radius:10px;width:44px;height:44px;
-            font-size:18px;cursor:pointer;flex-shrink:0;">🔓</button>
-    <button id="themeBtn" title="Changer de thème"
-            style="margin-left:8px;background:transparent;border:1px solid var(--line);
-                   color:var(--cream);border-radius:10px;width:44px;height:44px;
-                   font-size:20px;cursor:pointer;flex-shrink:0;">🌙</button>
-  </header>
-
-  <div id="unsupportedBox"></div>
-
-  <!-- ÉCRAN DE DÉVERROUILLAGE -->
-  <div id="lockView">
-    <div class="card" style="text-align:center;">
-      <div style="font-size:34px;margin-bottom:4px;">🔒</div>
-      <h2 class="section-title" style="text-align:center;">Code d'accès</h2>
-      <input type="password" id="codeInput" inputmode="numeric" autocomplete="off"
-             maxlength="8" placeholder="••••••"
-             style="text-align:center;letter-spacing:.5em;font-size:24px;padding:14px;">
-      <button class="btn btn-primary" id="codeBtn">Déverrouiller</button>
-      <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:var(--muted);"></div>
-    </div>
-  </div>
-
-  <script>
-  /* ============================================================
-     CONNEXION DE SECOURS
-     Le bouton Déverrouiller est branché ici, dans la page même :
-     aucun module défaillant ne peut l'empêcher de fonctionner.
-     ============================================================ */
-  (function(){
-    var bouton = document.getElementById('codeBtn');
-    var champ  = document.getElementById('codeInput');
-    var msg    = document.getElementById('codeMsg');
-    if(!bouton) return;
-
-    function essayer(){
-      if(typeof deverrouiller === 'function'){ deverrouiller(); return; }
-
-      /* Les modules n'ont pas tous été chargés : on dit lesquels */
-      var attendus = ['ec-etat.js','ec-modeles.js','ec-consignes.js','ec-noyau.js',
-        'ec-vocal.js','ec-reseau.js','ec-manuel.js','ec-fenetres.js','ec-questionnaire.js',
-        'ec-permis.js','ec-prepares.js','ec-bureau.js','ec-places.js','ec-listes.js',
-        'ec-permis-listes.js','ec-postpermis.js','ec-textes.js','ec-correction.js',
-        'ec-bilans.js','ec-sms.js','ec-stats.js','ec-messenger.js','ec-journal.js',
-        'ec-onglets.js','ec-depart.js','ec-demarrage.js'];
-      var charges = window.EC_MODULES || {};
-      var manque = attendus.filter(function(f){ return !charges[f]; });
-
-      if(msg){
-        msg.style.color = 'var(--warn-text)';
-        msg.innerHTML = manque.length
-          ? '⚠️ Fichier(s) absent(s) sur le serveur :<br><strong>' +
-            manque.join('<br>') + '</strong><br>' +
-            '<span style="font-size:12px;">Vérifie qu\'ils sont bien dans le dossier app/ ' +
-            'sur GitHub, puis recharge la page.</span>'
-          : "⚠️ L'application n'a pas fini de charger. Recharge la page.";
+  sr.onresult = ev => {
+    for(let i = ev.resultIndex; i < ev.results.length; i++){
+      if(!ev.results[i].isFinal) continue;
+      let meilleur = ev.results[i][0].transcript;
+      let score = -1;
+      for(let k = 0; k < ev.results[i].length; k++){
+        const s = scoreMetier(ev.results[i][k].transcript);
+        if(s > score){ score = s; meilleur = ev.results[i][k].transcript; }
       }
+      ajoute += (ajoute ? ' ' : '') + corrigerVocabulaire(meilleur.trim());
     }
+    champ.value = (depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '') +
+                  terminerPhrase(ajoute);
+    champ.scrollTop = champ.scrollHeight;
+  };
+  sr.onerror = e => { if(e.error !== 'no-speech') showToast('Dictée : ' + e.error); };
+  sr.onend = () => {
+    bouton.dataset.actif = '';
+    bouton.textContent = '🎙️';
+    bouton.style.background = '';
+    bouton._sr = null;
+  };
 
-    bouton.addEventListener('click', essayer);
-    if(champ){
-      champ.addEventListener('keydown', function(e){
-        if(e.key === 'Enter') essayer();
+  bouton._sr = sr;
+  bouton.dataset.actif = 'oui';
+  bouton.textContent = '⏹️';
+  bouton.style.background = 'var(--red)';
+  try{ sr.start(); }catch(e){ showToast('Dictée indisponible.'); sr.onend(); }
+}
+
+
+
+/* Une ligne du CEPC : la compétence et son niveau */
+function ligneCepc(nom, valeurs){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;';
+  const t = document.createElement('span');
+  t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;min-width:0;';
+  t.textContent = nom;
+  const s = document.createElement('select');
+  s.className = 'cepcNiveau';
+  s.setAttribute('data-comp', nom);
+  s.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:15px;flex-shrink:0;';
+  [''].concat(valeurs || ['E','0','1','2','3']).forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v || '—';
+    s.appendChild(o);
+  });
+  s.addEventListener('change', majTotalCepc);
+  l.appendChild(t); l.appendChild(s);
+  return l;
+}
+
+function majTotalCepc(){
+  const z = document.getElementById('cepcTotal');
+  if(!z) return;
+  const c = {};
+  document.querySelectorAll('.cepcNiveau').forEach(s => {
+    if(s.value) c[s.getAttribute('data-comp')] = s.value;
+  });
+  const r = calculerCepc(c);
+  let etat, couleur;
+  if(r.elimine){
+    etat = 'ÉLIMINATOIRE — ' + r.eliminatoires.length + ' compétence(s) en E';
+    couleur = 'var(--red)';
+  }else if(r.favorable){
+    etat = 'FAVORABLE'; couleur = 'var(--accent-text)';
+  }else{
+    etat = 'insuffisant — 20 minimum'; couleur = 'var(--warn-text)';
+  }
+  z.innerHTML = 'Total : ' + r.total + ' / ' + r.max + ' · <span style="color:' + couleur + ';">' +
+    etat + '</span>';
+}
+
+/* Construit le formulaire du bilan manuel */
+async function ouvrirBilanManuel(){
+  const probleme = verifierContexteManuel();
+  if(probleme){ showToast(probleme); return; }
+
+  const modeleCle = $('modele').value;
+  const modele = MODELES[modeleCle];
+
+  /* Le rendez-vous post-permis a son propre écran */
+  if(modeleCle === 'rdv-post'){
+    const nom = $('studentName').value.trim();
+    if(nom.length < 2){ showToast("Saisis le nom de l'élève."); return; }
+    ouvrirRdvPost({ eleve: nom, date: $('lessonDate').value,
+                    moniteur: ACCES.moniteur || '', note: '', modele: 'rdv-post' });
+    return;
+  }
+
+  const champs = CHAMPS_MANUELS[modele.schema];
+  if(!champs){ showToast('Ce modèle ne se remplit pas encore à la main.'); return; }
+
+  const eleve = $('studentName').value.trim();
+  const btn = $('manuelBtn');
+  btn.disabled = true;
+  btn.textContent = 'Préparation…';
+
+  /* Le questionnaire alimente la note interne, comme pour un cours enregistré */
+  if(!contexteDepart){
+    try{
+      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de remplir le bilan', 'Continuer');
+      if(rep){
+        contexteDepart = rep;
+        appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
+      }
+    }catch(e){}
+  }
+
+  /* Ce qui se remplit tout seul : frise, manœuvres déjà validées */
+  let dossier = { manoeuvres: [], frise: '' };
+  try{ dossier = await chargerDossierEleve(eleve); }catch(e){}
+
+  btn.disabled = false;
+  btn.textContent = '✍️ Bilan à remplir à la main';
+
+  champsManuels = {};
+  modeManuel = true;
+
+  const zone = $('manuelChamps');
+  zone.innerHTML = '';
+
+  champs.forEach(ch => {
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'margin-bottom:16px;';
+
+    if(ch.type === 'niveau' || ch.type === 'ouinon'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:8px;';
+      const choix = (ch.type === 'niveau')
+        ? [['✅ Oui', 'oui'], ['❌ Pas le niveau', 'non'], ['—', '']]
+        : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
+      choix.forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
+        b.textContent = lab;
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle] = val;
+          Array.prototype.forEach.call(r.children, x => {
+            x.style.borderColor = 'var(--line)';
+            x.style.color = 'var(--cream)';
+          });
+          b.style.borderColor = 'var(--orange)';
+          b.style.color = 'var(--accent-text)';
+        });
+        r.appendChild(b);
       });
-    }
-  })();
-  </script>
-
-    <nav id="barreOnglets" role="tablist" aria-label="Navigation" style="display:none;">
-    <button class="onglet" data-cible="cours"  type="button"><span>🎙️</span>Cours</button>
-    <button class="onglet" data-cible="eleves" type="button"><span>🔍</span>Élèves</button>
-    <button class="onglet" data-cible="suivi"  type="button"><span>📓</span>Suivi</button>
-    <button class="onglet" data-cible="permis" type="button"><span>🚗</span>Permis</button>
-    <button class="onglet" data-cible="outils" type="button"><span>⚙️</span>Outils</button>
-  </nav>
-
-  <div class="barre-vues" data-pour="cours" style="display:none;"></div>
-  <div class="barre-vues" data-pour="eleves" style="display:none;"></div>
-  <div class="barre-vues" data-pour="outils" style="display:none;"></div>
-  <div id="appView" style="display:none;">
-
-  <div id="repriseBanner" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">💾 Cours interrompu retrouvé</div>
-    <div id="repriseInfo" style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5;"></div>
-    <div class="btn-row">
-      <button class="btn btn-primary" id="repriseOui">Reprendre</button>
-      <button class="btn btn-secondary" id="repriseNon">Ignorer</button>
-    </div>
-  </div>
-
-  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
-    <h2 class="section-title">📅 Mes prochains cours <span class="compteur" id="cptPrepares"></span></h2>
-    <div class="contenu-tiroir">
-    <label style="display:flex;align-items:center;gap:10px;text-transform:none;
-                  font-size:14px;color:var(--muted);margin-bottom:10px;">
-      <input type="checkbox" id="prepTous" style="width:18px;height:18px;">
-      Voir aussi les cours des autres moniteurs
-    </label>
-    <div id="listePrepares"></div>
-
-    <details style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
-        ➕ Préparer un cours pour plus tard
-      </summary>
-      <div style="margin-top:14px;">
-        <label for="prepDate">Date du cours</label>
-        <input type="date" id="prepDate">
-        <label for="prepEleve">Nom et prénom de l'élève</label>
-        <input type="text" id="prepEleve" list="listeEleves" autocomplete="off"
-               placeholder="Choisis dans la liste ou tape un nom">
-        <label for="prepModele">Type de bilan</label>
-        <select id="prepModele"></select>
-        <button class="btn btn-primary" id="prepBtn">📝 Préparer les notes</button>
-        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;">
-          Le questionnaire s'ouvre pour préparer les notes. Le jour du cours,
-          un appui sur « Ouvrir » remplit tout : plus qu'à démarrer l'enregistrement.
-        </div>
-      </div>
-    </details>
-  </div>
-  </div>
-
-  <div id="recordView" data-onglet="cours" data-section="cours" data-vue="cours">
-    <div class="card">
-      <h2 class="section-title">🎙️ Démarrer un cours</h2>
-      <div class="contenu-tiroir">
-      <label for="modele">Type de bilan</label>
-      <select id="modele"></select>
-      <div id="alerteBoite" style="display:none;"></div>
-
-      <label for="monitorName">Prénom du moniteur</label>
-      <input type="text" id="monitorName" placeholder="Ex : Chrystel">
-
-      <label for="studentName">Nom et prénom de l'élève</label>
-      <input type="text" id="studentName" list="listeEleves" autocomplete="off"
-             placeholder="Ex : Pierre Dupont">
-      <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
-      <div id="historiqueEleve" style="display:none;margin-bottom:14px;"></div>
-
-      <label for="eleveMessenger">💬 Messenger de l'élève</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="eleveMessenger" autocomplete="off"
-               placeholder="Lien ou pseudo — retenu pour la suite"
-               style="flex:1;min-width:0;margin:0;">
-        <a id="eleveMessengerLien" href="#" target="_blank" rel="noopener"
-           class="btn btn-secondary" title="Ouvrir la conversation"
-           style="display:none;width:auto;padding:11px 13px;font-size:16px;margin:0;
-                  flex-shrink:0;text-decoration:none;align-items:center;">↗️</a>
-      </div>
-      <div class="hint" id="eleveMessengerEtat">
-        Saisi une fois, il est retenu : tous les moniteurs le retrouveront ici.
-      </div>
-
-      <div class="duo">
-        <div>
-          <label for="site">Site</label>
-          <select id="site">
-            <option>Saint-Brieuc</option>
-            <option>Loudéac</option>
-          </select>
-        </div>
-        <div>
-          <label for="lessonDate">Date du cours</label>
-          <input type="date" id="lessonDate">
-        </div>
-      </div>
-
-      <label for="noteInterne">🔒 Frise · Examen blanc possible ? · Date d'examen ? — visible uniquement moniteurs</label>
-      <textarea id="noteInterne" rows="3" maxlength="600"
-                placeholder="Note interne — Ex : frise reprise, examen blanc possible, date d'examen à prévoir"></textarea>
-      <div class="raccourcis" id="raccourcisNote"></div>
-      <div style="font-size:12px;color:var(--muted);margin:4px 0 14px;line-height:1.4;">
-        Jamais incluse dans le bilan de l'élève. Elle s'affichera au moniteur suivant lors d'une recherche.
-      </div>
-
-      <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
-      <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
-      <button class="btn btn-secondary" id="manuelBtn"
-              style="margin-top:12px;">✍️ Bilan à remplir à la main</button>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
-        Sans micro ni résumé automatique : tu remplis chaque rubrique toi-même,
-        en écrivant ou en dictant champ par champ.
-      </div>
-      <div id="etatMicro" style="text-align:center;font-size:26px;font-weight:800;margin-top:14px;line-height:1.3;"></div>
-      <div id="diagMicro" style="text-align:center;font-size:21px;font-weight:700;color:var(--muted);margin-top:8px;line-height:1.35;"></div>
-      <div class="compteur" id="compteur"></div>
-      <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
-      <textarea class="transcript-box" id="transcriptBox" style="display:none;"
-                placeholder="Le texte capté apparaîtra ici. Tu peux le corriger avant de générer le bilan."></textarea>
-      <div id="transcriptAide" style="display:none;font-size:13px;color:var(--muted);margin-top:6px;text-align:center;">
-        ✏️ Mets en pause pour corriger le texte à la main avant de générer.<br>
-        💾 Sauvegarde automatique dans ce téléphone : en cas de plantage, tout est récupérable.
-      </div>
-    </div>
-    </div>
-
-    <button class="btn btn-primary" id="finishBtn"
-            style="display:none;margin-top:46px;padding:20px;font-size:16px;">✅ Terminer et générer le bilan</button>
-  </div>
-
-  <div id="manuelView" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
-    <h2 class="section-title">✍️ Bilan à remplir à la main</h2>
-    <div id="manuelInfo" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;"></div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
-      <span id="aideManuel">Remplis chaque rubrique.</span>
-    </div>
-    <div id="manuelChamps"></div>
-    <button class="btn btn-primary" id="manuelGen">📄 Composer le bilan</button>
-    <button class="btn btn-secondary" id="manuelAnnul">Revenir</button>
-  </div>
-
-  <div id="rdvPostView" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
-    <h2 class="section-title">🔁 Rendez-vous post-permis</h2>
-    <div id="rdvPostEleve" style="font-size:16px;font-weight:700;margin-bottom:4px;"></div>
-    <div id="rdvPostInfo" style="font-size:13px;color:var(--muted);margin-bottom:14px;"></div>
-
-    <div id="rdvPostCepc" style="margin-bottom:14px;"></div>
-
-    <details style="margin-bottom:14px;">
-      <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--accent-text);">
-        📄 Bilan d'examen officiel</summary>
-      <textarea id="rdvPostBilan" rows="10"
-                style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
-                       padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
-                       font-family:inherit;resize:vertical;margin-top:8px;"></textarea>
-    </details>
-
-    <label for="rdvPostEleveBilan">📝 Bilan écrit par l'élève — corrige-le avec lui</label>
-    <textarea id="rdvPostEleveBilan" rows="10"
-              placeholder="Colle ici ce que l'élève a écrit, ou saisis-le pendant l'entretien."
-              style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
-                     padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
-                     font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
-
-    <label for="rdvPostTexte">✍️ Tes remarques et compléments</label>
-    <textarea id="rdvPostTexte" rows="5"
-              placeholder="Ce que tu ajoutes, ce qu'il faut retenir de l'entretien"
-              style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
-                     padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
-                     font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
-
-    <label for="rdvPostSuite">Conclusion — que fait-on ensuite ?</label>
-    <select id="rdvPostSuite">
-      <option value="">— à définir —</option>
-    </select>
-
-    <input type="text" id="rdvPostHeures" inputmode="numeric"
-           placeholder="Combien d'heures avant le repassage ?" style="display:none;">
-
-    <label for="rdvPostCom">Commentaire pour le bureau</label>
-    <textarea id="rdvPostCom" rows="3" maxlength="600"
-              placeholder="Ex : progrès nets sur les giratoires, reste les priorités à droite"
-              style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
-                     padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.5;
-                     font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
-
-    <button class="btn btn-primary" id="rdvPostEnr">✅ Terminer le rendez-vous</button>
-    <button class="btn btn-secondary" id="rdvPostAnnul">Revenir</button>
-    <div id="rdvPostMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
-  </div>
-
-  <div id="generatingView" data-onglet="cours" class="card" style="display:none; text-align:center;">
-    <div class="spinner" style="margin:10px auto;"></div>
-    <div style="margin-top:12px;font-size:15px;color:var(--soft);">Génération du bilan en cours…</div>
-    <div id="progressionGen" style="margin-top:8px;font-size:14px;color:var(--accent-text);font-weight:600;"></div>
-    <div style="margin-top:10px;font-size:12px;color:var(--muted);">Un cours de 2h prend environ une minute.</div>
-  </div>
-
-  <div id="resultView" data-onglet="cours" style="display:none;">
-    <div class="card">
-      <div style="background:var(--warn-bg);border:1px solid var(--red);
-           border-radius:12px;padding:14px;margin-bottom:16px;">
-        <label for="noteResult" style="margin-bottom:8px;">🔒 Frise · Examen blanc possible ? · Date d'examen ? — visible uniquement moniteurs</label>
-        <textarea id="noteResult" rows="3" maxlength="600"
-                  placeholder="Note interne — Ex : frise reprise, examen blanc possible, date d'examen à prévoir"
-                  style="margin-bottom:6px;"></textarea>
-        <div class="raccourcis" id="raccourcisNoteResult"></div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px;">
-          Jamais transmise à l'élève. Visible par le moniteur suivant lors d'une recherche.
-          Enregistrée quand tu appuies sur « Copier et enregistrer ».
-        </div>
-      </div>
-      <label>Bilan généré — relis et complète avant envoi</label>
-      <div class="hint">Les cases laissées en ✅❌ / ❓ sont à compléter par toi : notes chiffrées, nombre d'heures, choix de branche.</div>
-      <textarea class="result" id="resultText"></textarea>
-      <button class="btn btn-primary" id="copyBtn"
-              style="font-size:16px;padding:16px;">📋 Copier et enregistrer</button>
-
-      <button class="btn btn-primary" id="corrigerBtn"
-              style="display:none;margin-top:8px;font-size:14px;padding:13px;">
-        💾 Enregistrer la correction
-      </button>
-
-      <div id="exportEtat" style="display:none;border:1px solid var(--line);border-radius:12px;
-           padding:12px 14px;margin-top:14px;font-size:14px;line-height:1.5;"></div>
-
-      <details style="margin-top:12px;">
-        <summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:4px 0;">
-          Autres actions</summary>
-        <button class="btn btn-secondary" id="exportSheetsBtn"
-                style="margin-top:8px;font-size:13px;padding:11px;">
-          📊 Enregistrer sans copier</button>
-        <button class="btn btn-secondary" id="correctionBtn"
-                style="margin-top:8px;font-size:13px;padding:11px;">
-          ⚠️ Signaler une erreur du moniteur</button>
-      </details>
-
-      <!-- Passer au cours suivant : le dernier geste, donc tout en bas -->
-      <button class="btn btn-primary" id="newLessonBtn"
-              style="margin-top:20px;padding:20px;font-size:18px;font-weight:700;
-                     border-width:2px;">➕ Nouveau cours</button>
-    </div>
-  </div>
-
-  <div class="card" data-section="recherche" data-vue="recherche" data-onglet="eleves">
-    <h2 class="section-title">🔍 Retrouver un élève</h2>
-    <div class="contenu-tiroir">
-    <label for="searchName">Nom et prénom de l'élève</label>
-    <input type="text" id="searchName" list="listeEleves" autocomplete="off"
-           placeholder="Choisis dans la liste ou tape un nom">
-    <datalist id="listeEleves"></datalist>
-    <div id="eleveInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
-    <div class="duo">
-      <div>
-        <label for="searchMoniteur">Moniteur</label>
-        <select id="searchMoniteur">
-          <option value="">Tous les moniteurs</option>
-        </select>
-      </div>
-      <div>
-        <label for="searchSite">Site</label>
-        <select id="searchSite">
-          <option value="">Tous les sites</option>
-          <option value="Saint-Brieuc">Saint-Brieuc</option>
-          <option value="Loudéac">Loudéac</option>
-        </select>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">
-      Laisse le nom de l'élève vide et choisis un moniteur pour voir tous ses bilans.
-    </div>
-    <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
-    <div id="searchResults" style="margin-top:14px;"></div>
-
-    <div id="zoneSuppression" style="display:none;margin-top:18px;padding-top:16px;
-         border-top:1px solid var(--line);">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-        🗑️ Permis obtenu ou départ de l'auto-école ? Tu peux effacer définitivement
-        tous les bilans de cet élève. Action irréversible.
-      </div>
-      <button class="btn btn-secondary" id="supprimerEleveBtn"
-              style="color:var(--red);border-color:var(--red);">🗑️ Supprimer tous ses bilans</button>
-      <div id="suppressionMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
-    </div>
-  </div>
-  </div>
-  <div class="card" data-section="bureau" data-onglet="suivi">
-    <h2 class="section-title">🌙 Suivi simulateurs et examens blancs</h2>
-    <div class="contenu-tiroir">
-    <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">
-      Actualisation automatique toutes les 90 s, sauf pendant une saisie.
-    </div>
-
-    <details style="margin-top:16px;">
-      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
-        ➕ Ajouter une date manuellement
-      </summary>
-      <div style="margin-top:14px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
-          Pour un élève qui n'apparaît pas dans les listes. La date rejoint
-          directement ses notes internes au prochain cours.
-        </div>
-        <label for="addEleve">Nom et prénom de l'élève</label>
-        <input type="text" id="addEleve" list="listeEleves" autocomplete="off"
-               placeholder="Choisis dans la liste ou tape un nom">
-        <label for="addType">Type</label>
-        <select id="addType">
-          <option value="permis">🚗 Examen du permis</option>
-          <option value="examblanc">📝 Examen blanc</option>
-          <option value="simu">🌙 Simulateur nuit et risques</option>
-        </select>
-        <label for="addEtat">Situation</label>
-        <select id="addEtat">
-          <option value="aprevoir">À prévoir — pas encore de date</option>
-          <option value="date">Date fixée</option>
-        </select>
-        <div id="addZoneDate" style="display:none;">
-          <label for="addDate">Date</label>
-          <input type="date" id="addDate">
-        </div>
-        <label for="addLecons">Leçons restantes (facultatif)</label>
-        <input type="text" id="addLecons" inputmode="numeric" placeholder="Ex : 3">
-        <button class="btn btn-primary" id="addBtn">✅ Enregistrer</button>
-        <div id="addEtatMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
-      </div>
-    </details>
-
-    <div class="grille-bureau" style="margin-top:18px;">
-    <details class="volet-liste" data-section="bureau_simu">
-      <summary>🌙 Simulateurs nuit et risques <span class="compteur" id="cptSimu"></span></summary>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-        À faire obligatoirement avant l'examen blanc.</div>
-      <div id="listeSimu"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-
-    <details class="volet-liste" data-section="bureau_examblanc">
-      <summary>📝 Examens blancs à prévoir <span class="compteur" id="cptEB"></span></summary>
-      <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
-
-    <details class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-      <summary>⛔ Examen blanc — pas le niveau <span class="compteur" id="cptPasNiveau"></span></summary>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-          Replacer un examen blanc ou fixer un nombre d'heures.</div>
-        <div id="listePasNiveau"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-    </details>
-    </div>
-
-    </div>
-  </div>
-
-  <div class="card" data-section="bureau_permis" data-onglet="permis">
-    <h2 class="section-title">🚗 Suivi permis</h2>
-    <div class="contenu-tiroir">
-    <button class="btn btn-secondary" id="permisBureauBtn">🔄 Actualiser les listes</button>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
-      Actualisation à l'ouverture, puis toutes les 90 s hors saisie.
-    </div>
-    <div data-section="bureau_places">
-      <div id="alertePrise" style="margin-bottom:12px;"></div>
-      <div id="blocPlaces" style="margin-bottom:14px;"></div>
-    </div>
-    <details class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
-      <summary>⏳ Attente bilan post-permis <span class="compteur" id="cptAttente"></span></summary>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-        Élèves ajournés : colle leur bilan puis fixe le rendez-vous post-permis.</div>
-      <div id="listeAttenteBilan"><div class="empty">Appuie sur Actualiser.</div></div>
-
-    <details class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-      <summary>⛔ Pas de repassage pour le moment <span class="compteur" id="cptPasRep"></span></summary>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-          Reprise des leçons avant de se décider.</div>
-        <div id="listePasRepassage"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-    </details>
-
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-      <summary>🚗 Élèves prêts au permis <span class="compteur" id="cptAPrevoir"></span></summary>
-      <select id="filtrePermis" style="margin-bottom:10px;">
-        <option value="">Tous — par priorité</option>
-        <option value="premier">🆕 Premier passage</option>
-        <option value="repassage">🔁 Repassages</option>
-        <option value="urgent">🔴 Urgents seulement</option>
-        <option value="aprevoir">Date à prévoir</option>
-        <option value="annule">❌ Examens annulés</option>
-        <option value="sansprio">Sans priorité définie</option>
-      </select>
-      <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-      <summary>🗓️ Liste RDV PERMIS <span class="compteur" id="cptAPlacer"></span></summary>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-        Cochés depuis la liste précédente. Indique qui prend la date et sur quelle semaine.</div>
-      <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-
-    <details class="volet-liste" style="margin-top:20px;" data-section="bureau_permis">
-      <summary>📣 Message groupe Messenger</summary>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
-        Choisis une date, saisis l'heure du premier examen : les deux messages se composent seuls.</div>
-      <label for="messengerDate">Date de l'examen</label>
-      <select id="messengerDate"><option value="">— appuie sur Actualiser —</option></select>
-      <button class="btn btn-secondary" id="messengerBtn">🔄 Actualiser les dates</button>
-      <div id="messengerZone" style="margin-top:12px;">
-        <div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-
-
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-      <summary>📆 Permis prévus <span class="compteur" id="cptPrevus"></span></summary>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
-        Seule la date remonte dans les notes du moniteur ; le reste est interne au bureau.</div>
-
-
-      <details id="apercuPermisVolet" open style="margin-bottom:12px;">
-        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);
-                        padding:4px 0;">📋 Vue d'ensemble</summary>
-        <div id="apercuPermis" style="margin-top:6px;"></div>
-      </details>
-
-      <div class="barre-filtres" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <select id="filtrePP" style="flex:1;min-width:150px;margin-bottom:0;">
-          <option value="">— choisis un filtre —</option>
-          <option value="tous">Tous les élèves</option>
-          <option value="fantome">👻 Places fantômes</option>
-          <option value="remplacer">🔄 Places à remplacer</option>
-          <option value="donner">🏫 Dates à donner à une autre auto-école</option>
-          <option value="ok">✅ Tout est OK</option>
-          <option value="pasok">⏳ Dossiers pas encore prêts</option>
-        </select>
-        <select id="filtreDate" style="flex:1;min-width:150px;margin-bottom:0;">
-          <option value="">Toutes les dates</option>
-        </select>
-      </div>
-
-      <div id="listePermisPrevu"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
-      <summary>🏁 Examens passés — résultat à saisir <span class="compteur" id="cptPasses"></span></summary>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
-        Apparaissent automatiquement le lendemain de la date d'examen.</div>
-      <div id="listePostExamen"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
-
-    </div>
-  </div>
-  <div class="card" data-section="permis" data-vue="permis" data-onglet="eleves">
-    <h2 class="section-title">🎓 Élève ayant obtenu son permis</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Les messages se préparent tout seuls quand vous cochez
-        <strong>✅ Permis obtenu</strong> dans « 🏁 Examens passés — résultat à saisir ».
-      </div>
-      <input type="hidden" id="permisNom">
-      <div id="permisResultat">
-        <div class="empty">Aucun élève en cours.<br>
-          <span style="font-size:12px;">Passe par la liste des examens passés,
-          ou saisis un nom ci-dessous si besoin.</span>
-        </div>
-      </div>
-      <details style="margin-top:14px;">
-        <summary style="cursor:pointer;font-size:13px;color:var(--muted);">
-          Préparer manuellement pour un élève
-        </summary>
-        <div style="margin-top:10px;">
-          <label for="permisNomManuel">Nom et prénom de l'élève</label>
-          <input type="text" id="permisNomManuel" list="listeEleves" autocomplete="off"
-                 placeholder="Choisis dans la liste ou tape un nom">
-          <button class="btn btn-secondary" id="permisBtn">🎓 Préparer les messages</button>
-        </div>
-      </details>
-    </div>
-  </div>
-
-  <div class="card" data-section="depart" data-vue="depart" data-onglet="eleves">
-    <h2 class="section-title">🚪 Départ de l'auto-école</h2>
-    <div class="contenu-tiroir">
-    <div id="blocDepart" style="
-                                ">
-      
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
-        Élève qui arrête sa formation ou part ailleurs. Réservé au bureau.
-      </div>
-      <label for="departNom">Nom et prénom de l'élève</label>
-      <input type="text" id="departNom" list="listeEleves" autocomplete="off"
-             placeholder="Choisis dans la liste ou tape un nom">
-      <label for="departMotif">Motif</label>
-      <select id="departMotif">
-        <option value="autre-ae">Transfert vers une autre auto-école</option>
-        <option value="demenagement">Déménagement</option>
-        <option value="arret">Arrêt de la formation</option>
-        <option value="financier">Motif financier</option>
-        <option value="sansnouvelles">Sans nouvelles de l'élève</option>
-        <option value="autre">Autre</option>
-      </select>
-      <label for="departDate">Date du départ</label>
-      <input type="date" id="departDate">
-      <button class="btn btn-primary" id="departBtn">🚪 Préparer le départ</button>
-      <div id="departResultat" style="margin-top:16px;"></div>
-    </div>
-    </div>
-  </div>
-
-  <div class="card" data-section="bureau_messages" data-vue="messages" data-onglet="outils">
-    <h2 class="section-title">📨 Messages aux moniteurs <span class="compteur" id="cptMessages"></span></h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">
-        📨 Message à un moniteur</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
-        S'affichera au moniteur au prochain cours de cet élève, sans avoir à générer de bilan.
-      </div>
-      <label for="msgEleve">Nom et prénom de l'élève</label>
-      <input type="text" id="msgEleve" list="listeEleves" autocomplete="off"
-             placeholder="Choisis dans la liste ou tape un nom">
-      <label for="msgTexte">Message</label>
-      <textarea id="msgTexte" rows="3" maxlength="400"
-                placeholder="Ex : examen blanc déplacé au 18/09, prévenir l'élève"
-                style="width:100%;background:var(--navy);border:1px solid var(--line);
-                       color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;
-                       line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
-      <button class="btn btn-primary" id="msgBtn">📨 Envoyer au moniteur</button>
-      <div id="msgEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
-
-      <details style="margin-top:18px;">
-        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);">
-          📬 Messages en attente de lecture <span id="nbConsignes"></span>
-        </summary>
-        <div id="listeConsignes" style="margin-top:8px;">
-          <div class="empty">Appuie sur Actualiser.</div>
-        </div>
-      </details>
-    </div>
-  </div>
-
-  <div class="card" data-section="textes" data-vue="textes" data-onglet="outils">
-    <h2 class="section-title">📄 Textes types</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Les textes que vous envoyez souvent : message du groupe Messenger le jour du permis,
-        félicitations après obtention, examen blanc, rendez-vous post-permis, départ.
-        Rédigez-les une fois ici, l'application les reprendra à votre place.
-        <br><em>À ne pas confondre avec « Modèles de bilan », qui concerne la structure
-        des bilans de conduite.</em>
-      </div>
-      <div id="textesZone"><div class="empty">Chargement…</div></div>
-    </div>
-  </div>
-
-  <div class="card" data-section="sms" data-vue="sms" data-onglet="outils">
-    <h2 class="section-title">💬 Envoi de SMS</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
-        L'outil d'envoi, directement ici. La connexion se fait toute seule ;
-        son code n'est demandé qu'une fois s'il diffère du tien.
-      </div>
-      <div id="smsCadre" style="border:1px solid var(--line);border-radius:10px;
-           overflow:hidden;background:var(--navy);"></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="btn btn-secondary" id="smsRecharger"
-                style="flex:1;padding:9px;font-size:13px;margin:0;">🔄 Recharger</button>
-        <button class="btn btn-secondary" id="smsOublier"
-                style="width:auto;padding:9px 12px;font-size:13px;margin:0;"
-                title="Oublier le code SMS mémorisé">🔑</button>
-        <a href="https://ec-sb.github.io/SMS2/" target="_blank" rel="noopener"
-           class="btn btn-secondary"
-           style="width:auto;padding:9px 12px;font-size:13px;margin:0;text-decoration:none;
-                  display:inline-flex;align-items:center;">↗️ Ouvrir à part</a>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" data-section="stats" data-vue="stats" data-onglet="outils">
-    <h2 class="section-title">📈 Taux de réussite</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Calculés à partir des résultats saisis dans « Examens passés ».
-      </div>
-      <div class="duo">
-        <div>
-          <label for="statsPeriode">Période</label>
-          <select id="statsPeriode">
-            <option value="90">3 derniers mois</option>
-            <option value="180">6 derniers mois</option>
-            <option value="365" selected>12 derniers mois</option>
-            <option value="tout">Depuis le début</option>
-          </select>
-        </div>
-        <div>
-          <label for="statsRang">Passages</label>
-          <select id="statsRang">
-            <option value="tous" selected>Tous</option>
-            <option value="premier">Premier passage</option>
-            <option value="repassage">Repassages</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn btn-primary" id="statsBtn">📊 Calculer</button>
-      <div id="statsZone" style="margin-top:14px;">
-        <div class="empty">Appuie sur Calculer.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" data-section="bilans" data-vue="bilans" data-onglet="outils">
-    <h2 class="section-title">📋 Modèles de bilan</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Ce qui structure vos bilans de conduite : les 15 modèles de la liste
-        « Type de bilan », le formulaire que le moniteur remplit à la main,
-        et les consignes données à l'IA en mode vocal. Tout est modifiable,
-        et vous pouvez ajouter vos propres modèles.
-      </div>
-      <div id="bilansZone"><div class="empty">Chargement…</div></div>
-    </div>
-  </div>
-
-  <div class="card" data-section="rappels" data-vue="rappels" data-onglet="outils">
-    <h2 class="section-title">🔔 Rappels de cours</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Dépose la capture de ton planning : l'IA en tire la liste des cours,
-        retrouve les élèves dans le répertoire et prépare un SMS pour chacun.
-        <br><em>Rien ne part tout seul : tu relis et tu envoies élève par élève.</em>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <button class="btn btn-secondary" id="rappelModeManuel"
-                style="flex:1;padding:12px;font-size:14px;margin:0;">✍️ À la main</button>
-        <button class="btn btn-secondary" id="rappelModePlanning"
-                style="flex:1;padding:12px;font-size:14px;margin:0;">📷 Depuis le planning</button>
-      </div>
-
-      <div id="rappelManuel">
-        <div id="rappelManuelZone"><div class="empty">Chargement…</div></div>
-      </div>
-
-      <div id="rappelPlanning" style="display:none;">
-      <label for="rappelFichier">📷 Capture(s) du planning</label>
-      <input type="file" id="rappelFichier" accept="image/*" multiple
-             style="width:100%;background:var(--navy);border:1px solid var(--line);
-                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
-                    margin-bottom:10px;">
-      <button class="btn btn-primary" id="rappelLire">🔎 Lire le planning</button>
-      <div id="rappelZone" style="margin-top:14px;">
-        <div class="empty">Dépose une capture, puis appuie sur Lire le planning.</div>
-      </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" data-section="eleves" data-vue="eleves" data-onglet="outils">
-    <h2 class="section-title">👥 Répertoire des élèves</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Les noms proposés dans les listes viennent des bilans déjà saisis.
-        Un élève qui n'a pas encore de bilan n'apparaît donc nulle part.
-        Colle ici ta liste réelle pour qu'ils soient tous proposés.
-        <br><em>La suppression complète d'un élève reste réservée aux administrateurs.</em>
-      </div>
-      <label for="importFichier">📄 Depuis un fichier CSV</label>
-      <input type="file" id="importFichier" accept=".csv,.txt,text/csv,text/plain"
-             style="width:100%;background:var(--navy);border:1px solid var(--line);
-                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
-                    margin-bottom:6px;">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
-        L'application repère toute seule les colonnes : nom, téléphone, mail, formation.
-        Elles sont importées ensemble. La liste s'affiche ci-dessous pour relecture.
-      </div>
-
-      <label for="importEleves">Ou colle la liste — un nom par ligne</label>
-      <textarea id="importEleves" rows="10"
-                placeholder="Pierre Dupont&#10;Erika Test&#10;Thomas Morvan"
-                style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
-                       padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
-                       font-family:inherit;resize:vertical;margin-bottom:6px;"></textarea>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
-        Les virgules et points-virgules font aussi office de séparateurs.
-        Les doublons sont ignorés, rien n'est écrasé.
-      </div>
-      <button class="btn btn-primary" id="importBtn">📥 Importer la liste</button>
-      <div id="importEtat" style="margin-top:10px;font-size:13px;min-height:18px;line-height:1.5;"></div>
-      <div id="repertoireListe" style="margin-top:14px;"></div>
-    </div>
-  </div>
-
-  <div class="card" data-section="procedures" data-vue="procedures" data-onglet="outils">
-    <h2 class="section-title">🚦 Procédures de conduite</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Les procédures de référence : consultables par tous, modifiables ici.
-        Elles servent aussi à corriger une erreur dans un bilan.
-      </div>
-      <div id="proceduresZone"><div class="empty">Chargement…</div></div>
-    </div>
-  </div>
-
-  <div class="card" id="journalCard" data-vue="journal" data-onglet="outils" style="display:none;">
-    <h2 class="section-title">📊 Journal d'activité</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Qui a fait quoi, et quand. Visible uniquement par les administrateurs.
-      </div>
-
-      <div class="duo">
-        <div>
-          <label for="journalQui">Utilisateur</label>
-          <input type="text" id="journalQui" placeholder="Tous" autocomplete="off">
-        </div>
-        <div>
-          <label for="journalEleve">Élève</label>
-          <input type="text" id="journalEleve" placeholder="Tous" autocomplete="off">
-        </div>
-      </div>
-
-      <label for="journalPeriode">Période</label>
-      <select id="journalPeriode">
-        <option value="1">Aujourd'hui et hier</option>
-        <option value="7" selected>7 derniers jours</option>
-        <option value="30">30 derniers jours</option>
-        <option value="90">90 derniers jours</option>
-        <option value="tout">Tout ce qui est conservé</option>
-      </select>
-
-      <button class="btn btn-primary" id="journalBtn">🔄 Actualiser le journal</button>
-      <div id="journalListe" style="margin-top:14px;">
-        <div class="empty">Appuie sur Actualiser.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" id="adminCard" data-vue="admin" data-onglet="outils" style="display:none;">
-    <h2 class="section-title">⚙️ Administration des accès</h2>
-    <div class="contenu-tiroir">
-    <div id="adminList"><div class="empty">Chargement…</div></div>
-
-    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
-      <label for="newCode">Nouveau code (6 à 8 chiffres)</label>
-      <input type="text" id="newCode" inputmode="numeric" maxlength="8" minlength="6" placeholder="Ex : 573914">
-      <label for="newName">Prénom</label>
-      <input type="text" id="newName" placeholder="Ex : David">
-      <label for="newEmoji">Émoji du moniteur</label>
-      <input type="text" id="newEmoji" maxlength="4" placeholder="Ex : 🦁">
-      <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">
-        Il signe les manœuvres qu'il fait retravailler à l'élève.
-        La première validation reste une simple coche ✅.
-      </div>
-      <label for="newRole">Rôle</label>
-      <select id="newRole">
-        <option value="moniteur">Moniteur — cours et recherche</option>
-        <option value="bureau">Bureau — recherche, suivi et permis</option>
-        <option value="admin">Administrateur — tout</option>
-      </select>
-      <button class="btn btn-primary" id="createBtn">➕ Créer l'accès</button>
-      <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
-    </div>
-  </div>
-  </div>
-
-
-
-
-
-
-
-
-
-  </div><!-- /appView -->
-</div>
-
-<div class="overlay" id="confirmOverlay">
-  <div class="modal">
-    <h3>Générer le bilan ?</h3>
-    <div class="recap" id="confirmRecap"></div>
-    <div id="confirmAlerte" style="font-size:14px;color:var(--warn-text);margin-bottom:14px;display:none;"></div>
-    <div class="btn-row">
-      <button class="btn btn-secondary" id="cancelGen">Annuler</button>
-      <button class="btn btn-primary" id="confirmGen">Générer</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-  <script>
-  /* Rapporteur d'erreur : un script qui échoue ne doit pas rester muet.
-     Placé avant tous les autres pour ne rien manquer. */
-  (function(){
-    var vues = [];
-    function montrer(texte){
-      if(vues.indexOf(texte) !== -1) return;
-      vues.push(texte);
-      var z = document.getElementById('rapportErreur');
-      if(!z){
-        z = document.createElement('div');
-        z.id = 'rapportErreur';
-        z.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;' +
-          'background:#B3261E;color:#fff;padding:12px 14px;font:13px/1.5 system-ui,sans-serif;' +
-          'max-height:45vh;overflow:auto;box-shadow:0 -2px 12px rgba(0,0,0,.4);';
-        var t = document.createElement('div');
-        t.style.cssText = 'font-weight:700;margin-bottom:6px;';
-        t.textContent = '⚠️ Erreur au chargement — copie ce texte';
+      bloc.appendChild(r);
+
+    }else if(ch.type === 'ok'){
+      /* Trois états : ✅ ❌ ou rien */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:8px;';
+      [['✅','✅'], ['❌','❌'], ['—','']].forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'flex:1;padding:12px;font-size:17px;margin:0;';
+        b.textContent = lab;
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle] = val;
+          Array.prototype.forEach.call(r.children, x => {
+            x.style.borderColor = 'var(--line)';
+            x.style.color = 'var(--cream)';
+          });
+          b.style.borderColor = 'var(--orange)';
+          b.style.color = 'var(--accent-text)';
+        });
+        if((ch.defaut || '') === val) setTimeout(() => b.click(), 0);
+        r.appendChild(b);
+      });
+      bloc.appendChild(r);
+
+    }else if(ch.type === 'manoeuvres'){
+      const liste = BLOC.ficheListeConduite;
+      const dejaFaites = (dossier.manoeuvres || []).map(normaliserMot);
+
+      const lm = document.createElement('label');
+      lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
+      bloc.appendChild(lm);
+      const zm = document.createElement('div');
+      zm.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+        'padding:10px 12px;max-height:260px;overflow-y:auto;';
+      liste.forEach(nom => {
+        const dejaOk = dejaFaites.indexOf(normaliserMot(nom)) !== -1;
+        const lab = document.createElement('label');
+        lab.style.cssText = 'display:flex;align-items:center;gap:9px;padding:5px 0;' +
+          'font-size:15px;text-transform:none;margin:0;color:' +
+          (dejaOk ? 'var(--muted)' : 'var(--cream)') + ';';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = nom;
+        cb.className = 'chManuel-' + ch.cle;
+        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(nom + (dejaOk ? '  (déjà validée)' : '')));
+        zm.appendChild(lab);
+      });
+      bloc.appendChild(zm);
+
+    }else if(ch.type === 'competences'){
+      /* Le modèle attend un statut ET des erreurs par compétence :
+         une simple case à cocher ne suffisait pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      aide.textContent = 'Laisse « non travaillé » pour les compétences non abordées ' +
+        "aujourd'hui : elles n'apparaîtront pas dans le bilan.";
+      bloc.appendChild(aide);
+
+      (modele.comps || []).forEach(comp => {
+        const cle = comp.cle || '';
+        const titre = comp.titre || comp.nom || cle;
+
+        const zc = document.createElement('div');
+        zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+          'padding:9px 11px;margin-bottom:7px;';
+
+        const h = document.createElement('div');
+        h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+
+        const t = document.createElement('span');
+        t.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:600;';
+        t.textContent = titre;
+        h.appendChild(t);
+
+        const sel = document.createElement('select');
+        sel.className = 'compStatut';
+        sel.setAttribute('data-comp', cle);
+        sel.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:14px;flex-shrink:0;';
+        /* Les valeurs sont les émojis attendus par l'assembleur */
+        sel.innerHTML = '<option value="">— non travaillé —</option>' +
+          '<option value="✅">✅ Acquis</option>' +
+          '<option value="🟠">🟠 En cours</option>' +
+          '<option value="❌">❌ À revoir</option>';
+        h.appendChild(sel);
+        zc.appendChild(h);
+
+        const err = document.createElement('textarea');
+        err.className = 'compErreurs';
+        err.setAttribute('data-comp', cle);
+        err.rows = 2;
+        err.placeholder = 'Erreurs à corriger, une par ligne';
+        err.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:8px 10px;border-radius:8px;font-size:14px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;display:none;margin:0;';
+        zc.appendChild(err);
+
+        /* Les erreurs n'ont de sens que si la compétence a été travaillée */
+        sel.addEventListener('change', () => {
+          err.style.display = sel.value ? 'block' : 'none';
+        });
+
+        bloc.appendChild(zc);
+      });
+
+    }else if(ch.type === 'themes'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      a.textContent = 'Remplis seulement les rubriques utiles : les autres ne sortiront pas.';
+      bloc.appendChild(a);
+
+      THEMES_ERREURS.forEach(th => {
+        const b = document.createElement('div');
+        b.style.cssText = 'margin-bottom:10px;';
+        const t2 = document.createElement('div');
+        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+        t2.textContent = th.nom;
+        b.appendChild(t2);
+
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+        const t = document.createElement('textarea');
+        t.rows = 2;
+        t.className = 'themeErreur';
+        t.setAttribute('data-theme', th.nom);
+        t.placeholder = 'Une remarque par ligne';
+        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:16px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+        r.appendChild(t);
+        if(dicteePossible()){
+          const mic = document.createElement('button');
+          mic.type = 'button';
+          mic.className = 'btn btn-secondary';
+          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
+          mic.textContent = '🎙️';
+          mic.title = 'Dicter dans ' + th.nom;
+          mic.addEventListener('click', () => dicterDans(t, mic));
+          r.appendChild(mic);
+        }
+        b.appendChild(r);
+        bloc.appendChild(b);
+      });
+
+    }else if(ch.type === 'cepc'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom + ' — E, 0, 1, 2 ou 3';
+      bloc.appendChild(l);
+
+      const z = document.createElement('div');
+      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
+      CEPC_BLOCS.forEach(g => {
+        const t = document.createElement('div');
+        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
+        t.textContent = g.titre;
         z.appendChild(t);
-        var x = document.createElement('button');
-        x.textContent = 'Masquer';
-        x.style.cssText = 'position:absolute;top:8px;right:10px;background:#fff;color:#B3261E;' +
-          'border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;';
-        x.onclick = function(){ z.style.display = 'none'; };
-        z.appendChild(x);
-        (document.body || document.documentElement).appendChild(z);
+        g.items.forEach(it => z.appendChild(ligneCepc(it.nom, it.valeurs)));
+      });
+
+      const tot = document.createElement('div');
+      tot.id = 'cepcTotal';
+      tot.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--line);' +
+        'font-size:15px;font-weight:700;color:var(--accent-text);';
+      z.appendChild(tot);
+      bloc.appendChild(z);
+      setTimeout(majTotalCepc, 0);
+
+    }else if(ch.type === 'photo'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/*';
+      inp.id = 'photo_' + ch.cle;
+      inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px;border-radius:10px;font-size:14px;';
+      bloc.appendChild(inp);
+      const apercu = document.createElement('div');
+      apercu.id = 'apercu_' + ch.cle;
+      apercu.style.cssText = 'margin-top:8px;';
+      bloc.appendChild(apercu);
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;';
+      aide.textContent = "La photo reste sur ce téléphone : elle sert au moniteur pendant " +
+        "le rendez-vous, elle n'est pas envoyée dans le bilan.";
+      bloc.appendChild(aide);
+
+      inp.addEventListener('change', () => {
+        const f = inp.files && inp.files[0];
+        apercu.innerHTML = '';
+        if(!f) return;
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
+        apercu.appendChild(img);
+        champsManuels[ch.cle] = f.name;
+      });
+
+    }else if(ch.type === 'observations'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const z = document.createElement('div');
+      z.id = 'obsManuel';
+      bloc.appendChild(z);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;';
+      b.textContent = '➕ Ajouter une observation';
+      b.addEventListener('click', () => ajouterObservationManuelle(z));
+      bloc.appendChild(b);
+      ajouterObservationManuelle(z);
+
+    }else{
+      /* Texte libre, avec dictée possible */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      if(ch.aide){
+        const a = document.createElement('div');
+        a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
+        a.textContent = ch.aide;
+        bloc.appendChild(a);
       }
-      var l = document.createElement('div');
-      l.style.cssText = 'margin-top:4px;word-break:break-word;';
-      l.textContent = '• ' + texte;
-      z.appendChild(l);
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+      const t = document.createElement('textarea');
+      t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
+      t.id = 'man_' + ch.cle.replace('.', '_');
+      t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
+        'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
+      r.appendChild(t);
+      if(dicteePossible()){
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = 'btn btn-secondary';
+        mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
+        mic.textContent = '🎙️';
+        mic.title = 'Dicter dans ce champ';
+        mic.addEventListener('click', () => dicterDans(t, mic));
+        r.appendChild(mic);
+      }
+      bloc.appendChild(r);
     }
 
-    window.addEventListener('error', function(e){
-      if(e.target && e.target.tagName === 'SCRIPT'){
-        montrer('Fichier introuvable : ' + (e.target.src || '?').split('/').pop());
-        return;
+    zone.appendChild(bloc);
+  });
+
+  /* Frise récupérée automatiquement */
+  const aide = $('aideManuel');
+  if(aide){
+    aide.textContent = dicteePossible()
+      ? "Remplis chaque rubrique. Le 🎙️ à côté d'un champ permet de dicter au lieu d'écrire."
+      : "Remplis chaque rubrique en écrivant. La dictée demanderait Chrome sur Android, "
+        + "mais tout le reste fonctionne normalement ici.";
+  }
+
+  const info = $('manuelInfo');
+  const frise = dossier.frise || extraireFrise($('noteInterne').value);
+  const versionApp = (document.querySelector('.version') || {}).textContent || '';
+  info.innerHTML = '<strong>' + (eleve || '') + '</strong> · ' + modele.label +
+    (versionApp ? ' · <span style="color:var(--muted);">' + versionApp + '</span>' : '') +
+    (frise ? '<br>Frise reprise : ' + frise.replace(/</g,'&lt;') : '') +
+    ((dossier.manoeuvres || []).length
+      ? '<br>' + dossier.manoeuvres.length + ' manœuvre(s) déjà validée(s), reprises automatiquement'
+      : '');
+
+  $('recordView').style.display = 'none';
+  $('resultView').style.display = 'none';
+  $('manuelView').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function ajouterObservationManuelle(zone){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
+
+  const insp = document.createElement('input');
+  insp.type = 'text';
+  insp.className = 'obsInsp';
+  insp.placeholder = "Remarque de l'inspecteur";
+  insp.style.marginBottom = '6px';
+  d.appendChild(insp);
+
+  /* L'explication, avec de quoi marquer une erreur éliminatoire */
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:6px;align-items:center;';
+
+  const rep = document.createElement('input');
+  rep.type = 'text';
+  rep.className = 'obsRep';
+  rep.placeholder = 'Explication ou correction';
+  rep.style.cssText = 'flex:1;min-width:0;margin:0;';
+  r.appendChild(rep);
+
+  const bMort = document.createElement('button');
+  bMort.type = 'button';
+  bMort.className = 'btn btn-secondary';
+  bMort.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;margin:0;flex-shrink:0;';
+  bMort.textContent = '☠️';
+  bMort.title = 'Marquer comme erreur éliminatoire';
+  bMort.addEventListener('click', () => {
+    const v = rep.value;
+    if(v.indexOf('☠️') !== -1){
+      /* Deuxième appui : on retire la marque */
+      rep.value = v.split('☠️').join('').replace(/\s+/g, ' ').trim();
+      bMort.style.borderColor = 'var(--line)';
+    }else{
+      rep.value = ('☠️ ' + v).trim();
+      bMort.style.borderColor = 'var(--red)';
+    }
+    rep.focus();
+  });
+  r.appendChild(bMort);
+
+  d.appendChild(r);
+  zone.appendChild(d);
+}
+
+
+/* Relève tout ce que le moniteur a saisi dans le formulaire */
+function lireChampsManuels(){
+  const modele = MODELES[$('modele').value];
+  const champs = CHAMPS_MANUELS[modele.schema];
+  if(!champs) return;
+
+  champs.forEach(ch => {
+    if(ch.type === 'manoeuvres'){
+      champsManuels[ch.cle] = Array.prototype.slice
+        .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
+        .map(x => ({ nom: x.value, fait: true }));
+
+    }else if(ch.type === 'competences'){
+      /* Format attendu par le constructeur : { clé : { statut, erreurs } } */
+      const comps = {};
+      document.querySelectorAll('.compStatut').forEach(sel => {
+        const cle = sel.getAttribute('data-comp');
+        if(!cle || !sel.value) return;
+        const zone = document.querySelector('.compErreurs[data-comp="' + cle + '"]');
+        const erreurs = zone
+          ? zone.value.split('\n').map(x => x.trim()).filter(Boolean)
+          : [];
+        comps[cle] = { statut: sel.value, erreurs: erreurs };
+      });
+      champsManuels[ch.cle] = comps;
+    }else if(ch.type === 'themes'){
+      const bouts = [];
+      document.querySelectorAll('.themeErreur').forEach(t => {
+        const v = t.value.trim();
+        if(!v) return;
+        const lignes = v.split('\n').map(x => x.trim()).filter(Boolean);
+        bouts.push(t.getAttribute('data-theme') + '\n' +
+                   lignes.map(x => (x.startsWith('•') ? x : '• ' + x)).join('\n'));
+      });
+      champsManuels[ch.cle] = bouts.join('\n\n');
+    }else if(ch.type === 'cepc'){
+      const cepc = {};
+      document.querySelectorAll('.cepcNiveau').forEach(s => {
+        if(s.value) cepc[s.getAttribute('data-comp')] = s.value;
+      });
+      champsManuels[ch.cle] = cepc;
+    }else if(ch.type === 'observations'){
+      const obs = [];
+      document.querySelectorAll('#obsManuel > div').forEach(d => {
+        const i = d.querySelector('.obsInsp');
+        const r = d.querySelector('.obsRep');
+        const vi = i ? i.value.trim() : '';
+        const vr = r ? r.value.trim() : '';
+        if(vi || vr) obs.push({ inspecteur: vi, reponse: vr });
+      });
+      champsManuels[ch.cle] = obs;
+    }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
+             ch.type !== 'niveau' && ch.type !== 'ouinon'){
+      const t = document.getElementById('man_' + ch.cle.replace('.', '_'));
+      if(t) champsManuels[ch.cle] = t.value.trim();
+    }
+  });
+}
+
+/* Assemble le bilan à partir de ce qui a été saisi */
+async function genererBilanManuel(){
+  /* On relève d'abord tout ce que le moniteur a saisi */
+  lireChampsManuels();
+
+  const modeleCle = $('modele').value;
+  const modele = MODELES[modeleCle];
+
+  /* Un examen blanc renseigne déjà sa conclusion : on ne la redemande pas */
+  const repris = Object.assign({}, contexteDepart || {});
+  if(modeleCle === 'examen-blanc'){
+    if(champsManuels.niveau === 'non'){
+      repris.ebPasse = 'pasleniveau';
+    }else if(champsManuels.niveau === 'oui'){
+      const h = String(champsManuels.heuresAvant || '').trim();
+      if(h === '' || h === '0'){
+        repris.ebPasse = '3h';
+      }else{
+        repris.ebPasse = 'lecons';
+        repris.ebLecons = h;
       }
-      montrer((e.message || 'erreur') + '  —  ' +
-              String(e.filename || '').split('/').pop() + ' ligne ' + (e.lineno || '?'));
-    }, true);
+    }
+    if(champsManuels.aDate === 'oui' && !repris.examPermis) repris.examPermis = 'prevu';
+    if(champsManuels.aDate === 'non' && !repris.examPermis) repris.examPermis = 'aprevoir';
+  }
 
-    window.addEventListener('unhandledrejection', function(e){
-      montrer('Promesse rejetée : ' + ((e.reason && e.reason.message) || e.reason));
+  /* Mise à jour des infos, comme à la fin d'un cours enregistré */
+  const maj = await ouvrirQuestionnaireDepart(repris, 'Après ce cours', 'Terminer');
+  if(maj){
+    contexteDepart = maj;
+    appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
+  }
+
+  const eleve = $('studentName').value.trim();
+  let manoeuvresAvant = [];
+  let marquesAvant = null;
+  try{
+    const d = await chargerDossierEleve(eleve);
+    manoeuvresAvant = d.manoeuvres || [];
+    marquesAvant = d.marques || null;
+  }catch(e){}
+
+  /* Les manœuvres du jour sont au format attendu par le constructeur */
+  const liste = (champsManuels.manoeuvres || []).map(x => x.nom || x);
+
+  /* Les clés « avant.carteSD » deviennent des objets imbriqués */
+  const donnees = { manoeuvres: liste };
+  /* Le simulateur attend « competences », rangé par clé */
+  if(champsManuels.competences) donnees.competences = champsManuels.competences;
+  Object.keys(champsManuels).forEach(k => {
+    if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
+    const [pere, fils] = k.split('.');
+    if(!donnees[pere]) donnees[pere] = {};
+    donnees[pere][fils] = champsManuels[k];
+  });
+
+  let bilan;
+  try{
+    bilan = modele.build(donnees, {
+      manoeuvresAvant: manoeuvresAvant,
+      marquesAvant: marquesAvant,
+      transcript: champsManuels.texteDicte || '',
+      note: $('noteInterne').value.trim()
     });
-  })();
-  </script>
+  }catch(e){
+    console.error('Composition du bilan :', e);
+    await informer('Le bilan n\'a pas pu être composé.\n\nDétail : ' + (e && e.message ? e.message : e));
+    return;
+  }
 
-  <script src="app/ec-etat.js?v=216"></script>
-<script src="app/ec-modeles.js?v=216"></script>
-<script src="app/ec-consignes.js?v=216"></script>
-<script src="app/ec-noyau.js?v=216"></script>
-<script src="app/ec-vocal.js?v=216"></script>
-<script src="app/ec-reseau.js?v=216"></script>
-<script src="app/ec-manuel.js?v=216"></script>
-<script src="app/ec-fenetres.js?v=216"></script>
-<script src="app/ec-questionnaire.js?v=216"></script>
-<script src="app/ec-permis.js?v=216"></script>
-<script src="app/ec-prepares.js?v=216"></script>
-<script src="app/ec-bureau.js?v=216"></script>
-<script src="app/ec-places.js?v=216"></script>
-<script src="app/ec-listes.js?v=216"></script>
-<script src="app/ec-permis-listes.js?v=216"></script>
-<script src="app/ec-postpermis.js?v=216"></script>
-<script src="app/ec-textes.js?v=216"></script>
-<script src="app/ec-correction.js?v=216"></script>
-<script src="app/ec-bilans.js?v=216"></script>
-<script src="app/ec-rappels.js?v=216"></script>
-<script src="app/ec-sms.js?v=216"></script>
-<script src="app/ec-stats.js?v=216"></script>
-<script src="app/ec-messenger.js?v=216"></script>
-<script src="app/ec-journal.js?v=216"></script>
-<script src="app/ec-depart.js?v=216"></script>
-<script src="app/ec-onglets.js?v=216"></script>
-<script src="app/ec-demarrage.js?v=216"></script>
+  currentLessonMeta = {
+    modeleLabel: modele.label,
+    studentName: eleve,
+    monitorName: $('monitorName').value.trim(),
+    site: $('site').value,
+    dateStr: $('lessonDate').value,
+    noteInterne: $('noteInterne').value.trim(),
+    ts: Date.now()
+  };
 
-</body>
-</html>
+  $('resultText').value = bilan;
+  afficherNote($('noteInterne').value.trim());
+  marquerExport(false);
+  $('manuelView').style.display = 'none';
+  $('resultView').style.display = 'block';
+  window.scrollTo(0, 0);
+  sauvegarderLocal(true);
+}
+
+function fermerBilanManuel(){
+  modeManuel = false;
+  $('manuelView').style.display = 'none';
+  $('recordView').style.display = 'block';
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+}
+
+
+/* Le modèle doit correspondre à la boîte de l'élève : un élève BEA
+   ne doit pas recevoir une fiche boîte manuelle, et inversement. */
+const MODELE_EQUIVALENT = {
+  'conduite-manuelle':      { bea: 'conduite-auto' },
+  'conduite-auto':          { bv:  'conduite-manuelle' },
+  'aac-manuelle':           { bea: 'aac-auto' },
+  'aac-auto':               { bv:  'aac-manuelle' },
+  'rdv-prealable-manuelle': { bea: 'rdv-prealable-auto' },
+  'rdv-prealable-auto':     { bv:  'rdv-prealable-manuelle' },
+  'simu-manuelle':          { bea: 'simu-auto' },
+  'simu-auto':              { bv:  'simu-manuelle' },
+  'eval-manuelle':          { bea: 'eval-auto' },
+  'eval-auto':              { bv:  'eval-manuelle' }
+};
+
+function verifierBoiteModele(boite){
+  const zone = $('alerteBoite');
+  if(!zone) return;
+  zone.style.display = 'none';
+  zone.innerHTML = '';
+  if(!boite) return;
+
+  const actuel = $('modele').value;
+  const equiv = MODELE_EQUIVALENT[actuel];
+  if(!equiv || !equiv[boite]) return;      /* déjà le bon modèle */
+
+  const cible = equiv[boite];
+  if(!MODELES[cible]) return;
+
+  const libelle = (boite === 'bea') ? 'boîte automatique (BEA)' : 'boîte manuelle (BV)';
+  zone.style.display = 'block';
+  zone.style.cssText = 'display:block;background:var(--warn-bg);border:1px solid var(--red);' +
+    'border-radius:10px;padding:11px 12px;margin:-6px 0 14px;font-size:14px;line-height:1.5;';
+
+  const t = document.createElement('div');
+  t.innerHTML = '⚠️ Cet élève est en <strong>' + libelle + '</strong>, ' +
+    'mais le modèle choisi ne correspond pas.';
+  zone.appendChild(t);
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'margin-top:8px;font-size:14px;padding:11px;';
+  b.textContent = '↔️ Passer sur « ' + MODELES[cible].label + ' »';
+  b.addEventListener('click', () => {
+    $('modele').value = cible;
+    zone.style.display = 'none';
+    showToast('Modèle adapté ✅');
+  });
+  zone.appendChild(b);
+}
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-manuel.js'] = true;
