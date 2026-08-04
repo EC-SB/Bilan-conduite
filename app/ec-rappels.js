@@ -102,12 +102,52 @@ async function lirePlanning(){
 }
 
 
+
+/* ============================================================
+   RAPPROCHEMENT AVEC LE RÉPERTOIRE
+   Un planning n'affiche souvent qu'un mot : « Dupont », ou
+   « Pierre ». Deux élèves peuvent répondre au même mot, et un
+   rappel envoyé au mauvais destinataire ne se rattrape pas.
+   ============================================================ */
+function motsDe(nom){
+  return normaliserMot(nom).split(/[\s-]+/).filter(x => x.length >= 2);
+}
+
+/* Renvoie les élèves du répertoire compatibles avec ce qui a été lu */
+function candidatsPour(nomLu){
+  const lus = motsDe(nomLu);
+  if(!lus.length) return { exact: null, candidats: [] };
+
+  const tous = (fichesEleves || []).map(f => f.eleve);
+  /* Les élèves connus par leurs bilans comptent aussi */
+  (elevesConnus || []).forEach(n => {
+    if(!tous.some(x => normaliserMot(x) === normaliserMot(n))) tous.push(n);
+  });
+
+  /* Correspondance parfaite : on ne cherche pas plus loin */
+  const exact = tous.find(n => normaliserMot(n) === normaliserMot(nomLu));
+  if(exact) return { exact: exact, candidats: [exact] };
+
+  /* Sinon : tous ceux dont un mot correspond exactement à un mot lu.
+     On n'accepte pas les correspondances partielles : « Mar » ne doit
+     pas rapprocher Marine, Marc et Marie. */
+  const candidats = tous.filter(n => {
+    const mots = motsDe(n);
+    return lus.every(l => mots.indexOf(l) !== -1) ||
+           lus.some(l => mots.indexOf(l) !== -1 && l.length >= 3);
+  });
+
+  return { exact: candidats.length === 1 ? candidats[0] : null,
+           candidats: candidats };
+}
+
 /* ---------- Le message envoyé à un élève ---------- */
 function messageRappel(c){
   const perso = (typeof modelePour === 'function') ? modelePour('rappel_cours') : null;
+  const nom = c.choisi || c.eleve;
   const valeurs = {
-    eleve: c.eleve,
-    prenom: c.eleve.split(' ')[0],
+    eleve: nom,
+    prenom: nom.split(' ')[0],
     date: c.date ? dateEnToutesLettres(c.date) : '',
     heure: c.heure,
     duree: c.duree,
@@ -145,22 +185,29 @@ async function afficherRappels(){
   if(typeof chargerModelesTexte === 'function') await chargerModelesTexte();
   zone.innerHTML = '';
 
-  /* Chaque cours est rapproché d'une fiche du répertoire */
+  /* Chaque cours est rapproché du répertoire, sans jamais deviner */
   coursDuPlanning.forEach(c => {
-    const f = (typeof ficheDe === 'function') ? ficheDe(c.eleve) : null;
+    if(!c.choisi){
+      const r = candidatsPour(c.eleve);
+      c.candidats = r.candidats;
+      c.choisi = r.exact || '';
+    }
+    const f = c.choisi && typeof ficheDe === 'function' ? ficheDe(c.choisi) : null;
     c.telephone = f && f.telephone ? f.telephone : '';
-    c.trouve = !!f;
   });
 
   const prets = coursDuPlanning.filter(c => c.telephone);
-  const sans = coursDuPlanning.filter(c => !c.telephone);
+  const aChoisir = coursDuPlanning.filter(c => !c.choisi && c.candidats.length > 1);
+  const sans = coursDuPlanning.filter(c => !c.telephone && !aChoisir.includes(c));
 
   const tete = document.createElement('div');
   tete.style.cssText = 'padding:10px 12px;background:var(--navy);border:1px solid var(--line);' +
     'border-radius:10px;margin-bottom:12px;font-size:13px;line-height:1.6;';
   tete.innerHTML = '<strong>' + coursDuPlanning.length + ' cours lu(s)</strong> · ' +
     '<span style="color:var(--accent-text);">' + prets.length + ' prêt(s) à envoyer</span>' +
-    (sans.length ? ' · <span style="color:var(--warn-text);">' + sans.length +
+    (aChoisir.length ? ' · <span style="color:var(--warn-text);">' + aChoisir.length +
+      ' à départager</span>' : '') +
+    (sans.length ? ' · <span style="color:var(--muted);">' + sans.length +
       ' sans numéro</span>' : '') +
     (modelePour && modelePour('rappel_cours')
       ? '<br><span style="font-size:12px;color:var(--muted);">Modèle : « ' +
@@ -211,8 +258,12 @@ function ligneRappel(c, i){
 
   const info = document.createElement('div');
   info.style.cssText = 'flex:1;min-width:0;';
-  info.innerHTML = '<strong>' + (c.envoye ? '✅ ' : '') + c.eleve.replace(/</g, '&lt;') +
-    '</strong><div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
+  info.innerHTML = '<strong>' + (c.envoye ? '✅ ' : '') +
+    (c.choisi || c.eleve).replace(/</g, '&lt;') + '</strong>' +
+    (c.choisi && normaliserMot(c.choisi) !== normaliserMot(c.eleve)
+      ? ' <span style="font-size:11px;color:var(--muted);">lu : ' +
+        c.eleve.replace(/</g, '&lt;') + '</span>' : '') +
+    '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
     [c.date ? dateEnToutesLettres(c.date) : '', c.heure, c.duree, c.moniteur, c.site]
       .filter(Boolean).join(' · ') +
     (c.telephone ? '<br>📱 ' + telLisible(c.telephone) : '<br>📱 numéro inconnu') +
@@ -236,6 +287,44 @@ function ligneRappel(c, i){
 
   d.appendChild(h);
 
+  /* Plusieurs élèves possibles : on demande, on ne devine pas */
+  if(!c.choisi){
+    const z = document.createElement('div');
+    z.style.cssText = 'margin-top:8px;';
+
+    if(c.candidats.length > 1){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:12px;color:var(--warn-text);margin-bottom:5px;';
+      a.textContent = '⚠️ ' + c.candidats.length + ' élèves portent ce nom. Lequel ?';
+      z.appendChild(a);
+    }
+
+    const sel = document.createElement('select');
+    sel.style.margin = '0';
+    sel.innerHTML = '<option value="">— choisis l\'élève —</option>' +
+      c.candidats.map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">' +
+        x + (ficheDe(x) && ficheDe(x).telephone ? '' : ' (sans numéro)') +
+        '</option>').join('') +
+      (c.candidats.length ? '<option value="__autre">— un autre élève —</option>' : '');
+    sel.addEventListener('change', () => {
+      if(sel.value === '__autre'){ choisirAutreEleve(c); return; }
+      c.choisi = sel.value;
+      afficherRappels();
+    });
+    z.appendChild(sel);
+
+    if(!c.candidats.length){
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'margin-top:6px;padding:8px;font-size:12px;';
+      b.textContent = '🔍 Chercher « ' + c.eleve + ' » dans le répertoire';
+      b.addEventListener('click', () => choisirAutreEleve(c));
+      z.appendChild(b);
+    }
+
+    d.appendChild(z);
+  }
+
   /* Le texte exact, relisible et modifiable avant envoi */
   const det = document.createElement('details');
   det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);' +
@@ -251,6 +340,67 @@ function ligneRappel(c, i){
 }
 
 
+
+
+/* Choisir un élève dans tout le répertoire, quand la lecture
+   n'a rien donné ou que le bon nom n'est pas proposé. */
+async function choisirAutreEleve(c){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(480px, 94vw);max-height:85vh;overflow-y:auto;';
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>Quel élève ?</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">' +
+      'Le planning indique « <strong>' + c.eleve.replace(/</g, '&lt;') + '</strong> ». ' +
+      'Choisis à qui envoyer le rappel.</div>' +
+    '<input type="text" id="chAutre" placeholder="🔍 Filtrer">');
+
+  const liste = document.createElement('div');
+  liste.style.cssText = 'max-height:44vh;overflow-y:auto;margin:8px 0 12px;';
+  boite.appendChild(liste);
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  boite.appendChild(bAnn);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const tous = (fichesEleves || []).map(f => f.eleve)
+    .concat((elevesConnus || []).filter(n =>
+      !(fichesEleves || []).some(f => normaliserMot(f.eleve) === normaliserMot(n))))
+    .sort((a, b) => a.localeCompare(b, 'fr'));
+
+  const rech = boite.querySelector('#chAutre');
+  function dessiner(){
+    const q = normaliserMot(rech.value);
+    liste.innerHTML = '';
+    tous.filter(n => !q || normaliserMot(n).indexOf(q) !== -1).forEach(n => {
+      const f = ficheDe(n);
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'text-align:left;padding:10px 12px;font-size:14px;margin:0 0 5px;';
+      b.textContent = n + (f && f.telephone ? '  📱' : '  (sans numéro)');
+      b.addEventListener('click', () => {
+        c.choisi = n;
+        document.body.removeChild(fond);
+        afficherRappels();
+      });
+      liste.appendChild(b);
+    });
+    if(!liste.children.length){
+      liste.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
+    }
+  }
+  rech.addEventListener('input', dessiner);
+  dessiner();
+  setTimeout(() => rech.focus(), 100);
+}
 
 /* ============================================================
    COMPOSITION D'UN RAPPEL À LA MAIN
