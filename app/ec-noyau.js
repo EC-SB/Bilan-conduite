@@ -88,11 +88,11 @@ function appliquerDroits(){
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
 }
 
-function memoriserSession(code, moniteur, role, droits){
+function memoriserSession(code, moniteur, role, droits, emoji){
   try{
     localStorage.setItem(CLE_SESSION, JSON.stringify({
       code: code, moniteur: moniteur, role: role,
-      droits: droits || [], ts: Date.now()
+      emoji: emoji || '', droits: droits || [], ts: Date.now()
     }));
   }catch(e){}
 }
