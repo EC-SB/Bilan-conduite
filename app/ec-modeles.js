@@ -737,7 +737,7 @@ function buildExamen(ai){
     '𝙉𝙤𝙩𝙚 :  /2 ',
     '',
     '𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(e.verifQuestion),
-    'VI ' + (e.vi ? st(e.vi) : '✅️❌️'),
+    'Vérification ' + (e.vi ? st(e.vi) : '✅️❌️'),
     'QSER ' + (e.qser ? st(e.qser) : '✅️❌️'),
     '1er secour ' + (e.secours ? st(e.secours) : '✅️❌️'),
     '',
