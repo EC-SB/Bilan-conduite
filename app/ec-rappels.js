@@ -595,14 +595,35 @@ async function afficherRappelManuel(){
   lab.textContent = "Élève — le numéro vient de sa fiche";
   zone.appendChild(lab);
 
-  const sel = document.createElement('select');
+  /* Saisie libre avec suggestions : plus rapide que de dérouler
+     une liste de plusieurs centaines d'élèves. */
+  const sel = document.createElement('input');
+  sel.type = 'text';
   sel.id = 'rappelEleve';
-  sel.innerHTML = '<option value="">— choisis un élève —</option>' +
-    (fichesEleves || []).slice()
-      .sort((a, b) => a.eleve.localeCompare(b.eleve, 'fr'))
-      .map(f => '<option value="' + f.eleve.replace(/"/g, '&quot;') + '">' +
-        f.eleve + (f.telephone ? '' : '  (sans numéro)') + '</option>').join('');
+  sel.setAttribute('list', 'listeRappelEleves');
+  sel.autocomplete = 'off';
+  sel.placeholder = 'Tape les premières lettres, ou laisse vide';
   zone.appendChild(sel);
+
+  const dl = document.createElement('datalist');
+  dl.id = 'listeRappelEleves';
+  const noms = (fichesEleves || []).map(f => f.eleve);
+  (elevesConnus || []).forEach(n => {
+    if(!noms.some(x => normaliserMot(x) === normaliserMot(n))) noms.push(n);
+  });
+  noms.sort((a, b) => a.localeCompare(b, 'fr')).forEach(n => {
+    const o = document.createElement('option');
+    const f = ficheDe(n);
+    o.value = n;
+    o.textContent = (f && f.telephone) ? telLisible(f.telephone) : 'sans numéro';
+    dl.appendChild(o);
+  });
+  zone.appendChild(dl);
+
+  const etatEleve = document.createElement('div');
+  etatEleve.id = 'rappelEleveEtat';
+  etatEleve.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
+  zone.appendChild(etatEleve);
 
   /* Un élève absent du répertoire, ou un numéro ponctuel */
   const lt = document.createElement('label');
@@ -758,8 +779,20 @@ function apercuRappel(){
   ap.textContent = texte;
 
   const bEnv = $('rappelEnvoi');
-  const nom = $('rappelEleve') ? $('rappelEleve').value : '';
+  const nom = $('rappelEleve') ? $('rappelEleve').value.trim() : '';
   const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
+
+  /* On dit ce qu'on a trouvé, pour éviter les fautes de frappe */
+  const et = $('rappelEleveEtat');
+  if(et){
+    if(!nom) et.textContent = '';
+    else if(f && f.telephone) et.innerHTML =
+      '<span style="color:var(--accent-text);">✅ ' + telLisible(f.telephone) + '</span>';
+    else if(f) et.innerHTML =
+      '<span style="color:var(--warn-text);">⚠️ Fiche trouvée, mais sans numéro</span>';
+    else et.innerHTML =
+      '<span style="color:var(--warn-text);">⚠️ Élève inconnu — saisis son numéro ci-dessous</span>';
+  }
 
   /* Le numéro saisi à la main l'emporte sur celui de la fiche */
   const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
