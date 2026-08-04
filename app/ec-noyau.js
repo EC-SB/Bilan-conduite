@@ -1,468 +1,450 @@
 /* ============================================================
-   ec-noyau.js
-   Configuration, session, droits, utilitaires communs
+   ec-textes.js
+   Bibliothèque de modèles de message, rédigés et modifiables
+   depuis l'application, enregistrés dans le classeur.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* ============================================================
-   APPLICATION
-   ============================================================ */
-const CONFIG = {
-  WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev'
-};
-CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
-CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
-CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
-CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 35;   /* voir apps-script.js */
-
-/* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
-   le redemander à chaque rafraîchissement, avec une durée de validité. */
-const CLE_SESSION = 'session_acces';
-const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
-
-/* ACCES : déclaré dans ec-etat.js */
-
-/* Sections de l'application soumises à autorisation */
-const SECTIONS = [
-  { cle:'prepares',         nom:'📅 Mes prochains cours' },
-  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
-  { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
-  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
-  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
-  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
-  { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
-  { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
-  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
-  { cle:'textes',           nom:'📄 Mes modèles de message' },
-  { cle:'sms',              nom:'💬 Envoi de SMS' },
-  { cle:'stats',            nom:'📈 Taux de réussite' },
-  { cle:'eleves',           nom:'👥 Répertoire des élèves' },
-  { cle:'bilans',           nom:'📋 Modèles de bilan' },
-  { cle:'procedures',       nom:'🚦 Procédures de conduite' },
-  { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
-  { cle:'admin',            nom:'⚙️ Administration des accès' }
+/* Les emplacements où un modèle peut être utilisé.
+   Chaque usage annonce les variables qu'il sait remplacer. */
+const USAGES_MODELE = [
+  { cle:'permis_jour',    nom:'📣 Groupe Messenger — planning du jour',
+    variables:['{date}', '{centre}', '{rendezvous}', '{liste}', '{note}'] },
+  { cle:'permis_rappels', nom:'📌 Groupe Messenger — rappels avant examen',
+    variables:[] },
+  { cle:'permis_obtenu',  nom:'🎓 Élève ayant obtenu son permis',
+    variables:['{eleve}', '{date}'] },
+  { cle:'examen_blanc',   nom:'📝 Examen blanc — message à l\'élève',
+    variables:['{eleve}', '{date}', '{moniteur}'] },
+  { cle:'post_permis',    nom:'🔁 Rendez-vous post-permis',
+    variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
+  { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
+    variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'procedure',      nom:'🚦 Procédure de conduite',
+    variables:[] },
+  { cle:'libre',          nom:'📄 Texte libre',
+    variables:['{eleve}', '{date}'] }
 ];
 
-/* Niveau d'accès : 'm' modifier, 'v' voir, '' rien */
-function niveauDroit(section){
-  const d = ACCES.droits;
-  if(!d || !Object.keys(d).length) return 'm';   /* compte sans réglage : tout */
-  return d[section] || '';
-}
-function aDroit(section){ return niveauDroit(section) !== ''; }
-function peutModifier(section){ return niveauDroit(section) === 'm'; }
-
-/* Masque ou passe en lecture seule selon le niveau accordé */
-function appliquerDroits(){
-  /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
-  const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
-                         'bureau_permis','bureau_messages'];
-  /* La carte « simulateurs et examens blancs » ne dépend plus que
-     de ses propres sous-sections, le permis ayant sa carte à part. */
-  const bureauVisible = ['bureau_simu', 'bureau_examblanc'].some(aDroit);
-
-  document.querySelectorAll('[data-section]').forEach(el => {
-    const s = el.getAttribute('data-section');
-    const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
-    /* Une vue non sélectionnée reste masquée : les onglets décident */
-    if(visible && el.classList.contains('hors-vue')) el.style.display = 'none';
-    else el.style.display = visible ? '' : 'none';
-    el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
-  });
-
-  /* Le départ d'un élève ne concerne que le bureau */
-  const bd = document.querySelector('[data-vue="depart"]');
-  if(bd){
-    bd.style.display = (aDroit('depart') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
-      ? '' : 'none';
-  }
-
-  /* Le journal d'activité n'est visible que des administrateurs */
-  const jc = $('journalCard');
-  if(jc) jc.style.display = (ACCES.role === 'admin') ? '' : 'none';
-
-  if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
-  $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
-}
-
-function memoriserSession(code, moniteur, role, droits){
-  try{
-    localStorage.setItem(CLE_SESSION, JSON.stringify({
-      code: code, moniteur: moniteur, role: role,
-      droits: droits || [], ts: Date.now()
-    }));
-  }catch(e){}
-}
-
-function lireSession(){
-  try{
-    const brut = localStorage.getItem(CLE_SESSION);
-    if(!brut) return null;
-    const s = JSON.parse(brut);
-    if(!s || !s.code) return null;
-    if(Date.now() - (s.ts || 0) > DUREE_SESSION){ oublierSession(); return null; }
-    return s;
-  }catch(e){ return null; }
-}
-
-function oublierSession(){
-  try{ localStorage.removeItem(CLE_SESSION); }catch(e){}
-}
-
-function verrouiller(message, garderSession){
-  clearInterval(minuteurBureau);
-  bureauDejaCharge = false;
-  if(!garderSession) oublierSession();
-  ACCES = { code: null, moniteur: '', role: '', droits: [] };
-  $('appView').style.display = 'none';
-  $('adminCard').style.display = 'none';
-  if($('logoutBtn')) $('logoutBtn').style.display = 'none';
-  if($('qui')) $('qui').style.display = 'none';
-
-  /* Rien d'autre que le code d'accès sur l'écran de connexion */
-  if($('barreOnglets')) $('barreOnglets').style.display = 'none';
-  document.querySelectorAll('.barre-vues').forEach(b => { b.style.display = 'none'; });
-  document.body.classList.remove('avec-onglets');
-  $('lockView').style.display = 'block';
-  $('codeInput').value = '';
-  $('codeMsg').textContent = message || '';
-  $('codeMsg').style.color = message ? 'var(--warn-text)' : 'var(--muted)';
-}
-
-const $ = id => document.getElementById(id);
-
-function todayLocal(){
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return d.getFullYear() + '-' + mm + '-' + dd;
-}
-
-/* recognition : déclaré dans ec-etat.js */
-/* isRecording : déclaré dans ec-etat.js */
-/* finalTranscript : déclaré dans ec-etat.js */
-/* currentLessonMeta : déclaré dans ec-etat.js */
-
-/* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
-/* committedTranscript : déclaré dans ec-etat.js */
-
-/* Contrôles préalables — sans toucher au micro :
-   sur Android, ouvrir puis fermer le micro juste avant la dictée
-   empêche la reconnaissance de capter le son. */
-/* Contexte requis pour ENREGISTRER un cours (micro nécessaire) */
-function verifierContexte(){
-  if(!window.isSecureContext){
-    return 'La page doit être ouverte en https:// pour accéder au micro.';
-  }
-  if(!SR){
-    return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
-  }
-  return verifierEleve();
-}
-
-/* Sans élève identifié, le bilan ne peut être rattaché à personne */
-function verifierEleve(){
-  const nom = $('studentName').value.trim();
-  if(nom.length < 2) return "Saisis le nom et le prénom de l'élève avant de démarrer.";
-  if(nom.split(/\s+/).length < 2) return "Il faut le nom ET le prénom de l'élève.";
-  if(!$('modele').value) return 'Choisis un type de bilan.';
-  if(!$('lessonDate').value) return 'Choisis la date du cours.';
-  return null;
-}
-
-/* Contexte requis pour un bilan à remplir à la main : aucun micro,
-   donc rien n'empêche de s'en servir sur n'importe quel navigateur. */
-function verifierContexteManuel(){
-  return verifierEleve();
-}
-
-/* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
-   seul l'événement onstart fait foi, sinon l'indicateur ment. */
-function demarrerReconnaissance(){
-  /* On repart systématiquement d'un objet neuf : évite d'hériter
-     d'une session figée par un cours précédent. */
-  try{
-    recreerEtDemarrer();
-    return { ok: true };
-  }catch(e){
-    return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
-  }
-}
-
-/* Maintien de l'écran allumé : Chrome coupe le micro dès que
-   l'écran s'éteint ou que la page passe en arrière-plan. */
-/* wakeLock : déclaré dans ec-etat.js */
-/* interruptions : déclaré dans ec-etat.js */
-
-/* Vrai uniquement quand une session de reconnaissance tourne réellement.
-   Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
-/* sessionActive : déclaré dans ec-etat.js */
-/* demarrageEnCours : déclaré dans ec-etat.js */
-/* dernierMot : déclaré dans ec-etat.js */
-/* dernierEvenement : déclaré dans ec-etat.js */
-
-function marquerActif(nomEvenement){
-  sessionActive = true;
-  demarrageEnCours = false;
-  dernierEvenement = nomEvenement;
-}
-
-function relancerMicro(){
-  if(!isRecording || sessionActive || demarrageEnCours) return;
-  demarrageEnCours = true;
-  dernierEvenement = 'start()';
-
-  if(!recognition){
-    recreerEtDemarrer();
-    setTimeout(() => { demarrageEnCours = false; }, 1500);
-    return;
-  }
-
-  try{
-    recognition.start();
-  }catch(e){
-    const nom = String(e && e.name || '');
-    if(nom === 'InvalidStateError'){
-      /* Session fantôme : elle se croit démarrée mais n'émet plus rien.
-         On ne la réanime pas, on la remplace. */
-      dernierEvenement = 'session figée → recréation';
-      recreerEtDemarrer();
-    }else{
-      dernierEvenement = 'start refusé: ' + (nom || e);
-    }
-  }
-  /* Laisse à Chrome le temps d'ouvrir la session avant tout nouvel essai */
-  setTimeout(() => { demarrageEnCours = false; }, 1500);
-}
-
-/* Surveillance : relance le micro s'il est mort, et signale
-   franchement quand rien n'est capté depuis longtemps. */
-setInterval(() => {
-  if(!isRecording) return;
-  sauvegarderLocal();
-  const etat = $('etatMicro');
-  const diag = $('diagMicro');
-
-  if(diag){
-    const depuis = dernierMot ? Math.round((Date.now() - dernierMot) / 1000) : null;
-    const capteRecemment = depuis !== null && depuis <= 12;
-
-    if(capteRecemment){
-      diag.textContent = '🗣️ paroles captées il y a ' + depuis + ' s';
-      diag.style.color = 'var(--orange)';
-    }else if(depuis !== null && sessionActive){
-      diag.textContent = '🤫 rien capté depuis ' + depuis + ' s';
-      diag.style.color = 'var(--warn-text)';
-    }else{
-      diag.textContent = 'état : ' + dernierEvenement;
-      diag.style.color = 'var(--muted)';
-    }
-  }
-
-  if(!sessionActive){
-    etat.textContent = demarrageEnCours ? '⏳ démarrage…' : '⏸️ micro coupé — reprise…';
-    etat.style.color = 'var(--warn-text)';
-    relancerMicro();
-    return;
-  }
-
-  const silence = Math.round((Date.now() - dernierMot) / 1000);
-  if(silence >= 30){
-    etat.textContent = '⚠️ aucun son capté depuis ' + silence + ' s';
-    etat.style.color = 'var(--warn-text)';
-  } else {
-    etat.textContent = '🔴 en écoute';
-    etat.style.color = 'var(--orange)';
-  }
-}, 2500);
-
-async function garderEcranAllume(){
-  try{
-    if('wakeLock' in navigator){
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-      return true;
-    }
-  }catch(e){
-    console.warn('Maintien de l\'écran refusé :', e);
-  }
-  return false;
-}
-
-function libererEcran(){
-  if(wakeLock){
-    try{ wakeLock.release(); }catch(e){}
-    wakeLock = null;
-  }
-}
-
-/* Prévient le moniteur si l'enregistrement a été coupé */
-document.addEventListener('visibilitychange', () => {
-  if(!isRecording) return;
-  if(document.hidden){
-    interruptions++;
-  } else {
-    garderEcranAllume();
-    relancerMicro();
-    if(interruptions > 0){
-      const w = $('pauseWarn');
-      w.style.display = 'block';
-      w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
-        (interruptions > 1 ? ' fois' : ' fois') +
-        ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
-    }
-  }
-});
-
-/* Fusionne les versions successives d'une même phrase.
-   Chrome sur Android empile les résultats provisoires
-   ("oui" / "oui ta" / "oui ta priorité"...) au lieu de les remplacer :
-   on ne garde donc que la version la plus complète. */
-function fusionner(chunks){
-  const out = [];
-  (chunks || []).forEach(raw => {
-    const c = String(raw).replace(/\s+/g, ' ').trim();
-    if(!c) return;
-    const last = out.length ? out[out.length - 1] : null;
-    if(last){
-      /* Comparaison sans la ponctuation finale, sinon un point
-         empêcherait de reconnaître une version étendue. */
-      const lastNu = sansPonctuationFinale(last);
-      const cNu = sansPonctuationFinale(c);
-      if(cNu.startsWith(lastNu)){ out[out.length - 1] = c; return; }
-      if(lastNu.startsWith(cNu)) return;
-    }
-    out.push(c);
-  });
-  return out.join(' ');
-}
-
-/* ---------- Menu des modèles ---------- */
-function remplirModeles(){
-  remplirUnMenuModeles($('modele'));
-  remplirUnMenuModeles($('prepModele'));
-}
-
-function remplirUnMenuModeles(sel){
-  if(!sel) return;
-  const groupes = {};
-  Object.keys(MODELES).forEach(cle => {
-    const g = MODELES[cle].groupe;
-    if(!groupes[g]) groupes[g] = [];
-    groupes[g].push(cle);
-  });
-  Object.keys(groupes).forEach(g => {
-    const og = document.createElement('optgroup');
-    og.label = g;
-    groupes[g].forEach(cle => {
-      const opt = document.createElement('option');
-      opt.value = cle;
-      opt.textContent = MODELES[cle].label;
-      og.appendChild(opt);
-    });
-    sel.appendChild(og);
-  });
-}
-
-function showToast(msg){
-  const t = $('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-/* ---------- Reconnaissance vocale ---------- */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const estAndroid = /Android/i.test(navigator.userAgent || '');
-
-if(!SR){
-  $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale demande ' +
-    '<strong>Chrome sur Android</strong>.<br>Le <strong>bilan à remplir à la main</strong> ' +
-    'reste utilisable normalement sur ce navigateur.</div>';
-  $('recBtn').disabled = true;
-  $('recBtn').style.opacity = '.45';
-  /* Le mode manuel est mis en avant puisque c'est le seul disponible */
-  const bm = $('manuelBtn');
-  if(bm){
-    bm.className = 'btn btn-primary';
-    bm.style.marginTop = '12px';
-  }
-}
-
-/* Qui est connecté, en haut de l'écran.
-   Utile quand plusieurs moniteurs se partagent un téléphone. */
-const LIBELLE_ROLE = { admin: 'Administrateur', bureau: 'Bureau', moniteur: 'Moniteur' };
-
-function afficherIdentite(){
-  const z = $('qui');
-  const n = $('quiNom');
-  const r = $('quiRole');
-  if(!z || !n) return;
-
-  if(!ACCES.code){
-    z.style.display = 'none';
-    return;
-  }
-  z.style.display = 'block';
-  n.textContent = ACCES.moniteur || '';
-  if(r) r.textContent = LIBELLE_ROLE[ACCES.role] || ACCES.role || '';
+function nomUsage(cle){
+  const u = USAGES_MODELE.find(x => x.cle === cle);
+  return u ? u.nom : cle;
 }
 
 /* ============================================================
-   FILET DE SÉCURITÉ POUR LA CONNEXION
-   Le bouton Déverrouiller est branché ici, dans un module chargé
-   tôt. Si un module plus loin échoue, on peut toujours entrer.
+   CATÉGORIES LIBRES
+   Les emplacements techniques (jour du permis, rappels…) restent
+   fixes : l'application sait où les utiliser. Les catégories,
+   elles, servent au rangement et sont créées librement.
    ============================================================ */
-(function brancherConnexion(){
-  const btn = $('codeBtn');
-  const champ = $('codeInput');
-  if(!btn || !champ) return;
+function categoriesExistantes(){
+  const vues = [];
+  (modelesTexte || []).forEach(m => {
+    const cat = (m.categorie || '').trim();
+    if(cat && vues.indexOf(cat) === -1) vues.push(cat);
+  });
+  return vues.sort((a, b) => a.localeCompare(b, 'fr'));
+}
 
-  const lancer = () => {
-    if(typeof deverrouiller === 'function'){ deverrouiller(); return; }
-    const msg = $('codeMsg');
-    if(msg){
-      msg.style.color = 'var(--warn-text)';
-      msg.innerHTML = "⚠️ L'application est incomplète : un fichier n'a pas été mis en ligne." +
-        '<br><span style="font-size:12px;">Vérifie le dossier <strong>app/</strong> sur GitHub, ' +
-        'puis recharge la page.</span>';
-    }
+/* La catégorie est rangée dans le nom, faute de colonne dédiée :
+   « Permis › Félicitations ». Simple et rétrocompatible. */
+function separerCategorie(nom){
+  const i = String(nom || '').indexOf(' › ');
+  if(i === -1) return { categorie: '', titre: String(nom || '') };
+  return { categorie: nom.slice(0, i).trim(), titre: nom.slice(i + 3).trim() };
+}
+
+function assemblerNom(categorie, titre){
+  const c = String(categorie || '').trim();
+  return c ? c + ' › ' + String(titre || '').trim() : String(titre || '').trim();
+}
+
+let modelesTexte = [];
+
+async function chargerModelesTexte(){
+  try{
+    const d = await appelPrep({ action: 'modeleList' });
+    modelesTexte = ((d && d.modeles) || []).map(m => {
+      const s = separerCategorie(m.nom);
+      return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
+    });
+  }catch(e){
+    console.warn('Modèles indisponibles :', e);
+  }
+  return modelesTexte;
+}
+
+/* Le premier modèle enregistré pour cet usage, s'il en existe un */
+function modelePour(usage){
+  return modelesTexte.find(m => m.usage === usage) || null;
+}
+
+/* Remplace les {variables} par leurs valeurs.
+   Une variable absente disparaît, plutôt que de laisser {truc} dans le texte. */
+function appliquerModele(contenu, valeurs){
+  let t = String(contenu || '');
+  Object.keys(valeurs || {}).forEach(k => {
+    t = t.split('{' + k + '}').join(String(valeurs[k] === undefined ? '' : valeurs[k]));
+  });
+  /* Nettoyage des variables non fournies */
+  t = t.replace(/\{[a-zA-Zéèêàçùî_]+\}/g, '');
+  return t;
+}
+
+
+/* ---------- Interface de gestion ---------- */
+
+async function afficherModelesTexte(){
+  const zone = $('textesZone');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Chargement des modèles…</div>';
+  await chargerModelesTexte();
+  zone.innerHTML = '';
+
+  /* Nouveau modèle */
+  const bNouveau = document.createElement('button');
+  bNouveau.className = 'btn btn-primary';
+  bNouveau.style.marginBottom = '14px';
+  bNouveau.textContent = '➕ Nouveau texte type';
+  bNouveau.addEventListener('click', () => ouvrirEditeurModele(null));
+  zone.appendChild(bNouveau);
+
+  if(!modelesTexte.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucun modèle enregistré.<br>' +
+      '<span style="font-size:12px;">Ajoute ici les textes que tu envoies souvent : ' +
+      "message du groupe permis, félicitations, examen blanc… " +
+      "L'application les reprendra à ta place.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  /* Regroupement par catégorie, puis par usage à l'intérieur */
+  const parCategorie = {};
+  modelesTexte.forEach(m => {
+    const cat = m.categorie || 'Sans catégorie';
+    if(!parCategorie[cat]) parCategorie[cat] = [];
+    parCategorie[cat].push(m);
+  });
+
+  const cats = Object.keys(parCategorie).sort((a, b) => {
+    if(a === 'Sans catégorie') return 1;
+    if(b === 'Sans catégorie') return -1;
+    return a.localeCompare(b, 'fr');
+  });
+
+  cats.forEach(cat => {
+    const bloc = document.createElement('details');
+    bloc.open = true;
+    bloc.style.cssText = 'margin-bottom:10px;';
+    bloc.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
+      'color:var(--accent-text);padding:6px 0;">📁 ' + cat.replace(/</g, '&lt;') +
+      ' <span style="font-size:12px;color:var(--muted);">(' +
+      parCategorie[cat].length + ')</span></summary>';
+
+    const liste = parCategorie[cat];
+    const t = document.createElement('div');
+    bloc.appendChild(t);
+    zone.appendChild(bloc);
+
+    liste.forEach(m => {
+      const d = document.createElement('div');
+      d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+        'margin-bottom:8px;';
+
+      const h = document.createElement('div');
+      h.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      const n = document.createElement('div');
+      n.style.cssText = 'flex:1;min-width:0;';
+      n.innerHTML = '<strong style="font-size:14px;">' +
+        (m.titre || m.nom).replace(/</g, '&lt;') + '</strong>' +
+        '<div style="font-size:11px;color:var(--muted);">' + nomUsage(m.usage) +
+        (m.maj ? ' · modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '') + '</div>';
+      h.appendChild(n);
+
+      const bMod = document.createElement('button');
+      bMod.className = 'btn btn-secondary';
+      bMod.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
+      bMod.textContent = '✏️';
+      bMod.title = 'Modifier';
+      bMod.addEventListener('click', () => ouvrirEditeurModele(m));
+      h.appendChild(bMod);
+
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;' +
+        'color:var(--red);border-color:var(--red);';
+      bSup.textContent = '✕';
+      bSup.title = 'Supprimer';
+      bSup.addEventListener('click', async () => {
+        if(!await confirmer('Supprimer le modèle « ' + m.nom + ' » ?')) return;
+        bSup.disabled = true;
+        try{
+          await appelPrep({ action: 'modeleDelete', id: m.id });
+          showToast('Modèle supprimé');
+          afficherModelesTexte();
+        }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+      });
+      h.appendChild(bSup);
+      d.appendChild(h);
+
+      /* Aperçu replié */
+      const det = document.createElement('details');
+      det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);' +
+        'margin-top:6px;">Voir le texte</summary>';
+      const p = document.createElement('div');
+      p.style.cssText = 'margin-top:6px;font-size:13px;line-height:1.5;white-space:pre-wrap;' +
+        'color:var(--muted);max-height:200px;overflow-y:auto;';
+      p.textContent = m.contenu;
+      det.appendChild(p);
+      d.appendChild(det);
+
+      bloc.appendChild(d);
+    });
+  });
+}
+
+
+function ouvrirEditeurModele(modele, usageImpose){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  const h = document.createElement('h3');
+  h.textContent = modele ? 'Modifier le texte' : 'Nouveau texte type';
+  boite.appendChild(h);
+
+  boite.insertAdjacentHTML('beforeend',
+    '<label for="mdCat">📁 Catégorie</label>' +
+    '<input type="text" id="mdCat" list="listeCategories" ' +
+      'placeholder="Ex : Permis, Examen blanc, Relances… (libre)">' +
+    '<datalist id="listeCategories">' +
+      categoriesExistantes().map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">').join('') +
+    '</datalist>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Crée autant de catégories que tu veux : tape un nom nouveau, ' +
+      'ou choisis-en une déjà utilisée.</div>' +
+    '<label for="mdNom">Nom de ce texte</label>' +
+    '<input type="text" id="mdNom" placeholder="Ex : Jour du permis — Saint-Brieuc">' +
+    '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
+    '<select id="mdUsage">' +
+      USAGES_MODELE.map(u => '<option value="' + u.cle + '">' + u.nom + '</option>').join('') +
+    '</select>' +
+    '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.6;"></div>' +
+    '<label for="mdContenu">Texte du message</label>' +
+    '<textarea id="mdContenu" rows="14" ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+      'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;font-family:inherit;' +
+      'resize:vertical;margin-bottom:12px;"></textarea>');
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const g = id => boite.querySelector('#' + id);
+
+  /* Rappel des variables disponibles, avec insertion en un appui */
+  const majVars = () => {
+    const u = USAGES_MODELE.find(x => x.cle === g('mdUsage').value);
+    const z = g('mdVars');
+    z.innerHTML = 'Variables disponibles — appuie pour insérer :<br>';
+    (u ? u.variables : []).forEach(v => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:4px 4px 0 0;';
+      b.textContent = v;
+      b.addEventListener('click', () => {
+        const t = g('mdContenu');
+        const p = t.selectionStart || t.value.length;
+        t.value = t.value.slice(0, p) + v + t.value.slice(p);
+        t.focus();
+      });
+      z.appendChild(b);
+    });
   };
+  g('mdUsage').addEventListener('change', majVars);
 
-  btn.addEventListener('click', lancer);
-  champ.addEventListener('keydown', e => { if(e.key === 'Enter') lancer(); });
-})();
+  if(modele){
+    g('mdCat').value = modele.categorie || '';
+    g('mdNom').value = modele.titre || modele.nom || '';
+    g('mdUsage').value = modele.usage || 'libre';
+    g('mdContenu').value = modele.contenu || '';
+  }
+  /* Depuis le tiroir des procédures, l'usage est déjà connu */
+  if(usageImpose){
+    g('mdUsage').value = usageImpose;
+    g('mdUsage').disabled = true;
+    g('mdUsage').style.opacity = '.6';
+  }
+  majVars();
+
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+
+  bOk.addEventListener('click', async () => {
+    const nom = g('mdNom').value.trim();
+    const contenu = g('mdContenu').value.trim();
+    if(!nom){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Donne un nom au modèle.'; return; }
+    if(!contenu){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Le texte est vide.'; return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({
+        action: 'modeleSet',
+        id: modele ? modele.id : '',
+        usage: g('mdUsage').value,
+        nom: assemblerNom(g('mdCat') ? g('mdCat').value : '', nom),
+        contenu: contenu
+      });
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      if(usageImpose === 'procedure') afficherProcedures();
+      else afficherModelesTexte();
+    }catch(e){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
+    }
+  });
+}
+
+
+
+/* ============================================================
+   PROCÉDURES DE CONDUITE
+   Les mêmes fiches, présentées à part : c'est ce que les
+   moniteurs consultent et ce qui sert aux corrections.
+   ============================================================ */
+async function afficherProcedures(){
+  const zone = $('proceduresZone');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Chargement des procédures…</div>';
+  await chargerModelesTexte();
+  const liste = (modelesTexte || []).filter(m => m.usage === 'procedure')
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+
+  zone.innerHTML = '';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.marginBottom = '12px';
+  b.textContent = '➕ Nouvelle procédure';
+  b.addEventListener('click', () => ouvrirEditeurModele(null, 'procedure'));
+  zone.appendChild(b);
+
+  /* Recherche, car la liste va s'allonger */
+  if(liste.length > 4){
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.placeholder = '🔍 Filtrer les procédures';
+    rech.style.marginBottom = '10px';
+    rech.addEventListener('input', () => {
+      const q = normaliserMot(rech.value);
+      zone.querySelectorAll('[data-procedure]').forEach(el => {
+        const ok = !q || normaliserMot(el.getAttribute('data-procedure')).indexOf(q) !== -1;
+        el.style.display = ok ? '' : 'none';
+      });
+    });
+    zone.appendChild(rech);
+  }
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune procédure enregistrée.<br>' +
+      '<span style="font-size:12px;">Ajoute ici tes procédures : giratoire, priorité à droite, ' +
+      "créneau… Elles serviront aux corrections d'erreur et resteront consultables par tous.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  liste.forEach(m => {
+    const d = document.createElement('details');
+    d.setAttribute('data-procedure', m.nom);
+    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+      'margin-bottom:8px;';
+
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
+      'list-style:none;';
+    som.textContent = '🚦 ' + m.nom;
+    d.appendChild(som);
+
+    const corps = document.createElement('div');
+    corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
+    corps.textContent = m.contenu;
+    d.appendChild(corps);
+
+    const pied = document.createElement('div');
+    pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;';
+    pied.textContent = (m.maj ? 'modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '');
+    d.appendChild(pied);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const bCop = document.createElement('button');
+    bCop.className = 'btn btn-secondary';
+    bCop.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+    bCop.textContent = '📋 Copier';
+    bCop.addEventListener('click', () => {
+      navigator.clipboard.writeText(m.contenu).then(
+        () => showToast('Procédure copiée ✅'),
+        () => showToast('Copie impossible'));
+    });
+    r.appendChild(bCop);
+
+    const bMod = document.createElement('button');
+    bMod.className = 'btn btn-secondary';
+    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bMod.textContent = '✏️ Modifier';
+    bMod.addEventListener('click', () => ouvrirEditeurModele(m, 'procedure'));
+    r.appendChild(bMod);
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '✕';
+    bSup.title = 'Supprimer';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer la procédure « ' + m.nom + ' » ?')) return;
+      bSup.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: m.id });
+        showToast('Procédure supprimée');
+        afficherProcedures();
+      }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+    });
+    r.appendChild(bSup);
+
+    d.appendChild(r);
+    zone.appendChild(d);
+  });
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-noyau.js'] = true;
-
-/* ============================================================
-   CONTRÔLE DES MODULES
-   Un fichier absent du serveur ne provoque aucune erreur visible :
-   des boutons cessent simplement de répondre. On le signale.
-   ============================================================ */
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-sms.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
-
-function verifierModules(){
-  const charges = window.EC_MODULES || {};
-  const manquants = EC_ATTENDUS.filter(function(m){ return !charges[m]; });
-  if(!manquants.length) return;
-
-  const z = document.createElement('div');
-  z.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;' +
-    'background:#B3261E;color:#fff;padding:14px 16px;font-size:14px;line-height:1.5;' +
-    'font-family:inherit;box-shadow:0 2px 12px rgba(0,0,0,.4);';
-  z.innerHTML = '<strong>⚠️ Application incomplète</strong><br>' +
-    manquants.length + ' fichier(s) manquant(s) dans le dossier <code>app/</code> :<br>' +
-    manquants.join(', ') + '<br>' +
-    '<span style="font-size:12px;opacity:.9;">Certaines fonctions ne répondront pas ' +
-    'tant que ces fichiers ne sont pas en ligne.</span>';
-  document.body.insertBefore(z, document.body.firstChild);
-  console.error('Modules manquants :', manquants);
-}
-
-/* On laisse le temps aux derniers scripts d'arriver */
-setTimeout(verifierModules, 2500);
+window.EC_MODULES['ec-textes.js'] = true;
