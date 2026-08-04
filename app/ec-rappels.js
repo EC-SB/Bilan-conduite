@@ -666,7 +666,18 @@ async function afficherRappelManuel(){
     cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
     cb.addEventListener('change', apercuRappel);
     l.appendChild(cb);
-    l.appendChild(document.createTextNode(o.nom));
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = o.nom;
+    l.appendChild(t);
+
+    /* Le coût en caractères, pour décider en connaissance de cause */
+    const poids = document.createElement('span');
+    poids.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+    poids.textContent = '+' + (o.texte.length + 2);
+    l.appendChild(poids);
+
     zone.appendChild(l);
   });
 
@@ -775,7 +786,10 @@ function apercuRappel(){
     const parts = decouperMessage(texte, LIMITE_SMS).length;
     cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
     cp.textContent = n + ' caractères' +
-      (parts > 1 ? ' — envoyé en ' + parts + ' SMS' : ' — 1 SMS');
+      (parts > 1
+        ? ' — ' + parts + ' SMS · il faut retirer ' + (n - LIMITE_SMS) +
+          ' caractères pour n\'en faire qu\'un'
+        : ' — 1 SMS · encore ' + (LIMITE_SMS - n) + ' de marge');
   }
 
   const bEnv = $('rappelEnvoi');
