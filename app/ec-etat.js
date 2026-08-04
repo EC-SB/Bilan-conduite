@@ -5,6 +5,12 @@
    soit l'ordre de chargement des autres fichiers.
    ============================================================ */
 
+/* Raccourci d'accès au DOM, défini dès le premier module.
+   S'il n'était déclaré que dans ec-noyau.js, une panne dans ce
+   fichier rendrait toute l'application inutilisable. */
+window.$ = window.$ || function (id) { return document.getElementById(id); };
+var $ = window.$;
+
 var ACCES = { code: null, moniteur: '', role: '', droits: [] };
 var recognition = null;
 var isRecording = false;
@@ -50,9 +56,6 @@ var premierAffichagePrepares = false;
 window.EC_MODULES = window.EC_MODULES || {};
 /* Suivi bureau — ces deux-là étaient utilisées sans être déclarées,
    ce qui faisait échouer la déconnexion. */
-var minuteurBureau = null;
-var bureauDejaCharge = false;
 
-var premierAffichagePrepares = false;
 
 window.EC_MODULES['ec-etat.js'] = true;
