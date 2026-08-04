@@ -107,12 +107,25 @@ async function afficherModelesTexte(){
   zone.innerHTML = '';
 
   /* Nouveau modèle */
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
+
   const bNouveau = document.createElement('button');
   bNouveau.className = 'btn btn-primary';
-  bNouveau.style.marginBottom = '14px';
+  bNouveau.style.cssText = 'flex:1;margin:0;';
   bNouveau.textContent = '➕ Nouveau texte type';
   bNouveau.addEventListener('click', () => ouvrirEditeurModele(null));
-  zone.appendChild(bNouveau);
+  r.appendChild(bNouveau);
+
+  const bImport = document.createElement('button');
+  bImport.className = 'btn btn-secondary';
+  bImport.style.cssText = 'width:auto;padding:0 16px;margin:0;font-size:14px;';
+  bImport.textContent = '📥 Importer';
+  bImport.title = 'Coller plusieurs modèles d\'un coup';
+  bImport.addEventListener('click', ouvrirImportModeles);
+  r.appendChild(bImport);
+
+  zone.appendChild(r);
 
   if(!modelesTexte.length){
     const v = document.createElement('div');
@@ -447,6 +460,141 @@ async function afficherProcedures(){
     d.appendChild(r);
     zone.appendChild(d);
   });
+}
+
+
+/* ============================================================
+   IMPORT EN MASSE
+   Coller ses modèles un par un est décourageant quand on en a
+   quinze. On les colle tous, séparés par une ligne de titre.
+   ============================================================ */
+const SEPARATEUR_AIDE =
+  'Sépare tes modèles par une ligne contenant seulement le titre entre === :\n\n' +
+  '=== RDV accompagnateur ===\n' +
+  'Bonjour 😁\n' +
+  "N'OUBLIE PAS LA FORMATION DE TON ACCOMPAGNATEUR {jour}…\n\n" +
+  '=== RDV préalable ===\n' +
+  'Bonjour 😁\n…';
+
+/* Découpe un texte collé en plusieurs modèles */
+function decouperModeles(brut){
+  const lignes = String(brut || '').split('\n');
+  const out = [];
+  let courant = null;
+
+  lignes.forEach(l => {
+    /* Une ligne de titre : === Nom === ou ___ Nom ___ */
+    const m = l.match(/^\s*(?:=|_){2,}\s*(.+?)\s*(?:=|_){2,}\s*$/);
+    if(m && m[1].length >= 2){
+      if(courant) out.push(courant);
+      courant = { titre: m[1].trim(), lignes: [] };
+      return;
+    }
+    if(courant) courant.lignes.push(l);
+  });
+  if(courant) out.push(courant);
+
+  return out
+    .map(x => ({ titre: x.titre, contenu: x.lignes.join('\n').trim() }))
+    .filter(x => x.contenu.length >= 10);
+}
+
+async function ouvrirImportModeles(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:92vh;overflow-y:auto;';
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>📥 Importer plusieurs textes</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">' +
+      'Colle tous tes modèles d\'un coup. Sépare-les par une ligne de titre ' +
+      'entre <strong>===</strong>, comme dans l\'exemple.</div>' +
+    '<label for="imCat">📁 Catégorie</label>' +
+    '<input type="text" id="imCat" list="listeCategories" placeholder="Ex : Rappels">' +
+    '<label for="imUsage">Usage de ces textes</label>' +
+    '<select id="imUsage">' +
+      USAGES_MODELE.map(u => '<option value="' + u.cle + '">' + u.nom + '</option>').join('') +
+    '</select>' +
+    '<label for="imTexte">Tes modèles</label>');
+
+  const zone = document.createElement('textarea');
+  zone.id = 'imTexte';
+  zone.rows = 14;
+  zone.placeholder = SEPARATEUR_AIDE;
+  zone.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:14px;' +
+    'line-height:1.55;font-family:inherit;resize:vertical;margin-bottom:8px;';
+  boite.appendChild(zone);
+
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;' +
+    'margin-bottom:12px;min-height:18px;';
+  boite.appendChild(apercu);
+
+  zone.addEventListener('input', () => {
+    const t = decouperModeles(zone.value);
+    apercu.innerHTML = t.length
+      ? '✅ ' + t.length + ' modèle(s) reconnu(s) :<br>' +
+        t.map(x => '• ' + x.titre.replace(/</g, '&lt;') +
+          ' <span style="opacity:.7;">(' + x.contenu.length + ' caractères)</span>').join('<br>')
+      : (zone.value.trim()
+          ? '⚠️ Aucun titre entre === trouvé. Ajoute une ligne <strong>=== Nom ===</strong> ' +
+            'avant chaque modèle.'
+          : '');
+  });
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '📥 Importer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  bOk.addEventListener('click', async () => {
+    const liste = decouperModeles(zone.value);
+    if(!liste.length){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Aucun modèle reconnu. Vérifie les lignes de titre.';
+      return;
+    }
+
+    const cat = boite.querySelector('#imCat').value.trim();
+    const usage = boite.querySelector('#imUsage').value;
+
+    bOk.disabled = true;
+    let ok = 0;
+    const rates = [];
+    for(let i = 0; i < liste.length; i++){
+      bOk.textContent = 'Import ' + (i + 1) + ' sur ' + liste.length + '…';
+      try{
+        await appelPrep({ action: 'modeleSet', id: '', usage: usage,
+                          nom: assemblerNom(cat, liste[i].titre),
+                          contenu: liste[i].contenu });
+        ok++;
+      }catch(e){ rates.push(liste[i].titre + ' : ' + e.message); }
+    }
+
+    document.body.removeChild(fond);
+    showToast(ok + ' modèle(s) importé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+    if(rates.length) await informer('Modèles non importés :\n\n' + rates.join('\n'));
+    afficherModelesTexte();
+  });
+
+  setTimeout(() => zone.focus(), 100);
 }
 
 /* Signale que ce module est bien chargé */
