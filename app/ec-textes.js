@@ -1,230 +1,452 @@
 /* ============================================================
-   ec-onglets.js
-   Navigation par onglets.
-   Un moniteur en voiture ne voit que ce qui le concerne ;
-   le bureau retrouve ses listes en un geste.
+   ec-textes.js
+   Bibliothèque de modèles de message, rédigés et modifiables
+   depuis l'application, enregistrés dans le classeur.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-const CLE_ONGLET = 'onglet_actif';
+/* Les emplacements où un modèle peut être utilisé.
+   Chaque usage annonce les variables qu'il sait remplacer. */
+const USAGES_MODELE = [
+  { cle:'permis_jour',    nom:'📣 Groupe Messenger — planning du jour',
+    variables:['{date}', '{centre}', '{rendezvous}', '{liste}', '{note}'] },
+  { cle:'permis_rappels', nom:'📌 Groupe Messenger — rappels avant examen',
+    variables:[] },
+  { cle:'permis_obtenu',  nom:'🎓 Élève ayant obtenu son permis',
+    variables:['{eleve}', '{date}'] },
+  { cle:'examen_blanc',   nom:'📝 Examen blanc — message à l\'élève',
+    variables:['{eleve}', '{date}', '{moniteur}'] },
+  { cle:'post_permis',    nom:'🔁 Rendez-vous post-permis',
+    variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
+  { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
+    variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
+    variables:['{prenom}', '{eleve}', '{date}', '{heure}', '{duree}', '{moniteur}', '{site}'] },
+  { cle:'procedure',      nom:'🚦 Procédure de conduite',
+    variables:[] },
+  { cle:'libre',          nom:'📄 Texte libre',
+    variables:['{eleve}', '{date}'] }
+];
 
-/* Quelles sections rendent un onglet utile.
-   Un onglet dont aucune section n'est autorisée disparaît. */
-const SECTIONS_ONGLET = {
-  cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'permis', 'depart'],
-  suivi:  ['bureau_simu', 'bureau_examblanc'],
-  permis: ['bureau_permis', 'bureau_places'],
-  outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'eleves', 'rappels', 'admin']
-};
-
-let ongletActif = '';
-
-/* Les onglets réellement accessibles à cette personne */
-function ongletsDisponibles(){
-  return Object.keys(SECTIONS_ONGLET).filter(o => {
-    if(o === 'outils' && ACCES.role === 'admin') return true;
-    return SECTIONS_ONGLET[o].some(s => typeof aDroit === 'function' && aDroit(s));
-  });
+function nomUsage(cle){
+  const u = USAGES_MODELE.find(x => x.cle === cle);
+  return u ? u.nom : cle;
 }
-
-function afficherOnglet(cle, memoriser){
-  const dispo = ongletsDisponibles();
-  if(dispo.indexOf(cle) === -1) cle = dispo[0];
-  if(!cle) return;
-
-  ongletActif = cle;
-
-  /* Les blocs des autres onglets se retirent de l'affichage */
-  document.querySelectorAll('[data-onglet]').forEach(el => {
-    el.classList.toggle('hors-onglet', el.getAttribute('data-onglet') !== cle);
-  });
-
-  document.querySelectorAll('.barre-vues').forEach(b => {
-    b.style.display = (b.getAttribute('data-pour') === cle && !b.hidden) ? 'flex' : 'none';
-  });
-  if(VUES[cle]) afficherVue(cle, vueActive[cle] || (VUES[cle][0] || [])[0]);
-
-  document.querySelectorAll('#barreOnglets .onglet').forEach(b => {
-    b.classList.toggle('actif', b.getAttribute('data-cible') === cle);
-    b.setAttribute('aria-selected', b.getAttribute('data-cible') === cle ? 'true' : 'false');
-  });
-
-  if(memoriser !== false){
-    try{ localStorage.setItem(CLE_ONGLET, cle); }catch(e){}
-  }
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  /* Chaque onglet charge ce dont il a besoin, à son ouverture */
-  reveillerOnglet(cle);
-}
-
-/* Ce qu'il faut mettre à jour en arrivant sur un onglet */
-function reveillerOnglet(cle){
-  if((cle === 'suivi' || cle === 'permis') && typeof afficherBureau === 'function'){
-    afficherBureau(bureauDejaCharge);
-  }
-  if(cle === 'permis' && typeof afficherMessengerPermis === 'function'){
-    afficherMessengerPermis();
-  }
-}
-
-/* Masque les onglets sans contenu et branche les boutons */
-function initOnglets(){
-  const barre = $('barreOnglets');
-  if(!barre) return;
-
-  document.body.classList.add('avec-onglets');
-
-  /* Les boutons de chaque onglet, selon les droits */
-  Object.keys(VUES).forEach(o => {
-    try{ vueActive[o] = localStorage.getItem('vue_' + o) || ''; }catch(e){}
-  });
-  construireBarresVues();
-
-  const dispo = ongletsDisponibles();
-
-  barre.querySelectorAll('.onglet').forEach(b => {
-    const cle = b.getAttribute('data-cible');
-    b.hidden = (dispo.indexOf(cle) === -1);
-    if(!b.dataset.branche){
-      b.dataset.branche = 'oui';
-      b.addEventListener('click', () => afficherOnglet(cle));
-    }
-  });
-
-  /* Un seul onglet accessible : la barre n'apporte rien */
-  barre.style.display = (dispo.length > 1) ? 'flex' : 'none';
-
-  let depart = '';
-  try{ depart = localStorage.getItem(CLE_ONGLET) || ''; }catch(e){}
-  if(dispo.indexOf(depart) === -1) depart = dispo[0];
-  afficherOnglet(depart, false);
-}
-
 
 /* ============================================================
-   NAVIGATION PAR BOUTONS À L'INTÉRIEUR D'UN ONGLET
-   Un onglet qui contient plusieurs modules les présente en
-   boutons : on voit d'emblée ce qui existe, sans dérouler.
+   CATÉGORIES LIBRES
+   Les emplacements techniques (jour du permis, rappels…) restent
+   fixes : l'application sait où les utiliser. Les catégories,
+   elles, servent au rangement et sont créées librement.
    ============================================================ */
-const VUES = {
-  cours:  [['prepares',   '📅 Mes prochains cours',  'prepares'],
-           ['cours',      '🎙️ Démarrer un cours',   'cours']],
-  eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
-           ['permis',     '🎓 Permis obtenu',      'permis'],
-           ['depart',     '🚪 Départ',             'depart']],
-  outils: [['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
-           ['textes',     '📄 Textes types',           'textes'],
-           ['procedures', '🚦 Procédures',             'procedures'],
-           ['bilans',     '📋 Modèles de bilan',       'bilans'],
-           ['eleves',     '👥 Répertoire élèves',      'eleves'],
-           ['rappels',    '🔔 Rappels de cours',       'rappels'],
-           ['sms',        '💬 SMS',                    'sms'],
-           ['stats',      '📈 Réussite',               'stats'],
-           ['journal',    '📊 Journal',                'journal'],
-           ['admin',      '⚙️ Accès',                  'admin']]
-};
+function categoriesExistantes(){
+  const vues = [];
+  (modelesTexte || []).forEach(m => {
+    const cat = (m.categorie || '').trim();
+    if(cat && vues.indexOf(cat) === -1) vues.push(cat);
+  });
+  return vues.sort((a, b) => a.localeCompare(b, 'fr'));
+}
 
-const vueActive = {};
+/* La catégorie est rangée dans le nom, faute de colonne dédiée :
+   « Permis › Félicitations ». Simple et rétrocompatible. */
+function separerCategorie(nom){
+  const i = String(nom || '').indexOf(' › ');
+  if(i === -1) return { categorie: '', titre: String(nom || '') };
+  return { categorie: nom.slice(0, i).trim(), titre: nom.slice(i + 3).trim() };
+}
 
-function construireBarresVues(){
-  Object.keys(VUES).forEach(onglet => {
-    const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
-    if(!barre) return;
+function assemblerNom(categorie, titre){
+  const c = String(categorie || '').trim();
+  return c ? c + ' › ' + String(titre || '').trim() : String(titre || '').trim();
+}
 
-    barre.innerHTML = '';
-    const dispo = VUES[onglet].filter(([cle, , section]) => {
-      if(cle === 'journal') return ACCES.role === 'admin';
-      if(cle === 'admin')   return ACCES.role === 'admin';
+let modelesTexte = [];
 
-      return typeof aDroit !== 'function' || aDroit(section);
+async function chargerModelesTexte(){
+  try{
+    const d = await appelPrep({ action: 'modeleList' });
+    modelesTexte = ((d && d.modeles) || []).map(m => {
+      const s = separerCategorie(m.nom);
+      return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
     });
+  }catch(e){
+    console.warn('Modèles indisponibles :', e);
+  }
+  return modelesTexte;
+}
 
-    if(dispo.length < 2){
-      /* Un seul module : le bouton n'apporte rien */
-      barre.hidden = true;
-      vueActive[onglet] = dispo.length ? dispo[0][0] : '';
-      return;
-    }
-    barre.hidden = false;
+/* Le premier modèle enregistré pour cet usage, s'il en existe un */
+function modelePour(usage){
+  return modelesTexte.find(m => m.usage === usage) || null;
+}
 
-    dispo.forEach(([cle, libelle]) => {
+/* Remplace les {variables} par leurs valeurs.
+   Une variable absente disparaît, plutôt que de laisser {truc} dans le texte. */
+function appliquerModele(contenu, valeurs){
+  let t = String(contenu || '');
+  Object.keys(valeurs || {}).forEach(k => {
+    t = t.split('{' + k + '}').join(String(valeurs[k] === undefined ? '' : valeurs[k]));
+  });
+  /* Nettoyage des variables non fournies */
+  t = t.replace(/\{[a-zA-Zéèêàçùî_]+\}/g, '');
+  return t;
+}
+
+
+/* ---------- Interface de gestion ---------- */
+
+async function afficherModelesTexte(){
+  const zone = $('textesZone');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Chargement des modèles…</div>';
+  await chargerModelesTexte();
+  zone.innerHTML = '';
+
+  /* Nouveau modèle */
+  const bNouveau = document.createElement('button');
+  bNouveau.className = 'btn btn-primary';
+  bNouveau.style.marginBottom = '14px';
+  bNouveau.textContent = '➕ Nouveau texte type';
+  bNouveau.addEventListener('click', () => ouvrirEditeurModele(null));
+  zone.appendChild(bNouveau);
+
+  if(!modelesTexte.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucun modèle enregistré.<br>' +
+      '<span style="font-size:12px;">Ajoute ici les textes que tu envoies souvent : ' +
+      "message du groupe permis, félicitations, examen blanc… " +
+      "L'application les reprendra à ta place.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  /* Regroupement par catégorie, puis par usage à l'intérieur */
+  const parCategorie = {};
+  modelesTexte.forEach(m => {
+    const cat = m.categorie || 'Sans catégorie';
+    if(!parCategorie[cat]) parCategorie[cat] = [];
+    parCategorie[cat].push(m);
+  });
+
+  const cats = Object.keys(parCategorie).sort((a, b) => {
+    if(a === 'Sans catégorie') return 1;
+    if(b === 'Sans catégorie') return -1;
+    return a.localeCompare(b, 'fr');
+  });
+
+  cats.forEach(cat => {
+    const bloc = document.createElement('details');
+    bloc.open = true;
+    bloc.style.cssText = 'margin-bottom:10px;';
+    bloc.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
+      'color:var(--accent-text);padding:6px 0;">📁 ' + cat.replace(/</g, '&lt;') +
+      ' <span style="font-size:12px;color:var(--muted);">(' +
+      parCategorie[cat].length + ')</span></summary>';
+
+    const liste = parCategorie[cat];
+    const t = document.createElement('div');
+    bloc.appendChild(t);
+    zone.appendChild(bloc);
+
+    liste.forEach(m => {
+      const d = document.createElement('div');
+      d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+        'margin-bottom:8px;';
+
+      const h = document.createElement('div');
+      h.style.cssText = 'display:flex;align-items:center;gap:8px;';
+      const n = document.createElement('div');
+      n.style.cssText = 'flex:1;min-width:0;';
+      n.innerHTML = '<strong style="font-size:14px;">' +
+        (m.titre || m.nom).replace(/</g, '&lt;') + '</strong>' +
+        '<div style="font-size:11px;color:var(--muted);">' + nomUsage(m.usage) +
+        (m.maj ? ' · modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '') + '</div>';
+      h.appendChild(n);
+
+      const bMod = document.createElement('button');
+      bMod.className = 'btn btn-secondary';
+      bMod.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
+      bMod.textContent = '✏️';
+      bMod.title = 'Modifier';
+      bMod.addEventListener('click', () => ouvrirEditeurModele(m));
+      h.appendChild(bMod);
+
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;' +
+        'color:var(--red);border-color:var(--red);';
+      bSup.textContent = '✕';
+      bSup.title = 'Supprimer';
+      bSup.addEventListener('click', async () => {
+        if(!await confirmer('Supprimer le modèle « ' + m.nom + ' » ?')) return;
+        bSup.disabled = true;
+        try{
+          await appelPrep({ action: 'modeleDelete', id: m.id });
+          showToast('Modèle supprimé');
+          afficherModelesTexte();
+        }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+      });
+      h.appendChild(bSup);
+      d.appendChild(h);
+
+      /* Aperçu replié */
+      const det = document.createElement('details');
+      det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);' +
+        'margin-top:6px;">Voir le texte</summary>';
+      const p = document.createElement('div');
+      p.style.cssText = 'margin-top:6px;font-size:13px;line-height:1.5;white-space:pre-wrap;' +
+        'color:var(--muted);max-height:200px;overflow-y:auto;';
+      p.textContent = m.contenu;
+      det.appendChild(p);
+      d.appendChild(det);
+
+      bloc.appendChild(d);
+    });
+  });
+}
+
+
+function ouvrirEditeurModele(modele, usageImpose){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  const h = document.createElement('h3');
+  h.textContent = modele ? 'Modifier le texte' : 'Nouveau texte type';
+  boite.appendChild(h);
+
+  boite.insertAdjacentHTML('beforeend',
+    '<label for="mdCat">📁 Catégorie</label>' +
+    '<input type="text" id="mdCat" list="listeCategories" ' +
+      'placeholder="Ex : Permis, Examen blanc, Relances… (libre)">' +
+    '<datalist id="listeCategories">' +
+      categoriesExistantes().map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">').join('') +
+    '</datalist>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Crée autant de catégories que tu veux : tape un nom nouveau, ' +
+      'ou choisis-en une déjà utilisée.</div>' +
+    '<label for="mdNom">Nom de ce texte</label>' +
+    '<input type="text" id="mdNom" placeholder="Ex : Jour du permis — Saint-Brieuc">' +
+    '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
+    '<select id="mdUsage">' +
+      USAGES_MODELE.map(u => '<option value="' + u.cle + '">' + u.nom + '</option>').join('') +
+    '</select>' +
+    '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.6;"></div>' +
+    '<label for="mdContenu">Texte du message</label>' +
+    '<textarea id="mdContenu" rows="14" ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+      'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;font-family:inherit;' +
+      'resize:vertical;margin-bottom:12px;"></textarea>');
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const g = id => boite.querySelector('#' + id);
+
+  /* Rappel des variables disponibles, avec insertion en un appui */
+  const majVars = () => {
+    const u = USAGES_MODELE.find(x => x.cle === g('mdUsage').value);
+    const z = g('mdVars');
+    z.innerHTML = 'Variables disponibles — appuie pour insérer :<br>';
+    (u ? u.variables : []).forEach(v => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = libelle;
-      b.setAttribute('data-vue-cible', cle);
-      b.addEventListener('click', () => afficherVue(onglet, cle));
-      barre.appendChild(b);
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:4px 4px 0 0;';
+      b.textContent = v;
+      b.addEventListener('click', () => {
+        const t = g('mdContenu');
+        const p = t.selectionStart || t.value.length;
+        t.value = t.value.slice(0, p) + v + t.value.slice(p);
+        t.focus();
+      });
+      z.appendChild(b);
     });
+  };
+  g('mdUsage').addEventListener('change', majVars);
 
-    if(!vueActive[onglet] || !dispo.some(x => x[0] === vueActive[onglet])){
-      vueActive[onglet] = dispo[0][0];
+  if(modele){
+    g('mdCat').value = modele.categorie || '';
+    g('mdNom').value = modele.titre || modele.nom || '';
+    g('mdUsage').value = modele.usage || 'libre';
+    g('mdContenu').value = modele.contenu || '';
+  }
+  /* Depuis le tiroir des procédures, l'usage est déjà connu */
+  if(usageImpose){
+    g('mdUsage').value = usageImpose;
+    g('mdUsage').disabled = true;
+    g('mdUsage').style.opacity = '.6';
+  }
+  majVars();
+
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+
+  bOk.addEventListener('click', async () => {
+    const nom = g('mdNom').value.trim();
+    const contenu = g('mdContenu').value.trim();
+    if(!nom){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Donne un nom au modèle.'; return; }
+    if(!contenu){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Le texte est vide.'; return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({
+        action: 'modeleSet',
+        id: modele ? modele.id : '',
+        usage: g('mdUsage').value,
+        nom: assemblerNom(g('mdCat') ? g('mdCat').value : '', nom),
+        contenu: contenu
+      });
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      if(usageImpose === 'procedure') afficherProcedures();
+      else afficherModelesTexte();
+    }catch(e){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
     }
   });
 }
 
-function afficherVue(onglet, cle){
-  vueActive[onglet] = cle;
 
-  document.querySelectorAll('[data-vue][data-onglet="' + onglet + '"]').forEach(el => {
-    const cache = el.getAttribute('data-vue') !== cle;
-    el.classList.toggle('hors-vue', cache);
-    /* Les droits touchent aussi au style : on ne laisse pas de doute */
-    if(cache) el.style.display = 'none';
-    else if(el.style.display === 'none') el.style.display = '';
-  });
-
-  const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
-  if(barre){
-    barre.querySelectorAll('button').forEach(b => {
-      b.classList.toggle('actif', b.getAttribute('data-vue-cible') === cle);
-    });
-  }
-
-  try{ localStorage.setItem('vue_' + onglet, cle); }catch(e){}
-  reveillerVue(cle);
-}
-
-/* Chaque module charge ce dont il a besoin en s'affichant */
-function reveillerVue(cle){
-  const actions = {
-    prepares:   () => aDroit('cours') && afficherPrepares(true, true),
-    messages:   () => afficherConsignesEnAttente(),
-    textes:     () => afficherModelesTexte(),
-    procedures: () => afficherProcedures(),
-    bilans:     () => afficherTextesBilan(),
-    sms:        () => chargerCadreSms(),
-    stats:      () => afficherStats(),
-    journal:    () => ACCES.role === 'admin' && afficherJournal(),
-    admin:      () => chargerUtilisateurs(),
-    eleves:     () => afficherRepertoire(),
-    rappels:    () => afficherRappels()
-  };
-  const f = actions[cle];
-  if(typeof f === 'function'){
-    try{ f(); }catch(e){ console.warn('Vue ' + cle + ' :', e); }
-  }
-}
 
 /* ============================================================
-   PREMIER GESTE DU MONITEUR
-   S'il a un cours préparé pour aujourd'hui, c'est ce qu'il ouvre.
-   Sinon, il démarre un cours directement.
+   PROCÉDURES DE CONDUITE
+   Les mêmes fiches, présentées à part : c'est ce que les
+   moniteurs consultent et ce qui sert aux corrections.
    ============================================================ */
-function ouvrirLeBonTiroirDuJour(){
-  const auj = todayLocal();
-  const moi = normaliserMot(ACCES.moniteur || '');
-  const duJour = (prepares || []).filter(x =>
-    x.date === auj && (!x.moniteur || normaliserMot(x.moniteur) === moi));
+async function afficherProcedures(){
+  const zone = $('proceduresZone');
+  if(!zone) return;
 
-  /* Un cours préparé aujourd'hui : c'est ce qu'il ouvre en premier */
-  afficherVue('cours', duJour.length ? 'prepares' : 'cours');
+  zone.innerHTML = '<div class="empty">Chargement des procédures…</div>';
+  await chargerModelesTexte();
+  const liste = (modelesTexte || []).filter(m => m.usage === 'procedure')
+    .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+
+  zone.innerHTML = '';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.marginBottom = '12px';
+  b.textContent = '➕ Nouvelle procédure';
+  b.addEventListener('click', () => ouvrirEditeurModele(null, 'procedure'));
+  zone.appendChild(b);
+
+  /* Recherche, car la liste va s'allonger */
+  if(liste.length > 4){
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.placeholder = '🔍 Filtrer les procédures';
+    rech.style.marginBottom = '10px';
+    rech.addEventListener('input', () => {
+      const q = normaliserMot(rech.value);
+      zone.querySelectorAll('[data-procedure]').forEach(el => {
+        const ok = !q || normaliserMot(el.getAttribute('data-procedure')).indexOf(q) !== -1;
+        el.style.display = ok ? '' : 'none';
+      });
+    });
+    zone.appendChild(rech);
+  }
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune procédure enregistrée.<br>' +
+      '<span style="font-size:12px;">Ajoute ici tes procédures : giratoire, priorité à droite, ' +
+      "créneau… Elles serviront aux corrections d'erreur et resteront consultables par tous.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  liste.forEach(m => {
+    const d = document.createElement('details');
+    d.setAttribute('data-procedure', m.nom);
+    d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+      'margin-bottom:8px;';
+
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
+      'list-style:none;';
+    som.textContent = '🚦 ' + m.nom;
+    d.appendChild(som);
+
+    const corps = document.createElement('div');
+    corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
+    corps.textContent = m.contenu;
+    d.appendChild(corps);
+
+    const pied = document.createElement('div');
+    pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;';
+    pied.textContent = (m.maj ? 'modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '');
+    d.appendChild(pied);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+    const bCop = document.createElement('button');
+    bCop.className = 'btn btn-secondary';
+    bCop.style.cssText = 'flex:1;padding:9px;font-size:13px;margin:0;';
+    bCop.textContent = '📋 Copier';
+    bCop.addEventListener('click', () => {
+      navigator.clipboard.writeText(m.contenu).then(
+        () => showToast('Procédure copiée ✅'),
+        () => showToast('Copie impossible'));
+    });
+    r.appendChild(bCop);
+
+    const bMod = document.createElement('button');
+    bMod.className = 'btn btn-secondary';
+    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bMod.textContent = '✏️ Modifier';
+    bMod.addEventListener('click', () => ouvrirEditeurModele(m, 'procedure'));
+    r.appendChild(bMod);
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '✕';
+    bSup.title = 'Supprimer';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer la procédure « ' + m.nom + ' » ?')) return;
+      bSup.disabled = true;
+      try{
+        await appelPrep({ action: 'modeleDelete', id: m.id });
+        showToast('Procédure supprimée');
+        afficherProcedures();
+      }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+    });
+    r.appendChild(bSup);
+
+    d.appendChild(r);
+    zone.appendChild(d);
+  });
 }
-
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-onglets.js'] = true;
+window.EC_MODULES['ec-textes.js'] = true;
