@@ -153,6 +153,7 @@ $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
 if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
 if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrectionMoniteur);
+if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorrection);
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
 brancherFichierCsv();
