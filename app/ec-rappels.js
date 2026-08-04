@@ -251,6 +251,288 @@ function ligneRappel(c, i){
 }
 
 
+
+/* ============================================================
+   COMPOSITION D'UN RAPPEL À LA MAIN
+   Le message est toujours le même ; seules quelques mentions
+   changent d'un élève à l'autre.
+   ============================================================ */
+const TYPES_RAPPEL = [
+  { cle:'cours',        titre:'𝗖𝗢𝗨𝗥𝗦' },
+  { cle:'test-eval',    titre:"𝗧𝗘𝗦𝗧 𝗗'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘" },
+  { cle:'evaluation',   titre:'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡' },
+  { cle:'examen-blanc', titre:'𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖',
+    ajout:"🐥 Rappel ton ou ta monitrice devient un(e) inspecteur(trice). " +
+          'Tu dois être autonome !' },
+  { cle:'permis',       titre:'𝗣𝗘𝗥𝗠𝗜𝗦' },
+  { cle:'accompagnateur', titre:"𝗟𝗔 𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡 𝗗𝗘 𝗧𝗢𝗡 𝗔𝗖𝗖𝗢𝗠𝗣𝗔𝗚𝗡𝗔𝗧𝗘𝗨𝗥" }
+];
+
+const JOURS_RAPPEL = ["𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗗𝗘𝗠𝗔𝗜𝗡', '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
+                      '𝗠𝗘𝗥𝗖𝗥𝗘𝗗𝗜', '𝗝𝗘𝗨𝗗𝗜', '𝗩𝗘𝗡𝗗𝗥𝗘𝗗𝗜', '𝗦𝗔𝗠𝗘𝗗𝗜', '𝗗𝗜𝗠𝗔𝗡𝗖𝗛𝗘'];
+
+const EMPLACEMENTS = [
+  { cle:'cour', texte:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿 𝗶𝗻𝘁𝗲́𝗿𝗶𝗲𝘂𝗿𝗲 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
+  { cle:'rue',  texte:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
+  { cle:'',     texte:'' }
+];
+
+const OPTIONS_RAPPEL = [
+  { cle:'retard',  nom:'⏰ Le moniteur peut avoir du retard (retour de permis)',
+    texte:'Ta monitrice sera peut-être un peu en retard, car elle reviendra de permis.' },
+  { cle:'ci',      nom:"🆔 Déposer sa carte d'identité au bureau",
+    texte:"𝗡'𝗢𝗨𝗕𝗟𝗜𝗘 𝗣𝗔𝗦 𝗗𝗘 𝗡𝗢𝗨𝗦 𝗗𝗘́𝗣𝗢𝗦𝗘𝗥 𝗧𝗔 𝗖𝗔𝗥𝗧𝗘 𝗗'𝗜𝗗𝗘𝗡𝗧𝗜𝗧𝗘́ 𝗔𝗨 𝗕𝗨𝗥𝗘𝗔𝗨 𝗢𝗕𝗟𝗜𝗚𝗔𝗧𝗢𝗜𝗥𝗘𝗠𝗘𝗡𝗧\n" +
+          'Passe au bureau 5 min avant ton cours nous donner ta carte d\'identité !\n' +
+          '(On te la rend après ton permis 😉)' },
+  { cle:'sd',      nom:'💾 Récupérer sa carte SD au bureau',
+    texte:'Passe au bureau 5 min avant ton cours que l\'on te donne ta carte SD ' +
+          'comprise dans ton forfait 😉\n(Pour revisionner tes cours ensuite de chez toi)' },
+  { cle:'1er-bv',  nom:'🚙 Premier cours en voiture — boîte manuelle',
+    texte:"J'espère que tu as bien bossé avant ton 1ᵉʳ cours en voiture : t'es-tu entrainé " +
+          'à tourner le volant chez toi (assiette ou autre), revu la position de la main ' +
+          'sur le levier de vitesse comme indiqué sur ton dernier rapport en simulateur ?\n' +
+          'Je rappelle que tu peux te filmer en t\'entrainant et que je peux te corriger ' +
+          'gratuitement sur Messenger !' },
+  { cle:'1er-bea', nom:'🅰 Premier cours en voiture — boîte automatique',
+    texte:"J'espère que tu as bien bossé avant ton 1ᵉʳ cours en voiture : t'es-tu entrainé " +
+          'à tourner le volant chez toi (assiette ou autre), revu les erreurs indiquées ' +
+          'sur ton dernier rapport en simulateur ?\n' +
+          'Je rappelle que tu peux te filmer en t\'entrainant et que je peux te corriger ' +
+          'gratuitement sur Messenger !' }
+];
+
+/* Le message assemblé à partir des choix */
+function composerRappel(r){
+  const type = TYPES_RAPPEL.find(x => x.cle === r.type) || TYPES_RAPPEL[0];
+  const empl = EMPLACEMENTS.find(x => x.cle === r.emplacement);
+  const P = [];
+
+  P.push('Bonjour 😁');
+  P.push('');
+  P.push("𝗡'𝗢𝗨𝗕𝗟𝗜𝗘 𝗣𝗔𝗦 𝗧𝗢𝗡 " + type.titre + ' ' + (r.jour || '') +
+         (r.voiture ? '   𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗡𝗨𝗠𝗘́𝗥𝗢 ' + r.voiture : ''));
+  P.push('');
+
+  if(empl && empl.texte){
+    P.push(empl.texte);
+    P.push('Le numéro de ta voiture est en bas à droite du pare-brise.');
+    P.push('');
+  }
+
+  if(type.ajout){ P.push(type.ajout); P.push(''); }
+
+  /* Les mentions ponctuelles, dans l'ordre où elles ont du sens */
+  (r.options || []).forEach(cle => {
+    const o = OPTIONS_RAPPEL.find(x => x.cle === cle);
+    if(o){ P.push(o.texte); P.push(''); }
+  });
+
+  if(r.libre && r.libre.trim()){ P.push(r.libre.trim()); P.push(''); }
+
+  P.push('📅 Tu vois toutes tes heures sur ton planning, depuis ton interface élève Drivup.');
+  P.push('📧 Si jamais tu as du retard, préviens ton moniteur sur son Messenger ' +
+         'et le bureau sur le Messenger Évolution Conduites.');
+  P.push('⚠️ Toute leçon non décommandée 48 heures avant est facturée.');
+  P.push('');
+  P.push("📼 N'oublie pas de réviser toutes tes procédures et viens avec ta carte SD " +
+         '(sauf premier cours en voiture, évaluations et simulateurs)');
+  P.push('🚨 Rappel méthodologie : https://urlr.me/9K3g7 🚨');
+
+  return P.join('\n');
+}
+
+
+/* ---------- L'écran de composition manuelle ---------- */
+let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', voiture:'',
+                    emplacement:'cour', options:[], libre:'' };
+
+async function afficherRappelManuel(){
+  const zone = $('rappelManuelZone');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Chargement des élèves…</div>';
+  if(typeof chargerFiches === 'function') await chargerFiches();
+  zone.innerHTML = '';
+
+  /* Choix de l'élève */
+  const lab = document.createElement('label');
+  lab.textContent = "Élève — le numéro vient de sa fiche";
+  zone.appendChild(lab);
+
+  const sel = document.createElement('select');
+  sel.id = 'rappelEleve';
+  sel.innerHTML = '<option value="">— choisis un élève —</option>' +
+    (fichesEleves || []).slice()
+      .sort((a, b) => a.eleve.localeCompare(b.eleve, 'fr'))
+      .map(f => '<option value="' + f.eleve.replace(/"/g, '&quot;') + '">' +
+        f.eleve + (f.telephone ? '' : '  (sans numéro)') + '</option>').join('');
+  zone.appendChild(sel);
+
+  /* Les réglages du message */
+  const grille = document.createElement('div');
+  grille.className = 'duo';
+  grille.innerHTML =
+    '<div><label for="rapType">Type de séance</label><select id="rapType">' +
+      TYPES_RAPPEL.map(t => '<option value="' + t.cle + '">' +
+        t.titre.normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô']/g, '') + '</option>').join('') +
+    '</select></div>' +
+    '<div><label for="rapJour">Quand</label><select id="rapJour">' +
+      JOURS_RAPPEL.map(j => '<option value="' + j + '">' +
+        j.normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô']/g, '') + '</option>').join('') +
+    '</select></div>';
+  zone.appendChild(grille);
+
+  const grille2 = document.createElement('div');
+  grille2.className = 'duo';
+  grille2.innerHTML =
+    '<div><label for="rapVoiture">N° de voiture</label>' +
+      '<input type="text" id="rapVoiture" inputmode="numeric" placeholder="Ex : 5"></div>' +
+    '<div><label for="rapEmpl">Où est la voiture</label><select id="rapEmpl">' +
+      '<option value="cour">Cour intérieure</option>' +
+      '<option value="rue">Rue, le long du trottoir</option>' +
+      '<option value="">Ne pas préciser</option>' +
+    '</select></div>';
+  zone.appendChild(grille2);
+
+  /* Les mentions à ajouter */
+  const t = document.createElement('label');
+  t.textContent = 'Mentions à ajouter';
+  zone.appendChild(t);
+
+  OPTIONS_RAPPEL.forEach(o => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:14px;color:var(--cream);margin:0 0 8px;font-weight:400;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = o.cle;
+    cb.className = 'optionRappel';
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    cb.addEventListener('change', apercuRappel);
+    l.appendChild(cb);
+    l.appendChild(document.createTextNode(o.nom));
+    zone.appendChild(l);
+  });
+
+  const lLibre = document.createElement('label');
+  lLibre.textContent = 'À ajouter pour cet élève (facultatif)';
+  lLibre.style.marginTop = '8px';
+  zone.appendChild(lLibre);
+  const libre = document.createElement('textarea');
+  libre.id = 'rapLibre';
+  libre.rows = 2;
+  libre.placeholder = 'Une précision propre à cet élève';
+  libre.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:15px;' +
+    'line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:12px;';
+  zone.appendChild(libre);
+
+  /* Aperçu, toujours visible : on envoie ce qu'on a relu */
+  const ap = document.createElement('div');
+  ap.id = 'rappelApercu';
+  ap.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+    'padding:12px 14px;font-size:13px;line-height:1.55;white-space:pre-wrap;' +
+    'max-height:340px;overflow-y:auto;margin-bottom:12px;';
+  zone.appendChild(ap);
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;';
+
+  const bEnv = document.createElement('a');
+  bEnv.id = 'rappelEnvoi';
+  bEnv.className = 'btn btn-primary';
+  bEnv.style.cssText = 'flex:1;padding:13px;font-size:14px;margin:0;text-align:center;' +
+    'text-decoration:none;display:inline-flex;align-items:center;justify-content:center;';
+  bEnv.textContent = '💬 Envoyer par SMS';
+  r.appendChild(bEnv);
+
+  const bCop = document.createElement('button');
+  bCop.className = 'btn btn-secondary';
+  bCop.style.cssText = 'width:auto;padding:13px 16px;font-size:14px;margin:0;';
+  bCop.textContent = '📋';
+  bCop.title = 'Copier le message';
+  bCop.addEventListener('click', () => {
+    navigator.clipboard.writeText(composerRappel(lireChoixRappel())).then(
+      () => showToast('Message copié ✅'),
+      () => showToast('Copie impossible'));
+  });
+  r.appendChild(bCop);
+  zone.appendChild(r);
+
+  ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve']
+    .forEach(id => {
+      const el = $(id);
+      if(el){
+        el.addEventListener('change', apercuRappel);
+        el.addEventListener('input', apercuRappel);
+      }
+    });
+
+  apercuRappel();
+}
+
+function lireChoixRappel(){
+  const options = [];
+  document.querySelectorAll('.optionRappel').forEach(cb => {
+    if(cb.checked) options.push(cb.value);
+  });
+  return {
+    type: $('rapType') ? $('rapType').value : 'cours',
+    jour: $('rapJour') ? $('rapJour').value : '',
+    voiture: $('rapVoiture') ? $('rapVoiture').value.trim() : '',
+    emplacement: $('rapEmpl') ? $('rapEmpl').value : 'cour',
+    options: options,
+    libre: $('rapLibre') ? $('rapLibre').value : ''
+  };
+}
+
+function apercuRappel(){
+  const ap = $('rappelApercu');
+  if(!ap) return;
+  const texte = composerRappel(lireChoixRappel());
+  ap.textContent = texte;
+
+  const bEnv = $('rappelEnvoi');
+  const nom = $('rappelEleve') ? $('rappelEleve').value : '';
+  const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
+
+  if(bEnv){
+    if(f && f.telephone){
+      bEnv.href = 'sms:' + telPourLien(f.telephone) + '?&body=' + encodeURIComponent(texte);
+      bEnv.style.opacity = '1';
+      bEnv.style.pointerEvents = 'auto';
+      bEnv.textContent = '💬 Envoyer à ' + nom;
+    }else{
+      bEnv.removeAttribute('href');
+      bEnv.style.opacity = '.5';
+      bEnv.style.pointerEvents = 'none';
+      bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro'
+                             : '💬 Choisis un élève';
+    }
+  }
+}
+
+
+/* Bascule entre saisie manuelle et lecture du planning */
+function modeRappel(mode){
+  const m = $('rappelManuel'), pl = $('rappelPlanning');
+  const bm = $('rappelModeManuel'), bp = $('rappelModePlanning');
+  if(!m || !pl) return;
+
+  const manuel = (mode !== 'planning');
+  m.style.display = manuel ? 'block' : 'none';
+  pl.style.display = manuel ? 'none' : 'block';
+
+  [[bm, manuel], [bp, !manuel]].forEach(([b, actif]) => {
+    if(!b) return;
+    b.style.borderColor = actif ? 'var(--orange)' : 'var(--line)';
+    b.style.color = actif ? 'var(--accent-text)' : 'var(--cream)';
+    b.style.background = actif ? 'rgba(182,255,14,.09)' : 'var(--navy)';
+  });
+
+  if(manuel) afficherRappelManuel();
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-rappels.js'] = true;
