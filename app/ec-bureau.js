@@ -497,7 +497,12 @@ async function ajouterDateBureau(){
     await envoyerConsigne(eleve, type, texte);
     etat.style.color = 'var(--accent-text)';
     etat.textContent = '✅ ' + texte;
+    /* Le formulaire repart à vide : on enchaîne souvent plusieurs élèves. */
     $('addLecons').value = '';
+    $('addEleve').value = '';
+    if($('addDate')) $('addDate').value = '';
+    $('addEleve').focus();
+
     await afficherConsignesEnAttente();
     await afficherBureau();
   }catch(e){
