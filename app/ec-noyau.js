@@ -11,6 +11,7 @@ const CONFIG = {
   WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev'
 };
 CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
+CONFIG.SMS_URL = CONFIG.WORKER_URL + '/sms';
 CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
