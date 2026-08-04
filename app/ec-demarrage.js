@@ -157,6 +157,11 @@ if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorre
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
 if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
+if($('studentName')) $('studentName').addEventListener('change', chargerMessengerEleve);
+if($('eleveMessenger')){
+  $('eleveMessenger').addEventListener('input', majLienMessenger);
+  $('eleveMessenger').addEventListener('blur', enregistrerMessengerEleve);
+}
 brancherFichierCsv();
 if($('smsRecharger')) $('smsRecharger').addEventListener('click', rechargerCadreSms);
 if($('smsOublier')) $('smsOublier').addEventListener('click', async () => {
