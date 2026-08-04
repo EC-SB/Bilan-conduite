@@ -418,7 +418,8 @@ const TYPES_RAPPEL = [
   { cle:'accompagnateur', titre:"𝗟𝗔 𝗙𝗢𝗥𝗠𝗔𝗧𝗜𝗢𝗡 𝗗𝗘 𝗧𝗢𝗡 𝗔𝗖𝗖𝗢𝗠𝗣𝗔𝗚𝗡𝗔𝗧𝗘𝗨𝗥" }
 ];
 
-const JOURS_RAPPEL = ["𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗗𝗘𝗠𝗔𝗜𝗡', '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
+/* Les rappels partent la veille : « demain » est le cas courant */
+const JOURS_RAPPEL = ['𝗗𝗘𝗠𝗔𝗜𝗡', "𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
                       '𝗠𝗘𝗥𝗖𝗥𝗘𝗗𝗜', '𝗝𝗘𝗨𝗗𝗜', '𝗩𝗘𝗡𝗗𝗥𝗘𝗗𝗜', '𝗦𝗔𝗠𝗘𝗗𝗜', '𝗗𝗜𝗠𝗔𝗡𝗖𝗛𝗘'];
 
 const EMPLACEMENTS = [
@@ -451,9 +452,38 @@ const OPTIONS_RAPPEL = [
           'gratuitement sur Messenger !' }
 ];
 
+/* Les types disponibles : ceux de l'application, plus les vôtres.
+   Un texte enregistré dans « Textes types » avec l'usage
+   « Rappel de cours » devient un type à part entière. */
+function typesDisponibles(){
+  const perso = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'rappel_cours')
+    .map(m => ({ cle: 'perso:' + m.id, titre: m.titre || m.nom,
+                 contenu: m.contenu, perso: true }));
+  return TYPES_RAPPEL.concat(perso);
+}
+
 /* Le message assemblé à partir des choix */
 function composerRappel(r){
-  const type = TYPES_RAPPEL.find(x => x.cle === r.type) || TYPES_RAPPEL[0];
+  const tous = typesDisponibles();
+  const type = tous.find(x => x.cle === r.type) || tous[0];
+
+  /* Un type à vous : c'est votre texte qui fait foi, avec ses variables */
+  if(type && type.perso){
+    const empl2 = EMPLACEMENTS.find(x => x.cle === r.emplacement);
+    const opts = (r.options || [])
+      .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
+      .filter(Boolean).join('\n\n');
+    return appliquerModele(type.contenu, {
+      jour: r.jour || '',
+      voiture: r.voiture || '',
+      emplacement: (empl2 && empl2.texte) || '',
+      mentions: opts,
+      note: (r.libre || '').trim(),
+      eleve: r.eleve || '',
+      prenom: (r.eleve || '').split(' ')[0]
+    });
+  }
   const empl = EMPLACEMENTS.find(x => x.cle === r.emplacement);
   const P = [];
 
@@ -493,8 +523,28 @@ function composerRappel(r){
 
 
 /* ---------- L'écran de composition manuelle ---------- */
+/* Ce qui reste d'un élève au suivant : on enchaîne les rappels
+   d'une même journée, il serait pénible de tout ressaisir. */
 let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', voiture:'',
                     emplacement:'cour', options:[], libre:'' };
+
+const CLE_RAPPEL = 'rappel_reglages';
+
+function memoriserChoixRappel(){
+  try{
+    const r = lireChoixRappel();
+    delete r.libre;   /* propre à un élève, on ne le reporte pas */
+    localStorage.setItem(CLE_RAPPEL, JSON.stringify(r));
+  }catch(e){}
+}
+
+function relireChoixRappel(){
+  try{
+    const brut = localStorage.getItem(CLE_RAPPEL);
+    if(brut) choixRappel = Object.assign(choixRappel, JSON.parse(brut));
+  }catch(e){}
+  return choixRappel;
+}
 
 async function afficherRappelManuel(){
   const zone = $('rappelManuelZone');
@@ -518,13 +568,27 @@ async function afficherRappelManuel(){
         f.eleve + (f.telephone ? '' : '  (sans numéro)') + '</option>').join('');
   zone.appendChild(sel);
 
+  /* Un élève absent du répertoire, ou un numéro ponctuel */
+  const lt = document.createElement('label');
+  lt.textContent = 'Numéro — laisse vide pour prendre celui de sa fiche';
+  zone.appendChild(lt);
+
+  const tel = document.createElement('input');
+  tel.type = 'tel';
+  tel.id = 'rapTel';
+  tel.inputMode = 'tel';
+  tel.placeholder = '06 12 34 56 78';
+  zone.appendChild(tel);
+
   /* Les réglages du message */
   const grille = document.createElement('div');
   grille.className = 'duo';
   grille.innerHTML =
     '<div><label for="rapType">Type de séance</label><select id="rapType">' +
-      TYPES_RAPPEL.map(t => '<option value="' + t.cle + '">' +
-        t.titre.normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô']/g, '') + '</option>').join('') +
+      typesDisponibles().map(t => '<option value="' + t.cle + '">' +
+        (t.perso ? '★ ' : '') +
+        String(t.titre).normalize('NFKD').replace(/[^\x20-\x7Eéèêàçîô'’-]/g, '') +
+        '</option>').join('') +
     '</select></div>' +
     '<div><label for="rapJour">Quand</label><select id="rapJour">' +
       JOURS_RAPPEL.map(j => '<option value="' + j + '">' +
@@ -609,14 +673,28 @@ async function afficherRappelManuel(){
   r.appendChild(bCop);
   zone.appendChild(r);
 
-  ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve']
+  ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve', 'rapTel']
     .forEach(id => {
       const el = $(id);
       if(el){
-        el.addEventListener('change', apercuRappel);
+        el.addEventListener('change', () => { apercuRappel(); memoriserChoixRappel(); });
         el.addEventListener('input', apercuRappel);
       }
     });
+
+  /* On reprend les réglages du rappel précédent */
+  const m = relireChoixRappel();
+  if($('rapType') && m.type){
+    const existe = Array.prototype.some.call($('rapType').options, o => o.value === m.type);
+    if(existe) $('rapType').value = m.type;
+  }
+  if($('rapJour') && m.jour) $('rapJour').value = m.jour;
+  if($('rapVoiture') && m.voiture) $('rapVoiture').value = m.voiture;
+  if($('rapEmpl') && m.emplacement !== undefined) $('rapEmpl').value = m.emplacement;
+  (m.options || []).forEach(cle => {
+    const cb = document.querySelector('.optionRappel[value="' + cle + '"]');
+    if(cb) cb.checked = true;
+  });
 
   apercuRappel();
 }
@@ -627,6 +705,7 @@ function lireChoixRappel(){
     if(cb.checked) options.push(cb.value);
   });
   return {
+    eleve: $('rappelEleve') ? $('rappelEleve').value : '',
     type: $('rapType') ? $('rapType').value : 'cours',
     jour: $('rapJour') ? $('rapJour').value : '',
     voiture: $('rapVoiture') ? $('rapVoiture').value.trim() : '',
@@ -646,18 +725,22 @@ function apercuRappel(){
   const nom = $('rappelEleve') ? $('rappelEleve').value : '';
   const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
 
+  /* Le numéro saisi à la main l'emporte sur celui de la fiche */
+  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
+  const numero = saisi || (f && f.telephone) || '';
+
   if(bEnv){
-    if(f && f.telephone){
-      bEnv.href = 'sms:' + telPourLien(f.telephone) + '?&body=' + encodeURIComponent(texte);
+    if(numero){
+      bEnv.href = 'sms:' + telPourLien(numero) + '?&body=' + encodeURIComponent(texte);
       bEnv.style.opacity = '1';
       bEnv.style.pointerEvents = 'auto';
-      bEnv.textContent = '💬 Envoyer à ' + nom;
+      bEnv.textContent = '💬 Envoyer' + (nom ? ' à ' + nom : '');
     }else{
       bEnv.removeAttribute('href');
       bEnv.style.opacity = '.5';
       bEnv.style.pointerEvents = 'none';
-      bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro'
-                             : '💬 Choisis un élève';
+      bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro — saisis-le'
+                             : '💬 Choisis un élève ou saisis un numéro';
     }
   }
 }
