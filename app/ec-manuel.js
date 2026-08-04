@@ -94,11 +94,19 @@ const CHAMPS_MANUELS = {
     { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
   ],
   examen: [
-    { cle:'installation',type:'ok',    nom:'Installation', defaut:'' },
-    { cle:'passager',    type:'ok',    nom:'Passager',     defaut:'' },
-    { cle:'voyants',     type:'ok',    nom:'Voyants',      defaut:'' },
+    /* Le trajet jusqu'au centre : la partie « avant examen » du bilan.
+       Sans ces champs, elle sortait vide en saisie manuelle. */
+    { cle:'avantExamen.installation', type:'ok', nom:'AVANT — Installation', defaut:'' },
+    { cle:'avantExamen.passager',     type:'ok', nom:'AVANT — Passager',     defaut:'' },
+    { cle:'avantExamen.voyants',      type:'ok', nom:'AVANT — Voyants',      defaut:'' },
+    { cle:'avantExamen.erreurs',      type:'texte', lignes:5,
+      nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)' },
+
+    { cle:'installation',type:'ok',    nom:'EXAMEN — Installation', defaut:'' },
+    { cle:'passager',    type:'ok',    nom:'EXAMEN — Passager',     defaut:'' },
+    { cle:'voyants',     type:'ok',    nom:'EXAMEN — Voyants',      defaut:'' },
     { cle:'verifQuestion', type:'court', nom:'N° de la question de vérification' },
-    { cle:'vi',          type:'ok',    nom:'Vérification intérieure', defaut:'' },
+    { cle:'vi',          type:'ok',    nom:'Vérification', defaut:'' },
     { cle:'qser',        type:'ok',    nom:'Question sécurité routière', defaut:'' },
     { cle:'secours',     type:'ok',    nom:'Premiers secours', defaut:'' },
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' }
