@@ -920,22 +920,49 @@ const MARQUE_FAITE = '✅';
 
 /* Fiche véhicule : coche les manœuvres faites, en reprenant
    celles déjà validées lors des cours précédents. */
-function blocFicheConduite(faitesAujourdhui, faitesAvant){
-  const vues = {};
-  (faitesAvant || []).forEach(n => { vues[normaliserMot(n)] = true; });
-  (faitesAujourdhui || []).forEach(n => { vues[normaliserMot(n)] = true; });
+function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
+  /* Ce qui a déjà été validé lors des cours précédents, avec les
+     marques accumulées : ✅ la première fois, puis l'émoji de chaque
+     moniteur qui l'a retravaillée. */
+  const avant = {};
+  (faitesAvant || []).forEach(n => { avant[normaliserMot(n)] = true; });
+
+  const aujourdhui = {};
+  (faitesAujourdhui || []).forEach(n => { aujourdhui[normaliserMot(n)] = true; });
+
+  const marques = marquesAvant || {};
+  const emoji = (typeof ACCES !== 'undefined' && ACCES.emoji) ? ACCES.emoji : '';
 
   const lignes = ['🦉𝔽𝕀ℂℍ𝔼 𝕍𝔼ℍ𝕀ℂ𝕌𝕃𝔼 : '];
   BLOC.ficheListeConduite.forEach(libelle => {
     const cle = normaliserMot(libelle);
-    let faite = !!vues[cle];
-    if(!faite){
+
+    const proche = (table) => {
+      if(table[cle]) return true;
       /* Tolérance : "CD" doit reconnaître "CD Créneau droit" */
-      for(const v in vues){
-        if(v && (cle.indexOf(v) === 0 || v.indexOf(cle) === 0)){ faite = true; break; }
+      for(const v in table){
+        if(v && (cle.indexOf(v) === 0 || v.indexOf(cle) === 0)) return true;
+      }
+      return false;
+    };
+
+    const dejaAvant = proche(avant);
+    const faiteCeJour = proche(aujourdhui);
+
+    /* On reprend les marques déjà présentes dans le bilan précédent */
+    let suite = marques[cle] || (dejaAvant ? MARQUE_FAITE : '');
+
+    if(faiteCeJour){
+      if(!suite){
+        /* Première validation : une simple coche */
+        suite = MARQUE_FAITE;
+      }else if(emoji && suite.indexOf(emoji) === -1){
+        /* Déjà validée : le moniteur du jour ajoute sa signature */
+        suite += ' ' + emoji;
       }
     }
-    lignes.push(libelle + (faite ? ' ' + MARQUE_FAITE : ''));
+
+    lignes.push(libelle + (suite ? ' ' + suite : ''));
   });
   return lignes.join('\n');
 }
@@ -957,7 +984,28 @@ function manoeuvresDejaFaites(texteBilanPrecedent){
   return trouvees;
 }
 
-function buildConduite(ai, faitesAvant, texteCours, noteInterne){
+/* Les marques déjà accumulées : ✅ et les émojis des moniteurs.
+   Sans ça, chaque bilan repartirait d'une simple coche. */
+function marquesDejaPosees(texteBilanPrecedent){
+  const marques = {};
+  if(!texteBilanPrecedent) return marques;
+  String(texteBilanPrecedent).split('\n').forEach(l => {
+    const ligne = l.trim();
+    if(!ligne || ligne.indexOf(MARQUE_FAITE) === -1) return;
+    const i = ligne.indexOf(MARQUE_FAITE);
+    const avant = ligne.slice(0, i).trim();
+    const suite = ligne.slice(i).trim();
+    if(!avant) return;
+    BLOC.ficheListeConduite.forEach(libelle => {
+      if(normaliserMot(libelle) === normaliserMot(avant)){
+        marques[normaliserMot(libelle)] = suite;
+      }
+    });
+  });
+  return marques;
+}
+
+function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   ai = ai || {};
   const parts = [];
 
@@ -981,7 +1029,7 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne){
   parts.push('🧠 🚘👀🅴🆁🆁🅴🆄🆁🆂  🅲🅴  🅹🅾🆄🆁 : ');
   parts.push(txt(ai.resume));
   parts.push('');
-  parts.push(blocFicheConduite(ai.manoeuvres, faitesAvant));
+  parts.push(blocFicheConduite(ai.manoeuvres, faitesAvant, marquesAvant));
   parts.push('');
   parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?' + st(ai.groupesTravail));
   parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? " + st(ai.ecoutes) + ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
@@ -1000,11 +1048,13 @@ const MODELES = {
   /* --- Conduite --- */
   'conduite-auto': {
     label: 'Conduite — Boîte automatique', groupe: 'Conduite', schema: 'conduiteResumeAuto',
-    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript,
+                                      ctx && ctx.note, ctx && ctx.marquesAvant)
   },
   'conduite-manuelle': {
     label: 'Conduite — Boîte manuelle', groupe: 'Conduite', schema: 'conduiteResume',
-    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript, ctx && ctx.note)
+    build: (ai, ctx) => buildConduite(ai, ctx && ctx.manoeuvresAvant, ctx && ctx.transcript,
+                                      ctx && ctx.note, ctx && ctx.marquesAvant)
   },
   'aac-manuelle': {
     label: 'AAC — Boîte manuelle', groupe: 'Conduite accompagnée', schema: 'conduite',
