@@ -351,6 +351,13 @@ async function rechercherEleve(){
   btn.textContent = 'Recherche…';
   zone.innerHTML = '<div class="empty">Recherche en cours…</div>';
   try{
+    /* Les messages en attente ne dépendent pas du résultat de la
+       recherche : on les demande en même temps plutôt qu'après.
+       Chaque appel à Google coûte plusieurs secondes de démarrage. */
+    const promesseConsignes = (nom.length >= 2)
+      ? appelPrep({ action: 'consigneList', eleve: nom }).catch(() => null)
+      : Promise.resolve(null);
+
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -392,7 +399,7 @@ async function rechercherEleve(){
     if(nom.length >= 2 && res[0]){
       let enAttente = [];
       try{
-        const cd = await appelPrep({ action:'consigneList', eleve: res[0].eleve });
+        const cd = await promesseConsignes;
         enAttente = ((cd && cd.consignes) || [])
           .filter(y => y.traite !== 'oui' && y.type !== 'urgence');
       }catch(e){}
@@ -458,7 +465,10 @@ async function rechercherEleve(){
       row.addEventListener('click', () => {
         currentLessonMeta = {
           modeleLabel: item.type, studentName: item.eleve, monitorName: item.moniteur,
-          site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now()
+          site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now(),
+          /* On retient d'où il vient : le corriger doit le remplacer,
+             pas en créer un second. */
+          ligne: item.ligne || null
         };
         $('resultText').value = item.bilan;
         afficherNote(item.note);
@@ -466,6 +476,7 @@ async function rechercherEleve(){
         $('recordView').style.display = 'none';
         $('generatingView').style.display = 'none';
         $('resultView').style.display = 'block';
+        majBoutonCorrection();
         window.scrollTo(0, 0);
       });
       zone.appendChild(row);
@@ -908,6 +919,52 @@ brancher('logoutBtn', 'click', async () => {
 
 /* Le bouton Déverrouiller est branché dans la page elle-même,
    pour qu'aucun module ne puisse l'empêcher de répondre. */
+
+
+/* ============================================================
+   CORRIGER UN BILAN DÉJÀ ENREGISTRÉ
+   Une date d'examen oubliée, une faute : on remplace le texte
+   en place plutôt que d'enregistrer un second bilan.
+   ============================================================ */
+function majBoutonCorrection(){
+  const b = $('corrigerBtn');
+  if(!b) return;
+  const ligne = currentLessonMeta && currentLessonMeta.ligne;
+  b.style.display = ligne ? 'block' : 'none';
+  if(ligne){
+    b.textContent = '💾 Enregistrer la correction';
+    b.disabled = false;
+  }
+}
+
+async function enregistrerCorrection(){
+  const ligne = currentLessonMeta && currentLessonMeta.ligne;
+  if(!ligne){ showToast("Ce bilan n'a pas encore été enregistré."); return; }
+
+  const texte = $('resultText').value.trim();
+  if(!texte){ showToast('Le bilan est vide.'); return; }
+
+  const eleve = currentLessonMeta.studentName || '';
+  if(!await confirmer('Remplacer le bilan de ' + eleve + ' du ' +
+                      (currentLessonMeta.dateStr || '?') + ' ?\n\n' +
+                      "L'ancien texte sera écrasé.")) return;
+
+  const b = $('corrigerBtn');
+  b.disabled = true;
+  b.textContent = 'Enregistrement…';
+  try{
+    const r = await appelPrep({ action: 'bilanModifier',
+                                ligne: ligne, eleve: eleve, texte: texte });
+    if(r && r.status === 'error') throw new Error(r.message);
+    viderCaches(eleve);
+    showToast('✅ Bilan corrigé');
+    b.textContent = '✅ Correction enregistrée';
+  }catch(e){
+    showToast('Erreur : ' + e.message);
+    b.disabled = false;
+    b.textContent = '💾 Enregistrer la correction';
+  }
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
