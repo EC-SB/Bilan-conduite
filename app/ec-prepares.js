@@ -134,8 +134,13 @@ async function afficherPrepares(recharger, silencieux){
     const nom = document.createElement('strong');
     nom.textContent = cours.eleve || '(sans nom)';
     const sous = document.createElement('span');
+    /* Un cours dont la date est passée n'a pas été enregistré :
+       sa préparation serait partie. On le signale. */
+    const passe = cours.date && cours.date < todayLocal();
     sous.textContent = [cours.modeleLabel,
-                        cours.moniteur ? '👤 ' + cours.moniteur : ''].filter(Boolean).join(' · ');
+                        cours.moniteur ? '👤 ' + cours.moniteur : '',
+                        passe ? '⚠️ pas encore enregistré' : ''].filter(Boolean).join(' · ');
+    if(passe) sous.style.color = 'var(--warn-text)';
     meta.appendChild(nom);
     meta.appendChild(sous);
     if(cours.note){
