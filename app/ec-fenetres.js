@@ -265,95 +265,270 @@ async function importerListeEleves(){
   }
 }
 
-/* Ce que l'application connaît aujourd'hui */
-function afficherRepertoire(){
+/* ============================================================
+   LES FICHES DU RÉPERTOIRE
+   Nom, téléphone, courriel, formation. Recherche et modification.
+   ============================================================ */
+const FORMATIONS = ['', 'CS BV', 'CS BEA', 'AAC BV', 'AAC BEA',
+                    'Conduite supervisée', 'Passerelle BEA→BV', 'Autre'];
+
+let fichesEleves = [];
+
+async function chargerFiches(){
+  try{
+    const d = await appelPrep({ action: 'fichesList' });
+    fichesEleves = (d && d.fiches) || [];
+  }catch(e){ console.warn('Fiches :', e); fichesEleves = []; }
+  return fichesEleves;
+}
+
+function ficheDe(nom){
+  return fichesEleves.find(f => normaliserMot(f.eleve) === normaliserMot(nom)) || null;
+}
+
+/* Un numéro français, mis en forme pour l'affichage et les liens */
+function telLisible(t){
+  const n = String(t || '').replace(/[^\d+]/g, '');
+  if(/^0\d{9}$/.test(n)) return n.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  return String(t || '').trim();
+}
+function telPourLien(t){
+  let n = String(t || '').replace(/[^\d+]/g, '');
+  if(/^0\d{9}$/.test(n)) n = '+33' + n.slice(1);
+  return n;
+}
+
+async function afficherRepertoire(){
   const zone = $('repertoireListe');
   if(!zone) return;
 
+  zone.innerHTML = '<div class="empty">Chargement du répertoire…</div>';
+  await chargerFiches();
   zone.innerHTML = '';
-  if(!elevesConnus.length){
+
+  /* Tous les élèves connus, avec ou sans fiche */
+  const noms = [];
+  elevesConnus.forEach(n => { if(n) noms.push(n); });
+  fichesEleves.forEach(f => {
+    if(!noms.some(n => normaliserMot(n) === normaliserMot(f.eleve))) noms.push(f.eleve);
+  });
+  noms.sort((a, b) => a.localeCompare(b, 'fr'));
+
+  if(!noms.length){
     zone.innerHTML = '<div class="empty">Aucun élève connu pour le moment.</div>';
     return;
   }
 
-  const det = document.createElement('details');
-  det.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
-    'color:var(--accent-text);">👥 ' + elevesConnus.length +
-    ' élève(s) proposé(s) dans les listes</summary>';
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:8px;';
+  const avecTel = fichesEleves.filter(f => f.telephone).length;
+  t.textContent = noms.length + ' élève(s) · ' + avecTel + ' avec un numéro';
+  zone.appendChild(t);
 
   const rech = document.createElement('input');
   rech.type = 'text';
-  rech.placeholder = '🔍 Filtrer';
-  rech.style.cssText = 'margin:8px 0;';
-  det.appendChild(rech);
+  rech.placeholder = '🔍 Rechercher un élève, un numéro, une formation';
+  rech.style.marginBottom = '10px';
+  zone.appendChild(rech);
 
-  const l = document.createElement('div');
-  l.style.cssText = 'font-size:13px;line-height:1.9;max-height:320px;overflow-y:auto;';
-  det.appendChild(l);
+  const liste = document.createElement('div');
+  zone.appendChild(liste);
 
   function dessiner(){
     const q = normaliserMot(rech.value);
-    l.innerHTML = '';
-    elevesConnus
-      .filter(n => !q || normaliserMot(n).indexOf(q) !== -1)
-      .forEach(n => {
-        const ligne = document.createElement('div');
-        ligne.style.cssText = 'display:flex;align-items:center;gap:8px;';
-        const s = document.createElement('span');
-        s.style.cssText = 'flex:1;min-width:0;';
-        s.textContent = n;
-        ligne.appendChild(s);
+    liste.innerHTML = '';
 
-        if(ACCES.role === 'admin'){
-          const x = document.createElement('button');
-          x.className = 'btn btn-secondary';
-          x.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;' +
-            'color:var(--red);border-color:var(--red);';
-          x.textContent = '🗑️';
-          x.title = 'Tout supprimer pour cet élève';
-          x.addEventListener('click', async () => {
-            if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
-                'Tout ce qui concerne ' + n + ' va être effacé :\n' +
-                '• ses bilans\n• sa fiche de suivi et ses examens\n' +
-                '• ses cours à venir\n• ses captures de CEPC\n' +
-                '• ses messages en attente\n\n' +
-                "Il n'apparaîtra plus nulle part. Cette action est IRRÉVERSIBLE.")) return;
+    const vus = noms.filter(n => {
+      if(!q) return true;
+      const f = ficheDe(n) || {};
+      return normaliserMot(n).indexOf(q) !== -1 ||
+             normaliserMot(f.telephone || '').indexOf(q) !== -1 ||
+             normaliserMot(f.email || '').indexOf(q) !== -1 ||
+             normaliserMot(f.formation || '').indexOf(q) !== -1;
+    });
 
-            const saisi = await demander("Pour confirmer, recopie exactement son nom :\n\n" + n);
-            if(saisi === null) return;
-            if(normaliserMot(saisi) !== normaliserMot(n)){
-              await informer('Le nom saisi ne correspond pas. Suppression annulée.');
-              return;
-            }
+    if(!vus.length){
+      liste.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
+      return;
+    }
 
-            x.disabled = true;
-            const etat = $('importEtat');
-            try{
-              const faits = await supprimerEleveComplet(n, t => {
-                if(etat){ etat.style.color = 'var(--muted)'; etat.textContent = n + ' — ' + t; }
-              });
-              if(etat){
-                etat.style.color = 'var(--accent-text)';
-                etat.textContent = '✅ ' + n + ' supprimé — ' +
-                  (faits.join(' · ') || 'rien à retirer');
-              }
-              await chargerEleves();
-              afficherRepertoire();
-              if(typeof afficherBureau === 'function') afficherBureau(true);
-            }catch(e){
-              if(etat){ etat.style.color = 'var(--warn-text)'; etat.textContent = 'Erreur : ' + e.message; }
-              x.disabled = false;
-            }
-          });
-          ligne.appendChild(x);
-        }
-        l.appendChild(ligne);
-      });
+    vus.forEach(n => liste.appendChild(ligneFicheEleve(n)));
   }
   rech.addEventListener('input', dessiner);
   dessiner();
+}
 
-  zone.appendChild(det);
+function ligneFicheEleve(nom){
+  const f = ficheDe(nom) || {};
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+    'margin-bottom:7px;';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
+
+  const info = document.createElement('div');
+  info.style.cssText = 'flex:1;min-width:0;';
+  info.innerHTML = '<strong style="font-size:15px;">' + nom.replace(/</g, '&lt;') + '</strong>' +
+    (f.formation ? ' <span style="font-size:11px;color:var(--accent-text);">' +
+      f.formation.replace(/</g, '&lt;') + '</span>' : '') +
+    '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
+    (f.telephone ? '📱 ' + telLisible(f.telephone) : '📱 pas de numéro') +
+    (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
+    (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
+    '</div>';
+  h.appendChild(info);
+
+  /* Écrire par SMS, si on a le numéro */
+  if(f.telephone){
+    const bSms = document.createElement('a');
+    bSms.href = 'sms:' + telPourLien(f.telephone);
+    bSms.className = 'btn btn-secondary';
+    bSms.style.cssText = 'width:auto;padding:7px 10px;font-size:14px;margin:0;flex-shrink:0;' +
+      'text-decoration:none;display:inline-flex;align-items:center;';
+    bSms.textContent = '💬';
+    bSms.title = 'Envoyer un SMS à ' + nom;
+    h.appendChild(bSms);
+  }
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
+  bMod.textContent = '✏️';
+  bMod.title = 'Modifier la fiche';
+  bMod.addEventListener('click', () => ouvrirFicheEleve(nom, f));
+  h.appendChild(bMod);
+
+  if(ACCES.role === 'admin'){
+    const x = document.createElement('button');
+    x.className = 'btn btn-secondary';
+    x.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;' +
+      'color:var(--red);border-color:var(--red);';
+    x.textContent = '🗑️';
+    x.title = 'Tout supprimer pour cet élève';
+    x.addEventListener('click', () => supprimerDepuisRepertoire(nom, x));
+    h.appendChild(x);
+  }
+
+  d.appendChild(h);
+  return d;
+}
+
+/* La fiche, en modification */
+function ouvrirFicheEleve(nom, f){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>' + nom.replace(/</g, '&lt;') + '</h3>' +
+    '<label for="fiTel">📱 Téléphone portable</label>' +
+    '<input type="tel" id="fiTel" inputmode="tel" placeholder="06 12 34 56 78">' +
+    '<label for="fiMail">✉️ Adresse mail</label>' +
+    '<input type="email" id="fiMail" inputmode="email" placeholder="prenom.nom@exemple.fr">' +
+    '<label for="fiForm">🎓 Formation</label>' +
+    '<select id="fiForm">' +
+      FORMATIONS.map(x => '<option value="' + x + '">' +
+        (x || '— à préciser —') + '</option>').join('') +
+    '</select>' +
+    '<label for="fiRem">Remarques</label>' +
+    '<textarea id="fiRem" rows="3" placeholder="Ce qu\'il faut savoir sur cet élève" ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+      'padding:10px 11px;border-radius:10px;font-size:15px;line-height:1.5;font-family:inherit;' +
+      'resize:vertical;margin-bottom:12px;"></textarea>');
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const g = id => boite.querySelector('#' + id);
+  g('fiTel').value = (f && f.telephone) || '';
+  g('fiMail').value = (f && f.email) || '';
+  g('fiForm').value = (f && f.formation) || '';
+  g('fiRem').value = (f && f.remarques) || '';
+
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+
+  bOk.addEventListener('click', async () => {
+    const tel = g('fiTel').value.trim();
+    if(tel && !/^[+\d\s().-]{8,}$/.test(tel)){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Ce numéro ne semble pas valable.';
+      return;
+    }
+    const mail = g('fiMail').value.trim();
+    if(mail && mail.indexOf('@') === -1){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Cette adresse mail ne semble pas valable.';
+      return;
+    }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({ action: 'ficheSet', eleve: nom, telephone: tel,
+                        email: mail, formation: g('fiForm').value,
+                        remarques: g('fiRem').value.trim() });
+      document.body.removeChild(fond);
+      showToast('Fiche enregistrée ✅');
+      afficherRepertoire();
+    }catch(e){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
+    }
+  });
+}
+
+async function supprimerDepuisRepertoire(n, bouton){
+  if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+      'Tout ce qui concerne ' + n + ' va être effacé :\n' +
+      '• ses bilans\n• sa fiche de suivi et ses examens\n' +
+      '• ses cours à venir\n• ses captures de CEPC\n' +
+      '• ses messages en attente\n• sa fiche du répertoire\n\n' +
+      "Il n'apparaîtra plus nulle part. Cette action est IRRÉVERSIBLE.")) return;
+
+  const saisi = await demander("Pour confirmer, recopie exactement son nom :\n\n" + n);
+  if(saisi === null) return;
+  if(normaliserMot(saisi) !== normaliserMot(n)){
+    await informer('Le nom saisi ne correspond pas. Suppression annulée.');
+    return;
+  }
+
+  bouton.disabled = true;
+  const etat = $('importEtat');
+  try{
+    const faits = await supprimerEleveComplet(n, t => {
+      if(etat){ etat.style.color = 'var(--muted)'; etat.textContent = n + ' — ' + t; }
+    });
+    if(etat){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ ' + n + ' supprimé — ' + (faits.join(' · ') || 'rien à retirer');
+    }
+    await chargerEleves();
+    afficherRepertoire();
+    if(typeof afficherBureau === 'function') afficherBureau(true);
+  }catch(e){
+    if(etat){ etat.style.color = 'var(--warn-text)'; etat.textContent = 'Erreur : ' + e.message; }
+    bouton.disabled = false;
+  }
 }
 
 
