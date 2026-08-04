@@ -442,6 +442,7 @@ $('confirmGen').addEventListener('click', async () => {
     retirerPreparationFaite();
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
+  if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
     window.scrollTo(0, 0);
     marquerExport(false);
     await saveLesson(currentLessonMeta, bilan);
