@@ -343,8 +343,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       '<label for="qBoite">Boîte</label>' +
       '<select id="qBoite">' +
-        '<option value="bv">BV — boîte manuelle</option>' +
         '<option value="bea">BEA — boîte automatique</option>' +
+        '<option value="bv">BV — boîte manuelle</option>' +
       '</select>' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
@@ -471,7 +471,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
-      'placeholder="Ex : élève très stressé, ne pas mettre sur 4 voies" ' +
+      'placeholder="Ex : autres notes internes" ' +
       'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
       'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.5;font-family:inherit;' +
       'resize:vertical;margin-bottom:6px;"></textarea>';
