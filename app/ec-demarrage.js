@@ -156,6 +156,7 @@ if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrec
 if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorrection);
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
+if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
 brancherFichierCsv();
 if($('smsRecharger')) $('smsRecharger').addEventListener('click', rechargerCadreSms);
 if($('smsOublier')) $('smsOublier').addEventListener('click', async () => {
