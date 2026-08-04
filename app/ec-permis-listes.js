@@ -26,8 +26,8 @@ function ficheSuiviPermis(e){
 
     '<label for="' + id + 'typ">Type d\'examen</label>' +
     '<select id="' + id + 'typ">' +
-      '<option value="bv">🅑 BV — boîte manuelle</option>' +
       '<option value="bea">🅰 BEA — boîte automatique</option>' +
+      '<option value="bv">🅑 BV — boîte manuelle</option>' +
       '<option value="handicap">♿ Handicap</option>' +
     '</select>' +
 
@@ -978,7 +978,15 @@ async function ajouterDateBureau(){
     await envoyerConsigne(eleve, type, texte);
     etat.style.color = 'var(--accent-text)';
     etat.textContent = '✅ ' + texte;
+
+    /* Le formulaire repart à vide : on enchaîne souvent plusieurs
+       élèves, et un nom resté en place fait enregistrer deux fois
+       la même personne sans s'en apercevoir. */
     $('addLecons').value = '';
+    $('addEleve').value = '';
+    if($('addDate')) $('addDate').value = '';
+    if($('addNote')) $('addNote').value = '';
+    $('addEleve').focus();
 
     /* Rafraîchissement discret : les listes ne se vident pas.
        Les messages ne sont relus que si leur tiroir est ouvert. */
