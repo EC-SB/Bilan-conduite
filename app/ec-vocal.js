@@ -454,8 +454,8 @@ $('confirmGen').addEventListener('click', async () => {
             'mais ils ne sont pas corrigés. Relis-les avant d\'envoyer.');
     }
     sauvegarderLocal(true);
-    /* Le cours est fait : sa préparation sort de la liste */
-    retirerPreparationFaite();
+    /* La préparation sort de la liste à l'ENREGISTREMENT, pas ici :
+       un bilan généré puis abandonné doit rester à faire. */
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
   if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
@@ -896,6 +896,8 @@ async function exporterVersSheets(silencieux){
     showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
     marquerExport(true);
     retenirEtatEnregistre(rep && rep.ligne);
+    /* Le cours est fait : sa préparation sort de la liste */
+    retirerPreparationFaite();
     viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
