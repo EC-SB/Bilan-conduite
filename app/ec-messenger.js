@@ -77,19 +77,28 @@ function planningJournee(premierExamen, nbEleves, reglages){
   const battement = (r.battement === undefined)
     ? battementAvantExamen(nbEleves, conduite) : r.battement;
 
-  const pauseDe = r.pauseDe ? enMinutes(r.pauseDe) : null;
+  /* La pause ne commence pas à une heure fixe : elle se termine
+     quand la conduite reprend, et remonte de sa durée. C'est ce
+     qui décale toutes les conduites du matin vers le haut. */
   const pauseDuree = r.pauseDuree || 0;
-  const pauseA = (pauseDe !== null && pauseDuree) ? pauseDe + pauseDuree : null;
+  const avantPause = pauseDuree ? (r.avantPause || 0) : 0;
 
   /* On remonte depuis la fin de la dernière conduite */
   const conduites = [];
   let fin = debutExamens - battement;
+  let pauseDe = null, pauseA = null;
 
-  for(let i = 0; i < nbEleves; i++){
-    /* Un créneau qui empiéterait sur la pause est remonté avant elle */
-    if(pauseDe !== null && fin > pauseDe && fin - conduite < pauseA) fin = pauseDe;
+  for(let i = nbEleves - 1; i >= 0; i--){
     conduites.unshift({ de: fin - conduite, a: fin });
     fin -= conduite;
+
+    /* La pause s'intercale sous ce créneau : elle se termine quand
+       il commence, et remonte de sa durée. */
+    if(pauseDuree && i === avantPause){
+      pauseA = fin;
+      pauseDe = fin - pauseDuree;
+      fin = pauseDe;
+    }
   }
 
   /* Les écoutes : tout ce que font les autres */
@@ -121,15 +130,13 @@ function planningJournee(premierExamen, nbEleves, reglages){
   }
 
   /* La pause n'est annoncée que si elle tombe vraiment au milieu */
-  const rangApres = (pauseA === null) ? -1
-    : conduites.findIndex(x => x.de >= pauseA);
-  const pauseUtile = rangApres > 0;
+  const pauseUtile = (pauseDe !== null && avantPause > 0 && avantPause < nbEleves);
 
   return {
     rendezVous: enHeure(conduites[0].de - AVANCE_ARRIVEE),
     pauseDe: pauseUtile ? enHeure(pauseDe) : '',
     pauseA:  pauseUtile ? enHeure(pauseA)  : '',
-    apresPause: pauseUtile ? rangApres : -1,
+    apresPause: pauseUtile ? avantPause : -1,
     creneaux: creneaux
   };
 }
@@ -355,8 +362,8 @@ async function afficherMessengerPermis(){
         '<option value="45">45 minutes</option>' +
         '<option value="60">1 heure</option>' +
       '</select></div>' +
-    '<div><label for="msgPauseDe">Pause du midi — début</label>' +
-      '<input type="time" id="msgPauseDe" value="11:00"></div>';
+    '<div><label for="msgAvantPause">Pause après le candidat n°</label>' +
+      '<select id="msgAvantPause"></select></div>';
   zone.appendChild(g1);
 
   const g2 = document.createElement('div');
@@ -375,11 +382,28 @@ async function afficherMessengerPermis(){
 
   const aide2 = document.createElement('div');
   aide2.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;';
-  aide2.textContent = 'La pause peut être décalée : les conduites qui ne tiennent pas avant ' +
-    'reprennent après. « Pas de pause » convient aux journées qui finissent avant midi. ' +
-    "Le délai avant le premier examen se calcule seul : 5 minutes par candidat, " +
-    '3 quand les leçons durent 30 minutes.';
+  aide2.textContent = "La pause se termine quand la conduite reprend : son heure de début " +
+    "découle de sa durée. Choisis après quel candidat elle tombe, selon le planning " +
+    'de tes moniteurs. Le délai avant le premier examen se calcule seul : ' +
+    '5 minutes par candidat, 3 quand les leçons durent 30 minutes.';
   zone.appendChild(aide2);
+
+
+  /* Les rangs possibles dépendent du nombre de candidats du jour */
+  function majRangsPause(){
+    const sel = $('msgAvantPause');
+    if(!sel) return;
+    const nb = (jour && jour.eleves) ? jour.eleves.length : 0;
+    const garde = sel.value;
+    let html = '<option value="0">Pas de pause</option>';
+    for(let i = 1; i < nb; i++){
+      html += '<option value="' + i + '">après le ' + i +
+              (i === 1 ? 'er' : 'e') + '</option>';
+    }
+    sel.innerHTML = html;
+    sel.value = (garde && sel.querySelector('option[value="' + garde + '"]'))
+      ? garde : String(Math.max(1, nb - 1));
+  }
 
   /* Ce que le calcul doit prendre en compte */
   function reglagesJournee(){
@@ -389,7 +413,7 @@ async function afficherMessengerPermis(){
       conduite:   v('msgConduite')  || 55,
       /* battement laissé au calcul automatique */
       examen:     DUREE_EXAMEN,
-      pauseDe:    duree ? formaterHeure(($('msgPauseDe') || {}).value || '') : null,
+      avantPause: v('msgAvantPause') || 0,
       pauseDuree: duree
     };
   }
@@ -440,6 +464,7 @@ async function afficherMessengerPermis(){
     });
   }
   dessinerOrdre();
+  majRangsPause();
 
   /* Aperçu du planning calculé, avant même de composer */
   const zApercu = document.createElement('div');
@@ -461,6 +486,11 @@ async function afficherMessengerPermis(){
       }).join('<br>');
   }
   hPremier.addEventListener('change', apercu);
+  /* Chaque réglage relance le calcul : l'aperçu suit en direct */
+  ['msgConduite', 'msgAvantPause', 'msgPauseDuree'].forEach(id => {
+    const e = $(id);
+    if(e) e.addEventListener('change', apercu);
+  });
   setTimeout(apercu, 0);
 
   /* Information ponctuelle à ajouter au message */
