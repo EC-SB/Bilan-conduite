@@ -51,75 +51,85 @@ function enHeure(minutes){
      fusionnées quand elles se suivent, et coupées par la pause ;
    • les examens s'enchaînent après un battement.
    ============================================================ */
-function planningJournee(heureDepart, nbEleves, reglages){
+/* Les créneaux d'examen imposés par le centre. */
+const HEURES_EXAMEN = ['08h00', '08h30', '09h00', '09h30', '10h00', '10h30', '11h00',
+                       '13h15', '13h45', '14h15', '14h45', '15h15', '15h45'];
+
+/* ============================================================
+   PLANNING DE LA JOURNÉE DE PERMIS
+
+   On part de l'heure du premier examen, imposée par le centre,
+   et on REMONTE : la dernière conduite se termine juste avant,
+   les précédentes s'enchaînent à rebours, et la pause du midi
+   repousse vers le haut ce qui ne tient pas.
+
+   L'écoute d'un candidat, c'est toutes les conduites des autres,
+   fusionnées quand elles se suivent et coupées par la pause.
+   ============================================================ */
+function planningJournee(premierExamen, nbEleves, reglages){
   const r = reglages || {};
-  const conduite  = r.conduite  || DUREE_CONDUITE;
-  const examen    = r.examen    || DUREE_EXAMEN;
-  /* Calculé, pas réglé à la main : il dépend du nombre de candidats
-     et de la durée des leçons. */
+  const conduite = r.conduite || DUREE_CONDUITE;
+  const examen   = r.examen   || DUREE_EXAMEN;
+
+  const debutExamens = enMinutes(premierExamen);
+  if(debutExamens === null || nbEleves < 1) return null;
+
   const battement = (r.battement === undefined)
     ? battementAvantExamen(nbEleves, conduite) : r.battement;
 
-  const debutConduite = enMinutes(heureDepart);
-  if(debutConduite === null || nbEleves < 1) return null;
-
-  /* La pause, si elle a lieu */
   const pauseDe = r.pauseDe ? enMinutes(r.pauseDe) : null;
   const pauseDuree = r.pauseDuree || 0;
   const pauseA = (pauseDe !== null && pauseDuree) ? pauseDe + pauseDuree : null;
 
-  /* Les créneaux de conduite, en sautant la pause */
+  /* On remonte depuis la fin de la dernière conduite */
   const conduites = [];
-  let t = debutConduite;
-  for(let i = 0; i < nbEleves; i++){
-    /* Un créneau qui mordrait sur la pause est repoussé après */
-    if(pauseDe !== null && t < pauseA && t + conduite > pauseDe) t = pauseA;
-    conduites.push({ de: t, a: t + conduite });
-    t += conduite;
-  }
-  const finConduites = conduites[conduites.length - 1].a;
+  let fin = debutExamens - battement;
 
-  /* Les écoutes : tout ce que fait quelqu'un d'autre */
+  for(let i = 0; i < nbEleves; i++){
+    /* Un créneau qui empiéterait sur la pause est remonté avant elle */
+    if(pauseDe !== null && fin > pauseDe && fin - conduite < pauseA) fin = pauseDe;
+    conduites.unshift({ de: fin - conduite, a: fin });
+    fin -= conduite;
+  }
+
+  /* Les écoutes : tout ce que font les autres */
   function ecoutesDe(moi){
     const autres = conduites.filter((x, i) => i !== moi)
                             .sort((a, b) => a.de - b.de);
     const blocs = [];
     autres.forEach(x => {
       const dernier = blocs[blocs.length - 1];
-      /* On fusionne les créneaux qui se suivent, sauf de part
-         et d'autre de la pause : ce sont deux moments distincts. */
       const colles = dernier && dernier.a === x.de;
-      const memeCote = pauseDe === null ||
-                       ((dernier && dernier.a <= pauseDe) === (x.a <= pauseDe));
-      if(colles && memeCote) dernier.a = x.a;
+      if(colles) dernier.a = x.a;
       else blocs.push({ de: x.de, a: x.a });
     });
     return blocs.map(b => ({ de: enHeure(b.de), a: enHeure(b.a) }));
   }
 
-  const premierExamen = finConduites + battement;
-
   const creneaux = [];
   for(let i = 0; i < nbEleves; i++){
+    const ec = ecoutesDe(i);
     creneaux.push({
       conduiteDe: enHeure(conduites[i].de),
       conduiteA:  enHeure(conduites[i].a),
-      ecoutes:    ecoutesDe(i),
-      /* Compatibilité : la première écoute reste accessible seule */
-      ecouteDe:   (ecoutesDe(i)[0] || {}).de || '',
-      ecouteA:    (ecoutesDe(i)[0] || {}).a  || '',
-      examenDe:   enHeure(premierExamen + i * examen),
-      examenA:    enHeure(premierExamen + (i + 1) * examen)
+      ecoutes:    ec,
+      ecouteDe:   (ec[0] || {}).de || '',
+      ecouteA:    (ec[0] || {}).a  || '',
+      examenDe:   enHeure(debutExamens + i * examen),
+      examenA:    enHeure(debutExamens + (i + 1) * examen)
     });
   }
 
+  /* La pause n'est annoncée que si elle tombe vraiment au milieu */
+  const rangApres = (pauseA === null) ? -1
+    : conduites.findIndex(x => x.de >= pauseA);
+  const pauseUtile = rangApres > 0;
+
   return {
-    rendezVous: enHeure(debutConduite - AVANCE_ARRIVEE),
-    pauseDe: pauseA !== null ? enHeure(pauseDe) : '',
-    pauseA:  pauseA !== null ? enHeure(pauseA)  : '',
-    /* Le rang du dernier candidat avant la pause, pour placer le bloc */
-    apresPause: pauseA === null ? -1
-      : conduites.findIndex(x => x.de >= pauseA),
+    rendezVous: enHeure(conduites[0].de - AVANCE_ARRIVEE),
+    pauseDe: pauseUtile ? enHeure(pauseDe) : '',
+    pauseA:  pauseUtile ? enHeure(pauseA)  : '',
+    apresPause: pauseUtile ? rangApres : -1,
     creneaux: creneaux
   };
 }
@@ -316,21 +326,22 @@ async function afficherMessengerPermis(){
     zone.appendChild(a);
   }
 
-  /* Heure de la première conduite : tout le planning en découle */
+  /* Heure du premier examen : imposée par le centre, tout en découle */
   const lh = document.createElement('label');
-  lh.textContent = 'Heure de départ de la première conduite';
+  lh.textContent = 'Heure du premier passage à l\'examen';
   zone.appendChild(lh);
 
-  const hPremier = document.createElement('input');
-  hPremier.type = 'time';
+  const hPremier = document.createElement('select');
   hPremier.id = 'messengerHeure';
-  hPremier.value = '08:00';
+  hPremier.innerHTML = HEURES_EXAMEN
+    .map(h => '<option value="' + h + '">' + h + '</option>').join('');
+  hPremier.value = '13h15';
   zone.appendChild(hPremier);
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
-  aide.textContent = "C'est l'heure à laquelle le premier candidat prend le volant. " +
-    'Le rendez-vous est fixé 5 minutes avant.';
+  aide.textContent = 'Les créneaux du centre. Le planning remonte à partir de là : ' +
+    'la dernière conduite se termine juste avant le premier examen.';
   zone.appendChild(aide);
 
   /* Les réglages de la journée : durées et pause du midi */
@@ -437,7 +448,7 @@ async function afficherMessengerPermis(){
   zone.appendChild(zApercu);
 
   function apercu(){
-    const plan = planningJournee(formaterHeure(hPremier.value), jour.eleves.length,
+    const plan = planningJournee(hPremier.value, jour.eleves.length,
                                  reglagesJournee());
     if(!plan){ zApercu.textContent = "Saisis l'heure du premier examen."; return; }
     zApercu.innerHTML = '🕐 <strong>Rendez-vous à ' + plan.rendezVous + '</strong>' +
@@ -477,7 +488,7 @@ async function afficherMessengerPermis(){
   b.className = 'btn btn-primary';
   b.textContent = '📣 Composer les deux messages';
   b.addEventListener('click', () => {
-    const plan = planningJournee(formaterHeure(hPremier.value), jour.eleves.length,
+    const plan = planningJournee(hPremier.value, jour.eleves.length,
                                  reglagesJournee());
     if(!plan){ showToast("Saisis l'heure du premier examen."); return; }
     const centre = (centres.length === 1 && centres[0].indexOf('—') === -1) ? centres[0] : '';
