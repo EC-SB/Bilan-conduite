@@ -375,7 +375,20 @@ async function afficherRepertoire(){
       return;
     }
 
-    vus.forEach(n => liste.appendChild(ligneFicheEleve(n)));
+    /* Au-delà d'une centaine de fiches, le navigateur rame pour rien :
+       personne ne lit trois cents cartes, on filtre. */
+    const MAX_AFFICHE = 100;
+    const montres = vus.slice(0, MAX_AFFICHE);
+    montres.forEach(n => liste.appendChild(ligneFicheEleve(n)));
+
+    if(vus.length > MAX_AFFICHE){
+      const a = document.createElement('div');
+      a.className = 'empty';
+      a.style.cssText = 'padding:12px;font-size:13px;line-height:1.5;';
+      a.innerHTML = '📋 ' + montres.length + ' fiches affichées sur ' + vus.length +
+        '.<br><span style="font-size:12px;">Affine la recherche pour trouver un élève précis.</span>';
+      liste.appendChild(a);
+    }
   }
   rech.addEventListener('input', dessiner);
   dessiner();
