@@ -232,9 +232,38 @@ async function afficherRappels(){
 
   /* Tout copier, pour un envoi groupé depuis l'outil SMS */
   if(prets.length){
+    /* Envoi de toute la journée, un par un et jamais en aveugle */
+    const bTous = document.createElement('button');
+    bTous.className = 'btn btn-primary';
+    bTous.style.cssText = 'margin-top:12px;padding:13px;font-size:14px;';
+    const restants = prets.filter(x => !x.envoye);
+    bTous.textContent = '📤 Envoyer les ' + restants.length + ' SMS restants';
+    bTous.disabled = !restants.length;
+    bTous.addEventListener('click', async () => {
+      if(!await confirmer('Envoyer ' + restants.length + ' SMS ?\n\n' +
+          restants.map(x => '• ' + (x.choisi || x.eleve)).join('\n') +
+          '\n\nIls partent un par un ; tu peux suivre l\'avancement.')) return;
+
+      bTous.disabled = true;
+      let ok = 0, rates = [];
+      for(let i = 0; i < restants.length; i++){
+        const cr = restants[i];
+        bTous.textContent = 'Envoi ' + (i + 1) + ' sur ' + restants.length + '…';
+        try{
+          await envoyerSmsAllo(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
+          cr.envoye = true;
+          ok++;
+        }catch(e){ rates.push((cr.choisi || cr.eleve) + ' : ' + e.message); }
+      }
+      showToast(ok + ' SMS envoyé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+      if(rates.length) await informer('Envois manqués :\n\n' + rates.join('\n'));
+      afficherRappels();
+    });
+    zone.appendChild(bTous);
+
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-top:12px;padding:11px;font-size:13px;';
+    b.style.cssText = 'margin-top:8px;padding:11px;font-size:13px;';
     b.textContent = '📋 Copier les ' + prets.length + ' messages avec les numéros';
     b.addEventListener('click', () => {
       const texte = prets.map(c => c.telephone + '\t' + messageRappel(c).replace(/\n/g, ' | '))
@@ -270,17 +299,24 @@ function ligneRappel(c, i){
     '</div>';
   h.appendChild(info);
 
-  if(c.telephone){
-    const a = document.createElement('a');
-    a.href = 'sms:' + telPourLien(c.telephone) + '?&body=' +
-             encodeURIComponent(messageRappel(c));
+  if(c.telephone && !c.envoye){
+    const a = document.createElement('button');
     a.className = 'btn btn-primary';
-    a.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;flex-shrink:0;' +
-      'text-decoration:none;display:inline-flex;align-items:center;';
+    a.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;flex-shrink:0;';
     a.textContent = '💬 Envoyer';
-    a.addEventListener('click', () => {
-      c.envoye = true;
-      setTimeout(afficherRappels, 400);
+    a.addEventListener('click', async () => {
+      a.disabled = true;
+      a.textContent = 'Envoi…';
+      try{
+        await envoyerSmsAllo(c.telephone, messageRappel(c), c.choisi || c.eleve);
+        c.envoye = true;
+        showToast('SMS envoyé à ' + (c.choisi || c.eleve));
+        afficherRappels();
+      }catch(e){
+        showToast('Erreur : ' + e.message);
+        a.disabled = false;
+        a.textContent = '💬 Envoyer';
+      }
     });
     h.appendChild(a);
   }
@@ -652,12 +688,12 @@ async function afficherRappelManuel(){
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:8px;';
 
-  const bEnv = document.createElement('a');
+  const bEnv = document.createElement('button');
   bEnv.id = 'rappelEnvoi';
   bEnv.className = 'btn btn-primary';
-  bEnv.style.cssText = 'flex:1;padding:13px;font-size:14px;margin:0;text-align:center;' +
-    'text-decoration:none;display:inline-flex;align-items:center;justify-content:center;';
+  bEnv.style.cssText = 'flex:1;padding:13px;font-size:14px;margin:0;';
   bEnv.textContent = '💬 Envoyer par SMS';
+  bEnv.addEventListener('click', envoyerRappelManuel);
   r.appendChild(bEnv);
 
   const bCop = document.createElement('button');
@@ -731,14 +767,10 @@ function apercuRappel(){
 
   if(bEnv){
     if(numero){
-      bEnv.href = 'sms:' + telPourLien(numero) + '?&body=' + encodeURIComponent(texte);
-      bEnv.style.opacity = '1';
-      bEnv.style.pointerEvents = 'auto';
-      bEnv.textContent = '💬 Envoyer' + (nom ? ' à ' + nom : '');
+      bEnv.disabled = false;
+      bEnv.textContent = '💬 Envoyer à ' + (nom || telLisible(numero));
     }else{
-      bEnv.removeAttribute('href');
-      bEnv.style.opacity = '.5';
-      bEnv.style.pointerEvents = 'none';
+      bEnv.disabled = true;
       bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro — saisis-le'
                              : '💬 Choisis un élève ou saisis un numéro';
     }
@@ -764,6 +796,63 @@ function modeRappel(mode){
   });
 
   if(manuel) afficherRappelManuel();
+}
+
+
+/* ============================================================
+   ENVOI DIRECT PAR L'API ALLO
+   Le SMS part de l'auto-école, sans passer par le téléphone
+   du moniteur. La clé reste dans le Worker.
+   ============================================================ */
+async function envoyerSmsAllo(numero, texte, eleve){
+  const r = await fetchFiable(CONFIG.SMS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: ACCES.code, to: numero,
+                           message: texte, eleve: eleve || '' })
+  }, 20000, 1);
+
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok || d.error) throw new Error(d.error || ('Envoi refusé (' + r.status + ')'));
+  return d;
+}
+
+
+/* Envoi depuis l'écran de composition */
+async function envoyerRappelManuel(){
+  const b = $('rappelEnvoi');
+  const nom = $('rappelEleve') ? $('rappelEleve').value : '';
+  const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
+  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
+  const numero = saisi || (f && f.telephone) || '';
+  if(!numero) return;
+
+  const texte = composerRappel(lireChoixRappel());
+
+  if(!await confirmer('Envoyer ce SMS' + (nom ? ' à ' + nom : '') +
+      '\nau ' + telLisible(numero) + ' ?\n\n' +
+      texte.length + ' caractères' +
+      (texte.length > 160 ? ' — soit ' + Math.ceil(texte.length / 153) +
+        ' SMS facturés.' : '.'))) return;
+
+  b.disabled = true;
+  b.textContent = 'Envoi…';
+  try{
+    await envoyerSmsAllo(numero, texte, nom);
+    b.textContent = '✅ Envoyé';
+    showToast('SMS envoyé ✅');
+    /* On passe à l'élève suivant, les réglages sont conservés */
+    setTimeout(() => {
+      if($('rappelEleve')) $('rappelEleve').value = '';
+      if($('rapTel')) $('rapTel').value = '';
+      if($('rapLibre')) $('rapLibre').value = '';
+      apercuRappel();
+    }, 900);
+  }catch(e){
+    showToast('Erreur : ' + e.message);
+    b.disabled = false;
+    apercuRappel();
+  }
 }
 
 /* Signale que ce module est bien chargé */
