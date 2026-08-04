@@ -240,9 +240,13 @@ async function importerListeEleves(){
     return;
   }
 
-  const combien = liste.split(/[\n;,]+/).filter(x => x.trim().length >= 3).length;
-  if(!await confirmer('Importer ' + combien + ' nom(s) dans le répertoire ?\n\n' +
-                      'Les doublons sont ignorés, rien n\'est écrasé.')) return;
+  const combien = fichesAImporter.length ||
+                  liste.split(/[\n;,]+/).filter(x => x.trim().length >= 3).length;
+  const avecTel = fichesAImporter.filter(f => f.telephone).length;
+
+  if(!await confirmer('Importer ' + combien + ' élève(s) dans le répertoire ?' +
+      (avecTel ? '\n' + avecTel + ' avec leur numéro de téléphone.' : '') +
+      '\n\nLes doublons sont ignorés, rien n\'est écrasé.')) return;
 
   btn.disabled = true;
   btn.textContent = 'Import…';
@@ -256,6 +260,14 @@ async function importerListeEleves(){
       : { action: 'elevesImport', liste: liste };
 
     const r = await appelPrep(corps);
+
+    /* Le serveur peut refuser sans que l'appel échoue :
+       sans ce contrôle, l'import semblait réussir dans le vide. */
+    if(r && r.status === 'error') throw new Error(r.message || 'Import refusé');
+    if(r && !r.ajoutes && !r.majs && !r.doublons){
+      throw new Error("Rien n'a été importé. Vérifie le contenu de la liste.");
+    }
+
     etat.style.color = 'var(--accent-text)';
     etat.textContent = '✅ ' + (r.ajoutes || 0) + ' ajouté(s)' +
       (r.majs ? ' · ' + r.majs + ' complété(s)' : '') +
