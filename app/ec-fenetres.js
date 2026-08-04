@@ -225,6 +225,8 @@ document.addEventListener('click', e => {
    Importer la liste réelle de l'auto-école, pour que les élèves
    sans bilan soient proposés eux aussi.
    ============================================================ */
+let fichesAImporter = [];
+
 async function importerListeEleves(){
   const zone = $('importEleves');
   const etat = $('importEtat');
@@ -248,13 +250,21 @@ async function importerListeEleves(){
   etat.textContent = 'Envoi de la liste…';
 
   try{
-    const r = await appelPrep({ action: 'elevesImport', liste: liste });
+    /* Un fichier apporte les coordonnées ; une liste collée n'a que des noms */
+    const corps = fichesAImporter.length
+      ? { action: 'elevesImport', fiches: JSON.stringify(fichesAImporter) }
+      : { action: 'elevesImport', liste: liste };
+
+    const r = await appelPrep(corps);
     etat.style.color = 'var(--accent-text)';
-    etat.textContent = '✅ ' + (r.ajoutes || 0) + ' élève(s) ajouté(s)' +
-      (r.doublons ? ' · ' + r.doublons + ' déjà présent(s)' : '') +
+    etat.textContent = '✅ ' + (r.ajoutes || 0) + ' ajouté(s)' +
+      (r.majs ? ' · ' + r.majs + ' complété(s)' : '') +
+      (r.doublons ? ' · ' + r.doublons + ' inchangé(s)' : '') +
       ' · ' + (r.total || 0) + ' au total';
     zone.value = '';
-    await chargerEleves();
+    fichesAImporter = [];
+    /* Les deux listes se rechargent ensemble, pas l'une après l'autre */
+    await Promise.all([chargerEleves(), chargerFiches()]);
     afficherRepertoire();
   }catch(e){
     etat.style.color = 'var(--warn-text)';
@@ -303,7 +313,7 @@ async function afficherRepertoire(){
   if(!zone) return;
 
   zone.innerHTML = '<div class="empty">Chargement du répertoire…</div>';
-  await chargerFiches();
+  if(!fichesEleves.length) await chargerFiches();
   zone.innerHTML = '';
 
   /* Tous les élèves connus, avec ou sans fiche */
@@ -620,6 +630,24 @@ async function supprimerEleveComplet(nom, rapporter){
 const ENTETES_NOM = ['nom', 'eleve', 'élève', 'candidat', 'prenom', 'prénom',
                      'nom complet', 'nom et prenom', 'apprenant', 'stagiaire'];
 
+/* Les autres colonnes qu'on sait reconnaître */
+const ENTETES_TEL = ['telephone', 'téléphone', 'tel', 'tél', 'portable', 'mobile',
+                     'gsm', 'numero', 'numéro', 'tel portable', 'tel mobile'];
+const ENTETES_MAIL = ['email', 'e-mail', 'mail', 'courriel', 'adresse mail',
+                      'adresse email', 'e mail'];
+const ENTETES_FORMATION = ['formation', 'type', 'categorie', 'catégorie',
+                           'boite', 'boîte', 'parcours', 'permis'];
+
+/* Un numéro écrit « 612345678 » ou « +33 6 12 … » redevient lisible */
+function normaliserTel(v){
+  let t = String(v || '').replace(/[^\d+]/g, '');
+  if(!t) return '';
+  if(t.indexOf('+33') === 0) t = '0' + t.slice(3);
+  else if(t.indexOf('0033') === 0) t = '0' + t.slice(4);
+  else if(t.length === 9 && t[0] !== '0') t = '0' + t;
+  return /^0\d{9}$/.test(t) ? t : String(v || '').trim();
+}
+
 function decouperLigneCsv(ligne, sep){
   const cases = [];
   let courant = '';
@@ -678,20 +706,61 @@ function lireCsvEleves(texte){
     colonnes = [meilleure];
   }
 
-  const noms = [];
+  /* Les colonnes de contact, si elles sont là */
+  const trouver = (liste) => bas.findIndex(x => liste.indexOf(x) !== -1);
+  const iTel = entete ? trouver(ENTETES_TEL) : -1;
+  const iMail = entete ? trouver(ENTETES_MAIL) : -1;
+  const iForm = entete ? trouver(ENTETES_FORMATION) : -1;
+
+  /* Sans en-tête : on repère une colonne qui ressemble à des numéros
+     ou à des adresses, plutôt que de perdre l'information. */
+  let telAuto = -1, mailAuto = -1;
+  if(!entete){
+    const nb = premiere.length;
+    for(let col = 0; col < nb; col++){
+      let tels = 0, mails = 0;
+      lignes.slice(0, 25).forEach(l => {
+        const v = (decouperLigneCsv(l, sep)[col] || '').trim();
+        if(/^[+0]\d[\d\s.()-]{7,}$/.test(v)) tels++;
+        if(v.indexOf('@') !== -1 && v.indexOf('.') !== -1) mails++;
+      });
+      if(tels >= 2 && telAuto === -1) telAuto = col;
+      if(mails >= 2 && mailAuto === -1) mailAuto = col;
+    }
+  }
+  const colTel = iTel !== -1 ? iTel : telAuto;
+  const colMail = iMail !== -1 ? iMail : mailAuto;
+
+  const fiches = [];
   lignes.forEach((l, i) => {
     if(entete && i === 0) return;
     const cases = decouperLigneCsv(l, sep);
     const morceaux = colonnes.map(c => (cases[c] || '').trim()).filter(Boolean);
     const nom = morceaux.join(' ').replace(/\s+/g, ' ').trim();
-    if(nom.length >= 3 && !/^\d+$/.test(nom)) noms.push(nom);
+    if(nom.length < 3 || /^\d+$/.test(nom)) return;
+
+    fiches.push({
+      eleve: nom,
+      telephone: colTel >= 0 ? normaliserTel(cases[colTel]) : '',
+      email: colMail >= 0 ? (cases[colMail] || '').trim() : '',
+      formation: iForm >= 0 ? (cases[iForm] || '').trim() : ''
+    });
   });
 
-  const info = noms.length + ' nom(s) trouvé(s) · séparateur « ' +
-    (sep === '\t' ? 'tabulation' : sep) + ' » · colonne(s) ' +
-    colonnes.map(c => premiere[c] || ('n°' + (c + 1))).join(' + ');
+  const dit = [];
+  dit.push(fiches.length + ' élève(s)');
+  const nTel = fiches.filter(f => f.telephone).length;
+  const nMail = fiches.filter(f => f.email).length;
+  if(nTel) dit.push(nTel + ' avec téléphone');
+  if(nMail) dit.push(nMail + ' avec mail');
 
-  return { noms: noms, info: info };
+  const info = dit.join(' · ') + ' · séparateur « ' +
+    (sep === '\t' ? 'tabulation' : sep) + ' » · nom : ' +
+    colonnes.map(c => premiere[c] || ('n°' + (c + 1))).join(' + ') +
+    (colTel >= 0 ? ' · tél : ' + (premiere[colTel] || ('n°' + (colTel + 1))) : '') +
+    (colMail >= 0 ? ' · mail : ' + (premiere[colMail] || ('n°' + (colMail + 1))) : '');
+
+  return { fiches: fiches, noms: fiches.map(f => f.eleve), info: info };
 }
 
 /* Le fichier choisi remplit la zone de texte, pour relecture */
@@ -719,7 +788,9 @@ function brancherFichierCsv(){
           'Colle la liste à la main, ou vérifie le fichier.';
         return;
       }
-      zone.value = r.noms.join('\n');
+      fichesAImporter = r.fiches || [];
+      zone.value = (r.fiches || []).map(f =>
+        [f.eleve, f.telephone, f.email].filter(Boolean).join(' · ')).join('\n');
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '📄 ' + r.info +
         '\nRelis la liste ci-dessus, puis appuie sur Importer.';
