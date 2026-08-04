@@ -348,6 +348,13 @@ function remplirModeles(){
 
 function remplirUnMenuModeles(sel){
   if(!sel) return;
+
+  /* On repart de zéro : la fonction est appelée plusieurs fois
+     (démarrage, puis chargement des modèles ajoutés), et sans
+     ce nettoyage la liste se dédoublait. */
+  const choisi = sel.value;
+  sel.innerHTML = '';
+
   const groupes = {};
   Object.keys(MODELES).forEach(cle => {
     const g = MODELES[cle].groupe;
@@ -365,6 +372,9 @@ function remplirUnMenuModeles(sel){
     });
     sel.appendChild(og);
   });
+
+  /* Le type choisi ne doit pas être perdu au rafraîchissement */
+  if(choisi && sel.querySelector('option[value="' + choisi + '"]')) sel.value = choisi;
 }
 
 function showToast(msg){
