@@ -132,7 +132,7 @@ function verrouiller(message, garderSession){
   $('codeMsg').style.color = message ? 'var(--warn-text)' : 'var(--muted)';
 }
 
-const $ = id => document.getElementById(id);
+/* $ est déclaré dans ec-etat.js, chargé en premier. */
 
 function todayLocal(){
   const d = new Date();
