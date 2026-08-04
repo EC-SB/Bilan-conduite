@@ -31,12 +31,43 @@ function nomUsage(cle){
   return u ? u.nom : cle;
 }
 
+/* ============================================================
+   CATÉGORIES LIBRES
+   Les emplacements techniques (jour du permis, rappels…) restent
+   fixes : l'application sait où les utiliser. Les catégories,
+   elles, servent au rangement et sont créées librement.
+   ============================================================ */
+function categoriesExistantes(){
+  const vues = [];
+  (modelesTexte || []).forEach(m => {
+    const cat = (m.categorie || '').trim();
+    if(cat && vues.indexOf(cat) === -1) vues.push(cat);
+  });
+  return vues.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+/* La catégorie est rangée dans le nom, faute de colonne dédiée :
+   « Permis › Félicitations ». Simple et rétrocompatible. */
+function separerCategorie(nom){
+  const i = String(nom || '').indexOf(' › ');
+  if(i === -1) return { categorie: '', titre: String(nom || '') };
+  return { categorie: nom.slice(0, i).trim(), titre: nom.slice(i + 3).trim() };
+}
+
+function assemblerNom(categorie, titre){
+  const c = String(categorie || '').trim();
+  return c ? c + ' › ' + String(titre || '').trim() : String(titre || '').trim();
+}
+
 let modelesTexte = [];
 
 async function chargerModelesTexte(){
   try{
     const d = await appelPrep({ action: 'modeleList' });
-    modelesTexte = (d && d.modeles) || [];
+    modelesTexte = ((d && d.modeles) || []).map(m => {
+      const s = separerCategorie(m.nom);
+      return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
+    });
   }catch(e){
     console.warn('Modèles indisponibles :', e);
   }
@@ -90,21 +121,33 @@ async function afficherModelesTexte(){
     return;
   }
 
-  /* Regroupement par usage */
-  const parUsage = {};
+  /* Regroupement par catégorie, puis par usage à l'intérieur */
+  const parCategorie = {};
   modelesTexte.forEach(m => {
-    if(!parUsage[m.usage]) parUsage[m.usage] = [];
-    parUsage[m.usage].push(m);
+    const cat = m.categorie || 'Sans catégorie';
+    if(!parCategorie[cat]) parCategorie[cat] = [];
+    parCategorie[cat].push(m);
   });
 
-  USAGES_MODELE.forEach(u => {
-    const liste = parUsage[u.cle];
-    if(!liste) return;
+  const cats = Object.keys(parCategorie).sort((a, b) => {
+    if(a === 'Sans catégorie') return 1;
+    if(b === 'Sans catégorie') return -1;
+    return a.localeCompare(b, 'fr');
+  });
 
+  cats.forEach(cat => {
+    const bloc = document.createElement('details');
+    bloc.open = true;
+    bloc.style.cssText = 'margin-bottom:10px;';
+    bloc.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
+      'color:var(--accent-text);padding:6px 0;">📁 ' + cat.replace(/</g, '&lt;') +
+      ' <span style="font-size:12px;color:var(--muted);">(' +
+      parCategorie[cat].length + ')</span></summary>';
+
+    const liste = parCategorie[cat];
     const t = document.createElement('div');
-    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:12px 0 6px;';
-    t.textContent = u.nom;
-    zone.appendChild(t);
+    bloc.appendChild(t);
+    zone.appendChild(bloc);
 
     liste.forEach(m => {
       const d = document.createElement('div');
@@ -115,9 +158,10 @@ async function afficherModelesTexte(){
       h.style.cssText = 'display:flex;align-items:center;gap:8px;';
       const n = document.createElement('div');
       n.style.cssText = 'flex:1;min-width:0;';
-      n.innerHTML = '<strong style="font-size:14px;">' + m.nom.replace(/</g, '&lt;') + '</strong>' +
-        '<div style="font-size:11px;color:var(--muted);">' +
-        (m.maj ? 'modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '') + '</div>';
+      n.innerHTML = '<strong style="font-size:14px;">' +
+        (m.titre || m.nom).replace(/</g, '&lt;') + '</strong>' +
+        '<div style="font-size:11px;color:var(--muted);">' + nomUsage(m.usage) +
+        (m.maj ? ' · modifié le ' + m.maj : '') + (m.par ? ' par ' + m.par : '') + '</div>';
       h.appendChild(n);
 
       const bMod = document.createElement('button');
@@ -157,7 +201,7 @@ async function afficherModelesTexte(){
       det.appendChild(p);
       d.appendChild(det);
 
-      zone.appendChild(d);
+      bloc.appendChild(d);
     });
   });
 }
@@ -175,6 +219,15 @@ function ouvrirEditeurModele(modele, usageImpose){
   boite.appendChild(h);
 
   boite.insertAdjacentHTML('beforeend',
+    '<label for="mdCat">📁 Catégorie</label>' +
+    '<input type="text" id="mdCat" list="listeCategories" ' +
+      'placeholder="Ex : Permis, Examen blanc, Relances… (libre)">' +
+    '<datalist id="listeCategories">' +
+      categoriesExistantes().map(x => '<option value="' + x.replace(/"/g, '&quot;') + '">').join('') +
+    '</datalist>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Crée autant de catégories que tu veux : tape un nom nouveau, ' +
+      'ou choisis-en une déjà utilisée.</div>' +
     '<label for="mdNom">Nom de ce texte</label>' +
     '<input type="text" id="mdNom" placeholder="Ex : Jour du permis — Saint-Brieuc">' +
     '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
@@ -232,7 +285,8 @@ function ouvrirEditeurModele(modele, usageImpose){
   g('mdUsage').addEventListener('change', majVars);
 
   if(modele){
-    g('mdNom').value = modele.nom || '';
+    g('mdCat').value = modele.categorie || '';
+    g('mdNom').value = modele.titre || modele.nom || '';
     g('mdUsage').value = modele.usage || 'libre';
     g('mdContenu').value = modele.contenu || '';
   }
@@ -259,7 +313,7 @@ function ouvrirEditeurModele(modele, usageImpose){
         action: 'modeleSet',
         id: modele ? modele.id : '',
         usage: g('mdUsage').value,
-        nom: nom,
+        nom: assemblerNom(g('mdCat') ? g('mdCat').value : '', nom),
         contenu: contenu
       });
       document.body.removeChild(fond);
