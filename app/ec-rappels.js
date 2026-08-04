@@ -707,6 +707,12 @@ async function afficherRappelManuel(){
     'max-height:340px;overflow-y:auto;margin-bottom:12px;';
   zone.appendChild(ap);
 
+  const etatEnvoi = document.createElement('div');
+  etatEnvoi.id = 'rappelEtatEnvoi';
+  etatEnvoi.style.cssText = 'font-size:13px;line-height:1.5;margin-bottom:10px;' +
+    'min-height:18px;';
+  zone.appendChild(etatEnvoi);
+
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:8px;';
 
@@ -860,13 +866,17 @@ async function envoyerSmsAllo(numero, texte, eleve){
   }, 20000, 1);
 
   const d = await r.json().catch(() => ({}));
-  if(!r.ok || d.error) throw new Error(d.error || ('Envoi refusé (' + r.status + ')'));
+  if(!r.ok || d.error){
+    throw new Error(d.error || ('Le Worker a répondu ' + r.status +
+      (r.status === 404 ? ' — route inconnue' : '')));
+  }
   return d;
 }
 
 
 /* Envoi depuis l'écran de composition */
 async function envoyerRappelManuel(){
+  direEtatEnvoi('');
   const b = $('rappelEnvoi');
   const nom = $('rappelEleve') ? $('rappelEleve').value : '';
   const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
@@ -889,6 +899,8 @@ async function envoyerRappelManuel(){
   try{
     const n = await envoyerMessageComplet(numero, texte, nom);
     b.textContent = '✅ Envoyé';
+    direEtatEnvoi((n > 1 ? n + ' SMS envoyés' : 'SMS envoyé') +
+                  ' au ' + telLisible(numero) + (nom ? ' — ' + nom : ''), false);
     showToast(n > 1 ? n + ' SMS envoyés ✅' : 'SMS envoyé ✅');
     /* On passe à l'élève suivant, les réglages sont conservés */
     setTimeout(() => {
@@ -898,10 +910,41 @@ async function envoyerRappelManuel(){
       apercuRappel();
     }, 900);
   }catch(e){
-    showToast('Erreur : ' + e.message);
+    /* Un toast disparaît en deux secondes : l'erreur doit rester
+       à l'écran, avec ce qu'il faut faire. */
+    direEtatEnvoi(e.message, true);
+    showToast("L'envoi a échoué");
     b.disabled = false;
     apercuRappel();
   }
+}
+
+/* Le résultat de l'envoi, affiché tant qu'on ne recommence pas */
+function direEtatEnvoi(texte, erreur){
+  const z = $('rappelEtatEnvoi');
+  if(!z) return;
+  if(!texte){ z.innerHTML = ''; return; }
+
+  z.style.color = erreur ? 'var(--warn-text)' : 'var(--accent-text)';
+  let aide = '';
+
+  if(erreur){
+    if(/404|route inconnue/i.test(texte)){
+      aide = "Le Worker Cloudflare n'a pas la route d'envoi : déploie sa dernière version.";
+    }else if(/clé allo|api_key|non configur/i.test(texte)){
+      aide = 'Ajoute les variables <strong>ALLO_API_KEY</strong> et ' +
+             '<strong>ALLO_FROM</strong> dans les réglages du Worker Cloudflare.';
+    }else if(/autoris/i.test(texte)){
+      aide = "Ce compte n'a pas le droit d'envoyer des SMS : vois dans ⚙️ Accès.";
+    }else if(/quota/i.test(texte)){
+      aide = 'Le quota journalier Allo est atteint.';
+    }else if(/réseau|network|délai/i.test(texte)){
+      aide = 'Le Worker ne répond pas. Réessaie dans un instant.';
+    }
+  }
+
+  z.innerHTML = (erreur ? '⚠️ ' : '✅ ') + String(texte).replace(/</g, '&lt;') +
+    (aide ? '<br><span style="font-size:12px;color:var(--muted);">' + aide + '</span>' : '');
 }
 
 
