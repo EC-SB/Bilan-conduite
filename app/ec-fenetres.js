@@ -344,7 +344,8 @@ async function afficherRepertoire(){
       return normaliserMot(n).indexOf(q) !== -1 ||
              normaliserMot(f.telephone || '').indexOf(q) !== -1 ||
              normaliserMot(f.email || '').indexOf(q) !== -1 ||
-             normaliserMot(f.formation || '').indexOf(q) !== -1;
+             normaliserMot(f.formation || '').indexOf(q) !== -1 ||
+             normaliserMot(f.messenger || '').indexOf(q) !== -1;
     });
 
     if(!vus.length){
@@ -374,6 +375,7 @@ function ligneFicheEleve(nom){
       f.formation.replace(/</g, '&lt;') + '</span>' : '') +
     '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
     (f.telephone ? '📱 ' + telLisible(f.telephone) : '📱 pas de numéro') +
+    (f.messenger ? '<br>💬 ' + lienMessenger(f.messenger) : '') +
     (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
     (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
     '</div>';
@@ -428,6 +430,11 @@ function ouvrirFicheEleve(nom, f){
     '<input type="tel" id="fiTel" inputmode="tel" placeholder="06 12 34 56 78">' +
     '<label for="fiMail">✉️ Adresse mail</label>' +
     '<input type="email" id="fiMail" inputmode="email" placeholder="prenom.nom@exemple.fr">' +
+    '<label for="fiMess">💬 Messenger</label>' +
+    '<input type="text" id="fiMess" placeholder="Son profil : lien, ou m.me/pseudo">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      "Colle le lien de sa conversation, ou juste son pseudo. " +
+      'Les moniteurs le retrouveront depuis le cours.</div>' +
     '<label for="fiForm">🎓 Formation</label>' +
     '<select id="fiForm">' +
       FORMATIONS.map(x => '<option value="' + x + '">' +
@@ -460,6 +467,7 @@ function ouvrirFicheEleve(nom, f){
   const g = id => boite.querySelector('#' + id);
   g('fiTel').value = (f && f.telephone) || '';
   g('fiMail').value = (f && f.email) || '';
+  g('fiMess').value = (f && f.messenger) || '';
   g('fiForm').value = (f && f.formation) || '';
   g('fiRem').value = (f && f.remarques) || '';
 
@@ -484,6 +492,7 @@ function ouvrirFicheEleve(nom, f){
     try{
       await appelPrep({ action: 'ficheSet', eleve: nom, telephone: tel,
                         email: mail, formation: g('fiForm').value,
+                        messenger: g('fiMess').value.trim(),
                         remarques: g('fiRem').value.trim() });
       document.body.removeChild(fond);
       showToast('Fiche enregistrée ✅');
@@ -718,6 +727,92 @@ function brancherFichierCsv(){
     /* Les exports français sont souvent en Windows-1252 */
     lecteur.readAsText(f, 'utf-8');
   });
+}
+
+
+/* Un Messenger noté comme lien devient cliquable ; un simple pseudo
+   est transformé en lien m.me, qui ouvre la conversation. */
+function lienMessenger(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  let url = t;
+  if(!/^https?:\/\//i.test(t)){
+    url = 'https://m.me/' + t.replace(/^@/, '').replace(/\s+/g, '');
+  }
+  return '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" ' +
+         'style="color:var(--accent-text);">' + t.replace(/</g, '&lt;') + '</a>';
+}
+
+
+/* ============================================================
+   LE MESSENGER DE L'ÉLÈVE, AU DÉMARRAGE DU COURS
+   Le moniteur le saisit une fois ; il est retenu et proposé
+   à tous les autres ensuite.
+   ============================================================ */
+let messengerCharge = '';
+
+async function chargerMessengerEleve(){
+  const champ = $('eleveMessenger');
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  if(!champ) return;
+
+  majLienMessenger();
+  if(nom.length < 3){ champ.value = ''; messengerCharge = ''; return; }
+
+  try{
+    if(!fichesEleves.length) await chargerFiches();
+    const f = ficheDe(nom);
+    /* On n'écrase pas une saisie en cours */
+    if(champ.value.trim() && champ.value.trim() !== messengerCharge) return;
+    champ.value = (f && f.messenger) || '';
+    messengerCharge = champ.value;
+    majLienMessenger();
+  }catch(e){}
+}
+
+function majLienMessenger(){
+  const champ = $('eleveMessenger');
+  const lien = $('eleveMessengerLien');
+  if(!champ || !lien) return;
+
+  const v = champ.value.trim();
+  if(!v){ lien.style.display = 'none'; return; }
+
+  let url = v;
+  if(!/^https?:\/\//i.test(v)){
+    url = 'https://m.me/' + v.replace(/^@/, '').replace(/\s+/g, '');
+  }
+  lien.href = url;
+  lien.style.display = 'inline-flex';
+}
+
+/* Enregistré dès que le moniteur quitte le champ */
+async function enregistrerMessengerEleve(){
+  const champ = $('eleveMessenger');
+  const etat = $('eleveMessengerEtat');
+  if(!champ) return;
+
+  const v = champ.value.trim();
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  majLienMessenger();
+
+  if(!nom || nom.split(' ').length < 2) return;
+  if(v === messengerCharge) return;
+
+  try{
+    await appelPrep({ action: 'ficheSet', eleve: nom, messenger: v });
+    messengerCharge = v;
+    if(etat){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ Enregistré : les autres moniteurs le retrouveront ici.';
+    }
+    fichesEleves = [];
+  }catch(e){
+    if(etat){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Non enregistré : ' + e.message;
+    }
+  }
 }
 
 /* Signale que ce module est bien chargé */
