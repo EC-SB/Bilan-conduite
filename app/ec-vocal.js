@@ -405,10 +405,12 @@ $('confirmGen').addEventListener('click', async () => {
   try{
     /* Modèle Conduite : on reprend les manœuvres validées les cours précédents */
     let manoeuvresAvant = [];
+    let marquesAvant = null;
     let coursCorrige = finalTranscript;
 
     if(modele.schema === 'conduiteResume'){
       manoeuvresAvant = await manoeuvresAnterieures(studentName);
+      marquesAvant = await marquesAnterieures(studentName);
 
       /* Remise au propre du cours, par tranches */
       coursCorrige = await corrigerCours(finalTranscript, (n, total, essai) => {
@@ -424,6 +426,7 @@ $('confirmGen').addEventListener('click', async () => {
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
     let bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
+      marquesAvant: marquesAvant,
       transcript: coursCorrige,
       note: $('noteInterne').value.trim()
     });
@@ -649,32 +652,47 @@ async function appelBrutIA(systemPrompt, message, maxTokens){
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
 }
 
-async function manoeuvresAnterieures(nomEleve){
+/* Les bilans précédents d'un élève, lus une seule fois.
+   Le texte complet est nécessaire : c'est là que sont les marques. */
+async function bilansAnterieurs(nomEleve){
   if(!nomEleve || nomEleve.length < 2) return [];
   try{
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve, leger: true })
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve })
     });
     if(!r.ok) return [];
     const data = await r.json();
-    if(!verifierVersionScript(data)){
-      zone.innerHTML = '<div class="empty">Script Google à mettre à jour (voir le message).</div>';
-      return;
-    }
-    const res = (data && data.resultats) || [];
-    const cumul = [];
-    res.forEach(item => {
-      manoeuvresDejaFaites(item.bilan).forEach(m => {
-        if(cumul.indexOf(m) === -1) cumul.push(m);
-      });
-    });
-    return cumul;
+    return (data && data.resultats) || [];
   }catch(e){
-    console.warn('Manœuvres antérieures indisponibles :', e);
+    console.warn('Bilans antérieurs indisponibles :', e);
     return [];   /* on continue sans, plutôt que de bloquer le bilan */
   }
+}
+
+async function manoeuvresAnterieures(nomEleve){
+  const res = await bilansAnterieurs(nomEleve);
+  const cumul = [];
+  res.forEach(item => {
+    manoeuvresDejaFaites(item.bilan).forEach(m => {
+      if(cumul.indexOf(m) === -1) cumul.push(m);
+    });
+  });
+  return cumul;
+}
+
+/* Les marques accumulées : ✅ puis les émojis des moniteurs.
+   On part du bilan le plus récent, qui les porte toutes. */
+async function marquesAnterieures(nomEleve){
+  const res = await bilansAnterieurs(nomEleve);
+  const marques = {};
+  /* Du plus ancien au plus récent : le dernier écrit fait foi */
+  res.slice().reverse().forEach(item => {
+    const m = marquesDejaPosees(item.bilan);
+    Object.keys(m).forEach(k => { marques[k] = m[k]; });
+  });
+  return marques;
 }
 
 async function appelIA(modeleCle, transcript, studentName, monitorName, site, dateStr){
