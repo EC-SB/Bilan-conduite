@@ -149,12 +149,43 @@ async function afficherPrepares(recharger, silencieux){
     const actions = document.createElement('div');
     actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;align-items:center;';
 
-    const bOuvrir = document.createElement('button');
-    bOuvrir.className = 'btn btn-primary';
-    bOuvrir.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-    bOuvrir.textContent = '▶ Ouvrir';
-    bOuvrir.addEventListener('click', () => chargerPrepare(cours));
-    actions.appendChild(bOuvrir);
+    /* Un cours donné à quelqu'un d'autre ne s'ouvre plus : le
+       moniteur le voit, mais doit se le réattribuer pour le faire. */
+    const aMoiOuvrir = !cours.moniteur ||
+      normaliserMot(cours.moniteur) === normaliserMot(ACCES.moniteur || '');
+
+    if(aMoiOuvrir || ACCES.role === 'admin'){
+      const bOuvrir = document.createElement('button');
+      bOuvrir.className = 'btn btn-primary';
+      bOuvrir.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+      bOuvrir.textContent = '▶ Ouvrir';
+      bOuvrir.title = aMoiOuvrir ? 'Démarrer ce cours'
+                                 : 'Ouvrir (administrateur)';
+      bOuvrir.addEventListener('click', () => chargerPrepare(cours));
+      actions.appendChild(bOuvrir);
+    }else{
+      const bReprendre = document.createElement('button');
+      bReprendre.className = 'btn btn-secondary';
+      bReprendre.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+      bReprendre.textContent = '↩️ Reprendre';
+      bReprendre.title = 'Ce cours est à ' + cours.moniteur +
+                         '. Le reprendre pour pouvoir l\'ouvrir.';
+      bReprendre.addEventListener('click', async () => {
+        if(!await confirmer('Ce cours est attribué à ' + cours.moniteur + '.\n\n' +
+            'Le reprendre à ton nom ?')) return;
+        bReprendre.disabled = true;
+        try{
+          await appelPrep({ action: 'prepAssign', id: cours.id,
+                            moniteur: ACCES.moniteur });
+          showToast('Cours repris ✅');
+          afficherPrepares();
+        }catch(e){
+          showToast('Reprise impossible : ' + e.message);
+          bReprendre.disabled = false;
+        }
+      });
+      actions.appendChild(bReprendre);
+    }
 
     const bDonner = document.createElement('button');
     bDonner.className = 'btn btn-secondary';
@@ -246,6 +277,15 @@ async function retirerPreparationFaite(){
 /* Charge un cours préparé dans le formulaire : les informations sont
    rafraîchies sans effacer ce que le moniteur avait saisi. */
 async function chargerPrepare(cours){
+  /* Garde-fou : masquer un bouton ne suffit pas. Un cours attribué
+     à quelqu'un d'autre ne se démarre pas sans se le réattribuer. */
+  if(cours && cours.moniteur && ACCES.role !== 'admin' &&
+     normaliserMot(cours.moniteur) !== normaliserMot(ACCES.moniteur || '')){
+    await informer('Ce cours est attribué à ' + cours.moniteur + '.\n\n' +
+      'Reprends-le à ton nom avant de le démarrer.');
+    return;
+  }
+
   if(finalTranscript && !await confirmer('Un enregistrement est en cours. Le remplacer ?')) return;
 
   /* Un rendez-vous post-permis ne passe pas par l'enregistrement */
