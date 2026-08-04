@@ -597,9 +597,46 @@ async function ouvrirBilanManuel(){
 function ajouterObservationManuelle(zone){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
-  d.innerHTML =
-    '<input type="text" class="obsInsp" placeholder="Remarque de l\'inspecteur" style="margin-bottom:6px;">' +
-    '<input type="text" class="obsRep" placeholder="Explication ou correction" style="margin:0;">';
+
+  const insp = document.createElement('input');
+  insp.type = 'text';
+  insp.className = 'obsInsp';
+  insp.placeholder = "Remarque de l'inspecteur";
+  insp.style.marginBottom = '6px';
+  d.appendChild(insp);
+
+  /* L'explication, avec de quoi marquer une erreur éliminatoire */
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:6px;align-items:center;';
+
+  const rep = document.createElement('input');
+  rep.type = 'text';
+  rep.className = 'obsRep';
+  rep.placeholder = 'Explication ou correction';
+  rep.style.cssText = 'flex:1;min-width:0;margin:0;';
+  r.appendChild(rep);
+
+  const bMort = document.createElement('button');
+  bMort.type = 'button';
+  bMort.className = 'btn btn-secondary';
+  bMort.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;margin:0;flex-shrink:0;';
+  bMort.textContent = '☠️';
+  bMort.title = 'Marquer comme erreur éliminatoire';
+  bMort.addEventListener('click', () => {
+    const v = rep.value;
+    if(v.indexOf('☠️') !== -1){
+      /* Deuxième appui : on retire la marque */
+      rep.value = v.split('☠️').join('').replace(/\s+/g, ' ').trim();
+      bMort.style.borderColor = 'var(--line)';
+    }else{
+      rep.value = ('☠️ ' + v).trim();
+      bMort.style.borderColor = 'var(--red)';
+    }
+    rep.focus();
+  });
+  r.appendChild(bMort);
+
+  d.appendChild(r);
   zone.appendChild(d);
 }
 
