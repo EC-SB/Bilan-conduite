@@ -1,1533 +1,977 @@
-/* =========================================================
-   Bilans de conduite — Évolution Conduites
-   À coller dans Extensions > Apps Script de la feuille.
-
-   Colonnes : A Date | B Site | C Moniteur | D Élève | E Bilan
-              F Type de bilan | G Note interne | H Enregistré le
-              I Boîte | J Dossier ANTS | K Manœuvres validées
-
-   Deux onglets annexes sont créés automatiquement : « Preparations »
-   « Consignes » (messages du bureau vers les moniteurs) et
-   « SuiviPermis » (préparation administrative des passages).
-   Colonnes : A Id | B Date du cours | C Élève | D Type | E Libellé
-              F Site | G Note | H Contexte | I Préparé par | J Créé le
-   ========================================================= */
-
-/* Numéro de version : l'application le lit et prévient si le
-   script déployé n'est pas à jour. NE PAS SUPPRIMER. */
-var VERSION_SCRIPT = 45;
-
-/* Les feuilles techniques créées par l'application.
-   Elles ne doivent jamais être prises pour la feuille des bilans. */
-var FEUILLES_TECHNIQUES = ['Journal', 'Modeles', 'Resultats', 'Captures',
-                           'Eleves', 'Preparations', 'Consignes', 'SuiviPermis',
-                           'Config'];
-
-/* La feuille des bilans.
-   Elle était repérée par sa position, ce qui a cessé de fonctionner
-   dès qu'une feuille technique s'est insérée avant elle. */
-function feuille() {
-  var f = SpreadsheetApp.getActiveSpreadsheet();
-
-  var nommee = f.getSheetByName('Bilans');
-  if (nommee) return nommee;
-
-  /* Sinon : la première feuille qui n'est pas une feuille technique */
-  var toutes = f.getSheets();
-  for (var i = 0; i < toutes.length; i++) {
-    if (FEUILLES_TECHNIQUES.indexOf(toutes[i].getName()) === -1) return toutes[i];
-  }
-  return toutes[0];
-}
-
-function reponseJson(objet) {
-  objet.versionScript = VERSION_SCRIPT;
-  return ContentService
-    .createTextOutput(JSON.stringify(objet))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/* Normalise un nom : minuscules, sans accents, espaces internes réduits */
-function normaliser(valeur) {
-  return String(valeur || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ');
-}
-
-/* Sheets convertit parfois une date en objet : on la remet en texte lisible */
-function texteCellule(valeur, avecHeure) {
-  if (valeur instanceof Date) {
-    /* Anciennes lignes converties en date par Sheets : on utilise le
-       fuseau de la FEUILLE, pas celui du script, qui peut différer. */
-    var fuseau = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-    var format = avecHeure ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy';
-    return Utilities.formatDate(valeur, fuseau, format);
-  }
-  return String(valeur || '');
-}
-
-/* ---------- ÉCRITURE : enregistrer un bilan ---------- */
 /* ============================================================
-   JOURNAL D'ACTIVITÉ
-   Qui a fait quoi, et quand. Réservé aux administrateurs.
-   L'écriture se fait ici, dans la même exécution que l'action :
-   aucun appel réseau supplémentaire côté application.
+   ec-fenetres.js
+   Cache et fenêtres de dialogue
+   Application Bilan de conduite — Évolution Conduites
    ============================================================ */
-var JOURS_CONSERVATION = 90;      /* au-delà, les lignes sont effacées */
-var MAX_LIGNES_JOURNAL = 20000;   /* garde-fou si le volume explose */
-
-var LIBELLES_ACTION = {
-  append:          'Bilan enregistré',
-  supprimerEleve:  'Dossier élève supprimé',
-  prepAdd:         'Cours préparé',
-  prepDelete:      'Cours préparé supprimé',
-  prepAssign:      'Cours réattribué',
-  consigneAdd:     'Message au moniteur',
-  consigneDone:    'Message traité',
-  consigneEffacerEleve: "Messages d'un élève effacés",
-  suiviSet:        'Fiche de suivi modifiée',
-  suiviDelete:     'Fiche de suivi supprimée',
-  modeleSet:       'Modèle de message modifié',
-  modeleDelete:    'Modèle de message supprimé',
-  resultatAdd:     "Résultat d'examen enregistré",
-  captureAdd:      'Capture CEPC ajoutée',
-  elevesImport:    'Liste d\'élèves importée',
-  bilanModifier:   'Bilan corrigé',
-  bilanMaj:        'Bilan mis à jour',
-  smsLog:          'SMS envoyé',
-  ficheSet:        "Fiche d'élève modifiée",
-  eleveRetirer:    'Élève retiré du répertoire',
-  captureDelete:   'Capture CEPC supprimée',
-  configSet:       'Réglage des places'
-};
-
-function feuilleJournal() {
-  var f = classeur();
-  var sh = f.getSheetByName('Journal');
-  if (!sh) {
-    sh = f.insertSheet('Journal', f.getNumSheets());
-    sh.appendRow(['Horodatage', 'Utilisateur', 'Rôle', 'Action', 'Élève', 'Détail']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-
-function journaliser(action, params) {
-  try {
-    var demandeur = String((params && params.demandeur) || '').trim();
-    if (!demandeur) return;                       /* action non identifiée : on n'invente pas */
-    if (!LIBELLES_ACTION[action]) return;         /* seules les actions qui modifient */
-
-    var sh = feuilleJournal();
-    sh.appendRow([
-      new Date(),
-      demandeur,
-      String((params && params.role) || ''),
-      LIBELLES_ACTION[action],
-      String((params && params.eleve) || ''),
-      detailAction(action, params)
-    ]);
-
-    /* Nettoyage occasionnel, pour ne pas ralentir chaque écriture */
-    if (Math.random() < 0.02) purgerJournal(sh);
-  } catch (e) { /* le journal ne doit jamais bloquer une action */ }
-}
-
-function detailAction(action, p) {
-  p = p || {};
-  if (action === 'prepAdd' || action === 'prepAssign') {
-    return String(p.modeleLabel || p.modele || '') +
-           (p.moniteur ? ' → ' + p.moniteur : '') +
-           (p.date ? ' le ' + p.date : '');
-  }
-  if (action === 'consigneAdd') return String(p.texte || '').slice(0, 200);
-  if (action === 'append')      return String(p.type || '') + (p.site ? ' · ' + p.site : '');
-  if (action === 'suiviSet') {
-    var bouts = [];
-    ['datePermis', 'centre', 'moniteurDate', 'semaine', 'resultat', 'ebDatePrevue', 'ebMoniteur']
-      .forEach(function (k) { if (p[k]) bouts.push(k + ' = ' + p[k]); });
-    return bouts.join(' · ').slice(0, 300);
-  }
-  return '';
-}
-
-function purgerJournal(sh) {
-  var lignes = sh.getDataRange().getValues();
-  if (lignes.length < 2) return;
-
-  var limite = new Date();
-  limite.setDate(limite.getDate() - JOURS_CONSERVATION);
-
-  var aSupprimer = 0;
-  for (var i = 1; i < lignes.length; i++) {
-    var d = lignes[i][0];
-    if (d instanceof Date && d >= limite) break;   /* la feuille est chronologique */
-    aSupprimer++;
-  }
-  /* Garde-fou de volume, même si les lignes sont récentes */
-  var trop = (lignes.length - 1) - MAX_LIGNES_JOURNAL;
-  if (trop > aSupprimer) aSupprimer = trop;
-
-  if (aSupprimer > 0) sh.deleteRows(2, aSupprimer);
-}
 
 /* ============================================================
-   ALERTES DU JOURNAL
-   Une activité inhabituelle se repère sur des volumes, pas sur
-   des actions isolées. On les calcule à la lecture du journal.
+   CACHE
+   Apps Script met plusieurs secondes à répondre. On garde les
+   résultats un court instant plutôt que de le réinterroger.
    ============================================================ */
-var SEUIL_SUPPRESSIONS = 5;    /* suppressions par personne et par jour */
-var SEUIL_ACTIONS = 80;        /* actions par personne et par jour */
-var HEURE_TARDIVE = 22;        /* au-delà, on le signale */
-var HEURE_MATINALE = 6;
+const cacheDossiers = {};      /* par élève */
+const cacheConsignes = {};     /* messages du bureau, par élève */
+/* cacheBureau : déclaré dans ec-etat.js */
+const DUREE_CACHE = 600000;    /* 10 minutes — le temps d'un début de cours.
+                                  Un bilan enregistré vide le cache de l'élève. */
 
-function alertesJournal(lignes) {
-  var parJourEtQui = {};
+function lireCacheDossier(nom){
+  const k = normaliserMot(nom);
+  const e = cacheDossiers[k];
+  if(e && Date.now() - e.ts < DUREE_CACHE) return e.data;
+  return null;
+}
+function ecrireCacheDossier(nom, data){
+  cacheDossiers[normaliserMot(nom)] = { ts: Date.now(), data: data };
+}
 
-  lignes.forEach(function (l) {
-    if (!l.jour || !l.qui) return;
-    var k = l.jour + '|' + l.qui;
-    if (!parJourEtQui[k]) {
-      parJourEtQui[k] = { jour: l.jour, qui: l.qui, total: 0,
-                          suppressions: 0, tardives: 0, eleves: {} };
+/* Les messages du bureau : mêmes règles que le dossier.
+   Sans ce cache, le préchargement ne servirait à rien. */
+async function consignesDe(nomEleve, forcer){
+  const k = normaliserMot(nomEleve || '');
+  if(!k || k.length < 2) return [];
+
+  const e = cacheConsignes[k];
+  if(!forcer && e && Date.now() - e.ts < DUREE_CACHE) return e.data;
+
+  try{
+    const d = await appelPrep({ action: 'consigneList', eleve: nomEleve });
+    const liste = (d && d.consignes) || [];
+    cacheConsignes[k] = { ts: Date.now(), data: liste };
+    return liste;
+  }catch(err){
+    return (e && e.data) || [];
+  }
+}
+function viderCaches(nom){
+  if(nom){
+    delete cacheDossiers[normaliserMot(nom)];
+    delete cacheConsignes[normaliserMot(nom)];
+  }else{
+    Object.keys(cacheDossiers).forEach(k => delete cacheDossiers[k]);
+    Object.keys(cacheConsignes).forEach(k => delete cacheConsignes[k]);
+  }
+  cacheBureau = null;
+}
+
+
+/* ============================================================
+   FENÊTRES DE DIALOGUE
+   Chrome propose de bloquer les boîtes natives après plusieurs
+   affichages : confirm() renvoie alors « non » sans rien montrer.
+   On utilise donc nos propres fenêtres.
+   ============================================================ */
+function fenetre(contenu, boutons, titre){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(420px, 92vw)';
+
+    if(titre){
+      const h = document.createElement('h3');
+      h.textContent = titre;
+      boite.appendChild(h);
     }
-    var g = parJourEtQui[k];
-    g.total++;
-    if (/supprim/i.test(l.action)) g.suppressions++;
-    if (l.eleve) g.eleves[l.eleve] = true;
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:15px;line-height:1.6;white-space:pre-wrap;margin-bottom:16px;';
+    t.textContent = contenu;
+    boite.appendChild(t);
 
-    var h = parseInt(String(l.quand).slice(-5, -3), 10);
-    if (!isNaN(h) && (h >= HEURE_TARDIVE || h < HEURE_MATINALE)) g.tardives++;
+    const zone = document.createElement('div');
+    boite.appendChild(zone);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    boutons.forEach(b => {
+      const el = document.createElement('button');
+      el.className = 'btn ' + (b.principal ? 'btn-primary' : 'btn-secondary');
+      if(b.danger) el.style.cssText = 'color:var(--red);border-color:var(--red);';
+      el.textContent = b.nom;
+      el.addEventListener('click', () => {
+        const saisie = zone.querySelector('input');
+        document.body.removeChild(fond);
+        resolve(b.valeur !== undefined ? b.valeur : (saisie ? saisie.value : true));
+      });
+      rangee.appendChild(el);
+    });
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    return zone;
   });
+}
 
-  var out = [];
-  Object.keys(parJourEtQui).forEach(function (k) {
-    var g = parJourEtQui[k];
+/* Remplace confirm() */
+function confirmer(message, titre, danger){
+  return fenetre(message, [
+    { nom:'Annuler', valeur:false },
+    { nom:'Confirmer', valeur:true, principal:!danger, danger:danger }
+  ], titre || 'Confirmation');
+}
 
-    if (g.suppressions >= SEUIL_SUPPRESSIONS) {
-      out.push({
-        gravite: 'haute', jour: g.jour, qui: g.qui,
-        titre: g.suppressions + ' suppressions en une journée',
-        detail: 'Vérifie que c\'est bien voulu.'
+/* Remplace prompt() */
+function demander(message, valeurParDefaut, titre){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(420px, 92vw)';
+
+    const h = document.createElement('h3');
+    h.textContent = titre || 'Saisie';
+    boite.appendChild(h);
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:15px;line-height:1.6;white-space:pre-wrap;margin-bottom:12px;';
+    t.textContent = message;
+    boite.appendChild(t);
+
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = valeurParDefaut || '';
+    boite.appendChild(inp);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const a = document.createElement('button');
+    a.className = 'btn btn-secondary';
+    a.textContent = 'Annuler';
+    const v = document.createElement('button');
+    v.className = 'btn btn-primary';
+    v.textContent = 'Valider';
+    rangee.appendChild(a); rangee.appendChild(v);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = val => { document.body.removeChild(fond); resolve(val); };
+    a.addEventListener('click', () => fermer(null));
+    v.addEventListener('click', () => fermer(inp.value));
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter') fermer(inp.value); });
+    setTimeout(() => inp.focus(), 60);
+  });
+}
+
+/* Remplace alert() */
+function informer(message, titre){
+  return fenetre(message, [{ nom:'OK', valeur:true, principal:true }], titre || 'Information');
+}
+
+/* ---------- Liste des élèves déjà enregistrés ---------- */
+/* elevesConnus : déclaré dans ec-etat.js */
+
+async function chargerEleves(){
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'eleves', code: ACCES.code })
+    });
+    if(!r.ok) return;
+    const data = await r.json().catch(() => ({}));
+    elevesConnus = (data && data.eleves) || [];
+
+    const liste = $('listeEleves');
+    if(liste){
+      liste.innerHTML = '';
+      elevesConnus.forEach(nom => {
+        const o = document.createElement('option');
+        o.value = nom;
+        liste.appendChild(o);
       });
     }
-    if (g.total >= SEUIL_ACTIONS) {
-      out.push({
-        gravite: 'moyenne', jour: g.jour, qui: g.qui,
-        titre: g.total + ' actions en une journée',
-        detail: 'Volume inhabituel, sur ' + Object.keys(g.eleves).length + ' élève(s).'
-      });
-    }
-    if (g.tardives >= 10) {
-      out.push({
-        gravite: 'basse', jour: g.jour, qui: g.qui,
-        titre: g.tardives + ' actions entre 22h et 6h',
-        detail: 'Travail en dehors des heures habituelles.'
-      });
-    }
-  });
-
-  out.sort(function (a, b) { return b.jour.localeCompare(a.jour); });
-  return out;
+    verifierNomEleve('searchName', 'eleveInfo', false);
+    verifierNomEleve('studentName', 'studentInfo', true);
+  }catch(e){
+    console.warn('Liste des élèves indisponible :', e);
+  }
 }
 
-function lireJournal(params) {
-  var sh = feuilleJournal();
-  var lignes = sh.getDataRange().getValues();
-  var out = [];
+/* Prévient quand un nom saisi ne correspond à aucun élève connu :
+   c'est presque toujours une variante d'orthographe. */
+function verifierNomEleve(idChamp, idInfo, contexteCours){
+  const info = $(idInfo);
+  const champ = $(idChamp);
+  if(!info || !champ) return;
 
-  var qui = normaliser((params && params.qui) || '');
-  var eleve = normaliser((params && params.eleve) || '');
-  var depuis = (params && params.depuis) ? String(params.depuis) : '';
-  var max = parseInt((params && params.max) || '300', 10);
-
-  for (var i = lignes.length - 1; i >= 1 && out.length < max; i--) {
-    if (!lignes[i][0]) continue;
-    var iso = (lignes[i][0] instanceof Date)
-      ? Utilities.formatDate(lignes[i][0], 'Europe/Paris', 'yyyy-MM-dd')
-      : '';
-    if (depuis && iso && iso < depuis) break;
-    if (qui && normaliser(lignes[i][1]).indexOf(qui) === -1) continue;
-    if (eleve && normaliser(lignes[i][4]).indexOf(eleve) === -1) continue;
-
-    out.push({
-      quand: (lignes[i][0] instanceof Date)
-        ? Utilities.formatDate(lignes[i][0], 'Europe/Paris', 'dd/MM/yyyy HH:mm')
-        : String(lignes[i][0]),
-      jour: iso,
-      qui: texteCellule(lignes[i][1], false),
-      role: texteCellule(lignes[i][2], false),
-      action: texteCellule(lignes[i][3], false),
-      eleve: texteCellule(lignes[i][4], false),
-      detail: texteCellule(lignes[i][5], false)
-    });
+  const saisi = champ.value.trim();
+  if(!saisi || !elevesConnus.length){
+    info.style.color = 'var(--muted)';
+    info.textContent = elevesConnus.length
+      ? elevesConnus.length + ' élève(s) enregistré(s) — appuie sur le champ pour voir la liste.'
+      : 'Aucun élève enregistré pour le moment.';
+    return;
   }
 
-  return { status: 'ok', lignes: out, conservation: JOURS_CONSERVATION,
-           total: Math.max(lignes.length - 1, 0),
-           alertes: alertesJournal(out) };
-}
-
-/* ============================================================
-   MODÈLES DE MESSAGE
-   Textes rédigés par l'auto-école, modifiables depuis l'app.
-   ============================================================ */
-function feuilleModeles() {
-  var f = classeur();
-  var sh = f.getSheetByName('Modeles');
-  if (!sh) {
-    sh = f.insertSheet('Modeles', f.getNumSheets());
-    sh.appendRow(['Id', 'Usage', 'Nom', 'Contenu', 'Mis à jour le', 'Par']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-
-function listerModeles() {
-  var lignes = feuilleModeles().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      usage: texteCellule(lignes[i][1], false),
-      nom: texteCellule(lignes[i][2], false),
-      contenu: texteCellule(lignes[i][3], false),
-      maj: texteCellule(lignes[i][4], false),
-      par: texteCellule(lignes[i][5], false)
-    });
-  }
-  return { status: 'ok', modeles: out };
-}
-
-function enregistrerModele(d) {
-  var sh = feuilleModeles();
-  var lignes = sh.getDataRange().getValues();
-  var id = String(d.id || '').trim();
-  var maintenant = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm');
-  var ligne = [
-    id || ('m' + Date.now()),
-    String(d.usage || 'libre'),
-    String(d.nom || 'Sans titre'),
-    String(d.contenu || ''),
-    maintenant,
-    String(d.demandeur || '')
-  ];
-
-  if (id) {
-    for (var i = 1; i < lignes.length; i++) {
-      if (String(lignes[i][0]) === id) {
-        sh.getRange(i + 1, 1, 1, ligne.length).setValues([ligne]);
-        return { status: 'ok', id: id };
-      }
-    }
-  }
-  sh.appendRow(ligne);
-  return { status: 'ok', id: ligne[0] };
-}
-
-function supprimerModele(id) {
-  var sh = feuilleModeles();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.deleteRow(i + 1);
-      return { status: 'ok' };
-    }
-  }
-  return { status: 'ok', message: 'Déjà supprimé.' };
-}
-
-/* ============================================================
-   RÉSULTATS D'EXAMEN
-   Conservés à part : la fiche de suivi disparaît quand l'élève
-   obtient son permis, il faut donc une trace durable.
-   ============================================================ */
-function feuilleResultats() {
-  var f = classeur();
-  var sh = f.getSheetByName('Resultats');
-  if (!sh) {
-    sh = f.insertSheet('Resultats', f.getNumSheets());
-    sh.appendRow(['Date examen', 'Élève', 'Résultat', 'Boîte', 'Parcours',
-                  'Moniteur', 'Centre', 'Rang', 'Enregistré le', 'Par']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-
-function enregistrerResultat(d) {
-  var sh = feuilleResultats();
-  var eleve = String(d.eleve || '').trim();
-  if (!eleve) return { status: 'error', message: 'Élève manquant.' };
-
-  var dateEx = String(d.dateExamen || '');
-  var lignes = sh.getDataRange().getValues();
-
-  /* Un même examen ne doit pas compter deux fois */
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][1]) === normaliser(eleve) &&
-        String(lignes[i][0]) === dateEx) {
-      sh.getRange(i + 1, 3).setValue(String(d.resultat || ''));
-      return { status: 'ok', message: 'Résultat mis à jour.' };
-    }
+  const cle = normaliserMot(saisi);
+  if(elevesConnus.some(n => normaliserMot(n) === cle)){
+    info.style.color = 'var(--accent-text)';
+    info.textContent = '✓ Élève connu';
+    return;
   }
 
-  sh.appendRow([
-    dateEx,
-    eleve,
-    String(d.resultat || ''),
-    String(d.boite || ''),
-    String(d.parcours || ''),
-    String(d.moniteur || ''),
-    String(d.centre || ''),
-    String(d.rang || '1'),
-    Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'),
-    String(d.demandeur || '')
-  ]);
-  return { status: 'ok' };
-}
-
-function listerResultats(params) {
-  var lignes = feuilleResultats().getDataRange().getValues();
-  var out = [];
-  var depuis = String((params && params.depuis) || '');
-
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][1]) continue;
-    var iso = dateVersIso(lignes[i][0]);
-    if (depuis && iso && iso < depuis) continue;
-    out.push({
-      date: texteCellule(lignes[i][0], false),
-      iso: iso,
-      eleve: texteCellule(lignes[i][1], false),
-      resultat: texteCellule(lignes[i][2], false),
-      boite: texteCellule(lignes[i][3], false),
-      parcours: texteCellule(lignes[i][4], false),
-      moniteur: texteCellule(lignes[i][5], false),
-      centre: texteCellule(lignes[i][6], false),
-      rang: texteCellule(lignes[i][7], false)
-    });
+  const proches = elevesConnus.filter(n => normaliserMot(n).indexOf(cle) !== -1).slice(0, 3);
+  if(proches.length){
+    info.style.color = 'var(--warn-text)';
+    info.innerHTML = '⚠️ Élève existant sous une autre orthographe ?<br>' +
+      proches.map(n => '<span class="suggestion" data-nom="' +
+        n.replace(/"/g, '&quot;') + '" data-cible="' + idChamp +
+        '" style="text-decoration:underline;cursor:pointer;">' +
+        n.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</span>').join(' · ');
+    return;
   }
-  return { status: 'ok', resultats: out };
+
+  info.style.color = 'var(--muted)';
+  info.textContent = contexteCours
+    ? 'Nouvel élève — ses prochains bilans seront regroupés sous cette orthographe.'
+    : 'Nouveau nom — aucun bilan existant sous cette orthographe.';
 }
 
-/* Convertit une date française en format triable */
-function dateVersIso(v) {
-  if (v instanceof Date) {
-    return Utilities.formatDate(v, 'Europe/Paris', 'yyyy-MM-dd');
+/* Un clic sur une suggestion remplit le champ correspondant */
+document.addEventListener('click', e => {
+  const s = e.target && e.target.closest ? e.target.closest('.suggestion') : null;
+  if(!s) return;
+  const champ = $(s.getAttribute('data-cible'));
+  if(!champ) return;
+  champ.value = s.getAttribute('data-nom');
+  if(s.getAttribute('data-cible') === 'studentName'){
+    verifierNomEleve('studentName', 'studentInfo', true);
+  }else{
+    verifierNomEleve('searchName', 'eleveInfo', false);
+    rechercherEleve();
   }
-  var t = String(v || '');
-  var m = t.match(/(\d{1,2})[\/\s-](\d{1,2})[\/\s-](\d{4})/);
-  if (m) {
-    return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
-  }
-  m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
-  return m ? m[0] : '';
-}
+});
 
-/* ============================================================
-   CAPTURES DU CEPC
-   Une feuille à part : une image par ligne, plusieurs par élève.
-   Le suivi ne peut en contenir qu'une, faute de place.
-   ============================================================ */
-function feuilleCaptures() {
-  var f = classeur();
-  var sh = f.getSheetByName('Captures');
-  if (!sh) {
-    sh = f.insertSheet('Captures', f.getNumSheets());
-    sh.appendRow(['Id', 'Élève', 'Date examen', 'Légende', 'Image', 'Ajouté le', 'Par']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
-
-function ajouterCapture(d) {
-  var eleve = String(d.eleve || '').trim();
-  if (!eleve) return { status: 'error', message: 'Élève manquant.' };
-  if (!d.image) return { status: 'error', message: 'Image manquante.' };
-
-  feuilleCaptures().appendRow([
-    'c' + Date.now(),
-    eleve,
-    String(d.dateExamen || ''),
-    String(d.legende || ''),
-    String(d.image),
-    Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'),
-    String(d.demandeur || '')
-  ]);
-  return { status: 'ok' };
-}
-
-function listerCaptures(params) {
-  var sh = feuilleCaptures();
-  var nb = sh.getLastRow();
-  if (nb < 2) return { status: 'ok', captures: [] };
-
-  var eleve = normaliser((params && params.eleve) || '');
-
-  /* On lit d'abord les colonnes légères pour repérer les lignes utiles.
-     Charger toutes les images pour en garder deux coûterait des mégaoctets. */
-  var meta = sh.getRange(2, 1, nb - 1, 4).getValues();
-  var voulues = [];
-  for (var k = 0; k < meta.length; k++) {
-    if (!meta[k][0]) continue;
-    if (eleve && normaliser(meta[k][1]) !== eleve) continue;
-    voulues.push(k);
-  }
-  if (!voulues.length) return { status: 'ok', captures: [] };
-
-  /* Puis les images, ligne par ligne, seulement celles retenues */
-  var images = {};
-  voulues.forEach(function (k) {
-    images[k] = String(sh.getRange(k + 2, 5).getValue() || '');
-  });
-
-  var lignes = [null];
-  meta.forEach(function (m, k) { lignes.push([m[0], m[1], m[2], m[3], images[k] || '', '', '']); });
-
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    if (eleve && normaliser(lignes[i][1]) !== eleve) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      eleve: texteCellule(lignes[i][1], false),
-      dateExamen: texteCellule(lignes[i][2], false),
-      legende: texteCellule(lignes[i][3], false),
-      image: String(lignes[i][4] || ''),
-      ajoute: ''
-    });
-  }
-  return { status: 'ok', captures: out };
-}
-
-function supprimerCapture(id) {
-  var sh = feuilleCaptures();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.deleteRow(i + 1);
-      return { status: 'ok' };
-    }
-  }
-  return { status: 'ok', message: 'Déjà supprimée.' };
-}
-
-/* ============================================================
-   ACCÈS AU CLASSEUR
-   Ouvrir le classeur coûte du temps : on le fait une seule fois
-   par exécution, pas à chaque fonction.
-   ============================================================ */
-var _classeur = null;
-function classeur() {
-  if (!_classeur) _classeur = SpreadsheetApp.getActiveSpreadsheet();
-  return _classeur;
-}
-
-/* Feuille mémorisée, créée au besoin.
-   Ne pas confondre avec feuille(), qui renvoie la feuille des bilans. */
-var _feuilles = {};
-function feuilleNommee(nom, entetes) {
-  if (_feuilles[nom]) return _feuilles[nom];
-  var f = classeur();
-  var sh = f.getSheetByName(nom);
-  if (!sh) {
-    sh = f.insertSheet(nom, f.getNumSheets());
-    if (entetes && entetes.length) {
-      sh.appendRow(entetes);
-      sh.setFrozenRows(1);
-    }
-  }
-  _feuilles[nom] = sh;
-  return sh;
-}
 
 /* ============================================================
    RÉPERTOIRE DES ÉLÈVES
-   Les noms proposés viennent des bilans déjà saisis. Un élève
-   qui n'a pas encore de bilan n'existe donc nulle part : cette
-   feuille permet d'importer la liste réelle de l'auto-école.
+   Importer la liste réelle de l'auto-école, pour que les élèves
+   sans bilan soient proposés eux aussi.
    ============================================================ */
-function feuilleEleves() {
-  var f = classeur();
-  var sh = f.getSheetByName('Eleves');
-  if (!sh) {
-    sh = f.insertSheet('Eleves', f.getNumSheets());
-    sh.appendRow(['Élève', 'Téléphone', 'Email', 'Formation', 'Messenger',
-                  'Remarques', 'Genre', 'Ajouté le', 'Par']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
-}
+let fichesAImporter = [];
 
-function importerEleves(d) {
-  /* Import structuré : nom, téléphone, mail, formation.
-     Une simple liste de noms reste acceptée. */
-  if (d.fiches) {
-    var recues;
-    try { recues = (typeof d.fiches === 'string') ? JSON.parse(d.fiches) : d.fiches; }
-    catch (e) { recues = null; }
-    if (recues && recues.length) return importerFiches(recues, d.demandeur);
+async function importerListeEleves(){
+  const zone = $('importEleves');
+  const etat = $('importEtat');
+  const btn = $('importBtn');
+  if(!zone || !etat) return;
+
+  const liste = zone.value.trim();
+  if(!liste){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Colle la liste des élèves.';
+    return;
   }
 
-  var brut = String(d.liste || '');
-  /* Un nom par ligne, ou séparés par des virgules ou des points-virgules */
-  var noms = brut.split(/[\n;,]+/)
-    .map(function (x) { return x.replace(/\s+/g, ' ').trim(); })
-    .filter(function (x) { return x.length >= 3; });
+  const combien = fichesAImporter.length ||
+                  liste.split(/[\n;,]+/).filter(x => x.trim().length >= 3).length;
+  const avecTel = fichesAImporter.filter(f => f.telephone).length;
 
-  if (!noms.length) return { status: 'error', message: 'Aucun nom lisible.' };
+  if(!await confirmer('Importer ' + combien + ' élève(s) dans le répertoire ?' +
+      (avecTel ? '\n' + avecTel + ' avec leur numéro de téléphone.' : '') +
+      '\n\nLes doublons sont ignorés, rien n\'est écrasé.')) return;
 
-  var sh = feuilleEleves();
-  var lignes = sh.getDataRange().getValues();
-  var connus = {};
-  for (var i = 1; i < lignes.length; i++) {
-    if (lignes[i][0]) connus[normaliser(lignes[i][0])] = true;
-  }
+  btn.disabled = true;
+  btn.textContent = 'Import…';
+  etat.style.color = 'var(--muted)';
+  etat.textContent = 'Envoi de la liste…';
 
-  var maintenant = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm');
-  var ajouts = [];
-  var doublons = 0;
-  noms.forEach(function (n) {
-    var cle = normaliser(n);
-    if (connus[cle]) { doublons++; return; }
-    connus[cle] = true;
-    ajouts.push([n, '', '', '', '', '', maintenant, String(d.demandeur || '')]);
-  });
+  try{
+    /* Un fichier apporte les coordonnées ; une liste collée n'a que des noms */
+    const corps = fichesAImporter.length
+      ? { action: 'elevesImport', fiches: JSON.stringify(fichesAImporter) }
+      : { action: 'elevesImport', liste: liste };
 
-  if (ajouts.length) {
-    sh.getRange(sh.getLastRow() + 1, 1, ajouts.length, 8).setValues(ajouts);
-  }
-  return { status: 'ok', ajoutes: ajouts.length, doublons: doublons,
-           total: Object.keys(connus).length };
-}
+    const r = await appelPrep(corps);
 
-function listerRepertoire() {
-  var lignes = feuilleEleves().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    var n = texteCellule(lignes[i][0], false).trim();
-    if (n) out.push(n);
-  }
-  return out;
-}
-
-/* La fiche complète d'un élève du répertoire */
-/* Import avec les coordonnées. Une valeur vide ne remplace jamais
-   une valeur déjà présente : un export partiel ne doit rien effacer. */
-function importerFiches(recues, demandeur) {
-  try {
-    return importerFichesInterne(recues, demandeur);
-  } catch (e) {
-    return { status: 'error',
-             message: "L'import a échoué : " + e.message };
-  }
-}
-
-function importerFichesInterne(recues, demandeur) {
-  var sh = feuilleEleves();
-  var lignes = sh.getDataRange().getValues();
-  var index = {};
-  for (var i = 1; i < lignes.length; i++) {
-    if (lignes[i][0]) index[normaliser(lignes[i][0])] = i + 1;
-  }
-
-  var maintenant = Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm');
-  var ajouts = [];
-  var majs = 0, doublons = 0;
-
-  recues.forEach(function (f) {
-    var nom = String(f.eleve || '').replace(/\s+/g, ' ').trim();
-    if (nom.length < 3) return;
-    var cle = normaliser(nom);
-
-    /* Déjà rencontré dans ce même fichier : on ne le traite qu'une fois */
-    if (index[cle] === -1) { doublons++; return; }
-
-    if (index[cle]) {
-      /* Déjà là : on complète ce qui manque, sans écraser */
-      var ligne = index[cle];
-      var actuel = sh.getRange(ligne, 1, 1, 7).getValues()[0];
-      var nouveau = [
-        nom,
-        String(f.telephone || '').trim() || actuel[1],
-        String(f.email || '').trim() || actuel[2],
-        String(f.formation || '').trim() || actuel[3],
-        actuel[4],
-        actuel[5]
-      ];
-      var change = false;
-      for (var j = 1; j < 4; j++) {
-        if (String(nouveau[j]) !== String(actuel[j])) change = true;
-      }
-      if (change) { sh.getRange(ligne, 1, 1, 6).setValues([nouveau]); majs++; }
-      else doublons++;
-      return;
+    /* Le serveur peut refuser sans que l'appel échoue :
+       sans ce contrôle, l'import semblait réussir dans le vide. */
+    if(r && r.status === 'error') throw new Error(r.message || 'Import refusé');
+    if(r && !r.ajoutes && !r.majs && !r.doublons){
+      throw new Error("Rien n'a été importé. Vérifie le contenu de la liste.");
     }
 
-    index[cle] = -1;
-    ajouts.push([nom, String(f.telephone || '').trim(), String(f.email || '').trim(),
-                 String(f.formation || '').trim(), '', '',
-                 String(f.genre || '').trim().toUpperCase(),
-                 maintenant, String(demandeur || '')]);
-  });
-
-  if (ajouts.length) {
-    sh.getRange(sh.getLastRow() + 1, 1, ajouts.length, 9).setValues(ajouts);
+    etat.style.color = 'var(--accent-text)';
+    etat.textContent = '✅ ' + (r.ajoutes || 0) + ' ajouté(s)' +
+      (r.majs ? ' · ' + r.majs + ' complété(s)' : '') +
+      (r.doublons ? ' · ' + r.doublons + ' inchangé(s)' : '') +
+      ' · ' + (r.total || 0) + ' au total';
+    zone.value = '';
+    fichesAImporter = [];
+    /* Les deux listes se rechargent ensemble, pas l'une après l'autre */
+    await Promise.all([chargerEleves(), chargerFiches()]);
+    afficherRepertoire();
+  }catch(e){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = 'Erreur : ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '📥 Importer la liste';
   }
-  return { status: 'ok', ajoutes: ajouts.length, majs: majs,
-           doublons: doublons, total: sh.getLastRow() - 1 };
-}
-
-function listerFiches() {
-  var lignes = feuilleEleves().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    var n = texteCellule(lignes[i][0], false).trim();
-    if (!n) continue;
-    out.push({
-      eleve: n,
-      telephone: texteCellule(lignes[i][1], false),
-      email: texteCellule(lignes[i][2], false),
-      formation: texteCellule(lignes[i][3], false),
-      messenger: texteCellule(lignes[i][4], false),
-      remarques: texteCellule(lignes[i][5], false),
-      genre: texteCellule(lignes[i][6], false),
-      ajoute: texteCellule(lignes[i][7], false)
-    });
-  }
-  return { status: 'ok', fiches: out };
-}
-
-function enregistrerFicheEleve(d) {
-  var nom = String(d.eleve || '').trim();
-  if (!nom) return { status: 'error', message: 'Nom manquant.' };
-
-  var sh = feuilleEleves();
-  var lignes = sh.getDataRange().getValues();
-  var valeurs = [
-    nom,
-    String(d.telephone || '').trim(),
-    String(d.email || '').trim(),
-    String(d.formation || '').trim(),
-    String(d.messenger || '').trim(),
-    String(d.remarques || '').trim(),
-    String(d.genre || '').trim().slice(0, 1).toUpperCase()
-  ];
-
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][0]) === normaliser(nom)) {
-      /* Un champ laissé vide ne doit pas effacer ce qui existe :
-         le moniteur ne renseigne souvent que le Messenger. */
-      for (var j = 1; j < valeurs.length; j++) {
-        if (!valeurs[j] && lignes[i][j]) valeurs[j] = String(lignes[i][j]);
-      }
-      sh.getRange(i + 1, 1, 1, 7).setValues([valeurs]);
-      return { status: 'ok', maj: true };
-    }
-  }
-
-  /* Pas encore au répertoire : on l'y ajoute */
-  sh.appendRow(valeurs.concat([
-    Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'),
-    String(d.demandeur || '')
-  ]));
-  return { status: 'ok', cree: true };
-}
-
-function retirerEleveRepertoire(nom) {
-  var sh = feuilleEleves();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (normaliser(lignes[i][0]) === normaliser(nom)) sh.deleteRow(i + 1);
-  }
-  return { status: 'ok' };
-}
-
-/* Modifier le texte d'un bilan déjà enregistré.
-   On vérifie l'élève avant d'écrire : une ligne peut avoir bougé. */
-/* Met à jour un bilan déjà enregistré : le texte, la note interne
-   et les manœuvres. Sans ça, corriger une note créait un doublon. */
-function majBilanComplet(d) {
-  var ligne = parseInt(d.ligne, 10);
-  var eleve = String(d.eleve || '').trim();
-  if (!ligne || ligne < 2) return { status: 'error', message: 'Ligne invalide.' };
-
-  var sh = feuille();
-  if (ligne > sh.getLastRow()) return { status: 'error', message: 'Ligne introuvable.' };
-
-  var nomEnPlace = String(sh.getRange(ligne, 4).getValue() || '');
-  if (eleve && normaliser(nomEnPlace) !== normaliser(eleve)) {
-    return { status: 'error',
-             message: "Ce bilan n'est plus à la même place. Relance la recherche." };
-  }
-
-  if (d.bilan !== undefined) sh.getRange(ligne, 5).setValue(String(d.bilan));
-  if (d.noteInterne !== undefined) sh.getRange(ligne, 7).setValue(String(d.noteInterne));
-  if (d.manoeuvres !== undefined) sh.getRange(ligne, 11).setValue(String(d.manoeuvres));
-
-  return { status: 'ok', ligne: ligne };
-}
-
-function modifierBilan(d) {
-  var ligne = parseInt(d.ligne, 10);
-  var eleve = String(d.eleve || '').trim();
-  var texte = String(d.texte || '');
-
-  if (!ligne || ligne < 2) return { status: 'error', message: 'Ligne invalide.' };
-  if (!texte.trim()) return { status: 'error', message: 'Le bilan est vide.' };
-
-  var sh = feuille();
-  if (ligne > sh.getLastRow()) return { status: 'error', message: 'Ligne introuvable.' };
-
-  var nomEnPlace = String(sh.getRange(ligne, 4).getValue() || '');
-  if (eleve && normaliser(nomEnPlace) !== normaliser(eleve)) {
-    return { status: 'error',
-             message: "Ce bilan n'est plus à la même place. Relance la recherche." };
-  }
-
-  sh.getRange(ligne, 5).setValue(texte);
-  return { status: 'ok', eleve: nomEnPlace };
 }
 
 /* ============================================================
-   HISTORIQUE DES SMS
-   Ce qui est parti, à qui, par qui. Sans trace écrite, personne
-   ne peut dire si un élève a été prévenu.
+   LES FICHES DU RÉPERTOIRE
+   Nom, téléphone, courriel, formation. Recherche et modification.
    ============================================================ */
-function feuilleSms() {
-  var f = classeur();
-  var sh = f.getSheetByName('Sms');
-  if (!sh) {
-    sh = f.insertSheet('Sms', f.getNumSheets());
-    sh.appendRow(['Horodatage', 'Élève', 'Numéro', 'Par', 'Parties',
-                  'Caractères', 'État', 'Message']);
-    sh.setFrozenRows(1);
-  }
-  return sh;
+const FORMATIONS = ['', 'CS BV', 'CS BEA', 'AAC BV', 'AAC BEA',
+                    'Conduite supervisée', 'Passerelle BEA→BV', 'Autre'];
+
+let fichesEleves = [];
+
+async function chargerFiches(){
+  try{
+    const d = await appelPrep({ action: 'fichesList' });
+    fichesEleves = (d && d.fiches) || [];
+  }catch(e){ console.warn('Fiches :', e); fichesEleves = []; }
+  return fichesEleves;
 }
 
-function enregistrerSms(d) {
-  var sh = feuilleSms();
-  sh.appendRow([
-    Utilities.formatDate(new Date(), 'Europe/Paris', 'dd/MM/yyyy HH:mm'),
-    String(d.eleve || ''),
-    String(d.numero || ''),
-    String(d.par || d.demandeur || ''),
-    parseInt(d.parties, 10) || 1,
-    parseInt(d.caracteres, 10) || String(d.message || '').length,
-    String(d.etat || 'envoyé'),
-    String(d.message || '').slice(0, 1200)
-  ]);
-
-  /* On garde six mois : au-delà, la feuille enfle pour rien */
-  if (sh.getLastRow() > 5000) {
-    sh.deleteRows(2, sh.getLastRow() - 4000);
-  }
-  return { status: 'ok' };
+function ficheDe(nom){
+  return fichesEleves.find(f => normaliserMot(f.eleve) === normaliserMot(nom)) || null;
 }
 
-function listerSms(params) {
-  var sh = feuilleSms();
-  var nb = sh.getLastRow();
-  if (nb < 2) return { status: 'ok', sms: [], total: 0 };
+/* Un numéro français, mis en forme pour l'affichage et les liens */
+function telLisible(t){
+  const n = String(t || '').replace(/[^\d+]/g, '');
+  if(/^0\d{9}$/.test(n)) return n.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  return String(t || '').trim();
+}
+function telPourLien(t){
+  let n = String(t || '').replace(/[^\d+]/g, '');
+  if(/^0\d{9}$/.test(n)) n = '+33' + n.slice(1);
+  return n;
+}
 
-  var combien = Math.min(parseInt((params && params.combien), 10) || 100, 500);
-  var depart = Math.max(2, nb - combien + 1);
-  var lignes = sh.getRange(depart, 1, nb - depart + 1, 8).getValues();
+async function afficherRepertoire(){
+  const zone = $('repertoireListe');
+  if(!zone) return;
 
-  var eleve = normaliser((params && params.eleve) || '');
-  var out = [];
-  for (var i = lignes.length - 1; i >= 0; i--) {
-    if (!lignes[i][0]) continue;
-    if (eleve && normaliser(lignes[i][1]) !== eleve) continue;
-    out.push({
-      quand: texteCellule(lignes[i][0], false),
-      eleve: texteCellule(lignes[i][1], false),
-      numero: texteCellule(lignes[i][2], false),
-      par: texteCellule(lignes[i][3], false),
-      parties: lignes[i][4] || 1,
-      caracteres: lignes[i][5] || 0,
-      etat: texteCellule(lignes[i][6], false),
-      message: texteCellule(lignes[i][7], false)
+  zone.innerHTML = '<div class="empty">Chargement du répertoire…</div>';
+  if(!fichesEleves.length) await chargerFiches();
+  zone.innerHTML = '';
+
+  /* Tous les élèves connus, avec ou sans fiche */
+  const noms = [];
+  elevesConnus.forEach(n => { if(n) noms.push(n); });
+  fichesEleves.forEach(f => {
+    if(!noms.some(n => normaliserMot(n) === normaliserMot(f.eleve))) noms.push(f.eleve);
+  });
+  noms.sort((a, b) => a.localeCompare(b, 'fr'));
+
+  if(!noms.length){
+    zone.innerHTML = '<div class="empty">Aucun élève connu pour le moment.</div>';
+    return;
+  }
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:8px;';
+  const avecTel = fichesEleves.filter(f => f.telephone).length;
+  t.textContent = noms.length + ' élève(s) · ' + avecTel + ' avec un numéro';
+  zone.appendChild(t);
+
+  const rech = document.createElement('input');
+  rech.type = 'text';
+  rech.placeholder = '🔍 Rechercher un élève, un numéro, une formation';
+  rech.style.marginBottom = '10px';
+  zone.appendChild(rech);
+
+  const liste = document.createElement('div');
+  zone.appendChild(liste);
+
+  function dessiner(){
+    const q = normaliserMot(rech.value);
+    liste.innerHTML = '';
+
+    const vus = noms.filter(n => {
+      if(!q) return true;
+      const f = ficheDe(n) || {};
+      return normaliserMot(n).indexOf(q) !== -1 ||
+             normaliserMot(f.telephone || '').indexOf(q) !== -1 ||
+             normaliserMot(f.email || '').indexOf(q) !== -1 ||
+             normaliserMot(f.formation || '').indexOf(q) !== -1 ||
+             normaliserMot(f.messenger || '').indexOf(q) !== -1;
     });
+
+    if(!vus.length){
+      liste.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
+      return;
+    }
+
+    /* Au-delà d'une centaine de fiches, le navigateur rame pour rien :
+       personne ne lit trois cents cartes, on filtre. */
+    const MAX_AFFICHE = 100;
+    const montres = vus.slice(0, MAX_AFFICHE);
+    montres.forEach(n => liste.appendChild(ligneFicheEleve(n)));
+
+    if(vus.length > MAX_AFFICHE){
+      const a = document.createElement('div');
+      a.className = 'empty';
+      a.style.cssText = 'padding:12px;font-size:13px;line-height:1.5;';
+      a.innerHTML = '📋 ' + montres.length + ' fiches affichées sur ' + vus.length +
+        '.<br><span style="font-size:12px;">Affine la recherche pour trouver un élève précis.</span>';
+      liste.appendChild(a);
+    }
   }
-  return { status: 'ok', sms: out, total: nb - 1 };
+  rech.addEventListener('input', dessiner);
+  dessiner();
 }
 
-function doPost(e) {
-  try {
-    var data = JSON.parse(e.postData.contents);
+function ligneFicheEleve(nom){
+  const f = ficheDe(nom) || {};
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+    'margin-bottom:7px;';
 
-    /* Suppression complète du dossier d'un élève */
-    if (data.action === 'supprimerEleve') {
-      return reponseJson(supprimerEleve(data.eleve));
-    }
+  const h = document.createElement('div');
+  h.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
 
-    /* Cours préparés à l'avance */
-    if (data.action === 'prepAdd') {
-      return reponseJson(ajouterPreparation(data));
-    }
-    if (data.action === 'smsLog') {
-      return reponseJson(enregistrerSms(data));
-    }
-    if (data.action === 'smsList') {
-      return reponseJson(listerSms(data));
-    }
+  const info = document.createElement('div');
+  info.style.cssText = 'flex:1;min-width:0;';
+  info.innerHTML = '<strong style="font-size:15px;">' + nom.replace(/</g, '&lt;') + '</strong>' +
+    (f.formation ? ' <span style="font-size:11px;color:var(--accent-text);">' +
+      f.formation.replace(/</g, '&lt;') + '</span>' : '') +
+    '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
+    (f.telephone ? '📱 ' + telLisible(f.telephone) : '📱 pas de numéro') +
+    (f.messenger ? '<br>💬 ' + lienMessenger(f.messenger) : '') +
+    (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
+    (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
+    '</div>';
+  h.appendChild(info);
 
-    if (data.action === 'bilanMaj') {
-      return reponseJson(majBilanComplet(data));
-    }
-    if (data.action === 'bilanModifier') {
-      return reponseJson(modifierBilan(data));
-    }
-
-    if (data.action === 'elevesImport') {
-      return reponseJson(importerEleves(data));
-    }
-    if (data.action === 'fichesList') {
-      return reponseJson(listerFiches());
-    }
-    if (data.action === 'ficheSet') {
-      return reponseJson(enregistrerFicheEleve(data));
-    }
-    if (data.action === 'eleveRetirer') {
-      return reponseJson(retirerEleveRepertoire(data.eleve));
-    }
-
-    if (data.action === 'captureAdd') {
-      return reponseJson(ajouterCapture(data));
-    }
-    if (data.action === 'captureList') {
-      return reponseJson(listerCaptures(data));
-    }
-    if (data.action === 'captureDelete') {
-      return reponseJson(supprimerCapture(data.id));
-    }
-
-    if (data.action === 'resultatAdd') {
-      return reponseJson(enregistrerResultat(data));
-    }
-    if (data.action === 'resultatList') {
-      return reponseJson(listerResultats(data));
-    }
-
-    if (data.action === 'modeleList') {
-      return reponseJson(listerModeles());
-    }
-    if (data.action === 'modeleSet') {
-      return reponseJson(enregistrerModele(data));
-    }
-    if (data.action === 'modeleDelete') {
-      return reponseJson(supprimerModele(data.id));
-    }
-
-    if (data.action === 'journalList') {
-      return reponseJson(lireJournal(data));
-    }
-
-    journaliser(data.action, data);
-
-    if (data.action === 'prepDelete') {
-      return reponseJson(supprimerPreparation(data.id, data.demandeur, data.role));
-    }
-    if (data.action === 'prepAssign') {
-      return reponseJson(reattribuerPreparation(data.id, data.moniteur));
-    }
-    if (data.action === 'prepList') {
-      return reponseJson({ preparations: listerPreparations() });
-    }
-
-    /* Consignes du bureau */
-    if (data.action === 'consigneAdd') {
-      return reponseJson(ajouterConsigne(data));
-    }
-    if (data.action === 'consigneList') {
-      return reponseJson({ consignes: listerConsignes(data.eleve) });
-    }
-    if (data.action === 'consigneEffacerEleve') {
-      return reponseJson(effacerConsignesEleve(data.eleve));
-    }
-    if (data.action === 'consigneDone') {
-      return reponseJson(marquerConsigneTraitee(data.id));
-    }
-    if (data.action === 'bureauEtat') {
-      return reponseJson({ eleves: etatEleves(), consignes: listerConsignes(''),
-                           suivi: listerSuivi(),
-                           places: lireConfig('places') });
-    }
-    if (data.action === 'suiviSet') {
-      return reponseJson(enregistrerSuivi(data));
-    }
-    if (data.action === 'suiviDelete') {
-      return reponseJson(supprimerSuivi(data.eleve));
-    }
-    if (data.action === 'configSet') {
-      return reponseJson(ecrireConfig(data.cle, data.valeur));
-    }
-
-    var horodatage = String(data.horodatage || '');
-    if (!horodatage) {
-      var fuseauFeuille = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
-      horodatage = Utilities.formatDate(new Date(), fuseauFeuille, 'dd/MM/yyyy HH:mm');
-    }
-
-    var valeurs = [
-      String(data.date || ''),
-      String(data.site || ''),
-      String(data.monitorName || ''),
-      String(data.studentName || ''),
-      String(data.bilan || ''),
-      String(data.typeBilan || ''),
-      String(data.noteInterne || ''),
-      horodatage,
-      String(data.boite || ''),
-      String(data.ants || ''),
-      String(data.manoeuvres || '')
-    ];
-
-    var sh = feuille();
-    var ligne = sh.getLastRow() + 1;
-    var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-
-    /* Format texte imposé AVANT l'écriture : sans cela Sheets
-       transforme les dates et décale les heures. */
-    plage.setNumberFormat('@');
-    plage.setValues([valeurs]);
-
-    /* La ligne écrite est renvoyée : elle permet de corriger le bilan
-       ou sa note ensuite, au lieu d'en créer un second. */
-    return reponseJson({ status: 'ok', ligne: ligne, noteRecue: !!data.noteInterne });
-  } catch (err) {
-    return reponseJson({ status: 'error', message: err.message });
+  /* Écrire par SMS, si on a le numéro */
+  if(f.telephone){
+    const bSms = document.createElement('a');
+    bSms.href = 'sms:' + telPourLien(f.telephone);
+    bSms.className = 'btn btn-secondary';
+    bSms.style.cssText = 'width:auto;padding:7px 10px;font-size:14px;margin:0;flex-shrink:0;' +
+      'text-decoration:none;display:inline-flex;align-items:center;';
+    bSms.textContent = '💬';
+    bSms.title = 'Envoyer un SMS à ' + nom;
+    h.appendChild(bSms);
   }
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
+  bMod.textContent = '✏️';
+  bMod.title = 'Modifier la fiche';
+  bMod.addEventListener('click', () => ouvrirFicheEleve(nom, f));
+  h.appendChild(bMod);
+
+  if(ACCES.role === 'admin'){
+    const x = document.createElement('button');
+    x.className = 'btn btn-secondary';
+    x.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;' +
+      'color:var(--red);border-color:var(--red);';
+    x.textContent = '🗑️';
+    x.title = 'Tout supprimer pour cet élève';
+    x.addEventListener('click', () => supprimerDepuisRepertoire(nom, x));
+    h.appendChild(x);
+  }
+
+  d.appendChild(h);
+  return d;
 }
 
-/* ---------- PRÉPARATIONS : cours préparés à l'avance ---------- */
-var NOM_ONGLET_PREP = 'Preparations';
+/* La fiche, en modification */
+function ouvrirFicheEleve(nom, f){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:90vh;overflow-y:auto;';
 
-function feuillePreparations() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_PREP);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_PREP);
-    sh.appendRow(['Id', 'Date du cours', 'Élève', 'Type', 'Libellé',
-                  'Site', 'Note', 'Contexte', 'Préparé par', 'Créé le']);
-  }
-  return sh;
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>' + nom.replace(/</g, '&lt;') + '</h3>' +
+    '<label for="fiTel">📱 Téléphone portable</label>' +
+    '<input type="tel" id="fiTel" inputmode="tel" placeholder="06 12 34 56 78">' +
+    '<label for="fiMail">✉️ Adresse mail</label>' +
+    '<input type="email" id="fiMail" inputmode="email" placeholder="prenom.nom@exemple.fr">' +
+    '<label for="fiMess">💬 Messenger</label>' +
+    '<input type="text" id="fiMess" placeholder="Son profil : lien, ou m.me/pseudo">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      "Colle le lien de sa conversation, ou juste son pseudo. " +
+      'Les moniteurs le retrouveront depuis le cours.</div>' +
+    '<label for="fiGenre">Genre — pour les accords du bilan</label>' +
+    '<select id="fiGenre">' +
+      '<option value="">— non précisé —</option>' +
+      '<option value="F">Féminin</option>' +
+      '<option value="M">Masculin</option>' +
+    '</select>' +
+    '<label for="fiForm">🎓 Formation</label>' +
+    '<select id="fiForm">' +
+      FORMATIONS.map(x => '<option value="' + x + '">' +
+        (x || '— à préciser —') + '</option>').join('') +
+    '</select>' +
+    '<label for="fiRem">Remarques</label>' +
+    '<textarea id="fiRem" rows="3" placeholder="Ce qu\'il faut savoir sur cet élève" ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
+      'padding:10px 11px;border-radius:10px;font-size:15px;line-height:1.5;font-family:inherit;' +
+      'resize:vertical;margin-bottom:12px;"></textarea>');
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  boite.appendChild(msg);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const g = id => boite.querySelector('#' + id);
+  g('fiTel').value = (f && f.telephone) || '';
+  g('fiMail').value = (f && f.email) || '';
+  g('fiMess').value = (f && f.messenger) || '';
+  g('fiGenre').value = (f && f.genre) || '';
+  g('fiForm').value = (f && f.formation) || '';
+  g('fiRem').value = (f && f.remarques) || '';
+
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+
+  bOk.addEventListener('click', async () => {
+    const tel = g('fiTel').value.trim();
+    if(tel && !/^[+\d\s().-]{8,}$/.test(tel)){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Ce numéro ne semble pas valable.';
+      return;
+    }
+    const mail = g('fiMail').value.trim();
+    if(mail && mail.indexOf('@') === -1){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Cette adresse mail ne semble pas valable.';
+      return;
+    }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({ action: 'ficheSet', eleve: nom, telephone: tel,
+                        email: mail, formation: g('fiForm').value,
+                        messenger: g('fiMess').value.trim(),
+                        genre: g('fiGenre').value,
+                        remarques: g('fiRem').value.trim() });
+      document.body.removeChild(fond);
+      showToast('Fiche enregistrée ✅');
+      afficherRepertoire();
+    }catch(e){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Erreur : ' + e.message;
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
+    }
+  });
 }
 
-function listerPreparations() {
-  var lignes = feuillePreparations().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      date: texteCellule(lignes[i][1], false),
-      eleve: texteCellule(lignes[i][2], false),
-      modele: texteCellule(lignes[i][3], false),
-      modeleLabel: texteCellule(lignes[i][4], false),
-      site: texteCellule(lignes[i][5], false),
-      note: texteCellule(lignes[i][6], false),
-      contexte: texteCellule(lignes[i][7], false),
-      moniteur: texteCellule(lignes[i][8], false)
+async function supprimerDepuisRepertoire(n, bouton){
+  if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+      'Tout ce qui concerne ' + n + ' va être effacé :\n' +
+      '• ses bilans\n• sa fiche de suivi et ses examens\n' +
+      '• ses cours à venir\n• ses captures de CEPC\n' +
+      '• ses messages en attente\n• sa fiche du répertoire\n\n' +
+      "Il n'apparaîtra plus nulle part. Cette action est IRRÉVERSIBLE.")) return;
+
+  const saisi = await demander("Pour confirmer, recopie exactement son nom :\n\n" + n);
+  if(saisi === null) return;
+  if(normaliserMot(saisi) !== normaliserMot(n)){
+    await informer('Le nom saisi ne correspond pas. Suppression annulée.');
+    return;
+  }
+
+  bouton.disabled = true;
+  const etat = $('importEtat');
+  try{
+    const faits = await supprimerEleveComplet(n, t => {
+      if(etat){ etat.style.color = 'var(--muted)'; etat.textContent = n + ' — ' + t; }
     });
-  }
-  return out;
-}
-
-function ajouterPreparation(data) {
-  var sh = feuillePreparations();
-  var id = String(data.id || new Date().getTime());
-  var ligne = sh.getLastRow() + 1;
-  var valeurs = [
-    id,
-    String(data.date || ''),
-    String(data.eleve || ''),
-    String(data.modele || ''),
-    String(data.modeleLabel || ''),
-    String(data.site || ''),
-    String(data.note || ''),
-    String(data.contexte || ''),
-    String(data.moniteur || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')
-  ];
-  var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-  plage.setNumberFormat('@');
-  plage.setValues([valeurs]);
-  return { status: 'ok', id: id };
-}
-
-/* Réattribue un cours préparé à un autre moniteur */
-function reattribuerPreparation(id, moniteur) {
-  var sh = feuillePreparations();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.getRange(i + 1, 9).setValue(String(moniteur || ''));
-      return { status: 'ok' };
+    if(etat){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ ' + n + ' supprimé — ' + (faits.join(' · ') || 'rien à retirer');
     }
+    await chargerEleves();
+    afficherRepertoire();
+    if(typeof afficherBureau === 'function') afficherBureau(true);
+  }catch(e){
+    if(etat){ etat.style.color = 'var(--warn-text)'; etat.textContent = 'Erreur : ' + e.message; }
+    bouton.disabled = false;
   }
-  return { status: 'error', message: 'Préparation introuvable.' };
 }
 
-function supprimerPreparation(id, demandeur, role) {
-  var sh = feuillePreparations();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (String(lignes[i][0]) !== String(id)) continue;
 
-    var proprietaire = String(lignes[i][8] || '');
-    var admin = (String(role || '') === 'admin');
+/* ============================================================
+   SUPPRESSION COMPLÈTE D'UN ÉLÈVE
+   Tout ce qui le concerne disparaît : bilans, fiche de suivi,
+   captures, cours à venir, messages, répertoire.
+   Sert au ménage depuis le répertoire.
+   ============================================================ */
+async function supprimerEleveComplet(nom, rapporter){
+  const dire = t => { if(typeof rapporter === 'function') rapporter(t); };
+  const faits = [];
 
-    /* Seul le moniteur à qui le cours est attribué peut le supprimer.
-       Sans moniteur attribué, seul un administrateur le peut. */
-    if (!admin) {
-      if (!proprietaire) {
-        return { status: 'error',
-                 message: 'Ce cours n\'est attribué à personne. Seul un administrateur peut le supprimer.' };
-      }
-      if (!demandeur || normaliser(proprietaire) !== normaliser(demandeur)) {
-        return { status: 'error',
-                 message: 'Ce cours est attribué à ' + proprietaire +
-                          '. Tu peux le lui laisser ou le réattribuer, mais pas le supprimer.' };
-      }
+  /* Messages au bureau : on les efface, pas seulement les marquer traités.
+     Ce sont eux qui décrivent l'état de l'élève dans les listes. */
+  dire('Messages au bureau…');
+  try{
+    const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: nom });
+    if(r && r.effacees) faits.push(r.effacees + ' message(s)');
+  }catch(e){}
+
+  /* Cours préparés, passés comme à venir */
+  dire('Cours préparés…');
+  try{
+    const d = await appelPrep({ action: 'prepList' });
+    const siens = ((d && d.preparations) || [])
+      .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+    for(const pr of siens){
+      try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
     }
-    sh.deleteRow(i + 1);
-    return { status: 'ok' };
-  }
-  return { status: 'ok', message: 'Déjà supprimée.' };
-}
+    if(siens.length) faits.push(siens.length + ' cours préparé(s)');
+  }catch(e){}
 
-/* ---------- CONSIGNES : du bureau vers les moniteurs ---------- */
-var NOM_ONGLET_CONS = 'Consignes';
+  /* Fiche de suivi : examens, dates, disponibilités */
+  dire('Fiche de suivi…');
+  try{
+    await appelPrep({ action: 'suiviDelete', eleve: nom });
+    faits.push('fiche de suivi');
+  }catch(e){}
 
-function feuilleConsignes() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_CONS);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_CONS);
-    sh.appendRow(['Id', 'Élève', 'Type', 'Valeur', 'Texte', 'Créé le', 'Par', 'Traité']);
-  }
-  return sh;
-}
-
-function ajouterConsigne(data) {
-  var sh = feuilleConsignes();
-  var type = String(data.type || '');
-  var eleve = String(data.eleve || '');
-
-  /* Une seule urgence par élève : on remplace la précédente */
-  if (type === 'urgence') {
-    var l = sh.getDataRange().getValues();
-    for (var i = l.length - 1; i >= 1; i--) {
-      if (String(l[i][2]) === 'urgence' && normaliser(l[i][1]) === normaliser(eleve)) {
-        sh.deleteRow(i + 1);
-      }
+  /* Captures du CEPC */
+  dire('Captures du CEPC…');
+  try{
+    const d = await appelPrep({ action: 'captureList', eleve: nom });
+    const caps = (d && d.captures) || [];
+    for(const cap of caps){
+      try{ await appelPrep({ action: 'captureDelete', id: cap.id }); }catch(e){}
     }
-  }
+    if(caps.length) faits.push(caps.length + ' capture(s)');
+  }catch(e){}
 
-  var id = String(data.id || new Date().getTime());
-  var ligne = sh.getLastRow() + 1;
-  var valeurs = [
-    id, eleve, type,
-    String(data.valeur || ''),
-    String(data.texte || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm'),
-    String(data.par || ''),
-    'non'
-  ];
-  var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-  plage.setNumberFormat('@');
-  plage.setValues([valeurs]);
-  return { status: 'ok', id: id };
-}
-
-function listerConsignes(eleve) {
-  var lignes = feuilleConsignes().getDataRange().getValues();
-  var filtre = eleve ? normaliser(eleve) : '';
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    if (filtre && normaliser(lignes[i][1]) !== filtre) continue;
-    out.push({
-      id: String(lignes[i][0]),
-      eleve: texteCellule(lignes[i][1], false),
-      type: texteCellule(lignes[i][2], false),
-      valeur: texteCellule(lignes[i][3], false),
-      texte: texteCellule(lignes[i][4], false),
-      creeLe: texteCellule(lignes[i][5], false),
-      par: texteCellule(lignes[i][6], false),
-      traite: String(lignes[i][7] || 'non')
-    });
-  }
-  return out;
-}
-
-/* Efface tous les messages d'un élève.
-   Les marquer « traités » ne suffit pas : ils continuent de décrire
-   son état et le font réapparaître dans les listes du bureau. */
-function effacerConsignesEleve(eleve) {
-  var sh = feuilleConsignes();
-  var lignes = sh.getDataRange().getValues();
-  var cible = normaliser(eleve);
-  var n = 0;
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (normaliser(lignes[i][1]) === cible) { sh.deleteRow(i + 1); n++; }
-  }
-  return { status: 'ok', effacees: n };
-}
-
-function marquerConsigneTraitee(id) {
-  var sh = feuilleConsignes();
-  var lignes = sh.getDataRange().getValues();
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(id)) {
-      sh.getRange(i + 1, 8).setValue('oui');
-      return { status: 'ok' };
+  /* Bilans */
+  dire('Bilans…');
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: nom })
+    }, 25000, 2);
+    if(r.ok){
+      const d = await r.json().catch(() => ({}));
+      faits.push((d.supprimees || 0) + ' bilan(s)');
     }
-  }
-  return { status: 'ok', message: 'Introuvable.' };
+  }catch(e){}
+
+  /* Répertoire */
+  dire('Répertoire…');
+  try{ await appelPrep({ action: 'eleveRetirer', eleve: nom }); }catch(e){}
+
+  viderCaches(nom);
+  return faits;
 }
 
-/* ---------- SUIVI PERMIS : préparation administrative ---------- */
-var NOM_ONGLET_SUIVI = 'SuiviPermis';
-var COLS_SUIVI = ['Élève', 'Date du permis', 'Place à remplacer', 'Date à donner (autre AE)',
-                  'Reste à payer', 'Paiement prévu le', 'Relancé le',
-                  'Nature', 'Leçons 2h', 'Leçons 1h', 'Accompagnement examen',
-                  'Autre à prévoir', 'Réservations planning', 'Mis à jour le', 'Par',
-                  'Type examen', 'Auto-école destinataire',
-                  'Fantôme', 'Statut', 'À planifier', 'Semaine cible', 'Moniteur date',
-                  'Tout est OK', 'Centre d\'examen', 'Retiré de à prévoir',
-                  'Résultat', 'Nb ajournements', 'RDV post date', 'RDV post moniteur',
-                  'Bilan examen', 'Suite à donner', 'Commentaire moniteur', 'RDV post fait',
-                  'Disponible à partir du', 'Indisponible du', 'Indisponible au',
-                  'Date du dernier ajournement',
-                  'EB message envoyé', 'EB date', 'EB moniteur',
-                  'CEPC image', 'Bilan élève', 'Texte moniteur', 'Heures repassage'];
 
-function feuilleSuivi() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_SUIVI);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_SUIVI);
-    sh.appendRow(COLS_SUIVI);
-  }
-  return sh;
-}
+/* ============================================================
+   IMPORT D'UN FICHIER CSV
+   Les exports d'auto-école ont des colonnes variées : on cherche
+   celle qui contient les noms plutôt que d'imposer un format.
+   ============================================================ */
+const ENTETES_NOM = ['nom', 'eleve', 'élève', 'candidat', 'prenom', 'prénom',
+                     'nom complet', 'nom et prenom', 'apprenant', 'stagiaire'];
 
-function listerSuivi() {
-  var lignes = feuilleSuivi().getDataRange().getValues();
-  var out = [];
-  for (var i = 1; i < lignes.length; i++) {
-    if (!lignes[i][0]) continue;
-    out.push({
-      eleve: texteCellule(lignes[i][0], false),
-      datePermis: texteCellule(lignes[i][1], false),
-      aRemplacer: texteCellule(lignes[i][2], false),
-      dateADonner: texteCellule(lignes[i][3], false),
-      resteAPayer: texteCellule(lignes[i][4], false),
-      paiementPrevu: texteCellule(lignes[i][5], false),
-      relanceLe: texteCellule(lignes[i][6], false),
-      nature: texteCellule(lignes[i][7], false),
-      lecons2h: texteCellule(lignes[i][8], false),
-      lecons1h: texteCellule(lignes[i][9], false),
-      accompagnement: texteCellule(lignes[i][10], false),
-      autre: texteCellule(lignes[i][11], false),
-      reservations: texteCellule(lignes[i][12], false),
-      majLe: texteCellule(lignes[i][13], true),
-      par: texteCellule(lignes[i][14], false),
-      typeExamen: texteCellule(lignes[i][15], false),
-      autoEcole: texteCellule(lignes[i][16], false),
-      fantome: texteCellule(lignes[i][17], false),
-      statut: texteCellule(lignes[i][18], false),
-      aPlanifier: texteCellule(lignes[i][19], false),
-      semaine: texteCellule(lignes[i][20], false),
-      moniteurDate: texteCellule(lignes[i][21], false),
-      toutOk: texteCellule(lignes[i][22], false),
-      centre: texteCellule(lignes[i][23], false),
-      retireAPrevoir: texteCellule(lignes[i][24], false),
-      resultat: texteCellule(lignes[i][25], false),
-      nbAjournements: texteCellule(lignes[i][26], false),
-      rdvPostDate: texteCellule(lignes[i][27], false),
-      rdvPostMoniteur: texteCellule(lignes[i][28], false),
-      bilanExamen: texteCellule(lignes[i][29], false),
-      suite: texteCellule(lignes[i][30], false),
-      commentaireMoniteur: texteCellule(lignes[i][31], false),
-      rdvPostFait: texteCellule(lignes[i][32], false),
-      dispoDu: texteCellule(lignes[i][33], false),
-      indispoDu: texteCellule(lignes[i][34], false),
-      indispoAu: texteCellule(lignes[i][35], false),
-      dateAjournement: texteCellule(lignes[i][36], false),
-      ebMessage: texteCellule(lignes[i][37], false),
-      ebDatePrevue: texteCellule(lignes[i][38], false),
-      ebMoniteur: texteCellule(lignes[i][39], false),
-      cepcImage: texteCellule(lignes[i][40], false),
-      bilanEleve: texteCellule(lignes[i][41], false),
-      texteMoniteur: texteCellule(lignes[i][42], false),
-      heuresRepassage: texteCellule(lignes[i][43], false)
-    });
-  }
-  return out;
-}
+/* Les autres colonnes qu'on sait reconnaître */
+const ENTETES_TEL = ['telephone', 'téléphone', 'tel', 'tél', 'portable', 'mobile',
+                     'gsm', 'numero', 'numéro', 'tel portable', 'tel mobile'];
+const ENTETES_MAIL = ['email', 'e-mail', 'mail', 'courriel', 'adresse mail',
+                      'adresse email', 'e mail'];
+const ENTETES_FORMATION = ['formation', 'type', 'categorie', 'catégorie',
+                           'boite', 'boîte', 'parcours', 'permis'];
+const ENTETES_GENRE = ['genre', 'civilite', 'civilité', 'sexe', 'titre', 'madame monsieur'];
 
-function enregistrerSuivi(d) {
-  var sh = feuilleSuivi();
-  var lignes = sh.getDataRange().getValues();
-  var cible = normaliser(d.eleve);
-  var ligne = -1;
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][0]) === cible) { ligne = i + 1; break; }
-  }
-  if (ligne === -1) ligne = sh.getLastRow() + 1;
-
-  var valeurs = [
-    String(d.eleve || ''), String(d.datePermis || ''), String(d.aRemplacer || ''),
-    String(d.dateADonner || ''), String(d.resteAPayer || ''), String(d.paiementPrevu || ''),
-    String(d.relanceLe || ''), String(d.nature || ''), String(d.lecons2h || ''),
-    String(d.lecons1h || ''), String(d.accompagnement || ''), String(d.autre || ''),
-    String(d.reservations || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm'),
-    String(d.par || ''),
-    String(d.typeExamen || ''),
-    String(d.autoEcole || ''),
-    String(d.fantome || ''),
-    String(d.statut || ''),
-    String(d.aPlanifier || ''),
-    String(d.semaine || ''),
-    String(d.moniteurDate || ''),
-    String(d.toutOk || ''),
-    String(d.centre || ''),
-    String(d.retireAPrevoir || ''),
-    String(d.resultat || ''),
-    String(d.nbAjournements || ''),
-    String(d.rdvPostDate || ''),
-    String(d.rdvPostMoniteur || ''),
-    String(d.bilanExamen || ''),
-    String(d.suite || ''),
-    String(d.commentaireMoniteur || ''),
-    String(d.rdvPostFait || ''),
-    String(d.dispoDu || ''),
-    String(d.indispoDu || ''),
-    String(d.indispoAu || ''),
-    String(d.dateAjournement || ''),
-    String(d.ebMessage || ''),
-    String(d.ebDatePrevue || ''),
-    String(d.ebMoniteur || ''),
-    String(d.cepcImage || ''),
-    String(d.bilanEleve || ''),
-    String(d.texteMoniteur || ''),
-    String(d.heuresRepassage || '')
-  ];
-  var plage = sh.getRange(ligne, 1, 1, valeurs.length);
-  plage.setNumberFormat('@');
-  plage.setValues([valeurs]);
-  return { status: 'ok' };
-}
-
-function supprimerSuivi(eleve) {
-  var sh = feuilleSuivi();
-  var lignes = sh.getDataRange().getValues();
-  var cible = normaliser(eleve);
-  for (var i = lignes.length - 1; i >= 1; i--) {
-    if (normaliser(lignes[i][0]) === cible) sh.deleteRow(i + 1);
-  }
-  return { status: 'ok' };
-}
-
-/* ---------- CONFIGURATION : places d'examen par période ---------- */
-var NOM_ONGLET_CONFIG = 'Config';
-
-function feuilleConfig() {
-  var classeur = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = classeur.getSheetByName(NOM_ONGLET_CONFIG);
-  if (!sh) {
-    sh = classeur.insertSheet(NOM_ONGLET_CONFIG);
-    sh.appendRow(['Clé', 'Valeur', 'Mis à jour le']);
-  }
-  return sh;
-}
-
-function lireConfig(cle) {
-  var lignes = feuilleConfig().getDataRange().getValues();
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(cle)) return String(lignes[i][1] || '');
-  }
+/* « Madame », « M. », « F » : tout devient F ou M. */
+function normaliserGenre(v){
+  const t = normaliserMot(v || '');
+  if(!t) return '';
+  if(t === 'f' || t.indexOf('mme') === 0 || t.indexOf('madame') === 0 ||
+     t.indexOf('mademoiselle') === 0 || t.indexOf('femme') === 0 ||
+     t.indexOf('fille') === 0) return 'F';
+  if(t === 'm' || t.indexOf('m.') === 0 || t.indexOf('monsieur') === 0 ||
+     t.indexOf('homme') === 0 || t.indexOf('garcon') === 0) return 'M';
   return '';
 }
 
-function ecrireConfig(cle, valeur) {
-  var sh = feuilleConfig();
-  var lignes = sh.getDataRange().getValues();
-  var ligne = -1;
-  for (var i = 1; i < lignes.length; i++) {
-    if (String(lignes[i][0]) === String(cle)) { ligne = i + 1; break; }
-  }
-  if (ligne === -1) ligne = sh.getLastRow() + 1;
-  var plage = sh.getRange(ligne, 1, 1, 3);
-  plage.setNumberFormat('@');
-  plage.setValues([[String(cle), String(valeur || ''),
-    Utilities.formatDate(new Date(),
-      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'dd/MM/yyyy HH:mm')]]);
-  return { status: 'ok' };
+/* Un numéro écrit « 612345678 » ou « +33 6 12 … » redevient lisible */
+function normaliserTel(v){
+  let t = String(v || '').replace(/[^\d+]/g, '');
+  if(!t) return '';
+  if(t.indexOf('+33') === 0) t = '0' + t.slice(3);
+  else if(t.indexOf('0033') === 0) t = '0' + t.slice(4);
+  else if(t.length === 9 && t[0] !== '0') t = '0' + t;
+  return /^0\d{9}$/.test(t) ? t : String(v || '').trim();
 }
 
-/* ---------- ÉTAT DES ÉLÈVES pour les listes du bureau ---------- */
-function etatEleves() {
-  var sh = feuille();
-  var nb = sh.getLastRow();
-  if (nb < 2) return [];
-
-  /* On saute volontairement la colonne E : le texte des cours pèse
-     l'essentiel du classeur et n'est pas utile ici. */
-  var blocA = sh.getRange(2, 1, nb - 1, 4).getValues();   // A-D
-  var blocF = sh.getRange(2, 6, nb - 1, 5).getValues();   // F-J
-
-  var parEleve = {};
-  for (var i = 0; i < blocA.length; i++) {
-    var nom = texteCellule(blocA[i][3], false).trim();
-    if (!nom) continue;
-    var cle = normaliser(nom);
-    var type = texteCellule(blocF[i][0], false);
-
-    if (!parEleve[cle]) {
-      parEleve[cle] = { eleve: nom, note: '', date: '', type: '', horodatage: '',
-                        moniteur: '', boite: '', ants: '', lecons: 0 };
-    }
-    var e = parEleve[cle];
-    if (/^Conduite/i.test(type) || /^AAC/i.test(type)) e.lecons++;
-    if (!e.boite && blocF[i][3]) e.boite = texteCellule(blocF[i][3], false);
-    if (!e.ants && blocF[i][4]) e.ants = texteCellule(blocF[i][4], false);
-
-    /* La dernière ligne rencontrée est la plus récente */
-    e.note = texteCellule(blocF[i][1], false);
-    e.date = texteCellule(blocA[i][0], false);
-    e.type = type;
-    e.horodatage = texteCellule(blocF[i][2], true);
-    e.moniteur = texteCellule(blocA[i][2], false);
+function decouperLigneCsv(ligne, sep){
+  const cases = [];
+  let courant = '';
+  let guillemets = false;
+  for(let i = 0; i < ligne.length; i++){
+    const ch = ligne[i];
+    if(ch === '"'){
+      if(guillemets && ligne[i + 1] === '"'){ courant += '"'; i++; }
+      else guillemets = !guillemets;
+    }else if(ch === sep && !guillemets){
+      cases.push(courant); courant = '';
+    }else courant += ch;
   }
-
-  var out = [];
-  for (var k in parEleve) out.push(parEleve[k]);
-  return out;
+  cases.push(courant);
+  return cases.map(x => x.trim());
 }
 
-/* ---------- SUPPRESSION : effacer tous les bilans d'un élève ---------- */
-function supprimerEleve(nomEleve) {
-  var recherche = normaliser(nomEleve);
-  if (recherche.length < 2) {
-    return { status: 'error', message: 'Nom trop court.' };
+/* Analyse le fichier et en tire une liste de noms */
+function lireCsvEleves(texte){
+  const lignes = texte.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if(!lignes.length) return { noms: [], info: 'Fichier vide.' };
+
+  /* Le séparateur le plus fréquent sur la première ligne */
+  const sep = [';', ',', '\t'].map(s => ({ s: s, n: (lignes[0].split(s).length) }))
+                               .sort((a, b) => b.n - a.n)[0].s;
+
+  const premiere = decouperLigneCsv(lignes[0], sep);
+  const bas = premiere.map(x => normaliserMot(x));
+
+  /* Une colonne « nom » et une colonne « prénom » séparées ? */
+  const iNom = bas.findIndex(x => x === 'nom');
+  const iPrenom = bas.findIndex(x => x === 'prenom' || x === 'prénom');
+  let colonnes = null;
+  let entete = false;
+
+  if(iNom !== -1 && iPrenom !== -1){
+    colonnes = [iPrenom, iNom];
+    entete = true;
+  }else{
+    const i = bas.findIndex(x => ENTETES_NOM.indexOf(x) !== -1);
+    if(i !== -1){ colonnes = [i]; entete = true; }
   }
 
-  var sh = feuille();
-  var lignes = sh.getDataRange().getValues();
-  var aSupprimer = [];
-
-  for (var i = 1; i < lignes.length; i++) {
-    if (normaliser(lignes[i][3]) === recherche) {
-      aSupprimer.push(i + 1);          // numéro de ligne réel (1-indexé)
-    }
-  }
-
-  if (!aSupprimer.length) {
-    return { status: 'ok', supprimees: 0, message: 'Aucun bilan trouvé.' };
-  }
-
-  /* On supprime en partant du bas : sinon les numéros de ligne
-     se décalent au fur et à mesure et on efface les mauvaises. */
-  aSupprimer.sort(function (a, b) { return b - a; });
-  for (var k = 0; k < aSupprimer.length; k++) {
-    sh.deleteRow(aSupprimer[k]);
-  }
-
-  return { status: 'ok', supprimees: aSupprimer.length };
-}
-
-/* ---------- LECTURE ---------- */
-function doGet(e) {
-  try {
-    var params = (e && e.parameter) ? e.parameter : {};
-
-    /* Liste des élèves déjà enregistrés (pour le menu déroulant) */
-    if (params.action === 'eleves') {
-      var toutes = feuille().getDataRange().getValues();
-      var vus = {};
-      var noms = [];
-      for (var j = 1; j < toutes.length; j++) {
-        var nom = texteCellule(toutes[j][3], false).trim();
-        if (!nom) continue;
-        var cle = normaliser(nom);
-        if (vus[cle]) continue;
-        vus[cle] = true;
-        noms.push(nom);
-      }
-      /* On ajoute ceux du répertoire, qui n'ont pas encore de bilan */
-      try {
-        listerRepertoire().forEach(function (n) {
-          var k = normaliser(n);
-          if (vus[k]) return;
-          vus[k] = true;
-          noms.push(n);
-        });
-      } catch (e) { /* pas de répertoire : on garde ceux des bilans */ }
-
-      noms.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
-      return reponseJson({ eleves: noms });
-    }
-
-    var recherche = normaliser(params.eleve);
-    var filtreMoniteur = normaliser(params.moniteur);
-    var filtreSite = normaliser(params.site);
-
-    /* Il faut au moins un critère : élève ou moniteur */
-    if (recherche.length < 2 && filtreMoniteur.length < 2) {
-      return reponseJson({ resultats: [] });
-    }
-
-    var leger = (params.leger === '1' || params.leger === 'true');
-    var sh = feuille();
-    var nb = sh.getLastRow();
-    if (nb < 2) return reponseJson({ resultats: [] });
-
-    /* En mode léger on ne charge pas la colonne E (texte du cours),
-       de loin la plus volumineuse. */
-    var blocA = sh.getRange(2, 1, nb - 1, 4).getValues();          // A-D
-    var blocF = sh.getRange(2, 6, nb - 1, 6).getValues();          // F-K
-    var blocE = leger ? null : sh.getRange(2, 5, nb - 1, 1).getValues();
-
-    var resultats = [];
-    for (var i = 0; i < blocA.length; i++) {
-      if (recherche.length >= 2 && normaliser(blocA[i][3]) !== recherche) continue;
-      if (filtreMoniteur.length >= 2 && normaliser(blocA[i][2]) !== filtreMoniteur) continue;
-      if (filtreSite.length >= 2 && normaliser(blocA[i][1]) !== filtreSite) continue;
-      resultats.push({
-        ligne: i + 2,
-        date: texteCellule(blocA[i][0], false),
-        site: texteCellule(blocA[i][1], false),
-        moniteur: texteCellule(blocA[i][2], false),
-        eleve: texteCellule(blocA[i][3], false),
-        bilan: leger ? '' : texteCellule(blocE[i][0], false),
-        type: texteCellule(blocF[i][0], false),
-        note: texteCellule(blocF[i][1], false),
-        horodatage: texteCellule(blocF[i][2], true),
-        boite: texteCellule(blocF[i][3], false),
-        ants: texteCellule(blocF[i][4], false),
-        manoeuvres: texteCellule(blocF[i][5], false)
+  /* Sans en-tête reconnu : la colonne qui ressemble le plus à des noms */
+  if(!colonnes){
+    const nb = premiere.length;
+    let meilleure = 0, meilleurScore = -1;
+    for(let col = 0; col < nb; col++){
+      let score = 0;
+      lignes.slice(0, 25).forEach(l => {
+        const v = (decouperLigneCsv(l, sep)[col] || '').trim();
+        if(v.length >= 4 && /[a-zà-ÿ]/i.test(v) && !/^\d+$/.test(v) && v.split(' ').length <= 5) score++;
       });
+      if(score > meilleurScore){ meilleurScore = score; meilleure = col; }
     }
+    colonnes = [meilleure];
+  }
 
-    resultats.reverse();                        // le plus récent en premier
-    var limite = (recherche.length >= 2) ? 30 : 200;
-    return reponseJson({ resultats: resultats.slice(0, limite) });
+  /* Les colonnes de contact, si elles sont là */
+  const trouver = (liste) => bas.findIndex(x => liste.indexOf(x) !== -1);
+  const iTel = entete ? trouver(ENTETES_TEL) : -1;
+  const iMail = entete ? trouver(ENTETES_MAIL) : -1;
+  const iForm = entete ? trouver(ENTETES_FORMATION) : -1;
+  const iGenre = entete ? trouver(ENTETES_GENRE) : -1;
 
-  } catch (err) {
-    return reponseJson({ resultats: [], error: err.message });
+  /* Sans en-tête : on repère une colonne qui ressemble à des numéros
+     ou à des adresses, plutôt que de perdre l'information. */
+  let telAuto = -1, mailAuto = -1;
+  if(!entete){
+    const nb = premiere.length;
+    for(let col = 0; col < nb; col++){
+      let tels = 0, mails = 0;
+      lignes.slice(0, 25).forEach(l => {
+        const v = (decouperLigneCsv(l, sep)[col] || '').trim();
+        if(/^[+0]\d[\d\s.()-]{7,}$/.test(v)) tels++;
+        if(v.indexOf('@') !== -1 && v.indexOf('.') !== -1) mails++;
+      });
+      if(tels >= 2 && telAuto === -1) telAuto = col;
+      if(mails >= 2 && mailAuto === -1) mailAuto = col;
+    }
+  }
+  const colTel = iTel !== -1 ? iTel : telAuto;
+  const colMail = iMail !== -1 ? iMail : mailAuto;
+
+  const fiches = [];
+  lignes.forEach((l, i) => {
+    if(entete && i === 0) return;
+    const cases = decouperLigneCsv(l, sep);
+    const morceaux = colonnes.map(c => (cases[c] || '').trim()).filter(Boolean);
+    const nom = morceaux.join(' ').replace(/\s+/g, ' ').trim();
+    if(nom.length < 3 || /^\d+$/.test(nom)) return;
+
+    fiches.push({
+      eleve: nom,
+      telephone: colTel >= 0 ? normaliserTel(cases[colTel]) : '',
+      email: colMail >= 0 ? (cases[colMail] || '').trim() : '',
+      formation: iForm >= 0 ? (cases[iForm] || '').trim() : '',
+      genre: iGenre >= 0 ? normaliserGenre(cases[iGenre]) : ''
+    });
+  });
+
+  const dit = [];
+  dit.push(fiches.length + ' élève(s)');
+  const nTel = fiches.filter(f => f.telephone).length;
+  const nMail = fiches.filter(f => f.email).length;
+  if(nTel) dit.push(nTel + ' avec téléphone');
+  if(nMail) dit.push(nMail + ' avec mail');
+  const nGenre = fiches.filter(f => f.genre).length;
+  if(nGenre) dit.push(nGenre + ' avec genre');
+
+  const info = dit.join(' · ') + ' · séparateur « ' +
+    (sep === '\t' ? 'tabulation' : sep) + ' » · nom : ' +
+    colonnes.map(c => premiere[c] || ('n°' + (c + 1))).join(' + ') +
+    (colTel >= 0 ? ' · tél : ' + (premiere[colTel] || ('n°' + (colTel + 1))) : '') +
+    (colMail >= 0 ? ' · mail : ' + (premiere[colMail] || ('n°' + (colMail + 1))) : '') +
+    (iGenre >= 0 ? ' · genre : ' + (premiere[iGenre] || ('n°' + (iGenre + 1))) : '');
+
+  return { fiches: fiches, noms: fiches.map(f => f.eleve), info: info };
+}
+
+/* Le fichier choisi remplit la zone de texte, pour relecture */
+function brancherFichierCsv(){
+  const inp = $('importFichier');
+  const zone = $('importEleves');
+  const etat = $('importEtat');
+  if(!inp || !zone) return;
+
+  inp.addEventListener('change', () => {
+    const f = inp.files && inp.files[0];
+    if(!f) return;
+
+    const lecteur = new FileReader();
+    lecteur.onerror = () => {
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Lecture du fichier impossible.';
+    };
+    lecteur.onload = () => {
+      const r = lireCsvEleves(String(lecteur.result || ''));
+      inp.value = '';
+      if(!r.noms.length){
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = "Aucun nom trouvé dans ce fichier. " +
+          'Colle la liste à la main, ou vérifie le fichier.';
+        return;
+      }
+      fichesAImporter = r.fiches || [];
+      zone.value = (r.fiches || []).map(f =>
+        [f.eleve, f.telephone, f.email].filter(Boolean).join(' · ')).join('\n');
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '📄 ' + r.info +
+        '\nRelis la liste ci-dessus, puis appuie sur Importer.';
+    };
+    /* Les exports français sont souvent en Windows-1252 */
+    lecteur.readAsText(f, 'utf-8');
+  });
+}
+
+
+/* Un Messenger noté comme lien devient cliquable ; un simple pseudo
+   est transformé en lien m.me, qui ouvre la conversation. */
+function lienMessenger(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  let url = t;
+  if(!/^https?:\/\//i.test(t)){
+    url = 'https://m.me/' + t.replace(/^@/, '').replace(/\s+/g, '');
+  }
+  return '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" ' +
+         'style="color:var(--accent-text);">' + t.replace(/</g, '&lt;') + '</a>';
+}
+
+
+/* ============================================================
+   LE MESSENGER DE L'ÉLÈVE, AU DÉMARRAGE DU COURS
+   Le moniteur le saisit une fois ; il est retenu et proposé
+   à tous les autres ensuite.
+   ============================================================ */
+let messengerCharge = '';
+
+async function chargerMessengerEleve(){
+  const champ = $('eleveMessenger');
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  if(!champ) return;
+
+  majLienMessenger();
+  if(nom.length < 3){ champ.value = ''; messengerCharge = ''; return; }
+
+  /* Le dossier est récupéré dès la saisie du nom, pendant que le
+     moniteur remplit le reste : au démarrage, tout est déjà prêt. */
+  if(typeof chargerDossierEleve === 'function'){
+    chargerDossierEleve(nom).catch(() => {});
+  }
+  if(typeof consignesDe === 'function'){
+    consignesDe(nom).catch(() => {});
+  }
+
+  try{
+    if(!fichesEleves.length) await chargerFiches();
+    const f = ficheDe(nom);
+    /* On n'écrase pas une saisie en cours */
+    if(champ.value.trim() && champ.value.trim() !== messengerCharge) return;
+    champ.value = (f && f.messenger) || '';
+    messengerCharge = champ.value;
+    majLienMessenger();
+  }catch(e){}
+}
+
+function majLienMessenger(){
+  const champ = $('eleveMessenger');
+  const lien = $('eleveMessengerLien');
+  if(!champ || !lien) return;
+
+  const v = champ.value.trim();
+  if(!v){ lien.style.display = 'none'; return; }
+
+  let url = v;
+  if(!/^https?:\/\//i.test(v)){
+    url = 'https://m.me/' + v.replace(/^@/, '').replace(/\s+/g, '');
+  }
+  lien.href = url;
+  lien.style.display = 'inline-flex';
+}
+
+/* Enregistré dès que le moniteur quitte le champ */
+async function enregistrerMessengerEleve(){
+  const champ = $('eleveMessenger');
+  const etat = $('eleveMessengerEtat');
+  if(!champ) return;
+
+  const v = champ.value.trim();
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  majLienMessenger();
+
+  if(!nom || nom.split(' ').length < 2) return;
+  if(v === messengerCharge) return;
+
+  try{
+    await appelPrep({ action: 'ficheSet', eleve: nom, messenger: v });
+    messengerCharge = v;
+    if(etat){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ Enregistré : les autres moniteurs le retrouveront ici.';
+    }
+    fichesEleves = [];
+  }catch(e){
+    if(etat){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Non enregistré : ' + e.message;
+    }
   }
 }
+
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-fenetres.js'] = true;
