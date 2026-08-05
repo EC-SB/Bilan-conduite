@@ -232,6 +232,8 @@ function ligneBureau(e, options){
 
   const info = document.createElement('span');
   info.textContent = options.info(e);
+  /* Une note sur une seconde ligne doit rester lisible */
+  info.style.whiteSpace = 'pre-wrap';
   meta.appendChild(info);
 
   const sous = document.createElement('span');
