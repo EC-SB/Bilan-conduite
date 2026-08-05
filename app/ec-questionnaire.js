@@ -112,12 +112,23 @@ const MOIS_FR = ['janvier','février','mars','avril','mai','juin','juillet',
 
 function dateFrVersIso(texte){
   const t = normaliserMot(texte || '');
+  const p2 = n => String(n).padStart(2, '0');
+
+  /* Format chiffré : 02/09/2026, 2-9-2026, 02.09.2026 */
+  const chiffre = t.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})\b/);
+  if(chiffre){
+    return chiffre[3] + '-' + p2(chiffre[2]) + '-' + p2(chiffre[1]);
+  }
+
+  /* Déjà au format ISO */
+  const iso = t.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if(iso) return iso[0];
+
   const m = t.match(/(\d{1,2})\s+([a-z\u00e0-\u00ff]+)\s+(\d{4})/);
   if(!m) return '';
   const jour = parseInt(m[1], 10);
   const mois = MOIS_FR.findIndex(x => normaliserMot(x) === m[2]);
   if(mois === -1) return '';
-  const p2 = n => String(n).padStart(2, '0');
   return m[3] + '-' + p2(mois + 1) + '-' + p2(jour);
 }
 
