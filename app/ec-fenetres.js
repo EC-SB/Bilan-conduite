@@ -277,7 +277,8 @@ async function importerListeEleves(){
   btn.disabled = true;
   btn.textContent = 'Import…';
   etat.style.color = 'var(--muted)';
-  etat.textContent = 'Envoi de la liste…';
+  etat.textContent = 'Envoi de ' + combien + ' fiche(s) — patiente, ' +
+    'cela peut prendre une minute…';
 
   try{
     /* Un fichier apporte les coordonnées ; une liste collée n'a que des noms */
