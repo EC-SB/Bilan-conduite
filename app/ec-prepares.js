@@ -26,14 +26,24 @@ function ecrireCachePrepares(liste){
   try{ localStorage.setItem(CLE_CACHE_PREP, JSON.stringify(liste)); }catch(e){}
 }
 
+/* Les actions qui écrivent en masse : plus de temps, et JAMAIS de
+   nouvelle tentative. Relancer un import qui a peut-être abouti
+   créerait des doublons. */
+const ACTIONS_LOURDES = { bureauEtat: 25000, elevesImport: 90000,
+                          smsList: 25000, resultatList: 25000 };
+const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
+                      'smsLog', 'eleveRetirer', 'consigneEffacerEleve'];
+
 async function appelPrep(corps){
-  /* Le suivi bureau est plus lourd : on lui laisse plus de temps */
-  const long = (corps && corps.action === 'bureauEtat');
+  const action = (corps && corps.action) || '';
+  const delai = ACTIONS_LOURDES[action] || 12000;
+  const essais = (SANS_REPRISE.indexOf(action) !== -1) ? 0 : 2;
+
   const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
-  }, long ? 25000 : 12000, 2);
+  }, delai, essais);
   if(!r.ok) throw new Error('HTTP ' + r.status);
   return await r.json().catch(() => ({}));
 }
