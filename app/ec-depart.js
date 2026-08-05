@@ -682,6 +682,27 @@ async function chargerUtilisateurs(){
         });
         actions.appendChild(bEmo);
 
+        /* Le genre, pour les accords du bilan */
+        const bGen = document.createElement('button');
+        bGen.className = 'btn btn-secondary';
+        bGen.style.cssText = 'width:auto;padding:7px 10px;font-size:12px;';
+        bGen.textContent = u.genre === 'F' ? '♀' : (u.genre === 'M' ? '♂' : '?');
+        bGen.title = 'Genre de ' + u.nom + ', pour les accords du bilan';
+        bGen.addEventListener('click', async () => {
+          const v = await choisirDansListe('Genre de ' + u.nom + ' :',
+            ['Féminin', 'Masculin', 'Non précisé'],
+            u.genre === 'F' ? 'Féminin' : (u.genre === 'M' ? 'Masculin' : 'Non précisé'));
+          if(!v) return;
+          const g = (v === 'Féminin') ? 'F' : (v === 'Masculin' ? 'M' : '');
+          bGen.disabled = true;
+          try{
+            await appelAdmin({ action:'genre', cible:u.code, genre:g });
+            messageAdmin('Genre de ' + u.nom + ' enregistré.');
+            chargerUtilisateurs();
+          }catch(e){ messageAdmin(e.message, true); bGen.disabled = false; }
+        });
+        actions.appendChild(bGen);
+
         /* Changer le code d'accès, sans toucher au reste du compte */
         const bCode = document.createElement('button');
         bCode.className = 'btn btn-secondary';
@@ -802,7 +823,8 @@ brancher('createBtn', 'click', async () => {
       nouveauCode: $('newCode').value.trim(),
       nom: $('newName').value.trim(),
       role: $('newRole').value,
-      emoji: $('newEmoji') ? $('newEmoji').value.trim() : ''
+      emoji: $('newEmoji') ? $('newEmoji').value.trim() : '',
+      genre: $('newGenre') ? $('newGenre').value : ''
     });
     messageAdmin('Accès créé pour ' + $('newName').value.trim() + '.');
     $('newCode').value = '';
@@ -819,11 +841,12 @@ brancher('createBtn', 'click', async () => {
 
 
 /* Ouvre la session et met en place l'interface */
-function ouvrirSession(code, moniteur, role, saluer, droits, emoji){
+function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur',
-            emoji: emoji || '',
+            emoji: emoji || '', genre: genre || '',
             droits: droits || [] };
-  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits, ACCES.emoji);
+  memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits,
+                   ACCES.emoji, ACCES.genre);
 
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
@@ -876,15 +899,15 @@ async function reprendreSession(){
         return false;
       }
       /* Doute : on garde la session mémorisée */
-      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji);
+      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre);
       return true;
     }
 
-    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits, data.emoji);
+    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits, data.emoji, data.genre);
     return true;
   }catch(e){
     /* Hors ligne : on fait confiance à la session mémorisée */
-    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji);
+    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre);
     return true;
   }
 }
@@ -924,7 +947,7 @@ async function deverrouiller(){
       $('codeInput').value = '';
       return;
     }
-    ouvrirSession(code, data.moniteur, data.role, true, data.droits, data.emoji);
+    ouvrirSession(code, data.moniteur, data.role, true, data.droits, data.emoji, data.genre);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Connexion impossible : ' + e.message;
