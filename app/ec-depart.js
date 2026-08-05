@@ -511,7 +511,13 @@ brancher('studentName', 'change', () => {
 });
 brancher('searchName', 'keydown', e => { if(e.key === 'Enter') rechercherEleve(); });
 
-brancher('newLessonBtn', 'click', () => {
+/* Remise à zéro pour le cours suivant. Appelée par le bouton
+   TERMINER et par « Copier, enregistrer et terminer ». */
+async function terminerCours(){
+  /* Quitter sans enregistrer se confirme : c'est une perte sèche */
+  if(!bilanEnregistre && $('resultText') && $('resultText').value.trim() &&
+     !await confirmer('Ce bilan n a pas été enregistré.\n\nQuitter quand même ? Il sera perdu.')) return;
+
   finalTranscript = '';
   committedTranscript = '';
   interruptions = 0;
@@ -541,7 +547,9 @@ brancher('newLessonBtn', 'click', () => {
   $('recordView').style.display = 'block';
   const d = $('genErrorDetail');
   if(d) d.remove();
-});
+}
+
+brancher('newLessonBtn', 'click', terminerCours);
 
 /* ---------- Historique ---------- */
 async function saveLesson(meta, bilanText){
