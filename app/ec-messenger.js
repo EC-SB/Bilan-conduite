@@ -101,18 +101,15 @@ function planningJournee(premierExamen, nbEleves, reglages){
     }
   }
 
-  /* Les écoutes : tout ce que font les autres */
+  /* Les écoutes : tout ce que font les autres, une ligne par
+     candidat écouté. On ne fusionne pas les créneaux qui se
+     suivent : voir qu'il y a deux passages différents est plus
+     parlant pour l'élève qu'une seule longue plage. */
   function ecoutesDe(moi){
-    const autres = conduites.filter((x, i) => i !== moi)
-                            .sort((a, b) => a.de - b.de);
-    const blocs = [];
-    autres.forEach(x => {
-      const dernier = blocs[blocs.length - 1];
-      const colles = dernier && dernier.a === x.de;
-      if(colles) dernier.a = x.a;
-      else blocs.push({ de: x.de, a: x.a });
-    });
-    return blocs.map(b => ({ de: enHeure(b.de), a: enHeure(b.a) }));
+    return conduites
+      .filter((x, i) => i !== moi)
+      .sort((a, b) => a.de - b.de)
+      .map(x => ({ de: enHeure(x.de), a: enHeure(x.a) }));
   }
 
   const creneaux = [];
