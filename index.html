@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v242
+     VERSION APPLICATION : v243
      VERSION APPS SCRIPT REQUISE : v46
      Mis à jour le : 03/08/2026
 
@@ -645,7 +645,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v242</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v243</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -763,7 +763,7 @@
       <div style="margin-top:14px;">
         <label for="prepDate">Date du cours</label>
         <input type="date" id="prepDate">
-        <label for="prepEleve">Nom et prénom de l'élève</label>
+        <label for="prepEleve">Prénom et nom de l'élève</label>
         <input type="text" id="prepEleve" list="listeEleves" autocomplete="off"
                placeholder="Choisis dans la liste ou tape un nom">
         <label for="prepModele">Type de bilan</label>
@@ -789,7 +789,7 @@
       <label for="monitorName">Prénom du moniteur</label>
       <input type="text" id="monitorName" placeholder="Ex : Chrystel">
 
-      <label for="studentName">Nom et prénom de l'élève</label>
+      <label for="studentName">Prénom et nom de l'élève</label>
       <input type="text" id="studentName" list="listeEleves" autocomplete="off"
              placeholder="Ex : Pierre Dupont">
       <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
@@ -977,7 +977,7 @@
   <div class="card" data-section="recherche" data-vue="recherche" data-onglet="eleves">
     <h2 class="section-title">🔍 Retrouver un élève</h2>
     <div class="contenu-tiroir">
-    <label for="searchName">Nom et prénom de l'élève</label>
+    <label for="searchName">Prénom et nom de l'élève</label>
     <input type="text" id="searchName" list="listeEleves" autocomplete="off"
            placeholder="Choisis dans la liste ou tape un nom">
     <datalist id="listeEleves"></datalist>
@@ -1033,7 +1033,7 @@
           Pour un élève qui n'apparaît pas dans les listes. La date rejoint
           directement ses notes internes au prochain cours.
         </div>
-        <label for="addEleve">Nom et prénom de l'élève</label>
+        <label for="addEleve">Prénom et nom de l'élève</label>
         <input type="text" id="addEleve" list="listeEleves" autocomplete="off"
                placeholder="Choisis dans la liste ou tape un nom">
         <label for="addType">Type</label>
@@ -1198,7 +1198,7 @@
           Préparer manuellement pour un élève
         </summary>
         <div style="margin-top:10px;">
-          <label for="permisNomManuel">Nom et prénom de l'élève</label>
+          <label for="permisNomManuel">Prénom et nom de l'élève</label>
           <input type="text" id="permisNomManuel" list="listeEleves" autocomplete="off"
                  placeholder="Choisis dans la liste ou tape un nom">
           <button class="btn btn-secondary" id="permisBtn">🎓 Préparer les messages</button>
@@ -1216,7 +1216,7 @@
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
         Élève qui arrête sa formation ou part ailleurs. Réservé au bureau.
       </div>
-      <label for="departNom">Nom et prénom de l'élève</label>
+      <label for="departNom">Prénom et nom de l'élève</label>
       <input type="text" id="departNom" list="listeEleves" autocomplete="off"
              placeholder="Choisis dans la liste ou tape un nom">
       <label for="departMotif">Motif</label>
@@ -1244,7 +1244,7 @@
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
         S'affichera au moniteur au prochain cours de cet élève, sans avoir à générer de bilan.
       </div>
-      <label for="msgEleve">Nom et prénom de l'élève</label>
+      <label for="msgEleve">Prénom et nom de l'élève</label>
       <input type="text" id="msgEleve" list="listeEleves" autocomplete="off"
              placeholder="Choisis dans la liste ou tape un nom">
       <label for="msgTexte">Message</label>
@@ -1577,33 +1577,33 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=242"></script>
-<script src="app/ec-modeles.js?v=242"></script>
-<script src="app/ec-consignes.js?v=242"></script>
-<script src="app/ec-noyau.js?v=242"></script>
-<script src="app/ec-vocal.js?v=242"></script>
-<script src="app/ec-reseau.js?v=242"></script>
-<script src="app/ec-manuel.js?v=242"></script>
-<script src="app/ec-fenetres.js?v=242"></script>
-<script src="app/ec-questionnaire.js?v=242"></script>
-<script src="app/ec-permis.js?v=242"></script>
-<script src="app/ec-prepares.js?v=242"></script>
-<script src="app/ec-bureau.js?v=242"></script>
-<script src="app/ec-places.js?v=242"></script>
-<script src="app/ec-listes.js?v=242"></script>
-<script src="app/ec-permis-listes.js?v=242"></script>
-<script src="app/ec-postpermis.js?v=242"></script>
-<script src="app/ec-textes.js?v=242"></script>
-<script src="app/ec-correction.js?v=242"></script>
-<script src="app/ec-bilans.js?v=242"></script>
-<script src="app/ec-rappels.js?v=242"></script>
-<script src="app/ec-sms.js?v=242"></script>
-<script src="app/ec-stats.js?v=242"></script>
-<script src="app/ec-messenger.js?v=242"></script>
-<script src="app/ec-journal.js?v=242"></script>
-<script src="app/ec-depart.js?v=242"></script>
-<script src="app/ec-onglets.js?v=242"></script>
-<script src="app/ec-demarrage.js?v=242"></script>
+  <script src="app/ec-etat.js?v=243"></script>
+<script src="app/ec-modeles.js?v=243"></script>
+<script src="app/ec-consignes.js?v=243"></script>
+<script src="app/ec-noyau.js?v=243"></script>
+<script src="app/ec-vocal.js?v=243"></script>
+<script src="app/ec-reseau.js?v=243"></script>
+<script src="app/ec-manuel.js?v=243"></script>
+<script src="app/ec-fenetres.js?v=243"></script>
+<script src="app/ec-questionnaire.js?v=243"></script>
+<script src="app/ec-permis.js?v=243"></script>
+<script src="app/ec-prepares.js?v=243"></script>
+<script src="app/ec-bureau.js?v=243"></script>
+<script src="app/ec-places.js?v=243"></script>
+<script src="app/ec-listes.js?v=243"></script>
+<script src="app/ec-permis-listes.js?v=243"></script>
+<script src="app/ec-postpermis.js?v=243"></script>
+<script src="app/ec-textes.js?v=243"></script>
+<script src="app/ec-correction.js?v=243"></script>
+<script src="app/ec-bilans.js?v=243"></script>
+<script src="app/ec-rappels.js?v=243"></script>
+<script src="app/ec-sms.js?v=243"></script>
+<script src="app/ec-stats.js?v=243"></script>
+<script src="app/ec-messenger.js?v=243"></script>
+<script src="app/ec-journal.js?v=243"></script>
+<script src="app/ec-depart.js?v=243"></script>
+<script src="app/ec-onglets.js?v=243"></script>
+<script src="app/ec-demarrage.js?v=243"></script>
 
 </body>
 </html>
