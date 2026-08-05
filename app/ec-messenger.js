@@ -272,6 +272,9 @@ function datesPermisAVenir(){
       nom: nom,
       centre: (s && s.centre) || '',
       moniteur: (s && s.moniteurDate) || '',
+      /* Le groupe défini dans « Permis prévus » : on le reprend
+         tel quel plutôt que de refaire le découpage ici. */
+      groupe: (s && s.groupePermis) || '',
       repassage: !!(s && s.nbAjournements),
       heure: ''
     });
@@ -377,12 +380,34 @@ function nouveauGroupe(nom){
            pauseDuree: 60, avantPause: 1, eleves: [] };
 }
 
-/* Reconstruit les groupes quand on change de date */
+/* Reconstruit les groupes quand on change de date.
+   Les groupes définis dans « Permis prévus » sont repris : le
+   bureau les a déjà organisés, inutile de recommencer ici. */
 function preparerGroupes(jour){
   dateGroupes = jour ? jour.iso : '';
-  const g = nouveauGroupe('Groupe 1');
-  g.eleves = jour ? jour.eleves.slice() : [];
-  groupesPermis = [g];
+  groupesPermis = [];
+  if(!jour){ groupesPermis = [nouveauGroupe('Groupe 1')]; return; }
+
+  const parNom = {};
+  const ordre = [];
+  jour.eleves.forEach(e => {
+    const n = (e.groupe || '').trim() || 'Sans groupe';
+    if(!parNom[n]){ parNom[n] = []; ordre.push(n); }
+    parNom[n].push(e);
+  });
+
+  ordre.sort((a, b) => {
+    if(a === 'Sans groupe') return 1;
+    if(b === 'Sans groupe') return -1;
+    return a.localeCompare(b, 'fr');
+  }).forEach((n, i) => {
+    const g = nouveauGroupe(n === 'Sans groupe' ? 'Groupe ' + (i + 1) : n);
+    g.eleves = parNom[n];
+    g.avantPause = Math.max(0, Math.min(g.avantPause, g.eleves.length - 1));
+    groupesPermis.push(g);
+  });
+
+  if(!groupesPermis.length) groupesPermis = [nouveauGroupe('Groupe 1')];
 }
 
 async function afficherMessengerPermis(){
