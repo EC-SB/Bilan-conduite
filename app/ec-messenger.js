@@ -237,9 +237,19 @@ const RAPPELS_AVANT_EXAMEN =
 "☠  𝗘𝗿𝗿𝗲𝘂𝗿𝘀 𝗲́𝗹𝗶𝗺𝗶𝗻𝗮𝘁𝗼𝗶𝗿𝗲𝘀 : https://www.facebook.com/groups/963972327360861/permalink/1131218613969564/  + https://www.facebook.com/groups/963972327360861/permalink/1135349536889805/\n\n" +
 "❓ 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 :\nhttps://www.facebook.com/groups/864826058258637";
 
+/* Toutes les versions des rappels avant examen : une par centre,
+   par parcours, ou ce que vous voudrez. S'il n'y en a aucune
+   d'enregistrée, le texte d'origine sert de départ. */
+function versionsRappels(){
+  const tous = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'permis_rappels');
+  if(tous.length) return tous;
+  return [{ titre: "Rappels avant examen", contenu: RAPPELS_AVANT_EXAMEN }];
+}
+
+/* Compatibilité : la première version reste accessible seule */
 function messageRappels(){
-  const perso = (typeof modelePour === 'function') ? modelePour('permis_rappels') : null;
-  return (perso && perso.contenu) ? perso.contenu : RAPPELS_AVANT_EXAMEN;
+  return versionsRappels()[0].contenu || RAPPELS_AVANT_EXAMEN;
 }
 
 
@@ -655,7 +665,10 @@ async function afficherMessengerPermis(){
       zMsg.appendChild(blocCopiable(
         'Message — ' + (g.nom || 'groupe'),
         messageGroupePermis(jour.iso, g.eleves[0].centre || '', g.eleves, plan, g.note || '')));
-      zMsg.appendChild(blocCopiable('Rappels avant examen', messageRappels()));
+      versionsRappels().forEach(v => {
+        zMsg.appendChild(blocCopiable('🧠 ' + (v.titre || 'Rappels avant examen'),
+                                      v.contenu || ''));
+      });
 
       /* Les messages de planning avant permis, s'il y en a d'enregistrés */
       const plannings = messagesPlanningPermis();
