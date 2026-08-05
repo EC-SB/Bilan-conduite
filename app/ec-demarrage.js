@@ -173,9 +173,10 @@ if($('smsOublier')) $('smsOublier').addEventListener('click', async () => {
 });
 if($('statsPeriode')) $('statsPeriode').addEventListener('change', afficherStats);
 if($('statsRang')) $('statsRang').addEventListener('change', afficherStats);
-if($('messengerBtn')) $('messengerBtn').addEventListener('click', afficherMessengerPermis);
+/* Le menu et le bouton sont désormais construits par ec-messenger.js,
+   et l'ouverture de l'onglet Permis déclenche l'affichage. */
 if($('permisBureauBtn')) $('permisBureauBtn').addEventListener('click', () => afficherBureau());
-if($('messengerDate')) $('messengerDate').addEventListener('change', afficherMessengerPermis);
+
 $('manuelGen').addEventListener('click', async () => {
   const b = $('manuelGen');
   b.disabled = true;
