@@ -241,8 +241,8 @@ function resumeSuivi(eleve){
                (s.autoEcole ? ' : ' + s.autoEcole : ''));
   }
   if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
-  if(s.paiementPrevu) bouts.push('paiement ' + s.paiementPrevu);
-  if(s.relanceLe) bouts.push('relancé ' + s.relanceLe);
+  if(s.paiementPrevu) bouts.push('paiement ' + dateCourte(s.paiementPrevu));
+  if(s.relanceLe) bouts.push('relancé le ' + dateCourte(s.relanceLe));
   const nat = { acheter:'à acheter', reserver:'à réserver', both:'à acheter et réserver' }[s.nature];
   if(nat){
     const det = [];
@@ -1184,7 +1184,7 @@ function apercuPermisPrevus(prevus){
       if(s.relanceLe){
         const rl = document.createElement('span');
         rl.style.cssText = 'flex-shrink:0;font-size:11px;color:var(--muted);';
-        rl.textContent = 'Date de relance : ' + s.relanceLe;
+        rl.textContent = 'Date de relance : ' + dateCourte(s.relanceLe);
         rl.title = 'Dernière relance de ' + e.eleve;
         l.appendChild(rl);
       }
@@ -1434,6 +1434,16 @@ async function choisirGroupePermis(eleve, iso, actuel){
   }catch(e){
     showToast('Enregistrement impossible : ' + e.message);
   }
+}
+
+/* Une date lisible : 2026-08-05 devient 05/08/2026.
+   Les champs « date » du navigateur renvoient l'ISO, illisible ici. */
+function dateCourte(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
+  return t;
 }
 
 /* Signale que ce module est bien chargé */
