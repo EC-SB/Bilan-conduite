@@ -532,6 +532,10 @@ function composerRappel(r){
 /* ---------- L'écran de composition manuelle ---------- */
 /* Ce qui reste d'un élève au suivant : on enchaîne les rappels
    d'une même journée, il serait pénible de tout ressaisir. */
+/* Vrai dès que le moniteur a écrit dans l'aperçu : on ne réécrit
+   plus son texte par-dessus au moindre changement de réglage. */
+let texteModifie = false;
+
 let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', voiture:'',
                     emplacement:'cour', options:[], libre:'' };
 
@@ -556,6 +560,9 @@ function relireChoixRappel(){
 async function afficherRappelManuel(){
   const zone = $('rappelManuelZone');
   if(!zone) return;
+
+  /* Un nouvel écran repart du modèle */
+  texteModifie = false;
 
   zone.innerHTML = '<div class="empty">Chargement des élèves…</div>';
   if(typeof chargerFiches === 'function') await chargerFiches();
@@ -700,12 +707,43 @@ async function afficherRappelManuel(){
   compteur.style.cssText = 'font-size:12px;text-align:right;margin-bottom:4px;min-height:16px;';
   zone.appendChild(compteur);
 
-  const ap = document.createElement('div');
+  /* L'aperçu est modifiable : une précision de dernière minute ne
+     doit pas obliger à passer par les modèles. */
+  const ap = document.createElement('textarea');
   ap.id = 'rappelApercu';
-  ap.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-    'padding:12px 14px;font-size:13px;line-height:1.55;white-space:pre-wrap;' +
-    'max-height:340px;overflow-y:auto;margin-bottom:12px;';
+  ap.rows = 14;
+  ap.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55;' +
+    'color:var(--cream);font-family:inherit;resize:vertical;margin-bottom:6px;';
   zone.appendChild(ap);
+
+  const barreAp = document.createElement('div');
+  barreAp.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px;';
+
+  const etatAp = document.createElement('span');
+  etatAp.id = 'rappelEtatApercu';
+  etatAp.style.cssText = 'flex:1;min-width:0;font-size:11px;color:var(--muted);';
+  barreAp.appendChild(etatAp);
+
+  const bRaz = document.createElement('button');
+  bRaz.id = 'rappelRaz';
+  bRaz.className = 'btn btn-secondary';
+  bRaz.style.cssText = 'display:none;width:auto;padding:6px 10px;font-size:11px;margin:0;';
+  bRaz.textContent = '↺ Revenir au modèle';
+  bRaz.addEventListener('click', () => {
+    texteModifie = false;
+    apercuRappel();
+  });
+  barreAp.appendChild(bRaz);
+  zone.appendChild(barreAp);
+
+  /* Dès qu'on écrit dedans, le texte cesse d'être recalculé */
+  ap.addEventListener('input', () => {
+    texteModifie = true;
+    majCompteurRappel(ap.value);
+    majEtatApercu();
+    majBoutonEnvoi();
+  });
 
   const etatEnvoi = document.createElement('div');
   etatEnvoi.id = 'rappelEtatEnvoi';
@@ -779,28 +817,44 @@ function lireChoixRappel(){
   };
 }
 
-function apercuRappel(){
+/* Le texte réellement envoyé : celui de la zone si le moniteur
+   l'a retouché, sinon celui que composent les réglages. */
+function texteRappel(){
   const ap = $('rappelApercu');
-  if(!ap) return;
-  const texte = composerRappel(lireChoixRappel());
-  ap.textContent = texte;
+  if(texteModifie && ap) return ap.value;
+  return composerRappel(lireChoixRappel());
+}
 
-  /* On voit tout de suite si le message passe */
+function majCompteurRappel(texte){
   const cp = $('rappelCompteur');
-  if(cp){
-    const n = texte.length;
-    const parts = decouperMessage(texte, LIMITE_SMS).length;
-    cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
-    cp.textContent = n + ' caractères' +
-      (parts > 1
-        ? ' — ' + parts + ' SMS · il faut retirer ' + (n - LIMITE_SMS) +
-          ' caractères pour n\'en faire qu\'un'
-        : ' — 1 SMS · encore ' + (LIMITE_SMS - n) + ' de marge');
-  }
+  if(!cp) return;
+  const n = texte.length;
+  const parts = decouperMessage(texte, LIMITE_SMS).length;
+  cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
+  cp.textContent = n + ' caractères' +
+    (parts > 1
+      ? ' — ' + parts + ' SMS · il faut retirer ' + (n - LIMITE_SMS) +
+        ' caractères pour n\'en faire qu\'un'
+      : ' — 1 SMS · encore ' + (LIMITE_SMS - n) + ' de marge');
+}
 
+function majEtatApercu(){
+  const e = $('rappelEtatApercu');
+  const b = $('rappelRaz');
+  if(e) e.textContent = texteModifie
+    ? '✏️ Texte modifié à la main — les réglages ne le réécrivent plus'
+    : 'Tu peux écrire directement dans le message ci-dessus.';
+  if(b) b.style.display = texteModifie ? 'inline-flex' : 'none';
+}
+
+function majBoutonEnvoi(){
   const bEnv = $('rappelEnvoi');
+  if(!bEnv) return;
+
   const nom = $('rappelEleve') ? $('rappelEleve').value.trim() : '';
   const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
+  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
+  const numero = saisi || (f && f.telephone) || '';
 
   /* On dit ce qu'on a trouvé, pour éviter les fautes de frappe */
   const et = $('rappelEleveEtat');
@@ -814,53 +868,27 @@ function apercuRappel(){
       '<span style="color:var(--warn-text);">⚠️ Élève inconnu — saisis son numéro ci-dessous</span>';
   }
 
-  /* Le numéro saisi à la main l'emporte sur celui de la fiche */
-  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
-  const numero = saisi || (f && f.telephone) || '';
-
-  if(bEnv){
-    if(numero){
-      bEnv.disabled = false;
-      bEnv.textContent = '💬 Envoyer à ' + (nom || telLisible(numero));
-    }else{
-      bEnv.disabled = true;
-      bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro — saisis-le'
-                             : '💬 Choisis un élève ou saisis un numéro';
-    }
+  if(numero){
+    bEnv.disabled = false;
+    bEnv.textContent = '💬 Envoyer à ' + (nom || telLisible(numero));
+  }else{
+    bEnv.disabled = true;
+    bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro — saisis-le'
+                           : '💬 Choisis un élève ou saisis un numéro';
   }
 }
 
+function apercuRappel(){
+  const ap = $('rappelApercu');
+  if(!ap) return;
 
-/* Bascule entre saisie manuelle et lecture du planning */
-function modeRappel(mode){
-  const vues = {
-    manuel:     $('rappelManuel'),
-    planning:   $('rappelPlanning'),
-    historique: $('rappelHistoriqueBloc')
-  };
-  const boutons = {
-    manuel:     $('rappelModeManuel'),
-    planning:   $('rappelModePlanning'),
-    historique: $('rappelModeHistorique')
-  };
-  if(!vues.manuel) return;
+  /* Un texte retouché n'est jamais réécrit sans le dire */
+  if(!texteModifie) ap.value = composerRappel(lireChoixRappel());
 
-  const actif = vues[mode] ? mode : 'manuel';
-
-  Object.keys(vues).forEach(k => {
-    if(vues[k]) vues[k].style.display = (k === actif) ? 'block' : 'none';
-    const b = boutons[k];
-    if(!b) return;
-    const on = (k === actif);
-    b.style.borderColor = on ? 'var(--orange)' : 'var(--line)';
-    b.style.color = on ? 'var(--accent-text)' : 'var(--cream)';
-    b.style.background = on ? 'rgba(182,255,14,.09)' : 'var(--navy)';
-  });
-
-  if(actif === 'manuel') afficherRappelManuel();
-  if(actif === 'historique') afficherHistoriqueSms();
+  majCompteurRappel(ap.value);
+  majEtatApercu();
+  majBoutonEnvoi();
 }
-
 
 /* ============================================================
    ENVOI DIRECT PAR L'API ALLO
@@ -894,7 +922,7 @@ async function envoyerRappelManuel(){
   const numero = saisi || (f && f.telephone) || '';
   if(!numero) return;
 
-  const texte = composerRappel(lireChoixRappel());
+  const texte = texteRappel();
 
   const parts = decouperMessage(texte, LIMITE_SMS).length;
 
@@ -917,6 +945,8 @@ async function envoyerRappelManuel(){
       if($('rappelEleve')) $('rappelEleve').value = '';
       if($('rapTel')) $('rapTel').value = '';
       if($('rapLibre')) $('rapLibre').value = '';
+      /* Élève suivant : on repart du modèle, pas du texte retouché */
+      texteModifie = false;
       apercuRappel();
     }, 900);
   }catch(e){
