@@ -1,575 +1,480 @@
 /* ============================================================
-   ec-prepares.js
-   Cours préparés à l'avance
+   ec-noyau.js
+   Configuration, session, droits, utilitaires communs
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
 /* ============================================================
-   COURS PRÉPARÉS À L'AVANCE
-   Le moniteur prépare ses notes la veille ; au moment du cours
-   il choisit l'élève et démarre directement.
-   Stockage dans le téléphone : accessible même sans réseau.
+   APPLICATION
    ============================================================ */
-const CLE_CACHE_PREP = 'cache_prepares';
-/* prepares : déclaré dans ec-etat.js */
-/* prepareEnCours : déclaré dans ec-etat.js */
+const CONFIG = {
+  WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev'
+};
+CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
+CONFIG.SMS_URL = CONFIG.WORKER_URL + '/sms';
+CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
+CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
+CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
+CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
+CONFIG.VERSION_SCRIPT_ATTENDUE = 47;   /* voir apps-script.js */
 
-/* Cache local : la liste reste consultable même sans réseau dans la voiture */
-function lireCachePrepares(){
-  try{
-    const brut = localStorage.getItem(CLE_CACHE_PREP);
-    const l = brut ? JSON.parse(brut) : [];
-    return Array.isArray(l) ? l : [];
-  }catch(e){ return []; }
+/* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
+   le redemander à chaque rafraîchissement, avec une durée de validité. */
+const CLE_SESSION = 'session_acces';
+const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
+
+/* ACCES : déclaré dans ec-etat.js */
+
+/* Sections de l'application soumises à autorisation */
+const SECTIONS = [
+  { cle:'prepares',         nom:'📅 Mes prochains cours' },
+  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
+  { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
+  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
+  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
+  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
+  { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
+  { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
+  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
+  { cle:'textes',           nom:'📄 Mes modèles de message' },
+  { cle:'sms',              nom:'💬 Envoi de SMS' },
+  { cle:'stats',            nom:'📈 Taux de réussite' },
+  { cle:'eleves',           nom:'👥 Répertoire des élèves' },
+  { cle:'rappels',          nom:'🔔 Rappels de cours par SMS' },
+  { cle:'bilans',           nom:'📋 Modèles de bilan' },
+  { cle:'procedures',       nom:'🚦 Procédures de conduite' },
+  { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
+  { cle:'admin',            nom:'⚙️ Administration des accès' }
+];
+
+/* Niveau d'accès : 'm' modifier, 'v' voir, '' rien */
+function niveauDroit(section){
+  const d = ACCES.droits;
+  if(!d || !Object.keys(d).length) return 'm';   /* compte sans réglage : tout */
+  return d[section] || '';
 }
-function ecrireCachePrepares(liste){
-  try{ localStorage.setItem(CLE_CACHE_PREP, JSON.stringify(liste)); }catch(e){}
-}
+function aDroit(section){ return niveauDroit(section) !== ''; }
+function peutModifier(section){ return niveauDroit(section) === 'm'; }
 
-/* Les actions qui écrivent en masse : plus de temps, et JAMAIS de
-   nouvelle tentative. Relancer un import qui a peut-être abouti
-   créerait des doublons. */
-const ACTIONS_LOURDES = { bureauEtat: 25000, elevesImport: 90000,
-                          smsList: 25000, resultatList: 25000 };
-const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
-                      'smsLog', 'eleveRetirer', 'consigneEffacerEleve'];
+/* Masque ou passe en lecture seule selon le niveau accordé */
+function appliquerDroits(){
+  /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
+  const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
+                         'bureau_permis','bureau_messages'];
+  /* La carte « simulateurs et examens blancs » ne dépend plus que
+     de ses propres sous-sections, le permis ayant sa carte à part. */
+  const bureauVisible = ['bureau_simu', 'bureau_examblanc'].some(aDroit);
 
-async function appelPrep(corps){
-  const action = (corps && corps.action) || '';
-  const delai = ACTIONS_LOURDES[action] || 12000;
-  const essais = (SANS_REPRISE.indexOf(action) !== -1) ? 0 : 2;
-
-  const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
-  }, delai, essais);
-  if(!r.ok) throw new Error('HTTP ' + r.status);
-  return await r.json().catch(() => ({}));
-}
-
-/* Charge depuis Sheets, avec repli sur le cache si le réseau manque */
-async function chargerPrepares(){
-  try{
-    const data = await appelPrep({ action: 'prepList' });
-    const liste = (data && data.preparations) || [];
-    /* Les cours passés de plus de 7 jours ne sont plus affichés */
-    const limite = new Date();
-    limite.setDate(limite.getDate() - 7);
-    const cle = limite.toISOString().slice(0, 10);
-    prepares = liste.filter(x => !x.date || x.date >= cle).map(x => {
-      let ctx = null;
-      try{ ctx = x.contexte ? JSON.parse(x.contexte) : null; }catch(e){}
-      return Object.assign({}, x, { contexte: ctx });
-    });
-    ecrireCachePrepares(prepares);
-    return true;
-  }catch(e){
-    prepares = lireCachePrepares();
-    return false;
-  }
-}
-
-function libelleDate(iso){
-  if(!iso) return 'Sans date';
-  const auj = todayLocal();
-  if(iso === auj) return "Aujourd'hui";
-  const d = new Date(iso + 'T12:00:00');
-  const dem = new Date();
-  dem.setDate(dem.getDate() + 1);
-  if(iso === dem.toISOString().slice(0, 10)) return 'Demain';
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-async function afficherPrepares(recharger, silencieux){
-  const zone = $('listePrepares');
-  if(!zone) return;
-
-  if(recharger !== false){
-    if(!silencieux) zone.innerHTML = '<div class="empty">Chargement…</div>';
-    const enLigne = await chargerPrepares();
-    if(!enLigne && prepares.length){
-      showToast('Hors ligne — liste en cache');
-    }
-  }
-  /* Chacun ne voit que ses cours, sauf demande explicite */
-  const tousMoniteurs = $('prepTous') && $('prepTous').checked;
-  const moi = normaliserMot(ACCES.moniteur || '');
-  let liste = prepares.slice();
-  if(!tousMoniteurs && moi){
-    liste = liste.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi);
-  }
-
-  majCompteur('cptPrepares', liste.length);
-
-  /* Au premier chargement, on ouvre le tiroir le plus utile */
-  if(!premierAffichagePrepares){
-    premierAffichagePrepares = true;
-    if(typeof ouvrirLeBonTiroirDuJour === 'function') ouvrirLeBonTiroirDuJour();
-  }
-
-  if(!liste.length){
-    const autres = prepares.length;
-    zone.innerHTML = '<div class="empty">' +
-      (autres && !tousMoniteurs
-        ? 'Aucun cours préparé à ton nom.<br>' + autres +
-          ' cours préparé(s) par d\'autres moniteurs — coche la case ci-dessus pour les voir.'
-        : 'Aucun cours préparé.<br>Prépare tes cours à l\'avance : le jour J, ' +
-          'tu choisis l\'élève et tu démarres.') +
-      '</div>';
-    return;
-  }
-
-  liste.sort((a, b) => (a.date || '').localeCompare(b.date || '') ||
-                       String(a.id || '').localeCompare(String(b.id || '')));
-  zone.innerHTML = '';
-  let dateCourante = null;
-
-  liste.forEach(cours => {
-    if(cours.date !== dateCourante){
-      dateCourante = cours.date;
-      const t = document.createElement('div');
-      const estAuj = (cours.date === todayLocal());
-      t.style.cssText = 'font-size:13px;font-weight:700;margin:14px 0 6px;text-transform:capitalize;' +
-        'color:' + (estAuj ? 'var(--accent-text)' : 'var(--muted)') + ';';
-      t.textContent = libelleDate(cours.date);
-      zone.appendChild(t);
-    }
-
-    const row = document.createElement('div');
-    row.className = 'history-item';
-
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const nom = document.createElement('strong');
-    nom.textContent = cours.eleve || '(sans nom)';
-    const sous = document.createElement('span');
-    /* Un cours dont la date est passée n'a pas été enregistré :
-       sa préparation serait partie. On le signale. */
-    const passe = cours.date && cours.date < todayLocal();
-
-    /* On distingue qui fait le cours de qui l'a préparé : après un
-       transfert, les deux ne sont plus la même personne. */
-    const donne = cours.preparePar && cours.moniteur &&
-      normaliserMot(cours.preparePar) !== normaliserMot(cours.moniteur);
-
-    sous.textContent = [cours.modeleLabel,
-                        cours.moniteur ? '👤 ' + cours.moniteur : '',
-                        donne ? '↩️ préparé par ' + cours.preparePar : '',
-                        passe ? '⚠️ pas encore enregistré' : ''].filter(Boolean).join(' · ');
-    if(passe) sous.style.color = 'var(--warn-text)';
-    meta.appendChild(nom);
-    meta.appendChild(sous);
-    if(cours.note){
-      const n = document.createElement('span');
-      n.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
-      n.textContent = '📌 ' + cours.note;
-      meta.appendChild(n);
-    }
-    row.appendChild(meta);
-
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;align-items:center;';
-
-    /* Un cours donné à quelqu'un d'autre ne s'ouvre plus : le
-       moniteur le voit, mais doit se le réattribuer pour le faire. */
-    const aMoiOuvrir = !cours.moniteur ||
-      normaliserMot(cours.moniteur) === normaliserMot(ACCES.moniteur || '');
-
-    if(aMoiOuvrir || ACCES.role === 'admin'){
-      const bOuvrir = document.createElement('button');
-      bOuvrir.className = 'btn btn-primary';
-      bOuvrir.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-      bOuvrir.textContent = '▶ Ouvrir';
-      bOuvrir.title = aMoiOuvrir ? 'Démarrer ce cours'
-                                 : 'Ouvrir (administrateur)';
-      bOuvrir.addEventListener('click', () => chargerPrepare(cours));
-      actions.appendChild(bOuvrir);
-    }else{
-      const bReprendre = document.createElement('button');
-      bReprendre.className = 'btn btn-secondary';
-      bReprendre.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-      bReprendre.textContent = '↩️ Reprendre';
-      bReprendre.title = 'Ce cours est à ' + cours.moniteur +
-                         '. Le reprendre pour pouvoir l\'ouvrir.';
-      bReprendre.addEventListener('click', async () => {
-        if(!await confirmer('Ce cours est attribué à ' + cours.moniteur + '.\n\n' +
-            'Le reprendre à ton nom ?')) return;
-        bReprendre.disabled = true;
-        try{
-          await appelPrep({ action: 'prepAssign', id: cours.id,
-                            moniteur: ACCES.moniteur });
-          showToast('Cours repris ✅');
-          afficherPrepares();
-        }catch(e){
-          showToast('Reprise impossible : ' + e.message);
-          bReprendre.disabled = false;
-        }
-      });
-      actions.appendChild(bReprendre);
-    }
-
-    const bDonner = document.createElement('button');
-    bDonner.className = 'btn btn-secondary';
-    bDonner.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;';
-    bDonner.textContent = '👤';
-    bDonner.title = 'Donner ce cours à un autre moniteur';
-    bDonner.addEventListener('click', async () => {
-      if(!moniteursActifs.length) await chargerMoniteurs();
-      const cible = await choisirDansListe(
-        'Donner le cours de ' + (cours.eleve || 'cet élève') + ' à :',
-        moniteursActifs, cours.moniteur || '');
-      if(!cible) return;
-      bDonner.disabled = true;
-      try{
-        await appelPrep({ action: 'prepAssign', id: cours.id, moniteur: cible });
-        showToast('Cours donné à ' + cible + ' ✅');
-        afficherPrepares();
-      }catch(e){
-        showToast('Transfert impossible : ' + e.message);
-        bDonner.disabled = false;
-      }
-    });
-    actions.appendChild(bDonner);
-
-    /* On ne supprime que ses propres préparations, sauf administrateur */
-    /* Seul le moniteur à qui le cours est attribué peut le supprimer.
-       Une préparation sans moniteur ne l'est que par un administrateur. */
-    const aMoi = !!cours.moniteur &&
-                 normaliserMot(cours.moniteur) === normaliserMot(ACCES.moniteur || '');
-    if(aMoi || ACCES.role === 'admin'){
-      const bSupp = document.createElement('button');
-      bSupp.className = 'btn btn-secondary';
-      bSupp.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;color:var(--red);border-color:var(--red);';
-      bSupp.textContent = '✕';
-      bSupp.title = aMoi ? 'Supprimer ce cours préparé'
-                         : 'Supprimer (administrateur)';
-      bSupp.addEventListener('click', async () => {
-        if(!await confirmer('Supprimer ce cours préparé ?' +
-                    (aMoi ? '' : '\n\nIl est attribué à ' + cours.moniteur +
-                      (cours.preparePar && cours.preparePar !== cours.moniteur
-                        ? ' et a été préparé par ' + cours.preparePar : '') + '.'))) return;
-        bSupp.disabled = true;
-        try{
-          const r = await appelPrep({ action: 'prepDelete', id: cours.id });
-          if(r && r.status === 'error'){ showToast(r.message); bSupp.disabled = false; return; }
-          afficherPrepares();
-        }catch(e){
-          showToast('Suppression impossible : ' + e.message);
-          bSupp.disabled = false;
-        }
-      });
-      actions.appendChild(bSupp);
-    }else{
-      const info = document.createElement('span');
-      info.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;max-width:70px;line-height:1.3;';
-      /* C'est l'attributaire qui compte ici : le cours est à lui. */
-      info.textContent = 'à ' + cours.moniteur;
-      actions.appendChild(info);
-    }
-
-    row.appendChild(actions);
-    zone.appendChild(row);
+  document.querySelectorAll('[data-section]').forEach(el => {
+    const s = el.getAttribute('data-section');
+    const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
+    /* Une vue non sélectionnée reste masquée : les onglets décident */
+    if(visible && el.classList.contains('hors-vue')) el.style.display = 'none';
+    else el.style.display = visible ? '' : 'none';
+    el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
   });
+
+  /* Le départ d'un élève ne concerne que le bureau */
+  const bd = document.querySelector('[data-vue="depart"]');
+  if(bd){
+    bd.style.display = (aDroit('depart') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
+      ? '' : 'none';
+  }
+
+  /* Le journal d'activité n'est visible que des administrateurs */
+  const jc = $('journalCard');
+  if(jc) jc.style.display = (ACCES.role === 'admin') ? '' : 'none';
+
+  if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
+  $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
 }
 
-/* Retire de la liste la préparation du cours qui vient d'être fait.
-   Ciblée : les autres cours du même élève sont conservés. */
-async function retirerPreparationFaite(){
-  let cible = prepareEnCours;
-
-  /* Cours non ouvert depuis la liste : on retrouve celui du jour */
-  if(!cible && currentLessonMeta && currentLessonMeta.studentName){
-    const nom = normaliserMot(currentLessonMeta.studentName);
-    const jour = $('lessonDate').value;
-    cible = prepares.find(x => normaliserMot(x.eleve || '') === nom && x.date === jour) || null;
-  }
-  if(!cible) return;
-
+function memoriserSession(code, moniteur, role, droits, emoji, genre){
   try{
-    await appelPrep({ action: 'prepDelete', id: cible.id });
-    prepareEnCours = null;
-    afficherPrepares();
+    localStorage.setItem(CLE_SESSION, JSON.stringify({
+      code: code, moniteur: moniteur, role: role,
+      emoji: emoji || '', genre: genre || '', droits: droits || [], ts: Date.now()
+    }));
+  }catch(e){}
+}
+
+function lireSession(){
+  try{
+    const brut = localStorage.getItem(CLE_SESSION);
+    if(!brut) return null;
+    const s = JSON.parse(brut);
+    if(!s || !s.code) return null;
+    if(Date.now() - (s.ts || 0) > DUREE_SESSION){ oublierSession(); return null; }
+    return s;
+  }catch(e){ return null; }
+}
+
+function oublierSession(){
+  try{ localStorage.removeItem(CLE_SESSION); }catch(e){}
+}
+
+function verrouiller(message, garderSession){
+  clearInterval(minuteurBureau);
+  bureauDejaCharge = false;
+  if(!garderSession) oublierSession();
+  ACCES = { code: null, moniteur: '', role: '', droits: [] };
+  $('appView').style.display = 'none';
+  $('adminCard').style.display = 'none';
+  if($('logoutBtn')) $('logoutBtn').style.display = 'none';
+  if($('qui')) $('qui').style.display = 'none';
+
+  /* Rien d'autre que le code d'accès sur l'écran de connexion */
+  if($('barreOnglets')) $('barreOnglets').style.display = 'none';
+  document.querySelectorAll('.barre-vues').forEach(b => { b.style.display = 'none'; });
+  document.body.classList.remove('avec-onglets');
+  $('lockView').style.display = 'block';
+  $('codeInput').value = '';
+  $('codeMsg').textContent = message || '';
+  $('codeMsg').style.color = message ? 'var(--warn-text)' : 'var(--muted)';
+}
+
+/* $ est déclaré dans ec-etat.js, chargé en premier. */
+
+function todayLocal(){
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + mm + '-' + dd;
+}
+
+/* recognition : déclaré dans ec-etat.js */
+/* isRecording : déclaré dans ec-etat.js */
+/* finalTranscript : déclaré dans ec-etat.js */
+/* currentLessonMeta : déclaré dans ec-etat.js */
+
+/* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
+/* committedTranscript : déclaré dans ec-etat.js */
+
+/* Contrôles préalables — sans toucher au micro :
+   sur Android, ouvrir puis fermer le micro juste avant la dictée
+   empêche la reconnaissance de capter le son. */
+/* Contexte requis pour ENREGISTRER un cours (micro nécessaire) */
+function verifierContexte(){
+  if(!window.isSecureContext){
+    return 'La page doit être ouverte en https:// pour accéder au micro.';
+  }
+  if(!SR){
+    return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
+  }
+  return verifierEleve();
+}
+
+/* Sans élève identifié, le bilan ne peut être rattaché à personne */
+function verifierEleve(){
+  const nom = $('studentName').value.trim();
+  if(nom.length < 2) return "Saisis le nom et le prénom de l'élève avant de démarrer.";
+  if(nom.split(/\s+/).length < 2) return "Il faut le nom ET le prénom de l'élève.";
+  if(!$('modele').value) return 'Choisis un type de bilan.';
+  if(!$('lessonDate').value) return 'Choisis la date du cours.';
+  return null;
+}
+
+/* Contexte requis pour un bilan à remplir à la main : aucun micro,
+   donc rien n'empêche de s'en servir sur n'importe quel navigateur. */
+function verifierContexteManuel(){
+  return verifierEleve();
+}
+
+/* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
+   seul l'événement onstart fait foi, sinon l'indicateur ment. */
+function demarrerReconnaissance(){
+  /* On repart systématiquement d'un objet neuf : évite d'hériter
+     d'une session figée par un cours précédent. */
+  try{
+    recreerEtDemarrer();
+    return { ok: true };
   }catch(e){
-    console.warn('Préparation non retirée :', e);
+    return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
   }
 }
 
+/* Maintien de l'écran allumé : Chrome coupe le micro dès que
+   l'écran s'éteint ou que la page passe en arrière-plan. */
+/* wakeLock : déclaré dans ec-etat.js */
+/* interruptions : déclaré dans ec-etat.js */
 
-/* ---------- Côté moniteur : le rendez-vous post-permis ---------- */
-/* rdvPostEnCours : déclaré dans ec-etat.js */
+/* Vrai uniquement quand une session de reconnaissance tourne réellement.
+   Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
+/* sessionActive : déclaré dans ec-etat.js */
+/* demarrageEnCours : déclaré dans ec-etat.js */
+/* dernierMot : déclaré dans ec-etat.js */
+/* dernierEvenement : déclaré dans ec-etat.js */
 
-/* Charge un cours préparé dans le formulaire : les informations sont
-   rafraîchies sans effacer ce que le moniteur avait saisi. */
-async function chargerPrepare(cours){
-  /* Garde-fou : masquer un bouton ne suffit pas. Un cours attribué
-     à quelqu'un d'autre ne se démarre pas sans se le réattribuer. */
-  if(cours && cours.moniteur && ACCES.role !== 'admin' &&
-     normaliserMot(cours.moniteur) !== normaliserMot(ACCES.moniteur || '')){
-    await informer('Ce cours est attribué à ' + cours.moniteur + '.\n\n' +
-      'Reprends-le à ton nom avant de le démarrer.');
-    return;
-  }
-
-  if(finalTranscript && !await confirmer('Un enregistrement est en cours. Le remplacer ?')) return;
-
-  /* Un rendez-vous post-permis ne passe pas par l'enregistrement */
-  if(cours.modele === 'rdv-post'){
-    ouvrirRdvPost(cours);
-    return;
-  }
-
-  prepareEnCours = cours;
-
-  if(cours.modele) $('modele').value = cours.modele;
-  $('studentName').value = cours.eleve || '';
-  if(cours.site) $('site').value = cours.site;
-  if(cours.date) $('lessonDate').value = cours.date;
-
-  let contexte = cours.contexte || null;
-  let note = cours.note || '';
-
-  if(contexte){
-    try{
-      const d = await chargerDossierEleve(cours.eleve);
-      const source = contexte.source || '';
-      const plusRecent = d.dernierHorodatage && d.dernierHorodatage !== source;
-
-      if(plusRecent){
-        /* Un cours a eu lieu depuis : on repart de son état, en gardant
-           tout ce que le moniteur avait renseigné à la préparation. */
-        const frais = defautsDepuisNote(d.derniereNote);
-        if(d.frise) frais.frise = d.frise;
-        if(d.lecons !== null) frais.lecon = String(d.lecons + 1);
-        frais.manoeuvresFaites = d.manoeuvres.length;
-        frais.totalManoeuvres = BLOC.ficheListeConduite.length;
-
-        contexte = fusionnerContexte(contexte, frais);
-        contexte.source = d.dernierHorodatage;
-        note = noteDepuisQuestionnaire(contexte);
-        showToast('Infos mises à jour depuis le dernier cours ✅');
-      }
-    }catch(e){ /* hors ligne : on garde la préparation telle quelle */ }
-  }
-
-  $('noteInterne').value = note;
-
-  /* Le questionnaire a déjà été rempli à la préparation : on ne le redemande pas */
-  contexteDepart = contexte;
-  noteQuestionnaire = note;
-
-  finalTranscript = '';
-  committedTranscript = '';
-  $('transcriptBox').value = '';
-  $('transcriptBox').style.display = 'none';
-  $('transcriptAide').style.display = 'none';
-  $('compteur').style.display = 'none';
-  $('finishBtn').style.display = 'none';
-  $('resultView').style.display = 'none';
-  $('recordView').style.display = 'block';
-  $('recBtn').textContent = '🎙️ Démarrer le cours';
-  $('status').textContent = 'Cours préparé — tu peux démarrer directement.';
-
-  verifierNomEleve('studentName', 'studentInfo', true);
-  chargerHistoriqueEleve();
-  window.scrollTo(0, 0);
-  showToast('Cours de ' + (cours.eleve || 'l\'élève') + ' chargé ✅');
+function marquerActif(nomEvenement){
+  sessionActive = true;
+  demarrageEnCours = false;
+  dernierEvenement = nomEvenement;
 }
 
-/* Prépare un nouveau cours : questionnaire complet, puis mise en réserve */
-async function preparerNouveauCours(){
-  const eleve = $('prepEleve').value.trim();
-  const date = $('prepDate').value;
-  const modeleCle = $('prepModele').value;
+function relancerMicro(){
+  if(!isRecording || sessionActive || demarrageEnCours) return;
+  demarrageEnCours = true;
+  dernierEvenement = 'start()';
 
-  if(eleve.length < 2){
-    showToast("Saisis le nom de l'élève.");
+  if(!recognition){
+    recreerEtDemarrer();
+    setTimeout(() => { demarrageEnCours = false; }, 1500);
     return;
   }
 
-  /* Le questionnaire lit le formulaire principal : on l'alimente le temps de la préparation */
-  const sauve = {
-    eleve: $('studentName').value,
-    modele: $('modele').value,
-    date: $('lessonDate').value
-  };
-  $('studentName').value = eleve;
-  $('modele').value = modeleCle;
-  $('lessonDate').value = date;
-
-  const btnPrep = $('prepBtn');
-  btnPrep.disabled = true;
-  btnPrep.textContent = 'Ouverture…';
-
-  let rep = null;
   try{
-    rep = await ouvrirQuestionnaireDepart(null, 'Préparer le cours de ' + eleve, 'Enregistrer');
-  }finally{
-    btnPrep.disabled = false;
-    btnPrep.textContent = '📝 Préparer les notes';
-    $('studentName').value = sauve.eleve;
-    $('modele').value = sauve.modele;
-    $('lessonDate').value = sauve.date;
-  }
-  if(!rep) return;
-
-  const btn = $('prepBtn');
-  btn.disabled = true;
-  btn.textContent = 'Enregistrement…';
-  try{
-    await appelPrep({
-      action: 'prepAdd',
-      date: date,
-      eleve: eleve,
-      modele: modeleCle,
-      modeleLabel: MODELES[modeleCle] ? MODELES[modeleCle].label : '',
-      site: $('site').value,
-      note: noteDepuisQuestionnaire(rep),
-      contexte: JSON.stringify(rep),
-      moniteur: ACCES.moniteur || ''
-    });
-    $('prepEleve').value = '';
-    await afficherPrepares();
-    showToast('Cours préparé ✅');
+    recognition.start();
   }catch(e){
-    showToast('Enregistrement impossible : ' + e.message);
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '📝 Préparer les notes';
-  }
-}
-
-function ouvrirRdvPost(cours){
-  rdvPostEnCours = cours;
-  const s = suiviDe(cours.eleve) || {};
-
-  $('rdvPostEleve').textContent = cours.eleve || '';
-  $('rdvPostInfo').textContent = 'Prévu le ' + libelleDate(cours.date) +
-    (cours.moniteur ? ' · ' + cours.moniteur : '') +
-    (s.nbAjournements ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : '');
-
-  /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
-  const zc = $('rdvPostCepc');
-  zc.innerHTML = '';
-  zc.appendChild(blocCaptures(cours.eleve, ''));
-
-  /* Le bilan d'examen officiel : dans la note préparée, ou dans la fiche */
-  const note = String(cours.note || '');
-  const sep = "BILAN DE L'EXAMEN À CORRIGER :";
-  const i = note.indexOf(sep);
-  $('rdvPostBilan').value = (i !== -1) ? note.slice(i + sep.length).trim()
-                                       : (s.bilanExamen || '');
-
-  /* Ce que l'élève a écrit, et ce que le moniteur ajoute */
-  $('rdvPostEleveBilan').value = s.bilanEleve || '';
-  $('rdvPostTexte').value = s.texteMoniteur || '';
-
-  const sel = $('rdvPostSuite');
-  sel.innerHTML = '<option value="">— à définir —</option>';
-  SUITES_POST.forEach(x => {
-    const o = document.createElement('option');
-    o.value = x.cle; o.textContent = x.nom;
-    sel.appendChild(o);
-  });
-  sel.value = s.suite || '';
-
-  /* Le nombre d'heures ne se demande que si un repassage est envisagé */
-  const hh = $('rdvPostHeures');
-  hh.value = s.heuresRepassage || '';
-  const majH = () => {
-    hh.style.display = (sel.value && sel.value !== 'impossible') ? 'block' : 'none';
-  };
-  sel.onchange = majH;
-  majH();
-
-  $('rdvPostCom').value = s.commentaireMoniteur || '';
-  $('rdvPostMsg').textContent = '';
-
-  $('recordView').style.display = 'none';
-  $('resultView').style.display = 'none';
-  $('rdvPostView').style.display = 'block';
-  window.scrollTo(0, 0);
-}
-
-function fermerRdvPost(){
-  rdvPostEnCours = null;
-  $('rdvPostView').style.display = 'none';
-  $('recordView').style.display = 'block';
-  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
-}
-
-async function terminerRdvPost(){
-  if(!rdvPostEnCours) return;
-  const suite = $('rdvPostSuite').value;
-  const heures = $('rdvPostHeures').value.trim();
-  const msg = $('rdvPostMsg');
-
-  if(!suite){
-    msg.style.color = 'var(--warn-text)';
-    msg.textContent = 'Indique la suite à donner avant de terminer.';
-    return;
-  }
-  if(suite !== 'impossible' && !heures){
-    msg.style.color = 'var(--warn-text)';
-    msg.textContent = "Indique le nombre d'heures avant le repassage.";
-    return;
-  }
-
-  const b = $('rdvPostEnr');
-  b.disabled = true;
-  b.textContent = 'Enregistrement…';
-  try{
-    const eleve = rdvPostEnCours.eleve;
-
-    const majs = {
-      bilanExamen: $('rdvPostBilan').value.trim(),
-      bilanEleve: $('rdvPostEleveBilan').value.trim(),
-      texteMoniteur: $('rdvPostTexte').value.trim(),
-      suite: suite,
-      heuresRepassage: (suite === 'impossible') ? '' : heures,
-      commentaireMoniteur: $('rdvPostCom').value.trim(),
-      rdvPostFait: 'oui',
-      /* L'élève rejoint la liste qui correspond à la conclusion */
-      retireAPrevoir: (suite === 'impossible') ? 'oui' : '',
-      par: ACCES.moniteur || ''
-    };
-    await majSuivi(eleve, majs);
-
-    /* Le bureau est informé, et la note oriente les listes */
-    const conclusion = libelleSuite(suite) +
-      (suite !== 'impossible' && heures ? ' — ' + heures + 'h à faire' : '');
-
-    if(suite === 'impossible'){
-      await envoyerConsigne(eleve, 'permis',
-        'Rendez-vous post-permis fait — ⛔ pas de repassage pour le moment. ' +
-        'Reprise des leçons avant de se décider.' +
-        ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+    const nom = String(e && e.name || '');
+    if(nom === 'InvalidStateError'){
+      /* Session fantôme : elle se croit démarrée mais n'émet plus rien.
+         On ne la réanime pas, on la remplace. */
+      dernierEvenement = 'session figée → recréation';
+      recreerEtDemarrer();
     }else{
-      await envoyerConsigne(eleve, 'permis',
-        'Rendez-vous post-permis fait — ' + conclusion +
-        " · Date d'examen à prévoir" +
-        ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+      dernierEvenement = 'start refusé: ' + (nom || e);
     }
+  }
+  /* Laisse à Chrome le temps d'ouvrir la session avant tout nouvel essai */
+  setTimeout(() => { demarrageEnCours = false; }, 1500);
+}
 
-    /* Le cours préparé n'a plus lieu d'être */
-    if(rdvPostEnCours.id){
-      try{ await appelPrep({ action: 'prepDelete', id: rdvPostEnCours.id }); }catch(e){}
+/* Surveillance : relance le micro s'il est mort, et signale
+   franchement quand rien n'est capté depuis longtemps. */
+setInterval(() => {
+  if(!isRecording) return;
+  sauvegarderLocal();
+  const etat = $('etatMicro');
+  const diag = $('diagMicro');
+
+  if(diag){
+    const depuis = dernierMot ? Math.round((Date.now() - dernierMot) / 1000) : null;
+    const capteRecemment = depuis !== null && depuis <= 12;
+
+    if(capteRecemment){
+      diag.textContent = '🗣️ paroles captées il y a ' + depuis + ' s';
+      diag.style.color = 'var(--orange)';
+    }else if(depuis !== null && sessionActive){
+      diag.textContent = '🤫 rien capté depuis ' + depuis + ' s';
+      diag.style.color = 'var(--warn-text)';
+    }else{
+      diag.textContent = 'état : ' + dernierEvenement;
+      diag.style.color = 'var(--muted)';
     }
+  }
 
-    msg.style.color = 'var(--accent-text)';
-    msg.textContent = '✅ ' + conclusion + ' — le bureau est informé.';
-    showToast('Rendez-vous terminé ✅');
-    await afficherPrepares();
-    setTimeout(fermerRdvPost, 1400);
+  if(!sessionActive){
+    etat.textContent = demarrageEnCours ? '⏳ démarrage…' : '⏸️ micro coupé — reprise…';
+    etat.style.color = 'var(--warn-text)';
+    relancerMicro();
+    return;
+  }
+
+  const silence = Math.round((Date.now() - dernierMot) / 1000);
+  if(silence >= 30){
+    etat.textContent = '⚠️ aucun son capté depuis ' + silence + ' s';
+    etat.style.color = 'var(--warn-text)';
+  } else {
+    etat.textContent = '🔴 en écoute';
+    etat.style.color = 'var(--orange)';
+  }
+}, 2500);
+
+async function garderEcranAllume(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+      return true;
+    }
   }catch(e){
-    msg.style.color = 'var(--warn-text)';
-    msg.textContent = 'Erreur : ' + e.message;
-  }finally{
-    b.disabled = false;
-    b.textContent = '✅ Terminer le rendez-vous';
+    console.warn('Maintien de l\'écran refusé :', e);
+  }
+  return false;
+}
+
+function libererEcran(){
+  if(wakeLock){
+    try{ wakeLock.release(); }catch(e){}
+    wakeLock = null;
   }
 }
+
+/* Prévient le moniteur si l'enregistrement a été coupé */
+document.addEventListener('visibilitychange', () => {
+  if(!isRecording) return;
+  if(document.hidden){
+    interruptions++;
+  } else {
+    garderEcranAllume();
+    relancerMicro();
+    if(interruptions > 0){
+      const w = $('pauseWarn');
+      w.style.display = 'block';
+      w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
+        (interruptions > 1 ? ' fois' : ' fois') +
+        ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
+    }
+  }
+});
+
+/* Fusionne les versions successives d'une même phrase.
+   Chrome sur Android empile les résultats provisoires
+   ("oui" / "oui ta" / "oui ta priorité"...) au lieu de les remplacer :
+   on ne garde donc que la version la plus complète. */
+function fusionner(chunks){
+  const out = [];
+  (chunks || []).forEach(raw => {
+    const c = String(raw).replace(/\s+/g, ' ').trim();
+    if(!c) return;
+    const last = out.length ? out[out.length - 1] : null;
+    if(last){
+      /* Comparaison sans la ponctuation finale, sinon un point
+         empêcherait de reconnaître une version étendue. */
+      const lastNu = sansPonctuationFinale(last);
+      const cNu = sansPonctuationFinale(c);
+      if(cNu.startsWith(lastNu)){ out[out.length - 1] = c; return; }
+      if(lastNu.startsWith(cNu)) return;
+    }
+    out.push(c);
+  });
+  return out.join(' ');
+}
+
+/* ---------- Menu des modèles ---------- */
+function remplirModeles(){
+  remplirUnMenuModeles($('modele'));
+  remplirUnMenuModeles($('prepModele'));
+}
+
+function remplirUnMenuModeles(sel){
+  if(!sel) return;
+
+  /* On repart de zéro : la fonction est appelée plusieurs fois
+     (démarrage, puis chargement des modèles ajoutés), et sans
+     ce nettoyage la liste se dédoublait. */
+  const choisi = sel.value;
+  sel.innerHTML = '';
+
+  const groupes = {};
+  Object.keys(MODELES).forEach(cle => {
+    const g = MODELES[cle].groupe;
+    if(!groupes[g]) groupes[g] = [];
+    groupes[g].push(cle);
+  });
+  Object.keys(groupes).forEach(g => {
+    const og = document.createElement('optgroup');
+    og.label = g;
+    groupes[g].forEach(cle => {
+      const opt = document.createElement('option');
+      opt.value = cle;
+      opt.textContent = MODELES[cle].label;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+
+  /* Le type choisi ne doit pas être perdu au rafraîchissement */
+  if(choisi && sel.querySelector('option[value="' + choisi + '"]')) sel.value = choisi;
+}
+
+function showToast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ---------- Reconnaissance vocale ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const estAndroid = /Android/i.test(navigator.userAgent || '');
+
+if(!SR){
+  $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale demande ' +
+    '<strong>Chrome sur Android</strong>.<br>Le <strong>bilan à remplir à la main</strong> ' +
+    'reste utilisable normalement sur ce navigateur.</div>';
+  $('recBtn').disabled = true;
+  $('recBtn').style.opacity = '.45';
+  /* Le mode manuel est mis en avant puisque c'est le seul disponible */
+  const bm = $('manuelBtn');
+  if(bm){
+    bm.className = 'btn btn-primary';
+    bm.style.marginTop = '12px';
+  }
+}
+
+/* Qui est connecté, en haut de l'écran.
+   Utile quand plusieurs moniteurs se partagent un téléphone. */
+const LIBELLE_ROLE = { admin: 'Administrateur', bureau: 'Bureau', moniteur: 'Moniteur' };
+
+function afficherIdentite(){
+  const z = $('qui');
+  const n = $('quiNom');
+  const r = $('quiRole');
+  if(!z || !n) return;
+
+  if(!ACCES.code){
+    z.style.display = 'none';
+    return;
+  }
+  z.style.display = 'block';
+  n.textContent = ACCES.moniteur || '';
+  if(r) r.textContent = LIBELLE_ROLE[ACCES.role] || ACCES.role || '';
+}
+
+/* ============================================================
+   FILET DE SÉCURITÉ POUR LA CONNEXION
+   Le bouton Déverrouiller est branché ici, dans un module chargé
+   tôt. Si un module plus loin échoue, on peut toujours entrer.
+   ============================================================ */
+(function brancherConnexion(){
+  const btn = $('codeBtn');
+  const champ = $('codeInput');
+  if(!btn || !champ) return;
+
+  const lancer = () => {
+    if(typeof deverrouiller === 'function'){ deverrouiller(); return; }
+    const msg = $('codeMsg');
+    if(msg){
+      msg.style.color = 'var(--warn-text)';
+      msg.innerHTML = "⚠️ L'application est incomplète : un fichier n'a pas été mis en ligne." +
+        '<br><span style="font-size:12px;">Vérifie le dossier <strong>app/</strong> sur GitHub, ' +
+        'puis recharge la page.</span>';
+    }
+  };
+
+  btn.addEventListener('click', lancer);
+  champ.addEventListener('keydown', e => { if(e.key === 'Enter') lancer(); });
+})();
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-prepares.js'] = true;
+window.EC_MODULES['ec-noyau.js'] = true;
+
+/* ============================================================
+   CONTRÔLE DES MODULES
+   Un fichier absent du serveur ne provoque aucune erreur visible :
+   des boutons cessent simplement de répondre. On le signale.
+   ============================================================ */
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-rappels.js", "ec-sms.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
+
+function verifierModules(){
+  const charges = window.EC_MODULES || {};
+  const manquants = EC_ATTENDUS.filter(function(m){ return !charges[m]; });
+  if(!manquants.length) return;
+
+  const z = document.createElement('div');
+  z.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;' +
+    'background:#B3261E;color:#fff;padding:14px 16px;font-size:14px;line-height:1.5;' +
+    'font-family:inherit;box-shadow:0 2px 12px rgba(0,0,0,.4);';
+  z.innerHTML = '<strong>⚠️ Application incomplète</strong><br>' +
+    manquants.length + ' fichier(s) manquant(s) dans le dossier <code>app/</code> :<br>' +
+    manquants.join(', ') + '<br>' +
+    '<span style="font-size:12px;opacity:.9;">Certaines fonctions ne répondront pas ' +
+    'tant que ces fichiers ne sont pas en ligne.</span>';
+  document.body.insertBefore(z, document.body.firstChild);
+  console.error('Modules manquants :', manquants);
+}
+
+/* On laisse le temps aux derniers scripts d'arriver */
+setTimeout(verifierModules, 2500);
