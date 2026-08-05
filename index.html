@@ -2,7 +2,7 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v247
+     VERSION APPLICATION : v248
      VERSION APPS SCRIPT REQUISE : v47
      Mis à jour le : 03/08/2026
 
@@ -645,7 +645,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v247</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v248</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -946,7 +946,10 @@
       <div class="hint">Les cases laissées en ✅❌ / ❓ sont à compléter par toi : notes chiffrées, nombre d'heures, choix de branche.</div>
       <textarea class="result" id="resultText"></textarea>
       <button class="btn btn-primary" id="copyBtn"
-              style="font-size:16px;padding:16px;">📋 Copier et enregistrer</button>
+              style="font-size:17px;padding:20px;font-weight:700;
+                     border-width:2px;">📋 Copier, enregistrer et terminer</button>
+      <div id="finEtat" style="margin-top:8px;font-size:13px;line-height:1.5;
+           min-height:16px;"></div>
 
       <button class="btn btn-primary" id="corrigerBtn"
               style="display:none;margin-top:8px;font-size:14px;padding:13px;">
@@ -967,10 +970,11 @@
           ⚠️ Signaler une erreur du moniteur</button>
       </details>
 
-      <!-- Passer au cours suivant : le dernier geste, donc tout en bas -->
-      <button class="btn btn-primary" id="newLessonBtn"
-              style="margin-top:20px;padding:20px;font-size:18px;font-weight:700;
-                     border-width:2px;">✅ TERMINER</button>
+      <!-- Quitter sans enregistrer : volontairement discret, pour
+           qu'on ne l'utilise pas à la place du bouton principal. -->
+      <button class="btn btn-secondary" id="newLessonBtn"
+              style="margin-top:20px;padding:12px;font-size:13px;">
+        Quitter sans enregistrer</button>
     </div>
   </div>
 
@@ -1591,33 +1595,33 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=247"></script>
-<script src="app/ec-modeles.js?v=247"></script>
-<script src="app/ec-consignes.js?v=247"></script>
-<script src="app/ec-noyau.js?v=247"></script>
-<script src="app/ec-vocal.js?v=247"></script>
-<script src="app/ec-reseau.js?v=247"></script>
-<script src="app/ec-manuel.js?v=247"></script>
-<script src="app/ec-fenetres.js?v=247"></script>
-<script src="app/ec-questionnaire.js?v=247"></script>
-<script src="app/ec-permis.js?v=247"></script>
-<script src="app/ec-prepares.js?v=247"></script>
-<script src="app/ec-bureau.js?v=247"></script>
-<script src="app/ec-places.js?v=247"></script>
-<script src="app/ec-listes.js?v=247"></script>
-<script src="app/ec-permis-listes.js?v=247"></script>
-<script src="app/ec-postpermis.js?v=247"></script>
-<script src="app/ec-textes.js?v=247"></script>
-<script src="app/ec-correction.js?v=247"></script>
-<script src="app/ec-bilans.js?v=247"></script>
-<script src="app/ec-rappels.js?v=247"></script>
-<script src="app/ec-sms.js?v=247"></script>
-<script src="app/ec-stats.js?v=247"></script>
-<script src="app/ec-messenger.js?v=247"></script>
-<script src="app/ec-journal.js?v=247"></script>
-<script src="app/ec-depart.js?v=247"></script>
-<script src="app/ec-onglets.js?v=247"></script>
-<script src="app/ec-demarrage.js?v=247"></script>
+  <script src="app/ec-etat.js?v=248"></script>
+<script src="app/ec-modeles.js?v=248"></script>
+<script src="app/ec-consignes.js?v=248"></script>
+<script src="app/ec-noyau.js?v=248"></script>
+<script src="app/ec-vocal.js?v=248"></script>
+<script src="app/ec-reseau.js?v=248"></script>
+<script src="app/ec-manuel.js?v=248"></script>
+<script src="app/ec-fenetres.js?v=248"></script>
+<script src="app/ec-questionnaire.js?v=248"></script>
+<script src="app/ec-permis.js?v=248"></script>
+<script src="app/ec-prepares.js?v=248"></script>
+<script src="app/ec-bureau.js?v=248"></script>
+<script src="app/ec-places.js?v=248"></script>
+<script src="app/ec-listes.js?v=248"></script>
+<script src="app/ec-permis-listes.js?v=248"></script>
+<script src="app/ec-postpermis.js?v=248"></script>
+<script src="app/ec-textes.js?v=248"></script>
+<script src="app/ec-correction.js?v=248"></script>
+<script src="app/ec-bilans.js?v=248"></script>
+<script src="app/ec-rappels.js?v=248"></script>
+<script src="app/ec-sms.js?v=248"></script>
+<script src="app/ec-stats.js?v=248"></script>
+<script src="app/ec-messenger.js?v=248"></script>
+<script src="app/ec-journal.js?v=248"></script>
+<script src="app/ec-depart.js?v=248"></script>
+<script src="app/ec-onglets.js?v=248"></script>
+<script src="app/ec-demarrage.js?v=248"></script>
 
 </body>
 </html>
