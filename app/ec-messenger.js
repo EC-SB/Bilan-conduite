@@ -581,8 +581,15 @@ async function afficherMessengerPermis(){
 
       const n = document.createElement('span');
       n.style.cssText = 'flex:1;min-width:0;font-size:14px;';
+      const sv = (typeof suiviDe === 'function') ? suiviDe(e.nom) : {};
+      const reperes = (typeof emojisPermis === 'function') ? emojisPermis(sv) : '';
+      const bte = (sv.typeExamen === 'bea') ? '🅰'
+                : (sv.typeExamen === 'handicap') ? '♿' : '🅑';
       n.innerHTML = '<strong style="color:var(--accent-text);">' + (i + 1) + '-</strong> ' +
-        e.nom.replace(/</g, '&lt;');
+        bte + (reperes ? ' ' + reperes : '') + ' ' +
+        e.nom.replace(/</g, '&lt;') +
+        (sv.toutOk === 'oui' ? ' ✅' : ' ⚠️');
+      n.title = sv.toutOk === 'oui' ? 'Dossier prêt' : 'Il manque quelque chose';
       l.appendChild(n);
 
       /* Monter dans l'ordre */
@@ -674,7 +681,14 @@ async function afficherMessengerPermis(){
         (plan.pauseDe ? '  ·  🥙 pause ' + plan.pauseDe + '–' + plan.pauseA : '') + '<br>' +
         g.eleves.map((e, i) => {
           const c = plan.creneaux[i];
-          return (i + 1) + '- ' + e.nom + ' — conduite ' + c.conduiteDe + '/' + c.conduiteA +
+          /* Les mêmes repères que dans « Permis prévus » : on voit
+             tout de suite qui doit encore payer ou planifier. */
+          const s = (typeof suiviDe === 'function') ? suiviDe(e.nom) : {};
+          const rep = (typeof emojisPermis === 'function') ? emojisPermis(s) : '';
+          const boite = (s.typeExamen === 'bea') ? '🅰'
+                      : (s.typeExamen === 'handicap') ? '♿' : '🅑';
+          return (i + 1) + '- ' + boite + (rep ? ' ' + rep : '') + ' ' + e.nom +
+                 ' — conduite ' + c.conduiteDe + '/' + c.conduiteA +
                  ' · examen ' + c.examenDe + '/' + c.examenA;
         }).join('<br>');
     }
