@@ -473,9 +473,15 @@ async function rechercherEleve(){
         $('resultText').value = item.bilan;
         afficherNote(item.note);
         marquerExport(true);
+
+        /* Le bilan appartient à l'onglet Cours : depuis la recherche,
+           il restait masqué par la classe « hors-onglet ». */
+        if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+
         $('recordView').style.display = 'none';
         $('generatingView').style.display = 'none';
         $('resultView').style.display = 'block';
+        $('resultView').classList.remove('hors-onglet', 'hors-vue');
         majBoutonCorrection();
         window.scrollTo(0, 0);
       });
