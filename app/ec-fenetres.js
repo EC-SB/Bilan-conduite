@@ -866,8 +866,13 @@ function brancherFichierCsv(){
         return;
       }
       fichesAImporter = r.fiches || [];
-      zone.value = (r.fiches || []).map(f =>
-        [f.eleve, f.telephone, f.email].filter(Boolean).join(' · ')).join('\n');
+      /* Le genre apparaît dans l'aperçu : sans lui, impossible de
+         vérifier avant d'importer que la colonne a bien été lue. */
+      zone.value = (r.fiches || []).map(f => {
+        const g = f.genre === 'F' ? '♀' : (f.genre === 'M' ? '♂' : '');
+        return [g, f.eleve, f.telephone, f.email, f.formation]
+          .filter(Boolean).join(' · ');
+      }).join('\n');
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '📄 ' + r.info +
         '\nRelis la liste ci-dessus, puis appuie sur Importer.';
