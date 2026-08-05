@@ -649,6 +649,8 @@ function afficherPermisPrevus(tous){
   }
 
   zPP.innerHTML = '';
+  /* Idem ici : une date connue du bureau seul doit pouvoir entrer */
+  boutonAjoutManuel(zPP, 'prevu');
 
   /* Un filtre actif se voit et se retire facilement */
   if(prevus.length && (fEtat || fDate)){
@@ -823,6 +825,8 @@ function afficherExamensPermis(tous){
   afficherAlertePrise(per);
 
   zPer.innerHTML = '';
+  /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
+  boutonAjoutManuel(zPer, 'aprevoir');
 
   /* Un élève écarté par un drapeau doit rester repérable */
   if(masques.length){
@@ -1462,6 +1466,71 @@ function dateCourte(v){
   const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if(iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
   return t;
+}
+
+/* ============================================================
+   AJOUT MANUEL DANS LES LISTES PERMIS
+   Un élève peut être prêt sans qu'aucun moniteur l'ait signalé :
+   le bureau doit pouvoir l'ajouter lui-même. L'information part
+   en message, donc elle remonte au questionnaire du moniteur.
+   ============================================================ */
+function boutonAjoutManuel(zone, mode){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-bottom:10px;padding:11px;font-size:13px;';
+  b.textContent = (mode === 'prevu')
+    ? '➕ Ajouter un élève avec sa date de permis'
+    : '➕ Ajouter un élève prêt au permis';
+  b.addEventListener('click', () => ajouterManuellementAuPermis(mode));
+  zone.appendChild(b);
+  return b;
+}
+
+async function ajouterManuellementAuPermis(mode){
+  /* Le nom, pris dans les élèves connus pour éviter les fautes */
+  const nom = await demander(
+    (mode === 'prevu' ? 'Ajouter un élève avec sa date de permis'
+                      : 'Ajouter un élève prêt au permis') +
+    '\n\nPrénom et nom de l\'élève :', '', 'Élève');
+  if(nom === null) return;
+
+  const eleve = String(nom).trim();
+  if(eleve.length < 3){
+    await informer('Nom trop court.');
+    return;
+  }
+
+  /* Un élève inconnu se signale, sans bloquer : il peut être
+     tout juste inscrit et pas encore dans le répertoire. */
+  const connu = (elevesConnus || []).some(x => normaliserMot(x) === normaliserMot(eleve));
+  if(!connu && !await confirmer(
+      '« ' + eleve + " » n'est pas dans la liste des élèves connus.\n\n" +
+      'Vérifie l\'orthographe : elle servira à le retrouver partout.\n\nContinuer ?')) return;
+
+  let iso = '';
+  if(mode === 'prevu'){
+    iso = await choisirDate('Date du permis de ' + eleve);
+    if(!iso) return;
+  }
+
+  try{
+    if(mode === 'prevu'){
+      const enLettres = dateEnToutesLettres(iso);
+      /* Le message alimente le questionnaire du moniteur */
+      await envoyerConsigne(eleve, 'permis',
+        'Examen du permis fixé au ' + enLettres + ' (bureau)');
+      await majSuivi(eleve, { datePermis: enLettres, retireAPrevoir: '' });
+      showToast(eleve + ' → permis le ' + dateCourte(iso) + ' ✅');
+    }else{
+      await envoyerConsigne(eleve, 'permis', "Date d'examen à prévoir (bureau)");
+      await majSuivi(eleve, { retireAPrevoir: '', aPlanifier: '' });
+      showToast(eleve + ' → prêt au permis ✅');
+    }
+    viderCaches(eleve);
+    await afficherBureau(true);
+  }catch(e){
+    await informer('Enregistrement impossible : ' + e.message);
+  }
 }
 
 /* Signale que ce module est bien chargé */
