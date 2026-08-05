@@ -61,6 +61,12 @@ const CORRECTIONS = [
   [/\bcr[ée]do\b/gi, 'créneau'],
   [/\bcr[ée]dneau\b/gi, 'créneau'],
   [/\bcr[ée]neau?x?\b/gi, 'créneau'],
+  /* « angle mort » est très souvent mal entendu : ongle, oncle.
+     Le pluriel est conservé : « les angles morts » reste correct. */
+  [/\bongles\s+m[oô]rts?\b/gi, 'angles morts'],
+  [/\boncles\s+m[oô]rts?\b/gi, 'angles morts'],
+  [/\bongle\s+m[oô]rt?\b/gi, 'angle mort'],
+  [/\boncle\s+m[oô]rt?\b/gi, 'angle mort'],
   [/\bangle m[oô]r\b/gi, 'angle mort'],
   [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
   [/\bpriorit[ée] a droite\b/gi, 'priorité à droite'],
@@ -665,6 +671,9 @@ function decouperEnTranches(texte, taille){
 
 /* Corrige le cours entier, tranche par tranche */
 /* Corrige une tranche, avec ses tentatives. */
+/* Vrai dès qu'un appel a été refusé pour cadence trop élevée */
+let cadenceDepassee = false;
+
 async function corrigerUneTranche(tranche, i, total, surEssai, avant){
   let contexte = total > 1
     ? '\n\n(Partie ' + (i + 1) + ' sur ' + total +
@@ -688,7 +697,10 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
     try{
       if(essai > 1){
         if(surEssai) surEssai(essai);
-        await new Promise(r => setTimeout(r, 1500 * essai));
+        /* Attente croissante : une limitation de cadence ne se lève
+           pas en une seconde et demie. */
+        const attente = cadenceDepassee ? 6000 * essai : 1500 * essai;
+        await new Promise(r => setTimeout(r, attente));
       }
       const txt = await appelBrutIA(CONSIGNE_CORRECTION + consigneAccords() + contexte,
                                     tranche, 8000);
@@ -708,22 +720,28 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
       }
     }catch(e){
       derniereErreur = e;
+      /* Trop d'appels d'un coup : les suivants attendent davantage */
+      if(/429|rate|cadence|overload/i.test(e.message || '')) cadenceDepassee = true;
       console.warn('Tranche ' + (i + 1) + ', essai ' + essai + ' :', e);
     }
   }
 
-  return { texte: tranche,   /* on garde le brut plutôt que de perdre le passage */
+  /* Échec après trois tentatives : on garde le texte brut plutôt que
+     de perdre le passage, mais on lui applique au moins les
+     corrections de vocabulaire. Sans ça « ongle mort » restait. */
+  return { texte: corrigerVocabulaire(tranche),
            echec: { n: i + 1, motif: derniereErreur ? derniereErreur.message : 'inconnu' } };
 }
 
 /* Combien de tranches traitées en même temps.
    Au-delà, l'IA rejette pour cadence trop élevée. */
-const TRANCHES_SIMULTANEES = 4;
+const TRANCHES_SIMULTANEES = 3;
 
 async function corrigerCours(transcript, surProgres){
   const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
   if(!tranches.length) return '';
 
+  cadenceDepassee = false;
   const corrigees = new Array(tranches.length);
   const echecs = [];
   let terminees = 0;
