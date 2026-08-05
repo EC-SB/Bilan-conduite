@@ -72,16 +72,38 @@ function analyserNote(note){
   /* Examen blanc réussi : la date de permis est à prendre */
   if(r.ebSuite === '3h' && !/Examen (du permis )?(prévu|fixé)/i.test(t)) r.permis = 'aprevoir';
 
-  /* L'annulation prime sur toute date déjà annoncée */
-  if(/annulé/i.test(t) && /permis|examen/i.test(t)) r.permis = 'annule';
-  else if((m = t.match(/Examen du permis fixé au ([^—·(]+)/i))){
-    r.permis = 'prevu';
-    r.permisDate = m[1].trim();
+  /* Les annonces s'accumulent au fil des cours et des messages du
+     bureau : c'est la DERNIÈRE qui fait foi, pas la première.
+     On les repère toutes, et on garde celle qui vient en dernier. */
+  const annonces = [];
+  const noter = (regex, etat, avecDate) => {
+    let x;
+    const g = new RegExp(regex.source, 'gi');
+    while((x = g.exec(t)) !== null){
+      annonces.push({ pos: x.index, etat: etat,
+                      date: avecDate && x[1] ? x[1].trim() : null });
+    }
+  };
+
+  noter(/Examen du permis fixé au ([^—·(]+)/, 'prevu', true);
+  noter(/Examen prévu le ([^—·]+)/, 'prevu', true);
+  noter(/(?:date d'examen|examen(?: du permis)?)\s*(?:est\s*)?à pr[ée]voir/, 'aprevoir', false);
+  noter(/[Ee]xamen (?:du permis )?(?:du [^—·]+ )?annulé/, 'annule', false);
+
+  if(annonces.length){
+    annonces.sort((a, b) => a.pos - b.pos);
+    const derniere = annonces[annonces.length - 1];
+    r.permis = derniere.etat;
+    r.permisDate = derniere.date;
   }
-  else if(/(date d'examen|examen(?: du permis)?)\s*(?:est\s*)?à pr[ée]voir/i.test(t)) r.permis = 'aprevoir';
-  else if((m = t.match(/Examen prévu le ([^—·]+)/i))){ r.permis='prevu'; r.permisDate=m[1].trim(); }
+
   if(r.permis === 'annule') r.permisDate = null;
-  if((m = t.match(/Examen prévu le [^—·]+— encore (\d+) leçon/i))) r.permisN = +m[1];
+
+  /* Le nombre de leçons restantes suit la dernière date annoncée */
+  const gN = /Examen prévu le [^—·]+— encore (\d+) leçon/gi;
+  let mn, dernierN = null;
+  while((mn = gN.exec(t)) !== null) dernierN = +mn[1];
+  if(dernierN !== null) r.permisN = dernierN;
 
   if((m = t.match(/(\d+)(?:ère|ème) leçon sur (\d+)/i))){ r.lecon=+m[1]; r.leconTotal=+m[2]; }
   else if((m = t.match(/(\d+)(?:ère|ème) leçon/i))) r.lecon = +m[1];
