@@ -2,8 +2,8 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v230
-     VERSION APPS SCRIPT REQUISE : v42
+     VERSION APPLICATION : v235
+     VERSION APPS SCRIPT REQUISE : v43
      Mis à jour le : 03/08/2026
 
      Vérifie que ce numéro correspond à celui affiché en haut de
@@ -645,7 +645,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v230</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v235</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -852,8 +852,12 @@
     </div>
     </div>
 
-    <button class="btn btn-primary" id="finishBtn"
-            style="display:none;margin-top:46px;padding:20px;font-size:16px;">✅ Terminer et générer le bilan</button>
+    <!-- Fond rouge sourd : la génération est facturée, elle ne se
+         déclenche pas par réflexe comme un bouton ordinaire. -->
+    <button class="btn" id="finishBtn"
+            style="display:none;margin-top:46px;padding:20px;font-size:16px;
+                   background:#9E3B32;border:2px solid #9E3B32;color:#FFFFFF;
+                   font-weight:700;">✅ Terminer et générer le bilan 💶</button>
   </div>
 
   <div id="manuelView" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
@@ -1470,6 +1474,12 @@
       <input type="text" id="newName" placeholder="Ex : David">
       <label for="newEmoji">Émoji du moniteur</label>
       <input type="text" id="newEmoji" maxlength="4" placeholder="Ex : 🦁">
+      <label for="newGenre">Genre — pour les accords du bilan</label>
+      <select id="newGenre">
+        <option value="">— non précisé —</option>
+        <option value="F">Féminin (monitrice)</option>
+        <option value="M">Masculin (moniteur)</option>
+      </select>
       <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">
         Il signe les manœuvres qu'il fait retravailler à l'élève.
         La première validation reste une simple coche ✅.
@@ -1504,7 +1514,9 @@
     <div id="confirmAlerte" style="font-size:14px;color:var(--warn-text);margin-bottom:14px;display:none;"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" id="cancelGen">Annuler</button>
-      <button class="btn btn-primary" id="confirmGen">Générer</button>
+      <button class="btn" id="confirmGen"
+              style="background:#9E3B32;border:2px solid #9E3B32;color:#FFFFFF;
+                     font-weight:700;">Générer 💶</button>
     </div>
   </div>
 </div>
@@ -1559,33 +1571,33 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=230"></script>
-<script src="app/ec-modeles.js?v=230"></script>
-<script src="app/ec-consignes.js?v=230"></script>
-<script src="app/ec-noyau.js?v=230"></script>
-<script src="app/ec-vocal.js?v=230"></script>
-<script src="app/ec-reseau.js?v=230"></script>
-<script src="app/ec-manuel.js?v=230"></script>
-<script src="app/ec-fenetres.js?v=230"></script>
-<script src="app/ec-questionnaire.js?v=230"></script>
-<script src="app/ec-permis.js?v=230"></script>
-<script src="app/ec-prepares.js?v=230"></script>
-<script src="app/ec-bureau.js?v=230"></script>
-<script src="app/ec-places.js?v=230"></script>
-<script src="app/ec-listes.js?v=230"></script>
-<script src="app/ec-permis-listes.js?v=230"></script>
-<script src="app/ec-postpermis.js?v=230"></script>
-<script src="app/ec-textes.js?v=230"></script>
-<script src="app/ec-correction.js?v=230"></script>
-<script src="app/ec-bilans.js?v=230"></script>
-<script src="app/ec-rappels.js?v=230"></script>
-<script src="app/ec-sms.js?v=230"></script>
-<script src="app/ec-stats.js?v=230"></script>
-<script src="app/ec-messenger.js?v=230"></script>
-<script src="app/ec-journal.js?v=230"></script>
-<script src="app/ec-depart.js?v=230"></script>
-<script src="app/ec-onglets.js?v=230"></script>
-<script src="app/ec-demarrage.js?v=230"></script>
+  <script src="app/ec-etat.js?v=235"></script>
+<script src="app/ec-modeles.js?v=235"></script>
+<script src="app/ec-consignes.js?v=235"></script>
+<script src="app/ec-noyau.js?v=235"></script>
+<script src="app/ec-vocal.js?v=235"></script>
+<script src="app/ec-reseau.js?v=235"></script>
+<script src="app/ec-manuel.js?v=235"></script>
+<script src="app/ec-fenetres.js?v=235"></script>
+<script src="app/ec-questionnaire.js?v=235"></script>
+<script src="app/ec-permis.js?v=235"></script>
+<script src="app/ec-prepares.js?v=235"></script>
+<script src="app/ec-bureau.js?v=235"></script>
+<script src="app/ec-places.js?v=235"></script>
+<script src="app/ec-listes.js?v=235"></script>
+<script src="app/ec-permis-listes.js?v=235"></script>
+<script src="app/ec-postpermis.js?v=235"></script>
+<script src="app/ec-textes.js?v=235"></script>
+<script src="app/ec-correction.js?v=235"></script>
+<script src="app/ec-bilans.js?v=235"></script>
+<script src="app/ec-rappels.js?v=235"></script>
+<script src="app/ec-sms.js?v=235"></script>
+<script src="app/ec-stats.js?v=235"></script>
+<script src="app/ec-messenger.js?v=235"></script>
+<script src="app/ec-journal.js?v=235"></script>
+<script src="app/ec-depart.js?v=235"></script>
+<script src="app/ec-onglets.js?v=235"></script>
+<script src="app/ec-demarrage.js?v=235"></script>
 
 </body>
 </html>
