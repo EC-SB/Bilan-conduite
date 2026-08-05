@@ -553,8 +553,12 @@ function afficherPermisPrevus(tous){
   /* Récapitulatif : nombre d'examens par date */
   const parDate = {};
   prevus.forEach(e => {
-    const k = e._datePermis || 'Date inconnue';
-    if(!parDate[k]) parDate[k] = { iso: e._iso, bv: 0, bea: 0, handicap: 0, total: 0 };
+    /* On regroupe sur la DATE, pas sur son libellé : « 3 septembre »
+       et « 3 septembre avant » sont le même jour et doivent tenir
+       dans le même bloc. */
+    const k = e._iso || e._datePermis || 'Date inconnue';
+    if(!parDate[k]) parDate[k] = { iso: e._iso, libelle: e._datePermis,
+                                   bv: 0, bea: 0, handicap: 0, total: 0 };
     parDate[k].total++;
     if(e._boite === 'bea') parDate[k].bea++;
     else if(e._boite === 'handicap') parDate[k].handicap++;
@@ -571,7 +575,11 @@ function afficherPermisPrevus(tous){
   selD.innerHTML = '<option value="">Toutes les dates</option>';
   dates.forEach(k => {
     const o = document.createElement('option');
-    o.value = k; o.textContent = k + ' (' + parDate[k].total + ')';
+    o.value = k;
+    /* La clé est la date ISO : on affiche le jour en toutes lettres */
+    o.textContent = (parDate[k].iso ? dateEnToutesLettres(parDate[k].iso)
+                                    : (parDate[k].libelle || k)) +
+                    ' (' + parDate[k].total + ')';
     selD.appendChild(o);
   });
   selD.value = choixD;
@@ -585,7 +593,8 @@ function afficherPermisPrevus(tous){
   if(fEtat === 'fantome')   visibles = visibles.filter(e => e._suivi.fantome === 'oui');
   if(fEtat === 'ok')        visibles = visibles.filter(e => e._suivi.toutOk === 'oui');
   if(fEtat === 'pasok')     visibles = visibles.filter(e => e._suivi.toutOk !== 'oui');
-  if(fDate) visibles = visibles.filter(e => (e._datePermis || 'Date inconnue') === fDate);
+  /* Le filtre porte sur la même clé que le regroupement */
+  if(fDate) visibles = visibles.filter(e => (e._iso || e._datePermis || 'Date inconnue') === fDate);
   visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
 
   /* Statistiques ventilées par mois d'examen */
@@ -633,7 +642,8 @@ function afficherPermisPrevus(tous){
       'margin-bottom:10px;font-size:13px;';
     const t = document.createElement('span');
     t.style.cssText = 'flex:1;min-width:0;color:var(--accent-text);';
-    t.textContent = '🔎 Filtre actif' + (fDate ? ' · ' + fDate : '');
+    t.textContent = '🔎 Filtre actif' +
+      (fDate ? ' · ' + (dateEnToutesLettres(fDate) || fDate) : '');
     b.appendChild(t);
     const x = document.createElement('button');
     x.className = 'btn btn-secondary';
@@ -1067,10 +1077,11 @@ function apercuPermisPrevus(prevus){
   bloc.appendChild(t);
   bloc.appendChild(legendePermis());
 
-  /* Regroupement par date d'examen */
+  /* Regroupement par date réelle, pas par libellé : « 3 septembre »
+     et « 3 septembre avant » désignent le même jour. */
   const parDate = {};
   prevus.forEach(e => {
-    const k = e._datePermis || 'Date inconnue';
+    const k = e._iso || e._datePermis || 'Date inconnue';
     if(!parDate[k]) parDate[k] = [];
     parDate[k].push(e);
   });
@@ -1098,7 +1109,9 @@ function apercuPermisPrevus(prevus){
 
     const h = document.createElement('div');
     h.style.cssText = 'font-weight:700;margin-bottom:3px;';
-    h.innerHTML = '📅 ' + date.replace(/</g, '&lt;') + ' — ' + groupe.length + ' élève(s) · ' +
+    /* La clé est une date ISO : on l'affiche en toutes lettres */
+    const libelle = dateEnToutesLettres(date) || groupe[0]._datePermis || date;
+    h.innerHTML = '📅 ' + String(libelle).replace(/</g, '&lt;') + ' — ' + groupe.length + ' élève(s) · ' +
       [bv ? bv + ' BV' : '', bea ? bea + ' BEA' : '', hand ? hand + ' ♿' : '']
         .filter(Boolean).join(' · ') +
       (mixte ? ' ⚠️' : '');
