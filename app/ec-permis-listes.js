@@ -41,7 +41,7 @@ function ficheSuiviPermis(e){
       'background:var(--navy-deep);border:1px solid var(--orange);border-radius:10px;">' +
       '<label for="' + id + 'nouv">Nouveau candidat</label>' +
       '<input type="text" id="' + id + 'nouv" list="listeEleves" autocomplete="off" ' +
-      'placeholder="Nom et prénom du repreneur">' +
+      'placeholder="Prénom et nom du repreneur">' +
       '<button class="btn btn-primary" id="' + id + 'trf" style="font-size:14px;padding:11px;">' +
       '➡️ Transférer la date à ce candidat</button>' +
       '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;">' +
