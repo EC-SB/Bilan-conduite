@@ -287,6 +287,36 @@ function datesPermisAVenir(){
 
 
 
+
+/* Le message « planning formation avant permis ».
+   Deux variantes selon qu'on planifie les 2h de veille ou qu'on
+   laisse les élèves choisir : ce sont VOS textes, pris dans
+   « Textes types » avec l'usage « Planning formation avant permis ». */
+function messagesPlanningPermis(){
+  const tous = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'permis_planning');
+  return tous;
+}
+
+function composerPlanningPermis(modele, jourIso, veilleIso, g){
+  const jourVeille = veilleIso || veilleDe(jourIso);
+  return appliquerModele(modele.contenu || '', {
+    permis:   jourIso ? dateEnToutesLettres(jourIso) : '',
+    veille:   jourVeille ? dateEnToutesLettres(jourVeille) : '',
+    moniteur: (g && g.moniteur) || '',
+    centre:   (g && g.eleves && g.eleves[0] && g.eleves[0].centre) || '',
+    liste:    (g && g.eleves ? g.eleves.map((e, i) => (i + 1) + '- ' + e.nom).join('\n') : '')
+  });
+}
+
+/* La veille d'une date ISO, au format ISO */
+function veilleDe(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /* Un message prêt à copier, avec son bouton */
 function blocCopiable(titre, texte){
   const d = document.createElement('div');
@@ -579,10 +609,22 @@ async function afficherMessengerPermis(){
     note.addEventListener('input', () => { g.note = note.value; });
     d.appendChild(note);
 
+    /* La date des 2h de veille, souvent différente de la veille stricte */
+    const lVeille = document.createElement('label');
+    lVeille.textContent = 'Date des 2 h de veille (pour le message de planning)';
+    lVeille.style.marginTop = '10px';
+    d.appendChild(lVeille);
+
+    const veille = document.createElement('input');
+    veille.type = 'date';
+    veille.value = g.veille || veilleDe(jour.iso);
+    veille.addEventListener('change', () => { g.veille = veille.value; });
+    d.appendChild(veille);
+
     const bMsg = document.createElement('button');
     bMsg.className = 'btn btn-primary';
     bMsg.style.cssText = 'margin-top:8px;padding:13px;font-size:14px;';
-    bMsg.textContent = '✍️ Composer le message de ce groupe';
+    bMsg.textContent = '✍️ Composer les messages de ce groupe';
     d.appendChild(bMsg);
 
     const zMsg = document.createElement('div');
@@ -614,6 +656,24 @@ async function afficherMessengerPermis(){
         'Message — ' + (g.nom || 'groupe'),
         messageGroupePermis(jour.iso, g.eleves[0].centre || '', g.eleves, plan, g.note || '')));
       zMsg.appendChild(blocCopiable('Rappels avant examen', messageRappels()));
+
+      /* Les messages de planning avant permis, s'il y en a d'enregistrés */
+      const plannings = messagesPlanningPermis();
+      if(plannings.length){
+        plannings.forEach(m => {
+          zMsg.appendChild(blocCopiable(
+            '🚨 ' + (m.titre || m.nom),
+            composerPlanningPermis(m, jour.iso, veille.value, g)));
+        });
+      }else{
+        const a = document.createElement('div');
+        a.className = 'empty';
+        a.style.cssText = 'margin-top:12px;padding:12px;font-size:12px;line-height:1.5;';
+        a.innerHTML = 'Aucun message « planning avant permis » enregistré.<br>' +
+          'Crée-le dans <strong>📄 Textes types</strong>, usage ' +
+          '« 🚨 Planning formation avant permis ».';
+        zMsg.appendChild(a);
+      }
     });
 
     return d;
