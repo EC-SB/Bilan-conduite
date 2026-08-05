@@ -290,20 +290,23 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     fermerAttente();
   }
 
-  /* Sans réponses antérieures, on repart de l'état du dernier cours */
-  if(!Object.keys(prec).length && dossier.derniereNote){
-    prec = defautsDepuisNote(dossier.derniereNote);
-  }
+  /* Le moniteur a-t-il déjà répondu pendant ce cours ? Si oui, ses
+     réponses priment sur tout : c'est lui qui vient de les saisir. */
+  const dejaRepondu = Object.keys(prec).length > 0;
 
-  /* Les messages du bureau sont plus récents que le dernier bilan :
-     une date d'examen qu'il vient de fixer doit se retrouver dans le
-     champ, pas seulement dans l'encadré vert. */
-  if(consignesBureau.length){
-    const duBureau = defautsDepuisNote(consignesBureau.map(x => x.texte).join(' · '));
-    Object.keys(duBureau).forEach(k => {
-      /* Le bureau fait foi sur ce qu'il vient d'annoncer */
-      if(duBureau[k] !== undefined && duBureau[k] !== '') prec[k] = duBureau[k];
-    });
+  if(!dejaRepondu){
+    /* Premier passage : on repart de l'état du dernier cours… */
+    if(dossier.derniereNote) prec = defautsDepuisNote(dossier.derniereNote);
+
+    /* …complété par les messages du bureau, plus récents que le
+       dernier bilan. Une date qu'il vient de fixer doit apparaître
+       dans le champ, pas seulement dans l'encadré vert. */
+    if(consignesBureau.length){
+      const duBureau = defautsDepuisNote(consignesBureau.map(x => x.texte).join(' · '));
+      Object.keys(duBureau).forEach(k => {
+        if(duBureau[k] !== undefined && duBureau[k] !== '') prec[k] = duBureau[k];
+      });
+    }
   }
 
   /* Frise entièrement déduite du type de bilan (cas AAC) */
