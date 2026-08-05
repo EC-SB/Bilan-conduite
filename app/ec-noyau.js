@@ -16,7 +16,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 42;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 43;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -89,11 +89,11 @@ function appliquerDroits(){
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
 }
 
-function memoriserSession(code, moniteur, role, droits, emoji){
+function memoriserSession(code, moniteur, role, droits, emoji, genre){
   try{
     localStorage.setItem(CLE_SESSION, JSON.stringify({
       code: code, moniteur: moniteur, role: role,
-      emoji: emoji || '', droits: droits || [], ts: Date.now()
+      emoji: emoji || '', genre: genre || '', droits: droits || [], ts: Date.now()
     }));
   }catch(e){}
 }
