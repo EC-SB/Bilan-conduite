@@ -147,8 +147,15 @@ async function afficherPrepares(recharger, silencieux){
     /* Un cours dont la date est passée n'a pas été enregistré :
        sa préparation serait partie. On le signale. */
     const passe = cours.date && cours.date < todayLocal();
+
+    /* On distingue qui fait le cours de qui l'a préparé : après un
+       transfert, les deux ne sont plus la même personne. */
+    const donne = cours.preparePar && cours.moniteur &&
+      normaliserMot(cours.preparePar) !== normaliserMot(cours.moniteur);
+
     sous.textContent = [cours.modeleLabel,
                         cours.moniteur ? '👤 ' + cours.moniteur : '',
+                        donne ? '↩️ préparé par ' + cours.preparePar : '',
                         passe ? '⚠️ pas encore enregistré' : ''].filter(Boolean).join(' · ');
     if(passe) sous.style.color = 'var(--warn-text)';
     meta.appendChild(nom);
@@ -239,7 +246,9 @@ async function afficherPrepares(recharger, silencieux){
                          : 'Supprimer (administrateur)';
       bSupp.addEventListener('click', async () => {
         if(!await confirmer('Supprimer ce cours préparé ?' +
-                    (aMoi ? '' : '\n\nIl a été préparé par ' + cours.moniteur + '.'))) return;
+                    (aMoi ? '' : '\n\nIl est attribué à ' + cours.moniteur +
+                      (cours.preparePar && cours.preparePar !== cours.moniteur
+                        ? ' et a été préparé par ' + cours.preparePar : '') + '.'))) return;
         bSupp.disabled = true;
         try{
           const r = await appelPrep({ action: 'prepDelete', id: cours.id });
@@ -254,7 +263,8 @@ async function afficherPrepares(recharger, silencieux){
     }else{
       const info = document.createElement('span');
       info.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;max-width:70px;line-height:1.3;';
-      info.textContent = 'préparé par ' + cours.moniteur;
+      /* C'est l'attributaire qui compte ici : le cours est à lui. */
+      info.textContent = 'à ' + cours.moniteur;
       actions.appendChild(info);
     }
 
