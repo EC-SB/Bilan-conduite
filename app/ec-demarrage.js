@@ -159,6 +159,7 @@ if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves)
 if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
 if($('rappelModeManuel')) $('rappelModeManuel').addEventListener('click', () => modeRappel('manuel'));
 if($('rappelModePlanning')) $('rappelModePlanning').addEventListener('click', () => modeRappel('planning'));
+if($('rappelModeHistorique')) $('rappelModeHistorique').addEventListener('click', () => modeRappel('historique'));
 if($('studentName')) $('studentName').addEventListener('change', chargerMessengerEleve);
 if($('eleveMessenger')){
   $('eleveMessenger').addEventListener('input', majLienMessenger);
