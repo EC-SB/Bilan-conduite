@@ -985,6 +985,7 @@ function afficherNote(note){
 
 /* ---------- Actions ---------- */
 $('copyBtn').addEventListener('click', async () => {
+  direEtatFin('');
   const ta = $('resultText');
   ta.select();
 
@@ -998,22 +999,44 @@ $('copyBtn').addEventListener('click', async () => {
   /* 2. Puis l'enregistrement de la version relue et corrigée.
      Une note ajoutée après coup doit partir, elle aussi : le
      moniteur ne comprendrait pas qu'elle reste dans le vide. */
-  if(bilanEnregistre){
-    if(!bilanModifieDepuisEnregistrement()){
-      showToast('Bilan copié ✅');
-      return;
+  const b = $('copyBtn');
+  b.disabled = true;
+  const libelle = b.textContent;
+
+  let enregistre;
+  if(bilanEnregistre && !bilanModifieDepuisEnregistrement()){
+    enregistre = true;                       /* rien n'a bougé */
+    showToast('Bilan copié ✅');
+  }else if(bilanEnregistre){
+    b.textContent = 'Mise à jour…';
+    enregistre = await mettreAJourBilan();
+    showToast(enregistre ? 'Bilan et note mis à jour ✅'
+                         : '⚠️ Copié, mais la mise à jour a échoué');
+  }else{
+    b.textContent = 'Enregistrement…';
+    enregistre = await exporterVersSheets(true);
+    showToast(enregistre ? 'Bilan copié et enregistré ✅'
+                         : '⚠️ Copié, mais NON enregistré dans Sheets');
+  }
+
+  b.disabled = false;
+  b.textContent = libelle;
+
+  /* On ne termine QUE si l'enregistrement a réussi : sinon le
+     moniteur perdrait son bilan en croyant l'avoir sauvegardé. */
+  if(!enregistre){
+    if(typeof direEtatFin === 'function'){
+      direEtatFin("Le bilan n'est PAS enregistré. Vérifie ta connexion " +
+                  'et réessaie avant de quitter cet écran.', true);
     }
-    showToast('Bilan copié ✅ — mise à jour…');
-    const maj = await mettreAJourBilan();
-    showToast(maj ? 'Bilan et note mis à jour ✅'
-                  : '⚠️ Copié, mais la mise à jour a échoué');
     return;
   }
-  showToast('Bilan copié ✅ — enregistrement…');
-  const ok = await exporterVersSheets(true);
-  if(!ok){
-    showToast("⚠️ Copié, mais NON enregistré dans Sheets");
-  }
+
+  /* Petit délai : le moniteur voit la confirmation avant que
+     l'écran ne reparte à zéro. */
+  setTimeout(() => {
+    if(typeof terminerCours === 'function') terminerCours();
+  }, 1100);
 });
 
 async function exporterVersSheets(silencieux){
@@ -1116,6 +1139,16 @@ async function mettreAJourBilan(){
     console.error('Mise à jour du bilan :', e);
     return false;
   }
+}
+
+
+/* Message de fin de cours, qui reste affiché */
+function direEtatFin(texte, erreur){
+  const z = $('finEtat');
+  if(!z) return;
+  if(!texte){ z.innerHTML = ''; return; }
+  z.style.color = erreur ? 'var(--warn-text)' : 'var(--accent-text)';
+  z.textContent = (erreur ? '⚠️ ' : '✅ ') + texte;
 }
 
 function marquerExport(ok){
