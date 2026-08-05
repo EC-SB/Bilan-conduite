@@ -546,6 +546,11 @@ function afficherPermisPrevus(tous){
     e._suivi = s || {};
     e._datePermis = (e.etat.permisDate) || (s && s.datePermis) || '';
     e._iso = dateFrVersIso(e._datePermis) || '';
+    /* Une même date peut compter plusieurs groupes : deux inspecteurs,
+       matin et après-midi. Le groupe fait partie de la clé. */
+    e._groupe = (s && s.groupePermis) || '';
+    e._cleJour = (e._iso || e._datePermis || 'Date inconnue') +
+                 (e._groupe ? ' · ' + e._groupe : '');
     e._boite = ((s && s.typeExamen) || e.boite ||
                 (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
   });
@@ -556,8 +561,9 @@ function afficherPermisPrevus(tous){
     /* On regroupe sur la DATE, pas sur son libellé : « 3 septembre »
        et « 3 septembre avant » sont le même jour et doivent tenir
        dans le même bloc. */
-    const k = e._iso || e._datePermis || 'Date inconnue';
+    const k = e._cleJour;
     if(!parDate[k]) parDate[k] = { iso: e._iso, libelle: e._datePermis,
+                                   groupe: e._groupe,
                                    bv: 0, bea: 0, handicap: 0, total: 0 };
     parDate[k].total++;
     if(e._boite === 'bea') parDate[k].bea++;
@@ -579,6 +585,7 @@ function afficherPermisPrevus(tous){
     /* La clé est la date ISO : on affiche le jour en toutes lettres */
     o.textContent = (parDate[k].iso ? dateEnToutesLettres(parDate[k].iso)
                                     : (parDate[k].libelle || k)) +
+                    (parDate[k].groupe ? ' · ' + parDate[k].groupe : '') +
                     ' (' + parDate[k].total + ')';
     selD.appendChild(o);
   });
@@ -594,7 +601,7 @@ function afficherPermisPrevus(tous){
   if(fEtat === 'ok')        visibles = visibles.filter(e => e._suivi.toutOk === 'oui');
   if(fEtat === 'pasok')     visibles = visibles.filter(e => e._suivi.toutOk !== 'oui');
   /* Le filtre porte sur la même clé que le regroupement */
-  if(fDate) visibles = visibles.filter(e => (e._iso || e._datePermis || 'Date inconnue') === fDate);
+  if(fDate) visibles = visibles.filter(e => e._cleJour === fDate);
   visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
 
   /* Statistiques ventilées par mois d'examen */
@@ -1081,7 +1088,7 @@ function apercuPermisPrevus(prevus){
      et « 3 septembre avant » désignent le même jour. */
   const parDate = {};
   prevus.forEach(e => {
-    const k = e._iso || e._datePermis || 'Date inconnue';
+    const k = e._cleJour;
     if(!parDate[k]) parDate[k] = [];
     parDate[k].push(e);
   });
@@ -1110,7 +1117,9 @@ function apercuPermisPrevus(prevus){
     const h = document.createElement('div');
     h.style.cssText = 'font-weight:700;margin-bottom:3px;';
     /* La clé est une date ISO : on l'affiche en toutes lettres */
-    const libelle = dateEnToutesLettres(date) || groupe[0]._datePermis || date;
+    const gNom = groupe[0]._groupe || '';
+    const libelle = (dateEnToutesLettres(groupe[0]._iso) || groupe[0]._datePermis || date) +
+                    (gNom ? '  ·  ' + gNom : '');
     h.innerHTML = '📅 ' + String(libelle).replace(/</g, '&lt;') + ' — ' + groupe.length + ' élève(s) · ' +
       [bv ? bv + ' BV' : '', bea ? bea + ' BEA' : '', hand ? hand + ' ♿' : '']
         .filter(Boolean).join(' · ') +
@@ -1146,6 +1155,19 @@ function apercuPermisPrevus(prevus){
       etat.title = (s.toutOk === 'oui') ? 'Dossier prêt' : 'Il manque quelque chose';
       l.appendChild(etat);
 
+      /* Affecter l'élève à un groupe : deux inspecteurs le même jour */
+      const bG = document.createElement('button');
+      bG.className = 'btn btn-secondary';
+      bG.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;';
+      bG.textContent = e._groupe || '👥';
+      bG.title = e._groupe ? 'Groupe : ' + e._groupe + ' — appuie pour changer'
+                           : 'Mettre ' + e.eleve + ' dans un groupe';
+      bG.addEventListener('click', ev => {
+        ev.stopPropagation();
+        choisirGroupePermis(e.eleve, e._iso, e._groupe);
+      });
+      l.appendChild(bG);
+
       d.appendChild(l);
     });
 
@@ -1154,7 +1176,9 @@ function apercuPermisPrevus(prevus){
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);padding:6px 2px 0;line-height:1.5;';
-  aide.textContent = 'Appuie sur un nom pour ouvrir sa fiche.';
+  aide.textContent = "Appuie sur un nom pour ouvrir sa fiche. Le bouton 👥 range " +
+    "l'élève dans un groupe : deux inspecteurs le même jour, ou matin et après-midi. " +
+    'Les groupes se retrouvent tels quels dans le message Messenger.';
   bloc.appendChild(aide);
 
   return bloc;
@@ -1317,6 +1341,55 @@ function signalerAjout(zone){
 }
 
 
+
+/* ============================================================
+   GROUPES D'EXAMEN
+   Une même date peut compter deux inspecteurs, ou une session le
+   matin et une l'après-midi. Le groupe est enregistré sur la fiche
+   de suivi : les listes ET le message Messenger le retrouvent.
+   ============================================================ */
+function groupesConnus(iso){
+  const vus = [];
+  (etatBureau.suivi || []).forEach(s => {
+    const g = (s.groupePermis || '').trim();
+    if(!g || vus.indexOf(g) !== -1) return;
+    /* Seulement ceux de la même date, pour ne pas tout mélanger */
+    if(iso && dateFrVersIso(s.datePermis || '') !== iso) return;
+    vus.push(g);
+  });
+  return vus.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+async function choisirGroupePermis(eleve, iso, actuel){
+  const connus = groupesConnus(iso);
+  const choix = connus.slice();
+  if(actuel && choix.indexOf(actuel) === -1) choix.push(actuel);
+  choix.push('➕ Nouveau groupe…');
+  choix.push('— aucun groupe —');
+
+  const v = await choisirDansListe(
+    'Groupe d\'examen de ' + eleve + ' :', choix, actuel || '— aucun groupe —');
+  if(!v) return;
+
+  let nom = v;
+  if(v === '➕ Nouveau groupe…'){
+    const saisi = await demander(
+      'Nom du groupe\n\nEx : « Inspecteur A », « Matin », « Chrystel ».\n' +
+      'Les élèves du même nom seront regroupés.', '', 'Groupe');
+    if(saisi === null) return;
+    nom = String(saisi).trim();
+  }else if(v === '— aucun groupe —'){
+    nom = '';
+  }
+
+  try{
+    await majSuivi(eleve, { groupePermis: nom });
+    showToast(nom ? eleve + ' → ' + nom : eleve + ' retiré de son groupe');
+    afficherBureau(true);
+  }catch(e){
+    showToast('Enregistrement impossible : ' + e.message);
+  }
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
