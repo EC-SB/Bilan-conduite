@@ -1118,6 +1118,40 @@ async function afficherHistoriqueSms(){
   }
 }
 
+
+/* ============================================================
+   BASCULE ENTRE LES TROIS MODES
+   Saisie à la main, lecture d'un planning, historique des envois.
+   ============================================================ */
+function modeRappel(mode){
+  const vues = {
+    manuel:     $('rappelManuel'),
+    planning:   $('rappelPlanning'),
+    historique: $('rappelHistoriqueBloc')
+  };
+  const boutons = {
+    manuel:     $('rappelModeManuel'),
+    planning:   $('rappelModePlanning'),
+    historique: $('rappelModeHistorique')
+  };
+  if(!vues.manuel) return;
+
+  const actif = vues[mode] ? mode : 'manuel';
+
+  Object.keys(vues).forEach(k => {
+    if(vues[k]) vues[k].style.display = (k === actif) ? 'block' : 'none';
+    const b = boutons[k];
+    if(!b) return;
+    const on = (k === actif);
+    b.style.borderColor = on ? 'var(--orange)' : 'var(--line)';
+    b.style.color = on ? 'var(--accent-text)' : 'var(--cream)';
+    b.style.background = on ? 'rgba(182,255,14,.09)' : 'var(--navy)';
+  });
+
+  if(actif === 'manuel') afficherRappelManuel();
+  if(actif === 'historique') afficherHistoriqueSms();
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-rappels.js'] = true;
