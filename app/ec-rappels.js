@@ -833,22 +833,32 @@ function apercuRappel(){
 
 /* Bascule entre saisie manuelle et lecture du planning */
 function modeRappel(mode){
-  const m = $('rappelManuel'), pl = $('rappelPlanning');
-  const bm = $('rappelModeManuel'), bp = $('rappelModePlanning');
-  if(!m || !pl) return;
+  const vues = {
+    manuel:     $('rappelManuel'),
+    planning:   $('rappelPlanning'),
+    historique: $('rappelHistoriqueBloc')
+  };
+  const boutons = {
+    manuel:     $('rappelModeManuel'),
+    planning:   $('rappelModePlanning'),
+    historique: $('rappelModeHistorique')
+  };
+  if(!vues.manuel) return;
 
-  const manuel = (mode !== 'planning');
-  m.style.display = manuel ? 'block' : 'none';
-  pl.style.display = manuel ? 'none' : 'block';
+  const actif = vues[mode] ? mode : 'manuel';
 
-  [[bm, manuel], [bp, !manuel]].forEach(([b, actif]) => {
+  Object.keys(vues).forEach(k => {
+    if(vues[k]) vues[k].style.display = (k === actif) ? 'block' : 'none';
+    const b = boutons[k];
     if(!b) return;
-    b.style.borderColor = actif ? 'var(--orange)' : 'var(--line)';
-    b.style.color = actif ? 'var(--accent-text)' : 'var(--cream)';
-    b.style.background = actif ? 'rgba(182,255,14,.09)' : 'var(--navy)';
+    const on = (k === actif);
+    b.style.borderColor = on ? 'var(--orange)' : 'var(--line)';
+    b.style.color = on ? 'var(--accent-text)' : 'var(--cream)';
+    b.style.background = on ? 'rgba(182,255,14,.09)' : 'var(--navy)';
   });
 
-  if(manuel) afficherRappelManuel();
+  if(actif === 'manuel') afficherRappelManuel();
+  if(actif === 'historique') afficherHistoriqueSms();
 }
 
 
@@ -933,7 +943,8 @@ function direEtatEnvoi(texte, erreur){
       aide = "Le Worker Cloudflare n'a pas la route d'envoi : déploie sa dernière version.";
     }else if(/clé allo|api_key|non configur/i.test(texte)){
       aide = 'Ajoute les variables <strong>ALLO_API_KEY</strong> et ' +
-             '<strong>ALLO_FROM</strong> dans les réglages du Worker Cloudflare.';
+             '<strong>ALLO_FROM</strong> dans les réglages du Worker Cloudflare. ' +
+             'ALLO_FROM accepte un numéro ou un Sender ID.';
     }else if(/autoris/i.test(texte)){
       aide = "Ce compte n'a pas le droit d'envoyer des SMS : vois dans ⚙️ Accès.";
     }else if(/quota/i.test(texte)){
@@ -985,6 +996,96 @@ async function envoyerMessageComplet(numero, texte, eleve){
     if(i < parties.length - 1) await new Promise(r => setTimeout(r, 600));
   }
   return parties.length;
+}
+
+
+/* ============================================================
+   HISTORIQUE DES ENVOIS
+   Savoir qui a été prévenu, quand et par qui. Sans ça, personne
+   ne peut trancher quand un élève dit ne pas avoir reçu le rappel.
+   ============================================================ */
+async function afficherHistoriqueSms(){
+  const zone = $('rappelHistorique');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Chargement de l\'historique…</div>';
+  try{
+    const d = await appelPrep({ action: 'smsList', combien: 150 });
+    const liste = (d && d.sms) || [];
+    zone.innerHTML = '';
+
+    if(!liste.length){
+      zone.innerHTML = '<div class="empty">Aucun SMS envoyé pour le moment.</div>';
+      return;
+    }
+
+    /* Ce que ça représente, avant le détail */
+    const auj = new Date().toLocaleDateString('fr-FR');
+    const duJour = liste.filter(x => (x.quand || '').indexOf(auj) === 0);
+    const partsJour = duJour.reduce((n, x) => n + (parseInt(x.parties, 10) || 1), 0);
+
+    const t = document.createElement('div');
+    t.style.cssText = 'padding:10px 12px;background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
+    t.innerHTML = '<strong>' + duJour.length + " envoi(s) aujourd'hui</strong>" +
+      (partsJour !== duJour.length ? ' · ' + partsJour + ' SMS facturés' : '') +
+      '<br><span style="font-size:12px;color:var(--muted);">' +
+      (d.total || liste.length) + ' au total · les 150 derniers sont affichés</span>';
+    zone.appendChild(t);
+
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.placeholder = '🔍 Filtrer par élève, numéro ou moniteur';
+    rech.style.marginBottom = '10px';
+    zone.appendChild(rech);
+
+    const l = document.createElement('div');
+    l.style.cssText = 'max-height:420px;overflow-y:auto;';
+    zone.appendChild(l);
+
+    function dessiner(){
+      const q = normaliserMot(rech.value);
+      l.innerHTML = '';
+      const vus = liste.filter(x => !q ||
+        normaliserMot(x.eleve).indexOf(q) !== -1 ||
+        normaliserMot(x.numero).indexOf(q) !== -1 ||
+        normaliserMot(x.par).indexOf(q) !== -1);
+
+      if(!vus.length){
+        l.innerHTML = '<div class="empty">Aucun envoi ne correspond.</div>';
+        return;
+      }
+
+      vus.forEach(x => {
+        const d2 = document.createElement('details');
+        d2.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
+          'padding:8px 11px;margin-bottom:6px;';
+
+        const rate = /échec|erreur/i.test(x.etat || '');
+        d2.innerHTML = '<summary style="cursor:pointer;font-size:13px;line-height:1.5;">' +
+          (rate ? '⚠️ ' : '✅ ') + '<strong>' + (x.eleve || '(sans nom)').replace(/</g, '&lt;') +
+          '</strong> <span style="color:var(--muted);font-size:12px;">' +
+          x.quand + ' · ' + telLisible(x.numero) +
+          (x.par ? ' · ' + x.par : '') +
+          (x.parties > 1 ? ' · ' + x.parties + ' SMS' : '') +
+          '</span></summary>';
+
+        const m = document.createElement('div');
+        m.style.cssText = 'margin-top:7px;font-size:12px;line-height:1.5;white-space:pre-wrap;' +
+          'color:var(--muted);background:var(--navy);padding:8px 10px;border-radius:7px;';
+        m.textContent = x.message || '(message non conservé)';
+        d2.appendChild(m);
+
+        l.appendChild(d2);
+      });
+    }
+    rech.addEventListener('input', dessiner);
+    dessiner();
+
+  }catch(e){
+    zone.innerHTML = '<div class="empty">Historique indisponible : ' +
+      e.message.replace(/</g, '&lt;') + '</div>';
+  }
 }
 
 /* Signale que ce module est bien chargé */
