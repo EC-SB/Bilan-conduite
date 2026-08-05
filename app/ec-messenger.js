@@ -286,6 +286,65 @@ function datesPermisAVenir(){
 }
 
 
+
+/* Un message prêt à copier, avec son bouton */
+function blocCopiable(titre, texte){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px 14px;margin-top:12px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:8px;';
+  t.textContent = titre;
+  d.appendChild(t);
+
+  const z = document.createElement('textarea');
+  z.rows = 12;
+  z.value = texte;
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.55;font-family:inherit;resize:vertical;margin-bottom:8px;';
+  d.appendChild(z);
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'padding:12px;font-size:14px;';
+  b.textContent = '📋 Copier ce message';
+  b.addEventListener('click', () => {
+    z.select();
+    navigator.clipboard.writeText(z.value).then(
+      () => { b.textContent = '✅ Copié'; setTimeout(() => { b.textContent = '📋 Copier ce message'; }, 1500); },
+      () => { try{ document.execCommand('copy'); showToast('Copié ✅'); }catch(e){ showToast('Copie impossible'); } });
+  });
+  d.appendChild(b);
+
+  return d;
+}
+
+/* ============================================================
+   ÉCRAN DU MESSAGE DE GROUPE
+
+   Une même journée peut compter plusieurs groupes : deux
+   inspecteurs, deux moniteurs, ou une session le matin et une
+   l'après-midi. Chaque groupe a ses horaires et son message.
+   ============================================================ */
+
+let groupesPermis = [];      /* les groupes de la date choisie */
+let dateGroupes = '';        /* la date à laquelle ils se rapportent */
+
+function nouveauGroupe(nom){
+  return { nom: nom || 'Groupe 1', heure: '13h15', conduite: 55,
+           pauseDuree: 60, avantPause: 1, eleves: [] };
+}
+
+/* Reconstruit les groupes quand on change de date */
+function preparerGroupes(jour){
+  dateGroupes = jour ? jour.iso : '';
+  const g = nouveauGroupe('Groupe 1');
+  g.eleves = jour ? jour.eleves.slice() : [];
+  groupesPermis = [g];
+}
+
 async function afficherMessengerPermis(){
   const zone = $('messengerZone');
   if(!zone) return;
@@ -299,251 +358,269 @@ async function afficherMessengerPermis(){
     return;
   }
 
-  const dates = datesPermisAVenir();
+  const jours = datesPermisAVenir();
   zone.innerHTML = '';
 
-  if(!dates.length){
-    zone.innerHTML = '<div class="empty">Aucun permis à venir.<br>' +
-      '<span style="font-size:12px;">Les dates apparaissent dès qu\'elles sont ' +
-      'enregistrées dans le suivi.</span></div>';
+  if(!jours.length){
+    zone.innerHTML = '<div class="empty">Aucune date de permis à venir.<br>' +
+      '<span style="font-size:12px;">Les dates viennent des fiches de suivi et des bilans.</span></div>';
     return;
   }
 
-  const sel = $('messengerDate');
-  const choix = sel.value;
-  sel.innerHTML = '<option value="">— choisis une date —</option>';
-  dates.forEach(d => {
-    const o = document.createElement('option');
-    o.value = d.iso;
-    o.textContent = dateEnToutesLettres(d.iso) + ' — ' + d.eleves.length + ' élève(s)';
-    sel.appendChild(o);
-  });
-  if(choix && dates.some(d => d.iso === choix)) sel.value = choix;
+  /* Choix de la date */
+  const ld = document.createElement('label');
+  ld.textContent = 'Date de l\'examen';
+  zone.appendChild(ld);
 
-  if(!sel.value){
-    zone.innerHTML = '<div class="empty">Choisis une date ci-dessus.</div>';
-    return;
+  const selDate = document.createElement('select');
+  selDate.id = 'messengerDate';
+  selDate.innerHTML = jours.map(d =>
+    '<option value="' + d.iso + '">' + dateEnToutesLettres(d.iso) +
+    ' — ' + d.eleves.length + ' élève(s)</option>').join('');
+  zone.appendChild(selDate);
+
+  const bMaj = document.createElement('button');
+  bMaj.className = 'btn btn-secondary';
+  bMaj.style.cssText = 'margin-bottom:14px;padding:11px;font-size:13px;';
+  bMaj.textContent = '🔄 Actualiser les dates';
+  bMaj.addEventListener('click', () => afficherMessengerPermis());
+  zone.appendChild(bMaj);
+
+  const zGroupes = document.createElement('div');
+  zone.appendChild(zGroupes);
+
+  function jourChoisi(){
+    return jours.find(x => x.iso === selDate.value) || jours[0];
   }
 
-  const jour = dates.find(d => d.iso === sel.value);
-  if(!jour) return;
-
-  /* Centres concernés : un message par centre si l'examen a lieu aux deux */
-  const centres = [];
-  jour.eleves.forEach(e => {
-    const c = e.centre || '— centre non défini —';
-    if(centres.indexOf(c) === -1) centres.push(c);
+  selDate.addEventListener('change', () => {
+    preparerGroupes(jourChoisi());
+    dessinerGroupes();
   });
 
-  if(centres.length > 1){
-    const a = document.createElement('div');
-    a.style.cssText = 'background:var(--warn-bg);border:1px solid var(--red);' +
-      'border-radius:8px;padding:9px 11px;font-size:13px;margin-bottom:10px;' +
-      'color:var(--warn-text);line-height:1.5;';
-    a.textContent = '⚠️ Deux centres ce jour-là (' + centres.join(', ') +
-      '). Un message par centre est préférable.';
-    zone.appendChild(a);
+  /* ---------- Un groupe ---------- */
+  function dessinerGroupes(){
+    zGroupes.innerHTML = '';
+    const jour = jourChoisi();
+
+    const t = document.createElement('div');
+    t.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;';
+    t.innerHTML = '<strong style="flex:1;min-width:0;font-size:14px;color:var(--accent-text);">' +
+      groupesPermis.length + ' groupe(s) pour cette date</strong>';
+
+    const bPlus = document.createElement('button');
+    bPlus.className = 'btn btn-secondary';
+    bPlus.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:0;';
+    bPlus.textContent = '➕ Nouveau groupe';
+    bPlus.title = 'Deux inspecteurs, ou une session matin et une après-midi';
+    bPlus.addEventListener('click', () => {
+      groupesPermis.push(nouveauGroupe('Groupe ' + (groupesPermis.length + 1)));
+      dessinerGroupes();
+    });
+    t.appendChild(bPlus);
+    zGroupes.appendChild(t);
+
+    groupesPermis.forEach((g, ig) => zGroupes.appendChild(blocGroupe(g, ig, jour)));
   }
 
-  /* Heure du premier examen : imposée par le centre, tout en découle */
-  const lh = document.createElement('label');
-  lh.textContent = 'Heure du premier passage à l\'examen';
-  zone.appendChild(lh);
+  function blocGroupe(g, ig, jour){
+    const d = document.createElement('div');
+    d.style.cssText = 'border:2px solid var(--line);border-radius:12px;' +
+      'padding:12px 14px;margin-bottom:14px;';
 
-  const hPremier = document.createElement('select');
-  hPremier.id = 'messengerHeure';
-  hPremier.innerHTML = HEURES_EXAMEN
-    .map(h => '<option value="' + h + '">' + h + '</option>').join('');
-  hPremier.value = '13h15';
-  zone.appendChild(hPremier);
+    /* Titre du groupe, modifiable */
+    const h = document.createElement('div');
+    h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
 
-  const aide = document.createElement('div');
-  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
-  aide.textContent = 'Les créneaux du centre. Le planning remonte à partir de là : ' +
-    'la dernière conduite se termine juste avant le premier examen.';
-  zone.appendChild(aide);
+    const nom = document.createElement('input');
+    nom.type = 'text';
+    nom.value = g.nom;
+    nom.placeholder = 'Nom du groupe';
+    nom.style.cssText = 'flex:1;min-width:0;margin:0;font-weight:700;';
+    nom.addEventListener('input', () => { g.nom = nom.value; });
+    h.appendChild(nom);
 
-  /* Les réglages de la journée : durées et pause du midi */
-  const g1 = document.createElement('div');
-  g1.className = 'duo';
-  g1.innerHTML =
-    '<div><label for="msgConduite">Conduite par candidat</label>' +
-      '<select id="msgConduite">' +
-        '<option value="55">55 minutes</option>' +
-        '<option value="30">30 minutes</option>' +
-        '<option value="45">45 minutes</option>' +
-        '<option value="60">1 heure</option>' +
-      '</select></div>' +
-    '<div><label for="msgAvantPause">Pause après le candidat n°</label>' +
-      '<select id="msgAvantPause"></select></div>';
-  zone.appendChild(g1);
-
-  const g2 = document.createElement('div');
-  g2.className = 'duo';
-  g2.innerHTML =
-    '<div><label for="msgPauseDuree">Durée de la pause</label>' +
-      '<select id="msgPauseDuree">' +
-        '<option value="60">1 heure</option>' +
-        '<option value="45">45 minutes</option>' +
-        '<option value="75">1 h 15</option>' +
-        '<option value="90">1 h 30</option>' +
-        '<option value="0">Pas de pause</option>' +
-      '</select></div>' +
-    '<div></div>';
-  zone.appendChild(g2);
-
-  const aide2 = document.createElement('div');
-  aide2.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;';
-  aide2.textContent = "La pause se termine quand la conduite reprend : son heure de début " +
-    "découle de sa durée. Choisis après quel candidat elle tombe, selon le planning " +
-    'de tes moniteurs. Le délai avant le premier examen se calcule seul : ' +
-    '5 minutes par candidat, 3 quand les leçons durent 30 minutes.';
-  zone.appendChild(aide2);
-
-
-  /* Les rangs possibles dépendent du nombre de candidats du jour */
-  function majRangsPause(){
-    const sel = $('msgAvantPause');
-    if(!sel) return;
-    const nb = (jour && jour.eleves) ? jour.eleves.length : 0;
-    const garde = sel.value;
-    let html = '<option value="0">Pas de pause</option>';
-    for(let i = 1; i < nb; i++){
-      html += '<option value="' + i + '">après le ' + i +
-              (i === 1 ? 'er' : 'e') + '</option>';
+    if(groupesPermis.length > 1){
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:8px 10px;font-size:12px;margin:0;' +
+        'color:var(--red);border-color:var(--red);';
+      bSup.textContent = '✕';
+      bSup.title = 'Supprimer ce groupe — ses élèves reviennent au premier';
+      bSup.addEventListener('click', () => {
+        /* Les élèves ne disparaissent pas avec le groupe */
+        const restants = groupesPermis.filter((x, i) => i !== ig);
+        g.eleves.forEach(e => restants[0].eleves.push(e));
+        groupesPermis = restants;
+        dessinerGroupes();
+      });
+      h.appendChild(bSup);
     }
-    sel.innerHTML = html;
-    sel.value = (garde && sel.querySelector('option[value="' + garde + '"]'))
-      ? garde : String(Math.max(1, nb - 1));
-  }
+    d.appendChild(h);
 
-  /* Ce que le calcul doit prendre en compte */
-  function reglagesJournee(){
-    const v = id => { const e = $(id); return e ? parseInt(e.value, 10) : 0; };
-    const duree = v('msgPauseDuree');
-    return {
-      conduite:   v('msgConduite')  || 55,
-      /* battement laissé au calcul automatique */
-      examen:     DUREE_EXAMEN,
-      avantPause: v('msgAvantPause') || 0,
-      pauseDuree: duree
+    /* Réglages propres au groupe */
+    const g1 = document.createElement('div');
+    g1.className = 'duo';
+    g1.innerHTML =
+      '<div><label>Premier examen</label><select class="grHeure">' +
+        HEURES_EXAMEN.map(x => '<option value="' + x + '"' +
+          (x === g.heure ? ' selected' : '') + '>' + x + '</option>').join('') +
+      '</select></div>' +
+      '<div><label>Conduite par candidat</label><select class="grConduite">' +
+        [55, 30, 45, 60].map(x => '<option value="' + x + '"' +
+          (x === g.conduite ? ' selected' : '') + '>' + x + ' minutes</option>').join('') +
+      '</select></div>';
+    d.appendChild(g1);
+
+    const g2 = document.createElement('div');
+    g2.className = 'duo';
+    g2.innerHTML =
+      '<div><label>Pause après le candidat n°</label><select class="grAvant">' +
+        '<option value="0">Pas de pause</option>' +
+        g.eleves.map((x, i) => i).slice(1).map(i =>
+          '<option value="' + i + '"' + (i === g.avantPause ? ' selected' : '') +
+          '>après le ' + i + (i === 1 ? 'er' : 'e') + '</option>').join('') +
+      '</select></div>' +
+      '<div><label>Durée de la pause</label><select class="grPause">' +
+        [[60, '1 heure'], [45, '45 minutes'], [75, '1 h 15'], [90, '1 h 30']].map(x =>
+          '<option value="' + x[0] + '"' + (x[0] === g.pauseDuree ? ' selected' : '') +
+          '>' + x[1] + '</option>').join('') +
+      '</select></div>';
+    d.appendChild(g2);
+
+    const lire = () => {
+      g.heure = d.querySelector('.grHeure').value;
+      g.conduite = parseInt(d.querySelector('.grConduite').value, 10);
+      g.avantPause = parseInt(d.querySelector('.grAvant').value, 10) || 0;
+      g.pauseDuree = parseInt(d.querySelector('.grPause').value, 10);
     };
-  }
 
-  /* Ordre de passage : le premier de la liste conduit en premier */
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
-  t.textContent = 'Ordre de passage';
-  zone.appendChild(t);
+    /* Ordre de passage et déplacement d'un groupe à l'autre */
+    const lt = document.createElement('div');
+    lt.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin:12px 0 6px;';
+    lt.textContent = 'Ordre de passage — ' + g.eleves.length + ' élève(s)';
+    d.appendChild(lt);
 
-  const zListe = document.createElement('div');
-  zone.appendChild(zListe);
+    if(!g.eleves.length){
+      const v = document.createElement('div');
+      v.className = 'empty';
+      v.style.cssText = 'padding:10px;font-size:12px;';
+      v.textContent = 'Aucun élève. Déplace-en depuis un autre groupe.';
+      d.appendChild(v);
+    }
 
-  function dessinerOrdre(){
-    zListe.innerHTML = '';
-    jour.eleves.forEach((e, i) => {
+    g.eleves.forEach((e, i) => {
       const l = document.createElement('div');
-      l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 0;';
+      l.style.cssText = 'display:flex;gap:6px;align-items:center;padding:5px 0;';
 
-      const num = document.createElement('span');
-      num.style.cssText = 'font-weight:700;color:var(--accent-text);flex-shrink:0;';
-      num.textContent = (i + 1) + '-';
-      l.appendChild(num);
+      const n = document.createElement('span');
+      n.style.cssText = 'flex:1;min-width:0;font-size:14px;';
+      n.innerHTML = '<strong style="color:var(--accent-text);">' + (i + 1) + '-</strong> ' +
+        e.nom.replace(/</g, '&lt;');
+      l.appendChild(n);
 
-      const nom = document.createElement('span');
-      nom.style.cssText = 'flex:1;font-size:14px;min-width:0;';
-      nom.textContent = (e.repassage ? '🔁 ' : '') + e.nom +
-        (e.moniteur ? ' · ' + e.moniteur : '');
-      l.appendChild(nom);
-
+      /* Monter dans l'ordre */
       if(i > 0){
-        const bh = document.createElement('button');
-        bh.className = 'btn btn-secondary';
-        bh.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;';
-        bh.textContent = '↑';
-        bh.title = 'Faire passer plus tôt';
-        bh.addEventListener('click', () => {
-          const tmp = jour.eleves[i - 1];
-          jour.eleves[i - 1] = jour.eleves[i];
-          jour.eleves[i] = tmp;
-          dessinerOrdre();
-          apercu();
+        const bH = document.createElement('button');
+        bH.className = 'btn btn-secondary';
+        bH.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;';
+        bH.textContent = '↑';
+        bH.title = 'Passer plus tôt';
+        bH.addEventListener('click', () => {
+          const tmp = g.eleves[i - 1];
+          g.eleves[i - 1] = g.eleves[i];
+          g.eleves[i] = tmp;
+          dessinerGroupes();
         });
-        l.appendChild(bh);
+        l.appendChild(bH);
       }
 
-      zListe.appendChild(l);
+      /* Déplacer vers un autre groupe */
+      if(groupesPermis.length > 1){
+        const sel = document.createElement('select');
+        sel.style.cssText = 'width:auto;margin:0;padding:5px 8px;font-size:12px;';
+        sel.innerHTML = '<option value="">↔️</option>' +
+          groupesPermis.map((x, j) => j === ig ? '' :
+            '<option value="' + j + '">→ ' + (x.nom || 'Groupe ' + (j + 1)) +
+            '</option>').join('');
+        sel.title = 'Déplacer vers un autre groupe';
+        sel.addEventListener('change', () => {
+          const j = parseInt(sel.value, 10);
+          if(isNaN(j)) return;
+          groupesPermis[j].eleves.push(e);
+          g.eleves.splice(i, 1);
+          /* Une pause qui pointait au-delà du dernier candidat n'a plus de sens */
+          if(g.avantPause >= g.eleves.length) g.avantPause = Math.max(0, g.eleves.length - 1);
+          dessinerGroupes();
+        });
+        l.appendChild(sel);
+      }
+
+      d.appendChild(l);
     });
+
+    /* Aperçu et message */
+    const ap = document.createElement('div');
+    ap.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.6;' +
+      'margin-top:10px;';
+    d.appendChild(ap);
+
+    const lNote = document.createElement('label');
+    lNote.textContent = 'Information particulière (facultatif)';
+    lNote.style.marginTop = '10px';
+    d.appendChild(lNote);
+
+    const note = document.createElement('input');
+    note.type = 'text';
+    note.value = g.note || '';
+    note.placeholder = 'Ex : la voiture sera la Clio grise';
+    note.addEventListener('input', () => { g.note = note.value; });
+    d.appendChild(note);
+
+    const bMsg = document.createElement('button');
+    bMsg.className = 'btn btn-primary';
+    bMsg.style.cssText = 'margin-top:8px;padding:13px;font-size:14px;';
+    bMsg.textContent = '✍️ Composer le message de ce groupe';
+    d.appendChild(bMsg);
+
+    const zMsg = document.createElement('div');
+    d.appendChild(zMsg);
+
+    function apercu(){
+      lire();
+      if(!g.eleves.length){ ap.innerHTML = '<em>Groupe vide</em>'; return; }
+      const plan = planningJournee(g.heure, g.eleves.length, g);
+      if(!plan){ ap.innerHTML = '<em>Planning impossible</em>'; return; }
+      ap.innerHTML = '🕐 <strong>Rendez-vous à ' + plan.rendezVous + '</strong>' +
+        (plan.pauseDe ? '  ·  🥙 pause ' + plan.pauseDe + '–' + plan.pauseA : '') + '<br>' +
+        g.eleves.map((e, i) => {
+          const c = plan.creneaux[i];
+          return (i + 1) + '- ' + e.nom + ' — conduite ' + c.conduiteDe + '/' + c.conduiteA +
+                 ' · examen ' + c.examenDe + '/' + c.examenA;
+        }).join('<br>');
+    }
+
+    d.querySelectorAll('select').forEach(s => s.addEventListener('change', apercu));
+    setTimeout(apercu, 0);
+
+    bMsg.addEventListener('click', () => {
+      lire();
+      if(!g.eleves.length){ showToast('Ce groupe n\'a aucun élève.'); return; }
+      const plan = planningJournee(g.heure, g.eleves.length, g);
+      zMsg.innerHTML = '';
+      zMsg.appendChild(blocCopiable(
+        'Message — ' + (g.nom || 'groupe'),
+        messageGroupePermis(jour.iso, g.eleves[0].centre || '', g.eleves, plan, g.note || '')));
+      zMsg.appendChild(blocCopiable('Rappels avant examen', messageRappels()));
+    });
+
+    return d;
   }
-  dessinerOrdre();
-  majRangsPause();
 
-  /* Aperçu du planning calculé, avant même de composer */
-  const zApercu = document.createElement('div');
-  zApercu.style.cssText = 'margin-top:10px;padding:10px 12px;background:var(--navy);' +
-    'border:1px solid var(--line);border-radius:10px;font-size:13px;line-height:1.7;';
-  zone.appendChild(zApercu);
-
-  function apercu(){
-    const plan = planningJournee(hPremier.value, jour.eleves.length,
-                                 reglagesJournee());
-    if(!plan){ zApercu.textContent = "Saisis l'heure du premier examen."; return; }
-    zApercu.innerHTML = '🕐 <strong>Rendez-vous à ' + plan.rendezVous + '</strong>' +
-      (plan.pauseDe ? '  ·  🥙 pause ' + plan.pauseDe + '–' + plan.pauseA : '') + '<br>' +
-      jour.eleves.map((e, i) => {
-        const cr = plan.creneaux[i];
-        return (i + 1) + '- ' + e.nom.replace(/</g, '&lt;') + ' — conduite ' +
-               cr.conduiteDe + '/' + cr.conduiteA + ' · examen ' +
-               cr.examenDe + '/' + cr.examenA;
-      }).join('<br>');
-  }
-  hPremier.addEventListener('change', apercu);
-  /* Chaque réglage relance le calcul : l'aperçu suit en direct */
-  ['msgConduite', 'msgAvantPause', 'msgPauseDuree'].forEach(id => {
-    const e = $(id);
-    if(e) e.addEventListener('change', apercu);
-  });
-  setTimeout(apercu, 0);
-
-  /* Information ponctuelle à ajouter au message */
-  const lab = document.createElement('label');
-  lab.textContent = 'Information particulière (facultatif)';
-  lab.style.marginTop = '12px';
-  zone.appendChild(lab);
-  const note = document.createElement('textarea');
-  note.rows = 2;
-  note.placeholder = 'Ex : la voiture sera la Clio grise';
-  note.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-    'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:15px;' +
-    'line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:12px;';
-  zone.appendChild(note);
-
-  const perso = (typeof modelePour === 'function') ? modelePour('permis_jour') : null;
-  const src = document.createElement('div');
-  src.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
-  src.textContent = perso
-    ? '📄 Modèle utilisé : « ' + perso.nom + ' »'
-    : "📄 Modèle de l'application. Tu peux le remplacer dans « Mes modèles de message ».";
-  zone.appendChild(src);
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.textContent = '📣 Composer les deux messages';
-  b.addEventListener('click', () => {
-    const plan = planningJournee(hPremier.value, jour.eleves.length,
-                                 reglagesJournee());
-    if(!plan){ showToast("Saisis l'heure du premier examen."); return; }
-    const centre = (centres.length === 1 && centres[0].indexOf('—') === -1) ? centres[0] : '';
-
-    zone.appendChild(blocCopiable('Message 1 — le planning',
-      messageGroupePermis(jour.iso, centre, jour.eleves, plan, note.value)));
-    zone.appendChild(blocCopiable('Message 2 — les rappels avant examen',
-      messageRappels()));
-
-    b.disabled = true;
-    b.textContent = '✅ Messages composés';
-  });
-  zone.appendChild(b);
+  preparerGroupes(jourChoisi());
+  dessinerGroupes();
 }
 
 /* Une heure saisie « 14:00 » se lit mieux en « 14h00 » */
