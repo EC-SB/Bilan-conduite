@@ -1032,11 +1032,9 @@ $('copyBtn').addEventListener('click', async () => {
     return;
   }
 
-  /* Petit délai : le moniteur voit la confirmation avant que
-     l'écran ne reparte à zéro. */
-  setTimeout(() => {
-    if(typeof terminerCours === 'function') terminerCours();
-  }, 1100);
+  /* On ne remet pas l'écran à zéro sans prévenir : le moniteur
+     doit encore coller le bilan sur Messenger. */
+  confirmerFinDeCours();
 });
 
 async function exporterVersSheets(silencieux){
@@ -1149,6 +1147,80 @@ function direEtatFin(texte, erreur){
   if(!texte){ z.innerHTML = ''; return; }
   z.style.color = erreur ? 'var(--warn-text)' : 'var(--accent-text)';
   z.textContent = (erreur ? '⚠️ ' : '✅ ') + texte;
+}
+
+
+/* ============================================================
+   CONFIRMATION DE FIN DE COURS
+   Le bilan est parti : on le dit clairement, on rappelle où le
+   coller, et on laisse le choix entre corriger et passer au
+   cours suivant. Fermer sans choisir ne fait rien perdre.
+   ============================================================ */
+function confirmerFinDeCours(){
+  const eleve = (currentLessonMeta && currentLessonMeta.studentName) || '';
+  const f = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+  const mess = (f && f.messenger) || '';
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(480px, 94vw);';
+
+  let lienMess = '';
+  if(mess){
+    let url = mess;
+    if(!/^https?:\/\//i.test(mess)){
+      url = 'https://m.me/' + mess.replace(/^@/, '').replace(/\s+/g, '');
+    }
+    lienMess =
+      '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" ' +
+      'class="btn btn-secondary" style="margin-top:10px;padding:13px;font-size:14px;' +
+      'text-decoration:none;display:block;text-align:center;">' +
+      '💬 Ouvrir le Messenger de ' + eleve.split(' ')[0] + '</a>';
+  }
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>✅ Bilan enregistré</h3>' +
+    '<div style="font-size:15px;line-height:1.6;margin-bottom:6px;">' +
+      'Le bilan de <strong>' + (eleve || 'cet élève').replace(/</g, '&lt;') +
+      '</strong> est enregistré et <strong>copié</strong>.<br>' +
+      'Tu peux le coller directement sur son Messenger.' +
+    '</div>' +
+    (mess
+      ? '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+        '💬 Son Messenger : <strong>' + mess.replace(/</g, '&lt;') + '</strong></div>' + lienMess
+      : '<div style="font-size:12px;color:var(--warn-text);line-height:1.5;margin-top:6px;">' +
+        "⚠️ Aucun Messenger enregistré pour cet élève. Pense à le saisir au " +
+        'démarrage du prochain cours.</div>'));
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  r.style.marginTop = '16px';
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.textContent = '✏️ Modifier ce bilan';
+  bMod.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    /* On reste sur le bilan : le corriger le mettra à jour en place */
+    if($('resultText')) $('resultText').focus();
+  });
+
+  const bFin = document.createElement('button');
+  bFin.className = 'btn btn-primary';
+  bFin.textContent = '🏠 Accueil';
+  bFin.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    if(typeof terminerCours === 'function') terminerCours();
+  });
+
+  r.appendChild(bMod);
+  r.appendChild(bFin);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 function marquerExport(ok){
