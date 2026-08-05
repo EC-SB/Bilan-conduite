@@ -20,6 +20,8 @@ const USAGES_MODELE = [
     variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
   { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
     variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'permis_planning', nom:'🚨 Planning formation avant permis',
+    variables:['{veille}', '{permis}', '{moniteur}', '{centre}', '{liste}'] },
   { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
     variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
                '{note}', '{prenom}', '{eleve}',
