@@ -1070,7 +1070,10 @@ function legendePermis(){
     'padding:6px 2px 10px;';
   d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose<br>' +
     '❓ faire le point · 💰 reste à payer · 📆 leçons à planifier · ' +
-    '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage';
+    '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage<br>' +
+    'Nom <span style="color:var(--muted);font-weight:700;">gris</span> = fantôme · ' +
+    '<span style="color:#E8A33D;font-weight:700;">orange</span> = à remplacer · ' +
+    '<span style="color:var(--red);font-weight:700;">rouge</span> = à donner';
   return d;
 }
 
@@ -1147,13 +1150,33 @@ function apercuPermisPrevus(prevus){
 
       const nom = document.createElement('button');
       nom.type = 'button';
+
+      /* La couleur du nom dit l'état de la place, sans avoir à lire
+         les émojis. Du plus grave au moins grave : une date donnée
+         à une autre auto-école est définitive, une place à remplacer
+         se rattrape, une place fantôme n'est qu'en attente. */
+      let couleur = 'var(--cream)';
+      let pourquoi = 'Ouvrir la fiche de ' + e.eleve;
+      if(s.dateADonner === 'oui'){
+        couleur = 'var(--red)';
+        pourquoi = 'Date à donner à une autre auto-école' +
+                   (s.autoEcole ? ' : ' + s.autoEcole : '');
+      }else if(s.aRemplacer === 'oui'){
+        couleur = '#E8A33D';
+        pourquoi = 'Place à remplacer';
+      }else if(s.fantome === 'oui'){
+        couleur = 'var(--muted)';
+        pourquoi = 'Place fantôme';
+      }
+
       nom.style.cssText = 'flex:1;min-width:0;text-align:left;background:none;border:none;' +
-        'color:var(--cream);font-size:13px;font-family:inherit;padding:2px 0;cursor:pointer;' +
+        'color:' + couleur + ';font-size:13px;font-family:inherit;padding:2px 0;cursor:pointer;' +
         'text-decoration:underline;text-decoration-color:var(--line);' +
-        'text-underline-offset:3px;';
+        'text-underline-offset:3px;' +
+        (couleur === 'var(--cream)' ? '' : 'font-weight:700;');
       nom.textContent = (e._boite === 'bea' ? '🅰 ' :
                          e._boite === 'handicap' ? '♿ ' : '🅑 ') + e.eleve;
-      nom.title = 'Ouvrir la fiche de ' + e.eleve;
+      nom.title = pourquoi + ' — appuie pour ouvrir sa fiche';
       nom.addEventListener('click', () => ouvrirFichePermis(e));
       l.appendChild(nom);
 
