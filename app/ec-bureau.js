@@ -1,3 +1,4 @@
+
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -432,8 +433,90 @@ async function afficherConsignesEnAttente(){
       zone.innerHTML = '<div class="empty">Aucun message en attente.</div>';
       return;
     }
+
     zone.innerHTML = '';
-    liste.forEach(cs => {
+
+    /* Au-delà d'une poignée de messages, la liste devient illisible :
+       on filtre et on trie plutôt que de tout empiler. */
+    const barre = document.createElement('div');
+    barre.style.cssText = 'margin-bottom:12px;';
+
+    const rech = document.createElement('input');
+    rech.type = 'text';
+    rech.id = 'consFiltre';
+    rech.placeholder = '🔍 Filtrer par élève, texte ou auteur';
+    rech.style.marginBottom = '8px';
+    barre.appendChild(rech);
+
+    const duo = document.createElement('div');
+    duo.className = 'duo';
+    duo.innerHTML =
+      '<div><label for="consTri">Trier par</label><select id="consTri">' +
+        '<option value="recent">Plus récents d\'abord</option>' +
+        '<option value="ancien">Plus anciens d\'abord</option>' +
+        '<option value="eleve">Nom de l\'élève</option>' +
+        '<option value="auteur">Auteur du message</option>' +
+      '</select></div>' +
+      '<div><label for="consAuteur">Auteur</label><select id="consAuteur"></select></div>';
+    barre.appendChild(duo);
+    zone.appendChild(barre);
+
+    const compte = document.createElement('div');
+    compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;';
+    zone.appendChild(compte);
+
+    const lst = document.createElement('div');
+    zone.appendChild(lst);
+
+    /* Les auteurs présents, pour filtrer sans taper */
+    const auteurs = [];
+    liste.forEach(x => {
+      const a = (x.par || '').trim();
+      if(a && auteurs.indexOf(a) === -1) auteurs.push(a);
+    });
+    auteurs.sort((a, b) => a.localeCompare(b, 'fr'));
+    $('consAuteur').innerHTML = '<option value="">Tous</option>' +
+      auteurs.map(a => '<option value="' + a.replace(/"/g, '&quot;') + '">' + a + '</option>').join('');
+
+    function quand(x){
+      const iso = dateFrVersIso(x.creeLe) || '';
+      return iso + ' ' + String(x.creeLe || '');
+    }
+
+    function dessiner(){
+      const q = normaliserMot(rech.value);
+      const tri = $('consTri').value;
+      const aut = $('consAuteur').value;
+
+      let vus = liste.filter(x =>
+        (!aut || (x.par || '').trim() === aut) &&
+        (!q || normaliserMot(x.eleve || '').indexOf(q) !== -1 ||
+               normaliserMot(x.texte || '').indexOf(q) !== -1 ||
+               normaliserMot(x.par || '').indexOf(q) !== -1));
+
+      if(tri === 'eleve') vus.sort((a, b) => (a.eleve || '').localeCompare(b.eleve || '', 'fr'));
+      else if(tri === 'auteur') vus.sort((a, b) => (a.par || '').localeCompare(b.par || '', 'fr'));
+      else if(tri === 'ancien') vus.sort((a, b) => quand(a).localeCompare(quand(b)));
+      else vus.sort((a, b) => quand(b).localeCompare(quand(a)));
+
+      compte.textContent = vus.length + ' message(s) affiché(s)' +
+        (vus.length !== liste.length ? ' sur ' + liste.length : '');
+
+      lst.innerHTML = '';
+      if(!vus.length){
+        lst.innerHTML = '<div class="empty">Aucun message ne correspond.</div>';
+        return;
+      }
+      vus.forEach(dessinerConsigne);
+    }
+
+    [rech, $('consTri'), $('consAuteur')].forEach(e => {
+      if(!e) return;
+      e.addEventListener('input', dessiner);
+      e.addEventListener('change', dessiner);
+    });
+
+    function dessinerConsigne(cs){
       const row = document.createElement('div');
       row.className = 'history-item';
       const meta = document.createElement('div');
@@ -462,8 +545,10 @@ async function afficherConsignesEnAttente(){
         }catch(e){ showToast('Erreur : ' + e.message); b.disabled = false; }
       });
       row.appendChild(b);
-      zone.appendChild(row);
-    });
+      lst.appendChild(row);
+    }
+
+    dessiner();
   }catch(e){
     zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
   }
