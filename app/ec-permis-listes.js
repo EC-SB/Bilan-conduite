@@ -1100,6 +1100,9 @@ function apercuPermisPrevus(prevus){
   const t = document.createElement('div');
   t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);padding:2px 2px 6px;';
   const nPoint = prevus.filter(e => suiviDe(e.eleve).fairePoint === 'oui').length;
+  const nRempl = prevus.filter(e => suiviDe(e.eleve).aRemplacer === 'oui').length;
+  const nFant  = prevus.filter(e => suiviDe(e.eleve).fantome === 'oui').length;
+  const nDonner = prevus.filter(e => suiviDe(e.eleve).dateADonner === 'oui').length;
   t.innerHTML = prevus.length + ' permis prévu(s) — ' +
     '<span style="color:var(--accent-text);">' + nBV + ' BV</span> · ' +
     '<span style="color:#E8A33D;">' + nBEA + ' BEA</span>' +
@@ -1107,7 +1110,15 @@ function apercuPermisPrevus(prevus){
     '<br><span style="font-weight:600;color:var(--muted);">' +
     nOk + ' prêt(s), ' + (prevus.length - nOk) + ' à compléter</span>' +
     (nPoint ? '<br><span style="font-weight:700;color:var(--warn-text);">❓ ' +
-      nPoint + ' point(s) à faire à la prochaine leçon</span>' : '');
+      nPoint + ' point(s) à faire à la prochaine leçon</span>' : '') +
+    /* L'état des places : ce qui reste à caser ou à rendre */
+    ((nRempl || nFant || nDonner)
+      ? '<br><span style="font-weight:600;">' +
+        [nRempl  ? '<span style="color:#E8A33D;">🔄 ' + nRempl + ' à remplacer</span>' : '',
+         nFant   ? '<span style="color:var(--muted);">👻 ' + nFant + ' fantôme(s)</span>' : '',
+         nDonner ? '<span style="color:var(--red);">🏫 ' + nDonner + ' à donner</span>' : '']
+          .filter(Boolean).join(' · ') + '</span>'
+      : '');
   bloc.appendChild(t);
   bloc.appendChild(legendePermis());
 
