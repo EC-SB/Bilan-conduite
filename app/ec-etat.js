@@ -11,7 +11,7 @@
 window.$ = window.$ || function (id) { return document.getElementById(id); };
 var $ = window.$;
 
-var ACCES = { code: null, moniteur: '', role: '', emoji: '', droits: [] };
+var ACCES = { code: null, moniteur: '', role: '', emoji: '', genre: '', droits: [] };
 var recognition = null;
 var isRecording = false;
 var finalTranscript = '';
