@@ -1157,6 +1157,15 @@ function apercuPermisPrevus(prevus){
       nom.addEventListener('click', () => ouvrirFichePermis(e));
       l.appendChild(nom);
 
+      /* La date de relance, là où on la cherche : à côté du nom */
+      if(s.relanceLe){
+        const rl = document.createElement('span');
+        rl.style.cssText = 'flex-shrink:0;font-size:11px;color:var(--muted);';
+        rl.textContent = 'Date de relance : ' + s.relanceLe;
+        rl.title = 'Dernière relance de ' + e.eleve;
+        l.appendChild(rl);
+      }
+
       const rep = document.createElement('span');
       rep.style.cssText = 'flex-shrink:0;font-size:14px;letter-spacing:1px;';
       rep.textContent = emojisPermis(s);
