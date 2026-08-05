@@ -24,6 +24,11 @@ function ficheSuiviPermis(e){
       '<input type="checkbox" id="' + id + 'ok" style="width:19px;height:19px;">' +
       '✅ Tout est OK — dossier prêt</label>' +
 
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
+      'color:var(--warn-text);font-weight:700;margin-bottom:14px;">' +
+      '<input type="checkbox" id="' + id + 'point" style="width:19px;height:19px;">' +
+      '❓ Faire le point à la prochaine leçon</label>' +
+
     '<label for="' + id + 'typ">Type d\'examen</label>' +
     '<select id="' + id + 'typ">' +
       '<option value="bea">🅰 BEA — boîte automatique</option>' +
@@ -118,6 +123,7 @@ function ficheSuiviPermis(e){
     if(g('ae')) g('ae').value = s.autoEcole || '';
     if(g('fan')) g('fan').checked = (s.fantome === 'oui');
     if(g('ok')) g('ok').checked = (s.toutOk === 'oui');
+    if(g('point')) g('point').checked = (s.fairePoint === 'oui');
   }, 0);
 
   /* Affichages conditionnels */
@@ -195,6 +201,7 @@ function ficheSuiviPermis(e){
         autoEcole: g('ae').value.trim(),
         fantome: g('fan').checked ? 'oui' : '',
         toutOk: g('ok').checked ? 'oui' : '',
+        fairePoint: g('point') && g('point').checked ? 'oui' : '',
         statut: s.statut || '',
         aPlanifier: s.aPlanifier || '',
         semaine: s.semaine || '',
@@ -223,6 +230,8 @@ function resumeSuivi(eleve){
   const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
   if(!s) return '';
   const bouts = [];
+  /* En premier : c'est une consigne pour le prochain moniteur */
+  if(s.fairePoint === 'oui') bouts.push('❓ faire le point à la prochaine leçon');
   if(s.toutOk === 'oui') bouts.push('✅ tout est OK');
   if(s.statut === 'annule') bouts.push('❌ examen annulé');
   if(s.fantome === 'oui') bouts.push('👻 place fantôme');
@@ -1029,6 +1038,7 @@ async function ajouterDateBureau(){
 /* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
 function emojisPermis(s){
   const e = [];
+  if(s.fairePoint === 'oui')  e.push('❓');   /* point à faire au prochain cours */
   if(doitDeLArgent(s))        e.push('💰');   /* reste à payer */
   if(aPlanifier(s))           e.push('📆');   /* leçons à poser sur le planning */
   if(s.aRemplacer === 'oui')  e.push('🔄');   /* place à remplacer */
@@ -1059,8 +1069,8 @@ function legendePermis(){
   d.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;' +
     'padding:6px 2px 10px;';
   d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose<br>' +
-    '💰 reste à payer · 📆 leçons à planifier · 🔄 place à remplacer · ' +
-    '👻 fantôme · 🏫 à donner · 🔁 repassage';
+    '❓ faire le point · 💰 reste à payer · 📆 leçons à planifier · ' +
+    '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage';
   return d;
 }
 
@@ -1075,12 +1085,15 @@ function apercuPermisPrevus(prevus){
 
   const t = document.createElement('div');
   t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);padding:2px 2px 6px;';
+  const nPoint = prevus.filter(e => suiviDe(e.eleve).fairePoint === 'oui').length;
   t.innerHTML = prevus.length + ' permis prévu(s) — ' +
     '<span style="color:var(--accent-text);">' + nBV + ' BV</span> · ' +
     '<span style="color:#E8A33D;">' + nBEA + ' BEA</span>' +
     (nHand ? ' · <span style="color:#7FB3FF;">' + nHand + ' ♿</span>' : '') +
     '<br><span style="font-weight:600;color:var(--muted);">' +
-    nOk + ' prêt(s), ' + (prevus.length - nOk) + ' à compléter</span>';
+    nOk + ' prêt(s), ' + (prevus.length - nOk) + ' à compléter</span>' +
+    (nPoint ? '<br><span style="font-weight:700;color:var(--warn-text);">❓ ' +
+      nPoint + ' point(s) à faire à la prochaine leçon</span>' : '');
   bloc.appendChild(t);
   bloc.appendChild(legendePermis());
 
