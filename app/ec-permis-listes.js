@@ -691,12 +691,19 @@ function afficherPermisPrevus(tous){
     visibles.forEach(e => {
       const l = ligneBureau(e, {
         replier: true,
-        info: x => emojisPermis(suiviDe(x.eleve)) +
-                   (suiviDe(x.eleve).toutOk === 'oui' ? ' ✅ ' : ' ⚠️ ') +
-                   (x._boite === 'bea' ? '🅰 BEA'
-                    : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
-                   ' · Permis le ' + (x._datePermis || 'date inconnue') +
-                   (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : ''),
+        info: x => {
+          const sx = suiviDe(x.eleve);
+          /* Ce que le bureau a noté dans « Autre à prévoir » doit se
+             lire sans déplier la fiche : c'est souvent l'essentiel. */
+          const autre = String(sx.autre || '').trim();
+          return emojisPermis(sx) +
+                 (sx.toutOk === 'oui' ? ' ✅ ' : ' ⚠️ ') +
+                 (x._boite === 'bea' ? '🅰 BEA'
+                  : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
+                 ' · Permis le ' + (x._datePermis || 'date inconnue') +
+                 (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '') +
+                 (autre ? '\n📝 ' + autre : '');
+        },
         resume: x => resumeSuivi(x.eleve),
         alerte: x => {
           const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
@@ -1187,6 +1194,17 @@ function apercuPermisPrevus(prevus){
         rl.textContent = 'Date de relance : ' + dateCourte(s.relanceLe);
         rl.title = 'Dernière relance de ' + e.eleve;
         l.appendChild(rl);
+      }
+
+      /* La note « Autre à prévoir », juste avant les repères */
+      const autreTxt = String(s.autre || '').trim();
+      if(autreTxt){
+        const a = document.createElement('span');
+        a.style.cssText = 'flex-shrink:0;font-size:11px;color:var(--accent-text);' +
+          'max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        a.textContent = '📝 ' + autreTxt;
+        a.title = autreTxt;
+        l.appendChild(a);
       }
 
       const rep = document.createElement('span');
