@@ -978,6 +978,139 @@ async function enregistrerMessengerEleve(){
   }
 }
 
+
+/* ============================================================
+   CHOISIR UN ÉLÈVE, EN SACHANT CE QU'ON FAIT
+   Un champ libre ne dit pas si le nom saisi correspond à un élève
+   existant ou en crée un nouveau. Une faute de frappe passe alors
+   inaperçue et fabrique un doublon qu'on ne verra que des mois
+   plus tard, quand l'historique sera coupé en deux.
+   ============================================================ */
+function choisirEleveConnu(titre, aide){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(460px, 94vw);';
+
+    boite.insertAdjacentHTML('beforeend',
+      '<h3>' + String(titre || 'Élève').replace(/</g, '&lt;') + '</h3>' +
+      (aide ? '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+              'margin-bottom:12px;">' + aide + '</div>' : '') +
+      '<label for="celNom">Prénom et nom de l\'élève</label>');
+
+    const champ = document.createElement('input');
+    champ.type = 'text';
+    champ.id = 'celNom';
+    champ.setAttribute('list', 'celListe');
+    champ.autocomplete = 'off';
+    champ.placeholder = 'Tape les premières lettres';
+    boite.appendChild(champ);
+
+    const dl = document.createElement('datalist');
+    dl.id = 'celListe';
+    (elevesConnus || []).slice().sort((a, b) => a.localeCompare(b, 'fr'))
+      .forEach(n => {
+        const o = document.createElement('option');
+        o.value = n;
+        dl.appendChild(o);
+      });
+    boite.appendChild(dl);
+
+    /* Le verdict, en direct : existant ou nouveau */
+    const etat = document.createElement('div');
+    etat.style.cssText = 'font-size:13px;line-height:1.5;min-height:38px;margin-bottom:10px;';
+    boite.appendChild(etat);
+
+    /* Les noms proches, quand la saisie ne tombe pas juste */
+    const proches = document.createElement('div');
+    proches.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;';
+    boite.appendChild(proches);
+
+    let exact = null;
+
+    function juger(){
+      const v = champ.value.trim();
+      proches.innerHTML = '';
+
+      if(v.length < 2){
+        etat.innerHTML = '';
+        exact = null;
+        return;
+      }
+
+      exact = (elevesConnus || []).find(n => normaliserMot(n) === normaliserMot(v)) || null;
+
+      if(exact){
+        etat.innerHTML = '<span style="color:var(--accent-text);font-weight:700;">' +
+          '✅ Élève existant</span><br><span style="font-size:12px;color:var(--muted);">' +
+          'Son historique et sa fiche seront rattachés.</span>';
+        return;
+      }
+
+      /* Ceux qui commencent pareil : la faute de frappe se voit là */
+      const q = normaliserMot(v);
+      const candidats = (elevesConnus || [])
+        .filter(n => normaliserMot(n).indexOf(q.split(' ')[0]) !== -1)
+        .slice(0, 6);
+
+      etat.innerHTML = '<span style="color:var(--warn-text);font-weight:700;">' +
+        '⚠️ Nouvel élève</span><br><span style="font-size:12px;color:var(--muted);">' +
+        (candidats.length
+          ? 'Ce nom ne correspond à aucun élève connu. Vérifie ci-dessous.'
+          : 'Ce nom ne correspond à aucun élève connu. Il sera créé.') + '</span>';
+
+      candidats.forEach(n => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;';
+        b.textContent = n;
+        b.title = 'Choisir ' + n;
+        b.addEventListener('click', () => { champ.value = n; juger(); champ.focus(); });
+        proches.appendChild(b);
+      });
+    }
+
+    champ.addEventListener('input', juger);
+
+    const r = document.createElement('div');
+    r.className = 'btn-row';
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = 'Valider';
+    r.appendChild(bAnn); r.appendChild(bOk);
+    boite.appendChild(r);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = v => { document.body.removeChild(fond); resolve(v); };
+
+    bAnn.addEventListener('click', () => fermer(null));
+    bOk.addEventListener('click', async () => {
+      const v = champ.value.trim();
+      if(v.length < 3){
+        etat.innerHTML = '<span style="color:var(--warn-text);">Nom trop court.</span>';
+        return;
+      }
+      /* Une création se confirme : c'est irréversible en pratique */
+      if(!exact && !await confirmer(
+          'Créer un nouvel élève « ' + v + '» ?\n\n' +
+          "S'il existe déjà sous une autre orthographe, tu créeras un doublon " +
+          'et son historique sera coupé en deux.')) return;
+      fermer(exact || v);
+    });
+
+    champ.addEventListener('keydown', e => { if(e.key === 'Enter') bOk.click(); });
+    setTimeout(() => champ.focus(), 100);
+  });
+}
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-fenetres.js'] = true;
