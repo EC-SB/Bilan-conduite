@@ -123,7 +123,8 @@ function afficherPlaces(stats){
   }
 
   placesConfig.mois.forEach(m => {
-    const st = stats.parMois[m.mois] || { prevus:0, remplacements:0, fantomes:0, aDonner:0 };
+    const st = stats.parMois[m.mois] ||
+               { prevus:0, remplacements:0, fantomes:0, aDonner:0, centres:{} };
     const restant = nb(m.total) - st.prevus;
 
     const r = document.createElement('div');
@@ -145,7 +146,14 @@ function afficherPlaces(stats){
       '<div>🔄 <strong>' + st.remplacements + '</strong> remplacement(s) · ' +
         '👻 <strong>' + st.fantomes + '</strong> place(s) fantôme(s)' +
         (st.aDonner ? ' · 🏫 <strong>' + st.aDonner + '</strong> à donner à une autre AE' : '') +
-      '</div>';
+      '</div>' +
+      /* La répartition par centre d'examen */
+      (Object.keys(st.centres || {}).length
+        ? '<div style="color:var(--muted);font-size:13px;">🏁 ' +
+          Object.keys(st.centres).sort().map(function(x){
+            return x + ' : <strong style="color:var(--cream);">' + st.centres[x] + '</strong>';
+          }).join(' · ') + '</div>'
+        : '');
 
     if((m.semaines || []).length){
       let tsb = 0, tlo = 0;
