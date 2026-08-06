@@ -16,7 +16,7 @@ const SECTIONS_ONGLET = {
   suivi:  ['bureau_simu', 'bureau_examblanc'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'eleves', 'rappels', 'admin']
+           'sms', 'stats', 'eleves', 'rappels', 'historique', 'admin']
 };
 
 let ongletActif = '';
@@ -122,6 +122,7 @@ const VUES = {
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
            ['eleves',     '👥 Répertoire élèves',      'eleves'],
            ['rappels',    '🔔 Rappels de cours',       'rappels'],
+           ['historique', '📚 Historique des cours',    'historique'],
            ['sms',        '💬 SMS',                    'sms'],
            ['stats',      '📈 Réussite',               'stats'],
            ['journal',    '📊 Journal',                'journal'],
@@ -201,7 +202,8 @@ function reveillerVue(cle){
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
-    rappels:    () => modeRappel('manuel')
+    rappels:    () => modeRappel('manuel'),
+    historique: () => afficherHistoriqueCours()
   };
   const f = actions[cle];
   if(typeof f === 'function'){
