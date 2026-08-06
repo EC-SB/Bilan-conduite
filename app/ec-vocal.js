@@ -307,6 +307,14 @@ $('recBtn').addEventListener('click', async () => {
   btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
   $('finishBtn').style.display = 'block';
 
+  /* Le bureau voit qui est en cours, sans avoir à appeler */
+  if(typeof signalerCoursDemarre === 'function'){
+    signalerCoursDemarre($('studentName').value.trim(),
+                         $('modele').selectedOptions[0]
+                           ? $('modele').selectedOptions[0].textContent : '',
+                         $('site') ? $('site').value : '');
+  }
+
   /* Maintien de l'écran — hors du chemin critique :
      un échec ici ne doit pas passer pour une panne de micro. */
   const ecranTenu = await garderEcranAllume();
@@ -1072,6 +1080,7 @@ async function exporterVersSheets(silencieux){
     retenirEtatEnregistre(rep && rep.ligne);
     /* Le cours est fait : sa préparation sort de la liste */
     retirerPreparationFaite();
+    if(typeof signalerCoursFini === 'function') signalerCoursFini();
     viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
