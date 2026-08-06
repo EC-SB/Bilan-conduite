@@ -1526,25 +1526,12 @@ function boutonAjoutManuel(zone, mode){
 }
 
 async function ajouterManuellementAuPermis(mode){
-  /* Le nom, pris dans les élèves connus pour éviter les fautes */
-  const nom = await demander(
-    (mode === 'prevu' ? 'Ajouter un élève avec sa date de permis'
-                      : 'Ajouter un élève prêt au permis') +
-    '\n\nPrénom et nom de l\'élève :', '', 'Élève');
-  if(nom === null) return;
-
-  const eleve = String(nom).trim();
-  if(eleve.length < 3){
-    await informer('Nom trop court.');
-    return;
-  }
-
-  /* Un élève inconnu se signale, sans bloquer : il peut être
-     tout juste inscrit et pas encore dans le répertoire. */
-  const connu = (elevesConnus || []).some(x => normaliserMot(x) === normaliserMot(eleve));
-  if(!connu && !await confirmer(
-      '« ' + eleve + " » n'est pas dans la liste des élèves connus.\n\n" +
-      'Vérifie l\'orthographe : elle servira à le retrouver partout.\n\nContinuer ?')) return;
+  /* Le sélecteur dit si l'élève existe ou s'il va être créé */
+  const eleve = await choisirEleveConnu(
+    mode === 'prevu' ? 'Ajouter un élève avec sa date de permis'
+                     : 'Ajouter un élève prêt au permis',
+    'Commence à taper : les élèves connus sont proposés.');
+  if(!eleve) return;
 
   let iso = '';
   if(mode === 'prevu'){
