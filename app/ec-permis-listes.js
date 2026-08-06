@@ -508,8 +508,15 @@ function afficherRdvPermis(tous){
             o.value = lib; o.textContent = lib;
             selS.appendChild(o);
           });
-          if(s.semaine && !toutesSemaines().some(w =>
-              (libelleSemaine(w) + ((w.sb || w.lo) ? ' (' + (w.sb||0) + ' SB / ' + (w.lo||0) + ' LO)' : '')) === s.semaine)){
+          const libDe = w => libelleSemaine(w) +
+            ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
+
+          /* Une valeur enregistrée avant l'ajout du numéro doit
+             retrouver sa semaine, pas créer une entrée en double. */
+          const correspond = toutesSemaines().find(w => memeSemaine(libDe(w), s.semaine));
+          if(s.semaine && correspond){
+            s.semaine = libDe(correspond);
+          }else if(s.semaine){
             const o = document.createElement('option');
             o.value = s.semaine; o.textContent = s.semaine;
             selS.appendChild(o);
@@ -1604,6 +1611,14 @@ async function choisirCentreExamen(eleve, actuel){
   }catch(e){
     showToast('Enregistrement impossible : ' + e.message);
   }
+}
+
+/* Le libellé d'une semaine a gagné son numéro (« · S36 ») en v270.
+   Les valeurs enregistrées avant ne le portent pas : on compare
+   sans lui, pour ne pas se retrouver avec deux entrées. */
+function memeSemaine(a, b){
+  const sansNum = x => String(x || '').replace(/\s*·\s*S\d+(–S\d+)?/g, '').trim();
+  return sansNum(a) === sansNum(b);
 }
 
 /* Signale que ce module est bien chargé */
