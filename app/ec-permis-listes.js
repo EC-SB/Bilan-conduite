@@ -1240,6 +1240,20 @@ function apercuPermisPrevus(prevus){
       etat.title = (s.toutOk === 'oui') ? 'Dossier prêt' : 'Il manque quelque chose';
       l.appendChild(etat);
 
+      /* Le centre d'examen, réglable sans ouvrir la fiche */
+      const bC = document.createElement('button');
+      bC.className = 'btn btn-secondary';
+      bC.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;' +
+        (s.centre ? '' : 'color:var(--warn-text);border-color:var(--warn-text);');
+      bC.textContent = s.centre ? '🏁 ' + s.centre : '🏁';
+      bC.title = s.centre ? "Centre d'examen : " + s.centre + ' — appuie pour changer'
+                          : "Choisir le centre d'examen de " + e.eleve;
+      bC.addEventListener('click', ev => {
+        ev.stopPropagation();
+        choisirCentreExamen(e.eleve, s.centre);
+      });
+      l.appendChild(bC);
+
       /* Affecter l'élève à un groupe : deux inspecteurs le même jour */
       const bG = document.createElement('button');
       bG.className = 'btn btn-secondary';
@@ -1261,9 +1275,9 @@ function apercuPermisPrevus(prevus){
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);padding:6px 2px 0;line-height:1.5;';
-  aide.textContent = "Appuie sur un nom pour ouvrir sa fiche. Le bouton 👥 range " +
-    "l'élève dans un groupe : deux inspecteurs le même jour, ou matin et après-midi. " +
-    'Les groupes se retrouvent tels quels dans le message Messenger.';
+  aide.textContent = "Appuie sur un nom pour ouvrir sa fiche. 🏁 règle le centre d'examen, " +
+    "👥 range l'élève dans un groupe : deux inspecteurs le même jour, ou matin et " +
+    'après-midi. Les groupes se retrouvent tels quels dans le message Messenger.';
   bloc.appendChild(aide);
 
   return bloc;
@@ -1548,6 +1562,47 @@ async function ajouterManuellementAuPermis(mode){
     await afficherBureau(true);
   }catch(e){
     await informer('Enregistrement impossible : ' + e.message);
+  }
+}
+
+/* ============================================================
+   CENTRE D'EXAMEN, RÉGLABLE DEPUIS LA LISTE
+   Ouvrir la fiche pour un seul champ est fastidieux quand on
+   répartit vingt candidats entre deux centres.
+   ============================================================ */
+const CENTRES_EXAMEN = ['Saint-Brieuc', 'Loudéac'];
+
+async function choisirCentreExamen(eleve, actuel){
+  /* Les centres déjà utilisés, en plus des deux habituels */
+  const vus = [];
+  (etatBureau.suivi || []).forEach(s => {
+    const x = (s.centre || '').trim();
+    if(x && CENTRES_EXAMEN.indexOf(x) === -1 && vus.indexOf(x) === -1) vus.push(x);
+  });
+
+  const choix = CENTRES_EXAMEN.concat(vus);
+  choix.push('➕ Autre centre…');
+  choix.push('— non défini —');
+
+  const v = await choisirDansListe('Centre d\'examen de ' + eleve + ' :',
+                                   choix, actuel || '— non défini —');
+  if(!v) return;
+
+  let nom = v;
+  if(v === '➕ Autre centre…'){
+    const saisi = await demander('Nom du centre d\'examen :', '', 'Centre');
+    if(saisi === null) return;
+    nom = String(saisi).trim();
+  }else if(v === '— non défini —'){
+    nom = '';
+  }
+
+  try{
+    await majSuivi(eleve, { centre: nom });
+    showToast(nom ? eleve + ' → ' + nom : eleve + ' : centre effacé');
+    afficherBureau(true);
+  }catch(e){
+    showToast('Enregistrement impossible : ' + e.message);
   }
 }
 
