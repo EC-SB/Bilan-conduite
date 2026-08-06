@@ -240,6 +240,9 @@ function resumeSuivi(eleve){
     bouts.push('🏫 date à donner à une autre auto-école' +
                (s.autoEcole ? ' : ' + s.autoEcole : ''));
   }
+  /* Le centre d'examen : information de première importance quand
+     on répartit les places entre Saint-Brieuc et Loudéac. */
+  if(s.centre) bouts.push('🏁 ' + s.centre);
   if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
   if(s.paiementPrevu) bouts.push('paiement ' + dateCourte(s.paiementPrevu));
   if(s.relanceLe) bouts.push('relancé le ' + dateCourte(s.relanceLe));
@@ -622,12 +625,16 @@ function afficherPermisPrevus(tous){
   actifs.forEach(e => {
     const k = (e._iso || '').slice(0, 7);
     if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
-    if(!parMois[k]) parMois[k] = { prevus:0, remplacements:0, fantomes:0, aDonner:0 };
+    if(!parMois[k]) parMois[k] = { prevus:0, remplacements:0, fantomes:0,
+                                   aDonner:0, centres:{} };
     const s = suiviDe(e.eleve);
     parMois[k].prevus++;
     if(s.aRemplacer === 'oui') parMois[k].remplacements++;
     if(s.fantome === 'oui') parMois[k].fantomes++;
     if(s.dateADonner === 'oui') parMois[k].aDonner++;
+    /* La répartition par centre : c'est elle qui dit où placer les suivants */
+    const ce = (s.centre || '').trim() || 'centre à définir';
+    parMois[k].centres[ce] = (parMois[k].centres[ce] || 0) + 1;
   });
 
   /* Nombre d'examens tombant dans chaque semaine ouverte */
