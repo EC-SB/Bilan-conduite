@@ -60,7 +60,21 @@ async function enregistrerPlaces(){
                     valeur: JSON.stringify(placesConfig) });
 }
 
-/* « du mardi 1 au vendredi 4 septembre » */
+/* Le numéro de semaine ISO : c'est ainsi que la préfecture
+   et les plannings désignent les périodes. */
+function numeroSemaine(iso){
+  if(!iso) return 0;
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d)) return 0;
+  /* Norme ISO 8601 : la semaine 1 est celle du premier jeudi */
+  const j = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const jour = j.getUTCDay() || 7;
+  j.setUTCDate(j.getUTCDate() + 4 - jour);
+  const debutAn = new Date(Date.UTC(j.getUTCFullYear(), 0, 1));
+  return Math.ceil(((j - debutAn) / 86400000 + 1) / 7);
+}
+
+/* « du mardi 1 au vendredi 4 septembre — S36 » */
 function libelleSemaine(w){
   if(!w.du && !w.au) return 'Semaine à définir';
   const fmt = (iso, avecMois) => {
@@ -70,7 +84,15 @@ function libelleSemaine(w){
       ? { weekday:'long', day:'numeric', month:'long' }
       : { weekday:'long', day:'numeric' });
   };
-  return 'du ' + fmt(w.du, false) + ' au ' + fmt(w.au, true);
+
+  /* Le numéro : celui du début, et celui de fin s'il diffère */
+  const n1 = numeroSemaine(w.du);
+  const n2 = numeroSemaine(w.au);
+  const num = !n1 ? ''
+    : (n2 && n2 !== n1) ? '  ·  S' + n1 + '–S' + n2
+    : '  ·  S' + n1;
+
+  return 'du ' + fmt(w.du, false) + ' au ' + fmt(w.au, true) + num;
 }
 
 /* Semaines de travail (lundi→vendredi) d'un mois donné */
