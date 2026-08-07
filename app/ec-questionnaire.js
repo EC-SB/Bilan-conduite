@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:44 — v284 */
+/* Déployé le 07/08/2026 à 10:52 — v285 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -493,11 +493,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '<option value="fait">Fait ✅</option>' +
       '</select>' +
 
-      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-        '<input type="checkbox" id="qFinFormation" style="width:20px;height:20px;">' +
-        'Fin de formation à prévoir' +
-      '</label>' +
-
+      
       '<div id="qBlocAacCs" style="display:none;">' +
         '<label for="qFormAccomp">Formation accompagnateur</label>' +
         '<select id="qFormAccomp">' +
@@ -559,10 +555,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     if(profil !== 'complet'){
       const aMasquer = (profil === 'examen')
         ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
-           '#qSimuNuit', '#qFinFormation', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe', '#qCS']
+           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe', '#qCS']
         : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
            '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
-           '#qFinirFiche', '#qSimuNuit', '#qFinFormation', '#qBlocAacCs'];
+           '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
 
       aMasquer.forEach(sel => {
         const el = boite.querySelector(sel);
@@ -624,7 +620,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qLecon').value = prec.lecon || ((faites !== null) ? (faites + 1) : '');
     boite.querySelector('#qPasEcoute').checked = !!prec.pasEcoute;
     boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
-    boite.querySelector('#qFinFormation').checked = !!prec.finFormation;
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
     boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
     boite.querySelector('#qLibre').value = prec.libre || '';
@@ -741,7 +736,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         examDate: dEP.value,
         pasEcoute: boite.querySelector('#qPasEcoute').checked,
         simuNuit: boite.querySelector('#qSimuNuit').value,
-        finFormation: boite.querySelector('#qFinFormation').checked,
         ebPasse: selEB2 ? selEB2.value : '',
         ebLecons: nEB2 ? nEB2.value.trim() : '',
         examPermisN: nEP.value.trim(),
@@ -885,7 +879,6 @@ function ajouterSuite(bouts, q){
   if(q.rvPrealable === 'aprevoir') bouts.push('Rendez-vous préalable à prévoir');
   else if(q.rvPrealable === 'prevu') bouts.push('Rendez-vous préalable déjà prévu');
   else if(q.rvPrealable === 'fait') bouts.push('Rendez-vous préalable fait');
-  if(q.finFormation) bouts.push('Fin de formation à prévoir');
   if(q.libre) bouts.push(q.libre);
   (q.consignes || []).forEach(t => bouts.push(t));
 }
@@ -1256,6 +1249,24 @@ function remplirFicheQuestionnaire(marquesAvant){
 
   const marques = marquesAvant || {};
   zone.innerHTML = '';
+
+  /* Tout cocher d'un coup : quand un moniteur annonce que la fiche
+     est terminée, cocher dix-neuf cases une par une est absurde. */
+  const tout = document.createElement('label');
+  tout.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0 8px;' +
+    'font-size:14px;text-transform:none;margin:0 0 6px;font-weight:700;' +
+    'color:var(--accent-text);border-bottom:1px solid var(--line);';
+  const cbTout = document.createElement('input');
+  cbTout.type = 'checkbox';
+  cbTout.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
+  cbTout.addEventListener('change', () => {
+    zone.querySelectorAll('.qManoeuvre').forEach(x => { x.checked = cbTout.checked; });
+  });
+  tout.appendChild(cbTout);
+  const tt = document.createElement('span');
+  tt.textContent = 'Tout cocher';
+  tout.appendChild(tt);
+  zone.appendChild(tout);
 
   (BLOC.ficheListeConduite || []).forEach(libelle => {
     const cle = normaliserMot(libelle);
