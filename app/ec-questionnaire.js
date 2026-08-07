@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:40 — v290 */
+/* Déployé le 07/08/2026 à 12:27 — v293 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -644,7 +644,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     /* La fiche véhicule, pré-cochée d'après les bilans précédents */
     const marquesConnues = dossier.marques || {};
-    remplirFicheQuestionnaire(marquesConnues);
+    remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || []);
     boite._marquesConnues = marquesConnues;
 
     /* Boîte déduite du type de bilan, ANTS repris s'il est connu */
@@ -1311,7 +1311,7 @@ function blocFicheVehiculeEleve(bilans, toutAfficher){
    Le moniteur complète ce qui a été acquis pendant son cours.
    Ce qu'il ajoute porte son émoji, comme dans le bilan.
    ============================================================ */
-function remplirFicheQuestionnaire(marquesAvant){
+function remplirFicheQuestionnaire(marquesAvant, dejaCochees){
   const zone = $('qFiche');
   if(!zone) return;
 
@@ -1336,9 +1336,15 @@ function remplirFicheQuestionnaire(marquesAvant){
   tout.appendChild(tt);
   zone.appendChild(tout);
 
+  /* Ce que le moniteur avait coché à la préparation, ou plus tôt
+     dans ce cours : sans ça, rouvrir le questionnaire effaçait tout
+     et le travail du collègue était perdu. */
+  const cochees = (dejaCochees || []).map(x => normaliserMot(x));
+
   (BLOC.ficheListeConduite || []).forEach(libelle => {
     const cle = normaliserMot(libelle);
     const deja = marques[cle] || '';
+    const cochee = cochees.indexOf(cle) !== -1;
 
     const l = document.createElement('label');
     l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;' +
@@ -1349,7 +1355,7 @@ function remplirFicheQuestionnaire(marquesAvant){
     cb.type = 'checkbox';
     cb.className = 'qManoeuvre';
     cb.value = libelle;
-    cb.checked = !!deja;
+    cb.checked = !!deja || cochee;
     cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
     l.appendChild(cb);
 
