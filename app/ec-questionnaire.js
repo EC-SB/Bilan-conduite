@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 08:23 — v278 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -243,6 +244,16 @@ function profilQuestionnaire(modeleCle){
 
 /* Remplace la note du questionnaire sans écraser ce que le moniteur
    a écrit à la main à côté. */
+
+/* Le bloc « Historique » ne s'affiche que s'il porte quelque chose.
+   Un champ vide n'apprend rien au moniteur et encombre l'écran. */
+function majAffichageNoteInterne(){
+  const bloc = $('blocNoteInterne');
+  const champ = $('noteInterne');
+  if(!bloc || !champ) return;
+  bloc.style.display = champ.value.trim() ? 'block' : 'none';
+}
+
 function appliquerNoteQuestionnaire(nouvelle){
   const champ = $('noteInterne');
   let actuel = champ.value.trim();
@@ -254,6 +265,7 @@ function appliquerNoteQuestionnaire(nouvelle){
   champ.value = nouvelle
     ? (actuel ? nouvelle + ' · ' + actuel : nouvelle)
     : actuel;
+  majAffichageNoteInterne();
 
   noteQuestionnaire = nouvelle;
   if($('noteResult')) $('noteResult').value = champ.value;
