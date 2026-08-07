@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 12:27 — v293 */
+/* Déployé le 07/08/2026 à 13:29 — v297 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -34,8 +34,11 @@ async function chargerDossierEleve(nomEleve){
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      /* Texte complet : la fiche véhicule s'y trouve, et c'est elle
+         qui pré-coche le questionnaire. En mode allégé, les marques
+         étaient toujours vides et rien n'était coché. */
       body: JSON.stringify({ action: 'search', code: ACCES.code,
-                             eleve: nomEleve.trim(), leger: true })
+                             eleve: nomEleve.trim() })
     });
     if(!r.ok) return vide;
     const data = await r.json().catch(() => ({}));
