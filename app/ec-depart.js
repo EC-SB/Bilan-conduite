@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:40 — v290 */
+/* Déployé le 07/08/2026 à 12:49 — v294 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -540,6 +540,17 @@ async function terminerCours(){
   $('noteInterne').value = '';
   if(typeof majAffichageNoteInterne === 'function') majAffichageNoteInterne();
   afficherNote('');
+
+  /* Les blocs du cours précédent : sans ça, le dossier et la
+     préparation de l'élève d'avant restaient affichés sous un
+     champ vide, et le moniteur suivant pouvait s'y fier. */
+  ['historiqueEleve', 'preparationEleve'].forEach(id => {
+    const z = $(id);
+    if(!z) return;
+    z.innerHTML = '';
+    z.style.display = 'none';
+  });
+  if($('eleveMessenger')) $('eleveMessenger').value = '';
   ['modele','monitorName','studentName','site','lessonDate'].forEach(id => { $(id).disabled = false; });
   $('lessonDate').value = todayLocal();
   $('recBtn').textContent = '🎙️ Démarrer le cours';
