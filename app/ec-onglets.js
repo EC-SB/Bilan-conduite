@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 15:18 — v299 */
+/* Déployé le 07/08/2026 à 15:40 — v300 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -46,6 +46,7 @@ function afficherOnglet(cle, memoriser){
     b.style.display = (b.getAttribute('data-pour') === cle && !b.hidden) ? 'flex' : 'none';
   });
   if(VUES[cle]) afficherVue(cle, vueActive[cle] || (VUES[cle][0] || [])[0]);
+  else libererOngletsSansVues();
 
   document.querySelectorAll('#barreOnglets .onglet').forEach(b => {
     b.classList.toggle('actif', b.getAttribute('data-cible') === cle);
@@ -84,6 +85,7 @@ function initOnglets(){
     try{ vueActive[o] = localStorage.getItem('vue_' + o) || ''; }catch(e){}
   });
   construireBarresVues();
+  libererOngletsSansVues();
 
   const dispo = ongletsDisponibles();
 
@@ -169,6 +171,18 @@ function construireBarresVues(){
   });
 }
 
+/* Un onglet sans vues affiche tous ses blocs. Sans ce ménage, la
+   classe « hors-vue » posée par une version précédente restait et
+   masquait des cartes que plus personne ne réaffichait. */
+function libererOngletsSansVues(){
+  document.querySelectorAll('[data-vue][data-onglet]').forEach(el => {
+    const onglet = el.getAttribute('data-onglet');
+    if(VUES[onglet]) return;              /* cet onglet a ses vues */
+    el.classList.remove('hors-vue');
+    if(el.style.display === 'none') el.style.display = '';
+  });
+}
+
 function afficherVue(onglet, cle){
   vueActive[onglet] = cle;
 
@@ -218,14 +232,11 @@ function reveillerVue(cle){
    S'il a un cours préparé pour aujourd'hui, c'est ce qu'il ouvre.
    Sinon, il démarre un cours directement.
    ============================================================ */
+/* L'onglet Cours affiche désormais ses trois blocs ensemble : il
+   n'y a plus de tiroir à choisir. La fonction reste, vide, car
+   d'autres modules l'appellent encore. */
 function ouvrirLeBonTiroirDuJour(){
-  const auj = todayLocal();
-  const moi = normaliserMot(ACCES.moniteur || '');
-  const duJour = (prepares || []).filter(x =>
-    x.date === auj && (!x.moniteur || normaliserMot(x.moniteur) === moi));
-
-  /* Un cours préparé aujourd'hui : c'est ce qu'il ouvre en premier */
-  afficherVue('cours', duJour.length ? 'prepares' : 'cours');
+  libererOngletsSansVues();
 }
 
 
