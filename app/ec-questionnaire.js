@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 08:46 — v279 */
+/* Déployé le 07/08/2026 à 09:01 — v281 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1072,7 +1072,8 @@ async function chargerHistoriqueEleve(){
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom, leger: true })
+      /* Texte complet : la fiche véhicule s'y trouve */
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json().catch(() => ({}));
@@ -1105,21 +1106,14 @@ async function chargerHistoriqueEleve(){
     const titre = document.createElement('div');
     titre.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
     titre.textContent = res.length + ' cours précédent' + (res.length > 1 ? 's' : '') +
-      ' · dernier le ' + (dernier.date || '?') +
+      ' · dernier le ' + (dateEnToutesLettres(dateFrVersIso(dernier.date)) || dernier.date || '?') +
       (dernier.moniteur ? ' avec ' + dernier.moniteur : '');
     carte.appendChild(titre);
 
-    if(note){
-      const n = document.createElement('div');
-      n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);line-height:1.45;white-space:pre-wrap;';
-      n.textContent = '📌 ' + note;
-      carte.appendChild(n);
-    }else{
-      const n = document.createElement('div');
-      n.style.cssText = 'font-size:13px;color:var(--muted);';
-      n.textContent = 'Pas de note laissée par le moniteur précédent.';
-      carte.appendChild(n);
-    }
+    /* La fiche véhicule, avec les émojis des moniteurs qui ont fait
+       retravailler chaque manœuvre. La note du moniteur précédent est
+       déjà lisible dans le résumé du cours, inutile de la répéter. */
+    carte.appendChild(blocFicheVehiculeEleve(res));
 
     const lien = document.createElement('button');
     lien.type = 'button';
@@ -1144,6 +1138,73 @@ async function chargerHistoriqueEleve(){
   }catch(e){
     zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Historique indisponible.</div>';
   }
+}
+
+/* ============================================================
+   FICHE VÉHICULE DE L'ÉLÈVE
+   Ce que le moniteur a besoin de savoir avant de partir : quelles
+   manœuvres sont validées, par qui, et lesquelles restent à faire.
+   ============================================================ */
+function blocFicheVehiculeEleve(bilans){
+  const d = document.createElement('div');
+
+  /* On part du plus récent : ses marques sont les plus complètes */
+  let marques = {};
+  (bilans || []).slice().reverse().forEach(item => {
+    const m = (typeof marquesDejaPosees === 'function')
+      ? marquesDejaPosees(item.bilan) : {};
+    Object.keys(m).forEach(k => { marques[k] = m[k]; });
+  });
+
+  const liste = (typeof BLOC !== 'undefined' && BLOC.ficheListeConduite)
+    ? BLOC.ficheListeConduite : [];
+
+  const faites = [];
+  const restantes = [];
+  liste.forEach(libelle => {
+    const cle = normaliserMot(libelle);
+    if(marques[cle]) faites.push({ nom: libelle, marque: marques[cle] });
+    else restantes.push(libelle);
+  });
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
+  t.textContent = '🦉 Fiche véhicule — ' + faites.length + ' sur ' + liste.length;
+  d.appendChild(t);
+
+  if(!faites.length){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:13px;color:var(--muted);';
+    v.textContent = 'Aucune manœuvre validée pour le moment.';
+    d.appendChild(v);
+    return d;
+  }
+
+  const z = document.createElement('div');
+  z.style.cssText = 'font-size:13px;line-height:1.7;';
+  faites.forEach(x => {
+    const l = document.createElement('div');
+    l.innerHTML = '<span style="color:var(--cream);">' +
+      x.nom.replace(/</g, '&lt;') + '</span> ' +
+      '<span style="letter-spacing:1px;">' + x.marque + '</span>';
+    z.appendChild(l);
+  });
+  d.appendChild(z);
+
+  /* Ce qui reste, replié : c'est long et rarement lu en entier */
+  if(restantes.length){
+    const det = document.createElement('details');
+    det.style.marginTop = '8px';
+    det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
+      '❓ ' + restantes.length + ' manœuvre(s) restante(s)</summary>';
+    const r = document.createElement('div');
+    r.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;';
+    r.textContent = restantes.join(' · ');
+    det.appendChild(r);
+    d.appendChild(det);
+  }
+
+  return d;
 }
 
 /* Signale que ce module est bien chargé */
