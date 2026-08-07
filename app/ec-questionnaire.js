@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:26 — v289 */
+/* Déployé le 07/08/2026 à 11:40 — v290 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -500,7 +500,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qPasEcoute" style="width:20px;height:20px;">' +
-        "Pas d'écoute pédagogique" +
+        "Pas d'écoutes pédagogiques" +
       '</label>' +
 
       '<label for="qSimuNuit">Simulateur nuit et risques</label>' +
@@ -914,7 +914,7 @@ function ajouterSuite(bouts, q){
 
   /* L'écoute pédagogique : le bureau doit le savoir pour ne pas
      la planifier inutilement le jour du permis. */
-  if(q.pasEcoute) bouts.push("Pas d'écoute pédagogique");
+  if(q.pasEcoute) bouts.push("Pas d'écoutes pédagogiques");
   if(q.simuNuit === 'aprevoir') bouts.push('Simulateur nuit et risques à prévoir');
   else if(q.simuNuit === 'prevu') bouts.push('Simulateur nuit et risques déjà prévu');
   else if(q.simuNuit === 'fait') bouts.push('Simulateur nuit et risques fait ✅');
