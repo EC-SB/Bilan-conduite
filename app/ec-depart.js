@@ -1,4 +1,4 @@
-/* Déployé le 06/08/2026 à 15:43 — v273 */
+/* Déployé le 07/08/2026 à 08:23 — v278 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -538,6 +538,7 @@ async function terminerCours(){
   $('studentName').value = '';
   verifierNomEleve('studentName', 'studentInfo', true);
   $('noteInterne').value = '';
+  if(typeof majAffichageNoteInterne === 'function') majAffichageNoteInterne();
   afficherNote('');
   ['modele','monitorName','studentName','site','lessonDate'].forEach(id => { $(id).disabled = false; });
   $('lessonDate').value = todayLocal();
