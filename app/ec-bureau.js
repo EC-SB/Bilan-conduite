@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:44 — v284 */
+/* Déployé le 07/08/2026 à 11:40 — v290 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -111,7 +111,7 @@ function analyserNote(note){
   if(/frise dépassée/i.test(t)) r.friseDepassee = true;
   if((m = t.match(/(\d+)(?:er|e) repassage/i))) r.repassages = +m[1];
   if((m = t.match(/[Aa]journé le ([^—·(]+)/))) r.dateAjournement = m[1].trim();
-  if(/Pas d'écoute pédagogique/i.test(t)) r.pasEcoute = true;
+  if(/Pas d'écoutes? pédagogiques?/i.test(t)) r.pasEcoute = true;
   return r;
 }
 
