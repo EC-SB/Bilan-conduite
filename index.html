@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v278
-     VERSION APPS SCRIPT REQUISE : v52
-     Mis à jour le : 07/08/2026 à 08:23
+     VERSION APPLICATION : v280
+     VERSION APPS SCRIPT REQUISE : v53
+     Mis à jour le : 07/08/2026 à 08:55
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -649,7 +649,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v278</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v280</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -827,15 +827,13 @@
         </div>
       </div>
 
-      <!-- Ce qu'a laissé le moniteur précédent. Masqué tant qu'il n'y
-           a rien : un champ vide n'apprend rien et encombre l'écran. -->
+      <!-- La note du moniteur précédent est déjà résumée sous le nom
+           de l'élève : l'afficher deux fois n'apporte rien. Le champ
+           reste présent, invisible, car il porte la note jusqu'à
+           l'enregistrement du bilan. -->
       <div id="blocNoteInterne" style="display:none;">
         <label for="noteInterne">🔒 Historique</label>
-        <textarea id="noteInterne" rows="3" maxlength="600"
-                  placeholder="Note interne du moniteur précédent"></textarea>
-        <div style="font-size:12px;color:var(--muted);margin:4px 0 14px;line-height:1.4;">
-          Jamais incluse dans le bilan de l'élève. Elle s'affichera au moniteur suivant lors d'une recherche.
-        </div>
+        <textarea id="noteInterne" rows="3" maxlength="600"></textarea>
       </div>
 
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
@@ -1612,34 +1610,34 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=278"></script>
-<script src="app/ec-modeles.js?v=278"></script>
-<script src="app/ec-consignes.js?v=278"></script>
-<script src="app/ec-noyau.js?v=278"></script>
-<script src="app/ec-vocal.js?v=278"></script>
-<script src="app/ec-reseau.js?v=278"></script>
-<script src="app/ec-manuel.js?v=278"></script>
-<script src="app/ec-fenetres.js?v=278"></script>
-<script src="app/ec-questionnaire.js?v=278"></script>
-<script src="app/ec-permis.js?v=278"></script>
-<script src="app/ec-prepares.js?v=278"></script>
-<script src="app/ec-bureau.js?v=278"></script>
-<script src="app/ec-places.js?v=278"></script>
-<script src="app/ec-listes.js?v=278"></script>
-<script src="app/ec-permis-listes.js?v=278"></script>
-<script src="app/ec-postpermis.js?v=278"></script>
-<script src="app/ec-textes.js?v=278"></script>
-<script src="app/ec-correction.js?v=278"></script>
-<script src="app/ec-bilans.js?v=278"></script>
-<script src="app/ec-historique.js?v=278"></script>
-<script src="app/ec-rappels.js?v=278"></script>
-<script src="app/ec-sms.js?v=278"></script>
-<script src="app/ec-stats.js?v=278"></script>
-<script src="app/ec-messenger.js?v=278"></script>
-<script src="app/ec-journal.js?v=278"></script>
-<script src="app/ec-depart.js?v=278"></script>
-<script src="app/ec-onglets.js?v=278"></script>
-<script src="app/ec-demarrage.js?v=278"></script>
+  <script src="app/ec-etat.js?v=280"></script>
+<script src="app/ec-modeles.js?v=280"></script>
+<script src="app/ec-consignes.js?v=280"></script>
+<script src="app/ec-noyau.js?v=280"></script>
+<script src="app/ec-vocal.js?v=280"></script>
+<script src="app/ec-reseau.js?v=280"></script>
+<script src="app/ec-manuel.js?v=280"></script>
+<script src="app/ec-fenetres.js?v=280"></script>
+<script src="app/ec-questionnaire.js?v=280"></script>
+<script src="app/ec-permis.js?v=280"></script>
+<script src="app/ec-prepares.js?v=280"></script>
+<script src="app/ec-bureau.js?v=280"></script>
+<script src="app/ec-places.js?v=280"></script>
+<script src="app/ec-listes.js?v=280"></script>
+<script src="app/ec-permis-listes.js?v=280"></script>
+<script src="app/ec-postpermis.js?v=280"></script>
+<script src="app/ec-textes.js?v=280"></script>
+<script src="app/ec-correction.js?v=280"></script>
+<script src="app/ec-bilans.js?v=280"></script>
+<script src="app/ec-historique.js?v=280"></script>
+<script src="app/ec-rappels.js?v=280"></script>
+<script src="app/ec-sms.js?v=280"></script>
+<script src="app/ec-stats.js?v=280"></script>
+<script src="app/ec-messenger.js?v=280"></script>
+<script src="app/ec-journal.js?v=280"></script>
+<script src="app/ec-depart.js?v=280"></script>
+<script src="app/ec-onglets.js?v=280"></script>
+<script src="app/ec-demarrage.js?v=280"></script>
 
 </body>
 </html>
