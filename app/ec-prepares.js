@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:59 — v287 */
+/* Déployé le 07/08/2026 à 11:13 — v288 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -400,6 +400,7 @@ async function chargerPrepare(cours){
   /* Le résumé du cours précédent, comme lors d'une saisie normale :
      le moniteur doit voir ce qui a été travaillé avant de démarrer. */
   if(typeof chargerHistoriqueEleve === 'function') chargerHistoriqueEleve();
+  afficherPreparationEleve();
   chargerHistoriqueEleve();
   window.scrollTo(0, 0);
   showToast('Cours de ' + (cours.eleve || 'l\'élève') + ' chargé ✅');
@@ -626,7 +627,7 @@ async function afficherPreparationEleve(){
   const prep = siennes.find(x => x.date === jour) ||
                siennes.sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
 
-  if(!prep || !String(prep.note || '').trim()){
+  if(!prep){
     zone.style.display = 'none';
     zone.innerHTML = '';
     return;
@@ -645,10 +646,16 @@ async function afficherPreparationEleve(){
     (prep.modeleLabel ? ' · ' + prep.modeleLabel : '');
   carte.appendChild(t);
 
+  const note = String(prep.note || '').trim();
   const n = document.createElement('div');
-  n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
-    'line-height:1.45;white-space:pre-wrap;';
-  n.textContent = prep.note;
+  if(note){
+    n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
+      'line-height:1.45;white-space:pre-wrap;';
+    n.textContent = note;
+  }else{
+    n.style.cssText = 'font-size:13px;color:var(--muted);';
+    n.textContent = 'Cours préparé, sans note particulière.';
+  }
   carte.appendChild(n);
 
   zone.appendChild(carte);
