@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 09:01 — v281 */
+/* Déployé le 07/08/2026 à 09:19 — v282 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1110,9 +1110,25 @@ async function chargerHistoriqueEleve(){
       (dernier.moniteur ? ' avec ' + dernier.moniteur : '');
     carte.appendChild(titre);
 
-    /* La fiche véhicule, avec les émojis des moniteurs qui ont fait
-       retravailler chaque manœuvre. La note du moniteur précédent est
-       déjà lisible dans le résumé du cours, inutile de la répéter. */
+    /* La note du moniteur précédent : frise, examen blanc, date
+       d'examen. C'est ce que le moniteur doit voir en premier. */
+    if(note){
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
+        'line-height:1.45;white-space:pre-wrap;margin-bottom:10px;';
+      n.textContent = '📌 ' + note;
+      carte.appendChild(n);
+    }else{
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:10px;';
+      n.textContent = 'Pas de note laissée par le moniteur précédent.';
+      carte.appendChild(n);
+    }
+
+    /* Puis la fiche véhicule, avec les émojis des moniteurs */
+    const sep = document.createElement('div');
+    sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
+    carte.appendChild(sep);
     carte.appendChild(blocFicheVehiculeEleve(res));
 
     const lien = document.createElement('button');
