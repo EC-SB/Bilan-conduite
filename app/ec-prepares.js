@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 07:22 — v275 */
+/* Déployé le 07/08/2026 à 10:51 — v285 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -385,11 +385,21 @@ async function chargerPrepare(cours){
   $('compteur').style.display = 'none';
   $('finishBtn').style.display = 'none';
   $('resultView').style.display = 'none';
+  /* On bascule sur l'onglet Cours : depuis la liste des préparés,
+     l'écran d'enregistrement restait masqué par sa classe d'onglet. */
+  if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+  $('recordView').classList.remove('hors-onglet', 'hors-vue');
+
   $('recordView').style.display = 'block';
   $('recBtn').textContent = '🎙️ Démarrer le cours';
   $('status').textContent = 'Cours préparé — tu peux démarrer directement.';
+  window.scrollTo(0, 0);
 
   verifierNomEleve('studentName', 'studentInfo', true);
+
+  /* Le résumé du cours précédent, comme lors d'une saisie normale :
+     le moniteur doit voir ce qui a été travaillé avant de démarrer. */
+  if(typeof chargerHistoriqueEleve === 'function') chargerHistoriqueEleve();
   chargerHistoriqueEleve();
   window.scrollTo(0, 0);
   showToast('Cours de ' + (cours.eleve || 'l\'élève') + ' chargé ✅');
