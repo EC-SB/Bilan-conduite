@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 13:29 — v297 */
+/* Déployé le 07/08/2026 à 15:06 — v299 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -649,6 +649,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const marquesConnues = dossier.marques || {};
     remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || []);
     boite._marquesConnues = marquesConnues;
+
+    /* Après le cours : on n'affiche que ce qui peut avoir changé */
+    if(/après ce cours/i.test(titre || '')) allegerQuestionnaireFin(boite, prec);
 
     /* Boîte déduite du type de bilan, ANTS repris s'il est connu */
     boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
@@ -1453,6 +1456,56 @@ async function chargerHistoriquePrep(){
     zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">' +
       'Dossier indisponible : ' + e.message.replace(/</g, '&lt;') + '</div>';
   }
+}
+
+/* ============================================================
+   ALLÈGEMENT DU QUESTIONNAIRE DE FIN DE COURS
+   En début de cours on renseigne le dossier ; en fin de cours on
+   ne fait que corriger ce qui a bougé. Les champs administratifs
+   n'ont plus rien à y faire : le moniteur est pressé, l'élève
+   attend, et chaque champ inutile est une chance d'erreur.
+   ============================================================ */
+function allegerQuestionnaireFin(boite, prec){
+  if(!boite) return;
+
+  /* Masque un champ et l'étiquette qui le précède */
+  const cacher = sel => {
+    const e = boite.querySelector(sel);
+    if(!e) return;
+    /* Une case à cocher vit dans son étiquette : on masque celle-ci */
+    const cible = (e.type === 'checkbox' && e.closest('label')) ? e.closest('label') : e;
+    const avant = cible.previousElementSibling;
+    if(avant && avant.tagName === 'LABEL' && avant.getAttribute('for')) avant.style.display = 'none';
+    cible.style.display = 'none';
+  };
+
+  /* Conduite aménagée : se décide à l'inscription, jamais après un cours */
+  cacher('#qHandicap');
+  const zh = boite.querySelector('#qZoneHandicap');
+  if(zh) zh.style.display = 'none';
+
+  /* Dossier ANTS : seulement s'il reste à renseigner */
+  const ants = boite.querySelector('#qAnts');
+  if(ants && (prec.ants || '').trim()){
+    cacher('#qAnts');
+    const aide = ants.nextElementSibling;
+    if(aide && aide.className !== 'btn-row') aide.style.display = 'none';
+  }
+
+  /* Frise et numéro de leçon : renseignés au départ */
+  ['#qFriseClassique', '#qFriseFixe', '#qBlocAacCs'].forEach(s => {
+    const e = boite.querySelector(s);
+    if(!e) return;
+    const avant = e.previousElementSibling;
+    if(avant && avant.tagName === 'LABEL') avant.style.display = 'none';
+    e.style.display = 'none';
+    const apres = e.nextElementSibling;
+    if(apres && apres.style && apres.style.fontSize === '12px') apres.style.display = 'none';
+  });
+  cacher('#qLecon');
+
+  /* L'écoute pédagogique se décide en préparant la journée de permis */
+  cacher('#qPasEcoute');
 }
 
 /* Signale que ce module est bien chargé */
