@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 08:23 — v278 */
+/* Déployé le 07/08/2026 à 08:46 — v279 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -245,13 +245,12 @@ function profilQuestionnaire(modeleCle){
 /* Remplace la note du questionnaire sans écraser ce que le moniteur
    a écrit à la main à côté. */
 
-/* Le bloc « Historique » ne s'affiche que s'il porte quelque chose.
-   Un champ vide n'apprend rien au moniteur et encombre l'écran. */
+/* Le bloc « Historique » ne s'affiche plus sur l'écran de cours :
+   la note du moniteur précédent est déjà résumée sous le nom de
+   l'élève. Le champ reste alimenté, il part avec le bilan. */
 function majAffichageNoteInterne(){
   const bloc = $('blocNoteInterne');
-  const champ = $('noteInterne');
-  if(!bloc || !champ) return;
-  bloc.style.display = champ.value.trim() ? 'block' : 'none';
+  if(bloc) bloc.style.display = 'none';
 }
 
 function appliquerNoteQuestionnaire(nouvelle){
