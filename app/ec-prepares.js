@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:13 — v288 */
+/* Déployé le 07/08/2026 à 11:25 — v289 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -184,7 +184,20 @@ async function afficherPrepares(recharger, silencieux){
       bOuvrir.textContent = '▶ Ouvrir';
       bOuvrir.title = aMoiOuvrir ? 'Démarrer ce cours'
                                  : 'Ouvrir (administrateur)';
-      bOuvrir.addEventListener('click', () => chargerPrepare(cours));
+      bOuvrir.addEventListener('click', async () => {
+        /* Retour immédiat : l'ouverture demande plusieurs allers-retours
+           avec Google, et un bouton muet se fait marteler. */
+        if(bOuvrir.disabled) return;
+        bOuvrir.disabled = true;
+        const avant = bOuvrir.textContent;
+        bOuvrir.textContent = '⏳ Ouverture…';
+        try{
+          await chargerPrepare(cours);
+        }finally{
+          bOuvrir.disabled = false;
+          bOuvrir.textContent = avant;
+        }
+      });
       actions.appendChild(bOuvrir);
     }else{
       const bReprendre = document.createElement('button');
@@ -320,7 +333,20 @@ async function retirerPreparationFaite(){
 
 /* Charge un cours préparé dans le formulaire : les informations sont
    rafraîchies sans effacer ce que le moniteur avait saisi. */
+let ouvertureEnCours = false;
+
 async function chargerPrepare(cours){
+  /* Deux appuis rapprochés ne doivent pas lancer deux ouvertures */
+  if(ouvertureEnCours) return;
+  ouvertureEnCours = true;
+  try{
+    return await chargerPrepareInterne(cours);
+  }finally{
+    ouvertureEnCours = false;
+  }
+}
+
+async function chargerPrepareInterne(cours){
   /* Garde-fou : masquer un bouton ne suffit pas. Un cours attribué
      à quelqu'un d'autre ne se démarre pas sans se le réattribuer. */
   if(cours && cours.moniteur && ACCES.role !== 'admin' &&
@@ -348,27 +374,35 @@ async function chargerPrepare(cours){
   let contexte = cours.contexte || null;
   let note = cours.note || '';
 
+  /* La vérification « un cours a-t-il eu lieu depuis ? » demande une
+     lecture complète du classeur : plusieurs secondes de démarrage
+     à froid. On n'attend pas — l'écran s'ouvre tout de suite avec la
+     préparation, et se met à jour si nécessaire. */
   if(contexte){
-    try{
-      const d = await chargerDossierEleve(cours.eleve);
+    chargerDossierEleve(cours.eleve).then(d => {
       const source = contexte.source || '';
-      const plusRecent = d.dernierHorodatage && d.dernierHorodatage !== source;
+      if(!d.dernierHorodatage || d.dernierHorodatage === source) return;
 
-      if(plusRecent){
-        /* Un cours a eu lieu depuis : on repart de son état, en gardant
-           tout ce que le moniteur avait renseigné à la préparation. */
-        const frais = defautsDepuisNote(d.derniereNote);
-        if(d.frise) frais.frise = d.frise;
-        if(d.lecons !== null) frais.lecon = String(d.lecons + 1);
-        frais.manoeuvresFaites = d.manoeuvres.length;
-        frais.totalManoeuvres = BLOC.ficheListeConduite.length;
+      /* Un cours a eu lieu depuis : on repart de son état, en gardant
+         tout ce que le moniteur avait renseigné à la préparation. */
+      const frais = defautsDepuisNote(d.derniereNote);
+      if(d.frise) frais.frise = d.frise;
+      if(d.lecons !== null) frais.lecon = String(d.lecons + 1);
+      frais.manoeuvresFaites = d.manoeuvres.length;
+      frais.totalManoeuvres = BLOC.ficheListeConduite.length;
 
-        contexte = fusionnerContexte(contexte, frais);
-        contexte.source = d.dernierHorodatage;
-        note = noteDepuisQuestionnaire(contexte);
-        showToast('Infos mises à jour depuis le dernier cours ✅');
+      contexte = fusionnerContexte(contexte, frais);
+      contexte.source = d.dernierHorodatage;
+      contexteDepart = contexte;
+
+      const majNote = noteDepuisQuestionnaire(contexte);
+      /* On n'écrase pas ce que le moniteur aurait déjà modifié */
+      if($('noteInterne').value === note){
+        $('noteInterne').value = majNote;
+        if(typeof majAffichageNoteInterne === 'function') majAffichageNoteInterne();
       }
-    }catch(e){ /* hors ligne : on garde la préparation telle quelle */ }
+      showToast('Infos mises à jour depuis le dernier cours ✅');
+    }).catch(() => { /* hors ligne : la préparation suffit */ });
   }
 
   $('noteInterne').value = note;
@@ -647,6 +681,17 @@ async function afficherPreparationEleve(){
   carte.appendChild(t);
 
   const note = String(prep.note || '').trim();
+
+  /* Une consigne du type « pas d'écoute pédagogique » se noie dans
+     la note : on la sort en évidence. */
+  if(/pas d'écoute pédagogique/i.test(note)){
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:14px;font-weight:700;color:var(--warn-text);' +
+      'margin-bottom:6px;';
+    a.textContent = "🚫 Pas d'écoute pédagogique";
+    carte.appendChild(a);
+  }
+
   const n = document.createElement('div');
   if(note){
     n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
