@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 08:23 — v278 */
+/* Déployé le 07/08/2026 à 10:44 — v284 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -312,7 +312,7 @@ function etapesEleve(note, consignes){
   else if(a.permis === 'annule') etapes.push({ ok:false, txt:'Examen du permis annulé' });
   else if(a.permis === 'aprevoir') etapes.push({ ok:false, txt:'Date d\'examen à prévoir' });
 
-  if(a.finirFiche) etapes.push({ ok:false, txt:'Fiche véhicule à terminer' });
+  if(a.pasEcoute) etapes.push({ ok:true, txt:"Pas d'écoute pédagogique" });
   return etapes;
 }
 
