@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 07:41 — v277 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
@@ -9,6 +10,64 @@
    L'IA ne rédige QUE les cases variables. Aucun texte fixe,
    aucun lien : tout cela est ajouté ensuite par l'application.
    ============================================================ */
+
+
+/* ============================================================
+   SOCLE MÉTIER
+   L'IA connaît mal l'auto-école française : elle confond les
+   parcours de formation, invente des rendez-vous, et prend les
+   termes techniques au pied de la lettre. Ce bloc lui donne le
+   nécessaire, et lui interdit d'aller au-delà.
+   ============================================================ */
+const SOCLE_METIER =
+'CONNAISSANCES MÉTIER — À RESPECTER, SANS RIEN Y AJOUTER :\n' +
+'\n' +
+'LES PARCOURS DE FORMATION (ne jamais les confondre) :\n' +
+'- AAC — conduite accompagnée : dès 15 ans. Formation initiale en auto-école, puis conduite avec ' +
+'un accompagnateur pendant au moins 1 an et 3000 km. Comporte des RENDEZ-VOUS PÉDAGOGIQUES ' +
+'OBLIGATOIRES : un rendez-vous préalable avec le moniteur et l\'accompagnateur, puis deux ' +
+'rendez-vous pédagogiques en cours de parcours.\n' +
+'- CS — conduite supervisée : à partir de 18 ans, après la formation initiale ou après un échec ' +
+'au permis. L\'élève conduit avec un accompagnateur, sans durée ni kilométrage minimum imposés. ' +
+'Comporte un RENDEZ-VOUS PRÉALABLE OBLIGATOIRE avec le moniteur et l\'accompagnateur.\n' +
+'- Conduite encadrée : réservée aux élèves en filière professionnelle, dès 16 ans.\n' +
+'- BV = boîte manuelle. BEA = boîte automatique. Un élève formé en BEA passe le permis en ' +
+'boîte automatique ; une « passerelle » de 7 h permet ensuite de conduire une boîte manuelle.\n' +
+'\n' +
+'CONSÉQUENCE IMPORTANTE : quand le moniteur parle d\'ACHETER ou de CHANGER DE VOITURE, ' +
+'c\'est pour que l\'élève puisse s\'entraîner avec son accompagnateur en AAC ou en conduite ' +
+'supervisée — jamais pour un cours en auto-école. Si le moniteur évoque une boîte automatique ' +
+'à acheter, comprends « acquérir un véhicule à boîte automatique pour la conduite supervisée », ' +
+'et rappelle alors les rendez-vous obligatoires du parcours concerné s\'ils ont été mentionnés.\n' +
+'\n' +
+'VOCABULAIRE DU VÉHICULE — sens exact, à ne pas confondre :\n' +
+'- Appels de phares : signal vers l\'AVANT uniquement. On ne prévient JAMAIS un véhicule qui ' +
+'suit avec des appels de phares : il ne les voit pas.\n' +
+'- Pour avertir un véhicule qui arrive DERRIÈRE : on freine progressivement pour allumer les ' +
+'FEUX STOP, ou on met les WARNINGS (feux de détresse). C\'est la seule formulation correcte.\n' +
+'- Feux stop = feux rouges arrière, allumés par la pédale de frein.\n' +
+'- Point de patinage : moment où l\'embrayage commence à transmettre le mouvement.\n' +
+'- Frein de stationnement, frein à main, frein électrique : même fonction.\n' +
+'- Angle mort : zone non couverte par les rétroviseurs, vérifiée en tournant la tête.\n' +
+'- Rétroviseur intérieur, extérieur gauche, extérieur droit.\n' +
+'- VA / VD : voie d\'accélération et voie de décélération, sur voie rapide.\n' +
+'- PAD : priorité à droite.\n' +
+'- Giratoire (et non rond-point, terme courant mais impropre en formation).\n' +
+'- Carte SD : elle enregistre le cours pour que l\'élève le revoie ensuite.\n' +
+'\n' +
+'MANŒUVRES — noms employés dans cette auto-école :\n' +
+'créneau droit et gauche, bataille droite et gauche, bataille avant droite et gauche, épi, ' +
+'demi-tour, MALD (marche arrière en ligne droite), MAR (marche arrière en angle de rue), ' +
+'arrêt de précision.\n' +
+'\n' +
+'ERREURS DE TRANSCRIPTION FRÉQUENTES, à corriger sans hésiter :\n' +
+'« ongle mort » ou « oncle mort » → angle mort · « gyratoire » ou « gyrophare » → giratoire · ' +
+'« crédo » ou « crédneau » → créneau · « va vé » → VA VD · « débraille » → débraye · ' +
+'« roues droit » → roues droites.\n' +
+'\n' +
+'LIMITE ABSOLUE : au-delà de ces éléments, tu n\'affirmes RIEN sur la réglementation, les ' +
+'durées, les tarifs ou le déroulement des examens. Si le moniteur évoque une règle que tu ne ' +
+'connais pas avec certitude, tu rapportes ce qu\'il a dit sans le compléter ni le corriger.\n';
 
 const REGLES_COMMUNES =
 'Tu analyses la transcription automatique (imparfaite, orale, décousue) d\'un cours de conduite enregistré dans la voiture d\'une auto-école française.\n' +
@@ -23,7 +82,8 @@ const REGLES_COMMUNES =
 '- Tu tutoies l\'élève, ton chaleureux et direct, comme un moniteur qui parle à son élève.\n' +
 '- Sois concis : 1 à 2 phrases par case maximum. Formulations courtes, concrètes, actionnables.\n' +
 '- Corrige les erreurs de transcription évidentes (vocabulaire auto-école : giratoire, créneau, embrayage, angle mort, PAD, VA/VD, MALD...).\n' +
-'- La transcription contient la voix du moniteur ET de l\'élève. Ce qui compte, ce sont les remarques et corrections du moniteur.\n';
+'- La transcription contient la voix du moniteur ET de l\'élève. Ce qui compte, ce sont les remarques et corrections du moniteur.\n' +
+'\n' + SOCLE_METIER;
 
 const RUB_DESC =
 '  "manipulation" : manipulation des commandes (embrayage, vitesses, pédales, volant côté commandes)\n' +
@@ -59,13 +119,29 @@ const SCHEMAS = {
   'Un conseil donné sans erreur associée a autant de valeur qu\'une correction : l\'élève doit le retrouver dans son bilan. ' +
   'Exemple : si le moniteur signale qu\'un feu passe au rouge en même temps que le bonhomme piéton, c\'est un conseil à conserver ' +
   'même si l\'élève n\'a commis aucune faute à cet endroit.\n' +
+  '  4. tout ce qui concerne sa FORMATION et son ORGANISATION : parcours (AAC, conduite ' +
+  'supervisée, BEA, passerelle), véhicule à acquérir pour s\'entraîner, accompagnateur, ' +
+  'rendez-vous obligatoires, examens à prévoir, heures à planifier, démarches administratives. ' +
+  'Ce sont des informations que l\'élève ne retrouvera nulle part ailleurs.\n' +
   'RANGEMENT IMPOSÉ — tu utilises ces rubriques, dans cet ordre, et tu ne gardes que celles qui ont de la matière :\n' +
   '  👀 Contrôles / 🚦 Priorités et feux / 👀 Trajectoire / 🍩 Giratoires / 🏎️ Allures / ' +
-  '🚙 Manœuvres / 🧠 Points de vigilance / 📚 Explication demandée / ➡️ À travailler la prochaine fois\n' +
+  '🚙 Manœuvres / 🧠 Points de vigilance / 📚 Explication demandée / ' +
+  '📋 Ta formation et ton organisation / ➡️ À travailler la prochaine fois\n' +
   'Chaque rubrique commence par son titre sur sa propre ligne, suivi de puces « • » courtes. ' +
   'Une information ne doit apparaître que dans UNE seule rubrique, jamais répétée ailleurs. ' +
   'Tutoie l\'élève, reste encourageant, va à l\'essentiel.\n' +
-  'N\'invente rien : tout ce que tu écris doit venir de ce qui a été réellement dit.\n\n' +
+  '\n' +
+  'EXHAUSTIVITÉ — c\'est la règle la plus importante de ce résumé :\n' +
+  'Avant de conclure, relis la transcription et vérifie que CHAQUE remarque du moniteur se ' +
+  'retrouve quelque part dans ton résumé. Rien ne doit être perdu : ni une manœuvre travaillée, ' +
+  'ni une consigne sur le véhicule à acheter, ni un rendez-vous à prendre, ni une remarque sur ' +
+  'l\'accompagnateur, ni un point théorique expliqué.\n' +
+  'Si une information ne rentre dans aucune rubrique, crée une puce dans « 🧠 Points de ' +
+  'vigilance » plutôt que de la supprimer. Un résumé trop long vaut mieux qu\'un résumé qui ' +
+  'oublie : le moniteur peut couper, il ne peut pas deviner ce qui manque.\n' +
+  'N\'invente rien : tout ce que tu écris doit venir de ce qui a été réellement dit.\n' +
+  'Quand le moniteur parle d\'un tiers (conjoint, parent, accompagnateur), garde le lien : ' +
+  '« ton mari pourra t\'accompagner en conduite supervisée » et non « un accompagnateur ».\n\n' +
   'RUBRIQUE « 📚 Explication demandée » : uniquement si le moniteur a demandé une explication pendant le cours. ' +
   'Tu dois alors donner la règle EXACTE du code de la route français, sans te tromper. ' +
   'Règle de la priorité à droite, telle qu\'elle est enseignée dans cette auto-école — à reprendre fidèlement :\n' +
@@ -76,6 +152,9 @@ const SCHEMAS = {
   'mais parce que ton virage coupe leur trajectoire : tu ne peux pas t\'engager tant qu\'ils arrivent.\n' +
   '  • En tournant à droite : tu laisses passer les véhicules venant de ta droite et les piétons.\n' +
   'Si tu n\'es pas certain d\'une règle, formule-la prudemment plutôt que d\'affirmer une erreur.\n\n' +
+  'Les manœuvres travaillées doivent apparaître DEUX FOIS : dans la rubrique « 🚙 Manœuvres » ' +
+  'du résumé, avec ce que le moniteur en a dit, ET dans le tableau "manoeuvres" ci-dessous. ' +
+  'Le tableau sert au suivi, le résumé sert à l\'élève : les deux sont nécessaires.\n\n' +
   '"manoeuvres" : uniquement celles RÉELLEMENT PRATIQUÉES pendant ce cours, c\'est-à-dire ' +
   'celles que le moniteur annonce puis guide (« on va faire un créneau à droite », « on va aller faire une bataille »). ' +
   'Une manœuvre seulement citée, évoquée en exemple, ou dont le nom apparaît dans une phrase peu claire, ne compte PAS. ' +
