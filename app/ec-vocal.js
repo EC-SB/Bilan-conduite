@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 07:41 — v277 */
+/* Déployé le 07/08/2026 à 10:39 — v283 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
