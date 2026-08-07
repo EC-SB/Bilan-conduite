@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:56 — v286 */
+/* Déployé le 07/08/2026 à 11:00 — v287 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1109,7 +1109,11 @@ function planifierHistorique(){
   clearTimeout(minuteurHistorique);
   /* On attend que le moniteur ait fini de taper : une recherche
      par lettre saturerait Sheets pour rien. */
-  minuteurHistorique = setTimeout(chargerHistoriqueEleve, 700);
+  minuteurHistorique = setTimeout(() => {
+    chargerHistoriqueEleve();
+    /* Et ce qui a été préparé pour ce cours, s'il y a une préparation */
+    if(typeof afficherPreparationEleve === 'function') afficherPreparationEleve();
+  }, 700);
 }
 
 async function chargerHistoriqueEleve(){
@@ -1359,6 +1363,70 @@ function manoeuvresAjouteesQuestionnaire(marquesAvant){
     ajoutees.push(cb.value);
   });
   return ajoutees;
+}
+
+/* Le dossier de l'élève sous le champ de préparation : même bloc
+   que pour un cours, pour préparer en connaissance de cause. */
+async function chargerHistoriquePrep(){
+  const zone = $('prepHistorique');
+  const nom = $('prepEleve') ? $('prepEleve').value.trim() : '';
+  if(!zone) return;
+
+  if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
+
+  zone.style.display = 'block';
+  zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Lecture du dossier…</div>';
+
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom })
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json().catch(() => ({}));
+    const res = (data && data.resultats) || [];
+
+    zone.innerHTML = '';
+    if(!res.length){
+      zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">' +
+        'Aucun cours précédent pour cet élève.</div>';
+      return;
+    }
+
+    const dernier = res[0];
+    const carte = document.createElement('div');
+    carte.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:12px 14px;';
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
+    t.textContent = res.length + ' cours précédent' + (res.length > 1 ? 's' : '') +
+      ' · dernier le ' + (dateEnToutesLettres(dateFrVersIso(dernier.date)) || dernier.date || '?') +
+      (dernier.moniteur ? ' avec ' + dernier.moniteur : '');
+    carte.appendChild(t);
+
+    const note = (dernier.note || '').trim();
+    const n = document.createElement('div');
+    if(note){
+      n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
+        'line-height:1.45;white-space:pre-wrap;margin-bottom:10px;';
+      n.textContent = '📌 ' + note;
+    }else{
+      n.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:10px;';
+      n.textContent = 'Pas de note laissée par le moniteur précédent.';
+    }
+    carte.appendChild(n);
+
+    const sep = document.createElement('div');
+    sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
+    carte.appendChild(sep);
+    carte.appendChild(blocFicheVehiculeEleve(res));
+
+    zone.appendChild(carte);
+  }catch(e){
+    zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">' +
+      'Dossier indisponible : ' + e.message.replace(/</g, '&lt;') + '</div>';
+  }
 }
 
 /* Signale que ce module est bien chargé */
