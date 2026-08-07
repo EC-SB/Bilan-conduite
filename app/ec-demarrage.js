@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 08:23 — v278 */
+/* Déployé le 07/08/2026 à 11:00 — v287 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -163,6 +163,17 @@ if($('rappelModeManuel')) $('rappelModeManuel').addEventListener('click', () => 
 if($('rappelModePlanning')) $('rappelModePlanning').addEventListener('click', () => modeRappel('planning'));
 if($('rappelModeHistorique')) $('rappelModeHistorique').addEventListener('click', () => modeRappel('historique'));
 if($('studentName')) $('studentName').addEventListener('change', chargerMessengerEleve);
+
+/* Préparation d'un cours : même validation que pour un cours réel,
+   et le dossier de l'élève s'affiche sous le champ. */
+if($('prepEleve')){
+  const majPrep = () => {
+    verifierNomEleve('prepEleve', 'prepInfo', true);
+    if(typeof chargerHistoriquePrep === 'function') chargerHistoriquePrep();
+  };
+  $('prepEleve').addEventListener('input', () => verifierNomEleve('prepEleve', 'prepInfo', true));
+  $('prepEleve').addEventListener('change', majPrep);
+}
 if($('eleveMessenger')){
   $('eleveMessenger').addEventListener('input', majLienMessenger);
   $('eleveMessenger').addEventListener('blur', enregistrerMessengerEleve);
