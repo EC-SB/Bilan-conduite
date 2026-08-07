@@ -1,3 +1,4 @@
+/* Déployé le 06/08/2026 à 15:43 — v273 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1012,15 +1013,21 @@ async function enregistrerCorrection(){
   const b = $('corrigerBtn');
   b.disabled = true;
   b.textContent = 'Enregistrement…';
+  /* Bleu pendant l'écriture, comme le bouton principal */
+  const styleAvant = b.getAttribute('style') || '';
+  b.setAttribute('style', styleAvant +
+    ';background:#2F6FB3;border-color:#2F6FB3;color:#FFFFFF;');
   try{
     const r = await appelPrep({ action: 'bilanModifier',
                                 ligne: ligne, eleve: eleve, texte: texte });
     if(r && r.status === 'error') throw new Error(r.message);
     viderCaches(eleve);
     showToast('✅ Bilan corrigé');
+    b.setAttribute('style', styleAvant);
     b.textContent = '✅ Correction enregistrée';
   }catch(e){
     showToast('Erreur : ' + e.message);
+    b.setAttribute('style', styleAvant);
     b.disabled = false;
     b.textContent = '💾 Enregistrer la correction';
   }
