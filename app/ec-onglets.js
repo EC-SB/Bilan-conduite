@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 15:18 — v299 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -110,9 +111,10 @@ function initOnglets(){
    Un onglet qui contient plusieurs modules les présente en
    boutons : on voit d'emblée ce qui existe, sans dérouler.
    ============================================================ */
+/* L'onglet Cours n'a plus de vues : ses trois blocs — démarrer,
+   prochains cours, préparer — tiennent sur une seule page, dans
+   cet ordre. Un sélecteur n'en montrerait qu'un à la fois. */
 const VUES = {
-  cours:  [['prepares',   '📅 Mes prochains cours',  'prepares'],
-           ['cours',      '🎙️ Démarrer un cours',   'cours']],
   eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
            ['permis',     '🎓 Permis obtenu',      'permis'],
            ['depart',     '🚪 Départ',             'depart']],
