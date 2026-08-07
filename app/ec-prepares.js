@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:25 — v289 */
+/* Déployé le 07/08/2026 à 11:50 — v291 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -684,11 +684,11 @@ async function afficherPreparationEleve(){
 
   /* Une consigne du type « pas d'écoute pédagogique » se noie dans
      la note : on la sort en évidence. */
-  if(/pas d'écoute pédagogique/i.test(note)){
+  if(/pas d'écoutes? pédagogiques?/i.test(note)){
     const a = document.createElement('div');
     a.style.cssText = 'font-size:14px;font-weight:700;color:var(--warn-text);' +
       'margin-bottom:6px;';
-    a.textContent = "🚫 Pas d'écoute pédagogique";
+    a.textContent = "🚫 Pas d'écoutes pédagogiques";
     carte.appendChild(a);
   }
 
@@ -702,6 +702,39 @@ async function afficherPreparationEleve(){
     n.textContent = 'Cours préparé, sans note particulière.';
   }
   carte.appendChild(n);
+
+  /* Les manœuvres cochées à la préparation : le moniteur qui prend
+     le cours doit savoir ce que son collègue comptait valider.
+     La section s'affiche toujours — une absence silencieuse laisse
+     croire à un défaut d'affichage. */
+  const ajoutees = (prep.contexte && prep.contexte.manoeuvresAjoutees) || [];
+
+  const sep = document.createElement('div');
+  sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
+  carte.appendChild(sep);
+
+  const t2 = document.createElement('div');
+  t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+  t2.textContent = '🦉 Fiche véhicule cochée à la préparation — ' + ajoutees.length;
+  carte.appendChild(t2);
+
+  if(ajoutees.length){
+    const l = document.createElement('div');
+    l.style.cssText = 'font-size:13px;line-height:1.7;';
+    ajoutees.forEach(x => {
+      const li = document.createElement('div');
+      li.textContent = '· ' + x;
+      l.appendChild(li);
+    });
+    carte.appendChild(l);
+  }else{
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
+    v.textContent = prep.contexte
+      ? 'Aucune manœuvre cochée lors de la préparation.'
+      : 'Préparation antérieure à la fiche véhicule : rien à afficher.';
+    carte.appendChild(v);
+  }
 
   zone.appendChild(carte);
   zone.style.display = 'block';
