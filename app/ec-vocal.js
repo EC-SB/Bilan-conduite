@@ -1,3 +1,4 @@
+/* Déployé le 06/08/2026 à 15:42 — v273 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1010,6 +1011,11 @@ $('copyBtn').addEventListener('click', async () => {
   const b = $('copyBtn');
   b.disabled = true;
   const libelle = b.textContent;
+  /* Bleu pendant l'écriture : le moniteur voit que ça travaille,
+     et ne réappuie pas en croyant que rien ne se passe. */
+  const styleInitial = b.getAttribute('style') || '';
+  b.setAttribute('style', styleInitial +
+    ';background:#2F6FB3;border-color:#2F6FB3;color:#FFFFFF;');
 
   let enregistre;
   if(bilanEnregistre && !bilanModifieDepuisEnregistrement()){
@@ -1029,6 +1035,7 @@ $('copyBtn').addEventListener('click', async () => {
 
   b.disabled = false;
   b.textContent = libelle;
+  b.setAttribute('style', styleInitial);
 
   /* On ne termine QUE si l'enregistrement a réussi : sinon le
      moniteur perdrait son bilan en croyant l'avoir sauvegardé. */
