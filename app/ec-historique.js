@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 07:12 — v274 */
 /* ============================================================
    ec-historique.js
    Historique des cours enregistrés et cours en cours.
@@ -83,7 +84,7 @@ async function afficherHistoriqueCours(){
         '👤 ' + (c.moniteur || '?').replace(/</g, '&lt;') +
         (c.type ? ' · ' + c.type.replace(/</g, '&lt;') : '') +
         (c.site ? ' · ' + c.site.replace(/</g, '&lt;') : '') +
-        '<br>▶ démarré à ' + (c.depuis || '?') + '</div>';
+        '<br>▶ démarré le ' + (c.depuis || '?') + '</div>';
       d.appendChild(info);
 
       /* Retirer une ligne restée là après un abandon */
@@ -221,7 +222,7 @@ async function afficherHistoriqueCours(){
         '👤 ' + (b.moniteur || '?').replace(/</g, '&lt;') +
         (b.type ? ' · ' + b.type.replace(/</g, '&lt;') : '') +
         (b.site ? ' · ' + b.site.replace(/</g, '&lt;') : '') +
-        (b.horodatage ? '<br>enregistré le ' + b.horodatage : '') +
+        (b.horodatage ? '<br>🕐 enregistré le ' + b.horodatage : '') +
         (b.note ? '<br>🔒 ' + b.note.replace(/</g, '&lt;').slice(0, 120) : '') +
         '</div>';
       lst.appendChild(d);
