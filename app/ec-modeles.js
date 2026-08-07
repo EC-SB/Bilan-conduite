@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 10:39 — v283 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -968,42 +969,102 @@ function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
 }
 
 /* Retrouve les manœuvres déjà cochées dans un bilan précédent */
-function manoeuvresDejaFaites(texteBilanPrecedent){
-  const trouvees = [];
-  if(!texteBilanPrecedent) return trouvees;
-  const lignes = String(texteBilanPrecedent).split('\n');
-  lignes.forEach(l => {
-    const ligne = l.trim();
-    if(!ligne || ligne.indexOf(MARQUE_FAITE) === -1) return;
-    const sansMarque = ligne.split(MARQUE_FAITE)[0].trim();
-    if(!sansMarque) return;
-    BLOC.ficheListeConduite.forEach(libelle => {
-      if(normaliserMot(libelle) === normaliserMot(sansMarque)) trouvees.push(libelle);
-    });
-  });
-  return trouvees;
+
+/* ============================================================
+   LECTURE DE LA FICHE VÉHICULE
+
+   La fiche réelle ne suit aucun format strict : tout peut tenir
+   sur une ligne, les marques sont des émojis variés, parfois du
+   texte (« = Fait »). On repère donc chaque manœuvre par son nom
+   et on lit ce qui la suit jusqu'à la manœuvre suivante.
+   ============================================================ */
+
+/* Le libellé court d'une manœuvre : « CD » pour « CD Créneau droit ».
+   C'est souvent la seule forme écrite dans les fiches. */
+function codeManoeuvre(libelle){
+  const m = String(libelle || '').match(/^([A-Z0-9\/]{2,5})\s/);
+  return m ? m[1] : '';
 }
 
-/* Les marques déjà accumulées : ✅ et les émojis des moniteurs.
-   Sans ça, chaque bilan repartirait d'une simple coche. */
+/* Extrait le bloc « fiche véhicule » d'un bilan */
+function blocFicheDuBilan(texte){
+  const t = String(texte || '');
+  const d = t.search(/𝔽𝕀ℂℍ𝔼\s*𝕍𝔼ℍ𝕀ℂ𝕌𝕃𝔼|FICHE\s*V[EÉ]HICULE/i);
+  if(d === -1) return '';
+  /* Jusqu'à la section suivante, repérée par une ligne vide suivie
+     d'un titre, ou la fin du texte */
+  const suite = t.slice(d);
+  const f = suite.search(/\n\s*\n\s*[➡️🧠🎙️👋📌🔒]/);
+  return f === -1 ? suite : suite.slice(0, f);
+}
+
+/* Ce qui suit un nom de manœuvre et vaut validation */
+function estUneMarque(bout){
+  const s = String(bout || '').trim();
+  if(!s) return false;
+  /* Une mention explicite */
+  if(/\bfait\b|\bok\b|\bvalid[ée]/i.test(s)) return true;
+  /* Un émoji, un symbole : tout ce qui n'est ni lettre ni ponctuation */
+  return /[\u2190-\u2BFF\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF\u2705\u274C\uFE0F]/.test(s);
+}
+
+/* Nettoie une marque : on garde les symboles, pas le bavardage */
+function marquePropre(bout){
+  const s = String(bout || '').trim();
+  const symboles = s.match(/[\u2190-\u2BFF\u2600-\u27BF\uD83C\uDDE6-\uDFFF\uD83D\uDC00-\uDFFF\uD83E\uDD00-\uDFFF\u2705\u274C]+/g);
+  if(symboles && symboles.length) return symboles.join(' ').replace(/\s+/g, ' ').trim();
+  if(/\bfait\b|\bok\b|\bvalid[ée]/i.test(s)) return MARQUE_FAITE;
+  return '';
+}
+
+/* Les manœuvres validées et leurs marques, d'après un bilan */
 function marquesDejaPosees(texteBilanPrecedent){
   const marques = {};
-  if(!texteBilanPrecedent) return marques;
-  String(texteBilanPrecedent).split('\n').forEach(l => {
-    const ligne = l.trim();
-    if(!ligne || ligne.indexOf(MARQUE_FAITE) === -1) return;
-    const i = ligne.indexOf(MARQUE_FAITE);
-    const avant = ligne.slice(0, i).trim();
-    const suite = ligne.slice(i).trim();
-    if(!avant) return;
-    BLOC.ficheListeConduite.forEach(libelle => {
-      if(normaliserMot(libelle) === normaliserMot(avant)){
-        marques[normaliserMot(libelle)] = suite;
+  const bloc = blocFicheDuBilan(texteBilanPrecedent);
+  if(!bloc) return marques;
+
+  const norme = normaliserMot(bloc);
+
+  /* Où commence chaque manœuvre dans le texte */
+  const reperes = [];
+  BLOC.ficheListeConduite.forEach(libelle => {
+    const formes = [libelle];
+    const code = codeManoeuvre(libelle);
+    if(code) formes.push(code);
+
+    let pos = -1, longueur = 0;
+    formes.forEach(x => {
+      const n = normaliserMot(x);
+      if(!n) return;
+      const i = norme.indexOf(n);
+      /* On préfère la forme la plus longue trouvée */
+      if(i !== -1 && (pos === -1 || n.length > longueur)){
+        pos = i; longueur = n.length;
       }
     });
+    if(pos !== -1) reperes.push({ libelle: libelle, pos: pos, fin: pos + longueur });
   });
+
+  reperes.sort((a, b) => a.pos - b.pos);
+
+  reperes.forEach((r, i) => {
+    const suivant = reperes[i + 1] ? reperes[i + 1].pos : bloc.length;
+    const bout = bloc.slice(r.fin, suivant);
+    if(estUneMarque(bout)){
+      const m = marquePropre(bout);
+      if(m) marques[normaliserMot(r.libelle)] = m;
+    }
+  });
+
   return marques;
 }
+
+/* Les manœuvres validées, d'après les marques trouvées */
+function manoeuvresDejaFaites(texteBilanPrecedent){
+  const marques = marquesDejaPosees(texteBilanPrecedent);
+  return BLOC.ficheListeConduite.filter(x => marques[normaliserMot(x)]);
+}
+
 
 function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   ai = ai || {};
@@ -1029,7 +1090,16 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('🧠 🚘👀🅴🆁🆁🅴🆄🆁🆂  🅲🅴  🅹🅾🆄🆁 : ');
   parts.push(txt(ai.resume));
   parts.push('');
-  parts.push(blocFicheConduite(ai.manoeuvres, faitesAvant, marquesAvant));
+  /* Les manœuvres cochées au questionnaire comptent comme faites
+     aujourd'hui : elles reçoivent l'émoji du moniteur, comme les
+     autres. Sans ça, cocher une case n'aurait aucun effet. */
+  const duJour = (ai.manoeuvres || []).slice();
+  ((typeof contexteDepart !== 'undefined' && contexteDepart &&
+    contexteDepart.manoeuvresAjoutees) || []).forEach(m => {
+    if(duJour.indexOf(m) === -1) duJour.push(m);
+  });
+
+  parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant));
   parts.push('');
   parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?' + st(ai.groupesTravail));
   parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? " + st(ai.ecoutes) + ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
