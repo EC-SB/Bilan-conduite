@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 08:23 — v278 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -76,6 +77,7 @@ function reprendreCours(){
   if(s.site) $('site').value = s.site;
   if(s.date) $('lessonDate').value = s.date;
   $('noteInterne').value = s.note || '';
+  if(typeof majAffichageNoteInterne === 'function') majAffichageNoteInterne();
 
   finalTranscript = s.transcript || '';
   committedTranscript = finalTranscript;
@@ -202,7 +204,6 @@ $('prepTous').addEventListener('change', () => afficherPrepares(false));
 reprendreSession();
 $('prepDate').value = todayLocal();
 $('addDate').value = todayLocal();
-creerRaccourcis('raccourcisNote', 'noteInterne');
 creerRaccourcis('raccourcisNoteResult', 'noteResult');
 remplirModeles();
 $('modele').addEventListener('change', () => verifierBoiteModele(derniereBoiteEleve));
