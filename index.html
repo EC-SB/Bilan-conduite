@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v294
+     VERSION APPLICATION : v298
      VERSION APPS SCRIPT REQUISE : v53
-     Mis à jour le : 07/08/2026 à 12:56
+     Mis à jour le : 07/08/2026 à 13:37
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -649,7 +649,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v294</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v298</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -750,40 +750,9 @@
     </div>
   </div>
 
-  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
-    <h2 class="section-title">📅 Mes prochains cours <span class="compteur" id="cptPrepares"></span></h2>
-    <div class="contenu-tiroir">
-    <label style="display:flex;align-items:center;gap:10px;text-transform:none;
-                  font-size:14px;color:var(--muted);margin-bottom:10px;">
-      <input type="checkbox" id="prepTous" style="width:18px;height:18px;">
-      Voir aussi les cours des autres moniteurs
-    </label>
-    <div id="listePrepares"></div>
-
-    <details style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
-      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
-        ➕ Préparer un cours pour plus tard
-      </summary>
-      <div style="margin-top:14px;">
-        <label for="prepDate">Date du cours</label>
-        <input type="date" id="prepDate">
-        <label for="prepEleve">Prénom et nom de l'élève</label>
-        <input type="text" id="prepEleve" list="listeEleves" autocomplete="off"
-               placeholder="Choisis dans la liste ou tape un nom">
-        <div id="prepInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
-        <div id="prepHistorique" style="display:none;margin-bottom:14px;"></div>
-        <label for="prepModele">Type de bilan</label>
-        <select id="prepModele"></select>
-        <button class="btn btn-primary" id="prepBtn">📝 Préparer les notes</button>
-        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;">
-          Le questionnaire s'ouvre pour préparer les notes. Le jour du cours,
-          un appui sur « Ouvrir » remplit tout : plus qu'à démarrer l'enregistrement.
-        </div>
-      </div>
-    </details>
-  </div>
-  </div>
-
+  <!-- L'action la plus fréquente en premier : démarrer un cours,
+       plusieurs fois par jour et par tous les moniteurs. Ensuite la
+       liste des cours à venir, puis la préparation, occasionnelle. -->
   <div id="recordView" data-onglet="cours" data-section="cours" data-vue="cours">
     <div class="card">
       <h2 class="section-title">🎙️ Démarrer un cours</h2>
@@ -869,6 +838,47 @@
             style="display:none;margin-top:46px;padding:20px;font-size:16px;
                    background:#9E3B32;border:2px solid #9E3B32;color:#FFFFFF;
                    font-weight:700;">✅ Terminer et générer le bilan 💶</button>
+  </div>
+
+  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
+    <h2 class="section-title">📅 Mes prochains cours <span class="compteur" id="cptPrepares"></span></h2>
+    <div class="contenu-tiroir">
+    <label style="display:flex;align-items:center;gap:10px;text-transform:none;
+                  font-size:14px;color:var(--muted);margin-bottom:10px;">
+      <input type="checkbox" id="prepTous" style="width:18px;height:18px;">
+      Voir aussi les cours des autres moniteurs
+    </label>
+    <div id="listePrepares"></div>
+
+  </div>
+  </div>
+
+  <!-- Préparer un cours : sa propre carte, repliée par défaut.
+       C'est une action occasionnelle, elle ne doit pas s'interposer
+       entre la liste des cours et le démarrage. -->
+  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
+    <details>
+      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;
+                      padding:4px 0;">
+        ➕ Préparer un cours pour plus tard
+      </summary>
+      <div style="margin-top:14px;">
+        <label for="prepDate">Date du cours</label>
+        <input type="date" id="prepDate">
+        <label for="prepEleve">Prénom et nom de l'élève</label>
+        <input type="text" id="prepEleve" list="listeEleves" autocomplete="off"
+               placeholder="Choisis dans la liste ou tape un nom">
+        <div id="prepInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
+        <div id="prepHistorique" style="display:none;margin-bottom:14px;"></div>
+        <label for="prepModele">Type de bilan</label>
+        <select id="prepModele"></select>
+        <button class="btn btn-primary" id="prepBtn">📝 Préparer les notes</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;">
+          Le questionnaire s'ouvre pour préparer les notes. Le jour du cours,
+          un appui sur « Ouvrir » remplit tout : plus qu'à démarrer l'enregistrement.
+        </div>
+      </div>
+    </details>
   </div>
 
   <div id="manuelView" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
@@ -1616,34 +1626,34 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=294"></script>
-<script src="app/ec-modeles.js?v=294"></script>
-<script src="app/ec-consignes.js?v=294"></script>
-<script src="app/ec-noyau.js?v=294"></script>
-<script src="app/ec-vocal.js?v=294"></script>
-<script src="app/ec-reseau.js?v=294"></script>
-<script src="app/ec-manuel.js?v=294"></script>
-<script src="app/ec-fenetres.js?v=294"></script>
-<script src="app/ec-questionnaire.js?v=294"></script>
-<script src="app/ec-permis.js?v=294"></script>
-<script src="app/ec-prepares.js?v=294"></script>
-<script src="app/ec-bureau.js?v=294"></script>
-<script src="app/ec-places.js?v=294"></script>
-<script src="app/ec-listes.js?v=294"></script>
-<script src="app/ec-permis-listes.js?v=294"></script>
-<script src="app/ec-postpermis.js?v=294"></script>
-<script src="app/ec-textes.js?v=294"></script>
-<script src="app/ec-correction.js?v=294"></script>
-<script src="app/ec-bilans.js?v=294"></script>
-<script src="app/ec-historique.js?v=294"></script>
-<script src="app/ec-rappels.js?v=294"></script>
-<script src="app/ec-sms.js?v=294"></script>
-<script src="app/ec-stats.js?v=294"></script>
-<script src="app/ec-messenger.js?v=294"></script>
-<script src="app/ec-journal.js?v=294"></script>
-<script src="app/ec-depart.js?v=294"></script>
-<script src="app/ec-onglets.js?v=294"></script>
-<script src="app/ec-demarrage.js?v=294"></script>
+  <script src="app/ec-etat.js?v=298"></script>
+<script src="app/ec-modeles.js?v=298"></script>
+<script src="app/ec-consignes.js?v=298"></script>
+<script src="app/ec-noyau.js?v=298"></script>
+<script src="app/ec-vocal.js?v=298"></script>
+<script src="app/ec-reseau.js?v=298"></script>
+<script src="app/ec-manuel.js?v=298"></script>
+<script src="app/ec-fenetres.js?v=298"></script>
+<script src="app/ec-questionnaire.js?v=298"></script>
+<script src="app/ec-permis.js?v=298"></script>
+<script src="app/ec-prepares.js?v=298"></script>
+<script src="app/ec-bureau.js?v=298"></script>
+<script src="app/ec-places.js?v=298"></script>
+<script src="app/ec-listes.js?v=298"></script>
+<script src="app/ec-permis-listes.js?v=298"></script>
+<script src="app/ec-postpermis.js?v=298"></script>
+<script src="app/ec-textes.js?v=298"></script>
+<script src="app/ec-correction.js?v=298"></script>
+<script src="app/ec-bilans.js?v=298"></script>
+<script src="app/ec-historique.js?v=298"></script>
+<script src="app/ec-rappels.js?v=298"></script>
+<script src="app/ec-sms.js?v=298"></script>
+<script src="app/ec-stats.js?v=298"></script>
+<script src="app/ec-messenger.js?v=298"></script>
+<script src="app/ec-journal.js?v=298"></script>
+<script src="app/ec-depart.js?v=298"></script>
+<script src="app/ec-onglets.js?v=298"></script>
+<script src="app/ec-demarrage.js?v=298"></script>
 
 </body>
 </html>
