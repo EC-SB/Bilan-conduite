@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:51 — v285 */
+/* Déployé le 07/08/2026 à 10:59 — v287 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -458,6 +458,8 @@ async function preparerNouveauCours(){
       moniteur: ACCES.moniteur || ''
     });
     $('prepEleve').value = '';
+    if($('prepInfo')) $('prepInfo').textContent = '';
+    if($('prepHistorique')){ $('prepHistorique').style.display = 'none'; }
     await afficherPrepares();
     showToast('Cours préparé ✅');
   }catch(e){
@@ -597,6 +599,60 @@ async function terminerRdvPost(){
     b.disabled = false;
     b.textContent = '✅ Terminer le rendez-vous';
   }
+}
+
+/* ============================================================
+   CE QUI A ÉTÉ PRÉPARÉ POUR CE COURS
+   Le moniteur doit voir, avant de démarrer, ce que le collègue
+   a noté en préparant — au même titre que le dernier cours.
+   ============================================================ */
+async function afficherPreparationEleve(){
+  const zone = $('preparationEleve');
+  if(!zone) return;
+
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
+
+  let liste = prepares || [];
+  if(!liste.length){
+    try{
+      const d = await appelPrep({ action: 'prepList' });
+      liste = (d && d.preparations) || [];
+    }catch(e){ liste = []; }
+  }
+
+  const jour = $('lessonDate') ? $('lessonDate').value : '';
+  const siennes = liste.filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+  const prep = siennes.find(x => x.date === jour) ||
+               siennes.sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+
+  if(!prep || !String(prep.note || '').trim()){
+    zone.style.display = 'none';
+    zone.innerHTML = '';
+    return;
+  }
+
+  zone.innerHTML = '';
+  const carte = document.createElement('div');
+  carte.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:12px 14px;background:rgba(182,255,14,.08);';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
+  t.textContent = '📝 Préparé le ' +
+    (dateEnToutesLettres(prep.date) || prep.date || '?') +
+    (prep.preparePar ? ' par ' + prep.preparePar : '') +
+    (prep.modeleLabel ? ' · ' + prep.modeleLabel : '');
+  carte.appendChild(t);
+
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
+    'line-height:1.45;white-space:pre-wrap;';
+  n.textContent = prep.note;
+  carte.appendChild(n);
+
+  zone.appendChild(carte);
+  zone.style.display = 'block';
 }
 
 /* Signale que ce module est bien chargé */
