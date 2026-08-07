@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 09:19 — v282 */
+/* Déployé le 07/08/2026 à 10:38 — v283 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -23,7 +23,7 @@ const RACCOURCIS_NOTE = [
 
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
 async function chargerDossierEleve(nomEleve){
-  const vide = { frise: '', lecons: null, manoeuvres: [], derniereNote: '',
+  const vide = { frise: '', lecons: null, manoeuvres: [], marques: {}, derniereNote: '',
                  dernierHorodatage: '', boite: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
 
@@ -82,7 +82,16 @@ async function chargerDossierEleve(nomEleve){
       if(!boite && /manuelle/i.test(it.type || '')) boite = 'bv';
     });
 
+    /* Les marques de la fiche véhicule, cumulées du plus ancien
+       au plus récent : elles servent à pré-cocher le questionnaire. */
+    const marques = {};
+    res.slice().reverse().forEach(item => {
+      const m = marquesDejaPosees(item.bilan);
+      Object.keys(m).forEach(k => { marques[k] = m[k]; });
+    });
+
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
+                       marques: marques,
                        derniereNote: dernier.note || '',
                        dernierHorodatage: dernier.horodatage || dernier.date || '',
                        boite: boite };
@@ -297,7 +306,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
   /* Dossier de l'élève et consignes du bureau : chargés ensemble */
   const fermerAttente = ouvrirAttente('Récupération du dossier…');
-  let dossier = { frise:'', lecons:null, manoeuvres:[], derniereNote:'', dernierHorodatage:'' };
+  let dossier = { frise:'', lecons:null, manoeuvres:[], marques:{},
+                  derniereNote:'', dernierHorodatage:'' };
   let consignesBureau = [];
   try{
     const taches = [chargerDossierEleve(eleve)];
@@ -505,6 +515,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '</select>' +
       '</div>' +
 
+      '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
+        'Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront ' +
+        'signées de ton émoji.</div>' +
+      '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
+        'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
+        'margin-bottom:14px;"></div>' +
+
       '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
       'placeholder="Ex : autre notes importante" ' +
@@ -611,6 +629,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
     boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
     boite.querySelector('#qLibre').value = prec.libre || '';
+
+    /* La fiche véhicule, pré-cochée d'après les bilans précédents */
+    const marquesConnues = dossier.marques || {};
+    remplirFicheQuestionnaire(marquesConnues);
+    boite._marquesConnues = marquesConnues;
 
     /* Boîte déduite du type de bilan, ANTS repris s'il est connu */
     boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
@@ -732,6 +755,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
         ants: boite.querySelector('#qAnts').value,
         libre: boite.querySelector('#qLibre').value.trim(),
+        /* Les manœuvres cochées en plus, à signer de l'émoji du moniteur */
+        manoeuvresAjoutees: manoeuvresAjouteesQuestionnaire(boite._marquesConnues || {}),
         leconsFaites: faites,
         manoeuvresFaites: manoeuvresAvant.length,
         totalManoeuvres: totalManoeuvres
@@ -1221,6 +1246,63 @@ function blocFicheVehiculeEleve(bilans){
   }
 
   return d;
+}
+
+/* ============================================================
+   FICHE VÉHICULE DANS LE QUESTIONNAIRE
+   Le moniteur complète ce qui a été acquis pendant son cours.
+   Ce qu'il ajoute porte son émoji, comme dans le bilan.
+   ============================================================ */
+function remplirFicheQuestionnaire(marquesAvant){
+  const zone = $('qFiche');
+  if(!zone) return;
+
+  const marques = marquesAvant || {};
+  zone.innerHTML = '';
+
+  (BLOC.ficheListeConduite || []).forEach(libelle => {
+    const cle = normaliserMot(libelle);
+    const deja = marques[cle] || '';
+
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;' +
+      'font-size:14px;text-transform:none;margin:0;font-weight:400;' +
+      'color:' + (deja ? 'var(--muted)' : 'var(--cream)') + ';';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'qManoeuvre';
+    cb.value = libelle;
+    cb.checked = !!deja;
+    cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
+    l.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = libelle;
+    l.appendChild(t);
+
+    if(deja){
+      const m = document.createElement('span');
+      m.style.cssText = 'flex-shrink:0;letter-spacing:1px;';
+      m.textContent = deja;
+      l.appendChild(m);
+    }
+
+    zone.appendChild(l);
+  });
+}
+
+/* Ce que le moniteur vient de cocher en plus */
+function manoeuvresAjouteesQuestionnaire(marquesAvant){
+  const marques = marquesAvant || {};
+  const ajoutees = [];
+  document.querySelectorAll('.qManoeuvre').forEach(cb => {
+    if(!cb.checked) return;
+    if(marques[normaliserMot(cb.value)]) return;   /* déjà validée */
+    ajoutees.push(cb.value);
+  });
+  return ajoutees;
 }
 
 /* Signale que ce module est bien chargé */
