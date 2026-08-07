@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:50 — v291 */
+/* Déployé le 07/08/2026 à 12:06 — v292 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -713,9 +713,18 @@ async function afficherPreparationEleve(){
   sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
   carte.appendChild(sep);
 
+  /* Les marques déjà posées par les moniteurs précédents, pour
+     signer chaque manœuvre de qui l'a fait travailler. */
+  let marquesConnues = {};
+  try{
+    const d = await chargerDossierEleve(nom);
+    marquesConnues = (d && d.marques) || {};
+  }catch(e){ /* hors ligne : on affiche sans les émojis */ }
+
   const t2 = document.createElement('div');
   t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-  t2.textContent = '🦉 Fiche véhicule cochée à la préparation — ' + ajoutees.length;
+  t2.textContent = '🦉 Fiche véhicule — ' + ajoutees.length + ' sur ' +
+                   BLOC.ficheListeConduite.length;
   carte.appendChild(t2);
 
   if(ajoutees.length){
@@ -723,7 +732,9 @@ async function afficherPreparationEleve(){
     l.style.cssText = 'font-size:13px;line-height:1.7;';
     ajoutees.forEach(x => {
       const li = document.createElement('div');
-      li.textContent = '· ' + x;
+      const marque = marquesConnues[normaliserMot(x)] || '';
+      li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
+        (marque ? ' <span style="letter-spacing:1px;">' + marque + '</span>' : '');
       l.appendChild(li);
     });
     carte.appendChild(l);
@@ -734,6 +745,27 @@ async function afficherPreparationEleve(){
       ? 'Aucune manœuvre cochée lors de la préparation.'
       : 'Préparation antérieure à la fiche véhicule : rien à afficher.';
     carte.appendChild(v);
+  }
+
+  /* Ce qui reste : c'est ce que le moniteur doit travailler aujourd'hui */
+  const restantes = BLOC.ficheListeConduite.filter(
+    x => ajoutees.indexOf(x) === -1);
+
+  if(restantes.length){
+    const t3 = document.createElement('div');
+    t3.style.cssText = 'font-size:13px;font-weight:700;color:var(--warn-text);' +
+      'margin:10px 0 4px;';
+    t3.textContent = '❓ Reste à travailler — ' + restantes.length;
+    carte.appendChild(t3);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.7;';
+    restantes.forEach(x => {
+      const li = document.createElement('div');
+      li.textContent = '· ' + x;
+      r.appendChild(li);
+    });
+    carte.appendChild(r);
   }
 
   zone.appendChild(carte);
