@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:52 — v285 */
+/* Déployé le 07/08/2026 à 10:56 — v286 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -443,14 +443,32 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '<label for="qLecon">Leçon n°</label>' +
       '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
 
-      '<label for="qExamBlanc">Examen blanc</label>' +
-      '<select id="qExamBlanc">' +
-        '<option value="">— non évoqué —</option>' +
-        '<option value="aprevoir">À prévoir</option>' +
-        '<option value="reserve">Réservé</option>' +
-        '<option value="passe">Déjà passé</option>' +
-        '<option value="impossible">Non planifiable pour le moment</option>' +
-      '</select>' +
+      '<label>Examen blanc</label>' +
+      '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+        'margin-bottom:10px;">' +
+        ['', 'aprevoir', 'reserve', 'passe', 'impossible'].map(function(v, i){
+          const nom = ['— non évoqué —', 'À prévoir', 'Réservé', 'Déjà passé',
+                       'Non planifiable pour le moment'][i];
+          return '<label style="display:flex;align-items:center;gap:9px;padding:4px 0;' +
+            'text-transform:none;font-size:15px;color:var(--cream);margin:0;font-weight:400;">' +
+            '<input type="radio" name="qExamBlancChoix" value="' + v + '"' +
+            (v === '' ? ' checked' : '') +
+            ' style="width:18px;height:18px;flex-shrink:0;">' + nom + '</label>';
+        }).join('') +
+      '</div>' +
+
+      '<div id="qBlocEbRang" style="display:none;">' +
+        '<label for="qExamBlancRang">Quel examen blanc ?</label>' +
+        '<select id="qExamBlancRang">' +
+          '<option value="">— non précisé —</option>' +
+          '<option value="1">1er</option>' +
+          '<option value="2">2e</option>' +
+          '<option value="3">3e</option>' +
+          '<option value="4">4e</option>' +
+          '<option value="5">5e</option>' +
+        '</select>' +
+      '</div>' +
+
       '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
 
       (modeleCle === 'examen-blanc'
@@ -597,7 +615,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     majParcours();
     /* Affiche d'emblée les champs conditionnels déjà renseignés */
     setTimeout(() => {
-      selEB.dispatchEvent(new Event('change'));
+      majEB();
       selEP.dispatchEvent(new Event('change'));
     }, 0);
 
@@ -654,18 +672,37 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       zoneRestantes.textContent = restantesListe.join(' · ');
     }
 
-    /* Champs conditionnels */
-    const selEB = boite.querySelector('#qExamBlanc');
+    /* Champs conditionnels — l'examen blanc se choisit par cases */
+    const casesEB = boite.querySelectorAll('input[name="qExamBlancChoix"]');
     const nEB = boite.querySelector('#qExamBlancN');
-    selEB.value = prec.examBlanc || '';
+    const rangEB = boite.querySelector('#qExamBlancRang');
+    const blocRang = boite.querySelector('#qBlocEbRang');
     nEB.value = prec.examBlancN || '';
-    selEB.addEventListener('change', () => {
-      const v = selEB.value;
+    if(rangEB) rangEB.value = prec.examBlancRang || '';
+
+    const valeurEB = () => {
+      const coche = boite.querySelector('input[name="qExamBlancChoix"]:checked');
+      return coche ? coche.value : '';
+    };
+
+    casesEB.forEach(x => {
+      if(x.value === (prec.examBlanc || '')) x.checked = true;
+      x.addEventListener('change', majEB);
+    });
+
+    function majEB(){
+      const v = valeurEB();
       nEB.style.display = (v === 'reserve' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
       nEB.placeholder = (v === 'passe')
         ? 'Leçons prévues avant le permis'
         : 'Dans combien de leçons ?';
-    });
+      /* Le rang n'a de sens que si un examen blanc est en jeu */
+      if(blocRang) blocRang.style.display = v ? 'block' : 'none';
+    }
+
+    /* Un objet qui se comporte comme l'ancien menu, pour le reste du code */
+    const selEB = { get value(){ return valeurEB(); },
+                    dispatchEvent: majEB };
 
     const selEP = boite.querySelector('#qExamPermis');
     const dEP = boite.querySelector('#qExamDate');
@@ -732,6 +769,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         lecon: boite.querySelector('#qLecon').value.trim(),
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
+        examBlancRang: rangEB ? rangEB.value : '',
         examPermis: selEP.value,
         examDate: dEP.value,
         pasEcoute: boite.querySelector('#qPasEcoute').checked,
@@ -818,29 +856,39 @@ function ajouterSuite(bouts, q){
   const n = q.examBlancN;
   const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
 
+  /* Le rang de l'examen blanc : « 2e examen blanc » plutôt que
+     « examen blanc », pour savoir combien l'élève en a déjà passé. */
+  const rang = String(q.examBlancRang || '').trim();
+  const eb = rang
+    ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
+    : 'Examen blanc';
+  const ebMin = rang
+    ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
+    : 'examen blanc';
+
   /* L'examen blanc vient d'avoir lieu : sa conclusion prime */
   if(q.ebPasse){
     const jour = dateEnToutesLettres($('lessonDate').value || todayLocal());
     if(q.ebPasse === '3h'){
-      bouts.push('Examen blanc passé le ' + jour + ' — plus que les 3h avant examen');
+      bouts.push(eb + ' passé le ' + jour + ' — plus que les 3h avant examen');
     }else if(q.ebPasse === 'lecons'){
       const n = q.ebLecons;
-      bouts.push('Examen blanc passé le ' + jour + ' — encore ' + (n || '❓') +
+      bouts.push(eb + ' passé le ' + jour + ' — encore ' + (n || '❓') +
                  ' leçon' + (parseInt(n, 10) > 1 ? 's' : '') + ' avant examen');
     }else{
-      bouts.push('Examen blanc passé le ' + jour + ' — pas le niveau');
+      bouts.push(eb + ' passé le ' + jour + ' — pas le niveau');
     }
   }else if(q.examBlanc === 'passe'){
-    bouts.push(n ? 'Examen blanc passé — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
+    bouts.push(n ? eb + ' passé — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
                    ' avant le permis (+ 3h avant examen)'
-                 : 'Examen blanc déjà passé');
+                 : eb + ' déjà passé');
   }else if(q.examBlanc === 'reserve'){
-    bouts.push(n ? 'Examen blanc réservé dans ' + n + ' leçon' + pl(n) : 'Examen blanc réservé');
+    bouts.push(n ? eb + ' réservé dans ' + n + ' leçon' + pl(n) : eb + ' réservé');
   }else if(q.examBlanc === 'aprevoir'){
-    bouts.push(n ? 'Examen blanc à prévoir dans ' + n + ' leçon' + pl(n)
-                 : 'Examen blanc à prévoir');
+    bouts.push(n ? eb + ' à prévoir dans ' + n + ' leçon' + pl(n)
+                 : eb + ' à prévoir');
   }else if(q.examBlanc === 'impossible'){
-    bouts.push("Ne pas prévoir d'examen blanc pour le moment");
+    bouts.push("Ne pas prévoir d'" + ebMin + ' pour le moment');
   }
 
   if(q.examPermis === 'aprevoir'){
