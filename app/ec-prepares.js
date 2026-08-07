@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 07:22 — v275 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -278,11 +279,29 @@ async function afficherPrepares(recharger, silencieux){
 async function retirerPreparationFaite(){
   let cible = prepareEnCours;
 
-  /* Cours non ouvert depuis la liste : on retrouve celui du jour */
+  /* Cours démarré sans passer par la liste : on retrouve sa
+     préparation. La liste locale peut être vide ou périmée si le
+     moniteur n'a jamais ouvert l'onglet — on relit alors le serveur. */
   if(!cible && currentLessonMeta && currentLessonMeta.studentName){
     const nom = normaliserMot(currentLessonMeta.studentName);
-    const jour = $('lessonDate').value;
-    cible = prepares.find(x => normaliserMot(x.eleve || '') === nom && x.date === jour) || null;
+    const jour = $('lessonDate') ? $('lessonDate').value : '';
+
+    let liste = prepares || [];
+    if(!liste.length){
+      try{
+        const d = await appelPrep({ action: 'prepList' });
+        liste = (d && d.preparations) || [];
+      }catch(e){ liste = []; }
+    }
+
+    const siennes = liste.filter(x => normaliserMot(x.eleve || '') === nom);
+
+    /* Celle du jour en priorité ; sinon la plus ancienne encore
+       en attente, qui est forcément celle qu'on vient de faire. */
+    cible = siennes.find(x => x.date === jour) ||
+            siennes.filter(x => !jour || x.date <= jour)
+                   .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0] ||
+            null;
   }
   if(!cible) return;
 
