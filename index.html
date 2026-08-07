@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v286
+     VERSION APPLICATION : v287
      VERSION APPS SCRIPT REQUISE : v53
-     Mis à jour le : 07/08/2026 à 10:56
+     Mis à jour le : 07/08/2026 à 10:59
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -649,7 +649,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v286</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v287</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -770,6 +770,8 @@
         <label for="prepEleve">Prénom et nom de l'élève</label>
         <input type="text" id="prepEleve" list="listeEleves" autocomplete="off"
                placeholder="Choisis dans la liste ou tape un nom">
+        <div id="prepInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
+        <div id="prepHistorique" style="display:none;margin-bottom:14px;"></div>
         <label for="prepModele">Type de bilan</label>
         <select id="prepModele"></select>
         <button class="btn btn-primary" id="prepBtn">📝 Préparer les notes</button>
@@ -800,6 +802,8 @@
              placeholder="Ex : Pierre Dupont">
       <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
       <div id="historiqueEleve" style="display:none;margin-bottom:14px;"></div>
+      <!-- Ce qui a été préparé pour ce cours, s'il y a une préparation -->
+      <div id="preparationEleve" style="display:none;margin-bottom:14px;"></div>
 
       <label for="eleveMessenger">💬 Messenger de l'élève</label>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -1612,34 +1616,34 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=286"></script>
-<script src="app/ec-modeles.js?v=286"></script>
-<script src="app/ec-consignes.js?v=286"></script>
-<script src="app/ec-noyau.js?v=286"></script>
-<script src="app/ec-vocal.js?v=286"></script>
-<script src="app/ec-reseau.js?v=286"></script>
-<script src="app/ec-manuel.js?v=286"></script>
-<script src="app/ec-fenetres.js?v=286"></script>
-<script src="app/ec-questionnaire.js?v=286"></script>
-<script src="app/ec-permis.js?v=286"></script>
-<script src="app/ec-prepares.js?v=286"></script>
-<script src="app/ec-bureau.js?v=286"></script>
-<script src="app/ec-places.js?v=286"></script>
-<script src="app/ec-listes.js?v=286"></script>
-<script src="app/ec-permis-listes.js?v=286"></script>
-<script src="app/ec-postpermis.js?v=286"></script>
-<script src="app/ec-textes.js?v=286"></script>
-<script src="app/ec-correction.js?v=286"></script>
-<script src="app/ec-bilans.js?v=286"></script>
-<script src="app/ec-historique.js?v=286"></script>
-<script src="app/ec-rappels.js?v=286"></script>
-<script src="app/ec-sms.js?v=286"></script>
-<script src="app/ec-stats.js?v=286"></script>
-<script src="app/ec-messenger.js?v=286"></script>
-<script src="app/ec-journal.js?v=286"></script>
-<script src="app/ec-depart.js?v=286"></script>
-<script src="app/ec-onglets.js?v=286"></script>
-<script src="app/ec-demarrage.js?v=286"></script>
+  <script src="app/ec-etat.js?v=287"></script>
+<script src="app/ec-modeles.js?v=287"></script>
+<script src="app/ec-consignes.js?v=287"></script>
+<script src="app/ec-noyau.js?v=287"></script>
+<script src="app/ec-vocal.js?v=287"></script>
+<script src="app/ec-reseau.js?v=287"></script>
+<script src="app/ec-manuel.js?v=287"></script>
+<script src="app/ec-fenetres.js?v=287"></script>
+<script src="app/ec-questionnaire.js?v=287"></script>
+<script src="app/ec-permis.js?v=287"></script>
+<script src="app/ec-prepares.js?v=287"></script>
+<script src="app/ec-bureau.js?v=287"></script>
+<script src="app/ec-places.js?v=287"></script>
+<script src="app/ec-listes.js?v=287"></script>
+<script src="app/ec-permis-listes.js?v=287"></script>
+<script src="app/ec-postpermis.js?v=287"></script>
+<script src="app/ec-textes.js?v=287"></script>
+<script src="app/ec-correction.js?v=287"></script>
+<script src="app/ec-bilans.js?v=287"></script>
+<script src="app/ec-historique.js?v=287"></script>
+<script src="app/ec-rappels.js?v=287"></script>
+<script src="app/ec-sms.js?v=287"></script>
+<script src="app/ec-stats.js?v=287"></script>
+<script src="app/ec-messenger.js?v=287"></script>
+<script src="app/ec-journal.js?v=287"></script>
+<script src="app/ec-depart.js?v=287"></script>
+<script src="app/ec-onglets.js?v=287"></script>
+<script src="app/ec-demarrage.js?v=287"></script>
 
 </body>
 </html>
