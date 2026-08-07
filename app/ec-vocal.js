@@ -1,4 +1,4 @@
-/* Déployé le 06/08/2026 à 15:42 — v273 */
+/* Déployé le 07/08/2026 à 07:41 — v277 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -634,6 +634,10 @@ const CONSIGNE_CORRECTION =
 'l\'application coche les manœuvres réalisées à partir de ce texte, une invention ici fausse le suivi de l\'élève. ' +
 'Devant un mot incompréhensible, recopie-le tel quel.\n' +
 '- Le texte reste à la première personne du moniteur, tel qu\'il a parlé.\n' +
+'- AÉRATION : tu sautes une ligne vide entre les paragraphes. Un paragraphe correspond à un ' +
+'moment ou à un sujet : une manœuvre, un carrefour, une explication, un changement de lieu. ' +
+"Un bloc de vingt lignes serrées est illisible pour l'élève, qui doit pouvoir s'y retrouver " +
+'plusieurs jours après son cours.\n' +
 '\n' +
 'REPRISES À LA VOIX — SEULE EXCEPTION À LA RÈGLE « ON CONSERVE TOUT » :\n' +
 'Le moniteur se relit pendant l\'enregistrement et se corrige à voix haute quand la machine ' +
