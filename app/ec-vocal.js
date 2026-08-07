@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:39 — v283 */
+/* Déployé le 07/08/2026 à 13:34 — v298 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -69,6 +69,10 @@ const CORRECTIONS = [
   [/\bongle\s+m[oô]rt?\b/gi, 'angle mort'],
   [/\boncle\s+m[oô]rt?\b/gi, 'angle mort'],
   [/\bangle m[oô]r\b/gi, 'angle mort'],
+  /* « cédez » mal entendu : CD, c d, sédez, céder. On exige la
+     suite « le passage » — « CD » seul désigne le créneau droit. */
+  [/\b(?:c\s*[.-]?\s*d|s[ée]dez|c[ée]d[ée]?[rz]?|cet[ée]|ced[ée])\s+le\s+passage\b/gi,
+   'cédez le passage'],
   [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
   [/\bpriorit[ée] a droite\b/gi, 'priorité à droite'],
   [/\bd[ée]brailles?\b/gi, 'débrayes'],
