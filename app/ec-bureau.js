@@ -1,3 +1,4 @@
+/* Déployé le 07/08/2026 à 10:44 — v284 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -29,7 +30,7 @@ function analyserNote(note){
               examBlanc:null, examBlancN:null, examBlancDate:null,
               simuNuit:null, simuDate:null, permis:null,
               permisDate:null, permisN:null, lecon:null, leconTotal:null,
-              friseDepassee:false, finirFiche:false };
+              friseDepassee:false, pasEcoute:false };
   let m;
 
   if((m = t.match(/Examen blanc passé le ([^—·]+)— pas le niveau/i))){
@@ -110,7 +111,7 @@ function analyserNote(note){
   if(/frise dépassée/i.test(t)) r.friseDepassee = true;
   if((m = t.match(/(\d+)(?:er|e) repassage/i))) r.repassages = +m[1];
   if((m = t.match(/[Aa]journé le ([^—·(]+)/))) r.dateAjournement = m[1].trim();
-  if(/Finir Fiche/i.test(t)) r.finirFiche = true;
+  if(/Pas d'écoute pédagogique/i.test(t)) r.pasEcoute = true;
   return r;
 }
 
