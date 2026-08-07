@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:38 — v283 */
+/* Déployé le 07/08/2026 à 10:44 — v284 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -481,8 +481,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '<input type="date" id="qNouvelleDate" style="display:none;">' +
 
       '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-        '<input type="checkbox" id="qFinirFiche" style="width:20px;height:20px;">' +
-        'Manœuvres à finir en priorité' +
+        '<input type="checkbox" id="qPasEcoute" style="width:20px;height:20px;">' +
+        "Pas d'écoute pédagogique" +
       '</label>' +
 
       '<label for="qSimuNuit">Simulateur nuit et risques</label>' +
@@ -622,8 +622,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     }
 
     boite.querySelector('#qLecon').value = prec.lecon || ((faites !== null) ? (faites + 1) : '');
-    boite.querySelector('#qFinirFiche').checked =
-      (prec.finirFiche !== undefined) ? prec.finirFiche : (restantes > 0 && restantes <= 4);
+    boite.querySelector('#qPasEcoute').checked = !!prec.pasEcoute;
     boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
     boite.querySelector('#qFinFormation').checked = !!prec.finFormation;
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
@@ -740,7 +739,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         examBlancN: nEB.value.trim(),
         examPermis: selEP.value,
         examDate: dEP.value,
-        finirFiche: boite.querySelector('#qFinirFiche').checked,
+        pasEcoute: boite.querySelector('#qPasEcoute').checked,
         simuNuit: boite.querySelector('#qSimuNuit').value,
         finFormation: boite.querySelector('#qFinFormation').checked,
         ebPasse: selEB2 ? selEB2.value : '',
@@ -871,11 +870,9 @@ function ajouterSuite(bouts, q){
     bouts.push(phrase);
   }
 
-  if(q.finirFiche){
-    const reste = q.totalManoeuvres - q.manoeuvresFaites;
-    bouts.push('Finir Fiche' + (reste ? ' — ' + reste + ' manœuvre' + (reste > 1 ? 's' : '') +
-               ' restante' + (reste > 1 ? 's' : '') : ''));
-  }
+  /* L'écoute pédagogique : le bureau doit le savoir pour ne pas
+     la planifier inutilement le jour du permis. */
+  if(q.pasEcoute) bouts.push("Pas d'écoute pédagogique");
   if(q.simuNuit === 'aprevoir') bouts.push('Simulateur nuit et risques à prévoir');
   else if(q.simuNuit === 'prevu') bouts.push('Simulateur nuit et risques déjà prévu');
   else if(q.simuNuit === 'fait') bouts.push('Simulateur nuit et risques fait ✅');
