@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:00 — v287 */
+/* Déployé le 07/08/2026 à 11:26 — v289 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1228,7 +1228,7 @@ async function chargerHistoriqueEleve(){
    Ce que le moniteur a besoin de savoir avant de partir : quelles
    manœuvres sont validées, par qui, et lesquelles restent à faire.
    ============================================================ */
-function blocFicheVehiculeEleve(bilans){
+function blocFicheVehiculeEleve(bilans, toutAfficher){
   const d = document.createElement('div');
 
   /* On part du plus récent : ses marques sont les plus complètes */
@@ -1274,17 +1274,33 @@ function blocFicheVehiculeEleve(bilans){
   });
   d.appendChild(z);
 
-  /* Ce qui reste, replié : c'est long et rarement lu en entier */
+  /* Ce qui reste : déplié quand on prépare un cours, replié sinon */
   if(restantes.length){
-    const det = document.createElement('details');
-    det.style.marginTop = '8px';
-    det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
-      '❓ ' + restantes.length + ' manœuvre(s) restante(s)</summary>';
-    const r = document.createElement('div');
-    r.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;';
-    r.textContent = restantes.join(' · ');
-    det.appendChild(r);
-    d.appendChild(det);
+    if(toutAfficher){
+      const t2 = document.createElement('div');
+      t2.style.cssText = 'font-size:12px;color:var(--muted);margin:8px 0 3px;font-weight:700;';
+      t2.textContent = '❓ Reste à travailler — ' + restantes.length;
+      d.appendChild(t2);
+
+      const r = document.createElement('div');
+      r.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.7;';
+      restantes.forEach(x => {
+        const l = document.createElement('div');
+        l.textContent = '· ' + x;
+        r.appendChild(l);
+      });
+      d.appendChild(r);
+    }else{
+      const det = document.createElement('details');
+      det.style.marginTop = '8px';
+      det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
+        '❓ ' + restantes.length + ' manœuvre(s) restante(s)</summary>';
+      const r = document.createElement('div');
+      r.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;';
+      r.textContent = restantes.join(' · ');
+      det.appendChild(r);
+      d.appendChild(det);
+    }
   }
 
   return d;
@@ -1420,7 +1436,8 @@ async function chargerHistoriquePrep(){
     const sep = document.createElement('div');
     sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
     carte.appendChild(sep);
-    carte.appendChild(blocFicheVehiculeEleve(res));
+    /* Déplié : on prépare un cours, on veut voir ce qui reste */
+    carte.appendChild(blocFicheVehiculeEleve(res, true));
 
     zone.appendChild(carte);
   }catch(e){
