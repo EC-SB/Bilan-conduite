@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 12:06 — v292 */
+/* Déployé le 08/08/2026 à 09:15 — v314 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -225,6 +225,23 @@ async function afficherPrepares(recharger, silencieux){
       });
       actions.appendChild(bReprendre);
     }
+
+    /* Modifier la préparation : rouvrir le questionnaire et le
+       réenregistrer. Sans ça, une erreur de saisie obligeait à
+       supprimer la préparation et à tout refaire. */
+    const bMod = document.createElement('button');
+    bMod.className = 'btn btn-secondary';
+    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+    bMod.textContent = '✏️';
+    bMod.title = 'Modifier la préparation de ' + cours.eleve;
+    bMod.addEventListener('click', async () => {
+      if(bMod.disabled) return;
+      bMod.disabled = true;
+      try{
+        await modifierPreparation(cours);
+      }finally{ bMod.disabled = false; }
+    });
+    actions.appendChild(bMod);
 
     const bDonner = document.createElement('button');
     bDonner.className = 'btn btn-secondary';
@@ -773,6 +790,54 @@ async function afficherPreparationEleve(){
 
   zone.appendChild(carte);
   zone.style.display = 'block';
+}
+
+/* Rouvre le questionnaire d'une préparation et l'enregistre à la
+   place de l'ancienne. Le contexte est repris tel quel : on ne
+   repart pas de zéro. */
+async function modifierPreparation(cours){
+  if(!cours || !cours.id) return;
+
+  /* Le questionnaire lit l'élève et le modèle dans l'écran de cours */
+  const nomAvant = $('studentName') ? $('studentName').value : '';
+  const modAvant = $('modele') ? $('modele').value : '';
+  const dateAvant = $('lessonDate') ? $('lessonDate').value : '';
+
+  if($('studentName')) $('studentName').value = cours.eleve || '';
+  if($('modele') && cours.modele) $('modele').value = cours.modele;
+  if($('lessonDate') && cours.date) $('lessonDate').value = cours.date;
+
+  let rep = null;
+  try{
+    rep = await ouvrirQuestionnaireDepart(cours.contexte || {},
+                                          'Modifier la préparation', 'Enregistrer');
+  }finally{
+    /* On remet l'écran comme on l'a trouvé */
+    if($('studentName')) $('studentName').value = nomAvant;
+    if($('modele')) $('modele').value = modAvant;
+    if($('lessonDate')) $('lessonDate').value = dateAvant;
+  }
+
+  if(!rep) return;
+
+  try{
+    await appelPrep({
+      action: 'prepAdd',
+      id: cours.id,                    /* même identifiant : on remplace */
+      date: cours.date,
+      eleve: cours.eleve,
+      modele: cours.modele,
+      modeleLabel: cours.modeleLabel || '',
+      site: cours.site || '',
+      note: noteDepuisQuestionnaire(rep),
+      contexte: JSON.stringify(rep),
+      moniteur: cours.moniteur || ACCES.moniteur || ''
+    });
+    showToast('Préparation modifiée ✅');
+    await afficherPrepares();
+  }catch(e){
+    showToast('Modification impossible : ' + e.message);
+  }
 }
 
 /* Signale que ce module est bien chargé */
