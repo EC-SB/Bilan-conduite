@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:53 — v311 */
+/* Déployé le 08/08/2026 à 09:56 — v317 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -355,12 +355,14 @@ function telPourLien(t){
   return n;
 }
 
-async function afficherRepertoire(){
+async function afficherRepertoire(recharger){
   const zone = $('repertoireListe');
   if(!zone) return;
 
   zone.innerHTML = '<div class="empty">Chargement du répertoire…</div>';
-  if(!fichesEleves.length) await chargerFiches();
+  /* Après une modification, on relit : sinon l'écran continue
+     d'afficher la fiche telle qu'elle était avant l'enregistrement. */
+  if(recharger || !fichesEleves.length) await chargerFiches();
   zone.innerHTML = '';
 
   /* Tous les élèves connus, avec ou sans fiche */
@@ -656,9 +658,23 @@ function ouvrirFicheEleve(nom, f){
                         autreAE: g('fiAutreAE').checked ? 'oui' : '',
                         autreAENom: g('fiAutreAENom').value.trim(),
                         remarques: g('fiRem').value.trim() });
+      /* La fiche en mémoire suit tout de suite : l'écran ne doit pas
+         attendre le rechargement pour montrer la bonne valeur. */
+      const f2 = ficheDe(nom);
+      const saisi = { telephone: tel, email: mail, formation: g('fiForm').value,
+                      messenger: g('fiMess').value.trim(),
+                      mailPrescripteur: g('fiMailPresc').value.trim(),
+                      genre: g('fiGenre').value, ants: g('fiAnts').value,
+                      frise: g('fiFrise').value.trim(),
+                      autreAE: g('fiAutreAE').checked ? 'oui' : '',
+                      autreAENom: g('fiAutreAENom').value.trim(),
+                      remarques: g('fiRem').value.trim() };
+      if(f2) Object.assign(f2, saisi);
+      else fichesEleves.push(Object.assign({ eleve: nom }, saisi));
+
       document.body.removeChild(fond);
       showToast('Fiche enregistrée ✅');
-      afficherRepertoire();
+      afficherRepertoire(true);
     }catch(e){
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Erreur : ' + e.message;
@@ -1064,6 +1080,11 @@ async function enregistrerMessengerEleve(){
   try{
     await appelPrep({ action: 'ficheSet', eleve: nom, messenger: v });
     messengerCharge = v;
+    /* La fiche en mémoire suit, sinon le répertoire et le bouton
+       d'envoi continueraient d'ignorer ce Messenger. */
+    const f3 = ficheDe(nom);
+    if(f3) f3.messenger = v;
+    else fichesEleves.push({ eleve: nom, messenger: v });
     if(etat){
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ Enregistré : les autres moniteurs le retrouveront ici.';
