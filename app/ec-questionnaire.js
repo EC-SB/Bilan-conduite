@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 07:02 — v301 */
+/* Déployé le 08/08/2026 à 07:38 — v303 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -342,6 +342,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         if(duBureau[k] !== undefined && duBureau[k] !== '') prec[k] = duBureau[k];
       });
     }
+  }
+
+  /* La frise saisie sur la fiche de l'élève fait autorité : elle a été
+     posée une fois pour toutes, inutile de la redemander à chaque cours. */
+  if(!prec.frise){
+    const qui = ($('studentName') && $('studentName').value.trim()) ||
+                ($('prepEleve') && $('prepEleve').value.trim()) || '';
+    const fiche = (qui && typeof ficheDe === 'function') ? ficheDe(qui) : null;
+    if(fiche && fiche.frise) prec.frise = fiche.frise;
   }
 
   /* Frise entièrement déduite du type de bilan (cas AAC) */
