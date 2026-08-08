@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:41 — v310 */
+/* Déployé le 08/08/2026 à 14:21 — v323 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -17,7 +17,7 @@ const SECTIONS_ONGLET = {
   suivi:  ['bureau_simu', 'bureau_examblanc'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'historique', 'admin']
+           'sms', 'stats', 'memoire', 'historique', 'admin']
 };
 
 let ongletActif = '';
@@ -126,6 +126,7 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
+           ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
            ['historique', '📚 Historique des cours',    'historique'],
            ['sms',        '💬 SMS',                    'sms'],
            ['stats',      '📈 Réussite',               'stats'],
@@ -219,6 +220,8 @@ function reveillerVue(cle){
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
+    memoire:    () => afficherMemoireIA(),
+    memoire:    () => afficherMemoireIA(),
     historique: () => afficherHistoriqueCours()
   };
   const f = actions[cle];
