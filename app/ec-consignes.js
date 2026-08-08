@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 07:41 — v277 */
+/* Déployé le 08/08/2026 à 14:15 — v322 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
@@ -46,6 +46,9 @@ const SOCLE_METIER =
 '- Pour avertir un véhicule qui arrive DERRIÈRE : on freine progressivement pour allumer les ' +
 'FEUX STOP, ou on met les WARNINGS (feux de détresse). C\'est la seule formulation correcte.\n' +
 '- Feux stop = feux rouges arrière, allumés par la pédale de frein.\n' +
+'- Feux de détresse (ou warnings) : les quatre clignotants ensemble. Un véhicule ' +
+'« en feux de détresse » est à l\'arrêt ou signale un danger. La transcription écrit ' +
+'souvent « il en faute de détresse » : c\'est « il est en feux de détresse ».\n' +
 '- Point de patinage : moment où l\'embrayage commence à transmettre le mouvement.\n' +
 '- Frein de stationnement, frein à main, frein électrique : même fonction.\n' +
 '- Angle mort : zone non couverte par les rétroviseurs, vérifiée en tournant la tête.\n' +
@@ -62,6 +65,9 @@ const SOCLE_METIER =
 '\n' +
 'ERREURS DE TRANSCRIPTION FRÉQUENTES, à corriger sans hésiter :\n' +
 '« ongle mort » ou « oncle mort » → angle mort · « gyratoire » ou « gyrophare » → giratoire · ' +
+'« CD le passage » ou « céder le passage » → cédez le passage (mais « CD » seul, dans la fiche ' +
+'véhicule, désigne le créneau droit) · « il en faute de détresse » → il est en feux de détresse · ' +
+'« la pluie tête » → l\'appui-tête · « Fresnes » → freine · ' +
 '« crédo » ou « crédneau » → créneau · « va vé » → VA VD · « débraille » → débraye · ' +
 '« roues droit » → roues droites.\n' +
 '\n' +
