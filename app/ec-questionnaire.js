@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:23 — v307 */
+/* Déployé le 08/08/2026 à 08:54 — v311 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -362,6 +362,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
      recours, un dossier momentanément indisponible faisait perdre
      une frise pourtant enregistrée. */
   const ficheEleve = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+
+  /* L'ANTS vient de la fiche s'il n'a pas déjà été saisi dans ce cours :
+     il est renseigné à l'inscription, pas à chaque leçon. */
+  if(!prec.ants && ficheEleve && ficheEleve.ants) prec.ants = ficheEleve.ants;
   const frisePrecedente = friseDeduite || dossier.frise ||
                           (ficheEleve && ficheEleve.frise) || '';
   const faites = dossier.lecons;
@@ -779,6 +783,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     function fermer(reponses){
       questionnaireOuvert = false;
       document.body.removeChild(fond);
+      /* L'ANTS et la frise redescendent sur la fiche de l'élève : ce que
+         le moniteur corrige ici doit valoir pour les prochains cours,
+         sans qu'on ait à ressaisir la même chose au bureau. */
+      if(reponses) majFicheDepuisQuestionnaire(eleve, reponses, ficheEleve);
+
       resolve(reponses);
     }
 
@@ -1538,6 +1547,30 @@ function allegerQuestionnaireFin(boite, prec){
 
   /* L'écoute pédagogique se décide en préparant la journée de permis */
   cacher('#qPasEcoute');
+}
+
+/* Ce que le moniteur corrige dans le questionnaire redescend sur la
+   fiche de l'élève. Sans ça, le bureau et les moniteurs entretiennent
+   deux vérités différentes sur le même élève. */
+async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
+  if(!eleve || typeof appelPrep !== 'function') return;
+
+  const avant = ficheAvant || {};
+  const maj = {};
+
+  if(reponses.ants && reponses.ants !== (avant.ants || '')) maj.ants = reponses.ants;
+  if(reponses.frise && reponses.frise !== (avant.frise || '')) maj.frise = reponses.frise;
+
+  if(!Object.keys(maj).length) return;
+
+  try{
+    await appelPrep(Object.assign({ action: 'ficheSet', eleve: eleve }, maj));
+    /* La fiche en mémoire suit, sinon l'écran afficherait l'ancienne */
+    const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+    if(f) Object.assign(f, maj);
+  }catch(e){
+    console.warn('Fiche non mise à jour :', e);
+  }
 }
 
 /* Signale que ce module est bien chargé */
