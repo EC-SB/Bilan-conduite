@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 13:31 — v320 */
+/* Déployé le 08/08/2026 à 14:10 — v322 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -74,6 +74,14 @@ const CORRECTIONS = [
   [/\b(?:c\s*[.-]?\s*d|s[ée]dez|c[ée]d[ée]?[rz]?|cet[ée]|ced[ée])\s+le\s+passage\b/gi,
    'cédez le passage'],
   [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
+
+  /* « feux de détresse » mal entendu : faute, faut, fautes… */
+  /* Le sujet est conservé : « elle » ne doit pas devenir « il ». */
+  [/\b(il|elle|on)\s+(?:en\s+)?(?:faut?e?s?|fote?s?)\s+de\s+d[ée]tresse\b/gi,
+   '$1 est en feux de détresse'],
+  [/\b(?:en\s+)?(?:faut?e?s?|fote?s?)\s+de\s+d[ée]tresse\b/gi,
+   'en feux de détresse'],
+  [/\bfeu\s+de\s+d[ée]tresse\b/gi, 'feux de détresse'],
 
   /* Deux confusions relevées sur de vrais cours */
   [/\bla\s+pluie\s+t[êe]te\b/gi, "l'appui-tête"],
