@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 09:01 — v312 */
+/* Déployé le 08/08/2026 à 13:31 — v320 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -74,6 +74,17 @@ const CORRECTIONS = [
   [/\b(?:c\s*[.-]?\s*d|s[ée]dez|c[ée]d[ée]?[rz]?|cet[ée]|ced[ée])\s+le\s+passage\b/gi,
    'cédez le passage'],
   [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
+
+  /* Deux confusions relevées sur de vrais cours */
+  [/\bla\s+pluie\s+t[êe]te\b/gi, "l'appui-tête"],
+  [/\bl[ae]\s+puits?\s+t[êe]te\b/gi, "l'appui-tête"],
+  [/\bappui\s+t[êe]te\b/gi, 'appui-tête'],
+  /* « Fresnes » est aussi un nom de commune : on n'attrape que
+     les tournures de conduite, jamais un lieu. */
+  [/\b(tu|on|il|elle|je)\s+fresnes?\b/gi, '$1 freine'],
+  [/\bfresnes?\s+(doucement|fort|maintenant|un peu|à fond|progressivement|tout de suite|là|ici)\b/gi,
+   'freine $1'],
+  [/\bne\s+fresnes?\s+pas\b/gi, 'ne freine pas'],
   [/\bpriorit[ée] a droite\b/gi, 'priorité à droite'],
   [/\bd[ée]brailles?\b/gi, 'débrayes'],
   [/\bemb?railles?\b/gi, 'embrayes'],
@@ -478,6 +489,12 @@ $('confirmGen').addEventListener('click', async () => {
       transcript: aererTexte(coursCorrige),
       note: $('noteInterne').value.trim()
     });
+    /* Le rappel sur les écoutes pédagogiques, en fin de bilan */
+    if(typeof sansEcoutes === 'function' &&
+       sansEcoutes({ note: $('noteInterne').value })){
+      bilan += '\n\n' + rappelEcoutes();
+    }
+
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
