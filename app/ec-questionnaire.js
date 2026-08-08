@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 13:55 — v321 */
+/* Déployé le 08/08/2026 à 15:06 — v325 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -273,6 +273,28 @@ function majAffichageNoteInterne(){
   if(bloc) bloc.style.display = 'none';
 }
 
+
+/* Les segments que le questionnaire régénère à chaque ouverture :
+   frise, rang de la leçon, avancement. Les garder ferait s'empiler
+   trois frises différentes dans la même note. */
+const SEGMENTS_REGENERES = [
+  /le[çc]ons? de 2h.*exam(?:en)? blanc/i,
+  /^❓\s*le[çc]ons/i,
+  /^\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i,
+  /^1(?:ère|ere)\s+le[çc]on\b/i,
+  /frise (?:dépassée|depassee|terminée|terminee)/i,
+  /encore \d+\s+le[çc]ons?\s+avant/i,
+  /plus que les 3h avant examen/i
+];
+
+function retirerSegmentsRegeneres(note){
+  return String(note || '')
+    .split('·')
+    .map(x => x.trim())
+    .filter(x => x && !SEGMENTS_REGENERES.some(r => r.test(x)))
+    .join(' · ');
+}
+
 function appliquerNoteQuestionnaire(nouvelle){
   const champ = $('noteInterne');
   let actuel = champ.value.trim();
@@ -280,6 +302,11 @@ function appliquerNoteQuestionnaire(nouvelle){
   if(noteQuestionnaire && actuel.indexOf(noteQuestionnaire) !== -1){
     actuel = actuel.replace(noteQuestionnaire, '').replace(/^\s*·\s*|\s*·\s*$/g, '').trim();
   }
+
+  /* Et tout ce qui vient d'une ouverture antérieure : une note
+     héritée du cours précédent porte déjà sa frise, qui n'a plus
+     lieu d'être puisqu'on vient d'en recalculer une. */
+  actuel = retirerSegmentsRegeneres(actuel);
 
   champ.value = nouvelle
     ? (actuel ? nouvelle + ' · ' + actuel : nouvelle)
