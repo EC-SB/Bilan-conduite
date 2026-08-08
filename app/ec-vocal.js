@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:30 — v308 */
+/* Déployé le 08/08/2026 à 09:01 — v312 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -474,7 +474,8 @@ $('confirmGen').addEventListener('click', async () => {
     let bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
       marquesAvant: marquesAvant,
-      transcript: coursCorrige,
+      /* Aéré au dernier moment : le texte envoyé à l'IA reste entier */
+      transcript: aererTexte(coursCorrige),
       note: $('noteInterne').value.trim()
     });
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
@@ -652,6 +653,34 @@ async function retenirConsignesIA(texte, eleve){
                         eleve: eleve || '', par: ACCES.moniteur || '' });
     }catch(e){ /* sans réseau, la règle vaut pour ce bilan seulement */ }
   }
+}
+
+/* ============================================================
+   AÉRATION DU TEXTE DU COURS
+
+   L'IA reçoit la consigne de sauter des lignes, mais ne la suit
+   pas toujours. On ne peut pas s'en remettre à elle : un pavé de
+   quarante lignes est illisible pour l'élève, qui relit son cours
+   plusieurs jours après.
+   ============================================================ */
+function aererTexte(texte, phrasesParBloc){
+  const t = String(texte || '').trim();
+  if(!t) return '';
+
+  /* Déjà aéré par l'IA : on n'y touche pas */
+  if(/\n\s*\n/.test(t)) return t;
+
+  const parBloc = phrasesParBloc || 4;
+
+  /* Découpe en phrases, ponctuation conservée */
+  const phrases = t.split(/(?<=[.!?…])\s+/).map(x => x.trim()).filter(Boolean);
+  if(phrases.length <= parBloc) return t;
+
+  const blocs = [];
+  for(let i = 0; i < phrases.length; i += parBloc){
+    blocs.push(phrases.slice(i, i + parBloc).join(' '));
+  }
+  return blocs.join('\n\n');
 }
 
 const MARQUEURS_REPRISE = [
