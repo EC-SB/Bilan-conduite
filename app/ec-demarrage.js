@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:00 — v287 */
+/* Déployé le 08/08/2026 à 07:37 — v303 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
