@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 12:49 — v294 */
+/* Déployé le 08/08/2026 à 08:37 — v309 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -458,10 +458,45 @@ async function rechercherEleve(){
       meta.appendChild(t);
       meta.appendChild(s);
       if(item.horodatage) meta.appendChild(h);
+      row.appendChild(meta);
+
+      /* Supprimer un bilan : administrateurs seuls, et jamais par
+         mégarde. Le numéro de leçon se recalcule tout seul, il se
+         déduit du nombre de bilans restants. */
+      if(ACCES.role === 'admin' && item.ligne){
+        const bSup = document.createElement('button');
+        bSup.className = 'btn btn-secondary';
+        bSup.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
+          'flex-shrink:0;color:var(--red);border-color:var(--red);';
+        bSup.textContent = '🗑️';
+        bSup.title = 'Supprimer ce bilan';
+        bSup.addEventListener('click', async ev => {
+          ev.stopPropagation();
+          if(!await confirmer('Supprimer le bilan du ' + (item.date || '?') +
+              ' pour ' + item.eleve + ' ?\n\n' +
+              'Cette suppression est DÉFINITIVE : le texte du bilan et sa note ' +
+              'seront perdus.\n\nLes leçons suivantes seront renumérotées.')) return;
+
+          bSup.disabled = true;
+          bSup.textContent = '…';
+          try{
+            await appelPrep({ action: 'bilanSupprimer', ligne: item.ligne,
+                              eleve: item.eleve });
+            showToast('Bilan supprimé ✅');
+            viderCaches(item.eleve);
+            rechercherEleve();
+          }catch(e){
+            showToast('Suppression impossible : ' + e.message);
+            bSup.disabled = false;
+            bSup.textContent = '🗑️';
+          }
+        });
+        row.appendChild(bSup);
+      }
+
       const arrow = document.createElement('div');
       arrow.className = 'arrow';
       arrow.textContent = '›';
-      row.appendChild(meta);
       row.appendChild(arrow);
       row.addEventListener('click', () => {
         currentLessonMeta = {
@@ -603,10 +638,45 @@ async function refreshHistory(){
       sous.textContent = [item.dateStr, item.site, item.monitorName, item.modeleLabel].filter(Boolean).join(' · ');
       meta.appendChild(nom);
       meta.appendChild(sous);
+      row.appendChild(meta);
+
+      /* Supprimer un bilan : administrateurs seuls, et jamais par
+         mégarde. Le numéro de leçon se recalcule tout seul, il se
+         déduit du nombre de bilans restants. */
+      if(ACCES.role === 'admin' && item.ligne){
+        const bSup = document.createElement('button');
+        bSup.className = 'btn btn-secondary';
+        bSup.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
+          'flex-shrink:0;color:var(--red);border-color:var(--red);';
+        bSup.textContent = '🗑️';
+        bSup.title = 'Supprimer ce bilan';
+        bSup.addEventListener('click', async ev => {
+          ev.stopPropagation();
+          if(!await confirmer('Supprimer le bilan du ' + (item.date || '?') +
+              ' pour ' + item.eleve + ' ?\n\n' +
+              'Cette suppression est DÉFINITIVE : le texte du bilan et sa note ' +
+              'seront perdus.\n\nLes leçons suivantes seront renumérotées.')) return;
+
+          bSup.disabled = true;
+          bSup.textContent = '…';
+          try{
+            await appelPrep({ action: 'bilanSupprimer', ligne: item.ligne,
+                              eleve: item.eleve });
+            showToast('Bilan supprimé ✅');
+            viderCaches(item.eleve);
+            rechercherEleve();
+          }catch(e){
+            showToast('Suppression impossible : ' + e.message);
+            bSup.disabled = false;
+            bSup.textContent = '🗑️';
+          }
+        });
+        row.appendChild(bSup);
+      }
+
       const arrow = document.createElement('div');
       arrow.className = 'arrow';
       arrow.textContent = '›';
-      row.appendChild(meta);
       row.appendChild(arrow);
       row.addEventListener('click', () => {
         currentLessonMeta = item;
