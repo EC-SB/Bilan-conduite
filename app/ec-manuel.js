@@ -1,3 +1,4 @@
+/* Déployé le 08/08/2026 à 09:03 — v312 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -830,7 +831,9 @@ async function genererBilanManuel(){
     bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
       marquesAvant: marquesAvant,
-      transcript: champsManuels.texteDicte || '',
+      transcript: (typeof aererTexte === 'function'
+                    ? aererTexte(champsManuels.texteDicte || '')
+                    : (champsManuels.texteDicte || '')),
       note: $('noteInterne').value.trim()
     });
   }catch(e){
