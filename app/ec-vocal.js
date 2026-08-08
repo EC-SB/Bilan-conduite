@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:01 — v306 */
+/* Déployé le 08/08/2026 à 08:30 — v308 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1350,8 +1350,14 @@ function confirmerFinDeCours(){
                           texte: $('resultText').value });
         bMail.textContent = '✅ Envoyé à ' + mails.length + ' adresse(s)';
       }catch(e){
-        bMail.textContent = '⚠️ Échec : ' + e.message.slice(0, 40);
+        bMail.textContent = '⚠️ Échec';
         bMail.disabled = false;
+        /* Le détail sous le bouton : « HTTP 400 » seul n'aide personne */
+        const d3 = document.createElement('div');
+        d3.style.cssText = 'font-size:11px;color:var(--warn-text);margin-top:4px;' +
+          'line-height:1.4;word-break:break-word;';
+        d3.textContent = e.message;
+        bMail.after(d3);
       }
     });
     boite.appendChild(bMail);
