@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 15:40 — v300 */
+/* Déployé le 08/08/2026 à 08:41 — v310 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -13,11 +13,11 @@ const CLE_ONGLET = 'onglet_actif';
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'permis', 'depart'],
+  eleves: ['recherche', 'rappels', 'eleves', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'eleves', 'rappels', 'historique', 'admin']
+           'sms', 'stats', 'historique', 'admin']
 };
 
 let ongletActif = '';
@@ -117,15 +117,15 @@ function initOnglets(){
    prochains cours, préparer — tiennent sur une seule page, dans
    cet ordre. Un sélecteur n'en montrerait qu'un à la fois. */
 const VUES = {
-  eleves: [['recherche',  '🔍 Retrouver un élève', 'recherche'],
-           ['permis',     '🎓 Permis obtenu',      'permis'],
-           ['depart',     '🚪 Départ',             'depart']],
+  eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
+           ['rappels',    '🔔 Rappels de cours',      'rappels'],
+           ['eleves',     '👥 Répertoire',            'eleves'],
+           ['permis',     '🎓 Permis obtenu',         'permis'],
+           ['depart',     '🚪 Départ',                'depart']],
   outils: [['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
-           ['eleves',     '👥 Répertoire élèves',      'eleves'],
-           ['rappels',    '🔔 Rappels de cours',       'rappels'],
            ['historique', '📚 Historique des cours',    'historique'],
            ['sms',        '💬 SMS',                    'sms'],
            ['stats',      '📈 Réussite',               'stats'],
