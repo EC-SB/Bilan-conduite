@@ -1,770 +1,1462 @@
-/* =========================================================
-   Relais Bilan de conduite — Evolution Conduites
+/* Déployé le 08/08/2026 à 07:18 — v302 */
+/* ============================================================
+   ec-vocal.js
+   Reconnaissance vocale, vocabulaire métier, ponctuation, correction
+   Application Bilan de conduite — Évolution Conduites
+   ============================================================ */
 
-   A definir dans Settings du Worker :
+/* ============================================================
+   AIDE À LA RECONNAISSANCE — vocabulaire auto-école
+   Chrome propose plusieurs transcriptions possibles ; on retient
+   celle qui contient le plus de termes du métier.
+   ============================================================ */
+const LEXIQUE = [
+  'giratoire','giratoires','créneau','créneaux','bataille','épi','manœuvre','manœuvres',
+  'embrayage','embrayer','débrayer','débraye','débrayes','embraye','point d\'attaque',
+  'angle mort','angles morts','rétroviseur','rétroviseurs','rétro','clignotant','clignotants',
+  'cédez le passage','priorité','priorité à droite','stop','feu rouge','carrefour','rond-point',
+  'trajectoire','allure','allures','contrôle','contrôles','vérification','vérifications',
+  'marche arrière','demi-tour','arrêt de précision','voie','voies','chaussée','trottoir',
+  'accélération','décélération','régulateur','frein','freiner','frein à main','accélérateur',
+  'seconde','première','troisième','quatrième','cinquième','vitesse','vitesses','rapport',
+  'volant','pédale','pédales','ceinture','installation','voyant','voyants','tableau de bord',
+  'intersection','dépassement','doubler','insertion','rabattre','serrer','déporte',
+  'piéton','piétons','cycliste','bande cyclable','examen','permis','boîte','automatique',
+  'manuelle','simulateur','tours minute','kilomètre','kilomètres','calé','caler','démarrage',
+  'bosse','bosses','verrouille','verrouiller','roues droites','braquer','rebraquer',
+  'chicane','bordure','borne','feu vert','feu rouge','bonhomme','passage piéton',
+  'insérer','insertion','décélération','se rabattre','rabats-toi'
+];
 
-   Secrets (Variables and Secrets) :
-     ANTHROPIC_API_KEY : la cle API Anthropic
-     SHEETS_URL        : l'URL /exec du script Apps Script
-     ADMIN_CODE        : compte(s) principal(aux), format code:Prenom
-                         separes par des virgules si plusieurs.
-                         ex.  4821:Chrystel,7315:David
-                         Ces comptes sont toujours administrateurs et ne
-                         peuvent etre ni supprimes ni retrogrades depuis
-                         l'interface : c'est la securite anti-blocage.
+function normaliserMot(s){
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+const LEXIQUE_NORM = LEXIQUE.map(normaliserMot);
 
-   Stockage (Bindings > KV namespace) :
-     UTILISATEURS      : espace KV qui contient les autres comptes
-
-   Note : la variable CODES_ACCES n'est plus utilisee, elle peut
-   etre supprimee.
-   ========================================================= */
-
-const ORIGINE_AUTORISEE = "https://ec-sb.github.io";
-
-/* Origines acceptées : le site en ligne, plus les adresses locales
-   pour pouvoir essayer une modification sans la mettre en ligne.
-   Le code d'accès reste exigé dans tous les cas. */
-function origineAutorisee(origin) {
-  if (!origin) return true;                       // appel direct, sans navigateur
-  if (origin === ORIGINE_AUTORISEE) return true;
-  return /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin);
+function scoreMetier(texte){
+  const t = normaliserMot(texte);
+  let score = 0;
+  for(let i = 0; i < LEXIQUE_NORM.length; i++){
+    if(t.indexOf(LEXIQUE_NORM[i]) !== -1) score++;
+  }
+  return score;
 }
 
-/* Sections réglables une par une */
-/* Un numéro français, au format attendu par Allo.
-   06 12 34 56 78, 0033…, +33… et 612345678 donnent tous +33612345678. */
-function enFormatInternational(v) {
-  let t = String(v || "").replace(/[^\d+]/g, "");
-  if (!t) return "";
-  if (t.indexOf("00") === 0) t = "+" + t.slice(2);
-  if (t.indexOf("0") === 0 && t.length === 10) t = "+33" + t.slice(1);
-  if (t.indexOf("+") !== 0) {
-    t = (t.length === 9) ? "+33" + t : "+" + t;
+/* Retient la proposition la plus « métier » parmi celles de Chrome */
+function meilleureProposition(resultat){
+  if(!resultat || !resultat.length) return '';
+  let meilleur = resultat[0].transcript;
+  let meilleurScore = scoreMetier(meilleur);
+  for(let i = 1; i < resultat.length; i++){
+    const t = resultat[i].transcript;
+    const s = scoreMetier(t);
+    if(s > meilleurScore){ meilleur = t; meilleurScore = s; }
   }
+  return meilleur;
+}
+
+/* Corrections sûres : uniquement des confusions récurrentes et sans ambiguïté */
+const CORRECTIONS = [
+  [/\bgyratoire[s]?\b/gi, 'giratoire'],
+  [/\bgyrophare\b/gi, 'giratoire'],
+  [/\bcr[ée]do\b/gi, 'créneau'],
+  [/\bcr[ée]dneau\b/gi, 'créneau'],
+  [/\bcr[ée]neau?x?\b/gi, 'créneau'],
+  /* « angle mort » est très souvent mal entendu : ongle, oncle.
+     Le pluriel est conservé : « les angles morts » reste correct. */
+  [/\bongles\s+m[oô]rts?\b/gi, 'angles morts'],
+  [/\boncles\s+m[oô]rts?\b/gi, 'angles morts'],
+  [/\bongle\s+m[oô]rt?\b/gi, 'angle mort'],
+  [/\boncle\s+m[oô]rt?\b/gi, 'angle mort'],
+  [/\bangle m[oô]r\b/gi, 'angle mort'],
+  /* « cédez » mal entendu : CD, c d, sédez, céder. On exige la
+     suite « le passage » — « CD » seul désigne le créneau droit. */
+  [/\b(?:c\s*[.-]?\s*d|s[ée]dez|c[ée]d[ée]?[rz]?|cet[ée]|ced[ée])\s+le\s+passage\b/gi,
+   'cédez le passage'],
+  [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
+  [/\bpriorit[ée] a droite\b/gi, 'priorité à droite'],
+  [/\bd[ée]brailles?\b/gi, 'débrayes'],
+  [/\bemb?railles?\b/gi, 'embrayes'],
+  [/\bmarche arri[eè]re?\b/gi, 'marche arrière'],
+  [/\bdemi tour\b/gi, 'demi-tour'],
+  [/\brond point\b/gi, 'rond-point'],
+  [/\bva v[ée]\b/gi, 'VA VD'],
+  [/\broues? droit(?:e|es)?\b/gi, 'roues droites'],
+  [/\bd[ée]verrouille\s+(ton|le)\s+volant\b/gi, 'verrouille $1 volant'],
+  [/\bles\s+bus\b(?=[^.]*coller|[^.]*droite)/gi, 'les bosses'],
+  [/\bp\.?a\.?d\.?\b/gi, 'PAD']
+];
+
+function corrigerVocabulaire(texte){
+  let t = String(texte || '');
+  CORRECTIONS.forEach(([motif, remplacement]) => { t = t.replace(motif, remplacement); });
   return t;
 }
 
-/* L'expéditeur : un numéro devient international, un Sender ID
-   alphanumérique est conservé tel quel (11 caractères au plus). */
-function expediteurValide(v) {
-  const brut = String(v || "").trim();
-  if (!brut) return "";
 
-  /* Des lettres : c'est un Sender ID, on n'y touche pas */
-  if (/[a-zA-Z]/.test(brut)) return brut.slice(0, 11);
-
-  return enFormatInternational(brut);
+/* ============================================================
+   PONCTUATION AUTOMATIQUE
+   Chrome ne ponctue pas le français : on pose les points sur les
+   pauses réelles du moniteur, plus les virgules évidentes.
+   ============================================================ */
+function sansPonctuationFinale(s){
+  return String(s || '').replace(/[.!?…,;:]+$/, '').trim();
 }
 
-/* Allo compte 1000 caractères par SMS ; on garde une marge. */
-const LIMITE_SMS = 950;
+/* Clôt une phrase : appelé quand une pause met fin à une session */
+function terminerPhrase(texte){
+  const t = String(texte || '').trim();
+  if(!t) return '';
+  if(/[.!?…]$/.test(t)) return t;
+  return t.replace(/[,;:]$/, '') + '.';
+}
 
-const SECTIONS = [
-  "prepares", "cours", "recherche",
-  "bureau_simu", "bureau_examblanc", "bureau_places", "bureau_permis",
-  "bureau_messages", "permis", "textes", "procedures", "bilans", "stats", "sms", "eleves", "rappels", "historique", "depart", "admin"
+/* Connecteurs qui prennent presque toujours une virgule devant eux */
+const CONNECTEURS = ['mais','donc','car','parce que','alors que','tandis que','sauf que','pourtant','cependant'];
+
+function poserVirgules(texte){
+  let t = String(texte || '');
+  CONNECTEURS.forEach(mot => {
+    const re = new RegExp('([a-zà-ÿ0-9])\\s+(' + mot + ')\\b', 'gi');
+    t = t.replace(re, '$1, $2');
+  });
+  return t;
+}
+
+function majusculer(texte){
+  return String(texte || '').replace(
+    /(^|[.!?…]\s+)([a-zà-ÿ])/g,
+    (m, avant, lettre) => avant + lettre.toUpperCase()
+  );
+}
+
+function mettreEnForme(texte){
+  return majusculer(poserVirgules(String(texte || '').replace(/\s+/g, ' ').trim()));
+}
+
+/* Fabrique un objet de reconnaissance NEUF, entièrement câblé.
+   Sur Android, une session peut se figer sans rien émettre : le seul
+   remède fiable est de jeter l'objet et d'en construire un autre. */
+function creerReconnaissance(){
+  const r = new SR();
+  r.lang = 'fr-FR';
+  /* Android ignore le mode continu et se comporte mal avec :
+     on relance nous-mêmes à chaque fin de session. */
+  r.continuous = !estAndroid;
+  /* Provisoires désactivés : sur Android ils sont empilés et non
+     remplacés, ce qui provoquait la duplication du texte. */
+  r.interimResults = false;
+  /* Chrome propose plusieurs transcriptions : on les compare
+     au vocabulaire du métier au lieu de prendre la première. */
+  r.maxAlternatives = 4;
+
+  r.onstart = () => {
+    marquerActif('onstart');
+    if(!dernierMot) dernierMot = Date.now();
+  };
+  r.onaudiostart = () => marquerActif('audio');
+  r.onsoundstart = () => marquerActif('son détecté');
+  r.onspeechstart = () => marquerActif('parole détectée');
+
+  r.onresult = event => {
+    /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu
+       d'ajouter à la suite : impossible d'accumuler des doublons. */
+    const chunks = [];
+    for(let i = 0; i < event.results.length; i++){
+      chunks.push(meilleureProposition(event.results[i]));
+    }
+    /* Les reprises du moniteur sont appliquées tout de suite :
+       il voit son texte se corriger pendant qu'il parle. */
+    const sessionText = appliquerReprises(corrigerVocabulaire(fusionner(chunks)));
+    finalTranscript = mettreEnForme(fusionner([committedTranscript, sessionText]));
+    if(sessionText) dernierMot = Date.now();
+    marquerActif('résultat reçu');
+
+    const box = $('transcriptBox');
+    box.value = finalTranscript;
+    box.scrollTop = box.scrollHeight;
+    $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length +
+      ' mots' + (dernieresReprises ? ' · ' + dernieresReprises + ' reprise(s) appliquée(s)' : '');
+    sauvegarderLocal();
+  };
+
+  r.onerror = event => {
+    sessionActive = false;
+    demarrageEnCours = false;
+    const err = String(event && event.error || '');
+    dernierEvenement = 'erreur: ' + err;
+
+    if(err === 'no-speech' || err === 'network' || err === 'aborted') return;
+
+    if(err === 'not-allowed' || err === 'service-not-allowed'){
+      $('status').textContent = "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
+      libererEcran(); arreterUI(); return;
+    }
+    if(err === 'audio-capture'){
+      $('status').textContent = 'Aucun micro accessible. Vérifie qu\'aucune autre application ne l\'utilise.';
+      libererEcran(); arreterUI(); return;
+    }
+    if(err === 'language-not-supported'){
+      $('status').textContent = 'Le français n\'est pas disponible pour la dictée sur cet appareil.';
+      libererEcran(); arreterUI(); return;
+    }
+    $('status').textContent = 'Erreur micro : ' + err;
+  };
+
+  r.onend = () => {
+    /* Le micro se coupe régulièrement de lui-même : on fige le texte
+       acquis avant de relancer, sinon la session suivante repart de zéro. */
+    sessionActive = false;
+    demarrageEnCours = false;
+    dernierEvenement = 'session terminée';
+    /* Une pause = une fin de phrase */
+    committedTranscript = terminerPhrase(finalTranscript);
+    finalTranscript = committedTranscript;
+    const zone = $('transcriptBox');
+    if(zone) zone.value = finalTranscript;
+    relancerMicro();
+  };
+
+  return r;
+}
+
+/* Détruit la session figée et repart sur un objet neuf */
+function recreerEtDemarrer(){
+  try{
+    if(recognition){
+      recognition.onend = null;      /* évite de déclencher une relance */
+      recognition.onerror = null;
+      recognition.abort();
+    }
+  }catch(e){}
+
+  recognition = creerReconnaissance();
+  sessionActive = false;
+  try{
+    recognition.start();
+    dernierEvenement = 'nouvelle session';
+  }catch(e){
+    dernierEvenement = 'échec après recréation: ' + (e && e.name ? e.name : e);
+  }
+}
+
+function arreterUI(){
+  isRecording = false;
+  sessionActive = false;
+  demarrageEnCours = false;
+  $('etatMicro').textContent = '';
+  if($('diagMicro')) $('diagMicro').textContent = '';
+  const b = $('recBtn');
+  b.classList.remove('recording');
+  b.classList.add('idle');
+  b.textContent = "🎙️ Reprendre l'enregistrement";
+}
+
+$('recBtn').addEventListener('click', async () => {
+  if(isRecording){
+    isRecording = false;                 /* avant stop() : bloque la relance */
+    try{ recognition.stop(); }catch(e){}
+    libererEcran();
+    arreterUI();
+    $('status').textContent = 'En pause. Appuie sur "Terminer" pour générer le bilan.';
+    return;
+  }
+
+  const btn = $('recBtn');
+  const probleme = verifierContexte();
+  if(probleme){
+    $('status').textContent = probleme;
+    return;
+  }
+
+  /* Questionnaire au tout début du cours seulement.
+     Évaluation et examen : rien à demander avant, tout se décide après. */
+  const profilDepart = profilQuestionnaire($('modele').value);
+  if(!finalTranscript && !contexteDepart && profilDepart !== 'evaluation' && profilDepart !== 'examen'){
+    btn.disabled = true;
+    btn.textContent = 'Préparation…';
+    try{
+      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de démarrer');
+      if(rep){
+        contexteDepart = rep;
+        appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
+      }
+    }finally{
+      btn.disabled = false;
+      btn.textContent = '🎙️ Démarrer le cours';
+    }
+  }
+
+  if(!finalTranscript){
+    $('transcriptBox').value = '';
+    $('transcriptBox').style.display = 'block';
+    $('transcriptAide').style.display = 'block';
+    $('compteur').style.display = 'block';
+  }else{
+    /* Reprise après pause : on repart du texte affiché,
+       corrections manuelles comprises. */
+    finalTranscript = $('transcriptBox').value.trim();
+    committedTranscript = finalTranscript;
+  }
+
+  const res = demarrerReconnaissance();
+  if(!res.ok){
+    $('status').textContent = 'Le micro n\'a pas démarré : ' + res.message;
+    return;
+  }
+
+  isRecording = true;
+  dernierMot = Date.now();
+  btn.classList.remove('idle');
+  btn.classList.add('recording');
+  btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
+  $('finishBtn').style.display = 'block';
+
+  /* Le bureau voit qui est en cours, sans avoir à appeler */
+  if(typeof signalerCoursDemarre === 'function'){
+    signalerCoursDemarre($('studentName').value.trim(),
+                         $('modele').selectedOptions[0]
+                           ? $('modele').selectedOptions[0].textContent : '',
+                         $('site') ? $('site').value : '');
+  }
+
+  /* Maintien de l'écran — hors du chemin critique :
+     un échec ici ne doit pas passer pour une panne de micro. */
+  const ecranTenu = await garderEcranAllume();
+  $('status').textContent = ecranTenu
+    ? 'Écran maintenu allumé. Laisse cette page affichée.'
+    : '⚠️ Empêche l\'écran de s\'éteindre et laisse cette page affichée.';
+});
+
+/* ---------- Génération ---------- */
+/* Le bouton n'enclenche plus rien directement : il demande confirmation */
+$('finishBtn').addEventListener('click', async () => {
+  const bFin = $('finishBtn');
+  if(bFin.disabled) return;
+  bFin.disabled = true;
+  const libelleFin = bFin.textContent;
+  bFin.textContent = 'Préparation…';
+  try{
+
+  if(isRecording){
+    isRecording = false;
+    try{ recognition.stop(); }catch(e){}
+    arreterUI();
+  }
+  libererEcran();
+
+  finalTranscript = $('transcriptBox').value.trim();   /* corrections manuelles prises en compte */
+  committedTranscript = finalTranscript;
+  const mots = finalTranscript.trim().split(/\s+/).filter(Boolean).length;
+  const modele = MODELES[$('modele').value];
+
+  $('confirmRecap').innerHTML =
+    'Type : <b>' + (modele ? modele.label : '—') + '</b><br>' +
+    'Élève : <b>' + ($('studentName').value.trim() || '(non renseigné)') + '</b><br>' +
+    'Moniteur : <b>' + ($('monitorName').value.trim() || '(non renseigné)') + '</b><br>' +
+    'Mots captés : <b>' + mots + '</b>';
+
+  const alerte = $('confirmAlerte');
+  const soucis = [];
+  if(!$('studentName').value.trim()) soucis.push("le nom de l'élève n'est pas renseigné");
+  if(mots < 60) soucis.push('la transcription est très courte (' + mots + ' mots)');
+  if(interruptions > 0) soucis.push("l'enregistrement a été interrompu " + interruptions + ' fois');
+
+  if(soucis.length){
+    alerte.style.display = 'block';
+    alerte.innerHTML = '⚠️ Attention : ' + soucis.join(', ') + '.';
+  }else{
+    alerte.style.display = 'none';
+  }
+
+  /* Le questionnaire revient, pré-rempli : tout reste modifiable
+     après le cours, notamment les leçons avant l'examen blanc. */
+  const maj = await ouvrirQuestionnaireDepart(contexteDepart, 'Après ce cours', 'Terminer');
+  if(maj){
+    contexteDepart = maj;
+    appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
+  }
+
+  $('confirmOverlay').classList.add('show');
+
+  }finally{
+    bFin.disabled = false;
+    bFin.textContent = libelleFin;
+  }
+});
+
+$('cancelGen').addEventListener('click', () => {
+  $('confirmOverlay').classList.remove('show');
+});
+
+$('confirmOverlay').addEventListener('click', e => {
+  if(e.target === $('confirmOverlay')) $('confirmOverlay').classList.remove('show');
+});
+
+$('confirmGen').addEventListener('click', async () => {
+  $('confirmOverlay').classList.remove('show');
+
+  const modeleCle = $('modele').value;
+  const modele = MODELES[modeleCle];
+  const studentName = $('studentName').value.trim() || "l'élève";
+  const monitorName = $('monitorName').value.trim();
+  const site = $('site').value;
+  const rawDate = $('lessonDate').value;
+  const dateObj = rawDate ? new Date(rawDate + 'T12:00:00') : new Date();
+  const dateStr = dateObj.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+
+  if(finalTranscript.trim().length < 30){
+    showToast("Transcription trop courte pour générer un bilan.");
+    return;
+  }
+
+  const p2 = n => String(n).padStart(2, '0');
+  const dateCourte = p2(dateObj.getDate()) + '/' + p2(dateObj.getMonth() + 1) + '/' + dateObj.getFullYear();
+
+  currentLessonMeta = {
+    modeleLabel: modele.label, studentName, monitorName, site, dateStr, dateCourte,
+    noteInterne: $('noteInterne').value.trim(),
+    ts: Date.now()
+  };
+  $('recordView').style.display = 'none';
+  $('generatingView').style.display = 'block';
+  $('progressionGen').textContent = 'Préparation…';
+  const oldDetail = $('genErrorDetail');
+  if(oldDetail) oldDetail.remove();
+
+  try{
+    /* Modèle Conduite : on reprend les manœuvres validées les cours précédents */
+    let manoeuvresAvant = [];
+    let marquesAvant = null;
+    let coursCorrige = finalTranscript;
+
+    if(modele.schema === 'conduiteResume'){
+      /* Les bilans précédents se lisent pendant la correction,
+         pas avant : les deux n'ont rien à s'attendre. */
+      const promesseHistorique = bilansAnterieurs(studentName);
+
+      /* Remise au propre du cours, par tranches */
+      coursCorrige = await corrigerCours(finalTranscript, (n, total, essai) => {
+        let msg = total > 1
+          ? 'Correction du cours — ' + n + ' partie(s) sur ' + total + '…'
+          : 'Correction du cours…';
+        if(essai && essai > 1) msg += ' (nouvelle tentative)';
+        $('progressionGen').textContent = msg;
+      });
+      $('progressionGen').textContent = 'Rédaction du résumé…';
+
+      const historique = await promesseHistorique;
+      historique.forEach(item => {
+        manoeuvresDejaFaites(item.bilan).forEach(m => {
+          if(manoeuvresAvant.indexOf(m) === -1) manoeuvresAvant.push(m);
+        });
+      });
+      marquesAvant = {};
+      historique.slice().reverse().forEach(item => {
+        const mk = marquesDejaPosees(item.bilan);
+        Object.keys(mk).forEach(k => { marquesAvant[k] = mk[k]; });
+      });
+    }
+
+    const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
+    let bilan = modele.build(donnees, {
+      manoeuvresAvant: manoeuvresAvant,
+      marquesAvant: marquesAvant,
+      transcript: coursCorrige,
+      note: $('noteInterne').value.trim()
+    });
+    if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
+    $('resultText').value = bilan;
+    afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
+    if(dernierEchecCorrection){
+      const detail = dernierEchecCorrection
+        .map(e => 'partie ' + e.n + ' (' + e.motif + ')').join(', ');
+      await informer('⚠️ Correction incomplète\n\n' + detail + '\n\n' +
+            'Le texte brut a été conservé pour ces passages : rien n\'est perdu, ' +
+            'mais ils ne sont pas corrigés. Relis-les avant d\'envoyer.');
+    }
+    sauvegarderLocal(true);
+    /* La préparation sort de la liste à l'ENREGISTREMENT, pas ici :
+       un bilan généré puis abandonné doit rester à faire. */
+    $('generatingView').style.display = 'none';
+    $('resultView').style.display = 'block';
+  if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
+    window.scrollTo(0, 0);
+    marquerExport(false);
+    await saveLesson(currentLessonMeta, bilan);
+    await refreshHistory();
+  }catch(err){
+    console.error('Erreur génération bilan:', err);
+    $('generatingView').style.display = 'none';
+    $('recordView').style.display = 'block';
+    showToast("Erreur de génération — détail sous le bouton.");
+    const d = document.createElement('div');
+    d.id = 'genErrorDetail';
+    d.style.cssText = 'margin-top:10px;font-size:12px;color:var(--warn-text);background:var(--warn-bg);border:1px solid var(--red);padding:10px;border-radius:8px;';
+    d.textContent = 'Détail : ' + (err && err.message ? err.message : String(err));
+    $('finishBtn').insertAdjacentElement('afterend', d);
+  }
+});
+
+
+/* Va chercher dans Sheets les manœuvres déjà validées pour cet élève,
+   afin de les reporter sur le nouveau bilan. */
+
+/* ============================================================
+   CORRECTION DU COURS PAR TRANCHES
+   Corriger un cours entier en un seul appel dépasse la taille
+   maximale de réponse : on découpe, on corrige, on recolle.
+   ============================================================ */
+const TAILLE_TRANCHE = 3500;   /* caractères par appel à l'IA */
+
+/* ============================================================
+   REPRISES À LA VOIX, APPLIQUÉES EN DIRECT
+   Le moniteur se relit et se corrige : « tourne à gauche, non
+   pardon, à droite ». La correction s'applique tout de suite
+   dans la zone de texte, pas seulement à la génération.
+
+   On reste prudent : seules les formules sans ambiguïté sont
+   traitées, et jamais un « non » adressé à l'élève.
+   ============================================================ */
+
+/* Ce qui annonce une reprise, et ce qui la suit remplace ce qui précède */
+/* Les accords du bilan : sans ça, tout est écrit au masculin.
+   Une monitrice qui dicte se retrouvait « je suis satisfait ». */
+function consigneAccords(){
+  const gm = (typeof ACCES !== 'undefined' && ACCES.genre) || '';
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  const f = (nom && typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const ge = (f && f.genre) || '';
+
+  if(!gm && !ge) return '';
+
+  const bouts = ['\n\nACCORDS — À RESPECTER DANS TOUT LE TEXTE :'];
+
+  if(gm === 'F'){
+    bouts.push("- La personne qui parle est une MONITRICE. Tous les accords qui la " +
+      "concernent sont au FÉMININ : « je suis contente », « je t'ai accompagnée », " +
+      '« ta monitrice ». Ne la désigne jamais au masculin.');
+  }else if(gm === 'M'){
+    bouts.push('- La personne qui parle est un MONITEUR : accords au masculin le concernant.');
+  }
+
+  if(ge === 'F'){
+    bouts.push("- L'élève est une FILLE. Tous les accords qui la concernent sont au " +
+      "FÉMININ : « tu es prête », « tu t'es bien installée », « tu as été attentive ».");
+  }else if(ge === 'M'){
+    bouts.push("- L'élève est un GARÇON : accords au masculin le concernant.");
+  }
+
+  bouts.push('- Tu corriges UNIQUEMENT les accords. Tu ne changes aucun mot, ' +
+    'aucune consigne, aucune tournure pour autre chose.');
+
+  return bouts.join('\n');
+}
+
+/* ============================================================
+   CONSIGNES ADRESSÉES À L'IA PENDANT LE COURS
+
+   Le moniteur peut parler à l'IA au milieu de son cours :
+   « Claude, corrige la phrase précédente », « Claude, ça doit
+   apparaître en gras dans le résumé ». Ces phrases ne sont pas
+   du contenu de cours : ce sont des ordres, et ils doivent être
+   exécutés, pas recopiés.
+   ============================================================ */
+
+/* Reconnaît « Claude ... » jusqu'à la fin de la phrase */
+const MOTIF_CONSIGNE_IA =
+  /\b(?:claude|cl[oa]de|clode)\s*[,:.]?\s*([^.!?\n]{4,300}[.!?]?)/gi;
+
+/* Extrait les consignes et rend le texte sans elles */
+function extraireConsignesIA(texte){
+  const t = String(texte || '');
+  const consignes = [];
+  let m;
+
+  const g = new RegExp(MOTIF_CONSIGNE_IA.source, 'gi');
+  while((m = g.exec(t)) !== null){
+    const ordre = String(m[1] || '').trim();
+    if(ordre.length >= 4) consignes.push(ordre);
+  }
+
+  return { consignes: consignes, texte: t };
+}
+
+/* Le bloc à donner à l'IA, en tête de ses instructions */
+function consigneMoniteurIA(texte){
+  const r = extraireConsignesIA(texte);
+  if(!r.consignes.length) return '';
+
+  return '\n\nORDRES DU MONITEUR — PRIORITÉ ABSOLUE :\n' +
+    "Pendant le cours, le moniteur s'est adressé directement à toi en disant " +
+    '« Claude, … ». Ce sont des ORDRES, pas du contenu de cours.\n' +
+    r.consignes.map((x, i) => '  ' + (i + 1) + '. ' + x).join('\n') + '\n' +
+    'RÈGLES :\n' +
+    "- Tu exécutes chacun de ces ordres, même s'ils contredisent tes autres consignes.\n" +
+    "- Tu SUPPRIMES du texte final la phrase qui contient l'ordre lui-même : " +
+    "« Claude, corrige la phrase précédente » ne doit pas apparaître dans le bilan.\n" +
+    "- Si l'ordre corrige une phrase (« ce n'est pas ça que j'ai voulu dire, mais ça »), " +
+    'tu remplaces la phrase visée par la version corrigée.\n' +
+    "- Si l'ordre demande une mise en avant, tu la respectes dans le résumé.\n" +
+    "- Si l'ordre porte sur du vocabulaire ou une règle métier, tu l'appliques partout " +
+    'dans ce bilan.\n' +
+    "- En cas de doute sur ce que vise un ordre, tu appliques ce qui te semble le plus " +
+    "proche et tu ne supprimes rien d'autre.\n";
+}
+
+/* Les règles retenues des cours précédents, relues à chaque bilan.
+   L'IA n'apprend pas : c'est cette liste qui fait office de mémoire. */
+let reglesIA = [];
+let reglesIALues = 0;
+
+async function chargerReglesIA(){
+  if(Date.now() - reglesIALues < 600000) return reglesIA;   /* 10 min */
+  try{
+    const d = await appelPrep({ action: 'regleIaList' });
+    reglesIA = ((d && d.regles) || []).map(x => x.regle).filter(Boolean);
+    reglesIALues = Date.now();
+  }catch(e){ /* hors ligne : on se passe des règles */ }
+  return reglesIA;
+}
+
+/* Le bloc de règles à joindre aux consignes */
+function consigneReglesIA(){
+  if(!reglesIA.length) return '';
+  return '\n\nRÈGLES DICTÉES PAR LES MONITEURS — à respecter dans tous les bilans :\n' +
+    reglesIA.map((x, i) => '  ' + (i + 1) + '. ' + x).join('\n') + '\n' +
+    'Ces règles viennent de cours précédents. Elles priment sur tes habitudes, ' +
+    "mais jamais sur un ordre donné pendant CE cours.\n";
+}
+
+/* Ce que le moniteur a dicté aujourd'hui rejoint la mémoire.
+   Une règle reste inactive tant qu'un administrateur ne l'a pas
+   validée : une consigne ponctuelle ne doit pas devenir permanente. */
+async function retenirConsignesIA(texte, eleve){
+  const r = extraireConsignesIA(texte);
+  if(!r.consignes.length) return;
+  for(const ordre of r.consignes){
+    try{
+      await appelPrep({ action: 'regleIaAdd', regle: ordre,
+                        eleve: eleve || '', par: ACCES.moniteur || '' });
+    }catch(e){ /* sans réseau, la règle vaut pour ce bilan seulement */ }
+  }
+}
+
+const MARQUEURS_REPRISE = [
+  'non pardon', 'ah non pardon', 'euh pardon', 'pardon je voulais dire',
+  'je voulais dire', 'je reprends', 'je me reprends', 'rectification',
+  'je corrige', 'plutôt non', 'non plutôt', 'enfin non', 'non je disais',
+  'non en fait', 'oublie ça', 'oublie cette phrase'
 ];
 
-/* Ce que chaque rôle obtient par défaut ; « m » = modifier, « v » = voir */
-const DROITS_ROLE = {
-  admin: { prepares:"m", cours:"m", recherche:"m", bureau_simu:"m",
-           bureau_examblanc:"m", bureau_places:"m", bureau_permis:"m",
-           bureau_messages:"m", permis:"m", textes:"m", procedures:"m", bilans:"m", stats:"m", sms:"m", eleves:"m", rappels:"m", historique:"m", depart:"m", admin:"m" },
-  bureau: { recherche:"m", bureau_simu:"m", bureau_examblanc:"m",
-            bureau_places:"m", bureau_permis:"m", bureau_messages:"m", permis:"m", textes:"m", procedures:"m", bilans:"m", stats:"m", sms:"m", eleves:"m", rappels:"m", historique:"m", depart:"m" },
-  moniteur: { prepares:"m", cours:"m", recherche:"v" }
-};
+let dernieresReprises = 0;
 
-/* Nettoie un jeu de droits reçu du client */
-function nettoyerDroits(d) {
-  const out = {};
-  if (!d || typeof d !== "object") return out;
-  /* Ancien format : simple liste de sections */
-  if (Array.isArray(d)) {
-    d.forEach(function (k) { if (SECTIONS.indexOf(k) !== -1) out[k] = "m"; });
-    return out;
-  }
-  Object.keys(d).forEach(function (k) {
-    if (SECTIONS.indexOf(k) === -1) return;
-    if (d[k] === "m" || d[k] === "v") out[k] = d[k];
+/* Découpe en phrases, en gardant la ponctuation */
+function decouperPhrases(texte){
+  return String(texte || '').split(/(?<=[.!?…])\s+/).filter(x => x.trim());
+}
+
+/* Applique les reprises trouvées dans le texte */
+function appliquerReprises(texte){
+  let t = String(texte || '');
+  let n = 0;
+
+  MARQUEURS_REPRISE.forEach(marqueur => {
+    /* Le marqueur, précédé de ce qu'il annule et suivi de la bonne version */
+    const motif = new RegExp(
+      '([^.!?…\\n]*?)' +
+      '(?:,\\s*|\\s+)' + marqueur.replace(/ /g, '\\s+') +
+      '(?:,\\s*|\\s+)' +
+      '([^.!?…\\n]*)', 'gi');
+
+    t = t.replace(motif, (tout, avant, apres) => {
+      const bon = String(apres || '').trim();
+      if(!bon) return tout;          /* rien derrière : on ne touche à rien */
+
+      /* On ne retire que ce que la reprise remplace, pas toute la phrase.
+         « tourne à gauche » corrigé en « à droite » doit donner
+         « tourne à droite », et non « à droite » tout court. */
+      const debut = String(avant || '');
+      let garde;
+
+      const virgule = debut.lastIndexOf(',');
+      if(virgule > 0){
+        /* Une virgule marque déjà la limite du morceau annulé */
+        garde = debut.slice(0, virgule + 1) + ' ';
+      }else{
+        /* Sinon on retire autant de mots que la correction en apporte */
+        const mots = debut.trim().split(/\s+/).filter(Boolean);
+        const combien = bon.trim().split(/\s+/).filter(Boolean).length;
+        const restants = mots.slice(0, Math.max(0, mots.length - combien));
+        garde = restants.length ? restants.join(' ') + ' ' : '';
+      }
+
+      n++;
+      return garde + bon;
+    });
   });
-  return out;
+
+  dernieresReprises = n;
+  return t;
 }
 
-/* ---------- Limitation des tentatives de connexion ---------- */
-const MAX_ESSAIS = 5;          // échecs tolérés
-const DUREE_BLOCAGE = 900;     // 15 minutes, en secondes
+const CONSIGNE_CORRECTION =
+'Tu remets au propre la transcription automatique d\'un cours de conduite enregistré en voiture.\n' +
+'\n' +
+'RÈGLES ABSOLUES :\n' +
+'- Tu CONSERVES TOUT ce qui a été dit, sans exception : les consignes de conduite, mais aussi les discussions, ' +
+'les digressions, les anecdotes et les échanges personnels. Tu ne censures rien, tu ne résumes rien, tu ne coupes rien.\n' +
+'- Tu corriges UNIQUEMENT la forme : fautes d\'orthographe, de grammaire, de conjugaison, mots mal transcrits ' +
+'par la reconnaissance vocale, ponctuation, majuscules.\n' +
+'- Tu supprimes les répétitions parasites de la transcription (mots répétés deux fois de suite par erreur, ' +
+'bégaiements de la machine) mais PAS les répétitions volontaires du moniteur.\n' +
+'- Tu corriges le vocabulaire auto-école mal transcrit : giratoire, créneau, bataille, épi, angle mort, ' +
+'PAD (priorité à droite), VA/VD, MALD, embrayage, débrayer, rétroviseur, clignotant.\n' +
+'- Tu découpes en paragraphes cohérents et tu sautes une ligne entre les sujets.\n' +
+'- Tu NE reformules PAS les idées et tu n\'ajoutes AUCUN commentaire de ta part.\n' +
+'- RÈGLE CAPITALE : si un mot ou une phrase est ambigu, tu le laisses TEL QUEL. Tu ne devines jamais. ' +
+'Mieux vaut un mot bizarre conservé qu\'un mot inventé qui change le sens : ce texte est relu par un élève ' +
+'qui appliquera ce qu\'il lit.\n' +
+'- Tu n\'inverses JAMAIS une consigne technique. « verrouille » ne devient pas « déverrouille », ' +
+'« ne cherche pas les problèmes sur un feu vert » ne devient pas « attends le feu vert », ' +
+'« roues droites » ne devient pas « tourne les roues ». En cas de doute sur une consigne, recopie-la mot pour mot.\n' +
+'- Attention aux mots proches en français : bosse/bus, mois/mouettes, roue/route, voie/voix, ' +
+'peur/pire. Choisis toujours celui qui a un sens dans le contexte de la conduite ; si aucun ne convient, garde l\'original.\n' +
+'- Tu n\'introduis JAMAIS un nom de manœuvre (MALD, MAR, créneau, bataille, épi, demi-tour, arrêt de précision) ' +
+'qui ne figure pas explicitement dans la transcription. Un mot incompréhensible ne doit jamais devenir un nom de manœuvre : ' +
+'l\'application coche les manœuvres réalisées à partir de ce texte, une invention ici fausse le suivi de l\'élève. ' +
+'Devant un mot incompréhensible, recopie-le tel quel.\n' +
+'- Le texte reste à la première personne du moniteur, tel qu\'il a parlé.\n' +
+'- AÉRATION : tu sautes une ligne vide entre les paragraphes. Un paragraphe correspond à un ' +
+'moment ou à un sujet : une manœuvre, un carrefour, une explication, un changement de lieu. ' +
+"Un bloc de vingt lignes serrées est illisible pour l'élève, qui doit pouvoir s'y retrouver " +
+'plusieurs jours après son cours.\n' +
+'\n' +
+'REPRISES À LA VOIX — SEULE EXCEPTION À LA RÈGLE « ON CONSERVE TOUT » :\n' +
+'Le moniteur se relit pendant l\'enregistrement et se corrige à voix haute quand la machine ' +
+'a mal entendu. Ces reprises doivent être APPLIQUÉES, pas recopiées.\n' +
+'- Tu reconnais une reprise à des formules comme : « non », « pardon », « je reprends », ' +
+'« je voulais dire », « enfin », « plutôt », « correction », « non pas X mais Y », ' +
+'« c\'est pas ça », « rectification », « efface », « oublie ».\n' +
+'- Tu remplaces alors le passage visé par la version corrigée, et tu SUPPRIMES la formule ' +
+'de reprise elle-même : elle ne doit pas apparaître dans le texte final.\n' +
+'  Exemple : « tourne à gauche, non pardon, à droite » devient « tourne à droite ».\n' +
+'  Exemple : « tu étais à 50, je reprends, tu étais à 70 » devient « tu étais à 70 ».\n' +
+'- Si la reprise porte sur une phrase entière prononcée juste avant, tu remplaces cette ' +
+'phrase et tu ne gardes que la bonne version.\n' +
+'- ATTENTION : « non » suivi d\'une consigne n\'est pas toujours une reprise. ' +
+'« Non, tu ne freines pas là » est une consigne adressée à l\'élève, tu la conserves. ' +
+'Une reprise corrige les MOTS du moniteur ; une consigne corrige la CONDUITE de l\'élève. ' +
+'Dans le doute, conserve les deux versions plutôt que d\'en supprimer une.\n' +
+'\n' +
+'Réponds UNIQUEMENT avec le texte corrigé. Pas de préambule, pas de titre, pas de balises.';
 
-function cleEssais(ip) {
-  return "essais:" + (ip || "inconnue");
+/* Une réponse complète se termine par une ponctuation forte */
+function finDePhrase(texte){
+  const t = String(texte || '').trim();
+  if(!t) return false;
+  return /[.!?…»"]$/.test(t);
 }
 
-async function lireEssais(env, ip) {
-  try {
-    const v = await env.UTILISATEURS.get(cleEssais(ip));
-    return v ? JSON.parse(v) : { n: 0, jusqua: 0 };
-  } catch (e) {
-    return { n: 0, jusqua: 0 };
+/* Découpe en respectant les fins de phrase */
+function decouperEnTranches(texte, taille){
+  const t = String(texte || '').trim();
+  if(t.length <= taille) return t ? [t] : [];
+  const tranches = [];
+  let reste = t;
+  while(reste.length > taille){
+    let coupe = reste.lastIndexOf('. ', taille);
+    if(coupe < taille * 0.5) coupe = reste.lastIndexOf(' ', taille);
+    if(coupe < taille * 0.5) coupe = taille;
+    tranches.push(reste.slice(0, coupe + 1).trim());
+    reste = reste.slice(coupe + 1).trim();
   }
+  if(reste) tranches.push(reste);
+  return tranches;
 }
 
-async function noterEchec(env, ip) {
-  const e = await lireEssais(env, ip);
-  e.n = (e.n || 0) + 1;
-  if (e.n >= MAX_ESSAIS) {
-    e.jusqua = Date.now() + DUREE_BLOCAGE * 1000;
+/* Corrige le cours entier, tranche par tranche */
+/* Corrige une tranche, avec ses tentatives. */
+/* Vrai dès qu'un appel a été refusé pour cadence trop élevée */
+let cadenceDepassee = false;
+
+async function corrigerUneTranche(tranche, i, total, surEssai, avant){
+  let contexte = total > 1
+    ? '\n\n(Partie ' + (i + 1) + ' sur ' + total +
+      ' d\'un même cours : ne réintroduis aucune introduction ni conclusion.)'
+    : '';
+
+  /* La fin de la tranche précédente, pour rattraper une reprise à voix
+     haute qui porterait sur les derniers mots d'avant la coupure. */
+  if(avant){
+    contexte += '\n\nCE QUI PRÉCÈDE, POUR CONTEXTE SEULEMENT — NE LE RECOPIE PAS ' +
+      'DANS TA RÉPONSE :\n« …' + avant + ' »\n' +
+      'Si le début de la partie à corriger reprend ou rectifie ces derniers mots, ' +
+      'applique la correction sur ta seule partie.';
   }
-  try {
-    await env.UTILISATEURS.put(cleEssais(ip), JSON.stringify(e),
-      { expirationTtl: DUREE_BLOCAGE });
-  } catch (err) {}
-  return e;
+
+  let derniereErreur = null;
+
+  /* Jusqu'à 3 tentatives : un échec ponctuel ne doit pas laisser
+     une partie du cours en texte brut. */
+  for(let essai = 1; essai <= 3; essai++){
+    try{
+      if(essai > 1){
+        if(surEssai) surEssai(essai);
+        /* Attente croissante : une limitation de cadence ne se lève
+           pas en une seconde et demie. */
+        const attente = cadenceDepassee ? 6000 * essai : 1500 * essai;
+        await new Promise(r => setTimeout(r, attente));
+      }
+      const txt = await appelBrutIA(CONSIGNE_CORRECTION + consigneAccords() +
+                                    consigneReglesIA() + consigneMoniteurIA(tranche) + contexte,
+                                    tranche, 8000);
+      const propre = (txt || '').trim();
+
+      /* Une correction fait forcément une longueur comparable à
+         l'original : trop court = réponse tronquée. */
+      if(!propre){
+        derniereErreur = new Error('réponse vide');
+      }else if(propre.length < tranche.length * 0.75){
+        derniereErreur = new Error('réponse tronquée (' +
+          Math.round(propre.length / tranche.length * 100) + '% de l\'original)');
+      }else if(!finDePhrase(propre)){
+        derniereErreur = new Error('réponse coupée en pleine phrase');
+      }else{
+        return { texte: propre };
+      }
+    }catch(e){
+      derniereErreur = e;
+      /* Trop d'appels d'un coup : les suivants attendent davantage */
+      if(/429|rate|cadence|overload/i.test(e.message || '')) cadenceDepassee = true;
+      console.warn('Tranche ' + (i + 1) + ', essai ' + essai + ' :', e);
+    }
+  }
+
+  /* Échec après trois tentatives : on garde le texte brut plutôt que
+     de perdre le passage, mais on lui applique au moins les
+     corrections de vocabulaire. Sans ça « ongle mort » restait. */
+  return { texte: corrigerVocabulaire(tranche),
+           echec: { n: i + 1, motif: derniereErreur ? derniereErreur.message : 'inconnu' } };
 }
 
-async function effacerEssais(env, ip) {
-  try { await env.UTILISATEURS.delete(cleEssais(ip)); } catch (e) {}
-}
+/* Combien de tranches traitées en même temps.
+   Au-delà, l'IA rejette pour cadence trop élevée. */
+const TRANCHES_SIMULTANEES = 3;
 
-function normaliserRole(r) {
-  return (r === "admin" || r === "bureau") ? r : "moniteur";
-}
+async function corrigerCours(transcript, surProgres){
+  const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
+  if(!tranches.length) return '';
 
-/* Droits d'un compte.
-   « Aucun droit » et « jamais configuré » sont deux choses différentes :
-   sans ce repère, décocher tout revenait à rendre les droits du rôle. */
-function droitsDe(u) {
-  const role = normaliserRole(u && u.role);
-  const perso = nettoyerDroits(u && u.droits);
+  cadenceDepassee = false;
+  await chargerReglesIA();
+  const corrigees = new Array(tranches.length);
+  const echecs = [];
+  let terminees = 0;
+  let suivante = 0;
 
-  /* Les droits ont été réglés à la main, même s'ils sont vides */
-  if (u && u.droitsRegles) return perso;
-
-  if (Object.keys(perso).length) return perso;
-  return Object.assign({}, DROITS_ROLE[role]);
-}
-const CLE_UTILISATEURS = "utilisateurs";
-
-function entetes(json, origin) {
-  const h = {
-    "Access-Control-Allow-Origin": origineAutorisee(origin) && origin
-      ? origin : ORIGINE_AUTORISEE,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
+  const avancer = () => {
+    terminees++;
+    if(surProgres) surProgres(terminees, tranches.length);
   };
-  if (json) h["Content-Type"] = "application/json";
-  return h;
+
+  /* Les tranches partent par groupes plutôt qu'une par une :
+     un cours d'une heure passait de longues minutes à attendre. */
+  async function ouvrier(){
+    while(true){
+      const i = suivante++;
+      if(i >= tranches.length) return;
+      /* Les 300 derniers caractères de la tranche d'avant */
+      const avant = (i > 0) ? tranches[i - 1].slice(-300) : '';
+      const r = await corrigerUneTranche(tranches[i], i, tranches.length,
+        essai => { if(surProgres) surProgres(terminees, tranches.length, essai); },
+        avant);
+      corrigees[i] = r.texte;
+      if(r.echec) echecs.push(r.echec);
+      avancer();
+    }
+  }
+
+  const combien = Math.min(TRANCHES_SIMULTANEES, tranches.length);
+  await Promise.all(Array.from({ length: combien }, ouvrier));
+
+  if(echecs.length){
+    /* On ne masque pas l'échec : le moniteur doit savoir que
+       certaines parties sont restées non corrigées. */
+    echecs.sort((a, b) => a.n - b.n);
+    dernierEchecCorrection = echecs;
+  }else{
+    dernierEchecCorrection = null;
+  }
+
+  return corrigees.join('\n\n');
 }
 
-function repJson(objet, statut) {
-  return new Response(JSON.stringify(objet), {
-    status: statut || 200,
-    headers: entetes(true)
+/* dernierEchecCorrection : déclaré dans ec-etat.js */
+
+
+/* Répare les JSON contenant des retours à la ligne bruts dans les
+   chaînes : c'est le défaut le plus fréquent des réponses longues. */
+function reparerJson(brut){
+  let sortie = '';
+  let dansChaine = false;
+  let echappe = false;
+
+  for(let i = 0; i < brut.length; i++){
+    const ch = brut[i];
+
+    if(echappe){ sortie += ch; echappe = false; continue; }
+    if(ch === '\\'){ sortie += ch; echappe = true; continue; }
+    if(ch === '"'){ dansChaine = !dansChaine; sortie += ch; continue; }
+
+    if(dansChaine){
+      /* Caractères de contrôle interdits dans une chaîne JSON */
+      if(ch === '\n'){ sortie += '\\n'; continue; }
+      if(ch === '\r'){ sortie += '\\r'; continue; }
+      if(ch === '\t'){ sortie += '\\t'; continue; }
+      if(ch.charCodeAt(0) < 32){ continue; }
+    }
+    sortie += ch;
+  }
+  return sortie;
+}
+
+/* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
+async function appelBrutIA(systemPrompt, message, maxTokens){
+  const r = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: maxTokens || 8000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: message }]
+      }
+    })
+  });
+  if(r.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé');
+  }
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  if(data.error) throw new Error(data.error.message || 'erreur API');
+  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+}
+
+/* Les bilans précédents d'un élève, lus une seule fois.
+   Le texte complet est nécessaire : c'est là que sont les marques. */
+async function bilansAnterieurs(nomEleve){
+  if(!nomEleve || nomEleve.length < 2) return [];
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve })
+    });
+    if(!r.ok) return [];
+    const data = await r.json();
+    return (data && data.resultats) || [];
+  }catch(e){
+    console.warn('Bilans antérieurs indisponibles :', e);
+    return [];   /* on continue sans, plutôt que de bloquer le bilan */
+  }
+}
+
+async function manoeuvresAnterieures(nomEleve){
+  const res = await bilansAnterieurs(nomEleve);
+  const cumul = [];
+  res.forEach(item => {
+    manoeuvresDejaFaites(item.bilan).forEach(m => {
+      if(cumul.indexOf(m) === -1) cumul.push(m);
+    });
+  });
+  return cumul;
+}
+
+/* Les marques accumulées : ✅ puis les émojis des moniteurs.
+   On part du bilan le plus récent, qui les porte toutes. */
+async function marquesAnterieures(nomEleve){
+  const res = await bilansAnterieurs(nomEleve);
+  const marques = {};
+  /* Du plus ancien au plus récent : le dernier écrit fait foi */
+  res.slice().reverse().forEach(item => {
+    const m = marquesDejaPosees(item.bilan);
+    Object.keys(m).forEach(k => { marques[k] = m[k]; });
+  });
+  return marques;
+}
+
+async function appelIA(modeleCle, transcript, studentName, monitorName, site, dateStr){
+  /* Les ordres du moniteur passent aussi au résumé : « ça doit
+     apparaître en gras » n'a de sens qu'à cette étape. */
+  const systemPrompt = construireConsignes(modeleCle) + consigneReglesIA() +
+                       consigneMoniteurIA(transcript);
+  const userMsg = 'Type de bilan : ' + MODELES[modeleCle].label + '\n' +
+    'Moniteur : ' + (monitorName || 'non renseigné') + '\n' +
+    'Élève : ' + studentName + '\n' +
+    'Site : ' + site + '\n' +
+    'Date : ' + dateStr + '\n\n' +
+    'Transcription brute du cours :\n"""\n' + transcript + '\n"""';
+
+  const response = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: 8000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }]
+      }
+    })
+  });
+
+  if(response.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé — code invalide.');
+  }
+
+  if(!response.ok){
+    let body = '';
+    try{ body = await response.text(); }catch(e){}
+    throw new Error('HTTP ' + response.status + ' — ' + body.slice(0, 300));
+  }
+
+  const data = await response.json();
+  if(data.type === 'error' || data.error){
+    throw new Error((data.error && data.error.message) || JSON.stringify(data).slice(0, 300));
+  }
+
+  let brut = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+
+  if(!brut){
+    const raison = data.stop_reason ? ' (arrêt : ' + data.stop_reason + ')' : '';
+    const mots = transcript.trim().split(/\s+/).filter(Boolean).length;
+    if(data.stop_reason === 'max_tokens'){
+      throw new Error('Réponse trop longue pour le modèle' + raison +
+        '. Cours de ' + mots + ' mots — découpe-le en deux bilans.');
+    }
+    throw new Error('Réponse vide du modèle' + raison +
+      '. Cours de ' + mots + ' mots. Blocs reçus : ' +
+      JSON.stringify((data.content || []).map(b => b.type)));
+  }
+
+  brut = brut.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const debut = brut.indexOf('{');
+  const fin = brut.lastIndexOf('}');
+  if(debut === -1 || fin === -1) throw new Error('Réponse non exploitable : ' + brut.slice(0, 200));
+
+  const corps = brut.slice(debut, fin + 1);
+
+  /* Certaines réponses contiennent la suite « \n » sous forme de texte
+     au lieu d'un vrai retour à la ligne : on rétablit. */
+  function nettoyerRetours(obj){
+    if(typeof obj === 'string'){
+      return obj.replace(/\\n/g, '\n').replace(/\\t/g, ' ');
+    }
+    if(Array.isArray(obj)) return obj.map(nettoyerRetours);
+    if(obj && typeof obj === 'object'){
+      const o = {};
+      for(const k in obj) o[k] = nettoyerRetours(obj[k]);
+      return o;
+    }
+    return obj;
+  }
+
+  try{
+    return nettoyerRetours(JSON.parse(corps));
+  }catch(e){
+    /* Deuxième chance : on échappe les retours à la ligne bruts */
+    try{
+      return nettoyerRetours(JSON.parse(reparerJson(corps)));
+    }catch(e2){
+      if(data.stop_reason === 'max_tokens'){
+        throw new Error('Réponse coupée en cours de route : le cours est trop long. Découpe-le en deux bilans.');
+      }
+      throw new Error('JSON illisible : ' + e.message + ' — début reçu : ' + brut.slice(0, 120));
+    }
+  }
+}
+
+function horodatageLisible(ts){
+  const d = ts ? new Date(ts) : new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+         ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function afficherNote(note){
+  const champ = $('noteResult');
+  if(champ) champ.value = (note || '').trim();
+}
+
+/* ---------- Actions ---------- */
+$('copyBtn').addEventListener('click', async () => {
+  direEtatFin('');
+  const ta = $('resultText');
+  ta.select();
+
+  /* 1. La copie d'abord : c'est ce que le moniteur attend immédiatement */
+  try{
+    await navigator.clipboard.writeText(ta.value);
+  }catch(e){
+    try{ document.execCommand('copy'); }catch(_){}
+  }
+
+  /* 2. Puis l'enregistrement de la version relue et corrigée.
+     Une note ajoutée après coup doit partir, elle aussi : le
+     moniteur ne comprendrait pas qu'elle reste dans le vide. */
+  const b = $('copyBtn');
+  b.disabled = true;
+  const libelle = b.textContent;
+  /* Bleu pendant l'écriture : le moniteur voit que ça travaille,
+     et ne réappuie pas en croyant que rien ne se passe. */
+  const styleInitial = b.getAttribute('style') || '';
+  b.setAttribute('style', styleInitial +
+    ';background:#2F6FB3;border-color:#2F6FB3;color:#FFFFFF;');
+
+  let enregistre;
+  if(bilanEnregistre && !bilanModifieDepuisEnregistrement()){
+    enregistre = true;                       /* rien n'a bougé */
+    showToast('Bilan copié ✅');
+  }else if(bilanEnregistre){
+    b.textContent = 'Mise à jour…';
+    enregistre = await mettreAJourBilan();
+    showToast(enregistre ? 'Bilan et note mis à jour ✅'
+                         : '⚠️ Copié, mais la mise à jour a échoué');
+  }else{
+    b.textContent = 'Enregistrement…';
+    enregistre = await exporterVersSheets(true);
+    showToast(enregistre ? 'Bilan copié et enregistré ✅'
+                         : '⚠️ Copié, mais NON enregistré dans Sheets');
+  }
+
+  b.disabled = false;
+  b.textContent = libelle;
+  b.setAttribute('style', styleInitial);
+
+  /* On ne termine QUE si l'enregistrement a réussi : sinon le
+     moniteur perdrait son bilan en croyant l'avoir sauvegardé. */
+  if(!enregistre){
+    if(typeof direEtatFin === 'function'){
+      direEtatFin("Le bilan n'est PAS enregistré. Vérifie ta connexion " +
+                  'et réessaie avant de quitter cet écran.', true);
+    }
+    return;
+  }
+
+  /* On ne remet pas l'écran à zéro sans prévenir : le moniteur
+     doit encore coller le bilan sur Messenger. */
+  confirmerFinDeCours();
+});
+
+async function exporterVersSheets(silencieux){
+  const btn = $('exportSheetsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Export en cours…';
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'append',
+        code: ACCES.code,
+        data: {
+          date: currentLessonMeta ? (currentLessonMeta.dateCourte || currentLessonMeta.dateStr) : '',
+          site: currentLessonMeta ? currentLessonMeta.site : '',
+          monitorName: currentLessonMeta ? currentLessonMeta.monitorName : '',
+          studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
+          typeBilan: currentLessonMeta ? currentLessonMeta.modeleLabel : '',
+          noteInterne: $('noteResult').value.trim(),
+          boite: contexteDepart ? (contexteDepart.boite || '') : '',
+          ants: contexteDepart ? (contexteDepart.ants || '') : '',
+          manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | '),
+          horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
+          bilan: $('resultText').value
+        }
+      })
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const rep = await r.json().catch(() => ({}));
+    if(!verifierVersionScript(rep)){ marquerExport(false); return false; }
+    const avecNote = $('noteResult').value.trim();
+    showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
+    marquerExport(true);
+    retenirEtatEnregistre(rep && rep.ligne);
+    /* Le cours est fait : sa préparation sort de la liste */
+    retirerPreparationFaite();
+    /* Les ordres dictés rejoignent la mémoire, en attente de validation */
+    retenirConsignesIA($('transcriptBox').value,
+                       currentLessonMeta && currentLessonMeta.studentName);
+    if(typeof signalerCoursFini === 'function') signalerCoursFini();
+    viderCaches(currentLessonMeta && currentLessonMeta.studentName);
+    chargerEleves();          /* un nouvel élève peut venir d'apparaître */
+
+
+    return true;
+  }catch(e){
+    console.error('Erreur export Sheets:', e);
+    marquerExport(false);
+    if(!silencieux) showToast("Erreur lors de l'enregistrement : " + e.message);
+    return false;
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+$('exportSheetsBtn').addEventListener('click', () => exporterVersSheets(false));
+
+
+/* ---------- Suivi de l'enregistrement dans Sheets ---------- */
+/* bilanEnregistre : déclaré dans ec-etat.js */
+
+
+/* ============================================================
+   MISE À JOUR D'UN BILAN DÉJÀ ENREGISTRÉ
+   Corriger le texte ou la note doit remplacer la ligne existante,
+   pas en écrire une seconde.
+   ============================================================ */
+let etatEnregistre = { bilan: '', note: '', ligne: null };
+
+function retenirEtatEnregistre(ligne){
+  etatEnregistre = {
+    bilan: $('resultText') ? $('resultText').value : '',
+    note: $('noteResult') ? $('noteResult').value : '',
+    ligne: ligne || etatEnregistre.ligne
+  };
+}
+
+function bilanModifieDepuisEnregistrement(){
+  const b = $('resultText') ? $('resultText').value : '';
+  const n = $('noteResult') ? $('noteResult').value : '';
+  return b !== etatEnregistre.bilan || n !== etatEnregistre.note;
+}
+
+async function mettreAJourBilan(){
+  if(!etatEnregistre.ligne){
+    /* Ligne inconnue : on enregistre normalement plutôt que de perdre la note */
+    return await exporterVersSheets(true);
+  }
+  try{
+    const r = await appelPrep({
+      action: 'bilanMaj',
+      ligne: etatEnregistre.ligne,
+      eleve: currentLessonMeta ? currentLessonMeta.studentName : '',
+      bilan: $('resultText').value,
+      noteInterne: $('noteResult').value.trim(),
+      manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | ')
+    });
+    if(r && r.status === 'error') throw new Error(r.message);
+    retenirEtatEnregistre(etatEnregistre.ligne);
+    viderCaches(currentLessonMeta && currentLessonMeta.studentName);
+    return true;
+  }catch(e){
+    console.error('Mise à jour du bilan :', e);
+    return false;
+  }
+}
+
+
+/* Message de fin de cours, qui reste affiché */
+function direEtatFin(texte, erreur){
+  const z = $('finEtat');
+  if(!z) return;
+  if(!texte){ z.innerHTML = ''; return; }
+  z.style.color = erreur ? 'var(--warn-text)' : 'var(--accent-text)';
+  z.textContent = (erreur ? '⚠️ ' : '✅ ') + texte;
+}
+
+
+/* ============================================================
+   CONFIRMATION DE FIN DE COURS
+   Le bilan est parti : on le dit clairement, on rappelle où le
+   coller, et on laisse le choix entre corriger et passer au
+   cours suivant. Fermer sans choisir ne fait rien perdre.
+   ============================================================ */
+function confirmerFinDeCours(){
+  const eleve = (currentLessonMeta && currentLessonMeta.studentName) || '';
+  const f = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+  const mess = (f && f.messenger) || '';
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(480px, 94vw);';
+
+  let lienMess = '';
+  if(mess){
+    let url = mess;
+    if(!/^https?:\/\//i.test(mess)){
+      url = 'https://m.me/' + mess.replace(/^@/, '').replace(/\s+/g, '');
+    }
+    lienMess =
+      '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" ' +
+      'class="btn btn-secondary" style="margin-top:10px;padding:13px;font-size:14px;' +
+      'text-decoration:none;display:block;text-align:center;">' +
+      '💬 Ouvrir le Messenger de ' + eleve.split(' ')[0] + '</a>';
+  }
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>✅ Bilan enregistré</h3>' +
+    '<div style="font-size:15px;line-height:1.6;margin-bottom:6px;">' +
+      'Le bilan de <strong>' + (eleve || 'cet élève').replace(/</g, '&lt;') +
+      '</strong> est enregistré et <strong>copié</strong>.<br>' +
+      'Tu peux le coller directement sur son Messenger.' +
+    '</div>' +
+    (mess
+      ? '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+        '💬 Son Messenger : <strong>' + mess.replace(/</g, '&lt;') + '</strong></div>' + lienMess
+      : '<div style="font-size:12px;color:var(--warn-text);line-height:1.5;margin-top:6px;">' +
+        "⚠️ Aucun Messenger enregistré pour cet élève. Pense à le saisir au " +
+        'démarrage du prochain cours.</div>'));
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  r.style.marginTop = '16px';
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.textContent = '✏️ Modifier ce bilan';
+  bMod.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    /* On reste sur le bilan : le corriger le mettra à jour en place */
+    if($('resultText')) $('resultText').focus();
+  });
+
+  const bFin = document.createElement('button');
+  bFin.className = 'btn btn-primary';
+  bFin.textContent = '🏠 Accueil';
+  bFin.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    if(typeof terminerCours === 'function') terminerCours();
+  });
+
+  r.appendChild(bMod);
+  r.appendChild(bFin);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+function marquerExport(ok){
+  bilanEnregistre = !!ok;
+  const b = $('exportEtat');
+  const btn = $('exportSheetsBtn');
+  if(!b) return;
+  if(ok){
+    b.style.display = 'block';
+    b.style.background = 'rgba(182,255,14,.12)';
+    b.style.borderColor = 'var(--orange)';
+    b.style.color = 'var(--accent-text)';
+    b.textContent = '✅ Bilan enregistré dans Sheets — le prochain moniteur y aura accès.';
+    if(btn) btn.textContent = '📊 Réenregistrer (après modification)';
+  }else{
+    b.style.display = 'block';
+    b.style.background = 'var(--warn-bg)';
+    b.style.borderColor = 'var(--red)';
+    b.style.color = 'var(--warn-text)';
+    b.textContent = "📋 Relis et complète le bilan, puis appuie sur « Copier et enregistrer » : il sera copié pour Messenger et enregistré dans Sheets.";
+    if(btn) btn.textContent = '📊 Enregistrer sans copier';
+  }
+}
+
+
+
+/* Liste des moniteurs actifs — noms seuls, sans les codes */
+/* moniteursActifs : déclaré dans ec-etat.js */
+
+async function chargerMoniteurs(){
+  try{
+    const r = await fetchFiable(CONFIG.MONITEURS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: ACCES.code })
+    });
+    if(!r.ok) return;
+    const data = await r.json().catch(() => ({}));
+    moniteursActifs = (data && data.moniteurs) || [];
+    const sel = $('searchMoniteur');
+    if(sel){
+      const choix = sel.value;
+      sel.innerHTML = '<option value="">Tous les moniteurs</option>';
+      moniteursActifs.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n; o.textContent = n;
+        sel.appendChild(o);
+      });
+      sel.value = choix;
+    }
+  }catch(e){
+    console.warn('Liste des moniteurs indisponible :', e);
+  }
+}
+
+/* Petite fenêtre de choix dans une liste */
+function choisirDansListe(titre, options, valeurActuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = '340px';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    const sel = document.createElement('select');
+    sel.style.fontSize = '16px';
+    if(!options.length){
+      const o = document.createElement('option');
+      o.value = ''; o.textContent = '(aucun moniteur trouvé)';
+      sel.appendChild(o);
+    }
+    options.forEach(nom => {
+      const o = document.createElement('option');
+      o.value = nom; o.textContent = nom;
+      sel.appendChild(o);
+    });
+    if(valeurActuelle && options.indexOf(valeurActuelle) !== -1) sel.value = valeurActuelle;
+    boite.appendChild(sel);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const annuler = document.createElement('button');
+    annuler.className = 'btn btn-secondary';
+    annuler.textContent = 'Annuler';
+    const valider = document.createElement('button');
+    valider.className = 'btn btn-primary';
+    valider.textContent = 'Valider';
+    rangee.appendChild(annuler);
+    rangee.appendChild(valider);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = v => { document.body.removeChild(fond); resolve(v); };
+    annuler.addEventListener('click', () => fermer(null));
+    valider.addEventListener('click', () => fermer(sel.value || null));
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
   });
 }
 
-function attendre(ms) {
-  return new Promise(function (r) { setTimeout(r, ms); });
+
+/* Les modules s'affichent par onglets et par boutons :
+   il n'y a plus de tiroir à mémoriser. */
+function initTiroirs(){ /* conservé pour compatibilité */ }
+
+/* Compteur affiché dans l'en-tête d'un tiroir */
+function majCompteur(id, valeur){
+  const el = $(id);
+  if(el) el.textContent = valeur ? String(valeur) : '';
 }
 
-/* ---------- Comptes ---------- */
-
-/* ADMIN_CODE accepte « code:Nom », et, si on veut, « code:Nom:émoji:genre ».
-   Les comptes principaux ne sont pas en base : leur émoji et leur genre
-   se déclarent donc ici. Le format court reste valable. */
-function comptesPrincipaux(env) {
-  const brut = String(env.ADMIN_CODE || "");
-  const liste = [];
-  const entrees = brut.split(",");
-  for (let i = 0; i < entrees.length; i++) {
-    const e = entrees[i].trim();
-    if (!e) continue;
-
-    const bouts = e.split(":").map(function (x) { return x.trim(); });
-    const code = bouts[0];
-    if (!code) continue;
-
-    /* Le genre est un F ou un M isolé ; l'émoji est ce qui reste */
-    let nom = bouts[1] || "Administrateur";
-    let emoji = "";
-    let genre = "";
-
-    for (let j = 2; j < bouts.length; j++) {
-      const v = bouts[j];
-      if (!v) continue;
-      const maj = v.toUpperCase();
-      if (maj === "F" || maj === "M") genre = maj;
-      else emoji = v.slice(0, 8);
-    }
-
-    liste.push({ code: code, nom: nom, emoji: emoji, genre: genre });
-  }
-  return liste;
-}
-
-/* Retourne le compte principal correspondant au code, sinon null */
-function trouverPrincipal(env, code) {
-  const saisi = String(code || "").trim();
-  if (!saisi) return null;
-  const liste = comptesPrincipaux(env);
-  for (let i = 0; i < liste.length; i++) {
-    if (liste[i].code === saisi) return liste[i];
-  }
-  return null;
-}
-
-async function lireUtilisateurs(env) {
-  if (!env.UTILISATEURS) return {};
-  const brut = await env.UTILISATEURS.get(CLE_UTILISATEURS);
-  if (!brut) return {};
-  try {
-    const o = JSON.parse(brut);
-    return (o && typeof o === "object") ? o : {};
-  } catch (e) {
-    return {};
-  }
-}
-
-async function ecrireUtilisateurs(env, objet) {
-  if (!env.UTILISATEURS) throw new Error("Stockage KV non configure (binding UTILISATEURS manquant).");
-  await env.UTILISATEURS.put(CLE_UTILISATEURS, JSON.stringify(objet));
-}
-
-/* Identifie un code : retourne { nom, role, principal } ou null */
-async function identifier(env, code) {
-  const saisi = String(code || "").trim();
-  if (!saisi) return null;
-
-  const principal = trouverPrincipal(env, saisi);
-  if (principal) {
-    return { nom: principal.nom, role: "admin",
-             emoji: principal.emoji || "", genre: principal.genre || "",
-             droits: Object.assign({}, DROITS_ROLE.admin), principal: true };
-  }
-
-  const users = await lireUtilisateurs(env);
-  const u = users[saisi];
-  if (u) {
-    return {
-      nom: u.nom || "Moniteur",
-      role: normaliserRole(u.role),
-      emoji: u.emoji || "",
-      genre: u.genre || "",
-      droits: droitsDe(u),
-      principal: false
-    };
-  }
-  return null;
-}
-
-/* ---------- Worker ---------- */
-
-export default {
-  async fetch(request, env) {
-    const origin = request.headers.get("Origin") || "";
-    const reponse = await traiter(request, env, origin);
-
-    /* On renvoie l'origine réellement appelante : indispensable pour
-       essayer une modification depuis un serveur local. */
-    if (origin && origineAutorisee(origin)) {
-      const h = new Headers(reponse.headers);
-      h.set("Access-Control-Allow-Origin", origin);
-      h.set("Vary", "Origin");
-      return new Response(reponse.body, { status: reponse.status, headers: h });
-    }
-    return reponse;
-  }
-};
-
-async function traiter(request, env, origin) {
-  {
-    const url = new URL(request.url);
-
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: entetes(false) });
-    }
-    if (request.method !== "POST") {
-      return new Response("Method not allowed", { status: 405, headers: entetes(false) });
-    }
-    if (!origineAutorisee(origin)) {
-      return repJson({ error: "Origine non autorisee" }, 403);
-    }
-
-    let payload;
-    try {
-      payload = await request.json();
-    } catch (err) {
-      return repJson({ error: "Requete illisible" }, 400);
-    }
-
-    /* Adresse de l'appelant, pour compter les essais infructueux */
-    const ip = request.headers.get("CF-Connecting-IP") || "inconnue";
-    const essais = await lireEssais(env, ip);
-
-    /* Un blocage ne doit jamais enfermer quelqu'un qui a le bon code :
-       on vérifie d'abord, on refuse ensuite. Le blocage sert à empêcher
-       de deviner un code, pas à punir celui qui le connaît. */
-    if (essais.jusqua && Date.now() < essais.jusqua) {
-      const codeTeste = String(payload.code || "").trim();
-      const principal = trouverPrincipal(env, codeTeste);
-      const inscrits = await lireUtilisateurs(env);
-      const connu = principal || inscrits[codeTeste];
-      if (connu) {
-        await effacerEssais(env, ip);
-        const nom = principal ? principal.nom : connu.nom;
-        const role = principal ? (principal.role || "admin") : normaliserRole(connu.role);
-        return repJson({
-          ok: true, moniteur: nom, role: role,
-          emoji: (principal && principal.emoji) || (connu && connu.emoji) || '',
-          genre: (principal && principal.genre) || (connu && connu.genre) || '',
-          droits: droitsDe(principal || connu)
-        });
-      }
-      const reste = Math.ceil((essais.jusqua - Date.now()) / 60000);
-      return repJson({
-        error: "Trop de codes erronés. Reessaie dans " + reste + " minute" +
-               (reste > 1 ? "s" : "") + "."
-      }, 429);
-    }
-
-    const moi = await identifier(env, payload.code);
-    if (!moi) {
-      await attendre(1200);
-      const e = await noterEchec(env, ip);
-      const restants = MAX_ESSAIS - e.n;
-      return repJson({
-        error: (restants > 0)
-          ? "Code incorrect. Encore " + restants + " essai" + (restants > 1 ? "s" : "") + "."
-          : "Trop de codes erronés. Acces bloque pendant 15 minutes."
-      }, 403);
-    }
-    const monCode = String(payload.code || "").trim();
-
-    try {
-      /* ---- Verification du code ---- */
-      if (url.pathname === "/auth") {
-        await effacerEssais(env, ip);
-        return repJson({ ok: true, moniteur: moi.nom, role: moi.role,
-                         emoji: moi.emoji || '', genre: moi.genre || '',
-                         droits: moi.droits || [] });
-      }
-
-      /* ---- Liste des moniteurs (noms seuls, aucun code) ---- */
-      if (url.pathname === "/moniteurs") {
-        const principaux = comptesPrincipaux(env);
-        const users = await lireUtilisateurs(env);
-        const liste = [];
-
-        function ajouter(nom, role, droits) {
-          if (!nom) return;
-          if (liste.some(function (x) { return x.nom === nom; })) return;
-          /* Seuls ceux qui peuvent assurer un cours reçoivent une préparation */
-          const d = droitsDe({ role: role, droits: droits });
-          /* « m » = peut modifier, « v » = lecture seule : il faut pouvoir agir */
-          const peutConduire = (d.cours === "m");
-          liste.push({ nom: nom, role: role || "moniteur", cours: peutConduire });
-        }
-
-        principaux.forEach(function (p) { ajouter(p.nom, p.role || "admin", p.droits); });
-        Object.keys(users).forEach(function (k) {
-          ajouter(users[k].nom, users[k].role, users[k].droits);
-        });
-        liste.sort(function (a, b) { return a.nom.localeCompare(b.nom, "fr"); });
-
-        return repJson({
-          /* Compatibilité : la liste des noms reste celle des moniteurs */
-          moniteurs: liste.filter(function (x) { return x.cours; }).map(function (x) { return x.nom; }),
-          comptes: liste
-        });
-      }
-
-      /* ---- Administration des comptes ---- */
-      if (url.pathname === "/admin") {
-        if (moi.role !== "admin") {
-          return repJson({ error: "Reserve aux administrateurs" }, 403);
-        }
-
-        const principaux = comptesPrincipaux(env);
-        const users = await lireUtilisateurs(env);
-
-        if (payload.action === "list") {
-          const liste = Object.keys(users).map(function (c) {
-            return {
-              code: c,
-              nom: users[c].nom || "",
-              role: normaliserRole(users[c].role),
-              droits: droitsDe(users[c]),
-              emoji: users[c].emoji || "",
-              genre: users[c].genre || "",
-              cree: users[c].cree || "",
-              principal: false
-            };
-          });
-          liste.sort(function (a, b) { return a.nom.localeCompare(b.nom); });
-          for (let i = principaux.length - 1; i >= 0; i--) {
-            liste.unshift({
-              code: principaux[i].code, nom: principaux[i].nom,
-              role: "admin", droits: Object.assign({}, DROITS_ROLE.admin),
-              cree: "", principal: true
-            });
-          }
-          return repJson({ utilisateurs: liste, kv: !!env.UTILISATEURS });
-        }
-
-        /* ---- Genre du moniteur, pour les accords du bilan ---- */
-        if (payload.action === "genre") {
-          const c3 = String(payload.cible || "").trim();
-          const g = String(payload.genre || "").trim().slice(0, 1).toUpperCase();
-          if (!users[c3]) return repJson({ error: "Utilisateur introuvable." }, 404);
-          if (g && g !== "F" && g !== "M") {
-            return repJson({ error: "Genre attendu : F ou M." }, 400);
-          }
-          users[c3].genre = g;
-          await ecrireUtilisateurs(env, users);
-          return repJson({ ok: true, genre: g });
-        }
-
-        /* ---- Émoji du moniteur, visible sur la fiche manœuvres ---- */
-        if (payload.action === "emoji") {
-          const c2 = String(payload.cible || "").trim();
-          const e = String(payload.emoji || "").trim();
-
-          if (!users[c2]) return repJson({ error: "Utilisateur introuvable." }, 404);
-          /* Un émoji fait au plus quelques caractères : on borne */
-          if (e.length > 8) return repJson({ error: "Un seul émoji, s'il te plait." }, 400);
-
-          users[c2].emoji = e;
-          await ecrireUtilisateurs(env, users);
-          return repJson({ ok: true, emoji: e });
-        }
-
-        /* ---- Changer le code d'accès d'un utilisateur ---- */
-        if (payload.action === "changerCode") {
-          const ancien = String(payload.cible || "").trim();
-          const nouveau = String(payload.nouveauCode || "").trim();
-
-          if (!/^[0-9]{6,8}$/.test(nouveau)) {
-            return repJson({ error: "Le code doit contenir de 6 a 8 chiffres." }, 400);
-          }
-          if (trouverPrincipal(env, ancien)) {
-            return repJson({ error: "Le code d'un compte principal se change dans Cloudflare." }, 400);
-          }
-          if (!users[ancien]) {
-            return repJson({ error: "Utilisateur introuvable." }, 404);
-          }
-          if (nouveau === ancien) {
-            return repJson({ error: "C'est deja son code." }, 400);
-          }
-          if (trouverPrincipal(env, nouveau) || users[nouveau]) {
-            return repJson({ error: "Ce code est deja attribue." }, 409);
-          }
-
-          /* Le compte est déplacé : nom, rôle et droits suivent */
-          users[nouveau] = users[ancien];
-          delete users[ancien];
-          await ecrireUtilisateurs(env, users);
-
-          /* Les essais ratés de l'ancien code n'ont plus de sens */
-          try { await env.UTILISATEURS.delete("essais:" + ancien); } catch (e) {}
-
-          return repJson({ ok: true, code: nouveau, nom: users[nouveau].nom });
-        }
-
-        if (payload.action === "create") {
-          const c = String(payload.nouveauCode || "").trim();
-          const nom = String(payload.nom || "").trim();
-          const role = normaliserRole(payload.role);
-
-          if (!/^[0-9]{6,8}$/.test(c)) {
-            return repJson({ error: "Le code doit contenir de 6 a 8 chiffres." }, 400);
-          }
-          if (!nom) {
-            return repJson({ error: "Le prenom est obligatoire." }, 400);
-          }
-          if (trouverPrincipal(env, c)) {
-            return repJson({ error: "Ce code est celui d'un compte principal." }, 409);
-          }
-          if (users[c]) {
-            return repJson({ error: "Ce code est deja attribue a " + (users[c].nom || "quelqu'un") + "." }, 409);
-          }
-
-          users[c] = {
-            nom: nom,
-            role: role,
-            emoji: String(payload.emoji || "").trim().slice(0, 8),
-            genre: String(payload.genre || "").trim().slice(0, 1),
-            droits: Object.keys(nettoyerDroits(payload.droits)).length
-              ? nettoyerDroits(payload.droits)
-              : Object.assign({}, DROITS_ROLE[role]),
-            cree: new Date().toISOString().slice(0, 10)
-          };
-          await ecrireUtilisateurs(env, users);
-          return repJson({ ok: true });
-        }
-
-        if (payload.action === "delete") {
-          const c = String(payload.cible || "").trim();
-          if (trouverPrincipal(env, c)) {
-            return repJson({ error: "Un compte principal ne peut pas etre supprime." }, 403);
-          }
-          if (c === monCode) {
-            return repJson({ error: "Tu ne peux pas supprimer ton propre code." }, 403);
-          }
-          if (!users[c]) {
-            return repJson({ error: "Code inconnu." }, 404);
-          }
-          delete users[c];
-          await ecrireUtilisateurs(env, users);
-          return repJson({ ok: true });
-        }
-
-        if (payload.action === "droits") {
-          const c = String(payload.cible || "").trim();
-          if (!users[c]) return repJson({ error: "Code inconnu." }, 404);
-          users[c].droits = nettoyerDroits(payload.droits);
-          /* Réglés à la main : le vide devient un choix, pas un défaut */
-          users[c].droitsRegles = true;
-          if (c === monCode && users[c].droits.admin !== "m") {
-            return repJson({ error: "Tu ne peux pas retirer ton propre acces a l administration." }, 403);
-          }
-          await ecrireUtilisateurs(env, users);
-          return repJson({ ok: true });
-        }
-
-        if (payload.action === "role") {
-          const c = String(payload.cible || "").trim();
-          const role = normaliserRole(payload.role);
-          if (trouverPrincipal(env, c)) {
-            return repJson({ error: "Un compte principal reste toujours administrateur." }, 403);
-          }
-          if (c === monCode && role !== "admin") {
-            return repJson({ error: "Tu ne peux pas retirer ton propre role administrateur." }, 403);
-          }
-          if (!users[c]) {
-            return repJson({ error: "Code inconnu." }, 404);
-          }
-          users[c].role = role;
-          users[c].droits = Object.assign({}, DROITS_ROLE[role]);   /* droits repris du rôle */
-          await ecrireUtilisateurs(env, users);
-          return repJson({ ok: true });
-        }
-
-        return repJson({ error: "Action inconnue" }, 400);
-      }
-
-      /* ---- Google Sheets ---- */
-      if (url.pathname === "/sheets") {
-        if (payload.action === "append") {
-          const donnees = payload.data || {};
-          donnees.monitorName = donnees.monitorName || moi.nom;
-          const r = await fetch(env.SHEETS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(donnees)
-          });
-          return new Response(await r.text(), { status: r.status, headers: entetes(true) });
-        }
-
-        if (payload.action === "supprimerEleve") {
-          /* Réservé aux administrateurs : action irréversible */
-          if (moi.role !== "admin") {
-            return repJson({ error: "Seul un administrateur peut supprimer un dossier eleve." }, 403);
-          }
-          const cible = String(payload.eleve || "").trim();
-          if (cible.length < 2) {
-            return repJson({ error: "Nom d'eleve invalide." }, 400);
-          }
-          const r = await fetch(env.SHEETS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "supprimerEleve", eleve: cible })
-          });
-          return new Response(await r.text(), { status: r.status, headers: entetes(true) });
-        }
-
-        if (payload.action === "prepAdd" || payload.action === "prepDelete" || payload.action === "prepAssign" ||
-            payload.action === "prepList" || payload.action === "consigneAdd" ||
-            payload.action === "consigneList" || payload.action === "consigneDone" ||
-            payload.action === "bureauEtat" || payload.action === "suiviSet" ||
-            payload.action === "suiviDelete" || payload.action === "configSet" ||
-            payload.action === "journalList" || payload.action === "modeleList" ||
-            payload.action === "modeleSet" || payload.action === "modeleDelete" ||
-            payload.action === "resultatAdd" || payload.action === "resultatList" ||
-            payload.action === "captureAdd" || payload.action === "captureList" ||
-            payload.action === "captureDelete" ||
-            payload.action === "elevesImport" || payload.action === "eleveRetirer" || payload.action === "consigneEffacerEleve" || payload.action === "bilanModifier" || payload.action === "bilanMaj" ||
-            payload.action === "fichesList" || payload.action === "ficheSet" ||
-            payload.action === "smsLog" || payload.action === "smsList" ||
-            payload.action === "bilansRecents" || payload.action === "coursDemarre" ||
-            payload.action === "coursFini" || payload.action === "coursEnCours" || payload.action === "coursRetirer" ||
-            payload.action === "regleIaAdd" || payload.action === "regleIaList" ||
-            payload.action === "regleIaSet") {
-
-          /* Le journal d'activité ne regarde que les administrateurs */
-          if (payload.action === "journalList" && moi.role !== "admin") {
-            return repJson({ error: "Journal réservé aux administrateurs." }, 403);
-          }
-          const corps = Object.assign({}, payload);
-          delete corps.code;
-          corps.moniteur = corps.moniteur || moi.nom;
-
-          /* L'identité vient du code d'accès, jamais du client :
-             elle sert au contrôle des droits et au journal d'activité. */
-          corps.demandeur = moi.nom;
-          corps.role = moi.role;
-          const r = await fetch(env.SHEETS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify(corps)
-          });
-          return new Response(await r.text(), { status: r.status, headers: entetes(true) });
-        }
-
-        if (payload.action === "eleves") {
-          const r = await fetch(env.SHEETS_URL + "?action=eleves");
-          return new Response(await r.text(), { status: r.status, headers: entetes(true) });
-        }
-
-        if (payload.action === "search") {
-          const eleve = String(payload.eleve || "").trim();
-          const moniteur = String(payload.moniteur || "").trim();
-          if (eleve.length < 2 && moniteur.length < 2) return repJson({ resultats: [] });
-          const leger = payload.leger ? "&leger=1" : "";
-          const qm = moniteur ? "&moniteur=" + encodeURIComponent(moniteur) : "";
-          const site = String(payload.site || "").trim();
-          const qs = site ? "&site=" + encodeURIComponent(site) : "";
-          const r = await fetch(env.SHEETS_URL + "?eleve=" + encodeURIComponent(eleve) + qm + qs + leger);
-          return new Response(await r.text(), { status: r.status, headers: entetes(true) });
-        }
-
-        return repJson({ error: "Action inconnue" }, 400);
-      }
-
-      /* ---- API Claude ---- */
-
-      /* ============================================================
-         ENVOI DE SMS PAR L'API ALLO
-         La clé reste ici : dans le navigateur, elle serait lisible
-         par n'importe qui et utilisable à vos frais.
-         ============================================================ */
-      if (url.pathname === "/sms") {
-        const moi = await identifier(env, payload.code);
-        if (!moi) return repJson({ error: "Code invalide." }, 403);
-
-        const d = droitsDe(moi);
-        if (d.rappels !== "m" && d.sms !== "m" && moi.role !== "admin") {
-          return repJson({ error: "Envoi de SMS non autorisé pour ce compte." }, 403);
-        }
-
-        if (!env.ALLO_API_KEY) {
-          return repJson({ error: "Clé Allo non configurée dans le Worker." }, 500);
-        }
-
-        /* L'expéditeur peut être un numéro ou un Sender ID alphanumérique
-           (« EvolutionC »). Convertir un Sender ID en numéro le détruirait. */
-        const expediteur = expediteurValide(payload.from || env.ALLO_FROM);
-        if (!expediteur) {
-          return repJson({ error: "Expéditeur non configuré (ALLO_FROM). " +
-                                  "Mets ton numéro ou ton Sender ID." }, 500);
-        }
-
-        const dest = enFormatInternational(payload.to);
-        if (!dest || dest.length < 11) {
-          return repJson({ error: "Numéro du destinataire incomplet." }, 400);
-        }
-
-        const texte = String(payload.message || "").trim();
-        if (!texte) return repJson({ error: "Message vide." }, 400);
-        if (texte.length > LIMITE_SMS) {
-          return repJson({ error: "Message trop long : " + texte.length +
-                                  " caractères pour " + LIMITE_SMS + " autorisés." }, 400);
-        }
-
-        try {
-          /* Allo distingue un numéro de ligne d'un Sender ID :
-             ce ne sont pas les mêmes champs, et un Sender ID envoyé
-             comme numéro donne « FROM_NUMBER_NOT_FOUND ». */
-          const corpsAllo = { to: dest, message: texte };
-          if (/[a-zA-Z]/.test(expediteur)) corpsAllo.sender_id = expediteur;
-          else corpsAllo.from = expediteur;
-
-          const resp = await fetch("https://api.withallo.com/v1/api/sms", {
-            method: "POST",
-            headers: {
-              "Authorization": env.ALLO_API_KEY,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(corpsAllo)
-          });
-
-          const corpsTexte = await resp.text();
-          if (!resp.ok) {
-            /* Le quota journalier mérite un message compréhensible */
-            let d2 = null;
-            try { d2 = JSON.parse(corpsTexte); } catch (e) {}
-            const code2 = (d2 && (d2.code || (d2.error && d2.error.code))) || "";
-            if (code2 === "FROM_NUMBER_NOT_FOUND" || code2 === "SENDER_ID_NOT_FOUND") {
-              return repJson({
-                error: "L'expéditeur « " + expediteur + " » n'existe pas sur ton compte Allo. " +
-                       "Vérifie ALLO_FROM : il doit reprendre exactement un numéro ou " +
-                       "un Sender ID de ton compte, majuscules comprises."
-              }, 400);
-            }
-            if (d2 && d2.code === "API_KEY_QUOTA_EXCEEDED") {
-              const info = (d2.details && d2.details[0] && d2.details[0].message) || "";
-              const m = info.match(/reset_in=(\d+)/);
-              const minutes = m ? Math.ceil(parseInt(m[1], 10) / 60) : null;
-              return repJson({
-                error: "Quota journalier Allo atteint" +
-                       (minutes ? ", réessaie dans " + minutes + " minutes." : "."),
-                quota: true
-              }, 429);
-            }
-            return repJson({ error: "Allo a refusé l'envoi (" + resp.status + ") : " +
-                                    corpsTexte.slice(0, 200) }, 502);
-          }
-
-          /* Trace de l'envoi, pour savoir qui a écrit à qui */
-          try {
-            await fetch(env.SHEETS_URL, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "smsLog",
-                eleve: String(payload.eleve || ""),
-                numero: dest,
-                message: texte,
-                caracteres: texte.length,
-                parties: 1,
-                etat: "envoyé",
-                par: moi.nom, demandeur: moi.nom, role: moi.role
-              })
-            });
-          } catch (e) { /* le journal ne doit pas bloquer l'envoi */ }
-
-          return repJson({ ok: true, to: dest });
-        } catch (err) {
-          return repJson({ error: "Envoi impossible : " + err.message }, 502);
-        }
-      }
-
-      if (url.pathname === "/ia") {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": env.ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01"
-          },
-          body: JSON.stringify(payload.payload || {})
-        });
-        return new Response(await resp.text(), { status: resp.status, headers: entetes(true) });
-      }
-
-      return repJson({ error: "Route inconnue" }, 404);
-
-    } catch (err) {
-      return repJson({ error: err.message }, 500);
-    }
-  }
-}
+/* Signale que ce module est bien chargé */
+window.EC_MODULES = window.EC_MODULES || {};
+window.EC_MODULES['ec-vocal.js'] = true;
