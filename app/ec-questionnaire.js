@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:54 — v311 */
+/* Déployé le 08/08/2026 à 09:49 — v316 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -429,6 +429,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           a.court + ' ' + a.nom + '</label>').join('') +
       '</div>' +
 
+      '<div id="qBlocMessenger" style="display:none;">' +
+        '<label for="qMessenger">💬 Messenger de l\'élève</label>' +
+        '<input type="text" id="qMessenger" autocomplete="off" ' +
+          'placeholder="Lien de sa conversation, ou pseudo">' +
+        '<div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">' +
+        "Il manque sur sa fiche. Saisi ici, tous les moniteurs le retrouveront, " +
+        'et le bilan pourra lui être envoyé.</div>' +
+      '</div>' +
+
       '<label for="qAnts">Dossier ANTS</label>' +
       '<select id="qAnts">' +
         '<option value="">— non renseigné —</option>' +
@@ -681,6 +690,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
     boite.querySelector('#qAnts').value = prec.ants || '';
 
+    /* Le Messenger n'est demandé QUE s'il manque : le redemander à
+       chaque cours alors qu'il est connu ne sert qu'à l'effacer par
+       inadvertance. */
+    const champMess = boite.querySelector('#qMessenger');
+    const blocMess = boite.querySelector('#qBlocMessenger');
+    const messConnu = (ficheEleve && ficheEleve.messenger) || '';
+    if(blocMess) blocMess.style.display = messConnu ? 'none' : 'block';
+    if(champMess) champMess.value = prec.messenger || '';
+
     /* Conduite aménagée */
     const cbH = boite.querySelector('#qHandicap');
     const znH = boite.querySelector('#qZoneHandicap');
@@ -826,6 +844,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         amenagements: Array.prototype.slice
           .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
         ants: boite.querySelector('#qAnts').value,
+        messenger: champMess ? champMess.value.trim() : '',
         libre: boite.querySelector('#qLibre').value.trim(),
         /* Les manœuvres cochées en plus, à signer de l'émoji du moniteur */
         manoeuvresAjoutees: manoeuvresAjouteesQuestionnaire(boite._marquesConnues || {}),
@@ -1559,6 +1578,9 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
   const maj = {};
 
   if(reponses.ants && reponses.ants !== (avant.ants || '')) maj.ants = reponses.ants;
+  if(reponses.messenger && reponses.messenger !== (avant.messenger || '')){
+    maj.messenger = reponses.messenger;
+  }
   if(reponses.frise && reponses.frise !== (avant.frise || '')) maj.frise = reponses.frise;
 
   if(!Object.keys(maj).length) return;
