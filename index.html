@@ -2,15 +2,15 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v322
-     VERSION APPS SCRIPT REQUISE : v61
-     Mis à jour le : 08/08/2026 à 14:15
+     VERSION APPLICATION : v323
+     VERSION APPS SCRIPT REQUISE : v62
+     Mis à jour le : 08/08/2026 à 14:21
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
      recharge en forçant (Ctrl+Maj+R).
 
-     Ce fichier appelle 28 modules dans le dossier app/.
+     Ce fichier appelle 29 modules dans le dossier app/.
      S'il en manque un, un bandeau rouge le signale au démarrage.
      ============================================================ -->
 <html lang="fr">
@@ -649,7 +649,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v322</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v323</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1457,6 +1457,17 @@
     </div>
   </div>
 
+  <div class="card" data-section="memoire" data-vue="memoire" data-onglet="outils">
+    <h2 class="section-title">🧠 Mémoire de l'IA</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les mots que la reconnaissance vocale écrit mal, et ce que les moniteurs
+        ont dicté à l'IA pendant leurs cours.
+      </div>
+      <div id="memoireZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
   <div class="card" data-section="historique" data-vue="historique" data-onglet="outils">
     <h2 class="section-title">📚 Historique des cours</h2>
     <div class="contenu-tiroir">
@@ -1635,34 +1646,35 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=322"></script>
-<script src="app/ec-modeles.js?v=322"></script>
-<script src="app/ec-consignes.js?v=322"></script>
-<script src="app/ec-noyau.js?v=322"></script>
-<script src="app/ec-vocal.js?v=322"></script>
-<script src="app/ec-reseau.js?v=322"></script>
-<script src="app/ec-manuel.js?v=322"></script>
-<script src="app/ec-fenetres.js?v=322"></script>
-<script src="app/ec-questionnaire.js?v=322"></script>
-<script src="app/ec-permis.js?v=322"></script>
-<script src="app/ec-prepares.js?v=322"></script>
-<script src="app/ec-bureau.js?v=322"></script>
-<script src="app/ec-places.js?v=322"></script>
-<script src="app/ec-listes.js?v=322"></script>
-<script src="app/ec-permis-listes.js?v=322"></script>
-<script src="app/ec-postpermis.js?v=322"></script>
-<script src="app/ec-textes.js?v=322"></script>
-<script src="app/ec-correction.js?v=322"></script>
-<script src="app/ec-bilans.js?v=322"></script>
-<script src="app/ec-historique.js?v=322"></script>
-<script src="app/ec-rappels.js?v=322"></script>
-<script src="app/ec-sms.js?v=322"></script>
-<script src="app/ec-stats.js?v=322"></script>
-<script src="app/ec-messenger.js?v=322"></script>
-<script src="app/ec-journal.js?v=322"></script>
-<script src="app/ec-depart.js?v=322"></script>
-<script src="app/ec-onglets.js?v=322"></script>
-<script src="app/ec-demarrage.js?v=322"></script>
+  <script src="app/ec-etat.js?v=323"></script>
+<script src="app/ec-modeles.js?v=323"></script>
+<script src="app/ec-consignes.js?v=323"></script>
+<script src="app/ec-noyau.js?v=323"></script>
+<script src="app/ec-vocal.js?v=323"></script>
+<script src="app/ec-reseau.js?v=323"></script>
+<script src="app/ec-manuel.js?v=323"></script>
+<script src="app/ec-fenetres.js?v=323"></script>
+<script src="app/ec-questionnaire.js?v=323"></script>
+<script src="app/ec-permis.js?v=323"></script>
+<script src="app/ec-prepares.js?v=323"></script>
+<script src="app/ec-bureau.js?v=323"></script>
+<script src="app/ec-places.js?v=323"></script>
+<script src="app/ec-listes.js?v=323"></script>
+<script src="app/ec-permis-listes.js?v=323"></script>
+<script src="app/ec-postpermis.js?v=323"></script>
+<script src="app/ec-textes.js?v=323"></script>
+<script src="app/ec-correction.js?v=323"></script>
+<script src="app/ec-bilans.js?v=323"></script>
+<script src="app/ec-memoire.js?v=323"></script>
+<script src="app/ec-historique.js?v=323"></script>
+<script src="app/ec-rappels.js?v=323"></script>
+<script src="app/ec-sms.js?v=323"></script>
+<script src="app/ec-stats.js?v=323"></script>
+<script src="app/ec-messenger.js?v=323"></script>
+<script src="app/ec-journal.js?v=323"></script>
+<script src="app/ec-depart.js?v=323"></script>
+<script src="app/ec-onglets.js?v=323"></script>
+<script src="app/ec-demarrage.js?v=323"></script>
 
 </body>
 </html>
