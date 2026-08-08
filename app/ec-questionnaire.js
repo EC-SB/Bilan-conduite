@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 11:05 — v319 */
+/* Déployé le 08/08/2026 à 13:55 — v321 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -462,17 +462,20 @@ async function construireQuestionnaire(prec, titre, libelleValider){
             'placeholder="Représentant légal, ou celui qui paie">' +
         '</div>' +
 
+        '<div id="qBlocAnts" style="display:none;">' +
+          '<label for="qAnts">📇 Dossier ANTS</label>' +
+          '<select id="qAnts">' +
+            '<option value="">— non renseigné —</option>' +
+            '<option value="eleve">Fait par l\'élève</option>' +
+            '<option value="nous">Fait par nous</option>' +
+          '</select>' +
+        '</div>' +
+
         '<div style="font-size:12px;color:var(--muted);margin:-4px 0 14px;line-height:1.4;">' +
         'Saisies ici, elles rejoignent sa fiche : tous les moniteurs les ' +
         'retrouveront, et son bilan pourra lui être envoyé.</div>' +
       '</div>' +
 
-      '<label for="qAnts">Dossier ANTS</label>' +
-      '<select id="qAnts">' +
-        '<option value="">— non renseigné —</option>' +
-        '<option value="eleve">Fait par l\'élève</option>' +
-        '<option value="nous">Fait par nous</option>' +
-      '</select>' +
       '<div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">' +
       'Information interne, jamais reprise dans les notes ni dans le bilan.</div>' +
 
@@ -689,11 +692,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     if(caseCS && /^CS /.test(prec.frise || frisePrecedente || '')) caseCS.checked = true;
     if(caseCS) caseCS.addEventListener('change', majParcours);
     majParcours();
-    /* Affiche d'emblée les champs conditionnels déjà renseignés */
-    setTimeout(() => {
-      majEB();
-      selEP.dispatchEvent(new Event('change'));
-    }, 0);
 
     if(chAvant){
       const base = prec.frise || frisePrecedente;
@@ -726,10 +724,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     /* Après le cours : on n'affiche que ce qui peut avoir changé */
     if(/après ce cours/i.test(titre || '')) allegerQuestionnaireFin(boite, prec);
 
-    /* Boîte déduite du type de bilan, ANTS repris s'il est connu */
-    boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
-    boite.querySelector('#qAnts').value = prec.ants || '';
-    if(passEP) passEP.value = prec.examPassage || '';
+    /* Boîte déduite du type de bilan, ANTS repris s'il est connu.
+       Chaque champ est vérifié : certains profils de questionnaire
+       n'en affichent qu'une partie, et un accès à un champ absent
+       interrompait toute la suite de la construction. */
+    const chBoite = boite.querySelector('#qBoite');
+    if(chBoite) chBoite.value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
+    const chAnts = boite.querySelector('#qAnts');
+    if(chAnts) chAnts.value = prec.ants || '';
 
     /* Chaque coordonnée n'est demandée QUE si elle manque : les
        redemander alors qu'elles sont connues ne sert qu'à les
@@ -741,7 +743,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const manque = {
       messenger: !((ficheEleve && ficheEleve.messenger) || ''),
       mail:      !((ficheEleve && ficheEleve.email) || ''),
-      presc:     !((ficheEleve && ficheEleve.mailPrescripteur) || '')
+      presc:     !((ficheEleve && ficheEleve.mailPrescripteur) || ''),
+      ants:      !((ficheEleve && ficheEleve.ants) || '') && !prec.ants
     };
 
     const montrer = (id, oui) => {
@@ -751,8 +754,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     montrer('#qBlocMessenger', manque.messenger);
     montrer('#qBlocMail', manque.mail);
     montrer('#qBlocMailPresc', manque.presc);
+    montrer('#qBlocAnts', manque.ants);
     /* L'encadré entier disparaît si tout est déjà renseigné */
-    montrer('#qBlocCoord', manque.messenger || manque.mail || manque.presc);
+    montrer('#qBlocCoord',
+            manque.messenger || manque.mail || manque.presc || manque.ants);
 
     if(champMess) champMess.value = prec.messenger || '';
     if(champMail) champMail.value = prec.email || '';
@@ -816,8 +821,22 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const selEB = { get value(){ return valeurEB(); },
                     dispatchEvent: majEB };
 
+    /* Affiche d'emblée les champs conditionnels déjà renseignés.
+       Placé ICI et non plus haut : un await sépare les deux, et le
+       minuteur se déclenchait avant que majEB n'existe, ce qui
+       interrompait toute la construction de la fenêtre. */
+    setTimeout(() => {
+      try{
+        majEB();
+        if(selEP) selEP.dispatchEvent(new Event('change'));
+      }catch(e){ console.warn('Champs conditionnels :', e); }
+    }, 0);
+
     const selEP = boite.querySelector('#qExamPermis');
     const passEP = boite.querySelector('#qExamPassage');
+    /* Renseigné ici, où le champ existe : plus haut, il n'était pas
+       encore déclaré et l'accès interrompait toute la construction. */
+    if(passEP) passEP.value = prec.examPassage || '';
     const dEP = boite.querySelector('#qExamDate');
     selEP.value = prec.examPermis || '';
     dEP.value = prec.examDate || '';
@@ -907,7 +926,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         handicap: boite.querySelector('#qHandicap').checked ? 'oui' : '',
         amenagements: Array.prototype.slice
           .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
-        ants: boite.querySelector('#qAnts').value,
+        ants: chAnts ? chAnts.value : '',
         messenger: champMess ? champMess.value.trim() : '',
         email: champMail ? champMail.value.trim() : '',
         mailPrescripteur: champPresc ? champPresc.value.trim() : '',
@@ -1619,13 +1638,8 @@ function allegerQuestionnaireFin(boite, prec){
   const zh = boite.querySelector('#qZoneHandicap');
   if(zh) zh.style.display = 'none';
 
-  /* Dossier ANTS : seulement s'il reste à renseigner */
-  const ants = boite.querySelector('#qAnts');
-  if(ants && (prec.ants || '').trim()){
-    cacher('#qAnts');
-    const aide = ants.nextElementSibling;
-    if(aide && aide.className !== 'btn-row') aide.style.display = 'none';
-  }
+  /* L'ANTS est traité avec les autres coordonnées manquantes :
+     l'ancienne règle isolée masquait le champ sans son bloc. */
 
   /* Frise et numéro de leçon : renseignés au départ */
   ['#qFriseClassique', '#qFriseFixe', '#qBlocAacCs'].forEach(s => {
