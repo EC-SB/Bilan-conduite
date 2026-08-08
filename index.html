@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v308
-     VERSION APPS SCRIPT REQUISE : v55
-     Mis à jour le : 08/08/2026 à 08:30
+     VERSION APPLICATION : v310
+     VERSION APPS SCRIPT REQUISE : v56
+     Mis à jour le : 08/08/2026 à 08:41
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -649,7 +649,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v308</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v310</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1001,7 +1001,7 @@
   </div>
 
   <div class="card" data-section="recherche" data-vue="recherche" data-onglet="eleves">
-    <h2 class="section-title">🔍 Retrouver un élève</h2>
+    <h2 class="section-title">📚 Historique des leçons</h2>
     <div class="contenu-tiroir">
     <label for="searchName">Prénom et nom de l'élève</label>
     <input type="text" id="searchName" list="listeEleves" autocomplete="off"
@@ -1205,6 +1205,88 @@
 
     </div>
   </div>
+  <div class="card" data-section="rappels" data-vue="rappels" data-onglet="eleves">
+    <h2 class="section-title">🔔 Rappels de cours</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Dépose la capture de ton planning : l'IA en tire la liste des cours,
+        retrouve les élèves dans le répertoire et prépare un SMS pour chacun.
+        <br><em>Rien ne part tout seul : tu relis et tu envoies élève par élève.</em>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button class="btn btn-secondary" id="rappelModeManuel"
+                style="flex:1;padding:12px;font-size:14px;margin:0;">✍️ À la main</button>
+        <button class="btn btn-secondary" id="rappelModePlanning"
+                style="flex:1;padding:12px;font-size:14px;margin:0;">📷 Depuis le planning</button>
+        <button class="btn btn-secondary" id="rappelModeHistorique"
+                style="flex:1;padding:12px;font-size:14px;margin:0;">📜 Historique</button>
+      </div>
+
+      <div id="rappelHistoriqueBloc" style="display:none;">
+        <div id="rappelHistorique"><div class="empty">Chargement…</div></div>
+      </div>
+
+      <div id="rappelManuel">
+        <div id="rappelManuelZone"><div class="empty">Chargement…</div></div>
+      </div>
+
+      <div id="rappelPlanning" style="display:none;">
+      <label for="rappelFichier">📷 Capture(s) du planning</label>
+      <input type="file" id="rappelFichier" accept="image/*" multiple
+             style="width:100%;background:var(--navy);border:1px solid var(--line);
+                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
+                    margin-bottom:10px;">
+      <button class="btn btn-primary" id="rappelLire">🔎 Lire le planning</button>
+      <div id="rappelZone" style="margin-top:14px;">
+        <div class="empty">Dépose une capture, puis appuie sur Lire le planning.</div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="card" data-section="eleves" data-vue="eleves" data-onglet="eleves">
+    <h2 class="section-title">👥 Répertoire des élèves</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les noms proposés dans les listes viennent des bilans déjà saisis.
+        Un élève qui n'a pas encore de bilan n'apparaît donc nulle part.
+        Colle ici ta liste réelle pour qu'ils soient tous proposés.
+        <br><em>La suppression complète d'un élève reste réservée aux administrateurs.</em>
+      </div>
+      <!-- Créer un élève à la main : le cas d'un nouvel inscrit,
+           quand on a toutes ses informations sous les yeux. -->
+      <button class="btn btn-primary" id="btnNouvelEleve"
+              style="margin-bottom:16px;padding:13px;font-size:14px;">
+        ➕ Créer un élève</button>
+
+      <label for="importFichier">📄 Depuis un fichier CSV</label>
+      <input type="file" id="importFichier" accept=".csv,.txt,text/csv,text/plain"
+             style="width:100%;background:var(--navy);border:1px solid var(--line);
+                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
+                    margin-bottom:6px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
+        L'application repère toute seule les colonnes : nom, téléphone, mail, formation.
+        Elles sont importées ensemble. La liste s'affiche ci-dessous pour relecture.
+      </div>
+
+      <label for="importEleves">Ou colle la liste — un élève par ligne</label>
+      <textarea id="importEleves" rows="10"
+                placeholder="Pierre Dupont&#10;Erika Test&#10;Thomas Morvan"
+                style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
+                       padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
+                       font-family:inherit;resize:vertical;margin-bottom:6px;"></textarea>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+        Les virgules et points-virgules font aussi office de séparateurs.
+        Les doublons sont ignorés, rien n'est écrasé.
+      </div>
+      <button class="btn btn-primary" id="importBtn">📥 Importer la liste</button>
+      <div id="importEtat" style="margin-top:10px;font-size:13px;min-height:18px;line-height:1.5;"></div>
+      <div id="repertoireListe" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+
   <div class="card" data-section="permis" data-vue="permis" data-onglet="eleves">
     <h2 class="section-title">🎓 Élève ayant obtenu son permis</h2>
     <div class="contenu-tiroir">
@@ -1385,86 +1467,6 @@
     </div>
   </div>
 
-  <div class="card" data-section="rappels" data-vue="rappels" data-onglet="outils">
-    <h2 class="section-title">🔔 Rappels de cours</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Dépose la capture de ton planning : l'IA en tire la liste des cours,
-        retrouve les élèves dans le répertoire et prépare un SMS pour chacun.
-        <br><em>Rien ne part tout seul : tu relis et tu envoies élève par élève.</em>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:14px;">
-        <button class="btn btn-secondary" id="rappelModeManuel"
-                style="flex:1;padding:12px;font-size:14px;margin:0;">✍️ À la main</button>
-        <button class="btn btn-secondary" id="rappelModePlanning"
-                style="flex:1;padding:12px;font-size:14px;margin:0;">📷 Depuis le planning</button>
-        <button class="btn btn-secondary" id="rappelModeHistorique"
-                style="flex:1;padding:12px;font-size:14px;margin:0;">📜 Historique</button>
-      </div>
-
-      <div id="rappelHistoriqueBloc" style="display:none;">
-        <div id="rappelHistorique"><div class="empty">Chargement…</div></div>
-      </div>
-
-      <div id="rappelManuel">
-        <div id="rappelManuelZone"><div class="empty">Chargement…</div></div>
-      </div>
-
-      <div id="rappelPlanning" style="display:none;">
-      <label for="rappelFichier">📷 Capture(s) du planning</label>
-      <input type="file" id="rappelFichier" accept="image/*" multiple
-             style="width:100%;background:var(--navy);border:1px solid var(--line);
-                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
-                    margin-bottom:10px;">
-      <button class="btn btn-primary" id="rappelLire">🔎 Lire le planning</button>
-      <div id="rappelZone" style="margin-top:14px;">
-        <div class="empty">Dépose une capture, puis appuie sur Lire le planning.</div>
-      </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card" data-section="eleves" data-vue="eleves" data-onglet="outils">
-    <h2 class="section-title">👥 Répertoire des élèves</h2>
-    <div class="contenu-tiroir">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
-        Les noms proposés dans les listes viennent des bilans déjà saisis.
-        Un élève qui n'a pas encore de bilan n'apparaît donc nulle part.
-        Colle ici ta liste réelle pour qu'ils soient tous proposés.
-        <br><em>La suppression complète d'un élève reste réservée aux administrateurs.</em>
-      </div>
-      <!-- Créer un élève à la main : le cas d'un nouvel inscrit,
-           quand on a toutes ses informations sous les yeux. -->
-      <button class="btn btn-primary" id="btnNouvelEleve"
-              style="margin-bottom:16px;padding:13px;font-size:14px;">
-        ➕ Créer un élève</button>
-
-      <label for="importFichier">📄 Depuis un fichier CSV</label>
-      <input type="file" id="importFichier" accept=".csv,.txt,text/csv,text/plain"
-             style="width:100%;background:var(--navy);border:1px solid var(--line);
-                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
-                    margin-bottom:6px;">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
-        L'application repère toute seule les colonnes : nom, téléphone, mail, formation.
-        Elles sont importées ensemble. La liste s'affiche ci-dessous pour relecture.
-      </div>
-
-      <label for="importEleves">Ou colle la liste — un élève par ligne</label>
-      <textarea id="importEleves" rows="10"
-                placeholder="Pierre Dupont&#10;Erika Test&#10;Thomas Morvan"
-                style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
-                       padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
-                       font-family:inherit;resize:vertical;margin-bottom:6px;"></textarea>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
-        Les virgules et points-virgules font aussi office de séparateurs.
-        Les doublons sont ignorés, rien n'est écrasé.
-      </div>
-      <button class="btn btn-primary" id="importBtn">📥 Importer la liste</button>
-      <div id="importEtat" style="margin-top:10px;font-size:13px;min-height:18px;line-height:1.5;"></div>
-      <div id="repertoireListe" style="margin-top:14px;"></div>
-    </div>
-  </div>
-
   <div class="card" data-section="procedures" data-vue="procedures" data-onglet="outils">
     <h2 class="section-title">🚦 Procédures de conduite</h2>
     <div class="contenu-tiroir">
@@ -1633,34 +1635,34 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=308"></script>
-<script src="app/ec-modeles.js?v=308"></script>
-<script src="app/ec-consignes.js?v=308"></script>
-<script src="app/ec-noyau.js?v=308"></script>
-<script src="app/ec-vocal.js?v=308"></script>
-<script src="app/ec-reseau.js?v=308"></script>
-<script src="app/ec-manuel.js?v=308"></script>
-<script src="app/ec-fenetres.js?v=308"></script>
-<script src="app/ec-questionnaire.js?v=308"></script>
-<script src="app/ec-permis.js?v=308"></script>
-<script src="app/ec-prepares.js?v=308"></script>
-<script src="app/ec-bureau.js?v=308"></script>
-<script src="app/ec-places.js?v=308"></script>
-<script src="app/ec-listes.js?v=308"></script>
-<script src="app/ec-permis-listes.js?v=308"></script>
-<script src="app/ec-postpermis.js?v=308"></script>
-<script src="app/ec-textes.js?v=308"></script>
-<script src="app/ec-correction.js?v=308"></script>
-<script src="app/ec-bilans.js?v=308"></script>
-<script src="app/ec-historique.js?v=308"></script>
-<script src="app/ec-rappels.js?v=308"></script>
-<script src="app/ec-sms.js?v=308"></script>
-<script src="app/ec-stats.js?v=308"></script>
-<script src="app/ec-messenger.js?v=308"></script>
-<script src="app/ec-journal.js?v=308"></script>
-<script src="app/ec-depart.js?v=308"></script>
-<script src="app/ec-onglets.js?v=308"></script>
-<script src="app/ec-demarrage.js?v=308"></script>
+  <script src="app/ec-etat.js?v=310"></script>
+<script src="app/ec-modeles.js?v=310"></script>
+<script src="app/ec-consignes.js?v=310"></script>
+<script src="app/ec-noyau.js?v=310"></script>
+<script src="app/ec-vocal.js?v=310"></script>
+<script src="app/ec-reseau.js?v=310"></script>
+<script src="app/ec-manuel.js?v=310"></script>
+<script src="app/ec-fenetres.js?v=310"></script>
+<script src="app/ec-questionnaire.js?v=310"></script>
+<script src="app/ec-permis.js?v=310"></script>
+<script src="app/ec-prepares.js?v=310"></script>
+<script src="app/ec-bureau.js?v=310"></script>
+<script src="app/ec-places.js?v=310"></script>
+<script src="app/ec-listes.js?v=310"></script>
+<script src="app/ec-permis-listes.js?v=310"></script>
+<script src="app/ec-postpermis.js?v=310"></script>
+<script src="app/ec-textes.js?v=310"></script>
+<script src="app/ec-correction.js?v=310"></script>
+<script src="app/ec-bilans.js?v=310"></script>
+<script src="app/ec-historique.js?v=310"></script>
+<script src="app/ec-rappels.js?v=310"></script>
+<script src="app/ec-sms.js?v=310"></script>
+<script src="app/ec-stats.js?v=310"></script>
+<script src="app/ec-messenger.js?v=310"></script>
+<script src="app/ec-journal.js?v=310"></script>
+<script src="app/ec-depart.js?v=310"></script>
+<script src="app/ec-onglets.js?v=310"></script>
+<script src="app/ec-demarrage.js?v=310"></script>
 
 </body>
 </html>
