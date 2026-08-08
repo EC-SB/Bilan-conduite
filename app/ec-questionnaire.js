@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 15:06 — v299 */
+/* Déployé le 08/08/2026 à 07:02 — v301 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -472,6 +472,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '</select>' +
       '</div>' +
 
+      '<div id="qBlocEbDate" style="display:none;">' +
+        '<label for="qExamBlancDate">Date de l\'examen blanc</label>' +
+        '<input type="date" id="qExamBlancDate">' +
+      '</div>' +
+
       '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
 
       (modeleCle === 'examen-blanc'
@@ -683,8 +688,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const nEB = boite.querySelector('#qExamBlancN');
     const rangEB = boite.querySelector('#qExamBlancRang');
     const blocRang = boite.querySelector('#qBlocEbRang');
+    const dateEB = boite.querySelector('#qExamBlancDate');
+    const blocDate = boite.querySelector('#qBlocEbDate');
     nEB.value = prec.examBlancN || '';
     if(rangEB) rangEB.value = prec.examBlancRang || '';
+    if(dateEB) dateEB.value = prec.examBlancDate || '';
 
     const valeurEB = () => {
       const coche = boite.querySelector('input[name="qExamBlancChoix"]:checked');
@@ -704,6 +712,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         : 'Dans combien de leçons ?';
       /* Le rang n'a de sens que si un examen blanc est en jeu */
       if(blocRang) blocRang.style.display = v ? 'block' : 'none';
+      /* La date : seulement s'il est réservé ou déjà passé */
+      if(blocDate) blocDate.style.display = (v === 'reserve' || v === 'passe') ? 'block' : 'none';
     }
 
     /* Un objet qui se comporte comme l'ancien menu, pour le reste du code */
@@ -776,6 +786,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
         examBlancRang: rangEB ? rangEB.value : '',
+        examBlancDate: dateEB ? dateEB.value : '',
         examPermis: selEP.value,
         examDate: dEP.value,
         pasEcoute: boite.querySelector('#qPasEcoute').checked,
@@ -872,6 +883,11 @@ function ajouterSuite(bouts, q){
     ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
     : 'examen blanc';
 
+  /* La date saisie, en toutes lettres : « le mardi 15 septembre 2026 » */
+  const jourEB = q.examBlancDate
+    ? ' le ' + (dateEnToutesLettres(q.examBlancDate) || q.examBlancDate)
+    : '';
+
   /* L'examen blanc vient d'avoir lieu : sa conclusion prime */
   if(q.ebPasse){
     const jour = dateEnToutesLettres($('lessonDate').value || todayLocal());
@@ -885,11 +901,12 @@ function ajouterSuite(bouts, q){
       bouts.push(eb + ' passé le ' + jour + ' — pas le niveau');
     }
   }else if(q.examBlanc === 'passe'){
-    bouts.push(n ? eb + ' passé — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
+    bouts.push(n ? eb + ' passé' + jourEB + ' — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
                    ' avant le permis (+ 3h avant examen)'
-                 : eb + ' déjà passé');
+                 : eb + ' passé' + (jourEB || ' — déjà fait'));
   }else if(q.examBlanc === 'reserve'){
-    bouts.push(n ? eb + ' réservé dans ' + n + ' leçon' + pl(n) : eb + ' réservé');
+    bouts.push(eb + ' réservé' + jourEB +
+               (n ? ' — dans ' + n + ' leçon' + pl(n) : ''));
   }else if(q.examBlanc === 'aprevoir'){
     bouts.push(n ? eb + ' à prévoir dans ' + n + ' leçon' + pl(n)
                  : eb + ' à prévoir');
