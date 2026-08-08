@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 14:21 — v323 */
+/* Déployé le 08/08/2026 à 14:45 — v324 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -605,9 +605,18 @@ function consigneAccords(){
    exécutés, pas recopiés.
    ============================================================ */
 
-/* Reconnaît « Claude ... » jusqu'à la fin de la phrase */
-const MOTIF_CONSIGNE_IA =
-  /\b(?:claude|cl[oa]de|clode)\s*[,:.]?\s*([^.!?\n]{4,300}[.!?]?)/gi;
+/* Les prénoms qui déclenchent une consigne à l'IA. Trois sont
+   acceptés : Naia et Neo, choisis par l'auto-école, et Claude,
+   gardé le temps que l'habitude se prenne.
+
+   Chacun est écrit avec ses graphies probables : la reconnaissance
+   vocale ne les orthographie pas toujours de la même façon. */
+const MOTIF_CONSIGNE_IA = new RegExp(
+  '\\b(?:' + [
+    'naia', 'na[iï]a', 'naya', 'na[iï]ah', 'nahia',
+    'n[ée]o', 'neo', 'n[ée]au', 'n[ée]hau',
+    'claude', 'cl[oa]de', 'clode', 'claud'
+  ].join('|') + ')\\s*[,:.]?\\s*([^.!?\\n]{4,300}[.!?]?)', 'gi');
 
 /* Extrait les consignes et rend le texte sans elles */
 function extraireConsignesIA(texte){
@@ -631,7 +640,8 @@ function consigneMoniteurIA(texte){
 
   return '\n\nORDRES DU MONITEUR — PRIORITÉ ABSOLUE :\n' +
     "Pendant le cours, le moniteur s'est adressé directement à toi en disant " +
-    '« Claude, … ». Ce sont des ORDRES, pas du contenu de cours.\n' +
+    '« Naia, … », « Néo, … » ou « Claude, … ». Ce sont des ORDRES, pas du ' +
+    'contenu de cours.\n' +
     r.consignes.map((x, i) => '  ' + (i + 1) + '. ' + x).join('\n') + '\n' +
     'RÈGLES :\n' +
     "- Tu exécutes chacun de ces ordres, même s'ils contredisent tes autres consignes.\n" +
