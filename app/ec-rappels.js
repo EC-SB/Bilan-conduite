@@ -1,3 +1,4 @@
+/* Déployé le 08/08/2026 à 09:16 — v314 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -940,6 +941,10 @@ async function envoyerRappelManuel(){
     direEtatEnvoi((n > 1 ? n + ' SMS envoyés' : 'SMS envoyé') +
                   ' au ' + telLisible(numero) + (nom ? ' — ' + nom : ''), false);
     showToast(n > 1 ? n + ' SMS envoyés ✅' : 'SMS envoyé ✅');
+
+    /* Le cours annoncé rejoint « Mes prochains cours » */
+    preparerDepuisRappel(nom, choixRappel && choixRappel.jour);
+
     /* On passe à l'élève suivant, les réglages sont conservés */
     setTimeout(() => {
       if($('rappelEleve')) $('rappelEleve').value = '';
@@ -1150,6 +1155,86 @@ function modeRappel(mode){
 
   if(actif === 'manuel') afficherRappelManuel();
   if(actif === 'historique') afficherHistoriqueSms();
+}
+
+/* ============================================================
+   UN RAPPEL VAUT ANNONCE D'UN COURS
+
+   Prévenir un élève qu'il a cours demain, c'est savoir qu'il aura
+   cours demain. La préparation se crée donc toute seule, pour que
+   le cours apparaisse dans « Mes prochains cours ».
+   ============================================================ */
+async function preparerDepuisRappel(eleve, jourTexte){
+  if(!eleve || eleve.length < 3) return;
+
+  const iso = dateDuRappel(jourTexte);
+  if(!iso) return;
+
+  try{
+    /* Rien à faire si elle existe déjà */
+    const d = await appelPrep({ action: 'prepList' });
+    const liste = (d && d.preparations) || [];
+    const deja = liste.some(x =>
+      normaliserMot(x.eleve || '') === normaliserMot(eleve) && x.date === iso);
+    if(deja) return;
+
+    /* La boîte de l'élève décide du type de bilan */
+    const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+    const auto = /auto|bea/i.test((f && f.formation) || '');
+    const cle = auto ? 'conduite-auto' : 'conduite-manuelle';
+
+    await appelPrep({
+      action: 'prepAdd',
+      date: iso,
+      eleve: eleve,
+      modele: cle,
+      modeleLabel: (typeof MODELES !== 'undefined' && MODELES[cle])
+        ? MODELES[cle].label : '',
+      site: (f && f.site) || '',
+      note: '',
+      contexte: '',
+      moniteur: ACCES.moniteur || ''
+    });
+    showToast('Cours ajouté à tes prochains cours 📅');
+  }catch(e){
+    console.warn('Préparation non créée depuis le rappel :', e);
+  }
+}
+
+/* Les libellés des rappels sont en caractères stylisés (𝗗𝗘𝗠𝗔𝗜𝗡) :
+   la normalisation habituelle ne les ramène pas en lettres simples. */
+function lettresSimples(texte){
+  return String(texte || '').replace(/[\uD835][\uDC00-\uDFFF]/g, ch => {
+    const p = ch.codePointAt(0) - 0x1D400;
+    const bloc = Math.floor(p / 52);
+    const reste = p % 52;
+    /* Chaque bloc de 52 couvre A-Z puis a-z */
+    return reste < 26
+      ? String.fromCharCode(65 + reste)
+      : String.fromCharCode(97 + reste - 26);
+  });
+}
+
+/* « DEMAIN », « LUNDI »… devient une date ISO */
+function dateDuRappel(jourTexte){
+  const t = normaliserMot(lettresSimples(jourTexte || ''));
+  const d = new Date();
+
+  if(!t || /demain/.test(t)){ d.setDate(d.getDate() + 1); }
+  else if(/aujourd/.test(t)){ /* aujourd'hui */ }
+  else {
+    const jours = ['dimanche', 'lundi', 'mardi', 'mercredi',
+                   'jeudi', 'vendredi', 'samedi'];
+    const cible = jours.findIndex(x => t.indexOf(x) !== -1);
+    if(cible === -1) return '';
+    /* Le prochain jour portant ce nom, jamais aujourd'hui */
+    let n = (cible - d.getDay() + 7) % 7;
+    if(n === 0) n = 7;
+    d.setDate(d.getDate() + n);
+  }
+
+  const p = x => String(x).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 
 /* Signale que ce module est bien chargé */
