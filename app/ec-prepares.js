@@ -45,8 +45,11 @@ async function appelPrep(corps){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
   }, delai, essais);
-  if(!r.ok) throw new Error('HTTP ' + r.status);
-  return await r.json().catch(() => ({}));
+  /* Le message du serveur vaut mieux qu'un code seul : « HTTP 502 »
+     ne dit rien, « SMTP 535 : authentification refusée » dit tout. */
+  const rep = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(rep && rep.error ? rep.error : 'HTTP ' + r.status);
+  return rep;
 }
 
 /* Charge depuis Sheets, avec repli sur le cache si le réseau manque */
