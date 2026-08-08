@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 07:38 — v303 */
+/* Déployé le 08/08/2026 à 08:23 — v307 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -357,7 +357,13 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
   /* Clé de conduite supervisée correspondant à la boîte du bilan */
   const cleCS = /auto/i.test(modeleCle) ? 'csbea' : 'csbv';
-  const frisePrecedente = friseDeduite || dossier.frise;
+  /* Trois sources, de la plus sûre à la plus générale : le type de
+     bilan, le dernier cours, la fiche de l'élève. Sans ce dernier
+     recours, un dossier momentanément indisponible faisait perdre
+     une frise pourtant enregistrée. */
+  const ficheEleve = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+  const frisePrecedente = friseDeduite || dossier.frise ||
+                          (ficheEleve && ficheEleve.frise) || '';
   const faites = dossier.lecons;
   const manoeuvresAvant = dossier.manoeuvres || [];
   const totalManoeuvres = BLOC.ficheListeConduite.length;
