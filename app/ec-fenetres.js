@@ -1,3 +1,4 @@
+/* Déployé le 08/08/2026 à 07:13 — v302 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -432,13 +433,21 @@ function ligneFicheEleve(nom){
 
   const info = document.createElement('div');
   info.style.cssText = 'flex:1;min-width:0;';
-  info.innerHTML = '<strong style="font-size:15px;">' + nom.replace(/</g, '&lt;') + '</strong>' +
+  /* Les repères visibles d'un coup d'œil, comme dans les listes permis */
+  const genre = f.genre === 'F' ? '♀' : (f.genre === 'M' ? '♂' : '');
+
+  info.innerHTML = '<strong style="font-size:15px;">' +
+    (genre ? genre + ' ' : '') + nom.replace(/</g, '&lt;') + '</strong>' +
     (f.formation ? ' <span style="font-size:11px;color:var(--accent-text);">' +
       f.formation.replace(/</g, '&lt;') + '</span>' : '') +
+    (f.autreAE ? ' <span style="font-size:11px;color:#E8A33D;">🏫 ' +
+      (f.autreAENom ? f.autreAENom.replace(/</g, '&lt;') : 'autre auto-école') +
+      '</span>' : '') +
     '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
     (f.telephone ? '📱 ' + telLisible(f.telephone) : '📱 pas de numéro') +
     (f.messenger ? '<br>💬 ' + lienMessenger(f.messenger) : '') +
     (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
+    (f.frise ? '<br>🧭 ' + f.frise.replace(/</g, '&lt;') : '') +
     (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
     '</div>';
   h.appendChild(info);
@@ -508,6 +517,20 @@ function ouvrirFicheEleve(nom, f){
       FORMATIONS.map(x => '<option value="' + x + '">' +
         (x || '— à préciser —') + '</option>').join('') +
     '</select>' +
+    '<label for="fiFrise">🧭 Frise de formation</label>' +
+    '<input type="text" id="fiFrise" ' +
+      'placeholder="Ex : 6 leçons de 2h + exam blanc + 2 leçons de 2h (4h) + 3h avant examen">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Reprise telle quelle dans les bilans. Laisse vide si elle n\'est pas ' +
+      'encore déterminée.</div>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:6px;font-weight:400;">' +
+      '<input type="checkbox" id="fiAutreAE" style="width:19px;height:19px;">' +
+      '🏫 Vient d\'une autre auto-école</label>' +
+    '<input type="text" id="fiAutreAENom" placeholder="Nom de l\'auto-école précédente" ' +
+      'style="display:none;">' +
+
     '<label for="fiRem">Remarques</label>' +
     '<textarea id="fiRem" rows="3" placeholder="Ce qu\'il faut savoir sur cet élève" ' +
       'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
@@ -537,6 +560,13 @@ function ouvrirFicheEleve(nom, f){
   g('fiMail').value = (f && f.email) || '';
   g('fiMess').value = (f && f.messenger) || '';
   g('fiGenre').value = (f && f.genre) || '';
+  g('fiFrise').value = (f && f.frise) || '';
+  g('fiAutreAE').checked = !!(f && f.autreAE);
+  g('fiAutreAENom').value = (f && f.autreAENom) || '';
+  g('fiAutreAENom').style.display = g('fiAutreAE').checked ? 'block' : 'none';
+  g('fiAutreAE').addEventListener('change', () => {
+    g('fiAutreAENom').style.display = g('fiAutreAE').checked ? 'block' : 'none';
+  });
   g('fiForm').value = (f && f.formation) || '';
   g('fiRem').value = (f && f.remarques) || '';
 
@@ -563,6 +593,9 @@ function ouvrirFicheEleve(nom, f){
                         email: mail, formation: g('fiForm').value,
                         messenger: g('fiMess').value.trim(),
                         genre: g('fiGenre').value,
+                        frise: g('fiFrise').value.trim(),
+                        autreAE: g('fiAutreAE').checked ? 'oui' : '',
+                        autreAENom: g('fiAutreAENom').value.trim(),
                         remarques: g('fiRem').value.trim() });
       document.body.removeChild(fond);
       showToast('Fiche enregistrée ✅');
