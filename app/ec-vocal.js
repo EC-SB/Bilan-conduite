@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 14:10 — v322 */
+/* Déployé le 08/08/2026 à 14:21 — v323 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -198,7 +198,11 @@ function creerReconnaissance(){
     }
     /* Les reprises du moniteur sont appliquées tout de suite :
        il voit son texte se corriger pendant qu'il parle. */
-    const sessionText = appliquerReprises(corrigerVocabulaire(fusionner(chunks)));
+    /* Les corrections de l'auto-école passent après celles du code :
+       elles peuvent ainsi rattraper ce qu'il aurait manqué. */
+    let brut = corrigerVocabulaire(fusionner(chunks));
+    if(typeof appliquerCorrectionsIA === 'function') brut = appliquerCorrectionsIA(brut);
+    const sessionText = appliquerReprises(brut);
     finalTranscript = mettreEnForme(fusionner([committedTranscript, sessionText]));
     if(sessionText) dernierMot = Date.now();
     marquerActif('résultat reçu');
@@ -875,7 +879,10 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
         await new Promise(r => setTimeout(r, attente));
       }
       const txt = await appelBrutIA(CONSIGNE_CORRECTION + consigneAccords() +
-                                    consigneReglesIA() + consigneMoniteurIA(tranche) + contexte,
+                                    consigneReglesIA() +
+                                    (typeof consigneCorrectionsIA === 'function'
+                                      ? consigneCorrectionsIA() : '') +
+                                    consigneMoniteurIA(tranche) + contexte,
                                     tranche, 8000);
       const propre = (txt || '').trim();
 
@@ -916,6 +923,7 @@ async function corrigerCours(transcript, surProgres){
 
   cadenceDepassee = false;
   await chargerReglesIA();
+  if(typeof chargerCorrectionsIA === 'function') await chargerCorrectionsIA();
   const corrigees = new Array(tranches.length);
   const echecs = [];
   let terminees = 0;
@@ -1059,6 +1067,8 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
   /* Les ordres du moniteur passent aussi au résumé : « ça doit
      apparaître en gras » n'a de sens qu'à cette étape. */
   const systemPrompt = construireConsignes(modeleCle) + consigneReglesIA() +
+                       (typeof consigneCorrectionsIA === 'function'
+                         ? consigneCorrectionsIA() : '') +
                        consigneMoniteurIA(transcript);
   const userMsg = 'Type de bilan : ' + MODELES[modeleCle].label + '\n' +
     'Moniteur : ' + (monitorName || 'non renseigné') + '\n' +
