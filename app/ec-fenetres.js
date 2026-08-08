@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 07:13 — v302 */
+/* Déployé le 08/08/2026 à 07:44 — v304 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -447,6 +447,7 @@ function ligneFicheEleve(nom){
     (f.telephone ? '📱 ' + telLisible(f.telephone) : '📱 pas de numéro') +
     (f.messenger ? '<br>💬 ' + lienMessenger(f.messenger) : '') +
     (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
+    (f.mailPrescripteur ? '<br>👤 ' + f.mailPrescripteur.replace(/</g, '&lt;') : '') +
     (f.frise ? '<br>🧭 ' + f.frise.replace(/</g, '&lt;') : '') +
     (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
     '</div>';
@@ -501,6 +502,12 @@ function ouvrirFicheEleve(nom, f){
     '<input type="tel" id="fiTel" inputmode="tel" placeholder="06 12 34 56 78">' +
     '<label for="fiMail">✉️ Adresse mail</label>' +
     '<input type="email" id="fiMail" inputmode="email" placeholder="prenom.nom@exemple.fr">' +
+    '<label for="fiMailPresc">✉️ Mail du prescripteur</label>' +
+    '<input type="email" id="fiMailPresc" inputmode="email" ' +
+      'placeholder="Représentant légal, ou celui qui paie">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Recevra une copie des bilans, en plus de l\'élève.</div>' +
+
     '<label for="fiMess">💬 Messenger</label>' +
     '<input type="text" id="fiMess" placeholder="Son profil : lien, ou m.me/pseudo">' +
     '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
@@ -517,12 +524,23 @@ function ouvrirFicheEleve(nom, f){
       FORMATIONS.map(x => '<option value="' + x + '">' +
         (x || '— à préciser —') + '</option>').join('') +
     '</select>' +
-    '<label for="fiFrise">🧭 Frise de formation</label>' +
-    '<input type="text" id="fiFrise" ' +
-      'placeholder="Ex : 6 leçons de 2h + exam blanc + 2 leçons de 2h (4h) + 3h avant examen">' +
-    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
-      'Reprise telle quelle dans les bilans. Laisse vide si elle n\'est pas ' +
-      'encore déterminée.</div>' +
+    '<label>🧭 Frise de formation</label>' +
+    '<div style="background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+      'padding:12px;margin-bottom:6px;font-size:15px;line-height:2;">' +
+      '<input type="text" id="fiFriseAvant" inputmode="numeric" maxlength="2" ' +
+      'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;' +
+      'text-align:center;font-size:16px;">' +
+      ' leçons de 2h + exam blanc +' +
+      '<input type="text" id="fiFriseApres" inputmode="numeric" maxlength="2" ' +
+      'style="width:52px;display:inline-block;margin:0 4px;padding:7px;' +
+      'text-align:center;font-size:16px;">' +
+      ' leçons de 2h <span id="fiFriseHeures" style="color:var(--accent-text);' +
+      'font-weight:700;"></span> + 3h avant examen' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin:0 0 12px;line-height:1.4;">' +
+      'Saisie ici une fois pour toutes : le questionnaire et les bilans la ' +
+      'reprennent seuls. Laisse vide si elle n\'est pas encore déterminée.</div>' +
+    '<input type="hidden" id="fiFrise">' +
 
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
       'font-size:15px;color:var(--cream);margin-bottom:6px;font-weight:400;">' +
@@ -558,9 +576,28 @@ function ouvrirFicheEleve(nom, f){
   const g = id => boite.querySelector('#' + id);
   g('fiTel').value = (f && f.telephone) || '';
   g('fiMail').value = (f && f.email) || '';
+  g('fiMailPresc').value = (f && f.mailPrescripteur) || '';
   g('fiMess').value = (f && f.messenger) || '';
   g('fiGenre').value = (f && f.genre) || '';
-  g('fiFrise').value = (f && f.frise) || '';
+  /* On relit la frise enregistrée pour retrouver les deux nombres */
+  const friseAvant = ((f && f.frise) || '').match(/^\s*(\d+)\s*leçons?\s*de\s*2h/i);
+  const friseApres = ((f && f.frise) || '').match(/\+\s*(\d+)\s*leçons?\s*de\s*2h/i);
+  g('fiFriseAvant').value = friseAvant ? friseAvant[1] : '';
+  g('fiFriseApres').value = friseApres ? friseApres[1] : '';
+
+  function majFrise(){
+    const a = parseInt(g('fiFriseAvant').value, 10);
+    const b = parseInt(g('fiFriseApres').value, 10);
+    g('fiFriseHeures').textContent = b ? '(' + (b * 2) + 'h)' : '';
+    g('fiFrise').value = (a && b)
+      ? a + ' leçons de 2h + exam blanc + ' + b + ' leçons de 2h (' + (b * 2) +
+        'h) + 3h avant examen'
+      : '';
+  }
+  ['fiFriseAvant', 'fiFriseApres'].forEach(id => {
+    g(id).addEventListener('input', majFrise);
+  });
+  majFrise();
   g('fiAutreAE').checked = !!(f && f.autreAE);
   g('fiAutreAENom').value = (f && f.autreAENom) || '';
   g('fiAutreAENom').style.display = g('fiAutreAE').checked ? 'block' : 'none';
@@ -592,6 +629,7 @@ function ouvrirFicheEleve(nom, f){
       await appelPrep({ action: 'ficheSet', eleve: nom, telephone: tel,
                         email: mail, formation: g('fiForm').value,
                         messenger: g('fiMess').value.trim(),
+                        mailPrescripteur: g('fiMailPresc').value.trim(),
                         genre: g('fiGenre').value,
                         frise: g('fiFrise').value.trim(),
                         autreAE: g('fiAutreAE').checked ? 'oui' : '',
@@ -876,6 +914,13 @@ function lireCsvEleves(texte){
 
 /* Le fichier choisi remplit la zone de texte, pour relecture */
 function brancherFichierCsv(){
+  /* Le bouton de création manuelle, branché au même endroit */
+  const bNouveau = $('btnNouvelEleve');
+  if(bNouveau && !bNouveau._branche){
+    bNouveau._branche = true;
+    bNouveau.addEventListener('click', creerEleveALaMain);
+  }
+
   const inp = $('importFichier');
   const zone = $('importEleves');
   const etat = $('importEtat');
@@ -1142,6 +1187,22 @@ function choisirEleveConnu(titre, aide){
     champ.addEventListener('keydown', e => { if(e.key === 'Enter') bOk.click(); });
     setTimeout(() => champ.focus(), 100);
   });
+}
+
+/* Créer un élève de toutes pièces : on demande son nom, puis on
+   ouvre sa fiche vide. Toutes les informations se saisissent là,
+   au même endroit que pour une modification. */
+async function creerEleveALaMain(){
+  const nom = await choisirEleveConnu(
+    'Créer un élève',
+    "Vérifie qu'il n'existe pas déjà : les élèves connus sont proposés.");
+  if(!nom) return;
+
+  const existe = ficheDe(nom);
+  if(existe && !await confirmer(
+      '« ' + nom + " » a déjà une fiche.\n\nL'ouvrir pour la compléter ?")) return;
+
+  ouvrirFicheEleve(nom, existe || {});
 }
 
 /* Signale que ce module est bien chargé */
