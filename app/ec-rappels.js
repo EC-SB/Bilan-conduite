@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 09:16 — v314 */
+/* Déployé le 08/08/2026 à 09:31 — v315 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -253,6 +253,8 @@ async function afficherRappels(){
         try{
           await envoyerMessageComplet(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
           cr.envoye = true;
+          /* Chaque cours va au moniteur lu sur le planning */
+          preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur);
           ok++;
         }catch(e){
           rates.push((cr.choisi || cr.eleve) + ' : ' + e.message);
@@ -319,6 +321,8 @@ function ligneRappel(c, i){
       try{
         await envoyerMessageComplet(c.telephone, messageRappel(c), c.choisi || c.eleve);
         c.envoye = true;
+        /* Le cours rejoint les prochains cours du moniteur lu sur le planning */
+        preparerDepuisRappel(c.choisi || c.eleve, c.jour, c.moniteur);
         showToast('Envoyé à ' + (c.choisi || c.eleve));
         afficherRappels();
       }catch(e){
@@ -658,6 +662,41 @@ async function afficherRappelManuel(){
     '</select></div>';
   zone.appendChild(grille2);
 
+  /* Le moniteur qui fera le cours : c'est le bureau qui envoie les
+     rappels, le cours doit donc arriver dans SES prochains cours,
+     pas dans ceux de la personne qui a appuyé sur le bouton. */
+  const lMon = document.createElement('label');
+  lMon.setAttribute('for', 'rapMoniteur');
+  lMon.textContent = '👤 Moniteur qui fera le cours';
+  zone.appendChild(lMon);
+
+  const selMon = document.createElement('select');
+  selMon.id = 'rapMoniteur';
+  selMon.innerHTML = '<option value="">— ne pas créer le cours —</option>';
+  zone.appendChild(selMon);
+
+  const aideMon = document.createElement('div');
+  aideMon.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
+  aideMon.textContent = "Le cours apparaîtra dans « Mes prochains cours » du moniteur choisi. " +
+    'Sans moniteur, le rappel part sans créer de cours.';
+  zone.appendChild(aideMon);
+
+  /* La liste des moniteurs, chargée une fois */
+  (async () => {
+    try{
+      if(typeof chargerMoniteurs === 'function' &&
+         (typeof moniteursActifs === 'undefined' || !moniteursActifs.length)){
+        await chargerMoniteurs();
+      }
+      const liste = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+      selMon.innerHTML = '<option value="">— ne pas créer le cours —</option>' +
+        liste.map(m => '<option value="' + String(m).replace(/"/g, '&quot;') + '">' +
+                       m + '</option>').join('');
+      /* Un moniteur qui utilise l'outil se propose lui-même */
+      if(liste.indexOf(ACCES.moniteur) !== -1) selMon.value = ACCES.moniteur;
+    }catch(e){ /* sans liste, le champ reste sur « ne pas créer » */ }
+  })();
+
   /* Les mentions à ajouter */
   const t = document.createElement('label');
   t.textContent = 'Mentions à ajouter';
@@ -942,8 +981,9 @@ async function envoyerRappelManuel(){
                   ' au ' + telLisible(numero) + (nom ? ' — ' + nom : ''), false);
     showToast(n > 1 ? n + ' SMS envoyés ✅' : 'SMS envoyé ✅');
 
-    /* Le cours annoncé rejoint « Mes prochains cours » */
-    preparerDepuisRappel(nom, choixRappel && choixRappel.jour);
+    /* Le cours annoncé rejoint « Mes prochains cours » du moniteur */
+    preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
+                         $('rapMoniteur') ? $('rapMoniteur').value : '');
 
     /* On passe à l'élève suivant, les réglages sont conservés */
     setTimeout(() => {
@@ -1164,8 +1204,13 @@ function modeRappel(mode){
    cours demain. La préparation se crée donc toute seule, pour que
    le cours apparaisse dans « Mes prochains cours ».
    ============================================================ */
-async function preparerDepuisRappel(eleve, jourTexte){
+async function preparerDepuisRappel(eleve, jourTexte, moniteur){
   if(!eleve || eleve.length < 3) return;
+
+  /* Sans moniteur désigné, on ne crée rien : un cours attribué au
+     hasard encombrerait la liste de quelqu'un qui ne le fera pas. */
+  const qui = String(moniteur || '').trim();
+  if(!qui) return;
 
   const iso = dateDuRappel(jourTexte);
   if(!iso) return;
@@ -1193,9 +1238,9 @@ async function preparerDepuisRappel(eleve, jourTexte){
       site: (f && f.site) || '',
       note: '',
       contexte: '',
-      moniteur: ACCES.moniteur || ''
+      moniteur: qui
     });
-    showToast('Cours ajouté à tes prochains cours 📅');
+    showToast('Cours ajouté aux prochains cours de ' + qui + ' 📅');
   }catch(e){
     console.warn('Préparation non créée depuis le rappel :', e);
   }
