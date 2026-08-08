@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 09:49 — v316 */
+/* Déployé le 08/08/2026 à 10:14 — v318 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -429,13 +429,34 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           a.court + ' ' + a.nom + '</label>').join('') +
       '</div>' +
 
-      '<div id="qBlocMessenger" style="display:none;">' +
-        '<label for="qMessenger">💬 Messenger de l\'élève</label>' +
-        '<input type="text" id="qMessenger" autocomplete="off" ' +
-          'placeholder="Lien de sa conversation, ou pseudo">' +
-        '<div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">' +
-        "Il manque sur sa fiche. Saisi ici, tous les moniteurs le retrouveront, " +
-        'et le bilan pourra lui être envoyé.</div>' +
+      /* Les coordonnées manquantes : demandées une seule fois, à
+         celui qui a l'élève en face de lui. */
+      '<div id="qBlocCoord" style="display:none;">' +
+        '<div style="font-size:12px;color:var(--warn-text);margin-bottom:8px;' +
+          'line-height:1.4;font-weight:700;">' +
+          '📇 Coordonnées manquantes — demande-les à l\'élève</div>' +
+
+        '<div id="qBlocMessenger" style="display:none;">' +
+          '<label for="qMessenger">💬 Messenger de l\'élève</label>' +
+          '<input type="text" id="qMessenger" autocomplete="off" ' +
+            'placeholder="Lien de sa conversation, ou pseudo">' +
+        '</div>' +
+
+        '<div id="qBlocMail" style="display:none;">' +
+          '<label for="qMail">✉️ Adresse mail de l\'élève</label>' +
+          '<input type="email" id="qMail" inputmode="email" autocomplete="off" ' +
+            'placeholder="prenom.nom@exemple.fr">' +
+        '</div>' +
+
+        '<div id="qBlocMailPresc" style="display:none;">' +
+          '<label for="qMailPresc">👤 Mail du prescripteur</label>' +
+          '<input type="email" id="qMailPresc" inputmode="email" autocomplete="off" ' +
+            'placeholder="Représentant légal, ou celui qui paie">' +
+        '</div>' +
+
+        '<div style="font-size:12px;color:var(--muted);margin:-4px 0 14px;line-height:1.4;">' +
+        'Saisies ici, elles rejoignent sa fiche : tous les moniteurs les ' +
+        'retrouveront, et son bilan pourra lui être envoyé.</div>' +
       '</div>' +
 
       '<label for="qAnts">Dossier ANTS</label>' +
@@ -690,14 +711,32 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
     boite.querySelector('#qAnts').value = prec.ants || '';
 
-    /* Le Messenger n'est demandé QUE s'il manque : le redemander à
-       chaque cours alors qu'il est connu ne sert qu'à l'effacer par
-       inadvertance. */
+    /* Chaque coordonnée n'est demandée QUE si elle manque : les
+       redemander alors qu'elles sont connues ne sert qu'à les
+       effacer par inadvertance. */
     const champMess = boite.querySelector('#qMessenger');
-    const blocMess = boite.querySelector('#qBlocMessenger');
-    const messConnu = (ficheEleve && ficheEleve.messenger) || '';
-    if(blocMess) blocMess.style.display = messConnu ? 'none' : 'block';
+    const champMail = boite.querySelector('#qMail');
+    const champPresc = boite.querySelector('#qMailPresc');
+
+    const manque = {
+      messenger: !((ficheEleve && ficheEleve.messenger) || ''),
+      mail:      !((ficheEleve && ficheEleve.email) || ''),
+      presc:     !((ficheEleve && ficheEleve.mailPrescripteur) || '')
+    };
+
+    const montrer = (id, oui) => {
+      const b = boite.querySelector(id);
+      if(b) b.style.display = oui ? 'block' : 'none';
+    };
+    montrer('#qBlocMessenger', manque.messenger);
+    montrer('#qBlocMail', manque.mail);
+    montrer('#qBlocMailPresc', manque.presc);
+    /* L'encadré entier disparaît si tout est déjà renseigné */
+    montrer('#qBlocCoord', manque.messenger || manque.mail || manque.presc);
+
     if(champMess) champMess.value = prec.messenger || '';
+    if(champMail) champMail.value = prec.email || '';
+    if(champPresc) champPresc.value = prec.mailPrescripteur || '';
 
     /* Conduite aménagée */
     const cbH = boite.querySelector('#qHandicap');
@@ -845,6 +884,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
         ants: boite.querySelector('#qAnts').value,
         messenger: champMess ? champMess.value.trim() : '',
+        email: champMail ? champMail.value.trim() : '',
+        mailPrescripteur: champPresc ? champPresc.value.trim() : '',
         libre: boite.querySelector('#qLibre').value.trim(),
         /* Les manœuvres cochées en plus, à signer de l'émoji du moniteur */
         manoeuvresAjoutees: manoeuvresAjouteesQuestionnaire(boite._marquesConnues || {}),
@@ -1580,6 +1621,13 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
   if(reponses.ants && reponses.ants !== (avant.ants || '')) maj.ants = reponses.ants;
   if(reponses.messenger && reponses.messenger !== (avant.messenger || '')){
     maj.messenger = reponses.messenger;
+  }
+  if(reponses.email && reponses.email !== (avant.email || '')){
+    maj.email = reponses.email;
+  }
+  if(reponses.mailPrescripteur &&
+     reponses.mailPrescripteur !== (avant.mailPrescripteur || '')){
+    maj.mailPrescripteur = reponses.mailPrescripteur;
   }
   if(reponses.frise && reponses.frise !== (avant.frise || '')) maj.frise = reponses.frise;
 
