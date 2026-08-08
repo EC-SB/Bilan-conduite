@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 08:23 — v307 */
+/* Déployé le 08/08/2026 à 08:53 — v311 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -455,6 +455,8 @@ function ligneFicheEleve(nom){
     (f.messenger ? '<br>💬 ' + lienMessenger(f.messenger) : '') +
     (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
     (f.mailPrescripteur ? '<br>👤 ' + f.mailPrescripteur.replace(/</g, '&lt;') : '') +
+    (f.ants ? '<br>📇 ANTS ' +
+      (f.ants === 'nous' ? 'fait par nous' : "fait par l'élève") : '') +
     (f.frise ? '<br>🧭 ' + f.frise.replace(/</g, '&lt;') : '') +
     (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
     '</div>';
@@ -526,6 +528,16 @@ function ouvrirFicheEleve(nom, f){
       '<option value="F">Féminin</option>' +
       '<option value="M">Masculin</option>' +
     '</select>' +
+    '<label for="fiAnts">📇 Dossier ANTS</label>' +
+    '<select id="fiAnts">' +
+      '<option value="">— non renseigné —</option>' +
+      '<option value="eleve">Fait par l\'élève</option>' +
+      '<option value="nous">Fait par nous</option>' +
+    '</select>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+      'Information interne. Le questionnaire la reprend, et la met à jour ' +
+      'si un moniteur la corrige.</div>' +
+
     '<label for="fiForm">🎓 Formation</label>' +
     '<select id="fiForm">' +
       FORMATIONS.map(x => '<option value="' + x + '">' +
@@ -586,6 +598,7 @@ function ouvrirFicheEleve(nom, f){
   g('fiMailPresc').value = (f && f.mailPrescripteur) || '';
   g('fiMess').value = (f && f.messenger) || '';
   g('fiGenre').value = (f && f.genre) || '';
+  g('fiAnts').value = (f && f.ants) || '';
   /* On relit la frise enregistrée pour retrouver les deux nombres */
   const friseAvant = ((f && f.frise) || '').match(/^\s*(\d+)\s*leçons?\s*de\s*2h/i);
   const friseApres = ((f && f.frise) || '').match(/\+\s*(\d+)\s*leçons?\s*de\s*2h/i);
@@ -638,6 +651,7 @@ function ouvrirFicheEleve(nom, f){
                         messenger: g('fiMess').value.trim(),
                         mailPrescripteur: g('fiMailPresc').value.trim(),
                         genre: g('fiGenre').value,
+                        ants: g('fiAnts').value,
                         frise: g('fiFrise').value.trim(),
                         autreAE: g('fiAutreAE').checked ? 'oui' : '',
                         autreAENom: g('fiAutreAENom').value.trim(),
