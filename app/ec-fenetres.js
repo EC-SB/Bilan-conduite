@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 07:44 — v304 */
+/* Déployé le 08/08/2026 à 08:23 — v307 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -16,14 +16,21 @@ const cacheConsignes = {};     /* messages du bureau, par élève */
 const DUREE_CACHE = 600000;    /* 10 minutes — le temps d'un début de cours.
                                   Un bilan enregistré vide le cache de l'élève. */
 
+/* La forme du dossier a changé au fil des versions : marques de la
+   fiche véhicule, frise. Un dossier gardé sous l'ancienne forme
+   renverrait des champs vides pendant dix minutes. */
+const FORME_DOSSIER = 3;
+
 function lireCacheDossier(nom){
   const k = normaliserMot(nom);
   const e = cacheDossiers[k];
-  if(e && Date.now() - e.ts < DUREE_CACHE) return e.data;
-  return null;
+  if(!e || Date.now() - e.ts >= DUREE_CACHE) return null;
+  if(e.forme !== FORME_DOSSIER) return null;
+  return e.data;
 }
 function ecrireCacheDossier(nom, data){
-  cacheDossiers[normaliserMot(nom)] = { ts: Date.now(), data: data };
+  cacheDossiers[normaliserMot(nom)] =
+    { ts: Date.now(), forme: FORME_DOSSIER, data: data };
 }
 
 /* Les messages du bureau : mêmes règles que le dossier.
