@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 07:18 — v302 */
+/* Déployé le 08/08/2026 à 08:01 — v306 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -117,21 +117,33 @@ const CONNECTEURS = ['mais','donc','car','parce que','alors que','tandis que','s
 function poserVirgules(texte){
   let t = String(texte || '');
   CONNECTEURS.forEach(mot => {
-    const re = new RegExp('([a-zà-ÿ0-9])\\s+(' + mot + ')\\b', 'gi');
+    /* On ne franchit pas un saut de ligne : sinon la virgule
+       recollerait deux paragraphes en une seule phrase. */
+    const re = new RegExp('([a-zà-ÿ0-9])[ \\t]+(' + mot + ')\\b', 'gi');
     t = t.replace(re, '$1, $2');
   });
   return t;
 }
 
 function majusculer(texte){
+  /* Une majuscule après un point, mais aussi après un saut de
+     ligne : chaque paragraphe commence une nouvelle phrase. */
   return String(texte || '').replace(
-    /(^|[.!?…]\s+)([a-zà-ÿ])/g,
+    /(^|[.!?…][ \t]*|\n[ \t]*)([a-zà-ÿ])/g,
     (m, avant, lettre) => avant + lettre.toUpperCase()
   );
 }
 
 function mettreEnForme(texte){
-  return majusculer(poserVirgules(String(texte || '').replace(/\s+/g, ' ').trim()));
+  /* On resserre les espaces SANS écraser les sauts de ligne : ce
+     sont eux qui aèrent le texte. Un « \\s+ » global collait tout
+     le cours en un seul pavé, illisible pour l'élève. */
+  const propre = String(texte || '')
+    .replace(/[ \t]+/g, ' ')                /* espaces multiples */
+    .replace(/[ \t]*\n[ \t]*/g, '\n')       /* pas d'espace autour des retours */
+    .replace(/\n{3,}/g, '\n\n')             /* deux lignes vides au maximum */
+    .trim();
+  return majusculer(poserVirgules(propre));
 }
 
 /* Fabrique un objet de reconnaissance NEUF, entièrement câblé.
@@ -1314,6 +1326,46 @@ function confirmerFinDeCours(){
       : '<div style="font-size:12px;color:var(--warn-text);line-height:1.5;margin-top:6px;">' +
         "⚠️ Aucun Messenger enregistré pour cet élève. Pense à le saisir au " +
         'démarrage du prochain cours.</div>'));
+
+  /* Envoi par mail : à l'élève et à son prescripteur */
+  const mails = [];
+  if(f && f.email) mails.push(f.email);
+  if(f && f.mailPrescripteur) mails.push(f.mailPrescripteur);
+
+  if(mails.length){
+    const bMail = document.createElement('button');
+    bMail.className = 'btn btn-secondary';
+    bMail.style.cssText = 'margin-top:10px;padding:13px;font-size:14px;';
+    bMail.textContent = '✉️ Envoyer par mail (' + mails.length + ')';
+    bMail.title = mails.join(' · ');
+    bMail.addEventListener('click', async () => {
+      bMail.disabled = true;
+      bMail.textContent = 'Envoi…';
+      try{
+        await appelPrep({ action: 'mailBilan',
+                          to: mails,
+                          sujet: 'Ton bilan de conduite du ' +
+                                 (dateEnToutesLettres($('lessonDate').value) ||
+                                  $('lessonDate').value),
+                          texte: $('resultText').value });
+        bMail.textContent = '✅ Envoyé à ' + mails.length + ' adresse(s)';
+      }catch(e){
+        bMail.textContent = '⚠️ Échec : ' + e.message.slice(0, 40);
+        bMail.disabled = false;
+      }
+    });
+    boite.appendChild(bMail);
+
+    const d2 = document.createElement('div');
+    d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;';
+    d2.textContent = mails.join(' · ');
+    boite.appendChild(d2);
+  }else{
+    const d2 = document.createElement('div');
+    d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;';
+    d2.textContent = "Aucune adresse mail sur sa fiche : l'envoi par mail n'est pas possible.";
+    boite.appendChild(d2);
+  }
 
   const r = document.createElement('div');
   r.className = 'btn-row';
