@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 10:39 — v283 */
+/* Déployé le 08/08/2026 à 13:58 — v321 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -921,6 +921,63 @@ const MARQUE_FAITE = '✅';
 
 /* Fiche véhicule : coche les manœuvres faites, en reprenant
    celles déjà validées lors des cours précédents. */
+/* Le rappel joint au bilan quand le moniteur signale que l'élève
+   ne réserve pas d'écoutes pédagogiques. Texte de l'auto-école,
+   modifiable dans « Textes types » sous l'usage « ecoutes ». */
+const RAPPEL_ECOUTES =
+"Tu ne réserves pas d'écoutes pédagogiques 😱\n" +
+"Peut-être n'as-tu pas compris l'intérêt d'économiser de l'argent ? 💰\n" +
+"On t'a expliqué quand tu t'es inscrit notre méthodologie et tu as accepté de la suivre 🤝\n" +
+"Ne me dis pas que tu n'as pas le temps d'en réserver, tu as bien le temps de réserver de la conduite !\n" +
+"La différence, c'est que l'écoute pédagogique, c'est illimité et tu ne payes pas à chaque prestation à contrario de la conduite 😎\n" +
+"Tu profites du cours de l'autre élève pour travailler tes procédures, connaître les parcours d'examen, observer autour de toi, anticiper etc\n" +
+"Bref tout travailler sans dépenser d'argent et sans le stress d'être au volant 🎉\n" +
+"En tant que moniteur, cela se voit tout de suite que tu n'as pas fait D'ÉCOUTES, et au bureau, c'est un boulot monstrueux de vous ouvrir ces écoutes pédagogiques 🤯\n" +
+"Donc RÉSERVE IMMÉDIATEMENT de ton compte en ligne ⚠️\n" +
+"https://www.facebook.com/groups/174715876519873/permalink/96295402436271";
+
+/* Le texte à joindre : celui de l'auto-école s'il a été enregistré */
+function rappelEcoutes(){
+  const perso = (typeof modelePour === 'function') ? modelePour('ecoutes') : null;
+  return (perso && perso.contenu) ? perso.contenu : RAPPEL_ECOUTES;
+}
+
+/* Faut-il le joindre ? Le questionnaire l'a dit, ou la note le porte. */
+function sansEcoutes(options){
+  const ctx = (typeof contexteDepart !== 'undefined' && contexteDepart) || {};
+  if(ctx.pasEcoute) return true;
+  return /pas d'écoutes? pédagogiques?/i.test((options && options.note) || '');
+}
+
+
+/* Le rappel affiché quand le moniteur signale que l'élève ne réserve
+   pas d'écoutes pédagogiques. Texte fixe, fourni par l'auto-école. */
+const TEXTE_PAS_ECOUTES =
+'Tu ne réserves pas d\'écoutes pédagogiques 😱\n' +
+'\n' +
+"Peut-être n'as-tu pas compris l'intérêt d'économiser de l'argent ? 💰\n" +
+'\n' +
+"On t'a expliqué quand tu t'es inscrit notre méthodologie et tu as accepté de la suivre 🤝\n" +
+"Ne me dis pas que tu n'as pas le temps d'en réserver, tu as bien le temps de réserver de la conduite ! \n" +
+"La différence, c'est que l'écoute pédagogique, c'est illimité et tu ne payes pas à chaque prestation à contrario de la conduite 😎\n" +
+'\n' +
+"Tu profites du cours de l'autre élève pour travailler tes procédures, connaître les parcours d'examen, observer autour de toi, anticiper etc \n" +
+"Bref tout travailler sans dépenser d'argent et sans le stress d'être au volant 🎉\n" +
+'\n' +
+"En tant que moniteur, cela se voit tout de suite que tu n'as pas fait D'ÉCOUTES, et au bureau, c'est un boulot monstrueux de vous ouvrir ces écoutes pédagogiques 🤯\n" +
+'\n' +
+'Donc RÉSERVE IMMÉDIATEMENT de ton compte en ligne ⚠️\n' +
+'https://www.facebook.com/groups/174715876519873/permalink/96295402436271';
+
+/* Le moniteur a-t-il coché « Pas d'écoutes pédagogiques » ? */
+function pasEcoutesPedagogiques(){
+  const q = (typeof contexteDepart !== 'undefined' && contexteDepart) ? contexteDepart : null;
+  if(q && q.pasEcoute) return true;
+  /* Repli sur la note, si le questionnaire n'est plus en mémoire */
+  const n = (typeof $ === 'function' && $('noteInterne')) ? $('noteInterne').value : '';
+  return /pas d'écoutes? pédagogiques?/i.test(n);
+}
+
 function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
   /* Ce qui a déjà été validé lors des cours précédents, avec les
      marques accumulées : ✅ la première fois, puis l'émoji de chaque
@@ -1094,15 +1151,40 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
      aujourd'hui : elles reçoivent l'émoji du moniteur, comme les
      autres. Sans ça, cocher une case n'aurait aucun effet. */
   const duJour = (ai.manoeuvres || []).slice();
-  ((typeof contexteDepart !== 'undefined' && contexteDepart &&
-    contexteDepart.manoeuvresAjoutees) || []).forEach(m => {
-    if(duJour.indexOf(m) === -1) duJour.push(m);
+
+  /* Trois sources, réunies : ce que l'IA a entendu, ce que le moniteur
+     a coché en fin de cours, et ce qu'il avait coché à la préparation.
+     Une seule source suffisait à tout perdre si le questionnaire était
+     rouvert entre-temps. */
+  const sources = [];
+  if(typeof contexteDepart !== 'undefined' && contexteDepart){
+    sources.push(contexteDepart.manoeuvresAjoutees);
+  }
+  if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
+     prepareEnCours.contexte){
+    sources.push(prepareEnCours.contexte.manoeuvresAjoutees);
+  }
+
+  sources.forEach(liste => {
+    (liste || []).forEach(m => {
+      if(duJour.indexOf(m) === -1) duJour.push(m);
+    });
   });
 
   parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant));
   parts.push('');
   parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?' + st(ai.groupesTravail));
-  parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? " + st(ai.ecoutes) + ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
+  /* La croix rouge et le rappel remplacent la réponse habituelle
+     quand le moniteur a coché la case. */
+  const sansEcoutes = pasEcoutesPedagogiques();
+  parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? " +
+    (sansEcoutes ? '❌' : st(ai.ecoutes)) +
+    ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
+  if(sansEcoutes){
+    parts.push('');
+    parts.push(TEXTE_PAS_ECOUTES);
+    parts.push('');
+  }
   parts.push("💡Tu n'as pas possibilité de partir en Conduite supervisée ??");
   parts.push(' https://www.facebook.com/groups/963972327360861/permalink/1122235844867841/');
   parts.push('➡️  Rappel de ta FRISE DE FORMATION EN VOITURE : ');
