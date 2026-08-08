@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 10:14 — v318 */
+/* Déployé le 08/08/2026 à 11:05 — v319 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -147,6 +147,12 @@ function dateFrVersIso(texte){
 
 /* Reprend l'état décrit dans la note du dernier cours pour
    pré-remplir le questionnaire. */
+/* Le rang du passage, relu dans la note : « 2e passage » */
+function passageDepuisNote(note){
+  const m = String(note || '').match(/(\d)\s*(?:er|e)\s+passage/i);
+  return m ? m[1] : '';
+}
+
 function defautsDepuisNote(note){
   const a = analyserNote(note);
   const d = {};
@@ -155,6 +161,8 @@ function defautsDepuisNote(note){
     if(a.examBlancN !== null) d.examBlancN = String(a.examBlancN);
   }
   if(a.simuNuit) d.simuNuit = a.simuNuit;
+  const rgP = passageDepuisNote(note);
+  if(rgP) d.examPassage = rgP;
   if(a.permis === 'aprevoir'){
     d.examPermis = 'aprevoir';
   }else if(a.permis === 'prevu'){
@@ -549,6 +557,17 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '</select>' +
       '<div id="qLibExamDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;"></div>' +
       '<input type="date" id="qExamDate" style="display:none;">' +
+      '<div id="qBlocPassage" style="display:none;">' +
+        '<label for="qExamPassage">Quel passage ?</label>' +
+        '<select id="qExamPassage">' +
+          '<option value="">— non précisé —</option>' +
+          '<option value="1">1er passage</option>' +
+          '<option value="2">2e passage</option>' +
+          '<option value="3">3e passage</option>' +
+          '<option value="4">4e passage</option>' +
+          '<option value="5">5e passage ou plus</option>' +
+        '</select>' +
+      '</div>' +
       '<input type="text" id="qExamPermisN" inputmode="numeric" ' +
       'placeholder="Leçons restantes avant l\'examen" style="display:none;">' +
       '<div id="qLibNouvelleDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;">' +
@@ -710,6 +729,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     /* Boîte déduite du type de bilan, ANTS repris s'il est connu */
     boite.querySelector('#qBoite').value = prec.boite || (/auto/i.test(modeleCle) ? 'bea' : 'bv');
     boite.querySelector('#qAnts').value = prec.ants || '';
+    if(passEP) passEP.value = prec.examPassage || '';
 
     /* Chaque coordonnée n'est demandée QUE si elle manque : les
        redemander alors qu'elles sont connues ne sert qu'à les
@@ -797,6 +817,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
                     dispatchEvent: majEB };
 
     const selEP = boite.querySelector('#qExamPermis');
+    const passEP = boite.querySelector('#qExamPassage');
     const dEP = boite.querySelector('#qExamDate');
     selEP.value = prec.examPermis || '';
     dEP.value = prec.examDate || '';
@@ -833,6 +854,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       if(v === 'prevu' && !dEP.value) dEP.value = todayLocal();
 
       nEP.style.display = (v === 'prevu') ? 'block' : 'none';
+      /* Le rang du passage n'a de sens que pour un examen à venir */
+      const bp = boite.querySelector('#qBlocPassage');
+      if(bp) bp.style.display = (v === 'prevu' || v === 'aprevoir') ? 'block' : 'none';
       nvDate.style.display = (v === 'annule') ? 'block' : 'none';
       libNv.style.display = (v === 'annule') ? 'block' : 'none';
     });
@@ -875,6 +899,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         ebPasse: selEB2 ? selEB2.value : '',
         ebLecons: nEB2 ? nEB2.value.trim() : '',
         examPermisN: nEP.value.trim(),
+        examPassage: passEP ? passEP.value : '',
         nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
         rvPrealable: boite.querySelector('#qRvPrealable').value,
@@ -963,6 +988,15 @@ function ajouterSuite(bouts, q){
   const eb = rang
     ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
     : 'Examen blanc';
+
+  /* Le rang du passage au permis : « 2e passage » plutôt que rien.
+     C'est ce qui dit s'il s'agit d'un repassage. */
+  const rp = String(q.examPassage || '').trim();
+  const passage = rp
+    ? (rp === '1' ? ' — 1er passage'
+       : rp === '5' ? ' — 5e passage ou plus'
+       : ' — ' + rp + 'e passage')
+    : '';
   const ebMin = rang
     ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
     : 'examen blanc';
@@ -999,10 +1033,10 @@ function ajouterSuite(bouts, q){
   }
 
   if(q.examPermis === 'aprevoir'){
-    bouts.push("Date d'examen à prévoir");
+    bouts.push("Date d'examen à prévoir" + passage);
   }else if(q.examPermis === 'prevu' && q.examDate){
     const np = q.examPermisN;
-    let phrase = 'Examen prévu le ' + dateEnToutesLettres(q.examDate);
+    let phrase = 'Examen prévu le ' + dateEnToutesLettres(q.examDate) + passage;
     if(np){
       phrase += (parseInt(np, 10) === 0)
         ? ' — plus que les 3h avant examen'
