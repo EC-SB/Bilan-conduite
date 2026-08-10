@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 15:06 — v325 */
+/* Déployé le 10/08/2026 à 07:55 — v327 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -342,6 +342,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
   const profil = profilQuestionnaire(modeleCle);
 
+  /* Le répertoire doit être en mémoire : sans lui, ficheDe() ne
+     trouve rien et le questionnaire redemande des coordonnées
+     pourtant déjà enregistrées. */
+  if(typeof chargerFiches === 'function' &&
+     (typeof fichesEleves === 'undefined' || !fichesEleves.length)){
+    try{ await chargerFiches(); }catch(e){ /* on continue sans */ }
+  }
+
   /* Dossier de l'élève et consignes du bureau : chargés ensemble */
   const fermerAttente = ouvrirAttente('Récupération du dossier…');
   let dossier = { frise:'', lecons:null, manoeuvres:[], marques:{},
@@ -466,6 +474,13 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       /* Les coordonnées manquantes : demandées une seule fois, à
          celui qui a l'élève en face de lui. */
+      '<div id="qBlocModele" style="display:none;">' +
+        '<label for="qModele">📋 Type de bilan</label>' +
+        '<select id="qModele"></select>' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">' +
+          'Ce que sera le cours. Modifiable tant que le cours n\'a pas eu lieu.</div>' +
+      '</div>' +
+
       '<div id="qBlocCoord" style="display:none;">' +
         '<div style="font-size:12px;color:var(--warn-text);margin-bottom:8px;' +
           'line-height:1.4;font-weight:700;">' +
@@ -763,6 +778,18 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     /* Chaque coordonnée n'est demandée QUE si elle manque : les
        redemander alors qu'elles sont connues ne sert qu'à les
        effacer par inadvertance. */
+    /* Le type de bilan : affiché seulement quand on prépare un cours */
+    const selMod = boite.querySelector('#qModele');
+    const blocMod = boite.querySelector('#qBlocModele');
+    const enPreparation = /préparation/i.test(String(titre || ''));
+    if(blocMod) blocMod.style.display = enPreparation ? 'block' : 'none';
+    if(selMod && enPreparation){
+      selMod.innerHTML = Object.keys(MODELES)
+        .map(k => '<option value="' + k + '">' +
+                  (MODELES[k].label || k) + '</option>').join('');
+      selMod.value = modeleCle;
+    }
+
     const champMess = boite.querySelector('#qMessenger');
     const champMail = boite.querySelector('#qMail');
     const champPresc = boite.querySelector('#qMailPresc');
