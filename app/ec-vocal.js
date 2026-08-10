@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 11:39 — v335 */
+/* Déployé le 10/08/2026 à 12:19 — v336 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -510,6 +510,8 @@ $('confirmGen').addEventListener('click', async () => {
 
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+    /* Les procédures réclamées à la voix, recopiées en fin de bilan */
+    bilan += blocProcedures(coursCorrige);
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
@@ -723,6 +725,89 @@ function aererTexte(texte, phrasesParBloc){
     blocs.push(phrases.slice(i, i + parBloc).join(' '));
   }
   return blocs.join('\n\n');
+}
+
+/* ============================================================
+   PROCÉDURES DEMANDÉES À LA VOIX
+
+   « Naia, mets la procédure du créneau » : le moniteur réclame
+   une fiche qu'il a rédigée une fois pour toutes. Elle est
+   recopiée en fin de bilan, pour que l'élève l'ait sous les yeux.
+   ============================================================ */
+
+/* Reconnaît la demande et rend le nom réclamé */
+function proceduresDemandees(texte){
+  const t = String(texte || '');
+  const demandes = [];
+
+  /* « mets la procédure du créneau », « ajoute la procédure
+     demi-tour », « procédure de l'arrêt de précision » */
+  const motif = /(?:mets?|ajoute|colle|rajoute|donne)\s+(?:lui\s+)?la\s+proc[ée]dure\s+(?:du?|de la|de l'|des?|d')?\s*([^.!?\n,]{2,60})/gi;
+  let m;
+  while((m = motif.exec(t)) !== null){
+    /* On s'arrête au premier enchaînement : « la procédure du
+       créneau ET ajoute la procédure demi-tour » fait deux
+       demandes, pas un nom de soixante caractères. */
+    const nom = String(m[1] || '')
+      .split(/\s+(?:et|puis|ensuite|aussi|aprè?s)\s+/i)[0]
+      .replace(/\s+s'il te (?:plait|plaît).*$/i, '')
+      .trim();
+    if(nom.length >= 2) demandes.push(nom);
+  }
+  return demandes;
+}
+
+/* Retrouve la procédure la plus proche du nom prononcé */
+function trouverProcedure(nomDit){
+  const liste = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'procedure');
+  if(!liste.length) return null;
+
+  const q = normaliserMot(nomDit);
+  if(!q) return null;
+
+  /* Le nom exact d'abord, puis celui qui contient les mots dits */
+  let trouve = liste.find(m => normaliserMot(m.nom) === q);
+  if(trouve) return trouve;
+
+  trouve = liste.find(m => normaliserMot(m.nom).indexOf(q) !== -1 ||
+                           q.indexOf(normaliserMot(m.nom)) !== -1);
+  if(trouve) return trouve;
+
+  /* Sinon, celle qui partage le plus de mots avec la demande */
+  const mots = q.split(/\s+/).filter(x => x.length > 2);
+  let meilleur = null, score = 0;
+  liste.forEach(m => {
+    const n = normaliserMot(m.nom);
+    const s = mots.filter(x => n.indexOf(x) !== -1).length;
+    if(s > score){ score = s; meilleur = m; }
+  });
+  return score ? meilleur : null;
+}
+
+/* Les procédures à joindre au bilan, d'après la transcription */
+function proceduresAJoindre(texte){
+  const noms = proceduresDemandees(texte);
+  if(!noms.length) return [];
+
+  const vues = {};
+  const out = [];
+  noms.forEach(n => {
+    const p = trouverProcedure(n);
+    if(!p || vues[p.id || p.nom]) return;
+    vues[p.id || p.nom] = true;
+    out.push(p);
+  });
+  return out;
+}
+
+/* Le bloc ajouté en fin de bilan */
+function blocProcedures(texte){
+  const liste = proceduresAJoindre(texte);
+  if(!liste.length) return '';
+
+  return '\n\n' + liste.map(p =>
+    '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '')).join('\n\n');
 }
 
 const MARQUEURS_REPRISE = [
