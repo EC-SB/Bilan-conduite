@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 09:26 — v333 */
+/* Déployé le 10/08/2026 à 12:55 — v339 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -657,13 +657,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '</select>' +
       '</div>' +
 
-      '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
-      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
-        'Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront ' +
-        'signées de ton émoji.</div>' +
-      '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
-        'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
-        'margin-bottom:14px;"></div>' +
+      /* La fiche véhicule ne figure plus ici : le moniteur la voit
+         en préparant son cours et en le démarrant, et il coche
+         directement sur l'écran d'enregistrement. La remettre au
+         questionnaire faisait une troisième saisie du même chose. */
+      '<div id="qFiche" style="display:none;"></div>' +
 
       '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
