@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:33 — v337 */
+/* Déployé le 10/08/2026 à 12:45 — v338 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -348,6 +348,9 @@ $('recBtn').addEventListener('click', async () => {
   btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
   $('finishBtn').style.display = 'block';
 
+  /* La fiche véhicule s'ouvre avec le cours */
+  afficherFicheDuCours();
+
   /* Le bureau voit qui est en cours, sans avoir à appeler */
   if(typeof signalerCoursDemarre === 'function'){
     signalerCoursDemarre($('studentName').value.trim(),
@@ -525,6 +528,10 @@ $('confirmGen').addEventListener('click', async () => {
     sauvegarderLocal(true);
     /* La préparation sort de la liste à l'ENREGISTREMENT, pas ici :
        un bilan généré puis abandonné doit rester à faire. */
+    /* Ce que chaque source a apporté : le moniteur vérifie d'un
+       coup d'œil que rien n'a été oublié ni inventé. */
+    direOrigineManoeuvres(donnees.manoeuvres || []);
+
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
   if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
@@ -850,6 +857,94 @@ function blocProcedures(texte){
 
   return '\n\n' + liste.map(p =>
     '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '')).join('\n\n');
+}
+
+/* ============================================================
+   FICHE VÉHICULE PENDANT LE COURS
+
+   Le moniteur coche ce qu'il fait travailler, sans attendre la fin.
+   Ces cases ne remplacent pas la reconnaissance vocale : les deux
+   sources s'additionnent, et rien n'est perdu si l'une manque
+   quelque chose.
+   ============================================================ */
+
+/* Ce que le moniteur a coché pendant ce cours */
+function manoeuvresCocheesEnCours(){
+  const out = [];
+  document.querySelectorAll('.mCours:checked').forEach(cb => out.push(cb.value));
+  return out;
+}
+
+async function afficherFicheDuCours(){
+  const zone = $('ficheCours');
+  if(!zone) return;
+
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
+
+  /* Ce qui est déjà validé : coché et grisé, on n'y touche pas */
+  let marques = {};
+  try{
+    const d = await chargerDossierEleve(nom);
+    marques = (d && d.marques) || {};
+  }catch(e){ /* hors ligne : on affiche tout à cocher */ }
+
+  /* On garde les cases déjà cochées si l'écran se redessine */
+  const dejaCoche = manoeuvresCocheesEnCours();
+
+  zone.innerHTML = '';
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
+  d.open = false;
+
+  const acquises = (BLOC.ficheListeConduite || [])
+    .filter(x => marques[normaliserMot(x)]).length;
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
+    'color:var(--accent-text);">🦉 Fiche véhicule — ' + acquises + ' sur ' +
+    (BLOC.ficheListeConduite || []).length + ' · coche ce que tu fais aujourd\'hui</summary>';
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
+  aide.textContent = "Facultatif : ce que tu dictes est déjà repris tout seul. " +
+    "Ces cases servent à compléter ce que l'enregistrement aurait manqué.";
+  d.appendChild(aide);
+
+  (BLOC.ficheListeConduite || []).forEach(libelle => {
+    const cle = normaliserMot(libelle);
+    const deja = marques[cle] || '';
+
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;' +
+      'font-size:14px;text-transform:none;margin:0;font-weight:400;' +
+      'color:' + (deja ? 'var(--muted)' : 'var(--cream)') + ';';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'mCours';
+    cb.value = libelle;
+    cb.checked = dejaCoche.indexOf(libelle) !== -1;
+    cb.disabled = !!deja;                     /* déjà acquise : rien à cocher */
+    cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
+    l.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = libelle;
+    l.appendChild(t);
+
+    if(deja){
+      const m = document.createElement('span');
+      m.style.cssText = 'flex-shrink:0;letter-spacing:1px;';
+      m.textContent = deja;
+      l.appendChild(m);
+    }
+
+    d.appendChild(l);
+  });
+
+  zone.appendChild(d);
+  zone.style.display = 'block';
 }
 
 const MARQUEURS_REPRISE = [
@@ -1483,6 +1578,38 @@ async function mettreAJourBilan(){
 
 
 /* Message de fin de cours, qui reste affiché */
+/* Dit d'où viennent les manœuvres du jour : entendues, ou cochées.
+   Sans cette vérification, on ne sait pas si l'enregistrement a
+   bien capté ce que le moniteur a dicté. */
+function direOrigineManoeuvres(entendues){
+  const zone = $('finEtat');
+  if(!zone) return;
+
+  const cochees = (typeof manoeuvresCocheesEnCours === 'function')
+    ? manoeuvresCocheesEnCours() : [];
+  const quest = (typeof contexteDepart !== 'undefined' && contexteDepart &&
+                 contexteDepart.manoeuvresAjoutees) || [];
+
+  const dites = (entendues || []).slice();
+  const enPlus = cochees.filter(x => dites.indexOf(x) === -1);
+  const questEnPlus = quest.filter(x => dites.indexOf(x) === -1 &&
+                                        cochees.indexOf(x) === -1);
+
+  if(!dites.length && !enPlus.length && !questEnPlus.length){
+    zone.innerHTML = '';
+    return;
+  }
+
+  const bouts = [];
+  if(dites.length) bouts.push('🎙️ entendues : ' + dites.join(', '));
+  if(enPlus.length) bouts.push('☑️ cochées en plus : ' + enPlus.join(', '));
+  if(questEnPlus.length) bouts.push('📋 du questionnaire : ' + questEnPlus.join(', '));
+
+  zone.style.color = 'var(--muted)';
+  zone.innerHTML = '<div style="font-size:11px;line-height:1.6;">🦉 Fiche véhicule — ' +
+    bouts.join('<br>') + '</div>';
+}
+
 function direEtatFin(texte, erreur){
   const z = $('finEtat');
   if(!z) return;
