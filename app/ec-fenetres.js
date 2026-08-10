@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 09:56 — v317 */
+/* Déployé le 10/08/2026 à 08:50 — v331 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -331,11 +331,14 @@ const FORMATIONS = ['', 'CS BV', 'CS BEA', 'AAC BV', 'AAC BEA',
 
 let fichesEleves = [];
 
+let fichesLues = 0;
+
 async function chargerFiches(){
   try{
     const d = await appelPrep({ action: 'fichesList' });
     fichesEleves = (d && d.fiches) || [];
-  }catch(e){ console.warn('Fiches :', e); fichesEleves = []; }
+    fichesLues = Date.now();
+  }catch(e){ console.warn('Fiches :', e); }
   return fichesEleves;
 }
 
@@ -671,6 +674,7 @@ function ouvrirFicheEleve(nom, f){
                       remarques: g('fiRem').value.trim() };
       if(f2) Object.assign(f2, saisi);
       else fichesEleves.push(Object.assign({ eleve: nom }, saisi));
+      fichesLues = 0;
 
       document.body.removeChild(fond);
       showToast('Fiche enregistrée ✅');
@@ -1039,7 +1043,15 @@ async function chargerMessengerEleve(){
 
   try{
     if(!fichesEleves.length) await chargerFiches();
-    const f = ficheDe(nom);
+
+    /* La liste peut dater d'avant la saisie d'un collègue : si cet
+       élève n'a pas de Messenger connu, on relit avant de conclure.
+       Deux minutes de battement pour ne pas relire à chaque frappe. */
+    let f = ficheDe(nom);
+    if((!f || !f.messenger) && Date.now() - fichesLues > 120000){
+      await chargerFiches();
+      f = ficheDe(nom);
+    }
     /* On n'écrase pas une saisie en cours */
     if(champ.value.trim() && champ.value.trim() !== messengerCharge) return;
     champ.value = (f && f.messenger) || '';
@@ -1085,6 +1097,9 @@ async function enregistrerMessengerEleve(){
     const f3 = ficheDe(nom);
     if(f3) f3.messenger = v;
     else fichesEleves.push({ eleve: nom, messenger: v });
+    /* Et la prochaine lecture ira au serveur : la mémoire seule
+       ne suffit pas si un autre onglet a modifié la fiche. */
+    fichesLues = 0;
     if(etat){
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ Enregistré : les autres moniteurs le retrouveront ici.';
