@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 08:08 — v328 */
+/* Déployé le 10/08/2026 à 08:43 — v330 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1302,6 +1302,7 @@ function creerRaccourcis(idConteneur, idChamp){
           const rep = await ouvrirQuestionnaireDepart(contexteDepart, 'Compléter les infos', 'Valider');
           if(rep){
             contexteDepart = rep;
+            afficherSaisieDuJour(rep);
             appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
           }
         }finally{
@@ -1745,6 +1746,107 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
   }catch(e){
     console.warn('Fiche non mise à jour :', e);
   }
+}
+
+/* ============================================================
+   CE QUE LE MONITEUR VIENT DE RENSEIGNER
+
+   Un cours non préparé n'a pas de cadre sous le nom de l'élève.
+   Après le questionnaire, on y affiche ses réponses et la fiche
+   véhicule détaillée : il voit ce qui reste à faire avant de
+   démarrer, sans rouvrir quoi que ce soit.
+   ============================================================ */
+async function afficherSaisieDuJour(rep){
+  const zone = $('preparationEleve');
+  if(!zone || !rep) return;
+
+  const eleve = $('studentName') ? $('studentName').value.trim() : '';
+  if(!eleve) return;
+
+  zone.innerHTML = '';
+  const carte = document.createElement('div');
+  carte.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:12px 14px;background:rgba(182,255,14,.08);';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
+  t.textContent = '📝 Ce que tu viens de renseigner';
+  carte.appendChild(t);
+
+  /* La consigne d'écoute, mise en avant comme dans la préparation */
+  if(rep.pasEcoute){
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:14px;font-weight:700;color:var(--warn-text);margin-bottom:6px;';
+    a.textContent = "🚫 Pas d'écoutes pédagogiques";
+    carte.appendChild(a);
+  }
+
+  const note = noteDepuisQuestionnaire(rep);
+  const n = document.createElement('div');
+  if(note){
+    n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
+      'line-height:1.45;white-space:pre-wrap;';
+    n.textContent = note;
+  }else{
+    n.style.cssText = 'font-size:13px;color:var(--muted);';
+    n.textContent = 'Aucune information particulière.';
+  }
+  carte.appendChild(n);
+
+  /* La fiche véhicule : ce qui est acquis, ce qui reste */
+  const cochees = rep.manoeuvresAjoutees || [];
+  let marques = {};
+  try{
+    const d = await chargerDossierEleve(eleve);
+    marques = (d && d.marques) || {};
+  }catch(e){ /* hors ligne : sans les émojis */ }
+
+  const faites = (BLOC.ficheListeConduite || []).filter(
+    x => cochees.indexOf(x) !== -1 || marques[normaliserMot(x)]);
+  const restantes = (BLOC.ficheListeConduite || []).filter(
+    x => faites.indexOf(x) === -1);
+
+  const sep = document.createElement('div');
+  sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
+  carte.appendChild(sep);
+
+  const t2 = document.createElement('div');
+  t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+  t2.textContent = '🦉 Fiche véhicule — ' + faites.length + ' sur ' +
+                   (BLOC.ficheListeConduite || []).length;
+  carte.appendChild(t2);
+
+  if(faites.length){
+    const l = document.createElement('div');
+    l.style.cssText = 'font-size:13px;line-height:1.7;';
+    faites.forEach(x => {
+      const m = marques[normaliserMot(x)] || '';
+      const li = document.createElement('div');
+      li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
+        (m ? ' <span style="letter-spacing:1px;">' + m + '</span>' : ' ✅');
+      l.appendChild(li);
+    });
+    carte.appendChild(l);
+  }
+
+  if(restantes.length){
+    const t3 = document.createElement('div');
+    t3.style.cssText = 'font-size:13px;font-weight:700;color:var(--warn-text);margin:10px 0 4px;';
+    t3.textContent = '❓ Reste à travailler — ' + restantes.length;
+    carte.appendChild(t3);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.7;';
+    restantes.forEach(x => {
+      const li = document.createElement('div');
+      li.textContent = '· ' + x;
+      r.appendChild(li);
+    });
+    carte.appendChild(r);
+  }
+
+  zone.appendChild(carte);
+  zone.style.display = 'block';
 }
 
 /* Signale que ce module est bien chargé */
