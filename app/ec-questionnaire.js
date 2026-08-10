@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 07:55 — v327 */
+/* Déployé le 10/08/2026 à 08:08 — v328 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -981,6 +981,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         amenagements: Array.prototype.slice
           .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
         ants: chAnts ? chAnts.value : '',
+        /* Le type de bilan choisi, quand on prépare un cours */
+        modele: (selMod && enPreparation) ? selMod.value : '',
         messenger: champMess ? champMess.value.trim() : '',
         email: champMail ? champMail.value.trim() : '',
         mailPrescripteur: champPresc ? champPresc.value.trim() : '',
