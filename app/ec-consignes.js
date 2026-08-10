@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 14:45 — v324 */
+/* Déployé le 10/08/2026 à 12:27 — v336 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
@@ -70,6 +70,11 @@ const SOCLE_METIER =
 '« la pluie tête » → l\'appui-tête · « Fresnes » → freine · ' +
 '« crédo » ou « crédneau » → créneau · « va vé » → VA VD · « débraille » → débraye · ' +
 '« roues droit » → roues droites.\n' +
+'\n' +
+'PROCÉDURES : quand le moniteur dit « mets la procédure du créneau » ou « ajoute la ' +
+'procédure demi-tour », la fiche correspondante est recopiée automatiquement en fin de ' +
+"bilan. Tu n'as donc pas à la réécrire, et tu SUPPRIMES la phrase de la demande du texte " +
+'du cours : elle ne concerne pas l\'élève.\n' +
 '\n' +
 'ORDRES DIRECTS : le moniteur peut te parler pendant le cours en disant « Naia, … », ' +
 '« Néo, … » ou « Claude, … ». Ces phrases sont des ordres à exécuter, jamais du contenu ' +
