@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 08:43 — v330 */
+/* Déployé le 10/08/2026 à 11:25 — v334 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -508,6 +508,8 @@ $('confirmGen').addEventListener('click', async () => {
       bilan += '\n\n' + rappelEcoutes();
     }
 
+    /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
+    if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
     $('resultText').value = bilan;
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
