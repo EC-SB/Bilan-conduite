@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 09:15 — v314 */
+/* Déployé le 10/08/2026 à 07:55 — v327 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -505,8 +505,8 @@ async function preparerNouveauCours(){
       action: 'prepAdd',
       date: date,
       eleve: eleve,
-      modele: modeleCle,
-      modeleLabel: MODELES[modeleCle] ? MODELES[modeleCle].label : '',
+      modele: rep.modele || modeleCle,
+      modeleLabel: (MODELES[rep.modele || modeleCle] || {}).label || '',
       site: $('site').value,
       note: noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
@@ -821,13 +821,17 @@ async function modifierPreparation(cours){
   if(!rep) return;
 
   try{
+    /* Le moniteur a pu changer le type de bilan dans le questionnaire */
+    const cleModele = rep.modele || cours.modele;
+
     await appelPrep({
       action: 'prepAdd',
       id: cours.id,                    /* même identifiant : on remplace */
       date: cours.date,
       eleve: cours.eleve,
-      modele: cours.modele,
-      modeleLabel: cours.modeleLabel || '',
+      modele: cleModele,
+      modeleLabel: (MODELES[cleModele] && MODELES[cleModele].label) ||
+                   cours.modeleLabel || '',
       site: cours.site || '',
       note: noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
