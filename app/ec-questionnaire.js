@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:55 — v339 */
+/* Déployé le 10/08/2026 à 13:05 — v340 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -505,12 +505,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
             'placeholder="prenom.nom@exemple.fr">' +
         '</div>' +
 
-        '<div id="qBlocMailPresc" style="display:none;">' +
-          '<label for="qMailPresc">👤 Mail du prescripteur</label>' +
-          '<input type="email" id="qMailPresc" inputmode="email" autocomplete="off" ' +
-            'placeholder="Représentant légal, ou celui qui paie">' +
-        '</div>' +
-
         '<div id="qBlocAnts" style="display:none;">' +
           '<label for="qAnts">📇 Dossier ANTS</label>' +
           '<select id="qAnts">' +
@@ -798,12 +792,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     const champMess = boite.querySelector('#qMessenger');
     const champMail = boite.querySelector('#qMail');
-    const champPresc = boite.querySelector('#qMailPresc');
 
     const manque = {
       messenger: !((ficheEleve && ficheEleve.messenger) || ''),
       mail:      !((ficheEleve && ficheEleve.email) || ''),
-      presc:     !((ficheEleve && ficheEleve.mailPrescripteur) || ''),
       ants:      !((ficheEleve && ficheEleve.ants) || '') && !prec.ants
     };
 
@@ -813,15 +805,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     };
     montrer('#qBlocMessenger', manque.messenger);
     montrer('#qBlocMail', manque.mail);
-    montrer('#qBlocMailPresc', manque.presc);
     montrer('#qBlocAnts', manque.ants);
     /* L'encadré entier disparaît si tout est déjà renseigné */
-    montrer('#qBlocCoord',
-            manque.messenger || manque.mail || manque.presc || manque.ants);
+    /* Le mail du prescripteur se saisit au répertoire uniquement :
+       c'est une donnée de dossier, pas quelque chose qu'on demande
+       à l'élève au bord de la route. */
+    montrer('#qBlocCoord', manque.messenger || manque.mail || manque.ants);
 
     if(champMess) champMess.value = prec.messenger || '';
     if(champMail) champMail.value = prec.email || '';
-    if(champPresc) champPresc.value = prec.mailPrescripteur || '';
 
     /* Conduite aménagée */
     const cbH = boite.querySelector('#qHandicap');
@@ -991,7 +983,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         modele: (selMod && enPreparation) ? selMod.value : '',
         messenger: champMess ? champMess.value.trim() : '',
         email: champMail ? champMail.value.trim() : '',
-        mailPrescripteur: champPresc ? champPresc.value.trim() : '',
         libre: boite.querySelector('#qLibre').value.trim(),
         /* Les manœuvres cochées en plus, à signer de l'émoji du moniteur */
         manoeuvresAjoutees: manoeuvresAjouteesQuestionnaire(boite._marquesConnues || {}),
@@ -1735,10 +1726,6 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
   }
   if(reponses.email && reponses.email !== (avant.email || '')){
     maj.email = reponses.email;
-  }
-  if(reponses.mailPrescripteur &&
-     reponses.mailPrescripteur !== (avant.mailPrescripteur || '')){
-    maj.mailPrescripteur = reponses.mailPrescripteur;
   }
   if(reponses.frise && reponses.frise !== (avant.frise || '')) maj.frise = reponses.frise;
 
