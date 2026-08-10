@@ -1,926 +1,1595 @@
-/* Déployé le 08/08/2026 à 09:03 — v312 */
+/* Déployé le 10/08/2026 à 08:43 — v330 */
 /* ============================================================
-   ec-manuel.js
-   Bilan à remplir à la main
+   ec-vocal.js
+   Reconnaissance vocale, vocabulaire métier, ponctuation, correction
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
 /* ============================================================
-   BILAN MANUEL — sans micro ni résumé automatique
-   Le moniteur remplit chaque rubrique ; il peut dicter dans
-   chaque champ séparément s'il le souhaite.
+   AIDE À LA RECONNAISSANCE — vocabulaire auto-école
+   Chrome propose plusieurs transcriptions possibles ; on retient
+   celle qui contient le plus de termes du métier.
    ============================================================ */
-
-/* Ce que le moniteur doit renseigner, selon le modèle choisi */
-/* Les rubriques du résumé, dans l'ordre du bilan */
-const THEMES_ERREURS = [
-  { cle:'commandes',   nom:'🚙 MANIPULATION DES COMMANDES' },
-  { cle:'trajectoire', nom:'👀 TRAJECTOIRE' },
-  { cle:'giratoires',  nom:'🍩 GIRATOIRES' },
-  { cle:'vavd',        nom:'🛣️ VA VD' },
-  { cle:'pad',         nom:'❌ PAD' },
-  { cle:'allures',     nom:'🏎️💨 ALLURES' },
-  { cle:'controles',   nom:'👀 CONTRÔLES' },
-  { cle:'divers',      nom:'🧠 DIVERS' },
-  { cle:'manoeuvres',  nom:'🚙🚗🚙 MANŒUVRES' }
+const LEXIQUE = [
+  'giratoire','giratoires','créneau','créneaux','bataille','épi','manœuvre','manœuvres',
+  'embrayage','embrayer','débrayer','débraye','débrayes','embraye','point d\'attaque',
+  'angle mort','angles morts','rétroviseur','rétroviseurs','rétro','clignotant','clignotants',
+  'cédez le passage','priorité','priorité à droite','stop','feu rouge','carrefour','rond-point',
+  'trajectoire','allure','allures','contrôle','contrôles','vérification','vérifications',
+  'marche arrière','demi-tour','arrêt de précision','voie','voies','chaussée','trottoir',
+  'accélération','décélération','régulateur','frein','freiner','frein à main','accélérateur',
+  'seconde','première','troisième','quatrième','cinquième','vitesse','vitesses','rapport',
+  'volant','pédale','pédales','ceinture','installation','voyant','voyants','tableau de bord',
+  'intersection','dépassement','doubler','insertion','rabattre','serrer','déporte',
+  'piéton','piétons','cycliste','bande cyclable','examen','permis','boîte','automatique',
+  'manuelle','simulateur','tours minute','kilomètre','kilomètres','calé','caler','démarrage',
+  'bosse','bosses','verrouille','verrouiller','roues droites','braquer','rebraquer',
+  'chicane','bordure','borne','feu vert','feu rouge','bonhomme','passage piéton',
+  'insérer','insertion','décélération','se rabattre','rabats-toi'
 ];
 
-const CHAMPS_MANUELS = {
-  conduiteResume: [
-    { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
-    { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
-    { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
-    { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
-    { cle:'texteDicte',  type:'texte', nom:'🎙️ Ton cours', lignes:8,
-      aide:'Ce que tu as dit pendant le cours. Peut rester vide.' },
-    { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
-    { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
-    { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
-    { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
-  ],
-  conduite: [
-    { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
-    { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
-    { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
-    { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
-    { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
-    { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
-    { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
-    { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
-  ],
-  simu: [
-    { cle:'competences', type:'competences', nom:'Compétences travaillées' },
-    { cle:'resume',      type:'texte', nom:'🧠 Remarques du cours', lignes:10 }
-  ],
-  eval: [
-    { cle:'resume',      type:'texte', nom:'Bilan de l\'évaluation', lignes:12 },
-    { cle:'simuHeures',  type:'court', nom:'Heures de simulateur' },
-    { cle:'leconsAvant', type:'court', nom:'Leçons avant examen blanc' },
-    { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
-  ],
-  examenblanc: [
-    { cle:'avant.carteSD',      type:'ok', nom:'1-1 · Carte SD', defaut:'✅' },
-    { cle:'avant.installation', type:'ok', nom:'1-2 · Installation', defaut:'✅' },
-    { cle:'avant.passager',     type:'ok', nom:'1-2 · Passager', defaut:'✅' },
-    { cle:'avant.voyants',      type:'ok', nom:'1-2 · Voyants', defaut:'✅' },
-    { cle:'avant.erreursRoute', type:'texte', lignes:5,
-      nom:"1-3 · Erreurs en allant au centre d'examen",
-      aide:'Une erreur par ligne.' },
+function normaliserMot(s){
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+const LEXIQUE_NORM = LEXIQUE.map(normaliserMot);
 
-    { cle:'examen.installation', type:'ok', nom:'2-1 · Installation', defaut:'' },
-    { cle:'examen.remarqueInstallation', type:'court', nom:'2-1 · Remarque sur l\'installation' },
-    { cle:'examen.passager',     type:'ok', nom:'2-1 · Passager', defaut:'' },
-    { cle:'examen.voyants',      type:'ok', nom:'2-1 · Voyants', defaut:'' },
-    { cle:'examen.verifQuestion',type:'court', nom:'2-2 · Vérifications, question n°' },
-    { cle:'examen.reflexions',   type:'texte', lignes:10,
-      nom:'2-3 · Réflexions inspecteur et explications',
-      aide:'Une réflexion par ligne.', lignes:12, mort:true },
-
-    { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
-    { cle:'observations',type:'texte', lignes:20, mort:true,
-      nom:'Observations et fautes éliminatoires',
-      aide:'Une observation par ligne. Le bouton ☠️ marque une faute éliminatoire.' },
-
-    { cle:'bilanErreurs',type:'texte', lignes:6, nom:'3 · Bilan erreurs',
-      aide:'Une erreur par ligne : chacune reçoit les trois questions.' },
-
-    { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
-    { cle:'heuresAvant', type:'court',  nom:"4 · Combien d'heures avant permis" },
-    { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
-    { cle:'friseAvantH', type:'court',  nom:'4 · Si non, heures en plus' },
-    { cle:'frisePost',   type:'ouinon', nom:'4 · Frise respectée post permis' },
-    { cle:'frisePostH',  type:'court',  nom:'4 · Si non, heures en plus' },
-    { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
-    { cle:'heuresPlanifiees', type:'ok', nom:'4 · Heures avant permis planifiées', defaut:'' },
-    { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
-  ],
-  examen: [
-    /* Le trajet jusqu'au centre : la partie « avant examen » du bilan.
-       Sans ces champs, elle sortait vide en saisie manuelle. */
-    { cle:'avantExamen.installation', type:'ok', nom:'AVANT — Installation', defaut:'' },
-    { cle:'avantExamen.passager',     type:'ok', nom:'AVANT — Passager',     defaut:'' },
-    { cle:'avantExamen.voyants',      type:'ok', nom:'AVANT — Voyants',      defaut:'' },
-    { cle:'avantExamen.erreurs',      type:'texte', lignes:5,
-      nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)' },
-
-    { cle:'installation',type:'ok',    nom:'EXAMEN — Installation', defaut:'' },
-    { cle:'passager',    type:'ok',    nom:'EXAMEN — Passager',     defaut:'' },
-    { cle:'voyants',     type:'ok',    nom:'EXAMEN — Voyants',      defaut:'' },
-    { cle:'verifQuestion', type:'court', nom:'N° de la question de vérification' },
-    { cle:'vi',          type:'ok',    nom:'Vérification', defaut:'' },
-    { cle:'qser',        type:'ok',    nom:'Question sécurité routière', defaut:'' },
-    { cle:'secours',     type:'ok',    nom:'Premiers secours', defaut:'' },
-    { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' }
-  ],
-  rvp: [
-    { cle:'resume',      type:'texte', nom:'Déroulé du rendez-vous', lignes:12 }
-  ],
-  accompagnateur: [
-    { cle:'resume',      type:'texte', nom:'Déroulé de la formation', lignes:12 }
-  ]
-};
-
-/* La boîte automatique part du même formulaire que la boîte manuelle,
-   puis les deux évoluent séparément. */
-CHAMPS_MANUELS.conduiteResumeAuto =
-  JSON.parse(JSON.stringify(CHAMPS_MANUELS.conduiteResume));
-
-
-/* champsManuels : déclaré dans ec-etat.js */
-/* modeManuel : déclaré dans ec-etat.js */
-
-/* La dictée est-elle possible sur ce navigateur ? */
-function dicteePossible(){
-  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+function scoreMetier(texte){
+  const t = normaliserMot(texte);
+  let score = 0;
+  for(let i = 0; i < LEXIQUE_NORM.length; i++){
+    if(t.indexOf(LEXIQUE_NORM[i]) !== -1) score++;
+  }
+  return score;
 }
 
-/* Dictée dans un champ précis, sans toucher au reste */
-function dicterDans(champ, bouton){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ showToast('La dictée demande Chrome sur Android.'); return; }
-
-  if(bouton.dataset.actif === 'oui'){
-    if(bouton._sr) try{ bouton._sr.stop(); }catch(e){}
-    return;
+/* Retient la proposition la plus « métier » parmi celles de Chrome */
+function meilleureProposition(resultat){
+  if(!resultat || !resultat.length) return '';
+  let meilleur = resultat[0].transcript;
+  let meilleurScore = scoreMetier(meilleur);
+  for(let i = 1; i < resultat.length; i++){
+    const t = resultat[i].transcript;
+    const s = scoreMetier(t);
+    if(s > meilleurScore){ meilleur = t; meilleurScore = s; }
   }
+  return meilleur;
+}
 
-  const sr = new SR();
-  sr.lang = 'fr-FR';
-  sr.continuous = true;
-  sr.interimResults = false;
-  sr.maxAlternatives = 3;
+/* Corrections sûres : uniquement des confusions récurrentes et sans ambiguïté */
+const CORRECTIONS = [
+  [/\bgyratoire[s]?\b/gi, 'giratoire'],
+  [/\bgyrophare\b/gi, 'giratoire'],
+  [/\bcr[ée]do\b/gi, 'créneau'],
+  [/\bcr[ée]dneau\b/gi, 'créneau'],
+  [/\bcr[ée]neau?x?\b/gi, 'créneau'],
+  /* « angle mort » est très souvent mal entendu : ongle, oncle.
+     Le pluriel est conservé : « les angles morts » reste correct. */
+  [/\bongles\s+m[oô]rts?\b/gi, 'angles morts'],
+  [/\boncles\s+m[oô]rts?\b/gi, 'angles morts'],
+  [/\bongle\s+m[oô]rt?\b/gi, 'angle mort'],
+  [/\boncle\s+m[oô]rt?\b/gi, 'angle mort'],
+  [/\bangle m[oô]r\b/gi, 'angle mort'],
+  /* « cédez » mal entendu : CD, c d, sédez, céder. On exige la
+     suite « le passage » — « CD » seul désigne le créneau droit. */
+  [/\b(?:c\s*[.-]?\s*d|s[ée]dez|c[ée]d[ée]?[rz]?|cet[ée]|ced[ée])\s+le\s+passage\b/gi,
+   'cédez le passage'],
+  [/\bs[ée]dez le passage\b/gi, 'cédez le passage'],
 
-  const depart = champ.value;
-  let ajoute = '';
+  /* « feux de détresse » mal entendu : faute, faut, fautes… */
+  /* Le sujet est conservé : « elle » ne doit pas devenir « il ». */
+  [/\b(il|elle|on)\s+(?:en\s+)?(?:faut?e?s?|fote?s?)\s+de\s+d[ée]tresse\b/gi,
+   '$1 est en feux de détresse'],
+  [/\b(?:en\s+)?(?:faut?e?s?|fote?s?)\s+de\s+d[ée]tresse\b/gi,
+   'en feux de détresse'],
+  [/\bfeu\s+de\s+d[ée]tresse\b/gi, 'feux de détresse'],
 
-  sr.onresult = ev => {
-    for(let i = ev.resultIndex; i < ev.results.length; i++){
-      if(!ev.results[i].isFinal) continue;
-      let meilleur = ev.results[i][0].transcript;
-      let score = -1;
-      for(let k = 0; k < ev.results[i].length; k++){
-        const s = scoreMetier(ev.results[i][k].transcript);
-        if(s > score){ score = s; meilleur = ev.results[i][k].transcript; }
-      }
-      ajoute += (ajoute ? ' ' : '') + corrigerVocabulaire(meilleur.trim());
+  /* Deux confusions relevées sur de vrais cours */
+  [/\bla\s+pluie\s+t[êe]te\b/gi, "l'appui-tête"],
+  [/\bl[ae]\s+puits?\s+t[êe]te\b/gi, "l'appui-tête"],
+  [/\bappui\s+t[êe]te\b/gi, 'appui-tête'],
+  /* « Fresnes » est aussi un nom de commune : on n'attrape que
+     les tournures de conduite, jamais un lieu. */
+  [/\b(tu|on|il|elle|je)\s+fresnes?\b/gi, '$1 freine'],
+  [/\bfresnes?\s+(doucement|fort|maintenant|un peu|à fond|progressivement|tout de suite|là|ici)\b/gi,
+   'freine $1'],
+  [/\bne\s+fresnes?\s+pas\b/gi, 'ne freine pas'],
+  [/\bpriorit[ée] a droite\b/gi, 'priorité à droite'],
+  [/\bd[ée]brailles?\b/gi, 'débrayes'],
+  [/\bemb?railles?\b/gi, 'embrayes'],
+  [/\bmarche arri[eè]re?\b/gi, 'marche arrière'],
+  [/\bdemi tour\b/gi, 'demi-tour'],
+  [/\brond point\b/gi, 'rond-point'],
+  [/\bva v[ée]\b/gi, 'VA VD'],
+  [/\broues? droit(?:e|es)?\b/gi, 'roues droites'],
+  [/\bd[ée]verrouille\s+(ton|le)\s+volant\b/gi, 'verrouille $1 volant'],
+  [/\bles\s+bus\b(?=[^.]*coller|[^.]*droite)/gi, 'les bosses'],
+  [/\bp\.?a\.?d\.?\b/gi, 'PAD']
+];
+
+function corrigerVocabulaire(texte){
+  let t = String(texte || '');
+  CORRECTIONS.forEach(([motif, remplacement]) => { t = t.replace(motif, remplacement); });
+  return t;
+}
+
+
+/* ============================================================
+   PONCTUATION AUTOMATIQUE
+   Chrome ne ponctue pas le français : on pose les points sur les
+   pauses réelles du moniteur, plus les virgules évidentes.
+   ============================================================ */
+function sansPonctuationFinale(s){
+  return String(s || '').replace(/[.!?…,;:]+$/, '').trim();
+}
+
+/* Clôt une phrase : appelé quand une pause met fin à une session */
+function terminerPhrase(texte){
+  const t = String(texte || '').trim();
+  if(!t) return '';
+  if(/[.!?…]$/.test(t)) return t;
+  return t.replace(/[,;:]$/, '') + '.';
+}
+
+/* Connecteurs qui prennent presque toujours une virgule devant eux */
+const CONNECTEURS = ['mais','donc','car','parce que','alors que','tandis que','sauf que','pourtant','cependant'];
+
+function poserVirgules(texte){
+  let t = String(texte || '');
+  CONNECTEURS.forEach(mot => {
+    /* On ne franchit pas un saut de ligne : sinon la virgule
+       recollerait deux paragraphes en une seule phrase. */
+    const re = new RegExp('([a-zà-ÿ0-9])[ \\t]+(' + mot + ')\\b', 'gi');
+    t = t.replace(re, '$1, $2');
+  });
+  return t;
+}
+
+function majusculer(texte){
+  /* Une majuscule après un point, mais aussi après un saut de
+     ligne : chaque paragraphe commence une nouvelle phrase. */
+  return String(texte || '').replace(
+    /(^|[.!?…][ \t]*|\n[ \t]*)([a-zà-ÿ])/g,
+    (m, avant, lettre) => avant + lettre.toUpperCase()
+  );
+}
+
+function mettreEnForme(texte){
+  /* On resserre les espaces SANS écraser les sauts de ligne : ce
+     sont eux qui aèrent le texte. Un « \\s+ » global collait tout
+     le cours en un seul pavé, illisible pour l'élève. */
+  const propre = String(texte || '')
+    .replace(/[ \t]+/g, ' ')                /* espaces multiples */
+    .replace(/[ \t]*\n[ \t]*/g, '\n')       /* pas d'espace autour des retours */
+    .replace(/\n{3,}/g, '\n\n')             /* deux lignes vides au maximum */
+    .trim();
+  return majusculer(poserVirgules(propre));
+}
+
+/* Fabrique un objet de reconnaissance NEUF, entièrement câblé.
+   Sur Android, une session peut se figer sans rien émettre : le seul
+   remède fiable est de jeter l'objet et d'en construire un autre. */
+function creerReconnaissance(){
+  const r = new SR();
+  r.lang = 'fr-FR';
+  /* Android ignore le mode continu et se comporte mal avec :
+     on relance nous-mêmes à chaque fin de session. */
+  r.continuous = !estAndroid;
+  /* Provisoires désactivés : sur Android ils sont empilés et non
+     remplacés, ce qui provoquait la duplication du texte. */
+  r.interimResults = false;
+  /* Chrome propose plusieurs transcriptions : on les compare
+     au vocabulaire du métier au lieu de prendre la première. */
+  r.maxAlternatives = 4;
+
+  r.onstart = () => {
+    marquerActif('onstart');
+    if(!dernierMot) dernierMot = Date.now();
+  };
+  r.onaudiostart = () => marquerActif('audio');
+  r.onsoundstart = () => marquerActif('son détecté');
+  r.onspeechstart = () => marquerActif('parole détectée');
+
+  r.onresult = event => {
+    /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu
+       d'ajouter à la suite : impossible d'accumuler des doublons. */
+    const chunks = [];
+    for(let i = 0; i < event.results.length; i++){
+      chunks.push(meilleureProposition(event.results[i]));
     }
-    champ.value = (depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '') +
-                  terminerPhrase(ajoute);
-    champ.scrollTop = champ.scrollHeight;
-  };
-  sr.onerror = e => { if(e.error !== 'no-speech') showToast('Dictée : ' + e.error); };
-  sr.onend = () => {
-    bouton.dataset.actif = '';
-    bouton.textContent = '🎙️';
-    bouton.style.background = '';
-    bouton._sr = null;
+    /* Les reprises du moniteur sont appliquées tout de suite :
+       il voit son texte se corriger pendant qu'il parle. */
+    /* Les corrections de l'auto-école passent après celles du code :
+       elles peuvent ainsi rattraper ce qu'il aurait manqué. */
+    let brut = corrigerVocabulaire(fusionner(chunks));
+    if(typeof appliquerCorrectionsIA === 'function') brut = appliquerCorrectionsIA(brut);
+    const sessionText = appliquerReprises(brut);
+    finalTranscript = mettreEnForme(fusionner([committedTranscript, sessionText]));
+    if(sessionText) dernierMot = Date.now();
+    marquerActif('résultat reçu');
+
+    const box = $('transcriptBox');
+    box.value = finalTranscript;
+    box.scrollTop = box.scrollHeight;
+    $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length +
+      ' mots' + (dernieresReprises ? ' · ' + dernieresReprises + ' reprise(s) appliquée(s)' : '');
+    sauvegarderLocal();
   };
 
-  bouton._sr = sr;
-  bouton.dataset.actif = 'oui';
-  bouton.textContent = '⏹️';
-  bouton.style.background = 'var(--red)';
-  try{ sr.start(); }catch(e){ showToast('Dictée indisponible.'); sr.onend(); }
+  r.onerror = event => {
+    sessionActive = false;
+    demarrageEnCours = false;
+    const err = String(event && event.error || '');
+    dernierEvenement = 'erreur: ' + err;
+
+    if(err === 'no-speech' || err === 'network' || err === 'aborted') return;
+
+    if(err === 'not-allowed' || err === 'service-not-allowed'){
+      $('status').textContent = "Micro refusé. Appuie sur le 🔒 à gauche de l'adresse > Autorisations > Micro > Autoriser, puis recharge la page.";
+      libererEcran(); arreterUI(); return;
+    }
+    if(err === 'audio-capture'){
+      $('status').textContent = 'Aucun micro accessible. Vérifie qu\'aucune autre application ne l\'utilise.';
+      libererEcran(); arreterUI(); return;
+    }
+    if(err === 'language-not-supported'){
+      $('status').textContent = 'Le français n\'est pas disponible pour la dictée sur cet appareil.';
+      libererEcran(); arreterUI(); return;
+    }
+    $('status').textContent = 'Erreur micro : ' + err;
+  };
+
+  r.onend = () => {
+    /* Le micro se coupe régulièrement de lui-même : on fige le texte
+       acquis avant de relancer, sinon la session suivante repart de zéro. */
+    sessionActive = false;
+    demarrageEnCours = false;
+    dernierEvenement = 'session terminée';
+    /* Une pause = une fin de phrase */
+    committedTranscript = terminerPhrase(finalTranscript);
+    finalTranscript = committedTranscript;
+    const zone = $('transcriptBox');
+    if(zone) zone.value = finalTranscript;
+    relancerMicro();
+  };
+
+  return r;
 }
 
+/* Détruit la session figée et repart sur un objet neuf */
+function recreerEtDemarrer(){
+  try{
+    if(recognition){
+      recognition.onend = null;      /* évite de déclencher une relance */
+      recognition.onerror = null;
+      recognition.abort();
+    }
+  }catch(e){}
 
-
-/* Une ligne du CEPC : la compétence et son niveau */
-function ligneCepc(nom, valeurs){
-  const l = document.createElement('div');
-  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;';
-  const t = document.createElement('span');
-  t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;min-width:0;';
-  t.textContent = nom;
-  const s = document.createElement('select');
-  s.className = 'cepcNiveau';
-  s.setAttribute('data-comp', nom);
-  s.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:15px;flex-shrink:0;';
-  [''].concat(valeurs || ['E','0','1','2','3']).forEach(v => {
-    const o = document.createElement('option');
-    o.value = v; o.textContent = v || '—';
-    s.appendChild(o);
-  });
-  s.addEventListener('change', majTotalCepc);
-  l.appendChild(t); l.appendChild(s);
-  return l;
-}
-
-function majTotalCepc(){
-  const z = document.getElementById('cepcTotal');
-  if(!z) return;
-  const c = {};
-  document.querySelectorAll('.cepcNiveau').forEach(s => {
-    if(s.value) c[s.getAttribute('data-comp')] = s.value;
-  });
-  const r = calculerCepc(c);
-  let etat, couleur;
-  if(r.elimine){
-    etat = 'ÉLIMINATOIRE — ' + r.eliminatoires.length + ' compétence(s) en E';
-    couleur = 'var(--red)';
-  }else if(r.favorable){
-    etat = 'FAVORABLE'; couleur = 'var(--accent-text)';
-  }else{
-    etat = 'insuffisant — 20 minimum'; couleur = 'var(--warn-text)';
+  recognition = creerReconnaissance();
+  sessionActive = false;
+  try{
+    recognition.start();
+    dernierEvenement = 'nouvelle session';
+  }catch(e){
+    dernierEvenement = 'échec après recréation: ' + (e && e.name ? e.name : e);
   }
-  z.innerHTML = 'Total : ' + r.total + ' / ' + r.max + ' · <span style="color:' + couleur + ';">' +
-    etat + '</span>';
 }
 
-/* Construit le formulaire du bilan manuel */
-async function ouvrirBilanManuel(){
-  const probleme = verifierContexteManuel();
-  if(probleme){ showToast(probleme); return; }
+function arreterUI(){
+  isRecording = false;
+  sessionActive = false;
+  demarrageEnCours = false;
+  $('etatMicro').textContent = '';
+  if($('diagMicro')) $('diagMicro').textContent = '';
+  const b = $('recBtn');
+  b.classList.remove('recording');
+  b.classList.add('idle');
+  b.textContent = "🎙️ Reprendre l'enregistrement";
+}
 
-  const modeleCle = $('modele').value;
-  const modele = MODELES[modeleCle];
-
-  /* Le rendez-vous post-permis a son propre écran */
-  if(modeleCle === 'rdv-post'){
-    const nom = $('studentName').value.trim();
-    if(nom.length < 2){ showToast("Saisis le nom de l'élève."); return; }
-    ouvrirRdvPost({ eleve: nom, date: $('lessonDate').value,
-                    moniteur: ACCES.moniteur || '', note: '', modele: 'rdv-post' });
+$('recBtn').addEventListener('click', async () => {
+  if(isRecording){
+    isRecording = false;                 /* avant stop() : bloque la relance */
+    try{ recognition.stop(); }catch(e){}
+    libererEcran();
+    arreterUI();
+    $('status').textContent = 'En pause. Appuie sur "Terminer" pour générer le bilan.';
     return;
   }
 
-  const champs = CHAMPS_MANUELS[modele.schema];
-  if(!champs){ showToast('Ce modèle ne se remplit pas encore à la main.'); return; }
+  const btn = $('recBtn');
+  const probleme = verifierContexte();
+  if(probleme){
+    $('status').textContent = probleme;
+    return;
+  }
 
-  const eleve = $('studentName').value.trim();
-  const btn = $('manuelBtn');
-  btn.disabled = true;
-  btn.textContent = 'Préparation…';
-
-  /* Le questionnaire alimente la note interne, comme pour un cours enregistré */
-  if(!contexteDepart){
+  /* Questionnaire au tout début du cours seulement.
+     Évaluation et examen : rien à demander avant, tout se décide après. */
+  const profilDepart = profilQuestionnaire($('modele').value);
+  if(!finalTranscript && !contexteDepart && profilDepart !== 'evaluation' && profilDepart !== 'examen'){
+    btn.disabled = true;
+    btn.textContent = 'Préparation…';
     try{
-      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de remplir le bilan', 'Continuer');
+      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de démarrer');
       if(rep){
         contexteDepart = rep;
+        if(typeof afficherSaisieDuJour === 'function') afficherSaisieDuJour(rep);
         appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
       }
-    }catch(e){}
+    }finally{
+      btn.disabled = false;
+      btn.textContent = '🎙️ Démarrer le cours';
+    }
   }
 
-  /* Ce qui se remplit tout seul : frise, manœuvres déjà validées */
-  let dossier = { manoeuvres: [], frise: '' };
-  try{ dossier = await chargerDossierEleve(eleve); }catch(e){}
-
-  btn.disabled = false;
-  btn.textContent = '✍️ Bilan à remplir à la main';
-
-  champsManuels = {};
-  modeManuel = true;
-
-  const zone = $('manuelChamps');
-  zone.innerHTML = '';
-
-  champs.forEach(ch => {
-    const bloc = document.createElement('div');
-    bloc.style.cssText = 'margin-bottom:16px;';
-
-    if(ch.type === 'niveau' || ch.type === 'ouinon'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:8px;';
-      const choix = (ch.type === 'niveau')
-        ? [['✅ Oui', 'oui'], ['❌ Pas le niveau', 'non'], ['—', '']]
-        : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
-      choix.forEach(([lab, val]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
-        b.textContent = lab;
-        b.addEventListener('click', () => {
-          champsManuels[ch.cle] = val;
-
-          /* Le choix doit sauter aux yeux : une bordure seule se
-             remarque mal, surtout à bout de bras dans la voiture. */
-          Array.prototype.forEach.call(r.children, x => {
-            x.style.borderColor = 'var(--line)';
-            x.style.color = 'var(--cream)';
-            x.style.background = 'var(--navy)';
-            x.style.fontWeight = '400';
-            x.style.transform = 'none';
-            x.style.boxShadow = 'none';
-          });
-
-          const couleurs = {
-            '✅': ['var(--orange)', '#0B0B0B'],
-            '❌': ['var(--red)', '#FFFFFF'],
-            '':   ['var(--muted)', '#0B0B0B']
-          };
-          const [fond, texte] = couleurs[val] || couleurs[''];
-          b.style.background = fond;
-          b.style.borderColor = fond;
-          b.style.color = texte;
-          b.style.fontWeight = '700';
-          b.style.transform = 'scale(1.04)';
-          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
-        });
-        r.appendChild(b);
-      });
-      bloc.appendChild(r);
-
-    }else if(ch.type === 'ok'){
-      /* Trois états : ✅ ❌ ou rien */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:8px;';
-      [['✅','✅'], ['❌','❌'], ['—','']].forEach(([lab, val]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'flex:1;padding:14px;font-size:19px;margin:0;' +
-          'transition:transform .1s, background .1s;';
-        b.textContent = lab;
-        b.addEventListener('click', () => {
-          champsManuels[ch.cle] = val;
-
-          /* Le choix doit sauter aux yeux : une bordure seule se
-             remarque mal, surtout à bout de bras dans la voiture. */
-          Array.prototype.forEach.call(r.children, x => {
-            x.style.borderColor = 'var(--line)';
-            x.style.color = 'var(--cream)';
-            x.style.background = 'var(--navy)';
-            x.style.fontWeight = '400';
-            x.style.transform = 'none';
-            x.style.boxShadow = 'none';
-          });
-
-          const couleurs = {
-            '✅': ['var(--orange)', '#0B0B0B'],
-            '❌': ['var(--red)', '#FFFFFF'],
-            '':   ['var(--muted)', '#0B0B0B']
-          };
-          const [fond, texte] = couleurs[val] || couleurs[''];
-          b.style.background = fond;
-          b.style.borderColor = fond;
-          b.style.color = texte;
-          b.style.fontWeight = '700';
-          b.style.transform = 'scale(1.04)';
-          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
-        });
-        if((ch.defaut || '') === val) setTimeout(() => b.click(), 0);
-        r.appendChild(b);
-      });
-      bloc.appendChild(r);
-
-    }else if(ch.type === 'manoeuvres'){
-      const liste = BLOC.ficheListeConduite;
-      const dejaFaites = (dossier.manoeuvres || []).map(normaliserMot);
-
-      const lm = document.createElement('label');
-      lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
-      bloc.appendChild(lm);
-      const zm = document.createElement('div');
-      zm.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-        'padding:10px 12px;max-height:260px;overflow-y:auto;';
-      liste.forEach(nom => {
-        const dejaOk = dejaFaites.indexOf(normaliserMot(nom)) !== -1;
-        const lab = document.createElement('label');
-        lab.style.cssText = 'display:flex;align-items:center;gap:9px;padding:5px 0;' +
-          'font-size:15px;text-transform:none;margin:0;color:' +
-          (dejaOk ? 'var(--muted)' : 'var(--cream)') + ';';
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = nom;
-        cb.className = 'chManuel-' + ch.cle;
-        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
-        lab.appendChild(cb);
-        lab.appendChild(document.createTextNode(nom + (dejaOk ? '  (déjà validée)' : '')));
-        zm.appendChild(lab);
-      });
-      bloc.appendChild(zm);
-
-    }else if(ch.type === 'competences'){
-      /* Le modèle attend un statut ET des erreurs par compétence :
-         une simple case à cocher ne suffisait pas. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const aide = document.createElement('div');
-      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-      aide.textContent = 'Laisse « non travaillé » pour les compétences non abordées ' +
-        "aujourd'hui : elles n'apparaîtront pas dans le bilan.";
-      bloc.appendChild(aide);
-
-      (modele.comps || []).forEach(comp => {
-        const cle = comp.cle || '';
-        const titre = comp.titre || comp.nom || cle;
-
-        const zc = document.createElement('div');
-        zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-          'padding:9px 11px;margin-bottom:7px;';
-
-        const h = document.createElement('div');
-        h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-
-        const t = document.createElement('span');
-        t.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:600;';
-        t.textContent = titre;
-        h.appendChild(t);
-
-        const sel = document.createElement('select');
-        sel.className = 'compStatut';
-        sel.setAttribute('data-comp', cle);
-        sel.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:14px;flex-shrink:0;';
-        /* Les valeurs sont les émojis attendus par l'assembleur */
-        sel.innerHTML = '<option value="">— non travaillé —</option>' +
-          '<option value="✅">✅ Acquis</option>' +
-          '<option value="🟠">🟠 En cours</option>' +
-          '<option value="❌">❌ À revoir</option>';
-        h.appendChild(sel);
-        zc.appendChild(h);
-
-        const err = document.createElement('textarea');
-        err.className = 'compErreurs';
-        err.setAttribute('data-comp', cle);
-        err.rows = 2;
-        err.placeholder = 'Erreurs à corriger, une par ligne';
-        err.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-          'color:var(--cream);padding:8px 10px;border-radius:8px;font-size:14px;' +
-          'line-height:1.5;font-family:inherit;resize:vertical;display:none;margin:0;';
-        zc.appendChild(err);
-
-        /* Les erreurs n'ont de sens que si la compétence a été travaillée */
-        sel.addEventListener('change', () => {
-          err.style.display = sel.value ? 'block' : 'none';
-        });
-
-        bloc.appendChild(zc);
-      });
-
-    }else if(ch.type === 'themes'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-      a.textContent = 'Remplis seulement les rubriques utiles : les autres ne sortiront pas.';
-      bloc.appendChild(a);
-
-      THEMES_ERREURS.forEach(th => {
-        const b = document.createElement('div');
-        b.style.cssText = 'margin-bottom:10px;';
-        const t2 = document.createElement('div');
-        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-        t2.textContent = th.nom;
-        b.appendChild(t2);
-
-        const r = document.createElement('div');
-        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-        const t = document.createElement('textarea');
-        t.rows = 2;
-        t.className = 'themeErreur';
-        t.setAttribute('data-theme', th.nom);
-        t.placeholder = 'Une remarque par ligne';
-        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
-          'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:16px;' +
-          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
-        r.appendChild(t);
-        if(dicteePossible()){
-          const mic = document.createElement('button');
-          mic.type = 'button';
-          mic.className = 'btn btn-secondary';
-          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
-          mic.textContent = '🎙️';
-          mic.title = 'Dicter dans ' + th.nom;
-          mic.addEventListener('click', () => dicterDans(t, mic));
-          r.appendChild(mic);
-        }
-        b.appendChild(r);
-        bloc.appendChild(b);
-      });
-
-    }else if(ch.type === 'cepc'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom + ' — E, 0, 1, 2 ou 3';
-      bloc.appendChild(l);
-
-      const z = document.createElement('div');
-      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
-      CEPC_BLOCS.forEach(g => {
-        const t = document.createElement('div');
-        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
-        t.textContent = g.titre;
-        z.appendChild(t);
-        g.items.forEach(it => z.appendChild(ligneCepc(it.nom, it.valeurs)));
-      });
-
-      const tot = document.createElement('div');
-      tot.id = 'cepcTotal';
-      tot.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--line);' +
-        'font-size:15px;font-weight:700;color:var(--accent-text);';
-      z.appendChild(tot);
-      bloc.appendChild(z);
-      setTimeout(majTotalCepc, 0);
-
-    }else if(ch.type === 'photo'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.accept = 'image/*';
-      inp.id = 'photo_' + ch.cle;
-      inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-        'color:var(--cream);padding:11px;border-radius:10px;font-size:14px;';
-      bloc.appendChild(inp);
-      const apercu = document.createElement('div');
-      apercu.id = 'apercu_' + ch.cle;
-      apercu.style.cssText = 'margin-top:8px;';
-      bloc.appendChild(apercu);
-      const aide = document.createElement('div');
-      aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;';
-      aide.textContent = "La photo reste sur ce téléphone : elle sert au moniteur pendant " +
-        "le rendez-vous, elle n'est pas envoyée dans le bilan.";
-      bloc.appendChild(aide);
-
-      inp.addEventListener('change', () => {
-        const f = inp.files && inp.files[0];
-        apercu.innerHTML = '';
-        if(!f) return;
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(f);
-        img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
-        apercu.appendChild(img);
-        champsManuels[ch.cle] = f.name;
-      });
-
-    }else if(ch.type === 'observations'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const z = document.createElement('div');
-      z.id = 'obsManuel';
-      bloc.appendChild(z);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;';
-      b.textContent = '➕ Ajouter une observation';
-      b.addEventListener('click', () => ajouterObservationManuelle(z));
-      bloc.appendChild(b);
-
-      /* Vingt lignes prêtes : un examen en compte facilement autant,
-         et ajouter une ligne à chaque fois cassait le rythme. */
-      for(let i = 0; i < 20; i++) ajouterObservationManuelle(z);
-
-    }else{
-      /* Texte libre, avec dictée possible */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      if(ch.aide){
-        const a = document.createElement('div');
-        a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
-        a.textContent = ch.aide;
-        bloc.appendChild(a);
-      }
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-      const t = document.createElement('textarea');
-      t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
-      t.id = 'man_' + ch.cle.replace('.', '_');
-      t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
-        'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
-        'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
-      r.appendChild(t);
-      if(dicteePossible()){
-        const mic = document.createElement('button');
-        mic.type = 'button';
-        mic.className = 'btn btn-secondary';
-        mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
-        mic.textContent = '🎙️';
-        mic.title = 'Dicter dans ce champ';
-        mic.addEventListener('click', () => dicterDans(t, mic));
-        r.appendChild(mic);
-      }
-
-      /* Marquer une faute éliminatoire, là où c'est utile */
-      if(ch.mort){
-        const bm = document.createElement('button');
-        bm.type = 'button';
-        bm.className = 'btn btn-secondary';
-        bm.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
-        bm.textContent = '☠️';
-        bm.title = 'Insérer le marqueur de faute éliminatoire';
-        bm.addEventListener('click', () => {
-          /* Sur la ligne où se trouve le curseur, pas ailleurs */
-          const v = t.value;
-          const pos = t.selectionStart || 0;
-          const debut = v.lastIndexOf('\n', Math.max(0, pos - 1)) + 1;
-          let fin = v.indexOf('\n', pos);
-          if(fin === -1) fin = v.length;
-          const ligne = v.slice(debut, fin);
-
-          const nouvelle = (ligne.indexOf('☠️') !== -1)
-            ? ligne.split('☠️').join('').replace(/\s+/g, ' ').trim()
-            : ('☠️ ' + ligne).trim();
-
-          t.value = v.slice(0, debut) + nouvelle + v.slice(fin);
-          t.focus();
-          t.setSelectionRange(debut + nouvelle.length, debut + nouvelle.length);
-        });
-        r.appendChild(bm);
-      }
-
-      bloc.appendChild(r);
-    }
-
-    zone.appendChild(bloc);
-  });
-
-  /* Frise récupérée automatiquement */
-  const aide = $('aideManuel');
-  if(aide){
-    aide.textContent = dicteePossible()
-      ? "Remplis chaque rubrique. Le 🎙️ à côté d'un champ permet de dicter au lieu d'écrire."
-      : "Remplis chaque rubrique en écrivant. La dictée demanderait Chrome sur Android, "
-        + "mais tout le reste fonctionne normalement ici.";
+  if(!finalTranscript){
+    $('transcriptBox').value = '';
+    $('transcriptBox').style.display = 'block';
+    $('transcriptAide').style.display = 'block';
+    $('compteur').style.display = 'block';
+  }else{
+    /* Reprise après pause : on repart du texte affiché,
+       corrections manuelles comprises. */
+    finalTranscript = $('transcriptBox').value.trim();
+    committedTranscript = finalTranscript;
   }
 
-  const info = $('manuelInfo');
-  const frise = dossier.frise || extraireFrise($('noteInterne').value);
-  const versionApp = (document.querySelector('.version') || {}).textContent || '';
-  info.innerHTML = '<strong>' + (eleve || '') + '</strong> · ' + modele.label +
-    (versionApp ? ' · <span style="color:var(--muted);">' + versionApp + '</span>' : '') +
-    (frise ? '<br>Frise reprise : ' + frise.replace(/</g,'&lt;') : '') +
-    ((dossier.manoeuvres || []).length
-      ? '<br>' + dossier.manoeuvres.length + ' manœuvre(s) déjà validée(s), reprises automatiquement'
-      : '');
+  const res = demarrerReconnaissance();
+  if(!res.ok){
+    $('status').textContent = 'Le micro n\'a pas démarré : ' + res.message;
+    return;
+  }
 
-  $('recordView').style.display = 'none';
-  $('resultView').style.display = 'none';
-  $('manuelView').style.display = 'block';
-  window.scrollTo(0, 0);
-}
+  isRecording = true;
+  dernierMot = Date.now();
+  btn.classList.remove('idle');
+  btn.classList.add('recording');
+  btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
+  $('finishBtn').style.display = 'block';
 
-function ajouterObservationManuelle(zone){
-  const d = document.createElement('div');
-  d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
+  /* Le bureau voit qui est en cours, sans avoir à appeler */
+  if(typeof signalerCoursDemarre === 'function'){
+    signalerCoursDemarre($('studentName').value.trim(),
+                         $('modele').selectedOptions[0]
+                           ? $('modele').selectedOptions[0].textContent : '',
+                         $('site') ? $('site').value : '');
+  }
 
-  const insp = document.createElement('input');
-  insp.type = 'text';
-  insp.className = 'obsInsp';
-  insp.placeholder = "Remarque de l'inspecteur";
-  insp.style.marginBottom = '6px';
-  d.appendChild(insp);
+  /* Maintien de l'écran — hors du chemin critique :
+     un échec ici ne doit pas passer pour une panne de micro. */
+  const ecranTenu = await garderEcranAllume();
+  $('status').textContent = ecranTenu
+    ? 'Écran maintenu allumé. Laisse cette page affichée.'
+    : '⚠️ Empêche l\'écran de s\'éteindre et laisse cette page affichée.';
+});
 
-  /* L'explication, avec de quoi marquer une erreur éliminatoire */
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:6px;align-items:center;';
+/* ---------- Génération ---------- */
+/* Le bouton n'enclenche plus rien directement : il demande confirmation */
+$('finishBtn').addEventListener('click', async () => {
+  const bFin = $('finishBtn');
+  if(bFin.disabled) return;
+  bFin.disabled = true;
+  const libelleFin = bFin.textContent;
+  bFin.textContent = 'Préparation…';
+  try{
 
-  const rep = document.createElement('input');
-  rep.type = 'text';
-  rep.className = 'obsRep';
-  rep.placeholder = 'Explication ou correction';
-  rep.style.cssText = 'flex:1;min-width:0;margin:0;';
-  r.appendChild(rep);
+  if(isRecording){
+    isRecording = false;
+    try{ recognition.stop(); }catch(e){}
+    arreterUI();
+  }
+  libererEcran();
 
-  const bMort = document.createElement('button');
-  bMort.type = 'button';
-  bMort.className = 'btn btn-secondary';
-  bMort.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;margin:0;flex-shrink:0;';
-  bMort.textContent = '☠️';
-  bMort.title = 'Marquer comme erreur éliminatoire';
-  bMort.addEventListener('click', () => {
-    const v = rep.value;
-    if(v.indexOf('☠️') !== -1){
-      /* Deuxième appui : on retire la marque */
-      rep.value = v.split('☠️').join('').replace(/\s+/g, ' ').trim();
-      bMort.style.borderColor = 'var(--line)';
-    }else{
-      rep.value = ('☠️ ' + v).trim();
-      bMort.style.borderColor = 'var(--red)';
-    }
-    rep.focus();
-  });
-  r.appendChild(bMort);
-
-  d.appendChild(r);
-  zone.appendChild(d);
-}
-
-
-/* Relève tout ce que le moniteur a saisi dans le formulaire */
-function lireChampsManuels(){
+  finalTranscript = $('transcriptBox').value.trim();   /* corrections manuelles prises en compte */
+  committedTranscript = finalTranscript;
+  const mots = finalTranscript.trim().split(/\s+/).filter(Boolean).length;
   const modele = MODELES[$('modele').value];
-  const champs = CHAMPS_MANUELS[modele.schema];
-  if(!champs) return;
 
-  champs.forEach(ch => {
-    if(ch.type === 'manoeuvres'){
-      champsManuels[ch.cle] = Array.prototype.slice
-        .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
-        .map(x => ({ nom: x.value, fait: true }));
+  $('confirmRecap').innerHTML =
+    'Type : <b>' + (modele ? modele.label : '—') + '</b><br>' +
+    'Élève : <b>' + ($('studentName').value.trim() || '(non renseigné)') + '</b><br>' +
+    'Moniteur : <b>' + ($('monitorName').value.trim() || '(non renseigné)') + '</b><br>' +
+    'Mots captés : <b>' + mots + '</b>';
 
-    }else if(ch.type === 'competences'){
-      /* Format attendu par le constructeur : { clé : { statut, erreurs } } */
-      const comps = {};
-      document.querySelectorAll('.compStatut').forEach(sel => {
-        const cle = sel.getAttribute('data-comp');
-        if(!cle || !sel.value) return;
-        const zone = document.querySelector('.compErreurs[data-comp="' + cle + '"]');
-        const erreurs = zone
-          ? zone.value.split('\n').map(x => x.trim()).filter(Boolean)
-          : [];
-        comps[cle] = { statut: sel.value, erreurs: erreurs };
-      });
-      champsManuels[ch.cle] = comps;
-    }else if(ch.type === 'themes'){
-      const bouts = [];
-      document.querySelectorAll('.themeErreur').forEach(t => {
-        const v = t.value.trim();
-        if(!v) return;
-        const lignes = v.split('\n').map(x => x.trim()).filter(Boolean);
-        bouts.push(t.getAttribute('data-theme') + '\n' +
-                   lignes.map(x => (x.startsWith('•') ? x : '• ' + x)).join('\n'));
-      });
-      champsManuels[ch.cle] = bouts.join('\n\n');
-    }else if(ch.type === 'cepc'){
-      const cepc = {};
-      document.querySelectorAll('.cepcNiveau').forEach(s => {
-        if(s.value) cepc[s.getAttribute('data-comp')] = s.value;
-      });
-      champsManuels[ch.cle] = cepc;
-    }else if(ch.type === 'observations'){
-      const obs = [];
-      document.querySelectorAll('#obsManuel > div').forEach(d => {
-        const i = d.querySelector('.obsInsp');
-        const r = d.querySelector('.obsRep');
-        const vi = i ? i.value.trim() : '';
-        const vr = r ? r.value.trim() : '';
-        if(vi || vr) obs.push({ inspecteur: vi, reponse: vr });
-      });
-      champsManuels[ch.cle] = obs;
-    }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
-             ch.type !== 'niveau' && ch.type !== 'ouinon'){
-      const t = document.getElementById('man_' + ch.cle.replace('.', '_'));
-      if(t) champsManuels[ch.cle] = t.value.trim();
-    }
-  });
-}
+  const alerte = $('confirmAlerte');
+  const soucis = [];
+  if(!$('studentName').value.trim()) soucis.push("le nom de l'élève n'est pas renseigné");
+  if(mots < 60) soucis.push('la transcription est très courte (' + mots + ' mots)');
+  if(interruptions > 0) soucis.push("l'enregistrement a été interrompu " + interruptions + ' fois');
 
-/* Assemble le bilan à partir de ce qui a été saisi */
-async function genererBilanManuel(){
-  /* On relève d'abord tout ce que le moniteur a saisi */
-  lireChampsManuels();
-
-  const modeleCle = $('modele').value;
-  const modele = MODELES[modeleCle];
-
-  /* Un examen blanc renseigne déjà sa conclusion : on ne la redemande pas */
-  const repris = Object.assign({}, contexteDepart || {});
-  if(modeleCle === 'examen-blanc'){
-    if(champsManuels.niveau === 'non'){
-      repris.ebPasse = 'pasleniveau';
-    }else if(champsManuels.niveau === 'oui'){
-      const h = String(champsManuels.heuresAvant || '').trim();
-      if(h === '' || h === '0'){
-        repris.ebPasse = '3h';
-      }else{
-        repris.ebPasse = 'lecons';
-        repris.ebLecons = h;
-      }
-    }
-    if(champsManuels.aDate === 'oui' && !repris.examPermis) repris.examPermis = 'prevu';
-    if(champsManuels.aDate === 'non' && !repris.examPermis) repris.examPermis = 'aprevoir';
+  if(soucis.length){
+    alerte.style.display = 'block';
+    alerte.innerHTML = '⚠️ Attention : ' + soucis.join(', ') + '.';
+  }else{
+    alerte.style.display = 'none';
   }
 
-  /* Mise à jour des infos, comme à la fin d'un cours enregistré */
-  const maj = await ouvrirQuestionnaireDepart(repris, 'Après ce cours', 'Terminer');
+  /* Le questionnaire revient, pré-rempli : tout reste modifiable
+     après le cours, notamment les leçons avant l'examen blanc. */
+  const maj = await ouvrirQuestionnaireDepart(contexteDepart, 'Après ce cours', 'Terminer');
   if(maj){
     contexteDepart = maj;
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
 
-  const eleve = $('studentName').value.trim();
-  let manoeuvresAvant = [];
-  let marquesAvant = null;
-  try{
-    const d = await chargerDossierEleve(eleve);
-    manoeuvresAvant = d.manoeuvres || [];
-    marquesAvant = d.marques || null;
-  }catch(e){}
+  $('confirmOverlay').classList.add('show');
 
-  /* Les manœuvres du jour sont au format attendu par le constructeur */
-  const liste = (champsManuels.manoeuvres || []).map(x => x.nom || x);
+  }finally{
+    bFin.disabled = false;
+    bFin.textContent = libelleFin;
+  }
+});
 
-  /* Les clés « avant.carteSD » deviennent des objets imbriqués */
-  const donnees = { manoeuvres: liste };
-  /* Le simulateur attend « competences », rangé par clé */
-  if(champsManuels.competences) donnees.competences = champsManuels.competences;
-  Object.keys(champsManuels).forEach(k => {
-    if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
-    const [pere, fils] = k.split('.');
-    if(!donnees[pere]) donnees[pere] = {};
-    donnees[pere][fils] = champsManuels[k];
-  });
+$('cancelGen').addEventListener('click', () => {
+  $('confirmOverlay').classList.remove('show');
+});
 
-  let bilan;
-  try{
-    bilan = modele.build(donnees, {
-      manoeuvresAvant: manoeuvresAvant,
-      marquesAvant: marquesAvant,
-      transcript: (typeof aererTexte === 'function'
-                    ? aererTexte(champsManuels.texteDicte || '')
-                    : (champsManuels.texteDicte || '')),
-      note: $('noteInterne').value.trim()
-    });
-  }catch(e){
-    console.error('Composition du bilan :', e);
-    await informer('Le bilan n\'a pas pu être composé.\n\nDétail : ' + (e && e.message ? e.message : e));
+$('confirmOverlay').addEventListener('click', e => {
+  if(e.target === $('confirmOverlay')) $('confirmOverlay').classList.remove('show');
+});
+
+$('confirmGen').addEventListener('click', async () => {
+  $('confirmOverlay').classList.remove('show');
+
+  const modeleCle = $('modele').value;
+  const modele = MODELES[modeleCle];
+  const studentName = $('studentName').value.trim() || "l'élève";
+  const monitorName = $('monitorName').value.trim();
+  const site = $('site').value;
+  const rawDate = $('lessonDate').value;
+  const dateObj = rawDate ? new Date(rawDate + 'T12:00:00') : new Date();
+  const dateStr = dateObj.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+
+  if(finalTranscript.trim().length < 30){
+    showToast("Transcription trop courte pour générer un bilan.");
     return;
   }
 
+  const p2 = n => String(n).padStart(2, '0');
+  const dateCourte = p2(dateObj.getDate()) + '/' + p2(dateObj.getMonth() + 1) + '/' + dateObj.getFullYear();
+
   currentLessonMeta = {
-    modeleLabel: modele.label,
-    studentName: eleve,
-    monitorName: $('monitorName').value.trim(),
-    site: $('site').value,
-    dateStr: $('lessonDate').value,
+    modeleLabel: modele.label, studentName, monitorName, site, dateStr, dateCourte,
     noteInterne: $('noteInterne').value.trim(),
     ts: Date.now()
   };
+  $('recordView').style.display = 'none';
+  $('generatingView').style.display = 'block';
+  $('progressionGen').textContent = 'Préparation…';
+  const oldDetail = $('genErrorDetail');
+  if(oldDetail) oldDetail.remove();
 
-  $('resultText').value = bilan;
-  afficherNote($('noteInterne').value.trim());
-  marquerExport(false);
-  $('manuelView').style.display = 'none';
-  $('resultView').style.display = 'block';
-  window.scrollTo(0, 0);
-  sauvegarderLocal(true);
+  try{
+    /* Modèle Conduite : on reprend les manœuvres validées les cours précédents */
+    let manoeuvresAvant = [];
+    let marquesAvant = null;
+    let coursCorrige = finalTranscript;
+
+    if(modele.schema === 'conduiteResume'){
+      /* Les bilans précédents se lisent pendant la correction,
+         pas avant : les deux n'ont rien à s'attendre. */
+      const promesseHistorique = bilansAnterieurs(studentName);
+
+      /* Remise au propre du cours, par tranches */
+      coursCorrige = await corrigerCours(finalTranscript, (n, total, essai) => {
+        let msg = total > 1
+          ? 'Correction du cours — ' + n + ' partie(s) sur ' + total + '…'
+          : 'Correction du cours…';
+        if(essai && essai > 1) msg += ' (nouvelle tentative)';
+        $('progressionGen').textContent = msg;
+      });
+      $('progressionGen').textContent = 'Rédaction du résumé…';
+
+      const historique = await promesseHistorique;
+      historique.forEach(item => {
+        manoeuvresDejaFaites(item.bilan).forEach(m => {
+          if(manoeuvresAvant.indexOf(m) === -1) manoeuvresAvant.push(m);
+        });
+      });
+      marquesAvant = {};
+      historique.slice().reverse().forEach(item => {
+        const mk = marquesDejaPosees(item.bilan);
+        Object.keys(mk).forEach(k => { marquesAvant[k] = mk[k]; });
+      });
+    }
+
+    const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
+    let bilan = modele.build(donnees, {
+      manoeuvresAvant: manoeuvresAvant,
+      marquesAvant: marquesAvant,
+      /* Aéré au dernier moment : le texte envoyé à l'IA reste entier */
+      transcript: aererTexte(coursCorrige),
+      note: $('noteInterne').value.trim()
+    });
+    /* Le rappel sur les écoutes pédagogiques, en fin de bilan */
+    if(typeof sansEcoutes === 'function' &&
+       sansEcoutes({ note: $('noteInterne').value })){
+      bilan += '\n\n' + rappelEcoutes();
+    }
+
+    if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
+    $('resultText').value = bilan;
+    afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
+    if(dernierEchecCorrection){
+      const detail = dernierEchecCorrection
+        .map(e => 'partie ' + e.n + ' (' + e.motif + ')').join(', ');
+      await informer('⚠️ Correction incomplète\n\n' + detail + '\n\n' +
+            'Le texte brut a été conservé pour ces passages : rien n\'est perdu, ' +
+            'mais ils ne sont pas corrigés. Relis-les avant d\'envoyer.');
+    }
+    sauvegarderLocal(true);
+    /* La préparation sort de la liste à l'ENREGISTREMENT, pas ici :
+       un bilan généré puis abandonné doit rester à faire. */
+    $('generatingView').style.display = 'none';
+    $('resultView').style.display = 'block';
+  if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
+    window.scrollTo(0, 0);
+    marquerExport(false);
+    await saveLesson(currentLessonMeta, bilan);
+    await refreshHistory();
+  }catch(err){
+    console.error('Erreur génération bilan:', err);
+    $('generatingView').style.display = 'none';
+    $('recordView').style.display = 'block';
+    showToast("Erreur de génération — détail sous le bouton.");
+    const d = document.createElement('div');
+    d.id = 'genErrorDetail';
+    d.style.cssText = 'margin-top:10px;font-size:12px;color:var(--warn-text);background:var(--warn-bg);border:1px solid var(--red);padding:10px;border-radius:8px;';
+    d.textContent = 'Détail : ' + (err && err.message ? err.message : String(err));
+    $('finishBtn').insertAdjacentElement('afterend', d);
+  }
+});
+
+
+/* Va chercher dans Sheets les manœuvres déjà validées pour cet élève,
+   afin de les reporter sur le nouveau bilan. */
+
+/* ============================================================
+   CORRECTION DU COURS PAR TRANCHES
+   Corriger un cours entier en un seul appel dépasse la taille
+   maximale de réponse : on découpe, on corrige, on recolle.
+   ============================================================ */
+const TAILLE_TRANCHE = 3500;   /* caractères par appel à l'IA */
+
+/* ============================================================
+   REPRISES À LA VOIX, APPLIQUÉES EN DIRECT
+   Le moniteur se relit et se corrige : « tourne à gauche, non
+   pardon, à droite ». La correction s'applique tout de suite
+   dans la zone de texte, pas seulement à la génération.
+
+   On reste prudent : seules les formules sans ambiguïté sont
+   traitées, et jamais un « non » adressé à l'élève.
+   ============================================================ */
+
+/* Ce qui annonce une reprise, et ce qui la suit remplace ce qui précède */
+/* Les accords du bilan : sans ça, tout est écrit au masculin.
+   Une monitrice qui dicte se retrouvait « je suis satisfait ». */
+function consigneAccords(){
+  const gm = (typeof ACCES !== 'undefined' && ACCES.genre) || '';
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  const f = (nom && typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const ge = (f && f.genre) || '';
+
+  if(!gm && !ge) return '';
+
+  const bouts = ['\n\nACCORDS — À RESPECTER DANS TOUT LE TEXTE :'];
+
+  if(gm === 'F'){
+    bouts.push("- La personne qui parle est une MONITRICE. Tous les accords qui la " +
+      "concernent sont au FÉMININ : « je suis contente », « je t'ai accompagnée », " +
+      '« ta monitrice ». Ne la désigne jamais au masculin.');
+  }else if(gm === 'M'){
+    bouts.push('- La personne qui parle est un MONITEUR : accords au masculin le concernant.');
+  }
+
+  if(ge === 'F'){
+    bouts.push("- L'élève est une FILLE. Tous les accords qui la concernent sont au " +
+      "FÉMININ : « tu es prête », « tu t'es bien installée », « tu as été attentive ».");
+  }else if(ge === 'M'){
+    bouts.push("- L'élève est un GARÇON : accords au masculin le concernant.");
+  }
+
+  bouts.push('- Tu corriges UNIQUEMENT les accords. Tu ne changes aucun mot, ' +
+    'aucune consigne, aucune tournure pour autre chose.');
+
+  return bouts.join('\n');
 }
 
-function fermerBilanManuel(){
-  modeManuel = false;
-  $('manuelView').style.display = 'none';
-  $('recordView').style.display = 'block';
-  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+/* ============================================================
+   CONSIGNES ADRESSÉES À L'IA PENDANT LE COURS
+
+   Le moniteur peut parler à l'IA au milieu de son cours :
+   « Claude, corrige la phrase précédente », « Claude, ça doit
+   apparaître en gras dans le résumé ». Ces phrases ne sont pas
+   du contenu de cours : ce sont des ordres, et ils doivent être
+   exécutés, pas recopiés.
+   ============================================================ */
+
+/* Les prénoms qui déclenchent une consigne à l'IA. Trois sont
+   acceptés : Naia et Neo, choisis par l'auto-école, et Claude,
+   gardé le temps que l'habitude se prenne.
+
+   Chacun est écrit avec ses graphies probables : la reconnaissance
+   vocale ne les orthographie pas toujours de la même façon. */
+const MOTIF_CONSIGNE_IA = new RegExp(
+  '\\b(?:' + [
+    'naia', 'na[iï]a', 'naya', 'na[iï]ah', 'nahia',
+    'n[ée]o', 'neo', 'n[ée]au', 'n[ée]hau',
+    'claude', 'cl[oa]de', 'clode', 'claud'
+  ].join('|') + ')\\s*[,:.]?\\s*([^.!?\\n]{4,300}[.!?]?)', 'gi');
+
+/* Extrait les consignes et rend le texte sans elles */
+function extraireConsignesIA(texte){
+  const t = String(texte || '');
+  const consignes = [];
+  let m;
+
+  const g = new RegExp(MOTIF_CONSIGNE_IA.source, 'gi');
+  while((m = g.exec(t)) !== null){
+    const ordre = String(m[1] || '').trim();
+    if(ordre.length >= 4) consignes.push(ordre);
+  }
+
+  return { consignes: consignes, texte: t };
 }
 
+/* Le bloc à donner à l'IA, en tête de ses instructions */
+function consigneMoniteurIA(texte){
+  const r = extraireConsignesIA(texte);
+  if(!r.consignes.length) return '';
 
-/* Le modèle doit correspondre à la boîte de l'élève : un élève BEA
-   ne doit pas recevoir une fiche boîte manuelle, et inversement. */
-const MODELE_EQUIVALENT = {
-  'conduite-manuelle':      { bea: 'conduite-auto' },
-  'conduite-auto':          { bv:  'conduite-manuelle' },
-  'aac-manuelle':           { bea: 'aac-auto' },
-  'aac-auto':               { bv:  'aac-manuelle' },
-  'rdv-prealable-manuelle': { bea: 'rdv-prealable-auto' },
-  'rdv-prealable-auto':     { bv:  'rdv-prealable-manuelle' },
-  'simu-manuelle':          { bea: 'simu-auto' },
-  'simu-auto':              { bv:  'simu-manuelle' },
-  'eval-manuelle':          { bea: 'eval-auto' },
-  'eval-auto':              { bv:  'eval-manuelle' }
-};
+  return '\n\nORDRES DU MONITEUR — PRIORITÉ ABSOLUE :\n' +
+    "Pendant le cours, le moniteur s'est adressé directement à toi en disant " +
+    '« Naia, … », « Néo, … » ou « Claude, … ». Ce sont des ORDRES, pas du ' +
+    'contenu de cours.\n' +
+    r.consignes.map((x, i) => '  ' + (i + 1) + '. ' + x).join('\n') + '\n' +
+    'RÈGLES :\n' +
+    "- Tu exécutes chacun de ces ordres, même s'ils contredisent tes autres consignes.\n" +
+    "- Tu SUPPRIMES du texte final la phrase qui contient l'ordre lui-même : " +
+    "« Claude, corrige la phrase précédente » ne doit pas apparaître dans le bilan.\n" +
+    "- Si l'ordre corrige une phrase (« ce n'est pas ça que j'ai voulu dire, mais ça »), " +
+    'tu remplaces la phrase visée par la version corrigée.\n' +
+    "- Si l'ordre demande une mise en avant, tu la respectes dans le résumé.\n" +
+    "- Si l'ordre porte sur du vocabulaire ou une règle métier, tu l'appliques partout " +
+    'dans ce bilan.\n' +
+    "- En cas de doute sur ce que vise un ordre, tu appliques ce qui te semble le plus " +
+    "proche et tu ne supprimes rien d'autre.\n";
+}
 
-function verifierBoiteModele(boite){
-  const zone = $('alerteBoite');
-  if(!zone) return;
-  zone.style.display = 'none';
-  zone.innerHTML = '';
-  if(!boite) return;
+/* Les règles retenues des cours précédents, relues à chaque bilan.
+   L'IA n'apprend pas : c'est cette liste qui fait office de mémoire. */
+let reglesIA = [];
+let reglesIALues = 0;
 
-  const actuel = $('modele').value;
-  const equiv = MODELE_EQUIVALENT[actuel];
-  if(!equiv || !equiv[boite]) return;      /* déjà le bon modèle */
+async function chargerReglesIA(){
+  if(Date.now() - reglesIALues < 600000) return reglesIA;   /* 10 min */
+  try{
+    const d = await appelPrep({ action: 'regleIaList' });
+    reglesIA = ((d && d.regles) || []).map(x => x.regle).filter(Boolean);
+    reglesIALues = Date.now();
+  }catch(e){ /* hors ligne : on se passe des règles */ }
+  return reglesIA;
+}
 
-  const cible = equiv[boite];
-  if(!MODELES[cible]) return;
+/* Le bloc de règles à joindre aux consignes */
+function consigneReglesIA(){
+  if(!reglesIA.length) return '';
+  return '\n\nRÈGLES DICTÉES PAR LES MONITEURS — à respecter dans tous les bilans :\n' +
+    reglesIA.map((x, i) => '  ' + (i + 1) + '. ' + x).join('\n') + '\n' +
+    'Ces règles viennent de cours précédents. Elles priment sur tes habitudes, ' +
+    "mais jamais sur un ordre donné pendant CE cours.\n";
+}
 
-  const libelle = (boite === 'bea') ? 'boîte automatique (BEA)' : 'boîte manuelle (BV)';
-  zone.style.display = 'block';
-  zone.style.cssText = 'display:block;background:var(--warn-bg);border:1px solid var(--red);' +
-    'border-radius:10px;padding:11px 12px;margin:-6px 0 14px;font-size:14px;line-height:1.5;';
+/* Ce que le moniteur a dicté aujourd'hui rejoint la mémoire.
+   Une règle reste inactive tant qu'un administrateur ne l'a pas
+   validée : une consigne ponctuelle ne doit pas devenir permanente. */
+async function retenirConsignesIA(texte, eleve){
+  const r = extraireConsignesIA(texte);
+  if(!r.consignes.length) return;
+  for(const ordre of r.consignes){
+    try{
+      await appelPrep({ action: 'regleIaAdd', regle: ordre,
+                        eleve: eleve || '', par: ACCES.moniteur || '' });
+    }catch(e){ /* sans réseau, la règle vaut pour ce bilan seulement */ }
+  }
+}
 
-  const t = document.createElement('div');
-  t.innerHTML = '⚠️ Cet élève est en <strong>' + libelle + '</strong>, ' +
-    'mais le modèle choisi ne correspond pas.';
-  zone.appendChild(t);
+/* ============================================================
+   AÉRATION DU TEXTE DU COURS
 
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-top:8px;font-size:14px;padding:11px;';
-  b.textContent = '↔️ Passer sur « ' + MODELES[cible].label + ' »';
-  b.addEventListener('click', () => {
-    $('modele').value = cible;
-    zone.style.display = 'none';
-    showToast('Modèle adapté ✅');
+   L'IA reçoit la consigne de sauter des lignes, mais ne la suit
+   pas toujours. On ne peut pas s'en remettre à elle : un pavé de
+   quarante lignes est illisible pour l'élève, qui relit son cours
+   plusieurs jours après.
+   ============================================================ */
+function aererTexte(texte, phrasesParBloc){
+  const t = String(texte || '').trim();
+  if(!t) return '';
+
+  /* Déjà aéré par l'IA : on n'y touche pas */
+  if(/\n\s*\n/.test(t)) return t;
+
+  const parBloc = phrasesParBloc || 4;
+
+  /* Découpe en phrases, ponctuation conservée */
+  const phrases = t.split(/(?<=[.!?…])\s+/).map(x => x.trim()).filter(Boolean);
+  if(phrases.length <= parBloc) return t;
+
+  const blocs = [];
+  for(let i = 0; i < phrases.length; i += parBloc){
+    blocs.push(phrases.slice(i, i + parBloc).join(' '));
+  }
+  return blocs.join('\n\n');
+}
+
+const MARQUEURS_REPRISE = [
+  'non pardon', 'ah non pardon', 'euh pardon', 'pardon je voulais dire',
+  'je voulais dire', 'je reprends', 'je me reprends', 'rectification',
+  'je corrige', 'plutôt non', 'non plutôt', 'enfin non', 'non je disais',
+  'non en fait', 'oublie ça', 'oublie cette phrase'
+];
+
+let dernieresReprises = 0;
+
+/* Découpe en phrases, en gardant la ponctuation */
+function decouperPhrases(texte){
+  return String(texte || '').split(/(?<=[.!?…])\s+/).filter(x => x.trim());
+}
+
+/* Applique les reprises trouvées dans le texte */
+function appliquerReprises(texte){
+  let t = String(texte || '');
+  let n = 0;
+
+  MARQUEURS_REPRISE.forEach(marqueur => {
+    /* Le marqueur, précédé de ce qu'il annule et suivi de la bonne version */
+    const motif = new RegExp(
+      '([^.!?…\\n]*?)' +
+      '(?:,\\s*|\\s+)' + marqueur.replace(/ /g, '\\s+') +
+      '(?:,\\s*|\\s+)' +
+      '([^.!?…\\n]*)', 'gi');
+
+    t = t.replace(motif, (tout, avant, apres) => {
+      const bon = String(apres || '').trim();
+      if(!bon) return tout;          /* rien derrière : on ne touche à rien */
+
+      /* On ne retire que ce que la reprise remplace, pas toute la phrase.
+         « tourne à gauche » corrigé en « à droite » doit donner
+         « tourne à droite », et non « à droite » tout court. */
+      const debut = String(avant || '');
+      let garde;
+
+      const virgule = debut.lastIndexOf(',');
+      if(virgule > 0){
+        /* Une virgule marque déjà la limite du morceau annulé */
+        garde = debut.slice(0, virgule + 1) + ' ';
+      }else{
+        /* Sinon on retire autant de mots que la correction en apporte */
+        const mots = debut.trim().split(/\s+/).filter(Boolean);
+        const combien = bon.trim().split(/\s+/).filter(Boolean).length;
+        const restants = mots.slice(0, Math.max(0, mots.length - combien));
+        garde = restants.length ? restants.join(' ') + ' ' : '';
+      }
+
+      n++;
+      return garde + bon;
+    });
   });
-  zone.appendChild(b);
+
+  dernieresReprises = n;
+  return t;
+}
+
+const CONSIGNE_CORRECTION =
+'Tu remets au propre la transcription automatique d\'un cours de conduite enregistré en voiture.\n' +
+'\n' +
+'RÈGLES ABSOLUES :\n' +
+'- Tu CONSERVES TOUT ce qui a été dit, sans exception : les consignes de conduite, mais aussi les discussions, ' +
+'les digressions, les anecdotes et les échanges personnels. Tu ne censures rien, tu ne résumes rien, tu ne coupes rien.\n' +
+'- Tu corriges UNIQUEMENT la forme : fautes d\'orthographe, de grammaire, de conjugaison, mots mal transcrits ' +
+'par la reconnaissance vocale, ponctuation, majuscules.\n' +
+'- Tu supprimes les répétitions parasites de la transcription (mots répétés deux fois de suite par erreur, ' +
+'bégaiements de la machine) mais PAS les répétitions volontaires du moniteur.\n' +
+'- Tu corriges le vocabulaire auto-école mal transcrit : giratoire, créneau, bataille, épi, angle mort, ' +
+'PAD (priorité à droite), VA/VD, MALD, embrayage, débrayer, rétroviseur, clignotant.\n' +
+'- Tu découpes en paragraphes cohérents et tu sautes une ligne entre les sujets.\n' +
+'- Tu NE reformules PAS les idées et tu n\'ajoutes AUCUN commentaire de ta part.\n' +
+'- RÈGLE CAPITALE : si un mot ou une phrase est ambigu, tu le laisses TEL QUEL. Tu ne devines jamais. ' +
+'Mieux vaut un mot bizarre conservé qu\'un mot inventé qui change le sens : ce texte est relu par un élève ' +
+'qui appliquera ce qu\'il lit.\n' +
+'- Tu n\'inverses JAMAIS une consigne technique. « verrouille » ne devient pas « déverrouille », ' +
+'« ne cherche pas les problèmes sur un feu vert » ne devient pas « attends le feu vert », ' +
+'« roues droites » ne devient pas « tourne les roues ». En cas de doute sur une consigne, recopie-la mot pour mot.\n' +
+'- Attention aux mots proches en français : bosse/bus, mois/mouettes, roue/route, voie/voix, ' +
+'peur/pire. Choisis toujours celui qui a un sens dans le contexte de la conduite ; si aucun ne convient, garde l\'original.\n' +
+'- Tu n\'introduis JAMAIS un nom de manœuvre (MALD, MAR, créneau, bataille, épi, demi-tour, arrêt de précision) ' +
+'qui ne figure pas explicitement dans la transcription. Un mot incompréhensible ne doit jamais devenir un nom de manœuvre : ' +
+'l\'application coche les manœuvres réalisées à partir de ce texte, une invention ici fausse le suivi de l\'élève. ' +
+'Devant un mot incompréhensible, recopie-le tel quel.\n' +
+'- Le texte reste à la première personne du moniteur, tel qu\'il a parlé.\n' +
+'- AÉRATION : tu sautes une ligne vide entre les paragraphes. Un paragraphe correspond à un ' +
+'moment ou à un sujet : une manœuvre, un carrefour, une explication, un changement de lieu. ' +
+"Un bloc de vingt lignes serrées est illisible pour l'élève, qui doit pouvoir s'y retrouver " +
+'plusieurs jours après son cours.\n' +
+'\n' +
+'REPRISES À LA VOIX — SEULE EXCEPTION À LA RÈGLE « ON CONSERVE TOUT » :\n' +
+'Le moniteur se relit pendant l\'enregistrement et se corrige à voix haute quand la machine ' +
+'a mal entendu. Ces reprises doivent être APPLIQUÉES, pas recopiées.\n' +
+'- Tu reconnais une reprise à des formules comme : « non », « pardon », « je reprends », ' +
+'« je voulais dire », « enfin », « plutôt », « correction », « non pas X mais Y », ' +
+'« c\'est pas ça », « rectification », « efface », « oublie ».\n' +
+'- Tu remplaces alors le passage visé par la version corrigée, et tu SUPPRIMES la formule ' +
+'de reprise elle-même : elle ne doit pas apparaître dans le texte final.\n' +
+'  Exemple : « tourne à gauche, non pardon, à droite » devient « tourne à droite ».\n' +
+'  Exemple : « tu étais à 50, je reprends, tu étais à 70 » devient « tu étais à 70 ».\n' +
+'- Si la reprise porte sur une phrase entière prononcée juste avant, tu remplaces cette ' +
+'phrase et tu ne gardes que la bonne version.\n' +
+'- ATTENTION : « non » suivi d\'une consigne n\'est pas toujours une reprise. ' +
+'« Non, tu ne freines pas là » est une consigne adressée à l\'élève, tu la conserves. ' +
+'Une reprise corrige les MOTS du moniteur ; une consigne corrige la CONDUITE de l\'élève. ' +
+'Dans le doute, conserve les deux versions plutôt que d\'en supprimer une.\n' +
+'\n' +
+'Réponds UNIQUEMENT avec le texte corrigé. Pas de préambule, pas de titre, pas de balises.';
+
+/* Une réponse complète se termine par une ponctuation forte */
+function finDePhrase(texte){
+  const t = String(texte || '').trim();
+  if(!t) return false;
+  return /[.!?…»"]$/.test(t);
+}
+
+/* Découpe en respectant les fins de phrase */
+function decouperEnTranches(texte, taille){
+  const t = String(texte || '').trim();
+  if(t.length <= taille) return t ? [t] : [];
+  const tranches = [];
+  let reste = t;
+  while(reste.length > taille){
+    let coupe = reste.lastIndexOf('. ', taille);
+    if(coupe < taille * 0.5) coupe = reste.lastIndexOf(' ', taille);
+    if(coupe < taille * 0.5) coupe = taille;
+    tranches.push(reste.slice(0, coupe + 1).trim());
+    reste = reste.slice(coupe + 1).trim();
+  }
+  if(reste) tranches.push(reste);
+  return tranches;
+}
+
+/* Corrige le cours entier, tranche par tranche */
+/* Corrige une tranche, avec ses tentatives. */
+/* Vrai dès qu'un appel a été refusé pour cadence trop élevée */
+let cadenceDepassee = false;
+
+async function corrigerUneTranche(tranche, i, total, surEssai, avant){
+  let contexte = total > 1
+    ? '\n\n(Partie ' + (i + 1) + ' sur ' + total +
+      ' d\'un même cours : ne réintroduis aucune introduction ni conclusion.)'
+    : '';
+
+  /* La fin de la tranche précédente, pour rattraper une reprise à voix
+     haute qui porterait sur les derniers mots d'avant la coupure. */
+  if(avant){
+    contexte += '\n\nCE QUI PRÉCÈDE, POUR CONTEXTE SEULEMENT — NE LE RECOPIE PAS ' +
+      'DANS TA RÉPONSE :\n« …' + avant + ' »\n' +
+      'Si le début de la partie à corriger reprend ou rectifie ces derniers mots, ' +
+      'applique la correction sur ta seule partie.';
+  }
+
+  let derniereErreur = null;
+
+  /* Jusqu'à 3 tentatives : un échec ponctuel ne doit pas laisser
+     une partie du cours en texte brut. */
+  for(let essai = 1; essai <= 3; essai++){
+    try{
+      if(essai > 1){
+        if(surEssai) surEssai(essai);
+        /* Attente croissante : une limitation de cadence ne se lève
+           pas en une seconde et demie. */
+        const attente = cadenceDepassee ? 6000 * essai : 1500 * essai;
+        await new Promise(r => setTimeout(r, attente));
+      }
+      const txt = await appelBrutIA(CONSIGNE_CORRECTION + consigneAccords() +
+                                    consigneReglesIA() +
+                                    (typeof consigneCorrectionsIA === 'function'
+                                      ? consigneCorrectionsIA() : '') +
+                                    consigneMoniteurIA(tranche) + contexte,
+                                    tranche, 8000);
+      const propre = (txt || '').trim();
+
+      /* Une correction fait forcément une longueur comparable à
+         l'original : trop court = réponse tronquée. */
+      if(!propre){
+        derniereErreur = new Error('réponse vide');
+      }else if(propre.length < tranche.length * 0.75){
+        derniereErreur = new Error('réponse tronquée (' +
+          Math.round(propre.length / tranche.length * 100) + '% de l\'original)');
+      }else if(!finDePhrase(propre)){
+        derniereErreur = new Error('réponse coupée en pleine phrase');
+      }else{
+        return { texte: propre };
+      }
+    }catch(e){
+      derniereErreur = e;
+      /* Trop d'appels d'un coup : les suivants attendent davantage */
+      if(/429|rate|cadence|overload/i.test(e.message || '')) cadenceDepassee = true;
+      console.warn('Tranche ' + (i + 1) + ', essai ' + essai + ' :', e);
+    }
+  }
+
+  /* Échec après trois tentatives : on garde le texte brut plutôt que
+     de perdre le passage, mais on lui applique au moins les
+     corrections de vocabulaire. Sans ça « ongle mort » restait. */
+  return { texte: corrigerVocabulaire(tranche),
+           echec: { n: i + 1, motif: derniereErreur ? derniereErreur.message : 'inconnu' } };
+}
+
+/* Combien de tranches traitées en même temps.
+   Au-delà, l'IA rejette pour cadence trop élevée. */
+const TRANCHES_SIMULTANEES = 3;
+
+async function corrigerCours(transcript, surProgres){
+  const tranches = decouperEnTranches(transcript, TAILLE_TRANCHE);
+  if(!tranches.length) return '';
+
+  cadenceDepassee = false;
+  await chargerReglesIA();
+  if(typeof chargerCorrectionsIA === 'function') await chargerCorrectionsIA();
+  const corrigees = new Array(tranches.length);
+  const echecs = [];
+  let terminees = 0;
+  let suivante = 0;
+
+  const avancer = () => {
+    terminees++;
+    if(surProgres) surProgres(terminees, tranches.length);
+  };
+
+  /* Les tranches partent par groupes plutôt qu'une par une :
+     un cours d'une heure passait de longues minutes à attendre. */
+  async function ouvrier(){
+    while(true){
+      const i = suivante++;
+      if(i >= tranches.length) return;
+      /* Les 300 derniers caractères de la tranche d'avant */
+      const avant = (i > 0) ? tranches[i - 1].slice(-300) : '';
+      const r = await corrigerUneTranche(tranches[i], i, tranches.length,
+        essai => { if(surProgres) surProgres(terminees, tranches.length, essai); },
+        avant);
+      corrigees[i] = r.texte;
+      if(r.echec) echecs.push(r.echec);
+      avancer();
+    }
+  }
+
+  const combien = Math.min(TRANCHES_SIMULTANEES, tranches.length);
+  await Promise.all(Array.from({ length: combien }, ouvrier));
+
+  if(echecs.length){
+    /* On ne masque pas l'échec : le moniteur doit savoir que
+       certaines parties sont restées non corrigées. */
+    echecs.sort((a, b) => a.n - b.n);
+    dernierEchecCorrection = echecs;
+  }else{
+    dernierEchecCorrection = null;
+  }
+
+  return corrigees.join('\n\n');
+}
+
+/* dernierEchecCorrection : déclaré dans ec-etat.js */
+
+
+/* Répare les JSON contenant des retours à la ligne bruts dans les
+   chaînes : c'est le défaut le plus fréquent des réponses longues. */
+function reparerJson(brut){
+  let sortie = '';
+  let dansChaine = false;
+  let echappe = false;
+
+  for(let i = 0; i < brut.length; i++){
+    const ch = brut[i];
+
+    if(echappe){ sortie += ch; echappe = false; continue; }
+    if(ch === '\\'){ sortie += ch; echappe = true; continue; }
+    if(ch === '"'){ dansChaine = !dansChaine; sortie += ch; continue; }
+
+    if(dansChaine){
+      /* Caractères de contrôle interdits dans une chaîne JSON */
+      if(ch === '\n'){ sortie += '\\n'; continue; }
+      if(ch === '\r'){ sortie += '\\r'; continue; }
+      if(ch === '\t'){ sortie += '\\t'; continue; }
+      if(ch.charCodeAt(0) < 32){ continue; }
+    }
+    sortie += ch;
+  }
+  return sortie;
+}
+
+/* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
+async function appelBrutIA(systemPrompt, message, maxTokens){
+  const r = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: maxTokens || 8000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: message }]
+      }
+    })
+  });
+  if(r.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé');
+  }
+  if(!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  if(data.error) throw new Error(data.error.message || 'erreur API');
+  return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+}
+
+/* Les bilans précédents d'un élève, lus une seule fois.
+   Le texte complet est nécessaire : c'est là que sont les marques. */
+async function bilansAnterieurs(nomEleve){
+  if(!nomEleve || nomEleve.length < 2) return [];
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve })
+    });
+    if(!r.ok) return [];
+    const data = await r.json();
+    return (data && data.resultats) || [];
+  }catch(e){
+    console.warn('Bilans antérieurs indisponibles :', e);
+    return [];   /* on continue sans, plutôt que de bloquer le bilan */
+  }
+}
+
+async function manoeuvresAnterieures(nomEleve){
+  const res = await bilansAnterieurs(nomEleve);
+  const cumul = [];
+  res.forEach(item => {
+    manoeuvresDejaFaites(item.bilan).forEach(m => {
+      if(cumul.indexOf(m) === -1) cumul.push(m);
+    });
+  });
+  return cumul;
+}
+
+/* Les marques accumulées : ✅ puis les émojis des moniteurs.
+   On part du bilan le plus récent, qui les porte toutes. */
+async function marquesAnterieures(nomEleve){
+  const res = await bilansAnterieurs(nomEleve);
+  const marques = {};
+  /* Du plus ancien au plus récent : le dernier écrit fait foi */
+  res.slice().reverse().forEach(item => {
+    const m = marquesDejaPosees(item.bilan);
+    Object.keys(m).forEach(k => { marques[k] = m[k]; });
+  });
+  return marques;
+}
+
+async function appelIA(modeleCle, transcript, studentName, monitorName, site, dateStr){
+  /* Les ordres du moniteur passent aussi au résumé : « ça doit
+     apparaître en gras » n'a de sens qu'à cette étape. */
+  const systemPrompt = construireConsignes(modeleCle) + consigneReglesIA() +
+                       (typeof consigneCorrectionsIA === 'function'
+                         ? consigneCorrectionsIA() : '') +
+                       consigneMoniteurIA(transcript);
+  const userMsg = 'Type de bilan : ' + MODELES[modeleCle].label + '\n' +
+    'Moniteur : ' + (monitorName || 'non renseigné') + '\n' +
+    'Élève : ' + studentName + '\n' +
+    'Site : ' + site + '\n' +
+    'Date : ' + dateStr + '\n\n' +
+    'Transcription brute du cours :\n"""\n' + transcript + '\n"""';
+
+  const response = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: 8000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMsg }]
+      }
+    })
+  });
+
+  if(response.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé — code invalide.');
+  }
+
+  if(!response.ok){
+    let body = '';
+    try{ body = await response.text(); }catch(e){}
+    throw new Error('HTTP ' + response.status + ' — ' + body.slice(0, 300));
+  }
+
+  const data = await response.json();
+  if(data.type === 'error' || data.error){
+    throw new Error((data.error && data.error.message) || JSON.stringify(data).slice(0, 300));
+  }
+
+  let brut = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+
+  if(!brut){
+    const raison = data.stop_reason ? ' (arrêt : ' + data.stop_reason + ')' : '';
+    const mots = transcript.trim().split(/\s+/).filter(Boolean).length;
+    if(data.stop_reason === 'max_tokens'){
+      throw new Error('Réponse trop longue pour le modèle' + raison +
+        '. Cours de ' + mots + ' mots — découpe-le en deux bilans.');
+    }
+    throw new Error('Réponse vide du modèle' + raison +
+      '. Cours de ' + mots + ' mots. Blocs reçus : ' +
+      JSON.stringify((data.content || []).map(b => b.type)));
+  }
+
+  brut = brut.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const debut = brut.indexOf('{');
+  const fin = brut.lastIndexOf('}');
+  if(debut === -1 || fin === -1) throw new Error('Réponse non exploitable : ' + brut.slice(0, 200));
+
+  const corps = brut.slice(debut, fin + 1);
+
+  /* Certaines réponses contiennent la suite « \n » sous forme de texte
+     au lieu d'un vrai retour à la ligne : on rétablit. */
+  function nettoyerRetours(obj){
+    if(typeof obj === 'string'){
+      return obj.replace(/\\n/g, '\n').replace(/\\t/g, ' ');
+    }
+    if(Array.isArray(obj)) return obj.map(nettoyerRetours);
+    if(obj && typeof obj === 'object'){
+      const o = {};
+      for(const k in obj) o[k] = nettoyerRetours(obj[k]);
+      return o;
+    }
+    return obj;
+  }
+
+  try{
+    return nettoyerRetours(JSON.parse(corps));
+  }catch(e){
+    /* Deuxième chance : on échappe les retours à la ligne bruts */
+    try{
+      return nettoyerRetours(JSON.parse(reparerJson(corps)));
+    }catch(e2){
+      if(data.stop_reason === 'max_tokens'){
+        throw new Error('Réponse coupée en cours de route : le cours est trop long. Découpe-le en deux bilans.');
+      }
+      throw new Error('JSON illisible : ' + e.message + ' — début reçu : ' + brut.slice(0, 120));
+    }
+  }
+}
+
+function horodatageLisible(ts){
+  const d = ts ? new Date(ts) : new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+         ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function afficherNote(note){
+  const champ = $('noteResult');
+  if(champ) champ.value = (note || '').trim();
+}
+
+/* ---------- Actions ---------- */
+$('copyBtn').addEventListener('click', async () => {
+  direEtatFin('');
+  const ta = $('resultText');
+  ta.select();
+
+  /* 1. La copie d'abord : c'est ce que le moniteur attend immédiatement */
+  try{
+    await navigator.clipboard.writeText(ta.value);
+  }catch(e){
+    try{ document.execCommand('copy'); }catch(_){}
+  }
+
+  /* 2. Puis l'enregistrement de la version relue et corrigée.
+     Une note ajoutée après coup doit partir, elle aussi : le
+     moniteur ne comprendrait pas qu'elle reste dans le vide. */
+  const b = $('copyBtn');
+  b.disabled = true;
+  const libelle = b.textContent;
+  /* Bleu pendant l'écriture : le moniteur voit que ça travaille,
+     et ne réappuie pas en croyant que rien ne se passe. */
+  const styleInitial = b.getAttribute('style') || '';
+  b.setAttribute('style', styleInitial +
+    ';background:#2F6FB3;border-color:#2F6FB3;color:#FFFFFF;');
+
+  let enregistre;
+  if(bilanEnregistre && !bilanModifieDepuisEnregistrement()){
+    enregistre = true;                       /* rien n'a bougé */
+    showToast('Bilan copié ✅');
+  }else if(bilanEnregistre){
+    b.textContent = 'Mise à jour…';
+    enregistre = await mettreAJourBilan();
+    showToast(enregistre ? 'Bilan et note mis à jour ✅'
+                         : '⚠️ Copié, mais la mise à jour a échoué');
+  }else{
+    b.textContent = 'Enregistrement…';
+    enregistre = await exporterVersSheets(true);
+    showToast(enregistre ? 'Bilan copié et enregistré ✅'
+                         : '⚠️ Copié, mais NON enregistré dans Sheets');
+  }
+
+  b.disabled = false;
+  b.textContent = libelle;
+  b.setAttribute('style', styleInitial);
+
+  /* On ne termine QUE si l'enregistrement a réussi : sinon le
+     moniteur perdrait son bilan en croyant l'avoir sauvegardé. */
+  if(!enregistre){
+    if(typeof direEtatFin === 'function'){
+      direEtatFin("Le bilan n'est PAS enregistré. Vérifie ta connexion " +
+                  'et réessaie avant de quitter cet écran.', true);
+    }
+    return;
+  }
+
+  /* On ne remet pas l'écran à zéro sans prévenir : le moniteur
+     doit encore coller le bilan sur Messenger. */
+  confirmerFinDeCours();
+});
+
+async function exporterVersSheets(silencieux){
+  const btn = $('exportSheetsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Export en cours…';
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'append',
+        code: ACCES.code,
+        data: {
+          date: currentLessonMeta ? (currentLessonMeta.dateCourte || currentLessonMeta.dateStr) : '',
+          site: currentLessonMeta ? currentLessonMeta.site : '',
+          monitorName: currentLessonMeta ? currentLessonMeta.monitorName : '',
+          studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
+          typeBilan: currentLessonMeta ? currentLessonMeta.modeleLabel : '',
+          noteInterne: $('noteResult').value.trim(),
+          boite: contexteDepart ? (contexteDepart.boite || '') : '',
+          ants: contexteDepart ? (contexteDepart.ants || '') : '',
+          manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | '),
+          horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
+          bilan: $('resultText').value
+        }
+      })
+    });
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const rep = await r.json().catch(() => ({}));
+    if(!verifierVersionScript(rep)){ marquerExport(false); return false; }
+    const avecNote = $('noteResult').value.trim();
+    showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
+    marquerExport(true);
+    retenirEtatEnregistre(rep && rep.ligne);
+    /* Le cours est fait : sa préparation sort de la liste */
+    retirerPreparationFaite();
+    /* Les ordres dictés rejoignent la mémoire, en attente de validation */
+    retenirConsignesIA($('transcriptBox').value,
+                       currentLessonMeta && currentLessonMeta.studentName);
+    if(typeof signalerCoursFini === 'function') signalerCoursFini();
+    viderCaches(currentLessonMeta && currentLessonMeta.studentName);
+    chargerEleves();          /* un nouvel élève peut venir d'apparaître */
+
+
+    return true;
+  }catch(e){
+    console.error('Erreur export Sheets:', e);
+    marquerExport(false);
+    if(!silencieux) showToast("Erreur lors de l'enregistrement : " + e.message);
+    return false;
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+$('exportSheetsBtn').addEventListener('click', () => exporterVersSheets(false));
+
+
+/* ---------- Suivi de l'enregistrement dans Sheets ---------- */
+/* bilanEnregistre : déclaré dans ec-etat.js */
+
+
+/* ============================================================
+   MISE À JOUR D'UN BILAN DÉJÀ ENREGISTRÉ
+   Corriger le texte ou la note doit remplacer la ligne existante,
+   pas en écrire une seconde.
+   ============================================================ */
+let etatEnregistre = { bilan: '', note: '', ligne: null };
+
+function retenirEtatEnregistre(ligne){
+  etatEnregistre = {
+    bilan: $('resultText') ? $('resultText').value : '',
+    note: $('noteResult') ? $('noteResult').value : '',
+    ligne: ligne || etatEnregistre.ligne
+  };
+}
+
+function bilanModifieDepuisEnregistrement(){
+  const b = $('resultText') ? $('resultText').value : '';
+  const n = $('noteResult') ? $('noteResult').value : '';
+  return b !== etatEnregistre.bilan || n !== etatEnregistre.note;
+}
+
+async function mettreAJourBilan(){
+  if(!etatEnregistre.ligne){
+    /* Ligne inconnue : on enregistre normalement plutôt que de perdre la note */
+    return await exporterVersSheets(true);
+  }
+  try{
+    const r = await appelPrep({
+      action: 'bilanMaj',
+      ligne: etatEnregistre.ligne,
+      eleve: currentLessonMeta ? currentLessonMeta.studentName : '',
+      bilan: $('resultText').value,
+      noteInterne: $('noteResult').value.trim(),
+      manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | ')
+    });
+    if(r && r.status === 'error') throw new Error(r.message);
+    retenirEtatEnregistre(etatEnregistre.ligne);
+    viderCaches(currentLessonMeta && currentLessonMeta.studentName);
+    return true;
+  }catch(e){
+    console.error('Mise à jour du bilan :', e);
+    return false;
+  }
+}
+
+
+/* Message de fin de cours, qui reste affiché */
+function direEtatFin(texte, erreur){
+  const z = $('finEtat');
+  if(!z) return;
+  if(!texte){ z.innerHTML = ''; return; }
+  z.style.color = erreur ? 'var(--warn-text)' : 'var(--accent-text)';
+  z.textContent = (erreur ? '⚠️ ' : '✅ ') + texte;
+}
+
+
+/* ============================================================
+   CONFIRMATION DE FIN DE COURS
+   Le bilan est parti : on le dit clairement, on rappelle où le
+   coller, et on laisse le choix entre corriger et passer au
+   cours suivant. Fermer sans choisir ne fait rien perdre.
+   ============================================================ */
+function confirmerFinDeCours(){
+  const eleve = (currentLessonMeta && currentLessonMeta.studentName) || '';
+  const f = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+  const mess = (f && f.messenger) || '';
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(480px, 94vw);';
+
+  let lienMess = '';
+  if(mess){
+    let url = mess;
+    if(!/^https?:\/\//i.test(mess)){
+      url = 'https://m.me/' + mess.replace(/^@/, '').replace(/\s+/g, '');
+    }
+    lienMess =
+      '<a href="' + url.replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" ' +
+      'class="btn btn-secondary" style="margin-top:10px;padding:13px;font-size:14px;' +
+      'text-decoration:none;display:block;text-align:center;">' +
+      '💬 Ouvrir le Messenger de ' + eleve.split(' ')[0] + '</a>';
+  }
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>✅ Bilan enregistré</h3>' +
+    '<div style="font-size:15px;line-height:1.6;margin-bottom:6px;">' +
+      'Le bilan de <strong>' + (eleve || 'cet élève').replace(/</g, '&lt;') +
+      '</strong> est enregistré et <strong>copié</strong>.<br>' +
+      'Tu peux le coller directement sur son Messenger.' +
+    '</div>' +
+    (mess
+      ? '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+        '💬 Son Messenger : <strong>' + mess.replace(/</g, '&lt;') + '</strong></div>' + lienMess
+      : '<div style="font-size:12px;color:var(--warn-text);line-height:1.5;margin-top:6px;">' +
+        "⚠️ Aucun Messenger enregistré pour cet élève. Pense à le saisir au " +
+        'démarrage du prochain cours.</div>'));
+
+  /* Envoi par mail : à l'élève et à son prescripteur */
+  const mails = [];
+  if(f && f.email) mails.push(f.email);
+  if(f && f.mailPrescripteur) mails.push(f.mailPrescripteur);
+
+  if(mails.length){
+    const bMail = document.createElement('button');
+    bMail.className = 'btn btn-secondary';
+    bMail.style.cssText = 'margin-top:10px;padding:13px;font-size:14px;';
+    bMail.textContent = '✉️ Envoyer par mail (' + mails.length + ')';
+    bMail.title = mails.join(' · ');
+    bMail.addEventListener('click', async () => {
+      bMail.disabled = true;
+      bMail.textContent = 'Envoi…';
+      try{
+        await appelPrep({ action: 'mailBilan',
+                          to: mails,
+                          sujet: 'Ton bilan de conduite du ' +
+                                 (dateEnToutesLettres($('lessonDate').value) ||
+                                  $('lessonDate').value),
+                          texte: $('resultText').value });
+        bMail.textContent = '✅ Envoyé à ' + mails.length + ' adresse(s)';
+      }catch(e){
+        bMail.textContent = '⚠️ Échec';
+        bMail.disabled = false;
+        /* Le détail sous le bouton : « HTTP 400 » seul n'aide personne */
+        const d3 = document.createElement('div');
+        d3.style.cssText = 'font-size:11px;color:var(--warn-text);margin-top:4px;' +
+          'line-height:1.4;word-break:break-word;';
+        d3.textContent = e.message;
+        bMail.after(d3);
+      }
+    });
+    boite.appendChild(bMail);
+
+    const d2 = document.createElement('div');
+    d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;';
+    d2.textContent = mails.join(' · ');
+    boite.appendChild(d2);
+  }else{
+    const d2 = document.createElement('div');
+    d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;';
+    d2.textContent = "Aucune adresse mail sur sa fiche : l'envoi par mail n'est pas possible.";
+    boite.appendChild(d2);
+  }
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  r.style.marginTop = '16px';
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.textContent = '✏️ Modifier ce bilan';
+  bMod.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    /* On reste sur le bilan : le corriger le mettra à jour en place */
+    if($('resultText')) $('resultText').focus();
+  });
+
+  const bFin = document.createElement('button');
+  bFin.className = 'btn btn-primary';
+  bFin.textContent = '🏠 Accueil';
+  bFin.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    if(typeof terminerCours === 'function') terminerCours();
+  });
+
+  r.appendChild(bMod);
+  r.appendChild(bFin);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+function marquerExport(ok){
+  bilanEnregistre = !!ok;
+  const b = $('exportEtat');
+  const btn = $('exportSheetsBtn');
+  if(!b) return;
+  if(ok){
+    b.style.display = 'block';
+    b.style.background = 'rgba(182,255,14,.12)';
+    b.style.borderColor = 'var(--orange)';
+    b.style.color = 'var(--accent-text)';
+    b.textContent = '✅ Bilan enregistré dans Sheets — le prochain moniteur y aura accès.';
+    if(btn) btn.textContent = '📊 Réenregistrer (après modification)';
+  }else{
+    b.style.display = 'block';
+    b.style.background = 'var(--warn-bg)';
+    b.style.borderColor = 'var(--red)';
+    b.style.color = 'var(--warn-text)';
+    b.textContent = "📋 Relis et complète le bilan, puis appuie sur « Copier et enregistrer » : il sera copié pour Messenger et enregistré dans Sheets.";
+    if(btn) btn.textContent = '📊 Enregistrer sans copier';
+  }
+}
+
+
+
+/* Liste des moniteurs actifs — noms seuls, sans les codes */
+/* moniteursActifs : déclaré dans ec-etat.js */
+
+async function chargerMoniteurs(){
+  try{
+    const r = await fetchFiable(CONFIG.MONITEURS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: ACCES.code })
+    });
+    if(!r.ok) return;
+    const data = await r.json().catch(() => ({}));
+    moniteursActifs = (data && data.moniteurs) || [];
+    const sel = $('searchMoniteur');
+    if(sel){
+      const choix = sel.value;
+      sel.innerHTML = '<option value="">Tous les moniteurs</option>';
+      moniteursActifs.forEach(n => {
+        const o = document.createElement('option');
+        o.value = n; o.textContent = n;
+        sel.appendChild(o);
+      });
+      sel.value = choix;
+    }
+  }catch(e){
+    console.warn('Liste des moniteurs indisponible :', e);
+  }
+}
+
+/* Petite fenêtre de choix dans une liste */
+function choisirDansListe(titre, options, valeurActuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = '340px';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    const sel = document.createElement('select');
+    sel.style.fontSize = '16px';
+    if(!options.length){
+      const o = document.createElement('option');
+      o.value = ''; o.textContent = '(aucun moniteur trouvé)';
+      sel.appendChild(o);
+    }
+    options.forEach(nom => {
+      const o = document.createElement('option');
+      o.value = nom; o.textContent = nom;
+      sel.appendChild(o);
+    });
+    if(valeurActuelle && options.indexOf(valeurActuelle) !== -1) sel.value = valeurActuelle;
+    boite.appendChild(sel);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const annuler = document.createElement('button');
+    annuler.className = 'btn btn-secondary';
+    annuler.textContent = 'Annuler';
+    const valider = document.createElement('button');
+    valider.className = 'btn btn-primary';
+    valider.textContent = 'Valider';
+    rangee.appendChild(annuler);
+    rangee.appendChild(valider);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = v => { document.body.removeChild(fond); resolve(v); };
+    annuler.addEventListener('click', () => fermer(null));
+    valider.addEventListener('click', () => fermer(sel.value || null));
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+  });
+}
+
+
+/* Les modules s'affichent par onglets et par boutons :
+   il n'y a plus de tiroir à mémoriser. */
+function initTiroirs(){ /* conservé pour compatibilité */ }
+
+/* Compteur affiché dans l'en-tête d'un tiroir */
+function majCompteur(id, valeur){
+  const el = $(id);
+  if(el) el.textContent = valeur ? String(valeur) : '';
 }
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-manuel.js'] = true;
+window.EC_MODULES['ec-vocal.js'] = true;
