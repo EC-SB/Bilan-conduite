@@ -54,6 +54,49 @@ function consigneCorrectionsIA(){
 
 
 /* ============================================================
+   LIEUX ET POINTS D'INTÉRÊT
+
+   La reconnaissance vocale ne connaît pas Yffiniac ni le rond-point
+   des Longs Champs. On donne la liste à l'IA : elle reconnaît alors
+   les noms propres au lieu d'écrire n'importe quoi.
+   ============================================================ */
+let lieuxIA = [];
+let lieuxLus = 0;
+
+async function chargerLieuxIA(force){
+  if(!force && Date.now() - lieuxLus < 600000) return lieuxIA;
+  try{
+    const d = await appelPrep({ action: 'lieuxList' });
+    lieuxIA = (d && d.lieux) || [];
+    lieuxLus = Date.now();
+  }catch(e){ console.warn('Lieux indisponibles :', e); }
+  return lieuxIA;
+}
+
+/* Le bloc joint aux consignes de l'IA */
+function consigneLieuxIA(){
+  const noms = (lieuxIA || []).map(x => x.nom).filter(Boolean);
+  if(!noms.length) return '';
+
+  /* Regroupés par genre : une commune ne se traite pas comme un
+     rond-point, et l'IA doit pouvoir accorder correctement. */
+  const parGenre = {};
+  (lieuxIA || []).forEach(x => {
+    const g = (x.genre || 'lieu').trim() || 'lieu';
+    if(!parGenre[g]) parGenre[g] = [];
+    parGenre[g].push(x.nom);
+  });
+
+  return '\n\nLIEUX DE NOTRE SECTEUR — noms propres à respecter :\n' +
+    Object.keys(parGenre).sort().map(g =>
+      '  ' + g + ' : ' + parGenre[g].join(', ')).join('\n') + '\n' +
+    "Quand la transcription contient un mot qui ressemble à l'un de ces noms, " +
+    "c'est lui : écris-le avec son orthographe exacte, accents et traits d'union " +
+    'compris. Ne remplace jamais un nom de cette liste par un autre mot.\n';
+}
+
+
+/* ============================================================
    L'ÉCRAN
    ============================================================ */
 
@@ -63,14 +106,16 @@ async function afficherMemoireIA(){
 
   zone.innerHTML = '<div class="empty">Lecture de la mémoire…</div>';
 
-  let corrections = [], regles = [];
+  let corrections = [], regles = [], lieux = [];
   try{
-    const [a, b] = await Promise.all([
+    const [a, b, l] = await Promise.all([
       appelPrep({ action: 'corrList', toutes: true }).catch(() => ({})),
-      appelPrep({ action: 'regleIaList', toutes: true }).catch(() => ({}))
+      appelPrep({ action: 'regleIaList', toutes: true }).catch(() => ({})),
+      appelPrep({ action: 'lieuxList', toutes: true }).catch(() => ({}))
     ]);
     corrections = (a && a.corrections) || [];
     regles = (b && b.regles) || [];
+    lieux = (l && l.lieux) || [];
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -147,6 +192,60 @@ async function afficherMemoireIA(){
     corrections.forEach(x => l1.appendChild(ligneCorrection(x)));
     zone.appendChild(l1);
   }
+
+  /* ---- Les lieux du secteur ---- */
+  const fL = document.createElement('div');
+  fL.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px 14px;margin-bottom:16px;';
+  fL.innerHTML =
+    '<div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">' +
+      '📍 Lieux et points d\'intérêt — ' + lieux.length + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;">' +
+      'Communes, quartiers, ronds-points, centres d\'examen. L\'IA les reconnaît ' +
+      'et les orthographie correctement au lieu d\'écrire n\'importe quoi.</div>' +
+    '<div class="duo">' +
+      '<div><label for="lieuNom">Nom du lieu</label>' +
+        '<input type="text" id="lieuNom" placeholder="Ex : Yffiniac"></div>' +
+      '<div><label for="lieuGenre">Quoi</label><select id="lieuGenre">' +
+        '<option value="commune">Commune</option>' +
+        '<option value="quartier">Quartier ou lieu-dit</option>' +
+        '<option value="rond-point">Rond-point ou carrefour</option>' +
+        '<option value="route">Route ou voie</option>' +
+        "<option value=\"centre d'examen\">Centre d'examen</option>" +
+        '<option value="commerce">Commerce ou repère</option>' +
+      '</select></div>' +
+    '</div>';
+
+  const bLieu = document.createElement('button');
+  bLieu.className = 'btn btn-primary';
+  bLieu.style.cssText = 'padding:12px;font-size:14px;';
+  bLieu.textContent = '📍 Ajouter ce lieu';
+  bLieu.addEventListener('click', async () => {
+    const nom = $('lieuNom').value.trim();
+    if(nom.length < 2){ showToast('Saisis un nom.'); return; }
+    bLieu.disabled = true;
+    bLieu.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({ action: 'lieuAdd', nom: nom,
+                        genre: $('lieuGenre').value, par: ACCES.moniteur || '' });
+      showToast('Lieu ajouté ✅');
+      await chargerLieuxIA(true);
+      afficherMemoireIA();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bLieu.disabled = false;
+      bLieu.textContent = '📍 Ajouter ce lieu';
+    }
+  });
+  fL.appendChild(bLieu);
+
+  if(lieux.length){
+    const l3 = document.createElement('div');
+    l3.style.cssText = 'max-height:280px;overflow-y:auto;margin-top:10px;';
+    lieux.forEach(x => l3.appendChild(ligneLieu(x)));
+    fL.appendChild(l3);
+  }
+  zone.appendChild(fL);
 
   /* ---- Les règles dictées pendant les cours ---- */
   const t2 = document.createElement('div');
@@ -282,6 +381,57 @@ function ligneRegleIA(x){
     try{
       await appelPrep({ action: 'regleIaSet', ligne: x.ligne, supprimer: 'oui' });
       showToast('Supprimée ✅');
+      afficherMemoireIA();
+    }catch(e){ showToast('Impossible : ' + e.message); bSup.disabled = false; }
+  });
+  d.appendChild(bSup);
+
+  return d;
+}
+
+
+/* Un lieu : son nom, son genre, ses boutons */
+function ligneLieu(x){
+  const d = document.createElement('div');
+  d.style.cssText = 'display:flex;gap:8px;align-items:center;border:1px solid var(--line);' +
+    'border-radius:9px;padding:6px 10px;margin-bottom:4px;' +
+    (x.actif ? '' : 'opacity:.55;');
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
+  t.innerHTML = '<strong>' + x.nom.replace(/</g, '&lt;') + '</strong>' +
+    (x.genre ? ' <span style="font-size:11px;color:var(--muted);">' +
+      x.genre.replace(/</g, '&lt;') + '</span>' : '');
+  d.appendChild(t);
+
+  const bAct = document.createElement('button');
+  bAct.className = 'btn btn-secondary';
+  bAct.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:0;flex-shrink:0;';
+  bAct.textContent = x.actif ? '✅' : '⏸️';
+  bAct.title = x.actif ? 'Connu de l\'IA — appuie pour suspendre'
+                       : 'Ignoré — appuie pour activer';
+  bAct.addEventListener('click', async () => {
+    bAct.disabled = true;
+    try{
+      await appelPrep({ action: 'lieuSet', ligne: x.ligne, actif: x.actif ? '' : 'oui' });
+      await chargerLieuxIA(true);
+      afficherMemoireIA();
+    }catch(e){ showToast('Impossible : ' + e.message); bAct.disabled = false; }
+  });
+  d.appendChild(bAct);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:4px 8px;font-size:12px;margin:0;flex-shrink:0;' +
+    'color:var(--red);border-color:var(--red);';
+  bSup.textContent = '🗑️';
+  bSup.addEventListener('click', async () => {
+    if(!await confirmer('Supprimer « ' + x.nom + ' » de la liste des lieux ?')) return;
+    bSup.disabled = true;
+    try{
+      await appelPrep({ action: 'lieuSet', ligne: x.ligne, supprimer: 'oui' });
+      showToast('Supprimé ✅');
+      await chargerLieuxIA(true);
       afficherMemoireIA();
     }catch(e){ showToast('Impossible : ' + e.message); bSup.disabled = false; }
   });
