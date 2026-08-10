@@ -282,8 +282,14 @@ function ouvrirEditeurTache(tache){
       '<div><label for="tkEcheance">Pour quand (facultatif)</label>' +
         '<input type="date" id="tkEcheance"></div>' +
     '</div>' +
-    '<label for="tkImage">🖼️ Capture d\'écran (facultatif)</label>' +
-    '<input type="file" id="tkImage" accept="image/*">' +
+    '<label>🖼️ Capture d\'écran (facultatif)</label>' +
+    '<div id="tkZone" tabindex="0" style="border:2px dashed var(--line);' +
+      'border-radius:12px;padding:18px 14px;text-align:center;cursor:pointer;' +
+      'font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px;">' +
+      '📋 Colle ta capture ici (Ctrl+V)<br>' +
+      '<span style="font-size:12px;">ou glisse une image · ou appuie pour choisir un fichier</span>' +
+    '</div>' +
+    '<input type="file" id="tkImage" accept="image/*" style="display:none;">' +
     '<div id="tkApercu" style="margin-bottom:12px;"></div>');
 
   const r = document.createElement('div');
@@ -319,9 +325,11 @@ function ouvrirEditeurTache(tache){
   /* La capture, réduite avant envoi : une photo de téléphone
      dépasse les cinq mégaoctets et bloquerait l'enregistrement. */
   let imageData = '';
-  boite.querySelector('#tkImage').addEventListener('change', ev => {
-    const f = ev.target.files && ev.target.files[0];
-    if(!f) return;
+  const zoneImg = boite.querySelector('#tkZone');
+  const champImg = boite.querySelector('#tkImage');
+
+  function traiterFichier(f){
+    if(!f || !/^image\//.test(f.type)) return;
     const lect = new FileReader();
     lect.onload = () => {
       const img = new Image();
@@ -333,21 +341,80 @@ function ouvrirEditeurTache(tache){
         cv.height = Math.round(img.height * ech);
         cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
         imageData = cv.toDataURL('image/jpeg', 0.75);
-
-        const ap = boite.querySelector('#tkApercu');
-        ap.innerHTML = '';
-        const vue = document.createElement('img');
-        vue.src = imageData;
-        vue.style.cssText = 'max-width:100%;border-radius:10px;margin-top:8px;' +
-          'border:1px solid var(--line);';
-        ap.appendChild(vue);
+        montrerApercu();
       };
       img.src = lect.result;
     };
     lect.readAsDataURL(f);
+  }
+
+  function montrerApercu(){
+    const ap = boite.querySelector('#tkApercu');
+    ap.innerHTML = '';
+    if(!imageData) return;
+
+    const vue = document.createElement('img');
+    vue.src = imageData;
+    vue.style.cssText = 'max-width:100%;border-radius:10px;margin-top:8px;' +
+      'border:1px solid var(--line);';
+    ap.appendChild(vue);
+
+    const bSup = document.createElement('button');
+    bSup.type = 'button';
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin-top:6px;';
+    bSup.textContent = '✕ Retirer la capture';
+    bSup.addEventListener('click', () => { imageData = ''; montrerApercu(); });
+    ap.appendChild(bSup);
+
+    zoneImg.style.borderColor = 'var(--orange)';
+    zoneImg.innerHTML = '✅ Capture prête — colle ou glisse pour la remplacer';
+  }
+
+  /* Coller : c'est le geste naturel après une capture d'écran */
+  const surCollage = ev => {
+    const items = (ev.clipboardData && ev.clipboardData.items) || [];
+    for(let i = 0; i < items.length; i++){
+      if(/^image\//.test(items[i].type)){
+        traiterFichier(items[i].getAsFile());
+        ev.preventDefault();
+        return;
+      }
+    }
+  };
+  /* Sur toute la fenêtre : on ne veut pas obliger à cliquer d'abord */
+  boite.addEventListener('paste', surCollage);
+  document.addEventListener('paste', surCollage);
+
+  /* Glisser-déposer */
+  ['dragenter', 'dragover'].forEach(e =>
+    zoneImg.addEventListener(e, ev => {
+      ev.preventDefault();
+      zoneImg.style.borderColor = 'var(--orange)';
+    }));
+  zoneImg.addEventListener('dragleave', () => {
+    if(!imageData) zoneImg.style.borderColor = 'var(--line)';
+  });
+  zoneImg.addEventListener('drop', ev => {
+    ev.preventDefault();
+    const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+    traiterFichier(f);
   });
 
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  /* Et le choix de fichier, pour le téléphone */
+  zoneImg.addEventListener('click', () => champImg.click());
+  champImg.addEventListener('change', ev => {
+    traiterFichier(ev.target.files && ev.target.files[0]);
+  });
+
+  /* Le collage est écouté sur tout le document : on le retire en
+     fermant, sinon il resterait actif après la fenêtre. */
+  const fermerTout = () => {
+    document.removeEventListener('paste', surCollage);
+    document.body.removeChild(fond);
+  };
+
+  bAnn.addEventListener('click', fermerTout);
 
   bOk.addEventListener('click', async () => {
     const titre = boite.querySelector('#tkTitre').value.trim();
@@ -371,7 +438,7 @@ function ouvrirEditeurTache(tache){
         image: imageData,
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerTout();
       showToast('Tâche enregistrée ✅');
       afficherTaches();
     }catch(e){
