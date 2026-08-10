@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 07:55 — v327 */
+/* Déployé le 10/08/2026 à 08:29 — v329 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -224,6 +224,35 @@ async function afficherPrepares(recharger, silencieux){
         }
       });
       actions.appendChild(bReprendre);
+    }
+
+    /* Un cours passé qui traîne encore : le moniteur le retire
+       lui-même, sans attendre le recoupement automatique. */
+    if(passe){
+      const bFait = document.createElement('button');
+      bFait.className = 'btn btn-secondary';
+      bFait.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
+        'color:var(--accent-text);border-color:var(--orange);';
+      bFait.textContent = '✓ Fait';
+      bFait.title = 'Ce cours a eu lieu — le retirer de la liste';
+      bFait.addEventListener('click', async () => {
+        if(!await confirmer('Retirer ce cours de la liste ?\n\n' +
+            cours.eleve + ' — ' + (dateEnToutesLettres(cours.date) || cours.date) +
+            "\n\nSon bilan reste enregistré : on retire seulement la " +
+            'préparation, qui n\'a plus lieu d\'être.')) return;
+        bFait.disabled = true;
+        bFait.textContent = '…';
+        try{
+          await appelPrep({ action: 'prepDelete', id: cours.id });
+          showToast('Retiré ✅');
+          afficherPrepares();
+        }catch(e){
+          showToast('Impossible : ' + e.message);
+          bFait.disabled = false;
+          bFait.textContent = '✓ Fait';
+        }
+      });
+      actions.appendChild(bFait);
     }
 
     /* Modifier la préparation : rouvrir le questionnaire et le
