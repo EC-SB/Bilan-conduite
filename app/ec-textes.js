@@ -1,3 +1,4 @@
+/* Déployé le 10/08/2026 à 12:32 — v337 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -20,6 +21,7 @@ const USAGES_MODELE = [
     variables:['{eleve}', '{date}', '{moniteur}', '{ajournements}'] },
   { cle:'depart',         nom:'🚪 Départ de l\'auto-école',
     variables:['{eleve}', '{date}', '{motif}'] },
+  { cle:'ecoutes', nom:'😱 Rappel écoutes pédagogiques', variables:[] },
   { cle:'permis_planning', nom:'🚨 Planning formation avant permis',
     variables:['{veille}', '{permis}', '{moniteur}', '{centre}', '{liste}'] },
   { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
@@ -272,6 +274,17 @@ function ouvrirEditeurModele(modele, usageImpose){
     '</select>' +
     '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
       'line-height:1.6;"></div>' +
+
+    /* Une procédure ne vaut pas pour les deux boîtes : le point de
+       patinage n'existe pas en automatique. */
+    '<div id="mdBlocBoite" style="display:none;">' +
+      '<label for="mdBoite">Pour quelle boîte ?</label>' +
+      '<select id="mdBoite">' +
+        '<option value="">Les deux — BEA et BV</option>' +
+        '<option value="bea">BEA seulement — boîte automatique</option>' +
+        '<option value="bv">BV seulement — boîte manuelle</option>' +
+      '</select>' +
+    '</div>' +
     '<label for="mdContenu">Texte du message</label>' +
     '<textarea id="mdContenu" rows="14" ' +
       'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
@@ -292,6 +305,18 @@ function ouvrirEditeurModele(modele, usageImpose){
   const msg = document.createElement('div');
   msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
   boite.appendChild(msg);
+
+  /* Le choix de boîte n'a de sens que pour une procédure */
+  const majBoite = () => {
+    const b = boite.querySelector('#mdBlocBoite');
+    if(b) b.style.display = (boite.querySelector('#mdUsage').value === 'procedure')
+      ? 'block' : 'none';
+  };
+  boite.querySelector('#mdUsage').addEventListener('change', majBoite);
+  if(modele && modele.boite && boite.querySelector('#mdBoite')){
+    boite.querySelector('#mdBoite').value = modele.boite;
+  }
+  majBoite();
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
@@ -350,6 +375,9 @@ function ouvrirEditeurModele(modele, usageImpose){
         id: modele ? modele.id : '',
         usage: g('mdUsage').value,
         nom: assemblerNom(g('mdCat') ? g('mdCat').value : '', nom),
+        /* La boîte ne concerne que les procédures */
+        boite: (g('mdUsage').value === 'procedure' && g('mdBoite'))
+          ? g('mdBoite').value : '',
         contenu: contenu
       });
       document.body.removeChild(fond);
@@ -579,6 +607,18 @@ async function ouvrirImportModeles(){
   const msg = document.createElement('div');
   msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
   boite.appendChild(msg);
+
+  /* Le choix de boîte n'a de sens que pour une procédure */
+  const majBoite = () => {
+    const b = boite.querySelector('#mdBlocBoite');
+    if(b) b.style.display = (boite.querySelector('#mdUsage').value === 'procedure')
+      ? 'block' : 'none';
+  };
+  boite.querySelector('#mdUsage').addEventListener('change', majBoite);
+  if(modele && modele.boite && boite.querySelector('#mdBoite')){
+    boite.querySelector('#mdBoite').value = modele.boite;
+  }
+  majBoite();
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
