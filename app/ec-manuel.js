@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:27 — v336 */
+/* Déployé le 10/08/2026 à 13:51 — v343 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -829,6 +829,11 @@ async function genererBilanManuel(){
   /* Le simulateur attend « competences », rangé par clé */
   if(champsManuels.competences) donnees.competences = champsManuels.competences;
   Object.keys(champsManuels).forEach(k => {
+    /* Les manœuvres sont déjà mises en forme au-dessus : les
+       recopier telles quelles remettait des objets { nom, fait }
+       là où le constructeur attend des noms, et la fiche
+       véhicule ressortait vide. */
+    if(k === 'manoeuvres') return;
     if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
     const [pere, fils] = k.split('.');
     if(!donnees[pere]) donnees[pere] = {};
