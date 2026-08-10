@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 09:03 — v332 */
+/* Déployé le 10/08/2026 à 09:26 — v333 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -411,7 +411,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   if(!prec.ants && ficheEleve && ficheEleve.ants) prec.ants = ficheEleve.ants;
   const frisePrecedente = friseDeduite || dossier.frise ||
                           (ficheEleve && ficheEleve.frise) || '';
+  /* Le cours du jour ne compte comme leçon de la frise que s'il en
+     est une : un simulateur ou un examen blanc n'avance pas le
+     compteur, même s'ils occupent un créneau. */
+  const compteDansLaFrise = ['conduite-auto', 'conduite-manuelle',
+                             'aac-auto', 'aac-manuelle'].indexOf(modeleCle) !== -1;
   const faites = dossier.lecons;
+  const rangDuJour = (faites === null) ? null
+                                       : (compteDansLaFrise ? faites + 1 : faites);
   const manoeuvresAvant = dossier.manoeuvres || [];
   const totalManoeuvres = BLOC.ficheListeConduite.length;
 
@@ -751,7 +758,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       majHeures();
     }
 
-    boite.querySelector('#qLecon').value = prec.lecon || ((faites !== null) ? (faites + 1) : '');
+    boite.querySelector('#qLecon').value =
+      prec.lecon || ((rangDuJour !== null) ? rangDuJour : '');
     boite.querySelector('#qPasEcoute').checked = !!prec.pasEcoute;
     boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
