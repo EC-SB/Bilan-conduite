@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 11:25 — v334 */
+/* Déployé le 10/08/2026 à 11:39 — v335 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -895,6 +895,8 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
                                     consigneReglesIA() +
                                     (typeof consigneCorrectionsIA === 'function'
                                       ? consigneCorrectionsIA() : '') +
+                                    (typeof consigneLieuxIA === 'function'
+                                      ? consigneLieuxIA() : '') +
                                     consigneMoniteurIA(tranche) + contexte,
                                     tranche, 8000);
       const propre = (txt || '').trim();
@@ -937,6 +939,7 @@ async function corrigerCours(transcript, surProgres){
   cadenceDepassee = false;
   await chargerReglesIA();
   if(typeof chargerCorrectionsIA === 'function') await chargerCorrectionsIA();
+  if(typeof chargerLieuxIA === 'function') await chargerLieuxIA();
   const corrigees = new Array(tranches.length);
   const echecs = [];
   let terminees = 0;
@@ -1082,6 +1085,7 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
   const systemPrompt = construireConsignes(modeleCle) + consigneReglesIA() +
                        (typeof consigneCorrectionsIA === 'function'
                          ? consigneCorrectionsIA() : '') +
+                       (typeof consigneLieuxIA === 'function' ? consigneLieuxIA() : '') +
                        consigneMoniteurIA(transcript);
   const userMsg = 'Type de bilan : ' + MODELES[modeleCle].label + '\n' +
     'Moniteur : ' + (monitorName || 'non renseigné') + '\n' +
