@@ -978,6 +978,30 @@ function pasEcoutesPedagogiques(){
   return /pas d'écoutes? pédagogiques?/i.test(n);
 }
 
+/* Le rappel des écoutes ne doit figurer qu'une fois, juste sous la
+   ligne qui le motive. S'il réapparaît plus bas — repris par l'IA
+   dans son résumé, ou hérité d'un modèle de texte — on ne garde que
+   la première occurrence. */
+function unSeulRappelEcoutes(bilan){
+  const t = String(bilan || '');
+  const debut = "Tu ne réserves pas d'écoutes pédagogiques";
+  const premier = t.indexOf(debut);
+  if(premier === -1) return t;
+
+  const suivant = t.indexOf(debut, premier + debut.length);
+  if(suivant === -1) return t;
+
+  /* On coupe du second début jusqu'à la fin de son lien, ou à
+     défaut jusqu'à la ligne vide qui le suit. */
+  const lien = 'permalink/96295402436271';
+  let fin = t.indexOf(lien, suivant);
+  fin = (fin === -1) ? t.indexOf('\n\n', suivant) : fin + lien.length;
+  if(fin === -1) fin = t.length;
+
+  return (t.slice(0, suivant) + t.slice(fin))
+    .replace(/\n{3,}/g, '\n\n');
+}
+
 function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
   /* Ce qui a déjà été validé lors des cours précédents, avec les
      marques accumulées : ✅ la première fois, puis l'émoji de chaque
