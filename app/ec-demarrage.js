@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 07:37 — v303 */
+/* Déployé le 08/08/2026 à 15:59 — v326 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -162,7 +162,19 @@ if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
 if($('rappelModeManuel')) $('rappelModeManuel').addEventListener('click', () => modeRappel('manuel'));
 if($('rappelModePlanning')) $('rappelModePlanning').addEventListener('click', () => modeRappel('planning'));
 if($('rappelModeHistorique')) $('rappelModeHistorique').addEventListener('click', () => modeRappel('historique'));
-if($('studentName')) $('studentName').addEventListener('change', chargerMessengerEleve);
+/* Le nom de l'élève commande trois choses : la validation, le
+   dossier du cours précédent, et son Messenger. Le branchement du
+   dossier avait disparu — plus rien ne s'affichait sous le champ. */
+if($('studentName')){
+  $('studentName').addEventListener('input', () => {
+    verifierNomEleve('studentName', 'studentInfo', true);
+    if(typeof planifierHistorique === 'function') planifierHistorique();
+  });
+  $('studentName').addEventListener('change', () => {
+    chargerMessengerEleve();
+    if(typeof planifierHistorique === 'function') planifierHistorique();
+  });
+}
 
 /* Préparation d'un cours : même validation que pour un cours réel,
    et le dossier de l'élève s'affiche sous le champ. */
