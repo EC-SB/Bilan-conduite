@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 13:05 — v340 */
+/* Déployé le 10/08/2026 à 13:17 — v341 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -651,11 +651,18 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '</select>' +
       '</div>' +
 
-      /* La fiche véhicule ne figure plus ici : le moniteur la voit
-         en préparant son cours et en le démarrant, et il coche
-         directement sur l'écran d'enregistrement. La remettre au
-         questionnaire faisait une troisième saisie du même chose. */
-      '<div id="qFiche" style="display:none;"></div>' +
+      /* La fiche véhicule : présente au DÉPART, pour préparer et
+         cocher ce qui est acquis. Masquée en fin de cours, où le
+         moniteur a déjà coché sur l'écran d'enregistrement. */
+      '<div id="qBlocFiche" style="display:none;">' +
+        '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
+          'Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront ' +
+          'signées de ton émoji.</div>' +
+        '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
+          'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
+          'margin-bottom:14px;"></div>' +
+      '</div>' +
 
       '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
@@ -760,6 +767,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     /* La fiche véhicule, pré-cochée d'après les bilans précédents */
     const marquesConnues = dossier.marques || {};
+    /* En fin de cours, le moniteur a déjà coché pendant qu'il
+       conduisait : lui remontrer la liste n'apporte rien. */
+    const enFinDeCours = /après ce cours|terminer|fin/i.test(String(titre || ''));
+    const blocFiche = boite.querySelector('#qBlocFiche');
+    if(blocFiche) blocFiche.style.display = enFinDeCours ? 'none' : 'block';
+
     remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || []);
     boite._marquesConnues = marquesConnues;
 
