@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 08:43 — v330 */
+/* Déployé le 10/08/2026 à 09:03 — v332 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1756,8 +1756,10 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
    véhicule détaillée : il voit ce qui reste à faire avant de
    démarrer, sans rouvrir quoi que ce soit.
    ============================================================ */
-async function afficherSaisieDuJour(rep){
-  const zone = $('preparationEleve');
+async function afficherSaisieDuJour(rep, cible){
+  /* Le bilan manuel s'ouvre dans un autre écran : il a son propre
+     emplacement, sinon le cadre resterait sur l'écran masqué. */
+  const zone = $(cible || 'preparationEleve');
   if(!zone || !rep) return;
 
   const eleve = $('studentName') ? $('studentName').value.trim() : '';
