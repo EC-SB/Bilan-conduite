@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:45 — v338 */
+/* Déployé le 10/08/2026 à 13:32 — v342 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1035,12 +1035,15 @@ function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
     let suite = marques[cle] || (dejaAvant ? MARQUE_FAITE : '');
 
     if(faiteCeJour){
+      /* La signature du moniteur, dès la première validation :
+         c'est la convention des fiches de l'auto-école, où chaque
+         manœuvre porte l'émoji de qui l'a fait travailler.
+         Sans émoji sur le compte, on retombe sur la coche. */
+      const marque = emoji || MARQUE_FAITE;
       if(!suite){
-        /* Première validation : une simple coche */
-        suite = MARQUE_FAITE;
-      }else if(emoji && suite.indexOf(emoji) === -1){
-        /* Déjà validée : le moniteur du jour ajoute sa signature */
-        suite += ' ' + emoji;
+        suite = marque;
+      }else if(suite.indexOf(marque) === -1){
+        suite += ' ' + marque;
       }
     }
 
