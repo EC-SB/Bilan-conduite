@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:19 — v336 */
+/* Déployé le 10/08/2026 à 12:33 — v337 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -757,10 +757,32 @@ function proceduresDemandees(texte){
   return demandes;
 }
 
+/* La boîte du cours en train de se faire */
+function boiteDuCours(){
+  const cle = $('modele') ? $('modele').value : '';
+  if(/manuelle/i.test(cle)) return 'bv';
+  if(/auto/i.test(cle)) return 'bea';
+  return '';
+}
+
+/* Les procédures utilisables pour cette boîte. Une procédure sans
+   boîte vaut pour les deux : le point de patinage n'a pas de sens
+   en automatique, mais le créneau se fait dans les deux. */
+function proceduresDeLaBoite(){
+  const b = boiteDuCours();
+  return ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .filter(m => m.usage === 'procedure')
+    .filter(m => {
+      const mb = String(m.boite || '').trim().toLowerCase();
+      if(!mb) return true;                 /* les deux boîtes */
+      if(!b) return true;                  /* boîte inconnue : on garde tout */
+      return mb === b;
+    });
+}
+
 /* Retrouve la procédure la plus proche du nom prononcé */
 function trouverProcedure(nomDit){
-  const liste = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
-    .filter(m => m.usage === 'procedure');
+  const liste = proceduresDeLaBoite();
   if(!liste.length) return null;
 
   const q = normaliserMot(nomDit);
@@ -783,6 +805,26 @@ function trouverProcedure(nomDit){
     if(s > score){ score = s; meilleur = m; }
   });
   return score ? meilleur : null;
+}
+
+/* Les procédures de l'auto-école, transmises à l'IA pour que son
+   résumé dise la même chose que ce qu'on enseigne. Sans ça, elle
+   invente une méthode plausible mais qui n'est pas la vôtre. */
+function consigneProceduresIA(){
+  const liste = proceduresDeLaBoite();
+  if(!liste.length) return '';
+
+  const b = boiteDuCours();
+  const nom = b === 'bea' ? 'boîte automatique'
+            : b === 'bv' ? 'boîte manuelle' : '';
+
+  return '\n\nNOS PROCÉDURES' + (nom ? ' — cours en ' + nom : '') + ' :\n' +
+    liste.map(p => '### ' + (p.nom || '') + '\n' + (p.contenu || '')).join('\n\n') +
+    '\n\nCe sont LES méthodes enseignées ici. Quand tu décris une manœuvre ou une ' +
+    "situation couverte par l'une d'elles, tu emploies ses termes et son " +
+    "déroulé, jamais une méthode générale que tu connaîtrais par ailleurs. " +
+    "Tu ne recopies pas ces procédures dans le bilan : elles te servent à " +
+    'écrire juste.\n';
 }
 
 /* Les procédures à joindre au bilan, d'après la transcription */
@@ -1171,6 +1213,7 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
                        (typeof consigneCorrectionsIA === 'function'
                          ? consigneCorrectionsIA() : '') +
                        (typeof consigneLieuxIA === 'function' ? consigneLieuxIA() : '') +
+                       consigneProceduresIA() +
                        consigneMoniteurIA(transcript);
   const userMsg = 'Type de bilan : ' + MODELES[modeleCle].label + '\n' +
     'Moniteur : ' + (monitorName || 'non renseigné') + '\n' +
