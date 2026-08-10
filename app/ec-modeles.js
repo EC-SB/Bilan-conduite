@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 13:58 — v321 */
+/* Déployé le 10/08/2026 à 12:45 — v338 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1187,6 +1187,10 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
      prepareEnCours.contexte){
     sources.push(prepareEnCours.contexte.manoeuvresAjoutees);
+  }
+  /* Et ce que le moniteur a coché pendant le cours lui-même */
+  if(typeof manoeuvresCocheesEnCours === 'function'){
+    sources.push(manoeuvresCocheesEnCours());
   }
 
   sources.forEach(liste => {
