@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 08:04 — v348 */
+/* Déployé le 11/08/2026 à 13:59 — v364 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -352,7 +352,8 @@ $('recBtn').addEventListener('click', async () => {
   btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
   $('finishBtn').style.display = 'block';
 
-  /* La fiche véhicule s'ouvre avec le cours */
+  /* Le début du bilan et la fiche véhicule s'ouvrent avec le cours */
+  afficherEnteteDuCours();
   afficherFicheDuCours();
 
   /* Le bureau voit qui est en cours, sans avoir à appeler */
@@ -502,6 +503,9 @@ $('confirmGen').addEventListener('click', async () => {
     }
 
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
+    /* Le moniteur a le dernier mot sur ce qu'il a coché lui-même */
+    Object.assign(donnees, enteteDuCours());
+
     let bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
       marquesAvant: marquesAvant,
@@ -973,6 +977,128 @@ async function afficherFicheDuCours(){
 
     d.appendChild(l);
   });
+
+  zone.appendChild(d);
+  zone.style.display = 'block';
+}
+
+/* ============================================================
+   DÉBUT DU BILAN, COCHÉ PENDANT LE COURS
+
+   L'IA devine ces quatre points d'après ce qui a été dit. Quand le
+   moniteur les coche lui-même, sa réponse l'emporte : il sait, elle
+   suppose.
+   ============================================================ */
+const LIGNES_ENTETE = [
+  ['carteSD', '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿',
+   "N'oublie pas de la regarder et si soucis demande nous !! (rappel, tous tes " +
+   'cours sont filmés, par une caméra avant et une arrière, avec le son et les ' +
+   'conseils des moniteurs, pour revoir tout ton cours de conduite, avant de ' +
+   'revenir à ton prochain cours).'],
+  ['installation', '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣',
+   'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/'],
+  ['passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', ''],
+  ['voyants', '𝙑𝙤𝙮𝙖𝙣𝙩𝙨', '/2 points jour du permis']
+];
+
+/* Ce que le moniteur a coché : ✅, ❌, ou rien s'il n'y a pas touché */
+function enteteDuCours(){
+  const zone = $('enteteCours');
+  if(!zone || zone.style.display === 'none') return {};
+
+  const out = {};
+  zone.querySelectorAll('.entCase').forEach(cb => {
+    out[cb.getAttribute('data-cle')] = cb.checked ? '✅' : '❌';
+  });
+  zone.querySelectorAll('.entTexte').forEach(i => {
+    const v = i.value.trim();
+    if(v) out[i.getAttribute('data-cle')] = v;
+  });
+  return out;
+}
+
+function afficherEnteteDuCours(){
+  const zone = $('enteteCours');
+  if(!zone) return;
+
+  /* On ne redessine pas : le moniteur perdrait ses coches */
+  if(zone.querySelector('.entCase')){ zone.style.display = 'block'; return; }
+
+  zone.innerHTML = '';
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
+    'color:var(--accent-text);">📋 Début du bilan — décoche ce qui n\'a pas été ' +
+    'fait</summary>';
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
+  aide.textContent = "Tout est coché d'avance. Ce que tu corriges ici l'emporte sur " +
+    "ce que l'IA aura compris du cours.";
+  d.appendChild(aide);
+
+  LIGNES_ENTETE.forEach(([cle, titre, apres]) => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:5px 0;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'entCase';
+    cb.setAttribute('data-cle', cle);
+    cb.checked = true;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:2px;';
+    l.appendChild(cb);
+
+    const t = document.createElement('div');
+    t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.5;word-break:break-word;';
+    t.innerHTML = '<strong>' + titre + '</strong>' +
+      (apres ? '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+               apres + '</div>' : '');
+    l.appendChild(t);
+
+    d.appendChild(l);
+  });
+
+  const sep = document.createElement('div');
+  sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0 8px;';
+  d.appendChild(sep);
+
+  const v = document.createElement('div');
+  v.style.cssText = 'font-size:14px;font-weight:700;';
+  v.textContent = '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨';
+  d.appendChild(v);
+
+  const lien = document.createElement('div');
+  lien.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;word-break:break-all;';
+  lien.textContent = 'https://www.facebook.com/groups/864826058258637';
+  d.appendChild(lien);
+
+  const duo = document.createElement('div');
+  duo.style.cssText = 'display:flex;gap:10px;';
+  [['verifQuestion', 'Question n°', 'Ex : 12'],
+   ['verifNote', 'Note sur 3', 'Ex : 3']].forEach(([cle, lab, ph]) => {
+    const col = document.createElement('div');
+    col.style.cssText = 'flex:1;min-width:0;';
+    const e = document.createElement('label');
+    e.textContent = lab;
+    e.style.cssText = 'font-size:12px;margin-bottom:4px;text-transform:none;';
+    col.appendChild(e);
+    const i = document.createElement('input');
+    i.type = 'text';
+    i.className = 'entTexte';
+    i.setAttribute('data-cle', cle);
+    i.placeholder = ph;
+    i.style.cssText = 'margin:0;padding:9px 10px;font-size:15px;';
+    col.appendChild(i);
+    duo.appendChild(col);
+  });
+  d.appendChild(duo);
+
+  const pts = document.createElement('div');
+  pts.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
+  pts.textContent = '/3 points jour du permis';
+  d.appendChild(pts);
 
   zone.appendChild(d);
   zone.style.display = 'block';
