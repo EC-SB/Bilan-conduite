@@ -247,17 +247,67 @@ async function afficherMemoireIA(){
   }
   zone.appendChild(fL);
 
+  /* ---- Ajouter une règle à l'écrit ---- */
+  const fR = document.createElement('div');
+  fR.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:12px 14px;margin-bottom:16px;';
+  fR.innerHTML =
+    '<div style="font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;">' +
+      '✍️ Nouvelle règle</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;">' +
+      "Une consigne que l'IA doit suivre dans tous les bilans. Écris-la comme tu " +
+      'la dirais à un moniteur qui débute.</div>' +
+    '<textarea id="regleTexte" rows="3" maxlength="600" ' +
+      'placeholder="Ex : Ne jamais écrire « rond-point », toujours « giratoire »." ' +
+      'style="width:100%;background:var(--navy);border:1px solid var(--line);' +
+      'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;' +
+      'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:8px;"></textarea>';
+
+  const bRegle = document.createElement('button');
+  bRegle.className = 'btn btn-primary';
+  bRegle.style.cssText = 'padding:12px;font-size:14px;';
+  bRegle.textContent = '💾 Ajouter cette règle';
+  bRegle.addEventListener('click', async () => {
+    const t = $('regleTexte').value.trim();
+    if(t.length < 5){
+      showToast('Écris la règle en une phrase.');
+      return;
+    }
+    bRegle.disabled = true;
+    bRegle.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({ action: 'regleIaAdd', regle: t, par: ACCES.moniteur || '',
+                        eleve: '' });
+      /* Écrite ici, elle est voulue : on l'active tout de suite,
+         contrairement à une phrase dictée en plein cours. */
+      const d2 = await appelPrep({ action: 'regleIaList', toutes: true });
+      const posee = ((d2 && d2.regles) || [])
+        .find(x => normaliserMot(x.regle) === normaliserMot(t));
+      if(posee && !posee.active){
+        await appelPrep({ action: 'regleIaSet', ligne: posee.ligne, active: 'oui' });
+      }
+      showToast('Règle ajoutée et active ✅');
+      afficherMemoireIA();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bRegle.disabled = false;
+      bRegle.textContent = '💾 Ajouter cette règle';
+    }
+  });
+  fR.appendChild(bRegle);
+  zone.appendChild(fR);
+
   /* ---- Les règles dictées pendant les cours ---- */
   const t2 = document.createElement('div');
   t2.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-  t2.textContent = '🎙️ Règles dictées pendant les cours — ' + regles.length;
+  t2.textContent = '📜 Règles enregistrées — ' + regles.length;
   zone.appendChild(t2);
 
   const a2 = document.createElement('div');
   a2.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
-  a2.textContent = "Ce qu'un moniteur a dit en s'adressant à l'IA pendant un cours. " +
-    "Une règle n'est appliquée aux bilans suivants que si tu l'actives : une consigne " +
-    'valable pour un cours ne doit pas devenir permanente.';
+  a2.textContent = "Celles que tu écris ici sont actives tout de suite. Celles qu'un " +
+    "moniteur a dictées pendant un cours arrivent inactives : une consigne valable " +
+    "pour un cours ne doit pas devenir permanente sans que tu l'aies voulu.";
   zone.appendChild(a2);
 
   if(!regles.length){
