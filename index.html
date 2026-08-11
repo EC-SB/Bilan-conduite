@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v353
+     VERSION APPLICATION : v354
      VERSION APPS SCRIPT REQUISE : v66
-     Mis à jour le : 11/08/2026 à 10:49
+     Mis à jour le : 11/08/2026 à 11:29
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -299,14 +299,6 @@
      NAVIGATION PAR ONGLETS
      En bas sur téléphone, sur le côté sur grand écran.
      ============================================================ */
-  /* Déclarée pour pouvoir être animée : sans ça, l'échancrure
-     sauterait d'un onglet à l'autre pendant que le cercle glisse. */
-  @property --creux-x{
-    syntax:'<length>';
-    inherits:false;
-    initial-value:-200px;
-  }
-
   #barreOnglets{
     position:fixed;
     left:0; right:0; bottom:0;
@@ -319,8 +311,6 @@
     background:none;
   }
 
-  /* La couche de fond, et elle seule, porte l'échancrure. Le trou
-     suit --creux-x, posé par le script. */
   #barreOnglets::before{
     content:'';
     position:absolute;
@@ -328,37 +318,27 @@
     background:var(--navy-deep, #10131a);
     border-top:1px solid var(--line);
     box-shadow:0 -2px 14px rgba(0,0,0,.35);
-    -webkit-mask:radial-gradient(circle 30px at var(--creux-x, -200px) -1px,
-                 transparent 29px, #000 30px);
-    mask:radial-gradient(circle 30px at var(--creux-x, -200px) -1px,
-         transparent 29px, #000 30px);
-    transition:--creux-x .42s cubic-bezier(.34,1.4,.64,1);
     pointer-events:none;
     z-index:0;
   }
 
-  /* Le cercle qui porte l'icône de l'onglet actif, posé à cheval
-     sur le bord haut de la barre. */
+  /* Une pastille douce derrière l'onglet actif. Elle glisse d'un
+     onglet à l'autre au lieu de sauter : c'est ce mouvement, et
+     lui seul, qui donne l'impression de fluidité. */
   #barreOnglets .pastille{
     position:absolute;
-    top:-24px;
-    width:52px; height:52px;
-    border-radius:50%;
-    background:var(--accent, #B6FF0E);
-    box-shadow:0 6px 16px rgba(0,0,0,.4),
-               0 0 0 5px var(--navy-deep, #10131a);
+    top:50%;
+    height:40px;
+    margin-top:-20px;
+    border-radius:20px;
+    background:rgba(182,255,14,.13);
     pointer-events:none;
     opacity:0;
-    /* Au-dessus du fond, mais SOUS l'icône qu'il doit mettre en valeur */
     z-index:1;
-    transition:left .42s cubic-bezier(.34,1.4,.64,1),
-               transform .42s cubic-bezier(.34,1.56,.64,1),
+    transition:left .38s cubic-bezier(.32,.72,0,1),
+               width .38s cubic-bezier(.32,.72,0,1),
                opacity .2s ease;
-    will-change:left, transform;
-  }
-  /* Étirée pendant le trajet, elle reprend sa forme à l'arrivée */
-  #barreOnglets .pastille.file{
-    transform:scaleX(1.22) scaleY(.82);
+    will-change:left, width;
   }
 
   #barreOnglets .onglet{
@@ -388,11 +368,10 @@
     line-height:1;
     transition:transform .42s cubic-bezier(.34,1.56,.64,1);
   }
-  /* L'icône monte dans le cercle ; le libellé, lui, ne bouge pas */
+  /* L'icône se soulève à peine : assez pour marquer le choix,
+     pas assez pour bousculer la mise en page. */
   #barreOnglets .onglet.actif span{
-    transform:translateY(-27px) scale(1.15);
-    position:relative;
-    z-index:3;
+    transform:translateY(-2px) scale(1.12);
   }
   #barreOnglets .onglet{
     position:relative;
@@ -406,38 +385,16 @@
   }
   /* Mouvement réduit : on respecte le réglage du système */
   @media (prefers-reduced-motion: reduce){
-    #barreOnglets, #barreOnglets .pastille,
+    #barreOnglets .pastille,
     #barreOnglets .onglet span{ transition:opacity .2s ease; }
   }
 
   /* Sur grand écran la barre passe sur le côté : le cercle et
      l'échancrure n'auraient plus de sens à l'horizontale. */
-  /* Sur grand écran la barre est en haut : le cercle descend
-     sous elle, et l'échancrure se creuse vers le bas. Le principe
-     est le même, retourné. */
-  @media (min-width: 1100px){
-    #barreOnglets::before{
-      -webkit-mask:radial-gradient(circle 30px at var(--creux-x, -200px)
-                   calc(100% + 1px), transparent 29px, #000 30px);
-      mask:radial-gradient(circle 30px at var(--creux-x, -200px)
-           calc(100% + 1px), transparent 29px, #000 30px);
-    }
-    #barreOnglets .pastille{
-      top:auto;
-      bottom:-24px;
-    }
-    #barreOnglets .onglet.actif span{
-      transform:translateY(27px) scale(1.15);
-    }
-    /* Le libellé passe au-dessus de l'icône : elle descend, il
-       reste lisible en haut du bouton. */
-    #barreOnglets .onglet{ flex-direction:column-reverse; }
-    #barreOnglets .onglet.actif{ background:none; }
-  }
   #barreOnglets .onglet[hidden]{ display:none; }
 
-  /* De la place pour le cercle, qui dépasse au-dessus de la barre */
-  body.avec-onglets .wrap{ padding-bottom:96px; }
+  /* Le contenu ne doit pas passer sous la barre */
+  body.avec-onglets .wrap{ padding-bottom:86px; }
 
   /* Un bloc qui n'appartient pas à l'onglet courant disparaît */
   [data-onglet].hors-onglet{ display:none !important; }
@@ -447,8 +404,7 @@
       position:sticky;
       top:0; bottom:auto;
       max-width:1280px;
-      /* De la marge sous la barre : le cercle dépasse par le bas */
-      margin:0 auto 38px;
+      margin:0 auto 14px;
       border-top:none;
       border-bottom:1px solid var(--line);
       border-radius:0 0 14px 14px;
@@ -751,7 +707,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v353</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v354</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1771,36 +1727,36 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=353"></script>
-<script src="app/ec-modeles.js?v=353"></script>
-<script src="app/ec-consignes.js?v=353"></script>
-<script src="app/ec-noyau.js?v=353"></script>
-<script src="app/ec-vocal.js?v=353"></script>
-<script src="app/ec-reseau.js?v=353"></script>
-<script src="app/ec-manuel.js?v=353"></script>
-<script src="app/ec-fenetres.js?v=353"></script>
-<script src="app/ec-questionnaire.js?v=353"></script>
-<script src="app/ec-permis.js?v=353"></script>
-<script src="app/ec-prepares.js?v=353"></script>
-<script src="app/ec-bureau.js?v=353"></script>
-<script src="app/ec-places.js?v=353"></script>
-<script src="app/ec-listes.js?v=353"></script>
-<script src="app/ec-permis-listes.js?v=353"></script>
-<script src="app/ec-postpermis.js?v=353"></script>
-<script src="app/ec-textes.js?v=353"></script>
-<script src="app/ec-correction.js?v=353"></script>
-<script src="app/ec-bilans.js?v=353"></script>
-<script src="app/ec-taches.js?v=353"></script>
-<script src="app/ec-memoire.js?v=353"></script>
-<script src="app/ec-historique.js?v=353"></script>
-<script src="app/ec-rappels.js?v=353"></script>
-<script src="app/ec-sms.js?v=353"></script>
-<script src="app/ec-stats.js?v=353"></script>
-<script src="app/ec-messenger.js?v=353"></script>
-<script src="app/ec-journal.js?v=353"></script>
-<script src="app/ec-depart.js?v=353"></script>
-<script src="app/ec-onglets.js?v=353"></script>
-<script src="app/ec-demarrage.js?v=353"></script>
+  <script src="app/ec-etat.js?v=354"></script>
+<script src="app/ec-modeles.js?v=354"></script>
+<script src="app/ec-consignes.js?v=354"></script>
+<script src="app/ec-noyau.js?v=354"></script>
+<script src="app/ec-vocal.js?v=354"></script>
+<script src="app/ec-reseau.js?v=354"></script>
+<script src="app/ec-manuel.js?v=354"></script>
+<script src="app/ec-fenetres.js?v=354"></script>
+<script src="app/ec-questionnaire.js?v=354"></script>
+<script src="app/ec-permis.js?v=354"></script>
+<script src="app/ec-prepares.js?v=354"></script>
+<script src="app/ec-bureau.js?v=354"></script>
+<script src="app/ec-places.js?v=354"></script>
+<script src="app/ec-listes.js?v=354"></script>
+<script src="app/ec-permis-listes.js?v=354"></script>
+<script src="app/ec-postpermis.js?v=354"></script>
+<script src="app/ec-textes.js?v=354"></script>
+<script src="app/ec-correction.js?v=354"></script>
+<script src="app/ec-bilans.js?v=354"></script>
+<script src="app/ec-taches.js?v=354"></script>
+<script src="app/ec-memoire.js?v=354"></script>
+<script src="app/ec-historique.js?v=354"></script>
+<script src="app/ec-rappels.js?v=354"></script>
+<script src="app/ec-sms.js?v=354"></script>
+<script src="app/ec-stats.js?v=354"></script>
+<script src="app/ec-messenger.js?v=354"></script>
+<script src="app/ec-journal.js?v=354"></script>
+<script src="app/ec-depart.js?v=354"></script>
+<script src="app/ec-onglets.js?v=354"></script>
+<script src="app/ec-demarrage.js?v=354"></script>
 
 </body>
 </html>
