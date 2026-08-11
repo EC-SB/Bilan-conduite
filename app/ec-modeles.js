@@ -655,7 +655,10 @@ function buildExamenBlanc(ai, ctx){
   /* Deux lignes par remarque, comme pour l'examen officiel : ce que
      l'inspecteur a dit, puis l'explication du moniteur. Vingt cases
      de base, davantage si le cours en a produit plus. */
-  const obsBlanc = observationsAppariees(ex.reflexions, ex.explications);
+  /* Les paires saisies au formulaire, ou les deux listes de l'IA */
+  const obsBlanc = (Array.isArray(ex.observations) && ex.observations.length)
+    ? observationsAppariees(ex.observations)
+    : observationsAppariees(ex.reflexions, ex.explications);
   const nObs = Math.max(obsBlanc.length, 20);
   for(let i = 0; i < nObs; i++){
     const o = obsBlanc[i] || {};
