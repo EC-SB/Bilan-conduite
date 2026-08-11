@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 13:32 — v342 */
+/* Déployé le 11/08/2026 à 11:35 — v355 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -568,6 +568,40 @@ function calculerCepc(c){
            favorable: (total >= 20 && !eliminatoires.length) };
 }
 
+/* Apparie ce que l'inspecteur a dit avec l'explication du moniteur.
+   L'IA peut rendre soit deux listes parallèles, soit une seule liste
+   d'objets : on accepte les deux plutôt que d'imposer une forme. */
+function observationsAppariees(remarques, explications){
+  /* Déjà des objets appariés */
+  if(Array.isArray(remarques) && remarques.length &&
+     typeof remarques[0] === 'object'){
+    return remarques.map(o => ({
+      inspecteur: txt(o.inspecteur || o.remarque || ''),
+      reponse: txt(o.reponse || o.explication || o.correction || '')
+    }));
+  }
+
+  /* Un tableau reste un tableau : ligneParLigne le collerait en une
+     seule chaîne séparée par des virgules. */
+  const enListe = v => Array.isArray(v)
+    ? v.map(x => txt(x)).filter(x => x !== undefined)
+    : ligneParLigne(v);
+
+  const r = enListe(remarques);
+  const e = enListe(explications);
+  const n = Math.max(r.length, e.length);
+  const out = [];
+  for(let i = 0; i < n; i++){
+    out.push({ inspecteur: r[i] || '', reponse: e[i] || '' });
+  }
+  return out;
+}
+
+/* L'émoji du moniteur, ou le lion par défaut comme sur les fiches */
+function emojiMoniteur(){
+  return (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? ACCES.emoji : '🦁';
+}
+
 function buildExamenBlanc(ai, ctx){
   ai = ai || {};
   const cep = calculerCepc(ai.cepc);
@@ -578,7 +612,8 @@ function buildExamenBlanc(ai, ctx){
 
   L('👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 👀');
   L('');
-  L('𝟭-𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ');
+  L('𝟭 - 𝗔𝗩𝗔𝗡𝗧 𝗟\'𝗘𝗫𝗔𝗠𝗘𝗡');
+  L('━━━━━━━━━━━━━━━━━━');
   L('');
   L('𝟭-𝟭. 𝗖𝗮𝗿𝘁𝗲 𝗦𝗗 ' + st(av.carteSD));
   L("N'oublie pas de la regarder et si tu as un souci, contacte-nous !");
@@ -599,7 +634,8 @@ function buildExamenBlanc(ai, ctx){
     L('');
   }
   L('');
-  L('𝟮-𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ');
+  L('𝟮 - 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟\'𝗘𝗫𝗔𝗠𝗘𝗡');
+  L('━━━━━━━━━━━━━━━━━━');
   L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : l'examen blanc consiste à se mettre en conditions réelles d'examen ! L'enseignant N'EST PLUS enseignant MAIS inspecteur du permis de conduire 👮");
   L('');
   L('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(ex.installation));
@@ -613,9 +649,18 @@ function buildExamenBlanc(ai, ctx){
   L('https://www.facebook.com/groups/864826058258637');
   L(' ');
   L('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
-  const refl = ligneParLigne(ex.reflexions);
-  for(let i = 0; i < Math.max(refl.length, 22); i++){
-    L('👨‍✈️' + (refl[i] ? ' ' + refl[i] : ''));
+  L('');
+
+  /* Deux lignes par remarque, comme pour l'examen officiel : ce que
+     l'inspecteur a dit, puis l'explication du moniteur. Vingt cases
+     de base, davantage si le cours en a produit plus. */
+  const obsBlanc = observationsAppariees(ex.reflexions, ex.explications);
+  const nObs = Math.max(obsBlanc.length, 20);
+  for(let i = 0; i < nObs; i++){
+    const o = obsBlanc[i] || {};
+    L('👨‍✈️' + (o.inspecteur ? ' ' + o.inspecteur : ''));
+    L(emojiMoniteur() + (o.reponse ? ' ' + o.reponse : ''));
+    L('');
   }
   L('');
 
@@ -645,7 +690,9 @@ function buildExamenBlanc(ai, ctx){
   L('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/' + cep.max + ' et aucune faute éliminatoire.');
   L('');
 
-  L('𝟯-𝘽𝙄𝙇𝘼𝙉 𝙀𝙍𝙍𝙀𝙐𝙍𝙎 :');
+  L('𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦');
+  L('━━━━━━━━━━━━━━━━━━');
+  L('');
   const bil = ligneParLigne(ai.bilanErreurs);
   for(let i = 0; i < Math.max(bil.length, 5); i++){
     L('👉 ' + (bil[i] || ''));
