@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:27 — v336 */
+/* Déployé le 11/08/2026 à 08:07 — v348 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
@@ -65,6 +65,7 @@ const SOCLE_METIER =
 '\n' +
 'ERREURS DE TRANSCRIPTION FRÉQUENTES, à corriger sans hésiter :\n' +
 '« ongle mort » ou « oncle mort » → angle mort · « gyratoire » ou « gyrophare » → giratoire · ' +
+'« mais la procédure » → mets la procédure · ' +
 '« CD le passage » ou « céder le passage » → cédez le passage (mais « CD » seul, dans la fiche ' +
 'véhicule, désigne le créneau droit) · « il en faute de détresse » → il est en feux de détresse · ' +
 '« la pluie tête » → l\'appui-tête · « Fresnes » → freine · ' +
