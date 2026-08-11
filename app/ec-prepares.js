@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 07:57 — v347 */
+/* Déployé le 11/08/2026 à 14:48 — v369 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -505,7 +505,6 @@ async function chargerPrepareInterne(cours){
   $('recordView').style.display = 'block';
   $('recBtn').textContent = '🎙️ Démarrer le cours';
   $('status').textContent = 'Cours préparé — tu peux démarrer directement.';
-  window.scrollTo(0, 0);
 
   verifierNomEleve('studentName', 'studentInfo', true);
 
@@ -514,7 +513,11 @@ async function chargerPrepareInterne(cours){
   if(typeof chargerHistoriqueEleve === 'function') chargerHistoriqueEleve();
   afficherPreparationEleve();
   chargerHistoriqueEleve();
-  window.scrollTo(0, 0);
+
+  /* Le module de cours est en bas de l'onglet : sans ce défilement,
+     le moniteur croit qu'il ne s'est rien passé et descend à la
+     main. On attend l'affichage, sinon la position est fausse. */
+  amenerAuCours();
   showToast('Cours de ' + (cours.eleve || 'l\'élève') + ' chargé ✅');
 }
 
@@ -900,6 +903,20 @@ async function modifierPreparation(cours){
   }catch(e){
     showToast('Modification impossible : ' + e.message);
   }
+}
+
+/* Amène l'écran sur le module de cours, prêt à démarrer. */
+function amenerAuCours(){
+  setTimeout(() => {
+    const z = $('recordView');
+    if(!z) return;
+    try{
+      z.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }catch(e){
+      /* Navigateur ancien : au moins on y va */
+      window.scrollTo(0, z.offsetTop - 10);
+    }
+  }, 120);
 }
 
 /* Signale que ce module est bien chargé */
