@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 10:11 — v351 */
+/* Déployé le 11/08/2026 à 11:29 — v354 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -251,14 +251,13 @@ function ouvrirLeBonTiroirDuJour(){
 
 
 /* ============================================================
-   LE CERCLE DE NAVIGATION
+   LA PASTILLE DE NAVIGATION
 
-   L'icône de l'onglet actif monte dans un cercle posé à cheval
-   sur le bord de la barre, qui se creuse en dessous. Le libellé
-   reste en place : on lit toujours le nom des cinq onglets.
+   Un fond arrondi qui glisse d'un onglet à l'autre. Rien ne
+   déborde de la barre, rien ne se découpe : c'est le glissement
+   seul qui fait l'effet, et il fonctionne aussi bien en haut
+   qu'en bas.
    ============================================================ */
-let minuteurPastille = null;
-
 function deplacerGoutte(bouton){
   const barre = $('barreOnglets');
   if(!barre || !bouton) return;
@@ -271,27 +270,14 @@ function deplacerGoutte(bouton){
   }
 
   /* Les positions se mesurent après affichage : un onglet caché
-     n'a pas de largeur, et le cercle se poserait à côté. */
+     n'a pas de largeur, et la pastille se poserait à côté. */
   const b = bouton.getBoundingClientRect();
   const p = barre.getBoundingClientRect();
   if(!b.width) return;
 
-  const centre = b.left - p.left + b.width / 2;
-  const gauche = centre - 26;                 /* moitié du cercle */
-  const arrive = Math.abs(parseFloat(pastille.style.left || '-999') - gauche) < 1;
-
-  pastille.style.left = gauche + 'px';
+  pastille.style.left = (b.left - p.left + 3) + 'px';
+  pastille.style.width = (b.width - 6) + 'px';
   pastille.style.opacity = '1';
-
-  /* L'échancrure suit le même centre que le cercle */
-  barre.style.setProperty('--creux-x', centre + 'px');
-
-  /* L'étirement, seulement si le cercle se déplace vraiment */
-  if(!arrive){
-    pastille.classList.add('file');
-    clearTimeout(minuteurPastille);
-    minuteurPastille = setTimeout(() => pastille.classList.remove('file'), 300);
-  }
 }
 
 /* La barre change de forme au pivotement ou au redimensionnement */
