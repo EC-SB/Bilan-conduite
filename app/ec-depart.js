@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:27 — v367 */
+/* Déployé le 11/08/2026 à 14:49 — v369 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -519,7 +519,12 @@ async function rechercherEleve(){
         $('resultView').style.display = 'block';
         $('resultView').classList.remove('hors-onglet', 'hors-vue');
         majBoutonCorrection();
-        window.scrollTo(0, 0);
+        /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt
+           que de laisser le moniteur le chercher. */
+        setTimeout(() => {
+          try{ $('resultView').scrollIntoView({ behavior:'smooth', block:'start' }); }
+          catch(e){ window.scrollTo(0, $('resultView').offsetTop - 10); }
+        }, 120);
       });
       zone.appendChild(row);
     });
