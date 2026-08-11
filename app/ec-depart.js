@@ -986,6 +986,9 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   if(typeof verifierAPrevoirEnFond === 'function'){
     setTimeout(() => verifierAPrevoirEnFond(), 2500);
   }
+  if(typeof compterTachesEnFond === 'function'){
+    setTimeout(() => compterTachesEnFond(), 3200);
+  }
 }
 
 /* Reprend la session mémorisée, après vérification du code */
