@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 11:29 — v354 */
+/* Déployé le 11/08/2026 à 12:23 — v358 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -258,6 +258,8 @@ function ouvrirLeBonTiroirDuJour(){
    seul qui fait l'effet, et il fonctionne aussi bien en haut
    qu'en bas.
    ============================================================ */
+let minuteurPastille = null;
+
 function deplacerGoutte(bouton){
   const barre = $('barreOnglets');
   if(!barre || !bouton) return;
@@ -275,9 +277,19 @@ function deplacerGoutte(bouton){
   const p = barre.getBoundingClientRect();
   if(!b.width) return;
 
-  pastille.style.left = (b.left - p.left + 3) + 'px';
+  const gauche = b.left - p.left + 3;
+  const bouge = Math.abs(parseFloat(pastille.style.left || '-999') - gauche) > 1;
+
+  pastille.style.left = gauche + 'px';
   pastille.style.width = (b.width - 6) + 'px';
   pastille.style.opacity = '1';
+
+  /* L'étirement, seulement quand elle se déplace vraiment */
+  if(bouge){
+    pastille.classList.add('file');
+    clearTimeout(minuteurPastille);
+    minuteurPastille = setTimeout(() => pastille.classList.remove('file'), 260);
+  }
 }
 
 /* La barre change de forme au pivotement ou au redimensionnement */
