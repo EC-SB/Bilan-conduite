@@ -1733,6 +1733,12 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
   const avant = ficheAvant || {};
   const maj = {};
 
+  /* Le suivi des écoutes se tient tout seul, d'après la case du
+     questionnaire : personne n'aurait tenu la liste à la main. */
+  if(typeof majEcouteDepuisQuestionnaire === 'function'){
+    majEcouteDepuisQuestionnaire(eleve, !!reponses.pasEcoute);
+  }
+
   if(reponses.ants && reponses.ants !== (avant.ants || '')) maj.ants = reponses.ants;
   if(reponses.messenger && reponses.messenger !== (avant.messenger || '')){
     maj.messenger = reponses.messenger;
