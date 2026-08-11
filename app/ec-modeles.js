@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 12:55 — v360 */
+/* Déployé le 11/08/2026 à 13:37 — v362 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1224,8 +1224,12 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
   parts.push('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ai.voyants === '❌' ? '❌' : '✅'));
   parts.push('/2 points jour du permis ');
   parts.push('');
-  parts.push('𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 https://www.facebook.com/groups/864826058258637 ');
-  parts.push('/3 points jour du permis ');
+  /* Le numéro de question et la note, quand le moniteur les a saisis */
+  parts.push('𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨' +
+    (txt(ai.verifQuestion) ? ' : question n° ' + txt(ai.verifQuestion) : '') +
+    ' https://www.facebook.com/groups/864826058258637 ');
+  parts.push((txt(ai.verifNote) ? txt(ai.verifNote) + '/3' : '/3') +
+             ' points jour du permis ');
   parts.push('');
   parts.push('🎙️ 𝕋𝕆ℕ ℂ𝕆𝕌ℝ𝕊 :');
   parts.push(txt(texteCours || ai.texteDicte));
