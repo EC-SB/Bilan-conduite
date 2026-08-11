@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 13:51 — v343 */
+/* Déployé le 11/08/2026 à 11:53 — v356 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -60,21 +60,47 @@ const CHAMPS_MANUELS = {
   ],
   examenblanc: [
     { cle:'avant.carteSD',      type:'ok', nom:'1-1 · Carte SD', defaut:'✅' },
-    { cle:'avant.installation', type:'ok', nom:'1-2 · Installation', defaut:'✅' },
-    { cle:'avant.passager',     type:'ok', nom:'1-2 · Passager', defaut:'✅' },
-    { cle:'avant.voyants',      type:'ok', nom:'1-2 · Voyants', defaut:'✅' },
+
+    /* Un bloc de texte plutôt que des cases : le moniteur efface
+       l'émoji qui ne convient pas, ✅ ou ❌, directement dans le
+       texte. Plus rapide que trois sélecteurs. */
+    { cle:'avant.installation', type:'texte', lignes:6,
+      nom:'1-2 · Installation',
+      aide:'Efface l\'émoji qui ne convient pas.',
+      defaut:'𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ✅❌\n' +
+             'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/\n' +
+             '𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ✅❌\n' +
+             '𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ✅❌\n' +
+             '𝙉𝙤𝙩𝙚 :  /2' },
+
     { cle:'avant.erreursRoute', type:'texte', lignes:5,
-      nom:"1-3 · Erreurs en allant au centre d'examen",
+      nom:"1-3 · Erreurs que tu as faites en allant au centre d'examen",
       aide:'Une erreur par ligne.' },
 
-    { cle:'examen.installation', type:'ok', nom:'2-1 · Installation', defaut:'' },
-    { cle:'examen.remarqueInstallation', type:'court', nom:'2-1 · Remarque sur l\'installation' },
-    { cle:'examen.passager',     type:'ok', nom:'2-1 · Passager', defaut:'' },
-    { cle:'examen.voyants',      type:'ok', nom:'2-1 · Voyants', defaut:'' },
-    { cle:'examen.verifQuestion',type:'court', nom:'2-2 · Vérifications, question n°' },
-    { cle:'examen.reflexions',   type:'texte', lignes:10,
-      nom:'2-3 · Réflexions inspecteur et explications',
-      aide:'Une réflexion par ligne.', lignes:12, mort:true },
+    { cle:'examen.installation', type:'texte', lignes:7,
+      nom:'2-1 · Installation',
+      aide:'Efface l\'émoji qui ne convient pas, et la remarque si elle ne sert pas.',
+      defaut:'𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ✅❌\n' +
+             '❌ Tu as oublié de dire : "c\'est moi qui ai emmené le véhicule, ' +
+             'j\'ai déjà fait mes réglages"\n' +
+             '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ✅❌\n' +
+             '𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ✅❌\n' +
+             '𝙉𝙤𝙩𝙚 :  /2' },
+
+    { cle:'examen.verifications', type:'texte', lignes:5,
+      nom:'2-2 · Vérifications',
+      aide:'Complète le numéro de question.',
+      defaut:'𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° \n' +
+             '𝙉𝙤𝙩𝙚 :  /3\n' +
+             'https://www.facebook.com/groups/864826058258637' },
+
+    { cle:'examen.reflexions',   type:'texte', lignes:12,
+      nom:'2-3 · Remarques de l\'inspecteur',
+      aide:'Une remarque par ligne.', mort:true },
+    { cle:'examen.explications', type:'texte', lignes:12,
+      nom:'2-3 · Explication ou correction',
+      aide:'Dans le même ordre que les remarques. Laisse la ligne vide si tu ' +
+           'n\'as pas commenté celle-ci.' },
 
     { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
     { cle:'observations',type:'texte', lignes:20, mort:true,
@@ -593,6 +619,9 @@ async function ouvrirBilanManuel(){
       const t = document.createElement('textarea');
       t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
       t.id = 'man_' + ch.cle.replace('.', '_');
+      /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
+         l'émoji qui ne convient pas et compléter les blancs. */
+      if(ch.defaut) t.value = ch.defaut;
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
