@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:12 — v365 */
+/* Déployé le 11/08/2026 à 14:34 — v368 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 68;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 69;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -43,6 +43,10 @@ const SECTIONS = [
   { cle:'stats',            nom:'📈 Taux de réussite' },
   { cle:'eleves',           nom:'👥 Répertoire des élèves' },
   { cle:'rappels',          nom:'🔔 Rappels de cours par SMS' },
+  { cle:'notifs',           nom:'🔔 Alertes du bureau' },
+  { cle:'notif_examblanc',  nom:'🔔 Pastille examens blancs' },
+  { cle:'notif_simu',       nom:'🔔 Pastille simulateurs' },
+  { cle:'notif_permis',     nom:'🔔 Pastille dates de permis' },
   { cle:'taches',           nom:'✅ Tâches du bureau' },
   { cle:'memoire',          nom:"🧠 Mémoire de l'IA" },
   { cle:'historique',       nom:'📚 Historique des cours' },
@@ -461,7 +465,7 @@ window.EC_MODULES['ec-noyau.js'] = true;
    Un fichier absent du serveur ne provoque aucune erreur visible :
    des boutons cessent simplement de répondre. On le signale.
    ============================================================ */
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-sms.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-sms.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
 
 function verifierModules(){
   const charges = window.EC_MODULES || {};
