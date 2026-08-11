@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 11:53 — v356 */
+/* Déployé le 11/08/2026 à 12:09 — v357 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -59,6 +59,7 @@ const CHAMPS_MANUELS = {
     { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
   ],
   examenblanc: [
+    { cle:'__t1', type:'titre', nom:"1 - AVANT L'EXAMEN" },
     { cle:'avant.carteSD',      type:'ok', nom:'1-1 · Carte SD', defaut:'✅' },
 
     /* Un bloc de texte plutôt que des cases : le moniteur efface
@@ -77,6 +78,7 @@ const CHAMPS_MANUELS = {
       nom:"1-3 · Erreurs que tu as faites en allant au centre d'examen",
       aide:'Une erreur par ligne.' },
 
+    { cle:'__t2', type:'titre', nom:"2 - PENDANT L'EXAMEN" },
     { cle:'examen.installation', type:'texte', lignes:7,
       nom:'2-1 · Installation',
       aide:'Efface l\'émoji qui ne convient pas, et la remarque si elle ne sert pas.',
@@ -94,13 +96,20 @@ const CHAMPS_MANUELS = {
              '𝙉𝙤𝙩𝙚 :  /3\n' +
              'https://www.facebook.com/groups/864826058258637' },
 
-    { cle:'examen.reflexions',   type:'texte', lignes:12,
-      nom:'2-3 · Remarques de l\'inspecteur',
-      aide:'Une remarque par ligne.', mort:true },
-    { cle:'examen.explications', type:'texte', lignes:12,
-      nom:'2-3 · Explication ou correction',
-      aide:'Dans le même ordre que les remarques. Laisse la ligne vide si tu ' +
-           'n\'as pas commenté celle-ci.' },
+    /* Vingt paires, comme pour l'examen officiel : la remarque de
+       l'inspecteur, puis l'explication du moniteur. */
+    { cle:'examen.observations', type:'observations',
+      nom:"2-3 · Remarques de l'inspecteur et explications" },
+
+    { cle:'__t3', type:'titre', nom:'3 - BILAN DES ERREURS' },
+    { cle:'bilanErreurs', type:'texte', lignes:22,
+      nom:'Les erreurs à reprendre avec lui',
+      aide:"Les repères sont posés : écris l'erreur après le 👉 et complète " +
+           'les trois lignes en dessous.',
+      defaut:('👉 \n' +
+              "- qu'en penses-tu ?\n" +
+              '- quelles sont TES solutions ?\n' +
+              '- ce que je te PROPOSE : \n\n').repeat(5).trim() },
 
     { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
     { cle:'observations',type:'texte', lignes:20, mort:true,
@@ -583,6 +592,18 @@ async function ouvrirBilanManuel(){
         apercu.appendChild(img);
         champsManuels[ch.cle] = f.name;
       });
+
+    }else if(ch.type === 'titre'){
+      /* Un gros repère dans le formulaire : le moniteur retrouve
+         d'un coup d'œil la structure du bilan qu'il connaît. */
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:17px;font-weight:800;color:var(--accent-text);' +
+        'margin:22px 0 4px;letter-spacing:.5px;';
+      t.textContent = ch.nom;
+      bloc.appendChild(t);
+      const tr = document.createElement('div');
+      tr.style.cssText = 'border-top:2px solid var(--orange);margin-bottom:14px;';
+      bloc.appendChild(tr);
 
     }else if(ch.type === 'observations'){
       const l = document.createElement('label');
