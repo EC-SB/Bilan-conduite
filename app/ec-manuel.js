@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 12:09 — v357 */
+/* Déployé le 11/08/2026 à 12:38 — v359 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -59,7 +59,7 @@ const CHAMPS_MANUELS = {
     { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
   ],
   examenblanc: [
-    { cle:'__t1', type:'titre', nom:"1 - AVANT L'EXAMEN" },
+    { cle:'__t1', type:'titre', nom:"𝟭 - 𝗔𝗩𝗔𝗡𝗧 𝗟'𝗘𝗫𝗔𝗠𝗘𝗡" },
     { cle:'avant.carteSD',      type:'ok', nom:'1-1 · Carte SD', defaut:'✅' },
 
     /* Un bloc de texte plutôt que des cases : le moniteur efface
@@ -78,7 +78,7 @@ const CHAMPS_MANUELS = {
       nom:"1-3 · Erreurs que tu as faites en allant au centre d'examen",
       aide:'Une erreur par ligne.' },
 
-    { cle:'__t2', type:'titre', nom:"2 - PENDANT L'EXAMEN" },
+    { cle:'__t2', type:'titre', nom:"𝟮 - 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟'𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖" },
     { cle:'examen.installation', type:'texte', lignes:7,
       nom:'2-1 · Installation',
       aide:'Efface l\'émoji qui ne convient pas, et la remarque si elle ne sert pas.',
@@ -101,24 +101,22 @@ const CHAMPS_MANUELS = {
     { cle:'examen.observations', type:'observations',
       nom:"2-3 · Remarques de l'inspecteur et explications" },
 
-    { cle:'__t3', type:'titre', nom:'3 - BILAN DES ERREURS' },
-    { cle:'bilanErreurs', type:'texte', lignes:22,
-      nom:'Les erreurs à reprendre avec lui',
-      aide:"Les repères sont posés : écris l'erreur après le 👉 et complète " +
-           'les trois lignes en dessous.',
+    { cle:'__t3', type:'titre', nom:'𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦' },
+    { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
+
+    { cle:'observations',type:'texte', lignes:20, mort:true,
+      nom:'Observations et fautes éliminatoires',
+      aide:'Une observation par ligne. Le bouton ☠️ marque une faute éliminatoire.' },
+
+    { cle:'bilanErreurs',type:'texte', lignes:22, nom:'3 · Bilan erreurs',
+      aide:"Les repères sont posés : écris l'erreur au bout du 👉 et ta réponse " +
+           'au bout de chaque ligne.',
       defaut:('👉 \n' +
               "- qu'en penses-tu ?\n" +
               '- quelles sont TES solutions ?\n' +
               '- ce que je te PROPOSE : \n\n').repeat(5).trim() },
 
-    { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
-    { cle:'observations',type:'texte', lignes:20, mort:true,
-      nom:'Observations et fautes éliminatoires',
-      aide:'Une observation par ligne. Le bouton ☠️ marque une faute éliminatoire.' },
-
-    { cle:'bilanErreurs',type:'texte', lignes:6, nom:'3 · Bilan erreurs',
-      aide:'Une erreur par ligne : chacune reçoit les trois questions.' },
-
+    { cle:'__t4', type:'titre', nom:'𝟰 - 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦' },
     { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
     { cle:'heuresAvant', type:'court',  nom:"4 · Combien d'heures avant permis" },
     { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
@@ -597,12 +595,12 @@ async function ouvrirBilanManuel(){
       /* Un gros repère dans le formulaire : le moniteur retrouve
          d'un coup d'œil la structure du bilan qu'il connaît. */
       const t = document.createElement('div');
-      t.style.cssText = 'font-size:17px;font-weight:800;color:var(--accent-text);' +
-        'margin:22px 0 4px;letter-spacing:.5px;';
+      t.style.cssText = 'font-size:19px;font-weight:800;color:var(--accent-text);' +
+        'margin:26px 0 6px;text-align:center;line-height:1.35;';
       t.textContent = ch.nom;
       bloc.appendChild(t);
       const tr = document.createElement('div');
-      tr.style.cssText = 'border-top:2px solid var(--orange);margin-bottom:14px;';
+      tr.style.cssText = 'border-top:2px solid var(--orange);margin:0 auto 16px;width:70%;';
       bloc.appendChild(tr);
 
     }else if(ch.type === 'observations'){
