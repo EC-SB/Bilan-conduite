@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 14:37 — v344 */
+/* Déployé le 11/08/2026 à 09:48 — v350 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -49,7 +49,11 @@ function afficherOnglet(cle, memoriser){
   else libererOngletsSansVues();
 
   document.querySelectorAll('#barreOnglets .onglet').forEach(b => {
-    b.classList.toggle('actif', b.getAttribute('data-cible') === cle);
+    const estActif = (b.getAttribute('data-cible') === cle);
+    b.classList.toggle('actif', estActif);
+    /* La goutte suit l'onglet retenu. Après l'affichage : un onglet
+       masqué n'a pas encore de largeur mesurable. */
+    if(estActif) setTimeout(() => deplacerGoutte(b), 0);
     b.setAttribute('aria-selected', b.getAttribute('data-cible') === cle ? 'true' : 'false');
   });
 
@@ -245,6 +249,55 @@ function ouvrirLeBonTiroirDuJour(){
   libererOngletsSansVues();
 }
 
+
+/* ============================================================
+   LA GOUTTE DE NAVIGATION
+
+   Un repère qui glisse d'un onglet à l'autre plutôt que de
+   sauter. Il s'étire pendant le trajet et reprend sa forme à
+   l'arrivée : le mouvement dit d'où l'on vient.
+   ============================================================ */
+let minuteurGoutte = null;
+
+function deplacerGoutte(bouton){
+  const barre = $('barreOnglets');
+  if(!barre || !bouton) return;
+
+  let goutte = barre.querySelector('.goutte');
+  if(!goutte){
+    goutte = document.createElement('div');
+    goutte.className = 'goutte';
+    barre.insertBefore(goutte, barre.firstChild);
+  }
+
+  /* Les positions se mesurent après affichage : un onglet caché
+     n'a pas de largeur, et la goutte se poserait à côté. */
+  const b = bouton.getBoundingClientRect();
+  const p = barre.getBoundingClientRect();
+  if(!b.width) return;
+
+  const gauche = b.left - p.left;
+  const arrive = Math.abs(parseFloat(goutte.style.left || '0') - gauche) < 1;
+
+  goutte.style.left = gauche + 'px';
+  goutte.style.width = b.width + 'px';
+  goutte.style.opacity = '1';
+
+  /* L'étirement, seulement si elle se déplace vraiment */
+  if(!arrive){
+    goutte.classList.add('file');
+    clearTimeout(minuteurGoutte);
+    minuteurGoutte = setTimeout(() => goutte.classList.remove('file'), 300);
+  }
+}
+
+/* La barre change de forme au pivotement ou au redimensionnement */
+function suivreGoutte(){
+  const actif = document.querySelector('#barreOnglets .onglet.actif');
+  if(actif) deplacerGoutte(actif);
+}
+window.addEventListener('resize', () => setTimeout(suivreGoutte, 60));
+window.addEventListener('orientationchange', () => setTimeout(suivreGoutte, 220));
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
