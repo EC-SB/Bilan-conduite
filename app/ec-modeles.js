@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 11:54 — v356 */
+/* Déployé le 11/08/2026 à 12:55 — v360 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -690,6 +690,13 @@ function buildExamenBlanc(ai, ctx){
     L('');
     L('👉 Observations :');
     ligneParLigne(ai.observations).forEach(o => L('   ' + o));
+  }
+  /* Les fautes relevées à la main, en plus de celles que le CEPC
+     déduit des compétences notées E. */
+  if(txt(ai.eliminatoires)){
+    L('');
+    L('☠️ Fautes éliminatoires :');
+    ligneParLigne(ai.eliminatoires).forEach(o => L('   • ' + o));
   }
   L('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/' + cep.max + ' et aucune faute éliminatoire.');
   L('');
