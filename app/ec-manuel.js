@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 12:38 — v359 */
+/* Déployé le 11/08/2026 à 12:55 — v360 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -101,13 +101,19 @@ const CHAMPS_MANUELS = {
     { cle:'examen.observations', type:'observations',
       nom:"2-3 · Remarques de l'inspecteur et explications" },
 
-    { cle:'__t3', type:'titre', nom:'𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦' },
+    /* Le CEPC clôt le point 2 : il résume l'examen qui vient de se
+       dérouler, il n'a rien à faire dans le bilan des erreurs. */
     { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
 
-    { cle:'observations',type:'texte', lignes:20, mort:true,
-      nom:'Observations et fautes éliminatoires',
-      aide:'Une observation par ligne. Le bouton ☠️ marque une faute éliminatoire.' },
+    { cle:'observations',type:'texte', lignes:12,
+      nom:'2-4 · Observations',
+      aide:'Une observation par ligne.' },
 
+    { cle:'eliminatoires', type:'texte', lignes:6, mort:true,
+      nom:'2-5 · Fautes éliminatoires',
+      aide:'Une faute par ligne. Le bouton ☠️ la marque comme éliminatoire.' },
+
+    { cle:'__t3', type:'titre', nom:'𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦' },
     { cle:'bilanErreurs',type:'texte', lignes:22, nom:'3 · Bilan erreurs',
       aide:"Les repères sont posés : écris l'erreur au bout du 👉 et ta réponse " +
            'au bout de chaque ligne.',
