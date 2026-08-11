@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 12:23 — v358 */
+/* Déployé le 11/08/2026 à 13:11 — v361 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -14,7 +14,7 @@ const CLE_ONGLET = 'onglet_actif';
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
   eleves: ['recherche', 'rappels', 'eleves', 'permis', 'depart'],
-  suivi:  ['bureau_simu', 'bureau_examblanc'],
+  suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
            'sms', 'stats', 'taches', 'memoire', 'historique', 'admin']
@@ -121,6 +121,8 @@ function initOnglets(){
    prochains cours, préparer — tiennent sur une seule page, dans
    cet ordre. Un sélecteur n'en montrerait qu'un à la fois. */
 const VUES = {
+  suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
+           ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
   eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
            ['rappels',    '🔔 Rappels de cours',      'rappels'],
            ['eleves',     '👥 Répertoire',            'eleves'],
@@ -226,8 +228,10 @@ function reveillerVue(cle){
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
     taches:     () => afficherTaches(),
+    ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
     taches:     () => afficherTaches(),
+    ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
     historique: () => afficherHistoriqueCours()
   };
