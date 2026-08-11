@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 13:11 — v361 */
+/* Déployé le 11/08/2026 à 14:24 — v367 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -303,6 +303,31 @@ function suivreGoutte(){
 }
 window.addEventListener('resize', () => setTimeout(suivreGoutte, 60));
 window.addEventListener('orientationchange', () => setTimeout(suivreGoutte, 220));
+
+/* ============================================================
+   PASTILLE D'ALERTE SUR UN ONGLET
+
+   Ce qui attend une action du bureau doit se voir sans ouvrir
+   l'onglet : un examen blanc à prévoir peut attendre des semaines
+   si personne ne pense à aller regarder.
+   ============================================================ */
+function poserAlerte(onglet, nombre){
+  const b = document.querySelector('#barreOnglets .onglet[data-cible="' + onglet + '"]');
+  if(!b) return;
+
+  let p = b.querySelector('.alerte');
+  if(!nombre){
+    if(p) p.remove();
+    return;
+  }
+  if(!p){
+    p = document.createElement('span');
+    p.className = 'alerte';
+    b.appendChild(p);
+  }
+  p.textContent = (nombre > 99) ? '99+' : String(nombre);
+  p.title = nombre + ' à prévoir';
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
