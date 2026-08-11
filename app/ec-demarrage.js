@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 15:59 — v326 */
+/* Déployé le 11/08/2026 à 14:55 — v370 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -191,11 +191,6 @@ if($('eleveMessenger')){
   $('eleveMessenger').addEventListener('blur', enregistrerMessengerEleve);
 }
 brancherFichierCsv();
-if($('smsRecharger')) $('smsRecharger').addEventListener('click', rechargerCadreSms);
-if($('smsOublier')) $('smsOublier').addEventListener('click', async () => {
-  if(!await confirmer('Oublier le code SMS mémorisé ?')) return;
-  oublierCodeSms(); rechargerCadreSms();
-});
 if($('statsPeriode')) $('statsPeriode').addEventListener('change', afficherStats);
 if($('statsRang')) $('statsRang').addEventListener('change', afficherStats);
 /* Le menu et le bouton sont désormais construits par ec-messenger.js,
