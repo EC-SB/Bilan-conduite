@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 13:36 — v362 */
+/* Déployé le 11/08/2026 à 15:53 — v374 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1007,6 +1007,9 @@ async function genererBilanManuel(){
     });
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
+    if(typeof proposerImageCepc === 'function' && donnees.cepc){
+      proposerImageCepc(donnees.cepc, donnees.observations, eleve);
+    }
     if(typeof blocProcedures === 'function'){
       bilan += blocProcedures(champsManuels.texteDicte || '');
     }
