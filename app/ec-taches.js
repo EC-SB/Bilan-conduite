@@ -62,6 +62,11 @@ async function afficherTaches(){
     }
   }catch(e){ /* la liste restera vide */ }
 
+  /* Le compte sur le sous-onglet : visible sans ouvrir la vue */
+  if(typeof poserCompteVue === 'function'){
+    poserCompteVue('outils', 'taches', taches.length);
+  }
+
   zone.innerHTML = '';
 
   const b = document.createElement('button');
@@ -452,6 +457,18 @@ function ouvrirEditeurTache(tache){
   setTimeout(() => boite.querySelector('#tkTitre').focus(), 100);
 }
 
+
+/* Le compte des tâches, lu en tâche de fond : sans ça le chiffre
+   n'apparaîtrait qu'après avoir ouvert la vue, ce qui lui retire
+   tout intérêt. */
+async function compterTachesEnFond(){
+  if(typeof aDroit === 'function' && !aDroit('taches')) return;
+  try{
+    const d = await appelPrep({ action: 'tacheList' });
+    const n = ((d && d.taches) || []).length;
+    if(typeof poserCompteVue === 'function') poserCompteVue('outils', 'taches', n);
+  }catch(e){ /* hors ligne : pas de compte */ }
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
