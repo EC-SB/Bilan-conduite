@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 13:59 — v364 */
+/* Déployé le 11/08/2026 à 15:33 — v372 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1627,6 +1627,18 @@ $('copyBtn').addEventListener('click', async () => {
   confirmerFinDeCours();
 });
 
+/* Une date au format des colonnes : jj/mm/aaaa, jamais l'ISO brut */
+function dateCourteDuJour(iso){
+  const t = String(iso || '').trim();
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[3] + '/' + m[2] + '/' + m[1];
+  if(/^\d{2}\/\d{2}\/\d{4}/.test(t)) return t;
+
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
 async function exporterVersSheets(silencieux){
   const btn = $('exportSheetsBtn');
   btn.disabled = true;
@@ -1638,12 +1650,21 @@ async function exporterVersSheets(silencieux){
       body: JSON.stringify({
         action: 'append',
         code: ACCES.code,
+        /* Les champs de l'écran servent de secours : si les
+           métadonnées du cours manquent — bilan repris, écran
+           rechargé — la ligne partait avec des colonnes vides. */
         data: {
-          date: currentLessonMeta ? (currentLessonMeta.dateCourte || currentLessonMeta.dateStr) : '',
-          site: currentLessonMeta ? currentLessonMeta.site : '',
-          monitorName: currentLessonMeta ? currentLessonMeta.monitorName : '',
-          studentName: currentLessonMeta ? currentLessonMeta.studentName : '',
-          typeBilan: currentLessonMeta ? currentLessonMeta.modeleLabel : '',
+          date: (currentLessonMeta &&
+                 (currentLessonMeta.dateCourte || currentLessonMeta.dateStr)) ||
+                dateCourteDuJour($('lessonDate') ? $('lessonDate').value : ''),
+          site: (currentLessonMeta && currentLessonMeta.site) ||
+                ($('site') ? $('site').value : ''),
+          monitorName: (currentLessonMeta && currentLessonMeta.monitorName) ||
+                       ACCES.moniteur || '',
+          studentName: (currentLessonMeta && currentLessonMeta.studentName) ||
+                       ($('studentName') ? $('studentName').value.trim() : ''),
+          typeBilan: (currentLessonMeta && currentLessonMeta.modeleLabel) ||
+                     ((MODELES[$('modele') ? $('modele').value : ''] || {}).label || ''),
           noteInterne: $('noteResult').value.trim(),
           boite: contexteDepart ? (contexteDepart.boite || '') : '',
           ants: contexteDepart ? (contexteDepart.ants || '') : '',
