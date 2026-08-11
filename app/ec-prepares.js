@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 08:29 — v329 */
+/* Déployé le 11/08/2026 à 07:57 — v347 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -128,16 +128,44 @@ async function afficherPrepares(recharger, silencieux){
                        String(a.id || '').localeCompare(String(b.id || '')));
   zone.innerHTML = '';
   let dateCourante = null;
+  let tiroir = null;
+
+  /* Un tiroir par jour : aujourd'hui et demain ouverts, le reste
+     replié. Sans ça, un moniteur qui prépare deux semaines à
+     l'avance fait défiler sa journée pour la trouver. */
+  const auj = todayLocal();
+  const dem = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    const p2 = n => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  })();
 
   liste.forEach(cours => {
     if(cours.date !== dateCourante){
       dateCourante = cours.date;
-      const t = document.createElement('div');
-      const estAuj = (cours.date === todayLocal());
-      t.style.cssText = 'font-size:13px;font-weight:700;margin:14px 0 6px;text-transform:capitalize;' +
-        'color:' + (estAuj ? 'var(--accent-text)' : 'var(--muted)') + ';';
-      t.textContent = libelleDate(cours.date);
-      zone.appendChild(t);
+      const estAuj = (cours.date === auj);
+      const estDem = (cours.date === dem);
+      const passe = cours.date && cours.date < auj;
+
+      /* Combien de cours ce jour-là : utile quand c'est replié */
+      const combien = liste.filter(x => x.date === cours.date).length;
+
+      tiroir = document.createElement('details');
+      tiroir.open = estAuj || estDem || passe;
+      tiroir.style.cssText = 'border:1px solid ' +
+        (estAuj ? 'var(--orange)' : 'var(--line)') +
+        ';border-radius:12px;padding:8px 12px;margin-bottom:8px;';
+
+      const titre = document.createElement('summary');
+      titre.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;' +
+        'text-transform:capitalize;padding:4px 0;color:' +
+        (passe ? 'var(--warn-text)' : estAuj ? 'var(--accent-text)' : 'var(--cream)') + ';';
+      titre.textContent = libelleDate(cours.date) + '  ·  ' + combien +
+        ' cours' + (passe ? '  ⚠️' : '');
+      tiroir.appendChild(titre);
+
+      zone.appendChild(tiroir);
     }
 
     const row = document.createElement('div');
@@ -332,7 +360,8 @@ async function afficherPrepares(recharger, silencieux){
     }
 
     row.appendChild(actions);
-    zone.appendChild(row);
+    /* Dans le tiroir du jour, pas dans la liste générale */
+    (tiroir || zone).appendChild(row);
   });
 }
 
