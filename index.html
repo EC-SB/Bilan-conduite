@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v349
+     VERSION APPLICATION : v350
      VERSION APPS SCRIPT REQUISE : v66
-     Mis à jour le : 11/08/2026 à 08:21
+     Mis à jour le : 11/08/2026 à 09:48
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -308,6 +308,32 @@
     border-top:1px solid var(--line);
     padding:4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
     box-shadow:0 -2px 14px rgba(0,0,0,.35);
+    /* La goutte se place par rapport à la barre */
+    position:fixed;
+  }
+
+  /* La goutte qui suit l'onglet actif. Elle glisse d'un onglet à
+     l'autre en s'étirant légèrement, comme un liquide entraîné par
+     le mouvement — d'où l'écrasement pendant le trajet. */
+  #barreOnglets .goutte{
+    position:absolute;
+    top:4px;
+    height:calc(100% - 8px - env(safe-area-inset-bottom, 0px));
+    border-radius:14px;
+    background:rgba(182,255,14,.13);
+    border:1px solid rgba(182,255,14,.30);
+    pointer-events:none;
+    opacity:0;
+    transform-origin:center;
+    transition:left .42s cubic-bezier(.62,-0.25,.35,1.25),
+               width .42s cubic-bezier(.62,-0.25,.35,1.25),
+               transform .42s cubic-bezier(.34,1.56,.64,1),
+               opacity .2s ease;
+    will-change:left, width, transform;
+  }
+  /* Étirée pendant le trajet, elle reprend sa forme à l'arrivée */
+  #barreOnglets .goutte.file{
+    transform:scaleX(1.16) scaleY(.86);
   }
   #barreOnglets .onglet{
     flex:1;
@@ -329,9 +355,28 @@
     transition:color .15s ease, background .15s ease;
   }
   #barreOnglets .onglet span{ font-size:19px; line-height:1; }
+  #barreOnglets .onglet{
+    position:relative;
+    z-index:1;
+  }
   #barreOnglets .onglet.actif{
     color:var(--accent-text);
-    background:rgba(182,255,14,.10);
+    /* Le fond est porté par la goutte, pas par le bouton */
+    background:none;
+  }
+  #barreOnglets .onglet.actif span{
+    animation:rebondOnglet .42s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes rebondOnglet{
+    0%{ transform:scale(1); }
+    45%{ transform:scale(1.22) translateY(-2px); }
+    100%{ transform:scale(1); }
+  }
+
+  /* Mouvement réduit : on respecte le réglage du système */
+  @media (prefers-reduced-motion: reduce){
+    #barreOnglets .goutte{ transition:opacity .2s ease; }
+    #barreOnglets .onglet.actif span{ animation:none; }
   }
   #barreOnglets .onglet[hidden]{ display:none; }
 
@@ -649,7 +694,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v349</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v350</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1669,36 +1714,36 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=349"></script>
-<script src="app/ec-modeles.js?v=349"></script>
-<script src="app/ec-consignes.js?v=349"></script>
-<script src="app/ec-noyau.js?v=349"></script>
-<script src="app/ec-vocal.js?v=349"></script>
-<script src="app/ec-reseau.js?v=349"></script>
-<script src="app/ec-manuel.js?v=349"></script>
-<script src="app/ec-fenetres.js?v=349"></script>
-<script src="app/ec-questionnaire.js?v=349"></script>
-<script src="app/ec-permis.js?v=349"></script>
-<script src="app/ec-prepares.js?v=349"></script>
-<script src="app/ec-bureau.js?v=349"></script>
-<script src="app/ec-places.js?v=349"></script>
-<script src="app/ec-listes.js?v=349"></script>
-<script src="app/ec-permis-listes.js?v=349"></script>
-<script src="app/ec-postpermis.js?v=349"></script>
-<script src="app/ec-textes.js?v=349"></script>
-<script src="app/ec-correction.js?v=349"></script>
-<script src="app/ec-bilans.js?v=349"></script>
-<script src="app/ec-taches.js?v=349"></script>
-<script src="app/ec-memoire.js?v=349"></script>
-<script src="app/ec-historique.js?v=349"></script>
-<script src="app/ec-rappels.js?v=349"></script>
-<script src="app/ec-sms.js?v=349"></script>
-<script src="app/ec-stats.js?v=349"></script>
-<script src="app/ec-messenger.js?v=349"></script>
-<script src="app/ec-journal.js?v=349"></script>
-<script src="app/ec-depart.js?v=349"></script>
-<script src="app/ec-onglets.js?v=349"></script>
-<script src="app/ec-demarrage.js?v=349"></script>
+  <script src="app/ec-etat.js?v=350"></script>
+<script src="app/ec-modeles.js?v=350"></script>
+<script src="app/ec-consignes.js?v=350"></script>
+<script src="app/ec-noyau.js?v=350"></script>
+<script src="app/ec-vocal.js?v=350"></script>
+<script src="app/ec-reseau.js?v=350"></script>
+<script src="app/ec-manuel.js?v=350"></script>
+<script src="app/ec-fenetres.js?v=350"></script>
+<script src="app/ec-questionnaire.js?v=350"></script>
+<script src="app/ec-permis.js?v=350"></script>
+<script src="app/ec-prepares.js?v=350"></script>
+<script src="app/ec-bureau.js?v=350"></script>
+<script src="app/ec-places.js?v=350"></script>
+<script src="app/ec-listes.js?v=350"></script>
+<script src="app/ec-permis-listes.js?v=350"></script>
+<script src="app/ec-postpermis.js?v=350"></script>
+<script src="app/ec-textes.js?v=350"></script>
+<script src="app/ec-correction.js?v=350"></script>
+<script src="app/ec-bilans.js?v=350"></script>
+<script src="app/ec-taches.js?v=350"></script>
+<script src="app/ec-memoire.js?v=350"></script>
+<script src="app/ec-historique.js?v=350"></script>
+<script src="app/ec-rappels.js?v=350"></script>
+<script src="app/ec-sms.js?v=350"></script>
+<script src="app/ec-stats.js?v=350"></script>
+<script src="app/ec-messenger.js?v=350"></script>
+<script src="app/ec-journal.js?v=350"></script>
+<script src="app/ec-depart.js?v=350"></script>
+<script src="app/ec-onglets.js?v=350"></script>
+<script src="app/ec-demarrage.js?v=350"></script>
 
 </body>
 </html>
