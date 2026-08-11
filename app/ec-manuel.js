@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 12:55 — v360 */
+/* Déployé le 11/08/2026 à 13:36 — v362 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -27,10 +27,7 @@ const THEMES_ERREURS = [
 
 const CHAMPS_MANUELS = {
   conduiteResume: [
-    { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
-    { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
-    { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
-    { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
+    { cle:'__entete', type:'entete', nom:'Début du bilan — décoche ce qui n\'a pas été fait' },
     { cle:'texteDicte',  type:'texte', nom:'🎙️ Ton cours', lignes:8,
       aide:'Ce que tu as dit pendant le cours. Peut rester vide.' },
     { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
@@ -39,10 +36,7 @@ const CHAMPS_MANUELS = {
     { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
   ],
   conduite: [
-    { cle:'carteSD',     type:'ok',    nom:'Carte SD',    defaut:'✅' },
-    { cle:'installation',type:'ok',    nom:'Installation',defaut:'✅' },
-    { cle:'passager',    type:'ok',    nom:'Passager',    defaut:'✅' },
-    { cle:'voyants',     type:'ok',    nom:'Voyants',     defaut:'✅' },
+    { cle:'__entete', type:'entete', nom:'Début du bilan — décoche ce qui n\'a pas été fait' },
     { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
     { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
     { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
@@ -323,11 +317,15 @@ async function ouvrirBilanManuel(){
     bloc.style.cssText = 'margin-bottom:16px;';
 
     if(ch.type === 'niveau' || ch.type === 'ouinon'){
+      bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
+        'align-items:center;flex-wrap:wrap;';
       const l = document.createElement('label');
       l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:140px;margin:0;font-size:14px;' +
+        'text-transform:none;color:var(--cream);';
       bloc.appendChild(l);
       const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:8px;';
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
       const choix = (ch.type === 'niveau')
         ? [['✅ Oui', 'oui'], ['❌ Pas le niveau', 'non'], ['—', '']]
         : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
@@ -369,17 +367,23 @@ async function ouvrirBilanManuel(){
       bloc.appendChild(r);
 
     }else if(ch.type === 'ok'){
-      /* Trois états : ✅ ❌ ou rien */
+      /* Trois états : ✅ ❌ ou rien. Compact et sur une seule ligne
+         avec son libellé : un bilan en compte une dizaine, et de
+         gros boutons empilés faisaient défiler pour rien. */
+      bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
+        'align-items:center;';
       const l = document.createElement('label');
       l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
+        'text-transform:none;color:var(--cream);';
       bloc.appendChild(l);
       const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:8px;';
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
       [['✅','✅'], ['❌','❌'], ['—','']].forEach(([lab, val]) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'btn btn-secondary';
-        b.style.cssText = 'flex:1;padding:14px;font-size:19px;margin:0;' +
+        b.style.cssText = 'width:auto;padding:7px 11px;font-size:15px;margin:0;' +
           'transition:transform .1s, background .1s;';
         b.textContent = lab;
         b.addEventListener('click', () => {
@@ -596,6 +600,94 @@ async function ouvrirBilanManuel(){
         apercu.appendChild(img);
         champsManuels[ch.cle] = f.name;
       });
+
+    }else if(ch.type === 'entete'){
+      /* La première partie du bilan, telle que l'élève la lira :
+         le moniteur coche dans le texte au lieu de répondre à une
+         suite de questions détachées de leur contexte. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const z = document.createElement('div');
+      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+        'border-radius:10px;padding:12px 13px;font-size:14px;line-height:1.55;';
+
+      const ligneCase = (cle, texte, apres) => {
+        const d = document.createElement('div');
+        d.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:5px 0;';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'enteteCase';
+        cb.setAttribute('data-cle', cle);
+        cb.checked = true;                 /* ✅ par défaut, comme avant */
+        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:2px;';
+        d.appendChild(cb);
+
+        const t = document.createElement('div');
+        t.style.cssText = 'flex:1;min-width:0;word-break:break-word;';
+        t.innerHTML = '<strong>' + texte + '</strong>' +
+          (apres ? '<div style="font-size:12px;color:var(--muted);' +
+                   'line-height:1.5;margin-top:2px;">' + apres + '</div>' : '');
+        d.appendChild(t);
+
+        z.appendChild(d);
+      };
+
+      ligneCase('carteSD', '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿',
+        "N'oublie pas de la regarder et si soucis demande nous !! (rappel, tous " +
+        'tes cours sont filmés, par une caméra avant et une arrière, avec le son ' +
+        'et les conseils des moniteurs, pour revoir tout ton cours de conduite, ' +
+        'avant de revenir à ton prochain cours).');
+      ligneCase('installation', '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣',
+        'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
+      ligneCase('passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', '');
+      ligneCase('voyants', '𝙑𝙤𝙮𝙖𝙣𝙩𝙨', '/2 points jour du permis');
+
+      /* Les vérifications : deux champs courts, pas des cases */
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0 8px;';
+      z.appendChild(sep);
+
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:2px;';
+      v.textContent = '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨';
+      z.appendChild(v);
+
+      const lien = document.createElement('div');
+      lien.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;' +
+        'word-break:break-all;';
+      lien.textContent = 'https://www.facebook.com/groups/864826058258637';
+      z.appendChild(lien);
+
+      const duo = document.createElement('div');
+      duo.style.cssText = 'display:flex;gap:10px;';
+      [['verifQuestion', 'Question n°', 'Ex : 12'],
+       ['verifNote', 'Note sur 3', 'Ex : 3']].forEach(([cle, lab, ph]) => {
+        const col = document.createElement('div');
+        col.style.cssText = 'flex:1;min-width:0;';
+        const e = document.createElement('label');
+        e.textContent = lab;
+        e.style.cssText = 'font-size:12px;margin-bottom:4px;text-transform:none;';
+        col.appendChild(e);
+        const i = document.createElement('input');
+        i.type = 'text';
+        i.className = 'enteteTexte';
+        i.setAttribute('data-cle', cle);
+        i.placeholder = ph;
+        i.style.cssText = 'margin:0;padding:9px 10px;font-size:15px;';
+        col.appendChild(i);
+        duo.appendChild(col);
+      });
+      z.appendChild(duo);
+
+      const pts = document.createElement('div');
+      pts.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
+      pts.textContent = '/3 points jour du permis';
+      z.appendChild(pts);
+
+      bloc.appendChild(z);
 
     }else if(ch.type === 'titre'){
       /* Un gros repère dans le formulaire : le moniteur retrouve
@@ -815,6 +907,15 @@ function lireChampsManuels(){
         if(s.value) cepc[s.getAttribute('data-comp')] = s.value;
       });
       champsManuels[ch.cle] = cepc;
+    }else if(ch.type === 'entete'){
+      /* Chaque case remplit sa propre clé du bilan */
+      document.querySelectorAll('.enteteCase').forEach(cb => {
+        champsManuels[cb.getAttribute('data-cle')] = cb.checked ? '✅' : '❌';
+      });
+      document.querySelectorAll('.enteteTexte').forEach(i => {
+        champsManuels[i.getAttribute('data-cle')] = i.value.trim();
+      });
+
     }else if(ch.type === 'observations'){
       const obs = [];
       document.querySelectorAll('#obsManuel > div').forEach(d => {
