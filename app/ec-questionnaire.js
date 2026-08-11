@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 07:18 — v346 */
+/* Déployé le 11/08/2026 à 14:09 — v365 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1214,8 +1214,24 @@ function choisirDate(titre){
 
 
 /* Date ISO -> texte lisible en français */
-function dateEnToutesLettres(iso){
-  const d = new Date(iso + 'T12:00:00');
+function dateEnToutesLettres(valeur){
+  const t = String(valeur || '').trim();
+  if(!t) return '';
+
+  /* Le format français est accepté aussi : les dates relues d'une
+     feuille Sheets ressortent en « 11/08/2026 », et y ajouter
+     « T12:00:00 » donnait une date invalide. */
+  let iso = t;
+  const fr = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if(fr){
+    iso = fr[3] + '-' + ('0' + fr[2]).slice(-2) + '-' + ('0' + fr[1]).slice(-2);
+  }else if(!/^\d{4}-\d{2}-\d{2}/.test(iso)){
+    return t;                       /* forme inconnue : on rend tel quel */
+  }
+
+  const d = new Date(iso.slice(0, 10) + 'T12:00:00');
+  if(isNaN(d.getTime())) return t;
+
   return d.toLocaleDateString('fr-FR', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
