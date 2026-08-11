@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 11:35 — v355 */
+/* Déployé le 11/08/2026 à 11:54 — v356 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -619,11 +619,12 @@ function buildExamenBlanc(ai, ctx){
   L("N'oublie pas de la regarder et si tu as un souci, contacte-nous !");
   L('💡Rappel, tous tes cours sont filmés, par une caméra avant et arrière, avec le son et les conseils des moniteurs, pour revoir tout ton cours de conduite, avant de revenir à ton prochain cours !');
   L('');
-  L('𝟭-𝟮. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(av.installation) + ' ');
-  L('https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
-  L('𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ' + st(av.passager));
-  L('𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ' + st(av.voyants));
-  L('𝙉𝙤𝙩𝙚 :  /2 ');
+  /* Le bloc est repris tel que le moniteur l'a laissé : c'est lui
+     qui efface l'émoji qui ne convient pas. */
+  L('𝟭-𝟮. ' + (txt(av.installation) ||
+    '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ✅❌\n' +
+    'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/\n' +
+    '𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ✅❌\n𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ✅❌\n𝙉𝙤𝙩𝙚 :  /2'));
   L('');
   L("𝟭-𝟯. 𝙀𝙧𝙧𝙚𝙪𝙧𝙨 𝙦𝙪𝙚 𝙩𝙪 𝙖𝙨 𝙛𝙖𝙞𝙩𝙚𝙨 𝙚𝙣 𝙖𝙡𝙡𝙖𝙣𝙩 𝙖𝙪 𝙘𝙚𝙣𝙩𝙧𝙚 𝙙'𝙚𝙭𝙖𝙢𝙚𝙣 :");
   L('');
@@ -638,15 +639,15 @@ function buildExamenBlanc(ai, ctx){
   L('━━━━━━━━━━━━━━━━━━');
   L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : l'examen blanc consiste à se mettre en conditions réelles d'examen ! L'enseignant N'EST PLUS enseignant MAIS inspecteur du permis de conduire 👮");
   L('');
-  L('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(ex.installation));
-  if(txt(ex.remarqueInstallation)) L('❌ ' + txt(ex.remarqueInstallation));
-  L('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧' + st(ex.passager));
-  L('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + st(ex.voyants));
-  L('𝙉𝙤𝙩𝙚 :  /2 ');
+  L(txt(ex.installation) ||
+    ('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ✅❌\n' +
+     '❌ Tu as oublié de dire : "c\'est moi qui ai emmené le véhicule, ' +
+     'j\'ai déjà fait mes réglages"\n' +
+     '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ✅❌\n𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ✅❌\n𝙉𝙤𝙩𝙚 :  /2'));
   L('');
-  L('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion));
-  L('𝙉𝙤𝙩𝙚 :  /3');
-  L('https://www.facebook.com/groups/864826058258637');
+  L(txt(ex.verifications) ||
+    ('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion) +
+     '\n𝙉𝙤𝙩𝙚 :  /3\nhttps://www.facebook.com/groups/864826058258637'));
   L(' ');
   L('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
   L('');
@@ -693,13 +694,14 @@ function buildExamenBlanc(ai, ctx){
   L('𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦');
   L('━━━━━━━━━━━━━━━━━━');
   L('');
+  /* Cinq blocs complets, même vides : le moniteur a son repère
+     visuel et remplit dans la structure au lieu de la recréer. */
   const bil = ligneParLigne(ai.bilanErreurs);
   for(let i = 0; i < Math.max(bil.length, 5); i++){
     L('👉 ' + (bil[i] || ''));
     L("- qu'en penses-tu ?");
     L('- quelles sont TES solutions ?');
     L('- ce que je te PROPOSE : ');
-    L('');
     L('');
   }
 
