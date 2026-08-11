@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 09:48 — v350 */
+/* Déployé le 11/08/2026 à 10:11 — v351 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -251,43 +251,46 @@ function ouvrirLeBonTiroirDuJour(){
 
 
 /* ============================================================
-   LA GOUTTE DE NAVIGATION
+   LE CERCLE DE NAVIGATION
 
-   Un repère qui glisse d'un onglet à l'autre plutôt que de
-   sauter. Il s'étire pendant le trajet et reprend sa forme à
-   l'arrivée : le mouvement dit d'où l'on vient.
+   L'icône de l'onglet actif monte dans un cercle posé à cheval
+   sur le bord de la barre, qui se creuse en dessous. Le libellé
+   reste en place : on lit toujours le nom des cinq onglets.
    ============================================================ */
-let minuteurGoutte = null;
+let minuteurPastille = null;
 
 function deplacerGoutte(bouton){
   const barre = $('barreOnglets');
   if(!barre || !bouton) return;
 
-  let goutte = barre.querySelector('.goutte');
-  if(!goutte){
-    goutte = document.createElement('div');
-    goutte.className = 'goutte';
-    barre.insertBefore(goutte, barre.firstChild);
+  let pastille = barre.querySelector('.pastille');
+  if(!pastille){
+    pastille = document.createElement('div');
+    pastille.className = 'pastille';
+    barre.insertBefore(pastille, barre.firstChild);
   }
 
   /* Les positions se mesurent après affichage : un onglet caché
-     n'a pas de largeur, et la goutte se poserait à côté. */
+     n'a pas de largeur, et le cercle se poserait à côté. */
   const b = bouton.getBoundingClientRect();
   const p = barre.getBoundingClientRect();
   if(!b.width) return;
 
-  const gauche = b.left - p.left;
-  const arrive = Math.abs(parseFloat(goutte.style.left || '0') - gauche) < 1;
+  const centre = b.left - p.left + b.width / 2;
+  const gauche = centre - 26;                 /* moitié du cercle */
+  const arrive = Math.abs(parseFloat(pastille.style.left || '-999') - gauche) < 1;
 
-  goutte.style.left = gauche + 'px';
-  goutte.style.width = b.width + 'px';
-  goutte.style.opacity = '1';
+  pastille.style.left = gauche + 'px';
+  pastille.style.opacity = '1';
 
-  /* L'étirement, seulement si elle se déplace vraiment */
+  /* L'échancrure suit le même centre que le cercle */
+  barre.style.setProperty('--creux-x', centre + 'px');
+
+  /* L'étirement, seulement si le cercle se déplace vraiment */
   if(!arrive){
-    goutte.classList.add('file');
-    clearTimeout(minuteurGoutte);
-    minuteurGoutte = setTimeout(() => goutte.classList.remove('file'), 300);
+    pastille.classList.add('file');
+    clearTimeout(minuteurPastille);
+    minuteurPastille = setTimeout(() => pastille.classList.remove('file'), 300);
   }
 }
 
