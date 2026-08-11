@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:24 — v367 */
+/* Déployé le 11/08/2026 à 14:34 — v368 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -17,7 +17,7 @@ const SECTIONS_ONGLET = {
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'taches', 'memoire', 'historique', 'admin']
+           'sms', 'stats', 'notifs', 'taches', 'memoire', 'historique', 'admin']
 };
 
 let ongletActif = '';
@@ -132,6 +132,7 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
+           ['notifs',     '🔔 Alertes',                 'notifs'],
            ['taches',     '✅ Tâches',                  'taches'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
            ['historique', '📚 Historique des cours',    'historique'],
@@ -227,9 +228,11 @@ function reveillerVue(cle){
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
+    notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
+    notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
