@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:55 — v370 */
+/* Déployé le 11/08/2026 à 15:41 — v373 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -98,6 +98,22 @@ function reprendreCours(){
     $('recordView').style.display = 'none';
     $('resultView').style.display = 'block';
   }
+
+  /* Les métadonnées du cours se reconstruisent : sans elles, un
+     bilan repris après un rechargement partait dans Sheets avec la
+     date, le site et l'élève vides. */
+  const mod = MODELES[s.modele] || {};
+  currentLessonMeta = {
+    modeleLabel: mod.label || '',
+    studentName: s.eleve || '',
+    monitorName: s.moniteur || ACCES.moniteur || '',
+    site: s.site || '',
+    dateStr: s.date || '',
+    dateCourte: (typeof dateCourteDuJour === 'function')
+      ? dateCourteDuJour(s.date || '') : '',
+    noteInterne: s.note || '',
+    ts: s.ts || Date.now()
+  };
 
   $('repriseBanner').style.display = 'none';
   showToast('Cours récupéré ✅');
