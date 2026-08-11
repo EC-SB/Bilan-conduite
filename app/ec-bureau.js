@@ -1,4 +1,4 @@
-/* Déployé le 07/08/2026 à 11:40 — v290 */
+/* Déployé le 11/08/2026 à 14:24 — v367 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -374,6 +374,31 @@ async function afficherBureau(silencieux){
   const prevus = afficherPermisPrevus(tous);
   await afficherPostExamenDepuisPrevus(tous, prevus);
   afficherExamensPermis(tous);
+
+  /* Le compte de ce qui attend une décision du bureau */
+  majAlerteSuivi(tous);
+}
+
+/* Ce qu'un moniteur a signalé « à prévoir » et que personne n'a
+   encore programmé : examen blanc, simulateur nuit et risques,
+   date d'examen du permis. */
+function compterAPrevoir(eleves){
+  let n = 0;
+  (eleves || []).forEach(e => {
+    const a = analyserNote(e.note || '');
+    if(a.examBlanc === 'aprevoir') n++;
+    if(a.simuNuit === 'aprevoir') n++;
+    if(a.permis === 'aprevoir') n++;
+  });
+  return n;
+}
+
+function majAlerteSuivi(eleves){
+  if(typeof poserAlerte !== 'function') return;
+  /* Seuls ceux qui peuvent agir voient l'alerte */
+  const concerne = (typeof aDroit === 'function') &&
+                   (aDroit('bureau_simu') || aDroit('bureau_examblanc'));
+  poserAlerte('suivi', concerne ? compterAPrevoir(eleves) : 0);
 }
 
 /* Message d'erreur, avec la possibilité de réessayer */
@@ -754,6 +779,19 @@ function boutonMenage(eleve, zoneParente){
   });
 
   return b;
+}
+
+/* La pastille doit apparaître SANS ouvrir l'onglet : on lit les
+   élèves une fois à la connexion, en tâche de fond. Sans ça,
+   personne ne verrait l'alerte avant d'aller la chercher. */
+async function verifierAPrevoirEnFond(){
+  if(typeof aDroit !== 'function') return;
+  if(!aDroit('bureau_simu') && !aDroit('bureau_examblanc')) return;
+
+  try{
+    await chargerBureau(false);
+    majAlerteSuivi(etatBureau.eleves);
+  }catch(e){ /* hors ligne : pas d'alerte, pas de message d'erreur */ }
 }
 
 /* Signale que ce module est bien chargé */
