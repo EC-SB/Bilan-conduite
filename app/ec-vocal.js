@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 07:18 — v346 */
+/* Déployé le 11/08/2026 à 08:04 — v348 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -82,6 +82,10 @@ const CORRECTIONS = [
   [/\b(?:en\s+)?(?:faut?e?s?|fote?s?)\s+de\s+d[ée]tresse\b/gi,
    'en feux de détresse'],
   [/\bfeu\s+de\s+d[ée]tresse\b/gi, 'feux de détresse'],
+
+  /* « mets la procédure » entendu « mais la procédure » : on
+     rétablit le verbe, pour que le texte du cours reste juste. */
+  [/\b(?:mais|mes|m[ée])\s+la\s+proc[ée]dure\b/gi, 'mets la procédure'],
 
   /* Deux confusions relevées sur de vrais cours */
   [/\bla\s+pluie\s+t[êe]te\b/gi, "l'appui-tête"],
@@ -749,7 +753,13 @@ function proceduresDemandees(texte){
 
   /* « mets la procédure du créneau », « ajoute la procédure
      demi-tour », « procédure de l'arrêt de précision » */
-  const motif = /(?:mets?|ajoute|colle|rajoute|donne)\s+(?:lui\s+)?la\s+proc[ée]dure\s+(?:du?|de la|de l'|des?|d')?\s*([^.!?\n,]{2,60})/gi;
+  /* « mets » est très souvent transcrit « mais », « met » ou « mes » :
+     ce sont les mêmes sons. On les accepte tous, la suite « la
+     procédure » lève toute ambiguïté. */
+  const motif = new RegExp(
+    '(?:mets?|mais|mes|m[ée]|ajoutes?|colles?|rajoutes?|donnes?|balances?|envoies?)' +
+    "\\s+(?:lui\\s+)?(?:moi\\s+)?la\\s+proc[ée]dure\\s+(?:du?|de la|de l'|des?|d')?\\s*" +
+    '([^.!?\\n,]{2,60})', 'gi');
   let m;
   while((m = motif.exec(t)) !== null){
     /* On s'arrête au premier enchaînement : « la procédure du
