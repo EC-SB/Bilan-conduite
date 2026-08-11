@@ -2,15 +2,15 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v360
-     VERSION APPS SCRIPT REQUISE : v66
-     Mis à jour le : 11/08/2026 à 13:02
+     VERSION APPLICATION : v361
+     VERSION APPS SCRIPT REQUISE : v67
+     Mis à jour le : 11/08/2026 à 13:10
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
      recharge en forçant (Ctrl+Maj+R).
 
-     Ce fichier appelle 30 modules dans le dossier app/.
+     Ce fichier appelle 31 modules dans le dossier app/.
      S'il en manque un, un bandeau rouge le signale au démarrage.
      ============================================================ -->
 <html lang="fr">
@@ -715,7 +715,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v360</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v361</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1120,7 +1120,9 @@
     </div>
   </div>
   </div>
-  <div class="card" data-section="bureau" data-onglet="suivi">
+  <div class="barre-vues" data-pour="suivi" style="display:none;"></div>
+
+  <div class="card" data-section="bureau" data-vue="simu" data-onglet="suivi">
     <h2 class="section-title">🌙 Suivi simulateurs et examens blancs</h2>
     <div class="contenu-tiroir">
     <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
@@ -1183,6 +1185,17 @@
     </details>
     </div>
 
+    </div>
+  </div>
+
+
+  <div class="card" data-section="ecoutes" data-vue="ecoutes" data-onglet="suivi">
+    <h2 class="section-title">👂 Écoutes pédagogiques</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Qui ne réserve pas d'écoutes, et qui réserve sans venir.
+      </div>
+      <div id="ecoutesZone"><div class="empty">Chargement…</div></div>
     </div>
   </div>
 
@@ -1735,36 +1748,37 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=360"></script>
-<script src="app/ec-modeles.js?v=360"></script>
-<script src="app/ec-consignes.js?v=360"></script>
-<script src="app/ec-noyau.js?v=360"></script>
-<script src="app/ec-vocal.js?v=360"></script>
-<script src="app/ec-reseau.js?v=360"></script>
-<script src="app/ec-manuel.js?v=360"></script>
-<script src="app/ec-fenetres.js?v=360"></script>
-<script src="app/ec-questionnaire.js?v=360"></script>
-<script src="app/ec-permis.js?v=360"></script>
-<script src="app/ec-prepares.js?v=360"></script>
-<script src="app/ec-bureau.js?v=360"></script>
-<script src="app/ec-places.js?v=360"></script>
-<script src="app/ec-listes.js?v=360"></script>
-<script src="app/ec-permis-listes.js?v=360"></script>
-<script src="app/ec-postpermis.js?v=360"></script>
-<script src="app/ec-textes.js?v=360"></script>
-<script src="app/ec-correction.js?v=360"></script>
-<script src="app/ec-bilans.js?v=360"></script>
-<script src="app/ec-taches.js?v=360"></script>
-<script src="app/ec-memoire.js?v=360"></script>
-<script src="app/ec-historique.js?v=360"></script>
-<script src="app/ec-rappels.js?v=360"></script>
-<script src="app/ec-sms.js?v=360"></script>
-<script src="app/ec-stats.js?v=360"></script>
-<script src="app/ec-messenger.js?v=360"></script>
-<script src="app/ec-journal.js?v=360"></script>
-<script src="app/ec-depart.js?v=360"></script>
-<script src="app/ec-onglets.js?v=360"></script>
-<script src="app/ec-demarrage.js?v=360"></script>
+  <script src="app/ec-etat.js?v=361"></script>
+<script src="app/ec-modeles.js?v=361"></script>
+<script src="app/ec-consignes.js?v=361"></script>
+<script src="app/ec-noyau.js?v=361"></script>
+<script src="app/ec-vocal.js?v=361"></script>
+<script src="app/ec-reseau.js?v=361"></script>
+<script src="app/ec-manuel.js?v=361"></script>
+<script src="app/ec-fenetres.js?v=361"></script>
+<script src="app/ec-questionnaire.js?v=361"></script>
+<script src="app/ec-permis.js?v=361"></script>
+<script src="app/ec-prepares.js?v=361"></script>
+<script src="app/ec-bureau.js?v=361"></script>
+<script src="app/ec-places.js?v=361"></script>
+<script src="app/ec-listes.js?v=361"></script>
+<script src="app/ec-permis-listes.js?v=361"></script>
+<script src="app/ec-postpermis.js?v=361"></script>
+<script src="app/ec-textes.js?v=361"></script>
+<script src="app/ec-correction.js?v=361"></script>
+<script src="app/ec-bilans.js?v=361"></script>
+<script src="app/ec-ecoutes.js?v=361"></script>
+<script src="app/ec-taches.js?v=361"></script>
+<script src="app/ec-memoire.js?v=361"></script>
+<script src="app/ec-historique.js?v=361"></script>
+<script src="app/ec-rappels.js?v=361"></script>
+<script src="app/ec-sms.js?v=361"></script>
+<script src="app/ec-stats.js?v=361"></script>
+<script src="app/ec-messenger.js?v=361"></script>
+<script src="app/ec-journal.js?v=361"></script>
+<script src="app/ec-depart.js?v=361"></script>
+<script src="app/ec-onglets.js?v=361"></script>
+<script src="app/ec-demarrage.js?v=361"></script>
 
 </body>
 </html>
