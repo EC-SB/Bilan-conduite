@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:34 — v368 */
+/* Déployé le 11/08/2026 à 14:54 — v370 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -17,7 +17,7 @@ const SECTIONS_ONGLET = {
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
-           'sms', 'stats', 'notifs', 'taches', 'memoire', 'historique', 'admin']
+           'stats', 'notifs', 'taches', 'memoire', 'historique', 'admin']
 };
 
 let ongletActif = '';
@@ -136,7 +136,6 @@ const VUES = {
            ['taches',     '✅ Tâches',                  'taches'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
            ['historique', '📚 Historique des cours',    'historique'],
-           ['sms',        '💬 SMS',                    'sms'],
            ['stats',      '📈 Réussite',               'stats'],
            ['journal',    '📊 Journal',                'journal'],
            ['admin',      '⚙️ Accès',                  'admin']]
@@ -222,7 +221,6 @@ function reveillerVue(cle){
     textes:     () => afficherModelesTexte(),
     procedures: () => afficherProcedures(),
     bilans:     () => afficherTextesBilan(),
-    sms:        () => chargerCadreSms(),
     stats:      () => afficherStats(),
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
     admin:      () => chargerUtilisateurs(),
@@ -330,6 +328,29 @@ function poserAlerte(onglet, nombre){
   }
   p.textContent = (nombre > 99) ? '99+' : String(nombre);
   p.title = nombre + ' à prévoir';
+}
+
+/* Un compte affiché sur un bouton de sous-onglet : le nombre de
+   tâches se voit sans ouvrir la vue. */
+function poserCompteVue(onglet, cle, nombre){
+  const b = document.querySelector('.barre-vues[data-pour="' + onglet + '"] ' +
+                                   'button[data-vue-cible="' + cle + '"]');
+  if(!b) return;
+
+  let p = b.querySelector('.compte-vue');
+  if(!nombre){
+    if(p) p.remove();
+    return;
+  }
+  if(!p){
+    p = document.createElement('span');
+    p.className = 'compte-vue';
+    p.style.cssText = 'display:inline-block;margin-left:6px;min-width:18px;' +
+      'padding:0 5px;border-radius:9px;background:var(--orange);color:#0B0B0B;' +
+      'font-size:11px;font-weight:800;line-height:18px;text-align:center;';
+    b.appendChild(p);
+  }
+  p.textContent = (nombre > 99) ? '99+' : String(nombre);
 }
 
 /* Signale que ce module est bien chargé */
