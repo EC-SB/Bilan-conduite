@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:45 — v338 */
+/* Déployé le 11/08/2026 à 07:18 — v346 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -909,6 +909,27 @@ async function afficherFicheDuCours(){
   aide.textContent = "Facultatif : ce que tu dictes est déjà repris tout seul. " +
     "Ces cases servent à compléter ce que l'enregistrement aurait manqué.";
   d.appendChild(aide);
+
+  /* Tout cocher d'un coup : quand la fiche est bouclée, cocher
+     dix-neuf cases une par une n'a pas de sens. */
+  const tout = document.createElement('label');
+  tout.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0 8px;' +
+    'font-size:14px;text-transform:none;margin:0 0 6px;font-weight:700;' +
+    'color:var(--accent-text);border-bottom:1px solid var(--line);';
+  const cbTout = document.createElement('input');
+  cbTout.type = 'checkbox';
+  cbTout.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
+  cbTout.addEventListener('change', () => {
+    /* Les manœuvres déjà acquises restent verrouillées */
+    d.querySelectorAll('.mCours:not(:disabled)').forEach(x => {
+      x.checked = cbTout.checked;
+    });
+  });
+  tout.appendChild(cbTout);
+  const tt = document.createElement('span');
+  tt.textContent = 'Tout cocher';
+  tout.appendChild(tt);
+  d.appendChild(tout);
 
   (BLOC.ficheListeConduite || []).forEach(libelle => {
     const cle = normaliserMot(libelle);
