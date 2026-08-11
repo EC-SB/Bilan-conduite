@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 08:07 — v348 */
+/* Déployé le 11/08/2026 à 11:36 — v355 */
 /* ============================================================
    ec-consignes.js
    Consignes données à l'IA pour produire un bilan
