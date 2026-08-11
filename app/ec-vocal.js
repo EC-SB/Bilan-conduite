@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 15:33 — v372 */
+/* Déployé le 11/08/2026 à 15:53 — v374 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -524,6 +524,12 @@ $('confirmGen').addEventListener('click', async () => {
     /* Les procédures réclamées à la voix, recopiées en fin de bilan */
     bilan += blocProcedures(coursCorrige);
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
+
+    /* L'examen blanc a sa grille de compétences : on la propose en
+       image, le bilan lui-même ne pouvant contenir que du texte. */
+    if(typeof proposerImageCepc === 'function' && donnees.cepc){
+      proposerImageCepc(donnees.cepc, donnees.observations, studentName);
+    }
     $('resultText').value = bilan;
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
     if(dernierEchecCorrection){
