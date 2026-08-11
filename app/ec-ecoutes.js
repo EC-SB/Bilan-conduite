@@ -9,6 +9,19 @@
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
+/* Le message envoyé à un élève qui n'est pas venu. Texte fixe,
+   fourni par l'auto-école, modifiable avant chaque envoi. */
+const TEXTE_ABSENCE_ECOUTE =
+  "Bonjour, tu avais réservé de l'écoute pédagogique !\n" +
+  '\n' +
+  "Tu n'es pas venu à l\u2019écoute pédagogique que tu as réservé tu prends la " +
+  "place d'un autre élève qui aurai bien aimé venir en écoute 😡😡😡\n" +
+  '\n' +
+  'Un paiement de 5 euros TTC te sera facturé pour non présentation sans avoir ' +
+  'prévenu. \n' +
+  'https://m.facebook.com/groups/174715876519873/permalink/1205199580138159/';
+
+
 let ecoutesSans = [];
 let ecoutesAbsents = [];
 
@@ -41,12 +54,51 @@ async function afficherEcoutes(){
     '<label for="ecEleve">Élève</label>' +
     '<input type="text" id="ecEleve" list="listeEleves" autocomplete="off" ' +
       'placeholder="Prénom et nom">' +
-    '<div class="duo">' +
-      '<div><label for="ecDate">Date du rendez-vous</label>' +
-        '<input type="date" id="ecDate"></div>' +
-      '<div><label for="ecHeure">Heure</label>' +
-        '<input type="time" id="ecHeure"></div>' +
+    '<label for="ecDate">Date du rendez-vous manqué</label>' +
+    '<input type="date" id="ecDate">' +
+
+    /* Le SMS n'est pas automatique : le moniteur décide, et relit
+       le texte avant de l'envoyer. */
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin:6px 0 8px;font-weight:400;">' +
+      '<input type="checkbox" id="ecSms" style="width:19px;height:19px;">' +
+      '📱 Le prévenir par SMS</label>' +
+    '<div id="ecBlocSms" style="display:none;">' +
+      '<textarea id="ecTexte" rows="10" ' +
+        'style="width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:14px;' +
+        'line-height:1.55;font-family:inherit;resize:vertical;margin-bottom:4px;"></textarea>' +
+      '<div id="ecCompteur" style="font-size:11px;color:var(--muted);' +
+        'margin-bottom:8px;"></div>' +
     '</div>';
+
+  /* La date du jour par défaut : une absence se signale le jour même */
+  const champDate = f.querySelector('#ecDate');
+  if(champDate) champDate.value = todayLocal();
+
+  /* Le texte, modifiable avant envoi */
+  const caseSms = f.querySelector('#ecSms');
+  const blocSms = f.querySelector('#ecBlocSms');
+  const champTexte = f.querySelector('#ecTexte');
+  if(champTexte) champTexte.value = TEXTE_ABSENCE_ECOUTE;
+
+  const majCompteurSms = () => {
+    const cp = f.querySelector('#ecCompteur');
+    if(!cp || !champTexte) return;
+    const n = champTexte.value.length;
+    const parts = (typeof decouperMessage === 'function')
+      ? decouperMessage(champTexte.value, LIMITE_SMS).length
+      : Math.ceil(n / 160);
+    cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
+    cp.textContent = n + ' caractères — ' + parts + ' SMS';
+  };
+  if(champTexte) champTexte.addEventListener('input', majCompteurSms);
+  if(caseSms){
+    caseSms.addEventListener('change', () => {
+      blocSms.style.display = caseSms.checked ? 'block' : 'none';
+      if(caseSms.checked) majCompteurSms();
+    });
+  }
 
   const bAbs = document.createElement('button');
   bAbs.className = 'btn btn-primary';
@@ -61,16 +113,33 @@ async function afficherEcoutes(){
     }
     if(!date){ showToast('Indique la date du rendez-vous.'); return; }
 
+    /* Le numéro d'abord : inutile d'enregistrer si le SMS demandé
+       ne peut pas partir. */
+    const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+    const tel = (fiche && fiche.telephone) || '';
+    if(caseSms.checked && !tel){
+      showToast("Pas de numéro sur sa fiche : le SMS ne peut pas partir.");
+      return;
+    }
+
     bAbs.disabled = true;
     bAbs.textContent = 'Enregistrement…';
     try{
       await appelPrep({ action: 'ecouteSet', type: 'absent', eleve: nom,
-                        dateRdv: date, heureRdv: $('ecHeure').value,
-                        par: ACCES.moniteur || '' });
-      showToast('Absence enregistrée ✅');
+                        dateRdv: date, par: ACCES.moniteur || '' });
+
+      if(caseSms.checked){
+        bAbs.textContent = 'Envoi du SMS…';
+        const n = await envoyerMessageComplet(tel, champTexte.value.trim(), nom);
+        showToast('Absence enregistrée · ' + (n > 1 ? n + ' SMS envoyés' : 'SMS envoyé') + ' ✅');
+      }else{
+        showToast('Absence enregistrée ✅');
+      }
       afficherEcoutes();
     }catch(e){
-      showToast('Impossible : ' + e.message);
+      /* L'absence est enregistrée même si le SMS échoue : c'est le
+         suivi qui compte, le message peut se renvoyer. */
+      showToast('Absence notée, mais SMS impossible : ' + e.message);
       bAbs.disabled = false;
       bAbs.textContent = '💾 Enregistrer l\'absence';
     }
