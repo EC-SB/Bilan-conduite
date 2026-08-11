@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:34 — v368 */
+/* Déployé le 11/08/2026 à 14:54 — v370 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -39,7 +39,6 @@ const SECTIONS = [
   { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
-  { cle:'sms',              nom:'💬 Envoi de SMS' },
   { cle:'stats',            nom:'📈 Taux de réussite' },
   { cle:'eleves',           nom:'👥 Répertoire des élèves' },
   { cle:'rappels',          nom:'🔔 Rappels de cours par SMS' },
