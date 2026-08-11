@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v345
+     VERSION APPLICATION : v346
      VERSION APPS SCRIPT REQUISE : v66
-     Mis à jour le : 10/08/2026 à 14:50
+     Mis à jour le : 11/08/2026 à 07:18
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -649,7 +649,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v345</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v346</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -815,6 +815,10 @@
       <div id="historiqueEleve" style="display:none;margin-bottom:14px;"></div>
       <!-- Ce qui a été préparé pour ce cours, s'il y a une préparation -->
       <div id="preparationEleve" style="display:none;margin-bottom:14px;"></div>
+      <!-- Ce que le moniteur vient de renseigner au questionnaire.
+           Sa propre zone : celle de la préparation est effacée quand
+           il n'y a pas de préparation, ce qui l'emportait avec. -->
+      <div id="saisieDuJour" style="display:none;margin-bottom:14px;"></div>
 
       <label for="eleveMessenger">💬 Messenger de l'élève</label>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -1665,36 +1669,36 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=345"></script>
-<script src="app/ec-modeles.js?v=345"></script>
-<script src="app/ec-consignes.js?v=345"></script>
-<script src="app/ec-noyau.js?v=345"></script>
-<script src="app/ec-vocal.js?v=345"></script>
-<script src="app/ec-reseau.js?v=345"></script>
-<script src="app/ec-manuel.js?v=345"></script>
-<script src="app/ec-fenetres.js?v=345"></script>
-<script src="app/ec-questionnaire.js?v=345"></script>
-<script src="app/ec-permis.js?v=345"></script>
-<script src="app/ec-prepares.js?v=345"></script>
-<script src="app/ec-bureau.js?v=345"></script>
-<script src="app/ec-places.js?v=345"></script>
-<script src="app/ec-listes.js?v=345"></script>
-<script src="app/ec-permis-listes.js?v=345"></script>
-<script src="app/ec-postpermis.js?v=345"></script>
-<script src="app/ec-textes.js?v=345"></script>
-<script src="app/ec-correction.js?v=345"></script>
-<script src="app/ec-bilans.js?v=345"></script>
-<script src="app/ec-taches.js?v=345"></script>
-<script src="app/ec-memoire.js?v=345"></script>
-<script src="app/ec-historique.js?v=345"></script>
-<script src="app/ec-rappels.js?v=345"></script>
-<script src="app/ec-sms.js?v=345"></script>
-<script src="app/ec-stats.js?v=345"></script>
-<script src="app/ec-messenger.js?v=345"></script>
-<script src="app/ec-journal.js?v=345"></script>
-<script src="app/ec-depart.js?v=345"></script>
-<script src="app/ec-onglets.js?v=345"></script>
-<script src="app/ec-demarrage.js?v=345"></script>
+  <script src="app/ec-etat.js?v=346"></script>
+<script src="app/ec-modeles.js?v=346"></script>
+<script src="app/ec-consignes.js?v=346"></script>
+<script src="app/ec-noyau.js?v=346"></script>
+<script src="app/ec-vocal.js?v=346"></script>
+<script src="app/ec-reseau.js?v=346"></script>
+<script src="app/ec-manuel.js?v=346"></script>
+<script src="app/ec-fenetres.js?v=346"></script>
+<script src="app/ec-questionnaire.js?v=346"></script>
+<script src="app/ec-permis.js?v=346"></script>
+<script src="app/ec-prepares.js?v=346"></script>
+<script src="app/ec-bureau.js?v=346"></script>
+<script src="app/ec-places.js?v=346"></script>
+<script src="app/ec-listes.js?v=346"></script>
+<script src="app/ec-permis-listes.js?v=346"></script>
+<script src="app/ec-postpermis.js?v=346"></script>
+<script src="app/ec-textes.js?v=346"></script>
+<script src="app/ec-correction.js?v=346"></script>
+<script src="app/ec-bilans.js?v=346"></script>
+<script src="app/ec-taches.js?v=346"></script>
+<script src="app/ec-memoire.js?v=346"></script>
+<script src="app/ec-historique.js?v=346"></script>
+<script src="app/ec-rappels.js?v=346"></script>
+<script src="app/ec-sms.js?v=346"></script>
+<script src="app/ec-stats.js?v=346"></script>
+<script src="app/ec-messenger.js?v=346"></script>
+<script src="app/ec-journal.js?v=346"></script>
+<script src="app/ec-depart.js?v=346"></script>
+<script src="app/ec-onglets.js?v=346"></script>
+<script src="app/ec-demarrage.js?v=346"></script>
 
 </body>
 </html>
