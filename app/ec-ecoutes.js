@@ -80,7 +80,13 @@ async function afficherEcoutes(){
   const caseSms = f.querySelector('#ecSms');
   const blocSms = f.querySelector('#ecBlocSms');
   const champTexte = f.querySelector('#ecTexte');
-  if(champTexte) champTexte.value = TEXTE_ABSENCE_ECOUTE;
+  /* Signé du moniteur qui envoie : l'élève doit savoir à qui il a
+     affaire, et le message n'arrive pas d'un expéditeur anonyme. */
+  if(champTexte){
+    champTexte.value = TEXTE_ABSENCE_ECOUTE +
+      (ACCES.moniteur ? '\n\n' + ACCES.moniteur +
+        (ACCES.emoji ? ' ' + ACCES.emoji : '') : '');
+  }
 
   const majCompteurSms = () => {
     const cp = f.querySelector('#ecCompteur');
