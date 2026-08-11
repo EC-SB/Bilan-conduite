@@ -1,3 +1,4 @@
+/* Déployé le 11/08/2026 à 14:33 — v368 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -8,13 +9,15 @@ function afficherExamensBlancs(tous){
   const zEB = $('listeExamBlanc');
   if(!zEB) return;
 
-  const eb = tous.filter(e => (e.etat.examBlanc === 'aprevoir' || e.etat.examBlanc === 'reserve') &&
+  /* Réservé = date posée : il sort de la liste des choses à faire. */
+  const eb = tous.filter(e => e.etat.examBlanc === 'aprevoir' &&
                               e.etat.ebSuite !== 'pasleniveau');
   eb.sort((a, b) => (a.etat.examBlancN === null ? 99 : a.etat.examBlancN) -
                     (b.etat.examBlancN === null ? 99 : b.etat.examBlancN));
   zEB.innerHTML = '';
   if(!eb.length){
-    zEB.innerHTML = '<div class="empty">Aucun examen blanc à prévoir.</div>';
+    zEB.innerHTML = '<div class="empty">Aucun examen blanc à prévoir.<br>' +
+      '<span style="font-size:12px;">Ceux qui sont réservés n\'apparaissent plus ici.</span></div>';
   }else{
     if(typeof signalerAjout === 'function') signalerAjout(zEB);
     majVolet('cptEB', eb.length);
@@ -83,10 +86,13 @@ function afficherSimulateurs(tous){
   const zSim = $('listeSimu');
   if(!zSim) return;
 
-  const sim = tous.filter(e => e.etat.simuNuit === 'aprevoir' || e.etat.simuNuit === 'prevu');
+  /* Une date fixée, c'est une affaire réglée : la liste ne sert
+     qu'à ce qui reste à programmer. */
+  const sim = tous.filter(e => e.etat.simuNuit === 'aprevoir');
   zSim.innerHTML = '';
   if(!sim.length){
-    zSim.innerHTML = '<div class="empty">Aucun simulateur nuit et risques en attente.</div>';
+    zSim.innerHTML = '<div class="empty">Aucun simulateur nuit et risques à prévoir.<br>' +
+      '<span style="font-size:12px;">Ceux dont la date est fixée n\'apparaissent plus ici.</span></div>';
   }else{
     if(typeof signalerAjout === 'function') signalerAjout(zSim);
     majVolet('cptSimu', sim.length);
