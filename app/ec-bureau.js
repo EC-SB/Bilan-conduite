@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:24 — v367 */
+/* Déployé le 11/08/2026 à 14:34 — v368 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -379,26 +379,12 @@ async function afficherBureau(silencieux){
   majAlerteSuivi(tous);
 }
 
-/* Ce qu'un moniteur a signalé « à prévoir » et que personne n'a
-   encore programmé : examen blanc, simulateur nuit et risques,
-   date d'examen du permis. */
-function compterAPrevoir(eleves){
-  let n = 0;
-  (eleves || []).forEach(e => {
-    const a = analyserNote(e.note || '');
-    if(a.examBlanc === 'aprevoir') n++;
-    if(a.simuNuit === 'aprevoir') n++;
-    if(a.permis === 'aprevoir') n++;
-  });
-  return n;
-}
-
+/* Le décompte revient au module des alertes : il connaît les
+   masquages et les droits par type de pastille. */
 function majAlerteSuivi(eleves){
   if(typeof poserAlerte !== 'function') return;
-  /* Seuls ceux qui peuvent agir voient l'alerte */
-  const concerne = (typeof aDroit === 'function') &&
-                   (aDroit('bureau_simu') || aDroit('bureau_examblanc'));
-  poserAlerte('suivi', concerne ? compterAPrevoir(eleves) : 0);
+  if(typeof notifsEnAttente !== 'function'){ poserAlerte('suivi', 0); return; }
+  poserAlerte('suivi', notifsEnAttente(eleves).length);
 }
 
 /* Message d'erreur, avec la possibilité de réessayer */
@@ -786,9 +772,12 @@ function boutonMenage(eleve, zoneParente){
    personne ne verrait l'alerte avant d'aller la chercher. */
 async function verifierAPrevoirEnFond(){
   if(typeof aDroit !== 'function') return;
-  if(!aDroit('bureau_simu') && !aDroit('bureau_examblanc')) return;
+  if(!aDroit('notif_examblanc') && !aDroit('notif_simu') && !aDroit('notif_permis')) return;
 
   try{
+    /* Les masquages d'abord : sinon la pastille compte des alertes
+       que quelqu'un a déjà écartées. */
+    if(typeof chargerNotifsMasquees === 'function') await chargerNotifsMasquees();
     await chargerBureau(false);
     majAlerteSuivi(etatBureau.eleves);
   }catch(e){ /* hors ligne : pas d'alerte, pas de message d'erreur */ }
