@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 13:37 — v362 */
+/* Déployé le 11/08/2026 à 15:36 — v372 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1267,14 +1267,16 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
 
   parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant));
   parts.push('');
-  parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?' + st(ai.groupesTravail));
-  /* La croix rouge et le rappel remplacent la réponse habituelle
-     quand le moniteur a coché la case. */
-  const sansEcoutes = pasEcoutesPedagogiques();
-  parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? " +
-    (sansEcoutes ? '❌' : st(ai.ecoutes)) +
-    ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
-  if(sansEcoutes){
+  /* Sans émoji au bout : la question se suffit, et une coche
+     laissée au hasard n'apprend rien à l'élève. */
+  parts.push('➡️ 4 Groupes de travail : tu es bien dessus et tu les bosses ?');
+
+  /* La ligne des écoutes n'apparaît QUE si le moniteur a coché la
+     case : sinon elle posait une question sans objet à un élève
+     qui réserve normalement. */
+  if(pasEcoutesPedagogiques()){
+    parts.push("➡️ Réserves-tu plus d'écoutes pédagogiques que de conduite ? ❌" +
+      ' https://www.facebook.com/groups/174715876519873/permalink/1143782686279849/');
     parts.push('');
     parts.push(TEXTE_PAS_ECOUTES);
     parts.push('');
