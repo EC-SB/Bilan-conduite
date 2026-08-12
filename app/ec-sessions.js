@@ -17,6 +17,41 @@ let sessionsOuvertes = {};
 let echangeEnCours = null;
 
 
+/* La boîte d'un élève : sa fiche de suivi d'abord, son type de
+   bilan ensuite. Sans elle on ne sait pas quel véhicule prévoir. */
+function boiteDe(nom){
+  if(!nom) return '';
+
+  const su = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  if(su.typeExamen) return String(su.typeExamen).toLowerCase();
+
+  const e = eleveDuBureau(nom);
+  if(e){
+    if(e.boite) return String(e.boite).toLowerCase();
+    if(/automatique|bea/i.test(e.type || '')) return 'bea';
+    if(/manuelle|\bbv\b/i.test(e.type || '')) return 'bv';
+  }
+
+  /* Sa fiche du répertoire, quand elle porte la formation */
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  if(f && /auto|bea/i.test(f.formation || '')) return 'bea';
+  if(f && f.formation) return 'bv';
+
+  return '';
+}
+
+/* L'étiquette colorée, lisible d'un coup d'œil */
+function etiquetteBoite(boite){
+  if(!boite) return '';
+  const bea = (boite === 'bea');
+  return '<span style="display:inline-block;margin-left:6px;padding:1px 6px;' +
+    'border-radius:5px;font-size:10px;font-weight:800;' +
+    'background:' + (bea ? 'rgba(93,173,226,.22)' : 'rgba(182,255,14,.18)') + ';' +
+    'color:' + (bea ? '#5DADE2' : 'var(--accent-text)') + ';">' +
+    (bea ? 'BEA' : 'BV') + '</span>';
+}
+
+
 /* Un élève est « au vert » quand tout est fait : prévenu, dossier
    vérifié, et rien qui traîne côté préparation. */
 function etatPlace(place, eleveBureau){
@@ -216,7 +251,8 @@ function blocAIntervenir(aRemplacer, fantomes){
       l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;' +
         'font-size:13px;cursor:pointer;';
       l.innerHTML = '<span style="flex:1;min-width:0;">' +
-        (x.p.eleve ? '<strong>' + x.p.eleve.replace(/</g, '&lt;') + '</strong>' :
+        (x.p.eleve ? '<strong>' + x.p.eleve.replace(/</g, '&lt;') + '</strong>' +
+                     etiquetteBoite(boiteDe(x.p.eleve)) :
                      '<em style="color:var(--muted);">place libre</em>') +
         '<span style="color:var(--muted);"> — ' +
         (x.s.date ? libelleDate(x.s.date) : 'date à définir') +
@@ -242,6 +278,18 @@ function blocSession(sess, auj){
     return etatPlace(x, eleveDuBureau(x.eleve)).cle === 'ok';
   }).length;
 
+  /* Combien de chaque boîte : c'est ce qui décide du véhicule à
+     sortir, et une session mixte se repère tout de suite. */
+  let nBea = 0, nBv = 0;
+  sess.eleves.forEach(x => {
+    if(!x.eleve) return;
+    const b = boiteDe(x.eleve);
+    if(b === 'bea') nBea++;
+    else if(b === 'bv') nBv++;
+  });
+  const detailBoite = [nBea ? nBea + ' BEA' : '', nBv ? nBv + ' BV' : '']
+    .filter(Boolean).join(' · ');
+
   const bloc = document.createElement('div');
   bloc.style.cssText = 'border:1px solid ' +
     (cejour ? 'var(--orange)' : 'var(--line)') +
@@ -263,7 +311,7 @@ function blocSession(sess, auj){
     '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">' +
       (sess.centre ? '🏁 ' + sess.centre.replace(/</g, '&lt;') : '🏁 centre à définir') +
       (sess.moniteur ? ' · 👤 ' + sess.moniteur.replace(/</g, '&lt;') : '') +
-      (sess.boite ? ' · ' + sess.boite.toUpperCase() : '') +
+      (detailBoite ? ' · 🚗 ' + detailBoite : '') +
     '</div>';
   tete.appendChild(g);
 
@@ -385,6 +433,7 @@ function lignePlace(p, sess){
       'appuie pour y mettre un élève</span>'
     : '<strong style="color:' + etat.couleur + ';">' +
       p.eleve.replace(/</g, '&lt;') + '</strong>' +
+      etiquetteBoite(boiteDe(p.eleve)) +
       (ficheVide ? ' <span style="font-size:11px;color:var(--warn-text);">' +
         '📝 fiche à remplir</span>' : '') +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
@@ -471,7 +520,8 @@ function ouvrirPlace(p, sess){
   boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
 
   const t = document.createElement('h3');
-  t.textContent = p.eleve || 'Place libre';
+  t.innerHTML = (p.eleve ? p.eleve.replace(/</g, '&lt;') : 'Place libre') +
+                etiquetteBoite(boiteDe(p.eleve));
   boite.appendChild(t);
 
   const st = document.createElement('div');
@@ -534,8 +584,16 @@ function ouvrirPlace(p, sess){
         '<input type="text" id="plL1" inputmode="numeric" placeholder="Ex : 1"></div>' +
     '</div>' +
     '<div class="duo">' +
+      '<div><label for="plBoite">Boîte</label>' +
+        '<select id="plBoite">' +
+          '<option value="">— d\'après sa formation —</option>' +
+          '<option value="bea">BEA — automatique</option>' +
+          '<option value="bv">BV — manuelle</option>' +
+        '</select></div>' +
       '<div><label for="plRel">Relancer le</label>' +
         '<input type="date" id="plRel"></div>' +
+    '</div>' +
+    '<div class="duo">' +
       '<div><label for="plNat">Nature du paiement</label>' +
         '<select id="plNat">' +
           '<option value="">— non précisé —</option>' +
@@ -579,6 +637,7 @@ function ouvrirPlace(p, sess){
   boite.querySelector('#plL1').value = su.lecons1h || '';
   boite.querySelector('#plAut').value = su.autre || '';
   boite.querySelector('#plRel').value = su.relanceLe || '';
+  boite.querySelector('#plBoite').value = su.typeExamen || '';
   boite.querySelector('#plNat').value = su.nature || '';
   boite.querySelector('#plAcc').checked = (su.accompagnement === 'oui');
   boite.querySelector('#plRes').value = su.reservations || '';
@@ -644,6 +703,7 @@ function ouvrirPlace(p, sess){
           lecons1h: boite.querySelector('#plL1').value.trim(),
           autre: boite.querySelector('#plAut').value.trim(),
           relanceLe: boite.querySelector('#plRel').value,
+          typeExamen: boite.querySelector('#plBoite').value,
           nature: boite.querySelector('#plNat').value,
           accompagnement: boite.querySelector('#plAcc').checked ? 'oui' : '',
           reservations: boite.querySelector('#plRes').value.trim(),
