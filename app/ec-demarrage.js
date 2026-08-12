@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 15:41 — v373 */
+/* Déployé le 12/08/2026 à 09:57 — v385 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -233,6 +233,7 @@ $('manuelAnnul').addEventListener('click', fermerBilanManuel);
 $('rdvPostEnr').addEventListener('click', terminerRdvPost);
 $('rdvPostAnnul').addEventListener('click', fermerRdvPost);
 $('prepTous').addEventListener('change', () => afficherPrepares(false));
+if($('prepQui')) $('prepQui').addEventListener('change', () => afficherPrepares(false));
 
 /* ---------- Init ---------- */
 reprendreSession();
