@@ -803,6 +803,15 @@ function ouvrirPlace(p, sess){
    CRÉER OU MODIFIER UNE SESSION
    ============================================================ */
 
+/* Les créneaux d'examen habituels, matin et après-midi. Nom propre
+   au module : ec-messenger.js déclare déjà HEURES_EXAMEN, au format
+   « 08h00 », et deux constantes du même nom se percutent. */
+const CRENEAUX_SESSION = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00',
+  '13:15', '13:45', '14:15', '14:45', '15:15', '15:45'
+];
+
+
 /* L'heure d'un créneau, côté écran : même calcul que le serveur,
    pour montrer les horaires avant même d'enregistrer. */
 function heureDuCreneau(debut, duree, n){
@@ -828,7 +837,16 @@ function ouvrirEditeurSession(sess){
     '<div class="duo">' +
       '<div><label for="seDate">Date</label><input type="date" id="seDate"></div>' +
       '<div><label for="seHeure">Heure du 1er passage</label>' +
-        '<input type="time" id="seHeure"></div>' +
+        /* Une liste plutôt qu'un datalist : les champs « time »
+           ignorent les suggestions sur plusieurs navigateurs.
+           Le dernier choix ouvre un champ libre. */
+        '<select id="seHeureChoix">' +
+          CRENEAUX_SESSION.map(h => '<option value="' + h + '">' +
+                                 h.replace(':', 'h') + '</option>').join('') +
+          '<option value="autre">⌨️ Autre heure…</option>' +
+        '</select>' +
+        '<input type="time" id="seHeure" style="display:none;margin-top:6px;">' +
+      '</div>' +
     '</div>' +
     '<div class="duo">' +
       '<div><label for="sePlaces">Nombre de places</label>' +
@@ -867,9 +885,41 @@ function ouvrirEditeurSession(sess){
       'garder une place fantôme.</div>' +
     '<div id="seEleves"></div>');
 
+  /* Saint-Brieuc par défaut : c'est le centre de la plupart des
+     sessions, et il reste modifiable. */
+  if(!sess) boite.querySelector('#seCentre').value = 'Saint-Brieuc';
+
+  /* La liste pilote le champ caché : le reste du formulaire lit
+     toujours #seHeure, rien d'autre à changer. */
+  const listeH = boite.querySelector('#seHeureChoix');
+  const champH = boite.querySelector('#seHeure');
+
+  const majDepuisListe = () => {
+    if(listeH.value === 'autre'){
+      champH.style.display = 'block';
+      setTimeout(() => champH.focus(), 60);
+    }else{
+      champH.style.display = 'none';
+      champH.value = listeH.value;
+    }
+    champH.dispatchEvent(new Event('input'));
+  };
+
+  listeH.addEventListener('change', majDepuisListe);
+  /* 14h15 d'avance : le créneau le plus courant */
+  listeH.value = '14:15';
+  champH.value = '14:15';
+
   if(sess){
     boite.querySelector('#seDate').value = sess.date || '';
     boite.querySelector('#seHeure').value = sess.heureDebut || '';
+    /* Une heure hors liste bascule sur le champ libre */
+    if(sess.heureDebut && CRENEAUX_SESSION.indexOf(sess.heureDebut) === -1){
+      boite.querySelector('#seHeureChoix').value = 'autre';
+      boite.querySelector('#seHeure').style.display = 'block';
+    }else if(sess.heureDebut){
+      boite.querySelector('#seHeureChoix').value = sess.heureDebut;
+    }
     boite.querySelector('#sePlaces').value = sess.eleves.length || 4;
     boite.querySelector('#seCentre').value = sess.centre || '';
     boite.querySelector('#seMon').value = sess.moniteur || '';
