@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 14:20 — v399 */
+/* Déployé le 12/08/2026 à 15:30 — v404 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -386,11 +386,25 @@ function remplirUnMenuModeles(sel){
   if(choisi && sel.querySelector('option[value="' + choisi + '"]')) sel.value = choisi;
 }
 
+let minuteurToast = null;
+
 function showToast(msg){
   const t = $('toast');
+  if(!t) return;
+
   t.textContent = msg;
+
+  /* Un souci reste plus longtemps qu'un simple « enregistré » :
+     2,2 secondes ne suffisaient pas à lire un message d'erreur,
+     surtout au volant. */
+  const souci = /impossible|erreur|échec|echec|⚠️|pas |aucun|manquant|invalide/i
+    .test(msg);
+  t.classList.toggle('souci', souci);
+
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
+  clearTimeout(minuteurToast);
+  minuteurToast = setTimeout(() => t.classList.remove('show'),
+                             souci ? 6000 : 3500);
 }
 
 /* ---------- Reconnaissance vocale ---------- */
