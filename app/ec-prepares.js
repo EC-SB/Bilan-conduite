@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:56 — v385 */
+/* Déployé le 12/08/2026 à 10:13 — v386 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -89,6 +89,9 @@ function libelleDate(iso){
    sur l'autre : sa mise en page lui appartient. */
 const CLE_TIROIRS = 'tiroirs_prepares';
 let tiroirsPrepares = {};
+/* La liste telle qu'affichée, pour que les flèches déplacent ce que
+   le moniteur voit et non l'ensemble des cours. */
+let listeAffichee = [];
 try{
   tiroirsPrepares = JSON.parse(localStorage.getItem(CLE_TIROIRS) || '{}') || {};
 }catch(e){ tiroirsPrepares = {}; }
@@ -186,11 +189,23 @@ async function afficherPrepares(recharger, silencieux){
 
   /* Dans une journée, l'ordre choisi par le moniteur prime : c'est
      lui qui connaît l'enchaînement de ses cours. */
+  /* Sans ordre posé, on départage par l'heure de création : deux
+     cours à 999 se seraient rangés au hasard, et la flèche semblait
+     ne rien faire. */
   liste.sort((a, b) => {
     const d = String(a.date || '').localeCompare(String(b.date || ''));
     if(d !== 0) return d;
-    return (a.ordre || 999) - (b.ordre || 999);
+    const oa = a.ordre || 0;
+    const ob = b.ordre || 0;
+    if(oa && ob) return oa - ob;
+    if(oa) return -1;
+    if(ob) return 1;
+    return String(a.id || '').localeCompare(String(b.id || ''));
   });
+
+  /* Ce qui est réellement à l'écran : les flèches déplacent dans
+     CETTE liste, pas dans l'ensemble des cours du jour. */
+  listeAffichee = liste;
 
   liste.forEach(cours => {
     if(cours.date !== dateCourante){
@@ -330,15 +345,21 @@ async function afficherPrepares(recharger, silencieux){
       b.textContent = signe;
       b.title = quoi + ' dans la journée';
       b.addEventListener('click', async () => {
-        const duJour = prepares
-          .filter(x => x.date === cours.date)
-          .sort((a, b2) => (a.ordre || 999) - (b2.ordre || 999));
+        /* Les cours du jour tels qu'ils sont affichés, filtres
+           compris : déplacer par rapport à une liste invisible
+           donnait l'impression que rien ne bougeait. */
+        const duJour = listeAffichee.filter(x => x.date === cours.date);
         const i = duJour.findIndex(x => String(x.id) === String(cours.id));
         const j = i + sens;
-        if(i === -1 || j < 0 || j >= duJour.length) return;
+        if(i === -1 || j < 0 || j >= duJour.length){
+          showToast(sens < 0 ? 'Déjà en premier' : 'Déjà en dernier');
+          return;
+        }
 
-        /* On permute, puis on renumérote toute la journée */
-        duJour[i] = duJour.splice(j, 1, duJour[i])[0];
+        /* On permute, puis on renumérote la journée entière */
+        const tmp = duJour[i];
+        duJour[i] = duJour[j];
+        duJour[j] = tmp;
         duJour.forEach((x, n) => { x.ordre = n + 1; });
 
         await afficherPrepares(false);
