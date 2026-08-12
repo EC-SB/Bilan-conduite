@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 14:08 — v398 */
+/* Déployé le 12/08/2026 à 16:51 — v409 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1140,6 +1140,7 @@ async function genererBilanManuel(){
   };
 
   $('resultText').value = bilan;
+  if(typeof remplirChoixProcedures === 'function') remplirChoixProcedures();
   afficherNote($('noteInterne').value.trim());
   marquerExport(false);
   $('manuelView').style.display = 'none';
