@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 15:02 — v402 */
+/* Déployé le 12/08/2026 à 16:29 — v407 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -353,6 +353,9 @@ $('recBtn').addEventListener('click', async () => {
   $('finishBtn').style.display = 'block';
 
   /* Le début du bilan et la fiche véhicule s'ouvrent avec le cours */
+  /* Le bilan manuel n'a plus lieu d'être une fois le micro lancé */
+  if($('zoneManuel')) $('zoneManuel').style.display = 'none';
+
   afficherEnteteDuCours();
   afficherFicheDuCours();
 
