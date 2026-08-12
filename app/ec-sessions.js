@@ -803,6 +803,17 @@ function ouvrirPlace(p, sess){
    CRÉER OU MODIFIER UNE SESSION
    ============================================================ */
 
+/* L'heure d'un créneau, côté écran : même calcul que le serveur,
+   pour montrer les horaires avant même d'enregistrer. */
+function heureDuCreneau(debut, duree, n){
+  const m = String(debut || '').match(/^(\d{1,2})[:h](\d{2})/);
+  if(!m) return '';
+  const mins = (+m[1]) * 60 + (+m[2]) + (duree * n);
+  const h = Math.floor(mins / 60) % 24;
+  return String(h).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
+}
+
+
 function ouvrirEditeurSession(sess){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -843,7 +854,18 @@ function ouvrirEditeurSession(sess){
       '</select></div>' +
     '</div>' +
     '<label for="seInsp">Inspecteur (facultatif)</label>' +
-    '<input type="text" id="seInsp" placeholder="Son nom, si tu le connais">');
+    '<input type="text" id="seInsp" placeholder="Son nom, si tu le connais">' +
+
+    /* Les élèves dès la création : les poser un par un ensuite
+       obligeait à rouvrir chaque place. */
+    '<div style="border-top:1px solid var(--line);margin:14px 0 10px;' +
+      'padding-top:12px;font-size:13px;font-weight:700;color:var(--accent-text);">' +
+      '👥 Les élèves de cette session</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;' +
+      'line-height:1.5;">Juste les noms pour l\'instant. Leur fiche de ' +
+      'préparation se remplit ensuite, place par place. Laisse vide pour ' +
+      'garder une place fantôme.</div>' +
+    '<div id="seEleves"></div>');
 
   if(sess){
     boite.querySelector('#seDate').value = sess.date || '';
@@ -858,8 +880,57 @@ function ouvrirEditeurSession(sess){
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 12px;line-height:1.5;';
   aide.textContent = "Les créneaux se calculent seuls à partir de l'heure de début " +
-    "et de la durée. Chaque place reste vide tant qu'on n'y met personne.";
+    'et de la durée.';
   boite.appendChild(aide);
+
+  /* Un champ par place, redessiné quand le nombre change */
+  const zEleves = boite.querySelector('#seEleves');
+  const champNombre = boite.querySelector('#sePlaces');
+  const champHeure = boite.querySelector('#seHeure');
+  const champDuree = boite.querySelector('#seDuree');
+
+  const refaireChamps = () => {
+    const n = Math.max(1, Math.min(20, parseInt(champNombre.value, 10) || 1));
+    const avant = [...zEleves.querySelectorAll('.seEleve')].map(x => x.value);
+
+    zEleves.innerHTML = '';
+    for(let i = 0; i < n; i++){
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+
+      const h = document.createElement('span');
+      h.className = 'seHeurePlace';
+      h.style.cssText = 'width:52px;flex-shrink:0;font-size:13px;color:var(--muted);';
+      h.textContent = heureDuCreneau(champHeure.value, +champDuree.value || 30, i) || '—';
+      l.appendChild(h);
+
+      const e = document.createElement('input');
+      e.type = 'text';
+      e.className = 'seEleve';
+      e.setAttribute('list', 'listeEleves');
+      e.setAttribute('autocomplete', 'off');
+      e.placeholder = 'Place ' + (i + 1) + ' — laisse vide si libre';
+      e.style.cssText = 'flex:1;min-width:0;margin:0;padding:9px 10px;font-size:15px;';
+      /* Ce qui était déjà saisi ne se perd pas */
+      if(avant[i] !== undefined) e.value = avant[i];
+      else if(sess && sess.eleves[i]) e.value = sess.eleves[i].eleve || '';
+      l.appendChild(e);
+
+      zEleves.appendChild(l);
+    }
+  };
+
+  /* Les heures suivent l'heure de début et la durée */
+  const majHeures = () => {
+    [...zEleves.querySelectorAll('.seHeurePlace')].forEach((h, i) => {
+      h.textContent = heureDuCreneau(champHeure.value, +champDuree.value || 30, i) || '—';
+    });
+  };
+
+  champNombre.addEventListener('input', refaireChamps);
+  champHeure.addEventListener('input', majHeures);
+  champDuree.addEventListener('input', majHeures);
+  refaireChamps();
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -880,7 +951,9 @@ function ouvrirEditeurSession(sess){
     bOk.disabled = true;
     bOk.textContent = 'Enregistrement…';
     try{
-      await appelPrep({
+      /* La réponse porte l'identifiant de la session : sans lui, on
+         ne sait pas où poser les élèves. */
+      const r = await appelPrep({
         action: 'sessionSet',
         id: sess ? sess.id : '',
         date: date,
@@ -893,6 +966,29 @@ function ouvrirEditeurSession(sess){
         inspecteur: boite.querySelector('#seInsp').value.trim(),
         par: ACCES.moniteur || ''
       });
+      /* Les élèves saisis, posés place par place. Le serveur vient
+         de créer les places : on les remplit dans la foulée. */
+      const noms = [...zEleves.querySelectorAll('.seEleve')].map(x => x.value.trim());
+      const idS = (r && r.id) || (sess && sess.id);
+
+      if(idS && noms.some(Boolean)){
+        bOk.textContent = 'Inscription des élèves…';
+        await Promise.all(noms.map((nom, i) => {
+          if(!nom) return Promise.resolve();
+          return appelPrep({ action: 'sessionPlace', idSession: idS, rang: i + 1,
+                             eleve: nom }).catch(() => null);
+        }));
+
+        /* Leur date d'examen suit : c'est elle que lisent le bureau
+           et le message Messenger. */
+        if(typeof majSuivi === 'function'){
+          await Promise.all(noms.filter(Boolean).map(nom =>
+            majSuivi(nom, { datePermis: date,
+                            centre: boite.querySelector('#seCentre').value.trim() })
+              .catch(() => null)));
+        }
+      }
+
       document.body.removeChild(fond);
       showToast(sess ? 'Session modifiée ✅' : 'Session créée ✅');
       afficherSessionsPermis();
