@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 08:50 — v331 */
+/* Déployé le 12/08/2026 à 09:48 — v384 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -171,6 +171,35 @@ function informer(message, titre){
 /* ---------- Liste des élèves déjà enregistrés ---------- */
 /* elevesConnus : déclaré dans ec-etat.js */
 
+/* La liste des élèves change peu d'un jour à l'autre : on la garde
+   dans le téléphone. Elle s'affiche instantanément au démarrage,
+   puis se met à jour en arrière-plan. */
+const CLE_ELEVES = 'eleves_connus';
+
+function remplirListeEleves(noms){
+  const liste = $('listeEleves');
+  if(!liste) return;
+  liste.innerHTML = '';
+  (noms || []).forEach(nom => {
+    const o = document.createElement('option');
+    o.value = nom;
+    liste.appendChild(o);
+  });
+}
+
+/* Affiche tout de suite ce qu'on connaît déjà, avant tout réseau */
+function elevesDuCache(){
+  try{
+    const t = localStorage.getItem(CLE_ELEVES);
+    if(!t) return false;
+    const noms = JSON.parse(t);
+    if(!Array.isArray(noms) || !noms.length) return false;
+    elevesConnus = noms;
+    remplirListeEleves(noms);
+    return true;
+  }catch(e){ return false; }
+}
+
 async function chargerEleves(){
   try{
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
@@ -181,16 +210,12 @@ async function chargerEleves(){
     if(!r.ok) return;
     const data = await r.json().catch(() => ({}));
     elevesConnus = (data && data.eleves) || [];
+    remplirListeEleves(elevesConnus);
 
-    const liste = $('listeEleves');
-    if(liste){
-      liste.innerHTML = '';
-      elevesConnus.forEach(nom => {
-        const o = document.createElement('option');
-        o.value = nom;
-        liste.appendChild(o);
-      });
-    }
+    /* Gardée pour le prochain démarrage */
+    try{
+      localStorage.setItem(CLE_ELEVES, JSON.stringify(elevesConnus));
+    }catch(e){ /* mémoire pleine : tant pis, on relira */ }
     verifierNomEleve('searchName', 'eleveInfo', false);
     verifierNomEleve('studentName', 'studentInfo', true);
   }catch(e){
