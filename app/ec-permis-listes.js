@@ -1,3 +1,4 @@
+/* Déployé le 12/08/2026 à 12:09 — v390 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -573,6 +574,11 @@ function afficherPermisPrevus(tous){
     e._boite = ((s && s.typeExamen) || e.boite ||
                 (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
   });
+
+  /* Le bloc « Permis prévus » a laissé la place aux sessions. La
+     fonction reste, car sa liste sert aux examens passés, mais il
+     n'y a plus rien à dessiner ici. */
+  if(!zPP) return prevus;
 
   /* Récapitulatif : nombre d'examens par date */
   const parDate = {};
