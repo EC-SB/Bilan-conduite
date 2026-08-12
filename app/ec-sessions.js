@@ -108,6 +108,16 @@ function etatPlace(place, eleveBureau){
    L'ÉCRAN
    ============================================================ */
 
+/* Redessine SANS relire le serveur : les données en mémoire sont
+   déjà à jour, une action vient de les modifier. Douze appels à
+   afficherSessionsPermis() rechargeaient tout pour rien. */
+function redessinerSessions(){
+  const zone = $('sessionsPermis');
+  if(!zone) return;
+  dessinerSessions(zone);
+}
+
+
 async function afficherSessionsPermis(){
   const zone = $('sessionsPermis');
   if(!zone) return;
@@ -130,7 +140,13 @@ async function afficherSessionsPermis(){
     return;
   }
 
-  zone.innerHTML = '';
+  dessinerSessions(zone);
+}
+
+
+/* Le dessin seul, à partir de ce qu'on a en mémoire */
+function dessinerSessions(zone){
+zone.innerHTML = '';
 
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
@@ -470,11 +486,18 @@ function lignePlace(p, sess){
       ev.stopPropagation();
       bPrev.disabled = true;
       try{
-        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
-                          prevenu: p.prevenu ? '' : 'oui' });
+        /* On bascule d'abord, on enregistre ensuite : l'écran
+           répond tout de suite, l'appel se fait derrière. */
         p.prevenu = !p.prevenu;
-        afficherSessionsPermis();
-      }catch(e){ showToast('Impossible : ' + e.message); bPrev.disabled = false; }
+        redessinerSessions();
+        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
+                          prevenu: p.prevenu ? 'oui' : '' });
+      }catch(e){
+        /* L'enregistrement a échoué : on remet comme avant */
+        p.prevenu = !p.prevenu;
+        redessinerSessions();
+        showToast('Impossible : ' + e.message);
+      }
     });
     l.appendChild(bPrev);
 
@@ -514,6 +537,19 @@ async function gererEchange(p, sess){
   const depuis = echangeEnCours;
   echangeEnCours = null;
 
+  /* La permutation se voit tout de suite : l'heure appartient à la
+     place, seuls les élèves et leur état changent de côté. */
+  const src = (sessionsPermis.find(s => s.id === depuis.idSession) || {}).eleves || [];
+  const a = src.find(x => x.rang === depuis.rang);
+  const b = p;
+
+  if(a && b){
+    ['eleve', 'prevenu', 'dossierOk', 'remarque'].forEach(cle => {
+      const t = a[cle]; a[cle] = b[cle]; b[cle] = t;
+    });
+    redessinerSessions();
+  }
+
   try{
     await appelPrep({ action: 'sessionPlace',
                       idSession: depuis.idSession, rang: depuis.rang,
@@ -521,8 +557,8 @@ async function gererEchange(p, sess){
     showToast('Échangés ✅');
   }catch(e){
     showToast('Échange impossible : ' + e.message);
+    afficherSessionsPermis();          /* on relit, l'état est incertain */
   }
-  afficherSessionsPermis();
 }
 
 
@@ -681,11 +717,12 @@ function ouvrirPlace(p, sess){
       if(!await confirmer('Retirer ' + p.eleve + ' de cette place ?\n\n' +
           'La place reste ouverte : elle redevient une place fantôme.')) return;
       try{
-        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
-                          eleve: '', prevenu: '', dossierOk: '', remarque: '' });
+        Object.assign(p, { eleve: '', prevenu: false, dossierOk: false, remarque: '' });
         document.body.removeChild(fond);
         showToast('Place libérée 👻');
-        afficherSessionsPermis();
+        redessinerSessions();
+        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
+                          eleve: '', prevenu: '', dossierOk: '', remarque: '' });
       }catch(e){ showToast('Impossible : ' + e.message); }
     });
     r.appendChild(bVider);
@@ -698,40 +735,55 @@ function ouvrirPlace(p, sess){
     bOk.disabled = true;
     bOk.textContent = 'Enregistrement…';
     try{
-      await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
-                        eleve: boite.querySelector('#plEleve').value.trim(),
-                        heure: boite.querySelector('#plHeure').value,
-                        remarque: boite.querySelector('#plRem').value.trim(),
-                        prevenu: boite.querySelector('#plPrevenu').checked ? 'oui' : '',
-                        dossierOk: boite.querySelector('#plDossier').checked ? 'oui' : '' });
+      const nomSaisi = boite.querySelector('#plEleve').value.trim();
+      const champsPlace = {
+        eleve: nomSaisi,
+        heure: boite.querySelector('#plHeure').value,
+        remarque: boite.querySelector('#plRem').value.trim(),
+        prevenu: boite.querySelector('#plPrevenu').checked ? 'oui' : '',
+        dossierOk: boite.querySelector('#plDossier').checked ? 'oui' : ''
+      };
 
-      /* La préparation rejoint le suivi, pas la session : c'est une
-         donnée de l'élève, elle le suit s'il change de date. */
-      const nom = boite.querySelector('#plEleve').value.trim();
-      if(nom && typeof majSuivi === 'function'){
-        await majSuivi(nom, {
-          datePermis: sess.date || '',
-          centre: sess.centre || '',
-          toutOk: boite.querySelector('#plOk').checked ? 'oui' : '',
-          aRemplacer: boite.querySelector('#plRemplacer').checked ? 'oui' : '',
-          fairePoint: boite.querySelector('#plPoint').checked ? 'oui' : '',
-          resteAPayer: boite.querySelector('#plPay').value.trim(),
-          paiementPrevu: boite.querySelector('#plQd').value,
-          lecons2h: boite.querySelector('#plL2').value.trim(),
-          lecons1h: boite.querySelector('#plL1').value.trim(),
-          autre: boite.querySelector('#plAut').value.trim(),
-          relanceLe: boite.querySelector('#plRel').value,
-          typeExamen: boite.querySelector('#plBoite').value,
-          nature: boite.querySelector('#plNat').value,
-          accompagnement: boite.querySelector('#plAcc').checked ? 'oui' : '',
-          reservations: boite.querySelector('#plRes').value.trim(),
-          autoEcole: boite.querySelector('#plAE').value.trim()
-        });
-      }
+      const champsSuivi = nomSaisi ? {
+        datePermis: sess.date || '',
+        centre: sess.centre || '',
+        toutOk: boite.querySelector('#plOk').checked ? 'oui' : '',
+        aRemplacer: boite.querySelector('#plRemplacer').checked ? 'oui' : '',
+        fairePoint: boite.querySelector('#plPoint').checked ? 'oui' : '',
+        resteAPayer: boite.querySelector('#plPay').value.trim(),
+        paiementPrevu: boite.querySelector('#plQd').value,
+        lecons2h: boite.querySelector('#plL2').value.trim(),
+        lecons1h: boite.querySelector('#plL1').value.trim(),
+        autre: boite.querySelector('#plAut').value.trim(),
+        relanceLe: boite.querySelector('#plRel').value,
+        typeExamen: boite.querySelector('#plBoite').value,
+        nature: boite.querySelector('#plNat').value,
+        accompagnement: boite.querySelector('#plAcc').checked ? 'oui' : '',
+        reservations: boite.querySelector('#plRes').value.trim(),
+        autoEcole: boite.querySelector('#plAE').value.trim()
+      } : null;
+
+      /* La place en mémoire suit tout de suite */
+      Object.assign(p, {
+        eleve: champsPlace.eleve,
+        heure: champsPlace.heure,
+        remarque: champsPlace.remarque,
+        prevenu: champsPlace.prevenu === 'oui',
+        dossierOk: champsPlace.dossierOk === 'oui'
+      });
+
+      /* Les deux enregistrements partent ENSEMBLE : en série, le
+         moniteur attendait deux fois le réseau. */
+      await Promise.all([
+        appelPrep(Object.assign({ action: 'sessionPlace',
+                                  idSession: sess.id, rang: p.rang }, champsPlace)),
+        (champsSuivi && typeof majSuivi === 'function')
+          ? majSuivi(nomSaisi, champsSuivi) : Promise.resolve()
+      ]);
 
       document.body.removeChild(fond);
       showToast('Enregistré ✅');
-      afficherSessionsPermis();
+      redessinerSessions();
     }catch(e){
       showToast('Impossible : ' + e.message);
       bOk.disabled = false;
