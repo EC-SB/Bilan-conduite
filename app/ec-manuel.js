@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 06:56 — v376 */
+/* Déployé le 12/08/2026 à 07:53 — v379 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -222,13 +222,14 @@ function dicterDans(champ, bouton){
 /* Une compétence : son libellé, puis les cases de notation alignées
    à droite comme sur le CEPC de l'inspecteur. Le moniteur retrouve
    le geste du document officiel plutôt qu'un menu déroulant. */
-function ligneCepc(nom, valeurs){
+function ligneCepc(nom, valeurs, rang){
   const l = document.createElement('div');
-  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 0;' +
-    'border-bottom:1px solid rgba(255,255,255,.05);';
+  /* Une ligne sur deux teintée, comme sur le document */
+  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;' +
+    'background:' + ((rang % 2 === 0) ? '#EDF1F5' : '#FFFFFF') + ';';
 
   const t = document.createElement('span');
-  t.style.cssText = 'flex:1;font-size:13px;color:var(--cream);line-height:1.35;min-width:0;';
+  t.style.cssText = 'flex:1;font-size:12px;color:#1B6AC9;line-height:1.35;min-width:0;';
   t.textContent = nom;
   l.appendChild(t);
 
@@ -236,7 +237,7 @@ function ligneCepc(nom, valeurs){
   const alerte = document.createElement('span');
   alerte.className = 'cepcAlerte';
   alerte.style.cssText = 'display:none;font-size:10px;font-weight:800;' +
-    'color:var(--red);flex-shrink:0;text-align:right;line-height:1.2;';
+    'color:#E5322D;flex-shrink:0;text-align:right;line-height:1.2;';
   alerte.textContent = 'Résultat éliminatoire';
   l.appendChild(alerte);
 
@@ -270,8 +271,8 @@ function ligneCepc(nom, valeurs){
     if(val === ''){
       /* Colonne inexistante : grisée, comme sur le CEPC */
       b.disabled = true;
-      b.style.background = 'rgba(255,255,255,.05)';
-      b.style.border = '1px solid transparent';
+      b.style.background = '#E6EAEE';
+      b.style.border = '1px solid #E6EAEE';
       b.style.cursor = 'default';
       r.appendChild(b);
       return;
@@ -284,10 +285,10 @@ function ligneCepc(nom, valeurs){
     const peindre = () => {
       const pris = (champ.value === val);
       const rouge = (val === 'E');
-      b.style.background = pris ? (rouge ? 'var(--red)' : '#1568C8') : 'var(--navy)';
+      b.style.background = pris ? (rouge ? '#E5322D' : '#1568C8') : '#FFFFFF';
       b.style.border = '1px solid ' +
-        (pris ? (rouge ? 'var(--red)' : '#1568C8') : 'var(--line)');
-      b.style.color = pris ? '#FFFFFF' : 'var(--accent-text)';
+        (pris ? (rouge ? '#E5322D' : '#1568C8') : '#C9D6E2');
+      b.style.color = pris ? '#FFFFFF' : '#1B6AC9';
       b.style.fontWeight = pris ? '800' : '400';
     };
     b._peindre = peindre;
@@ -316,17 +317,27 @@ function majTotalCepc(){
     if(s.value) c[s.getAttribute('data-comp')] = s.value;
   });
   const r = calculerCepc(c);
-  let etat, couleur;
+
+  /* Mise en page du document : le libellé à gauche, le verdict et
+     la note à droite dans sa case colorée. */
+  let etat, couleur, note;
   if(r.elimine){
-    etat = 'ÉLIMINATOIRE — ' + r.eliminatoires.length + ' compétence(s) en E';
-    couleur = 'var(--red)';
+    etat = 'ÉLIMINATOIRE'; couleur = '#E5322D'; note = 'E';
   }else if(r.favorable){
-    etat = 'FAVORABLE'; couleur = 'var(--accent-text)';
+    etat = 'FAVORABLE'; couleur = '#1568C8'; note = String(r.total).replace('.', ',');
   }else{
-    etat = 'insuffisant — 20 minimum'; couleur = 'var(--warn-text)';
+    etat = 'INSUFFISANT'; couleur = '#E5322D'; note = String(r.total).replace('.', ',');
   }
-  z.innerHTML = 'Total : ' + r.total + ' / ' + r.max + ' · <span style="color:' + couleur + ';">' +
-    etat + '</span>';
+
+  z.innerHTML =
+    '<span style="color:#1B6AC9;font-weight:400;font-size:12px;">Total général</span>' +
+    '<span style="display:flex;align-items:center;gap:8px;">' +
+      '<span style="color:' + couleur + ';font-size:11px;">' + etat + '</span>' +
+      '<span style="background:' + couleur + ';color:#fff;padding:4px 10px;' +
+        'border-radius:4px;font-size:12px;">' + note + '</span>' +
+      (r.elimine ? '' : '<span style="color:#8A94A0;font-weight:400;font-size:10px;">/ ' +
+        r.max + '</span>') +
+    '</span>';
 }
 
 /* Construit le formulaire du bilan manuel */
@@ -626,30 +637,47 @@ async function ouvrirBilanManuel(){
         "de l'inspecteur. Un second appui l'efface.";
       bloc.appendChild(aide);
 
+      /* Le document officiel est sur fond blanc : on le reproduit
+         tel quel, même en thème sombre. C'est sa ressemblance avec
+         le vrai CEPC qui aide le moniteur à s'y retrouver. */
       const z = document.createElement('div');
-      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-        'border-radius:10px;padding:10px 12px;';
+      z.style.cssText = 'background:#FFFFFF;border:1px solid #D3DCE6;' +
+        'border-radius:8px;padding:0;overflow:hidden;';
 
-      /* La légende des colonnes, une fois en tête */
-      const leg = document.createElement('div');
-      leg.style.cssText = 'display:flex;justify-content:flex-end;font-size:10px;' +
-        'color:var(--muted);margin-bottom:4px;';
-      leg.textContent = "Niveaux d'appréciation";
-      z.appendChild(leg);
+      const entete = document.createElement('div');
+      entete.style.cssText = 'display:flex;justify-content:space-between;' +
+        'align-items:baseline;padding:10px 12px 8px;border-bottom:1px solid #D3DCE6;';
+      entete.innerHTML =
+        '<span style="font-size:13px;font-weight:800;color:#0B2E4F;">' +
+          'Bilan de compétences</span>' +
+        '<span style="font-size:9px;color:#8A94A0;">Niveaux d\'appréciation</span>';
+      z.appendChild(entete);
 
+      /* Un compteur continu : sur le document, l'alternance ne se
+         remet pas à zéro à chaque section. */
+      let rangLigne = 0;
       CEPC_BLOCS.forEach(g => {
         const t = document.createElement('div');
-        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
-          'margin:12px 0 4px;';
+        t.style.cssText = 'font-size:12px;font-weight:800;color:#0B2E4F;' +
+          'padding:12px 12px 6px;background:#FFFFFF;';
         t.textContent = g.titre;
         z.appendChild(t);
-        g.items.forEach(it => z.appendChild(ligneCepc(it.nom, it.valeurs)));
+        g.items.forEach(it => {
+          z.appendChild(ligneCepc(it.nom, it.valeurs, rangLigne));
+          rangLigne++;
+        });
       });
+
+      const tt = document.createElement('div');
+      tt.style.cssText = 'font-size:12px;font-weight:800;color:#0B2E4F;' +
+        'padding:12px 12px 4px;border-top:1px solid #D3DCE6;margin-top:8px;';
+      tt.textContent = 'Résultat';
+      z.appendChild(tt);
 
       const tot = document.createElement('div');
       tot.id = 'cepcTotal';
-      tot.style.cssText = 'margin-top:12px;padding-top:10px;border-top:1px solid var(--line);' +
-        'font-size:15px;font-weight:700;color:var(--accent-text);';
+      tot.style.cssText = 'padding:6px 12px 14px;font-size:13px;font-weight:800;' +
+        'color:#1568C8;display:flex;justify-content:space-between;align-items:center;';
       z.appendChild(tot);
       bloc.appendChild(z);
       setTimeout(majTotalCepc, 0);
