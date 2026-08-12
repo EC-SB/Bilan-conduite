@@ -34,6 +34,13 @@ function etatPlace(place, eleveBureau){
              couleur:'var(--red)' };
   }
 
+  /* « Tout est OK » tranche : c'est le bureau qui le dit, après
+     vérification. Aucun signalement automatique ne le contredit. */
+  if(su.toutOk === 'oui'){
+    return { cle:'ok', emoji:'✅', texte:'Tout est prêt',
+             couleur:'var(--accent-text)' };
+  }
+
   const manque = [];
   if(!place.prevenu) manque.push('pas prévenu');
   if(!place.dossierOk) manque.push('dossier à vérifier');
@@ -45,7 +52,6 @@ function etatPlace(place, eleveBureau){
   if(su.relanceLe && su.relanceLe <= todayLocal()){
     manque.push('à relancer');
   }
-  if(!su.reservations) manque.push('pas de réservation posée');
 
   /* Ce que sa note de suivi signale encore */
   if(eleveBureau && typeof analyserNote === 'function'){
@@ -154,6 +160,22 @@ async function afficherSessionsPermis(){
     return;
   }
 
+  /* Ce qui demande une action, tous jours confondus : les listes
+     que le bloc « Permis prévus » donnait avant. */
+  const aRemplacer = [];
+  const fantomes = [];
+  sessionsPermis.forEach(s => {
+    s.eleves.forEach(p => {
+      const su = (p.eleve && typeof suiviDe === 'function') ? suiviDe(p.eleve) : {};
+      if(!p.eleve) fantomes.push({ s: s, p: p });
+      else if(su.aRemplacer === 'oui') aRemplacer.push({ s: s, p: p, su: su });
+    });
+  });
+
+  if(aRemplacer.length || fantomes.length){
+    zone.appendChild(blocAIntervenir(aRemplacer, fantomes));
+  }
+
   const auj = todayLocal();
   const compte = document.createElement('div');
   compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
@@ -164,6 +186,50 @@ async function afficherSessionsPermis(){
   zone.appendChild(compte);
 
   sessionsPermis.forEach(s => zone.appendChild(blocSession(s, auj)));
+}
+
+
+/* Les places à donner et les places libres, réunies en tête :
+   c'est ce qu'on cherche en premier le matin. */
+function blocAIntervenir(aRemplacer, fantomes){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:14px;';
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
+    'color:var(--accent-text);">⚠️ À traiter — ' +
+    (aRemplacer.length ? aRemplacer.length + ' à remplacer' : '') +
+    (aRemplacer.length && fantomes.length ? ' · ' : '') +
+    (fantomes.length ? fantomes.length + ' place(s) libre(s)' : '') +
+    '</summary>';
+
+  const ajouter = (titre, lot, couleur) => {
+    if(!lot.length) return;
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;font-weight:700;color:' + couleur +
+      ';margin:10px 0 4px;';
+    t.textContent = titre;
+    d.appendChild(t);
+
+    lot.forEach(x => {
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px 0;' +
+        'font-size:13px;cursor:pointer;';
+      l.innerHTML = '<span style="flex:1;min-width:0;">' +
+        (x.p.eleve ? '<strong>' + x.p.eleve.replace(/</g, '&lt;') + '</strong>' :
+                     '<em style="color:var(--muted);">place libre</em>') +
+        '<span style="color:var(--muted);"> — ' +
+        (x.s.date ? libelleDate(x.s.date) : 'date à définir') +
+        (x.p.heure ? ' à ' + x.p.heure : '') + '</span></span>';
+      l.addEventListener('click', () => ouvrirPlace(x.p, x.s));
+      d.appendChild(l);
+    });
+  };
+
+  ajouter('🔄 Places à remplacer', aRemplacer, 'var(--red)');
+  ajouter('👻 Places libres', fantomes, 'var(--muted)');
+
+  return d;
 }
 
 
@@ -312,7 +378,7 @@ function lignePlace(p, sess){
   const su = (typeof suiviDe === 'function' && p.eleve) ? suiviDe(p.eleve) : {};
   const ficheVide = !vide && !su.resteAPayer && !su.reservations &&
                     !su.relanceLe && !su.lecons2h && su.toutOk !== 'oui' &&
-                    su.aRemplacer !== 'oui';
+                    su.aRemplacer !== 'oui' && su.fairePoint !== 'oui';
 
   nom.innerHTML = vide
     ? '<span style="color:var(--muted);font-style:italic;">👻 Place libre — ' +
@@ -447,7 +513,7 @@ function ouvrirPlace(p, sess){
 
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
       'font-size:15px;color:var(--warn-text);margin-bottom:8px;font-weight:400;">' +
-      '<input type="checkbox" id="plRem" style="width:19px;height:19px;">' +
+      '<input type="checkbox" id="plRemplacer" style="width:19px;height:19px;">' +
       '🔄 À remplacer — sa place est à donner</label>' +
 
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
@@ -505,7 +571,7 @@ function ouvrirPlace(p, sess){
      ce qu'on coche ici se retrouve dans « Permis et places ». */
   const su = (typeof suiviDe === 'function' && p.eleve) ? suiviDe(p.eleve) : {};
   boite.querySelector('#plOk').checked = (su.toutOk === 'oui');
-  boite.querySelector('#plRem').checked = (su.aRemplacer === 'oui');
+  boite.querySelector('#plRemplacer').checked = (su.aRemplacer === 'oui');
   boite.querySelector('#plPoint').checked = (su.fairePoint === 'oui');
   boite.querySelector('#plPay').value = su.resteAPayer || '';
   boite.querySelector('#plQd').value = su.paiementPrevu || '';
@@ -570,7 +636,7 @@ function ouvrirPlace(p, sess){
           datePermis: sess.date || '',
           centre: sess.centre || '',
           toutOk: boite.querySelector('#plOk').checked ? 'oui' : '',
-          aRemplacer: boite.querySelector('#plRem').checked ? 'oui' : '',
+          aRemplacer: boite.querySelector('#plRemplacer').checked ? 'oui' : '',
           fairePoint: boite.querySelector('#plPoint').checked ? 'oui' : '',
           resteAPayer: boite.querySelector('#plPay').value.trim(),
           paiementPrevu: boite.querySelector('#plQd').value,
