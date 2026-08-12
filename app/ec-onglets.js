@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 11:26 — v387 */
+/* Déployé le 12/08/2026 à 11:54 — v389 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -121,8 +121,10 @@ function initOnglets(){
    prochains cours, préparer — tiennent sur une seule page, dans
    cet ordre. Un sélecteur n'en montrerait qu'un à la fois. */
 const VUES = {
-  permis: [['sessions', "🎓 Sessions d'examen", 'bureau_permis'],
-           ['listes',   '📋 Listes détaillées',  'bureau_permis']],
+  /* Deux vues : les sessions qu'on prépare, et tout le reste —
+     permis prévus, places à ouvrir, élèves à qui prendre une date. */
+  permis: [['sessions', "🎓 Sessions d'examen",   'bureau_permis'],
+           ['listes',   '📋 Permis et places',    'bureau_permis']],
   suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
            ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
   eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
