@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:41 — v408 */
+/* Déployé le 12/08/2026 à 16:51 — v409 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -535,6 +535,7 @@ $('confirmGen').addEventListener('click', async () => {
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
 
     $('resultText').value = bilan;
+    if(typeof remplirChoixProcedures === 'function') remplirChoixProcedures();
     afficherNote(currentLessonMeta.noteInterne);   /* reprend celle saisie avant le cours */
     if(dernierEchecCorrection){
       const detail = dernierEchecCorrection
@@ -912,6 +913,66 @@ function blocProcedures(texte){
 
   return '\n\n' + liste.map(p =>
     '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '')).join('\n\n');
+}
+
+/* ============================================================
+   AJOUTER UNE PROCÉDURE À LA MAIN
+
+   La voix sert pendant le cours ; ici, c'est pour le bilan manuel
+   ou pour compléter après coup. Le filtre par boîte s'applique de
+   la même façon.
+   ============================================================ */
+function remplirChoixProcedures(){
+  const sel = $('ajoutProcedure');
+  if(!sel) return;
+
+  const liste = proceduresDeLaBoite()
+    .slice()
+    .sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+
+  /* Rien à proposer : le sélecteur disparaît plutôt que d'occuper
+     la place avec une liste vide. */
+  const zone = sel.parentElement;
+  if(zone) zone.style.display = liste.length ? 'flex' : 'none';
+  if(!liste.length) return;
+
+  sel.innerHTML = '<option value="">📋 Ajouter une procédure…</option>' +
+    liste.map(p => '<option value="' + String(p.id || p.nom).replace(/"/g, '&quot;') +
+                   '">' + (p.nom || 'Sans nom') + '</option>').join('');
+}
+
+function ajouterProcedureAuBilan(){
+  const sel = $('ajoutProcedure');
+  const zone = $('resultText');
+  if(!sel || !zone || !sel.value) return;
+
+  const p = proceduresDeLaBoite()
+    .find(x => String(x.id || x.nom) === sel.value);
+  if(!p){ showToast('Procédure introuvable.'); return; }
+
+  const bloc = '📋 ' + (p.nom || 'Procédure') + '\n' + (p.contenu || '');
+
+  /* Déjà dedans : on ne la met pas deux fois */
+  if(zone.value.indexOf(bloc.trim()) !== -1){
+    showToast('Cette procédure est déjà dans le bilan.');
+    sel.value = '';
+    return;
+  }
+
+  /* Avant la signature du moniteur, s'il y en a une : la procédure
+     fait partie du bilan, pas de ce qui suit. */
+  const signature = zone.value.match(/\n\n[^\n]+ 🚗💨\s*$/);
+  if(signature){
+    const i = zone.value.length - signature[0].length;
+    zone.value = zone.value.slice(0, i) + '\n\n' + bloc + zone.value.slice(i);
+  }else{
+    zone.value = zone.value.replace(/\s*$/, '') + '\n\n' + bloc;
+  }
+
+  sel.value = '';
+  if(typeof marquerExport === 'function') marquerExport(false);
+  if(typeof sauvegarderLocal === 'function') sauvegarderLocal(true);
+  showToast('Procédure ajoutée ✅');
 }
 
 /* ============================================================
