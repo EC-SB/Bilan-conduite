@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 08:16 — v380 */
+/* Déployé le 12/08/2026 à 15:57 — v406 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -13,12 +13,6 @@
 const RACCOURCIS_NOTE = [
   { libelle: '📋 Compléter les infos', special: 'questionnaire' }
 ];
-
-
-
-
-
-
 
 
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
@@ -689,7 +683,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     rangee.className = 'btn-row';
     const passer = document.createElement('button');
     passer.className = 'btn btn-secondary';
-    passer.textContent = 'Passer';
+    /* « Annuler » plutôt que « Passer » : le bouton ferme sans rien
+       enregistrer, il ne saute pas une étape. */
+    passer.textContent = 'Annuler';
     const valider = document.createElement('button');
     valider.className = 'btn btn-primary';
     valider.textContent = libelleValider || 'Démarrer';
@@ -1226,7 +1222,6 @@ function choisirDate(titre){
 }
 
 
-
 /* Date ISO -> texte lisible en français */
 function dateEnToutesLettres(valeur){
   const t = String(valeur || '').trim();
@@ -1252,65 +1247,12 @@ function dateEnToutesLettres(valeur){
 }
 
 
-
-/* Compte les leçons de conduite déjà enregistrées pour un élève.
-   Seuls les bilans de type « Conduite » comptent : simulateur,
-   évaluation, RDV préalable et examen ne sont pas des leçons. */
-async function leconsDejaFaites(nomEleve){
-  if(!nomEleve || nomEleve.trim().length < 2) return null;
-  try{
-    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim(), leger: true })
-    });
-    if(!r.ok) return null;
-    const data = await r.json().catch(() => ({}));
-    const res = (data && data.resultats) || [];
-    let n = 0;
-    res.forEach(item => {
-      const type = String(item.type || '');
-      if(/^Conduite/i.test(type) || /^AAC/i.test(type)) n++;
-    });
-    return n;
-  }catch(e){
-    console.warn('Comptage des leçons indisponible :', e);
-    return null;
-  }
-}
-
-
-/* Retrouve la frise du dernier bilan de l'élève : elle est fixée à
-   l'évaluation et ne change quasiment jamais. */
-async function friseAnterieure(nomEleve){
-  if(!nomEleve || nomEleve.trim().length < 2) return '';
-  try{
-    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim(), leger: true })
-    });
-    if(!r.ok) return '';
-    const data = await r.json().catch(() => ({}));
-    const res = (data && data.resultats) || [];
-    /* Du plus récent au plus ancien : on garde la première trouvée */
-    for(let i = 0; i < res.length; i++){
-      const f = extraireFrise(res[i].note) || extraireFriseTexte(res[i].bilan);
-      if(f) return f;
-    }
-    return '';
-  }catch(e){
-    return '';
-  }
-}
-
 /* Retrouve la frise inscrite dans le corps d'un bilan précédent */
 function extraireFriseTexte(bilan){
   const t = String(bilan || '');
   const m = t.match(/(\d+\s*le[çc]ons? de 2h[^\n]*exam[^\n]*)/i);
   return m ? m[1].trim() : '';
 }
-
 
 
 /* Ajoute le texte à la note, sans jamais écraser ce qui est déjà écrit */
