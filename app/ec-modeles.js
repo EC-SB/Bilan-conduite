@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 15:36 — v372 */
+/* Déployé le 11/08/2026 à 16:00 — v375 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -602,6 +602,65 @@ function emojiMoniteur(){
   return (typeof ACCES !== 'undefined' && ACCES && ACCES.emoji) ? ACCES.emoji : '🦁';
 }
 
+/* ============================================================
+   LE BILAN DE COMPÉTENCES EN TEXTE
+
+   Reproduit la grille de RDV Permis avec des carrés de couleur :
+   elle part dans le bilan lui-même, sans image à envoyer à part.
+   La note retenue est en bleu, une faute éliminatoire en rouge.
+   ============================================================ */
+function construireCepcTexte(cepc, observations, c){
+  const out = [];
+  const P = s => out.push(s);
+
+  P('🧾 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘 𝗖𝗢𝗠𝗣𝗘́𝗧𝗘𝗡𝗖𝗘𝗦');
+  P('');
+
+  CEPC_BLOCS.forEach(bloc => {
+    P('▸ ' + bloc.titre.toUpperCase());
+
+    bloc.items.forEach(it => {
+      const v = (cepc || {})[it.nom];
+      const elimine = (v === 'E');
+
+      P(it.nom + (elimine ? '  ⛔ 𝗥𝗘́𝗦𝗨𝗟𝗧𝗔𝗧 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘' : ''));
+
+      /* Chaque niveau possible, celui qui est retenu mis en avant.
+         Un carré blanc pour les autres : l'échelle reste lisible,
+         l'élève voit ce qu'il aurait pu obtenir. */
+      const cases = it.valeurs.map(val => {
+        const lab = (val === '0.5') ? '0,5' : val;
+        const pris = (v !== undefined && String(v) === String(val));
+        if(!pris) return '▫️' + lab;
+        return (val === 'E' ? '🟥' : '🟦') + lab;
+      });
+      P('   ' + cases.join('  '));
+    });
+    P('');
+  });
+
+  P('━━━━━━━━━━━━━━━━━━');
+  if(c.elimine){
+    P('❌ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘 — Total : E');
+    c.eliminatoires.forEach(e => P('   🟥 ' + e));
+  }else{
+    P((c.favorable ? '✅ 𝗙𝗔𝗩𝗢𝗥𝗔𝗕𝗟𝗘' : '❌ 𝗜𝗡𝗦𝗨𝗙𝗙𝗜𝗦𝗔𝗡𝗧') +
+      ' — Total général : ' + String(c.total).replace('.', ',') + ' / ' + c.max);
+  }
+
+  const obs = txt(observations);
+  if(obs){
+    P('');
+    P('🟠 𝗢𝗯𝘀𝗲𝗿𝘃𝗮𝘁𝗶𝗼𝗻𝘀');
+    ligneParLigne(obs).forEach(o => P('   ' + o));
+  }
+
+  P('');
+  P('💡 Il faut 20 points minimum et aucune faute éliminatoire.');
+
+  return out.join('\n');
+}
+
 function buildExamenBlanc(ai, ctx){
   ai = ai || {};
   const cep = calculerCepc(ai.cepc);
@@ -668,37 +727,13 @@ function buildExamenBlanc(ai, ctx){
   }
   L('');
 
-  /* ---- Le CEPC ---- */
-  L('🧾𝙍𝙚́𝙨𝙪𝙡𝙩𝙖𝙩 :');
-  CEPC_BLOCS.forEach(b => {
-    const lignes = b.items
-      .filter(it => (ai.cepc || {})[it.nom] !== undefined && (ai.cepc || {})[it.nom] !== '')
-      .map(it => '   ' + it.nom + ' : ' + (ai.cepc[it.nom] === 'E' ? '𝗘 ❌' : ai.cepc[it.nom]));
-    if(!lignes.length) return;
-    L('▸ ' + b.titre);
-    lignes.forEach(L);
-  });
-  L('');
-  L('𝗧𝗢𝗧𝗔𝗟 : ' + cep.total + ' / ' + cep.max);
-  if(cep.elimine){
-    L('❌ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘 — ' + cep.eliminatoires.length + ' compétence(s) en E :');
-    cep.eliminatoires.forEach(e => L('   • ' + e));
-  }else{
-    L(cep.favorable ? '✅ 𝗙𝗔𝗩𝗢𝗥𝗔𝗕𝗟𝗘' : '❌ 𝗜𝗡𝗦𝗨𝗙𝗙𝗜𝗦𝗔𝗡𝗧 — il faut 20 points minimum');
-  }
-  if(txt(ai.observations)){
-    L('');
-    L('👉 Observations :');
-    ligneParLigne(ai.observations).forEach(o => L('   ' + o));
-  }
-  /* Les fautes relevées à la main, en plus de celles que le CEPC
-     déduit des compétences notées E. */
+  /* ---- Le bilan de compétences, en tableau ---- */
+  L(construireCepcTexte(ai.cepc, ai.observations, cep));
   if(txt(ai.eliminatoires)){
     L('');
-    L('☠️ Fautes éliminatoires :');
+    L('☠️ Fautes éliminatoires relevées :');
     ligneParLigne(ai.eliminatoires).forEach(o => L('   • ' + o));
   }
-  L('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/' + cep.max + ' et aucune faute éliminatoire.');
   L('');
 
   L('𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦');
