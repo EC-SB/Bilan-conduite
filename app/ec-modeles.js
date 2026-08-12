@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 16:00 — v375 */
+/* Déployé le 12/08/2026 à 14:08 — v398 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -909,9 +909,6 @@ function buildRvp(ai){
   for(let i = 0; i < nRefl; i++){
     parts.push('👨‍✈️' + (refl[i] ? ' ' + refl[i] : ''));
   }
-  parts.push('');
-  parts.push('🧾𝙍𝙚́𝙨𝙪𝙡𝙩𝙖𝙩 : voir CEPC (en photo).');
-  parts.push('💡 𝙍𝙖𝙥𝙥𝙚𝙡 : il faut avoir minimum 20/31 et aucune fautes éliminatoires.');
   parts.push('');
   parts.push('𝟯-𝘽𝙄𝙇𝘼𝙉 𝙀𝙍𝙍𝙊𝙍𝙎 :'.replace('𝙀𝙍𝙍𝙊𝙍𝙎', '𝙀𝙍𝙍𝙀𝙐𝙍𝙎'));
   const nErr = Math.max(errs.length, 5);
