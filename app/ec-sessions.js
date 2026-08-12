@@ -351,6 +351,21 @@ function blocSession(sess, auj){
 }
 
 
+/* L'écart entre deux passages, lu sur les places existantes */
+function dureeSession(sess){
+  const h = (sess.eleves || []).map(p => p.heure).filter(Boolean);
+  if(h.length < 2) return 30;
+
+  const m = t => {
+    const x = String(t).match(/^(\d{1,2})[:h](\d{2})/);
+    return x ? (+x[1] * 60 + +x[2]) : null;
+  };
+  const a = m(h[0]), b = m(h[1]);
+  if(a === null || b === null || b <= a) return 30;
+  return b - a;
+}
+
+
 function remplirPlaces(zone, sess){
   zone.innerHTML = '';
   sess.eleves.forEach(p => zone.appendChild(lignePlace(p, sess)));
@@ -366,9 +381,12 @@ function remplirPlaces(zone, sess){
   bPlus.addEventListener('click', async () => {
     bPlus.disabled = true;
     try{
+      /* La durée déduite des places existantes : la nouvelle prend
+         l'heure qui suit, sans qu'on ait à la saisir. */
       await appelPrep({ action: 'sessionSet', id: sess.id, date: sess.date,
                         centre: sess.centre, heureDebut: sess.heureDebut,
-                        places: sess.eleves.length + 1, moniteur: sess.moniteur,
+                        places: sess.eleves.length + 1, duree: dureeSession(sess),
+                        moniteur: sess.moniteur,
                         boite: sess.boite, inspecteur: sess.inspecteur,
                         par: ACCES.moniteur || '' });
       afficherSessionsPermis();
