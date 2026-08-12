@@ -77,9 +77,10 @@ async function afficherSessionsPermis(){
        « tout est OK » et le reste à payer. */
     const [d] = await Promise.all([
       appelPrep({ action: 'sessionList' }),
-      (typeof chargerBureau === 'function' &&
-       (typeof etatBureau === 'undefined' || !etatBureau.suivi ||
-        !etatBureau.suivi.length))
+      /* Le suivi porte les fiches de préparation. On le recharge
+         à chaque affichage : une fiche modifiée ailleurs doit se
+         voir ici, et le cache de 30 s évite les appels inutiles. */
+      (typeof chargerBureau === 'function')
         ? chargerBureau(false).catch(() => null) : Promise.resolve()
     ]);
     sessionsPermis = (d && d.sessions) || [];
@@ -306,11 +307,20 @@ function lignePlace(p, sess){
 
   const nom = document.createElement('div');
   nom.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;cursor:pointer;';
+  /* Sa fiche est-elle renseignée ? Un élève repris d'une ancienne
+     date peut n'avoir aucune préparation : autant le dire. */
+  const su = (typeof suiviDe === 'function' && p.eleve) ? suiviDe(p.eleve) : {};
+  const ficheVide = !vide && !su.resteAPayer && !su.reservations &&
+                    !su.relanceLe && !su.lecons2h && su.toutOk !== 'oui' &&
+                    su.aRemplacer !== 'oui';
+
   nom.innerHTML = vide
     ? '<span style="color:var(--muted);font-style:italic;">👻 Place libre — ' +
       'appuie pour y mettre un élève</span>'
     : '<strong style="color:' + etat.couleur + ';">' +
       p.eleve.replace(/</g, '&lt;') + '</strong>' +
+      (ficheVide ? ' <span style="font-size:11px;color:var(--warn-text);">' +
+        '📝 fiche à remplir</span>' : '') +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       etat.emoji + ' ' + etat.texte + '</div>';
   nom.addEventListener('click', () => ouvrirPlace(p, sess));
