@@ -623,18 +623,18 @@ function construireCepcTexte(cepc, observations, c){
       const v = (cepc || {})[it.nom];
       const elimine = (v === 'E');
 
-      P(it.nom + (elimine ? '  ⛔ 𝗥𝗘́𝗦𝗨𝗟𝗧𝗔𝗧 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘' : ''));
-
-      /* Chaque niveau possible, celui qui est retenu mis en avant.
-         Un carré blanc pour les autres : l'échelle reste lisible,
-         l'élève voit ce qu'il aurait pu obtenir. */
+      /* Les cases sur la MÊME ligne que la compétence, comme sur le
+         document de l'inspecteur : l'élève lit une grille, pas une
+         suite de paragraphes. */
       const cases = it.valeurs.map(val => {
         const lab = (val === '0.5') ? '0,5' : val;
         const pris = (v !== undefined && String(v) === String(val));
         if(!pris) return '▫️' + lab;
         return (val === 'E' ? '🟥' : '🟦') + lab;
       });
-      P('   ' + cases.join('  '));
+
+      P(it.nom + '  ' + cases.join(' ') +
+        (elimine ? '  ⛔ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘' : ''));
     });
     P('');
   });
