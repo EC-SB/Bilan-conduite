@@ -1,3 +1,4 @@
+/* Déployé le 12/08/2026 à 12:18 — v391 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -247,12 +248,6 @@ function versionsRappels(){
   return [{ titre: "Rappels avant examen", contenu: RAPPELS_AVANT_EXAMEN }];
 }
 
-/* Compatibilité : la première version reste accessible seule */
-function messageRappels(){
-  return versionsRappels()[0].contenu || RAPPELS_AVANT_EXAMEN;
-}
-
-
 /* Les dates d'examen à venir, d'après les fiches de suivi */
 function datesPermisAVenir(){
   const auj = todayLocal();
@@ -292,13 +287,40 @@ function datesPermisAVenir(){
     ajouter(e.eleve, e.etat.permisDate || (s && s.datePermis) || '', s);
   });
 
+  /* Les sessions : elles portent l'ordre de passage et les heures,
+     que les deux autres sources ne connaissent pas. */
+  (typeof sessionsPermis !== 'undefined' ? sessionsPermis : []).forEach(sess => {
+    if(!sess.date) return;
+    sess.eleves.forEach(p => {
+      if(!p.eleve) return;
+      const s = (etatBureau.suivi || []).find(
+        y => normaliserMot(y.eleve) === normaliserMot(p.eleve));
+      ajouter(p.eleve, sess.date, Object.assign({}, s, {
+        centre: sess.centre || (s && s.centre) || '',
+        moniteurDate: sess.moniteur || (s && s.moniteurDate) || ''
+      }));
+
+      /* L'heure et le rang viennent de la session */
+      const lot = parDate[sess.date] || [];
+      const dans = lot.find(x => normaliserMot(x.nom) === normaliserMot(p.eleve));
+      if(dans){
+        dans.heure = p.heure || dans.heure;
+        dans.rang = p.rang;
+      }
+    });
+  });
+
   return Object.keys(parDate).sort().map(iso => ({
     iso: iso,
-    eleves: parDate[iso].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+    /* L'ordre de la session s'il existe, l'alphabet sinon */
+    eleves: parDate[iso].sort((a, b) => {
+      if(a.rang && b.rang) return a.rang - b.rang;
+      if(a.rang) return -1;
+      if(b.rang) return 1;
+      return a.nom.localeCompare(b.nom, 'fr');
+    })
   }));
 }
-
-
 
 
 /* Le message « planning formation avant permis ».
@@ -734,13 +756,6 @@ async function afficherMessengerPermis(){
   preparerGroupes(jourChoisi());
   dessinerGroupes();
 }
-
-/* Une heure saisie « 14:00 » se lit mieux en « 14h00 » */
-function formaterHeure(v){
-  if(!v) return '';
-  return String(v).replace(':', 'h');
-}
-
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
