@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:49 — v369 */
+/* Déployé le 12/08/2026 à 16:30 — v407 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -599,6 +599,9 @@ async function terminerCours(){
   $('finishBtn').style.display = 'none';
   $('resultView').style.display = 'none';
   $('recordView').style.display = 'block';
+  /* Le bilan manuel redevient proposé : masqué pendant le cours,
+     il doit revenir pour le suivant. */
+  if($('zoneManuel')) $('zoneManuel').style.display = 'block';
   const d = $('genErrorDetail');
   if(d) d.remove();
 }
@@ -963,7 +966,9 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
     ['droits',        () => appliquerDroits()],
     ['utilisateurs',  () => { if(aDroit('admin') && ACCES.role === 'admin') chargerUtilisateurs(); }],
     ['reprise',       () => proposerReprise()],
-    ['élèves',        () => chargerEleves()],
+    /* Le cache d'abord : la liste s'affiche sans attendre le réseau */
+    ['élèves',        () => { if(typeof elevesDuCache === 'function') elevesDuCache();
+                              chargerEleves(); }],
     ['moniteurs',     () => chargerMoniteurs()],
     ['onglets',       () => initOnglets()],
     ['modèles',       () => appliquerTextesBilan()],
