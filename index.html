@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v406
+     VERSION APPLICATION : v407
      VERSION APPS SCRIPT REQUISE : v81
-     Mis à jour le : 12/08/2026 à 15:57
+     Mis à jour le : 12/08/2026 à 16:29
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -758,7 +758,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v406</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v407</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -975,26 +975,33 @@
 
       <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
       <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
-      <button class="btn btn-secondary" id="manuelBtn"
-              style="margin-top:12px;">✍️ Bilan à remplir à la main</button>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
-        Sans micro ni résumé automatique : tu remplis chaque rubrique toi-même,
-        en écrivant ou en dictant champ par champ.
+
+      <!-- Le bilan manuel : proposé tant que le cours n'a pas
+           démarré. Une fois le micro lancé, il n'a plus lieu d'être
+           et disparaît avec son explication. -->
+      <div id="zoneManuel">
+        <button class="btn btn-secondary" id="manuelBtn"
+                style="margin-top:12px;">✍️ Bilan à remplir à la main</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
+          Sans micro ni résumé automatique : tu remplis chaque rubrique toi-même,
+          en écrivant ou en dictant champ par champ.
+        </div>
       </div>
+
       <div id="etatMicro" style="text-align:center;font-size:26px;font-weight:800;margin-top:14px;line-height:1.3;"></div>
       <div id="diagMicro" style="text-align:center;font-size:21px;font-weight:700;color:var(--muted);margin-top:8px;line-height:1.35;"></div>
+
+      <!-- Pendant le cours, ce que le moniteur coche vient d'abord :
+           le début du bilan, puis la fiche véhicule. La transcription
+           les suit — on la relit à la fin, on coche en roulant. -->
+      <div id="enteteCours" style="display:none;margin-top:14px;"></div>
+
+      <div id="ficheCours" style="display:none;margin-top:14px;"></div>
+
       <div class="compteur" id="compteur"></div>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <textarea class="transcript-box" id="transcriptBox" style="display:none;"
                 placeholder="Le texte capté apparaîtra ici. Tu peux le corriger avant de générer le bilan."></textarea>
-      <!-- La fiche véhicule pendant le cours : le moniteur coche au
-           fur et à mesure. Ce qu'il coche s'ajoute à ce que la
-           reconnaissance vocale aura détecté, sans le remplacer. -->
-      <!-- Le début du bilan, à cocher pendant le cours : mêmes
-           repères que sur le bilan manuel. -->
-      <div id="enteteCours" style="display:none;margin-top:14px;"></div>
-
-      <div id="ficheCours" style="display:none;margin-top:14px;"></div>
 
       <div id="transcriptAide" style="display:none;font-size:13px;color:var(--muted);margin-top:6px;text-align:center;">
         ✏️ Mets en pause pour corriger le texte à la main avant de générer.<br>
@@ -1773,38 +1780,38 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=406"></script>
-<script src="app/ec-modeles.js?v=406"></script>
-<script src="app/ec-consignes.js?v=406"></script>
-<script src="app/ec-noyau.js?v=406"></script>
-<script src="app/ec-vocal.js?v=406"></script>
-<script src="app/ec-reseau.js?v=406"></script>
-<script src="app/ec-manuel.js?v=406"></script>
-<script src="app/ec-fenetres.js?v=406"></script>
-<script src="app/ec-questionnaire.js?v=406"></script>
-<script src="app/ec-permis.js?v=406"></script>
-<script src="app/ec-prepares.js?v=406"></script>
-<script src="app/ec-bureau.js?v=406"></script>
-<script src="app/ec-places.js?v=406"></script>
-<script src="app/ec-listes.js?v=406"></script>
-<script src="app/ec-permis-listes.js?v=406"></script>
-<script src="app/ec-postpermis.js?v=406"></script>
-<script src="app/ec-textes.js?v=406"></script>
-<script src="app/ec-correction.js?v=406"></script>
-<script src="app/ec-bilans.js?v=406"></script>
-<script src="app/ec-sessions.js?v=406"></script>
-<script src="app/ec-notifs.js?v=406"></script>
-<script src="app/ec-ecoutes.js?v=406"></script>
-<script src="app/ec-taches.js?v=406"></script>
-<script src="app/ec-memoire.js?v=406"></script>
-<script src="app/ec-historique.js?v=406"></script>
-<script src="app/ec-rappels.js?v=406"></script>
-<script src="app/ec-stats.js?v=406"></script>
-<script src="app/ec-messenger.js?v=406"></script>
-<script src="app/ec-journal.js?v=406"></script>
-<script src="app/ec-depart.js?v=406"></script>
-<script src="app/ec-onglets.js?v=406"></script>
-<script src="app/ec-demarrage.js?v=406"></script>
+  <script src="app/ec-etat.js?v=407"></script>
+<script src="app/ec-modeles.js?v=407"></script>
+<script src="app/ec-consignes.js?v=407"></script>
+<script src="app/ec-noyau.js?v=407"></script>
+<script src="app/ec-vocal.js?v=407"></script>
+<script src="app/ec-reseau.js?v=407"></script>
+<script src="app/ec-manuel.js?v=407"></script>
+<script src="app/ec-fenetres.js?v=407"></script>
+<script src="app/ec-questionnaire.js?v=407"></script>
+<script src="app/ec-permis.js?v=407"></script>
+<script src="app/ec-prepares.js?v=407"></script>
+<script src="app/ec-bureau.js?v=407"></script>
+<script src="app/ec-places.js?v=407"></script>
+<script src="app/ec-listes.js?v=407"></script>
+<script src="app/ec-permis-listes.js?v=407"></script>
+<script src="app/ec-postpermis.js?v=407"></script>
+<script src="app/ec-textes.js?v=407"></script>
+<script src="app/ec-correction.js?v=407"></script>
+<script src="app/ec-bilans.js?v=407"></script>
+<script src="app/ec-sessions.js?v=407"></script>
+<script src="app/ec-notifs.js?v=407"></script>
+<script src="app/ec-ecoutes.js?v=407"></script>
+<script src="app/ec-taches.js?v=407"></script>
+<script src="app/ec-memoire.js?v=407"></script>
+<script src="app/ec-historique.js?v=407"></script>
+<script src="app/ec-rappels.js?v=407"></script>
+<script src="app/ec-stats.js?v=407"></script>
+<script src="app/ec-messenger.js?v=407"></script>
+<script src="app/ec-journal.js?v=407"></script>
+<script src="app/ec-depart.js?v=407"></script>
+<script src="app/ec-onglets.js?v=407"></script>
+<script src="app/ec-demarrage.js?v=407"></script>
 
 </body>
 </html>
