@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 07:38 — v377 */
+/* Déployé le 12/08/2026 à 08:16 — v380 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -37,12 +37,19 @@ async function chargerDossierEleve(nomEleve){
       /* Texte complet : la fiche véhicule s'y trouve, et c'est elle
          qui pré-coche le questionnaire. En mode allégé, les marques
          étaient toujours vides et rien n'était coché. */
+      /* Quarante cours couvrent largement une formation complète :
+         la fiche véhicule et la frise s'y trouvent en entier. La
+         limite ne joue que sur les dossiers très anciens, où relire
+         tout le texte coûtait plusieurs secondes. */
       body: JSON.stringify({ action: 'search', code: ACCES.code,
-                             eleve: nomEleve.trim() })
+                             eleve: nomEleve.trim(), maxi: 40 })
     });
     if(!r.ok) return vide;
     const data = await r.json().catch(() => ({}));
     let res = (data && data.resultats) || [];
+    /* Le serveur ne renvoie que les derniers cours, mais il dit
+       combien il y en a en tout : le numéro de leçon reste juste. */
+    const totalConnu = (data && data.total) || 0;
 
     /* Anciennes lignes sans colonne Manœuvres : on relit avec le texte.
        Le mode léger était redemandé, ce qui coûtait un appel pour rien. */
@@ -60,7 +67,10 @@ async function chargerDossierEleve(nomEleve){
     }
 
     let frise = '';
+    /* Les cours relus donnent le détail ; le total, lui, vient du
+       serveur quand l'historique a été tronqué. */
     let lecons = 0;
+    let vus = 0;
     const manoeuvres = [];
     /* Le premier résultat est le plus récent */
     const dernier = res[0] || {};
@@ -69,6 +79,7 @@ async function chargerDossierEleve(nomEleve){
       if(!frise) frise = extraireFrise(item.note) || extraireFriseTexte(item.bilan);
       const type = String(item.type || '');
       if(/^Conduite/i.test(type) || /^AAC/i.test(type)) lecons++;
+      vus++;
       const liste = item.manoeuvres
         ? String(item.manoeuvres).split('|').map(x => x.trim()).filter(Boolean)
         : manoeuvresDejaFaites(item.bilan);
@@ -92,6 +103,10 @@ async function chargerDossierEleve(nomEleve){
       const m = marquesDejaPosees(item.bilan);
       Object.keys(m).forEach(k => { marques[k] = m[k]; });
     });
+
+    /* Les cours plus anciens que ceux relus comptent aussi : ce sont
+       presque toujours des leçons de conduite. */
+    if(totalConnu > vus) lecons += (totalConnu - vus);
 
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
                        marques: marques,
