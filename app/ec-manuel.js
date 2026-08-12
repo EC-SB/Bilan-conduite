@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 15:53 — v374 */
+/* Déployé le 12/08/2026 à 06:56 — v376 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -219,23 +219,92 @@ function dicterDans(champ, bouton){
 
 
 /* Une ligne du CEPC : la compétence et son niveau */
+/* Une compétence : son libellé, puis les cases de notation alignées
+   à droite comme sur le CEPC de l'inspecteur. Le moniteur retrouve
+   le geste du document officiel plutôt qu'un menu déroulant. */
 function ligneCepc(nom, valeurs){
   const l = document.createElement('div');
-  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 0;';
+  l.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 0;' +
+    'border-bottom:1px solid rgba(255,255,255,.05);';
+
   const t = document.createElement('span');
-  t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;min-width:0;';
+  t.style.cssText = 'flex:1;font-size:13px;color:var(--cream);line-height:1.35;min-width:0;';
   t.textContent = nom;
-  const s = document.createElement('select');
-  s.className = 'cepcNiveau';
-  s.setAttribute('data-comp', nom);
-  s.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:15px;flex-shrink:0;';
-  [''].concat(valeurs || ['E','0','1','2','3']).forEach(v => {
-    const o = document.createElement('option');
-    o.value = v; o.textContent = v || '—';
-    s.appendChild(o);
+  l.appendChild(t);
+
+  /* La mention éliminatoire, à gauche des cases */
+  const alerte = document.createElement('span');
+  alerte.className = 'cepcAlerte';
+  alerte.style.cssText = 'display:none;font-size:10px;font-weight:800;' +
+    'color:var(--red);flex-shrink:0;text-align:right;line-height:1.2;';
+  alerte.textContent = 'Résultat éliminatoire';
+  l.appendChild(alerte);
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:4px;flex-shrink:0;';
+
+  /* Le champ qui porte la valeur : les boutons ne font que l'écrire */
+  const champ = document.createElement('input');
+  champ.type = 'hidden';
+  champ.className = 'cepcNiveau';
+  champ.setAttribute('data-comp', nom);
+  champ.value = '';
+  l.appendChild(champ);
+
+  /* Toutes les colonnes du document, même celles qui n'existent pas
+     pour cette compétence : l'alignement des cases est ce qui rend
+     la grille lisible. */
+  const colonnes = (valeurs.indexOf('0.5') !== -1)
+    ? ['', '0', '0.5', '1', '']
+    : ['E', '0', '1', '2', '3'].map(v => (valeurs.indexOf(v) !== -1 ? v : ''));
+
+  const boutons = [];
+
+  colonnes.forEach(val => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.cssText = 'width:34px;height:30px;padding:0;margin:0;font-size:13px;' +
+      'border-radius:6px;font-family:inherit;cursor:pointer;flex-shrink:0;' +
+      'transition:background .12s, color .12s;';
+
+    if(val === ''){
+      /* Colonne inexistante : grisée, comme sur le CEPC */
+      b.disabled = true;
+      b.style.background = 'rgba(255,255,255,.05)';
+      b.style.border = '1px solid transparent';
+      b.style.cursor = 'default';
+      r.appendChild(b);
+      return;
+    }
+
+    b.textContent = (val === '0.5') ? '0,5' : val;
+    b.setAttribute('data-val', val);
+    boutons.push(b);
+
+    const peindre = () => {
+      const pris = (champ.value === val);
+      const rouge = (val === 'E');
+      b.style.background = pris ? (rouge ? 'var(--red)' : '#1568C8') : 'var(--navy)';
+      b.style.border = '1px solid ' +
+        (pris ? (rouge ? 'var(--red)' : '#1568C8') : 'var(--line)');
+      b.style.color = pris ? '#FFFFFF' : 'var(--accent-text)';
+      b.style.fontWeight = pris ? '800' : '400';
+    };
+    b._peindre = peindre;
+
+    b.addEventListener('click', () => {
+      /* Un second appui retire la note : le moniteur peut se raviser */
+      champ.value = (champ.value === val) ? '' : val;
+      boutons.forEach(x => x._peindre());
+      alerte.style.display = (champ.value === 'E') ? 'block' : 'none';
+      majTotalCepc();
+    });
+
+    peindre();
+    r.appendChild(b);
   });
-  s.addEventListener('change', majTotalCepc);
-  l.appendChild(t); l.appendChild(s);
+
+  l.appendChild(r);
   return l;
 }
 
@@ -548,14 +617,30 @@ async function ouvrirBilanManuel(){
 
     }else if(ch.type === 'cepc'){
       const l = document.createElement('label');
-      l.textContent = ch.nom + ' — E, 0, 1, 2 ou 3';
+      l.textContent = ch.nom;
       bloc.appendChild(l);
 
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.5;';
+      aide.textContent = "Appuie sur la note de chaque compétence, comme sur le CEPC " +
+        "de l'inspecteur. Un second appui l'efface.";
+      bloc.appendChild(aide);
+
       const z = document.createElement('div');
-      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;padding:10px 12px;';
+      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+        'border-radius:10px;padding:10px 12px;';
+
+      /* La légende des colonnes, une fois en tête */
+      const leg = document.createElement('div');
+      leg.style.cssText = 'display:flex;justify-content:flex-end;font-size:10px;' +
+        'color:var(--muted);margin-bottom:4px;';
+      leg.textContent = "Niveaux d'appréciation";
+      z.appendChild(leg);
+
       CEPC_BLOCS.forEach(g => {
         const t = document.createElement('div');
-        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin:8px 0 4px;';
+        t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+          'margin:12px 0 4px;';
         t.textContent = g.titre;
         z.appendChild(t);
         g.items.forEach(it => z.appendChild(ligneCepc(it.nom, it.valeurs)));
@@ -1007,9 +1092,6 @@ async function genererBilanManuel(){
     });
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
-    if(typeof proposerImageCepc === 'function' && donnees.cepc){
-      proposerImageCepc(donnees.cepc, donnees.observations, eleve);
-    }
     if(typeof blocProcedures === 'function'){
       bilan += blocProcedures(champsManuels.texteDicte || '');
     }
