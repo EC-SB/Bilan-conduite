@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 12:47 — v393 */
+/* Déployé le 12/08/2026 à 16:51 — v409 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -169,6 +169,9 @@ window.addEventListener('beforeunload', e => {
 
 $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
+if($('ajoutProcedureBtn')){
+  $('ajoutProcedureBtn').addEventListener('click', ajouterProcedureAuBilan);
+}
 if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
 if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrectionMoniteur);
 if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorrection);
