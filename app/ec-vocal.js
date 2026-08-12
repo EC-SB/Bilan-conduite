@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:51 — v409 */
+/* Déployé le 12/08/2026 à 16:58 — v410 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1131,8 +1131,8 @@ function afficherEnteteDuCours(){
   d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
 
   d.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
-    'color:var(--accent-text);">📋 Début du bilan — décoche ce qui n\'a pas été ' +
-    'fait</summary>';
+    'color:var(--accent-text);">📋 Carte SD — Installation — ' +
+    'Vérifications</summary>';
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;';
