@@ -132,9 +132,8 @@ async function afficherSessionsPermis(){
     bRep.disabled = true;
     bRep.textContent = 'Reprise en cours…';
     try{
-      const r = await appelPrep({ action: 'sessionReprise', par: ACCES.moniteur || '' });
-      showToast((r.creees || 0) + ' session(s) créée(s) · ' +
-                (r.places || 0) + ' élève(s) placé(s) ✅');
+      const r = await reprendreDatesExistantes();
+      showToast(r.creees + ' session(s) · ' + r.places + ' élève(s) placé(s) ✅');
       afficherSessionsPermis();
     }catch(e){
       showToast('Reprise impossible : ' + e.message);
@@ -713,6 +712,116 @@ function eleveDuBureau(nom){
     .find(x => normaliserMot(x.eleve) === normaliserMot(nom)) || null;
 }
 
+
+/* ============================================================
+   REPRISE DES DATES DÉJÀ POSÉES
+
+   Les dates d'examen vivent à deux endroits : la fiche de suivi,
+   et la note du moniteur — « Examen du permis fixé au… ». Le
+   serveur ne sait lire que la première ; la reprise se fait donc
+   ici, où les deux sources sont déjà en mémoire.
+   ============================================================ */
+async function reprendreDatesExistantes(){
+  /* Les élèves du bureau, s'ils ne sont pas encore chargés */
+  if(typeof chargerBureau === 'function' &&
+     (!etatBureau.eleves || !etatBureau.eleves.length)){
+    await chargerBureau(false);
+  }
+
+  const parJour = {};
+
+  const ajouter = (nom, iso, s) => {
+    if(!nom || !iso) return;
+
+    /* On regroupe sur la DATE seule : un élève sans centre renseigné
+       passe le même jour que les autres, il n'a pas à former une
+       session à part. Le centre du premier qui l'indique vaut pour
+       toute la journée. */
+    const cle = iso;
+    if(!parJour[cle]){
+      parJour[cle] = { date: iso, centre: (s && s.centre) || '',
+                       boite: (s && s.typeExamen) || '', eleves: [] };
+    }
+    if(!parJour[cle].centre && s && s.centre) parJour[cle].centre = s.centre;
+    if(!parJour[cle].boite && s && s.typeExamen) parJour[cle].boite = s.typeExamen;
+    if(parJour[cle].eleves.some(x => normaliserMot(x.eleve) === normaliserMot(nom))) return;
+    parJour[cle].eleves.push({
+      eleve: nom,
+      heure: (s && s.heurePermis) || '',
+      dossierOk: !!(s && s.toutOk === 'oui')
+    });
+  };
+
+  /* Source 1 : la fiche de suivi */
+  (etatBureau.suivi || []).forEach(s => {
+    if(!s.datePermis) return;
+    ajouter(s.eleve, dateFrVersIso(s.datePermis) || s.datePermis, s);
+  });
+
+  /* Source 2 : la note du moniteur, que le serveur ne lit pas */
+  (etatBureau.eleves || []).forEach(e => {
+    const a = analyserNote(e.note || '');
+    if(a.permis !== 'prevu' || !a.permisDate) return;
+    const s = (etatBureau.suivi || []).find(
+      y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
+    ajouter(e.eleve, dateFrVersIso(a.permisDate) || a.permisDate, s);
+  });
+
+  const jours = Object.keys(parJour);
+  if(!jours.length) return { creees: 0, places: 0 };
+
+  /* Ce qui existe déjà, pour ne rien dupliquer */
+  const dejaPlaces = {};
+  (sessionsPermis || []).forEach(s => {
+    s.eleves.forEach(p => { if(p.eleve) dejaPlaces[normaliserMot(p.eleve)] = true; });
+  });
+
+  let creees = 0, places = 0;
+
+  for(const k of jours){
+    const g = parJour[k];
+    const aPlacer = g.eleves.filter(x => !dejaPlaces[normaliserMot(x.eleve)]);
+    if(!aPlacer.length) continue;
+
+    aPlacer.sort((a, b) => String(a.heure).localeCompare(String(b.heure)));
+
+    /* Une session par date et centre : le serveur la crée si elle
+       manque, et complète la sienne sinon. */
+    /* Une session existante ce jour-là accueille les nouveaux */
+    const existe = (sessionsPermis || []).find(s => s.date === g.date);
+
+    let idS = existe ? existe.id : '';
+    if(!existe){
+      const r = await appelPrep({
+        action: 'sessionSet', date: g.date, centre: g.centre,
+        heureDebut: aPlacer[0].heure || '', places: aPlacer.length,
+        duree: 30, boite: g.boite, par: ACCES.moniteur || ''
+      });
+      idS = r && r.id;
+      creees++;
+    }
+    if(!idS) continue;
+
+    /* Les places, une par élève */
+    const depart = existe ? existe.eleves.length : 0;
+    for(let i = 0; i < aPlacer.length; i++){
+      const rang = existe ? (depart + i + 1) : (i + 1);
+      if(existe){
+        /* La session grandit d'une place */
+        await appelPrep({ action: 'sessionSet', id: idS, date: g.date,
+                          centre: g.centre, heureDebut: existe.heureDebut,
+                          places: depart + i + 1, moniteur: existe.moniteur,
+                          boite: existe.boite, par: ACCES.moniteur || '' });
+      }
+      await appelPrep({ action: 'sessionPlace', idSession: idS, rang: rang,
+                        eleve: aPlacer[i].eleve, heure: aPlacer[i].heure,
+                        dossierOk: aPlacer[i].dossierOk ? 'oui' : '' });
+      places++;
+    }
+  }
+
+  return { creees: creees, places: places };
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
