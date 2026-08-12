@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:36 — v383 */
+/* Déployé le 12/08/2026 à 09:49 — v384 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -141,6 +141,14 @@ async function afficherPrepares(recharger, silencieux){
     return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
   })();
 
+  /* Dans une journée, l'ordre choisi par le moniteur prime : c'est
+     lui qui connaît l'enchaînement de ses cours. */
+  liste.sort((a, b) => {
+    const d = String(a.date || '').localeCompare(String(b.date || ''));
+    if(d !== 0) return d;
+    return (a.ordre || 999) - (b.ordre || 999);
+  });
+
   liste.forEach(cours => {
     if(cours.date !== dateCourante){
       dateCourante = cours.date;
@@ -257,6 +265,71 @@ async function afficherPrepares(recharger, silencieux){
       });
       actions.appendChild(bReprendre);
     }
+
+    /* Monter ou descendre dans la journée : le moniteur range ses
+       cours dans l'ordre où il les fera. */
+    [['▲', -1, 'Monter'], ['▼', 1, 'Descendre']].forEach(([signe, sens, quoi]) => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:9px 8px;font-size:12px;';
+      b.textContent = signe;
+      b.title = quoi + ' dans la journée';
+      b.addEventListener('click', async () => {
+        const duJour = prepares
+          .filter(x => x.date === cours.date)
+          .sort((a, b2) => (a.ordre || 999) - (b2.ordre || 999));
+        const i = duJour.findIndex(x => String(x.id) === String(cours.id));
+        const j = i + sens;
+        if(i === -1 || j < 0 || j >= duJour.length) return;
+
+        /* On permute, puis on renumérote toute la journée */
+        duJour[i] = duJour.splice(j, 1, duJour[i])[0];
+        duJour.forEach((x, n) => { x.ordre = n + 1; });
+
+        await afficherPrepares(false);
+        try{
+          await appelPrep({ action: 'prepOrdre',
+                            ids: JSON.stringify(duJour.map(x => x.id)) });
+        }catch(e){
+          showToast('Ordre non enregistré : ' + e.message);
+        }
+      });
+      actions.appendChild(b);
+    });
+
+    /* Changer la date : une erreur de saisie ne doit pas obliger à
+       tout refaire. Le cours se déplace dans le bon tiroir. */
+    const bDate = document.createElement('button');
+    bDate.className = 'btn btn-secondary';
+    bDate.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;';
+    bDate.textContent = '📅';
+    bDate.title = 'Changer la date de ce cours';
+    bDate.addEventListener('click', async () => {
+      const neuve = await demanderDate('Nouvelle date du cours de ' +
+                                       (cours.eleve || 'cet élève'), cours.date);
+      if(!neuve || neuve === cours.date) return;
+
+      bDate.disabled = true;
+      bDate.textContent = '⏳';
+      try{
+        await appelPrep({ action: 'prepAdd', id: cours.id, date: neuve,
+                          eleve: cours.eleve, modele: cours.modele,
+                          modeleLabel: cours.modeleLabel || '',
+                          site: cours.site || '',
+                          note: cours.note || '',
+                          contexte: JSON.stringify(cours.contexte || {}),
+                          moniteur: cours.moniteur || ACCES.moniteur || '' });
+        const dans = prepares.find(x => String(x.id) === String(cours.id));
+        if(dans) dans.date = neuve;
+        showToast('Date modifiée ✅');
+        await afficherPrepares(false);
+      }catch(e){
+        showToast('Modification impossible : ' + e.message);
+        bDate.disabled = false;
+        bDate.textContent = '📅';
+      }
+    });
+    actions.appendChild(bDate);
 
     /* Un cours passé qui traîne encore : le moniteur le retire
        lui-même, sans attendre le recoupement automatique. */
@@ -957,6 +1030,52 @@ function amenerAuCours(){
       window.scrollTo(0, z.offsetTop - 10);
     }
   }, 120);
+}
+
+/* Demande une date, avec celle du cours pré-remplie */
+function demanderDate(titre, dateActuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = '340px';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    const champ = document.createElement('input');
+    champ.type = 'date';
+    champ.value = dateActuelle || todayLocal();
+    boite.appendChild(champ);
+
+    const r = document.createElement('div');
+    r.className = 'btn-row';
+
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    bAnn.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = 'Valider';
+    bOk.addEventListener('click', () => {
+      const v = champ.value;
+      document.body.removeChild(fond);
+      resolve(v || null);
+    });
+
+    r.appendChild(bAnn); r.appendChild(bOk);
+    boite.appendChild(r);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    setTimeout(() => champ.focus(), 100);
+  });
 }
 
 /* Signale que ce module est bien chargé */
