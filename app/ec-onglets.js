@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:54 — v370 */
+/* Déployé le 12/08/2026 à 11:26 — v387 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -121,6 +121,8 @@ function initOnglets(){
    prochains cours, préparer — tiennent sur une seule page, dans
    cet ordre. Un sélecteur n'en montrerait qu'un à la fois. */
 const VUES = {
+  permis: [['sessions', "🎓 Sessions d'examen", 'bureau_permis'],
+           ['listes',   '📋 Listes détaillées',  'bureau_permis']],
   suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
            ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
   eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
@@ -226,10 +228,12 @@ function reveillerVue(cle){
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
+    sessions:   () => afficherSessionsPermis(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
+    sessions:   () => afficherSessionsPermis(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
