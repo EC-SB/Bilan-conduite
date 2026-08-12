@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:34 — v368 */
+/* Déployé le 12/08/2026 à 13:13 — v394 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -141,7 +141,14 @@ async function chargerBureau(forcer){
   const consignes = (data && data.consignes) || [];
 
   etatBureau.consignes = consignes;
-  etatBureau.suivi = (data && data.suivi) || [];
+  /* Une réponse sans suivi ne doit pas effacer celui qu'on a déjà :
+     un appel partiel ou une erreur silencieuse vidait toutes les
+     fiches de préparation. */
+  if(data && Array.isArray(data.suivi)){
+    etatBureau.suivi = data.suivi;
+  }else if(!etatBureau.suivi){
+    etatBureau.suivi = [];
+  }
   chargerPlaces(data && data.places);
   /* Les périodes terminées sortent d'elles-mêmes */
   if(nettoyerPeriodesEchues()){
