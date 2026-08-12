@@ -41,6 +41,11 @@ function etatPlace(place, eleveBureau){
   if(su.resteAPayer && parseFloat(su.resteAPayer) > 0){
     manque.push('reste ' + su.resteAPayer + ' € à payer');
   }
+  /* Une relance dépassée : c'est le genre de chose qui se perd */
+  if(su.relanceLe && su.relanceLe <= todayLocal()){
+    manque.push('à relancer');
+  }
+  if(!su.reservations) manque.push('pas de réservation posée');
 
   /* Ce que sa note de suivi signale encore */
   if(eleveBureau && typeof analyserNote === 'function'){
@@ -453,6 +458,31 @@ function ouvrirPlace(p, sess){
       '<div><label for="plL1">Leçons de 1h</label>' +
         '<input type="text" id="plL1" inputmode="numeric" placeholder="Ex : 1"></div>' +
     '</div>' +
+    '<div class="duo">' +
+      '<div><label for="plRel">Relancer le</label>' +
+        '<input type="date" id="plRel"></div>' +
+      '<div><label for="plNat">Nature du paiement</label>' +
+        '<select id="plNat">' +
+          '<option value="">— non précisé —</option>' +
+          '<option value="solde">Solde du permis</option>' +
+          '<option value="heures">Heures en plus</option>' +
+          '<option value="accompagnement">Accompagnement</option>' +
+          '<option value="presentation">Frais de présentation</option>' +
+        '</select></div>' +
+    '</div>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:8px;font-weight:400;">' +
+      '<input type="checkbox" id="plAcc" style="width:19px;height:19px;">' +
+      '🚗 Accompagnement à payer</label>' +
+
+    '<label for="plRes">Réservations posées sur le planning</label>' +
+    '<input type="text" id="plRes" ' +
+      'placeholder="Ex : 2h le 12/09 + 2h le 18/09 + 1h le 20/09">' +
+
+    '<label for="plAE">Auto-école à qui donner la date</label>' +
+    '<input type="text" id="plAE" placeholder="Si la place part ailleurs">' +
+
     '<label for="plAut">Autre à prévoir</label>' +
     '<input type="text" id="plAut" placeholder="Ce qui reste à faire avant l\'examen">');
 
@@ -473,6 +503,11 @@ function ouvrirPlace(p, sess){
   boite.querySelector('#plL2').value = su.lecons2h || '';
   boite.querySelector('#plL1').value = su.lecons1h || '';
   boite.querySelector('#plAut').value = su.autre || '';
+  boite.querySelector('#plRel').value = su.relanceLe || '';
+  boite.querySelector('#plNat').value = su.nature || '';
+  boite.querySelector('#plAcc').checked = (su.accompagnement === 'oui');
+  boite.querySelector('#plRes').value = su.reservations || '';
+  boite.querySelector('#plAE').value = su.autoEcole || '';
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -532,7 +567,12 @@ function ouvrirPlace(p, sess){
           paiementPrevu: boite.querySelector('#plQd').value,
           lecons2h: boite.querySelector('#plL2').value.trim(),
           lecons1h: boite.querySelector('#plL1').value.trim(),
-          autre: boite.querySelector('#plAut').value.trim()
+          autre: boite.querySelector('#plAut').value.trim(),
+          relanceLe: boite.querySelector('#plRel').value,
+          nature: boite.querySelector('#plNat').value,
+          accompagnement: boite.querySelector('#plAcc').checked ? 'oui' : '',
+          reservations: boite.querySelector('#plRes').value.trim(),
+          autoEcole: boite.querySelector('#plAE').value.trim()
         });
       }
 
