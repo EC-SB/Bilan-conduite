@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:33 — v382 */
+/* Déployé le 12/08/2026 à 09:36 — v383 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -241,14 +241,18 @@ async function afficherPrepares(recharger, silencieux){
         if(!await confirmer('Ce cours est attribué à ' + cours.moniteur + '.\n\n' +
             'Le reprendre à ton nom ?')) return;
         bReprendre.disabled = true;
+        bReprendre.textContent = '⏳ Reprise…';
         try{
           await appelPrep({ action: 'prepAssign', id: cours.id,
                             moniteur: ACCES.moniteur });
+          const dans = prepares.find(x => String(x.id) === String(cours.id));
+          if(dans) dans.moniteur = ACCES.moniteur;
           showToast('Cours repris ✅');
-          afficherPrepares();
+          await afficherPrepares(false);
         }catch(e){
           showToast('Reprise impossible : ' + e.message);
           bReprendre.disabled = false;
+          bReprendre.textContent = '↩️ Reprendre';
         }
       });
       actions.appendChild(bReprendre);
@@ -306,19 +310,33 @@ async function afficherPrepares(recharger, silencieux){
     bDonner.textContent = '👤';
     bDonner.title = 'Donner ce cours à un autre moniteur';
     bDonner.addEventListener('click', async () => {
-      if(!moniteursActifs.length) await chargerMoniteurs();
+      /* La liste des moniteurs peut manquer : on le dit, sinon le
+         bouton semble bloqué pendant la lecture. */
+      if(!moniteursActifs.length){
+        bDonner.disabled = true;
+        bDonner.textContent = '⏳';
+        try{ await chargerMoniteurs(); }
+        finally{ bDonner.disabled = false; bDonner.textContent = '👤'; }
+      }
       const cible = await choisirDansListe(
         'Donner le cours de ' + (cours.eleve || 'cet élève') + ' à :',
         moniteursActifs, cours.moniteur || '');
       if(!cible) return;
       bDonner.disabled = true;
+      bDonner.textContent = '⏳';
       try{
         await appelPrep({ action: 'prepAssign', id: cours.id, moniteur: cible });
+        /* La ligne en mémoire suit : relire toute la liste pour un
+           champ que le serveur vient de confirmer faisait attendre
+           le moniteur une seconde de plus pour rien. */
+        const dans = prepares.find(x => String(x.id) === String(cours.id));
+        if(dans) dans.moniteur = cible;
         showToast('Cours donné à ' + cible + ' ✅');
-        afficherPrepares();
+        await afficherPrepares(false);
       }catch(e){
         showToast('Transfert impossible : ' + e.message);
         bDonner.disabled = false;
+        bDonner.textContent = '👤';
       }
     });
     actions.appendChild(bDonner);
