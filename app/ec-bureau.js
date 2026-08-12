@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 13:13 — v394 */
+/* Déployé le 12/08/2026 à 13:22 — v395 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -211,9 +211,21 @@ function suiviDe(eleve){
 async function majSuivi(eleve, champs){
   cacheBureau = null;
   const s = suiviDe(eleve);
+
   await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
     eleve: eleve, par: ACCES.moniteur || ''
   }));
+
+  /* La mémoire suit tout de suite : sans ça, l'écran redessiné
+     relisait l'ancienne valeur, et il fallait appuyer plusieurs
+     fois avant que le changement paraisse tenir. */
+  const dans = etatBureau.suivi.find(
+    x => normaliserMot(x.eleve) === normaliserMot(eleve));
+  if(dans){
+    Object.assign(dans, champs);
+  }else{
+    etatBureau.suivi.push(Object.assign({ eleve: eleve }, s, champs));
+  }
 }
 
 /* Fiche de préparation administrative d'un passage au permis */
