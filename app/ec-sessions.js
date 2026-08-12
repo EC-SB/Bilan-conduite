@@ -25,9 +25,22 @@ function etatPlace(place, eleveBureau){
              couleur:'var(--muted)' };
   }
 
+  const su = (typeof suiviDe === 'function') ? suiviDe(place.eleve) : {};
+
+  /* Une place à remplacer passe avant tout le reste : c'est elle
+     qu'il faut traiter en premier. */
+  if(su.aRemplacer === 'oui'){
+    return { cle:'remplacer', emoji:'🔄', texte:'À REMPLACER — place à donner',
+             couleur:'var(--red)' };
+  }
+
   const manque = [];
   if(!place.prevenu) manque.push('pas prévenu');
   if(!place.dossierOk) manque.push('dossier à vérifier');
+  if(su.fairePoint === 'oui') manque.push('faire le point');
+  if(su.resteAPayer && parseFloat(su.resteAPayer) > 0){
+    manque.push('reste ' + su.resteAPayer + ' € à payer');
+  }
 
   /* Ce que sa note de suivi signale encore */
   if(eleveBureau && typeof analyserNote === 'function'){
@@ -55,7 +68,15 @@ async function afficherSessionsPermis(){
 
   zone.innerHTML = '<div class="empty">Lecture des sessions…</div>';
   try{
-    const d = await appelPrep({ action: 'sessionList' });
+    /* Le suivi en même temps : c'est lui qui porte « à remplacer »,
+       « tout est OK » et le reste à payer. */
+    const [d] = await Promise.all([
+      appelPrep({ action: 'sessionList' }),
+      (typeof chargerBureau === 'function' &&
+       (typeof etatBureau === 'undefined' || !etatBureau.suivi ||
+        !etatBureau.suivi.length))
+        ? chargerBureau(false).catch(() => null) : Promise.resolve()
+    ]);
     sessionsPermis = (d && d.sessions) || [];
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
@@ -370,13 +391,61 @@ function ouvrirPlace(p, sess){
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
       'font-size:15px;color:var(--cream);margin-bottom:12px;font-weight:400;">' +
       '<input type="checkbox" id="plDossier" style="width:19px;height:19px;">' +
-      '📁 Dossier vérifié</label>');
+      '📁 Dossier vérifié</label>' +
+
+    /* La préparation administrative : ce qui décide si l'élève
+       passe ou si sa place doit être donnée à quelqu'un d'autre. */
+    '<div style="border-top:1px solid var(--line);margin:6px 0 12px;' +
+      'padding-top:12px;font-size:13px;font-weight:700;color:var(--accent-text);">' +
+      '📋 Sa préparation</div>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:8px;font-weight:400;">' +
+      '<input type="checkbox" id="plOk" style="width:19px;height:19px;">' +
+      '✅ Tout est OK — il peut passer</label>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--warn-text);margin-bottom:8px;font-weight:400;">' +
+      '<input type="checkbox" id="plRem" style="width:19px;height:19px;">' +
+      '🔄 À remplacer — sa place est à donner</label>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:8px;font-weight:400;">' +
+      '<input type="checkbox" id="plPoint" style="width:19px;height:19px;">' +
+      '❓ Faire le point avec lui</label>' +
+
+    '<div class="duo">' +
+      '<div><label for="plPay">Reste à payer</label>' +
+        '<input type="text" id="plPay" inputmode="decimal" placeholder="Ex : 180"></div>' +
+      '<div><label for="plQd">Paiement prévu le</label>' +
+        '<input type="date" id="plQd"></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="plL2">Leçons de 2h à poser</label>' +
+        '<input type="text" id="plL2" inputmode="numeric" placeholder="Ex : 2"></div>' +
+      '<div><label for="plL1">Leçons de 1h</label>' +
+        '<input type="text" id="plL1" inputmode="numeric" placeholder="Ex : 1"></div>' +
+    '</div>' +
+    '<label for="plAut">Autre à prévoir</label>' +
+    '<input type="text" id="plAut" placeholder="Ce qui reste à faire avant l\'examen">');
 
   boite.querySelector('#plEleve').value = p.eleve || '';
   boite.querySelector('#plHeure').value = p.heure || '';
   boite.querySelector('#plRem').value = p.remarque || '';
   boite.querySelector('#plPrevenu').checked = !!p.prevenu;
   boite.querySelector('#plDossier').checked = !!p.dossierOk;
+
+  /* La préparation vient du suivi, partagée avec l'autre sous-onglet :
+     ce qu'on coche ici se retrouve dans « Permis et places ». */
+  const su = (typeof suiviDe === 'function' && p.eleve) ? suiviDe(p.eleve) : {};
+  boite.querySelector('#plOk').checked = (su.toutOk === 'oui');
+  boite.querySelector('#plRem').checked = (su.aRemplacer === 'oui');
+  boite.querySelector('#plPoint').checked = (su.fairePoint === 'oui');
+  boite.querySelector('#plPay').value = su.resteAPayer || '';
+  boite.querySelector('#plQd').value = su.paiementPrevu || '';
+  boite.querySelector('#plL2').value = su.lecons2h || '';
+  boite.querySelector('#plL1').value = su.lecons1h || '';
+  boite.querySelector('#plAut').value = su.autre || '';
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -421,6 +490,25 @@ function ouvrirPlace(p, sess){
                         remarque: boite.querySelector('#plRem').value.trim(),
                         prevenu: boite.querySelector('#plPrevenu').checked ? 'oui' : '',
                         dossierOk: boite.querySelector('#plDossier').checked ? 'oui' : '' });
+
+      /* La préparation rejoint le suivi, pas la session : c'est une
+         donnée de l'élève, elle le suit s'il change de date. */
+      const nom = boite.querySelector('#plEleve').value.trim();
+      if(nom && typeof majSuivi === 'function'){
+        await majSuivi(nom, {
+          datePermis: sess.date || '',
+          centre: sess.centre || '',
+          toutOk: boite.querySelector('#plOk').checked ? 'oui' : '',
+          aRemplacer: boite.querySelector('#plRem').checked ? 'oui' : '',
+          fairePoint: boite.querySelector('#plPoint').checked ? 'oui' : '',
+          resteAPayer: boite.querySelector('#plPay').value.trim(),
+          paiementPrevu: boite.querySelector('#plQd').value,
+          lecons2h: boite.querySelector('#plL2').value.trim(),
+          lecons1h: boite.querySelector('#plL1').value.trim(),
+          autre: boite.querySelector('#plAut').value.trim()
+        });
+      }
+
       document.body.removeChild(fond);
       showToast('Enregistré ✅');
       afficherSessionsPermis();
