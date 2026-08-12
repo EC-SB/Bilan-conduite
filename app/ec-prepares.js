@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 10:13 — v386 */
+/* Déployé le 12/08/2026 à 12:47 — v393 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -117,6 +117,30 @@ function remplirFiltreMoniteurs(sel){
     noms.map(n => '<option value="' + n.replace(/"/g, '&quot;') + '">' +
                   n + ' — ' + compte[n] + '</option>').join('');
   if(choix && noms.indexOf(choix) !== -1) sel.value = choix;
+}
+
+
+/* Remplit le choix du moniteur destinataire */
+async function remplirPourQui(){
+  const sel = $('prepPour');
+  if(!sel) return;
+
+  if(typeof chargerMoniteurs === 'function' &&
+     (typeof moniteursActifs === 'undefined' || !moniteursActifs.length)){
+    try{ await chargerMoniteurs(); }catch(e){ /* on garde le moniteur courant */ }
+  }
+
+  const liste = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  const choix = sel.value || ACCES.moniteur || '';
+
+  sel.innerHTML = liste.map(m =>
+    '<option value="' + String(m).replace(/"/g, '&quot;') + '">' +
+    (normaliserMot(m) === normaliserMot(ACCES.moniteur || '') ? m + ' (moi)' : m) +
+    '</option>').join('');
+
+  /* Moi par défaut : c'est le cas le plus fréquent */
+  if(liste.some(m => normaliserMot(m) === normaliserMot(choix))) sel.value = choix;
+  else if(liste.length) sel.value = liste[0];
 }
 
 
@@ -738,7 +762,10 @@ async function preparerNouveauCours(){
       site: $('site').value,
       note: noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
-      moniteur: ACCES.moniteur || ''
+      /* À qui revient le cours, et qui l'a préparé : deux choses
+         différentes dès qu'on prépare pour un collègue. */
+      moniteur: ($('prepPour') && $('prepPour').value) || ACCES.moniteur || '',
+      preparePar: ACCES.moniteur || ''
     };
 
     const r = await appelPrep(Object.assign({ action: 'prepAdd' }, nouveau));
@@ -752,8 +779,7 @@ async function preparerNouveauCours(){
        aller rechercher. L'affichage est immédiat. */
     prepares.push(Object.assign({}, nouveau, {
       id: (r && r.id) || String(Date.now()),
-      contexte: rep,
-      preparePar: ACCES.moniteur || ''
+      contexte: rep
     }));
     await afficherPrepares(false);
     showToast('Cours préparé ✅');
