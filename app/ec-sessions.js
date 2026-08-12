@@ -112,12 +112,39 @@ async function afficherSessionsPermis(){
     zone.appendChild(a);
   }
 
+  /* Reprendre les dates déjà saisies : une seule fois, au départ.
+     Le bouton reste ensuite disponible si de nouvelles dates ont
+     été posées ailleurs. */
+  const bRep = document.createElement('button');
+  bRep.className = 'btn btn-secondary';
+  bRep.style.cssText = 'margin-bottom:14px;padding:11px;font-size:13px;';
+  bRep.textContent = '📥 Reprendre les dates déjà enregistrées';
+  bRep.title = 'Crée les sessions à partir des dates du suivi';
+  bRep.addEventListener('click', async () => {
+    if(!await confirmer('Créer les sessions à partir des dates déjà ' +
+        'enregistrées ?\n\nLes élèves y sont placés automatiquement. ' +
+        'Aucune session existante n\'est écrasée.')) return;
+    bRep.disabled = true;
+    bRep.textContent = 'Reprise en cours…';
+    try{
+      const r = await appelPrep({ action: 'sessionReprise', par: ACCES.moniteur || '' });
+      showToast((r.creees || 0) + ' session(s) créée(s) · ' +
+                (r.places || 0) + ' élève(s) placé(s) ✅');
+      afficherSessionsPermis();
+    }catch(e){
+      showToast('Reprise impossible : ' + e.message);
+      bRep.disabled = false;
+      bRep.textContent = '📥 Reprendre les dates déjà enregistrées';
+    }
+  });
+  zone.appendChild(bRep);
+
   if(!sessionsPermis.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucune session pour le moment.<br>' +
-      '<span style="font-size:12px;">Crée une session avec sa date, son heure ' +
-      'de début et son nombre de places.</span>';
+      '<span style="font-size:12px;">Crée une session, ou reprends les dates ' +
+      'déjà enregistrées avec le bouton ci-dessus.</span>';
     zone.appendChild(v);
     return;
   }
