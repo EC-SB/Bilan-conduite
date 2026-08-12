@@ -135,6 +135,13 @@ async function afficherSessionsPermis(){
         ? chargerBureau(false).catch(() => null) : Promise.resolve()
     ]);
     sessionsPermis = (d && d.sessions) || [];
+  /* Par date, puis par heure : deux sessions du même jour se suivent
+     dans l'ordre où elles ont lieu. */
+  sessionsPermis.sort((a, b) => {
+    const j = String(a.date || '').localeCompare(String(b.date || ''));
+    if(j !== 0) return j;
+    return String(a.heureDebut || '').localeCompare(String(b.heureDebut || ''));
+  });
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -236,6 +243,23 @@ zone.innerHTML = '';
     (vides ? ' · ' + vides + ' place(s) fantôme(s)' : '');
   zone.appendChild(compte);
 
+  /* Deux sessions le même jour : on les numérote, sinon rien ne les
+     distingue dans la liste et on ne sait pas laquelle on ouvre. */
+  const parJour = {};
+  sessionsPermis.forEach(s => {
+    parJour[s.date] = (parJour[s.date] || 0) + 1;
+  });
+  const vus = {};
+  sessionsPermis.forEach(s => {
+    if(parJour[s.date] > 1){
+      vus[s.date] = (vus[s.date] || 0) + 1;
+      s._rangJour = vus[s.date];
+      s._totalJour = parJour[s.date];
+    }else{
+      s._rangJour = 0;
+    }
+  });
+
   sessionsPermis.forEach(s => zone.appendChild(blocSession(s, auj)));
 }
 
@@ -322,6 +346,8 @@ function blocSession(sess, auj){
       (cejour ? 'var(--accent-text)' : passe ? 'var(--muted)' : 'var(--cream)') + ';">' +
       (sess.date ? libelleDate(sess.date) : 'Date à définir') +
       (sess.heureDebut ? ' · ' + sess.heureDebut : '') +
+      (sess._rangJour ? ' <span style="font-size:11px;color:var(--orange);">' +
+        'session ' + sess._rangJour + '/' + sess._totalJour + '</span>' : '') +
       (passe ? ' <span style="font-size:11px;">passée</span>' : '') +
     '</div>' +
     '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">' +
