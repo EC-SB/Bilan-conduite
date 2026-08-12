@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:29 — v407 */
+/* Déployé le 12/08/2026 à 16:41 — v408 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -770,9 +770,15 @@ function proceduresDemandees(texte){
   /* « mets » est très souvent transcrit « mais », « met » ou « mes » :
      ce sont les mêmes sons. On les accepte tous, la suite « la
      procédure » lève toute ambiguïté. */
+  /* Les articles sont dans un groupe à part : « de l'arrêt » perdait
+     sa première lettre, le « l' » et le « d' » se chevauchant. */
   const motif = new RegExp(
     '(?:mets?|mais|mes|m[ée]|ajoutes?|colles?|rajoutes?|donnes?|balances?|envoies?)' +
-    "\\s+(?:lui\\s+)?(?:moi\\s+)?la\\s+proc[ée]dure\\s+(?:du?|de la|de l'|des?|d')?\\s*" +
+    "\\s+(?:lui\\s+)?(?:moi\\s+)?la\\s+proc[ée]dure" +
+    /* L'article doit être suivi d'un blanc, ou coller à l'apostrophe :
+       sans cette contrainte, le « de » de « demi-tour » était pris
+       pour un article et le nom perdait ses deux premières lettres. */
+    "(?:\\s+(?:du|des|de\\s+la|de|le|la)\\s+|\\s+(?:de\\s+l'|d'|l')|\\s+)" +
     '([^.!?\\n,]{2,60})', 'gi');
   let m;
   while((m = motif.exec(t)) !== null){
@@ -784,6 +790,13 @@ function proceduresDemandees(texte){
       .replace(/\s+s'il te (?:plait|plaît).*$/i, '')
       .trim();
     if(nom.length >= 2) demandes.push(nom);
+
+    /* La recherche reprend juste après le nom retenu : sinon la
+       capture avalait la phrase entière et la seconde demande,
+       située dedans, n'était jamais revue. */
+    const finNom = m.index + m[0].indexOf(m[1]) + nom.length;
+    if(finNom > motif.lastIndex - 1) motif.lastIndex = finNom;
+    else motif.lastIndex = Math.max(finNom, m.index + 1);
   }
   return demandes;
 }
