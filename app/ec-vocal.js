@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 16:09 — v375 */
+/* Déployé le 12/08/2026 à 15:02 — v402 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -523,6 +523,12 @@ $('confirmGen').addEventListener('click', async () => {
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
     /* Les procédures réclamées à la voix, recopiées en fin de bilan */
     bilan += blocProcedures(coursCorrige);
+
+    /* Ce que le moniteur a dit, en clair. Seul le modèle Conduite
+       le reprenait : sur un RVP ou un examen blanc, son travail
+       disparaissait au profit du seul résumé de l'IA. */
+    bilan += blocTranscription(bilan, aererTexte(coursCorrige));
+
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
 
     $('resultText').value = bilan;
@@ -866,6 +872,24 @@ function proceduresAJoindre(texte){
 }
 
 /* Le bloc ajouté en fin de bilan */
+/* Ajoute la transcription si le modèle ne l'a pas déjà reprise.
+   Elle vaut mieux que le résumé quand l'élève veut se souvenir du
+   ton, d'un exemple, d'une phrase précise. */
+function blocTranscription(bilan, texte){
+  const t = String(texte || '').trim();
+  if(!t) return '';
+
+  /* Le modèle Conduite la place lui-même : on ne la met pas deux fois */
+  if(/🎙️\s*𝕋𝕆ℕ ℂ𝕆𝕌ℝ𝕊/.test(bilan)) return '';
+
+  /* Ni si une bonne part du texte est déjà dans le bilan */
+  const debut = t.slice(0, 60);
+  if(debut && bilan.indexOf(debut) !== -1) return '';
+
+  return '\n\n🎙️ 𝗖𝗲 𝗾𝘂𝗲 𝗷𝗲 𝘁\'𝗮𝗶 𝗱𝗶𝘁 𝗽𝗲𝗻𝗱𝗮𝗻𝘁 𝗹𝗲 𝗰𝗼𝘂𝗿𝘀 :\n' + t;
+}
+
+
 function blocProcedures(texte){
   const liste = proceduresAJoindre(texte);
   if(!liste.length) return '';
@@ -1113,11 +1137,6 @@ const MARQUEURS_REPRISE = [
 ];
 
 let dernieresReprises = 0;
-
-/* Découpe en phrases, en gardant la ponctuation */
-function decouperPhrases(texte){
-  return String(texte || '').split(/(?<=[.!?…])\s+/).filter(x => x.trim());
-}
 
 /* Applique les reprises trouvées dans le texte */
 function appliquerReprises(texte){
@@ -1433,30 +1452,6 @@ async function bilansAnterieurs(nomEleve){
     console.warn('Bilans antérieurs indisponibles :', e);
     return [];   /* on continue sans, plutôt que de bloquer le bilan */
   }
-}
-
-async function manoeuvresAnterieures(nomEleve){
-  const res = await bilansAnterieurs(nomEleve);
-  const cumul = [];
-  res.forEach(item => {
-    manoeuvresDejaFaites(item.bilan).forEach(m => {
-      if(cumul.indexOf(m) === -1) cumul.push(m);
-    });
-  });
-  return cumul;
-}
-
-/* Les marques accumulées : ✅ puis les émojis des moniteurs.
-   On part du bilan le plus récent, qui les porte toutes. */
-async function marquesAnterieures(nomEleve){
-  const res = await bilansAnterieurs(nomEleve);
-  const marques = {};
-  /* Du plus ancien au plus récent : le dernier écrit fait foi */
-  res.slice().reverse().forEach(item => {
-    const m = marquesDejaPosees(item.bilan);
-    Object.keys(m).forEach(k => { marques[k] = m[k]; });
-  });
-  return marques;
 }
 
 async function appelIA(modeleCle, transcript, studentName, monitorName, site, dateStr){
@@ -1940,7 +1935,6 @@ function marquerExport(ok){
 }
 
 
-
 /* Liste des moniteurs actifs — noms seuls, sans les codes */
 /* moniteursActifs : déclaré dans ec-etat.js */
 
@@ -2019,10 +2013,6 @@ function choisirDansListe(titre, options, valeurActuelle){
   });
 }
 
-
-/* Les modules s'affichent par onglets et par boutons :
-   il n'y a plus de tiroir à mémoriser. */
-function initTiroirs(){ /* conservé pour compatibilité */ }
 
 /* Compteur affiché dans l'en-tête d'un tiroir */
 function majCompteur(id, valeur){
