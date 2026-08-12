@@ -1,4 +1,4 @@
-/* Déployé le 08/08/2026 à 09:31 — v315 */
+/* Déployé le 12/08/2026 à 08:49 — v381 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -181,9 +181,18 @@ async function afficherRappels(){
     return;
   }
 
+  /* Les deux lectures partent ensemble, et seulement si elles
+     manquent : chargerFiches() relançait le serveur même quand le
+     répertoire était déjà en mémoire. */
   zone.innerHTML = '<div class="empty">Recherche des numéros…</div>';
-  if(typeof chargerFiches === 'function') await chargerFiches();
-  if(typeof chargerModelesTexte === 'function') await chargerModelesTexte();
+  await Promise.all([
+    (typeof chargerFiches === 'function' &&
+     (typeof fichesEleves === 'undefined' || !fichesEleves.length))
+      ? chargerFiches().catch(() => []) : Promise.resolve(),
+    (typeof chargerModelesTexte === 'function' &&
+     (typeof modelesTexte === 'undefined' || !modelesTexte.length))
+      ? chargerModelesTexte().catch(() => []) : Promise.resolve()
+  ]);
   zone.innerHTML = '';
 
   /* Chaque cours est rapproché du répertoire, sans jamais deviner */
@@ -569,8 +578,13 @@ async function afficherRappelManuel(){
   /* Un nouvel écran repart du modèle */
   texteModifie = false;
 
-  zone.innerHTML = '<div class="empty">Chargement des élèves…</div>';
-  if(typeof chargerFiches === 'function') await chargerFiches();
+  /* Déjà en mémoire : on n'attend rien. C'est le cas courant, le
+     répertoire étant lu à la connexion. */
+  if(typeof chargerFiches === 'function' &&
+     (typeof fichesEleves === 'undefined' || !fichesEleves.length)){
+    zone.innerHTML = '<div class="empty">Chargement des élèves…</div>';
+    await chargerFiches().catch(() => []);
+  }
   zone.innerHTML = '';
 
   /* Choix de l'élève */
