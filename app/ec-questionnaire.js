@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:09 — v365 */
+/* Déployé le 12/08/2026 à 07:38 — v377 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -342,23 +342,22 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
   const profil = profilQuestionnaire(modeleCle);
 
-  /* Le répertoire doit être en mémoire : sans lui, ficheDe() ne
-     trouve rien et le questionnaire redemande des coordonnées
-     pourtant déjà enregistrées. */
-  if(typeof chargerFiches === 'function' &&
-     (typeof fichesEleves === 'undefined' || !fichesEleves.length)){
-    try{ await chargerFiches(); }catch(e){ /* on continue sans */ }
-  }
-
-  /* Dossier de l'élève et consignes du bureau : chargés ensemble */
+  /* Les trois lectures partent ENSEMBLE. En série, le moniteur
+     attendait la somme des trois délais ; en parallèle, il n'attend
+     que la plus lente. */
   const fermerAttente = ouvrirAttente('Récupération du dossier…');
   let dossier = { frise:'', lecons:null, manoeuvres:[], marques:{},
                   derniereNote:'', dernierHorodatage:'' };
   let consignesBureau = [];
   try{
-    const taches = [chargerDossierEleve(eleve)];
-    taches.push(consignesDe(eleve).catch(() => []));
-    const [d, cd] = await Promise.all(taches);
+    const besoinFiches = (typeof chargerFiches === 'function') &&
+      (typeof fichesEleves === 'undefined' || !fichesEleves.length);
+
+    const [d, cd] = await Promise.all([
+      chargerDossierEleve(eleve),
+      consignesDe(eleve).catch(() => []),
+      besoinFiches ? chargerFiches().catch(() => []) : Promise.resolve()
+    ]);
     dossier = d || dossier;
     consignesBureau = (cd || [])
       .filter(x => x.traite !== 'oui' && x.type !== 'urgence');
