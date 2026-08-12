@@ -1,278 +1,47 @@
 /* ============================================================
    ec-sessions.js
-   Les examens du permis, vus comme des sessions.
+   Les sessions d'examen, place par place.
 
-   Une ligne par demi-journée d'examen : la date, le centre, le
-   moniteur, les horaires, le nombre d'élèves. On la déplie pour
-   voir qui passe et à quelle heure, et on appuie sur un élève
-   pour savoir où il en est.
-   Application Bilan de conduite — Évolution Conduites
+   Une session = une demi-journée avec un inspecteur. On la crée
+   en disant combien de places et à quelle heure elle commence ;
+   les créneaux se calculent seuls. Chaque place accueille un
+   élève, ou reste une place fantôme.
+
+   Tout se voit d'un coup d'œil : qui est prévenu, qui a son
+   dossier prêt, qui n'est pas encore prêt à passer.
    ============================================================ */
 
-/* Les sessions ouvertes, pour se souvenir de ce qui était déplié */
+let sessionsPermis = [];
 let sessionsOuvertes = {};
-
-/* Regroupe les élèves en sessions : une date, un centre, un groupe */
-function construireSessions(prevus){
-  const par = {};
-
-  (prevus || []).forEach(e => {
-    const s = e._suivi || {};
-    const cle = (e._iso || e._datePermis || 'sans-date') + '|' +
-                (s.centre || '') + '|' + (e._groupe || '');
-
-    if(!par[cle]){
-      par[cle] = {
-        cle: cle,
-        iso: e._iso || '',
-        libelle: e._datePermis || 'Date à définir',
-        centre: s.centre || '',
-        groupe: e._groupe || '',
-        moniteur: s.moniteurPermis || s.moniteur || '',
-        boite: e._boite || '',
-        eleves: []
-      };
-    }
-    par[cle].eleves.push(e);
-  });
-
-  /* Les plus proches d'abord : c'est ce qui occupe le bureau */
-  return Object.keys(par).map(k => par[k]).sort((a, b) => {
-    if(!a.iso) return 1;
-    if(!b.iso) return -1;
-    return a.iso.localeCompare(b.iso);
-  });
-}
+/* La place retenue pour un échange, en attente de la seconde */
+let echangeEnCours = null;
 
 
-/* Une session : la ligne qu'on déplie */
-function ligneSession(sess){
-  const bloc = document.createElement('div');
-  bloc.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-    'margin-bottom:8px;overflow:hidden;';
-
-  const auj = todayLocal();
-  const passe = sess.iso && sess.iso < auj;
-  const cejour = sess.iso === auj;
-
-  /* ---- L'en-tête, cliquable ---- */
-  const tete = document.createElement('button');
-  tete.type = 'button';
-  tete.style.cssText = 'width:100%;display:flex;align-items:center;gap:10px;' +
-    'padding:12px 14px;background:' +
-    (cejour ? 'rgba(182,255,14,.10)' : 'transparent') +
-    ';border:none;border-left:4px solid ' +
-    (cejour ? 'var(--orange)' : passe ? 'var(--muted)' : 'var(--line)') +
-    ';cursor:pointer;text-align:left;font-family:inherit;color:var(--cream);';
-
-  const g = document.createElement('div');
-  g.style.cssText = 'flex:1;min-width:0;';
-  g.innerHTML =
-    '<div style="font-size:15px;font-weight:700;text-transform:capitalize;' +
-      'color:' + (cejour ? 'var(--accent-text)' : 'var(--cream)') + ';">' +
-      (sess.iso ? libelleDate(sess.iso) : sess.libelle) +
-      (passe ? ' <span style="font-size:11px;color:var(--muted);">passé</span>' : '') +
-    '</div>' +
-    '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">' +
-      (sess.centre ? '🏁 ' + sess.centre.replace(/</g, '&lt;') : '🏁 centre à définir') +
-      (sess.moniteur ? ' · 👤 ' + sess.moniteur.replace(/</g, '&lt;') : '') +
-      (sess.groupe ? ' · 👥 ' + sess.groupe.replace(/</g, '&lt;') : '') +
-      (sess.boite ? ' · ' + (sess.boite === 'bea' ? 'BEA' : 'BV') : '') +
-    '</div>';
-  tete.appendChild(g);
-
-  /* Le nombre d'élèves, bien visible */
-  const n = document.createElement('div');
-  n.style.cssText = 'flex-shrink:0;background:var(--navy);border-radius:9px;' +
-    'padding:6px 11px;font-size:15px;font-weight:800;color:var(--accent-text);';
-  n.textContent = sess.eleves.length;
-  tete.appendChild(n);
-
-  const fleche = document.createElement('div');
-  fleche.style.cssText = 'flex-shrink:0;font-size:13px;color:var(--muted);' +
-    'transition:transform .2s;';
-  fleche.textContent = '▼';
-  tete.appendChild(fleche);
-
-  bloc.appendChild(tete);
-
-  /* ---- Le détail, replié par défaut ---- */
-  const detail = document.createElement('div');
-  detail.style.cssText = 'display:none;border-top:1px solid var(--line);';
-  bloc.appendChild(detail);
-
-  const ouvrir = (oui) => {
-    detail.style.display = oui ? 'block' : 'none';
-    fleche.style.transform = oui ? 'rotate(180deg)' : 'none';
-    sessionsOuvertes[sess.cle] = oui;
-    if(oui && !detail.dataset.rempli){
-      detail.dataset.rempli = 'oui';
-      remplirDetailSession(detail, sess);
-    }
-  };
-
-  tete.addEventListener('click', () => ouvrir(detail.style.display === 'none'));
-  if(sessionsOuvertes[sess.cle]) ouvrir(true);
-
-  return bloc;
-}
-
-
-/* Le tableau des élèves d'une session */
-function remplirDetailSession(zone, sess){
-  /* Les horaires : soit ceux du planning, soit calculés */
-  const eleves = sess.eleves.slice().sort((a, b) => {
-    const ha = (a._suivi && a._suivi.heurePermis) || '';
-    const hb = (b._suivi && b._suivi.heurePermis) || '';
-    if(ha && hb) return ha.localeCompare(hb);
-    if(ha) return -1;
-    if(hb) return 1;
-    return normaliserMot(a.eleve).localeCompare(normaliserMot(b.eleve));
-  });
-
-  const t = document.createElement('div');
-  t.style.cssText = 'display:flex;gap:8px;padding:8px 14px;font-size:11px;' +
-    'color:var(--muted);text-transform:uppercase;letter-spacing:.4px;' +
-    'border-bottom:1px solid var(--line);';
-  t.innerHTML = '<span style="flex:1;">Élève</span>' +
-    '<span style="width:64px;flex-shrink:0;">Heure</span>' +
-    '<span style="width:74px;flex-shrink:0;text-align:right;">Où il en est</span>';
-  zone.appendChild(t);
-
-  eleves.forEach((e, i) => zone.appendChild(ligneEleveSession(e, sess, i)));
-}
-
-
-/* Un élève de la session : son heure, son état, et le questionnaire */
-function ligneEleveSession(e, sess, rang){
-  const s = e._suivi || {};
-
-  const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:10px 14px;' +
-    'cursor:pointer;background:' + (rang % 2 === 0 ? 'rgba(255,255,255,.02)' : 'transparent') + ';';
-
-  /* Ce que la note dit de sa préparation */
-  const a = (typeof analyserNote === 'function') ? analyserNote(e.note || '') : {};
-  const pret = etatDePreparation(a, s);
-
-  const nom = document.createElement('div');
-  nom.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;';
-  nom.innerHTML = '<strong>' + (e.eleve || '').replace(/</g, '&lt;') + '</strong>' +
-    (e._boite ? ' <span style="font-size:11px;color:var(--muted);">' +
-      (e._boite === 'bea' ? 'BEA' : 'BV') + '</span>' : '') +
-    (pret.detail ? '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
-      pret.detail + '</div>' : '');
-  l.appendChild(nom);
-
-  const h = document.createElement('div');
-  h.style.cssText = 'width:64px;flex-shrink:0;font-size:13px;color:var(--accent-text);';
-  h.textContent = s.heurePermis || '—';
-  l.appendChild(h);
-
-  const etat = document.createElement('div');
-  etat.style.cssText = 'width:74px;flex-shrink:0;text-align:right;font-size:16px;';
-  etat.textContent = pret.emoji;
-  etat.title = pret.titre;
-  l.appendChild(etat);
-
-  /* Appuyer ouvre le questionnaire de cet élève */
-  l.addEventListener('click', () => ouvrirFicheSession(e, sess));
-
-  return l;
-}
-
-
-/* Résume la préparation d'un élève en un signe */
-function etatDePreparation(a, s){
-  if(a.examBlanc === 'aprevoir'){
-    return { emoji: '🔴', titre: 'Examen blanc à prévoir',
-             detail: 'examen blanc à prévoir' };
-  }
-  if(a.simuNuit === 'aprevoir'){
-    return { emoji: '🟠', titre: 'Simulateur nuit et risques à prévoir',
-             detail: 'simulateur à prévoir' };
-  }
-  if(s && s.fairePoint === 'oui'){
-    return { emoji: '❓', titre: 'Faire le point avec lui',
-             detail: 'faire le point' };
-  }
-  if(a.examBlanc === 'reserve'){
-    return { emoji: '🟡', titre: 'Examen blanc réservé, pas encore passé',
-             detail: 'examen blanc réservé' };
-  }
-  if(a.examBlanc === 'passe' || a.ebSuite === '3h'){
-    return { emoji: '🟢', titre: 'Examen blanc passé — prêt',
-             detail: 'examen blanc passé' };
-  }
-  return { emoji: '⚪', titre: 'Rien de signalé', detail: '' };
-}
-
-
-/* La fiche complète d'un élève, depuis la session */
-async function ouvrirFicheSession(e, sess){
-  const s = e._suivi || {};
-
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:88vh;overflow-y:auto;';
-
-  const t = document.createElement('h3');
-  t.textContent = e.eleve || 'Élève';
-  boite.appendChild(t);
-
-  const st = document.createElement('div');
-  st.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6;';
-  st.innerHTML =
-    '🎓 Examen ' + (sess.iso ? libelleDate(sess.iso) : sess.libelle) +
-    (s.heurePermis ? ' à ' + s.heurePermis : '') +
-    (sess.centre ? '<br>🏁 ' + sess.centre.replace(/</g, '&lt;') : '') +
-    (e._boite ? '<br>🚗 ' + (e._boite === 'bea' ? 'Boîte automatique' : 'Boîte manuelle') : '');
-  boite.appendChild(st);
-
-  /* Sa note de suivi, telle quelle */
-  if(e.note){
-    const n = document.createElement('div');
-    n.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-      'border-radius:10px;padding:11px 12px;font-size:14px;line-height:1.55;' +
-      'white-space:pre-wrap;margin-bottom:12px;';
-    n.textContent = e.note;
-    boite.appendChild(n);
+/* Un élève est « au vert » quand tout est fait : prévenu, dossier
+   vérifié, et rien qui traîne côté préparation. */
+function etatPlace(place, eleveBureau){
+  if(!place.eleve){
+    return { cle:'vide', emoji:'👻', texte:'Place fantôme',
+             couleur:'var(--muted)' };
   }
 
-  const r = document.createElement('div');
-  r.className = 'btn-row';
+  const manque = [];
+  if(!place.prevenu) manque.push('pas prévenu');
+  if(!place.dossierOk) manque.push('dossier à vérifier');
 
-  /* Son dossier complet : les derniers cours, la fiche véhicule,
-     ce qui reste à travailler. C'est ce qu'on veut savoir avant
-     de le présenter à l'examen. */
-  const bQ = document.createElement('button');
-  bQ.className = 'btn btn-primary';
-  bQ.textContent = '📋 Son dossier';
-  bQ.addEventListener('click', async () => {
-    bQ.disabled = true;
-    bQ.textContent = 'Lecture…';
-    try{
-      await afficherDossierDansFiche(boite, e.eleve);
-      bQ.remove();
-    }catch(err){
-      showToast('Dossier indisponible : ' + err.message);
-      bQ.disabled = false;
-      bQ.textContent = '📋 Son dossier';
-    }
-  });
-  r.appendChild(bQ);
+  /* Ce que sa note de suivi signale encore */
+  if(eleveBureau && typeof analyserNote === 'function'){
+    const a = analyserNote(eleveBureau.note || '');
+    if(a.examBlanc === 'aprevoir') manque.push('examen blanc à prévoir');
+    if(a.simuNuit === 'aprevoir') manque.push('simulateur à prévoir');
+  }
 
-  const bF = document.createElement('button');
-  bF.className = 'btn btn-secondary';
-  bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bF);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
+  if(!manque.length){
+    return { cle:'ok', emoji:'✅', texte:'Tout est prêt',
+             couleur:'var(--accent-text)' };
+  }
+  return { cle:'attente', emoji: place.prevenu ? '🟠' : '🔴',
+           texte: manque.join(' · '), couleur:'var(--warn-text)' };
 }
 
 
@@ -280,104 +49,513 @@ async function ouvrirFicheSession(e, sess){
    L'ÉCRAN
    ============================================================ */
 
-function afficherSessionsPermis(){
+async function afficherSessionsPermis(){
   const zone = $('sessionsPermis');
   if(!zone) return;
 
-  const tous = (typeof etatBureau !== 'undefined' && etatBureau.eleves) || [];
-  if(!tous.length){
-    zone.innerHTML = '<div class="empty">Ouvre l\'onglet Permis pour charger les élèves.</div>';
+  zone.innerHTML = '<div class="empty">Lecture des sessions…</div>';
+  try{
+    const d = await appelPrep({ action: 'sessionList' });
+    sessionsPermis = (d && d.sessions) || [];
+  }catch(e){
+    zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
   }
-
-  /* On réutilise le travail déjà fait par les listes permis :
-     dates, centres, groupes et boîtes y sont déjà rattachés. */
-  const prevus = tous.filter(e => {
-    const a = analyserNote(e.note || '');
-    return a.permis === 'prevu';
-  });
-
-  etatBureau.suivi.forEach(s => {
-    if(!s.datePermis) return;
-    if(prevus.some(x => normaliserMot(x.eleve) === normaliserMot(s.eleve))) return;
-    const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(s.eleve));
-    if(base) prevus.push(base);
-  });
-
-  prevus.forEach(e => {
-    const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
-    const a = analyserNote(e.note || '');
-    e._suivi = s || {};
-    e._datePermis = a.permisDate || (s && s.datePermis) || '';
-    e._iso = dateFrVersIso(e._datePermis) || '';
-    e._groupe = (s && s.groupePermis) || '';
-    e._boite = ((s && s.typeExamen) || e.boite ||
-                (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
-  });
-
-  const sessions = construireSessions(prevus);
 
   zone.innerHTML = '';
 
-  if(!sessions.length){
-    zone.innerHTML = '<div class="empty">Aucun examen prévu pour le moment.</div>';
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
+  b.textContent = "➕ Nouvelle session d'examen";
+  b.addEventListener('click', () => ouvrirEditeurSession(null));
+  zone.appendChild(b);
+
+  /* L'échange en cours, rappelé en haut pour qu'on n'oublie pas */
+  if(echangeEnCours){
+    const a = document.createElement('div');
+    a.style.cssText = 'border:1px solid var(--orange);border-radius:10px;' +
+      'padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.5;' +
+      'background:rgba(182,255,14,.08);';
+    a.innerHTML = '🔄 <strong>' + echangeEnCours.eleve.replace(/</g, '&lt;') +
+      '</strong> attend un échange.<br>' +
+      '<span style="color:var(--muted);font-size:12px;">Appuie sur 🔄 d\'une ' +
+      'autre place pour les permuter.</span>';
+
+    const ann = document.createElement('button');
+    ann.className = 'btn btn-secondary';
+    ann.style.cssText = 'width:auto;padding:6px 11px;font-size:12px;margin-top:8px;';
+    ann.textContent = "✕ Annuler l'échange";
+    ann.addEventListener('click', () => { echangeEnCours = null; afficherSessionsPermis(); });
+    a.appendChild(ann);
+    zone.appendChild(a);
+  }
+
+  if(!sessionsPermis.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune session pour le moment.<br>' +
+      '<span style="font-size:12px;">Crée une session avec sa date, son heure ' +
+      'de début et son nombre de places.</span>';
+    zone.appendChild(v);
     return;
   }
 
+  const auj = todayLocal();
   const compte = document.createElement('div');
   compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
-  compte.textContent = sessions.length + ' session(s) · ' + prevus.length + ' élève(s)';
+  const total = sessionsPermis.reduce((n, s) => n + s.eleves.filter(x => x.eleve).length, 0);
+  const vides = sessionsPermis.reduce((n, s) => n + s.eleves.filter(x => !x.eleve).length, 0);
+  compte.textContent = sessionsPermis.length + ' session(s) · ' + total + ' élève(s)' +
+    (vides ? ' · ' + vides + ' place(s) fantôme(s)' : '');
   zone.appendChild(compte);
 
-  sessions.forEach(s => zone.appendChild(ligneSession(s)));
+  sessionsPermis.forEach(s => zone.appendChild(blocSession(s, auj)));
 }
 
 
-/* Le dossier de l'élève, ajouté dans la fiche ouverte */
-async function afficherDossierDansFiche(boite, eleve){
-  const d = await chargerDossierEleve(eleve);
+/* Une session : son en-tête et ses places */
+function blocSession(sess, auj){
+  const passe = sess.date && sess.date < auj;
+  const cejour = sess.date === auj;
 
-  const z = document.createElement('div');
-  z.style.cssText = 'border-top:1px solid var(--line);margin-top:12px;padding-top:12px;';
+  const prets = sess.eleves.filter(x => {
+    return etatPlace(x, eleveDuBureau(x.eleve)).cle === 'ok';
+  }).length;
 
-  const faites = (BLOC.ficheListeConduite || [])
-    .filter(x => (d.marques || {})[normaliserMot(x)]);
-  const restent = (BLOC.ficheListeConduite || [])
-    .filter(x => faites.indexOf(x) === -1);
+  const bloc = document.createElement('div');
+  bloc.style.cssText = 'border:1px solid ' +
+    (cejour ? 'var(--orange)' : 'var(--line)') +
+    ';border-radius:12px;margin-bottom:10px;overflow:hidden;';
 
-  z.innerHTML =
-    '<div style="font-size:13px;color:var(--muted);margin-bottom:6px;">' +
-      (d.lecons ? d.lecons + ' leçon(s) de conduite' : 'Aucun cours enregistré') +
-      (d.frise ? '<br>🧭 ' + d.frise.replace(/</g, '&lt;') : '') +
+  const tete = document.createElement('div');
+  tete.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 14px;' +
+    'cursor:pointer;background:' + (cejour ? 'rgba(182,255,14,.08)' : 'transparent') + ';';
+
+  const g = document.createElement('div');
+  g.style.cssText = 'flex:1;min-width:0;';
+  g.innerHTML =
+    '<div style="font-size:15px;font-weight:700;text-transform:capitalize;color:' +
+      (cejour ? 'var(--accent-text)' : passe ? 'var(--muted)' : 'var(--cream)') + ';">' +
+      (sess.date ? libelleDate(sess.date) : 'Date à définir') +
+      (sess.heureDebut ? ' · ' + sess.heureDebut : '') +
+      (passe ? ' <span style="font-size:11px;">passée</span>' : '') +
     '</div>' +
-    '<div style="font-size:13px;font-weight:700;color:var(--accent-text);' +
-      'margin:10px 0 4px;">🦉 Fiche véhicule — ' + faites.length + ' sur ' +
-      (BLOC.ficheListeConduite || []).length + '</div>';
+    '<div style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5;">' +
+      (sess.centre ? '🏁 ' + sess.centre.replace(/</g, '&lt;') : '🏁 centre à définir') +
+      (sess.moniteur ? ' · 👤 ' + sess.moniteur.replace(/</g, '&lt;') : '') +
+      (sess.boite ? ' · ' + sess.boite.toUpperCase() : '') +
+    '</div>';
+  tete.appendChild(g);
 
-  if(restent.length){
-    const r = document.createElement('div');
-    r.style.cssText = 'font-size:13px;color:var(--warn-text);line-height:1.7;';
-    r.innerHTML = '<strong>❓ Reste à travailler</strong><br>' +
-      restent.map(x => '· ' + x.replace(/</g, '&lt;')).join('<br>');
-    z.appendChild(r);
-  }else{
-    const r = document.createElement('div');
-    r.style.cssText = 'font-size:13px;color:var(--accent-text);';
-    r.textContent = '✅ Fiche véhicule complète';
-    z.appendChild(r);
+  /* Le compte qui dit tout : combien de prêts sur combien de places */
+  const n = document.createElement('div');
+  const complet = (prets === sess.eleves.length && sess.eleves.length > 0);
+  n.style.cssText = 'flex-shrink:0;border-radius:9px;padding:6px 11px;' +
+    'font-size:14px;font-weight:800;background:' +
+    (complet ? 'var(--orange)' : 'var(--navy)') + ';color:' +
+    (complet ? '#0B0B0B' : 'var(--accent-text)') + ';';
+  n.textContent = prets + '/' + sess.eleves.length;
+  n.title = prets + ' prêt(s) sur ' + sess.eleves.length + ' place(s)';
+  tete.appendChild(n);
+
+  const fl = document.createElement('div');
+  fl.style.cssText = 'flex-shrink:0;font-size:13px;color:var(--muted);transition:transform .2s;';
+  fl.textContent = '▼';
+  tete.appendChild(fl);
+
+  bloc.appendChild(tete);
+
+  const detail = document.createElement('div');
+  detail.style.cssText = 'display:none;border-top:1px solid var(--line);';
+  bloc.appendChild(detail);
+
+  const ouvrir = oui => {
+    detail.style.display = oui ? 'block' : 'none';
+    fl.style.transform = oui ? 'rotate(180deg)' : 'none';
+    sessionsOuvertes[sess.id] = oui;
+    if(oui) remplirPlaces(detail, sess);
+  };
+
+  tete.addEventListener('click', () => ouvrir(detail.style.display === 'none'));
+  if(sessionsOuvertes[sess.id]) ouvrir(true);
+
+  return bloc;
+}
+
+
+function remplirPlaces(zone, sess){
+  zone.innerHTML = '';
+  sess.eleves.forEach(p => zone.appendChild(lignePlace(p, sess)));
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px;' +
+    'border-top:1px solid var(--line);';
+
+  const bPlus = document.createElement('button');
+  bPlus.className = 'btn btn-secondary';
+  bPlus.style.cssText = 'width:auto;padding:7px 11px;font-size:12px;margin:0;';
+  bPlus.textContent = '➕ Une place';
+  bPlus.addEventListener('click', async () => {
+    bPlus.disabled = true;
+    try{
+      await appelPrep({ action: 'sessionSet', id: sess.id, date: sess.date,
+                        centre: sess.centre, heureDebut: sess.heureDebut,
+                        places: sess.eleves.length + 1, moniteur: sess.moniteur,
+                        boite: sess.boite, inspecteur: sess.inspecteur,
+                        par: ACCES.moniteur || '' });
+      afficherSessionsPermis();
+    }catch(e){ showToast('Impossible : ' + e.message); bPlus.disabled = false; }
+  });
+  r.appendChild(bPlus);
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.style.cssText = 'width:auto;padding:7px 11px;font-size:12px;margin:0;';
+  bMod.textContent = '✏️ La session';
+  bMod.addEventListener('click', () => ouvrirEditeurSession(sess));
+  r.appendChild(bMod);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:7px 11px;font-size:12px;margin:0;' +
+    'color:var(--red);border-color:var(--red);';
+  bSup.textContent = '🗑️ Supprimer';
+  bSup.addEventListener('click', async () => {
+    const n = sess.eleves.filter(x => x.eleve).length;
+    if(!await confirmer('Supprimer cette session ?' +
+        (n ? '\n\n' + n + ' élève(s) y sont inscrits.' : ''))) return;
+    try{
+      await appelPrep({ action: 'sessionDelete', id: sess.id });
+      showToast('Session supprimée ✅');
+      afficherSessionsPermis();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  r.appendChild(bSup);
+
+  zone.appendChild(r);
+}
+
+
+/* Une place : l'élève, son heure, son état, ses boutons */
+function lignePlace(p, sess){
+  const etat = etatPlace(p, eleveDuBureau(p.eleve));
+  const vide = !p.eleve;
+
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:9px 14px;' +
+    'border-bottom:1px solid rgba(255,255,255,.04);' +
+    (vide ? 'background:rgba(255,255,255,.02);' : '');
+
+  const h = document.createElement('div');
+  h.style.cssText = 'width:52px;flex-shrink:0;font-size:13px;color:var(--muted);';
+  h.textContent = p.heure || '—';
+  l.appendChild(h);
+
+  const nom = document.createElement('div');
+  nom.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;cursor:pointer;';
+  nom.innerHTML = vide
+    ? '<span style="color:var(--muted);font-style:italic;">👻 Place libre — ' +
+      'appuie pour y mettre un élève</span>'
+    : '<strong style="color:' + etat.couleur + ';">' +
+      p.eleve.replace(/</g, '&lt;') + '</strong>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      etat.emoji + ' ' + etat.texte + '</div>';
+  nom.addEventListener('click', () => ouvrirPlace(p, sess));
+  l.appendChild(nom);
+
+  if(!vide){
+    /* Prévenu : le geste le plus fréquent, accessible directement */
+    const bPrev = document.createElement('button');
+    bPrev.className = 'btn btn-secondary';
+    bPrev.style.cssText = 'width:auto;padding:5px 8px;font-size:14px;margin:0;flex-shrink:0;';
+    bPrev.textContent = p.prevenu ? '📣' : '🔕';
+    bPrev.title = p.prevenu ? 'Prévenu — appuie pour annuler' : 'Marquer comme prévenu';
+    bPrev.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      bPrev.disabled = true;
+      try{
+        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
+                          prevenu: p.prevenu ? '' : 'oui' });
+        p.prevenu = !p.prevenu;
+        afficherSessionsPermis();
+      }catch(e){ showToast('Impossible : ' + e.message); bPrev.disabled = false; }
+    });
+    l.appendChild(bPrev);
+
+    const bEch = document.createElement('button');
+    bEch.className = 'btn btn-secondary';
+    bEch.style.cssText = 'width:auto;padding:5px 8px;font-size:14px;margin:0;flex-shrink:0;' +
+      ((echangeEnCours && echangeEnCours.idSession === sess.id &&
+        echangeEnCours.rang === p.rang) ? 'border-color:var(--orange);' : '');
+    bEch.textContent = '🔄';
+    bEch.title = 'Échanger de place';
+    bEch.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      await gererEchange(p, sess);
+    });
+    l.appendChild(bEch);
   }
 
-  if(d.derniereNote){
-    const n = document.createElement('div');
-    n.style.cssText = 'font-size:13px;color:var(--muted);margin-top:10px;' +
-      'line-height:1.5;white-space:pre-wrap;';
-    n.textContent = '📌 ' + d.derniereNote;
-    z.appendChild(n);
+  return l;
+}
+
+
+/* Retient une place, puis permute avec la suivante désignée */
+async function gererEchange(p, sess){
+  if(!echangeEnCours){
+    echangeEnCours = { idSession: sess.id, rang: p.rang, eleve: p.eleve };
+    showToast('Choisis la place avec qui échanger 🔄');
+    afficherSessionsPermis();
+    return;
   }
 
-  /* Avant les boutons, pour rester lisible */
-  const r2 = boite.querySelector('.btn-row');
-  boite.insertBefore(z, r2 || null);
+  if(echangeEnCours.idSession === sess.id && echangeEnCours.rang === p.rang){
+    echangeEnCours = null;
+    afficherSessionsPermis();
+    return;
+  }
+
+  const depuis = echangeEnCours;
+  echangeEnCours = null;
+
+  try{
+    await appelPrep({ action: 'sessionPlace',
+                      idSession: depuis.idSession, rang: depuis.rang,
+                      echangeAvec: JSON.stringify({ idSession: sess.id, rang: p.rang }) });
+    showToast('Échangés ✅');
+  }catch(e){
+    showToast('Échange impossible : ' + e.message);
+  }
+  afficherSessionsPermis();
+}
+
+
+/* ============================================================
+   LA FICHE D'UNE PLACE
+   ============================================================ */
+
+function ouvrirPlace(p, sess){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  const t = document.createElement('h3');
+  t.textContent = p.eleve || 'Place libre';
+  boite.appendChild(t);
+
+  const st = document.createElement('div');
+  st.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;';
+  st.textContent = (sess.date ? libelleDate(sess.date) : '') +
+    (p.heure ? ' à ' + p.heure : '') +
+    (sess.centre ? ' · ' + sess.centre : '');
+  boite.appendChild(st);
+
+  boite.insertAdjacentHTML('beforeend',
+    '<label for="plEleve">Élève sur cette place</label>' +
+    '<input type="text" id="plEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Laisse vide pour une place fantôme">' +
+    '<div class="duo">' +
+      '<div><label for="plHeure">Heure</label>' +
+        '<input type="time" id="plHeure"></div>' +
+      '<div><label for="plRem">Remarque</label>' +
+        '<input type="text" id="plRem" placeholder="Ex : arrive en retard"></div>' +
+    '</div>' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin:8px 0;font-weight:400;">' +
+      '<input type="checkbox" id="plPrevenu" style="width:19px;height:19px;">' +
+      '📣 Élève prévenu</label>' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:12px;font-weight:400;">' +
+      '<input type="checkbox" id="plDossier" style="width:19px;height:19px;">' +
+      '📁 Dossier vérifié</label>');
+
+  boite.querySelector('#plEleve').value = p.eleve || '';
+  boite.querySelector('#plHeure').value = p.heure || '';
+  boite.querySelector('#plRem').value = p.remarque || '';
+  boite.querySelector('#plPrevenu').checked = !!p.prevenu;
+  boite.querySelector('#plDossier').checked = !!p.dossierOk;
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  /* Retirer l'élève : la place redevient fantôme, elle ne disparaît pas */
+  if(p.eleve){
+    const bVider = document.createElement('button');
+    bVider.className = 'btn btn-secondary';
+    bVider.style.cssText = 'color:var(--warn-text);border-color:var(--orange);';
+    bVider.textContent = '👻 Retirer';
+    bVider.title = 'La place reste, elle redevient libre';
+    bVider.addEventListener('click', async () => {
+      if(!await confirmer('Retirer ' + p.eleve + ' de cette place ?\n\n' +
+          'La place reste ouverte : elle redevient une place fantôme.')) return;
+      try{
+        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
+                          eleve: '', prevenu: '', dossierOk: '', remarque: '' });
+        document.body.removeChild(fond);
+        showToast('Place libérée 👻');
+        afficherSessionsPermis();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    r.appendChild(bVider);
+  }
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  bOk.addEventListener('click', async () => {
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
+                        eleve: boite.querySelector('#plEleve').value.trim(),
+                        heure: boite.querySelector('#plHeure').value,
+                        remarque: boite.querySelector('#plRem').value.trim(),
+                        prevenu: boite.querySelector('#plPrevenu').checked ? 'oui' : '',
+                        dossierOk: boite.querySelector('#plDossier').checked ? 'oui' : '' });
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      afficherSessionsPermis();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#plEleve').focus(), 100);
+}
+
+
+/* ============================================================
+   CRÉER OU MODIFIER UNE SESSION
+   ============================================================ */
+
+function ouvrirEditeurSession(sess){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>' + (sess ? 'Modifier la session' : "Nouvelle session d'examen") + '</h3>' +
+    '<div class="duo">' +
+      '<div><label for="seDate">Date</label><input type="date" id="seDate"></div>' +
+      '<div><label for="seHeure">Heure du 1er passage</label>' +
+        '<input type="time" id="seHeure"></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="sePlaces">Nombre de places</label>' +
+        '<input type="number" id="sePlaces" min="1" max="20" value="4"></div>' +
+      '<div><label for="seDuree">Minutes par passage</label>' +
+        '<input type="number" id="seDuree" min="15" max="60" step="5" value="30"></div>' +
+    '</div>' +
+    '<label for="seCentre">Centre d\'examen</label>' +
+    '<input type="text" id="seCentre" list="listeCentres" placeholder="Ex : Saint-Brieuc">' +
+    '<datalist id="listeCentres">' +
+      '<option value="Saint-Brieuc"></option><option value="Loudéac"></option>' +
+    '</datalist>' +
+    '<div class="duo">' +
+      '<div><label for="seMon">Moniteur</label><select id="seMon">' +
+        '<option value="">— à définir —</option>' +
+        gens.map(g => '<option value="' + String(g).replace(/"/g, '&quot;') + '">' +
+                      g + '</option>').join('') +
+      '</select></div>' +
+      '<div><label for="seBoite">Boîte</label><select id="seBoite">' +
+        '<option value="">— les deux —</option>' +
+        '<option value="bea">BEA — automatique</option>' +
+        '<option value="bv">BV — manuelle</option>' +
+      '</select></div>' +
+    '</div>' +
+    '<label for="seInsp">Inspecteur (facultatif)</label>' +
+    '<input type="text" id="seInsp" placeholder="Son nom, si tu le connais">');
+
+  if(sess){
+    boite.querySelector('#seDate').value = sess.date || '';
+    boite.querySelector('#seHeure').value = sess.heureDebut || '';
+    boite.querySelector('#sePlaces').value = sess.eleves.length || 4;
+    boite.querySelector('#seCentre').value = sess.centre || '';
+    boite.querySelector('#seMon').value = sess.moniteur || '';
+    boite.querySelector('#seBoite').value = sess.boite || '';
+    boite.querySelector('#seInsp').value = sess.inspecteur || '';
+  }
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 12px;line-height:1.5;';
+  aide.textContent = "Les créneaux se calculent seuls à partir de l'heure de début " +
+    "et de la durée. Chaque place reste vide tant qu'on n'y met personne.";
+  boite.appendChild(aide);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = sess ? '💾 Enregistrer' : '➕ Créer la session';
+  bOk.addEventListener('click', async () => {
+    const date = boite.querySelector('#seDate').value;
+    if(!date){ showToast('Indique la date de la session.'); return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({
+        action: 'sessionSet',
+        id: sess ? sess.id : '',
+        date: date,
+        heureDebut: boite.querySelector('#seHeure').value,
+        places: boite.querySelector('#sePlaces').value,
+        duree: boite.querySelector('#seDuree').value,
+        centre: boite.querySelector('#seCentre').value.trim(),
+        moniteur: boite.querySelector('#seMon').value,
+        boite: boite.querySelector('#seBoite').value,
+        inspecteur: boite.querySelector('#seInsp').value.trim(),
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast(sess ? 'Session modifiée ✅' : 'Session créée ✅');
+      afficherSessionsPermis();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = sess ? '💾 Enregistrer' : '➕ Créer la session';
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#seDate').focus(), 100);
+}
+
+
+/* L'élève dans les données du bureau, pour lire sa préparation */
+function eleveDuBureau(nom){
+  if(!nom || typeof etatBureau === 'undefined') return null;
+  return (etatBureau.eleves || [])
+    .find(x => normaliserMot(x.eleve) === normaliserMot(nom)) || null;
 }
 
 
