@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:51 — v409 */
+/* Déployé le 12/08/2026 à 16:58 — v410 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -27,7 +27,7 @@ const THEMES_ERREURS = [
 
 const CHAMPS_MANUELS = {
   conduiteResume: [
-    { cle:'__entete', type:'entete', nom:'Début du bilan — décoche ce qui n\'a pas été fait' },
+    { cle:'__entete', type:'entete', nom:'Carte SD — Installation — Vérifications' },
     { cle:'texteDicte',  type:'texte', nom:'🎙️ Ton cours', lignes:8,
       aide:'Ce que tu as dit pendant le cours. Peut rester vide.' },
     { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
@@ -36,7 +36,7 @@ const CHAMPS_MANUELS = {
     { cle:'ecoutes',     type:'ok',    nom:"Plus d'écoutes que de conduite", defaut:'' }
   ],
   conduite: [
-    { cle:'__entete', type:'entete', nom:'Début du bilan — décoche ce qui n\'a pas été fait' },
+    { cle:'__entete', type:'entete', nom:'Carte SD — Installation — Vérifications' },
     { cle:'resume',      type:'themes', nom:'🧠 Erreurs de ce jour' },
     { cle:'manoeuvres',  type:'manoeuvres', nom:'🦉 Manœuvres travaillées' },
     { cle:'groupesTravail', type:'ok', nom:'4 groupes de travail suivis', defaut:'' },
