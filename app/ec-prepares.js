@@ -1,4 +1,4 @@
-/* Déployé le 11/08/2026 à 14:48 — v369 */
+/* Déployé le 12/08/2026 à 09:33 — v382 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -562,21 +562,33 @@ async function preparerNouveauCours(){
   btn.disabled = true;
   btn.textContent = 'Enregistrement…';
   try{
-    await appelPrep({
-      action: 'prepAdd',
+    const cle = rep.modele || modeleCle;
+    const nouveau = {
       date: date,
       eleve: eleve,
-      modele: rep.modele || modeleCle,
-      modeleLabel: (MODELES[rep.modele || modeleCle] || {}).label || '',
+      modele: cle,
+      modeleLabel: (MODELES[cle] || {}).label || '',
       site: $('site').value,
       note: noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
       moniteur: ACCES.moniteur || ''
-    });
+    };
+
+    const r = await appelPrep(Object.assign({ action: 'prepAdd' }, nouveau));
+
     $('prepEleve').value = '';
     if($('prepInfo')) $('prepInfo').textContent = '';
     if($('prepHistorique')){ $('prepHistorique').style.display = 'none'; }
-    await afficherPrepares();
+
+    /* On ajoute le cours à la liste en mémoire plutôt que de tout
+       relire : le serveur vient de le confirmer, il n'y a rien à
+       aller rechercher. L'affichage est immédiat. */
+    prepares.push(Object.assign({}, nouveau, {
+      id: (r && r.id) || String(Date.now()),
+      contexte: rep,
+      preparePar: ACCES.moniteur || ''
+    }));
+    await afficherPrepares(false);
     showToast('Cours préparé ✅');
   }catch(e){
     showToast('Enregistrement impossible : ' + e.message);
@@ -898,8 +910,18 @@ async function modifierPreparation(cours){
       contexte: JSON.stringify(rep),
       moniteur: cours.moniteur || ACCES.moniteur || ''
     });
+    /* La ligne en mémoire suit : elle vient d'être confirmée par le
+       serveur, la relire n'apprendrait rien de plus. */
+    const dans = prepares.find(x => String(x.id) === String(cours.id));
+    if(dans){
+      dans.modele = cleModele;
+      dans.modeleLabel = (MODELES[cleModele] && MODELES[cleModele].label) ||
+                         cours.modeleLabel || '';
+      dans.note = noteDepuisQuestionnaire(rep);
+      dans.contexte = rep;
+    }
     showToast('Préparation modifiée ✅');
-    await afficherPrepares();
+    await afficherPrepares(false);
   }catch(e){
     showToast('Modification impossible : ' + e.message);
   }
