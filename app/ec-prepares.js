@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:49 — v384 */
+/* Déployé le 12/08/2026 à 09:56 — v385 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -85,6 +85,38 @@ function libelleDate(iso){
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+/* Les tiroirs ouverts ou fermés par le moniteur, gardés d'une fois
+   sur l'autre : sa mise en page lui appartient. */
+const CLE_TIROIRS = 'tiroirs_prepares';
+let tiroirsPrepares = {};
+try{
+  tiroirsPrepares = JSON.parse(localStorage.getItem(CLE_TIROIRS) || '{}') || {};
+}catch(e){ tiroirsPrepares = {}; }
+
+
+/* Les moniteurs qui ont des cours, avec leur nombre. On ne propose
+   que ceux qui en ont : une liste de noms vides n'aide personne. */
+function remplirFiltreMoniteurs(sel){
+  const compte = {};
+  prepares.forEach(x => {
+    const n = (x.moniteur || '').trim() || '(non attribué)';
+    compte[n] = (compte[n] || 0) + 1;
+  });
+
+  const noms = Object.keys(compte).sort((a, b) => a.localeCompare(b, 'fr'));
+  const signature = noms.map(n => n + compte[n]).join('|');
+  if(sel._signature === signature) return;      /* rien de neuf */
+  sel._signature = signature;
+
+  const choix = sel.value;
+  sel.innerHTML = '<option value="">Tous les moniteurs — ' +
+    prepares.length + ' cours</option>' +
+    noms.map(n => '<option value="' + n.replace(/"/g, '&quot;') + '">' +
+                  n + ' — ' + compte[n] + '</option>').join('');
+  if(choix && noms.indexOf(choix) !== -1) sel.value = choix;
+}
+
+
 async function afficherPrepares(recharger, silencieux){
   const zone = $('listePrepares');
   if(!zone) return;
@@ -100,8 +132,19 @@ async function afficherPrepares(recharger, silencieux){
   const tousMoniteurs = $('prepTous') && $('prepTous').checked;
   const moi = normaliserMot(ACCES.moniteur || '');
   let liste = prepares.slice();
+
+  /* Le filtre par moniteur ne sert que si l'on voit tout le monde */
+  const selQui = $('prepQui');
+  if(selQui){
+    selQui.style.display = tousMoniteurs ? 'block' : 'none';
+    if(tousMoniteurs) remplirFiltreMoniteurs(selQui);
+  }
+
   if(!tousMoniteurs && moi){
     liste = liste.filter(x => !x.moniteur || normaliserMot(x.moniteur) === moi);
+  }else if(selQui && selQui.value){
+    liste = liste.filter(x => normaliserMot(x.moniteur || '') ===
+                              normaliserMot(selQui.value));
   }
 
   majCompteur('cptPrepares', liste.length);
@@ -160,7 +203,19 @@ async function afficherPrepares(recharger, silencieux){
       const combien = liste.filter(x => x.date === cours.date).length;
 
       tiroir = document.createElement('details');
-      tiroir.open = estAuj || estDem || passe;
+      /* Ce que le moniteur a ouvert ou fermé lui-même prime : sans
+         ça, chaque redessin rouvrait les tiroirs qu'il venait de
+         replier. */
+      tiroir.open = (tiroirsPrepares[cours.date] !== undefined)
+        ? tiroirsPrepares[cours.date]
+        : (estAuj || estDem || passe);
+
+      tiroir.addEventListener('toggle', () => {
+        tiroirsPrepares[cours.date] = tiroir.open;
+        try{
+          localStorage.setItem(CLE_TIROIRS, JSON.stringify(tiroirsPrepares));
+        }catch(e){ /* mémoire pleine : l'état vaut pour cette session */ }
+      });
       tiroir.style.cssText = 'border:1px solid ' +
         (estAuj ? 'var(--orange)' : 'var(--line)') +
         ';border-radius:12px;padding:8px 12px;margin-bottom:8px;';
