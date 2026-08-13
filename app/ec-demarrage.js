@@ -1,4 +1,4 @@
-/* Déployé le 13/08/2026 à 10:04 — v414 */
+/* Déployé le 13/08/2026 à 13:37 — v416 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -124,28 +124,44 @@ function reprendreCours(){
   /* Les cases cochées avant le plantage : on les remet dès que les
      panneaux sont dessinés, sinon il n'y a rien à cocher. */
   if(s.entete || (s.fiche && s.fiche.length)){
-    setTimeout(() => {
+    (async () => {
       if(typeof afficherEnteteDuCours === 'function') afficherEnteteDuCours();
-      if(typeof afficherFicheDuCours === 'function') afficherFicheDuCours();
 
-      setTimeout(() => {
-        if(s.entete){
-          document.querySelectorAll('.entCase').forEach(cb => {
-            const v = s.entete[cb.getAttribute('data-cle')];
-            if(v !== undefined) cb.checked = (v === '✅');
-          });
-          document.querySelectorAll('.entTexte').forEach(i => {
-            const v = s.entete[i.getAttribute('data-cle')];
-            if(v) i.value = v;
-          });
-        }
-        if(s.fiche && s.fiche.length){
-          document.querySelectorAll('.mCours').forEach(cb => {
-            if(!cb.disabled && s.fiche.indexOf(cb.value) !== -1) cb.checked = true;
-          });
-        }
-      }, 400);            /* la fiche véhicule se charge du serveur */
-    }, 100);
+      /* On ATTEND que la fiche soit dessinée : elle lit les bilans
+         antérieurs sur le serveur, et un délai fixe de 400 ms ne
+         suffisait pas sur un réseau lent — les coches étaient
+         remises sur des cases qui n'existaient pas encore. */
+      if(typeof afficherFicheDuCours === 'function'){
+        try{ await afficherFicheDuCours(); }catch(e){ /* on remet quand même */ }
+      }
+
+      if(s.entete){
+        document.querySelectorAll('.entCase').forEach(cb => {
+          const v = s.entete[cb.getAttribute('data-cle')];
+          if(v !== undefined) cb.checked = (v === '✅');
+        });
+        document.querySelectorAll('.entTexte').forEach(i => {
+          const v = s.entete[i.getAttribute('data-cle')];
+          if(v) i.value = v;
+        });
+      }
+
+      const remettreFiche = () => {
+        if(!s.fiche || !s.fiche.length) return 0;
+        let n = 0;
+        document.querySelectorAll('.mCours').forEach(cb => {
+          if(s.fiche.indexOf(cb.value) !== -1){ cb.checked = true; n++; }
+        });
+        return n;
+      };
+
+      /* Un second passage si les cases manquaient encore : la fiche
+         peut se redessiner après un chargement différé. */
+      if(remettreFiche() < (s.fiche || []).length){
+        setTimeout(remettreFiche, 800);
+        setTimeout(remettreFiche, 2500);
+      }
+    })();
   }
 
   $('repriseBanner').style.display = 'none';
