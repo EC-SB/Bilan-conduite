@@ -497,7 +497,15 @@ function lignePlace(p, sess){
       (ficheVide ? ' <span style="font-size:11px;color:var(--warn-text);">' +
         '📝 fiche à remplir</span>' : '') +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
-      etat.emoji + ' ' + etat.texte + '</div>';
+      etat.emoji + ' ' + etat.texte + '</div>' +
+      /* Ce que le bureau a noté : les leçons posées et le reste à
+         faire. C'est ce qu'on veut voir sans ouvrir la fiche. */
+      (su.reservations ? '<div style="font-size:11px;color:var(--accent-text);' +
+        'margin-top:2px;line-height:1.4;">📅 ' +
+        su.reservations.replace(/</g, '&lt;') + '</div>' : '') +
+      (su.autre ? '<div style="font-size:11px;color:var(--warn-text);' +
+        'margin-top:2px;line-height:1.4;">📝 ' +
+        su.autre.replace(/</g, '&lt;') + '</div>' : '');
   nom.addEventListener('click', () => ouvrirPlace(p, sess));
   l.appendChild(nom);
 
@@ -696,7 +704,7 @@ function ouvrirPlace(p, sess){
     '<label for="plAE">Auto-école à qui donner la date</label>' +
     '<input type="text" id="plAE" placeholder="Si la place part ailleurs">' +
 
-    '<label for="plAut">Autre à prévoir</label>' +
+    '<label for="plAut">Autres notes</label>' +
     '<input type="text" id="plAut" placeholder="Ce qui reste à faire avant l\'examen">');
 
   boite.querySelector('#plEleve').value = p.eleve || '';
