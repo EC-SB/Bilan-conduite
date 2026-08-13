@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:58 — v410 */
+/* Déployé le 13/08/2026 à 10:03 — v414 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1036,8 +1036,9 @@ async function afficherFicheDuCours(){
   cbTout.type = 'checkbox';
   cbTout.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
   cbTout.addEventListener('change', () => {
-    /* Les manœuvres déjà acquises restent verrouillées */
-    d.querySelectorAll('.mCours:not(:disabled)').forEach(x => {
+    /* Toutes, y compris les acquises : le moniteur qui a tout
+       retravaillé dans son cours le dit d'un seul geste. */
+    d.querySelectorAll('.mCours').forEach(x => {
       x.checked = cbTout.checked;
     });
   });
@@ -1052,8 +1053,10 @@ async function afficherFicheDuCours(){
     const deja = marques[cle] || '';
 
     const l = document.createElement('label');
+    /* Acquise : le libellé reste lisible mais discret, la marque
+       des moniteurs disant le reste. */
     l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;' +
-      'font-size:14px;text-transform:none;margin:0;font-weight:400;' +
+      'font-size:14px;text-transform:none;margin:0;font-weight:400;cursor:pointer;' +
       'color:' + (deja ? 'var(--muted)' : 'var(--cream)') + ';';
 
     const cb = document.createElement('input');
@@ -1061,7 +1064,9 @@ async function afficherFicheDuCours(){
     cb.className = 'mCours';
     cb.value = libelle;
     cb.checked = dejaCoche.indexOf(libelle) !== -1;
-    cb.disabled = !!deja;                     /* déjà acquise : rien à cocher */
+    /* Une manœuvre acquise reste cochable : on la retravaille
+       souvent, et le moniteur du jour doit pouvoir dire qu'il l'a
+       refaite. Sa marque s'ajoute à celles des précédents. */
     cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
     l.appendChild(cb);
 
@@ -1074,6 +1079,7 @@ async function afficherFicheDuCours(){
       const m = document.createElement('span');
       m.style.cssText = 'flex-shrink:0;letter-spacing:1px;';
       m.textContent = deja;
+      m.title = 'Déjà validée par : ' + deja + '. Coche si tu la refais aujourd\'hui.';
       l.appendChild(m);
     }
 
