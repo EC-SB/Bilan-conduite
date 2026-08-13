@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 12:47 — v393 */
+/* Déployé le 13/08/2026 à 14:18 — v417 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1123,15 +1123,18 @@ async function modifierPreparation(cours){
 /* Amène l'écran sur le module de cours, prêt à démarrer. */
 function amenerAuCours(){
   setTimeout(() => {
-    const z = $('recordView');
-    if(!z) return;
+    /* Le bouton lui-même, centré : viser le haut de la carte
+       laissait le moniteur devant les champs, avec le bouton hors
+       de l'écran et un défilement de plus à faire. */
+    const b = $('recBtn') || $('recordView');
+    if(!b) return;
     try{
-      z.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      b.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }catch(e){
       /* Navigateur ancien : au moins on y va */
-      window.scrollTo(0, z.offsetTop - 10);
+      window.scrollTo(0, Math.max(0, b.offsetTop - 160));
     }
-  }, 120);
+  }, 150);
 }
 
 /* Demande une date, avec celle du cours pré-remplie */
