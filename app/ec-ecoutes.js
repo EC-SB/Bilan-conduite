@@ -31,7 +31,15 @@ async function afficherEcoutes(){
 
   zone.innerHTML = '<div class="empty">Lecture des écoutes…</div>';
   try{
-    const d = await appelPrep({ action: 'ecouteList' });
+    /* Le répertoire en même temps : c'est lui qui porte les numéros,
+       et l'attendre au moment d'enregistrer donnait l'impression
+       d'un blocage. */
+    const [d] = await Promise.all([
+      appelPrep({ action: 'ecouteList' }),
+      (typeof chargerFiches === 'function' &&
+       (typeof fichesEleves === 'undefined' || !fichesEleves.length))
+        ? chargerFiches().catch(() => []) : Promise.resolve()
+    ]);
     ecoutesSans = (d && d.sans) || [];
     ecoutesAbsents = (d && d.absents) || [];
   }catch(e){
@@ -54,6 +62,10 @@ async function afficherEcoutes(){
     '<label for="ecEleve">Élève</label>' +
     '<input type="text" id="ecEleve" list="listeEleves" autocomplete="off" ' +
       'placeholder="Prénom et nom">' +
+    /* Le numéro sous le nom : le moniteur voit tout de suite si le
+       SMS pourra partir, sans attendre l'enregistrement. */
+    '<div id="ecTel" style="font-size:12px;margin:-6px 0 10px;' +
+      'min-height:17px;line-height:1.4;"></div>' +
     '<label for="ecDate">Date du rendez-vous manqué</label>' +
     '<input type="date" id="ecDate">' +
 
@@ -75,6 +87,37 @@ async function afficherEcoutes(){
   /* La date du jour par défaut : une absence se signale le jour même */
   const champDate = f.querySelector('#ecDate');
   if(champDate) champDate.value = todayLocal();
+
+  /* Le numéro s'affiche dès que le nom est reconnu */
+  const champNom = f.querySelector('#ecEleve');
+  const zTel = f.querySelector('#ecTel');
+
+  const majTelephone = () => {
+    if(!zTel) return;
+    const nom = champNom.value.trim();
+
+    if(nom.split(' ').length < 2){
+      zTel.innerHTML = '';
+      return;
+    }
+
+    const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+    if(fiche && fiche.telephone){
+      zTel.innerHTML = '<span style="color:var(--accent-text);">📱 ' +
+        String(fiche.telephone).replace(/</g, '&lt;') + '</span>';
+    }else if(fiche){
+      zTel.innerHTML = '<span style="color:var(--warn-text);">' +
+        '⚠️ Aucun numéro sur sa fiche — le SMS ne pourra pas partir</span>';
+    }else{
+      zTel.innerHTML = '<span style="color:var(--muted);">' +
+        'Élève inconnu du répertoire</span>';
+    }
+  };
+
+  if(champNom){
+    champNom.addEventListener('input', majTelephone);
+    champNom.addEventListener('change', majTelephone);
+  }
 
   /* Le texte, modifiable avant envoi */
   const caseSms = f.querySelector('#ecSms');
