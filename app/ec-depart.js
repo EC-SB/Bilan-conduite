@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:30 — v407 */
+/* Déployé le 13/08/2026 à 14:15 — v417 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -596,6 +596,17 @@ async function terminerCours(){
   $('lessonDate').value = todayLocal();
   $('recBtn').textContent = '🎙️ Démarrer le cours';
   $('status').textContent = "Appuie pour lancer l'enregistrement en début de cours.";
+  /* Le bilan du cours précédent et son état d'enregistrement : ils
+     restaient affichés et pouvaient être renvoyés par erreur. */
+  if($('resultText')) $('resultText').value = '';
+  if($('finEtat')) $('finEtat').textContent = '';
+  if($('genErrorDetail')) $('genErrorDetail').remove();
+  if($('corrigerBtn')) $('corrigerBtn').style.display = 'none';
+  if($('btnImageCepc')) $('btnImageCepc').remove();
+
+  /* Le menu des procédures repart vide */
+  if($('ajoutProcedure')) $('ajoutProcedure').value = '';
+
   $('finishBtn').style.display = 'none';
   $('resultView').style.display = 'none';
   $('recordView').style.display = 'block';
