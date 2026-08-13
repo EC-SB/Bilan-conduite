@@ -1,4 +1,4 @@
-/* Déployé le 13/08/2026 à 09:34 — v413 */
+/* Déployé le 13/08/2026 à 10:04 — v414 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -35,7 +35,7 @@ function sauvegarderLocal(force){
          plantage lui faisait tout recocher de mémoire. */
       entete: (typeof enteteDuCours === 'function') ? enteteDuCours() : null,
       fiche: [...document.querySelectorAll('.mCours')]
-               .filter(x => x.checked && !x.disabled)
+               .filter(x => x.checked)
                .map(x => x.value)
     }));
   }catch(e){
