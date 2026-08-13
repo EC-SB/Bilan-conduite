@@ -354,6 +354,8 @@ function blocSession(sess, auj){
       (sess.centre ? '🏁 ' + sess.centre.replace(/</g, '&lt;') : '🏁 centre à définir') +
       (sess.moniteur ? ' · 👤 ' + sess.moniteur.replace(/</g, '&lt;') : '') +
       (detailBoite ? ' · 🚗 ' + detailBoite : '') +
+      (sess.groupeFait ? '<br><span style="color:var(--accent-text);">' +
+        '💬 Groupe Messenger fait</span>' : '') +
     '</div>';
   tete.appendChild(g);
 
@@ -367,6 +369,38 @@ function blocSession(sess, auj){
   n.textContent = prets + '/' + sess.eleves.length;
   n.title = prets + ' prêt(s) sur ' + sess.eleves.length + ' place(s)';
   tete.appendChild(n);
+
+  /* Le groupe Messenger : grisé tant qu'il n'est pas créé, en
+     couleur une fois fait. Un appui bascule, sans ouvrir la
+     session. */
+  const bMess = document.createElement('button');
+  bMess.className = 'btn btn-secondary';
+  bMess.style.cssText = 'width:auto;padding:5px 9px;font-size:15px;margin:0;' +
+    'flex-shrink:0;border:none;background:none;' +
+    'filter:' + (sess.groupeFait ? 'none' : 'grayscale(1)') + ';' +
+    'opacity:' + (sess.groupeFait ? '1' : '.45') + ';';
+  bMess.textContent = '💬';
+  bMess.title = sess.groupeFait
+    ? 'Groupe Messenger fait — appuie pour annuler'
+    : 'Groupe Messenger pas encore fait';
+  bMess.addEventListener('click', async ev => {
+    ev.stopPropagation();
+
+    /* L'écran répond tout de suite, l'enregistrement suit */
+    sess.groupeFait = !sess.groupeFait;
+    redessinerSessions();
+    showToast(sess.groupeFait ? 'Groupe Messenger fait ✅'
+                              : 'Groupe Messenger à refaire');
+    try{
+      await appelPrep({ action: 'sessionGroupe', id: sess.id,
+                        groupeFait: sess.groupeFait ? 'oui' : '' });
+    }catch(e){
+      sess.groupeFait = !sess.groupeFait;
+      redessinerSessions();
+      showToast('Impossible : ' + e.message);
+    }
+  });
+  tete.appendChild(bMess);
 
   const fl = document.createElement('div');
   fl.style.cssText = 'flex-shrink:0;font-size:13px;color:var(--muted);transition:transform .2s;';
