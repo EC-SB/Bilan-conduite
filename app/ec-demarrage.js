@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:51 — v409 */
+/* Déployé le 13/08/2026 à 09:34 — v413 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -30,7 +30,13 @@ function sauvegarderLocal(force){
       note: $('noteInterne').value,
       transcript: texte || '',
       bilan: resultat ? resultat.value : '',
-      noteResult: $('noteResult') ? $('noteResult').value : ''
+      noteResult: $('noteResult') ? $('noteResult').value : '',
+      /* Ce que le moniteur a coché pendant le cours : sans ça, un
+         plantage lui faisait tout recocher de mémoire. */
+      entete: (typeof enteteDuCours === 'function') ? enteteDuCours() : null,
+      fiche: [...document.querySelectorAll('.mCours')]
+               .filter(x => x.checked && !x.disabled)
+               .map(x => x.value)
     }));
   }catch(e){
     /* stockage plein ou indisponible : on continue sans sauvegarde */
@@ -114,6 +120,33 @@ function reprendreCours(){
     noteInterne: s.note || '',
     ts: s.ts || Date.now()
   };
+
+  /* Les cases cochées avant le plantage : on les remet dès que les
+     panneaux sont dessinés, sinon il n'y a rien à cocher. */
+  if(s.entete || (s.fiche && s.fiche.length)){
+    setTimeout(() => {
+      if(typeof afficherEnteteDuCours === 'function') afficherEnteteDuCours();
+      if(typeof afficherFicheDuCours === 'function') afficherFicheDuCours();
+
+      setTimeout(() => {
+        if(s.entete){
+          document.querySelectorAll('.entCase').forEach(cb => {
+            const v = s.entete[cb.getAttribute('data-cle')];
+            if(v !== undefined) cb.checked = (v === '✅');
+          });
+          document.querySelectorAll('.entTexte').forEach(i => {
+            const v = s.entete[i.getAttribute('data-cle')];
+            if(v) i.value = v;
+          });
+        }
+        if(s.fiche && s.fiche.length){
+          document.querySelectorAll('.mCours').forEach(cb => {
+            if(!cb.disabled && s.fiche.indexOf(cb.value) !== -1) cb.checked = true;
+          });
+        }
+      }, 400);            /* la fiche véhicule se charge du serveur */
+    }, 100);
+  }
 
   $('repriseBanner').style.display = 'none';
   showToast('Cours récupéré ✅');
