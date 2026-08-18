@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 07:33 — v419 */
+/* Déployé le 18/08/2026 à 14:49 — v440 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -146,7 +146,7 @@ function afficherExamensBlancs(tous){
         alerte: x => {
           const s = suiviDe(x.eleve);
           if(s.ebDatePrevue && !s.ebMoniteur) return 'Moniteur à désigner';
-          if(!s.ebMessage) return 'Message Messenger à envoyer';
+          if(!s.ebMessage) return 'Message à envoyer pour réserver';
           return (x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
                  ? "Plus qu'une leçon avant l'examen blanc" : null;
         },
@@ -171,7 +171,7 @@ function afficherExamensBlancs(tous){
             cb.disabled = false;
           });
           lab.appendChild(cb);
-          lab.appendChild(document.createTextNode('💬 Message Messenger envoyé à l\'élève'));
+          lab.appendChild(document.createTextNode('📣 Message envoyé pour réserver'));
           zone.appendChild(lab);
 
           /* Date de l'examen blanc */
@@ -223,7 +223,7 @@ function afficherSimulateurs(tous){
           /* Prévenu qu'il doit réserver : sans cette trace, on ne
              sait plus qui a été relancé et qui attend encore. */
           zone.appendChild(casePrevenu(x, 'simuPrevenu',
-            '📣 Prévenu qu\'il doit réserver'));
+            '📣 Message envoyé pour réserver'));
 
           zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
             await envoyerConsigne(x.eleve, 'simu',
