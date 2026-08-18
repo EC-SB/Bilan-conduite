@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 12:09 — v390 */
+/* Déployé le 18/08/2026 à 07:46 — v420 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -817,7 +817,14 @@ function afficherExamensPermis(tous){
   const zPer = $('listePermis');
   if(!zPer) return;
 
-  const candidats = tous.filter(e => e.etat.permis === 'aprevoir' || e.etat.permis === 'annule');
+  /* Un rendez-vous post-permis fixé garde l'élève visible ici : on
+     attend ce rendez-vous pour savoir s'il repasse, et sans ça il
+     disparaissait de toutes les listes entre-temps. */
+  const candidats = tous.filter(e => {
+    if(e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') return true;
+    const s = suiviDe(e.eleve);
+    return !!(s.rdvPostDate && s.rdvPostFait !== 'oui');
+  });
   const masques = candidats.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' ||
                                         suiviDe(e.eleve).retireAPrevoir === 'oui');
   let per = candidats.filter(e => suiviDe(e.eleve).aPlanifier !== 'oui' &&
@@ -915,6 +922,30 @@ function afficherExamensPermis(tous){
         },
         alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
         actions: (x, zone) => {
+          const sPost = suiviDe(x.eleve);
+
+          /* En attente de son rendez-vous post-permis : le moniteur
+             peut le sortir de la liste s'il a oublié de le faire au
+             moment du rendez-vous. */
+          if(sPost.rdvPostDate && sPost.rdvPostFait !== 'oui'){
+            const bSans = document.createElement('button');
+            bSans.className = 'btn btn-secondary';
+            bSans.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:0 0 10px;';
+            bSans.textContent = '⏸️ Pas de repassage pour le moment';
+            bSans.title = 'Le retire de cette liste sans supprimer son rendez-vous';
+            bSans.addEventListener('click', async () => {
+              if(!await confirmer('Retirer ' + x.eleve + ' des élèves prêts au permis ?\n\n' +
+                  'Son rendez-vous post-permis est conservé.')) return;
+              bSans.disabled = true;
+              try{
+                await majSuivi(x.eleve, { retireAPrevoir: 'oui' });
+                showToast('Retiré de la liste ✅');
+                afficherBureau(true);
+              }catch(e){ showToast('Erreur : ' + e.message); bSans.disabled = false; }
+            });
+            zone.appendChild(bSans);
+          }
+
           const lab = document.createElement('label');
           lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
             'font-size:15px;color:var(--cream);margin-bottom:10px;';
