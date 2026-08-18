@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 08:28 — v422 */
+/* Déployé le 18/08/2026 à 10:59 — v431 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -695,6 +695,31 @@ async function afficherRappelManuel(){
     'Sans moniteur, le rappel part sans créer de cours.';
   zone.appendChild(aideMon);
 
+  /* Le véhicule et l'emplacement, renseignés dès le rappel : ils
+     remontent seuls sur l'écran de l'accueil, plutôt que d'être
+     ressaisis un par un dans l'affichage. */
+  const dt = document.createElement('details');
+  dt.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+    'padding:9px 11px;margin-bottom:12px;';
+  dt.innerHTML = '<summary style="cursor:pointer;font-size:12px;font-weight:700;' +
+    'color:var(--accent-text);">📺 Véhicule et emplacement (facultatif)</summary>' +
+    '<div style="font-size:11px;color:var(--muted);margin:8px 0;line-height:1.45;">' +
+      "Repris tel quel sur l'écran de l'accueil.</div>" +
+    '<div class="duo">' +
+      '<div><label for="rapHeure">Heure du cours</label>' +
+        '<input type="time" id="rapHeure"></div>' +
+      '<div><label for="rapVeh">Véhicule ou simulateur</label>' +
+        '<input type="text" id="rapVeh" placeholder="Ex : 3"></div>' +
+    '</div>' +
+    '<label for="rapLieu">Où le prendre</label>' +
+    '<select id="rapLieu">' +
+      '<option value="">— non précisé —</option>' +
+      '<option value="devant">🚗 Devant</option>' +
+      '<option value="cour">🏠 Cour intérieure</option>' +
+      '<option value="simulateur">🖥️ Simulateur</option>' +
+    '</select>';
+  zone.appendChild(dt);
+
   /* La liste des moniteurs, chargée une fois */
   (async () => {
     try{
@@ -997,12 +1022,20 @@ async function envoyerRappelManuel(){
 
     /* Le cours annoncé rejoint « Mes prochains cours » du moniteur */
     preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
-                         $('rapMoniteur') ? $('rapMoniteur').value : '');
+                         $('rapMoniteur') ? $('rapMoniteur').value : '',
+                         {
+                           heure: $('rapHeure') ? $('rapHeure').value : '',
+                           vehicule: $('rapVeh') ? $('rapVeh').value.trim() : '',
+                           lieu: $('rapLieu') ? $('rapLieu').value : ''
+                         });
 
     /* On passe à l'élève suivant, les réglages sont conservés */
     setTimeout(() => {
       if($('rappelEleve')) $('rappelEleve').value = '';
       if($('rapTel')) $('rapTel').value = '';
+      /* Le véhicule change d'un élève à l'autre, pas le moniteur */
+      if($('rapVeh')) $('rapVeh').value = '';
+      if($('rapHeure')) $('rapHeure').value = '';
       if($('rapLibre')) $('rapLibre').value = '';
       /* Élève suivant : on repart du modèle, pas du texte retouché */
       texteModifie = false;
@@ -1218,7 +1251,7 @@ function modeRappel(mode){
    cours demain. La préparation se crée donc toute seule, pour que
    le cours apparaisse dans « Mes prochains cours ».
    ============================================================ */
-async function preparerDepuisRappel(eleve, jourTexte, moniteur){
+async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
   if(!eleve || eleve.length < 3) return;
 
   /* Sans moniteur désigné, on ne crée rien : un cours attribué au
@@ -1271,7 +1304,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur){
       note = '❓ Informations à renseigner — dossier non lu.';
     }
 
-    await appelPrep({
+    const r = await appelPrep({
       action: 'prepAdd',
       date: iso,
       eleve: eleve,
@@ -1283,6 +1316,26 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur){
       contexte: contexte,
       moniteur: qui
     });
+
+    /* Le véhicule et l'emplacement partent avec, pour l'affichage
+       du bureau : sans ça, il fallait les ressaisir un par un. */
+    if(details && (details.vehicule || details.lieu || details.heure)){
+      try{
+        await appelPrep({
+          action: 'ecranLigneSet',
+          idPrep: (r && r.id) || '',
+          jour: iso,
+          eleve: eleve,
+          moniteur: qui,
+          heure: details.heure || '',
+          vehicule: details.vehicule || '',
+          lieu: details.lieu || '',
+          ordre: 0,
+          par: ACCES.moniteur || ''
+        });
+      }catch(e){ console.warn('Détails d\'affichage non transmis :', e); }
+    }
+
     showToast('Cours ajouté aux prochains cours de ' + qui + ' 📅' +
               (note ? '' : ' — infos à renseigner'));
   }catch(e){
