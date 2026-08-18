@@ -44,11 +44,15 @@
   /* ============================================================
      LE BANDEAU — accueil seulement
      ============================================================ */
+  /* Le même verre dépoli que la carte du planning : l'image
+     transparaît, l'écran reste clair. */
   header{
     display:flex; align-items:center; gap:24px;
     padding:16px 34px;
-    background:rgba(11,14,20,.82);
-    border-bottom:1px solid var(--line);
+    background:rgba(11,14,20,.62);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(255,255,255,.10);
     flex-shrink:0;
     position:relative; z-index:5;
   }
@@ -87,7 +91,9 @@
     display:flex; flex-direction:column;
     align-items:center; justify-content:center;
     padding:50px 60px; text-align:center;
-    background:rgba(11,14,20,.55);
+    background:rgba(11,14,20,.42);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
   }
   .scene .titre{
     font-size:60px; font-weight:800; line-height:1.15;
@@ -105,20 +111,37 @@
   }
 
   /* ---------- Le planning, par-dessus l'image ---------- */
+  /* Le planning repose sur un panneau posé sur l'image, comme une
+     carte : un dégradé sur toute la hauteur noircissait l'écran. */
   #planning{
-    position:absolute; top:0; left:0; bottom:0;
-    width:40%;
-    padding:26px 30px;
+    position:absolute; top:24px; left:24px; bottom:24px;
+    width:38%;
+    padding:24px 26px;
     z-index:3;
-    /* Un voile qui s'estompe vers la droite : le planning reste
-       lisible et l'image respire. */
-    background:linear-gradient(to right,
-      rgba(11,14,20,.94) 0%, rgba(11,14,20,.88) 62%, rgba(11,14,20,0) 100%);
+    background:rgba(11,14,20,.72);
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.13);
+    border-radius:20px;
+    box-shadow:0 14px 40px rgba(0,0,0,.35);
     display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+
+  /* Le bord droit s'adoucit : la carte se pose sur l'image au lieu
+     de la couper net. */
+  #planning::after{
+    content:'';
+    position:absolute; top:0; right:0; bottom:0; width:90px;
+    background:linear-gradient(to right,
+      rgba(11,14,20,0) 0%, rgba(11,14,20,.30) 100%);
+    pointer-events:none;
   }
   #planning h2{
-    font-size:22px; color:var(--accent);
+    font-size:21px; color:var(--accent);
     margin-bottom:14px; letter-spacing:.5px;
+    padding-bottom:12px;
+    border-bottom:1px solid rgba(255,255,255,.12);
   }
   .cours{
     display:flex; align-items:center; gap:14px;
@@ -215,8 +238,10 @@
   footer{
     display:flex; align-items:center; gap:14px;
     padding:10px 34px;
-    background:rgba(11,14,20,.82);
-    border-top:1px solid var(--line);
+    background:rgba(11,14,20,.62);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border-top:1px solid rgba(255,255,255,.10);
     font-size:15px; color:var(--muted);
     flex-shrink:0; position:relative; z-index:5;
   }
