@@ -1,3 +1,4 @@
+/* Déployé le 18/08/2026 à 07:11 — v418 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -692,7 +693,7 @@ function blocCaptures(eleve, dateExamen){
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-  aide.textContent = 'Ajoute autant de captures que nécessaire : recto, verso, observations. ' +
+  aide.textContent = 'Colle, glisse ou choisis tes captures : recto, verso, observations. ' +
     'Elles sont réduites automatiquement et suivront jusqu\'au rendez-vous post-permis.';
   d.appendChild(aide);
 
@@ -759,8 +760,8 @@ function blocCaptures(eleve, dateExamen){
   etat.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;min-height:14px;';
   d.appendChild(etat);
 
-  inp.addEventListener('change', async () => {
-    const fichiers = Array.prototype.slice.call(inp.files || []);
+  /* Le traitement, commun aux trois façons d'ajouter une image */
+  async function ajouterImages(fichiers){
     if(!fichiers.length) return;
 
     let ok = 0;
@@ -777,12 +778,75 @@ function blocCaptures(eleve, dateExamen){
         etat.textContent = 'Capture ' + (i + 1) + ' : ' + e.message;
       }
     }
-    inp.value = '';
     if(ok){
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ ' + ok + ' capture(s) ajoutée(s)';
       dessiner();
     }
+  }
+
+  inp.addEventListener('change', async () => {
+    await ajouterImages(Array.prototype.slice.call(inp.files || []));
+    inp.value = '';
+  });
+
+  /* ---- Coller depuis le presse-papier ---- */
+  const zColler = document.createElement('div');
+  zColler.tabIndex = 0;
+  zColler.style.cssText = 'border:2px dashed var(--line);border-radius:10px;' +
+    'padding:14px 12px;text-align:center;font-size:13px;color:var(--muted);' +
+    'cursor:pointer;margin-bottom:6px;transition:border-color .15s, background .15s;';
+  zColler.innerHTML = '📋 <strong>Colle ta capture ici</strong><br>' +
+    '<span style="font-size:11px;">Ctrl+V, ou fais glisser l\'image</span>';
+  d.insertBefore(zColler, inp);
+
+  zColler.addEventListener('click', () => zColler.focus());
+
+  zColler.addEventListener('paste', async ev => {
+    const items = (ev.clipboardData && ev.clipboardData.items) || [];
+    const images = [];
+    for(let i = 0; i < items.length; i++){
+      if(items[i].type && items[i].type.indexOf('image') === 0){
+        const f = items[i].getAsFile();
+        if(f) images.push(f);
+      }
+    }
+    if(!images.length) return;
+    ev.preventDefault();
+    zColler.style.borderColor = 'var(--orange)';
+    await ajouterImages(images);
+    zColler.style.borderColor = 'var(--line)';
+  });
+
+  /* Coller n'importe où dans la page quand la zone a le curseur */
+  const surCollage = async ev => {
+    if(document.activeElement !== zColler) return;
+    zColler.dispatchEvent(new ClipboardEvent('paste', {
+      clipboardData: ev.clipboardData, bubbles: false
+    }));
+  };
+  document.addEventListener('paste', surCollage);
+
+  /* ---- Glisser-déposer ---- */
+  ['dragenter', 'dragover'].forEach(n => {
+    zColler.addEventListener(n, ev => {
+      ev.preventDefault();
+      zColler.style.borderColor = 'var(--orange)';
+      zColler.style.background = 'rgba(182,255,14,.06)';
+    });
+  });
+  ['dragleave', 'drop'].forEach(n => {
+    zColler.addEventListener(n, ev => {
+      ev.preventDefault();
+      zColler.style.borderColor = 'var(--line)';
+      zColler.style.background = 'transparent';
+    });
+  });
+  zColler.addEventListener('drop', async ev => {
+    const fichiers = Array.prototype.slice.call(
+      (ev.dataTransfer && ev.dataTransfer.files) || [])
+      .filter(f => f.type && f.type.indexOf('image') === 0);
+    await ajouterImages(fichiers);
   });
 
   return d;
