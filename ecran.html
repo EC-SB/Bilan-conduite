@@ -493,8 +493,13 @@ async function chargerContenu(){
   }
 
   try{
+    /* Un paramètre qui change à chaque appel : sans lui, le
+       navigateur sert la réponse gardée en mémoire et l'écran
+       reste figé sur l'ancien contenu. */
     const r = await fetch(RELAIS + '/ecran?t=' + encodeURIComponent(JETON) +
-                          '&ou=' + OU + (ANONYME ? '&anonyme=1' : ''));
+                          '&ou=' + OU + (ANONYME ? '&anonyme=1' : '') +
+                          '&_=' + Date.now(),
+                          { cache: 'no-store' });
     if(!r.ok){
       let detail = '';
       try{
