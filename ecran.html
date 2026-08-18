@@ -8,15 +8,12 @@
 <!-- ============================================================
      AFFICHAGE DYNAMIQUE — Évolution Conduites
 
-     Deux écrans depuis la même page :
-       ?ou=accueil   planning du jour, images, messages, météo
-       ?ou=vitrine   images, messages, météo — sans le planning
+     ?ou=accueil   bandeau, image plein écran en fond, planning
+                   par-dessus à gauche
+     ?ou=vitrine   pas de bandeau : fond fixe, texte fixe à gauche,
+                   photos qui tournent à droite en transparence
 
-     Lecture seule. Aucune saisie, aucun bouton : la page tourne
-     seule et se recharge toute seule.
-
-     Adresse type :
-       ecran.html?t=LE_JETON&ou=accueil&anonyme=1
+     Lecture seule. La page tourne seule et se recharge seule.
      ============================================================ -->
 
 <style>
@@ -26,7 +23,6 @@
     --cream:#F4F1E8;
     --muted:#8A94A0;
     --accent:#B6FF0E;
-    --orange:#B6FF0E;
     --line:rgba(255,255,255,.10);
     --red:#E5484D;
   }
@@ -39,128 +35,201 @@
     color:var(--cream);
     font-family:'Segoe UI', system-ui, -apple-system, sans-serif;
     overflow:hidden;
-    /* Un téléviseur ne se touche pas : pas de sélection ni de curseur */
     user-select:none;
     cursor:none;
   }
 
-  #ecran{ display:flex; flex-direction:column; height:100vh; }
+  #ecran{ position:relative; height:100vh; display:flex; flex-direction:column; }
 
-  /* ---------- Bandeau du haut ---------- */
+  /* ============================================================
+     LE BANDEAU — accueil seulement
+     ============================================================ */
   header{
     display:flex; align-items:center; gap:24px;
-    padding:20px 34px;
+    padding:16px 34px;
+    background:rgba(11,14,20,.82);
     border-bottom:1px solid var(--line);
     flex-shrink:0;
+    position:relative; z-index:5;
   }
-  .marque{
-    font-size:26px; font-weight:800; letter-spacing:.5px;
+  .marque{ font-size:26px; font-weight:800; color:var(--accent); letter-spacing:.5px; }
+  .jour{ flex:1; font-size:19px; color:var(--muted); text-transform:capitalize; }
+  .heure{ font-size:38px; font-weight:800; font-variant-numeric:tabular-nums; }
+
+  /* La météo : maintenant, puis les heures qui viennent */
+  .meteo{ display:flex; align-items:center; gap:20px; }
+  .meteo .ic{ font-size:36px; line-height:1; }
+  .meteo .t{ font-size:32px; font-weight:800; }
+  .apres{ display:flex; gap:16px; }
+  .apres .h{
+    text-align:center; font-size:14px; color:var(--muted);
+    line-height:1.5;
+  }
+  .apres .h .i{ font-size:22px; display:block; }
+  .apres .h .d{ font-size:16px; color:var(--cream); font-weight:700; }
+
+  /* ============================================================
+     LE CORPS
+     ============================================================ */
+  main{ flex:1; position:relative; min-height:0; overflow:hidden; }
+
+  /* Les images tournantes : plein écran, l'une après l'autre */
+  .scene{
+    position:absolute; inset:0;
+    opacity:0;
+    transition:opacity 1.2s ease;
+  }
+  .scene.vue{ opacity:1; }
+  .scene img{ width:100%; height:100%; object-fit:cover; }
+
+  /* Un message sans image : centré sur le fond */
+  .scene.texte{
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    padding:50px 60px; text-align:center;
+    background:rgba(11,14,20,.55);
+  }
+  .scene .titre{
+    font-size:60px; font-weight:800; line-height:1.15;
+    color:var(--accent); margin-bottom:26px;
+  }
+  .scene .texte-corps{
+    font-size:40px; line-height:1.5; max-width:22ch; white-space:pre-wrap;
+  }
+  /* Une image avec un titre : bandeau en bas */
+  .scene .legende{
+    position:absolute; left:0; right:0; bottom:0;
+    background:rgba(11,14,20,.86);
+    font-size:34px; font-weight:700; padding:22px 40px;
     color:var(--accent);
   }
-  .jour{ flex:1; font-size:20px; color:var(--muted); text-transform:capitalize; }
-  .heure{ font-size:40px; font-weight:800; font-variant-numeric:tabular-nums; }
 
-  /* La météo, discrète mais lisible de loin */
-  .meteo{
-    display:flex; align-items:center; gap:12px;
-    font-size:24px; color:var(--cream);
-  }
-  .meteo .t{ font-size:34px; font-weight:800; }
-  .meteo .ic{ font-size:38px; line-height:1; }
-
-  /* ---------- Corps ---------- */
-  main{ flex:1; display:flex; min-height:0; }
-
-  /* Le planning, à gauche, uniquement dans l'accueil */
+  /* ---------- Le planning, par-dessus l'image ---------- */
   #planning{
-    width:44%;
+    position:absolute; top:0; left:0; bottom:0;
+    width:40%;
     padding:26px 30px;
-    border-right:1px solid var(--line);
-    overflow:hidden;
+    z-index:3;
+    /* Un voile qui s'estompe vers la droite : le planning reste
+       lisible et l'image respire. */
+    background:linear-gradient(to right,
+      rgba(11,14,20,.94) 0%, rgba(11,14,20,.88) 62%, rgba(11,14,20,0) 100%);
     display:flex; flex-direction:column;
   }
   #planning h2{
     font-size:22px; color:var(--accent);
-    margin-bottom:16px; letter-spacing:.5px;
+    margin-bottom:14px; letter-spacing:.5px;
   }
   .cours{
-    display:flex; align-items:center; gap:16px;
-    padding:14px 0;
+    display:flex; align-items:center; gap:14px;
+    padding:12px 0;
     border-bottom:1px solid var(--line);
-    font-size:26px;
+    font-size:25px;
   }
   .cours .h{
-    width:96px; flex-shrink:0;
+    width:92px; flex-shrink:0;
     font-weight:800; color:var(--accent);
     font-variant-numeric:tabular-nums;
   }
-  .cours .h.vide{ color:var(--muted); font-weight:400; font-size:20px; }
-  .cours .e{ flex:1; min-width:0; font-weight:700;
-             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .cours .m{ font-size:20px; color:var(--muted); flex-shrink:0; }
+  .cours .h.vide{ color:var(--muted); font-weight:400; font-size:19px; }
+  .cours .e{
+    flex:1; min-width:0; font-weight:700;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .cours .m{ font-size:19px; color:var(--muted); flex-shrink:0; }
 
-  /* Le carrousel, à droite — ou en plein écran sur la vitrine */
-  #carrousel{ flex:1; position:relative; overflow:hidden; }
+  /* ============================================================
+     LA VITRINE
 
-  .diapo{
-    position:absolute; inset:0;
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    padding:40px 50px;
-    text-align:center;
-    opacity:0;
-    transition:opacity .8s ease;
-  }
-  .diapo.vue{ opacity:1; }
+     Fond fixe, texte fixe à gauche, photos qui tournent à droite
+     en se fondant dans le fond.
+     ============================================================ */
+  body.vitrine header{ display:none; }
+  body.vitrine #planning{ display:none; }
 
-  .diapo img{
-    max-width:100%; max-height:100%;
-    object-fit:contain;
-    border-radius:14px;
-  }
-  .diapo .titre{
-    font-size:54px; font-weight:800; line-height:1.2;
-    color:var(--accent); margin-bottom:24px;
-  }
-  .diapo .texte{
-    font-size:36px; line-height:1.5;
-    max-width:22ch; white-space:pre-wrap;
-  }
-  /* Une image avec un titre : le titre passe en bandeau */
-  .diapo.avec-image .titre{
-    position:absolute; left:0; right:0; bottom:0;
-    background:rgba(11,14,20,.86);
-    font-size:38px; padding:20px 40px; margin:0;
+  /* Le fond : image choisie, ou le dégradé vert par défaut */
+  #fondFixe{
+    position:absolute; inset:0; z-index:0;
+    background:linear-gradient(105deg,
+      #8FE04A 0%, #C9F08A 26%, #FFFFFF 52%, #F2F2F2 100%);
+    background-size:cover;
+    background-position:center;
   }
 
-  /* ---------- Repères de bas d'écran ---------- */
+  /* Les photos, à droite, fondues dans le fond */
+  body.vitrine .scene{
+    left:auto; right:0; width:64%;
+    -webkit-mask-image:linear-gradient(to right,
+      transparent 0%, rgba(0,0,0,.55) 16%, #000 42%);
+    mask-image:linear-gradient(to right,
+      transparent 0%, rgba(0,0,0,.55) 16%, #000 42%);
+  }
+  body.vitrine .scene.texte{ background:transparent; }
+
+  /* Le panneau de texte, fixe à gauche */
+  #panneau{
+    position:absolute; top:0; left:0; bottom:0;
+    width:52%;
+    display:none;
+    flex-direction:column; justify-content:center;
+    padding:48px 56px;
+    z-index:4;
+    color:#12151A;
+  }
+  body.vitrine #panneau{ display:flex; }
+  #panneau .p-titre{
+    font-size:66px; font-weight:900; line-height:1.05;
+    letter-spacing:-.5px; margin-bottom:30px;
+    text-transform:uppercase;
+  }
+  #panneau .p-texte{
+    font-size:34px; line-height:1.65; white-space:pre-wrap;
+    font-weight:600;
+  }
+
+  /* La météo de la vitrine, en haut à droite sur le fond clair */
+  #meteoVitrine{
+    position:absolute; top:26px; right:38px;
+    z-index:6;
+    display:none;
+    align-items:center; gap:22px;
+    background:rgba(11,14,20,.80);
+    border-radius:16px;
+    padding:14px 24px;
+  }
+  body.vitrine #meteoVitrine{ display:flex; }
+  #meteoVitrine .bloc{ text-align:center; line-height:1.35; }
+  #meteoVitrine .maintenant{ font-size:40px; font-weight:800; }
+  #meteoVitrine .ic{ font-size:40px; }
+  #meteoVitrine .qd{
+    font-size:22px; color:var(--muted); text-transform:capitalize;
+  }
+  #meteoVitrine .hr{ width:1px; align-self:stretch; background:var(--line); }
+  #meteoVitrine .p .i{ font-size:26px; display:block; }
+  #meteoVitrine .p .d{ font-size:22px; font-weight:700; }
+  #meteoVitrine .p .q{ font-size:15px; color:var(--muted); }
+
+  /* ============================================================
+     BAS D'ÉCRAN
+     ============================================================ */
   footer{
     display:flex; align-items:center; gap:14px;
-    padding:12px 34px;
+    padding:10px 34px;
+    background:rgba(11,14,20,.82);
     border-top:1px solid var(--line);
-    font-size:16px; color:var(--muted);
-    flex-shrink:0;
+    font-size:15px; color:var(--muted);
+    flex-shrink:0; position:relative; z-index:5;
   }
+  body.vitrine footer{ display:none; }
   .points{ display:flex; gap:7px; flex:1; }
-  .point{
-    width:9px; height:9px; border-radius:50%;
-    background:var(--line);
-    transition:background .3s;
-  }
+  .point{ width:9px; height:9px; border-radius:50%; background:var(--line); }
   .point.vu{ background:var(--accent); }
-
   #souci{ color:var(--red); }
 
-  /* ---------- Vitrine : pas de planning ---------- */
-  body.vitrine #planning{ display:none; }
-  body.vitrine .diapo .titre{ font-size:70px; }
-  body.vitrine .diapo .texte{ font-size:46px; }
-
-  /* ---------- Écran vide ---------- */
   .repos{
+    position:absolute; inset:0;
     display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    height:100%; gap:18px;
+    align-items:center; justify-content:center; gap:18px;
     color:var(--muted); font-size:30px;
   }
   .repos .gros{ font-size:80px; }
@@ -169,6 +238,7 @@
 <body>
 
 <div id="ecran">
+
   <header>
     <span class="marque">Évolution Conduites</span>
     <span class="jour" id="jour"></span>
@@ -177,11 +247,20 @@
   </header>
 
   <main>
+    <div id="fondFixe"></div>
+    <div id="scenes"></div>
+
     <section id="planning">
       <h2>📅 Les cours d'aujourd'hui</h2>
       <div id="listeCours"></div>
     </section>
-    <section id="carrousel"></section>
+
+    <section id="panneau">
+      <div class="p-titre" id="pTitre"></div>
+      <div class="p-texte" id="pTexte"></div>
+    </section>
+
+    <div id="meteoVitrine"></div>
   </main>
 
   <footer>
@@ -199,21 +278,18 @@ const JETON   = PARAMS.get('t') || '';
 const OU      = (PARAMS.get('ou') === 'vitrine') ? 'vitrine' : 'accueil';
 const ANONYME = PARAMS.get('anonyme') === '1';
 
-const RELAIS  = 'https://bilan-proxy.evolutionconduites.workers.dev';
+const RELAIS = 'https://bilan-proxy.evolutionconduites.workers.dev';
+const LAT = 48.5136, LON = -2.7653;      /* Saint-Brieuc */
 
-/* Saint-Brieuc */
-const LAT = 48.5136, LON = -2.7653;
-
-/* Toutes les minutes : le planning bouge peu, et un téléviseur qui
-   appelle sans cesse finit par saturer le quota. */
 const DELAI_DONNEES = 60000;
-const DELAI_METEO   = 900000;      /* 15 minutes suffisent */
+const DELAI_METEO   = 900000;
 
 if(OU === 'vitrine') document.body.classList.add('vitrine');
 
 let diapos = [];
 let iDiapo = 0;
 let minuteurDiapo = null;
+let signature = '';
 
 
 /* ============================================================
@@ -221,48 +297,86 @@ let minuteurDiapo = null;
    ============================================================ */
 function majHeure(){
   const d = new Date();
-  document.getElementById('heure').textContent =
-    String(d.getHours()).padStart(2, '0') + ':' +
-    String(d.getMinutes()).padStart(2, '0');
-  document.getElementById('jour').textContent =
-    d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  const hh = String(d.getHours()).padStart(2, '0') + ':' +
+             String(d.getMinutes()).padStart(2, '0');
+  const jj = d.toLocaleDateString('fr-FR',
+    { weekday:'long', day:'numeric', month:'long' });
+
+  document.getElementById('heure').textContent = hh;
+  document.getElementById('jour').textContent = jj;
+
+  /* En vitrine, la date et l'heure sont dans le bloc météo */
+  const zv = document.getElementById('meteoVitrine');
+  const zd = zv.querySelector('.dateheure');
+  if(zd) zd.innerHTML = '<div class="maintenant">' + hh + '</div>' +
+                        '<div class="qd">' + jj + '</div>';
 }
 
 
 /* ============================================================
-   LA MÉTÉO
-
-   Open-Meteo, sans clé ni compte. Si elle ne répond pas, la zone
-   reste vide : une météo absente ne doit pas vider l'écran.
+   LA MÉTÉO — maintenant et les heures qui viennent
    ============================================================ */
 const CIELS = {
-  0:['☀️','Ensoleillé'], 1:['🌤️','Peu nuageux'], 2:['⛅','Nuageux'],
-  3:['☁️','Couvert'], 45:['🌫️','Brouillard'], 48:['🌫️','Brouillard givrant'],
-  51:['🌦️','Bruine'], 53:['🌦️','Bruine'], 55:['🌦️','Bruine forte'],
-  61:['🌧️','Pluie faible'], 63:['🌧️','Pluie'], 65:['🌧️','Forte pluie'],
-  66:['🌧️','Pluie verglaçante'], 67:['🌧️','Pluie verglaçante'],
-  71:['🌨️','Neige'], 73:['🌨️','Neige'], 75:['❄️','Forte neige'],
-  77:['🌨️','Grésil'], 80:['🌦️','Averses'], 81:['🌦️','Averses'],
-  82:['⛈️','Fortes averses'], 85:['🌨️','Averses de neige'],
-  86:['🌨️','Averses de neige'], 95:['⛈️','Orage'],
-  96:['⛈️','Orage et grêle'], 99:['⛈️','Orage et grêle']
+  0:'☀️', 1:'🌤️', 2:'⛅', 3:'☁️', 45:'🌫️', 48:'🌫️',
+  51:'🌦️', 53:'🌦️', 55:'🌦️', 61:'🌧️', 63:'🌧️', 65:'🌧️',
+  66:'🌧️', 67:'🌧️', 71:'🌨️', 73:'🌨️', 75:'❄️', 77:'🌨️',
+  80:'🌦️', 81:'🌦️', 82:'⛈️', 85:'🌨️', 86:'🌨️',
+  95:'⛈️', 96:'⛈️', 99:'⛈️'
 };
 
 async function majMeteo(){
   try{
     const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + LAT +
-                          '&longitude=' + LON + '&current=temperature_2m,weather_code' +
-                          '&timezone=Europe%2FParis');
+      '&longitude=' + LON +
+      '&current=temperature_2m,weather_code' +
+      '&hourly=temperature_2m,weather_code&forecast_days=2' +
+      '&timezone=Europe%2FParis');
     const d = await r.json();
-    const c = d && d.current;
-    if(!c) return;
+    if(!d || !d.current) return;
 
-    const ciel = CIELS[c.weather_code] || ['', ''];
+    const ic = CIELS[d.current.weather_code] || '';
+    const t  = Math.round(d.current.temperature_2m);
+
+    /* Les trois prochaines échéances, à deux heures d'intervalle */
+    const suite = [];
+    if(d.hourly && d.hourly.time){
+      const maintenant = new Date();
+      let i = d.hourly.time.findIndex(x => new Date(x) > maintenant);
+      if(i < 0) i = 0;
+      for(let k = 2; k <= 6; k += 2){
+        const j = i + k;
+        if(!d.hourly.time[j]) break;
+        suite.push({
+          h: new Date(d.hourly.time[j]).getHours(),
+          t: Math.round(d.hourly.temperature_2m[j]),
+          i: CIELS[d.hourly.weather_code[j]] || ''
+        });
+      }
+    }
+
+    /* Le bandeau de l'accueil */
     document.getElementById('meteo').innerHTML =
-      '<span class="ic">' + ciel[0] + '</span>' +
-      '<span class="t">' + Math.round(c.temperature_2m) + '°</span>';
+      '<span class="ic">' + ic + '</span>' +
+      '<span class="t">' + t + '°</span>' +
+      '<span class="apres">' + suite.map(s =>
+        '<span class="h"><span class="i">' + s.i + '</span>' +
+        '<span class="d">' + s.t + '°</span>' + s.h + 'h</span>').join('') +
+      '</span>';
+
+    /* Le bloc de la vitrine, avec la date et l'heure */
+    document.getElementById('meteoVitrine').innerHTML =
+      '<div class="bloc dateheure"></div>' +
+      '<div class="hr"></div>' +
+      '<div class="bloc"><span class="ic">' + ic + '</span></div>' +
+      '<div class="bloc"><div class="maintenant">' + t + '°</div></div>' +
+      suite.map(s =>
+        '<div class="bloc p"><span class="i">' + s.i + '</span>' +
+        '<span class="d">' + s.t + '°</span>' +
+        '<span class="q">' + s.h + 'h</span></div>').join('');
+
+    majHeure();
   }catch(e){
-    /* Pas de météo : le reste continue de tourner */
+    /* Pas de météo : le reste continue */
   }
 }
 
@@ -281,27 +395,35 @@ async function chargerContenu(){
     const r = await fetch(RELAIS + '/ecran?t=' + encodeURIComponent(JETON) +
                           '&ou=' + OU + (ANONYME ? '&anonyme=1' : ''));
     if(!r.ok){
-      /* Le message dit quoi corriger : « serveur indisponible » ne
-         permettait pas de savoir où chercher. */
-      const messages = {
-        403: 'Jeton refusé — vérifie ECRAN_TOKEN dans Cloudflare',
+      let detail = '';
+      try{
+        const e = await r.json();
+        if(e && e.recu !== undefined){
+          detail = ' — ' + e.recu + ' caractères reçus, ' + e.attendu + ' attendus' +
+                   (e.memeDebut ? '' : ', début différent');
+        }else if(e && e.error){ detail = ' — ' + e.error; }
+      }catch(x){}
+      document.getElementById('souci').textContent = ({
+        403: 'Jeton refusé' + detail,
         405: 'Worker à mettre à jour',
         502: 'Classeur injoignable — Apps Script à redéployer'
-      };
-      document.getElementById('souci').textContent =
-        messages[r.status] || ('Serveur : erreur ' + r.status);
+      })[r.status] || ('Serveur : erreur ' + r.status);
       return;
     }
+
     const d = await r.json();
     document.getElementById('souci').textContent = '';
 
+    dessinerFond(d && d.fond);
+    dessinerPanneau(d && d.panneau);
     dessinerPlanning((d && d.planning) || []);
 
     /* On ne relance le carrousel que si le contenu a changé :
        sinon il repartirait de la première image chaque minute. */
-    const neuf = JSON.stringify(((d && d.diapos) || []).map(x => x.id + x.titre + x.contenu));
-    if(neuf !== signatureDiapos){
-      signatureDiapos = neuf;
+    const neuf = JSON.stringify(((d && d.diapos) || [])
+      .map(x => x.id + x.titre + x.contenu));
+    if(neuf !== signature){
+      signature = neuf;
       diapos = (d && d.diapos) || [];
       iDiapo = 0;
       dessinerPoints();
@@ -312,7 +434,38 @@ async function chargerContenu(){
   }
 }
 
-let signatureDiapos = '';
+
+/* Le fond fixe de la vitrine — à défaut, le dégradé vert */
+function dessinerFond(f){
+  const z = document.getElementById('fondFixe');
+  if(!z) return;
+  if(f && f.image){
+    z.style.backgroundImage = 'url("' + f.image + '")';
+  }else{
+    z.style.backgroundImage = '';
+  }
+}
+
+/* Le texte fixe, à gauche de la vitrine */
+function dessinerPanneau(p){
+  const zt = document.getElementById('pTitre');
+  const zc = document.getElementById('pTexte');
+  const z  = document.getElementById('panneau');
+  if(!z) return;
+
+  if(!p || (!p.titre && !p.contenu)){
+    /* Sans panneau, les photos occupent toute la largeur */
+    z.style.display = 'none';
+    document.querySelectorAll('.scene').forEach(s => {
+      if(OU === 'vitrine') s.style.width = '100%';
+    });
+    return;
+  }
+
+  zt.textContent = p.titre || '';
+  zc.textContent = p.contenu || '';
+  if(OU === 'vitrine') z.style.display = 'flex';
+}
 
 
 /* ============================================================
@@ -320,16 +473,16 @@ let signatureDiapos = '';
    ============================================================ */
 function dessinerPlanning(liste){
   const z = document.getElementById('listeCours');
-  if(!z) return;
+  const p = document.getElementById('planning');
+  if(!z || OU === 'vitrine') return;
 
   if(!liste.length){
-    z.innerHTML = '<div style="font-size:24px;color:var(--muted);padding-top:20px;">' +
+    z.innerHTML = '<div style="font-size:23px;color:var(--muted);padding-top:16px;">' +
                   'Aucun cours prévu aujourd\'hui.</div>';
     return;
   }
 
-  /* Ce qui tient à l'écran : au-delà, on ne lirait plus rien */
-  z.innerHTML = liste.slice(0, 11).map(c =>
+  z.innerHTML = liste.slice(0, 12).map(c =>
     '<div class="cours">' +
       '<span class="h' + (c.heure ? '' : ' vide') + '">' +
         (c.heure ? c.heure.replace(':', 'h') : '—') + '</span>' +
@@ -337,10 +490,11 @@ function dessinerPlanning(liste){
       '<span class="m">' + echapper(c.moniteur || '') + '</span>' +
     '</div>').join('');
 
-  if(liste.length > 11){
-    z.innerHTML += '<div style="font-size:20px;color:var(--muted);padding-top:12px;">' +
-                   '+ ' + (liste.length - 11) + ' autre(s)</div>';
+  if(liste.length > 12){
+    z.innerHTML += '<div style="font-size:19px;color:var(--muted);padding-top:10px;">' +
+                   '+ ' + (liste.length - 12) + ' autre(s)</div>';
   }
+  void p;
 }
 
 function echapper(t){
@@ -358,38 +512,53 @@ function dessinerPoints(){
 
 function lancerCarrousel(){
   clearTimeout(minuteurDiapo);
-  const z = document.getElementById('carrousel');
+  const z = document.getElementById('scenes');
 
   if(!diapos.length){
-    z.innerHTML = '<div class="repos"><span class="gros">🚗</span>' +
-                  '<span>Bonne route à tous</span></div>';
+    /* Rien à faire tourner : sur la vitrine le fond et le texte
+       suffisent, à l'accueil on met un mot d'accueil. */
+    z.innerHTML = (OU === 'vitrine') ? '' :
+      '<div class="repos"><span class="gros">🚗</span>' +
+      '<span>Bonne route à tous</span></div>';
     return;
   }
   afficherDiapo();
 }
 
 function afficherDiapo(){
-  const z = document.getElementById('carrousel');
+  const z = document.getElementById('scenes');
   const d = diapos[iDiapo % diapos.length];
   if(!d) return;
 
   const avecImage = !!d.image;
   const el = document.createElement('div');
-  el.className = 'diapo' + (avecImage ? ' avec-image' : '');
+  el.className = 'scene' + (avecImage ? '' : ' texte');
 
   el.innerHTML =
     (avecImage ? '<img src="' + d.image + '" alt="">' : '') +
-    (d.titre ? '<div class="titre">' + echapper(d.titre) + '</div>' : '') +
-    (d.contenu && !avecImage
-      ? '<div class="texte">' + echapper(d.contenu) + '</div>' : '');
+    (!avecImage && d.titre ? '<div class="titre">' + echapper(d.titre) + '</div>' : '') +
+    (!avecImage && d.contenu
+      ? '<div class="texte-corps">' + echapper(d.contenu) + '</div>' : '') +
+    (avecImage && d.titre
+      ? '<div class="legende">' + echapper(d.titre) + '</div>' : '');
 
-  z.innerHTML = '';
+  /* Le panneau absent laisse la place aux photos */
+  const p = document.getElementById('panneau');
+  if(OU === 'vitrine' && p && p.style.display === 'none') el.style.width = '100%';
+
+  /* L'ancienne s'efface pendant que la nouvelle apparaît */
+  const vieille = z.querySelector('.scene');
   z.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('vue'));
+  requestAnimationFrame(() => {
+    el.classList.add('vue');
+    if(vieille){
+      vieille.classList.remove('vue');
+      setTimeout(() => vieille.remove(), 1300);
+    }
+  });
 
-  /* Les points du bas */
-  const pts = document.querySelectorAll('.point');
-  pts.forEach((p, i) => p.classList.toggle('vu', i === (iDiapo % diapos.length)));
+  document.querySelectorAll('.point').forEach((pt, i) =>
+    pt.classList.toggle('vu', i === (iDiapo % diapos.length)));
 
   minuteurDiapo = setTimeout(() => {
     iDiapo = (iDiapo + 1) % diapos.length;
@@ -410,11 +579,9 @@ setInterval(majMeteo, DELAI_METEO);
 chargerContenu();
 setInterval(chargerContenu, DELAI_DONNEES);
 
-/* Un téléviseur reste allumé des heures : on recharge la page une
-   fois par nuit pour repartir sur un pied neuf. */
+/* Un téléviseur reste allumé des heures : on repart propre la nuit */
 setInterval(() => {
-  const h = new Date().getHours();
-  if(h === 4) location.reload();
+  if(new Date().getHours() === 4) location.reload();
 }, 3600000);
 </script>
 
