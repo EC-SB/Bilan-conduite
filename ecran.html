@@ -654,10 +654,37 @@ function afficherDiapo(){
       minuteurDiapo = setTimeout(suivante,
                                  tourNecessaire * v.duration * 1000);
     });
-    /* Une vidéo qui ne charge pas ne doit pas figer le carrousel */
+    /* Une vidéo qui ne charge pas ne doit pas figer le carrousel,
+       et il faut savoir POURQUOI : sans message, on cherche à
+       l'aveugle entre l'adresse, le format et l'hébergement. */
     v.addEventListener('error', () => {
+      const codes = {
+        1: 'lecture interrompue',
+        2: 'réseau : fichier injoignable',
+        3: 'format illisible — réencode en H.264',
+        4: 'adresse introuvable (404) ou format refusé'
+      };
+      const e = v.error;
+      const raison = (e && codes[e.code]) || 'cause inconnue';
+      document.getElementById('souci').textContent =
+        '🎬 Vidéo : ' + raison;
+      console.warn('Vidéo en échec :', v.getAttribute('src'), raison);
+
       clearTimeout(minuteurDiapo);
-      setTimeout(suivante, 1500);
+      setTimeout(suivante, 2500);
+    });
+
+    /* Certains navigateurs refusent le démarrage automatique même
+       en sourdine : on insiste une fois. */
+    v.addEventListener('canplay', () => {
+      const p = v.play();
+      if(p && p.catch) p.catch(() => {
+        v.muted = true;
+        v.play().catch(() => {
+          document.getElementById('souci').textContent =
+            '🎬 Lecture refusée par le navigateur';
+        });
+      });
     });
   }
 
