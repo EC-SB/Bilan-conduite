@@ -268,6 +268,42 @@
   #meteoVitrine .p .q{ font-size:15px; color:var(--muted); }
 
   /* ============================================================
+     LE TEXTE DÉFILANT
+     ============================================================ */
+  #bandeau{
+    display:none;
+    position:relative; z-index:6;
+    flex-shrink:0;
+    overflow:hidden;
+    background:rgba(11,14,20,.88);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border-top:2px solid var(--accent);
+    padding:14px 0;
+  }
+  #bandeau.vu{ display:block; }
+
+  #bandeauTexte{
+    display:inline-block;
+    white-space:nowrap;
+    font-size:32px; font-weight:700;
+    color:var(--cream);
+    /* Il part du bord droit et traverse : la durée est calculée
+       d'après la longueur du texte, pour une vitesse constante
+       quelle qu'en soit la taille. */
+    padding-left:100%;
+    animation:defile linear infinite;
+  }
+  @keyframes defile{
+    from{ transform:translateX(0); }
+    to  { transform:translateX(-100%); }
+  }
+
+  #bandeauTexte .sep{
+    color:var(--accent); margin:0 34px; font-weight:400;
+  }
+
+  /* ============================================================
      BAS D'ÉCRAN
      ============================================================ */
   footer{
@@ -281,6 +317,7 @@
     flex-shrink:0; position:relative; z-index:5;
   }
   body.vitrine footer{ display:none; }
+  body.vitrine #bandeau{ font-size:38px; }
   .points{ display:flex; gap:7px; flex:1; }
   .point{ width:9px; height:9px; border-radius:50%; background:var(--line); }
   .point.vu{ background:var(--accent); }
@@ -322,6 +359,10 @@
 
     <div id="meteoVitrine"></div>
   </main>
+
+  <!-- Le texte défilant : au-dessus du pied de page, visible sur
+       les deux écrans. -->
+  <div id="bandeau"><div id="bandeauTexte"></div></div>
 
   <footer>
     <span class="points" id="points"></span>
@@ -476,6 +517,7 @@ async function chargerContenu(){
 
     dessinerFond(d && d.fond);
     dessinerPanneau(d && d.panneau);
+    dessinerBandeau((d && d.bandeaux) || []);
     dessinerPlanning((d && d.planning) || []);
 
     /* On ne relance le carrousel que si le contenu a changé :
@@ -532,6 +574,46 @@ function dessinerPanneau(p){
   if(OU === 'vitrine') z.style.display = 'flex';
 }
 
+
+
+/* ============================================================
+   LE TEXTE DÉFILANT
+
+   Plusieurs messages se suivent en une seule bande, séparés par
+   un losange. La vitesse est constante : la durée s'adapte à la
+   longueur, sinon un texte court filerait et un long ramperait.
+   ============================================================ */
+let signatureBandeau = '';
+
+function dessinerBandeau(liste){
+  const z = document.getElementById('bandeau');
+  const t = document.getElementById('bandeauTexte');
+  if(!z || !t) return;
+
+  const textes = liste
+    .map(x => String(x.contenu || x.titre || '').trim())
+    .filter(Boolean);
+
+  if(!textes.length){
+    z.classList.remove('vu');
+    signatureBandeau = '';
+    return;
+  }
+
+  /* On ne redémarre pas l'animation si rien n'a changé : le texte
+     repartirait de zéro à chaque rafraîchissement. */
+  const neuf = textes.join('|');
+  if(neuf === signatureBandeau){ z.classList.add('vu'); return; }
+  signatureBandeau = neuf;
+
+  t.innerHTML = textes.map(echapper).join('<span class="sep">◆</span>');
+  z.classList.add('vu');
+
+  /* Environ 90 pixels par seconde : lisible sans être lent */
+  const largeur = t.scrollWidth || 1200;
+  const secondes = Math.max(12, Math.round(largeur / 90));
+  t.style.animationDuration = secondes + 's';
+}
 
 /* ============================================================
    LE PLANNING
