@@ -120,16 +120,32 @@ function dessinerLignes(liste, z){
 
   const a = document.createElement('div');
   a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
-  a.textContent = liste.length + ' ligne(s) · heure, véhicule et emplacement se ' +
-    'règlent ici. L\'écran se met à jour dans la minute.';
+  const auj = new Date();
+  const maintenant = String(auj.getHours()).padStart(2, '0') + ':' +
+                     String(auj.getMinutes()).padStart(2, '0');
+  const passes = liste.filter(x => x.heure && x.heure < maintenant).length;
+
+  a.innerHTML = liste.length + ' ligne(s) · heure, véhicule et emplacement se ' +
+    'règlent ici. L\'écran se met à jour dans la minute.' +
+    (passes ? '<br><span style="color:var(--muted);">🕐 ' + passes +
+      ' cours déjà passé(s) : ils ont quitté l\'écran mais restent ' +
+      'modifiables ici.</span>' : '');
   z.appendChild(a);
 
   liste.forEach(c => z.appendChild(lignePlanningEcran(c, liste, z)));
 }
 
 function lignePlanningEcran(c, liste, z){
+  /* Un cours passé n'est plus à l'écran : on le grise ici pour
+     qu'on comprenne pourquoi il n'y apparaît pas. */
+  const n = new Date();
+  const maintenant = String(n.getHours()).padStart(2, '0') + ':' +
+                     String(n.getMinutes()).padStart(2, '0');
+  const passe = c.heure && c.heure < maintenant;
+
   const l = document.createElement('div');
-  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;';
+  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
+    (passe ? 'opacity:.45;' : '');
 
   /* ---- Première ligne : heure, élève, ordre ---- */
   const h1 = document.createElement('div');
