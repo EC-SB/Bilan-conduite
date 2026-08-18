@@ -159,7 +159,19 @@
     flex:1; min-width:0; font-weight:700;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .cours .m{ font-size:19px; color:var(--muted); flex-shrink:0; }
+  .cours .e .mn{
+    display:block; font-size:17px; font-weight:400; color:var(--muted);
+  }
+
+  /* Le véhicule : ce que l'élève cherche en arrivant */
+  .cours .v{
+    flex-shrink:0; text-align:right;
+    font-size:24px; font-weight:800; color:var(--accent);
+    line-height:1.25;
+  }
+  .cours .v .ou{
+    display:block; font-size:15px; font-weight:400; color:var(--muted);
+  }
 
   /* ============================================================
      LA VITRINE
@@ -507,13 +519,30 @@ function dessinerPlanning(liste){
     return;
   }
 
-  z.innerHTML = liste.slice(0, 12).map(c =>
-    '<div class="cours">' +
+  const LIEUX = {
+    devant: ['🚗', 'devant'],
+    cour: ['🏠', 'cour intérieure'],
+    simulateur: ['🖥️', 'simulateur']
+  };
+
+  z.innerHTML = liste.slice(0, 12).map(c => {
+    const lieu = LIEUX[c.lieu] || ['', ''];
+    /* Le véhicule et son emplacement : c'est ce que l'élève cherche
+       en entrant, plus encore que l'heure. */
+    const ou = (c.vehicule || c.lieu)
+      ? '<span class="v">' + (lieu[0] || (c.simulateur ? '🖥️' : '🚗')) + ' ' +
+        echapper(c.vehicule || '') +
+        (lieu[1] ? '<span class="ou">' + lieu[1] + '</span>' : '') + '</span>'
+      : '';
+
+    return '<div class="cours">' +
       '<span class="h' + (c.heure ? '' : ' vide') + '">' +
         (c.heure ? c.heure.replace(':', 'h') : '—') + '</span>' +
-      '<span class="e">' + echapper(c.eleve) + '</span>' +
-      '<span class="m">' + echapper(c.moniteur || '') + '</span>' +
-    '</div>').join('');
+      '<span class="e">' + echapper(c.eleve) +
+        '<span class="mn">' + echapper(c.moniteur || '') + '</span></span>' +
+      ou +
+    '</div>';
+  }).join('');
 
   if(liste.length > 12){
     z.innerHTML += '<div style="font-size:19px;color:var(--muted);padding-top:10px;">' +
