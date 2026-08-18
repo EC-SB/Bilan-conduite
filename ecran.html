@@ -628,11 +628,31 @@ function afficherDiapo(){
   let duree = Math.max(4, d.duree || 12);
   const v = el.querySelector('video');
   if(v){
+    /* Une durée de 0 veut dire « autant de fois qu'il faut » : la
+       vidéo tourne en boucle tant qu'il n'y a rien d'autre, ou
+       jusqu'au nombre de tours demandé. */
+    const tours = Number(d.duree) === 0 ? 0 : null;
+
     v.addEventListener('loadedmetadata', () => {
-      if(v.duration && isFinite(v.duration) && v.duration > duree){
-        clearTimeout(minuteurDiapo);
-        minuteurDiapo = setTimeout(suivante, v.duration * 1000);
+      if(!v.duration || !isFinite(v.duration)) return;
+
+      clearTimeout(minuteurDiapo);
+
+      if(tours === 0){
+        /* Seule à l'écran : elle boucle sans fin. Sinon, un tour
+           complet puis on passe à la suivante. */
+        if(diapos.length > 1){
+          minuteurDiapo = setTimeout(suivante, v.duration * 1000);
+        }
+        return;
       }
+
+      /* La vidéo passe en entier, et se répète jusqu'à couvrir la
+         durée demandée : 40 s réglés sur une vidéo d'une minute
+         donnent une minute, pas une coupure à 40 s. */
+      const tourNecessaire = Math.ceil(duree / v.duration);
+      minuteurDiapo = setTimeout(suivante,
+                                 tourNecessaire * v.duration * 1000);
     });
     /* Une vidéo qui ne charge pas ne doit pas figer le carrousel */
     v.addEventListener('error', () => {
