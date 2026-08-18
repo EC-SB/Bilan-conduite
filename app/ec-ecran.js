@@ -532,14 +532,16 @@ function ligneDiapo(d, rang){
     ap.appendChild(i);
   }else{
     ap.textContent = (d.type === 'panneau') ? '📝'
-                   : (d.type === 'video') ? '🎬' : '💬';
+                   : (d.type === 'video') ? '🎬'
+                   : (d.type === 'bandeau') ? '📢' : '💬';
   }
   l.appendChild(ap);
 
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.45;cursor:pointer;';
   const ouTexte = { accueil:'🏠 accueil', vitrine:'🪟 vitrine', 'les-deux':'🏠🪟 les deux' };
-  const roles = { fond:'🖼️ fond fixe', panneau:'📝 texte fixe' };
+  const roles = { fond:'🖼️ fond fixe', panneau:'📝 texte fixe',
+                  bandeau:'📢 défilant' };
   const estVideo = (d.type === 'video');
   const fixe = !!roles[d.type];
 
@@ -628,6 +630,7 @@ function ouvrirEditeurDiapo(d){
     '<select id="diType">' +
       '<option value="message">🔄 Elle tourne dans le carrousel</option>' +
       '<option value="video">🎬 Vidéo</option>' +
+      '<option value="bandeau">📢 Texte défilant en bas</option>' +
       '<option value="fond">🖼️ Fond fixe de la vitrine</option>' +
       '<option value="panneau">📝 Texte fixe à gauche de la vitrine</option>' +
     '</select>' +
@@ -697,6 +700,8 @@ function ouvrirEditeurDiapo(d){
              'Elle est lue sans le son et JAMAIS coupée : la durée choisie ' +
              'est arrondie au tour complet. « En boucle » la fait tourner ' +
              'sans fin si elle est seule à l\'écran.',
+      bandeau: 'Défile en permanence en bas de l\'écran, pendant que le reste ' +
+               'tourne. Plusieurs textes défilants se suivent à la queue leu leu.',
       fond: 'Image affichée en permanence derrière tout le reste, sur la ' +
             'vitrine. Sans elle, le dégradé vert par défaut s\'applique.',
       panneau: 'Texte affiché en permanence à gauche de la vitrine, pendant ' +
@@ -710,11 +715,21 @@ function ouvrirEditeurDiapo(d){
       ligneDuree.style.display = (t === 'message' || t === 'video') ? 'block' : 'none';
     }
 
-    /* Une vidéo n'a pas d'image, un panneau non plus */
+    /* Une vidéo, un panneau et un bandeau n'ont pas d'image */
+    const sansImage = (t === 'panneau' || t === 'video' || t === 'bandeau');
     ['#diColler', '#diFichier', '#diApercu'].forEach(s => {
       const e = boite.querySelector(s);
-      if(e) e.style.display = (t === 'panneau' || t === 'video') ? 'none' : '';
+      if(e) e.style.display = sansImage ? 'none' : '';
     });
+
+    /* Un bandeau n'a pas de titre : tout tient dans le message */
+    const lblTitre = boite.querySelector('label[for="diTitre"]');
+    const zTitre = boite.querySelector('#diTitre');
+    if(lblTitre && zTitre){
+      const cacher = (t === 'bandeau');
+      lblTitre.style.display = cacher ? 'none' : '';
+      zTitre.style.display = cacher ? 'none' : '';
+    }
 
     /* Le champ « Message » change de rôle pour une vidéo */
     const lblTexte = boite.querySelector('label[for="diTexte"]');
@@ -724,6 +739,11 @@ function ouvrirEditeurDiapo(d){
         lblTexte.textContent = 'Adresse de la vidéo';
         zTexte.rows = 2;
         zTexte.placeholder = 'https://ec-sb.github.io/Bilan-conduite/videos/ma-video.mp4';
+      }else if(t === 'bandeau'){
+        lblTexte.textContent = 'Le texte qui défile';
+        zTexte.rows = 2;
+        zTexte.placeholder = 'Ex : Inscriptions ouvertes pour la session de septembre — ' +
+                             '09 83 55 56 87';
       }else{
         lblTexte.textContent = 'Message';
         zTexte.rows = 4;
