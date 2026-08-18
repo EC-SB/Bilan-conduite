@@ -1,4 +1,4 @@
-/* Déployé le 13/08/2026 à 10:03 — v414 */
+/* Déployé le 18/08/2026 à 07:29 — v419 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -212,7 +212,23 @@ function creerReconnaissance(){
     marquerActif('résultat reçu');
 
     const box = $('transcriptBox');
+
+    /* Ce que le moniteur a collé ou tapé lui-même : la
+       reconnaissance vocale l'écrasait avec sa propre mémoire, et
+       tout le texte ajouté à la main disparaissait. On le reprend
+       avant d'écrire. */
+    if(box && box.value && box.value !== avantDerniereEcriture){
+      const ajoute = texteAjouteAlaMain(box.value, avantDerniereEcriture);
+      if(ajoute){
+        committedTranscript = mettreEnForme(
+          fusionner([committedTranscript, ajoute]));
+        finalTranscript = mettreEnForme(
+          fusionner([committedTranscript, sessionText]));
+      }
+    }
+
     box.value = finalTranscript;
+    avantDerniereEcriture = finalTranscript;
     box.scrollTop = box.scrollHeight;
     $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length +
       ' mots' + (dernieresReprises ? ' · ' + dernieresReprises + ' reprise(s) appliquée(s)' : '');
@@ -252,12 +268,41 @@ function creerReconnaissance(){
     committedTranscript = terminerPhrase(finalTranscript);
     finalTranscript = committedTranscript;
     const zone = $('transcriptBox');
-    if(zone) zone.value = finalTranscript;
+    if(zone){
+      /* Idem à la pause : on garde ce qui a été ajouté à la main */
+      const ajoute = texteAjouteAlaMain(zone.value, avantDerniereEcriture);
+      if(ajoute){
+        committedTranscript = mettreEnForme(fusionner([committedTranscript, ajoute]));
+        finalTranscript = committedTranscript;
+      }
+      zone.value = finalTranscript;
+      avantDerniereEcriture = finalTranscript;
+    }
     relancerMicro();
   };
 
   return r;
 }
+
+/* Ce que la boîte contient en plus de ce qu'on y a écrit la dernière
+   fois : du texte collé, une correction, un ajout au clavier. */
+let avantDerniereEcriture = '';
+
+function texteAjouteAlaMain(actuel, precedent){
+  const a = String(actuel || '');
+  const p = String(precedent || '');
+  if(!a || a === p) return '';
+
+  /* Le cas courant : on a tapé à la fin */
+  if(p && a.indexOf(p) === 0) return a.slice(p.length).trim();
+
+  /* Boîte vidée puis remplie, ou texte remanié : sans repère fiable,
+     on prend tout plutôt que de perdre le travail du moniteur. */
+  if(!p) return a.trim();
+
+  return '';
+}
+
 
 /* Détruit la session figée et repart sur un objet neuf */
 function recreerEtDemarrer(){
