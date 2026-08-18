@@ -84,7 +84,8 @@
     transition:opacity 1.2s ease;
   }
   .scene.vue{ opacity:1; }
-  .scene img{ width:100%; height:100%; object-fit:cover; }
+  .scene img,
+  .scene video{ width:100%; height:100%; object-fit:cover; }
 
   /* Un message sans image : centré sur le fond */
   .scene.texte{
@@ -584,16 +585,24 @@ function afficherDiapo(){
   const d = diapos[iDiapo % diapos.length];
   if(!d) return;
 
+  /* Une vidéo est désignée par son adresse : elle est trop lourde
+     pour tenir dans le classeur. */
+  const video = (d.type === 'video') ? String(d.contenu || '').trim() : '';
   const avecImage = !!d.image;
   const el = document.createElement('div');
-  el.className = 'scene' + (avecImage ? '' : ' texte');
+  el.className = 'scene' + (video || avecImage ? '' : ' texte');
 
   el.innerHTML =
-    (avecImage ? '<img src="' + d.image + '" alt="">' : '') +
-    (!avecImage && d.titre ? '<div class="titre">' + echapper(d.titre) + '</div>' : '') +
-    (!avecImage && d.contenu
+    (video
+      ? '<video src="' + video.replace(/"/g, '&quot;') + '" ' +
+        'autoplay muted loop playsinline></video>'
+      : '') +
+    (!video && avecImage ? '<img src="' + d.image + '" alt="">' : '') +
+    (!video && !avecImage && d.titre
+      ? '<div class="titre">' + echapper(d.titre) + '</div>' : '') +
+    (!video && !avecImage && d.contenu
       ? '<div class="texte-corps">' + echapper(d.contenu) + '</div>' : '') +
-    (avecImage && d.titre
+    ((video || avecImage) && d.titre
       ? '<div class="legende">' + echapper(d.titre) + '</div>' : '');
 
   /* Le panneau absent laisse la place aux photos */
@@ -614,10 +623,30 @@ function afficherDiapo(){
   document.querySelectorAll('.point').forEach((pt, i) =>
     pt.classList.toggle('vu', i === (iDiapo % diapos.length)));
 
-  minuteurDiapo = setTimeout(() => {
+  /* Une vidéo passe en entier : couper au bout de douze secondes
+     n'aurait aucun sens. On garde la durée réglée comme minimum. */
+  let duree = Math.max(4, d.duree || 12);
+  const v = el.querySelector('video');
+  if(v){
+    v.addEventListener('loadedmetadata', () => {
+      if(v.duration && isFinite(v.duration) && v.duration > duree){
+        clearTimeout(minuteurDiapo);
+        minuteurDiapo = setTimeout(suivante, v.duration * 1000);
+      }
+    });
+    /* Une vidéo qui ne charge pas ne doit pas figer le carrousel */
+    v.addEventListener('error', () => {
+      clearTimeout(minuteurDiapo);
+      setTimeout(suivante, 1500);
+    });
+  }
+
+  function suivante(){
     iDiapo = (iDiapo + 1) % diapos.length;
     afficherDiapo();
-  }, Math.max(4, d.duree || 12) * 1000);
+  }
+
+  minuteurDiapo = setTimeout(suivante, duree * 1000);
 }
 
 
