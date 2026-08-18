@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 12:09 — v390 */
+/* Déployé le 18/08/2026 à 08:49 — v423 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -16,7 +16,7 @@ const SECTIONS_ONGLET = {
   eleves: ['recherche', 'rappels', 'eleves', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
-  outils: ['bureau_messages', 'textes', 'procedures', 'bilans',
+  outils: ['ecran', 'bureau_messages', 'textes', 'procedures', 'bilans',
            'stats', 'notifs', 'taches', 'memoire', 'historique', 'admin']
 };
 
@@ -136,6 +136,7 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
+           ['ecran',      '📺 Affichage',               'ecran'],
            ['notifs',     '🔔 Alertes',                 'notifs'],
            ['taches',     '✅ Tâches',                  'taches'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
@@ -231,11 +232,13 @@ function reveillerVue(cle){
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
+    ecran:      () => afficherEcran(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
     sessions:   () => afficherSessionsPermis(),
+    ecran:      () => afficherEcran(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
