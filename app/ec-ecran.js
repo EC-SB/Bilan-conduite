@@ -27,6 +27,9 @@ async function afficherEcran(){
 
   zone.innerHTML = '';
 
+  /* Le planning tel qu'il apparaît à l'accueil, modifiable ici */
+  zone.appendChild(blocPlanning());
+
   /* Les adresses à ouvrir sur les téléviseurs */
   zone.appendChild(blocAdresses());
 
@@ -54,6 +57,114 @@ async function afficherEcran(){
   zone.appendChild(c);
 
   diaposEcran.forEach((d, i) => zone.appendChild(ligneDiapo(d, i)));
+}
+
+
+/* ============================================================
+   LE PLANNING DE L'ÉCRAN
+
+   Ce que l'accueil affiche aujourd'hui. L'heure se règle ici :
+   elle est écrite dans la note de la préparation, et l'écran la
+   reprend au prochain rafraîchissement.
+   ============================================================ */
+function blocPlanning(){
+  const d = document.createElement('details');
+  d.open = true;
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:14px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📅 Le planning affiché aujourd\'hui</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+  z.innerHTML = '<div style="font-size:12px;color:var(--muted);">Lecture…</div>';
+  d.appendChild(z);
+
+  chargerPlanningEcran(z);
+  return d;
+}
+
+async function chargerPlanningEcran(z){
+  let liste = [];
+  try{
+    const r = await appelPrep({ action: 'ecranPlanning' });
+    liste = (r && r.planning) || [];
+  }catch(e){
+    z.innerHTML = '<div style="font-size:12px;color:var(--warn-text);">⚠️ ' +
+                  e.message.replace(/</g, '&lt;') + '</div>';
+    return;
+  }
+
+  z.innerHTML = '';
+
+  if(!liste.length){
+    z.innerHTML = '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+      'Aucun cours préparé pour aujourd\'hui.<br>' +
+      'L\'écran affichera « Aucun cours prévu ».</div>';
+    return;
+  }
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
+  a.textContent = liste.length + ' cours · appuie sur une heure pour la régler. ' +
+    'L\'écran se met à jour dans la minute.';
+  z.appendChild(a);
+
+  liste.forEach(c => z.appendChild(lignePlanningEcran(c, z)));
+}
+
+function lignePlanningEcran(c, zParent){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:8px;align-items:center;' +
+    'border-bottom:1px solid rgba(255,255,255,.05);padding:8px 0;';
+
+  /* L'heure : un champ, pas un bouton. On la tape et c'est réglé. */
+  const h = document.createElement('input');
+  h.type = 'time';
+  h.value = c.heure || '';
+  h.style.cssText = 'width:104px;flex-shrink:0;margin:0;padding:7px 8px;' +
+    'font-size:14px;' + (c.heure ? '' : 'color:var(--muted);');
+  h.addEventListener('change', async () => {
+    h.disabled = true;
+    try{
+      await appelPrep({ action: 'ecranHeure', id: c.id, heure: h.value });
+      c.heure = h.value;
+      showToast(h.value ? 'Heure réglée ✅' : 'Heure retirée');
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      h.value = c.heure || '';
+    }
+    h.disabled = false;
+  });
+  l.appendChild(h);
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;';
+  t.innerHTML = '<strong>' + (c.eleveComplet || c.eleve).replace(/</g, '&lt;') +
+    '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);">' +
+      (c.moniteur ? c.moniteur.replace(/</g, '&lt;') : 'moniteur à définir') +
+      (c.site ? ' · ' + c.site.replace(/</g, '&lt;') : '') +
+    '</div>';
+  l.appendChild(t);
+
+  /* Ce que l'écran montrera vraiment, avec l'anonymat */
+  const ap = document.createElement('div');
+  ap.style.cssText = 'font-size:11px;color:var(--accent-text);flex-shrink:0;' +
+    'text-align:right;line-height:1.4;';
+  ap.innerHTML = '👁️ ' + abregeNom(c.eleveComplet || c.eleve);
+  ap.title = 'Ce que l\'écran affiche avec anonyme=1';
+  l.appendChild(ap);
+
+  void zParent;
+  return l;
+}
+
+/* « Ambre Guillebon » devient « Ambre G. », comme sur l'écran */
+function abregeNom(nom){
+  const b = String(nom || '').trim().split(/\s+/);
+  if(b.length < 2) return b[0] || '';
+  return b[0] + ' ' + b[b.length - 1].charAt(0).toUpperCase() + '.';
 }
 
 
