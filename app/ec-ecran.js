@@ -459,7 +459,8 @@ function ligneDiapo(d, rang){
     i.style.cssText = 'width:100%;height:100%;object-fit:cover;';
     ap.appendChild(i);
   }else{
-    ap.textContent = (d.type === 'panneau') ? '📝' : '💬';
+    ap.textContent = (d.type === 'panneau') ? '📝'
+                   : (d.type === 'video') ? '🎬' : '💬';
   }
   l.appendChild(ap);
 
@@ -467,14 +468,15 @@ function ligneDiapo(d, rang){
   t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.45;cursor:pointer;';
   const ouTexte = { accueil:'🏠 accueil', vitrine:'🪟 vitrine', 'les-deux':'🏠🪟 les deux' };
   const roles = { fond:'🖼️ fond fixe', panneau:'📝 texte fixe' };
+  const estVideo = (d.type === 'video');
   const fixe = !!roles[d.type];
 
   t.innerHTML =
     '<strong>' + (d.titre || d.contenu || 'Sans titre').slice(0, 40)
       .replace(/</g, '&lt;') + '</strong>' +
     '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
-      (fixe ? roles[d.type] + ' · ' : '') +
-      (ouTexte[d.ou] || d.ou) + (fixe ? '' : ' · ' + d.duree + ' s') +
+      (fixe ? roles[d.type] + ' · ' : '') + (estVideo ? '🎬 vidéo · ' : '') +
+      (ouTexte[d.ou] || d.ou) + (fixe ? '' : ' · ' + d.duree + ' s mini') +
       (d.du || d.au ? ' · du ' + (d.du || '…') + ' au ' + (d.au || '…') : '') +
       (d.actif ? '' : ' · en pause') +
     '</div>';
@@ -551,6 +553,7 @@ function ouvrirEditeurDiapo(d){
     '<label for="diType">Rôle de cette diapositive</label>' +
     '<select id="diType">' +
       '<option value="message">🔄 Elle tourne dans le carrousel</option>' +
+      '<option value="video">🎬 Vidéo</option>' +
       '<option value="fond">🖼️ Fond fixe de la vitrine</option>' +
       '<option value="panneau">📝 Texte fixe à gauche de la vitrine</option>' +
     '</select>' +
@@ -612,6 +615,9 @@ function ouvrirEditeurDiapo(d){
     const t = selType.value;
     const explications = {
       message: 'Elle passe à l\'écran avec les autres, chacune son tour.',
+      video: 'Colle l\'adresse du fichier .mp4 dans le champ Message. ' +
+             'La vidéo est lue sans le son, en entier, puis le carrousel ' +
+             'reprend. Dépose-la dans le dossier videos/ de GitHub.',
       fond: 'Image affichée en permanence derrière tout le reste, sur la ' +
             'vitrine. Sans elle, le dégradé vert par défaut s\'applique.',
       panneau: 'Texte affiché en permanence à gauche de la vitrine, pendant ' +
@@ -621,14 +627,31 @@ function ouvrirEditeurDiapo(d){
 
     /* Ce qui ne sert pas se masque plutôt que d'induire en erreur */
     const ligneDuree = boite.querySelector('#diDuree').closest('div');
-    if(ligneDuree) ligneDuree.style.display = (t === 'message') ? 'block' : 'none';
+    if(ligneDuree){
+      ligneDuree.style.display = (t === 'message' || t === 'video') ? 'block' : 'none';
+    }
 
-    const zImage = boite.querySelector('#diColler').parentElement;
-    void zImage;
+    /* Une vidéo n'a pas d'image, un panneau non plus */
     ['#diColler', '#diFichier', '#diApercu'].forEach(s => {
       const e = boite.querySelector(s);
-      if(e) e.style.display = (t === 'panneau') ? 'none' : '';
+      if(e) e.style.display = (t === 'panneau' || t === 'video') ? 'none' : '';
     });
+
+    /* Le champ « Message » change de rôle pour une vidéo */
+    const lblTexte = boite.querySelector('label[for="diTexte"]');
+    const zTexte = boite.querySelector('#diTexte');
+    if(lblTexte && zTexte){
+      if(t === 'video'){
+        lblTexte.textContent = 'Adresse de la vidéo';
+        zTexte.rows = 2;
+        zTexte.placeholder = 'https://ec-sb.github.io/Bilan-conduite/videos/ma-video.mp4';
+      }else{
+        lblTexte.textContent = 'Message';
+        zTexte.rows = 4;
+        zTexte.placeholder = 'Le texte affiché en grand. Laisse vide si tu ne ' +
+                             'mets qu\'une image.';
+      }
+    }
   };
 
   selType.addEventListener('change', majSelonType);
@@ -725,6 +748,10 @@ function ouvrirEditeurDiapo(d){
     const titre = boite.querySelector('#diTitre').value.trim();
     const texte = boite.querySelector('#diTexte').value.trim();
 
+    if(selType.value === 'video' && !/^https?:\/\/.+\.(mp4|webm|ogg)/i.test(texte)){
+      showToast('Colle l\'adresse complète d\'un fichier .mp4');
+      return;
+    }
     if(!titre && !texte && !imageChoisie){
       showToast('Mets au moins un texte ou une image.');
       return;
