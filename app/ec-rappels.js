@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 08:49 — v381 */
+/* Déployé le 18/08/2026 à 08:28 — v422 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1242,6 +1242,35 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur){
     const auto = /auto|bea/i.test((f && f.formation) || '');
     const cle = auto ? 'conduite-auto' : 'conduite-manuelle';
 
+    /* Le dossier de l'élève, pour que le moniteur n'ait pas à tout
+       ressaisir : numéro de leçon, frise, note du cours précédent.
+       Sans cours antérieur, la fiche reste à remplir. */
+    let note = '';
+    let contexte = '';
+    try{
+      const d = await chargerDossierEleve(eleve);
+      if(d && (d.lecons || d.derniereNote || d.frise)){
+        const rep = {
+          lecon: d.lecons ? String(d.lecons + 1) : '',
+          frise: d.frise || '',
+          modele: cle
+        };
+        contexte = JSON.stringify(rep);
+        note = (typeof noteDepuisQuestionnaire === 'function')
+          ? noteDepuisQuestionnaire(rep) : '';
+
+        /* Ce que le moniteur précédent a laissé comme consigne */
+        if(d.derniereNote){
+          note = (note ? note + '\n\n' : '') + '📌 ' + d.derniereNote;
+        }
+      }else{
+        note = '❓ Informations à renseigner : aucun cours enregistré pour ' +
+               'cet élève.';
+      }
+    }catch(e){
+      note = '❓ Informations à renseigner — dossier non lu.';
+    }
+
     await appelPrep({
       action: 'prepAdd',
       date: iso,
@@ -1250,11 +1279,12 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur){
       modeleLabel: (typeof MODELES !== 'undefined' && MODELES[cle])
         ? MODELES[cle].label : '',
       site: (f && f.site) || '',
-      note: '',
-      contexte: '',
+      note: note,
+      contexte: contexte,
       moniteur: qui
     });
-    showToast('Cours ajouté aux prochains cours de ' + qui + ' 📅');
+    showToast('Cours ajouté aux prochains cours de ' + qui + ' 📅' +
+              (note ? '' : ' — infos à renseigner'));
   }catch(e){
     console.warn('Préparation non créée depuis le rappel :', e);
   }
