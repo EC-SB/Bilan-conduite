@@ -281,8 +281,15 @@ async function chargerContenu(){
     const r = await fetch(RELAIS + '/ecran?t=' + encodeURIComponent(JETON) +
                           '&ou=' + OU + (ANONYME ? '&anonyme=1' : ''));
     if(!r.ok){
+      /* Le message dit quoi corriger : « serveur indisponible » ne
+         permettait pas de savoir où chercher. */
+      const messages = {
+        403: 'Jeton refusé — vérifie ECRAN_TOKEN dans Cloudflare',
+        405: 'Worker à mettre à jour',
+        502: 'Classeur injoignable — Apps Script à redéployer'
+      };
       document.getElementById('souci').textContent =
-        (r.status === 403) ? 'Jeton refusé' : 'Serveur indisponible';
+        messages[r.status] || ('Serveur : erreur ' + r.status);
       return;
     }
     const d = await r.json();
