@@ -60,6 +60,29 @@ async function afficherEcran(){
 }
 
 
+/* Les véhicules de l'auto-école. Une liste plutôt qu'un champ
+   libre : c'est toujours l'un ou l'autre, et une faute de frappe
+   sur l'écran de l'accueil se voit de loin. */
+const MODELES_VEHICULE = ['', 'A3', 'Q3', 'Simu'];
+
+/* « A3 4 » se sépare en modèle et numéro pour le formulaire */
+function decouperVehicule(v){
+  const t = String(v || '').trim();
+  if(!t) return { modele: '', numero: '' };
+
+  const m = t.match(/^(A3|Q3|Simu)\s*(.*)$/i);
+  if(m){
+    return {
+      modele: m[1].charAt(0).toUpperCase() +
+              m[1].slice(1).toLowerCase().replace(/^3$/, '3'),
+      numero: m[2].trim()
+    };
+  }
+  /* Une saisie ancienne, sans modèle : elle reste dans le numéro */
+  return { modele: '', numero: t };
+}
+
+
 /* ============================================================
    LE PLANNING DE L'ÉCRAN
 
@@ -201,20 +224,45 @@ function lignePlanningEcran(c, liste, z){
   h2.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;' +
     'padding-left:108px;';
 
-  const v = document.createElement('input');
-  v.type = 'text';
-  v.value = c.vehicule || '';
-  v.placeholder = c.simulateur ? 'Simulateur n°' : 'Voiture n°';
-  v.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 9px;font-size:13px;';
-  v.addEventListener('change', () => { c.vehicule = v.value.trim(); enregistrerLigne(c); });
-  h2.appendChild(v);
+  /* Le modèle d'un côté, le numéro de l'autre : c'est ainsi qu'on
+     désigne un véhicule ici, et le taper en entier à chaque fois
+     n'apporte rien. */
+  const modele = document.createElement('select');
+  modele.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 8px;font-size:13px;';
+  modele.innerHTML = MODELES_VEHICULE.map(m =>
+    '<option value="' + m + '">' + (m || '—') + '</option>').join('');
+
+  const num = document.createElement('input');
+  num.type = 'text';
+  num.inputMode = 'numeric';
+  num.placeholder = 'n°';
+  num.style.cssText = 'width:64px;flex-shrink:0;margin:0;padding:6px 9px;font-size:13px;';
+
+  const dec = decouperVehicule(c.vehicule || '');
+  modele.value = dec.modele;
+  num.value = dec.numero;
+
+  const majVeh = () => {
+    c.vehicule = (modele.value + ' ' + num.value.trim()).trim();
+    enregistrerLigne(c);
+  };
+  modele.addEventListener('change', majVeh);
+  num.addEventListener('change', majVeh);
+
+  h2.appendChild(modele);
+  h2.appendChild(num);
+
+  /* Un peu d'air avant le choix du lieu */
+  const espace = document.createElement('span');
+  espace.style.cssText = 'flex:1;min-width:0;';
+  h2.appendChild(espace);
 
   const lieu = document.createElement('select');
   lieu.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 9px;font-size:13px;';
   lieu.innerHTML =
     '<option value="">— où —</option>' +
-    '<option value="devant">🚗 Devant</option>' +
-    '<option value="cour">🏠 Cour intérieure</option>' +
+    '<option value="devant">🛣️ Devant</option>' +
+    '<option value="cour">🅿️ Cour intérieure</option>' +
     '<option value="simulateur">🖥️ Simulateur</option>';
   lieu.value = c.lieu || '';
   lieu.addEventListener('change', () => { c.lieu = lieu.value; enregistrerLigne(c); });
@@ -288,12 +336,19 @@ function ouvrirLigneManuelle(z){
       '<div><label for="lmMon">Moniteur</label><select id="lmMon"></select></div>' +
     '</div>' +
     '<div class="duo">' +
-      '<div><label for="lmVeh">Véhicule ou simulateur</label>' +
-        '<input type="text" id="lmVeh" placeholder="Ex : 3"></div>' +
+      '<div><label for="lmVeh">Véhicule</label>' +
+        '<div style="display:flex;gap:6px;">' +
+          '<select id="lmMod" style="width:auto;flex-shrink:0;margin:0;">' +
+            MODELES_VEHICULE.map(m => '<option value="' + m + '">' +
+                                      (m || '—') + '</option>').join('') +
+          '</select>' +
+          '<input type="text" id="lmVeh" inputmode="numeric" placeholder="n°" ' +
+            'style="flex:1;min-width:0;margin:0;">' +
+        '</div></div>' +
       '<div><label for="lmLieu">Où</label><select id="lmLieu">' +
         '<option value="">— non précisé —</option>' +
-        '<option value="devant">🚗 Devant</option>' +
-        '<option value="cour">🏠 Cour intérieure</option>' +
+        '<option value="devant">🛣️ Devant</option>' +
+        '<option value="cour">🅿️ Cour intérieure</option>' +
         '<option value="simulateur">🖥️ Simulateur</option>' +
       '</select></div>' +
     '</div>';
@@ -328,7 +383,8 @@ function ouvrirLigneManuelle(z){
         eleve: nom,
         moniteur: boite.querySelector('#lmMon').value,
         heure: boite.querySelector('#lmHeure').value,
-        vehicule: boite.querySelector('#lmVeh').value.trim(),
+        vehicule: ((boite.querySelector('#lmMod').value || '') + ' ' +
+                   boite.querySelector('#lmVeh').value.trim()).trim(),
         lieu: boite.querySelector('#lmLieu').value,
         ordre: 0,
         par: ACCES.moniteur || ''
