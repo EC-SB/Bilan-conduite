@@ -476,7 +476,9 @@ function ligneDiapo(d, rang){
       .replace(/</g, '&lt;') + '</strong>' +
     '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       (fixe ? roles[d.type] + ' · ' : '') + (estVideo ? '🎬 vidéo · ' : '') +
-      (ouTexte[d.ou] || d.ou) + (fixe ? '' : ' · ' + d.duree + ' s mini') +
+      (ouTexte[d.ou] || d.ou) +
+      (fixe ? '' : ' · ' + (Number(d.duree) === 0 ? '🔁 en boucle'
+                                                  : d.duree + ' s mini')) +
       (d.du || d.au ? ' · du ' + (d.du || '…') + ' au ' + (d.au || '…') : '') +
       (d.actif ? '' : ' · en pause') +
     '</div>';
@@ -591,6 +593,10 @@ function ouvrirEditeurDiapo(d){
           '<option value="15" selected>15 secondes</option>' +
           '<option value="25">25 secondes</option>' +
           '<option value="40">40 secondes</option>' +
+          '<option value="60">1 minute</option>' +
+          '<option value="120">2 minutes</option>' +
+          '<option value="300">5 minutes</option>' +
+          '<option value="0">🔁 En boucle</option>' +
         '</select></div>' +
     '</div>' +
 
@@ -616,8 +622,9 @@ function ouvrirEditeurDiapo(d){
     const explications = {
       message: 'Elle passe à l\'écran avec les autres, chacune son tour.',
       video: 'Colle l\'adresse du fichier .mp4 dans le champ Message. ' +
-             'La vidéo est lue sans le son, en entier, puis le carrousel ' +
-             'reprend. Dépose-la dans le dossier videos/ de GitHub.',
+             'Elle est lue sans le son et JAMAIS coupée : la durée choisie ' +
+             'est arrondie au tour complet. « En boucle » la fait tourner ' +
+             'sans fin si elle est seule à l\'écran.',
       fond: 'Image affichée en permanence derrière tout le reste, sur la ' +
             'vitrine. Sans elle, le dégradé vert par défaut s\'applique.',
       panneau: 'Texte affiché en permanence à gauche de la vitrine, pendant ' +
