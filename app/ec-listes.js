@@ -1,9 +1,121 @@
-/* Déployé le 11/08/2026 à 14:33 — v368 */
+/* Déployé le 18/08/2026 à 07:33 — v419 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
+
+/* Une case « prévenu », partagée par les listes qui en ont besoin */
+function casePrevenu(x, champ, libelle){
+  const s = suiviDe(x.eleve);
+
+  const lab = document.createElement('label');
+  lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
+    'font-size:15px;color:var(--cream);margin:0 0 10px;';
+
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = (s[champ] === 'oui');
+  cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;';
+  cb.addEventListener('change', async () => {
+    cb.disabled = true;
+    try{
+      const maj = {};
+      maj[champ] = cb.checked ? 'oui' : '';
+      await majSuivi(x.eleve, maj);
+      showToast(cb.checked ? 'Noté comme prévenu ✅' : 'À prévenir');
+    }catch(err){
+      showToast('Erreur : ' + err.message);
+      cb.checked = !cb.checked;
+    }
+    cb.disabled = false;
+  });
+
+  lab.appendChild(cb);
+  lab.appendChild(document.createTextNode(libelle));
+  return lab;
+}
+
+
+/* Ajouter à la main un élève qui n'a pas le niveau */
+function boutonPasNiveauManuel(){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-bottom:10px;padding:11px;font-size:13px;';
+  b.textContent = "➕ Ajouter un élève qui n'a pas le niveau";
+  b.addEventListener('click', () => ouvrirPasNiveauManuel());
+  return b;
+}
+
+async function ouvrirPasNiveauManuel(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(460px, 94vw)';
+
+  boite.innerHTML =
+    "<h3>Élève qui n'a pas le niveau</h3>" +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      "Il apparaîtra dans cette liste avec les autres, à replacer ou à qui " +
+      'fixer des heures.</div>' +
+    '<label for="pnEleve">Élève</label>' +
+    '<input type="text" id="pnEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Prénom et nom">' +
+    '<label for="pnDate">Date de l\'examen blanc</label>' +
+    '<input type="date" id="pnDate">' +
+    '<label for="pnQuoi">Ce qui a manqué (facultatif)</label>' +
+    '<input type="text" id="pnQuoi" placeholder="Ex : trop d\'erreurs en giratoire">';
+
+  boite.querySelector('#pnDate').value = todayLocal();
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '➕ Ajouter';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#pnEleve').value.trim();
+    if(nom.split(' ').length < 2){ showToast("Prénom ET nom de l'élève."); return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Ajout…';
+    try{
+      const d = boite.querySelector('#pnDate').value;
+      const quoi = boite.querySelector('#pnQuoi').value.trim();
+
+      /* La consigne est ce que lisent les listes : c'est elle qui
+         place l'élève dans « pas le niveau ». */
+      /* Formulation exacte attendue par l'analyse des notes :
+         « Examen blanc passé le … — pas le niveau ». */
+      await envoyerConsigne(nom, 'examblanc',
+        'Examen blanc passé le ' + (dateEnToutesLettres(d) || d) +
+        ' — pas le niveau' + (quoi ? ' : ' + quoi : '') + ' (bureau)');
+
+      document.body.removeChild(fond);
+      showToast('Élève ajouté ✅');
+      afficherBureau(true);
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = '➕ Ajouter';
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#pnEleve').focus(), 100);
+}
+
 
 function afficherExamensBlancs(tous){
   const zEB = $('listeExamBlanc');
@@ -108,6 +220,11 @@ function afficherSimulateurs(tous){
                       x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
                      ? 'Examen blanc imminent et simulateur non fait' : null,
         actions: (x, zone) => {
+          /* Prévenu qu'il doit réserver : sans cette trace, on ne
+             sait plus qui a été relancé et qui attend encore. */
+          zone.appendChild(casePrevenu(x, 'simuPrevenu',
+            '📣 Prévenu qu\'il doit réserver'));
+
           zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
             await envoyerConsigne(x.eleve, 'simu',
               'Simulateur nuit et risques fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
@@ -128,8 +245,16 @@ function afficherPasNiveau(tous){
 
   const liste = tous.filter(e => e.etat.ebSuite === 'pasleniveau');
   zone.innerHTML = '';
+
+  /* Un élève dont l'examen blanc s'est mal passé sans que ce soit
+     dans un bilan : le moniteur le signale lui-même. */
+  zone.appendChild(boutonPasNiveauManuel());
+
   if(!liste.length){
-    zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.textContent = 'Personne dans ce cas.';
+    zone.appendChild(v);
     return;
   }
 
