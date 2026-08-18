@@ -95,70 +95,245 @@ async function chargerPlanningEcran(z){
     return;
   }
 
+  dessinerLignes(liste, z);
+}
+
+
+function dessinerLignes(liste, z){
   z.innerHTML = '';
 
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-bottom:10px;padding:10px;font-size:13px;';
+  b.textContent = '➕ Ajouter une ligne à la main';
+  b.addEventListener('click', () => ouvrirLigneManuelle(z));
+  z.appendChild(b);
+
   if(!liste.length){
-    z.innerHTML = '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
-      'Aucun cours préparé pour aujourd\'hui.<br>' +
-      'L\'écran affichera « Aucun cours prévu ».</div>';
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
+    v.innerHTML = 'Aucun cours préparé pour aujourd\'hui.<br>' +
+      'L\'écran affichera « Aucun cours prévu ».';
+    z.appendChild(v);
     return;
   }
 
   const a = document.createElement('div');
   a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
-  a.textContent = liste.length + ' cours · appuie sur une heure pour la régler. ' +
-    'L\'écran se met à jour dans la minute.';
+  a.textContent = liste.length + ' ligne(s) · heure, véhicule et emplacement se ' +
+    'règlent ici. L\'écran se met à jour dans la minute.';
   z.appendChild(a);
 
-  liste.forEach(c => z.appendChild(lignePlanningEcran(c, z)));
+  liste.forEach(c => z.appendChild(lignePlanningEcran(c, liste, z)));
 }
 
-function lignePlanningEcran(c, zParent){
+function lignePlanningEcran(c, liste, z){
   const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:8px;align-items:center;' +
-    'border-bottom:1px solid rgba(255,255,255,.05);padding:8px 0;';
+  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;';
 
-  /* L'heure : un champ, pas un bouton. On la tape et c'est réglé. */
+  /* ---- Première ligne : heure, élève, ordre ---- */
+  const h1 = document.createElement('div');
+  h1.style.cssText = 'display:flex;gap:8px;align-items:center;';
+
   const h = document.createElement('input');
   h.type = 'time';
   h.value = c.heure || '';
-  h.style.cssText = 'width:104px;flex-shrink:0;margin:0;padding:7px 8px;' +
-    'font-size:14px;' + (c.heure ? '' : 'color:var(--muted);');
-  h.addEventListener('change', async () => {
-    h.disabled = true;
-    try{
-      await appelPrep({ action: 'ecranHeure', id: c.id, heure: h.value });
-      c.heure = h.value;
-      showToast(h.value ? 'Heure réglée ✅' : 'Heure retirée');
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      h.value = c.heure || '';
-    }
-    h.disabled = false;
+  h.style.cssText = 'width:100px;flex-shrink:0;margin:0;padding:7px 8px;font-size:14px;';
+  h.addEventListener('change', () => {
+    c.heure = h.value;
+    enregistrerLigne(c);
   });
-  l.appendChild(h);
+  h1.appendChild(h);
 
   const t = document.createElement('div');
-  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;';
-  t.innerHTML = '<strong>' + (c.eleveComplet || c.eleve).replace(/</g, '&lt;') +
-    '</strong>' +
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.35;';
+  t.innerHTML = '<strong>' + (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') +
+    '</strong>' + (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
+                              'ajouté à la main</span>' : '') +
     '<div style="font-size:11px;color:var(--muted);">' +
       (c.moniteur ? c.moniteur.replace(/</g, '&lt;') : 'moniteur à définir') +
-      (c.site ? ' · ' + c.site.replace(/</g, '&lt;') : '') +
+      ' · 👁️ ' + abregeNom(c.eleveComplet || c.eleve) +
     '</div>';
-  l.appendChild(t);
+  h1.appendChild(t);
 
-  /* Ce que l'écran montrera vraiment, avec l'anonymat */
-  const ap = document.createElement('div');
-  ap.style.cssText = 'font-size:11px;color:var(--accent-text);flex-shrink:0;' +
-    'text-align:right;line-height:1.4;';
-  ap.innerHTML = '👁️ ' + abregeNom(c.eleveComplet || c.eleve);
-  ap.title = 'Ce que l\'écran affiche avec anonyme=1';
-  l.appendChild(ap);
+  /* Monter et descendre dans l'affichage */
+  [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:5px 7px;font-size:11px;margin:0;flex-shrink:0;';
+    b.textContent = signe;
+    b.addEventListener('click', async () => {
+      const i = liste.indexOf(c);
+      const j = i + sens;
+      if(i === -1 || j < 0 || j >= liste.length) return;
 
-  void zParent;
+      const a = liste[i]; liste[i] = liste[j]; liste[j] = a;
+      liste.forEach((x, n) => { x.ordre = n + 1; });
+
+      dessinerLignes(liste, z);
+      try{
+        await Promise.all([liste[i], liste[j]].map(x => enregistrerLigne(x, true)));
+      }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+    });
+    h1.appendChild(b);
+  });
+
+  l.appendChild(h1);
+
+  /* ---- Seconde ligne : véhicule et emplacement ---- */
+  const h2 = document.createElement('div');
+  h2.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;' +
+    'padding-left:108px;';
+
+  const v = document.createElement('input');
+  v.type = 'text';
+  v.value = c.vehicule || '';
+  v.placeholder = c.simulateur ? 'Simulateur n°' : 'Voiture n°';
+  v.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 9px;font-size:13px;';
+  v.addEventListener('change', () => { c.vehicule = v.value.trim(); enregistrerLigne(c); });
+  h2.appendChild(v);
+
+  const lieu = document.createElement('select');
+  lieu.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 9px;font-size:13px;';
+  lieu.innerHTML =
+    '<option value="">— où —</option>' +
+    '<option value="devant">🚗 Devant</option>' +
+    '<option value="cour">🏠 Cour intérieure</option>' +
+    '<option value="simulateur">🖥️ Simulateur</option>';
+  lieu.value = c.lieu || '';
+  lieu.addEventListener('change', () => { c.lieu = lieu.value; enregistrerLigne(c); });
+  h2.appendChild(lieu);
+
+  /* Une ligne ajoutée à la main se retire de la même façon */
+  if(c.manuel){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+      'flex-shrink:0;color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Retirer cette ligne de l\'affichage ?')) return;
+      try{
+        await appelPrep({ action: 'ecranLigneDelete', id: c.id });
+        showToast('Retirée ✅');
+        chargerPlanningEcran(z);
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    h2.appendChild(bSup);
+  }
+
+  l.appendChild(h2);
   return l;
 }
+
+
+/* Enregistre les détails d'affichage d'une ligne */
+async function enregistrerLigne(c, silencieux){
+  try{
+    await appelPrep({
+      action: 'ecranLigneSet',
+      id: c.manuel ? c.id : '',
+      idPrep: c.manuel ? '' : c.id,
+      jour: todayLocal(),
+      eleve: c.eleveComplet || c.eleve || '',
+      moniteur: c.moniteur || '',
+      heure: c.heure || '',
+      vehicule: c.vehicule || '',
+      lieu: c.lieu || '',
+      ordre: c.ordre || 0,
+      par: ACCES.moniteur || ''
+    });
+    if(!silencieux) showToast('Enregistré ✅');
+  }catch(e){
+    if(!silencieux) showToast('Impossible : ' + e.message);
+    throw e;
+  }
+}
+
+
+/* Ajouter une ligne qui n'a pas de préparation */
+function ouvrirLigneManuelle(z){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(460px, 94vw)';
+
+  boite.innerHTML =
+    '<h3>Ajouter au planning affiché</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      "Pour ce qui n'a pas de cours préparé : un rendez-vous, une reprise, " +
+      'un créneau au simulateur.</div>' +
+    '<label for="lmEleve">Élève ou intitulé</label>' +
+    '<input type="text" id="lmEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Ex : Ambre Guillebon, ou Réunion AAC">' +
+    '<div class="duo">' +
+      '<div><label for="lmHeure">Heure</label><input type="time" id="lmHeure"></div>' +
+      '<div><label for="lmMon">Moniteur</label><select id="lmMon"></select></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="lmVeh">Véhicule ou simulateur</label>' +
+        '<input type="text" id="lmVeh" placeholder="Ex : 3"></div>' +
+      '<div><label for="lmLieu">Où</label><select id="lmLieu">' +
+        '<option value="">— non précisé —</option>' +
+        '<option value="devant">🚗 Devant</option>' +
+        '<option value="cour">🏠 Cour intérieure</option>' +
+        '<option value="simulateur">🖥️ Simulateur</option>' +
+      '</select></div>' +
+    '</div>';
+
+  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  boite.querySelector('#lmMon').innerHTML = '<option value="">— aucun —</option>' +
+    gens.map(g => '<option value="' + String(g).replace(/"/g, '&quot;') + '">' +
+                  g + '</option>').join('');
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '➕ Ajouter';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#lmEleve').value.trim();
+    if(!nom){ showToast('Indique un élève ou un intitulé.'); return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Ajout…';
+    try{
+      await appelPrep({
+        action: 'ecranLigneSet',
+        jour: todayLocal(),
+        eleve: nom,
+        moniteur: boite.querySelector('#lmMon').value,
+        heure: boite.querySelector('#lmHeure').value,
+        vehicule: boite.querySelector('#lmVeh').value.trim(),
+        lieu: boite.querySelector('#lmLieu').value,
+        ordre: 0,
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Ajouté au planning ✅');
+      chargerPlanningEcran(z);
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = '➕ Ajouter';
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#lmEleve').focus(), 100);
+}
+
 
 /* « Ambre Guillebon » devient « Ambre G. », comme sur l'écran */
 function abregeNom(nom){
