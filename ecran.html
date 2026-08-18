@@ -184,10 +184,10 @@
   body.vitrine #planning{ display:none; }
 
   /* Le fond : image choisie, ou le dégradé vert par défaut */
+  /* Sans image choisie, le fond reste transparent : le dégradé
+     imposé se voyait derrière les photos et jurait avec elles. */
   #fondFixe{
     position:absolute; inset:0; z-index:0;
-    background:linear-gradient(105deg,
-      #8FE04A 0%, #C9F08A 26%, #FFFFFF 52%, #F2F2F2 100%);
     background-size:cover;
     background-position:center;
   }
@@ -210,7 +210,15 @@
     flex-direction:column; justify-content:center;
     padding:48px 56px;
     z-index:4;
+    /* Clair par défaut : sans fond imposé, l'écran est sombre.
+       Une image de fond claire s'accompagne d'un texte foncé —
+       à régler avec la classe « clair » sur le corps. */
+    color:var(--cream);
+    text-shadow:0 2px 12px rgba(0,0,0,.55);
+  }
+  body.fond-clair #panneau{
     color:#12151A;
+    text-shadow:none;
   }
   body.vitrine #panneau{ display:flex; }
   #panneau .p-titre{
@@ -477,10 +485,15 @@ async function chargerContenu(){
 function dessinerFond(f){
   const z = document.getElementById('fondFixe');
   if(!z) return;
+
   if(f && f.image){
     z.style.backgroundImage = 'url("' + f.image + '")';
+    /* Un fond posé est presque toujours clair : le texte du panneau
+       passe en sombre pour rester lisible. */
+    document.body.classList.add('fond-clair');
   }else{
     z.style.backgroundImage = '';
+    document.body.classList.remove('fond-clair');
   }
 }
 
