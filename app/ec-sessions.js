@@ -222,7 +222,8 @@ zone.innerHTML = '';
      que le bloc « Permis prévus » donnait avant. */
   const aRemplacer = [];
   const fantomes = [];
-  sessionsPermis.forEach(s => {
+  const jourAuj = todayLocal();
+  sessionsPermis.filter(s => !s.date || s.date >= jourAuj).forEach(s => {
     s.eleves.forEach(p => {
       const su = (p.eleve && typeof suiviDe === 'function') ? suiviDe(p.eleve) : {};
       if(!p.eleve) fantomes.push({ s: s, p: p });
@@ -235,11 +236,18 @@ zone.innerHTML = '';
   }
 
   const auj = todayLocal();
+
+  /* Les sessions passées quittent la liste : elles l'encombraient
+     alors que le travail est fait. Elles restent en base et se
+     réaffichent à la demande. */
+  const passees = sessionsPermis.filter(s => s.date && s.date < auj);
+  const aVenir = sessionsPermis.filter(s => !s.date || s.date >= auj);
+
   const compte = document.createElement('div');
   compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
-  const total = sessionsPermis.reduce((n, s) => n + s.eleves.filter(x => x.eleve).length, 0);
-  const vides = sessionsPermis.reduce((n, s) => n + s.eleves.filter(x => !x.eleve).length, 0);
-  compte.textContent = sessionsPermis.length + ' session(s) · ' + total + ' élève(s)' +
+  const total = aVenir.reduce((n, s) => n + s.eleves.filter(x => x.eleve).length, 0);
+  const vides = aVenir.reduce((n, s) => n + s.eleves.filter(x => !x.eleve).length, 0);
+  compte.textContent = aVenir.length + ' session(s) à venir · ' + total + ' élève(s)' +
     (vides ? ' · ' + vides + ' place(s) fantôme(s)' : '');
   zone.appendChild(compte);
 
@@ -260,7 +268,26 @@ zone.innerHTML = '';
     }
   });
 
-  sessionsPermis.forEach(s => zone.appendChild(blocSession(s, auj)));
+  aVenir.forEach(s => zone.appendChild(blocSession(s, auj)));
+
+  /* Les passées, repliées en bas : on y revient pour saisir un
+     résultat ou vérifier ce qui s'est dit. */
+  if(passees.length){
+    const d = document.createElement('details');
+    d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+      'padding:10px 12px;margin-top:16px;';
+    d.innerHTML = '<summary style="cursor:pointer;font-size:13px;' +
+      'color:var(--muted);">🗂️ ' + passees.length +
+      ' session(s) passée(s)</summary>';
+
+    const z = document.createElement('div');
+    z.style.marginTop = '10px';
+    /* Les plus récentes d'abord : c'est là qu'on revient */
+    passees.slice().reverse()
+      .forEach(s => z.appendChild(blocSession(s, auj)));
+    d.appendChild(z);
+    zone.appendChild(d);
+  }
 }
 
 
