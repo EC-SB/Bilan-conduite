@@ -115,9 +115,12 @@
   /* Le planning repose sur un panneau posé sur l'image, comme une
      carte : un dégradé sur toute la hauteur noircissait l'écran. */
   #planning{
-    position:absolute; top:24px; left:24px; bottom:24px;
-    /* Juste ce qu'il faut : le nom le plus long décide, le reste
-       de l'image est rendu à la photo. */
+    position:absolute; top:24px; left:24px;
+    /* Juste ce qu'il faut, en largeur comme en hauteur : la carte
+       s'arrête au dernier cours au lieu de descendre jusqu'en bas
+       avec du vide. */
+    bottom:auto;
+    max-height:calc(100% - 48px);
     width:auto;
     min-width:340px;
     max-width:52%;
@@ -144,10 +147,17 @@
   }
   #planning h2{
     font-size:21px; color:var(--accent);
-    margin-bottom:14px; letter-spacing:.5px;
-    padding-bottom:12px;
+    margin-bottom:12px; letter-spacing:.5px;
+    padding-bottom:11px;
     border-bottom:1px solid rgba(255,255,255,.12);
+    flex-shrink:0;
   }
+
+  /* La liste défile si elle dépasse, la carte ne grandit plus */
+  #listeCours{ overflow:hidden; }
+
+  /* La dernière ligne n'a pas de trait : il flotterait au bord */
+  .cours:last-child{ border-bottom:none; padding-bottom:2px; }
   .cours{
     display:flex; align-items:center; gap:14px;
     padding:12px 0;
@@ -301,7 +311,7 @@
     <div id="scenes"></div>
 
     <section id="planning">
-      <h2>📅 Les cours d'aujourd'hui</h2>
+      <h2>📅 Les cours à venir</h2>
       <div id="listeCours"></div>
     </section>
 
@@ -532,8 +542,8 @@ function dessinerPlanning(liste){
   if(!z || OU === 'vitrine') return;
 
   if(!liste.length){
-    z.innerHTML = '<div style="font-size:23px;color:var(--muted);padding-top:16px;">' +
-                  'Aucun cours prévu aujourd\'hui.</div>';
+    z.innerHTML = '<div style="font-size:22px;color:var(--muted);padding-top:6px;">' +
+                  'Plus de cours aujourd\'hui.</div>';
     return;
   }
 
