@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 10:59 — v431 */
+/* Déployé le 18/08/2026 à 13:38 — v436 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -708,14 +708,21 @@ async function afficherRappelManuel(){
     '<div class="duo">' +
       '<div><label for="rapHeure">Heure du cours</label>' +
         '<input type="time" id="rapHeure"></div>' +
-      '<div><label for="rapVeh">Véhicule ou simulateur</label>' +
-        '<input type="text" id="rapVeh" placeholder="Ex : 3"></div>' +
+      '<div><label for="rapVeh">Véhicule</label>' +
+        '<div style="display:flex;gap:6px;">' +
+          '<select id="rapMod" style="width:auto;flex-shrink:0;margin:0;">' +
+            '<option value="">—</option><option value="A3">A3</option>' +
+            '<option value="Q3">Q3</option><option value="Simu">Simu</option>' +
+          '</select>' +
+          '<input type="text" id="rapVeh" inputmode="numeric" placeholder="n°" ' +
+            'style="flex:1;min-width:0;margin:0;">' +
+        '</div></div>' +
     '</div>' +
     '<label for="rapLieu">Où le prendre</label>' +
     '<select id="rapLieu">' +
       '<option value="">— non précisé —</option>' +
-      '<option value="devant">🚗 Devant</option>' +
-      '<option value="cour">🏠 Cour intérieure</option>' +
+      '<option value="devant">🛣️ Devant</option>' +
+      '<option value="cour">🅿️ Cour intérieure</option>' +
       '<option value="simulateur">🖥️ Simulateur</option>' +
     '</select>';
   zone.appendChild(dt);
@@ -1025,7 +1032,8 @@ async function envoyerRappelManuel(){
                          $('rapMoniteur') ? $('rapMoniteur').value : '',
                          {
                            heure: $('rapHeure') ? $('rapHeure').value : '',
-                           vehicule: $('rapVeh') ? $('rapVeh').value.trim() : '',
+                           vehicule: (($('rapMod') ? $('rapMod').value : '') + ' ' +
+                                      ($('rapVeh') ? $('rapVeh').value.trim() : '')).trim(),
                            lieu: $('rapLieu') ? $('rapLieu').value : ''
                          });
 
