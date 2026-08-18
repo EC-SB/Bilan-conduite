@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 07:29 — v419 */
+/* Déployé le 18/08/2026 à 08:05 — v421 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -213,18 +213,13 @@ function creerReconnaissance(){
 
     const box = $('transcriptBox');
 
-    /* Ce que le moniteur a collé ou tapé lui-même : la
-       reconnaissance vocale l'écrasait avec sa propre mémoire, et
-       tout le texte ajouté à la main disparaissait. On le reprend
-       avant d'écrire. */
-    if(box && box.value && box.value !== avantDerniereEcriture){
-      const ajoute = texteAjouteAlaMain(box.value, avantDerniereEcriture);
-      if(ajoute){
-        committedTranscript = mettreEnForme(
-          fusionner([committedTranscript, ajoute]));
-        finalTranscript = mettreEnForme(
-          fusionner([committedTranscript, sessionText]));
-      }
+    /* La boîte fait autorité : ce que le moniteur y a fait — collé,
+       corrigé, SUPPRIMÉ — devient la nouvelle base, et la dictée qui
+       suit s'y ajoute. Comparer les textes pour deviner ce qui a
+       changé ramenait les passages effacés. */
+    if(box && box.value !== avantDerniereEcriture){
+      committedTranscript = box.value.trim();
+      finalTranscript = mettreEnForme(fusionner([committedTranscript, sessionText]));
     }
 
     box.value = finalTranscript;
@@ -269,10 +264,9 @@ function creerReconnaissance(){
     finalTranscript = committedTranscript;
     const zone = $('transcriptBox');
     if(zone){
-      /* Idem à la pause : on garde ce qui a été ajouté à la main */
-      const ajoute = texteAjouteAlaMain(zone.value, avantDerniereEcriture);
-      if(ajoute){
-        committedTranscript = mettreEnForme(fusionner([committedTranscript, ajoute]));
+      /* Idem à la pause : la boîte fait autorité */
+      if(zone.value !== avantDerniereEcriture){
+        committedTranscript = zone.value.trim();
         finalTranscript = committedTranscript;
       }
       zone.value = finalTranscript;
@@ -284,25 +278,9 @@ function creerReconnaissance(){
   return r;
 }
 
-/* Ce que la boîte contient en plus de ce qu'on y a écrit la dernière
-   fois : du texte collé, une correction, un ajout au clavier. */
+/* Le dernier texte écrit par l'application dans la boîte. Toute
+   différence signifie que le moniteur y a touché. */
 let avantDerniereEcriture = '';
-
-function texteAjouteAlaMain(actuel, precedent){
-  const a = String(actuel || '');
-  const p = String(precedent || '');
-  if(!a || a === p) return '';
-
-  /* Le cas courant : on a tapé à la fin */
-  if(p && a.indexOf(p) === 0) return a.slice(p.length).trim();
-
-  /* Boîte vidée puis remplie, ou texte remanié : sans repère fiable,
-     on prend tout plutôt que de perdre le travail du moniteur. */
-  if(!p) return a.trim();
-
-  return '';
-}
-
 
 /* Détruit la session figée et repart sur un objet neuf */
 function recreerEtDemarrer(){
