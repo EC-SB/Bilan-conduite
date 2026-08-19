@@ -1,4 +1,4 @@
-/* Déployé le 19/08/2026 à 09:47 — v442 */
+/* Déployé le 19/08/2026 à 11:04 — v444 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -138,6 +138,7 @@ function verrouiller(message, garderSession){
   document.body.classList.remove('avec-onglets');
   $('lockView').style.display = 'block';
   $('codeInput').value = '';
+  if($('identInput')) $('identInput').value = '';
   $('codeMsg').textContent = message || '';
   $('codeMsg').style.color = message ? 'var(--warn-text)' : 'var(--muted)';
 }
@@ -453,6 +454,7 @@ function afficherIdentite(){
 (function brancherConnexion(){
   const btn = $('codeBtn');
   const champ = $('codeInput');
+  const ident = $('identInput');
   if(!btn || !champ) return;
 
   const lancer = () => {
@@ -468,6 +470,11 @@ function afficherIdentite(){
 
   btn.addEventListener('click', lancer);
   champ.addEventListener('keydown', e => { if(e.key === 'Enter') lancer(); });
+  /* Entrée sur le prénom passe au code plutôt que d'envoyer un
+     formulaire à moitié rempli. */
+  if(ident) ident.addEventListener('keydown', e => {
+    if(e.key === 'Enter'){ e.preventDefault(); champ.focus(); }
+  });
 })();
 
 /* Signale que ce module est bien chargé */
