@@ -810,7 +810,8 @@ function ouvrirPlace(p, sess){
     bVider.title = 'La place reste, elle redevient libre';
     bVider.addEventListener('click', async () => {
       if(!await confirmer('Retirer ' + p.eleve + ' de cette place ?\n\n' +
-          'La place reste ouverte : elle redevient une place fantôme.')) return;
+          'La place reste ouverte, et sa date d\'examen est effacée : ' +
+          'il redevient un élève sans date.')) return;
       try{
         Object.assign(p, { eleve: '', prevenu: false, dossierOk: false, remarque: '' });
         document.body.removeChild(fond);
@@ -1098,6 +1099,8 @@ function ouvrirEditeurSession(sess){
     try{
       /* La réponse porte l'identifiant de la session : sans lui, on
          ne sait pas où poser les élèves. */
+      const avantPlaces = sess ? sess.eleves.length : 0;
+
       const r = await appelPrep({
         action: 'sessionSet',
         id: sess ? sess.id : '',
@@ -1135,7 +1138,16 @@ function ouvrirEditeurSession(sess){
       }
 
       document.body.removeChild(fond);
-      showToast(sess ? 'Session modifiée ✅' : 'Session créée ✅');
+
+      /* Le serveur a pu refuser d'enlever des places occupées : on
+         relit plutôt que d'afficher ce qu'on croyait obtenir. */
+      const apresPlaces = parseInt(boite.querySelector('#sePlaces').value, 10) || 0;
+      if(sess && apresPlaces < avantPlaces){
+        showToast('Session modifiée ✅ — les places occupées sont conservées');
+      }else{
+        showToast(sess ? 'Session modifiée ✅' : 'Session créée ✅');
+      }
+
       afficherSessionsPermis();
     }catch(e){
       showToast('Impossible : ' + e.message);
