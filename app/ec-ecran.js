@@ -148,8 +148,12 @@ function dessinerLignes(liste, z){
                      String(auj.getMinutes()).padStart(2, '0');
   const passes = liste.filter(x => x.heure && x.heure < maintenant).length;
 
+  const caches = liste.filter(x => x.masque).length;
+
   a.innerHTML = liste.length + ' ligne(s) · heure, véhicule et emplacement se ' +
     'règlent ici. L\'écran se met à jour dans la minute.' +
+    (caches ? '<br><span style="color:var(--muted);">🗑️ ' + caches +
+      ' retirée(s) de l\'écran · ↩️ pour les remettre.</span>' : '') +
     (passes ? '<br><span style="color:var(--muted);">🕐 ' + passes +
       ' cours déjà passé(s) : ils ont quitté l\'écran mais restent ' +
       'modifiables ici.</span>' : '');
@@ -168,7 +172,7 @@ function lignePlanningEcran(c, liste, z){
 
   const l = document.createElement('div');
   l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
-    (passe ? 'opacity:.45;' : '');
+    (passe || c.masque ? 'opacity:.45;' : '');
 
   /* ---- Première ligne : heure, élève, ordre ---- */
   const h1 = document.createElement('div');
@@ -189,6 +193,8 @@ function lignePlanningEcran(c, liste, z){
   t.innerHTML = '<strong>' + (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') +
     '</strong>' + (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
                               'ajouté à la main</span>' : '') +
+    (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
+                'retiré de l\'écran</span>' : '') +
     '<div style="font-size:11px;color:var(--muted);">' +
       (c.moniteur ? c.moniteur.replace(/</g, '&lt;') : 'moniteur à définir') +
       ' · 👁️ ' + abregeNom(c.eleveComplet || c.eleve) +
@@ -268,23 +274,59 @@ function lignePlanningEcran(c, liste, z){
   lieu.addEventListener('change', () => { c.lieu = lieu.value; enregistrerLigne(c); });
   h2.appendChild(lieu);
 
-  /* Une ligne ajoutée à la main se retire de la même façon */
-  if(c.manuel){
-    const bSup = document.createElement('button');
-    bSup.className = 'btn btn-secondary';
-    bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
-      'flex-shrink:0;color:var(--red);border-color:var(--red);';
-    bSup.textContent = '🗑️';
-    bSup.addEventListener('click', async () => {
-      if(!await confirmer('Retirer cette ligne de l\'affichage ?')) return;
+  /* Toute ligne se retire de l'écran. Celle ajoutée à la main est
+     supprimée ; celle qui vient d'un cours est seulement masquée —
+     la préparation du moniteur ne nous appartient pas. */
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+    'flex-shrink:0;' + (c.masque ? '' : 'color:var(--red);border-color:var(--red);');
+  bSup.textContent = c.masque ? '↩️' : '🗑️';
+  bSup.title = c.masque
+    ? 'Remettre à l\'écran'
+    : (c.manuel ? 'Supprimer cette ligne'
+                : 'Retirer de l\'écran — le cours du moniteur est conservé');
+
+  bSup.addEventListener('click', async () => {
+    /* Déjà masquée : on la remet, sans rien demander */
+    if(c.masque){
+      c.masque = false;
+      try{
+        await enregistrerLigne(c, true);
+        showToast('Remise à l\'écran ✅');
+        chargerPlanningEcran(z);
+      }catch(e){
+        c.masque = true;
+        showToast('Impossible : ' + e.message);
+      }
+      return;
+    }
+
+    if(c.manuel){
+      if(!await confirmer('Supprimer cette ligne de l\'affichage ?')) return;
       try{
         await appelPrep({ action: 'ecranLigneDelete', id: c.id });
-        showToast('Retirée ✅');
+        showToast('Supprimée ✅');
         chargerPlanningEcran(z);
       }catch(e){ showToast('Impossible : ' + e.message); }
-    });
-    h2.appendChild(bSup);
-  }
+      return;
+    }
+
+    if(!await confirmer('Retirer ' + (c.eleveComplet || c.eleve) +
+        ' de l\'écran ?\n\nSon cours reste dans les prochains cours du ' +
+        'moniteur : seul l\'affichage est concerné.')) return;
+
+    c.masque = true;
+    try{
+      await enregistrerLigne(c, true);
+      showToast('Retirée de l\'écran ✅');
+      chargerPlanningEcran(z);
+    }catch(e){
+      c.masque = false;
+      showToast('Impossible : ' + e.message);
+    }
+  });
+  h2.appendChild(bSup);
 
   l.appendChild(h2);
   return l;
@@ -305,6 +347,7 @@ async function enregistrerLigne(c, silencieux){
       vehicule: c.vehicule || '',
       lieu: c.lieu || '',
       ordre: c.ordre || 0,
+      masque: c.masque ? 'oui' : '',
       par: ACCES.moniteur || ''
     });
     if(!silencieux) showToast('Enregistré ✅');
