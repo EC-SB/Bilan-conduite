@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 15:57 — v406 */
+/* Déployé le 19/08/2026 à 14:46 — v447 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -196,6 +196,9 @@ function defautsDepuisNote(note){
     d.handicap = 'oui';
     d.amenagements = AMENAGEMENTS.filter(a => n.indexOf(a.nom) !== -1).map(a => a.cle);
   }
+  /* Un élève qui a besoin du coussin en a besoin au cours suivant :
+     la case se recoche seule. */
+  if(/coussin vert/i.test(n)) d.coussin = 'oui';
   if(/Formation accompagnateur faite/i.test(note || '')) d.formAccomp = 'faite';
   else if(/Formation accompagnateur déjà prévue/i.test(note || '')) d.formAccomp = 'prevue';
   else if(/Formation accompagnateur à prévoir/i.test(note || '')) d.formAccomp = 'aprevoir';
@@ -477,6 +480,13 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         'color:var(--cream);margin-bottom:10px;">' +
         '<input type="checkbox" id="qHandicap" style="width:19px;height:19px;">' +
         '♿ Conduite aménagée</label>' +
+      /* Le coussin : une contrainte de poste de conduite comme une
+         autre, à connaître avant de monter dans la voiture. */
+      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
+        'color:var(--cream);margin-bottom:10px;">' +
+        '<input type="checkbox" id="qCoussin" style="width:19px;height:19px;">' +
+        '🟩 Coussin vert</label>' +
+
       '<div id="qZoneHandicap" style="display:none;padding:10px 12px;margin-bottom:14px;' +
         'background:var(--navy);border:1px solid var(--orange);border-radius:10px;">' +
         '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Aménagements du véhicule</div>' +
@@ -850,6 +860,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     cbH.addEventListener('change', majH);
     majH();
 
+    /* Le coussin, repris du cours précédent */
+    const cbC = boite.querySelector('#qCoussin');
+    if(cbC) cbC.checked = (prec.coussin === 'oui');
+
     /* Manœuvres qui restent à faire — affichage seul */
     const zoneRestantes = boite.querySelector('#qListeRestantes');
     if(zoneRestantes){
@@ -999,6 +1013,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         rvPrealable: boite.querySelector('#qRvPrealable').value,
         boite: boite.querySelector('#qBoite').value,
         handicap: boite.querySelector('#qHandicap').checked ? 'oui' : '',
+        coussin: boite.querySelector('#qCoussin').checked ? 'oui' : '',
         amenagements: Array.prototype.slice
           .call(boite.querySelectorAll('.qAmg:checked')).map(x => x.value),
         ants: chAnts ? chAnts.value : '',
@@ -1033,6 +1048,10 @@ function noteDepuisQuestionnaire(q){
     const amg = (q.amenagements || []).map(libelleAmenagement);
     bouts.push('♿ Conduite aménagée' + (amg.length ? ' — ' + amg.join(' · ') : ''));
   }
+
+  /* Le coussin se prépare avant que l'élève monte : il a sa place
+     dans la note, au même titre que les aménagements. */
+  if(q.coussin === 'oui') bouts.push('🟩 Coussin vert');
 
   if(q.frise) bouts.push(q.frise);
 
@@ -1674,6 +1693,7 @@ function allegerQuestionnaireFin(boite, prec){
 
   /* Conduite aménagée : se décide à l'inscription, jamais après un cours */
   cacher('#qHandicap');
+  cacher('#qCoussin');
   const zh = boite.querySelector('#qZoneHandicap');
   if(zh) zh.style.display = 'none';
 
