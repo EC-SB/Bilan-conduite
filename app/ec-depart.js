@@ -1,4 +1,4 @@
-/* Déployé le 13/08/2026 à 14:15 — v417 */
+/* Déployé le 19/08/2026 à 11:03 — v444 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1015,7 +1015,9 @@ async function reprendreSession(){
     const r = await fetchFiable(CONFIG.AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: s.code })
+      /* Le prénom mémorisé repart avec le code : la vérification
+         est la même qu'à la première connexion. */
+      body: JSON.stringify({ code: s.code, identifiant: s.moniteur || '' })
     });
     const data = await r.json().catch(() => ({}));
 
@@ -1044,10 +1046,19 @@ async function reprendreSession(){
 /* ---------- Déverrouillage ---------- */
 async function deverrouiller(){
   const code = $('codeInput').value.trim();
+  const ident = $('identInput') ? $('identInput').value.trim() : '';
   const msg = $('codeMsg');
+
+  if(!ident){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = 'Indique ton prénom.';
+    if($('identInput')) $('identInput').focus();
+    return;
+  }
   if(code.length < 6){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Le code compte au moins 6 chiffres.';
+    $('codeInput').focus();
     return;
   }
   const btn = $('codeBtn');
@@ -1059,14 +1070,16 @@ async function deverrouiller(){
     const r = await fetchFiable(CONFIG.AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code })
+      body: JSON.stringify({ code: code, identifiant: ident })
     });
     const data = await r.json().catch(() => ({}));
     if(!r.ok || !data.ok){
       msg.style.color = 'var(--warn-text)';
       /* Le serveur dit pourquoi : essais restants, blocage temporaire.
          Le masquer derrière « code incorrect » empêche de comprendre. */
-      msg.textContent = data.error || 'Code incorrect.';
+      /* On ne dit pas lequel des deux est faux : le préciser
+         permettrait de deviner les prénoms enregistrés. */
+      msg.textContent = data.error || 'Prénom ou code incorrect.';
       if(r.status === 429){
         msg.innerHTML = '⏳ ' + (data.error || 'Accès bloqué un moment.') +
           '<br><span style="font-size:12px;color:var(--muted);">' +
