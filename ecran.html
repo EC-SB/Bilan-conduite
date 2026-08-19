@@ -485,7 +485,19 @@ async function majMeteo(){
 /* ============================================================
    LES DONNÉES
    ============================================================ */
+let enCours = false;
+
 async function chargerContenu(){
+  if(enCours) return;
+  enCours = true;
+  try{
+    await chargerVraiment();
+  }finally{
+    enCours = false;
+  }
+}
+
+async function chargerVraiment(){
   if(!JETON){
     document.getElementById('souci').textContent =
       'Adresse incomplète : il manque le jeton (?t=…)';
@@ -496,10 +508,20 @@ async function chargerContenu(){
     /* Un paramètre qui change à chaque appel : sans lui, le
        navigateur sert la réponse gardée en mémoire et l'écran
        reste figé sur l'ancien contenu. */
-    const r = await fetch(RELAIS + '/ecran?t=' + encodeURIComponent(JETON) +
-                          '&ou=' + OU + (ANONYME ? '&anonyme=1' : '') +
-                          '&_=' + Date.now(),
-                          { cache: 'no-store' });
+    /* Un appel qui traîne est abandonné : sans cela, deux appels se
+       chevauchaient et le second arrivait avant le premier. */
+    const abandon = new AbortController();
+    const minuteur = setTimeout(() => abandon.abort(), 25000);
+
+    let r;
+    try{
+      r = await fetch(RELAIS + '/ecran?t=' + encodeURIComponent(JETON) +
+                      '&ou=' + OU + (ANONYME ? '&anonyme=1' : '') +
+                      '&_=' + Date.now(),
+                      { cache: 'no-store', signal: abandon.signal });
+    }finally{
+      clearTimeout(minuteur);
+    }
     if(!r.ok){
       let detail = '';
       try{
@@ -520,6 +542,12 @@ async function chargerContenu(){
     const d = await r.json();
     document.getElementById('souci').textContent = '';
 
+    /* Tout va bien : on repart de zéro */
+    echecs = 0;
+    const n = new Date();
+    derniereReussite = String(n.getHours()).padStart(2, '0') + ':' +
+                       String(n.getMinutes()).padStart(2, '0');
+
     dessinerFond(d && d.fond);
     dessinerPanneau(d && d.panneau);
     dessinerBandeau((d && d.bandeaux) || []);
@@ -537,9 +565,19 @@ async function chargerContenu(){
       lancerCarrousel();
     }
   }catch(e){
-    document.getElementById('souci').textContent = 'Hors ligne';
+    /* Une lenteur passagère n'est pas une panne : l'écran garde ce
+       qu'il affiche et ne se plaint qu'après trois échecs de suite.
+       Le message « Hors ligne » apparaissait au moindre retard. */
+    echecs++;
+    if(echecs >= 3){
+      document.getElementById('souci').textContent =
+        'Connexion perdue — dernière mise à jour à ' + derniereReussite;
+    }
   }
 }
+
+let echecs = 0;
+let derniereReussite = '--:--';
 
 
 /* Le fond fixe de la vitrine — à défaut, le dégradé vert */
