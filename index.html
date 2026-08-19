@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v443
+     VERSION APPLICATION : v446
      VERSION APPS SCRIPT REQUISE : v93
-     Mis à jour le : 19/08/2026 à 10:01
+     Mis à jour le : 19/08/2026 à 11:19
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -758,7 +758,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v443</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v446</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -783,11 +783,21 @@
   <div id="lockView">
     <div class="card" style="text-align:center;">
       <div style="font-size:34px;margin-bottom:4px;">🔒</div>
-      <h2 class="section-title" style="text-align:center;">Code d'accès</h2>
-      <input type="password" id="codeInput" inputmode="numeric" autocomplete="off"
+      <h2 class="section-title" style="text-align:center;">Connexion</h2>
+
+      <!-- Deux informations valent mieux qu'une : un code seul finit
+           par se deviner, un couple beaucoup moins. -->
+      <label for="identInput" style="text-align:left;">Ton prénom</label>
+      <input type="text" id="identInput" autocomplete="username"
+             style="text-align:center;font-size:19px;padding:13px;">
+
+      <label for="codeInput" style="text-align:left;">Code</label>
+      <input type="password" id="codeInput" inputmode="numeric"
+             autocomplete="current-password"
              maxlength="8" placeholder="••••••"
              style="text-align:center;letter-spacing:.5em;font-size:24px;padding:14px;">
-      <button class="btn btn-primary" id="codeBtn">Déverrouiller</button>
+
+      <button class="btn btn-primary" id="codeBtn">Se connecter</button>
       <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:var(--muted);"></div>
     </div>
   </div>
@@ -1802,39 +1812,39 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=443"></script>
-<script src="app/ec-modeles.js?v=443"></script>
-<script src="app/ec-consignes.js?v=443"></script>
-<script src="app/ec-noyau.js?v=443"></script>
-<script src="app/ec-vocal.js?v=443"></script>
-<script src="app/ec-reseau.js?v=443"></script>
-<script src="app/ec-manuel.js?v=443"></script>
-<script src="app/ec-fenetres.js?v=443"></script>
-<script src="app/ec-questionnaire.js?v=443"></script>
-<script src="app/ec-permis.js?v=443"></script>
-<script src="app/ec-prepares.js?v=443"></script>
-<script src="app/ec-bureau.js?v=443"></script>
-<script src="app/ec-places.js?v=443"></script>
-<script src="app/ec-listes.js?v=443"></script>
-<script src="app/ec-permis-listes.js?v=443"></script>
-<script src="app/ec-postpermis.js?v=443"></script>
-<script src="app/ec-textes.js?v=443"></script>
-<script src="app/ec-correction.js?v=443"></script>
-<script src="app/ec-bilans.js?v=443"></script>
-<script src="app/ec-ecran.js?v=443"></script>
-<script src="app/ec-sessions.js?v=443"></script>
-<script src="app/ec-notifs.js?v=443"></script>
-<script src="app/ec-ecoutes.js?v=443"></script>
-<script src="app/ec-taches.js?v=443"></script>
-<script src="app/ec-memoire.js?v=443"></script>
-<script src="app/ec-historique.js?v=443"></script>
-<script src="app/ec-rappels.js?v=443"></script>
-<script src="app/ec-stats.js?v=443"></script>
-<script src="app/ec-messenger.js?v=443"></script>
-<script src="app/ec-journal.js?v=443"></script>
-<script src="app/ec-depart.js?v=443"></script>
-<script src="app/ec-onglets.js?v=443"></script>
-<script src="app/ec-demarrage.js?v=443"></script>
+  <script src="app/ec-etat.js?v=446"></script>
+<script src="app/ec-modeles.js?v=446"></script>
+<script src="app/ec-consignes.js?v=446"></script>
+<script src="app/ec-noyau.js?v=446"></script>
+<script src="app/ec-vocal.js?v=446"></script>
+<script src="app/ec-reseau.js?v=446"></script>
+<script src="app/ec-manuel.js?v=446"></script>
+<script src="app/ec-fenetres.js?v=446"></script>
+<script src="app/ec-questionnaire.js?v=446"></script>
+<script src="app/ec-permis.js?v=446"></script>
+<script src="app/ec-prepares.js?v=446"></script>
+<script src="app/ec-bureau.js?v=446"></script>
+<script src="app/ec-places.js?v=446"></script>
+<script src="app/ec-listes.js?v=446"></script>
+<script src="app/ec-permis-listes.js?v=446"></script>
+<script src="app/ec-postpermis.js?v=446"></script>
+<script src="app/ec-textes.js?v=446"></script>
+<script src="app/ec-correction.js?v=446"></script>
+<script src="app/ec-bilans.js?v=446"></script>
+<script src="app/ec-ecran.js?v=446"></script>
+<script src="app/ec-sessions.js?v=446"></script>
+<script src="app/ec-notifs.js?v=446"></script>
+<script src="app/ec-ecoutes.js?v=446"></script>
+<script src="app/ec-taches.js?v=446"></script>
+<script src="app/ec-memoire.js?v=446"></script>
+<script src="app/ec-historique.js?v=446"></script>
+<script src="app/ec-rappels.js?v=446"></script>
+<script src="app/ec-stats.js?v=446"></script>
+<script src="app/ec-messenger.js?v=446"></script>
+<script src="app/ec-journal.js?v=446"></script>
+<script src="app/ec-depart.js?v=446"></script>
+<script src="app/ec-onglets.js?v=446"></script>
+<script src="app/ec-demarrage.js?v=446"></script>
 
 </body>
 </html>
