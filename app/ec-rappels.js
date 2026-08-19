@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 13:38 — v436 */
+/* Déployé le 19/08/2026 à 10:00 — v443 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -667,8 +667,15 @@ async function afficherRappelManuel(){
   const grille2 = document.createElement('div');
   grille2.className = 'duo';
   grille2.innerHTML =
-    '<div><label for="rapVoiture">N° de voiture</label>' +
-      '<input type="text" id="rapVoiture" inputmode="numeric" placeholder="Ex : 5"></div>' +
+    '<div><label for="rapVoiture">Véhicule</label>' +
+      '<div style="display:flex;gap:6px;">' +
+        '<select id="rapMod" style="width:auto;flex-shrink:0;margin:0;">' +
+          '<option value="">—</option><option value="A3">A3</option>' +
+          '<option value="Q3">Q3</option><option value="Simu">Simu</option>' +
+        '</select>' +
+        '<input type="text" id="rapVoiture" inputmode="numeric" placeholder="n°" ' +
+          'style="flex:1;min-width:0;margin:0;">' +
+      '</div></div>' +
     '<div><label for="rapEmpl">Où est la voiture</label><select id="rapEmpl">' +
       '<option value="cour">Cour intérieure</option>' +
       '<option value="rue">Rue, le long du trottoir</option>' +
@@ -695,37 +702,23 @@ async function afficherRappelManuel(){
     'Sans moniteur, le rappel part sans créer de cours.';
   zone.appendChild(aideMon);
 
-  /* Le véhicule et l'emplacement, renseignés dès le rappel : ils
-     remontent seuls sur l'écran de l'accueil, plutôt que d'être
-     ressaisis un par un dans l'affichage. */
-  const dt = document.createElement('details');
-  dt.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-    'padding:9px 11px;margin-bottom:12px;';
-  dt.innerHTML = '<summary style="cursor:pointer;font-size:12px;font-weight:700;' +
-    'color:var(--accent-text);">📺 Véhicule et emplacement (facultatif)</summary>' +
-    '<div style="font-size:11px;color:var(--muted);margin:8px 0;line-height:1.45;">' +
-      "Repris tel quel sur l'écran de l'accueil.</div>" +
-    '<div class="duo">' +
-      '<div><label for="rapHeure">Heure du cours</label>' +
-        '<input type="time" id="rapHeure"></div>' +
-      '<div><label for="rapVeh">Véhicule</label>' +
-        '<div style="display:flex;gap:6px;">' +
-          '<select id="rapMod" style="width:auto;flex-shrink:0;margin:0;">' +
-            '<option value="">—</option><option value="A3">A3</option>' +
-            '<option value="Q3">Q3</option><option value="Simu">Simu</option>' +
-          '</select>' +
-          '<input type="text" id="rapVeh" inputmode="numeric" placeholder="n°" ' +
-            'style="flex:1;min-width:0;margin:0;">' +
-        '</div></div>' +
-    '</div>' +
-    '<label for="rapLieu">Où le prendre</label>' +
-    '<select id="rapLieu">' +
-      '<option value="">— non précisé —</option>' +
-      '<option value="devant">🛣️ Devant</option>' +
-      '<option value="cour">🅿️ Cour intérieure</option>' +
-      '<option value="simulateur">🖥️ Simulateur</option>' +
-    '</select>';
-  zone.appendChild(dt);
+  /* L'heure seule : le véhicule et l'emplacement sont déjà saisis
+     plus haut, les redemander ici obligeait à taper deux fois. */
+  const lH = document.createElement('label');
+  lH.setAttribute('for', 'rapHeure');
+  lH.textContent = '🕐 Heure du cours (facultatif)';
+  zone.appendChild(lH);
+
+  const chH = document.createElement('input');
+  chH.type = 'time';
+  chH.id = 'rapHeure';
+  zone.appendChild(chH);
+
+  const aideH = document.createElement('div');
+  aideH.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
+  aideH.textContent = "Reprise sur l'écran de l'accueil, avec le véhicule et " +
+    'son emplacement saisis au-dessus.';
+  zone.appendChild(aideH);
 
   /* La liste des moniteurs, chargée une fois */
   (async () => {
@@ -1033,19 +1026,32 @@ async function envoyerRappelManuel(){
                          {
                            heure: $('rapHeure') ? $('rapHeure').value : '',
                            vehicule: (($('rapMod') ? $('rapMod').value : '') + ' ' +
-                                      ($('rapVeh') ? $('rapVeh').value.trim() : '')).trim(),
-                           lieu: $('rapLieu') ? $('rapLieu').value : ''
+                                      ($('rapVoiture') ? $('rapVoiture').value.trim() : '')).trim(),
+                           /* « rue » côté SMS, « devant » côté écran :
+                              c'est le même endroit, dit autrement. */
+                           lieu: ($('rapEmpl') && $('rapEmpl').value === 'rue') ? 'devant'
+                               : ($('rapEmpl') ? $('rapEmpl').value : '')
                          });
 
-    /* On passe à l'élève suivant, les réglages sont conservés */
+    /* On passe à l'élève suivant. Ce qui vaut pour lui seul est
+       remis à zéro : une mention oubliée d'un rappel à l'autre
+       envoie une information fausse à quelqu'un d'autre. */
     setTimeout(() => {
       if($('rappelEleve')) $('rappelEleve').value = '';
       if($('rapTel')) $('rapTel').value = '';
-      /* Le véhicule change d'un élève à l'autre, pas le moniteur */
-      if($('rapVeh')) $('rapVeh').value = '';
+      if($('rapVoiture')) $('rapVoiture').value = '';
+      if($('rapMod')) $('rapMod').value = '';
       if($('rapHeure')) $('rapHeure').value = '';
       if($('rapLibre')) $('rapLibre').value = '';
-      /* Élève suivant : on repart du modèle, pas du texte retouché */
+
+      /* Les mentions cochées : elles décrivent CE cours-là */
+      document.querySelectorAll('.optionRappel').forEach(cb => {
+        cb.checked = false;
+      });
+
+      /* Le moniteur et le jour restent : ils ne changent pas
+         d'un élève à l'autre dans une série de rappels. */
+
       texteModifie = false;
       apercuRappel();
     }, 900);
