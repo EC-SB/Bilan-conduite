@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 12:18 — v391 */
+/* Déployé le 19/08/2026 à 16:06 — v449 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -438,8 +438,26 @@ async function afficherMessengerPermis(){
 
   zone.innerHTML = '<div class="empty">Lecture des permis prévus…</div>';
   try{
-    await chargerBureau();
-    if(typeof chargerModelesTexte === 'function') await chargerModelesTexte();
+    /* Les sessions en même temps que le bureau : elles portent
+       l'ordre de passage et les heures. Sans ce chargement, le
+       module ne les voyait que si l'on était passé par l'onglet
+       Sessions d'abord — d'où des messages incomplets et un
+       « Actualiser » qui ne changeait rien. */
+    const [d] = await Promise.all([
+      appelPrep({ action: 'sessionList' }).catch(() => null),
+      chargerBureau(true),
+      (typeof chargerModelesTexte === 'function')
+        ? chargerModelesTexte() : Promise.resolve()
+    ]);
+
+    if(d && d.sessions){
+      sessionsPermis = d.sessions;
+      sessionsPermis.sort((a, b) => {
+        const j = String(a.date || '').localeCompare(String(b.date || ''));
+        if(j !== 0) return j;
+        return String(a.heureDebut || '').localeCompare(String(b.heureDebut || ''));
+      });
+    }
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -470,7 +488,12 @@ async function afficherMessengerPermis(){
   bMaj.className = 'btn btn-secondary';
   bMaj.style.cssText = 'margin-bottom:14px;padding:11px;font-size:13px;';
   bMaj.textContent = '🔄 Actualiser les dates';
-  bMaj.addEventListener('click', () => afficherMessengerPermis());
+  bMaj.addEventListener('click', () => {
+    /* Tout est relu, sessions comprises : le cache du bureau est
+       vidé pour que « Actualiser » actualise vraiment. */
+    if(typeof cacheBureau !== 'undefined') cacheBureau = null;
+    afficherMessengerPermis();
+  });
   zone.appendChild(bMaj);
 
   const zGroupes = document.createElement('div');
