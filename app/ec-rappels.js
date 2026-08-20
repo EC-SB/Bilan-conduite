@@ -1,4 +1,4 @@
-/* Déployé le 19/08/2026 à 10:00 — v443 */
+/* Déployé le 20/08/2026 à 15:36 — v452 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -534,6 +534,9 @@ function composerRappel(r){
 
   return appliquerModele(type.contenu || '', {
     jour: r.jour || '',
+    /* « 14h30 » plutôt que « 14:30 » : c'est ainsi qu'on écrit une
+       heure dans un message à un élève. */
+    heure: (r.heure || '').replace(':', 'h'),
     voiture: r.voiture || '',
     emplacement: (empl && empl.texte) || '',
     mentions: mentions,
@@ -550,7 +553,7 @@ function composerRappel(r){
    plus son texte par-dessus au moindre changement de réglage. */
 let texteModifie = false;
 
-let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', voiture:'',
+let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', heure:'', voiture:'',
                     emplacement:'cour', options:[], libre:'' };
 
 const CLE_RAPPEL = 'rappel_reglages';
@@ -706,18 +709,19 @@ async function afficherRappelManuel(){
      plus haut, les redemander ici obligeait à taper deux fois. */
   const lH = document.createElement('label');
   lH.setAttribute('for', 'rapHeure');
-  lH.textContent = '🕐 Heure du cours (facultatif)';
+  lH.textContent = '🕐 Heure du cours';
   zone.appendChild(lH);
 
   const chH = document.createElement('input');
   chH.type = 'time';
   chH.id = 'rapHeure';
+  chH.addEventListener('change', apercuRappel);
   zone.appendChild(chH);
 
   const aideH = document.createElement('div');
   aideH.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
-  aideH.textContent = "Reprise sur l'écran de l'accueil, avec le véhicule et " +
-    'son emplacement saisis au-dessus.';
+  aideH.innerHTML = "Reprise dans le SMS avec la variable <strong>{heure}</strong>, " +
+    "dans « Mes prochains cours » et sur l'écran de l'accueil.";
   zone.appendChild(aideH);
 
   /* La liste des moniteurs, chargée une fois */
@@ -889,6 +893,7 @@ function lireChoixRappel(){
     eleve: $('rappelEleve') ? $('rappelEleve').value : '',
     type: $('rapType') ? $('rapType').value : 'cours',
     jour: $('rapJour') ? $('rapJour').value : '',
+    heure: $('rapHeure') ? $('rapHeure').value : '',
     voiture: $('rapVoiture') ? $('rapVoiture').value.trim() : '',
     emplacement: $('rapEmpl') ? $('rapEmpl').value : 'cour',
     options: options,
@@ -1000,6 +1005,15 @@ async function envoyerRappelManuel(){
   const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
   const numero = saisi || (f && f.telephone) || '';
   if(!numero) return;
+
+  /* L'heure conditionne le SMS, « Mes prochains cours » et l'écran
+     de l'accueil : un rappel sans heure laisse l'élève et le
+     moniteur dans le flou. */
+  if($('rapHeure') && !$('rapHeure').value){
+    direEtatEnvoi("Indique l'heure du cours avant d'envoyer.", true);
+    $('rapHeure').focus();
+    return;
+  }
 
   const texte = texteRappel();
 
@@ -1326,7 +1340,10 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       modeleLabel: (typeof MODELES !== 'undefined' && MODELES[cle])
         ? MODELES[cle].label : '',
       site: (f && f.site) || '',
-      note: note,
+      /* L'heure en tête de note : « Mes prochains cours » et
+         l'écran de l'accueil la lisent au même endroit. */
+      note: (details && details.heure
+              ? '🕐 ' + String(details.heure).replace(':', 'h') + '\n' : '') + note,
       contexte: contexte,
       moniteur: qui
     });
