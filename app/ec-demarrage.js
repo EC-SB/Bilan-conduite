@@ -1,4 +1,4 @@
-/* Déployé le 13/08/2026 à 13:37 — v416 */
+/* Déployé le 20/08/2026 à 16:13 — v454 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -77,7 +77,7 @@ function proposerReprise(){
 function reprendreCours(){
   const s = lireSauvegarde();
   if(!s) return;
-  if(s.modele) $('modele').value = s.modele;
+  if(s.modele){ $('modele').value = s.modele; adapterAuModele(); }
   $('monitorName').value = s.moniteur || $('monitorName').value;
   $('studentName').value = s.eleve || '';
   if(s.site) $('site').value = s.site;
@@ -288,13 +288,68 @@ $('prepTous').addEventListener('change', () => afficherPrepares(false));
 if($('prepQui')) $('prepQui').addEventListener('change', () => afficherPrepares(false));
 if($('prepPour')) remplirPourQui();
 
+/* ============================================================
+   CE QUI SE DICTE, ET CE QUI SE REMPLIT
+
+   Un examen se remplit à la main : le moniteur recopie ce que
+   l'inspecteur a dit, il ne dicte pas son cours. Proposer le micro
+   sur ces bilans-là n'a pas de sens.
+   ============================================================ */
+const MODELES_SANS_VOCAL = ['examen-blanc', 'examen-officiel', 'rdv-post'];
+
+function adapterAuModele(){
+  const cle = $('modele') ? $('modele').value : '';
+  const aLaMain = MODELES_SANS_VOCAL.indexOf(cle) !== -1;
+
+  const bRec = $('recBtn');
+  const zManuel = $('zoneManuel');
+  const statut = $('status');
+  const bManuel = $('manuelBtn');
+
+  /* Une classe, pas un style en ligne : celui-ci se faisait
+     écraser par les passages qui remettent en forme le bouton. */
+  if(bRec){
+    bRec.classList.toggle('sans-vocal', aLaMain);
+    bRec.style.display = '';
+  }
+
+  if(aLaMain){
+    /* Le bouton manuel prend la place du micro et devient
+       l'action principale. */
+    if(zManuel) zManuel.style.display = 'block';
+    if(bManuel){
+      bManuel.className = 'btn btn-primary';
+      bManuel.style.marginTop = '0';
+      bManuel.textContent = '✍️ Remplir le bilan';
+    }
+    if(statut){
+      statut.textContent = 'Ce bilan se remplit à la main : ' +
+        "tu recopies ce que l'inspecteur a noté.";
+    }
+  }else{
+    if(bManuel){
+      bManuel.className = 'btn btn-secondary';
+      bManuel.style.marginTop = '12px';
+      bManuel.textContent = '✍️ Bilan à remplir à la main';
+    }
+    if(statut){
+      statut.textContent = "Appuie pour lancer l'enregistrement en début de cours.";
+    }
+  }
+}
+
+
 /* ---------- Init ---------- */
 reprendreSession();
 $('prepDate').value = todayLocal();
 $('addDate').value = todayLocal();
 creerRaccourcis('raccourcisNoteResult', 'noteResult');
 remplirModeles();
-$('modele').addEventListener('change', () => verifierBoiteModele(derniereBoiteEleve));
+adapterAuModele();
+$('modele').addEventListener('change', () => {
+  verifierBoiteModele(derniereBoiteEleve);
+  adapterAuModele();
+});
 $('lessonDate').value = todayLocal();
 refreshHistory();
 
