@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 15:37 — v452 */
+/* Déployé le 20/08/2026 à 16:04 — v453 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -703,6 +703,11 @@ async function chargerPrepareInterne(cours){
   $('recordView').style.display = 'block';
   $('recBtn').textContent = '🎙️ Démarrer le cours';
   $('status').textContent = 'Cours préparé — tu peux démarrer directement.';
+
+  /* Après ces réécritures, pas avant : le bouton et le statut
+     étaient remis en mode vocal alors que le bilan se remplit à
+     la main. Un examen blanc préparé rouvrait avec le micro. */
+  if(typeof adapterAuModele === 'function') adapterAuModele();
 
   verifierNomEleve('studentName', 'studentInfo', true);
 
