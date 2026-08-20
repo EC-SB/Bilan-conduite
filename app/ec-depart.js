@@ -1,4 +1,4 @@
-/* Déployé le 19/08/2026 à 11:03 — v444 */
+/* Déployé le 20/08/2026 à 12:10 — v451 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -613,6 +613,19 @@ async function terminerCours(){
   /* Le bilan manuel redevient proposé : masqué pendant le cours,
      il doit revenir pour le suivant. */
   if($('zoneManuel')) $('zoneManuel').style.display = 'block';
+
+  /* Le type de bilan repart sur une conduite : garder « examen
+     blanc » d'un cours à l'autre laissait le micro masqué et
+     imposait un bilan manuel au cours suivant. */
+  const selM = $('modele');
+  if(selM && MODELES_SANS_VOCAL.indexOf(selM.value) !== -1){
+    const conduite = [...selM.options].find(o =>
+      o.value === 'conduite-manuelle' || o.value === 'conduite-auto');
+    if(conduite) selM.value = conduite.value;
+  }
+
+  /* Le micro revient s'il avait été masqué */
+  if(typeof adapterAuModele === 'function') adapterAuModele();
   const d = $('genErrorDetail');
   if(d) d.remove();
 }
