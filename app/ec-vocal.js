@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 08:05 — v421 */
+/* Déployé le 20/08/2026 à 15:46 — v452 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1093,18 +1093,22 @@ async function afficherFicheDuCours(){
     cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
     l.appendChild(cb);
 
+    /* Le libellé et la marque dans le même bloc : le libellé
+       occupait toute la ligne et rejetait les émojis à l'autre
+       bout, si loin qu'on ne savait plus à quoi ils se rapportaient. */
     const t = document.createElement('span');
     t.style.cssText = 'flex:1;min-width:0;';
     t.textContent = libelle;
-    l.appendChild(t);
 
     if(deja){
       const m = document.createElement('span');
-      m.style.cssText = 'flex-shrink:0;letter-spacing:1px;';
+      m.style.cssText = 'margin-left:7px;letter-spacing:1px;white-space:nowrap;';
       m.textContent = deja;
       m.title = 'Déjà validée par : ' + deja + '. Coche si tu la refais aujourd\'hui.';
-      l.appendChild(m);
+      t.appendChild(m);
     }
+
+    l.appendChild(t);
 
     d.appendChild(l);
   });
