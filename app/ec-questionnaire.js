@@ -1,4 +1,4 @@
-/* Déployé le 19/08/2026 à 14:46 — v447 */
+/* Déployé le 20/08/2026 à 16:32 — v455 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -330,8 +330,27 @@ function appliquerNoteQuestionnaire(nouvelle){
   sauvegarderLocal(true);
 }
 
+/* Ferme le questionnaire à l'écran, quel qu'il soit. La promesse
+   en attente se résout à « annulé » : le cours abandonné ne doit
+   pas rester suspendu en mémoire. */
+function fermerQuestionnaireOuvert(){
+  document.querySelectorAll('.overlay.show').forEach(f => {
+    if(!f.querySelector('#qLecon')) return;      /* pas un questionnaire */
+    if(typeof f.__annuler === 'function'){
+      try{ f.__annuler(); }catch(e){}
+    }
+    if(f.parentNode) f.parentNode.removeChild(f);
+  });
+  questionnaireOuvert = false;
+}
+
+
 async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
-  if(questionnaireOuvert) return null;   /* double appui ignoré */
+  /* Un questionnaire déjà ouvert appartient au cours précédent : on
+     le ferme au lieu d'ignorer la demande. Ignorer laissait le
+     moniteur devant l'ancien élève en croyant avoir ouvert le
+     nouveau. */
+  if(questionnaireOuvert) fermerQuestionnaireOuvert();
   questionnaireOuvert = true;
   /* Filet : le verrou ne doit jamais rester bloqué */
   const secours = setTimeout(() => { questionnaireOuvert = false; }, 30000);
@@ -969,9 +988,17 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       libNv.style.display = (v === 'annule') ? 'block' : 'none';
     });
 
+    /* Pour qu'une ouverture concurrente puisse fermer celui-ci
+       proprement, au lieu de le retirer du document en laissant la
+       promesse suspendue. */
+    fond.__annuler = () => {
+      questionnaireOuvert = false;
+      resolve(null);
+    };
+
     function fermer(reponses){
       questionnaireOuvert = false;
-      document.body.removeChild(fond);
+      if(fond.parentNode) document.body.removeChild(fond);
       /* L'ANTS et la frise redescendent sur la fiche de l'élève : ce que
          le moniteur corrige ici doit valoir pour les prochains cours,
          sans qu'on ait à ressaisir la même chose au bureau. */
