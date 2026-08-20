@@ -1,4 +1,4 @@
-/* Déployé le 13/08/2026 à 14:18 — v417 */
+/* Déployé le 20/08/2026 à 15:37 — v452 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -276,7 +276,12 @@ async function afficherPrepares(recharger, silencieux){
     const meta = document.createElement('div');
     meta.className = 'meta';
     const nom = document.createElement('strong');
-    nom.textContent = cours.eleve || '(sans nom)';
+    /* L'heure à la suite du nom : c'est ce qu'on cherche en
+       ouvrant la liste, avant même le type de bilan. */
+    const h = heureDeLaPreparation(cours);
+    nom.innerHTML = (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
+      (h ? ' <span style="color:var(--accent-text);font-weight:800;">' +
+           h.replace(':', 'h') + '</span>' : '');
     const sous = document.createElement('span');
     /* Un cours dont la date est passée n'a pas été enregistré :
        sa préparation serait partie. On le signale. */
@@ -636,6 +641,8 @@ async function chargerPrepareInterne(cours){
   prepareEnCours = cours;
 
   if(cours.modele) $('modele').value = cours.modele;
+  /* Le modèle décide de ce qui s'affiche : micro ou saisie */
+  if(typeof adapterAuModele === 'function') adapterAuModele();
   $('studentName').value = cours.eleve || '';
   if(cours.site) $('site').value = cours.site;
   if(cours.date) $('lessonDate').value = cours.date;
@@ -705,6 +712,13 @@ async function chargerPrepareInterne(cours){
   afficherPreparationEleve();
   chargerHistoriqueEleve();
 
+  /* Les deux panneaux dès l'ouverture : la fiche véhicule montre
+     ce qui est déjà acquis, avec la marque du moniteur qui l'a
+     validé. Elle n'apparaissait qu'au lancement du micro, donc
+     seules les cases cochées à la préparation se voyaient. */
+  if(typeof afficherEnteteDuCours === 'function') afficherEnteteDuCours();
+  if(typeof afficherFicheDuCours === 'function') afficherFicheDuCours();
+
   /* Le module de cours est en bas de l'onglet : sans ce défilement,
      le moniteur croit qu'il ne s'est rien passé et descend à la
      main. On attend l'affichage, sinon la position est fausse. */
@@ -731,6 +745,7 @@ async function preparerNouveauCours(){
   };
   $('studentName').value = eleve;
   $('modele').value = modeleCle;
+  if(typeof adapterAuModele === 'function') adapterAuModele();
   $('lessonDate').value = date;
 
   const btnPrep = $('prepBtn');
@@ -745,6 +760,7 @@ async function preparerNouveauCours(){
     btnPrep.textContent = '📝 Préparer les notes';
     $('studentName').value = sauve.eleve;
     $('modele').value = sauve.modele;
+    if(typeof adapterAuModele === 'function') adapterAuModele();
     $('lessonDate').value = sauve.date;
   }
   if(!rep) return;
@@ -1121,6 +1137,17 @@ async function modifierPreparation(cours){
 }
 
 /* Amène l'écran sur le module de cours, prêt à démarrer. */
+/* L'heure d'un cours, écrite dans sa note par le rappel ou par le
+   bureau. Elle vient toujours de la même mention 🕐. */
+function heureDeLaPreparation(cours){
+  const t = String((cours && cours.note) || '');
+  let m = t.match(/^🕐\s*(\d{1,2})[h:](\d{2})/);
+  if(!m) m = t.match(/🕐\s*(\d{1,2})[h:](\d{2})/);
+  if(!m) return '';
+  return String(m[1]).padStart(2, '0') + ':' + m[2];
+}
+
+
 function amenerAuCours(){
   setTimeout(() => {
     /* Le bouton lui-même, centré : viser le haut de la carte
