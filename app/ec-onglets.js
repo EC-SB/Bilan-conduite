@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 08:22 — v457 */
+/* Déployé le 21/08/2026 à 08:57 — v459 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -16,7 +16,7 @@ const SECTIONS_ONGLET = {
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
-  outils: ['ecran', 'bureau_messages', 'textes', 'procedures', 'bilans',
+  outils: ['flotte', 'ecran', 'bureau_messages', 'textes', 'procedures', 'bilans',
            'stats', 'notifs', 'taches', 'memoire', 'historique', 'admin']
 };
 
@@ -137,6 +137,7 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
+           ['flotte',     '🚗 Flotte',                  'flotte'],
            ['ecran',      '📺 Affichage',               'ecran'],
            ['notifs',     '🔔 Alertes',                 'notifs'],
            ['taches',     '✅ Tâches',                  'taches'],
@@ -233,6 +234,7 @@ function reveillerVue(cle){
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
+    flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
     proccorriger: () => afficherProcCorriger(),
     notifs:     () => afficherNotifs(),
@@ -240,6 +242,7 @@ function reveillerVue(cle){
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
     sessions:   () => afficherSessionsPermis(),
+    flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
     proccorriger: () => afficherProcCorriger(),
     notifs:     () => afficherNotifs(),
