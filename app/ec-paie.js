@@ -20,7 +20,12 @@
 let salariesPaie = [];
 let semainesPaie = [];
 let absencesPaie = [];
+let gasoilPaie = [];
 let moisPaie = '';
+
+/* Le maintien de salaire couvre les 45 premiers jours d'arrêt ;
+   IRP Auto prend ensuite le relais. Le compteur le signale. */
+const JOURS_MAINTIEN = 45;
 
 const TYPES_ABSENCE = [
   { cle:'cp',     nom:'🏖️ Congés payés',      court:'CP' },
@@ -46,17 +51,64 @@ function enHeures(h){
    normales du mois, puis sur celles du mois suivant.
    ============================================================ */
 function aTransmettre(normal, majore, report){
-  /* Le report d'un mois précédent creuse le solde d'autant */
-  const maj = (majore || 0) - (report || 0);
-  const nor = normal || 0;
+  let maj = majore || 0;
+  let nor = normal || 0;
+  let dette = report || 0;
 
-  if(maj >= 0) return { normales: arrondiQuart(nor), majorees: arrondiQuart(maj), report: 0 };
+  /* Le report se rattrape d'abord sur les majorées, puis sur les
+     normales : c'est l'ordre voulu, et il évite de rogner des
+     heures normales quand des majorées peuvent absorber. */
+  if(dette > 0){
+    const prisSurMaj = Math.min(dette, Math.max(0, maj));
+    maj -= prisSurMaj;
+    dette -= prisSurMaj;
 
-  const reste = nor + maj;
-  if(reste >= 0) return { normales: arrondiQuart(reste), majorees: 0, report: 0 };
+    if(dette > 0){
+      const prisSurNor = Math.min(dette, Math.max(0, nor));
+      nor -= prisSurNor;
+      dette -= prisSurNor;
+    }
+  }
 
-  /* Rien à payer ce mois-ci : la dette passe au suivant */
-  return { normales: 0, majorees: 0, report: arrondiQuart(-reste) };
+  /* Un solde majoré négatif se compense sur les normales */
+  if(maj < 0){
+    const reste = nor + maj;
+    if(reste >= 0) return { normales: arrondiQuart(reste), majorees: 0,
+                            report: arrondiQuart(dette) };
+    /* Rien à payer : ce qui manque encore passe au mois suivant */
+    return { normales: 0, majorees: 0, report: arrondiQuart(dette - reste) };
+  }
+
+  return { normales: arrondiQuart(nor), majorees: arrondiQuart(maj),
+           report: arrondiQuart(dette) };
+}
+
+
+/* ============================================================
+   LA RÉPARTITION D'UNE SEMAINE
+
+   Un jour de CP ou férié retire son quota du dû. Ce qui est fait
+   au-delà du dû est normal jusqu'à la base hebdomadaire, majoré
+   au-delà. En dessous du dû, le solde normal devient négatif.
+   ============================================================ */
+function repartirSemaine(faites, joursAbsents, base, heuresJour){
+  const b = base || 35;
+  const hj = heuresJour || 8.75;
+  const dues = Math.max(0, b - (joursAbsents || 0) * hj);
+  const f = faites || 0;
+
+  if(f < dues){
+    /* Semaine incomplète : le manque se porte sur le normal */
+    return { dues: dues, normal: arrondiQuart(f - dues), majore: 0 };
+  }
+  if(f <= b){
+    return { dues: dues, normal: arrondiQuart(f - dues), majore: 0 };
+  }
+  return {
+    dues: dues,
+    normal: arrondiQuart(b - dues),
+    majore: arrondiQuart(f - b)
+  };
 }
 
 
@@ -79,6 +131,7 @@ async function afficherPaie(){
     salariesPaie = (d && d.salaries) || [];
     semainesPaie = (d && d.semaines) || [];
     absencesPaie = (d && d.absences) || [];
+    gasoilPaie = (d && d.gasoil) || [];
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -122,12 +175,14 @@ async function afficherPaie(){
   zone.appendChild(bMsg);
 
   const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
+  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;';
   [['➕ Salarié', () => ouvrirSalarie(null)],
-   ['🏖️ Absence', () => ouvrirAbsence(null)]].forEach(([nom, faire]) => {
+   ['🏖️ Absence', () => ouvrirAbsence(null)],
+   ['⛽ Carburant', () => ouvrirGasoil(null)],
+   ['📊 Récapitulatif', () => ouvrirRecap()]].forEach(([nom, faire]) => {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
-    b.style.cssText = 'flex:1;padding:11px;font-size:13px;margin:0;';
+    b.style.cssText = 'flex:1;min-width:110px;padding:11px;font-size:13px;margin:0;';
     b.textContent = nom;
     b.addEventListener('click', faire);
     r.appendChild(b);
@@ -147,6 +202,83 @@ async function afficherPaie(){
   }
 }
 
+
+
+/* ============================================================
+   LES COMPTEURS
+
+   Les jours d'arrêt se comptent en calendaire : c'est ainsi que
+   court le délai de maintien de salaire. Les CP se comptent en
+   jours travaillés.
+   ============================================================ */
+function joursEntre(du, au){
+  if(!du) return 0;
+  const d1 = new Date(du + 'T12:00:00');
+  const d2 = new Date((au || du) + 'T12:00:00');
+  if(isNaN(d1) || isNaN(d2)) return 0;
+  return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
+}
+
+/* Les jours travaillés d'une période, d'après le rythme du salarié */
+function joursTravaillesEntre(du, au, joursSemaine){
+  const total = joursEntre(du, au);
+  const parSemaine = joursSemaine || 4;
+  return Math.round(total * parSemaine / 7);
+}
+
+/* Les compteurs d'un salarié sur l'année en cours */
+function compteursDe(s, an){
+  const annee = an || (moisPaie || '').split('-')[0] ||
+                String(new Date().getFullYear());
+  const debut = annee + '-01-01';
+  const fin = annee + '-12-31';
+
+  let cp = 0, arret = 0, arretEnCours = null;
+
+  absencesPaie.filter(a => a.idSalarie === s.id && a.du).forEach(a => {
+    /* Ce qui touche l'année, borné à elle */
+    const d = a.du < debut ? debut : a.du;
+    const f = (a.au && a.au < fin) ? a.au : (a.au ? fin : fin);
+    if(a.du > fin) return;
+    if(a.au && a.au < debut) return;
+
+    if(a.type === 'cp'){
+      cp += joursTravaillesEntre(d, f, s.joursSemaine);
+    }else if(a.type === 'arret'){
+      /* Un arrêt sans fin court jusqu'à aujourd'hui */
+      const finReelle = a.au ? f : todayLocal();
+      arret += joursEntre(d, finReelle < d ? d : finReelle);
+      if(!a.au) arretEnCours = a.du;
+    }
+  });
+
+  return {
+    annee: annee,
+    cp: cp,
+    arret: arret,
+    arretEnCours: arretEnCours,
+    resteMaintien: Math.max(0, JOURS_MAINTIEN - arret),
+    maintienDepasse: arret > JOURS_MAINTIEN
+  };
+}
+
+
+/* ============================================================
+   LE CARBURANT
+   ============================================================ */
+function gasoilDuMois(idSalarie, mois){
+  const m = mois || moisPaie;
+  return gasoilPaie.filter(g =>
+    g.idSalarie === idSalarie && String(g.date).indexOf(m) === 0);
+}
+
+function totalGasoil(liste){
+  return Math.round(liste.reduce((s, g) => s + (g.montant || 0), 0) * 100) / 100;
+}
+
+function enEuros(v){
+  return String(Math.round((v || 0) * 100) / 100).replace('.', ',') + ' €';
+}
 
 /* Les lundis qui composent le mois affiché */
 function lundisDuMois(mois){
@@ -287,6 +419,9 @@ function tableauPaie(){
 
     /* Ce qui sera transmis, et les absences, sous chaque ligne */
     const abs = absencesDuMois(s.id);
+    const cpt = compteursDe(s);
+    const gaz = totalGasoil(gasoilDuMois(s.id));
+
     const dit = [];
     if(tot.majorees) dit.push(enHeures(tot.majorees) + ' à 25%');
     if(tot.normales) dit.push(enHeures(tot.normales) + ' normales');
@@ -295,6 +430,14 @@ function tableauPaie(){
       const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
       dit.push((ty ? ty.court : 'Absence') + ' ' + periodeTexte(a));
     });
+    if(gaz) dit.push('⛽ ' + enEuros(gaz));
+    if(cpt.cp) dit.push('🏖️ ' + cpt.cp + ' j CP en ' + cpt.annee);
+    if(cpt.arret){
+      dit.push('🤒 ' + cpt.arret + ' j arrêt' +
+        (cpt.maintienDepasse
+          ? ' — maintien dépassé, IRP Auto'
+          : ' — reste ' + cpt.resteMaintien + ' j de maintien'));
+    }
 
     if(dit.length){
       const tr2 = document.createElement('tr');
@@ -355,6 +498,29 @@ function ouvrirSemaine(s, lundi, w){
       String(fin.getDate()).padStart(2, '0') + '/' +
       String(fin.getMonth() + 1).padStart(2, '0') + '</div>' +
 
+    /* L'assistant : plutôt que de calculer de tête, on saisit ce
+       qu'on lit sur le planning et les deux soldes se déduisent. */
+    '<details style="border:1px solid var(--line);border-radius:10px;' +
+      'padding:9px 11px;margin-bottom:12px;">' +
+      '<summary style="cursor:pointer;font-size:12px;font-weight:700;' +
+        'color:var(--accent-text);">🧮 Calculer depuis le planning</summary>' +
+      '<div class="duo" style="margin-top:10px;">' +
+        '<div><label for="swFaites">Heures faites</label>' +
+          '<input type="number" id="swFaites" step="0.25" inputmode="decimal" ' +
+            'placeholder="Ex : 40"></div>' +
+        '<div><label for="swAbs">Jours CP ou fériés</label>' +
+          '<input type="number" id="swAbs" step="1" min="0" value="0"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;line-height:1.5;">' +
+        'Chaque jour retire ' + enHeures(s.heuresJour) + ' du dû. ' +
+        'Jusqu\'à ' + enHeures(s.baseHebdo) + ' les heures sont normales, ' +
+        'au-delà elles passent à 25 %.</div>' +
+      '<div id="swApercu" style="font-size:12px;line-height:1.6;"></div>' +
+      '<button type="button" id="swAppliquer" class="btn btn-secondary" ' +
+        'style="margin-top:8px;padding:9px;font-size:12px;">' +
+        '↓ Reporter dans les cases</button>' +
+    '</details>' +
+
     '<div class="duo">' +
       '<div><label for="swNormal">Normal</label>' +
         '<input type="number" id="swNormal" step="0.25" inputmode="decimal" ' +
@@ -364,8 +530,8 @@ function ouvrirSemaine(s, lundi, w){
           'placeholder="0"></div>' +
     '</div>' +
     '<div style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5;">' +
-      'Les valeurs négatives sont acceptées : une semaine à ' +
-      enHeures(s.baseHebdo - s.heuresJour) + ' donne un solde négatif.</div>' +
+      'Les valeurs négatives sont acceptées : une semaine incomplète ' +
+      'donne un solde négatif.</div>' +
 
     '<label for="swRem">Remarque</label>' +
     '<input type="text" id="swRem" placeholder="Facultatif">';
@@ -375,6 +541,38 @@ function ouvrirSemaine(s, lundi, w){
     boite.querySelector('#swMajore').value = w.majore || '';
     boite.querySelector('#swRem').value = w.remarque || '';
   }
+
+  /* L'assistant de calcul */
+  const zAp = boite.querySelector('#swApercu');
+  const calculer = () => {
+    const f = parseFloat(boite.querySelector('#swFaites').value) || 0;
+    const a = parseInt(boite.querySelector('#swAbs').value, 10) || 0;
+    return repartirSemaine(f, a, s.baseHebdo, s.heuresJour);
+  };
+  const majApercu = () => {
+    const f = parseFloat(boite.querySelector('#swFaites').value) || 0;
+    if(!f){
+      zAp.innerHTML = '<span style="color:var(--muted);">Saisis les heures faites.</span>';
+      return;
+    }
+    const r = calculer();
+    zAp.innerHTML = '<span style="color:var(--muted);">Dû : ' + enHeures(r.dues) +
+      '</span><br>Normal <strong style="color:' +
+      (r.normal < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
+      enHeures(r.normal) + '</strong> · 25% <strong style="color:' +
+      (r.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
+      enHeures(r.majore) + '</strong>';
+  };
+  ['#swFaites', '#swAbs'].forEach(x =>
+    boite.querySelector(x).addEventListener('input', majApercu));
+  majApercu();
+
+  boite.querySelector('#swAppliquer').addEventListener('click', () => {
+    const r = calculer();
+    boite.querySelector('#swNormal').value = r.normal || '';
+    boite.querySelector('#swMajore').value = r.majore || '';
+    showToast('Reporté ✅');
+  });
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -692,6 +890,299 @@ function ouvrirAbsence(a){
   document.body.appendChild(fond);
 }
 
+
+
+/* ============================================================
+   LE CARBURANT
+   ============================================================ */
+
+function ouvrirGasoil(g){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML =
+    '<h3>' + (g ? 'Modifier le remboursement' : '⛽ Remboursement carburant') + '</h3>' +
+    '<label for="gzSal">Moniteur</label>' +
+    '<select id="gzSal">' +
+      salariesPaie.map(s => '<option value="' + s.id + '">' +
+        s.nom.replace(/</g, '&lt;') + '</option>').join('') +
+    '</select>' +
+    '<div class="duo">' +
+      '<div><label for="gzDate">Date</label><input type="date" id="gzDate"></div>' +
+      '<div><label for="gzMontant">Montant</label>' +
+        '<input type="number" id="gzMontant" step="0.01" inputmode="decimal" ' +
+          'placeholder="€"></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="gzVeh">Véhicule</label>' +
+        '<input type="text" id="gzVeh" placeholder="Ex : A3 4"></div>' +
+      '<div><label for="gzLitres">Litres</label>' +
+        '<input type="number" id="gzLitres" step="0.01" inputmode="decimal" ' +
+          'placeholder="Facultatif"></div>' +
+    '</div>' +
+    '<label for="gzRem">Remarque</label>' +
+    '<input type="text" id="gzRem" placeholder="Facultatif">';
+
+  boite.querySelector('#gzDate').value = g ? (g.date || todayLocal()) : todayLocal();
+  if(g){
+    boite.querySelector('#gzSal').value = g.idSalarie;
+    boite.querySelector('#gzMontant').value = g.montant || '';
+    boite.querySelector('#gzVeh').value = g.vehicule || '';
+    boite.querySelector('#gzLitres').value = g.litres || '';
+    boite.querySelector('#gzRem').value = g.remarque || '';
+  }
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  if(g){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer cette ligne ?')) return;
+      try{
+        await appelPrep({ action: 'paieGasoilDelete', id: g.id });
+        document.body.removeChild(fond);
+        showToast('Supprimée ✅');
+        afficherPaie();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    r.appendChild(bSup);
+  }
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = g ? '💾 Enregistrer' : '➕ Ajouter';
+  bOk.addEventListener('click', async () => {
+    const m = parseFloat(boite.querySelector('#gzMontant').value);
+    if(!m){ showToast('Indique le montant.'); return; }
+
+    bOk.disabled = true;
+    try{
+      await appelPrep({
+        action: 'paieGasoilSet',
+        id: g ? g.id : '',
+        idSalarie: boite.querySelector('#gzSal').value,
+        date: boite.querySelector('#gzDate').value,
+        montant: m,
+        vehicule: boite.querySelector('#gzVeh').value.trim(),
+        litres: boite.querySelector('#gzLitres').value || 0,
+        remarque: boite.querySelector('#gzRem').value.trim(),
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      afficherPaie();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+    }
+  });
+  r.appendChild(bOk);
+  boite.appendChild(r);
+
+  /* Les dernières lignes du mois, pour vérifier d'un coup d'œil */
+  const duMois = gasoilPaie.filter(x => String(x.date).indexOf(moisPaie) === 0);
+  if(duMois.length){
+    const z = document.createElement('div');
+    z.style.cssText = 'border-top:1px solid var(--line);margin-top:16px;padding-top:12px;';
+    z.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin-bottom:8px;">Ce mois-ci — ' + enEuros(totalGasoil(duMois)) + '</div>';
+
+    duMois.slice(0, 20).forEach(x => {
+      const s = salariesPaie.find(y => y.id === x.idSalarie);
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;padding:5px 0;font-size:13px;' +
+        'cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);';
+      l.innerHTML = '<span style="flex-shrink:0;width:52px;color:var(--muted);' +
+        'font-size:12px;">' + dateCourte(x.date) + '</span>' +
+        '<span style="flex:1;min-width:0;">' + (s ? s.nom : '?').replace(/</g, '&lt;') +
+        (x.vehicule ? ' <span style="color:var(--muted);font-size:11px;">' +
+          x.vehicule.replace(/</g, '&lt;') + '</span>' : '') + '</span>' +
+        '<strong style="flex-shrink:0;">' + enEuros(x.montant) + '</strong>';
+      l.addEventListener('click', () => {
+        document.body.removeChild(fond);
+        ouvrirGasoil(x);
+      });
+      z.appendChild(l);
+    });
+    boite.appendChild(z);
+  }
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
+/* ============================================================
+   LE RÉCAPITULATIF
+
+   Sur une période choisie : les heures, les jours d'absence et le
+   carburant, par salarié.
+   ============================================================ */
+
+let recapDu = '';
+let recapAu = '';
+
+function ouvrirRecap(){
+  if(!recapDu){
+    const an = (moisPaie || '').split('-')[0] || String(new Date().getFullYear());
+    recapDu = an + '-01-01';
+    recapAu = an + '-12-31';
+  }
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(680px, 96vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>📊 Récapitulatif</h3>' +
+    '<div class="duo">' +
+      '<div><label for="rcDu">Du</label><input type="date" id="rcDu"></div>' +
+      '<div><label for="rcAu">Au</label><input type="date" id="rcAu"></div>' +
+    '</div>';
+
+  boite.querySelector('#rcDu').value = recapDu;
+  boite.querySelector('#rcAu').value = recapAu;
+
+  const zT = document.createElement('div');
+  boite.appendChild(zT);
+
+  const dessiner = () => {
+    recapDu = boite.querySelector('#rcDu').value;
+    recapAu = boite.querySelector('#rcAu').value;
+    zT.innerHTML = '';
+    zT.appendChild(tableauRecap(recapDu, recapAu));
+  };
+  ['#rcDu', '#rcAu'].forEach(x =>
+    boite.querySelector(x).addEventListener('change', dessiner));
+  dessiner();
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bCop = document.createElement('button');
+  bCop.className = 'btn btn-primary';
+  bCop.textContent = '📋 Copier';
+  bCop.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(recapTexte(recapDu, recapAu));
+      showToast('Récapitulatif copié ✅');
+    }catch(e){ showToast('Copie impossible'); }
+  });
+  r.appendChild(bCop);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+/* Les totaux d'un salarié sur une période */
+function totauxPeriode(s, du, au){
+  let normal = 0, majore = 0;
+  semainesPaie.filter(w => w.idSalarie === s.id && w.semaine >= du && w.semaine <= au)
+    .forEach(w => { normal += w.normal || 0; majore += w.majore || 0; });
+
+  let cp = 0, arret = 0;
+  absencesPaie.filter(a => a.idSalarie === s.id && a.du).forEach(a => {
+    if(a.du > au) return;
+    if(a.au && a.au < du) return;
+    const d = a.du < du ? du : a.du;
+    const f = a.au ? (a.au > au ? au : a.au) : au;
+    if(a.type === 'cp') cp += joursTravaillesEntre(d, f, s.joursSemaine);
+    else if(a.type === 'arret') arret += joursEntre(d, f);
+  });
+
+  const gaz = totalGasoil(gasoilPaie.filter(g =>
+    g.idSalarie === s.id && g.date >= du && g.date <= au));
+
+  return { normal: arrondiQuart(normal), majore: arrondiQuart(majore),
+           cp: cp, arret: arret, gasoil: gaz };
+}
+
+function tableauRecap(du, au){
+  const zone = document.createElement('div');
+  zone.style.cssText = 'overflow-x:auto;margin-bottom:12px;';
+
+  const t = document.createElement('table');
+  t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;min-width:520px;';
+
+  t.innerHTML = '<thead><tr>' +
+    ['Salarié', 'Normal', '25%', 'CP', 'Arrêt', 'Carburant']
+      .map((x, i) => '<th style="text-align:' + (i ? 'center' : 'left') +
+        ';padding:7px 8px;font-size:11px;color:var(--accent-text);' +
+        'border-bottom:1px solid var(--line);">' + x + '</th>').join('') +
+    '</tr></thead>';
+
+  const tb = document.createElement('tbody');
+  let tN = 0, tM = 0, tCp = 0, tAr = 0, tG = 0;
+
+  salariesPaie.filter(s => s.actif).forEach(s => {
+    const x = totauxPeriode(s, du, au);
+    tN += x.normal; tM += x.majore; tCp += x.cp; tAr += x.arret; tG += x.gasoil;
+
+    const tr = document.createElement('tr');
+    tr.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);';
+    tr.innerHTML =
+      '<td style="padding:7px 8px;font-weight:700;">' +
+        s.nom.replace(/</g, '&lt;') + '</td>' +
+      ['<span style="color:' + (x.normal < 0 ? 'var(--red)' : 'inherit') + ';">' +
+         (x.normal ? enHeures(x.normal) : '·') + '</span>',
+       '<span style="color:' + (x.majore < 0 ? 'var(--red)' : 'inherit') + ';">' +
+         (x.majore ? enHeures(x.majore) : '·') + '</span>',
+       x.cp ? x.cp + ' j' : '·',
+       x.arret ? x.arret + ' j' : '·',
+       x.gasoil ? enEuros(x.gasoil) : '·']
+        .map(v => '<td style="padding:7px 8px;text-align:center;' +
+          'font-variant-numeric:tabular-nums;">' + v + '</td>').join('');
+    tb.appendChild(tr);
+  });
+
+  const tr = document.createElement('tr');
+  tr.style.cssText = 'border-top:2px solid var(--line);font-weight:800;';
+  tr.innerHTML = '<td style="padding:8px;">Total</td>' +
+    [enHeures(tN), enHeures(tM), tCp + ' j', tAr + ' j', enEuros(tG)]
+      .map(v => '<td style="padding:8px;text-align:center;color:var(--accent-text);' +
+        'font-variant-numeric:tabular-nums;">' + v + '</td>').join('');
+  tb.appendChild(tr);
+
+  t.appendChild(tb);
+  zone.appendChild(t);
+  return zone;
+}
+
+function recapTexte(du, au){
+  const l = ['Récapitulatif du ' + dateCourte(du) + ' au ' + dateCourte(au), ''];
+  salariesPaie.filter(s => s.actif).forEach(s => {
+    const x = totauxPeriode(s, du, au);
+    const b = [];
+    if(x.majore) b.push(enHeures(x.majore) + ' à 25%');
+    if(x.normal) b.push(enHeures(x.normal) + ' normales');
+    if(x.cp) b.push(x.cp + ' j de CP');
+    if(x.arret) b.push(x.arret + ' j d\'arrêt');
+    if(x.gasoil) b.push(enEuros(x.gasoil) + ' de carburant');
+    if(b.length) l.push(s.nom + ' : ' + b.join(' · '));
+  });
+  return l.join('\n');
+}
 
 /* ============================================================
    LE MESSAGE
