@@ -41,8 +41,9 @@ async function afficherProcCorriger(){
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
 
-  [['➕ Procédure reçue', () => ouvrirFicheProc(null)],
-   ['🔑 Codes élèves', () => ouvrirCodesEleves()]].forEach(([nom, faire]) => {
+  [['📌 Demander', () => ouvrirDemande(null)],
+   ['➕ Reçue', () => ouvrirFicheProc(null)],
+   ['🔑 Codes', () => ouvrirCodesEleves()]].forEach(([nom, faire]) => {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
     b.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
@@ -160,6 +161,151 @@ function ligneProc(x){
 }
 
 
+
+
+
+/* ============================================================
+   DEMANDER UNE PROCÉDURE
+
+   Le moniteur désigne ce que l'élève doit réciter. La demande
+   apparaît en tête de son espace, et se solde d'elle-même quand
+   il l'envoie.
+   ============================================================ */
+
+async function ouvrirDemande(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  const procs = (typeof modelesTexte !== 'undefined' ? modelesTexte : [])
+    .filter(m => m.usage === 'procedure')
+    .sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr'));
+
+  boite.innerHTML =
+    '<h3>📌 Demander une procédure</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'Elle apparaîtra en tête de son espace, avec la date. ' +
+      'Elle disparaîtra quand il l\'aura récitée.</div>' +
+
+    '<label for="dmEleve">Élève</label>' +
+    '<input type="text" id="dmEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Son nom">' +
+
+    '<label for="dmProc">Procédure</label>' +
+    '<select id="dmProc">' +
+      (procs.length
+        ? procs.map(p => '<option value="' + String(p.id).replace(/"/g, '&quot;') +
+            '">' + p.nom.replace(/</g, '&lt;') + '</option>').join('')
+        : '<option value="">Aucune procédure enregistrée</option>') +
+    '</select>' +
+
+    '<label for="dmMot">Un mot pour lui (facultatif)</label>' +
+    '<input type="text" id="dmMot" placeholder="Ex : soigne les vérifications">';
+
+  if(!procs.length){
+    boite.innerHTML += '<div style="font-size:12px;color:var(--warn-text);' +
+      'line-height:1.5;margin-bottom:10px;">⚠️ Aucune procédure dans ' +
+      'Outils → Procédures : il n\'y a rien à demander pour l\'instant.</div>';
+  }
+
+  const zListe = document.createElement('div');
+  zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;' +
+    'padding-top:12px;';
+  zListe.innerHTML = '<div class="empty">Lecture…</div>';
+  boite.appendChild(zListe);
+
+  const dessiner = async () => {
+    try{
+      const d = await appelPrep({ action: 'demandesList' });
+      const liste = ((d && d.demandes) || []).filter(x => x.etat !== 'fait');
+
+      zListe.innerHTML = '<div style="font-size:13px;font-weight:700;' +
+        'color:var(--accent-text);margin-bottom:8px;">' +
+        liste.length + ' demande(s) en attente</div>';
+
+      if(!liste.length){
+        zListe.innerHTML += '<div class="empty">Rien en attente.</div>';
+        return;
+      }
+
+      liste.forEach(x => {
+        const l = document.createElement('div');
+        l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;' +
+          'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;';
+        l.innerHTML = '<span style="flex:1;min-width:0;">' +
+          '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong> — ' +
+          x.procedure.replace(/</g, '&lt;') +
+          '<div style="font-size:11px;color:var(--muted);">' +
+            'demandé le ' + (x.demandeLe || '').replace(/</g, '&lt;') +
+            (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') +
+          '</div></span>';
+
+        const bSup = document.createElement('button');
+        bSup.className = 'btn btn-secondary';
+        bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;color:var(--red);border-color:var(--red);';
+        bSup.textContent = '🗑️';
+        bSup.addEventListener('click', async () => {
+          try{
+            await appelPrep({ action: 'demandeDelete', id: x.id });
+            showToast('Retirée ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bSup);
+        zListe.appendChild(l);
+      });
+    }catch(e){
+      zListe.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+    }
+  };
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '📌 Demander';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#dmEleve').value.trim();
+    const sel = boite.querySelector('#dmProc');
+    if(!nom){ showToast('Indique l\'élève.'); return; }
+    if(!sel.value){ showToast('Choisis une procédure.'); return; }
+
+    bOk.disabled = true;
+    try{
+      await appelPrep({
+        action: 'demandeSet',
+        eleve: nom,
+        procedure: sel.options[sel.selectedIndex].textContent,
+        idProcedure: sel.value,
+        consigne: boite.querySelector('#dmMot').value.trim(),
+        par: ACCES.moniteur || ''
+      });
+      showToast('Demandée ✅');
+      boite.querySelector('#dmEleve').value = '';
+      boite.querySelector('#dmMot').value = '';
+      dessiner();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    bOk.disabled = false;
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#dmEleve').focus(), 100);
+  dessiner();
+}
 
 
 /* ============================================================
