@@ -1018,6 +1018,9 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
     if(typeof chargerProcEnFond === 'function'){
       setTimeout(() => chargerProcEnFond(), 3200);
     }
+    if(typeof chargerFlotteEnFond === 'function'){
+      setTimeout(() => chargerFlotteEnFond(), 3800);
+    }
   }
   if(typeof compterTachesEnFond === 'function'){
     setTimeout(() => compterTachesEnFond(), 3200);
