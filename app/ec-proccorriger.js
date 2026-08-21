@@ -226,7 +226,94 @@ function blocInterrupteur(){
   });
   d.appendChild(b);
 
+  const enveloppe = document.createElement('div');
+  enveloppe.appendChild(d);
+  enveloppe.appendChild(blocMailNotification());
+  return enveloppe;
+}
+
+
+/* Où partent les alertes de correction */
+function blocMailNotification(){
+  const actuelle = reglagesProc.mailNotification || 'evolutionconduites@gmail.com';
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px;margin-bottom:12px;display:flex;gap:11px;align-items:center;';
+
+  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
+    '<strong>✉️ Alertes envoyées à</strong>' +
+    '<div style="font-size:12px;color:var(--accent-text);margin-top:2px;' +
+      'word-break:break-all;">' + actuelle.replace(/</g, '&lt;') + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      'Un mail part à chaque récitation reçue.</div></span>';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:10px 13px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  b.textContent = '✏️';
+  b.title = 'Changer l\'adresse';
+  b.addEventListener('click', () => ouvrirMailNotification(actuelle));
+  d.appendChild(b);
+
   return d;
+}
+
+function ouvrirMailNotification(actuelle){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(440px, 94vw)';
+
+  boite.innerHTML = '<h3>✉️ Adresse des alertes</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Un mail part à cette adresse dès qu\'un élève ' +
+      'envoie une récitation, avec son texte.</div>' +
+    '<label for="mnMail">Adresse</label>' +
+    '<input type="email" id="mnMail" inputmode="email" autocomplete="off">';
+
+  boite.querySelector('#mnMail').value = actuelle;
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  bOk.addEventListener('click', async () => {
+    const v = boite.querySelector('#mnMail').value.trim();
+    if(v && v.indexOf('@') === -1){
+      showToast('Cette adresse ne ressemble pas à un mail.');
+      return;
+    }
+    bOk.disabled = true;
+    try{
+      await appelPrep({
+        action: 'reglageSet', cle: 'mailNotification',
+        valeur: v, par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Adresse enregistrée ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#mnMail').focus(), 100);
 }
 
 
@@ -672,6 +759,36 @@ async function ouvrirRecitation(r){
   });
   boite.appendChild(bIA);
 
+  /* Comment la lui transmettre, en plus de son espace */
+  const zEnvoi = document.createElement('div');
+  zEnvoi.style.cssText = 'border-top:1px solid var(--line);margin-top:6px;' +
+    'padding-top:12px;margin-bottom:6px;';
+  zEnvoi.innerHTML = '<div style="font-size:12px;color:var(--muted);' +
+    'margin-bottom:8px;line-height:1.5;">En plus de son espace :</div>';
+
+  const faire = (id, texte, coche) => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 8px;' +
+      'font-weight:400;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = id;
+    cb.checked = coche;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    l.appendChild(cb);
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = texte;
+    l.appendChild(t);
+    zEnvoi.appendChild(l);
+    return cb;
+  };
+
+  const envoyerMail = faire('rcMail', '✉️ Lui envoyer par mail', true);
+  const parMessenger = faire('rcMess', '💬 Préparer le message Messenger', false);
+  boite.appendChild(zEnvoi);
+
   const rw = document.createElement('div');
   rw.className = 'btn-row';
 
@@ -705,14 +822,34 @@ async function ouvrirRecitation(r){
 
     bOk.disabled = true;
     try{
-      await appelPrep({
+      const rep = await appelPrep({
         action: 'recitationSet', id: r.id,
         texte: boite.querySelector('#rcTexte').value,
         correction: texte, etat: 'valide',
+        /* De quoi composer le mail, que le classeur n'a pas à
+           retrouver lui-même. */
+        eleveNom: r.eleve || '',
+        procedureNom: r.procedure || '',
+        mail: envoyerMail.checked ? 'oui' : 'non',
         par: ACCES.moniteur || ''
       });
+
       document.body.removeChild(fond);
-      showToast('Validée — l\'élève peut la voir ✅');
+
+      const m = rep && rep.mail;
+      if(envoyerMail.checked && m && !m.envoye){
+        showToast('Validée ✅ — mail non envoyé : ' + (m.motif || ''));
+      }else if(envoyerMail.checked && m && m.envoye){
+        showToast('Validée et envoyée à ' + m.email + ' ✅');
+      }else{
+        showToast('Validée — l\'élève peut la voir ✅');
+      }
+
+      /* Messenger : on prépare le message, l'envoi reste manuel */
+      if(parMessenger.checked){
+        ouvrirMessengerCorrection(r, texte, boite.querySelector('#rcTexte').value);
+      }
+
       afficherProcCorriger();
     }catch(e){
       showToast('Impossible : ' + e.message);
@@ -727,6 +864,74 @@ async function ouvrirRecitation(r){
 
   /* Rien encore : on propose la correction sans attendre */
   if(!r.correction) setTimeout(() => bIA.click(), 200);
+}
+
+
+
+/* Le message Messenger, prêt à coller */
+async function ouvrirMessengerCorrection(r, correction, dit){
+  let messenger = '';
+  try{
+    const d = await appelPrep({ action: 'contactEleve', eleve: r.eleve });
+    messenger = ((d && d.contact) || {}).messenger || '';
+  }catch(e){}
+
+  const texte =
+    'Bonjour ' + String(r.eleve).split(' ')[0] + ' 👋\n\n' +
+    'Voici la correction de ta procédure « ' + r.procedure + ' » :\n\n' +
+    correction + '\n\n' +
+    'Bon entraînement !';
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>💬 Message pour ' +
+    (r.eleve || '').replace(/</g, '&lt;') + '</h3>' +
+    (messenger
+      ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Son ' +
+        'Messenger : <strong>' + messenger.replace(/</g, '&lt;') + '</strong></div>'
+      : '<div style="font-size:12px;color:var(--warn-text);margin-bottom:10px;' +
+        'line-height:1.5;">Aucun Messenger dans sa fiche : copie le message ' +
+        'et retrouve-le à la main.</div>');
+
+  const z = document.createElement('textarea');
+  z.rows = 12;
+  z.value = texte;
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
+  boite.appendChild(z);
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bF);
+
+  const bC = document.createElement('button');
+  bC.className = 'btn btn-primary';
+  bC.textContent = '📋 Copier';
+  bC.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(z.value);
+      showToast('Message copié ✅');
+      window.open('https://www.messenger.com/', '_blank');
+    }catch(e){
+      z.focus(); z.select();
+      showToast('Sélectionné : Ctrl+C pour copier');
+    }
+  });
+  rw.appendChild(bC);
+
+  boite.appendChild(rw);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 
