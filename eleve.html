@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Mes procédures — Évolution Conduites</title>
+
+<!-- =========================================================
+     ESPACE ÉLÈVE — Évolution Conduites
+
+     L'élève récite une procédure, à la voix ou par écrit. Un
+     moniteur la corrige avant qu'il en voie le retour.
+
+     Cette page ne donne accès qu'aux envois de l'élève
+     connecté : ni liste d'élèves, ni bilans, ni réglages.
+     ========================================================= -->
+
+<style>
+  :root{
+    --navy-deep:#0F1620; --navy:#18222E; --line:#2A3644;
+    --cream:#F2EFE6; --soft:#C9D1DA; --muted:#7E8B99;
+    --orange:#C9A227; --accent-text:#D9BC4A;
+    --red:#C4553D; --vert:#7A9A3E;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{
+    margin:0; padding:16px; background:var(--navy-deep); color:var(--cream);
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size:16px; line-height:1.5;
+    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  }
+  .boite{ max-width:600px; margin:0 auto; }
+
+  h1{ font-size:22px; margin:0 0 4px; }
+  .sous{ font-size:13px; color:var(--muted); margin-bottom:22px; }
+
+  .carte{
+    background:var(--navy); border:1px solid var(--line);
+    border-radius:14px; padding:16px; margin-bottom:14px;
+  }
+
+  label{
+    display:block; font-size:12px; text-transform:uppercase;
+    letter-spacing:.04em; color:var(--muted); margin:0 0 6px;
+  }
+  input, select, textarea{
+    width:100%; background:var(--navy-deep); border:1px solid var(--line);
+    color:var(--cream); padding:12px; border-radius:10px;
+    font-size:16px; font-family:inherit; margin-bottom:14px;
+  }
+  textarea{ resize:vertical; line-height:1.6; }
+  input:focus, select:focus, textarea:focus{
+    outline:none; border-color:var(--orange);
+  }
+
+  button{
+    width:100%; padding:14px; border-radius:12px; border:1px solid transparent;
+    font-size:16px; font-weight:700; cursor:pointer; font-family:inherit;
+    margin-bottom:10px;
+  }
+  .principal{ background:var(--orange); color:var(--navy-deep); }
+  .second{
+    background:transparent; border-color:var(--line); color:var(--soft);
+  }
+  button:disabled{ opacity:.5; cursor:default; }
+
+  .micro{
+    background:var(--orange); color:var(--navy-deep);
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    font-size:17px; padding:18px;
+  }
+  .micro.actif{ background:#1F5C99; border-color:#1F5C99; color:#fff; }
+
+  .message{
+    font-size:14px; padding:11px 13px; border-radius:10px; margin-bottom:14px;
+    line-height:1.55;
+  }
+  .message.erreur{ background:rgba(196,85,61,.14); color:#E8A594; }
+  .message.ok{ background:rgba(122,154,62,.14); color:#B8D183; }
+  .message.attente{ background:rgba(201,162,39,.12); color:var(--accent-text); }
+
+  .envoi{
+    border:1px solid var(--line); border-radius:12px;
+    padding:13px; margin-bottom:10px;
+  }
+  .envoi .quand{ font-size:11px; color:var(--muted); }
+  .envoi .titre{ font-weight:700; margin:2px 0 6px; }
+  .envoi .dit{
+    font-size:14px; color:var(--soft); line-height:1.6;
+    white-space:pre-wrap; margin-bottom:10px;
+  }
+  .envoi .retour{
+    font-size:14px; line-height:1.65; white-space:pre-wrap;
+    border-top:1px solid var(--line); padding-top:10px;
+  }
+
+  .cache{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="boite">
+
+  <!-- ===== CONNEXION ===== -->
+  <div id="vueConnexion">
+    <h1>Mes procédures</h1>
+    <div class="sous">Évolution Conduites — récite ta procédure, un moniteur te corrige.</div>
+
+    <div class="carte">
+      <label for="chNom">Ton prénom et ton nom</label>
+      <input type="text" id="chNom" autocomplete="name">
+
+      <label for="chCode">Ton code</label>
+      <input type="password" id="chCode" inputmode="numeric" maxlength="6"
+             autocomplete="off"
+             style="text-align:center;letter-spacing:.4em;font-size:22px;">
+
+      <button class="principal" id="btConnexion">Entrer</button>
+      <div id="msgConnexion"></div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;">
+        Ton code t'est donné par le bureau. Écris ton nom comme il figure
+        sur ton dossier.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RÉCITER ===== -->
+  <div id="vueEleve" class="cache">
+    <h1 id="bonjour">Bonjour</h1>
+    <div class="sous">Choisis une procédure, puis récite-la ou écris-la.</div>
+
+    <div class="carte">
+      <label for="chProc">La procédure</label>
+      <select id="chProc"></select>
+
+      <button class="micro" id="btMicro">🎙️ Réciter à voix haute</button>
+      <div id="msgMicro" style="font-size:12px;color:var(--muted);
+           margin:-4px 0 12px;line-height:1.5;"></div>
+
+      <label for="chTexte">Ce que tu dis</label>
+      <textarea id="chTexte" rows="7"
+        placeholder="Parle, ou écris directement ici."></textarea>
+
+      <button class="principal" id="btEnvoyer">📨 Envoyer pour correction</button>
+      <div id="msgEnvoi"></div>
+    </div>
+
+    <div class="carte">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <strong style="flex:1;min-width:0;font-size:15px;">Mes envois</strong>
+        <button class="second" id="btMaj"
+          style="width:auto;padding:8px 12px;font-size:13px;margin:0;">↻</button>
+      </div>
+      <div id="mesEnvois"></div>
+    </div>
+
+    <button class="second" id="btSortir">Se déconnecter</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var RELAIS = 'https://bilan-proxy.evolutionconduites.workers.dev';
+
+  var moi = { nom: '', code: '' };
+  var procedures = [];
+
+  function $(id){ return document.getElementById(id); }
+  function echapper(t){
+    return String(t == null ? '' : t).replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function dire(ou, texte, genre){
+    var z = $(ou);
+    if(!z){ return; }
+    if(!texte){ z.innerHTML = ''; return; }
+    z.innerHTML = '<div class="message ' + (genre || '') + '">' +
+                  echapper(texte) + '</div>';
+  }
+
+  function appeler(corps){
+    return fetch(RELAIS + '/eleve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corps)
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.error){ throw new Error(d.error); }
+        if(d && d.status === 'error'){ throw new Error(d.message || 'Refusé'); }
+        return d;
+      });
+  }
+
+
+  /* ===== CONNEXION ===== */
+
+  function connecter(){
+    var nom = $('chNom').value.trim();
+    var code = $('chCode').value.trim();
+
+    if(!nom){ dire('msgConnexion', 'Écris ton prénom et ton nom.', 'erreur'); return; }
+    if(code.length < 4){ dire('msgConnexion', 'Ton code fait six chiffres.', 'erreur'); return; }
+
+    $('btConnexion').disabled = true;
+    dire('msgConnexion', 'Vérification…', 'attente');
+
+    appeler({ action: 'eleveConnexion', eleve: nom, code: code })
+      .then(function(d){
+        moi.nom = d.eleve || nom;
+        moi.code = code;
+        procedures = d.procedures || [];
+
+        /* Le code reste sur l'appareil : le retaper à chaque fois
+           découragerait de s'entraîner. */
+        try{
+          localStorage.setItem('ec_eleve',
+            JSON.stringify({ nom: moi.nom, code: code }));
+        }catch(e){}
+
+        entrer();
+      })
+      .catch(function(e){
+        dire('msgConnexion', e.message || 'Connexion impossible.', 'erreur');
+      })
+      .then(function(){ $('btConnexion').disabled = false; });
+  }
+
+  function entrer(){
+    $('vueConnexion').classList.add('cache');
+    $('vueEleve').classList.remove('cache');
+    $('bonjour').textContent = 'Bonjour ' + (moi.nom.split(' ')[0] || '');
+
+    $('chProc').innerHTML = procedures.length
+      ? procedures.map(function(p){
+          return '<option value="' + echapper(p.id) + '">' +
+                 echapper(p.nom) + '</option>';
+        }).join('')
+      : '<option value="">Aucune procédure disponible</option>';
+
+    chargerEnvois();
+  }
+
+  function sortir(){
+    try{ localStorage.removeItem('ec_eleve'); }catch(e){}
+    moi = { nom: '', code: '' };
+    $('chCode').value = '';
+    $('vueEleve').classList.add('cache');
+    $('vueConnexion').classList.remove('cache');
+    dire('msgConnexion', '');
+  }
+
+
+  /* ===== LE MICRO ===== */
+
+  var reco = null;
+  var enEcoute = false;
+  var acquis = '';
+
+  function demarrerMicro(){
+    var Moteur = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!Moteur){
+      dire('msgMicro', '');
+      $('msgMicro').textContent = 'Ton navigateur ne sait pas écouter. ' +
+        'Écris ta procédure dans la case ci-dessous.';
+      return;
+    }
+
+    reco = new Moteur();
+    reco.lang = 'fr-FR';
+    reco.continuous = true;
+    reco.interimResults = true;
+
+    acquis = $('chTexte').value;
+
+    reco.onresult = function(ev){
+      var enCours = '';
+      for(var i = ev.resultIndex; i < ev.results.length; i++){
+        var bout = ev.results[i][0].transcript;
+        if(ev.results[i].isFinal){ acquis += bout + ' '; }
+        else { enCours += bout; }
+      }
+      $('chTexte').value = acquis + enCours;
+    };
+
+    reco.onerror = function(ev){
+      $('msgMicro').textContent = (ev.error === 'not-allowed')
+        ? "Le micro est refusé. Autorise-le, ou écris ta procédure."
+        : 'Le micro s\'est arrêté. Tu peux reprendre ou écrire.';
+      arreterMicro();
+    };
+
+    /* Le navigateur coupe seul après un silence : on relance tant
+       que l'élève n'a pas appuyé sur Terminer. */
+    reco.onend = function(){
+      if(enEcoute){
+        try{ reco.start(); }catch(e){ arreterMicro(); }
+      }
+    };
+
+    try{
+      reco.start();
+      enEcoute = true;
+      $('btMicro').classList.add('actif');
+      $('btMicro').textContent = '⏹️ Terminer';
+      $('msgMicro').textContent = 'Je t\'écoute… parle normalement.';
+    }catch(e){
+      $('msgMicro').textContent = 'Le micro n\'a pas démarré.';
+    }
+  }
+
+  function arreterMicro(){
+    enEcoute = false;
+    if(reco){ try{ reco.stop(); }catch(e){} }
+    $('btMicro').classList.remove('actif');
+    $('btMicro').textContent = '🎙️ Réciter à voix haute';
+  }
+
+
+  /* ===== ENVOYER ===== */
+
+  function envoyer(){
+    var texte = $('chTexte').value.trim();
+    var sel = $('chProc');
+    var nom = sel.options[sel.selectedIndex]
+                ? sel.options[sel.selectedIndex].textContent : '';
+
+    if(!texte){
+      dire('msgEnvoi', 'Récite ou écris ta procédure avant d\'envoyer.', 'erreur');
+      return;
+    }
+    if(texte.length < 20){
+      dire('msgEnvoi', 'C\'est un peu court : détaille ta procédure.', 'erreur');
+      return;
+    }
+
+    arreterMicro();
+    $('btEnvoyer').disabled = true;
+    dire('msgEnvoi', 'Envoi…', 'attente');
+
+    appeler({
+      action: 'eleveEnvoyer',
+      eleve: moi.nom, code: moi.code,
+      procedure: nom, texte: texte
+    })
+      .then(function(){
+        dire('msgEnvoi', 'C\'est envoyé. Un moniteur te répondra bientôt : ' +
+          'reviens voir dans « Mes envois ».', 'ok');
+        $('chTexte').value = '';
+        acquis = '';
+        chargerEnvois();
+      })
+      .catch(function(e){
+        dire('msgEnvoi', e.message || 'Envoi impossible.', 'erreur');
+      })
+      .then(function(){ $('btEnvoyer').disabled = false; });
+  }
+
+
+  /* ===== MES ENVOIS ===== */
+
+  function chargerEnvois(){
+    var z = $('mesEnvois');
+    z.innerHTML = '<div style="font-size:13px;color:var(--muted);">Chargement…</div>';
+
+    appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        var liste = d.recitations || [];
+        if(!liste.length){
+          z.innerHTML = '<div style="font-size:13px;color:var(--muted);' +
+            'line-height:1.5;">Rien d\'envoyé pour l\'instant.<br>' +
+            'Ta première procédure t\'attend au-dessus.</div>';
+          return;
+        }
+
+        z.innerHTML = liste.map(function(r){
+          var valide = (r.etat === 'valide');
+          return '<div class="envoi">' +
+            '<div class="quand">' + echapper(r.envoyeLe) + '</div>' +
+            '<div class="titre">' + echapper(r.procedure) + '</div>' +
+            '<div class="dit">' + echapper(r.texte) + '</div>' +
+            (valide
+              ? '<div class="retour">' + echapper(r.correction) + '</div>'
+              : '<div class="retour" style="color:var(--accent-text);">' +
+                '⏳ En attente de correction par un moniteur.</div>') +
+          '</div>';
+        }).join('');
+      })
+      .catch(function(e){
+        z.innerHTML = '<div class="message erreur">' +
+          echapper(e.message || 'Lecture impossible.') + '</div>';
+      });
+  }
+
+
+  /* ===== DÉPART ===== */
+
+  $('btConnexion').addEventListener('click', connecter);
+  $('chCode').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ connecter(); }
+  });
+  $('chNom').addEventListener('keydown', function(e){
+    if(e.key === 'Enter'){ e.preventDefault(); $('chCode').focus(); }
+  });
+
+  $('btMicro').addEventListener('click', function(){
+    if(enEcoute){ arreterMicro(); } else { demarrerMicro(); }
+  });
+  $('btEnvoyer').addEventListener('click', envoyer);
+  $('btMaj').addEventListener('click', chargerEnvois);
+  $('btSortir').addEventListener('click', sortir);
+
+  /* Déjà venu sur cet appareil : on reprend sans rien redemander */
+  try{
+    var garde = JSON.parse(localStorage.getItem('ec_eleve') || 'null');
+    if(garde && garde.nom && garde.code){
+      moi.nom = garde.nom;
+      moi.code = garde.code;
+      appeler({ action: 'eleveConnexion', eleve: moi.nom, code: moi.code })
+        .then(function(d){
+          procedures = d.procedures || [];
+          entrer();
+        })
+        .catch(function(){ sortir(); });
+    }
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
