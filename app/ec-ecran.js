@@ -269,9 +269,34 @@ function lignePlanningEcran(c, liste, z){
     '<option value="">— où —</option>' +
     '<option value="devant">🛣️ Devant</option>' +
     '<option value="cour">🅿️ Cour intérieure</option>' +
+    '<option value="bureau">🏢 Bureau</option>' +
+    '<option value="tablettes">📱 Salle des tablettes</option>' +
+    '<option value="cours">📚 Salle de cours</option>' +
     '<option value="simulateur">🖥️ Simulateur</option>';
   lieu.value = c.lieu || '';
-  lieu.addEventListener('change', () => { c.lieu = lieu.value; enregistrerLigne(c); });
+
+  /* Une séance en salle n'a pas de véhicule : le champ s'efface
+     plutôt que de laisser croire qu'il faut le remplir. */
+  const SANS_VEHICULE = ['bureau', 'tablettes', 'cours'];
+  const majSelonLieu = () => {
+    const enSalle = SANS_VEHICULE.indexOf(lieu.value) !== -1;
+    modele.style.display = enSalle ? 'none' : '';
+    num.style.display = enSalle ? 'none' : '';
+  };
+
+  lieu.addEventListener('change', () => {
+    c.lieu = lieu.value;
+    /* Le véhicule d'une séance qui n'en a plus besoin s'efface */
+    if(SANS_VEHICULE.indexOf(lieu.value) !== -1){
+      c.vehicule = '';
+      modele.value = '';
+      num.value = '';
+    }
+    majSelonLieu();
+    enregistrerLigne(c);
+  });
+  majSelonLieu();
+
   h2.appendChild(lieu);
 
   /* Toute ligne se retire de l'écran. Celle ajoutée à la main est
@@ -392,6 +417,9 @@ function ouvrirLigneManuelle(z){
         '<option value="">— non précisé —</option>' +
         '<option value="devant">🛣️ Devant</option>' +
         '<option value="cour">🅿️ Cour intérieure</option>' +
+        '<option value="bureau">🏢 Bureau</option>' +
+        '<option value="tablettes">📱 Salle des tablettes</option>' +
+        '<option value="cours">📚 Salle de cours</option>' +
         '<option value="simulateur">🖥️ Simulateur</option>' +
       '</select></div>' +
     '</div>';
