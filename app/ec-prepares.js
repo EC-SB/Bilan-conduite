@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 10:04 — v463 */
+/* Déployé le 21/08/2026 à 10:55 — v464 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -36,6 +36,11 @@ const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       'smsLog', 'eleveRetirer', 'consigneEffacerEleve'];
 
 async function appelPrep(corps){
+  /* Se servir de l'application repousse le délai d'inactivité :
+     sans cela, la session mourrait 48 h après la connexion même
+     en travaillant dessus. */
+  if(typeof rafraichirSession === 'function') rafraichirSession();
+
   const action = (corps && corps.action) || '';
   const delai = ACTIONS_LOURDES[action] || 12000;
   const essais = (SANS_REPRISE.indexOf(action) !== -1) ? 0 : 2;
