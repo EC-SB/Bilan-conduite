@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 08:13 — v456 */
+/* Déployé le 21/08/2026 à 08:30 — v458 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -476,6 +476,11 @@ const JOURS_RAPPEL = ['𝗗𝗘𝗠𝗔𝗜𝗡', "𝗔𝗨𝗝𝗢𝗨𝗥𝗗'
 const EMPLACEMENTS = [
   { cle:'cour', texte:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿 𝗶𝗻𝘁𝗲́𝗿𝗶𝗲𝘂𝗿𝗲 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
   { cle:'rue',  texte:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
+  /* Une séance qui ne commence pas dans une voiture : le message
+     dit où se présenter, pas où est le véhicule. */
+  { cle:'bureau',    texte:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗮𝘂 𝗯𝘂𝗿𝗲𝗮𝘂 𝗱𝗲 𝗹\'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !' },
+  { cle:'tablettes', texte:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲𝘀 𝘁𝗮𝗯𝗹𝗲𝘁𝘁𝗲𝘀 !' },
+  { cle:'cours',     texte:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲 𝗰𝗼𝘂𝗿𝘀 !' },
   { cle:'',     texte:'' }
 ];
 
@@ -693,6 +698,9 @@ async function afficherRappelManuel(){
     '<div><label for="rapEmpl">Où est la voiture</label><select id="rapEmpl">' +
       '<option value="cour">Cour intérieure</option>' +
       '<option value="rue">Rue, le long du trottoir</option>' +
+      '<option value="bureau">Au bureau</option>' +
+      '<option value="tablettes">Salle des tablettes</option>' +
+      '<option value="cours">Salle de cours</option>' +
       '<option value="">Ne pas préciser</option>' +
     '</select></div>';
   zone.appendChild(grille2);
