@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 12:10 — v451 */
+/* Déployé le 21/08/2026 à 10:55 — v464 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1025,12 +1025,46 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   if(typeof compterTachesEnFond === 'function'){
     setTimeout(() => compterTachesEnFond(), 3200);
   }
+
+  /* Une application laissée ouverte doit se verrouiller aussi :
+     vérifier au chargement ne suffit pas si personne ne recharge. */
+  lancerSurveillanceSession();
+}
+
+
+let minuteurSession = null;
+
+function lancerSurveillanceSession(){
+  clearInterval(minuteurSession);
+  minuteurSession = setInterval(() => {
+    if(!ACCES || !ACCES.code) return;
+    if(lireSession()) return;
+
+    /* La session vient d'expirer : on ferme proprement */
+    clearInterval(minuteurSession);
+    const pourquoi = (typeof raisonDeconnexion !== 'undefined' &&
+                      raisonDeconnexion === 'hebdo')
+      ? 'Déconnexion du samedi soir.'
+      : 'Déconnecté après 48 h sans activité.';
+    verrouiller(pourquoi, false);
+  }, 300000);            /* toutes les 5 minutes */
 }
 
 /* Reprend la session mémorisée, après vérification du code */
 async function reprendreSession(){
   const s = lireSession();
-  if(!s) return false;
+  if(!s){
+    /* Dire pourquoi : sans explication, on croit à une panne. */
+    const msg = $('codeMsg');
+    if(msg && typeof raisonDeconnexion !== 'undefined' && raisonDeconnexion){
+      msg.style.color = 'var(--muted)';
+      msg.textContent = (raisonDeconnexion === 'hebdo')
+        ? 'Déconnexion du samedi soir — reconnecte-toi.'
+        : 'Déconnecté après 48 h sans activité.';
+      raisonDeconnexion = '';
+    }
+    return false;
+  }
   try{
     const r = await fetchFiable(CONFIG.AUTH_URL, {
       method: 'POST',
