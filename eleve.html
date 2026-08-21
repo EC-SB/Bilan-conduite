@@ -243,6 +243,11 @@
     </div>
 
     <div class="card">
+      <div id="zoneLangue" style="display:none;">
+        <label for="chLangue">🌍 Je récite en</label>
+        <select id="chLangue"></select>
+      </div>
+
       <label for="chProc">La procédure</label>
       <select id="chProc"></select>
 
@@ -286,6 +291,8 @@
   var moi = { nom: '', code: '' };
   var procedures = [];
   var demandes = [];
+  var maLangue = '';        /* celle que le bureau m'a autorisée */
+  var languesDispo = [];
 
   function $(id){ return document.getElementById(id); }
   function echapper(t){
@@ -333,6 +340,8 @@
         moi.code = code;
         procedures = d.procedures || [];
         demandes = d.demandes || [];
+        maLangue = d.langue || '';
+        languesDispo = d.langues || [];
 
         /* Le code reste sur l'appareil : le retaper à chaque fois
            découragerait de s'entraîner. */
@@ -361,8 +370,31 @@
         }).join('')
       : '<option value="">Aucune procédure disponible</option>';
 
+    montrerLangue();
     montrerDemandes();
     chargerEnvois();
+  }
+
+
+  /* Le choix de la langue, seulement si le bureau l'a ouverte */
+  function montrerLangue(){
+    var z = $('zoneLangue');
+    var sel = $('chLangue');
+
+    if(!maLangue){
+      z.style.display = 'none';
+      return;
+    }
+
+    var nom = maLangue;
+    for(var i = 0; i < languesDispo.length; i++){
+      if(languesDispo[i].code === maLangue){ nom = languesDispo[i].nom; break; }
+    }
+
+    sel.innerHTML =
+      '<option value="">🇫🇷 Français</option>' +
+      '<option value="' + maLangue + '">' + echapper(nom) + '</option>';
+    z.style.display = 'block';
   }
 
 
@@ -440,7 +472,8 @@
     }
 
     reco = new Moteur();
-    reco.lang = 'fr-FR';
+    var sel = $('chLangue');
+    reco.lang = (sel && sel.value) ? sel.value : 'fr-FR';
     reco.continuous = true;
     reco.interimResults = true;
 
@@ -476,7 +509,10 @@
       enEcoute = true;
       $('btMicro').classList.add('recording');
       $('btMicro').textContent = '⏹️ Terminer';
-      $('msgMicro').textContent = 'Je t\'écoute… parle normalement.';
+      var s2 = $('chLangue');
+      $('msgMicro').textContent = (s2 && s2.value)
+        ? 'Je t\'écoute… parle dans ta langue.'
+        : 'Je t\'écoute… parle normalement.';
     }catch(e){
       $('msgMicro').textContent = 'Le micro n\'a pas démarré.';
     }
@@ -511,10 +547,13 @@
     $('btEnvoyer').disabled = true;
     dire('msgEnvoi', 'Envoi…', 'attente');
 
+    var sel = $('chLangue');
+
     appeler({
       action: 'eleveEnvoyer',
       eleve: moi.nom, code: moi.code,
-      procedure: nom, texte: texte
+      procedure: nom, texte: texte,
+      langue: (sel && sel.value) ? sel.value : ''
     })
       .then(function(){
         dire('msgEnvoi', 'C\'est envoyé. Un moniteur te répondra bientôt : ' +
@@ -693,6 +732,8 @@
         .then(function(d){
           procedures = d.procedures || [];
           demandes = d.demandes || [];
+          maLangue = d.langue || '';
+          languesDispo = d.langues || [];
           entrer();
         })
         .catch(function(){ sortir(); });
