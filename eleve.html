@@ -37,6 +37,23 @@
     --line: #262626;
   }
 
+  body.clair{
+    /* Thème clair — le même que l'application */
+    --navy: #F2F2EC;
+    --navy-deep: #FFFFFF;
+    --orange: #B6FF0E;
+    --accent-text: #3B6900;   /* le vert vif est illisible sur blanc */
+    --on-accent: #0B0B0B;
+    --orange-soft: #EEFFC7;
+    --cream: #14161B;
+    --soft: #2C2F36;
+    --muted: #64655F;
+    --red: #C33A12;
+    --warn-text: #8F2E0E;
+    --warn-bg: rgba(195,58,18,.10);
+    --line: #DCDCD3;
+  }
+
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
   body{
@@ -147,6 +164,22 @@
     border-top:1px solid var(--line); padding-top:10px;
   }
 
+  /* Les retouches du clair, comme dans l'application */
+  body.clair input, body.clair select, body.clair textarea{ background:#FBFBF7; }
+  body.clair .card{ box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  body.clair .rec-btn.recording{ color:#fff; }
+  body.clair .message.ok{ background: var(--orange-soft); color: var(--accent-text); }
+  body.clair .message.attente{ background:rgba(0,0,0,.04); }
+
+  /* Le bouton du thème, posé dans l'entête */
+  .theme{
+    margin-left:auto; flex-shrink:0;
+    width:38px; height:38px; padding:0; border-radius:10px;
+    background:transparent; border:1px solid var(--line);
+    color:var(--cream); font-size:17px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
   .cache{ display:none !important; }
 </style>
 </head>
@@ -162,6 +195,7 @@
         <h1>Mes procédures</h1>
         <div class="sous">Évolution Conduites</div>
       </div>
+      <button class="theme" id="btTheme1" title="Changer de thème">🌙</button>
     </div>
 
     <div class="card">
@@ -190,6 +224,7 @@
         <h1 id="bonjour">Bonjour</h1>
         <div class="sous">Choisis une procédure, puis récite-la ou écris-la.</div>
       </div>
+      <button class="theme" id="btTheme2" title="Changer de thème">🌙</button>
     </div>
 
     <div class="card">
@@ -458,6 +493,30 @@
   }
 
 
+  /* ===== LE THÈME =====
+
+     Clair par défaut : l'élève s'entraîne souvent en plein jour,
+     et beaucoup n'ont jamais réglé de thème. */
+
+  function appliquerTheme(clair){
+    document.body.classList.toggle('clair', clair);
+    ['btTheme1', 'btTheme2'].forEach(function(id){
+      var b = $(id);
+      if(b){ b.textContent = clair ? '☀️' : '🌙'; }
+    });
+    try{ localStorage.setItem('ec_theme_eleve', clair ? 'clair' : 'sombre'); }catch(e){}
+  }
+
+  (function initTheme(){
+    var clair = true;
+    try{
+      var garde = localStorage.getItem('ec_theme_eleve');
+      if(garde){ clair = (garde === 'clair'); }
+    }catch(e){}
+    appliquerTheme(clair);
+  })();
+
+
   /* ===== DÉPART ===== */
 
   $('btConnexion').addEventListener('click', connecter);
@@ -474,6 +533,15 @@
   $('btEnvoyer').addEventListener('click', envoyer);
   $('btMaj').addEventListener('click', chargerEnvois);
   $('btSortir').addEventListener('click', sortir);
+
+  ['btTheme1', 'btTheme2'].forEach(function(id){
+    var b = $(id);
+    if(b){
+      b.addEventListener('click', function(){
+        appliquerTheme(!document.body.classList.contains('clair'));
+      });
+    }
+  });
 
   /* Déjà venu sur cet appareil : on reprend sans rien redemander */
   try{
