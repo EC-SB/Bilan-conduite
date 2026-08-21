@@ -408,7 +408,82 @@ function blocMailNotification(){
   b.addEventListener('click', () => ouvrirMailNotification(actuelle));
   d.appendChild(b);
 
+  /* L'état des envois : un mail qui ne part pas doit se voir */
+  const bE = document.createElement('button');
+  bE.className = 'btn btn-secondary';
+  bE.style.cssText = 'width:auto;padding:10px 13px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  bE.textContent = '🩺';
+  bE.title = 'Vérifier que les mails partent';
+  bE.addEventListener('click', () => ouvrirEtatMails());
+  d.appendChild(bE);
+
   return d;
+}
+
+
+/* Est-ce que les mails partent ? */
+async function ouvrirEtatMails(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>🩺 État des mails</h3>' +
+    '<div id="emZone"><div class="empty">Vérification…</div></div>';
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bF);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const z = boite.querySelector('#emZone');
+  try{
+    const d = await appelPrep({ action: 'etatMails' });
+    const q = (d && d.quota);
+    const echecs = (d && d.echecs) || [];
+
+    let html = '';
+
+    /* Les mails passent par OVH, comme les bilans : pas de quota
+       Google à surveiller. */
+    html += '<div style="background:rgba(182,255,14,.10);' +
+      'color:var(--accent-text);padding:12px;border-radius:10px;' +
+      'font-size:13px;line-height:1.6;margin-bottom:12px;">' +
+      '✉️ <strong>Les mails partent de ' +
+      'contact@evolutionconduites.fr</strong><br>' +
+      'Par OVH, comme les bilans de cours.</div>';
+
+    if(echecs.length){
+      html += '<div style="font-size:13px;font-weight:700;' +
+        'color:var(--accent-text);margin-bottom:8px;">' +
+        'Derniers envois manqués</div>';
+      echecs.forEach(x => {
+        html += '<div style="font-size:12px;padding:7px 0;line-height:1.5;' +
+          'border-bottom:1px solid rgba(255,255,255,.05);">' +
+          '<strong>' + (x.quand || '').replace(/</g, '&lt;') + '</strong> · ' +
+          (x.type || '').replace(/</g, '&lt;') +
+          '<div style="color:var(--muted);">vers ' +
+            (x.vers || '?').replace(/</g, '&lt;') + '<br>' +
+            (x.motif || '').replace(/</g, '&lt;') + '</div></div>';
+      });
+    }else{
+      html += '<div class="empty">Aucun envoi manqué.</div>';
+    }
+
+    z.innerHTML = html;
+  }catch(e){
+    z.innerHTML = '<div class="empty">⚠️ ' +
+      e.message.replace(/</g, '&lt;') + '</div>';
+  }
 }
 
 function ouvrirMailNotification(actuelle){
