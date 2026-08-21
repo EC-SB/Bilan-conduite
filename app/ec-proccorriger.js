@@ -82,7 +82,10 @@ async function afficherProcCorriger(){
   const attente = procACorriger.filter(x => !x.corrigeLe);
   const faites = procACorriger.filter(x => x.corrigeLe);
 
-  if(!procACorriger.length){
+  /* Rien de déposé à la main, et rien venu de l'espace élève :
+     l'écran est vraiment vide. Sortir plus tôt masquait aussi le
+     tableau des corrections envoyées. */
+  if(!procACorriger.length && !recitations.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.innerHTML = 'Aucune procédure en attente.<br>' +
@@ -100,6 +103,10 @@ async function afficherProcCorriger(){
     zone.appendChild(t);
     attente.forEach(x => zone.appendChild(ligneProc(x)));
   }
+
+  /* Ce qui est parti aux élèves, avec de quoi s'y retrouver */
+  const envoyees = blocEnvoyees();
+  if(envoyees) zone.appendChild(envoyees);
 
   /* Les corrigées, repliées : on y revient rarement */
   if(faites.length){
@@ -175,6 +182,150 @@ function ligneProc(x){
 
 
 
+
+
+
+/* ============================================================
+   LES CORRECTIONS ENVOYÉES
+
+   Un tableau de ce qui est parti, filtrable par moniteur et par
+   période. Chaque ligne peut être retirée.
+   ============================================================ */
+
+let filtreMoniteurProc = '';
+let filtreDuProc = '';
+let filtreAuProc = '';
+
+function blocEnvoyees(){
+  const validees = recitations.filter(x => x.etat === 'valide');
+  if(!validees.length) return null;
+
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin:14px 0 8px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">✅ ' + validees.length +
+    ' correction(s) envoyée(s)</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  /* Les filtres */
+  const f = document.createElement('div');
+  f.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;';
+
+  const moniteurs = [...new Set(validees.map(x => x.validePar).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), 'fr'));
+
+  const selM = document.createElement('select');
+  selM.style.cssText = 'flex:1;min-width:130px;margin:0;padding:8px 10px;font-size:13px;';
+  selM.innerHTML = '<option value="">Tous les moniteurs</option>' +
+    moniteurs.map(m => '<option value="' + String(m).replace(/"/g, '&quot;') + '"' +
+      (m === filtreMoniteurProc ? ' selected' : '') + '>' +
+      String(m).replace(/</g, '&lt;') + '</option>').join('');
+  f.appendChild(selM);
+
+  const chDu = document.createElement('input');
+  chDu.type = 'date';
+  chDu.value = filtreDuProc;
+  chDu.title = 'À partir du';
+  chDu.style.cssText = 'flex:1;min-width:130px;margin:0;padding:8px 10px;font-size:13px;';
+  f.appendChild(chDu);
+
+  const chAu = document.createElement('input');
+  chAu.type = 'date';
+  chAu.value = filtreAuProc;
+  chAu.title = "Jusqu'au";
+  chAu.style.cssText = 'flex:1;min-width:130px;margin:0;padding:8px 10px;font-size:13px;';
+  f.appendChild(chAu);
+
+  z.appendChild(f);
+
+  const zTable = document.createElement('div');
+  z.appendChild(zTable);
+
+  const dessiner = () => {
+    filtreMoniteurProc = selM.value;
+    filtreDuProc = chDu.value;
+    filtreAuProc = chAu.value;
+    zTable.innerHTML = '';
+    zTable.appendChild(tableauEnvoyees(validees));
+  };
+
+  [selM, chDu, chAu].forEach(x => x.addEventListener('change', dessiner));
+  dessiner();
+
+  d.appendChild(z);
+  return d;
+}
+
+/* La date d'envoi, ramenée au format des comparaisons */
+function isoDeRecitation(x){
+  /* Le classeur écrit « 21/08/2026 10:14 » */
+  const m = String(x.envoyeLe || '').match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? (m[3] + '-' + m[2] + '-' + m[1]) : '';
+}
+
+function tableauEnvoyees(validees){
+  const vues = validees.filter(x => {
+    if(filtreMoniteurProc && x.validePar !== filtreMoniteurProc) return false;
+    const iso = isoDeRecitation(x);
+    if(filtreDuProc && iso && iso < filtreDuProc) return false;
+    if(filtreAuProc && iso && iso > filtreAuProc) return false;
+    return true;
+  });
+
+  const zone = document.createElement('div');
+
+  if(!vues.length){
+    zone.innerHTML = '<div class="empty">Aucune correction sur cette période.</div>';
+    return zone;
+  }
+
+  const compte = document.createElement('div');
+  compte.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;';
+  compte.textContent = vues.length + ' sur ' + validees.length;
+  zone.appendChild(compte);
+
+  vues.forEach(x => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:8px 0;' +
+      'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;';
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;line-height:1.45;cursor:pointer;';
+    t.innerHTML = '<strong>' + (x.eleve || '').replace(/</g, '&lt;') + '</strong> — ' +
+      (x.procedure || '').replace(/</g, '&lt;') +
+      '<div style="font-size:11px;color:var(--muted);">' +
+        (x.envoyeLe || '').replace(/</g, '&lt;') +
+        (x.validePar ? ' · corrigée par ' + x.validePar.replace(/</g, '&lt;') : '') +
+      '</div>';
+    t.addEventListener('click', () => ouvrirRecitation(x));
+    l.appendChild(t);
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+      'flex-shrink:0;color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.title = 'Retirer cette correction';
+    bSup.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      if(!await confirmer('Retirer la correction de ' + x.eleve + ' ?\n\n' +
+          'Elle disparaîtra aussi de son espace.')) return;
+      try{
+        await appelPrep({ action: 'recitationDelete', id: x.id });
+        showToast('Retirée ✅');
+        afficherProcCorriger();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    l.appendChild(bSup);
+
+    zone.appendChild(l);
+  });
+
+  return zone;
+}
 
 
 /* L'interrupteur : qui peut demander une récitation */
