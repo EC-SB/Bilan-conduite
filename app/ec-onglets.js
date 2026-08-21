@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 08:49 — v423 */
+/* Déployé le 21/08/2026 à 08:22 — v457 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -13,7 +13,7 @@ const CLE_ONGLET = 'onglet_actif';
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'rappels', 'eleves', 'permis', 'depart'],
+  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils: ['ecran', 'bureau_messages', 'textes', 'procedures', 'bilans',
@@ -130,6 +130,7 @@ const VUES = {
   eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
            ['rappels',    '🔔 Rappels de cours',      'rappels'],
            ['eleves',     '👥 Répertoire',            'eleves'],
+           ['proccorriger','📥 Procédures',            'proccorriger'],
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
   outils: [['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
@@ -233,12 +234,14 @@ function reveillerVue(cle){
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
     ecran:      () => afficherEcran(),
+    proccorriger: () => afficherProcCorriger(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA(),
     sessions:   () => afficherSessionsPermis(),
     ecran:      () => afficherEcran(),
+    proccorriger: () => afficherProcCorriger(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
