@@ -11,6 +11,8 @@
 
 let procACorriger = [];
 let recitations = [];
+let demandesProc = [];
+let reglagesProc = {};
 
 /* Ce qui reste à corriger, pour la pastille */
 function nbProcACorriger(){
@@ -24,12 +26,16 @@ async function afficherProcCorriger(){
 
   zone.innerHTML = '<div class="empty">Lecture des procédures…</div>';
   try{
-    const [d, r] = await Promise.all([
+    const [d, r, dm, rg] = await Promise.all([
       appelPrep({ action: 'procCorrigerList' }),
-      appelPrep({ action: 'recitationsList' }).catch(() => null)
+      appelPrep({ action: 'recitationsList' }).catch(() => null),
+      appelPrep({ action: 'demandesList' }).catch(() => null),
+      appelPrep({ action: 'reglagesList' }).catch(() => null)
     ]);
     procACorriger = (d && d.fiches) || [];
     recitations = (r && r.recitations) || [];
+    demandesProc = (dm && dm.demandes) || [];
+    reglagesProc = (rg && rg.reglages) || {};
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -37,6 +43,8 @@ async function afficherProcCorriger(){
 
   zone.innerHTML = '';
   majPastilleProc();
+
+  zone.appendChild(blocInterrupteur());
 
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
@@ -64,6 +72,10 @@ async function afficherProcCorriger(){
     zone.appendChild(t);
     enAttente.forEach(r => zone.appendChild(ligneRecitation(r)));
   }
+
+  /* Toutes les demandes en attente, d'où qu'elles viennent */
+  const bloc = blocDemandesEnCours();
+  if(bloc) zone.appendChild(bloc);
 
   const dejaVues = recitations.filter(x => x.etat === 'valide');
 
@@ -162,6 +174,110 @@ function ligneProc(x){
 
 
 
+
+
+
+/* L'interrupteur : qui peut demander une récitation */
+function blocInterrupteur(){
+  const ouvert = reglagesProc.recitationsMoniteurs === 'oui';
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid ' +
+    (ouvert ? 'var(--orange)' : 'var(--line)') +
+    ';border-radius:12px;padding:12px;margin-bottom:12px;' +
+    'display:flex;gap:11px;align-items:center;';
+
+  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
+    '<strong>' + (ouvert
+      ? 'Les moniteurs peuvent demander en fin de cours'
+      : 'Seul le bureau demande des récitations') + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      (ouvert
+        ? 'Le tiroir 📌 apparaît sous le bilan, et le message part à l\'élève.'
+        : 'Le tiroir reste caché en fin de cours. À ouvrir quand les essais ' +
+          'seront concluants.') +
+    '</div></span>';
+
+  const b = document.createElement('button');
+  b.className = ouvert ? 'btn btn-primary' : 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  b.textContent = ouvert ? 'Fermer' : 'Ouvrir';
+  b.addEventListener('click', async () => {
+    if(!ouvert && !await confirmer(
+        'Ouvrir la demande en fin de cours ?\n\n' +
+        'Les moniteurs pourront demander des récitations, et le message ' +
+        'partira aux élèves dans leur bilan.')) return;
+
+    b.disabled = true;
+    try{
+      await appelPrep({
+        action: 'reglageSet',
+        cle: 'recitationsMoniteurs',
+        valeur: ouvert ? '' : 'oui',
+        par: ACCES.moniteur || ''
+      });
+      showToast(ouvert ? 'Refermé ✅' : 'Ouvert aux moniteurs ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      b.disabled = false;
+    }
+  });
+  d.appendChild(b);
+
+  return d;
+}
+
+
+/* Les demandes en attente, du bureau comme des moniteurs */
+function blocDemandesEnCours(){
+  const attente = demandesProc.filter(x => x.etat !== 'fait');
+  if(!attente.length) return null;
+
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin:14px 0 8px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📌 ' + attente.length +
+    ' procédure(s) demandée(s), pas encore récitée(s)</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  attente.forEach(x => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:7px 0;' +
+      'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;';
+    l.innerHTML = '<span style="flex:1;min-width:0;line-height:1.45;">' +
+      '<strong>' + (x.eleve || '').replace(/</g, '&lt;') + '</strong> — ' +
+      (x.procedure || '').replace(/</g, '&lt;') +
+      '<div style="font-size:11px;color:var(--muted);">' +
+        'demandée le ' + (x.demandeLe || '').replace(/</g, '&lt;') +
+        (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') +
+        (x.consigne ? ' · ' + x.consigne.replace(/</g, '&lt;') : '') +
+      '</div></span>';
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+      'flex-shrink:0;color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.title = 'Retirer cette demande';
+    bSup.addEventListener('click', async () => {
+      try{
+        await appelPrep({ action: 'demandeDelete', id: x.id });
+        showToast('Retirée ✅');
+        afficherProcCorriger();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    l.appendChild(bSup);
+    z.appendChild(l);
+  });
+
+  d.appendChild(z);
+  return d;
+}
 
 
 /* ============================================================
@@ -515,11 +631,12 @@ async function ouvrirRecitation(r){
       (r.procedure || '').replace(/</g, '&lt;') + ' · ' +
       (r.envoyeLe || '').replace(/</g, '&lt;') + '</div>' +
 
-    '<label>Ce qu\'il a dit</label>' +
-    '<div style="background:var(--navy);border:1px solid var(--line);' +
-      'border-radius:10px;padding:11px 12px;font-size:14px;line-height:1.65;' +
-      'white-space:pre-wrap;margin-bottom:14px;max-height:200px;overflow-y:auto;">' +
-      (r.texte || '').replace(/</g, '&lt;') + '</div>' +
+    '<label for="rcTexte">Ce qu\'il a dit</label>' +
+    '<textarea id="rcTexte" rows="6" ' +
+      'style="font-size:14px;line-height:1.6;"></textarea>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.5;">Modifiable : la dictée se trompe parfois sur un mot. ' +
+      'Corrige avant de demander la correction.</div>' +
 
     '<label for="rcCorrection">La correction qu\'il verra</label>' +
     '<textarea id="rcCorrection" rows="10" ' +
@@ -527,6 +644,7 @@ async function ouvrirRecitation(r){
     '<div id="rcEtat" style="font-size:12px;color:var(--muted);' +
       'margin:-6px 0 12px;line-height:1.5;"></div>';
 
+  boite.querySelector('#rcTexte').value = r.texte || '';
   boite.querySelector('#rcCorrection').value = r.correction || '';
 
   const zEtat = boite.querySelector('#rcEtat');
@@ -540,7 +658,10 @@ async function ouvrirRecitation(r){
     bIA.disabled = true;
     zEtat.textContent = 'Lecture de la procédure de référence…';
     try{
-      const texte = await corrigerRecitation(r);
+      /* On corrige le texte à l'écran, pas celui d'origine : le
+         moniteur a pu rectifier une transcription fautive. */
+      const texte = await corrigerRecitation(
+        Object.assign({}, r, { texte: boite.querySelector('#rcTexte').value }));
       boite.querySelector('#rcCorrection').value = texte;
       zEtat.textContent = 'Proposition de l\'IA — relis-la avant de valider.';
     }catch(e){
@@ -586,6 +707,7 @@ async function ouvrirRecitation(r){
     try{
       await appelPrep({
         action: 'recitationSet', id: r.id,
+        texte: boite.querySelector('#rcTexte').value,
         correction: texte, etat: 'valide',
         par: ACCES.moniteur || ''
       });
