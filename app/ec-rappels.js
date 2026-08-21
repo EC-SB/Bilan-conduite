@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 15:36 — v452 */
+/* Déployé le 21/08/2026 à 08:13 — v456 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -553,6 +553,17 @@ function composerRappel(r){
    plus son texte par-dessus au moindre changement de réglage. */
 let texteModifie = false;
 
+/* Les créneaux de cours, de 6h00 à 18h30 par demi-heures */
+const CRENEAUX_RAPPEL = (() => {
+  const out = [];
+  for(let m = 6 * 60; m <= 18 * 60 + 30; m += 30){
+    out.push(String(Math.floor(m / 60)).padStart(2, '0') + ':' +
+             String(m % 60).padStart(2, '0'));
+  }
+  return out;
+})();
+
+
 let choixRappel = { type:'cours', jour:'𝗗𝗘𝗠𝗔𝗜𝗡', heure:'', voiture:'',
                     emplacement:'cour', options:[], libre:'' };
 
@@ -712,11 +723,34 @@ async function afficherRappelManuel(){
   lH.textContent = '🕐 Heure du cours';
   zone.appendChild(lH);
 
+  /* Les créneaux courants dans une liste, plutôt qu'un champ à
+     remplir chiffre par chiffre sur un téléphone. Le dernier choix
+     ouvre la saisie libre pour les cas particuliers. */
+  const listeH = document.createElement('select');
+  listeH.id = 'rapHeureChoix';
+  listeH.innerHTML = '<option value="">— choisis l\'heure —</option>' +
+    CRENEAUX_RAPPEL.map(h => '<option value="' + h + '">' +
+                             h.replace(':', 'h') + '</option>').join('') +
+    '<option value="autre">⌨️ Autre heure…</option>';
+  zone.appendChild(listeH);
+
   const chH = document.createElement('input');
   chH.type = 'time';
   chH.id = 'rapHeure';
+  chH.style.cssText = 'display:none;margin-top:6px;';
   chH.addEventListener('change', apercuRappel);
   zone.appendChild(chH);
+
+  listeH.addEventListener('change', () => {
+    if(listeH.value === 'autre'){
+      chH.style.display = 'block';
+      setTimeout(() => chH.focus(), 60);
+    }else{
+      chH.style.display = 'none';
+      chH.value = listeH.value;
+    }
+    apercuRappel();
+  });
 
   const aideH = document.createElement('div');
   aideH.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
@@ -1056,6 +1090,7 @@ async function envoyerRappelManuel(){
       if($('rapVoiture')) $('rapVoiture').value = '';
       if($('rapMod')) $('rapMod').value = '';
       if($('rapHeure')) $('rapHeure').value = '';
+      if($('rapHeureChoix')) $('rapHeureChoix').value = '';
       if($('rapLibre')) $('rapLibre').value = '';
 
       /* Les mentions cochées : elles décrivent CE cours-là */
@@ -1298,10 +1333,15 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       normaliserMot(x.eleve || '') === normaliserMot(eleve) && x.date === iso);
     if(deja) return;
 
-    /* La boîte de l'élève décide du type de bilan */
+    /* La boîte de l'élève décide du type de bilan. Sans indication —
+       fiche vide, élève tout neuf — on part sur l'automatique :
+       c'est le cas le plus courant, et le moniteur corrige d'un
+       geste si besoin. */
     const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
-    const auto = /auto|bea/i.test((f && f.formation) || '');
-    const cle = auto ? 'conduite-auto' : 'conduite-manuelle';
+    const formation = String((f && f.formation) || '').trim();
+
+    let cle = 'conduite-auto';
+    if(/manuel|\bbv\b|b[oô]ite m/i.test(formation)) cle = 'conduite-manuelle';
 
     /* Le dossier de l'élève, pour que le moniteur n'ait pas à tout
        ressaisir : numéro de leçon, frise, note du cours précédent.
