@@ -1,565 +1,1198 @@
-/* Déployé le 21/08/2026 à 14:11 — v480 */
 /* ============================================================
-   ec-noyau.js
-   Configuration, session, droits, utilitaires communs
+   ec-proccorriger.js
+   Les procédures que les élèves envoient sur Messenger.
+
+   Le bureau dépose ce qui arrive : le nom, son Messenger, une
+   capture d'écran collée. Celle qui corrige les voit s'accumuler
+   sur une pastille, et les fait disparaître au fur et à mesure.
+
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* ============================================================
-   APPLICATION
-   ============================================================ */
-const CONFIG = {
-  WORKER_URL: 'https://bilan-proxy.evolutionconduites.workers.dev'
-};
-CONFIG.AUTH_URL = CONFIG.WORKER_URL + '/auth';
-CONFIG.SMS_URL = CONFIG.WORKER_URL + '/sms';
-CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
-CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
-CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
-CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 109;   /* voir apps-script.js */
+let procACorriger = [];
+let recitations = [];
+let demandesProc = [];
+let reglagesProc = {};
 
-/* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
-   le redemander à chaque rafraîchissement, avec une durée de validité. */
-const CLE_SESSION = 'session_acces';
-/* 48 heures sans se servir de l'application. L'horodatage se
-   rafraîchit à chaque usage : c'est bien une inactivité, pas une
-   durée de vie fixe. */
-const DUREE_SESSION = 48 * 3600 * 1000;
-
-/* ACCES : déclaré dans ec-etat.js */
-
-/* Sections de l'application soumises à autorisation */
-const SECTIONS = [
-  { cle:'prepares',         nom:'📅 Mes prochains cours' },
-  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
-  { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
-  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
-  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
-  { cle:'ecoutes',          nom:'👂 Écoutes pédagogiques' },
-  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
-  { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
-  { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
-  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
-  { cle:'textes',           nom:'📄 Mes modèles de message' },
-  { cle:'stats',            nom:'📈 Taux de réussite' },
-  { cle:'eleves',           nom:'👥 Répertoire des élèves' },
-  { cle:'proccorriger',     nom:'📥 Procédures à corriger' },
-  { cle:'rappels',          nom:'🔔 Rappels de cours par SMS' },
-  { cle:'paie',             nom:'💶 Éléments de paie' },
-  { cle:'flotte',           nom:'🚗 Suivi de la flotte' },
-  { cle:'ecran',            nom:'📺 Affichage dynamique' },
-  { cle:'notifs',           nom:'🔔 Alertes du bureau' },
-  { cle:'notif_examblanc',  nom:'🔔 Pastille examens blancs' },
-  { cle:'notif_simu',       nom:'🔔 Pastille simulateurs' },
-  { cle:'notif_permis',     nom:'🔔 Pastille dates de permis' },
-  { cle:'taches',           nom:'✅ Tâches du bureau' },
-  { cle:'memoire',          nom:"🧠 Mémoire de l'IA" },
-  { cle:'historique',       nom:'📚 Historique des cours' },
-  { cle:'bilans',           nom:'📋 Modèles de bilan' },
-  { cle:'procedures',       nom:'🚦 Procédures de conduite' },
-  { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
-  { cle:'admin',            nom:'⚙️ Administration des accès' }
-];
-
-/* Niveau d'accès : 'm' modifier, 'v' voir, '' rien */
-function niveauDroit(section){
-  const d = ACCES.droits;
-  if(!d || !Object.keys(d).length) return 'm';   /* compte sans réglage : tout */
-  return d[section] || '';
-}
-function aDroit(section){ return niveauDroit(section) !== ''; }
-function peutModifier(section){ return niveauDroit(section) === 'm'; }
-
-/* Masque ou passe en lecture seule selon le niveau accordé */
-function appliquerDroits(){
-  /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
-  const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
-                         'bureau_permis','bureau_messages'];
-  /* La carte « simulateurs et examens blancs » ne dépend plus que
-     de ses propres sous-sections, le permis ayant sa carte à part. */
-  const bureauVisible = ['bureau_simu', 'bureau_examblanc'].some(aDroit);
-
-  document.querySelectorAll('[data-section]').forEach(el => {
-    const s = el.getAttribute('data-section');
-    const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
-    /* Une vue non sélectionnée reste masquée : les onglets décident */
-    if(visible && el.classList.contains('hors-vue')) el.style.display = 'none';
-    else el.style.display = visible ? '' : 'none';
-    el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
-  });
-
-  /* Le départ d'un élève ne concerne que le bureau */
-  const bd = document.querySelector('[data-vue="depart"]');
-  if(bd){
-    bd.style.display = (aDroit('depart') && (ACCES.role === 'bureau' || ACCES.role === 'admin'))
-      ? '' : 'none';
-  }
-
-  /* Le journal d'activité n'est visible que des administrateurs */
-  const jc = $('journalCard');
-  if(jc) jc.style.display = (ACCES.role === 'admin') ? '' : 'none';
-
-  if($('resultView') && !aDroit('cours')) $('resultView').style.display = 'none';
-  $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
+/* Ce qui reste à corriger, pour la pastille */
+function nbProcACorriger(){
+  return procACorriger.filter(x => !x.corrigeLe).length +
+         recitations.filter(x => x.etat !== 'valide').length;
 }
 
-function memoriserSession(code, moniteur, role, droits, emoji, genre){
+async function afficherProcCorriger(){
+  const zone = $('procCorrigerZone');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Lecture des procédures…</div>';
   try{
-    localStorage.setItem(CLE_SESSION, JSON.stringify({
-      code: code, moniteur: moniteur, role: role,
-      emoji: emoji || '', genre: genre || '', droits: droits || [], ts: Date.now()
-    }));
-  }catch(e){}
-}
-
-function lireSession(){
-  try{
-    const brut = localStorage.getItem(CLE_SESSION);
-    if(!brut) return null;
-    const s = JSON.parse(brut);
-    if(!s || !s.code) return null;
-
-    if(Date.now() - (s.ts || 0) > DUREE_SESSION){
-      oublierSession();
-      raisonDeconnexion = 'inactivite';
-      return null;
-    }
-
-    /* La coupure du samedi soir : chacun repart de zéro la semaine
-       suivante, et un appareil oublié quelque part ne reste pas
-       ouvert indéfiniment. */
-    if(coupureHebdoDepassee(s.ts)){
-      oublierSession();
-      raisonDeconnexion = 'hebdo';
-      return null;
-    }
-
-    return s;
-  }catch(e){ return null; }
-}
-
-/* Pourquoi la session a été fermée : le dire évite de croire à un
-   défaut. */
-let raisonDeconnexion = '';
-
-/* Le samedi 21 h est-il passé depuis cette connexion ? */
-function coupureHebdoDepassee(ts){
-  if(!ts) return false;
-
-  const depuis = new Date(ts);
-  const maintenant = new Date();
-
-  /* La dernière coupure : le samedi 21 h le plus récent */
-  const coupure = new Date(maintenant);
-  coupure.setHours(21, 0, 0, 0);
-  /* 6 = samedi */
-  const recul = (coupure.getDay() - 6 + 7) % 7;
-  coupure.setDate(coupure.getDate() - recul);
-  if(coupure > maintenant) coupure.setDate(coupure.getDate() - 7);
-
-  return depuis < coupure;
-}
-
-/* L'horodatage se rafraîchit tant qu'on se sert de l'application */
-function rafraichirSession(){
-  try{
-    const brut = localStorage.getItem(CLE_SESSION);
-    if(!brut) return;
-    const s = JSON.parse(brut);
-    if(!s || !s.code) return;
-    s.ts = Date.now();
-    localStorage.setItem(CLE_SESSION, JSON.stringify(s));
-  }catch(e){}
-}
-
-function oublierSession(){
-  try{ localStorage.removeItem(CLE_SESSION); }catch(e){}
-}
-
-function verrouiller(message, garderSession){
-  clearInterval(minuteurBureau);
-  bureauDejaCharge = false;
-  if(!garderSession) oublierSession();
-  ACCES = { code: null, moniteur: '', role: '', droits: [] };
-  $('appView').style.display = 'none';
-  $('adminCard').style.display = 'none';
-  if($('logoutBtn')) $('logoutBtn').style.display = 'none';
-  if($('qui')) $('qui').style.display = 'none';
-
-  /* Rien d'autre que le code d'accès sur l'écran de connexion */
-  if($('barreOnglets')) $('barreOnglets').style.display = 'none';
-  document.querySelectorAll('.barre-vues').forEach(b => { b.style.display = 'none'; });
-  document.body.classList.remove('avec-onglets');
-  $('lockView').style.display = 'block';
-  $('codeInput').value = '';
-  if($('identInput')) $('identInput').value = '';
-  $('codeMsg').textContent = message || '';
-  $('codeMsg').style.color = message ? 'var(--warn-text)' : 'var(--muted)';
-}
-
-/* $ est déclaré dans ec-etat.js, chargé en premier. */
-
-function todayLocal(){
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return d.getFullYear() + '-' + mm + '-' + dd;
-}
-
-/* recognition : déclaré dans ec-etat.js */
-/* isRecording : déclaré dans ec-etat.js */
-/* finalTranscript : déclaré dans ec-etat.js */
-/* currentLessonMeta : déclaré dans ec-etat.js */
-
-/* Texte des sessions déjà terminées (le micro redémarre régulièrement) */
-/* committedTranscript : déclaré dans ec-etat.js */
-
-/* Contrôles préalables — sans toucher au micro :
-   sur Android, ouvrir puis fermer le micro juste avant la dictée
-   empêche la reconnaissance de capter le son. */
-/* Contexte requis pour ENREGISTRER un cours (micro nécessaire) */
-function verifierContexte(){
-  if(!window.isSecureContext){
-    return 'La page doit être ouverte en https:// pour accéder au micro.';
-  }
-  if(!SR){
-    return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
-  }
-  return verifierEleve();
-}
-
-/* Sans élève identifié, le bilan ne peut être rattaché à personne */
-function verifierEleve(){
-  const nom = $('studentName').value.trim();
-  if(nom.length < 2) return "Saisis le nom et le prénom de l'élève avant de démarrer.";
-  if(nom.split(/\s+/).length < 2) return "Il faut le nom ET le prénom de l'élève.";
-  if(!$('modele').value) return 'Choisis un type de bilan.';
-  if(!$('lessonDate').value) return 'Choisis la date du cours.';
-  return null;
-}
-
-/* Contexte requis pour un bilan à remplir à la main : aucun micro,
-   donc rien n'empêche de s'en servir sur n'importe quel navigateur. */
-function verifierContexteManuel(){
-  return verifierEleve();
-}
-
-/* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
-   seul l'événement onstart fait foi, sinon l'indicateur ment. */
-function demarrerReconnaissance(){
-  /* On repart systématiquement d'un objet neuf : évite d'hériter
-     d'une session figée par un cours précédent. */
-  try{
-    recreerEtDemarrer();
-    return { ok: true };
+    const [d, r, dm, rg] = await Promise.all([
+      appelPrep({ action: 'procCorrigerList' }),
+      appelPrep({ action: 'recitationsList' }).catch(() => null),
+      appelPrep({ action: 'demandesList' }).catch(() => null),
+      appelPrep({ action: 'reglagesList' }).catch(() => null)
+    ]);
+    procACorriger = (d && d.fiches) || [];
+    recitations = (r && r.recitations) || [];
+    demandesProc = (dm && dm.demandes) || [];
+    reglagesProc = (rg && rg.reglages) || {};
   }catch(e){
-    return { ok: false, message: (e && e.name ? e.name + ' — ' : '') + (e && e.message ? e.message : String(e)) };
-  }
-}
-
-/* Maintien de l'écran allumé : Chrome coupe le micro dès que
-   l'écran s'éteint ou que la page passe en arrière-plan. */
-/* wakeLock : déclaré dans ec-etat.js */
-/* interruptions : déclaré dans ec-etat.js */
-
-/* Vrai uniquement quand une session de reconnaissance tourne réellement.
-   Chrome peut la tuer sans prévenir : on ne se fie pas à isRecording seul. */
-/* sessionActive : déclaré dans ec-etat.js */
-/* demarrageEnCours : déclaré dans ec-etat.js */
-/* dernierMot : déclaré dans ec-etat.js */
-/* dernierEvenement : déclaré dans ec-etat.js */
-
-function marquerActif(nomEvenement){
-  sessionActive = true;
-  demarrageEnCours = false;
-  dernierEvenement = nomEvenement;
-}
-
-function relancerMicro(){
-  if(!isRecording || sessionActive || demarrageEnCours) return;
-  demarrageEnCours = true;
-  dernierEvenement = 'start()';
-
-  if(!recognition){
-    recreerEtDemarrer();
-    setTimeout(() => { demarrageEnCours = false; }, 1500);
+    zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
   }
 
-  try{
-    recognition.start();
-  }catch(e){
-    const nom = String(e && e.name || '');
-    if(nom === 'InvalidStateError'){
-      /* Session fantôme : elle se croit démarrée mais n'émet plus rien.
-         On ne la réanime pas, on la remplace. */
-      dernierEvenement = 'session figée → recréation';
-      recreerEtDemarrer();
-    }else{
-      dernierEvenement = 'start refusé: ' + (nom || e);
-    }
-  }
-  /* Laisse à Chrome le temps d'ouvrir la session avant tout nouvel essai */
-  setTimeout(() => { demarrageEnCours = false; }, 1500);
-}
+  zone.innerHTML = '';
+  majPastilleProc();
 
-/* Surveillance : relance le micro s'il est mort, et signale
-   franchement quand rien n'est capté depuis longtemps. */
-setInterval(() => {
-  if(!isRecording) return;
-  sauvegarderLocal();
-  const etat = $('etatMicro');
-  const diag = $('diagMicro');
+  zone.appendChild(blocInterrupteur());
 
-  if(diag){
-    const depuis = dernierMot ? Math.round((Date.now() - dernierMot) / 1000) : null;
-    const capteRecemment = depuis !== null && depuis <= 12;
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
 
-    if(capteRecemment){
-      diag.textContent = '🗣️ paroles captées il y a ' + depuis + ' s';
-      diag.style.color = 'var(--orange)';
-    }else if(depuis !== null && sessionActive){
-      diag.textContent = '🤫 rien capté depuis ' + depuis + ' s';
-      diag.style.color = 'var(--warn-text)';
-    }else{
-      diag.textContent = 'état : ' + dernierEvenement;
-      diag.style.color = 'var(--muted)';
-    }
+  [['📌 Demander', () => ouvrirDemande(null)],
+   ['➕ Reçue', () => ouvrirFicheProc(null)],
+   ['🔑 Codes', () => ouvrirCodesEleves()]].forEach(([nom, faire]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
+    b.textContent = nom;
+    b.addEventListener('click', faire);
+    r.appendChild(b);
+  });
+  zone.appendChild(r);
+
+  /* Les récitations envoyées depuis l'espace élève, en premier :
+     l'élève attend, et la correction est déjà rédigée. */
+  const enAttente = recitations.filter(x => x.etat !== 'valide');
+  if(enAttente.length){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin-bottom:8px;';
+    t.textContent = '🎙️ ' + enAttente.length + ' récitation(s) à valider';
+    zone.appendChild(t);
+    enAttente.forEach(r => zone.appendChild(ligneRecitation(r)));
   }
 
-  if(!sessionActive){
-    etat.textContent = demarrageEnCours ? '⏳ démarrage…' : '⏸️ micro coupé — reprise…';
-    etat.style.color = 'var(--warn-text)';
-    relancerMicro();
+  /* Toutes les demandes en attente, d'où qu'elles viennent */
+  const bloc = blocDemandesEnCours();
+  if(bloc) zone.appendChild(bloc);
+
+  const dejaVues = recitations.filter(x => x.etat === 'valide');
+
+  const attente = procACorriger.filter(x => !x.corrigeLe);
+  const faites = procACorriger.filter(x => x.corrigeLe);
+
+  if(!procACorriger.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune procédure en attente.<br>' +
+      '<span style="font-size:12px;">Dépose ici ce que les élèves ' +
+      'envoient sur Messenger.</span>';
+    zone.appendChild(v);
     return;
   }
 
-  const silence = Math.round((Date.now() - dernierMot) / 1000);
-  if(silence >= 30){
-    etat.textContent = '⚠️ aucun son capté depuis ' + silence + ' s';
-    etat.style.color = 'var(--warn-text)';
-  } else {
-    etat.textContent = '🔴 en écoute';
-    etat.style.color = 'var(--orange)';
+  if(attente.length){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin-bottom:8px;';
+    t.textContent = '📥 ' + attente.length + ' à corriger';
+    zone.appendChild(t);
+    attente.forEach(x => zone.appendChild(ligneProc(x)));
   }
-}, 2500);
 
-async function garderEcranAllume(){
-  try{
-    if('wakeLock' in navigator){
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => { wakeLock = null; });
-      return true;
-    }
-  }catch(e){
-    console.warn('Maintien de l\'écran refusé :', e);
-  }
-  return false;
-}
+  /* Les corrigées, repliées : on y revient rarement */
+  if(faites.length){
+    const d = document.createElement('details');
+    d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+      'padding:10px 12px;margin-top:14px;';
+    d.innerHTML = '<summary style="cursor:pointer;font-size:13px;color:var(--muted);">' +
+      '✅ ' + faites.length + ' déjà corrigée(s)</summary>';
 
-function libererEcran(){
-  if(wakeLock){
-    try{ wakeLock.release(); }catch(e){}
-    wakeLock = null;
+    const z = document.createElement('div');
+    z.style.marginTop = '10px';
+    faites.forEach(x => z.appendChild(ligneProc(x)));
+    d.appendChild(z);
+    zone.appendChild(d);
   }
 }
 
-/* Prévient le moniteur si l'enregistrement a été coupé */
-document.addEventListener('visibilitychange', () => {
-  if(!isRecording) return;
-  if(document.hidden){
-    interruptions++;
-  } else {
-    garderEcranAllume();
-    relancerMicro();
-    if(interruptions > 0){
-      const w = $('pauseWarn');
-      w.style.display = 'block';
-      w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
-        (interruptions > 1 ? ' fois' : ' fois') +
-        ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
-    }
-  }
-});
 
-/* Fusionne les versions successives d'une même phrase.
-   Chrome sur Android empile les résultats provisoires
-   ("oui" / "oui ta" / "oui ta priorité"...) au lieu de les remplacer :
-   on ne garde donc que la version la plus complète. */
-function fusionner(chunks){
-  const out = [];
-  (chunks || []).forEach(raw => {
-    const c = String(raw).replace(/\s+/g, ' ').trim();
-    if(!c) return;
-    const last = out.length ? out[out.length - 1] : null;
-    if(last){
-      /* Comparaison sans la ponctuation finale, sinon un point
-         empêcherait de reconnaître une version étendue. */
-      const lastNu = sansPonctuationFinale(last);
-      const cNu = sansPonctuationFinale(c);
-      if(cNu.startsWith(lastNu)){ out[out.length - 1] = c; return; }
-      if(lastNu.startsWith(cNu)) return;
+/* Une procédure dans la liste */
+function ligneProc(x){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+    'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+    'margin-bottom:6px;' + (x.corrigeLe ? 'opacity:.55;' : '');
+
+  const ap = document.createElement('div');
+  ap.style.cssText = 'width:38px;height:38px;flex-shrink:0;border-radius:8px;' +
+    'background:var(--navy);display:flex;align-items:center;justify-content:center;' +
+    'font-size:19px;';
+  ap.textContent = x.aUneCapture ? '🖼️' : '💬';
+  l.appendChild(ap);
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.4;cursor:pointer;';
+  t.innerHTML =
+    '<strong>' + (x.eleve || 'Sans nom').replace(/</g, '&lt;') + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      'reçu le ' + (x.recuLe || '?').replace(/</g, '&lt;') +
+      (x.par ? ' · ' + x.par.replace(/</g, '&lt;') : '') +
+      (x.corrigeLe ? '<br><span style="color:var(--accent-text);">✅ corrigé le ' +
+        x.corrigeLe.replace(/</g, '&lt;') +
+        (x.corrigePar ? ' par ' + x.corrigePar.replace(/</g, '&lt;') : '') +
+        '</span>' : '') +
+    '</div>';
+  t.addEventListener('click', () => ouvrirFicheProc(x));
+  l.appendChild(t);
+
+  /* Corriger, ou revenir en arrière */
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-secondary';
+  bOk.style.cssText = 'width:auto;padding:8px 11px;font-size:14px;margin:0;flex-shrink:0;';
+  bOk.textContent = x.corrigeLe ? '↩️' : '✅';
+  bOk.title = x.corrigeLe ? 'Remettre à corriger' : 'Marquer comme corrigé';
+  bOk.addEventListener('click', async ev => {
+    ev.stopPropagation();
+    bOk.disabled = true;
+    try{
+      await appelPrep({ action: 'procCorrigerSet', id: x.id,
+                        corrige: x.corrigeLe ? '' : 'oui',
+                        par: ACCES.moniteur || '' });
+      showToast(x.corrigeLe ? 'Remise à corriger' : 'Corrigée ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
     }
-    out.push(c);
   });
-  return out.join(' ');
+  l.appendChild(bOk);
+
+  return l;
 }
 
-/* ---------- Menu des modèles ---------- */
-function remplirModeles(){
-  remplirUnMenuModeles($('modele'));
-  remplirUnMenuModeles($('prepModele'));
-}
 
-function remplirUnMenuModeles(sel){
-  if(!sel) return;
 
-  /* On repart de zéro : la fonction est appelée plusieurs fois
-     (démarrage, puis chargement des modèles ajoutés), et sans
-     ce nettoyage la liste se dédoublait. */
-  const choisi = sel.value;
-  sel.innerHTML = '';
 
-  const groupes = {};
-  Object.keys(MODELES).forEach(cle => {
-    const g = MODELES[cle].groupe;
-    if(!groupes[g]) groupes[g] = [];
-    groupes[g].push(cle);
+
+
+/* L'interrupteur : qui peut demander une récitation */
+function blocInterrupteur(){
+  const ouvert = reglagesProc.recitationsMoniteurs === 'oui';
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid ' +
+    (ouvert ? 'var(--orange)' : 'var(--line)') +
+    ';border-radius:12px;padding:12px;margin-bottom:12px;' +
+    'display:flex;gap:11px;align-items:center;';
+
+  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
+    '<strong>' + (ouvert
+      ? 'Les moniteurs peuvent demander en fin de cours'
+      : 'Seul le bureau demande des récitations') + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      (ouvert
+        ? 'Le tiroir 📌 apparaît sous le bilan, et le message part à l\'élève.'
+        : 'Le tiroir reste caché en fin de cours. À ouvrir quand les essais ' +
+          'seront concluants.') +
+    '</div></span>';
+
+  const b = document.createElement('button');
+  b.className = ouvert ? 'btn btn-primary' : 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  b.textContent = ouvert ? 'Fermer' : 'Ouvrir';
+  b.addEventListener('click', async () => {
+    if(!ouvert && !await confirmer(
+        'Ouvrir la demande en fin de cours ?\n\n' +
+        'Les moniteurs pourront demander des récitations, et le message ' +
+        'partira aux élèves dans leur bilan.')) return;
+
+    b.disabled = true;
+    try{
+      await appelPrep({
+        action: 'reglageSet',
+        cle: 'recitationsMoniteurs',
+        valeur: ouvert ? '' : 'oui',
+        par: ACCES.moniteur || ''
+      });
+      showToast(ouvert ? 'Refermé ✅' : 'Ouvert aux moniteurs ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      b.disabled = false;
+    }
   });
-  Object.keys(groupes).forEach(g => {
-    const og = document.createElement('optgroup');
-    og.label = g;
-    groupes[g].forEach(cle => {
-      const opt = document.createElement('option');
-      opt.value = cle;
-      opt.textContent = MODELES[cle].label;
-      og.appendChild(opt);
+  d.appendChild(b);
+
+  const enveloppe = document.createElement('div');
+  enveloppe.appendChild(d);
+  enveloppe.appendChild(blocMailNotification());
+  return enveloppe;
+}
+
+
+/* Où partent les alertes de correction */
+function blocMailNotification(){
+  const actuelle = reglagesProc.mailNotification || 'evolutionconduites@gmail.com';
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px;margin-bottom:12px;display:flex;gap:11px;align-items:center;';
+
+  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
+    '<strong>✉️ Alertes envoyées à</strong>' +
+    '<div style="font-size:12px;color:var(--accent-text);margin-top:2px;' +
+      'word-break:break-all;">' + actuelle.replace(/</g, '&lt;') + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      'Un mail part à chaque récitation reçue.</div></span>';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:10px 13px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  b.textContent = '✏️';
+  b.title = 'Changer l\'adresse';
+  b.addEventListener('click', () => ouvrirMailNotification(actuelle));
+  d.appendChild(b);
+
+  return d;
+}
+
+function ouvrirMailNotification(actuelle){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(440px, 94vw)';
+
+  boite.innerHTML = '<h3>✉️ Adresse des alertes</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Un mail part à cette adresse dès qu\'un élève ' +
+      'envoie une récitation, avec son texte.</div>' +
+    '<label for="mnMail">Adresse</label>' +
+    '<input type="email" id="mnMail" inputmode="email" autocomplete="off">';
+
+  boite.querySelector('#mnMail').value = actuelle;
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  bOk.addEventListener('click', async () => {
+    const v = boite.querySelector('#mnMail').value.trim();
+    if(v && v.indexOf('@') === -1){
+      showToast('Cette adresse ne ressemble pas à un mail.');
+      return;
+    }
+    bOk.disabled = true;
+    try{
+      await appelPrep({
+        action: 'reglageSet', cle: 'mailNotification',
+        valeur: v, par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Adresse enregistrée ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#mnMail').focus(), 100);
+}
+
+
+/* Les demandes en attente, du bureau comme des moniteurs */
+function blocDemandesEnCours(){
+  const attente = demandesProc.filter(x => x.etat !== 'fait');
+  if(!attente.length) return null;
+
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin:14px 0 8px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📌 ' + attente.length +
+    ' procédure(s) demandée(s), pas encore récitée(s)</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  attente.forEach(x => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:7px 0;' +
+      'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;';
+    l.innerHTML = '<span style="flex:1;min-width:0;line-height:1.45;">' +
+      '<strong>' + (x.eleve || '').replace(/</g, '&lt;') + '</strong> — ' +
+      (x.procedure || '').replace(/</g, '&lt;') +
+      '<div style="font-size:11px;color:var(--muted);">' +
+        'demandée le ' + (x.demandeLe || '').replace(/</g, '&lt;') +
+        (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') +
+        (x.consigne ? ' · ' + x.consigne.replace(/</g, '&lt;') : '') +
+      '</div></span>';
+
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+      'flex-shrink:0;color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.title = 'Retirer cette demande';
+    bSup.addEventListener('click', async () => {
+      try{
+        await appelPrep({ action: 'demandeDelete', id: x.id });
+        showToast('Retirée ✅');
+        afficherProcCorriger();
+      }catch(e){ showToast('Impossible : ' + e.message); }
     });
-    sel.appendChild(og);
+    l.appendChild(bSup);
+    z.appendChild(l);
   });
 
-  /* Le type choisi ne doit pas être perdu au rafraîchissement */
-  if(choisi && sel.querySelector('option[value="' + choisi + '"]')) sel.value = choisi;
+  d.appendChild(z);
+  return d;
 }
 
-let minuteurToast = null;
-
-function showToast(msg){
-  const t = $('toast');
-  if(!t) return;
-
-  t.textContent = msg;
-
-  /* Un souci reste plus longtemps qu'un simple « enregistré » :
-     2,2 secondes ne suffisaient pas à lire un message d'erreur,
-     surtout au volant. */
-  const souci = /impossible|erreur|échec|echec|⚠️|pas |aucun|manquant|invalide/i
-    .test(msg);
-  t.classList.toggle('souci', souci);
-
-  t.classList.add('show');
-  clearTimeout(minuteurToast);
-  minuteurToast = setTimeout(() => t.classList.remove('show'),
-                             souci ? 6000 : 3500);
-}
-
-/* ---------- Reconnaissance vocale ---------- */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const estAndroid = /Android/i.test(navigator.userAgent || '');
-
-if(!SR){
-  $('unsupportedBox').innerHTML = '<div class="unsupported">⚠️ La reconnaissance vocale demande ' +
-    '<strong>Chrome sur Android</strong>.<br>Le <strong>bilan à remplir à la main</strong> ' +
-    'reste utilisable normalement sur ce navigateur.</div>';
-  $('recBtn').disabled = true;
-  $('recBtn').style.opacity = '.45';
-  /* Le mode manuel est mis en avant puisque c'est le seul disponible */
-  const bm = $('manuelBtn');
-  if(bm){
-    bm.className = 'btn btn-primary';
-    bm.style.marginTop = '12px';
-  }
-}
-
-/* Qui est connecté, en haut de l'écran.
-   Utile quand plusieurs moniteurs se partagent un téléphone. */
-const LIBELLE_ROLE = { admin: 'Administrateur', bureau: 'Bureau', moniteur: 'Moniteur' };
-
-function afficherIdentite(){
-  const z = $('qui');
-  const n = $('quiNom');
-  const r = $('quiRole');
-  if(!z || !n) return;
-
-  if(!ACCES.code){
-    z.style.display = 'none';
-    return;
-  }
-  z.style.display = 'block';
-  n.textContent = ACCES.moniteur || '';
-  if(r) r.textContent = LIBELLE_ROLE[ACCES.role] || ACCES.role || '';
-}
 
 /* ============================================================
-   FILET DE SÉCURITÉ POUR LA CONNEXION
-   Le bouton Déverrouiller est branché ici, dans un module chargé
-   tôt. Si un module plus loin échoue, on peut toujours entrer.
-   ============================================================ */
-(function brancherConnexion(){
-  const btn = $('codeBtn');
-  const champ = $('codeInput');
-  const ident = $('identInput');
-  if(!btn || !champ) return;
+   DEMANDER UNE PROCÉDURE
 
-  const lancer = () => {
-    if(typeof deverrouiller === 'function'){ deverrouiller(); return; }
-    const msg = $('codeMsg');
-    if(msg){
-      msg.style.color = 'var(--warn-text)';
-      msg.innerHTML = "⚠️ L'application est incomplète : un fichier n'a pas été mis en ligne." +
-        '<br><span style="font-size:12px;">Vérifie le dossier <strong>app/</strong> sur GitHub, ' +
-        'puis recharge la page.</span>';
+   Le moniteur désigne ce que l'élève doit réciter. La demande
+   apparaît en tête de son espace, et se solde d'elle-même quand
+   il l'envoie.
+   ============================================================ */
+
+async function ouvrirDemande(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  const procs = (typeof modelesTexte !== 'undefined' ? modelesTexte : [])
+    .filter(m => m.usage === 'procedure')
+    .sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr'));
+
+  boite.innerHTML =
+    '<h3>📌 Demander une procédure</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'Elle apparaîtra en tête de son espace, avec la date. ' +
+      'Elle disparaîtra quand il l\'aura récitée.</div>' +
+
+    '<label for="dmEleve">Élève</label>' +
+    '<input type="text" id="dmEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Son nom">' +
+
+    '<label for="dmProc">Procédure</label>' +
+    '<select id="dmProc">' +
+      (procs.length
+        ? procs.map(p => '<option value="' + String(p.id).replace(/"/g, '&quot;') +
+            '">' + p.nom.replace(/</g, '&lt;') + '</option>').join('')
+        : '<option value="">Aucune procédure enregistrée</option>') +
+    '</select>' +
+
+    '<label for="dmMot">Un mot pour lui (facultatif)</label>' +
+    '<input type="text" id="dmMot" placeholder="Ex : soigne les vérifications">';
+
+  if(!procs.length){
+    boite.innerHTML += '<div style="font-size:12px;color:var(--warn-text);' +
+      'line-height:1.5;margin-bottom:10px;">⚠️ Aucune procédure dans ' +
+      'Outils → Procédures : il n\'y a rien à demander pour l\'instant.</div>';
+  }
+
+  const zListe = document.createElement('div');
+  zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;' +
+    'padding-top:12px;';
+  zListe.innerHTML = '<div class="empty">Lecture…</div>';
+  boite.appendChild(zListe);
+
+  const dessiner = async () => {
+    try{
+      const d = await appelPrep({ action: 'demandesList' });
+      const liste = ((d && d.demandes) || []).filter(x => x.etat !== 'fait');
+
+      zListe.innerHTML = '<div style="font-size:13px;font-weight:700;' +
+        'color:var(--accent-text);margin-bottom:8px;">' +
+        liste.length + ' demande(s) en attente</div>';
+
+      if(!liste.length){
+        zListe.innerHTML += '<div class="empty">Rien en attente.</div>';
+        return;
+      }
+
+      liste.forEach(x => {
+        const l = document.createElement('div');
+        l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;' +
+          'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;';
+        l.innerHTML = '<span style="flex:1;min-width:0;">' +
+          '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong> — ' +
+          x.procedure.replace(/</g, '&lt;') +
+          '<div style="font-size:11px;color:var(--muted);">' +
+            'demandé le ' + (x.demandeLe || '').replace(/</g, '&lt;') +
+            (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') +
+          '</div></span>';
+
+        const bSup = document.createElement('button');
+        bSup.className = 'btn btn-secondary';
+        bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;color:var(--red);border-color:var(--red);';
+        bSup.textContent = '🗑️';
+        bSup.addEventListener('click', async () => {
+          try{
+            await appelPrep({ action: 'demandeDelete', id: x.id });
+            showToast('Retirée ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bSup);
+        zListe.appendChild(l);
+      });
+    }catch(e){
+      zListe.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
     }
   };
 
-  btn.addEventListener('click', lancer);
-  champ.addEventListener('keydown', e => { if(e.key === 'Enter') lancer(); });
-  /* Entrée sur le prénom passe au code plutôt que d'envoyer un
-     formulaire à moitié rempli. */
-  if(ident) ident.addEventListener('keydown', e => {
-    if(e.key === 'Enter'){ e.preventDefault(); champ.focus(); }
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '📌 Demander';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#dmEleve').value.trim();
+    const sel = boite.querySelector('#dmProc');
+    if(!nom){ showToast('Indique l\'élève.'); return; }
+    if(!sel.value){ showToast('Choisis une procédure.'); return; }
+
+    bOk.disabled = true;
+    try{
+      await appelPrep({
+        action: 'demandeSet',
+        eleve: nom,
+        procedure: sel.options[sel.selectedIndex].textContent,
+        idProcedure: sel.value,
+        consigne: boite.querySelector('#dmMot').value.trim(),
+        par: ACCES.moniteur || ''
+      });
+      showToast('Demandée ✅');
+      boite.querySelector('#dmEleve').value = '';
+      boite.querySelector('#dmMot').value = '';
+      dessiner();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    bOk.disabled = false;
   });
-})();
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#dmEleve').focus(), 100);
+  dessiner();
+}
+
+
+/* ============================================================
+   LES CODES D'ACCÈS DES ÉLÈVES
+
+   Chaque élève reçoit un code à six chiffres pour entrer dans son
+   espace. Le bureau peut le changer si l'élève l'a perdu ou
+   partagé.
+   ============================================================ */
+
+async function ouvrirCodesEleves(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>🔑 Codes de l\'espace élève</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'L\'élève se connecte sur la page avec son nom et ce code. ' +
+      'Il n\'y voit que ses propres envois.</div>' +
+
+    '<label for="ceEleve">Donner un accès à</label>' +
+    '<input type="text" id="ceEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Son nom, comme dans le dossier">' +
+    '<button class="btn btn-primary" id="ceAjouter" ' +
+      'style="padding:12px;font-size:14px;">🔑 Créer son code</button>' +
+    '<div id="ceMsg" style="font-size:13px;margin:8px 0;line-height:1.5;"></div>';
+
+  const zListe = document.createElement('div');
+  zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;padding-top:12px;';
+  zListe.innerHTML = '<div class="empty">Lecture…</div>';
+  boite.appendChild(zListe);
+
+  const dessiner = async () => {
+    try{
+      const d = await appelPrep({ action: 'accesElevesList' });
+      const liste = (d && d.acces) || [];
+
+      zListe.innerHTML = '<div style="font-size:13px;font-weight:700;' +
+        'color:var(--accent-text);margin-bottom:8px;">' +
+        liste.length + ' élève(s) avec un accès</div>';
+
+      if(!liste.length){
+        zListe.innerHTML += '<div style="font-size:12px;color:var(--muted);">' +
+          'Personne pour l\'instant.</div>';
+        return;
+      }
+
+      liste.forEach(a => {
+        const l = document.createElement('div');
+        l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;' +
+          'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;' +
+          (a.actif ? '' : 'opacity:.5;');
+        l.innerHTML =
+          '<span style="flex:1;min-width:0;">' +
+            '<strong>' + a.eleve.replace(/</g, '&lt;') + '</strong>' +
+            '<div style="font-size:11px;color:var(--muted);">' +
+              (a.derniereVisite ? 'vu le ' + a.derniereVisite.replace(/</g, '&lt;')
+                                : 'jamais venu') +
+              (a.actif ? '' : ' · accès coupé') +
+            '</div>' +
+          '</span>' +
+          '<code style="flex-shrink:0;font-size:15px;letter-spacing:.12em;' +
+            'color:var(--accent-text);font-weight:700;">' + a.code + '</code>';
+
+        /* Copier le code, pour le transmettre à l'élève */
+        const bCop = document.createElement('button');
+        bCop.className = 'btn btn-secondary';
+        bCop.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;';
+        bCop.textContent = '📋';
+        bCop.title = 'Copier le message pour l\'élève';
+        bCop.addEventListener('click', async () => {
+          const m = 'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
+            'Tu peux réciter tes procédures ici :\n' +
+            'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+            'Ton nom : ' + a.eleve + '\n' +
+            'Ton code : ' + a.code + '\n\n' +
+            'Un moniteur te corrigera. Bon entraînement !';
+          try{
+            await navigator.clipboard.writeText(m);
+            showToast('Message copié ✅');
+          }catch(e){ showToast('Copie impossible'); }
+        });
+        l.appendChild(bCop);
+
+        /* Changer le code */
+        const bNew = document.createElement('button');
+        bNew.className = 'btn btn-secondary';
+        bNew.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;';
+        bNew.textContent = '🔄';
+        bNew.title = 'Lui donner un nouveau code';
+        bNew.addEventListener('click', async () => {
+          if(!await confirmer('Nouveau code pour ' + a.eleve + ' ?\n\n' +
+              'L\'ancien ne marchera plus : il faudra lui transmettre le nouveau.')) return;
+          try{
+            const rep = await appelPrep({ action: 'accesEleveSet', eleve: a.eleve });
+            showToast('Nouveau code : ' + (rep.code || '') + ' ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bNew);
+
+        const bSup = document.createElement('button');
+        bSup.className = 'btn btn-secondary';
+        bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;color:var(--red);border-color:var(--red);';
+        bSup.textContent = '🗑️';
+        bSup.addEventListener('click', async () => {
+          if(!await confirmer('Retirer l\'accès de ' + a.eleve + ' ?')) return;
+          try{
+            await appelPrep({ action: 'accesEleveDelete', eleve: a.eleve });
+            showToast('Accès retiré ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bSup);
+
+        zListe.appendChild(l);
+      });
+    }catch(e){
+      zListe.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+    }
+  };
+
+  boite.querySelector('#ceAjouter').addEventListener('click', async () => {
+    const nom = boite.querySelector('#ceEleve').value.trim();
+    if(!nom){ showToast('Indique l\'élève.'); return; }
+
+    const b = boite.querySelector('#ceAjouter');
+    b.disabled = true;
+    try{
+      const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom });
+      boite.querySelector('#ceMsg').innerHTML =
+        '<span style="color:var(--accent-text);">Code de ' +
+        nom.replace(/</g, '&lt;') + ' : <strong style="letter-spacing:.12em;">' +
+        (rep.code || '') + '</strong></span><br>' +
+        '<span style="font-size:11px;color:var(--muted);">' +
+        'Le bouton 📋 copie le message à lui envoyer.</span>';
+      boite.querySelector('#ceEleve').value = '';
+      dessiner();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    b.disabled = false;
+  });
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bF);
+  boite.appendChild(rw);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  dessiner();
+}
+
+
+/* ============================================================
+   LES RÉCITATIONS DE L'ESPACE ÉLÈVE
+
+   L'élève a récité, l'IA propose une correction, un moniteur la
+   relit et la valide. Tant qu'elle n'est pas validée, l'élève ne
+   voit rien d'autre qu'un « en attente ».
+   ============================================================ */
+
+function ligneRecitation(r){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+    'border:1px solid ' + (r.etat === 'valide' ? 'var(--line)' : 'var(--orange)') +
+    ';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;' +
+    (r.etat === 'valide' ? 'opacity:.6;' : '');
+
+  l.innerHTML =
+    '<span style="flex-shrink:0;font-size:19px;">🎙️</span>' +
+    '<span style="flex:1;min-width:0;font-size:14px;line-height:1.4;">' +
+      '<strong>' + (r.eleve || '?').replace(/</g, '&lt;') + '</strong>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+        (r.procedure || '').replace(/</g, '&lt;') + ' · ' +
+        (r.envoyeLe || '').replace(/</g, '&lt;') +
+        (r.etat === 'valide'
+          ? ' · <span style="color:var(--accent-text);">✅ validée</span>'
+          : (r.correction ? ' · correction prête' : ' · à corriger')) +
+      '</div>' +
+    '</span>';
+
+  l.addEventListener('click', () => ouvrirRecitation(r));
+  return l;
+}
+
+
+async function ouvrirRecitation(r){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML =
+    '<h3>' + (r.eleve || '').replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">' +
+      (r.procedure || '').replace(/</g, '&lt;') + ' · ' +
+      (r.envoyeLe || '').replace(/</g, '&lt;') + '</div>' +
+
+    '<label for="rcTexte">Ce qu\'il a dit</label>' +
+    '<textarea id="rcTexte" rows="6" ' +
+      'style="font-size:14px;line-height:1.6;"></textarea>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.5;">Modifiable : la dictée se trompe parfois sur un mot. ' +
+      'Corrige avant de demander la correction.</div>' +
+
+    '<label for="rcCorrection">La correction qu\'il verra</label>' +
+    '<textarea id="rcCorrection" rows="10" ' +
+      'placeholder="Relis et ajuste avant de valider."></textarea>' +
+    '<div id="rcEtat" style="font-size:12px;color:var(--muted);' +
+      'margin:-6px 0 12px;line-height:1.5;"></div>';
+
+  boite.querySelector('#rcTexte').value = r.texte || '';
+  boite.querySelector('#rcCorrection').value = r.correction || '';
+
+  const zEtat = boite.querySelector('#rcEtat');
+
+  /* La correction par l'IA, si elle n'existe pas encore */
+  const bIA = document.createElement('button');
+  bIA.className = 'btn btn-secondary';
+  bIA.style.cssText = 'margin-bottom:12px;padding:11px;font-size:13px;';
+  bIA.textContent = r.correction ? '🔄 Refaire la correction' : '✨ Corriger avec l\'IA';
+  bIA.addEventListener('click', async () => {
+    bIA.disabled = true;
+    zEtat.textContent = 'Lecture de la procédure de référence…';
+    try{
+      /* On corrige le texte à l'écran, pas celui d'origine : le
+         moniteur a pu rectifier une transcription fautive. */
+      const texte = await corrigerRecitation(
+        Object.assign({}, r, { texte: boite.querySelector('#rcTexte').value }));
+      boite.querySelector('#rcCorrection').value = texte;
+      zEtat.textContent = 'Proposition de l\'IA — relis-la avant de valider.';
+    }catch(e){
+      zEtat.textContent = 'Correction impossible : ' + e.message;
+    }
+    bIA.disabled = false;
+    bIA.textContent = '🔄 Refaire la correction';
+  });
+  boite.appendChild(bIA);
+
+  /* Comment la lui transmettre, en plus de son espace */
+  const zEnvoi = document.createElement('div');
+  zEnvoi.style.cssText = 'border-top:1px solid var(--line);margin-top:6px;' +
+    'padding-top:12px;margin-bottom:6px;';
+  zEnvoi.innerHTML = '<div style="font-size:12px;color:var(--muted);' +
+    'margin-bottom:8px;line-height:1.5;">En plus de son espace :</div>';
+
+  const faire = (id, texte, coche) => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 8px;' +
+      'font-weight:400;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = id;
+    cb.checked = coche;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    l.appendChild(cb);
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = texte;
+    l.appendChild(t);
+    zEnvoi.appendChild(l);
+    return cb;
+  };
+
+  const envoyerMail = faire('rcMail', '✉️ Lui envoyer par mail', true);
+  const parMessenger = faire('rcMess', '💬 Préparer le message Messenger', false);
+  boite.appendChild(zEnvoi);
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bAnn);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
+  bSup.textContent = '🗑️';
+  bSup.addEventListener('click', async () => {
+    if(!await confirmer('Supprimer cette récitation ?')) return;
+    try{
+      await appelPrep({ action: 'recitationDelete', id: r.id });
+      document.body.removeChild(fond);
+      showToast('Supprimée ✅');
+      afficherProcCorriger();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  rw.appendChild(bSup);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = (r.etat === 'valide') ? '💾 Enregistrer' : '✅ Valider et envoyer';
+  bOk.addEventListener('click', async () => {
+    const texte = boite.querySelector('#rcCorrection').value.trim();
+    if(!texte){ showToast('Écris la correction avant de valider.'); return; }
+
+    bOk.disabled = true;
+    try{
+      const rep = await appelPrep({
+        action: 'recitationSet', id: r.id,
+        texte: boite.querySelector('#rcTexte').value,
+        correction: texte, etat: 'valide',
+        /* De quoi composer le mail, que le classeur n'a pas à
+           retrouver lui-même. */
+        eleveNom: r.eleve || '',
+        procedureNom: r.procedure || '',
+        mail: envoyerMail.checked ? 'oui' : 'non',
+        par: ACCES.moniteur || ''
+      });
+
+      document.body.removeChild(fond);
+
+      const m = rep && rep.mail;
+      if(envoyerMail.checked && m && !m.envoye){
+        showToast('Validée ✅ — mail non envoyé : ' + (m.motif || ''));
+      }else if(envoyerMail.checked && m && m.envoye){
+        showToast('Validée et envoyée à ' + m.email + ' ✅');
+      }else{
+        showToast('Validée — l\'élève peut la voir ✅');
+      }
+
+      /* Messenger : on prépare le message, l'envoi reste manuel */
+      if(parMessenger.checked){
+        ouvrirMessengerCorrection(r, texte, boite.querySelector('#rcTexte').value);
+      }
+
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+    }
+  });
+  rw.appendChild(bOk);
+
+  boite.appendChild(rw);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  /* Rien encore : on propose la correction sans attendre */
+  if(!r.correction) setTimeout(() => bIA.click(), 200);
+}
+
+
+
+/* Le message Messenger, prêt à coller */
+async function ouvrirMessengerCorrection(r, correction, dit){
+  let messenger = '';
+  try{
+    const d = await appelPrep({ action: 'contactEleve', eleve: r.eleve });
+    messenger = ((d && d.contact) || {}).messenger || '';
+  }catch(e){}
+
+  const texte =
+    'Bonjour ' + String(r.eleve).split(' ')[0] + ' 👋\n\n' +
+    'Voici la correction de ta procédure « ' + r.procedure + ' » :\n\n' +
+    correction + '\n\n' +
+    'Bon entraînement !';
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>💬 Message pour ' +
+    (r.eleve || '').replace(/</g, '&lt;') + '</h3>' +
+    (messenger
+      ? '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Son ' +
+        'Messenger : <strong>' + messenger.replace(/</g, '&lt;') + '</strong></div>'
+      : '<div style="font-size:12px;color:var(--warn-text);margin-bottom:10px;' +
+        'line-height:1.5;">Aucun Messenger dans sa fiche : copie le message ' +
+        'et retrouve-le à la main.</div>');
+
+  const z = document.createElement('textarea');
+  z.rows = 12;
+  z.value = texte;
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
+  boite.appendChild(z);
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bF);
+
+  const bC = document.createElement('button');
+  bC.className = 'btn btn-primary';
+  bC.textContent = '📋 Copier';
+  bC.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(z.value);
+      showToast('Message copié ✅');
+      window.open('https://www.messenger.com/', '_blank');
+    }catch(e){
+      z.focus(); z.select();
+      showToast('Sélectionné : Ctrl+C pour copier');
+    }
+  });
+  rw.appendChild(bC);
+
+  boite.appendChild(rw);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
+/* La correction par l'IA, appuyée sur la procédure de référence */
+async function corrigerRecitation(r){
+  /* Le texte attendu : la comparaison n'a de sens que par rapport
+     à ce que l'auto-école enseigne. */
+  let reference = '';
+  try{
+    const mod = (typeof modelesTexte !== 'undefined' ? modelesTexte : [])
+      .find(m => m.usage === 'procedure' &&
+                 normaliserMot(m.nom) === normaliserMot(r.procedure));
+    reference = (mod && mod.contenu) || '';
+  }catch(e){}
+
+  const consigne =
+    'Tu es moniteur d\'auto-école. Un élève récite une procédure de conduite. ' +
+    'Corrige-le en t\'adressant à lui, en le tutoyant, avec bienveillance.\n\n' +
+    (reference
+      ? 'LA PROCÉDURE ATTENDUE :\n' + reference + '\n\n'
+      : 'Aucune procédure de référence enregistrée : appuie-toi sur les ' +
+        'règles habituelles de la conduite.\n\n') +
+    'CE QUE L\'ÉLÈVE A DIT :\n' + r.texte + '\n\n' +
+    'Ta réponse, en français, sans titre ni préambule :\n' +
+    '1. Ce qui est juste, en une ou deux phrases.\n' +
+    '2. Ce qui manque ou ce qui est faux, point par point.\n' +
+    '3. Une phrase d\'encouragement pour la prochaine fois.\n\n' +
+    'Reste court : dix lignes au plus. Ne réécris pas toute la procédure.';
+
+  /* Le même relais que les bilans : le code du moniteur y donne
+     accès, pas celui de l'élève. */
+  const rep = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: 1200,
+        system: consigne,
+        messages: [{ role: 'user', content:
+          'Corrige cette récitation.' }]
+      }
+    })
+  });
+
+  if(rep.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé.');
+  }
+  if(!rep.ok) throw new Error('HTTP ' + rep.status);
+
+  const d = await rep.json();
+  if(d.error) throw new Error((d.error && d.error.message) || 'Erreur IA');
+
+  return (d.content || [])
+    .filter(x => x.type === 'text')
+    .map(x => x.text)
+    .join('\n')
+    .trim();
+}
+
+
+/* ============================================================
+   LA FICHE
+   ============================================================ */
+
+async function ouvrirFicheProc(x){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML =
+    '<h3>' + (x ? 'Procédure de ' + (x.eleve || '').replace(/</g, '&lt;')
+                : 'Procédure reçue') + '</h3>' +
+
+    '<label for="pcEleve">Élève</label>' +
+    '<input type="text" id="pcEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Prénom et nom">' +
+
+    '<label for="pcMess">Son Messenger</label>' +
+    '<input type="text" id="pcMess" placeholder="Son nom sur Messenger, ou le lien">' +
+
+    '<label for="pcRem">Remarque (facultatif)</label>' +
+    '<textarea id="pcRem" rows="2" ' +
+      'placeholder="Ex : procédure du créneau, 3e envoi"></textarea>' +
+
+    '<label>Capture d\'écran</label>' +
+    '<div id="pcApercu" style="margin-bottom:8px;"></div>' +
+    '<div id="pcColler" tabindex="0" style="border:2px dashed var(--line);' +
+      'border-radius:10px;padding:14px 12px;text-align:center;font-size:13px;' +
+      'color:var(--muted);cursor:pointer;margin-bottom:6px;">' +
+      '📋 <strong>Colle la capture ici</strong><br>' +
+      '<span style="font-size:11px;">Ctrl+V, ou fais glisser l\'image</span></div>' +
+    '<input type="file" id="pcFichier" accept="image/*" ' +
+      'style="font-size:13px;padding:9px;margin-bottom:12px;">';
+
+  let image = '';
+
+  const apercu = boite.querySelector('#pcApercu');
+  const montrer = () => {
+    apercu.innerHTML = image
+      ? '<img src="' + image + '" style="max-width:100%;max-height:250px;' +
+        'border-radius:9px;border:1px solid var(--line);">'
+      : '';
+  };
+
+  if(x){
+    boite.querySelector('#pcEleve').value = x.eleve || '';
+    boite.querySelector('#pcMess').value = x.messenger || '';
+    boite.querySelector('#pcRem').value = x.remarque || '';
+
+    /* La capture arrive à part : elle est lourde et n'a pas sa
+       place dans la liste. */
+    if(x.aUneCapture){
+      apercu.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
+        'Chargement de la capture…</div>';
+      appelPrep({ action: 'procCorrigerCapture', id: x.id })
+        .then(r => { image = (r && r.image) || ''; montrer(); })
+        .catch(() => { apercu.innerHTML =
+          '<div style="font-size:12px;color:var(--warn-text);">' +
+          'Capture illisible.</div>'; });
+    }
+  }
+  montrer();
+
+  /* Coller, glisser ou choisir */
+  const prendre = async fichier => {
+    if(!fichier) return;
+    try{
+      image = await compresserImage(fichier);
+      montrer();
+    }catch(e){ showToast('Image refusée : ' + e.message); }
+  };
+
+  const zc = boite.querySelector('#pcColler');
+  zc.addEventListener('click', () => zc.focus());
+  zc.addEventListener('paste', ev => {
+    const items = (ev.clipboardData && ev.clipboardData.items) || [];
+    for(let i = 0; i < items.length; i++){
+      if(items[i].type && items[i].type.indexOf('image') === 0){
+        ev.preventDefault();
+        prendre(items[i].getAsFile());
+        return;
+      }
+    }
+  });
+  ['dragenter', 'dragover'].forEach(n => zc.addEventListener(n, ev => {
+    ev.preventDefault();
+    zc.style.borderColor = 'var(--orange)';
+  }));
+  ['dragleave', 'drop'].forEach(n => zc.addEventListener(n, ev => {
+    ev.preventDefault();
+    zc.style.borderColor = 'var(--line)';
+  }));
+  zc.addEventListener('drop', ev => {
+    const f = (ev.dataTransfer && ev.dataTransfer.files || [])[0];
+    if(f && f.type.indexOf('image') === 0) prendre(f);
+  });
+  boite.querySelector('#pcFichier').addEventListener('change', ev => {
+    prendre(ev.target.files && ev.target.files[0]);
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  if(x){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer cette procédure de la liste ?')) return;
+      try{
+        await appelPrep({ action: 'procCorrigerDelete', id: x.id });
+        document.body.removeChild(fond);
+        showToast('Supprimée ✅');
+        afficherProcCorriger();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    r.appendChild(bSup);
+  }
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = x ? '💾 Enregistrer' : '➕ Ajouter';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#pcEleve').value.trim();
+    if(!nom){ showToast("Indique l'élève."); return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await appelPrep({
+        action: 'procCorrigerSet',
+        id: x ? x.id : '',
+        eleve: nom,
+        messenger: boite.querySelector('#pcMess').value.trim(),
+        remarque: boite.querySelector('#pcRem').value.trim(),
+        /* Renvoyée seulement si elle a changé : une capture pèse
+           lourd et le serveur garde l'ancienne. */
+        capture: (image && (!x || !x.aUneCapture || image.indexOf('data:') === 0))
+                   ? image : '',
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast(x ? 'Modifiée ✅' : 'Ajoutée ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = x ? '💾 Enregistrer' : '➕ Ajouter';
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#pcEleve').focus(), 100);
+}
+
+
+/* ============================================================
+   LA PASTILLE
+
+   Elle ne s'affiche que pour ceux qui corrigent : la voir sans
+   pouvoir agir n'apporte rien.
+   ============================================================ */
+function majPastilleProc(){
+  const n = nbProcACorriger();
+
+  /* Sur le sous-onglet : le compte exact */
+  if(typeof poserCompteVue === 'function'){
+    poserCompteVue('eleves', 'proccorriger', n);
+  }
+
+  /* Et sur l'onglet Élèves lui-même : sans elle, il faudrait ouvrir
+     l'onglet pour découvrir qu'il y a du travail. */
+  if(typeof poserAlerte === 'function') poserAlerte('eleves', n);
+}
+
+/* Le compte, chargé en fond après la connexion */
+async function chargerProcEnFond(){
+  if(!ACCES || !ACCES.droits || !ACCES.droits.proccorriger) return;
+  try{
+    const d = await appelPrep({ action: 'procCorrigerList' });
+    procACorriger = (d && d.fiches) || [];
+    majPastilleProc();
+  }catch(e){ /* la pastille attendra le prochain passage */ }
+}
+
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-noyau.js'] = true;
-
-/* ============================================================
-   CONTRÔLE DES MODULES
-   Un fichier absent du serveur ne provoque aucune erreur visible :
-   des boutons cessent simplement de répondre. On le signale.
-   ============================================================ */
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-paie.js", "ec-flotte.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
-
-function verifierModules(){
-  const charges = window.EC_MODULES || {};
-  const manquants = EC_ATTENDUS.filter(function(m){ return !charges[m]; });
-  if(!manquants.length) return;
-
-  const z = document.createElement('div');
-  z.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;' +
-    'background:#B3261E;color:#fff;padding:14px 16px;font-size:14px;line-height:1.5;' +
-    'font-family:inherit;box-shadow:0 2px 12px rgba(0,0,0,.4);';
-  z.innerHTML = '<strong>⚠️ Application incomplète</strong><br>' +
-    manquants.length + ' fichier(s) manquant(s) dans le dossier <code>app/</code> :<br>' +
-    manquants.join(', ') + '<br>' +
-    '<span style="font-size:12px;opacity:.9;">Certaines fonctions ne répondront pas ' +
-    'tant que ces fichiers ne sont pas en ligne.</span>';
-  document.body.insertBefore(z, document.body.firstChild);
-  console.error('Modules manquants :', manquants);
-}
-
-/* On laisse le temps aux derniers scripts d'arriver */
-setTimeout(verifierModules, 2500);
+window.EC_MODULES['ec-proccorriger.js'] = true;
