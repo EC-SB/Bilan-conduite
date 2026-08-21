@@ -593,6 +593,56 @@ function blocDemandesEnCours(){
 }
 
 
+
+/* Demande quelle langue ouvrir à un élève */
+function choisirLangue(a, langues){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(430px, 94vw)';
+
+    boite.innerHTML = '<h3>🌍 Langue de ' +
+      a.eleve.replace(/</g, '&lt;') + '</h3>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+        'line-height:1.5;">Il pourra réciter dans cette langue. La correction ' +
+        'te reviendra en français, et lui la recevra dans la sienne.</div>' +
+      '<select id="clChoix"><option value="">🇫🇷 Français seulement</option>' +
+      langues.map(l => '<option value="' + String(l.code).replace(/"/g, '&quot;') +
+        '"' + (l.code === a.langue ? ' selected' : '') + '>' +
+        l.nom.replace(/</g, '&lt;') + '</option>').join('') +
+      '</select>';
+
+    const r = document.createElement('div');
+    r.className = 'btn-row';
+
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+    r.appendChild(bA);
+
+    const bO = document.createElement('button');
+    bO.className = 'btn btn-primary';
+    bO.textContent = '💾 Enregistrer';
+    bO.addEventListener('click', () => {
+      const v = boite.querySelector('#clChoix').value;
+      document.body.removeChild(fond);
+      resolve(v);
+    });
+    r.appendChild(bO);
+
+    boite.appendChild(r);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+  });
+}
+
+
 /* ============================================================
    DEMANDER UNE PROCÉDURE
 
@@ -760,6 +810,13 @@ async function ouvrirCodesEleves(){
     '<label for="ceEleve">Donner un accès à</label>' +
     '<input type="text" id="ceEleve" list="listeEleves" autocomplete="off" ' +
       'placeholder="Son nom, comme dans le dossier">' +
+
+    '<label for="ceLangue">Sa langue</label>' +
+    '<select id="ceLangue"><option value="">🇫🇷 Français seulement</option></select>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.5;">Ouvrir une autre langue lui permet de réciter ' +
+      'dans sa langue. Chaque récitation coûte alors une traduction ' +
+      'en plus — à réserver à ceux qui en ont besoin.</div>' +
     '<button class="btn btn-primary" id="ceAjouter" ' +
       'style="padding:12px;font-size:14px;">🔑 Créer son code</button>' +
     '<div id="ceMsg" style="font-size:13px;margin:8px 0;line-height:1.5;"></div>';
@@ -768,6 +825,23 @@ async function ouvrirCodesEleves(){
   zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;padding-top:12px;';
   zListe.innerHTML = '<div class="empty">Lecture…</div>';
   boite.appendChild(zListe);
+
+  /* Les langues ouvertes par le bureau */
+  let langues = [];
+  try{
+    const dl = await appelPrep({ action: 'languesList' });
+    langues = (dl && dl.langues) || [];
+  }catch(e){}
+
+  const selL = boite.querySelector('#ceLangue');
+  selL.innerHTML = '<option value="">🇫🇷 Français seulement</option>' +
+    langues.map(l => '<option value="' + String(l.code).replace(/"/g, '&quot;') +
+      '">' + l.nom.replace(/</g, '&lt;') + '</option>').join('');
+
+  const nomLangue = code => {
+    const l = langues.find(x => x.code === code);
+    return l ? l.nom : code;
+  };
 
   const dessiner = async () => {
     try{
@@ -796,6 +870,8 @@ async function ouvrirCodesEleves(){
               (a.derniereVisite ? 'vu le ' + a.derniereVisite.replace(/</g, '&lt;')
                                 : 'jamais venu') +
               (a.actif ? '' : ' · accès coupé') +
+              (a.langue ? '<br>🌍 ' + nomLangue(a.langue).replace(/</g, '&lt;')
+                        : '') +
             '</div>' +
           '</span>' +
           '<code style="flex-shrink:0;font-size:15px;letter-spacing:.12em;' +
@@ -823,6 +899,24 @@ async function ouvrirCodesEleves(){
         l.appendChild(bCop);
 
         /* Changer le code */
+        const bLang = document.createElement('button');
+        bLang.className = 'btn btn-secondary';
+        bLang.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;';
+        bLang.textContent = '🌍';
+        bLang.title = 'Changer sa langue';
+        bLang.addEventListener('click', async () => {
+          const choix = await choisirLangue(a, langues);
+          if(choix === null) return;
+          try{
+            await appelPrep({ action: 'accesEleveSet', eleve: a.eleve,
+                              code: a.code, langue: choix });
+            showToast(choix ? 'Langue ouverte ✅' : 'Français seulement ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bLang);
+
         const bNew = document.createElement('button');
         bNew.className = 'btn btn-secondary';
         bNew.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
@@ -870,7 +964,8 @@ async function ouvrirCodesEleves(){
     const b = boite.querySelector('#ceAjouter');
     b.disabled = true;
     try{
-      const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom });
+      const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom,
+                                    langue: selL.value });
       boite.querySelector('#ceMsg').innerHTML =
         '<span style="color:var(--accent-text);">Code de ' +
         nom.replace(/</g, '&lt;') + ' : <strong style="letter-spacing:.12em;">' +
@@ -944,6 +1039,21 @@ async function ouvrirRecitation(r){
       (r.procedure || '').replace(/</g, '&lt;') + ' · ' +
       (r.envoyeLe || '').replace(/</g, '&lt;') + '</div>' +
 
+    (r.langue
+      ? '<div style="background:rgba(182,255,14,.08);border-radius:10px;' +
+        'padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:12px;">' +
+        '🌍 Récité en <strong>' + String(r.langue).replace(/</g, '&lt;') +
+        '</strong>. La correction française sera traduite pour lui.</div>'
+      : '') +
+
+    (r.traduction
+      ? '<label>Traduction en français</label>' +
+        '<div style="background:var(--navy);border:1px solid var(--line);' +
+        'border-radius:10px;padding:11px 12px;font-size:14px;line-height:1.65;' +
+        'white-space:pre-wrap;margin-bottom:14px;">' +
+        r.traduction.replace(/</g, '&lt;') + '</div>'
+      : '') +
+
     '<label for="rcTexte">Ce qu\'il a dit</label>' +
     '<textarea id="rcTexte" rows="6" ' +
       'style="font-size:14px;line-height:1.6;"></textarea>' +
@@ -955,9 +1065,22 @@ async function ouvrirRecitation(r){
     '<textarea id="rcCorrection" rows="10" ' +
       'placeholder="Relis et ajuste avant de valider."></textarea>' +
     '<div id="rcEtat" style="font-size:12px;color:var(--muted);' +
-      'margin:-6px 0 12px;line-height:1.5;"></div>';
+      'margin:-6px 0 12px;line-height:1.5;"></div>' +
+
+    (r.langue
+      ? '<label for="rcTraduite">Ce qu\'il recevra, dans sa langue</label>' +
+        '<textarea id="rcTraduite" rows="6" dir="auto" ' +
+          'style="font-size:14px;line-height:1.6;"></textarea>' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+          'line-height:1.5;">Si tu changes la correction française, ' +
+          'pense à ajuster celle-ci — ou laisse-la vide pour n\'envoyer ' +
+          'que le français.</div>'
+      : '');
 
   boite.querySelector('#rcTexte').value = r.texte || '';
+  if(boite.querySelector('#rcTraduite')){
+    boite.querySelector('#rcTraduite').value = r.correctionTraduite || '';
+  }
   boite.querySelector('#rcCorrection').value = r.correction || '';
 
   const zEtat = boite.querySelector('#rcEtat');
@@ -1052,6 +1175,8 @@ async function ouvrirRecitation(r){
         action: 'recitationSet', id: r.id,
         texte: boite.querySelector('#rcTexte').value,
         correction: texte, etat: 'valide',
+        correctionTraduite: boite.querySelector('#rcTraduite')
+          ? boite.querySelector('#rcTraduite').value : '',
         /* De quoi composer le mail, que le classeur n'a pas à
            retrouver lui-même. */
         eleveNom: r.eleve || '',
