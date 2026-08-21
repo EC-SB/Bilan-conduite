@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 11:21 — v466 */
+/* Déployé le 21/08/2026 à 12:42 — v473 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -16,8 +16,10 @@ const SECTIONS_ONGLET = {
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
-  outils: ['paie', 'flotte', 'ecran', 'bureau_messages', 'textes', 'procedures', 'bilans',
-           'stats', 'notifs', 'taches', 'memoire', 'historique', 'admin']
+  outils:  ['procedures', 'textes', 'memoire', 'bilans', 'historique',
+            'stats', 'journal'],
+  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie',
+            'bureau_messages', 'admin']
 };
 
 let ongletActif = '';
@@ -25,6 +27,9 @@ let ongletActif = '';
 /* Les onglets réellement accessibles à cette personne */
 function ongletsDisponibles(){
   return Object.keys(SECTIONS_ONGLET).filter(o => {
+    /* Un administrateur voit toujours Gestion : c'est là que vivent
+       les accès et le journal, qui ne dépendent d'aucun droit. */
+    if(o === 'gestion' && ACCES.role === 'admin') return true;
     if(o === 'outils' && ACCES.role === 'admin') return true;
     return SECTIONS_ONGLET[o].some(s => typeof aDroit === 'function' && aDroit(s));
   });
@@ -133,19 +138,22 @@ const VUES = {
            ['proccorriger','📥 Procédures',            'proccorriger'],
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
-  outils: [['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
+  /* Ce qui sert au quotidien pédagogique */
+  outils: [['procedures', '🚦 Procédures',             'procedures'],
            ['textes',     '📄 Textes types',           'textes'],
-           ['procedures', '🚦 Procédures',             'procedures'],
-           ['bilans',     '📋 Modèles de bilan',       'bilans'],
-           ['paie',       '💶 Paie',                    'paie'],
-           ['flotte',     '🚗 Flotte',                  'flotte'],
-           ['ecran',      '📺 Affichage',               'ecran'],
-           ['notifs',     '🔔 Alertes',                 'notifs'],
-           ['taches',     '✅ Tâches',                  'taches'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
+           ['bilans',     '📋 Modèles de bilan',       'bilans'],
            ['historique', '📚 Historique des cours',    'historique'],
            ['stats',      '📈 Réussite',               'stats'],
-           ['journal',    '📊 Journal',                'journal'],
+           ['journal',    '📊 Journal',                'journal']],
+
+  /* Ce qui relève de la gestion de l'entreprise */
+  gestion: [['ecran',     '📺 Affichage',               'ecran'],
+           ['notifs',     '🔔 Alertes',                 'notifs'],
+           ['taches',     '✅ Tâches',                  'taches'],
+           ['flotte',     '🚗 Flotte',                  'flotte'],
+           ['paie',       '💶 Paie',                    'paie'],
+           ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
            ['admin',      '⚙️ Accès',                  'admin']]
 };
 
