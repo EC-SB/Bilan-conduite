@@ -21,6 +21,11 @@ const CATEGORIES_FLOTTE = [
   { cle:'remorque', nom:'🚚 Remorque', ct:'pas de contrôle' }
 ];
 
+/* Les carburants courants. La liste reste ouverte : un véhicule
+   peut changer de motorisation, ou en avoir une qu'on n'a pas
+   prévue. */
+const CARBURANTS = ['Essence', 'Diesel', 'Hybride', 'Électrique', 'GPL'];
+
 const TYPES_EVENEMENT = [
   { cle:'km',         nom:'🔢 Relevé de compteur' },
   { cle:'revision',   nom:'🔧 Révision / entretien' },
@@ -127,22 +132,91 @@ async function afficherFlotte(){
   b.addEventListener('click', () => ouvrirFicheVehicule(null));
   zone.appendChild(b);
 
+  /* La recherche : au-delà d'une dizaine de véhicules, faire défiler
+     pour retrouver une plaque devient pénible. */
+  if(flotte.length > 6){
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.id = 'flotteRecherche';
+    ch.placeholder = '🔍 Immatriculation, numéro, modèle, carburant…';
+    ch.style.cssText = 'margin-bottom:12px;font-size:14px;';
+    ch.value = filtreFlotte;
+    ch.addEventListener('input', () => {
+      filtreFlotte = ch.value;
+      dessinerListeFlotte();
+      /* Le curseur reste où il est : redessiner le perdrait */
+      const n = $('flotteRecherche');
+      if(n && n !== ch) n.focus();
+    });
+    zone.appendChild(ch);
+  }
+
+  const zListe = document.createElement('div');
+  zListe.id = 'flotteListe';
+  zone.appendChild(zListe);
+
+  dessinerListeFlotte();
+}
+
+
+/* Ce qu'on cherche dans la flotte */
+let filtreFlotte = '';
+
+function correspondFlotte(v, mots){
+  if(!mots.length) return true;
+
+  /* Tout ce sur quoi on peut chercher, en un seul texte */
+  const cat = CATEGORIES_FLOTTE.find(x => x.cle === v.categorie);
+  const foin = normaliserMot([
+    v.nom, v.immat, v.modele, v.categorie,
+    cat ? cat.nom.replace(/[^\wÀ-ÿ ]/g, '') : '',
+    v.carburant, v.site, v.boite === 'bva' ? 'automatique' : 'manuelle',
+    v.motifIndispo
+  ].filter(Boolean).join(' '));
+
+  /* Tous les mots doivent s'y trouver : « a3 diesel » ne ramène que
+     les A3 diesel, pas tous les A3 puis tous les diesels. */
+  return mots.every(m => foin.indexOf(m) !== -1);
+}
+
+function dessinerListeFlotte(){
+  const zone = $('flotteListe');
+  if(!zone) return;
+  zone.innerHTML = '';
+
   if(!flotte.length){
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.innerHTML = 'Aucun véhicule enregistré.<br>' +
+    zone.innerHTML = '<div class="empty">Aucun véhicule enregistré.<br>' +
       '<span style="font-size:12px;">Commence par en ajouter un : ' +
-      'les échéances se calculeront seules.</span>';
-    zone.appendChild(v);
+      'les échéances se calculeront seules.</span></div>';
+    return;
+  }
+
+  /* L'immatriculation se cherche avec ou sans tirets */
+  const mots = normaliserMot(String(filtreFlotte || '').replace(/-/g, ''))
+    .split(/\s+/).filter(Boolean);
+  const vus = flotte.filter(v => correspondFlotte(
+    Object.assign({}, v, { immat: String(v.immat || '').replace(/-/g, '') }), mots));
+
+  if(!vus.length){
+    zone.innerHTML = '<div class="empty">Aucun véhicule ne correspond.</div>';
+    return;
+  }
+
+  /* Une recherche donne une liste à plat : grouper n'aide plus */
+  if(mots.length){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;';
+    t.textContent = vus.length + ' véhicule(s) trouvé(s)';
+    zone.appendChild(t);
+    vus.forEach(v => zone.appendChild(ligneVehicule(v)));
     return;
   }
 
   /* Ce qui réclame une décision, en tête */
   zone.appendChild(blocAurgent());
 
-  /* Puis la flotte, groupée par catégorie */
-  const actifs = flotte.filter(v => v.etat !== 'vendu');
-  const sortis = flotte.filter(v => v.etat === 'vendu');
+  const actifs = vus.filter(v => v.etat !== 'vendu');
+  const sortis = vus.filter(v => v.etat === 'vendu');
 
   CATEGORIES_FLOTTE.forEach(cat => {
     const lot = actifs.filter(v => v.categorie === cat.cle);
@@ -249,6 +323,7 @@ function ligneVehicule(v){
       (v.km ? v.km.toLocaleString('fr-FR') + ' km' : 'km à relever') +
       (v.site ? ' · ' + v.site.replace(/</g, '&lt;') : '') +
       (v.boite ? ' · ' + v.boite.toUpperCase() : '') +
+      (v.carburant ? ' · ' + v.carburant.replace(/</g, '&lt;') : '') +
     '</div>' +
     (alertes.length
       ? '<div style="font-size:11px;margin-top:3px;color:' +
@@ -315,17 +390,27 @@ function ouvrirFicheVehicule(v){
     '</div>' +
 
     '<div class="duo">' +
+      '<div><label for="vCarbChoix">Carburant</label>' +
+        '<select id="vCarbChoix">' +
+          '<option value="">—</option>' +
+          CARBURANTS.map(x => '<option value="' + x + '">' + x +
+                              '</option>').join('') +
+          '<option value="autre">⌨️ Autre…</option>' +
+        '</select>' +
+        '<input type="text" id="vCarburant" placeholder="Lequel ?" ' +
+          'style="display:none;margin-top:6px;"></div>' +
       '<div><label for="vSite">Site</label><select id="vSite">' +
         '<option value="">—</option>' +
         '<option value="Saint-Brieuc">Saint-Brieuc</option>' +
         '<option value="Loudéac">Loudéac</option>' +
       '</select></div>' +
-      '<div><label for="vEtat">État</label><select id="vEtat">' +
-        '<option value="actif">En service</option>' +
-        '<option value="immobilise">⛔ Immobilisé</option>' +
-        '<option value="vendu">Sorti du parc</option>' +
-      '</select></div>' +
     '</div>' +
+
+    '<label for="vEtat">État</label><select id="vEtat">' +
+      '<option value="actif">En service</option>' +
+      '<option value="immobilise">⛔ Immobilisé</option>' +
+      '<option value="vendu">Sorti du parc</option>' +
+    '</select>' +
 
     '<div style="border-top:1px solid var(--line);margin:14px 0 10px;padding-top:12px;' +
       'font-size:13px;font-weight:700;color:var(--accent-text);">📋 Échéances</div>' +
@@ -380,6 +465,16 @@ function ouvrirFicheVehicule(v){
     boite.querySelector('#vImmat').value = v.immat || '';
     boite.querySelector('#vMec').value = v.miseEnCirculation || '';
     boite.querySelector('#vBoite').value = v.boite || '';
+
+    /* Un carburant hors liste bascule sur la saisie libre */
+    const carb = v.carburant || '';
+    if(carb && CARBURANTS.indexOf(carb) === -1){
+      boite.querySelector('#vCarbChoix').value = 'autre';
+      boite.querySelector('#vCarburant').value = carb;
+      boite.querySelector('#vCarburant').style.display = 'block';
+    }else{
+      boite.querySelector('#vCarbChoix').value = carb;
+    }
     boite.querySelector('#vSite').value = v.site || '';
     boite.querySelector('#vEtat').value = v.etat || 'actif';
     boite.querySelector('#vCT').value = v.dernierCT || '';
@@ -462,6 +557,14 @@ function ouvrirFicheVehicule(v){
     boite.querySelector(s).addEventListener('change', majIndispo));
   majIndispo();
 
+  const selCarb = boite.querySelector('#vCarbChoix');
+  const champCarb = boite.querySelector('#vCarburant');
+  selCarb.addEventListener('change', () => {
+    const libre = (selCarb.value === 'autre');
+    champCarb.style.display = libre ? 'block' : 'none';
+    if(libre) setTimeout(() => champCarb.focus(), 60);
+  });
+
   const r = document.createElement('div');
   r.className = 'btn-row';
 
@@ -510,6 +613,9 @@ function ouvrirFicheVehicule(v){
         immat: boite.querySelector('#vImmat').value.trim().toUpperCase(),
         miseEnCirculation: boite.querySelector('#vMec').value,
         boite: boite.querySelector('#vBoite').value,
+        carburant: (boite.querySelector('#vCarbChoix').value === 'autre')
+                     ? boite.querySelector('#vCarburant').value.trim()
+                     : boite.querySelector('#vCarbChoix').value,
         site: boite.querySelector('#vSite').value,
         km: v ? v.km : 0,
         kmLeveLe: v ? v.kmLeveLe : '',
