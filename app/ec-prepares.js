@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 16:04 — v453 */
+/* Déployé le 21/08/2026 à 09:23 — v461 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -279,9 +279,15 @@ async function afficherPrepares(recharger, silencieux){
     /* L'heure à la suite du nom : c'est ce qu'on cherche en
        ouvrant la liste, avant même le type de bilan. */
     const h = heureDeLaPreparation(cours);
+    /* Ce que l'élève apporte : à côté de l'heure, pour le voir sans
+       ouvrir le cours. */
+    const aApporter = repereDeNote(cours);
+
     nom.innerHTML = (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
       (h ? ' <span style="color:var(--accent-text);font-weight:800;">' +
-           h.replace(':', 'h') + '</span>' : '');
+           h.replace(':', 'h') + '</span>' : '') +
+      (aApporter ? ' <span style="font-size:15px;" title="' +
+        aApporter.titre + '">' + aApporter.emojis + '</span>' : '');
     const sous = document.createElement('span');
     /* Un cours dont la date est passée n'a pas été enregistré :
        sa préparation serait partie. On le signale. */
@@ -1144,6 +1150,22 @@ async function modifierPreparation(cours){
 /* Amène l'écran sur le module de cours, prêt à démarrer. */
 /* L'heure d'un cours, écrite dans sa note par le rappel ou par le
    bureau. Elle vient toujours de la même mention 🕐. */
+/* Les repères posés par le rappel de cours : carte d'identité,
+   carte SD. Ils vivent en tête de la note. */
+function repereDeNote(cours){
+  const t = String((cours && cours.note) || '');
+  const debut = t.split('\n')[0];
+
+  const emojis = [];
+  const quoi = [];
+  if(debut.indexOf('🆔') !== -1){ emojis.push('🆔'); quoi.push("carte d'identité"); }
+  if(debut.indexOf('💾') !== -1){ emojis.push('💾'); quoi.push('carte SD'); }
+
+  if(!emojis.length) return null;
+  return { emojis: emojis.join(''), titre: 'À prévoir : ' + quoi.join(' · ') };
+}
+
+
 function heureDeLaPreparation(cours){
   const t = String((cours && cours.note) || '');
   let m = t.match(/^🕐\s*(\d{1,2})[h:](\d{2})/);
