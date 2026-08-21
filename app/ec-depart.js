@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 10:55 — v464 */
+/* Déployé le 21/08/2026 à 15:41 — v487 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -406,6 +406,12 @@ async function rechercherEleve(){
       }catch(e){}
       const p = blocParcours(res[0].eleve, res[0].note, enAttente);
       if(p) zone.appendChild(p);
+
+      /* Ses procédures récitées : elles font partie de son parcours
+         au même titre que ses cours. */
+      const zProc = document.createElement('div');
+      zone.appendChild(zProc);
+      afficherProceduresEleve(res[0].eleve, zProc);
     }
 
     /* Recherche par moniteur : on annonce le nombre d'élèves distincts */
@@ -517,6 +523,8 @@ async function rechercherEleve(){
         $('recordView').style.display = 'none';
         $('generatingView').style.display = 'none';
         $('resultView').style.display = 'block';
+    /* Les procédures à cocher, prêtes dès l'affichage du bilan */
+    if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
         $('resultView').classList.remove('hors-onglet', 'hors-vue');
         majBoutonCorrection();
         /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt
@@ -612,6 +620,10 @@ async function terminerCours(){
   $('recordView').style.display = 'block';
   /* Le bilan manuel redevient proposé : masqué pendant le cours,
      il doit revenir pour le suivant. */
+  /* Les récitations cochées appartiennent au cours qui se termine */
+  document.querySelectorAll('.recitDemande').forEach(cb => { cb.checked = false; });
+  if($('tiroirRecitations')) $('tiroirRecitations').open = false;
+
   if($('zoneManuel')) $('zoneManuel').style.display = 'block';
 
   /* Le type de bilan repart sur une conduite : garder « examen
@@ -638,6 +650,103 @@ async function saveLesson(meta, bilanText){
     await window.storage.set('bilan:' + meta.ts, JSON.stringify(Object.assign({}, meta, { text: bilanText })), false);
   }catch(e){ console.error('save failed', e); }
 }
+
+/* L'historique des procédures d'un élève : ce qu'on lui a demandé,
+   ce qu'il a récité, ce qui a été corrigé. */
+async function afficherProceduresEleve(nom, zone){
+  if(!zone || !nom) return;
+
+  let recits = [], demandes = [];
+  try{
+    const [a, b] = await Promise.all([
+      appelPrep({ action: 'recitationsList' }).catch(() => null),
+      appelPrep({ action: 'demandesList', eleve: nom }).catch(() => null)
+    ]);
+    recits = ((a && a.recitations) || [])
+      .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+    demandes = ((b && b.demandes) || []).filter(x => x.etat !== 'fait');
+  }catch(e){ return; }
+
+  if(!recits.length && !demandes.length) return;
+
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:14px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">🎙️ Procédures — ' + recits.length +
+    ' récitée(s)' + (demandes.length ? ' · ' + demandes.length + ' en attente' : '') +
+    '</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  /* Ce qu'on attend encore de lui */
+  demandes.forEach(x => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:8px;align-items:flex-start;padding:6px 0;' +
+      'font-size:13px;line-height:1.5;';
+    l.innerHTML = '<span style="flex-shrink:0;">⏳</span>' +
+      '<span style="flex:1;min-width:0;">' +
+        (x.procedure || '').replace(/</g, '&lt;') +
+        '<span style="color:var(--warn-text);font-size:11px;"> — pas encore ' +
+        'récitée</span><div style="font-size:11px;color:var(--muted);">' +
+        'demandée le ' + (x.demandeLe || '').replace(/</g, '&lt;') +
+        (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') + '</div></span>';
+    z.appendChild(l);
+  });
+
+  /* Ce qu'il a envoyé, du plus récent au plus ancien */
+  recits.forEach(x => {
+    const valide = (x.etat === 'valide');
+    const l = document.createElement('div');
+    l.style.cssText = 'padding:8px 0;border-top:1px solid rgba(255,255,255,.05);' +
+      'font-size:13px;line-height:1.5;';
+
+    const tete = document.createElement('div');
+    tete.style.cssText = 'display:flex;gap:8px;align-items:flex-start;' +
+      'cursor:pointer;';
+    tete.innerHTML = '<span style="flex-shrink:0;">' +
+      (valide ? '✅' : '👀') + '</span>' +
+      '<span style="flex:1;min-width:0;"><strong>' +
+        (x.procedure || '').replace(/</g, '&lt;') + '</strong>' +
+        (valide ? '' : '<span style="color:var(--warn-text);font-size:11px;">' +
+                       ' — à valider</span>') +
+        '<div style="font-size:11px;color:var(--muted);">' +
+          (x.envoyeLe || '').replace(/</g, '&lt;') +
+          (x.validePar ? ' · corrigée par ' + x.validePar.replace(/</g, '&lt;') : '') +
+          (x.langue ? ' · 🌍 ' + String(x.langue).replace(/</g, '&lt;') : '') +
+        '</div></span>' +
+      '<span style="flex-shrink:0;color:var(--muted);">▾</span>';
+    l.appendChild(tete);
+
+    /* Le détail se déplie : la liste resterait illisible autrement */
+    const detail = document.createElement('div');
+    detail.style.cssText = 'display:none;margin:8px 0 0 26px;font-size:12px;' +
+      'line-height:1.6;';
+    detail.innerHTML =
+      '<div style="color:var(--muted);margin-bottom:4px;">Ce qu\'il a dit</div>' +
+      '<div style="white-space:pre-wrap;margin-bottom:8px;">' +
+        (x.texte || '').replace(/</g, '&lt;') + '</div>' +
+      (x.correction
+        ? '<div style="color:var(--muted);margin-bottom:4px;">La correction</div>' +
+          '<div style="white-space:pre-wrap;">' +
+          x.correction.replace(/</g, '&lt;') + '</div>'
+        : '');
+    l.appendChild(detail);
+
+    tete.addEventListener('click', () => {
+      const ouvert = (detail.style.display === 'block');
+      detail.style.display = ouvert ? 'none' : 'block';
+      tete.lastElementChild.textContent = ouvert ? '▾' : '▴';
+    });
+
+    z.appendChild(l);
+  });
+
+  d.appendChild(z);
+  zone.appendChild(d);
+}
+
 
 async function refreshHistory(){
   /* Carte retirée de l'interface : ce stockage ne fonctionne pas
@@ -717,6 +826,8 @@ async function refreshHistory(){
         $('recordView').style.display = 'none';
         $('generatingView').style.display = 'none';
         $('resultView').style.display = 'block';
+    /* Les procédures à cocher, prêtes dès l'affichage du bilan */
+    if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
       });
       list.appendChild(row);
     });
