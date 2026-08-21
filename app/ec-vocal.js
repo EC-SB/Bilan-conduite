@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 15:46 — v452 */
+/* Déployé le 21/08/2026 à 14:10 — v480 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -576,6 +576,8 @@ $('confirmGen').addEventListener('click', async () => {
 
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
+    /* Les procédures à cocher, prêtes dès l'affichage du bilan */
+    if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
   if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
     window.scrollTo(0, 0);
     marquerExport(false);
@@ -1674,9 +1676,127 @@ function afficherNote(note){
 }
 
 /* ---------- Actions ---------- */
+/* ============================================================
+   DEMANDER DES RÉCITATIONS EN FIN DE COURS
+
+   Le moniteur vient de relire son bilan : c'est là qu'il sait ce
+   qui a manqué. Cocher une procédure la demande à l'élève, crée
+   son accès si besoin, et joint le message au bilan.
+   ============================================================ */
+
+/* L'interrupteur, lu une fois par session */
+let recitationsOuvertes = null;
+
+async function recitationsAutorisees(){
+  if(recitationsOuvertes !== null) return recitationsOuvertes;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    recitationsOuvertes = ((d && d.reglages) || {}).recitationsMoniteurs === 'oui';
+  }catch(e){ recitationsOuvertes = false; }
+  return recitationsOuvertes;
+}
+
+async function remplirListeRecitations(){
+  const z = $('listeRecitations');
+  const tiroir = $('tiroirRecitations');
+  if(!z) return;
+
+  /* Fermé : le tiroir n'apparaît pas du tout. Le montrer grisé
+     inviterait à essayer pour rien. */
+  if(!await recitationsAutorisees()){
+    if(tiroir) tiroir.style.display = 'none';
+    return;
+  }
+  if(tiroir) tiroir.style.display = '';
+
+  const procs = (typeof modelesTexte !== 'undefined' ? modelesTexte : [])
+    .filter(m => m.usage === 'procedure')
+    .sort((a, b) => String(a.nom).localeCompare(String(b.nom), 'fr'));
+
+  if(!procs.length){
+    z.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
+      'Aucune procédure dans Outils → Procédures.</div>';
+    return;
+  }
+
+  z.innerHTML = '';
+  procs.forEach(p => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 8px;' +
+      'font-weight:400;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'recitDemande';
+    cb.value = p.id;
+    cb.dataset.nom = p.nom;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    l.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = p.nom;
+    l.appendChild(t);
+
+    z.appendChild(l);
+  });
+}
+
+/* Pose les demandes et rend le message à joindre au bilan */
+async function poserRecitationsDemandees(eleve){
+  const cochees = [...document.querySelectorAll('.recitDemande:checked')];
+  if(!cochees.length) return '';
+
+  const rep = await appelPrep({
+    action: 'demanderProcedures',
+    eleve: eleve,
+    procedures: cochees.map(x => x.value),
+    /* Le serveur refuse si l'interrupteur est fermé */
+    source: 'cours',
+    par: ACCES.moniteur || ''
+  });
+
+  /* Le serveur refuse tant que l'interrupteur est fermé : on le
+     dit plutôt que de joindre un message qui n'a pas de suite. */
+  if(rep && rep.status === 'error'){
+    throw new Error(rep.message || 'Demande refusée.');
+  }
+
+  const noms = (rep && rep.procedures && rep.procedures.length)
+    ? rep.procedures : cochees.map(x => x.dataset.nom);
+
+  const bouts = ['',
+    '📌 𝗔̀ 𝗥𝗘́𝗖𝗜𝗧𝗘𝗥 𝗔𝗩𝗔𝗡𝗧 𝗟𝗘 𝗣𝗥𝗢𝗖𝗛𝗔𝗜𝗡 𝗖𝗢𝗨𝗥𝗦'];
+  noms.forEach(n => bouts.push('• ' + n));
+  bouts.push('');
+  bouts.push('Enregistre-toi ici, un moniteur te corrigera :');
+  bouts.push('https://ec-sb.github.io/Bilan-conduite/eleve.html');
+  bouts.push('Ton nom : ' + eleve);
+  bouts.push('Ton code : ' + ((rep && rep.code) || ''));
+
+  return bouts.join('\n');
+}
+
+
 $('copyBtn').addEventListener('click', async () => {
   direEtatFin('');
   const ta = $('resultText');
+
+  /* Les récitations demandées rejoignent le bilan avant la copie :
+     l'élève doit les lire dans le message qu'il reçoit. */
+  try{
+    const nom = $('studentName') ? $('studentName').value.trim() : '';
+    if(nom){
+      const ajout = await poserRecitationsDemandees(nom);
+      if(ajout && ta.value.indexOf('𝗔̀ 𝗥𝗘́𝗖𝗜𝗧𝗘𝗥') === -1){
+        ta.value = ta.value.replace(/\s*$/, '') + '\n' + ajout;
+      }
+    }
+  }catch(e){
+    direEtatFin('Récitations non enregistrées : ' + e.message, true);
+  }
+
   ta.select();
 
   /* 1. La copie d'abord : c'est ce que le moniteur attend immédiatement */
