@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 15:41 — v487 */
+/* Déployé le 21/08/2026 à 15:53 — v488 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1140,6 +1140,9 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   /* Une application laissée ouverte doit se verrouiller aussi :
      vérifier au chargement ne suffit pas si personne ne recharge. */
   lancerSurveillanceSession();
+
+  /* La version se contrôle aux créneaux, jamais pendant un cours */
+  if(typeof lancerSurveillanceVersion === 'function') lancerSurveillanceVersion();
 }
 
 
