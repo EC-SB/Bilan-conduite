@@ -60,6 +60,48 @@ async function afficherEcran(){
 }
 
 
+/* Les véhicules de la flotte, chargés une fois pour tout l'écran */
+let flotteEcran = null;
+
+async function chargerFlotteEcran(){
+  if(flotteEcran !== null) return flotteEcran;
+  try{
+    const d = await appelPrep({ action: 'flotteList' });
+    flotteEcran = (d && d.vehicules) || [];
+  }catch(e){ flotteEcran = []; }
+  return flotteEcran;
+}
+
+/* Remplit une liste de véhicules, en gardant celui déjà choisi */
+async function remplirVehiculesEcran(sel, actuel){
+  const liste = (await chargerFlotteEcran())
+    .filter(v => v.etat !== 'vendu' && v.categorie !== 'remorque');
+
+  const connu = liste.some(v => v.nom === actuel);
+
+  sel.innerHTML = '<option value="">— aucun —</option>' +
+    liste.map(v =>
+      '<option value="' + String(v.nom).replace(/"/g, '&quot;') + '"' +
+      (v.indisponible ? ' disabled' : '') + '>' +
+      (v.indisponible ? '⛔ ' : '') + v.nom +
+      (v.immat ? ' · ' + v.immat : '') +
+      (v.indisponible ? ' — ' + (v.motifIndispo || 'au garage') : '') +
+      '</option>').join('') +
+    '<option value="autre">⌨️ Autre véhicule…</option>';
+
+  /* Un véhicule saisi à la main, ou sorti de la flotte depuis :
+     on le garde plutôt que de l'effacer en silence. */
+  if(actuel && !connu){
+    sel.value = 'autre';
+    const champ = sel.parentElement
+      ? sel.parentElement.querySelector('input[placeholder="Véhicule"]') : null;
+    if(champ){ champ.value = actuel; champ.style.display = 'block'; }
+  }else{
+    sel.value = actuel || '';
+  }
+}
+
+
 /* Les véhicules de l'auto-école. Une liste plutôt qu'un champ
    libre : c'est toujours l'un ou l'autre, et une faute de frappe
    sur l'écran de l'accueil se voit de loin. */
@@ -233,26 +275,36 @@ function lignePlanningEcran(c, liste, z){
   /* Le modèle d'un côté, le numéro de l'autre : c'est ainsi qu'on
      désigne un véhicule ici, et le taper en entier à chaque fois
      n'apporte rien. */
+  /* Les véhicules de la flotte, avec leur immatriculation. Le
+     dernier choix ouvre la saisie libre : un véhicule de prêt ou
+     de location n'est pas dans la flotte. */
   const modele = document.createElement('select');
-  modele.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 8px;font-size:13px;';
-  modele.innerHTML = MODELES_VEHICULE.map(m =>
-    '<option value="' + m + '">' + (m || '—') + '</option>').join('');
+  modele.className = 'choixVehicule';
+  modele.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
 
   const num = document.createElement('input');
   num.type = 'text';
-  num.inputMode = 'numeric';
-  num.placeholder = 'n°';
-  num.style.cssText = 'width:64px;flex-shrink:0;margin:0;padding:6px 9px;font-size:13px;';
+  num.placeholder = 'Véhicule';
+  num.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 9px;font-size:13px;' +
+    'display:none;';
+  num.value = c.vehicule || '';
 
-  const dec = decouperVehicule(c.vehicule || '');
-  modele.value = dec.modele;
-  num.value = dec.numero;
+  remplirVehiculesEcran(modele, c.vehicule || '');
 
   const majVeh = () => {
-    c.vehicule = (modele.value + ' ' + num.value.trim()).trim();
+    if(modele.value === 'autre'){
+      num.style.display = 'block';
+      c.vehicule = num.value.trim();
+    }else{
+      num.style.display = 'none';
+      c.vehicule = modele.value;
+    }
     enregistrerLigne(c);
   };
-  modele.addEventListener('change', majVeh);
+  modele.addEventListener('change', () => {
+    if(modele.value === 'autre') setTimeout(() => num.focus(), 60);
+    majVeh();
+  });
   num.addEventListener('change', majVeh);
 
   h2.appendChild(modele);
@@ -404,15 +456,10 @@ function ouvrirLigneManuelle(z){
       '<div><label for="lmMon">Moniteur</label><select id="lmMon"></select></div>' +
     '</div>' +
     '<div class="duo">' +
-      '<div><label for="lmVeh">Véhicule</label>' +
-        '<div style="display:flex;gap:6px;">' +
-          '<select id="lmMod" style="width:auto;flex-shrink:0;margin:0;">' +
-            MODELES_VEHICULE.map(m => '<option value="' + m + '">' +
-                                      (m || '—') + '</option>').join('') +
-          '</select>' +
-          '<input type="text" id="lmVeh" inputmode="numeric" placeholder="n°" ' +
-            'style="flex:1;min-width:0;margin:0;">' +
-        '</div></div>' +
+      '<div><label for="lmMod">Véhicule</label>' +
+        '<select id="lmMod"><option value="">— chargement —</option></select>' +
+        '<input type="text" id="lmVeh" placeholder="Lequel ?" ' +
+          'style="display:none;margin-top:6px;"></div>' +
       '<div><label for="lmLieu">Où</label><select id="lmLieu">' +
         '<option value="">— non précisé —</option>' +
         '<option value="devant">🛣️ Devant</option>' +
@@ -423,6 +470,16 @@ function ouvrirLigneManuelle(z){
         '<option value="simulateur">🖥️ Simulateur</option>' +
       '</select></div>' +
     '</div>';
+
+  /* La liste des véhicules, et la saisie libre qui va avec */
+  const selMod = boite.querySelector('#lmMod');
+  const champLibre = boite.querySelector('#lmVeh');
+  remplirVehiculesEcran(selMod, '');
+  selMod.addEventListener('change', () => {
+    const libre = (selMod.value === 'autre');
+    champLibre.style.display = libre ? 'block' : 'none';
+    if(libre) setTimeout(() => champLibre.focus(), 60);
+  });
 
   const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
   boite.querySelector('#lmMon').innerHTML = '<option value="">— aucun —</option>' +
@@ -454,8 +511,9 @@ function ouvrirLigneManuelle(z){
         eleve: nom,
         moniteur: boite.querySelector('#lmMon').value,
         heure: boite.querySelector('#lmHeure').value,
-        vehicule: ((boite.querySelector('#lmMod').value || '') + ' ' +
-                   boite.querySelector('#lmVeh').value.trim()).trim(),
+        vehicule: (boite.querySelector('#lmMod').value === 'autre')
+                    ? boite.querySelector('#lmVeh').value.trim()
+                    : boite.querySelector('#lmMod').value,
         lieu: boite.querySelector('#lmLieu').value,
         ordre: 0,
         par: ACCES.moniteur || ''
