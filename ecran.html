@@ -187,6 +187,8 @@
   .cours .v .ou{
     display:block; font-size:15px; font-weight:400; color:var(--muted);
   }
+  /* Au garage : en rouge, on ne cherche pas cette voiture */
+  .cours .v.garage{ color:var(--red); }
 
   /* ============================================================
      LA VITRINE
@@ -685,7 +687,12 @@ function dessinerPlanning(liste){
     const lieu = LIEUX[c.lieu] || ['', ''];
     /* Le véhicule et son emplacement : c'est ce que l'élève cherche
        en entrant, plus encore que l'heure. */
-    const ou = (c.vehicule || c.lieu)
+    /* Un véhicule au garage se dit, plutôt que de laisser l'élève
+       chercher une voiture qui n'est pas là. */
+    const ou = c.auGarage
+      ? '<span class="v garage">🔧 ' + echapper(c.vehicule || '') +
+        '<span class="ou">' + echapper(c.auGarage) + '</span></span>'
+      : (c.vehicule || c.lieu)
       ? '<span class="v">' + (lieu[0] || (c.simulateur ? '🖥️' : '🛣️')) + ' ' +
         echapper(c.vehicule || '') +
         (lieu[1] ? '<span class="ou">' + lieu[1] + '</span>' : '') + '</span>'
