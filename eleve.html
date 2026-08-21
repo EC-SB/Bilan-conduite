@@ -149,6 +149,16 @@
 
   .empty{ font-size:13px; color:var(--muted); line-height:1.5; }
 
+  .demande{
+    display:flex; gap:10px; align-items:center;
+    border:1px solid var(--orange); border-radius:12px;
+    padding:12px; margin-bottom:8px; cursor:pointer;
+  }
+  .demande .quoi{ flex:1; min-width:0; }
+  .demande .nom{ font-weight:700; font-size:14px; }
+  .demande .quand{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .demande .fleche{ color:var(--accent-text); font-size:17px; flex-shrink:0; }
+
   .envoi{
     border:1px solid var(--line); border-radius:12px;
     padding:13px; margin-bottom:8px;
@@ -227,6 +237,11 @@
       <button class="theme" id="btTheme2" title="Changer de thème">🌙</button>
     </div>
 
+    <div class="card" id="carteDemandes" style="display:none;">
+      <div class="section-title">📌 Ce qu'on te demande</div>
+      <div id="mesDemandes"></div>
+    </div>
+
     <div class="card">
       <label for="chProc">La procédure</label>
       <select id="chProc"></select>
@@ -265,6 +280,7 @@
 
   var moi = { nom: '', code: '' };
   var procedures = [];
+  var demandes = [];
 
   function $(id){ return document.getElementById(id); }
   function echapper(t){
@@ -311,6 +327,7 @@
         moi.nom = d.eleve || nom;
         moi.code = code;
         procedures = d.procedures || [];
+        demandes = d.demandes || [];
 
         /* Le code reste sur l'appareil : le retaper à chaque fois
            découragerait de s'entraîner. */
@@ -339,7 +356,57 @@
         }).join('')
       : '<option value="">Aucune procédure disponible</option>';
 
+    montrerDemandes();
     chargerEnvois();
+  }
+
+
+  /* Ce qu'un moniteur a demandé de réciter */
+  function montrerDemandes(){
+    var carte = $('carteDemandes');
+    var z = $('mesDemandes');
+    var attente = demandes.filter(function(x){ return x.etat !== 'fait'; });
+
+    if(!attente.length){
+      carte.style.display = 'none';
+      return;
+    }
+
+    carte.style.display = 'block';
+    z.innerHTML = '';
+
+    attente.forEach(function(x){
+      var l = document.createElement('div');
+      l.className = 'demande';
+      l.innerHTML =
+        '<span style="flex-shrink:0;font-size:18px;">📌</span>' +
+        '<span class="quoi">' +
+          '<div class="nom">' + echapper(x.procedure) + '</div>' +
+          '<div class="quand">Demandé le ' + echapper(x.demandeLe) +
+            (x.par ? ' par ' + echapper(x.par) : '') +
+            (x.consigne ? '<br>' + echapper(x.consigne) : '') +
+          '</div>' +
+        '</span>' +
+        '<span class="fleche">›</span>';
+
+      /* Un appui choisit la procédure et amène au micro */
+      l.addEventListener('click', function(){
+        var sel = $('chProc');
+        var trouve = false;
+        for(var i = 0; i < sel.options.length; i++){
+          if(sel.options[i].textContent === x.procedure){
+            sel.selectedIndex = i;
+            trouve = true;
+            break;
+          }
+        }
+        if(!trouve && x.idProcedure){ sel.value = x.idProcedure; }
+        $('chTexte').focus();
+        $('chProc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+
+      z.appendChild(l);
+    });
   }
 
   function sortir(){
@@ -466,6 +533,7 @@
 
     appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
       .then(function(d){
+        if(d.demandes){ demandes = d.demandes; montrerDemandes(); }
         var liste = d.recitations || [];
         if(!liste.length){
           z.innerHTML = '<div class="empty">Rien d\'envoyé pour l\'instant.<br>' +
@@ -552,6 +620,7 @@
       appeler({ action: 'eleveConnexion', eleve: moi.nom, code: moi.code })
         .then(function(d){
           procedures = d.procedures || [];
+          demandes = d.demandes || [];
           entrer();
         })
         .catch(function(){ sortir(); });
