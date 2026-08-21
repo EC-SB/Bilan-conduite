@@ -10,10 +10,12 @@
    ============================================================ */
 
 let procACorriger = [];
+let recitations = [];
 
 /* Ce qui reste à corriger, pour la pastille */
 function nbProcACorriger(){
-  return procACorriger.filter(x => !x.corrigeLe).length;
+  return procACorriger.filter(x => !x.corrigeLe).length +
+         recitations.filter(x => x.etat !== 'valide').length;
 }
 
 async function afficherProcCorriger(){
@@ -22,8 +24,12 @@ async function afficherProcCorriger(){
 
   zone.innerHTML = '<div class="empty">Lecture des procédures…</div>';
   try{
-    const d = await appelPrep({ action: 'procCorrigerList' });
+    const [d, r] = await Promise.all([
+      appelPrep({ action: 'procCorrigerList' }),
+      appelPrep({ action: 'recitationsList' }).catch(() => null)
+    ]);
     procACorriger = (d && d.fiches) || [];
+    recitations = (r && r.recitations) || [];
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -32,12 +38,33 @@ async function afficherProcCorriger(){
   zone.innerHTML = '';
   majPastilleProc();
 
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
-  b.textContent = '➕ Ajouter une procédure reçue';
-  b.addEventListener('click', () => ouvrirFicheProc(null));
-  zone.appendChild(b);
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;';
+
+  [['➕ Procédure reçue', () => ouvrirFicheProc(null)],
+   ['🔑 Codes élèves', () => ouvrirCodesEleves()]].forEach(([nom, faire]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
+    b.textContent = nom;
+    b.addEventListener('click', faire);
+    r.appendChild(b);
+  });
+  zone.appendChild(r);
+
+  /* Les récitations envoyées depuis l'espace élève, en premier :
+     l'élève attend, et la correction est déjà rédigée. */
+  const enAttente = recitations.filter(x => x.etat !== 'valide');
+  if(enAttente.length){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin-bottom:8px;';
+    t.textContent = '🎙️ ' + enAttente.length + ' récitation(s) à valider';
+    zone.appendChild(t);
+    enAttente.forEach(r => zone.appendChild(ligneRecitation(r)));
+  }
+
+  const dejaVues = recitations.filter(x => x.etat === 'valide');
 
   const attente = procACorriger.filter(x => !x.corrigeLe);
   const faites = procACorriger.filter(x => x.corrigeLe);
@@ -130,6 +157,368 @@ function ligneProc(x){
   l.appendChild(bOk);
 
   return l;
+}
+
+
+
+
+/* ============================================================
+   LES CODES D'ACCÈS DES ÉLÈVES
+
+   Chaque élève reçoit un code à six chiffres pour entrer dans son
+   espace. Le bureau peut le changer si l'élève l'a perdu ou
+   partagé.
+   ============================================================ */
+
+async function ouvrirCodesEleves(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>🔑 Codes de l\'espace élève</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'L\'élève se connecte sur la page avec son nom et ce code. ' +
+      'Il n\'y voit que ses propres envois.</div>' +
+
+    '<label for="ceEleve">Donner un accès à</label>' +
+    '<input type="text" id="ceEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Son nom, comme dans le dossier">' +
+    '<button class="btn btn-primary" id="ceAjouter" ' +
+      'style="padding:12px;font-size:14px;">🔑 Créer son code</button>' +
+    '<div id="ceMsg" style="font-size:13px;margin:8px 0;line-height:1.5;"></div>';
+
+  const zListe = document.createElement('div');
+  zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;padding-top:12px;';
+  zListe.innerHTML = '<div class="empty">Lecture…</div>';
+  boite.appendChild(zListe);
+
+  const dessiner = async () => {
+    try{
+      const d = await appelPrep({ action: 'accesElevesList' });
+      const liste = (d && d.acces) || [];
+
+      zListe.innerHTML = '<div style="font-size:13px;font-weight:700;' +
+        'color:var(--accent-text);margin-bottom:8px;">' +
+        liste.length + ' élève(s) avec un accès</div>';
+
+      if(!liste.length){
+        zListe.innerHTML += '<div style="font-size:12px;color:var(--muted);">' +
+          'Personne pour l\'instant.</div>';
+        return;
+      }
+
+      liste.forEach(a => {
+        const l = document.createElement('div');
+        l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;' +
+          'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;' +
+          (a.actif ? '' : 'opacity:.5;');
+        l.innerHTML =
+          '<span style="flex:1;min-width:0;">' +
+            '<strong>' + a.eleve.replace(/</g, '&lt;') + '</strong>' +
+            '<div style="font-size:11px;color:var(--muted);">' +
+              (a.derniereVisite ? 'vu le ' + a.derniereVisite.replace(/</g, '&lt;')
+                                : 'jamais venu') +
+              (a.actif ? '' : ' · accès coupé') +
+            '</div>' +
+          '</span>' +
+          '<code style="flex-shrink:0;font-size:15px;letter-spacing:.12em;' +
+            'color:var(--accent-text);font-weight:700;">' + a.code + '</code>';
+
+        /* Copier le code, pour le transmettre à l'élève */
+        const bCop = document.createElement('button');
+        bCop.className = 'btn btn-secondary';
+        bCop.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;';
+        bCop.textContent = '📋';
+        bCop.title = 'Copier le message pour l\'élève';
+        bCop.addEventListener('click', async () => {
+          const m = 'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
+            'Tu peux réciter tes procédures ici :\n' +
+            'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+            'Ton nom : ' + a.eleve + '\n' +
+            'Ton code : ' + a.code + '\n\n' +
+            'Un moniteur te corrigera. Bon entraînement !';
+          try{
+            await navigator.clipboard.writeText(m);
+            showToast('Message copié ✅');
+          }catch(e){ showToast('Copie impossible'); }
+        });
+        l.appendChild(bCop);
+
+        /* Changer le code */
+        const bNew = document.createElement('button');
+        bNew.className = 'btn btn-secondary';
+        bNew.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;';
+        bNew.textContent = '🔄';
+        bNew.title = 'Lui donner un nouveau code';
+        bNew.addEventListener('click', async () => {
+          if(!await confirmer('Nouveau code pour ' + a.eleve + ' ?\n\n' +
+              'L\'ancien ne marchera plus : il faudra lui transmettre le nouveau.')) return;
+          try{
+            const rep = await appelPrep({ action: 'accesEleveSet', eleve: a.eleve });
+            showToast('Nouveau code : ' + (rep.code || '') + ' ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bNew);
+
+        const bSup = document.createElement('button');
+        bSup.className = 'btn btn-secondary';
+        bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;color:var(--red);border-color:var(--red);';
+        bSup.textContent = '🗑️';
+        bSup.addEventListener('click', async () => {
+          if(!await confirmer('Retirer l\'accès de ' + a.eleve + ' ?')) return;
+          try{
+            await appelPrep({ action: 'accesEleveDelete', eleve: a.eleve });
+            showToast('Accès retiré ✅');
+            dessiner();
+          }catch(e){ showToast('Impossible : ' + e.message); }
+        });
+        l.appendChild(bSup);
+
+        zListe.appendChild(l);
+      });
+    }catch(e){
+      zListe.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+    }
+  };
+
+  boite.querySelector('#ceAjouter').addEventListener('click', async () => {
+    const nom = boite.querySelector('#ceEleve').value.trim();
+    if(!nom){ showToast('Indique l\'élève.'); return; }
+
+    const b = boite.querySelector('#ceAjouter');
+    b.disabled = true;
+    try{
+      const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom });
+      boite.querySelector('#ceMsg').innerHTML =
+        '<span style="color:var(--accent-text);">Code de ' +
+        nom.replace(/</g, '&lt;') + ' : <strong style="letter-spacing:.12em;">' +
+        (rep.code || '') + '</strong></span><br>' +
+        '<span style="font-size:11px;color:var(--muted);">' +
+        'Le bouton 📋 copie le message à lui envoyer.</span>';
+      boite.querySelector('#ceEleve').value = '';
+      dessiner();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    b.disabled = false;
+  });
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bF);
+  boite.appendChild(rw);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  dessiner();
+}
+
+
+/* ============================================================
+   LES RÉCITATIONS DE L'ESPACE ÉLÈVE
+
+   L'élève a récité, l'IA propose une correction, un moniteur la
+   relit et la valide. Tant qu'elle n'est pas validée, l'élève ne
+   voit rien d'autre qu'un « en attente ».
+   ============================================================ */
+
+function ligneRecitation(r){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+    'border:1px solid ' + (r.etat === 'valide' ? 'var(--line)' : 'var(--orange)') +
+    ';border-radius:10px;padding:10px 12px;margin-bottom:6px;cursor:pointer;' +
+    (r.etat === 'valide' ? 'opacity:.6;' : '');
+
+  l.innerHTML =
+    '<span style="flex-shrink:0;font-size:19px;">🎙️</span>' +
+    '<span style="flex:1;min-width:0;font-size:14px;line-height:1.4;">' +
+      '<strong>' + (r.eleve || '?').replace(/</g, '&lt;') + '</strong>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+        (r.procedure || '').replace(/</g, '&lt;') + ' · ' +
+        (r.envoyeLe || '').replace(/</g, '&lt;') +
+        (r.etat === 'valide'
+          ? ' · <span style="color:var(--accent-text);">✅ validée</span>'
+          : (r.correction ? ' · correction prête' : ' · à corriger')) +
+      '</div>' +
+    '</span>';
+
+  l.addEventListener('click', () => ouvrirRecitation(r));
+  return l;
+}
+
+
+async function ouvrirRecitation(r){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML =
+    '<h3>' + (r.eleve || '').replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;">' +
+      (r.procedure || '').replace(/</g, '&lt;') + ' · ' +
+      (r.envoyeLe || '').replace(/</g, '&lt;') + '</div>' +
+
+    '<label>Ce qu\'il a dit</label>' +
+    '<div style="background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;padding:11px 12px;font-size:14px;line-height:1.65;' +
+      'white-space:pre-wrap;margin-bottom:14px;max-height:200px;overflow-y:auto;">' +
+      (r.texte || '').replace(/</g, '&lt;') + '</div>' +
+
+    '<label for="rcCorrection">La correction qu\'il verra</label>' +
+    '<textarea id="rcCorrection" rows="10" ' +
+      'placeholder="Relis et ajuste avant de valider."></textarea>' +
+    '<div id="rcEtat" style="font-size:12px;color:var(--muted);' +
+      'margin:-6px 0 12px;line-height:1.5;"></div>';
+
+  boite.querySelector('#rcCorrection').value = r.correction || '';
+
+  const zEtat = boite.querySelector('#rcEtat');
+
+  /* La correction par l'IA, si elle n'existe pas encore */
+  const bIA = document.createElement('button');
+  bIA.className = 'btn btn-secondary';
+  bIA.style.cssText = 'margin-bottom:12px;padding:11px;font-size:13px;';
+  bIA.textContent = r.correction ? '🔄 Refaire la correction' : '✨ Corriger avec l\'IA';
+  bIA.addEventListener('click', async () => {
+    bIA.disabled = true;
+    zEtat.textContent = 'Lecture de la procédure de référence…';
+    try{
+      const texte = await corrigerRecitation(r);
+      boite.querySelector('#rcCorrection').value = texte;
+      zEtat.textContent = 'Proposition de l\'IA — relis-la avant de valider.';
+    }catch(e){
+      zEtat.textContent = 'Correction impossible : ' + e.message;
+    }
+    bIA.disabled = false;
+    bIA.textContent = '🔄 Refaire la correction';
+  });
+  boite.appendChild(bIA);
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bAnn);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
+  bSup.textContent = '🗑️';
+  bSup.addEventListener('click', async () => {
+    if(!await confirmer('Supprimer cette récitation ?')) return;
+    try{
+      await appelPrep({ action: 'recitationDelete', id: r.id });
+      document.body.removeChild(fond);
+      showToast('Supprimée ✅');
+      afficherProcCorriger();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  rw.appendChild(bSup);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = (r.etat === 'valide') ? '💾 Enregistrer' : '✅ Valider et envoyer';
+  bOk.addEventListener('click', async () => {
+    const texte = boite.querySelector('#rcCorrection').value.trim();
+    if(!texte){ showToast('Écris la correction avant de valider.'); return; }
+
+    bOk.disabled = true;
+    try{
+      await appelPrep({
+        action: 'recitationSet', id: r.id,
+        correction: texte, etat: 'valide',
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Validée — l\'élève peut la voir ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+    }
+  });
+  rw.appendChild(bOk);
+
+  boite.appendChild(rw);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  /* Rien encore : on propose la correction sans attendre */
+  if(!r.correction) setTimeout(() => bIA.click(), 200);
+}
+
+
+/* La correction par l'IA, appuyée sur la procédure de référence */
+async function corrigerRecitation(r){
+  /* Le texte attendu : la comparaison n'a de sens que par rapport
+     à ce que l'auto-école enseigne. */
+  let reference = '';
+  try{
+    const mod = (typeof modelesTexte !== 'undefined' ? modelesTexte : [])
+      .find(m => m.usage === 'procedure' &&
+                 normaliserMot(m.nom) === normaliserMot(r.procedure));
+    reference = (mod && mod.contenu) || '';
+  }catch(e){}
+
+  const consigne =
+    'Tu es moniteur d\'auto-école. Un élève récite une procédure de conduite. ' +
+    'Corrige-le en t\'adressant à lui, en le tutoyant, avec bienveillance.\n\n' +
+    (reference
+      ? 'LA PROCÉDURE ATTENDUE :\n' + reference + '\n\n'
+      : 'Aucune procédure de référence enregistrée : appuie-toi sur les ' +
+        'règles habituelles de la conduite.\n\n') +
+    'CE QUE L\'ÉLÈVE A DIT :\n' + r.texte + '\n\n' +
+    'Ta réponse, en français, sans titre ni préambule :\n' +
+    '1. Ce qui est juste, en une ou deux phrases.\n' +
+    '2. Ce qui manque ou ce qui est faux, point par point.\n' +
+    '3. Une phrase d\'encouragement pour la prochaine fois.\n\n' +
+    'Reste court : dix lignes au plus. Ne réécris pas toute la procédure.';
+
+  /* Le même relais que les bilans : le code du moniteur y donne
+     accès, pas celui de l'élève. */
+  const rep = await fetch(CONFIG.IA_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: ACCES.code,
+      payload: {
+        model: 'claude-sonnet-5',
+        max_tokens: 1200,
+        system: consigne,
+        messages: [{ role: 'user', content:
+          'Corrige cette récitation.' }]
+      }
+    })
+  });
+
+  if(rep.status === 403){
+    verrouiller('Session expirée, saisis ton code à nouveau.');
+    throw new Error('Accès refusé.');
+  }
+  if(!rep.ok) throw new Error('HTTP ' + rep.status);
+
+  const d = await rep.json();
+  if(d.error) throw new Error((d.error && d.error.message) || 'Erreur IA');
+
+  return (d.content || [])
+    .filter(x => x.type === 'text')
+    .map(x => x.text)
+    .join('\n')
+    .trim();
 }
 
 
