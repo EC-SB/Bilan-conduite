@@ -94,13 +94,19 @@ function aTransmettre(normal, majore, report){
 function repartirSemaine(faites, joursAbsents, base, heuresJour){
   const b = base || 35;
   const hj = heuresJour || 8.75;
+
+  /* Un jour d'absence retire son quota : avec un jour de CP, le dû
+     tombe à 3 × 8,75 h. */
   const dues = Math.max(0, b - (joursAbsents || 0) * hj);
   const f = faites || 0;
 
+  /* Moins que le dû : le manque se porte sur les majorées, pas sur
+     les normales. C'est là qu'il se rattrapera. */
   if(f < dues){
-    /* Semaine incomplète : le manque se porte sur le normal */
-    return { dues: dues, normal: arrondiQuart(f - dues), majore: 0 };
+    return { dues: dues, normal: 0, majore: arrondiQuart(f - dues) };
   }
+
+  /* Au-dessus du dû : normal jusqu'à la base, majoré au-delà */
   if(f <= b){
     return { dues: dues, normal: arrondiQuart(f - dues), majore: 0 };
   }
@@ -489,15 +495,27 @@ function tableauPaie(){
       });
 
       /* Le détail d'une semaine : absences forcées, correction */
+      /* Ce qui est retenu, sous la case : sans cela il faudrait
+         ouvrir chaque semaine pour vérifier le calcul. */
       const bDet = document.createElement('div');
-      bDet.style.cssText = 'font-size:9px;color:var(--muted);cursor:pointer;' +
-        'margin-top:1px;';
+      bDet.style.cssText = 'font-size:10px;cursor:pointer;margin-top:2px;' +
+        'line-height:1.35;';
       const so = soldesSemaine(w, s);
       const jAbs = (w && w.joursAbsents) ||
                    joursAbsentsDeduits(s.id, l, s.joursSemaine);
-      bDet.innerHTML = so.force
-        ? '<span style="color:var(--warn-text);">forcé</span>'
-        : (jAbs ? jAbs + ' j abs.' : '&nbsp;');
+
+      if(!w || (!w.heures && !jAbs)){
+        bDet.innerHTML = '&nbsp;';
+      }else{
+        bDet.innerHTML =
+          '<span style="color:' + (so.normal < 0 ? 'var(--red)' : 'var(--muted)') + ';">' +
+            (so.normal ? String(so.normal).replace('.', ',') : '0') + 'N</span>' +
+          ' <span style="color:' +
+            (so.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
+            (so.majore ? String(so.majore).replace('.', ',') : '0') + '↑</span>' +
+          (jAbs ? '<br><span style="color:var(--muted);">' + jAbs + ' j abs.</span>' : '') +
+          (so.force ? '<br><span style="color:var(--warn-text);">forcé</span>' : '');
+      }
       bDet.addEventListener('click', () => ouvrirSemaine(s, l, w));
       td.appendChild(ch);
       td.appendChild(bDet);
@@ -557,7 +575,8 @@ function tableauPaie(){
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;';
-  aide.innerHTML = 'Tape les heures de la semaine : le reste se calcule. ' +
+  aide.innerHTML = 'Tape les heures de la semaine : sous la case, ' +
+    '<strong>N</strong> = heures normales retenues, <strong>↑</strong> = heures à 25 %. ' +
     'Les jours de CP et fériés viennent des absences saisies. ' +
     'Appuie sous une case pour corriger une semaine à la main.';
   zone.appendChild(aide);
