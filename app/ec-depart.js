@@ -1014,6 +1014,10 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
      personne ait eu à l'ouvrir. */
   if(typeof verifierAPrevoirEnFond === 'function'){
     setTimeout(() => verifierAPrevoirEnFond(), 2500);
+    /* La pastille des procédures à corriger, sans retarder l'écran */
+    if(typeof chargerProcEnFond === 'function'){
+      setTimeout(() => chargerProcEnFond(), 3200);
+    }
   }
   if(typeof compterTachesEnFond === 'function'){
     setTimeout(() => compterTachesEnFond(), 3200);
