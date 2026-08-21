@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
 <title>Mes procédures — Évolution Conduites</title>
 
 <!-- =========================================================
@@ -17,77 +19,127 @@
      ========================================================= -->
 
 <style>
+  /* La charte de l'application : mêmes variables, mêmes formes.
+     L'élève doit reconnaître l'auto-école. */
   :root{
-    --navy-deep:#0F1620; --navy:#18222E; --line:#2A3644;
-    --cream:#F2EFE6; --soft:#C9D1DA; --muted:#7E8B99;
-    --orange:#C9A227; --accent-text:#D9BC4A;
-    --red:#C4553D; --vert:#7A9A3E;
+    --navy: #000000;          /* fond de page    */
+    --navy-deep: #0B0B0B;     /* fond des cartes */
+    --orange: #B6FF0E;        /* accent          */
+    --accent-text: #B6FF0E;
+    --on-accent: #0B0B0B;
+    --orange-soft: #E4FFA8;
+    --cream: #F4F4F4;
+    --soft: #E0E0E0;
+    --muted: #B5B5B5;
+    --red: #FF5C33;
+    --warn-text: #FFC9BB;
+    --warn-bg: rgba(255,92,51,.12);
+    --line: #262626;
   }
+
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
   body{
-    margin:0; padding:16px; background:var(--navy-deep); color:var(--cream);
-    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size:16px; line-height:1.5;
-    padding-bottom:calc(24px + env(safe-area-inset-bottom));
+    margin:0; padding:18px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    background: var(--navy);
+    color: var(--cream);
+    font-size:15px; line-height:1.5;
+    min-height:100vh;
+    padding-bottom:calc(28px + env(safe-area-inset-bottom));
   }
   .boite{ max-width:600px; margin:0 auto; }
 
-  h1{ font-size:22px; margin:0 0 4px; }
-  .sous{ font-size:13px; color:var(--muted); margin-bottom:22px; }
+  .entete{
+    display:flex; align-items:center; gap:11px; margin-bottom:20px;
+  }
+  .logo{
+    width:38px; height:38px; border-radius:9px; flex-shrink:0;
+    background: var(--orange); color: var(--on-accent);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:16px; letter-spacing:.02em;
+  }
+  h1{ font-size:19px; margin:0; font-weight:700; }
+  .sous{ font-size:12px; color:var(--muted); margin-top:2px; }
 
-  .carte{
-    background:var(--navy); border:1px solid var(--line);
-    border-radius:14px; padding:16px; margin-bottom:14px;
+  .card{
+    background: var(--navy-deep);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+
+  .section-title{
+    font-size:15px; font-weight:700; margin:0 0 14px;
   }
 
   label{
-    display:block; font-size:12px; text-transform:uppercase;
-    letter-spacing:.04em; color:var(--muted); margin:0 0 6px;
+    display:block; font-size:12px; color:var(--muted); margin-bottom:6px;
+    text-transform:uppercase; letter-spacing:.04em;
   }
   input, select, textarea{
-    width:100%; background:var(--navy-deep); border:1px solid var(--line);
-    color:var(--cream); padding:12px; border-radius:10px;
-    font-size:16px; font-family:inherit; margin-bottom:14px;
+    width:100%;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:11px 12px;
+    border-radius:10px;
+    font-size:15px;
+    font-family:inherit;
+    margin-bottom:14px;
+  }
+  input:focus, select:focus, textarea:focus{
+    outline:2px solid var(--orange); outline-offset:1px;
   }
   textarea{ resize:vertical; line-height:1.6; }
-  input:focus, select:focus, textarea:focus{
-    outline:none; border-color:var(--orange);
-  }
+  select option{ background: var(--navy-deep); color: var(--cream); }
+  input:disabled, select:disabled{ opacity:.55; }
 
-  button{
-    width:100%; padding:14px; border-radius:12px; border:1px solid transparent;
-    font-size:16px; font-weight:700; cursor:pointer; font-family:inherit;
-    margin-bottom:10px;
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:13px 18px; border-radius:10px; border:none;
+    font-size:14px; font-weight:700; cursor:pointer; width:100%;
+    font-family:inherit; margin-bottom:10px;
   }
-  .principal{ background:var(--orange); color:var(--navy-deep); }
-  .second{
-    background:transparent; border-color:var(--line); color:var(--soft);
+  .btn-primary{ background: var(--orange); color: var(--navy-deep); }
+  .btn-secondary{
+    background:transparent; border:1px solid var(--line); color: var(--cream);
   }
-  button:disabled{ opacity:.5; cursor:default; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
 
-  .micro{
-    background:var(--orange); color:var(--navy-deep);
+  /* Le bouton du micro, comme dans l'application */
+  .rec-btn{
+    width:100%; padding:20px; border:none; border-radius:16px;
+    font-size:17px; font-weight:700; cursor:pointer;
     display:flex; align-items:center; justify-content:center; gap:10px;
-    font-size:17px; padding:18px;
+    background: var(--orange); color: var(--navy-deep);
+    font-family:inherit; margin-bottom:10px;
+    transition: background .15s ease;
   }
-  .micro.actif{ background:#1F5C99; border-color:#1F5C99; color:#fff; }
+  .rec-btn.recording{
+    background:#1F5C99; color:#fff;
+  }
 
   .message{
-    font-size:14px; padding:11px 13px; border-radius:10px; margin-bottom:14px;
+    font-size:13px; padding:11px 13px; border-radius:10px; margin-bottom:14px;
     line-height:1.55;
   }
-  .message.erreur{ background:rgba(196,85,61,.14); color:#E8A594; }
-  .message.ok{ background:rgba(122,154,62,.14); color:#B8D183; }
-  .message.attente{ background:rgba(201,162,39,.12); color:var(--accent-text); }
+  .message.erreur{ background: var(--warn-bg); color: var(--warn-text); }
+  .message.ok{ background: rgba(182,255,14,.10); color: var(--accent-text); }
+  .message.attente{ background: rgba(182,255,14,.07); color: var(--muted); }
+
+  .empty{ font-size:13px; color:var(--muted); line-height:1.5; }
 
   .envoi{
     border:1px solid var(--line); border-radius:12px;
-    padding:13px; margin-bottom:10px;
+    padding:13px; margin-bottom:8px;
   }
   .envoi .quand{ font-size:11px; color:var(--muted); }
-  .envoi .titre{ font-weight:700; margin:2px 0 6px; }
+  .envoi .titre{ font-weight:700; margin:2px 0 6px; font-size:14px; }
   .envoi .dit{
-    font-size:14px; color:var(--soft); line-height:1.6;
+    font-size:13px; color:var(--soft); line-height:1.6;
     white-space:pre-wrap; margin-bottom:10px;
   }
   .envoi .retour{
@@ -104,10 +156,15 @@
 
   <!-- ===== CONNEXION ===== -->
   <div id="vueConnexion">
-    <h1>Mes procédures</h1>
-    <div class="sous">Évolution Conduites — récite ta procédure, un moniteur te corrige.</div>
+    <div class="entete">
+      <div class="logo">EC</div>
+      <div>
+        <h1>Mes procédures</h1>
+        <div class="sous">Évolution Conduites</div>
+      </div>
+    </div>
 
-    <div class="carte">
+    <div class="card">
       <label for="chNom">Ton prénom et ton nom</label>
       <input type="text" id="chNom" autocomplete="name">
 
@@ -116,7 +173,7 @@
              autocomplete="off"
              style="text-align:center;letter-spacing:.4em;font-size:22px;">
 
-      <button class="principal" id="btConnexion">Entrer</button>
+      <button class="btn btn-primary" id="btConnexion">Entrer</button>
       <div id="msgConnexion"></div>
       <div style="font-size:12px;color:var(--muted);line-height:1.5;">
         Ton code t'est donné par le bureau. Écris ton nom comme il figure
@@ -127,14 +184,19 @@
 
   <!-- ===== RÉCITER ===== -->
   <div id="vueEleve" class="cache">
-    <h1 id="bonjour">Bonjour</h1>
-    <div class="sous">Choisis une procédure, puis récite-la ou écris-la.</div>
+    <div class="entete">
+      <div class="logo">EC</div>
+      <div>
+        <h1 id="bonjour">Bonjour</h1>
+        <div class="sous">Choisis une procédure, puis récite-la ou écris-la.</div>
+      </div>
+    </div>
 
-    <div class="carte">
+    <div class="card">
       <label for="chProc">La procédure</label>
       <select id="chProc"></select>
 
-      <button class="micro" id="btMicro">🎙️ Réciter à voix haute</button>
+      <button class="rec-btn" id="btMicro">🎙️ Réciter à voix haute</button>
       <div id="msgMicro" style="font-size:12px;color:var(--muted);
            margin:-4px 0 12px;line-height:1.5;"></div>
 
@@ -142,20 +204,20 @@
       <textarea id="chTexte" rows="7"
         placeholder="Parle, ou écris directement ici."></textarea>
 
-      <button class="principal" id="btEnvoyer">📨 Envoyer pour correction</button>
+      <button class="btn btn-primary" id="btEnvoyer">📨 Envoyer pour correction</button>
       <div id="msgEnvoi"></div>
     </div>
 
-    <div class="carte">
+    <div class="card">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
         <strong style="flex:1;min-width:0;font-size:15px;">Mes envois</strong>
-        <button class="second" id="btMaj"
+        <button class="btn btn-secondary" id="btMaj"
           style="width:auto;padding:8px 12px;font-size:13px;margin:0;">↻</button>
       </div>
       <div id="mesEnvois"></div>
     </div>
 
-    <button class="second" id="btSortir">Se déconnecter</button>
+    <button class="btn btn-secondary" id="btSortir">Se déconnecter</button>
   </div>
 
 </div>
@@ -305,7 +367,7 @@
     try{
       reco.start();
       enEcoute = true;
-      $('btMicro').classList.add('actif');
+      $('btMicro').classList.add('recording');
       $('btMicro').textContent = '⏹️ Terminer';
       $('msgMicro').textContent = 'Je t\'écoute… parle normalement.';
     }catch(e){
@@ -316,7 +378,7 @@
   function arreterMicro(){
     enEcoute = false;
     if(reco){ try{ reco.stop(); }catch(e){} }
-    $('btMicro').classList.remove('actif');
+    $('btMicro').classList.remove('recording');
     $('btMicro').textContent = '🎙️ Réciter à voix haute';
   }
 
@@ -365,14 +427,13 @@
 
   function chargerEnvois(){
     var z = $('mesEnvois');
-    z.innerHTML = '<div style="font-size:13px;color:var(--muted);">Chargement…</div>';
+    z.innerHTML = '<div class="empty">Chargement…</div>';
 
     appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
       .then(function(d){
         var liste = d.recitations || [];
         if(!liste.length){
-          z.innerHTML = '<div style="font-size:13px;color:var(--muted);' +
-            'line-height:1.5;">Rien d\'envoyé pour l\'instant.<br>' +
+          z.innerHTML = '<div class="empty">Rien d\'envoyé pour l\'instant.<br>' +
             'Ta première procédure t\'attend au-dessus.</div>';
           return;
         }
