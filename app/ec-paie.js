@@ -204,6 +204,47 @@ async function afficherPaie(){
 
 
 
+/* Les deux soldes d'une semaine. Ils se calculent depuis les heures
+   faites, sauf si le bureau les a corrigés à la main. */
+function soldesSemaine(w, s){
+  if(!w) return { normal: 0, majore: 0, calcule: false, vide: true };
+
+  if(w.normalForce !== null || w.majoreForce !== null){
+    return {
+      normal: w.normalForce !== null ? w.normalForce : 0,
+      majore: w.majoreForce !== null ? w.majoreForce : 0,
+      calcule: false, vide: false, force: true
+    };
+  }
+
+  const r = repartirSemaine(w.heures, w.joursAbsents, s.baseHebdo, s.heuresJour);
+  return { normal: r.normal, majore: r.majore, calcule: true,
+           vide: !w.heures && !w.joursAbsents };
+}
+
+/* Les jours d'absence d'une semaine, déduits des CP et fériés déjà
+   saisis : les ressaisir serait une occasion de se contredire. */
+function joursAbsentsDeduits(idSalarie, lundi, joursSemaine){
+  const d1 = lundi;
+  const d = new Date(lundi + 'T12:00:00');
+  d.setDate(d.getDate() + 6);
+  const d2 = d.toISOString().slice(0, 10);
+
+  let jours = 0;
+  absencesPaie.filter(a => a.idSalarie === idSalarie && a.du &&
+                           (a.type === 'cp' || a.type === 'ferie'))
+    .forEach(a => {
+      if(a.du > d2) return;
+      if(a.au && a.au < d1) return;
+      const du = a.du < d1 ? d1 : a.du;
+      const au = (a.au && a.au < d2) ? a.au : d2;
+      jours += joursTravaillesEntre(du, au, joursSemaine);
+    });
+
+  return Math.min(jours, joursSemaine || 4);
+}
+
+
 /* ============================================================
    LES COMPTEURS
 
@@ -315,8 +356,9 @@ function totalMois(s){
   lundisDuMois(moisPaie).forEach(l => {
     const w = semaineDe(s.id, l);
     if(!w) return;
-    normal += w.normal || 0;
-    majore += w.majore || 0;
+    const so = soldesSemaine(w, s);
+    normal += so.normal;
+    majore += so.majore;
   });
 
   /* Le report ne s'applique que sur le mois qu'il vise */
@@ -343,7 +385,8 @@ function absencesDuMois(idSalarie){
 }
 
 
-/* Le tableau du mois */
+/* Le tableau du mois : une case d'heures par semaine, tout le
+   reste se calcule. */
 function tableauPaie(){
   const lundis = lundisDuMois(moisPaie);
   const zone = document.createElement('div');
@@ -351,32 +394,31 @@ function tableauPaie(){
 
   const t = document.createElement('table');
   t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;' +
-    'min-width:' + (150 + lundis.length * 96 + 110) + 'px;';
+    'min-width:' + (140 + lundis.length * 70 + 120) + 'px;';
 
-  /* Les en-têtes : une semaine, deux colonnes */
   const th = document.createElement('thead');
   const l1 = document.createElement('tr');
-  l1.innerHTML = '<th style="text-align:left;padding:6px 8px;"></th>' +
-    lundis.map(l => '<th colspan="2" style="padding:6px 4px;font-size:11px;' +
-      'color:var(--muted);border-left:1px solid var(--line);">' +
+  l1.innerHTML = '<th style="text-align:left;padding:6px 8px;font-size:11px;' +
+    'color:var(--muted);">Salarié</th>' +
+    lundis.map(l => '<th style="padding:6px 4px;font-size:11px;color:var(--muted);' +
+      'border-left:1px solid var(--line);white-space:nowrap;">' +
       dateCourte(l) + '</th>').join('') +
     '<th colspan="2" style="padding:6px 4px;font-size:11px;color:var(--accent-text);' +
       'border-left:2px solid var(--line);">TOTAL</th>';
   th.appendChild(l1);
 
   const l2 = document.createElement('tr');
-  l2.innerHTML = '<th style="text-align:left;padding:4px 8px;font-size:11px;' +
-    'color:var(--muted);">Salarié</th>' +
-    lundis.map(() => '<th style="padding:4px;font-size:10px;color:var(--muted);' +
-      'border-left:1px solid var(--line);">N</th>' +
-      '<th style="padding:4px;font-size:10px;color:var(--muted);">25%</th>').join('') +
-    '<th style="padding:4px;font-size:10px;color:var(--accent-text);' +
+  l2.innerHTML = '<th></th>' +
+    lundis.map(() => '<th style="padding:2px 4px;font-size:10px;color:var(--muted);' +
+      'border-left:1px solid var(--line);">heures</th>').join('') +
+    '<th style="padding:2px 4px;font-size:10px;color:var(--accent-text);' +
       'border-left:2px solid var(--line);">N</th>' +
-    '<th style="padding:4px;font-size:10px;color:var(--accent-text);">25%</th>';
+    '<th style="padding:2px 4px;font-size:10px;color:var(--accent-text);">25%</th>';
   th.appendChild(l2);
   t.appendChild(th);
 
   const tb = document.createElement('tbody');
+
   salariesPaie.filter(s => s.actif).forEach(s => {
     const tr = document.createElement('tr');
     tr.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);';
@@ -389,25 +431,84 @@ function tableauPaie(){
     td0.addEventListener('click', () => ouvrirSalarie(s));
     tr.appendChild(td0);
 
+    /* Une case par semaine : on tape les heures, rien d'autre */
     lundis.forEach(l => {
       const w = semaineDe(s.id, l);
-      [['normal', w ? w.normal : null], ['majore', w ? w.majore : null]]
-        .forEach(([quoi, v], i) => {
-          const td = document.createElement('td');
-          td.style.cssText = 'padding:5px 4px;text-align:center;cursor:pointer;' +
-            'font-variant-numeric:tabular-nums;' +
-            (i === 0 ? 'border-left:1px solid var(--line);' : '') +
-            (v < 0 ? 'color:var(--red);' : '');
-          td.textContent = (v === null || v === 0) ? '·' : String(v).replace('.', ',');
-          td.addEventListener('click', () => ouvrirSemaine(s, l, w));
-          tr.appendChild(td);
-        });
+      const td = document.createElement('td');
+      td.style.cssText = 'padding:3px;border-left:1px solid var(--line);' +
+        'text-align:center;';
+
+      const ch = document.createElement('input');
+      ch.type = 'number';
+      ch.step = '0.25';
+      ch.inputMode = 'decimal';
+      ch.value = (w && w.heures) ? w.heures : '';
+      ch.placeholder = '·';
+      ch.style.cssText = 'width:58px;margin:0;padding:5px 4px;font-size:13px;' +
+        'text-align:center;background:var(--navy);border:1px solid transparent;' +
+        'font-variant-numeric:tabular-nums;';
+
+      /* Ce qu'on en déduit, en info-bulle */
+      const majTitre = () => {
+        const j = (w && w.joursAbsents) ||
+                  joursAbsentsDeduits(s.id, l, s.joursSemaine);
+        const h = parseFloat(ch.value) || 0;
+        if(!h && !j){ ch.title = 'Heures de la semaine'; return; }
+        const r = repartirSemaine(h, j, s.baseHebdo, s.heuresJour);
+        ch.title = h + 'h faites' + (j ? ' · ' + j + ' j absent' : '') +
+          ' · dû ' + r.dues + 'h → ' + r.normal + ' normal · ' + r.majore + ' à 25%';
+      };
+      majTitre();
+
+      /* On enregistre à la sortie du champ, pas à chaque frappe */
+      ch.addEventListener('change', async () => {
+        const h = parseFloat(ch.value) || 0;
+        const j = (w && w.joursAbsents !== undefined && w.joursAbsents !== null)
+                    ? w.joursAbsents
+                    : joursAbsentsDeduits(s.id, l, s.joursSemaine);
+        ch.style.borderColor = 'var(--orange)';
+        try{
+          await appelPrep({
+            action: 'paieSemaineSet',
+            id: w ? w.id : '',
+            idSalarie: s.id,
+            semaine: l,
+            heures: h,
+            joursAbsents: j,
+            normalForce: (w && w.normalForce !== null) ? w.normalForce : '',
+            majoreForce: (w && w.majoreForce !== null) ? w.majoreForce : '',
+            remarque: (w && w.remarque) || '',
+            par: ACCES.moniteur || ''
+          });
+          ch.style.borderColor = 'transparent';
+          afficherPaie();
+        }catch(e){
+          ch.style.borderColor = 'var(--red)';
+          showToast('Impossible : ' + e.message);
+        }
+      });
+
+      /* Le détail d'une semaine : absences forcées, correction */
+      const bDet = document.createElement('div');
+      bDet.style.cssText = 'font-size:9px;color:var(--muted);cursor:pointer;' +
+        'margin-top:1px;';
+      const so = soldesSemaine(w, s);
+      const jAbs = (w && w.joursAbsents) ||
+                   joursAbsentsDeduits(s.id, l, s.joursSemaine);
+      bDet.innerHTML = so.force
+        ? '<span style="color:var(--warn-text);">forcé</span>'
+        : (jAbs ? jAbs + ' j abs.' : '&nbsp;');
+      bDet.addEventListener('click', () => ouvrirSemaine(s, l, w));
+      td.appendChild(ch);
+      td.appendChild(bDet);
+
+      tr.appendChild(td);
     });
 
     const tot = totalMois(s);
     [[tot.normal, true], [tot.majore, false]].forEach(([v, premier]) => {
       const td = document.createElement('td');
-      td.style.cssText = 'padding:5px 4px;text-align:center;font-weight:800;' +
+      td.style.cssText = 'padding:5px 6px;text-align:center;font-weight:800;' +
         'font-variant-numeric:tabular-nums;' +
         (premier ? 'border-left:2px solid var(--line);' : '') +
         (v < 0 ? 'color:var(--red);' : 'color:var(--accent-text);');
@@ -417,7 +518,7 @@ function tableauPaie(){
 
     tb.appendChild(tr);
 
-    /* Ce qui sera transmis, et les absences, sous chaque ligne */
+    /* Ce qui sera transmis, sous la ligne */
     const abs = absencesDuMois(s.id);
     const cpt = compteursDe(s);
     const gaz = totalGasoil(gasoilDuMois(s.id));
@@ -442,7 +543,7 @@ function tableauPaie(){
     if(dit.length){
       const tr2 = document.createElement('tr');
       const td = document.createElement('td');
-      td.colSpan = 1 + lundis.length * 2 + 2;
+      td.colSpan = 1 + lundis.length + 2;
       td.style.cssText = 'padding:0 8px 8px 8px;font-size:11px;' +
         'color:var(--muted);line-height:1.5;';
       td.innerHTML = '→ ' + dit.join(' · ').replace(/</g, '&lt;');
@@ -456,9 +557,9 @@ function tableauPaie(){
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;';
-  aide.innerHTML = 'Appuie sur une case pour saisir la semaine. ' +
-    'Un solde négatif se rattrape sur les heures normales, ' +
-    'puis se reporte au mois suivant.';
+  aide.innerHTML = 'Tape les heures de la semaine : le reste se calcule. ' +
+    'Les jours de CP et fériés viennent des absences saisies. ' +
+    'Appuie sous une case pour corriger une semaine à la main.';
   zone.appendChild(aide);
 
   return zone;
@@ -485,11 +586,13 @@ function ouvrirSemaine(s, lundi, w){
   fond.className = 'overlay show';
   const boite = document.createElement('div');
   boite.className = 'modal';
-  boite.style.maxWidth = 'min(430px, 94vw)';
+  boite.style.maxWidth = 'min(450px, 94vw)';
 
   const d = new Date(lundi + 'T12:00:00');
   const fin = new Date(d);
   fin.setDate(fin.getDate() + 6);
+
+  const jDeduits = joursAbsentsDeduits(s.id, lundi, s.joursSemaine);
 
   boite.innerHTML =
     '<h3>' + s.nom.replace(/</g, '&lt;') + '</h3>' +
@@ -498,81 +601,85 @@ function ouvrirSemaine(s, lundi, w){
       String(fin.getDate()).padStart(2, '0') + '/' +
       String(fin.getMonth() + 1).padStart(2, '0') + '</div>' +
 
-    /* L'assistant : plutôt que de calculer de tête, on saisit ce
-       qu'on lit sur le planning et les deux soldes se déduisent. */
+    '<div class="duo">' +
+      '<div><label for="swHeures">Heures faites</label>' +
+        '<input type="number" id="swHeures" step="0.25" inputmode="decimal" ' +
+          'placeholder="Ex : 40"></div>' +
+      '<div><label for="swAbs">Jours CP ou fériés</label>' +
+        '<input type="number" id="swAbs" step="1" min="0"></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;line-height:1.5;">' +
+      (jDeduits
+        ? jDeduits + ' jour(s) déduit(s) des absences saisies. Corrige si besoin.'
+        : 'Aucune absence saisie sur cette semaine.') +
+    '</div>' +
+
+    '<div id="swApercu" style="font-size:13px;line-height:1.6;' +
+      'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+      'margin-bottom:12px;"></div>' +
+
+    /* La correction manuelle : le calcul ne prévoit pas tout */
     '<details style="border:1px solid var(--line);border-radius:10px;' +
       'padding:9px 11px;margin-bottom:12px;">' +
       '<summary style="cursor:pointer;font-size:12px;font-weight:700;' +
-        'color:var(--accent-text);">🧮 Calculer depuis le planning</summary>' +
-      '<div class="duo" style="margin-top:10px;">' +
-        '<div><label for="swFaites">Heures faites</label>' +
-          '<input type="number" id="swFaites" step="0.25" inputmode="decimal" ' +
-            'placeholder="Ex : 40"></div>' +
-        '<div><label for="swAbs">Jours CP ou fériés</label>' +
-          '<input type="number" id="swAbs" step="1" min="0" value="0"></div>' +
+        'color:var(--accent-text);">✍️ Corriger à la main</summary>' +
+      '<div style="font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;">' +
+        'Ce qui est saisi ici remplace le calcul pour cette semaine. ' +
+        'Laisse vide pour revenir au calcul.</div>' +
+      '<div class="duo">' +
+        '<div><label for="swNormal">Normal</label>' +
+          '<input type="number" id="swNormal" step="0.25" inputmode="decimal"></div>' +
+        '<div><label for="swMajore">Majoré 25%</label>' +
+          '<input type="number" id="swMajore" step="0.25" inputmode="decimal"></div>' +
       '</div>' +
-      '<div style="font-size:11px;color:var(--muted);margin:-4px 0 8px;line-height:1.5;">' +
-        'Chaque jour retire ' + enHeures(s.heuresJour) + ' du dû. ' +
-        'Jusqu\'à ' + enHeures(s.baseHebdo) + ' les heures sont normales, ' +
-        'au-delà elles passent à 25 %.</div>' +
-      '<div id="swApercu" style="font-size:12px;line-height:1.6;"></div>' +
-      '<button type="button" id="swAppliquer" class="btn btn-secondary" ' +
-        'style="margin-top:8px;padding:9px;font-size:12px;">' +
-        '↓ Reporter dans les cases</button>' +
     '</details>' +
-
-    '<div class="duo">' +
-      '<div><label for="swNormal">Normal</label>' +
-        '<input type="number" id="swNormal" step="0.25" inputmode="decimal" ' +
-          'placeholder="0"></div>' +
-      '<div><label for="swMajore">Majoré 25%</label>' +
-        '<input type="number" id="swMajore" step="0.25" inputmode="decimal" ' +
-          'placeholder="0"></div>' +
-    '</div>' +
-    '<div style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5;">' +
-      'Les valeurs négatives sont acceptées : une semaine incomplète ' +
-      'donne un solde négatif.</div>' +
 
     '<label for="swRem">Remarque</label>' +
     '<input type="text" id="swRem" placeholder="Facultatif">';
 
+  boite.querySelector('#swAbs').value = w
+    ? (w.joursAbsents !== null && w.joursAbsents !== undefined ? w.joursAbsents : jDeduits)
+    : jDeduits;
+
   if(w){
-    boite.querySelector('#swNormal').value = w.normal || '';
-    boite.querySelector('#swMajore').value = w.majore || '';
+    boite.querySelector('#swHeures').value = w.heures || '';
+    if(w.normalForce !== null) boite.querySelector('#swNormal').value = w.normalForce;
+    if(w.majoreForce !== null) boite.querySelector('#swMajore').value = w.majoreForce;
     boite.querySelector('#swRem').value = w.remarque || '';
   }
 
-  /* L'assistant de calcul */
   const zAp = boite.querySelector('#swApercu');
-  const calculer = () => {
-    const f = parseFloat(boite.querySelector('#swFaites').value) || 0;
-    const a = parseInt(boite.querySelector('#swAbs').value, 10) || 0;
-    return repartirSemaine(f, a, s.baseHebdo, s.heuresJour);
-  };
   const majApercu = () => {
-    const f = parseFloat(boite.querySelector('#swFaites').value) || 0;
-    if(!f){
-      zAp.innerHTML = '<span style="color:var(--muted);">Saisis les heures faites.</span>';
+    const h = parseFloat(boite.querySelector('#swHeures').value) || 0;
+    const j = parseInt(boite.querySelector('#swAbs').value, 10) || 0;
+    const nF = boite.querySelector('#swNormal').value;
+    const mF = boite.querySelector('#swMajore').value;
+
+    if(nF !== '' || mF !== ''){
+      zAp.innerHTML = '<span style="color:var(--warn-text);">✍️ Corrigé à la main : ' +
+        '</span>Normal <strong>' + enHeures(parseFloat(nF) || 0) + '</strong> · ' +
+        '25% <strong>' + enHeures(parseFloat(mF) || 0) + '</strong>';
       return;
     }
-    const r = calculer();
-    zAp.innerHTML = '<span style="color:var(--muted);">Dû : ' + enHeures(r.dues) +
-      '</span><br>Normal <strong style="color:' +
-      (r.normal < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
-      enHeures(r.normal) + '</strong> · 25% <strong style="color:' +
-      (r.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
-      enHeures(r.majore) + '</strong>';
+
+    if(!h){
+      zAp.innerHTML = '<span style="color:var(--muted);">Saisis les heures ' +
+        'de la semaine.</span>';
+      return;
+    }
+
+    const r = repartirSemaine(h, j, s.baseHebdo, s.heuresJour);
+    zAp.innerHTML = '<span style="color:var(--muted);font-size:12px;">' +
+      'Dû cette semaine : ' + enHeures(r.dues) + '</span><br>' +
+      'Normal <strong style="color:' +
+        (r.normal < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
+        enHeures(r.normal) + '</strong> · 25% <strong style="color:' +
+        (r.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
+        enHeures(r.majore) + '</strong>';
   };
-  ['#swFaites', '#swAbs'].forEach(x =>
+  ['#swHeures', '#swAbs', '#swNormal', '#swMajore'].forEach(x =>
     boite.querySelector(x).addEventListener('input', majApercu));
   majApercu();
-
-  boite.querySelector('#swAppliquer').addEventListener('click', () => {
-    const r = calculer();
-    boite.querySelector('#swNormal').value = r.normal || '';
-    boite.querySelector('#swMajore').value = r.majore || '';
-    showToast('Reporté ✅');
-  });
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -611,8 +718,10 @@ function ouvrirSemaine(s, lundi, w){
         id: w ? w.id : '',
         idSalarie: s.id,
         semaine: lundi,
-        normal: boite.querySelector('#swNormal').value || 0,
-        majore: boite.querySelector('#swMajore').value || 0,
+        heures: boite.querySelector('#swHeures').value || 0,
+        joursAbsents: boite.querySelector('#swAbs').value || 0,
+        normalForce: boite.querySelector('#swNormal').value,
+        majoreForce: boite.querySelector('#swMajore').value,
         remarque: boite.querySelector('#swRem').value.trim(),
         par: ACCES.moniteur || ''
       });
@@ -629,7 +738,7 @@ function ouvrirSemaine(s, lundi, w){
   boite.appendChild(r);
   fond.appendChild(boite);
   document.body.appendChild(fond);
-  setTimeout(() => boite.querySelector('#swMajore').focus(), 100);
+  setTimeout(() => boite.querySelector('#swHeures').focus(), 100);
 }
 
 
@@ -1099,7 +1208,11 @@ function ouvrirRecap(){
 function totauxPeriode(s, du, au){
   let normal = 0, majore = 0;
   semainesPaie.filter(w => w.idSalarie === s.id && w.semaine >= du && w.semaine <= au)
-    .forEach(w => { normal += w.normal || 0; majore += w.majore || 0; });
+    .forEach(w => {
+      const so = soldesSemaine(w, s);
+      normal += so.normal;
+      majore += so.majore;
+    });
 
   let cp = 0, arret = 0;
   absencesPaie.filter(a => a.idSalarie === s.id && a.du).forEach(a => {
