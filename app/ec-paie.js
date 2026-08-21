@@ -199,6 +199,10 @@ async function afficherPaie(){
      deux colonnes par semaine. */
   zone.appendChild(tableauPaie());
 
+  /* Les absences du mois, cliquables : sans cette liste, une
+     absence saisie ne pouvait plus être corrigée. */
+  zone.appendChild(blocAbsencesPaie());
+
   const inactifs = salariesPaie.filter(s => !s.actif);
   if(inactifs.length){
     const d = document.createElement('div');
@@ -266,11 +270,38 @@ function joursEntre(du, au){
   return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
 }
 
-/* Les jours travaillés d'une période, d'après le rythme du salarié */
+/* Les jours travaillés d'une période.
+
+   On compte les jours ouvrables — lundi à samedi — puis on plafonne
+   à ce que le salarié fait dans la semaine. Une semaine de CP posée
+   du lundi au samedi vaut donc 4 jours, pas 6 : c'est son rythme
+   qui décide, pas le calendrier. */
 function joursTravaillesEntre(du, au, joursSemaine){
-  const total = joursEntre(du, au);
-  const parSemaine = joursSemaine || 4;
-  return Math.round(total * parSemaine / 7);
+  if(!du) return 0;
+  const rythme = joursSemaine || 4;
+
+  const d = new Date(du + 'T12:00:00');
+  const f = new Date((au || du) + 'T12:00:00');
+  if(isNaN(d) || isNaN(f)) return 0;
+
+  /* Regroupé par semaine, pour plafonner chacune séparément */
+  const parSemaine = {};
+  let garde = 0;
+  while(d <= f && garde++ < 500){
+    const j = d.getDay();
+    if(j >= 1 && j <= 6){
+      const lundi = new Date(d);
+      lundi.setDate(lundi.getDate() - ((j + 6) % 7));
+      const cle = lundi.getFullYear() + '-' +
+                  String(lundi.getMonth() + 1).padStart(2, '0') + '-' +
+                  String(lundi.getDate()).padStart(2, '0');
+      parSemaine[cle] = (parSemaine[cle] || 0) + 1;
+    }
+    d.setDate(d.getDate() + 1);
+  }
+
+  return Object.keys(parSemaine)
+    .reduce((s, k) => s + Math.min(parSemaine[k], rythme), 0);
 }
 
 /* Les compteurs d'un salarié sur l'année en cours */
@@ -325,6 +356,68 @@ function totalGasoil(liste){
 
 function enEuros(v){
   return String(Math.round((v || 0) * 100) / 100).replace('.', ',') + ' €';
+}
+
+
+/* Les absences qui touchent le mois, pour les revoir et corriger.
+   Nom propre au module : ec-ecoutes.js déclare déjà blocAbsences,
+   et deux fonctions du même nom se percutent. */
+function blocAbsencesPaie(){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-top:14px;';
+
+  /* Toutes celles du mois, tous salariés confondus */
+  const lot = [];
+  salariesPaie.forEach(s => {
+    absencesDuMois(s.id).forEach(a => lot.push({ s: s, a: a }));
+  });
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">🏖️ Absences du mois — ' + lot.length + '</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  if(!lot.length){
+    z.innerHTML = '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+      'Aucune absence sur ce mois.<br>Le bouton 🏖️ Absence en ajoute une.</div>';
+    d.appendChild(z);
+    return d;
+  }
+
+  /* Les plus récentes d'abord */
+  lot.sort((x, y) => String(y.a.du).localeCompare(String(x.a.du)));
+
+  lot.forEach(({ s, a }) => {
+    const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
+    const jours = (a.type === 'cp' || a.type === 'ferie')
+      ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine)
+      : joursEntre(a.du, a.au || todayLocal());
+
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:8px 0;' +
+      'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;cursor:pointer;';
+    l.innerHTML =
+      '<span style="flex-shrink:0;font-size:16px;">' +
+        (ty ? ty.nom.split(' ')[0] : '📝') + '</span>' +
+      '<span style="flex:1;min-width:0;line-height:1.45;">' +
+        '<strong>' + s.nom.replace(/</g, '&lt;') + '</strong> — ' +
+        (ty ? ty.court : 'Absence') + ' ' + periodeTexte(a) +
+        '<div style="font-size:11px;color:var(--muted);">' +
+          jours + ' jour(s)' +
+          ((a.type === 'cp' || a.type === 'ferie')
+            ? ' retiré(s) du dû' : ' — n\'entre pas dans le calcul des heures') +
+          (a.remarque ? ' · ' + a.remarque.replace(/</g, '&lt;') : '') +
+        '</div>' +
+      '</span>' +
+      '<span style="flex-shrink:0;color:var(--muted);">✏️</span>';
+    l.addEventListener('click', () => ouvrirAbsence(a));
+    z.appendChild(l);
+  });
+
+  d.appendChild(z);
+  return d;
 }
 
 /* Les lundis qui composent le mois affiché */
@@ -504,8 +597,13 @@ function tableauPaie(){
       const jAbs = (w && w.joursAbsents) ||
                    joursAbsentsDeduits(s.id, l, s.joursSemaine);
 
-      if(!w || (!w.heures && !jAbs)){
+      if(!jAbs && (!w || !w.heures)){
         bDet.innerHTML = '&nbsp;';
+      }else if(!w || !w.heures){
+        /* Des absences sans heures saisies : on montre quand même
+           ce qui sera retiré du dû. */
+        bDet.innerHTML = '<span style="color:var(--warn-text);">' +
+          jAbs + ' j abs.</span>';
       }else{
         bDet.innerHTML =
           '<span style="color:' + (so.normal < 0 ? 'var(--red)' : 'var(--muted)') + ';">' +
