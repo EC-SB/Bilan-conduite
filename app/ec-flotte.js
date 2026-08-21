@@ -68,6 +68,13 @@ function alertesVehicule(v){
       reste.toLocaleString('fr-FR') + ' km' });
   }
 
+  if(v.indisponible){
+    out.push({ niveau:'rouge',
+               texte:'⛔ Immobilisé' + (v.indispoAu ? ' jusqu\'au ' +
+                 (typeof dateEnToutesLettres === 'function'
+                   ? dateEnToutesLettres(v.indispoAu) : v.indispoAu) : '') });
+  }
+
   /* Un problème signalé et non traité */
   const pannes = evenementsFlotte.filter(e =>
     e.idVehicule === v.id && e.type === 'panne' && e.etat !== 'fait');
@@ -235,8 +242,9 @@ function ligneVehicule(v){
     '<strong>' + v.nom.replace(/</g, '&lt;') + '</strong>' +
     (v.immat ? ' <span style="font-size:11px;color:var(--muted);">' +
       v.immat.replace(/</g, '&lt;') + '</span>' : '') +
-    (v.etat === 'immobilise' ? ' <span style="font-size:11px;color:var(--red);">' +
-      '⛔ immobilisé</span>' : '') +
+    (v.indisponible ? ' <span style="font-size:11px;color:var(--red);">' +
+      '⛔ ' + (v.motifIndispo ? v.motifIndispo.replace(/</g, '&lt;') : 'immobilisé') +
+      '</span>' : '') +
     '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       (v.km ? v.km.toLocaleString('fr-FR') + ' km' : 'km à relever') +
       (v.site ? ' · ' + v.site.replace(/</g, '&lt;') : '') +
@@ -339,6 +347,23 @@ function ouvrirFicheVehicule(v){
     '</div>' +
 
     '<div style="border-top:1px solid var(--line);margin:14px 0 10px;padding-top:12px;' +
+      'font-size:13px;font-weight:700;color:var(--accent-text);">' +
+      '🔧 Immobilisation</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.5;">' +
+      'Pendant cette période, il ne sera proposé ni dans les rappels de cours, ' +
+      'ni sur l\'écran de l\'accueil.</div>' +
+
+    '<div class="duo">' +
+      '<div><label for="vIndDu">Immobilisé du</label>' +
+        '<input type="date" id="vIndDu"></div>' +
+      '<div><label for="vIndAu">Jusqu\'au</label>' +
+        '<input type="date" id="vIndAu"></div>' +
+    '</div>' +
+    '<label for="vIndMotif">Pourquoi</label>' +
+    '<input type="text" id="vIndMotif" placeholder="Ex : embrayage, garage Dupont">' +
+    '<div id="vIndEtat" style="font-size:12px;margin:-6px 0 12px;line-height:1.5;"></div>' +
+
+    '<div style="border-top:1px solid var(--line);margin:14px 0 10px;padding-top:12px;' +
       'font-size:13px;font-weight:700;color:var(--accent-text);">📦 À bord</div>' +
 
     '<label for="vAcc">Accessoires</label>' +
@@ -361,6 +386,9 @@ function ouvrirFicheVehicule(v){
     boite.querySelector('#vAss').value = v.assuranceJusquau || '';
     boite.querySelector('#vPeriod').value = v.periodiciteKm || '';
     boite.querySelector('#vRevKm').value = v.revisionKm || '';
+    boite.querySelector('#vIndDu').value = v.indispoDu || '';
+    boite.querySelector('#vIndAu').value = v.indispoAu || '';
+    boite.querySelector('#vIndMotif').value = v.motifIndispo || '';
     boite.querySelector('#vAcc').value = v.accessoires || '';
     boite.querySelector('#vRem').value = v.remarque || '';
   }
@@ -404,6 +432,35 @@ function ouvrirFicheVehicule(v){
   ['#vCat', '#vCT', '#vMec'].forEach(s =>
     boite.querySelector(s).addEventListener('change', majDeduit));
   majDeduit();
+
+  /* Ce que l'immobilisation entraîne, dit pendant la saisie */
+  const zInd = boite.querySelector('#vIndEtat');
+  const majIndispo = () => {
+    const du = boite.querySelector('#vIndDu').value;
+    const au = boite.querySelector('#vIndAu').value;
+
+    if(!du){ zInd.innerHTML = ''; return; }
+
+    const auj = todayLocal();
+    const dedans = (auj >= du) && (!au || auj <= au);
+
+    if(dedans){
+      const j = au ? joursAvant(au) : null;
+      zInd.innerHTML = '<span style="color:var(--red);">⛔ Immobilisé aujourd\'hui' +
+        (j !== null ? ' — retour dans ' + j + ' jour(s)' : ' — retour non fixé') +
+        '</span><br><span style="font-size:11px;color:var(--muted);">' +
+        'Il n\'apparaîtra pas dans les rappels ni sur l\'écran.</span>';
+    }else if(auj < du){
+      zInd.innerHTML = '<span style="color:var(--warn-text);">📅 Immobilisation ' +
+        'prévue, pas encore commencée.</span>';
+    }else{
+      zInd.innerHTML = '<span style="color:var(--muted);">Immobilisation terminée : ' +
+        'le véhicule est de nouveau disponible.</span>';
+    }
+  };
+  ['#vIndDu', '#vIndAu'].forEach(s =>
+    boite.querySelector(s).addEventListener('change', majIndispo));
+  majIndispo();
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -461,6 +518,9 @@ function ouvrirFicheVehicule(v){
         revisionLe: v ? v.revisionLe : '',
         periodiciteKm: boite.querySelector('#vPeriod').value,
         assuranceJusquau: boite.querySelector('#vAss').value,
+        indispoDu: boite.querySelector('#vIndDu').value,
+        indispoAu: boite.querySelector('#vIndAu').value,
+        motifIndispo: boite.querySelector('#vIndMotif').value.trim(),
         accessoires: boite.querySelector('#vAcc').value.trim(),
         remarque: boite.querySelector('#vRem').value.trim(),
         etat: boite.querySelector('#vEtat').value,
