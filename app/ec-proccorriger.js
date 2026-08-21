@@ -195,6 +195,7 @@ function ligneProc(x){
 let filtreMoniteurProc = '';
 let filtreDuProc = '';
 let filtreAuProc = '';
+let filtreEleveProc = '';
 
 function blocEnvoyees(){
   const validees = recitations.filter(x => x.etat === 'valide');
@@ -211,6 +212,14 @@ function blocEnvoyees(){
   z.style.marginTop = '10px';
 
   /* Les filtres */
+  const chEleve = document.createElement('input');
+  chEleve.type = 'search';
+  chEleve.id = 'filtreEleveProc';
+  chEleve.placeholder = '🔍 Chercher un élève…';
+  chEleve.value = filtreEleveProc;
+  chEleve.style.cssText = 'margin-bottom:8px;font-size:14px;';
+  z.appendChild(chEleve);
+
   const f = document.createElement('div');
   f.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;';
 
@@ -248,11 +257,13 @@ function blocEnvoyees(){
     filtreMoniteurProc = selM.value;
     filtreDuProc = chDu.value;
     filtreAuProc = chAu.value;
+    filtreEleveProc = chEleve.value;
     zTable.innerHTML = '';
     zTable.appendChild(tableauEnvoyees(validees));
   };
 
   [selM, chDu, chAu].forEach(x => x.addEventListener('change', dessiner));
+  chEleve.addEventListener('input', dessiner);
   dessiner();
 
   d.appendChild(z);
@@ -267,7 +278,11 @@ function isoDeRecitation(x){
 }
 
 function tableauEnvoyees(validees){
+  /* Le nom se cherche sans accent ni casse, comme partout ailleurs */
+  const cherche = normaliserMot(String(filtreEleveProc || '').trim());
+
   const vues = validees.filter(x => {
+    if(cherche && normaliserMot(x.eleve || '').indexOf(cherche) === -1) return false;
     if(filtreMoniteurProc && x.validePar !== filtreMoniteurProc) return false;
     const iso = isoDeRecitation(x);
     if(filtreDuProc && iso && iso < filtreDuProc) return false;
