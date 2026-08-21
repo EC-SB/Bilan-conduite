@@ -21,6 +21,7 @@ let salariesPaie = [];
 let semainesPaie = [];
 let absencesPaie = [];
 let gasoilPaie = [];
+let rattachements = {};
 let moisPaie = '';
 
 /* Le maintien de salaire couvre les 45 premiers jours d'arrêt ;
@@ -143,6 +144,7 @@ async function afficherPaie(){
     semainesPaie = (d && d.semaines) || [];
     absencesPaie = (d && d.absences) || [];
     gasoilPaie = (d && d.gasoil) || [];
+    rattachements = (d && d.rattachements) || {};
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -199,6 +201,10 @@ async function afficherPaie(){
     r.appendChild(b);
   });
   zone.appendChild(r);
+
+  /* Les semaines à cheval : où les compter */
+  const bord = blocSemainesDeBord();
+  if(bord) zone.appendChild(bord);
 
   /* Le tableau, comme dans le classeur : une ligne par salarié,
      deux colonnes par semaine. */
@@ -366,6 +372,83 @@ function enEuros(v){
 }
 
 
+
+/* Les semaines partagées entre deux mois, et le choix qui va avec */
+function blocSemainesDeBord(){
+  const touchent = lundisTouchant(moisPaie);
+
+  /* Celles qui débordent vraiment : les autres n'ont pas à être
+     réglées. */
+  const partagees = touchent.filter(l => {
+    const f = new Date(l + 'T12:00:00');
+    f.setDate(f.getDate() + 6);
+    const moisFin = f.getFullYear() + '-' +
+                    String(f.getMonth() + 1).padStart(2, '0');
+    const moisDebut = l.slice(0, 7);
+    return moisDebut !== moisFin;
+  });
+
+  if(!partagees.length) return null;
+
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📅 Semaines à cheval — ' + partagees.length +
+    '</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+  z.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;' +
+    'line-height:1.5;">Une semaine partagée ne se compte que d\'un côté. ' +
+    'Choisis lequel : elle disparaîtra du tableau de l\'autre mois.</div>';
+
+  partagees.forEach(l => {
+    const f = new Date(l + 'T12:00:00');
+    f.setDate(f.getDate() + 6);
+    const moisA = l.slice(0, 7);
+    const moisB = f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0');
+    const choisi = moisDeLaSemaine(l);
+
+    const ligne = document.createElement('div');
+    ligne.style.cssText = 'display:flex;gap:8px;align-items:center;' +
+      'padding:7px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05);';
+
+    ligne.innerHTML = '<span style="flex:1;min-width:0;">Semaine du ' +
+      dateCourte(l) + ' au ' + String(f.getDate()).padStart(2, '0') + '/' +
+      String(f.getMonth() + 1).padStart(2, '0') + '</span>';
+
+    const sel = document.createElement('select');
+    sel.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:12px;';
+    sel.innerHTML = [moisA, moisB].map(mo =>
+      '<option value="' + mo + '"' + (mo === choisi ? ' selected' : '') + '>' +
+      moisEnToutesLettres(mo) + '</option>').join('');
+
+    sel.addEventListener('change', async () => {
+      sel.disabled = true;
+      try{
+        await appelPrep({
+          action: 'paieRattacher',
+          semaine: l,
+          /* Le choix par défaut n'a pas besoin d'être enregistré */
+          mois: (sel.value === moisParDefaut(l)) ? '' : sel.value,
+          par: ACCES.moniteur || ''
+        });
+        showToast('Rattachée à ' + moisEnToutesLettres(sel.value) + ' ✅');
+        afficherPaie();
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        sel.disabled = false;
+      }
+    });
+    ligne.appendChild(sel);
+    z.appendChild(ligne);
+  });
+
+  d.appendChild(z);
+  return d;
+}
+
 /* Les absences qui touchent le mois, pour les revoir et corriger.
    Nom propre au module : ec-ecoutes.js déclare déjà blocAbsences,
    et deux fonctions du même nom se percutent. */
@@ -434,20 +517,32 @@ function blocAbsencesPaie(){
   return d;
 }
 
-/* Les lundis qui composent le mois affiché */
-function lundisDuMois(mois){
+/* Le mois auquel une semaine appartient par défaut : celui de son
+   jeudi, comme la norme des semaines. Une semaine à cheval tombe
+   ainsi d'un seul côté, jamais des deux. */
+function moisParDefaut(lundi){
+  const d = new Date(lundi + 'T12:00:00');
+  d.setDate(d.getDate() + 3);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+/* Celui qui compte : le choix du bureau s'il existe */
+function moisDeLaSemaine(lundi){
+  return rattachements[lundi] || moisParDefaut(lundi);
+}
+
+/* Toutes les semaines qui touchent le mois, rattachées ou non */
+function lundisTouchant(mois){
   if(!mois) return [];
   const [an, m] = mois.split('-').map(Number);
   const out = [];
 
   const d = new Date(an, m - 1, 1, 12);
-  const recul = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - recul);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
 
   for(let i = 0; i < 6; i++){
     const fin = new Date(d);
     fin.setDate(fin.getDate() + 6);
-    /* Une semaine compte si elle touche le mois */
     if(d.getMonth() === m - 1 || fin.getMonth() === m - 1){
       out.push(d.getFullYear() + '-' +
                String(d.getMonth() + 1).padStart(2, '0') + '-' +
@@ -457,6 +552,11 @@ function lundisDuMois(mois){
     if(d.getMonth() > m - 1 && d.getFullYear() >= an) break;
   }
   return out;
+}
+
+/* Les semaines réellement comptées dans le mois affiché */
+function lundisDuMois(mois){
+  return lundisTouchant(mois).filter(l => moisDeLaSemaine(l) === mois);
 }
 
 function semaineDe(idSalarie, lundi){
