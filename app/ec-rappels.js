@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 09:10 — v460 */
+/* Déployé le 21/08/2026 à 09:23 — v461 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -619,6 +619,23 @@ function majChampsVehicule(){
 
 /* La journée type d'un moniteur : c'est cet enchaînement qu'on
    suit en préparant les rappels d'une journée. */
+/* L'entête d'une note de préparation : l'heure, puis ce que l'élève
+   doit apporter. Ces repères se lisent d'un coup d'œil dans
+   « Mes prochains cours ». */
+function enTeteDeNote(details){
+  if(!details) return '';
+
+  const bouts = [];
+  if(details.heure) bouts.push('🕐 ' + String(details.heure).replace(':', 'h'));
+
+  const opts = details.options || [];
+  if(opts.indexOf('ci') !== -1) bouts.push('🆔');
+  if(opts.indexOf('sd') !== -1) bouts.push('💾');
+
+  return bouts.length ? bouts.join(' ') + '\n' : '';
+}
+
+
 const HEURES_JOURNEE = ['08:00', '10:00', '13:00', '15:00', '17:00'];
 
 /* Le créneau qui suit celui-ci dans la journée type */
@@ -1168,6 +1185,11 @@ async function envoyerRappelManuel(){
                          $('rapMoniteur') ? $('rapMoniteur').value : '',
                          {
                            heure: $('rapHeure') ? $('rapHeure').value : '',
+                           /* Ce que l'élève doit apporter : le moniteur
+                              le voit dans ses prochains cours, sans
+                              rouvrir le SMS. */
+                           options: [...document.querySelectorAll('.optionRappel')]
+                                      .filter(x => x.checked).map(x => x.value),
                            vehicule: $('rapVehicule') ? $('rapVehicule').value : '',
                            /* « rue » côté SMS, « devant » côté écran :
                               c'est le même endroit, dit autrement. */
@@ -1487,8 +1509,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       site: (f && f.site) || '',
       /* L'heure en tête de note : « Mes prochains cours » et
          l'écran de l'accueil la lisent au même endroit. */
-      note: (details && details.heure
-              ? '🕐 ' + String(details.heure).replace(':', 'h') + '\n' : '') + note,
+      note: enTeteDeNote(details) + note,
       contexte: contexte,
       moniteur: qui
     });
