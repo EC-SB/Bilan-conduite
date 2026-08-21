@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 09:23 — v461 */
+/* Déployé le 21/08/2026 à 10:04 — v463 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1020,7 +1020,13 @@ async function afficherPreparationEleve(){
      le cours doit savoir ce que son collègue comptait valider.
      La section s'affiche toujours — une absence silencieuse laisse
      croire à un défaut d'affichage. */
-  const ajoutees = (prep.contexte && prep.contexte.manoeuvresAjoutees) || [];
+  /* Le contexte arrive parfois en texte : il vient du classeur,
+     où tout est stocké tel quel. */
+  let ctx = prep.contexte;
+  if(typeof ctx === 'string' && ctx.trim()){
+    try{ ctx = JSON.parse(ctx); }catch(e){ ctx = null; }
+  }
+  const ajoutees = (ctx && ctx.manoeuvresAjoutees) || [];
 
   const sep = document.createElement('div');
   sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
@@ -1034,35 +1040,63 @@ async function afficherPreparationEleve(){
     marquesConnues = (d && d.marques) || {};
   }catch(e){ /* hors ligne : on affiche sans les émojis */ }
 
+  /* Ce qui est acquis, quel qu'en soit le cours : les manœuvres
+     déjà validées par un moniteur comptent autant que celles
+     cochées à la préparation. */
+  const acquises = BLOC.ficheListeConduite.filter(x =>
+    marquesConnues[normaliserMot(x)] && ajoutees.indexOf(x) === -1);
+
+  const faites = ajoutees.concat(acquises);
+
   const t2 = document.createElement('div');
   t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-  t2.textContent = '🦉 Fiche véhicule — ' + ajoutees.length + ' sur ' +
+  t2.textContent = '🦉 Fiche véhicule — ' + faites.length + ' sur ' +
                    BLOC.ficheListeConduite.length;
   carte.appendChild(t2);
 
-  if(ajoutees.length){
+  const ligneManoeuvre = (x, prevue) => {
+    const li = document.createElement('div');
+    const marque = marquesConnues[normaliserMot(x)] || '';
+    li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
+      (marque ? ' <span style="letter-spacing:1px;">' + marque + '</span>' : '') +
+      (prevue ? ' <span style="font-size:11px;color:var(--muted);">' +
+                'prévue aujourd\'hui</span>' : '');
+    return li;
+  };
+
+  if(faites.length){
     const l = document.createElement('div');
     l.style.cssText = 'font-size:13px;line-height:1.7;';
-    ajoutees.forEach(x => {
-      const li = document.createElement('div');
-      const marque = marquesConnues[normaliserMot(x)] || '';
-      li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
-        (marque ? ' <span style="letter-spacing:1px;">' + marque + '</span>' : '');
-      l.appendChild(li);
-    });
+    /* Celles du jour d'abord, les acquises ensuite */
+    ajoutees.forEach(x => l.appendChild(ligneManoeuvre(x, true)));
+    acquises.forEach(x => l.appendChild(ligneManoeuvre(x, false)));
     carte.appendChild(l);
+
+    /* Sans rien de coché à la préparation, on le dit quand même :
+       la liste ne montre alors que ce qui vient d'avant. */
+    if(!ajoutees.length){
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin-top:5px;';
+      n.textContent = ctx
+        ? 'Aucune manœuvre cochée lors de la préparation — ci-dessus, ' +
+          'ce qui est déjà acquis.'
+        : 'Préparation antérieure à la fiche véhicule — ci-dessus, ' +
+          'ce qui est déjà acquis.';
+      carte.appendChild(n);
+    }
   }else{
     const v = document.createElement('div');
     v.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
-    v.textContent = prep.contexte
-      ? 'Aucune manœuvre cochée lors de la préparation.'
+    v.textContent = ctx
+      ? 'Aucune manœuvre cochée lors de la préparation, et rien d\'acquis ' +
+        'pour l\'instant.'
       : 'Préparation antérieure à la fiche véhicule : rien à afficher.';
     carte.appendChild(v);
   }
 
   /* Ce qui reste : c'est ce que le moniteur doit travailler aujourd'hui */
   const restantes = BLOC.ficheListeConduite.filter(
-    x => ajoutees.indexOf(x) === -1);
+    x => faites.indexOf(x) === -1);
 
   if(restantes.length){
     const t3 = document.createElement('div');
