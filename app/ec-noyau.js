@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 09:41 — v462 */
+/* Déployé le 21/08/2026 à 10:54 — v464 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -22,7 +22,10 @@ CONFIG.VERSION_SCRIPT_ATTENDUE = 98;   /* voir apps-script.js */
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
 const CLE_SESSION = 'session_acces';
-const DUREE_SESSION = 7 * 24 * 3600 * 1000;   /* 7 jours */
+/* 48 heures sans se servir de l'application. L'horodatage se
+   rafraîchit à chaque usage : c'est bien une inactivité, pas une
+   durée de vie fixe. */
+const DUREE_SESSION = 48 * 3600 * 1000;
 
 /* ACCES : déclaré dans ec-etat.js */
 
@@ -115,9 +118,58 @@ function lireSession(){
     if(!brut) return null;
     const s = JSON.parse(brut);
     if(!s || !s.code) return null;
-    if(Date.now() - (s.ts || 0) > DUREE_SESSION){ oublierSession(); return null; }
+
+    if(Date.now() - (s.ts || 0) > DUREE_SESSION){
+      oublierSession();
+      raisonDeconnexion = 'inactivite';
+      return null;
+    }
+
+    /* La coupure du samedi soir : chacun repart de zéro la semaine
+       suivante, et un appareil oublié quelque part ne reste pas
+       ouvert indéfiniment. */
+    if(coupureHebdoDepassee(s.ts)){
+      oublierSession();
+      raisonDeconnexion = 'hebdo';
+      return null;
+    }
+
     return s;
   }catch(e){ return null; }
+}
+
+/* Pourquoi la session a été fermée : le dire évite de croire à un
+   défaut. */
+let raisonDeconnexion = '';
+
+/* Le samedi 21 h est-il passé depuis cette connexion ? */
+function coupureHebdoDepassee(ts){
+  if(!ts) return false;
+
+  const depuis = new Date(ts);
+  const maintenant = new Date();
+
+  /* La dernière coupure : le samedi 21 h le plus récent */
+  const coupure = new Date(maintenant);
+  coupure.setHours(21, 0, 0, 0);
+  /* 6 = samedi */
+  const recul = (coupure.getDay() - 6 + 7) % 7;
+  coupure.setDate(coupure.getDate() - recul);
+  if(coupure > maintenant) coupure.setDate(coupure.getDate() - 7);
+
+  return depuis < coupure;
+}
+
+/* L'horodatage se rafraîchit tant qu'on se sert de l'application */
+function rafraichirSession(){
+  try{
+    const brut = localStorage.getItem(CLE_SESSION);
+    if(!brut) return;
+    const s = JSON.parse(brut);
+    if(!s || !s.code) return;
+    s.ts = Date.now();
+    localStorage.setItem(CLE_SESSION, JSON.stringify(s));
+  }catch(e){}
 }
 
 function oublierSession(){
