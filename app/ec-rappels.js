@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 08:30 — v458 */
+/* Déployé le 21/08/2026 à 09:10 — v460 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -559,6 +559,75 @@ function composerRappel(r){
 let texteModifie = false;
 
 /* Les créneaux de cours, de 6h00 à 18h30 par demi-heures */
+/* Les véhicules de la flotte, chargés une fois. Un véhicule au
+   garage ne doit pas être annoncé à un élève : on le montre barré
+   plutôt que de le cacher, pour qu'on sache pourquoi il manque. */
+let flotteRappel = null;
+
+async function chargerFlotteRappel(){
+  if(flotteRappel !== null) return flotteRappel;
+  try{
+    const d = await appelPrep({ action: 'flotteList' });
+    flotteRappel = (d && d.vehicules) || [];
+  }catch(e){ flotteRappel = []; }
+  return flotteRappel;
+}
+
+async function remplirChoixVehicule(){
+  const sel = $('rapVehicule');
+  if(!sel) return;
+
+  const liste = (await chargerFlotteRappel())
+    .filter(v => v.etat !== 'vendu' && v.categorie !== 'remorque');
+
+  if(!liste.length){
+    sel.innerHTML = '<option value="">— aucun véhicule enregistré —</option>';
+    return;
+  }
+
+  sel.innerHTML = '<option value="">— aucun —</option>' +
+    liste.map(v => {
+      const bloque = v.indisponible;
+      return '<option value="' + String(v.nom).replace(/"/g, '&quot;') + '"' +
+             (bloque ? ' disabled' : '') + '>' +
+             (bloque ? '⛔ ' : '') + v.nom +
+             (v.immat ? ' · ' + v.immat : '') +
+             (bloque ? ' — ' + (v.motifIndispo || 'au garage') : '') +
+             '</option>';
+    }).join('');
+
+  /* Le dernier véhicule utilisé : on fait la journée d'un moniteur
+     avant de passer au suivant, il ne change pas d'un élève à
+     l'autre. */
+  const memo = (choixRappel && choixRappel.vehicule) || '';
+  if(memo){
+    const encore = liste.find(v => v.nom === memo && !v.indisponible);
+    if(encore) sel.value = memo;
+  }
+  majChampsVehicule();
+}
+
+/* Le champ caché que lisent le SMS et l'affichage */
+function majChampsVehicule(){
+  const sel = $('rapVehicule');
+  if(!sel) return;
+  const nom = sel.value || '';
+  if($('rapVoiture')) $('rapVoiture').value = nom;
+  if($('rapMod')) $('rapMod').value = '';
+}
+
+
+/* La journée type d'un moniteur : c'est cet enchaînement qu'on
+   suit en préparant les rappels d'une journée. */
+const HEURES_JOURNEE = ['08:00', '10:00', '13:00', '15:00', '17:00'];
+
+/* Le créneau qui suit celui-ci dans la journée type */
+function heureSuivante(h){
+  const i = HEURES_JOURNEE.indexOf(h);
+  if(i === -1 || i === HEURES_JOURNEE.length - 1) return '';
+  return HEURES_JOURNEE[i + 1];
+}
+
 const CRENEAUX_RAPPEL = (() => {
   const out = [];
   for(let m = 6 * 60; m <= 18 * 60 + 30; m += 30){
@@ -686,15 +755,11 @@ async function afficherRappelManuel(){
   const grille2 = document.createElement('div');
   grille2.className = 'duo';
   grille2.innerHTML =
-    '<div><label for="rapVoiture">Véhicule</label>' +
-      '<div style="display:flex;gap:6px;">' +
-        '<select id="rapMod" style="width:auto;flex-shrink:0;margin:0;">' +
-          '<option value="">—</option><option value="A3">A3</option>' +
-          '<option value="Q3">Q3</option><option value="Simu">Simu</option>' +
-        '</select>' +
-        '<input type="text" id="rapVoiture" inputmode="numeric" placeholder="n°" ' +
-          'style="flex:1;min-width:0;margin:0;">' +
-      '</div></div>' +
+    '<div><label for="rapVehicule">Véhicule</label>' +
+      '<select id="rapVehicule"><option value="">— chargement —</option></select>' +
+      '<input type="hidden" id="rapVoiture">' +
+      '<input type="hidden" id="rapMod">' +
+    '</div>' +
     '<div><label for="rapEmpl">Où est la voiture</label><select id="rapEmpl">' +
       '<option value="cour">Cour intérieure</option>' +
       '<option value="rue">Rue, le long du trottoir</option>' +
@@ -704,6 +769,12 @@ async function afficherRappelManuel(){
       '<option value="">Ne pas préciser</option>' +
     '</select></div>';
   zone.appendChild(grille2);
+
+  const selVeh = zone.querySelector('#rapVehicule');
+  if(selVeh){
+    selVeh.addEventListener('change', () => { majChampsVehicule(); apercuRappel(); });
+    remplirChoixVehicule();
+  }
 
   /* Le moniteur qui fera le cours : c'est le bureau qui envoie les
      rappels, le cours doit donc arriver dans SES prochains cours,
@@ -736,9 +807,18 @@ async function afficherRappelManuel(){
      ouvre la saisie libre pour les cas particuliers. */
   const listeH = document.createElement('select');
   listeH.id = 'rapHeureChoix';
+  /* Les créneaux d'une journée type en tête, le reste en dessous :
+     ce sont ceux-là qu'on cherche neuf fois sur dix. */
   listeH.innerHTML = '<option value="">— choisis l\'heure —</option>' +
-    CRENEAUX_RAPPEL.map(h => '<option value="' + h + '">' +
-                             h.replace(':', 'h') + '</option>').join('') +
+    '<optgroup label="⭐ Journée type">' +
+      HEURES_JOURNEE.map(h => '<option value="' + h + '">' +
+                              h.replace(':', 'h') + '</option>').join('') +
+    '</optgroup>' +
+    '<optgroup label="Autres créneaux">' +
+      CRENEAUX_RAPPEL.filter(h => HEURES_JOURNEE.indexOf(h) === -1)
+        .map(h => '<option value="' + h + '">' +
+                  h.replace(':', 'h') + '</option>').join('') +
+    '</optgroup>' +
     '<option value="autre">⌨️ Autre heure…</option>';
   zone.appendChild(listeH);
 
@@ -748,6 +828,12 @@ async function afficherRappelManuel(){
   chH.style.cssText = 'display:none;margin-top:6px;';
   chH.addEventListener('change', apercuRappel);
   zone.appendChild(chH);
+
+  /* Rien de choisi : on part sur le premier créneau du matin */
+  if(!listeH.value && !chH.value){
+    listeH.value = HEURES_JOURNEE[0];
+    chH.value = HEURES_JOURNEE[0];
+  }
 
   listeH.addEventListener('change', () => {
     if(listeH.value === 'autre'){
@@ -936,7 +1022,8 @@ function lireChoixRappel(){
     type: $('rapType') ? $('rapType').value : 'cours',
     jour: $('rapJour') ? $('rapJour').value : '',
     heure: $('rapHeure') ? $('rapHeure').value : '',
-    voiture: $('rapVoiture') ? $('rapVoiture').value.trim() : '',
+    voiture: $('rapVehicule') ? $('rapVehicule').value : '',
+    vehicule: $('rapVehicule') ? $('rapVehicule').value : '',
     emplacement: $('rapEmpl') ? $('rapEmpl').value : 'cour',
     options: options,
     libre: $('rapLibre') ? $('rapLibre').value : ''
@@ -1081,8 +1168,7 @@ async function envoyerRappelManuel(){
                          $('rapMoniteur') ? $('rapMoniteur').value : '',
                          {
                            heure: $('rapHeure') ? $('rapHeure').value : '',
-                           vehicule: (($('rapMod') ? $('rapMod').value : '') + ' ' +
-                                      ($('rapVoiture') ? $('rapVoiture').value.trim() : '')).trim(),
+                           vehicule: $('rapVehicule') ? $('rapVehicule').value : '',
                            /* « rue » côté SMS, « devant » côté écran :
                               c'est le même endroit, dit autrement. */
                            lieu: ($('rapEmpl') && $('rapEmpl').value === 'rue') ? 'devant'
@@ -1095,10 +1181,21 @@ async function envoyerRappelManuel(){
     setTimeout(() => {
       if($('rappelEleve')) $('rappelEleve').value = '';
       if($('rapTel')) $('rapTel').value = '';
-      if($('rapVoiture')) $('rapVoiture').value = '';
-      if($('rapMod')) $('rapMod').value = '';
-      if($('rapHeure')) $('rapHeure').value = '';
-      if($('rapHeureChoix')) $('rapHeureChoix').value = '';
+      /* Le véhicule reste : c'est le même moniteur, la même voiture
+         toute la journée. Il se change à la main au moniteur suivant. */
+      /* L'heure avance d'un cran dans la journée type : on prépare
+         les rappels d'un moniteur les uns après les autres. Hors
+         journée type, elle se vide comme avant. */
+      const hEnvoyee = $('rapHeure') ? $('rapHeure').value : '';
+      const suivante = heureSuivante(hEnvoyee);
+
+      if(suivante){
+        if($('rapHeure')) $('rapHeure').value = suivante;
+        if($('rapHeureChoix')) $('rapHeureChoix').value = suivante;
+      }else{
+        if($('rapHeure')) $('rapHeure').value = '';
+        if($('rapHeureChoix')) $('rapHeureChoix').value = '';
+      }
       if($('rapLibre')) $('rapLibre').value = '';
 
       /* Les mentions cochées : elles décrivent CE cours-là */
