@@ -594,7 +594,10 @@ async function remplirChoixVehicule(){
              (v.immat ? ' · ' + v.immat : '') +
              (bloque ? ' — ' + (v.motifIndispo || 'au garage') : '') +
              '</option>';
-    }).join('');
+    }).join('') +
+    /* Un véhicule de prêt n'est pas dans la flotte : on doit
+       pouvoir l'annoncer quand même. */
+    '<option value="autre">⌨️ Autre véhicule…</option>';
 
   /* Le dernier véhicule utilisé : on fait la journée d'un moniteur
      avant de passer au suivant, il ne change pas d'un élève à
@@ -610,9 +613,16 @@ async function remplirChoixVehicule(){
 /* Le champ caché que lisent le SMS et l'affichage */
 function majChampsVehicule(){
   const sel = $('rapVehicule');
+  const libre = $('rapVehLibre');
   if(!sel) return;
-  const nom = sel.value || '';
-  if($('rapVoiture')) $('rapVoiture').value = nom;
+
+  if(sel.value === 'autre'){
+    if(libre) libre.style.display = 'block';
+    if($('rapVoiture')) $('rapVoiture').value = libre ? libre.value.trim() : '';
+  }else{
+    if(libre) libre.style.display = 'none';
+    if($('rapVoiture')) $('rapVoiture').value = sel.value || '';
+  }
   if($('rapMod')) $('rapMod').value = '';
 }
 
@@ -774,6 +784,8 @@ async function afficherRappelManuel(){
   grille2.innerHTML =
     '<div><label for="rapVehicule">Véhicule</label>' +
       '<select id="rapVehicule"><option value="">— chargement —</option></select>' +
+      '<input type="text" id="rapVehLibre" placeholder="Lequel ?" ' +
+        'style="display:none;margin-top:6px;">' +
       '<input type="hidden" id="rapVoiture">' +
       '<input type="hidden" id="rapMod">' +
     '</div>' +
@@ -789,7 +801,18 @@ async function afficherRappelManuel(){
 
   const selVeh = zone.querySelector('#rapVehicule');
   if(selVeh){
-    selVeh.addEventListener('change', () => { majChampsVehicule(); apercuRappel(); });
+    selVeh.addEventListener('change', () => {
+      if(selVeh.value === 'autre'){
+        setTimeout(() => { const l = $('rapVehLibre'); if(l) l.focus(); }, 60);
+      }
+      majChampsVehicule();
+      apercuRappel();
+    });
+    const libre = zone.querySelector('#rapVehLibre');
+    if(libre) libre.addEventListener('input', () => {
+      majChampsVehicule();
+      apercuRappel();
+    });
     remplirChoixVehicule();
   }
 
@@ -1039,8 +1062,8 @@ function lireChoixRappel(){
     type: $('rapType') ? $('rapType').value : 'cours',
     jour: $('rapJour') ? $('rapJour').value : '',
     heure: $('rapHeure') ? $('rapHeure').value : '',
-    voiture: $('rapVehicule') ? $('rapVehicule').value : '',
-    vehicule: $('rapVehicule') ? $('rapVehicule').value : '',
+    voiture: $('rapVoiture') ? $('rapVoiture').value : '',
+    vehicule: $('rapVoiture') ? $('rapVoiture').value : '',
     emplacement: $('rapEmpl') ? $('rapEmpl').value : 'cour',
     options: options,
     libre: $('rapLibre') ? $('rapLibre').value : ''
@@ -1190,7 +1213,7 @@ async function envoyerRappelManuel(){
                               rouvrir le SMS. */
                            options: [...document.querySelectorAll('.optionRappel')]
                                       .filter(x => x.checked).map(x => x.value),
-                           vehicule: $('rapVehicule') ? $('rapVehicule').value : '',
+                           vehicule: $('rapVoiture') ? $('rapVoiture').value : '',
                            /* « rue » côté SMS, « devant » côté écran :
                               c'est le même endroit, dit autrement. */
                            lieu: ($('rapEmpl') && $('rapEmpl').value === 'rue') ? 'devant'
