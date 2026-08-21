@@ -27,6 +27,11 @@ let moisPaie = '';
    IRP Auto prend ensuite le relais. Le compteur le signale. */
 const JOURS_MAINTIEN = 45;
 
+/* Les congés se décomptent en jours ouvrés — 5 par semaine — parce
+   que les salariés sont mensualisés. Le rythme de travail, lui,
+   ne sert qu'au calcul des heures dues. */
+const JOURS_CP_SEMAINE = 5;
+
 const TYPES_ABSENCE = [
   { cle:'cp',     nom:'🏖️ Congés payés',      court:'CP' },
   { cle:'arret',  nom:'🤒 Arrêt de travail',   court:'Arrêt' },
@@ -270,12 +275,13 @@ function joursEntre(du, au){
   return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
 }
 
-/* Les jours travaillés d'une période.
+/* Les jours d'une période, plafonnés à un nombre par semaine.
 
-   On compte les jours ouvrables — lundi à samedi — puis on plafonne
-   à ce que le salarié fait dans la semaine. Une semaine de CP posée
-   du lundi au samedi vaut donc 4 jours, pas 6 : c'est son rythme
-   qui décide, pas le calendrier. */
+   Deux usages qui ne se confondent pas :
+   — le compteur de congés décompte 5 jours par semaine, puisque
+     les salariés sont mensualisés ;
+   — le calcul du dû hebdomadaire plafonne au rythme réel, sans
+     quoi une semaine entière de CP donnerait un dû négatif. */
 function joursTravaillesEntre(du, au, joursSemaine){
   if(!du) return 0;
   const rythme = joursSemaine || 4;
@@ -321,7 +327,8 @@ function compteursDe(s, an){
     if(a.au && a.au < debut) return;
 
     if(a.type === 'cp'){
-      cp += joursTravaillesEntre(d, f, s.joursSemaine);
+      /* Le solde de congés : 5 jours par semaine */
+      cp += joursTravaillesEntre(d, f, JOURS_CP_SEMAINE);
     }else if(a.type === 'arret'){
       /* Un arrêt sans fin court jusqu'à aujourd'hui */
       const finReelle = a.au ? f : todayLocal();
@@ -391,9 +398,15 @@ function blocAbsencesPaie(){
 
   lot.forEach(({ s, a }) => {
     const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
-    const jours = (a.type === 'cp' || a.type === 'ferie')
+    const jours = (a.type === 'cp')
+      ? joursTravaillesEntre(a.du, a.au || a.du, JOURS_CP_SEMAINE)
+      : (a.type === 'ferie')
       ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine)
       : joursEntre(a.du, a.au || todayLocal());
+
+    /* Un CP ne retire pas le même nombre de jours au dû qu'au solde */
+    const auDu = (a.type === 'cp' || a.type === 'ferie')
+      ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine) : 0;
 
     const l = document.createElement('div');
     l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:8px 0;' +
@@ -405,9 +418,10 @@ function blocAbsencesPaie(){
         '<strong>' + s.nom.replace(/</g, '&lt;') + '</strong> — ' +
         (ty ? ty.court : 'Absence') + ' ' + periodeTexte(a) +
         '<div style="font-size:11px;color:var(--muted);">' +
-          jours + ' jour(s)' +
-          ((a.type === 'cp' || a.type === 'ferie')
-            ? ' retiré(s) du dû' : ' — n\'entre pas dans le calcul des heures') +
+          jours + ' jour(s) décompté(s)' +
+          (auDu ? ' · ' + auDu + ' retiré(s) du dû hebdomadaire'
+                : (a.type === 'arret'
+                    ? ' — n\'entre pas dans le calcul des heures' : '')) +
           (a.remarque ? ' · ' + a.remarque.replace(/</g, '&lt;') : '') +
         '</div>' +
       '</span>' +
@@ -1337,7 +1351,7 @@ function totauxPeriode(s, du, au){
     if(a.au && a.au < du) return;
     const d = a.du < du ? du : a.du;
     const f = a.au ? (a.au > au ? au : a.au) : au;
-    if(a.type === 'cp') cp += joursTravaillesEntre(d, f, s.joursSemaine);
+    if(a.type === 'cp') cp += joursTravaillesEntre(d, f, JOURS_CP_SEMAINE);
     else if(a.type === 'arret') arret += joursEntre(d, f);
   });
 
