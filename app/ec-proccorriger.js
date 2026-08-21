@@ -594,6 +594,187 @@ function blocDemandesEnCours(){
 
 
 
+
+/* ============================================================
+   LES LANGUES DISPONIBLES
+
+   La liste vit dans les réglages : une ligne par langue, sous la
+   forme « code|nom ». Le code est celui de la dictée du
+   navigateur — c'est lui qui décide de ce que le micro entend.
+   ============================================================ */
+
+/* Quelques codes courants, pour ne pas avoir à les chercher */
+const CODES_CONNUS = [
+  ['en-GB', 'English — Anglais'],
+  ['en-US', 'English (US) — Anglais américain'],
+  ['es-ES', 'Español — Espagnol'],
+  ['pt-PT', 'Português — Portugais'],
+  ['pt-BR', 'Português (Brasil) — Portugais brésilien'],
+  ['it-IT', 'Italiano — Italien'],
+  ['de-DE', 'Deutsch — Allemand'],
+  ['ar-SA', 'العربية — Arabe'],
+  ['ar-MA', 'العربية (المغرب) — Arabe marocain'],
+  ['ar-DZ', 'العربية (الجزائر) — Arabe algérien'],
+  ['tr-TR', 'Türkçe — Turc'],
+  ['uk-UA', 'Українська — Ukrainien'],
+  ['ru-RU', 'Русский — Russe'],
+  ['ro-RO', 'Română — Roumain'],
+  ['pl-PL', 'Polski — Polonais'],
+  ['sq-AL', 'Shqip — Albanais'],
+  ['fa-IR', 'فارسی — Persan'],
+  ['fa-AF', 'دری — Dari (Afghanistan)'],
+  ['ps-AF', 'پښتو — Pachto (Afghanistan)'],
+  ['ta-IN', 'தமிழ் — Tamoul'],
+  ['vi-VN', 'Tiếng Việt — Vietnamien'],
+  ['zh-CN', '中文 — Chinois mandarin']
+];
+
+async function ouvrirGestionLangues(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>🌍 Langues proposées</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Celles que tu peux ouvrir à un élève. ' +
+      'Le français n\'a pas à y figurer : il est toujours disponible.</div>' +
+    '<div id="glListe"></div>' +
+
+    '<div style="border-top:1px solid var(--line);margin-top:14px;' +
+      'padding-top:12px;">' +
+      '<label for="glAjout">Ajouter une langue</label>' +
+      '<select id="glAjout"><option value="">— choisis —</option>' +
+        CODES_CONNUS.map(([code, nom]) =>
+          '<option value="' + code + '">' + nom.replace(/</g, '&lt;') +
+          '</option>').join('') +
+        '<option value="autre">⌨️ Une autre…</option>' +
+      '</select>' +
+      '<div id="glLibre" style="display:none;">' +
+        '<div class="duo">' +
+          '<div><label for="glCode">Code</label>' +
+            '<input type="text" id="glCode" placeholder="Ex : nl-NL"></div>' +
+          '<div><label for="glNom">Nom affiché</label>' +
+            '<input type="text" id="glNom" placeholder="Ex : Nederlands"></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 10px;' +
+          'line-height:1.5;">Le code suit la forme « langue-PAYS ». ' +
+          'Sans le bon code, la dictée n\'entendra rien.</div>' +
+      '</div>' +
+      '<button class="btn btn-secondary" id="glAjouter" ' +
+        'style="padding:11px;font-size:13px;">➕ Ajouter</button>' +
+    '</div>';
+
+  let langues = [];
+
+  const dessiner = async () => {
+    const z = boite.querySelector('#glListe');
+    z.innerHTML = '<div class="empty">Lecture…</div>';
+    try{
+      const d = await appelPrep({ action: 'languesList' });
+      langues = (d && d.langues) || [];
+    }catch(e){
+      z.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+      return;
+    }
+
+    if(!langues.length){
+      z.innerHTML = '<div class="empty">Aucune langue : seul le français ' +
+        'est proposé aux élèves.</div>';
+      return;
+    }
+
+    z.innerHTML = '';
+    langues.forEach((l, i) => {
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;gap:8px;align-items:center;padding:8px 0;' +
+        'border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;';
+      ligne.innerHTML = '<span style="flex:1;min-width:0;">' +
+        l.nom.replace(/</g, '&lt;') +
+        '<div style="font-size:11px;color:var(--muted);">' +
+          l.code.replace(/</g, '&lt;') + '</div></span>';
+
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+        'flex-shrink:0;color:var(--red);border-color:var(--red);';
+      bSup.textContent = '🗑️';
+      bSup.addEventListener('click', async () => {
+        if(!await confirmer('Retirer ' + l.nom + ' ?\n\n' +
+            'Les élèves qui l\'utilisaient repasseront au français.')) return;
+        const reste = langues.filter((_, j) => j !== i);
+        await sauverLangues(reste);
+        dessiner();
+      });
+      ligne.appendChild(bSup);
+      z.appendChild(ligne);
+    });
+  };
+
+  const sauverLangues = async liste => {
+    await appelPrep({
+      action: 'reglageSet',
+      cle: 'languesEleves',
+      valeur: liste.map(x => x.code + '|' + x.nom).join('\n'),
+      par: ACCES.moniteur || ''
+    });
+  };
+
+  const selA = boite.querySelector('#glAjout');
+  const zLibre = boite.querySelector('#glLibre');
+  selA.addEventListener('change', () => {
+    zLibre.style.display = (selA.value === 'autre') ? 'block' : 'none';
+  });
+
+  boite.querySelector('#glAjouter').addEventListener('click', async () => {
+    let code = '', nom = '';
+
+    if(selA.value === 'autre'){
+      code = boite.querySelector('#glCode').value.trim();
+      nom = boite.querySelector('#glNom').value.trim() || code;
+    }else if(selA.value){
+      code = selA.value;
+      const trouve = CODES_CONNUS.find(x => x[0] === code);
+      nom = trouve ? trouve[1] : code;
+    }
+
+    if(!code){ showToast('Choisis une langue.'); return; }
+    if(langues.some(x => x.code === code)){
+      showToast('Elle est déjà dans la liste.');
+      return;
+    }
+
+    try{
+      await sauverLangues(langues.concat([{ code: code, nom: nom }]));
+      showToast('Ajoutée ✅');
+      selA.value = '';
+      zLibre.style.display = 'none';
+      boite.querySelector('#glCode').value = '';
+      boite.querySelector('#glNom').value = '';
+      dessiner();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    ouvrirCodesEleves();
+  });
+  r.appendChild(bF);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  dessiner();
+}
+
+
 /* Demande quelle langue ouvrir à un élève */
 function choisirLangue(a, langues){
   return new Promise(resolve => {
@@ -812,7 +993,13 @@ async function ouvrirCodesEleves(){
       'placeholder="Son nom, comme dans le dossier">' +
 
     '<label for="ceLangue">Sa langue</label>' +
-    '<select id="ceLangue"><option value="">🇫🇷 Français seulement</option></select>' +
+    '<div style="display:flex;gap:8px;align-items:flex-start;">' +
+      '<select id="ceLangue" style="flex:1;min-width:0;margin:0;">' +
+        '<option value="">🇫🇷 Français seulement</option></select>' +
+      '<button type="button" class="btn btn-secondary" id="ceGererLangues" ' +
+        'style="width:auto;padding:11px 13px;font-size:13px;margin:0;' +
+        'flex-shrink:0;" title="Gérer les langues">⚙️</button>' +
+    '</div>' +
     '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
       'line-height:1.5;">Ouvrir une autre langue lui permet de réciter ' +
       'dans sa langue. Chaque récitation coûte alors une traduction ' +
@@ -842,6 +1029,11 @@ async function ouvrirCodesEleves(){
     const l = langues.find(x => x.code === code);
     return l ? l.nom : code;
   };
+
+  boite.querySelector('#ceGererLangues').addEventListener('click', () => {
+    document.body.removeChild(fond);
+    ouvrirGestionLangues();
+  });
 
   const dessiner = async () => {
     try{
