@@ -267,6 +267,11 @@
       <div id="mesEnvois"></div>
     </div>
 
+    <div class="card">
+      <button class="btn btn-secondary" id="btDrivup">🚗 Drivup</button>
+      <div id="zoneDrivup" style="display:none;margin-top:12px;"></div>
+    </div>
+
     <button class="btn btn-secondary" id="btSortir">Se déconnecter</button>
   </div>
 
@@ -561,6 +566,72 @@
   }
 
 
+  /* ===== DRIVUP =====
+
+     Le service d'entraînement au code. Il est chargé au premier
+     appui, pas à l'ouverture de la page : son script et son cadre
+     ralentiraient l'espace pour ceux qui ne s'en servent pas. */
+
+  var drivupCharge = false;
+
+  function ouvrirDrivup(){
+    var z = $('zoneDrivup');
+    var b = $('btDrivup');
+
+    /* Déjà là : on replie, on ne recharge pas */
+    if(drivupCharge){
+      var visible = (z.style.display !== 'none');
+      z.style.display = visible ? 'none' : 'block';
+      b.textContent = visible ? '🚗 Drivup' : '🚗 Replier Drivup';
+      return;
+    }
+
+    z.style.display = 'block';
+    z.innerHTML = '<div class="empty">Chargement de Drivup…</div>';
+    b.disabled = true;
+
+    var cadre = document.createElement('iframe');
+    cadre.src = 'https://mb.drivup.fr/';
+    cadre.width = '100%';
+    cadre.frameBorder = 'no';
+    cadre.scrolling = 'no';
+    cadre.style.cssText = 'border:0;border-radius:10px;min-height:520px;' +
+      'background:#fff;';
+
+    cadre.addEventListener('load', function(){
+      b.disabled = false;
+      b.textContent = '🚗 Replier Drivup';
+    });
+
+    /* Le script de redimensionnement ajuste la hauteur du cadre
+       à son contenu : sans lui, on aurait une barre de défilement
+       dans une barre de défilement. */
+    var s = document.createElement('script');
+    s.src = 'https://web.drivup.fr/iframe-resizer/js/iframeResizer.min.js';
+
+    s.onload = function(){
+      try{
+        if(typeof iFrameResize === 'function'){
+          iFrameResize({ enablePublicMethods: true }, cadre);
+        }
+      }catch(e){}
+    };
+
+    s.onerror = function(){
+      /* Sans le script, le cadre reste utilisable : on lui donne
+         simplement une hauteur fixe. */
+      cadre.style.minHeight = '640px';
+      b.disabled = false;
+      b.textContent = '🚗 Replier Drivup';
+    };
+
+    z.innerHTML = '';
+    z.appendChild(cadre);
+    document.body.appendChild(s);
+    drivupCharge = true;
+  }
+
+
   /* ===== LE THÈME =====
 
      Clair par défaut : l'élève s'entraîne souvent en plein jour,
@@ -600,6 +671,7 @@
   });
   $('btEnvoyer').addEventListener('click', envoyer);
   $('btMaj').addEventListener('click', chargerEnvois);
+  $('btDrivup').addEventListener('click', ouvrirDrivup);
   $('btSortir').addEventListener('click', sortir);
 
   ['btTheme1', 'btTheme2'].forEach(function(id){
