@@ -345,52 +345,41 @@ function tableauEnvoyees(validees){
 
 /* L'interrupteur : qui peut demander une récitation */
 function blocInterrupteur(){
-  const ouvert = reglagesProc.recitationsMoniteurs === 'oui';
-
-  const d = document.createElement('div');
-  d.style.cssText = 'border:1px solid ' +
-    (ouvert ? 'var(--orange)' : 'var(--line)') +
-    ';border-radius:12px;padding:12px;margin-bottom:12px;' +
-    'display:flex;gap:11px;align-items:center;';
-
-  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
-    '<strong>' + (ouvert
-      ? 'Les moniteurs peuvent demander en fin de cours'
-      : 'Seul le bureau demande des récitations') + '</strong>' +
-    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
-      (ouvert
-        ? 'Le tiroir 📌 apparaît sous le bilan, et le message part à l\'élève.'
-        : 'Le tiroir reste caché en fin de cours. À ouvrir quand les essais ' +
-          'seront concluants.') +
-    '</div></span>';
-
-  const b = document.createElement('button');
-  b.className = ouvert ? 'btn btn-primary' : 'btn btn-secondary';
-  b.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;' +
-    'flex-shrink:0;';
-  b.textContent = ouvert ? 'Fermer' : 'Ouvrir';
-  b.addEventListener('click', async () => {
-    if(!ouvert && !await confirmer(
-        'Ouvrir la demande en fin de cours ?\n\n' +
-        'Les moniteurs pourront demander des récitations, et le message ' +
-        'partira aux élèves dans leur bilan.')) return;
-
-    b.disabled = true;
-    try{
-      await appelPrep({
-        action: 'reglageSet',
-        cle: 'recitationsMoniteurs',
-        valeur: ouvert ? '' : 'oui',
-        par: ACCES.moniteur || ''
-      });
-      showToast(ouvert ? 'Refermé ✅' : 'Ouvert aux moniteurs ✅');
-      afficherProcCorriger();
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      b.disabled = false;
-    }
+  const d = interrupteur({
+    cle: 'recitationsMoniteurs',
+    ouvert: reglagesProc.recitationsMoniteurs === 'oui',
+    titre: 'Demande en fin de cours',
+    quandOuvert: 'Les moniteurs peuvent demander des récitations sous ' +
+                 'le bilan, et le message part à l\'élève.',
+    quandFerme: 'Seul le bureau demande des récitations. Le tiroir 📌 ' +
+                'reste caché aux moniteurs.',
+    confirmation: 'Activer la demande en fin de cours ?\n\n' +
+                  'Les moniteurs pourront demander des récitations, et ' +
+                  'le message partira aux élèves dans leur bilan.'
   });
-  d.appendChild(b);
+
+  /* Les réglages, rangés : on y touche rarement, et ils
+     encombraient le haut de l'écran. */
+  const tiroir = document.createElement('details');
+  tiroir.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+
+  /* Ce qui est ouvert se voit sans déplier */
+  const ouverts = [];
+  if(reglagesProc.recitationsMoniteurs === 'oui') ouverts.push('moniteurs');
+  if(reglagesProc.iaAutoProcedures === 'oui') ouverts.push('IA');
+  if(reglagesProc.envoiAutoProcedures === 'oui') ouverts.push('⚠️ envoi auto');
+
+  tiroir.innerHTML = '<summary style="cursor:pointer;font-size:13px;' +
+    'font-weight:700;color:var(--accent-text);">⚙️ Réglages et alertes' +
+    (ouverts.length
+      ? '<span style="font-weight:400;font-size:11px;color:var(--muted);"> — ' +
+        ouverts.join(' · ') + '</span>'
+      : '') +
+    '</summary>';
+
+  const dedans = document.createElement('div');
+  dedans.style.marginTop = '10px';
 
   const enveloppe = document.createElement('div');
   enveloppe.appendChild(d);
@@ -398,12 +387,11 @@ function blocInterrupteur(){
   enveloppe.appendChild(interrupteur({
     cle: 'iaAutoProcedures',
     ouvert: reglagesProc.iaAutoProcedures === 'oui',
-    titreOuvert: 'L\'IA prépare la correction à la réception',
-    titreFerme: 'La correction se demande à la main',
-    aideOuverte: 'La proposition est prête quand tu ouvres la fiche. ' +
-                 'Chaque récitation coûte un appel.',
-    aideFermee: 'Le bouton ✨ dans la fiche lance la correction ' +
-                'quand tu le veux.'
+    titre: 'Correction automatique par l\'IA',
+    quandOuvert: 'L\'IA corrige dès qu\'une récitation arrive. ' +
+                 'La proposition t\'attend dans la fiche.',
+    quandFerme: 'Rien ne se corrige tout seul. Le bouton ✨ dans la ' +
+                'fiche lance l\'IA quand tu le veux.'
   }));
 
   /* L'envoi sans relecture : c'est le garde-fou du dispositif, il
@@ -412,12 +400,11 @@ function blocInterrupteur(){
     enveloppe.appendChild(interrupteur({
       cle: 'envoiAutoProcedures',
       ouvert: reglagesProc.envoiAutoProcedures === 'oui',
-      titreOuvert: '⚠️ L\'IA envoie sa correction à l\'élève',
-      titreFerme: 'L\'IA n\'envoie rien à l\'élève',
-      aideOuverte: 'La correction part dès qu\'elle est écrite. Aucun ' +
-                   'moniteur ne la lit avant l\'élève.',
-      aideFermee: 'Un moniteur corrige, relit et valide. C\'est lui ' +
-                  'qui décide de ce que l\'élève reçoit.',
+      titre: '⚠️ Envoi direct à l\'élève, sans relecture',
+      quandOuvert: 'La correction de l\'IA part seule. Aucun moniteur ' +
+                   'ne la lit avant l\'élève.',
+      quandFerme: 'Un moniteur corrige, relit et valide. C\'est lui qui ' +
+                  'décide de ce que l\'élève reçoit.',
       confirmation: 'Laisser l\'IA envoyer seule ?\n\n' +
                     'L\'élève recevra directement ce qu\'elle écrit, ' +
                     'sans qu\'aucun moniteur ne l\'ait lu.',
@@ -428,34 +415,65 @@ function blocInterrupteur(){
   }
 
   enveloppe.appendChild(blocMailNotification());
-  return enveloppe;
+
+  /* Le dernier bloc n'a pas besoin de marge : le tiroir la porte */
+  const der = enveloppe.lastElementChild;
+  if(der) der.style.marginBottom = '0';
+
+  dedans.appendChild(enveloppe);
+  tiroir.appendChild(dedans);
+  return tiroir;
 }
 
 
-/* Un interrupteur de réglage, dessiné comme celui des demandes */
+/* Un interrupteur de réglage.
+
+   Le titre nomme la fonction et ne bouge pas ; en dessous, l'état
+   en clair. « Ouvrir » ne disait pas ce qui allait se passer :
+   un interrupteur, lui, se comprend sans le lire. */
 function interrupteur(o){
+  const danger = o.danger && o.ouvert;
+
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid ' +
     (o.ouvert ? (o.danger ? 'var(--red)' : 'var(--orange)') : 'var(--line)') +
     ';border-radius:12px;padding:12px;margin-bottom:12px;' +
-    'display:flex;gap:11px;align-items:center;';
+    'display:flex;gap:12px;align-items:center;';
 
-  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
-    '<strong>' + (o.ouvert ? o.titreOuvert : o.titreFerme) + '</strong>' +
-    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
-      (o.ouvert ? o.aideOuverte : o.aideFermee) + '</div></span>';
+  d.innerHTML = '<span style="flex:1;min-width:0;font-size:14px;line-height:1.5;">' +
+    '<strong>' + o.titre + '</strong>' +
+    '<div style="font-size:12px;margin-top:3px;color:' +
+      (o.ouvert ? (danger ? 'var(--red)' : 'var(--accent-text)')
+                : 'var(--muted)') + ';">' +
+      (o.ouvert ? '● Activé' : '○ Désactivé') + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' +
+      (o.ouvert ? o.quandOuvert : o.quandFerme) + '</div></span>';
 
+  /* L'interrupteur lui-même, dessiné plutôt qu'écrit */
   const b = document.createElement('button');
-  b.className = o.ouvert ? 'btn btn-primary' : 'btn btn-secondary';
-  b.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;' +
-    'flex-shrink:0;' + (o.ouvert && o.danger
-      ? 'background:var(--red);color:#fff;' : '');
-  b.textContent = o.ouvert ? 'Fermer' : 'Ouvrir';
+  b.setAttribute('role', 'switch');
+  b.setAttribute('aria-checked', o.ouvert ? 'true' : 'false');
+  b.title = o.ouvert ? 'Désactiver' : 'Activer';
+  b.style.cssText = 'width:56px;height:32px;flex-shrink:0;padding:0;margin:0;' +
+    'border-radius:16px;cursor:pointer;position:relative;' +
+    'border:1px solid ' + (o.ouvert
+      ? (o.danger ? 'var(--red)' : 'var(--orange)') : 'var(--line)') + ';' +
+    'background:' + (o.ouvert
+      ? (o.danger ? 'var(--red)' : 'var(--orange)') : 'transparent') + ';' +
+    'transition:background .15s ease;';
+
+  const bille = document.createElement('span');
+  bille.style.cssText = 'position:absolute;top:3px;width:24px;height:24px;' +
+    'border-radius:50%;transition:left .15s ease;' +
+    'left:' + (o.ouvert ? '28px' : '3px') + ';' +
+    'background:' + (o.ouvert
+      ? (o.danger ? '#fff' : 'var(--navy-deep)') : 'var(--muted)') + ';';
+  b.appendChild(bille);
 
   b.addEventListener('click', async () => {
     /* Certains réglages en supposent un autre */
     if(!o.ouvert && o.exige && reglagesProc[o.exige] !== 'oui'){
-      showToast('Ouvre d\'abord la correction automatique.');
+      showToast('Active d\'abord la correction automatique.');
       return;
     }
     if(!o.ouvert && o.confirmation && !await confirmer(o.confirmation)) return;
@@ -467,7 +485,7 @@ function interrupteur(o){
         valeur: o.ouvert ? '' : 'oui',
         par: ACCES.moniteur || ''
       });
-      showToast(o.ouvert ? 'Refermé ✅' : 'Ouvert ✅');
+      showToast(o.ouvert ? 'Désactivé ✅' : 'Activé ✅');
       afficherProcCorriger();
     }catch(e){
       showToast('Impossible : ' + e.message);
@@ -1168,10 +1186,12 @@ async function ouvrirCodesEleves(){
         /* Le message d'accès, une fois pour les deux boutons */
         const messageAcces = () =>
           'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
-          'Voici ton espace élève :\n' +
+          'Voici ton coin révisions :\n' +
           'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
           'Ton nom : ' + a.eleve + '\n' +
           'Ton code : ' + a.code + '\n\n' +
+          'Tu y récites tes procédures et suis tes séances de code.\n' +
+          'Ce n\'est pas le site pour réserver tes cours.\n\n' +
           'Garde ce code, il te servira à chaque fois.\n\n' +
           'À bientôt !\n' +
           'Évolution Conduites';
@@ -1199,7 +1219,7 @@ async function ouvrirCodesEleves(){
             await appelPrep({
               action: 'mailBilan',
               to: [adresse],
-              sujet: 'Ton espace élève — Évolution Conduites',
+              sujet: 'Ton coin révisions — Évolution Conduites',
               texte: messageAcces()
             });
             bMail.textContent = '✅';
