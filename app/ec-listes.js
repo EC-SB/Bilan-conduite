@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 14:49 — v440 */
+/* Déployé le 22/08/2026 à 12:39 — v503 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -114,6 +114,64 @@ async function ouvrirPasNiveauManuel(){
   fond.appendChild(boite);
   document.body.appendChild(fond);
   setTimeout(() => boite.querySelector('#pnEleve').focus(), 100);
+}
+
+
+/* ============================================================
+   LES EXAMENS BLANCS PRÉVUS
+
+   Ceux dont la date est posée. Les autres — « dans 3 leçons »,
+   « la prochaine fois » — restent dans la liste à prévoir, où
+   ils attendent une date.
+   ============================================================ */
+function afficherEBPrevus(tous){
+  const zone = $('listeEBPrevus');
+  if(!zone) return;
+
+  const liste = tous.filter(e =>
+    e.etat.examBlanc === 'reserve' && e.etat.examBlancDate);
+
+  /* Du plus proche au plus lointain : c'est l'ordre où l'on en a
+     besoin. Les dates sont écrites à la française. */
+  liste.sort((a, b) => isoDeDateFr(a.etat.examBlancDate)
+                        .localeCompare(isoDeDateFr(b.etat.examBlancDate)));
+
+  zone.innerHTML = '';
+  majVolet('cptEBPrevus', liste.length);
+
+  if(!liste.length){
+    zone.innerHTML = '<div class="empty">Aucun examen blanc daté.<br>' +
+      '<span style="font-size:12px;">Ceux à prévoir sont dans l\'onglet ' +
+      'Suivi, en attendant leur date.</span></div>';
+    return;
+  }
+
+  const auj = todayLocal();
+
+  liste.forEach(e => {
+    const iso = isoDeDateFr(e.etat.examBlancDate);
+    const passe = iso && iso < auj;
+
+    zone.appendChild(ligneBureau(e, {
+      replier: true,
+      /* Une date dépassée se signale : l'examen a eu lieu, ou la
+         date est à corriger. */
+      info: () => (passe ? '⚠️ Le ' : '📅 Le ') + e.etat.examBlancDate +
+                  (passe ? ' — date dépassée' : ''),
+
+      /* On ne propose rien de plus : la date est déjà posée, et
+         tout se règle depuis la fiche de l'élève. */
+      actions: () => {}
+    }));
+  });
+}
+
+/* « 24/08/2026 » en « 2026-08-24 », pour trier */
+function isoDeDateFr(v){
+  const m = String(v || '').match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if(!m) return '9999';
+  const an = m[3].length === 2 ? '20' + m[3] : m[3];
+  return an + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
 }
 
 
