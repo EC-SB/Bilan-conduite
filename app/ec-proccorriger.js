@@ -1097,9 +1097,9 @@ async function ouvrirCodesEleves(){
   boite.className = 'modal';
   boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
 
-  boite.innerHTML = '<h3>🔑 Codes de l\'espace élève</h3>' +
+  boite.innerHTML = '<h3>🔑 Codes du coin révisions</h3>' +
     '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
-      'L\'élève se connecte sur la page avec son nom et ce code. ' +
+      'L\'élève se connecte à son coin révisions avec son nom et ce ' +
       'Il n\'y voit que ses propres envois.</div>' +
 
     '<label for="ceEleve">Donner un accès à</label>' +
