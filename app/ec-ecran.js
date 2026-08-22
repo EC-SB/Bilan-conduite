@@ -33,6 +33,13 @@ async function afficherEcran(){
   /* Les adresses à ouvrir sur les téléviseurs */
   zone.appendChild(blocAdresses());
 
+  const bLieux = document.createElement('button');
+  bLieux.className = 'btn btn-secondary';
+  bLieux.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
+  bLieux.textContent = '📍 Gérer les emplacements';
+  bLieux.addEventListener('click', () => ouvrirGestionLieux());
+  zone.appendChild(bLieux);
+
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
   b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
@@ -59,6 +66,256 @@ async function afficherEcran(){
   diaposEcran.forEach((d, i) => zone.appendChild(ligneDiapo(d, i)));
 }
 
+
+
+
+/* ============================================================
+   LES EMPLACEMENTS
+
+   Ajouter un lieu, changer un émoji, retoucher la phrase du SMS.
+   Tout se garde sur le poste et se partage si le classeur répond.
+   ============================================================ */
+
+function ouvrirGestionLieux(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>📍 Emplacements</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Ils apparaissent dans le planning ci-dessous ' +
+      'et dans les rappels de cours.</div>' +
+    '<div id="glxListe"></div>' +
+    '<button class="btn btn-secondary" id="glxAjouter" ' +
+      'style="margin-top:12px;padding:11px;font-size:13px;">' +
+      '➕ Ajouter un emplacement</button>' +
+    '<button class="btn btn-secondary" id="glxRaz" ' +
+      'style="margin-top:6px;padding:10px;font-size:12px;color:var(--muted);">' +
+      '↩️ Revenir à la liste d\'origine</button>';
+
+  const dessiner = () => {
+    const liste = lieuxActuels();
+    const z = boite.querySelector('#glxListe');
+    z.innerHTML = '';
+
+    liste.forEach((l, i) => {
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;gap:9px;align-items:center;padding:9px 0;' +
+        'border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;';
+
+      ligne.innerHTML = '<span style="font-size:20px;flex-shrink:0;width:28px;' +
+        'text-align:center;">' + (l.emoji || '·') + '</span>' +
+        '<span style="flex:1;min-width:0;line-height:1.4;">' +
+          '<strong>' + String(l.nom).replace(/</g, '&lt;') + '</strong>' +
+          (l.sansVehicule ? ' <span style="font-size:10px;color:var(--muted);">' +
+                            'sans véhicule</span>' : '') +
+          '<div style="font-size:11px;color:var(--muted);">' +
+            (l.sms ? String(l.sms).replace(/</g, '&lt;').slice(0, 52) +
+                     (l.sms.length > 52 ? '…' : '')
+                   : 'rien dans le SMS') +
+          '</div></span>';
+
+      /* Monter, descendre : l'ordre est celui des listes */
+      [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
+        const bo = document.createElement('button');
+        bo.className = 'btn btn-secondary';
+        bo.style.cssText = 'width:auto;padding:5px 7px;font-size:10px;margin:0;' +
+          'flex-shrink:0;';
+        bo.textContent = signe;
+        bo.disabled = (sens < 0 && i === 0) || (sens > 0 && i === liste.length - 1);
+        bo.addEventListener('click', () => {
+          const copie = liste.slice();
+          const j = i + sens;
+          [copie[i], copie[j]] = [copie[j], copie[i]];
+          garderLieux(copie);
+          dessiner();
+        });
+        ligne.appendChild(bo);
+      });
+
+      const bMod = document.createElement('button');
+      bMod.className = 'btn btn-secondary';
+      bMod.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+        'flex-shrink:0;';
+      bMod.textContent = '✏️';
+      bMod.addEventListener('click', async () => {
+        const modifie = await ficheLieu(l);
+        if(!modifie) return;
+        const copie = liste.slice();
+        copie[i] = modifie;
+        garderLieux(copie);
+        showToast('Enregistré ✅');
+        dessiner();
+      });
+      ligne.appendChild(bMod);
+
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+        'flex-shrink:0;color:var(--red);border-color:var(--red);';
+      bSup.textContent = '🗑️';
+      bSup.addEventListener('click', async () => {
+        if(liste.length <= 1){
+          showToast('Il faut garder au moins un emplacement.');
+          return;
+        }
+        if(!await confirmer('Retirer ' + l.nom + ' ?\n\n' +
+            'Les cours déjà réglés dessus le gardent, mais on ne ' +
+            'pourra plus le choisir.')) return;
+        garderLieux(liste.filter((_, j) => j !== i));
+        showToast('Retiré ✅');
+        dessiner();
+      });
+      ligne.appendChild(bSup);
+
+      z.appendChild(ligne);
+    });
+  };
+
+  boite.querySelector('#glxAjouter').addEventListener('click', async () => {
+    const nouveau = await ficheLieu(null);
+    if(!nouveau) return;
+
+    const liste = lieuxActuels();
+    if(liste.some(x => x.cle === nouveau.cle)){
+      showToast('Cet emplacement existe déjà.');
+      return;
+    }
+    garderLieux(liste.concat([nouveau]));
+    showToast('Ajouté ✅');
+    dessiner();
+  });
+
+  boite.querySelector('#glxRaz').addEventListener('click', async () => {
+    if(!await confirmer('Revenir à la liste d\'origine ?\n\n' +
+        'Tes ajouts et tes modifications seront perdus.')) return;
+    garderLieux(LIEUX);
+    showToast('Liste d\'origine rétablie ✅');
+    dessiner();
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    afficherEcran();
+  });
+  r.appendChild(bF);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  dessiner();
+}
+
+
+/* La fiche d'un emplacement */
+function ficheLieu(l){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(480px, 94vw);max-height:88vh;overflow-y:auto;';
+
+    boite.innerHTML =
+      '<h3>' + (l ? String(l.nom).replace(/</g, '&lt;') : 'Nouvel emplacement') +
+      '</h3>' +
+
+      '<div class="duo">' +
+        '<div><label for="flEmoji">Émoji</label>' +
+          '<input type="text" id="flEmoji" maxlength="4" ' +
+            'style="text-align:center;font-size:24px;padding:8px;"></div>' +
+        '<div><label for="flNom">Nom</label>' +
+          '<input type="text" id="flNom" placeholder="Ex : Parking arrière"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 10px;' +
+        'line-height:1.5;">Colle un émoji depuis ton clavier, ou choisis ' +
+        'ci-dessous.</div>' +
+
+      '<div id="flPalette" style="display:flex;flex-wrap:wrap;gap:6px;' +
+        'margin-bottom:14px;"></div>' +
+
+      '<label for="flSms">Ce que reçoit l\'élève dans son SMS</label>' +
+      '<textarea id="flSms" rows="3" ' +
+        'placeholder="Laisse vide pour ne rien dire."></textarea>' +
+
+      '<label style="display:flex;align-items:center;gap:10px;' +
+        'text-transform:none;font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
+        '<input type="checkbox" id="flSansVeh" style="width:19px;height:19px;">' +
+        'Pas de véhicule à cet endroit</label>';
+
+    if(l){
+      boite.querySelector('#flEmoji').value = l.emoji || '';
+      boite.querySelector('#flNom').value = l.nom || '';
+      boite.querySelector('#flSms').value = l.sms || '';
+      boite.querySelector('#flSansVeh').checked = !!l.sansVehicule;
+    }
+
+    const PALETTE = ['🛣️', '🅿️', '🏢', '🏍️', '🛵', '📱', '📚', '🖥️',
+                     '🚗', '🚙', '🏁', '⛽', '🔧', '🚦', '📍', '🏫',
+                     '🚏', '🌳', '🅰️', '🅱️'];
+    const zp = boite.querySelector('#flPalette');
+    PALETTE.forEach(e => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = e;
+      b.style.cssText = 'width:38px;height:38px;padding:0;border-radius:9px;' +
+        'border:1px solid var(--line);background:transparent;font-size:19px;' +
+        'cursor:pointer;margin:0;';
+      b.addEventListener('click', () => {
+        boite.querySelector('#flEmoji').value = e;
+      });
+      zp.appendChild(b);
+    });
+
+    const r = document.createElement('div');
+    r.className = 'btn-row';
+
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+    r.appendChild(bA);
+
+    const bO = document.createElement('button');
+    bO.className = 'btn btn-primary';
+    bO.textContent = l ? '💾 Enregistrer' : '➕ Ajouter';
+    bO.addEventListener('click', () => {
+      const nom = boite.querySelector('#flNom').value.trim();
+      if(!nom){ showToast('Donne-lui un nom.'); return; }
+
+      /* La clé ne change jamais : c'est elle qui est écrite dans
+         les cours déjà réglés. */
+      const cle = l ? l.cle
+                    : normaliserMot(nom).replace(/[^a-z0-9]/g, '') ||
+                      ('lieu' + Date.now());
+
+      document.body.removeChild(fond);
+      resolve({
+        cle: cle,
+        emoji: boite.querySelector('#flEmoji').value.trim(),
+        nom: nom,
+        sms: boite.querySelector('#flSms').value.trim(),
+        sansVehicule: boite.querySelector('#flSansVeh').checked
+      });
+    });
+    r.appendChild(bO);
+
+    boite.appendChild(r);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    setTimeout(() => boite.querySelector('#flNom').focus(), 100);
+  });
+}
 
 
 /* Les moniteurs, pour changer celui d'une ligne */
