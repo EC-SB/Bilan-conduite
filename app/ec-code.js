@@ -16,6 +16,10 @@ let resultatsEtg = [];
 let baremesEtg = {};
 let filtreEleveEtg = '';
 
+/* Ce qu'on montre au chargement : ceux venus dans le dernier
+   mois. La liste complète tiendrait sur plusieurs écrans. */
+let periodeEtg = 'mois';
+
 const NB_SEANCES = 12;
 
 /* Les couleurs, les mêmes que sur le logiciel de l'auto-école */
@@ -54,10 +58,28 @@ async function afficherCodeSalle(){
   /* Quelle séance lancer : celle que le moins d'élèves ont faite */
   zone.appendChild(blocSeanceALancer());
 
+  /* La période : le dernier mois d'abord, tout si on le demande */
+  const bp = document.createElement('div');
+  bp.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+
+  [['mois', 'Dernier mois'], ['trimestre', '3 mois'], ['tout', 'Tous']]
+    .forEach(([cle, nom]) => {
+      const b = document.createElement('button');
+      b.className = (periodeEtg === cle) ? 'btn btn-primary' : 'btn btn-secondary';
+      b.style.cssText = 'flex:1;padding:9px;font-size:12px;margin:0;';
+      b.textContent = nom;
+      b.addEventListener('click', () => {
+        periodeEtg = cle;
+        afficherCodeSalle();
+      });
+      bp.appendChild(b);
+    });
+  zone.appendChild(bp);
+
   const ch = document.createElement('input');
   ch.type = 'search';
   ch.id = 'filtreEleveEtg';
-  ch.placeholder = '🔍 Chercher un élève…';
+  ch.placeholder = '🔍 Nom ou prénom…';
   ch.value = filtreEleveEtg;
   ch.style.cssText = 'margin-bottom:12px;font-size:14px;';
   ch.addEventListener('input', () => {
@@ -76,11 +98,36 @@ async function afficherCodeSalle(){
 }
 
 
-/* Les élèves, avec ce qu'ils ont fait */
+/* La date à partir de laquelle on regarde */
+function debutPeriodeEtg(){
+  if(periodeEtg === 'tout') return '';
+  const d = new Date();
+  d.setMonth(d.getMonth() - (periodeEtg === 'trimestre' ? 3 : 1));
+  return d.getFullYear() + '-' +
+         String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+
+/* Les élèves, avec ce qu'ils ont fait.
+
+   La période porte sur l'élève, pas sur la séance : quelqu'un venu
+   la semaine dernière montre tout son parcours, sinon la grille
+   n'aurait plus de sens. */
 function elevesEtg(){
+  const depuis = debutPeriodeEtg();
+
+  /* Qui est venu dans la période */
+  const vus = {};
+  if(depuis){
+    resultatsEtg.forEach(r => {
+      if(r.date && r.date >= depuis) vus[normaliserMot(r.eleve || '')] = true;
+    });
+  }
+
   const par = {};
 
   resultatsEtg.forEach(r => {
+    if(depuis && !vus[normaliserMot(r.eleve || '')]) return;
     const cle = normaliserMot(r.eleve || '');
     if(!cle) return;
 
@@ -98,7 +145,10 @@ function elevesEtg(){
 }
 
 
-/* Quelle séance mettre en route */
+/* Quelle séance mettre en route.
+
+   Deux questions différentes : celles que personne n'a faites du
+   tout, et celles qu'un groupe précis n'a pas faites. */
 function blocSeanceALancer(){
   const eleves = elevesEtg();
   const comptes = [];
@@ -132,6 +182,76 @@ function blocSeanceALancer(){
                  ' élève(s) ne l\'ont pas faite').join('<br>');
   }
 
+  z.appendChild(document.createElement('br'));
+
+  /* Chercher pour un groupe précis : on tape plusieurs noms, on
+     obtient les séances qu'aucun d'eux n'a faites. */
+  const zg = document.createElement('div');
+  zg.style.cssText = 'border-top:1px solid var(--line);margin-top:12px;' +
+    'padding-top:11px;';
+  zg.innerHTML = '<div style="font-size:12px;color:var(--muted);' +
+    'margin-bottom:8px;line-height:1.5;">Pour un groupe précis : ' +
+    'tape leurs noms séparés par des virgules.</div>';
+
+  const chG = document.createElement('input');
+  chG.type = 'text';
+  chG.placeholder = 'Ex : Claustre, Guillebon, Martin';
+  chG.style.cssText = 'margin-bottom:8px;font-size:13px;';
+  zg.appendChild(chG);
+
+  const zRep = document.createElement('div');
+  zRep.style.cssText = 'font-size:13px;line-height:1.6;';
+  zg.appendChild(zRep);
+
+  const chercherGroupe = () => {
+    const noms = chG.value.split(',')
+      .map(x => normaliserMot(x.trim()))
+      .filter(Boolean);
+
+    if(!noms.length){ zRep.innerHTML = ''; return; }
+
+    /* Chaque nom saisi désigne un ou plusieurs élèves */
+    const groupe = [];
+    const introuvables = [];
+
+    noms.forEach(n => {
+      const trouves = eleves.filter(e => normaliserMot(e.nom).indexOf(n) !== -1);
+      if(!trouves.length){ introuvables.push(n); return; }
+      trouves.forEach(t => {
+        if(groupe.indexOf(t) === -1) groupe.push(t);
+      });
+    });
+
+    if(!groupe.length){
+      zRep.innerHTML = '<span style="color:var(--warn-text);">' +
+        'Personne trouvé. Élargis la période si besoin.</span>';
+      return;
+    }
+
+    /* Les séances qu'aucun d'eux n'a faites */
+    const libres = [];
+    for(let n = 1; n <= NB_SEANCES; n++){
+      if(!groupe.some(e => e.seances[n])) libres.push(n);
+    }
+
+    zRep.innerHTML =
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:5px;">' +
+        groupe.length + ' élève(s) : ' +
+        groupe.map(e => e.nom.replace(/</g, '&lt;')).join(' · ') +
+        (introuvables.length
+          ? '<br>⚠️ pas trouvé : ' + introuvables.join(', ')
+          : '') +
+      '</div>' +
+      (libres.length
+        ? '<strong style="color:var(--accent-text);">Aucun n\'a fait :</strong> ' +
+          libres.map(n => 'séance ' + n).join(' · ')
+        : '<span style="color:var(--muted);">Ils ont tous fait au moins ' +
+          'une fois chacune des douze séances.</span>');
+  };
+
+  chG.addEventListener('input', chercherGroupe);
+  z.appendChild(zg);
+
   d.appendChild(z);
   return d;
 }
@@ -142,14 +262,32 @@ function dessinerGrilleEtg(){
   if(!zone) return;
   zone.innerHTML = '';
 
-  const cherche = normaliserMot(String(filtreEleveEtg || '').trim());
-  const eleves = elevesEtg()
-    .filter(e => !cherche || normaliserMot(e.nom).indexOf(cherche) !== -1);
+  /* Chaque mot doit se retrouver : « martin lea » trouve Léa
+     Martin quel que soit l'ordre, et distingue les homonymes. */
+  const mots = normaliserMot(String(filtreEleveEtg || '').trim())
+    .split(/\s+/).filter(Boolean);
+
+  const eleves = elevesEtg().filter(e => {
+    if(!mots.length) return true;
+    const n = normaliserMot(e.nom);
+    return mots.every(m => n.indexOf(m) !== -1);
+  });
 
   if(!eleves.length){
-    zone.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
+    zone.innerHTML = '<div class="empty">Aucun élève ne correspond.' +
+      (periodeEtg !== 'tout'
+        ? '<br><span style="font-size:12px;">Essaie « Tous » pour ' +
+          'chercher au-delà de la période.</span>'
+        : '') + '</div>';
     return;
   }
+
+  const compte = document.createElement('div');
+  compte.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;';
+  compte.textContent = eleves.length + ' élève(s)' +
+    (periodeEtg === 'mois' ? ' venus dans le dernier mois'
+     : periodeEtg === 'trimestre' ? ' venus dans les trois derniers mois' : '');
+  zone.appendChild(compte);
 
   const enveloppe = document.createElement('div');
   enveloppe.style.cssText = 'overflow-x:auto;';
