@@ -1116,8 +1116,12 @@ async function ouvrirCodesEleves(){
           const choix = await choisirLangue(a, langues);
           if(choix === null) return;
           try{
+            /* Surtout pas « code » : appelPrep s'en sert pour le
+               code du moniteur, et l'envoyer ici faisait échouer
+               l'authentification. Le classeur garde le code de
+               l'élève quand on ne lui en donne pas. */
             await appelPrep({ action: 'accesEleveSet', eleve: a.eleve,
-                              code: a.code, langue: choix });
+                              langue: choix });
             showToast(choix ? 'Langue ouverte ✅' : 'Français seulement ✅');
             dessiner();
           }catch(e){ showToast('Impossible : ' + e.message); }
@@ -1134,7 +1138,8 @@ async function ouvrirCodesEleves(){
           if(!await confirmer('Nouveau code pour ' + a.eleve + ' ?\n\n' +
               'L\'ancien ne marchera plus : il faudra lui transmettre le nouveau.')) return;
           try{
-            const rep = await appelPrep({ action: 'accesEleveSet', eleve: a.eleve });
+            const rep = await appelPrep({ action: 'accesEleveSet', eleve: a.eleve,
+                                          nouveauCode: 'oui' });
             showToast('Nouveau code : ' + (rep.code || '') + ' ✅');
             dessiner();
           }catch(e){ showToast('Impossible : ' + e.message); }
