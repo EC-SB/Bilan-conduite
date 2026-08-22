@@ -309,8 +309,15 @@ async function chargerLieux(){
   if(lieuxEcran !== null) return lieuxEcran;
   try{
     const d = await appelPrep({ action: 'lieuxList' });
-    lieuxEcran = (d && d.lieux) || [];
-  }catch(e){ lieuxEcran = []; }
+    const recu = (d && d.lieux) || [];
+    /* Le même filet que dans les rappels : sans réponse du
+       classeur, la liste se viderait entièrement. */
+    lieuxEcran = recu.length
+      ? recu
+      : (typeof LIEUX_SECOURS !== 'undefined' ? LIEUX_SECOURS : []);
+  }catch(e){
+    lieuxEcran = (typeof LIEUX_SECOURS !== 'undefined') ? LIEUX_SECOURS : [];
+  }
   return lieuxEcran;
 }
 
