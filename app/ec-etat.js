@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 09:21 — v496 */
+/* Déployé le 22/08/2026 à 10:00 — v499 */
 /* ============================================================
    ec-etat.js
    État partagé entre les modules.
@@ -69,7 +69,7 @@ window.EC_MODULES['ec-etat.js'] = true;
    Elle est écrite ici, en clair : c'est le seul endroit à
    modifier pour en ajouter un.
    ============================================================ */
-var LIEUX = [
+var EMPLACEMENTS_BASE = [
   { cle:'devant', emoji:'🛣️', nom:'Devant, le long du trottoir',
     sms:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
 
@@ -101,55 +101,35 @@ var LIEUX = [
    présente ; ce qui est gardé sur ce poste ; ce que le classeur
    partage entre les postes. Si les deux dernières manquent, la
    première suffit — la liste n'est jamais vide. */
-var CLE_LIEUX = 'ec_lieux';
+var CLE_LIEUX = 'ec_emplacements';
 
 function lieuxActuels(){
   try{
     var brut = localStorage.getItem(CLE_LIEUX);
     if(brut){
       var l = JSON.parse(brut);
-      if(l && l.length) return l;
+      /* Un emplacement a une clé et un nom. Autre chose veut dire
+         qu'on a rangé au mauvais endroit — c'est arrivé avec les
+         lieux du secteur de la mémoire, qui portent le même mot. */
+      if(l && l.length && l[0] && l[0].cle && l[0].nom !== undefined){
+        return l;
+      }
+      localStorage.removeItem(CLE_LIEUX);
     }
   }catch(e){}
-  return LIEUX;
+  return EMPLACEMENTS_BASE;
 }
+
+/* L'ancienne clé a pu recevoir les lieux du secteur : on la vide
+   une fois pour toutes. */
+try{ localStorage.removeItem('ec_lieux'); }catch(e){}
 
 function garderLieux(liste){
   try{
     localStorage.setItem(CLE_LIEUX, JSON.stringify(liste));
   }catch(e){}
 
-  /* On tente de partager, sans en dépendre : le poste garde sa
-     liste même si le classeur ne répond pas. */
-  try{
-    if(typeof appelPrep === 'function'){
-      appelPrep({
-        action: 'reglageSet',
-        cle: 'lieux',
-        valeur: liste.map(function(x){
-          return [x.cle, x.emoji, x.nom, x.sms || '',
-                  x.sansVehicule ? 'sansvehicule' : ''].join('|');
-        }).join('\n'),
-        par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || ''
-      }).catch(function(){});
-    }
-  }catch(e){}
 }
-
-/* Reprend ce que le classeur partage, s'il en a */
-function synchroniserLieux(){
-  try{
-    if(typeof appelPrep !== 'function') return;
-    appelPrep({ action: 'lieuxList' })
-      .then(function(d){
-        var recu = (d && d.lieux) || [];
-        if(!recu.length) return;
-        try{ localStorage.setItem(CLE_LIEUX, JSON.stringify(recu)); }catch(e){}
-      })
-      .catch(function(){ /* le poste garde la sienne */ });
-  }catch(e){}
-}
-
 
 /* Remplit une liste déroulante d'emplacements */
 function remplirListeLieux(sel, actuel, finale){
