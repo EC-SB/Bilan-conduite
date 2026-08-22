@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 12:55 — v505 */
+/* Déployé le 22/08/2026 à 15:07 — v512 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -50,8 +50,18 @@ function analyserNote(note){
     r.ebLecons = +m[2];
   }
   else if(/Ne pas prévoir d'examen blanc/i.test(t)) r.examBlanc = 'impossible';
+  else if((m = t.match(/Examen blanc passé le ([^—·(]+)/i))){
+    r.examBlanc = 'passe';
+    r.ebDate = m[1].trim();
+  }
   else if(/Examen blanc passé/i.test(t)) r.examBlanc = 'passe';
   else if((m = t.match(/Examen blanc fixé au ([^—·(]+)/i))){
+    r.examBlanc = 'reserve';
+    r.examBlancDate = m[1].trim();
+  }
+  /* Le questionnaire de préparation écrit « réservé le … » ;
+     le bureau écrit « fixé au … ». Les deux portent une date. */
+  else if((m = t.match(/Examen blanc réservé le ([^—·(]+)/i))){
     r.examBlanc = 'reserve';
     r.examBlancDate = m[1].trim();
   }
