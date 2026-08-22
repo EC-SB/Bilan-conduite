@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 12:27 — v502 */
+/* Déployé le 22/08/2026 à 13:27 — v506 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -578,7 +578,8 @@ async function afficherEspaceEleve(nom, zone){
       try{
         const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom });
         showToast('Code créé : ' + (rep.code || '') + ' ✅');
-        afficherEspaceEleve(nom, zone);
+        /* On redessine : le bouton d'envoi apparaît avec le code */
+        await afficherEspaceEleve(nom, zone);
       }catch(e){
         showToast('Impossible : ' + e.message);
         b.disabled = false;
@@ -649,24 +650,69 @@ async function afficherEspaceEleve(nom, zone){
 
   carte.appendChild(zm);
 
-  /* Copier le message à lui envoyer */
+  /* Lui transmettre son accès : par mail, ou à copier */
+  const messageAcces = () =>
+    'Bonjour ' + nom.split(' ')[0] + ',\n\n' +
+    'Voici ton espace élève :\n' +
+    'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+    'Ton nom : ' + nom + '\n' +
+    'Ton code : ' + acces.code + '\n\n' +
+    'Garde ce code, il te servira à chaque fois.\n\n' +
+    'À bientôt !\n' +
+    'Évolution Conduites';
+
+  const rEnvoi = document.createElement('div');
+  rEnvoi.style.cssText = 'display:flex;gap:6px;margin-top:8px;';
+
+  /* L'adresse est celle de sa fiche, saisie juste au-dessus */
+  const bMail = document.createElement('button');
+  bMail.className = 'btn btn-secondary';
+  bMail.style.cssText = 'flex:1;padding:9px;font-size:12px;margin:0;';
+  bMail.textContent = '✉️ Lui envoyer par mail';
+  bMail.addEventListener('click', async () => {
+    const champ = document.getElementById('fiMail');
+    const adresse = champ ? champ.value.trim() : '';
+
+    if(!adresse){
+      showToast('Renseigne son adresse mail ci-dessus.');
+      if(champ) champ.focus();
+      return;
+    }
+
+    bMail.disabled = true;
+    bMail.textContent = 'Envoi…';
+    try{
+      await appelPrep({
+        action: 'mailBilan',
+        to: [adresse],
+        sujet: 'Ton espace élève — Évolution Conduites',
+        texte: messageAcces()
+      });
+      bMail.textContent = '✅ Envoyé';
+      showToast('Envoyé à ' + adresse + ' ✅');
+    }catch(e){
+      bMail.disabled = false;
+      bMail.textContent = '✉️ Lui envoyer par mail';
+      showToast('Envoi impossible : ' + e.message);
+    }
+  });
+  rEnvoi.appendChild(bMail);
+
   const bCop = document.createElement('button');
   bCop.className = 'btn btn-secondary';
-  bCop.style.cssText = 'margin-top:6px;padding:9px;font-size:12px;';
-  bCop.textContent = '📋 Copier le message pour lui';
+  bCop.style.cssText = 'width:auto;padding:9px 12px;font-size:12px;margin:0;' +
+    'flex-shrink:0;';
+  bCop.textContent = '📋';
+  bCop.title = 'Copier le message';
   bCop.addEventListener('click', async () => {
-    const m = 'Bonjour ' + nom.split(' ')[0] + ',\n\n' +
-      'Voici ton espace :\n' +
-      'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
-      'Ton nom : ' + nom + '\n' +
-      'Ton code : ' + acces.code + '\n\n' +
-      'À bientôt !';
     try{
-      await navigator.clipboard.writeText(m);
+      await navigator.clipboard.writeText(messageAcces());
       showToast('Message copié ✅');
     }catch(e){ showToast('Copie impossible'); }
   });
-  carte.appendChild(bCop);
+  rEnvoi.appendChild(bCop);
+
+  carte.appendChild(rEnvoi);
 
   zone.appendChild(carte);
 }
