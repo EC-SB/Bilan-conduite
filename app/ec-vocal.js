@@ -1770,7 +1770,7 @@ async function poserRecitationsDemandees(eleve){
     '📌 𝗔̀ 𝗥𝗘́𝗖𝗜𝗧𝗘𝗥 𝗔𝗩𝗔𝗡𝗧 𝗟𝗘 𝗣𝗥𝗢𝗖𝗛𝗔𝗜𝗡 𝗖𝗢𝗨𝗥𝗦'];
   noms.forEach(n => bouts.push('• ' + n));
   bouts.push('');
-  bouts.push('Enregistre-toi ici, un moniteur te corrigera :');
+  bouts.push('Enregistre-toi dans ton coin révisions :');
   bouts.push('https://ec-sb.github.io/Bilan-conduite/eleve.html');
   bouts.push('Ton nom : ' + eleve);
   bouts.push('Ton code : ' + ((rep && rep.code) || ''));
