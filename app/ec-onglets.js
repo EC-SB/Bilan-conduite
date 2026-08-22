@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 12:42 — v473 */
+/* Déployé le 22/08/2026 à 12:26 — v502 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -13,7 +13,7 @@ const CLE_ONGLET = 'onglet_actif';
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'permis', 'depart'],
+  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils:  ['procedures', 'textes', 'memoire', 'bilans', 'historique',
@@ -136,6 +136,7 @@ const VUES = {
            ['rappels',    '🔔 Rappels de cours',      'rappels'],
            ['eleves',     '👥 Répertoire',            'eleves'],
            ['proccorriger','📥 Procédures',            'proccorriger'],
+           ['code',       '🎓 Code en salle',          'code'],
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
   /* Ce qui sert au quotidien pédagogique */
@@ -247,6 +248,7 @@ function reveillerVue(cle){
     flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
     proccorriger: () => afficherProcCorriger(),
+    code:       () => afficherCodeSalle(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
@@ -256,6 +258,7 @@ function reveillerVue(cle){
     flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
     proccorriger: () => afficherProcCorriger(),
+    code:       () => afficherCodeSalle(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
