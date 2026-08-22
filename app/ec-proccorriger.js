@@ -394,8 +394,88 @@ function blocInterrupteur(){
 
   const enveloppe = document.createElement('div');
   enveloppe.appendChild(d);
+
+  enveloppe.appendChild(interrupteur({
+    cle: 'iaAutoProcedures',
+    ouvert: reglagesProc.iaAutoProcedures === 'oui',
+    titreOuvert: 'L\'IA prépare la correction à la réception',
+    titreFerme: 'La correction se demande à la main',
+    aideOuverte: 'La proposition est prête quand tu ouvres la fiche. ' +
+                 'Chaque récitation coûte un appel.',
+    aideFermee: 'Le bouton ✨ dans la fiche lance la correction ' +
+                'quand tu le veux.'
+  }));
+
+  /* L'envoi sans relecture : c'est le garde-fou du dispositif, il
+     ne s'ouvre pas d'un simple clic. */
+  if(ACCES.role === 'admin'){
+    enveloppe.appendChild(interrupteur({
+      cle: 'envoiAutoProcedures',
+      ouvert: reglagesProc.envoiAutoProcedures === 'oui',
+      titreOuvert: '⚠️ La correction part sans relecture',
+      titreFerme: 'Un moniteur valide avant l\'élève',
+      aideOuverte: 'L\'élève reçoit ce que l\'IA a écrit, sans que ' +
+                   'personne ne l\'ait lu.',
+      aideFermee: 'Rien ne part tant qu\'un moniteur n\'a pas validé.',
+      confirmation: 'Ouvrir l\'envoi sans relecture ?\n\n' +
+                    'L\'élève recevra directement ce que l\'IA écrit. ' +
+                    'Plus personne ne relit avant lui.',
+      danger: true,
+      /* Sans correction automatique, il n'y a rien à envoyer */
+      exige: 'iaAutoProcedures'
+    }));
+  }
+
   enveloppe.appendChild(blocMailNotification());
   return enveloppe;
+}
+
+
+/* Un interrupteur de réglage, dessiné comme celui des demandes */
+function interrupteur(o){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid ' +
+    (o.ouvert ? (o.danger ? 'var(--red)' : 'var(--orange)') : 'var(--line)') +
+    ';border-radius:12px;padding:12px;margin-bottom:12px;' +
+    'display:flex;gap:11px;align-items:center;';
+
+  d.innerHTML = '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
+    '<strong>' + (o.ouvert ? o.titreOuvert : o.titreFerme) + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      (o.ouvert ? o.aideOuverte : o.aideFermee) + '</div></span>';
+
+  const b = document.createElement('button');
+  b.className = o.ouvert ? 'btn btn-primary' : 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;' +
+    'flex-shrink:0;' + (o.ouvert && o.danger
+      ? 'background:var(--red);color:#fff;' : '');
+  b.textContent = o.ouvert ? 'Fermer' : 'Ouvrir';
+
+  b.addEventListener('click', async () => {
+    /* Certains réglages en supposent un autre */
+    if(!o.ouvert && o.exige && reglagesProc[o.exige] !== 'oui'){
+      showToast('Ouvre d\'abord la correction automatique.');
+      return;
+    }
+    if(!o.ouvert && o.confirmation && !await confirmer(o.confirmation)) return;
+
+    b.disabled = true;
+    try{
+      await appelPrep({
+        action: 'reglageSet', cle: o.cle,
+        valeur: o.ouvert ? '' : 'oui',
+        par: ACCES.moniteur || ''
+      });
+      showToast(o.ouvert ? 'Refermé ✅' : 'Ouvert ✅');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      b.disabled = false;
+    }
+  });
+  d.appendChild(b);
+
+  return d;
 }
 
 
@@ -1425,8 +1505,8 @@ async function ouvrirRecitation(r){
   fond.appendChild(boite);
   document.body.appendChild(fond);
 
-  /* Rien encore : on propose la correction sans attendre */
-  if(!r.correction) setTimeout(() => bIA.click(), 200);
+  /* On ne lance plus l'IA d'office : le moniteur décide, et
+     chaque appel coûte. */
 }
 
 
