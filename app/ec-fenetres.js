@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:48 — v384 */
+/* Déployé le 22/08/2026 à 12:27 — v502 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -528,6 +528,150 @@ function ligneFicheEleve(nom){
 }
 
 /* La fiche, en modification */
+/* ============================================================
+   L'ACCÈS À L'ESPACE ÉLÈVE
+
+   Depuis sa fiche : voir s'il en a un, le lui créer, et choisir
+   ce qu'il y trouve.
+   ============================================================ */
+
+const MODULES_ELEVE = [
+  { cle:'proccorriger', nom:'📋 Réciter des procédures' },
+  { cle:'code',         nom:'🎓 Suivi du code en salle' }
+];
+
+async function afficherEspaceEleve(nom, zone){
+  if(!zone || !nom) return;
+
+  zone.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
+    'Lecture de son accès…</div>';
+
+  let acces = null;
+  try{
+    const d = await appelPrep({ action: 'accesElevesList' });
+    acces = ((d && d.acces) || [])
+      .find(x => normaliserMot(x.eleve || '') === normaliserMot(nom)) || null;
+  }catch(e){
+    zone.innerHTML = '';
+    return;
+  }
+
+  zone.innerHTML = '';
+
+  const carte = document.createElement('div');
+  carte.style.cssText = 'border:1px solid ' +
+    (acces ? 'var(--orange)' : 'var(--line)') +
+    ';border-radius:11px;padding:11px 12px;';
+
+  if(!acces){
+    carte.innerHTML = '<div style="font-size:13px;line-height:1.5;">' +
+      '<strong>🔒 Pas d\'espace élève</strong>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      'Il ne peut ni réciter ses procédures, ni voir son code.</div></div>';
+
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'margin-top:9px;padding:10px;font-size:13px;';
+    b.textContent = '🔑 Lui créer un accès';
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try{
+        const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom });
+        showToast('Code créé : ' + (rep.code || '') + ' ✅');
+        afficherEspaceEleve(nom, zone);
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        b.disabled = false;
+      }
+    });
+    carte.appendChild(b);
+    zone.appendChild(carte);
+    return;
+  }
+
+  /* Il en a un : on montre le code et ce qu'il peut voir */
+  carte.innerHTML = '<div style="display:flex;gap:9px;align-items:center;">' +
+    '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
+      '<strong>🔓 Espace élève</strong>' +
+      '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+        (acces.derniereVisite
+          ? 'vu le ' + acces.derniereVisite.replace(/</g, '&lt;')
+          : 'jamais venu') +
+        (acces.langue ? ' · 🌍 ' + acces.langue.replace(/</g, '&lt;') : '') +
+      '</div></span>' +
+    '<code style="font-size:16px;letter-spacing:.12em;color:var(--accent-text);' +
+      'font-weight:700;flex-shrink:0;">' + acces.code + '</code></div>';
+
+  /* Ce qu'il trouve dans son espace */
+  const zm = document.createElement('div');
+  zm.style.cssText = 'margin-top:10px;padding-top:9px;' +
+    'border-top:1px solid rgba(255,255,255,.08);';
+
+  const ouverts = String(acces.modules || 'proccorriger').split(',')
+    .map(x => x.trim()).filter(Boolean);
+
+  MODULES_ELEVE.forEach(m => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 7px;' +
+      'font-weight:400;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = (ouverts.indexOf(m.cle) !== -1);
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    cb.addEventListener('change', async () => {
+      const liste = MODULES_ELEVE
+        .filter((x, i) => {
+          const c2 = zm.querySelectorAll('input[type="checkbox"]')[i];
+          return c2 && c2.checked;
+        })
+        .map(x => x.cle);
+
+      try{
+        await appelPrep({ action: 'accesEleveSet', eleve: nom,
+                          modules: liste.join(',') });
+        showToast('Accès mis à jour ✅');
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        cb.checked = !cb.checked;
+      }
+    });
+    l.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = m.nom;
+    l.appendChild(t);
+
+    zm.appendChild(l);
+  });
+
+  carte.appendChild(zm);
+
+  /* Copier le message à lui envoyer */
+  const bCop = document.createElement('button');
+  bCop.className = 'btn btn-secondary';
+  bCop.style.cssText = 'margin-top:6px;padding:9px;font-size:12px;';
+  bCop.textContent = '📋 Copier le message pour lui';
+  bCop.addEventListener('click', async () => {
+    const m = 'Bonjour ' + nom.split(' ')[0] + ',\n\n' +
+      'Voici ton espace :\n' +
+      'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+      'Ton nom : ' + nom + '\n' +
+      'Ton code : ' + acces.code + '\n\n' +
+      'À bientôt !';
+    try{
+      await navigator.clipboard.writeText(m);
+      showToast('Message copié ✅');
+    }catch(e){ showToast('Copie impossible'); }
+  });
+  carte.appendChild(bCop);
+
+  zone.appendChild(carte);
+}
+
+
 function ouvrirFicheEleve(nom, f){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -537,6 +681,7 @@ function ouvrirFicheEleve(nom, f){
 
   boite.insertAdjacentHTML('beforeend',
     '<h3>' + nom.replace(/</g, '&lt;') + '</h3>' +
+    '<div id="fiEspace" style="margin-bottom:14px;"></div>' +
     '<label for="fiTel">📱 Téléphone portable</label>' +
     '<input type="tel" id="fiTel" inputmode="tel" placeholder="06 12 34 56 78">' +
     '<label for="fiMail">✉️ Adresse mail</label>' +
@@ -621,6 +766,11 @@ function ouvrirFicheEleve(nom, f){
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
+
+  /* L'accès à l'espace, chargé après coup : la fiche s'ouvre sans
+     attendre le serveur. */
+  const zEspace = boite.querySelector('#fiEspace');
+  if(zEspace) afficherEspaceEleve(nom, zEspace);
 
   const g = id => boite.querySelector('#' + id);
   g('fiTel').value = (f && f.telephone) || '';
