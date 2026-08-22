@@ -33,6 +33,10 @@ async function afficherEcran(){
   /* Les adresses à ouvrir sur les téléviseurs */
   zone.appendChild(blocAdresses());
 
+  /* Les plannings des jours suivants, repliés : on ne les prépare
+     pas tous les jours, mais quand on le fait il faut pouvoir. */
+  zone.appendChild(blocPlanningsAVenir());
+
   const bLieux = document.createElement('button');
   bLieux.className = 'btn btn-secondary';
   bLieux.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
@@ -67,6 +71,279 @@ async function afficherEcran(){
 }
 
 
+
+
+
+/* ============================================================
+   LES PLANNINGS À VENIR
+
+   Le planning du jour est déjà au-dessus. Ici, on prépare ceux
+   des jours suivants.
+   ============================================================ */
+
+let jourPlanning = '';
+
+function blocPlanningsAVenir(){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📅 Planning d\'un autre jour</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
+
+  const ch = document.createElement('input');
+  ch.type = 'date';
+  ch.style.cssText = 'flex:1;min-width:0;margin:0;';
+  /* Demain par défaut : c'est ce qu'on prépare le plus souvent */
+  if(!jourPlanning){
+    const dem = new Date();
+    dem.setDate(dem.getDate() + 1);
+    jourPlanning = dem.getFullYear() + '-' +
+                   String(dem.getMonth() + 1).padStart(2, '0') + '-' +
+                   String(dem.getDate()).padStart(2, '0');
+  }
+  ch.value = jourPlanning;
+  barre.appendChild(ch);
+
+  const bAdd = document.createElement('button');
+  bAdd.className = 'btn btn-secondary';
+  bAdd.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  bAdd.textContent = '➕';
+  bAdd.title = 'Ajouter une ligne ce jour-là';
+  barre.appendChild(bAdd);
+
+  z.appendChild(barre);
+
+  const zListe = document.createElement('div');
+  z.appendChild(zListe);
+
+  const charger = async () => {
+    jourPlanning = ch.value;
+    zListe.innerHTML = '<div class="empty">Lecture…</div>';
+
+    try{
+      const r = await appelPrep({ action: 'ecranPlanningJour', jour: jourPlanning });
+      const liste = (r && r.planning) || [];
+
+      zListe.innerHTML = '';
+      if(!liste.length){
+        zListe.innerHTML = '<div class="empty">Aucun cours ce jour-là.<br>' +
+          '<span style="font-size:12px;">Le ➕ en ajoute un à la main.</span></div>';
+        return;
+      }
+
+      liste.forEach(x => zListe.appendChild(ligneAutreJour(x, charger)));
+    }catch(e){
+      zListe.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+    }
+  };
+
+  ch.addEventListener('change', charger);
+  bAdd.addEventListener('click', () => ouvrirLigneManuelle(jourPlanning, charger));
+
+  /* On ne charge qu'à l'ouverture du tiroir : inutile de tirer
+     un planning que personne ne regarde. */
+  d.addEventListener('toggle', () => {
+    if(d.open && !zListe.innerHTML) charger();
+  });
+
+  d.appendChild(z);
+  return d;
+}
+
+
+/* Une ligne d'un autre jour, réglable comme celles du jour */
+function ligneAutreJour(c, rafraichir){
+  const l = document.createElement('div');
+  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
+    (c.masque ? 'opacity:.45;' : '');
+
+  const h1 = document.createElement('div');
+  h1.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.35;';
+  t.innerHTML = '<strong>' +
+    (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') + '</strong>' +
+    (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
+                'ajouté à la main</span>' : '') +
+    (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
+                'retiré de l\'écran</span>' : '');
+  h1.appendChild(t);
+
+  const selMon = document.createElement('select');
+  selMon.style.cssText = 'width:auto;max-width:110px;margin:0;padding:5px 7px;' +
+    'font-size:11px;flex-shrink:0;';
+  remplirMoniteursEcran(selMon, c.moniteur || '');
+  selMon.addEventListener('change', () => {
+    c.moniteur = selMon.value;
+    enregistrerLigneJour(c, jourPlanning);
+  });
+  h1.appendChild(selMon);
+
+  l.appendChild(h1);
+
+  const h2 = document.createElement('div');
+  h2.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
+
+  const heure = document.createElement('input');
+  heure.type = 'time';
+  heure.value = c.heure || '';
+  heure.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 8px;' +
+    'font-size:13px;';
+  heure.addEventListener('change', () => {
+    c.heure = heure.value;
+    enregistrerLigneJour(c, jourPlanning);
+  });
+  h2.appendChild(heure);
+
+  const veh = document.createElement('select');
+  veh.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
+  remplirVehiculesEcran(veh, c.vehicule || '');
+  veh.addEventListener('change', () => {
+    c.vehicule = (veh.value === 'autre') ? '' : veh.value;
+    enregistrerLigneJour(c, jourPlanning);
+  });
+  h2.appendChild(veh);
+
+  const lieu = document.createElement('select');
+  lieu.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
+  remplirListeLieux(lieu, c.lieu || '', false);
+  lieu.addEventListener('change', () => {
+    c.lieu = lieu.value;
+    enregistrerLigneJour(c, jourPlanning);
+  });
+  h2.appendChild(lieu);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+    'flex-shrink:0;' + (c.masque ? '' : 'color:var(--red);border-color:var(--red);');
+  bSup.textContent = c.masque ? '↩️' : '🗑️';
+  bSup.addEventListener('click', async () => {
+    if(c.manuel && !c.masque){
+      if(!await confirmer('Supprimer cette ligne ?')) return;
+      try{
+        await appelPrep({ action: 'ecranLigneDelete', id: c.id });
+        showToast('Supprimée ✅');
+        rafraichir();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+      return;
+    }
+    c.masque = !c.masque;
+    await enregistrerLigneJour(c, jourPlanning);
+    rafraichir();
+  });
+  h2.appendChild(bSup);
+
+  l.appendChild(h2);
+  return l;
+}
+
+
+/* Enregistre une ligne d'un jour donné */
+async function enregistrerLigneJour(c, jour){
+  try{
+    await appelPrep({
+      action: 'ecranLigneSet',
+      id: c.manuel ? c.id : '',
+      idPrep: c.manuel ? '' : c.id,
+      jour: jour,
+      eleve: c.eleveComplet || c.eleve || '',
+      moniteur: c.moniteur || '',
+      heure: c.heure || '',
+      vehicule: c.vehicule || '',
+      lieu: c.lieu || '',
+      ordre: c.ordre || 0,
+      masque: c.masque ? 'oui' : '',
+      par: ACCES.moniteur || ''
+    });
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+/* Ajouter une ligne à la main sur un jour choisi */
+function ouvrirLigneManuelle(jour, rafraichir){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(460px, 94vw)';
+
+  boite.innerHTML = '<h3>➕ Ligne du ' + jour.split('-').reverse().join('/') + '</h3>' +
+    '<label for="ljEleve">Qui</label>' +
+    '<input type="text" id="ljEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Nom, ou ce qu\'on affiche">' +
+    '<div class="duo">' +
+      '<div><label for="ljHeure">Heure</label>' +
+        '<input type="time" id="ljHeure"></div>' +
+      '<div><label for="ljMon">Moniteur</label>' +
+        '<select id="ljMon"></select></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="ljVeh">Véhicule</label>' +
+        '<select id="ljVeh"></select></div>' +
+      '<div><label for="ljLieu">Où</label>' +
+        '<select id="ljLieu"></select></div>' +
+    '</div>';
+
+  remplirMoniteursEcran(boite.querySelector('#ljMon'), ACCES.moniteur || '');
+  remplirVehiculesEcran(boite.querySelector('#ljVeh'), '');
+  remplirListeLieux(boite.querySelector('#ljLieu'), '', false);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '➕ Ajouter';
+  bO.addEventListener('click', async () => {
+    const qui = boite.querySelector('#ljEleve').value.trim();
+    if(!qui){ showToast('Indique qui.'); return; }
+
+    bO.disabled = true;
+    try{
+      const v = boite.querySelector('#ljVeh').value;
+      await appelPrep({
+        action: 'ecranLigneSet',
+        id: '', idPrep: '',
+        jour: jour,
+        eleve: qui,
+        moniteur: boite.querySelector('#ljMon').value,
+        heure: boite.querySelector('#ljHeure').value,
+        vehicule: (v === 'autre') ? '' : v,
+        lieu: boite.querySelector('#ljLieu').value,
+        ordre: 0,
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Ajoutée ✅');
+      rafraichir();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#ljEleve').focus(), 100);
+}
 
 
 /* ============================================================
@@ -191,7 +468,7 @@ function ouvrirGestionLieux(){
   boite.querySelector('#glxRaz').addEventListener('click', async () => {
     if(!await confirmer('Revenir à la liste d\'origine ?\n\n' +
         'Tes ajouts et tes modifications seront perdus.')) return;
-    garderLieux(LIEUX);
+    garderLieux(EMPLACEMENTS_BASE);
     showToast('Liste d\'origine rétablie ✅');
     dessiner();
   });
