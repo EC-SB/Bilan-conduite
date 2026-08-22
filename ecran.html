@@ -691,6 +691,12 @@ function dessinerPlanning(liste){
        en entrant, plus encore que l'heure. */
     /* Un véhicule au garage se dit, plutôt que de laisser l'élève
        chercher une voiture qui n'est pas là. */
+    /* Le pictogramme vient du bureau ; la table locale ne sert
+       que si le réglage n'a rien dit. */
+    if(c.lieuEmoji || c.lieuNom){
+      lieu = [c.lieuEmoji || lieu[0] || '', c.lieuNom || lieu[1] || ''];
+    }
+
     const ou = c.auGarage
       ? '<span class="v garage">🔧 ' + echapper(c.vehicule || '') +
         '<span class="ou">' + echapper(c.auGarage) + '</span></span>'
