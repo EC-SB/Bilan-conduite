@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:15 — version 1.0 */
+/* Déployé le 22/08/2026 à 09:21 — v496 */
 /* ============================================================
    ec-etat.js
    État partagé entre les modules.
@@ -95,18 +95,75 @@ var LIEUX = [
     sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗲𝘃𝗮𝗻𝘁 𝗹𝗲 𝘀𝗶𝗺𝘂𝗹𝗮𝘁𝗲𝘂𝗿 !' }
 ];
 
+/* Les emplacements que le bureau a modifiés.
+
+   Trois couches, dans cet ordre : la liste ci-dessus, toujours
+   présente ; ce qui est gardé sur ce poste ; ce que le classeur
+   partage entre les postes. Si les deux dernières manquent, la
+   première suffit — la liste n'est jamais vide. */
+var CLE_LIEUX = 'ec_lieux';
+
+function lieuxActuels(){
+  try{
+    var brut = localStorage.getItem(CLE_LIEUX);
+    if(brut){
+      var l = JSON.parse(brut);
+      if(l && l.length) return l;
+    }
+  }catch(e){}
+  return LIEUX;
+}
+
+function garderLieux(liste){
+  try{
+    localStorage.setItem(CLE_LIEUX, JSON.stringify(liste));
+  }catch(e){}
+
+  /* On tente de partager, sans en dépendre : le poste garde sa
+     liste même si le classeur ne répond pas. */
+  try{
+    if(typeof appelPrep === 'function'){
+      appelPrep({
+        action: 'reglageSet',
+        cle: 'lieux',
+        valeur: liste.map(function(x){
+          return [x.cle, x.emoji, x.nom, x.sms || '',
+                  x.sansVehicule ? 'sansvehicule' : ''].join('|');
+        }).join('\n'),
+        par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || ''
+      }).catch(function(){});
+    }
+  }catch(e){}
+}
+
+/* Reprend ce que le classeur partage, s'il en a */
+function synchroniserLieux(){
+  try{
+    if(typeof appelPrep !== 'function') return;
+    appelPrep({ action: 'lieuxList' })
+      .then(function(d){
+        var recu = (d && d.lieux) || [];
+        if(!recu.length) return;
+        try{ localStorage.setItem(CLE_LIEUX, JSON.stringify(recu)); }catch(e){}
+      })
+      .catch(function(){ /* le poste garde la sienne */ });
+  }catch(e){}
+}
+
+
 /* Remplit une liste déroulante d'emplacements */
 function remplirListeLieux(sel, actuel, finale){
   if(!sel) return;
 
-  var connu = LIEUX.some(function(x){ return x.cle === actuel; });
+  var liste = lieuxActuels();
+  var connu = liste.some(function(x){ return x.cle === actuel; });
 
   sel.innerHTML =
     (finale ? '' : '<option value="">— où —</option>') +
-    LIEUX.map(function(x){
+    liste.map(function(x){
       return '<option value="' + x.cle + '"' +
              (x.cle === actuel ? ' selected' : '') + '>' +
-             x.emoji + ' ' + x.nom + '</option>';
+             (x.emoji ? x.emoji + ' ' : '') + x.nom + '</option>';
     }).join('') +
     (finale ? '<option value="">Ne pas préciser</option>' : '') +
     (actuel && !connu
@@ -115,8 +172,9 @@ function remplirListeLieux(sel, actuel, finale){
 }
 
 function lieuPar(cle){
-  for(var i = 0; i < LIEUX.length; i++){
-    if(LIEUX[i].cle === cle) return LIEUX[i];
+  var liste = lieuxActuels();
+  for(var i = 0; i < liste.length; i++){
+    if(liste[i].cle === cle) return liste[i];
   }
   return null;
 }
