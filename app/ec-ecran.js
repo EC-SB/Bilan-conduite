@@ -138,7 +138,10 @@ function blocPlanningsAVenir(){
         return;
       }
 
-      liste.forEach(x => zListe.appendChild(ligneAutreJour(x, charger)));
+      /* Chaque ligne retient le jour qu'elle affiche : changer la
+       date ne doit pas envoyer une ligne sur le mauvais jour. */
+    const jourAffiche = jourPlanning;
+    liste.forEach(x => zListe.appendChild(ligneAutreJour(x, charger, jourAffiche)));
     }catch(e){
       zListe.innerHTML = '<div class="empty">⚠️ ' +
         e.message.replace(/</g, '&lt;') + '</div>';
@@ -146,7 +149,14 @@ function blocPlanningsAVenir(){
   };
 
   ch.addEventListener('change', charger);
-  bAdd.addEventListener('click', () => ouvrirLigneManuelle(jourPlanning, charger));
+  /* La date se lit dans le champ au moment du clic : jourPlanning
+     n'est mis à jour qu'au chargement, et le bouton gardait la
+     valeur du dessin précédent. */
+  bAdd.addEventListener('click', () => {
+    const voulu = ch.value || jourPlanning;
+    jourPlanning = voulu;
+    ouvrirLigneAutreJour(voulu, charger);
+  });
 
   /* On ne charge qu'à l'ouverture du tiroir : inutile de tirer
      un planning que personne ne regarde. */
@@ -160,7 +170,7 @@ function blocPlanningsAVenir(){
 
 
 /* Une ligne d'un autre jour, réglable comme celles du jour */
-function ligneAutreJour(c, rafraichir){
+function ligneAutreJour(c, rafraichir, jour){
   const l = document.createElement('div');
   l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
     (c.masque ? 'opacity:.45;' : '');
@@ -184,7 +194,7 @@ function ligneAutreJour(c, rafraichir){
   remplirMoniteursEcran(selMon, c.moniteur || '');
   selMon.addEventListener('change', () => {
     c.moniteur = selMon.value;
-    enregistrerLigneJour(c, jourPlanning);
+    enregistrerLigneJour(c, jour);
   });
   h1.appendChild(selMon);
 
@@ -200,7 +210,7 @@ function ligneAutreJour(c, rafraichir){
     'font-size:13px;';
   heure.addEventListener('change', () => {
     c.heure = heure.value;
-    enregistrerLigneJour(c, jourPlanning);
+    enregistrerLigneJour(c, jour);
   });
   h2.appendChild(heure);
 
@@ -209,7 +219,7 @@ function ligneAutreJour(c, rafraichir){
   remplirVehiculesEcran(veh, c.vehicule || '');
   veh.addEventListener('change', () => {
     c.vehicule = (veh.value === 'autre') ? '' : veh.value;
-    enregistrerLigneJour(c, jourPlanning);
+    enregistrerLigneJour(c, jour);
   });
   h2.appendChild(veh);
 
@@ -218,7 +228,7 @@ function ligneAutreJour(c, rafraichir){
   remplirListeLieux(lieu, c.lieu || '', false);
   lieu.addEventListener('change', () => {
     c.lieu = lieu.value;
-    enregistrerLigneJour(c, jourPlanning);
+    enregistrerLigneJour(c, jour);
   });
   h2.appendChild(lieu);
 
@@ -238,7 +248,7 @@ function ligneAutreJour(c, rafraichir){
       return;
     }
     c.masque = !c.masque;
-    await enregistrerLigneJour(c, jourPlanning);
+    await enregistrerLigneJour(c, jour);
     rafraichir();
   });
   h2.appendChild(bSup);
@@ -270,7 +280,10 @@ async function enregistrerLigneJour(c, jour){
 
 
 /* Ajouter une ligne à la main sur un jour choisi */
-function ouvrirLigneManuelle(jour, rafraichir){
+/* Nom propre à ce tiroir : ec-ecran déclare déjà une
+   ouvrirLigneManuelle pour le planning du jour, et deux fonctions
+   du même nom se percutent. */
+function ouvrirLigneAutreJour(jour, rafraichir){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
