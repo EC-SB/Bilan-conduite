@@ -1143,6 +1143,11 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
 
   /* La version se contrôle aux créneaux, jamais pendant un cours */
   if(typeof lancerSurveillanceVersion === 'function') lancerSurveillanceVersion();
+
+  /* Les emplacements partagés par le classeur, s'il en a */
+  if(typeof synchroniserLieux === 'function'){
+    setTimeout(() => synchroniserLieux(), 4000);
+  }
 }
 
 
