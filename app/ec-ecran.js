@@ -60,6 +60,29 @@ async function afficherEcran(){
 }
 
 
+/* Les moniteurs, pour changer celui d'une ligne */
+async function remplirMoniteursEcran(sel, actuel){
+  let gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+
+  if(!gens.length){
+    try{
+      const d = await appelPrep({ action: 'moniteurs' });
+      gens = (d && d.moniteurs) || [];
+      if(typeof moniteursActifs !== 'undefined') moniteursActifs = gens;
+    }catch(e){}
+  }
+
+  /* Un moniteur qui n'est plus dans la liste reste proposé :
+     sinon la ligne changerait de main toute seule. */
+  if(actuel && gens.indexOf(actuel) === -1) gens = [actuel].concat(gens);
+
+  sel.innerHTML = '<option value="">— moniteur —</option>' +
+    gens.map(g => '<option value="' + String(g).replace(/"/g, '&quot;') + '"' +
+      (g === actuel ? ' selected' : '') + '>' +
+      String(g).replace(/</g, '&lt;') + '</option>').join('');
+}
+
+
 /* Les véhicules de la flotte, chargés une fois pour tout l'écran */
 let flotteEcran = null;
 
@@ -238,10 +261,22 @@ function lignePlanningEcran(c, liste, z){
     (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
                 'retiré de l\'écran</span>' : '') +
     '<div style="font-size:11px;color:var(--muted);">' +
-      (c.moniteur ? c.moniteur.replace(/</g, '&lt;') : 'moniteur à définir') +
-      ' · 👁️ ' + abregeNom(c.eleveComplet || c.eleve) +
+      '👁️ ' + abregeNom(c.eleveComplet || c.eleve) +
     '</div>';
   h1.appendChild(t);
+
+  /* Le moniteur, changeable : un rappel mal saisi ou un échange
+     de dernière minute ne doit pas obliger à tout refaire. */
+  const selMon = document.createElement('select');
+  selMon.className = 'choixMoniteur';
+  selMon.style.cssText = 'width:auto;max-width:120px;margin:0;padding:5px 7px;' +
+    'font-size:11px;flex-shrink:0;';
+  remplirMoniteursEcran(selMon, c.moniteur || '');
+  selMon.addEventListener('change', () => {
+    c.moniteur = selMon.value;
+    enregistrerLigne(c);
+  });
+  h1.appendChild(selMon);
 
   /* Monter et descendre dans l'affichage */
   [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
@@ -321,6 +356,8 @@ function lignePlanningEcran(c, liste, z){
     '<option value="">— où —</option>' +
     '<option value="devant">🛣️ Devant</option>' +
     '<option value="cour">🅿️ Cour intérieure</option>' +
+    '<option value="moto">🏍️ Moto</option>' +
+    '<option value="scooter">🛵 Scooter</option>' +
     '<option value="bureau">🏢 Bureau</option>' +
     '<option value="tablettes">📱 Salle des tablettes</option>' +
     '<option value="cours">📚 Salle de cours</option>' +
@@ -464,6 +501,8 @@ function ouvrirLigneManuelle(z){
         '<option value="">— non précisé —</option>' +
         '<option value="devant">🛣️ Devant</option>' +
         '<option value="cour">🅿️ Cour intérieure</option>' +
+        '<option value="moto">🏍️ Moto</option>' +
+        '<option value="scooter">🛵 Scooter</option>' +
         '<option value="bureau">🏢 Bureau</option>' +
         '<option value="tablettes">📱 Salle des tablettes</option>' +
         '<option value="cours">📚 Salle de cours</option>' +
