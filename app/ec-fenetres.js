@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 13:27 — v506 */
+/* Déployé le 22/08/2026 à 14:23 — v511 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -565,7 +565,7 @@ async function afficherEspaceEleve(nom, zone){
 
   if(!acces){
     carte.innerHTML = '<div style="font-size:13px;line-height:1.5;">' +
-      '<strong>🔒 Pas d\'espace élève</strong>' +
+      '<strong>🔒 Pas de coin révisions</strong>' +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
       'Il ne peut ni réciter ses procédures, ni voir son code.</div></div>';
 
@@ -593,7 +593,7 @@ async function afficherEspaceEleve(nom, zone){
   /* Il en a un : on montre le code et ce qu'il peut voir */
   carte.innerHTML = '<div style="display:flex;gap:9px;align-items:center;">' +
     '<span style="flex:1;min-width:0;font-size:13px;line-height:1.5;">' +
-      '<strong>🔓 Espace élève</strong>' +
+      '<strong>🔓 Coin révisions</strong>' +
       '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
         (acces.derniereVisite
           ? 'vu le ' + acces.derniereVisite.replace(/</g, '&lt;')
@@ -653,10 +653,12 @@ async function afficherEspaceEleve(nom, zone){
   /* Lui transmettre son accès : par mail, ou à copier */
   const messageAcces = () =>
     'Bonjour ' + nom.split(' ')[0] + ',\n\n' +
-    'Voici ton espace élève :\n' +
+    'Voici ton coin révisions :\n' +
     'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
     'Ton nom : ' + nom + '\n' +
     'Ton code : ' + acces.code + '\n\n' +
+    'Tu y récites tes procédures et suis tes séances de code.\n' +
+    'Ce n\'est pas le site pour réserver tes cours.\n\n' +
     'Garde ce code, il te servira à chaque fois.\n\n' +
     'À bientôt !\n' +
     'Évolution Conduites';
@@ -685,7 +687,7 @@ async function afficherEspaceEleve(nom, zone){
       await appelPrep({
         action: 'mailBilan',
         to: [adresse],
-        sujet: 'Ton espace élève — Évolution Conduites',
+        sujet: 'Ton coin révisions — Évolution Conduites',
         texte: messageAcces()
       });
       bMail.textContent = '✅ Envoyé';
