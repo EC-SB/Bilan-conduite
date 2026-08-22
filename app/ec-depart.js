@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 15:53 — v488 */
+/* Déployé le 22/08/2026 à 10:00 — v499 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1144,10 +1144,6 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   /* La version se contrôle aux créneaux, jamais pendant un cours */
   if(typeof lancerSurveillanceVersion === 'function') lancerSurveillanceVersion();
 
-  /* Les emplacements partagés par le classeur, s'il en a */
-  if(typeof synchroniserLieux === 'function'){
-    setTimeout(() => synchroniserLieux(), 4000);
-  }
 }
 
 
