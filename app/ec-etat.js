@@ -62,24 +62,71 @@ window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-etat.js'] = true;
 
 
-/* Les lieux de secours : ceux de l'affichage, en dur. Ils servent
-   tant que le classeur n'a pas été redéployé — sans eux, la liste
-   des emplacements se vidait complètement. */
-const LIEUX_SECOURS = [
+/* ============================================================
+   LES EMPLACEMENTS
+
+   Une seule liste, partagée par l'affichage et les rappels.
+   Elle est écrite ici, en clair : c'est le seul endroit à
+   modifier pour en ajouter un.
+   ============================================================ */
+var LIEUX = [
   { cle:'devant', emoji:'🛣️', nom:'Devant, le long du trottoir',
     sms:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
+
   { cle:'cour', emoji:'🅿️', nom:'Cour intérieure',
     sms:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿 𝗶𝗻𝘁𝗲́𝗿𝗶𝗲𝘂𝗿𝗲 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
+
   { cle:'moto', emoji:'🏍️', nom:'Moto',
     sms:"𝗧𝗮 𝗺𝗼𝘁𝗼 𝘁'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
+
   { cle:'scooter', emoji:'🛵', nom:'Scooter',
     sms:"𝗧𝗼𝗻 𝘀𝗰𝗼𝗼𝘁𝗲𝗿 𝘁'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
-  { cle:'bureau', emoji:'🏢', nom:'Bureau',
-    sms:"𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗮𝘂 𝗯𝘂𝗿𝗲𝗮𝘂 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !", sansVehicule:true },
-  { cle:'tablettes', emoji:'📱', nom:'Salle des tablettes',
-    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲𝘀 𝘁𝗮𝗯𝗹𝗲𝘁𝘁𝗲𝘀 !', sansVehicule:true },
-  { cle:'cours', emoji:'📚', nom:'Salle de cours',
-    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲 𝗰𝗼𝘂𝗿𝘀 !', sansVehicule:true },
-  { cle:'simulateur', emoji:'🖥️', nom:'Simulateur',
-    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗲𝘃𝗮𝗻𝘁 𝗹𝗲 𝘀𝗶𝗺𝘂𝗹𝗮𝘁𝗲𝘂𝗿 !', sansVehicule:true }
+
+  { cle:'bureau', emoji:'🏢', nom:'Bureau', sansVehicule:true,
+    sms:"𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗮𝘂 𝗯𝘂𝗿𝗲𝗮𝘂 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
+
+  { cle:'tablettes', emoji:'📱', nom:'Salle des tablettes', sansVehicule:true,
+    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲𝘀 𝘁𝗮𝗯𝗹𝗲𝘁𝘁𝗲𝘀 !' },
+
+  { cle:'cours', emoji:'📚', nom:'Salle de cours', sansVehicule:true,
+    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲 𝗰𝗼𝘂𝗿𝘀 !' },
+
+  { cle:'simulateur', emoji:'🖥️', nom:'Simulateur', sansVehicule:true,
+    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗲𝘃𝗮𝗻𝘁 𝗹𝗲 𝘀𝗶𝗺𝘂𝗹𝗮𝘁𝗲𝘂𝗿 !' }
 ];
+
+/* Remplit une liste déroulante d'emplacements */
+function remplirListeLieux(sel, actuel, finale){
+  if(!sel) return;
+
+  var connu = LIEUX.some(function(x){ return x.cle === actuel; });
+
+  sel.innerHTML =
+    (finale ? '' : '<option value="">— où —</option>') +
+    LIEUX.map(function(x){
+      return '<option value="' + x.cle + '"' +
+             (x.cle === actuel ? ' selected' : '') + '>' +
+             x.emoji + ' ' + x.nom + '</option>';
+    }).join('') +
+    (finale ? '<option value="">Ne pas préciser</option>' : '') +
+    (actuel && !connu
+      ? '<option value="' + actuel + '" selected>' + actuel + '</option>'
+      : '');
+}
+
+function lieuPar(cle){
+  for(var i = 0; i < LIEUX.length; i++){
+    if(LIEUX[i].cle === cle) return LIEUX[i];
+  }
+  return null;
+}
+
+function lieuSansVehicule(cle){
+  var l = lieuPar(cle);
+  return !!(l && l.sansVehicule);
+}
+
+function texteDuLieu(cle){
+  var l = lieuPar(cle);
+  return (l && l.sms) || '';
+}
