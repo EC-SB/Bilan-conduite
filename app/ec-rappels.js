@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 07:31 — v491 */
+/* Déployé le 22/08/2026 à 08:24 — v493 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -480,8 +480,11 @@ async function chargerLieuxRappel(){
   if(lieuxRappel !== null) return lieuxRappel;
   try{
     const d = await appelPrep({ action: 'lieuxList' });
-    lieuxRappel = (d && d.lieux) || [];
-  }catch(e){ lieuxRappel = []; }
+    const recu = (d && d.lieux) || [];
+    /* Une réponse vide veut dire que le classeur ne connaît pas
+       encore les lieux : on garde les nôtres. */
+    lieuxRappel = recu.length ? recu : LIEUX_SECOURS;
+  }catch(e){ lieuxRappel = LIEUX_SECOURS; }
   return lieuxRappel;
 }
 
