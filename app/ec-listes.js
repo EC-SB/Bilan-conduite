@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 12:39 — v503 */
+/* Déployé le 22/08/2026 à 12:55 — v505 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -128,13 +128,43 @@ function afficherEBPrevus(tous){
   const zone = $('listeEBPrevus');
   if(!zone) return;
 
-  const liste = tous.filter(e =>
-    e.etat.examBlanc === 'reserve' && e.etat.examBlancDate);
+  const auj = todayLocal();
+  const vus = {};
+  const liste = [];
+
+  /* Deux sources, et il faut les deux : la date posée par le
+     bureau dans la note de l'élève, et le cours préparé avec le
+     modèle « Examen blanc ». C'est cette seconde que le moniteur
+     crée en préparant sa journée. */
+  tous.forEach(e => {
+    if(e.etat.examBlanc !== 'reserve' || !e.etat.examBlancDate) return;
+    const iso = isoDeDateFr(e.etat.examBlancDate);
+    vus[normaliserMot(e.eleve) + '|' + iso] = true;
+    liste.push({ eleve: e.eleve, iso: iso,
+                 quand: e.etat.examBlancDate, source: 'bureau', fiche: e });
+  });
+
+  (typeof prepares !== 'undefined' ? prepares : []).forEach(p => {
+    if(String(p.modele || '') !== 'examen-blanc') return;
+    if(!p.date) return;
+
+    const cle = normaliserMot(p.eleve || '') + '|' + p.date;
+    if(vus[cle]) return;          /* déjà annoncé par le bureau */
+    vus[cle] = true;
+
+    liste.push({
+      eleve: p.eleve,
+      iso: p.date,
+      quand: p.date.split('-').reverse().join('/'),
+      source: 'prepare',
+      moniteur: p.moniteur || '',
+      heure: heureDeLaPreparation(p) || ''
+    });
+  });
 
   /* Du plus proche au plus lointain : c'est l'ordre où l'on en a
-     besoin. Les dates sont écrites à la française. */
-  liste.sort((a, b) => isoDeDateFr(a.etat.examBlancDate)
-                        .localeCompare(isoDeDateFr(b.etat.examBlancDate)));
+     besoin. */
+  liste.sort((a, b) => String(a.iso).localeCompare(String(b.iso)));
 
   zone.innerHTML = '';
   majVolet('cptEBPrevus', liste.length);
@@ -146,23 +176,37 @@ function afficherEBPrevus(tous){
     return;
   }
 
-  const auj = todayLocal();
+  liste.forEach(x => {
+    const passe = x.iso && x.iso < auj;
 
-  liste.forEach(e => {
-    const iso = isoDeDateFr(e.etat.examBlancDate);
-    const passe = iso && iso < auj;
+    /* Le bureau a une fiche complète : on garde la ligne habituelle,
+       avec son dernier cours et ses consignes. */
+    if(x.source === 'bureau'){
+      zone.appendChild(ligneBureau(x.fiche, {
+        replier: true,
+        info: () => (passe ? '⚠️ Le ' : '📅 Le ') + x.quand +
+                    (passe ? ' — date dépassée' : ''),
+        actions: () => {}
+      }));
+      return;
+    }
 
-    zone.appendChild(ligneBureau(e, {
-      replier: true,
-      /* Une date dépassée se signale : l'examen a eu lieu, ou la
-         date est à corriger. */
-      info: () => (passe ? '⚠️ Le ' : '📅 Le ') + e.etat.examBlancDate +
-                  (passe ? ' — date dépassée' : ''),
-
-      /* On ne propose rien de plus : la date est déjà posée, et
-         tout se règle depuis la fiche de l'élève. */
-      actions: () => {}
-    }));
+    /* Un cours préparé : on affiche ce qu'on en sait */
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:9px 0;' +
+      'border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;';
+    l.innerHTML = '<span style="flex-shrink:0;font-size:17px;">' +
+      (passe ? '⚠️' : '📝') + '</span>' +
+      '<span style="flex:1;min-width:0;line-height:1.4;">' +
+        '<strong>' + String(x.eleve).replace(/</g, '&lt;') + '</strong>' +
+        '<div style="font-size:11px;color:' +
+          (passe ? 'var(--warn-text)' : 'var(--muted)') + ';">' +
+          'Le ' + x.quand + (x.heure ? ' à ' + x.heure : '') +
+          (x.moniteur ? ' · ' + String(x.moniteur).replace(/</g, '&lt;') : '') +
+          (passe ? ' — date dépassée' : '') +
+          '<br>cours préparé' +
+        '</div></span>';
+    zone.appendChild(l);
   });
 }
 
