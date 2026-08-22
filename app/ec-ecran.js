@@ -33,13 +33,6 @@ async function afficherEcran(){
   /* Les adresses à ouvrir sur les téléviseurs */
   zone.appendChild(blocAdresses());
 
-  const bLieux = document.createElement('button');
-  bLieux.className = 'btn btn-secondary';
-  bLieux.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
-  bLieux.textContent = '📍 Gérer les emplacements';
-  bLieux.addEventListener('click', () => ouvrirGestionLieux());
-  zone.appendChild(bLieux);
-
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
   b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
@@ -66,293 +59,6 @@ async function afficherEcran(){
   diaposEcran.forEach((d, i) => zone.appendChild(ligneDiapo(d, i)));
 }
 
-
-
-/* ============================================================
-   LES EMPLACEMENTS
-
-   Où l'élève retrouve son véhicule. Chaque lieu porte un émoji,
-   un nom court pour l'écran, et la phrase que reçoit l'élève.
-   ============================================================ */
-
-async function ouvrirGestionLieux(){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(580px, 95vw);max-height:90vh;overflow-y:auto;';
-
-  boite.innerHTML = '<h3>📍 Emplacements</h3>' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
-      'line-height:1.5;">Ils apparaissent dans le planning de l\'écran ' +
-      'et dans les rappels de cours.</div>' +
-    '<div id="glxListe"></div>' +
-    '<button class="btn btn-secondary" id="glxAjouter" ' +
-      'style="margin-top:12px;padding:11px;font-size:13px;">' +
-      '➕ Ajouter un emplacement</button>';
-
-  let lieux = [];
-
-  const sauver = async liste => {
-    await appelPrep({
-      action: 'reglageSet',
-      cle: 'lieux',
-      valeur: liste.map(x =>
-        [x.cle, x.emoji, x.nom, x.sms, x.sansVehicule ? 'sansvehicule' : '']
-          .join('|')).join('\n'),
-      par: ACCES.moniteur || ''
-    });
-    /* Les listes déjà chargées sont périmées */
-    lieuxEcran = null;
-    if(typeof lieuxRappel !== 'undefined') lieuxRappel = null;
-  };
-
-  const dessiner = async () => {
-    const z = boite.querySelector('#glxListe');
-    z.innerHTML = '<div class="empty">Lecture…</div>';
-    try{
-      const d = await appelPrep({ action: 'lieuxList' });
-      lieux = (d && d.lieux) || [];
-    }catch(e){
-      z.innerHTML = '<div class="empty">⚠️ ' +
-        e.message.replace(/</g, '&lt;') + '</div>';
-      return;
-    }
-
-    z.innerHTML = '';
-    lieux.forEach((l, i) => {
-      const ligne = document.createElement('div');
-      ligne.style.cssText = 'display:flex;gap:9px;align-items:center;padding:9px 0;' +
-        'border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;';
-
-      ligne.innerHTML = '<span style="font-size:20px;flex-shrink:0;width:28px;' +
-        'text-align:center;">' + (l.emoji || '·') + '</span>' +
-        '<span style="flex:1;min-width:0;line-height:1.4;">' +
-          '<strong>' + l.nom.replace(/</g, '&lt;') + '</strong>' +
-          (l.sansVehicule ? ' <span style="font-size:10px;color:var(--muted);">' +
-                            'sans véhicule</span>' : '') +
-          '<div style="font-size:11px;color:var(--muted);">' +
-            (l.sms ? l.sms.replace(/</g, '&lt;').slice(0, 60) +
-                     (l.sms.length > 60 ? '…' : '')
-                   : 'rien dans le SMS') +
-          '</div></span>';
-
-      const bMod = document.createElement('button');
-      bMod.className = 'btn btn-secondary';
-      bMod.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
-        'flex-shrink:0;';
-      bMod.textContent = '✏️';
-      bMod.addEventListener('click', async () => {
-        const modifie = await ficheLieu(l);
-        if(!modifie) return;
-        const copie = lieux.slice();
-        copie[i] = modifie;
-        await sauver(copie);
-        showToast('Enregistré ✅');
-        dessiner();
-      });
-      ligne.appendChild(bMod);
-
-      const bSup = document.createElement('button');
-      bSup.className = 'btn btn-secondary';
-      bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
-        'flex-shrink:0;color:var(--red);border-color:var(--red);';
-      bSup.textContent = '🗑️';
-      bSup.addEventListener('click', async () => {
-        if(!await confirmer('Retirer ' + l.nom + ' ?\n\n' +
-            'Les cours déjà réglés dessus le gardent, mais on ne ' +
-            'pourra plus le choisir.')) return;
-        await sauver(lieux.filter((_, j) => j !== i));
-        showToast('Retiré ✅');
-        dessiner();
-      });
-      ligne.appendChild(bSup);
-
-      z.appendChild(ligne);
-    });
-  };
-
-  boite.querySelector('#glxAjouter').addEventListener('click', async () => {
-    const nouveau = await ficheLieu(null);
-    if(!nouveau) return;
-    if(lieux.some(x => x.cle === nouveau.cle)){
-      showToast('Cet emplacement existe déjà.');
-      return;
-    }
-    await sauver(lieux.concat([nouveau]));
-    showToast('Ajouté ✅');
-    dessiner();
-  });
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-  const bF = document.createElement('button');
-  bF.className = 'btn btn-secondary';
-  bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => {
-    document.body.removeChild(fond);
-    afficherEcran();
-  });
-  r.appendChild(bF);
-  boite.appendChild(r);
-
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-  dessiner();
-}
-
-
-/* La fiche d'un emplacement */
-function ficheLieu(l){
-  return new Promise(resolve => {
-    const fond = document.createElement('div');
-    fond.className = 'overlay show';
-    const boite = document.createElement('div');
-    boite.className = 'modal';
-    boite.style.cssText = 'max-width:min(480px, 94vw);max-height:88vh;overflow-y:auto;';
-
-    boite.innerHTML =
-      '<h3>' + (l ? l.nom.replace(/</g, '&lt;') : 'Nouvel emplacement') + '</h3>' +
-
-      '<div class="duo">' +
-        '<div><label for="flEmoji">Émoji</label>' +
-          '<input type="text" id="flEmoji" maxlength="4" ' +
-            'style="text-align:center;font-size:24px;padding:8px;"></div>' +
-        '<div><label for="flNom">Nom court</label>' +
-          '<input type="text" id="flNom" placeholder="Ex : Parking arrière"></div>' +
-      '</div>' +
-      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
-        'line-height:1.5;">L\'émoji se colle depuis le clavier de ton ' +
-        'téléphone, ou se choisit ci-dessous.</div>' +
-
-      '<div id="flPalette" style="display:flex;flex-wrap:wrap;gap:6px;' +
-        'margin-bottom:14px;"></div>' +
-
-      '<label for="flSms">Ce que reçoit l\'élève dans son SMS</label>' +
-      '<textarea id="flSms" rows="3" ' +
-        'placeholder="Laisse vide pour ne rien dire."></textarea>' +
-
-      '<label style="display:flex;align-items:center;gap:10px;' +
-        'text-transform:none;font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
-        '<input type="checkbox" id="flSansVeh" style="width:19px;height:19px;">' +
-        'Pas de véhicule à cet endroit</label>' +
-      '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;' +
-        'line-height:1.5;">Pour une salle : le choix du véhicule disparaît ' +
-        'quand on règle un cours dessus.</div>';
-
-    if(l){
-      boite.querySelector('#flEmoji').value = l.emoji || '';
-      boite.querySelector('#flNom').value = l.nom || '';
-      boite.querySelector('#flSms').value = l.sms || '';
-      boite.querySelector('#flSansVeh').checked = !!l.sansVehicule;
-    }
-
-    /* Quelques émojis sous la main, pour ne pas chercher */
-    const PALETTE = ['🛣️', '🅿️', '🏢', '🏍️', '🛵', '📱', '📚', '🖥️',
-                     '🚗', '🚙', '🅱️', '🏁', '⛽', '🔧', '🚦', '📍',
-                     '🏫', '🚏', '🅰️', '🌳'];
-    const zp = boite.querySelector('#flPalette');
-    PALETTE.forEach(e => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = e;
-      b.style.cssText = 'width:38px;height:38px;padding:0;border-radius:9px;' +
-        'border:1px solid var(--line);background:transparent;font-size:19px;' +
-        'cursor:pointer;margin:0;';
-      b.addEventListener('click', () => {
-        boite.querySelector('#flEmoji').value = e;
-      });
-      zp.appendChild(b);
-    });
-
-    const r = document.createElement('div');
-    r.className = 'btn-row';
-
-    const bA = document.createElement('button');
-    bA.className = 'btn btn-secondary';
-    bA.textContent = 'Annuler';
-    bA.addEventListener('click', () => {
-      document.body.removeChild(fond);
-      resolve(null);
-    });
-    r.appendChild(bA);
-
-    const bO = document.createElement('button');
-    bO.className = 'btn btn-primary';
-    bO.textContent = l ? '💾 Enregistrer' : '➕ Ajouter';
-    bO.addEventListener('click', () => {
-      const nom = boite.querySelector('#flNom').value.trim();
-      if(!nom){ showToast('Donne-lui un nom.'); return; }
-
-      /* La clé ne bouge jamais : c'est elle qui est écrite dans
-         les cours déjà réglés. */
-      const cle = l ? l.cle : normaliserMot(nom).replace(/[^a-z0-9]/g, '');
-      if(!cle){ showToast('Ce nom ne donne pas de clé valable.'); return; }
-
-      document.body.removeChild(fond);
-      resolve({
-        cle: cle,
-        emoji: boite.querySelector('#flEmoji').value.trim(),
-        nom: nom,
-        /* Les | découpent les champs : on les remplace */
-        sms: boite.querySelector('#flSms').value.trim().replace(/\|/g, '/'),
-        sansVehicule: boite.querySelector('#flSansVeh').checked
-      });
-    });
-    r.appendChild(bO);
-
-    boite.appendChild(r);
-    fond.appendChild(boite);
-    document.body.appendChild(fond);
-    setTimeout(() => boite.querySelector('#flNom').focus(), 100);
-  });
-}
-
-
-/* Les emplacements réglés par le bureau, chargés une fois */
-let lieuxEcran = null;
-
-async function chargerLieux(){
-  if(lieuxEcran !== null) return lieuxEcran;
-  try{
-    const d = await appelPrep({ action: 'lieuxList' });
-    const recu = (d && d.lieux) || [];
-    /* Le même filet que dans les rappels : sans réponse du
-       classeur, la liste se viderait entièrement. */
-    lieuxEcran = recu.length
-      ? recu
-      : (typeof LIEUX_SECOURS !== 'undefined' ? LIEUX_SECOURS : []);
-  }catch(e){
-    lieuxEcran = (typeof LIEUX_SECOURS !== 'undefined') ? LIEUX_SECOURS : [];
-  }
-  return lieuxEcran;
-}
-
-async function remplirLieux(sel, actuel){
-  const liste = await chargerLieux();
-
-  /* Un lieu retiré depuis reste proposé : sinon les cours déjà
-     saisis perdraient leur emplacement en silence. */
-  const connu = liste.some(x => x.cle === actuel);
-
-  sel.innerHTML = '<option value="">— où —</option>' +
-    liste.map(x => '<option value="' + String(x.cle).replace(/"/g, '&quot;') + '"' +
-      (x.cle === actuel ? ' selected' : '') + '>' +
-      (x.emoji ? x.emoji + ' ' : '') + x.nom.replace(/</g, '&lt;') +
-      '</option>').join('') +
-    (actuel && !connu
-      ? '<option value="' + String(actuel).replace(/"/g, '&quot;') +
-        '" selected>' + String(actuel).replace(/</g, '&lt;') +
-        ' (retiré)</option>'
-      : '');
-}
-
-/* Ceux qui n'ont pas de véhicule à prendre */
-async function lieuSansVehicule(cle){
-  const liste = await chargerLieux();
-  const l = liste.find(x => x.cle === cle);
-  return !!(l && l.sansVehicule);
-}
 
 
 /* Les moniteurs, pour changer celui d'une ligne */
@@ -661,16 +367,16 @@ function lignePlanningEcran(c, liste, z){
 
   /* Une séance en salle n'a pas de véhicule : le champ s'efface
      plutôt que de laisser croire qu'il faut le remplir. */
-  const majSelonLieu = async () => {
-    const enSalle = await lieuSansVehicule(lieu.value);
+  const majSelonLieu = () => {
+    const enSalle = lieuSansVehicule(lieu.value);
     modele.style.display = enSalle ? 'none' : '';
     num.style.display = (enSalle || modele.value !== 'autre') ? 'none' : '';
   };
 
-  lieu.addEventListener('change', async () => {
+  lieu.addEventListener('change', () => {
     c.lieu = lieu.value;
     /* Le véhicule d'une séance qui n'en a plus besoin s'efface */
-    if(await lieuSansVehicule(lieu.value)){
+    if(lieuSansVehicule(lieu.value)){
       c.vehicule = '';
       modele.value = '';
       num.value = '';
@@ -804,7 +510,7 @@ function ouvrirLigneManuelle(z){
       '</select></div>' +
     '</div>';
 
-  remplirLieux(boite.querySelector('#lmLieu'), '');
+  remplirListeLieux(boite.querySelector('#lmLieu'), '', false);
 
   /* La liste des véhicules, et la saisie libre qui va avec */
   const selMod = boite.querySelector('#lmMod');
