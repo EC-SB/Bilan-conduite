@@ -33,6 +33,13 @@ async function afficherEcran(){
   /* Les adresses à ouvrir sur les téléviseurs */
   zone.appendChild(blocAdresses());
 
+  const bLieux = document.createElement('button');
+  bLieux.className = 'btn btn-secondary';
+  bLieux.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
+  bLieux.textContent = '📍 Gérer les emplacements';
+  bLieux.addEventListener('click', () => ouvrirGestionLieux());
+  zone.appendChild(bLieux);
+
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
   b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
