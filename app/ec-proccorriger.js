@@ -412,14 +412,15 @@ function blocInterrupteur(){
     enveloppe.appendChild(interrupteur({
       cle: 'envoiAutoProcedures',
       ouvert: reglagesProc.envoiAutoProcedures === 'oui',
-      titreOuvert: '⚠️ La correction part sans relecture',
-      titreFerme: 'Un moniteur valide avant l\'élève',
-      aideOuverte: 'L\'élève reçoit ce que l\'IA a écrit, sans que ' +
-                   'personne ne l\'ait lu.',
-      aideFermee: 'Rien ne part tant qu\'un moniteur n\'a pas validé.',
-      confirmation: 'Ouvrir l\'envoi sans relecture ?\n\n' +
-                    'L\'élève recevra directement ce que l\'IA écrit. ' +
-                    'Plus personne ne relit avant lui.',
+      titreOuvert: '⚠️ L\'IA envoie sa correction à l\'élève',
+      titreFerme: 'L\'IA n\'envoie rien à l\'élève',
+      aideOuverte: 'La correction part dès qu\'elle est écrite. Aucun ' +
+                   'moniteur ne la lit avant l\'élève.',
+      aideFermee: 'Un moniteur corrige, relit et valide. C\'est lui ' +
+                  'qui décide de ce que l\'élève reçoit.',
+      confirmation: 'Laisser l\'IA envoyer seule ?\n\n' +
+                    'L\'élève recevra directement ce qu\'elle écrit, ' +
+                    'sans qu\'aucun moniteur ne l\'ait lu.',
       danger: true,
       /* Sans correction automatique, il n'y a rien à envoyer */
       exige: 'iaAutoProcedures'
@@ -1164,7 +1165,53 @@ async function ouvrirCodesEleves(){
           '<code style="flex-shrink:0;font-size:15px;letter-spacing:.12em;' +
             'color:var(--accent-text);font-weight:700;">' + a.code + '</code>';
 
-        /* Copier le code, pour le transmettre à l'élève */
+        /* Le message d'accès, une fois pour les deux boutons */
+        const messageAcces = () =>
+          'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
+          'Voici ton espace élève :\n' +
+          'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+          'Ton nom : ' + a.eleve + '\n' +
+          'Ton code : ' + a.code + '\n\n' +
+          'Garde ce code, il te servira à chaque fois.\n\n' +
+          'À bientôt !\n' +
+          'Évolution Conduites';
+
+        /* Lui envoyer par mail, sur l'adresse de sa fiche */
+        const bMail = document.createElement('button');
+        bMail.className = 'btn btn-secondary';
+        bMail.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+          'flex-shrink:0;';
+        bMail.textContent = '✉️';
+        bMail.title = 'Lui envoyer son accès par mail';
+        bMail.addEventListener('click', async () => {
+          bMail.disabled = true;
+          try{
+            /* L'adresse vit dans sa fiche, pas ici */
+            const d = await appelPrep({ action: 'contactEleve', eleve: a.eleve });
+            const adresse = ((d && d.contact) || {}).email || '';
+
+            if(!adresse){
+              showToast('Aucune adresse dans sa fiche.');
+              bMail.disabled = false;
+              return;
+            }
+
+            await appelPrep({
+              action: 'mailBilan',
+              to: [adresse],
+              sujet: 'Ton espace élève — Évolution Conduites',
+              texte: messageAcces()
+            });
+            bMail.textContent = '✅';
+            showToast('Envoyé à ' + adresse + ' ✅');
+          }catch(e){
+            bMail.disabled = false;
+            showToast('Envoi impossible : ' + e.message);
+          }
+        });
+        l.appendChild(bMail);
+
+        /* Ou copier le message, pour Messenger */
         const bCop = document.createElement('button');
         bCop.className = 'btn btn-secondary';
         bCop.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
@@ -1172,14 +1219,8 @@ async function ouvrirCodesEleves(){
         bCop.textContent = '📋';
         bCop.title = 'Copier le message pour l\'élève';
         bCop.addEventListener('click', async () => {
-          const m = 'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
-            'Tu peux réciter tes procédures ici :\n' +
-            'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
-            'Ton nom : ' + a.eleve + '\n' +
-            'Ton code : ' + a.code + '\n\n' +
-            'Un moniteur te corrigera. Bon entraînement !';
           try{
-            await navigator.clipboard.writeText(m);
+            await navigator.clipboard.writeText(messageAcces());
             showToast('Message copié ✅');
           }catch(e){ showToast('Copie impossible'); }
         });
