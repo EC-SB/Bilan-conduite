@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 09:51 — v498 */
+/* Déployé le 22/08/2026 à 10:00 — v499 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -760,6 +760,7 @@ async function chargerPrepareInterne(cours){
 async function preparerNouveauCours(){
   const eleve = $('prepEleve').value.trim();
   const date = $('prepDate').value;
+  const heurePrep = $('prepHeure') ? $('prepHeure').value : '';
   const modeleCle = $('prepModele').value;
 
   if(eleve.length < 2){
@@ -806,7 +807,10 @@ async function preparerNouveauCours(){
       modele: cle,
       modeleLabel: (MODELES[cle] || {}).label || '',
       site: $('site').value,
-      note: noteDepuisQuestionnaire(rep),
+      /* L'heure en tête de note : même endroit que les rappels,
+         donc lue partout de la même façon. */
+      note: (heurePrep ? '🕐 ' + heurePrep.replace(':', 'h') + '\n' : '') +
+            noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
       /* À qui revient le cours, et qui l'a préparé : deux choses
          différentes dès qu'on prépare pour un collègue. */
@@ -1185,7 +1189,10 @@ async function modifierPreparation(cours){
       modeleLabel: (MODELES[cleModele] && MODELES[cleModele].label) ||
                    cours.modeleLabel || '',
       site: cours.site || '',
-      note: noteDepuisQuestionnaire(rep),
+      /* L'heure en tête de note : même endroit que les rappels,
+         donc lue partout de la même façon. */
+      note: (heurePrep ? '🕐 ' + heurePrep.replace(':', 'h') + '\n' : '') +
+            noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
       moniteur: cours.moniteur || ACCES.moniteur || ''
     });
