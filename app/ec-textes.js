@@ -27,8 +27,8 @@ const USAGES_MODELE = [
   { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
     variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
                '{note}', '{prenom}', '{eleve}',
-               '{date}', '{heure}', '{heure+2h}', '{duree}',
-               '{moniteur}', '{site}'] },
+               '{date}', '{datecourte}', '{heure}', '{heure+2h}',
+               '{duree}', '{moniteur}', '{site}'] },
   { cle:'procedure',      nom:'🚦 Procédure de conduite',
     variables:[] },
   { cle:'libre',          nom:'📄 Texte libre',
@@ -38,6 +38,9 @@ const USAGES_MODELE = [
 /* Ce qu'il faut savoir des heures calculées, dit là où on écrit
    le modèle plutôt que dans un guide qu'on ne relit jamais. */
 const AIDE_HEURES =
+  '<code>{date}</code> donne « dimanche 23 août », ' +
+  '<code>{datecourte}</code> donne « 23/08 » — calculés depuis ' +
+  'le champ <em>Quand</em>.<br>' +
   'Les heures se calculent depuis celle du cours : ' +
   '<code>{heure+2h}</code>, <code>{heure+1h30}</code>, ' +
   '<code>{heure+45min}</code>. Le signe moins recule.<br>' +
