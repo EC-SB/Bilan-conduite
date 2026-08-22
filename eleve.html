@@ -243,6 +243,20 @@
     </div>
 
     <div class="card">
+      <div id="zoneBoite" style="display:none;">
+        <label for="chBoite">🚗 Ta boîte de vitesses</label>
+        <select id="chBoite">
+          <option value="">— choisis —</option>
+          <option value="BV">Boîte manuelle (BV)</option>
+          <option value="BEA">Boîte automatique (BEA)</option>
+        </select>
+        <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;
+             line-height:1.5;">
+          On te proposera les procédures qui te concernent.
+          À choisir une seule fois.
+        </div>
+      </div>
+
       <div id="zoneLangue" style="display:none;">
         <label for="chLangue">🌍 Je récite en</label>
         <select id="chLangue"></select>
@@ -292,6 +306,8 @@
   var procedures = [];
   var demandes = [];
   var maLangue = '';        /* celle que le bureau m'a autorisée */
+  var maBoite = '';
+  var boiteFigee = false;
   var languesDispo = [];
 
   function $(id){ return document.getElementById(id); }
@@ -342,6 +358,8 @@
         demandes = d.demandes || [];
         maLangue = d.langue || '';
         languesDispo = d.langues || [];
+        maBoite = d.boite || '';
+        boiteFigee = !!d.boiteFigee;
 
         /* Le code reste sur l'appareil : le retaper à chaque fois
            découragerait de s'entraîner. */
@@ -370,9 +388,47 @@
         }).join('')
       : '<option value="">Aucune procédure disponible</option>';
 
+    montrerBoite();
     montrerLangue();
     montrerDemandes();
     chargerEnvois();
+  }
+
+
+  /* Sa boîte de vitesses. Une fois choisie, elle ne se change
+     plus : c'est au bureau de corriger si besoin. */
+  function montrerBoite(){
+    var z = $('zoneBoite');
+    var sel = $('chBoite');
+
+    if(maBoite){
+      z.style.display = 'none';
+      return;
+    }
+
+    z.style.display = 'block';
+    sel.value = '';
+
+    sel.onchange = function(){
+      if(!sel.value) return;
+
+      sel.disabled = true;
+      appeler({
+        action: 'eleveBoite',
+        eleve: moi.nom, code: moi.code,
+        boite: sel.value
+      })
+        .then(function(d){
+          maBoite = d.boite || sel.value;
+          procedures = d.procedures || procedures;
+          z.style.display = 'none';
+          entrer();
+        })
+        .catch(function(e){
+          sel.disabled = false;
+          dire('msgEnvoi', e.message || 'Enregistrement impossible.', 'erreur');
+        });
+    };
   }
 
 
@@ -734,6 +790,8 @@
           demandes = d.demandes || [];
           maLangue = d.langue || '';
           languesDispo = d.langues || [];
+          maBoite = d.boite || '';
+          boiteFigee = !!d.boiteFigee;
           entrer();
         })
         .catch(function(){ sortir(); });
