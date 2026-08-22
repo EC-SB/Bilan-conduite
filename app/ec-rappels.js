@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 09:10 — v495 */
+/* Déployé le 22/08/2026 à 09:35 — v497 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -470,6 +470,55 @@ async function choisirAutreEleve(c){
    les bons, et deux listes concurrentes prêtaient à confusion. */
 const TYPES_RAPPEL = [];
 
+/* ============================================================
+   LA DATE DU COURS
+
+   Le champ « Quand » dit « DEMAIN » ou « MARDI » ; l'élève, lui,
+   comprend mieux « dimanche 23 août ». La date se déduit du choix
+   et du jour où l'on écrit le rappel.
+   ============================================================ */
+const NOMS_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi',
+                    'jeudi', 'vendredi', 'samedi'];
+const NOMS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                   'juillet', 'août', 'septembre', 'octobre',
+                   'novembre', 'décembre'];
+
+function dateDuChoix(choix){
+  /* Les libellés sont en caractères gras : on les ramène en
+     lettres ordinaires pour les comparer. */
+  const n = String(choix || '').normalize('NFKD')
+    .replace(/[^A-Za-z']/g, '').toLowerCase();
+  if(!n) return null;
+
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+
+  if(n.indexOf('aujourd') === 0) return d;
+  if(n === 'demain'){ d.setDate(d.getDate() + 1); return d; }
+
+  const cible = NOMS_JOURS.indexOf(n);
+  if(cible === -1) return null;
+
+  /* Le prochain jour de ce nom. Jamais aujourd'hui : « mardi »
+     un mardi désigne le mardi suivant. */
+  let ecart = (cible - d.getDay() + 7) % 7;
+  if(ecart === 0) ecart = 7;
+  d.setDate(d.getDate() + ecart);
+  return d;
+}
+
+function dateEnLettres(d){
+  if(!d) return '';
+  return NOMS_JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + NOMS_MOIS[d.getMonth()];
+}
+
+function dateCourteDuChoix(d){
+  if(!d) return '';
+  return String(d.getDate()).padStart(2, '0') + '/' +
+         String(d.getMonth() + 1).padStart(2, '0');
+}
+
+
 const JOURS_RAPPEL = ['𝗗𝗘𝗠𝗔𝗜𝗡', "𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
                       '𝗠𝗘𝗥𝗖𝗥𝗘𝗗𝗜', '𝗝𝗘𝗨𝗗𝗜', '𝗩𝗘𝗡𝗗𝗥𝗘𝗗𝗜', '𝗦𝗔𝗠𝗘𝗗𝗜', '𝗗𝗜𝗠𝗔𝗡𝗖𝗛𝗘'];
 
@@ -539,8 +588,14 @@ function composerRappel(r){
     .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
     .filter(Boolean).join('\n\n');
 
+  /* La date que désigne le choix, calculée depuis aujourd'hui */
+  const quand = dateDuChoix(r.jour);
+
   return appliquerModele(type.contenu || '', {
     jour: r.jour || '',
+    /* « dimanche 23 août » : ce que l'élève comprend */
+    date: dateEnLettres(quand),
+    datecourte: dateCourteDuChoix(quand),
     /* « 14h30 » plutôt que « 14:30 » : c'est ainsi qu'on écrit une
        heure dans un message à un élève. */
     heure: (r.heure || '').replace(':', 'h'),
