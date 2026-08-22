@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 12:55 — v505 */
+/* Déployé le 22/08/2026 à 15:07 — v512 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -210,12 +210,41 @@ function afficherEBPrevus(tous){
   });
 }
 
-/* « 24/08/2026 » en « 2026-08-24 », pour trier */
+/* Une date française en « 2026-08-24 », pour trier et comparer.
+
+   Deux écritures circulent : « 24/08/2026 » du bureau, et
+   « mardi 26 août 2026 » du questionnaire de préparation. */
 function isoDeDateFr(v){
-  const m = String(v || '').match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
-  if(!m) return '9999';
-  const an = m[3].length === 2 ? '20' + m[3] : m[3];
-  return an + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  const t = String(v || '').trim();
+  if(!t) return '9999';
+
+  /* Déjà au format ISO */
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso) return iso[0];
+
+  /* 24/08/2026 */
+  const num = t.match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+  if(num){
+    const an = num[3].length === 2 ? '20' + num[3] : num[3];
+    return an + '-' + num[2].padStart(2, '0') + '-' + num[1].padStart(2, '0');
+  }
+
+  /* mardi 26 août 2026 */
+  const lettres = normaliserMot(t)
+    .match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+  if(lettres){
+    /* ec-questionnaire déclare déjà la liste des mois : on la
+       réutilise plutôt que d'en poser une seconde, qui casserait
+       le chargement des deux. */
+    const im = MOIS_FR.findIndex(m =>
+      normaliserMot(m).indexOf(lettres[2]) === 0);
+    if(im !== -1){
+      return lettres[3] + '-' + String(im + 1).padStart(2, '0') + '-' +
+             lettres[1].padStart(2, '0');
+    }
+  }
+
+  return '9999';
 }
 
 
