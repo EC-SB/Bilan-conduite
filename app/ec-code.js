@@ -332,22 +332,26 @@ function dessinerGrilleEtg(){
 
       if(!r){
         td.style.cssText = 'padding:5px 3px;text-align:center;' +
-          'border-left:1px solid var(--line);color:var(--muted);';
+          'border-left:1px solid var(--line);color:var(--muted);cursor:pointer;';
         td.textContent = '·';
-        td.title = 'Séance ' + n + ' — pas encore faite';
+        td.title = 'Séance ' + n + ' — pas encore faite. Appuie pour saisir.';
+        td.addEventListener('click', () => ouvrirSaisieEtg(e.nom, n, null));
       }else{
         faites++;
         const c = COULEURS_ETG[r.couleur] || {};
         td.style.cssText = 'padding:5px 3px;text-align:center;font-weight:800;' +
-          'border-left:1px solid var(--line);cursor:default;' +
+          'border-left:1px solid var(--line);cursor:pointer;' +
           'background:' + (c.fond || 'transparent') + ';' +
           'color:' + (c.texte || 'inherit') + ';' +
           'font-variant-numeric:tabular-nums;';
         /* Le nombre de fautes : c'est ce qui décide de la couleur */
-        td.textContent = r.fautes;
+        td.textContent = r.fautes + (r.corrige ? '*' : '');
         td.title = 'Séance ' + n + ' — ' + r.score + '/' + r.total +
           ' · ' + r.fautes + ' faute(s)' +
-          (r.date ? ' · ' + r.date.split('-').reverse().join('/') : '');
+          (r.date ? ' · ' + r.date.split('-').reverse().join('/') : '') +
+          (r.corrige ? ' · saisi à la main' : '') +
+          '. Appuie pour corriger.';
+        td.addEventListener('click', () => ouvrirSaisieEtg(e.nom, n, r));
       }
       tr.appendChild(td);
     }
@@ -373,9 +377,135 @@ function dessinerGrilleEtg(){
     '<span style="color:#8FBF3F;">0 à 3</span> · ' +
     '<span style="color:var(--accent-text);">4 à 6</span> · ' +
     '<span style="color:var(--red);">plus de 6</span>.<br>' +
-    'Un appui long sur une case donne le détail. ' +
-    'Une séance repassée garde son meilleur résultat.';
+    'Appuie sur une case pour corriger un score, ou en saisir un ' +
+    'qui ne s\'est pas enregistré. Une étoile signale une saisie ' +
+    'à la main.<br>Une séance repassée garde son meilleur résultat.';
   zone.appendChild(aide);
+}
+
+
+
+/* ============================================================
+   CORRIGER UNE SÉANCE À LA MAIN
+
+   Une réponse qui ne s'est pas enregistrée, un score à rectifier.
+   Ce qui est saisi ici prime sur le formulaire.
+   ============================================================ */
+
+function ouvrirSaisieEtg(eleve, seance, actuel){
+  const total = baremesEtg[seance] || 10;
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(400px, 94vw)';
+
+  boite.innerHTML =
+    '<h3>Séance ' + seance + ' — ' + String(eleve).replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Barème de cette séance : sur ' + total + '.' +
+      (actuel && !actuel.corrige
+        ? '<br>Le formulaire dit <strong>' + actuel.score + '/' + actuel.total +
+          '</strong> — ce que tu saisis le remplacera.'
+        : '') + '</div>' +
+
+    '<div class="duo">' +
+      '<div><label for="seScore">Score</label>' +
+        '<input type="number" id="seScore" min="0" max="' + total + '" ' +
+        'step="0.5" inputmode="decimal"></div>' +
+      '<div><label for="seDate">Date</label>' +
+        '<input type="date" id="seDate"></div>' +
+    '</div>' +
+    '<div id="seApercu" style="font-size:13px;line-height:1.5;' +
+      'margin:-6px 0 12px;min-height:18px;"></div>';
+
+  const chS = boite.querySelector('#seScore');
+  const chD = boite.querySelector('#seDate');
+  if(actuel){
+    chS.value = actuel.score;
+    chD.value = actuel.date || '';
+  }else{
+    chD.value = todayLocal();
+  }
+
+  /* On montre les fautes et la couleur pendant la saisie */
+  const apercu = () => {
+    const z = boite.querySelector('#seApercu');
+    const v = chS.value;
+    if(v === ''){ z.innerHTML = ''; return; }
+
+    const f = Math.max(0, total - Number(v));
+    const coul = f <= 3 ? 'vert' : f <= 6 ? 'orange' : 'rouge';
+    const cc = COULEURS_ETG[coul] || {};
+    z.innerHTML = '<span style="color:' + (cc.texte || 'inherit') + ';">' +
+      '<strong>' + f + ' faute(s)</strong> — ' + coul + '</span>';
+  };
+  chS.addEventListener('input', apercu);
+  apercu();
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  /* Retirer une saisie : le formulaire reprend la main */
+  if(actuel && actuel.corrige){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.title = 'Retirer ma saisie';
+    bSup.addEventListener('click', async () => {
+      try{
+        await appelPrep({ action: 'etgCorriger', eleve: eleve,
+                          seance: seance, score: '' });
+        document.body.removeChild(fond);
+        showToast('Saisie retirée ✅');
+        afficherCodeSalle();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    r.appendChild(bSup);
+  }
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '💾 Enregistrer';
+  bO.addEventListener('click', async () => {
+    const v = chS.value;
+    if(v === ''){ showToast('Saisis le score.'); return; }
+    if(Number(v) > total){
+      showToast('Le score dépasse le barème (' + total + ').');
+      return;
+    }
+
+    bO.disabled = true;
+    try{
+      await appelPrep({
+        action: 'etgCorriger',
+        eleve: eleve, seance: seance,
+        score: Number(v), total: total,
+        date: chD.value,
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      afficherCodeSalle();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => chS.focus(), 100);
 }
 
 
