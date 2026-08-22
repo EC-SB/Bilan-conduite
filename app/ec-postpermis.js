@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 07:11 — v418 */
+/* Déployé le 22/08/2026 à 11:43 — v501 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -872,7 +872,10 @@ function parcoursDe(e){
   return 'CS';
 }
 
-function boiteDe(e){
+/* Nom propre au module : ec-sessions déclare une boiteDe qui
+   attend un nom, pas un élève entier. Chargée après, elle
+   écrasait celle-ci. */
+function boiteDePostPermis(e){
   const s = suiviDe(e.eleve) || {};
   if(e._boite === 'bea' || /bea|automatique/i.test(s.typeExamen || '')) return 'BEA';
   if(e._boite === 'handicap') return 'Handicap';
@@ -888,7 +891,7 @@ async function consignerResultat(e, resultat, iso){
       eleve: e.eleve,
       dateExamen: iso || '',
       resultat: resultat,
-      boite: boiteDe(e),
+      boite: boiteDePostPermis(e),
       parcours: parcoursDe(e),
       moniteur: s.moniteurDate || e.moniteur || '',
       centre: s.centre || '',
