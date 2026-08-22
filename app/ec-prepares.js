@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 10:00 — v499 */
+/* Déployé le 22/08/2026 à 11:20 — v500 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1180,6 +1180,10 @@ async function modifierPreparation(cours){
     /* Le moniteur a pu changer le type de bilan dans le questionnaire */
     const cleModele = rep.modele || cours.modele;
 
+    /* L'heure déjà posée sur ce cours : elle ne doit pas se perdre
+       quand on retouche les notes. */
+    const hDejaLa = heureDeLaPreparation(cours);
+
     await appelPrep({
       action: 'prepAdd',
       id: cours.id,                    /* même identifiant : on remplace */
@@ -1189,9 +1193,9 @@ async function modifierPreparation(cours){
       modeleLabel: (MODELES[cleModele] && MODELES[cleModele].label) ||
                    cours.modeleLabel || '',
       site: cours.site || '',
-      /* L'heure en tête de note : même endroit que les rappels,
-         donc lue partout de la même façon. */
-      note: (heurePrep ? '🕐 ' + heurePrep.replace(':', 'h') + '\n' : '') +
+      /* On modifie une préparation existante : son heure vient du
+         cours lui-même, pas du formulaire de création. */
+      note: (hDejaLa ? '🕐 ' + hDejaLa.replace(':', 'h') + '\n' : '') +
             noteDepuisQuestionnaire(rep),
       contexte: JSON.stringify(rep),
       moniteur: cours.moniteur || ACCES.moniteur || ''
