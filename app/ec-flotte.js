@@ -38,7 +38,8 @@ const TYPES_EVENEMENT = [
 ];
 
 /* Combien de jours nous séparent d'une date */
-function joursAvant(iso){
+/* Nom propre au module : ec-postpermis en déclare une autre. */
+function joursAvantFlotte(iso){
   if(!iso) return null;
   const d = new Date(iso + 'T12:00:00');
   if(isNaN(d.getTime())) return null;
@@ -51,14 +52,14 @@ function joursAvant(iso){
 function alertesVehicule(v){
   const out = [];
 
-  const jCT = joursAvant(v.prochainCT);
+  const jCT = joursAvantFlotte(v.prochainCT);
   if(jCT !== null){
     if(jCT < 0) out.push({ niveau:'rouge', texte:'🔴 CT dépassé de ' + (-jCT) + ' j' });
     else if(jCT <= 30) out.push({ niveau:'orange', texte:'🟠 CT dans ' + jCT + ' j' });
     else if(jCT <= 60) out.push({ niveau:'info', texte:'📋 CT dans ' + jCT + ' j' });
   }
 
-  const jAss = joursAvant(v.assuranceJusquau);
+  const jAss = joursAvantFlotte(v.assuranceJusquau);
   if(jAss !== null){
     if(jAss < 0) out.push({ niveau:'rouge', texte:'🔴 Assurance expirée' });
     else if(jAss <= 30) out.push({ niveau:'orange', texte:'🟠 Assurance dans ' + jAss + ' j' });
@@ -512,7 +513,7 @@ function ouvrirFicheVehicule(v){
     const d = new Date(base + 'T12:00:00');
     d.setMonth(d.getMonth() + (dernier ? regle[1] : regle[0]));
     const iso = d.toISOString().slice(0, 10);
-    const j = joursAvant(iso);
+    const j = joursAvantFlotte(iso);
 
     zCT.innerHTML = '📋 Prochain contrôle : <strong>' +
       (typeof dateEnToutesLettres === 'function' ? dateEnToutesLettres(iso) : iso) +
@@ -540,7 +541,7 @@ function ouvrirFicheVehicule(v){
     const dedans = (auj >= du) && (!au || auj <= au);
 
     if(dedans){
-      const j = au ? joursAvant(au) : null;
+      const j = au ? joursAvantFlotte(au) : null;
       zInd.innerHTML = '<span style="color:var(--red);">⛔ Immobilisé aujourd\'hui' +
         (j !== null ? ' — retour dans ' + j + ' jour(s)' : ' — retour non fixé') +
         '</span><br><span style="font-size:11px;color:var(--muted);">' +
