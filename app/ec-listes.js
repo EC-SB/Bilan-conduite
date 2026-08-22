@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 15:07 — v512 */
+/* Déployé le 22/08/2026 à 15:38 — v513 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -138,6 +138,11 @@ function afficherEBPrevus(tous){
      crée en préparant sa journée. */
   tous.forEach(e => {
     if(e.etat.examBlanc !== 'reserve' || !e.etat.examBlancDate) return;
+
+    /* Une date d'examen posée : l'examen blanc a joué son rôle,
+       il n'y a plus rien à décider ici. */
+    if(e.etat.permis === 'prevu' || e.etat.datePermis) return;
+
     const iso = isoDeDateFr(e.etat.examBlancDate);
     vus[normaliserMot(e.eleve) + '|' + iso] = true;
     liste.push({ eleve: e.eleve, iso: iso,
@@ -169,10 +174,22 @@ function afficherEBPrevus(tous){
   zone.innerHTML = '';
   majVolet('cptEBPrevus', liste.length);
 
+  /* Poser un examen blanc à la main : le moniteur a pu le
+     convenir de vive voix sans rien saisir. */
+  const bAdd = document.createElement('button');
+  bAdd.className = 'btn btn-secondary';
+  bAdd.style.cssText = 'padding:11px;font-size:13px;margin-bottom:10px;';
+  bAdd.textContent = '➕ Prévoir un examen blanc';
+  bAdd.addEventListener('click', () => ouvrirExamBlancManuel());
+  zone.appendChild(bAdd);
+
   if(!liste.length){
-    zone.innerHTML = '<div class="empty">Aucun examen blanc daté.<br>' +
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucun examen blanc daté.<br>' +
       '<span style="font-size:12px;">Ceux à prévoir sont dans l\'onglet ' +
-      'Suivi, en attendant leur date.</span></div>';
+      'Suivi, en attendant leur date.</span>';
+    zone.appendChild(v);
     return;
   }
 
@@ -185,8 +202,13 @@ function afficherEBPrevus(tous){
       zone.appendChild(ligneBureau(x.fiche, {
         replier: true,
         info: () => (passe ? '⚠️ Le ' : '📅 Le ') + x.quand +
-                    (passe ? ' — date dépassée' : ''),
-        actions: () => {}
+                    (passe ? ' — date dépassée, sa suite ?' : ''),
+
+        /* Une date dépassée attend une conclusion : c'est ici
+           qu'on la donne quand le moniteur a oublié. */
+        actions: passe
+          ? (e, zone2) => boutonsSuiteExamBlanc(e, zone2)
+          : () => {}
       }));
       return;
     }
@@ -209,6 +231,214 @@ function afficherEBPrevus(tous){
     zone.appendChild(l);
   });
 }
+
+/* ============================================================
+   PRÉVOIR UN EXAMEN BLANC À LA MAIN
+
+   Le moniteur a convenu la date de vive voix sans rien saisir.
+   On l'écrit dans la note de l'élève, et on crée le cours si
+   personne ne l'a préparé.
+   ============================================================ */
+
+function ouvrirExamBlancManuel(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(480px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>📝 Prévoir un examen blanc</h3>' +
+    '<label for="ebmEleve">Élève</label>' +
+    '<input type="text" id="ebmEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Son nom">' +
+
+    '<div class="duo">' +
+      '<div><label for="ebmDate">Date</label>' +
+        '<input type="date" id="ebmDate"></div>' +
+      '<div><label for="ebmHeure">Heure</label>' +
+        '<input type="time" id="ebmHeure"></div>' +
+    '</div>' +
+
+    '<label for="ebmMoniteur">Moniteur</label>' +
+    '<select id="ebmMoniteur"></select>' +
+
+    '<label style="display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
+      '<input type="checkbox" id="ebmCours" checked style="width:19px;height:19px;">' +
+      'Créer aussi le cours</label>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Il apparaîtra dans « Mes prochains cours » du ' +
+      'moniteur, s\'il n\'y est pas déjà.</div>';
+
+  boite.querySelector('#ebmDate').value = todayLocal();
+
+  /* Les moniteurs, pour lui attribuer le cours. La liste peut ne
+     pas être encore chargée : on la demande alors au serveur. */
+  const selM = boite.querySelector('#ebmMoniteur');
+
+  const remplirMoniteurs = gens => {
+    selM.innerHTML = '<option value="">— moniteur —</option>' +
+      (gens || []).map(g =>
+        '<option value="' + String(g).replace(/"/g, '&quot;') + '"' +
+        (g === ACCES.moniteur ? ' selected' : '') + '>' +
+        String(g).replace(/</g, '&lt;') + '</option>').join('');
+  };
+
+  const dejaLa = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  remplirMoniteurs(dejaLa);
+
+  if(!dejaLa.length){
+    appelPrep({ action: 'moniteurs' })
+      .then(d => {
+        const gens = (d && d.moniteurs) || [];
+        if(typeof moniteursActifs !== 'undefined') moniteursActifs = gens;
+        remplirMoniteurs(gens);
+      })
+      .catch(() => {});
+  }
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '📝 Prévoir';
+  bO.addEventListener('click', async () => {
+    const nom = boite.querySelector('#ebmEleve').value.trim();
+    const date = boite.querySelector('#ebmDate').value;
+    const heure = boite.querySelector('#ebmHeure').value;
+    const moniteur = selM.value;
+
+    if(!nom){ showToast('Indique l\'élève.'); return; }
+    if(!date){ showToast('Indique la date.'); return; }
+
+    bO.disabled = true;
+    bO.textContent = 'Enregistrement…';
+
+    try{
+      /* La même phrase que le bureau : c'est elle qui est relue */
+      await envoyerConsigne(nom, 'examblanc',
+        'Examen blanc fixé au ' + dateEnToutesLettres(date) + ' (bureau)');
+
+      /* Le cours, s'il n'existe pas déjà pour ce jour-là */
+      if(boite.querySelector('#ebmCours').checked){
+        const deja = (typeof prepares !== 'undefined' ? prepares : [])
+          .some(p => normaliserMot(p.eleve || '') === normaliserMot(nom) &&
+                     p.date === date &&
+                     String(p.modele || '') === 'examen-blanc');
+
+        if(!deja){
+          await appelPrep({
+            action: 'prepAdd',
+            date: date,
+            eleve: nom,
+            modele: 'examen-blanc',
+            modeleLabel: 'Examen blanc',
+            site: '',
+            note: (heure ? '🕐 ' + heure.replace(':', 'h') + '\n' : '') +
+                  'Examen blanc',
+            contexte: JSON.stringify({ modele: 'examen-blanc' }),
+            moniteur: moniteur || ACCES.moniteur || ''
+          });
+          /* La liste en mémoire suit, sans la relire entièrement */
+          if(typeof prepares !== 'undefined'){
+            prepares.push({ id: 'tmp' + Date.now(), eleve: nom, date: date,
+                            modele: 'examen-blanc', moniteur: moniteur || '',
+                            note: '' });
+          }
+        }
+      }
+
+      document.body.removeChild(fond);
+      showToast('Examen blanc prévu ✅');
+      afficherBureau();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+      bO.textContent = '📝 Prévoir';
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#ebmEleve').focus(), 100);
+}
+
+
+/* Ce que devient un examen blanc dont la date est passée.
+
+   Les trois issues sont celles du questionnaire, mot pour mot :
+   pas le niveau, plus que les 3h, ou encore N leçons. */
+function boutonsSuiteExamBlanc(e, zone){
+  const jour = () => dateEnToutesLettres(todayLocal()) || todayLocal();
+
+  /* Pas le niveau : l'examen blanc est à replacer */
+  const bNon = document.createElement('button');
+  bNon.className = 'btn btn-secondary';
+  bNon.style.cssText = 'padding:10px;font-size:13px;' +
+    'color:var(--red);border-color:var(--red);';
+  bNon.textContent = '⛔ Pas le niveau';
+  bNon.addEventListener('click', async () => {
+    if(!await confirmer('Examen blanc de ' + e.eleve + ' : pas le niveau ?\n\n' +
+        'Il passera dans la liste au-dessus, pour replacer un examen ' +
+        'blanc ou fixer des heures.')) return;
+    try{
+      await envoyerConsigne(e.eleve, 'examblanc',
+        'Examen blanc passé le ' + jour() + ' — pas le niveau');
+      showToast('Noté ✅');
+      afficherBureau();
+    }catch(err){ showToast('Impossible : ' + err.message); }
+  });
+  zone.appendChild(bNon);
+
+  /* Plus que les 3h : il est prêt */
+  const b3h = document.createElement('button');
+  b3h.className = 'btn btn-secondary';
+  b3h.style.cssText = 'padding:10px;font-size:13px;';
+  b3h.textContent = '✅ Plus que les 3h';
+  b3h.addEventListener('click', async () => {
+    try{
+      await envoyerConsigne(e.eleve, 'examblanc',
+        'Examen blanc passé le ' + jour() + ' — plus que les 3h avant examen');
+      showToast('Prêt au permis ✅');
+      afficherBureau();
+    }catch(err){ showToast('Impossible : ' + err.message); }
+  });
+  zone.appendChild(b3h);
+
+  /* Encore N leçons, plus les 3h */
+  const bLec = document.createElement('button');
+  bLec.className = 'btn btn-secondary';
+  bLec.style.cssText = 'padding:10px;font-size:13px;';
+  bLec.textContent = '✅ Encore N leçons';
+  bLec.addEventListener('click', async () => {
+    const n = await demander('Combien de leçons avant l\'examen ?\n' +
+                             '(les 3h s\'ajoutent ensuite)', '2',
+                             'Examen blanc de ' + e.eleve);
+    if(n === null) return;
+
+    const nb = parseInt(String(n).trim(), 10);
+    if(!nb || nb < 1){ showToast('Indique un nombre de leçons.'); return; }
+
+    try{
+      await envoyerConsigne(e.eleve, 'examblanc',
+        'Examen blanc passé le ' + jour() + ' — encore ' + nb +
+        ' leçon' + (nb > 1 ? 's' : '') + ' avant examen');
+      showToast('Noté ✅');
+      afficherBureau();
+    }catch(err){ showToast('Impossible : ' + err.message); }
+  });
+  zone.appendChild(bLec);
+}
+
 
 /* Une date française en « 2026-08-24 », pour trier et comparer.
 
