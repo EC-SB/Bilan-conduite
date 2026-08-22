@@ -1,4 +1,4 @@
-/* Déployé le 10/08/2026 à 12:32 — v337 */
+/* Déployé le 22/08/2026 à 08:00 — v492 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -27,12 +27,21 @@ const USAGES_MODELE = [
   { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
     variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
                '{note}', '{prenom}', '{eleve}',
-               '{date}', '{heure}', '{duree}', '{moniteur}', '{site}'] },
+               '{date}', '{heure}', '{heure+2h}', '{duree}',
+               '{moniteur}', '{site}'] },
   { cle:'procedure',      nom:'🚦 Procédure de conduite',
     variables:[] },
   { cle:'libre',          nom:'📄 Texte libre',
     variables:['{eleve}', '{date}'] }
 ];
+
+/* Ce qu'il faut savoir des heures calculées, dit là où on écrit
+   le modèle plutôt que dans un guide qu'on ne relit jamais. */
+const AIDE_HEURES =
+  'Les heures se calculent depuis celle du cours : ' +
+  '<code>{heure+2h}</code>, <code>{heure+1h30}</code>, ' +
+  '<code>{heure+45min}</code>. Le signe moins recule.<br>' +
+  'Un cours à 13h donne « 13h à {heure+2h} » → <strong>13h à 15h</strong>.';
 
 function nomUsage(cle){
   const u = USAGES_MODELE.find(x => x.cle === cle);
@@ -91,12 +100,89 @@ function modelePour(usage){
    Une variable absente disparaît, plutôt que de laisser {truc} dans le texte. */
 function appliquerModele(contenu, valeurs){
   let t = String(contenu || '');
+
+  /* Les heures décalées d'abord : {heure+2h} vaut l'heure du cours
+     plus deux heures. Sans cela, {heure} serait remplacé le premier
+     et le décalage n'aurait plus de base. */
+  t = calculerHeuresDecalees(t, (valeurs || {}).heure);
+
   Object.keys(valeurs || {}).forEach(k => {
     t = t.split('{' + k + '}').join(String(valeurs[k] === undefined ? '' : valeurs[k]));
   });
   /* Nettoyage des variables non fournies */
   t = t.replace(/\{[a-zA-Zéèêàçùî_]+\}/g, '');
   return t;
+}
+
+
+/* ============================================================
+   LES HEURES CALCULÉES
+
+   Un cours se découpe en tranches. Plutôt que de réécrire les
+   horaires à chaque rappel, on les fait dériver de l'heure de
+   début :
+
+     1- {heure} à {heure+2h} circulation
+     2- {heure+2h} à {heure+3h} examen blanc
+
+   Un cours à 13h donne « 13h à 15h », puis « 15h à 16h ».
+   Les formes acceptées : +2h, +1h30, +45min, et le signe moins
+   pour reculer.
+   ============================================================ */
+function calculerHeuresDecalees(texte, heureDebut){
+  const base = minutesDeLHeure(heureDebut);
+
+  /* Pas d'heure de départ : on efface les décalages plutôt que
+     de laisser « {heure+2h} » dans un message envoyé. */
+  if(base === null){
+    return String(texte).replace(/\{heure\s*[+-][^}]*\}/gi, '');
+  }
+
+  return String(texte).replace(
+    /\{heure\s*([+-])\s*([^}]+)\}/gi,
+    (tout, signe, duree) => {
+      const m = minutesDeLaDuree(duree);
+      if(m === null) return '';
+      const total = base + (signe === '-' ? -m : m);
+      return heureLisible(total);
+    }
+  );
+}
+
+/* « 13:00 », « 13h00 » ou « 13h » en minutes depuis minuit */
+function minutesDeLHeure(v){
+  const s = String(v || '').trim();
+  if(!s) return null;
+  const m = s.match(/^(\d{1,2})\s*[h:]\s*(\d{0,2})/);
+  if(!m) return null;
+  return Number(m[1]) * 60 + (Number(m[2]) || 0);
+}
+
+/* « 2h », « 1h30 », « 45min », « 90 » en minutes */
+function minutesDeLaDuree(v){
+  const s = String(v || '').trim().toLowerCase().replace(/\s+/g, '');
+  if(!s) return null;
+
+  let m = s.match(/^(\d+)h(\d{1,2})?$/);
+  if(m) return Number(m[1]) * 60 + (Number(m[2]) || 0);
+
+  m = s.match(/^(\d+)(?:min|m)$/);
+  if(m) return Number(m[1]);
+
+  m = s.match(/^(\d+)$/);
+  if(m) return Number(m[1]);
+
+  return null;
+}
+
+/* « 15h » plutôt que « 15h00 » : c'est ainsi qu'on écrit une heure
+   ronde dans un message. */
+function heureLisible(minutes){
+  let t = minutes % (24 * 60);
+  if(t < 0) t += 24 * 60;
+  const h = Math.floor(t / 60);
+  const m = t % 60;
+  return m ? (h + 'h' + String(m).padStart(2, '0')) : (h + 'h');
 }
 
 
@@ -342,6 +428,15 @@ function ouvrirEditeurModele(modele, usageImpose){
       });
       z.appendChild(b);
     });
+
+    /* L'aide des heures, seulement là où elle sert */
+    if(u && u.variables.some(v => v.indexOf('{heure') === 0)){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;' +
+        'line-height:1.6;border-top:1px solid var(--line);padding-top:8px;';
+      a.innerHTML = '🕐 ' + AIDE_HEURES;
+      z.appendChild(a);
+    }
   };
   g('mdUsage').addEventListener('change', majVars);
 
