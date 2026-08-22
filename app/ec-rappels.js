@@ -478,6 +478,8 @@ const EMPLACEMENTS = [
   { cle:'rue',  texte:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
   /* Une séance qui ne commence pas dans une voiture : le message
      dit où se présenter, pas où est le véhicule. */
+  { cle:'moto',      texte:'𝗧𝗮 𝗺𝗼𝘁𝗼 𝘁\'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹\'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !' },
+  { cle:'scooter',   texte:'𝗧𝗼𝗻 𝘀𝗰𝗼𝗼𝘁𝗲𝗿 𝘁\'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹\'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !' },
   { cle:'bureau',    texte:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗮𝘂 𝗯𝘂𝗿𝗲𝗮𝘂 𝗱𝗲 𝗹\'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !' },
   { cle:'tablettes', texte:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲𝘀 𝘁𝗮𝗯𝗹𝗲𝘁𝘁𝗲𝘀 !' },
   { cle:'cours',     texte:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲 𝗰𝗼𝘂𝗿𝘀 !' },
@@ -792,6 +794,8 @@ async function afficherRappelManuel(){
     '<div><label for="rapEmpl">Où est la voiture</label><select id="rapEmpl">' +
       '<option value="cour">Cour intérieure</option>' +
       '<option value="rue">Rue, le long du trottoir</option>' +
+      '<option value="moto">Moto</option>' +
+      '<option value="scooter">Scooter</option>' +
       '<option value="bureau">Au bureau</option>' +
       '<option value="tablettes">Salle des tablettes</option>' +
       '<option value="cours">Salle de cours</option>' +
