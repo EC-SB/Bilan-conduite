@@ -1,150 +1,25 @@
 /* ============================================================
-   ec-paie.js
-   Ce qu'on transmet au gestionnaire de paie.
+   ec-ecran.js
+   Ce qui tourne sur les écrans du bureau et de la vitrine.
 
-   Le modèle reprend celui du tableau : pour chaque semaine, deux
-   soldes — normal et majoré à 25 %. Un solde peut être négatif
-   quand le moniteur a fait moins que son horaire.
+   Une diapositive = un message, une image, ou les deux. On dit où
+   elle passe — accueil, vitrine ou les deux — combien de temps, et
+   entre quelles dates.
 
-   En fin de mois, un solde majoré négatif se compense d'abord sur
-   les heures normales. Ce qui manque encore devient un report,
-   repris le mois suivant — le « manque toujours 9,75 de juin ».
-
-   Cet outil rassemble et met en forme. Les décisions — traitement
-   d'un chevauchement CP/arrêt, application d'une convention —
-   restent celles du gestionnaire de paie.
-
+   L'écran lui-même est une page à part : ecran.html.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-let salariesPaie = [];
-let semainesPaie = [];
-let absencesPaie = [];
-let gasoilPaie = [];
-let rattachements = {};
-let moisPaie = '';
+let diaposEcran = [];
 
-/* Le maintien de salaire couvre les 45 premiers jours d'arrêt ;
-   IRP Auto prend ensuite le relais. Le compteur le signale. */
-const JOURS_MAINTIEN = 45;
-
-/* Les congés se décomptent en jours ouvrés — 5 par semaine — parce
-   que les salariés sont mensualisés. Le rythme de travail, lui,
-   ne sert qu'au calcul des heures dues. */
-const JOURS_CP_SEMAINE = 5;
-
-const TYPES_ABSENCE = [
-  { cle:'cp',     nom:'🏖️ Congés payés',      court:'CP' },
-  { cle:'arret',  nom:'🤒 Arrêt de travail',   court:'Arrêt' },
-  { cle:'ferie',  nom:'📅 Jour férié',         court:'Férié' },
-  { cle:'ss',     nom:'📄 Sans solde',         court:'Sans solde' },
-  { cle:'autre',  nom:'📝 Autre absence',      court:'Absence' }
-];
-
-/* Les heures se comptent au quart */
-function arrondiQuart(h){ return Math.round((h || 0) * 4) / 4; }
-
-function enHeures(h){
-  const n = arrondiQuart(h);
-  return String(n).replace('.', ',') + 'h';
-}
-
-
-/* ============================================================
-   LE CALCUL
-
-   Un solde majoré négatif se rattrape d'abord sur les heures
-   normales du mois, puis sur celles du mois suivant.
-   ============================================================ */
-function aTransmettre(normal, majore, report){
-  let maj = majore || 0;
-  let nor = normal || 0;
-  let dette = report || 0;
-
-  /* Le report se rattrape d'abord sur les majorées, puis sur les
-     normales : c'est l'ordre voulu, et il évite de rogner des
-     heures normales quand des majorées peuvent absorber. */
-  if(dette > 0){
-    const prisSurMaj = Math.min(dette, Math.max(0, maj));
-    maj -= prisSurMaj;
-    dette -= prisSurMaj;
-
-    if(dette > 0){
-      const prisSurNor = Math.min(dette, Math.max(0, nor));
-      nor -= prisSurNor;
-      dette -= prisSurNor;
-    }
-  }
-
-  /* Un solde majoré négatif se compense sur les normales */
-  if(maj < 0){
-    const reste = nor + maj;
-    if(reste >= 0) return { normales: arrondiQuart(reste), majorees: 0,
-                            report: arrondiQuart(dette) };
-    /* Rien à payer : ce qui manque encore passe au mois suivant */
-    return { normales: 0, majorees: 0, report: arrondiQuart(dette - reste) };
-  }
-
-  return { normales: arrondiQuart(nor), majorees: arrondiQuart(maj),
-           report: arrondiQuart(dette) };
-}
-
-
-/* ============================================================
-   LA RÉPARTITION D'UNE SEMAINE
-
-   Un jour de CP ou férié retire son quota du dû. Ce qui est fait
-   au-delà du dû est normal jusqu'à la base hebdomadaire, majoré
-   au-delà. En dessous du dû, le solde normal devient négatif.
-   ============================================================ */
-function repartirSemaine(faites, joursAbsents, base, heuresJour){
-  const b = base || 35;
-  const hj = heuresJour || 8.75;
-
-  /* Un jour d'absence retire son quota : avec un jour de CP, le dû
-     tombe à 3 × 8,75 h. */
-  const dues = Math.max(0, b - (joursAbsents || 0) * hj);
-  const f = faites || 0;
-
-  /* Moins que le dû : le manque se porte sur les majorées, pas sur
-     les normales. C'est là qu'il se rattrapera. */
-  if(f < dues){
-    return { dues: dues, normal: 0, majore: arrondiQuart(f - dues) };
-  }
-
-  /* Au-dessus du dû : normal jusqu'à la base, majoré au-delà */
-  if(f <= b){
-    return { dues: dues, normal: arrondiQuart(f - dues), majore: 0 };
-  }
-  return {
-    dues: dues,
-    normal: arrondiQuart(b - dues),
-    majore: arrondiQuart(f - b)
-  };
-}
-
-
-/* ============================================================
-   L'ÉCRAN
-   ============================================================ */
-
-async function afficherPaie(){
-  const zone = $('paieZone');
+async function afficherEcran(){
+  const zone = $('ecranZone');
   if(!zone) return;
 
-  if(!moisPaie){
-    const d = new Date();
-    moisPaie = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  }
-
-  zone.innerHTML = '<div class="empty">Lecture…</div>';
+  zone.innerHTML = '<div class="empty">Lecture des diapositives…</div>';
   try{
-    const d = await appelPrep({ action: 'paieList' });
-    salariesPaie = (d && d.salaries) || [];
-    semainesPaie = (d && d.semaines) || [];
-    absencesPaie = (d && d.absences) || [];
-    gasoilPaie = (d && d.gasoil) || [];
-    rattachements = (d && d.rattachements) || {};
+    const d = await appelPrep({ action: 'ecranList' });
+    diaposEcran = (d && d.diapos) || [];
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -152,1150 +27,1531 @@ async function afficherPaie(){
 
   zone.innerHTML = '';
 
-  const barre = document.createElement('div');
-  barre.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px;';
-  barre.innerHTML = '<label for="paieMois" style="margin:0;flex-shrink:0;' +
-    'text-transform:none;font-size:13px;">Mois</label>';
+  /* Le planning tel qu'il apparaît à l'accueil, modifiable ici */
+  zone.appendChild(blocPlanning());
 
-  const chMois = document.createElement('input');
-  chMois.type = 'month';
-  chMois.id = 'paieMois';
-  chMois.value = moisPaie;
-  chMois.style.cssText = 'flex:1;min-width:0;margin:0;';
-  chMois.addEventListener('change', () => { moisPaie = chMois.value; afficherPaie(); });
-  barre.appendChild(chMois);
-  zone.appendChild(barre);
+  /* Les adresses à ouvrir sur les téléviseurs */
+  zone.appendChild(blocAdresses());
 
-  if(!salariesPaie.length){
-    const b = document.createElement('button');
-    b.className = 'btn btn-primary';
-    b.style.cssText = 'margin-bottom:12px;padding:13px;font-size:14px;';
-    b.textContent = '➕ Ajouter un salarié';
-    b.addEventListener('click', () => ouvrirSalarie(null));
-    zone.appendChild(b);
+  /* Les plannings des jours suivants, repliés : on ne les prépare
+     pas tous les jours, mais quand on le fait il faut pouvoir. */
+  zone.appendChild(blocPlanningsAVenir());
 
-    zone.innerHTML += '<div class="empty">Aucun salarié enregistré.<br>' +
-      '<span style="font-size:12px;">Commence par les ajouter : les heures ' +
-      'se saisissent ensuite semaine par semaine.</span></div>';
+  const bLieux = document.createElement('button');
+  bLieux.className = 'btn btn-secondary';
+  bLieux.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
+  bLieux.textContent = '📍 Gérer les emplacements';
+  bLieux.addEventListener('click', () => ouvrirGestionLieux());
+  zone.appendChild(bLieux);
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'margin-bottom:14px;padding:13px;font-size:14px;';
+  b.textContent = '➕ Nouvelle diapositive';
+  b.addEventListener('click', () => ouvrirEditeurDiapo(null));
+  zone.appendChild(b);
+
+  if(!diaposEcran.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = 'Aucune diapositive.<br>' +
+      '<span style="font-size:12px;">Ajoute un message ou une image ' +
+      'à faire tourner sur les écrans.</span>';
+    zone.appendChild(v);
     return;
   }
 
-  const bMsg = document.createElement('button');
-  bMsg.className = 'btn btn-primary';
-  bMsg.style.cssText = 'margin-bottom:12px;padding:13px;font-size:14px;';
-  bMsg.textContent = '✉️ Composer le message pour la paie';
-  bMsg.addEventListener('click', () => ouvrirMessagePaie());
-  zone.appendChild(bMsg);
+  const c = document.createElement('div');
+  c.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
+  const actives = diaposEcran.filter(x => x.actif).length;
+  c.textContent = diaposEcran.length + ' diapositive(s) · ' + actives + ' active(s)';
+  zone.appendChild(c);
 
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;';
-  [['➕ Salarié', () => ouvrirSalarie(null)],
-   ['🏖️ Absence', () => ouvrirAbsence(null)],
-   ['⛽ Carburant', () => ouvrirGasoil(null)],
-   ['📊 Récapitulatif', () => ouvrirRecap()]].forEach(([nom, faire]) => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'flex:1;min-width:110px;padding:11px;font-size:13px;margin:0;';
-    b.textContent = nom;
-    b.addEventListener('click', faire);
-    r.appendChild(b);
-  });
-  zone.appendChild(r);
-
-  /* Les semaines à cheval : où les compter */
-  const bord = blocSemainesDeBord();
-  if(bord) zone.appendChild(bord);
-
-  /* Le tableau, comme dans le classeur : une ligne par salarié,
-     deux colonnes par semaine. */
-  zone.appendChild(tableauPaie());
-
-  /* Les absences du mois, cliquables : sans cette liste, une
-     absence saisie ne pouvait plus être corrigée. */
-  zone.appendChild(blocAbsencesPaie());
-
-  const inactifs = salariesPaie.filter(s => !s.actif);
-  if(inactifs.length){
-    const d = document.createElement('div');
-    d.style.cssText = 'font-size:11px;color:var(--muted);margin-top:10px;';
-    d.textContent = inactifs.length + ' salarié(s) sorti(s) de l\'effectif, non affiché(s).';
-    zone.appendChild(d);
-  }
+  diaposEcran.forEach((d, i) => zone.appendChild(ligneDiapo(d, i)));
 }
 
 
 
-/* Les deux soldes d'une semaine. Ils se calculent depuis les heures
-   faites, sauf si le bureau les a corrigés à la main. */
-function soldesSemaine(w, s){
-  if(!w) return { normal: 0, majore: 0, calcule: false, vide: true };
-
-  if(w.normalForce !== null || w.majoreForce !== null){
-    return {
-      normal: w.normalForce !== null ? w.normalForce : 0,
-      majore: w.majoreForce !== null ? w.majoreForce : 0,
-      calcule: false, vide: false, force: true
-    };
-  }
-
-  const r = repartirSemaine(w.heures, w.joursAbsents, s.baseHebdo, s.heuresJour);
-  return { normal: r.normal, majore: r.majore, calcule: true,
-           vide: !w.heures && !w.joursAbsents };
-}
-
-/* Les jours d'absence d'une semaine, déduits des CP et fériés déjà
-   saisis : les ressaisir serait une occasion de se contredire. */
-function joursAbsentsDeduits(idSalarie, lundi, joursSemaine){
-  const d1 = lundi;
-  const d = new Date(lundi + 'T12:00:00');
-  d.setDate(d.getDate() + 6);
-  const d2 = d.toISOString().slice(0, 10);
-
-  let jours = 0;
-  absencesPaie.filter(a => a.idSalarie === idSalarie && a.du &&
-                           (a.type === 'cp' || a.type === 'ferie'))
-    .forEach(a => {
-      if(a.du > d2) return;
-      if(a.au && a.au < d1) return;
-      const du = a.du < d1 ? d1 : a.du;
-      const au = (a.au && a.au < d2) ? a.au : d2;
-      jours += joursTravaillesEntre(du, au, joursSemaine);
-    });
-
-  return Math.min(jours, joursSemaine || 4);
-}
 
 
 /* ============================================================
-   LES COMPTEURS
+   LES PLANNINGS À VENIR
 
-   Les jours d'arrêt se comptent en calendaire : c'est ainsi que
-   court le délai de maintien de salaire. Les CP se comptent en
-   jours travaillés.
+   Le planning du jour est déjà au-dessus. Ici, on prépare ceux
+   des jours suivants.
    ============================================================ */
-function joursEntre(du, au){
-  if(!du) return 0;
-  const d1 = new Date(du + 'T12:00:00');
-  const d2 = new Date((au || du) + 'T12:00:00');
-  if(isNaN(d1) || isNaN(d2)) return 0;
-  return Math.max(1, Math.round((d2 - d1) / 86400000) + 1);
-}
 
-/* Les jours d'une période, plafonnés à un nombre par semaine.
+let jourPlanning = '';
 
-   Deux usages qui ne se confondent pas :
-   — le compteur de congés décompte 5 jours par semaine, puisque
-     les salariés sont mensualisés ;
-   — le calcul du dû hebdomadaire plafonne au rythme réel, sans
-     quoi une semaine entière de CP donnerait un dû négatif. */
-function joursTravaillesEntre(du, au, joursSemaine){
-  if(!du) return 0;
-  const rythme = joursSemaine || 4;
-
-  const d = new Date(du + 'T12:00:00');
-  const f = new Date((au || du) + 'T12:00:00');
-  if(isNaN(d) || isNaN(f)) return 0;
-
-  /* Regroupé par semaine, pour plafonner chacune séparément */
-  const parSemaine = {};
-  let garde = 0;
-  while(d <= f && garde++ < 500){
-    const j = d.getDay();
-    if(j >= 1 && j <= 6){
-      const lundi = new Date(d);
-      lundi.setDate(lundi.getDate() - ((j + 6) % 7));
-      const cle = lundi.getFullYear() + '-' +
-                  String(lundi.getMonth() + 1).padStart(2, '0') + '-' +
-                  String(lundi.getDate()).padStart(2, '0');
-      parSemaine[cle] = (parSemaine[cle] || 0) + 1;
-    }
-    d.setDate(d.getDate() + 1);
-  }
-
-  return Object.keys(parSemaine)
-    .reduce((s, k) => s + Math.min(parSemaine[k], rythme), 0);
-}
-
-/* Les compteurs d'un salarié sur l'année en cours */
-function compteursDe(s, an){
-  const annee = an || (moisPaie || '').split('-')[0] ||
-                String(new Date().getFullYear());
-  const debut = annee + '-01-01';
-  const fin = annee + '-12-31';
-
-  let cp = 0, arret = 0, arretEnCours = null;
-
-  absencesPaie.filter(a => a.idSalarie === s.id && a.du).forEach(a => {
-    /* Ce qui touche l'année, borné à elle */
-    const d = a.du < debut ? debut : a.du;
-    const f = (a.au && a.au < fin) ? a.au : (a.au ? fin : fin);
-    if(a.du > fin) return;
-    if(a.au && a.au < debut) return;
-
-    if(a.type === 'cp'){
-      /* Le solde de congés : 5 jours par semaine */
-      cp += joursTravaillesEntre(d, f, JOURS_CP_SEMAINE);
-    }else if(a.type === 'arret'){
-      /* Un arrêt sans fin court jusqu'à aujourd'hui */
-      const finReelle = a.au ? f : todayLocal();
-      arret += joursEntre(d, finReelle < d ? d : finReelle);
-      if(!a.au) arretEnCours = a.du;
-    }
-  });
-
-  return {
-    annee: annee,
-    cp: cp,
-    arret: arret,
-    arretEnCours: arretEnCours,
-    resteMaintien: Math.max(0, JOURS_MAINTIEN - arret),
-    maintienDepasse: arret > JOURS_MAINTIEN
-  };
-}
-
-
-/* ============================================================
-   LE CARBURANT
-   ============================================================ */
-function gasoilDuMois(idSalarie, mois){
-  const m = mois || moisPaie;
-  return gasoilPaie.filter(g =>
-    g.idSalarie === idSalarie && String(g.date).indexOf(m) === 0);
-}
-
-function totalGasoil(liste){
-  return Math.round(liste.reduce((s, g) => s + (g.montant || 0), 0) * 100) / 100;
-}
-
-function enEuros(v){
-  return String(Math.round((v || 0) * 100) / 100).replace('.', ',') + ' €';
-}
-
-
-
-/* Les semaines partagées entre deux mois, et le choix qui va avec */
-function blocSemainesDeBord(){
-  const touchent = lundisTouchant(moisPaie);
-
-  /* Celles qui débordent vraiment : les autres n'ont pas à être
-     réglées. */
-  const partagees = touchent.filter(l => {
-    const f = new Date(l + 'T12:00:00');
-    f.setDate(f.getDate() + 6);
-    const moisFin = f.getFullYear() + '-' +
-                    String(f.getMonth() + 1).padStart(2, '0');
-    const moisDebut = l.slice(0, 7);
-    return moisDebut !== moisFin;
-  });
-
-  if(!partagees.length) return null;
-
+function blocPlanningsAVenir(){
   const d = document.createElement('details');
   d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
     'padding:10px 12px;margin-bottom:12px;';
   d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
-    'color:var(--accent-text);">📅 Semaines à cheval — ' + partagees.length +
-    '</summary>';
+    'color:var(--accent-text);">📅 Planning d\'un autre jour</summary>';
 
   const z = document.createElement('div');
   z.style.marginTop = '10px';
-  z.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;' +
-    'line-height:1.5;">Une semaine partagée ne se compte que d\'un côté. ' +
-    'Choisis lequel : elle disparaîtra du tableau de l\'autre mois.</div>';
 
-  partagees.forEach(l => {
-    const f = new Date(l + 'T12:00:00');
-    f.setDate(f.getDate() + 6);
-    const moisA = l.slice(0, 7);
-    const moisB = f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0');
-    const choisi = moisDeLaSemaine(l);
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;';
 
-    const ligne = document.createElement('div');
-    ligne.style.cssText = 'display:flex;gap:8px;align-items:center;' +
-      'padding:7px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05);';
+  const ch = document.createElement('input');
+  ch.type = 'date';
+  ch.style.cssText = 'flex:1;min-width:0;margin:0;';
+  /* Demain par défaut : c'est ce qu'on prépare le plus souvent */
+  if(!jourPlanning){
+    const dem = new Date();
+    dem.setDate(dem.getDate() + 1);
+    jourPlanning = dem.getFullYear() + '-' +
+                   String(dem.getMonth() + 1).padStart(2, '0') + '-' +
+                   String(dem.getDate()).padStart(2, '0');
+  }
+  ch.value = jourPlanning;
+  barre.appendChild(ch);
 
-    ligne.innerHTML = '<span style="flex:1;min-width:0;">Semaine du ' +
-      dateCourte(l) + ' au ' + String(f.getDate()).padStart(2, '0') + '/' +
-      String(f.getMonth() + 1).padStart(2, '0') + '</span>';
+  const bAdd = document.createElement('button');
+  bAdd.className = 'btn btn-secondary';
+  bAdd.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;' +
+    'flex-shrink:0;';
+  bAdd.textContent = '➕';
+  bAdd.title = 'Ajouter une ligne ce jour-là';
+  barre.appendChild(bAdd);
 
-    const sel = document.createElement('select');
-    sel.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:12px;';
-    sel.innerHTML = [moisA, moisB].map(mo =>
-      '<option value="' + mo + '"' + (mo === choisi ? ' selected' : '') + '>' +
-      moisEnToutesLettres(mo) + '</option>').join('');
+  z.appendChild(barre);
 
-    sel.addEventListener('change', async () => {
-      sel.disabled = true;
-      try{
-        await appelPrep({
-          action: 'paieRattacher',
-          semaine: l,
-          /* Le choix par défaut n'a pas besoin d'être enregistré */
-          mois: (sel.value === moisParDefaut(l)) ? '' : sel.value,
-          par: ACCES.moniteur || ''
-        });
-        showToast('Rattachée à ' + moisEnToutesLettres(sel.value) + ' ✅');
-        afficherPaie();
-      }catch(e){
-        showToast('Impossible : ' + e.message);
-        sel.disabled = false;
+  const zListe = document.createElement('div');
+  z.appendChild(zListe);
+
+  const charger = async () => {
+    jourPlanning = ch.value;
+    zListe.innerHTML = '<div class="empty">Lecture…</div>';
+
+    try{
+      const r = await appelPrep({ action: 'ecranPlanningJour', jour: jourPlanning });
+      const liste = (r && r.planning) || [];
+
+      zListe.innerHTML = '';
+      if(!liste.length){
+        zListe.innerHTML = '<div class="empty">Aucun cours ce jour-là.<br>' +
+          '<span style="font-size:12px;">Le ➕ en ajoute un à la main.</span></div>';
+        return;
       }
-    });
-    ligne.appendChild(sel);
-    z.appendChild(ligne);
+
+      /* Chaque ligne retient le jour qu'elle affiche : changer la
+       date ne doit pas envoyer une ligne sur le mauvais jour. */
+    const jourAffiche = jourPlanning;
+    liste.forEach(x => zListe.appendChild(ligneAutreJour(x, charger, jourAffiche)));
+    }catch(e){
+      zListe.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+    }
+  };
+
+  ch.addEventListener('change', charger);
+  /* La date se lit dans le champ au moment du clic : jourPlanning
+     n'est mis à jour qu'au chargement, et le bouton gardait la
+     valeur du dessin précédent. */
+  bAdd.addEventListener('click', () => {
+    const voulu = ch.value || jourPlanning;
+    jourPlanning = voulu;
+    ouvrirLigneAutreJour(voulu, charger);
+  });
+
+  /* On ne charge qu'à l'ouverture du tiroir : inutile de tirer
+     un planning que personne ne regarde. */
+  d.addEventListener('toggle', () => {
+    if(d.open && !zListe.innerHTML) charger();
   });
 
   d.appendChild(z);
   return d;
 }
 
-/* Les absences qui touchent le mois, pour les revoir et corriger.
-   Nom propre au module : ec-ecoutes.js déclare déjà blocAbsences,
-   et deux fonctions du même nom se percutent. */
-function blocAbsencesPaie(){
-  const d = document.createElement('details');
-  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-    'padding:10px 12px;margin-top:14px;';
 
-  /* Toutes celles du mois, tous salariés confondus */
-  const lot = [];
-  salariesPaie.forEach(s => {
-    absencesDuMois(s.id).forEach(a => lot.push({ s: s, a: a }));
+/* Une ligne d'un autre jour, réglable comme celles du jour */
+function ligneAutreJour(c, rafraichir, jour){
+  const l = document.createElement('div');
+  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
+    (c.masque ? 'opacity:.45;' : '');
+
+  const h1 = document.createElement('div');
+  h1.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.35;';
+  t.innerHTML = '<strong>' +
+    (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') + '</strong>' +
+    (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
+                'ajouté à la main</span>' : '') +
+    (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
+                'retiré de l\'écran</span>' : '');
+  h1.appendChild(t);
+
+  const selMon = document.createElement('select');
+  selMon.style.cssText = 'width:auto;max-width:110px;margin:0;padding:5px 7px;' +
+    'font-size:11px;flex-shrink:0;';
+  remplirMoniteursEcran(selMon, c.moniteur || '');
+  selMon.addEventListener('change', () => {
+    c.moniteur = selMon.value;
+    enregistrerLigneJour(c, jour);
   });
+  h1.appendChild(selMon);
 
-  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
-    'color:var(--accent-text);">🏖️ Absences du mois — ' + lot.length + '</summary>';
+  l.appendChild(h1);
 
-  const z = document.createElement('div');
-  z.style.marginTop = '10px';
+  const h2 = document.createElement('div');
+  h2.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
 
-  if(!lot.length){
-    z.innerHTML = '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
-      'Aucune absence sur ce mois.<br>Le bouton 🏖️ Absence en ajoute une.</div>';
-    d.appendChild(z);
-    return d;
-  }
-
-  /* Les plus récentes d'abord */
-  lot.sort((x, y) => String(y.a.du).localeCompare(String(x.a.du)));
-
-  lot.forEach(({ s, a }) => {
-    const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
-    const jours = (a.type === 'cp')
-      ? joursTravaillesEntre(a.du, a.au || a.du, JOURS_CP_SEMAINE)
-      : (a.type === 'ferie')
-      ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine)
-      : joursEntre(a.du, a.au || todayLocal());
-
-    /* Un CP ne retire pas le même nombre de jours au dû qu'au solde */
-    const auDu = (a.type === 'cp' || a.type === 'ferie')
-      ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine) : 0;
-
-    const l = document.createElement('div');
-    l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:8px 0;' +
-      'border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;cursor:pointer;';
-    l.innerHTML =
-      '<span style="flex-shrink:0;font-size:16px;">' +
-        (ty ? ty.nom.split(' ')[0] : '📝') + '</span>' +
-      '<span style="flex:1;min-width:0;line-height:1.45;">' +
-        '<strong>' + s.nom.replace(/</g, '&lt;') + '</strong> — ' +
-        (ty ? ty.court : 'Absence') + ' ' + periodeTexte(a) +
-        '<div style="font-size:11px;color:var(--muted);">' +
-          jours + ' jour(s) décompté(s)' +
-          (auDu ? ' · ' + auDu + ' retiré(s) du dû hebdomadaire'
-                : (a.type === 'arret'
-                    ? ' — n\'entre pas dans le calcul des heures' : '')) +
-          (a.remarque ? ' · ' + a.remarque.replace(/</g, '&lt;') : '') +
-        '</div>' +
-      '</span>' +
-      '<span style="flex-shrink:0;color:var(--muted);">✏️</span>';
-    l.addEventListener('click', () => ouvrirAbsence(a));
-    z.appendChild(l);
+  const heure = document.createElement('input');
+  heure.type = 'time';
+  heure.value = c.heure || '';
+  heure.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 8px;' +
+    'font-size:13px;';
+  heure.addEventListener('change', () => {
+    c.heure = heure.value;
+    enregistrerLigneJour(c, jour);
   });
+  h2.appendChild(heure);
 
-  d.appendChild(z);
-  return d;
-}
-
-/* Le mois auquel une semaine appartient par défaut : celui de son
-   jeudi, comme la norme des semaines. Une semaine à cheval tombe
-   ainsi d'un seul côté, jamais des deux. */
-function moisParDefaut(lundi){
-  const d = new Date(lundi + 'T12:00:00');
-  d.setDate(d.getDate() + 3);
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
-
-/* Celui qui compte : le choix du bureau s'il existe */
-function moisDeLaSemaine(lundi){
-  return rattachements[lundi] || moisParDefaut(lundi);
-}
-
-/* Toutes les semaines qui touchent le mois, rattachées ou non */
-function lundisTouchant(mois){
-  if(!mois) return [];
-  const [an, m] = mois.split('-').map(Number);
-  const out = [];
-
-  const d = new Date(an, m - 1, 1, 12);
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-
-  for(let i = 0; i < 6; i++){
-    const fin = new Date(d);
-    fin.setDate(fin.getDate() + 6);
-    if(d.getMonth() === m - 1 || fin.getMonth() === m - 1){
-      out.push(d.getFullYear() + '-' +
-               String(d.getMonth() + 1).padStart(2, '0') + '-' +
-               String(d.getDate()).padStart(2, '0'));
-    }
-    d.setDate(d.getDate() + 7);
-    if(d.getMonth() > m - 1 && d.getFullYear() >= an) break;
-  }
-  return out;
-}
-
-/* Les semaines réellement comptées dans le mois affiché */
-function lundisDuMois(mois){
-  return lundisTouchant(mois).filter(l => moisDeLaSemaine(l) === mois);
-}
-
-function semaineDe(idSalarie, lundi){
-  return semainesPaie.find(x => x.idSalarie === idSalarie && x.semaine === lundi) || null;
-}
-
-/* Les totaux du mois pour un salarié */
-function totalMois(s){
-  let normal = 0, majore = 0;
-  lundisDuMois(moisPaie).forEach(l => {
-    const w = semaineDe(s.id, l);
-    if(!w) return;
-    const so = soldesSemaine(w, s);
-    normal += so.normal;
-    majore += so.majore;
+  const veh = document.createElement('select');
+  veh.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
+  remplirVehiculesEcran(veh, c.vehicule || '');
+  veh.addEventListener('change', () => {
+    c.vehicule = (veh.value === 'autre') ? '' : veh.value;
+    enregistrerLigneJour(c, jour);
   });
+  h2.appendChild(veh);
 
-  /* Le report ne s'applique que sur le mois qu'il vise */
-  const report = (s.reportMois && s.reportMois !== moisPaie) ? 0 : (s.report || 0);
-
-  return Object.assign(
-    { normal: arrondiQuart(normal), majore: arrondiQuart(majore) },
-    aTransmettre(normal, majore, report)
-  );
-}
-
-function absencesDuMois(idSalarie){
-  if(!moisPaie) return [];
-  const [an, m] = moisPaie.split('-').map(Number);
-  const debut = moisPaie + '-01';
-  const fin = moisPaie + '-' + String(new Date(an, m, 0).getDate()).padStart(2, '0');
-
-  return absencesPaie.filter(a => {
-    if(a.idSalarie !== idSalarie || !a.du) return false;
-    if(a.du > fin) return false;
-    if(a.au && a.au < debut) return false;
-    return true;
+  const lieu = document.createElement('select');
+  lieu.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
+  remplirListeLieux(lieu, c.lieu || '', false);
+  lieu.addEventListener('change', () => {
+    c.lieu = lieu.value;
+    enregistrerLigneJour(c, jour);
   });
-}
-
-
-/* Le tableau du mois : une case d'heures par semaine, tout le
-   reste se calcule. */
-function tableauPaie(){
-  const lundis = lundisDuMois(moisPaie);
-  const zone = document.createElement('div');
-  zone.style.cssText = 'overflow-x:auto;';
-
-  const t = document.createElement('table');
-  t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;' +
-    'min-width:' + (140 + lundis.length * 70 + 120) + 'px;';
-
-  const th = document.createElement('thead');
-  const l1 = document.createElement('tr');
-  l1.innerHTML = '<th style="text-align:left;padding:6px 8px;font-size:11px;' +
-    'color:var(--muted);">Salarié</th>' +
-    lundis.map(l => '<th style="padding:6px 4px;font-size:11px;color:var(--muted);' +
-      'border-left:1px solid var(--line);white-space:nowrap;">' +
-      dateCourte(l) + '</th>').join('') +
-    '<th colspan="2" style="padding:6px 4px;font-size:11px;color:var(--accent-text);' +
-      'border-left:2px solid var(--line);">TOTAL</th>';
-  th.appendChild(l1);
-
-  const l2 = document.createElement('tr');
-  l2.innerHTML = '<th></th>' +
-    lundis.map(() => '<th style="padding:2px 4px;font-size:10px;color:var(--muted);' +
-      'border-left:1px solid var(--line);">heures</th>').join('') +
-    '<th style="padding:2px 4px;font-size:10px;color:var(--accent-text);' +
-      'border-left:2px solid var(--line);">N</th>' +
-    '<th style="padding:2px 4px;font-size:10px;color:var(--accent-text);">25%</th>';
-  th.appendChild(l2);
-  t.appendChild(th);
-
-  const tb = document.createElement('tbody');
-
-  salariesPaie.filter(s => s.actif).forEach(s => {
-    const tr = document.createElement('tr');
-    tr.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);';
-
-    const td0 = document.createElement('td');
-    td0.style.cssText = 'padding:7px 8px;font-weight:700;white-space:nowrap;' +
-      'cursor:pointer;';
-    td0.textContent = s.nom;
-    td0.title = 'Sa fiche';
-    td0.addEventListener('click', () => ouvrirSalarie(s));
-    tr.appendChild(td0);
-
-    /* Une case par semaine : on tape les heures, rien d'autre */
-    lundis.forEach(l => {
-      const w = semaineDe(s.id, l);
-      const td = document.createElement('td');
-      td.style.cssText = 'padding:3px;border-left:1px solid var(--line);' +
-        'text-align:center;';
-
-      const ch = document.createElement('input');
-      ch.type = 'number';
-      ch.step = '0.25';
-      ch.inputMode = 'decimal';
-      ch.value = (w && w.heures) ? w.heures : '';
-      ch.placeholder = '·';
-      ch.style.cssText = 'width:58px;margin:0;padding:5px 4px;font-size:13px;' +
-        'text-align:center;background:var(--navy);border:1px solid transparent;' +
-        'font-variant-numeric:tabular-nums;';
-
-      /* Ce qu'on en déduit, en info-bulle */
-      const majTitre = () => {
-        const j = (w && w.joursAbsents) ||
-                  joursAbsentsDeduits(s.id, l, s.joursSemaine);
-        const h = parseFloat(ch.value) || 0;
-        if(!h && !j){ ch.title = 'Heures de la semaine'; return; }
-        const r = repartirSemaine(h, j, s.baseHebdo, s.heuresJour);
-        ch.title = h + 'h faites' + (j ? ' · ' + j + ' j absent' : '') +
-          ' · dû ' + r.dues + 'h → ' + r.normal + ' normal · ' + r.majore + ' à 25%';
-      };
-      majTitre();
-
-      /* On enregistre à la sortie du champ, pas à chaque frappe */
-      ch.addEventListener('change', async () => {
-        const h = parseFloat(ch.value) || 0;
-        const j = (w && w.joursAbsents !== undefined && w.joursAbsents !== null)
-                    ? w.joursAbsents
-                    : joursAbsentsDeduits(s.id, l, s.joursSemaine);
-        ch.style.borderColor = 'var(--orange)';
-        try{
-          await appelPrep({
-            action: 'paieSemaineSet',
-            id: w ? w.id : '',
-            idSalarie: s.id,
-            semaine: l,
-            heures: h,
-            joursAbsents: j,
-            normalForce: (w && w.normalForce !== null) ? w.normalForce : '',
-            majoreForce: (w && w.majoreForce !== null) ? w.majoreForce : '',
-            remarque: (w && w.remarque) || '',
-            par: ACCES.moniteur || ''
-          });
-          ch.style.borderColor = 'transparent';
-          afficherPaie();
-        }catch(e){
-          ch.style.borderColor = 'var(--red)';
-          showToast('Impossible : ' + e.message);
-        }
-      });
-
-      /* Le détail d'une semaine : absences forcées, correction */
-      /* Ce qui est retenu, sous la case : sans cela il faudrait
-         ouvrir chaque semaine pour vérifier le calcul. */
-      const bDet = document.createElement('div');
-      bDet.style.cssText = 'font-size:10px;cursor:pointer;margin-top:2px;' +
-        'line-height:1.35;';
-      const so = soldesSemaine(w, s);
-      const jAbs = (w && w.joursAbsents) ||
-                   joursAbsentsDeduits(s.id, l, s.joursSemaine);
-
-      if(!jAbs && (!w || !w.heures)){
-        bDet.innerHTML = '&nbsp;';
-      }else if(!w || !w.heures){
-        /* Des absences sans heures saisies : on montre quand même
-           ce qui sera retiré du dû. */
-        bDet.innerHTML = '<span style="color:var(--warn-text);">' +
-          jAbs + ' j abs.</span>';
-      }else{
-        bDet.innerHTML =
-          '<span style="color:' + (so.normal < 0 ? 'var(--red)' : 'var(--muted)') + ';">' +
-            (so.normal ? String(so.normal).replace('.', ',') : '0') + 'N</span>' +
-          ' <span style="color:' +
-            (so.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
-            (so.majore ? String(so.majore).replace('.', ',') : '0') + '↑</span>' +
-          (jAbs ? '<br><span style="color:var(--muted);">' + jAbs + ' j abs.</span>' : '') +
-          (so.force ? '<br><span style="color:var(--warn-text);">forcé</span>' : '');
-      }
-      bDet.addEventListener('click', () => ouvrirSemaine(s, l, w));
-      td.appendChild(ch);
-      td.appendChild(bDet);
-
-      tr.appendChild(td);
-    });
-
-    const tot = totalMois(s);
-    [[tot.normal, true], [tot.majore, false]].forEach(([v, premier]) => {
-      const td = document.createElement('td');
-      td.style.cssText = 'padding:5px 6px;text-align:center;font-weight:800;' +
-        'font-variant-numeric:tabular-nums;' +
-        (premier ? 'border-left:2px solid var(--line);' : '') +
-        (v < 0 ? 'color:var(--red);' : 'color:var(--accent-text);');
-      td.textContent = v ? String(v).replace('.', ',') : '·';
-      tr.appendChild(td);
-    });
-
-    tb.appendChild(tr);
-
-    /* Ce qui sera transmis, sous la ligne */
-    const abs = absencesDuMois(s.id);
-    const cpt = compteursDe(s);
-    const gaz = totalGasoil(gasoilDuMois(s.id));
-
-    const dit = [];
-    if(tot.majorees) dit.push(enHeures(tot.majorees) + ' à 25%');
-    if(tot.normales) dit.push(enHeures(tot.normales) + ' normales');
-    if(tot.report) dit.push('⚠️ manque ' + enHeures(tot.report));
-    abs.forEach(a => {
-      const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
-      dit.push((ty ? ty.court : 'Absence') + ' ' + periodeTexte(a));
-    });
-    if(gaz) dit.push('⛽ ' + enEuros(gaz));
-    if(cpt.cp) dit.push('🏖️ ' + cpt.cp + ' j CP en ' + cpt.annee);
-    if(cpt.arret){
-      dit.push('🤒 ' + cpt.arret + ' j arrêt' +
-        (cpt.maintienDepasse
-          ? ' — maintien dépassé, IRP Auto'
-          : ' — reste ' + cpt.resteMaintien + ' j de maintien'));
-    }
-
-    if(dit.length){
-      const tr2 = document.createElement('tr');
-      const td = document.createElement('td');
-      td.colSpan = 1 + lundis.length + 2;
-      td.style.cssText = 'padding:0 8px 8px 8px;font-size:11px;' +
-        'color:var(--muted);line-height:1.5;';
-      td.innerHTML = '→ ' + dit.join(' · ').replace(/</g, '&lt;');
-      tr2.appendChild(td);
-      tb.appendChild(tr2);
-    }
-  });
-
-  t.appendChild(tb);
-  zone.appendChild(t);
-
-  const aide = document.createElement('div');
-  aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;';
-  aide.innerHTML = 'Tape les heures de la semaine : sous la case, ' +
-    '<strong>N</strong> = heures normales retenues, <strong>↑</strong> = heures à 25 %. ' +
-    'Les jours de CP et fériés viennent des absences saisies. ' +
-    'Appuie sous une case pour corriger une semaine à la main.';
-  zone.appendChild(aide);
-
-  return zone;
-}
-
-function dateCourte(iso){
-  if(!iso) return '';
-  const p = String(iso).split('-');
-  return p.length === 3 ? p[2] + '/' + p[1] : iso;
-}
-
-function periodeTexte(a){
-  if(a.au) return 'du ' + dateCourte(a.du) + ' au ' + dateCourte(a.au);
-  return 'à compter du ' + dateCourte(a.du);
-}
-
-
-/* ============================================================
-   UNE SEMAINE
-   ============================================================ */
-
-function ouvrirSemaine(s, lundi, w){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.maxWidth = 'min(450px, 94vw)';
-
-  const d = new Date(lundi + 'T12:00:00');
-  const fin = new Date(d);
-  fin.setDate(fin.getDate() + 6);
-
-  const jDeduits = joursAbsentsDeduits(s.id, lundi, s.joursSemaine);
-
-  boite.innerHTML =
-    '<h3>' + s.nom.replace(/</g, '&lt;') + '</h3>' +
-    '<div style="font-size:13px;color:var(--muted);margin-bottom:14px;">' +
-      'Semaine du ' + dateCourte(lundi) + ' au ' +
-      String(fin.getDate()).padStart(2, '0') + '/' +
-      String(fin.getMonth() + 1).padStart(2, '0') + '</div>' +
-
-    '<div class="duo">' +
-      '<div><label for="swHeures">Heures faites</label>' +
-        '<input type="number" id="swHeures" step="0.25" inputmode="decimal" ' +
-          'placeholder="Ex : 40"></div>' +
-      '<div><label for="swAbs">Jours CP ou fériés</label>' +
-        '<input type="number" id="swAbs" step="1" min="0"></div>' +
-    '</div>' +
-    '<div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;line-height:1.5;">' +
-      (jDeduits
-        ? jDeduits + ' jour(s) déduit(s) des absences saisies. Corrige si besoin.'
-        : 'Aucune absence saisie sur cette semaine.') +
-    '</div>' +
-
-    '<div id="swApercu" style="font-size:13px;line-height:1.6;' +
-      'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
-      'margin-bottom:12px;"></div>' +
-
-    /* La correction manuelle : le calcul ne prévoit pas tout */
-    '<details style="border:1px solid var(--line);border-radius:10px;' +
-      'padding:9px 11px;margin-bottom:12px;">' +
-      '<summary style="cursor:pointer;font-size:12px;font-weight:700;' +
-        'color:var(--accent-text);">✍️ Corriger à la main</summary>' +
-      '<div style="font-size:11px;color:var(--muted);margin:8px 0;line-height:1.5;">' +
-        'Ce qui est saisi ici remplace le calcul pour cette semaine. ' +
-        'Laisse vide pour revenir au calcul.</div>' +
-      '<div class="duo">' +
-        '<div><label for="swNormal">Normal</label>' +
-          '<input type="number" id="swNormal" step="0.25" inputmode="decimal"></div>' +
-        '<div><label for="swMajore">Majoré 25%</label>' +
-          '<input type="number" id="swMajore" step="0.25" inputmode="decimal"></div>' +
-      '</div>' +
-    '</details>' +
-
-    '<label for="swRem">Remarque</label>' +
-    '<input type="text" id="swRem" placeholder="Facultatif">';
-
-  boite.querySelector('#swAbs').value = w
-    ? (w.joursAbsents !== null && w.joursAbsents !== undefined ? w.joursAbsents : jDeduits)
-    : jDeduits;
-
-  if(w){
-    boite.querySelector('#swHeures').value = w.heures || '';
-    if(w.normalForce !== null) boite.querySelector('#swNormal').value = w.normalForce;
-    if(w.majoreForce !== null) boite.querySelector('#swMajore').value = w.majoreForce;
-    boite.querySelector('#swRem').value = w.remarque || '';
-  }
-
-  const zAp = boite.querySelector('#swApercu');
-  const majApercu = () => {
-    const h = parseFloat(boite.querySelector('#swHeures').value) || 0;
-    const j = parseInt(boite.querySelector('#swAbs').value, 10) || 0;
-    const nF = boite.querySelector('#swNormal').value;
-    const mF = boite.querySelector('#swMajore').value;
-
-    if(nF !== '' || mF !== ''){
-      zAp.innerHTML = '<span style="color:var(--warn-text);">✍️ Corrigé à la main : ' +
-        '</span>Normal <strong>' + enHeures(parseFloat(nF) || 0) + '</strong> · ' +
-        '25% <strong>' + enHeures(parseFloat(mF) || 0) + '</strong>';
-      return;
-    }
-
-    if(!h){
-      zAp.innerHTML = '<span style="color:var(--muted);">Saisis les heures ' +
-        'de la semaine.</span>';
-      return;
-    }
-
-    const r = repartirSemaine(h, j, s.baseHebdo, s.heuresJour);
-    zAp.innerHTML = '<span style="color:var(--muted);font-size:12px;">' +
-      'Dû cette semaine : ' + enHeures(r.dues) + '</span><br>' +
-      'Normal <strong style="color:' +
-        (r.normal < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
-        enHeures(r.normal) + '</strong> · 25% <strong style="color:' +
-        (r.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
-        enHeures(r.majore) + '</strong>';
-  };
-  ['#swHeures', '#swAbs', '#swNormal', '#swMajore'].forEach(x =>
-    boite.querySelector(x).addEventListener('input', majApercu));
-  majApercu();
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bAnn);
-
-  if(w){
-    const bSup = document.createElement('button');
-    bSup.className = 'btn btn-secondary';
-    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
-    bSup.textContent = '🗑️';
-    bSup.addEventListener('click', async () => {
-      if(!await confirmer('Effacer cette semaine ?')) return;
-      try{
-        await appelPrep({ action: 'paieSemaineDelete', id: w.id });
-        document.body.removeChild(fond);
-        showToast('Effacée ✅');
-        afficherPaie();
-      }catch(e){ showToast('Impossible : ' + e.message); }
-    });
-    r.appendChild(bSup);
-  }
-
-  const bOk = document.createElement('button');
-  bOk.className = 'btn btn-primary';
-  bOk.textContent = '💾 Enregistrer';
-  bOk.addEventListener('click', async () => {
-    bOk.disabled = true;
-    try{
-      await appelPrep({
-        action: 'paieSemaineSet',
-        id: w ? w.id : '',
-        idSalarie: s.id,
-        semaine: lundi,
-        heures: boite.querySelector('#swHeures').value || 0,
-        joursAbsents: boite.querySelector('#swAbs').value || 0,
-        normalForce: boite.querySelector('#swNormal').value,
-        majoreForce: boite.querySelector('#swMajore').value,
-        remarque: boite.querySelector('#swRem').value.trim(),
-        par: ACCES.moniteur || ''
-      });
-      document.body.removeChild(fond);
-      showToast('Enregistré ✅');
-      afficherPaie();
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      bOk.disabled = false;
-    }
-  });
-  r.appendChild(bOk);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-  setTimeout(() => boite.querySelector('#swHeures').focus(), 100);
-}
-
-
-/* ============================================================
-   UN SALARIÉ
-   ============================================================ */
-
-function ouvrirSalarie(s){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.maxWidth = 'min(460px, 94vw)';
-
-  boite.innerHTML =
-    '<h3>' + (s ? s.nom.replace(/</g, '&lt;') : 'Nouveau salarié') + '</h3>' +
-    '<label for="slNom">Nom</label>' +
-    '<input type="text" id="slNom" placeholder="Comme sur le bulletin de paie">' +
-    '<div class="duo">' +
-      '<div><label for="slBase">Base hebdomadaire</label>' +
-        '<input type="number" id="slBase" step="0.25" value="35"></div>' +
-      '<div><label for="slJours">Jours par semaine</label>' +
-        '<input type="number" id="slJours" step="1" value="4"></div>' +
-    '</div>' +
-    '<div id="slDeduit" style="font-size:12px;color:var(--muted);margin:-6px 0 12px;' +
-      'line-height:1.5;"></div>' +
-
-    '<div class="duo">' +
-      '<div><label for="slReport">Report en heures</label>' +
-        '<input type="number" id="slReport" step="0.25" inputmode="decimal" ' +
-          'placeholder="0"></div>' +
-      '<div><label for="slReportMois">À déduire sur</label>' +
-        '<input type="month" id="slReportMois"></div>' +
-    '</div>' +
-    '<div style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5;">' +
-      'Ce qui manque d\'un mois précédent, à rattraper. Il se déduit du ' +
-      'mois indiqué, puis se remet à jour.</div>' +
-
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
-      'font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
-      '<input type="checkbox" id="slActif" checked style="width:19px;height:19px;">' +
-      'Toujours dans l\'effectif</label>' +
-    '<label for="slRem">Remarque</label>' +
-    '<input type="text" id="slRem" placeholder="Facultatif">';
-
-  if(s){
-    boite.querySelector('#slNom').value = s.nom || '';
-    boite.querySelector('#slBase').value = s.baseHebdo || 35;
-    boite.querySelector('#slJours').value = s.joursSemaine || 4;
-    boite.querySelector('#slReport').value = s.report || '';
-    boite.querySelector('#slReportMois').value = s.reportMois || '';
-    boite.querySelector('#slActif').checked = s.actif;
-    boite.querySelector('#slRem').value = s.remarque || '';
-  }
-
-  const zd = boite.querySelector('#slDeduit');
-  const majDeduit = () => {
-    const b = parseFloat(boite.querySelector('#slBase').value) || 35;
-    const j = parseInt(boite.querySelector('#slJours').value, 10) || 4;
-    zd.textContent = 'Soit ' + enHeures(b / j) + ' par jour travaillé.';
-  };
-  ['#slBase', '#slJours'].forEach(x =>
-    boite.querySelector(x).addEventListener('input', majDeduit));
-  majDeduit();
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bAnn);
-
-  if(s){
-    const bSup = document.createElement('button');
-    bSup.className = 'btn btn-secondary';
-    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
-    bSup.textContent = '🗑️';
-    bSup.addEventListener('click', async () => {
-      if(!await confirmer('Supprimer ' + s.nom + ' ?\n\n' +
-          'Pour un départ, décoche plutôt « Toujours dans l\'effectif ».')) return;
-      try{
-        await appelPrep({ action: 'paieSalarieDelete', id: s.id });
-        document.body.removeChild(fond);
-        showToast('Supprimé ✅');
-        afficherPaie();
-      }catch(e){ showToast('Impossible : ' + e.message); }
-    });
-    r.appendChild(bSup);
-  }
-
-  const bOk = document.createElement('button');
-  bOk.className = 'btn btn-primary';
-  bOk.textContent = s ? '💾 Enregistrer' : '➕ Ajouter';
-  bOk.addEventListener('click', async () => {
-    const nom = boite.querySelector('#slNom').value.trim();
-    if(!nom){ showToast('Indique son nom.'); return; }
-
-    const base = parseFloat(boite.querySelector('#slBase').value) || 35;
-    const jours = parseInt(boite.querySelector('#slJours').value, 10) || 4;
-
-    bOk.disabled = true;
-    try{
-      await appelPrep({
-        action: 'paieSalarieSet',
-        id: s ? s.id : '',
-        nom: nom,
-        baseHebdo: base,
-        joursSemaine: jours,
-        heuresJour: arrondiQuart(base / jours),
-        report: boite.querySelector('#slReport').value || 0,
-        reportMois: boite.querySelector('#slReportMois').value,
-        actif: boite.querySelector('#slActif').checked ? 'oui' : 'non',
-        remarque: boite.querySelector('#slRem').value.trim(),
-        par: ACCES.moniteur || ''
-      });
-      document.body.removeChild(fond);
-      showToast('Enregistré ✅');
-      afficherPaie();
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      bOk.disabled = false;
-    }
-  });
-  r.appendChild(bOk);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-  setTimeout(() => boite.querySelector('#slNom').focus(), 100);
-}
-
-
-/* ============================================================
-   UNE ABSENCE
-   ============================================================ */
-
-function ouvrirAbsence(a){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.maxWidth = 'min(460px, 94vw)';
-
-  boite.innerHTML =
-    '<h3>' + (a ? 'Modifier l\'absence' : 'Nouvelle absence') + '</h3>' +
-    '<label for="abSal">Salarié</label>' +
-    '<select id="abSal">' +
-      salariesPaie.map(s => '<option value="' + s.id + '">' +
-        s.nom.replace(/</g, '&lt;') + '</option>').join('') +
-    '</select>' +
-    '<label for="abType">Type</label>' +
-    '<select id="abType">' +
-      TYPES_ABSENCE.map(t => '<option value="' + t.cle + '">' + t.nom +
-                             '</option>').join('') +
-    '</select>' +
-    '<div class="duo">' +
-      '<div><label for="abDu">Du</label><input type="date" id="abDu"></div>' +
-      '<div><label for="abAu">Au</label><input type="date" id="abAu"></div>' +
-    '</div>' +
-    '<div style="font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.5;">' +
-      'Laisse « Au » vide pour un arrêt dont on ne connaît pas la fin.</div>' +
-    '<label for="abRem">Remarque pour le gestionnaire</label>' +
-    '<input type="text" id="abRem" placeholder="Facultatif">' +
-    '<div id="abAlerte" style="font-size:12px;margin:8px 0 0;line-height:1.5;"></div>';
-
-  if(a){
-    boite.querySelector('#abSal').value = a.idSalarie;
-    boite.querySelector('#abType').value = a.type;
-    boite.querySelector('#abDu').value = a.du || '';
-    boite.querySelector('#abAu').value = a.au || '';
-    boite.querySelector('#abRem').value = a.remarque || '';
-  }
-
-  /* Le chevauchement CP/arrêt : exactement le cas sur lequel le
-     gestionnaire doit trancher. */
-  const zAl = boite.querySelector('#abAlerte');
-  const verifier = () => {
-    const idS = boite.querySelector('#abSal').value;
-    const du = boite.querySelector('#abDu').value;
-    const au = boite.querySelector('#abAu').value;
-    if(!du){ zAl.innerHTML = ''; return; }
-
-    const croise = absencesPaie.filter(x => {
-      if(x.idSalarie !== idS || (a && x.id === a.id) || !x.du) return false;
-      return du <= (x.au || '9999-12-31') && x.du <= (au || '9999-12-31');
-    });
-
-    zAl.innerHTML = croise.length
-      ? '<span style="color:var(--warn-text);">⚠️ Chevauchement avec ' +
-        croise.length + ' autre(s) absence(s).</span><br>' +
-        '<span style="font-size:11px;color:var(--muted);">Ce sera signalé dans ' +
-        'le message : c\'est au gestionnaire de trancher.</span>'
-      : '';
-  };
-  ['#abSal', '#abDu', '#abAu'].forEach(x =>
-    boite.querySelector(x).addEventListener('change', verifier));
-  verifier();
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bAnn);
-
-  if(a){
-    const bSup = document.createElement('button');
-    bSup.className = 'btn btn-secondary';
-    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
-    bSup.textContent = '🗑️';
-    bSup.addEventListener('click', async () => {
-      if(!await confirmer('Supprimer cette absence ?')) return;
-      try{
-        await appelPrep({ action: 'paieAbsenceDelete', id: a.id });
-        document.body.removeChild(fond);
-        showToast('Supprimée ✅');
-        afficherPaie();
-      }catch(e){ showToast('Impossible : ' + e.message); }
-    });
-    r.appendChild(bSup);
-  }
-
-  const bOk = document.createElement('button');
-  bOk.className = 'btn btn-primary';
-  bOk.textContent = a ? '💾 Enregistrer' : '➕ Ajouter';
-  bOk.addEventListener('click', async () => {
-    const du = boite.querySelector('#abDu').value;
-    if(!du){ showToast('Indique au moins la date de début.'); return; }
-
-    bOk.disabled = true;
-    try{
-      await appelPrep({
-        action: 'paieAbsenceSet',
-        id: a ? a.id : '',
-        idSalarie: boite.querySelector('#abSal').value,
-        type: boite.querySelector('#abType').value,
-        du: du,
-        au: boite.querySelector('#abAu').value,
-        remarque: boite.querySelector('#abRem').value.trim(),
-        par: ACCES.moniteur || ''
-      });
-      document.body.removeChild(fond);
-      showToast('Enregistrée ✅');
-      afficherPaie();
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      bOk.disabled = false;
-    }
-  });
-  r.appendChild(bOk);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-}
-
-
-
-/* ============================================================
-   LE CARBURANT
-   ============================================================ */
-
-function ouvrirGasoil(g){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(520px, 94vw);max-height:88vh;overflow-y:auto;';
-
-  boite.innerHTML =
-    '<h3>' + (g ? 'Modifier le remboursement' : '⛽ Remboursement carburant') + '</h3>' +
-    '<label for="gzSal">Moniteur</label>' +
-    '<select id="gzSal">' +
-      salariesPaie.map(s => '<option value="' + s.id + '">' +
-        s.nom.replace(/</g, '&lt;') + '</option>').join('') +
-    '</select>' +
-    '<div class="duo">' +
-      '<div><label for="gzDate">Date</label><input type="date" id="gzDate"></div>' +
-      '<div><label for="gzMontant">Montant</label>' +
-        '<input type="number" id="gzMontant" step="0.01" inputmode="decimal" ' +
-          'placeholder="€"></div>' +
-    '</div>' +
-    '<div class="duo">' +
-      '<div><label for="gzVeh">Véhicule</label>' +
-        '<input type="text" id="gzVeh" placeholder="Ex : A3 4"></div>' +
-      '<div><label for="gzLitres">Litres</label>' +
-        '<input type="number" id="gzLitres" step="0.01" inputmode="decimal" ' +
-          'placeholder="Facultatif"></div>' +
-    '</div>' +
-    '<label for="gzRem">Remarque</label>' +
-    '<input type="text" id="gzRem" placeholder="Facultatif">';
-
-  boite.querySelector('#gzDate').value = g ? (g.date || todayLocal()) : todayLocal();
-  if(g){
-    boite.querySelector('#gzSal').value = g.idSalarie;
-    boite.querySelector('#gzMontant').value = g.montant || '';
-    boite.querySelector('#gzVeh').value = g.vehicule || '';
-    boite.querySelector('#gzLitres').value = g.litres || '';
-    boite.querySelector('#gzRem').value = g.remarque || '';
-  }
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bAnn);
-
-  if(g){
-    const bSup = document.createElement('button');
-    bSup.className = 'btn btn-secondary';
-    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
-    bSup.textContent = '🗑️';
-    bSup.addEventListener('click', async () => {
+  h2.appendChild(lieu);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+    'flex-shrink:0;' + (c.masque ? '' : 'color:var(--red);border-color:var(--red);');
+  bSup.textContent = c.masque ? '↩️' : '🗑️';
+  bSup.addEventListener('click', async () => {
+    if(c.manuel && !c.masque){
       if(!await confirmer('Supprimer cette ligne ?')) return;
       try{
-        await appelPrep({ action: 'paieGasoilDelete', id: g.id });
+        await appelPrep({ action: 'ecranLigneDelete', id: c.id });
+        showToast('Supprimée ✅');
+        rafraichir();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+      return;
+    }
+    c.masque = !c.masque;
+    await enregistrerLigneJour(c, jour);
+    rafraichir();
+  });
+  h2.appendChild(bSup);
+
+  l.appendChild(h2);
+  return l;
+}
+
+
+/* Enregistre une ligne d'un jour donné */
+async function enregistrerLigneJour(c, jour){
+  try{
+    await appelPrep({
+      action: 'ecranLigneSet',
+      id: c.manuel ? c.id : '',
+      idPrep: c.manuel ? '' : c.id,
+      jour: jour,
+      eleve: c.eleveComplet || c.eleve || '',
+      moniteur: c.moniteur || '',
+      heure: c.heure || '',
+      vehicule: c.vehicule || '',
+      lieu: c.lieu || '',
+      ordre: c.ordre || 0,
+      masque: c.masque ? 'oui' : '',
+      par: ACCES.moniteur || ''
+    });
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+/* Ajouter une ligne à la main sur un jour choisi */
+/* Nom propre à ce tiroir : ec-ecran déclare déjà une
+   ouvrirLigneManuelle pour le planning du jour, et deux fonctions
+   du même nom se percutent. */
+function ouvrirLigneAutreJour(jour, rafraichir){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(460px, 94vw)';
+
+  boite.innerHTML = '<h3>➕ Ligne du ' + jour.split('-').reverse().join('/') + '</h3>' +
+    '<label for="ljEleve">Qui</label>' +
+    '<input type="text" id="ljEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Nom, ou ce qu\'on affiche">' +
+    '<div class="duo">' +
+      '<div><label for="ljHeure">Heure</label>' +
+        '<input type="time" id="ljHeure"></div>' +
+      '<div><label for="ljMon">Moniteur</label>' +
+        '<select id="ljMon"></select></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="ljVeh">Véhicule</label>' +
+        '<select id="ljVeh"></select></div>' +
+      '<div><label for="ljLieu">Où</label>' +
+        '<select id="ljLieu"></select></div>' +
+    '</div>';
+
+  remplirMoniteursEcran(boite.querySelector('#ljMon'), ACCES.moniteur || '');
+  remplirVehiculesEcran(boite.querySelector('#ljVeh'), '');
+  remplirListeLieux(boite.querySelector('#ljLieu'), '', false);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '➕ Ajouter';
+  bO.addEventListener('click', async () => {
+    const qui = boite.querySelector('#ljEleve').value.trim();
+    if(!qui){ showToast('Indique qui.'); return; }
+
+    bO.disabled = true;
+    try{
+      const v = boite.querySelector('#ljVeh').value;
+      await appelPrep({
+        action: 'ecranLigneSet',
+        id: '', idPrep: '',
+        jour: jour,
+        eleve: qui,
+        moniteur: boite.querySelector('#ljMon').value,
+        heure: boite.querySelector('#ljHeure').value,
+        vehicule: (v === 'autre') ? '' : v,
+        lieu: boite.querySelector('#ljLieu').value,
+        ordre: 0,
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Ajoutée ✅');
+      rafraichir();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#ljEleve').focus(), 100);
+}
+
+
+/* ============================================================
+   LES EMPLACEMENTS
+
+   Ajouter un lieu, changer un émoji, retoucher la phrase du SMS.
+   Tout se garde sur le poste et se partage si le classeur répond.
+   ============================================================ */
+
+function ouvrirGestionLieux(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>📍 Emplacements</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Ils apparaissent dans le planning ci-dessous ' +
+      'et dans les rappels de cours.</div>' +
+    '<div id="glxListe"></div>' +
+    '<button class="btn btn-secondary" id="glxAjouter" ' +
+      'style="margin-top:12px;padding:11px;font-size:13px;">' +
+      '➕ Ajouter un emplacement</button>' +
+    '<button class="btn btn-secondary" id="glxRaz" ' +
+      'style="margin-top:6px;padding:10px;font-size:12px;color:var(--muted);">' +
+      '↩️ Revenir à la liste d\'origine</button>';
+
+  const dessiner = () => {
+    const liste = lieuxActuels();
+    const z = boite.querySelector('#glxListe');
+    z.innerHTML = '';
+
+    liste.forEach((l, i) => {
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;gap:9px;align-items:center;padding:9px 0;' +
+        'border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;';
+
+      ligne.innerHTML = '<span style="font-size:20px;flex-shrink:0;width:28px;' +
+        'text-align:center;">' + (l.emoji || '·') + '</span>' +
+        '<span style="flex:1;min-width:0;line-height:1.4;">' +
+          '<strong>' + String(l.nom).replace(/</g, '&lt;') + '</strong>' +
+          (l.sansVehicule ? ' <span style="font-size:10px;color:var(--muted);">' +
+                            'sans véhicule</span>' : '') +
+          '<div style="font-size:11px;color:var(--muted);">' +
+            (l.sms ? String(l.sms).replace(/</g, '&lt;').slice(0, 52) +
+                     (l.sms.length > 52 ? '…' : '')
+                   : 'rien dans le SMS') +
+          '</div></span>';
+
+      /* Monter, descendre : l'ordre est celui des listes */
+      [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
+        const bo = document.createElement('button');
+        bo.className = 'btn btn-secondary';
+        bo.style.cssText = 'width:auto;padding:5px 7px;font-size:10px;margin:0;' +
+          'flex-shrink:0;';
+        bo.textContent = signe;
+        bo.disabled = (sens < 0 && i === 0) || (sens > 0 && i === liste.length - 1);
+        bo.addEventListener('click', () => {
+          const copie = liste.slice();
+          const j = i + sens;
+          [copie[i], copie[j]] = [copie[j], copie[i]];
+          garderLieux(copie);
+          dessiner();
+        });
+        ligne.appendChild(bo);
+      });
+
+      const bMod = document.createElement('button');
+      bMod.className = 'btn btn-secondary';
+      bMod.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+        'flex-shrink:0;';
+      bMod.textContent = '✏️';
+      bMod.addEventListener('click', async () => {
+        const modifie = await ficheLieu(l);
+        if(!modifie) return;
+        const copie = liste.slice();
+        copie[i] = modifie;
+        garderLieux(copie);
+        showToast('Enregistré ✅');
+        dessiner();
+      });
+      ligne.appendChild(bMod);
+
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
+        'flex-shrink:0;color:var(--red);border-color:var(--red);';
+      bSup.textContent = '🗑️';
+      bSup.addEventListener('click', async () => {
+        if(liste.length <= 1){
+          showToast('Il faut garder au moins un emplacement.');
+          return;
+        }
+        if(!await confirmer('Retirer ' + l.nom + ' ?\n\n' +
+            'Les cours déjà réglés dessus le gardent, mais on ne ' +
+            'pourra plus le choisir.')) return;
+        garderLieux(liste.filter((_, j) => j !== i));
+        showToast('Retiré ✅');
+        dessiner();
+      });
+      ligne.appendChild(bSup);
+
+      z.appendChild(ligne);
+    });
+  };
+
+  boite.querySelector('#glxAjouter').addEventListener('click', async () => {
+    const nouveau = await ficheLieu(null);
+    if(!nouveau) return;
+
+    const liste = lieuxActuels();
+    if(liste.some(x => x.cle === nouveau.cle)){
+      showToast('Cet emplacement existe déjà.');
+      return;
+    }
+    garderLieux(liste.concat([nouveau]));
+    showToast('Ajouté ✅');
+    dessiner();
+  });
+
+  boite.querySelector('#glxRaz').addEventListener('click', async () => {
+    if(!await confirmer('Revenir à la liste d\'origine ?\n\n' +
+        'Tes ajouts et tes modifications seront perdus.')) return;
+    garderLieux(EMPLACEMENTS_BASE);
+    showToast('Liste d\'origine rétablie ✅');
+    dessiner();
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    afficherEcran();
+  });
+  r.appendChild(bF);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  dessiner();
+}
+
+
+/* La fiche d'un emplacement */
+function ficheLieu(l){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(480px, 94vw);max-height:88vh;overflow-y:auto;';
+
+    boite.innerHTML =
+      '<h3>' + (l ? String(l.nom).replace(/</g, '&lt;') : 'Nouvel emplacement') +
+      '</h3>' +
+
+      '<div class="duo">' +
+        '<div><label for="flEmoji">Émoji</label>' +
+          '<input type="text" id="flEmoji" maxlength="4" ' +
+            'style="text-align:center;font-size:24px;padding:8px;"></div>' +
+        '<div><label for="flNom">Nom</label>' +
+          '<input type="text" id="flNom" placeholder="Ex : Parking arrière"></div>' +
+      '</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 10px;' +
+        'line-height:1.5;">Colle un émoji depuis ton clavier, ou choisis ' +
+        'ci-dessous.</div>' +
+
+      '<div id="flPalette" style="display:flex;flex-wrap:wrap;gap:6px;' +
+        'margin-bottom:14px;"></div>' +
+
+      '<label for="flSms">Ce que reçoit l\'élève dans son SMS</label>' +
+      '<textarea id="flSms" rows="3" ' +
+        'placeholder="Laisse vide pour ne rien dire."></textarea>' +
+
+      '<label style="display:flex;align-items:center;gap:10px;' +
+        'text-transform:none;font-size:15px;color:var(--cream);margin:4px 0 10px;">' +
+        '<input type="checkbox" id="flSansVeh" style="width:19px;height:19px;">' +
+        'Pas de véhicule à cet endroit</label>';
+
+    if(l){
+      boite.querySelector('#flEmoji').value = l.emoji || '';
+      boite.querySelector('#flNom').value = l.nom || '';
+      boite.querySelector('#flSms').value = l.sms || '';
+      boite.querySelector('#flSansVeh').checked = !!l.sansVehicule;
+    }
+
+    const PALETTE = ['🛣️', '🅿️', '🏢', '🏍️', '🛵', '📱', '📚', '🖥️',
+                     '🚗', '🚙', '🏁', '⛽', '🔧', '🚦', '📍', '🏫',
+                     '🚏', '🌳', '🅰️', '🅱️'];
+    const zp = boite.querySelector('#flPalette');
+    PALETTE.forEach(e => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = e;
+      b.style.cssText = 'width:38px;height:38px;padding:0;border-radius:9px;' +
+        'border:1px solid var(--line);background:transparent;font-size:19px;' +
+        'cursor:pointer;margin:0;';
+      b.addEventListener('click', () => {
+        boite.querySelector('#flEmoji').value = e;
+      });
+      zp.appendChild(b);
+    });
+
+    const r = document.createElement('div');
+    r.className = 'btn-row';
+
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+    r.appendChild(bA);
+
+    const bO = document.createElement('button');
+    bO.className = 'btn btn-primary';
+    bO.textContent = l ? '💾 Enregistrer' : '➕ Ajouter';
+    bO.addEventListener('click', () => {
+      const nom = boite.querySelector('#flNom').value.trim();
+      if(!nom){ showToast('Donne-lui un nom.'); return; }
+
+      /* La clé ne change jamais : c'est elle qui est écrite dans
+         les cours déjà réglés. */
+      const cle = l ? l.cle
+                    : normaliserMot(nom).replace(/[^a-z0-9]/g, '') ||
+                      ('lieu' + Date.now());
+
+      document.body.removeChild(fond);
+      resolve({
+        cle: cle,
+        emoji: boite.querySelector('#flEmoji').value.trim(),
+        nom: nom,
+        sms: boite.querySelector('#flSms').value.trim(),
+        sansVehicule: boite.querySelector('#flSansVeh').checked
+      });
+    });
+    r.appendChild(bO);
+
+    boite.appendChild(r);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    setTimeout(() => boite.querySelector('#flNom').focus(), 100);
+  });
+}
+
+
+/* Les moniteurs, pour changer celui d'une ligne */
+async function remplirMoniteursEcran(sel, actuel){
+  let gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+
+  if(!gens.length){
+    try{
+      const d = await appelPrep({ action: 'moniteurs' });
+      gens = (d && d.moniteurs) || [];
+      if(typeof moniteursActifs !== 'undefined') moniteursActifs = gens;
+    }catch(e){}
+  }
+
+  /* Un moniteur qui n'est plus dans la liste reste proposé :
+     sinon la ligne changerait de main toute seule. */
+  if(actuel && gens.indexOf(actuel) === -1) gens = [actuel].concat(gens);
+
+  sel.innerHTML = '<option value="">— moniteur —</option>' +
+    gens.map(g => '<option value="' + String(g).replace(/"/g, '&quot;') + '"' +
+      (g === actuel ? ' selected' : '') + '>' +
+      String(g).replace(/</g, '&lt;') + '</option>').join('');
+}
+
+
+/* Les véhicules de la flotte, chargés une fois pour tout l'écran */
+let flotteEcran = null;
+
+async function chargerFlotteEcran(){
+  if(flotteEcran !== null) return flotteEcran;
+  try{
+    const d = await appelPrep({ action: 'flotteList' });
+    flotteEcran = (d && d.vehicules) || [];
+  }catch(e){ flotteEcran = []; }
+  return flotteEcran;
+}
+
+/* Remplit une liste de véhicules, en gardant celui déjà choisi */
+async function remplirVehiculesEcran(sel, actuel){
+  const liste = (await chargerFlotteEcran())
+    .filter(v => v.etat !== 'vendu' && v.categorie !== 'remorque');
+
+  const connu = liste.some(v => v.nom === actuel);
+
+  sel.innerHTML = '<option value="">— aucun —</option>' +
+    liste.map(v =>
+      '<option value="' + String(v.nom).replace(/"/g, '&quot;') + '"' +
+      (v.indisponible ? ' disabled' : '') + '>' +
+      (v.indisponible ? '⛔ ' : '') + v.nom +
+      (v.immat ? ' · ' + v.immat : '') +
+      (v.indisponible ? ' — ' + (v.motifIndispo || 'au garage') : '') +
+      '</option>').join('') +
+    '<option value="autre">⌨️ Autre véhicule…</option>';
+
+  /* Un véhicule saisi à la main, ou sorti de la flotte depuis :
+     on le garde plutôt que de l'effacer en silence. */
+  if(actuel && !connu){
+    sel.value = 'autre';
+    const champ = sel.parentElement
+      ? sel.parentElement.querySelector('input[placeholder="Véhicule"]') : null;
+    if(champ){ champ.value = actuel; champ.style.display = 'block'; }
+  }else{
+    sel.value = actuel || '';
+  }
+}
+
+
+/* Les véhicules de l'auto-école. Une liste plutôt qu'un champ
+   libre : c'est toujours l'un ou l'autre, et une faute de frappe
+   sur l'écran de l'accueil se voit de loin. */
+const MODELES_VEHICULE = ['', 'A3', 'Q3', 'Simu'];
+
+/* « A3 4 » se sépare en modèle et numéro pour le formulaire */
+function decouperVehicule(v){
+  const t = String(v || '').trim();
+  if(!t) return { modele: '', numero: '' };
+
+  const m = t.match(/^(A3|Q3|Simu)\s*(.*)$/i);
+  if(m){
+    return {
+      modele: m[1].charAt(0).toUpperCase() +
+              m[1].slice(1).toLowerCase().replace(/^3$/, '3'),
+      numero: m[2].trim()
+    };
+  }
+  /* Une saisie ancienne, sans modèle : elle reste dans le numéro */
+  return { modele: '', numero: t };
+}
+
+
+/* ============================================================
+   LE PLANNING DE L'ÉCRAN
+
+   Ce que l'accueil affiche aujourd'hui. L'heure se règle ici :
+   elle est écrite dans la note de la préparation, et l'écran la
+   reprend au prochain rafraîchissement.
+   ============================================================ */
+function blocPlanning(){
+  const d = document.createElement('details');
+  d.open = true;
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:14px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📅 Le planning affiché aujourd\'hui</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+  z.innerHTML = '<div style="font-size:12px;color:var(--muted);">Lecture…</div>';
+  d.appendChild(z);
+
+  chargerPlanningEcran(z);
+  return d;
+}
+
+async function chargerPlanningEcran(z){
+  let liste = [];
+  try{
+    const r = await appelPrep({ action: 'ecranPlanning' });
+    liste = (r && r.planning) || [];
+  }catch(e){
+    z.innerHTML = '<div style="font-size:12px;color:var(--warn-text);">⚠️ ' +
+                  e.message.replace(/</g, '&lt;') + '</div>';
+    return;
+  }
+
+  dessinerLignes(liste, z);
+}
+
+
+function dessinerLignes(liste, z){
+  z.innerHTML = '';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-bottom:10px;padding:10px;font-size:13px;';
+  b.textContent = '➕ Ajouter une ligne à la main';
+  b.addEventListener('click', () => ouvrirLigneManuelle(z));
+  z.appendChild(b);
+
+  if(!liste.length){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
+    v.innerHTML = 'Aucun cours préparé pour aujourd\'hui.<br>' +
+      'L\'écran affichera « Aucun cours prévu ».';
+    z.appendChild(v);
+    return;
+  }
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
+  const auj = new Date();
+  const maintenant = String(auj.getHours()).padStart(2, '0') + ':' +
+                     String(auj.getMinutes()).padStart(2, '0');
+  const passes = liste.filter(x => x.heure && x.heure < maintenant).length;
+
+  const caches = liste.filter(x => x.masque).length;
+
+  a.innerHTML = liste.length + ' ligne(s) · heure, véhicule et emplacement se ' +
+    'règlent ici. L\'écran se met à jour dans la minute.' +
+    (caches ? '<br><span style="color:var(--muted);">🗑️ ' + caches +
+      ' retirée(s) de l\'écran · ↩️ pour les remettre.</span>' : '') +
+    (passes ? '<br><span style="color:var(--muted);">🕐 ' + passes +
+      ' cours déjà passé(s) : ils ont quitté l\'écran mais restent ' +
+      'modifiables ici.</span>' : '');
+  z.appendChild(a);
+
+  liste.forEach(c => z.appendChild(lignePlanningEcran(c, liste, z)));
+}
+
+function lignePlanningEcran(c, liste, z){
+  /* Un cours passé n'est plus à l'écran : on le grise ici pour
+     qu'on comprenne pourquoi il n'y apparaît pas. */
+  const n = new Date();
+  const maintenant = String(n.getHours()).padStart(2, '0') + ':' +
+                     String(n.getMinutes()).padStart(2, '0');
+  const passe = c.heure && c.heure < maintenant;
+
+  const l = document.createElement('div');
+  l.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);padding:9px 0;' +
+    (passe || c.masque ? 'opacity:.45;' : '');
+
+  /* ---- Première ligne : heure, élève, ordre ---- */
+  const h1 = document.createElement('div');
+  h1.style.cssText = 'display:flex;gap:8px;align-items:center;';
+
+  const h = document.createElement('input');
+  h.type = 'time';
+  h.value = c.heure || '';
+  h.style.cssText = 'width:100px;flex-shrink:0;margin:0;padding:7px 8px;font-size:14px;';
+  h.addEventListener('change', () => {
+    c.heure = h.value;
+    enregistrerLigne(c);
+  });
+  h1.appendChild(h);
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.35;';
+  t.innerHTML = '<strong>' + (c.eleveComplet || c.eleve || '—').replace(/</g, '&lt;') +
+    '</strong>' + (c.manuel ? ' <span style="font-size:10px;color:var(--muted);">' +
+                              'ajouté à la main</span>' : '') +
+    (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
+                'retiré de l\'écran</span>' : '') +
+    '<div style="font-size:11px;color:var(--muted);">' +
+      '👁️ ' + abregeNom(c.eleveComplet || c.eleve) +
+    '</div>';
+  h1.appendChild(t);
+
+  /* Le moniteur, changeable : un rappel mal saisi ou un échange
+     de dernière minute ne doit pas obliger à tout refaire. */
+  const selMon = document.createElement('select');
+  selMon.className = 'choixMoniteur';
+  selMon.style.cssText = 'width:auto;max-width:120px;margin:0;padding:5px 7px;' +
+    'font-size:11px;flex-shrink:0;';
+  remplirMoniteursEcran(selMon, c.moniteur || '');
+  selMon.addEventListener('change', () => {
+    c.moniteur = selMon.value;
+    enregistrerLigne(c);
+  });
+  h1.appendChild(selMon);
+
+  /* Monter et descendre dans l'affichage */
+  [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:5px 7px;font-size:11px;margin:0;flex-shrink:0;';
+    b.textContent = signe;
+    b.addEventListener('click', async () => {
+      const i = liste.indexOf(c);
+      const j = i + sens;
+      if(i === -1 || j < 0 || j >= liste.length) return;
+
+      const a = liste[i]; liste[i] = liste[j]; liste[j] = a;
+      liste.forEach((x, n) => { x.ordre = n + 1; });
+
+      dessinerLignes(liste, z);
+      try{
+        await Promise.all([liste[i], liste[j]].map(x => enregistrerLigne(x, true)));
+      }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+    });
+    h1.appendChild(b);
+  });
+
+  l.appendChild(h1);
+
+  /* ---- Seconde ligne : véhicule et emplacement ---- */
+  const h2 = document.createElement('div');
+  h2.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:6px;' +
+    'padding-left:108px;';
+
+  /* Le modèle d'un côté, le numéro de l'autre : c'est ainsi qu'on
+     désigne un véhicule ici, et le taper en entier à chaque fois
+     n'apporte rien. */
+  /* Les véhicules de la flotte, avec leur immatriculation. Le
+     dernier choix ouvre la saisie libre : un véhicule de prêt ou
+     de location n'est pas dans la flotte. */
+  const modele = document.createElement('select');
+  modele.className = 'choixVehicule';
+  modele.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 8px;font-size:13px;';
+
+  const num = document.createElement('input');
+  num.type = 'text';
+  num.placeholder = 'Véhicule';
+  num.style.cssText = 'flex:1;min-width:0;margin:0;padding:6px 9px;font-size:13px;' +
+    'display:none;';
+  num.value = c.vehicule || '';
+
+  remplirVehiculesEcran(modele, c.vehicule || '');
+
+  const majVeh = () => {
+    if(modele.value === 'autre'){
+      num.style.display = 'block';
+      c.vehicule = num.value.trim();
+    }else{
+      num.style.display = 'none';
+      c.vehicule = modele.value;
+    }
+    enregistrerLigne(c);
+  };
+  modele.addEventListener('change', () => {
+    if(modele.value === 'autre') setTimeout(() => num.focus(), 60);
+    majVeh();
+  });
+  num.addEventListener('change', majVeh);
+
+  h2.appendChild(modele);
+  h2.appendChild(num);
+
+  /* Un peu d'air avant le choix du lieu */
+  const espace = document.createElement('span');
+  espace.style.cssText = 'flex:1;min-width:0;';
+  h2.appendChild(espace);
+
+  const lieu = document.createElement('select');
+  lieu.style.cssText = 'width:auto;flex-shrink:0;margin:0;padding:6px 9px;font-size:13px;';
+  lieu.innerHTML =
+    '<option value="">— où —</option>' +
+    '<option value="devant">🛣️ Devant</option>' +
+    '<option value="cour">🅿️ Cour intérieure</option>' +
+    '<option value="moto">🏍️ Moto</option>' +
+    '<option value="scooter">🛵 Scooter</option>' +
+    '<option value="bureau">🏢 Bureau</option>' +
+    '<option value="tablettes">📱 Salle des tablettes</option>' +
+    '<option value="cours">📚 Salle de cours</option>' +
+    '<option value="simulateur">🖥️ Simulateur</option>';
+  lieu.value = c.lieu || '';
+
+  /* Une séance en salle n'a pas de véhicule : le champ s'efface
+     plutôt que de laisser croire qu'il faut le remplir. */
+  const majSelonLieu = () => {
+    const enSalle = lieuSansVehicule(lieu.value);
+    modele.style.display = enSalle ? 'none' : '';
+    num.style.display = (enSalle || modele.value !== 'autre') ? 'none' : '';
+  };
+
+  lieu.addEventListener('change', () => {
+    c.lieu = lieu.value;
+    /* Le véhicule d'une séance qui n'en a plus besoin s'efface */
+    if(lieuSansVehicule(lieu.value)){
+      c.vehicule = '';
+      modele.value = '';
+      num.value = '';
+    }
+    majSelonLieu();
+    enregistrerLigne(c);
+  });
+  majSelonLieu();
+
+  h2.appendChild(lieu);
+
+  /* Toute ligne se retire de l'écran. Celle ajoutée à la main est
+     supprimée ; celle qui vient d'un cours est seulement masquée —
+     la préparation du moniteur ne nous appartient pas. */
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+    'flex-shrink:0;' + (c.masque ? '' : 'color:var(--red);border-color:var(--red);');
+  bSup.textContent = c.masque ? '↩️' : '🗑️';
+  bSup.title = c.masque
+    ? 'Remettre à l\'écran'
+    : (c.manuel ? 'Supprimer cette ligne'
+                : 'Retirer de l\'écran — le cours du moniteur est conservé');
+
+  bSup.addEventListener('click', async () => {
+    /* Déjà masquée : on la remet, sans rien demander */
+    if(c.masque){
+      c.masque = false;
+      try{
+        await enregistrerLigne(c, true);
+        showToast('Remise à l\'écran ✅');
+        chargerPlanningEcran(z);
+      }catch(e){
+        c.masque = true;
+        showToast('Impossible : ' + e.message);
+      }
+      return;
+    }
+
+    if(c.manuel){
+      if(!await confirmer('Supprimer cette ligne de l\'affichage ?')) return;
+      try{
+        await appelPrep({ action: 'ecranLigneDelete', id: c.id });
+        showToast('Supprimée ✅');
+        chargerPlanningEcran(z);
+      }catch(e){ showToast('Impossible : ' + e.message); }
+      return;
+    }
+
+    if(!await confirmer('Retirer ' + (c.eleveComplet || c.eleve) +
+        ' de l\'écran ?\n\nSon cours reste dans les prochains cours du ' +
+        'moniteur : seul l\'affichage est concerné.')) return;
+
+    c.masque = true;
+    try{
+      await enregistrerLigne(c, true);
+      showToast('Retirée de l\'écran ✅');
+      chargerPlanningEcran(z);
+    }catch(e){
+      c.masque = false;
+      showToast('Impossible : ' + e.message);
+    }
+  });
+  h2.appendChild(bSup);
+
+  l.appendChild(h2);
+  return l;
+}
+
+
+/* Enregistre les détails d'affichage d'une ligne */
+async function enregistrerLigne(c, silencieux){
+  try{
+    await appelPrep({
+      action: 'ecranLigneSet',
+      id: c.manuel ? c.id : '',
+      idPrep: c.manuel ? '' : c.id,
+      jour: todayLocal(),
+      eleve: c.eleveComplet || c.eleve || '',
+      moniteur: c.moniteur || '',
+      heure: c.heure || '',
+      vehicule: c.vehicule || '',
+      lieu: c.lieu || '',
+      ordre: c.ordre || 0,
+      masque: c.masque ? 'oui' : '',
+      par: ACCES.moniteur || ''
+    });
+    if(!silencieux) showToast('Enregistré ✅');
+  }catch(e){
+    if(!silencieux) showToast('Impossible : ' + e.message);
+    throw e;
+  }
+}
+
+
+/* Ajouter une ligne qui n'a pas de préparation */
+function ouvrirLigneManuelle(z){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(460px, 94vw)';
+
+  boite.innerHTML =
+    '<h3>Ajouter au planning affiché</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      "Pour ce qui n'a pas de cours préparé : un rendez-vous, une reprise, " +
+      'un créneau au simulateur.</div>' +
+    '<label for="lmEleve">Élève ou intitulé</label>' +
+    '<input type="text" id="lmEleve" list="listeEleves" autocomplete="off" ' +
+      'placeholder="Ex : Ambre Guillebon, ou Réunion AAC">' +
+    '<div class="duo">' +
+      '<div><label for="lmHeure">Heure</label><input type="time" id="lmHeure"></div>' +
+      '<div><label for="lmMon">Moniteur</label><select id="lmMon"></select></div>' +
+    '</div>' +
+    '<div class="duo">' +
+      '<div><label for="lmMod">Véhicule</label>' +
+        '<select id="lmMod"><option value="">— chargement —</option></select>' +
+        '<input type="text" id="lmVeh" placeholder="Lequel ?" ' +
+          'style="display:none;margin-top:6px;"></div>' +
+      '<div><label for="lmLieu">Où</label><select id="lmLieu">' +
+        '<option value="">— non précisé —</option>' +
+        '<option value="devant">🛣️ Devant</option>' +
+        '<option value="cour">🅿️ Cour intérieure</option>' +
+        '<option value="moto">🏍️ Moto</option>' +
+        '<option value="scooter">🛵 Scooter</option>' +
+        '<option value="bureau">🏢 Bureau</option>' +
+        '<option value="tablettes">📱 Salle des tablettes</option>' +
+        '<option value="cours">📚 Salle de cours</option>' +
+        '<option value="simulateur">🖥️ Simulateur</option>' +
+      '</select></div>' +
+    '</div>';
+
+  remplirListeLieux(boite.querySelector('#lmLieu'), '', false);
+
+  /* La liste des véhicules, et la saisie libre qui va avec */
+  const selMod = boite.querySelector('#lmMod');
+  const champLibre = boite.querySelector('#lmVeh');
+  remplirVehiculesEcran(selMod, '');
+  selMod.addEventListener('change', () => {
+    const libre = (selMod.value === 'autre');
+    champLibre.style.display = libre ? 'block' : 'none';
+    if(libre) setTimeout(() => champLibre.focus(), 60);
+  });
+
+  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  boite.querySelector('#lmMon').innerHTML = '<option value="">— aucun —</option>' +
+    gens.map(g => '<option value="' + String(g).replace(/"/g, '&quot;') + '">' +
+                  g + '</option>').join('');
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '➕ Ajouter';
+  bOk.addEventListener('click', async () => {
+    const nom = boite.querySelector('#lmEleve').value.trim();
+    if(!nom){ showToast('Indique un élève ou un intitulé.'); return; }
+
+    bOk.disabled = true;
+    bOk.textContent = 'Ajout…';
+    try{
+      await appelPrep({
+        action: 'ecranLigneSet',
+        jour: todayLocal(),
+        eleve: nom,
+        moniteur: boite.querySelector('#lmMon').value,
+        heure: boite.querySelector('#lmHeure').value,
+        vehicule: (boite.querySelector('#lmMod').value === 'autre')
+                    ? boite.querySelector('#lmVeh').value.trim()
+                    : boite.querySelector('#lmMod').value,
+        lieu: boite.querySelector('#lmLieu').value,
+        ordre: 0,
+        par: ACCES.moniteur || ''
+      });
+      document.body.removeChild(fond);
+      showToast('Ajouté au planning ✅');
+      chargerPlanningEcran(z);
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = '➕ Ajouter';
+    }
+  });
+  r.appendChild(bOk);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#lmEleve').focus(), 100);
+}
+
+
+/* « Ambre Guillebon » devient « Ambre G. », comme sur l'écran */
+function abregeNom(nom){
+  const b = String(nom || '').trim().split(/\s+/);
+  if(b.length < 2) return b[0] || '';
+  return b[0] + ' ' + b[b.length - 1].charAt(0).toUpperCase() + '.';
+}
+
+
+/* Le jeton, demandé une fois au Worker : il le connaît déjà, et
+   le recopier à la main dans chaque adresse était une source
+   d'oubli. */
+let jetonEcran = null;
+
+async function chargerJetonEcran(){
+  if(jetonEcran !== null) return jetonEcran;
+  try{
+    const d = await appelPrep({ action: 'ecranJeton' });
+    jetonEcran = (d && d.jeton) || '';
+  }catch(e){ jetonEcran = ''; }
+  return jetonEcran;
+}
+
+
+/* Les adresses des deux écrans, à copier une fois pour toutes */
+function blocAdresses(){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:14px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📺 Adresses des écrans</summary>';
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);margin:10px 0;line-height:1.55;';
+  a.innerHTML = 'À ouvrir sur le téléviseur, en plein écran. Le jeton est déjà ' +
+    'dans l\'adresse : copie-la telle quelle.<br>Elles ne donnent accès qu\'à ' +
+    'l\'affichage : ni bilans, ni élèves, ni réglages.';
+  d.appendChild(a);
+
+  const base = 'https://ec-sb.github.io/Bilan-conduite/ecran.html';
+  const champs = [];
+
+  [['🏠 Accueil — avec le planning', 'accueil&anonyme=1'],
+   ['🪟 Vitrine — sans le planning', 'vitrine']]
+  .forEach(([nom, suite]) => {
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;font-weight:700;margin:10px 0 4px;';
+    t.textContent = nom;
+    d.appendChild(t);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+
+    const z = document.createElement('input');
+    z.type = 'text';
+    z.value = 'Lecture du jeton…';
+    z.readOnly = true;
+    z.style.cssText = 'flex:1;min-width:0;font-size:12px;padding:9px 10px;margin:0;';
+    z.addEventListener('focus', () => z.select());
+    r.appendChild(z);
+    champs.push([z, suite]);
+
+    /* Copier d'un geste : l'adresse est longue et se recopie mal */
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:9px 11px;font-size:12px;margin:0;flex-shrink:0;';
+    b.textContent = '📋';
+    b.title = 'Copier l\'adresse';
+    b.addEventListener('click', async () => {
+      try{
+        await navigator.clipboard.writeText(z.value);
+        showToast('Adresse copiée ✅');
+      }catch(e){
+        z.focus(); z.select();
+        showToast('Sélectionnée : copie-la avec Ctrl+C');
+      }
+    });
+    r.appendChild(b);
+
+    d.appendChild(r);
+  });
+
+  /* Le jeton arrive après : on remplit les adresses quand il est là */
+  chargerJetonEcran().then(j => {
+    champs.forEach(([z, suite]) => {
+      z.value = j
+        ? base + '?t=' + encodeURIComponent(j) + '&ou=' + suite
+        : base + '?t=JETON_ABSENT&ou=' + suite;
+    });
+    if(!j){
+      a.innerHTML = '⚠️ <strong>ECRAN_TOKEN n\'est pas réglé dans Cloudflare.</strong><br>' +
+        'Ajoute cette variable, puis reviens ici : les adresses se rempliront seules.';
+      a.style.color = 'var(--warn-text)';
+    }
+  });
+
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;';
+  n.innerHTML = '💡 <strong>anonyme=1</strong> affiche « Ambre G. » plutôt que le nom ' +
+    'entier : l\'écran d\'accueil est vu par d\'autres élèves et par des visiteurs. ' +
+    'Retire-le si tu préfères les noms complets.';
+  d.appendChild(n);
+
+  return d;
+}
+
+
+/* Une diapositive dans la liste */
+function ligneDiapo(d, rang){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+    'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+    'margin-bottom:6px;' + (d.actif ? '' : 'opacity:.5;');
+
+  /* L'aperçu : l'image, ou le type */
+  const ap = document.createElement('div');
+  ap.style.cssText = 'width:52px;height:38px;flex-shrink:0;border-radius:7px;' +
+    'background:var(--navy);display:flex;align-items:center;justify-content:center;' +
+    'font-size:20px;overflow:hidden;';
+  if(d.image){
+    const i = document.createElement('img');
+    i.src = d.image;
+    i.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    ap.appendChild(i);
+  }else{
+    ap.textContent = (d.type === 'panneau') ? '📝'
+                   : (d.type === 'video') ? '🎬'
+                   : (d.type === 'bandeau') ? '📢' : '💬';
+  }
+  l.appendChild(ap);
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.45;cursor:pointer;';
+  const ouTexte = { accueil:'🏠 accueil', vitrine:'🪟 vitrine', 'les-deux':'🏠🪟 les deux' };
+  const roles = { fond:'🖼️ fond fixe', panneau:'📝 texte fixe',
+                  bandeau:'📢 défilant' };
+  const estVideo = (d.type === 'video');
+  const fixe = !!roles[d.type];
+
+  t.innerHTML =
+    '<strong>' + (d.titre || d.contenu || 'Sans titre').slice(0, 40)
+      .replace(/</g, '&lt;') + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      (fixe ? roles[d.type] + ' · ' : '') + (estVideo ? '🎬 vidéo · ' : '') +
+      (ouTexte[d.ou] || d.ou) +
+      (fixe ? '' : ' · ' + (Number(d.duree) === 0 ? '🔁 en boucle'
+                                                  : d.duree + ' s mini')) +
+      (d.du || d.au ? ' · du ' + (d.du || '…') + ' au ' + (d.au || '…') : '') +
+      (d.actif ? '' : ' · en pause') +
+    '</div>';
+  t.addEventListener('click', () => ouvrirEditeurDiapo(d));
+  l.appendChild(t);
+
+  /* Monter et descendre : l'ordre du carrousel */
+  [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;flex-shrink:0;';
+    b.textContent = signe;
+    b.addEventListener('click', async () => {
+      const j = rang + sens;
+      if(j < 0 || j >= diaposEcran.length) return;
+
+      const a = diaposEcran[rang];
+      diaposEcran[rang] = diaposEcran[j];
+      diaposEcran[j] = a;
+      diaposEcran.forEach((x, n) => { x.ordre = n + 1; });
+
+      afficherEcran();
+      try{
+        await Promise.all([diaposEcran[rang], diaposEcran[j]].map(x =>
+          appelPrep({ action: 'ecranSet', id: x.id, type: x.type, titre: x.titre,
+                      contenu: x.contenu, ou: x.ou, duree: x.duree,
+                      actif: x.actif ? 'oui' : 'non', du: x.du, au: x.au,
+                      ordre: x.ordre, par: ACCES.moniteur || '' })));
+      }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+    });
+    l.appendChild(b);
+  });
+
+  /* En pause : elle reste, mais ne passe plus */
+  const bP = document.createElement('button');
+  bP.className = 'btn btn-secondary';
+  bP.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;';
+  bP.textContent = d.actif ? '⏸️' : '▶️';
+  bP.title = d.actif ? 'Mettre en pause' : 'Remettre à l\'écran';
+  bP.addEventListener('click', async () => {
+    d.actif = !d.actif;
+    afficherEcran();
+    try{
+      await appelPrep({ action: 'ecranSet', id: d.id, type: d.type, titre: d.titre,
+                        contenu: d.contenu, ou: d.ou, duree: d.duree,
+                        actif: d.actif ? 'oui' : 'non', du: d.du, au: d.au,
+                        ordre: d.ordre, par: ACCES.moniteur || '' });
+    }catch(e){
+      d.actif = !d.actif;
+      afficherEcran();
+      showToast('Impossible : ' + e.message);
+    }
+  });
+  l.appendChild(bP);
+
+  return l;
+}
+
+
+/* ============================================================
+   CRÉER OU MODIFIER UNE DIAPOSITIVE
+   ============================================================ */
+
+function ouvrirEditeurDiapo(d){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(540px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML =
+    '<h3>' + (d ? 'Modifier la diapositive' : 'Nouvelle diapositive') + '</h3>' +
+
+    '<label for="diType">Rôle de cette diapositive</label>' +
+    '<select id="diType">' +
+      '<option value="message">🔄 Elle tourne dans le carrousel</option>' +
+      '<option value="video">🎬 Vidéo</option>' +
+      '<option value="bandeau">📢 Texte défilant en bas</option>' +
+      '<option value="fond">🖼️ Fond fixe de la vitrine</option>' +
+      '<option value="panneau">📝 Texte fixe à gauche de la vitrine</option>' +
+    '</select>' +
+    '<div id="diAideType" style="font-size:11px;color:var(--muted);' +
+      'margin:-8px 0 12px;line-height:1.5;"></div>' +
+
+    '<label for="diTitre">Titre (facultatif)</label>' +
+    '<input type="text" id="diTitre" placeholder="Ex : Portes ouvertes">' +
+
+    '<label for="diTexte">Message</label>' +
+    '<textarea id="diTexte" rows="4" placeholder="Le texte affiché en grand. ' +
+      'Laisse vide si tu ne mets qu\'une image."></textarea>' +
+
+    '<label>Image (facultatif)</label>' +
+    '<div id="diApercu" style="margin-bottom:8px;"></div>' +
+    '<div id="diColler" tabindex="0" style="border:2px dashed var(--line);' +
+      'border-radius:10px;padding:14px 12px;text-align:center;font-size:13px;' +
+      'color:var(--muted);cursor:pointer;margin-bottom:6px;">' +
+      '📋 <strong>Colle ton image ici</strong><br>' +
+      '<span style="font-size:11px;">Ctrl+V, ou fais glisser le fichier</span></div>' +
+    '<input type="file" id="diFichier" accept="image/*" ' +
+      'style="font-size:13px;padding:9px;margin-bottom:12px;">' +
+
+    '<div class="duo">' +
+      '<div><label for="diOu">Sur quel écran</label>' +
+        '<select id="diOu">' +
+          '<option value="les-deux">🏠🪟 Les deux</option>' +
+          '<option value="accueil">🏠 Accueil seulement</option>' +
+          '<option value="vitrine">🪟 Vitrine seulement</option>' +
+        '</select></div>' +
+      '<div><label for="diDuree">Durée à l\'écran</label>' +
+        '<select id="diDuree">' +
+          '<option value="6">6 secondes</option>' +
+          '<option value="10">10 secondes</option>' +
+          '<option value="15" selected>15 secondes</option>' +
+          '<option value="25">25 secondes</option>' +
+          '<option value="40">40 secondes</option>' +
+          '<option value="60">1 minute</option>' +
+          '<option value="120">2 minutes</option>' +
+          '<option value="300">5 minutes</option>' +
+          '<option value="0">🔁 En boucle</option>' +
+        '</select></div>' +
+    '</div>' +
+
+    '<div class="duo">' +
+      '<div><label for="diDu">À partir du (facultatif)</label>' +
+        '<input type="date" id="diDu"></div>' +
+      '<div><label for="diAu">Jusqu\'au (facultatif)</label>' +
+        '<input type="date" id="diAu"></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'Sans dates, elle passe en permanence. Avec, elle apparaît et disparaît ' +
+      'toute seule — pratique pour une porte ouverte ou une fermeture.</div>';
+
+  let imageChoisie = (d && d.image) || '';
+
+  /* Le rôle change ce qui compte : un fond n'a pas de durée, un
+     panneau n'a pas d'image. */
+  const selType = boite.querySelector('#diType');
+  const aideType = boite.querySelector('#diAideType');
+
+  const majSelonType = () => {
+    const t = selType.value;
+    const explications = {
+      message: 'Elle passe à l\'écran avec les autres, chacune son tour.',
+      video: 'Colle l\'adresse du fichier .mp4 dans le champ Message. ' +
+             'Elle est lue sans le son et JAMAIS coupée : la durée choisie ' +
+             'est arrondie au tour complet. « En boucle » la fait tourner ' +
+             'sans fin si elle est seule à l\'écran.',
+      bandeau: 'Défile en permanence en bas de l\'écran, pendant que le reste ' +
+               'tourne. Plusieurs textes défilants se suivent à la queue leu leu.',
+      fond: 'Image affichée en permanence derrière tout le reste, sur la ' +
+            'vitrine. Sans elle, le dégradé vert par défaut s\'applique.',
+      panneau: 'Texte affiché en permanence à gauche de la vitrine, pendant ' +
+               'que les photos tournent à droite. Une seule à la fois.'
+    };
+    aideType.textContent = explications[t] || '';
+
+    /* Ce qui ne sert pas se masque plutôt que d'induire en erreur */
+    const ligneDuree = boite.querySelector('#diDuree').closest('div');
+    if(ligneDuree){
+      ligneDuree.style.display = (t === 'message' || t === 'video') ? 'block' : 'none';
+    }
+
+    /* Une vidéo, un panneau et un bandeau n'ont pas d'image */
+    const sansImage = (t === 'panneau' || t === 'video' || t === 'bandeau');
+    ['#diColler', '#diFichier', '#diApercu'].forEach(s => {
+      const e = boite.querySelector(s);
+      if(e) e.style.display = sansImage ? 'none' : '';
+    });
+
+    /* Un bandeau n'a pas de titre : tout tient dans le message */
+    const lblTitre = boite.querySelector('label[for="diTitre"]');
+    const zTitre = boite.querySelector('#diTitre');
+    if(lblTitre && zTitre){
+      const cacher = (t === 'bandeau');
+      lblTitre.style.display = cacher ? 'none' : '';
+      zTitre.style.display = cacher ? 'none' : '';
+    }
+
+    /* Le champ « Message » change de rôle pour une vidéo */
+    const lblTexte = boite.querySelector('label[for="diTexte"]');
+    const zTexte = boite.querySelector('#diTexte');
+    if(lblTexte && zTexte){
+      if(t === 'video'){
+        lblTexte.textContent = 'Adresse de la vidéo';
+        zTexte.rows = 2;
+        zTexte.placeholder = 'https://ec-sb.github.io/Bilan-conduite/videos/ma-video.mp4';
+      }else if(t === 'bandeau'){
+        lblTexte.textContent = 'Le texte qui défile';
+        zTexte.rows = 2;
+        zTexte.placeholder = 'Ex : Inscriptions ouvertes pour la session de septembre — ' +
+                             '09 83 55 56 87';
+      }else{
+        lblTexte.textContent = 'Message';
+        zTexte.rows = 4;
+        zTexte.placeholder = 'Le texte affiché en grand. Laisse vide si tu ne ' +
+                             'mets qu\'une image.';
+      }
+    }
+  };
+
+  selType.addEventListener('change', majSelonType);
+
+  const apercu = boite.querySelector('#diApercu');
+  const montrer = () => {
+    apercu.innerHTML = imageChoisie
+      ? '<img src="' + imageChoisie + '" style="max-width:100%;max-height:170px;' +
+        'border-radius:9px;border:1px solid var(--line);">'
+      : '';
+  };
+
+  if(d){
+    selType.value = d.type === 'fond' ? 'fond'
+                  : d.type === 'panneau' ? 'panneau' : 'message';
+    boite.querySelector('#diTitre').value = d.titre || '';
+    boite.querySelector('#diTexte').value = d.contenu || '';
+    boite.querySelector('#diOu').value = d.ou || 'les-deux';
+    boite.querySelector('#diDuree').value = String(d.duree || 15);
+    boite.querySelector('#diDu').value = d.du || '';
+    boite.querySelector('#diAu').value = d.au || '';
+  }
+  montrer();
+  majSelonType();
+
+  /* Coller, glisser, ou choisir : les trois façons */
+  const prendre = async fichier => {
+    if(!fichier) return;
+    try{
+      imageChoisie = await compresserImage(fichier);
+      montrer();
+  majSelonType();
+    }catch(e){ showToast('Image refusée : ' + e.message); }
+  };
+
+  const zc = boite.querySelector('#diColler');
+  zc.addEventListener('click', () => zc.focus());
+  zc.addEventListener('paste', ev => {
+    const items = (ev.clipboardData && ev.clipboardData.items) || [];
+    for(let i = 0; i < items.length; i++){
+      if(items[i].type && items[i].type.indexOf('image') === 0){
+        ev.preventDefault();
+        prendre(items[i].getAsFile());
+        return;
+      }
+    }
+  });
+  ['dragenter', 'dragover'].forEach(n => zc.addEventListener(n, ev => {
+    ev.preventDefault();
+    zc.style.borderColor = 'var(--orange)';
+  }));
+  ['dragleave', 'drop'].forEach(n => zc.addEventListener(n, ev => {
+    ev.preventDefault();
+    zc.style.borderColor = 'var(--line)';
+  }));
+  zc.addEventListener('drop', ev => {
+    const f = (ev.dataTransfer && ev.dataTransfer.files || [])[0];
+    if(f && f.type.indexOf('image') === 0) prendre(f);
+  });
+  boite.querySelector('#diFichier').addEventListener('change', ev => {
+    prendre(ev.target.files && ev.target.files[0]);
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bAnn);
+
+  if(d){
+    const bSup = document.createElement('button');
+    bSup.className = 'btn btn-secondary';
+    bSup.style.cssText = 'color:var(--red);border-color:var(--red);';
+    bSup.textContent = '🗑️';
+    bSup.addEventListener('click', async () => {
+      if(!await confirmer('Supprimer cette diapositive ?')) return;
+      try{
+        await appelPrep({ action: 'ecranDelete', id: d.id });
         document.body.removeChild(fond);
         showToast('Supprimée ✅');
-        afficherPaie();
+        afficherEcran();
       }catch(e){ showToast('Impossible : ' + e.message); }
     });
     r.appendChild(bSup);
@@ -1303,342 +1559,60 @@ function ouvrirGasoil(g){
 
   const bOk = document.createElement('button');
   bOk.className = 'btn btn-primary';
-  bOk.textContent = g ? '💾 Enregistrer' : '➕ Ajouter';
+  bOk.textContent = d ? '💾 Enregistrer' : '➕ Ajouter';
   bOk.addEventListener('click', async () => {
-    const m = parseFloat(boite.querySelector('#gzMontant').value);
-    if(!m){ showToast('Indique le montant.'); return; }
+    const titre = boite.querySelector('#diTitre').value.trim();
+    const texte = boite.querySelector('#diTexte').value.trim();
+
+    if(selType.value === 'video' && !/^https?:\/\/.+\.(mp4|webm|ogg)/i.test(texte)){
+      showToast('Colle l\'adresse complète d\'un fichier .mp4');
+      return;
+    }
+    if(!titre && !texte && !imageChoisie){
+      showToast('Mets au moins un texte ou une image.');
+      return;
+    }
 
     bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
     try{
       await appelPrep({
-        action: 'paieGasoilSet',
-        id: g ? g.id : '',
-        idSalarie: boite.querySelector('#gzSal').value,
-        date: boite.querySelector('#gzDate').value,
-        montant: m,
-        vehicule: boite.querySelector('#gzVeh').value.trim(),
-        litres: boite.querySelector('#gzLitres').value || 0,
-        remarque: boite.querySelector('#gzRem').value.trim(),
+        action: 'ecranSet',
+        id: d ? d.id : '',
+        type: (selType.value === 'message')
+                ? (imageChoisie ? 'image' : 'message')
+                : selType.value,
+        titre: titre,
+        contenu: texte,
+        /* L'image n'est renvoyée que si elle a changé : elle est
+           lourde, et le serveur garde l'ancienne sinon. */
+        image: (imageChoisie && imageChoisie !== (d && d.image)) ? imageChoisie : '',
+        ou: boite.querySelector('#diOu').value,
+        duree: boite.querySelector('#diDuree').value,
+        actif: d ? (d.actif ? 'oui' : 'non') : 'oui',
+        du: boite.querySelector('#diDu').value,
+        au: boite.querySelector('#diAu').value,
+        ordre: d ? d.ordre : 0,
         par: ACCES.moniteur || ''
       });
       document.body.removeChild(fond);
-      showToast('Enregistré ✅');
-      afficherPaie();
+      showToast(d ? 'Diapositive modifiée ✅' : 'Diapositive ajoutée ✅');
+      afficherEcran();
     }catch(e){
       showToast('Impossible : ' + e.message);
       bOk.disabled = false;
+      bOk.textContent = d ? '💾 Enregistrer' : '➕ Ajouter';
     }
   });
   r.appendChild(bOk);
-  boite.appendChild(r);
-
-  /* Les dernières lignes du mois, pour vérifier d'un coup d'œil */
-  const duMois = gasoilPaie.filter(x => String(x.date).indexOf(moisPaie) === 0);
-  if(duMois.length){
-    const z = document.createElement('div');
-    z.style.cssText = 'border-top:1px solid var(--line);margin-top:16px;padding-top:12px;';
-    z.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);' +
-      'margin-bottom:8px;">Ce mois-ci — ' + enEuros(totalGasoil(duMois)) + '</div>';
-
-    duMois.slice(0, 20).forEach(x => {
-      const s = salariesPaie.find(y => y.id === x.idSalarie);
-      const l = document.createElement('div');
-      l.style.cssText = 'display:flex;gap:8px;padding:5px 0;font-size:13px;' +
-        'cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);';
-      l.innerHTML = '<span style="flex-shrink:0;width:52px;color:var(--muted);' +
-        'font-size:12px;">' + dateCourte(x.date) + '</span>' +
-        '<span style="flex:1;min-width:0;">' + (s ? s.nom : '?').replace(/</g, '&lt;') +
-        (x.vehicule ? ' <span style="color:var(--muted);font-size:11px;">' +
-          x.vehicule.replace(/</g, '&lt;') + '</span>' : '') + '</span>' +
-        '<strong style="flex-shrink:0;">' + enEuros(x.montant) + '</strong>';
-      l.addEventListener('click', () => {
-        document.body.removeChild(fond);
-        ouvrirGasoil(x);
-      });
-      z.appendChild(l);
-    });
-    boite.appendChild(z);
-  }
-
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-}
-
-
-/* ============================================================
-   LE RÉCAPITULATIF
-
-   Sur une période choisie : les heures, les jours d'absence et le
-   carburant, par salarié.
-   ============================================================ */
-
-let recapDu = '';
-let recapAu = '';
-
-function ouvrirRecap(){
-  if(!recapDu){
-    const an = (moisPaie || '').split('-')[0] || String(new Date().getFullYear());
-    recapDu = an + '-01-01';
-    recapAu = an + '-12-31';
-  }
-
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(680px, 96vw);max-height:90vh;overflow-y:auto;';
-
-  boite.innerHTML = '<h3>📊 Récapitulatif</h3>' +
-    '<div class="duo">' +
-      '<div><label for="rcDu">Du</label><input type="date" id="rcDu"></div>' +
-      '<div><label for="rcAu">Au</label><input type="date" id="rcAu"></div>' +
-    '</div>';
-
-  boite.querySelector('#rcDu').value = recapDu;
-  boite.querySelector('#rcAu').value = recapAu;
-
-  const zT = document.createElement('div');
-  boite.appendChild(zT);
-
-  const dessiner = () => {
-    recapDu = boite.querySelector('#rcDu').value;
-    recapAu = boite.querySelector('#rcAu').value;
-    zT.innerHTML = '';
-    zT.appendChild(tableauRecap(recapDu, recapAu));
-  };
-  ['#rcDu', '#rcAu'].forEach(x =>
-    boite.querySelector(x).addEventListener('change', dessiner));
-  dessiner();
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bAnn);
-
-  const bCop = document.createElement('button');
-  bCop.className = 'btn btn-primary';
-  bCop.textContent = '📋 Copier';
-  bCop.addEventListener('click', async () => {
-    try{
-      await navigator.clipboard.writeText(recapTexte(recapDu, recapAu));
-      showToast('Récapitulatif copié ✅');
-    }catch(e){ showToast('Copie impossible'); }
-  });
-  r.appendChild(bCop);
 
   boite.appendChild(r);
   fond.appendChild(boite);
   document.body.appendChild(fond);
-}
-
-/* Les totaux d'un salarié sur une période */
-function totauxPeriode(s, du, au){
-  let normal = 0, majore = 0;
-  semainesPaie.filter(w => w.idSalarie === s.id && w.semaine >= du && w.semaine <= au)
-    .forEach(w => {
-      const so = soldesSemaine(w, s);
-      normal += so.normal;
-      majore += so.majore;
-    });
-
-  let cp = 0, arret = 0;
-  absencesPaie.filter(a => a.idSalarie === s.id && a.du).forEach(a => {
-    if(a.du > au) return;
-    if(a.au && a.au < du) return;
-    const d = a.du < du ? du : a.du;
-    const f = a.au ? (a.au > au ? au : a.au) : au;
-    if(a.type === 'cp') cp += joursTravaillesEntre(d, f, JOURS_CP_SEMAINE);
-    else if(a.type === 'arret') arret += joursEntre(d, f);
-  });
-
-  const gaz = totalGasoil(gasoilPaie.filter(g =>
-    g.idSalarie === s.id && g.date >= du && g.date <= au));
-
-  return { normal: arrondiQuart(normal), majore: arrondiQuart(majore),
-           cp: cp, arret: arret, gasoil: gaz };
-}
-
-function tableauRecap(du, au){
-  const zone = document.createElement('div');
-  zone.style.cssText = 'overflow-x:auto;margin-bottom:12px;';
-
-  const t = document.createElement('table');
-  t.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;min-width:520px;';
-
-  t.innerHTML = '<thead><tr>' +
-    ['Salarié', 'Normal', '25%', 'CP', 'Arrêt', 'Carburant']
-      .map((x, i) => '<th style="text-align:' + (i ? 'center' : 'left') +
-        ';padding:7px 8px;font-size:11px;color:var(--accent-text);' +
-        'border-bottom:1px solid var(--line);">' + x + '</th>').join('') +
-    '</tr></thead>';
-
-  const tb = document.createElement('tbody');
-  let tN = 0, tM = 0, tCp = 0, tAr = 0, tG = 0;
-
-  salariesPaie.filter(s => s.actif).forEach(s => {
-    const x = totauxPeriode(s, du, au);
-    tN += x.normal; tM += x.majore; tCp += x.cp; tAr += x.arret; tG += x.gasoil;
-
-    const tr = document.createElement('tr');
-    tr.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);';
-    tr.innerHTML =
-      '<td style="padding:7px 8px;font-weight:700;">' +
-        s.nom.replace(/</g, '&lt;') + '</td>' +
-      ['<span style="color:' + (x.normal < 0 ? 'var(--red)' : 'inherit') + ';">' +
-         (x.normal ? enHeures(x.normal) : '·') + '</span>',
-       '<span style="color:' + (x.majore < 0 ? 'var(--red)' : 'inherit') + ';">' +
-         (x.majore ? enHeures(x.majore) : '·') + '</span>',
-       x.cp ? x.cp + ' j' : '·',
-       x.arret ? x.arret + ' j' : '·',
-       x.gasoil ? enEuros(x.gasoil) : '·']
-        .map(v => '<td style="padding:7px 8px;text-align:center;' +
-          'font-variant-numeric:tabular-nums;">' + v + '</td>').join('');
-    tb.appendChild(tr);
-  });
-
-  const tr = document.createElement('tr');
-  tr.style.cssText = 'border-top:2px solid var(--line);font-weight:800;';
-  tr.innerHTML = '<td style="padding:8px;">Total</td>' +
-    [enHeures(tN), enHeures(tM), tCp + ' j', tAr + ' j', enEuros(tG)]
-      .map(v => '<td style="padding:8px;text-align:center;color:var(--accent-text);' +
-        'font-variant-numeric:tabular-nums;">' + v + '</td>').join('');
-  tb.appendChild(tr);
-
-  t.appendChild(tb);
-  zone.appendChild(t);
-  return zone;
-}
-
-function recapTexte(du, au){
-  const l = ['Récapitulatif du ' + dateCourte(du) + ' au ' + dateCourte(au), ''];
-  salariesPaie.filter(s => s.actif).forEach(s => {
-    const x = totauxPeriode(s, du, au);
-    const b = [];
-    if(x.majore) b.push(enHeures(x.majore) + ' à 25%');
-    if(x.normal) b.push(enHeures(x.normal) + ' normales');
-    if(x.cp) b.push(x.cp + ' j de CP');
-    if(x.arret) b.push(x.arret + ' j d\'arrêt');
-    if(x.gasoil) b.push(enEuros(x.gasoil) + ' de carburant');
-    if(b.length) l.push(s.nom + ' : ' + b.join(' · '));
-  });
-  return l.join('\n');
-}
-
-/* ============================================================
-   LE MESSAGE
-   ============================================================ */
-
-function composerMessagePaie(){
-  const lignes = ['Bonjour,', ''];
-  const moisTexte = moisEnToutesLettres(moisPaie);
-  if(moisTexte) lignes.push('Éléments variables pour ' + moisTexte + ' :', '');
-
-  salariesPaie.filter(s => s.actif).forEach(s => {
-    const t = totalMois(s);
-    const abs = absencesDuMois(s.id);
-
-    /* Un salarié sans rien à signaler n'encombre pas le message */
-    if(!t.normales && !t.majorees && !t.report && !abs.length) return;
-
-    const bouts = [];
-    if(t.majorees) bouts.push('Heures supplémentaires à 25% : ' + enHeures(t.majorees));
-    if(t.normales) bouts.push('Heures supplémentaires normales : ' + enHeures(t.normales));
-
-    abs.forEach(a => {
-      const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
-      bouts.push((ty ? ty.court : 'Absence') + ' ' + periodeTexte(a));
-      if(a.remarque) bouts.push(a.remarque);
-    });
-
-    if(t.report){
-      bouts.push('il reste ' + enHeures(t.report) + ' à rattraper');
-    }
-
-    const croises = chevauchements(abs);
-    if(croises) bouts.push(croises);
-
-    lignes.push('Pour ' + s.nom + ' : ' + bouts.join('. ') + '.');
-  });
-
-  lignes.push('', 'En vous remerciant par avance,', 'Cordialement,');
-  return lignes.join('\n');
-}
-
-function chevauchements(abs){
-  for(let i = 0; i < abs.length; i++){
-    for(let j = i + 1; j < abs.length; j++){
-      const a = abs[i], b = abs[j];
-      if(a.du <= (b.au || '9999-12-31') && b.du <= (a.au || '9999-12-31')){
-        return 'Attention, chevauchement entre ces absences : ' +
-               'je vous laisse voir comment cela se traite';
-      }
-    }
-  }
-  return '';
-}
-
-function moisEnToutesLettres(mois){
-  if(!mois) return '';
-  const [an, m] = mois.split('-').map(Number);
-  const noms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet',
-                'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  return (noms[m - 1] || '') + ' ' + an;
-}
-
-
-function ouvrirMessagePaie(){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(600px, 95vw);max-height:88vh;overflow-y:auto;';
-
-  boite.innerHTML = '<h3>✉️ Message pour la paie</h3>' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">' +
-      'Relis avant d\'envoyer : ce message rassemble ce qui a été saisi, ' +
-      'il ne remplace pas ton contrôle.</div>';
-
-  const z = document.createElement('textarea');
-  z.rows = 16;
-  z.value = composerMessagePaie();
-  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
-    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
-  boite.appendChild(z);
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bAnn);
-
-  const bCop = document.createElement('button');
-  bCop.className = 'btn btn-primary';
-  bCop.textContent = '📋 Copier';
-  bCop.addEventListener('click', async () => {
-    try{
-      await navigator.clipboard.writeText(z.value);
-      showToast('Message copié ✅');
-    }catch(e){
-      z.focus(); z.select();
-      showToast('Sélectionné : copie-le avec Ctrl+C');
-    }
-  });
-  r.appendChild(bCop);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
+  setTimeout(() => boite.querySelector('#diTitre').focus(), 100);
 }
 
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-paie.js'] = true;
+window.EC_MODULES['ec-ecran.js'] = true;
