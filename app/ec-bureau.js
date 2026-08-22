@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 13:22 — v395 */
+/* Déployé le 22/08/2026 à 12:39 — v503 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -388,6 +388,7 @@ async function afficherBureau(silencieux){
 
   /* Chaque liste se construit à part */
   afficherExamensBlancs(tous);
+  if(typeof afficherEBPrevus === 'function') afficherEBPrevus(tous);
   afficherSimulateurs(tous);
   afficherRdvPermis(tous);
   const prevus = afficherPermisPrevus(tous);
