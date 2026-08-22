@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 08:24 — v493 */
+/* Déployé le 22/08/2026 à 09:10 — v495 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -473,47 +473,6 @@ const TYPES_RAPPEL = [];
 const JOURS_RAPPEL = ['𝗗𝗘𝗠𝗔𝗜𝗡', "𝗔𝗨𝗝𝗢𝗨𝗥𝗗'𝗛𝗨𝗜", '𝗟𝗨𝗡𝗗𝗜', '𝗠𝗔𝗥𝗗𝗜',
                       '𝗠𝗘𝗥𝗖𝗥𝗘𝗗𝗜', '𝗝𝗘𝗨𝗗𝗜', '𝗩𝗘𝗡𝗗𝗥𝗘𝗗𝗜', '𝗦𝗔𝗠𝗘𝗗𝗜', '𝗗𝗜𝗠𝗔𝗡𝗖𝗛𝗘'];
 
-/* Les emplacements du bureau, pour le rappel */
-let lieuxRappel = null;
-
-async function chargerLieuxRappel(){
-  if(lieuxRappel !== null) return lieuxRappel;
-  try{
-    const d = await appelPrep({ action: 'lieuxList' });
-    const recu = (d && d.lieux) || [];
-    /* Une réponse vide veut dire que le classeur ne connaît pas
-       encore les lieux : on garde les nôtres. */
-    lieuxRappel = recu.length ? recu : LIEUX_SECOURS;
-  }catch(e){ lieuxRappel = LIEUX_SECOURS; }
-  return lieuxRappel;
-}
-
-async function remplirLieuxRappel(sel){
-  if(!sel) return;
-  const liste = await chargerLieuxRappel();
-
-  sel.innerHTML = liste.map(x =>
-      '<option value="' + String(x.cle).replace(/"/g, '&quot;') + '">' +
-      (x.emoji ? x.emoji + ' ' : '') + x.nom.replace(/</g, '&lt;') +
-      '</option>').join('') +
-    '<option value="">Ne pas préciser</option>';
-
-  /* Le dernier choix, comme le véhicule */
-  const memo = (choixRappel && choixRappel.emplacement) || '';
-  if(memo && liste.some(x => x.cle === memo)) sel.value = memo;
-
-  sel.addEventListener('change', apercuRappel);
-}
-
-/* La phrase à glisser dans le SMS */
-async function texteDuLieu(cle){
-  if(!cle) return '';
-  const liste = await chargerLieuxRappel();
-  const l = liste.find(x => x.cle === cle);
-  return (l && l.sms) || '';
-}
-
-
 const EMPLACEMENTS = [
   { cle:'cour', texte:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗰𝗼𝘂𝗿 𝗶𝗻𝘁𝗲́𝗿𝗶𝗲𝘂𝗿𝗲 𝗱𝗲 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
   { cle:'rue',  texte:'𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗮𝗻𝘀 𝗹𝗮 𝗿𝘂𝗲 𝗹𝗲 𝗹𝗼𝗻𝗴 𝗱𝘂 𝘁𝗿𝗼𝘁𝘁𝗼𝗶𝗿 !' },
@@ -575,14 +534,7 @@ function composerRappel(r){
   }
   const type = tous.find(x => x.cle === r.type) || tous[0];
 
-  /* Le réglage fait foi ; l'ancienne table sert de secours quand
-     il n'a pas encore été chargé. */
-  let empl = null;
-  if(lieuxRappel){
-    const l = lieuxRappel.find(x => x.cle === r.emplacement);
-    if(l) empl = { texte: l.sms || '' };
-  }
-  if(!empl) empl = EMPLACEMENTS.find(x => x.cle === r.emplacement);
+  const empl = { texte: texteDuLieu(r.emplacement) };
   const mentions = (r.options || [])
     .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
     .filter(Boolean).join('\n\n');
@@ -843,7 +795,10 @@ async function afficherRappelManuel(){
       '<select id="rapEmpl"><option value="">Ne pas préciser</option></select></div>';
   zone.appendChild(grille2);
 
-  remplirLieuxRappel(zone.querySelector('#rapEmpl'));
+  /* La liste des emplacements, la même que dans l'affichage */
+  const selEmpl = zone.querySelector('#rapEmpl');
+  remplirListeLieux(selEmpl, (choixRappel && choixRappel.emplacement) || '', true);
+  selEmpl.addEventListener('change', apercuRappel);
 
   const selVeh = zone.querySelector('#rapVehicule');
   if(selVeh){
