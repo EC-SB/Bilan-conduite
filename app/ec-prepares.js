@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 10:55 — v464 */
+/* Déployé le 22/08/2026 à 09:51 — v498 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -419,11 +419,24 @@ async function afficherPrepares(recharger, silencieux){
     bDate.className = 'btn btn-secondary';
     bDate.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;';
     bDate.textContent = '📅';
-    bDate.title = 'Changer la date de ce cours';
+    bDate.title = 'Changer la date et l\'heure de ce cours';
     bDate.addEventListener('click', async () => {
-      const neuve = await demanderDate('Nouvelle date du cours de ' +
-                                       (cours.eleve || 'cet élève'), cours.date);
-      if(!neuve || neuve === cours.date) return;
+      const hAvant = heureDeLaPreparation(cours);
+      const rep = await demanderDate('Cours de ' +
+                                     (cours.eleve || 'cet élève'),
+                                     cours.date, hAvant);
+      if(!rep) return;
+
+      const neuve = rep.date;
+      const heure = rep.heure || '';
+      if(neuve === cours.date && heure === hAvant) return;
+
+      /* L'heure vit en tête de note, comme celle des rappels */
+      let note = String(cours.note || '');
+      note = note.replace(/^🕐[^\n]*\n?/, '');
+      if(heure){
+        note = '🕐 ' + heure.replace(':', 'h') + '\n' + note;
+      }
 
       bDate.disabled = true;
       bDate.textContent = '⏳';
@@ -432,12 +445,13 @@ async function afficherPrepares(recharger, silencieux){
                           eleve: cours.eleve, modele: cours.modele,
                           modeleLabel: cours.modeleLabel || '',
                           site: cours.site || '',
-                          note: cours.note || '',
+                          note: note,
                           contexte: JSON.stringify(cours.contexte || {}),
                           moniteur: cours.moniteur || ACCES.moniteur || '' });
         const dans = prepares.find(x => String(x.id) === String(cours.id));
-        if(dans) dans.date = neuve;
-        showToast('Date modifiée ✅');
+        if(dans){ dans.date = neuve; dans.note = note; }
+        showToast(heure !== hAvant ? 'Date et heure modifiées ✅'
+                                   : 'Date modifiée ✅');
         await afficherPrepares(false);
       }catch(e){
         showToast('Modification impossible : ' + e.message);
@@ -1021,6 +1035,12 @@ async function afficherPreparationEleve(){
   }
   carte.appendChild(n);
 
+  /* Les procédures demandées : le moniteur doit savoir d'un coup
+     d'œil si l'élève a fait ce qu'on lui a demandé. */
+  const zRecit = document.createElement('div');
+  carte.appendChild(zRecit);
+  afficherEtatRecitations(nom, zRecit);
+
   /* Les manœuvres cochées à la préparation : le moniteur qui prend
      le cours doit savoir ce que son collègue comptait valider.
      La section s'affiche toujours — une absence silencieuse laisse
@@ -1191,6 +1211,88 @@ async function modifierPreparation(cours){
    bureau. Elle vient toujours de la même mention 🕐. */
 /* Les repères posés par le rappel de cours : carte d'identité,
    carte SD. Ils vivent en tête de la note. */
+/* L'état des récitations demandées à cet élève */
+async function afficherEtatRecitations(nom, zone){
+  if(!zone || !nom) return;
+
+  let demandes = [], recits = [];
+  try{
+    const [a, b] = await Promise.all([
+      appelPrep({ action: 'demandesList', eleve: nom }),
+      appelPrep({ action: 'recitationsList' })
+    ]);
+    demandes = (a && a.demandes) || [];
+    recits = ((b && b.recitations) || [])
+      .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+  }catch(e){ return; }
+
+  if(!demandes.length && !recits.length) return;
+
+  const sep = document.createElement('div');
+  sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
+  zone.appendChild(sep);
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+    'margin-bottom:5px;';
+  t.textContent = '📌 Procédures à réciter';
+  zone.appendChild(t);
+
+  /* Chaque demande, avec ce qu'elle est devenue */
+  const vues = {};
+  demandes.forEach(d => {
+    const dit = recits.filter(r =>
+      normaliserMot(r.procedure || '') === normaliserMot(d.procedure));
+    /* La plus récente fait foi */
+    const dernier = dit.length ? dit[0] : null;
+    vues[normaliserMot(d.procedure)] = true;
+
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:8px;align-items:flex-start;' +
+      'font-size:13px;line-height:1.5;padding:3px 0;';
+
+    let etat, couleur;
+    if(!dernier){
+      etat = 'pas encore récitée';
+      couleur = 'var(--warn-text)';
+    }else if(dernier.etat === 'valide'){
+      etat = 'récitée et corrigée';
+      couleur = 'var(--accent-text)';
+    }else{
+      etat = 'récitée — correction à valider';
+      couleur = 'var(--warn-text)';
+    }
+
+    l.innerHTML = '<span style="flex-shrink:0;">' +
+      (!dernier ? '⏳' : (dernier.etat === 'valide' ? '✅' : '👀')) + '</span>' +
+      '<span style="flex:1;min-width:0;">' +
+        d.procedure.replace(/</g, '&lt;') +
+        '<span style="color:' + couleur + ';font-size:11px;"> — ' + etat + '</span>' +
+        '<div style="font-size:11px;color:var(--muted);">demandée le ' +
+          (d.demandeLe || '').replace(/</g, '&lt;') +
+          (d.par ? ' par ' + d.par.replace(/</g, '&lt;') : '') + '</div>' +
+      '</span>';
+    zone.appendChild(l);
+  });
+
+  /* Ce qu'il a récité de lui-même, sans qu'on le lui demande */
+  recits.filter(r => !vues[normaliserMot(r.procedure || '')])
+    .slice(0, 5)
+    .forEach(r => {
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;align-items:flex-start;' +
+        'font-size:13px;line-height:1.5;padding:3px 0;';
+      l.innerHTML = '<span style="flex-shrink:0;">' +
+        (r.etat === 'valide' ? '✅' : '👀') + '</span>' +
+        '<span style="flex:1;min-width:0;">' +
+          (r.procedure || '').replace(/</g, '&lt;') +
+          '<span style="color:var(--muted);font-size:11px;"> — de lui-même' +
+          (r.etat === 'valide' ? '' : ', à valider') + '</span></span>';
+      zone.appendChild(l);
+    });
+}
+
+
 function repereDeNote(cours){
   const t = String((cours && cours.note) || '');
   const debut = t.split('\n')[0];
@@ -1231,7 +1333,7 @@ function amenerAuCours(){
 }
 
 /* Demande une date, avec celle du cours pré-remplie */
-function demanderDate(titre, dateActuelle){
+function demanderDate(titre, dateActuelle, heureActuelle){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
@@ -1243,10 +1345,25 @@ function demanderDate(titre, dateActuelle){
     h.textContent = titre;
     boite.appendChild(h);
 
+    const lD = document.createElement('label');
+    lD.textContent = 'Date';
+    boite.appendChild(lD);
+
     const champ = document.createElement('input');
     champ.type = 'date';
     champ.value = dateActuelle || todayLocal();
     boite.appendChild(champ);
+
+    /* L'heure se change au même endroit : un changement de
+       planning déplace souvent les deux. */
+    const lH = document.createElement('label');
+    lH.textContent = 'Heure';
+    boite.appendChild(lH);
+
+    const champH = document.createElement('input');
+    champH.type = 'time';
+    champH.value = heureActuelle || '';
+    boite.appendChild(champH);
 
     const r = document.createElement('div');
     r.className = 'btn-row';
@@ -1264,8 +1381,10 @@ function demanderDate(titre, dateActuelle){
     bOk.textContent = 'Valider';
     bOk.addEventListener('click', () => {
       const v = champ.value;
+      const hv = champH.value;
       document.body.removeChild(fond);
-      resolve(v || null);
+      /* On rend les deux : l'appelant prend ce qui l'intéresse */
+      resolve(v ? { date: v, heure: hv } : null);
     });
 
     r.appendChild(bAnn); r.appendChild(bOk);
