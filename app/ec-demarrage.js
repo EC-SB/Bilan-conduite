@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 07:50 — v515 */
+/* Déployé le 24/08/2026 à 07:56 — v516 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -60,7 +60,19 @@ function proposerReprise(){
   const s = lireSauvegarde();
   const banniere = $('repriseBanner');
   if(!banniere) return;
-  if(!s || (!s.transcript && !s.bilan)){ banniere.style.display = 'none'; return; }
+
+  /* Un bilan manuel commencé compte autant qu'une dictée : c'est
+     du travail perdu de la même façon. */
+  const man = (typeof brouillonManuel === 'function') ? brouillonManuel() : null;
+
+  if(!s || (!s.transcript && !s.bilan)){
+    if(man){ proposerRepriseManuelle(man, banniere); return; }
+    banniere.style.display = 'none';
+    return;
+  }
+
+  const bOui = $('repriseOui');
+  if(bOui) delete bOui.dataset.manuel;
 
   const mots = String(s.transcript || '').trim().split(/\s+/).filter(Boolean).length;
   const quand = new Date(s.ts || Date.now());
@@ -74,7 +86,40 @@ function proposerReprise(){
   banniere.style.display = 'block';
 }
 
+/* La bannière pour un bilan manuel interrompu */
+function proposerRepriseManuelle(man, banniere){
+  const quand = new Date(man.ts || Date.now());
+  const p2 = n => String(n).padStart(2, '0');
+  const quandTexte = p2(quand.getDate()) + '/' + p2(quand.getMonth() + 1) +
+                     ' à ' + p2(quand.getHours()) + ':' + p2(quand.getMinutes());
+
+  /* Ce qui a été rempli : c'est ce qui rassure le moniteur */
+  const remplis = (man.saisies || []).filter(x => x.valeur).length;
+
+  const nom = (typeof MODELES !== 'undefined' && MODELES[man.modele])
+    ? MODELES[man.modele].label : 'Bilan';
+
+  $('repriseInfo').textContent =
+    (man.eleve ? man.eleve + ' — ' : '') + nom + ' à la main · ' +
+    remplis + ' rubrique(s) remplie(s) · interrompu le ' + quandTexte;
+
+  /* Le bouton reprend le bilan manuel, pas la dictée */
+  const b = $('repriseOui');
+  if(b) b.dataset.manuel = 'oui';
+  banniere.style.display = 'block';
+}
+
+
 function reprendreCours(){
+  /* Un bilan manuel interrompu se rouvre à sa fiche, pas à la
+     page de dictée. */
+  const b = $('repriseOui');
+  if(b && b.dataset.manuel === 'oui'){
+    delete b.dataset.manuel;
+    reprendreBilanManuel();
+    return;
+  }
+
   const s = lireSauvegarde();
   if(!s) return;
   if(s.modele){ $('modele').value = s.modele; adapterAuModele(); }
