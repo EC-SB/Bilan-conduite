@@ -86,9 +86,18 @@ function calculEvaluation(heuresBV){
 
 
 function devisEvaluation(simu, c2h){
-  const lignes = LIGNES_DEVIS.map(l => {
+  /* Les tarifs viennent de Gestion : ils changent sans qu'on
+     touche au calcul. */
+  const source = (typeof tarifsPrestations !== 'undefined' && tarifsPrestations)
+    ? tarifsPrestations : LIGNES_DEVIS;
+
+  const lignes = source.map(l => {
+    const variable = (l.q === 'simu' || l.q === 'c2h');
     const q = (l.q === 'simu') ? simu : (l.q === 'c2h') ? c2h : l.q;
-    return { nom: l.nom, q: q, pu: l.pu, total: q * l.pu };
+    return { nom: l.nom, q: q, pu: l.pu, total: q * l.pu,
+             /* Les deux seules quantités qui bougent : elles
+                se repèrent en couleur dans le devis. */
+             variable: variable };
   });
   return {
     lignes: lignes,
@@ -108,6 +117,10 @@ async function afficherEvaluation(){
   const zone = $('evaluationZone');
   if(!zone) return;
 
+  zone.innerHTML = '<div class="empty">Chargement des tarifs…</div>';
+  if(typeof chargerTarifs === 'function'){
+    try{ await chargerTarifs(); }catch(e){}
+  }
   zone.innerHTML = '';
 
   const haut = document.createElement('div');
@@ -174,7 +187,7 @@ function dessinerEvaluation(){
 
   ligne('Total des heures', r.bv + ' h', r.bea + ' h', true);
   ligne('Simulateur', r.simuBV + ' h', r.simuBEA + ' h');
-  ligne('Leçons de 2h', r.c2hBV, r.c2hBEA);
+  ligne('Conduite 2h (devis)', r.c2hBV + ' ×', r.c2hBEA + ' ×', true);
   ligne('Avant examen blanc', r.leconsBV + ' leçon(s)',
         (r.c2hBEA > 6 ? r.leconsBEA : r.leconsBEA2) + ' leçon(s)');
   ligne('Devis', eurosEval(r.devisBV.total), eurosEval(r.devisBEA.total), true);
@@ -196,13 +209,33 @@ function dessinerEvaluation(){
     const z = document.createElement('div');
     z.style.cssText = 'margin-top:9px;font-size:12px;line-height:1.7;';
     z.innerHTML = d.lignes.filter(l => l.q).map(l =>
-      '<div style="display:flex;gap:8px;">' +
-        '<span style="flex:1;min-width:0;">' + l.q + ' × ' +
+      '<div style="display:flex;gap:8px;' +
+        (l.variable ? 'color:var(--accent-text);font-weight:700;' : '') + '">' +
+        '<span style="flex-shrink:0;width:34px;text-align:right;">' +
+          l.q + ' ×</span>' +
+        '<span style="flex:1;min-width:0;">' +
           l.nom.replace(/</g, '&lt;') + '</span>' +
         '<span style="flex-shrink:0;color:' +
-          (l.total ? 'var(--cream)' : 'var(--muted)') + ';">' +
+          (l.total ? 'inherit' : 'var(--muted)') + ';">' +
           eurosEval(l.total) + '</span></div>').join('');
     det.appendChild(z);
+
+    /* De quoi recopier le devis dans Driv'up sans le relire */
+    const bc = document.createElement('button');
+    bc.className = 'btn btn-secondary';
+    bc.style.cssText = 'margin-top:9px;padding:9px;font-size:12px;';
+    bc.textContent = '📋 Copier le devis';
+    bc.addEventListener('click', async () => {
+      const t = d.lignes.filter(l => l.q)
+        .map(l => l.q + ' × ' + l.nom + ' — ' + eurosEval(l.total))
+        .join('\n') + '\n\nTotal : ' + eurosEval(d.total);
+      try{
+        await navigator.clipboard.writeText(t);
+        showToast('Devis copié ✅');
+      }catch(e){ showToast('Copie impossible'); }
+    });
+    det.appendChild(bc);
+
     zone.appendChild(det);
   });
 
@@ -220,10 +253,12 @@ function dessinerEvaluation(){
     r2.appendChild(b);
   };
 
-  bouton('💬 Pour Messenger', 'messenger');
-  bouton('✉️ Pour le mail', 'mail');
-  bouton('📝 Note interne BV', 'noteBV');
-  bouton('📝 Note interne BEA', 'noteBEA');
+  bouton('💬 Messenger — BV', 'messengerBV');
+  bouton('💬 Messenger — BEA', 'messengerBEA');
+  bouton('✉️ Mail — BV', 'mailBV');
+  bouton('✉️ Mail — BEA', 'mailBEA');
+  bouton('📝 Frise BV', 'noteBV');
+  bouton('📝 Frise BEA', 'noteBEA');
 
   zone.appendChild(r2);
 }
@@ -255,48 +290,67 @@ async function chargerPiedEvaluation(){
 }
 
 
-/* Le message pour Messenger, avec ses caractères stylisés */
-function texteMessenger(r, prenom){
-  const l = [];
-  l.push('𝐁𝐨𝐧𝐣𝐨𝐮𝐫' + (prenom ? ' ' + prenom : '') + ' 👋');
-  l.push('');
-  l.push('𝐕𝐨𝐢𝐜𝐢 𝐥𝐞 𝐫𝐞́𝐬𝐮𝐥𝐭𝐚𝐭 𝐝𝐞 𝐭𝐨𝐧 𝐞́𝐯𝐚𝐥𝐮𝐚𝐭𝐢𝐨𝐧 𝐝𝐞 𝐝𝐞́𝐩𝐚𝐫𝐭 :');
-  l.push('');
-  l.push('🚗 𝐄𝐍 𝐁𝐎𝐈̂𝐓𝐄 𝐌𝐀𝐍𝐔𝐄𝐋𝐋𝐄');
-  l.push('· ' + r.bv + ' heures de formation');
-  l.push('· ' + eurosEval(r.devisBV.total));
-  l.push('');
-  l.push('🚙 𝐄𝐍 𝐁𝐎𝐈̂𝐓𝐄 𝐀𝐔𝐓𝐎𝐌𝐀𝐓𝐈𝐐𝐔𝐄');
-  l.push('· ' + r.bea + ' heures de formation');
-  l.push('· ' + eurosEval(r.devisBEA.total));
-  l.push('');
-  l.push(piedEvaluation || PIED_DEFAUT);
-  return l.join('\n');
+/* Le message pour Messenger, avec ses caractères stylisés.
+
+   Trois nombres varient : les heures de simulateur, les leçons
+   avant examen blanc, et le total. Le reste ne bouge pas. */
+function texteMessenger(r, auto){
+  const simu = auto ? r.simuBEA : r.simuBV;
+  const lecons = auto ? (r.c2hBEA > 6 ? r.leconsBEA : r.leconsBEA2)
+                      : r.leconsBV;
+  const total = auto ? r.bea : r.bv;
+
+  return [
+'𝙏𝙐 𝘼𝙎 𝙁𝘼𝙄𝙏 𝙏𝙊𝙉 𝙀́𝙑𝘼𝙇𝙐𝘼𝙏𝙄𝙊𝙉 𝙎𝙐𝙍 𝙎𝙄𝙈𝙐𝙇𝘼𝙏𝙀𝙐𝙍 !',
+'',
+"𝙀𝙎𝙏𝙄𝙈𝘼𝙏𝙄𝙊𝙉 𝘿𝙐 𝙉𝙊𝙈𝘽𝙍𝙀 𝘿'𝙃𝙀𝙐𝙍𝙀𝙎 : ",
+'🕙 𝗖𝗢𝗨𝗥𝗦 𝗗𝗘 𝗧𝗛𝗘́𝗢𝗥𝗜𝗘 𝗗𝗘 𝗟𝗔 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 : 3 heures',
+'🕙 𝗔𝗖𝗖𝗘̀𝗦 𝗔̀ 𝗡𝗢𝗦 𝗥𝗘𝗦𝗦𝗢𝗨𝗥𝗖𝗘𝗦 𝗦𝗨𝗥 𝗙𝗔𝗖𝗘𝗕𝗢𝗢𝗞 : en illimité',
+'🕙 𝗘́𝗖𝗢𝗨𝗧𝗘𝗦 𝗣𝗘́𝗗𝗔𝗚𝗢𝗚𝗜𝗤𝗨𝗘𝗦 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 : en illimité',
+'🕙 𝗦𝗜𝗠𝗨𝗟𝗔𝗧𝗘𝗨𝗥 𝗔𝗩𝗘𝗖 𝗠𝗢𝗡𝗜𝗧𝗘𝗨𝗥 : ' + simu + ' heures modulables selon ton niveau',
+'🕙 𝗟𝗘𝗖̧𝗢𝗡𝗦 𝗗𝗘 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : ' + lecons + ' leçons de 2 heures modulables selon ton niveau',
+'🕙 𝗦𝗜𝗠𝗨𝗟𝗔𝗧𝗘𝗨𝗥 𝗡𝗨𝗜𝗧  : 1 heure 𝗘𝗧 𝗥𝗜𝗦𝗤𝗨𝗘 : 1 heure ',
+'🕙 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : 1 heure 30',
+'🕙 𝗟𝗘𝗖̧𝗢𝗡𝗦 𝗗𝗘 𝗖𝗢𝗡𝗗𝗨𝗜𝗧𝗘 𝗘𝗡 𝗩𝗢𝗜𝗧𝗨𝗥𝗘 𝗔𝗣𝗥𝗘́𝗦 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 : 2 leçons de 2 heures modulables selon ton niveau (ré-évaluation lors de ton examen blanc)',
+"🕙 𝗛𝗘𝗨𝗥𝗘𝗦 𝗣𝗥𝗘́𝗣𝗔𝗥𝗔𝗧𝗢𝗜𝗥𝗘𝗦 𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 : 3 heures (2h le jour d'avant + 1h jour même)",
+'🕙 𝗧𝗢𝗧𝗔𝗟 : ' + total + ' heures ',
+'',
+piedEvaluation || PIED_DEFAUT
+  ].join('\n');
 }
 
 
-/* Le même, sans émoji ni caractère stylisé : Driv'up les
-   remplace par des points d'interrogation dans ses mails. */
-function texteMail(r, prenom){
-  const l = [];
-  l.push('Bonjour' + (prenom ? ' ' + prenom : '') + ',');
-  l.push('');
-  l.push('Voici le resultat de ton evaluation de depart :');
-  l.push('');
-  l.push('EN BOITE MANUELLE');
-  l.push('- ' + r.bv + ' heures de formation');
-  l.push('- ' + eurosEval(r.devisBV.total).replace('€', 'euros'));
-  l.push('');
-  l.push('EN BOITE AUTOMATIQUE');
-  l.push('- ' + r.bea + ' heures de formation');
-  l.push('- ' + eurosEval(r.devisBEA.total).replace('€', 'euros'));
-  l.push('');
-  l.push(sansAccentNiEmoji(piedEvaluation || PIED_DEFAUT));
-  return l.join('\n');
+/* Le même, pour le mail de Driv'up : sans émoji ni caractère
+   stylisé, qu'il remplace par des points d'interrogation. */
+function texteMail(r, auto){
+  const simu = auto ? r.simuBEA : r.simuBV;
+  const lecons = auto ? (r.c2hBEA > 6 ? r.leconsBEA : r.leconsBEA2)
+                      : r.leconsBV;
+  const total = auto ? r.bea : r.bv;
+
+  return [
+'TU AS FAIT TON ÉVALUATION SUR SIMULATEUR !',
+'',
+"ESTIMATION DU NOMBRE D'HEURES",
+'*COURS DE THEORIE DE LA CONDUITE : 3 heures',
+'*ACCES A NOS RESSOURCES SUR FACEBOOK : en illimité',
+'*ÉCOUTES PÉDAGOGIQUES EN VOITURE : en illimité',
+'*SIMULATEUR AVEC MONITEUR : ' + simu + ' heures modulables selon ton niveau',
+'*LEÇONS DE CONDUITE EN VOITURE AVANT EXAMEN BLANC : ' + lecons + ' leçons de 2 heures modulables selon ton niveau',
+'*SIMULATEUR NUIT : 1 heure ET RISQUE: 1 heure ',
+'*EXAMEN BLANC : 1 heure 30',
+'*LEÇONS DE CONDUITE EN VOITURE APRES EXAMEN BLANC : 2 leçons de 2 heures modulables selon ton niveau (ré-évaluation lors de ton examen blanc)',
+"*HEURES PRÉPARATOIRES AVANT EXAMEN: 3 heures (2h le jour d'avant + 1h le jour de l'examen)",
+'*TOTAL : ' + total + ' ',
+'',
+piedMail()
+  ].join('\n');
 }
 
 
-/* Driv'up n'accepte ni émoji ni caractère stylisé */
+/* Driv'up n'accepte ni émoji ni caractère stylisé : il les
+   remplace par des points d'interrogation. Les accents
+   ordinaires, eux, passent très bien. */
 function sansAccentNiEmoji(t){
   return String(t || '')
     /* Les gras et italiques mathématiques reviennent en lettres */
@@ -315,11 +369,18 @@ function sansAccentNiEmoji(t){
       }
       return '';
     })
-    /* Puis tout ce qui n'est pas une lettre ordinaire */
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+    /* Puis les émojis eux-mêmes */
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, '')
     .replace(/[·•]/g, '-')
-    .replace(/[ ]{2,}/g, ' ')
-    .trim();
+    .replace(/[ \t]{2,}/g, ' ')
+    .split('\n').map(l => l.replace(/^\s+/, '')).join('\n');
+}
+
+
+
+/* Le pied du mail : la même chose, débarrassée de ses émojis */
+function piedMail(){
+  return sansAccentNiEmoji(piedEvaluation || PIED_DEFAUT);
 }
 
 
@@ -350,18 +411,25 @@ async function ouvrirTexteEvaluation(quoi, r){
   const prenom = nom ? nom.split(' ')[0] : '';
 
   let titre, texte, sujet = '';
-  if(quoi === 'messenger'){
-    titre = '💬 Pour Messenger';
-    texte = texteMessenger(r, prenom);
-  }else if(quoi === 'mail'){
-    titre = '✉️ Pour le mail Driv\'up';
-    texte = texteMail(r, prenom);
-    sujet = 'Ton evaluation de depart - Evolution Conduites';
+  if(quoi === 'messengerBV'){
+    titre = '💬 Messenger — boîte manuelle';
+    texte = texteMessenger(r, false);
+  }else if(quoi === 'messengerBEA'){
+    titre = '💬 Messenger — boîte automatique';
+    texte = texteMessenger(r, true);
+  }else if(quoi === 'mailBV'){
+    titre = '✉️ Mail — boîte manuelle';
+    texte = texteMail(r, false);
+    sujet = 'Ton évaluation de départ - Évolution Conduites';
+  }else if(quoi === 'mailBEA'){
+    titre = '✉️ Mail — boîte automatique';
+    texte = texteMail(r, true);
+    sujet = 'Ton évaluation de départ - Évolution Conduites';
   }else if(quoi === 'noteBV'){
-    titre = '📝 Note interne — boîte manuelle';
+    titre = '📝 Frise — boîte manuelle';
     texte = noteInterne(r, false);
   }else{
-    titre = '📝 Note interne — boîte automatique';
+    titre = '📝 Frise — boîte automatique';
     texte = noteInterne(r, true);
   }
 
@@ -372,7 +440,7 @@ async function ouvrirTexteEvaluation(quoi, r){
   boite.style.cssText = 'max-width:min(580px, 95vw);max-height:90vh;overflow-y:auto;';
 
   boite.innerHTML = '<h3>' + titre + '</h3>' +
-    (quoi === 'mail'
+    (quoi.indexOf('mail') === 0
       ? '<div style="font-size:11px;color:var(--muted);margin-bottom:9px;' +
         'line-height:1.5;">Sans émoji ni caractère stylisé : Driv\'up ' +
         'les remplace par des points d\'interrogation.</div>'
@@ -402,7 +470,7 @@ async function ouvrirTexteEvaluation(quoi, r){
   r1.appendChild(bCop);
 
   /* Le mail peut partir directement, sans passer par Driv'up */
-  if(quoi === 'mail' && nom){
+  if(quoi.indexOf('mail') === 0 && nom){
     const bMail = document.createElement('button');
     bMail.className = 'btn btn-secondary';
     bMail.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
@@ -444,7 +512,7 @@ async function ouvrirTexteEvaluation(quoi, r){
   rw.appendChild(bF);
 
   /* Le pied se corrige depuis ici : c'est là qu'on le lit */
-  if(quoi !== 'noteBV' && quoi !== 'noteBEA' && ACCES.role === 'admin'){
+  if(quoi.indexOf('note') !== 0 && ACCES.role === 'admin'){
     const bP = document.createElement('button');
     bP.className = 'btn btn-secondary';
     bP.style.cssText = 'width:auto;padding:12px 14px;font-size:12px;';
