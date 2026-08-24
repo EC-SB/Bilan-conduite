@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 08:23 — v517 */
+/* Déployé le 24/08/2026 à 13:59 — v534 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -852,6 +852,34 @@ async function preparerNouveauCours(){
   }
 }
 
+/* Ce que le moniteur de l'examen officiel a laissé dans les
+   notes : l'inspecteur et les heures qu'il jugeait nécessaires.
+
+   Il n'est pas forcément celui qui fait le rendez-vous, d'où ce
+   rappel en tête d'écran. */
+function mentionDeLExamen(cours, suivi){
+  const sources = [
+    String((cours && cours.note) || ''),
+    String((suivi && suivi.note) || ''),
+    (typeof ficheDe === 'function' && cours
+      ? String((ficheDe(cours.eleve) || {}).remarques || '') : '')
+  ];
+
+  for(const t of sources){
+    const l = t.split('\n').find(x => x.indexOf('🔒 EXAMEN OFFICIEL') !== -1);
+    if(!l) continue;
+
+    /* « Demandé : 4 + 3 heures » — on ne retient que le premier */
+    const m = l.match(/Demandé\s*:\s*(\d+)/i);
+    return {
+      texte: l.replace('🔒 EXAMEN OFFICIEL · ', ''),
+      heures: m ? m[1] : ''
+    };
+  }
+  return null;
+}
+
+
 function ouvrirRdvPost(cours){
   rdvPostEnCours = cours;
   const s = suiviDe(cours.eleve) || {};
@@ -860,6 +888,23 @@ function ouvrirRdvPost(cours){
   $('rdvPostInfo').textContent = 'Prévu le ' + libelleDate(cours.date) +
     (cours.moniteur ? ' · ' + cours.moniteur : '') +
     (s.nbAjournements ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : '');
+
+  /* Ce que le moniteur de l'examen a demandé. Il n'est pas
+     forcément celui qui corrige : sans ce rappel, l'information
+     se perdait entre les deux. */
+  const memo = mentionDeLExamen(cours, s);
+  const zm = $('rdvPostExamen');
+  if(zm){
+    if(memo){
+      zm.style.display = 'block';
+      zm.innerHTML = '<div style="font-size:11px;color:var(--muted);' +
+        'margin-bottom:3px;">🏁 À la sortie de l\'examen</div>' +
+        '<div style="font-size:14px;line-height:1.6;">' +
+        memo.texte.replace(/</g, '&lt;') + '</div>';
+    }else{
+      zm.style.display = 'none';
+    }
+  }
 
   /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
   const zc = $('rdvPostCepc');
@@ -886,9 +931,11 @@ function ouvrirRdvPost(cours){
   });
   sel.value = s.suite || '';
 
-  /* Le nombre d'heures ne se demande que si un repassage est envisagé */
+  /* Le nombre d'heures ne se demande que si un repassage est envisagé.
+     On part de ce qu'avait demandé le moniteur de l'examen : le
+     moniteur du rendez-vous garde le dernier mot. */
   const hh = $('rdvPostHeures');
-  hh.value = s.heuresRepassage || '';
+  hh.value = s.heuresRepassage || (memo ? memo.heures : '') || '';
   const majH = () => {
     hh.style.display = (sel.value && sel.value !== 'impossible') ? 'block' : 'none';
   };
