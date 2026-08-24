@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 08:45 — v518 */
+/* Déployé le 24/08/2026 à 08:55 — v518 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -63,10 +63,23 @@ function proposerReprise(){
 
   /* Un bilan manuel commencé compte autant qu'une dictée : c'est
      du travail perdu de la même façon. */
-  const man = (typeof brouillonManuel === 'function') ? brouillonManuel() : null;
+  const brouillons = (typeof tousLesBrouillons === 'function')
+    ? tousLesBrouillons() : [];
+
+  const b1 = $('repriseOui');
+  if(b1) b1.style.display = '';
 
   if(!s || (!s.transcript && !s.bilan)){
-    if(man){ proposerRepriseManuelle(man, banniere); return; }
+    /* Plusieurs élèves en cours : on les liste plutôt que de n'en
+       proposer qu'un. */
+    if(brouillons.length > 1){
+      proposerListeBrouillons(brouillons, banniere);
+      return;
+    }
+    if(brouillons.length === 1){
+      proposerRepriseManuelle(brouillons[0], banniere);
+      return;
+    }
     banniere.style.display = 'none';
     return;
   }
@@ -86,6 +99,51 @@ function proposerReprise(){
   banniere.style.display = 'block';
 }
 
+/* Plusieurs bilans en cours : le jour d'un examen, le moniteur
+   en a un par élève dans la voiture. */
+function proposerListeBrouillons(liste, banniere){
+  const zone = $('repriseInfo');
+  zone.innerHTML = '';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;';
+  t.textContent = liste.length + ' bilan(s) commencé(s) — appuie pour reprendre';
+  zone.appendChild(t);
+
+  liste.forEach(b => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:8px 0;' +
+      'border-top:1px solid rgba(255,255,255,.06);cursor:pointer;';
+
+    const quand = new Date(b.ts || Date.now());
+    const p2 = n => String(n).padStart(2, '0');
+    const remplis = (b.saisies || []).filter(x => x.valeur).length;
+
+    l.innerHTML = '<span style="flex:1;min-width:0;font-size:14px;' +
+      'line-height:1.4;color:var(--cream);">' +
+      '<strong>' + String(b.eleve || '?').replace(/</g, '&lt;') + '</strong>' +
+      '<div style="font-size:11px;color:var(--muted);">' +
+        (b.avantEnvoye ? '📤 avant examen envoyé · ' : '') +
+        remplis + ' réponse(s) · ' +
+        p2(quand.getHours()) + ':' + p2(quand.getMinutes()) +
+      '</div></span>' +
+      '<span style="flex-shrink:0;color:var(--accent-text);">▸</span>';
+
+    l.addEventListener('click', () => {
+      if(typeof reprendreBrouillon === 'function') reprendreBrouillon(b);
+    });
+    zone.appendChild(l);
+  });
+
+  /* Le bouton Reprendre n'a plus de sens : on choisit dans la
+     liste. Seule la suppression reste. */
+  const b1 = $('repriseOui');
+  if(b1) b1.style.display = 'none';
+
+  banniere.style.display = 'block';
+}
+
+
 /* La bannière pour un bilan manuel interrompu */
 function proposerRepriseManuelle(man, banniere){
   const quand = new Date(man.ts || Date.now());
@@ -101,7 +159,8 @@ function proposerRepriseManuelle(man, banniere){
 
   $('repriseInfo').textContent =
     (man.eleve ? man.eleve + ' — ' : '') + nom + ' à la main · ' +
-    remplis + ' rubrique(s) remplie(s) · interrompu le ' + quandTexte;
+    (man.avantEnvoye ? '📤 avant examen envoyé · ' : '') +
+    remplis + ' rubrique(s) remplie(s) · ' + quandTexte;
 
   /* Le bouton reprend le bilan manuel, pas la dictée */
   const b = $('repriseOui');
