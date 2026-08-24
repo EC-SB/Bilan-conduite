@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 09:38 — v521 */
+/* Déployé le 24/08/2026 à 10:08 — v524 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -342,7 +342,9 @@ function ouvrirEditeurModele(modele, usageImpose){
   boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
 
   const h = document.createElement('h3');
-  h.textContent = modele ? 'Modifier le texte' : 'Nouveau texte type';
+  h.textContent = modele
+    ? (usageImpose === 'procedure' ? 'Modifier la procédure' : 'Modifier le texte')
+    : (usageImpose === 'procedure' ? '🚦 Nouvelle procédure' : 'Nouveau texte type');
   boite.appendChild(h);
 
   boite.insertAdjacentHTML('beforeend',
@@ -459,6 +461,13 @@ function ouvrirEditeurModele(modele, usageImpose){
     g('mdUsage').value = usageImpose;
     g('mdUsage').disabled = true;
     g('mdUsage').style.opacity = '.6';
+
+    /* L'affichage a été calculé avant que l'usage soit posé : le
+       champ « Pour qui ? » restait caché sur une procédure. */
+    const bb = boite.querySelector('#mdBlocBoite');
+    if(bb){
+      bb.style.display = (usageImpose === 'procedure') ? 'block' : 'none';
+    }
   }
   majVars();
 
