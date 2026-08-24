@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 14:23 — v511 */
+/* Déployé le 24/08/2026 à 08:32 — v517 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -351,8 +351,67 @@ async function importerListeEleves(){
    LES FICHES DU RÉPERTOIRE
    Nom, téléphone, courriel, formation. Recherche et modification.
    ============================================================ */
-const FORMATIONS = ['', 'CS BV', 'CS BEA', 'AAC BV', 'AAC BEA',
-                    'Conduite supervisée', 'Passerelle BEA→BV', 'Autre'];
+/* Les formations de l'école. Seules celles marquées « voiture »
+   créent un bilan de conduite au rappel : pour les autres, le
+   bilan n'existe pas encore. */
+const FORMATIONS_BASE = [
+  { cle: '',                nom: '— à préciser —',            voiture: false },
+  { cle: 'CS BV',           nom: '🚗 Voiture manuelle (BV)',  voiture: true },
+  { cle: 'CS BEA',          nom: '🚗 Voiture automatique (BEA)', voiture: true },
+  { cle: 'AAC BV',          nom: '🚗 AAC manuelle',           voiture: true },
+  { cle: 'AAC BEA',         nom: '🚗 AAC automatique',        voiture: true },
+  { cle: 'Conduite supervisée', nom: '🚗 Conduite supervisée', voiture: true },
+  { cle: 'Passerelle BEA→BV',   nom: '🚗 Passerelle BEA→BV',   voiture: true },
+  { cle: 'Moto A',          nom: '🏍️ Moto (A)',              voiture: false },
+  { cle: 'A1 permis',       nom: '🛵 A1 permis',              voiture: false },
+  { cle: 'A1 passerelle',   nom: '🛵 A1 passerelle',          voiture: false },
+  { cle: 'AM 2 roues',      nom: '🛴 AM 2 roues',             voiture: false },
+  { cle: 'AM voiturette',   nom: '🚙 AM voiturette',          voiture: false },
+  { cle: 'A2',              nom: '🏍️ A2',                    voiture: false },
+  { cle: 'Permis BE',       nom: '🚚 Permis BE (remorque)',   voiture: false }
+];
+
+/* Celles que le bureau a ajoutées à la main */
+const CLE_FORMATIONS = 'ec_formations';
+
+function formationsAjoutees(){
+  try{
+    const l = JSON.parse(localStorage.getItem(CLE_FORMATIONS) || '[]');
+    return Array.isArray(l) ? l : [];
+  }catch(e){ return []; }
+}
+
+function toutesLesFormations(){
+  return FORMATIONS_BASE.concat(
+    formationsAjoutees().map(x => ({ cle: x, nom: x, voiture: false })));
+}
+
+/* Cette formation donne-t-elle lieu à un bilan de conduite ? */
+function formationVoiture(v){
+  const t = normaliserMot(String(v || ''));
+  if(!t) return true;          /* rien de précisé : on suppose la voiture */
+
+  const trouvee = toutesLesFormations()
+    .find(x => normaliserMot(x.cle) === t);
+  if(trouvee) return !!trouvee.voiture;
+
+  /* Une formation saisie autrefois : on lit ce qu'elle dit */
+  if(/moto|\bA1\b|\bA2\b|\bAM\b|\bBE\b|remorque|roues|voiturette/i
+     .test(String(v))) return false;
+  return true;
+}
+
+/* Un élève en remorque ne récite que les procédures BE */
+function boiteDeLaFormation(v){
+  const t = String(v || '');
+  if(/\bBE\b|remorque/i.test(t)) return 'BE';
+  if(/BEA|automatique/i.test(t)) return 'BEA';
+  if(/\bBV\b|manuelle/i.test(t)) return 'BV';
+  return '';
+}
+
+/* Gardée pour les écrans qui l'utilisent encore */
+const FORMATIONS = FORMATIONS_BASE.map(x => x.cle);
 
 let fichesEleves = [];
 
@@ -720,6 +779,116 @@ async function afficherEspaceEleve(nom, zone){
 }
 
 
+/* ============================================================
+   UNE SECONDE FORMATION POUR LE MÊME ÉLÈVE
+
+   Quelqu'un qui passe son B puis sa remorque a deux parcours.
+   Les bilans étant rangés par nom, il faut deux fiches — donc
+   deux noms distincts.
+   ============================================================ */
+
+function dupliquerPourAutreFormation(nom, f){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(470px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>➕ Autre formation</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Une seconde fiche pour ' +
+      String(nom).replace(/</g, '&lt;') + '. Ses bilans de conduite ' +
+      'resteront séparés de ceux de sa formation actuelle' +
+      (f.formation ? ' (' + String(f.formation).replace(/</g, '&lt;') + ')' : '') +
+      '.</div>' +
+
+    '<label for="dfForm">La nouvelle formation</label>' +
+    '<select id="dfForm">' +
+      toutesLesFormations()
+        .filter(x => x.cle && x.cle !== f.formation)
+        .map(x => '<option value="' + String(x.cle).replace(/"/g, '&quot;') +
+             '">' + x.nom + '</option>').join('') +
+    '</select>' +
+
+    '<label for="dfNom">Nom de la seconde fiche</label>' +
+    '<input type="text" id="dfNom">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.5;">Il doit différer du premier, sinon les deux ' +
+      'parcours se mélangeraient. Le suffixe se règle tout seul.</div>';
+
+  const selF = boite.querySelector('#dfForm');
+  const chN = boite.querySelector('#dfNom');
+
+  /* Le nom suit la formation choisie */
+  const proposerNom = () => {
+    const court = String(selF.value).replace(/[^A-Za-z0-9]/g, ' ')
+      .trim().split(/\s+/).slice(0, 2).join(' ');
+    chN.value = nom + ' (' + court + ')';
+  };
+  selF.addEventListener('change', proposerNom);
+  proposerNom();
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '➕ Créer la fiche';
+  bO.addEventListener('click', async () => {
+    const nouveau = chN.value.trim();
+    if(!nouveau){ showToast('Donne un nom à la seconde fiche.'); return; }
+
+    if(normaliserMot(nouveau) === normaliserMot(nom)){
+      showToast('Ce nom est identique : les bilans se mélangeraient.');
+      return;
+    }
+
+    const existe = fichesEleves.some(x =>
+      normaliserMot(x.eleve || '') === normaliserMot(nouveau));
+    if(existe){
+      showToast('Une fiche porte déjà ce nom.');
+      return;
+    }
+
+    bO.disabled = true;
+    bO.textContent = 'Création…';
+    try{
+      /* On reprend ses coordonnées, pas son parcours */
+      await appelPrep({
+        action: 'ficheSet',
+        eleve: nouveau,
+        telephone: f.telephone || '',
+        email: f.email || '',
+        formation: selF.value,
+        messenger: f.messenger || '',
+        site: f.site || '',
+        remarques: 'Seconde formation de ' + nom,
+        par: ACCES.moniteur || ''
+      });
+
+      document.body.removeChild(fond);
+      showToast('Fiche créée : ' + nouveau + ' ✅');
+      afficherRepertoire(true);
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+      bO.textContent = '➕ Créer la fiche';
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
 function ouvrirFicheEleve(nom, f){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -763,8 +932,10 @@ function ouvrirFicheEleve(nom, f){
 
     '<label for="fiForm">🎓 Formation</label>' +
     '<select id="fiForm">' +
-      FORMATIONS.map(x => '<option value="' + x + '">' +
-        (x || '— à préciser —') + '</option>').join('') +
+      toutesLesFormations().map(x =>
+        '<option value="' + String(x.cle).replace(/"/g, '&quot;') + '">' +
+        x.nom + '</option>').join('') +
+      '<option value="__autre__">⌨️ Une autre formation…</option>' +
     '</select>' +
     '<label>🧭 Frise de formation</label>' +
     '<div style="background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
@@ -807,6 +978,20 @@ function ouvrirFicheEleve(nom, f){
   bOk.textContent = '💾 Enregistrer';
   rangee.appendChild(bAnn); rangee.appendChild(bOk);
   boite.appendChild(rangee);
+
+  /* Le même élève sur une seconde formation : une fiche à part,
+     pour que les bilans ne se mélangent pas. */
+  if(f){
+    const bDup = document.createElement('button');
+    bDup.className = 'btn btn-secondary';
+    bDup.style.cssText = 'margin-top:8px;padding:11px;font-size:13px;';
+    bDup.textContent = '➕ Une autre formation pour cet élève';
+    bDup.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      dupliquerPourAutreFormation(nom, f);
+    });
+    boite.appendChild(bDup);
+  }
 
   const msg = document.createElement('div');
   msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
@@ -852,7 +1037,41 @@ function ouvrirFicheEleve(nom, f){
   g('fiAutreAE').addEventListener('change', () => {
     g('fiAutreAENom').style.display = g('fiAutreAE').checked ? 'block' : 'none';
   });
-  g('fiForm').value = (f && f.formation) || '';
+  /* Une formation saisie autrefois et absente de la liste doit
+     rester lisible : on l'ajoute plutôt que de l'effacer. */
+  const formActuelle = (f && f.formation) || '';
+  const selForm = g('fiForm');
+  if(formActuelle && ![...selForm.options].some(o => o.value === formActuelle)){
+    const o = document.createElement('option');
+    o.value = formActuelle;
+    o.textContent = formActuelle;
+    selForm.insertBefore(o, selForm.lastElementChild);
+  }
+  selForm.value = formActuelle;
+
+  /* Ajouter une formation à la main */
+  selForm.addEventListener('change', async () => {
+    if(selForm.value !== '__autre__') return;
+
+    const nom = await demander('Nom de la formation', '', 'Nouvelle formation');
+    if(!nom || !nom.trim()){ selForm.value = formActuelle; return; }
+
+    const propre = nom.trim();
+    try{
+      const l = formationsAjoutees();
+      if(l.indexOf(propre) === -1){
+        l.push(propre);
+        localStorage.setItem(CLE_FORMATIONS, JSON.stringify(l));
+      }
+    }catch(e){}
+
+    const o = document.createElement('option');
+    o.value = propre;
+    o.textContent = propre;
+    selForm.insertBefore(o, selForm.lastElementChild);
+    selForm.value = propre;
+  });
+
   g('fiRem').value = (f && f.remarques) || '';
 
   bAnn.addEventListener('click', () => document.body.removeChild(fond));
