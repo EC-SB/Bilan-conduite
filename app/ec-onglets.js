@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 11:16 — v527 */
+/* Déployé le 24/08/2026 à 11:30 — v528 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -16,7 +16,7 @@ const SECTIONS_ONGLET = {
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
-  outils:  ['procedures', 'textes', 'memoire', 'bilans', 'historique',
+  outils:  ['paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie',
             'bureau_messages', 'admin']
@@ -251,6 +251,7 @@ function reveillerVue(cle){
     proccorriger: () => afficherProcCorriger(),
     code:       () => afficherCodeSalle(),
     handicap:   () => afficherHandicap(),
+    paiement:   () => afficherPaiement(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
@@ -262,6 +263,7 @@ function reveillerVue(cle){
     proccorriger: () => afficherProcCorriger(),
     code:       () => afficherCodeSalle(),
     handicap:   () => afficherHandicap(),
+    paiement:   () => afficherPaiement(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
