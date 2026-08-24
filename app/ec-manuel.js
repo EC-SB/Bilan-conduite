@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 07:55 — v516 */
+/* Déployé le 24/08/2026 à 08:54 — v518 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -128,14 +128,21 @@ const CHAMPS_MANUELS = {
     { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
   ],
   examen: [
-    /* Le trajet jusqu'au centre : la partie « avant examen » du bilan.
-       Sans ces champs, elle sortait vide en saisie manuelle. */
+    /* Deux moments distincts : le trajet vers le centre, puis
+       l'examen lui-même. Le moniteur envoie le premier dès que
+       l'élève descend, et reprend le second à son tour. */
+    { cle:'__titreAvant', type:'titre', nom:'🚗 Avant examen',
+      aide:'Le trajet jusqu\'au centre. À envoyer dès que l\'élève ' +
+           'a fini de conduire.' },
     { cle:'avantExamen.installation', type:'ok', nom:'AVANT — Installation', defaut:'' },
     { cle:'avantExamen.passager',     type:'ok', nom:'AVANT — Passager',     defaut:'' },
     { cle:'avantExamen.voyants',      type:'ok', nom:'AVANT — Voyants',      defaut:'' },
     { cle:'avantExamen.erreurs',      type:'texte', lignes:5,
       nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)' },
 
+    { cle:'__titreExamen', type:'titre', nom:'🏁 Examen',
+      aide:'Ce que l\'inspecteur a noté. À remplir au retour de ' +
+           'l\'élève.' },
     { cle:'installation',type:'ok',    nom:'EXAMEN — Installation', defaut:'' },
     { cle:'passager',    type:'ok',    nom:'EXAMEN — Passager',     defaut:'' },
     { cle:'voyants',     type:'ok',    nom:'EXAMEN — Voyants',      defaut:'' },
@@ -721,6 +728,35 @@ async function ouvrirBilanManuel(){
         champsManuels[ch.cle] = f.name;
       });
 
+    }else if(ch.type === 'titre'){
+      /* Un intertitre : il sépare deux moments de l'examen, et
+         porte le bouton d'envoi de sa partie. */
+      bloc.style.cssText = 'margin:22px 0 12px;padding-top:14px;' +
+        'border-top:2px solid var(--line);';
+
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:17px;font-weight:800;color:var(--accent-text);';
+      t.textContent = ch.nom;
+      bloc.appendChild(t);
+
+      if(ch.aide){
+        const a = document.createElement('div');
+        a.style.cssText = 'font-size:12px;color:var(--muted);margin-top:3px;' +
+          'line-height:1.5;';
+        a.textContent = ch.aide;
+        bloc.appendChild(a);
+      }
+
+      /* Sous « Avant examen » : de quoi l'envoyer sans attendre */
+      if(ch.cle === '__titreAvant'){
+        const b = document.createElement('button');
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'margin-top:10px;padding:11px;font-size:13px;';
+        b.textContent = '📤 Envoyer la partie avant examen';
+        b.addEventListener('click', () => envoyerAvantExamen());
+        bloc.appendChild(b);
+      }
+
     }else if(ch.type === 'entete'){
       /* La première partie du bilan, telle que l'élève la lira :
          le moniteur coche dans le texte au lieu de répondre à une
@@ -997,6 +1033,32 @@ function ajouterObservationManuelle(zone){
 
 let minuteurManuel = null;
 
+/* Un brouillon par élève : le moniteur en a plusieurs dans la
+   voiture le jour d'un examen, et ils ne doivent pas s'écraser. */
+const CLE_MANUELS = 'bilans_manuels';
+
+function tousLesBrouillons(){
+  try{
+    const l = JSON.parse(localStorage.getItem(CLE_MANUELS) || '[]');
+    if(!Array.isArray(l)) return [];
+    /* Au-delà de deux jours, ce n'est plus la journée en cours */
+    const limite = Date.now() - 48 * 3600 * 1000;
+    return l.filter(x => x && (x.ts || 0) > limite);
+  }catch(e){ return []; }
+}
+
+function rangerBrouillons(liste){
+  try{
+    localStorage.setItem(CLE_MANUELS, JSON.stringify(liste.slice(0, 12)));
+  }catch(e){ /* stockage plein */ }
+}
+
+function effacerBrouillonDe(eleve){
+  const reste = tousLesBrouillons()
+    .filter(x => normaliserMot(x.eleve || '') !== normaliserMot(eleve));
+  rangerBrouillons(reste);
+}
+
 function sauvegarderManuel(){
   const zone = $('manuelChamps');
   if(!zone) return;
@@ -1019,19 +1081,35 @@ function sauvegarderManuel(){
   /* Rien de saisi : inutile de proposer une reprise vide */
   if(!saisies.some(x => x.valeur)) return;
 
+  const eleve = $('studentName').value.trim();
+  const brouillon = {
+    ts: Date.now(),
+    modele: $('modele').value,
+    moniteur: $('monitorName').value,
+    eleve: eleve,
+    site: $('site').value,
+    date: $('lessonDate').value,
+    note: $('noteInterne') ? $('noteInterne').value : '',
+    avantEnvoye: !!avantExamenEnvoye,
+    saisies: saisies
+  };
+
+  /* Le brouillon de cet élève remplace le sien, pas celui d'un
+     autre : plusieurs examens se déroulent en parallèle. */
+  const autres = tousLesBrouillons()
+    .filter(x => normaliserMot(x.eleve || '') !== normaliserMot(eleve));
+  autres.unshift(brouillon);
+  rangerBrouillons(autres);
+
+  /* L'ancienne clé sert encore à la bannière : on garde le plus
+     récent pour ne pas la laisser vide. */
   try{
-    localStorage.setItem('bilan_manuel_en_cours', JSON.stringify({
-      ts: Date.now(),
-      modele: $('modele').value,
-      moniteur: $('monitorName').value,
-      eleve: $('studentName').value,
-      site: $('site').value,
-      date: $('lessonDate').value,
-      note: $('noteInterne') ? $('noteInterne').value : '',
-      saisies: saisies
-    }));
-  }catch(e){ /* stockage plein : on continue sans */ }
+    localStorage.setItem('bilan_manuel_en_cours', JSON.stringify(brouillon));
+  }catch(e){}
 }
+
+/* Vrai quand la partie avant examen a déjà été envoyée */
+let avantExamenEnvoye = false;
 
 /* Repose ce qui avait été saisi, une fois la fiche dessinée */
 function replacerSaisiesManuelles(saisies){
@@ -1082,6 +1160,7 @@ function brouillonManuel(){
 
 function effacerBrouillonManuel(){
   try{ localStorage.removeItem('bilan_manuel_en_cours'); }catch(e){}
+  try{ localStorage.removeItem(CLE_MANUELS); }catch(e){}
 }
 
 /* Suit toutes les saisies de la fiche */
@@ -1101,7 +1180,9 @@ function lireChampsManuels(){
   if(!champs) return;
 
   champs.forEach(ch => {
-    if(ch.type === 'manoeuvres'){
+    if(ch.type === 'titre'){
+      /* Un intertitre ne porte aucune réponse */
+    }else if(ch.type === 'manoeuvres'){
       champsManuels[ch.cle] = Array.prototype.slice
         .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
         .map(x => ({ nom: x.value, fait: true }));
@@ -1262,13 +1343,169 @@ async function genererBilanManuel(){
   $('resultView').style.display = 'block';
   window.scrollTo(0, 0);
   sauvegarderLocal(true);
-  effacerBrouillonManuel();
+
+  /* Seul le brouillon de cet élève disparaît : ceux des autres
+     examens de la matinée restent. */
+  effacerBrouillonDe($('studentName').value.trim());
+  try{ localStorage.removeItem('bilan_manuel_en_cours'); }catch(e){}
+  avantExamenEnvoye = false;
 }
 
 /* Rouvre un bilan manuel interrompu */
+/* ============================================================
+   L'AVANT-EXAMEN, ENVOYÉ SANS ATTENDRE
+
+   Le jour d'un examen, plusieurs élèves se relaient au volant.
+   Chacun reçoit sa partie « avant examen » dès qu'il descend,
+   sans attendre que l'inspecteur ait vu tout le monde.
+
+   Le bilan complet part ensuite, avec les deux parties.
+   ============================================================ */
+
+async function envoyerAvantExamen(){
+  const eleve = $('studentName').value.trim();
+  if(!eleve){ showToast("Saisis le nom de l'élève."); return; }
+
+  lireChampsManuels();
+
+  /* On ne construit que la première moitié : le reste n'est pas
+     encore rempli, et l'annoncer vide n'aurait pas de sens. */
+  const a = champsManuels.avantExamen || {};
+  const texte = [
+    '👋 𝗔𝗩𝗔𝗡𝗧 𝗧𝗢𝗡 𝗘𝗫𝗔𝗠𝗘𝗡',
+    '',
+    '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + (a.installation || '✅️❌️'),
+    '𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ' + (a.passager || '✅️❌️'),
+    '𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ' + (a.voyants || '✅️❌️'),
+    ''
+  ];
+
+  const err = String(a.erreurs || '').trim();
+  if(err){
+    texte.push('𝙀𝙧𝙧𝙚𝙪𝙧𝙨 𝙖̀ 𝙣𝙚 𝙥𝙖𝙨 𝙧𝙚𝙛𝙖𝙞𝙧𝙚 :');
+    texte.push(err);
+    texte.push('');
+  }
+
+  texte.push('Le bilan complet suivra après ton examen. Courage ! 🍀');
+
+  const message = texte.join('\n');
+
+  /* On garde d'abord : ce qui suit peut échouer, pas la
+     sauvegarde. */
+  avantExamenEnvoye = true;
+  sauvegarderManuel();
+
+  ouvrirEnvoiAvant(eleve, message);
+}
+
+
+function ouvrirEnvoiAvant(eleve, message){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>📤 Avant examen — ' +
+    String(eleve).replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;' +
+      'line-height:1.5;">Sa fiche reste en haut de l\'écran : tu la ' +
+      'rouvriras pour la partie examen.</div>';
+
+  const z = document.createElement('textarea');
+  z.rows = 11;
+  z.value = message;
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
+  boite.appendChild(z);
+
+  const r1 = document.createElement('div');
+  r1.style.cssText = 'display:flex;gap:8px;margin-bottom:10px;';
+
+  const bCop = document.createElement('button');
+  bCop.className = 'btn btn-secondary';
+  bCop.style.cssText = 'flex:1;padding:11px;font-size:13px;margin:0;';
+  bCop.textContent = '📋 Copier';
+  bCop.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(z.value);
+      showToast('Copié ✅');
+    }catch(e){ z.focus(); z.select(); showToast('Ctrl+C pour copier'); }
+  });
+  r1.appendChild(bCop);
+
+  const bMail = document.createElement('button');
+  bMail.className = 'btn btn-secondary';
+  bMail.style.cssText = 'flex:1;padding:11px;font-size:13px;margin:0;';
+  bMail.textContent = '✉️ Par mail';
+  bMail.addEventListener('click', async () => {
+    let adresse = '';
+    try{
+      const d = await appelPrep({ action: 'contactEleve', eleve: eleve });
+      adresse = ((d && d.contact) || {}).email || '';
+    }catch(e){}
+
+    if(!adresse){ showToast('Aucune adresse dans sa fiche.'); return; }
+
+    bMail.disabled = true;
+    bMail.textContent = 'Envoi…';
+    try{
+      await appelPrep({
+        action: 'mailBilan', to: [adresse],
+        sujet: 'Avant ton examen — Évolution Conduites',
+        texte: z.value
+      });
+      bMail.textContent = '✅ Envoyé';
+      showToast('Envoyé à ' + adresse + ' ✅');
+    }catch(e){
+      bMail.disabled = false;
+      bMail.textContent = '✉️ Par mail';
+      showToast('Impossible : ' + e.message);
+    }
+  });
+  r1.appendChild(bMail);
+
+  boite.appendChild(r1);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bRester = document.createElement('button');
+  bRester.className = 'btn btn-secondary';
+  bRester.textContent = 'Rester sur la fiche';
+  bRester.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bRester);
+
+  const bSuivant = document.createElement('button');
+  bSuivant.className = 'btn btn-primary';
+  bSuivant.textContent = '👤 Élève suivant';
+  bSuivant.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    fermerBilanManuel();
+    $('studentName').value = '';
+    if(typeof proposerReprise === 'function') proposerReprise();
+    showToast('Fiche gardée — reprends-la en haut après l\'examen');
+  });
+  r.appendChild(bSuivant);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
 function reprendreBilanManuel(){
-  const b = brouillonManuel();
+  reprendreBrouillon(brouillonManuel());
+}
+
+/* Rouvre un brouillon précis, choisi dans la liste du haut */
+function reprendreBrouillon(b){
   if(!b) return;
+
+  /* On repart de ce qui a déjà été envoyé pour cet élève */
+  avantExamenEnvoye = !!b.avantEnvoye;
 
   if(b.modele){
     $('modele').value = b.modele;
