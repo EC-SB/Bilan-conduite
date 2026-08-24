@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 07:56 — v516 */
+/* Déployé le 24/08/2026 à 08:45 — v518 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -237,10 +237,18 @@ function appliquerTheme(clair){
 
 $('repriseOui').addEventListener('click', reprendreCours);
 $('repriseNon').addEventListener('click', async () => {
-  if(await confirmer('Supprimer définitivement ce cours interrompu ?')){
-    effacerSauvegarde();
-    $('repriseBanner').style.display = 'none';
-  }
+  if(!await confirmer('Supprimer définitivement ce cours interrompu ?')) return;
+
+  /* Les deux brouillons : le vocal et le manuel. N'en effacer
+     qu'un laissait la bannière revenir au rechargement. */
+  effacerSauvegarde();
+  if(typeof effacerBrouillonManuel === 'function') effacerBrouillonManuel();
+
+  const b = $('repriseOui');
+  if(b) delete b.dataset.manuel;
+
+  $('repriseBanner').style.display = 'none';
+  showToast('Supprimé ✅');
 });
 
 /* Sauvegarde aussi les corrections manuelles et les champs du formulaire */
@@ -365,9 +373,10 @@ function adapterAuModele(){
        l'action principale. */
     if(zManuel) zManuel.style.display = 'block';
     if(bManuel){
-      bManuel.className = 'btn btn-primary';
-      bManuel.style.background = '';
-      bManuel.style.color = '';
+      /* Orange aussi quand il devient l'action principale */
+      bManuel.className = 'btn';
+      bManuel.style.background = 'var(--ambre)';
+      bManuel.style.color = 'var(--sur-ambre)';
       bManuel.style.marginTop = '0';
       bManuel.textContent = '✍️ Remplir le bilan';
     }
@@ -380,8 +389,8 @@ function adapterAuModele(){
       /* Orange dans les deux cas : c'est une vraie action, pas
          un repli discret. */
       bManuel.className = 'btn';
-      bManuel.style.background = 'var(--orange)';
-      bManuel.style.color = 'var(--on-accent)';
+      bManuel.style.background = 'var(--ambre)';
+      bManuel.style.color = 'var(--sur-ambre)';
       bManuel.style.marginTop = '12px';
       bManuel.textContent = '✍️ Bilan à remplir à la main';
     }
