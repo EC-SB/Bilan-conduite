@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 14:21 — v536 */
+/* Déployé le 24/08/2026 à 14:27 — v537 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -165,10 +165,15 @@ const CHAMPS_MANUELS = {
     /* Ce qui suit ne part jamais à l'élève : c'est pour nous,
        et pour le moniteur qui fera le rendez-vous post-permis. */
     { cle:'__titrePourNous', type:'titre', nom:'🔒 Pour nous seulement',
-      aide:'Ces deux informations ne figurent pas sur le bilan de ' +
-           'l\'élève. Elles vont dans ses notes.' },
+      aide:'Rien de ce qui suit ne figure sur le bilan de l\'élève. ' +
+           'Tout va dans ses notes, pour l\'équipe.' },
     { cle:'inspecteur',  type:'inspecteur', nom:'Inspecteur' },
-    { cle:'repassage',   type:'repassage',  nom:'Heures avant repassage' }
+    { cle:'repassage',   type:'repassage',  nom:'Heures avant repassage' },
+    { cle:'noteEquipe',  type:'texte', lignes:5,
+      nom:'Note pour l\'équipe',
+      aide:'Ce que le moniteur du rendez-vous post-permis doit savoir : ' +
+           'l\'état de l\'élève, un souci pendant l\'examen, une ' +
+           'remarque de l\'inspecteur.' }
   ],
   rvp: [
     { cle:'resume',      type:'texte', nom:'Déroulé du rendez-vous', lignes:12 }
@@ -1352,14 +1357,24 @@ async function ajouterInspecteur(nom){
 function mentionExamen(champs, moniteur){
   const insp = String(champs.inspecteur || '').trim();
   const rep = String(champs.repassage || '').trim();
-  if(!insp && !rep) return '';
+  const note = String(champs.noteEquipe || '').trim();
+  if(!insp && !rep && !note) return '';
 
   const bouts = ['🔒 EXAMEN OFFICIEL'];
   if(insp) bouts.push('Inspecteur : ' + insp);
   if(rep) bouts.push('Demandé : ' + rep + ' + 3 heures avant repassage');
   if(moniteur) bouts.push('Par : ' + moniteur);
 
-  return bouts.join(' · ');
+  let t = bouts.join(' · ');
+
+  /* La note libre garde ses retours à la ligne : elle se lit
+     comme un paragraphe, pas comme une suite de mentions. */
+  if(note){
+    t += '\n🔒 ' + note.split('\n').map(x => x.trim())
+                        .filter(Boolean).join('\n🔒 ');
+  }
+
+  return t;
 }
 
 
@@ -1685,8 +1700,10 @@ async function genererBilanManuel(){
     const m = mentionExamen(champsManuels, $('monitorName').value.trim());
     const zn = $('noteInterne');
     if(zn){
+      /* Toutes les lignes 🔒 s'en vont : l'en-tête comme la note
+         libre qui la suit. Seul le dernier examen compte. */
       const sans = zn.value.split('\n')
-        .filter(l => l.indexOf('🔒 EXAMEN OFFICIEL') === -1)
+        .filter(l => l.trim().indexOf('🔒') !== 0)
         .join('\n').trim();
       zn.value = m ? (m + (sans ? '\n' + sans : '')) : sans;
     }
