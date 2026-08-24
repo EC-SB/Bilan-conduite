@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 09:35 — v497 */
+/* Déployé le 24/08/2026 à 07:48 — v515 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1520,6 +1520,65 @@ function modeRappel(mode){
    cours demain. La préparation se crée donc toute seule, pour que
    le cours apparaisse dans « Mes prochains cours ».
    ============================================================ */
+/* ============================================================
+   LE BILAN QUI VA AVEC LA SÉANCE
+
+   Chaque type de rappel appelle un bilan précis. Ce qui n'est
+   pas listé garde le bilan de conduite automatique — le plus
+   courant — et le moniteur le change d'un geste si besoin.
+   ============================================================ */
+const BILAN_DU_RAPPEL = {
+  /* Les cours de conduite, par site */
+  cours:            'conduite-auto',
+  'cours-sb':       'conduite-auto',
+  'cours-loudeac':  'conduite-auto',
+
+  simulateur:       'simu-auto',
+
+  /* La passerelle se fait en boîte manuelle */
+  passerelle:       'conduite-manuelle',
+  'passerelle-jj':  'conduite-manuelle',
+
+  accompagnateur:   'formation-accompagnateur',
+  'rdv-accompagnateur': 'formation-accompagnateur',
+
+  prealable:        'rdv-prealable-auto',
+  'rdv-prealable':  'rdv-prealable-auto',
+
+  permis:           'examen-officiel',
+  'rappel-permis':  'examen-officiel',
+
+  examblanc:        'examen-blanc',
+  'examen-blanc':   'examen-blanc'
+};
+
+function modeleDuTypeDeRappel(type){
+  const t = normaliserMot(String(type || ''));
+  if(!t) return '';
+
+  /* Le type exact d'abord */
+  if(BILAN_DU_RAPPEL[t]) return verifierModele(BILAN_DU_RAPPEL[t]);
+
+  /* À défaut, ce que le libellé raconte */
+  if(t.indexOf('simu') !== -1) return verifierModele('simu-auto');
+  if(t.indexOf('passerelle') !== -1) return verifierModele('conduite-manuelle');
+  if(t.indexOf('accompagnateur') !== -1) return verifierModele('formation-accompagnateur');
+  if(t.indexOf('prealable') !== -1) return verifierModele('rdv-prealable-auto');
+  if(t.indexOf('blanc') !== -1) return verifierModele('examen-blanc');
+  if(t.indexOf('permis') !== -1) return verifierModele('examen-officiel');
+  if(t.indexOf('cours') !== -1) return verifierModele('conduite-auto');
+
+  return '';
+}
+
+/* Un modèle qui n'existe pas ferait un bilan vide : mieux vaut
+   laisser le choix par défaut. */
+function verifierModele(cle){
+  if(typeof MODELES === 'undefined') return cle;
+  return MODELES[cle] ? cle : '';
+}
+
+
 async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
   if(!eleve || eleve.length < 3) return;
 
@@ -1548,6 +1607,11 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
 
     let cle = 'conduite-auto';
     if(/manuel|\bbv\b|b[oô]ite m/i.test(formation)) cle = 'conduite-manuelle';
+
+    /* Le type de séance prime sur la boîte : un simulateur ou un
+       rendez-vous préalable n'est pas un cours de conduite. */
+    const impose = modeleDuTypeDeRappel(details && details.type);
+    if(impose) cle = impose;
 
     /* Le dossier de l'élève, pour que le moniteur n'ait pas à tout
        ressaisir : numéro de leçon, frise, note du cours précédent.
