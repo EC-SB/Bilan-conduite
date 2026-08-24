@@ -67,6 +67,13 @@ async function afficherPaiement(){
 
   /* La marche à suivre, en bas : elle ne sert qu'à nous, et elle
      ne doit jamais partir à l'élève. */
+  /* Le suivi : où en est chaque dossier */
+  const zs = document.createElement('div');
+  zs.id = 'pfSuivi';
+  zs.style.marginTop = '18px';
+  zone.appendChild(zs);
+  afficherSuiviAlma();
+
   const zp = document.createElement('div');
   zp.id = 'pfProcess';
   zp.style.marginTop = '16px';
@@ -177,6 +184,15 @@ function dessinerPaiement(){
 
   zone.appendChild(r);
 
+  /* Garder la proposition : sans cela, on oublie qui attend quoi */
+  const bSuivi = document.createElement('button');
+  bSuivi.className = 'btn btn-secondary';
+  bSuivi.style.cssText = 'margin-top:8px;padding:12px;font-size:13px;' +
+    'border-color:var(--ambre);color:var(--ambre);';
+  bSuivi.textContent = '💾 Ajouter au suivi';
+  bSuivi.addEventListener('click', () => enregistrerAuSuivi(montant));
+  zone.appendChild(bSuivi);
+
   /* Le message tel qu'il partira : on le voit avant d'envoyer */
   const apercu = document.createElement('details');
   apercu.style.cssText = 'margin-top:12px;border:1px solid var(--line);' +
@@ -256,6 +272,235 @@ async function envoyerPaiementMail(montant, options){
   }
 }
 
+
+
+
+/* ============================================================
+   LE SUIVI DES DOSSIERS
+
+   Trois moments : on propose, l'élève fait sa demande sur ALMA,
+   ALMA nous verse. La ligne disparaît au dernier — ce qui reste
+   attend encore quelque chose.
+   ============================================================ */
+
+let paiementsAlma = [];
+
+
+async function enregistrerAuSuivi(montant){
+  const nom = String(($('pfEleve') && $('pfEleve').value) || '').trim();
+  if(!nom){
+    showToast('Indique l\'élève avant d\'ajouter au suivi.');
+    if($('pfEleve')) $('pfEleve').focus();
+    return;
+  }
+
+  /* Déjà suivi : on ne crée pas de doublon */
+  const deja = paiementsAlma.find(x =>
+    normaliserMot(x.eleve || '') === normaliserMot(nom));
+  if(deja){
+    if(!await confirmer(nom + ' est déjà dans le suivi pour ' +
+        euros(deja.montant) + '.\n\nEn ajouter un second ?')) return;
+  }
+
+  try{
+    await appelPrep({
+      action: 'almaSet',
+      eleve: nom,
+      montant: montant,
+      par: ACCES.moniteur || ''
+    });
+    showToast('Ajouté au suivi ✅');
+    afficherSuiviAlma();
+  }catch(e){
+    showToast('Impossible : ' + e.message);
+  }
+}
+
+
+async function afficherSuiviAlma(){
+  const zone = $('pfSuivi');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Lecture du suivi…</div>';
+  try{
+    const d = await appelPrep({ action: 'almaList' });
+    paiementsAlma = (d && d.paiements) || [];
+  }catch(e){
+    zone.innerHTML = '<div class="empty">⚠️ ' +
+      String(e.message || e).replace(/</g, '&lt;') + '</div>';
+    return;
+  }
+
+  zone.innerHTML = '';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:15px;font-weight:700;margin-bottom:4px;';
+  t.textContent = '📋 Dossiers en cours';
+  zone.appendChild(t);
+
+  if(!paiementsAlma.length){
+    zone.innerHTML += '<div class="empty">Aucun dossier en attente.<br>' +
+      '<span style="font-size:12px;">Le bouton 💾 au-dessus ajoute une ' +
+      'proposition au suivi.</span></div>';
+    return;
+  }
+
+  /* Ce qui attend quoi : c'est ce qu'on vient regarder */
+  const sansDemande = paiementsAlma.filter(x => !x.demandeFaite).length;
+  const enAttente = paiementsAlma.filter(x => x.demandeFaite).length;
+
+  const cpt = document.createElement('div');
+  cpt.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;' +
+    'line-height:1.5;';
+  cpt.innerHTML =
+    (sansDemande ? '⏳ <strong>' + sansDemande + '</strong> ' +
+      'en attente de la demande de l\'élève' : '') +
+    (sansDemande && enAttente ? '<br>' : '') +
+    (enAttente ? '💳 <strong>' + enAttente + '</strong> ' +
+      'demande(s) faite(s), en attente du virement ALMA' : '');
+  zone.appendChild(cpt);
+
+  paiementsAlma.forEach(p => zone.appendChild(ligneAlma(p)));
+}
+
+
+function ligneAlma(p){
+  const l = document.createElement('div');
+  l.style.cssText = 'border:1px solid ' +
+    (p.demandeFaite ? 'var(--orange)' : 'var(--line)') +
+    ';border-radius:11px;padding:11px 12px;margin-bottom:8px;';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'display:flex;gap:9px;align-items:flex-start;' +
+    'margin-bottom:9px;';
+  h.innerHTML = '<span style="flex:1;min-width:0;font-size:15px;' +
+    'line-height:1.4;">' +
+    '<strong>' + String(p.eleve).replace(/</g, '&lt;') + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      'proposé le ' + p.proposeLe +
+      (p.par ? ' par ' + String(p.par).replace(/</g, '&lt;') : '') +
+    '</div></span>' +
+    '<span style="flex-shrink:0;font-size:16px;font-weight:800;' +
+      'color:var(--accent-text);">' + euros(p.montant) + '</span>';
+  l.appendChild(h);
+
+  /* Les deux étapes, dans l'ordre */
+  const z = document.createElement('div');
+  z.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);' +
+    'padding-top:9px;';
+
+  const etape = (nom, coche, aide, quand) => {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 7px;' +
+      'font-weight:400;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = coche;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    cb.addEventListener('change', () => quand(cb));
+    lab.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.innerHTML = nom + (aide
+      ? '<div style="font-size:11px;color:var(--muted);">' + aide + '</div>'
+      : '');
+    lab.appendChild(t);
+
+    z.appendChild(lab);
+  };
+
+  etape("L'élève a fait sa demande sur ALMA", p.demandeFaite, '',
+    async cb => {
+      cb.disabled = true;
+      try{
+        await appelPrep({ action: 'almaSet', id: p.id,
+                          demandeFaite: cb.checked });
+        p.demandeFaite = cb.checked;
+        showToast('Enregistré ✅');
+        afficherSuiviAlma();
+      }catch(e){
+        cb.checked = !cb.checked;
+        showToast('Impossible : ' + e.message);
+      }
+      cb.disabled = false;
+    });
+
+  etape('Payé par ALMA, encaissé sur Driv\'up',
+    false, 'La ligne quittera le suivi',
+    async cb => {
+      if(!cb.checked) return;
+
+      if(!await confirmer('Virement ALMA encaissé pour ' + p.eleve + ' ?\n\n' +
+          'Le dossier est terminé : il quittera le suivi.')){
+        cb.checked = false;
+        return;
+      }
+
+      cb.disabled = true;
+      try{
+        await appelPrep({ action: 'almaSet', id: p.id, payeAlma: true });
+        showToast('Dossier clos ✅');
+        afficherSuiviAlma();
+      }catch(e){
+        cb.checked = false;
+        cb.disabled = false;
+        showToast('Impossible : ' + e.message);
+      }
+    });
+
+  l.appendChild(z);
+
+  if(p.remarque){
+    const rm = document.createElement('div');
+    rm.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;' +
+      'margin-top:4px;white-space:pre-wrap;';
+    rm.textContent = p.remarque;
+    l.appendChild(rm);
+  }
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-top:9px;';
+
+  const bNote = document.createElement('button');
+  bNote.className = 'btn btn-secondary';
+  bNote.style.cssText = 'flex:1;padding:9px;font-size:12px;margin:0;';
+  bNote.textContent = p.remarque ? '📝 Modifier la remarque' : '📝 Remarque';
+  bNote.addEventListener('click', async () => {
+    const v = await demander('Remarque sur ce dossier', p.remarque || '',
+                             p.eleve);
+    if(v === null) return;
+    try{
+      await appelPrep({ action: 'almaSet', id: p.id, remarque: v });
+      showToast('Enregistré ✅');
+      afficherSuiviAlma();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  r.appendChild(bNote);
+
+  /* L'élève renonce : la ligne s'en va sans être un succès */
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:9px 11px;font-size:12px;margin:0;' +
+    'flex-shrink:0;color:var(--red);border-color:var(--red);';
+  bSup.textContent = '🗑️';
+  bSup.title = 'Retirer du suivi';
+  bSup.addEventListener('click', async () => {
+    if(!await confirmer('Retirer ' + p.eleve + ' du suivi ?\n\n' +
+        'À faire s\'il renonce au paiement en plusieurs fois.')) return;
+    try{
+      await appelPrep({ action: 'almaDelete', id: p.id });
+      showToast('Retiré ✅');
+      afficherSuiviAlma();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  r.appendChild(bSup);
+
+  l.appendChild(r);
+  return l;
+}
 
 
 /* ============================================================
