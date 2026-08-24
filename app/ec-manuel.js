@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 13:57 — v534 */
+/* Déployé le 24/08/2026 à 14:07 — v535 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -152,8 +152,14 @@ const CHAMPS_MANUELS = {
     { cle:'voyants',     type:'ok',    nom:'EXAMEN — Voyants',      defaut:'' },
     { cle:'verifQuestion', type:'court', nom:'N° de la question de vérification' },
     { cle:'vi',          type:'ok',    nom:'Vérification', defaut:'' },
+    { cle:'viTexte',     type:'texte', lignes:3,
+      nom:'Explication ou correction — vérification' },
     { cle:'qser',        type:'ok',    nom:'Question sécurité routière', defaut:'' },
+    { cle:'qserTexte',   type:'texte', lignes:3,
+      nom:'Explication ou correction — sécurité routière' },
     { cle:'secours',     type:'ok',    nom:'Premiers secours', defaut:'' },
+    { cle:'secoursTexte', type:'texte', lignes:3,
+      nom:'Explication ou correction — premiers secours' },
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
 
     /* Ce qui suit ne part jamais à l'élève : c'est pour nous,
@@ -463,8 +469,27 @@ async function ouvrirBilanManuel(){
   btn.disabled = true;
   btn.textContent = 'Préparation…';
 
-  /* Le questionnaire alimente la note interne, comme pour un cours enregistré */
-  if(!contexteDepart){
+  /* L'examen officiel n'a pas de leçon à préparer : le
+     questionnaire n'apprendrait rien. On vérifie seulement que
+     la boîte est la bonne quand l'élève n'a aucun bilan. */
+  if(modeleCle === 'examen-officiel'){
+    const su = (typeof suiviDe === 'function') ? suiviDe(eleve) : {};
+    const aDesBilans = !!(su && (su.dernierCours || su.nbCours));
+
+    if(!aDesBilans){
+      const b = String(modele.label || '');
+      const auto = /automatique|bea/i.test(b);
+      if(!await confirmer(
+          'Aucun bilan pour ' + eleve + '.\n\n' +
+          'Est-il bien en boîte ' + (auto ? 'automatique' : 'manuelle') +
+          ' ?')){
+        btn.disabled = false;
+        btn.textContent = '✍️ Bilan à remplir à la main';
+        showToast('Change le modèle en haut de l\'écran.');
+        return;
+      }
+    }
+  }else if(!contexteDepart){
     try{
       const rep = await ouvrirQuestionnaireDepart(null, 'Avant de remplir le bilan', 'Continuer');
       if(rep){
@@ -1602,8 +1627,14 @@ async function genererBilanManuel(){
     if(champsManuels.aDate === 'non' && !repris.examPermis) repris.examPermis = 'aprevoir';
   }
 
-  /* Mise à jour des infos, comme à la fin d'un cours enregistré */
-  const maj = await ouvrirQuestionnaireDepart(repris, 'Après ce cours', 'Terminer');
+  /* Mise à jour des infos, comme à la fin d'un cours enregistré.
+
+     Sauf pour l'examen officiel : rien à préparer pour la suite,
+     elle se décide au rendez-vous post-permis. */
+  const maj = ($('modele').value === 'examen-officiel')
+    ? null
+    : await ouvrirQuestionnaireDepart(repris, 'Après ce cours', 'Terminer');
+
   if(maj){
     contexteDepart = maj;
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
