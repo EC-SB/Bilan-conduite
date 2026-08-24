@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 11:42 — v530 */
+/* Déployé le 24/08/2026 à 11:56 — v531 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -13,7 +13,7 @@ const CLE_ONGLET = 'onglet_actif';
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'permis', 'depart'],
+  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils:  ['paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
@@ -138,6 +138,7 @@ const VUES = {
            ['proccorriger','📥 Procédures',            'proccorriger'],
            ['code',       '🎓 Code en salle',          'code'],
            ['handicap',   '♿ Handicap',               'handicap'],
+           ['evaluation', '📊 Évaluation',            'evaluation'],
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
   /* Ce qui sert au quotidien pédagogique */
@@ -252,6 +253,7 @@ function reveillerVue(cle){
     proccorriger: () => afficherProcCorriger(),
     code:       () => afficherCodeSalle(),
     handicap:   () => afficherHandicap(),
+    evaluation: () => afficherEvaluation(),
     paiement:   () => afficherPaiement(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
