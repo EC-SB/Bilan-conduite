@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 07:48 — v515 */
+/* Déployé le 24/08/2026 à 08:24 — v517 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1605,6 +1605,15 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
     const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
     const formation = String((f && f.formation) || '').trim();
 
+    /* Moto, remorque, cyclo : le bilan de conduite n'existe pas
+       encore pour ces formations. Le rappel part quand même, mais
+       on ne crée pas un cours qu'on ne saurait pas remplir. */
+    if(typeof formationVoiture === 'function' && !formationVoiture(formation)){
+      showToast('Rappel envoyé — pas de bilan pour cette formation ' +
+                '(' + formation + ')');
+      return;
+    }
+
     let cle = 'conduite-auto';
     if(/manuel|\bbv\b|b[oô]ite m/i.test(formation)) cle = 'conduite-manuelle';
 
@@ -1619,7 +1628,13 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
     let note = '';
     let contexte = '';
     try{
-      const d = await chargerDossierEleve(eleve);
+      /* Le dossier enrichit le cours, il ne le conditionne pas :
+         au-delà de six secondes on crée le cours sans lui plutôt
+         que de faire attendre le moniteur qui enchaîne. */
+      const d = await Promise.race([
+        chargerDossierEleve(eleve),
+        new Promise(r => setTimeout(() => r(null), 6000))
+      ]);
       if(d && (d.lecons || d.derniereNote || d.frise)){
         const rep = {
           lecon: d.lecons ? String(d.lecons + 1) : '',
@@ -1657,6 +1672,33 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       moniteur: qui
     });
 
+    /* Le cours a-t-il bien été créé ? Un enchaînement rapide de
+       rappels pouvait en perdre un en silence. */
+    if(!r || (!r.id && r.status !== 'ok')){
+      throw new Error('Le cours n\'a pas été enregistré.');
+    }
+
+    /* La liste en mémoire suit tout de suite : le moniteur voit
+       son cours sans attendre le prochain rafraîchissement. */
+    try{
+      if(typeof prepares !== 'undefined'){
+        const dedans = prepares.some(x => String(x.id) === String(r.id));
+        if(!dedans){
+          prepares.push({
+            id: (r && r.id) || ('tmp' + Date.now()),
+            eleve: eleve, date: iso, modele: cle,
+            modeleLabel: (typeof MODELES !== 'undefined' && MODELES[cle])
+              ? MODELES[cle].label : '',
+            site: (f && f.site) || '',
+            note: enTeteDeNote(details) + note,
+            contexte: contexte,
+            moniteur: qui
+          });
+        }
+      }
+      if(typeof afficherPrepares === 'function') afficherPrepares();
+    }catch(e){ /* l'affichage se rattrapera au rafraîchissement */ }
+
     /* Le véhicule et l'emplacement partent avec, pour l'affichage
        du bureau : sans ça, il fallait les ressaisir un par un. */
     if(details && (details.vehicule || details.lieu || details.heure)){
@@ -1680,6 +1722,13 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
               (note ? '' : ' — infos à renseigner'));
   }catch(e){
     console.warn('Préparation non créée depuis le rappel :', e);
+
+    /* Le moniteur doit le savoir : sans cours préparé, il
+       découvrirait le manque devant l'élève. */
+    if(typeof showToast === 'function'){
+      showToast('⚠️ Cours NON créé pour ' + eleve +
+                ' — refais le rappel ou ajoute-le à la main');
+    }
   }
 }
 
