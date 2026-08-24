@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 16:13 — v454 */
+/* Déployé le 24/08/2026 à 07:50 — v515 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -103,6 +103,8 @@ function reprendreCours(){
     marquerExport(false);
     $('recordView').style.display = 'none';
     $('resultView').style.display = 'block';
+    /* Les procédures à cocher, prêtes dès l'affichage du bilan */
+    if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
   }
 
   /* Les métadonnées du cours se reconstruisent : sans elles, un
@@ -319,6 +321,8 @@ function adapterAuModele(){
     if(zManuel) zManuel.style.display = 'block';
     if(bManuel){
       bManuel.className = 'btn btn-primary';
+      bManuel.style.background = '';
+      bManuel.style.color = '';
       bManuel.style.marginTop = '0';
       bManuel.textContent = '✍️ Remplir le bilan';
     }
@@ -328,7 +332,11 @@ function adapterAuModele(){
     }
   }else{
     if(bManuel){
-      bManuel.className = 'btn btn-secondary';
+      /* Orange dans les deux cas : c'est une vraie action, pas
+         un repli discret. */
+      bManuel.className = 'btn';
+      bManuel.style.background = 'var(--orange)';
+      bManuel.style.color = 'var(--on-accent)';
       bManuel.style.marginTop = '12px';
       bManuel.textContent = '✍️ Bilan à remplir à la main';
     }
