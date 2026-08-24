@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 13:59 — v534 */
+/* Déployé le 24/08/2026 à 14:28 — v537 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -866,13 +866,24 @@ function mentionDeLExamen(cours, suivi){
   ];
 
   for(const t of sources){
-    const l = t.split('\n').find(x => x.indexOf('🔒 EXAMEN OFFICIEL') !== -1);
-    if(!l) continue;
+    const lignes = t.split('\n');
+    const i = lignes.findIndex(x => x.indexOf('🔒 EXAMEN OFFICIEL') !== -1);
+    if(i === -1) continue;
 
     /* « Demandé : 4 + 3 heures » — on ne retient que le premier */
-    const m = l.match(/Demandé\s*:\s*(\d+)/i);
+    const m = lignes[i].match(/Demandé\s*:\s*(\d+)/i);
+
+    /* Les lignes 🔒 qui suivent : ce que le moniteur a écrit
+       pour l'équipe. */
+    const notes = [];
+    for(let k = i + 1; k < lignes.length; k++){
+      if(lignes[k].trim().indexOf('🔒') !== 0) break;
+      notes.push(lignes[k].replace(/^\s*🔒\s*/, ''));
+    }
+
     return {
-      texte: l.replace('🔒 EXAMEN OFFICIEL · ', ''),
+      texte: lignes[i].replace('🔒 EXAMEN OFFICIEL · ', ''),
+      note: notes.join('\n'),
       heures: m ? m[1] : ''
     };
   }
@@ -900,7 +911,13 @@ function ouvrirRdvPost(cours){
       zm.innerHTML = '<div style="font-size:11px;color:var(--muted);' +
         'margin-bottom:3px;">🏁 À la sortie de l\'examen</div>' +
         '<div style="font-size:14px;line-height:1.6;">' +
-        memo.texte.replace(/</g, '&lt;') + '</div>';
+        memo.texte.replace(/</g, '&lt;') + '</div>' +
+        (memo.note
+          ? '<div style="font-size:14px;line-height:1.6;margin-top:7px;' +
+            'padding-top:7px;border-top:1px solid rgba(255,255,255,.08);' +
+            'white-space:pre-wrap;">' +
+            memo.note.replace(/</g, '&lt;') + '</div>'
+          : '');
     }else{
       zm.style.display = 'none';
     }
