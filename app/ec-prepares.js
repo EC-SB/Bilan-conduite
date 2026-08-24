@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 11:20 — v500 */
+/* Déployé le 24/08/2026 à 07:47 — v515 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -420,6 +420,16 @@ async function afficherPrepares(recharger, silencieux){
     bDate.style.cssText = 'width:auto;padding:9px 10px;font-size:13px;';
     bDate.textContent = '📅';
     bDate.title = 'Changer la date et l\'heure de ce cours';
+
+    /* Les mentions oubliées au rappel : elles vivent en tête de
+       note, au même endroit que l'heure. */
+    const bMent = document.createElement('button');
+    bMent.className = 'btn btn-secondary';
+    bMent.style.cssText = 'width:auto;padding:8px 10px;font-size:14px;margin:0;' +
+      'flex-shrink:0;';
+    bMent.textContent = '🆔';
+    bMent.title = 'Carte d\'identité, carte SD';
+    bMent.addEventListener('click', () => ouvrirMentions(cours));
     bDate.addEventListener('click', async () => {
       const hAvant = heureDeLaPreparation(cours);
       const rep = await demanderDate('Cours de ' +
@@ -460,6 +470,7 @@ async function afficherPrepares(recharger, silencieux){
       }
     });
     actions.appendChild(bDate);
+    actions.appendChild(bMent);
 
     /* Un cours passé qui traîne encore : le moniteur le retire
        lui-même, sans attendre le recoupement automatique. */
@@ -1304,6 +1315,107 @@ async function afficherEtatRecitations(nom, zone){
 }
 
 
+/* Les mentions à prévoir : carte d'identité, carte SD.
+
+   Elles se cochent au rappel ; quand on les oublie, on les
+   rattrape ici. Elles vivent en tête de note, à côté de l'heure. */
+function ouvrirMentions(cours){
+  const t = String(cours.note || '');
+  const debut = t.split('\n')[0];
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(400px, 94vw)';
+
+  boite.innerHTML = '<h3>À prévoir pour ' +
+    String(cours.eleve || '').replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Ce que le moniteur doit avoir en tête au ' +
+      'moment du cours.</div>';
+
+  const faire = (emoji, texte, present) => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:11px;' +
+      'text-transform:none;font-size:15px;color:var(--cream);margin:0 0 10px;' +
+      'font-weight:400;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = present;
+    cb.dataset.emoji = emoji;
+    cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;margin:0;';
+    l.appendChild(cb);
+    const s = document.createElement('span');
+    s.style.cssText = 'flex:1;min-width:0;';
+    s.textContent = emoji + '  ' + texte;
+    l.appendChild(s);
+    boite.appendChild(l);
+    return cb;
+  };
+
+  const cbCI = faire('🆔', "Carte d'identité à déposer", debut.indexOf('🆔') !== -1);
+  const cbSD = faire('💾', 'Carte SD à récupérer', debut.indexOf('💾') !== -1);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '💾 Enregistrer';
+  bO.addEventListener('click', async () => {
+    /* On refait la première ligne : l'heure d'abord, puis les
+       mentions, dans un ordre stable. */
+    const h = heureDeLaPreparation(cours);
+    const marques = [];
+    if(cbCI.checked) marques.push('🆔');
+    if(cbSD.checked) marques.push('💾');
+
+    const reste = t.replace(/^[^\n]*\n?/, '');
+    const tete = (h ? '🕐 ' + h.replace(':', 'h') + ' ' : '') + marques.join(' ');
+
+    /* Si la première ligne ne portait que ces repères, on ne la
+       garde que si elle a encore quelque chose à dire. */
+    const avaitTete = /^(🕐|🆔|💾)/.test(debut);
+    const nouvelle = tete.trim()
+      ? tete.trim() + '\n' + (avaitTete ? reste : t)
+      : (avaitTete ? reste : t);
+
+    bO.disabled = true;
+    try{
+      await appelPrep({
+        action: 'prepAdd', id: cours.id, date: cours.date,
+        eleve: cours.eleve, modele: cours.modele,
+        modeleLabel: cours.modeleLabel || '',
+        site: cours.site || '',
+        note: nouvelle,
+        contexte: JSON.stringify(cours.contexte || {}),
+        moniteur: cours.moniteur || ACCES.moniteur || ''
+      });
+      const dans = prepares.find(x => String(x.id) === String(cours.id));
+      if(dans) dans.note = nouvelle;
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      afficherPrepares();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
 function repereDeNote(cours){
   const t = String((cours && cours.note) || '');
   const debut = t.split('\n')[0];
@@ -1320,10 +1432,12 @@ function repereDeNote(cours){
 
 function heureDeLaPreparation(cours){
   const t = String((cours && cours.note) || '');
-  let m = t.match(/^🕐\s*(\d{1,2})[h:](\d{2})/);
-  if(!m) m = t.match(/🕐\s*(\d{1,2})[h:](\d{2})/);
+
+  /* « 9h30 », « 09:30 », mais aussi « 9h » tout court : une heure
+     ronde s'écrit sans ses minutes, et elle se perdait. */
+  const m = t.match(/🕐\s*(\d{1,2})\s*[h:]\s*(\d{2})?/);
   if(!m) return '';
-  return String(m[1]).padStart(2, '0') + ':' + m[2];
+  return String(m[1]).padStart(2, '0') + ':' + (m[2] || '00');
 }
 
 
