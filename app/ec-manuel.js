@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 09:05 — v519 */
+/* Déployé le 24/08/2026 à 09:09 — v520 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1403,19 +1403,29 @@ async function envoyerAvantExamen(){
 
   lireChampsManuels();
 
+  /* Les réponses sont rangées à plat, sous « avantExamen.xxx » —
+     pas dans un objet. Les chercher au mauvais endroit rendait un
+     message vide. */
+  const lire = nom => {
+    if(champsManuels['avantExamen.' + nom] !== undefined){
+      return champsManuels['avantExamen.' + nom];
+    }
+    const objet = champsManuels.avantExamen;
+    return (objet && objet[nom] !== undefined) ? objet[nom] : '';
+  };
+
   /* On ne construit que la première moitié : le reste n'est pas
      encore rempli, et l'annoncer vide n'aurait pas de sens. */
-  const a = champsManuels.avantExamen || {};
   const texte = [
     '👋 𝗔𝗩𝗔𝗡𝗧 𝗧𝗢𝗡 𝗘𝗫𝗔𝗠𝗘𝗡',
     '',
-    '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + (a.installation || '✅️❌️'),
-    '𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ' + (a.passager || '✅️❌️'),
-    '𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ' + (a.voyants || '✅️❌️'),
+    '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + (lire('installation') || '✅️❌️'),
+    '𝗣𝗮𝘀𝘀𝗮𝗴𝗲𝗿 ' + (lire('passager') || '✅️❌️'),
+    '𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ' + (lire('voyants') || '✅️❌️'),
     ''
   ];
 
-  const err = String(a.erreurs || '').trim();
+  const err = String(lire('erreurs') || '').trim();
   if(err){
     texte.push('𝙀𝙧𝙧𝙚𝙪𝙧𝙨 𝙖̀ 𝙣𝙚 𝙥𝙖𝙨 𝙧𝙚𝙛𝙖𝙞𝙧𝙚 :');
     texte.push(err);
