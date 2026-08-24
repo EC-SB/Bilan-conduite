@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 14:07 — v535 */
+/* Déployé le 24/08/2026 à 14:21 — v536 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -449,8 +449,10 @@ async function ouvrirBilanManuel(){
   const probleme = verifierContexteManuel();
   if(probleme){ showToast(probleme); return; }
 
-  const modeleCle = $('modele').value;
-  const modele = MODELES[modeleCle];
+  /* Modifiables : l'examen officiel peut basculer d'une boîte à
+     l'autre quand la question est posée au moniteur. */
+  let modeleCle = $('modele').value;
+  let modele = MODELES[modeleCle];
 
   /* Le rendez-vous post-permis a son propre écran */
   if(modeleCle === 'rdv-post'){
@@ -470,25 +472,10 @@ async function ouvrirBilanManuel(){
   btn.textContent = 'Préparation…';
 
   /* L'examen officiel n'a pas de leçon à préparer : le
-     questionnaire n'apprendrait rien. On vérifie seulement que
-     la boîte est la bonne quand l'élève n'a aucun bilan. */
+     questionnaire n'apprendrait rien, et son bilan ne dépend pas
+     de la boîte de vitesses. On passe directement à la fiche. */
   if(modeleCle === 'examen-officiel'){
-    const su = (typeof suiviDe === 'function') ? suiviDe(eleve) : {};
-    const aDesBilans = !!(su && (su.dernierCours || su.nbCours));
-
-    if(!aDesBilans){
-      const b = String(modele.label || '');
-      const auto = /automatique|bea/i.test(b);
-      if(!await confirmer(
-          'Aucun bilan pour ' + eleve + '.\n\n' +
-          'Est-il bien en boîte ' + (auto ? 'automatique' : 'manuelle') +
-          ' ?')){
-        btn.disabled = false;
-        btn.textContent = '✍️ Bilan à remplir à la main';
-        showToast('Change le modèle en haut de l\'écran.');
-        return;
-      }
-    }
+    /* rien à demander */
   }else if(!contexteDepart){
     try{
       const rep = await ouvrirQuestionnaireDepart(null, 'Avant de remplir le bilan', 'Continuer');
@@ -1606,8 +1593,10 @@ async function genererBilanManuel(){
   /* On relève d'abord tout ce que le moniteur a saisi */
   lireChampsManuels();
 
-  const modeleCle = $('modele').value;
-  const modele = MODELES[modeleCle];
+  /* Modifiables : l'examen officiel peut basculer d'une boîte à
+     l'autre quand la question est posée au moniteur. */
+  let modeleCle = $('modele').value;
+  let modele = MODELES[modeleCle];
 
   /* Un examen blanc renseigne déjà sa conclusion : on ne la redemande pas */
   const repris = Object.assign({}, contexteDepart || {});
