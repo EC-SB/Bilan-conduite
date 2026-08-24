@@ -79,13 +79,13 @@ function calculEvaluation(heuresBV){
     leconsBEA2: c2hBEA - 2,
     resteBV: bv - HEURES_OBLIGATOIRES,
     resteBEA: bea - HEURES_OBLIGATOIRES,
-    devisBV: devisEvaluation(simuBV, c2hBV),
-    devisBEA: devisEvaluation(simuBEA, c2hBEA)
+    devisBV: devisEvaluation(simuBV, c2hBV, false),
+    devisBEA: devisEvaluation(simuBEA, c2hBEA, true)
   };
 }
 
 
-function devisEvaluation(simu, c2h){
+function devisEvaluation(simu, c2h, auto){
   /* Les tarifs viennent de Gestion : ils changent sans qu'on
      touche au calcul. */
   const source = (typeof tarifsPrestations !== 'undefined' && tarifsPrestations)
@@ -94,7 +94,10 @@ function devisEvaluation(simu, c2h){
   const lignes = source.map(l => {
     const variable = (l.q === 'simu' || l.q === 'c2h');
     const q = (l.q === 'simu') ? simu : (l.q === 'c2h') ? c2h : l.q;
-    return { nom: l.nom, q: q, pu: l.pu, total: q * l.pu,
+    /* Chaque boîte a son libellé et son tarif */
+    const nom = auto ? (l.nomA || l.nom) : l.nom;
+    const pu = auto ? ((l.puA !== undefined) ? l.puA : l.pu) : l.pu;
+    return { nom: nom, q: q, pu: pu, total: q * pu,
              /* Les deux seules quantités qui bougent : elles
                 se repèrent en couleur dans le devis. */
              variable: variable };
