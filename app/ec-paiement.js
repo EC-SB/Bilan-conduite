@@ -65,6 +65,14 @@ async function afficherPaiement(){
   zr.id = 'pfResultat';
   zone.appendChild(zr);
 
+  /* La marche à suivre, en bas : elle ne sert qu'à nous, et elle
+     ne doit jamais partir à l'élève. */
+  const zp = document.createElement('div');
+  zp.id = 'pfProcess';
+  zp.style.marginTop = '16px';
+  zone.appendChild(zp);
+  afficherProcessPaiement();
+
   const ch = $('pfMontant');
   ch.addEventListener('input', dessinerPaiement);
   setTimeout(() => ch.focus(), 100);
@@ -246,6 +254,188 @@ async function envoyerPaiementMail(montant, options){
   }catch(e){
     showToast('Impossible : ' + e.message);
   }
+}
+
+
+
+/* ============================================================
+   LA MARCHE À SUIVRE
+
+   Ce que le personnel doit faire, dans l'ordre. Elle vit dans
+   les réglages : un administrateur la corrige quand ALMA ou
+   Driv'up changent quelque chose.
+   ============================================================ */
+
+const PROCESS_PAIEMENT_DEFAUT = [
+'𝙋𝙧𝙤𝙘𝙚𝙨𝙨𝙪𝙨 𝙥𝙤𝙪𝙧 𝙡𝙚 𝙥𝙚𝙧𝙨𝙤𝙣𝙣𝙚𝙡 (𝙉𝙚 𝙥𝙖𝙨 𝙚𝙣𝙫𝙤𝙮𝙚𝙧)',
+'',
+'ATTENTION : ALMA ne facture pas directement les frais aux élèves donc,',
+'Process obligatoire :',
+'- en premier, AVANT DE FAIRE LE DOSSIER, on fait payer les frais sur drivup en faisant un solde versement à payer et bien mettre frais de paiement : si en 2 fois 4.60% HT ; si en 3 fois 4.80% HT ; si en 4 fois 5.80% HT',
+'- On fait le dossier sur ALMA seulement quand frais payés sur drivup',
+'- Si validé RAS on débloque 24h après ; si refus on rembourse les frais.',
+'',
+'𝘿𝙖𝙨𝙝𝙗𝙤𝙖𝙧𝙙 : https://dashboard.getalma.eu/login',
+'𝙋𝙤𝙪𝙧 𝙛𝙖𝙞𝙧𝙚 𝙡𝙚𝙨 𝙡𝙞𝙚𝙣𝙨 : https://shop.getalma.eu/',
+'',
+"Attention, il peut y avoir un délai de 24h avant la validation définitive d'ALMA.",
+'Nous recevons l\'argent en une fois au bout de 7 jours, moins les frais.',
+'',
+'𝗣𝗿𝗼𝗰𝗲𝘀𝘀 𝗗𝗿𝗶𝘃\'𝘂𝗽',
+'',
+'1. Établir le devis global',
+'Faire un devis regroupant toutes les prestations qui doivent être réglées via ALMA.',
+'',
+'2. Calculer les frais de dossier',
+'Le calculateur ci-dessus les donne.',
+'',
+'3. Facturer les frais ALMA dans Drivup',
+"Ouvrir le profil de l'élève. Aller dans : Facturer > Produits.",
+'Sélectionner : Frais ALMA 1 fois, 2 fois ou 3 fois selon le cas.',
+'Renseigner : Quantité 1, Prix unitaire = montant des frais calculés.',
+'Mettre la facture en statut « À venir », ou son mode de paiement s\'il paye directement, une fois le paiement validé.',
+"Facturer. L'élève pourra alors régler cette facture depuis son interface si elle est mise en « à venir ».",
+'',
+'4. Vérifier le paiement des frais',
+'Une fois le paiement effectué, vérifier dans le relevé de compte que la facture des frais apparaît comme payée.',
+'',
+'5. Générer le lien de paiement ALMA',
+'Se connecter à https://shop.getalma.eu/ et créer le lien correspondant au montant à financer.',
+'',
+'6. Traitement après validation du paiement ALMA',
+'',
+'A. Transformer le devis en facture',
+'Aller dans les devis, transformer le devis en facture.',
+'Indiquer : Statut « À venir », Destinataire « ALMA ».',
+'',
+'B. Créer un avoir sur la facture des frais',
+"Aller dans le relevé de compte de l'élève.",
+'Sur la facture des frais ALMA : Actions > Créer un avoir.',
+'Quantité à annuler : 1. Choisir l\'agence.',
+'Sélectionner une facture à payer : la facture ALMA créée précédemment.',
+'',
+'C. Vérification du solde',
+'Après l\'avoir, le montant restant dû sur la facture ALMA doit être égal à :',
+'montant global du devis − montant des frais ALMA.',
+'Ce montant doit correspondre au résultat du calculateur.',
+'',
+'7. Planification des leçons',
+"Une fois cette étape terminée, l'élève peut commencer à réserver et planifier ses leçons.",
+'',
+'8. Réception du virement ALMA',
+'Dès réception du virement : ouvrir la facture ALMA (payée partiellement).',
+'Cliquer sur Actions > Ajouter un encaissement.',
+'Saisir le montant reçu par virement, puis valider l\'encaissement.'
+].join('\n');
+
+
+let processPaiement = null;
+
+async function afficherProcessPaiement(){
+  const zone = $('pfProcess');
+  if(!zone) return;
+
+  if(processPaiement === null){
+    try{
+      const d = await appelPrep({ action: 'reglagesList' });
+      const r = (d && d.reglages) || {};
+      processPaiement = r.processPaiement || PROCESS_PAIEMENT_DEFAUT;
+    }catch(e){
+      processPaiement = PROCESS_PAIEMENT_DEFAUT;
+    }
+  }
+
+  zone.innerHTML = '';
+
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--warn-bg);border-radius:12px;' +
+    'padding:10px 12px;background:var(--warn-bg);';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;' +
+    'font-weight:700;color:var(--warn-text);">⚠️ Marche à suivre — ' +
+    'ne pas envoyer à l\'élève</summary>';
+
+  const z = document.createElement('div');
+  z.style.cssText = 'margin-top:10px;font-size:13px;line-height:1.65;' +
+    'white-space:pre-wrap;';
+  z.textContent = processPaiement;
+  d.appendChild(z);
+
+  /* Seul un administrateur la corrige : c'est une consigne
+     d'auto-école, pas une note personnelle. */
+  if(ACCES.role === 'admin'){
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'margin-top:10px;padding:10px;font-size:12px;';
+    b.textContent = '✏️ Modifier la marche à suivre';
+    b.addEventListener('click', () => ouvrirProcessPaiement());
+    d.appendChild(b);
+  }
+
+  zone.appendChild(d);
+}
+
+
+function ouvrirProcessPaiement(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(640px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>✏️ Marche à suivre</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;' +
+      'line-height:1.5;">Elle s\'affiche sous le calculateur, pour le ' +
+      'personnel seulement. Elle ne part jamais à un élève.</div>';
+
+  const z = document.createElement('textarea');
+  z.rows = 20;
+  z.value = processPaiement;
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
+  boite.appendChild(z);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bRaz = document.createElement('button');
+  bRaz.className = 'btn btn-secondary';
+  bRaz.style.cssText = 'width:auto;padding:11px 13px;font-size:12px;';
+  bRaz.textContent = '↩️';
+  bRaz.title = 'Revenir au texte d\'origine';
+  bRaz.addEventListener('click', () => { z.value = PROCESS_PAIEMENT_DEFAUT; });
+  r.appendChild(bRaz);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '💾 Enregistrer';
+  bO.addEventListener('click', async () => {
+    bO.disabled = true;
+    try{
+      await appelPrep({
+        action: 'reglageSet', cle: 'processPaiement',
+        valeur: z.value, par: ACCES.moniteur || ''
+      });
+      processPaiement = z.value;
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      afficherProcessPaiement();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 
