@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 11:56 — v531 */
+/* Déployé le 24/08/2026 à 12:20 — v533 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -158,6 +158,7 @@ const VUES = {
            ['flotte',     '🚗 Flotte',                  'flotte'],
            ['paie',       '💶 Paie',                    'paie'],
            ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
+           ['tarifs',     '💰 Tarifs',                 'tarifs'],
            ['admin',      '⚙️ Accès',                  'admin']]
 };
 
@@ -254,6 +255,7 @@ function reveillerVue(cle){
     code:       () => afficherCodeSalle(),
     handicap:   () => afficherHandicap(),
     evaluation: () => afficherEvaluation(),
+    tarifs:     () => afficherTarifs(),
     paiement:   () => afficherPaiement(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
