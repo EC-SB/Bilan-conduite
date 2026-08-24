@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 08:54 — v518 */
+/* Déployé le 24/08/2026 à 09:05 — v519 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -139,6 +139,10 @@ const CHAMPS_MANUELS = {
     { cle:'avantExamen.voyants',      type:'ok', nom:'AVANT — Voyants',      defaut:'' },
     { cle:'avantExamen.erreurs',      type:'texte', lignes:5,
       nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)' },
+
+    /* Le bouton vient après ce qu'il envoie : le moniteur remplit
+       d'abord, puis expédie. */
+    { cle:'__envoiAvant', type:'envoiAvant' },
 
     { cle:'__titreExamen', type:'titre', nom:'🏁 Examen',
       aide:'Ce que l\'inspecteur a noté. À remplir au retour de ' +
@@ -728,6 +732,26 @@ async function ouvrirBilanManuel(){
         champsManuels[ch.cle] = f.name;
       });
 
+    }else if(ch.type === 'envoiAvant'){
+      /* De quoi envoyer la première moitié sans attendre la fin
+         de l'examen. */
+      bloc.style.cssText = 'margin:2px 0 8px;';
+
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'padding:12px;font-size:13px;' +
+        'border-color:var(--ambre);color:var(--ambre);';
+      b.textContent = '📤 Envoyer la partie avant examen';
+      b.addEventListener('click', () => envoyerAvantExamen());
+      bloc.appendChild(b);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+        'text-align:center;line-height:1.5;';
+      a.textContent = "L'élève reçoit cette partie tout de suite. " +
+        'Sa fiche reste en haut pour la suite.';
+      bloc.appendChild(a);
+
     }else if(ch.type === 'titre'){
       /* Un intertitre : il sépare deux moments de l'examen, et
          porte le bouton d'envoi de sa partie. */
@@ -747,15 +771,6 @@ async function ouvrirBilanManuel(){
         bloc.appendChild(a);
       }
 
-      /* Sous « Avant examen » : de quoi l'envoyer sans attendre */
-      if(ch.cle === '__titreAvant'){
-        const b = document.createElement('button');
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'margin-top:10px;padding:11px;font-size:13px;';
-        b.textContent = '📤 Envoyer la partie avant examen';
-        b.addEventListener('click', () => envoyerAvantExamen());
-        bloc.appendChild(b);
-      }
 
     }else if(ch.type === 'entete'){
       /* La première partie du bilan, telle que l'élève la lira :
@@ -844,6 +859,26 @@ async function ouvrirBilanManuel(){
       z.appendChild(pts);
 
       bloc.appendChild(z);
+
+    }else if(ch.type === 'envoiAvant'){
+      /* De quoi envoyer la première moitié sans attendre la fin
+         de l'examen. */
+      bloc.style.cssText = 'margin:2px 0 8px;';
+
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'padding:12px;font-size:13px;' +
+        'border-color:var(--ambre);color:var(--ambre);';
+      b.textContent = '📤 Envoyer la partie avant examen';
+      b.addEventListener('click', () => envoyerAvantExamen());
+      bloc.appendChild(b);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+        'text-align:center;line-height:1.5;';
+      a.textContent = "L'élève reçoit cette partie tout de suite. " +
+        'Sa fiche reste en haut pour la suite.';
+      bloc.appendChild(a);
 
     }else if(ch.type === 'titre'){
       /* Un gros repère dans le formulaire : le moniteur retrouve
@@ -1180,8 +1215,8 @@ function lireChampsManuels(){
   if(!champs) return;
 
   champs.forEach(ch => {
-    if(ch.type === 'titre'){
-      /* Un intertitre ne porte aucune réponse */
+    if(ch.type === 'titre' || ch.type === 'envoiAvant'){
+      /* Ni un intertitre ni un bouton ne portent de réponse */
     }else if(ch.type === 'manoeuvres'){
       champsManuels[ch.cle] = Array.prototype.slice
         .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
