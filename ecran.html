@@ -686,16 +686,15 @@ function dessinerPlanning(liste){
   };
 
   z.innerHTML = liste.slice(0, 12).map(c => {
-    const lieu = LIEUX[c.lieu] || ['', ''];
     /* Le véhicule et son emplacement : c'est ce que l'élève cherche
-       en entrant, plus encore que l'heure. */
-    /* Un véhicule au garage se dit, plutôt que de laisser l'élève
-       chercher une voiture qui n'est pas là. */
-    /* Le pictogramme vient du bureau ; la table locale ne sert
-       que si le réglage n'a rien dit. */
-    if(c.lieuEmoji || c.lieuNom){
-      lieu = [c.lieuEmoji || lieu[0] || '', c.lieuNom || lieu[1] || ''];
-    }
+       en entrant, plus encore que l'heure.
+
+       Le pictogramme vient du bureau quand il en envoie un ; la
+       table locale sert de secours. */
+    const local = LIEUX[c.lieu] || ['', ''];
+    const lieu = (c.lieuEmoji || c.lieuNom)
+      ? [c.lieuEmoji || local[0] || '', c.lieuNom || local[1] || '']
+      : local;
 
     const ou = c.auGarage
       ? '<span class="v garage">🔧 ' + echapper(c.vehicule || '') +
