@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 09:46 — v522 */
+/* Déployé le 24/08/2026 à 09:58 — v523 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -356,11 +356,15 @@ async function importerListeEleves(){
    bilan n'existe pas encore. */
 const FORMATIONS_BASE = [
   { cle: '',                nom: '— à préciser —',            voiture: false },
-  { cle: 'CS BV',           nom: '🚗 Voiture manuelle (BV)',  voiture: true },
-  { cle: 'CS BEA',          nom: '🚗 Voiture automatique (BEA)', voiture: true },
+  { cle: 'BV',              nom: '🚗 Voiture manuelle (BV)',  voiture: true },
+  { cle: 'BEA',             nom: '🚗 Voiture automatique (BEA)', voiture: true },
   { cle: 'AAC BV',          nom: '🚗 AAC manuelle',           voiture: true },
   { cle: 'AAC BEA',         nom: '🚗 AAC automatique',        voiture: true },
+  /* La conduite supervisée se coche dans le questionnaire ; elle
+     reste proposée ici pour les fiches qui la portent déjà. */
   { cle: 'Conduite supervisée', nom: '🚗 Conduite supervisée', voiture: true },
+  { cle: 'CS BV',           nom: '🚗 CS manuelle (ancien)',   voiture: true },
+  { cle: 'CS BEA',          nom: '🚗 CS automatique (ancien)', voiture: true },
   { cle: 'Passerelle BEA→BV',   nom: '🚗 Passerelle BEA→BV',   voiture: true },
   { cle: 'Moto A',          nom: '🏍️ Moto (A)',              voiture: false },
   { cle: 'A1 permis',       nom: '🛵 A1 permis',              voiture: false },
@@ -442,6 +446,26 @@ function telPourLien(t){
   return n;
 }
 
+/* Défait un rattrapage : vide les formations posées automatiquement */
+async function annulerLeRattrapage(){
+  if(!await confirmer(
+      'Effacer les formations retrouvées automatiquement ?\n\n' +
+      'Attention : celles que tu as saisies avec les mêmes ' +
+      'libellés (BEA, BV, AAC…) seront effacées aussi. ' +
+      'Les formations moto, remorque ou personnalisées ne bougent pas.')) return;
+
+  showToast('Nettoyage…');
+  try{
+    const d = await appelPrep({ action: 'annulerRattrapage' });
+    const n = (d && d.videes) || 0;
+    showToast(n + ' formation(s) effacée(s) ✅');
+    afficherRepertoire(true);
+  }catch(e){
+    showToast('Impossible : ' + e.message);
+  }
+}
+
+
 /* Remplit les formations manquantes depuis les bilans déjà faits */
 async function rattraperLesFormations(){
   if(!await confirmer(
@@ -466,7 +490,9 @@ async function rattraperLesFormations(){
       .map(x => '· ' + x.eleve + ' → ' + x.formation).join('\n');
 
     informer(n + ' fiche(s) complétée(s).\n\n' + lignes +
-             (n > 40 ? '\n\n(et ' + (n - 40) + ' autres)' : ''),
+             (n > 40 ? '\n\n(et ' + (n - 40) + ' autres)' : '') +
+             '\n\nSi ce n\'est pas ce que tu attendais, le bouton ' +
+             '↩️ du répertoire annule tout.',
              'Formations retrouvées');
     afficherRepertoire(true);
   }catch(e){
@@ -510,11 +536,28 @@ async function afficherRepertoire(recharger){
   if(sansForm.length){
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-bottom:10px;padding:11px;font-size:13px;';
+    b.style.cssText = 'margin-bottom:6px;padding:11px;font-size:13px;';
     b.textContent = '🎓 Retrouver ' + sansForm.length +
                     ' formation(s) depuis les bilans';
     b.addEventListener('click', rattraperLesFormations);
     zone.appendChild(b);
+  }
+
+  /* Défaire un rattrapage mal parti : seules les formations que
+     le rattrapage sait écrire sont effacées. */
+  const posees = fichesEleves.filter(x =>
+    ['BEA', 'BV', 'CS BEA', 'CS BV', 'AAC BEA', 'AAC BV',
+     'Conduite supervisée', 'Passerelle BEA→BV']
+      .indexOf(String(x.formation || '').trim()) !== -1);
+
+  if(posees.length){
+    const b2 = document.createElement('button');
+    b2.className = 'btn btn-secondary';
+    b2.style.cssText = 'margin-bottom:10px;padding:10px;font-size:12px;' +
+      'color:var(--muted);';
+    b2.textContent = '↩️ Annuler le rattrapage des formations';
+    b2.addEventListener('click', annulerLeRattrapage);
+    zone.appendChild(b2);
   }
 
   const rech = document.createElement('input');
