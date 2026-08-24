@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 09:09 — v520 */
+/* Déployé le 24/08/2026 à 10:49 — v525 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -183,7 +183,9 @@ function dicterDans(champ, bouton){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ showToast('La dictée demande Chrome sur Android.'); return; }
 
+  /* Un second appui arrête pour de bon */
   if(bouton.dataset.actif === 'oui'){
+    bouton.dataset.stop = 'oui';
     if(bouton._sr) try{ bouton._sr.stop(); }catch(e){}
     return;
   }
@@ -191,15 +193,29 @@ function dicterDans(champ, bouton){
   const sr = new SR();
   sr.lang = 'fr-FR';
   sr.continuous = true;
-  sr.interimResults = false;
+  /* Les résultats provisoires : le moniteur voit ses mots arriver
+     et sait que ça écoute encore. */
+  sr.interimResults = true;
   sr.maxAlternatives = 3;
 
   const depart = champ.value;
   let ajoute = '';
 
+  const ecrire = (provisoire) => {
+    champ.value = (depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '') +
+                  terminerPhrase(ajoute) +
+                  (provisoire ? (ajoute ? ' ' : '') + provisoire : '');
+    champ.scrollTop = champ.scrollHeight;
+  };
+
   sr.onresult = ev => {
+    let provisoire = '';
+
     for(let i = ev.resultIndex; i < ev.results.length; i++){
-      if(!ev.results[i].isFinal) continue;
+      if(!ev.results[i].isFinal){
+        provisoire += ev.results[i][0].transcript;
+        continue;
+      }
       let meilleur = ev.results[i][0].transcript;
       let score = -1;
       for(let k = 0; k < ev.results[i].length; k++){
@@ -208,23 +224,63 @@ function dicterDans(champ, bouton){
       }
       ajoute += (ajoute ? ' ' : '') + corrigerVocabulaire(meilleur.trim());
     }
-    champ.value = (depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '') +
-                  terminerPhrase(ajoute);
-    champ.scrollTop = champ.scrollHeight;
+
+    ecrire(provisoire);
   };
-  sr.onerror = e => { if(e.error !== 'no-speech') showToast('Dictée : ' + e.error); };
+
+  sr.onerror = e => {
+    /* Un silence n'est pas une erreur : on relancera. */
+    if(e.error === 'no-speech' || e.error === 'aborted') return;
+    if(e.error === 'not-allowed'){
+      bouton.dataset.stop = 'oui';
+      showToast('Le micro est refusé. Autorise-le dans le navigateur.');
+      return;
+    }
+    showToast('Dictée : ' + e.error);
+  };
+
+  /* Le navigateur coupe seul après quelques secondes de silence.
+     Sans relance, le moniteur devait rappuyer à chaque phrase —
+     d'où l'impression de devoir maintenir le bouton. */
   sr.onend = () => {
-    bouton.dataset.actif = '';
-    bouton.textContent = '🎙️';
-    bouton.style.background = '';
-    bouton._sr = null;
+    if(bouton.dataset.stop === 'oui'){
+      bouton.dataset.actif = '';
+      bouton.dataset.stop = '';
+      bouton.textContent = '🎙️';
+      bouton.style.background = '';
+      bouton._sr = null;
+      ecrire('');
+      return;
+    }
+
+    try{
+      sr.start();
+    }catch(e){
+      /* La relance a échoué : on rend la main plutôt que de
+         laisser un bouton rouge qui n'écoute plus. */
+      bouton.dataset.actif = '';
+      bouton.textContent = '🎙️';
+      bouton.style.background = '';
+      bouton._sr = null;
+      ecrire('');
+    }
   };
 
   bouton._sr = sr;
   bouton.dataset.actif = 'oui';
+  bouton.dataset.stop = '';
   bouton.textContent = '⏹️';
   bouton.style.background = 'var(--red)';
-  try{ sr.start(); }catch(e){ showToast('Dictée indisponible.'); sr.onend(); }
+  bouton.title = 'Appuie pour arrêter la dictée';
+
+  try{
+    sr.start();
+    showToast('🎙️ Dictée en cours — appuie sur ⏹️ pour arrêter');
+  }catch(e){
+    showToast('Dictée indisponible.');
+    bouton.dataset.stop = 'oui';
+    sr.onend();
+  }
 }
 
 
