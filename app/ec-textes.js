@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 08:00 — v492 */
+/* Déployé le 24/08/2026 à 09:38 — v521 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -364,15 +364,20 @@ function ouvrirEditeurModele(modele, usageImpose){
     '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
       'line-height:1.6;"></div>' +
 
-    /* Une procédure ne vaut pas pour les deux boîtes : le point de
-       patinage n'existe pas en automatique. */
+    /* Une procédure ne vaut pas pour toutes les formations : le
+       point de patinage n'existe pas en automatique, et l'attelage
+       ne concerne que la remorque. */
     '<div id="mdBlocBoite" style="display:none;">' +
-      '<label for="mdBoite">Pour quelle boîte ?</label>' +
+      '<label for="mdBoite">Pour qui ?</label>' +
       '<select id="mdBoite">' +
-        '<option value="">Les deux — BEA et BV</option>' +
-        '<option value="bea">BEA seulement — boîte automatique</option>' +
-        '<option value="bv">BV seulement — boîte manuelle</option>' +
+        '<option value="">🚗 Voiture — BEA et BV</option>' +
+        '<option value="bea">🚗 BEA seulement — boîte automatique</option>' +
+        '<option value="bv">🚗 BV seulement — boîte manuelle</option>' +
+        '<option value="BE">🚚 Remorque — permis BE</option>' +
       '</select>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+        'line-height:1.5;">Un élève en remorque ne voit que les ' +
+        'procédures BE, et lui seul les voit.</div>' +
     '</div>' +
     '<label for="mdContenu">Texte du message</label>' +
     '<textarea id="mdContenu" rows="14" ' +
@@ -551,7 +556,17 @@ async function afficherProcedures(){
     const som = document.createElement('summary');
     som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;color:var(--cream);' +
       'list-style:none;';
-    som.textContent = '🚦 ' + m.nom;
+    /* Pour qui elle est : sans ce repère, on ne sait pas d'un coup
+       d'œil laquelle est réservée à la remorque. */
+    const pourQui = String(m.boite || '').toUpperCase();
+    const marque = /(^|[^A-Z])BE([^A-Z]|$)/.test(pourQui) ? ' 🚚'
+      : (pourQui === 'BEA' ? ' 🅰️'
+      : (pourQui === 'BV' ? ' 🅼' : ''));
+
+    som.textContent = '🚦 ' + m.nom + marque;
+    som.title = marque === ' 🚚' ? 'Remorque — permis BE seulement'
+      : (marque === ' 🅰️' ? 'Boîte automatique seulement'
+      : (marque === ' 🅼' ? 'Boîte manuelle seulement' : 'Toutes les voitures'));
     d.appendChild(som);
 
     const corps = document.createElement('div');
