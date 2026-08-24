@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 07:47 — v515 */
+/* Déployé le 24/08/2026 à 08:23 — v517 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1218,7 +1218,11 @@ async function modifierPreparation(cours){
       dans.modele = cleModele;
       dans.modeleLabel = (MODELES[cleModele] && MODELES[cleModele].label) ||
                          cours.modeleLabel || '';
-      dans.note = noteDepuisQuestionnaire(rep);
+      /* La même note que celle envoyée au serveur, heure comprise :
+         sans elle, l'heure disparaissait de l'écran jusqu'au
+         prochain rafraîchissement. */
+      dans.note = (hDejaLa ? '🕐 ' + hDejaLa.replace(':', 'h') + '\n' : '') +
+                  noteDepuisQuestionnaire(rep);
       dans.contexte = rep;
     }
     showToast('Préparation modifiée ✅');
