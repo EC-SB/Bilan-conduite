@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 11:10 — v526 */
+/* Déployé le 24/08/2026 à 13:57 — v534 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -154,7 +154,15 @@ const CHAMPS_MANUELS = {
     { cle:'vi',          type:'ok',    nom:'Vérification', defaut:'' },
     { cle:'qser',        type:'ok',    nom:'Question sécurité routière', defaut:'' },
     { cle:'secours',     type:'ok',    nom:'Premiers secours', defaut:'' },
-    { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' }
+    { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
+
+    /* Ce qui suit ne part jamais à l'élève : c'est pour nous,
+       et pour le moniteur qui fera le rendez-vous post-permis. */
+    { cle:'__titrePourNous', type:'titre', nom:'🔒 Pour nous seulement',
+      aide:'Ces deux informations ne figurent pas sur le bilan de ' +
+           'l\'élève. Elles vont dans ses notes.' },
+    { cle:'inspecteur',  type:'inspecteur', nom:'Inspecteur' },
+    { cle:'repassage',   type:'repassage',  nom:'Heures avant repassage' }
   ],
   rvp: [
     { cle:'resume',      type:'texte', nom:'Déroulé du rendez-vous', lignes:12 }
@@ -478,6 +486,11 @@ async function ouvrirBilanManuel(){
 
   champsManuels = {};
   modeManuel = true;
+
+  /* La liste des inspecteurs, pour l'examen officiel */
+  if(modeleCle === 'examen-officiel'){
+    try{ await chargerInspecteurs(); }catch(e){}
+  }
 
   const zone = $('manuelChamps');
   zone.innerHTML = '';
@@ -811,6 +824,73 @@ async function ouvrirBilanManuel(){
         champsManuels[ch.cle] = f.name;
       });
 
+    }else if(ch.type === 'inspecteur'){
+      /* La liste des inspecteurs, partagée par toute l'équipe :
+         un nom ajouté ici sert à tout le monde. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const sel = document.createElement('select');
+      sel.id = 'man_' + ch.cle;
+      sel.innerHTML = '<option value="">— à choisir —</option>' +
+        inspecteursConnus().map(n =>
+          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
+          String(n).replace(/</g, '&lt;') + '</option>').join('') +
+        '<option value="__autre__">➕ En ajouter un…</option>';
+
+      sel.addEventListener('change', async () => {
+        if(sel.value !== '__autre__') return;
+
+        const nom = await demander('Nom de l\'inspecteur', '',
+                                   'Nouvel inspecteur');
+        if(!nom || !nom.trim()){ sel.value = ''; return; }
+
+        const propre = nom.trim();
+        await ajouterInspecteur(propre);
+
+        const o = document.createElement('option');
+        o.value = propre;
+        o.textContent = propre;
+        sel.insertBefore(o, sel.lastElementChild);
+        sel.value = propre;
+      });
+      bloc.appendChild(sel);
+
+    }else if(ch.type === 'repassage'){
+      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
+         Le second nombre ne bouge pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
+
+      const iq = document.createElement('input');
+      iq.type = 'number';
+      iq.id = 'man_' + ch.cle;
+      iq.min = '0';
+      iq.step = '1';
+      iq.value = '4';
+      iq.inputMode = 'numeric';
+      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
+      d.appendChild(iq);
+
+      const t = document.createElement('span');
+      t.style.cssText = 'font-size:16px;color:var(--muted);';
+      t.textContent = '+ 3 heures';
+      d.appendChild(t);
+
+      bloc.appendChild(d);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+        'line-height:1.5;';
+      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
+        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
+      bloc.appendChild(a);
+
     }else if(ch.type === 'envoiAvant'){
       /* De quoi envoyer la première moitié sans attendre la fin
          de l'examen. */
@@ -938,6 +1018,73 @@ async function ouvrirBilanManuel(){
       z.appendChild(pts);
 
       bloc.appendChild(z);
+
+    }else if(ch.type === 'inspecteur'){
+      /* La liste des inspecteurs, partagée par toute l'équipe :
+         un nom ajouté ici sert à tout le monde. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const sel = document.createElement('select');
+      sel.id = 'man_' + ch.cle;
+      sel.innerHTML = '<option value="">— à choisir —</option>' +
+        inspecteursConnus().map(n =>
+          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
+          String(n).replace(/</g, '&lt;') + '</option>').join('') +
+        '<option value="__autre__">➕ En ajouter un…</option>';
+
+      sel.addEventListener('change', async () => {
+        if(sel.value !== '__autre__') return;
+
+        const nom = await demander('Nom de l\'inspecteur', '',
+                                   'Nouvel inspecteur');
+        if(!nom || !nom.trim()){ sel.value = ''; return; }
+
+        const propre = nom.trim();
+        await ajouterInspecteur(propre);
+
+        const o = document.createElement('option');
+        o.value = propre;
+        o.textContent = propre;
+        sel.insertBefore(o, sel.lastElementChild);
+        sel.value = propre;
+      });
+      bloc.appendChild(sel);
+
+    }else if(ch.type === 'repassage'){
+      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
+         Le second nombre ne bouge pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
+
+      const iq = document.createElement('input');
+      iq.type = 'number';
+      iq.id = 'man_' + ch.cle;
+      iq.min = '0';
+      iq.step = '1';
+      iq.value = '4';
+      iq.inputMode = 'numeric';
+      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
+      d.appendChild(iq);
+
+      const t = document.createElement('span');
+      t.style.cssText = 'font-size:16px;color:var(--muted);';
+      t.textContent = '+ 3 heures';
+      d.appendChild(t);
+
+      bloc.appendChild(d);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+        'line-height:1.5;';
+      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
+        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
+      bloc.appendChild(a);
 
     }else if(ch.type === 'envoiAvant'){
       /* De quoi envoyer la première moitié sans attendre la fin
@@ -1138,6 +1285,73 @@ function ajouterObservationManuelle(zone){
 
 /* Relève tout ce que le moniteur a saisi dans le formulaire */
 /* ============================================================
+   LES INSPECTEURS
+
+   Une liste partagée : un nom ajouté par un moniteur sert
+   aussitôt à toute l'équipe. Elle vit dans les réglages.
+   ============================================================ */
+
+const INSPECTEURS_BASE = [
+  'Mme Lehain', 'Mme Bazin', 'Mme Dillenschneider', 'Mme Lefeuvre',
+  'Mme Correia', 'Mr Rondineau', 'Mr Marchand', 'Mr Fornassier',
+  'Mr Sotteau', 'Mr Saillant', 'Mr Prigent', 'Autre département'
+];
+
+let inspecteursAjoutes = null;
+
+function inspecteursConnus(){
+  const sus = inspecteursAjoutes || [];
+  /* « Autre département » reste en dernier : c'est le fourre-tout */
+  const base = INSPECTEURS_BASE.filter(x => x !== 'Autre département');
+  return base.concat(sus).concat(['Autre département']);
+}
+
+async function chargerInspecteurs(){
+  if(inspecteursAjoutes !== null) return;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    const g = (d && d.reglages) || {};
+    inspecteursAjoutes = g.inspecteurs
+      ? String(g.inspecteurs).split('|').map(x => x.trim()).filter(Boolean)
+      : [];
+  }catch(e){ inspecteursAjoutes = []; }
+}
+
+async function ajouterInspecteur(nom){
+  await chargerInspecteurs();
+  if(inspecteursConnus().some(x => normaliserMot(x) === normaliserMot(nom))){
+    return;
+  }
+  inspecteursAjoutes.push(nom);
+  try{
+    await appelPrep({ action: 'reglageSet', cle: 'inspecteurs',
+                      valeur: inspecteursAjoutes.join('|'),
+                      par: ACCES.moniteur || '' });
+    showToast('Inspecteur ajouté pour tous ✅');
+  }catch(e){ showToast('Ajouté ici, mais pas enregistré.'); }
+}
+
+
+/* La mention gardée dans les notes après un examen officiel.
+
+   Elle ne part jamais à l'élève : elle sert au moniteur qui fera
+   le rendez-vous post-permis, qui n'est pas forcément celui qui
+   a accompagné. */
+function mentionExamen(champs, moniteur){
+  const insp = String(champs.inspecteur || '').trim();
+  const rep = String(champs.repassage || '').trim();
+  if(!insp && !rep) return '';
+
+  const bouts = ['🔒 EXAMEN OFFICIEL'];
+  if(insp) bouts.push('Inspecteur : ' + insp);
+  if(rep) bouts.push('Demandé : ' + rep + ' + 3 heures avant repassage');
+  if(moniteur) bouts.push('Par : ' + moniteur);
+
+  return bouts.join(' · ');
+}
+
+
+/* ============================================================
    LE BILAN MANUEL, GARDÉ EN COURS DE ROUTE
 
    Le vocal se sauvegarde à chaque phrase ; le manuel ne l'était
@@ -1296,6 +1510,11 @@ function lireChampsManuels(){
   champs.forEach(ch => {
     if(ch.type === 'titre' || ch.type === 'envoiAvant'){
       /* Ni un intertitre ni un bouton ne portent de réponse */
+    }else if(ch.type === 'inspecteur' || ch.type === 'repassage'){
+      const el = document.getElementById('man_' + ch.cle);
+      if(el && el.value && el.value !== '__autre__'){
+        champsManuels[ch.cle] = el.value.trim();
+      }
     }else if(ch.type === 'manoeuvres'){
       champsManuels[ch.cle] = Array.prototype.slice
         .call(document.querySelectorAll('.chManuel-' + ch.cle + ':checked'))
@@ -1437,6 +1656,20 @@ async function genererBilanManuel(){
     console.error('Composition du bilan :', e);
     await informer('Le bilan n\'a pas pu être composé.\n\nDétail : ' + (e && e.message ? e.message : e));
     return;
+  }
+
+  /* L'examen officiel laisse une trace dans les notes : elle
+     servira au rendez-vous post-permis. Un nouvel examen efface
+     la précédente — seul le dernier permis compte. */
+  if(modeleCle === 'examen-officiel'){
+    const m = mentionExamen(champsManuels, $('monitorName').value.trim());
+    const zn = $('noteInterne');
+    if(zn){
+      const sans = zn.value.split('\n')
+        .filter(l => l.indexOf('🔒 EXAMEN OFFICIEL') === -1)
+        .join('\n').trim();
+      zn.value = m ? (m + (sans ? '\n' + sans : '')) : sans;
+    }
   }
 
   currentLessonMeta = {
