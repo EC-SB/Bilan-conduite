@@ -14,28 +14,51 @@
 
 /* Ce que l'application propose tant que rien n'a été réglé.
    Reprend le classeur au moment où il a été lu. */
+/* Chaque prestation porte son nom et son tarif dans les deux
+   boîtes : le véhicule n'est pas le même, le libellé non plus. */
 const TARIFS_DEFAUT = [
-  { nom:'Cours théorie de la conduite 1h',            q:3,      pu:37 },
-  { nom:'Simulateur avec moniteur 1h',                q:'simu', pu:45 },
-  { nom:'Conduite en Audi A3 Sportback 2h',           q:'c2h',  pu:118 },
-  { nom:'Conduite en Audi A3 Sportback 1h',           q:1,      pu:59 },
-  { nom:'Simulateur prévention des risques 1h',       q:1,      pu:45 },
-  { nom:'Simulateur conduite de nuit 1h',             q:1,      pu:45 },
-  { nom:'Vérifications',                              q:1,      pu:24 },
-  { nom:'Examen blanc pratique 1h30',                 q:1,      pu:88.5 },
-  { nom:'Écoute pédagogique 2h',                      q:150,    pu:0.2 },
-  { nom:'Écoute pédagogique 1h30 : Examen Blanc',     q:20,     pu:0 },
-  { nom:'Formation constat Amiable',                  q:1,      pu:0 },
-  { nom:'Formation entretien véhicule',               q:1,      pu:0 },
-  { nom:"Accompagnement à l'examen du permis de conduire voiture", q:1, pu:59 },
-  { nom:'Disque magnétique rétro-réfléchissant A',    q:1,      pu:5 },
-  { nom:'Abonnement OBLIGATOIRE 1 an mail post permis', q:1,    pu:5 },
-  { nom:"Livret d'apprentissage OBLIGATOIRE",         q:1,      pu:10 },
-  { nom:'1 accès OBLIGATOIRE compte en ligne formule pratique', q:1, pu:95 },
-  { nom:'Test de vue / Conseil anti-stress / Rdv financement', q:1, pu:0 },
-  { nom:'30 minutes moniteur dans votre véhicule post permis', q:1, pu:0 },
-  { nom:'Carte SD',                                   q:1,      pu:15 },
-  { nom:'Accès salle des tablettes',                  q:1,      pu:0 }
+  { nom:'Cours théorie de la conduite 1h',            q:3,      pu:37,
+    nomA:'Cours théorie de la conduite 1h',           puA:37 },
+  { nom:'Simulateur avec moniteur 1h',                q:'simu', pu:45,
+    nomA:'Simulateur BEA avec moniteur 1h',           puA:45 },
+  { nom:'Conduite en Audi A3 Sportback 2h',           q:'c2h',  pu:118,
+    nomA:'Conduite en Audi Q3 2h',                    puA:118 },
+  { nom:'Conduite en Audi A3 Sportback 1h',           q:1,      pu:59,
+    nomA:'Conduite en Audi Q3 1h',                    puA:59 },
+  { nom:'Simulateur prévention des risques 1h',       q:1,      pu:45,
+    nomA:'Simulateur prévention des risques 1h',      puA:45 },
+  { nom:'Simulateur conduite de nuit 1h',             q:1,      pu:45,
+    nomA:'Simulateur conduite de nuit 1h',            puA:45 },
+  { nom:'Vérifications',                              q:1,      pu:24,
+    nomA:'Vérifications',                             puA:24 },
+  { nom:'Examen blanc pratique 1h30',                 q:1,      pu:88.5,
+    nomA:'Examen blanc pratique 1h30',                puA:88.5 },
+  { nom:'Écoute pédagogique 2h',                      q:150,    pu:0.2,
+    nomA:'Écoute pédagogique 2h',                     puA:0.2 },
+  { nom:'Écoute pédagogique 1h30 : Examen Blanc',     q:20,     pu:0,
+    nomA:'Écoute pédagogique 1h30 : Examen Blanc',    puA:0 },
+  { nom:'Formation constat Amiable',                  q:1,      pu:0,
+    nomA:'Formation constat Amiable',                 puA:0 },
+  { nom:'Formation entretien véhicule',               q:1,      pu:0,
+    nomA:'Formation entretien véhicule',              puA:0 },
+  { nom:"Accompagnement à l'examen du permis de conduire voiture", q:1, pu:59,
+    nomA:"Accompagnement à l'examen du permis de conduire voiture", puA:59 },
+  { nom:'Disque magnétique rétro-réfléchissant A',    q:1,      pu:5,
+    nomA:'Disque magnétique rétro-réfléchissant A',   puA:5 },
+  { nom:'Abonnement OBLIGATOIRE 1 an mail post permis', q:1,    pu:5,
+    nomA:'Abonnement OBLIGATOIRE 1 an mail post permis', puA:5 },
+  { nom:"Livret d'apprentissage OBLIGATOIRE",         q:1,      pu:10,
+    nomA:"Livret d'apprentissage OBLIGATOIRE",        puA:10 },
+  { nom:'1 accès OBLIGATOIRE compte en ligne formule pratique', q:1, pu:95,
+    nomA:'1 accès OBLIGATOIRE compte en ligne formule pratique', puA:95 },
+  { nom:'Test de vue / Conseil anti-stress / Rdv financement', q:1, pu:0,
+    nomA:'Test de vue / Conseil anti-stress / Rdv financement', puA:0 },
+  { nom:'30 minutes moniteur dans votre véhicule post permis', q:1, pu:0,
+    nomA:'30 minutes moniteur dans votre véhicule post permis', puA:0 },
+  { nom:'Carte SD',                                   q:1,      pu:15,
+    nomA:'Carte SD',                                  puA:15 },
+  { nom:'Accès salle des tablettes',                  q:1,      pu:0,
+    nomA:'Accès salle des tablettes',                 puA:0 }
 ];
 
 let tarifsPrestations = null;
@@ -82,14 +105,18 @@ async function afficherTarifs(){
   t.style.cssText = 'overflow-x:auto;margin-bottom:12px;';
 
   const table = document.createElement('table');
-  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;' +
+    'min-width:520px;';
   table.innerHTML = '<thead><tr>' +
     '<th style="text-align:left;padding:7px 5px;font-size:11px;' +
       'color:var(--muted);">Prestation</th>' +
     '<th style="padding:7px 5px;font-size:11px;color:var(--muted);' +
-      'width:62px;">Qté</th>' +
-    '<th style="padding:7px 5px;font-size:11px;color:var(--muted);' +
-      'width:86px;">Prix</th>' +
+      'width:56px;">Qté</th>' +
+    '<th style="padding:7px 5px;font-size:11px;color:var(--accent-text);' +
+      'width:78px;border-left:1px solid var(--line);">🚗 BV</th>' +
+    '<th style="padding:7px 5px;font-size:11px;color:var(--accent-text);' +
+      'width:78px;">🚙 BEA</th>' +
+    '<th style="width:30px;"></th>' +
   '</tr></thead>';
 
   const corps = document.createElement('tbody');
@@ -100,12 +127,32 @@ async function afficherTarifs(){
     const tr = document.createElement('tr');
     tr.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);';
 
+    /* Le nom : deux libellés quand ils diffèrent, un seul sinon */
     const tdN = document.createElement('td');
     tdN.style.cssText = 'padding:6px 5px;line-height:1.4;' +
       (auto ? 'color:var(--accent-text);' : '');
-    tdN.textContent = l.nom;
+
+    const iN = document.createElement('input');
+    iN.type = 'text';
+    iN.value = l.nom;
+    iN.style.cssText = 'width:100%;padding:4px;font-size:12px;margin:0;' +
+      'background:transparent;border:none;color:inherit;';
+    iN.addEventListener('input', () => { tarifsPrestations[i].nom = iN.value; });
+    tdN.appendChild(iN);
+
+    /* Le libellé automatique, quand il n'est pas le même */
+    if((l.nomA || l.nom) !== l.nom || auto){
+      const iA = document.createElement('input');
+      iA.type = 'text';
+      iA.value = l.nomA || l.nom;
+      iA.style.cssText = 'width:100%;padding:4px;font-size:11px;margin:0;' +
+        'background:transparent;border:none;color:var(--muted);';
+      iA.addEventListener('input', () => { tarifsPrestations[i].nomA = iA.value; });
+      tdN.appendChild(iA);
+    }
     tr.appendChild(tdN);
 
+    /* La quantité : calculée pour deux lignes, saisie pour le reste */
     const tdQ = document.createElement('td');
     tdQ.style.cssText = 'padding:6px 5px;text-align:center;';
     if(auto){
@@ -126,20 +173,47 @@ async function afficherTarifs(){
     }
     tr.appendChild(tdQ);
 
-    const tdP = document.createElement('td');
-    tdP.style.cssText = 'padding:6px 5px;';
-    const ip = document.createElement('input');
-    ip.type = 'number';
-    ip.value = l.pu;
-    ip.min = '0';
-    ip.step = '0.01';
-    ip.style.cssText = 'width:100%;padding:5px;font-size:13px;margin:0;' +
-      'text-align:right;';
-    ip.addEventListener('input', () => {
-      tarifsPrestations[i].pu = Number(ip.value) || 0;
-    });
-    tdP.appendChild(ip);
-    tr.appendChild(tdP);
+    /* Les deux prix */
+    const prix = (champ, bordure) => {
+      const td = document.createElement('td');
+      td.style.cssText = 'padding:6px 5px;' +
+        (bordure ? 'border-left:1px solid var(--line);' : '');
+      const ip = document.createElement('input');
+      ip.type = 'number';
+      ip.value = (l[champ] !== undefined) ? l[champ] : l.pu;
+      ip.min = '0';
+      ip.step = '0.01';
+      ip.style.cssText = 'width:100%;padding:5px;font-size:13px;margin:0;' +
+        'text-align:right;';
+      ip.addEventListener('input', () => {
+        tarifsPrestations[i][champ] = Number(ip.value) || 0;
+        majApercuTarifs();
+      });
+      td.appendChild(ip);
+      return td;
+    };
+    tr.appendChild(prix('pu', true));
+    tr.appendChild(prix('puA', false));
+
+    /* Retirer une prestation ajoutée à la main */
+    const tdS = document.createElement('td');
+    tdS.style.cssText = 'padding:6px 2px;text-align:center;';
+    if(!auto){
+      const bs = document.createElement('button');
+      bs.className = 'btn btn-secondary';
+      bs.style.cssText = 'width:auto;padding:4px 6px;font-size:11px;margin:0;' +
+        'color:var(--red);border-color:transparent;background:transparent;';
+      bs.textContent = '×';
+      bs.title = 'Retirer cette prestation';
+      bs.addEventListener('click', async () => {
+        if(!await confirmer('Retirer « ' + l.nom + ' » ?\n\n' +
+            'Rien n\'est enregistré tant que tu n\'appuies pas sur 💾.')) return;
+        tarifsPrestations.splice(i, 1);
+        afficherTarifs();
+      });
+      tdS.appendChild(bs);
+    }
+    tr.appendChild(tdS);
 
     corps.appendChild(tr);
   });
@@ -147,6 +221,21 @@ async function afficherTarifs(){
   table.appendChild(corps);
   t.appendChild(table);
   zone.appendChild(t);
+
+  /* Ajouter une prestation : les tarifs évoluent */
+  const bAdd = document.createElement('button');
+  bAdd.className = 'btn btn-secondary';
+  bAdd.style.cssText = 'margin-bottom:10px;padding:10px;font-size:12px;';
+  bAdd.textContent = '➕ Ajouter une prestation';
+  bAdd.addEventListener('click', async () => {
+    const nom = await demander('Nom de la prestation', '', 'Nouvelle prestation');
+    if(!nom || !nom.trim()) return;
+    tarifsPrestations.push({ nom: nom.trim(), q: 1, pu: 0,
+                             nomA: nom.trim(), puA: 0 });
+    afficherTarifs();
+    showToast('Ajoutée — n\'oublie pas d\'enregistrer');
+  });
+  zone.appendChild(bAdd);
 
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:8px;';
@@ -188,23 +277,43 @@ async function afficherTarifs(){
 
   zone.appendChild(r);
 
-  /* Ce que donnerait un devis, pour vérifier d'un coup d'œil */
   const ap = document.createElement('div');
+  ap.id = 'tarifsApercu';
   ap.style.cssText = 'margin-top:12px;font-size:12px;color:var(--muted);' +
-    'line-height:1.6;padding:10px 12px;border:1px solid var(--line);' +
+    'line-height:1.7;padding:10px 12px;border:1px solid var(--line);' +
     'border-radius:10px;';
-
-  const exemple = tarifsPrestations.reduce((s, l) => {
-    const q = (l.q === 'simu') ? 4 : (l.q === 'c2h') ? 10 : l.q;
-    return s + (q * l.pu);
-  }, 0);
-
-  ap.innerHTML = '<strong style="color:var(--cream);">Pour vérifier</strong><br>' +
-    'Une évaluation à 32 h en boîte manuelle donnerait ' +
-    '<strong style="color:var(--accent-text);">' +
-    (Math.round(exemple * 100) / 100).toFixed(2).replace('.', ',') +
-    ' €</strong>.';
   zone.appendChild(ap);
+  majApercuTarifs();
+}
+
+
+/* Ce que donnerait un devis type, pour vérifier d'un coup d'œil.
+
+   Vingt heures en manuelle et treize en automatique : le socle
+   au-dessous duquel on ne descend pas. */
+function majApercuTarifs(){
+  const z = $('tarifsApercu');
+  if(!z || !tarifsPrestations) return;
+
+  const total = (heures, auto) => {
+    /* La même mécanique que l'évaluation */
+    const simu = auto ? ((heures <= 18) ? 2 : 3) : ((heures < 25) ? 3 : 4);
+    const c2h = Math.ceil((heures - (3 + simu + 6)) / 2);
+
+    return tarifsPrestations.reduce((s, l) => {
+      const q = (l.q === 'simu') ? simu : (l.q === 'c2h') ? c2h : l.q;
+      const pu = auto ? ((l.puA !== undefined) ? l.puA : l.pu) : l.pu;
+      return s + (q * pu);
+    }, 0);
+  };
+
+  const e = v => (Math.round(v * 100) / 100).toFixed(2).replace('.', ',') + ' €';
+
+  z.innerHTML = '<strong style="color:var(--cream);">Pour vérifier</strong><br>' +
+    '🚗 20 h en boîte manuelle : <strong style="color:var(--accent-text);">' +
+      e(total(20, false)) + '</strong><br>' +
+    '🚙 13 h en boîte automatique : <strong style="color:var(--accent-text);">' +
+      e(total(13, true)) + '</strong>';
 }
 
 
