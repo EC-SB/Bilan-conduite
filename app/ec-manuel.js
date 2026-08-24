@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 16:58 — v410 */
+/* Déployé le 24/08/2026 à 07:55 — v516 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -391,6 +391,13 @@ async function ouvrirBilanManuel(){
 
   const zone = $('manuelChamps');
   zone.innerHTML = '';
+
+  /* Chaque saisie sera gardée : une coupure ne doit plus rien
+     coûter. */
+  if(!zone.dataset.surveille){
+    zone.dataset.surveille = 'oui';
+    surveillerChampsManuels();
+  }
 
   champs.forEach(ch => {
     const bloc = document.createElement('div');
@@ -980,6 +987,114 @@ function ajouterObservationManuelle(zone){
 
 
 /* Relève tout ce que le moniteur a saisi dans le formulaire */
+/* ============================================================
+   LE BILAN MANUEL, GARDÉ EN COURS DE ROUTE
+
+   Le vocal se sauvegarde à chaque phrase ; le manuel ne l'était
+   qu'une fois terminé. Une coupure au milieu d'un examen officiel
+   faisait tout perdre.
+   ============================================================ */
+
+let minuteurManuel = null;
+
+function sauvegarderManuel(){
+  const zone = $('manuelChamps');
+  if(!zone) return;
+
+  /* On garde l'état des champs eux-mêmes plutôt que leur
+     interprétation : chaque type de rubrique se redessine
+     différemment, mais tous ont une valeur ou une case cochée. */
+  const saisies = [];
+  zone.querySelectorAll('input, textarea, select').forEach((el, i) => {
+    saisies.push({
+      i: i,
+      cle: el.getAttribute('data-cle') || el.getAttribute('data-comp') || '',
+      classe: el.className || '',
+      valeur: (el.type === 'checkbox' || el.type === 'radio')
+        ? (el.checked ? '1' : '')
+        : String(el.value || '')
+    });
+  });
+
+  /* Rien de saisi : inutile de proposer une reprise vide */
+  if(!saisies.some(x => x.valeur)) return;
+
+  try{
+    localStorage.setItem('bilan_manuel_en_cours', JSON.stringify({
+      ts: Date.now(),
+      modele: $('modele').value,
+      moniteur: $('monitorName').value,
+      eleve: $('studentName').value,
+      site: $('site').value,
+      date: $('lessonDate').value,
+      note: $('noteInterne') ? $('noteInterne').value : '',
+      saisies: saisies
+    }));
+  }catch(e){ /* stockage plein : on continue sans */ }
+}
+
+/* Repose ce qui avait été saisi, une fois la fiche dessinée */
+function replacerSaisiesManuelles(saisies){
+  const zone = $('manuelChamps');
+  if(!zone || !saisies || !saisies.length) return 0;
+
+  const champs = zone.querySelectorAll('input, textarea, select');
+  let remis = 0;
+
+  saisies.forEach(s => {
+    const el = champs[s.i];
+    if(!el) return;
+
+    /* La fiche a pu changer entre-temps : on vérifie que la case
+       est bien la même avant d'y écrire. */
+    const meme = (el.getAttribute('data-cle') || el.getAttribute('data-comp') || '')
+                 === s.cle && (el.className || '') === s.classe;
+    if(!meme) return;
+
+    if(el.type === 'checkbox' || el.type === 'radio'){
+      el.checked = !!s.valeur;
+    }else{
+      el.value = s.valeur;
+    }
+    if(s.valeur) remis++;
+  });
+
+  return remis;
+}
+
+/* On attend une seconde de calme : enregistrer à chaque frappe
+   ralentirait la saisie. */
+function planifierSauvegardeManuelle(){
+  clearTimeout(minuteurManuel);
+  minuteurManuel = setTimeout(sauvegarderManuel, 1000);
+}
+
+/* Ce qui a été saisi et jamais terminé */
+function brouillonManuel(){
+  try{
+    const b = JSON.parse(localStorage.getItem('bilan_manuel_en_cours') || 'null');
+    if(!b || !b.saisies || !b.saisies.length) return null;
+    /* Au-delà de deux jours, ce n'est plus le cours en cours */
+    if(Date.now() - (b.ts || 0) > 48 * 3600 * 1000) return null;
+    return b;
+  }catch(e){ return null; }
+}
+
+function effacerBrouillonManuel(){
+  try{ localStorage.removeItem('bilan_manuel_en_cours'); }catch(e){}
+}
+
+/* Suit toutes les saisies de la fiche */
+function surveillerChampsManuels(){
+  const zone = $('manuelChamps');
+  if(!zone) return;
+
+  ['input', 'change'].forEach(ev => {
+    zone.addEventListener(ev, planifierSauvegardeManuelle);
+  });
+}
+
+
 function lireChampsManuels(){
   const modele = MODELES[$('modele').value];
   const champs = CHAMPS_MANUELS[modele.schema];
@@ -1147,7 +1262,36 @@ async function genererBilanManuel(){
   $('resultView').style.display = 'block';
   window.scrollTo(0, 0);
   sauvegarderLocal(true);
+  effacerBrouillonManuel();
 }
+
+/* Rouvre un bilan manuel interrompu */
+function reprendreBilanManuel(){
+  const b = brouillonManuel();
+  if(!b) return;
+
+  if(b.modele){
+    $('modele').value = b.modele;
+    if(typeof adapterAuModele === 'function') adapterAuModele();
+  }
+  if(b.moniteur) $('monitorName').value = b.moniteur;
+  if(b.eleve) $('studentName').value = b.eleve;
+  if(b.site) $('site').value = b.site;
+  if(b.date) $('lessonDate').value = b.date;
+
+  if(b.note && $('noteInterne')) $('noteInterne').value = b.note;
+
+  const ban = $('repriseBanner');
+  if(ban) ban.style.display = 'none';
+
+  /* La fiche se dessine, puis on y repose les saisies */
+  ouvrirBilanManuel().then(() => {
+    const n = replacerSaisiesManuelles(b.saisies);
+    showToast(n ? 'Bilan retrouvé — ' + n + ' réponse(s) ✅'
+                : 'Bilan rouvert ✅');
+  }).catch(() => {});
+}
+
 
 function fermerBilanManuel(){
   modeManuel = false;
