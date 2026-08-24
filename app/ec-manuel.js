@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 10:49 — v525 */
+/* Déployé le 24/08/2026 à 11:10 — v526 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -198,7 +198,10 @@ function dicterDans(champ, bouton){
   sr.interimResults = true;
   sr.maxAlternatives = 3;
 
-  const depart = champ.value;
+  /* Le texte acquis. Il se fige à chaque relance : sans cela, la
+     session suivante repartait de zéro et Chrome relivrait ce qui
+     venait d'être dit — d'où le texte écrit deux ou trois fois. */
+  let depart = champ.value;
   let ajoute = '';
 
   const ecrire = (provisoire) => {
@@ -207,6 +210,10 @@ function dicterDans(champ, bouton){
                   (provisoire ? (ajoute ? ' ' : '') + provisoire : '');
     champ.scrollTop = champ.scrollHeight;
   };
+
+  /* Une phrase déjà livrée ne doit pas revenir : Chrome relivre
+     parfois les derniers résultats après une coupure. */
+  const dejaDit = [];
 
   sr.onresult = ev => {
     let provisoire = '';
@@ -222,7 +229,15 @@ function dicterDans(champ, bouton){
         const s = scoreMetier(ev.results[i][k].transcript);
         if(s > score){ score = s; meilleur = ev.results[i][k].transcript; }
       }
-      ajoute += (ajoute ? ' ' : '') + corrigerVocabulaire(meilleur.trim());
+      const propre = corrigerVocabulaire(meilleur.trim());
+      if(!propre) continue;
+
+      /* Le même bout, deux fois de suite : c'est une relivraison */
+      if(dejaDit.indexOf(propre) !== -1) continue;
+      dejaDit.push(propre);
+      if(dejaDit.length > 12) dejaDit.shift();
+
+      ajoute += (ajoute ? ' ' : '') + propre;
     }
 
     ecrire(provisoire);
@@ -243,13 +258,22 @@ function dicterDans(champ, bouton){
      Sans relance, le moniteur devait rappuyer à chaque phrase —
      d'où l'impression de devoir maintenir le bouton. */
   sr.onend = () => {
+    /* On fige ce qui a été dit : la boîte fait autorité, et la
+       session suivante repart d'une page blanche.
+
+       Les espaces de fin sont retirés, sinon chaque relance en
+       ajoutait un et le texte finissait par flotter. */
+    ecrire('');
+    depart = champ.value.replace(/[ \t]+$/, '');
+    champ.value = depart;
+    ajoute = '';
+
     if(bouton.dataset.stop === 'oui'){
       bouton.dataset.actif = '';
       bouton.dataset.stop = '';
       bouton.textContent = '🎙️';
       bouton.style.background = '';
       bouton._sr = null;
-      ecrire('');
       return;
     }
 
@@ -262,7 +286,6 @@ function dicterDans(champ, bouton){
       bouton.textContent = '🎙️';
       bouton.style.background = '';
       bouton._sr = null;
-      ecrire('');
     }
   };
 
