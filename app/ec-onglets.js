@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 11:30 — v528 */
+/* Déployé le 24/08/2026 à 11:42 — v530 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -141,7 +141,8 @@ const VUES = {
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
   /* Ce qui sert au quotidien pédagogique */
-  outils: [['procedures', '🚦 Procédures',             'procedures'],
+  outils: [['paiement',   '💳 Paiement en plusieurs fois', 'paiement'],
+           ['procedures', '🚦 Procédures',             'procedures'],
            ['textes',     '📄 Textes types',           'textes'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
@@ -255,20 +256,7 @@ function reveillerVue(cle){
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
-    memoire:    () => afficherMemoireIA(),
-    sessions:   () => afficherSessionsPermis(),
-    paie:       () => afficherPaie(),
-    flotte:     () => afficherFlotte(),
-    ecran:      () => afficherEcran(),
-    proccorriger: () => afficherProcCorriger(),
-    code:       () => afficherCodeSalle(),
-    handicap:   () => afficherHandicap(),
-    paiement:   () => afficherPaiement(),
-    notifs:     () => afficherNotifs(),
-    taches:     () => afficherTaches(),
-    ecoutes:    () => afficherEcoutes(),
-    memoire:    () => afficherMemoireIA(),
-    historique: () => afficherHistoriqueCours()
+    memoire:    () => afficherMemoireIA()
   };
   const f = actions[cle];
   if(typeof f === 'function'){
