@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 08:32 — v517 */
+/* Déployé le 24/08/2026 à 09:46 — v522 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -442,6 +442,39 @@ function telPourLien(t){
   return n;
 }
 
+/* Remplit les formations manquantes depuis les bilans déjà faits */
+async function rattraperLesFormations(){
+  if(!await confirmer(
+      'Retrouver les formations depuis les bilans déjà enregistrés ?\n\n' +
+      'Seules les fiches sans formation seront complétées. ' +
+      'Celles que tu as saisies ne bougeront pas.')) return;
+
+  showToast('Lecture des bilans…');
+  try{
+    const d = await appelPrep({ action: 'rattraperFormations' });
+    const n = (d && d.remplies) || 0;
+
+    if(!n){
+      informer('Aucune fiche à compléter.\n\n' +
+               'Soit les formations sont déjà renseignées, soit les ' +
+               'bilans ne permettent pas de conclure.', 'Rattrapage');
+      return;
+    }
+
+    /* Ce qui a changé : le bureau doit pouvoir vérifier */
+    const lignes = ((d && d.detail) || [])
+      .map(x => '· ' + x.eleve + ' → ' + x.formation).join('\n');
+
+    informer(n + ' fiche(s) complétée(s).\n\n' + lignes +
+             (n > 40 ? '\n\n(et ' + (n - 40) + ' autres)' : ''),
+             'Formations retrouvées');
+    afficherRepertoire(true);
+  }catch(e){
+    showToast('Impossible : ' + e.message);
+  }
+}
+
+
 async function afficherRepertoire(recharger){
   const zone = $('repertoireListe');
   if(!zone) return;
@@ -470,6 +503,19 @@ async function afficherRepertoire(recharger){
   const avecTel = fichesEleves.filter(f => f.telephone).length;
   t.textContent = noms.length + ' élève(s) · ' + avecTel + ' avec un numéro';
   zone.appendChild(t);
+
+  /* Les fiches sans formation : on propose de les retrouver
+     depuis les bilans, plutôt que de les saisir une par une. */
+  const sansForm = fichesEleves.filter(x => !String(x.formation || '').trim());
+  if(sansForm.length){
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'margin-bottom:10px;padding:11px;font-size:13px;';
+    b.textContent = '🎓 Retrouver ' + sansForm.length +
+                    ' formation(s) depuis les bilans';
+    b.addEventListener('click', rattraperLesFormations);
+    zone.appendChild(b);
+  }
 
   const rech = document.createElement('input');
   rech.type = 'text';
