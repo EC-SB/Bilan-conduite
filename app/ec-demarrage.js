@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 08:55 — v518 */
+/* Déployé le 25/08/2026 à 14:08 — v539 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -60,6 +60,14 @@ function proposerReprise(){
   const s = lireSauvegarde();
   const banniere = $('repriseBanner');
   if(!banniere) return;
+
+  /* Une séance à plusieurs interrompue : elle prime, c'est
+     plusieurs bilans qui attendent. */
+  const sp = (typeof postesEnCours === 'function') ? postesEnCours() : null;
+  if(sp && (!postes || !postes.length)){
+    proposerRepriseSeance(sp, banniere);
+    return;
+  }
 
   /* Un bilan manuel commencé compte autant qu'une dictée : c'est
      du travail perdu de la même façon. */
@@ -145,6 +153,25 @@ function proposerListeBrouillons(liste, banniere){
 
 
 /* La bannière pour un bilan manuel interrompu */
+/* La bannière pour une séance à plusieurs interrompue */
+function proposerRepriseSeance(d, banniere){
+  const noms = (d.postes || []).map(p => p.eleve.split(' ')[0]).join(', ');
+  const finis = (d.postes || []).filter(p => p.fait).length;
+
+  $('repriseInfo').textContent =
+    '🎮 Séance à ' + (d.postes || []).length + ' postes — ' + noms +
+    ' · ' + finis + ' bilan(s) terminé(s)';
+
+  const b = $('repriseOui');
+  if(b){
+    b.style.display = '';
+    delete b.dataset.manuel;
+    b.dataset.seance = 'oui';
+  }
+  banniere.style.display = 'block';
+}
+
+
 function proposerRepriseManuelle(man, banniere){
   const quand = new Date(man.ts || Date.now());
   const p2 = n => String(n).padStart(2, '0');
@@ -172,6 +199,16 @@ function proposerRepriseManuelle(man, banniere){
 function reprendreCours(){
   /* Un bilan manuel interrompu se rouvre à sa fiche, pas à la
      page de dictée. */
+  const b0 = $('repriseOui');
+  if(b0 && b0.dataset.seance === 'oui'){
+    delete b0.dataset.seance;
+    const sp = (typeof postesEnCours === 'function') ? postesEnCours() : null;
+    if(sp) reprendrePostes(sp);
+    const ban = $('repriseBanner');
+    if(ban) ban.style.display = 'none';
+    return;
+  }
+
   const b = $('repriseOui');
   if(b && b.dataset.manuel === 'oui'){
     delete b.dataset.manuel;
@@ -302,6 +339,7 @@ $('repriseNon').addEventListener('click', async () => {
      qu'un laissait la bannière revenir au rechargement. */
   effacerSauvegarde();
   if(typeof effacerBrouillonManuel === 'function') effacerBrouillonManuel();
+  try{ localStorage.removeItem('ec_postes_simu'); }catch(e){}
 
   const b = $('repriseOui');
   if(b) delete b.dataset.manuel;
@@ -332,6 +370,10 @@ window.addEventListener('beforeunload', e => {
 
 $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
+
+if($('postesBtn')){
+  $('postesBtn').addEventListener('click', () => ouvrirSeancePostes());
+}
 if($('ajoutProcedureBtn')){
   $('ajoutProcedureBtn').addEventListener('click', ajouterProcedureAuBilan);
 }
@@ -419,6 +461,15 @@ function adapterAuModele(){
   const zManuel = $('zoneManuel');
   const statut = $('status');
   const bManuel = $('manuelBtn');
+
+  /* Le simulateur est le seul cours où un moniteur suit plusieurs
+     élèves à la fois. */
+  const bPostes = $('postesBtn');
+  if(bPostes){
+    const surSimu = /^simu/.test($('modele').value || '');
+    const dejaOuvert = (typeof postes !== 'undefined' && postes.length);
+    bPostes.style.display = (surSimu && !dejaOuvert) ? 'block' : 'none';
+  }
 
   /* Une classe, pas un style en ligne : celui-ci se faisait
      écraser par les passages qui remettent en forme le bouton. */
