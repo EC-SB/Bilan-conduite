@@ -51,9 +51,11 @@ const LIGNES_DEVIS = [
 
 
 /* Tout ce qui découle des heures du simulateur */
-function calculEvaluation(heuresBV){
+function calculEvaluation(heuresBV, heuresBEA){
   const bv = Number(heuresBV) || 0;
-  const bea = Math.round((bv * CONV_BEA) / CONV_BV) + AJOUT_BEA;
+  /* La conversion sert de proposition ; une saisie la remplace */
+  const bea = Number(heuresBEA) ||
+              (Math.round((bv * CONV_BEA) / CONV_BV) + AJOUT_BEA);
 
   /* Les heures de simulateur basculent à un seuil différent
      selon la boîte : l'automatique en demande moins. */
@@ -120,7 +122,7 @@ async function afficherEvaluation(){
   const zone = $('evaluationZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Chargement des tarifs…</div>';
+  zone.innerHTML = htmlAttente('Chargement des tarifs…');
   if(typeof chargerTarifs === 'function'){
     try{ await chargerTarifs(); }catch(e){}
   }
@@ -129,13 +131,20 @@ async function afficherEvaluation(){
   const haut = document.createElement('div');
   haut.innerHTML =
     '<div class="duo">' +
-      '<div><label for="evHeures">Heures au simulateur (BV)</label>' +
+      '<div><label for="evHeures">🚗 Heures en manuelle</label>' +
         '<input type="number" id="evHeures" inputmode="numeric" min="0" ' +
           'max="60" placeholder="Ex : 32" style="font-size:20px;"></div>' +
-      '<div><label for="evEleve">Élève</label>' +
-        '<input type="text" id="evEleve" list="listeEleves" ' +
-          'autocomplete="off" placeholder="Son nom"></div>' +
-    '</div>';
+      '<div><label for="evHeuresBea">🚙 Heures en automatique</label>' +
+        '<input type="number" id="evHeuresBea" inputmode="numeric" min="0" ' +
+          'max="60" placeholder="calculé" style="font-size:20px;"></div>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+      'line-height:1.5;">Saisis les heures du simulateur à gauche : ' +
+      'l\'automatique se calcule. Tu peux aussi la corriger à droite.</div>' +
+
+    '<label for="evEleve">Élève</label>' +
+    '<input type="text" id="evEleve" list="listeEleves" ' +
+      'autocomplete="off" placeholder="Son nom">';
   zone.appendChild(haut);
 
   const zr = document.createElement('div');
@@ -143,9 +152,17 @@ async function afficherEvaluation(){
   zone.appendChild(zr);
 
   const ch = $('evHeures');
-  ch.addEventListener('input', dessinerEvaluation);
-  setTimeout(() => ch.focus(), 100);
+  const cb = $('evHeuresBea');
 
+  /* La manuelle recalcule l'automatique ; corriger l'automatique
+     ne touche pas à la manuelle. */
+  ch.addEventListener('input', () => {
+    cb.value = '';
+    dessinerEvaluation();
+  });
+  cb.addEventListener('input', dessinerEvaluation);
+
+  setTimeout(() => ch.focus(), 100);
   dessinerEvaluation();
 }
 
@@ -155,6 +172,7 @@ function dessinerEvaluation(){
   if(!zone) return;
 
   const h = Number($('evHeures').value);
+  const hBea = Number(($('evHeuresBea') || {}).value);
   zone.innerHTML = '';
 
   if(!h || h <= 0){
@@ -163,7 +181,12 @@ function dessinerEvaluation(){
     return;
   }
 
-  const r = calculEvaluation(h);
+  const r = calculEvaluation(h, hBea);
+
+  /* La valeur calculée s'affiche en clair tant qu'on n'a rien
+     corrigé : le moniteur voit ce qu'elle vaut. */
+  const cb = $('evHeuresBea');
+  if(cb && !cb.value) cb.placeholder = r.bea + ' (calculé)';
 
   /* Les deux colonnes côte à côte : c'est ainsi qu'on compare */
   const t = document.createElement('div');
@@ -211,33 +234,19 @@ function dessinerEvaluation(){
 
     const z = document.createElement('div');
     z.style.cssText = 'margin-top:9px;font-size:12px;line-height:1.7;';
+    /* L'intitulé d'abord, la quantité ensuite : c'est l'ordre de
+       Driv'up, et c'est là qu'on recopie. */
     z.innerHTML = d.lignes.filter(l => l.q).map(l =>
-      '<div style="display:flex;gap:8px;' +
+      '<div style="display:flex;gap:9px;' +
         (l.variable ? 'color:var(--accent-text);font-weight:700;' : '') + '">' +
-        '<span style="flex-shrink:0;width:34px;text-align:right;">' +
-          l.q + ' ×</span>' +
         '<span style="flex:1;min-width:0;">' +
           l.nom.replace(/</g, '&lt;') + '</span>' +
-        '<span style="flex-shrink:0;color:' +
+        '<span style="flex-shrink:0;width:30px;text-align:right;">' +
+          l.q + '</span>' +
+        '<span style="flex-shrink:0;width:74px;text-align:right;color:' +
           (l.total ? 'inherit' : 'var(--muted)') + ';">' +
           eurosEval(l.total) + '</span></div>').join('');
     det.appendChild(z);
-
-    /* De quoi recopier le devis dans Driv'up sans le relire */
-    const bc = document.createElement('button');
-    bc.className = 'btn btn-secondary';
-    bc.style.cssText = 'margin-top:9px;padding:9px;font-size:12px;';
-    bc.textContent = '📋 Copier le devis';
-    bc.addEventListener('click', async () => {
-      const t = d.lignes.filter(l => l.q)
-        .map(l => l.q + ' × ' + l.nom + ' — ' + eurosEval(l.total))
-        .join('\n') + '\n\nTotal : ' + eurosEval(d.total);
-      try{
-        await navigator.clipboard.writeText(t);
-        showToast('Devis copié ✅');
-      }catch(e){ showToast('Copie impossible'); }
-    });
-    det.appendChild(bc);
 
     zone.appendChild(det);
   });
@@ -513,20 +522,6 @@ async function ouvrirTexteEvaluation(quoi, r){
   bF.textContent = 'Fermer';
   bF.addEventListener('click', () => document.body.removeChild(fond));
   rw.appendChild(bF);
-
-  /* Le pied se corrige depuis ici : c'est là qu'on le lit */
-  if(quoi.indexOf('note') !== 0 && ACCES.role === 'admin'){
-    const bP = document.createElement('button');
-    bP.className = 'btn btn-secondary';
-    bP.style.cssText = 'width:auto;padding:12px 14px;font-size:12px;';
-    bP.textContent = '✏️ Pied';
-    bP.title = 'Modifier ce qui suit les tarifs';
-    bP.addEventListener('click', () => {
-      document.body.removeChild(fond);
-      ouvrirPiedEvaluation(quoi, r);
-    });
-    rw.appendChild(bP);
-  }
 
   boite.appendChild(rw);
   fond.appendChild(boite);
