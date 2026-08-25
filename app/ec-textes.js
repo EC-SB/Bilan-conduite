@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 10:08 — v524 */
+/* Déployé le 25/08/2026 à 08:28 — v538 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -516,7 +516,7 @@ async function afficherProcedures(){
   const zone = $('proceduresZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Chargement des procédures…</div>';
+  zone.innerHTML = htmlAttente('Chargement des procédures…');
   await chargerModelesTexte();
   const liste = (modelesTexte || []).filter(m => m.usage === 'procedure')
     .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
