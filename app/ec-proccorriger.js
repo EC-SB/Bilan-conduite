@@ -24,7 +24,7 @@ async function afficherProcCorriger(){
   const zone = $('procCorrigerZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Lecture des procédures…</div>';
+  zone.innerHTML = htmlAttente('Lecture des procédures…');
   try{
     const [d, r, dm, rg] = await Promise.all([
       appelPrep({ action: 'procCorrigerList' }),
@@ -784,7 +784,7 @@ async function ouvrirGestionLangues(){
 
   const dessiner = async () => {
     const z = boite.querySelector('#glListe');
-    z.innerHTML = '<div class="empty">Lecture…</div>';
+    z.innerHTML = htmlAttente('');
     try{
       const d = await appelPrep({ action: 'languesList' });
       langues = (d && d.langues) || [];
@@ -987,7 +987,7 @@ async function ouvrirDemande(){
   const zListe = document.createElement('div');
   zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;' +
     'padding-top:12px;';
-  zListe.innerHTML = '<div class="empty">Lecture…</div>';
+  zListe.innerHTML = htmlAttente('');
   boite.appendChild(zListe);
 
   const dessiner = async () => {
@@ -1124,7 +1124,7 @@ async function ouvrirCodesEleves(){
 
   const zListe = document.createElement('div');
   zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:14px;padding-top:12px;';
-  zListe.innerHTML = '<div class="empty">Lecture…</div>';
+  zListe.innerHTML = htmlAttente('');
   boite.appendChild(zListe);
 
   /* Les langues ouvertes par le bureau */
