@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 11:43 — v501 */
+/* Déployé le 25/08/2026 à 08:27 — v538 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -818,13 +818,38 @@ function blocCaptures(eleve, dateExamen){
     zColler.style.borderColor = 'var(--line)';
   });
 
-  /* Coller n'importe où dans la page quand la zone a le curseur */
+  /* Coller n'importe où dans la page, même sans avoir cliqué la
+     zone.
+
+     Quand la zone a déjà le curseur, son propre écouteur fait le
+     travail : renvoyer l'événement le comptait deux fois, et
+     l'image arrivait en double. */
   const surCollage = async ev => {
-    if(document.activeElement !== zColler) return;
-    zColler.dispatchEvent(new ClipboardEvent('paste', {
-      clipboardData: ev.clipboardData, bubbles: false
-    }));
+    if(document.activeElement === zColler) return;
+    if(!document.body.contains(zColler)) return;
+
+    const items = (ev.clipboardData && ev.clipboardData.items) || [];
+    const images = [];
+    for(let i = 0; i < items.length; i++){
+      if(items[i].type && items[i].type.indexOf('image') === 0){
+        const f = items[i].getAsFile();
+        if(f) images.push(f);
+      }
+    }
+    if(!images.length) return;
+
+    ev.preventDefault();
+    zColler.style.borderColor = 'var(--orange)';
+    await ajouterImages(images);
+    zColler.style.borderColor = 'var(--line)';
   };
+  /* Un seul écouteur à la fois : sans cela, il s'en ajoutait un
+     à chaque ouverture de la fenêtre, et la troisième image
+     arrivait en trois exemplaires. */
+  if(window.__ecCollage){
+    document.removeEventListener('paste', window.__ecCollage);
+  }
+  window.__ecCollage = surCollage;
   document.addEventListener('paste', surCollage);
 
   /* ---- Glisser-déposer ---- */
