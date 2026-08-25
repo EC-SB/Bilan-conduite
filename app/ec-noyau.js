@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 12:20 — v533 */
+/* Déployé le 25/08/2026 à 08:28 — v538 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -536,6 +536,42 @@ function afficherIdentite(){
     if(e.key === 'Enter'){ e.preventDefault(); champ.focus(); }
   });
 })();
+
+/* ============================================================
+   ATTENDRE
+
+   Un écran vide n'apprend rien : on montre que quelque chose se
+   passe, et quoi.
+   ============================================================ */
+
+function blocAttente(quoi){
+  const d = document.createElement('div');
+  d.style.cssText = 'display:flex;flex-direction:column;align-items:center;' +
+    'gap:11px;padding:26px 12px;';
+
+  const s = document.createElement('div');
+  s.className = 'spinner';
+  d.appendChild(s);
+
+  if(quoi){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;color:var(--muted);text-align:center;';
+    t.textContent = quoi;
+    d.appendChild(t);
+  }
+  return d;
+}
+
+/* Le même, en une ligne de HTML pour les innerHTML */
+function htmlAttente(quoi){
+  return '<div style="display:flex;flex-direction:column;align-items:center;' +
+    'gap:11px;padding:26px 12px;">' +
+    '<div class="spinner"></div>' +
+    (quoi ? '<div style="font-size:13px;color:var(--muted);' +
+            'text-align:center;">' + quoi + '</div>' : '') +
+    '</div>';
+}
+
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
