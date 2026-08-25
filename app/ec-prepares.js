@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 14:28 — v537 */
+/* Déployé le 25/08/2026 à 14:25 — v540 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -271,6 +271,15 @@ async function afficherPrepares(recharger, silencieux){
       titre.textContent = libelleDate(cours.date) + '  ·  ' + combien +
         ' cours' + (passe ? '  ⚠️' : '');
       tiroir.appendChild(titre);
+
+      /* Les simulateurs à la même heure : une seule séance. On le
+         propose en tête du jour, avant les cours eux-mêmes. */
+      if(typeof groupesDeSimulateur === 'function' && !passe){
+        const duJour = liste.filter(x => x.date === cours.date);
+        groupesDeSimulateur(duJour).forEach(g => {
+          tiroir.appendChild(bandeauGroupe(g));
+        });
+      }
 
       zone.appendChild(tiroir);
     }
