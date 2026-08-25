@@ -321,7 +321,7 @@ async function afficherSuiviAlma(){
   const zone = $('pfSuivi');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Lecture du suivi…</div>';
+  zone.innerHTML = htmlAttente('Lecture des dossiers ALMA…');
   try{
     const d = await appelPrep({ action: 'almaList' });
     paiementsAlma = (d && d.paiements) || [];
