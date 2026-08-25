@@ -1,4 +1,4 @@
-/* Déployé le 21/08/2026 à 14:10 — v480 */
+/* Déployé le 25/08/2026 à 14:10 — v539 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -228,6 +228,14 @@ function creerReconnaissance(){
     $('compteur').textContent = finalTranscript.trim().split(/\s+/).filter(Boolean).length +
       ' mots' + (dernieresReprises ? ' · ' + dernieresReprises + ' reprise(s) appliquée(s)' : '');
     sauvegarderLocal();
+    /* Une séance à plusieurs : ce qui vient d'être dit appartient
+       au poste actif, et doit y être rangé tout de suite. */
+    if(typeof rangerPosteActif === 'function' &&
+       typeof postes !== 'undefined' && postes.length){
+      rangerPosteActif();
+      rangerPostes();
+      if(typeof afficherBarrePostes === 'function') afficherBarrePostes();
+    }
   };
 
   r.onerror = event => {
