@@ -2,15 +2,15 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v538
+     VERSION APPLICATION : v539
      VERSION APPS SCRIPT REQUISE : v130
-     Mis à jour le : 25/08/2026 à 08:28
+     Mis à jour le : 25/08/2026 à 14:06
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
      recharge en forçant (Ctrl+Maj+R).
 
-     Ce fichier appelle 42 modules dans le dossier app/.
+     Ce fichier appelle 43 modules dans le dossier app/.
      S'il en manque un, un bandeau rouge le signale au démarrage.
      ============================================================ -->
 <html lang="fr">
@@ -769,7 +769,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v538</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v539</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1013,6 +1013,11 @@
           en écrivant ou en dictant champ par champ.
         </div>
       </div>
+
+      <!-- Le simulateur à plusieurs : un moniteur, jusqu'à quatre
+           élèves, un bilan chacun. -->
+      <button class="btn btn-secondary" id="postesBtn"
+              style="margin-top:8px;padding:11px;font-size:13px;display:none;">🎮 Plusieurs élèves à la fois</button>
 
       <div id="etatMicro" style="text-align:center;font-size:26px;font-weight:800;margin-top:14px;line-height:1.3;"></div>
       <div id="diagMicro" style="text-align:center;font-size:21px;font-weight:700;color:var(--muted);margin-top:8px;line-height:1.35;"></div>
@@ -1941,48 +1946,49 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=538"></script>
-<script src="app/ec-modeles.js?v=538"></script>
-<script src="app/ec-consignes.js?v=538"></script>
-<script src="app/ec-noyau.js?v=538"></script>
-<script src="app/ec-vocal.js?v=538"></script>
-<script src="app/ec-reseau.js?v=538"></script>
-<script src="app/ec-manuel.js?v=538"></script>
-<script src="app/ec-fenetres.js?v=538"></script>
-<script src="app/ec-questionnaire.js?v=538"></script>
-<script src="app/ec-permis.js?v=538"></script>
-<script src="app/ec-prepares.js?v=538"></script>
-<script src="app/ec-bureau.js?v=538"></script>
-<script src="app/ec-places.js?v=538"></script>
-<script src="app/ec-listes.js?v=538"></script>
-<script src="app/ec-permis-listes.js?v=538"></script>
-<script src="app/ec-postpermis.js?v=538"></script>
-<script src="app/ec-textes.js?v=538"></script>
-<script src="app/ec-correction.js?v=538"></script>
-<script src="app/ec-bilans.js?v=538"></script>
-<script src="app/ec-ecran.js?v=538"></script>
-<script src="app/ec-version.js?v=538"></script>
-<script src="app/ec-paie.js?v=538"></script>
-<script src="app/ec-flotte.js?v=538"></script>
-<script src="app/ec-tarifs.js?v=538"></script>
-<script src="app/ec-evaluation.js?v=538"></script>
-<script src="app/ec-paiement.js?v=538"></script>
-<script src="app/ec-handicap.js?v=538"></script>
-<script src="app/ec-code.js?v=538"></script>
-<script src="app/ec-proccorriger.js?v=538"></script>
-<script src="app/ec-sessions.js?v=538"></script>
-<script src="app/ec-notifs.js?v=538"></script>
-<script src="app/ec-ecoutes.js?v=538"></script>
-<script src="app/ec-taches.js?v=538"></script>
-<script src="app/ec-memoire.js?v=538"></script>
-<script src="app/ec-historique.js?v=538"></script>
-<script src="app/ec-rappels.js?v=538"></script>
-<script src="app/ec-stats.js?v=538"></script>
-<script src="app/ec-messenger.js?v=538"></script>
-<script src="app/ec-journal.js?v=538"></script>
-<script src="app/ec-depart.js?v=538"></script>
-<script src="app/ec-onglets.js?v=538"></script>
-<script src="app/ec-demarrage.js?v=538"></script>
+  <script src="app/ec-etat.js?v=539"></script>
+<script src="app/ec-modeles.js?v=539"></script>
+<script src="app/ec-consignes.js?v=539"></script>
+<script src="app/ec-noyau.js?v=539"></script>
+<script src="app/ec-vocal.js?v=539"></script>
+<script src="app/ec-reseau.js?v=539"></script>
+<script src="app/ec-manuel.js?v=539"></script>
+<script src="app/ec-fenetres.js?v=539"></script>
+<script src="app/ec-questionnaire.js?v=539"></script>
+<script src="app/ec-permis.js?v=539"></script>
+<script src="app/ec-prepares.js?v=539"></script>
+<script src="app/ec-bureau.js?v=539"></script>
+<script src="app/ec-places.js?v=539"></script>
+<script src="app/ec-listes.js?v=539"></script>
+<script src="app/ec-permis-listes.js?v=539"></script>
+<script src="app/ec-postpermis.js?v=539"></script>
+<script src="app/ec-textes.js?v=539"></script>
+<script src="app/ec-correction.js?v=539"></script>
+<script src="app/ec-bilans.js?v=539"></script>
+<script src="app/ec-ecran.js?v=539"></script>
+<script src="app/ec-version.js?v=539"></script>
+<script src="app/ec-paie.js?v=539"></script>
+<script src="app/ec-flotte.js?v=539"></script>
+<script src="app/ec-postes.js?v=539"></script>
+<script src="app/ec-tarifs.js?v=539"></script>
+<script src="app/ec-evaluation.js?v=539"></script>
+<script src="app/ec-paiement.js?v=539"></script>
+<script src="app/ec-handicap.js?v=539"></script>
+<script src="app/ec-code.js?v=539"></script>
+<script src="app/ec-proccorriger.js?v=539"></script>
+<script src="app/ec-sessions.js?v=539"></script>
+<script src="app/ec-notifs.js?v=539"></script>
+<script src="app/ec-ecoutes.js?v=539"></script>
+<script src="app/ec-taches.js?v=539"></script>
+<script src="app/ec-memoire.js?v=539"></script>
+<script src="app/ec-historique.js?v=539"></script>
+<script src="app/ec-rappels.js?v=539"></script>
+<script src="app/ec-stats.js?v=539"></script>
+<script src="app/ec-messenger.js?v=539"></script>
+<script src="app/ec-journal.js?v=539"></script>
+<script src="app/ec-depart.js?v=539"></script>
+<script src="app/ec-onglets.js?v=539"></script>
+<script src="app/ec-demarrage.js?v=539"></script>
 
 </body>
 </html>
