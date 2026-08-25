@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 10:00 — v499 */
+/* Déployé le 25/08/2026 à 14:06 — v539 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -566,6 +566,15 @@ async function terminerCours(){
   /* Quitter sans enregistrer se confirme : c'est une perte sèche */
   if(!bilanEnregistre && $('resultText') && $('resultText').value.trim() &&
      !await confirmer('Ce bilan n a pas été enregistré.\n\nQuitter quand même ? Il sera perdu.')) return;
+
+  /* Une séance à plusieurs : on enchaîne sur l'élève suivant
+     plutôt que de tout remettre à zéro. */
+  if(typeof postes !== 'undefined' && postes.length && bilanEnregistre){
+    if(typeof posteTermine === 'function'){
+      posteTermine();
+      return;
+    }
+  }
 
   finalTranscript = '';
   committedTranscript = '';
