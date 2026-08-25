@@ -344,13 +344,228 @@ function posteTermine(){
   const suivant = postes.findIndex(p => !p.fait);
 
   if(suivant === -1){
+    /* Tout est fait : la séance se ferme seule, un geste de moins */
+    const n = postes.length;
+    const noms = postes.map(p => p.eleve.split(' ')[0]).join(', ');
+
+    postes = [];
+    posteActif = -1;
+    try{ localStorage.removeItem(CLE_POSTES); }catch(e){}
     afficherBarrePostes();
-    informer('Les ' + postes.length + ' bilans sont terminés.\n\n' +
-             'Tu peux fermer la séance avec le ✕.', 'Séance à plusieurs');
+
+    showToast('✅ Les ' + n + ' bilans sont partis — ' + noms);
     return;
   }
 
   basculerPoste(suivant);
+}
+
+
+
+/* ============================================================
+   LES COURS QUI SE FONT ENSEMBLE
+
+   Trois élèves sur simulateur à la même heure : c'est une seule
+   séance. On le propose, sans l'imposer — et on peut en retirer
+   un qui n'y était pas.
+   ============================================================ */
+
+const CLE_GROUPES = 'ec_groupes_simu';
+
+
+/* Ce que le moniteur a défait : on ne le lui repropose plus */
+function groupesDefaits(){
+  try{
+    const l = JSON.parse(localStorage.getItem(CLE_GROUPES) || '{}');
+    return (l && typeof l === 'object') ? l : {};
+  }catch(e){ return {}; }
+}
+
+function marquerGroupeDefait(cle, quoi){
+  const g = groupesDefaits();
+  g[cle] = quoi;
+  try{ localStorage.setItem(CLE_GROUPES, JSON.stringify(g)); }catch(e){}
+}
+
+
+/* La clé d'une séance : même jour, même heure, même moniteur */
+function cleSeance(cours){
+  const h = (typeof heureDeLaPreparation === 'function')
+    ? heureDeLaPreparation(cours) : '';
+  if(!h) return '';
+  if(!/^simu/.test(String(cours.modele || ''))) return '';
+  return [cours.date, h, normaliserMot(cours.moniteur || '')].join('|');
+}
+
+
+/* Les groupes qu'on peut proposer dans une liste de cours */
+function groupesDeSimulateur(liste){
+  const par = {};
+
+  (liste || []).forEach(c => {
+    const cle = cleSeance(c);
+    if(!cle) return;
+    (par[cle] = par[cle] || []).push(c);
+  });
+
+  const defaits = groupesDefaits();
+  const out = [];
+
+  Object.keys(par).forEach(cle => {
+    const g = par[cle];
+    if(g.length < 2) return;
+
+    /* Ceux que le moniteur a sortis du groupe */
+    const sortis = (defaits[cle] || '').split(',').filter(Boolean);
+    const retenus = g.filter(c =>
+      sortis.indexOf(normaliserMot(c.eleve || '')) === -1);
+
+    if(retenus.length < 2) return;
+    out.push({ cle: cle, cours: retenus, tous: g });
+  });
+
+  return out;
+}
+
+
+/* Le bandeau proposé au-dessus d'un groupe */
+function bandeauGroupe(g){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:11px;' +
+    'padding:10px 12px;margin-bottom:8px;';
+
+  const h = (typeof heureDeLaPreparation === 'function')
+    ? heureDeLaPreparation(g.cours[0]) : '';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;line-height:1.5;margin-bottom:9px;';
+  t.innerHTML = '<strong>🎮 ' + g.cours.length + ' cours de simulateur' +
+    (h ? ' à ' + h.replace(':', 'h') : '') + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      g.cours.map(c => String(c.eleve).replace(/</g, '&lt;')).join(' · ') +
+    '</div>';
+  d.appendChild(t);
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;';
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
+  bO.textContent = '🎮 Les faire ensemble';
+  bO.addEventListener('click', () => ouvrirGroupe(g));
+  r.appendChild(bO);
+
+  /* En sortir un : le groupe s'est trompé */
+  if(g.cours.length > 2 || g.tous.length > g.cours.length){
+    const bS = document.createElement('button');
+    bS.className = 'btn btn-secondary';
+    bS.style.cssText = 'width:auto;padding:10px 12px;font-size:12px;margin:0;';
+    bS.textContent = '✏️';
+    bS.title = 'Choisir qui en fait partie';
+    bS.addEventListener('click', () => modifierGroupe(g));
+    r.appendChild(bS);
+  }
+
+  d.appendChild(r);
+  return d;
+}
+
+
+/* Ouvre la séance avec les onglets déjà prêts */
+function ouvrirGroupe(g){
+  /* Le cours porte le modèle et le lieu : on les reprend */
+  const premier = g.cours[0];
+
+  if($('modele') && premier.modele){
+    $('modele').value = premier.modele;
+    if(typeof adapterAuModele === 'function') adapterAuModele();
+  }
+  if($('lessonDate') && premier.date) $('lessonDate').value = premier.date;
+  if($('site') && premier.site) $('site').value = premier.site;
+  if($('monitorName') && premier.moniteur){
+    $('monitorName').value = premier.moniteur;
+  }
+
+  demarrerPostes(g.cours.map(c => c.eleve));
+
+  /* Chaque poste garde sa préparation : c'est elle qui porte la
+     frise et les consignes de cet élève. */
+  g.cours.forEach((c, i) => {
+    if(postes[i]) postes[i].preparation = c.id || '';
+  });
+  rangerPostes();
+
+  if(typeof allerAuCours === 'function') allerAuCours();
+  else if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+
+  showToast('Séance ouverte — ' + g.cours.length + ' élèves');
+}
+
+
+/* Choisir qui fait partie du groupe */
+function modifierGroupe(g){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.maxWidth = 'min(420px, 94vw)';
+
+  boite.innerHTML = '<h3>🎮 Qui fait partie de la séance ?</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Décoche celui qui n\'était pas sur le ' +
+      'simulateur en même temps.</div>';
+
+  const cases = [];
+  g.tous.forEach(c => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:15px;color:var(--cream);margin:0 0 9px;' +
+      'font-weight:400;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = g.cours.some(x =>
+      normaliserMot(x.eleve) === normaliserMot(c.eleve));
+    cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;margin:0;';
+    l.appendChild(cb);
+
+    const s = document.createElement('span');
+    s.style.cssText = 'flex:1;min-width:0;';
+    s.textContent = c.eleve;
+    l.appendChild(s);
+
+    boite.appendChild(l);
+    cases.push({ cb: cb, cours: c });
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = 'Valider';
+  bO.addEventListener('click', () => {
+    const sortis = cases.filter(x => !x.cb.checked)
+      .map(x => normaliserMot(x.cours.eleve));
+
+    marquerGroupeDefait(g.cle, sortis.join(','));
+    document.body.removeChild(fond);
+
+    if(typeof afficherPrepares === 'function') afficherPrepares();
+    showToast('Séance mise à jour ✅');
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 
