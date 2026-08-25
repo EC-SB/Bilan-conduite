@@ -89,7 +89,7 @@ async function afficherTarifs(){
   const zone = $('tarifsZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Lecture des tarifs…</div>';
+  zone.innerHTML = htmlAttente('Lecture des tarifs…');
   await chargerTarifs();
   zone.innerHTML = '';
 
