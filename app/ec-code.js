@@ -34,7 +34,7 @@ async function afficherCodeSalle(){
   const zone = $('codeZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Lecture des séances…</div>';
+  zone.innerHTML = htmlAttente('Lecture des séances de code…');
   try{
     const d = await appelPrep({ action: 'seancesEtg' });
     if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
