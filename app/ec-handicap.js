@@ -31,7 +31,7 @@ async function afficherHandicap(){
   const zone = $('handicapZone');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Lecture du suivi…</div>';
+  zone.innerHTML = htmlAttente('Lecture du suivi handicap…');
   try{
     const d = await appelPrep({ action: 'handicapList' });
     if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
