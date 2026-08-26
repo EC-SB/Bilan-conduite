@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:29 — v573 */
+/* Déployé le 26/08/2026 à 14:49 — v575 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -572,7 +572,10 @@ async function ouvrirBilanManuel(){
          remonter chercher l'information ailleurs. */
       const frise = (dossierManuel && dossierManuel.frise) ||
                     extraireFrise($('noteInterne').value);
-      const faites = (dossierManuel && dossierManuel.lecons) || null;
+      /* Le numéro écrit dans son dernier bilan fait autorité : un
+         élève venu de l'ancien fonctionnement n'a qu'un bilan
+         enregistré alors qu'il en est à sa huitième leçon. */
+      const faites = leconsFaites();
 
       if(frise || faites !== null){
         bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
@@ -1647,6 +1650,33 @@ function majBilanEliminatoires(){
 }
 
 
+/* Combien de leçons l'élève a réellement faites.
+
+   Compter les bilans ne suffit pas : un élève arrivé en cours de
+   route n'en a qu'un ou deux dans l'outil alors qu'il en est à sa
+   huitième leçon. Le numéro écrit dans son dernier bilan dit la
+   vérité. */
+function leconsFaites(){
+  const d = dossierManuel || {};
+
+  /* Ce que dit son dernier bilan */
+  const n = parseInt(d.leconNum, 10);
+  if(!isNaN(n) && n > 0) return n;
+
+  /* À défaut, ce que disent ses notes à l'écran */
+  const t = ($('noteInterne') && $('noteInterne').value) || '';
+  const m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*le[çc]on/i);
+  if(m){
+    const v = parseInt(m[1], 10);
+    if(!isNaN(v) && v > 0) return v;
+  }
+
+  /* En dernier ressort, le nombre de bilans enregistrés */
+  const c = Number(d.lecons);
+  return c > 0 ? c : null;
+}
+
+
 /* ============================================================
    LES FRISES, DÉDUITES
 
@@ -1690,7 +1720,7 @@ function remplirFrises(champs, surEcran){
   /* Avant l'examen blanc : ce que la frise prévoyait, contre ce
      que l'élève a réellement fait. */
   const prevues = leconsAvantExamenBlanc(frise);
-  const faites = (dossierManuel && Number(dossierManuel.lecons)) || null;
+  const faites = leconsFaites();
 
   /* On recalcule tant que le moniteur n'a pas corrigé lui-même */
   const aMoi = cle => !champs[cle] ||
