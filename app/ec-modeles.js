@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:24 — v567 */
+/* Déployé le 26/08/2026 à 15:43 — v579 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -724,15 +724,20 @@ function buildExamenBlanc(ai, ctx){
   L('━━━━━━━━━━━━━━━━━━');
   L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : l'examen blanc consiste à se mettre en conditions réelles d'examen ! L'enseignant N'EST PLUS enseignant MAIS inspecteur du permis de conduire 👮");
   L('');
-  L(txt(ex.installation) ||
-    ('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ✅❌\n' +
-     '❌ Tu as oublié de dire : "c\'est moi qui ai emmené le véhicule, ' +
-     'j\'ai déjà fait mes réglages"\n' +
-     '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ✅❌\n𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ✅❌\n𝙉𝙤𝙩𝙚 :  /2'));
+  /* L'installation : deux cases cochées valent deux points */
+  const nInst = (ex.instPassager || ex.instVoyants)
+    ? ((ex.instPassager === '✅' ? 1 : 0) + (ex.instVoyants === '✅' ? 1 : 0))
+    : '';
+
+  L('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻');
+  if(txt(ex.installation)) ligneParLigne(ex.installation).forEach(o => L(o));
+  L('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + (ex.instPassager ? st(ex.instPassager) : '✅❌'));
+  L('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ex.instVoyants ? st(ex.instVoyants) : '✅❌'));
+  L('𝙉𝙤𝙩𝙚 : ' + (nInst === '' ? ' ' : ' ' + nInst) + ' /2');
   L('');
-  L(txt(ex.verifications) ||
-    ('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion) +
-     '\n𝙉𝙤𝙩𝙚 :  /3\nhttps://www.facebook.com/groups/864826058258637'));
+  L('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion));
+  L('𝙉𝙤𝙩𝙚 : ' + (txt(ex.verifNote) ? ' ' + txt(ex.verifNote) : ' ') + ' /3');
+  L('https://www.facebook.com/groups/864826058258637');
   L(' ');
   L('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
   L('');
@@ -778,8 +783,8 @@ function buildExamenBlanc(ai, ctx){
 
   /* Les observations de l'examen blanc vivent sous « examen » :
      c'est là que la fiche les range. */
-  const elim = txt(ai.bilanElim) ? [] : eliminatoiresParCategorie(
-    (ex && ex.observations) || ai.observations);
+  const obsBilan = (ex && ex.observations) || ai.observations;
+  const elim = txt(ai.bilanElim) ? [] : eliminatoiresParCategorie(obsBilan);
   elim.forEach(g => {
     L('☠️ 𝙀𝙧𝙧𝙚𝙪𝙧 𝙚́𝙡𝙞𝙢𝙞𝙣𝙖𝙩𝙤𝙞𝙧𝙚 — ' + g.categorie);
     L('');
@@ -792,6 +797,22 @@ function buildExamenBlanc(ai, ctx){
       L('');
     });
   });
+
+  /* Les erreurs graves sans être éliminatoires : marquées ⚠️,
+     elles rejoignent le bilan sans toucher au CEPC. */
+  if(!txt(ai.bilanElim)){
+    (Array.isArray(obsBilan) ? obsBilan : []).forEach(o => {
+      if(!o || !o.grave || o.categorie) return;
+      if(!txt(o.inspecteur) && !txt(o.reponse)) return;
+
+      if(txt(o.inspecteur)) L('👨‍✈️ ' + txt(o.inspecteur));
+      if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
+      L("- qu'en penses-tu ?");
+      L('- quelles sont TES solutions ?');
+      L('- ce que je te PROPOSE : ');
+      L('');
+    });
+  }
 
   /* Trois blocs complets, même vides : le moniteur a son repère
      visuel et remplit dans la structure au lieu de la recréer. */
