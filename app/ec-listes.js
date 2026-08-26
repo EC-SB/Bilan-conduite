@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 15:38 — v513 */
+/* Déployé le 26/08/2026 à 16:07 — v581 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -213,7 +213,27 @@ function afficherEBPrevus(tous){
       return;
     }
 
-    /* Un cours préparé : on affiche ce qu'on en sait */
+    /* Un cours préparé pour un élève que le bureau connaît : sa
+       fiche complète vaut mieux qu'une ligne sèche. */
+    const fiche = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
+      ? etatBureau.eleves.find(e =>
+          normaliserMot(e.eleve) === normaliserMot(x.eleve))
+      : null;
+
+    if(fiche){
+      zone.appendChild(ligneBureau(fiche, {
+        replier: true,
+        info: () => (passe ? '⚠️ Le ' : '📝 Le ') + x.quand +
+                    (x.moniteur ? ' · ' + x.moniteur : '') +
+                    (passe ? ' — date dépassée, sa suite ?' : ''),
+        actions: passe
+          ? (e, zone2) => boutonsSuiteExamBlanc(e, zone2)
+          : () => {}
+      }));
+      return;
+    }
+
+    /* Sans fiche : on affiche ce qu'on en sait */
     const l = document.createElement('div');
     l.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:9px 0;' +
       'border-bottom:1px solid rgba(255,255,255,.05);font-size:14px;';
