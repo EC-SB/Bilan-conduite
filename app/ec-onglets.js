@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 12:20 — v533 */
+/* Déployé le 26/08/2026 à 09:01 — v545 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -13,7 +13,7 @@ const CLE_ONGLET = 'onglet_actif';
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
-  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'permis', 'depart'],
+  eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   outils:  ['paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
@@ -139,6 +139,7 @@ const VUES = {
            ['code',       '🎓 Code en salle',          'code'],
            ['handicap',   '♿ Handicap',               'handicap'],
            ['evaluation', '📊 Évaluation',            'evaluation'],
+           ['financements','💶 Financements',          'financements'],
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
   /* Ce qui sert au quotidien pédagogique */
@@ -255,6 +256,7 @@ function reveillerVue(cle){
     code:       () => afficherCodeSalle(),
     handicap:   () => afficherHandicap(),
     evaluation: () => afficherEvaluation(),
+    financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
     paiement:   () => afficherPaiement(),
     notifs:     () => afficherNotifs(),
