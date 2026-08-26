@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 15:43 — v579 */
+/* Déployé le 26/08/2026 à 17:10 — v582 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -666,21 +666,20 @@ function construireCepcTexte(cepc, observations, c){
    Une catégorie touchée trois fois ne coche qu'un E, mais ses
    trois fautes figurent toutes dans le bilan : c'est là qu'on
    travaille ce qui a coûté l'examen. */
-function eliminatoiresParCategorie(obs){
+function erreursParCompetence(obs){
   if(!Array.isArray(obs)) return [];
 
   const par = {};
   obs.forEach(o => {
-    const cat = String((o && o.categorie) || '').trim();
+    /* Les trois marques se rangent sous la même compétence */
+    const cat = String((o && (o.categorie || o.moins || o.grave)) || '').trim();
     if(!cat) return;
     (par[cat] = par[cat] || []).push(o);
   });
 
   /* L'ordre du CEPC, celui que suit l'inspecteur */
   const ordre = [];
-  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
-    if((it.valeurs || []).indexOf('E') !== -1) ordre.push(it.nom);
-  }));
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => ordre.push(it.nom)));
 
   return ordre.filter(n => par[n])
               .map(n => ({ categorie: n, fautes: par[n] }));
@@ -784,13 +783,19 @@ function buildExamenBlanc(ai, ctx){
   /* Les observations de l'examen blanc vivent sous « examen » :
      c'est là que la fiche les range. */
   const obsBilan = (ex && ex.observations) || ai.observations;
-  const elim = txt(ai.bilanElim) ? [] : eliminatoiresParCategorie(obsBilan);
+  const elim = txt(ai.bilanElim) ? [] : erreursParCompetence(obsBilan);
   elim.forEach(g => {
-    L('☠️ 𝙀𝙧𝙧𝙚𝙪𝙧 𝙚́𝙡𝙞𝙢𝙞𝙣𝙖𝙩𝙤𝙞𝙧𝙚 — ' + g.categorie);
+    L('👉 ' + g.categorie);
     L('');
     g.fautes.forEach(o => {
-      if(o.inspecteur) L('👨‍✈️ ' + o.inspecteur);
-      if(o.reponse) L(emojiMoniteur() + ' ' + o.reponse);
+      /* L'élimination se signale sur l'erreur : une compétence
+         peut porter une éliminatoire et d'autres fautes. */
+      if(txt(o.inspecteur)){
+        L('👨‍✈️ ' + txt(o.inspecteur) + (o.categorie ? ' ☠️' : ''));
+      }else if(o.categorie){
+        L('☠️');
+      }
+      if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
       L("- qu'en penses-tu ?");
       L('- quelles sont TES solutions ?');
       L('- ce que je te PROPOSE : ');
@@ -802,7 +807,9 @@ function buildExamenBlanc(ai, ctx){
      elles rejoignent le bilan sans toucher au CEPC. */
   if(!txt(ai.bilanElim)){
     (Array.isArray(obsBilan) ? obsBilan : []).forEach(o => {
-      if(!o || !o.grave || o.categorie) return;
+      if(!o) return;
+      /* Celles qui portent une compétence sont déjà écrites */
+      if(o.categorie || o.moins || o.grave) return;
       if(!txt(o.inspecteur) && !txt(o.reponse)) return;
 
       if(txt(o.inspecteur)) L('👨‍✈️ ' + txt(o.inspecteur));
