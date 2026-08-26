@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 10:13 — v552 */
+/* Déployé le 26/08/2026 à 13:12 — v566 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -308,11 +308,16 @@ async function afficherPrepares(recharger, silencieux){
        ouvrir le cours. */
     const aApporter = repereDeNote(cours);
 
-    nom.innerHTML = (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
-      (h ? ' <span style="color:var(--accent-text);font-weight:800;">' +
-           h.replace(':', 'h') + '</span>' : '') +
+    /* L'heure au-dessus du nom, en grand : c'est elle qu'on
+       cherche en ouvrant la liste, avant même de savoir qui. */
+    nom.innerHTML =
+      (h ? '<div style="font-size:19px;font-weight:800;' +
+           'color:var(--accent-text);line-height:1.2;">' +
+           h.replace(':', 'h') + '</div>' : '') +
+      '<div>' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
       (aApporter ? ' <span style="font-size:15px;" title="' +
-        aApporter.titre + '">' + aApporter.emojis + '</span>' : '');
+        aApporter.titre + '">' + aApporter.emojis + '</span>' : '') +
+      '</div>';
     const sous = document.createElement('span');
     /* Un cours dont la date est passée n'a pas été enregistré :
        sa préparation serait partie. On le signale. */
