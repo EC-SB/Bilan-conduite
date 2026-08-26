@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:24 — v567 */
+/* Déployé le 26/08/2026 à 13:37 — v568 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -549,6 +549,7 @@ async function ouvrirBilanManuel(){
         'text-transform:none;color:var(--cream);';
       bloc.appendChild(l);
       const r = document.createElement('div');
+      r.id = 'ouinon_' + ch.cle;
       r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
       /* Trois issues au niveau : il l'a, il ne l'a pas, ou il
          pourrait l'avoir sans qu'on puisse chiffrer les heures. */
@@ -562,6 +563,7 @@ async function ouvrirBilanManuel(){
         b.className = 'btn btn-secondary';
         b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
         b.textContent = lab;
+        b.setAttribute('data-val', val);
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
 
@@ -1196,6 +1198,17 @@ async function ouvrirBilanManuel(){
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
+      /* Les heures avant permis décident de la frise post : le
+         calcul se fait à la saisie, pas à la génération. */
+      if(ch.cle === 'heuresAvant'){
+        t.addEventListener('input', () => {
+          champsManuels.heuresAvant = t.value;
+          if(typeof remplirFrises === 'function'){
+            remplirFrises(champsManuels, true);
+          }
+        });
+      }
+
       r.appendChild(t);
       if(dicteePossible()){
         const mic = document.createElement('button');
@@ -1486,10 +1499,26 @@ function majBilanEliminatoires(){
    Comparer les deux évite au moniteur de le faire de tête.
    ============================================================ */
 
-function remplirFrises(champs){
+function remplirFrises(champs, surEcran){
   const frise = (dossierManuel && dossierManuel.frise) ||
                 extraireFrise($('noteInterne').value);
   if(!frise) return;
+
+  /* Poser une réponse à l'écran comme dans les champs : le
+     moniteur voit le calcul, il peut le corriger. */
+  const poser = (cle, valeur) => {
+    champs[cle] = valeur;
+    if(!surEcran) return;
+
+    const zone = document.getElementById('man_' + cle.replace('.', '_'));
+    if(zone){ zone.value = valeur; return; }
+
+    /* Les oui/non sont des boutons : on appuie sur le bon, ce qui
+       repeint et enregistre comme si le moniteur l'avait fait. */
+    const b = document.querySelector('#ouinon_' + cle + ' [data-val="' +
+                                     valeur + '"]');
+    if(b) b.click();
+  };
 
   /* Avant l'examen blanc : ce que la frise prévoyait, contre ce
      que l'élève a réellement fait. */
@@ -1498,12 +1527,12 @@ function remplirFrises(champs){
 
   if(prevues !== null && faites !== null && !champs.friseAvant){
     if(faites <= prevues){
-      champs.friseAvant = 'oui';
+      poser('friseAvant', 'oui');
     }else{
-      champs.friseAvant = 'non';
+      poser('friseAvant', 'non');
       /* Chaque leçon de deux heures au-delà du prévu */
       if(!String(champs.friseAvantH || '').trim()){
-        champs.friseAvantH = String((faites - prevues) * 2);
+        poser('friseAvantH', String((faites - prevues) * 2));
       }
     }
   }
@@ -1514,15 +1543,16 @@ function remplirFrises(champs){
   const annoncees = Number(String(champs.heuresAvant || '').trim());
 
   if(apres !== null && annoncees && !champs.frisePost){
-    /* La frise compte en leçons de 2h, plus les 3h avant examen */
+    /* La frise compte en leçons de 2h, plus les 3h avant examen.
+       « 2 leçons + 3h » fait donc 7h attendues. */
     const prevuH = apres * 2 + 3;
 
     if(annoncees <= prevuH){
-      champs.frisePost = 'oui';
+      poser('frisePost', 'oui');
     }else{
-      champs.frisePost = 'non';
+      poser('frisePost', 'non');
       if(!String(champs.frisePostH || '').trim()){
-        champs.frisePostH = String(annoncees - prevuH);
+        poser('frisePostH', String(annoncees - prevuH));
       }
     }
   }
