@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 09:58 — v523 */
+/* Déployé le 26/08/2026 à 10:03 — v551 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -688,6 +688,87 @@ const MODULES_ELEVE = [
   { cle:'code',         nom:'🎓 Suivi du code en salle' }
 ];
 
+/* Le financement extérieur, en lecture seule.
+
+   Le bureau le saisit dans son écran ; ici on le rappelle, parce
+   que c'est là qu'on ouvre la fiche d'un élève. */
+async function afficherFinancementEleve(nom, zone){
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  let dossier = null;
+  try{
+    const d = await appelPrep({ action: 'peList' });
+    dossier = ((d && d.dossiers) || []).find(x =>
+      normaliserMot(x.eleve || '') === normaliserMot(nom));
+  }catch(e){ return; }
+
+  if(!dossier) return;
+
+  /* « Région » porte un accent : il faut normaliser avant de
+     comparer, sinon le test échoue toujours. */
+  const region = normaliserMot(String(dossier.financeur || ''))
+    .indexOf('region') !== -1;
+
+  const det = document.createElement('details');
+  det.style.cssText = 'border:1px solid var(--line);border-radius:11px;' +
+    'padding:9px 12px;';
+
+  det.innerHTML = '<summary style="cursor:pointer;font-size:13px;' +
+    'font-weight:700;color:var(--accent-text);">' +
+    (region ? '🏛️ Région Bretagne' : '💶 France Travail') +
+    (dossier.financeur && !region ? ' ' + dossier.financeur : '') +
+    (dossier.total ? ' — ' + dossier.total + ' €' : '') +
+    (dossier.fini ? ' · terminé' : '') + '</summary>';
+
+  const z = document.createElement('div');
+  z.style.cssText = 'margin-top:9px;font-size:12px;line-height:1.7;';
+
+  /* Les versements, tels que le bureau les a notés */
+  const versements = region
+    ? [['Inscription', 'regInscription', 'courrierInscription', 'etatInscription'],
+       ['Permis', 'regPermis', 'courrierPermis', 'etatPermis']]
+    : [['Inscription', 'inscription', 'courrierInscription', 'etatInscription'],
+       ['Code', 'code', 'courrierCode', 'etatCode'],
+       ['30 heures', 'trente', 'courrier30', 'etat30']];
+
+  z.innerHTML = versements.map(([n, ech, cour, etat]) => {
+    const v = String(dossier[etat] || '');
+    const marque = (v === 'paye') ? '✅' : (v === 'abandon') ? '⛔' : '·';
+    const coul = (v === 'paye') ? 'var(--accent-text)'
+               : (v === 'abandon') ? 'var(--red)' : 'var(--muted)';
+    return '<div style="display:flex;gap:8px;">' +
+      '<span style="flex-shrink:0;color:' + coul + ';">' + marque + '</span>' +
+      '<span style="flex:1;min-width:0;color:var(--muted);">' + n +
+        (dossier[ech] ? ' <span style="color:var(--cream);">' +
+          dossier[ech] + '</span>' : '') +
+        (dossier[cour] ? ' · 📨 ' + dossier[cour] : '') +
+      '</span></div>';
+  }).join('');
+
+  if(region && dossier.rembourse){
+    const rb = document.createElement('div');
+    rb.style.cssText = 'margin-top:7px;padding-top:7px;' +
+      'border-top:1px solid rgba(255,255,255,.06);color:var(--warn-text);';
+    rb.textContent = '↩️ Remboursé à la Région' +
+      (dossier.montantRembourse ? ' : ' + dossier.montantRembourse + ' €' : '') +
+      ' le ' + dossier.rembourse;
+    z.appendChild(rb);
+  }
+
+  if(dossier.remarque){
+    const rm = document.createElement('div');
+    rm.style.cssText = 'margin-top:7px;color:var(--muted);' +
+      'white-space:pre-wrap;';
+    rm.textContent = dossier.remarque;
+    z.appendChild(rm);
+  }
+
+  det.appendChild(z);
+  zone.appendChild(det);
+}
+
+
 async function afficherEspaceEleve(nom, zone){
   if(!zone || !nom) return;
 
@@ -988,6 +1069,7 @@ function ouvrirFicheEleve(nom, f){
   boite.insertAdjacentHTML('beforeend',
     '<h3>' + nom.replace(/</g, '&lt;') + '</h3>' +
     '<div id="fiEspace" style="margin-bottom:14px;"></div>' +
+    '<div id="fiFinancement" style="margin-bottom:14px;"></div>' +
     '<label for="fiTel">📱 Téléphone portable</label>' +
     '<input type="tel" id="fiTel" inputmode="tel" placeholder="06 12 34 56 78">' +
     '<label for="fiMail">✉️ Adresse mail</label>' +
@@ -1093,6 +1175,10 @@ function ouvrirFicheEleve(nom, f){
      attendre le serveur. */
   const zEspace = boite.querySelector('#fiEspace');
   if(zEspace) afficherEspaceEleve(nom, zEspace);
+
+  /* Son financement extérieur, s il en a un */
+  const zFin = boite.querySelector('#fiFinancement');
+  if(zFin) afficherFinancementEleve(nom, zFin);
 
   const g = id => boite.querySelector('#' + id);
   g('fiTel').value = (f && f.telephone) || '';
