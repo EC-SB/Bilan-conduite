@@ -31,7 +31,7 @@ const COULEURS_ETG = {
 
 
 async function afficherCodeSalle(){
-  const zone = $('codeZone');
+  const zone = $('codeSousZone') || $('codeZone');
   if(!zone) return;
 
   zone.innerHTML = htmlAttente('Lecture des séances de code…');
@@ -506,6 +506,54 @@ function ouvrirSaisieEtg(eleve, seance, actuel){
   fond.appendChild(boite);
   document.body.appendChild(fond);
   setTimeout(() => chS.focus(), 100);
+}
+
+
+/* ============================================================
+   L'ONGLET CODE
+
+   Deux sujets voisins : les résultats des séances en salle, et
+   les inscriptions au code aménagé. On passe de l'un à l'autre.
+   ============================================================ */
+
+let vueCode = 'salle';
+
+
+async function afficherCode(){
+  const zone = $('codeZone');
+  if(!zone) return;
+
+  zone.innerHTML = '';
+
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;';
+
+  [['salle', '🎓 Code en salle'],
+   ['amenage', '♿ Code aménagé']].forEach(([cle, nom]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const actif = (vueCode === cle);
+    b.style.cssText = 'flex:1;padding:10px 8px;font-size:13px;border-radius:9px;' +
+      'cursor:pointer;margin:0;line-height:1.3;' +
+      'border:1px solid ' + (actif ? 'var(--orange)' : 'var(--line)') + ';' +
+      'background:' + (actif ? 'var(--orange)' : 'transparent') + ';' +
+      'color:' + (actif ? 'var(--navy-deep)' : 'var(--cream)') + ';' +
+      (actif ? 'font-weight:800;' : '');
+    b.textContent = nom;
+    b.addEventListener('click', () => {
+      vueCode = cle;
+      afficherCode();
+    });
+    barre.appendChild(b);
+  });
+  zone.appendChild(barre);
+
+  const z = document.createElement('div');
+  z.id = 'codeSousZone';
+  zone.appendChild(z);
+
+  if(vueCode === 'salle') afficherCodeSalle();
+  else afficherCodeAmenage();
 }
 
 
