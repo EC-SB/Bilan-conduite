@@ -1,3 +1,4 @@
+/* Déployé le 26/08/2026 à 09:13 — v546 */
 /* ============================================================
    ec-journal.js
    Journal d'activité — réservé aux administrateurs.
@@ -240,8 +241,90 @@ async function afficherJournal(jourPrecis){
         : '');
     d.appendChild(txt);
 
+    /* Un permis noté par erreur : le bouton défait tout, résultat
+       et suppression du suivi comprise. */
+    const bAnnul = boutonAnnulerResultat(l);
+    if(bAnnul) d.appendChild(bAnnul);
+
     zone.appendChild(d);
   });
+}
+
+
+/* ============================================================
+   DÉFAIRE UN RÉSULTAT NOTÉ PAR ERREUR
+
+   « Permis obtenu » supprime la ligne de suivi de l'élève : le
+   retrouver à la main est laborieux. Ce bouton remet tout en
+   place.
+   ============================================================ */
+
+function boutonAnnulerResultat(l){
+  /* Seul un résultat d'examen se défait ici, et par un
+     administrateur : c'est une correction, pas une manœuvre
+     ordinaire. */
+  if(ACCES.role !== 'admin') return null;
+  if(!l.eleve) return null;
+  if(!/résultat|resultat/i.test(l.action || '')) return null;
+
+  const obtenu = /obtenu/i.test((l.detail || '') + ' ' + (l.action || ''));
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:5px 8px;font-size:11px;margin:0;' +
+    'flex-shrink:0;color:var(--muted);';
+  b.textContent = '↩️';
+  b.title = 'Annuler ce résultat';
+
+  b.addEventListener('click', async () => {
+    const quoi = await fenetre(
+      'Annuler le résultat de ' + l.eleve + ' ?\n\n' +
+      (obtenu
+        ? 'Son permis avait été noté obtenu, et sa ligne de suivi ' +
+          'supprimée. Que faut-il en faire ?'
+        : 'Le résultat sera effacé et son suivi remis en place.'),
+      [{ nom: 'Annuler', valeur: '' },
+       { nom: 'Le remettre ajourné', valeur: 'ajourne' },
+       { nom: 'En attente de résultat', valeur: 'attente', principal: true }],
+      'Corriger un résultat');
+
+    if(!quoi) return;
+
+    b.disabled = true;
+    b.textContent = '…';
+    try{
+      const d = await appelPrep({
+        action: 'resultatAnnuler',
+        eleve: l.eleve,
+        remettre: quoi === 'ajourne' ? 'ajourne' : ''
+      });
+
+      if(d && d.status === 'error') throw new Error(d.message);
+
+      const ef = (d && d.efface) || {};
+      await informer(
+        'Le résultat de ' + l.eleve + ' est annulé.\n\n' +
+        (ef.resultat ? 'Était noté : ' + ef.resultat +
+          (ef.dateExamen ? ' le ' + ef.dateExamen : '') + '\n' : '') +
+        (d && d.suiviRecree
+          ? (quoi === 'ajourne'
+              ? 'Il est remis en attente de son bilan d\'examen : tu le ' +
+                'retrouveras dans Permis passés.'
+              : 'Son suivi est rétabli, en attente de résultat.')
+          : '⚠️ Le résultat est effacé, mais son suivi n\'a pas pu être ' +
+            'recréé. Refais-lui un bilan pour le remettre dans les listes.'),
+        'Corriger un résultat');
+
+      afficherJournal();
+      if(typeof afficherBureau === 'function') afficherBureau();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      b.disabled = false;
+      b.textContent = '↩️';
+    }
+  });
+
+  return b;
 }
 
 
