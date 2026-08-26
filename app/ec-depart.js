@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 10:13 — v552 */
+/* Déployé le 26/08/2026 à 12:08 — v560 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1103,6 +1103,13 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
   $('logoutBtn').style.display = 'block';
+
+  /* Le contrôle de version : à côté du prénom, là où le moniteur
+     regarde quand il doute. */
+  if($('versionBtn')){
+    $('versionBtn').style.display = 'block';
+    if(typeof brancherBoutonVersion === 'function') brancherBoutonVersion();
+  }
   afficherIdentite();
   if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
 
