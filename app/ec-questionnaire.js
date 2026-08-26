@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:30 — v573 */
+/* Déployé le 26/08/2026 à 14:49 — v575 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -235,6 +235,33 @@ function examensBlancsPasses(){
   }catch(e){}
 
   return 0;
+}
+
+
+/* La date d'examen lue dans les sessions ouvertes.
+
+   Un élève placé par le bureau a sa date là-bas, pas forcément
+   dans ses notes. */
+function dateDepuisSession(){
+  const nom = ($('studentName') && $('studentName').value.trim()) || '';
+  if(!nom) return '';
+
+  try{
+    if(typeof sessionsPermis === 'undefined' || !sessionsPermis.length) return '';
+
+    for(const s of sessionsPermis){
+      const dedans = (s.eleves || []).some(p =>
+        p.eleve && normaliserMot(p.eleve) === normaliserMot(nom));
+      if(!dedans) continue;
+
+      /* La session porte sa date, en ISO ou en toutes lettres */
+      const d = s.dateIso || s.iso || s.date || '';
+      if(!d) continue;
+      return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : (dateFrVersIso(d) || '');
+    }
+  }catch(e){}
+
+  return '';
 }
 
 
@@ -1024,6 +1051,16 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const dEP = boite.querySelector('#qExamDate');
     selEP.value = prec.examPermis || '';
     dEP.value = prec.examDate || '';
+
+    /* Sa place dans une session vaut date d'examen : sans cela,
+       le moniteur devait aller la chercher ailleurs. */
+    if(!dEP.value){
+      const place = dateDepuisSession();
+      if(place){
+        dEP.value = place;
+        if(!selEP.value) selEP.value = 'prevu';
+      }
+    }
     /* Le nombre de leçons ne se demande que si l'examen blanc en appelle */
     const selEB2 = boite.querySelector('#qEBPasse');
     const nEB2 = boite.querySelector('#qEBLecons');
