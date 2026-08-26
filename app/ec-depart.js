@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 12:08 — v560 */
+/* Déployé le 26/08/2026 à 14:37 — v574 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -621,6 +621,7 @@ async function terminerCours(){
   if($('finEtat')) $('finEtat').textContent = '';
   if($('genErrorDetail')) $('genErrorDetail').remove();
   if($('corrigerBtn')) $('corrigerBtn').style.display = 'none';
+  if($('corrigerLecon')) $('corrigerLecon').style.display = 'none';
   if($('btnImageCepc')) $('btnImageCepc').remove();
 
   /* Le menu des procédures repart vide */
@@ -1309,6 +1310,100 @@ function majBoutonCorrection(){
   if(ligne){
     b.textContent = '💾 Enregistrer la correction';
     b.disabled = false;
+  }
+
+  /* Le numéro de leçon, souvent oublié au premier bilan */
+  const z = $('corrigerLecon');
+  if(z){
+    z.style.display = ligne ? 'block' : 'none';
+    if(ligne){
+      const n = $('corrLeconN');
+      if(n) n.value = leconDuBilan();
+    }
+  }
+}
+
+
+/* Le numéro de leçon lu dans le bilan affiché */
+function leconDuBilan(){
+  const t = ($('resultText') && $('resultText').value) || '';
+  const m = t.match(/(\d+)\s*(?:ère|ere|e|ème|eme)?\s*le[çc]on/i);
+  return m ? m[1] : '';
+}
+
+
+/* ============================================================
+   CORRIGER LE NUMÉRO DE LEÇON
+
+   Un moniteur qui découvre l'outil l'oublie souvent la première
+   fois. Toute la frise s'en trouve décalée : les leçons suivantes
+   se comptent à partir de là.
+   ============================================================ */
+
+async function corrigerLeconDuBilan(){
+  const ligne = currentLessonMeta && currentLessonMeta.ligne;
+  if(!ligne){ showToast('Ouvre un bilan déjà enregistré.'); return; }
+
+  const n = String(($('corrLeconN') && $('corrLeconN').value) || '').trim();
+  if(!n || isNaN(Number(n))){
+    showToast('Indique un numéro de leçon.');
+    return;
+  }
+
+  const zone = $('resultText');
+  const avant = zone ? zone.value : '';
+  const actuel = leconDuBilan();
+
+  if(!actuel){
+    showToast("Ce bilan ne mentionne pas de numéro de leçon.");
+    return;
+  }
+  if(actuel === n){ showToast('C\'est déjà la ' + n + 'e leçon.'); return; }
+
+  const eleve = (currentLessonMeta.studentName || '').trim();
+  if(!await confirmer('Corriger la ' + actuel + 'e leçon en ' + n +
+      'e pour ' + eleve + ' ?\n\n' +
+      'Le bilan et ses notes seront mis à jour.')) return;
+
+  /* Seule la mention de la leçon change : le reste du bilan est
+     l'ouvrage du moniteur, on n'y touche pas.
+
+     L'accord suit le nouveau numéro : « 1ère » mais « 5e ». */
+  const rang = (n === '1') ? '1ère' : (n + 'e');
+  const rempl = (t) => String(t).replace(
+    /\d+\s*(?:ère|ere|ème|eme|e)?(\s*le[çc]on)/i,
+    rang + '$1');
+
+  const b = $('corrLeconBtn');
+  if(b){ b.disabled = true; b.textContent = 'Correction…'; }
+
+  try{
+    const texte = rempl(avant);
+    const r = await appelPrep({ action: 'bilanModifier',
+                                ligne: ligne, eleve: eleve, texte: texte });
+    if(r && r.status === 'error') throw new Error(r.message);
+
+    if(zone) zone.value = texte;
+
+    /* Ses notes portent la même mention : sans cela le prochain
+       cours repartirait du mauvais numéro. Elles voyagent avec le
+       bilan, d'où ce second envoi. */
+    const zn = $('noteInterne');
+    if(zn && /le[çc]on/i.test(zn.value)){
+      zn.value = rempl(zn.value);
+      try{
+        await appelPrep({ action: 'bilanModifier', ligne: ligne,
+                          eleve: eleve, texte: texte,
+                          noteInterne: zn.value.trim() });
+      }catch(e){}
+    }
+
+    viderCaches(eleve);
+    showToast('✅ ' + n + 'e leçon');
+    if(b) b.textContent = '✅ Corrigé';
+  }catch(e){
+    showToast('Erreur : ' + e.message);
+    if(b){ b.disabled = false; b.textContent = '✏️ Corriger la leçon'; }
   }
 }
 
