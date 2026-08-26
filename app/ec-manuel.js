@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 12:56 — v564 */
+/* Déployé le 26/08/2026 à 13:11 — v566 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1146,8 +1146,6 @@ async function ouvrirBilanManuel(){
       bloc.appendChild(tr);
 
     }else if(ch.type === 'observations'){
-      /* Marqueur : c'est ici que se posera le récapitulatif */
-      bloc.dataset.avecApercu = 'oui';
       const l = document.createElement('label');
       l.textContent = ch.nom;
       bloc.appendChild(l);
@@ -1507,7 +1505,8 @@ function remplirFrises(champs){
    ============================================================ */
 
 function cocherEliminatoiresCepc(champs){
-  const obs = champs.observations;
+  /* La fiche range les observations sous « examen.observations » */
+  const obs = champs['examen.observations'] || champs.observations;
   if(!Array.isArray(obs) || !obs.length) return;
 
   /* Les catégories touchées, sans doublon */
@@ -1554,7 +1553,7 @@ function cocherEliminatoiresCepc(champs){
    Elles ouvrent le bilan des erreurs : c'est ce qui a coûté
    l'examen, avant tout le reste. */
 function eliminatoiresGroupees(champs){
-  const obs = champs.observations;
+  const obs = champs['examen.observations'] || champs.observations;
   if(!Array.isArray(obs)) return [];
 
   const par = {};
@@ -1925,8 +1924,6 @@ function lireChampsManuels(){
       });
 
     }else if(ch.type === 'observations'){
-      /* Marqueur : c'est ici que se posera le récapitulatif */
-      bloc.dataset.avecApercu = 'oui';
       const obs = [];
       document.querySelectorAll('#obsManuel > div').forEach(d => {
         const i = d.querySelector('.obsInsp');
