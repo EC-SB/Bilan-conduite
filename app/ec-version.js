@@ -231,6 +231,65 @@ function lancerSurveillanceVersion(){
 }
 
 
+/* ============================================================
+   LE CONTRÔLE À LA DEMANDE
+
+   Un moniteur dont l'écran est figé sur une vieille version voit
+   des anomalies déjà corrigées. Le bouton lui dit où il en est.
+   ============================================================ */
+
+async function verifierVersionMaintenant(){
+  const b = $('versionBtn');
+  const ancien = b ? b.textContent : '';
+  if(b){ b.disabled = true; b.textContent = '⏳'; }
+
+  const ici = lireVersionChargee();
+
+  try{
+    /* On demande la page elle-même, sans passer par le cache */
+    const r = await fetch('index.html?v=' + Date.now(),
+                          { cache: 'no-store' });
+    const t = await r.text();
+    const m = t.match(/\?v=(\d+)/);
+    const laBas = m ? Number(m[1]) : 0;
+
+    if(!laBas){
+      await informer('La version en ligne n\'a pas pu être lue.\n\n' +
+                     'Version chargée ici : v' + ici, 'Version');
+      return;
+    }
+
+    if(laBas > ici){
+      if(await confirmer(
+          'Ton écran est en v' + ici + ', la dernière est la v' + laBas +
+          '.\n\nRecharger maintenant ?\n' +
+          'Ce qui est en cours sera gardé.', 'Mise à jour')){
+        rechargerVraiment();
+      }
+      return;
+    }
+
+    await informer('Tu as bien la dernière version : v' + ici + '.',
+                   'Version à jour');
+  }catch(e){
+    await informer('La vérification a échoué.\n\n' +
+                   'Version chargée ici : v' + ici + '\n' +
+                   'Détail : ' + (e.message || e), 'Version');
+  }finally{
+    if(b){ b.disabled = false; b.textContent = ancien || '🔄'; }
+  }
+}
+
+
+/* Le bouton n'apparaît qu'une fois connecté */
+function brancherBoutonVersion(){
+  const b = $('versionBtn');
+  if(!b || b.dataset.branche) return;
+  b.dataset.branche = 'oui';
+  b.addEventListener('click', verifierVersionMaintenant);
+}
+
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-version.js'] = true;
