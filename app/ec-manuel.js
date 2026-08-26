@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 15:59 — v580 */
+/* Déployé le 26/08/2026 à 17:09 — v582 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1603,13 +1603,39 @@ function ajouterObservationManuelle(zone){
   bGrave.title = 'À reprendre dans le bilan des erreurs';
 
   const majGrave = () => {
-    const pris = (d.dataset.grave === 'oui');
-    bGrave.style.borderColor = pris ? 'var(--accent-text)' : 'var(--line)';
-    bGrave.style.color = pris ? 'var(--accent-text)' : '';
+    const cat = d.dataset.grave || '';
+    bGrave.style.borderColor = cat ? 'var(--accent-text)' : 'var(--line)';
+    bGrave.style.color = cat ? 'var(--accent-text)' : '';
+
+    let etiq = d.querySelector('.obsGrave');
+    if(cat){
+      if(!etiq){
+        etiq = document.createElement('div');
+        etiq.className = 'obsGrave';
+        etiq.style.cssText = 'font-size:11px;color:var(--accent-text);' +
+          'margin-top:6px;';
+        d.appendChild(etiq);
+      }
+      etiq.textContent = '⚠️ ' + cat;
+    }else if(etiq){
+      etiq.remove();
+    }
   };
 
-  bGrave.addEventListener('click', () => {
-    d.dataset.grave = (d.dataset.grave === 'oui') ? '' : 'oui';
+  bGrave.addEventListener('click', async () => {
+    if(d.dataset.grave){
+      d.dataset.grave = '';
+      majGrave();
+      if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+      return;
+    }
+
+    /* La ligne du CEPC sert à ranger l'erreur dans le bilan ;
+       elle ne coûte aucun point, contrairement au ➖. */
+    const cat = await choisirCategorieCepc(true, 'grave');
+    if(!cat) return;
+
+    d.dataset.grave = cat;
     majGrave();
     if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
   });
@@ -1655,7 +1681,7 @@ function ajouterObservationManuelle(zone){
       return;
     }
 
-    const cat = await choisirCategorieCepc(true);
+    const cat = await choisirCategorieCepc(true, 'moins');
     if(!cat) return;
 
     d.dataset.moins = cat;
@@ -1736,8 +1762,8 @@ function majBilanEliminatoires(){
   const zone = document.getElementById('man_bilanElim');
   if(!zone) return;
 
-  /* Tout ce qui est marqué, rangé par catégorie du CEPC. Les
-     trois boutons se retrouvent dans le même cadre : c'est la
+  /* Tout ce qui est marqué, rangé par ligne du CEPC. Les trois
+     boutons se retrouvent sous le même titre : c'est la
      compétence qui regroupe, pas le type de marque. */
   const par = {};
   const sansCategorie = [];
@@ -1749,22 +1775,18 @@ function majBilanEliminatoires(){
     const r = d.querySelector('.obsRep');
     const o = {
       inspecteur: i ? i.value.trim() : '',
-      reponse: r ? r.value.trim() : ''
+      reponse: r ? r.value.trim() : '',
+      /* L'élimination se signale sur l'erreur, pas sur le titre :
+         une compétence peut porter une éliminatoire et d'autres
+         fautes ordinaires. */
+      elim: !!d.dataset.categorie
     };
     if(!o.inspecteur && !o.reponse) return;
 
-    const cat = d.dataset.categorie || d.dataset.moins || '';
+    const cat = d.dataset.categorie || d.dataset.moins || d.dataset.grave || '';
 
-    if(cat){
-      if(!par[cat]){
-        par[cat] = { elim: false, points: 0, fautes: [] };
-      }
-      if(d.dataset.categorie) par[cat].elim = true;
-      if(d.dataset.moins) par[cat].points++;
-      par[cat].fautes.push(o);
-    }else if(d.dataset.grave === 'oui'){
-      sansCategorie.push(o);
-    }
+    if(cat) (par[cat] = par[cat] || []).push(o);
+    else sansCategorie.push(o);
   });
 
   const noms = Object.keys(par);
@@ -1777,40 +1799,33 @@ function majBilanEliminatoires(){
   const ancien = zone.value;
   const bouts = [];
 
-  ordre.forEach(cat => {
-    /* Une catégorie déjà présente n'est pas réécrite : le
-       moniteur y a peut-être déjà répondu. */
-    if(ancien.indexOf(cat) !== -1) return;
-
-    const g = par[cat];
-    const titre = g.elim
-      ? '☠️ Erreur éliminatoire — ' + cat
-      : '➖ ' + cat + ' — ' + g.points + ' point' +
-        (g.points > 1 ? 's' : '') + ' en moins';
-
-    bouts.push(titre);
-    bouts.push('');
-
-    g.fautes.forEach(o => {
-      if(o.inspecteur) bouts.push('👨‍✈️ ' + o.inspecteur);
-      if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
-      bouts.push("- qu'en penses-tu ?");
-      bouts.push('- quelles sont TES solutions ?');
-      bouts.push('- ce que je te PROPOSE : ');
-      bouts.push('');
-    });
-  });
-
-  /* Les erreurs graves sans compétence désignée, à la fin */
-  sansCategorie.forEach(o => {
-    if(o.inspecteur && ancien.indexOf(o.inspecteur) !== -1) return;
-
-    if(o.inspecteur) bouts.push('👨‍✈️ ' + o.inspecteur);
+  const ecrire = o => {
+    if(o.inspecteur){
+      bouts.push('👨‍✈️ ' + o.inspecteur + (o.elim ? ' ☠️' : ''));
+    }else if(o.elim){
+      bouts.push('☠️');
+    }
     if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
     bouts.push("- qu'en penses-tu ?");
     bouts.push('- quelles sont TES solutions ?');
     bouts.push('- ce que je te PROPOSE : ');
     bouts.push('');
+  };
+
+  ordre.forEach(cat => {
+    /* Une compétence déjà présente n'est pas réécrite : le
+       moniteur y a peut-être déjà répondu. */
+    if(ancien.indexOf(cat) !== -1) return;
+
+    bouts.push('👉 ' + cat);
+    bouts.push('');
+    par[cat].forEach(ecrire);
+  });
+
+  /* Les erreurs sans compétence désignée, à la fin */
+  sansCategorie.forEach(o => {
+    if(o.inspecteur && ancien.indexOf(o.inspecteur) !== -1) return;
+    ecrire(o);
   });
 
   if(!bouts.length) return;
@@ -2208,7 +2223,7 @@ function categoriesEliminatoires(){
 }
 
 
-function choisirCategorieCepc(toutes){
+function choisirCategorieCepc(toutes, quoi){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
@@ -2216,15 +2231,22 @@ function choisirCategorieCepc(toutes){
     boite.className = 'modal';
     boite.style.cssText = 'max-width:min(460px, 94vw);max-height:88vh;overflow-y:auto;';
 
-    boite.innerHTML = (toutes
-      ? '<h3>➖ Quelle compétence ?</h3>' +
-        '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
-          'line-height:1.5;">Un point sera retiré sur cette ligne du ' +
-          'CEPC, et l\'erreur rangée là dans le bilan.</div>'
-      : '<h3>☠️ Quelle catégorie ?</h3>' +
-        '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
-          'line-height:1.5;">Le E sera coché sur cette ligne du CEPC, et ' +
-          "l'erreur nommée ainsi dans le bilan.</div>");
+    const titres = {
+      'grave': ['⚠️ Quelle compétence ?',
+                "L'erreur sera rangée là dans le bilan. Aucun point " +
+                "n'est retiré."],
+      'moins': ['➖ Quelle compétence ?',
+                'Un point sera retiré sur cette ligne du CEPC, et ' +
+                "l'erreur rangée là dans le bilan."],
+      '':      ['☠️ Quelle catégorie ?',
+                'Le E sera coché sur cette ligne du CEPC, et ' +
+                "l'erreur rangée là dans le bilan."]
+    };
+    const [t, aide] = titres[quoi || (toutes ? 'moins' : '')] || titres[''];
+
+    boite.innerHTML = '<h3>' + t + '</h3>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+        'line-height:1.5;">' + aide + '</div>';
 
     (toutes ? toutesCategoriesCepc() : categoriesEliminatoires()).forEach(nom => {
       const b = document.createElement('button');
@@ -2618,7 +2640,7 @@ function lireChampsManuels(){
         /* La catégorie du CEPC accompagne l'observation : elle
            décide du E et du rangement dans le bilan. */
         const cat = d.dataset ? (d.dataset.categorie || '') : '';
-        const grave = d.dataset ? (d.dataset.grave === 'oui') : false;
+        const grave = d.dataset ? (d.dataset.grave || '') : '';
         const moins = d.dataset ? (d.dataset.moins || '') : '';
         if(vi || vr){
           obs.push({ inspecteur: vi, reponse: vr, categorie: cat,
