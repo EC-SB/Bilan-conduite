@@ -1728,9 +1728,10 @@ function mentionExamenBlanc(x){
 
   const e = x.etat || {};
 
+  /* Les lignes d'info sont posées en texte, pas en HTML : une
+     balise y ressortirait telle quelle. */
   if(e.examBlanc !== 'passe'){
-    return ' · <span style="color:var(--warn-text);">📝 pas encore ' +
-           "d'examen blanc</span>";
+    return " · 📝 pas encore d'examen blanc";
   }
 
   const suite = {
