@@ -192,6 +192,7 @@ function verrouiller(message, garderSession){
   $('appView').style.display = 'none';
   $('adminCard').style.display = 'none';
   if($('logoutBtn')) $('logoutBtn').style.display = 'none';
+  if($('versionBtn')) $('versionBtn').style.display = 'none';
   if($('qui')) $('qui').style.display = 'none';
 
   /* Rien d'autre que le code d'accès sur l'écran de connexion */
