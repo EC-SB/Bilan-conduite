@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 12:24 — v562 */
+/* Déployé le 26/08/2026 à 13:06 — v565 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -550,6 +550,49 @@ function afficherRdvPermis(tous){
 
 /* Permis prévus : préparation administrative.
    Renvoie la liste, réutilisée par les examens passés. */
+/* Les semaines ouvertes par la préfecture.
+
+   C'est ce qu'on vient chercher en ouvrant « Permis et places » :
+   combien de dates sont disponibles, et combien sont prises. */
+function dessinerTableauPlaces(prevus){
+  if(typeof afficherPlaces !== 'function') return;
+  if(typeof placesConfig === 'undefined') return;
+
+  const actifs = (prevus || []).filter(e =>
+    suiviDe(e.eleve).statut !== 'annule');
+
+  /* Combien d'examens par mois configuré */
+  const moisConnus = placesConfig.mois.map(m => m.mois).filter(Boolean);
+  const parMois = {};
+  let horsMois = 0;
+
+  actifs.forEach(e => {
+    const k = e._iso ? e._iso.slice(0, 7) : '';
+    if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
+    if(!parMois[k]){
+      parMois[k] = { prevus:0, remplacements:0, fantomes:0, aDonner:0 };
+    }
+    parMois[k].prevus++;
+
+    const s = suiviDe(e.eleve);
+    if(s.aRemplacer === 'oui') parMois[k].remplacements++;
+    if(s.fantome === 'oui') parMois[k].fantomes++;
+    if(s.dateADonner === 'oui') parMois[k].aDonner++;
+  });
+
+  /* Combien tombent dans chaque semaine ouverte */
+  const parSemaine = {};
+  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
+    if(!w.du || !w.au) return;
+    parSemaine[w.du + '>' + w.au] = actifs.filter(e =>
+      e._iso && e._iso >= w.du && e._iso <= w.au).length;
+  }));
+
+  afficherPlaces({ parMois: parMois, horsMois: horsMois,
+                   parSemaine: parSemaine });
+}
+
+
 function afficherPermisPrevus(tous){
   const zPP = $('listePermisPrevu');
   const prevus = tous.filter(e => e.etat.permis === 'prevu');
@@ -578,9 +621,14 @@ function afficherPermisPrevus(tous){
   });
 
   /* Le bloc « Permis prévus » a laissé la place aux sessions. La
-     fonction reste, car sa liste sert aux examens passés, mais il
-     n'y a plus rien à dessiner ici. */
-  if(!zPP) return prevus;
+     fonction reste, car sa liste sert aux examens passés.
+
+     Le tableau des semaines ouvertes, lui, doit s'afficher : il
+     était resté derrière ce retour et ne se dessinait plus. */
+  if(!zPP){
+    dessinerTableauPlaces(prevus);
+    return prevus;
+  }
 
   /* Récapitulatif : nombre d'examens par date */
   const parDate = {};
