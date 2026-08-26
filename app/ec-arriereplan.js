@@ -243,6 +243,153 @@ async function reprendreBilanEnFond(i){
 }
 
 
+
+/* ============================================================
+   LE BROUILLON DÉPOSÉ SUR LE SERVEUR
+
+   La sauvegarde sur l'appareil suffit d'ordinaire, mais elle
+   échoue en silence quand le stockage est plein, et disparaît
+   avec le navigateur.
+
+   Avant toute génération, la transcription part sur Sheets : le
+   moniteur la retrouve même depuis un autre téléphone.
+   ============================================================ */
+
+async function deposerBrouillonServeur(){
+  const texte = (typeof finalTranscript !== 'undefined' && finalTranscript) ||
+                ($('transcriptBox') && $('transcriptBox').value) || '';
+  if(!String(texte).trim()) return;
+
+  try{
+    await appelPrep({
+      action: 'brouillonSet',
+      eleve: ($('studentName') && $('studentName').value.trim()) || '',
+      dateCours: ($('lessonDate') && $('lessonDate').value) || '',
+      modele: ($('modele') && $('modele').value) || '',
+      site: ($('site') && $('site').value) || '',
+      transcript: texte,
+      note: ($('noteInterne') && $('noteInterne').value) || ''
+    });
+  }catch(e){
+    /* Le dépôt n'est pas indispensable : la sauvegarde locale
+       reste. On ne bloque pas la génération pour autant. */
+  }
+}
+
+
+/* Le bilan est enregistré : le brouillon n'a plus lieu d'être */
+async function retirerBrouillonServeur(eleve){
+  if(!eleve) return;
+  try{
+    await appelPrep({ action: 'brouillonDelete', eleve: eleve });
+  }catch(e){}
+}
+
+
+/* ============================================================
+   LES COURS RETROUVÉS
+
+   Au démarrage : ce qui a été déposé mais jamais abouti.
+   ============================================================ */
+
+async function chercherBrouillonsServeur(){
+  try{
+    const d = await appelPrep({ action: 'brouillonList' });
+    const l = (d && d.brouillons) || [];
+    if(l.length) proposerBrouillonServeur(l[0], l.length);
+  }catch(e){ /* hors ligne : la sauvegarde locale prend le relais */ }
+}
+
+
+function proposerBrouillonServeur(b, combien){
+  const zone = $('bilanPretBanner');
+  if(!zone || !b) return;
+
+  /* Déjà repris sur cet appareil : ne pas le proposer deux fois */
+  try{
+    if(localStorage.getItem('ec_brouillon_vu') === b.id) return;
+  }catch(e){}
+
+  const d = document.createElement('div');
+  d.style.cssText = 'display:flex;gap:9px;align-items:center;';
+
+  const t = document.createElement('span');
+  t.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
+  t.innerHTML = '<strong style="color:var(--accent-text);">💾 Un cours n\'a ' +
+    'pas abouti</strong>' +
+    '<div style="font-size:11px;color:var(--muted);">' +
+      (b.eleve || 'sans nom').replace(/</g, '&lt;') +
+      (b.dateCours ? ' · ' + b.dateCours : '') +
+      (b.deposeLe ? ' · déposé le ' + b.deposeLe : '') +
+      (combien > 1 ? ' · ' + combien + ' au total' : '') +
+    '</div>';
+  d.appendChild(t);
+
+  const bR = document.createElement('button');
+  bR.className = 'btn btn-primary';
+  bR.style.cssText = 'width:auto;padding:9px 13px;font-size:12px;margin:0;' +
+    'flex-shrink:0;';
+  bR.textContent = '↩️ Reprendre';
+  bR.addEventListener('click', () => reprendreBrouillonServeur(b));
+  d.appendChild(bR);
+
+  const bX = document.createElement('button');
+  bX.className = 'btn btn-secondary';
+  bX.style.cssText = 'width:auto;padding:9px 11px;font-size:12px;margin:0;' +
+    'flex-shrink:0;color:var(--muted);';
+  bX.textContent = '✕';
+  bX.title = 'Masquer';
+  bX.addEventListener('click', () => {
+    /* On masque sans supprimer : le cours reste récupérable
+       depuis un autre appareil. */
+    try{ localStorage.setItem('ec_brouillon_vu', b.id); }catch(e){}
+    d.remove();
+    if(!zone.children.length) zone.style.display = 'none';
+  });
+  d.appendChild(bX);
+
+  zone.appendChild(d);
+  zone.style.display = 'block';
+}
+
+
+async function reprendreBrouillonServeur(b){
+  const enCours = ($('transcriptBox') && $('transcriptBox').value.trim());
+  if(enCours && !await confirmer(
+      'Un cours est déjà en cours de saisie.\n\n' +
+      'Reprendre celui de ' + b.eleve + ' à la place ?')) return;
+
+  if($('modele') && b.modele){
+    $('modele').value = b.modele;
+    if(typeof adapterAuModele === 'function') adapterAuModele();
+  }
+  if($('studentName')) $('studentName').value = b.eleve || '';
+  if($('lessonDate') && b.dateCours) $('lessonDate').value = b.dateCours;
+  if($('site') && b.site) $('site').value = b.site;
+  if($('noteInterne')) $('noteInterne').value = b.note || '';
+
+  if($('transcriptBox')){
+    $('transcriptBox').value = b.transcript || '';
+    $('transcriptBox').style.display = 'block';
+  }
+  if(typeof finalTranscript !== 'undefined') finalTranscript = b.transcript || '';
+  if(typeof committedTranscript !== 'undefined'){
+    committedTranscript = b.transcript || '';
+  }
+
+  if($('resultView')) $('resultView').style.display = 'none';
+  if($('generatingView')) $('generatingView').style.display = 'none';
+  if($('recordView')) $('recordView').style.display = 'block';
+
+  const zone = $('bilanPretBanner');
+  if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
+
+  if(typeof sauvegarderLocal === 'function') sauvegarderLocal(true);
+  window.scrollTo(0, 0);
+  showToast('Cours retrouvé — appuie sur Terminer pour générer');
+}
+
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-arriereplan.js'] = true;
