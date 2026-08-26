@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 07:29 — v541 */
+/* Déployé le 26/08/2026 à 09:49 — v550 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -846,6 +846,7 @@ async function chargerMessagesAjourne(){
    l'ordre, avec ce qu'il faut copier à chaque fois. */
 async function ouvrirMessagesAjourne(eleve){
   await chargerMessagesAjourne();
+  await chargerAfaireAjourne();
 
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -918,6 +919,10 @@ async function ouvrirMessagesAjourne(eleve){
   etape(4, 'La relance, plus tard', messagesAjourne.m4,
     "À envoyer s'il ne répond pas.");
 
+  /* Ce qui reste à faire de notre côté, hors messages. Coché ou
+     non, rien n'est bloqué : c'est un aide-mémoire. */
+  boite.appendChild(listeAFaireAjourne(eleve));
+
   const r = document.createElement('div');
   r.className = 'btn-row';
 
@@ -927,19 +932,302 @@ async function ouvrirMessagesAjourne(eleve){
   bF.addEventListener('click', () => document.body.removeChild(fond));
   r.appendChild(bF);
 
-  /* Le bureau corrige ses propres messages */
-  if(ACCES.role === 'admin'){
-    const bM = document.createElement('button');
-    bM.className = 'btn btn-secondary';
-    bM.style.cssText = 'width:auto;padding:12px 14px;font-size:12px;';
-    bM.textContent = '✏️';
-    bM.title = 'Modifier les messages';
-    bM.addEventListener('click', () => {
-      document.body.removeChild(fond);
-      modifierMessagesAjourne(eleve);
-    });
-    r.appendChild(bM);
+  /* Chacun corrige les messages : ils décrivent nos démarches,
+     et celui qui s'en sert est le mieux placé pour les tenir à
+     jour. */
+  const bM = document.createElement('button');
+  bM.className = 'btn btn-secondary';
+  bM.style.cssText = 'width:auto;padding:12px 14px;font-size:12px;';
+  bM.textContent = '✏️ Messages';
+  bM.title = 'Modifier les messages';
+  bM.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    modifierMessagesAjourne(eleve);
+  });
+  r.appendChild(bM);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
+/* ============================================================
+   CE QUI RESTE À FAIRE
+
+   Les messages ne suffisent pas : il y a Driv'up à mettre à jour
+   et le suivi à renseigner. Sans cette liste, une étape se
+   perdait.
+   ============================================================ */
+
+/* La liste d'origine. Le bureau la modifie ensuite : elle vit
+   dans les réglages, et suit tous les postes. */
+const AFAIRE_DEFAUT = [
+  { nom:'📣 Supprimer le groupe Messenger du permis',
+    aide:'Messenger > Taper "Permis" et la date ou les prénoms des élèves > ' +
+         'Une fois sur la conversation > Cliquer sur les 3 points > Aller sur ' +
+         'les membres de la discussion > Supprimer les élèves et le moniteur ' +
+         'du groupe > Supprimer la conversation' },
+  { nom:'📣 Synchroniser',
+    aide:"Drivup > Examens > Sessions d'examens > Saint-Brieuc ou Loudéac > " +
+         '↻ Synchroniser mes sessions RdvPermis maintenant' },
+  { nom:'❌ Envoyer le message du dessus',
+    aide:'Keep > 5-2 🚗 Messages POST PERMIS > Annonce échec > Copier et ' +
+         "coller sur le Messenger de l'élève" },
+  { nom:'❌ Commentaire examen et Bon pour examen · ⛔ Attente bilan · ♻️ ? + 3',
+    aide:"Drivup > Profil de l'élève > Examen > Mettre commentaire > " +
+         'Enregistrer > Bon pour examen' },
+  { nom:'❌ RDV post permis gratuit ?',
+    aide:"Drivup > Profil de l'élève > Facturer — si 20/0 : en attente du " +
+         "processus · si 0/0 : c'est bon" }
+];
+
+let afaireAjourne = null;
+
+
+async function chargerAfaireAjourne(){
+  if(afaireAjourne !== null) return afaireAjourne;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    const g = (d && d.reglages) || {};
+    if(g.afaireAjourne){
+      const l = JSON.parse(g.afaireAjourne);
+      if(Array.isArray(l)) afaireAjourne = l;
+    }
+  }catch(e){ /* on garde la liste d'origine */ }
+
+  if(afaireAjourne === null){
+    afaireAjourne = AFAIRE_DEFAUT.map(x => Object.assign({}, x));
   }
+  return afaireAjourne;
+}
+
+
+async function rangerAfaireAjourne(){
+  try{
+    await appelPrep({ action: 'reglageSet', cle: 'afaireAjourne',
+                      valeur: JSON.stringify(afaireAjourne),
+                      par: ACCES.moniteur || '' });
+    return true;
+  }catch(e){
+    showToast('Impossible : ' + e.message);
+    return false;
+  }
+}
+
+
+function listeAFaireAjourne(eleve){
+  const d = document.createElement('details');
+  d.id = 'afaireAjourne';
+  d.open = true;
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:11px;' +
+    'padding:10px 12px;margin-top:12px;';
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:14px;' +
+    'font-weight:700;color:var(--accent-text);">' +
+    '❌ PAS EU — ce qui reste à faire</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  /* Les cases vivent sur l'appareil : c'est un pense-bête du
+     moment, pas une donnée à garder. */
+  const cle = 'ec_afaire_' + normaliserMot(eleve).replace(/\s+/g, '_');
+  let coches = {};
+  try{ coches = JSON.parse(localStorage.getItem(cle) || '{}') || {}; }catch(e){}
+
+  (afaireAjourne || AFAIRE_DEFAUT).forEach((x, i) => {
+    /* La clé suit le rang : une liste modifiable n'a pas de clé
+       stable, et c'est sans conséquence pour un pense-bête. */
+    x.cle = 'p' + i;
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:flex-start;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 9px;' +
+      'font-weight:400;line-height:1.5;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!coches[x.cle];
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:2px 0 0;';
+    l.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;' +
+      (cb.checked ? 'opacity:.5;' : '');
+    t.innerHTML = x.nom +
+      (x.aide
+        ? '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' +
+          x.aide + '</div>'
+        : '');
+    l.appendChild(t);
+
+    /* Une fois fait, la ligne s'estompe : ce qui reste se voit */
+    cb.addEventListener('change', () => {
+      coches[x.cle] = cb.checked;
+      try{ localStorage.setItem(cle, JSON.stringify(coches)); }catch(e){}
+      t.style.opacity = cb.checked ? '.5' : '1';
+    });
+
+    z.appendChild(l);
+  });
+
+  d.appendChild(z);
+
+  /* Chacun peut corriger la liste : elle décrit nos gestes, et
+     ils changent. */
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-top:6px;padding:9px;font-size:12px;';
+  b.textContent = '✏️ Modifier cette liste';
+  b.addEventListener('click', () => modifierAfaireAjourne(eleve));
+  d.appendChild(b);
+
+  return d;
+}
+
+
+/* ============================================================
+   MODIFIER LA LISTE
+
+   Chaque point a un intitulé et un chemin. Le bureau en ajoute,
+   en retire, en corrige — pour tout le monde.
+   ============================================================ */
+
+function modifierAfaireAjourne(eleve){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(600px, 95vw);max-height:92vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>✏️ Ce qui reste à faire</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Cette liste sert à toute l\'équipe. Le chemin ' +
+      's\'affiche sous l\'intitulé, en petit.</div>';
+
+  const zl = document.createElement('div');
+  boite.appendChild(zl);
+
+  /* On travaille sur une copie : annuler ne doit rien changer */
+  let brouillon = (afaireAjourne || AFAIRE_DEFAUT)
+    .map(x => Object.assign({}, x));
+
+  const dessiner = () => {
+    zl.innerHTML = '';
+
+    brouillon.forEach((x, i) => {
+      const bloc = document.createElement('div');
+      bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+        'padding:9px 11px;margin-bottom:8px;';
+
+      const h = document.createElement('div');
+      h.style.cssText = 'display:flex;gap:7px;align-items:center;' +
+        'margin-bottom:7px;';
+
+      const iN = document.createElement('input');
+      iN.type = 'text';
+      iN.value = x.nom || '';
+      iN.placeholder = 'Ce qu\'il faut faire';
+      iN.style.cssText = 'flex:1;min-width:0;padding:7px 9px;font-size:13px;' +
+        'margin:0;';
+      iN.addEventListener('input', () => { brouillon[i].nom = iN.value; });
+      h.appendChild(iN);
+
+      /* Le remonter, pour l'ordre des gestes */
+      if(i > 0){
+        const bU = document.createElement('button');
+        bU.className = 'btn btn-secondary';
+        bU.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+          'flex-shrink:0;';
+        bU.textContent = '↑';
+        bU.addEventListener('click', () => {
+          const t = brouillon[i - 1];
+          brouillon[i - 1] = brouillon[i];
+          brouillon[i] = t;
+          dessiner();
+        });
+        h.appendChild(bU);
+      }
+
+      const bS = document.createElement('button');
+      bS.className = 'btn btn-secondary';
+      bS.style.cssText = 'width:auto;padding:6px 8px;font-size:12px;margin:0;' +
+        'flex-shrink:0;color:var(--red);border-color:var(--red);';
+      bS.textContent = '×';
+      bS.addEventListener('click', () => {
+        brouillon.splice(i, 1);
+        dessiner();
+      });
+      h.appendChild(bS);
+
+      bloc.appendChild(h);
+
+      const iA = document.createElement('textarea');
+      iA.rows = 2;
+      iA.value = x.aide || '';
+      iA.placeholder = 'Le chemin à suivre (facultatif)';
+      iA.style.cssText = 'width:100%;background:var(--navy);' +
+        'border:1px solid var(--line);color:var(--muted);padding:7px 9px;' +
+        'border-radius:8px;font-size:12px;line-height:1.5;' +
+        'font-family:inherit;resize:vertical;margin:0;';
+      iA.addEventListener('input', () => { brouillon[i].aide = iA.value; });
+      bloc.appendChild(iA);
+
+      zl.appendChild(bloc);
+    });
+  };
+  dessiner();
+
+  const bAdd = document.createElement('button');
+  bAdd.className = 'btn btn-secondary';
+  bAdd.style.cssText = 'margin-bottom:10px;padding:10px;font-size:12px;';
+  bAdd.textContent = '➕ Ajouter un point';
+  bAdd.addEventListener('click', () => {
+    brouillon.push({ nom: '', aide: '' });
+    dessiner();
+  });
+  boite.appendChild(bAdd);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    ouvrirMessagesAjourne(eleve);
+  });
+  r.appendChild(bA);
+
+  const bR = document.createElement('button');
+  bR.className = 'btn btn-secondary';
+  bR.style.cssText = 'width:auto;padding:12px 13px;font-size:12px;';
+  bR.textContent = '↩️';
+  bR.title = 'Revenir à la liste d\'origine';
+  bR.addEventListener('click', async () => {
+    if(!await confirmer('Revenir à la liste d\'origine ?\n\n' +
+        'Rien n\'est enregistré tant que tu n\'appuies pas sur 💾.')) return;
+    brouillon = AFAIRE_DEFAUT.map(x => Object.assign({}, x));
+    dessiner();
+  });
+  r.appendChild(bR);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '💾 Enregistrer';
+  bO.addEventListener('click', async () => {
+    bO.disabled = true;
+    afaireAjourne = brouillon.filter(x => String(x.nom || '').trim());
+    if(await rangerAfaireAjourne()){
+      document.body.removeChild(fond);
+      showToast('Liste enregistrée ✅');
+      ouvrirMessagesAjourne(eleve);
+    }else{
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
 
   boite.appendChild(r);
   fond.appendChild(boite);
@@ -986,6 +1274,21 @@ function modifierMessagesAjourne(eleve){
     ouvrirMessagesAjourne(eleve);
   });
   r.appendChild(bA);
+
+  /* Revenir aux textes d'origine, après une fausse manœuvre */
+  const bR = document.createElement('button');
+  bR.className = 'btn btn-secondary';
+  bR.style.cssText = 'width:auto;padding:12px 13px;font-size:12px;';
+  bR.textContent = '↩️';
+  bR.title = 'Revenir aux textes d\'origine';
+  bR.addEventListener('click', async () => {
+    if(!await confirmer('Revenir aux textes d\'origine ?\n\n' +
+        'Rien n\'est enregistré tant que tu n\'appuies pas sur 💾.')) return;
+    zones.m1.zone.value = MSG_AJOURNE_1;
+    zones.m3.zone.value = MSG_AJOURNE_3;
+    zones.m4.zone.value = MSG_AJOURNE_4;
+  });
+  r.appendChild(bR);
 
   const bO = document.createElement('button');
   bO.className = 'btn btn-primary';
