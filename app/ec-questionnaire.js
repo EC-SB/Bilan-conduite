@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:51 — v569 */
+/* Déployé le 26/08/2026 à 14:10 — v570 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -213,6 +213,31 @@ function defautsDepuisNote(note){
 
    Les leçons de conduite oui ; l'examen blanc, les simulateurs
    et l'examen officiel non — ils ne consomment pas de leçon. */
+/* Combien d'examens blancs l'élève a déjà passés.
+
+   Le rang du jour s'en déduit : le troisième vient après deux
+   autres. */
+function examensBlancsPasses(){
+  const nom = ($('studentName') && $('studentName').value.trim()) || '';
+  if(!nom) return 0;
+
+  try{
+    const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+    const n = parseInt(s.nbExamensBlancs, 10);
+    if(!isNaN(n)) return n;
+  }catch(e){}
+
+  /* À défaut, ce que disent ses notes */
+  try{
+    const t = ($('noteInterne') && $('noteInterne').value) || '';
+    const m = t.match(/(\d+)\s*(?:e|er|ème|eme)?\s*examens?\s+blancs?/i);
+    if(m) return parseInt(m[1], 10);
+  }catch(e){}
+
+  return 0;
+}
+
+
 function seanceDeLaFrise(){
   const m = ($('modele') && $('modele').value) || '';
   if(/^simu/.test(m)) return false;
@@ -635,7 +660,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
 
-      (modeleCle === 'examen-blanc'
+      /* La conclusion se donne à la FIN de l'examen blanc, pas au
+         départ : elle n'a rien à faire dans le questionnaire
+         d'ouverture. */
+      (modeleCle === 'examen-blanc' && !/^Avant/i.test(String(titre || ''))
         ? '<label for="qEBPasse">Conclusion de l\'examen blanc</label>' +
           '<select id="qEBPasse">' +
             '<option value="">— à renseigner —</option>' +
@@ -823,6 +851,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       boite.querySelector('#qLecon').value =
         prec.lecon || ((rangDuJour !== null) ? rangDuJour : '');
     }
+
     boite.querySelector('#qPasEcoute').checked = !!prec.pasEcoute;
     boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
@@ -938,9 +967,30 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       x.addEventListener('change', majEB);
     });
 
+    /* Un examen blanc se passe aujourd'hui, par définition : le
+       demander n'apprend rien. Et « dans combien de leçons » ne
+       veut rien dire pour la séance en cours. */
+    if(($('modele') && $('modele').value) === 'examen-blanc'){
+      casesEB.forEach(x => { x.checked = (x.value === 'passe'); });
+
+      if(dateEB && !dateEB.value){
+        dateEB.value = ($('lessonDate') && $('lessonDate').value) || todayLocal();
+      }
+
+      /* Le rang se déduit de ceux déjà passés */
+      if(rangEB && !rangEB.value){
+        const n = examensBlancsPasses();
+        if(n) rangEB.value = String(Math.min(n + 1, 5));
+      }
+    }
+
     function majEB(){
       const v = valeurEB();
-      nEB.style.display = (v === 'reserve' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
+      /* Sur un examen blanc du jour, la question n'a pas d'objet :
+         c'est la leçon en cours. */
+      const cejour = (($('modele') && $('modele').value) === 'examen-blanc');
+      nEB.style.display = (!cejour &&
+        (v === 'reserve' || v === 'aprevoir' || v === 'passe')) ? 'block' : 'none';
       nEB.placeholder = (v === 'passe')
         ? 'Leçons prévues avant le permis'
         : 'Dans combien de leçons ?';
