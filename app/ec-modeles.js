@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 12:46 — v563 */
+/* Déployé le 26/08/2026 à 13:11 — v566 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -769,7 +769,10 @@ function buildExamenBlanc(ai, ctx){
   /* Les erreurs éliminatoires ouvrent le bilan : c'est ce qui a
      coûté l'examen. Groupées par catégorie du CEPC, comme
      l'inspecteur les compte. */
-  const elim = eliminatoiresParCategorie(ai.observations);
+  /* Les observations de l'examen blanc vivent sous « examen » :
+     c'est là que la fiche les range. */
+  const elim = eliminatoiresParCategorie(
+    (ex && ex.observations) || ai.observations);
   elim.forEach(g => {
     L('☠️ 𝙀𝙧𝙧𝙚𝙪𝙧 𝙚́𝙡𝙞𝙢𝙞𝙣𝙖𝙩𝙤𝙞𝙧𝙚 — ' + g.categorie);
     L('');
