@@ -200,7 +200,16 @@ function afficherBarrePostes(){
 function basculerPoste(i){
   if(i === posteActif || i < 0 || i >= postes.length) return;
 
+  /* Ce qui vient d'être dit appartient à celui qu'on quitte : on
+     le range avant tout le reste. */
   rangerPosteActif();
+
+  /* Le micro accumule ses résultats dans une session et la relit
+     entièrement à chaque phrase. Sans coupure, l'élève suivant
+     héritait de ce qui avait été dit pour le précédent.
+
+     On coupe donc la session ici, et elle repart vierge. */
+  couperSessionVocale();
 
   posteActif = i;
   const p = postes[i];
@@ -232,6 +241,31 @@ function basculerPoste(i){
   afficherBarrePostes();
   rangerPostes();
   showToast('▶️ ' + p.eleve);
+}
+
+
+/* Coupe la session du micro sans l'éteindre.
+
+   Le navigateur relance de lui-même : c'est le même mécanisme
+   que la reprise après un silence, et il est éprouvé. */
+function couperSessionVocale(){
+  if(typeof recognition === 'undefined' || !recognition) return;
+  if(typeof sessionActive !== 'undefined' && !sessionActive) return;
+
+  try{
+    /* Le texte acquis est figé avant la coupure : si la relance
+       échoue, rien n'est perdu. */
+    if(typeof committedTranscript !== 'undefined' &&
+       typeof finalTranscript !== 'undefined'){
+      const zone = $('transcriptBox');
+      committedTranscript = zone ? zone.value.trim() : finalTranscript;
+      finalTranscript = committedTranscript;
+    }
+
+    /* stop() laisse le navigateur relancer ; abort() couperait
+       tout. */
+    recognition.stop();
+  }catch(e){ /* le micro se rattrapera au prochain silence */ }
 }
 
 
