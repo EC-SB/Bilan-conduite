@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 09:36 — v548 */
+/* Déployé le 26/08/2026 à 12:44 — v563 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -502,6 +502,9 @@ async function ouvrirBilanManuel(){
   let dossier = { manoeuvres: [], frise: '' };
   try{ dossier = await chargerDossierEleve(eleve); }catch(e){}
 
+  /* Gardé pour la génération : les frises s'y comparent */
+  dossierManuel = dossier;
+
   btn.disabled = false;
   btn.textContent = '✍️ Bilan à remplir à la main';
 
@@ -537,8 +540,11 @@ async function ouvrirBilanManuel(){
       bloc.appendChild(l);
       const r = document.createElement('div');
       r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+      /* Trois issues au niveau : il l'a, il ne l'a pas, ou il
+         pourrait l'avoir sans qu'on puisse chiffrer les heures. */
       const choix = (ch.type === 'niveau')
-        ? [['✅ Oui', 'oui'], ['❌ Pas le niveau', 'non'], ['—', '']]
+        ? [['✅ Oui', 'oui'], ['🤔 Pourrait', 'peut'],
+           ['❌ Pas le niveau', 'non'], ['—', '']]
         : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
       choix.forEach(([lab, val]) => {
         const b = document.createElement('button');
@@ -1285,22 +1291,239 @@ function ajouterObservationManuelle(zone){
   bMort.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;margin:0;flex-shrink:0;';
   bMort.textContent = '☠️';
   bMort.title = 'Marquer comme erreur éliminatoire';
-  bMort.addEventListener('click', () => {
-    const v = rep.value;
-    if(v.indexOf('☠️') !== -1){
-      /* Deuxième appui : on retire la marque */
-      rep.value = v.split('☠️').join('').replace(/\s+/g, ' ').trim();
-      bMort.style.borderColor = 'var(--line)';
-    }else{
-      rep.value = ('☠️ ' + v).trim();
-      bMort.style.borderColor = 'var(--red)';
+
+  /* La catégorie du CEPC, gardée sur le bloc : c'est elle qui
+     décide où le E se coche et comment l'erreur se range. */
+  const majMort = () => {
+    const cat = d.dataset.categorie || '';
+    bMort.style.borderColor = cat ? 'var(--red)' : 'var(--line)';
+    bMort.style.color = cat ? 'var(--red)' : '';
+
+    let etiq = d.querySelector('.obsCat');
+    if(cat){
+      if(!etiq){
+        etiq = document.createElement('div');
+        etiq.className = 'obsCat';
+        etiq.style.cssText = 'font-size:11px;color:var(--red);margin-top:6px;';
+        d.appendChild(etiq);
+      }
+      etiq.textContent = '☠️ ' + cat;
+    }else if(etiq){
+      etiq.remove();
     }
-    rep.focus();
+  };
+
+  bMort.addEventListener('click', async () => {
+    /* Déjà marquée : un second appui retire la marque */
+    if(d.dataset.categorie){
+      d.dataset.categorie = '';
+      majMort();
+      return;
+    }
+
+    const cat = await choisirCategorieCepc();
+    if(!cat) return;
+
+    d.dataset.categorie = cat;
+    majMort();
   });
   r.appendChild(bMort);
 
   d.appendChild(r);
   zone.appendChild(d);
+  return d;
+}
+
+
+/* ============================================================
+   LES FRISES, DÉDUITES
+
+   La frise dit combien de leçons étaient prévues avant et après
+   l'examen blanc. Le nombre de leçons faites se lit dans le
+   dossier ; les heures annoncées avant permis, dans la fiche.
+
+   Comparer les deux évite au moniteur de le faire de tête.
+   ============================================================ */
+
+function remplirFrises(champs){
+  const frise = (dossierManuel && dossierManuel.frise) ||
+                extraireFrise($('noteInterne').value);
+  if(!frise) return;
+
+  /* Avant l'examen blanc : ce que la frise prévoyait, contre ce
+     que l'élève a réellement fait. */
+  const prevues = leconsAvantExamenBlanc(frise);
+  const faites = (dossierManuel && Number(dossierManuel.lecons)) || null;
+
+  if(prevues !== null && faites !== null && !champs.friseAvant){
+    if(faites <= prevues){
+      champs.friseAvant = 'oui';
+    }else{
+      champs.friseAvant = 'non';
+      /* Chaque leçon de deux heures au-delà du prévu */
+      if(!String(champs.friseAvantH || '').trim()){
+        champs.friseAvantH = String((faites - prevues) * 2);
+      }
+    }
+  }
+
+  /* Après l'examen blanc : ce que la frise prévoyait, contre les
+     heures que le moniteur vient d'annoncer. */
+  const apres = leconsApresExamenBlanc(frise);
+  const annoncees = Number(String(champs.heuresAvant || '').trim());
+
+  if(apres !== null && annoncees && !champs.frisePost){
+    /* La frise compte en leçons de 2h, plus les 3h avant examen */
+    const prevuH = apres * 2 + 3;
+
+    if(annoncees <= prevuH){
+      champs.frisePost = 'oui';
+    }else{
+      champs.frisePost = 'non';
+      if(!String(champs.frisePostH || '').trim()){
+        champs.frisePostH = String(annoncees - prevuH);
+      }
+    }
+  }
+}
+
+
+/* ============================================================
+   LES ÉLIMINATOIRES SUR LE CEPC
+
+   Chaque erreur marquée ☠️ coche un E sur sa ligne. Trois erreurs
+   dans la même catégorie ne cochent qu'une case — c'est bien la
+   catégorie qui est éliminatoire, pas chaque faute.
+
+   La case reste modifiable : une erreur de saisie se corrige.
+   ============================================================ */
+
+function cocherEliminatoiresCepc(champs){
+  const obs = champs.observations;
+  if(!Array.isArray(obs) || !obs.length) return;
+
+  /* Les catégories touchées, sans doublon */
+  const touchees = {};
+  obs.forEach(o => {
+    const cat = String((o && o.categorie) || '').trim();
+    if(cat) touchees[cat] = true;
+  });
+
+  const noms = Object.keys(touchees);
+  if(!noms.length) return;
+
+  /* Le CEPC vit dans champs.cepc, rangé par nom de ligne */
+  if(!champs.cepc || typeof champs.cepc !== 'object') champs.cepc = {};
+  noms.forEach(n => { champs.cepc[n] = 'E'; });
+
+  /* Et sur l'écran, pour que le moniteur le voie et puisse
+     corriger s'il s'est trompé de catégorie. La case reste
+     modifiable : un appui la retire. */
+  try{
+    document.querySelectorAll('.cepcNiveau').forEach(champ => {
+      const ligne = champ.getAttribute('data-comp');
+      if(!touchees[ligne]) return;
+
+      champ.value = 'E';
+
+      /* Les boutons se repeignent : sans cela, le E est enregistré
+         mais invisible. */
+      const l = champ.parentNode;
+      if(!l) return;
+      l.querySelectorAll('button').forEach(b => {
+        if(typeof b._peindre === 'function') b._peindre();
+      });
+      const al = l.querySelector('.cepcAlerte');
+      if(al) al.style.display = 'block';
+    });
+    if(typeof majTotalCepc === 'function') majTotalCepc();
+  }catch(e){ /* l'écran n'a pas de tableau CEPC : le bilan suffit */ }
+}
+
+
+/* Les erreurs éliminatoires, groupées par catégorie.
+
+   Elles ouvrent le bilan des erreurs : c'est ce qui a coûté
+   l'examen, avant tout le reste. */
+function eliminatoiresGroupees(champs){
+  const obs = champs.observations;
+  if(!Array.isArray(obs)) return [];
+
+  const par = {};
+  obs.forEach(o => {
+    const cat = String((o && o.categorie) || '').trim();
+    if(!cat) return;
+    (par[cat] = par[cat] || []).push(o);
+  });
+
+  /* L'ordre du CEPC, pas celui de la saisie : c'est celui que
+     l'inspecteur suit. */
+  const ordre = (typeof categoriesEliminatoires === 'function')
+    ? categoriesEliminatoires() : Object.keys(par);
+
+  return ordre.filter(n => par[n]).map(n => ({ categorie: n, fautes: par[n] }));
+}
+
+
+/* ============================================================
+   LA CATÉGORIE DU CEPC
+
+   Sept lignes du CEPC acceptent un E. C'est celle que le moniteur
+   choisit qui sera cochée, et qui nommera l'erreur dans le bilan.
+   ============================================================ */
+
+function categoriesEliminatoires(){
+  const out = [];
+  if(typeof CEPC_BLOCS === 'undefined') return out;
+
+  CEPC_BLOCS.forEach(b => {
+    b.items.forEach(it => {
+      if((it.valeurs || []).indexOf('E') !== -1) out.push(it.nom);
+    });
+  });
+  return out;
+}
+
+
+function choisirCategorieCepc(){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(460px, 94vw);max-height:88vh;overflow-y:auto;';
+
+    boite.innerHTML = '<h3>☠️ Quelle catégorie ?</h3>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+        'line-height:1.5;">Le E sera coché sur cette ligne du CEPC, et ' +
+        "l'erreur nommée ainsi dans le bilan.</div>";
+
+    categoriesEliminatoires().forEach(nom => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'padding:12px;font-size:13px;margin-bottom:7px;' +
+        'text-align:left;line-height:1.4;';
+      b.textContent = nom;
+      b.addEventListener('click', () => {
+        document.body.removeChild(fond);
+        resolve(nom);
+      });
+      boite.appendChild(b);
+    });
+
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.style.cssText = 'padding:12px;font-size:13px;margin-top:6px;';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve('');
+    });
+    boite.appendChild(bA);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+  });
 }
 
 
@@ -1391,6 +1614,10 @@ function mentionExamen(champs, moniteur){
    ============================================================ */
 
 let minuteurManuel = null;
+
+/* Le dossier de l'élève, gardé entre l'ouverture de la fiche et
+   la génération du bilan : c'est lui qui porte la frise. */
+let dossierManuel = null;
 
 /* Un brouillon par élève : le moniteur en a plusieurs dans la
    voiture le jour d'un examen, et ils ne doivent pas s'écraser. */
@@ -1596,7 +1823,10 @@ function lireChampsManuels(){
         const r = d.querySelector('.obsRep');
         const vi = i ? i.value.trim() : '';
         const vr = r ? r.value.trim() : '';
-        if(vi || vr) obs.push({ inspecteur: vi, reponse: vr });
+        /* La catégorie du CEPC accompagne l'observation : elle
+           décide du E et du rangement dans le bilan. */
+        const cat = d.dataset ? (d.dataset.categorie || '') : '';
+        if(vi || vr) obs.push({ inspecteur: vi, reponse: vr, categorie: cat });
       });
       champsManuels[ch.cle] = obs;
     }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
@@ -1695,6 +1925,13 @@ async function genererBilanManuel(){
     console.error('Composition du bilan :', e);
     await informer('Le bilan n\'a pas pu être composé.\n\nDétail : ' + (e && e.message ? e.message : e));
     return;
+  }
+
+  /* Les erreurs éliminatoires cochent leur E sur le CEPC. Une
+     catégorie touchée plusieurs fois n'est cochée qu'une fois. */
+  if(modeleCle === 'examen-blanc'){
+    cocherEliminatoiresCepc(champsManuels);
+    remplirFrises(champsManuels);
   }
 
   /* L'examen officiel laisse une trace dans les notes : elle
