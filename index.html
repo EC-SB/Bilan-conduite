@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v573
+     VERSION APPLICATION : v574
      VERSION APPS SCRIPT REQUISE : v136
-     Mis à jour le : 26/08/2026 à 14:30
+     Mis à jour le : 26/08/2026 à 14:36
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -769,7 +769,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v573</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v574</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1186,6 +1186,24 @@
                      border-width:2px;">📋 Copier, enregistrer et terminer</button>
       <div id="finEtat" style="margin-top:8px;font-size:13px;line-height:1.5;
            min-height:16px;"></div>
+
+      <!-- Le numéro de leçon se corrige aussi : un moniteur qui
+           découvre l'outil l'oublie souvent la première fois, et
+           toute la frise s'en trouve décalée. -->
+      <div id="corrigerLecon" style="display:none;margin-top:10px;
+           border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <label for="corrLeconN" style="margin:0 0 6px;">Quelle leçon était-ce ?</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" id="corrLeconN" min="1" max="60" placeholder="—"
+                 style="width:88px;font-size:17px;text-align:center;margin:0;">
+          <button class="btn btn-secondary" id="corrLeconBtn"
+                  style="width:auto;padding:11px 14px;font-size:13px;margin:0;">
+            ✏️ Corriger la leçon</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;">
+          Corrige le numéro dans le bilan et dans ses notes.
+        </div>
+      </div>
 
       <button class="btn btn-primary" id="corrigerBtn"
               style="display:none;margin-top:8px;font-size:14px;padding:13px;">
@@ -1981,53 +1999,53 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=573"></script>
-<script src="app/ec-modeles.js?v=573"></script>
-<script src="app/ec-consignes.js?v=573"></script>
-<script src="app/ec-noyau.js?v=573"></script>
-<script src="app/ec-vocal.js?v=573"></script>
-<script src="app/ec-reseau.js?v=573"></script>
-<script src="app/ec-manuel.js?v=573"></script>
-<script src="app/ec-fenetres.js?v=573"></script>
-<script src="app/ec-questionnaire.js?v=573"></script>
-<script src="app/ec-permis.js?v=573"></script>
-<script src="app/ec-prepares.js?v=573"></script>
-<script src="app/ec-bureau.js?v=573"></script>
-<script src="app/ec-places.js?v=573"></script>
-<script src="app/ec-listes.js?v=573"></script>
-<script src="app/ec-permis-listes.js?v=573"></script>
-<script src="app/ec-postpermis.js?v=573"></script>
-<script src="app/ec-textes.js?v=573"></script>
-<script src="app/ec-correction.js?v=573"></script>
-<script src="app/ec-bilans.js?v=573"></script>
-<script src="app/ec-ecran.js?v=573"></script>
-<script src="app/ec-version.js?v=573"></script>
-<script src="app/ec-paie.js?v=573"></script>
-<script src="app/ec-flotte.js?v=573"></script>
-<script src="app/ec-placesbe.js?v=573"></script>
-<script src="app/ec-codeamenage.js?v=573"></script>
-<script src="app/ec-financements.js?v=573"></script>
-<script src="app/ec-eval-aac.js?v=573"></script>
-<script src="app/ec-postes.js?v=573"></script>
-<script src="app/ec-tarifs.js?v=573"></script>
-<script src="app/ec-evaluation.js?v=573"></script>
-<script src="app/ec-paiement.js?v=573"></script>
-<script src="app/ec-handicap.js?v=573"></script>
-<script src="app/ec-code.js?v=573"></script>
-<script src="app/ec-proccorriger.js?v=573"></script>
-<script src="app/ec-sessions.js?v=573"></script>
-<script src="app/ec-notifs.js?v=573"></script>
-<script src="app/ec-ecoutes.js?v=573"></script>
-<script src="app/ec-taches.js?v=573"></script>
-<script src="app/ec-memoire.js?v=573"></script>
-<script src="app/ec-historique.js?v=573"></script>
-<script src="app/ec-rappels.js?v=573"></script>
-<script src="app/ec-stats.js?v=573"></script>
-<script src="app/ec-messenger.js?v=573"></script>
-<script src="app/ec-journal.js?v=573"></script>
-<script src="app/ec-depart.js?v=573"></script>
-<script src="app/ec-onglets.js?v=573"></script>
-<script src="app/ec-demarrage.js?v=573"></script>
+  <script src="app/ec-etat.js?v=574"></script>
+<script src="app/ec-modeles.js?v=574"></script>
+<script src="app/ec-consignes.js?v=574"></script>
+<script src="app/ec-noyau.js?v=574"></script>
+<script src="app/ec-vocal.js?v=574"></script>
+<script src="app/ec-reseau.js?v=574"></script>
+<script src="app/ec-manuel.js?v=574"></script>
+<script src="app/ec-fenetres.js?v=574"></script>
+<script src="app/ec-questionnaire.js?v=574"></script>
+<script src="app/ec-permis.js?v=574"></script>
+<script src="app/ec-prepares.js?v=574"></script>
+<script src="app/ec-bureau.js?v=574"></script>
+<script src="app/ec-places.js?v=574"></script>
+<script src="app/ec-listes.js?v=574"></script>
+<script src="app/ec-permis-listes.js?v=574"></script>
+<script src="app/ec-postpermis.js?v=574"></script>
+<script src="app/ec-textes.js?v=574"></script>
+<script src="app/ec-correction.js?v=574"></script>
+<script src="app/ec-bilans.js?v=574"></script>
+<script src="app/ec-ecran.js?v=574"></script>
+<script src="app/ec-version.js?v=574"></script>
+<script src="app/ec-paie.js?v=574"></script>
+<script src="app/ec-flotte.js?v=574"></script>
+<script src="app/ec-placesbe.js?v=574"></script>
+<script src="app/ec-codeamenage.js?v=574"></script>
+<script src="app/ec-financements.js?v=574"></script>
+<script src="app/ec-eval-aac.js?v=574"></script>
+<script src="app/ec-postes.js?v=574"></script>
+<script src="app/ec-tarifs.js?v=574"></script>
+<script src="app/ec-evaluation.js?v=574"></script>
+<script src="app/ec-paiement.js?v=574"></script>
+<script src="app/ec-handicap.js?v=574"></script>
+<script src="app/ec-code.js?v=574"></script>
+<script src="app/ec-proccorriger.js?v=574"></script>
+<script src="app/ec-sessions.js?v=574"></script>
+<script src="app/ec-notifs.js?v=574"></script>
+<script src="app/ec-ecoutes.js?v=574"></script>
+<script src="app/ec-taches.js?v=574"></script>
+<script src="app/ec-memoire.js?v=574"></script>
+<script src="app/ec-historique.js?v=574"></script>
+<script src="app/ec-rappels.js?v=574"></script>
+<script src="app/ec-stats.js?v=574"></script>
+<script src="app/ec-messenger.js?v=574"></script>
+<script src="app/ec-journal.js?v=574"></script>
+<script src="app/ec-depart.js?v=574"></script>
+<script src="app/ec-onglets.js?v=574"></script>
+<script src="app/ec-demarrage.js?v=574"></script>
 
 </body>
 </html>
