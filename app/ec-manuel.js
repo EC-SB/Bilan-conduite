@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 15:43 — v579 */
+/* Déployé le 26/08/2026 à 15:59 — v580 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1423,6 +1423,12 @@ async function ouvrirBilanManuel(){
      dépende. */
   if(typeof majChampsSelonNiveau === 'function') majChampsSelonNiveau();
 
+  /* L élève part avec tous les points du CEPC : chaque erreur en
+     retire. C est ainsi que l inspecteur raisonne. */
+  if(modeleCle === 'examen-blanc' && typeof poserCepcAuMaximum === 'function'){
+    poserCepcAuMaximum();
+  }
+
   /* Frise récupérée automatiquement */
   const aide = $('aideManuel');
   if(aide){
@@ -1609,6 +1615,56 @@ function ajouterObservationManuelle(zone){
   });
   r.appendChild(bGrave);
 
+  /* Un point en moins sur une ligne du CEPC. Trois appuis sur la
+     même catégorie lui coûtent trois crans — jamais E : seule la
+     tête de mort élimine. */
+  const bMoins = document.createElement('button');
+  bMoins.type = 'button';
+  bMoins.className = 'btn btn-secondary';
+  bMoins.style.cssText = 'width:auto;padding:10px 14px;font-size:17px;' +
+    'margin:0;flex-shrink:0;font-weight:800;';
+  bMoins.textContent = '➖';
+  bMoins.title = 'Retirer un point sur une compétence';
+
+  const majMoins = () => {
+    const cat = d.dataset.moins || '';
+    bMoins.style.borderColor = cat ? 'var(--warn-text)' : 'var(--line)';
+    bMoins.style.color = cat ? 'var(--warn-text)' : '';
+
+    let etiq = d.querySelector('.obsMoins');
+    if(cat){
+      if(!etiq){
+        etiq = document.createElement('div');
+        etiq.className = 'obsMoins';
+        etiq.style.cssText = 'font-size:11px;color:var(--warn-text);' +
+          'margin-top:6px;';
+        d.appendChild(etiq);
+      }
+      etiq.textContent = '➖ 1 point — ' + cat;
+    }else if(etiq){
+      etiq.remove();
+    }
+  };
+
+  bMoins.addEventListener('click', async () => {
+    if(d.dataset.moins){
+      d.dataset.moins = '';
+      majMoins();
+      retirerPointsCepc();
+      if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+      return;
+    }
+
+    const cat = await choisirCategorieCepc(true);
+    if(!cat) return;
+
+    d.dataset.moins = cat;
+    majMoins();
+    retirerPointsCepc();
+    if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+  });
+  r.appendChild(bMoins);
+
   d.appendChild(r);
   zone.appendChild(d);
   return d;
@@ -1680,25 +1736,43 @@ function majBilanEliminatoires(){
   const zone = document.getElementById('man_bilanElim');
   if(!zone) return;
 
-  /* Ce qui est marqué, groupé par catégorie */
+  /* Tout ce qui est marqué, rangé par catégorie du CEPC. Les
+     trois boutons se retrouvent dans le même cadre : c'est la
+     compétence qui regroupe, pas le type de marque. */
   const par = {};
+  const sansCategorie = [];
+
   document.querySelectorAll('#obsManuel > div').forEach(d => {
-    const cat = d.dataset ? (d.dataset.categorie || '') : '';
-    if(!cat) return;
+    if(!d.dataset) return;
+
     const i = d.querySelector('.obsInsp');
     const r = d.querySelector('.obsRep');
-    (par[cat] = par[cat] || []).push({
+    const o = {
       inspecteur: i ? i.value.trim() : '',
       reponse: r ? r.value.trim() : ''
-    });
+    };
+    if(!o.inspecteur && !o.reponse) return;
+
+    const cat = d.dataset.categorie || d.dataset.moins || '';
+
+    if(cat){
+      if(!par[cat]){
+        par[cat] = { elim: false, points: 0, fautes: [] };
+      }
+      if(d.dataset.categorie) par[cat].elim = true;
+      if(d.dataset.moins) par[cat].points++;
+      par[cat].fautes.push(o);
+    }else if(d.dataset.grave === 'oui'){
+      sansCategorie.push(o);
+    }
   });
 
   const noms = Object.keys(par);
-  if(!noms.length) return;
+  if(!noms.length && !sansCategorie.length) return;
 
   /* L'ordre du CEPC, celui que suit l'inspecteur */
-  const ordre = (typeof categoriesEliminatoires === 'function')
-    ? categoriesEliminatoires().filter(n => par[n]) : noms;
+  const ordre = (typeof toutesCategoriesCepc === 'function')
+    ? toutesCategoriesCepc().filter(n => par[n]) : noms;
 
   const ancien = zone.value;
   const bouts = [];
@@ -1708,10 +1782,16 @@ function majBilanEliminatoires(){
        moniteur y a peut-être déjà répondu. */
     if(ancien.indexOf(cat) !== -1) return;
 
-    bouts.push('☠️ Erreur éliminatoire — ' + cat);
+    const g = par[cat];
+    const titre = g.elim
+      ? '☠️ Erreur éliminatoire — ' + cat
+      : '➖ ' + cat + ' — ' + g.points + ' point' +
+        (g.points > 1 ? 's' : '') + ' en moins';
+
+    bouts.push(titre);
     bouts.push('');
 
-    par[cat].forEach(o => {
+    g.fautes.forEach(o => {
       if(o.inspecteur) bouts.push('👨‍✈️ ' + o.inspecteur);
       if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
       bouts.push("- qu'en penses-tu ?");
@@ -1721,23 +1801,12 @@ function majBilanEliminatoires(){
     });
   });
 
-  /* Les erreurs graves sans être éliminatoires : elles rejoignent
-     le bilan sous le même format, sans toucher au CEPC. */
-  document.querySelectorAll('#obsManuel > div').forEach(dv => {
-    if(!dv.dataset || dv.dataset.grave !== 'oui') return;
-    if(dv.dataset.categorie) return;        /* déjà traitée plus haut */
+  /* Les erreurs graves sans compétence désignée, à la fin */
+  sansCategorie.forEach(o => {
+    if(o.inspecteur && ancien.indexOf(o.inspecteur) !== -1) return;
 
-    const i = dv.querySelector('.obsInsp');
-    const r = dv.querySelector('.obsRep');
-    const vi = i ? i.value.trim() : '';
-    const vr = r ? r.value.trim() : '';
-    if(!vi && !vr) return;
-
-    /* Déjà écrite : le moniteur y a peut-être déjà répondu */
-    if(vi && ancien.indexOf(vi) !== -1) return;
-
-    if(vi) bouts.push('👨‍✈️ ' + vi);
-    if(vr) bouts.push(emojiMoniteur() + ' ' + vr);
+    if(o.inspecteur) bouts.push('👨‍✈️ ' + o.inspecteur);
+    if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
     bouts.push("- qu'en penses-tu ?");
     bouts.push('- quelles sont TES solutions ?');
     bouts.push('- ce que je te PROPOSE : ');
@@ -1746,7 +1815,7 @@ function majBilanEliminatoires(){
 
   if(!bouts.length) return;
 
-  /* En tête : les éliminatoires passent avant le reste */
+  /* En tête : ce qui vient d'être marqué passe avant le reste */
   zone.value = (bouts.join('\n') + (ancien ? '\n' + ancien : '')).trim();
   champsManuels.bilanElim = zone.value;
 
@@ -1765,11 +1834,9 @@ function majBilanEliminatoires(){
 function leconsFaites(){
   const d = dossierManuel || {};
 
-  /* Ce que dit son dernier bilan */
   const n = parseInt(d.leconNum, 10);
   if(!isNaN(n) && n > 0) return n;
 
-  /* À défaut, ce que disent ses notes à l'écran */
   const t = ($('noteInterne') && $('noteInterne').value) || '';
   const m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*le[çc]on/i);
   if(m){
@@ -1777,7 +1844,6 @@ function leconsFaites(){
     if(!isNaN(v) && v > 0) return v;
   }
 
-  /* En dernier ressort, le nombre de bilans enregistrés */
   const c = Number(d.lecons);
   return c > 0 ? c : null;
 }
@@ -1787,10 +1853,8 @@ function leconsFaites(){
    LES FRISES, DÉDUITES
 
    La frise dit combien de leçons étaient prévues avant et après
-   l'examen blanc. Le nombre de leçons faites se lit dans le
-   dossier ; les heures annoncées avant permis, dans la fiche.
-
-   Comparer les deux évite au moniteur de le faire de tête.
+   l'examen blanc. Comparer avec ce qui a été fait évite au
+   moniteur de le faire de tête.
    ============================================================ */
 
 function remplirFrises(champs, surEcran){
@@ -1804,7 +1868,7 @@ function remplirFrises(champs, surEcran){
   if(!champs.__frisesAuto) champs.__frisesAuto = {};
 
   const poser = (cle, valeur) => {
-    if(champs[cle] === valeur) return;      /* déjà juste */
+    if(champs[cle] === valeur) return;
 
     champs[cle] = valeur;
     champs.__frisesAuto[cle] = valeur;
@@ -1813,31 +1877,25 @@ function remplirFrises(champs, surEcran){
     const zone = document.getElementById('man_' + cle.replace('.', '_'));
     if(zone){ zone.value = valeur; return; }
 
-    /* Les oui/non sont des boutons : on repeint nous-mêmes.
-
-       Un clic simulé rappellerait le gestionnaire, qui réécrirait
-       la valeur et effacerait la marque « posé par le calcul » —
-       plus rien ne se serait recalculé ensuite. */
     const r = document.getElementById('ouinon_' + cle);
     if(!r) return;
     peindreOuiNon(r, valeur);
   };
+
+  /* On recalcule tant que le moniteur n'a pas corrigé lui-même */
+  const aMoi = cle => !champs[cle] ||
+                      champs.__frisesAuto[cle] === champs[cle];
 
   /* Avant l'examen blanc : ce que la frise prévoyait, contre ce
      que l'élève a réellement fait. */
   const prevues = leconsAvantExamenBlanc(frise);
   const faites = leconsFaites();
 
-  /* On recalcule tant que le moniteur n'a pas corrigé lui-même */
-  const aMoi = cle => !champs[cle] ||
-                      champs.__frisesAuto[cle] === champs[cle];
-
   if(prevues !== null && faites !== null && aMoi('friseAvant')){
     if(faites <= prevues){
       poser('friseAvant', 'oui');
     }else{
       poser('friseAvant', 'non');
-      /* Chaque leçon de deux heures au-delà du prévu */
       if(aMoi('friseAvantH')){
         poser('friseAvantH', String((faites - prevues) * 2));
       }
@@ -1851,13 +1909,11 @@ function remplirFrises(champs, surEcran){
 
   if(apres !== null && annoncees && aMoi('frisePost')){
     /* Les 3h avant examen sont dans les deux comptes : elles
-       s'annulent. « 4 + 3 » se compare donc à 4h de leçons, pas
-       à 7h. */
+       s'annulent. « 4 + 3 » se compare donc à 4h de leçons. */
     const prevuH = apres * 2;
 
     if(annoncees <= prevuH){
       poser('frisePost', 'oui');
-      /* Plus d'heures en trop : le champ se vide */
       if(aMoi('frisePostH') && champs.frisePostH) poser('frisePostH', '');
     }else{
       poser('frisePost', 'non');
@@ -1866,6 +1922,139 @@ function remplirFrises(champs, surEcran){
       }
     }
   }
+}
+
+
+/* ============================================================
+   LE CEPC PARTI DE LA NOTE MAXIMALE
+
+   L'élève a tous les points au départ : chaque erreur en retire.
+   C'est ainsi que l'inspecteur raisonne, et cela évite au
+   moniteur de tout cocher pour un examen réussi.
+   ============================================================ */
+
+function poserCepcAuMaximum(){
+  if(typeof CEPC_BLOCS === 'undefined') return;
+
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
+    const max = (it.valeurs || []).filter(v => v !== 'E')
+      .map(Number).reduce((a, x) => Math.max(a, x), 0);
+
+    const champ = document.querySelector('.cepcNiveau[data-comp="' +
+                                         it.nom.replace(/"/g, '') + '"]');
+    if(!champ || champ.value) return;      /* déjà noté : on n'y touche pas */
+
+    champ.value = String(max);
+    champ.dataset.parDefaut = 'oui';
+
+    const l = champ.parentNode;
+    if(l){
+      l.querySelectorAll('button').forEach(x => {
+        if(typeof x._peindre === 'function') x._peindre();
+      });
+    }
+  }));
+
+  if(typeof majTotalCepc === 'function') majTotalCepc();
+}
+
+
+/* La note maximale d'une ligne du CEPC */
+function maxCepc(nom){
+  if(typeof CEPC_BLOCS === 'undefined') return 0;
+  let m = 0;
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
+    if(it.nom !== nom) return;
+    m = (it.valeurs || []).filter(v => v !== 'E')
+      .map(Number).reduce((a, x) => Math.max(a, x), 0);
+  }));
+  return m;
+}
+
+
+/* Toutes les lignes du CEPC, pour le bouton ➖ */
+function toutesCategoriesCepc(){
+  const out = [];
+  if(typeof CEPC_BLOCS === 'undefined') return out;
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => out.push(it.nom)));
+  return out;
+}
+
+
+/* Retirer les points, catégorie par catégorie.
+
+   Une catégorie touchée trois fois perd trois points — mais ne
+   descend jamais sous zéro, et n'atteint jamais E : seule la
+   tête de mort élimine. */
+function retirerPointsCepc(){
+  const perdus = {};
+
+  document.querySelectorAll('#obsManuel > div').forEach(d => {
+    const cat = d.dataset ? (d.dataset.moins || '') : '';
+    if(!cat) return;
+    perdus[cat] = (perdus[cat] || 0) + 1;
+  });
+
+  toutesCategoriesCepc().forEach(nom => {
+    const champ = document.querySelector('.cepcNiveau[data-comp="' +
+                                         nom.replace(/"/g, '') + '"]');
+    if(!champ) return;
+
+    /* Un E posé par une éliminatoire prime sur tout */
+    if(champ.value === 'E' && champ.dataset.parElim === 'oui') return;
+
+    /* Une note saisie à la main par le moniteur lui appartient */
+    if(champ.dataset.parDefaut !== 'oui' &&
+       champ.dataset.parMoins !== 'oui') return;
+
+    const max = maxCepc(nom);
+    const n = perdus[nom] || 0;
+    if(!n){
+      /* Plus d'erreur : la note revient au maximum */
+      if(champ.dataset.parMoins === 'oui'){
+        champ.value = String(max);
+        champ.dataset.parMoins = '';
+        champ.dataset.parDefaut = 'oui';
+        repeindreLigneCepc(champ);
+      }
+      return;
+    }
+
+    /* Les demi-points existent : on retire un cran, pas un point */
+    const echelle = valeursCepc(nom);
+    const i = echelle.indexOf(String(max));
+    const cible = echelle[Math.max(0, i - n)];
+
+    champ.value = cible;
+    champ.dataset.parMoins = 'oui';
+    champ.dataset.parDefaut = '';
+    repeindreLigneCepc(champ);
+  });
+
+  if(typeof majTotalCepc === 'function') majTotalCepc();
+}
+
+
+/* L'échelle d'une ligne, de la plus basse à la plus haute */
+function valeursCepc(nom){
+  let out = [];
+  if(typeof CEPC_BLOCS === 'undefined') return out;
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
+    if(it.nom !== nom) return;
+    out = (it.valeurs || []).filter(v => v !== 'E');
+  }));
+  return out;
+}
+
+
+function repeindreLigneCepc(champ){
+  const l = champ.parentNode;
+  if(!l) return;
+  l.querySelectorAll('button').forEach(b => {
+    if(typeof b._peindre === 'function') b._peindre();
+  });
+  const al = l.querySelector('.cepcAlerte');
+  if(al) al.style.display = (champ.value === 'E') ? 'block' : 'none';
 }
 
 
@@ -2019,7 +2208,7 @@ function categoriesEliminatoires(){
 }
 
 
-function choisirCategorieCepc(){
+function choisirCategorieCepc(toutes){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
@@ -2027,12 +2216,17 @@ function choisirCategorieCepc(){
     boite.className = 'modal';
     boite.style.cssText = 'max-width:min(460px, 94vw);max-height:88vh;overflow-y:auto;';
 
-    boite.innerHTML = '<h3>☠️ Quelle catégorie ?</h3>' +
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
-        'line-height:1.5;">Le E sera coché sur cette ligne du CEPC, et ' +
-        "l'erreur nommée ainsi dans le bilan.</div>";
+    boite.innerHTML = (toutes
+      ? '<h3>➖ Quelle compétence ?</h3>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+          'line-height:1.5;">Un point sera retiré sur cette ligne du ' +
+          'CEPC, et l\'erreur rangée là dans le bilan.</div>'
+      : '<h3>☠️ Quelle catégorie ?</h3>' +
+        '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+          'line-height:1.5;">Le E sera coché sur cette ligne du CEPC, et ' +
+          "l'erreur nommée ainsi dans le bilan.</div>");
 
-    categoriesEliminatoires().forEach(nom => {
+    (toutes ? toutesCategoriesCepc() : categoriesEliminatoires()).forEach(nom => {
       const b = document.createElement('button');
       b.className = 'btn btn-secondary';
       b.style.cssText = 'padding:12px;font-size:13px;margin-bottom:7px;' +
@@ -2425,9 +2619,10 @@ function lireChampsManuels(){
            décide du E et du rangement dans le bilan. */
         const cat = d.dataset ? (d.dataset.categorie || '') : '';
         const grave = d.dataset ? (d.dataset.grave === 'oui') : false;
+        const moins = d.dataset ? (d.dataset.moins || '') : '';
         if(vi || vr){
           obs.push({ inspecteur: vi, reponse: vr, categorie: cat,
-                     grave: grave });
+                     grave: grave, moins: moins });
         }
       });
       champsManuels[ch.cle] = obs;
