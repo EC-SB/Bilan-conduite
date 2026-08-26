@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 09:13 — v546 */
+/* Déployé le 26/08/2026 à 09:32 — v547 */
 /* ============================================================
    ec-journal.js
    Journal d'activité — réservé aux administrateurs.
@@ -262,23 +262,32 @@ async function afficherJournal(jourPrecis){
 function boutonAnnulerResultat(l){
   /* Seul un résultat d'examen se défait ici, et par un
      administrateur : c'est une correction, pas une manœuvre
-     ordinaire. */
+     ordinaire.
+
+     « Fiche de suivi supprimée » compte aussi : c'est ce que
+     laisse un permis noté obtenu, et souvent la seule trace
+     visible de l'erreur. */
   if(ACCES.role !== 'admin') return null;
   if(!l.eleve) return null;
-  if(!/résultat|resultat/i.test(l.action || '')) return null;
 
-  const obtenu = /obtenu/i.test((l.detail || '') + ' ' + (l.action || ''));
+  const estResultat = /résultat|resultat/i.test(l.action || '');
+  const estSuppression = /suivi supprim/i.test(l.action || '');
+  if(!estResultat && !estSuppression) return null;
+
+  const obtenu = estSuppression ||
+    /obtenu/i.test((l.detail || '') + ' ' + (l.action || ''));
 
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
   b.style.cssText = 'width:auto;padding:5px 8px;font-size:11px;margin:0;' +
     'flex-shrink:0;color:var(--muted);';
   b.textContent = '↩️';
-  b.title = 'Annuler ce résultat';
+  b.title = estSuppression ? 'Rétablir cet élève' : 'Annuler ce résultat';
 
   b.addEventListener('click', async () => {
     const quoi = await fenetre(
-      'Annuler le résultat de ' + l.eleve + ' ?\n\n' +
+      (estSuppression ? 'Rétablir ' : 'Annuler le résultat de ') +
+      l.eleve + ' ?\n\n' +
       (obtenu
         ? 'Son permis avait été noté obtenu, et sa ligne de suivi ' +
           'supprimée. Que faut-il en faire ?'
@@ -303,9 +312,11 @@ function boutonAnnulerResultat(l){
 
       const ef = (d && d.efface) || {};
       await informer(
-        'Le résultat de ' + l.eleve + ' est annulé.\n\n' +
-        (ef.resultat ? 'Était noté : ' + ef.resultat +
-          (ef.dateExamen ? ' le ' + ef.dateExamen : '') + '\n' : '') +
+        l.eleve + ' est rétabli.\n\n' +
+        (ef.resultat
+          ? 'Était noté : ' + ef.resultat +
+            (ef.dateExamen ? ' le ' + ef.dateExamen : '') + '\n'
+          : 'Aucun résultat n\'était enregistré.\n') +
         (d && d.suiviRecree
           ? (quoi === 'ajourne'
               ? 'Il est remis en attente de son bilan d\'examen : tu le ' +
