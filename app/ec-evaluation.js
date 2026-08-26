@@ -144,7 +144,16 @@ async function afficherEvaluation(){
 
     '<label for="evEleve">Élève</label>' +
     '<input type="text" id="evEleve" list="listeEleves" ' +
-      'autocomplete="off" placeholder="Son nom">';
+      'autocomplete="off" placeholder="Son nom">' +
+
+    /* Le type de formation : l'AAC et la CS ont un programme
+       fixe, elles ne se calculent pas. */
+    '<label for="evType">Formation</label>' +
+    '<select id="evType">' +
+      '<option value="">🚗 Formation classique</option>' +
+      '<option value="aac">👨‍👩‍👦 Conduite accompagnée (AAC)</option>' +
+      '<option value="cs">👨‍👩‍👦 Conduite supervisée (CS)</option>' +
+    '</select>';
   zone.appendChild(haut);
 
   const zr = document.createElement('div');
@@ -162,6 +171,9 @@ async function afficherEvaluation(){
   });
   cb.addEventListener('input', dessinerEvaluation);
 
+  const ct = $('evType');
+  if(ct) ct.addEventListener('change', dessinerEvaluation);
+
   setTimeout(() => ch.focus(), 100);
   dessinerEvaluation();
 }
@@ -178,6 +190,14 @@ function dessinerEvaluation(){
   if(!h || h <= 0){
     zone.innerHTML = '<div class="empty">Saisis le nombre d\'heures ' +
       'rendu par le simulateur.</div>';
+    return;
+  }
+
+  /* L'AAC et la CS ne se calculent pas : leur programme est
+     fixe, seules les heures évaluées sont dites à l'élève. */
+  const type = ($('evType') || {}).value || '';
+  if(type){
+    dessinerEvaluationAac(zone, h, type === 'cs');
     return;
   }
 
@@ -273,6 +293,150 @@ function dessinerEvaluation(){
   bouton('📝 Frise BEA', 'noteBEA');
 
   zone.appendChild(r2);
+}
+
+
+/* ============================================================
+   L'AAC ET LA CS
+
+   Vingt heures en manuelle, quinze en automatique — c'est fixé.
+   Les heures de l'évaluation ne servent qu'à dire à l'élève ce
+   qu'il aurait fait en formation classique.
+   ============================================================ */
+
+function dessinerEvaluationAac(zone, heures, supervisee){
+  const nom = supervisee ? 'Conduite supervisée' : 'Conduite accompagnée';
+
+  /* Pas de tableau : le message dit tout, et le récapituler
+     autrement ne pouvait que semer le doute. On rappelle
+     seulement les deux totaux, qui sont fixes. */
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:13px;line-height:1.7;margin-bottom:14px;' +
+    'padding:12px 14px;border:1px solid var(--orange);border-radius:11px;';
+  a.innerHTML = '<strong style="color:var(--accent-text);">👨‍👩‍👦 ' + nom +
+    '</strong><br>' +
+    '🚗 En manuelle : <strong>' + PROGRAMME_AAC.bv.total + ' h</strong> ' +
+      'avant le départ avec l\'accompagnateur<br>' +
+    '🚙 En automatique : <strong>' + PROGRAMME_AAC.bea.total + ' h</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:6px;">' +
+      'Le programme est fixe. Les <strong>' + (heures || '❓') + ' h</strong> ' +
+      'saisies apparaissent dans le message, pour montrer à l\'élève ce ' +
+      'qu\'il économise.</div>';
+  zone.appendChild(a);
+
+  /* Les quatre messages */
+  const r = document.createElement('div');
+  r.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+
+  const bouton = (libelle, auto, mail) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'padding:12px;font-size:13px;margin:0;';
+    b.textContent = libelle;
+    b.addEventListener('click', () =>
+      ouvrirTexteAac(heures, auto, supervisee, mail));
+    r.appendChild(b);
+  };
+
+  bouton('💬 Messenger — BV', false, false);
+  bouton('💬 Messenger — BEA', true, false);
+  bouton('✉️ Mail — BV', false, true);
+  bouton('✉️ Mail — BEA', true, true);
+
+  zone.appendChild(r);
+}
+
+
+async function ouvrirTexteAac(heures, auto, supervisee, mail){
+  const nom = String(($('evEleve') && $('evEleve').value) || '').trim();
+
+  const texte = mail
+    ? messageAacMail(heures, auto, supervisee)
+    : messageAacMessenger(heures, auto, supervisee);
+
+  const titre = (mail ? '✉️ Mail' : '💬 Messenger') + ' — ' +
+    (supervisee ? 'CS' : 'AAC') + ' ' + (auto ? 'BEA' : 'BV');
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(580px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>' + titre + '</h3>' +
+    (mail
+      ? '<div style="font-size:11px;color:var(--muted);margin-bottom:9px;' +
+        'line-height:1.5;">Sans émoji ni caractère stylisé : Driv\'up ' +
+        'les remplace par des points d\'interrogation.</div>'
+      : '');
+
+  const z = document.createElement('textarea');
+  z.rows = 18;
+  z.value = texte;
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
+    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
+  boite.appendChild(z);
+
+  const r1 = document.createElement('div');
+  r1.style.cssText = 'display:flex;gap:8px;margin-bottom:10px;';
+
+  const bCop = document.createElement('button');
+  bCop.className = 'btn btn-primary';
+  bCop.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
+  bCop.textContent = '📋 Copier';
+  bCop.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(z.value);
+      showToast('Copié ✅');
+    }catch(e){ z.focus(); z.select(); showToast('Ctrl+C pour copier'); }
+  });
+  r1.appendChild(bCop);
+
+  if(mail && nom){
+    const bMail = document.createElement('button');
+    bMail.className = 'btn btn-secondary';
+    bMail.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
+    bMail.textContent = '✉️ Envoyer';
+    bMail.addEventListener('click', async () => {
+      let adresse = '';
+      try{
+        const d = await appelPrep({ action: 'contactEleve', eleve: nom });
+        adresse = ((d && d.contact) || {}).email || '';
+      }catch(e){}
+
+      if(!adresse){ showToast('Aucune adresse dans sa fiche.'); return; }
+
+      bMail.disabled = true;
+      bMail.textContent = 'Envoi…';
+      try{
+        await appelPrep({ action: 'mailBilan', to: [adresse],
+          sujet: 'Ton évaluation de départ - Évolution Conduites',
+          texte: z.value });
+        bMail.textContent = '✅ Envoyé';
+        showToast('Envoyé à ' + adresse + ' ✅');
+      }catch(e){
+        bMail.disabled = false;
+        bMail.textContent = '✉️ Envoyer';
+        showToast('Impossible : ' + e.message);
+      }
+    });
+    r1.appendChild(bMail);
+  }
+
+  boite.appendChild(r1);
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bF);
+  boite.appendChild(rw);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
 }
 
 
