@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:11 — v566 */
+/* Déployé le 26/08/2026 à 13:24 — v567 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -108,13 +108,23 @@ const CHAMPS_MANUELS = {
       aide:'Une faute par ligne. Le bouton ☠️ la marque comme éliminatoire.' },
 
     { cle:'__t3', type:'titre', nom:'𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦' },
-    { cle:'bilanErreurs',type:'texte', lignes:22, nom:'3 · Bilan erreurs',
+
+    /* Les éliminatoires viennent se poser ici dès qu'elles sont
+       marquées : le moniteur y répond à la fin de l'examen, sans
+       attendre la génération. */
+    { cle:'bilanElim', type:'texte', lignes:14,
+      nom:'3 · Erreurs éliminatoires',
+      aide:'Rempli tout seul quand tu marques une ☠️ plus haut. ' +
+           'Réponds aux questions à la fin de l\'examen.' },
+
+    { cle:'bilanErreurs',type:'texte', lignes:14,
+      nom:'3 · Autres erreurs',
       aide:"Les repères sont posés : écris l'erreur au bout du 👉 et ta réponse " +
            'au bout de chaque ligne.',
       defaut:('👉 \n' +
               "- qu'en penses-tu ?\n" +
               '- quelles sont TES solutions ?\n' +
-              '- ce que je te PROPOSE : \n\n').repeat(5).trim() },
+              '- ce que je te PROPOSE : \n\n').repeat(3).trim() },
 
     { cle:'__t4', type:'titre', nom:'𝟰 - 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦' },
     { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
@@ -1149,14 +1159,6 @@ async function ouvrirBilanManuel(){
       const l = document.createElement('label');
       l.textContent = ch.nom;
       bloc.appendChild(l);
-      /* Ce qui sera écrit en tête du bilan des erreurs, visible
-         pendant la saisie : le moniteur voit ce qu'il produit. */
-      const ap = document.createElement('div');
-      ap.id = 'apercuElim';
-      ap.style.cssText = 'display:none;border:1px solid var(--red);' +
-        'border-radius:10px;padding:9px 11px;margin:0 0 10px;';
-      bloc.appendChild(ap);
-
       const z = document.createElement('div');
       z.id = 'obsManuel';
       bloc.appendChild(z);
@@ -1281,8 +1283,9 @@ function ajouterObservationManuelle(zone){
   insp.placeholder = "Remarque de l'inspecteur";
   insp.style.marginBottom = '6px';
   /* Le récapitulatif suit ce qui s'écrit */
+  /* La remarque alimente le bilan des éliminatoires */
   insp.addEventListener('input', () => {
-    if(typeof majApercuEliminatoires === 'function') majApercuEliminatoires();
+    if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
   });
   d.appendChild(insp);
 
@@ -1401,43 +1404,75 @@ function rafraichirEliminatoires(){
   });
 
   if(typeof majTotalCepc === 'function') majTotalCepc();
-  majApercuEliminatoires();
+  majBilanEliminatoires();
 }
 
 
-/* Le récapitulatif sous les observations : ce qui sera écrit en
-   tête du bilan des erreurs. */
-function majApercuEliminatoires(){
-  const zone = document.getElementById('apercuElim');
+/* ============================================================
+   LE BILAN DES ÉLIMINATOIRES, ÉCRIT EN DIRECT
+
+   Le moniteur répond aux questions à la fin de l'examen : il lui
+   faut la structure sous les yeux, pas après la génération.
+
+   Ce qu'il a déjà écrit ne disparaît jamais — on ajoute les
+   blocs manquants en tête et on laisse le reste intact. Un bloc
+   devenu inutile, à lui de l'effacer.
+   ============================================================ */
+
+function majBilanEliminatoires(){
+  const zone = document.getElementById('man_bilanElim');
   if(!zone) return;
 
+  /* Ce qui est marqué, groupé par catégorie */
   const par = {};
-  document.querySelectorAll('#manuelChamps [data-categorie]').forEach(d => {
-    const cat = d.dataset.categorie;
+  document.querySelectorAll('#obsManuel > div').forEach(d => {
+    const cat = d.dataset ? (d.dataset.categorie || '') : '';
     if(!cat) return;
-    const insp = d.querySelector('.obsInsp');
-    (par[cat] = par[cat] || []).push(insp ? insp.value.trim() : '');
+    const i = d.querySelector('.obsInsp');
+    const r = d.querySelector('.obsRep');
+    (par[cat] = par[cat] || []).push({
+      inspecteur: i ? i.value.trim() : '',
+      reponse: r ? r.value.trim() : ''
+    });
   });
 
   const noms = Object.keys(par);
-  if(!noms.length){
-    zone.style.display = 'none';
-    zone.innerHTML = '';
-    return;
-  }
+  if(!noms.length) return;
 
-  zone.style.display = 'block';
-  zone.innerHTML = '<div style="font-size:12px;font-weight:700;' +
-    'color:var(--red);margin-bottom:6px;">☠️ ' + noms.length +
-    ' catégorie(s) éliminatoire(s) — E coché sur le CEPC</div>' +
-    noms.map(n =>
-      '<div style="font-size:12px;line-height:1.6;">' +
-      '<strong>' + n.replace(/</g, '&lt;') + '</strong>' +
-      par[n].map(x => x
-        ? '<div style="color:var(--muted);padding-left:12px;">· ' +
-          x.slice(0, 60).replace(/</g, '&lt;') + '</div>'
-        : '').join('') +
-      '</div>').join('');
+  /* L'ordre du CEPC, celui que suit l'inspecteur */
+  const ordre = (typeof categoriesEliminatoires === 'function')
+    ? categoriesEliminatoires().filter(n => par[n]) : noms;
+
+  const ancien = zone.value;
+  const bouts = [];
+
+  ordre.forEach(cat => {
+    /* Une catégorie déjà présente n'est pas réécrite : le
+       moniteur y a peut-être déjà répondu. */
+    if(ancien.indexOf(cat) !== -1) return;
+
+    bouts.push('☠️ Erreur éliminatoire — ' + cat);
+    bouts.push('');
+
+    par[cat].forEach(o => {
+      if(o.inspecteur) bouts.push('👨‍✈️ ' + o.inspecteur);
+      if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
+      bouts.push("- qu'en penses-tu ?");
+      bouts.push('- quelles sont TES solutions ?');
+      bouts.push('- ce que je te PROPOSE : ');
+      bouts.push('');
+    });
+  });
+
+  if(!bouts.length) return;
+
+  /* En tête : les éliminatoires passent avant le reste */
+  zone.value = (bouts.join('\n') + (ancien ? '\n' + ancien : '')).trim();
+  champsManuels.bilanElim = zone.value;
+
+  if(typeof sauvegarderBrouillonManuel === 'function'){
+    sauvegarderBrouillonManuel();
+  }
 }
 
 
