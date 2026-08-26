@@ -12,9 +12,6 @@
    ============================================================ */
 
 let dossiersPE = [];
-let elevesCodeam = [];
-let sessionCodeam = '';
-let vueFinancement = 'pe';
 
 
 /* Une date française vers l'ISO, pour comparer et trier */
@@ -45,18 +42,9 @@ async function afficherFinancements(){
   zone.innerHTML = htmlAttente('Lecture des dossiers…');
 
   try{
-    const [a, b] = await Promise.all([
-      appelPrep({ action: 'peList' }),
-      appelPrep({ action: 'codeamList' })
-    ]);
-
+    const a = await appelPrep({ action: 'peList' });
     if(a && a.status === 'error') throw new Error(a.message);
     dossiersPE = (a && a.dossiers) || [];
-
-    if(b && b.status !== 'error'){
-      elevesCodeam = (b && b.eleves) || [];
-      sessionCodeam = (b && b.session) || '';
-    }
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' +
       String(e.message || e).replace(/</g, '&lt;') + '</div>';
@@ -64,36 +52,7 @@ async function afficherFinancements(){
   }
 
   zone.innerHTML = '';
-
-  /* Deux suivis, deux boutons */
-  const barre = document.createElement('div');
-  barre.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;';
-
-  [['pe', '💶 Pôle emploi et Région', dossiersPE.filter(x => !x.fini).length],
-   ['codeam', '🎓 Code aménagé', elevesCodeam.length]].forEach(([cle, nom, n]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    const actif = (vueFinancement === cle);
-    b.style.cssText = 'flex:1;padding:10px 8px;font-size:13px;border-radius:9px;' +
-      'cursor:pointer;margin:0;line-height:1.3;' +
-      'border:1px solid ' + (actif ? 'var(--orange)' : 'var(--line)') + ';' +
-      'background:' + (actif ? 'var(--orange)' : 'transparent') + ';' +
-      'color:' + (actif ? 'var(--navy-deep)' : 'var(--cream)') + ';' +
-      (actif ? 'font-weight:800;' : '');
-    b.innerHTML = nom + (n ? ' <span style="opacity:.7;">' + n + '</span>' : '');
-    b.addEventListener('click', () => {
-      vueFinancement = cle;
-      afficherFinancements();
-    });
-    barre.appendChild(b);
-  });
-  zone.appendChild(barre);
-
-  const z = document.createElement('div');
-  zone.appendChild(z);
-
-  if(vueFinancement === 'pe') dessinerPoleEmploi(z);
-  else dessinerCodeAmenage(z);
+  dessinerPoleEmploi(zone);
 }
 
 
@@ -105,9 +64,57 @@ async function afficherFinancements(){
    remboursement est perdu.
    ============================================================ */
 
+/* « Région » porte un accent : le chercher tel quel échoue.
+   On normalise avant de comparer. */
+function estRegion(v){
+  return normaliserMot(String(v || '')).indexOf('region') !== -1;
+}
+
+
+/* Les versements attendus, selon le financeur.
+
+   France Travail en verse trois, la Région deux. Chacun suit son
+   chemin : l'échéance, le courrier qu'on envoie, puis ce qu'il
+   devient. */
+function versementsDe(d){
+  const region = estRegion(d.financeur);
+
+  if(region){
+    return [
+      { nom:'Inscription', echeance:'regInscription',
+        courrier:'courrierInscription', etat:'etatInscription' },
+      { nom:'Permis', echeance:'regPermis',
+        courrier:'courrierPermis', etat:'etatPermis' }
+    ];
+  }
+
+  return [
+    { nom:'Inscription', echeance:'inscription',
+      courrier:'courrierInscription', etat:'etatInscription' },
+    { nom:'Code', echeance:'code',
+      courrier:'courrierCode', etat:'etatCode' },
+    { nom:'30 heures', echeance:'trente',
+      courrier:'courrier30', etat:'etat30' }
+  ];
+}
+
+
+/* Ce que devient un versement */
+const ETATS_VERSEMENT = [
+  { cle:'', nom:'— en cours', couleur:'var(--muted)' },
+  { cle:'paye', nom:'✅ Payé', couleur:'var(--accent-text)' },
+  { cle:'abandon', nom:'⛔ Abandon', couleur:'var(--red)' }
+];
+
+function libelleEtat(v){
+  const e = ETATS_VERSEMENT.find(x => x.cle === String(v || ''));
+  return e || ETATS_VERSEMENT[0];
+}
+
+
 function echeanceDe(d){
   /* La Région et Pôle emploi ne regardent pas la même date */
-  const region = /region/i.test(d.financeur || '');
+  const region = estRegion(d.financeur);
   const v = region ? d.regPermis : d.trente;
   return { date: v, jours: joursAvantEcheance(v), region: region };
 }
@@ -178,7 +185,7 @@ function dessinerPoleEmploi(zone){
   Object.keys(parFinanceur).sort().forEach(f => {
     const t = document.createElement('div');
     t.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;';
-    t.textContent = (/region/i.test(f) ? '🏛️ ' : '💶 ') + f +
+    t.textContent = (estRegion(f) ? '🏛️ ' : '💶 ') + f +
       ' · ' + parFinanceur[f].length + ' dossier(s)';
     zone.appendChild(t);
 
@@ -238,19 +245,41 @@ function lignePE(d){
     '</div></span>';
   l.appendChild(h);
 
-  /* Les dates du parcours, sur une ligne */
-  const etapes = e.region
-    ? [['Inscription', d.regInscription], ['Permis', d.regPermis]]
-    : [['Inscription', d.inscription], ['Code', d.code], ['30h', d.trente]];
-
+  /* Chaque versement : son échéance, son courrier, son sort */
   const ze = document.createElement('div');
-  ze.style.cssText = 'display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;' +
-    'padding-top:8px;border-top:1px solid rgba(255,255,255,.06);' +
-    'font-size:12px;';
-  ze.innerHTML = etapes.map(([n, v]) =>
-    '<span style="color:var(--muted);">' + n + ' : ' +
-    '<span style="color:' + (v ? 'var(--cream)' : 'var(--muted)') + ';">' +
-    (v || '—') + '</span></span>').join('');
+  ze.style.cssText = 'margin-top:8px;padding-top:8px;' +
+    'border-top:1px solid rgba(255,255,255,.06);font-size:12px;';
+
+  versementsDe(d).forEach(v => {
+    const et = libelleEtat(d[v.etat]);
+
+    const li = document.createElement('div');
+    li.style.cssText = 'display:flex;gap:8px;align-items:center;' +
+      'padding:3px 0;line-height:1.5;';
+    li.innerHTML =
+      '<span style="flex:1;min-width:0;color:var(--muted);">' + v.nom +
+        ' <span style="color:' + (d[v.echeance] ? 'var(--cream)' : 'var(--muted)') +
+        ';">' + (d[v.echeance] || '—') + '</span>' +
+        (d[v.courrier]
+          ? ' <span style="color:var(--muted);">· 📨 ' + d[v.courrier] + '</span>'
+          : '') +
+      '</span>' +
+      '<span style="flex-shrink:0;color:' + et.couleur + ';">' +
+        et.nom + '</span>';
+    ze.appendChild(li);
+  });
+
+  /* Le remboursement à la Région, quand il y en a eu un */
+  if(e.region && d.rembourse){
+    const rb = document.createElement('div');
+    rb.style.cssText = 'padding:5px 0 0;color:var(--warn-text);' +
+      'line-height:1.5;';
+    rb.textContent = '↩️ Remboursé à la Région' +
+      (d.montantRembourse ? ' : ' + d.montantRembourse + ' €' : '') +
+      ' le ' + d.rembourse;
+    ze.appendChild(rb);
+  }
+
   l.appendChild(ze);
 
   if(d.remarque){
@@ -296,7 +325,7 @@ function ouvrirDossierPE(d){
   fond.className = 'overlay show';
   const boite = document.createElement('div');
   boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(500px, 95vw);max-height:90vh;overflow-y:auto;';
+  boite.style.cssText = 'max-width:min(520px, 95vw);max-height:92vh;overflow-y:auto;';
 
   boite.innerHTML = '<h3>' + (d ? '✏️ ' + d.eleve.replace(/</g, '&lt;')
                                 : '➕ Nouveau dossier') + '</h3>' +
@@ -313,57 +342,143 @@ function ouvrirDossierPE(d){
     '<select id="peFin">' +
       '<option value="">— à préciser —</option>' +
       '<option value="Région">🏛️ Région Bretagne</option>' +
-      '<option value="Ouest">💶 Pôle emploi Ouest</option>' +
-      '<option value="Sud">💶 Pôle emploi Sud</option>' +
+      '<option value="Ouest">💶 France Travail Ouest</option>' +
+      '<option value="Sud">💶 France Travail Sud</option>' +
     '</select>' +
 
-    '<div id="peBlocPE">' +
-      '<label for="peTotal">Montant accordé (€)</label>' +
-      '<input type="number" id="peTotal" step="1" placeholder="Ex : 800">' +
-      '<div class="duo">' +
-        '<div><label for="peInsc">Inscription</label>' +
-          '<input type="text" id="peInsc" placeholder="jj/mm/aaaa"></div>' +
-        '<div><label for="peCode">Code</label>' +
-          '<input type="text" id="peCode" placeholder="jj/mm/aaaa"></div>' +
-      '</div>' +
-      '<label for="pe30">Échéance des 30 heures</label>' +
-      '<input type="text" id="pe30" placeholder="jj/mm/aaaa">' +
-    '</div>' +
-
-    '<div id="peBlocReg" style="display:none;">' +
-      '<div class="duo">' +
-        '<div><label for="peRegI">Inscription</label>' +
-          '<input type="text" id="peRegI" placeholder="jj/mm/aaaa"></div>' +
-        '<div><label for="peRegP">Échéance permis</label>' +
-          '<input type="text" id="peRegP" placeholder="jj/mm/aaaa"></div>' +
-      '</div>' +
-    '</div>' +
-
-    '<label for="peRem">Remarque</label>' +
-    '<textarea id="peRem" rows="3" ' +
-      'placeholder="Où en est la demande, ce qui reste à faire…"></textarea>';
+    '<label for="peTotal">Montant accordé (€)</label>' +
+    '<input type="number" id="peTotal" step="1" placeholder="Ex : 800">';
 
   const selF = boite.querySelector('#peFin');
+  if(d) selF.value = d.financeur || '';
+  if(d) boite.querySelector('#peTotal').value = d.total || '';
 
-  /* La Région et Pôle emploi n'ont pas les mêmes étapes */
-  const majBlocs = () => {
-    const region = /region/i.test(selF.value);
-    boite.querySelector('#peBlocPE').style.display = region ? 'none' : 'block';
-    boite.querySelector('#peBlocReg').style.display = region ? 'block' : 'none';
+  /* Les versements : chacun a son échéance, son courrier, son
+     sort. La liste dépend du financeur. */
+  const zv = document.createElement('div');
+  boite.appendChild(zv);
+
+  const champs = {};
+
+  const dessinerVersements = () => {
+    zv.innerHTML = '';
+    for(const k in champs) delete champs[k];
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;color:var(--muted);margin:14px 0 8px;';
+    t.textContent = 'Les versements attendus';
+    zv.appendChild(t);
+
+    versementsDe({ financeur: selF.value }).forEach(v => {
+      const bloc = document.createElement('div');
+      bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+        'padding:10px 12px;margin-bottom:9px;';
+
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:8px;';
+      n.textContent = v.nom;
+      bloc.appendChild(n);
+
+      const duo = document.createElement('div');
+      duo.className = 'duo';
+
+      const champ = (cle, libelle, valeur) => {
+        const w = document.createElement('div');
+        const l = document.createElement('label');
+        l.textContent = libelle;
+        w.appendChild(l);
+        const i = document.createElement('input');
+        i.type = 'text';
+        i.value = valeur || '';
+        i.placeholder = 'jj/mm/aaaa';
+        i.style.margin = '0';
+        w.appendChild(i);
+        duo.appendChild(w);
+        champs[cle] = i;
+      };
+
+      champ(v.echeance, 'Échéance', d ? d[v.echeance] : '');
+      champ(v.courrier, '📨 Courrier envoyé', d ? d[v.courrier] : '');
+      bloc.appendChild(duo);
+
+      /* Ce qu'il est devenu : chaque part suit son chemin */
+      const le = document.createElement('label');
+      le.textContent = 'Où en est ce versement';
+      bloc.appendChild(le);
+
+      const sel = document.createElement('select');
+      sel.style.margin = '0';
+      sel.innerHTML = ETATS_VERSEMENT.map(e =>
+        '<option value="' + e.cle + '"' +
+        ((d && String(d[v.etat] || '') === e.cle) ? ' selected' : '') + '>' +
+        e.nom + '</option>').join('');
+      bloc.appendChild(sel);
+      champs[v.etat] = sel;
+
+      zv.appendChild(bloc);
+    });
+
+    /* Le remboursement : la Région seule le réclame */
+    if(estRegion(selF.value)){
+      const bloc = document.createElement('div');
+      bloc.style.cssText = 'border:1px solid var(--warn-bg);border-radius:10px;' +
+        'padding:10px 12px;margin-bottom:9px;background:var(--warn-bg);';
+
+      const n = document.createElement('div');
+      n.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:3px;' +
+        'color:var(--warn-text);';
+      n.textContent = '↩️ Remboursement à la Région';
+      bloc.appendChild(n);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;' +
+        'line-height:1.5;';
+      a.textContent = "Quand l'élève abandonne, la Région réclame ce " +
+        'qu\'elle a versé.';
+      bloc.appendChild(a);
+
+      const duo = document.createElement('div');
+      duo.className = 'duo';
+
+      const w1 = document.createElement('div');
+      w1.innerHTML = '<label>Date du remboursement</label>';
+      const i1 = document.createElement('input');
+      i1.type = 'text';
+      i1.value = (d && d.rembourse) || '';
+      i1.placeholder = 'jj/mm/aaaa';
+      i1.style.margin = '0';
+      w1.appendChild(i1);
+      duo.appendChild(w1);
+      champs.rembourse = i1;
+
+      const w2 = document.createElement('div');
+      w2.innerHTML = '<label>Montant (€)</label>';
+      const i2 = document.createElement('input');
+      i2.type = 'number';
+      i2.step = '0.01';
+      i2.value = (d && d.montantRembourse) || '';
+      i2.style.margin = '0';
+      w2.appendChild(i2);
+      duo.appendChild(w2);
+      champs.montantRembourse = i2;
+
+      bloc.appendChild(duo);
+      zv.appendChild(bloc);
+    }
   };
-  selF.addEventListener('change', majBlocs);
 
-  if(d){
-    selF.value = d.financeur || '';
-    boite.querySelector('#peTotal').value = d.total || '';
-    boite.querySelector('#peInsc').value = d.inscription || '';
-    boite.querySelector('#peCode').value = d.code || '';
-    boite.querySelector('#pe30').value = d.trente || '';
-    boite.querySelector('#peRegI').value = d.regInscription || '';
-    boite.querySelector('#peRegP').value = d.regPermis || '';
-    boite.querySelector('#peRem').value = d.remarque || '';
-  }
-  majBlocs();
+  selF.addEventListener('change', dessinerVersements);
+  dessinerVersements();
+
+  const lr = document.createElement('label');
+  lr.textContent = 'Remarque';
+  boite.appendChild(lr);
+
+  const zr = document.createElement('textarea');
+  zr.rows = 3;
+  zr.value = (d && d.remarque) || '';
+  zr.placeholder = 'Où en est la demande, ce qui reste à faire…';
+  boite.appendChild(zr);
 
   const r = document.createElement('div');
   r.className = 'btn-row';
@@ -410,12 +525,11 @@ function ouvrirDossierPE(d){
 
     envoi.financeur = selF.value;
     envoi.total = boite.querySelector('#peTotal').value;
-    envoi.inscription = boite.querySelector('#peInsc').value.trim();
-    envoi.code = boite.querySelector('#peCode').value.trim();
-    envoi.trente = boite.querySelector('#pe30').value.trim();
-    envoi.regInscription = boite.querySelector('#peRegI').value.trim();
-    envoi.regPermis = boite.querySelector('#peRegP').value.trim();
-    envoi.remarque = boite.querySelector('#peRem').value;
+    envoi.remarque = zr.value;
+
+    Object.keys(champs).forEach(k => {
+      envoi[k] = String(champs[k].value || '').trim();
+    });
 
     bO.disabled = true;
     bO.textContent = 'Enregistrement…';
@@ -436,264 +550,6 @@ function ouvrirDossierPE(d){
   fond.appendChild(boite);
   document.body.appendChild(fond);
   if(!d) setTimeout(() => boite.querySelector('#peP').focus(), 100);
-}
-
-
-/* ============================================================
-   LE CODE AMÉNAGÉ
-
-   Une session, des élèves, cinq étapes chacun jusqu'à
-   l'inscription validée.
-   ============================================================ */
-
-const ETAPES_CODEAM = [
-  { cle:'demande',     nom:'Demande envoyée' },
-  { cle:'inscritDdtm', nom:'Inscription envoyée à la DDTM' },
-  { cle:'redevance',   nom:'Redevance payée' },
-  { cle:'valide',      nom:'Inscription validée' }
-];
-
-
-function dessinerCodeAmenage(zone){
-  /* La session en cours, modifiable */
-  const s = document.createElement('div');
-  s.style.cssText = 'display:flex;gap:9px;align-items:center;' +
-    'margin-bottom:12px;padding:10px 12px;border:1px solid var(--orange);' +
-    'border-radius:11px;';
-  s.innerHTML = '<span style="flex:1;min-width:0;font-size:14px;">' +
-    '<strong>' + (sessionCodeam || 'Session non précisée').replace(/</g, '&lt;') +
-    '</strong></span>';
-
-  const bS = document.createElement('button');
-  bS.className = 'btn btn-secondary';
-  bS.style.cssText = 'width:auto;padding:8px 11px;font-size:12px;margin:0;';
-  bS.textContent = '✏️';
-  bS.title = 'Changer la session';
-  bS.addEventListener('click', async () => {
-    const v = await demander('Quelle session ?', sessionCodeam,
-                             'Code aménagé');
-    if(v === null) return;
-    try{
-      await appelPrep({ action: 'codeamSet', session: v });
-      showToast('Session mise à jour ✅');
-      afficherFinancements();
-    }catch(e){ showToast('Impossible : ' + e.message); }
-  });
-  s.appendChild(bS);
-  zone.appendChild(s);
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
-  b.textContent = '➕ Ajouter un élève';
-  b.addEventListener('click', () => ouvrirEleveCodeam(null));
-  zone.appendChild(b);
-
-  if(!elevesCodeam.length){
-    zone.innerHTML += '<div class="empty">Aucun élève sur cette session.</div>';
-    return;
-  }
-
-  /* Ce qui attend encore quelque chose */
-  const enCours = elevesCodeam.filter(x => !x.valide).length;
-  if(enCours){
-    const t = document.createElement('div');
-    t.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
-    t.textContent = enCours + ' inscription(s) non validée(s) sur ' +
-                    elevesCodeam.length;
-    zone.appendChild(t);
-  }
-
-  elevesCodeam.forEach(e => zone.appendChild(ligneCodeam(e)));
-}
-
-
-function ligneCodeam(e){
-  const d = document.createElement('details');
-  d.style.cssText = 'border:1px solid ' +
-    (e.valide ? 'var(--line)' : 'var(--orange)') +
-    ';border-radius:11px;padding:10px 12px;margin-bottom:8px;';
-
-  const faites = ETAPES_CODEAM.filter(x => e[x.cle]).length;
-
-  const som = document.createElement('summary');
-  som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;' +
-    'color:var(--cream);list-style:none;';
-  som.innerHTML = (e.valide ? '✅ ' : '🎓 ') + e.eleve.replace(/</g, '&lt;') +
-    '<div style="font-size:11px;font-weight:400;color:var(--muted);' +
-      'margin-top:2px;">' + faites + '/' + ETAPES_CODEAM.length +
-      ' étape(s)' +
-      (e.souhaite ? ' · ' + e.souhaite.replace(/</g, '&lt;') : '') +
-      (e.resultat ? ' · ' + e.resultat.replace(/</g, '&lt;') : '') +
-    '</div>';
-  d.appendChild(som);
-
-  const corps = document.createElement('div');
-  corps.style.marginTop = '10px';
-
-  /* Souhaite-t-il faire la session ? */
-  const lb = document.createElement('label');
-  lb.textContent = 'Souhaite faire la session';
-  corps.appendChild(lb);
-
-  const sel = document.createElement('select');
-  sel.innerHTML = ['', 'En attente de réponse', 'Oui', 'Non']
-    .map(v => '<option value="' + v + '"' +
-      (v === e.souhaite ? ' selected' : '') + '>' +
-      (v || '—') + '</option>').join('');
-  sel.addEventListener('change', async () => {
-    try{
-      await appelPrep({ action: 'codeamSet', ligne: e.ligne,
-                        souhaite: sel.value });
-      e.souhaite = sel.value;
-      showToast('Enregistré ✅');
-      afficherFinancements();
-    }catch(err){ showToast('Impossible : ' + err.message); }
-  });
-  corps.appendChild(sel);
-
-  /* Les quatre étapes */
-  const ze = document.createElement('div');
-  ze.style.cssText = 'margin:10px 0;padding:9px 0;' +
-    'border-top:1px solid rgba(255,255,255,.06);' +
-    'border-bottom:1px solid rgba(255,255,255,.06);';
-
-  ETAPES_CODEAM.forEach(et => {
-    const l = document.createElement('label');
-    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
-      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 7px;' +
-      'font-weight:400;';
-
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = !!e[et.cle];
-    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
-    cb.addEventListener('change', async () => {
-      cb.disabled = true;
-      try{
-        const envoi = { action: 'codeamSet', ligne: e.ligne };
-        envoi[et.cle] = cb.checked;
-        await appelPrep(envoi);
-        e[et.cle] = cb.checked;
-        showToast('Enregistré ✅');
-        afficherFinancements();
-      }catch(err){
-        cb.checked = !cb.checked;
-        showToast('Impossible : ' + err.message);
-      }
-      cb.disabled = false;
-    });
-    l.appendChild(cb);
-
-    const t = document.createElement('span');
-    t.style.cssText = 'flex:1;min-width:0;';
-    t.textContent = et.nom;
-    l.appendChild(t);
-    ze.appendChild(l);
-  });
-  corps.appendChild(ze);
-
-  if(e.remarque){
-    const r = document.createElement('div');
-    r.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;' +
-      'margin-bottom:9px;white-space:pre-wrap;';
-    r.textContent = e.remarque;
-    corps.appendChild(r);
-  }
-
-  const r2 = document.createElement('div');
-  r2.style.cssText = 'display:flex;gap:8px;';
-
-  const bM = document.createElement('button');
-  bM.className = 'btn btn-secondary';
-  bM.style.cssText = 'flex:1;padding:9px;font-size:12px;margin:0;';
-  bM.textContent = '✏️ Résultat et remarque';
-  bM.addEventListener('click', () => ouvrirEleveCodeam(e));
-  r2.appendChild(bM);
-
-  const bS = document.createElement('button');
-  bS.className = 'btn btn-secondary';
-  bS.style.cssText = 'width:auto;padding:9px 11px;font-size:12px;margin:0;' +
-    'flex-shrink:0;color:var(--red);border-color:var(--red);';
-  bS.textContent = '🗑️';
-  bS.addEventListener('click', async () => {
-    if(!await confirmer('Retirer ' + e.eleve + ' de la session ?')) return;
-    try{
-      await appelPrep({ action: 'codeamDelete', ligne: e.ligne });
-      showToast('Retiré ✅');
-      afficherFinancements();
-    }catch(err){ showToast('Impossible : ' + err.message); }
-  });
-  r2.appendChild(bS);
-
-  corps.appendChild(r2);
-  d.appendChild(corps);
-  return d;
-}
-
-
-function ouvrirEleveCodeam(e){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.maxWidth = 'min(440px, 94vw)';
-
-  boite.innerHTML = '<h3>' + (e ? '✏️ ' + e.eleve.replace(/</g, '&lt;')
-                                : '➕ Ajouter un élève') + '</h3>' +
-    (e ? '' :
-      '<label for="caNom">Nom et prénom</label>' +
-      '<input type="text" id="caNom" list="listeEleves" autocomplete="off">') +
-    '<label for="caRes">Résultat</label>' +
-    '<input type="text" id="caRes" placeholder="Ex : Réussi, Ajourné…">' +
-    '<label for="caRem">Remarque</label>' +
-    '<textarea id="caRem" rows="3" ' +
-      'placeholder="Ce qui reste à faire, ce qui manque…"></textarea>';
-
-  if(e){
-    boite.querySelector('#caRes').value = e.resultat || '';
-    boite.querySelector('#caRem').value = e.remarque || '';
-  }
-
-  const r = document.createElement('div');
-  r.className = 'btn-row';
-
-  const bA = document.createElement('button');
-  bA.className = 'btn btn-secondary';
-  bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
-  r.appendChild(bA);
-
-  const bO = document.createElement('button');
-  bO.className = 'btn btn-primary';
-  bO.textContent = '💾 Enregistrer';
-  bO.addEventListener('click', async () => {
-    const envoi = { action: 'codeamSet', ligne: e ? e.ligne : 0 };
-
-    if(!e){
-      envoi.eleve = boite.querySelector('#caNom').value.trim();
-      if(!envoi.eleve){ showToast('Indique le nom.'); return; }
-    }
-    envoi.resultat = boite.querySelector('#caRes').value.trim();
-    envoi.remarque = boite.querySelector('#caRem').value;
-
-    bO.disabled = true;
-    try{
-      await appelPrep(envoi);
-      document.body.removeChild(fond);
-      showToast('Enregistré ✅');
-      afficherFinancements();
-    }catch(err){
-      showToast('Impossible : ' + err.message);
-      bO.disabled = false;
-    }
-  });
-  r.appendChild(bO);
-
-  boite.appendChild(r);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-  if(!e) setTimeout(() => boite.querySelector('#caNom').focus(), 100);
 }
 
 
