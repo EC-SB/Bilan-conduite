@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:15 — v571 */
+/* Déployé le 26/08/2026 à 14:25 — v572 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -127,14 +127,15 @@ const CHAMPS_MANUELS = {
               '- ce que je te PROPOSE : \n\n').repeat(3).trim() },
 
     { cle:'__t4', type:'titre', nom:'𝟰 - 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦' },
+
+    /* Sa frise et ses leçons faites, avant les questions : c'est
+       sur quoi le moniteur s'appuie pour répondre. */
+    { cle:'__rappelFrise', type:'rappelFrise' },
+
     { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
     { cle:'heuresAvant', type:'heures',
       nom:"4 · Combien d'heures avant permis (+ 3h avant examen)" },
     { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
-
-    /* La frise en dessous du niveau : c'est un rappel, on la
-       consulte après avoir décidé. */
-    { cle:'__rappelFrise', type:'rappelFrise' },
     { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
     { cle:'friseAvantH', type:'court',  nom:'4 · Si non, heures en plus' },
     { cle:'frisePost',   type:'ouinon', nom:'4 · Frise respectée post permis' },
@@ -663,41 +664,24 @@ async function ouvrirBilanManuel(){
         b.textContent = lab;
         b.setAttribute('data-val', val);
 
-        /* Une réponse déjà connue se montre d'emblée */
-        if(champsManuels[ch.cle] === val && val){
-          b.style.borderColor = 'var(--orange)';
-          b.style.color = 'var(--accent-text)';
-          b.style.fontWeight = '800';
-        }
+
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
 
           /* Le choix doit sauter aux yeux : une bordure seule se
-             remarque mal, surtout à bout de bras dans la voiture. */
-          Array.prototype.forEach.call(r.children, x => {
-            x.style.borderColor = 'var(--line)';
-            x.style.color = 'var(--cream)';
-            x.style.background = 'var(--navy)';
-            x.style.fontWeight = '400';
-            x.style.transform = 'none';
-            x.style.boxShadow = 'none';
-          });
+             remarque mal, surtout à bout de bras dans la voiture.
 
-          const couleurs = {
-            '✅': ['var(--orange)', '#0B0B0B'],
-            '❌': ['var(--red)', '#FFFFFF'],
-            '':   ['var(--muted)', '#0B0B0B']
-          };
-          const [fond, texte] = couleurs[val] || couleurs[''];
-          b.style.background = fond;
-          b.style.borderColor = fond;
-          b.style.color = texte;
-          b.style.fontWeight = '700';
-          b.style.transform = 'scale(1.04)';
-          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
+             La même peinture sert quand l'application répond à la
+             place du moniteur : rien ne doit distinguer les deux. */
+          peindreOuiNon(r, val);
         });
         r.appendChild(b);
       });
+      /* Une réponse déjà connue — la date de permis, une frise —
+         se montre d'emblée, aussi nettement qu'un choix du
+         moniteur. */
+      if(champsManuels[ch.cle]) peindreOuiNon(r, champsManuels[ch.cle]);
+
       bloc.appendChild(r);
 
     }else if(ch.type === 'ok'){
@@ -1391,6 +1375,40 @@ async function ouvrirBilanManuel(){
   window.scrollTo(0, 0);
 }
 
+/* Peindre un choix oui/non comme si le moniteur avait appuyé.
+
+   Une bordure seule se remarque mal : c'est le fond plein qui
+   fait qu'on voit la réponse d'un coup d'œil. */
+function peindreOuiNon(rangee, valeur){
+  const couleurs = {
+    'oui': ['var(--orange)', '#0B0B0B'],
+    'non': ['var(--red)', '#FFFFFF'],
+    'peut': ['var(--accent-text)', '#0B0B0B'],
+    '':    ['var(--muted)', '#0B0B0B']
+  };
+
+  Array.prototype.forEach.call(rangee.children, b => {
+    if(b.getAttribute('data-val') !== valeur){
+      b.style.background = 'var(--navy)';
+      b.style.borderColor = 'var(--line)';
+      b.style.color = 'var(--cream)';
+      b.style.fontWeight = '400';
+      b.style.transform = 'none';
+      b.style.boxShadow = 'none';
+      return;
+    }
+
+    const [fond, texte] = couleurs[valeur] || couleurs[''];
+    b.style.background = fond;
+    b.style.borderColor = fond;
+    b.style.color = texte;
+    b.style.fontWeight = '700';
+    b.style.transform = 'scale(1.04)';
+    b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
+  });
+}
+
+
 function ajouterObservationManuelle(zone){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
@@ -1631,13 +1649,7 @@ function remplirFrises(champs, surEcran){
        plus rien ne se serait recalculé ensuite. */
     const r = document.getElementById('ouinon_' + cle);
     if(!r) return;
-
-    Array.prototype.forEach.call(r.children, b => {
-      const pris = (b.getAttribute('data-val') === valeur);
-      b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
-      b.style.color = pris ? 'var(--accent-text)' : 'var(--cream)';
-      b.style.fontWeight = pris ? '800' : '400';
-    });
+    peindreOuiNon(r, valeur);
   };
 
   /* Avant l'examen blanc : ce que la frise prévoyait, contre ce
