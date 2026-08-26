@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:06 — v565 */
+/* Déployé le 26/08/2026 à 15:45 — v579 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -457,7 +457,8 @@ function afficherRdvPermis(tous){
           return t + ' · ' + (s.centre || 'centre à définir') +
                  (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
                  (s.semaine ? ' · ' + s.semaine : '') +
-                 mentionHeuresRestantes(x.eleve);
+                 mentionHeuresRestantes(x.eleve) +
+                 mentionExamenBlanc(x);
         },
         resume: x => resumeSuivi(x.eleve),
         alerte: x => {
@@ -468,6 +469,7 @@ function afficherRdvPermis(tous){
         },
         actions: (x, zone) => {
           zone.appendChild(boutonHeuresRestantes(x.eleve));
+          zone.appendChild(boutonExamenBlanc(x.eleve));
           const s = suiviDe(x.eleve);
 
           const selC = document.createElement('select');
@@ -775,6 +777,7 @@ function afficherPermisPrevus(tous){
                  ' · Permis le ' + (x._datePermis || 'date inconnue') +
                  (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '') +
                  mentionHeuresRestantes(x.eleve) +
+                 mentionExamenBlanc(x) +
                  (autre ? '\n📝 ' + autre : '');
         },
         resume: x => resumeSuivi(x.eleve),
@@ -786,6 +789,7 @@ function afficherPermisPrevus(tous){
         },
         actions: (x, zone) => {
           zone.appendChild(boutonHeuresRestantes(x.eleve));
+          zone.appendChild(boutonExamenBlanc(x.eleve));
           zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
               'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
@@ -976,11 +980,13 @@ function afficherExamensPermis(tous){
           const lec = (x.etat.permisN !== null) ? ' · ' + x.etat.permisN + ' leçon(s) à prévoir' : '';
           const u = libelleUrgence(x.urgence);
           return base + dem + lec + mentionHeuresRestantes(x.eleve) +
+                 mentionExamenBlanc(x) +
                  (x.urgence ? ' · ' + u.l : '');
         },
         alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
         actions: (x, zone) => {
           zone.appendChild(boutonHeuresRestantes(x.eleve));
+          zone.appendChild(boutonExamenBlanc(x.eleve));
 
           const sPost = suiviDe(x.eleve);
 
@@ -1706,6 +1712,73 @@ async function saisirHeuresRestantes(nom){
 
 
 /* Le bouton qui ouvre la saisie des heures restantes */
+/* Où en est son examen blanc.
+
+   Le bureau donne les dates : savoir si l'élève a le niveau, et
+   depuis quand, change tout. */
+function mentionExamenBlanc(x){
+  const s = (typeof suiviDe === 'function') ? suiviDe(x.eleve) : {};
+
+  /* Ce que le bureau a noté à la main prime */
+  if(s.ebNiveau){
+    const nom = { oui:'✅ A le niveau', non:'⛔ Pas le niveau',
+                  peut:'🤔 Pourrait avoir le niveau' }[s.ebNiveau] || s.ebNiveau;
+    return ' · ' + nom + (s.ebDate ? ' (' + s.ebDate + ')' : '');
+  }
+
+  const e = x.etat || {};
+
+  if(e.examBlanc !== 'passe'){
+    return ' · <span style="color:var(--warn-text);">📝 pas encore ' +
+           "d'examen blanc</span>";
+  }
+
+  const suite = {
+    'pasleniveau': '⛔ Pas le niveau',
+    '3h': '✅ A le niveau',
+    'lecons': '⏳ Encore ' + (e.ebLecons || '?') + ' leçon(s)'
+  }[e.ebSuite] || '📝 Examen blanc passé';
+
+  return ' · ' + suite + (e.ebDate ? ' (' + e.ebDate + ')' : '');
+}
+
+
+/* La saisie du bureau, quand il sait mieux que les notes */
+async function saisirExamenBlanc(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+
+  const quoi = await fenetre(
+    "Où en est l'examen blanc de " + nom + ' ?',
+    [{ nom: 'Annuler', valeur: '' },
+     { nom: '⛔ Pas le niveau', valeur: 'non' },
+     { nom: '🤔 Pourrait', valeur: 'peut' },
+     { nom: '✅ A le niveau', valeur: 'oui', principal: true }],
+    'Examen blanc');
+
+  if(!quoi) return;
+
+  const date = await demander(
+    "Date de l'examen blanc (facultatif)", s.ebDate || '', nom);
+
+  try{
+    await majSuivi(nom, { ebNiveau: quoi, ebDate: (date || '').trim() });
+    showToast('Enregistré ✅');
+    afficherBureau();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+function boutonExamenBlanc(nom){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+  b.textContent = '📝 Examen blanc';
+  b.title = "Indiquer où en est son examen blanc";
+  b.addEventListener('click', () => saisirExamenBlanc(nom));
+  return b;
+}
+
+
 function boutonHeuresRestantes(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
   const h = String(s.heuresRestantes || '').trim();
