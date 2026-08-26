@@ -136,14 +136,21 @@ function afficherBarrePostes(){
     return;
   }
 
+  /* La barre a sa place dans la page, juste au-dessus du micro :
+     changer d'élève ne doit pas obliger à remonter l'écran. */
   if(!barre){
     barre = document.createElement('div');
     barre.id = 'barrePostes';
-    const ancre = $('recordView') || document.body;
-    ancre.insertBefore(barre, ancre.firstChild);
+    const bouton = $('recBtn');
+    if(bouton && bouton.parentNode){
+      bouton.parentNode.insertBefore(barre, bouton);
+    }else{
+      const ancre = $('recordView') || document.body;
+      ancre.insertBefore(barre, ancre.firstChild);
+    }
   }
 
-  barre.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;' +
+  barre.style.cssText = 'display:flex;gap:6px;margin:14px 0 8px;' +
     'padding:8px;border:1px solid var(--orange);border-radius:12px;' +
     'overflow-x:auto;';
   barre.innerHTML = '';
@@ -262,8 +269,32 @@ function couperSessionVocale(){
       finalTranscript = committedTranscript;
     }
 
-    /* stop() laisse le navigateur relancer ; abort() couperait
-       tout. */
+    /* onend s'exécute APRÈS la bascule, quand la zone affiche
+       déjà le nouvel élève : il figerait alors son texte à la
+       place de celui qu'on vient de quitter.
+
+       On le neutralise et on relance nous-mêmes. */
+    const ancien = recognition.onend;
+    recognition.onend = () => {
+      recognition.onend = ancien;
+      if(typeof sessionActive !== 'undefined') sessionActive = false;
+      if(typeof demarrageEnCours !== 'undefined') demarrageEnCours = false;
+
+      /* Le texte du nouvel élève fait autorité pour la suite */
+      const z = $('transcriptBox');
+      if(z && typeof committedTranscript !== 'undefined'){
+        committedTranscript = z.value.trim();
+        finalTranscript = committedTranscript;
+        if(typeof avantDerniereEcriture !== 'undefined'){
+          avantDerniereEcriture = finalTranscript;
+        }
+      }
+
+      if(typeof relancerMicro === 'function') relancerMicro();
+    };
+
+    /* stop() laisse le navigateur finir proprement ; abort()
+       perdrait la dernière phrase. */
     recognition.stop();
   }catch(e){ /* le micro se rattrapera au prochain silence */ }
 }
