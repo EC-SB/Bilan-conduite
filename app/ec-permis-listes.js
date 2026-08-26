@@ -467,6 +467,7 @@ function afficherRdvPermis(tous){
           return null;
         },
         actions: (x, zone) => {
+          zone.appendChild(boutonHeuresRestantes(x.eleve));
           const s = suiviDe(x.eleve);
 
           const selC = document.createElement('select');
@@ -736,6 +737,7 @@ function afficherPermisPrevus(tous){
           return null;
         },
         actions: (x, zone) => {
+          zone.appendChild(boutonHeuresRestantes(x.eleve));
           zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
               'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
@@ -925,10 +927,13 @@ function afficherExamensPermis(tous){
           const dem = x.date ? ' · demandé le ' + x.date : '';
           const lec = (x.etat.permisN !== null) ? ' · ' + x.etat.permisN + ' leçon(s) à prévoir' : '';
           const u = libelleUrgence(x.urgence);
-          return base + dem + lec + (x.urgence ? ' · ' + u.l : '');
+          return base + dem + lec + mentionHeuresRestantes(x.eleve) +
+                 (x.urgence ? ' · ' + u.l : '');
         },
         alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
         actions: (x, zone) => {
+          zone.appendChild(boutonHeuresRestantes(x.eleve));
+
           const sPost = suiviDe(x.eleve);
 
           /* En attente de son rendez-vous post-permis : le moniteur
@@ -1649,6 +1654,21 @@ async function saisirHeuresRestantes(nom){
     showToast(propre ? propre + 'h restantes ✅' : 'Plus rien à faire ✅');
     afficherBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+/* Le bouton qui ouvre la saisie des heures restantes */
+function boutonHeuresRestantes(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const h = String(s.heuresRestantes || '').trim();
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
+    (h ? 'color:var(--accent-text);border-color:var(--accent-text);' : '');
+  b.textContent = h ? '⏱️ ' + h + 'h restantes' : '⏱️ Heures restantes';
+  b.addEventListener('click', () => saisirHeuresRestantes(nom));
+  return b;
 }
 
 
