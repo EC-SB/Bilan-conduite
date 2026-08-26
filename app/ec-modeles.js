@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 14:08 — v398 */
+/* Déployé le 26/08/2026 à 09:37 — v548 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -833,8 +833,14 @@ function buildExamen(ai){
     '',
     '𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(e.verifQuestion),
     'Vérification ' + (e.vi ? st(e.vi) : '✅️❌️'),
+    /* L'explication du moniteur, quand il en a écrit une : c'est
+       ce qui aide l'élève à ne pas refaire l'erreur. Sans texte,
+       la ligne disparaît plutôt que de laisser un blanc. */
+    ...ligneParLigne(e.viTexte),
     'QSER ' + (e.qser ? st(e.qser) : '✅️❌️'),
+    ...ligneParLigne(e.qserTexte),
     '1er secour ' + (e.secours ? st(e.secours) : '✅️❌️'),
+    ...ligneParLigne(e.secoursTexte),
     '',
     '𝙉𝙤𝙩𝙚 :  /3',
     'https://www.facebook.com/groups/864826058258637',
