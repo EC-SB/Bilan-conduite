@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 14:27 — v537 */
+/* Déployé le 26/08/2026 à 09:36 — v548 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -147,18 +147,22 @@ const CHAMPS_MANUELS = {
     { cle:'__titreExamen', type:'titre', nom:'🏁 Examen',
       aide:'Ce que l\'inspecteur a noté. À remplir au retour de ' +
            'l\'élève.' },
-    { cle:'installation',type:'ok',    nom:'EXAMEN — Installation', defaut:'' },
-    { cle:'passager',    type:'ok',    nom:'EXAMEN — Passager',     defaut:'' },
-    { cle:'voyants',     type:'ok',    nom:'EXAMEN — Voyants',      defaut:'' },
-    { cle:'verifQuestion', type:'court', nom:'N° de la question de vérification' },
-    { cle:'vi',          type:'ok',    nom:'Vérification', defaut:'' },
-    { cle:'viTexte',     type:'texte', lignes:3,
+    /* Ces champs se rangent sous « examen » : c'est là que le
+       constructeur du bilan va les chercher. Sans le préfixe,
+       ils n'apparaissaient nulle part. */
+    { cle:'examen.installation', type:'ok', nom:'EXAMEN — Installation', defaut:'' },
+    { cle:'examen.passager',     type:'ok', nom:'EXAMEN — Passager',     defaut:'' },
+    { cle:'examen.voyants',      type:'ok', nom:'EXAMEN — Voyants',      defaut:'' },
+    { cle:'examen.verifQuestion', type:'court',
+      nom:'N° de la question de vérification' },
+    { cle:'examen.vi',           type:'ok', nom:'Vérification', defaut:'' },
+    { cle:'examen.viTexte',      type:'texte', lignes:3,
       nom:'Explication ou correction — vérification' },
-    { cle:'qser',        type:'ok',    nom:'Question sécurité routière', defaut:'' },
-    { cle:'qserTexte',   type:'texte', lignes:3,
+    { cle:'examen.qser',         type:'ok', nom:'Question sécurité routière', defaut:'' },
+    { cle:'examen.qserTexte',    type:'texte', lignes:3,
       nom:'Explication ou correction — sécurité routière' },
-    { cle:'secours',     type:'ok',    nom:'Premiers secours', defaut:'' },
-    { cle:'secoursTexte', type:'texte', lignes:3,
+    { cle:'examen.secours',      type:'ok', nom:'Premiers secours', defaut:'' },
+    { cle:'examen.secoursTexte', type:'texte', lignes:3,
       nom:'Explication ou correction — premiers secours' },
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
 
