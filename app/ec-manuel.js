@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:09 — v570 */
+/* Déployé le 26/08/2026 à 14:15 — v571 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -128,12 +128,17 @@ const CHAMPS_MANUELS = {
 
     { cle:'__t4', type:'titre', nom:'𝟰 - 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦' },
     { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
-    { cle:'heuresAvant', type:'court',  nom:"4 · Combien d'heures avant permis" },
+    { cle:'heuresAvant', type:'heures',
+      nom:"4 · Combien d'heures avant permis (+ 3h avant examen)" },
+    { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
+
+    /* La frise en dessous du niveau : c'est un rappel, on la
+       consulte après avoir décidé. */
+    { cle:'__rappelFrise', type:'rappelFrise' },
     { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
     { cle:'friseAvantH', type:'court',  nom:'4 · Si non, heures en plus' },
     { cle:'frisePost',   type:'ouinon', nom:'4 · Frise respectée post permis' },
     { cle:'frisePostH',  type:'court',  nom:'4 · Si non, heures en plus' },
-    { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
     { cle:'heuresPlanifiees', type:'ok', nom:'4 · Heures avant permis planifiées', defaut:'' },
     { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
   ],
@@ -515,11 +520,21 @@ async function ouvrirBilanManuel(){
   /* Gardé pour la génération : les frises s'y comparent */
   dossierManuel = dossier;
 
+
   btn.disabled = false;
   btn.textContent = '✍️ Bilan à remplir à la main';
 
   champsManuels = {};
   modeManuel = true;
+
+  /* Sa date de permis, si elle est connue : la redemander au
+     moniteur n'apprend rien de plus. */
+  if(modeleCle === 'examen-blanc'){
+    const s = (typeof suiviDe === 'function') ? suiviDe(eleve) : {};
+    const aUneDate = !!String(s.datePermis || '').trim() ||
+                     !!String((dossier && dossier.datePermis) || '').trim();
+    champsManuels.aDate = aUneDate ? 'oui' : 'non';
+  }
 
   /* La liste des inspecteurs, pour l'examen officiel */
   if(modeleCle === 'examen-officiel'){
@@ -540,7 +555,90 @@ async function ouvrirBilanManuel(){
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
 
-    if(ch.type === 'niveau' || ch.type === 'ouinon'){
+    if(ch.type === 'rappelFrise'){
+      /* Sa frise et ses leçons faites : de quoi juger sans
+         remonter chercher l'information ailleurs. */
+      const frise = (dossierManuel && dossierManuel.frise) ||
+                    extraireFrise($('noteInterne').value);
+      const faites = (dossierManuel && dossierManuel.lecons) || null;
+
+      if(frise || faites !== null){
+        bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+          'padding:10px 12px;margin-bottom:12px;';
+        bloc.innerHTML =
+          '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">' +
+            '📋 Pour mémoire</div>' +
+          (frise
+            ? '<div style="font-size:13px;line-height:1.5;">' +
+              String(frise).replace(/</g, '&lt;') + '</div>'
+            : '') +
+          (faites !== null
+            ? '<div style="font-size:13px;color:var(--accent-text);' +
+              'margin-top:4px;">' + faites + ' leçon(s) déjà effectuée(s)</div>'
+            : '');
+      }else{
+        bloc.style.display = 'none';
+      }
+
+    }else if(ch.type === 'heures'){
+      /* Les heures avant permis : presque toujours un nombre pair
+         de 2 à 10. Une liste évite de taper, tout en laissant la
+         saisie libre. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.id = 'man_' + ch.cle;
+      inp.min = '0';
+      inp.step = '1';
+      inp.placeholder = 'autre';
+      inp.style.cssText = 'width:84px;font-size:17px;text-align:center;margin:0;';
+
+      const peindre = () => {
+        Array.prototype.forEach.call(d.children, b => {
+          if(b.tagName !== 'BUTTON') return;
+          const pris = (b.textContent === inp.value);
+          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+          b.style.color = pris ? 'var(--accent-text)' : 'var(--cream)';
+          b.style.fontWeight = pris ? '800' : '400';
+        });
+      };
+
+      const changer = () => {
+        champsManuels[ch.cle] = inp.value;
+        peindre();
+        if(typeof remplirFrises === 'function'){
+          remplirFrises(champsManuels, true);
+        }
+      };
+
+      ['2', '4', '6', '8', '10'].forEach(v => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:11px 14px;font-size:15px;margin:0;';
+        b.textContent = v;
+        b.addEventListener('click', () => { inp.value = v; changer(); });
+        d.appendChild(b);
+      });
+
+      inp.addEventListener('input', changer);
+      d.appendChild(inp);
+      bloc.appendChild(d);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+        'line-height:1.5;';
+      a.textContent = 'Les 3h avant examen viennent en plus : ' +
+        '« 4 » signifie 4 + 3.';
+      bloc.appendChild(a);
+
+    }else if(ch.type === 'niveau' || ch.type === 'ouinon'){
       bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
         'align-items:center;flex-wrap:wrap;';
       const l = document.createElement('label');
@@ -564,6 +662,13 @@ async function ouvrirBilanManuel(){
         b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
         b.textContent = lab;
         b.setAttribute('data-val', val);
+
+        /* Une réponse déjà connue se montre d'emblée */
+        if(champsManuels[ch.cle] === val && val){
+          b.style.borderColor = 'var(--orange)';
+          b.style.color = 'var(--accent-text)';
+          b.style.fontWeight = '800';
+        }
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
 
@@ -1562,9 +1667,10 @@ function remplirFrises(champs, surEcran){
   const annoncees = Number(String(champs.heuresAvant || '').trim());
 
   if(apres !== null && annoncees && aMoi('frisePost')){
-    /* La frise compte en leçons de 2h, plus les 3h avant examen.
-       « 2 leçons + 3h » fait donc 7h attendues. */
-    const prevuH = apres * 2 + 3;
+    /* Les 3h avant examen sont dans les deux comptes : elles
+       s'annulent. « 4 + 3 » se compare donc à 4h de leçons, pas
+       à 7h. */
+    const prevuH = apres * 2;
 
     if(annoncees <= prevuH){
       poser('frisePost', 'oui');
@@ -1959,8 +2065,15 @@ function lireChampsManuels(){
   if(!champs) return;
 
   champs.forEach(ch => {
-    if(ch.type === 'titre' || ch.type === 'envoiAvant'){
+    if(ch.type === 'titre' || ch.type === 'envoiAvant' ||
+       ch.type === 'rappelFrise'){
       /* Ni un intertitre ni un bouton ne portent de réponse */
+
+    }else if(ch.type === 'heures'){
+      const el = document.getElementById('man_' + ch.cle);
+      if(el && String(el.value).trim()){
+        champsManuels[ch.cle] = String(el.value).trim();
+      }
     }else if(ch.type === 'inspecteur' || ch.type === 'repassage'){
       const el = document.getElementById('man_' + ch.cle);
       if(el && el.value && el.value !== '__autre__'){
