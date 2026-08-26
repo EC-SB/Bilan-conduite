@@ -1,4 +1,4 @@
-/* Déployé le 25/08/2026 à 08:27 — v538 */
+/* Déployé le 26/08/2026 à 07:29 — v541 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -128,6 +128,10 @@ async function afficherPostExamen(tous){
               " · bilan d'examen et rendez-vous post-permis à prévoir (bureau)");
             showToast(x.eleve + ' est en attente de son bilan');
             afficherBureau();
+
+            /* Les quatre messages à lui envoyer : sans ce rappel,
+               ils se faisaient de mémoire. */
+            setTimeout(() => ouvrirMessagesAjourne(x.eleve), 400);
           }catch(err){ showToast('Erreur : ' + err.message); bNon.disabled = false; }
         });
         r.appendChild(bNon);
@@ -683,6 +687,335 @@ async function chargerCaptures(eleve){
 }
 
 /* Galerie : aperçu, ajout et retrait */
+/* ============================================================
+   LES MESSAGES D'AJOURNEMENT
+
+   Quatre envois, dans l'ordre : la marche à suivre, les captures
+   du CEPC, le modèle de bilan, puis la relance.
+
+   Ils vivent dans les réglages : le bureau les corrige seul.
+   ============================================================ */
+
+const MSG_AJOURNE_1 = `Bonjour,
+
+J'ai l'indication sur Rendez-vous permis que tu es ajourné(e), voir CEPC ci-joint.
+Quelles sont les prochains étapes (⚠️pas la peine de venir harceler le bureau, suis les étapes qui sont obligatoires et non négociables pour envisager un repassage ⚠️)
+
+1- 📃 Envoie moi 𝙏𝙊𝙉 𝙋𝙍𝙊𝙋𝙍𝙀 𝘽𝙄𝙇𝘼𝙉 sur ton examen : analyse ce qu'il s'est passé et explique-moi 𝙋𝙊𝙐𝙍𝙌𝙐𝙊𝙄 tu ne l'as pas obtenu, SELON TOI, TON PROPRE RESSENTI par rapport AUSSI à l'inspecteur (trice).
+Tu dois 𝘾𝙊𝙈𝙋𝙍𝙀𝙉𝘿𝙍𝙀 ce qu'il s'est passé, 𝙀́𝙑𝘼𝘾𝙐𝙀𝙍 au maximum cet échec et 𝙏𝙍𝙊𝙐𝙑𝙀𝙍 𝘿𝙀𝙎 𝙎𝙊𝙇𝙐𝙏𝙄𝙊𝙉𝙎 pour ne plus les reproduire.
+Sert toi du bilan de l'inspecteur(trice) et du bilan de ton (ta) moniteur (trice).
+Clique 𝙊𝘽𝙇𝙄𝙂𝘼𝙏𝙊𝙄𝙍𝙀𝙈𝙀𝙉𝙏 sur le lien pour savoir comment faire :
+ https://www.facebook.com/share/p/1LuU7SKsEk/
+📃 Voir 𝙈𝙊𝘿𝙀𝙇𝙀 𝘽𝙄𝙇𝘼𝙉 𝙋𝙊𝙎𝙏 𝙋𝙀𝙍𝙈𝙄𝙎 en dessous.
+⚠️ Tu dois 𝘿𝙀́𝙏𝘼𝙄𝙇𝙇𝙀𝙍 point par point comment s'est déroulé ta conduite, pour qu'on puisse ENSEMBLE TROUVER DES SOLUTIONS D'AMÉLIORATION RAPIDES ET EFFICACES ! Ne nous fais pas perdre du temps à ne pas faire un bilan complet, ton rendez-vous post permis n'en sera que décalé et ton repassage aussi…
+⚠️ 𝙋𝘼𝙎 𝘿𝙀 𝘽𝙄𝙇𝘼𝙉 𝘾𝙊𝙈𝙋𝙇𝙀𝙏 = 𝙋𝘼𝙎 𝘿𝙀 𝙍𝘿𝙑 𝙋𝙊𝙎𝙏 𝙋𝙀𝙍𝙈𝙄𝙎 = 𝙋𝘼𝙎 𝘿𝙀 𝙍𝙀𝙋𝘼𝙎𝙎𝘼𝙂𝙀 ⚠️
+
+2- 🧑‍🏫 Ensuite, 𝙌𝙐𝘼𝙉𝘿 ton bilan sera effectué, tu dois réserver de ton compte en ligne un 𝙍𝘿𝙑 𝙋𝙊𝙎𝙏-𝙋𝙀𝙍𝙈𝙄𝙎 qui se fera au centre de formation 𝘼𝙑𝙀𝘾 un(e) moniteur (trice). Si tu ne peux pas te déplacer, ce rendez-vous peut se faire en visio mais il faut nous l'indiquer absolument avant.
+
+Ce bilan dure 𝟯𝟬 𝙢𝙣. S'il est insuffisant, tu devras en refaire un autre jusqu'à ce que tout soit compris, donc travaille et 𝙀𝙉𝙑𝙊𝙄𝙀-𝙉𝙊𝙐𝙎 𝙏𝙊𝙉 𝙋𝙍𝙊𝙋𝙍𝙀 𝘽𝙄𝙇𝘼𝙉 𝘾𝙊𝙈𝙋𝙇𝙀𝙏, pour que ton (ta) moniteur (trice) puisse le travailler en amont de ton rendez-vous.
+Tu dois être capable de 𝘾𝙊𝙈𝙋𝙍𝙀𝙉𝘿𝙍𝙀 tes erreurs pour ne pas les refaire ensuite
+et ne pas faire perdre à la communauté une autre place d'examen, 𝙘𝙚𝙨 𝙥𝙡𝙖𝙘𝙚𝙨 𝙚́𝙩𝙖𝙣𝙩 𝙩𝙧𝙚̀𝙨 𝙥𝙧𝙚́𝙘𝙞𝙚𝙪𝙨𝙚𝙨 🧑‍🏫
+
+3-❓ Dis nous si tu peux repasser ton permis dans notre agence de 𝗟𝗼𝘂𝗱𝗲́𝗮𝗰  (délai normalement plus court) ? https://share.google/teMUlLLF55KVarfRR
+
+☠️𝗧𝗼𝘂𝘁𝗲 𝗺𝗲𝗻𝗮𝗰𝗲, 𝗽𝗿𝗲𝘀𝘀𝗶𝗼𝗻 𝘃𝗶𝘀𝗮𝗻𝘁 𝗮̀ 𝗼𝗯𝘁𝗲𝗻𝗶𝗿 𝘂𝗻𝗲 𝗽𝗹𝗮𝗰𝗲 𝗱𝗲 𝗿𝗲𝗽𝗮𝘀𝘀𝗮𝗴𝗲, 𝗼𝘂 𝘁𝗼𝘂𝘁𝗲 𝗻𝗼𝗻 𝗿𝗲𝗺𝗶𝘀𝗲 𝗲𝗻 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻, 𝗲𝗻𝘁𝗿𝗮𝗶̂𝗻𝗲𝗿𝗮 𝗮𝘂𝘁𝗼𝗺𝗮𝘁𝗶𝗾𝘂𝗲𝗺𝗲𝗻𝘁 𝗹𝗮 𝗿𝗲𝗺𝗶𝘀𝗲 𝗶𝗺𝗺𝗲́𝗱𝗶𝗮𝘁𝗲 𝗱𝘂 𝗱𝗼𝘀𝘀𝗶𝗲𝗿 𝗲𝘁 𝗹'𝗮𝗻𝗻𝘂𝗹𝗮𝘁𝗶𝗼𝗻 𝗱𝘂 𝗰𝗼𝗻𝘁𝗿𝗮𝘁, 𝘀𝗮𝗻𝘀 𝗱𝗶𝘀𝗰𝘂𝘀𝘀𝗶𝗼𝗻 𝗽𝗼𝘀𝘀𝗶𝗯𝗹𝗲. ☠️`;
+
+const MSG_AJOURNE_3 = `𝙈𝙊𝘿𝙀𝙇𝙀 𝘽𝙄𝙇𝘼𝙉 𝙋𝙊𝙎𝙏 𝙋𝙀𝙍𝙈𝙄𝙎 :
+ 📲  𝙁𝘼𝙄𝙏 𝙐𝙉 𝘾𝙊𝙋𝙄𝙀́ 𝘾𝙊𝙇𝙇𝙀 𝙀𝙏 𝙍𝙀́𝙋𝙊𝙉𝘿 𝘾𝙊𝙍𝙍𝙀𝘾𝙏𝙀𝙈𝙀𝙉𝙏 𝘼𝙐𝙓 𝙌𝙐𝙀𝙎𝙏𝙄𝙊𝙉𝙎 :
+
+👉 𝙎𝙖𝙫𝙤𝙞𝙧 𝙨'𝙞𝙣𝙨𝙩𝙖𝙡𝙡𝙚𝙧 𝙚𝙩 𝙖𝙨𝙨𝙪𝙧𝙚𝙧 𝙡𝙖 𝙨𝙚́𝙘𝙪𝙧𝙞𝙩𝙚́ 𝙖̀ 𝙗𝙤𝙧𝙙 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+
+👉 𝙀𝙛𝙛𝙚𝙘𝙩𝙪𝙚𝙧 𝙙𝙚𝙨 𝙫𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨 𝙙𝙪 𝙫𝙚́𝙝𝙞𝙘𝙪𝙡𝙚  ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ?  ✅❌
+
+👉 𝘾𝙤𝙣𝙣𝙖𝙞̂𝙩𝙧𝙚 𝙚𝙩 𝙪𝙩𝙞𝙡𝙞𝙨𝙚𝙧 𝙡𝙚𝙨 𝙘𝙤𝙢𝙢𝙖𝙣𝙙𝙚𝙨 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉 𝙋𝙧𝙚𝙣𝙙𝙧𝙚 𝙡'𝙞𝙣𝙛𝙤𝙧𝙢𝙖𝙩𝙞𝙤𝙣 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉 𝘼𝙙𝙖𝙥𝙩𝙚𝙧 𝙨𝙤𝙣 𝙖𝙡𝙡𝙪𝙧𝙚 𝙖𝙪𝙭 𝙘𝙞𝙧𝙘𝙤𝙣𝙨𝙩𝙖𝙣𝙘𝙚𝙨 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉 𝘼𝙥𝙥𝙡𝙞𝙦𝙪𝙚𝙧 𝙡𝙖 𝙧𝙚́𝙜𝙡𝙚𝙢𝙚𝙣𝙩𝙖𝙩𝙞𝙤𝙣 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉 𝘾𝙤𝙢𝙢𝙪𝙣𝙞𝙦𝙪𝙚𝙧 𝙖𝙫𝙚𝙘 𝙡𝙚𝙨 𝙖𝙪𝙩𝙧𝙚𝙨 𝙪𝙨𝙖𝙜𝙚𝙧𝙨 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉 𝙋𝙖𝙧𝙩𝙖𝙜𝙚𝙧 𝙡𝙖 𝙘𝙝𝙖𝙪𝙨𝙨𝙚́𝙚 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉 𝙈𝙖𝙞𝙣𝙩𝙚𝙣𝙞𝙧 𝙡𝙚𝙨 𝙚𝙨𝙥𝙖𝙘𝙚𝙨 𝙙𝙚 𝙨𝙚́𝙘𝙪𝙧𝙞𝙩𝙚́ ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+❌ Si tu as eu des points en moins ou une faute éliminatoire :
+▶️ Est-ce que tu as compris pourquoi ?
+▶️ Pourquoi tu as fait cette faute ?
+▶️ Quelle solution apporter pour ne plus jamais faire cette erreur ?
+
+👉𝘼𝙣𝙖𝙡𝙮𝙨𝙚 𝙙𝙚𝙨 𝙨𝙞𝙩𝙪𝙖𝙩𝙞𝙤𝙣𝙨 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+
+👉 𝘼𝙙𝙖𝙥𝙩𝙖𝙩𝙞𝙤𝙣 𝙖𝙪𝙭 𝙨𝙞𝙩𝙪𝙖𝙩𝙞𝙤𝙣𝙨 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+
+👉 𝘾𝙤𝙣𝙙𝙪𝙞𝙩𝙚 𝙖𝙪𝙩𝙤𝙣𝙤𝙢𝙚 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+
+👉 𝘾𝙤𝙣𝙙𝙪𝙞𝙩𝙚 𝙚́𝙘𝙤𝙣𝙤𝙢𝙞𝙦𝙪𝙚 𝙚𝙩 𝙧𝙚𝙨𝙥𝙚𝙘𝙩𝙪𝙚𝙪𝙨𝙚 𝙙𝙚 𝙡'𝙚𝙣𝙫𝙞𝙧𝙤𝙣𝙣𝙚𝙢𝙚𝙣𝙩 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+
+👉 𝘾𝙤𝙪𝙧𝙩𝙤𝙞𝙨𝙞𝙚 ?
+As-tu eu tous les points ?
+Oui ou non, si non, pourquoi ? ✅❌
+
+ 👉 Retrouve la grille de notation de l'inspecteur(trice) ici https://www.facebook.com/share/p/19mwWHfRS4/
+
+👉 Retrouve les statistiques des fautes éliminatoires mensuelles sur le guide 23 Statistiques mensuelles Examen pratique du permis de conduire dans le groupe Facebook Mise en pratique. https://www.facebook.com/share/p/182tnBsA2C/
+
+👉 Qu'a tu pensé de l'inspecteur(trice)?
+
+👉 Objectivement, est ce que tu trouves que ce que l'on t'as demandé à l'examen est compliqué ?
+
+👉 Est ce que tu as trouvé l'examen long ?
+
+👉 Si tu as été stressé (e) , quelles solutions selon toi peux tu mettre en place pour ne plus subir ce stress ?`;
+
+const MSG_AJOURNE_4 = `♻️ 𝙐𝙋 🚗 Bilan permis
+𝙀𝙣 𝙖𝙩𝙩𝙚𝙣𝙩𝙚 𝙙𝙚 𝙩𝙖 𝙧𝙚𝙥𝙤𝙣𝙨𝙚 𝙤𝙪 𝙙𝙚 𝙡'𝙖𝙘𝙩𝙞𝙤𝙣 𝙦𝙪𝙚 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙧𝙚𝙖𝙡𝙞𝙨𝙚𝙧 💪`;
+
+
+let messagesAjourne = null;
+
+async function chargerMessagesAjourne(){
+  if(messagesAjourne !== null) return messagesAjourne;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    const g = (d && d.reglages) || {};
+    messagesAjourne = {
+      m1: g.ajourne1 || MSG_AJOURNE_1,
+      m3: g.ajourne3 || MSG_AJOURNE_3,
+      m4: g.ajourne4 || MSG_AJOURNE_4
+    };
+  }catch(e){
+    messagesAjourne = { m1: MSG_AJOURNE_1, m3: MSG_AJOURNE_3, m4: MSG_AJOURNE_4 };
+  }
+  return messagesAjourne;
+}
+
+
+/* La fenêtre qui suit l'ajournement : les quatre envois, dans
+   l'ordre, avec ce qu'il faut copier à chaque fois. */
+async function ouvrirMessagesAjourne(eleve){
+  await chargerMessagesAjourne();
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:92vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>📤 À envoyer à ' +
+    String(eleve).replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
+      'line-height:1.5;">Quatre envois, dans cet ordre. Copie chacun ' +
+      'et colle-le sur Messenger.</div>';
+
+  const etape = (n, titre, texte, aide) => {
+    const d = document.createElement('details');
+    d.style.cssText = 'border:1px solid var(--line);border-radius:11px;' +
+      'padding:10px 12px;margin-bottom:8px;';
+
+    d.innerHTML = '<summary style="cursor:pointer;font-size:14px;' +
+      'font-weight:700;color:var(--accent-text);">' + n + '. ' + titre +
+      '</summary>';
+
+    const z = document.createElement('div');
+    z.style.marginTop = '9px';
+
+    if(aide){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;' +
+        'margin-bottom:9px;';
+      a.textContent = aide;
+      z.appendChild(a);
+    }
+
+    if(texte){
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:12px;line-height:1.55;white-space:pre-wrap;' +
+        'max-height:190px;overflow-y:auto;padding:9px 10px;' +
+        'background:var(--navy);border-radius:9px;margin-bottom:9px;';
+      t.textContent = texte;
+      z.appendChild(t);
+
+      const b = document.createElement('button');
+      b.className = 'btn btn-primary';
+      b.style.cssText = 'padding:11px;font-size:13px;';
+      b.textContent = '📋 Copier';
+      b.addEventListener('click', async () => {
+        try{
+          await navigator.clipboard.writeText(texte);
+          b.textContent = '✅ Copié';
+          showToast('Copié ✅');
+          setTimeout(() => { b.textContent = '📋 Copier'; }, 2500);
+        }catch(e){ showToast('Copie impossible'); }
+      });
+      z.appendChild(b);
+    }
+
+    d.appendChild(z);
+    boite.appendChild(d);
+    return d;
+  };
+
+  const d1 = etape(1, 'La marche à suivre', messagesAjourne.m1);
+  d1.open = true;
+
+  etape(2, 'Les captures du CEPC', '',
+    'Envoie les captures du résultat — celles déposées dans sa fiche.');
+
+  etape(3, 'Le modèle de bilan post-permis', messagesAjourne.m3);
+
+  etape(4, 'La relance, plus tard', messagesAjourne.m4,
+    "À envoyer s'il ne répond pas.");
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  r.appendChild(bF);
+
+  /* Le bureau corrige ses propres messages */
+  if(ACCES.role === 'admin'){
+    const bM = document.createElement('button');
+    bM.className = 'btn btn-secondary';
+    bM.style.cssText = 'width:auto;padding:12px 14px;font-size:12px;';
+    bM.textContent = '✏️';
+    bM.title = 'Modifier les messages';
+    bM.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      modifierMessagesAjourne(eleve);
+    });
+    r.appendChild(bM);
+  }
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
+function modifierMessagesAjourne(eleve){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(640px, 95vw);max-height:92vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>✏️ Les messages d\'ajournement</h3>';
+
+  const zones = {};
+  [['m1', '1. La marche à suivre', 'ajourne1'],
+   ['m3', '3. Le modèle de bilan', 'ajourne3'],
+   ['m4', '4. La relance', 'ajourne4']].forEach(([cle, titre, reglage]) => {
+    const l = document.createElement('label');
+    l.textContent = titre;
+    boite.appendChild(l);
+
+    const z = document.createElement('textarea');
+    z.rows = 8;
+    z.value = messagesAjourne[cle];
+    z.style.cssText = 'width:100%;background:var(--navy);' +
+      'border:1px solid var(--line);color:var(--cream);padding:10px 11px;' +
+      'border-radius:10px;font-size:12px;line-height:1.55;' +
+      'font-family:inherit;resize:vertical;margin-bottom:12px;';
+    boite.appendChild(z);
+    zones[cle] = { zone: z, reglage: reglage };
+  });
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => {
+    document.body.removeChild(fond);
+    ouvrirMessagesAjourne(eleve);
+  });
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '💾 Enregistrer';
+  bO.addEventListener('click', async () => {
+    bO.disabled = true;
+    try{
+      for(const cle of Object.keys(zones)){
+        await appelPrep({ action: 'reglageSet',
+                          cle: zones[cle].reglage,
+                          valeur: zones[cle].zone.value,
+                          par: ACCES.moniteur || '' });
+        messagesAjourne[cle] = zones[cle].zone.value;
+      }
+      document.body.removeChild(fond);
+      showToast('Messages enregistrés ✅');
+      ouvrirMessagesAjourne(eleve);
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
+
 function blocCaptures(eleve, dateExamen){
   const d = document.createElement('div');
   d.style.cssText = 'margin-bottom:12px;';
