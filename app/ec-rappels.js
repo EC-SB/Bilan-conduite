@@ -1,4 +1,4 @@
-/* Déployé le 24/08/2026 à 08:24 — v517 */
+/* Déployé le 26/08/2026 à 12:06 — v560 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -263,7 +263,11 @@ async function afficherRappels(){
           await envoyerMessageComplet(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
           cr.envoye = true;
           /* Chaque cours va au moniteur lu sur le planning */
-          preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur);
+          preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur,
+                               { type: cr.type ||
+                                       (choixRappel && choixRappel.type) || '',
+                                 titreType: titreDuType(cr.type ||
+                                   (choixRappel && choixRappel.type)) });
           ok++;
         }catch(e){
           rates.push((cr.choisi || cr.eleve) + ' : ' + e.message);
@@ -331,7 +335,11 @@ function ligneRappel(c, i){
         await envoyerMessageComplet(c.telephone, messageRappel(c), c.choisi || c.eleve);
         c.envoye = true;
         /* Le cours rejoint les prochains cours du moniteur lu sur le planning */
-        preparerDepuisRappel(c.choisi || c.eleve, c.jour, c.moniteur);
+        preparerDepuisRappel(c.choisi || c.eleve, c.jour, c.moniteur,
+                             { type: c.type ||
+                                     (choixRappel && choixRappel.type) || '',
+                               titreType: titreDuType(c.type ||
+                                 (choixRappel && choixRappel.type)) });
         showToast('Envoyé à ' + (c.choisi || c.eleve));
         afficherRappels();
       }catch(e){
@@ -569,6 +577,18 @@ function typesDisponibles(){
                  contenu: m.contenu, perso: true }));
   return TYPES_RAPPEL.concat(perso);
 }
+
+/* Le titre lisible d'un type de rappel.
+
+   Un type personnalisé a pour clé « perso:m17 » : elle ne dit
+   rien du contenu. Le titre, lui, porte le sens — « Examen
+   blanc », « Simulateur », « RDV préalable ». */
+function titreDuType(cle){
+  if(!cle) return '';
+  const t = typesDisponibles().find(x => x.cle === cle);
+  return (t && (t.titre || t.nom)) || String(cle);
+}
+
 
 /* Allo compte 1000 caractères par SMS ; on garde une marge. */
 const LIMITE_SMS = 950;
@@ -1263,6 +1283,15 @@ async function envoyerRappelManuel(){
     preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
                          $('rapMoniteur') ? $('rapMoniteur').value : '',
                          {
+                           /* Le type de séance décide du bilan : sans
+                              lui, un examen blanc devenait un cours
+                              de conduite ordinaire. */
+                           type: (choixRappel && choixRappel.type) || '',
+                           /* Vos types viennent des Textes types : leur
+                              clé est « perso:xxx », qui ne dit rien.
+                              C'est le titre qui porte le sens. */
+                           titreType: titreDuType(choixRappel &&
+                                                  choixRappel.type),
                            heure: $('rapHeure') ? $('rapHeure').value : '',
                            /* Ce que l'élève doit apporter : le moniteur
                               le voit dans ses prochains cours, sans
@@ -1619,7 +1648,10 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
 
     /* Le type de séance prime sur la boîte : un simulateur ou un
        rendez-vous préalable n'est pas un cours de conduite. */
-    const impose = modeleDuTypeDeRappel(details && details.type);
+    /* Le titre d'abord : c'est lui qui dit de quelle séance il
+       s'agit. La clé ne sert que pour les types d'origine. */
+    const impose = modeleDuTypeDeRappel(
+      (details && details.titreType) || (details && details.type));
     if(impose) cle = impose;
 
     /* Le dossier de l'élève, pour que le moniteur n'ait pas à tout
