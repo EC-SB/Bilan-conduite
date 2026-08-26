@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:49 — v575 */
+/* Déployé le 26/08/2026 à 15:43 — v579 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -73,22 +73,18 @@ const CHAMPS_MANUELS = {
       aide:'Une erreur par ligne.' },
 
     { cle:'__t2', type:'titre', nom:"𝟮 - 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟'𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖" },
-    { cle:'examen.installation', type:'texte', lignes:7,
-      nom:'2-1 · Installation',
-      aide:'Efface l\'émoji qui ne convient pas, et la remarque si elle ne sert pas.',
-      defaut:'𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ✅❌\n' +
-             '❌ Tu as oublié de dire : "c\'est moi qui ai emmené le véhicule, ' +
-             'j\'ai déjà fait mes réglages"\n' +
-             '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ✅❌\n' +
-             '𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ✅❌\n' +
-             '𝙉𝙤𝙩𝙚 :  /2' },
+    /* Deux boutons plutôt qu'un texte à corriger : la note du
+       CEPC s'en déduit toute seule. */
+    { cle:'examen.instPassager', type:'ok', nom:'2-1 · Passager', defaut:'' },
+    { cle:'examen.instVoyants',  type:'ok', nom:'2-1 · Voyants',  defaut:'' },
+    { cle:'examen.installation', type:'texte', lignes:3,
+      nom:'2-1 · Remarque sur l\'installation',
+      aide:'Facultatif : ce qui a manqué à son installation.' },
 
-    { cle:'examen.verifications', type:'texte', lignes:5,
-      nom:'2-2 · Vérifications',
-      aide:'Complète le numéro de question.',
-      defaut:'𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° \n' +
-             '𝙉𝙤𝙩𝙚 :  /3\n' +
-             'https://www.facebook.com/groups/864826058258637' },
+    { cle:'examen.verifNote',     type:'note3',
+      nom:'2-2 · Note des vérifications' },
+    { cle:'examen.verifQuestion', type:'court',
+      nom:'2-2 · N° de la question' },
 
     /* Vingt paires, comme pour l'examen officiel : la remarque de
        l'inspecteur, puis l'explication du moniteur. */
@@ -595,6 +591,58 @@ async function ouvrirBilanManuel(){
         bloc.style.display = 'none';
       }
 
+
+    }else if(ch.type === 'note3'){
+      /* La note se reporte sur le CEPC : quatre boutons valent
+         mieux qu'un texte à relire. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:6px;';
+
+      const champ = document.createElement('input');
+      champ.type = 'hidden';
+      champ.id = 'man_' + ch.cle.replace('.', '_');
+      champ.value = '';
+      d.appendChild(champ);
+
+      const peindre = () => {
+        Array.prototype.forEach.call(d.children, b => {
+          if(b.tagName !== 'BUTTON') return;
+          const pris = (b.textContent === champ.value);
+          b.style.background = pris ? 'var(--orange)' : 'var(--navy)';
+          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+          b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
+          b.style.fontWeight = pris ? '800' : '400';
+        });
+      };
+
+      ['0', '1', '2', '3'].forEach(v => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:10px 16px;font-size:15px;margin:0;';
+        b.textContent = v;
+        b.addEventListener('click', () => {
+          /* Un second appui efface : le moniteur peut se raviser */
+          champ.value = (champ.value === v) ? '' : v;
+          champsManuels[ch.cle] = champ.value;
+          peindre();
+          if(typeof reporterNotesCepc === 'function') reporterNotesCepc();
+        });
+        d.appendChild(b);
+      });
+
+      const s = document.createElement('span');
+      s.style.cssText = 'font-size:13px;color:var(--muted);align-self:center;';
+      s.textContent = '/ 3';
+      d.appendChild(s);
+
+      bloc.appendChild(d);
+      peindre();
+
     }else if(ch.type === 'heures'){
       /* Les heures avant permis : presque toujours un nombre pair
          de 2 à 10. Une liste évite de taper, tout en laissant la
@@ -704,6 +752,9 @@ async function ouvrirBilanManuel(){
       bloc.appendChild(r);
 
     }else if(ch.type === 'ok'){
+      /* Passager et voyants décident de la note d'installation */
+      const surInstallation = (ch.cle === 'examen.instPassager' ||
+                               ch.cle === 'examen.instVoyants');
       /* Trois états : ✅ ❌ ou rien. Compact et sur une seule ligne
          avec son libellé : un bilan en compte une dizaine, et de
          gros boutons empilés faisaient défiler pour rien. */
@@ -725,6 +776,11 @@ async function ouvrirBilanManuel(){
         b.textContent = lab;
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
+
+          /* La note d'installation se déduit des deux cases */
+          if(surInstallation && typeof reporterNotesCepc === 'function'){
+            reporterNotesCepc();
+          }
 
           /* Le choix doit sauter aux yeux : une bordure seule se
              remarque mal, surtout à bout de bras dans la voiture. */
@@ -1455,7 +1511,10 @@ function ajouterObservationManuelle(zone){
   insp.type = 'text';
   insp.className = 'obsInsp';
   insp.placeholder = "Remarque de l'inspecteur";
-  insp.style.marginBottom = '6px';
+  /* Deux fonds distincts : ce que dit l'inspecteur et ce que
+     répond le moniteur ne se confondent plus d'un coup d'œil. */
+  insp.style.cssText = 'margin-bottom:6px;background:rgba(46,124,196,.14);' +
+    'border-color:rgba(46,124,196,.4);';
   /* Le récapitulatif suit ce qui s'écrit */
   /* La remarque alimente le bilan des éliminatoires */
   insp.addEventListener('input', () => {
@@ -1471,7 +1530,8 @@ function ajouterObservationManuelle(zone){
   rep.type = 'text';
   rep.className = 'obsRep';
   rep.placeholder = 'Explication ou correction';
-  rep.style.cssText = 'flex:1;min-width:0;margin:0;';
+  rep.style.cssText = 'flex:1;min-width:0;margin:0;' +
+    'background:rgba(255,255,255,.05);';
   r.appendChild(rep);
 
   const bMort = document.createElement('button');
@@ -1525,6 +1585,29 @@ function ajouterObservationManuelle(zone){
     if(typeof rafraichirEliminatoires === 'function') rafraichirEliminatoires();
   };
   r.appendChild(bMort);
+
+  /* Une erreur grave sans être éliminatoire : elle rejoint le
+     bilan des erreurs, mais ne touche pas au CEPC. */
+  const bGrave = document.createElement('button');
+  bGrave.type = 'button';
+  bGrave.className = 'btn btn-secondary';
+  bGrave.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;' +
+    'margin:0;flex-shrink:0;';
+  bGrave.textContent = '⚠️';
+  bGrave.title = 'À reprendre dans le bilan des erreurs';
+
+  const majGrave = () => {
+    const pris = (d.dataset.grave === 'oui');
+    bGrave.style.borderColor = pris ? 'var(--accent-text)' : 'var(--line)';
+    bGrave.style.color = pris ? 'var(--accent-text)' : '';
+  };
+
+  bGrave.addEventListener('click', () => {
+    d.dataset.grave = (d.dataset.grave === 'oui') ? '' : 'oui';
+    majGrave();
+    if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+  });
+  r.appendChild(bGrave);
 
   d.appendChild(r);
   zone.appendChild(d);
@@ -1636,6 +1719,29 @@ function majBilanEliminatoires(){
       bouts.push('- ce que je te PROPOSE : ');
       bouts.push('');
     });
+  });
+
+  /* Les erreurs graves sans être éliminatoires : elles rejoignent
+     le bilan sous le même format, sans toucher au CEPC. */
+  document.querySelectorAll('#obsManuel > div').forEach(dv => {
+    if(!dv.dataset || dv.dataset.grave !== 'oui') return;
+    if(dv.dataset.categorie) return;        /* déjà traitée plus haut */
+
+    const i = dv.querySelector('.obsInsp');
+    const r = dv.querySelector('.obsRep');
+    const vi = i ? i.value.trim() : '';
+    const vr = r ? r.value.trim() : '';
+    if(!vi && !vr) return;
+
+    /* Déjà écrite : le moniteur y a peut-être déjà répondu */
+    if(vi && ancien.indexOf(vi) !== -1) return;
+
+    if(vi) bouts.push('👨‍✈️ ' + vi);
+    if(vr) bouts.push(emojiMoniteur() + ' ' + vr);
+    bouts.push("- qu'en penses-tu ?");
+    bouts.push('- quelles sont TES solutions ?');
+    bouts.push('- ce que je te PROPOSE : ');
+    bouts.push('');
   });
 
   if(!bouts.length) return;
@@ -1760,6 +1866,58 @@ function remplirFrises(champs, surEcran){
       }
     }
   }
+}
+
+
+/* ============================================================
+   LES NOTES REPORTÉES SUR LE CEPC
+
+   L'installation vaut 2 : passager et voyants comptent un point
+   chacun. Les vérifications valent 3, notées directement.
+
+   Le moniteur voit la note se poser pendant qu'il coche, et
+   peut la corriger.
+   ============================================================ */
+
+function reporterNotesCepc(){
+  /* L'installation : deux cases, deux points */
+  const p = champsManuels['examen.instPassager'] || '';
+  const v = champsManuels['examen.instVoyants'] || '';
+
+  if(p || v){
+    let n = 0;
+    if(p === '✅') n++;
+    if(v === '✅') n++;
+    poserNoteCepc("Savoir s'installer et assurer la sécurité à bord",
+                  String(n));
+  }
+
+  /* Les vérifications : la note du moniteur, telle quelle */
+  const nv = champsManuels['examen.verifNote'];
+  if(nv !== undefined && nv !== ''){
+    poserNoteCepc('Effectuer des vérifications du véhicule', String(nv));
+  }
+}
+
+
+function poserNoteCepc(ligne, valeur){
+  const champ = document.querySelector('.cepcNiveau[data-comp="' +
+                                       ligne.replace(/"/g, '') + '"]');
+  if(!champ) return;
+
+  /* Un E posé par une éliminatoire ne se remplace pas par une
+     note : c'est l'élimination qui prime. */
+  if(champ.value === 'E' && champ.dataset.parElim === 'oui') return;
+
+  champ.value = valeur;
+
+  const l = champ.parentNode;
+  if(!l) return;
+  l.querySelectorAll('button').forEach(b => {
+    if(typeof b._peindre === 'function') b._peindre();
+  });
+
+  if(typeof majTotalCepc === 'function') majTotalCepc();
 }
 
 
@@ -2146,6 +2304,63 @@ function lireChampsManuels(){
        ch.type === 'rappelFrise'){
       /* Ni un intertitre ni un bouton ne portent de réponse */
 
+
+    }else if(ch.type === 'note3'){
+      /* La note se reporte sur le CEPC : quatre boutons valent
+         mieux qu'un texte à relire. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:6px;';
+
+      const champ = document.createElement('input');
+      champ.type = 'hidden';
+      champ.id = 'man_' + ch.cle.replace('.', '_');
+      champ.value = '';
+      d.appendChild(champ);
+
+      const peindre = () => {
+        Array.prototype.forEach.call(d.children, b => {
+          if(b.tagName !== 'BUTTON') return;
+          const pris = (b.textContent === champ.value);
+          b.style.background = pris ? 'var(--orange)' : 'var(--navy)';
+          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+          b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
+          b.style.fontWeight = pris ? '800' : '400';
+        });
+      };
+
+      ['0', '1', '2', '3'].forEach(v => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:10px 16px;font-size:15px;margin:0;';
+        b.textContent = v;
+        b.addEventListener('click', () => {
+          /* Un second appui efface : le moniteur peut se raviser */
+          champ.value = (champ.value === v) ? '' : v;
+          champsManuels[ch.cle] = champ.value;
+          peindre();
+          if(typeof reporterNotesCepc === 'function') reporterNotesCepc();
+        });
+        d.appendChild(b);
+      });
+
+      const s = document.createElement('span');
+      s.style.cssText = 'font-size:13px;color:var(--muted);align-self:center;';
+      s.textContent = '/ 3';
+      d.appendChild(s);
+
+      bloc.appendChild(d);
+      peindre();
+
+    }else if(ch.type === 'note3'){
+      const el = document.getElementById('man_' + ch.cle.replace('.', '_'));
+      if(el && String(el.value).trim()){
+        champsManuels[ch.cle] = String(el.value).trim();
+      }
     }else if(ch.type === 'heures'){
       const el = document.getElementById('man_' + ch.cle);
       if(el && String(el.value).trim()){
@@ -2209,7 +2424,11 @@ function lireChampsManuels(){
         /* La catégorie du CEPC accompagne l'observation : elle
            décide du E et du rangement dans le bilan. */
         const cat = d.dataset ? (d.dataset.categorie || '') : '';
-        if(vi || vr) obs.push({ inspecteur: vi, reponse: vr, categorie: cat });
+        const grave = d.dataset ? (d.dataset.grave === 'oui') : false;
+        if(vi || vr){
+          obs.push({ inspecteur: vi, reponse: vr, categorie: cat,
+                     grave: grave });
+        }
       });
       champsManuels[ch.cle] = obs;
     }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
