@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 09:01 — v545 */
+/* Déployé le 26/08/2026 à 10:50 — v553 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -136,7 +136,7 @@ const VUES = {
            ['rappels',    '🔔 Rappels de cours',      'rappels'],
            ['eleves',     '👥 Répertoire',            'eleves'],
            ['proccorriger','📥 Procédures',            'proccorriger'],
-           ['code',       '🎓 Code en salle',          'code'],
+           ['code',       '🎓 Code',                   'code'],
            ['handicap',   '♿ Handicap',               'handicap'],
            ['evaluation', '📊 Évaluation',            'evaluation'],
            ['financements','💶 Financements',          'financements'],
@@ -253,7 +253,7 @@ function reveillerVue(cle){
     flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
     proccorriger: () => afficherProcCorriger(),
-    code:       () => afficherCodeSalle(),
+    code:       () => afficherCode(),
     handicap:   () => afficherHandicap(),
     evaluation: () => afficherEvaluation(),
     financements: () => afficherFinancements(),
