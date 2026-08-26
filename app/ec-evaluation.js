@@ -448,22 +448,44 @@ async function ouvrirTexteAac(heures, auto, supervisee, mail){
    doit pouvoir le corriger seul.
    ============================================================ */
 
-let piedEvaluation = null;
+/* La fin du message, telle qu'elle est envoyée depuis toujours.
 
-const PIED_DEFAUT =
-  'Merci de nous confirmer ton choix de boîte de vitesses ' +
-  'et de formation.';
+   Deux versions : celle de Messenger, avec ses émojis, et celle
+   de Driv'up qui ne les accepte pas. */
+const PIED_MESSENGER = [
+'🧠 Rappel : une évaluation ne donne pas un nombre exact de cours à suivre mais une indication à un temps T.',
+'👀 Il faudra revoir tout au long de la formation ton évolution',
+'💡 Il existe la conduite supervisée qui peut permettre de diminuer le nombre d\'heures.',
+'💰 Financement personnel / Paiement en plusieurs fois avec notre prestataire ALMA / Financement extérieur (CPF, Pôle Emplois, ...)',
+'📝 Tu vas recevoir un contrat numérique par mail à signer basé sur cette évaluation. ',
+'𝙑𝙊𝙄𝘾𝙄 𝘾𝙀 𝙌𝙐𝙀 𝙏𝙐 𝘼𝘾𝘾𝙀𝙋𝙏𝙀𝙎 𝙀𝙉 𝙎𝙄𝙂𝙉𝘼𝙉𝙏 𝙇𝙀 𝘾𝙊𝙉𝙏𝙍𝘼𝙏 :',
+'𝙇\'𝙚́𝙡𝙚̀𝙫𝙚 𝙖𝙘𝙘𝙚𝙥𝙩𝙚 𝙡𝙖 𝙢𝙖𝙣𝙞𝙚̀𝙧𝙚 𝙚𝙩 𝙡𝙚 𝙛𝙤𝙣𝙘𝙩𝙞𝙤𝙣𝙣𝙚𝙢𝙚𝙣𝙩 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 𝙙𝙪 𝙘𝙚𝙣𝙩𝙧𝙚 𝙙𝙚 𝙛𝙤𝙧𝙢𝙖𝙩𝙞𝙤𝙣. 𝙄𝙡 𝙡𝙪𝙞 𝙖 𝙗𝙞𝙚𝙣 𝙚́𝙩𝙚́ 𝙞𝙣𝙙𝙞𝙦𝙪𝙚́ 𝙦𝙪𝙚 𝙨𝙞 𝙘𝙚𝙡𝙖 𝙣𝙚 𝙡𝙪𝙞 𝙘𝙤𝙣𝙫𝙚𝙣𝙖𝙞𝙩 𝙥𝙖𝙨, 𝙞𝙡 𝙚𝙭𝙞𝙨𝙩𝙚 𝙙\'𝙖𝙪𝙩𝙧𝙚𝙨 𝙢𝙚́𝙩𝙝𝙤𝙙𝙤𝙡𝙤𝙜𝙞𝙚𝙨 𝙙𝙖𝙣𝙨 𝙙\'𝙖𝙪𝙩𝙧𝙚𝙨 𝙚́𝙩𝙖𝙗𝙡𝙞𝙨𝙨𝙚𝙢𝙚𝙣𝙩𝙨.',
+'📚 M\'engage à accepter la manière de travailler du centre de formation Évolution Conduites expliquée dans la vidéo de présentation que vous avez regardé à l\'accueil.',
+'🤝 Comprend que l\'accès aux écoutes pédagogiques et aux groupes de travail, sont un réel complément aux heures de conduites, qu\'ils seront ouverts et accessibles UNIQUEMENT pendant ma présence en formation, avec un réel investissement de ma part.',
+'M\'engage à me donner à fond dans ma formation (travail à domicile, réservations des cours en autonomie, pas d\'absence ni de retard etc...)',
+'Comprends qu\'Évolution Conduites me présentera à l\'épreuve pratique du permis de conduire, SEULEMENT si le centre de formation m\'estime apte à obtenir mon examen pratique du permis de conduire, selon le nombre d\'heures données à effectuer d\'après le résultat de mon examen blanc (selon progression).',
+'📆 Est bien conscient(e) que les dates d\'examens pratiques sont données par la DDTM et qu\'en cas d\'annulation ou de report, le centre de formation n\'est absolument pas responsable.',
+'❌ Est bien conscient(e) qu\'en cas d\'échec à l\'épreuve pratique, le centre de formation ne peut être tenu responsable des délais de repassage, dans la mesure où les premières présentations sont toujours privilégiées, est bien conscient(e) aussi qu\'il sera nécessaire de continuer la formation (y compris nombre de leçons de conduites estimées lors de l\'examen), afin d\'obtenir le niveau nécessaire pour l\'obtention de l\'examen.',
+'🌟 Est bien conscient(e) d\'être dans un centre de formation à la conduite et à la sécurité routière et de ce fait, accepter avec notre aide, de devenir un(e) conducteur(trice) sûr(e) et responsable.'
+].join('\n');
 
 
-async function chargerPiedEvaluation(){
-  if(piedEvaluation !== null) return piedEvaluation;
-  try{
-    const d = await appelPrep({ action: 'reglagesList' });
-    const g = (d && d.reglages) || {};
-    piedEvaluation = g.piedEvaluation || PIED_DEFAUT;
-  }catch(e){ piedEvaluation = PIED_DEFAUT; }
-  return piedEvaluation;
-}
+const PIED_MAIL = [
+'- Rappel : une évaluation ne donne pas un nombre exact de cours à suivre mais une indication à un temps T',
+'- Il faudra revoir tout au long de la formation ton évolution ',
+'- Il existe la conduite supervisée qui peut permettre de diminuer le nombre d\'heures',
+'- Financement personnel / Paiement en plusieurs fois avec notre prestataire ALMA / Financement extérieur (CPF, Pôle Emplois,...) ',
+'- Tu vas recevoir un contrat numérique par mail à signer basé sur cette évaluation. ',
+'VOICI CE QUE TU ACCEPTES EN SIGNANT LE CONTRAT :',
+'L\'élève accepte la manière et le fonctionnement de travailler du centre de formation. Il lui a bien été indiqué que si cela ne lui convenait pas, il existe d\'autres méthodologies dans d\'autres établissements.',
+'- M\'engage à accepter la manière de travailler du centre de formation Évolution Conduites expliquée dans la vidéo de présentation que vous avez regardé à l\'accueil.',
+'- Comprend que l\'accès aux écoutes pédagogiques et aux groupes de travail, sont un réel complément aux heures de conduites, qu\'ils seront ouverts et accessibles UNIQUEMENT pendant ma présence en formation, avec un réel investissement de ma part.',
+'M\'engage à me donner à fond dans ma formation (travail à domicile, réservations des cours en autonomie, pas d\'absence ni de retard etc...)',
+'Comprends qu\'Évolution Conduites me présentera à l\'épreuve pratique du permis de conduire, SEULEMENT si le centre de formation m\'estime apte à obtenir mon examen pratique du permis de conduire, selon le nombre d\'heures données à effectuer d\'après le résultat de mon examen blanc (selon progression).',
+'- Est bien conscient(e) que les dates d\'examens pratiques sont données par la DDTM et qu\'en cas d\'annulation ou de report, le centre de formation n\'est absolument pas responsable.',
+'- Est bien conscient(e) qu\'en cas d\'échec à l\'épreuve pratique, le centre de formation ne peut être tenu responsable des délais de repassage, dans la mesure où les premières présentations sont toujours privilégiées, est bien conscient(e) aussi qu\'il sera nécessaire de continuer la formation (y compris nombres de leçons de conduites estimées lors de l\'examen), afin d\'obtenir le niveau nécessaire pour l\'obtention de l\'examen.',
+'- Est bien conscient(e) d\'être dans un centre de formation à la conduite et à la sécurité routière et de ce fait, accepter avec notre aide, de devenir un(e) conducteur(trice) sûr(e) et responsable.'
+].join('\n');
 
 
 /* Le message pour Messenger, avec ses caractères stylisés.
@@ -491,7 +513,8 @@ function texteMessenger(r, auto){
 "🕙 𝗛𝗘𝗨𝗥𝗘𝗦 𝗣𝗥𝗘́𝗣𝗔𝗥𝗔𝗧𝗢𝗜𝗥𝗘𝗦 𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡 : 3 heures (2h le jour d'avant + 1h jour même)",
 '🕙 𝗧𝗢𝗧𝗔𝗟 : ' + total + ' heures ',
 '',
-piedEvaluation || PIED_DEFAUT
+'',
+PIED_MESSENGER
   ].join('\n');
 }
 
@@ -519,7 +542,8 @@ function texteMail(r, auto){
 "*HEURES PRÉPARATOIRES AVANT EXAMEN: 3 heures (2h le jour d'avant + 1h le jour de l'examen)",
 '*TOTAL : ' + total + ' ',
 '',
-piedMail()
+'',
+PIED_MAIL
   ].join('\n');
 }
 
@@ -554,10 +578,34 @@ function sansAccentNiEmoji(t){
 
 
 
-/* Le pied du mail : la même chose, débarrassée de ses émojis */
-function piedMail(){
-  return sansAccentNiEmoji(piedEvaluation || PIED_DEFAUT);
+/* Driv'up n'accepte ni émoji ni caractère stylisé : il les
+   remplace par des points d'interrogation. Les accents
+   ordinaires, eux, passent très bien. */
+function sansAccentNiEmoji(t){
+  return String(t || '')
+    /* Les gras et italiques mathématiques reviennent en lettres */
+    .replace(/[\uD835][\uDC00-\uDFFF]/g, ch => {
+      const c = ch.codePointAt(0);
+      const bases = [
+        [0x1D400, 65], [0x1D41A, 97], [0x1D434, 65], [0x1D44E, 97],
+        [0x1D468, 65], [0x1D482, 97], [0x1D5A0, 65], [0x1D5BA, 97],
+        [0x1D5D4, 65], [0x1D5EE, 97], [0x1D608, 65], [0x1D622, 97],
+        [0x1D63C, 65], [0x1D656, 97], [0x1D670, 65], [0x1D68A, 97]
+      ];
+      for(const [debut, ascii] of bases){
+        if(c >= debut && c < debut + 26){
+          return String.fromCharCode(ascii + (c - debut));
+        }
+      }
+      return '';
+    })
+    /* Puis les émojis eux-mêmes */
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, '')
+    .replace(/[·•]/g, '-')
+    .replace(/[ \t]{2,}/g, ' ')
+    .split('\n').map(l => l.replace(/^\s+/, '')).join('\n');
 }
+
 
 
 /* La note interne, celle qu'on colle dans Driv'up */
@@ -581,8 +629,6 @@ function noteInterne(r, auto){
 
 
 async function ouvrirTexteEvaluation(quoi, r){
-  await chargerPiedEvaluation();
-
   const nom = String(($('evEleve') && $('evEleve').value) || '').trim();
   const prenom = nom ? nom.split(' ')[0] : '';
 
@@ -686,64 +732,6 @@ async function ouvrirTexteEvaluation(quoi, r){
   bF.textContent = 'Fermer';
   bF.addEventListener('click', () => document.body.removeChild(fond));
   rw.appendChild(bF);
-
-  boite.appendChild(rw);
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-}
-
-
-function ouvrirPiedEvaluation(retour, r){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(620px, 95vw);max-height:90vh;overflow-y:auto;';
-
-  boite.innerHTML = '<h3>✏️ Fin du message</h3>' +
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;' +
-      'line-height:1.5;">Ce qui suit les deux tarifs : les conditions, ' +
-      'ce que l\'élève accepte, la suite à donner. Colle ici ton texte ' +
-      'habituel.<br>La version mail retire les émojis toute seule.</div>';
-
-  const z = document.createElement('textarea');
-  z.rows = 16;
-  z.value = piedEvaluation || PIED_DEFAUT;
-  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-    'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:13px;' +
-    'line-height:1.6;font-family:inherit;resize:vertical;margin-bottom:10px;';
-  boite.appendChild(z);
-
-  const rw = document.createElement('div');
-  rw.className = 'btn-row';
-
-  const bA = document.createElement('button');
-  bA.className = 'btn btn-secondary';
-  bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => {
-    document.body.removeChild(fond);
-    ouvrirTexteEvaluation(retour, r);
-  });
-  rw.appendChild(bA);
-
-  const bO = document.createElement('button');
-  bO.className = 'btn btn-primary';
-  bO.textContent = '💾 Enregistrer';
-  bO.addEventListener('click', async () => {
-    bO.disabled = true;
-    try{
-      await appelPrep({ action: 'reglageSet', cle: 'piedEvaluation',
-                        valeur: z.value, par: ACCES.moniteur || '' });
-      piedEvaluation = z.value;
-      document.body.removeChild(fond);
-      showToast('Enregistré ✅');
-      ouvrirTexteEvaluation(retour, r);
-    }catch(e){
-      showToast('Impossible : ' + e.message);
-      bO.disabled = false;
-    }
-  });
-  rw.appendChild(bO);
 
   boite.appendChild(rw);
   fond.appendChild(boite);
