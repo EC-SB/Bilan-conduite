@@ -1,4 +1,4 @@
-/* Déployé le 25/08/2026 à 14:10 — v539 */
+/* Déployé le 26/08/2026 à 15:12 — v576 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -499,6 +499,11 @@ $('confirmGen').addEventListener('click', async () => {
   $('recordView').style.display = 'none';
   $('generatingView').style.display = 'block';
   $('progressionGen').textContent = 'Préparation…';
+
+  /* Un élève attend peut-être déjà : on proposera d'enchaîner si
+     la génération s'éternise. */
+  const eleveDuBilan = studentName;
+  if(typeof surDebutGeneration === 'function') surDebutGeneration();
   const oldDetail = $('genErrorDetail');
   if(oldDetail) oldDetail.remove();
 
@@ -582,6 +587,17 @@ $('confirmGen').addEventListener('click', async () => {
        coup d'œil que rien n'a été oublié ni inventé. */
     direOrigineManoeuvres(donnees.manoeuvres || []);
 
+    if(typeof surFinGeneration === 'function') surFinGeneration();
+
+    /* Le moniteur est passé au cours suivant : on range le bilan
+       et on le lui signale, sans lui reprendre son écran. */
+    if(typeof bilanEnFondPret === 'function' &&
+       bilanEnFondPret(eleveDuBilan, bilan, currentLessonMeta)){
+      await saveLesson(currentLessonMeta, bilan);
+      await refreshHistory();
+      return;
+    }
+
     $('generatingView').style.display = 'none';
     $('resultView').style.display = 'block';
     /* Les procédures à cocher, prêtes dès l'affichage du bilan */
@@ -593,6 +609,15 @@ $('confirmGen').addEventListener('click', async () => {
     await refreshHistory();
   }catch(err){
     console.error('Erreur génération bilan:', err);
+    if(typeof surFinGeneration === 'function') surFinGeneration();
+
+    /* Un bilan ne se perd jamais en silence : si le moniteur est
+       passé à autre chose, la bannière le lui dira. */
+    if(typeof bilanEnFondRate === 'function' &&
+       bilanEnFondRate(eleveDuBilan, err && err.message ? err.message : err)){
+      return;
+    }
+
     $('generatingView').style.display = 'none';
     $('recordView').style.display = 'block';
     showToast("Erreur de génération — détail sous le bouton.");
