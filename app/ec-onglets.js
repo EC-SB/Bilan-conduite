@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 10:50 — v553 */
+/* Déployé le 26/08/2026 à 11:04 — v554 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -16,7 +16,7 @@ const SECTIONS_ONGLET = {
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
-  outils:  ['paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
+  outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie',
             'bureau_messages', 'admin']
@@ -143,7 +143,8 @@ const VUES = {
            ['permis',     '🎓 Permis obtenu',         'permis'],
            ['depart',     '🚪 Départ',                'depart']],
   /* Ce qui sert au quotidien pédagogique */
-  outils: [['paiement',   '💳 Paiement en plusieurs fois', 'paiement'],
+  outils: [['placesbe',   '🚚 Places BE',              'placesbe'],
+           ['paiement',   '💳 Paiement en plusieurs fois', 'paiement'],
            ['procedures', '🚦 Procédures',             'procedures'],
            ['textes',     '📄 Textes types',           'textes'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
@@ -259,6 +260,7 @@ function reveillerVue(cle){
     financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
     paiement:   () => afficherPaiement(),
+    placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     ecoutes:    () => afficherEcoutes(),
