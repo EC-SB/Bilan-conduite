@@ -42,6 +42,29 @@ function semainesDuMois(annee, mois){
 }
 
 
+/* Le lundi et le vendredi d'une semaine ISO.
+
+   Deux mois se partagent parfois la même semaine : voir les
+   dates évite de se tromper de période. */
+function datesDeLaSemaine(annee, numero){
+  /* Le 4 janvier tombe toujours dans la semaine 1 */
+  const jan4 = new Date(Date.UTC(annee, 0, 4));
+  const lundi1 = new Date(jan4);
+  lundi1.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() || 7) - 1));
+
+  const lundi = new Date(lundi1);
+  lundi.setUTCDate(lundi1.getUTCDate() + (numero - 1) * 7);
+
+  const vendredi = new Date(lundi);
+  vendredi.setUTCDate(lundi.getUTCDate() + 4);
+
+  const jour = d => String(d.getUTCDate()).padStart(2, '0') + '/' +
+                    String(d.getUTCMonth() + 1).padStart(2, '0');
+
+  return jour(lundi) + ' au ' + jour(vendredi);
+}
+
+
 /* Le mois qu'on doit demander maintenant : trois mois devant */
 function moisAdemander(){
   const auj = new Date();
@@ -164,7 +187,7 @@ function dessinerPlacesBE(){
   table.style.cssText = 'width:100%;border-collapse:collapse;font-size:14px;';
   table.innerHTML = '<thead><tr>' +
     '<th style="padding:8px 6px;font-size:11px;color:var(--muted);' +
-      'width:70px;">Semaine</th>' +
+      'width:94px;">Semaine</th>' +
     '<th style="padding:8px 6px;font-size:11px;color:var(--muted);' +
       'width:86px;">Unités</th>' +
     '<th style="text-align:left;padding:8px 6px;font-size:11px;' +
@@ -178,9 +201,14 @@ function dessinerPlacesBE(){
     tr.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);';
 
     const tdS = document.createElement('td');
-    tdS.style.cssText = 'padding:7px 6px;text-align:center;font-weight:700;' +
-      'color:var(--accent-text);';
-    tdS.textContent = l2.semaine;
+    tdS.style.cssText = 'padding:7px 6px;text-align:center;';
+    tdS.innerHTML = '<span style="font-weight:700;color:var(--accent-text);">' +
+      l2.semaine + '</span>' +
+      /* Les dates ne partent pas dans le courrier : elles ne
+         servent qu'à ne pas se tromper de semaine. */
+      '<div style="font-size:10px;color:var(--muted);font-weight:400;' +
+        'margin-top:2px;white-space:nowrap;">' +
+        datesDeLaSemaine(annee, l2.semaine) + '</div>';
     tr.appendChild(tdS);
 
     const tdU = document.createElement('td');
