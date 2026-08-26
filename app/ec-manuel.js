@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:37 — v568 */
+/* Déployé le 26/08/2026 à 13:51 — v569 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1504,10 +1504,16 @@ function remplirFrises(champs, surEcran){
                 extraireFrise($('noteInterne').value);
   if(!frise) return;
 
-  /* Poser une réponse à l'écran comme dans les champs : le
-     moniteur voit le calcul, il peut le corriger. */
+  /* Ce que le calcul a posé lui-même, par opposition à ce que le
+     moniteur a saisi : le premier se recalcule, le second est
+     sacré. */
+  if(!champs.__frisesAuto) champs.__frisesAuto = {};
+
   const poser = (cle, valeur) => {
+    if(champs[cle] === valeur) return;      /* déjà juste */
+
     champs[cle] = valeur;
+    champs.__frisesAuto[cle] = valeur;
     if(!surEcran) return;
 
     const zone = document.getElementById('man_' + cle.replace('.', '_'));
@@ -1525,13 +1531,17 @@ function remplirFrises(champs, surEcran){
   const prevues = leconsAvantExamenBlanc(frise);
   const faites = (dossierManuel && Number(dossierManuel.lecons)) || null;
 
-  if(prevues !== null && faites !== null && !champs.friseAvant){
+  /* On recalcule tant que le moniteur n'a pas corrigé lui-même */
+  const aMoi = cle => !champs[cle] ||
+                      champs.__frisesAuto[cle] === champs[cle];
+
+  if(prevues !== null && faites !== null && aMoi('friseAvant')){
     if(faites <= prevues){
       poser('friseAvant', 'oui');
     }else{
       poser('friseAvant', 'non');
       /* Chaque leçon de deux heures au-delà du prévu */
-      if(!String(champs.friseAvantH || '').trim()){
+      if(aMoi('friseAvantH')){
         poser('friseAvantH', String((faites - prevues) * 2));
       }
     }
@@ -1542,16 +1552,18 @@ function remplirFrises(champs, surEcran){
   const apres = leconsApresExamenBlanc(frise);
   const annoncees = Number(String(champs.heuresAvant || '').trim());
 
-  if(apres !== null && annoncees && !champs.frisePost){
+  if(apres !== null && annoncees && aMoi('frisePost')){
     /* La frise compte en leçons de 2h, plus les 3h avant examen.
        « 2 leçons + 3h » fait donc 7h attendues. */
     const prevuH = apres * 2 + 3;
 
     if(annoncees <= prevuH){
       poser('frisePost', 'oui');
+      /* Plus d'heures en trop : le champ se vide */
+      if(aMoi('frisePostH') && champs.frisePostH) poser('frisePostH', '');
     }else{
       poser('frisePost', 'non');
-      if(!String(champs.frisePostH || '').trim()){
+      if(aMoi('frisePostH')){
         poser('frisePostH', String(annoncees - prevuH));
       }
     }
