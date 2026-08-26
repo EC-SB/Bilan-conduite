@@ -1,4 +1,4 @@
-/* Déployé le 18/08/2026 à 07:46 — v420 */
+/* Déployé le 26/08/2026 à 12:24 — v562 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -456,7 +456,8 @@ function afficherRdvPermis(tous){
                      : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
           return t + ' · ' + (s.centre || 'centre à définir') +
                  (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
-                 (s.semaine ? ' · ' + s.semaine : '');
+                 (s.semaine ? ' · ' + s.semaine : '') +
+                 mentionHeuresRestantes(x.eleve);
         },
         resume: x => resumeSuivi(x.eleve),
         alerte: x => {
@@ -724,6 +725,7 @@ function afficherPermisPrevus(tous){
                   : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
                  ' · Permis le ' + (x._datePermis || 'date inconnue') +
                  (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '') +
+                 mentionHeuresRestantes(x.eleve) +
                  (autre ? '\n📝 ' + autre : '');
         },
         resume: x => resumeSuivi(x.eleve),
@@ -821,6 +823,11 @@ function afficherExamensPermis(tous){
      attend ce rendez-vous pour savoir s'il repasse, et sans ça il
      disparaissait de toutes les listes entre-temps. */
   const candidats = tous.filter(e => {
+    /* Une date déjà posée, ou une place dans une session : il
+       n'est plus « à placer », quoi que dise sa note. Celle-ci
+       vient souvent d'un cours antérieur à la date. */
+    if(dejaPlace(e)) return false;
+
     if(e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') return true;
     const s = suiviDe(e.eleve);
     return !!(s.rdvPostDate && s.rdvPostFait !== 'oui');
@@ -1550,6 +1557,101 @@ function dateCourte(v){
    le bureau doit pouvoir l'ajouter lui-même. L'information part
    en message, donc elle remonte au questionnaire du moniteur.
    ============================================================ */
+/* Cet élève a-t-il déjà sa date d'examen ?
+
+   Trois traces possibles : la date dans son suivi, celle lue
+   dans ses notes, ou une place dans une session ouverte. */
+function dejaPlace(e){
+  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
+
+  /* Un permis annulé se replace : la date passée ne compte plus */
+  if(e.etat && e.etat.permis === 'annule') return false;
+
+  /* Un rendez-vous post-permis en attente : on attend de savoir
+     s'il repasse avant de le considérer placé. */
+  if(s.rdvPostDate && s.rdvPostFait !== 'oui') return false;
+
+  if(String(s.datePermis || '').trim()) return true;
+  if(e.etat && String(e.etat.permisDate || '').trim()) return true;
+
+  /* Une place dans une session : c'est une date, elle aussi */
+  try{
+    if(typeof sessionsPermis !== 'undefined' && sessionsPermis.length){
+      const dedans = sessionsPermis.some(se =>
+        (se.eleves || []).some(p =>
+          p.eleve && normaliserMot(p.eleve) === normaliserMot(e.eleve)));
+      if(dedans) return true;
+    }
+  }catch(err){ /* sans les sessions, les dates suffisent */ }
+
+  return false;
+}
+
+
+/* Cet élève a-t-il déjà son permis ?
+
+   Un résultat « obtenu » supprime son suivi : il ne reste que la
+   trace dans ses notes et dans les résultats. */
+function dejaSonPermis(nom){
+  /* Ce que disent ses notes */
+  try{
+    const liste = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
+      ? etatBureau.eleves : [];
+    const e = liste.find(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+    if(e && e.etat && e.etat.permis === 'obtenu'){
+      return { quand: e.etat.permisDate || '' };
+    }
+  }catch(err){}
+
+  /* Ce que dit son suivi */
+  try{
+    const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+    if(String(s.resultat || '').toLowerCase() === 'obtenu'){
+      return { quand: s.datePermis || '' };
+    }
+  }catch(err){}
+
+  return null;
+}
+
+
+/* Les heures qu'il reste à faire avant l'examen.
+
+   Le bureau les note ici ; le moniteur les voit dans les trois
+   listes. Sans ce repère, on place un élève qui n'est pas prêt. */
+function mentionHeuresRestantes(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const h = String(s.heuresRestantes || '').trim();
+  if(!h) return '';
+  return ' · ⏱️ ' + h + 'h';
+}
+
+
+/* La fenêtre pour les saisir */
+async function saisirHeuresRestantes(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+
+  const v = await demander(
+    "Combien d'heures reste-t-il à faire avant l'examen ?\n" +
+    'Laisse vide si tout est fait.',
+    String(s.heuresRestantes || ''), nom);
+
+  if(v === null) return;
+
+  const propre = String(v).trim().replace(',', '.');
+  if(propre && isNaN(Number(propre))){
+    showToast('Indique un nombre d\'heures.');
+    return;
+  }
+
+  try{
+    await majSuivi(nom, { heuresRestantes: propre });
+    showToast(propre ? propre + 'h restantes ✅' : 'Plus rien à faire ✅');
+    afficherBureau();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
 function boutonAjoutManuel(zone, mode){
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
@@ -1569,6 +1671,19 @@ async function ajouterManuellementAuPermis(mode){
                      : 'Ajouter un élève prêt au permis',
     'Commence à taper : les élèves connus sont proposés.');
   if(!eleve) return;
+
+  /* Un élève qui a déjà son permis n'a rien à faire dans ces
+     listes : l'y remettre fausse le suivi et lui prendrait une
+     place d'examen. */
+  const obstacle = dejaSonPermis(eleve);
+  if(obstacle){
+    await informer(eleve + ' a déjà obtenu son permis' +
+      (obstacle.quand ? ' le ' + obstacle.quand : '') + '.\n\n' +
+      "Il ne peut pas rejoindre cette liste. S'il s'agit d'une " +
+      'erreur, annule son résultat depuis le journal.',
+      'Permis déjà obtenu');
+    return;
+  }
 
   let iso = '';
   if(mode === 'prevu'){
