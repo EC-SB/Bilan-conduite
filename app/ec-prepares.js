@@ -1,4 +1,4 @@
-/* Déployé le 25/08/2026 à 14:25 — v540 */
+/* Déployé le 26/08/2026 à 10:13 — v552 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -53,7 +53,18 @@ async function appelPrep(corps){
   /* Le message du serveur vaut mieux qu'un code seul : « HTTP 502 »
      ne dit rien, « SMTP 535 : authentification refusée » dit tout. */
   const rep = await r.json().catch(() => ({}));
-  if(!r.ok) throw new Error(rep && rep.error ? rep.error : 'HTTP ' + r.status);
+
+  if(!r.ok){
+    /* Un refus du serveur — trop d'essais, trop d'appels — veut
+       dire « pas maintenant ». On met les rafraîchissements en
+       sommeil : insister ne ferait que prolonger le blocage. */
+    if((r.status === 403 || r.status === 429) &&
+       typeof noterRefusReseau === 'function'){
+      noterRefusReseau(r.status === 429 ? 300 : 120);
+    }
+    throw new Error(rep && rep.error ? rep.error : 'HTTP ' + r.status);
+  }
+
   return rep;
 }
 
