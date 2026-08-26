@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 09:37 — v548 */
+/* Déployé le 26/08/2026 à 12:46 — v563 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -661,6 +661,32 @@ function construireCepcTexte(cepc, observations, c){
   return out.join('\n');
 }
 
+/* Les erreurs éliminatoires, groupées par catégorie du CEPC.
+
+   Une catégorie touchée trois fois ne coche qu'un E, mais ses
+   trois fautes figurent toutes dans le bilan : c'est là qu'on
+   travaille ce qui a coûté l'examen. */
+function eliminatoiresParCategorie(obs){
+  if(!Array.isArray(obs)) return [];
+
+  const par = {};
+  obs.forEach(o => {
+    const cat = String((o && o.categorie) || '').trim();
+    if(!cat) return;
+    (par[cat] = par[cat] || []).push(o);
+  });
+
+  /* L'ordre du CEPC, celui que suit l'inspecteur */
+  const ordre = [];
+  CEPC_BLOCS.forEach(b => b.items.forEach(it => {
+    if((it.valeurs || []).indexOf('E') !== -1) ordre.push(it.nom);
+  }));
+
+  return ordre.filter(n => par[n])
+              .map(n => ({ categorie: n, fautes: par[n] }));
+}
+
+
 function buildExamenBlanc(ai, ctx){
   ai = ai || {};
   const cep = calculerCepc(ai.cepc);
@@ -739,6 +765,24 @@ function buildExamenBlanc(ai, ctx){
   L('𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦');
   L('━━━━━━━━━━━━━━━━━━');
   L('');
+
+  /* Les erreurs éliminatoires ouvrent le bilan : c'est ce qui a
+     coûté l'examen. Groupées par catégorie du CEPC, comme
+     l'inspecteur les compte. */
+  const elim = eliminatoiresParCategorie(ai.observations);
+  elim.forEach(g => {
+    L('☠️ 𝙀𝙧𝙧𝙚𝙪𝙧 𝙚́𝙡𝙞𝙢𝙞𝙣𝙖𝙩𝙤𝙞𝙧𝙚 — ' + g.categorie);
+    L('');
+    g.fautes.forEach(o => {
+      if(o.inspecteur) L('👨‍✈️ ' + o.inspecteur);
+      if(o.reponse) L(emojiMoniteur() + ' ' + o.reponse);
+      L("- qu'en penses-tu ?");
+      L('- quelles sont TES solutions ?');
+      L('- ce que je te PROPOSE : ');
+      L('');
+    });
+  });
+
   /* Cinq blocs complets, même vides : le moniteur a son repère
      visuel et remplit dans la structure au lieu de la recréer. */
   const bil = ligneParLigne(ai.bilanErreurs);
@@ -753,7 +797,14 @@ function buildExamenBlanc(ai, ctx){
   L('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
   L('');
   const niveau = ai.niveau || '';
-  if(niveau === 'non'){
+
+  /* Il pourrait avoir le niveau, mais rien ne permet de chiffrer
+     les heures : c'est à lui de se placer un planning. */
+  if(niveau === 'peut'){
+    L('𝟰-𝟭👉🤔 𝙏𝙐 𝙋𝙊𝙐𝙍𝙍𝘼𝙄𝙎 𝘼𝙑𝙊𝙄𝙍 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐');
+    L("A ce jour tu pourrais avoir le niveau mais je ne peux pas estimer le nombre d'heures qu'il te faut avant un examen. J'en ai aucune idée. Place des heures et des écoutes pédagogiques comme si tu allez passer ton examen, fais toi ton propre planning et préviens nous dès que c'est fait. Car si tu obtiens le niveau tu pourrais avoir une date rapidement.");
+    L('');
+  }else if(niveau === 'non'){
     L('𝟰-𝟭👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !');
     L("Continue de travailler, écoutes pédagogiques, groupes de travail et continue tes leçons de conduites. Revoit avec tes moniteurs si ton niveau s'est amélioré pour permettre de re-prévoir un planning de fin de formation. ");
     L('');
