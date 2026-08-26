@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:51 — v569 */
+/* Déployé le 26/08/2026 à 14:09 — v570 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1519,11 +1519,20 @@ function remplirFrises(champs, surEcran){
     const zone = document.getElementById('man_' + cle.replace('.', '_'));
     if(zone){ zone.value = valeur; return; }
 
-    /* Les oui/non sont des boutons : on appuie sur le bon, ce qui
-       repeint et enregistre comme si le moniteur l'avait fait. */
-    const b = document.querySelector('#ouinon_' + cle + ' [data-val="' +
-                                     valeur + '"]');
-    if(b) b.click();
+    /* Les oui/non sont des boutons : on repeint nous-mêmes.
+
+       Un clic simulé rappellerait le gestionnaire, qui réécrirait
+       la valeur et effacerait la marque « posé par le calcul » —
+       plus rien ne se serait recalculé ensuite. */
+    const r = document.getElementById('ouinon_' + cle);
+    if(!r) return;
+
+    Array.prototype.forEach.call(r.children, b => {
+      const pris = (b.getAttribute('data-val') === valeur);
+      b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+      b.style.color = pris ? 'var(--accent-text)' : 'var(--cream)';
+      b.style.fontWeight = pris ? '800' : '400';
+    });
   };
 
   /* Avant l'examen blanc : ce que la frise prévoyait, contre ce
