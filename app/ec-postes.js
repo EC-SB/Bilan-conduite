@@ -106,6 +106,9 @@ function demarrerPostes(noms){
     committed: '',
     bilan: '',
     note: '',
+    /* Ce qu'il a coché : l'en-tête du cours et la fiche véhicule */
+    entete: null,
+    fiche: null,
     fait: false
   }));
 
@@ -114,6 +117,7 @@ function demarrerPostes(noms){
 
   /* La séance est commune : un seul modèle, un seul lieu */
   $('studentName').value = postes[0].eleve;
+  retablirEcranPoste(postes[0]);
 
   afficherBarrePostes();
   showToast(postes.length + ' postes ouverts — dicte pour ' +
@@ -236,6 +240,11 @@ function basculerPoste(i){
 
   $('studentName').value = p.eleve;
 
+  /* La transcription et les cases du véhicule : elles vivent
+     dans la page, pas dans le poste. Sans ce rétablissement,
+     elles disparaissaient au changement d'élève. */
+  retablirEcranPoste(p);
+
   /* Le bilan déjà fait se revoit ; sinon on retourne à la dictée */
   if(p.bilan){
     $('recordView').style.display = 'none';
@@ -300,6 +309,42 @@ function couperSessionVocale(){
 }
 
 
+/* L'écran, remis dans l'état de cet élève.
+
+   Les cases du véhicule et l'en-tête du cours sont des éléments
+   de la page : elles suivent l'élève affiché, pas la séance. */
+function retablirEcranPoste(p){
+  /* La transcription reste visible dès qu'une séance est ouverte :
+     le moniteur dicte pour chacun. */
+  const zt = $('transcriptBox');
+  if(zt){
+    zt.style.display = 'block';
+    const aide = $('transcriptAide');
+    if(aide) aide.style.display = 'block';
+    const cpt = $('compteur');
+    if(cpt) cpt.style.display = 'block';
+  }
+
+  /* L'en-tête : on le redessine vide, puis on recoche */
+  const ze = $('enteteCours');
+  if(ze && typeof afficherEnteteDuCours === 'function'){
+    ze.innerHTML = '';
+    afficherEnteteDuCours();
+    if(p.entete){
+      ze.querySelectorAll('.entCase').forEach(cb => {
+        const k = cb.getAttribute('data-cle');
+        if(k && p.entete[k] !== undefined) cb.checked = !!p.entete[k];
+      });
+    }
+  }
+
+  /* La fiche véhicule dépend de l'élève : elle se recharge */
+  if(typeof afficherFicheDuCours === 'function'){
+    try{ afficherFicheDuCours(); }catch(e){}
+  }
+}
+
+
 /* Ce qui est à l'écran appartient au poste actif */
 function rangerPosteActif(){
   if(posteActif < 0 || posteActif >= postes.length) return;
@@ -307,6 +352,17 @@ function rangerPosteActif(){
 
   const zt = $('transcriptBox');
   if(zt) p.transcript = zt.value;
+
+  /* Ce qu'il a coché dans l'en-tête */
+  const ze = $('enteteCours');
+  if(ze){
+    const coches = {};
+    ze.querySelectorAll('.entCase').forEach(cb => {
+      const k = cb.getAttribute('data-cle');
+      if(k) coches[k] = cb.checked;
+    });
+    if(Object.keys(coches).length) p.entete = coches;
+  }
 
   if(typeof committedTranscript !== 'undefined'){
     p.committed = committedTranscript;
