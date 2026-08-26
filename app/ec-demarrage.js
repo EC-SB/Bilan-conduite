@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:37 — v574 */
+/* Déployé le 26/08/2026 à 15:27 — v577 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -39,9 +39,20 @@ function sauvegarderLocal(force){
                .map(x => x.value)
     }));
   }catch(e){
-    /* stockage plein ou indisponible : on continue sans sauvegarde */
+    /* Le stockage est plein, ou le navigateur le refuse. Sans
+       cette alerte, le moniteur croyait son cours à l'abri. */
+    if(!sauvegardeEnPanne){
+      sauvegardeEnPanne = true;
+      if(typeof showToast === 'function'){
+        showToast('⚠️ Sauvegarde impossible sur cet appareil');
+      }
+    }
   }
 }
+
+/* Signalé une seule fois : le répéter toutes les 4 secondes
+   rendrait l'application inutilisable. */
+let sauvegardeEnPanne = false;
 
 function lireSauvegarde(){
   try{
@@ -60,6 +71,13 @@ function proposerReprise(){
   const s = lireSauvegarde();
   const banniere = $('repriseBanner');
   if(!banniere) return;
+
+  /* Ce que le serveur garde : un cours déposé mais jamais abouti.
+     Il survit au rechargement, au changement d'appareil, à un
+     stockage local défaillant. */
+  if(typeof chercherBrouillonsServeur === 'function'){
+    setTimeout(() => chercherBrouillonsServeur(), 1500);
+  }
 
   /* Une séance à plusieurs interrompue : elle prime, c'est
      plusieurs bilans qui attendent. */
