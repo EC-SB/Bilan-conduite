@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:10 — v570 */
+/* Déployé le 26/08/2026 à 14:30 — v573 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -977,10 +977,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         dateEB.value = ($('lessonDate') && $('lessonDate').value) || todayLocal();
       }
 
-      /* Le rang se déduit de ceux déjà passés */
+      /* Le rang se déduit de ceux déjà passés : aucun avant, donc
+         c'est le premier. */
       if(rangEB && !rangEB.value){
         const n = examensBlancsPasses();
-        if(n) rangEB.value = String(Math.min(n + 1, 5));
+        rangEB.value = String(Math.min(n + 1, 5));
       }
     }
 
