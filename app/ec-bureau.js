@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 15:07 — v512 */
+/* Déployé le 26/08/2026 à 10:12 — v552 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -709,11 +709,39 @@ function tiroirOuvert(cle){
          el.style.display !== 'none';
 }
 
+/* ============================================================
+   SE TAIRE APRÈS UN REFUS
+
+   Un 403 ou un 429 veut dire « pas maintenant ». Continuer à
+   demander toutes les 90 secondes ne fait qu'entretenir le
+   blocage.
+   ============================================================ */
+
+let reseauRefuseJusqua = 0;
+
+function noterRefusReseau(secondes){
+  reseauRefuseJusqua = Date.now() + (secondes || 120) * 1000;
+}
+
+function reseauEnPause(){
+  return Date.now() < reseauRefuseJusqua;
+}
+
+
 function lancerActualisationAuto(){
   clearInterval(minuteurBureau);
   minuteurBureau = setInterval(() => {
     if(!ACCES.code) return;
     if(bureauOccupe()) return;
+
+    /* L'onglet en arrière-plan n'a personne devant : rafraîchir
+       coûte des appels sans que rien ne soit lu. */
+    if(document.hidden) return;
+
+    /* Après un refus du serveur, on se tait : réessayer toutes
+       les 90 secondes prolongeait le blocage au lieu de le
+       laisser expirer. */
+    if(reseauEnPause()) return;
 
     /* Les cours préparés : d'autres moniteurs en ajoutent */
     if(tiroirOuvert('prepares') && aDroit('cours')) afficherPrepares(true, true);
