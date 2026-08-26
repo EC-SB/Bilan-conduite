@@ -1,4 +1,4 @@
-/* Déployé le 25/08/2026 à 14:06 — v539 */
+/* Déployé le 26/08/2026 à 10:13 — v552 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -9,7 +9,9 @@
    si l'élément a disparu de la page. */
 function brancher(id, evenement, action){
   const el = document.getElementById(id);
-  if(!el){ console.warn('Élément absent de la page : ' + id); return null; }
+  /* Un écran qui n'a pas ce champ n'est pas une anomalie : le
+     signaler à chaque chargement noyait les vraies erreurs. */
+  if(!el) return null;
   el.addEventListener(evenement, action);
   return el;
 }
