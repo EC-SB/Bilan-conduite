@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 15:12 — v576 */
+/* Déployé le 26/08/2026 à 15:27 — v577 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -504,6 +504,14 @@ $('confirmGen').addEventListener('click', async () => {
      la génération s'éternise. */
   const eleveDuBilan = studentName;
   if(typeof surDebutGeneration === 'function') surDebutGeneration();
+
+  /* La transcription part sur le serveur avant toute génération :
+     un plantage, un rechargement, une batterie vide ne doivent
+     jamais coûter deux heures de cours. */
+  if(typeof deposerBrouillonServeur === 'function'){
+    $('progressionGen').textContent = 'Mise à l\'abri du cours…';
+    await deposerBrouillonServeur();
+  }
   const oldDetail = $('genErrorDetail');
   if(oldDetail) oldDetail.remove();
 
@@ -595,6 +603,10 @@ $('confirmGen').addEventListener('click', async () => {
        bilanEnFondPret(eleveDuBilan, bilan, currentLessonMeta)){
       await saveLesson(currentLessonMeta, bilan);
       await refreshHistory();
+      /* Le cours est en sécurité : son brouillon peut partir */
+      if(typeof retirerBrouillonServeur === 'function'){
+        retirerBrouillonServeur(eleveDuBilan);
+      }
       return;
     }
 
@@ -607,6 +619,12 @@ $('confirmGen').addEventListener('click', async () => {
     marquerExport(false);
     await saveLesson(currentLessonMeta, bilan);
     await refreshHistory();
+
+    /* Le cours est en sécurité dans les bilans : son brouillon
+       n'a plus lieu d'être. */
+    if(typeof retirerBrouillonServeur === 'function'){
+      retirerBrouillonServeur(eleveDuBilan);
+    }
   }catch(err){
     console.error('Erreur génération bilan:', err);
     if(typeof surFinGeneration === 'function') surFinGeneration();
