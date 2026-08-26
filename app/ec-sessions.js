@@ -526,6 +526,17 @@ function remplirPlaces(zone, sess){
 
 
 /* Une place : l'élève, son heure, son état, ses boutons */
+/* L'état d'un élève, tel que le bureau le connaît */
+function etatDe(nom){
+  try{
+    if(typeof etatBureau === 'undefined' || !etatBureau.eleves) return {};
+    const e = etatBureau.eleves.find(x =>
+      normaliserMot(x.eleve) === normaliserMot(nom));
+    return (e && e.etat) || {};
+  }catch(err){ return {}; }
+}
+
+
 function lignePlace(p, sess){
   const etat = etatPlace(p, eleveDuBureau(p.eleve));
   const vide = !p.eleve;
@@ -568,6 +579,29 @@ function lignePlace(p, sess){
         'margin-top:2px;line-height:1.4;">📝 ' +
         su.autre.replace(/</g, '&lt;') + '</div>' : '');
   nom.addEventListener('click', () => ouvrirPlace(p, sess));
+  /* Où en est son examen blanc : c'est ce qui décide s'il est
+     prêt à passer. Le bureau doit le voir en donnant les dates. */
+  if(!vide && typeof mentionExamenBlanc === 'function'){
+    const eb = document.createElement('div');
+    eb.style.cssText = 'font-size:11px;margin-top:2px;';
+
+    const m = mentionExamenBlanc({ eleve: p.eleve,
+                                   etat: etatDe(p.eleve) });
+    const manque = /pas encore/.test(m);
+    eb.style.color = manque ? 'var(--warn-text)' : 'var(--muted)';
+    eb.textContent = m.replace(/^ · /, '');
+
+    /* Un appui pour le corriger ou l'indiquer à la main */
+    eb.style.cursor = 'pointer';
+    eb.title = "Indiquer où en est son examen blanc";
+    eb.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if(typeof saisirExamenBlanc === 'function') saisirExamenBlanc(p.eleve);
+    });
+
+    nom.appendChild(eb);
+  }
+
   l.appendChild(nom);
 
   if(!vide){
