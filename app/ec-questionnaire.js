@@ -1,4 +1,4 @@
-/* Déployé le 20/08/2026 à 16:32 — v455 */
+/* Déployé le 26/08/2026 à 13:51 — v569 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -209,6 +209,20 @@ function defautsDepuisNote(note){
 }
 
 /* Champs factuels : toujours recalculés, jamais figés par la préparation */
+/* Cette séance compte-t-elle dans la frise ?
+
+   Les leçons de conduite oui ; l'examen blanc, les simulateurs
+   et l'examen officiel non — ils ne consomment pas de leçon. */
+function seanceDeLaFrise(){
+  const m = ($('modele') && $('modele').value) || '';
+  if(/^simu/.test(m)) return false;
+  if(m === 'examen-blanc') return false;
+  if(m === 'examen-officiel') return false;
+  if(m === 'rdv-post') return false;
+  return true;
+}
+
+
 const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres'];
 
 /* Fusionne : le jugement du moniteur l'emporte, les faits sont rafraîchis */
@@ -583,8 +597,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4;">' +
       'Laisse vide si la frise n\'est pas encore déterminée.</div>' +
 
-      '<label for="qLecon">Leçon n°</label>' +
-      '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
+      '<div id="qBlocLecon">' +
+        '<label for="qLecon">Leçon n°</label>' +
+        '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
+      '</div>' +
 
       '<label>Examen blanc</label>' +
       '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
@@ -796,8 +812,17 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       majHeures();
     }
 
-    boite.querySelector('#qLecon').value =
-      prec.lecon || ((rangDuJour !== null) ? rangDuJour : '');
+    /* Examen blanc, simulateur, examen officiel : ces séances ne
+       comptent pas dans la frise. Leur donner un numéro de leçon
+       décalait tout le reste. */
+    const zLecon = boite.querySelector('#qBlocLecon');
+    if(zLecon && !seanceDeLaFrise()){
+      zLecon.style.display = 'none';
+      boite.querySelector('#qLecon').value = '';
+    }else{
+      boite.querySelector('#qLecon').value =
+        prec.lecon || ((rangDuJour !== null) ? rangDuJour : '');
+    }
     boite.querySelector('#qPasEcoute').checked = !!prec.pasEcoute;
     boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
