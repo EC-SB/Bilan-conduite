@@ -126,6 +126,14 @@ async function afficherPlacesBE(){
   zt.id = 'beTableau';
   zone.appendChild(zt);
 
+  /* Les demandes déjà faites : sans cette trace, on ne sait plus
+     lesquelles sont parties, et un oubli coûte un mois. */
+  const zl = document.createElement('div');
+  zl.id = 'beListe';
+  zl.style.marginTop = '18px';
+  zone.appendChild(zl);
+  afficherListeBE();
+
   sel.addEventListener('change', dessinerPlacesBE);
   $('beAnnee').addEventListener('input', dessinerPlacesBE);
 
@@ -469,7 +477,22 @@ async function envoyerPlacesBE(){
                         valeur: propre, par: ACCES.moniteur || '' });
     }catch(e){}
 
+    /* La demande est notée comme envoyée */
+    try{
+      await appelPrep({
+        action: 'placesbeSet',
+        annee: placesBE.annee, mois: placesBE.mois,
+        unites: placesBE.lignes.reduce((s, x) => s + (Number(x.unites) || 0), 0),
+        detail: placesBE.lignes.filter(x => Number(x.unites))
+          .map(x => 'S' + x.semaine + ' : ' + x.unites).join(' · '),
+        envoyee: true,
+        destinataire: propre,
+        par: ACCES.moniteur || ''
+      });
+    }catch(e){}
+
     showToast('Envoyée à ' + propre + ' ✅');
+    afficherListeBE();
   }catch(e){
     showToast('Impossible : ' + e.message);
   }
@@ -482,6 +505,193 @@ async function adresseDdtm(){
     const d = await appelPrep({ action: 'reglagesList' });
     return ((d && d.reglages) || {}).adresseDdtm || '';
   }catch(e){ return ''; }
+}
+
+
+
+/* ============================================================
+   LES DEMANDES DÉJÀ FAITES
+
+   Ce qui est parti, ce qui reste à faire. Un mois oublié se
+   rattrape rarement.
+   ============================================================ */
+
+let demandesBE = [];
+
+
+async function afficherListeBE(){
+  const zone = $('beListe');
+  if(!zone) return;
+
+  zone.innerHTML = htmlAttente('');
+
+  try{
+    const d = await appelPrep({ action: 'placesbeList' });
+    demandesBE = (d && d.demandes) || [];
+  }catch(e){
+    zone.innerHTML = '';
+    return;
+  }
+
+  zone.innerHTML = '';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:15px;font-weight:700;margin-bottom:8px;';
+  t.textContent = '📋 Les demandes faites';
+  zone.appendChild(t);
+
+  /* Les mois à venir qui n'ont pas encore été demandés */
+  const manquants = moisSansDemande();
+  if(manquants.length){
+    const al = document.createElement('div');
+    al.style.cssText = 'border:1px solid var(--orange);border-radius:11px;' +
+      'padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.6;';
+    al.innerHTML = '<strong style="color:var(--accent-text);">⏳ ' +
+      manquants.length + ' mois sans demande</strong><br>' +
+      manquants.map(m => {
+        const j = joursAvantLimite(m.annee, m.mois);
+        return MOIS_BE[m.mois - 1] + ' ' + m.annee +
+          (j < 0 ? ' <span style="color:var(--warn-text);">— dépassé</span>'
+                 : ' <span style="color:var(--muted);">— ' + j + ' j</span>');
+      }).join('<br>');
+    zone.appendChild(al);
+  }
+
+  if(!demandesBE.length){
+    zone.innerHTML += '<div class="empty">Aucune demande enregistrée.<br>' +
+      '<span style="font-size:12px;">Elles s\'ajoutent quand tu envoies ' +
+      'le courrier.</span></div>';
+    return;
+  }
+
+  demandesBE.forEach(d => zone.appendChild(ligneDemandeBE(d)));
+}
+
+
+/* Les trois prochains mois qui n'ont pas de demande */
+function moisSansDemande(){
+  const out = [];
+  const auj = new Date();
+
+  for(let k = 3; k <= 5; k++){
+    const d = new Date(auj.getFullYear(), auj.getMonth() + k, 1);
+    const annee = d.getFullYear();
+    const mois = d.getMonth() + 1;
+
+    const faite = demandesBE.some(x =>
+      x.annee === annee && x.mois === mois && x.envoyeeLe);
+    if(!faite) out.push({ annee: annee, mois: mois });
+  }
+  return out;
+}
+
+
+function ligneDemandeBE(d){
+  const envoyee = !!d.envoyeeLe;
+
+  const l = document.createElement('div');
+  l.style.cssText = 'border:1px solid ' +
+    (envoyee ? 'var(--line)' : 'var(--orange)') +
+    ';border-radius:11px;padding:10px 12px;margin-bottom:8px;';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'display:flex;gap:9px;align-items:flex-start;';
+  h.innerHTML = '<span style="flex:1;min-width:0;font-size:15px;' +
+    'line-height:1.4;"><strong>' +
+    (envoyee ? '✅ ' : '⏳ ') +
+    MOIS_BE[d.mois - 1].charAt(0).toUpperCase() +
+    MOIS_BE[d.mois - 1].slice(1) + ' ' + d.annee + '</strong>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:2px;">' +
+      (envoyee
+        ? 'envoyée le ' + d.envoyeeLe +
+          (d.destinataire ? ' à ' + d.destinataire.replace(/</g, '&lt;') : '') +
+          (d.par ? ' par ' + d.par.replace(/</g, '&lt;') : '')
+        : 'pas encore envoyée') +
+    '</div></span>' +
+    '<span style="flex-shrink:0;font-size:16px;font-weight:800;' +
+      'color:var(--accent-text);">' + d.unites + '</span>';
+  l.appendChild(h);
+
+  if(d.detail){
+    const dt = document.createElement('div');
+    dt.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
+    dt.textContent = d.detail;
+    l.appendChild(dt);
+  }
+
+  /* Ce que la préfecture a finalement accordé */
+  if(d.obtenues){
+    const ob = document.createElement('div');
+    ob.style.cssText = 'font-size:13px;color:var(--accent-text);margin-top:6px;';
+    ob.textContent = '🎓 Obtenues : ' + d.obtenues;
+    l.appendChild(ob);
+  }
+
+  if(d.remarque){
+    const rm = document.createElement('div');
+    rm.style.cssText = 'font-size:12px;color:var(--muted);margin-top:5px;' +
+      'white-space:pre-wrap;';
+    rm.textContent = d.remarque;
+    l.appendChild(rm);
+  }
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-top:9px;';
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-secondary';
+  bO.style.cssText = 'flex:1;padding:9px;font-size:12px;margin:0;';
+  bO.textContent = d.obtenues ? '🎓 Modifier les places' : '🎓 Places obtenues';
+  bO.addEventListener('click', async () => {
+    const v = await demander('Combien de places obtenues ?', d.obtenues || '',
+      MOIS_BE[d.mois - 1] + ' ' + d.annee);
+    if(v === null) return;
+    try{
+      await appelPrep({ action: 'placesbeSet', annee: d.annee, mois: d.mois,
+                        obtenues: v });
+      showToast('Enregistré ✅');
+      afficherListeBE();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  r.appendChild(bO);
+
+  const bR = document.createElement('button');
+  bR.className = 'btn btn-secondary';
+  bR.style.cssText = 'width:auto;padding:9px 11px;font-size:12px;margin:0;' +
+    'flex-shrink:0;';
+  bR.textContent = '📝';
+  bR.title = 'Remarque';
+  bR.addEventListener('click', async () => {
+    const v = await demander('Remarque', d.remarque || '',
+      MOIS_BE[d.mois - 1] + ' ' + d.annee);
+    if(v === null) return;
+    try{
+      await appelPrep({ action: 'placesbeSet', annee: d.annee, mois: d.mois,
+                        remarque: v });
+      showToast('Enregistré ✅');
+      afficherListeBE();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  r.appendChild(bR);
+
+  const bS = document.createElement('button');
+  bS.className = 'btn btn-secondary';
+  bS.style.cssText = 'width:auto;padding:9px 11px;font-size:12px;margin:0;' +
+    'flex-shrink:0;color:var(--red);border-color:var(--red);';
+  bS.textContent = '🗑️';
+  bS.addEventListener('click', async () => {
+    if(!await confirmer('Retirer la demande de ' +
+        MOIS_BE[d.mois - 1] + ' ' + d.annee + ' ?')) return;
+    try{
+      await appelPrep({ action: 'placesbeDelete', id: d.id });
+      showToast('Retirée ✅');
+      afficherListeBE();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  r.appendChild(bS);
+
+  l.appendChild(r);
+  return l;
 }
 
 
