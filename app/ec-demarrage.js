@@ -381,6 +381,7 @@ if($('journalBtn')) $('journalBtn').addEventListener('click', afficherJournal);
 if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrectionMoniteur);
 if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorrection);
 if($('corrLeconBtn')) $('corrLeconBtn').addEventListener('click', corrigerLeconDuBilan);
+if($('autreCoursBtn')) $('autreCoursBtn').addEventListener('click', commencerAutreCours);
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
 if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
