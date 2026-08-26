@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:11 — v566 */
+/* Déployé le 26/08/2026 à 13:24 — v567 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -767,11 +767,18 @@ function buildExamenBlanc(ai, ctx){
   L('');
 
   /* Les erreurs éliminatoires ouvrent le bilan : c'est ce qui a
-     coûté l'examen. Groupées par catégorie du CEPC, comme
-     l'inspecteur les compte. */
+     coûté l'examen.
+
+     Le moniteur y a répondu pendant l'examen blanc : on reprend
+     son texte tel quel. Sans lui, on reconstruit la structure. */
+  if(txt(ai.bilanElim)){
+    String(ai.bilanElim).split('\n').forEach(o => L(o));
+    L('');
+  }
+
   /* Les observations de l'examen blanc vivent sous « examen » :
      c'est là que la fiche les range. */
-  const elim = eliminatoiresParCategorie(
+  const elim = txt(ai.bilanElim) ? [] : eliminatoiresParCategorie(
     (ex && ex.observations) || ai.observations);
   elim.forEach(g => {
     L('☠️ 𝙀𝙧𝙧𝙚𝙪𝙧 𝙚́𝙡𝙞𝙢𝙞𝙣𝙖𝙩𝙤𝙞𝙧𝙚 — ' + g.categorie);
@@ -786,10 +793,10 @@ function buildExamenBlanc(ai, ctx){
     });
   });
 
-  /* Cinq blocs complets, même vides : le moniteur a son repère
+  /* Trois blocs complets, même vides : le moniteur a son repère
      visuel et remplit dans la structure au lieu de la recréer. */
   const bil = ligneParLigne(ai.bilanErreurs);
-  for(let i = 0; i < Math.max(bil.length, 5); i++){
+  for(let i = 0; i < Math.max(bil.length, 3); i++){
     L('👉 ' + (bil[i] || ''));
     L("- qu'en penses-tu ?");
     L('- quelles sont TES solutions ?');
