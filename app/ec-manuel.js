@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:25 — v572 */
+/* Déployé le 26/08/2026 à 14:29 — v573 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -133,15 +133,22 @@ const CHAMPS_MANUELS = {
     { cle:'__rappelFrise', type:'rappelFrise' },
 
     { cle:'niveau',      type:'niveau', nom:'4 · Niveau permis ?' },
-    { cle:'heuresAvant', type:'heures',
+    { cle:'heuresAvant', type:'heures', siNiveau:'oui',
       nom:"4 · Combien d'heures avant permis (+ 3h avant examen)" },
-    { cle:'aDate',       type:'ouinon', nom:'4 · A déjà sa date de permis' },
-    { cle:'friseAvant',  type:'ouinon', nom:'4 · Frise respectée avant examen blanc' },
-    { cle:'friseAvantH', type:'court',  nom:'4 · Si non, heures en plus' },
-    { cle:'frisePost',   type:'ouinon', nom:'4 · Frise respectée post permis' },
-    { cle:'frisePostH',  type:'court',  nom:'4 · Si non, heures en plus' },
-    { cle:'heuresPlanifiees', type:'ok', nom:'4 · Heures avant permis planifiées', defaut:'' },
-    { cle:'heuresPosees',     type:'ok', nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
+    { cle:'aDate',       type:'ouinon', siNiveau:'oui',
+      nom:'4 · A déjà sa date de permis' },
+    { cle:'friseAvant',  type:'ouinon', siNiveau:'oui',
+      nom:'4 · Frise respectée avant examen blanc' },
+    { cle:'friseAvantH', type:'court',  siNiveau:'oui',
+      nom:'4 · Si non, heures en plus' },
+    { cle:'frisePost',   type:'ouinon', siNiveau:'oui',
+      nom:'4 · Frise respectée post permis' },
+    { cle:'frisePostH',  type:'court',  siNiveau:'oui',
+      nom:'4 · Si non, heures en plus' },
+    { cle:'heuresPlanifiees', type:'ok', siNiveau:'oui',
+      nom:'4 · Heures avant permis planifiées', defaut:'' },
+    { cle:'heuresPosees',     type:'ok', siNiveau:'oui',
+      nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
   ],
   examen: [
     /* Deux moments distincts : le trajet vers le centre, puis
@@ -556,6 +563,10 @@ async function ouvrirBilanManuel(){
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
 
+    /* Certains champs ne servent que si l élève a le niveau :
+       les montrer ailleurs fait remplir pour rien. */
+    if(ch.siNiveau) bloc.dataset.siNiveau = ch.siNiveau;
+
     if(ch.type === 'rappelFrise'){
       /* Sa frise et ses leçons faites : de quoi juger sans
          remonter chercher l'information ailleurs. */
@@ -674,6 +685,11 @@ async function ouvrirBilanManuel(){
              La même peinture sert quand l'application répond à la
              place du moniteur : rien ne doit distinguer les deux. */
           peindreOuiNon(r, val);
+
+          /* Le niveau décide de ce qui reste utile */
+          if(ch.type === 'niveau' && typeof majChampsSelonNiveau === 'function'){
+            majChampsSelonNiveau();
+          }
         });
         r.appendChild(b);
       });
@@ -1344,6 +1360,10 @@ async function ouvrirBilanManuel(){
     zone.appendChild(bloc);
   });
 
+  /* Tant qu'aucun niveau n'est choisi, on ne demande rien qui en
+     dépende. */
+  if(typeof majChampsSelonNiveau === 'function') majChampsSelonNiveau();
+
   /* Frise récupérée automatiquement */
   const aide = $('aideManuel');
   if(aide){
@@ -1379,6 +1399,21 @@ async function ouvrirBilanManuel(){
 
    Une bordure seule se remarque mal : c'est le fond plein qui
    fait qu'on voit la réponse d'un coup d'œil. */
+/* Masquer ce qui ne sert pas.
+
+   Sans le niveau, ni avec « pourrait », les heures avant permis
+   et les frises n'ont pas d'objet : elles n'apparaissent nulle
+   part dans le bilan. */
+function majChampsSelonNiveau(){
+  const n = champsManuels.niveau || '';
+
+  document.querySelectorAll('#manuelChamps [data-si-niveau]').forEach(b => {
+    const requis = b.dataset.siNiveau;
+    b.style.display = (n === requis) ? '' : 'none';
+  });
+}
+
+
 function peindreOuiNon(rangee, valeur){
   const couleurs = {
     'oui': ['var(--orange)', '#0B0B0B'],
