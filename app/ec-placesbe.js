@@ -368,10 +368,160 @@ function htmlCourrierBE(){
 }
 
 
-/* Le navigateur imprime en PDF : c'est lui qui sait le faire */
-function telechargerPlacesBE(){
+/* ============================================================
+   LE PDF
+
+   La DDTM veut le courrier en pièce jointe. Le navigateur ne
+   sait pas fabriquer un PDF seul : on charge jsPDF au moment de
+   l'envoi, pas au démarrage — onze fois par an ne justifie pas
+   de ralentir tous les écrans.
+   ============================================================ */
+
+const JSPDF_URL =
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+
+let jsPDFcharge = null;
+
+
+function chargerJsPDF(){
+  if(jsPDFcharge) return jsPDFcharge;
+
+  jsPDFcharge = new Promise((ok, non) => {
+    if(window.jspdf && window.jspdf.jsPDF){ ok(window.jspdf.jsPDF); return; }
+
+    const s = document.createElement('script');
+    s.src = JSPDF_URL;
+    s.onload = () => {
+      if(window.jspdf && window.jspdf.jsPDF) ok(window.jspdf.jsPDF);
+      else non(new Error('jsPDF chargé mais introuvable'));
+    };
+    s.onerror = () => non(new Error('jsPDF injoignable'));
+    document.head.appendChild(s);
+  });
+
+  return jsPDFcharge;
+}
+
+
+/* Le courrier, dessiné à la main : c'est un tableau simple, et
+   le faire nous-mêmes évite une seconde bibliothèque. */
+async function fabriquerPdfBE(){
+  const jsPDF = await chargerJsPDF();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  const etp = ($('beEtp') && $('beEtp').value) || BE_ETP_DEFAUT;
+  const mois = MOIS_BE[placesBE.mois - 1];
+  const titre = mois.charAt(0).toUpperCase() + mois.slice(1) +
+                ' ' + placesBE.annee;
+
+  const G = 20;              /* marge gauche */
+  const L = 170;             /* largeur utile */
+  let y = 22;
+
+  /* L'en-tête de la préfecture */
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text("Direction Départementale des Territoires et le la Mer", G, y);
+  y += 5;
+  doc.text("des Côtes-d'Armor", G, y);
+  y += 5;
+  doc.text('Service Risque Sécurité Bâtiment', G, y);
+  y += 5;
+  doc.text('Unité Éducation Routière', G, y);
+  y += 12;
+
+  /* Le titre, encadré */
+  doc.setFontSize(13);
+  doc.rect(G, y, L, 10);
+  doc.text("Demande d'unités PL et BE", G + L / 2, y + 6.8,
+           { align: 'center' });
+  y += 10;
+
+  /* L'établissement */
+  doc.setFontSize(11);
+  const rangs = [
+    [titre, 'Établissement', BE_ETABLISSEMENT],
+    ['', 'Agrément', BE_AGREMENT],
+    ['', 'ETP PL / BE', etp]
+  ];
+
+  rangs.forEach(([a, b, d2]) => {
+    doc.rect(G, y, 40, 9);
+    doc.rect(G + 40, y, 45, 9);
+    doc.rect(G + 85, y, L - 85, 9);
+
+    doc.setFont('helvetica', 'bold');
+    if(a) doc.text(a, G + 20, y + 6, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(b, G + 42, y + 6);
+    doc.text(String(d2), G + 87, y + 6);
+    y += 9;
+  });
+
+  y += 8;
+
+  /* La note sur les délais */
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(9);
+  const note = [
+    'Les demandes doivent être transmises au plus tard le dernier jour du mois M-3',
+    'ex : au plus tard le 30 juin pour les places de septembre',
+    "au plus tard le 31 juillet pour les places d'octobre",
+    '…'
+  ];
+  const hNote = note.length * 4.5 + 4;
+  doc.rect(G, y, L, hNote);
+  note.forEach((t, i) => doc.text(t, G + 3, y + 6 + i * 4.5));
+  y += hNote + 8;
+
+  /* Le tableau des semaines */
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.rect(G, y, 30, 9);
+  doc.rect(G + 30, y, 55, 9);
+  doc.rect(G + 85, y, L - 85, 9);
+  doc.text('Semaine n°', G + 15, y + 6, { align: 'center' });
+  doc.text('Nombre d\u2019unités', G + 57, y + 6, { align: 'center' });
+  doc.text('Observations', G + 87, y + 6);
+  y += 9;
+
+  doc.setFont('helvetica', 'normal');
+  placesBE.lignes.forEach(l => {
+    doc.rect(G, y, 30, 9);
+    doc.rect(G + 30, y, 55, 9);
+    doc.rect(G + 85, y, L - 85, 9);
+
+    doc.text(String(l.semaine), G + 15, y + 6, { align: 'center' });
+    if(l.unites) doc.text(String(l.unites), G + 57, y + 6, { align: 'center' });
+    if(l.observation){
+      doc.text(String(l.observation).slice(0, 48), G + 87, y + 6);
+    }
+    y += 9;
+  });
+
+  return doc;
+}
+
+
+/* Le téléchargement : le PDF descend directement */
+async function telechargerPlacesBE(){
   if(!verifierPlacesBE()) return;
 
+  showToast('Préparation du PDF…');
+  try{
+    const doc = await fabriquerPdfBE();
+    doc.save(nomFichierBE() + '.pdf');
+    showToast('PDF téléchargé ✅');
+  }catch(e){
+    /* jsPDF injoignable : on retombe sur l'impression, qui
+       marche partout. */
+    imprimerCourrierBE();
+  }
+}
+
+
+/* Le repli : le navigateur imprime, et sait enregistrer en PDF */
+function imprimerCourrierBE(){
   const f = window.open('', '_blank');
   if(!f){
     showToast('Autorise les fenêtres pour télécharger.');
@@ -382,12 +532,7 @@ function telechargerPlacesBE(){
   f.document.close();
   f.document.title = nomFichierBE();
 
-  /* Le temps que la mise en page se fasse */
-  setTimeout(() => {
-    f.focus();
-    f.print();
-  }, 400);
-
+  setTimeout(() => { f.focus(); f.print(); }, 400);
   showToast('Choisis « Enregistrer en PDF » dans l\'impression');
 }
 
@@ -440,23 +585,45 @@ async function envoyerPlacesBE(){
 
   const etp = ($('beEtp') && $('beEtp').value) || BE_ETP_DEFAUT;
 
+  /* Le courrier part en pièce jointe : c'est ce que la DDTM
+     demande. Le corps du message reste bref. */
+  showToast('Préparation du PDF…');
+
+  let piece = null;
+  try{
+    const doc = await fabriquerPdfBE();
+    /* jsPDF rend « data:application/pdf;base64,xxxx » : on ne
+       garde que ce qui suit la virgule. */
+    const brut = doc.output('datauristring');
+    piece = {
+      nom: nomFichierBE() + '.pdf',
+      type: 'application/pdf',
+      contenu: brut.slice(brut.indexOf(',') + 1)
+    };
+  }catch(e){
+    if(!await confirmer('Le PDF n\'a pas pu être fabriqué.\n\n' +
+        'Envoyer la demande dans le corps du message ?')) return;
+  }
+
   const l = [];
-  l.push("Direction Départementale des Territoires et de la Mer des Côtes-d'Armor");
-  l.push('Service Risque Sécurité Bâtiment');
-  l.push('Unité Éducation Routière');
+  l.push('Bonjour,');
   l.push('');
-  l.push("DEMANDE D'UNITÉS PL ET BE — " + titre.toUpperCase());
+  l.push('Veuillez trouver ' + (piece ? 'ci-joint' : 'ci-dessous') +
+         " notre demande d'unités PL et BE pour " + titre + '.');
   l.push('');
   l.push('Établissement : ' + BE_ETABLISSEMENT);
   l.push('Agrément : ' + BE_AGREMENT);
   l.push('ETP PL / BE : ' + etp);
-  l.push('');
 
-  placesBE.lignes.forEach(x => {
-    if(!Number(x.unites)) return;
-    l.push('Semaine ' + x.semaine + ' : ' + x.unites + ' unité(s)' +
-           (x.observation ? ' — ' + x.observation : ''));
-  });
+  /* Sans pièce jointe, le détail passe dans le message */
+  if(!piece){
+    l.push('');
+    placesBE.lignes.forEach(x => {
+      if(!Number(x.unites)) return;
+      l.push('Semaine ' + x.semaine + ' : ' + x.unites + ' unité(s)' +
+             (x.observation ? ' — ' + x.observation : ''));
+    });
+  }
 
   l.push('');
   l.push('Cordialement,');
@@ -468,7 +635,8 @@ async function envoyerPlacesBE(){
       to: [propre],
       sujet: "Demande d'unités PL et BE — " + titre + ' — ' +
              BE_ETABLISSEMENT + ' ' + BE_AGREMENT,
-      texte: l.join('\n')
+      texte: l.join('\n'),
+      piecesJointes: piece ? [piece] : undefined
     });
 
     /* L'adresse servira la prochaine fois */
