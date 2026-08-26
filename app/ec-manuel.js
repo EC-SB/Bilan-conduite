@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 12:44 — v563 */
+/* Déployé le 26/08/2026 à 12:56 — v564 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1146,9 +1146,19 @@ async function ouvrirBilanManuel(){
       bloc.appendChild(tr);
 
     }else if(ch.type === 'observations'){
+      /* Marqueur : c'est ici que se posera le récapitulatif */
+      bloc.dataset.avecApercu = 'oui';
       const l = document.createElement('label');
       l.textContent = ch.nom;
       bloc.appendChild(l);
+      /* Ce qui sera écrit en tête du bilan des erreurs, visible
+         pendant la saisie : le moniteur voit ce qu'il produit. */
+      const ap = document.createElement('div');
+      ap.id = 'apercuElim';
+      ap.style.cssText = 'display:none;border:1px solid var(--red);' +
+        'border-radius:10px;padding:9px 11px;margin:0 0 10px;';
+      bloc.appendChild(ap);
+
       const z = document.createElement('div');
       z.id = 'obsManuel';
       bloc.appendChild(z);
@@ -1272,6 +1282,10 @@ function ajouterObservationManuelle(zone){
   insp.className = 'obsInsp';
   insp.placeholder = "Remarque de l'inspecteur";
   insp.style.marginBottom = '6px';
+  /* Le récapitulatif suit ce qui s'écrit */
+  insp.addEventListener('input', () => {
+    if(typeof majApercuEliminatoires === 'function') majApercuEliminatoires();
+  });
   d.appendChild(insp);
 
   /* L'explication, avec de quoi marquer une erreur éliminatoire */
@@ -1317,7 +1331,7 @@ function ajouterObservationManuelle(zone){
     /* Déjà marquée : un second appui retire la marque */
     if(d.dataset.categorie){
       d.dataset.categorie = '';
-      majMort();
+      majMortEtCepc();
       return;
     }
 
@@ -1325,13 +1339,107 @@ function ajouterObservationManuelle(zone){
     if(!cat) return;
 
     d.dataset.categorie = cat;
-    majMort();
+    majMortEtCepc();
   });
+
+  /* Le CEPC se met à jour à chaque changement : le moniteur voit
+     le E se cocher, il n'a pas à attendre la génération pour
+     savoir si c'est bien enregistré. */
+  const majMortEtCepc = () => {
+    majMort();
+    if(typeof rafraichirEliminatoires === 'function') rafraichirEliminatoires();
+  };
   r.appendChild(bMort);
 
   d.appendChild(r);
   zone.appendChild(d);
   return d;
+}
+
+
+/* ============================================================
+   LE CEPC, TENU À JOUR
+
+   Le moniteur coche une éliminatoire : le E apparaît aussitôt
+   sur le CEPC, et la liste des erreurs se remplit sous ses yeux.
+   Attendre la génération le laisserait dans le doute.
+   ============================================================ */
+
+function rafraichirEliminatoires(){
+  /* Les catégories marquées, sans doublon */
+  const touchees = {};
+  document.querySelectorAll('#manuelChamps [data-categorie]').forEach(d => {
+    const cat = d.dataset.categorie;
+    if(cat) touchees[cat] = true;
+  });
+
+  /* Sur le CEPC : un E là où il faut, retiré ailleurs.
+
+     Seules les cases posées par une éliminatoire sont retirées :
+     un E coché à la main par le moniteur lui appartient. */
+  document.querySelectorAll('.cepcNiveau').forEach(champ => {
+    const ligne = champ.getAttribute('data-comp');
+    const vise = !!touchees[ligne];
+    const pose = (champ.dataset.parElim === 'oui');
+
+    if(vise && champ.value !== 'E'){
+      champ.value = 'E';
+      champ.dataset.parElim = 'oui';
+    }else if(!vise && pose){
+      champ.value = '';
+      champ.dataset.parElim = '';
+    }else{
+      return;                          /* rien à changer sur cette ligne */
+    }
+
+    /* Les boutons se repeignent, sinon le E reste invisible */
+    const l = champ.parentNode;
+    if(!l) return;
+    l.querySelectorAll('button').forEach(b => {
+      if(typeof b._peindre === 'function') b._peindre();
+    });
+    const al = l.querySelector('.cepcAlerte');
+    if(al) al.style.display = (champ.value === 'E') ? 'block' : 'none';
+  });
+
+  if(typeof majTotalCepc === 'function') majTotalCepc();
+  majApercuEliminatoires();
+}
+
+
+/* Le récapitulatif sous les observations : ce qui sera écrit en
+   tête du bilan des erreurs. */
+function majApercuEliminatoires(){
+  const zone = document.getElementById('apercuElim');
+  if(!zone) return;
+
+  const par = {};
+  document.querySelectorAll('#manuelChamps [data-categorie]').forEach(d => {
+    const cat = d.dataset.categorie;
+    if(!cat) return;
+    const insp = d.querySelector('.obsInsp');
+    (par[cat] = par[cat] || []).push(insp ? insp.value.trim() : '');
+  });
+
+  const noms = Object.keys(par);
+  if(!noms.length){
+    zone.style.display = 'none';
+    zone.innerHTML = '';
+    return;
+  }
+
+  zone.style.display = 'block';
+  zone.innerHTML = '<div style="font-size:12px;font-weight:700;' +
+    'color:var(--red);margin-bottom:6px;">☠️ ' + noms.length +
+    ' catégorie(s) éliminatoire(s) — E coché sur le CEPC</div>' +
+    noms.map(n =>
+      '<div style="font-size:12px;line-height:1.6;">' +
+      '<strong>' + n.replace(/</g, '&lt;') + '</strong>' +
+      par[n].map(x => x
+        ? '<div style="color:var(--muted);padding-left:12px;">· ' +
+          x.slice(0, 60).replace(/</g, '&lt;') + '</div>'
+        : '').join('') +
+      '</div>').join('');
 }
 
 
@@ -1817,6 +1925,8 @@ function lireChampsManuels(){
       });
 
     }else if(ch.type === 'observations'){
+      /* Marqueur : c'est ici que se posera le récapitulatif */
+      bloc.dataset.avecApercu = 'oui';
       const obs = [];
       document.querySelectorAll('#obsManuel > div').forEach(d => {
         const i = d.querySelector('.obsInsp');
