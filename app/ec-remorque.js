@@ -93,7 +93,7 @@ async function afficherRemorque(){
     }
   }
 
-  if(typeof chargerFiches === 'function') await chargerFiches();
+  if(typeof chargerFichesMoto === 'function') await chargerFichesMoto();
   const tous = elevesRemorque();
   zone.innerHTML = '';
   zone.appendChild(boutonAjouterRemorque());
@@ -363,7 +363,7 @@ async function saisirCoursBE(nom){
      un par un, c'est le geste le plus fréquent. */
   const combien = [1, 2, 3].filter(i => s['beCours' + i] === 'oui').length;
 
-  const choix = await choisirDansListe(
+  const choix = await choisirDansListe2R(
     'Où en sont ses cours ?',
     'Les trois cours se font dans l\'ordre.',
     [{ nom:'Aucun cours fait',   valeur:'0' },
@@ -406,8 +406,11 @@ function moisAVenir(){
 
 
 /* Une vraie liste déroulante : douze boutons empilés tenaient
-   mal sur un téléphone. */
-function choisirDansListe(titre, aide, options, valeurActuelle){
+   mal sur un téléphone.
+
+   Nommée à part : ec-vocal.js a une fonction du même nom, avec
+   d'autres arguments. */
+function choisirDansListe2R(titre, aide, options, valeurActuelle){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
@@ -473,7 +476,7 @@ async function saisirMoisBE(nom){
   const options = [{ nom: '— aucun mois —', valeur: '' }]
     .concat(liste.map(m => ({ nom: m, valeur: m })));
 
-  const choix = await choisirDansListe(
+  const choix = await choisirDansListe2R(
     'Sur quel mois le faire passer ?',
     'Il rejoindra le groupe de ce mois dans « à placer ».',
     options, dejaChoisi);
@@ -612,7 +615,7 @@ async function ajouterEleveRemorque(){
     await majSuivi(propre, { beAnts: '' });
 
     showToast(propre + ' ajouté ✅');
-    if(typeof chargerFiches === 'function') await chargerFiches(true);
+    if(typeof chargerFichesMoto === 'function') await chargerFichesMoto(true);
     afficherRemorque();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
