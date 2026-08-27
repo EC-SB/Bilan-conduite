@@ -18,21 +18,32 @@ const FORMATIONS_MOTO = ['Moto A', 'A1 permis', 'A1 passerelle', 'A2'];
 
 /* Où en est l'élève. L'étape se déduit de ce qui est rempli :
    pas de champ à tenir à jour séparément. */
+/* Une date passée : l'examen a eu lieu, le résultat se saisit.
+
+   Le lendemain, pas le jour même : l'élève passe souvent dans
+   l'après-midi. */
+function datePassee(d){
+  if(!d) return false;
+  const iso = (typeof dateFrVersIso === 'function') ? dateFrVersIso(d) : '';
+  if(!iso) return false;
+  return iso < todayLocal();
+}
+
+
 function etapeMoto(s){
-  /* La circulation, en deux temps : ceux qui attendent une date
-     et ceux qui l'ont. */
-  if(String(s.motoDateExamen || '').trim()) return 'circuprevue';
+  /* La circulation, quand le plateau est acquis */
+  if(s.motoPlateau === 'reussi'){
+    const d = String(s.motoDateExamen || '').trim();
+    if(d) return datePassee(d) ? 'circupassee' : 'circuprevue';
+    return 'circuaprevoir';
+  }
 
-  if(String(s.motoCircuLecons || '').trim() ||
-     s.motoPlateau === 'reussi') return 'circulation';
-
-  if(s.motoPlateau === 'echoue') return 'repassage';
-
-  if(String(s.motoDatePlateau || '').trim()) return 'plateau';
+  /* Le plateau, tant qu'il n'est pas obtenu */
+  const dp = String(s.motoDatePlateau || '').trim();
+  if(dp) return datePassee(dp) ? 'plateaupasse' : 'plateau';
 
   /* Prêt mais sans date : il attend d'être placé */
-  if(String(s.motoLecons || '').trim() === '0' ||
-     s.motoEtape === 'pret') return 'aplacer';
+  if(s.motoEtape === 'pret' || s.motoPlateau === 'echoue') return 'aplacer';
 
   return 'preparation';
 }
@@ -69,6 +80,10 @@ function elevesMoto(){
                   'motoCircuLecons', 'motoEtape'];
 
   const dedans = s => {
+    /* Retiré par le bureau : il ne revient pas, même si sa fiche
+       porte encore une formation moto. */
+    if(s && s.motoEtape === 'retire') return false;
+
     const f = String((s && s.formation) || '').trim();
     if(FORMATIONS_MOTO.some(x => normaliserMot(x) === normaliserMot(f))){
       return true;
@@ -89,7 +104,9 @@ function elevesMoto(){
   /* Les fiches du répertoire : c'est là qu'un élève tout neuf
      existe, avant tout bilan et toute consigne. */
   (fichesConnues || []).forEach(f => {
-    if(dedans({ formation: f.formation })) ajouter(f.eleve, f);
+    const s = Object.assign({}, suiviDe(f.eleve) || {},
+                            { formation: f.formation });
+    if(dedans(s)) ajouter(f.eleve, f);
   });
 
   /* Ceux qui ont une saisie moto dans leur suivi */
@@ -132,21 +149,25 @@ async function afficherMoto(){
   zone.appendChild(boutonAjouterMoto());
 
   const cadres = [
-    ['preparation', '📋 Préparation du plateau',
+    ['preparation',   '📋 Préparation du plateau',
      "Dossier, code, évaluation. Quand il est prêt, indique dans " +
      'combien de leçons il passera.'],
-    ['aplacer',     '📅 À prévoir pour le plateau',
+    ['aplacer',       '📅 Plateau à prévoir',
      'Ils sont prêts et attendent une date de plateau.'],
-    ['plateau',     '🏍️ Plateau prévu',
-     'Une date est posée. Saisis le résultat après le passage.'],
-    ['repassage',   '🔁 Repassage du plateau',
-     'Le plateau a été échoué. Une nouvelle date, et le compteur ' +
-     'de passages suit.'],
-    ['circulation', '🛣️ Circulation en cours',
-     'Le plateau est réussi. Leçons restantes, puis date ' +
+    ['plateau',       '🏍️ Plateau prévu',
+     'La date approche. Le lendemain, il passera en « résultat à ' +
+     'saisir ».'],
+    ['plateaupasse',  '🏁 Plateau passé — résultat à saisir',
+     'La date est dépassée. Obtenu, il part en circulation ; sinon ' +
+     'il revient à « plateau à prévoir ».'],
+    ['circuaprevoir', '🛣️ Circulation à prévoir',
+     'Le plateau est obtenu. Leçons restantes, puis date ' +
      "d'examen."],
-    ['circuprevue', '📆 Circulations prévues',
-     "Une date d'examen est posée. Quand il l'obtient, tout s'efface."]
+    ['circuprevue',   '📆 Circulation prévue',
+     "La date est posée. Le lendemain, le résultat se saisira."],
+    ['circupassee',   '🏁 Circulation passée — résultat à saisir',
+     "Obtenue, tout s'efface ; sinon il revient à « circulation à " +
+     'prévoir ».']
   ];
 
   cadres.forEach(([cle, titre, aide]) => {
@@ -218,9 +239,9 @@ function ligneMoto(e, etape){
 
 function resumeMoto(s, etape){
   const bouts = [];
+  const nb = Number(s.motoPassages) || 0;
 
   if(etape === 'preparation'){
-    /* Chaque étape avec son état, pour voir d'un coup ce qui manque */
     const ants = s.motoAnts === 'fait' ? '✅ ANTS fait'
                : s.motoAnts === 'encours' ? '⏳ ANTS en cours'
                : '⬜ ANTS';
@@ -239,36 +260,40 @@ function resumeMoto(s, etape){
     }
   }
 
-  else if(etape === 'plateau'){
-    bouts.push('📅 Plateau le ' + (s.motoDatePlateau || '?'));
-    if(Number(s.motoPassages) > 1) bouts.push(s.motoPassages + 'e passage');
-  }
-
-  else if(etape === 'repassage'){
-    bouts.push('❌ Plateau échoué');
-    bouts.push((Number(s.motoPassages) || 1) + ' passage(s)');
-    if(String(s.motoDatePlateau || '').trim()){
-      bouts.push('📅 Nouvelle date : ' + s.motoDatePlateau);
-    }else{
-      bouts.push('📅 date à poser');
-    }
-  }
-
   else if(etape === 'aplacer'){
-    bouts.push('✅ Prêt pour le plateau');
+    bouts.push(nb ? '❌ Plateau échoué' : '✅ Prêt pour le plateau');
+    if(nb) bouts.push(nb + ' passage(s)');
     bouts.push('📅 date à poser');
   }
 
-  else{
-    bouts.push('✅ Plateau réussi');
+  else if(etape === 'plateau'){
+    bouts.push('📅 Plateau le ' + (s.motoDatePlateau || '?'));
+    if(nb) bouts.push((nb + 1) + 'e passage');
+  }
+
+  else if(etape === 'plateaupasse'){
+    bouts.push('🏁 Plateau passé le ' + (s.motoDatePlateau || '?'));
+    bouts.push('résultat à saisir');
+  }
+
+  else if(etape === 'circuaprevoir'){
+    bouts.push('✅ Plateau obtenu');
     if(String(s.motoCircuLecons || '').trim()){
       bouts.push('🛣️ ' + s.motoCircuLecons + ' leçon(s) restantes');
     }
-    if(String(s.motoDateExamen || '').trim()){
-      bouts.push("📅 Examen le " + s.motoDateExamen);
-    }else{
-      bouts.push("📅 examen à prévoir");
-    }
+    const nc = Number(s.motoCircuPassages) || 0;
+    if(nc) bouts.push('❌ circulation échouée · ' + nc + ' passage(s)');
+    bouts.push("📅 date à poser");
+  }
+
+  else if(etape === 'circuprevue'){
+    bouts.push('✅ Plateau obtenu');
+    bouts.push('📅 Circulation le ' + (s.motoDateExamen || '?'));
+  }
+
+  else{
+    bouts.push('🏁 Circulation passée le ' + (s.motoDateExamen || '?'));
+    bouts.push('résultat à saisir');
   }
 
   return bouts.join(' · ');
@@ -302,20 +327,51 @@ function actionsMoto(nom, s, etape){
            'var(--accent-text)');
   }
 
-  else if(etape === 'plateau' || etape === 'repassage'){
-    bouton('📅 Changer la date', () => saisirDatePlateau(nom));
-    bouton('✅ Plateau réussi', () => resultatPlateau(nom, true),
+  else if(etape === 'aplacer'){
+    bouton('📆 Poser la date du plateau', () => saisirDatePlateau(nom),
+           'var(--accent-text)');
+    bouton('↩️ Retour préparation',
+           () => majMoto(nom, { motoLecons: '', motoEtape: '' }));
+  }
+
+  else if(etape === 'plateau'){
+    bouton('📆 Changer la date', () => saisirDatePlateau(nom));
+    bouton('🗑️ Annuler la date', () => effacerDatePlateau(nom));
+    /* Le résultat reste possible avant l'heure : un examen du
+       matin se saisit l'après-midi. */
+    bouton('🏁 Saisir le résultat', () => resultatPlateau(nom));
+  }
+
+  else if(etape === 'plateaupasse'){
+    bouton('✅ Plateau obtenu', () => resultatPlateau(nom, true),
            'var(--accent-text)');
     bouton('❌ Plateau échoué', () => resultatPlateau(nom, false),
            'var(--red)');
+    bouton('📆 Changer la date', () => saisirDatePlateau(nom));
+  }
+
+  else if(etape === 'circuaprevoir'){
+    bouton('🛣️ Leçons restantes', () => saisirLeconsCircu(nom));
+    bouton('📆 Poser la date', () => saisirDateExamenMoto(nom),
+           'var(--accent-text)');
+  }
+
+  else if(etape === 'circuprevue'){
+    bouton('📆 Changer la date', () => saisirDateExamenMoto(nom));
+    bouton('🗑️ Annuler la date', () => effacerDateCircu(nom));
+    bouton('🏁 Saisir le résultat', () => resultatCirculation(nom));
   }
 
   else{
-    bouton('🛣️ Leçons restantes', () => saisirLeconsCircu(nom));
-    bouton("📅 Date d'examen", () => saisirDateExamenMoto(nom));
-    bouton('🎓 Permis obtenu', () => permisMotoObtenu(nom),
+    bouton('🎓 Permis obtenu', () => resultatCirculation(nom, true),
            'var(--accent-text)');
+    bouton('❌ Circulation échouée', () => resultatCirculation(nom, false),
+           'var(--red)');
+    bouton('📆 Changer la date', () => saisirDateExamenMoto(nom));
   }
+
+  /* Il part ailleurs : son suivi moto n'a plus d'objet */
+  bouton('🚪 Retirer', () => retirerEleveMoto(nom), 'var(--muted)');
 
   return out;
 }
@@ -417,23 +473,124 @@ async function saisirDatePlateau(nom){
 async function resultatPlateau(nom, reussi){
   const s = suiviDe(nom) || {};
 
+  /* Sans réponse donnée, on la demande */
+  if(reussi === undefined){
+    const r = await fenetre('Le plateau de ' + nom + ' ?',
+      [{ nom:'Annuler', valeur:'' },
+       { nom:'❌ Échoué', valeur:'non' },
+       { nom:'✅ Obtenu', valeur:'oui', principal:true }],
+      'Résultat du plateau');
+    if(!r) return;
+    reussi = (r === 'oui');
+  }
+
+  const n = (Number(s.motoPassages) || 0) + 1;
+
   if(reussi){
-    if(!await confirmer(nom + ' a réussi son plateau ?\n\n' +
-        'Il passe en circulation.', 'Plateau réussi')) return;
+    if(!await confirmer(nom + ' a obtenu son plateau ?\n\n' +
+        "Il passe en circulation à prévoir. Il n'a pas encore son " +
+        'permis.', 'Plateau obtenu')) return;
 
     await majMoto(nom, { motoPlateau: 'reussi', motoDatePlateau: '',
-                         motoEtape: '' });
-    showToast('🏍️ ' + nom + ' passe en circulation');
+                         motoPassages: String(n), motoEtape: '' });
+    showToast('🏍️ ' + nom + ' → circulation à prévoir');
     return;
   }
 
-  const n = (Number(s.motoPassages) || 1) + 1;
-
   if(!await confirmer(nom + ' a échoué son plateau ?\n\n' +
-      'Ce sera son ' + n + 'e passage.', 'Plateau échoué')) return;
+      'Ce sera son ' + (n + 1) + 'e passage. Il retourne dans ' +
+      '« plateau à prévoir ».', 'Plateau échoué')) return;
 
+  /* Sans plateau, pas de circulation : il repart au début */
   await majMoto(nom, { motoPlateau: 'echoue', motoDatePlateau: '',
-                       motoPassages: String(n) });
+                       motoPassages: String(n), motoEtape: 'pret' });
+  showToast(nom + ' → plateau à prévoir');
+}
+
+
+/* ============================================================
+   LE RÉSULTAT DE LA CIRCULATION
+   ============================================================ */
+
+async function resultatCirculation(nom, reussi){
+  const s = suiviDe(nom) || {};
+
+  if(reussi === undefined){
+    const r = await fenetre('La circulation de ' + nom + ' ?',
+      [{ nom:'Annuler', valeur:'' },
+       { nom:'❌ Échouée', valeur:'non' },
+       { nom:'🎓 Permis obtenu', valeur:'oui', principal:true }],
+      'Résultat de la circulation');
+    if(!r) return;
+    reussi = (r === 'oui');
+  }
+
+  if(reussi) return permisMotoObtenu(nom);
+
+  const n = (Number(s.motoCircuPassages) || 0) + 1;
+
+  if(!await confirmer(nom + ' a échoué sa circulation ?\n\n' +
+      'Son plateau reste acquis : il retourne dans « circulation à ' +
+      'prévoir ».', 'Circulation échouée')) return;
+
+  await majMoto(nom, { motoDateExamen: '',
+                       motoCircuPassages: String(n) });
+  showToast(nom + ' → circulation à prévoir');
+}
+
+
+/* ============================================================
+   ANNULER UNE DATE
+
+   Elle a été posée par erreur, ou la préfecture l'a retirée :
+   l'élève revient dans la liste d'attente correspondante.
+   ============================================================ */
+
+async function effacerDatePlateau(nom){
+  const s = suiviDe(nom) || {};
+
+  if(!await confirmer('Annuler la date de plateau de ' + nom + ' ?\n\n' +
+      '(elle était le ' + (s.motoDatePlateau || '?') + ')\n' +
+      'Il revient dans « plateau à prévoir ».', 'Annuler la date')) return;
+
+  await majMoto(nom, { motoDatePlateau: '', motoEtape: 'pret' });
+  showToast('Date annulée');
+}
+
+
+async function effacerDateCircu(nom){
+  const s = suiviDe(nom) || {};
+
+  if(!await confirmer('Annuler la date de circulation de ' + nom + ' ?\n\n' +
+      '(elle était le ' + (s.motoDateExamen || '?') + ')\n' +
+      'Il revient dans « circulation à prévoir ».',
+      'Annuler la date')) return;
+
+  await majMoto(nom, { motoDateExamen: '' });
+  showToast('Date annulée');
+}
+
+
+/* ============================================================
+   RETIRER UN ÉLÈVE
+
+   Il change d'auto-école : son suivi moto n'a plus d'objet. Ses
+   bilans et sa fiche restent.
+   ============================================================ */
+
+async function retirerEleveMoto(nom){
+  if(!await confirmer('Retirer ' + nom + ' du suivi moto ?\n\n' +
+      "Sa fiche et ses bilans ne sont pas touchés : seul son " +
+      'parcours moto disparaît.', 'Retirer du suivi')) return;
+
+  await majMoto(nom, {
+    motoAnts: '', motoAntsQui: '', motoCode: '', motoEval: '',
+    motoPlateau: '', motoLecons: '', motoDatePlateau: '',
+    motoPassages: '', motoCircuLecons: '', motoDateExamen: '',
+    motoCircuPassages: '', motoEtape: 'retire'
+  });
+
+  showToast(nom + ' retiré du suivi moto');
 }
 
 
@@ -473,7 +630,7 @@ async function permisMotoObtenu(nom){
     motoAnts: '', motoAntsQui: '', motoCode: '', motoEval: '',
     motoPlateau: '', motoLecons: '', motoDatePlateau: '',
     motoPassages: '', motoCircuLecons: '', motoDateExamen: '',
-    motoEtape: ''
+    motoCircuPassages: '', motoEtape: ''
   });
 
   showToast('🎓 Bravo à ' + nom + ' !');
