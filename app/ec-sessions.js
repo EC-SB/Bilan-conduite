@@ -585,11 +585,16 @@ function lignePlace(p, sess){
     const eb = document.createElement('div');
     eb.style.cssText = 'font-size:11px;margin-top:2px;';
 
-    const m = mentionExamenBlanc({ eleve: p.eleve,
-                                   etat: etatDe(p.eleve) });
-    const manque = /pas encore/.test(m);
+    const m = mentionExamenBlanc({ eleve: p.eleve, etat: etatDe(p.eleve) });
+
+    /* Les heures avant permis : c'est ce qui dit s'il tiendra la
+       date. Sans elles, le bureau place à l'aveugle. */
+    const h = (typeof mentionHeuresRestantes === 'function')
+      ? mentionHeuresRestantes(p.eleve) : '';
+
+    const manque = /pas encore/.test(m) || /à préciser/.test(h);
     eb.style.color = manque ? 'var(--warn-text)' : 'var(--muted)';
-    eb.textContent = m.replace(/^ · /, '');
+    eb.textContent = m.replace(/^ · /, '') + h;
 
     /* Un appui pour le corriger ou l'indiquer à la main */
     eb.style.cursor = 'pointer';
@@ -745,6 +750,38 @@ function ouvrirPlace(p, sess){
     eb.appendChild(bEB);
 
     boite.appendChild(eb);
+
+    /* Les heures avant permis, avec de quoi les corriger */
+    const zh = document.createElement('div');
+    const mh = (typeof mentionHeuresRestantes === 'function')
+      ? mentionHeuresRestantes(p.eleve).replace(/^ · /, '') : '';
+    const manqueH = /à préciser/.test(mh);
+
+    zh.style.cssText = 'display:flex;gap:9px;align-items:center;' +
+      'border:1px solid ' + (manqueH ? 'var(--orange)' : 'var(--line)') + ';' +
+      'border-radius:10px;padding:9px 11px;margin-bottom:12px;';
+
+    const th = document.createElement('span');
+    th.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;' +
+      'color:' + (manqueH ? 'var(--warn-text)' : 'var(--cream)') + ';';
+    th.textContent = mh || '⏱️ heures à préciser';
+    zh.appendChild(th);
+
+    const bH = document.createElement('button');
+    bH.className = 'btn btn-secondary';
+    bH.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;' +
+      'margin:0;flex-shrink:0;';
+    bH.textContent = '✏️';
+    bH.title = "Combien d'heures avant l'examen";
+    bH.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      if(typeof saisirHeuresRestantes === 'function'){
+        saisirHeuresRestantes(p.eleve);
+      }
+    });
+    zh.appendChild(bH);
+
+    boite.appendChild(zh);
   }
 
   boite.insertAdjacentHTML('beforeend',
