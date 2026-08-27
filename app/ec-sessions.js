@@ -1138,9 +1138,16 @@ function ouvrirPlace(p, sess){
         dossierOk: champsPlace.dossierOk === 'oui'
       });
 
-      /* Les deux enregistrements partent ENSEMBLE : en série, le
-         moniteur attendait deux fois le réseau. */
-      await Promise.all([
+      /* La fenêtre se ferme tout de suite : la mémoire est déjà à
+         jour, et le bureau n'a rien à attendre du réseau pour
+         continuer son travail. */
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      redessinerSessions();
+
+      /* Les enregistrements poursuivent leur route en fond. Ils
+         partent ensemble : en série, on attendait deux fois. */
+      Promise.all([
         appelPrep(Object.assign({ action: 'sessionPlace',
                                   idSession: sess.id, rang: p.rang }, champsPlace)),
         (champsSuivi && typeof majSuivi === 'function')
@@ -1149,22 +1156,23 @@ function ouvrirPlace(p, sess){
         /* Celui qu'on retire perd sa date : sans cela, il restait
            « avec une date » dans le questionnaire et les notes. */
         retire ? retirerDeLaSession(ancienNom, sess) : Promise.resolve()
-      ]);
-
-      /* Le moniteur doit voir la date dans ses cours préparés :
-         sans consigne, elle ne quittait pas l'écran du bureau. */
-      if(nomSaisi && sess.date && typeof envoyerConsigne === 'function'){
-        try{
-          await envoyerConsigne(nomSaisi, 'permis',
+      ])
+      .then(() => {
+        /* Le moniteur doit voir la date dans ses cours préparés :
+           sans consigne, elle ne quittait pas l'écran du bureau. */
+        if(nomSaisi && sess.date && typeof envoyerConsigne === 'function'){
+          return envoyerConsigne(nomSaisi, 'permis',
             'Examen du permis fixé au ' + dateEnToutesLettres(sess.date) +
             (sess.centre ? ' à ' + sess.centre : '') +
             (champsPlace.heure ? ' à ' + champsPlace.heure : '') + ' (bureau)');
-        }catch(e){ /* la place est posée, c'est l'essentiel */ }
-      }
-
-      document.body.removeChild(fond);
-      showToast('Enregistré ✅');
-      redessinerSessions();
+        }
+      })
+      .catch(err => {
+        /* Un échec en fond doit se voir : sans cela, le bureau
+           croirait sa saisie enregistrée. */
+        showToast('⚠️ ' + (champsPlace.eleve || 'La place') +
+                  ' : enregistrement incomplet — vérifie et refais');
+      });
     }catch(e){
       showToast('Impossible : ' + e.message);
       bOk.disabled = false;
