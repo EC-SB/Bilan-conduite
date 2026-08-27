@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v593
+     VERSION APPLICATION : v594
      VERSION APPS SCRIPT REQUISE : v139
-     Mis à jour le : 27/08/2026 à 09:46
+     Mis à jour le : 27/08/2026 à 10:07
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
@@ -769,7 +769,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v593</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v594</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1362,6 +1362,9 @@
   <div class="barre-vues" data-pour="permis" style="display:none;"></div>
 
   <div class="card" data-section="bureau_permis" data-vue="sessions" data-onglet="permis">
+    <!-- Les semaines ouvertes par la préfecture, au-dessus des
+         sessions qu'elles rendent possibles. -->
+    <div id="blocPlaces" style="margin-bottom:14px;"></div>
     <h2 class="section-title">🎓 Sessions d'examen</h2>
     <div class="contenu-tiroir">
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
@@ -1372,8 +1375,8 @@
     </div>
   </div>
 
-  <div class="card" data-section="bureau_permis" data-vue="listes" data-onglet="permis">
-    <h2 class="section-title">🚗 Suivi permis</h2>
+  <div class="card" data-section="bureau_permis" data-vues="pasprets envisager preppermis resultats" data-onglet="permis">
+    <h2 class="section-title">🚗 Permis</h2>
     <div class="contenu-tiroir">
     <button class="btn btn-secondary" id="permisBureauBtn">🔄 Actualiser les listes</button>
     <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
@@ -1382,13 +1385,13 @@
 
     <!-- Les semaines ouvertes par la préfecture : c'est ce qu'on
          vient chercher en ouvrant cet écran. -->
-    <div id="blocPlaces" style="margin-top:14px;margin-bottom:14px;"></div>
+
     <div data-section="bureau_places">
       <div id="alertePrise" style="margin-bottom:12px;"></div>
 
       <!-- Ceux qui n'ont pas le niveau : c'est ce qui empêche de
            placer un examen, donc ça vient en premier. -->
-      <details class="volet-liste" style="margin-bottom:12px;">
+      <details data-vue="pasprets" class="volet-liste" style="margin-bottom:12px;">
         <summary>⛔ Examen blanc — pas le niveau
           <span class="compteur" id="cptPasNiveau"></span></summary>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
@@ -1397,7 +1400,7 @@
       </details>
 
       <!-- Les examens blancs déjà datés -->
-      <details class="volet-liste" style="margin-bottom:14px;">
+      <details data-vue="envisager" class="volet-liste" style="margin-bottom:14px;">
         <summary>📝 Examens blancs prévus
           <span class="compteur" id="cptEBPrevus"></span></summary>
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
@@ -1406,13 +1409,13 @@
       </details>
 
     </div>
-    <details class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
+    <details data-vue="pasprets" class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
       <summary>⏳ Attente bilan post-permis <span class="compteur" id="cptAttente"></span></summary>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         Élèves ajournés : colle leur bilan puis fixe le rendez-vous post-permis.</div>
       <div id="listeAttenteBilan"><div class="empty">Appuie sur Actualiser.</div></div>
 
-    <details class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+    <details data-vue="pasprets" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
       <summary>⛔ Pas de repassage pour le moment <span class="compteur" id="cptPasRep"></span></summary>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
           Reprise des leçons avant de se décider.</div>
@@ -1420,7 +1423,7 @@
     </details>
     </details>
 
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+    <details data-vue="envisager" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <summary>🚗 Élèves prêts au permis <span class="compteur" id="cptAPrevoir"></span></summary>
       <select id="filtrePermis" style="margin-bottom:10px;">
         <option value="">Tous — par priorité</option>
@@ -1434,14 +1437,14 @@
       <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
     </details>
 
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+    <details data-vue="envisager" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <summary>🗓️ Liste RDV PERMIS <span class="compteur" id="cptAPlacer"></span></summary>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         Cochés depuis la liste précédente. Indique qui prend la date et sur quelle semaine.</div>
       <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
     </details>
 
-    <details class="volet-liste" style="margin-top:20px;" data-section="bureau_permis">
+    <details data-vue="preppermis" class="volet-liste" style="margin-top:20px;" data-section="bureau_permis">
       <summary>📣 Message groupe Messenger</summary>
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
         Choisis une date : les groupes définis dans « Permis prévus » sont repris,
@@ -1454,7 +1457,7 @@
 
 
 
-    <details class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+    <details data-vue="resultats" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
       <summary>🏁 Examens passés — résultat à saisir <span class="compteur" id="cptPasses"></span></summary>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         Apparaissent automatiquement le lendemain de la date d'examen.</div>
@@ -2011,54 +2014,54 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=593"></script>
-<script src="app/ec-modeles.js?v=593"></script>
-<script src="app/ec-consignes.js?v=593"></script>
-<script src="app/ec-noyau.js?v=593"></script>
-<script src="app/ec-vocal.js?v=593"></script>
-<script src="app/ec-reseau.js?v=593"></script>
-<script src="app/ec-manuel.js?v=593"></script>
-<script src="app/ec-fenetres.js?v=593"></script>
-<script src="app/ec-questionnaire.js?v=593"></script>
-<script src="app/ec-permis.js?v=593"></script>
-<script src="app/ec-prepares.js?v=593"></script>
-<script src="app/ec-bureau.js?v=593"></script>
-<script src="app/ec-places.js?v=593"></script>
-<script src="app/ec-listes.js?v=593"></script>
-<script src="app/ec-permis-listes.js?v=593"></script>
-<script src="app/ec-postpermis.js?v=593"></script>
-<script src="app/ec-textes.js?v=593"></script>
-<script src="app/ec-correction.js?v=593"></script>
-<script src="app/ec-bilans.js?v=593"></script>
-<script src="app/ec-ecran.js?v=593"></script>
-<script src="app/ec-version.js?v=593"></script>
-<script src="app/ec-paie.js?v=593"></script>
-<script src="app/ec-flotte.js?v=593"></script>
-<script src="app/ec-arriereplan.js?v=593"></script>
-<script src="app/ec-placesbe.js?v=593"></script>
-<script src="app/ec-codeamenage.js?v=593"></script>
-<script src="app/ec-financements.js?v=593"></script>
-<script src="app/ec-eval-aac.js?v=593"></script>
-<script src="app/ec-postes.js?v=593"></script>
-<script src="app/ec-tarifs.js?v=593"></script>
-<script src="app/ec-evaluation.js?v=593"></script>
-<script src="app/ec-paiement.js?v=593"></script>
-<script src="app/ec-handicap.js?v=593"></script>
-<script src="app/ec-code.js?v=593"></script>
-<script src="app/ec-proccorriger.js?v=593"></script>
-<script src="app/ec-sessions.js?v=593"></script>
-<script src="app/ec-notifs.js?v=593"></script>
-<script src="app/ec-ecoutes.js?v=593"></script>
-<script src="app/ec-taches.js?v=593"></script>
-<script src="app/ec-memoire.js?v=593"></script>
-<script src="app/ec-historique.js?v=593"></script>
-<script src="app/ec-rappels.js?v=593"></script>
-<script src="app/ec-stats.js?v=593"></script>
-<script src="app/ec-messenger.js?v=593"></script>
-<script src="app/ec-journal.js?v=593"></script>
-<script src="app/ec-depart.js?v=593"></script>
-<script src="app/ec-onglets.js?v=593"></script>
-<script src="app/ec-demarrage.js?v=593"></script>
+  <script src="app/ec-etat.js?v=594"></script>
+<script src="app/ec-modeles.js?v=594"></script>
+<script src="app/ec-consignes.js?v=594"></script>
+<script src="app/ec-noyau.js?v=594"></script>
+<script src="app/ec-vocal.js?v=594"></script>
+<script src="app/ec-reseau.js?v=594"></script>
+<script src="app/ec-manuel.js?v=594"></script>
+<script src="app/ec-fenetres.js?v=594"></script>
+<script src="app/ec-questionnaire.js?v=594"></script>
+<script src="app/ec-permis.js?v=594"></script>
+<script src="app/ec-prepares.js?v=594"></script>
+<script src="app/ec-bureau.js?v=594"></script>
+<script src="app/ec-places.js?v=594"></script>
+<script src="app/ec-listes.js?v=594"></script>
+<script src="app/ec-permis-listes.js?v=594"></script>
+<script src="app/ec-postpermis.js?v=594"></script>
+<script src="app/ec-textes.js?v=594"></script>
+<script src="app/ec-correction.js?v=594"></script>
+<script src="app/ec-bilans.js?v=594"></script>
+<script src="app/ec-ecran.js?v=594"></script>
+<script src="app/ec-version.js?v=594"></script>
+<script src="app/ec-paie.js?v=594"></script>
+<script src="app/ec-flotte.js?v=594"></script>
+<script src="app/ec-arriereplan.js?v=594"></script>
+<script src="app/ec-placesbe.js?v=594"></script>
+<script src="app/ec-codeamenage.js?v=594"></script>
+<script src="app/ec-financements.js?v=594"></script>
+<script src="app/ec-eval-aac.js?v=594"></script>
+<script src="app/ec-postes.js?v=594"></script>
+<script src="app/ec-tarifs.js?v=594"></script>
+<script src="app/ec-evaluation.js?v=594"></script>
+<script src="app/ec-paiement.js?v=594"></script>
+<script src="app/ec-handicap.js?v=594"></script>
+<script src="app/ec-code.js?v=594"></script>
+<script src="app/ec-proccorriger.js?v=594"></script>
+<script src="app/ec-sessions.js?v=594"></script>
+<script src="app/ec-notifs.js?v=594"></script>
+<script src="app/ec-ecoutes.js?v=594"></script>
+<script src="app/ec-taches.js?v=594"></script>
+<script src="app/ec-memoire.js?v=594"></script>
+<script src="app/ec-historique.js?v=594"></script>
+<script src="app/ec-rappels.js?v=594"></script>
+<script src="app/ec-stats.js?v=594"></script>
+<script src="app/ec-messenger.js?v=594"></script>
+<script src="app/ec-journal.js?v=594"></script>
+<script src="app/ec-depart.js?v=594"></script>
+<script src="app/ec-onglets.js?v=594"></script>
+<script src="app/ec-demarrage.js?v=594"></script>
 
 </body>
 </html>
