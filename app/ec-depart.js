@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:37 — v574 */
+/* Déployé le 27/08/2026 à 10:25 — v596 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -155,7 +155,11 @@ async function preparerDepart(){
       bSuivi.disabled = false;
     }
   });
-  actions.appendChild(bSuivi);
+  /* Ce bouton détruit la fiche de suivi entière — date d'examen,
+     heures, examen blanc, paiements. Dans les listes, on déplace
+     plutôt qu'on ne détruit ; ici, il reste pour un élève qui
+     quitte vraiment l'auto-école. */
+  if(ACCES.role === 'admin') actions.appendChild(bSuivi);
 
   /* Suppression complète, administrateurs seulement */
   if(ACCES.role === 'admin' && nb > 0){
@@ -240,7 +244,18 @@ async function supprimerDossierEleve(){
   }
 }
 
+/* La suppression des bilans, dans l'historique : réservée aux
+   administrateurs, c'est irrémédiable.
+
+   Le rôle n'est connu qu'après la connexion : on branche le
+   bouton et on décide de l'afficher au moment voulu. */
 brancher('supprimerEleveBtn', 'click', supprimerDossierEleve);
+
+function majBoutonSuppressionHistorique(){
+  const b = $('supprimerEleveBtn');
+  if(!b) return;
+  b.style.display = (ACCES.role === 'admin') ? '' : 'none';
+}
 brancher('bureauBtn', 'click', () => afficherBureau());
 brancher('filtrePP', 'change', () => afficherBureau());
 brancher('filtrePermis', 'change', () => afficherBureau());
@@ -1104,6 +1119,7 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
   $('logoutBtn').style.display = 'block';
+  majBoutonSuppressionHistorique();
 
   /* Le contrôle de version : à côté du prénom, là où le moniteur
      regarde quand il doute. */
