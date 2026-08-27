@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:53 — v602 */
+/* Déployé le 27/08/2026 à 12:07 — v603 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -282,7 +282,7 @@ function reveillerVue(cle){
                         if(typeof afficherSolo === 'function') afficherSolo(); },
     resultats:  () => afficherBureau(),
     moto:       () => afficherMoto(),
-    remorque:   () => {},
+    remorque:   () => afficherRemorque(),
     paie:       () => afficherPaie(),
     flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
