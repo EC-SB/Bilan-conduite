@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:38 — v616 */
+/* Déployé le 27/08/2026 à 14:10 — v618 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -941,6 +941,21 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
     boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
     boite.querySelector('#qLibre').value = prec.libre || '';
+
+    /* Le point demandé par le bureau, en tête du questionnaire :
+       c'est ce que le moniteur doit faire pendant ce cours. */
+    if(typeof mentionFairePoint === 'function'){
+      const pt = mentionFairePoint(($('studentName') &&
+                                    $('studentName').value.trim()) || '');
+      if(pt){
+        const l = document.createElement('div');
+        l.style.cssText = 'border:1px solid var(--orange);border-radius:10px;' +
+          'padding:10px 12px;margin-bottom:14px;font-size:13px;' +
+          'color:var(--warn-text);line-height:1.5;';
+        l.textContent = pt + ' — le bureau attend ton retour.';
+        boite.insertBefore(l, boite.children[1] || null);
+      }
+    }
 
     /* La fiche d'évaluation ne garde que sa question et les notes
        libres. Ce masquage vient en dernier : posé plus haut, il
