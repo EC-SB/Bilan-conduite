@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 11:04 — v554 */
+/* Déployé le 27/08/2026 à 10:06 — v594 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -128,8 +128,13 @@ function initOnglets(){
 const VUES = {
   /* Deux vues : les sessions qu'on prépare, et tout le reste —
      permis prévus, places à ouvrir, élèves à qui prendre une date. */
-  permis: [['sessions', "🎓 Sessions d'examen",   'bureau_permis'],
-           ['listes',   '📋 Permis et places',    'bureau_permis']],
+  /* Le parcours d'un élève, dans l'ordre où il le suit : pas
+     prêt, à envisager, préparé, suivi, résultat. */
+  permis: [['pasprets',  '⛔ Pas prêts',        'bureau_permis'],
+           ['envisager', '🤔 À envisager',      'bureau_permis'],
+           ['preppermis','📣 Préparation',      'bureau_permis'],
+           ['sessions',  '🎓 Suivi permis',     'bureau_permis'],
+           ['resultats', '🏁 Résultats',        'bureau_permis']],
   suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
            ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
   eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
@@ -217,13 +222,31 @@ function libererOngletsSansVues(){
 function afficherVue(onglet, cle){
   vueActive[onglet] = cle;
 
-  document.querySelectorAll('[data-vue][data-onglet="' + onglet + '"]').forEach(el => {
-    const cache = el.getAttribute('data-vue') !== cle;
+  /* Une carte peut servir plusieurs vues — « data-vues » au
+     pluriel — quand ce sont ses tiroirs qui les distinguent. */
+  const sel = '[data-onglet="' + onglet + '"][data-vue], ' +
+              '[data-onglet="' + onglet + '"][data-vues]';
+
+  document.querySelectorAll(sel).forEach(el => {
+    const une = el.getAttribute('data-vue');
+    const plusieurs = el.getAttribute('data-vues');
+
+    const cache = plusieurs
+      ? plusieurs.split(/\s+/).indexOf(cle) === -1
+      : une !== cle;
+
     el.classList.toggle('hors-vue', cache);
     /* Les droits touchent aussi au style : on ne laisse pas de doute */
     if(cache) el.style.display = 'none';
     else if(el.style.display === 'none') el.style.display = '';
   });
+
+  /* Les tiroirs de cette carte : chacun a sa vue */
+  document.querySelectorAll('[data-onglet="' + onglet + '"] details[data-vue]')
+    .forEach(d => {
+      const sien = (d.getAttribute('data-vue') === cle);
+      d.style.display = sien ? '' : 'none';
+    });
 
   const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
   if(barre){
@@ -250,6 +273,11 @@ function reveillerVue(cle){
     eleves:     () => afficherRepertoire(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
+    /* Les cinq vues du permis partagent le même chargement */
+    pasprets:   () => afficherBureau(),
+    envisager:  () => afficherBureau(),
+    preppermis: () => afficherBureau(),
+    resultats:  () => afficherBureau(),
     paie:       () => afficherPaie(),
     flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
