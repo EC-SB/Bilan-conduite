@@ -31,18 +31,48 @@ function etapeRemorque(s){
 
 
 function elevesRemorque(){
-  if(typeof etatBureau === 'undefined' || !etatBureau.eleves) return [];
+  if(typeof etatBureau === 'undefined') return [];
 
-  return etatBureau.eleves.filter(e => {
-    const s = suiviDe(e.eleve) || {};
+  const CHAMPS = ['beAnts', 'beAntsValide', 'beCode', 'beCours1', 'beCours2',
+                  'beCours3', 'beAPrevoir', 'beMois', 'beDate', 'beAPasser'];
 
-    const f = String(e.formation || s.formation || '').trim();
+  const dedans = s => {
+    const f = String((s && s.formation) || '').trim();
     if(normaliserMot(f) === normaliserMot(FORMATION_BE)) return true;
+    return CHAMPS.some(k => String((s && s[k]) || '').trim());
+  };
 
-    /* Une saisie remorque suffit à l'y ranger */
-    return ['beAnts', 'beCode', 'beCours1', 'beAPrevoir', 'beDate', 'beAPasser']
-      .some(k => String(s[k] || '').trim());
+  const vus = [];
+  const out = [];
+
+  const ajouter = (nom, source) => {
+    const k = normaliserMot(nom || '');
+    if(!k || vus.indexOf(k) !== -1) return;
+    vus.push(k);
+    out.push(Object.assign({ eleve: nom }, source || {}));
+  };
+
+  /* Les fiches du répertoire : c'est là qu'un élève tout neuf
+     existe, avant tout bilan et toute consigne. */
+  (typeof fichesConnues !== 'undefined' ? (fichesConnues || []) : [])
+    .forEach(f => {
+      if(dedans({ formation: f.formation })) ajouter(f.eleve, f);
+    });
+
+  (etatBureau.suivi || []).forEach(s => {
+    const f = (typeof formationDe === 'function') ? formationDe(s.eleve) : '';
+    if(dedans(Object.assign({}, s, { formation: f }))){
+      ajouter(s.eleve, { formation: f });
+    }
   });
+
+  (etatBureau.eleves || []).forEach(e => {
+    const f = (typeof formationDe === 'function') ? formationDe(e.eleve) : '';
+    const s = Object.assign({}, suiviDe(e.eleve) || {}, { formation: f });
+    if(dedans(s)) ajouter(e.eleve, e);
+  });
+
+  return out;
 }
 
 
@@ -61,6 +91,7 @@ async function afficherRemorque(){
     }
   }
 
+  if(typeof chargerFiches === 'function') await chargerFiches();
   const tous = elevesRemorque();
   zone.innerHTML = '';
   zone.appendChild(boutonAjouterRemorque());
@@ -469,6 +500,7 @@ async function ajouterEleveRemorque(){
     await majSuivi(propre, { beAnts: '' });
 
     showToast(propre + ' ajouté ✅');
+    if(typeof chargerFiches === 'function') await chargerFiches(true);
     afficherRemorque();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
