@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 12:16 — v605 */
+/* Déployé le 27/08/2026 à 13:06 — v613 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -173,7 +173,7 @@ function ficheSuiviPermis(e){
                                   aRemplacer: '', aPlanifier: 'oui' });
 
         showToast('Date transférée à ' + nouveau + ' ✅');
-        afficherBureau();
+        redessinerBureau();
       }catch(err){
         showToast('Transfert impossible : ' + err.message);
         bTrf.disabled = false;
@@ -373,7 +373,7 @@ function tableauAPlacer(liste){
               await majSuivi(e.eleve, { datePermis: dateEnToutesLettres(iso),
                                         aPlanifier: '', statut: '' });
               showToast('Date transmise ✅');
-              afficherBureau();
+              redessinerBureau();
             }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
           });
           l.appendChild(bCal);
@@ -391,7 +391,7 @@ function tableauAPlacer(liste){
             try{
               await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: '' });
               showToast(e.eleve + ' est retourné en « à prévoir »');
-              afficherBureau();
+              redessinerBureau();
             }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
           });
           l.appendChild(bDel);
@@ -485,7 +485,7 @@ function afficherRdvPermis(tous){
           selC.value = s.centre || '';
           selC.addEventListener('change', async () => {
             selC.disabled = true;
-            try{ await majSuivi(x.eleve, { centre: selC.value }); await chargerBureau(); afficherBureau(); }
+            try{ await majSuivi(x.eleve, { centre: selC.value }); await chargerBureau(); redessinerBureau(); }
             catch(e){ showToast('Erreur : ' + e.message); }
             selC.disabled = false;
           });
@@ -546,7 +546,7 @@ function afficherRdvPermis(tous){
             await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
                                       aPlanifier: '', statut: '' });
             showToast('Date transmise ✅');
-            afficherBureau();
+            redessinerBureau();
           }));
         }
       }));
@@ -802,7 +802,7 @@ function afficherPermisPrevus(tous){
             await appelPrep({ action:'suiviSet', eleve:x.eleve,
                               datePermis: dateEnToutesLettres(iso), par: ACCES.moniteur || '' });
             showToast('Date transmise ✅');
-            afficherBureau();
+            redessinerBureau();
           }));
           const rangee = document.createElement('div');
           rangee.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;';
@@ -836,7 +836,7 @@ function afficherPermisPrevus(tous){
               }else{
                 await majSuivi(x.eleve, { statut: '' });
               }
-              afficherBureau();
+              redessinerBureau();
             }catch(e){ showToast('Erreur : ' + e.message); bAnn.disabled = false; }
           });
           rangee.appendChild(bAnn);
@@ -855,7 +855,7 @@ function afficherPermisPrevus(tous){
               /* On le sort de la liste sans détruire sa fiche */
               await majSuivi(x.eleve, { retireAPrevoir: 'oui', aPlanifier: '' });
               showToast('Retiré de la liste ✅');
-              afficherBureau();
+              redessinerBureau();
             }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
           });
           rangee.appendChild(bSup);
@@ -952,7 +952,7 @@ function afficherExamensPermis(tous){
         for(const x of masques){
           await majSuivi(x.eleve, { aPlanifier: '', retireAPrevoir: '' });
         }
-        afficherBureau();
+        redessinerBureau();
       }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
     });
     m.appendChild(b);
@@ -1038,7 +1038,7 @@ function afficherExamensPermis(tous){
             try{
               await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '',
                                         retireAPrevoir: '' });
-              afficherBureau();
+              redessinerBureau();
             }catch(e){ showToast('Erreur : ' + e.message); cb.disabled = false; }
           });
           lab.appendChild(cb);
@@ -1060,7 +1060,7 @@ function afficherExamensPermis(tous){
                 try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
               }
               await majSuivi(x.eleve, { retireAPrevoir: 'oui' });
-              afficherBureau();
+              redessinerBureau();
             }catch(e){ showToast('Erreur : ' + e.message); bRet.disabled = false; }
           });
           zone.appendChild(bRet);
@@ -1071,7 +1071,7 @@ function afficherExamensPermis(tous){
             await envoyerConsigne(x.eleve, 'permis',
               'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
             showToast('Date transmise ✅');
-            afficherBureau();
+            redessinerBureau();
           }));
 
           const sel = document.createElement('select');
@@ -1530,7 +1530,7 @@ function afficherPasDeRepassage(tous){
             await envoyerConsigne(x.eleve, 'permis',
               "Niveau revenu — date d'examen à prévoir (bureau)");
             showToast(x.eleve + ' est de retour en « à prévoir »');
-            afficherBureau();
+            redessinerBureau();
           }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
         });
         boite.appendChild(b);
@@ -1826,7 +1826,7 @@ async function rattraperExamensBlancs(){
   }
 
   showToast('✅ ' + n + ' élève(s) repris');
-  afficherBureau();
+  redessinerBureau();
   if(typeof afficherSessionsPermis === 'function'){
     try{ afficherSessionsPermis(); }catch(e){}
   }
@@ -1874,7 +1874,7 @@ async function saisirHeuresRestantes(nom){
     showToast(propre === '' ? 'Effacé'
             : propre === '0' ? 'Plus que les 3h ✅'
             : propre + ' + 3h ✅');
-    afficherBureau();
+    redessinerBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
@@ -1941,7 +1941,7 @@ async function saisirExamenBlanc(nom){
 
     /* Les sessions affichent la même information : sans ce
        rafraîchissement, la ligne gardait l'ancienne mention. */
-    afficherBureau();
+    redessinerBureau();
     if(typeof afficherSessionsPermis === 'function'){
       try{ afficherSessionsPermis(); }catch(e){}
     }
@@ -2016,7 +2016,7 @@ async function saisirPostPermis(nom){
   try{
     await majSuivi(nom, majs);
     showToast('Enregistré ✅');
-    afficherBureau();
+    redessinerBureau();
     if(typeof afficherSessionsPermis === 'function'){
       try{ afficherSessionsPermis(); }catch(e){}
     }
@@ -2091,7 +2091,7 @@ async function envoyerVersListe(nom){
     }
 
     showToast(nom + ' → ' + cible.nom.replace(/^[^ ]+ /, '') + ' ✅');
-    afficherBureau();
+    redessinerBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
