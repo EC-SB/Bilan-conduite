@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:25 — v596 */
+/* Déployé le 27/08/2026 à 10:51 — v598 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -165,8 +165,12 @@ function ficheSuiviPermis(e){
         /* L'élève précédent perd la date */
         await envoyerConsigne(e.eleve, 'permis',
           'Examen du ' + dateP + ' redonné à un autre candidat — nouvelle date à prévoir');
-        /* L'ancien candidat sort complètement de la liste des permis prévus */
-        await appelPrep({ action:'suiviDelete', eleve: e.eleve });
+        /* L'ancien candidat perd sa date, pas sa fiche : ses
+           heures, son examen blanc et ses paiements restent. Il
+           retourne chez les élèves à replacer. */
+        await majSuivi(e.eleve, { datePermis: '', centre: '',
+                                  statut: '', toutOk: '',
+                                  aRemplacer: '', aPlanifier: 'oui' });
 
         showToast('Date transférée à ' + nouveau + ' ✅');
         afficherBureau();
@@ -823,7 +827,11 @@ function afficherPermisPrevus(tous){
                 /* L'examen n'existe plus : l'élève retourne dans « à prévoir » */
                 await envoyerConsigne(x.eleve, 'permis',
                   "Examen du permis annulé — date d'examen à prévoir (bureau)");
-                await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+                /* Sa date part, sa fiche reste : heures, examen
+                   blanc et paiements sont encore utiles. */
+                await majSuivi(x.eleve, { datePermis: '', centre: '',
+                                          statut: '', toutOk: '',
+                                          aRemplacer: '' });
                 showToast(x.eleve + ' est repassé en « à prévoir »');
               }else{
                 await majSuivi(x.eleve, { statut: '' });
@@ -839,11 +847,14 @@ function afficherPermisPrevus(tous){
             'color:var(--red);border-color:var(--red);';
           bSup.textContent = '🗑️ Retirer de la liste';
           bSup.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + x.eleve + ' de la liste des permis prévus ?\n\n' +
-                        'Ses bilans ne sont pas touchés.')) return;
+            if(!await confirmer('Retirer ' + x.eleve + ' de cette liste ?\n\n' +
+                        'Sa fiche est conservée : heures, examen blanc, ' +
+                        'paiements. Tu pourras le remettre.')) return;
             bSup.disabled = true;
             try{
-              await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+              /* On le sort de la liste sans détruire sa fiche */
+              await majSuivi(x.eleve, { retireAPrevoir: 'oui', aPlanifier: '' });
+              showToast('Retiré de la liste ✅');
               afficherBureau();
             }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
           });
