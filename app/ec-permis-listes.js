@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 14:06 — v617 */
+/* Déployé le 27/08/2026 à 14:10 — v618 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2141,6 +2141,19 @@ async function saisirFairePoint(nom){
         "La mention disparaîtra de sa ligne.", 'Point fait')) return;
 
     await majSuivi(nom, { fairePoint: '', fairePointLe: '' });
+
+    /* La consigne n'a plus d'objet */
+    try{
+      const e = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
+        ? etatBureau.eleves.find(x => normaliserMot(x.eleve) === normaliserMot(nom))
+        : null;
+
+      for(const cs of ((e && e.enAttente) || [])){
+        if(!/faire le point/i.test(cs.texte || '')) continue;
+        try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+      }
+    }catch(err){}
+
     showToast('Point fait ✅');
     redessinerBureau();
     if(typeof afficherSessionsPermis === 'function'){
@@ -2153,8 +2166,19 @@ async function saisirFairePoint(nom){
   if(!iso) return;
 
   try{
-    await majSuivi(nom, { fairePoint: 'oui',
-                          fairePointLe: dateEnToutesLettres(iso) });
+    const quand = dateEnToutesLettres(iso);
+
+    await majSuivi(nom, { fairePoint: 'oui', fairePointLe: quand });
+
+    /* Le moniteur ne voit pas le suivi : la consigne, si. Sans
+       elle, il découvrait la demande après son cours. */
+    if(typeof envoyerConsigne === 'function'){
+      try{
+        await envoyerConsigne(nom, 'point',
+          '❓ Faire le point à la leçon du ' + quand + ' (bureau)');
+      }catch(e){}
+    }
+
     showToast('Noté ✅');
     redessinerBureau();
     if(typeof afficherSessionsPermis === 'function'){
