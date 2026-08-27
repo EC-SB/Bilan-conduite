@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:06 — v613 */
+/* Déployé le 27/08/2026 à 13:12 — v614 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -236,7 +236,11 @@ function resumeSuivi(eleve){
   if(!s) return '';
   const bouts = [];
   /* En premier : c'est une consigne pour le prochain moniteur */
-  if(s.fairePoint === 'oui') bouts.push('❓ faire le point à la prochaine leçon');
+  if(s.fairePoint === 'oui'){
+    bouts.push('❓ Faire le point à la leçon' +
+               (String(s.fairePointLe || '').trim()
+                 ? ' du ' + s.fairePointLe : ''));
+  }
   if(s.toutOk === 'oui') bouts.push('✅ tout est OK');
   if(s.statut === 'annule') bouts.push('❌ examen annulé');
   if(s.fantome === 'oui') bouts.push('👻 place fantôme');
@@ -2092,6 +2096,50 @@ async function envoyerVersListe(nom){
 
     showToast(nom + ' → ' + cible.nom.replace(/^[^ ]+ /, '') + ' ✅');
     redessinerBureau();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+/* Le point à refaire lors d'une leçon.
+
+   Il vient du rendez-vous post-permis conclu par « une leçon de
+   2h », ou de la main du bureau. */
+function mentionFairePoint(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  if(s.fairePoint !== 'oui') return '';
+
+  const d = String(s.fairePointLe || '').trim();
+  return '❓ Faire le point à la leçon' + (d ? ' du ' + d : '');
+}
+
+
+async function saisirFairePoint(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+
+  if(s.fairePoint === 'oui'){
+    if(!await confirmer('Le point a-t-il été fait pour ' + nom + ' ?\n\n' +
+        "La mention disparaîtra de sa ligne.", 'Point fait')) return;
+
+    await majSuivi(nom, { fairePoint: '', fairePointLe: '' });
+    showToast('Point fait ✅');
+    redessinerBureau();
+    if(typeof afficherSessionsPermis === 'function'){
+      try{ afficherSessionsPermis(); }catch(e){}
+    }
+    return;
+  }
+
+  const iso = await choisirDate('Leçon où faire le point — ' + nom);
+  if(!iso) return;
+
+  try{
+    await majSuivi(nom, { fairePoint: 'oui',
+                          fairePointLe: dateEnToutesLettres(iso) });
+    showToast('Noté ✅');
+    redessinerBureau();
+    if(typeof afficherSessionsPermis === 'function'){
+      try{ afficherSessionsPermis(); }catch(e){}
+    }
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
