@@ -55,7 +55,10 @@ function etapeMoto(s){
    n'apparaissait nulle part. */
 let fichesConnues = null;
 
-async function chargerFiches(force){
+/* Nommée à part : « chargerFiches » existe déjà dans
+   ec-fenetres.js et remplit fichesEleves, d'où viennent les
+   numéros de téléphone. Le doublon l'écrasait. */
+async function chargerFichesMoto(force){
   if(fichesConnues && !force) return fichesConnues;
   try{
     const d = await appelPrep({ action: 'fichesList' });
@@ -144,7 +147,7 @@ async function afficherMoto(){
     }
   }
 
-  await chargerFiches();
+  await chargerFichesMoto();
   const tous = elevesMoto();
   zone.innerHTML = '';
 
@@ -618,8 +621,8 @@ async function saisirPassagesMoto(nom, epreuve){
    téléphone. */
 function choisirDansListeMoto(titre, aide, options, valeurActuelle){
   /* La remorque en a déjà une : autant s'en servir */
-  if(typeof choisirDansListe === 'function'){
-    return choisirDansListe(titre, aide, options, valeurActuelle);
+  if(typeof choisirDansListe2R === 'function'){
+    return choisirDansListe2R(titre, aide, options, valeurActuelle);
   }
 
   return Promise.resolve(null);
@@ -947,7 +950,7 @@ async function ajouterEleveMoto(){
 
     showToast(propre + ' ajouté ✅');
     /* Sa fiche vient d'être créée : on relit le répertoire */
-    await chargerFiches(true);
+    await chargerFichesMoto(true);
     afficherMoto();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
