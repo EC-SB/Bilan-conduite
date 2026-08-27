@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 09:46 — v593 */
+/* Déployé le 27/08/2026 à 13:11 — v614 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1002,7 +1002,10 @@ function ouvrirRdvPost(cours){
   const hh = $('rdvPostHeures');
   hh.value = s.heuresRepassage || (memo ? memo.heures : '') || '';
   const majH = () => {
-    hh.style.display = (sel.value && sel.value !== 'impossible') ? 'block' : 'none';
+    /* « Une leçon de 2h » porte déjà sa durée : demander des
+       heures en plus n'a pas de sens. */
+    hh.style.display = (sel.value && sel.value !== 'impossible' &&
+                        sel.value !== '2h') ? 'block' : 'none';
   };
   sel.onchange = majH;
   majH();
@@ -1034,7 +1037,7 @@ async function terminerRdvPost(){
     msg.textContent = 'Indique la suite à donner avant de terminer.';
     return;
   }
-  if(suite !== 'impossible' && !heures){
+  if(suite !== 'impossible' && suite !== '2h' && !heures){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = "Indique le nombre d'heures avant le repassage.";
     return;
@@ -1051,7 +1054,12 @@ async function terminerRdvPost(){
       bilanEleve: $('rdvPostEleveBilan').value.trim(),
       texteMoniteur: $('rdvPostTexte').value.trim(),
       suite: suite,
-      heuresRepassage: (suite === 'impossible') ? '' : heures,
+      heuresRepassage: (suite === 'impossible' || suite === '2h') ? '' : heures,
+      /* Le point à refaire lors d'une leçon : le bureau le voit
+         sous le nom de l'élève. */
+      fairePoint: (suite === '2h') ? 'oui' : '',
+      fairePointLe: (suite === '2h')
+        ? (dateEnToutesLettres(todayLocal()) || todayLocal()) : '',
       commentaireMoniteur: $('rdvPostCom').value.trim(),
       rdvPostFait: 'oui',
       /* L'élève rejoint la liste qui correspond à la conclusion */
