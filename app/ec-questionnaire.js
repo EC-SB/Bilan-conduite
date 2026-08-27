@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 08:43 — v586 */
+/* Déployé le 27/08/2026 à 12:49 — v611 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -329,7 +329,10 @@ const PROFILS_QUESTIONNAIRE = {
   'simu-auto': 'simulateur',
   'eval-manuelle': 'evaluation',
   'eval-auto': 'evaluation',
-  'examen-officiel': 'examen'
+  'examen-officiel': 'examen',
+  /* La fiche d'évaluation ne demande qu'une chose : combien de
+     leçons avant de présenter l'élève à la préfecture. */
+  'handicap': 'handicap'
 };
 
 function profilQuestionnaire(modeleCle){
@@ -625,6 +628,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '<div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">' +
       'Information interne, jamais reprise dans les notes ni dans le bilan.</div>' +
 
+      /* Tout ce que la fiche d'évaluation ne demande pas tient
+         dans ce bloc : un seul masquage suffit. */
+      '<div id="qBlocSauf">' +
       '<label>Frise de formation</label>' +
       (friseDeduite
         ? ''
@@ -728,7 +734,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       'Nouvelle date (laisse vide si en attente)</div>' +
       '<input type="date" id="qNouvelleDate" style="display:none;">' +
 
-      '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
+      '<label id="qBlocEcoutes" style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qPasEcoute" style="width:20px;height:20px;">' +
         "Pas d'écoutes pédagogiques" +
       '</label>' +
@@ -772,6 +778,18 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           'margin-bottom:14px;"></div>' +
       '</div>' +
 
+      '</div>' +
+
+      /* Hors du bloc masqué : c'est la seule question que la
+         fiche d'évaluation conserve. */
+      '<div id="qBlocPrefecture" style="display:none;">' +
+        '<label for="qPrefecture">Leçons avant présentation à la préfecture</label>' +
+        '<input type="number" id="qPrefecture" min="0" inputmode="numeric" ' +
+          'placeholder="—">' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 10px;' +
+          'line-height:1.5;">Combien de leçons lui faut-il encore ?</div>' +
+      '</div>' +
+
       '<label for="qLibre">Vos autres notes</label>' +
       '<textarea id="qLibre" rows="3" maxlength="400" ' +
       'placeholder="Ex : autre notes importante" ' +
@@ -801,14 +819,26 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const chHeures = boite.querySelector('#qFriseHeures');
 
     const caseCS = boite.querySelector('#qCS');
-    const zoneClassique = boite.querySelector('#qFriseClassique');
-    const zoneFixe = boite.querySelector('#qFriseFixe');
+    /* La fiche d'évaluation n'a pas de frise : la chercher la
+       ferait réapparaître après son masquage. */
+    const surFiche = (profil === 'handicap');
+    const zoneClassique = surFiche ? null : boite.querySelector('#qFriseClassique');
+    const zoneFixe = surFiche ? null : boite.querySelector('#qFriseFixe');
 
     const blocAacCs = boite.querySelector('#qBlocAacCs');
 
     /* Adaptation au profil : on retire ce qui ne concerne pas ce type de cours */
     if(profil !== 'complet'){
-      const aMasquer = (profil === 'examen')
+      const aMasquer = (profil === 'handicap')
+        /* La fiche d'évaluation : tout part, sauf les leçons
+           avant la préfecture. */
+        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
+           '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
+           '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
+           '#qFriseClassique', '#qFriseFixe', '#qCS', '#qBlocEcoutes',
+           '#qBlocEbDate', '#qBlocEbRang', '#qExamBlancDate', '#qEBPasse',
+           '#qEBLecons', '#qFormAccomp', '#qRvPrealable', '#qExamPassage']
+        : (profil === 'examen')
         ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
            '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe', '#qCS']
         : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
@@ -828,6 +858,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     }
 
     function majParcours(){
+      /* La fiche d évaluation n a pas de frise : sans ce garde-fou,
+         l appel plantait et laissait le reste affiché. */
+      if(!zoneClassique || !zoneFixe) return;
+
       const fixe = friseDeduite || ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '');
       if(fixe){
         zoneClassique.style.display = 'none';
@@ -885,13 +919,35 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
     boite.querySelector('#qLibre').value = prec.libre || '';
 
+    /* La fiche d'évaluation ne garde que sa question et les notes
+       libres. Ce masquage vient en dernier : posé plus haut, il
+       se faisait défaire par les réglages qui suivent. */
+    {
+      const surEval = (profil === 'handicap');
+
+      const sauf = boite.querySelector('#qBlocSauf');
+      if(sauf) sauf.style.display = surEval ? 'none' : '';
+
+      if(surEval){
+        const bf = boite.querySelector('#qBlocFiche');
+        if(bf) bf.style.display = 'none';
+      }
+
+      const zp = boite.querySelector('#qBlocPrefecture');
+      if(zp) zp.style.display = surEval ? 'block' : 'none';
+    }
+
     /* La fiche véhicule, pré-cochée d'après les bilans précédents */
     const marquesConnues = dossier.marques || {};
     /* En fin de cours, le moniteur a déjà coché pendant qu'il
        conduisait : lui remontrer la liste n'apporte rien. */
     const enFinDeCours = /après ce cours|terminer|fin/i.test(String(titre || ''));
     const blocFiche = boite.querySelector('#qBlocFiche');
-    if(blocFiche) blocFiche.style.display = enFinDeCours ? 'none' : 'block';
+    if(blocFiche){
+      /* La fiche d'évaluation ne concerne pas le véhicule */
+      const surFiche = (profil === 'handicap');
+      blocFiche.style.display = (enFinDeCours || surFiche) ? 'none' : 'block';
+    }
 
     remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || []);
     boite._marquesConnues = marquesConnues;
@@ -993,6 +1049,22 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       if(x.value === (prec.examBlanc || '')) x.checked = true;
       x.addEventListener('change', majEB);
     });
+
+    /* La fiche d'évaluation montre sa question, et elle seule.
+
+       Les blocs englobants se masquent ici : le mécanisme par
+       profil ne touche que les champs et leurs étiquettes. */
+    const zPref = boite.querySelector('#qBlocPrefecture');
+    if(zPref){
+      const surFicheEval = (profil === 'handicap');
+      zPref.style.display = surFicheEval ? 'block' : 'none';
+
+      if(surFicheEval){
+        boite.querySelector('#qPrefecture').value = prec.prefecture || '';
+
+
+      }
+    }
 
     /* Un examen blanc se passe aujourd'hui, par définition : le
        demander n'apprend rien. Et « dans combien de leçons » ne
@@ -1144,6 +1216,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         examDate: dEP.value,
         pasEcoute: boite.querySelector('#qPasEcoute').checked,
         simuNuit: boite.querySelector('#qSimuNuit').value,
+        prefecture: (boite.querySelector('#qPrefecture') || {}).value || '',
         ebPasse: selEB2 ? selEB2.value : '',
         ebLecons: nEB2 ? nEB2.value.trim() : '',
         /* Les heures avant permis remontent au bureau, qui en a
@@ -1202,6 +1275,15 @@ function noteDepuisQuestionnaire(q){
   if(q.coussin === 'oui') bouts.push('🟩 Coussin vert');
 
   if(q.frise) bouts.push(q.frise);
+
+  /* La fiche d évaluation : sa seule information */
+  if(String(q.prefecture || '').trim()){
+    const n = Number(q.prefecture);
+    bouts.push(n > 0
+      ? '♿ Encore ' + n + ' leçon' + (n > 1 ? 's' : '') +
+        ' avant présentation à la préfecture'
+      : '♿ Prêt à être présenté à la préfecture');
+  }
 
   if(q.lecon){
     const n = parseInt(q.lecon, 10);
