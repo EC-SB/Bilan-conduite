@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 10:03 — v551 */
+/* Déployé le 27/08/2026 à 14:10 — v618 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -243,6 +243,19 @@ function verifierNomEleve(idChamp, idInfo, contexteCours){
   if(elevesConnus.some(n => normaliserMot(n) === cle)){
     info.style.color = 'var(--accent-text)';
     info.textContent = '✓ Élève connu';
+
+    /* Le point demandé par le bureau : le moniteur doit le voir
+       en ouvrant son cours, pas le découvrir après. */
+    if(contexteCours && typeof mentionFairePoint === 'function'){
+      const pt = mentionFairePoint(champ.value.trim());
+      if(pt){
+        const l = document.createElement('div');
+        l.style.cssText = 'margin-top:4px;color:var(--warn-text);' +
+          'font-weight:700;';
+        l.textContent = pt;
+        info.appendChild(l);
+      }
+    }
     return;
   }
 
