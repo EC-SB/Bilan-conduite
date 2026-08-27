@@ -592,9 +592,16 @@ function lignePlace(p, sess){
     const h = (typeof mentionHeuresRestantes === 'function')
       ? mentionHeuresRestantes(p.eleve) : '';
 
+    /* Un repassage : le post-permis fait foi, il est plus récent
+       que l'examen blanc. */
+    const post = (typeof mentionPostPermis === 'function')
+      ? mentionPostPermis(p.eleve) : '';
+
     const manque = /pas encore/.test(m) || /à préciser/.test(h);
     eb.style.color = manque ? 'var(--warn-text)' : 'var(--muted)';
-    eb.textContent = m.replace(/^ · /, '') + h;
+    eb.innerHTML = (m.replace(/^ · /, '') + h).replace(/</g, '&lt;') +
+      (post ? '<div style="margin-top:2px;">' +
+              post.replace(/</g, '&lt;') + '</div>' : '');
 
     /* Un appui pour le corriger ou l'indiquer à la main */
     eb.style.cursor = 'pointer';
@@ -742,14 +749,27 @@ function ouvrirPlace(p, sess){
     bEB.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;' +
       'margin:0;flex-shrink:0;';
     bEB.textContent = '✏️';
-    bEB.title = "Indiquer où en est son examen blanc";
+    bEB.title = "Examen blanc ou rendez-vous post-permis";
     bEB.addEventListener('click', () => {
       document.body.removeChild(fond);
-      if(typeof saisirExamenBlanc === 'function') saisirExamenBlanc(p.eleve);
+      if(typeof saisirNiveauEleve === 'function') saisirNiveauEleve(p.eleve);
     });
     eb.appendChild(bEB);
 
     boite.appendChild(eb);
+
+    /* Le post-permis, quand il y en a un : c'est le repassage */
+    const post = (typeof mentionPostPermis === 'function')
+      ? mentionPostPermis(p.eleve) : '';
+
+    if(post){
+      const zp = document.createElement('div');
+      zp.style.cssText = 'font-size:13px;line-height:1.5;color:var(--cream);' +
+        'border:1px solid var(--line);border-radius:10px;' +
+        'padding:9px 11px;margin-bottom:12px;';
+      zp.textContent = post;
+      boite.appendChild(zp);
+    }
 
     /* Les heures avant permis, avec de quoi les corriger */
     const zh = document.createElement('div');
