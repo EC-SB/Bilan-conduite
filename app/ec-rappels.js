@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 17:18 — v628 */
+/* Déployé le 27/08/2026 à 17:37 — v630 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -153,7 +153,7 @@ async function chargerCeQuiManque(){
 
 
 /* Le dire, plutôt que d'afficher un écran muet */
-function blocChargementRate(manquants){
+function blocChargementRate(manquants, relancer){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
     'padding:14px;text-align:center;';
@@ -169,7 +169,10 @@ function blocChargementRate(manquants){
   b.style.cssText = 'margin-top:12px;padding:12px;font-size:13px;';
   b.textContent = '🔄 Réessayer';
   b.addEventListener('click', () => {
-    if(typeof afficherRappels === 'function') afficherRappels();
+    /* Chaque écran se relance lui-même : le manuel et la liste
+       ne montrent pas la même chose. */
+    if(typeof relancer === 'function') relancer();
+    else if(typeof afficherRappels === 'function') afficherRappels();
   });
   d.appendChild(b);
 
@@ -848,13 +851,19 @@ async function afficherRappelManuel(){
   /* Un nouvel écran repart du modèle */
   texteModifie = false;
 
-  /* Déjà en mémoire : on n'attend rien. C'est le cas courant, le
-     répertoire étant lu à la connexion. */
-  if(typeof chargerFiches === 'function' &&
-     (typeof fichesEleves === 'undefined' || !fichesEleves.length)){
-    zone.innerHTML = '<div class="empty">Chargement des élèves…</div>';
-    await chargerFiches().catch(() => []);
+  /* Les modèles portent les messages : sans eux, l'écran annonce
+     « aucun modèle enregistré » alors qu'ils existent. Ils
+     n'étaient chargés que par l'autre écran. */
+  zone.innerHTML = '<div class="empty">Chargement…</div>';
+
+  const manquants = await chargerCeQuiManque();
+
+  if(manquants.length){
+    zone.innerHTML = '';
+    zone.appendChild(blocChargementRate(manquants, afficherRappelManuel));
+    return;
   }
+
   zone.innerHTML = '';
 
   /* Choix de l'élève */
