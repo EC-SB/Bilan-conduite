@@ -751,8 +751,19 @@ function lignePlace(p, sess){
     const manque = (!post && /pas encore/.test(m)) ||
                    (!dejaDites && /à préciser/.test(h));
 
+    /* Le point à refaire : le bureau le voit sous le nom */
+    const pt = (typeof mentionFairePoint === 'function')
+      ? mentionFairePoint(p.eleve) : '';
+
     eb.style.color = manque ? 'var(--warn-text)' : 'var(--muted)';
     eb.textContent = quoi + (dejaDites ? '' : h);
+
+    if(pt){
+      const l = document.createElement('div');
+      l.style.cssText = 'margin-top:2px;color:var(--accent-text);';
+      l.textContent = pt;
+      eb.appendChild(l);
+    }
 
     /* Un appui pour le corriger ou l'indiquer à la main */
     eb.style.cursor = 'pointer';
@@ -923,6 +934,8 @@ function ouvrirPlace(p, sess){
            typeof saisirExamenBlanc === 'function' ? saisirExamenBlanc : null);
     bouton('🔁 Post-permis',
            typeof saisirPostPermis === 'function' ? saisirPostPermis : null);
+    bouton('❓ Faire le point',
+           typeof saisirFairePoint === 'function' ? saisirFairePoint : null);
 
     boite.appendChild(rB);
 
