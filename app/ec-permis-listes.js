@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:12 — v614 */
+/* Déployé le 27/08/2026 à 14:06 — v617 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1780,7 +1780,8 @@ async function rattraperExamensBlancs(){
 
     const majs = {};
 
-    /* Le niveau, quand le suivi ne le porte pas encore */
+    /* Le niveau, quand le suivi ne le porte pas encore. Un
+       « à venir » se laisse tranquille : l examen n a pas eu lieu. */
     if(!String(s.ebNiveau || '').trim() && t.ebSuite){
       majs.ebNiveau = (t.ebSuite === 'pasleniveau') ? 'non' : 'oui';
     }
@@ -1900,7 +1901,14 @@ function mentionExamenBlanc(x){
      bilans : il sait ce qu'il a saisi. */
   if(String(s.ebNiveau || '').trim()){
     const nom = { oui:'✅ A le niveau', non:'⛔ Pas le niveau',
-                  peut:'🤔 Pourrait avoir le niveau' }[s.ebNiveau] || s.ebNiveau;
+                  peut:'🤔 Pourrait avoir le niveau',
+                  avenir:'📅 Examen blanc à venir' }[s.ebNiveau] || s.ebNiveau;
+
+    /* « À venir » se lit « le 12 septembre », pas « (12 septembre) » */
+    if(s.ebNiveau === 'avenir'){
+      return ' · ' + nom + (s.ebDate ? ' le ' + s.ebDate : '');
+    }
+
     return ' · ' + nom + (s.ebDate ? ' (' + s.ebDate + ')' : '');
   }
 
@@ -1929,6 +1937,9 @@ async function saisirExamenBlanc(nom){
   const quoi = await fenetre(
     "Où en est l'examen blanc de " + nom + ' ?',
     [{ nom: 'Annuler', valeur: '' },
+     /* Un examen blanc posé mais pas encore passé : le bureau
+        voit la date sans avoir à inventer un résultat. */
+     { nom: '📅 À venir', valeur: 'avenir' },
      { nom: '⛔ Pas le niveau', valeur: 'non' },
      { nom: '🤔 Pourrait', valeur: 'peut' },
      { nom: '✅ A le niveau', valeur: 'oui', principal: true }],
@@ -1936,8 +1947,17 @@ async function saisirExamenBlanc(nom){
 
   if(!quoi) return;
 
-  const date = await demander(
-    "Date de l'examen blanc (facultatif)", s.ebDate || '', nom);
+  const iso = await choisirDate(
+    (quoi === 'avenir' ? "Date de l'examen blanc — " : 'Date du passage — ') + nom);
+
+  /* La date n'est pas obligatoire, sauf pour un examen à venir :
+     sans elle, « à venir » n'apprendrait rien. */
+  if(quoi === 'avenir' && !iso){
+    showToast('Indique la date de son examen blanc.');
+    return;
+  }
+
+  const date = iso ? dateEnToutesLettres(iso) : (s.ebDate || '');
 
   try{
     await majSuivi(nom, { ebNiveau: quoi, ebDate: (date || '').trim() });
