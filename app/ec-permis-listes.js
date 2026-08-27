@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 08:44 — v586 */
+/* Déployé le 27/08/2026 à 08:53 — v587 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1728,8 +1728,9 @@ async function saisirHeuresRestantes(nom){
 function mentionExamenBlanc(x){
   const s = (typeof suiviDe === 'function') ? suiviDe(x.eleve) : {};
 
-  /* Ce que le bureau a noté à la main prime */
-  if(s.ebNiveau){
+  /* Ce que le bureau a noté à la main prime sur les notes des
+     bilans : il sait ce qu'il a saisi. */
+  if(String(s.ebNiveau || '').trim()){
     const nom = { oui:'✅ A le niveau', non:'⛔ Pas le niveau',
                   peut:'🤔 Pourrait avoir le niveau' }[s.ebNiveau] || s.ebNiveau;
     return ' · ' + nom + (s.ebDate ? ' (' + s.ebDate + ')' : '');
@@ -1773,7 +1774,13 @@ async function saisirExamenBlanc(nom){
   try{
     await majSuivi(nom, { ebNiveau: quoi, ebDate: (date || '').trim() });
     showToast('Enregistré ✅');
+
+    /* Les sessions affichent la même information : sans ce
+       rafraîchissement, la ligne gardait l'ancienne mention. */
     afficherBureau();
+    if(typeof afficherSessionsPermis === 'function'){
+      try{ afficherSessionsPermis(); }catch(e){}
+    }
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
