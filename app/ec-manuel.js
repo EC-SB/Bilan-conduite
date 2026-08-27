@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 07:31 — v583 */
+/* Déployé le 27/08/2026 à 07:42 — v584 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1838,7 +1838,7 @@ function majBilanEliminatoires(){
   };
 
   ordre.forEach(cat => {
-    bouts.push('👉 ' + cat);
+    bouts.push('👉 ' + grasUnicode(cat));
     bouts.push('');
     par[cat].forEach(ecrire);
   });
@@ -1860,12 +1860,14 @@ function majBilanEliminatoires(){
     zone.dataset.propose = propose;
   }else{
     /* Il a répondu : on ajoute seulement les compétences absentes */
-    const manquantes = ordre.filter(n => zone.value.indexOf('👉 ' + n) === -1);
+    const manquantes = ordre.filter(n =>
+      zone.value.indexOf(grasUnicode(n)) === -1 &&
+      zone.value.indexOf(n) === -1);
     if(!manquantes.length) return;
 
     const sup = [];
     manquantes.forEach(cat => {
-      sup.push('👉 ' + cat);
+      sup.push('👉 ' + grasUnicode(cat));
       sup.push('');
       const g = par[cat];
       const avant = bouts.length;
