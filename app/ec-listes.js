@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 08:12 — v585 */
+/* Déployé le 27/08/2026 à 10:17 — v595 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -690,6 +690,62 @@ function afficherSimulateurs(tous){
 
 
 /* Liste RDV PERMIS : élèves à placer sur une date */
+/* Faire passer un élève « pas le niveau » vers les prêts.
+
+   Une leçon de deux heures suffit parfois : le moniteur juge
+   qu'il peut partir à l'examen sans repasser d'examen blanc, et
+   donne le nombre d'heures qu'il faut encore. */
+async function passerSansExamenBlanc(x){
+  const h = await demander(
+    "Combien d'heures avant l'examen ?\n" +
+    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
+    'Mets 0 s\'il ne reste que les 3h.',
+    '', x.eleve);
+
+  if(h === null) return;
+
+  const propre = String(h).trim().replace(',', '.');
+  if(propre && isNaN(Number(propre))){
+    showToast('Indique un nombre d\'heures.');
+    return;
+  }
+
+  if(!await confirmer(
+      x.eleve + ' part à l\'examen sans repasser d\'examen blanc ?\n\n' +
+      (propre ? 'Il lui reste ' + propre + ' + 3h.'
+              : 'Plus que les 3h avant examen.') + '\n' +
+      'Il rejoindra les élèves prêts au permis.', 'Prêt au permis')) return;
+
+  try{
+    /* Les consignes d'examen blanc n'ont plus d'objet */
+    const obsoletes = (x.enAttente || []).filter(cs =>
+      /examen\s*blanc|examblanc/i.test((cs.type || '') + ' ' + (cs.texte || '')));
+
+    for(const cs of obsoletes){
+      try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(e){}
+    }
+
+    /* Le suivi porte sa nouvelle situation */
+    await majSuivi(x.eleve, {
+      ebNiveau: 'oui',
+      ebDate: dateEnToutesLettres(todayLocal()) || todayLocal(),
+      heuresRestantes: propre,
+      retireAPrevoir: '',
+      aPlanifier: ''
+    });
+
+    /* Et le moniteur l'apprend, avec le nombre d'heures */
+    await envoyerConsigne(x.eleve, 'permis',
+      "Prêt pour l'examen sans repasser d'examen blanc — " +
+      (propre ? propre + ' + 3h avant permis' : 'plus que les 3h') +
+      ' (bureau)');
+
+    showToast('Passé chez les prêts au permis ✅');
+    afficherBureau();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
 function afficherPasNiveau(tous){
   const zone = $('listePasNiveau');
   if(!zone) return;
@@ -738,6 +794,16 @@ function afficherPasNiveau(tous){
           }catch(err){ showToast('Erreur : ' + err.message); bEB.disabled = false; }
         });
         r.appendChild(bEB);
+
+        /* Une leçon de 2h a suffi : le moniteur juge qu'il peut
+           partir à l'examen sans repasser d'examen blanc. */
+        const bPret = document.createElement('button');
+        bPret.className = 'btn btn-secondary';
+        bPret.style.cssText = 'width:auto;padding:10px 13px;font-size:13px;' +
+          'color:var(--accent-text);border-color:var(--accent-text);';
+        bPret.textContent = '✅ Prêt sans nouvel examen blanc';
+        bPret.addEventListener('click', () => passerSansExamenBlanc(x));
+        r.appendChild(bPret);
 
         const bH = document.createElement('button');
         bH.className = 'btn btn-secondary';
