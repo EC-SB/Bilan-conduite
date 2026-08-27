@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 16:07 — v581 */
+/* Déployé le 27/08/2026 à 08:12 — v585 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -226,9 +226,13 @@ function afficherEBPrevus(tous){
         info: () => (passe ? '⚠️ Le ' : '📝 Le ') + x.quand +
                     (x.moniteur ? ' · ' + x.moniteur : '') +
                     (passe ? ' — date dépassée, sa suite ?' : ''),
-        actions: passe
-          ? (e, zone2) => boutonsSuiteExamBlanc(e, zone2)
-          : () => {}
+        actions: (e, zone2) => {
+          /* Une date se déplace, un examen blanc s'annule : sans
+             ces deux gestes, le bureau restait bloqué. */
+          zone2.appendChild(boutonDateExamBlanc(e, x));
+          zone2.appendChild(boutonAnnulerExamBlanc(e, x));
+          if(passe) boutonsSuiteExamBlanc(e, zone2);
+        }
       }));
       return;
     }
@@ -397,6 +401,72 @@ function ouvrirExamBlancManuel(){
 
    Les trois issues sont celles du questionnaire, mot pour mot :
    pas le niveau, plus que les 3h, ou encore N leçons. */
+/* Déplacer la date d'un examen blanc prévu */
+function boutonDateExamBlanc(e, x){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'padding:10px;font-size:13px;';
+  b.textContent = '📅 Changer la date';
+
+  b.addEventListener('click', async () => {
+    const iso = await choisirDate("Nouvelle date de l'examen blanc");
+    if(!iso) return;
+
+    try{
+      await envoyerConsigne(e.eleve, 'examblanc',
+        'Examen blanc déplacé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+      showToast('Date changée ✅');
+      afficherBureau();
+    }catch(err){ showToast('Impossible : ' + err.message); }
+  });
+
+  return b;
+}
+
+
+/* Retirer un examen blanc de cette liste.
+
+   L'élève garde ses cours et son suivi : seule l'annonce de
+   l'examen blanc disparaît. */
+function boutonAnnulerExamBlanc(e, x){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'padding:10px;font-size:13px;' +
+    'color:var(--red);border-color:var(--red);';
+  b.textContent = '❌ Annulé';
+
+  b.addEventListener('click', async () => {
+    if(!await confirmer("Retirer l'examen blanc de " + e.eleve +
+        ' de cette liste ?\n\n' +
+        'Ses cours et son suivi ne changent pas.',
+        'Examen blanc annulé', true)) return;
+
+    b.disabled = true;
+    try{
+      /* Les consignes qui l'annonçaient n'ont plus d'objet */
+      const obsoletes = (e.enAttente || []).filter(cs =>
+        /examen\s*blanc|examblanc/i.test((cs.type || '') + ' ' + (cs.texte || '')));
+
+      for(const cs of obsoletes){
+        try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(err){}
+      }
+
+      await envoyerConsigne(e.eleve, 'examblanc',
+        "Ne pas prévoir d'examen blanc pour le moment (annulé le " +
+        (dateEnToutesLettres(todayLocal()) || todayLocal()) + ')');
+
+      showToast('Retiré de la liste ✅');
+      afficherBureau();
+    }catch(err){
+      showToast('Impossible : ' + err.message);
+      b.disabled = false;
+    }
+  });
+
+  return b;
+}
+
+
 function boutonsSuiteExamBlanc(e, zone){
   const jour = () => dateEnToutesLettres(todayLocal()) || todayLocal();
 
