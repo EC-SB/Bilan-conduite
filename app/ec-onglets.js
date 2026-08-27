@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:20 — v600 */
+/* Déployé le 27/08/2026 à 11:53 — v602 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -134,7 +134,9 @@ const VUES = {
            ['envisager', '🤔 À envisager',      'bureau_permis'],
            ['preppermis','📣 Préparation',      'bureau_permis'],
            ['sessions',  '🎓 Suivi permis',     'bureau_permis'],
-           ['resultats', '🏁 Résultats',        'bureau_permis']],
+           ['resultats', '🏁 Résultats',        'bureau_permis'],
+           ['moto',      '🏍️ Moto',            'bureau_permis'],
+           ['remorque',  '🚚 Remorque',         'bureau_permis']],
   suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
            ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
   eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
@@ -279,6 +281,8 @@ function reveillerVue(cle){
     preppermis: () => { afficherBureau();
                         if(typeof afficherSolo === 'function') afficherSolo(); },
     resultats:  () => afficherBureau(),
+    moto:       () => afficherMoto(),
+    remorque:   () => {},
     paie:       () => afficherPaie(),
     flotte:     () => afficherFlotte(),
     ecran:      () => afficherEcran(),
