@@ -174,6 +174,8 @@ async function afficherMoto(){
     const liste = tous.filter(e => etapeMoto(suiviDe(e.eleve) || {}) === cle);
     zone.appendChild(cadreMoto(cle, titre, aide, liste));
   });
+
+  zone.appendChild(blocStats2R('moto', '📊 Statistiques moto'));
 }
 
 
@@ -378,6 +380,155 @@ function actionsMoto(nom, s, etape){
 
 
 /* ============================================================
+   LA TRACE DES RÉSULTATS
+
+   Le suivi s'efface quand le permis est obtenu : sans cette
+   trace, rien ne pourrait être compté ensuite.
+   ============================================================ */
+
+async function noterResultat2R(permis, eleve, epreuve, resultat, passage, date){
+  try{
+    await appelPrep({ action: 'res2rAdd', permis: permis, eleve: eleve,
+                      epreuve: epreuve, resultat: resultat,
+                      passage: String(passage || ''),
+                      dateExamen: String(date || '') });
+  }catch(e){ /* le suivi prime : on ne bloque pas pour la statistique */ }
+}
+
+
+/* ============================================================
+   LES STATISTIQUES
+
+   Elles se lisent d'un coup d'œil : combien de passages, combien
+   d'obtentions, et du premier coup ou non.
+   ============================================================ */
+
+let resultats2R = null;
+
+async function chargerResultats2R(force){
+  if(resultats2R && !force) return resultats2R;
+  try{
+    const d = await appelPrep({ action: 'res2rList' });
+    resultats2R = (d && d.resultats) || [];
+  }catch(e){ resultats2R = resultats2R || []; }
+  return resultats2R;
+}
+
+
+function blocStats2R(permis, titre){
+  const d = document.createElement('details');
+  d.className = 'volet-liste';
+  d.style.marginTop = '14px';
+
+  const s = document.createElement('summary');
+  s.textContent = titre;
+  d.appendChild(s);
+
+  const dedans = document.createElement('div');
+  dedans.innerHTML = '<div class="empty">Chargement…</div>';
+  d.appendChild(dedans);
+
+  chargerResultats2R().then(() => {
+    dedans.innerHTML = '';
+    dedans.appendChild(tableauStats2R(permis));
+  });
+
+  return d;
+}
+
+
+function tableauStats2R(permis){
+  const tous = (resultats2R || []).filter(r =>
+    normaliserMot(r.permis || '') === normaliserMot(permis));
+
+  const z = document.createElement('div');
+
+  if(!tous.length){
+    z.innerHTML = '<div style="font-size:13px;color:var(--muted);' +
+      'line-height:1.6;">Aucun résultat enregistré pour le moment.<br>' +
+      "Ils se comptent à partir d'aujourd'hui, au fur et à mesure " +
+      'des examens.</div>';
+    return z;
+  }
+
+  /* Chaque épreuve compte à part : le plateau et la circulation
+     n'ont pas les mêmes taux. */
+  const epreuves = [];
+  tous.forEach(r => {
+    if(epreuves.indexOf(r.epreuve) === -1) epreuves.push(r.epreuve);
+  });
+
+  epreuves.forEach(e => {
+    const dessus = tous.filter(r => r.epreuve === e);
+    const reussis = dessus.filter(r => r.resultat === 'obtenu');
+    const taux = Math.round(reussis.length / dessus.length * 100);
+
+    /* Du premier coup : c'est ce qui dit la qualité de la
+       préparation. */
+    const premiers = reussis.filter(r => String(r.passage || '1') === '1');
+
+    const l = document.createElement('div');
+    l.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+      'padding:11px 12px;margin-bottom:9px;';
+
+    l.innerHTML =
+      '<div style="font-size:14px;font-weight:700;margin-bottom:6px;">' +
+        String(e).replace(/</g, '&lt;') + '</div>' +
+      '<div style="font-size:13px;line-height:1.7;">' +
+        '<span style="color:var(--accent-text);font-weight:700;">' +
+          taux + '% de réussite</span>' +
+        ' · ' + reussis.length + ' obtenu(s) sur ' + dessus.length +
+        ' passage(s)' +
+        (reussis.length
+          ? '<br><span style="color:var(--muted);">' +
+            premiers.length + ' du premier coup</span>' : '') +
+      '</div>';
+
+    z.appendChild(l);
+  });
+
+  /* Les douze derniers mois, pour voir l'évolution */
+  const parMois = {};
+  tous.forEach(r => {
+    const m = String(r.horodatage || '').match(/(\d{2})\/(\d{4})/);
+    if(!m) return;
+    const cle = m[2] + '-' + m[1];
+    parMois[cle] = parMois[cle] || { total: 0, reussis: 0 };
+    parMois[cle].total++;
+    if(r.resultat === 'obtenu') parMois[cle].reussis++;
+  });
+
+  const mois = Object.keys(parMois).sort().slice(-12);
+
+  if(mois.length > 1){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;';
+    t.textContent = 'Par mois';
+    z.appendChild(t);
+
+    mois.forEach(m => {
+      const x = parMois[m];
+      const [an, mo] = m.split('-');
+      const nomMois = ['janvier','février','mars','avril','mai','juin',
+                       'juillet','août','septembre','octobre','novembre',
+                       'décembre'][Number(mo) - 1] || mo;
+
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:9px;align-items:center;' +
+        'font-size:12px;padding:3px 0;';
+      l.innerHTML =
+        '<span style="flex:1;">' + nomMois + ' ' + an + '</span>' +
+        '<span style="color:var(--accent-text);">' + x.reussis + '</span>' +
+        '<span style="color:var(--muted);">/ ' + x.total + '</span>';
+      z.appendChild(l);
+    });
+  }
+
+  return z;
+}
+
+
+/* ============================================================
    LES SAISIES
    ============================================================ */
 
@@ -491,6 +642,8 @@ async function resultatPlateau(nom, reussi){
         "Il passe en circulation à prévoir. Il n'a pas encore son " +
         'permis.', 'Plateau obtenu')) return;
 
+    await noterResultat2R('moto', nom, 'Plateau', 'obtenu', n,
+                          s.motoDatePlateau);
     await majMoto(nom, { motoPlateau: 'reussi', motoDatePlateau: '',
                          motoPassages: String(n), motoEtape: '' });
     showToast('🏍️ ' + nom + ' → circulation à prévoir');
@@ -500,6 +653,9 @@ async function resultatPlateau(nom, reussi){
   if(!await confirmer(nom + ' a échoué son plateau ?\n\n' +
       'Ce sera son ' + (n + 1) + 'e passage. Il retourne dans ' +
       '« plateau à prévoir ».', 'Plateau échoué')) return;
+
+  await noterResultat2R('moto', nom, 'Plateau', 'echoue', n,
+                        s.motoDatePlateau);
 
   /* Sans plateau, pas de circulation : il repart au début */
   await majMoto(nom, { motoPlateau: 'echoue', motoDatePlateau: '',
@@ -533,6 +689,8 @@ async function resultatCirculation(nom, reussi){
       'Son plateau reste acquis : il retourne dans « circulation à ' +
       'prévoir ».', 'Circulation échouée')) return;
 
+  await noterResultat2R('moto', nom, 'Circulation', 'echoue', n,
+                        s.motoDateExamen);
   await majMoto(nom, { motoDateExamen: '',
                        motoCircuPassages: String(n) });
   showToast(nom + ' → circulation à prévoir');
@@ -622,9 +780,17 @@ async function saisirDateExamenMoto(nom){
 
 /* Le permis est obtenu : son parcours moto n'a plus d'objet */
 async function permisMotoObtenu(nom){
+  const s = suiviDe(nom) || {};
+
   if(!await confirmer(nom + ' a obtenu son permis moto ?\n\n' +
       'Tout son suivi moto sera effacé. Ses bilans restent.',
       'Permis obtenu')) return;
+
+  /* La trace part avant l'effacement : sans elle, rien ne
+     pourrait être compté ensuite. */
+  await noterResultat2R('moto', nom, 'Circulation', 'obtenu',
+                        (Number(s.motoCircuPassages) || 0) + 1,
+                        s.motoDateExamen);
 
   await majMoto(nom, {
     motoAnts: '', motoAntsQui: '', motoCode: '', motoEval: '',
