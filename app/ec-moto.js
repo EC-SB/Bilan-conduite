@@ -19,34 +19,94 @@ const FORMATIONS_MOTO = ['Moto A', 'A1 permis', 'A1 passerelle', 'A2'];
 /* Où en est l'élève. L'étape se déduit de ce qui est rempli :
    pas de champ à tenir à jour séparément. */
 function etapeMoto(s){
-  if(String(s.motoDateExamen || '').trim() ||
-     String(s.motoCircuLecons || '').trim() ||
+  /* La circulation, en deux temps : ceux qui attendent une date
+     et ceux qui l'ont. */
+  if(String(s.motoDateExamen || '').trim()) return 'circuprevue';
+
+  if(String(s.motoCircuLecons || '').trim() ||
      s.motoPlateau === 'reussi') return 'circulation';
 
   if(s.motoPlateau === 'echoue') return 'repassage';
 
   if(String(s.motoDatePlateau || '').trim()) return 'plateau';
 
+  /* Prêt mais sans date : il attend d'être placé */
+  if(String(s.motoLecons || '').trim() === '0' ||
+     s.motoEtape === 'pret') return 'aplacer';
+
   return 'preparation';
 }
 
 
+/* Les fiches du répertoire, où vit la formation.
+
+   Le suivi ne la porte pas : sans elles, un élève tout neuf
+   n'apparaissait nulle part. */
+let fichesConnues = null;
+
+async function chargerFiches(force){
+  if(fichesConnues && !force) return fichesConnues;
+  try{
+    const d = await appelPrep({ action: 'fichesList' });
+    fichesConnues = (d && d.fiches) || [];
+  }catch(e){ fichesConnues = fichesConnues || []; }
+  return fichesConnues;
+}
+
+
+function formationDe(nom){
+  const k = normaliserMot(nom || '');
+  const f = (fichesConnues || []).find(x => normaliserMot(x.eleve || '') === k);
+  return f ? String(f.formation || '') : '';
+}
+
+
 function elevesMoto(){
-  if(typeof etatBureau === 'undefined' || !etatBureau.eleves) return [];
+  if(typeof etatBureau === 'undefined') return [];
 
-  return etatBureau.eleves.filter(e => {
-    const s = suiviDe(e.eleve) || {};
+  const CHAMPS = ['motoAnts', 'motoCode', 'motoEval', 'motoPlateau',
+                  'motoLecons', 'motoDatePlateau', 'motoDateExamen',
+                  'motoCircuLecons', 'motoEtape'];
 
-    /* Sa formation le range ici, ou le bureau l'y a mis */
-    const f = String(e.formation || s.formation || '').trim();
-    if(FORMATIONS_MOTO.some(x => normaliserMot(x) === normaliserMot(f))) return true;
+  const dedans = s => {
+    const f = String((s && s.formation) || '').trim();
+    if(FORMATIONS_MOTO.some(x => normaliserMot(x) === normaliserMot(f))){
+      return true;
+    }
+    return CHAMPS.some(k => String((s && s[k]) || '').trim());
+  };
 
-    /* Une saisie moto suffit : l'élève y est, quelle que soit sa
-       formation déclarée. */
-    return ['motoAnts', 'motoCode', 'motoEval', 'motoPlateau',
-            'motoDatePlateau', 'motoDateExamen']
-      .some(k => String(s[k] || '').trim());
+  const vus = [];
+  const out = [];
+
+  const ajouter = (nom, source) => {
+    const k = normaliserMot(nom || '');
+    if(!k || vus.indexOf(k) !== -1) return;
+    vus.push(k);
+    out.push(Object.assign({ eleve: nom }, source || {}));
+  };
+
+  /* Les fiches du répertoire : c'est là qu'un élève tout neuf
+     existe, avant tout bilan et toute consigne. */
+  (fichesConnues || []).forEach(f => {
+    if(dedans({ formation: f.formation })) ajouter(f.eleve, f);
   });
+
+  /* Ceux qui ont une saisie moto dans leur suivi */
+  (etatBureau.suivi || []).forEach(s => {
+    if(dedans(Object.assign({}, s, { formation: formationDe(s.eleve) }))){
+      ajouter(s.eleve, { formation: formationDe(s.eleve) });
+    }
+  });
+
+  /* Puis ceux qui ont déjà des bilans */
+  (etatBureau.eleves || []).forEach(e => {
+    const s = Object.assign({}, suiviDe(e.eleve) || {},
+                            { formation: formationDe(e.eleve) });
+    if(dedans(s)) ajouter(e.eleve, e);
+  });
+
+  return out;
 }
 
 
@@ -65,6 +125,7 @@ async function afficherMoto(){
     }
   }
 
+  await chargerFiches();
   const tous = elevesMoto();
   zone.innerHTML = '';
 
@@ -74,14 +135,18 @@ async function afficherMoto(){
     ['preparation', '📋 Préparation du plateau',
      "Dossier, code, évaluation. Quand il est prêt, indique dans " +
      'combien de leçons il passera.'],
+    ['aplacer',     '📅 À prévoir pour le plateau',
+     'Ils sont prêts et attendent une date de plateau.'],
     ['plateau',     '🏍️ Plateau prévu',
      'Une date est posée. Saisis le résultat après le passage.'],
     ['repassage',   '🔁 Repassage du plateau',
      'Le plateau a été échoué. Une nouvelle date, et le compteur ' +
      'de passages suit.'],
-    ['circulation', '🛣️ Circulation',
+    ['circulation', '🛣️ Circulation en cours',
      'Le plateau est réussi. Leçons restantes, puis date ' +
-     "d'examen. Quand il l'obtient, tout s'efface."]
+     "d'examen."],
+    ['circuprevue', '📆 Circulations prévues',
+     "Une date d'examen est posée. Quand il l'obtient, tout s'efface."]
   ];
 
   cadres.forEach(([cle, titre, aide]) => {
@@ -187,6 +252,11 @@ function resumeMoto(s, etape){
     }else{
       bouts.push('📅 date à poser');
     }
+  }
+
+  else if(etape === 'aplacer'){
+    bouts.push('✅ Prêt pour le plateau');
+    bouts.push('📅 date à poser');
   }
 
   else{
@@ -324,18 +394,15 @@ async function preparerPlateau(nom){
     return;
   }
 
-  /* Sans leçon restante, il attend une date : il passe au cadre
-     suivant dès qu'elle est posée. */
+  /* Sans leçon restante, il attend une date : il rejoint le
+     cadre « à prévoir pour le plateau ». */
   if(!propre){
-    const iso = await choisirDate('Date du plateau — ' + nom);
-    if(iso){
-      await majMoto(nom, { motoLecons: '',
-                           motoDatePlateau: dateEnToutesLettres(iso) });
-      return;
-    }
+    await majMoto(nom, { motoLecons: '', motoEtape: 'pret' });
+    showToast(nom + ' → à prévoir pour le plateau');
+    return;
   }
 
-  await majMoto(nom, { motoLecons: propre });
+  await majMoto(nom, { motoLecons: propre, motoEtape: '' });
 }
 
 
@@ -354,7 +421,8 @@ async function resultatPlateau(nom, reussi){
     if(!await confirmer(nom + ' a réussi son plateau ?\n\n' +
         'Il passe en circulation.', 'Plateau réussi')) return;
 
-    await majMoto(nom, { motoPlateau: 'reussi', motoDatePlateau: '' });
+    await majMoto(nom, { motoPlateau: 'reussi', motoDatePlateau: '',
+                         motoEtape: '' });
     showToast('🏍️ ' + nom + ' passe en circulation');
     return;
   }
@@ -457,6 +525,8 @@ async function ajouterEleveMoto(){
     await majSuivi(propre, { motoEtape: 'preparation' });
 
     showToast(propre + ' ajouté ✅');
+    /* Sa fiche vient d'être créée : on relit le répertoire */
+    await chargerFiches(true);
     afficherMoto();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
