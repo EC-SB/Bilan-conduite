@@ -592,16 +592,16 @@ function lignePlace(p, sess){
     const h = (typeof mentionHeuresRestantes === 'function')
       ? mentionHeuresRestantes(p.eleve) : '';
 
-    /* Un repassage : le post-permis fait foi, il est plus récent
-       que l'examen blanc. */
+    /* Un repassage : le post-permis remplace l'examen blanc, qui
+       date d'avant et n'apprend plus rien. */
     const post = (typeof mentionPostPermis === 'function')
       ? mentionPostPermis(p.eleve) : '';
 
-    const manque = /pas encore/.test(m) || /à préciser/.test(h);
+    const quoi = post || m.replace(/^ · /, '');
+    const manque = (!post && /pas encore/.test(m)) || /à préciser/.test(h);
+
     eb.style.color = manque ? 'var(--warn-text)' : 'var(--muted)';
-    eb.innerHTML = (m.replace(/^ · /, '') + h).replace(/</g, '&lt;') +
-      (post ? '<div style="margin-top:2px;">' +
-              post.replace(/</g, '&lt;') + '</div>' : '');
+    eb.textContent = quoi + h;
 
     /* Un appui pour le corriger ou l'indiquer à la main */
     eb.style.cursor = 'pointer';
@@ -730,9 +730,14 @@ function ouvrirPlace(p, sess){
      prêt à passer. Le bureau doit le voir en donnant la place. */
   if(p.eleve && typeof mentionExamenBlanc === 'function'){
     const eb = document.createElement('div');
-    const m = mentionExamenBlanc({ eleve: p.eleve, etat: etatDe(p.eleve) })
+    /* Le post-permis prime : pour un repassage, l'examen blanc
+       ne dit plus rien d'utile. */
+    const post = (typeof mentionPostPermis === 'function')
+      ? mentionPostPermis(p.eleve) : '';
+    const m = post || mentionExamenBlanc({ eleve: p.eleve,
+                                           etat: etatDe(p.eleve) })
       .replace(/^ · /, '');
-    const manque = /pas encore/.test(m);
+    const manque = !post && /pas encore/.test(m);
 
     eb.style.cssText = 'display:flex;gap:9px;align-items:center;' +
       'border:1px solid ' + (manque ? 'var(--orange)' : 'var(--line)') + ';' +
@@ -744,32 +749,31 @@ function ouvrirPlace(p, sess){
     t2.textContent = m;
     eb.appendChild(t2);
 
-    const bEB = document.createElement('button');
-    bEB.className = 'btn btn-secondary';
-    bEB.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;' +
-      'margin:0;flex-shrink:0;';
-    bEB.textContent = '✏️';
-    bEB.title = "Examen blanc ou rendez-vous post-permis";
-    bEB.addEventListener('click', () => {
-      document.body.removeChild(fond);
-      if(typeof saisirNiveauEleve === 'function') saisirNiveauEleve(p.eleve);
-    });
-    eb.appendChild(bEB);
-
     boite.appendChild(eb);
 
-    /* Le post-permis, quand il y en a un : c'est le repassage */
-    const post = (typeof mentionPostPermis === 'function')
-      ? mentionPostPermis(p.eleve) : '';
+    /* Deux boutons plutôt qu'un crayon : le bureau doit voir
+       qu'il peut renseigner l'un ou l'autre. */
+    const rB = document.createElement('div');
+    rB.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
 
-    if(post){
-      const zp = document.createElement('div');
-      zp.style.cssText = 'font-size:13px;line-height:1.5;color:var(--cream);' +
-        'border:1px solid var(--line);border-radius:10px;' +
-        'padding:9px 11px;margin-bottom:12px;';
-      zp.textContent = post;
-      boite.appendChild(zp);
-    }
+    const bouton = (libelle, action) => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'flex:1;padding:10px;font-size:12px;margin:0;';
+      b.textContent = libelle;
+      b.addEventListener('click', () => {
+        document.body.removeChild(fond);
+        if(typeof action === 'function') action(p.eleve);
+      });
+      rB.appendChild(b);
+    };
+
+    bouton('📝 Examen blanc',
+           typeof saisirExamenBlanc === 'function' ? saisirExamenBlanc : null);
+    bouton('🔁 Post-permis',
+           typeof saisirPostPermis === 'function' ? saisirPostPermis : null);
+
+    boite.appendChild(rB);
 
     /* Les heures avant permis, avec de quoi les corriger */
     const zh = document.createElement('div');
