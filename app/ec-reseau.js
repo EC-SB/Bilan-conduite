@@ -1,3 +1,4 @@
+/* Déployé le 27/08/2026 à 09:39 — v592 */
 /* ============================================================
    ec-reseau.js
    Appels réseau avec délai borné et nouvelle tentative
@@ -32,9 +33,14 @@ async function fetchFiable(url, options, delaiMs, essais){
       if(i < max) await new Promise(r => setTimeout(r, 400));
     }
   }
+  /* Dire combien de temps on a attendu : « le réseau ne répond
+     pas » après 40 secondes n'a pas le même sens qu'après 5. */
+  const secondes = Math.round(limite / 1000);
+
   throw new Error(
     (derniere && derniere.name === 'AbortError')
-      ? 'Le réseau ne répond pas. Vérifie ta connexion et réessaie.'
+      ? 'Pas de réponse après ' + secondes + ' s. ' +
+        'Vérifie ta connexion et réessaie.'
       : 'Connexion impossible : ' + (derniere ? derniere.message : 'erreur inconnue')
   );
 }
