@@ -537,6 +537,44 @@ function etatDe(nom){
 }
 
 
+/* Retirer un élève d'une session.
+
+   Sa date d'examen s'efface partout : le suivi, et les consignes
+   qui l'annonçaient. Sans cela, il continuait d'apparaître comme
+   ayant une place. */
+async function retirerDeLaSession(nom, sess){
+  if(!nom) return;
+
+  try{
+    /* Les consignes qui portaient cette date n'ont plus d'objet */
+    const e = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
+      ? etatBureau.eleves.find(x => normaliserMot(x.eleve) === normaliserMot(nom))
+      : null;
+
+    const obsoletes = ((e && e.enAttente) || []).filter(cs =>
+      /permis|examen/i.test((cs.type || '') + ' ' + (cs.texte || '')));
+
+    for(const cs of obsoletes){
+      try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(err){}
+    }
+
+    /* Le suivi perd sa date : l'élève retourne « à prévoir » */
+    if(typeof majSuivi === 'function'){
+      await majSuivi(nom, { datePermis: '', centre: '', statut: '',
+                            aRemplacer: '', toutOk: '' });
+    }
+
+    /* Et le moniteur l'apprend */
+    if(typeof envoyerConsigne === 'function'){
+      await envoyerConsigne(nom, 'permis',
+        "Examen du permis annulé" +
+        (sess && sess.date ? ' (était le ' + dateEnToutesLettres(sess.date) + ')' : '') +
+        ' — date à reprendre (bureau)');
+    }
+  }catch(e){ /* la place est libérée, c'est déjà cela */ }
+}
+
+
 function lignePlace(p, sess){
   const etat = etatPlace(p, eleveDuBureau(p.eleve));
   const vide = !p.eleve;
@@ -968,6 +1006,12 @@ function ouvrirPlace(p, sess){
         dossierOk: boite.querySelector('#plDossier').checked ? 'oui' : ''
       };
 
+      /* Le nom d'avant : si on le retire, il faut effacer sa date
+         ailleurs, sinon il apparaît encore comme ayant une place. */
+      const ancienNom = String(p.eleve || '').trim();
+      const retire = ancienNom && (!nomSaisi ||
+        normaliserMot(ancienNom) !== normaliserMot(nomSaisi));
+
       const champsSuivi = nomSaisi ? {
         datePermis: sess.date || '',
         centre: sess.centre || '',
@@ -1002,8 +1046,23 @@ function ouvrirPlace(p, sess){
         appelPrep(Object.assign({ action: 'sessionPlace',
                                   idSession: sess.id, rang: p.rang }, champsPlace)),
         (champsSuivi && typeof majSuivi === 'function')
-          ? majSuivi(nomSaisi, champsSuivi) : Promise.resolve()
+          ? majSuivi(nomSaisi, champsSuivi) : Promise.resolve(),
+
+        /* Celui qu'on retire perd sa date : sans cela, il restait
+           « avec une date » dans le questionnaire et les notes. */
+        retire ? retirerDeLaSession(ancienNom, sess) : Promise.resolve()
       ]);
+
+      /* Le moniteur doit voir la date dans ses cours préparés :
+         sans consigne, elle ne quittait pas l'écran du bureau. */
+      if(nomSaisi && sess.date && typeof envoyerConsigne === 'function'){
+        try{
+          await envoyerConsigne(nomSaisi, 'permis',
+            'Examen du permis fixé au ' + dateEnToutesLettres(sess.date) +
+            (sess.centre ? ' à ' + sess.centre : '') +
+            (champsPlace.heure ? ' à ' + champsPlace.heure : '') + ' (bureau)');
+        }catch(e){ /* la place est posée, c'est l'essentiel */ }
+      }
 
       document.body.removeChild(fond);
       showToast('Enregistré ✅');
