@@ -113,6 +113,10 @@ async function afficherRemorque(){
     const liste = tous.filter(e => etapeRemorque(suiviDe(e.eleve) || {}) === cle);
     zone.appendChild(cadreRemorque(cle, titre, aide, liste));
   });
+
+  if(typeof blocStats2R === 'function'){
+    zone.appendChild(blocStats2R('remorque', '📊 Statistiques remorque'));
+  }
 }
 
 
@@ -369,17 +373,51 @@ async function saisirCoursBE(nom){
 }
 
 
+/* Les douze mois à venir, à partir de celui-ci.
+
+   Les taper à la main invitait aux fautes de frappe, et deux
+   orthographes du même mois faisaient deux groupes. */
+function moisAVenir(){
+  const noms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+                'juillet', 'août', 'septembre', 'octobre', 'novembre',
+                'décembre'];
+
+  const out = [];
+  const d = new Date();
+
+  for(let i = 0; i < 12; i++){
+    out.push(noms[d.getMonth()] + ' ' + d.getFullYear());
+    d.setMonth(d.getMonth() + 1);
+  }
+
+  return out;
+}
+
+
 async function saisirMoisBE(nom){
   const s = suiviDe(nom) || {};
+  const liste = moisAVenir();
 
-  const m = await demander(
-    "Sur quel mois le faire passer ?\n" +
-    'Par exemple : octobre 2026',
-    s.beMois || '', nom);
+  /* Le mois déjà choisi reste proposé, même s'il est passé */
+  const dejà = String(s.beMois || '').trim();
+  if(dejà && liste.indexOf(dejà) === -1) liste.unshift(dejà);
 
-  if(m === null) return;
+  const choix = await fenetre(
+    'Sur quel mois le faire passer ?' +
+    (dejà ? '\n\nActuellement : ' + dejà : ''),
+    [{ nom:'Annuler', valeur:'' }]
+      .concat(liste.slice(0, 8).map((m, i) => ({
+        nom: (m === dejà ? '✅ ' : '') + m,
+        valeur: m,
+        principal: (i === 0 && !dejà)
+      })))
+      .concat(dejà ? [{ nom:'🗑️ Retirer le mois', valeur:'__vide' }] : []),
+    nom);
 
-  const propre = String(m).trim();
+  if(!choix) return;
+
+  const propre = (choix === '__vide') ? '' : choix;
+
   await majRemorque(nom, {
     beMois: propre,
     beAPrevoir: propre ? 'oui' : ''
@@ -428,6 +466,7 @@ async function resultatBE(nom){
         "Il ne passe pas la circulation : l'examen sera à refaire " +
         'en entier.', 'Plateau échoué')) return;
 
+    await noterResultat2R('remorque', nom, 'Plateau', 'echoue', n, s.beDate);
     await majRemorque(nom, { beDate: '', beAPasser: 'complet',
                              bePassages: String(n), beMois: '' });
     showToast(nom + ' — examen complet à replacer');
@@ -449,6 +488,10 @@ async function resultatBE(nom){
         'circulation.\n\nIl ne repassera que la circulation.',
         'Circulation ajournée')) return;
 
+    if(!seuleCircu) await noterResultat2R('remorque', nom, 'Plateau',
+                                          'obtenu', n, s.beDate);
+    await noterResultat2R('remorque', nom, 'Circulation', 'echoue', n,
+                          s.beDate);
     await majRemorque(nom, { beDate: '', beAPasser: 'circulation',
                              bePassages: String(n), beMois: '' });
     showToast(nom + ' — circulation seule à replacer');
@@ -459,6 +502,11 @@ async function resultatBE(nom){
   if(!await confirmer(nom + ' a obtenu son permis remorque ?\n\n' +
       'Tout son suivi remorque sera effacé. Ses bilans restent.',
       'Permis BE obtenu')) return;
+
+  /* Les traces partent avant l'effacement */
+  if(!seuleCircu) await noterResultat2R('remorque', nom, 'Plateau',
+                                        'obtenu', n, s.beDate);
+  await noterResultat2R('remorque', nom, 'Circulation', 'obtenu', n, s.beDate);
 
   await majRemorque(nom, {
     beAnts: '', beAntsQui: '', beAntsValide: '', beCode: '',
