@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 17:10 — v582 */
+/* Déployé le 27/08/2026 à 07:42 — v584 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -686,6 +686,27 @@ function erreursParCompetence(obs){
 }
 
 
+/* Un texte en gras, dans l'alphabet qu'affichent Messenger et
+   les mails. Les lettres accentuées restent telles quelles :
+   Unicode n'en a pas de version grasse sans-serif, et les
+   remplacer casserait la lecture. */
+function grasUnicode(s){
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const a = 'abcdefghijklmnopqrstuvwxyz';
+  const n = '0123456789';
+
+  return Array.from(String(s || '')).map(ch => {
+    let i = A.indexOf(ch);
+    if(i !== -1) return String.fromCodePoint(0x1D5D4 + i);
+    i = a.indexOf(ch);
+    if(i !== -1) return String.fromCodePoint(0x1D5EE + i);
+    i = n.indexOf(ch);
+    if(i !== -1) return String.fromCodePoint(0x1D7EC + i);
+    return ch;
+  }).join('');
+}
+
+
 function buildExamenBlanc(ai, ctx){
   ai = ai || {};
   const cep = calculerCepc(ai.cepc);
@@ -785,15 +806,18 @@ function buildExamenBlanc(ai, ctx){
   const obsBilan = (ex && ex.observations) || ai.observations;
   const elim = txt(ai.bilanElim) ? [] : erreursParCompetence(obsBilan);
   elim.forEach(g => {
-    L('👉 ' + g.categorie);
+    /* Le titre en gras : le moniteur repère ses compétences d'un
+       coup d'œil dans un bilan long. */
+    L('👉 ' + grasUnicode(g.categorie));
     L('');
     g.fautes.forEach(o => {
       /* L'élimination se signale sur l'erreur : une compétence
          peut porter une éliminatoire et d'autres fautes. */
       if(txt(o.inspecteur)){
-        L('👨‍✈️ ' + txt(o.inspecteur) + (o.categorie ? ' ☠️' : ''));
+        L('👨‍✈️ ' + txt(o.inspecteur) +
+          (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
       }else if(o.categorie){
-        L('☠️');
+        L('☠️ Erreur éliminatoire');
       }
       if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
       L("- qu'en penses-tu ?");
