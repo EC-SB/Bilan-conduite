@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 07:42 — v584 */
+/* Déployé le 27/08/2026 à 08:43 — v586 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2002,6 +2002,39 @@ function remplirFrises(champs, surEcran){
 
 
 /* ============================================================
+   LES HEURES QUI REMONTENT AU BUREAU
+
+   Le moniteur décide, à l'examen blanc, combien d'heures il faut
+   encore. Le bureau en a besoin pour placer les dates : sans ce
+   report, il fallait le lui redemander.
+   ============================================================ */
+
+function remonterHeuresAuBureau(eleve, heures, niveau){
+  if(!eleve) return;
+
+  const h = String(heures || '').trim();
+
+  /* Pas le niveau : les heures n'ont pas de sens, on les efface */
+  const valeur = (niveau === 'oui' && h && h !== '0') ? h : '';
+
+  if(niveau !== 'oui' && !valeur) return;      /* rien à dire */
+
+  try{
+    if(typeof majSuivi === 'function'){
+      majSuivi(eleve, {
+        heuresRestantes: valeur,
+        /* Ce que le moniteur a conclu, pour que le bureau le voie */
+        ebNiveau: niveau === 'oui' ? 'oui'
+                : niveau === 'peut' ? 'peut'
+                : niveau === 'non' ? 'non' : '',
+        ebDate: ($('lessonDate') && $('lessonDate').value) || ''
+      });
+    }
+  }catch(e){ /* le bilan prime : on ne bloque pas pour cela */ }
+}
+
+
+/* ============================================================
    LE CEPC PARTI DE LA NOTE MAXIMALE
 
    L'élève a tous les points au départ : chaque erreur en retire.
@@ -2692,6 +2725,13 @@ async function genererBilanManuel(){
     }
     if(champsManuels.aDate === 'oui' && !repris.examPermis) repris.examPermis = 'prevu';
     if(champsManuels.aDate === 'non' && !repris.examPermis) repris.examPermis = 'aprevoir';
+
+    /* Les heures avant permis remontent au bureau : c'est ce
+       qu'il regarde en donnant les dates, et le moniteur vient de
+       les décider. */
+    remonterHeuresAuBureau($('studentName').value.trim(),
+                           champsManuels.heuresAvant,
+                           champsManuels.niveau);
   }
 
   /* Mise à jour des infos, comme à la fin d'un cours enregistré.
@@ -2704,6 +2744,15 @@ async function genererBilanManuel(){
 
   if(maj){
     contexteDepart = maj;
+
+    /* Idem depuis le questionnaire de fin d'un cours ordinaire */
+    if(maj.heuresRemontees !== undefined &&
+       typeof remonterHeuresAuBureau === 'function' &&
+       modeleCle !== 'examen-blanc'){
+      remonterHeuresAuBureau($('studentName').value.trim(),
+                             maj.heuresRemontees,
+                             maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
+    }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
 
