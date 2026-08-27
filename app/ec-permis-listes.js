@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 09:34 — v591 */
+/* Déployé le 27/08/2026 à 10:25 — v596 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -470,6 +470,7 @@ function afficherRdvPermis(tous){
         actions: (x, zone) => {
           zone.appendChild(boutonHeuresRestantes(x.eleve));
           zone.appendChild(boutonExamenBlanc(x.eleve));
+          zone.appendChild(boutonEnvoyerVers(x.eleve));
           const s = suiviDe(x.eleve);
 
           const selC = document.createElement('select');
@@ -790,6 +791,7 @@ function afficherPermisPrevus(tous){
         actions: (x, zone) => {
           zone.appendChild(boutonHeuresRestantes(x.eleve));
           zone.appendChild(boutonExamenBlanc(x.eleve));
+          zone.appendChild(boutonEnvoyerVers(x.eleve));
           zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
               'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
@@ -987,6 +989,7 @@ function afficherExamensPermis(tous){
         actions: (x, zone) => {
           zone.appendChild(boutonHeuresRestantes(x.eleve));
           zone.appendChild(boutonExamenBlanc(x.eleve));
+          zone.appendChild(boutonEnvoyerVers(x.eleve));
 
           const sPost = suiviDe(x.eleve);
 
@@ -1918,6 +1921,60 @@ function boutonExamenBlanc(nom){
   b.textContent = '📝 Niveau';
   b.title = "Examen blanc ou rendez-vous post-permis";
   b.addEventListener('click', () => saisirNiveauEleve(nom));
+  return b;
+}
+
+
+/* ============================================================
+   ENVOYER UN ÉLÈVE VERS UNE AUTRE LISTE
+
+   Retirer de tout détruisait sa ligne de suivi — date, heures,
+   examen blanc, paiements. Le déplacer conserve tout : on ne
+   change que sa place dans le parcours.
+   ============================================================ */
+
+const LISTES_PERMIS = [
+  { cle:'envisager', nom:'🤔 Élèves prêts au permis',
+     champs:{ aPlanifier:'', retireAPrevoir:'', statut:'' } },
+  { cle:'rdv',       nom:'🗓️ Liste RDV Permis',
+     champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'' } },
+  { cle:'attente',   nom:'⏳ Attente bilan post-permis',
+     champs:{ rdvPostFait:'', aPlanifier:'', retireAPrevoir:'' } },
+  { cle:'pause',     nom:'⛔ Ne plus suivre pour le moment',
+     champs:{ retireAPrevoir:'oui', aPlanifier:'' } }
+];
+
+
+async function envoyerVersListe(nom){
+  const quoi = await fenetre(
+    'Où envoyer ' + nom + ' ?\n\n' +
+    'Sa fiche est conservée : date, heures, examen blanc, paiements.',
+    [{ nom:'Annuler', valeur:'' }].concat(
+      LISTES_PERMIS.map((l, i) => ({
+        nom: l.nom, valeur: l.cle, principal: (i === 0)
+      }))),
+    'Changer de liste');
+
+  if(!quoi) return;
+
+  const cible = LISTES_PERMIS.find(l => l.cle === quoi);
+  if(!cible) return;
+
+  try{
+    await majSuivi(nom, cible.champs);
+    showToast(nom + ' → ' + cible.nom.replace(/^[^ ]+ /, '') + ' ✅');
+    afficherBureau();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+function boutonEnvoyerVers(nom){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+  b.textContent = '➡️ Envoyer vers…';
+  b.title = 'Changer de liste sans rien perdre';
+  b.addEventListener('click', () => envoyerVersListe(nom));
   return b;
 }
 
