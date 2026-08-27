@@ -735,21 +735,24 @@ function lignePlace(p, sess){
 
     const m = mentionExamenBlanc({ eleve: p.eleve, etat: etatDe(p.eleve) });
 
-    /* Les heures avant permis : c'est ce qui dit s'il tiendra la
-       date. Sans elles, le bureau place à l'aveugle. */
-    const h = (typeof mentionHeuresRestantes === 'function')
-      ? mentionHeuresRestantes(p.eleve) : '';
-
     /* Un repassage : le post-permis remplace l'examen blanc, qui
        date d'avant et n'apprend plus rien. */
     const post = (typeof mentionPostPermis === 'function')
       ? mentionPostPermis(p.eleve) : '';
 
+    const h = (typeof mentionHeuresRestantes === 'function')
+      ? mentionHeuresRestantes(p.eleve) : '';
+
+    /* Le post-permis dit déjà « — 2 + 3h » : répéter les heures
+       juste après faisait lire deux fois la même chose. */
+    const dejaDites = post && / \+ 3h| les 3h/.test(post);
+
     const quoi = post || m.replace(/^ · /, '');
-    const manque = (!post && /pas encore/.test(m)) || /à préciser/.test(h);
+    const manque = (!post && /pas encore/.test(m)) ||
+                   (!dejaDites && /à préciser/.test(h));
 
     eb.style.color = manque ? 'var(--warn-text)' : 'var(--muted)';
-    eb.textContent = quoi + h;
+    eb.textContent = quoi + (dejaDites ? '' : h);
 
     /* Un appui pour le corriger ou l'indiquer à la main */
     eb.style.cursor = 'pointer';
