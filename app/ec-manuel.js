@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:19 — v615 */
+/* Déployé le 27/08/2026 à 13:38 — v616 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1628,6 +1628,12 @@ async function ouvrirBilanManuel(){
     poser('handicap.date',
           dateEnToutesLettres($('lessonDate').value) ||
           $('lessonDate').value || todayLocal());
+
+    /* La problématique vient du questionnaire ou de ses notes */
+    poser('handicap.problematique',
+          (contexteDepart && contexteDepart.problematique) ||
+          (typeof problematiqueConnue === 'function'
+            ? problematiqueConnue() : ''));
   }
 
   /* Frise récupérée automatiquement */
