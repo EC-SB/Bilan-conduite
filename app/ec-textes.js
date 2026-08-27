@@ -1,4 +1,4 @@
-/* Déployé le 25/08/2026 à 08:28 — v538 */
+/* Déployé le 27/08/2026 à 17:45 — v632 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -81,17 +81,35 @@ function assemblerNom(categorie, titre){
 
 let modelesTexte = [];
 
-async function chargerModelesTexte(){
+/* Les modèles changent rarement : les relire à chaque ouverture
+   d'un onglet Outils faisait attendre pour rien. */
+let modelesLusA = 0;
+const MODELES_FRAIS = 5 * 60 * 1000;   /* cinq minutes */
+
+async function chargerModelesTexte(forcer){
+  /* Déjà en mémoire et récents : on rend la main aussitôt */
+  if(!forcer && modelesTexte.length &&
+     (Date.now() - modelesLusA) < MODELES_FRAIS){
+    return modelesTexte;
+  }
+
   try{
     const d = await appelPrep({ action: 'modeleList' });
     modelesTexte = ((d && d.modeles) || []).map(m => {
       const s = separerCategorie(m.nom);
       return Object.assign({}, m, { categorie: s.categorie, titre: s.titre });
     });
+    modelesLusA = Date.now();
   }catch(e){
     console.warn('Modèles indisponibles :', e);
   }
   return modelesTexte;
+}
+
+
+/* Une modification les périme : le prochain écran relira. */
+function perimerModeles(){
+  modelesLusA = 0;
 }
 
 /* Le premier modèle enregistré pour cet usage, s'il en existe un */
@@ -310,6 +328,7 @@ async function afficherModelesTexte(){
         bSup.disabled = true;
         try{
           await appelPrep({ action: 'modeleDelete', id: m.id });
+          perimerModeles();
           showToast('Modèle supprimé');
           afficherModelesTexte();
         }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
@@ -492,6 +511,10 @@ function ouvrirEditeurModele(modele, usageImpose){
           ? g('mdBoite').value : '',
         contenu: contenu
       });
+
+      /* Le texte a changé : le cache n'a plus lieu d'être */
+      perimerModeles();
+
       document.body.removeChild(fond);
       showToast('Enregistré ✅');
       if(usageImpose === 'procedure') afficherProcedures();
@@ -620,6 +643,7 @@ async function afficherProcedures(){
       bSup.disabled = true;
       try{
         await appelPrep({ action: 'modeleDelete', id: m.id });
+          perimerModeles();
         showToast('Procédure supprimée');
         afficherProcedures();
       }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
@@ -762,6 +786,9 @@ async function ouvrirImportModeles(){
     for(let i = 0; i < liste.length; i++){
       bOk.textContent = 'Import ' + (i + 1) + ' sur ' + liste.length + '…';
       try{
+        /* L'import périme le cache : les nouveaux textes doivent
+           paraître aussitôt. */
+        perimerModeles();
         await appelPrep({ action: 'modeleSet', id: '', usage: usage,
                           nom: assemblerNom(cat, liste[i].titre),
                           contenu: liste[i].contenu });
