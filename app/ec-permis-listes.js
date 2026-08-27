@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 15:45 — v579 */
+/* Déployé le 27/08/2026 à 08:44 — v586 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1681,8 +1681,14 @@ function dejaSonPermis(nom){
 function mentionHeuresRestantes(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
   const h = String(s.heuresRestantes || '').trim();
-  if(!h) return '';
-  return ' · ⏱️ ' + h + 'h';
+
+  /* Sans cette information, le bureau ne peut pas placer une
+     date : on la réclame plutôt que de laisser un blanc. */
+  if(h === '') return ' · ⏱️ heures à préciser';
+  if(h === '0') return ' · ⏱️ plus que les 3h';
+
+  /* Les 3h avant examen s'ajoutent toujours : « 4 + 3 » */
+  return ' · ⏱️ ' + h + ' + 3h';
 }
 
 
@@ -1691,8 +1697,9 @@ async function saisirHeuresRestantes(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
 
   const v = await demander(
-    "Combien d'heures reste-t-il à faire avant l'examen ?\n" +
-    'Laisse vide si tout est fait.',
+    "Combien d'heures avant l'examen ?\n" +
+    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
+    'Mets 0 s\'il ne reste que les 3h.',
     String(s.heuresRestantes || ''), nom);
 
   if(v === null) return;
@@ -1705,7 +1712,9 @@ async function saisirHeuresRestantes(nom){
 
   try{
     await majSuivi(nom, { heuresRestantes: propre });
-    showToast(propre ? propre + 'h restantes ✅' : 'Plus rien à faire ✅');
+    showToast(propre === '' ? 'Effacé'
+            : propre === '0' ? 'Plus que les 3h ✅'
+            : propre + ' + 3h ✅');
     afficherBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
@@ -1787,8 +1796,15 @@ function boutonHeuresRestantes(nom){
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
   b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
-    (h ? 'color:var(--accent-text);border-color:var(--accent-text);' : '');
-  b.textContent = h ? '⏱️ ' + h + 'h restantes' : '⏱️ Heures restantes';
+    (h === ''
+      /* Manquant : on le signale, c'est ce qui bloque le bureau */
+      ? 'color:var(--warn-text);border-color:var(--warn-text);'
+      : 'color:var(--accent-text);border-color:var(--accent-text);');
+
+  b.textContent = (h === '') ? '⏱️ Heures à préciser'
+                : (h === '0') ? '⏱️ Plus que les 3h'
+                : '⏱️ ' + h + ' + 3h';
+
   b.addEventListener('click', () => saisirHeuresRestantes(nom));
   return b;
 }
