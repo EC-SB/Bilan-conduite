@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 12:07 — v603 */
+/* Déployé le 27/08/2026 à 12:31 — v607 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 143;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 144;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
