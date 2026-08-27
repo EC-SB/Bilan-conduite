@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:31 — v597 */
+/* Déployé le 27/08/2026 à 10:52 — v598 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -772,11 +772,21 @@ async function passerSansExamenBlanc(x){
       aPlanifier: ''
     });
 
-    /* Et le moniteur l'apprend, avec le nombre d'heures */
-    await envoyerConsigne(x.eleve, 'permis',
-      "Prêt pour l'examen sans repasser d'examen blanc — " +
-      (propre ? propre + ' + 3h avant permis' : 'plus que les 3h') +
-      ' (bureau)');
+    /* La phrase suit exactement ce que l'analyse des notes
+       attend : sans « Examen blanc passé le … — plus que les
+       3h », l'élève quittait « pas le niveau » sans arriver
+       chez les prêts au permis. */
+    const jourDit = dateEnToutesLettres(todayLocal()) || todayLocal();
+
+    await envoyerConsigne(x.eleve, 'examblanc',
+      'Examen blanc passé le ' + jourDit + ' — plus que les 3h avant examen' +
+      " (sans repasser d'examen blanc, bureau)");
+
+    /* Les heures décidées, dans une seconde note */
+    if(propre && propre !== '0'){
+      await envoyerConsigne(x.eleve, 'permis',
+        'Avant le permis : ' + propre + ' + 3h (bureau)');
+    }
 
     showToast('Passé chez les prêts au permis ✅');
     afficherBureau();
