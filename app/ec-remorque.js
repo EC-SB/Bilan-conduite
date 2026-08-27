@@ -277,6 +277,9 @@ function actionsRemorque(nom, s, etape){
   }
 
   else if(etape === 'aplacer'){
+    /* Les cours se terminent parfois après que le mois est
+       choisi : le bouton doit rester ici. */
+    bouton('📚 Les cours', () => saisirCoursBE(nom));
     bouton('📅 Changer le mois', () => saisirMoisBE(nom));
     bouton("📆 Poser la date", () => saisirDateBE(nom), 'var(--accent-text)');
     bouton('↩️ Retour préparation',
@@ -354,22 +357,28 @@ async function saisirCodeBE(nom){
 async function saisirCoursBE(nom){
   const s = suiviDe(nom) || {};
 
-  const quel = await fenetre(
-    'Quel cours vient-il de faire ?\n\n' +
-    'Déjà faits : ' + ([1, 2, 3].filter(i => s['beCours' + i] === 'oui')
-      .join(', ') || 'aucun'),
-    [{ nom:'Annuler', valeur:'' },
-     { nom:'Cours 1', valeur:'1' },
-     { nom:'Cours 2', valeur:'2' },
-     { nom:'Cours 3', valeur:'3', principal:true }], nom);
+  /* Combien de cours il a faits : trois cases plutôt qu'un choix
+     un par un, c'est le geste le plus fréquent. */
+  const combien = [1, 2, 3].filter(i => s['beCours' + i] === 'oui').length;
 
-  if(!quel) return;
+  const choix = await choisirDansListe(
+    'Où en sont ses cours ?',
+    'Les trois cours se font dans l\'ordre.',
+    [{ nom:'Aucun cours fait',   valeur:'0' },
+     { nom:'Cours 1 fait',       valeur:'1' },
+     { nom:'Cours 1 et 2 faits', valeur:'2' },
+     { nom:'Les trois faits',    valeur:'3' }],
+    String(combien));
 
-  /* Un second appui le décoche : le bureau peut se raviser */
-  const cle = 'beCours' + quel;
-  const majs = {};
-  majs[cle] = (s[cle] === 'oui') ? '' : 'oui';
-  await majRemorque(nom, majs);
+  if(choix === null) return;
+
+  const n = Number(choix) || 0;
+
+  await majRemorque(nom, {
+    beCours1: (n >= 1) ? 'oui' : '',
+    beCours2: (n >= 2) ? 'oui' : '',
+    beCours3: (n >= 3) ? 'oui' : ''
+  });
 }
 
 
@@ -394,29 +403,82 @@ function moisAVenir(){
 }
 
 
+/* Une vraie liste déroulante : douze boutons empilés tenaient
+   mal sur un téléphone. */
+function choisirDansListe(titre, aide, options, valeurActuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+
+    boite.innerHTML = '<h3>' + String(titre).replace(/</g, '&lt;') + '</h3>' +
+      (aide ? '<div style="font-size:12px;color:var(--muted);' +
+              'margin-bottom:12px;line-height:1.5;">' +
+              String(aide).replace(/</g, '&lt;') + '</div>' : '');
+
+    const sel = document.createElement('select');
+    options.forEach(o => {
+      const x = document.createElement('option');
+      x.value = o.valeur;
+      x.textContent = o.nom;
+      if(o.valeur === valeurActuelle) x.selected = true;
+      sel.appendChild(x);
+    });
+    boite.appendChild(sel);
+
+    const r = document.createElement('div');
+    r.className = 'duo';
+    r.style.marginTop = '14px';
+
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = 'Valider';
+    bOk.addEventListener('click', () => {
+      const v = sel.value;
+      document.body.removeChild(fond);
+      resolve(v);
+    });
+
+    r.appendChild(bA);
+    r.appendChild(bOk);
+    boite.appendChild(r);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    sel.focus();
+  });
+}
+
+
 async function saisirMoisBE(nom){
   const s = suiviDe(nom) || {};
   const liste = moisAVenir();
 
   /* Le mois déjà choisi reste proposé, même s'il est passé */
-  const dejà = String(s.beMois || '').trim();
-  if(dejà && liste.indexOf(dejà) === -1) liste.unshift(dejà);
+  const dejaChoisi = String(s.beMois || '').trim();
+  if(dejaChoisi && liste.indexOf(dejaChoisi) === -1) liste.unshift(dejaChoisi);
 
-  const choix = await fenetre(
-    'Sur quel mois le faire passer ?' +
-    (dejà ? '\n\nActuellement : ' + dejà : ''),
-    [{ nom:'Annuler', valeur:'' }]
-      .concat(liste.slice(0, 8).map((m, i) => ({
-        nom: (m === dejà ? '✅ ' : '') + m,
-        valeur: m,
-        principal: (i === 0 && !dejà)
-      })))
-      .concat(dejà ? [{ nom:'🗑️ Retirer le mois', valeur:'__vide' }] : []),
-    nom);
+  const options = [{ nom: '— aucun mois —', valeur: '' }]
+    .concat(liste.map(m => ({ nom: m, valeur: m })));
 
-  if(!choix) return;
+  const choix = await choisirDansListe(
+    'Sur quel mois le faire passer ?',
+    'Il rejoindra le groupe de ce mois dans « à placer ».',
+    options, dejaChoisi);
 
-  const propre = (choix === '__vide') ? '' : choix;
+  if(choix === null) return;
+
+  const propre = String(choix).trim();
 
   await majRemorque(nom, {
     beMois: propre,
