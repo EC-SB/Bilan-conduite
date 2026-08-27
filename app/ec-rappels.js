@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 12:06 — v560 */
+/* Déployé le 27/08/2026 à 09:39 — v592 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1230,7 +1230,13 @@ async function envoyerSmsAllo(numero, texte, eleve){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code: ACCES.code, to: numero,
                            message: texte, eleve: eleve || '' })
-  }, 20000, 1);
+    /* Un envoi de SMS traverse le Worker puis Allo : quarante
+       secondes valent mieux que vingt, et un second essai
+       rattrape une connexion qui vient de changer.
+
+       Le SMS peut partir malgré l'abandon : mieux vaut attendre
+       que de laisser le moniteur croire à un échec. */
+  }, 40000, 2);
 
   const d = await r.json().catch(() => ({}));
   if(!r.ok || d.error){
@@ -1369,8 +1375,9 @@ function direEtatEnvoi(texte, erreur){
       aide = "Ce compte n'a pas le droit d'envoyer des SMS : vois dans ⚙️ Accès.";
     }else if(/quota/i.test(texte)){
       aide = 'Le quota journalier Allo est atteint.';
-    }else if(/réseau|network|délai/i.test(texte)){
-      aide = 'Le Worker ne répond pas. Réessaie dans un instant.';
+    }else if(/réseau|network|délai|ne répond pas/i.test(texte)){
+      aide = "Le SMS est peut-être parti quand même : vérifie sur " +
+             "Messenger ou dans Allo avant de renvoyer.";
     }
   }
 
