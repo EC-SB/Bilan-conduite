@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 13:12 — v566 */
+/* Déployé le 27/08/2026 à 09:23 — v590 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -83,12 +83,19 @@ async function chargerPrepares(){
       return Object.assign({}, x, { contexte: ctx });
     });
     ecrireCachePrepares(prepares);
+    derniereErreurPrep = '';
     return true;
   }catch(e){
+    /* Sans la raison, « hors ligne » couvrait tout : un vrai
+       problème de réseau comme un refus du serveur. */
+    derniereErreurPrep = (e && e.message) ? String(e.message) : '';
     prepares = lireCachePrepares();
     return false;
   }
 }
+
+/* Ce qui a fait échouer le dernier chargement */
+let derniereErreurPrep = '';
 
 function libelleDate(iso){
   if(!iso) return 'Sans date';
@@ -168,7 +175,21 @@ async function afficherPrepares(recharger, silencieux){
     if(!silencieux) zone.innerHTML = '<div class="empty">Chargement…</div>';
     const enLigne = await chargerPrepares();
     if(!enLigne && prepares.length){
-      showToast('Hors ligne — liste en cache');
+      /* Dire pourquoi : un moniteur qui voit « hors ligne » alors
+         que son téléphone marche ne sait pas quoi faire. */
+      const raison = derniereErreurPrep;
+
+      if(/403|essai|bloqu/i.test(raison)){
+        showToast('⚠️ Accès refusé — reconnecte-toi');
+      }else if(/429|trop/i.test(raison)){
+        showToast('⚠️ Trop de demandes — patiente une minute');
+      }else if(/HTTP 5|502|503/i.test(raison)){
+        showToast('⚠️ Le serveur ne répond pas — liste en cache');
+      }else if(!navigator.onLine){
+        showToast('Hors ligne — liste en cache');
+      }else{
+        showToast('Liste en cache' + (raison ? ' — ' + raison.slice(0, 40) : ''));
+      }
     }
   }
   /* Chacun ne voit que ses cours, sauf demande explicite */
