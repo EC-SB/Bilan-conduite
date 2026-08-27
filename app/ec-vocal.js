@@ -452,6 +452,15 @@ $('finishBtn').addEventListener('click', async () => {
   const maj = await ouvrirQuestionnaireDepart(contexteDepart, 'Après ce cours', 'Terminer');
   if(maj){
     contexteDepart = maj;
+
+    /* Les heures avant permis remontent au bureau : il les
+       regarde en donnant les dates. */
+    if(maj.heuresRemontees !== undefined &&
+       typeof remonterHeuresAuBureau === 'function'){
+      remonterHeuresAuBureau($('studentName').value.trim(),
+                             maj.heuresRemontees,
+                             maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
+    }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
 
