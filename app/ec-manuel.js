@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 17:09 — v582 */
+/* Déployé le 27/08/2026 à 07:31 — v583 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1362,6 +1362,16 @@ async function ouvrirBilanManuel(){
       t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
         'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
+      /* Le bilan des éliminatoires se réécrit tant que le
+         moniteur n'y a pas touché. */
+      if(ch.cle === 'bilanElim'){
+        t.addEventListener('input', () => {
+          if(typeof figerBilanEliminatoires === 'function'){
+            figerBilanEliminatoires();
+          }
+        });
+      }
+
       /* Les heures avant permis décident de la frise post : le
          calcul se fait à la saisie, pas à la génération. */
       if(ch.cle === 'heuresAvant'){
@@ -1522,10 +1532,17 @@ function ajouterObservationManuelle(zone){
   insp.style.cssText = 'margin-bottom:6px;background:rgba(46,124,196,.14);' +
     'border-color:rgba(46,124,196,.4);';
   /* Le récapitulatif suit ce qui s'écrit */
-  /* La remarque alimente le bilan des éliminatoires */
-  insp.addEventListener('input', () => {
-    if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
-  });
+  /* La remarque alimente le bilan, mais seulement quand le
+     moniteur a fini de taper : réécrire à chaque lettre coupait
+     ses phrases en morceaux. */
+  let minuteurObs = null;
+  const surSaisie = () => {
+    clearTimeout(minuteurObs);
+    minuteurObs = setTimeout(() => {
+      if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+    }, 900);
+  };
+  insp.addEventListener('input', surSaisie);
   d.appendChild(insp);
 
   /* L'explication, avec de quoi marquer une erreur éliminatoire */
@@ -1538,6 +1555,8 @@ function ajouterObservationManuelle(zone){
   rep.placeholder = 'Explication ou correction';
   rep.style.cssText = 'flex:1;min-width:0;margin:0;' +
     'background:rgba(255,255,255,.05);';
+  /* L explication aussi : le bilan la reprend */
+  rep.addEventListener('input', surSaisie);
   r.appendChild(rep);
 
   const bMort = document.createElement('button');
@@ -1776,9 +1795,7 @@ function majBilanEliminatoires(){
     const o = {
       inspecteur: i ? i.value.trim() : '',
       reponse: r ? r.value.trim() : '',
-      /* L'élimination se signale sur l'erreur, pas sur le titre :
-         une compétence peut porter une éliminatoire et d'autres
-         fautes ordinaires. */
+      /* L'élimination se signale sur l'erreur, pas sur le titre */
       elim: !!d.dataset.categorie
     };
     if(!o.inspecteur && !o.reponse) return;
@@ -1790,20 +1807,28 @@ function majBilanEliminatoires(){
   });
 
   const noms = Object.keys(par);
-  if(!noms.length && !sansCategorie.length) return;
+  if(!noms.length && !sansCategorie.length){
+    /* Plus rien de marqué : on ne laisse pas de blocs orphelins,
+       sauf si le moniteur y a déjà répondu. */
+    if(!zone.value.trim() || zone.dataset.intact === 'oui'){
+      zone.value = '';
+      champsManuels.bilanElim = '';
+    }
+    return;
+  }
 
   /* L'ordre du CEPC, celui que suit l'inspecteur */
   const ordre = (typeof toutesCategoriesCepc === 'function')
     ? toutesCategoriesCepc().filter(n => par[n]) : noms;
 
-  const ancien = zone.value;
   const bouts = [];
 
   const ecrire = o => {
     if(o.inspecteur){
-      bouts.push('👨‍✈️ ' + o.inspecteur + (o.elim ? ' ☠️' : ''));
+      bouts.push('👨‍✈️ ' + o.inspecteur +
+                 (o.elim ? ' ☠️ Erreur éliminatoire' : ''));
     }else if(o.elim){
-      bouts.push('☠️');
+      bouts.push('☠️ Erreur éliminatoire');
     }
     if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
     bouts.push("- qu'en penses-tu ?");
@@ -1813,29 +1838,63 @@ function majBilanEliminatoires(){
   };
 
   ordre.forEach(cat => {
-    /* Une compétence déjà présente n'est pas réécrite : le
-       moniteur y a peut-être déjà répondu. */
-    if(ancien.indexOf(cat) !== -1) return;
-
     bouts.push('👉 ' + cat);
     bouts.push('');
     par[cat].forEach(ecrire);
   });
 
-  /* Les erreurs sans compétence désignée, à la fin */
-  sansCategorie.forEach(o => {
-    if(o.inspecteur && ancien.indexOf(o.inspecteur) !== -1) return;
-    ecrire(o);
-  });
+  sansCategorie.forEach(ecrire);
 
-  if(!bouts.length) return;
+  const propose = bouts.join('\n').trim();
 
-  /* En tête : ce qui vient d'être marqué passe avant le reste */
-  zone.value = (bouts.join('\n') + (ancien ? '\n' + ancien : '')).trim();
+  /* Tant que le moniteur n'a pas écrit dans le champ, on le
+     réécrit entièrement : c'est ce qui évite les blocs coupés en
+     morceaux à mesure qu'il tape ses remarques.
+
+     Dès qu'il y touche, on n'y revient plus. */
+  const intact = (zone.dataset.intact !== 'non');
+
+  if(intact){
+    zone.value = propose;
+    zone.dataset.intact = 'oui';
+    zone.dataset.propose = propose;
+  }else{
+    /* Il a répondu : on ajoute seulement les compétences absentes */
+    const manquantes = ordre.filter(n => zone.value.indexOf('👉 ' + n) === -1);
+    if(!manquantes.length) return;
+
+    const sup = [];
+    manquantes.forEach(cat => {
+      sup.push('👉 ' + cat);
+      sup.push('');
+      const g = par[cat];
+      const avant = bouts.length;
+      bouts.length = 0;
+      g.forEach(ecrire);
+      sup.push.apply(sup, bouts);
+      bouts.length = avant;
+    });
+
+    zone.value = (sup.join('\n') + '\n' + zone.value).trim();
+  }
+
   champsManuels.bilanElim = zone.value;
 
   if(typeof sauvegarderBrouillonManuel === 'function'){
     sauvegarderBrouillonManuel();
+  }
+}
+
+
+/* Le moniteur a écrit dans le champ : on cesse de le réécrire */
+function figerBilanEliminatoires(){
+  const zone = document.getElementById('man_bilanElim');
+  if(!zone) return;
+
+  /* Ce que l'application a proposé ne compte pas comme une
+     saisie : seul un texte différent en est une. */
+  if(zone.value !== (zone.dataset.propose || '')){
+    zone.dataset.intact = 'non';
   }
 }
 
@@ -2520,57 +2579,6 @@ function lireChampsManuels(){
        ch.type === 'rappelFrise'){
       /* Ni un intertitre ni un bouton ne portent de réponse */
 
-
-    }else if(ch.type === 'note3'){
-      /* La note se reporte sur le CEPC : quatre boutons valent
-         mieux qu'un texte à relire. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const d = document.createElement('div');
-      d.style.cssText = 'display:flex;gap:6px;';
-
-      const champ = document.createElement('input');
-      champ.type = 'hidden';
-      champ.id = 'man_' + ch.cle.replace('.', '_');
-      champ.value = '';
-      d.appendChild(champ);
-
-      const peindre = () => {
-        Array.prototype.forEach.call(d.children, b => {
-          if(b.tagName !== 'BUTTON') return;
-          const pris = (b.textContent === champ.value);
-          b.style.background = pris ? 'var(--orange)' : 'var(--navy)';
-          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
-          b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
-          b.style.fontWeight = pris ? '800' : '400';
-        });
-      };
-
-      ['0', '1', '2', '3'].forEach(v => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:10px 16px;font-size:15px;margin:0;';
-        b.textContent = v;
-        b.addEventListener('click', () => {
-          /* Un second appui efface : le moniteur peut se raviser */
-          champ.value = (champ.value === v) ? '' : v;
-          champsManuels[ch.cle] = champ.value;
-          peindre();
-          if(typeof reporterNotesCepc === 'function') reporterNotesCepc();
-        });
-        d.appendChild(b);
-      });
-
-      const s = document.createElement('span');
-      s.style.cssText = 'font-size:13px;color:var(--muted);align-self:center;';
-      s.textContent = '/ 3';
-      d.appendChild(s);
-
-      bloc.appendChild(d);
-      peindre();
 
     }else if(ch.type === 'note3'){
       const el = document.getElementById('man_' + ch.cle.replace('.', '_'));
