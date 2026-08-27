@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:52 — v598 */
+/* Déployé le 27/08/2026 à 13:06 — v613 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -384,7 +384,7 @@ function ouvrirExamBlancManuel(){
 
       document.body.removeChild(fond);
       showToast('Examen blanc prévu ✅');
-      afficherBureau();
+      redessinerBureau();
     }catch(e){
       showToast('Impossible : ' + e.message);
       bO.disabled = false;
@@ -420,7 +420,7 @@ function boutonDateExamBlanc(e, x){
         'Examen blanc déplacé au ' + dateEnToutesLettres(iso) + ' (bureau)');
       await noterExamenBlanc(e.eleve, '', dateEnToutesLettres(iso));
       showToast('Date changée ✅');
-      afficherBureau();
+      redessinerBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
   });
 
@@ -462,7 +462,7 @@ function boutonAnnulerExamBlanc(e, x){
       await noterExamenBlanc(e.eleve, '', '');
 
       showToast('Retiré de la liste ✅');
-      afficherBureau();
+      redessinerBureau();
     }catch(err){
       showToast('Impossible : ' + err.message);
       b.disabled = false;
@@ -518,7 +518,7 @@ function boutonsSuiteExamBlanc(e, zone){
         'Examen blanc passé le ' + jour() + ' — pas le niveau');
       await noterExamenBlanc(e.eleve, 'non', jour());
       showToast('Noté ✅');
-      afficherBureau();
+      redessinerBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
   });
   zone.appendChild(bNon);
@@ -534,7 +534,7 @@ function boutonsSuiteExamBlanc(e, zone){
         'Examen blanc passé le ' + jour() + ' — plus que les 3h avant examen');
       await noterExamenBlanc(e.eleve, 'oui', jour(), '0');
       showToast('Prêt au permis ✅');
-      afficherBureau();
+      redessinerBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
   });
   zone.appendChild(b3h);
@@ -560,7 +560,7 @@ function boutonsSuiteExamBlanc(e, zone){
       /* Chaque leçon vaut deux heures : le bureau raisonne ainsi */
       await noterExamenBlanc(e.eleve, 'oui', jour(), String(nb * 2));
       showToast('Noté ✅');
-      afficherBureau();
+      redessinerBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
   });
   zone.appendChild(bLec);
@@ -670,7 +670,7 @@ function afficherExamensBlancs(tous){
                 'Examen blanc fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
               await noterExamenBlanc(x.eleve, '', dateEnToutesLettres(iso));
               showToast('Date transmise ✅');
-              afficherBureau();
+              redessinerBureau();
             }));
           }else{
             zone.appendChild(blocExamenBlancMoniteur(x, s));
@@ -718,7 +718,7 @@ function afficherSimulateurs(tous){
             await envoyerConsigne(x.eleve, 'simu',
               'Simulateur nuit et risques fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
             showToast('Date transmise ✅');
-            afficherBureau();
+            redessinerBureau();
           }));
         }
       }));
@@ -789,7 +789,7 @@ async function passerSansExamenBlanc(x){
     }
 
     showToast('Passé chez les prêts au permis ✅');
-    afficherBureau();
+    redessinerBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
@@ -838,7 +838,7 @@ function afficherPasNiveau(tous){
               'Nouvel examen blanc à prévoir' +
               (v ? ' dans ' + v + ' leçon' + (parseInt(v, 10) > 1 ? 's' : '') : '') + ' (bureau)');
             showToast('Transmis au moniteur ✅');
-            afficherBureau();
+            redessinerBureau();
           }catch(err){ showToast('Erreur : ' + err.message); bEB.disabled = false; }
         });
         r.appendChild(bEB);
@@ -867,7 +867,7 @@ function afficherPasNiveau(tous){
             await envoyerConsigne(x.eleve, 'examblanc',
               v + 'h de conduite à prévoir avant de reparler d\'examen (bureau)');
             showToast('Transmis au moniteur ✅');
-            afficherBureau();
+            redessinerBureau();
           }catch(err){ showToast('Erreur : ' + err.message); bH.disabled = false; }
         });
         r.appendChild(bH);
@@ -993,7 +993,7 @@ function blocExamenBlancMoniteur(x, s){
           ' avec ' + sel.value + ' (bureau)');
 
         showToast('Fiche préparée pour ' + sel.value + ' ✅');
-        afficherBureau();
+        redessinerBureau();
       }catch(err){
         showToast('Erreur : ' + err.message);
         b.disabled = false;
@@ -1013,7 +1013,7 @@ function blocExamenBlancMoniteur(x, s){
     a.disabled = true;
     try{
       await majSuivi(x.eleve, { ebDatePrevue: '', ebMoniteur: '' });
-      afficherBureau();
+      redessinerBureau();
     }catch(err){ showToast('Erreur : ' + err.message); a.disabled = false; }
   });
   d.appendChild(a);
