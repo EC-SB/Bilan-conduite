@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:29 — v601 */
+/* Déployé le 27/08/2026 à 13:19 — v615 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -35,6 +35,8 @@ const THEMES_ERREURS = [
 function schemaHandicap(){
   const out = [
     { cle:'__th', type:'titre', nom:'𝗙𝗜𝗖𝗛𝗘 𝗗\'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡' },
+    /* Ces trois-là se remplissent tout seuls : l'élève, le
+       moniteur et la date du cours sont déjà connus. */
     { cle:'handicap.conducteur',    type:'court', nom:'Conducteur' },
     { cle:'handicap.formateur',     type:'court', nom:'Formateur' },
     { cle:'handicap.date',          type:'court', nom:'Date' },
@@ -45,13 +47,9 @@ function schemaHandicap(){
     { cle:'__tc', type:'titre', nom:'𝗖𝗢𝗡𝗧𝗥𝗢̂𝗟𝗘' }
   ];
 
-  /* Les lignes du tableau, dans l'ordre du document */
-  (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : []).forEach(l => {
-    out.push({ cle:'handicap.' + l.cle + 'N', type:'abc',
-               nom: l.nom, rubrique: !!l.titre });
-    out.push({ cle:'handicap.' + l.cle + 'O', type:'court',
-               nom:'Observations', discret:true });
-  });
+  /* Le tableau entier en un seul champ : le dessiner ligne par
+     ligne perdait le moniteur, qui connaît le document papier. */
+  out.push({ cle:'__tableau', type:'tableauHandicap' });
 
   out.push({ cle:'__tf', type:'titre', nom:'𝗖𝗢𝗡𝗖𝗟𝗨𝗦𝗜𝗢𝗡' });
   out.push({ cle:'handicap.conclusion', type:'texte', lignes:6,
@@ -633,6 +631,87 @@ async function ouvrirBilanManuel(){
       }
 
 
+
+
+    }else if(ch.type === 'tableauHandicap'){
+      /* Le tableau du document papier : trois colonnes sur écran
+         large, deux sur téléphone — l'observation descend alors
+         sous la ligne pour garder de la place où écrire. */
+      const t = document.createElement('div');
+      t.className = 'ficheEval';
+
+      const tete = document.createElement('div');
+      tete.className = 'fe-tete';
+      ['Contrôle', 'Niveau', 'Observations'].forEach(x => {
+        const s = document.createElement('span');
+        s.textContent = x;
+        tete.appendChild(s);
+      });
+      t.appendChild(tete);
+
+      const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
+
+      (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : [])
+        .forEach(l => {
+          const cleN = 'handicap.' + l.cle + 'N';
+          const cleO = 'handicap.' + l.cle + 'O';
+
+          const li = document.createElement('div');
+          li.className = 'fe-ligne ' + (l.titre ? 'fe-rubrique' : 'fe-sous');
+
+          const nom = document.createElement('span');
+          nom.className = 'fe-nom';
+          nom.textContent = l.nom;
+          li.appendChild(nom);
+
+          const notes = document.createElement('div');
+          notes.className = 'fe-notes';
+
+          const peindre = () => {
+            Array.prototype.forEach.call(notes.children, b => {
+              const pris = (b.textContent === champsManuels[cleN]);
+              b.style.background = pris ? (couleurs[b.textContent] || 'var(--muted)')
+                                        : 'var(--navy)';
+              b.style.borderColor = pris ? (couleurs[b.textContent] || 'var(--line)')
+                                         : 'var(--line)';
+              b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
+              b.style.fontWeight = pris ? '800' : '400';
+            });
+          };
+
+          [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi]) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn btn-secondary';
+            b.textContent = v;
+            b.title = quoi;
+            b.addEventListener('click', () => {
+              /* Un second appui efface : le moniteur se ravise */
+              champsManuels[cleN] = (champsManuels[cleN] === v) ? '' : v;
+              peindre();
+            });
+            notes.appendChild(b);
+          });
+
+          peindre();
+          li.appendChild(notes);
+
+          const obs = document.createElement('div');
+          obs.className = 'fe-obs';
+          const i = document.createElement('input');
+          i.type = 'text';
+          i.placeholder = 'Observations';
+          i.value = champsManuels[cleO] || '';
+          i.addEventListener('input', () => {
+            champsManuels[cleO] = i.value;
+          });
+          obs.appendChild(i);
+          li.appendChild(obs);
+
+          t.appendChild(li);
+        });
+
+      bloc.appendChild(t);
 
     }else if(ch.type === 'abc'){
       /* Les trois niveaux du document : A bon, B moyen, C faible.
@@ -1529,6 +1608,26 @@ async function ouvrirBilanManuel(){
      retire. C est ainsi que l inspecteur raisonne. */
   if(modeleCle === 'examen-blanc' && typeof poserCepcAuMaximum === 'function'){
     poserCepcAuMaximum();
+  }
+
+  /* La fiche d'évaluation connaît déjà son en-tête : l'élève, le
+     moniteur et la date sont à l'écran, les retaper est inutile. */
+  if(modeleCle === 'handicap'){
+    const poser = (cle, valeur) => {
+      if(!valeur) return;
+      const el = document.getElementById('man_' + cle.replace('.', '_'));
+      if(el && !el.value){
+        el.value = valeur;
+        champsManuels[cle] = valeur;
+      }
+    };
+
+    poser('handicap.conducteur', eleve);
+    poser('handicap.formateur',
+          (ACCES.emoji ? ACCES.emoji + ' ' : '') + (ACCES.moniteur || ''));
+    poser('handicap.date',
+          dateEnToutesLettres($('lessonDate').value) ||
+          $('lessonDate').value || todayLocal());
   }
 
   /* Frise récupérée automatiquement */
@@ -2712,8 +2811,9 @@ function lireChampsManuels(){
       /* Ni un intertitre ni un bouton ne portent de réponse */
 
 
-    }else if(ch.type === 'abc'){
-      /* La valeur vit dans champsManuels : les boutons l'y posent */
+    }else if(ch.type === 'abc' || ch.type === 'tableauHandicap'){
+      /* Les valeurs vivent dans champsManuels : le tableau les y
+         pose au fur et à mesure. */
       return;
     }else if(ch.type === 'note3'){
       const el = document.getElementById('man_' + ch.cle.replace('.', '_'));
