@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 09:23 — v590 */
+/* Déployé le 27/08/2026 à 09:46 — v593 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -179,7 +179,9 @@ async function afficherPrepares(recharger, silencieux){
          que son téléphone marche ne sait pas quoi faire. */
       const raison = derniereErreurPrep;
 
-      if(/403|essai|bloqu/i.test(raison)){
+      if(/503|indisponible|momentan/i.test(raison)){
+        showToast('⚠️ Service momentanément indisponible — réessaie');
+      }else if(/403|essai|bloqu/i.test(raison)){
         showToast('⚠️ Accès refusé — reconnecte-toi');
       }else if(/429|trop/i.test(raison)){
         showToast('⚠️ Trop de demandes — patiente une minute');
