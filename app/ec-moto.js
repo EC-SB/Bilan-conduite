@@ -77,7 +77,7 @@ function elevesMoto(){
 
   const CHAMPS = ['motoAnts', 'motoCode', 'motoEval', 'motoPlateau',
                   'motoLecons', 'motoDatePlateau', 'motoDateExamen',
-                  'motoCircuLecons', 'motoEtape'];
+                  'motoCircuLecons', 'motoEtape', 'motoRemarque'];
 
   const dedans = s => {
     /* Retiré par le bureau : il ne revient pas, même si sa fiche
@@ -232,12 +232,56 @@ function ligneMoto(e, etape){
   info.textContent = resumeMoto(s, etape);
   l.appendChild(info);
 
+  /* Une note libre qui suit l'élève d'un cadre à l'autre : ce que
+     le bureau veut garder sous les yeux sans chercher où le
+     ranger. */
+  l.appendChild(champRemarqueMoto(e.eleve, s));
+
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
   actionsMoto(e.eleve, s, etape).forEach(b => r.appendChild(b));
   l.appendChild(r);
 
   return l;
+}
+
+
+/* La remarque libre, sous le nom.
+
+   Elle reste attachée à l'élève quelle que soit son étape : le
+   bureau la retrouve du premier cadre au dernier. */
+function champRemarqueMoto(nom, s){
+  const i = document.createElement('input');
+  i.type = 'text';
+  i.placeholder = '✏️ Remarque…';
+  i.value = String(s.motoRemarque || '');
+  i.style.cssText = 'width:100%;margin:0 0 9px;font-size:13px;' +
+    'padding:8px 10px;background:var(--navy);' +
+    'border:1px solid var(--line);border-radius:9px;color:var(--cream);';
+
+  /* On enregistre quand le moniteur a fini d'écrire, pas à chaque
+     lettre : sinon c'est un appel réseau par frappe. */
+  let minuteur = null;
+
+  i.addEventListener('input', () => {
+    clearTimeout(minuteur);
+    minuteur = setTimeout(async () => {
+      try{
+        await majSuivi(nom, { motoRemarque: i.value });
+        i.style.borderColor = 'var(--orange)';
+        setTimeout(() => { i.style.borderColor = 'var(--line)'; }, 900);
+      }catch(e){ showToast('Remarque non enregistrée'); }
+    }, 900);
+  });
+
+  /* Quitter le champ enregistre tout de suite */
+  i.addEventListener('blur', () => {
+    clearTimeout(minuteur);
+    if(i.value === String(s.motoRemarque || '')) return;
+    majSuivi(nom, { motoRemarque: i.value }).catch(() => {});
+  });
+
+  return i;
 }
 
 
@@ -747,7 +791,7 @@ async function retirerEleveMoto(nom){
     motoAnts: '', motoAntsQui: '', motoCode: '', motoEval: '',
     motoPlateau: '', motoLecons: '', motoDatePlateau: '',
     motoPassages: '', motoCircuLecons: '', motoDateExamen: '',
-    motoCircuPassages: '', motoEtape: 'retire'
+    motoCircuPassages: '', motoRemarque: '', motoEtape: 'retire'
   });
 
   showToast(nom + ' retiré du suivi moto');
@@ -798,7 +842,7 @@ async function permisMotoObtenu(nom){
     motoAnts: '', motoAntsQui: '', motoCode: '', motoEval: '',
     motoPlateau: '', motoLecons: '', motoDatePlateau: '',
     motoPassages: '', motoCircuLecons: '', motoDateExamen: '',
-    motoCircuPassages: '', motoEtape: ''
+    motoCircuPassages: '', motoRemarque: '', motoEtape: ''
   });
 
   showToast('🎓 Bravo à ' + nom + ' !');
