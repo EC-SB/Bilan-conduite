@@ -612,12 +612,17 @@ function ficheLieu(l){
 async function remplirMoniteursEcran(sel, actuel){
   let gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
 
-  if(!gens.length){
-    try{
-      const d = await appelPrep({ action: 'moniteurs' });
-      gens = (d && d.moniteurs) || [];
-      if(typeof moniteursActifs !== 'undefined') moniteursActifs = gens;
-    }catch(e){}
+  /* L'action « moniteurs » n'existe pas côté serveur : l'appel
+     échouait toujours, après avoir attendu le réseau. La liste
+     vient du bureau, déjà en mémoire. */
+  if(!gens.length && typeof etatBureau !== 'undefined'){
+    const vus = [];
+    (etatBureau.eleves || []).forEach(e => {
+      const m = String(e.moniteur || '').trim();
+      if(m && vus.indexOf(m) === -1) vus.push(m);
+    });
+    gens = vus.sort();
+    if(typeof moniteursActifs !== 'undefined') moniteursActifs = gens;
   }
 
   /* Un moniteur qui n'est plus dans la liste reste proposé :
