@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 07:42 — v584 */
+/* Déployé le 27/08/2026 à 11:29 — v601 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -704,6 +704,86 @@ function grasUnicode(s){
     if(i !== -1) return String.fromCodePoint(0x1D7EC + i);
     return ch;
   }).join('');
+}
+
+
+/* ============================================================
+   LA FICHE D'ÉVALUATION HANDICAP
+
+   Elle reprend le document papier de l'école, ligne pour ligne.
+   Chaque contrôle se note A, B ou C, avec ses observations.
+   ============================================================ */
+
+const HANDICAP_LIGNES = [
+  { cle:'regard',        nom:'Regard :',                 titre:true },
+  { cle:'exploration',   nom:'exploration' },
+  { cle:'position',      nom:'Position chaussée :',      titre:true },
+  { cle:'trajectoire',   nom:'trajectoire' },
+  { cle:'code',          nom:'Code de la route :',       titre:true },
+  { cle:'allure',        nom:"respect de l'allure" },
+  { cle:'placement',     nom:'placement sur la chaussée' },
+  { cle:'dangers',       nom:'Perception des dangers :', titre:true },
+  { cle:'distances',     nom:'appréciation des distances' },
+  { cle:'vitesses',      nom:'appréciation des vitesses' },
+  { cle:'reaction',      nom:'Temps de réaction :',      titre:true },
+  { cle:'synchro',       nom:'Synchronisation :',        titre:true },
+  { cle:'embrayage',     nom:'embrayage' },
+  { cle:'frein',         nom:'frein' },
+  { cle:'accelerateur',  nom:'accélérateur' },
+  { cle:'comportement',  nom:'Comportement :',           titre:true },
+  { cle:'decision',      nom:'prise de décision' },
+  { cle:'respect',       nom:'respect des autres' },
+  { cle:'maniabilite',   nom:'Maniabilité :',            titre:true },
+  { cle:'volant',        nom:'tenue du volant' },
+  { cle:'accessoires',   nom:'maitrise des accessoires' },
+  { cle:'concentration', nom:'Concentration :',          titre:true },
+  { cle:'autoeval',      nom:'Auto évaluation :',        titre:true }
+];
+
+
+function buildHandicap(ai, ctx){
+  const lignes = [];
+  const L = t => lignes.push(t);
+  const h = ai.handicap || {};
+
+  L('𝗙𝗜𝗖𝗛𝗘 𝗗\'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡');
+  L('━━━━━━━━━━━━━━━━━━');
+  L('');
+  L('👤 Conducteur : ' + (txt(h.conducteur) || (ctx && ctx.eleve) || ''));
+  L('🎓 Formateur : ' + (txt(h.formateur) || emojiMoniteur() + ' ' +
+                         ((ctx && ctx.moniteur) || '')));
+  L('📅 Date : ' + (txt(h.date) || ''));
+  L('');
+  L('❓ 𝗣𝗿𝗼𝗯𝗹𝗲́𝗺𝗮𝘁𝗶𝗾𝘂𝗲');
+  if(txt(h.problematique)) ligneParLigne(h.problematique).forEach(o => L(o));
+  L('');
+  L('━━━━━━━━━━━━━━━━━━');
+  L('');
+
+  /* Chaque contrôle avec sa note et ses observations */
+  const NIVEAU = { A:'🟢 A — Bon', B:'🟠 B — Moyen', C:'🔴 C — Faible' };
+
+  HANDICAP_LIGNES.forEach(l => {
+    const n = txt(h[l.cle + 'N']);
+    const o = txt(h[l.cle + 'O']);
+
+    /* Une rubrique sans note ni observation n'apporte rien */
+    if(!n && !o && l.titre) return;
+    if(!n && !o) return;
+
+    const nom = l.titre ? grasUnicode(l.nom.replace(/ :$/, '')) : l.nom;
+
+    L(nom + (n ? '  ' + (NIVEAU[n] || n) : ''));
+    if(o) ligneParLigne(o).forEach(x => L('   ' + x));
+  });
+
+  L('');
+  L('━━━━━━━━━━━━━━━━━━');
+  L('');
+  L('📋 𝗖𝗼𝗻𝗰𝗹𝘂𝘀𝗶𝗼𝗻');
+  if(txt(h.conclusion)) ligneParLigne(h.conclusion).forEach(o => L(o));
+
+  return lignes.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 
@@ -1554,6 +1634,13 @@ const MODELES = {
   'examen-officiel': {
     label: 'Examen officiel', groupe: 'Examen', schema: 'examen',
     build: buildExamen
+  },
+
+  /* Elle se remplit à la main : la dictée n'a pas de sens sur un
+     tableau de vingt-trois lignes à noter. */
+  'handicap': {
+    label: '♿ Fiche d\'évaluation', groupe: 'Handicap',
+    schema: 'handicap', build: buildHandicap, manuelSeul: true
   }
 };
 
