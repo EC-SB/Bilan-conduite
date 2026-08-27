@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:06 — v594 */
+/* Déployé le 27/08/2026 à 11:20 — v600 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -276,7 +276,8 @@ function reveillerVue(cle){
     /* Les cinq vues du permis partagent le même chargement */
     pasprets:   () => afficherBureau(),
     envisager:  () => afficherBureau(),
-    preppermis: () => afficherBureau(),
+    preppermis: () => { afficherBureau();
+                        if(typeof afficherSolo === 'function') afficherSolo(); },
     resultats:  () => afficherBureau(),
     paie:       () => afficherPaie(),
     flotte:     () => afficherFlotte(),
