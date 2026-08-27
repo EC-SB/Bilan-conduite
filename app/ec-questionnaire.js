@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 14:49 — v575 */
+/* Déployé le 27/08/2026 à 08:43 — v586 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1146,6 +1146,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         simuNuit: boite.querySelector('#qSimuNuit').value,
         ebPasse: selEB2 ? selEB2.value : '',
         ebLecons: nEB2 ? nEB2.value.trim() : '',
+        /* Les heures avant permis remontent au bureau, qui en a
+           besoin pour placer les dates. */
+        heuresRemontees: (function(){
+          const suite = selEB2 ? selEB2.value : '';
+          if(suite === '3h') return '0';
+          if(suite === 'lecons' && nEB2) return nEB2.value.trim();
+          return '';
+        })(),
         examPermisN: nEP.value.trim(),
         examPassage: passEP ? passEP.value : '',
         nouvelleDate: nvDate.value,
