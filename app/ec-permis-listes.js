@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:51 — v598 */
+/* Déployé le 27/08/2026 à 12:16 — v605 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1753,18 +1753,117 @@ function mentionHeuresRestantes(nom){
 
 
 /* La fenêtre pour les saisir */
+/* ============================================================
+   REPRENDRE CE QUE DISENT LES NOTES
+
+   L'examen blanc, sa date et les heures sont déjà écrits dans
+   les notes des bilans. Les ressaisir un par un dans le suivi
+   prend des heures : autant les y verser d'un coup.
+   ============================================================ */
+
+async function rattraperExamensBlancs(){
+  if(typeof etatBureau === 'undefined' || !etatBureau.eleves){
+    showToast('Actualise les listes d\'abord.');
+    return;
+  }
+
+  /* Ce qu'on peut reprendre, et pour qui */
+  const aFaire = [];
+
+  etatBureau.eleves.forEach(e => {
+    const s = suiviDe(e.eleve) || {};
+    const t = e.etat || {};
+
+    const majs = {};
+
+    /* Le niveau, quand le suivi ne le porte pas encore */
+    if(!String(s.ebNiveau || '').trim() && t.ebSuite){
+      majs.ebNiveau = (t.ebSuite === 'pasleniveau') ? 'non' : 'oui';
+    }
+
+    if(!String(s.ebDate || '').trim() && t.ebDate){
+      majs.ebDate = t.ebDate;
+    }
+
+    /* Les heures : « plus que les 3h » vaut 0, et chaque leçon
+       annoncée vaut deux heures. */
+    if(!String(s.heuresRestantes || '').trim()){
+      if(t.ebSuite === '3h') majs.heuresRestantes = '0';
+      else if(t.ebSuite === 'lecons' && t.ebLecons){
+        majs.heuresRestantes = String(Number(t.ebLecons) * 2);
+      }
+    }
+
+    if(Object.keys(majs).length) aFaire.push({ eleve: e.eleve, majs: majs });
+  });
+
+  if(!aFaire.length){
+    showToast('Rien à reprendre : tout est déjà à jour.');
+    return;
+  }
+
+  if(!await confirmer(
+      'Reprendre ' + aFaire.length + ' élève(s) depuis leurs notes ?\n\n' +
+      'Seuls les champs vides seront remplis : ce que le bureau a ' +
+      'saisi à la main ne bouge pas.', 'Mettre à jour')) return;
+
+  const z = $('rattrapageEtat');
+  if(z){ z.style.display = 'block'; }
+
+  let n = 0;
+  for(const x of aFaire){
+    try{
+      await majSuivi(x.eleve, x.majs);
+      n++;
+    }catch(e){ /* on continue : un échec ne doit pas tout arrêter */ }
+
+    if(z) z.textContent = n + ' / ' + aFaire.length + '…';
+  }
+
+  if(z){
+    z.textContent = '✅ ' + n + ' élève(s) mis à jour';
+    setTimeout(() => { z.style.display = 'none'; }, 4000);
+  }
+
+  showToast('✅ ' + n + ' élève(s) repris');
+  afficherBureau();
+  if(typeof afficherSessionsPermis === 'function'){
+    try{ afficherSessionsPermis(); }catch(e){}
+  }
+}
+
+
 async function saisirHeuresRestantes(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
 
-  const v = await demander(
+  /* Des cases plutôt qu'une saisie : c'est presque toujours un
+     nombre pair de 0 à 10. */
+  const choix = await fenetre(
     "Combien d'heures avant l'examen ?\n" +
-    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
-    'Mets 0 s\'il ne reste que les 3h.',
-    String(s.heuresRestantes || ''), nom);
+    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.',
+    [{ nom:'Annuler', valeur:'' },
+     { nom:'0 — plus que les 3h', valeur:'0' },
+     { nom:'2 + 3h', valeur:'2' },
+     { nom:'4 + 3h', valeur:'4', principal:true },
+     { nom:'6 + 3h', valeur:'6' },
+     { nom:'8 + 3h', valeur:'8' },
+     { nom:'✏️ Autre', valeur:'autre' }],
+    nom);
 
-  if(v === null) return;
+  if(!choix) return;
 
-  const propre = String(v).trim().replace(',', '.');
+  let propre = choix;
+
+  if(choix === 'autre'){
+    const v = await demander(
+      "Combien d'heures avant l'examen ?\n" +
+      'Les 3h avant examen viennent en plus.',
+      String(s.heuresRestantes || ''), nom);
+
+    if(v === null) return;
+    propre = String(v).trim().replace(',', '.');
+  }
+
   if(propre && isNaN(Number(propre))){
     showToast('Indique un nombre d\'heures.');
     return;
