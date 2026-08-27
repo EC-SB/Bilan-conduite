@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:09 — v599 */
+/* Déployé le 27/08/2026 à 13:06 — v613 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -274,10 +274,11 @@ function ligneBureau(e, options){
                      (e.moniteur ? ' avec ' + e.moniteur : '');
   meta.appendChild(sous);
 
-  if(e.enAttente.length){
+  /* Une fiche peut venir du répertoire, sans consigne attachée */
+  if((e.enAttente || []).length){
     const att = document.createElement('span');
     att.style.color = 'var(--accent-text)';
-    att.textContent = '📨 ' + e.enAttente.map(x => x.texte).join(' · ') +
+    att.textContent = '📨 ' + (e.enAttente || []).map(x => x.texte).join(' · ') +
                       ' (transmis au prochain cours)';
     meta.appendChild(att);
   }
@@ -401,6 +402,20 @@ async function afficherBureau(silencieux){
     return;
   }
   majBoutons('🔄 Actualiser les listes', false);
+
+  redessinerBureau();
+}
+
+
+/* ============================================================
+   REDESSINER SANS RECHARGER
+
+   La mémoire est déjà à jour après une saisie : refaire le tour
+   du serveur coûtait plusieurs secondes pour rien.
+   ============================================================ */
+
+async function redessinerBureau(){
+  if(!$('listeExamBlanc')) return;
 
   const tous = etatBureau.eleves;
 
