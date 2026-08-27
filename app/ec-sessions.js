@@ -1138,9 +1138,33 @@ function ouvrirPlace(p, sess){
         dossierOk: champsPlace.dossierOk === 'oui'
       });
 
-      /* La fenêtre se ferme tout de suite : la mémoire est déjà à
-         jour, et le bureau n'a rien à attendre du réseau pour
-         continuer son travail. */
+      /* Le suivi en mémoire suit AUSSI : la ligne affiche ses
+         heures, son examen blanc et son post-permis, qui viennent
+         de là. Sans cette pose, le redessin relisait l'ancien
+         état et il fallait rafraîchir la page. */
+      if(champsSuivi && nomSaisi && typeof etatBureau !== 'undefined'){
+        const dans = (etatBureau.suivi || []).find(x =>
+          normaliserMot(x.eleve) === normaliserMot(nomSaisi));
+
+        if(dans) Object.assign(dans, champsSuivi);
+        else{
+          etatBureau.suivi = etatBureau.suivi || [];
+          etatBureau.suivi.push(Object.assign({ eleve: nomSaisi }, champsSuivi));
+        }
+      }
+
+      /* Celui qu'on retire perd sa date dans la mémoire aussi */
+      if(retire && typeof etatBureau !== 'undefined'){
+        const parti = (etatBureau.suivi || []).find(x =>
+          normaliserMot(x.eleve) === normaliserMot(ancienNom));
+        if(parti){
+          Object.assign(parti, { datePermis: '', centre: '', statut: '',
+                                 aRemplacer: '', toutOk: '' });
+        }
+      }
+
+      /* La fenêtre se ferme tout de suite : la mémoire est à jour,
+         et le bureau n'a rien à attendre du réseau. */
       document.body.removeChild(fond);
       showToast('Enregistré ✅');
       redessinerSessions();
