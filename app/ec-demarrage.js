@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 15:27 — v577 */
+/* Déployé le 27/08/2026 à 07:43 — v584 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -385,6 +385,91 @@ window.addEventListener('beforeunload', e => {
     return '';
   }
 });
+
+
+/* ============================================================
+   LE RETOUR ARRIÈRE
+
+   La flèche du navigateur, ou celle du téléphone, faisait perdre
+   la page en plein cours. On pose une entrée d'historique de
+   trop : le retour la consomme au lieu de sortir.
+
+   Quand un travail est en cours, on demande confirmation.
+   ============================================================ */
+
+let sortieDemandee = false;
+
+function poserPiegeHistorique(){
+  try{
+    history.pushState({ ec: 1 }, '', location.href);
+  }catch(e){ /* certains navigateurs le refusent : tant pis */ }
+}
+
+
+window.addEventListener('popstate', () => {
+  /* Le moniteur a confirmé : on le laisse partir */
+  if(sortieDemandee) return;
+
+  /* On remet aussitôt l'entrée : sans elle, le prochain retour
+     quitterait vraiment. */
+  poserPiegeHistorique();
+
+  /* Une fenêtre ouverte ? Le retour la ferme, c'est ce qu'on
+     attend d'un bouton retour. */
+  const fond = document.querySelector('.overlay.show');
+  if(fond){
+    const annuler = Array.prototype.find.call(
+      fond.querySelectorAll('button'),
+      b => /annuler|fermer/i.test(b.textContent));
+    if(annuler){ annuler.click(); return; }
+    try{ document.body.removeChild(fond); }catch(e){}
+    return;
+  }
+
+  /* Un travail en cours : on prévient avant de perdre l'écran */
+  if(travailEnCoursMoniteur()){
+    confirmer('Ton travail est en cours.\n\n' +
+      'Il est sauvegardé, mais tu vas quitter cet écran. ' +
+      'Continuer ?', 'Revenir en arrière', true).then(ok => {
+      if(!ok) return;
+      sortieDemandee = true;
+      history.back();
+    });
+    return;
+  }
+
+  /* Rien en cours : on revient à l'accueil plutôt que de sortir */
+  if(typeof allerAuCours === 'function'){
+    allerAuCours();
+    showToast('Tu es sur l\'écran des cours');
+  }
+});
+
+
+/* Ce qu'on ne veut pas perdre d'un retour arrière malheureux */
+function travailEnCoursMoniteur(){
+  if(typeof isRecording !== 'undefined' && isRecording) return true;
+
+  const t = $('transcriptBox');
+  if(t && t.value.trim()) return true;
+
+  const r = $('resultText');
+  if(r && r.value.trim() &&
+     (typeof bilanEnregistre === 'undefined' || !bilanEnregistre)) return true;
+
+  /* Une fiche manuelle en cours de saisie */
+  if($('manuelView') && $('manuelView').style.display === 'block'){
+    if(typeof champsManuels !== 'undefined' &&
+       Object.keys(champsManuels || {}).length > 2) return true;
+  }
+
+  return false;
+}
+
+
+/* Le piège se pose une fois la session ouverte : avant, il n'y a
+   rien à protéger. */
+poserPiegeHistorique();
 
 $('prepBtn').addEventListener('click', preparerNouveauCours);
 $('manuelBtn').addEventListener('click', ouvrirBilanManuel);
