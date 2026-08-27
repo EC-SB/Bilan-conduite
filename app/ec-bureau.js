@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:30 — v597 */
+/* Déployé le 27/08/2026 à 11:09 — v599 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -308,9 +308,14 @@ function ligneBureau(e, options){
 
   /* Les listes longues se replient : l'essentiel reste visible,
      les actions ne s'ouvrent qu'à la demande. */
-  /* De quoi faire le ménage, sur toutes les listes */
-  if(options.menage !== false && aDroit('bureau_permis')){
-    actions.appendChild(boutonMenage(e.eleve, actions));
+  /* Changer de liste plutôt que tout détruire : la fiche garde
+     sa date, ses heures, son examen blanc et ses paiements.
+
+     L'ancien bouton effaçait la ligne entière, et il fallait la
+     reconstruire à la main. */
+  if(options.menage !== false && aDroit('bureau_permis') &&
+     typeof boutonEnvoyerVers === 'function'){
+    actions.appendChild(boutonEnvoyerVers(e.eleve));
   }
 
   if(options.replier){
