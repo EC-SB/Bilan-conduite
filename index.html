@@ -2,15 +2,15 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v601
-     VERSION APPS SCRIPT REQUISE : v140
-     Mis à jour le : 27/08/2026 à 11:32
+     VERSION APPLICATION : v602
+     VERSION APPS SCRIPT REQUISE : v141
+     Mis à jour le : 27/08/2026 à 11:53
 
      Vérifie que ce numéro correspond à celui affiché en haut de
      l'application. S'ils diffèrent, c'est le cache du navigateur :
      recharge en forçant (Ctrl+Maj+R).
 
-     Ce fichier appelle 50 modules dans le dossier app/.
+     Ce fichier appelle 51 modules dans le dossier app/.
      S'il en manque un, un bandeau rouge le signale au démarrage.
      ============================================================ -->
 <html lang="fr">
@@ -769,7 +769,7 @@
     <div class="logo">EC</div>
     <div>
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v601</span></p>
+      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v602</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -1363,6 +1363,21 @@
   </div>
 
   <div class="barre-vues" data-pour="permis" style="display:none;"></div>
+
+  <div class="card" data-section="bureau_permis" data-vue="moto" data-onglet="permis">
+    <h2 class="section-title">🏍️ Permis moto</h2>
+    <div class="contenu-tiroir">
+      <button class="btn btn-secondary" id="motoActualiser">🔄 Actualiser</button>
+      <div id="motoZone"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="bureau_permis" data-vue="remorque" data-onglet="permis">
+    <h2 class="section-title">🚚 Permis remorque</h2>
+    <div class="contenu-tiroir">
+      <div class="empty">À venir : même principe que la moto.</div>
+    </div>
+  </div>
 
   <div class="card" data-section="bureau_permis" data-vue="sessions" data-onglet="permis">
     <!-- Les semaines ouvertes par la préfecture, au-dessus des
@@ -2025,56 +2040,57 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=601"></script>
-<script src="app/ec-modeles.js?v=601"></script>
-<script src="app/ec-consignes.js?v=601"></script>
-<script src="app/ec-noyau.js?v=601"></script>
-<script src="app/ec-vocal.js?v=601"></script>
-<script src="app/ec-reseau.js?v=601"></script>
-<script src="app/ec-manuel.js?v=601"></script>
-<script src="app/ec-fenetres.js?v=601"></script>
-<script src="app/ec-questionnaire.js?v=601"></script>
-<script src="app/ec-permis.js?v=601"></script>
-<script src="app/ec-prepares.js?v=601"></script>
-<script src="app/ec-bureau.js?v=601"></script>
-<script src="app/ec-places.js?v=601"></script>
-<script src="app/ec-listes.js?v=601"></script>
-<script src="app/ec-permis-listes.js?v=601"></script>
-<script src="app/ec-postpermis.js?v=601"></script>
-<script src="app/ec-textes.js?v=601"></script>
-<script src="app/ec-correction.js?v=601"></script>
-<script src="app/ec-bilans.js?v=601"></script>
-<script src="app/ec-ecran.js?v=601"></script>
-<script src="app/ec-version.js?v=601"></script>
-<script src="app/ec-paie.js?v=601"></script>
-<script src="app/ec-flotte.js?v=601"></script>
-<script src="app/ec-solo.js?v=601"></script>
-<script src="app/ec-handicap-pdf.js?v=601"></script>
-<script src="app/ec-arriereplan.js?v=601"></script>
-<script src="app/ec-placesbe.js?v=601"></script>
-<script src="app/ec-codeamenage.js?v=601"></script>
-<script src="app/ec-financements.js?v=601"></script>
-<script src="app/ec-eval-aac.js?v=601"></script>
-<script src="app/ec-postes.js?v=601"></script>
-<script src="app/ec-tarifs.js?v=601"></script>
-<script src="app/ec-evaluation.js?v=601"></script>
-<script src="app/ec-paiement.js?v=601"></script>
-<script src="app/ec-handicap.js?v=601"></script>
-<script src="app/ec-code.js?v=601"></script>
-<script src="app/ec-proccorriger.js?v=601"></script>
-<script src="app/ec-sessions.js?v=601"></script>
-<script src="app/ec-notifs.js?v=601"></script>
-<script src="app/ec-ecoutes.js?v=601"></script>
-<script src="app/ec-taches.js?v=601"></script>
-<script src="app/ec-memoire.js?v=601"></script>
-<script src="app/ec-historique.js?v=601"></script>
-<script src="app/ec-rappels.js?v=601"></script>
-<script src="app/ec-stats.js?v=601"></script>
-<script src="app/ec-messenger.js?v=601"></script>
-<script src="app/ec-journal.js?v=601"></script>
-<script src="app/ec-depart.js?v=601"></script>
-<script src="app/ec-onglets.js?v=601"></script>
-<script src="app/ec-demarrage.js?v=601"></script>
+  <script src="app/ec-etat.js?v=602"></script>
+<script src="app/ec-modeles.js?v=602"></script>
+<script src="app/ec-consignes.js?v=602"></script>
+<script src="app/ec-noyau.js?v=602"></script>
+<script src="app/ec-vocal.js?v=602"></script>
+<script src="app/ec-reseau.js?v=602"></script>
+<script src="app/ec-manuel.js?v=602"></script>
+<script src="app/ec-fenetres.js?v=602"></script>
+<script src="app/ec-questionnaire.js?v=602"></script>
+<script src="app/ec-permis.js?v=602"></script>
+<script src="app/ec-prepares.js?v=602"></script>
+<script src="app/ec-bureau.js?v=602"></script>
+<script src="app/ec-places.js?v=602"></script>
+<script src="app/ec-listes.js?v=602"></script>
+<script src="app/ec-permis-listes.js?v=602"></script>
+<script src="app/ec-postpermis.js?v=602"></script>
+<script src="app/ec-textes.js?v=602"></script>
+<script src="app/ec-correction.js?v=602"></script>
+<script src="app/ec-bilans.js?v=602"></script>
+<script src="app/ec-ecran.js?v=602"></script>
+<script src="app/ec-version.js?v=602"></script>
+<script src="app/ec-paie.js?v=602"></script>
+<script src="app/ec-flotte.js?v=602"></script>
+<script src="app/ec-solo.js?v=602"></script>
+<script src="app/ec-handicap-pdf.js?v=602"></script>
+<script src="app/ec-moto.js?v=602"></script>
+<script src="app/ec-arriereplan.js?v=602"></script>
+<script src="app/ec-placesbe.js?v=602"></script>
+<script src="app/ec-codeamenage.js?v=602"></script>
+<script src="app/ec-financements.js?v=602"></script>
+<script src="app/ec-eval-aac.js?v=602"></script>
+<script src="app/ec-postes.js?v=602"></script>
+<script src="app/ec-tarifs.js?v=602"></script>
+<script src="app/ec-evaluation.js?v=602"></script>
+<script src="app/ec-paiement.js?v=602"></script>
+<script src="app/ec-handicap.js?v=602"></script>
+<script src="app/ec-code.js?v=602"></script>
+<script src="app/ec-proccorriger.js?v=602"></script>
+<script src="app/ec-sessions.js?v=602"></script>
+<script src="app/ec-notifs.js?v=602"></script>
+<script src="app/ec-ecoutes.js?v=602"></script>
+<script src="app/ec-taches.js?v=602"></script>
+<script src="app/ec-memoire.js?v=602"></script>
+<script src="app/ec-historique.js?v=602"></script>
+<script src="app/ec-rappels.js?v=602"></script>
+<script src="app/ec-stats.js?v=602"></script>
+<script src="app/ec-messenger.js?v=602"></script>
+<script src="app/ec-journal.js?v=602"></script>
+<script src="app/ec-depart.js?v=602"></script>
+<script src="app/ec-onglets.js?v=602"></script>
+<script src="app/ec-demarrage.js?v=602"></script>
 
 </body>
 </html>
