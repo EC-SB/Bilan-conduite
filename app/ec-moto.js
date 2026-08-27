@@ -135,8 +135,10 @@ async function afficherMoto(){
   const zone = $('motoZone');
   if(!zone) return;
 
-  if(typeof etatBureau === 'undefined' || !etatBureau.eleves ||
-     !etatBureau.eleves.length){
+  /* Le bureau ne se charge qu'une fois : ensuite la mémoire est
+     déjà à jour après chaque saisie. */
+  if(typeof etatBureau === 'undefined' || !etatBureau.suivi ||
+     (!etatBureau.suivi.length && !(etatBureau.eleves || []).length)){
     if(typeof afficherBureau === 'function'){
       try{ await afficherBureau(); }catch(e){}
     }
