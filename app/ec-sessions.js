@@ -575,6 +575,116 @@ async function retirerDeLaSession(nom, sess){
 }
 
 
+/* ============================================================
+   LES HEURES AVANT PERMIS, EN CASES
+
+   La valeur affichée suit la source la plus récente : le
+   post-permis pour un repassage, l'examen blanc sinon. Un appui
+   écrit dans cette même source, pour que le choix se voie.
+   ============================================================ */
+
+function casesHeuresPermis(nom){
+  const d = document.createElement('div');
+
+  const r = (typeof heuresQuiComptent === 'function')
+    ? heuresQuiComptent(nom) : { valeur: '', source: '' };
+
+  const manque = (r.valeur === '');
+
+  d.style.cssText = 'border:1px solid ' +
+    (manque ? 'var(--orange)' : 'var(--line)') + ';' +
+    'border-radius:10px;padding:10px 12px;margin-bottom:12px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:12px;margin-bottom:8px;color:' +
+    (manque ? 'var(--warn-text)' : 'var(--muted)') + ';';
+  t.textContent = manque
+    ? "⏱️ Heures avant permis — à préciser"
+    : '⏱️ Heures avant permis' +
+      (r.source ? ' (' + r.source + ')' : '');
+  d.appendChild(t);
+
+  const ligne = document.createElement('div');
+  ligne.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+
+  const champ = document.createElement('input');
+  champ.type = 'number';
+  champ.min = '0';
+  champ.step = '1';
+  champ.placeholder = 'autre';
+  champ.value = (['0','2','4','6','8','10'].indexOf(r.valeur) === -1)
+    ? r.valeur : '';
+  champ.style.cssText = 'width:78px;font-size:16px;text-align:center;margin:0;';
+
+  let choisi = r.valeur;
+
+  const peindre = () => {
+    Array.prototype.forEach.call(ligne.children, b => {
+      if(b.tagName !== 'BUTTON') return;
+      const pris = (b.getAttribute('data-val') === choisi);
+      b.style.background = pris ? 'var(--orange)' : 'var(--navy)';
+      b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+      b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
+      b.style.fontWeight = pris ? '800' : '400';
+    });
+  };
+
+  const poser = async (v) => {
+    choisi = v;
+    peindre();
+
+    /* Un élève en repassage a ses heures dans le post-permis :
+       écrire ailleurs ne se verrait pas. */
+    const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+    const majs = (s.rdvPostFait === 'oui')
+      ? { heuresRepassage: v }
+      : { heuresRestantes: v };
+
+    try{
+      await majSuivi(nom, majs);
+      t.textContent = '⏱️ Heures avant permis' +
+        (v === '0' ? ' — plus que les 3h' : v ? ' — ' + v + ' + 3h' : '');
+      t.style.color = 'var(--muted)';
+      d.style.borderColor = 'var(--line)';
+      redessinerSessions();
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  };
+
+  ['0', '2', '4', '6', '8', '10'].forEach(v => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;';
+    b.textContent = v;
+    b.setAttribute('data-val', v);
+    b.title = (v === '0') ? 'Plus que les 3h' : v + ' + 3h';
+    b.addEventListener('click', () => {
+      champ.value = '';
+      poser(v);
+    });
+    ligne.appendChild(b);
+  });
+
+  champ.addEventListener('change', () => {
+    const v = String(champ.value).trim();
+    if(v && isNaN(Number(v))){ showToast('Indique un nombre.'); return; }
+    poser(v);
+  });
+  ligne.appendChild(champ);
+
+  d.appendChild(ligne);
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+    'line-height:1.5;';
+  a.textContent = 'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.';
+  d.appendChild(a);
+
+  peindre();
+  return d;
+}
+
+
 function lignePlace(p, sess){
   const etat = etatPlace(p, eleveDuBureau(p.eleve));
   const vide = !p.eleve;
@@ -813,37 +923,9 @@ function ouvrirPlace(p, sess){
 
     boite.appendChild(rB);
 
-    /* Les heures avant permis, avec de quoi les corriger */
-    const zh = document.createElement('div');
-    const mh = (typeof mentionHeuresRestantes === 'function')
-      ? mentionHeuresRestantes(p.eleve).replace(/^ · /, '') : '';
-    const manqueH = /à préciser/.test(mh);
-
-    zh.style.cssText = 'display:flex;gap:9px;align-items:center;' +
-      'border:1px solid ' + (manqueH ? 'var(--orange)' : 'var(--line)') + ';' +
-      'border-radius:10px;padding:9px 11px;margin-bottom:12px;';
-
-    const th = document.createElement('span');
-    th.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;' +
-      'color:' + (manqueH ? 'var(--warn-text)' : 'var(--cream)') + ';';
-    th.textContent = mh || '⏱️ heures à préciser';
-    zh.appendChild(th);
-
-    const bH = document.createElement('button');
-    bH.className = 'btn btn-secondary';
-    bH.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;' +
-      'margin:0;flex-shrink:0;';
-    bH.textContent = '✏️';
-    bH.title = "Combien d'heures avant l'examen";
-    bH.addEventListener('click', () => {
-      document.body.removeChild(fond);
-      if(typeof saisirHeuresRestantes === 'function'){
-        saisirHeuresRestantes(p.eleve);
-      }
-    });
-    zh.appendChild(bH);
-
-    boite.appendChild(zh);
+    /* Les heures avant permis : des cases plutôt qu'un crayon,
+       comme dans le bilan d'examen blanc. */
+    boite.appendChild(casesHeuresPermis(p.eleve));
   }
 
   boite.insertAdjacentHTML('beforeend',
