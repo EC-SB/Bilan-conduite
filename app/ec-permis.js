@@ -1,4 +1,4 @@
-/* Déployé le 12/08/2026 à 09:15 — version 1.0 */
+/* Déployé le 27/08/2026 à 10:25 — v596 */
 /* ============================================================
    ec-permis.js
    Élève ayant obtenu son permis
@@ -224,8 +224,12 @@ function afficherPermis(nom, dossier){
     bFiches.addEventListener('click', () => nettoyerDossierPermis(nom, false, bFiches));
     fin.appendChild(bFiches);
 
-    /* Suppression totale — administrateurs uniquement */
-    if(ACCES.role === 'admin'){
+    /* Suppression totale.
+
+       Ici, l'élève a son permis : son dossier n'a plus d'objet.
+       Chacun peut donc le clore, ce n'est pas une manœuvre
+       risquée à ce stade. */
+    {
       const bTout = document.createElement('button');
       bTout.className = 'btn btn-secondary';
       bTout.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;' +
