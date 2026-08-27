@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 12:49 — v611 */
+/* Déployé le 27/08/2026 à 13:38 — v616 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -262,6 +262,22 @@ function dateDepuisSession(){
   }catch(e){}
 
   return '';
+}
+
+
+/* Ce que ses notes disent de sa problématique.
+
+   Écrite une fois, elle se retrouve d'une évaluation à l'autre :
+   la retaper à chaque fois n'a pas de sens. */
+function problematiqueConnue(){
+  const t = ($('noteInterne') && $('noteInterne').value) || '';
+
+  const m = t.match(/❓\s*Problématique\s*:?\s*([^\n]+)/i);
+  if(m) return m[1].trim();
+
+  /* Le format des anciennes notes */
+  const m2 = t.match(/Problématique\s*:\s*([^\n]+)/i);
+  return m2 ? m2[1].trim() : '';
 }
 
 
@@ -780,9 +796,16 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
       '</div>' +
 
-      /* Hors du bloc masqué : c'est la seule question que la
-         fiche d'évaluation conserve. */
+      /* Hors du bloc masqué : les deux questions que la fiche
+         d'évaluation conserve. */
       '<div id="qBlocPrefecture" style="display:none;">' +
+        '<label for="qProblematique">Problématique</label>' +
+        '<textarea id="qProblematique" rows="3" maxlength="400" ' +
+          'placeholder="Ce qui amène cette évaluation"></textarea>' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+          'line-height:1.5;">Reprise de ses notes : à compléter ou ' +
+          'corriger.</div>' +
+
         '<label for="qPrefecture">Leçons avant présentation à la préfecture</label>' +
         '<input type="number" id="qPrefecture" min="0" inputmode="numeric" ' +
           'placeholder="—">' +
@@ -1062,6 +1085,13 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       if(surFicheEval){
         boite.querySelector('#qPrefecture').value = prec.prefecture || '';
 
+        /* La problématique reprend ce que ses notes en disent :
+           le moniteur complète plutôt que de tout retaper. */
+        const zp2 = boite.querySelector('#qProblematique');
+        if(zp2){
+          zp2.value = prec.problematique || problematiqueConnue();
+        }
+
 
       }
     }
@@ -1217,6 +1247,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         pasEcoute: boite.querySelector('#qPasEcoute').checked,
         simuNuit: boite.querySelector('#qSimuNuit').value,
         prefecture: (boite.querySelector('#qPrefecture') || {}).value || '',
+        problematique: ((boite.querySelector('#qProblematique') || {}).value || '').trim(),
         ebPasse: selEB2 ? selEB2.value : '',
         ebLecons: nEB2 ? nEB2.value.trim() : '',
         /* Les heures avant permis remontent au bureau, qui en a
@@ -1276,7 +1307,11 @@ function noteDepuisQuestionnaire(q){
 
   if(q.frise) bouts.push(q.frise);
 
-  /* La fiche d évaluation : sa seule information */
+  /* La fiche d'évaluation : sa problématique et ses leçons */
+  if(String(q.problematique || '').trim()){
+    bouts.push('❓ Problématique : ' + String(q.problematique).trim());
+  }
+
   if(String(q.prefecture || '').trim()){
     const n = Number(q.prefecture);
     bouts.push(n > 0
