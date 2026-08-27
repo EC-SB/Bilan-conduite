@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 09:39 — v592 */
+/* Déployé le 27/08/2026 à 17:18 — v628 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -115,6 +115,68 @@ function motsDe(nom){
 }
 
 /* Renvoie les élèves du répertoire compatibles avec ce qui a été lu */
+/* Charger ce qui manque, avec un second essai.
+
+   Les fiches portent les numéros, les modèles portent les
+   messages : sans l'un ou l'autre, l'écran ne sert à rien. */
+async function chargerCeQuiManque(){
+  const rates = [];
+
+  const tenter = async (nom, charger, present) => {
+    if(present()) return;
+
+    for(let i = 0; i < 2; i++){
+      try{
+        await charger();
+        if(present()) return;
+      }catch(e){ /* on réessaie une fois */ }
+
+      if(i === 0) await new Promise(r => setTimeout(r, 600));
+    }
+
+    rates.push(nom);
+  };
+
+  await Promise.all([
+    tenter('les numéros des élèves',
+           () => (typeof chargerFiches === 'function') ? chargerFiches() : null,
+           () => typeof fichesEleves !== 'undefined' && fichesEleves.length),
+
+    tenter('les modèles de message',
+           () => (typeof chargerModelesTexte === 'function')
+                   ? chargerModelesTexte() : null,
+           () => typeof modelesTexte !== 'undefined' && modelesTexte.length)
+  ]);
+
+  return rates;
+}
+
+
+/* Le dire, plutôt que d'afficher un écran muet */
+function blocChargementRate(manquants){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:14px;text-align:center;';
+
+  d.innerHTML = '<div style="font-size:15px;font-weight:700;' +
+      'color:var(--warn-text);margin-bottom:8px;">⚠️ Chargement incomplet</div>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.6;">' +
+      'Impossible de charger ' + manquants.join(' et ') + '.<br>' +
+      'Les rappels ne peuvent pas être préparés sans cela.</div>';
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-primary';
+  b.style.cssText = 'margin-top:12px;padding:12px;font-size:13px;';
+  b.textContent = '🔄 Réessayer';
+  b.addEventListener('click', () => {
+    if(typeof afficherRappels === 'function') afficherRappels();
+  });
+  d.appendChild(b);
+
+  return d;
+}
+
+
 function candidatsPour(nomLu){
   const lus = motsDe(nomLu);
   if(!lus.length) return { exact: null, candidats: [] };
@@ -185,14 +247,18 @@ async function afficherRappels(){
      manquent : chargerFiches() relançait le serveur même quand le
      répertoire était déjà en mémoire. */
   zone.innerHTML = '<div class="empty">Recherche des numéros…</div>';
-  await Promise.all([
-    (typeof chargerFiches === 'function' &&
-     (typeof fichesEleves === 'undefined' || !fichesEleves.length))
-      ? chargerFiches().catch(() => []) : Promise.resolve(),
-    (typeof chargerModelesTexte === 'function' &&
-     (typeof modelesTexte === 'undefined' || !modelesTexte.length))
-      ? chargerModelesTexte().catch(() => []) : Promise.resolve()
-  ]);
+
+  /* Un échec passait inaperçu : la liste revenait vide et l'écran
+     s'affichait sans numéros ni modèles. Il fallait rafraîchir
+     plusieurs fois sans savoir pourquoi. */
+  const manquants = await chargerCeQuiManque();
+
+  if(manquants.length){
+    zone.innerHTML = '';
+    zone.appendChild(blocChargementRate(manquants));
+    return;
+  }
+
   zone.innerHTML = '';
 
   /* Chaque cours est rapproché du répertoire, sans jamais deviner */
@@ -328,25 +394,37 @@ function ligneRappel(c, i){
     a.className = 'btn btn-primary';
     a.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;flex-shrink:0;';
     a.textContent = '💬 Envoyer';
-    a.addEventListener('click', async () => {
+    a.addEventListener('click', () => {
+      const qui = c.choisi || c.eleve;
+
+      /* L'écran rend la main tout de suite : l'envoi traverse le
+         Worker puis Allo, et le bureau n'a rien à attendre pour
+         passer au suivant. */
       a.disabled = true;
-      a.textContent = 'Envoi…';
-      try{
-        await envoyerMessageComplet(c.telephone, messageRappel(c), c.choisi || c.eleve);
-        c.envoye = true;
-        /* Le cours rejoint les prochains cours du moniteur lu sur le planning */
-        preparerDepuisRappel(c.choisi || c.eleve, c.jour, c.moniteur,
-                             { type: c.type ||
-                                     (choixRappel && choixRappel.type) || '',
-                               titreType: titreDuType(c.type ||
-                                 (choixRappel && choixRappel.type)) });
-        showToast('Envoyé à ' + (c.choisi || c.eleve));
-        afficherRappels();
-      }catch(e){
-        showToast('Erreur : ' + e.message);
-        a.disabled = false;
-        a.textContent = '💬 Envoyer';
-      }
+      a.textContent = '📤 Envoi…';
+      c.envoye = true;
+
+      /* Le cours rejoint les prochains cours du moniteur lu sur
+         le planning */
+      preparerDepuisRappel(qui, c.jour, c.moniteur,
+                           { type: c.type ||
+                                   (choixRappel && choixRappel.type) || '',
+                             titreType: titreDuType(c.type ||
+                               (choixRappel && choixRappel.type)) });
+
+      envoyerMessageComplet(c.telephone, messageRappel(c), qui)
+        .then(() => {
+          showToast('✅ Envoyé à ' + qui);
+          afficherRappels();
+        })
+        .catch(e => {
+          /* Un échec doit se voir : sans cela, le bureau croirait
+             l'élève prévenu. */
+          c.envoye = false;
+          showToast('⚠️ ' + qui + ' non prévenu : ' + e.message);
+          a.disabled = false;
+          a.textContent = '💬 Envoyer';
+        });
     });
     h.appendChild(a);
   }
