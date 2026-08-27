@@ -306,6 +306,7 @@ function resumeMoto(s, etape){
     if(String(s.motoLecons || '').trim()){
       bouts.push('🏍️ Prêt dans ' + s.motoLecons + ' leçon(s)');
     }
+    if(nb) bouts.push('🔢 ' + nb + ' plateau(x) déjà passé(s)');
   }
 
   else if(etape === 'aplacer'){
@@ -367,6 +368,7 @@ function actionsMoto(nom, s, etape){
 
   if(etape === 'preparation'){
     bouton('📄 Dossier ANTS', () => saisirAntsMoto(nom));
+    bouton('🔢 Passages déjà faits', () => saisirPassagesMoto(nom, 'plateau'));
     bouton('🎓 Code moto', () => saisirCodeMoto(nom));
     bouton('📝 Évaluation', () => basculerMoto(nom, 'motoEval', 'oui'));
     bouton('🏍️ Plateau commencé',
@@ -378,6 +380,7 @@ function actionsMoto(nom, s, etape){
   else if(etape === 'aplacer'){
     bouton('📆 Poser la date du plateau', () => saisirDatePlateau(nom),
            'var(--accent-text)');
+    bouton('🔢 Passages déjà faits', () => saisirPassagesMoto(nom, 'plateau'));
     bouton('↩️ Retour préparation',
            () => majMoto(nom, { motoLecons: '', motoEtape: '' }));
   }
@@ -402,6 +405,8 @@ function actionsMoto(nom, s, etape){
     bouton('🛣️ Leçons restantes', () => saisirLeconsCircu(nom));
     bouton('📆 Poser la date', () => saisirDateExamenMoto(nom),
            'var(--accent-text)');
+    bouton('🔢 Passages déjà faits',
+           () => saisirPassagesMoto(nom, 'circulation'));
   }
 
   else if(etape === 'circuprevue'){
@@ -571,6 +576,53 @@ function tableauStats2R(permis){
   }
 
   return z;
+}
+
+
+/* ============================================================
+   LE NOMBRE DE PASSAGES DÉJÀ FAITS
+
+   Un élève repris d'une autre auto-école a déjà passé son
+   plateau une ou deux fois : sans cette saisie, le compteur
+   repartait de zéro et les statistiques s'en trouvaient
+   faussées.
+   ============================================================ */
+
+async function saisirPassagesMoto(nom, epreuve){
+  const s = suiviDe(nom) || {};
+  const cle = (epreuve === 'circulation') ? 'motoCircuPassages' : 'motoPassages';
+  const quoi = (epreuve === 'circulation') ? 'circulation' : 'plateau';
+
+  const actuel = String(s[cle] || '0');
+
+  const choix = await choisirDansListeMoto(
+    'Combien de ' + quoi + '(s) a-t-il déjà passé(s) ?',
+    "Sans compter celui qui vient. Utile pour un élève repris " +
+    "d'une autre auto-école.",
+    ['0', '1', '2', '3', '4', '5'].map(v => ({
+      nom: (v === '0') ? 'Aucun — c\'est son premier'
+         : v + ' déjà passé' + (Number(v) > 1 ? 's' : ''),
+      valeur: v
+    })),
+    actuel);
+
+  if(choix === null) return;
+
+  const majs = {};
+  majs[cle] = (choix === '0') ? '' : choix;
+  await majMoto(nom, majs);
+}
+
+
+/* Une liste déroulante : les boutons empilés tiennent mal sur un
+   téléphone. */
+function choisirDansListeMoto(titre, aide, options, valeurActuelle){
+  /* La remorque en a déjà une : autant s'en servir */
+  if(typeof choisirDansListe === 'function'){
+    return choisirDansListe(titre, aide, options, valeurActuelle);
+  }
+
+  return Promise.resolve(null);
 }
 
 
