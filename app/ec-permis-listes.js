@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 08:53 — v587 */
+/* Déployé le 27/08/2026 à 09:19 — v589 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1678,17 +1678,63 @@ function dejaSonPermis(nom){
 
    Le bureau les note ici ; le moniteur les voit dans les trois
    listes. Sans ce repère, on place un élève qui n'est pas prêt. */
-function mentionHeuresRestantes(nom){
+/* Où en est son rendez-vous post-permis.
+
+   Pour un repassage, c'est cette conclusion qui compte : elle
+   date d'après l'examen blanc. */
+function mentionPostPermis(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  const h = String(s.heuresRestantes || '').trim();
+
+  const date = String(s.rdvPostDate || '').trim();
+  const fait = (s.rdvPostFait === 'oui');
+  const h = String(s.heuresRepassage || '').trim();
+
+  /* Aucun repassage en vue : rien à dire */
+  if(!date && !fait && !h) return '';
+
+  if(!fait){
+    return date ? '🔁 Post-permis prévu le ' + date
+                : '🔁 Post-permis à fixer';
+  }
+
+  const suite = (typeof libelleSuite === 'function' && s.suite)
+    ? libelleSuite(s.suite) : '';
+
+  return '🔁 Post-permis fait' + (date ? ' le ' + date : '') +
+         (h ? ' — ' + h + ' + 3h' : '') +
+         (!h && suite ? ' — ' + suite : '');
+}
+
+
+/* Les heures qui font foi.
+
+   Après un repassage, celles du post-permis priment : elles sont
+   plus récentes que celles de l'examen blanc. */
+function heuresQuiComptent(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+
+  if(s.rdvPostFait === 'oui'){
+    const h = String(s.heuresRepassage || '').trim();
+    if(h) return { valeur: h, source: 'post-permis' };
+  }
+
+  const h2 = String(s.heuresRestantes || '').trim();
+  if(h2) return { valeur: h2, source: 'examen blanc' };
+
+  return { valeur: '', source: '' };
+}
+
+
+function mentionHeuresRestantes(nom){
+  const r = heuresQuiComptent(nom);
 
   /* Sans cette information, le bureau ne peut pas placer une
      date : on la réclame plutôt que de laisser un blanc. */
-  if(h === '') return ' · ⏱️ heures à préciser';
-  if(h === '0') return ' · ⏱️ plus que les 3h';
+  if(r.valeur === '') return ' · ⏱️ heures à préciser';
+  if(r.valeur === '0') return ' · ⏱️ plus que les 3h';
 
   /* Les 3h avant examen s'ajoutent toujours : « 4 + 3 » */
-  return ' · ⏱️ ' + h + ' + 3h';
+  return ' · ⏱️ ' + r.valeur + ' + 3h';
 }
 
 
@@ -1785,13 +1831,88 @@ async function saisirExamenBlanc(nom){
 }
 
 
+/* Le menu qui demande ce qu'on renseigne.
+
+   Un repassage a deux sources : l'examen blanc, ancien, et le
+   post-permis, plus récent. Le bureau doit savoir laquelle il
+   touche. */
+async function saisirNiveauEleve(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const repassage = !!(s.rdvPostDate || s.rdvPostFait === 'oui' ||
+                       s.heuresRepassage);
+
+  const quoi = await fenetre(
+    'Que veux-tu renseigner pour ' + nom + ' ?' +
+    (repassage ? '\n\nC\'est un repassage : le post-permis fait foi.' : ''),
+    [{ nom: 'Annuler', valeur: '' },
+     { nom: '📝 Examen blanc', valeur: 'eb', principal: !repassage },
+     { nom: '🔁 Post-permis', valeur: 'post', principal: repassage }],
+    'Que renseigner ?');
+
+  if(!quoi) return;
+  if(quoi === 'eb') return saisirExamenBlanc(nom);
+  return saisirPostPermis(nom);
+}
+
+
+/* Ce que le bureau sait du rendez-vous post-permis */
+async function saisirPostPermis(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+
+  const date = await demander(
+    'Date du rendez-vous post-permis\n' +
+    'Laisse vide s\'il n\'est pas encore fixé.',
+    s.rdvPostDate || '', nom);
+  if(date === null) return;
+
+  const fait = await fenetre(
+    'Le rendez-vous a-t-il eu lieu ?',
+    [{ nom: 'Pas encore', valeur: 'non' },
+     { nom: '✅ Oui, il est fait', valeur: 'oui', principal: true }],
+    nom);
+  if(!fait) return;
+
+  const majs = {
+    rdvPostDate: String(date || '').trim(),
+    rdvPostFait: (fait === 'oui') ? 'oui' : ''
+  };
+
+  /* Les heures ne se décident qu'une fois le rendez-vous fait */
+  if(fait === 'oui'){
+    const h = await demander(
+      "Combien d'heures avant le repassage ?\n" +
+      'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
+      'Mets 0 s\'il ne reste que les 3h.',
+      s.heuresRepassage || '', nom);
+
+    if(h !== null){
+      const propre = String(h).trim().replace(',', '.');
+      if(propre && isNaN(Number(propre))){
+        showToast('Indique un nombre d\'heures.');
+        return;
+      }
+      majs.heuresRepassage = propre;
+    }
+  }
+
+  try{
+    await majSuivi(nom, majs);
+    showToast('Enregistré ✅');
+    afficherBureau();
+    if(typeof afficherSessionsPermis === 'function'){
+      try{ afficherSessionsPermis(); }catch(e){}
+    }
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
 function boutonExamenBlanc(nom){
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
   b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-  b.textContent = '📝 Examen blanc';
-  b.title = "Indiquer où en est son examen blanc";
-  b.addEventListener('click', () => saisirExamenBlanc(nom));
+  b.textContent = '📝 Niveau';
+  b.title = "Examen blanc ou rendez-vous post-permis";
+  b.addEventListener('click', () => saisirNiveauEleve(nom));
   return b;
 }
 
