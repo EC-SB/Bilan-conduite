@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:17 — v595 */
+/* Déployé le 27/08/2026 à 10:31 — v597 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -98,6 +98,7 @@ async function ouvrirPasNiveauManuel(){
       await envoyerConsigne(nom, 'examblanc',
         'Examen blanc passé le ' + (dateEnToutesLettres(d) || d) +
         ' — pas le niveau' + (quoi ? ' : ' + quoi : '') + ' (bureau)');
+      await noterExamenBlanc(nom, 'non', dateEnToutesLettres(d) || d);
 
       document.body.removeChild(fond);
       showToast('Élève ajouté ✅');
@@ -349,6 +350,8 @@ function ouvrirExamBlancManuel(){
       /* La même phrase que le bureau : c'est elle qui est relue */
       await envoyerConsigne(nom, 'examblanc',
         'Examen blanc fixé au ' + dateEnToutesLettres(date) + ' (bureau)');
+      /* Prévu n'est pas passé : le niveau reste inconnu */
+      await noterExamenBlanc(nom, '', dateEnToutesLettres(date));
 
       /* Le cours, s'il n'existe pas déjà pour ce jour-là */
       if(boite.querySelector('#ebmCours').checked){
@@ -415,6 +418,7 @@ function boutonDateExamBlanc(e, x){
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
         'Examen blanc déplacé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+      await noterExamenBlanc(e.eleve, '', dateEnToutesLettres(iso));
       showToast('Date changée ✅');
       afficherBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
@@ -454,6 +458,8 @@ function boutonAnnulerExamBlanc(e, x){
       await envoyerConsigne(e.eleve, 'examblanc',
         "Ne pas prévoir d'examen blanc pour le moment (annulé le " +
         (dateEnToutesLettres(todayLocal()) || todayLocal()) + ')');
+      /* Plus d'examen blanc en vue : sa date n'a plus d'objet */
+      await noterExamenBlanc(e.eleve, '', '');
 
       showToast('Retiré de la liste ✅');
       afficherBureau();
@@ -464,6 +470,33 @@ function boutonAnnulerExamBlanc(e, x){
   });
 
   return b;
+}
+
+
+/* ============================================================
+   LE SUIVI SUIT LA CONSIGNE
+
+   L'information circulait par les seules notes du moniteur,
+   relues à chaque affichage. Une phrase changée, et elle se
+   perdait. Le suivi la porte désormais aussi.
+   ============================================================ */
+
+async function noterExamenBlanc(nom, quoi, date, heures){
+  if(!nom || typeof majSuivi !== 'function') return;
+
+  const majs = { ebNiveau: quoi || '' };
+
+  if(date !== undefined){
+    majs.ebDate = String(date || '').trim();
+  }
+
+  /* Les heures que le bureau vient d'indiquer : sans elles, il
+     lisait « heures à préciser » juste après les avoir saisies. */
+  if(heures !== undefined){
+    majs.heuresRestantes = String(heures || '').trim();
+  }
+
+  try{ await majSuivi(nom, majs); }catch(e){ /* la consigne suffit */ }
 }
 
 
@@ -483,6 +516,7 @@ function boutonsSuiteExamBlanc(e, zone){
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
         'Examen blanc passé le ' + jour() + ' — pas le niveau');
+      await noterExamenBlanc(e.eleve, 'non', jour());
       showToast('Noté ✅');
       afficherBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
@@ -498,6 +532,7 @@ function boutonsSuiteExamBlanc(e, zone){
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
         'Examen blanc passé le ' + jour() + ' — plus que les 3h avant examen');
+      await noterExamenBlanc(e.eleve, 'oui', jour(), '0');
       showToast('Prêt au permis ✅');
       afficherBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
@@ -522,6 +557,8 @@ function boutonsSuiteExamBlanc(e, zone){
       await envoyerConsigne(e.eleve, 'examblanc',
         'Examen blanc passé le ' + jour() + ' — encore ' + nb +
         ' leçon' + (nb > 1 ? 's' : '') + ' avant examen');
+      /* Chaque leçon vaut deux heures : le bureau raisonne ainsi */
+      await noterExamenBlanc(e.eleve, 'oui', jour(), String(nb * 2));
       showToast('Noté ✅');
       afficherBureau();
     }catch(err){ showToast('Impossible : ' + err.message); }
@@ -631,6 +668,7 @@ function afficherExamensBlancs(tous){
               await majSuivi(x.eleve, { ebDatePrevue: iso });
               await envoyerConsigne(x.eleve, 'examblanc',
                 'Examen blanc fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+              await noterExamenBlanc(x.eleve, '', dateEnToutesLettres(iso));
               showToast('Date transmise ✅');
               afficherBureau();
             }));
