@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 09:19 — v589 */
+/* Déployé le 27/08/2026 à 09:34 — v591 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1773,6 +1773,11 @@ async function saisirHeuresRestantes(nom){
    depuis quand, change tout. */
 function mentionExamenBlanc(x){
   const s = (typeof suiviDe === 'function') ? suiviDe(x.eleve) : {};
+
+  /* Un repassage : le post-permis remplace l'examen blanc, qui
+     date d'avant et n'apprend plus rien. */
+  const post = mentionPostPermis(x.eleve);
+  if(post) return ' · ' + post;
 
   /* Ce que le bureau a noté à la main prime sur les notes des
      bilans : il sait ce qu'il a saisi. */
