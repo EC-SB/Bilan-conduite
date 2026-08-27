@@ -485,6 +485,10 @@ if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrec
 if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorrection);
 if($('corrLeconBtn')) $('corrLeconBtn').addEventListener('click', corrigerLeconDuBilan);
 if($('autreCoursBtn')) $('autreCoursBtn').addEventListener('click', commencerAutreCours);
+if($('motoActualiser')) $('motoActualiser').addEventListener('click', () => {
+  if(typeof afficherBureau === 'function') afficherBureau(true);
+  if(typeof afficherMoto === 'function') afficherMoto();
+});
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
 if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
