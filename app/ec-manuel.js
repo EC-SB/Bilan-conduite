@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 08:43 — v586 */
+/* Déployé le 27/08/2026 à 11:29 — v601 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -24,6 +24,42 @@ const THEMES_ERREURS = [
   { cle:'divers',      nom:'🧠 DIVERS' },
   { cle:'manoeuvres',  nom:'🚙🚗🚙 MANŒUVRES' }
 ];
+
+/* ============================================================
+   LA FICHE D'ÉVALUATION HANDICAP
+
+   Elle reprend le document papier ligne pour ligne : chaque
+   contrôle a ses trois notes et son champ d'observations.
+   ============================================================ */
+
+function schemaHandicap(){
+  const out = [
+    { cle:'__th', type:'titre', nom:'𝗙𝗜𝗖𝗛𝗘 𝗗\'𝗘́𝗩𝗔𝗟𝗨𝗔𝗧𝗜𝗢𝗡' },
+    { cle:'handicap.conducteur',    type:'court', nom:'Conducteur' },
+    { cle:'handicap.formateur',     type:'court', nom:'Formateur' },
+    { cle:'handicap.date',          type:'court', nom:'Date' },
+    { cle:'handicap.problematique', type:'texte', lignes:4,
+      nom:'Problématique',
+      aide:'Ce qui amène cette évaluation.' },
+
+    { cle:'__tc', type:'titre', nom:'𝗖𝗢𝗡𝗧𝗥𝗢̂𝗟𝗘' }
+  ];
+
+  /* Les lignes du tableau, dans l'ordre du document */
+  (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : []).forEach(l => {
+    out.push({ cle:'handicap.' + l.cle + 'N', type:'abc',
+               nom: l.nom, rubrique: !!l.titre });
+    out.push({ cle:'handicap.' + l.cle + 'O', type:'court',
+               nom:'Observations', discret:true });
+  });
+
+  out.push({ cle:'__tf', type:'titre', nom:'𝗖𝗢𝗡𝗖𝗟𝗨𝗦𝗜𝗢𝗡' });
+  out.push({ cle:'handicap.conclusion', type:'texte', lignes:6,
+             nom:'Conclusion' });
+
+  return out;
+}
+
 
 const CHAMPS_MANUELS = {
   conduiteResume: [
@@ -491,7 +527,12 @@ async function ouvrirBilanManuel(){
     return;
   }
 
-  const champs = CHAMPS_MANUELS[modele.schema];
+  /* La fiche handicap se construit ligne par ligne depuis le
+     document papier : elle est trop longue pour être écrite à
+     la main dans le tableau des schémas. */
+  const champs = (modele.schema === 'handicap')
+    ? schemaHandicap()
+    : CHAMPS_MANUELS[modele.schema];
   if(!champs){ showToast('Ce modèle ne se remplit pas encore à la main.'); return; }
 
   const eleve = $('studentName').value.trim();
@@ -591,6 +632,57 @@ async function ouvrirBilanManuel(){
         bloc.style.display = 'none';
       }
 
+
+
+    }else if(ch.type === 'abc'){
+      /* Les trois niveaux du document : A bon, B moyen, C faible.
+         Une rubrique se note comme une sous-ligne — le document
+         papier laisse les deux notables. */
+      bloc.style.cssText = 'margin-bottom:4px;display:flex;gap:10px;' +
+        'align-items:center;flex-wrap:wrap;';
+
+      const l = document.createElement('span');
+      l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:130px;font-size:14px;' +
+        (ch.rubrique ? 'font-weight:700;color:var(--accent-text);'
+                     : 'padding-left:14px;color:var(--cream);');
+      bloc.appendChild(l);
+
+      const r = document.createElement('div');
+      r.id = 'abc_' + ch.cle.replace('.', '_');
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+
+      const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
+
+      [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;';
+        b.textContent = v;
+        b.title = quoi;
+        b.setAttribute('data-val', v);
+
+        b.addEventListener('click', () => {
+          /* Un second appui efface : le moniteur peut se raviser */
+          const pris = (champsManuels[ch.cle] === v);
+          champsManuels[ch.cle] = pris ? '' : v;
+
+          Array.prototype.forEach.call(r.children, x => {
+            const sien = (x.getAttribute('data-val') === champsManuels[ch.cle]);
+            x.style.background = sien ? (couleurs[x.textContent] || 'var(--muted)')
+                                      : 'var(--navy)';
+            x.style.borderColor = sien ? (couleurs[x.textContent] || 'var(--line)')
+                                       : 'var(--line)';
+            x.style.color = sien ? '#0B0B0B' : 'var(--cream)';
+            x.style.fontWeight = sien ? '800' : '400';
+          });
+        });
+
+        r.appendChild(b);
+      });
+
+      bloc.appendChild(r);
 
     }else if(ch.type === 'note3'){
       /* La note se reporte sur le CEPC : quatre boutons valent
@@ -2606,7 +2698,12 @@ function surveillerChampsManuels(){
 
 function lireChampsManuels(){
   const modele = MODELES[$('modele').value];
-  const champs = CHAMPS_MANUELS[modele.schema];
+  /* La fiche handicap se construit ligne par ligne depuis le
+     document papier : elle est trop longue pour être écrite à
+     la main dans le tableau des schémas. */
+  const champs = (modele.schema === 'handicap')
+    ? schemaHandicap()
+    : CHAMPS_MANUELS[modele.schema];
   if(!champs) return;
 
   champs.forEach(ch => {
@@ -2615,6 +2712,9 @@ function lireChampsManuels(){
       /* Ni un intertitre ni un bouton ne portent de réponse */
 
 
+    }else if(ch.type === 'abc'){
+      /* La valeur vit dans champsManuels : les boutons l'y posent */
+      return;
     }else if(ch.type === 'note3'){
       const el = document.getElementById('man_' + ch.cle.replace('.', '_'));
       if(el && String(el.value).trim()){
