@@ -714,6 +714,39 @@ function ouvrirPlace(p, sess){
     (sess.centre ? ' · ' + sess.centre : '');
   boite.appendChild(st);
 
+  /* Où en est son examen blanc : c'est ce qui décide s'il est
+     prêt à passer. Le bureau doit le voir en donnant la place. */
+  if(p.eleve && typeof mentionExamenBlanc === 'function'){
+    const eb = document.createElement('div');
+    const m = mentionExamenBlanc({ eleve: p.eleve, etat: etatDe(p.eleve) })
+      .replace(/^ · /, '');
+    const manque = /pas encore/.test(m);
+
+    eb.style.cssText = 'display:flex;gap:9px;align-items:center;' +
+      'border:1px solid ' + (manque ? 'var(--orange)' : 'var(--line)') + ';' +
+      'border-radius:10px;padding:9px 11px;margin-bottom:12px;';
+
+    const t2 = document.createElement('span');
+    t2.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;' +
+      'color:' + (manque ? 'var(--warn-text)' : 'var(--cream)') + ';';
+    t2.textContent = m;
+    eb.appendChild(t2);
+
+    const bEB = document.createElement('button');
+    bEB.className = 'btn btn-secondary';
+    bEB.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;' +
+      'margin:0;flex-shrink:0;';
+    bEB.textContent = '✏️';
+    bEB.title = "Indiquer où en est son examen blanc";
+    bEB.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      if(typeof saisirExamenBlanc === 'function') saisirExamenBlanc(p.eleve);
+    });
+    eb.appendChild(bEB);
+
+    boite.appendChild(eb);
+  }
+
   boite.insertAdjacentHTML('beforeend',
     '<label for="plEleve">Élève sur cette place</label>' +
     '<input type="text" id="plEleve" list="listeEleves" autocomplete="off" ' +
