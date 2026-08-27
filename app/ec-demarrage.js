@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 07:43 — v584 */
+/* Déployé le 27/08/2026 à 11:30 — v601 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -556,7 +556,10 @@ if($('prepPour')) remplirPourQui();
    l'inspecteur a dit, il ne dicte pas son cours. Proposer le micro
    sur ces bilans-là n'a pas de sens.
    ============================================================ */
-const MODELES_SANS_VOCAL = ['examen-blanc', 'examen-officiel', 'rdv-post'];
+/* Ces bilans se remplissent à la main : dicter un tableau de
+   notes n a pas de sens. */
+const MODELES_SANS_VOCAL = ['examen-blanc', 'examen-officiel', 'rdv-post',
+                            'handicap'];
 
 function adapterAuModele(){
   const cle = $('modele') ? $('modele').value : '';
