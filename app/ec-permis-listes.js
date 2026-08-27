@@ -1946,11 +1946,19 @@ function boutonExamenBlanc(nom){
 
 const LISTES_PERMIS = [
   { cle:'envisager', nom:'🤔 Élèves prêts au permis',
-     champs:{ aPlanifier:'', retireAPrevoir:'', statut:'' } },
+     champs:{ aPlanifier:'', retireAPrevoir:'', statut:'' },
+     note:'Examen blanc passé le {jour} — plus que les 3h avant examen (bureau)' },
+
   { cle:'rdv',       nom:'🗓️ Liste RDV Permis',
      champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'' } },
+
+  { cle:'pasret',    nom:'⛔ Pas le niveau',
+     champs:{ ebNiveau:'non', aPlanifier:'', retireAPrevoir:'' },
+     note:'Examen blanc passé le {jour} — pas le niveau (bureau)' },
+
   { cle:'attente',   nom:'⏳ Attente bilan post-permis',
      champs:{ rdvPostFait:'', aPlanifier:'', retireAPrevoir:'' } },
+
   { cle:'pause',     nom:'⛔ Ne plus suivre pour le moment',
      champs:{ retireAPrevoir:'oui', aPlanifier:'' } }
 ];
@@ -1973,6 +1981,16 @@ async function envoyerVersListe(nom){
 
   try{
     await majSuivi(nom, cible.champs);
+
+    /* Certaines listes se reconnaissent aux notes, pas au suivi :
+       sans la phrase attendue, l'élève quittait sa liste sans
+       arriver dans la nouvelle. */
+    if(cible.note && typeof envoyerConsigne === 'function'){
+      const jour = dateEnToutesLettres(todayLocal()) || todayLocal();
+      await envoyerConsigne(nom, 'examblanc',
+                            cible.note.replace('{jour}', jour));
+    }
+
     showToast(nom + ' → ' + cible.nom.replace(/^[^ ]+ /, '') + ' ✅');
     afficherBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
