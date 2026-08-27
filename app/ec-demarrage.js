@@ -485,6 +485,10 @@ if($('correctionBtn')) $('correctionBtn').addEventListener('click', ouvrirCorrec
 if($('corrigerBtn')) $('corrigerBtn').addEventListener('click', enregistrerCorrection);
 if($('corrLeconBtn')) $('corrLeconBtn').addEventListener('click', corrigerLeconDuBilan);
 if($('autreCoursBtn')) $('autreCoursBtn').addEventListener('click', commencerAutreCours);
+if($('remorqueActualiser')) $('remorqueActualiser').addEventListener('click', () => {
+  if(typeof afficherBureau === 'function') afficherBureau(true);
+  if(typeof afficherRemorque === 'function') afficherRemorque();
+});
 if($('motoActualiser')) $('motoActualiser').addEventListener('click', () => {
   if(typeof afficherBureau === 'function') afficherBureau(true);
   if(typeof afficherMoto === 'function') afficherMoto();
