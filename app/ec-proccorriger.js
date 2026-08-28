@@ -1,3 +1,4 @@
+/* Déployé le 28/08/2026 à 10:47 — v639 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -13,6 +14,10 @@ let procACorriger = [];
 let recitations = [];
 let demandesProc = [];
 let reglagesProc = {};
+/* Les procédures existantes, avec leur boîte : l'écran des réglages
+   n'offre que les catégories réellement présentes. Une liste écrite
+   en dur se serait périmée dès la première procédure ajoutée. */
+let proceduresConnues = [];
 
 /* Ce qui reste à corriger, pour la pastille */
 function nbProcACorriger(){
@@ -26,16 +31,19 @@ async function afficherProcCorriger(){
 
   zone.innerHTML = htmlAttente('Lecture des procédures…');
   try{
-    const [d, r, dm, rg] = await Promise.all([
+    const [d, r, dm, rg, mo] = await Promise.all([
       appelPrep({ action: 'procCorrigerList' }),
       appelPrep({ action: 'recitationsList' }).catch(() => null),
       appelPrep({ action: 'demandesList' }).catch(() => null),
-      appelPrep({ action: 'reglagesList' }).catch(() => null)
+      appelPrep({ action: 'reglagesList' }).catch(() => null),
+      appelPrep({ action: 'modeleList' }).catch(() => null)
     ]);
     procACorriger = (d && d.fiches) || [];
     recitations = (r && r.recitations) || [];
     demandesProc = (dm && dm.demandes) || [];
     reglagesProc = (rg && rg.reglages) || {};
+    proceduresConnues = ((mo && mo.modeles) || [])
+      .filter(x => x.usage === 'procedure');
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
@@ -367,7 +375,12 @@ function blocInterrupteur(){
   /* Ce qui est ouvert se voit sans déplier */
   const ouverts = [];
   if(reglagesProc.recitationsMoniteurs === 'oui') ouverts.push('moniteurs');
-  if(reglagesProc.iaAutoProcedures === 'oui') ouverts.push('IA');
+  /* Quelles catégories, pas seulement « IA » : le bureau doit voir
+     sans déplier que la correction ne tourne que sur la remorque. */
+  const catsIA = categoriesIAActives();
+  if(catsIA.length){
+    ouverts.push('IA : ' + catsIA.map(c => CATEGORIES_PROC[c].court).join(' · '));
+  }
   if(reglagesProc.envoiAutoProcedures === 'oui') ouverts.push('⚠️ envoi auto');
 
   tiroir.innerHTML = '<summary style="cursor:pointer;font-size:13px;' +
@@ -384,15 +397,7 @@ function blocInterrupteur(){
   const enveloppe = document.createElement('div');
   enveloppe.appendChild(d);
 
-  enveloppe.appendChild(interrupteur({
-    cle: 'iaAutoProcedures',
-    ouvert: reglagesProc.iaAutoProcedures === 'oui',
-    titre: 'Correction automatique par l\'IA',
-    quandOuvert: 'L\'IA corrige dès qu\'une récitation arrive. ' +
-                 'La proposition t\'attend dans la fiche.',
-    quandFerme: 'Rien ne se corrige tout seul. Le bouton ✨ dans la ' +
-                'fiche lance l\'IA quand tu le veux.'
-  }));
+  enveloppe.appendChild(blocIAParCategorie());
 
   /* L'envoi sans relecture : c'est le garde-fou du dispositif, il
      ne s'ouvre pas d'un simple clic. */
@@ -401,8 +406,12 @@ function blocInterrupteur(){
       cle: 'envoiAutoProcedures',
       ouvert: reglagesProc.envoiAutoProcedures === 'oui',
       titre: '⚠️ Envoi direct à l\'élève, sans relecture',
-      quandOuvert: 'La correction de l\'IA part seule. Aucun moniteur ' +
-                   'ne la lit avant l\'élève.',
+      /* L'envoi auto suit la correction auto : il ne peut partir que
+         là où l'IA a corrigé. Le dire, sinon on croit qu'il s'applique
+         à toutes les récitations. */
+      quandOuvert: 'La correction de l\'IA part seule, sur les ' +
+                   'catégories qu\'elle corrige. Aucun moniteur ne la ' +
+                   'lit avant l\'élève.',
       quandFerme: 'Un moniteur corrige, relit et valide. C\'est lui qui ' +
                   'décide de ce que l\'élève reçoit.',
       confirmation: 'Laisser l\'IA envoyer seule ?\n\n' +
@@ -471,9 +480,11 @@ function interrupteur(o){
   b.appendChild(bille);
 
   b.addEventListener('click', async () => {
-    /* Certains réglages en supposent un autre */
-    if(!o.ouvert && o.exige && reglagesProc[o.exige] !== 'oui'){
-      showToast('Active d\'abord la correction automatique.');
+    /* Certains réglages en supposent un autre. La correction
+       automatique n'est plus un oui/non mais une liste de
+       catégories : ce qui compte, c'est qu'il y en ait au moins une. */
+    if(!o.ouvert && o.exige === 'iaAutoProcedures' && !categoriesIAActives().length){
+      showToast('Coche d\'abord une catégorie à corriger automatiquement.');
       return;
     }
     if(!o.ouvert && o.confirmation && !await confirmer(o.confirmation)) return;
@@ -494,6 +505,161 @@ function interrupteur(o){
   });
   d.appendChild(b);
 
+  return d;
+}
+
+
+/* ============================================================
+   CORRECTION AUTOMATIQUE, PAR CATÉGORIE DE PROCÉDURE
+
+   Le bureau veut souvent l'IA sur un domaine et pas sur les
+   autres : la remorque se récite mot pour mot, le reste se
+   discute. Un interrupteur unique obligeait à choisir entre tout
+   et rien.
+
+   Les catégories sont celles de la colonne « boîte » de la feuille
+   Modeles. La règle de rangement est la même que côté script —
+   toute divergence rangerait une procédure ici et l'offrirait
+   ailleurs.
+   ============================================================ */
+const CATEGORIES_PROC = {
+  BE:       { court: 'BE',       long: '🚚 Remorque BE' },
+  BV:       { court: 'BV',       long: '🕹️ Boîte manuelle BV' },
+  BEA:      { court: 'BEA',      long: '⚙️ Boîte automatique BEA' },
+  communes: { court: 'communes', long: '👥 Communes à tous' }
+};
+const ORDRE_CATEGORIES = ['BE', 'BV', 'BEA', 'communes'];
+
+/* À quelle(s) catégorie(s) appartient une procédure, d'après sa
+   boîte. Même règle que categoriesDeBoite() dans apps-script.js. */
+function categoriesDeBoiteProc(boite){
+  const bm = String(boite || '').toUpperCase();
+  /* « BE » en mot entier : « BEA » le contient */
+  if(/(^|[^A-Z])BE([^A-Z]|$)/.test(bm)) return ['BE'];
+  if(!bm.trim()) return ['communes'];
+  const out = [];
+  if(bm.indexOf('BEA') !== -1) out.push('BEA');
+  if(bm.indexOf('BV') !== -1) out.push('BV');
+  return out;
+}
+
+/* Les catégories corrigées d'office. « oui » est la forme d'avant,
+   quand le réglage était un simple interrupteur : elle vaut
+   toutes les catégories. */
+function categoriesIAActives(){
+  const brut = String(reglagesProc.iaAutoProcedures || '').trim();
+  if(!brut) return [];
+  if(brut.toLowerCase() === 'oui') return ORDRE_CATEGORIES.slice();
+  return brut.split(',').map(x => x.trim())
+             .filter(x => CATEGORIES_PROC[x]);
+}
+
+function blocIAParCategorie(){
+  const actives = categoriesIAActives();
+
+  /* Les catégories réellement utilisées par des procédures. On y
+     ajoute celles déjà cochées même si plus rien ne les utilise :
+     sinon le bureau ne pourrait plus les décocher. */
+  const presentes = {};
+  proceduresConnues.forEach(p => {
+    categoriesDeBoiteProc(p.boite).forEach(c => { presentes[c] = true; });
+  });
+  actives.forEach(c => { presentes[c] = true; });
+
+  /* Aucune procédure lue — hors ligne, ou classeur muet : on
+     propose les quatre catégories. Se limiter à celles déjà cochées
+     laisserait croire que les autres n'existent pas, alors qu'on
+     n'a simplement pas pu lire la liste. */
+  const liste = proceduresConnues.length
+    ? ORDRE_CATEGORIES.filter(c => presentes[c])
+    : ORDRE_CATEGORIES.slice();
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid ' +
+    (actives.length ? 'var(--orange)' : 'var(--line)') + ';' +
+    'border-radius:12px;padding:12px;margin-bottom:12px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:14px;line-height:1.5;';
+  t.innerHTML = '<strong>Correction automatique par l\'IA</strong>' +
+    '<div style="font-size:12px;margin-top:3px;color:' +
+      (actives.length ? 'var(--accent-text)' : 'var(--muted)') + ';">' +
+      (actives.length
+        ? '● Activée pour : ' +
+          actives.map(c => CATEGORIES_PROC[c].court).join(' · ')
+        : '○ Désactivée') + '</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' +
+      (actives.length
+        ? 'Une récitation de ces catégories est corrigée dès son ' +
+          'arrivée, la proposition t\'attend dans la fiche. Les autres ' +
+          'attendent le bouton ✨.'
+        : 'Rien ne se corrige tout seul. Le bouton ✨ dans la fiche ' +
+          'lance l\'IA quand tu le veux.') + '</div>';
+  d.appendChild(t);
+
+  const zone = document.createElement('div');
+  zone.style.cssText = 'margin-top:10px;border-top:1px solid var(--line);padding-top:8px;';
+
+  liste.forEach(cle => {
+    /* Combien de procédures dans cette catégorie : le bureau coche
+       en connaissance de cause plutôt qu'à l'aveugle. */
+    const combien = proceduresConnues.filter(
+      p => categoriesDeBoiteProc(p.boite).indexOf(cle) !== -1).length;
+
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:5px 0;' +
+      'font-size:14px;text-transform:none;margin:0;font-weight:400;' +
+      'cursor:pointer;color:var(--cream);';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = actives.indexOf(cle) !== -1;
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
+    l.appendChild(cb);
+
+    const n = document.createElement('span');
+    n.style.cssText = 'flex:1;min-width:0;';
+    n.textContent = CATEGORIES_PROC[cle].long;
+    l.appendChild(n);
+
+    const c = document.createElement('span');
+    c.style.cssText = 'flex-shrink:0;font-size:11px;color:var(--muted);';
+    c.textContent = combien ? combien + ' procédure' + (combien > 1 ? 's' : '')
+                            : 'aucune';
+    l.appendChild(c);
+
+    cb.addEventListener('change', async () => {
+      /* On repart de l'état des cases, pas d'un calcul sur la valeur
+         précédente : deux clics rapides ne peuvent pas se croiser. */
+      const voulues = ORDRE_CATEGORIES.filter(k => {
+        const c2 = zone.querySelector('input[data-cat="' + k + '"]');
+        return c2 && c2.checked;
+      });
+
+      zone.querySelectorAll('input').forEach(x => { x.disabled = true; });
+      try{
+        await appelPrep({
+          action: 'reglageSet', cle: 'iaAutoProcedures',
+          valeur: voulues.join(','),
+          par: ACCES.moniteur || ''
+        });
+        showToast(voulues.length
+          ? 'Correction automatique : ' +
+            voulues.map(k => CATEGORIES_PROC[k].court).join(' · ') + ' ✅'
+          : 'Correction automatique désactivée ✅');
+        afficherProcCorriger();
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        cb.checked = !cb.checked;
+        zone.querySelectorAll('input').forEach(x => { x.disabled = false; });
+      }
+    });
+
+    cb.setAttribute('data-cat', cle);
+    zone.appendChild(l);
+  });
+
+  d.appendChild(zone);
   return d;
 }
 
