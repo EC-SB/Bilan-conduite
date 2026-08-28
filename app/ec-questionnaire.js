@@ -35,8 +35,11 @@ async function chargerDossierEleve(nomEleve){
          la fiche véhicule et la frise s'y trouvent en entier. La
          limite ne joue que sur les dossiers très anciens, où relire
          tout le texte coûtait plusieurs secondes. */
+      /* Le nom exact, pas un morceau : c'est le dossier de CET élève
+         qui compte ses leçons. Un nom contenu dans un autre — « Marie
+         Martin » dans « Marie Martinez » — ferait compter les deux. */
       body: JSON.stringify({ action: 'search', code: ACCES.code,
-                             eleve: nomEleve.trim(), maxi: 40 })
+                             eleve: nomEleve.trim(), maxi: 40, exact: true })
     });
     if(!r.ok) return vide;
     const data = await r.json().catch(() => ({}));
@@ -52,7 +55,8 @@ async function chargerDossierEleve(nomEleve){
       const r2 = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nomEleve.trim() })
+        body: JSON.stringify({ action: 'search', code: ACCES.code,
+                               eleve: nomEleve.trim(), exact: true })
       });
       if(r2.ok){
         const d2 = await r2.json().catch(() => ({}));
