@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:30 — v601 */
+/* Déployé le 28/08/2026 à 13:14 — v651 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -573,6 +573,10 @@ const MODELES_SANS_VOCAL = ['examen-blanc', 'examen-officiel', 'rdv-post',
 function adapterAuModele(){
   const cle = $('modele') ? $('modele').value : '';
   const aLaMain = MODELES_SANS_VOCAL.indexOf(cle) !== -1;
+
+  /* Le module d'examen blanc du rendez-vous pédagogique, sous la
+     transcription : il n'apparaît que sur ce modèle-là. */
+  if(typeof majBlocExamenBlancCours === 'function') majBlocExamenBlancCours();
 
   const bRec = $('recBtn');
   const zManuel = $('zoneManuel');
