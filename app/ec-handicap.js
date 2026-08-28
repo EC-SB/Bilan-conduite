@@ -1,417 +1,474 @@
-/* Déployé le 28/08/2026 à 12:43 — v647 */
 /* ============================================================
-   ec-handicap-pdf.js
-   La fiche d'évaluation, en PDF.
+   ec-handicap.js
+   Le suivi des élèves en situation de handicap.
 
-   Elle reprend le document papier de l'école : même en-tête,
-   même tableau, mêmes colonnes. De quoi l'imprimer, la joindre
-   au dossier ou la déposer sur Driv'up.
+   Un dossier de codification passe par une suite d'étapes, et
+   chacune attend quelque chose de quelqu'un : le médecin agréé,
+   la DDTM, l'élève, ou nous. Ce qui coince se voit en tête.
+
+   Les données vivent dans le classeur « Suivi élèves », onglet
+   HANDICAP. Rien n'est recopié.
 
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* Le format du document : paysage, comme l'original */
-const HP = {
-  marge: 10,
-  ligne: 5.6,
-  colControle: 78,
-  colNiveau: 17,
-  vert: [182, 255, 14],
-  gris: [120, 120, 120],
-  trait: [190, 190, 190]
-};
-
-
-/* Ce que le moniteur vient de remplir */
-function donneesHandicap(){
-  const h = {};
-  Object.keys(typeof champsManuels !== 'undefined' ? (champsManuels || {}) : {})
-    .forEach(k => {
-      if(k.indexOf('handicap.') !== 0) return;
-      h[k.slice(9)] = champsManuels[k];
-    });
-
-  /* Rien en mémoire : la fiche vient de l'historique, rouverte des
-     jours plus tard. On la relit dans le texte du bilan, qui la
-     contient en entier — et c'est lui qui fait foi, le moniteur
-     ayant pu le corriger à la main avant d'enregistrer. */
-  if(!Object.keys(h).length){
-    return handicapDepuisTexte(($('resultText') && $('resultText').value) || '');
-  }
-  return h;
-}
-
-
-/* ============================================================
-   RELIRE UNE FICHE DÉJÀ ENREGISTRÉE
-
-   buildHandicap() écrit la fiche selon un format fixe : on la
-   relit avec les mêmes repères. Les titres sont en caractères
-   gras Unicode — il faut les ramener à des lettres ordinaires
-   avant d'espérer les reconnaître.
-   ============================================================ */
-
-/* L'inverse de grasUnicode() : 𝗥𝗲𝗴𝗮𝗿𝗱 redevient Regard */
-function sansGras(s){
-  return Array.from(String(s || '')).map(ch => {
-    const c = ch.codePointAt(0);
-    if(c >= 0x1D5D4 && c <= 0x1D5ED) return String.fromCharCode(65 + (c - 0x1D5D4));
-    if(c >= 0x1D5EE && c <= 0x1D607) return String.fromCharCode(97 + (c - 0x1D5EE));
-    if(c >= 0x1D7EC && c <= 0x1D7F5) return String.fromCharCode(48 + (c - 0x1D7EC));
-    return ch;
-  }).join('');
-}
-
-/* Ce texte est-il une fiche d'évaluation ? C'est le contenu qu'on
-   interroge, pas une étiquette : le bilan rouvert depuis
-   l'historique ne dit plus quel modèle l'a produit. */
-function estFicheEvaluation(texte){
-  const t = sansGras(String(texte || ''))
-    .toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  return /FICHE\s+D['’]EVALUATION/.test(t);
-}
-
-/* La clé de comparaison d'un libellé : sans gras, sans accents,
-   sans le deux-points final des titres. */
-function clefLigneHandicap(s){
-  return sansGras(String(s || ''))
-    .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, ' ').replace(/\s*:\s*$/, '').trim();
-}
-
-function handicapDepuisTexte(texte){
-  const h = {};
-  const brut = String(texte || '');
-  if(!brut.trim()) return h;
-
-  /* Chaque contrôle par son libellé, pour retrouver sa clé */
-  const parNom = {};
-  (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : [])
-    .forEach(l => { parNom[clefLigneHandicap(l.nom)] = l.cle; });
-
-  let section = 'entete';
-  let courant = '';
-  const problematique = [];
-  const conclusion = [];
-
-  brut.split('\n').forEach(ligneBrute => {
-    const ligne = String(ligneBrute).replace(/\s+$/, '');
-    const nu = sansGras(ligne).trim();
-
-    /* Un séparateur ferme la section en cours */
-    if(/^[━─—_-]{3,}$/.test(nu)){
-      if(section === 'problematique') section = 'controles';
-      return;
-    }
-
-    let m;
-    if((m = nu.match(/^👤\s*Conducteur\s*:\s*(.*)$/))){ h.conducteur = m[1].trim(); return; }
-    if((m = nu.match(/^🎓\s*Formateur\s*:\s*(.*)$/))){ h.formateur = m[1].trim(); return; }
-    if((m = nu.match(/^📅\s*Date\s*:\s*(.*)$/))){ h.date = m[1].trim(); return; }
-
-    if(/^❓/.test(nu)){ section = 'problematique'; courant = ''; return; }
-    if(/^📋/.test(nu)){ section = 'conclusion'; courant = ''; return; }
-
-    if(!nu) return;
-    if(section === 'entete') return;
-    if(section === 'problematique'){ problematique.push(nu); return; }
-    if(section === 'conclusion'){ conclusion.push(nu); return; }
-
-    /* Une observation : buildHandicap l'indente de trois espaces */
-    if(/^\s{3,}/.test(ligne) && courant){
-      h[courant + 'O'] = (h[courant + 'O'] ? h[courant + 'O'] + '\n' : '') + nu;
-      return;
-    }
-
-    /* Sinon : un contrôle, avec ou sans sa note.
-
-       Le drapeau u n'est pas décoratif : 🟢 s'écrit sur deux unités
-       de code, et sans lui la classe ne reconnaissait qu'une moitié
-       d'émoji — aucune note n'était relue. */
-    const av = nu.match(/^(.*?)\s+[\u{1F7E2}\u{1F7E0}\u{1F534}]\s*([ABC])\b/u);
-    const libelle = av ? av[1] : nu;
-    const cle = parNom[clefLigneHandicap(libelle)];
-    if(!cle){ courant = ''; return; }
-
-    courant = cle;
-    if(av) h[cle + 'N'] = av[2];
-  });
-
-  if(problematique.length) h.problematique = problematique.join('\n');
-  if(conclusion.length) h.conclusion = conclusion.join('\n');
-  return h;
-}
-
-
-async function pdfHandicap(h, pourEnvoi){
-  const jsPDF = await chargerJsPDF();
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-  const L = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
-  let y = HP.marge;
-
-  /* ---- L'en-tête ---- */
-  doc.setFillColor.apply(doc, HP.vert);
-  doc.rect(HP.marge, y, 52, 18, 'F');
-  doc.setTextColor(0, 0, 0);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text('ÉVOLUTION', HP.marge + 4, y + 8);
-  doc.setFontSize(11);
-  doc.text('Conduites', HP.marge + 14, y + 14);
-
-  /* Les quatre champs, encadrés comme sur le document */
-  const xI = HP.marge + 58;
-  const largeI = L - xI - HP.marge;
-  const champs = [
-    ['Conducteur :', h.conducteur],
-    ['Formateur :', h.formateur],
-    ['Date :', h.date]
-  ];
-
-  doc.setFontSize(9);
-  let yI = y;
-  champs.forEach(([nom, val]) => {
-    doc.setDrawColor.apply(doc, HP.trait);
-    doc.rect(xI, yI, 30, 5.5);
-    doc.rect(xI + 30, yI, largeI - 30, 5.5);
-    doc.setFont('helvetica', 'bold');
-    doc.text(nom, xI + 1.5, yI + 3.8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(String(val || ''), xI + 31.5, yI + 3.8);
-    yI += 5.5;
-  });
-
-  /* La problématique, sur trois lignes */
-  doc.rect(xI, yI, 30, 14);
-  doc.rect(xI + 30, yI, largeI - 30, 14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Problématique :', xI + 1.5, yI + 3.8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(doc.splitTextToSize(String(h.problematique || ''), largeI - 34),
-           xI + 31.5, yI + 3.8);
-
-  y = Math.max(y + 20, yI + 18);
-
-  /* ---- Le tableau ---- */
-  const xC = HP.marge;
-  const xN = xC + HP.colControle;
-  const xO = xN + HP.colNiveau * 3;
-  const largeO = L - xO - HP.marge;
-
-  /* Deux rangées d'en-tête : « Niveau » chapeaute A, B, C */
-  doc.setFont('helvetica', 'bolditalic');
-  doc.setFontSize(8.5);
-
-  doc.rect(xC, y, HP.colControle, HP.ligne * 2);
-  doc.text('Contrôle', xC + HP.colControle / 2, y + HP.ligne + 1,
-           { align: 'center' });
-
-  doc.rect(xN, y, HP.colNiveau * 3, HP.ligne);
-  doc.text('Niveau', xN + HP.colNiveau * 1.5, y + 4, { align: 'center' });
-
-  [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi], i) => {
-    const x = xN + HP.colNiveau * i;
-    doc.rect(x, y + HP.ligne, HP.colNiveau, HP.ligne);
-    doc.setFontSize(8);
-    doc.text(v, x + HP.colNiveau / 2, y + HP.ligne + 2.6, { align: 'center' });
-    doc.setFontSize(7);
-    doc.text(quoi, x + HP.colNiveau / 2, y + HP.ligne + 5.2, { align: 'center' });
-    doc.setFontSize(8.5);
-  });
-
-  doc.rect(xO, y, largeO, HP.ligne * 2);
-  doc.text('Observations', xO + largeO / 2, y + HP.ligne + 1, { align: 'center' });
-
-  y += HP.ligne * 2;
-
-  /* Chaque ligne du document */
-  (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : []).forEach(l => {
-    const note = String(h[l.cle + 'N'] || '');
-    const obs = String(h[l.cle + 'O'] || '');
-
-    doc.setDrawColor.apply(doc, HP.trait);
-    doc.rect(xC, y, HP.colControle, HP.ligne);
-
-    doc.setTextColor(0, 0, 0);
-    if(l.titre){
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
-      doc.text(l.nom, xC + 1.5, y + 4.2);
-    }else{
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      /* Les sous-lignes sont centrées sur le document papier */
-      doc.text(l.nom, xC + HP.colControle / 2, y + 4.2, { align: 'center' });
-    }
-
-    /* Les trois cases, celle qui est notée reçoit une croix */
-    ['A', 'B', 'C'].forEach((v, i) => {
-      const x = xN + HP.colNiveau * i;
-      doc.rect(x, y, HP.colNiveau, HP.ligne);
-      if(note === v){
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
-        doc.text('X', x + HP.colNiveau / 2, y + 4.4, { align: 'center' });
-      }
-    });
-
-    doc.rect(xO, y, largeO, HP.ligne);
-    if(obs){
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      /* Une observation trop longue est coupée plutôt que de
-         déborder sur la ligne suivante. */
-      const t = doc.splitTextToSize(obs, largeO - 3)[0] || '';
-      doc.text(t, xO + 1.5, y + 4.2);
-    }
-
-    y += HP.ligne;
-  });
-
-  /* ---- La conclusion ---- */
-  const hautConclusion = Math.max(20, H - y - HP.marge);
-  doc.rect(xC, y, L - HP.marge * 2, hautConclusion);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.text('Conclusion :', xC + 1.5, y + 4.2);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.text(doc.splitTextToSize(String(h.conclusion || ''), L - HP.marge * 2 - 4),
-           xC + 1.5, y + 9);
-
-  return pourEnvoi ? doc.output('datauristring').split(',')[1] : doc;
-}
-
-
-function nomFichierHandicap(h){
-  const qui = String(h.conducteur || 'eleve')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-  const quand = String(h.date || todayLocal()).replace(/[^\d]/g, '-');
-
-  return 'Fiche-evaluation-' + qui + '-' + quand + '.pdf';
-}
-
-
-/* ============================================================
-   LES BOUTONS, SOUS LE BILAN
-   ============================================================ */
-
-/* Montre ou cache les sorties de la fiche, selon ce qu'affiche
-   l'écran. Appelée à la génération du bilan ET à l'ouverture d'un
-   bilan depuis l'historique : une fiche faite la semaine dernière
-   doit se retélécharger comme celle du jour. */
-function majBoutonsHandicap(){
-  const zh = $('handicapActions');
-  if(!zh) return;
-
-  const texte = ($('resultText') && $('resultText').value) || '';
-  /* Le modèle en cours quand on vient de la remplir ; le texte
-     lui-même quand elle remonte de l'historique, où plus rien ne
-     dit de quel modèle elle vient. */
-  const surFiche = (($('modele') && $('modele').value) === 'handicap') ||
-                   estFicheEvaluation(texte);
-
-  zh.innerHTML = '';
-  zh.style.display = surFiche ? 'block' : 'none';
-  if(surFiche) boutonsHandicap(zh);
-}
-
-function boutonsHandicap(zone){
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;';
-
-  /* Télécharger : pour le dossier, ou pour Driv'up */
-  const bPdf = document.createElement('button');
-  bPdf.className = 'btn btn-secondary';
-  bPdf.style.cssText = 'flex:1;min-width:150px;padding:11px;font-size:13px;margin:0;';
-  bPdf.textContent = '📥 Télécharger le PDF';
-
-  bPdf.addEventListener('click', async () => {
-    bPdf.disabled = true;
-    bPdf.textContent = 'Préparation…';
-    try{
-      const h = donneesHandicap();
-      const doc = await pdfHandicap(h, false);
-      doc.save(nomFichierHandicap(h));
-      bPdf.textContent = '✅ Téléchargé';
-    }catch(e){
-      showToast('PDF impossible : ' + e.message);
-    }
-    setTimeout(() => {
-      bPdf.disabled = false;
-      bPdf.textContent = '📥 Télécharger le PDF';
-    }, 2200);
-  });
-  r.appendChild(bPdf);
-
-  /* Par mail, avec le PDF joint */
-  const bMail = document.createElement('button');
-  bMail.className = 'btn btn-secondary';
-  bMail.style.cssText = 'flex:1;min-width:150px;padding:11px;font-size:13px;margin:0;';
-  bMail.textContent = '✉️ Envoyer par mail';
-
-  bMail.addEventListener('click', () => envoyerFicheHandicap(bMail));
-  r.appendChild(bMail);
-
-  zone.appendChild(r);
-}
-
-
-async function envoyerFicheHandicap(bouton){
-  const h = donneesHandicap();
-  const eleve = String(h.conducteur || '').trim() ||
-                ($('studentName') && $('studentName').value.trim()) || '';
-
-  /* L'adresse de sa fiche, plutôt que de la redemander */
-  let adresse = '';
+let handicapEleves = [];
+let handicapEquipements = [];
+let filtreHandicap = '';
+
+/* Le parcours, dans l'ordre où il se déroule */
+const ETAPES_HANDICAP = [
+  { cle:'certificat',   nom:'Certificat médical',       court:'Médical' },
+  { cle:'evalPlacee',   nom:'Évaluation placée',        court:'Éval. placée' },
+  { cle:'docRempli',    nom:'Document évaluation rempli', court:'Doc rempli' },
+  { cle:'dossierDdtm',  nom:'Dossier envoyé à la DDTM', court:'DDTM envoyé' },
+  { cle:'codification', nom:'Codification faite',       court:'Codification' },
+  { cle:'demandeTitre', nom:'Demande de titre à faire', court:'Titre' }
+];
+
+
+async function afficherHandicap(){
+  const zone = $('handicapZone');
+  if(!zone) return;
+
+  zone.innerHTML = htmlAttente('Lecture du suivi handicap…');
   try{
-    const d = await appelPrep({ action: 'contactEleve', eleve: eleve });
-    adresse = ((d && d.contact) || {}).email || '';
-  }catch(e){}
-
-  const saisie = await demander(
-    'Adresse du destinataire' +
-    (adresse ? '' : "\n\nAucune adresse dans sa fiche."),
-    adresse, eleve);
-
-  if(!saisie) return;
-
-  bouton.disabled = true;
-  bouton.textContent = 'Envoi…';
-
-  try{
-    const base64 = await pdfHandicap(h, true);
-
-    await appelPrep({
-      action: 'mailBilan',
-      to: [String(saisie).trim()],
-      sujet: "Fiche d'évaluation — " + (eleve || 'Évolution Conduites'),
-      /* Le texte du bilan dans le corps, le PDF en pièce jointe :
-         le destinataire lit sans ouvrir, et garde le document. */
-      texte: ($('resultText') && $('resultText').value) || '',
-      piecesJointes: [{
-        nom: nomFichierHandicap(h),
-        type: 'application/pdf',
-        contenu_base64: base64
-      }]
-    });
-
-    showToast('✅ Envoyé à ' + String(saisie).trim());
-    bouton.textContent = '✅ Envoyé';
+    const d = await appelPrep({ action: 'handicapList' });
+    if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
+    handicapEleves = (d && d.eleves) || [];
+    handicapEquipements = (d && d.equipements) || [];
   }catch(e){
-    showToast('Envoi impossible : ' + e.message);
-    bouton.textContent = '✉️ Envoyer par mail';
+    zone.innerHTML = '<div class="empty">⚠️ ' +
+      String(e.message || e).replace(/</g, '&lt;') + '</div>';
+    return;
   }
 
-  setTimeout(() => { bouton.disabled = false; }, 2000);
+  zone.innerHTML = '';
+
+  /* Ce qui attend une action : c'est ce qu'on vient voir */
+  const alerte = blocAttenteHandicap();
+  if(alerte) zone.appendChild(alerte);
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-bottom:10px;padding:12px;font-size:13px;';
+  b.textContent = '➕ Ajouter un élève';
+  b.addEventListener('click', () => ouvrirFicheHandicap(null));
+  zone.appendChild(b);
+
+  if(handicapEleves.length > 4){
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.placeholder = '🔍 Nom, pathologie, équipement…';
+    ch.value = filtreHandicap;
+    ch.style.cssText = 'margin-bottom:10px;font-size:14px;';
+    ch.addEventListener('input', () => {
+      filtreHandicap = ch.value;
+      dessinerHandicap();
+    });
+    zone.appendChild(ch);
+  }
+
+  const zl = document.createElement('div');
+  zl.id = 'listeHandicap';
+  zone.appendChild(zl);
+
+  dessinerHandicap();
+}
+
+
+/* Ce qui bloque, par élève */
+function cequiManque(e){
+  const manques = [];
+
+  if(!e.certificat) manques.push('visite médicale');
+  else if(!e.evalPlacee) manques.push('évaluation à placer');
+  else if(!e.docRempli) manques.push('document d\'évaluation');
+  else if(!e.dossierDdtm) manques.push('dossier DDTM à envoyer');
+  else if(!e.codification) manques.push('codification');
+  else if(e.demandeTitre) manques.push('demande de titre');
+
+  return manques;
+}
+
+
+function blocAttenteHandicap(){
+  const enAttente = handicapEleves
+    .map(e => ({ e: e, manques: cequiManque(e) }))
+    .filter(x => x.manques.length);
+
+  if(!enAttente.length) return null;
+
+  const d = document.createElement('details');
+  d.open = true;
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">⏳ ' + enAttente.length +
+    ' dossier(s) en attente</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  enAttente.forEach(x => {
+    const l = document.createElement('div');
+    l.style.cssText = 'font-size:13px;line-height:1.5;padding:5px 0;' +
+      'cursor:pointer;';
+    l.innerHTML = '<strong>' + x.e.eleve.replace(/</g, '&lt;') + '</strong>' +
+      ' — <span style="color:var(--muted);">' + x.manques.join(' · ') + '</span>';
+    l.addEventListener('click', () => ouvrirFicheHandicap(x.e));
+    z.appendChild(l);
+  });
+
+  d.appendChild(z);
+  return d;
+}
+
+
+function dessinerHandicap(){
+  const zone = $('listeHandicap');
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  const mots = normaliserMot(String(filtreHandicap || '').trim())
+    .split(/\s+/).filter(Boolean);
+
+  const liste = handicapEleves.filter(e => {
+    if(!mots.length) return true;
+    const tout = normaliserMot(
+      [e.eleve, e.pathologie, e.equipement, e.commentaire].join(' '));
+    return mots.every(m => tout.indexOf(m) !== -1);
+  });
+
+  if(!liste.length){
+    zone.innerHTML = '<div class="empty">' +
+      (handicapEleves.length ? 'Aucun élève ne correspond.'
+                             : 'Aucun élève dans ce suivi.') + '</div>';
+    return;
+  }
+
+  /* Les compteurs du haut du tableau, comme dans le classeur */
+  const reg = handicapEleves.filter(x => x.dejaPermis).length;
+  const cod = handicapEleves.filter(x => x.pasEncore).length;
+
+  const cpt = document.createElement('div');
+  cpt.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
+  cpt.textContent = reg + ' régularisation(s) · ' + cod + ' codification(s)' +
+    (liste.length !== handicapEleves.length
+      ? ' · ' + liste.length + ' affiché(s)' : '');
+  zone.appendChild(cpt);
+
+  liste.forEach(e => zone.appendChild(ligneHandicap(e)));
+}
+
+
+function ligneHandicap(e){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:11px;' +
+    'padding:10px 12px;margin-bottom:8px;';
+
+  /* Où en est le dossier, en un coup d'œil */
+  const faites = ETAPES_HANDICAP.filter(x => x.cle !== 'demandeTitre' && e[x.cle]).length;
+  const total = ETAPES_HANDICAP.length - 1;
+  const fini = (faites >= total);
+
+  const som = document.createElement('summary');
+  som.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;' +
+    'color:var(--cream);list-style:none;';
+  som.innerHTML = (fini ? '✅ ' : '♿ ') + e.eleve.replace(/</g, '&lt;') +
+    '<div style="font-size:11px;font-weight:400;color:var(--muted);' +
+      'margin-top:3px;">' +
+      (e.dejaPermis ? 'Régularisation' : (e.pasEncore ? 'Codification' : '—')) +
+      ' · ' + faites + '/' + total + ' étape(s)' +
+      (e.pathologie ? ' · ' + e.pathologie.split('\n')[0].replace(/</g, '&lt;') : '') +
+    '</div>';
+  d.appendChild(som);
+
+  const corps = document.createElement('div');
+  corps.style.marginTop = '10px';
+
+  /* La pathologie et l'équipement : ce que le moniteur doit savoir
+     avant de monter dans la voiture. */
+  if(e.pathologie){
+    corps.appendChild(blocTexteHandicap('🩺 Pathologie', e.pathologie));
+  }
+  if(e.equipement){
+    corps.appendChild(blocTexteHandicap('🔧 Équipement', e.equipement));
+  }
+
+  /* Les étapes, cochables sur place */
+  const ze = document.createElement('div');
+  ze.style.cssText = 'margin:10px 0;padding:9px 0;' +
+    'border-top:1px solid rgba(255,255,255,.06);' +
+    'border-bottom:1px solid rgba(255,255,255,.06);';
+
+  ETAPES_HANDICAP.forEach(et => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 7px;' +
+      'font-weight:400;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!e[et.cle];
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    cb.addEventListener('change', async () => {
+      cb.disabled = true;
+      try{
+        await appelPrep({ action: 'handicapSet', ligne: e.ligne,
+                          eleve: e.eleve, champ: et.cle,
+                          valeur: cb.checked });
+        e[et.cle] = cb.checked;
+        showToast('Enregistré ✅');
+        afficherHandicap();
+      }catch(err){
+        cb.checked = !cb.checked;
+        showToast('Impossible : ' + err.message);
+      }
+      cb.disabled = false;
+    });
+    l.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = et.nom;
+    l.appendChild(t);
+
+    /* Les dates qui accompagnent certaines étapes */
+    if(et.cle === 'evalPlacee' && e.dateEval){
+      const dt = document.createElement('span');
+      dt.style.cssText = 'font-size:11px;color:var(--accent-text);flex-shrink:0;';
+      dt.textContent = e.dateEval;
+      l.appendChild(dt);
+    }
+    if(et.cle === 'dossierDdtm' && e.dateDdtm){
+      const dt = document.createElement('span');
+      dt.style.cssText = 'font-size:11px;color:var(--accent-text);flex-shrink:0;';
+      dt.textContent = 'RDV ' + e.dateDdtm;
+      l.appendChild(dt);
+    }
+
+    ze.appendChild(l);
+  });
+  corps.appendChild(ze);
+
+  if(e.commentaire){
+    corps.appendChild(blocTexteHandicap('📝 Commentaire', e.commentaire));
+  }
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+
+  const bMod = document.createElement('button');
+  bMod.className = 'btn btn-secondary';
+  bMod.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
+  bMod.textContent = '✏️ Modifier';
+  bMod.addEventListener('click', () => ouvrirFicheHandicap(e));
+  r.appendChild(bMod);
+
+  const bSup = document.createElement('button');
+  bSup.className = 'btn btn-secondary';
+  bSup.style.cssText = 'width:auto;padding:10px 12px;font-size:13px;margin:0;' +
+    'flex-shrink:0;color:var(--red);border-color:var(--red);';
+  bSup.textContent = '🗑️';
+  bSup.addEventListener('click', async () => {
+    if(!await confirmer('Retirer ' + e.eleve + ' du suivi handicap ?\n\n' +
+        'La ligne sera supprimée du classeur.')) return;
+    try{
+      await appelPrep({ action: 'handicapDelete', ligne: e.ligne });
+      showToast('Retiré ✅');
+      afficherHandicap();
+    }catch(err){ showToast('Impossible : ' + err.message); }
+  });
+  r.appendChild(bSup);
+
+  corps.appendChild(r);
+  d.appendChild(corps);
+  return d;
+}
+
+
+function blocTexteHandicap(titre, texte){
+  const d = document.createElement('div');
+  d.style.cssText = 'margin-bottom:9px;';
+  d.innerHTML = '<div style="font-size:11px;color:var(--muted);' +
+    'margin-bottom:3px;">' + titre + '</div>' +
+    '<div style="font-size:14px;line-height:1.6;white-space:pre-wrap;">' +
+    String(texte).replace(/</g, '&lt;') + '</div>';
+  return d;
+}
+
+
+/* ============================================================
+   LA FICHE
+
+   Un élève, son dossier, son équipement. L'équipement se coche
+   plutôt que de s'écrire : la liste vient du classeur.
+   ============================================================ */
+
+function ouvrirFicheHandicap(e){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  boite.innerHTML =
+    '<h3>' + (e ? '✏️ ' + e.eleve.replace(/</g, '&lt;')
+                : '➕ Nouvel élève') + '</h3>' +
+
+    (e ? '' :
+      '<label for="hdNom">Nom et prénom</label>' +
+      '<input type="text" id="hdNom" list="listeEleves" autocomplete="off" ' +
+        'placeholder="NOM Prénom">') +
+
+    '<label>Sa situation</label>' +
+    '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
+      '<label style="flex:1;display:flex;align-items:center;gap:8px;' +
+        'text-transform:none;font-size:14px;color:var(--cream);margin:0;' +
+        'font-weight:400;">' +
+        '<input type="radio" name="hdSit" value="deja" ' +
+          'style="width:18px;height:18px;margin:0;">Déjà le permis</label>' +
+      '<label style="flex:1;display:flex;align-items:center;gap:8px;' +
+        'text-transform:none;font-size:14px;color:var(--cream);margin:0;' +
+        'font-weight:400;">' +
+        '<input type="radio" name="hdSit" value="pas" ' +
+          'style="width:18px;height:18px;margin:0;">Pas encore</label>' +
+    '</div>' +
+
+    '<label for="hdPatho">🩺 Pathologie</label>' +
+    '<textarea id="hdPatho" rows="3" ' +
+      'placeholder="Ce que le moniteur doit savoir"></textarea>' +
+
+    '<label>🔧 Équipement à prévoir</label>' +
+    '<div id="hdEquip" style="margin-bottom:14px;"></div>' +
+
+    '<div class="duo">' +
+      '<div><label for="hdDateEval">Date évaluation</label>' +
+        '<input type="text" id="hdDateEval" placeholder="Ex : 28/08"></div>' +
+      '<div><label for="hdDateDdtm">Date RDV DDTM</label>' +
+        '<input type="text" id="hdDateDdtm" placeholder="Ex : 16/06 14h"></div>' +
+    '</div>' +
+
+    '<label for="hdComm">📝 Commentaire</label>' +
+    '<textarea id="hdComm" rows="5" ' +
+      'placeholder="Ce qui reste à faire, qui prévenir, les codes…"></textarea>';
+
+  /* L'équipement : des cases, pas du texte libre */
+  const zq = boite.querySelector('#hdEquip');
+  const deja = String((e && e.equipement) || '')
+    .split(',').map(x => x.trim()).filter(Boolean);
+
+  const cases = [];
+  handicapEquipements.forEach(nom => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;' +
+      'text-transform:none;font-size:14px;color:var(--cream);margin:0 0 6px;' +
+      'font-weight:400;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = nom;
+    cb.checked = deja.some(x => normaliserMot(x) === normaliserMot(nom));
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    l.appendChild(cb);
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = nom;
+    l.appendChild(t);
+    zq.appendChild(l);
+    cases.push(cb);
+  });
+
+  /* Ce qui a été saisi autrefois et n'est pas dans la liste */
+  const hors = deja.filter(x =>
+    !handicapEquipements.some(n => normaliserMot(n) === normaliserMot(x)));
+  if(hors.length){
+    const a = document.createElement('div');
+    a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;' +
+      'line-height:1.5;';
+    a.textContent = 'Aussi noté : ' + hors.join(', ');
+    zq.appendChild(a);
+  }
+
+  if(e){
+    boite.querySelector('#hdPatho').value = e.pathologie || '';
+    boite.querySelector('#hdComm').value = e.commentaire || '';
+    boite.querySelector('#hdDateEval').value = e.dateEval || '';
+    boite.querySelector('#hdDateDdtm').value = e.dateDdtm || '';
+
+    const sit = e.dejaPermis ? 'deja' : (e.pasEncore ? 'pas' : '');
+    if(sit){
+      const r = boite.querySelector('input[name="hdSit"][value="' + sit + '"]');
+      if(r) r.checked = true;
+    }
+  }
+
+  const rw = document.createElement('div');
+  rw.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => document.body.removeChild(fond));
+  rw.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '💾 Enregistrer';
+  bO.addEventListener('click', async () => {
+    const nom = e ? e.eleve
+                  : String(boite.querySelector('#hdNom').value || '').trim();
+    if(!nom){ showToast('Indique le nom.'); return; }
+
+    const sit = boite.querySelector('input[name="hdSit"]:checked');
+    const equip = cases.filter(x => x.checked).map(x => x.value)
+                       .concat(hors).join(', ');
+
+    bO.disabled = true;
+    bO.textContent = 'Enregistrement…';
+
+    /* Un champ à la fois : le classeur reste maître du reste, et
+       une écriture ratée n'en emporte pas d'autres. */
+    const aEcrire = [
+      ['pathologie', boite.querySelector('#hdPatho').value],
+      ['equipement', equip],
+      ['dateEval', boite.querySelector('#hdDateEval').value],
+      ['dateDdtm', boite.querySelector('#hdDateDdtm').value],
+      ['commentaire', boite.querySelector('#hdComm').value]
+    ];
+
+    if(sit){
+      aEcrire.unshift(['dejaPermis', sit.value === 'deja']);
+      aEcrire.unshift(['pasEncore', sit.value === 'pas']);
+    }
+
+    try{
+      let ligne = e ? e.ligne : 0;
+      for(const [champ, valeur] of aEcrire){
+        const r = await appelPrep({ action: 'handicapSet', ligne: ligne,
+                                    eleve: nom, champ: champ, valeur: valeur });
+        /* La première écriture crée la ligne : on la retient */
+        if(!ligne && r && r.ligne) ligne = r.ligne;
+      }
+
+      document.body.removeChild(fond);
+      showToast('Enregistré ✅');
+      afficherHandicap();
+    }catch(err){
+      showToast('Impossible : ' + err.message);
+      bO.disabled = false;
+      bO.textContent = '💾 Enregistrer';
+    }
+  });
+  rw.appendChild(bO);
+
+  boite.appendChild(rw);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  if(!e) setTimeout(() => boite.querySelector('#hdNom').focus(), 100);
 }
 
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-handicap-pdf.js'] = true;
+window.EC_MODULES['ec-handicap.js'] = true;
