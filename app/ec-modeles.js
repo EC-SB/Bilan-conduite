@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:29 — v601 */
+/* Déployé le 28/08/2026 à 10:06 — v637 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1209,6 +1209,12 @@ function composerFrise(avant, apres){
    ============================================================ */
 const MARQUE_FAITE = '✅';
 
+/* Ce qui a été travaillé AVANT d'arriver chez nous. Un élève repris
+   d'une autre auto-école a souvent déjà fait la moitié de la fiche :
+   sans cette marque, on lui refait tout, ou on note son travail de
+   l'émoji d'un moniteur qui ne l'a jamais vu conduire. */
+const MARQUE_AILLEURS = '🚗';
+
 /* Fiche véhicule : coche les manœuvres faites, en reprenant
    celles déjà validées lors des cours précédents. */
 /* Le rappel joint au bilan quand le moniteur signale que l'élève
@@ -1292,7 +1298,7 @@ function unSeulRappelEcoutes(bilan){
     .replace(/\n{3,}/g, '\n\n');
 }
 
-function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
+function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant, faitesAilleurs){
   /* Ce qui a déjà été validé lors des cours précédents, avec les
      marques accumulées : ✅ la première fois, puis l'émoji de chaque
      moniteur qui l'a retravaillée. */
@@ -1301,6 +1307,10 @@ function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
 
   const aujourdhui = {};
   (faitesAujourdhui || []).forEach(n => { aujourdhui[normaliserMot(n)] = true; });
+
+  /* Ce que l'élève avait déjà fait dans une autre auto-école */
+  const ailleurs = {};
+  (faitesAilleurs || []).forEach(n => { ailleurs[normaliserMot(n)] = true; });
 
   const marques = marquesAvant || {};
   const emoji = (typeof ACCES !== 'undefined' && ACCES.emoji) ? ACCES.emoji : '';
@@ -1320,9 +1330,17 @@ function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant){
 
     const dejaAvant = proche(avant);
     const faiteCeJour = proche(aujourdhui);
+    const faiteAilleurs = proche(ailleurs);
 
     /* On reprend les marques déjà présentes dans le bilan précédent */
     let suite = marques[cle] || (dejaAvant ? MARQUE_FAITE : '');
+
+    /* La 🚗 passe en tête : elle dit d'où part l'élève, avant que
+       le moindre moniteur de chez nous l'ait vu. Les émojis des
+       moniteurs se rangent ensuite, dans l'ordre du travail fait. */
+    if(faiteAilleurs && suite.indexOf(MARQUE_AILLEURS) === -1){
+      suite = suite ? MARQUE_AILLEURS + ' ' + suite : MARQUE_AILLEURS;
+    }
 
     if(faiteCeJour){
       /* La signature du moniteur, dès la première validation :
@@ -1496,7 +1514,25 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
     });
   });
 
-  parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant));
+  /* Les manœuvres faites dans une autre auto-école : elles ne
+     passent PAS par duJour, sinon elles porteraient l'émoji du
+     moniteur du jour, qui ne les a pas fait travailler. */
+  const ailleurs = [];
+  const sourcesAilleurs = [];
+  if(typeof contexteDepart !== 'undefined' && contexteDepart){
+    sourcesAilleurs.push(contexteDepart.manoeuvresAilleurs);
+  }
+  if(typeof prepareEnCours !== 'undefined' && prepareEnCours &&
+     prepareEnCours.contexte){
+    sourcesAilleurs.push(prepareEnCours.contexte.manoeuvresAilleurs);
+  }
+  sourcesAilleurs.forEach(liste => {
+    (liste || []).forEach(m => {
+      if(ailleurs.indexOf(m) === -1) ailleurs.push(m);
+    });
+  });
+
+  parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant, ailleurs));
   parts.push('');
   /* Sans émoji au bout : la question se suffit, et une coche
      laissée au hasard n'apprend rien à l'élève. */
