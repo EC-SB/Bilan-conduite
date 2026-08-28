@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:46 — v645 */
+/* Déployé le 28/08/2026 à 12:43 — v647 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -632,13 +632,7 @@ $('confirmGen').addEventListener('click', async () => {
 
   /* La fiche d'évaluation a ses propres sorties : le PDF pour le
      dossier ou Driv'up, et l'envoi par mail. */
-  const zh = $('handicapActions');
-  if(zh){
-    zh.innerHTML = '';
-    const surFiche = (($('modele') && $('modele').value) === 'handicap');
-    zh.style.display = surFiche ? 'block' : 'none';
-    if(surFiche && typeof boutonsHandicap === 'function') boutonsHandicap(zh);
-  }
+  if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
     window.scrollTo(0, 0);
     marquerExport(false);
     await saveLesson(currentLessonMeta, bilan);
