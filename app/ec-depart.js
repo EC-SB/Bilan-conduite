@@ -1154,6 +1154,18 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
     $('versionBtn').style.display = 'block';
     if(typeof brancherBoutonVersion === 'function') brancherBoutonVersion();
   }
+
+  /* Le guide s'ouvre déjà filtré sur ce que cette personne voit :
+     un moniteur n'a pas à traverser les chapitres du bureau pour
+     retrouver le sien. L'adresse de départ est relue à chaque fois,
+     sinon le rôle s'empilerait à la seconde ouverture de session. */
+  const guide = $('guideBtn');
+  if(guide){
+    if(!guide.dataset.base) guide.dataset.base = guide.getAttribute('href');
+    guide.href = guide.dataset.base + '&role=' + encodeURIComponent(ACCES.role || 'moniteur');
+    guide.style.display = 'flex';
+  }
+
   afficherIdentite();
   if(ACCES.moniteur) $('monitorName').value = ACCES.moniteur;
 
