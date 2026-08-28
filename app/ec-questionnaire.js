@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:44 — v644 */
+/* Déployé le 28/08/2026 à 11:46 — v645 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -781,9 +781,16 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '</select>' +
       '</div>' +
 
+      '</div>' +
+
       /* La fiche véhicule : présente au DÉPART, pour préparer et
          cocher ce qui est acquis. Masquée en fin de cours, où le
-         moniteur a déjà coché sur l'écran d'enregistrement. */
+         moniteur a déjà coché sur l'écran d'enregistrement.
+
+         HORS du bloc masquable : une évaluation de départ n'a pas
+         de frise ni d'examen à renseigner, mais elle a tout à
+         apprendre des manœuvres déjà faites ailleurs. Laissée
+         dedans, elle disparaissait avec le reste. */
       '<div id="qBlocFiche" style="display:none;">' +
         '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
         '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
@@ -794,8 +801,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
           'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
           'margin-bottom:14px;"></div>' +
-      '</div>' +
-
       '</div>' +
 
       /* Hors du bloc masqué : les deux questions que la fiche
@@ -959,14 +964,27 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       }
     }
 
+    /* En fin de cours, le moniteur a déjà coché pendant qu'il
+       conduisait : lui remontrer la liste n'apporte rien. */
+    const enFinDeCours = /après ce cours|terminer|fin/i.test(String(titre || ''));
+
     /* La fiche d'évaluation ne garde que sa question et les notes
        libres. Ce masquage vient en dernier : posé plus haut, il
        se faisait défaire par les réglages qui suivent. */
     {
       const surEval = (profil === 'handicap');
 
+      /* L'évaluation, AU DÉPART : on ne demande ni frise, ni leçon,
+         ni examen, ni écoutes, ni simulateur — tout cela se décide
+         en fin de séance, une fois l'élève vu au volant. Restent
+         les coordonnées, les manœuvres et les notes libres.
+
+         En FIN de séance, le questionnaire reprend tout : c'est
+         justement là que la frise se fixe. */
+      const evalAuDepart = (profil === 'evaluation') && !enFinDeCours;
+
       const sauf = boite.querySelector('#qBlocSauf');
-      if(sauf) sauf.style.display = surEval ? 'none' : '';
+      if(sauf) sauf.style.display = (surEval || evalAuDepart) ? 'none' : '';
 
       if(surEval){
         const bf = boite.querySelector('#qBlocFiche');
@@ -979,9 +997,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     /* La fiche véhicule, pré-cochée d'après les bilans précédents */
     const marquesConnues = dossier.marques || {};
-    /* En fin de cours, le moniteur a déjà coché pendant qu'il
-       conduisait : lui remontrer la liste n'apporte rien. */
-    const enFinDeCours = /après ce cours|terminer|fin/i.test(String(titre || ''));
     const blocFiche = boite.querySelector('#qBlocFiche');
     if(blocFiche){
       /* La fiche d'évaluation ne concerne pas le véhicule */
