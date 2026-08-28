@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 15:28 — v666 */
+/* Déployé le 28/08/2026 à 16:22 — v668 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1683,4 +1683,128 @@ async function appliquerNumerosLecon(){
   if(typeof afficherPrepares === 'function') afficherPrepares();
 }
 
+/* ============================================================
+   RÉPARER LES LIGNES D'EXAMEN DES NOTES
+
+   La ligne « examen officiel » s'écrit maintenant en gras, en
+   majuscules, et se colore à l'affichage — rouge quand la date
+   existe, bleu quand elle manque. Mais cela ne vaut que pour les
+   notes écrites depuis : une note plus ancienne porte un autre
+   libellé, que rien ne reconnaît.
+
+   Ce bouton les remet à la forme actuelle. Comme celui des
+   numéros de leçon, il montre d'abord ce qu'il changerait :
+   réécrire des notes sans les avoir lues serait imprudent.
+   ============================================================ */
+let reparNotes = [];
+
+async function verifierNotesExamen(){
+  const btn  = $('reparNotesBtn');
+  const etat = $('reparNotesEtat');
+  const zone = $('reparNotesListe');
+  if(!btn || !etat || !zone) return;
+
+  reparNotes = [];
+  zone.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = 'Lecture…';
+  etat.textContent = 'Lecture des notes…';
+
+  try{
+    const d = await appelPrep({ action: 'noteInterneList' });
+    const liste = (d && d.notes) || [];
+
+    liste.forEach(x => {
+      const neuve = normaliserNoteExamen(x.note);
+      if(neuve && neuve !== x.note){
+        reparNotes.push({ eleve: x.eleve, ligne: x.ligne,
+                          avant: x.note, apres: neuve });
+      }
+    });
+
+    if(!reparNotes.length){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ ' + liste.length + ' note(s) relue(s) — ' +
+        'toutes sont déjà à la bonne forme.';
+      return;
+    }
+
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = reparNotes.length + ' note(s) à remettre en forme, ' +
+      'sur ' + liste.length + ' relue(s).';
+
+    reparNotes.forEach(x => zone.appendChild(ligneReparNote(x)));
+
+    const b = document.createElement('button');
+    b.className = 'btn btn-primary';
+    b.id = 'reparNotesAppliquer';
+    b.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
+    b.textContent = '✅ Corriger ces ' + reparNotes.length + ' note(s)';
+    b.addEventListener('click', appliquerNotesExamen);
+    zone.appendChild(b);
+
+  }catch(e){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = '⚠️ ' + e.message;
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "🎨 Vérifier les lignes d'examen";
+  }
+}
+
+/* Avant et après, l'un sous l'autre : c'est la comparaison qui
+   permet de dire oui, pas le nombre. */
+function ligneReparNote(x){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
+    'padding:8px 11px;margin-top:6px;font-size:12px;line-height:1.55;';
+  d.innerHTML =
+    '<strong>' + reparTexte(x.eleve) + '</strong>' +
+    '<div style="color:var(--muted);margin-top:4px;">avant : ' +
+    reparTexte(x.avant) + '</div>' +
+    '<div style="color:var(--accent-text);margin-top:2px;">après : ' +
+    reparTexte(x.apres) + '</div>';
+  return d;
+}
+
+async function appliquerNotesExamen(){
+  if(!reparNotes.length) return;
+
+  if(!await confirmer("Remettre en forme la ligne d'examen de " +
+      reparNotes.length + ' note(s) ?\n\n' +
+      "Seule cette ligne change : le reste de chaque note — numéro de " +
+      "leçon, examen blanc, remarques du moniteur — est recopié tel quel.\n\n" +
+      "Seule la note la plus récente de chaque élève est touchée : les " +
+      "bilans plus anciens gardent ce qu'ils disaient.")) return;
+
+  const btn  = $('reparNotesAppliquer');
+  const etat = $('reparNotesEtat');
+  if(btn) btn.disabled = true;
+
+  let ok = 0;
+  const rates = [];
+
+  for(let i = 0; i < reparNotes.length; i++){
+    const x = reparNotes[i];
+    if(btn) btn.textContent = 'Correction ' + (i + 1) + ' sur ' + reparNotes.length + '…';
+    try{
+      await appelPrep({ action: 'noteInterneSet', ligne: x.ligne,
+                        eleve: x.eleve, note: x.apres });
+      ok++;
+    }catch(e){ rates.push(x.eleve + ' : ' + e.message); }
+  }
+
+  if(etat){
+    etat.style.color = rates.length ? 'var(--warn-text)' : 'var(--accent-text)';
+    etat.textContent = ok + ' note(s) corrigée(s)' +
+      (rates.length ? ' · ' + rates.length + ' en échec : ' + rates.join(' · ') : '') +
+      ' — recharge la page pour voir les couleurs.';
+  }
+  showToast(rates.length ? 'Corrigé, avec des échecs ⚠️' : ok + ' note(s) corrigée(s) ✅');
+
+  if(btn) btn.remove();
+  reparNotes = [];
+}
+
+brancher('reparNotesBtn', 'click', verifierNotesExamen);
 brancher('reparLeconsBtn', 'click', verifierNumerosLecon);
