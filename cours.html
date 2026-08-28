@@ -29,7 +29,7 @@
   }
   @media (prefers-color-scheme: light){
     :root{ --fond:#F4F2ED; --carte:#FFFFFF; --ligne:#E4E0D8; --creme:#1A1A1A;
-           --gris:#8A857C; --orange:#B87A12; --vert:#4E7A00; --bleu:#0B6FA4; }
+           --gris:#8A857C; --orange:#B87A12; --vert:#B6FF0E; --bleu:#0B6FA4; }
   }
   *{box-sizing:border-box}
   body{
@@ -49,10 +49,13 @@
           border-radius:13px;padding:14px 16px;margin:22px 0 0;
           font-size:15px;text-align:left}
   .rappel .quand{font-weight:800;color:var(--orange);font-size:17px}
+  .diag{margin-top:18px;font-size:11px;color:var(--gris);word-break:break-word;
+        text-align:left;background:var(--carte);border:1px solid var(--ligne);
+        border-radius:9px;padding:9px 11px}
   .rappel .ou{color:var(--gris);font-size:14px;margin-top:3px}
   button{
     width:100%;padding:15px;font-size:17px;font-weight:700;cursor:pointer;
-    border-radius:12px;border:0;background:var(--orange);color:#111;
+    border-radius:12px;border:0;background:var(--vert);color:#0B0B0B;
     font-family:inherit;margin-top:18px;
   }
   button:disabled{opacity:.6;cursor:default}
@@ -115,10 +118,13 @@ function aConfirmer(c){
   });
 }
 
-function rien(message){
+function rien(message, diag){
   zone.innerHTML = '<div class="pastille">🤔</div>' +
     '<h1>' + txt(message) + '</h1>' +
-    '<p class="gris">Appelle-nous, nous te redirons tout.</p>';
+    '<p class="gris">Appelle-nous, nous te redirons tout.</p>' +
+    /* Le détail technique, discret : sans lui, personne au bureau
+       ne peut dire ce qui a coincé. */
+    (diag ? '<div class="diag">' + txt(JSON.stringify(diag)) + '</div>' : '');
 }
 
 function confirmer(c, manuel){
@@ -148,7 +154,8 @@ if(!jeton){
   fetch(PROXY + '/cours?c=' + encodeURIComponent(jeton))
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(!d || !d.cours) return rien((d && d.error) || 'Ce lien a expiré.');
+      if(!d || !d.cours) return rien((d && (d.message || d.error)) ||
+                                     'Ce lien a expiré.', d && d.diag);
       /* Déjà confirmé : on ne le redemande pas, on le rappelle. */
       if(d.cours.confirmeLe) return merci(d.cours, d.cours.confirmeLe);
       confirmer(d.cours, false);
