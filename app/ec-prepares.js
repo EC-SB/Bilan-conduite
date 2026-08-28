@@ -153,12 +153,34 @@ async function remplirPourQui(){
     try{ await chargerMoniteurs(); }catch(e){ /* on garde le moniteur courant */ }
   }
 
-  const liste = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
-  const choix = sel.value || ACCES.moniteur || '';
+  poserMoniteursDansPourQui();
+}
+
+
+/* Le remplissage seul, sans aller chercher la liste : c'est lui
+   qu'appelle « chargerMoniteurs » une fois la liste connue, sans
+   risquer de la redemander en boucle. */
+function poserMoniteursDansPourQui(){
+  const sel = $('prepPour');
+  if(!sel) return;
+
+  let liste = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  const moi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+
+  /* Liste illisible — appelée avant l'ouverture de session, ou
+     serveur muet : on garde au moins le moniteur connecté. Une
+     liste vidée laissait un menu vide, et plus moyen de préparer
+     un cours du tout. */
+  if(!liste.length){
+    if(!moi) return;            /* rien à proposer : on ne touche à rien */
+    liste = [moi];
+  }
+
+  const choix = sel.value || moi || '';
 
   sel.innerHTML = liste.map(m =>
     '<option value="' + String(m).replace(/"/g, '&quot;') + '">' +
-    (normaliserMot(m) === normaliserMot(ACCES.moniteur || '') ? m + ' (moi)' : m) +
+    (normaliserMot(m) === normaliserMot(moi) ? m + ' (moi)' : m) +
     '</option>').join('');
 
   /* Moi par défaut : c'est le cas le plus fréquent */
