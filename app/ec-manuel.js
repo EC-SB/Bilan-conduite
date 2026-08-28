@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:38 — v616 */
+/* Déployé le 28/08/2026 à 10:35 — v638 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -254,7 +254,13 @@ function dicteePossible(){
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
-/* Dictée dans un champ précis, sans toucher au reste */
+/* Dictée dans un champ précis, sans toucher au reste.
+
+   Ce que ec-vocal.js avait déjà appris et qui manquait ici :
+   sur Android, Chrome empile les résultats provisoires au lieu de
+   les remplacer, et une instance de reconnaissance relancée relivre
+   les phrases de la session précédente. Les deux ensemble
+   recopiaient le texte dicté plusieurs fois de suite. */
 function dicterDans(champ, bouton){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if(!SR){ showToast('La dictée demande Chrome sur Android.'); return; }
@@ -266,106 +272,124 @@ function dicterDans(champ, bouton){
     return;
   }
 
-  const sr = new SR();
-  sr.lang = 'fr-FR';
-  sr.continuous = true;
-  /* Les résultats provisoires : le moniteur voit ses mots arriver
-     et sait que ça écoute encore. */
-  sr.interimResults = true;
-  sr.maxAlternatives = 3;
-
-  /* Le texte acquis. Il se fige à chaque relance : sans cela, la
-     session suivante repartait de zéro et Chrome relivrait ce qui
-     venait d'être dit — d'où le texte écrit deux ou trois fois. */
+  /* Le texte acquis. Il se fige à la fin de chaque session : la
+     boîte fait autorité, et le moniteur peut corriger entre deux
+     phrases sans que la dictée suivante ramène ce qu'il a effacé. */
   let depart = champ.value;
-  let ajoute = '';
 
-  const ecrire = (provisoire) => {
-    champ.value = (depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '') +
-                  terminerPhrase(ajoute) +
-                  (provisoire ? (ajoute ? ' ' : '') + provisoire : '');
+  /* Chaque session porte un jeton. Une instance abandonnée qui
+     livre un résultat en retard n'écrit plus rien : c'est ce qui
+     faisait se marcher dessus deux reconnaissances. */
+  let jeton = 0;
+
+  /* Deux fins de session vides coup sur coup, très vite : le micro
+     ne répond pas. On rend la main plutôt que de relancer sans fin. */
+  let vides = 0;
+
+  const ecrire = (texteSession) => {
+    const base = depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '';
+    champ.value = base + terminerPhrase(texteSession);
     champ.scrollTop = champ.scrollHeight;
   };
 
-  /* Une phrase déjà livrée ne doit pas revenir : Chrome relivre
-     parfois les derniers résultats après une coupure. */
-  const dejaDit = [];
+  const arreter = () => {
+    jeton++;                      /* plus rien de l'ancienne session */
+    bouton.dataset.actif = '';
+    bouton.dataset.stop = '';
+    bouton.textContent = '🎙️';
+    bouton.style.background = '';
+    bouton.title = 'Dicter dans ce champ';
+    bouton._sr = null;
+  };
 
-  sr.onresult = ev => {
-    let provisoire = '';
+  /* Une instance NEUVE à chaque session. Rappeler start() sur une
+     instance terminée fait relivrer par Chrome tout ce qui venait
+     d'être dit — la cause de la recopie. */
+  const nouvelleSession = () => {
+    const sr = new SR();
+    sr.lang = 'fr-FR';
+    /* Android ignore le mode continu et se comporte mal avec :
+       on relance nous-mêmes à chaque fin de session. */
+    sr.continuous = !estAndroid;
+    /* Les provisoires ne sont gardés que là où ils fonctionnent.
+       Sur Android ils s'empilent au lieu de se remplacer. */
+    sr.interimResults = !estAndroid;
+    sr.maxAlternatives = 3;
 
-    for(let i = ev.resultIndex; i < ev.results.length; i++){
-      if(!ev.results[i].isFinal){
-        provisoire += ev.results[i][0].transcript;
-        continue;
+    const monJeton = ++jeton;
+    let session = '';
+    const debut = Date.now();
+
+    sr.onresult = ev => {
+      if(monJeton !== jeton) return;      /* instance abandonnée */
+
+      /* On reconstruit TOUT depuis l'index 0 à chaque fois, au lieu
+         d'ajouter à la suite : impossible d'accumuler des doublons. */
+      const bouts = [];
+      for(let i = 0; i < ev.results.length; i++){
+        let meilleur = ev.results[i][0].transcript;
+        let score = -1;
+        for(let k = 0; k < ev.results[i].length; k++){
+          const s = scoreMetier(ev.results[i][k].transcript);
+          if(s > score){ score = s; meilleur = ev.results[i][k].transcript; }
+        }
+        const t = String(meilleur || '').trim();
+        if(t) bouts.push(t);
       }
-      let meilleur = ev.results[i][0].transcript;
-      let score = -1;
-      for(let k = 0; k < ev.results[i].length; k++){
-        const s = scoreMetier(ev.results[i][k].transcript);
-        if(s > score){ score = s; meilleur = ev.results[i][k].transcript; }
+
+      /* fusionner() ne garde que la version la plus complète de
+         chaque phrase. Chrome sur Android livre « pense » / « pense
+         à tes » / « pense à tes contrôles » comme trois résultats
+         distincts : les mettre bout à bout écrivait la phrase trois
+         fois de suite. ec-vocal.js s'en servait déjà, pas ce module —
+         c'est toute la différence entre les deux dictées. */
+      session = corrigerVocabulaire(fusionner(bouts));
+      ecrire(session);
+    };
+
+    sr.onerror = e => {
+      /* Un silence n'est pas une erreur : on relancera. */
+      if(e.error === 'no-speech' || e.error === 'aborted') return;
+      if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        bouton.dataset.stop = 'oui';
+        showToast('Le micro est refusé. Autorise-le dans le navigateur.');
+        return;
       }
-      const propre = corrigerVocabulaire(meilleur.trim());
-      if(!propre) continue;
+      if(e.error === 'network') return;
+      showToast('Dictée : ' + e.error);
+    };
 
-      /* Le même bout, deux fois de suite : c'est une relivraison */
-      if(dejaDit.indexOf(propre) !== -1) continue;
-      dejaDit.push(propre);
-      if(dejaDit.length > 12) dejaDit.shift();
+    sr.onend = () => {
+      if(monJeton !== jeton) return;      /* instance abandonnée */
 
-      ajoute += (ajoute ? ' ' : '') + propre;
-    }
+      /* Ce qui vient d'être dit rejoint l'acquis. Les espaces de
+         fin sont retirés, sinon chaque relance en ajoutait un. */
+      ecrire(session);
+      depart = champ.value.replace(/[ \t]+$/, '');
+      champ.value = depart;
 
-    ecrire(provisoire);
+      if(bouton.dataset.stop === 'oui'){ arreter(); return; }
+
+      /* Rien entendu et session expédiée : le micro ne répond pas. */
+      vides = (!session && (Date.now() - debut) < 500) ? vides + 1 : 0;
+      if(vides >= 20){
+        showToast('Le micro ne répond plus. Appuie à nouveau sur 🎙️.');
+        arreter();
+        return;
+      }
+
+      try{
+        bouton._sr = nouvelleSession();
+      }catch(e){
+        showToast('Dictée interrompue.');
+        arreter();
+      }
+    };
+
+    sr.start();
+    return sr;
   };
 
-  sr.onerror = e => {
-    /* Un silence n'est pas une erreur : on relancera. */
-    if(e.error === 'no-speech' || e.error === 'aborted') return;
-    if(e.error === 'not-allowed'){
-      bouton.dataset.stop = 'oui';
-      showToast('Le micro est refusé. Autorise-le dans le navigateur.');
-      return;
-    }
-    showToast('Dictée : ' + e.error);
-  };
-
-  /* Le navigateur coupe seul après quelques secondes de silence.
-     Sans relance, le moniteur devait rappuyer à chaque phrase —
-     d'où l'impression de devoir maintenir le bouton. */
-  sr.onend = () => {
-    /* On fige ce qui a été dit : la boîte fait autorité, et la
-       session suivante repart d'une page blanche.
-
-       Les espaces de fin sont retirés, sinon chaque relance en
-       ajoutait un et le texte finissait par flotter. */
-    ecrire('');
-    depart = champ.value.replace(/[ \t]+$/, '');
-    champ.value = depart;
-    ajoute = '';
-
-    if(bouton.dataset.stop === 'oui'){
-      bouton.dataset.actif = '';
-      bouton.dataset.stop = '';
-      bouton.textContent = '🎙️';
-      bouton.style.background = '';
-      bouton._sr = null;
-      return;
-    }
-
-    try{
-      sr.start();
-    }catch(e){
-      /* La relance a échoué : on rend la main plutôt que de
-         laisser un bouton rouge qui n'écoute plus. */
-      bouton.dataset.actif = '';
-      bouton.textContent = '🎙️';
-      bouton.style.background = '';
-      bouton._sr = null;
-    }
-  };
-
-  bouton._sr = sr;
   bouton.dataset.actif = 'oui';
   bouton.dataset.stop = '';
   bouton.textContent = '⏹️';
@@ -373,15 +397,13 @@ function dicterDans(champ, bouton){
   bouton.title = 'Appuie pour arrêter la dictée';
 
   try{
-    sr.start();
+    bouton._sr = nouvelleSession();
     showToast('🎙️ Dictée en cours — appuie sur ⏹️ pour arrêter');
   }catch(e){
     showToast('Dictée indisponible.');
-    bouton.dataset.stop = 'oui';
-    sr.onend();
+    arreter();
   }
 }
-
 
 
 /* Une ligne du CEPC : la compétence et son niveau */
