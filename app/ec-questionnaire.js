@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:22 — v668 */
+/* Déployé le 28/08/2026 à 16:44 — v671 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -457,11 +457,19 @@ const FAMILLES_NOTE = [
 
 const SEGMENTS_REGENERES = FAMILLES_NOTE.map(f => f.motif);
 
-function retirerSegmentsRegeneres(note){
+/* Les segments d'une note. Le séparateur est « · », mais des
+   retours à la ligne s'y glissent — collés, deux segments n'en
+   font plus qu'un et échappent aux motifs, qui sont ancrés. */
+function segmentsDeNote(note){
   return String(note || '')
-    .split('·')
+    .split(/[·\n\r]+/)
     .map(x => x.trim())
-    .filter(x => x && !SEGMENTS_REGENERES.some(r => r.test(x)))
+    .filter(Boolean);
+}
+
+function retirerSegmentsRegeneres(note){
+  return segmentsDeNote(note)
+    .filter(x => !SEGMENTS_REGENERES.some(r => r.test(x)))
     .join(' · ');
 }
 
@@ -1523,12 +1531,16 @@ function colorerNote(el, note){
    écrite ici, à côté des libellés qu'elle produit : les deux ne
    peuvent pas diverger.
    ------------------------------------------------------------ */
+/* Le libellé, PUIS le mot de liaison qui le suit parfois. Sans
+   cette seconde partie, « Examen du permis fixé au lundi… » du
+   bureau devenait « EXAMEN OFFICIEL PRÉVU LE FIXÉ AU LUNDI… » :
+   le libellé était remplacé, mais « fixé au » restait et passait
+   pour la date. */
 const RE_EXAMEN_ANCIEN = new RegExp(
   '^(?:🚗\\s*)?(?:' + EXAMEN_PREVU + '|' +
   "EXAMEN OFFICIEL PR[EÉ]VU LE|Examen officiel pr[eé]vu le|" +
-  "Examen pr[eé]vu(?: le)?|Examen du permis|Date d'examen|" +
-  "Permis pr[eé]vu(?: le)?" +
-  ')\\s*:?\\s*', 'i');
+  "Examen pr[eé]vu|Examen du permis|Date d'examen|Permis pr[eé]vu" +
+  ')\\s*:?\\s*(?:fix[ée]{1,2}\\s+(?:au|le)|pr[eé]vu\\s+le|au|le)?\\s*:?\\s*', 'i');
 
 const RE_SANS_DATE_ANCIEN = new RegExp(
   '^(?:🚗\\s*)?(?:' + EXAMEN_SANS_DATE + '|' +
@@ -1555,7 +1567,9 @@ function normaliserLigneExamen(segment){
   /* Ce qui suit le libellé : la date, puis éventuellement un
      complément après un tiret. Seule la date monte en majuscules,
      comme le fait le générateur. */
-  const reste = seg.slice(m[0].length);
+  /* « (bureau) » dit qui a saisi, pas ce qui est prévu : il n'a
+     rien à faire dans la note, et surtout pas en majuscules. */
+  const reste = seg.slice(m[0].length).replace(/\s*\(\s*bureau\s*\)\s*$/i, '');
   const coupe = reste.indexOf(' — ');
   const date  = (coupe === -1 ? reste : reste.slice(0, coupe)).trim();
   const suite = (coupe === -1 ? '' : reste.slice(coupe));
@@ -1566,15 +1580,52 @@ function normaliserLigneExamen(segment){
   return (EXAMEN_PREVU + ' ' + majusculeNote(date) + suite).trim();
 }
 
-/* La note entière. Les segments sont séparés par « · » : on ne
-   touche qu'à celui de l'examen, tout le reste est recopié tel
-   quel — une note contient le travail d'un moniteur. */
+/* La note entière. On ne touche qu'à la ligne d'examen, tout le
+   reste est recopié tel quel — une note contient le travail d'un
+   moniteur. */
 function normaliserNoteExamen(note){
-  return String(note || '')
-    .split('·')
-    .map(x => normaliserLigneExamen(x.trim()))
+  return segmentsDeNote(note)
+    .map(x => normaliserLigneExamen(x))
     .filter(Boolean)
     .join(' · ');
+}
+
+/* ------------------------------------------------------------
+   NETTOYER UNE NOTE QUI S'EST EMPILÉE
+
+   Une note reprise de cours en cours finit par porter trois fois
+   la même date d'examen, deux fois le même examen blanc. Chaque
+   ajout était juste ; c'est leur accumulation qui ne l'est pas.
+
+   La règle est celle que Chrystel a posée : la dernière
+   information est la bonne. Pour chaque famille de segments
+   régénérables, on ne garde donc que la DERNIÈRE, à sa place. Ce
+   qui n'appartient à aucune famille — les remarques du moniteur —
+   n'est jamais jeté, seulement dédoublonné à l'identique.
+   ------------------------------------------------------------ */
+function nettoyerNote(note){
+  const segs = segmentsDeNote(note).map(x => normaliserLigneExamen(x));
+
+  /* À l'envers : le premier rencontré est le dernier écrit. */
+  const famillesVues = {};
+  const identiquesVus = {};
+  const gardes = [];
+
+  for(let i = segs.length - 1; i >= 0; i--){
+    const seg = segs[i];
+
+    if(identiquesVus[seg]) continue;
+    identiquesVus[seg] = true;
+
+    const f = FAMILLES_NOTE.find(x => x.motif.test(seg));
+    if(f){
+      if(famillesVues[f.cle]) continue;
+      famillesVues[f.cle] = true;
+    }
+    gardes.push(seg);
+  }
+
+  return gardes.reverse().join(' · ');
 }
 
 
