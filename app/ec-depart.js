@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:25 — v596 */
+/* Déployé le 28/08/2026 à 10:35 — v638 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -272,10 +272,31 @@ brancher('departBtn', 'click', preparerDepart);
 if($('departDate')) $('departDate').value = todayLocal();
 brancher('permisNom', 'change', preparerPermis);
 
-/* Vérifie que le script Google déployé est bien à jour */
+/* L'alerte de version ne se montre qu'une fois par session : elle
+   revenait à chaque recherche, et une alerte qu'on apprend à fermer
+   sans lire ne protège plus de rien. */
+let versionDejaSignalee = false;
+
+/* Vérifie que le script Google déployé est bien à jour.
+
+   Une réponse SANS versionScript ne vient pas d'Apps Script : c'est
+   le Worker qui a répondu par l'API Sheets directe. Il ne sait pas
+   quelle version est déployée dans la feuille, et son silence ne
+   veut pas dire « script préhistorique ». Sans cette distinction,
+   toute opération portée sur l'API — la recherche la première —
+   déclenchait l'alerte alors que le script était à jour. */
 async function verifierVersionScript(reponse){
-  const v = reponse && reponse.versionScript ? Number(reponse.versionScript) : 0;
+  if(!reponse || reponse.versionScript === undefined ||
+     reponse.versionScript === null || reponse.versionScript === ''){
+    return true;
+  }
+
+  const v = Number(reponse.versionScript) || 0;
   if(v >= CONFIG.VERSION_SCRIPT_ATTENDUE) return true;
+
+  if(versionDejaSignalee) return false;
+  versionDejaSignalee = true;
+
   await informer(
     "⚠️ Le script Google Sheets n'est pas à jour.\n\n" +
     'Version déployée : ' + (v ? 'v' + v : 'antérieure à v21') + '\n' +
@@ -388,10 +409,11 @@ async function rechercherEleve(){
     }
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    if(!verifierVersionScript(data)){
-      zone.innerHTML = '<div class="empty">Script Google à mettre à jour (voir le message).</div>';
-      return;
-    }
+    /* On avertit, mais on affiche quand même : l'historique se lit
+       très bien avec un script en retard, et cacher les bilans du
+       moniteur pour un défaut de déploiement le punit pour rien.
+       Le blocage n'a de sens qu'à l'enregistrement. */
+    await verifierVersionScript(data);
     const res = (data && data.resultats) || [];
     if(!res.length){
       zone.innerHTML = '<div class="empty">' +
