@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 12:43 — v647 */
+/* Déployé le 28/08/2026 à 13:14 — v651 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -566,6 +566,12 @@ $('confirmGen').addEventListener('click', async () => {
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
     /* Le moniteur a le dernier mot sur ce qu'il a coché lui-même */
     Object.assign(donnees, enteteDuCours());
+
+    /* L'examen blanc noté sous la transcription, s'il y en a eu un.
+       Il ne se dicte pas : il se coche, et il arrive ici tel quel. */
+    if(typeof examenBlancDuCours === 'function'){
+      Object.assign(donnees, examenBlancDuCours());
+    }
 
     let bilan = modele.build(donnees, {
       manoeuvresAvant: manoeuvresAvant,
