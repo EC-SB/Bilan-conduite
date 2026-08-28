@@ -15,6 +15,12 @@ const RACCOURCIS_NOTE = [
 ];
 
 
+/* Combien de cours le serveur renvoie au plus. Le premier appel le
+   demande explicitement ; le second, celui qui relit le texte, s'en
+   remet à la limite du serveur pour une recherche par élève. */
+const MAXI_DOSSIER = 40;
+const MAXI_SERVEUR_ELEVE = 30;
+
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
 async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], marques: {}, derniereNote: '',
@@ -39,7 +45,8 @@ async function chargerDossierEleve(nomEleve){
          qui compte ses leçons. Un nom contenu dans un autre — « Marie
          Martin » dans « Marie Martinez » — ferait compter les deux. */
       body: JSON.stringify({ action: 'search', code: ACCES.code,
-                             eleve: nomEleve.trim(), maxi: 40, exact: true })
+                             eleve: nomEleve.trim(), maxi: MAXI_DOSSIER,
+                             exact: true })
     });
     if(!r.ok) return vide;
     const data = await r.json().catch(() => ({}));
@@ -47,6 +54,7 @@ async function chargerDossierEleve(nomEleve){
     /* Le serveur ne renvoie que les derniers cours, mais il dit
        combien il y en a en tout : le numéro de leçon reste juste. */
     const totalConnu = (data && data.total) || 0;
+    let plafond = MAXI_DOSSIER;
 
     /* Anciennes lignes sans colonne Manœuvres : on relit avec le texte.
        Le mode léger était redemandé, ce qui coûtait un appel pour rien. */
@@ -60,7 +68,10 @@ async function chargerDossierEleve(nomEleve){
       });
       if(r2.ok){
         const d2 = await r2.json().catch(() => ({}));
-        res = (d2 && d2.resultats) || res;
+        if(d2 && d2.resultats){
+          res = d2.resultats;
+          plafond = MAXI_SERVEUR_ELEVE;   /* cet appel-là ne fixe pas de limite */
+        }
       }
     }
 
@@ -103,8 +114,14 @@ async function chargerDossierEleve(nomEleve){
     });
 
     /* Les cours plus anciens que ceux relus comptent aussi : ce sont
-       presque toujours des leçons de conduite. */
-    if(totalConnu > vus) lecons += (totalConnu - vus);
+       presque toujours des leçons de conduite.
+
+       Mais on ne s'en sert QUE si la liste a été tronquée : avoir reçu
+       moins que la limite demandée veut dire qu'on les a tous, et que
+       le compte est déjà complet. Sans ce garde-fou, un total erroné
+       passait tel quel — c'est ainsi qu'on a vu « 160ème leçon », le
+       relais renvoyant la taille du classeur entier. */
+    if(vus >= plafond && totalConnu > vus) lecons += (totalConnu - vus);
 
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
                        marques: marques,
