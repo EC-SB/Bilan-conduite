@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:56 — v640 */
+/* Déployé le 28/08/2026 à 11:32 — v643 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1249,6 +1249,135 @@ async function ouvrirDemande(){
 
 
 /* ============================================================
+   CE À QUOI UN ÉLÈVE A ACCÈS EN RÉVISIONS
+
+   Sa formation décide de l'essentiel : un élève en remorque ne
+   récite que les procédures BE. Le bureau peut lui en ouvrir
+   d'autres, une par une, sans passer par le répertoire.
+
+   Additif, jamais soustractif. Ce que sa formation lui donne
+   s'affiche coché et verrouillé : une procédure ajoutée demain à
+   sa formation lui parvient sans que personne rouvre sa fiche, et
+   une case décochée par mégarde ne peut pas le priver de ce qui
+   lui revient.
+   ============================================================ */
+const NOMS_BOITE = {
+  BE:  '🚚 Remorque — permis BE',
+  BV:  '🕹️ Boîte manuelle BV',
+  BEA: '⚙️ Boîte automatique BEA'
+};
+
+function blocRevisions(a, catalogue, parBoite, apresEnregistrement){
+  const det = document.createElement('details');
+  det.style.cssText = 'margin:0 0 6px;padding:0 0 0 2px;';
+
+  const deSaFormation = (parBoite && parBoite[a.boite || '']) || [];
+  const enPlus = (a.enPlus || []).slice();
+  const total = deSaFormation.length +
+    enPlus.filter(id => deSaFormation.indexOf(id) === -1).length;
+
+  const dit = a.boite
+    ? (NOMS_BOITE[a.boite] || a.boite) +
+      (a.boiteSource === 'declaree' ? ' (déclarée par lui)' : '')
+    : '⚠️ formation non renseignée';
+
+  det.innerHTML = '<summary style="cursor:pointer;font-size:11px;' +
+    'color:var(--muted);padding:2px 0;">📚 Révisions — ' +
+    dit.replace(/</g, '&lt;') + ' · ' + total + ' procédure' +
+    (total > 1 ? 's' : '') + '</summary>';
+
+  const zone = document.createElement('div');
+  zone.style.cssText = 'margin:6px 0 4px;padding:8px 10px;' +
+    'border:1px solid var(--line);border-radius:10px;';
+
+  if(!catalogue.length){
+    zone.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
+      'Aucune procédure enregistrée.</div>';
+    det.appendChild(zone);
+    return det;
+  }
+
+  if(!a.boite){
+    const av = document.createElement('div');
+    av.style.cssText = 'font-size:11px;color:var(--warn-text);line-height:1.4;' +
+      'margin-bottom:8px;';
+    av.textContent = 'Sa formation n\'est pas renseignée dans le répertoire ' +
+      'des élèves : il ne reçoit que les procédures communes. Coche ' +
+      'ci-dessous pour lui en ouvrir en attendant.';
+    zone.appendChild(av);
+  }
+
+  catalogue.forEach(p => {
+    const parFormation = deSaFormation.indexOf(p.id) !== -1;
+
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex;align-items:flex-start;gap:8px;' +
+      'padding:3px 0;font-size:13px;text-transform:none;margin:0;' +
+      'font-weight:400;line-height:1.4;' +
+      'color:' + (parFormation ? 'var(--muted)' : 'var(--cream)') + ';' +
+      (parFormation ? '' : 'cursor:pointer;');
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'revProc';
+    cb.value = p.id;
+    cb.checked = parFormation || enPlus.indexOf(p.id) !== -1;
+    /* Ce que sa formation donne ne se retire pas d'ici */
+    cb.disabled = parFormation;
+    cb.style.cssText = 'width:16px;height:16px;flex-shrink:0;margin-top:2px;' +
+      (parFormation ? 'opacity:.55;' : '');
+    lab.appendChild(cb);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    t.textContent = p.nom;
+    if(parFormation){
+      const m = document.createElement('span');
+      m.style.cssText = 'font-size:10px;color:var(--muted);display:block;';
+      /* Sans formation renseignée, ce n'est pas « sa formation » qui
+         la lui donne : c'est qu'elle s'adresse à tout le monde. */
+      m.textContent = a.boite ? 'par sa formation' : 'commune à tous';
+      t.appendChild(m);
+    }
+    lab.appendChild(t);
+
+    cb.addEventListener('change', async () => {
+      /* On repart de l'état des cases, jamais d'un calcul sur la
+         valeur précédente : deux clics rapides ne se croisent pas.
+         Seules les cases actives comptent — celles de la formation
+         sont déjà acquises et n'ont rien à faire dans la colonne. */
+      const voulues = Array.prototype.slice
+        .call(zone.querySelectorAll('.revProc'))
+        .filter(x => x.checked && !x.disabled)
+        .map(x => x.value);
+
+      zone.querySelectorAll('.revProc').forEach(x => {
+        if(!x.disabled) x.dataset.gele = 'oui';
+        x.disabled = true;
+      });
+      try{
+        await appelPrep({ action: 'accesEleveSet', eleve: a.eleve,
+                          enPlus: voulues });
+        showToast(cb.checked ? 'Procédure ouverte ✅' : 'Procédure retirée ✅');
+        if(typeof apresEnregistrement === 'function') apresEnregistrement();
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        cb.checked = !cb.checked;
+        zone.querySelectorAll('.revProc').forEach(x => {
+          if(x.dataset.gele === 'oui'){ x.disabled = false; x.dataset.gele = ''; }
+        });
+      }
+    });
+
+    zone.appendChild(lab);
+  });
+
+  det.appendChild(zone);
+  return det;
+}
+
+
+/* ============================================================
    LES CODES D'ACCÈS DES ÉLÈVES
 
    Chaque élève reçoit un code à six chiffres pour entrer dans son
@@ -1315,10 +1444,19 @@ async function ouvrirCodesEleves(){
     ouvrirGestionLangues();
   });
 
+  /* Le catalogue des procédures et ce que chaque formation donne :
+     calculés par le script, pas ici. La règle de « qui voit quoi »
+     doit rester écrite à un seul endroit — sinon l'écran promet un
+     accès que l'élève n'a pas. */
+  let catalogue = [];
+  let parBoite = {};
+
   const dessiner = async () => {
     try{
       const d = await appelPrep({ action: 'accesElevesList' });
       const liste = (d && d.acces) || [];
+      catalogue = (d && d.procedures) || [];
+      parBoite = (d && d.parBoite) || {};
 
       zListe.innerHTML = '<div style="font-size:13px;font-weight:700;' +
         'color:var(--accent-text);margin-bottom:8px;">' +
@@ -1468,7 +1606,16 @@ async function ouvrirCodesEleves(){
         });
         l.appendChild(bSup);
 
-        zListe.appendChild(l);
+        /* Une carte par élève : la ligne de tête, puis ce à quoi il
+           a accès en révisions. */
+        const carte = document.createElement('div');
+        carte.style.cssText = 'border-bottom:1px solid rgba(255,255,255,.05);' +
+          'padding-bottom:6px;' + (a.actif ? '' : 'opacity:.5;');
+        l.style.borderBottom = 'none';
+        l.style.opacity = '';
+        carte.appendChild(l);
+        carte.appendChild(blocRevisions(a, catalogue, parBoite, dessiner));
+        zListe.appendChild(carte);
       });
     }catch(e){
       zListe.innerHTML = '<div class="empty">⚠️ ' +
