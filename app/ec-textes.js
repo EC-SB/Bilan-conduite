@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:31 — v669 */
+/* Déployé le 28/08/2026 à 16:38 — v670 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -28,11 +28,11 @@ const USAGES_MODELE = [
     variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
                '{note}', '{prenom}', '{eleve}',
                '{date}', '{datecourte}', '{heure}', '{heure+2h}',
-               '{duree}', '{moniteur}', '{site}'] },
+               '{duree}', '{moniteur}', '{site}', '{lien}'] },
   { cle:'rappel_financeur', nom:'💶 Rappel de cours par mail — financeur',
     variables:['{eleve}', '{prenom}', '{date}', '{datecourte}', '{heure}',
                '{typeseance}', '{emplacement}', '{voiture}', '{moniteur}',
-               '{moniteurligne}', '{note}', '{mention48h}'] },
+               '{moniteurligne}', '{note}', '{mention48h}', '{lien}'] },
   { cle:'procedure',      nom:'🚦 Procédure de conduite',
     variables:[] },
   { cle:'libre',          nom:'📄 Texte libre',
