@@ -1,167 +1,437 @@
+/* Déployé le 28/08/2026 à 16:13 — v667 */
 /* ============================================================
    ec-sms.js
-   Intégration de l'outil d'envoi de SMS, hébergé au même endroit.
-   Il n'est chargé qu'à l'ouverture du tiroir : inutile de le
-   télécharger pour quelqu'un qui ne s'en sert pas.
+   L'envoi de SMS, réservé au bureau.
+
+   Les rappels partent par mail : c'est gratuit et le financeur
+   les reçoit aussi. Le SMS reste pour l'urgence — un élève à
+   prévenir tout de suite, une voiture au garage — et il est
+   facturé au segment. Cet écran montre ce que chaque message
+   coûte AVANT de partir, parce qu'un compteur qui annonce
+   « 1 SMS » pour huit segments facturés ne prévient personne.
+
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-const URL_SMS = 'https://ec-sb.github.io/SMS2/';
+/* Combien de rappels par jour, sur combien de jours : ce que le
+   simulateur suppose tant qu'on n'a pas bougé les curseurs. */
+const SIMU_DEFAUT = { parJour: 20, jours: 6 };
 
-/* L'outil SMS a ses propres codes : on retient celui de chacun
-   pour ne le demander qu'une seule fois. */
-const CLE_CODE_SMS = 'code_sms_';
+let journalEnvois = null;
 
-function codeSmsMemorise(){
-  try{
-    return localStorage.getItem(CLE_CODE_SMS + normaliserMot(ACCES.moniteur || '')) || '';
-  }catch(e){ return ''; }
+/* ------------------------------------------------------------
+   L'ÉCRAN
+   ------------------------------------------------------------ */
+async function afficherSms(){
+  const zone = $('smsZone');
+  if(!zone) return;
+
+  zone.innerHTML = '';
+  zone.appendChild(blocAvertissement());
+  zone.appendChild(blocComposition());
+  zone.appendChild(blocSimulateur());
+
+  const j = document.createElement('div');
+  j.id = 'smsJournal';
+  j.style.marginTop = '16px';
+  zone.appendChild(j);
+
+  brancherComposition();
+  majAnalyseSms();
+  afficherJournalEnvois();
 }
 
-function memoriserCodeSms(code){
-  try{
-    localStorage.setItem(CLE_CODE_SMS + normaliserMot(ACCES.moniteur || ''), code);
-  }catch(e){}
+/* Pourquoi cet écran n'est pas dans les rappels : il faut le dire
+   ici, c'est là qu'on se pose la question. */
+function blocAvertissement(){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:11px;' +
+    'padding:11px 12px;margin-bottom:14px;font-size:13px;line-height:1.6;';
+  d.innerHTML =
+    '<strong>⚠️ Le SMS est facturé, le mail non.</strong><br>' +
+    '<span style="color:var(--muted);">Les rappels de cours partent ' +
+    'désormais par mail depuis 🔔 Rappels de cours : c\'est gratuit, et ' +
+    'le financeur le reçoit aussi. Cet écran ne sert qu\'aux envois ' +
+    'urgents. Chaque message est facturé <strong>au segment</strong> : ' +
+    '160 caractères, ou <strong>70 seulement</strong> si un emoji ou une ' +
+    'lettre accentuée hors alphabet standard s\'y glisse.</span>';
+  return d;
 }
 
-function oublierCodeSms(){
-  try{
-    localStorage.removeItem(CLE_CODE_SMS + normaliserMot(ACCES.moniteur || ''));
-  }catch(e){}
+function blocComposition(){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:11px;padding:12px;';
+  d.innerHTML =
+    '<label for="smsEleve">👤 Élève (facultatif)</label>' +
+    '<input type="text" id="smsEleve" list="listeEleves" ' +
+           'placeholder="Nom de l\'élève, pour le journal">' +
+    '<label for="smsTel">📱 Numéro</label>' +
+    '<input type="tel" id="smsTel" inputmode="tel" placeholder="06 12 34 56 78">' +
+    '<div id="smsTelEtat" style="font-size:12px;margin:-6px 0 10px;"></div>' +
+    '<label for="smsTexte">💬 Message</label>' +
+    '<textarea id="smsTexte" rows="6" ' +
+              'placeholder="Ce que l\'élève doit lire tout de suite."></textarea>' +
+    '<div id="smsAnalyse" style="margin:8px 0 10px;"></div>' +
+    '<div id="smsFautifs" style="margin-bottom:10px;"></div>';
+
+  const rang = document.createElement('div');
+  rang.style.cssText = 'display:flex;gap:8px;';
+
+  const bNet = document.createElement('button');
+  bNet.className = 'btn btn-secondary';
+  bNet.id = 'smsNettoyer';
+  bNet.style.cssText = 'flex:1;padding:11px;font-size:13px;margin:0;';
+  bNet.textContent = '🧹 Nettoyer';
+  bNet.title = 'Retire ce qui coûte cher sans toucher aux accents qui passent';
+  rang.appendChild(bNet);
+
+  const bEnv = document.createElement('button');
+  bEnv.className = 'btn btn-primary';
+  bEnv.id = 'smsEnvoyer';
+  bEnv.style.cssText = 'flex:2;padding:11px;font-size:13px;margin:0;';
+  bEnv.textContent = '💬 Envoyer';
+  rang.appendChild(bEnv);
+
+  d.appendChild(rang);
+
+  const etat = document.createElement('div');
+  etat.id = 'smsEtatEnvoi';
+  etat.style.cssText = 'font-size:13px;line-height:1.5;margin-top:9px;';
+  d.appendChild(etat);
+
+  return d;
 }
 
-let cadreSmsCharge = false;
+/* ------------------------------------------------------------
+   LE COMPTEUR
 
-function chargerCadreSms(){
-  const zone = $('smsCadre');
-  if(!zone || cadreSmsCharge) return;
+   Il dit trois choses : combien de segments, combien ça coûte, et
+   — le plus utile — QUEL caractère fait basculer le message.
+   ------------------------------------------------------------ */
+function majAnalyseSms(){
+  const t = $('smsTexte') ? $('smsTexte').value : '';
+  const a = analyserSms(t);
+
+  const z = $('smsAnalyse');
+  if(z){
+    const chaud = !a.gsm || a.segments > 1;
+    z.style.cssText = 'border-radius:9px;padding:9px 11px;font-size:13px;' +
+      'line-height:1.6;border:1px solid ' +
+      (chaud ? 'var(--orange)' : 'var(--line)') + ';';
+    z.innerHTML =
+      '<strong>' + a.segments + ' segment' + (a.segments > 1 ? 's' : '') +
+      ' — ' + euro(a.prix) + '</strong>' +
+      '<span style="color:var(--muted);"> · ' + a.caracteres + ' caractères, ' +
+      a.unites + ' unités facturées · alphabet ' + a.alphabet + '</span>' +
+      '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
+      (a.segments === 0 ? 'Message vide.'
+        : (a.marge >= 0
+            ? 'Encore ' + a.marge + ' unités avant le segment suivant.'
+            : '')) +
+      '</div>';
+  }
+
+  const zf = $('smsFautifs');
+  if(zf){
+    const liste = fautifsResumes(a);
+    if(!liste.length){ zf.innerHTML = ''; }
+    else{
+      zf.style.cssText = 'font-size:12px;line-height:1.7;color:var(--muted);' +
+        'border-left:3px solid var(--orange);padding-left:9px;';
+      zf.innerHTML = '<strong style="color:var(--warn-text);">' +
+        'Ces caractères font passer tout le message à 70 par segment :' +
+        '</strong><br>' +
+        liste.map(f =>
+          '<code style="font-size:14px;">' +
+          (f.car === '\n' ? '↵' : f.car.replace(/</g, '&lt;')) + '</code>' +
+          ' ×' + f.combien +
+          (f.remplacement ? ' → <code>' + f.remplacement + '</code>' : '')
+        ).join(' &nbsp;·&nbsp; ');
+    }
+  }
+
+  const b = $('smsEnvoyer');
+  if(b){
+    const tel = $('smsTel') ? $('smsTel').value.trim() : '';
+    b.disabled = !tel || !a.segments;
+    b.textContent = a.segments
+      ? '💬 Envoyer (' + a.segments + ' segment' +
+        (a.segments > 1 ? 's' : '') + ' — ' + euro(a.prix) + ')'
+      : '💬 Envoyer';
+  }
+}
+
+/* ------------------------------------------------------------
+   LE SIMULATEUR
+
+   « Combien ça me coûterait si je repassais tous les rappels en
+   SMS ? » La question mérite une réponse chiffrée, pas une
+   intuition.
+   ------------------------------------------------------------ */
+function blocSimulateur(){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:11px;' +
+    'padding:12px;margin-top:14px;';
+  d.innerHTML =
+    '<h3 style="margin:0 0 4px;font-size:14px;">🧮 Ce que coûterait une campagne</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:11px;line-height:1.5;">' +
+    'Le nombre de segments est repris du message ci-dessus. Change les ' +
+    'deux chiffres pour simuler.</div>' +
+    '<div style="display:flex;gap:10px;">' +
+      '<div style="flex:1;"><label for="simuParJour">Envois par jour</label>' +
+      '<input type="number" id="simuParJour" min="0" max="500" value="' +
+      SIMU_DEFAUT.parJour + '"></div>' +
+      '<div style="flex:1;"><label for="simuJours">Jours par semaine</label>' +
+      '<input type="number" id="simuJours" min="0" max="7" value="' +
+      SIMU_DEFAUT.jours + '"></div>' +
+    '</div>' +
+    '<div id="simuResultat" style="margin-top:6px;"></div>';
+  return d;
+}
+
+function majSimulateur(){
+  const z = $('simuResultat');
+  if(!z) return;
+
+  const t = $('smsTexte') ? $('smsTexte').value : '';
+  const a = analyserSms(t);
+  const seg = a.segments || 1;
+  const parJour = parseInt(($('simuParJour') || {}).value, 10) || 0;
+  const jours   = parseInt(($('simuJours')   || {}).value, 10) || 0;
+
+  const c = coutPeriode(seg, parJour, jours);
+
+  /* Le même volume écrit proprement : c'est la comparaison qui
+     fait comprendre, pas le chiffre seul. */
+  const propre = analyserSms(nettoyerSms(t)).segments || 1;
+  const cp = coutPeriode(propre, parJour, jours);
+
+  z.style.cssText = 'font-size:13px;line-height:1.7;border-radius:9px;' +
+    'border:1px solid var(--line);padding:10px 11px;';
+  z.innerHTML =
+    '<div><strong>' + c.envoisMois + ' envois par mois</strong> · ' +
+    c.segmentsMois + ' segments</div>' +
+    '<div style="font-size:19px;font-weight:800;color:var(--warn-text);margin:2px 0;">' +
+    euro(c.euroMois) + ' <span style="font-size:13px;font-weight:400;' +
+    'color:var(--muted);">par mois — ' + euro(c.euroAn) + ' par an</span></div>' +
+    (propre < seg
+      ? '<div style="font-size:12px;color:var(--accent-text);margin-top:4px;">' +
+        '🧹 En nettoyant le message : ' + propre + ' segment' +
+        (propre > 1 ? 's' : '') + ' au lieu de ' + seg + ', soit <strong>' +
+        euro(cp.euroMois) + '/mois</strong> — ' +
+        euro(c.euroAn - cp.euroAn) + ' économisés par an.</div>'
+      : '<div style="font-size:12px;color:var(--muted);margin-top:4px;">' +
+        'Ce message est déjà au plus court.</div>');
+}
+
+/* ------------------------------------------------------------
+   LES BRANCHEMENTS
+   ------------------------------------------------------------ */
+function brancherComposition(){
+  const t = $('smsTexte');
+  if(t) t.addEventListener('input', () => { majAnalyseSms(); majSimulateur(); });
+
+  const tel = $('smsTel');
+  if(tel) tel.addEventListener('input', majAnalyseSms);
+
+  ['simuParJour', 'simuJours'].forEach(id => {
+    const e = $(id);
+    if(e) e.addEventListener('input', majSimulateur);
+  });
+
+  const bn = $('smsNettoyer');
+  if(bn) bn.addEventListener('click', () => {
+    const z = $('smsTexte');
+    if(!z) return;
+    const avant = analyserSms(z.value);
+    z.value = nettoyerSms(z.value);
+    const apres = analyserSms(z.value);
+    majAnalyseSms(); majSimulateur();
+    showToast(apres.segments < avant.segments
+      ? 'Nettoyé : ' + avant.segments + ' → ' + apres.segments + ' segments ✅'
+      : 'Rien à retirer, le message était déjà au plus court.');
+  });
+
+  const be = $('smsEnvoyer');
+  if(be) be.addEventListener('click', envoyerSmsDepuisEcran);
+
+  majSimulateur();
+}
+
+async function envoyerSmsDepuisEcran(){
+  const b = $('smsEnvoyer');
+  const z = $('smsEtatEnvoi');
+  const texte = $('smsTexte') ? $('smsTexte').value : '';
+  const tel   = $('smsTel')   ? $('smsTel').value.trim() : '';
+  const nom   = $('smsEleve') ? $('smsEleve').value.trim() : '';
+  if(!texte.trim() || !tel) return;
+
+  const a = analyserSms(texte);
+
+  if(!await confirmer('Envoyer ce SMS' + (nom ? ' à ' + nom : '') + ' ?\n\n' +
+      'Numéro : ' + tel + '\n' +
+      a.segments + ' segment' + (a.segments > 1 ? 's' : '') +
+      ' facturé' + (a.segments > 1 ? 's' : '') + ' — ' + euro(a.prix) +
+      (a.gsm ? '' : '\n\n⚠️ Le message est en Unicode : 70 caractères par ' +
+                    'segment au lieu de 160. « Nettoyer » le ramènerait à ' +
+                    analyserSms(nettoyerSms(texte)).segments + '.'))) return;
+
+  b.disabled = true;
+  b.textContent = 'Envoi…';
+  try{
+    const n = await envoyerMessageComplet(tel, texte, nom);
+    if(z){
+      z.style.color = 'var(--accent-text)';
+      z.textContent = '✅ Envoyé — ' + a.segments + ' segment' +
+        (a.segments > 1 ? 's' : '') + ' facturé(s), ' + euro(a.prix);
+    }
+    showToast('SMS envoyé ✅');
+    if($('smsTexte')) $('smsTexte').value = '';
+    majAnalyseSms(); majSimulateur();
+    afficherJournalEnvois(true);
+  }catch(e){
+    if(z){ z.style.color = 'var(--warn-text)'; z.textContent = '⚠️ ' + e.message; }
+    showToast("L'envoi a échoué");
+  }
+  b.disabled = false;
+  majAnalyseSms();
+}
+
+/* ------------------------------------------------------------
+   LE JOURNAL
+
+   Ce qui est parti, à qui, par quel canal, et dans quel état.
+   Sans trace écrite, personne ne peut dire si un élève a été
+   prévenu — et c'est exactement ce qu'on cherche quand quelqu'un
+   ne vient pas.
+   ------------------------------------------------------------ */
+function voyantEnvoi(etat){
+  const e = String(etat || '').toLowerCase();
+  if(e.indexOf('refus') !== -1 || e.indexOf('échec') !== -1 ||
+     e.indexOf('echec') !== -1) return { p: '🔴', nom: 'refusé', c: 'var(--warn-text)' };
+  if(e.indexOf('confirm') !== -1) return { p: '🔵', nom: 'confirmé', c: 'var(--accent-text)' };
+  return { p: '🟢', nom: 'envoyé', c: 'var(--accent-text)' };
+}
+
+async function afficherJournalEnvois(recharger){
+  const zone = $('smsJournal');
+  if(!zone) return;
+
+  if(recharger) journalEnvois = null;
+
+  if(journalEnvois === null){
+    zone.innerHTML = '<div class="empty">Lecture du journal…</div>';
+    try{
+      const d = await appelPrep({ action: 'smsList', combien: 200 });
+      journalEnvois = (d && d.sms) || [];
+    }catch(e){
+      zone.innerHTML = '<div class="empty">⚠️ ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+      return;
+    }
+  }
 
   zone.innerHTML = '';
 
-  const attente = document.createElement('div');
-  attente.className = 'empty';
-  attente.textContent = "Chargement de l'outil d'envoi…";
-  zone.appendChild(attente);
+  const titre = document.createElement('h3');
+  titre.style.cssText = 'margin:0 0 8px;font-size:14px;';
+  titre.textContent = '📜 Journal des envois';
+  zone.appendChild(titre);
 
-  const cadre = document.createElement('iframe');
-  cadre.src = URL_SMS;
-  cadre.title = 'Envoi de SMS';
-  cadre.setAttribute('loading', 'lazy');
-  /* Il a besoin de son stockage pour retenir la session et le journal */
-  cadre.setAttribute('allow', 'clipboard-write');
-  cadre.style.cssText = 'width:100%;height:70vh;min-height:520px;border:0;display:block;' +
-    'background:var(--navy);';
+  if(!journalEnvois.length){
+    zone.innerHTML += '<div class="empty">Aucun envoi pour le moment.</div>';
+    return;
+  }
 
-  cadre.addEventListener('load', () => {
-    if(attente.parentNode) zone.removeChild(attente);
-    cadreSmsCharge = true;
-    connecterSmsAutomatiquement(cadre);
-  });
+  /* Ce que le mois en cours a coûté : seuls les SMS comptent */
+  const mois = new Date().toLocaleDateString('fr-FR').slice(3);
+  const duMois = journalEnvois.filter(x => (x.quand || '').indexOf(mois) === 3);
+  const smsMois = duMois.filter(x => String(x.canal || 'sms') === 'sms');
+  const segMois = smsMois.reduce((n, x) => n + (parseInt(x.parties, 10) || 1), 0);
+  const mailsMois = duMois.length - smsMois.length;
 
-  /* Si l'outil ne répond pas, on ne laisse pas un cadre vide */
-  setTimeout(() => {
-    if(cadreSmsCharge) return;
-    if(!attente.parentNode) return;
-    attente.innerHTML = "⚠️ L'outil d'envoi met du temps à répondre.<br>" +
-      '<span style="font-size:12px;">Utilise « Ouvrir à part » si rien ne s\'affiche.</span>';
-  }, 8000);
+  const t = document.createElement('div');
+  t.style.cssText = 'padding:10px 12px;border:1px solid var(--line);' +
+    'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
+  t.innerHTML = '<strong>Ce mois-ci</strong> · ✉️ ' + mailsMois +
+    ' mail(s) — gratuit · 💬 ' + smsMois.length + ' SMS, ' + segMois +
+    ' segments — <strong>' + euro(segMois * prixSegmentEuro()) + '</strong>';
+  zone.appendChild(t);
 
-  zone.appendChild(cadre);
+  const rech = document.createElement('input');
+  rech.type = 'text';
+  rech.placeholder = '🔍 Filtrer par élève, adresse, numéro ou moniteur';
+  rech.style.marginBottom = '10px';
+  zone.appendChild(rech);
+
+  const liste = document.createElement('div');
+  zone.appendChild(liste);
+
+  const dessiner = () => {
+    const q = normaliserMot(rech.value.trim());
+    liste.innerHTML = '';
+
+    journalEnvois
+      .filter(x => !q ||
+        normaliserMot(x.eleve || '').indexOf(q) !== -1 ||
+        normaliserMot(x.numero || '').indexOf(q) !== -1 ||
+        normaliserMot(x.par || '').indexOf(q) !== -1)
+      .slice(0, 200)
+      .forEach(x => liste.appendChild(ligneJournal(x)));
+
+    if(!liste.children.length){
+      liste.innerHTML = '<div class="empty">Aucun envoi ne correspond.</div>';
+    }
+  };
+  rech.addEventListener('input', dessiner);
+  dessiner();
 }
 
-function rechargerCadreSms(){
-  cadreSmsCharge = false;
-  const zone = $('smsCadre');
-  if(zone) zone.innerHTML = '';
-  chargerCadreSms();
-}
-
-
-
-/* ============================================================
-   CONNEXION AUTOMATIQUE
-   Les deux applications sont au même endroit : on peut remplir
-   la connexion de l'outil SMS sans que l'utilisateur la refasse.
-   ============================================================ */
-function connecterSmsAutomatiquement(cadre){
-  let doc;
-  try{ doc = cadre.contentWindow.document; }
-  catch(e){ return; }          /* accès refusé : on laisse la connexion manuelle */
-  if(!doc) return;
-
-  const champ = doc.getElementById('loginCode');
-  const bouton = doc.getElementById('loginBtn');
-  const ecran = doc.getElementById('loginScreen');
-
-  /* Déjà connecté : rien à faire */
-  if(!champ || !bouton) return;
-  if(ecran && ecran.style.display === 'none') return;
-
-  /* Le code mémorisé, sinon celui de l'application si le format colle */
-  let code = codeSmsMemorise();
-  if(!code && /^[0-9]{6}$/.test(String(ACCES.code || ''))) code = String(ACCES.code);
-  if(!code){ proposerCodeSms(cadre); return; }
-
-  champ.value = code;
-  bouton.click();
-
-  /* On vérifie le résultat : un code refusé ne doit pas rester mémorisé */
-  setTimeout(() => {
-    try{
-      const encore = doc.getElementById('loginScreen');
-      const rate = encore && encore.style.display !== 'none';
-      if(rate){
-        oublierCodeSms();
-        proposerCodeSms(cadre);
-      }else{
-        memoriserCodeSms(code);
-      }
-    }catch(e){}
-  }, 1800);
-}
-
-/* Demande le code de l'outil SMS, une seule fois */
-async function proposerCodeSms(cadre){
-  const zone = $('smsCadre');
-  if(!zone || zone.querySelector('.demandeSms')) return;
+function ligneJournal(x){
+  const canal = String(x.canal || 'sms');
+  const v = voyantEnvoi(x.etat);
 
   const d = document.createElement('div');
-  d.className = 'demandeSms';
-  d.style.cssText = 'padding:12px;background:var(--navy);border-bottom:1px solid var(--line);' +
-    'font-size:13px;line-height:1.5;';
-  d.innerHTML = "🔑 L'outil SMS a son propre code. Saisis-le une fois, " +
-    'il sera retenu pour les prochaines fois.';
+  d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
+    'padding:8px 11px;margin-bottom:5px;font-size:13px;line-height:1.55;';
 
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+  const seg = parseInt(x.parties, 10) || 1;
+  const cout = (canal === 'sms')
+    ? ' · ' + seg + ' segment' + (seg > 1 ? 's' : '') +
+      ' — ' + euro(seg * prixSegmentEuro())
+    : ' · gratuit';
 
-  const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.inputMode = 'numeric';
-  inp.placeholder = 'Code à 6 chiffres';
-  inp.style.cssText = 'flex:1;margin:0;padding:9px 10px;font-size:15px;min-width:0;';
-  r.appendChild(inp);
+  d.innerHTML =
+    '<div style="display:flex;gap:8px;align-items:baseline;">' +
+      '<span style="flex-shrink:0;">' + v.p + '</span>' +
+      '<span style="flex:1;min-width:0;">' +
+        '<strong>' + String(x.eleve || '—').replace(/</g, '&lt;') + '</strong>' +
+        ' <span style="color:var(--muted);">' +
+        (canal === 'mail' ? '✉️' : '💬') + ' ' +
+        String(x.numero || '').replace(/</g, '&lt;') + '</span>' +
+        '<div style="font-size:11px;color:var(--muted);">' +
+          String(x.quand || '').replace(/</g, '&lt;') +
+          (x.par ? ' · ' + String(x.par).replace(/</g, '&lt;') : '') +
+          cout +
+          ' · <span style="color:' + v.c + ';">' +
+          String(x.etat || v.nom).replace(/</g, '&lt;') + '</span>' +
+        '</div>' +
+      '</span>' +
+    '</div>';
 
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'width:auto;padding:9px 14px;font-size:13px;margin:0;flex-shrink:0;';
-  b.textContent = 'Connecter';
-  b.addEventListener('click', () => {
-    const v = inp.value.trim();
-    if(!/^[0-9]{6}$/.test(v)){ showToast('Le code fait 6 chiffres.'); return; }
-    memoriserCodeSms(v);
-    d.remove();
-    try{
-      const doc = cadre.contentWindow.document;
-      doc.getElementById('loginCode').value = v;
-      doc.getElementById('loginBtn').click();
-    }catch(e){}
-  });
-  r.appendChild(b);
+  /* Le message lui-même, replié : la liste doit rester lisible */
+  if(x.message){
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-top:5px;';
+    det.innerHTML = '<summary style="font-size:11px;color:var(--muted);' +
+      'cursor:pointer;">Voir le message</summary>' +
+      '<div style="font-size:12px;white-space:pre-wrap;margin-top:5px;' +
+      'color:var(--muted);">' +
+      String(x.message).replace(/</g, '&lt;') + '</div>';
+    d.appendChild(det);
+  }
 
-  d.appendChild(r);
-  zone.insertBefore(d, zone.firstChild);
-  setTimeout(() => inp.focus(), 100);
+  return d;
 }
 
 /* Signale que ce module est bien chargé */
