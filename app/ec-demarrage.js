@@ -558,6 +558,15 @@ $('prepTous').addEventListener('change', () => afficherPrepares(false));
 if($('prepQui')) $('prepQui').addEventListener('change', () => afficherPrepares(false));
 if($('prepPour')) remplirPourQui();
 
+/* Seconde chance : à l'ouverture du tiroir, on remplit le menu si la
+   liste n'était pas encore lue au chargement de la page. C'est le
+   moment précis où l'on en a besoin, et ça ne coûte rien. */
+if($('prepTiroir')){
+  $('prepTiroir').addEventListener('toggle', () => {
+    if($('prepTiroir').open && typeof remplirPourQui === 'function') remplirPourQui();
+  });
+}
+
 /* ============================================================
    CE QUI SE DICTE, ET CE QUI SE REMPLIT
 
