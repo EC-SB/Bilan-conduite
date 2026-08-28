@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:06 — v637 */
+/* Déployé le 28/08/2026 à 13:14 — v651 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -795,6 +795,19 @@ function buildExamenBlanc(ai, ctx){
   const P = [];
   const L = s => P.push(s);
 
+  /* Glissé dans un rendez-vous pédagogique, l'examen blanc n'a pas
+     de section 1 : l'élève ne roule pas jusqu'au centre d'examen,
+     et sa carte SD comme son installation sont déjà en haut du
+     bilan du RVP. */
+  const sansAvant = !!ai.sansAvant;
+
+  if(sansAvant){
+    L('━━━━━━━━━━━━━━━━━━');
+    L('👋 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 𝔻𝕌 ℝ𝔼ℕ𝔻𝔼ℤ-𝕍𝕆𝕌𝕊 👀');
+    L('━━━━━━━━━━━━━━━━━━');
+    L('');
+  }else{
+
   L('👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 👀');
   L('');
   L('𝟭 - 𝗔𝗩𝗔𝗡𝗧 𝗟\'𝗘𝗫𝗔𝗠𝗘𝗡');
@@ -819,6 +832,8 @@ function buildExamenBlanc(ai, ctx){
     L('👉' + (routeErr[i] ? ' ' + routeErr[i] : ''));
     L('');
   }
+  }   /* fin de la section 1, sautée dans un rendez-vous pédagogique */
+
   L('');
   L('𝟮 - 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟\'𝗘𝗫𝗔𝗠𝗘𝗡');
   L('━━━━━━━━━━━━━━━━━━');
@@ -1060,7 +1075,23 @@ function buildExamen(ai){
 /* ============================================================
    AAC — RENDEZ-VOUS PÉDAGOGIQUE (RVP)
    ============================================================ */
-function buildRvp(ai){
+/* Un examen blanc a-t-il été rempli pendant le rendez-vous ?
+   Une case cochée ne suffit pas : on regarde s'il y a quelque
+   chose dedans, sinon un module ouvert puis refermé ajouterait
+   un bloc vide au bilan. */
+function examenBlancRempli(eb){
+  if(!eb || typeof eb !== 'object') return false;
+  return Object.keys(eb).some(k => {
+    const v = eb[k];
+    if(v === null || v === undefined) return false;
+    if(typeof v === 'string') return v.trim() !== '';
+    if(Array.isArray(v)) return v.length > 0;
+    if(typeof v === 'object') return Object.keys(v).length > 0;
+    return !!v;
+  });
+}
+
+function buildRvp(ai, ctx){
   const r = (ai && ai.rubriques) || {};
   const refl = ((ai && ai.reflexions) || []).map(txt).filter(Boolean);
   const errs = (ai && ai.bilanErreurs) || [];
@@ -1151,6 +1182,16 @@ function buildRvp(ai){
   parts.push('');
   parts.push('𝟴- 𝙇𝘼 𝙑𝙀𝙄𝙇𝙇𝙀 𝘿𝙀 𝙏𝙊𝙉 𝙀𝙓𝘼𝙈𝙀𝙉 🆔');
   parts.push('N\'oublie pas de nous donner ta carte d\'identité et en attendant envoie-moi la photo de ta carte d\'identité recto verso ici (pour s\'assurer qu\'elle est bien en ta possession, car pas de carte d\'identité, pas de permis !)');
+
+  /* L'examen blanc fait pendant le rendez-vous, s'il y en a eu un.
+     Il vient à la fin, après tout le reste, et rien ne change au
+     bilan quand le moniteur n'a pas ouvert le module. */
+  const eb = ai && ai.examenBlanc;
+  if(examenBlancRempli(eb)){
+    parts.push('');
+    parts.push(buildExamenBlanc(Object.assign({}, eb, { sansAvant: true }), ctx));
+  }
+
   return parts.join('\n');
 }
 
