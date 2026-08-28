@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 12:49 — v648 */
+/* Déployé le 28/08/2026 à 13:01 — v650 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -252,11 +252,22 @@ const CHAMPS_MANUELS = {
            'l\'état de l\'élève, un souci pendant l\'examen, une ' +
            'remarque de l\'inspecteur.' }
   ],
+  /* Le rendez-vous pédagogique : ce que le constructeur attend,
+     et rien d'autre. Le bloc de notes unique d'avant n'était lu
+     nulle part — tout ce qu'on y écrivait était perdu. */
   rvp: [
-    { cle:'resume',      type:'texte', nom:'Déroulé du rendez-vous', lignes:12 }
+    { cle:'carteSD',      type:'ok', nom:'Carte SD', defaut:'✅' },
+    { cle:'installation', type:'ok', nom:'Installation', defaut:'✅' },
+    { cle:'passager',     type:'ok', nom:'Passager', defaut:'✅' },
+    { cle:'voyants',      type:'ok', nom:'Voyants', defaut:'✅' },
+    { cle:'rubriques',    type:'rubriques', nom:'🧠 Erreurs de ce jour' }
   ],
+  /* La formation accompagnateur : carte SD, installation et les
+     neuf rubriques. Même constat que pour le RVP. */
   accompagnateur: [
-    { cle:'resume',      type:'texte', nom:'Déroulé de la formation', lignes:12 }
+    { cle:'carteSD',      type:'ok', nom:'Carte SD', defaut:'✅' },
+    { cle:'installation', type:'ok', nom:'Installation', defaut:'✅' },
+    { cle:'rubriques',    type:'rubriques', nom:'🧠 Erreurs de ce jour' }
   ]
 };
 
@@ -964,6 +975,61 @@ async function ouvrirBilanManuel(){
 
       bloc.appendChild(r);
 
+    }else if(ch.type === 'rubriques'){
+      /* Les neuf rubriques d'erreurs, une zone de texte chacune.
+
+         Le bloc de notes unique qui tenait lieu de formulaire
+         n'était lu par aucun constructeur : ce que le moniteur y
+         écrivait n'arrivait jamais dans le bilan. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      aide.textContent = 'Une remarque par ligne. Une rubrique laissée vide ' +
+        'sort avec son titre seul, comme sur la fiche.';
+      bloc.appendChild(aide);
+
+      (typeof RUBRIQUES !== 'undefined' ? RUBRIQUES : []).forEach(([cleR, titre]) => {
+        const z = document.createElement('div');
+        z.style.cssText = 'margin-bottom:10px;';
+
+        const t2 = document.createElement('div');
+        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+          'margin-bottom:5px;';
+        /* Le titre du bilan, sans sa ponctuation de fin : c'est le
+           même repère que le moniteur retrouvera dans le texte. */
+        t2.textContent = String(titre).replace(/\s*:\s*$/, '');
+        z.appendChild(t2);
+
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+
+        const t = document.createElement('textarea');
+        t.className = 'rubriqueManuelle';
+        t.setAttribute('data-cle', ch.cle + '.' + cleR);
+        t.rows = 2;
+        t.placeholder = 'Une remarque par ligne';
+        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:16px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+        r.appendChild(t);
+
+        if(dicteePossible()){
+          const mic = document.createElement('button');
+          mic.type = 'button';
+          mic.className = 'btn btn-secondary';
+          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
+          mic.textContent = '🎙️';
+          mic.title = 'Dicter dans ' + t2.textContent;
+          mic.addEventListener('click', () => dicterDans(t, mic));
+          r.appendChild(mic);
+        }
+
+        z.appendChild(r);
+        bloc.appendChild(z);
+      });
     }else if(ch.type === 'eval3'){
       /* Une rubrique d'évaluation : son état, puis ce qu'il y a à
          corriger. Le bilan attend les deux — un état sans le détail
@@ -3008,6 +3074,13 @@ function lireChampsManuels(){
         }
       });
       champsManuels[ch.cle] = obs;
+
+    }else if(ch.type === 'rubriques'){
+      /* Chaque rubrique écrit sa propre clé : « rubriques.pad »
+         devient ai.rubriques.pad, ce que blocRubriques() attend. */
+      document.querySelectorAll('.rubriqueManuelle').forEach(t => {
+        champsManuels[t.getAttribute('data-cle')] = t.value.trim();
+      });
 
     }else if(ch.type === 'eval3'){
       /* L'état est posé au clic ; il ne reste que le détail.
