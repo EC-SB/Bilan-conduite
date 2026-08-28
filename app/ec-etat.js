@@ -92,7 +92,14 @@ var EMPLACEMENTS_BASE = [
     sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗮𝗻𝘀 𝗹𝗮 𝘀𝗮𝗹𝗹𝗲 𝗱𝗲 𝗰𝗼𝘂𝗿𝘀 !' },
 
   { cle:'simulateur', emoji:'🖥️', nom:'Simulateur', sansVehicule:true,
-    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗲𝘃𝗮𝗻𝘁 𝗹𝗲 𝘀𝗶𝗺𝘂𝗹𝗮𝘁𝗲𝘂𝗿 !' }
+    sms:'𝗥𝗲𝗻𝗱𝗲𝘇-𝘃𝗼𝘂𝘀 𝗱𝗲𝘃𝗮𝗻𝘁 𝗹𝗲 𝘀𝗶𝗺𝘂𝗹𝗮𝘁𝗲𝘂𝗿 !' },
+
+  { cle:'voiturette', emoji:'🚙', nom:'Voiturette',
+    sms:"𝗧𝗮 𝘃𝗼𝗶𝘁𝘂𝗿𝗲𝘁𝘁𝗲 𝘁'𝗮𝘁𝘁𝗲𝗻𝗱 𝗮̀ 𝗹'𝗮𝘂𝘁𝗼-𝗲́𝗰𝗼𝗹𝗲 !" },
+
+  /* Rien à venir chercher : le rendez-vous est à distance. */
+  { cle:'visio', emoji:'💻', nom:'En visio', sansVehicule:true,
+    sms:'𝗢𝗻 𝘀𝗲 𝗿𝗲𝘁𝗿𝗼𝘂𝘃𝗲 𝗲𝗻 𝘃𝗶𝘀𝗶𝗼 !' }
 ];
 
 /* Les emplacements que le bureau a modifiés.
