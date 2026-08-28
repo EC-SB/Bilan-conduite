@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:56 — v640 */
+/* Déployé le 28/08/2026 à 11:12 — v641 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -526,12 +526,15 @@ function ouvrirEditeurModele(modele, usageImpose){
     g('mdUsage').disabled = true;
     g('mdUsage').style.opacity = '.6';
 
-    /* L'affichage a été calculé avant que l'usage soit posé : le
-       champ « Pour qui ? » restait caché sur une procédure. */
-    const bb = boite.querySelector('#mdBlocBoite');
-    if(bb){
-      bb.style.display = (usageImpose === 'procedure') ? 'block' : 'none';
-    }
+    /* L'affichage a été calculé avant que l'usage soit posé : les
+       blocs réservés aux procédures restaient cachés.
+
+       On rappelle majBoite() au lieu de rejouer la règle ici. La
+       copie qui traînait à cet endroit ne connaissait que « Pour
+       qui ? » : le bloc des consignes de correction, ajouté après,
+       est resté invisible. Deux copies d'une même décision, c'est
+       la seconde qu'on oublie de compléter. */
+    majBoite();
   }
   majVars();
 
