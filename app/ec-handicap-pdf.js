@@ -1,3 +1,4 @@
+/* Déployé le 28/08/2026 à 12:43 — v647 */
 /* ============================================================
    ec-handicap-pdf.js
    La fiche d'évaluation, en PDF.
@@ -24,10 +25,120 @@ const HP = {
 /* Ce que le moniteur vient de remplir */
 function donneesHandicap(){
   const h = {};
-  Object.keys(champsManuels || {}).forEach(k => {
-    if(k.indexOf('handicap.') !== 0) return;
-    h[k.slice(9)] = champsManuels[k];
+  Object.keys(typeof champsManuels !== 'undefined' ? (champsManuels || {}) : {})
+    .forEach(k => {
+      if(k.indexOf('handicap.') !== 0) return;
+      h[k.slice(9)] = champsManuels[k];
+    });
+
+  /* Rien en mémoire : la fiche vient de l'historique, rouverte des
+     jours plus tard. On la relit dans le texte du bilan, qui la
+     contient en entier — et c'est lui qui fait foi, le moniteur
+     ayant pu le corriger à la main avant d'enregistrer. */
+  if(!Object.keys(h).length){
+    return handicapDepuisTexte(($('resultText') && $('resultText').value) || '');
+  }
+  return h;
+}
+
+
+/* ============================================================
+   RELIRE UNE FICHE DÉJÀ ENREGISTRÉE
+
+   buildHandicap() écrit la fiche selon un format fixe : on la
+   relit avec les mêmes repères. Les titres sont en caractères
+   gras Unicode — il faut les ramener à des lettres ordinaires
+   avant d'espérer les reconnaître.
+   ============================================================ */
+
+/* L'inverse de grasUnicode() : 𝗥𝗲𝗴𝗮𝗿𝗱 redevient Regard */
+function sansGras(s){
+  return Array.from(String(s || '')).map(ch => {
+    const c = ch.codePointAt(0);
+    if(c >= 0x1D5D4 && c <= 0x1D5ED) return String.fromCharCode(65 + (c - 0x1D5D4));
+    if(c >= 0x1D5EE && c <= 0x1D607) return String.fromCharCode(97 + (c - 0x1D5EE));
+    if(c >= 0x1D7EC && c <= 0x1D7F5) return String.fromCharCode(48 + (c - 0x1D7EC));
+    return ch;
+  }).join('');
+}
+
+/* Ce texte est-il une fiche d'évaluation ? C'est le contenu qu'on
+   interroge, pas une étiquette : le bilan rouvert depuis
+   l'historique ne dit plus quel modèle l'a produit. */
+function estFicheEvaluation(texte){
+  const t = sansGras(String(texte || ''))
+    .toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return /FICHE\s+D['’]EVALUATION/.test(t);
+}
+
+/* La clé de comparaison d'un libellé : sans gras, sans accents,
+   sans le deux-points final des titres. */
+function clefLigneHandicap(s){
+  return sansGras(String(s || ''))
+    .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ').replace(/\s*:\s*$/, '').trim();
+}
+
+function handicapDepuisTexte(texte){
+  const h = {};
+  const brut = String(texte || '');
+  if(!brut.trim()) return h;
+
+  /* Chaque contrôle par son libellé, pour retrouver sa clé */
+  const parNom = {};
+  (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : [])
+    .forEach(l => { parNom[clefLigneHandicap(l.nom)] = l.cle; });
+
+  let section = 'entete';
+  let courant = '';
+  const problematique = [];
+  const conclusion = [];
+
+  brut.split('\n').forEach(ligneBrute => {
+    const ligne = String(ligneBrute).replace(/\s+$/, '');
+    const nu = sansGras(ligne).trim();
+
+    /* Un séparateur ferme la section en cours */
+    if(/^[━─—_-]{3,}$/.test(nu)){
+      if(section === 'problematique') section = 'controles';
+      return;
+    }
+
+    let m;
+    if((m = nu.match(/^👤\s*Conducteur\s*:\s*(.*)$/))){ h.conducteur = m[1].trim(); return; }
+    if((m = nu.match(/^🎓\s*Formateur\s*:\s*(.*)$/))){ h.formateur = m[1].trim(); return; }
+    if((m = nu.match(/^📅\s*Date\s*:\s*(.*)$/))){ h.date = m[1].trim(); return; }
+
+    if(/^❓/.test(nu)){ section = 'problematique'; courant = ''; return; }
+    if(/^📋/.test(nu)){ section = 'conclusion'; courant = ''; return; }
+
+    if(!nu) return;
+    if(section === 'entete') return;
+    if(section === 'problematique'){ problematique.push(nu); return; }
+    if(section === 'conclusion'){ conclusion.push(nu); return; }
+
+    /* Une observation : buildHandicap l'indente de trois espaces */
+    if(/^\s{3,}/.test(ligne) && courant){
+      h[courant + 'O'] = (h[courant + 'O'] ? h[courant + 'O'] + '\n' : '') + nu;
+      return;
+    }
+
+    /* Sinon : un contrôle, avec ou sans sa note.
+
+       Le drapeau u n'est pas décoratif : 🟢 s'écrit sur deux unités
+       de code, et sans lui la classe ne reconnaissait qu'une moitié
+       d'émoji — aucune note n'était relue. */
+    const av = nu.match(/^(.*?)\s+[\u{1F7E2}\u{1F7E0}\u{1F534}]\s*([ABC])\b/u);
+    const libelle = av ? av[1] : nu;
+    const cle = parNom[clefLigneHandicap(libelle)];
+    if(!cle){ courant = ''; return; }
+
+    courant = cle;
+    if(av) h[cle + 'N'] = av[2];
   });
+
+  if(problematique.length) h.problematique = problematique.join('\n');
+  if(conclusion.length) h.conclusion = conclusion.join('\n');
   return h;
 }
 
@@ -189,6 +300,26 @@ function nomFichierHandicap(h){
 /* ============================================================
    LES BOUTONS, SOUS LE BILAN
    ============================================================ */
+
+/* Montre ou cache les sorties de la fiche, selon ce qu'affiche
+   l'écran. Appelée à la génération du bilan ET à l'ouverture d'un
+   bilan depuis l'historique : une fiche faite la semaine dernière
+   doit se retélécharger comme celle du jour. */
+function majBoutonsHandicap(){
+  const zh = $('handicapActions');
+  if(!zh) return;
+
+  const texte = ($('resultText') && $('resultText').value) || '';
+  /* Le modèle en cours quand on vient de la remplir ; le texte
+     lui-même quand elle remonte de l'historique, où plus rien ne
+     dit de quel modèle elle vient. */
+  const surFiche = (($('modele') && $('modele').value) === 'handicap') ||
+                   estFicheEvaluation(texte);
+
+  zh.innerHTML = '';
+  zh.style.display = surFiche ? 'block' : 'none';
+  if(surFiche) boutonsHandicap(zh);
+}
 
 function boutonsHandicap(zone){
   const r = document.createElement('div');
