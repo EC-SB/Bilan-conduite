@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:06 — v637 */
+/* Déployé le 28/08/2026 à 11:44 — v644 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1881,7 +1881,7 @@ function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs){
   const legende = document.createElement('div');
   legende.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;' +
     'margin:0 0 8px;';
-  legende.textContent = '🚗 = déjà fait dans une autre auto-école';
+  legende.textContent = '🚗 = autre auto-école';
   zone.appendChild(legende);
 
   /* Ce que le moniteur avait coché à la préparation, ou plus tôt
