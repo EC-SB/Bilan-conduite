@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:01 — v650 */
+/* Déployé le 28/08/2026 à 13:14 — v651 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -271,11 +271,54 @@ const CHAMPS_MANUELS = {
   ]
 };
 
+/* ============================================================
+   L'EXAMEN BLANC GLISSÉ DANS UN RENDEZ-VOUS PÉDAGOGIQUE
+
+   Les mêmes champs qu'un examen blanc, moins la section 1 : au
+   RVP l'élève ne roule pas jusqu'au centre d'examen, et sa carte
+   SD comme son installation sont déjà en haut du bilan.
+
+   Le schéma est DÉRIVÉ de celui de l'examen blanc, jamais recopié :
+   un champ ajouté là-bas arrive ici tout seul. Les clés sont
+   préfixées, sinon « bilanErreurs » écraserait celui du RVP.
+   ============================================================ */
+CHAMPS_MANUELS.rvp = CHAMPS_MANUELS.rvp.concat(
+  [{ cle:'__eb', type:'depliant', nom:'📝 Examen blanc fait pendant le RVP',
+     aide:'À ouvrir seulement si tu en as fait un. Laissé fermé, le ' +
+          'bilan sort comme avant.' }],
+  CHAMPS_MANUELS.examenblanc
+    /* La section 1 saute : elle n'a pas lieu d'être ici */
+    .filter(c => c.cle.indexOf('avant.') !== 0 && c.cle !== '__t1')
+    .map(c => Object.assign({}, c, {
+      cle: (c.cle.indexOf('__') === 0) ? c.cle + 'Rvp' : 'examenBlanc.' + c.cle
+    }))
+);
+
 /* La boîte automatique part du même formulaire que la boîte manuelle,
    puis les deux évoluent séparément. */
 CHAMPS_MANUELS.conduiteResumeAuto =
   JSON.parse(JSON.stringify(CHAMPS_MANUELS.conduiteResume));
 
+
+/* Le préfixe des champs d'examen blanc.
+
+   Sur un examen blanc, ils vivent à la racine : « niveau »,
+   « cepc », « examen.verifNote ». Glissés dans un rendez-vous
+   pédagogique, ils sont rangés sous « examenBlanc. » — sinon
+   « bilanErreurs » écraserait celui du RVP, qui n'a ni la même
+   forme ni le même sens. */
+let prefixeExamenBlanc = '';
+
+/* L'identifiant d'un champ. TOUS les points sont remplacés :
+   replace('.','_') n'en remplaçait qu'un, et une clé préfixée en
+   compte deux (« examenBlanc.examen.verifNote »). */
+function idChamp(cle){
+  return 'man_' + String(cle || '').split('.').join('_');
+}
+
+/* La clé du champ « niveau » en cours : elle change avec le
+   préfixe, et c'est elle qui décide de ce qui s'affiche. */
+let cleNiveauCourante = 'niveau';
 
 /* champsManuels : déclaré dans ec-etat.js */
 /* modeManuel : déclaré dans ec-etat.js */
@@ -647,1135 +690,12 @@ async function ouvrirBilanManuel(){
     surveillerChampsManuels();
   }
 
-  champs.forEach(ch => {
-    const bloc = document.createElement('div');
-    bloc.style.cssText = 'margin-bottom:16px;';
-
-    /* Certains champs ne servent que si l élève a le niveau :
-       les montrer ailleurs fait remplir pour rien. */
-    if(ch.siNiveau) bloc.dataset.siNiveau = ch.siNiveau;
-
-    if(ch.type === 'rappelFrise'){
-      /* Sa frise et ses leçons faites : de quoi juger sans
-         remonter chercher l'information ailleurs. */
-      const frise = (dossierManuel && dossierManuel.frise) ||
-                    extraireFrise($('noteInterne').value);
-      /* Le numéro écrit dans son dernier bilan fait autorité : un
-         élève venu de l'ancien fonctionnement n'a qu'un bilan
-         enregistré alors qu'il en est à sa huitième leçon. */
-      const faites = leconsFaites();
-
-      if(frise || faites !== null){
-        bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-          'padding:10px 12px;margin-bottom:12px;';
-        bloc.innerHTML =
-          '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">' +
-            '📋 Pour mémoire</div>' +
-          (frise
-            ? '<div style="font-size:13px;line-height:1.5;">' +
-              String(frise).replace(/</g, '&lt;') + '</div>'
-            : '') +
-          (faites !== null
-            ? '<div style="font-size:13px;color:var(--accent-text);' +
-              'margin-top:4px;">' + faites + ' leçon(s) déjà effectuée(s)</div>'
-            : '');
-      }else{
-        bloc.style.display = 'none';
-      }
-
-
-
-
-    }else if(ch.type === 'tableauHandicap'){
-      /* Le tableau du document papier : trois colonnes sur écran
-         large, deux sur téléphone — l'observation descend alors
-         sous la ligne pour garder de la place où écrire. */
-      const t = document.createElement('div');
-      t.className = 'ficheEval';
-
-      const tete = document.createElement('div');
-      tete.className = 'fe-tete';
-      ['Contrôle', 'Niveau', 'Observations'].forEach(x => {
-        const s = document.createElement('span');
-        s.textContent = x;
-        tete.appendChild(s);
-      });
-      t.appendChild(tete);
-
-      const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
-
-      (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : [])
-        .forEach(l => {
-          const cleN = 'handicap.' + l.cle + 'N';
-          const cleO = 'handicap.' + l.cle + 'O';
-
-          const li = document.createElement('div');
-          li.className = 'fe-ligne ' + (l.titre ? 'fe-rubrique' : 'fe-sous');
-
-          const nom = document.createElement('span');
-          nom.className = 'fe-nom';
-          nom.textContent = l.nom;
-          li.appendChild(nom);
-
-          const notes = document.createElement('div');
-          notes.className = 'fe-notes';
-
-          const peindre = () => {
-            Array.prototype.forEach.call(notes.children, b => {
-              const pris = (b.textContent === champsManuels[cleN]);
-              b.style.background = pris ? (couleurs[b.textContent] || 'var(--muted)')
-                                        : 'var(--navy)';
-              b.style.borderColor = pris ? (couleurs[b.textContent] || 'var(--line)')
-                                         : 'var(--line)';
-              b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
-              b.style.fontWeight = pris ? '800' : '400';
-            });
-          };
-
-          [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi]) => {
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 'btn btn-secondary';
-            b.textContent = v;
-            b.title = quoi;
-            b.addEventListener('click', () => {
-              /* Un second appui efface : le moniteur se ravise */
-              champsManuels[cleN] = (champsManuels[cleN] === v) ? '' : v;
-              peindre();
-            });
-            notes.appendChild(b);
-          });
-
-          peindre();
-          li.appendChild(notes);
-
-          const obs = document.createElement('div');
-          obs.className = 'fe-obs';
-          const i = document.createElement('input');
-          i.type = 'text';
-          i.placeholder = 'Observations';
-          i.value = champsManuels[cleO] || '';
-          i.addEventListener('input', () => {
-            champsManuels[cleO] = i.value;
-          });
-          obs.appendChild(i);
-          li.appendChild(obs);
-
-          t.appendChild(li);
-        });
-
-      bloc.appendChild(t);
-
-    }else if(ch.type === 'abc'){
-      /* Les trois niveaux du document : A bon, B moyen, C faible.
-         Une rubrique se note comme une sous-ligne — le document
-         papier laisse les deux notables. */
-      bloc.style.cssText = 'margin-bottom:4px;display:flex;gap:10px;' +
-        'align-items:center;flex-wrap:wrap;';
-
-      const l = document.createElement('span');
-      l.textContent = ch.nom;
-      l.style.cssText = 'flex:1;min-width:130px;font-size:14px;' +
-        (ch.rubrique ? 'font-weight:700;color:var(--accent-text);'
-                     : 'padding-left:14px;color:var(--cream);');
-      bloc.appendChild(l);
-
-      const r = document.createElement('div');
-      r.id = 'abc_' + ch.cle.replace('.', '_');
-      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
-
-      const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
-
-      [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;';
-        b.textContent = v;
-        b.title = quoi;
-        b.setAttribute('data-val', v);
-
-        b.addEventListener('click', () => {
-          /* Un second appui efface : le moniteur peut se raviser */
-          const pris = (champsManuels[ch.cle] === v);
-          champsManuels[ch.cle] = pris ? '' : v;
-
-          Array.prototype.forEach.call(r.children, x => {
-            const sien = (x.getAttribute('data-val') === champsManuels[ch.cle]);
-            x.style.background = sien ? (couleurs[x.textContent] || 'var(--muted)')
-                                      : 'var(--navy)';
-            x.style.borderColor = sien ? (couleurs[x.textContent] || 'var(--line)')
-                                       : 'var(--line)';
-            x.style.color = sien ? '#0B0B0B' : 'var(--cream)';
-            x.style.fontWeight = sien ? '800' : '400';
-          });
-        });
-
-        r.appendChild(b);
-      });
-
-      bloc.appendChild(r);
-
-    }else if(ch.type === 'note3'){
-      /* La note se reporte sur le CEPC : quatre boutons valent
-         mieux qu'un texte à relire. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const d = document.createElement('div');
-      d.style.cssText = 'display:flex;gap:6px;';
-
-      const champ = document.createElement('input');
-      champ.type = 'hidden';
-      champ.id = 'man_' + ch.cle.replace('.', '_');
-      champ.value = '';
-      d.appendChild(champ);
-
-      const peindre = () => {
-        Array.prototype.forEach.call(d.children, b => {
-          if(b.tagName !== 'BUTTON') return;
-          const pris = (b.textContent === champ.value);
-          b.style.background = pris ? 'var(--orange)' : 'var(--navy)';
-          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
-          b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
-          b.style.fontWeight = pris ? '800' : '400';
-        });
-      };
-
-      ['0', '1', '2', '3'].forEach(v => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:10px 16px;font-size:15px;margin:0;';
-        b.textContent = v;
-        b.addEventListener('click', () => {
-          /* Un second appui efface : le moniteur peut se raviser */
-          champ.value = (champ.value === v) ? '' : v;
-          champsManuels[ch.cle] = champ.value;
-          peindre();
-          if(typeof reporterNotesCepc === 'function') reporterNotesCepc();
-        });
-        d.appendChild(b);
-      });
-
-      const s = document.createElement('span');
-      s.style.cssText = 'font-size:13px;color:var(--muted);align-self:center;';
-      s.textContent = '/ 3';
-      d.appendChild(s);
-
-      bloc.appendChild(d);
-      peindre();
-
-    }else if(ch.type === 'heures'){
-      /* Les heures avant permis : presque toujours un nombre pair
-         de 2 à 10. Une liste évite de taper, tout en laissant la
-         saisie libre. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const d = document.createElement('div');
-      d.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
-
-      const inp = document.createElement('input');
-      inp.type = 'number';
-      inp.id = 'man_' + ch.cle;
-      inp.min = '0';
-      inp.step = '1';
-      inp.placeholder = 'autre';
-      inp.style.cssText = 'width:84px;font-size:17px;text-align:center;margin:0;';
-
-      const peindre = () => {
-        Array.prototype.forEach.call(d.children, b => {
-          if(b.tagName !== 'BUTTON') return;
-          const pris = (b.textContent === inp.value);
-          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
-          b.style.color = pris ? 'var(--accent-text)' : 'var(--cream)';
-          b.style.fontWeight = pris ? '800' : '400';
-        });
-      };
-
-      const changer = () => {
-        champsManuels[ch.cle] = inp.value;
-        peindre();
-        if(typeof remplirFrises === 'function'){
-          remplirFrises(champsManuels, true);
-        }
-      };
-
-      ['2', '4', '6', '8', '10'].forEach(v => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:11px 14px;font-size:15px;margin:0;';
-        b.textContent = v;
-        b.addEventListener('click', () => { inp.value = v; changer(); });
-        d.appendChild(b);
-      });
-
-      inp.addEventListener('input', changer);
-      d.appendChild(inp);
-      bloc.appendChild(d);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
-        'line-height:1.5;';
-      a.textContent = 'Les 3h avant examen viennent en plus : ' +
-        '« 4 » signifie 4 + 3.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'niveau' || ch.type === 'ouinon'){
-      bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
-        'align-items:center;flex-wrap:wrap;';
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      l.style.cssText = 'flex:1;min-width:140px;margin:0;font-size:14px;' +
-        'text-transform:none;color:var(--cream);';
-      bloc.appendChild(l);
-      const r = document.createElement('div');
-      r.id = 'ouinon_' + ch.cle;
-      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
-      /* Trois issues au niveau : il l'a, il ne l'a pas, ou il
-         pourrait l'avoir sans qu'on puisse chiffrer les heures. */
-      const choix = (ch.type === 'niveau')
-        ? [['✅ Oui', 'oui'], ['🤔 Pourrait', 'peut'],
-           ['❌ Pas le niveau', 'non'], ['—', '']]
-        : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
-      choix.forEach(([lab, val]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
-        b.textContent = lab;
-        b.setAttribute('data-val', val);
-
-
-        b.addEventListener('click', () => {
-          champsManuels[ch.cle] = val;
-
-          /* Le choix doit sauter aux yeux : une bordure seule se
-             remarque mal, surtout à bout de bras dans la voiture.
-
-             La même peinture sert quand l'application répond à la
-             place du moniteur : rien ne doit distinguer les deux. */
-          peindreOuiNon(r, val);
-
-          /* Le niveau décide de ce qui reste utile */
-          if(ch.type === 'niveau' && typeof majChampsSelonNiveau === 'function'){
-            majChampsSelonNiveau();
-          }
-        });
-        r.appendChild(b);
-      });
-      /* Une réponse déjà connue — la date de permis, une frise —
-         se montre d'emblée, aussi nettement qu'un choix du
-         moniteur. */
-      if(champsManuels[ch.cle]) peindreOuiNon(r, champsManuels[ch.cle]);
-
-      bloc.appendChild(r);
-
-    }else if(ch.type === 'rubriques'){
-      /* Les neuf rubriques d'erreurs, une zone de texte chacune.
-
-         Le bloc de notes unique qui tenait lieu de formulaire
-         n'était lu par aucun constructeur : ce que le moniteur y
-         écrivait n'arrivait jamais dans le bilan. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const aide = document.createElement('div');
-      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-      aide.textContent = 'Une remarque par ligne. Une rubrique laissée vide ' +
-        'sort avec son titre seul, comme sur la fiche.';
-      bloc.appendChild(aide);
-
-      (typeof RUBRIQUES !== 'undefined' ? RUBRIQUES : []).forEach(([cleR, titre]) => {
-        const z = document.createElement('div');
-        z.style.cssText = 'margin-bottom:10px;';
-
-        const t2 = document.createElement('div');
-        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
-          'margin-bottom:5px;';
-        /* Le titre du bilan, sans sa ponctuation de fin : c'est le
-           même repère que le moniteur retrouvera dans le texte. */
-        t2.textContent = String(titre).replace(/\s*:\s*$/, '');
-        z.appendChild(t2);
-
-        const r = document.createElement('div');
-        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-
-        const t = document.createElement('textarea');
-        t.className = 'rubriqueManuelle';
-        t.setAttribute('data-cle', ch.cle + '.' + cleR);
-        t.rows = 2;
-        t.placeholder = 'Une remarque par ligne';
-        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
-          'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:16px;' +
-          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
-        r.appendChild(t);
-
-        if(dicteePossible()){
-          const mic = document.createElement('button');
-          mic.type = 'button';
-          mic.className = 'btn btn-secondary';
-          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
-          mic.textContent = '🎙️';
-          mic.title = 'Dicter dans ' + t2.textContent;
-          mic.addEventListener('click', () => dicterDans(t, mic));
-          r.appendChild(mic);
-        }
-
-        z.appendChild(r);
-        bloc.appendChild(z);
-      });
-    }else if(ch.type === 'eval3'){
-      /* Une rubrique d'évaluation : son état, puis ce qu'il y a à
-         corriger. Le bilan attend les deux — un état sans le détail
-         ne dit pas à l'élève quoi retravailler.
-
-         Non touchée, la rubrique ressort « ✅ ❌ 🍊 » dans le bilan,
-         comme sur la fiche papier : c'est st3o() qui le fait, et
-         c'est voulu. */
-      const ligne = document.createElement('div');
-      ligne.style.cssText = 'display:flex;gap:10px;align-items:center;' +
-        'margin-bottom:6px;';
-
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
-        'text-transform:none;color:var(--cream);';
-      ligne.appendChild(l);
-
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
-
-      const boutons = [];
-      [['✅', '✅'], ['🍊', '🍊'], ['❌', '❌'], ['—', '']].forEach(([lab, val]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:7px 10px;font-size:15px;margin:0;' +
-          'transition:transform .1s, background .1s;';
-        b.textContent = lab;
-        boutons.push(b);
-        b.addEventListener('click', () => {
-          champsManuels[ch.cle + '.statut'] = val;
-          boutons.forEach(x => {
-            x.style.borderColor = 'var(--line)';
-            x.style.background = 'var(--navy)';
-            x.style.color = 'var(--cream)';
-            x.style.fontWeight = '400';
-            x.style.transform = 'none';
-            x.style.boxShadow = 'none';
-          });
-          const couleurs = {
-            '✅': ['var(--orange)', '#0B0B0B'],
-            '🍊': ['var(--ambre)', 'var(--sur-ambre)'],
-            '❌': ['var(--red)', '#FFFFFF'],
-            '':   ['var(--muted)', '#0B0B0B']
-          };
-          const [fond, texte] = couleurs[val] || couleurs[''];
-          b.style.background = fond;
-          b.style.borderColor = fond;
-          b.style.color = texte;
-          b.style.fontWeight = '700';
-          b.style.transform = 'scale(1.06)';
-          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
-        });
-        r.appendChild(b);
-      });
-      ligne.appendChild(r);
-      bloc.appendChild(ligne);
-
-      /* Le détail. Un point par ligne, comme dans les autres bilans. */
-      const t = document.createElement('textarea');
-      t.id = 'manEval_' + ch.cle.split('.').join('_');
-      t.rows = 2;
-      t.placeholder = 'Ce qu\'il y a à corriger — une ligne par point';
-      t.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-        'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:15px;' +
-        'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
-      bloc.appendChild(t);
-
-    }else if(ch.type === 'ok'){
-      /* Passager et voyants décident de la note d'installation */
-      const surInstallation = (ch.cle === 'examen.instPassager' ||
-                               ch.cle === 'examen.instVoyants');
-      /* Trois états : ✅ ❌ ou rien. Compact et sur une seule ligne
-         avec son libellé : un bilan en compte une dizaine, et de
-         gros boutons empilés faisaient défiler pour rien. */
-      bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
-        'align-items:center;';
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
-        'text-transform:none;color:var(--cream);';
-      bloc.appendChild(l);
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
-      [['✅','✅'], ['❌','❌'], ['—','']].forEach(([lab, val]) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:7px 11px;font-size:15px;margin:0;' +
-          'transition:transform .1s, background .1s;';
-        b.textContent = lab;
-        b.addEventListener('click', () => {
-          champsManuels[ch.cle] = val;
-
-          /* La note d'installation se déduit des deux cases */
-          if(surInstallation && typeof reporterNotesCepc === 'function'){
-            reporterNotesCepc();
-          }
-
-          /* Le choix doit sauter aux yeux : une bordure seule se
-             remarque mal, surtout à bout de bras dans la voiture. */
-          Array.prototype.forEach.call(r.children, x => {
-            x.style.borderColor = 'var(--line)';
-            x.style.color = 'var(--cream)';
-            x.style.background = 'var(--navy)';
-            x.style.fontWeight = '400';
-            x.style.transform = 'none';
-            x.style.boxShadow = 'none';
-          });
-
-          const couleurs = {
-            '✅': ['var(--orange)', '#0B0B0B'],
-            '❌': ['var(--red)', '#FFFFFF'],
-            '':   ['var(--muted)', '#0B0B0B']
-          };
-          const [fond, texte] = couleurs[val] || couleurs[''];
-          b.style.background = fond;
-          b.style.borderColor = fond;
-          b.style.color = texte;
-          b.style.fontWeight = '700';
-          b.style.transform = 'scale(1.04)';
-          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
-        });
-        if((ch.defaut || '') === val) setTimeout(() => b.click(), 0);
-        r.appendChild(b);
-      });
-      bloc.appendChild(r);
-
-    }else if(ch.type === 'manoeuvres'){
-      const liste = BLOC.ficheListeConduite;
-      const dejaFaites = (dossier.manoeuvres || []).map(normaliserMot);
-
-      const lm = document.createElement('label');
-      lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
-      bloc.appendChild(lm);
-      const zm = document.createElement('div');
-      zm.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-        'padding:10px 12px;max-height:260px;overflow-y:auto;';
-      liste.forEach(nom => {
-        const dejaOk = dejaFaites.indexOf(normaliserMot(nom)) !== -1;
-        const lab = document.createElement('label');
-        lab.style.cssText = 'display:flex;align-items:center;gap:9px;padding:5px 0;' +
-          'font-size:15px;text-transform:none;margin:0;color:' +
-          (dejaOk ? 'var(--muted)' : 'var(--cream)') + ';';
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = nom;
-        cb.className = 'chManuel-' + ch.cle;
-        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
-        lab.appendChild(cb);
-        lab.appendChild(document.createTextNode(nom + (dejaOk ? '  (déjà validée)' : '')));
-        zm.appendChild(lab);
-      });
-      bloc.appendChild(zm);
-
-    }else if(ch.type === 'competences'){
-      /* Le modèle attend un statut ET des erreurs par compétence :
-         une simple case à cocher ne suffisait pas. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const aide = document.createElement('div');
-      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-      aide.textContent = 'Laisse « non travaillé » pour les compétences non abordées ' +
-        "aujourd'hui : elles n'apparaîtront pas dans le bilan.";
-      bloc.appendChild(aide);
-
-      (modele.comps || []).forEach(comp => {
-        const cle = comp.cle || '';
-        const titre = comp.titre || comp.nom || cle;
-
-        const zc = document.createElement('div');
-        zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-          'padding:9px 11px;margin-bottom:7px;';
-
-        const h = document.createElement('div');
-        h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-
-        const t = document.createElement('span');
-        t.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:600;';
-        t.textContent = titre;
-        h.appendChild(t);
-
-        const sel = document.createElement('select');
-        sel.className = 'compStatut';
-        sel.setAttribute('data-comp', cle);
-        sel.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:14px;flex-shrink:0;';
-        /* Les valeurs sont les émojis attendus par l'assembleur */
-        sel.innerHTML = '<option value="">— non travaillé —</option>' +
-          '<option value="✅">✅ Acquis</option>' +
-          '<option value="🟠">🟠 En cours</option>' +
-          '<option value="❌">❌ À revoir</option>';
-        h.appendChild(sel);
-        zc.appendChild(h);
-
-        const err = document.createElement('textarea');
-        err.className = 'compErreurs';
-        err.setAttribute('data-comp', cle);
-        err.rows = 2;
-        err.placeholder = 'Erreurs à corriger, une par ligne';
-        err.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-          'color:var(--cream);padding:8px 10px;border-radius:8px;font-size:14px;' +
-          'line-height:1.5;font-family:inherit;resize:vertical;display:none;margin:0;';
-        zc.appendChild(err);
-
-        /* Les erreurs n'ont de sens que si la compétence a été travaillée */
-        sel.addEventListener('change', () => {
-          err.style.display = sel.value ? 'block' : 'none';
-        });
-
-        bloc.appendChild(zc);
-      });
-
-    }else if(ch.type === 'themes'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
-      a.textContent = 'Remplis seulement les rubriques utiles : les autres ne sortiront pas.';
-      bloc.appendChild(a);
-
-      THEMES_ERREURS.forEach(th => {
-        const b = document.createElement('div');
-        b.style.cssText = 'margin-bottom:10px;';
-        const t2 = document.createElement('div');
-        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-        t2.textContent = th.nom;
-        b.appendChild(t2);
-
-        const r = document.createElement('div');
-        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-        const t = document.createElement('textarea');
-        t.rows = 2;
-        t.className = 'themeErreur';
-        t.setAttribute('data-theme', th.nom);
-        t.placeholder = 'Une remarque par ligne';
-        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
-          'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:16px;' +
-          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
-        r.appendChild(t);
-        if(dicteePossible()){
-          const mic = document.createElement('button');
-          mic.type = 'button';
-          mic.className = 'btn btn-secondary';
-          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
-          mic.textContent = '🎙️';
-          mic.title = 'Dicter dans ' + th.nom;
-          mic.addEventListener('click', () => dicterDans(t, mic));
-          r.appendChild(mic);
-        }
-        b.appendChild(r);
-        bloc.appendChild(b);
-      });
-
-    }else if(ch.type === 'cepc'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const aide = document.createElement('div');
-      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.5;';
-      aide.textContent = "Appuie sur la note de chaque compétence, comme sur le CEPC " +
-        "de l'inspecteur. Un second appui l'efface.";
-      bloc.appendChild(aide);
-
-      /* Le document officiel est sur fond blanc : on le reproduit
-         tel quel, même en thème sombre. C'est sa ressemblance avec
-         le vrai CEPC qui aide le moniteur à s'y retrouver. */
-      const z = document.createElement('div');
-      z.style.cssText = 'background:#FFFFFF;border:1px solid #D3DCE6;' +
-        'border-radius:8px;padding:0;overflow:hidden;';
-
-      const entete = document.createElement('div');
-      entete.style.cssText = 'display:flex;justify-content:space-between;' +
-        'align-items:baseline;padding:10px 12px 8px;border-bottom:1px solid #D3DCE6;';
-      entete.innerHTML =
-        '<span style="font-size:13px;font-weight:800;color:#0B2E4F;">' +
-          'Bilan de compétences</span>' +
-        '<span style="font-size:9px;color:#8A94A0;">Niveaux d\'appréciation</span>';
-      z.appendChild(entete);
-
-      /* Un compteur continu : sur le document, l'alternance ne se
-         remet pas à zéro à chaque section. */
-      let rangLigne = 0;
-      CEPC_BLOCS.forEach(g => {
-        const t = document.createElement('div');
-        t.style.cssText = 'font-size:12px;font-weight:800;color:#0B2E4F;' +
-          'padding:12px 12px 6px;background:#FFFFFF;';
-        t.textContent = g.titre;
-        z.appendChild(t);
-        g.items.forEach(it => {
-          z.appendChild(ligneCepc(it.nom, it.valeurs, rangLigne));
-          rangLigne++;
-        });
-      });
-
-      const tt = document.createElement('div');
-      tt.style.cssText = 'font-size:12px;font-weight:800;color:#0B2E4F;' +
-        'padding:12px 12px 4px;border-top:1px solid #D3DCE6;margin-top:8px;';
-      tt.textContent = 'Résultat';
-      z.appendChild(tt);
-
-      const tot = document.createElement('div');
-      tot.id = 'cepcTotal';
-      tot.style.cssText = 'padding:6px 12px 14px;font-size:13px;font-weight:800;' +
-        'color:#1568C8;display:flex;justify-content:space-between;align-items:center;';
-      z.appendChild(tot);
-      bloc.appendChild(z);
-      setTimeout(majTotalCepc, 0);
-
-    }else if(ch.type === 'photo'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const inp = document.createElement('input');
-      inp.type = 'file';
-      inp.accept = 'image/*';
-      inp.id = 'photo_' + ch.cle;
-      inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
-        'color:var(--cream);padding:11px;border-radius:10px;font-size:14px;';
-      bloc.appendChild(inp);
-      const apercu = document.createElement('div');
-      apercu.id = 'apercu_' + ch.cle;
-      apercu.style.cssText = 'margin-top:8px;';
-      bloc.appendChild(apercu);
-      const aide = document.createElement('div');
-      aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;';
-      aide.textContent = "La photo reste sur ce téléphone : elle sert au moniteur pendant " +
-        "le rendez-vous, elle n'est pas envoyée dans le bilan.";
-      bloc.appendChild(aide);
-
-      inp.addEventListener('change', () => {
-        const f = inp.files && inp.files[0];
-        apercu.innerHTML = '';
-        if(!f) return;
-        const img = document.createElement('img');
-        img.src = URL.createObjectURL(f);
-        img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
-        apercu.appendChild(img);
-        champsManuels[ch.cle] = f.name;
-      });
-
-    }else if(ch.type === 'inspecteur'){
-      /* La liste des inspecteurs, partagée par toute l'équipe :
-         un nom ajouté ici sert à tout le monde. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const sel = document.createElement('select');
-      sel.id = 'man_' + ch.cle;
-      sel.innerHTML = '<option value="">— à choisir —</option>' +
-        inspecteursConnus().map(n =>
-          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
-          String(n).replace(/</g, '&lt;') + '</option>').join('') +
-        '<option value="__autre__">➕ En ajouter un…</option>';
-
-      sel.addEventListener('change', async () => {
-        if(sel.value !== '__autre__') return;
-
-        const nom = await demander('Nom de l\'inspecteur', '',
-                                   'Nouvel inspecteur');
-        if(!nom || !nom.trim()){ sel.value = ''; return; }
-
-        const propre = nom.trim();
-        await ajouterInspecteur(propre);
-
-        const o = document.createElement('option');
-        o.value = propre;
-        o.textContent = propre;
-        sel.insertBefore(o, sel.lastElementChild);
-        sel.value = propre;
-      });
-      bloc.appendChild(sel);
-
-    }else if(ch.type === 'repassage'){
-      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
-         Le second nombre ne bouge pas. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const d = document.createElement('div');
-      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
-
-      const iq = document.createElement('input');
-      iq.type = 'number';
-      iq.id = 'man_' + ch.cle;
-      iq.min = '0';
-      iq.step = '1';
-      iq.value = '4';
-      iq.inputMode = 'numeric';
-      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
-      d.appendChild(iq);
-
-      const t = document.createElement('span');
-      t.style.cssText = 'font-size:16px;color:var(--muted);';
-      t.textContent = '+ 3 heures';
-      d.appendChild(t);
-
-      bloc.appendChild(d);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
-        'line-height:1.5;';
-      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
-        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'envoiAvant'){
-      /* De quoi envoyer la première moitié sans attendre la fin
-         de l'examen. */
-      bloc.style.cssText = 'margin:2px 0 8px;';
-
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'padding:12px;font-size:13px;' +
-        'border-color:var(--ambre);color:var(--ambre);';
-      b.textContent = '📤 Envoyer la partie avant examen';
-      b.addEventListener('click', () => envoyerAvantExamen());
-      bloc.appendChild(b);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
-        'text-align:center;line-height:1.5;';
-      a.textContent = "L'élève reçoit cette partie tout de suite. " +
-        'Sa fiche reste en haut pour la suite.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'titre'){
-      /* Un intertitre : il sépare deux moments de l'examen, et
-         porte le bouton d'envoi de sa partie. */
-      bloc.style.cssText = 'margin:22px 0 12px;padding-top:14px;' +
-        'border-top:2px solid var(--line);';
-
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:17px;font-weight:800;color:var(--accent-text);';
-      t.textContent = ch.nom;
-      bloc.appendChild(t);
-
-      if(ch.aide){
-        const a = document.createElement('div');
-        a.style.cssText = 'font-size:12px;color:var(--muted);margin-top:3px;' +
-          'line-height:1.5;';
-        a.textContent = ch.aide;
-        bloc.appendChild(a);
-      }
-
-
-    }else if(ch.type === 'entete'){
-      /* La première partie du bilan, telle que l'élève la lira :
-         le moniteur coche dans le texte au lieu de répondre à une
-         suite de questions détachées de leur contexte. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const z = document.createElement('div');
-      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-        'border-radius:10px;padding:12px 13px;font-size:14px;line-height:1.55;';
-
-      const ligneCase = (cle, texte, apres) => {
-        const d = document.createElement('div');
-        d.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:5px 0;';
-
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'enteteCase';
-        cb.setAttribute('data-cle', cle);
-        cb.checked = true;                 /* ✅ par défaut, comme avant */
-        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:2px;';
-        d.appendChild(cb);
-
-        const t = document.createElement('div');
-        t.style.cssText = 'flex:1;min-width:0;word-break:break-word;';
-        t.innerHTML = '<strong>' + texte + '</strong>' +
-          (apres ? '<div style="font-size:12px;color:var(--muted);' +
-                   'line-height:1.5;margin-top:2px;">' + apres + '</div>' : '');
-        d.appendChild(t);
-
-        z.appendChild(d);
-      };
-
-      ligneCase('carteSD', '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿',
-        "N'oublie pas de la regarder et si soucis demande nous !! (rappel, tous " +
-        'tes cours sont filmés, par une caméra avant et une arrière, avec le son ' +
-        'et les conseils des moniteurs, pour revoir tout ton cours de conduite, ' +
-        'avant de revenir à ton prochain cours).');
-      ligneCase('installation', '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣',
-        'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
-      ligneCase('passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', '');
-      ligneCase('voyants', '𝙑𝙤𝙮𝙖𝙣𝙩𝙨', '/2 points jour du permis');
-
-      /* Les vérifications : deux champs courts, pas des cases */
-      const sep = document.createElement('div');
-      sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0 8px;';
-      z.appendChild(sep);
-
-      const v = document.createElement('div');
-      v.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:2px;';
-      v.textContent = '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨';
-      z.appendChild(v);
-
-      const lien = document.createElement('div');
-      lien.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;' +
-        'word-break:break-all;';
-      lien.textContent = 'https://www.facebook.com/groups/864826058258637';
-      z.appendChild(lien);
-
-      const duo = document.createElement('div');
-      duo.style.cssText = 'display:flex;gap:10px;';
-      [['verifQuestion', 'Question n°', 'Ex : 12'],
-       ['verifNote', 'Note sur 3', 'Ex : 3']].forEach(([cle, lab, ph]) => {
-        const col = document.createElement('div');
-        col.style.cssText = 'flex:1;min-width:0;';
-        const e = document.createElement('label');
-        e.textContent = lab;
-        e.style.cssText = 'font-size:12px;margin-bottom:4px;text-transform:none;';
-        col.appendChild(e);
-        const i = document.createElement('input');
-        i.type = 'text';
-        i.className = 'enteteTexte';
-        i.setAttribute('data-cle', cle);
-        i.placeholder = ph;
-        i.style.cssText = 'margin:0;padding:9px 10px;font-size:15px;';
-        col.appendChild(i);
-        duo.appendChild(col);
-      });
-      z.appendChild(duo);
-
-      const pts = document.createElement('div');
-      pts.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
-      pts.textContent = '/3 points jour du permis';
-      z.appendChild(pts);
-
-      bloc.appendChild(z);
-
-    }else if(ch.type === 'inspecteur'){
-      /* La liste des inspecteurs, partagée par toute l'équipe :
-         un nom ajouté ici sert à tout le monde. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const sel = document.createElement('select');
-      sel.id = 'man_' + ch.cle;
-      sel.innerHTML = '<option value="">— à choisir —</option>' +
-        inspecteursConnus().map(n =>
-          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
-          String(n).replace(/</g, '&lt;') + '</option>').join('') +
-        '<option value="__autre__">➕ En ajouter un…</option>';
-
-      sel.addEventListener('change', async () => {
-        if(sel.value !== '__autre__') return;
-
-        const nom = await demander('Nom de l\'inspecteur', '',
-                                   'Nouvel inspecteur');
-        if(!nom || !nom.trim()){ sel.value = ''; return; }
-
-        const propre = nom.trim();
-        await ajouterInspecteur(propre);
-
-        const o = document.createElement('option');
-        o.value = propre;
-        o.textContent = propre;
-        sel.insertBefore(o, sel.lastElementChild);
-        sel.value = propre;
-      });
-      bloc.appendChild(sel);
-
-    }else if(ch.type === 'repassage'){
-      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
-         Le second nombre ne bouge pas. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const d = document.createElement('div');
-      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
-
-      const iq = document.createElement('input');
-      iq.type = 'number';
-      iq.id = 'man_' + ch.cle;
-      iq.min = '0';
-      iq.step = '1';
-      iq.value = '4';
-      iq.inputMode = 'numeric';
-      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
-      d.appendChild(iq);
-
-      const t = document.createElement('span');
-      t.style.cssText = 'font-size:16px;color:var(--muted);';
-      t.textContent = '+ 3 heures';
-      d.appendChild(t);
-
-      bloc.appendChild(d);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
-        'line-height:1.5;';
-      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
-        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'envoiAvant'){
-      /* De quoi envoyer la première moitié sans attendre la fin
-         de l'examen. */
-      bloc.style.cssText = 'margin:2px 0 8px;';
-
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'padding:12px;font-size:13px;' +
-        'border-color:var(--ambre);color:var(--ambre);';
-      b.textContent = '📤 Envoyer la partie avant examen';
-      b.addEventListener('click', () => envoyerAvantExamen());
-      bloc.appendChild(b);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
-        'text-align:center;line-height:1.5;';
-      a.textContent = "L'élève reçoit cette partie tout de suite. " +
-        'Sa fiche reste en haut pour la suite.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'titre'){
-      /* Un gros repère dans le formulaire : le moniteur retrouve
-         d'un coup d'œil la structure du bilan qu'il connaît. */
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:19px;font-weight:800;color:var(--accent-text);' +
-        'margin:26px 0 6px;text-align:center;line-height:1.35;';
-      t.textContent = ch.nom;
-      bloc.appendChild(t);
-      const tr = document.createElement('div');
-      tr.style.cssText = 'border-top:2px solid var(--orange);margin:0 auto 16px;width:70%;';
-      bloc.appendChild(tr);
-
-    }else if(ch.type === 'observations'){
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      const z = document.createElement('div');
-      z.id = 'obsManuel';
-      bloc.appendChild(z);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;';
-      b.textContent = '➕ Ajouter une observation';
-      b.addEventListener('click', () => ajouterObservationManuelle(z));
-      bloc.appendChild(b);
-
-      /* Vingt lignes prêtes : un examen en compte facilement autant,
-         et ajouter une ligne à chaque fois cassait le rythme. */
-      for(let i = 0; i < 20; i++) ajouterObservationManuelle(z);
-
-    }else{
-      /* Texte libre, avec dictée possible */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-      if(ch.aide){
-        const a = document.createElement('div');
-        a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
-        a.textContent = ch.aide;
-        bloc.appendChild(a);
-      }
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-      const t = document.createElement('textarea');
-      t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
-      t.id = 'man_' + ch.cle.replace('.', '_');
-      /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
-         l'émoji qui ne convient pas et compléter les blancs. */
-      if(ch.defaut) t.value = ch.defaut;
-      t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
-        'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
-        'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
-      /* Le bilan des éliminatoires se réécrit tant que le
-         moniteur n'y a pas touché. */
-      if(ch.cle === 'bilanElim'){
-        t.addEventListener('input', () => {
-          if(typeof figerBilanEliminatoires === 'function'){
-            figerBilanEliminatoires();
-          }
-        });
-      }
-
-      /* Les heures avant permis décident de la frise post : le
-         calcul se fait à la saisie, pas à la génération. */
-      if(ch.cle === 'heuresAvant'){
-        t.addEventListener('input', () => {
-          champsManuels.heuresAvant = t.value;
-          if(typeof remplirFrises === 'function'){
-            remplirFrises(champsManuels, true);
-          }
-        });
-      }
-
-      r.appendChild(t);
-      if(dicteePossible()){
-        const mic = document.createElement('button');
-        mic.type = 'button';
-        mic.className = 'btn btn-secondary';
-        mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
-        mic.textContent = '🎙️';
-        mic.title = 'Dicter dans ce champ';
-        mic.addEventListener('click', () => dicterDans(t, mic));
-        r.appendChild(mic);
-      }
-
-      /* Marquer une faute éliminatoire, là où c'est utile */
-      if(ch.mort){
-        const bm = document.createElement('button');
-        bm.type = 'button';
-        bm.className = 'btn btn-secondary';
-        bm.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
-        bm.textContent = '☠️';
-        bm.title = 'Insérer le marqueur de faute éliminatoire';
-        bm.addEventListener('click', () => {
-          /* Sur la ligne où se trouve le curseur, pas ailleurs */
-          const v = t.value;
-          const pos = t.selectionStart || 0;
-          const debut = v.lastIndexOf('\n', Math.max(0, pos - 1)) + 1;
-          let fin = v.indexOf('\n', pos);
-          if(fin === -1) fin = v.length;
-          const ligne = v.slice(debut, fin);
-
-          const nouvelle = (ligne.indexOf('☠️') !== -1)
-            ? ligne.split('☠️').join('').replace(/\s+/g, ' ').trim()
-            : ('☠️ ' + ligne).trim();
-
-          t.value = v.slice(0, debut) + nouvelle + v.slice(fin);
-          t.focus();
-          t.setSelectionRange(debut + nouvelle.length, debut + nouvelle.length);
-        });
-        r.appendChild(bm);
-      }
-
-      bloc.appendChild(r);
-    }
-
-    zone.appendChild(bloc);
-  });
+  /* Le module d'examen blanc du RVP range ses champs à part ; sur
+     un vrai examen blanc ils restent à la racine. */
+  prefixeExamenBlanc = (modele.schema === 'rvp') ? 'examenBlanc.' : '';
+  cleNiveauCourante = prefixeExamenBlanc + 'niveau';
+
+  dessinerChampsManuels(champs, zone, modele, dossier);
 
   /* Tant qu'aucun niveau n'est choisi, on ne demande rien qui en
      dépende. */
@@ -1792,7 +712,7 @@ async function ouvrirBilanManuel(){
   if(modeleCle === 'handicap'){
     const poser = (cle, valeur) => {
       if(!valeur) return;
-      const el = document.getElementById('man_' + cle.replace('.', '_'));
+      const el = document.getElementById(idChamp(cle));
       if(el && !el.value){
         el.value = valeur;
         champsManuels[cle] = valeur;
@@ -1854,7 +774,7 @@ async function ouvrirBilanManuel(){
    et les frises n'ont pas d'objet : elles n'apparaissent nulle
    part dans le bilan. */
 function majChampsSelonNiveau(){
-  const n = champsManuels.niveau || '';
+  const n = champsManuels[cleNiveauCourante] || '';
 
   document.querySelectorAll('#manuelChamps [data-si-niveau]').forEach(b => {
     const requis = b.dataset.siNiveau;
@@ -2152,7 +1072,7 @@ function rafraichirEliminatoires(){
    ============================================================ */
 
 function majBilanEliminatoires(){
-  const zone = document.getElementById('man_bilanElim');
+  const zone = document.getElementById(idChamp(prefixeExamenBlanc + 'bilanElim'));
   if(!zone) return;
 
   /* Tout ce qui est marqué, rangé par ligne du CEPC. Les trois
@@ -2186,7 +1106,7 @@ function majBilanEliminatoires(){
        sauf si le moniteur y a déjà répondu. */
     if(!zone.value.trim() || zone.dataset.intact === 'oui'){
       zone.value = '';
-      champsManuels.bilanElim = '';
+      champsManuels[prefixeExamenBlanc + 'bilanElim'] = '';
     }
     return;
   }
@@ -2254,7 +1174,7 @@ function majBilanEliminatoires(){
     zone.value = (sup.join('\n') + '\n' + zone.value).trim();
   }
 
-  champsManuels.bilanElim = zone.value;
+  champsManuels[prefixeExamenBlanc + 'bilanElim'] = zone.value;
 
   if(typeof sauvegarderBrouillonManuel === 'function'){
     sauvegarderBrouillonManuel();
@@ -2264,7 +1184,7 @@ function majBilanEliminatoires(){
 
 /* Le moniteur a écrit dans le champ : on cesse de le réécrire */
 function figerBilanEliminatoires(){
-  const zone = document.getElementById('man_bilanElim');
+  const zone = document.getElementById(idChamp(prefixeExamenBlanc + 'bilanElim'));
   if(!zone) return;
 
   /* Ce que l'application a proposé ne compte pas comme une
@@ -2324,7 +1244,7 @@ function remplirFrises(champs, surEcran){
     champs.__frisesAuto[cle] = valeur;
     if(!surEcran) return;
 
-    const zone = document.getElementById('man_' + cle.replace('.', '_'));
+    const zone = document.getElementById(idChamp(cle));
     if(zone){ zone.value = valeur; return; }
 
     const r = document.getElementById('ouinon_' + cle);
@@ -2553,8 +1473,8 @@ function repeindreLigneCepc(champ){
 
 function reporterNotesCepc(){
   /* L'installation : deux cases, deux points */
-  const p = champsManuels['examen.instPassager'] || '';
-  const v = champsManuels['examen.instVoyants'] || '';
+  const p = champsManuels[prefixeExamenBlanc + 'examen.instPassager'] || '';
+  const v = champsManuels[prefixeExamenBlanc + 'examen.instVoyants'] || '';
 
   if(p || v){
     let n = 0;
@@ -2565,7 +1485,7 @@ function reporterNotesCepc(){
   }
 
   /* Les vérifications : la note du moniteur, telle quelle */
-  const nv = champsManuels['examen.verifNote'];
+  const nv = champsManuels[prefixeExamenBlanc + 'examen.verifNote'];
   if(nv !== undefined && nv !== ''){
     poserNoteCepc('Effectuer des vérifications du véhicule', String(nv));
   }
@@ -2978,14 +1898,17 @@ function surveillerChampsManuels(){
 }
 
 
-function lireChampsManuels(){
+/* Relit ce que le moniteur a saisi. Une liste de champs peut être
+   fournie : le module d'examen blanc sous la transcription ne relit
+   que les siens, sans toucher au reste. */
+function lireChampsManuels(champsVoulus){
   const modele = MODELES[$('modele').value];
   /* La fiche handicap se construit ligne par ligne depuis le
      document papier : elle est trop longue pour être écrite à
      la main dans le tableau des schémas. */
-  const champs = (modele.schema === 'handicap')
+  const champs = champsVoulus || ((modele.schema === 'handicap')
     ? schemaHandicap()
-    : CHAMPS_MANUELS[modele.schema];
+    : CHAMPS_MANUELS[modele.schema]);
   if(!champs) return;
 
   champs.forEach(ch => {
@@ -2999,17 +1922,17 @@ function lireChampsManuels(){
          pose au fur et à mesure. */
       return;
     }else if(ch.type === 'note3'){
-      const el = document.getElementById('man_' + ch.cle.replace('.', '_'));
+      const el = document.getElementById(idChamp(ch.cle));
       if(el && String(el.value).trim()){
         champsManuels[ch.cle] = String(el.value).trim();
       }
     }else if(ch.type === 'heures'){
-      const el = document.getElementById('man_' + ch.cle);
+      const el = document.getElementById(idChamp(ch.cle));
       if(el && String(el.value).trim()){
         champsManuels[ch.cle] = String(el.value).trim();
       }
     }else if(ch.type === 'inspecteur' || ch.type === 'repassage'){
-      const el = document.getElementById('man_' + ch.cle);
+      const el = document.getElementById(idChamp(ch.cle));
       if(el && el.value && el.value !== '__autre__'){
         champsManuels[ch.cle] = el.value.trim();
       }
@@ -3091,7 +2014,7 @@ function lireChampsManuels(){
 
     }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
              ch.type !== 'niveau' && ch.type !== 'ouinon'){
-      const t = document.getElementById('man_' + ch.cle.replace('.', '_'));
+      const t = document.getElementById(idChamp(ch.cle));
       if(t) champsManuels[ch.cle] = t.value.trim();
     }
   });
@@ -3515,3 +2438,1256 @@ function verifierBoiteModele(boite){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-manuel.js'] = true;
+
+
+/* ============================================================
+   LE FORMULAIRE, CHAMP PAR CHAMP
+
+   Extrait de ouvrirBilanManuel() pour servir deux fois : la
+   fiche à remplir à la main, et le module d'examen blanc glissé
+   sous la transcription d'un bilan vocal. Deux rendus séparés
+   auraient fini par diverger — c'est toujours le second qu'on
+   oublie de corriger.
+   ============================================================ */
+function dessinerChampsManuels(champs, zone, modele, dossier){
+  /* Là où les blocs se posent. Un dépliant fait basculer la cible :
+     tout ce qui suit va dedans. */
+  let cible = zone;
+
+  champs.forEach(ch => {
+    /* Un dépliant : ce qui suit se range dedans, replié par défaut.
+       Sert au module d'examen blanc du rendez-vous pédagogique —
+       on ne l'ouvre que si on en a fait un. */
+    if(ch.type === 'depliant'){
+      const det = document.createElement('details');
+      det.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+        'padding:10px 12px;margin-bottom:16px;';
+      det.innerHTML = '<summary style="cursor:pointer;font-size:15px;' +
+        'font-weight:700;color:var(--accent-text);">' + ch.nom + '</summary>';
+      if(ch.aide){
+        const a2 = document.createElement('div');
+        a2.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 4px;' +
+          'line-height:1.4;';
+        a2.textContent = ch.aide;
+        det.appendChild(a2);
+      }
+      zone.appendChild(det);
+      cible = det;
+      return;
+    }
+
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'margin-bottom:16px;';
+
+    /* Certains champs ne servent que si l élève a le niveau :
+       les montrer ailleurs fait remplir pour rien. */
+    if(ch.siNiveau) bloc.dataset.siNiveau = ch.siNiveau;
+
+    if(ch.type === 'rappelFrise'){
+      /* Sa frise et ses leçons faites : de quoi juger sans
+         remonter chercher l'information ailleurs. */
+      const frise = (dossierManuel && dossierManuel.frise) ||
+                    extraireFrise($('noteInterne').value);
+      /* Le numéro écrit dans son dernier bilan fait autorité : un
+         élève venu de l'ancien fonctionnement n'a qu'un bilan
+         enregistré alors qu'il en est à sa huitième leçon. */
+      const faites = leconsFaites();
+
+      if(frise || faites !== null){
+        bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+          'padding:10px 12px;margin-bottom:12px;';
+        bloc.innerHTML =
+          '<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">' +
+            '📋 Pour mémoire</div>' +
+          (frise
+            ? '<div style="font-size:13px;line-height:1.5;">' +
+              String(frise).replace(/</g, '&lt;') + '</div>'
+            : '') +
+          (faites !== null
+            ? '<div style="font-size:13px;color:var(--accent-text);' +
+              'margin-top:4px;">' + faites + ' leçon(s) déjà effectuée(s)</div>'
+            : '');
+      }else{
+        bloc.style.display = 'none';
+      }
+
+
+
+
+    }else if(ch.type === 'tableauHandicap'){
+      /* Le tableau du document papier : trois colonnes sur écran
+         large, deux sur téléphone — l'observation descend alors
+         sous la ligne pour garder de la place où écrire. */
+      const t = document.createElement('div');
+      t.className = 'ficheEval';
+
+      const tete = document.createElement('div');
+      tete.className = 'fe-tete';
+      ['Contrôle', 'Niveau', 'Observations'].forEach(x => {
+        const s = document.createElement('span');
+        s.textContent = x;
+        tete.appendChild(s);
+      });
+      t.appendChild(tete);
+
+      const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
+
+      (typeof HANDICAP_LIGNES !== 'undefined' ? HANDICAP_LIGNES : [])
+        .forEach(l => {
+          const cleN = 'handicap.' + l.cle + 'N';
+          const cleO = 'handicap.' + l.cle + 'O';
+
+          const li = document.createElement('div');
+          li.className = 'fe-ligne ' + (l.titre ? 'fe-rubrique' : 'fe-sous');
+
+          const nom = document.createElement('span');
+          nom.className = 'fe-nom';
+          nom.textContent = l.nom;
+          li.appendChild(nom);
+
+          const notes = document.createElement('div');
+          notes.className = 'fe-notes';
+
+          const peindre = () => {
+            Array.prototype.forEach.call(notes.children, b => {
+              const pris = (b.textContent === champsManuels[cleN]);
+              b.style.background = pris ? (couleurs[b.textContent] || 'var(--muted)')
+                                        : 'var(--navy)';
+              b.style.borderColor = pris ? (couleurs[b.textContent] || 'var(--line)')
+                                         : 'var(--line)';
+              b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
+              b.style.fontWeight = pris ? '800' : '400';
+            });
+          };
+
+          [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi]) => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'btn btn-secondary';
+            b.textContent = v;
+            b.title = quoi;
+            b.addEventListener('click', () => {
+              /* Un second appui efface : le moniteur se ravise */
+              champsManuels[cleN] = (champsManuels[cleN] === v) ? '' : v;
+              peindre();
+            });
+            notes.appendChild(b);
+          });
+
+          peindre();
+          li.appendChild(notes);
+
+          const obs = document.createElement('div');
+          obs.className = 'fe-obs';
+          const i = document.createElement('input');
+          i.type = 'text';
+          i.placeholder = 'Observations';
+          i.value = champsManuels[cleO] || '';
+          i.addEventListener('input', () => {
+            champsManuels[cleO] = i.value;
+          });
+          obs.appendChild(i);
+          li.appendChild(obs);
+
+          t.appendChild(li);
+        });
+
+      bloc.appendChild(t);
+
+    }else if(ch.type === 'abc'){
+      /* Les trois niveaux du document : A bon, B moyen, C faible.
+         Une rubrique se note comme une sous-ligne — le document
+         papier laisse les deux notables. */
+      bloc.style.cssText = 'margin-bottom:4px;display:flex;gap:10px;' +
+        'align-items:center;flex-wrap:wrap;';
+
+      const l = document.createElement('span');
+      l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:130px;font-size:14px;' +
+        (ch.rubrique ? 'font-weight:700;color:var(--accent-text);'
+                     : 'padding-left:14px;color:var(--cream);');
+      bloc.appendChild(l);
+
+      const r = document.createElement('div');
+      r.id = 'abc_' + ch.cle.replace('.', '_');
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+
+      const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
+
+      [['A', 'Bon'], ['B', 'Moyen'], ['C', 'Faible']].forEach(([v, quoi]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;';
+        b.textContent = v;
+        b.title = quoi;
+        b.setAttribute('data-val', v);
+
+        b.addEventListener('click', () => {
+          /* Un second appui efface : le moniteur peut se raviser */
+          const pris = (champsManuels[ch.cle] === v);
+          champsManuels[ch.cle] = pris ? '' : v;
+
+          Array.prototype.forEach.call(r.children, x => {
+            const sien = (x.getAttribute('data-val') === champsManuels[ch.cle]);
+            x.style.background = sien ? (couleurs[x.textContent] || 'var(--muted)')
+                                      : 'var(--navy)';
+            x.style.borderColor = sien ? (couleurs[x.textContent] || 'var(--line)')
+                                       : 'var(--line)';
+            x.style.color = sien ? '#0B0B0B' : 'var(--cream)';
+            x.style.fontWeight = sien ? '800' : '400';
+          });
+        });
+
+        r.appendChild(b);
+      });
+
+      bloc.appendChild(r);
+
+    }else if(ch.type === 'note3'){
+      /* La note se reporte sur le CEPC : quatre boutons valent
+         mieux qu'un texte à relire. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:6px;';
+
+      const champ = document.createElement('input');
+      champ.type = 'hidden';
+      champ.id = idChamp(ch.cle);
+      champ.value = '';
+      d.appendChild(champ);
+
+      const peindre = () => {
+        Array.prototype.forEach.call(d.children, b => {
+          if(b.tagName !== 'BUTTON') return;
+          const pris = (b.textContent === champ.value);
+          b.style.background = pris ? 'var(--orange)' : 'var(--navy)';
+          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+          b.style.color = pris ? '#0B0B0B' : 'var(--cream)';
+          b.style.fontWeight = pris ? '800' : '400';
+        });
+      };
+
+      ['0', '1', '2', '3'].forEach(v => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:10px 16px;font-size:15px;margin:0;';
+        b.textContent = v;
+        b.addEventListener('click', () => {
+          /* Un second appui efface : le moniteur peut se raviser */
+          champ.value = (champ.value === v) ? '' : v;
+          champsManuels[ch.cle] = champ.value;
+          peindre();
+          if(typeof reporterNotesCepc === 'function') reporterNotesCepc();
+        });
+        d.appendChild(b);
+      });
+
+      const s = document.createElement('span');
+      s.style.cssText = 'font-size:13px;color:var(--muted);align-self:center;';
+      s.textContent = '/ 3';
+      d.appendChild(s);
+
+      bloc.appendChild(d);
+      peindre();
+
+    }else if(ch.type === 'heures'){
+      /* Les heures avant permis : presque toujours un nombre pair
+         de 2 à 10. Une liste évite de taper, tout en laissant la
+         saisie libre. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;';
+
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.id = idChamp(ch.cle);
+      inp.min = '0';
+      inp.step = '1';
+      inp.placeholder = 'autre';
+      inp.style.cssText = 'width:84px;font-size:17px;text-align:center;margin:0;';
+
+      const peindre = () => {
+        Array.prototype.forEach.call(d.children, b => {
+          if(b.tagName !== 'BUTTON') return;
+          const pris = (b.textContent === inp.value);
+          b.style.borderColor = pris ? 'var(--orange)' : 'var(--line)';
+          b.style.color = pris ? 'var(--accent-text)' : 'var(--cream)';
+          b.style.fontWeight = pris ? '800' : '400';
+        });
+      };
+
+      const changer = () => {
+        champsManuels[ch.cle] = inp.value;
+        peindre();
+        if(typeof remplirFrises === 'function'){
+          remplirFrises(champsManuels, true);
+        }
+      };
+
+      ['2', '4', '6', '8', '10'].forEach(v => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:11px 14px;font-size:15px;margin:0;';
+        b.textContent = v;
+        b.addEventListener('click', () => { inp.value = v; changer(); });
+        d.appendChild(b);
+      });
+
+      inp.addEventListener('input', changer);
+      d.appendChild(inp);
+      bloc.appendChild(d);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+        'line-height:1.5;';
+      a.textContent = 'Les 3h avant examen viennent en plus : ' +
+        '« 4 » signifie 4 + 3.';
+      bloc.appendChild(a);
+
+    }else if(ch.type === 'niveau' || ch.type === 'ouinon'){
+      /* C'est ce champ-là qui commande les « siNiveau » qui suivent */
+      if(ch.type === 'niveau') cleNiveauCourante = ch.cle;
+      bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
+        'align-items:center;flex-wrap:wrap;';
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:140px;margin:0;font-size:14px;' +
+        'text-transform:none;color:var(--cream);';
+      bloc.appendChild(l);
+      const r = document.createElement('div');
+      r.id = 'ouinon_' + ch.cle;
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+      /* Trois issues au niveau : il l'a, il ne l'a pas, ou il
+         pourrait l'avoir sans qu'on puisse chiffrer les heures. */
+      const choix = (ch.type === 'niveau')
+        ? [['✅ Oui', 'oui'], ['🤔 Pourrait', 'peut'],
+           ['❌ Pas le niveau', 'non'], ['—', '']]
+        : [['✅ Oui', 'oui'], ['❌ Non', 'non'], ['—', '']];
+      choix.forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'flex:1;padding:11px;font-size:14px;margin:0;';
+        b.textContent = lab;
+        b.setAttribute('data-val', val);
+
+
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle] = val;
+
+          /* Le choix doit sauter aux yeux : une bordure seule se
+             remarque mal, surtout à bout de bras dans la voiture.
+
+             La même peinture sert quand l'application répond à la
+             place du moniteur : rien ne doit distinguer les deux. */
+          peindreOuiNon(r, val);
+
+          /* Le niveau décide de ce qui reste utile */
+          if(ch.type === 'niveau' && typeof majChampsSelonNiveau === 'function'){
+            majChampsSelonNiveau();
+          }
+        });
+        r.appendChild(b);
+      });
+      /* Une réponse déjà connue — la date de permis, une frise —
+         se montre d'emblée, aussi nettement qu'un choix du
+         moniteur. */
+      if(champsManuels[ch.cle]) peindreOuiNon(r, champsManuels[ch.cle]);
+
+      bloc.appendChild(r);
+
+    }else if(ch.type === 'rubriques'){
+      /* Les neuf rubriques d'erreurs, une zone de texte chacune.
+
+         Le bloc de notes unique qui tenait lieu de formulaire
+         n'était lu par aucun constructeur : ce que le moniteur y
+         écrivait n'arrivait jamais dans le bilan. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      aide.textContent = 'Une remarque par ligne. Une rubrique laissée vide ' +
+        'sort avec son titre seul, comme sur la fiche.';
+      bloc.appendChild(aide);
+
+      (typeof RUBRIQUES !== 'undefined' ? RUBRIQUES : []).forEach(([cleR, titre]) => {
+        const z = document.createElement('div');
+        z.style.cssText = 'margin-bottom:10px;';
+
+        const t2 = document.createElement('div');
+        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+          'margin-bottom:5px;';
+        /* Le titre du bilan, sans sa ponctuation de fin : c'est le
+           même repère que le moniteur retrouvera dans le texte. */
+        t2.textContent = String(titre).replace(/\s*:\s*$/, '');
+        z.appendChild(t2);
+
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+
+        const t = document.createElement('textarea');
+        t.className = 'rubriqueManuelle';
+        t.setAttribute('data-cle', ch.cle + '.' + cleR);
+        t.rows = 2;
+        t.placeholder = 'Une remarque par ligne';
+        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:16px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+        r.appendChild(t);
+
+        if(dicteePossible()){
+          const mic = document.createElement('button');
+          mic.type = 'button';
+          mic.className = 'btn btn-secondary';
+          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
+          mic.textContent = '🎙️';
+          mic.title = 'Dicter dans ' + t2.textContent;
+          mic.addEventListener('click', () => dicterDans(t, mic));
+          r.appendChild(mic);
+        }
+
+        z.appendChild(r);
+        bloc.appendChild(z);
+      });
+    }else if(ch.type === 'eval3'){
+      /* Une rubrique d'évaluation : son état, puis ce qu'il y a à
+         corriger. Le bilan attend les deux — un état sans le détail
+         ne dit pas à l'élève quoi retravailler.
+
+         Non touchée, la rubrique ressort « ✅ ❌ 🍊 » dans le bilan,
+         comme sur la fiche papier : c'est st3o() qui le fait, et
+         c'est voulu. */
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+        'margin-bottom:6px;';
+
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
+        'text-transform:none;color:var(--cream);';
+      ligne.appendChild(l);
+
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+
+      const boutons = [];
+      [['✅', '✅'], ['🍊', '🍊'], ['❌', '❌'], ['—', '']].forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:7px 10px;font-size:15px;margin:0;' +
+          'transition:transform .1s, background .1s;';
+        b.textContent = lab;
+        boutons.push(b);
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle + '.statut'] = val;
+          boutons.forEach(x => {
+            x.style.borderColor = 'var(--line)';
+            x.style.background = 'var(--navy)';
+            x.style.color = 'var(--cream)';
+            x.style.fontWeight = '400';
+            x.style.transform = 'none';
+            x.style.boxShadow = 'none';
+          });
+          const couleurs = {
+            '✅': ['var(--orange)', '#0B0B0B'],
+            '🍊': ['var(--ambre)', 'var(--sur-ambre)'],
+            '❌': ['var(--red)', '#FFFFFF'],
+            '':   ['var(--muted)', '#0B0B0B']
+          };
+          const [fond, texte] = couleurs[val] || couleurs[''];
+          b.style.background = fond;
+          b.style.borderColor = fond;
+          b.style.color = texte;
+          b.style.fontWeight = '700';
+          b.style.transform = 'scale(1.06)';
+          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
+        });
+        r.appendChild(b);
+      });
+      ligne.appendChild(r);
+      bloc.appendChild(ligne);
+
+      /* Le détail. Un point par ligne, comme dans les autres bilans. */
+      const t = document.createElement('textarea');
+      t.id = 'manEval_' + ch.cle.split('.').join('_');
+      t.rows = 2;
+      t.placeholder = 'Ce qu\'il y a à corriger — une ligne par point';
+      t.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:15px;' +
+        'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+      bloc.appendChild(t);
+
+    }else if(ch.type === 'ok'){
+      /* Passager et voyants décident de la note d'installation */
+      /* La fin de la clé, pas son égalité : préfixée, elle devient
+         « examenBlanc.examen.instPassager ». */
+      const surInstallation = /(^|\.)examen\.inst(Passager|Voyants)$/.test(ch.cle);
+      /* Trois états : ✅ ❌ ou rien. Compact et sur une seule ligne
+         avec son libellé : un bilan en compte une dizaine, et de
+         gros boutons empilés faisaient défiler pour rien. */
+      bloc.style.cssText = 'margin-bottom:8px;display:flex;gap:10px;' +
+        'align-items:center;';
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
+        'text-transform:none;color:var(--cream);';
+      bloc.appendChild(l);
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+      [['✅','✅'], ['❌','❌'], ['—','']].forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:7px 11px;font-size:15px;margin:0;' +
+          'transition:transform .1s, background .1s;';
+        b.textContent = lab;
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle] = val;
+
+          /* La note d'installation se déduit des deux cases */
+          if(surInstallation && typeof reporterNotesCepc === 'function'){
+            reporterNotesCepc();
+          }
+
+          /* Le choix doit sauter aux yeux : une bordure seule se
+             remarque mal, surtout à bout de bras dans la voiture. */
+          Array.prototype.forEach.call(r.children, x => {
+            x.style.borderColor = 'var(--line)';
+            x.style.color = 'var(--cream)';
+            x.style.background = 'var(--navy)';
+            x.style.fontWeight = '400';
+            x.style.transform = 'none';
+            x.style.boxShadow = 'none';
+          });
+
+          const couleurs = {
+            '✅': ['var(--orange)', '#0B0B0B'],
+            '❌': ['var(--red)', '#FFFFFF'],
+            '':   ['var(--muted)', '#0B0B0B']
+          };
+          const [fond, texte] = couleurs[val] || couleurs[''];
+          b.style.background = fond;
+          b.style.borderColor = fond;
+          b.style.color = texte;
+          b.style.fontWeight = '700';
+          b.style.transform = 'scale(1.04)';
+          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
+        });
+        if((ch.defaut || '') === val) setTimeout(() => b.click(), 0);
+        r.appendChild(b);
+      });
+      bloc.appendChild(r);
+
+    }else if(ch.type === 'manoeuvres'){
+      const liste = BLOC.ficheListeConduite;
+      const dejaFaites = (dossier.manoeuvres || []).map(normaliserMot);
+
+      const lm = document.createElement('label');
+      lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
+      bloc.appendChild(lm);
+      const zm = document.createElement('div');
+      zm.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
+        'padding:10px 12px;max-height:260px;overflow-y:auto;';
+      liste.forEach(nom => {
+        const dejaOk = dejaFaites.indexOf(normaliserMot(nom)) !== -1;
+        const lab = document.createElement('label');
+        lab.style.cssText = 'display:flex;align-items:center;gap:9px;padding:5px 0;' +
+          'font-size:15px;text-transform:none;margin:0;color:' +
+          (dejaOk ? 'var(--muted)' : 'var(--cream)') + ';';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = nom;
+        cb.className = 'chManuel-' + ch.cle;
+        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(nom + (dejaOk ? '  (déjà validée)' : '')));
+        zm.appendChild(lab);
+      });
+      bloc.appendChild(zm);
+
+    }else if(ch.type === 'competences'){
+      /* Le modèle attend un statut ET des erreurs par compétence :
+         une simple case à cocher ne suffisait pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      aide.textContent = 'Laisse « non travaillé » pour les compétences non abordées ' +
+        "aujourd'hui : elles n'apparaîtront pas dans le bilan.";
+      bloc.appendChild(aide);
+
+      (modele.comps || []).forEach(comp => {
+        const cle = comp.cle || '';
+        const titre = comp.titre || comp.nom || cle;
+
+        const zc = document.createElement('div');
+        zc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+          'padding:9px 11px;margin-bottom:7px;';
+
+        const h = document.createElement('div');
+        h.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+
+        const t = document.createElement('span');
+        t.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:600;';
+        t.textContent = titre;
+        h.appendChild(t);
+
+        const sel = document.createElement('select');
+        sel.className = 'compStatut';
+        sel.setAttribute('data-comp', cle);
+        sel.style.cssText = 'width:auto;margin:0;padding:7px 9px;font-size:14px;flex-shrink:0;';
+        /* Les valeurs sont les émojis attendus par l'assembleur */
+        sel.innerHTML = '<option value="">— non travaillé —</option>' +
+          '<option value="✅">✅ Acquis</option>' +
+          '<option value="🟠">🟠 En cours</option>' +
+          '<option value="❌">❌ À revoir</option>';
+        h.appendChild(sel);
+        zc.appendChild(h);
+
+        const err = document.createElement('textarea');
+        err.className = 'compErreurs';
+        err.setAttribute('data-comp', cle);
+        err.rows = 2;
+        err.placeholder = 'Erreurs à corriger, une par ligne';
+        err.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:8px 10px;border-radius:8px;font-size:14px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;display:none;margin:0;';
+        zc.appendChild(err);
+
+        /* Les erreurs n'ont de sens que si la compétence a été travaillée */
+        sel.addEventListener('change', () => {
+          err.style.display = sel.value ? 'block' : 'none';
+        });
+
+        bloc.appendChild(zc);
+      });
+
+    }else if(ch.type === 'themes'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;';
+      a.textContent = 'Remplis seulement les rubriques utiles : les autres ne sortiront pas.';
+      bloc.appendChild(a);
+
+      THEMES_ERREURS.forEach(th => {
+        const b = document.createElement('div');
+        b.style.cssText = 'margin-bottom:10px;';
+        const t2 = document.createElement('div');
+        t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+        t2.textContent = th.nom;
+        b.appendChild(t2);
+
+        const r = document.createElement('div');
+        r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+        const t = document.createElement('textarea');
+        t.rows = 2;
+        t.className = 'themeErreur';
+        t.setAttribute('data-theme', th.nom);
+        t.placeholder = 'Une remarque par ligne';
+        t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+          'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:16px;' +
+          'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+        r.appendChild(t);
+        if(dicteePossible()){
+          const mic = document.createElement('button');
+          mic.type = 'button';
+          mic.className = 'btn btn-secondary';
+          mic.style.cssText = 'width:auto;padding:10px 12px;font-size:17px;margin:0;flex-shrink:0;';
+          mic.textContent = '🎙️';
+          mic.title = 'Dicter dans ' + th.nom;
+          mic.addEventListener('click', () => dicterDans(t, mic));
+          r.appendChild(mic);
+        }
+        b.appendChild(r);
+        bloc.appendChild(b);
+      });
+
+    }else if(ch.type === 'cepc'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.5;';
+      aide.textContent = "Appuie sur la note de chaque compétence, comme sur le CEPC " +
+        "de l'inspecteur. Un second appui l'efface.";
+      bloc.appendChild(aide);
+
+      /* Le document officiel est sur fond blanc : on le reproduit
+         tel quel, même en thème sombre. C'est sa ressemblance avec
+         le vrai CEPC qui aide le moniteur à s'y retrouver. */
+      const z = document.createElement('div');
+      z.style.cssText = 'background:#FFFFFF;border:1px solid #D3DCE6;' +
+        'border-radius:8px;padding:0;overflow:hidden;';
+
+      const entete = document.createElement('div');
+      entete.style.cssText = 'display:flex;justify-content:space-between;' +
+        'align-items:baseline;padding:10px 12px 8px;border-bottom:1px solid #D3DCE6;';
+      entete.innerHTML =
+        '<span style="font-size:13px;font-weight:800;color:#0B2E4F;">' +
+          'Bilan de compétences</span>' +
+        '<span style="font-size:9px;color:#8A94A0;">Niveaux d\'appréciation</span>';
+      z.appendChild(entete);
+
+      /* Un compteur continu : sur le document, l'alternance ne se
+         remet pas à zéro à chaque section. */
+      let rangLigne = 0;
+      CEPC_BLOCS.forEach(g => {
+        const t = document.createElement('div');
+        t.style.cssText = 'font-size:12px;font-weight:800;color:#0B2E4F;' +
+          'padding:12px 12px 6px;background:#FFFFFF;';
+        t.textContent = g.titre;
+        z.appendChild(t);
+        g.items.forEach(it => {
+          z.appendChild(ligneCepc(it.nom, it.valeurs, rangLigne));
+          rangLigne++;
+        });
+      });
+
+      const tt = document.createElement('div');
+      tt.style.cssText = 'font-size:12px;font-weight:800;color:#0B2E4F;' +
+        'padding:12px 12px 4px;border-top:1px solid #D3DCE6;margin-top:8px;';
+      tt.textContent = 'Résultat';
+      z.appendChild(tt);
+
+      const tot = document.createElement('div');
+      tot.id = 'cepcTotal';
+      tot.style.cssText = 'padding:6px 12px 14px;font-size:13px;font-weight:800;' +
+        'color:#1568C8;display:flex;justify-content:space-between;align-items:center;';
+      z.appendChild(tot);
+      bloc.appendChild(z);
+      setTimeout(majTotalCepc, 0);
+
+    }else if(ch.type === 'photo'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const inp = document.createElement('input');
+      inp.type = 'file';
+      inp.accept = 'image/*';
+      inp.id = 'photo_' + ch.cle;
+      inp.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px;border-radius:10px;font-size:14px;';
+      bloc.appendChild(inp);
+      const apercu = document.createElement('div');
+      apercu.id = 'apercu_' + ch.cle;
+      apercu.style.cssText = 'margin-top:8px;';
+      bloc.appendChild(apercu);
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;';
+      aide.textContent = "La photo reste sur ce téléphone : elle sert au moniteur pendant " +
+        "le rendez-vous, elle n'est pas envoyée dans le bilan.";
+      bloc.appendChild(aide);
+
+      inp.addEventListener('change', () => {
+        const f = inp.files && inp.files[0];
+        apercu.innerHTML = '';
+        if(!f) return;
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        img.style.cssText = 'max-width:100%;border-radius:10px;border:1px solid var(--line);';
+        apercu.appendChild(img);
+        champsManuels[ch.cle] = f.name;
+      });
+
+    }else if(ch.type === 'inspecteur'){
+      /* La liste des inspecteurs, partagée par toute l'équipe :
+         un nom ajouté ici sert à tout le monde. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const sel = document.createElement('select');
+      sel.id = idChamp(ch.cle);
+      sel.innerHTML = '<option value="">— à choisir —</option>' +
+        inspecteursConnus().map(n =>
+          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
+          String(n).replace(/</g, '&lt;') + '</option>').join('') +
+        '<option value="__autre__">➕ En ajouter un…</option>';
+
+      sel.addEventListener('change', async () => {
+        if(sel.value !== '__autre__') return;
+
+        const nom = await demander('Nom de l\'inspecteur', '',
+                                   'Nouvel inspecteur');
+        if(!nom || !nom.trim()){ sel.value = ''; return; }
+
+        const propre = nom.trim();
+        await ajouterInspecteur(propre);
+
+        const o = document.createElement('option');
+        o.value = propre;
+        o.textContent = propre;
+        sel.insertBefore(o, sel.lastElementChild);
+        sel.value = propre;
+      });
+      bloc.appendChild(sel);
+
+    }else if(ch.type === 'repassage'){
+      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
+         Le second nombre ne bouge pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
+
+      const iq = document.createElement('input');
+      iq.type = 'number';
+      iq.id = idChamp(ch.cle);
+      iq.min = '0';
+      iq.step = '1';
+      iq.value = '4';
+      iq.inputMode = 'numeric';
+      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
+      d.appendChild(iq);
+
+      const t = document.createElement('span');
+      t.style.cssText = 'font-size:16px;color:var(--muted);';
+      t.textContent = '+ 3 heures';
+      d.appendChild(t);
+
+      bloc.appendChild(d);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+        'line-height:1.5;';
+      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
+        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
+      bloc.appendChild(a);
+
+    }else if(ch.type === 'envoiAvant'){
+      /* De quoi envoyer la première moitié sans attendre la fin
+         de l'examen. */
+      bloc.style.cssText = 'margin:2px 0 8px;';
+
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'padding:12px;font-size:13px;' +
+        'border-color:var(--ambre);color:var(--ambre);';
+      b.textContent = '📤 Envoyer la partie avant examen';
+      b.addEventListener('click', () => envoyerAvantExamen());
+      bloc.appendChild(b);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+        'text-align:center;line-height:1.5;';
+      a.textContent = "L'élève reçoit cette partie tout de suite. " +
+        'Sa fiche reste en haut pour la suite.';
+      bloc.appendChild(a);
+
+    }else if(ch.type === 'titre'){
+      /* Un intertitre : il sépare deux moments de l'examen, et
+         porte le bouton d'envoi de sa partie. */
+      bloc.style.cssText = 'margin:22px 0 12px;padding-top:14px;' +
+        'border-top:2px solid var(--line);';
+
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:17px;font-weight:800;color:var(--accent-text);';
+      t.textContent = ch.nom;
+      bloc.appendChild(t);
+
+      if(ch.aide){
+        const a = document.createElement('div');
+        a.style.cssText = 'font-size:12px;color:var(--muted);margin-top:3px;' +
+          'line-height:1.5;';
+        a.textContent = ch.aide;
+        bloc.appendChild(a);
+      }
+
+
+    }else if(ch.type === 'entete'){
+      /* La première partie du bilan, telle que l'élève la lira :
+         le moniteur coche dans le texte au lieu de répondre à une
+         suite de questions détachées de leur contexte. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const z = document.createElement('div');
+      z.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+        'border-radius:10px;padding:12px 13px;font-size:14px;line-height:1.55;';
+
+      const ligneCase = (cle, texte, apres) => {
+        const d = document.createElement('div');
+        d.style.cssText = 'display:flex;gap:9px;align-items:flex-start;padding:5px 0;';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'enteteCase';
+        cb.setAttribute('data-cle', cle);
+        cb.checked = true;                 /* ✅ par défaut, comme avant */
+        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:2px;';
+        d.appendChild(cb);
+
+        const t = document.createElement('div');
+        t.style.cssText = 'flex:1;min-width:0;word-break:break-word;';
+        t.innerHTML = '<strong>' + texte + '</strong>' +
+          (apres ? '<div style="font-size:12px;color:var(--muted);' +
+                   'line-height:1.5;margin-top:2px;">' + apres + '</div>' : '');
+        d.appendChild(t);
+
+        z.appendChild(d);
+      };
+
+      ligneCase('carteSD', '𝘾𝙖𝙧𝙩𝙚 𝙎𝘿',
+        "N'oublie pas de la regarder et si soucis demande nous !! (rappel, tous " +
+        'tes cours sont filmés, par une caméra avant et une arrière, avec le son ' +
+        'et les conseils des moniteurs, pour revoir tout ton cours de conduite, ' +
+        'avant de revenir à ton prochain cours).');
+      ligneCase('installation', '𝙄𝙣𝙨𝙩𝙖𝙡𝙡𝙖𝙩𝙞𝙤𝙣',
+        'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/');
+      ligneCase('passager', '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧', '');
+      ligneCase('voyants', '𝙑𝙤𝙮𝙖𝙣𝙩𝙨', '/2 points jour du permis');
+
+      /* Les vérifications : deux champs courts, pas des cases */
+      const sep = document.createElement('div');
+      sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0 8px;';
+      z.appendChild(sep);
+
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:2px;';
+      v.textContent = '𝙑𝙚́𝙧𝙞𝙛𝙞𝙘𝙖𝙩𝙞𝙤𝙣𝙨';
+      z.appendChild(v);
+
+      const lien = document.createElement('div');
+      lien.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;' +
+        'word-break:break-all;';
+      lien.textContent = 'https://www.facebook.com/groups/864826058258637';
+      z.appendChild(lien);
+
+      const duo = document.createElement('div');
+      duo.style.cssText = 'display:flex;gap:10px;';
+      [['verifQuestion', 'Question n°', 'Ex : 12'],
+       ['verifNote', 'Note sur 3', 'Ex : 3']].forEach(([cle, lab, ph]) => {
+        const col = document.createElement('div');
+        col.style.cssText = 'flex:1;min-width:0;';
+        const e = document.createElement('label');
+        e.textContent = lab;
+        e.style.cssText = 'font-size:12px;margin-bottom:4px;text-transform:none;';
+        col.appendChild(e);
+        const i = document.createElement('input');
+        i.type = 'text';
+        i.className = 'enteteTexte';
+        i.setAttribute('data-cle', cle);
+        i.placeholder = ph;
+        i.style.cssText = 'margin:0;padding:9px 10px;font-size:15px;';
+        col.appendChild(i);
+        duo.appendChild(col);
+      });
+      z.appendChild(duo);
+
+      const pts = document.createElement('div');
+      pts.style.cssText = 'font-size:12px;color:var(--muted);margin-top:6px;';
+      pts.textContent = '/3 points jour du permis';
+      z.appendChild(pts);
+
+      bloc.appendChild(z);
+
+    }else if(ch.type === 'inspecteur'){
+      /* La liste des inspecteurs, partagée par toute l'équipe :
+         un nom ajouté ici sert à tout le monde. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const sel = document.createElement('select');
+      sel.id = idChamp(ch.cle);
+      sel.innerHTML = '<option value="">— à choisir —</option>' +
+        inspecteursConnus().map(n =>
+          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
+          String(n).replace(/</g, '&lt;') + '</option>').join('') +
+        '<option value="__autre__">➕ En ajouter un…</option>';
+
+      sel.addEventListener('change', async () => {
+        if(sel.value !== '__autre__') return;
+
+        const nom = await demander('Nom de l\'inspecteur', '',
+                                   'Nouvel inspecteur');
+        if(!nom || !nom.trim()){ sel.value = ''; return; }
+
+        const propre = nom.trim();
+        await ajouterInspecteur(propre);
+
+        const o = document.createElement('option');
+        o.value = propre;
+        o.textContent = propre;
+        sel.insertBefore(o, sel.lastElementChild);
+        sel.value = propre;
+      });
+      bloc.appendChild(sel);
+
+    }else if(ch.type === 'repassage'){
+      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
+         Le second nombre ne bouge pas. */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
+
+      const iq = document.createElement('input');
+      iq.type = 'number';
+      iq.id = idChamp(ch.cle);
+      iq.min = '0';
+      iq.step = '1';
+      iq.value = '4';
+      iq.inputMode = 'numeric';
+      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
+      d.appendChild(iq);
+
+      const t = document.createElement('span');
+      t.style.cssText = 'font-size:16px;color:var(--muted);';
+      t.textContent = '+ 3 heures';
+      d.appendChild(t);
+
+      bloc.appendChild(d);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+        'line-height:1.5;';
+      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
+        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
+      bloc.appendChild(a);
+
+    }else if(ch.type === 'envoiAvant'){
+      /* De quoi envoyer la première moitié sans attendre la fin
+         de l'examen. */
+      bloc.style.cssText = 'margin:2px 0 8px;';
+
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'padding:12px;font-size:13px;' +
+        'border-color:var(--ambre);color:var(--ambre);';
+      b.textContent = '📤 Envoyer la partie avant examen';
+      b.addEventListener('click', () => envoyerAvantExamen());
+      bloc.appendChild(b);
+
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+        'text-align:center;line-height:1.5;';
+      a.textContent = "L'élève reçoit cette partie tout de suite. " +
+        'Sa fiche reste en haut pour la suite.';
+      bloc.appendChild(a);
+
+    }else if(ch.type === 'titre'){
+      /* Un gros repère dans le formulaire : le moniteur retrouve
+         d'un coup d'œil la structure du bilan qu'il connaît. */
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:19px;font-weight:800;color:var(--accent-text);' +
+        'margin:26px 0 6px;text-align:center;line-height:1.35;';
+      t.textContent = ch.nom;
+      bloc.appendChild(t);
+      const tr = document.createElement('div');
+      tr.style.cssText = 'border-top:2px solid var(--orange);margin:0 auto 16px;width:70%;';
+      bloc.appendChild(tr);
+
+    }else if(ch.type === 'observations'){
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      const z = document.createElement('div');
+      z.id = 'obsManuel';
+      bloc.appendChild(z);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;';
+      b.textContent = '➕ Ajouter une observation';
+      b.addEventListener('click', () => ajouterObservationManuelle(z));
+      bloc.appendChild(b);
+
+      /* Vingt lignes prêtes : un examen en compte facilement autant,
+         et ajouter une ligne à chaque fois cassait le rythme. */
+      for(let i = 0; i < 20; i++) ajouterObservationManuelle(z);
+
+    }else{
+      /* Texte libre, avec dictée possible */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+      if(ch.aide){
+        const a = document.createElement('div');
+        a.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;';
+        a.textContent = ch.aide;
+        bloc.appendChild(a);
+      }
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+      const t = document.createElement('textarea');
+      t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
+      t.id = idChamp(ch.cle);
+      /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
+         l'émoji qui ne convient pas et compléter les blancs. */
+      if(ch.defaut) t.value = ch.defaut;
+      t.style.cssText = 'flex:1;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:11px 12px;border-radius:10px;font-size:16px;' +
+        'line-height:1.6;font-family:inherit;resize:vertical;margin:0;';
+      /* Le bilan des éliminatoires se réécrit tant que le
+         moniteur n'y a pas touché. */
+      if(/(^|\.)bilanElim$/.test(ch.cle)){
+        t.addEventListener('input', () => {
+          if(typeof figerBilanEliminatoires === 'function'){
+            figerBilanEliminatoires();
+          }
+        });
+      }
+
+      /* Les heures avant permis décident de la frise post : le
+         calcul se fait à la saisie, pas à la génération. */
+      if(ch.cle === 'heuresAvant'){
+        t.addEventListener('input', () => {
+          champsManuels[prefixeExamenBlanc + 'heuresAvant'] = t.value;
+          if(typeof remplirFrises === 'function'){
+            remplirFrises(champsManuels, true);
+          }
+        });
+      }
+
+      r.appendChild(t);
+      if(dicteePossible()){
+        const mic = document.createElement('button');
+        mic.type = 'button';
+        mic.className = 'btn btn-secondary';
+        mic.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
+        mic.textContent = '🎙️';
+        mic.title = 'Dicter dans ce champ';
+        mic.addEventListener('click', () => dicterDans(t, mic));
+        r.appendChild(mic);
+      }
+
+      /* Marquer une faute éliminatoire, là où c'est utile */
+      if(ch.mort){
+        const bm = document.createElement('button');
+        bm.type = 'button';
+        bm.className = 'btn btn-secondary';
+        bm.style.cssText = 'width:auto;padding:11px 13px;font-size:18px;margin:0;flex-shrink:0;';
+        bm.textContent = '☠️';
+        bm.title = 'Insérer le marqueur de faute éliminatoire';
+        bm.addEventListener('click', () => {
+          /* Sur la ligne où se trouve le curseur, pas ailleurs */
+          const v = t.value;
+          const pos = t.selectionStart || 0;
+          const debut = v.lastIndexOf('\n', Math.max(0, pos - 1)) + 1;
+          let fin = v.indexOf('\n', pos);
+          if(fin === -1) fin = v.length;
+          const ligne = v.slice(debut, fin);
+
+          const nouvelle = (ligne.indexOf('☠️') !== -1)
+            ? ligne.split('☠️').join('').replace(/\s+/g, ' ').trim()
+            : ('☠️ ' + ligne).trim();
+
+          t.value = v.slice(0, debut) + nouvelle + v.slice(fin);
+          t.focus();
+          t.setSelectionRange(debut + nouvelle.length, debut + nouvelle.length);
+        });
+        r.appendChild(bm);
+      }
+
+      bloc.appendChild(r);
+    }
+
+    cible.appendChild(bloc);
+  });
+}
+
+
+/* ============================================================
+   L'EXAMEN BLANC SOUS LA TRANSCRIPTION
+
+   Le rendez-vous pédagogique se dicte, mais l'examen blanc qu'on
+   y fait ne se dicte pas : il se note, case par case. Le module
+   se pose donc sous la transcription, replié.
+
+   Il utilise dessinerChampsManuels() et le MÊME schéma que le
+   bilan manuel : deux formulaires écrits séparément auraient fini
+   par ne plus poser les mêmes questions.
+   ============================================================ */
+
+/* Les champs du module, sans ceux qui appartiennent au RVP */
+function champsExamenBlancRvp(){
+  const tous = CHAMPS_MANUELS.rvp || [];
+  const debut = tous.findIndex(c => c.type === 'depliant');
+  return (debut === -1) ? [] : tous.slice(debut + 1);
+}
+
+function majBlocExamenBlancCours(){
+  const zone = $('examenBlancCours');
+  if(!zone) return;
+
+  const surRvp = (($('modele') && $('modele').value) === 'rvp');
+  zone.style.display = surRvp ? 'block' : 'none';
+  if(!surRvp){ zone.innerHTML = ''; return; }
+
+  /* Déjà dessiné : on ne recommence pas, ce que le moniteur a
+     saisi serait perdu à chaque redessin de l'écran. */
+  if(zone.dataset.pret === 'oui') return;
+  zone.dataset.pret = 'oui';
+  zone.innerHTML = '';
+
+  const det = document.createElement('details');
+  det.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;';
+  det.innerHTML = '<summary style="cursor:pointer;font-size:15px;font-weight:700;' +
+    'color:var(--accent-text);">📝 Examen blanc fait pendant le RVP</summary>';
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 10px;line-height:1.4;';
+  aide.textContent = "À remplir seulement si tu en as fait un. Laissé fermé, " +
+    'le bilan sort comme avant.';
+  det.appendChild(aide);
+
+  const dedans = document.createElement('div');
+  det.appendChild(dedans);
+  zone.appendChild(det);
+
+  /* Les clés sont celles du module : les mêmes qu'en manuel */
+  prefixeExamenBlanc = 'examenBlanc.';
+  cleNiveauCourante = 'examenBlanc.niveau';
+  dessinerChampsManuels(champsExamenBlancRvp(), dedans,
+                        MODELES[$('modele').value] || {}, { manoeuvres: [] });
+}
+
+/* Ce que le moniteur a noté sous la transcription, prêt pour le
+   constructeur. Vide s'il n'a rien ouvert. */
+function examenBlancDuCours(){
+  const zone = $('examenBlancCours');
+  if(!zone || zone.dataset.pret !== 'oui') return {};
+
+  /* La même relecture que le bilan manuel, sur les mêmes champs */
+  lireChampsManuels(champsExamenBlancRvp());
+
+  const eb = {};
+  Object.keys(champsManuels || {}).forEach(k => {
+    if(k.indexOf('examenBlanc.') !== 0) return;
+    const chemin = k.slice(12).split('.');
+    let cible = eb;
+    for(let i = 0; i < chemin.length - 1; i++){
+      if(!cible[chemin[i]] || typeof cible[chemin[i]] !== 'object'){
+        cible[chemin[i]] = {};
+      }
+      cible = cible[chemin[i]];
+    }
+    cible[chemin[chemin.length - 1]] = champsManuels[k];
+  });
+
+  return Object.keys(eb).length ? { examenBlanc: eb } : {};
+}
