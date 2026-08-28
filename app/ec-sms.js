@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:13 — v667 */
+/* Déployé le 28/08/2026 à 16:38 — v670 */
 /* ============================================================
    ec-sms.js
    L'envoi de SMS, réservé au bureau.
@@ -305,11 +305,14 @@ async function envoyerSmsDepuisEcran(){
    prévenu — et c'est exactement ce qu'on cherche quand quelqu'un
    ne vient pas.
    ------------------------------------------------------------ */
-function voyantEnvoi(etat){
+/* Trois états, dans cet ordre : un refus prime sur tout, une
+   confirmation prime sur un simple envoi. */
+function voyantEnvoi(etat, confirmeLe){
   const e = String(etat || '').toLowerCase();
   if(e.indexOf('refus') !== -1 || e.indexOf('échec') !== -1 ||
      e.indexOf('echec') !== -1) return { p: '🔴', nom: 'refusé', c: 'var(--warn-text)' };
-  if(e.indexOf('confirm') !== -1) return { p: '🔵', nom: 'confirmé', c: 'var(--accent-text)' };
+  if(confirmeLe) return { p: '🔵', nom: 'confirmé le ' + confirmeLe,
+                          c: 'var(--bleu)' };
   return { p: '🟢', nom: 'envoyé', c: 'var(--accent-text)' };
 }
 
@@ -353,9 +356,15 @@ async function afficherJournalEnvois(recharger){
   const t = document.createElement('div');
   t.style.cssText = 'padding:10px 12px;border:1px solid var(--line);' +
     'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
+  const confirmes = duMois.filter(x => x.confirmeLe).length;
   t.innerHTML = '<strong>Ce mois-ci</strong> · ✉️ ' + mailsMois +
     ' mail(s) — gratuit · 💬 ' + smsMois.length + ' SMS, ' + segMois +
-    ' segments — <strong>' + euro(segMois * prixSegmentEuro()) + '</strong>';
+    ' segments — <strong>' + euro(segMois * prixSegmentEuro()) + '</strong>' +
+    (mailsMois
+      ? '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
+        '✋ ' + confirmes + ' élève(s) ont confirmé leur présence' +
+        (confirmes ? '' : ' — le bouton est dans le mail') + '</div>'
+      : '');
   zone.appendChild(t);
 
   const rech = document.createElement('input');
@@ -389,7 +398,7 @@ async function afficherJournalEnvois(recharger){
 
 function ligneJournal(x){
   const canal = String(x.canal || 'sms');
-  const v = voyantEnvoi(x.etat);
+  const v = voyantEnvoi(x.etat, x.confirmeLe);
 
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
@@ -414,7 +423,8 @@ function ligneJournal(x){
           (x.par ? ' · ' + String(x.par).replace(/</g, '&lt;') : '') +
           cout +
           ' · <span style="color:' + v.c + ';">' +
-          String(x.etat || v.nom).replace(/</g, '&lt;') + '</span>' +
+          String(x.confirmeLe ? '✋ présence confirmée le ' + x.confirmeLe
+                              : (x.etat || v.nom)).replace(/</g, '&lt;') + '</span>' +
         '</div>' +
       '</span>' +
     '</div>';
