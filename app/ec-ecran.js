@@ -11,6 +11,49 @@
    ============================================================ */
 
 let diaposEcran = [];
+let reglagesEcran = {};
+
+/* Le cours qui commence prend-il tout l'écran ?
+
+   Actif tant qu'on ne l'a pas coupé : c'est ce qu'on veut tous les
+   jours. La valeur enregistrée est donc « non » pour désactiver, et
+   rien du tout pour le comportement normal — un réglage jamais
+   touché doit marcher comme s'il avait été mis en route. */
+function pleinEcranActif(){
+  return String(reglagesEcran.ecranPleinEcran || '') !== 'non';
+}
+
+/* L'interrupteur du plein écran. Il se sert du même composant que
+   les réglages des procédures : un seul interrupteur dessiné dans
+   toute l'application. */
+function blocPleinEcran(){
+  const z = document.createElement('div');
+  z.style.cssText = 'margin-bottom:14px;';
+
+  if(typeof interrupteur !== 'function'){
+    /* Module absent : on le dit plutôt que de laisser un vide */
+    z.innerHTML = '<div class="empty" style="font-size:13px;">' +
+      'Réglage indisponible : le module des procédures n\'est pas chargé.</div>';
+    return z;
+  }
+
+  z.appendChild(interrupteur({
+    cle: 'ecranPleinEcran',
+    titre: '🖥️ Cours en plein écran à l\'heure du cours',
+    ouvert: pleinEcranActif(),
+    quandOuvert: 'De 5 minutes avant à 5 minutes après, le cours prend tout ' +
+                 'l\'écran de l\'accueil. Les diapositives continuent derrière.',
+    quandFerme: 'Les cours restent dans leur liste, à gauche. Les diapositives ' +
+                'gardent l\'écran — le temps d\'un contrôle, par exemple.',
+    confirmation: '',
+    /* À l'envers des autres réglages : c'est « non » qui coupe, et
+       un réglage jamais touché reste actif. */
+    valeurs: { actif: '', inactif: 'non' },
+    apres: afficherEcran
+  }));
+
+  return z;
+}
 
 async function afficherEcran(){
   const zone = $('ecranZone');
@@ -25,7 +68,20 @@ async function afficherEcran(){
     return;
   }
 
+  /* Les réglages n'empêchent pas l'écran de s'afficher : illisibles,
+     on garde le comportement normal plutôt que de tout bloquer. */
+  try{
+    const r = await appelPrep({ action: 'reglagesList' });
+    reglagesEcran = (r && r.reglages) || {};
+  }catch(e){
+    reglagesEcran = {};
+  }
+
   zone.innerHTML = '';
+
+  /* Ce qui se passe à l'heure du cours, avant tout le reste : c'est
+     le réglage qu'on vient couper en vitesse un jour de contrôle. */
+  zone.appendChild(blocPleinEcran());
 
   /* Le planning tel qu'il apparaît à l'accueil, modifiable ici */
   zone.appendChild(blocPlanning());
