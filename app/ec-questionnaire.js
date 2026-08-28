@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 14:10 — v618 */
+/* Déployé le 28/08/2026 à 10:06 — v637 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -788,7 +788,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
         '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
           'Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront ' +
-          'signées de ton émoji.</div>' +
+          'signées de ton émoji.<br>' +
+          'La colonne 🚗 est pour un élève repris d\'une autre auto-école : ' +
+          'ce qu\'il y a déjà fait porte 🚗, pas ton émoji.</div>' +
         '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
           'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
           'margin-bottom:14px;"></div>' +
@@ -987,7 +989,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       blocFiche.style.display = (enFinDeCours || surFiche) ? 'none' : 'block';
     }
 
-    remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || []);
+    remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || [],
+                              prec.manoeuvresAilleurs || []);
     boite._marquesConnues = marquesConnues;
 
     /* Après le cours : on n'affiche que ce qui peut avoir changé */
@@ -1291,6 +1294,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         libre: boite.querySelector('#qLibre').value.trim(),
         /* Les manœuvres cochées en plus, à signer de l'émoji du moniteur */
         manoeuvresAjoutees: manoeuvresAjouteesQuestionnaire(boite._marquesConnues || {}),
+        /* Celles faites avant d'arriver chez nous, à signer 🚗 */
+        manoeuvresAilleurs: manoeuvresAilleursQuestionnaire(boite._marquesConnues || {}),
         leconsFaites: faites,
         manoeuvresFaites: manoeuvresAvant.length,
         totalManoeuvres: totalManoeuvres
@@ -1809,44 +1814,99 @@ function blocFicheVehiculeEleve(bilans, toutAfficher){
    Le moniteur complète ce qui a été acquis pendant son cours.
    Ce qu'il ajoute porte son émoji, comme dans le bilan.
    ============================================================ */
-function remplirFicheQuestionnaire(marquesAvant, dejaCochees){
+function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs){
   const zone = $('qFiche');
   if(!zone) return;
 
   const marques = marquesAvant || {};
   zone.innerHTML = '';
 
-  /* Tout cocher d'un coup : quand un moniteur annonce que la fiche
-     est terminée, cocher dix-neuf cases une par une est absurde. */
-  const tout = document.createElement('label');
+  /* La colonne 🚗 a sa largeur fixe, la même sur toutes les lignes :
+     sans elle les cases se décalaient au gré de la longueur des
+     libellés, et on ne savait plus quelle case allait avec quoi. */
+  const LARGEUR_AILLEURS = '42px';
+
+  /* L'en-tête : deux « tout cocher », un par colonne. Cocher
+     dix-neuf cases une par une est absurde, et ça l'est deux fois
+     plus pour un élève repris qui arrive avec la fiche à moitié
+     faite. */
+  const tout = document.createElement('div');
   tout.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0 8px;' +
-    'font-size:14px;text-transform:none;margin:0 0 6px;font-weight:700;' +
-    'color:var(--accent-text);border-bottom:1px solid var(--line);';
+    'margin:0 0 6px;border-bottom:1px solid var(--line);';
+
+  const gauche = document.createElement('label');
+  gauche.style.cssText = 'display:flex;align-items:center;gap:9px;flex:1;min-width:0;' +
+    'font-size:14px;text-transform:none;margin:0;font-weight:700;' +
+    'color:var(--accent-text);cursor:pointer;';
   const cbTout = document.createElement('input');
   cbTout.type = 'checkbox';
   cbTout.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
   cbTout.addEventListener('change', () => {
     zone.querySelectorAll('.qManoeuvre').forEach(x => { x.checked = cbTout.checked; });
   });
-  tout.appendChild(cbTout);
+  gauche.appendChild(cbTout);
   const tt = document.createElement('span');
   tt.textContent = 'Tout cocher';
-  tout.appendChild(tt);
+  gauche.appendChild(tt);
+  tout.appendChild(gauche);
+
+  const droite = document.createElement('label');
+  droite.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;' +
+    'width:' + LARGEUR_AILLEURS + ';flex-shrink:0;font-size:14px;text-transform:none;' +
+    'margin:0;font-weight:700;color:var(--accent-text);cursor:pointer;';
+  droite.title = "Tout cocher — déjà fait dans une autre auto-école";
+  const cbToutAilleurs = document.createElement('input');
+  cbToutAilleurs.type = 'checkbox';
+  cbToutAilleurs.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
+  cbToutAilleurs.addEventListener('change', () => {
+    zone.querySelectorAll('.qAilleurs').forEach(x => {
+      /* Une manœuvre qui porte déjà la 🚗 d'un bilan précédent n'est
+         pas décochable : sa marque est écrite, on ne la reprend pas. */
+      if(x.disabled) return;
+      x.checked = cbToutAilleurs.checked;
+    });
+  });
+  droite.appendChild(cbToutAilleurs);
+  const dt = document.createElement('span');
+  dt.style.cssText = 'font-size:13px;line-height:1;';
+  dt.textContent = '🚗';
+  droite.appendChild(dt);
+  tout.appendChild(droite);
+
   zone.appendChild(tout);
+
+  /* Ce qu'est la colonne 🚗, écrit une fois en toutes lettres :
+     l'émoji seul en tête de colonne ne dit rien à qui ouvre
+     l'écran pour la première fois. */
+  const legende = document.createElement('div');
+  legende.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;' +
+    'margin:0 0 8px;';
+  legende.textContent = '🚗 = déjà fait dans une autre auto-école';
+  zone.appendChild(legende);
 
   /* Ce que le moniteur avait coché à la préparation, ou plus tôt
      dans ce cours : sans ça, rouvrir le questionnaire effaçait tout
      et le travail du collègue était perdu. */
   const cochees = (dejaCochees || []).map(x => normaliserMot(x));
+  const ailleurs = (dejaAilleurs || []).map(x => normaliserMot(x));
 
   (BLOC.ficheListeConduite || []).forEach(libelle => {
     const cle = normaliserMot(libelle);
     const deja = marques[cle] || '';
     const cochee = cochees.indexOf(cle) !== -1;
+    /* La 🚗 déjà inscrite dans un bilan précédent : la case la
+       montre, mais on n'y retouche pas. */
+    const ailleursAcquis = deja.indexOf(MARQUE_AILLEURS) !== -1;
+    const ailleursCochee = ailleurs.indexOf(cle) !== -1;
+
+    /* La ligne n'est plus un seul <label> : deux cases dans un même
+       label, et cliquer sur la 🚗 basculait aussi la première. */
+    const ligne = document.createElement('div');
+    ligne.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;';
 
     const l = document.createElement('label');
-    l.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0;' +
-      'font-size:14px;text-transform:none;margin:0;font-weight:400;' +
+    l.style.cssText = 'display:flex;align-items:center;gap:9px;flex:1;min-width:0;' +
+      'font-size:14px;text-transform:none;margin:0;font-weight:400;cursor:pointer;' +
       'color:' + (deja ? 'var(--muted)' : 'var(--cream)') + ';';
 
     const cb = document.createElement('input');
@@ -1869,7 +1929,24 @@ function remplirFicheQuestionnaire(marquesAvant, dejaCochees){
       l.appendChild(m);
     }
 
-    zone.appendChild(l);
+    ligne.appendChild(l);
+
+    const la = document.createElement('label');
+    la.style.cssText = 'display:flex;align-items:center;justify-content:center;' +
+      'width:' + LARGEUR_AILLEURS + ';flex-shrink:0;margin:0;padding:0;cursor:pointer;';
+    la.title = libelle + " — déjà fait dans une autre auto-école";
+    const cba = document.createElement('input');
+    cba.type = 'checkbox';
+    cba.className = 'qAilleurs';
+    cba.value = libelle;
+    cba.checked = ailleursAcquis || ailleursCochee;
+    cba.disabled = ailleursAcquis;
+    cba.style.cssText = 'width:17px;height:17px;flex-shrink:0;' +
+      (ailleursAcquis ? 'opacity:.55;' : '');
+    la.appendChild(cba);
+    ligne.appendChild(la);
+
+    zone.appendChild(ligne);
   });
 }
 
@@ -1883,6 +1960,21 @@ function manoeuvresAjouteesQuestionnaire(marquesAvant){
     ajoutees.push(cb.value);
   });
   return ajoutees;
+}
+
+/* Ce qui a été fait dans une autre auto-école. Séparé des ajouts du
+   jour : ces manœuvres reçoivent la 🚗, pas l'émoji du moniteur. */
+function manoeuvresAilleursQuestionnaire(marquesAvant){
+  const marques = marquesAvant || {};
+  const liste = [];
+  document.querySelectorAll('.qAilleurs').forEach(cb => {
+    if(!cb.checked) return;
+    /* Déjà marquée 🚗 dans un bilan précédent : rien à réécrire */
+    const deja = marques[normaliserMot(cb.value)] || '';
+    if(deja.indexOf(MARQUE_AILLEURS) !== -1) return;
+    liste.push(cb.value);
+  });
+  return liste;
 }
 
 /* Le dossier de l'élève sous le champ de préparation : même bloc
@@ -2081,6 +2173,9 @@ async function afficherSaisieDuJour(rep, cible){
 
   /* La fiche véhicule : ce qui est acquis, ce qui reste */
   const cochees = rep.manoeuvresAjoutees || [];
+  /* Fait ailleurs = fait : le compteur dit ce qui reste à
+     travailler, pas ce qui a été travaillé chez nous. */
+  const cocheesAilleurs = rep.manoeuvresAilleurs || [];
   let marques = {};
   try{
     const d = await chargerDossierEleve(eleve);
@@ -2088,7 +2183,8 @@ async function afficherSaisieDuJour(rep, cible){
   }catch(e){ /* hors ligne : sans les émojis */ }
 
   const faites = (BLOC.ficheListeConduite || []).filter(
-    x => cochees.indexOf(x) !== -1 || marques[normaliserMot(x)]);
+    x => cochees.indexOf(x) !== -1 || cocheesAilleurs.indexOf(x) !== -1 ||
+         marques[normaliserMot(x)]);
   const restantes = (BLOC.ficheListeConduite || []).filter(
     x => faites.indexOf(x) === -1);
 
@@ -2106,10 +2202,14 @@ async function afficherSaisieDuJour(rep, cible){
     const l = document.createElement('div');
     l.style.cssText = 'font-size:13px;line-height:1.7;';
     faites.forEach(x => {
-      const m = marques[normaliserMot(x)] || '';
+      /* La marque écrite si elle existe ; sinon celle que ce
+         questionnaire vient de poser — 🚗 pour ce qui vient d'une
+         autre auto-école, la coche pour le reste. */
+      const m = marques[normaliserMot(x)] ||
+        (cocheesAilleurs.indexOf(x) !== -1 ? MARQUE_AILLEURS : '✅');
       const li = document.createElement('div');
       li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
-        (m ? ' <span style="letter-spacing:1px;">' + m + '</span>' : ' ✅');
+        ' <span style="letter-spacing:1px;">' + m + '</span>';
       l.appendChild(li);
     });
     carte.appendChild(l);
