@@ -1,167 +1,144 @@
 <!DOCTYPE html>
 <!-- ============================================================
-     LE COURS D'UN ÉLÈVE — Évolution Conduites
+     CONFIRMATION DE PRÉSENCE — Évolution Conduites
 
-     Cette page s'ouvre depuis le lien d'un mail de rappel, sans
-     compte ni code. Le jeton de l'adresse fait l'autorisation et
-     ne vaut que pour un cours : il ne connecte à rien d'autre, et
-     surtout pas au coin révisions, dont le code est permanent.
+     Un élève arrive ici en appuyant sur le bouton « Je serai
+     présent » de son mail de rappel. Un mail ne peut rien
+     exécuter : ce qu'on y appelle un bouton est toujours un lien,
+     et il faut bien qu'il ouvre quelque chose. Cette page est ce
+     quelque chose, réduit au strict nécessaire — elle confirme
+     toute seule et dit merci.
 
-     Elle ne porte que le prénom. Une page sans mot de passe n'a
-     pas à désigner quelqu'un par son nom complet.
+     La confirmation part en POST, depuis le script. Les
+     anti-virus et les aperçus de messagerie ouvrent les liens
+     tout seuls, mais n'exécutent pas de script : ils ne peuvent
+     donc pas confirmer une présence à la place de l'élève.
+
+     Le jeton ne vaut que pour ce cours. Il ne connecte à rien.
      ============================================================ -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<title>Ton cours — Évolution Conduites</title>
+<title>C'est noté — Évolution Conduites</title>
 <style>
   :root{
     --fond:#0B0B0B; --carte:#121212; --ligne:#2A2A2A; --creme:#F2EFE9;
-    --gris:#9A968E; --orange:#E8A33D; --vert:#B6FF0E; --rouge:#FF6B5E;
-    --bleu:#5EC8FF;
+    --gris:#9A968E; --orange:#E8A33D; --vert:#B6FF0E; --bleu:#5EC8FF;
   }
   @media (prefers-color-scheme: light){
-    :root{ --fond:#F7F5F1; --carte:#FFFFFF; --ligne:#E2DED6; --creme:#16150F;
-           --gris:#6B675F; --orange:#B87A12; --vert:#4E7A00; --rouge:#C0342A;
-           --bleu:#0B6FA4; }
+    :root{ --fond:#F4F2ED; --carte:#FFFFFF; --ligne:#E4E0D8; --creme:#1A1A1A;
+           --gris:#8A857C; --orange:#B87A12; --vert:#4E7A00; --bleu:#0B6FA4; }
   }
   *{box-sizing:border-box}
   body{
-    margin:0; padding:20px 16px 40px; background:var(--fond); color:var(--creme);
+    margin:0; padding:0; background:var(--fond); color:var(--creme);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     line-height:1.6; -webkit-text-size-adjust:100%;
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
   }
-  .page{max-width:520px;margin:0 auto}
-  .marque{font-size:12px;letter-spacing:.16em;text-transform:uppercase;
-          color:var(--gris);text-align:center;margin-bottom:18px}
-  h1{font-size:23px;margin:0 0 4px;line-height:1.25}
-  .sous{color:var(--gris);font-size:14px;margin:0 0 20px}
-  .carte{background:var(--carte);border:1px solid var(--ligne);
-         border-radius:14px;padding:16px 17px;margin-bottom:13px}
-  .quand{font-size:20px;font-weight:800;color:var(--orange);line-height:1.35}
-  .ligne{display:flex;gap:11px;padding:9px 0;border-top:1px solid var(--ligne)}
-  .ligne:first-child{border-top:0;padding-top:0}
-  .cle{color:var(--gris);font-size:14px;flex:0 0 96px}
-  .val{flex:1;min-width:0;font-size:15px}
-  .mentions{white-space:pre-wrap;font-size:15px}
-  .regle{font-size:13px;color:var(--gris);border-left:3px solid var(--orange);
-         padding-left:11px;margin-top:4px}
+  .page{max-width:420px;width:100%;padding:28px 18px 40px;text-align:center}
+  .marque{font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+          color:var(--gris);margin-bottom:26px}
+  .pastille{font-size:52px;line-height:1;margin-bottom:14px}
+  h1{font-size:24px;margin:0 0 8px;line-height:1.3}
+  p{margin:0 0 14px;font-size:16px}
+  .gris{color:var(--gris);font-size:14px}
+  .rappel{background:var(--carte);border:1px solid var(--ligne);
+          border-radius:13px;padding:14px 16px;margin:22px 0 0;
+          font-size:15px;text-align:left}
+  .rappel .quand{font-weight:800;color:var(--orange);font-size:17px}
+  .rappel .ou{color:var(--gris);font-size:14px;margin-top:3px}
   button{
-    width:100%;padding:15px;font-size:16px;font-weight:700;cursor:pointer;
-    border-radius:12px;border:1px solid var(--ligne);
-    background:var(--orange);color:#111;font-family:inherit;
+    width:100%;padding:15px;font-size:17px;font-weight:700;cursor:pointer;
+    border-radius:12px;border:0;background:var(--orange);color:#111;
+    font-family:inherit;margin-top:18px;
   }
-  button:disabled{opacity:.55;cursor:default}
-  .fait{background:transparent;color:var(--vert);border-color:var(--vert);font-weight:700}
-  .liens{text-align:center;margin-top:22px;font-size:14px}
-  .liens a{color:var(--bleu);text-decoration:none;
-           border-bottom:1px solid currentColor;padding-bottom:1px}
-  .pied{text-align:center;color:var(--gris);font-size:12px;margin-top:26px;line-height:1.7}
-  .vide{text-align:center;color:var(--gris);padding:40px 10px;font-size:15px}
+  button:disabled{opacity:.6;cursor:default}
+  .pied{color:var(--gris);font-size:12px;margin-top:28px;line-height:1.7}
 </style>
 </head>
 <body>
 <div class="page">
   <div class="marque">Évolution Conduites</div>
-  <div id="zone"><div class="vide">Chargement…</div></div>
+  <div id="zone"><p class="gris">Un instant…</p></div>
 </div>
 
 <script>
-/* L'adresse du Worker : la même que celle de l'application. */
 var PROXY = 'https://bilan-proxy.evolutionconduites.workers.dev';
-
 var jeton = (new URLSearchParams(location.search).get('c') || '').trim();
 var zone = document.getElementById('zone');
 
-function texte(s){
+function txt(s){
   var d = document.createElement('div');
   d.textContent = String(s == null ? '' : s);
   return d.innerHTML;
 }
 
+/* Le cours en une ligne : confirmer sans savoir quoi n'aurait
+   aucun sens, mais ce n'est pas une fiche pour autant. */
+function rappelDuCours(c){
+  if(!c || !c.date) return '';
+  return '<div class="rappel"><div class="quand">' + txt(c.date) +
+    (c.heure ? ' à ' + txt(c.heure) : '') + '</div>' +
+    (c.lieu ? '<div class="ou">' + txt(c.lieu) + '</div>' : '') +
+    '</div>';
+}
+
+function merci(c, quand){
+  zone.innerHTML =
+    '<div class="pastille">✅</div>' +
+    '<h1>C\'est noté' + (c && c.prenom ? ', ' + txt(c.prenom) : '') + ' !</h1>' +
+    '<p class="gris">Nous savons que tu seras là. À très vite.</p>' +
+    rappelDuCours(c) +
+    '<div class="pied">' +
+      (quand ? 'Confirmé le ' + txt(quand) + '<br>' : '') +
+      'Si finalement tu ne peux pas venir, préviens-nous au moins ' +
+      '48 heures à l\'avance : passé ce délai, la leçon est facturée.' +
+    '</div>';
+}
+
+/* Le script n'a pas pu confirmer : plutôt que de laisser l'élève
+   croire que c'est fait, on lui donne le bouton. */
+function aConfirmer(c){
+  zone.innerHTML =
+    '<h1>Bonjour' + (c && c.prenom ? ' ' + txt(c.prenom) : '') + ' 👋</h1>' +
+    '<p class="gris">Confirme ta présence à ce cours.</p>' +
+    rappelDuCours(c) +
+    '<button id="ok">✋ Je serai présent</button>';
+
+  document.getElementById('ok').addEventListener('click', function(){
+    this.disabled = true;
+    this.textContent = 'Un instant…';
+    confirmer(c, true);
+  });
+}
+
 function rien(message){
-  zone.innerHTML = '<div class="vide">' + texte(message) +
-    '<br><br>Si tu ne retrouves pas ton cours, appelle-nous : ' +
-    'nous te redirons tout.</div>';
+  zone.innerHTML = '<div class="pastille">🤔</div>' +
+    '<h1>' + txt(message) + '</h1>' +
+    '<p class="gris">Appelle-nous, nous te redirons tout.</p>';
 }
 
-function ligne(cle, valeur){
-  if(!valeur) return '';
-  return '<div class="ligne"><div class="cle">' + texte(cle) +
-         '</div><div class="val">' + texte(valeur) + '</div></div>';
-}
-
-function afficher(c){
-  var html =
-    '<h1>Bonjour ' + texte(c.prenom || '') + ' 👋</h1>' +
-    '<p class="sous">Voici le détail de ton prochain cours.</p>' +
-
-    '<div class="carte"><div class="quand">' +
-      texte(c.date || '') + (c.heure ? ' à ' + texte(c.heure) : '') +
-    '</div></div>' +
-
-    '<div class="carte">' +
-      ligne('Rendez-vous', c.lieu) +
-      ligne('Véhicule', c.vehicule) +
-      ligne('Séance', c.typeSeance) +
-      ligne('Avec', c.moniteur) +
-    '</div>' +
-
-    (c.mentions
-      ? '<div class="carte"><div class="mentions">' + texte(c.mentions) + '</div></div>'
-      : '') +
-
-    '<div class="carte"><div class="regle">Si tu as un empêchement, ' +
-      'préviens-nous au moins 48 heures à l\'avance : passé ce délai, ' +
-      'la leçon est due et sera facturée.</div></div>' +
-
-    '<div id="zoneBouton"></div>' +
-
-    '<div class="liens"><a href="eleve.html">Ton coin révisions →</a></div>' +
-
-    '<div class="pied">Cette page ne concerne que ce cours.<br>' +
-      'Elle ne donne accès à rien d\'autre.</div>';
-
-  zone.innerHTML = html;
-  poserBouton(c.confirmeLe);
-}
-
-function poserBouton(confirmeLe){
-  var z = document.getElementById('zoneBouton');
-  if(!z) return;
-
-  if(confirmeLe){
-    z.innerHTML = '<button class="fait" disabled>✅ Merci, c\'est noté — ' +
-                  'tu as confirmé ta présence</button>';
-    return;
-  }
-
-  z.innerHTML = '<button id="jeViens">✋ Je serai là</button>';
-  document.getElementById('jeViens').addEventListener('click', function(){
-    var b = this;
-    b.disabled = true;
-    b.textContent = 'Un instant…';
-
-    /* En POST : un lien qu'un anti-virus ou un aperçu de messagerie
-       ouvre tout seul ne doit pas valoir présence annoncée. */
-    fetch(PROXY + '/cours', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ c: jeton, confirmer: true })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(d && d.confirmeLe) poserBouton(d.confirmeLe);
-      else throw new Error(d && d.error ? d.error : 'échec');
-    })
-    .catch(function(){
-      b.disabled = false;
-      b.textContent = '✋ Je serai là';
-      alert("La confirmation n'est pas passée. Réessaie dans un instant, " +
-            "ou préviens-nous directement.");
-    });
+function confirmer(c, manuel){
+  fetch(PROXY + '/cours', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ c: jeton, confirmer: true })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d && d.confirmeLe) merci(c, d.confirmeLe);
+    else throw new Error('échec');
+  })
+  .catch(function(){
+    if(manuel){
+      zone.innerHTML += '<p class="gris">La confirmation n\'est pas passée. ' +
+        'Réessaie dans un instant, ou préviens-nous directement.</p>';
+    }else{
+      aConfirmer(c);
+    }
   });
 }
 
@@ -171,12 +148,12 @@ if(!jeton){
   fetch(PROXY + '/cours?c=' + encodeURIComponent(jeton))
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(d && d.cours) afficher(d.cours);
-      else rien((d && d.error) || 'Ce lien a expiré.');
+      if(!d || !d.cours) return rien((d && d.error) || 'Ce lien a expiré.');
+      /* Déjà confirmé : on ne le redemande pas, on le rappelle. */
+      if(d.cours.confirmeLe) return merci(d.cours, d.cours.confirmeLe);
+      confirmer(d.cours, false);
     })
-    .catch(function(){
-      rien('Impossible de charger ton cours pour le moment.');
-    });
+    .catch(function(){ rien('Impossible de te répondre pour le moment.'); });
 }
 </script>
 </body>
