@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:59 — v674 */
+/* Déployé le 28/08/2026 à 17:11 — v677 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1672,8 +1672,10 @@ async function envoyerRappelParMail(nom, r, moniteur){
                (quand ? ' — ' + quand : '') + (heure ? ' à ' + heure : ''),
         texte: texte, html: mailEnHtml(texte, '') });
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: true });
+      /* Pas de jeton sur cette ligne : le mail du financeur ne porte
+         pas le bouton, il n'y a donc pas de réponse à attendre. */
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
-                               etat: 'envoyé (financeur)', message: texte, jeton: jeton });
+                               etat: 'envoyé (financeur)', message: texte });
     }catch(e){
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: false, motif: e.message });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
@@ -2306,9 +2308,11 @@ async function afficherHistoriqueSms(recharger){
   const t = document.createElement('div');
   t.style.cssText = 'padding:10px 12px;background:var(--navy);border:1px solid var(--line);' +
     'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
+  const attendus = duJour.filter(x => x.jeton && !x.confirmeLe).length;
   t.innerHTML = '<strong>' + duJour.length + " envoi(s) aujourd'hui</strong>" +
     (duJour.length
-      ? ' · ✋ ' + confirmes + ' présence(s) confirmée(s)'
+      ? ' · ✋ ' + confirmes + ' confirmée(s)' +
+        (attendus ? ' · ⏳ ' + attendus + ' sans réponse' : '')
       : '') +
     '<br><span style="font-size:12px;color:var(--muted);">' +
     (liste.total || liste.length) + ' au total · les ' + liste.length +
