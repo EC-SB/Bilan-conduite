@@ -9,7 +9,8 @@
      AFFICHAGE DYNAMIQUE — Évolution Conduites
 
      ?ou=accueil   bandeau, image plein écran en fond, planning
-                   par-dessus à gauche
+                   par-dessus à gauche ; le cours qui commence
+                   prend tout l'écran de T-5 à T+5
      ?ou=vitrine   pas de bandeau : fond fixe, texte fixe à gauche,
                    photos qui tournent à droite en transparence
 
@@ -191,6 +192,79 @@
   .cours .v.garage{ color:var(--red); }
 
   /* ============================================================
+     LE COURS QUI COMMENCE
+
+     Cinq minutes avant l'heure et cinq minutes après, le cours prend
+     tout l'écran : l'élève qui pousse la porte cherche son moniteur
+     et sa voiture, pas la liste de la journée. Les photos continuent
+     de tourner derrière, floutées.
+     ============================================================ */
+  #imminent{
+    position:absolute; inset:0; z-index:8;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:34px;
+    padding:38px 50px;
+    background:rgba(11,14,20,.70);
+    backdrop-filter:blur(9px);
+    -webkit-backdrop-filter:blur(9px);
+    opacity:0; visibility:hidden;
+    transition:opacity .6s ease, visibility .6s;
+  }
+  #imminent.vu{ opacity:1; visibility:visible; }
+  /* La carte du planning transparaîtrait sous le voile : on la
+     retire le temps du plein écran. */
+  body.imminent #planning{ display:none; }
+  body.vitrine #imminent{ display:none; }
+
+  #imminent .surtitre{
+    font-size:26px; font-weight:800; letter-spacing:4px;
+    text-transform:uppercase; color:var(--accent); text-align:center;
+  }
+  #imminent .grille{
+    display:grid; gap:26px; width:100%; max-width:1700px;
+    grid-template-columns:repeat(auto-fit, minmax(330px, 1fr));
+  }
+  #imminent .bloc{
+    background:rgba(11,14,20,.60);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:26px;
+    padding:32px 36px; text-align:center;
+    display:flex; flex-direction:column; justify-content:center; gap:8px;
+  }
+  #imminent .bh{
+    font-size:56px; font-weight:800; color:var(--accent);
+    font-variant-numeric:tabular-nums; line-height:1;
+  }
+  #imminent .be{ font-size:54px; font-weight:800; line-height:1.05; }
+  #imminent .bm{ font-size:28px; color:var(--muted); }
+  #imminent .bv{
+    font-size:36px; font-weight:800; color:var(--accent);
+    margin-top:10px; line-height:1.25;
+  }
+  #imminent .bv .ou{
+    display:block; font-size:23px; font-weight:400; color:var(--muted);
+  }
+  #imminent .bv.garage{ color:var(--red); }
+
+  /* Un seul cours : tout l'écran pour lui. Au-delà de trois, on
+     resserre plutôt que de laisser un nom déborder. */
+  /* Seul, le bloc n'a pas besoin de toute la largeur : étiré d'un
+     bord à l'autre, il paraissait vide sur les côtés. */
+  #imminent.seul .grille{ max-width:1100px; }
+  #imminent.seul .bh{ font-size:88px; }
+  #imminent.seul .be{ font-size:88px; }
+  #imminent.seul .bm{ font-size:38px; }
+  #imminent.seul .bv{ font-size:52px; }
+  #imminent.seul .bv .ou{ font-size:30px; }
+  #imminent.serre .bh{ font-size:40px; }
+  #imminent.serre .be{ font-size:36px; }
+  #imminent.serre .bm{ font-size:22px; }
+  #imminent.serre .bv{ font-size:26px; }
+  #imminent.serre .bv .ou{ font-size:18px; }
+  #imminent.serre .bloc{ padding:22px 24px; border-radius:20px; }
+  #imminent.serre .grille{ gap:18px; }
+
+  /* ============================================================
      LA VITRINE
 
      Fond fixe, texte fixe à gauche, photos qui tournent à droite
@@ -359,6 +433,12 @@
       <div class="p-texte" id="pTexte"></div>
     </section>
 
+    <!-- Le cours qui commence, par-dessus les photos -->
+    <section id="imminent">
+      <div class="surtitre" id="imminentTitre"></div>
+      <div class="grille" id="imminentListe"></div>
+    </section>
+
     <div id="meteoVitrine"></div>
   </main>
 
@@ -387,6 +467,13 @@ const LAT = 48.5136, LON = -2.7653;      /* Saint-Brieuc */
 const DELAI_DONNEES = 60000;
 const DELAI_METEO   = 900000;
 
+/* Le cours prend tout l'écran cinq minutes avant son heure, et le
+   quitte cinq minutes après. Ensuite il redescend dans la liste,
+   d'où le classeur le retire un quart d'heure après l'heure. */
+const IMMINENT_AVANT = 5;
+const IMMINENT_APRES = 5;
+const DELAI_IMMINENT = 10000;
+
 if(OU === 'vitrine') document.body.classList.add('vitrine');
 
 let diapos = [];
@@ -394,15 +481,43 @@ let iDiapo = 0;
 let minuteurDiapo = null;
 let signature = '';
 
+/* L'heure vient du classeur, pas du téléviseur. Une box mal réglée
+   décalerait tous les passages en plein écran, et c'est le genre de
+   panne qu'on ne comprend qu'au bout d'une semaine. On retient
+   l'heure reçue et depuis combien de temps, plutôt que de croire
+   l'horloge locale. */
+let horlogeServeur = null;   /* { minutes, recu } */
+let jourServeur = '';
+let planningActuel = [];
+
 
 /* ============================================================
    L'HEURE
    ============================================================ */
-function majHeure(){
+/* « 08:30 » vaut 510 minutes. Rien d'autre ne se compare aussi
+   simplement, y compris entre deux cours. */
+function minutesDe(hhmm){
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
+  return m ? (Number(m[1]) * 60 + Number(m[2])) : null;
+}
+
+function maintenantMinutes(){
+  if(horlogeServeur){
+    const ecoule = Math.floor((Date.now() - horlogeServeur.recu) / 60000);
+    return (horlogeServeur.minutes + ecoule) % 1440;
+  }
+  /* Jamais reçu l'heure du classeur : celle du téléviseur, faute de
+     mieux. L'écran doit marcher même si le relais est muet. */
   const d = new Date();
-  const hh = String(d.getHours()).padStart(2, '0') + ':' +
-             String(d.getMinutes()).padStart(2, '0');
-  const jj = d.toLocaleDateString('fr-FR',
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function majHeure(){
+  const m = maintenantMinutes();
+  const hh = String(Math.floor(m / 60)).padStart(2, '0') + ':' +
+             String(m % 60).padStart(2, '0');
+  const base = jourServeur ? new Date(jourServeur + 'T12:00:00') : new Date();
+  const jj = base.toLocaleDateString('fr-FR',
     { weekday:'long', day:'numeric', month:'long' });
 
   document.getElementById('heure').textContent = hh;
@@ -544,6 +659,13 @@ async function chargerVraiment(){
     const d = await r.json();
     document.getElementById('souci').textContent = '';
 
+    /* L'heure du classeur, et depuis quand on l'a : tout ce qui se
+       joue à la minute s'y réfère. */
+    const mServeur = minutesDe(d && d.heure);
+    if(mServeur !== null) horlogeServeur = { minutes: mServeur, recu: Date.now() };
+    if(d && d.jour) jourServeur = d.jour;
+    majHeure();
+
     /* Tout va bien : on repart de zéro */
     echecs = 0;
     const n = new Date();
@@ -553,7 +675,9 @@ async function chargerVraiment(){
     dessinerFond(d && d.fond);
     dessinerPanneau(d && d.panneau);
     dessinerBandeau((d && d.bandeaux) || []);
-    dessinerPlanning((d && d.planning) || []);
+    planningActuel = (d && d.planning) || [];
+    dessinerPlanning(planningActuel);
+    majImminents();
 
     /* On ne relance le carrousel que si le contenu a changé :
        sinon il repartirait de la première image chaque minute. */
@@ -663,6 +787,45 @@ function dessinerBandeau(liste){
 /* ============================================================
    LE PLANNING
    ============================================================ */
+/* Les emplacements, en secours du pictogramme envoyé par le bureau.
+   Écrits une fois : la liste et le plein écran s'en servent tous
+   les deux. */
+const LIEUX = {
+  devant: ['🛣️', 'devant'],
+  cour: ['🅿️', 'cour intérieure'],
+  moto: ['🏍️', 'moto'],
+  scooter: ['🛵', 'scooter'],
+  bureau: ['🏢', 'au bureau'],
+  tablettes: ['📱', 'salle des tablettes'],
+  cours: ['📚', 'salle de cours'],
+  simulateur: ['🖥️', 'simulateur']
+};
+
+/* Le véhicule et son emplacement : c'est ce que l'élève cherche en
+   entrant, plus encore que l'heure. Le pictogramme vient du bureau
+   quand il en envoie un ; la table ci-dessus sert de secours.
+
+   La classe change selon l'endroit — « v » dans la liste, « bv » en
+   plein écran — mais la règle, elle, n'existe qu'ici. */
+function vehiculeHtml(c, cls){
+  const local = LIEUX[c.lieu] || ['', ''];
+  const lieu = (c.lieuEmoji || c.lieuNom)
+    ? [c.lieuEmoji || local[0] || '', c.lieuNom || local[1] || '']
+    : local;
+
+  if(c.auGarage){
+    return '<span class="' + cls + ' garage">🔧 ' + echapper(c.vehicule || '') +
+           '<span class="ou">' + echapper(c.auGarage) + '</span></span>';
+  }
+  if(c.vehicule || c.lieu){
+    return '<span class="' + cls + '">' +
+      (lieu[0] || (c.simulateur ? '🖥️' : '🛣️')) + ' ' +
+      echapper(c.vehicule || '') +
+      (lieu[1] ? '<span class="ou">' + lieu[1] + '</span>' : '') + '</span>';
+  }
+  return '';
+}
+
 function dessinerPlanning(liste){
   const z = document.getElementById('listeCours');
   const p = document.getElementById('planning');
@@ -674,36 +837,8 @@ function dessinerPlanning(liste){
     return;
   }
 
-  const LIEUX = {
-    devant: ['🛣️', 'devant'],
-    cour: ['🅿️', 'cour intérieure'],
-    moto: ['🏍️', 'moto'],
-    scooter: ['🛵', 'scooter'],
-    bureau: ['🏢', 'au bureau'],
-    tablettes: ['📱', 'salle des tablettes'],
-    cours: ['📚', 'salle de cours'],
-    simulateur: ['🖥️', 'simulateur']
-  };
-
   z.innerHTML = liste.slice(0, 12).map(c => {
-    /* Le véhicule et son emplacement : c'est ce que l'élève cherche
-       en entrant, plus encore que l'heure.
-
-       Le pictogramme vient du bureau quand il en envoie un ; la
-       table locale sert de secours. */
-    const local = LIEUX[c.lieu] || ['', ''];
-    const lieu = (c.lieuEmoji || c.lieuNom)
-      ? [c.lieuEmoji || local[0] || '', c.lieuNom || local[1] || '']
-      : local;
-
-    const ou = c.auGarage
-      ? '<span class="v garage">🔧 ' + echapper(c.vehicule || '') +
-        '<span class="ou">' + echapper(c.auGarage) + '</span></span>'
-      : (c.vehicule || c.lieu)
-      ? '<span class="v">' + (lieu[0] || (c.simulateur ? '🖥️' : '🛣️')) + ' ' +
-        echapper(c.vehicule || '') +
-        (lieu[1] ? '<span class="ou">' + lieu[1] + '</span>' : '') + '</span>'
-      : '';
+    const ou = vehiculeHtml(c, 'v');
 
     return '<div class="cours">' +
       '<span class="h' + (c.heure ? '' : ' vide') + '">' +
@@ -723,6 +858,70 @@ function dessinerPlanning(liste){
 
 function echapper(t){
   return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+
+
+/* ============================================================
+   LE COURS QUI COMMENCE
+
+   Cinq minutes avant l'heure, cinq minutes après. Passé ce
+   moment, le cours redescend dans la liste — c'est le classeur
+   qui l'en retire un quart d'heure après l'heure.
+   ============================================================ */
+let signatureImminent = '';
+
+function coursImminents(){
+  const now = maintenantMinutes();
+  return planningActuel.filter(c => {
+    if(c.masque) return false;
+    const h = minutesDe(c.heure);
+    /* Un cours sans heure ne peut pas être imminent : on ne sait
+       pas quand il commence, il reste dans la liste. */
+    if(h === null) return false;
+    return now >= (h - IMMINENT_AVANT) && now <= (h + IMMINENT_APRES);
+  });
+}
+
+function blocImminent(c){
+  return '<div class="bloc">' +
+    '<div class="bh">' + (c.heure ? echapper(c.heure.replace(':', 'h')) : '') + '</div>' +
+    '<div class="be">' + echapper(c.eleve) + '</div>' +
+    (c.moniteur ? '<div class="bm">avec ' + echapper(c.moniteur) + '</div>' : '') +
+    vehiculeHtml(c, 'bv') +
+  '</div>';
+}
+
+function majImminents(){
+  const z  = document.getElementById('imminent');
+  const zl = document.getElementById('imminentListe');
+  const zt = document.getElementById('imminentTitre');
+  if(!z || !zl || !zt || OU === 'vitrine') return;
+
+  const liste = coursImminents();
+
+  if(!liste.length){
+    z.classList.remove('vu');
+    document.body.classList.remove('imminent');
+    signatureImminent = '';
+    return;
+  }
+
+  /* On ne redessine que si quelque chose a changé : sans cela la
+     carte se reconstruirait toutes les dix secondes, et l'élève
+     verrait son nom clignoter. */
+  const neuf = liste.map(c => [c.id, c.heure, c.eleve, c.moniteur,
+                               c.vehicule, c.lieu, c.auGarage].join('|')).join('§');
+  if(neuf !== signatureImminent){
+    signatureImminent = neuf;
+    zt.textContent = (liste.length > 1) ? 'Vos cours commencent'
+                                        : 'Votre cours commence';
+    zl.innerHTML = liste.map(blocImminent).join('');
+    z.classList.toggle('seul', liste.length === 1);
+    z.classList.toggle('serre', liste.length > 3);
+  }
+
+  z.classList.add('vu');
+  document.body.classList.add('imminent');
 }
 
 
@@ -877,6 +1076,11 @@ setInterval(majMeteo, DELAI_METEO);
 
 chargerContenu();
 setInterval(chargerContenu, DELAI_DONNEES);
+
+/* Les données arrivent chaque minute, mais le passage en plein
+   écran se joue à la minute près : on le recalcule plus souvent,
+   sur l'heure du classeur retenue au dernier appel. */
+setInterval(majImminents, DELAI_IMMINENT);
 
 /* Un téléviseur reste allumé des heures : on repart propre la nuit */
 setInterval(() => {
