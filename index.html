@@ -2,13 +2,17 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v655
-     VERSION APPS SCRIPT REQUISE : v148
-     Mis à jour le : 27/08/2026 à 18:05
+     VERSION APPLICATION : v656
+     VERSION APPS SCRIPT REQUISE : v152
+     Mis à jour le : 28/08/2026 à 22:40
 
-     Vérifie que ce numéro correspond à celui affiché en haut de
-     l'application. S'ils diffèrent, c'est le cache du navigateur :
-     recharge en forçant (Ctrl+Maj+R).
+     Le numéro affiché en haut de l'application n'est plus recopié :
+     il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
+     plus mentir sur la version réellement chargée. Le numéro écrit
+     dans l'en-tête sert de secours si le script ne tourne pas.
+
+     Ce commentaire, lui, est à tenir à jour à la main : c'est la
+     seule trace lisible sans ouvrir l'application.
 
      Ce fichier appelle 52 modules dans le dossier app/.
      S'il en manque un, un bandeau rouge le signale au démarrage.
@@ -846,7 +850,7 @@
     <div class="logo">EC</div>
     <div class="ec-titre">
       <h1>Bilan de conduite</h1>
-      <p><span class="ec-lieux">Évolution Conduites — Saint-Brieuc · Loudéac </span><span style="color:var(--accent-text);font-weight:700;">v656</span></p>
+      <p><span class="ec-lieux">Évolution Conduites — Saint-Brieuc · Loudéac </span><span id="versionAffichee" style="color:var(--accent-text);font-weight:700;">v656</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -2202,6 +2206,27 @@
 <script src="app/ec-depart.js?v=656"></script>
 <script src="app/ec-onglets.js?v=656"></script>
 <script src="app/ec-demarrage.js?v=656"></script>
+
+<script>
+/* ============================================================
+   LE NUMÉRO DE VERSION AFFICHÉ
+   Il était recopié à la main à côté du titre, en plus des 53 ?v=
+   des modules : à chaque montée de version, c'est la copie qu'on
+   oubliait, et l'écran annonçait alors une version qu'il n'avait
+   pas. On le relit donc dans le ?v= réellement chargé.
+   Le numéro écrit dans l'en-tête reste comme secours si ce script
+   ne tourne pas, et le bouton 🔄 compare la même valeur.
+   ============================================================ */
+(function(){
+  try{
+    var cible = document.getElementById('versionAffichee');
+    var mod   = document.querySelector('script[src*="app/"][src*="?v="]');
+    if(!cible || !mod) return;
+    var num = (mod.getAttribute('src').match(/[?&]v=(\d+)/) || [])[1];
+    if(num) cible.textContent = 'v' + num;
+  }catch(e){ /* on garde le numéro écrit dans la page */ }
+})();
+</script>
 
 </body>
 </html>
