@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:11 — v614 */
+/* Déployé le 28/08/2026 à 10:06 — v637 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1187,6 +1187,9 @@ async function afficherPreparationEleve(){
     try{ ctx = JSON.parse(ctx); }catch(e){ ctx = null; }
   }
   const ajoutees = (ctx && ctx.manoeuvresAjoutees) || [];
+  /* Ce que l'élève avait déjà fait dans une autre auto-école : ce
+     n'est pas au programme du jour, c'est de l'acquis. */
+  const ailleurs = (ctx && ctx.manoeuvresAilleurs) || [];
 
   const sep = document.createElement('div');
   sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
@@ -1204,7 +1207,8 @@ async function afficherPreparationEleve(){
      déjà validées par un moniteur comptent autant que celles
      cochées à la préparation. */
   const acquises = BLOC.ficheListeConduite.filter(x =>
-    marquesConnues[normaliserMot(x)] && ajoutees.indexOf(x) === -1);
+    (marquesConnues[normaliserMot(x)] || ailleurs.indexOf(x) !== -1) &&
+    ajoutees.indexOf(x) === -1);
 
   const faites = ajoutees.concat(acquises);
 
@@ -1216,7 +1220,11 @@ async function afficherPreparationEleve(){
 
   const ligneManoeuvre = (x, prevue) => {
     const li = document.createElement('div');
-    const marque = marquesConnues[normaliserMot(x)] || '';
+    /* Tant que le bilan n'est pas parti, la 🚗 n'existe que dans le
+       contexte de préparation : sans ce repli, une manœuvre faite
+       ailleurs s'affichait nue et paraissait non acquise. */
+    const marque = marquesConnues[normaliserMot(x)] ||
+      (ailleurs.indexOf(x) !== -1 ? MARQUE_AILLEURS : '');
     li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
       (marque ? ' <span style="letter-spacing:1px;">' + marque + '</span>' : '') +
       (prevue ? ' <span style="font-size:11px;color:var(--muted);">' +
