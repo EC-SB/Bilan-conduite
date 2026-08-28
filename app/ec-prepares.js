@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:06 — v637 */
+/* Déployé le 28/08/2026 à 17:16 — v679 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -189,13 +189,62 @@ function poserMoniteursDansPourQui(){
 }
 
 
+/* ------------------------------------------------------------
+   LA PRÉSENCE ANNONCÉE PAR L'ÉLÈVE
+
+   Le rappel part avec un bouton « Je serai présent ». Ce qu'il en
+   fait se lit ici, sur la carte du cours : c'est là qu'on regarde
+   le matin, pas dans le journal des envois.
+
+   Une seule lecture pour toute la liste — un appel par cours
+   aurait rendu l'écran lent pour une information d'appoint.
+   ------------------------------------------------------------ */
+let confirmationsPresence = null;
+
+async function chargerConfirmations(){
+  try{
+    const d = await appelPrep({ action: 'confirmationsList' });
+    confirmationsPresence = (d && d.confirmations) || {};
+  }catch(e){
+    /* Sans elles, les cartes s'affichent comme avant : cette
+       information ne doit jamais empêcher la liste de paraître. */
+    confirmationsPresence = {};
+  }
+  return confirmationsPresence;
+}
+
+/* Le jeton d'un cours, rangé dans son contexte à la création */
+function jetonDuCours(cours){
+  const ctx = (cours && cours.contexte) || null;
+  return (ctx && ctx.jeton) ? String(ctx.jeton) : '';
+}
+
+/* Ce qu'on écrit sous l'heure. Rien du tout si le cours n'est pas
+   né d'un rappel : il n'y a alors aucune réponse à attendre. */
+function etatPresence(cours){
+  const j = jetonDuCours(cours);
+  if(!j) return null;
+
+  const quand = confirmationsPresence && confirmationsPresence[j];
+  return quand
+    ? { texte: '✋ présence confirmée', titre: 'Confirmée le ' + quand,
+        couleur: 'var(--bleu)' }
+    : { texte: '✉️ rappel envoyé', titre: "L'élève n'a pas encore répondu",
+        couleur: 'var(--muted)' };
+}
+
 async function afficherPrepares(recharger, silencieux){
   const zone = $('listePrepares');
   if(!zone) return;
 
   if(recharger !== false){
     if(!silencieux) zone.innerHTML = '<div class="empty">Chargement…</div>';
-    const enLigne = await chargerPrepares();
+    /* Les deux en parallèle : la seconde ne doit pas retarder la
+       première, dont dépend tout l'écran. */
+    const [enLigne] = await Promise.all([
+      chargerPrepares(),
+      chargerConfirmations()
+    ]);
     if(!enLigne && prepares.length){
       /* Dire pourquoi : un moniteur qui voit « hors ligne » alors
          que son téléphone marche ne sait pas quoi faire. */
@@ -355,10 +404,16 @@ async function afficherPrepares(recharger, silencieux){
 
     /* L'heure au-dessus du nom, en grand : c'est elle qu'on
        cherche en ouvrant la liste, avant même de savoir qui. */
+    /* Sous l'heure : ce que l'élève a répondu au rappel */
+    const presence = etatPresence(cours);
+
     nom.innerHTML =
       (h ? '<div style="font-size:19px;font-weight:800;' +
            'color:var(--accent-text);line-height:1.2;">' +
            h.replace(':', 'h') + '</div>' : '') +
+      (presence ? '<div style="font-size:12px;font-weight:600;color:' +
+           presence.couleur + ';line-height:1.5;" title="' +
+           presence.titre + '">' + presence.texte + '</div>' : '') +
       '<div>' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
       (aApporter ? ' <span style="font-size:15px;" title="' +
         aApporter.titre + '">' + aApporter.emojis + '</span>' : '') +
