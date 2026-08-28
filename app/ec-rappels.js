@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 12:57 — v649 */
+/* Déployé le 28/08/2026 à 16:13 — v667 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1295,17 +1295,26 @@ function texteRappel(){
   return composerRappel(lireChoixRappel());
 }
 
+/* Le rappel partant par mail, la longueur ne coûte plus rien : ce
+   qu'il faut voir, c'est QUI va le recevoir. Le compte de segments
+   et son coût vivent désormais dans l'écran SMS des administrateurs. */
 function majCompteurRappel(texte){
   const cp = $('rappelCompteur');
   if(!cp) return;
-  const n = texte.length;
-  const parts = decouperMessage(texte, LIMITE_SMS).length;
-  cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
-  cp.textContent = n + ' caractères' +
-    (parts > 1
-      ? ' — ' + parts + ' SMS · il faut retirer ' + (n - LIMITE_SMS) +
-        ' caractères pour n\'en faire qu\'un'
-      : ' — 1 SMS · encore ' + (LIMITE_SMS - n) + ' de marge');
+
+  const nom = $('rappelEleve') ? $('rappelEleve').value.trim() : '';
+  const d = (typeof destinatairesRappel === 'function')
+              ? destinatairesRappel(nom) : { eleve:'', financeur:'' };
+
+  const qui = [];
+  if(d.eleve)     qui.push('✅ ' + d.eleve);
+  if(d.financeur) qui.push('💶 ' + d.financeur);
+
+  cp.style.color = qui.length ? 'var(--muted)' : 'var(--warn-text)';
+  cp.textContent = String(texte || '').length + ' caractères — ' +
+    (qui.length ? 'part à ' + qui.join('  ·  ')
+                : (nom ? "aucune adresse mail sur la fiche de " + nom
+                       : 'choisis un élève'));
 }
 
 function majEtatApercu(){
@@ -1323,28 +1332,41 @@ function majBoutonEnvoi(){
 
   const nom = $('rappelEleve') ? $('rappelEleve').value.trim() : '';
   const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
-  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
-  const numero = saisi || (f && f.telephone) || '';
 
-  /* On dit ce qu'on a trouvé, pour éviter les fautes de frappe */
+  /* On dit ce qu'on a trouvé, pour éviter les fautes de frappe.
+     C'est l'adresse mail qui compte maintenant, pas le numéro. */
   const et = $('rappelEleveEtat');
   if(et){
+    const dm = (typeof destinatairesRappel === 'function')
+                 ? destinatairesRappel(nom) : { eleve:'', financeur:'' };
     if(!nom) et.textContent = '';
-    else if(f && f.telephone) et.innerHTML =
-      '<span style="color:var(--accent-text);">✅ ' + telLisible(f.telephone) + '</span>';
+    else if(dm.eleve) et.innerHTML =
+      '<span style="color:var(--accent-text);">✅ ' +
+      dm.eleve.replace(/</g, '&lt;') + '</span>' +
+      (dm.financeur
+        ? '<span style="color:var(--muted);"> · 💶 ' +
+          dm.financeur.replace(/</g, '&lt;') + '</span>'
+        : '<span style="color:var(--muted);"> · pas de financeur</span>');
     else if(f) et.innerHTML =
-      '<span style="color:var(--warn-text);">⚠️ Fiche trouvée, mais sans numéro</span>';
+      '<span style="color:var(--warn-text);">⚠️ Fiche trouvée, mais sans adresse mail</span>';
     else et.innerHTML =
-      '<span style="color:var(--warn-text);">⚠️ Élève inconnu — saisis son numéro ci-dessous</span>';
+      '<span style="color:var(--warn-text);">⚠️ Élève inconnu — crée sa fiche pour avoir son adresse</span>';
   }
 
-  if(numero){
+  /* Le rappel part par mail : c'est l'adresse qui décide, plus le
+     numéro. Le financeur suit s'il est renseigné. */
+  const d = (typeof destinatairesRappel === 'function')
+              ? destinatairesRappel(nom) : { eleve:'', financeur:'' };
+
+  if(d.eleve){
     bEnv.disabled = false;
-    bEnv.textContent = '💬 Envoyer à ' + (nom || telLisible(numero));
+    bEnv.textContent = '✉️ Envoyer le rappel' +
+      (d.financeur ? ' (élève + financeur)' : ' à ' + (nom || d.eleve));
   }else{
     bEnv.disabled = true;
-    bEnv.textContent = nom ? '⚠️ ' + nom + ' n\'a pas de numéro — saisis-le'
-                           : '💬 Choisis un élève ou saisis un numéro';
+    bEnv.textContent = nom
+      ? '⚠️ ' + nom + " n'a pas d'adresse mail — saisis-la dans sa fiche"
+      : '✉️ Choisis un élève';
   }
 }
 
@@ -1359,6 +1381,155 @@ function apercuRappel(){
   majEtatApercu();
   majBoutonEnvoi();
 }
+
+/* ============================================================
+   LE RAPPEL PAR MAIL
+
+   Le SMS est facturé au segment ; le mail ne coûte rien et part
+   aussi au financeur, qui doit pouvoir justifier la séance. Deux
+   destinataires, deux textes : « Coucou Léa » ne convient pas à
+   une mission locale, et l'adresse de l'un ne regarde pas l'autre
+   — d'où deux envois séparés plutôt qu'une copie.
+   ============================================================ */
+
+/* La règle d'annulation, écrite à un seul endroit : la voir
+   diverger entre le mail de l'élève et celui du financeur serait
+   pire que de ne pas l'écrire du tout. */
+const MENTION_48H_ELEVE =
+  "Si tu as un empêchement, préviens-nous au moins 48 heures à l'avance : " +
+  "passé ce délai, la leçon est due et sera facturée.";
+const MENTION_48H_FINANCEUR =
+  "Rappel des conditions : toute leçon non annulée au moins 48 heures avant " +
+  "l'heure prévue est considérée comme due et sera facturée.";
+
+/* Le modèle du financeur se règle dans Textes types, usage
+   « Rappel de cours par mail — financeur ». Sans modèle, celui-ci
+   sert : un rappel doit pouvoir partir le premier jour. */
+const MODELE_FINANCEUR_DEFAUT =
+  "Bonjour,\n\n" +
+  "Nous vous informons de la prochaine séance de conduite prévue pour " +
+  "{eleve} :\n\n" +
+  "Date : {date}\n" +
+  "Heure : {heure}\n" +
+  "Type de séance : {typeseance}\n" +
+  "Lieu de rendez-vous : {emplacement}\n" +
+  "{moniteurligne}" +
+  "\n{mention48h}\n\n" +
+  "Cordialement,\n" +
+  "Évolution Conduites";
+
+/* Le texte destiné au financeur. Il reprend les mêmes réglages que
+   celui de l'élève — même date, même lieu — mais sur le ton d'un
+   courrier, et avec le nom complet plutôt que le prénom. */
+function composerRappelFinanceur(r, moniteur){
+  const modeles = (typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [];
+  const m = modeles.find(x => x.usage === 'rappel_financeur');
+
+  const quand = dateDuChoix(r.jour);
+  const empl = { texte: texteDuLieu(r.emplacement) };
+
+  return appliquerModele((m && m.contenu) || MODELE_FINANCEUR_DEFAUT, {
+    eleve: r.eleve || '',
+    prenom: (r.eleve || '').split(' ')[0],
+    jour: r.jour || '',
+    date: dateEnLettres(quand),
+    datecourte: dateCourteDuChoix(quand),
+    heure: (r.heure || '').replace(':', 'h'),
+    voiture: r.voiture || '',
+    emplacement: (empl && empl.texte) || '',
+    typeseance: titreDuType(r.type) || 'Leçon de conduite',
+    moniteur: moniteur || '',
+    moniteurligne: moniteur ? 'Enseignant : ' + moniteur + '\n' : '',
+    note: (r.libre || '').trim(),
+    mention48h: MENTION_48H_FINANCEUR
+  });
+}
+
+/* La règle d'annulation s'ajoute au texte de l'élève, sauf si le
+   modèle la porte déjà — sinon elle apparaîtrait deux fois chez
+   celle qui l'a écrite elle-même dans son modèle. */
+function avecMention48h(texte){
+  const t = String(texte || '');
+  if(/48\s*(h|heures)/i.test(t)) return t;
+  return t.replace(/\s*$/, '') + '\n\n' + MENTION_48H_ELEVE;
+}
+
+/* À qui part le rappel. Le financeur n'est prévenu que s'il est
+   renseigné : une adresse absente n'est pas une erreur. */
+function destinatairesRappel(nom){
+  const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
+  const valide = a => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(a || '').trim());
+  return {
+    eleve:     (f && valide(f.email))            ? f.email.trim()            : '',
+    financeur: (f && valide(f.mailPrescripteur)) ? f.mailPrescripteur.trim() : ''
+  };
+}
+
+/* Un envoi, une ligne dans le journal. Le journal est la seule
+   trace qui permette de dire « cet élève a bien été prévenu ». */
+async function journaliserEnvoi(d){
+  try{
+    await appelPrep({
+      action: 'smsLog',
+      canal: d.canal || 'mail',
+      eleve: d.eleve || '',
+      numero: d.destinataires || '',
+      par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '',
+      parties: d.segments || 1,
+      caracteres: String(d.message || '').length,
+      etat: d.etat || 'envoyé',
+      message: d.message || ''
+    });
+  }catch(e){ /* l'envoi a eu lieu : le journal ne doit pas le faire échouer */ }
+}
+
+/* L'envoi lui-même. Chaque destinataire reçoit son texte, et son
+   sort est suivi séparément : le financeur peut refuser sans que
+   l'élève soit concerné, et l'inverse. */
+async function envoyerRappelParMail(nom, r, moniteur){
+  const dest = destinatairesRappel(nom);
+  const quand = dateEnLettres(dateDuChoix(r.jour));
+  const heure = (r.heure || '').replace(':', 'h');
+  const resultats = [];
+
+  if(dest.eleve){
+    const texte = avecMention48h(texteRappel());
+    try{
+      await appelPrep({ action: 'mailBilan', to: [dest.eleve],
+        sujet: 'Ton cours de conduite ' + (quand ? 'du ' + quand : '') +
+               (heure ? ' à ' + heure : ''),
+        texte: texte });
+      resultats.push({ qui: 'élève', adresse: dest.eleve, ok: true });
+      await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.eleve,
+                               etat: 'envoyé', message: texte });
+    }catch(e){
+      resultats.push({ qui: 'élève', adresse: dest.eleve, ok: false, motif: e.message });
+      await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.eleve,
+                               etat: 'refusé : ' + e.message, message: texte });
+    }
+  }
+
+  if(dest.financeur){
+    const texte = composerRappelFinanceur(
+      Object.assign({}, r, { eleve: nom }), moniteur);
+    try{
+      await appelPrep({ action: 'mailBilan', to: [dest.financeur],
+        sujet: 'Séance de conduite — ' + nom +
+               (quand ? ' — ' + quand : '') + (heure ? ' à ' + heure : ''),
+        texte: texte });
+      resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: true });
+      await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
+                               etat: 'envoyé (financeur)', message: texte });
+    }catch(e){
+      resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: false, motif: e.message });
+      await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
+                               etat: 'refusé (financeur) : ' + e.message, message: texte });
+    }
+  }
+
+  return resultats;
+}
+
 
 /* ============================================================
    ENVOI DIRECT PAR L'API ALLO
@@ -1499,10 +1670,12 @@ async function envoyerRappelManuel(){
   direEtatEnvoi('');
   const b = $('rappelEnvoi');
   const nom = $('rappelEleve') ? $('rappelEleve').value : '';
-  const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
-  const saisi = $('rapTel') ? $('rapTel').value.trim() : '';
-  const numero = saisi || (f && f.telephone) || '';
-  if(!numero) return;
+  const dest = destinatairesRappel(nom);
+  if(!dest.eleve){
+    direEtatEnvoi("Cet élève n'a pas d'adresse mail : ajoute-la dans sa fiche.",
+                  true);
+    return;
+  }
 
   /* L'heure conditionne le SMS, « Mes prochains cours » et l'écran
      de l'accueil : un rappel sans heure laisse l'élève et le
@@ -1513,15 +1686,11 @@ async function envoyerRappelManuel(){
     return;
   }
 
-  const texte = texteRappel();
-
-  const parts = decouperMessage(texte, LIMITE_SMS).length;
-
-  if(!await confirmer('Envoyer' + (nom ? ' à ' + nom : '') +
-      '\nau ' + telLisible(numero) + ' ?\n\n' +
-      texte.length + ' caractères' +
-      (parts > 1 ? ' — découpé en ' + parts + ' SMS, facturés séparément.'
-                 : ' — 1 SMS.'))) return;
+  if(!await confirmer('Envoyer le rappel' + (nom ? ' à ' + nom : '') + ' ?\n\n' +
+      '✅ ' + dest.eleve + '\n' +
+      (dest.financeur ? '💶 ' + dest.financeur + ' (financeur)\n' : '') +
+      (dest.financeur ? '\nDeux mails séparés : aucun des deux ne voit ' +
+                        "l'adresse de l'autre." : ''))) return;
 
   /* Sans moniteur, rien ne sera préparé. On le dit avant, pas après */
   if(!($('rapMoniteur') && $('rapMoniteur').value) &&
@@ -1530,16 +1699,30 @@ async function envoyerRappelManuel(){
   b.disabled = true;
   b.textContent = 'Envoi…';
   try{
-    const n = await envoyerMessageComplet(numero, texte, nom);
-    b.textContent = '✅ Envoyé';
-    direEtatEnvoi((n > 1 ? n + ' SMS envoyés' : 'SMS envoyé') +
-                  ' au ' + telLisible(numero) + (nom ? ' — ' + nom : ''), false);
-    showToast(n > 1 ? n + ' SMS envoyés ✅' : 'SMS envoyé ✅');
+    const resultats = await envoyerRappelParMail(
+      nom, lireChoixRappel(),
+      $('rapMoniteur') ? $('rapMoniteur').value : '');
 
-    /* Le numéro qui vient de servir rejoint le répertoire : sans
-       cela il ne vivait que le temps de l'envoi, et il fallait le
-       retaper au rappel suivant. */
-    await completerFicheDepuisRappel(nom, numero);
+    const partis = resultats.filter(x => x.ok);
+    const rates  = resultats.filter(x => !x.ok);
+
+    /* Un envoi partiellement raté ne doit pas passer pour un
+       succès : le financeur non prévenu, c'est un justificatif
+       manquant que personne ne verra avant la facture. */
+    if(!partis.length){
+      throw new Error((rates[0] && rates[0].motif) || 'aucun mail parti');
+    }
+
+    b.textContent = rates.length ? '⚠️ Partiel' : '✅ Envoyé';
+    direEtatEnvoi(
+      partis.map(x => x.qui + ' (' + x.adresse + ')').join(' · ') +
+      (rates.length
+        ? ' — échec pour ' + rates.map(x => x.qui).join(', ') +
+          ' : ' + (rates[0].motif || '')
+        : ''),
+      rates.length > 0);
+    showToast(rates.length ? 'Rappel envoyé, mais pas à tout le monde ⚠️'
+                           : 'Rappel envoyé ✅');
 
     /* Le cours annoncé rejoint « Mes prochains cours » du moniteur */
     preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
