@@ -419,18 +419,43 @@ function majAffichageNoteInterne(){
 }
 
 
-/* Les segments que le questionnaire régénère à chaque ouverture :
-   frise, rang de la leçon, avancement. Les garder ferait s'empiler
-   trois frises différentes dans la même note. */
-const SEGMENTS_REGENERES = [
-  /le[çc]ons? de 2h.*exam(?:en)? blanc/i,
-  /^❓\s*le[çc]ons/i,
-  /^\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i,
-  /^1(?:ère|ere)\s+le[çc]on\b/i,
-  /frise (?:dépassée|depassee|terminée|terminee)/i,
-  /encore \d+\s+le[çc]ons?\s+avant/i,
-  /plus que les 3h avant examen/i
+/* ============================================================
+   CE QUE LE QUESTIONNAIRE RÉÉCRIT À CHAQUE FOIS
+
+   Une note héritée du cours précédent porte déjà l'examen, le
+   simulateur, la frise… Le questionnaire vient de les redemander :
+   garder les anciennes lignes faisait s'empiler deux dates
+   d'examen et deux simulateurs dans la même note.
+
+   Une famille par sujet, avec le motif qui la reconnaît. C'est la
+   même liste qui sert à écrire et à nettoyer : ajouter un sujet
+   sans le déclarer ici, et il s'empilerait à son tour — le test
+   « test-note-questionnaire.js » le refuse.
+
+   Le texte libre du moniteur et les messages du bureau n'y sont
+   pas : eux, on ne les efface jamais. */
+const FAMILLES_NOTE = [
+  { cle:'repassage',   motif:/^🔁\s*\d+\S*\s+repassage/i },
+  { cle:'handicap',    motif:/^♿\s*Conduite aménagée/i },
+  { cle:'coussin',     motif:/^🟩\s*Coussin vert/i },
+  { cle:'frise',       motif:/le[çc]ons? de 2h.*exam(?:en)? blanc/i },
+  { cle:'friseAacCs',  motif:/^(?:AAC|CS)\b/i },
+  { cle:'problematique', motif:/^❓\s*Problématique/i },
+  { cle:'prefecture',  motif:/^♿\s*(?:Encore .*préfecture|Prêt à être présenté)/i },
+  { cle:'lecon',       motif:/^\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i },
+  { cle:'leconVide',   motif:/^❓\s*le[çc]ons/i },
+  { cle:'friseEtat',   motif:/frise (?:dépassée|depassee|terminée|terminee)/i },
+  { cle:'avantEB',     motif:/encore \d+\s+le[çc]ons?\s+avant/i },
+  { cle:'examenBlanc', motif:/examen blanc/i },
+  { cle:'examenPermis', motif:/^(?:🚗\s*)?(?:𝗘𝗫𝗔𝗠𝗘𝗡|EXAMEN|PAS DE DATE|Examen (?:prévu|du permis)|Date d'examen)/i },
+  { cle:'trois_h',     motif:/plus que les 3h avant examen/i },
+  { cle:'ecoutes',     motif:/^Pas d'écoutes pédagogiques/i },
+  { cle:'simuNuit',    motif:/^Simulateur nuit et risques/i },
+  { cle:'formAccomp',  motif:/^Formation accompagnateur/i },
+  { cle:'rvPrealable', motif:/^Rendez-vous préalable/i }
 ];
+
+const SEGMENTS_REGENERES = FAMILLES_NOTE.map(f => f.motif);
 
 function retirerSegmentsRegeneres(note){
   return String(note || '')
@@ -1444,6 +1469,47 @@ function noteDepuisQuestionnaire(q){
 }
 
 /* Partie commune : examens, fiche véhicule, cases à cocher, note libre */
+/* Les deux formes de la ligne d'examen officiel, en gras Unicode :
+   la note voyage dans un tableur et dans un SMS, où aucune mise en
+   forme ne survit. Écrites ici une fois, reconnues à l'affichage
+   pour la couleur — rouge quand la date existe, bleu sinon. */
+const EXAMEN_PREVU = '𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟 𝗣𝗥𝗘́𝗩𝗨 𝗟𝗘';
+const EXAMEN_SANS_DATE = '𝗣𝗔𝗦 𝗗𝗘 𝗗𝗔𝗧𝗘 𝗗\'𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟';
+
+/* « lundi 31 août 2026 » devient « LUNDI 31 AOÛT 2026 » : les
+   accents montent aussi, ce que toUpperCase fait déjà en français. */
+function majusculeNote(t){
+  return String(t || '').toUpperCase();
+}
+
+/* La ligne d'examen dans une note déjà écrite. Reconnue à partir
+   des deux libellés ci-dessus, jusqu'au séparateur suivant. */
+const RE_EXAMEN_NOTE = new RegExp(
+  '(' + EXAMEN_PREVU + '|' + EXAMEN_SANS_DATE + ')([^·]*)', 'g');
+
+/* Écrit une note dans un élément, la ligne d'examen en couleur :
+   rouge quand la date est posée, bleu quand elle manque. On
+   fabrique des nœuds plutôt que du HTML — une note contient du
+   texte saisi par un moniteur, il n'a pas à être interprété. */
+function colorerNote(el, note){
+  if(!el) return;
+  el.textContent = '';
+  const t = String(note || '');
+  let i = 0, m;
+
+  RE_EXAMEN_NOTE.lastIndex = 0;
+  while((m = RE_EXAMEN_NOTE.exec(t)) !== null){
+    if(m.index > i) el.appendChild(document.createTextNode(t.slice(i, m.index)));
+    const s = document.createElement('span');
+    s.style.fontWeight = '800';
+    s.style.color = (m[1] === EXAMEN_PREVU) ? 'var(--red)' : 'var(--bleu)';
+    s.textContent = m[0];
+    el.appendChild(s);
+    i = m.index + m[0].length;
+  }
+  if(i < t.length) el.appendChild(document.createTextNode(t.slice(i)));
+}
+
 function ajouterSuite(bouts, q){
   const n = q.examBlancN;
   const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
@@ -1498,11 +1564,18 @@ function ajouterSuite(bouts, q){
     bouts.push("Ne pas prévoir d'" + ebMin + ' pour le moment');
   }
 
-  if(q.examPermis === 'aprevoir'){
-    bouts.push("Date d'examen à prévoir" + passage);
-  }else if(q.examPermis === 'prevu' && q.examDate){
+  /* L'EXAMEN OFFICIEL — une seule ligne, toujours présente.
+
+     C'est l'information qu'on cherche en premier dans une note :
+     elle ne doit ni se chercher au milieu du reste, ni manquer.
+     Il y a une date, ou il n'y en a pas — deux formes, jamais deux
+     lignes. Le gras est écrit en caractères Unicode : la note vit
+     dans un tableur, elle ne peut pas porter de mise en forme. La
+     couleur, elle, est posée à l'affichage (voir colorerNote). */
+  if(q.examPermis === 'prevu' && q.examDate){
+    let phrase = EXAMEN_PREVU + ' ' +
+                 majusculeNote(dateEnToutesLettres(q.examDate)) + passage;
     const np = q.examPermisN;
-    let phrase = 'Examen prévu le ' + dateEnToutesLettres(q.examDate) + passage;
     if(np){
       phrase += (parseInt(np, 10) === 0)
         ? ' — plus que les 3h avant examen'
@@ -1510,13 +1583,17 @@ function ajouterSuite(bouts, q){
     }
     bouts.push(phrase);
   }else if(q.examPermis === 'annule'){
-    let phrase = q.examDate
-      ? 'Examen du permis du ' + dateEnToutesLettres(q.examDate) + ' annulé'
-      : 'Examen du permis annulé';
+    let phrase = EXAMEN_SANS_DATE + (q.examDate
+      ? ' — celui du ' + dateEnToutesLettres(q.examDate) + ' est annulé'
+      : ' — annulé');
     phrase += q.nouvelleDate
       ? ' — reprogrammé le ' + dateEnToutesLettres(q.nouvelleDate)
       : ' — nouvelle date en attente';
     bouts.push(phrase);
+  }else if(q.examPermis === 'aprevoir'){
+    bouts.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
+  }else{
+    bouts.push(EXAMEN_SANS_DATE);
   }
 
   /* L'écoute pédagogique : le bureau doit le savoir pour ne pas
