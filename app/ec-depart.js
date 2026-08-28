@@ -482,7 +482,14 @@ async function rechercherEleve(){
       }else if(note){
         /* La note interne prend la place du titre : c'est ce que le
            moniteur suivant doit voir en premier, en entier. */
-        t.textContent = '📌 ' + note;
+        if(typeof colorerNote === 'function'){
+          t.appendChild(document.createTextNode('📌 '));
+          const dedans = document.createElement('span');
+          colorerNote(dedans, note);
+          t.appendChild(dedans);
+        }else{
+          t.textContent = '📌 ' + note;
+        }
         t.style.color = 'var(--accent-text)';
         t.style.whiteSpace = 'pre-wrap';
         t.style.lineHeight = '1.45';
