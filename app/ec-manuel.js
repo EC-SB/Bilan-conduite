@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:23 — v652 */
+/* Déployé le 28/08/2026 à 13:40 — v654 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -787,6 +787,15 @@ function majChampsSelonExamenBlanc(){
   document.querySelectorAll('[data-si-eb]').forEach(b => {
     b.style.display = (v === b.dataset.siEb) ? '' : 'none';
   });
+
+  /* L'examen commence : l'élève part avec tous les points, chaque
+     erreur en retire. On ne le fait qu'à l'ouverture du module —
+     poser la grille plus tôt ferait passer un RVP sans examen pour
+     un examen blanc rempli. */
+  if(v === 'oui' && typeof poserCepcAuMaximum === 'function'){
+    poserCepcAuMaximum();
+    if(typeof majTotalCepc === 'function') majTotalCepc();
+  }
 }
 
 function majChampsSelonNiveau(){
@@ -1421,6 +1430,15 @@ function retirerPointsCepc(){
 
     /* Un E posé par une éliminatoire prime sur tout */
     if(champ.value === 'E' && champ.dataset.parElim === 'oui') return;
+
+    /* Jamais notée : la ligne part du maximum, comme le raisonne
+       l'inspecteur. Sans cela le ➖ ne trouvait aucune ligne à
+       amputer sur une grille vierge — et ne faisait rien du tout,
+       en silence. Le CEPC n'était pré-rempli que sur l'examen
+       blanc ; il apparaît maintenant ailleurs. */
+    if(!champ.value && !champ.dataset.parDefaut && !champ.dataset.parMoins){
+      champ.dataset.parDefaut = 'oui';
+    }
 
     /* Une note saisie à la main par le moniteur lui appartient */
     if(champ.dataset.parDefaut !== 'oui' &&
