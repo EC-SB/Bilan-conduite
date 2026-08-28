@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:32 — v643 */
+/* Déployé le 28/08/2026 à 16:13 — v667 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 153;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 154;   /* voir apps-script.js */
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
@@ -52,7 +52,10 @@ const SECTIONS = [
   { cle:'evaluation',       nom:'📊 Évaluation de départ' },
   { cle:'tarifs',           nom:'💰 Prestations et tarifs' },
   { cle:'financements',     nom:'💶 Financements extérieurs' },
-  { cle:'rappels',          nom:'🔔 Rappels de cours par SMS' },
+  { cle:'rappels',          nom:'🔔 Rappels de cours par mail' },
+  /* L'envoi de SMS est facturé au segment : il se donne à part,
+     et sciemment, plutôt que de suivre le droit aux rappels. */
+  { cle:'sms',              nom:'💬 Envoi de SMS (facturé)' },
   { cle:'paie',             nom:'💶 Éléments de paie' },
   { cle:'flotte',           nom:'🚗 Suivi de la flotte' },
   { cle:'ecran',            nom:'📺 Affichage dynamique' },
