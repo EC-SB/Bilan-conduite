@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:35 — v638 */
+/* Déployé le 28/08/2026 à 11:46 — v645 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -340,9 +340,14 @@ $('recBtn').addEventListener('click', async () => {
   }
 
   /* Questionnaire au tout début du cours seulement.
-     Évaluation et examen : rien à demander avant, tout se décide après. */
+
+     L'examen officiel n'a rien à demander avant : tout se décide
+     après. L'évaluation, si — mais allégée : les coordonnées, les
+     manœuvres déjà faites ailleurs et les notes libres. Sa frise
+     et ses examens se fixent en fin de séance, et le questionnaire
+     de fin les redemandera. */
   const profilDepart = profilQuestionnaire($('modele').value);
-  if(!finalTranscript && !contexteDepart && profilDepart !== 'evaluation' && profilDepart !== 'examen'){
+  if(!finalTranscript && !contexteDepart && profilDepart !== 'examen'){
     btn.disabled = true;
     btn.textContent = 'Préparation…';
     try{
