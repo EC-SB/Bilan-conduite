@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:46 — v645 */
+/* Déployé le 28/08/2026 à 16:22 — v668 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1509,6 +1509,74 @@ function colorerNote(el, note){
   }
   if(i < t.length) el.appendChild(document.createTextNode(t.slice(i)));
 }
+
+/* ------------------------------------------------------------
+   REMETTRE À LA FORME ACTUELLE UNE LIGNE D'EXAMEN ANCIENNE
+
+   Les notes écrites avant que cette forme existe portent d'autres
+   libellés : « Examen prévu le… », « Date d'examen : … », ou la
+   même phrase en majuscules ordinaires. Elles ne sont ni mises en
+   gras ni colorées, puisque colorerNote cherche exactement les
+   deux libellés ci-dessus.
+
+   Plutôt qu'une seconde table de correspondances, la règle est
+   écrite ici, à côté des libellés qu'elle produit : les deux ne
+   peuvent pas diverger.
+   ------------------------------------------------------------ */
+const RE_EXAMEN_ANCIEN = new RegExp(
+  '^(?:🚗\\s*)?(?:' + EXAMEN_PREVU + '|' +
+  "EXAMEN OFFICIEL PR[EÉ]VU LE|Examen officiel pr[eé]vu le|" +
+  "Examen pr[eé]vu(?: le)?|Examen du permis|Date d'examen|" +
+  "Permis pr[eé]vu(?: le)?" +
+  ')\\s*:?\\s*', 'i');
+
+const RE_SANS_DATE_ANCIEN = new RegExp(
+  '^(?:🚗\\s*)?(?:' + EXAMEN_SANS_DATE + '|' +
+  "PAS DE DATE D'EXAMEN(?: OFFICIEL)?|Pas de date d'examen(?: officiel)?|" +
+  "Aucune date d'examen|Examen non pr[eé]vu" +
+  ')\\s*:?\\s*', 'i');
+
+/* Un segment de note, remis à la forme actuelle. Rend le segment
+   inchangé si ce n'est pas une ligne d'examen, ou si elle est
+   déjà à la bonne forme — c'est ce qui permet de compter
+   honnêtement ce qui reste à corriger. */
+function normaliserLigneExamen(segment){
+  const seg = String(segment || '').trim();
+  if(!seg) return seg;
+
+  /* « Pas de date » d'abord : « PAS DE DATE D'EXAMEN OFFICIEL »
+     contient le mot EXAMEN et serait sinon pris pour l'autre. */
+  let m = RE_SANS_DATE_ANCIEN.exec(seg);
+  if(m) return (EXAMEN_SANS_DATE + ' ' + seg.slice(m[0].length)).trim();
+
+  m = RE_EXAMEN_ANCIEN.exec(seg);
+  if(!m) return seg;
+
+  /* Ce qui suit le libellé : la date, puis éventuellement un
+     complément après un tiret. Seule la date monte en majuscules,
+     comme le fait le générateur. */
+  const reste = seg.slice(m[0].length);
+  const coupe = reste.indexOf(' — ');
+  const date  = (coupe === -1 ? reste : reste.slice(0, coupe)).trim();
+  const suite = (coupe === -1 ? '' : reste.slice(coupe));
+
+  /* Un libellé « prévu » sans date derrière ne l'est pas vraiment */
+  if(!date) return (EXAMEN_SANS_DATE + suite).trim();
+
+  return (EXAMEN_PREVU + ' ' + majusculeNote(date) + suite).trim();
+}
+
+/* La note entière. Les segments sont séparés par « · » : on ne
+   touche qu'à celui de l'examen, tout le reste est recopié tel
+   quel — une note contient le travail d'un moniteur. */
+function normaliserNoteExamen(note){
+  return String(note || '')
+    .split('·')
+    .map(x => normaliserLigneExamen(x.trim()))
+    .filter(Boolean)
+    .join(' · ');
+}
+
 
 function ajouterSuite(bouts, q){
   const n = q.examBlancN;
