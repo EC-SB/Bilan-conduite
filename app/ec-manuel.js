@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:14 — v651 */
+/* Déployé le 28/08/2026 à 13:23 — v652 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -283,14 +283,19 @@ const CHAMPS_MANUELS = {
    préfixées, sinon « bilanErreurs » écraserait celui du RVP.
    ============================================================ */
 CHAMPS_MANUELS.rvp = CHAMPS_MANUELS.rvp.concat(
-  [{ cle:'__eb', type:'depliant', nom:'📝 Examen blanc fait pendant le RVP',
-     aide:'À ouvrir seulement si tu en as fait un. Laissé fermé, le ' +
-          'bilan sort comme avant.' }],
+  /* La question d'abord. « Non » ferme le sujet et le bilan le dit
+     par un ❌ ; « oui » ouvre les champs de l'examen blanc. Sans
+     réponse, le bilan garde sa forme d'avant. */
+  [{ cle:'examenBlancFait', type:'ouinon',
+     nom:'📝 Tu peux faire un examen blanc ?' }],
+
   CHAMPS_MANUELS.examenblanc
     /* La section 1 saute : elle n'a pas lieu d'être ici */
     .filter(c => c.cle.indexOf('avant.') !== 0 && c.cle !== '__t1')
     .map(c => Object.assign({}, c, {
-      cle: (c.cle.indexOf('__') === 0) ? c.cle + 'Rvp' : 'examenBlanc.' + c.cle
+      cle: (c.cle.indexOf('__') === 0) ? c.cle + 'Rvp' : 'examenBlanc.' + c.cle,
+      /* Tout le module ne s'affiche que sur un « oui » */
+      siEb: 'oui'
     }))
 );
 
@@ -696,6 +701,7 @@ async function ouvrirBilanManuel(){
   cleNiveauCourante = prefixeExamenBlanc + 'niveau';
 
   dessinerChampsManuels(champs, zone, modele, dossier);
+  if(typeof majChampsSelonExamenBlanc === 'function') majChampsSelonExamenBlanc();
 
   /* Tant qu'aucun niveau n'est choisi, on ne demande rien qui en
      dépende. */
@@ -773,6 +779,16 @@ async function ouvrirBilanManuel(){
    Sans le niveau, ni avec « pourrait », les heures avant permis
    et les frises n'ont pas d'objet : elles n'apparaissent nulle
    part dans le bilan. */
+/* Le module d'examen blanc du rendez-vous pédagogique n'apparaît
+   qu'après un « oui ». Sans réponse, il reste fermé : on ne fait
+   pas remplir une grille d'examen à qui n'en passe pas. */
+function majChampsSelonExamenBlanc(){
+  const v = champsManuels.examenBlancFait || '';
+  document.querySelectorAll('[data-si-eb]').forEach(b => {
+    b.style.display = (v === b.dataset.siEb) ? '' : 'none';
+  });
+}
+
 function majChampsSelonNiveau(){
   const n = champsManuels[cleNiveauCourante] || '';
 
@@ -2450,38 +2466,16 @@ window.EC_MODULES['ec-manuel.js'] = true;
    oublie de corriger.
    ============================================================ */
 function dessinerChampsManuels(champs, zone, modele, dossier){
-  /* Là où les blocs se posent. Un dépliant fait basculer la cible :
-     tout ce qui suit va dedans. */
-  let cible = zone;
-
   champs.forEach(ch => {
-    /* Un dépliant : ce qui suit se range dedans, replié par défaut.
-       Sert au module d'examen blanc du rendez-vous pédagogique —
-       on ne l'ouvre que si on en a fait un. */
-    if(ch.type === 'depliant'){
-      const det = document.createElement('details');
-      det.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-        'padding:10px 12px;margin-bottom:16px;';
-      det.innerHTML = '<summary style="cursor:pointer;font-size:15px;' +
-        'font-weight:700;color:var(--accent-text);">' + ch.nom + '</summary>';
-      if(ch.aide){
-        const a2 = document.createElement('div');
-        a2.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 4px;' +
-          'line-height:1.4;';
-        a2.textContent = ch.aide;
-        det.appendChild(a2);
-      }
-      zone.appendChild(det);
-      cible = det;
-      return;
-    }
-
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
 
     /* Certains champs ne servent que si l élève a le niveau :
        les montrer ailleurs fait remplir pour rien. */
     if(ch.siNiveau) bloc.dataset.siNiveau = ch.siNiveau;
+    /* Les champs de l'examen blanc du RVP : cachés tant que la
+       question n'a pas reçu « oui ». */
+    if(ch.siEb) bloc.dataset.siEb = ch.siEb;
 
     if(ch.type === 'rappelFrise'){
       /* Sa frise et ses leçons faites : de quoi juger sans
@@ -2792,6 +2786,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
           peindreOuiNon(r, val);
 
           /* Le niveau décide de ce qui reste utile */
+          if(ch.cle === 'examenBlancFait' &&
+             typeof majChampsSelonExamenBlanc === 'function'){
+            majChampsSelonExamenBlanc();
+          }
           if(ch.type === 'niveau' && typeof majChampsSelonNiveau === 'function'){
             majChampsSelonNiveau();
           }
@@ -3605,7 +3603,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       bloc.appendChild(r);
     }
 
-    cible.appendChild(bloc);
+    zone.appendChild(bloc);
   });
 }
 
@@ -3622,18 +3620,30 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
    par ne plus poser les mêmes questions.
    ============================================================ */
 
-/* Les champs du module, sans ceux qui appartiennent au RVP */
+/* La question et les champs du module, sans ce qui appartient au
+   RVP lui-même. On part de la question : tout ce qui suit est le
+   module. */
 function champsExamenBlancRvp(){
   const tous = CHAMPS_MANUELS.rvp || [];
-  const debut = tous.findIndex(c => c.type === 'depliant');
-  return (debut === -1) ? [] : tous.slice(debut + 1);
+  const debut = tous.findIndex(c => c.cle === 'examenBlancFait');
+  return (debut === -1) ? [] : tous.slice(debut);
+}
+
+/* Sommes-nous sur un rendez-vous pédagogique ? On interroge le
+   SCHÉMA, pas la clé du modèle : « rvp » est le nom du schéma,
+   la clé s'appelle « aac-rvp » — les comparer faisait rater le
+   test à tous les coups. */
+function surRendezVousPedago(){
+  const cle = ($('modele') && $('modele').value) || '';
+  const m = (typeof MODELES !== 'undefined') ? MODELES[cle] : null;
+  return !!(m && m.schema === 'rvp');
 }
 
 function majBlocExamenBlancCours(){
   const zone = $('examenBlancCours');
   if(!zone) return;
 
-  const surRvp = (($('modele') && $('modele').value) === 'rvp');
+  const surRvp = surRendezVousPedago();
   zone.style.display = surRvp ? 'block' : 'none';
   if(!surRvp){ zone.innerHTML = ''; return; }
 
@@ -3646,13 +3656,14 @@ function majBlocExamenBlancCours(){
   const det = document.createElement('details');
   det.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
     'padding:10px 12px;';
+  det.open = true;
   det.innerHTML = '<summary style="cursor:pointer;font-size:15px;font-weight:700;' +
-    'color:var(--accent-text);">📝 Examen blanc fait pendant le RVP</summary>';
+    'color:var(--accent-text);">📝 Examen blanc</summary>';
 
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin:8px 0 10px;line-height:1.4;';
-  aide.textContent = "À remplir seulement si tu en as fait un. Laissé fermé, " +
-    'le bilan sort comme avant.';
+  aide.textContent = "Réponds à la question. Sans réponse, le bilan garde " +
+    'sa forme habituelle.';
   det.appendChild(aide);
 
   const dedans = document.createElement('div');
@@ -3664,6 +3675,7 @@ function majBlocExamenBlancCours(){
   cleNiveauCourante = 'examenBlanc.niveau';
   dessinerChampsManuels(champsExamenBlancRvp(), dedans,
                         MODELES[$('modele').value] || {}, { manoeuvres: [] });
+  majChampsSelonExamenBlanc();
 }
 
 /* Ce que le moniteur a noté sous la transcription, prêt pour le
@@ -3689,5 +3701,12 @@ function examenBlancDuCours(){
     cible[chemin[chemin.length - 1]] = champsManuels[k];
   });
 
-  return Object.keys(eb).length ? { examenBlanc: eb } : {};
+  const out = {};
+  /* La réponse elle-même : c'est elle qui décide du ✅ ou du ❌
+     dans le bilan, même sans un seul champ rempli. */
+  if(champsManuels.examenBlancFait){
+    out.examenBlancFait = champsManuels.examenBlancFait;
+  }
+  if(Object.keys(eb).length) out.examenBlanc = eb;
+  return out;
 }
