@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:48 — v672 */
+/* Déployé le 28/08/2026 à 16:59 — v674 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1556,10 +1556,10 @@ function mailEnHtml(texte, lien){
   const bouton = lien
     ? '<table role="presentation" cellpadding="0" cellspacing="0" ' +
         'style="margin:26px auto 8px;"><tr><td align="center" ' +
-        'style="border-radius:12px;background:#E8A33D;">' +
+        'style="border-radius:12px;background:#B6FF0E;">' +
         '<a href="' + echapperHtml(lien) + '" ' +
           'style="display:inline-block;padding:15px 34px;font-size:17px;' +
-          'font-weight:700;color:#111111;text-decoration:none;' +
+          'font-weight:700;color:#0B0B0B;text-decoration:none;' +
           'font-family:Arial,Helvetica,sans-serif;">' +
         '&#9995;&nbsp; Je serai présent</a></td></tr></table>' +
         '<p style="margin:0;text-align:center;font-size:12px;color:#8A857C;">' +
@@ -2263,99 +2263,122 @@ async function ouvrirRattrapageCours(liste){
    Savoir qui a été prévenu, quand et par qui. Sans ça, personne
    ne peut trancher quand un élève dit ne pas avoir reçu le rappel.
    ============================================================ */
-async function afficherHistoriqueSms(){
+/* Ce qui est déjà lu ne se relit pas : rouvrir l'onglet était
+   long pour rien, le classeur répondant à chaque fois. */
+let historiqueEnvois = null;
+
+async function afficherHistoriqueSms(recharger){
   const zone = $('rappelHistorique');
   if(!zone) return;
 
-  zone.innerHTML = '<div class="empty">Chargement de l\'historique…</div>';
-  try{
-    const d = await appelPrep({ action: 'smsList', combien: 150 });
-    const liste = (d && d.sms) || [];
-    zone.innerHTML = '';
+  if(recharger) historiqueEnvois = null;
 
-    if(!liste.length){
-      zone.innerHTML = '<div class="empty">Aucun SMS envoyé pour le moment.</div>';
+  if(historiqueEnvois === null){
+    zone.innerHTML = (typeof htmlAttente === 'function')
+      ? htmlAttente('Lecture du journal…')
+      : '<div class="empty">Lecture du journal…</div>';
+    try{
+      /* Quatre-vingts lignes suffisent à retrouver un envoi ; en
+         relire cent cinquante coûtait deux secondes à chaque fois. */
+      const d = await appelPrep({ action: 'smsList', combien: 80 });
+      historiqueEnvois = (d && d.sms) || [];
+      historiqueEnvois.total = (d && d.total) || historiqueEnvois.length;
+    }catch(e){
+      zone.innerHTML = '<div class="empty">Historique indisponible : ' +
+        e.message.replace(/</g, '&lt;') + '</div>';
+      return;
+    }
+  }
+
+  const liste = historiqueEnvois;
+  zone.innerHTML = '';
+
+  if(!liste.length){
+    zone.innerHTML = '<div class="empty">Aucun rappel envoyé pour le moment.</div>';
+    return;
+  }
+
+  /* Ce que la journée représente, avant le détail */
+  const auj = new Date().toLocaleDateString('fr-FR');
+  const duJour = liste.filter(x => (x.quand || '').indexOf(auj) === 0);
+  const confirmes = duJour.filter(x => x.confirmeLe).length;
+
+  const t = document.createElement('div');
+  t.style.cssText = 'padding:10px 12px;background:var(--navy);border:1px solid var(--line);' +
+    'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
+  t.innerHTML = '<strong>' + duJour.length + " envoi(s) aujourd'hui</strong>" +
+    (duJour.length
+      ? ' · ✋ ' + confirmes + ' présence(s) confirmée(s)'
+      : '') +
+    '<br><span style="font-size:12px;color:var(--muted);">' +
+    (liste.total || liste.length) + ' au total · les ' + liste.length +
+    ' derniers sont affichés</span>';
+  zone.appendChild(t);
+
+  const rang = document.createElement('div');
+  rang.style.cssText = 'display:flex;gap:8px;margin-bottom:10px;';
+
+  const bMaj = document.createElement('button');
+  bMaj.className = 'btn btn-secondary';
+  bMaj.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;';
+  bMaj.textContent = '🔄';
+  bMaj.title = 'Relire le journal';
+  bMaj.addEventListener('click', () => afficherHistoriqueSms(true));
+  rang.appendChild(bMaj);
+
+  /* De quoi rattraper des cours que les rappels n'auraient pas
+     créés. Placé ici : c'est le seul écran qui sait qui a été
+     prévenu, et c'est là qu'on vient quand quelque chose manque. */
+  const bRat = document.createElement('button');
+  bRat.className = 'btn btn-secondary';
+  bRat.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
+  bRat.textContent = '🔁 Rattraper les cours';
+  bRat.title = 'Créer les cours des élèves prévenus, sans rien renvoyer';
+  bRat.addEventListener('click', () => ouvrirRattrapageCours(liste));
+  rang.appendChild(bRat);
+  zone.appendChild(rang);
+
+  const rech = document.createElement('input');
+  rech.type = 'text';
+  rech.placeholder = '🔍 Filtrer par élève, adresse ou moniteur';
+  rech.style.marginBottom = '10px';
+  zone.appendChild(rech);
+
+  const l = document.createElement('div');
+  zone.appendChild(l);
+
+  function dessiner(){
+    const q = normaliserMot(rech.value);
+    l.innerHTML = '';
+
+    const vus = liste.filter(x => !q ||
+      normaliserMot(x.eleve || '').indexOf(q) !== -1 ||
+      normaliserMot(x.numero || '').indexOf(q) !== -1 ||
+      normaliserMot(x.par || '').indexOf(q) !== -1);
+
+    if(!vus.length){
+      l.innerHTML = '<div class="empty">Aucun envoi ne correspond.</div>';
       return;
     }
 
-    /* Ce que ça représente, avant le détail */
-    const auj = new Date().toLocaleDateString('fr-FR');
-    const duJour = liste.filter(x => (x.quand || '').indexOf(auj) === 0);
-    const partsJour = duJour.reduce((n, x) => n + (parseInt(x.parties, 10) || 1), 0);
-
-    const t = document.createElement('div');
-    t.style.cssText = 'padding:10px 12px;background:var(--navy);border:1px solid var(--line);' +
-      'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
-    t.innerHTML = '<strong>' + duJour.length + " envoi(s) aujourd'hui</strong>" +
-      (partsJour !== duJour.length ? ' · ' + partsJour + ' SMS facturés' : '') +
-      '<br><span style="font-size:12px;color:var(--muted);">' +
-      (d.total || liste.length) + ' au total · les 150 derniers sont affichés</span>';
-    zone.appendChild(t);
-
-    /* De quoi rattraper des cours que les rappels n'auraient pas
-       créés. Placé ici : c'est le seul écran qui sait qui a été
-       prévenu, et c'est là qu'on vient quand quelque chose manque. */
-    const bRat = document.createElement('button');
-    bRat.className = 'btn btn-secondary';
-    bRat.style.cssText = 'width:100%;padding:10px;font-size:13px;margin-bottom:10px;';
-    bRat.textContent = '🔁 Rattraper les cours depuis ces rappels';
-    bRat.title = 'Créer les cours des élèves prévenus, sans renvoyer de SMS';
-    bRat.addEventListener('click', () => ouvrirRattrapageCours(liste));
-    zone.appendChild(bRat);
-
-    const rech = document.createElement('input');
-    rech.type = 'text';
-    rech.placeholder = '🔍 Filtrer par élève, numéro ou moniteur';
-    rech.style.marginBottom = '10px';
-    zone.appendChild(rech);
-
-    const l = document.createElement('div');
-    l.style.cssText = 'max-height:420px;overflow-y:auto;';
-    zone.appendChild(l);
-
-    function dessiner(){
-      const q = normaliserMot(rech.value);
-      l.innerHTML = '';
-      const vus = liste.filter(x => !q ||
-        normaliserMot(x.eleve).indexOf(q) !== -1 ||
-        normaliserMot(x.numero).indexOf(q) !== -1 ||
-        normaliserMot(x.par).indexOf(q) !== -1);
-
-      if(!vus.length){
-        l.innerHTML = '<div class="empty">Aucun envoi ne correspond.</div>';
-        return;
-      }
-
-      vus.forEach(x => {
-        const d2 = document.createElement('details');
-        d2.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
-          'padding:8px 11px;margin-bottom:6px;';
-
-        const rate = /échec|erreur/i.test(x.etat || '');
-        d2.innerHTML = '<summary style="cursor:pointer;font-size:13px;line-height:1.5;">' +
-          (rate ? '⚠️ ' : '✅ ') + '<strong>' + (x.eleve || '(sans nom)').replace(/</g, '&lt;') +
-          '</strong> <span style="color:var(--muted);font-size:12px;">' +
-          x.quand + ' · ' + telLisible(x.numero) +
-          (x.par ? ' · ' + x.par : '') +
-          (x.parties > 1 ? ' · ' + x.parties + ' SMS' : '') +
-          '</span></summary>';
-
-        const m = document.createElement('div');
-        m.style.cssText = 'margin-top:7px;font-size:12px;line-height:1.5;white-space:pre-wrap;' +
-          'color:var(--muted);background:var(--navy);padding:8px 10px;border-radius:7px;';
-        m.textContent = x.message || '(message non conservé)';
-        d2.appendChild(m);
-
-        l.appendChild(d2);
-      });
-    }
-    rech.addEventListener('input', dessiner);
-    dessiner();
-
-  }catch(e){
-    zone.innerHTML = '<div class="empty">Historique indisponible : ' +
-      e.message.replace(/</g, '&lt;') + '</div>';
+    /* Le dessin d'une ligne appartient à l'écran SMS : les deux
+       journaux montrent la même chose, ils ne doivent pas pouvoir
+       diverger. */
+    vus.forEach(x => l.appendChild(
+      (typeof ligneJournal === 'function') ? ligneJournal(x) : ligneSimple(x)));
   }
+  rech.addEventListener('input', dessiner);
+  dessiner();
+}
+
+/* Repli si le module SMS n'est pas chargé */
+function ligneSimple(x){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
+    'padding:8px 11px;margin-bottom:5px;font-size:13px;';
+  d.textContent = (x.confirmeLe ? '🔵 ' : '🟢 ') +
+    (x.eleve || '—') + ' · ' + (x.quand || '') + ' · ' + (x.numero || '');
+  return d;
 }
 
 
