@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:13 — v678 */
+/* Déployé le 28/08/2026 à 17:16 — v679 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1628,6 +1628,10 @@ async function journaliserEnvoi(d){
 /* L'envoi lui-même. Chaque destinataire reçoit son texte, et son
    sort est suivi séparément : le financeur peut refuser sans que
    l'élève soit concerné, et l'inverse. */
+/* Le jeton du rappel qui vient de partir : preparerDepuisRappel est
+   appelé juste après l'envoi et le range dans le cours. */
+let dernierJetonRappel = '';
+
 async function envoyerRappelParMail(nom, r, moniteur){
   const dest = destinatairesRappel(nom);
   const quand = dateEnLettres(dateDuChoix(r.jour));
@@ -1643,6 +1647,7 @@ async function envoyerRappelParMail(nom, r, moniteur){
      financeur doit pouvoir vérifier ce que l'élève a sous les yeux. */
   const lien = await creerLienDuCours(nom, r, moniteur, mentions);
   const jeton = lien ? lien.split('?c=')[1] : '';
+  dernierJetonRappel = jeton;
 
   if(dest.eleve){
     const texte = avecLien(avecMention48h(texteRappel()), lien);
@@ -1903,7 +1908,9 @@ async function envoyerRappelManuel(){
                            /* « rue » côté SMS, « devant » côté écran :
                               c'est le même endroit, dit autrement. */
                            lieu: ($('rapEmpl') && $('rapEmpl').value === 'rue') ? 'devant'
-                               : ($('rapEmpl') ? $('rapEmpl').value : '')
+                               : ($('rapEmpl') ? $('rapEmpl').value : ''),
+                           /* Le lien de confirmation suit le cours */
+                           jeton: dernierJetonRappel
                          });
 
     /* On passe à l'élève suivant. Ce qui vaut pour lui seul est
@@ -2781,6 +2788,12 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
        Sans cours antérieur, la fiche reste à remplir. */
     let note = '';
     let contexte = '';
+
+    /* Le jeton du lien de confirmation voyage avec le cours : c'est
+       lui qui permettra à « Mes prochains cours » de dire si l'élève
+       a répondu, sans avoir à retrouver le rappel dans le journal. */
+    const jetonRappel = (details && details.jeton) || '';
+
     try{
       /* Le dossier enrichit le cours, il ne le conditionne pas :
          au-delà de six secondes on crée le cours sans lui plutôt
@@ -2795,6 +2808,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
           frise: d.frise || '',
           modele: cle
         };
+        if(jetonRappel) rep.jeton = jetonRappel;
         contexte = JSON.stringify(rep);
         note = (typeof noteDepuisQuestionnaire === 'function')
           ? noteDepuisQuestionnaire(rep) : '';
@@ -2806,9 +2820,11 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       }else{
         note = '❓ Informations à renseigner : aucun cours enregistré pour ' +
                'cet élève.';
+        if(jetonRappel) contexte = JSON.stringify({ jeton: jetonRappel });
       }
     }catch(e){
       note = '❓ Informations à renseigner — dossier non lu.';
+      if(jetonRappel) contexte = JSON.stringify({ jeton: jetonRappel });
     }
 
     const r = await appelPrep({
