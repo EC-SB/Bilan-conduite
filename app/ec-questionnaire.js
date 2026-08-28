@@ -328,6 +328,22 @@ function fusionnerContexte(saisi, defauts){
   return out;
 }
 
+/* Le numéro de leçon dans un texte : « 5ème leçon », « 5e leçon »,
+   « 5 leçon ». Écrit une seule fois — la note du cours préparé, le
+   bilan et la réparation s'en servent tous les trois. Le suffixe,
+   lui, appartient à chaque document : la note écrit « 5ème », le
+   bilan « 5e ». */
+const RE_NUM_LECON = /\d+\s*(?:ère|ere|ème|eme|e)?(\s*le[çc]on)/i;
+
+/* Le cours du jour compte-t-il comme une leçon de la frise ? Un
+   simulateur, un examen blanc ou un rendez-vous post-permis occupent
+   un créneau sans faire avancer le compteur. */
+function leconCompteDansLaFrise(modeleCle){
+  return ['conduite-auto', 'conduite-manuelle',
+          'aac-auto', 'aac-manuelle'].indexOf(modeleCle) !== -1;
+}
+
+
 /* Le questionnaire a-t-il été rempli par quelqu'un ?
 
    Porter un contexte ne suffit pas : un cours créé tout seul — par
@@ -558,11 +574,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   if(!prec.ants && ficheEleve && ficheEleve.ants) prec.ants = ficheEleve.ants;
   const frisePrecedente = friseDeduite || dossier.frise ||
                           (ficheEleve && ficheEleve.frise) || '';
-  /* Le cours du jour ne compte comme leçon de la frise que s'il en
-     est une : un simulateur ou un examen blanc n'avance pas le
-     compteur, même s'ils occupent un créneau. */
-  const compteDansLaFrise = ['conduite-auto', 'conduite-manuelle',
-                             'aac-auto', 'aac-manuelle'].indexOf(modeleCle) !== -1;
+  const compteDansLaFrise = leconCompteDansLaFrise(modeleCle);
   const faites = dossier.lecons;
   const rangDuJour = (faites === null) ? null
                                        : (compteDansLaFrise ? faites + 1 : faites);
