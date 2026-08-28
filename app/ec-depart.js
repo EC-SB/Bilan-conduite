@@ -1425,9 +1425,7 @@ async function corrigerLeconDuBilan(){
 
      L'accord suit le nouveau numéro : « 1ère » mais « 5e ». */
   const rang = (n === '1') ? '1ère' : (n + 'e');
-  const rempl = (t) => String(t).replace(
-    /\d+\s*(?:ère|ere|ème|eme|e)?(\s*le[çc]on)/i,
-    rang + '$1');
+  const rempl = (t) => String(t).replace(RE_NUM_LECON, rang + '$1');
 
   const b = $('corrLeconBtn');
   if(b){ b.disabled = true; b.textContent = 'Correction…'; }
@@ -1500,3 +1498,185 @@ async function enregistrerCorrection(){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-depart.js'] = true;
+
+/* ============================================================
+   RÉPARATION — RECOMPTER LES NUMÉROS DE LEÇON
+
+   Pendant quelques jours, le relais a renvoyé la taille du classeur
+   au lieu du nombre de bilans de l'élève : les cours préparés à ce
+   moment-là portent un numéro absurde, « 160ème leçon ». Le calcul
+   est corrigé, mais ce qui a été écrit reste écrit.
+
+   Cet outil relit les cours préparés, recompte pour de bon, et
+   propose de corriger ceux qui ne collent pas. Rien n'est modifié
+   avant que l'écran ait montré la liste : une réécriture en masse
+   se regarde avant de se lancer.
+
+   Réservé aux administrateurs : c'est un ménage, pas un geste de
+   tous les jours.
+   ============================================================ */
+
+var reparLecons = [];   /* ce que la vérification a trouvé */
+
+/* Un nom d'élève entre dans du HTML : il ne doit pas pouvoir le
+   casser. Même précaution qu'ailleurs dans l'application. */
+function reparTexte(s){
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+}
+
+/* Le numéro écrit sur un cours préparé, contexte d'abord */
+function numeroLeconDuCours(cours){
+  const ctx = cours.contexte || {};
+  const n = parseInt(ctx.lecon, 10);
+  if(!isNaN(n) && n > 0) return n;
+
+  const m = String(cours.note || '').match(RE_NUM_LECON);
+  if(m){
+    const v = parseInt(String(m[0]), 10);
+    if(!isNaN(v) && v > 0) return v;
+  }
+  return null;
+}
+
+async function verifierNumerosLecon(){
+  const btn = $('reparLeconsBtn');
+  const etat = $('reparLeconsEtat');
+  const zone = $('reparLeconsListe');
+  if(!btn || !etat || !zone) return;
+
+  reparLecons = [];
+  zone.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = 'Lecture…';
+  etat.textContent = 'Lecture des cours préparés…';
+
+  try{
+    const d = await appelPrep({ action: 'prepList' });
+    const liste = (d && d.preparations) || [];
+
+    /* Un élève peut avoir plusieurs cours préparés : on ne relit son
+       dossier qu'une fois. Chaque lecture est un appel au serveur. */
+    const parEleve = {};
+    liste.forEach(c => {
+      const nom = String(c.eleve || '').trim();
+      if(nom.length < 2) return;
+      (parEleve[normaliserMot(nom)] = parEleve[normaliserMot(nom)] || []).push(c);
+    });
+
+    const cles = Object.keys(parEleve);
+    if(!cles.length){
+      etat.textContent = 'Aucun cours préparé à vérifier.';
+      return;
+    }
+
+    let fait = 0;
+    for(const k of cles){
+      const cours = parEleve[k];
+      const nom = String(cours[0].eleve || '').trim();
+      fait++;
+      etat.textContent = 'Vérification ' + fait + ' sur ' + cles.length + '…';
+
+      let dossier = null;
+      try{ dossier = await chargerDossierEleve(nom); }catch(e){ dossier = null; }
+      if(!dossier || dossier.lecons === null) continue;
+
+      cours.forEach(c => {
+        /* Le vrai rang : le même calcul que le questionnaire */
+        const juste = leconCompteDansLaFrise(c.modele)
+          ? dossier.lecons + 1
+          : dossier.lecons;
+        const ecrit = numeroLeconDuCours(c);
+        if(ecrit === null || ecrit === juste) return;
+        reparLecons.push({ cours: c, eleve: nom, ecrit: ecrit, juste: juste });
+      });
+    }
+
+    if(!reparLecons.length){
+      etat.textContent = 'Rien à corriger : les ' + cles.length +
+                         ' élève(s) vérifié(s) ont le bon numéro. ✅';
+      return;
+    }
+
+    etat.textContent = reparLecons.length + ' cours à corriger :';
+    zone.innerHTML =
+      '<div style="margin:10px 0;font-size:14px;line-height:1.7;">' +
+      reparLecons.map(x =>
+        '<div>· <strong>' + reparTexte(x.eleve) + '</strong> — ' +
+        x.ecrit + 'ème → <strong>' + x.juste + 'ème leçon</strong>' +
+        (x.cours.date ? ' <span style="color:var(--muted);">(cours du ' +
+          reparTexte(x.cours.date) + ')</span>' : '') + '</div>').join('') +
+      '</div>' +
+      '<button class="btn btn-primary" id="reparLeconsAppliquer">' +
+      '✅ Corriger ces ' + reparLecons.length + ' cours</button>';
+
+    brancher('reparLeconsAppliquer', 'click', appliquerNumerosLecon);
+
+  }catch(e){
+    etat.textContent = 'Vérification impossible : ' + (e && e.message ? e.message : e);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '🔢 Vérifier les numéros de leçon';
+  }
+}
+
+async function appliquerNumerosLecon(){
+  if(!reparLecons.length) return;
+
+  if(!await confirmer('Corriger le numéro de leçon de ' + reparLecons.length +
+      ' cours préparé(s) ?\n\n' +
+      'Seul ce numéro change : la note, le type de bilan et le moniteur ' +
+      'ne bougent pas. Les bilans déjà enregistrés ne sont pas touchés.')) return;
+
+  const btn = $('reparLeconsAppliquer');
+  const etat = $('reparLeconsEtat');
+  if(btn) btn.disabled = true;
+
+  let ok = 0;
+  const rates = [];
+
+  for(let i = 0; i < reparLecons.length; i++){
+    const x = reparLecons[i];
+    if(btn) btn.textContent = 'Correction ' + (i + 1) + ' sur ' + reparLecons.length + '…';
+
+    try{
+      const c = x.cours;
+      const ctx = Object.assign({}, c.contexte || {});
+      ctx.lecon = String(x.juste);
+
+      /* La note garde tout le reste : l'heure, les pictogrammes, la
+         consigne du moniteur précédent. Seul le rang est réécrit. */
+      const rang = (x.juste === 1) ? '1ère' : (x.juste + 'ème');
+      const note = String(c.note || '').replace(RE_NUM_LECON, rang + '$1');
+
+      await appelPrep({
+        action: 'prepAdd', id: c.id, date: c.date,
+        eleve: c.eleve, modele: c.modele,
+        modeleLabel: c.modeleLabel || '',
+        site: c.site || '',
+        note: note,
+        contexte: JSON.stringify(ctx),
+        moniteur: c.moniteur || ''
+      });
+
+      /* La liste en mémoire suit, sans tout relire */
+      const dans = (typeof prepares !== 'undefined')
+        ? prepares.find(p => String(p.id) === String(c.id)) : null;
+      if(dans){ dans.note = note; dans.contexte = ctx; }
+
+      ok++;
+    }catch(e){
+      rates.push(x.eleve + ' : ' + (e && e.message ? e.message : e));
+    }
+  }
+
+  reparLecons = [];
+  if($('reparLeconsListe')) $('reparLeconsListe').innerHTML = '';
+  if(etat){
+    etat.textContent = ok + ' cours corrigé(s)' +
+      (rates.length ? ' · ' + rates.length + ' échec(s) : ' + rates.join(' · ') : ' ✅');
+  }
+  showToast(ok + ' numéro(s) de leçon corrigé(s) ✅');
+  if(typeof afficherPrepares === 'function') afficherPrepares();
+}
+
+brancher('reparLeconsBtn', 'click', verifierNumerosLecon);
