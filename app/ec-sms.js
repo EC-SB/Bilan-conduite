@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:38 — v670 */
+/* Déployé le 28/08/2026 à 17:07 — v675 */
 /* ============================================================
    ec-sms.js
    L'envoi de SMS, réservé au bureau.
@@ -338,11 +338,19 @@ async function afficherJournalEnvois(recharger){
 
   const titre = document.createElement('h3');
   titre.style.cssText = 'margin:0 0 8px;font-size:14px;';
-  titre.textContent = '📜 Journal des envois';
+  titre.textContent = '📜 Journal des SMS';
   zone.appendChild(titre);
 
-  if(!journalEnvois.length){
-    zone.innerHTML += '<div class="empty">Aucun envoi pour le moment.</div>';
+  /* Cet écran ne parle que de ce qui coûte. Les rappels par mail —
+     et les présences confirmées — se suivent là où on les envoie,
+     dans 🔔 Rappels de cours → 📜 Historique. Deux journaux qui
+     montrent tout, ce sont deux endroits où chercher. */
+  const smsSeuls = journalEnvois.filter(x => String(x.canal || 'sms') === 'sms');
+
+  if(!smsSeuls.length){
+    zone.innerHTML += '<div class="empty">Aucun SMS envoyé pour le moment.<br>' +
+      '<span style="font-size:12px;">Les rappels par mail et les présences ' +
+      'confirmées sont dans 🔔 Rappels de cours → 📜 Historique.</span></div>';
     return;
   }
 
@@ -356,15 +364,12 @@ async function afficherJournalEnvois(recharger){
   const t = document.createElement('div');
   t.style.cssText = 'padding:10px 12px;border:1px solid var(--line);' +
     'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
-  const confirmes = duMois.filter(x => x.confirmeLe).length;
-  t.innerHTML = '<strong>Ce mois-ci</strong> · ✉️ ' + mailsMois +
-    ' mail(s) — gratuit · 💬 ' + smsMois.length + ' SMS, ' + segMois +
-    ' segments — <strong>' + euro(segMois * prixSegmentEuro()) + '</strong>' +
-    (mailsMois
-      ? '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
-        '✋ ' + confirmes + ' élève(s) ont confirmé leur présence' +
-        (confirmes ? '' : ' — le bouton est dans le mail') + '</div>'
-      : '');
+  t.innerHTML = '<strong>Ce mois-ci</strong> · 💬 ' + smsMois.length +
+    ' SMS, ' + segMois + ' segments — <strong>' +
+    euro(segMois * prixSegmentEuro()) + '</strong>' +
+    '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
+    '✉️ ' + mailsMois + ' rappel(s) par mail sur la même période, sans frais — ' +
+    'ils se suivent dans 🔔 Rappels de cours → 📜 Historique.</div>';
   zone.appendChild(t);
 
   const rech = document.createElement('input');
@@ -380,7 +385,7 @@ async function afficherJournalEnvois(recharger){
     const q = normaliserMot(rech.value.trim());
     liste.innerHTML = '';
 
-    journalEnvois
+    smsSeuls
       .filter(x => !q ||
         normaliserMot(x.eleve || '').indexOf(q) !== -1 ||
         normaliserMot(x.numero || '').indexOf(q) !== -1 ||
