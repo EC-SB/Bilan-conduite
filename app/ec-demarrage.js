@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:14 — v651 */
+/* Déployé le 28/08/2026 à 16:31 — v669 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -496,9 +496,7 @@ if($('motoActualiser')) $('motoActualiser').addEventListener('click', () => {
 });
 if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
-if($('rappelLire')) $('rappelLire').addEventListener('click', lirePlanning);
 if($('rappelModeManuel')) $('rappelModeManuel').addEventListener('click', () => modeRappel('manuel'));
-if($('rappelModePlanning')) $('rappelModePlanning').addEventListener('click', () => modeRappel('planning'));
 if($('rappelModeHistorique')) $('rappelModeHistorique').addEventListener('click', () => modeRappel('historique'));
 /* Le nom de l'élève commande trois choses : la validation, le
    dossier du cours précédent, et son Messenger. Le branchement du
