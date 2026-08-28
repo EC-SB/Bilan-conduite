@@ -2274,6 +2274,15 @@ async function chargerMoniteurs(){
       });
       sel.value = choix;
     }
+
+    /* Tout ce qui affiche la liste des moniteurs se remet à jour ici,
+       au moment où elle arrive. « Pour quel moniteur » n'était rempli
+       qu'une fois, au chargement de la page — donc avant l'ouverture
+       de session, quand la liste était encore vide. Le menu restait
+       vide pour le reste de la journée. */
+    if(typeof poserMoniteursDansPourQui === 'function'){
+      poserMoniteursDansPourQui();
+    }
   }catch(e){
     console.warn('Liste des moniteurs indisponible :', e);
   }
