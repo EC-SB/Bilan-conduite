@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:32 — v643 */
+/* Déployé le 28/08/2026 à 15:28 — v666 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -2224,19 +2224,21 @@ async function ouvrirFicheProc(x){
 function majPastilleProc(){
   const n = nbProcACorriger();
 
-  /* Sur le sous-onglet : le compte exact */
+  /* Sur le sous-onglet : le compte exact. La pastille de l'onglet
+     Élèves en découle toute seule (poserCompteVue additionne les
+     vues de l'onglet) : sans elle, il faudrait ouvrir l'onglet pour
+     découvrir qu'il y a du travail. */
   if(typeof poserCompteVue === 'function'){
-    poserCompteVue('eleves', 'proccorriger', n);
+    poserCompteVue('proccorriger', n);
   }
-
-  /* Et sur l'onglet Élèves lui-même : sans elle, il faudrait ouvrir
-     l'onglet pour découvrir qu'il y a du travail. */
-  if(typeof poserAlerte === 'function') poserAlerte('eleves', n);
 }
 
 /* Le compte, chargé en fond après la connexion */
 async function chargerProcEnFond(){
-  if(!ACCES || !ACCES.droits || !ACCES.droits.proccorriger) return;
+  /* aDroit, pas ACCES.droits en direct : un compte sans réglage de
+     droits a tout, et lire l'objet brut le privait de sa pastille
+     tant qu'il n'ouvrait pas la vue. */
+  if(typeof aDroit === 'function' && !aDroit('proccorriger')) return;
   try{
     const d = await appelPrep({ action: 'procCorrigerList' });
     procACorriger = (d && d.fiches) || [];
