@@ -877,13 +877,13 @@ function ouvrirEvenement(v, e){
    ============================================================ */
 function majPastilleFlotte(){
   if(typeof poserCompteVue === 'function'){
-    poserCompteVue('outils', 'flotte', nbAlertesFlotte());
+    poserCompteVue('flotte', nbAlertesFlotte());
   }
 }
 
 /* Le compte, chargé en fond après la connexion */
 async function chargerFlotteEnFond(){
-  if(!ACCES || !ACCES.droits || !ACCES.droits.flotte) return;
+  if(typeof aDroit === 'function' && !aDroit('flotte')) return;
   try{
     const d = await appelPrep({ action: 'flotteList' });
     flotte = (d && d.vehicules) || [];
