@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:31 — v669 */
+/* Déployé le 28/08/2026 à 16:38 — v670 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1434,6 +1434,7 @@ const MODELE_FINANCEUR_DEFAUT =
   "Lieu de rendez-vous : {emplacement}\n" +
   "{moniteurligne}" +
   "\n{mention48h}\n\n" +
+  "Le détail de la séance : {lien}\n\n" +
   "Cordialement,\n" +
   "Évolution Conduites";
 
@@ -1473,6 +1474,51 @@ function avecMention48h(texte){
   return t.replace(/\s*$/, '') + '\n\n' + MENTION_48H_ELEVE;
 }
 
+/* ------------------------------------------------------------
+   LE LIEN DU COURS
+
+   Le mail dit l'essentiel ; le lien redit tout — lieu, véhicule,
+   ce qu'il faut apporter — et porte le bouton « Je serai là ».
+   Un clic est un vrai signal, là où une image invisible se
+   déclenche toute seule chez la moitié des gens.
+
+   Le jeton est créé au moment de l'envoi et ne vaut que pour ce
+   cours. Il ne connecte à rien : le code du coin révisions est
+   permanent, le faire circuler par mail le rendrait irrévocable.
+   ------------------------------------------------------------ */
+async function creerLienDuCours(nom, r, moniteur, mentions){
+  try{
+    const d = await appelPrep({
+      action: 'coursLienCreer',
+      eleve: nom,
+      prenom: String(nom || '').split(' ')[0],
+      date: dateEnLettres(dateDuChoix(r.jour)),
+      heure: (r.heure || '').replace(':', 'h'),
+      typeSeance: titreDuType(r.type) || '',
+      lieu: texteDuLieu(r.emplacement) || '',
+      vehicule: r.voiture || '',
+      moniteur: moniteur || '',
+      mentions: mentions || ''
+    });
+    if(!d || !d.jeton) return '';
+    return CONFIG.LIEN_COURS + '?c=' + d.jeton;
+  }catch(e){
+    /* Le classeur n'a pas répondu : le rappel part quand même,
+       sans lien. Mieux vaut un mail sans bouton qu'aucun mail. */
+    return '';
+  }
+}
+
+/* Le lien s'insère à la place de {lien} si le modèle le prévoit,
+   et s'ajoute à la fin sinon — un modèle écrit avant que le lien
+   existe ne doit pas le perdre. */
+function avecLien(texte, lien){
+  const t = String(texte || '');
+  if(!lien) return t.split('{lien}').join('').replace(/\n{3,}/g, '\n\n').trim();
+  if(t.indexOf('{lien}') !== -1) return t.split('{lien}').join(lien);
+  return t.replace(/\s*$/, '') + '\n\nLe détail de ton cours : ' + lien;
+}
+
 /* À qui part le rappel. Le financeur n'est prévenu que s'il est
    renseigné : une adresse absente n'est pas une erreur. */
 function destinatairesRappel(nom){
@@ -1507,6 +1553,7 @@ async function journaliserEnvoi(d){
       eleve: d.eleve || '',
       numero: d.destinataires || '',
       par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || '',
+      jeton: d.jeton || '',
       parties: d.segments || 1,
       caracteres: String(d.message || '').length,
       etat: d.etat || 'envoyé',
@@ -1524,8 +1571,18 @@ async function envoyerRappelParMail(nom, r, moniteur){
   const heure = (r.heure || '').replace(':', 'h');
   const resultats = [];
 
+  /* Ce que l'élève doit apporter, repris tel quel sur la page */
+  const mentions = (r.options || [])
+    .map(cle => (OPTIONS_RAPPEL.find(x => x.cle === cle) || {}).texte)
+    .filter(Boolean).join('\n\n');
+
+  /* Un seul lien pour les deux mails : c'est le même cours, et le
+     financeur doit pouvoir vérifier ce que l'élève a sous les yeux. */
+  const lien = await creerLienDuCours(nom, r, moniteur, mentions);
+  const jeton = lien ? lien.split('?c=')[1] : '';
+
   if(dest.eleve){
-    const texte = avecMention48h(texteRappel());
+    const texte = avecLien(avecMention48h(texteRappel()), lien);
     try{
       await appelPrep({ action: 'mailBilan', to: [dest.eleve],
         sujet: 'Ton cours de conduite ' + (quand ? 'du ' + quand : '') +
@@ -1533,7 +1590,7 @@ async function envoyerRappelParMail(nom, r, moniteur){
         texte: texte });
       resultats.push({ qui: 'élève', adresse: dest.eleve, ok: true });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.eleve,
-                               etat: 'envoyé', message: texte });
+                               etat: 'envoyé', message: texte, jeton: jeton });
     }catch(e){
       resultats.push({ qui: 'élève', adresse: dest.eleve, ok: false, motif: e.message });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.eleve,
@@ -1542,8 +1599,8 @@ async function envoyerRappelParMail(nom, r, moniteur){
   }
 
   if(dest.financeur){
-    const texte = composerRappelFinanceur(
-      Object.assign({}, r, { eleve: nom }), moniteur);
+    const texte = avecLien(composerRappelFinanceur(
+      Object.assign({}, r, { eleve: nom }), moniteur), lien);
     try{
       await appelPrep({ action: 'mailBilan', to: [dest.financeur],
         sujet: 'Séance de conduite — ' + nom +
@@ -1551,7 +1608,7 @@ async function envoyerRappelParMail(nom, r, moniteur){
         texte: texte });
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: true });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
-                               etat: 'envoyé (financeur)', message: texte });
+                               etat: 'envoyé (financeur)', message: texte, jeton: jeton });
     }catch(e){
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: false, motif: e.message });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
