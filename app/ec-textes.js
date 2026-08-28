@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:13 — v667 */
+/* Déployé le 28/08/2026 à 16:31 — v669 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -24,7 +24,7 @@ const USAGES_MODELE = [
   { cle:'ecoutes', nom:'😱 Rappel écoutes pédagogiques', variables:[] },
   { cle:'permis_planning', nom:'🚨 Planning formation avant permis',
     variables:['{veille}', '{permis}', '{moniteur}', '{centre}', '{liste}'] },
-  { cle:'rappel_cours',   nom:'🔔 Rappel de cours par SMS',
+  { cle:'rappel_cours',   nom:'🔔 Rappel de cours par mail — élève',
     variables:['{jour}', '{voiture}', '{emplacement}', '{mentions}',
                '{note}', '{prenom}', '{eleve}',
                '{date}', '{datecourte}', '{heure}', '{heure+2h}',
@@ -49,6 +49,16 @@ const AIDE_HEURES =
   '<code>{heure+2h}</code>, <code>{heure+1h30}</code>, ' +
   '<code>{heure+45min}</code>. Le signe moins recule.<br>' +
   'Un cours à 13h donne « 13h à {heure+2h} » → <strong>13h à 15h</strong>.';
+
+/* Un modèle de départ pour les usages qui en ont un. Le texte
+   n'est pas recopié ici : il vit dans le module qui l'utilise,
+   sinon les deux finiraient par diverger sans qu'on le voie. */
+function modeleParDefaut(cle){
+  if(cle === 'rappel_financeur' && typeof MODELE_FINANCEUR_DEFAUT !== 'undefined'){
+    return MODELE_FINANCEUR_DEFAUT;
+  }
+  return '';
+}
 
 function nomUsage(cle){
   const u = USAGES_MODELE.find(x => x.cle === cle);
@@ -506,6 +516,33 @@ function ouvrirEditeurModele(modele, usageImpose){
       });
       z.appendChild(b);
     });
+
+    /* Un usage qui a un modèle de départ le propose : sans ça, on
+       se retrouve devant une zone vide sans savoir quoi y écrire. */
+    const dep = modeleParDefaut(g('mdUsage').value);
+    if(dep){
+      const bd = document.createElement('button');
+      bd.type = 'button';
+      bd.className = 'btn btn-secondary';
+      bd.style.cssText = 'width:100%;padding:8px;font-size:12px;margin:9px 0 0;';
+      bd.textContent = '📋 Partir du modèle proposé';
+      bd.title = "Écrit dans la zone ci-dessous le texte utilisé par défaut";
+      bd.addEventListener('click', async () => {
+        const t = g('mdContenu');
+        if(t.value.trim() &&
+           !await confirmer('Remplacer ce que tu as écrit par le modèle proposé ?')) return;
+        t.value = dep;
+        t.focus();
+      });
+      z.appendChild(bd);
+
+      const info = document.createElement('div');
+      info.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
+        'line-height:1.5;';
+      info.textContent = "Tant que tu n'enregistres aucun modèle pour cet usage, " +
+        "c'est ce texte-là qui part.";
+      z.appendChild(info);
+    }
 
     /* L'aide des heures, seulement là où elle sert */
     if(u && u.variables.some(v => v.indexOf('{heure') === 0)){
