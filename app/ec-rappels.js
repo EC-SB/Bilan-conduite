@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:11 — v677 */
+/* Déployé le 28/08/2026 à 17:13 — v678 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2345,8 +2345,12 @@ async function afficherHistoriqueSms(recharger){
   const rech = document.createElement('input');
   rech.type = 'text';
   rech.placeholder = '🔍 Filtrer par élève, adresse ou moniteur';
-  rech.style.marginBottom = '10px';
+  rech.style.marginBottom = '8px';
   zone.appendChild(rech);
+
+  /* La légende sous le filtre : c'est là que le regard descend
+     avant d'entrer dans la liste. */
+  if(typeof legendeVoyants === 'function') zone.appendChild(legendeVoyants(true));
 
   const l = document.createElement('div');
   zone.appendChild(l);
