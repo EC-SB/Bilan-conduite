@@ -64,7 +64,7 @@ async function afficherTaches(){
 
   /* Le compte sur le sous-onglet : visible sans ouvrir la vue */
   if(typeof poserCompteVue === 'function'){
-    poserCompteVue('outils', 'taches', taches.length);
+    poserCompteVue('taches', taches.length);
   }
 
   zone.innerHTML = '';
@@ -466,7 +466,7 @@ async function compterTachesEnFond(){
   try{
     const d = await appelPrep({ action: 'tacheList' });
     const n = ((d && d.taches) || []).length;
-    if(typeof poserCompteVue === 'function') poserCompteVue('outils', 'taches', n);
+    if(typeof poserCompteVue === 'function') poserCompteVue('taches', n);
   }catch(e){ /* hors ligne : pas de compte */ }
 }
 
