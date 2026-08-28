@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:13 — v667 */
+/* Déployé le 28/08/2026 à 16:31 — v669 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -691,7 +691,7 @@ function composerRappel(r){
   if(!tous.length){
     return "Aucun modèle de rappel enregistré.\n\n" +
       "Va dans ⚙️ Outils → 📄 Textes types, crée un texte avec l'usage " +
-      '« 🔔 Rappel de cours par SMS », et il apparaîtra ici.';
+      '« 🔔 Rappel de cours par mail — élève », et il apparaîtra ici.';
   }
   const type = tous.find(x => x.cle === r.type) || tous[0];
 
@@ -879,7 +879,7 @@ async function afficherRappelManuel(){
 
   /* Choix de l'élève */
   const lab = document.createElement('label');
-  lab.textContent = "Élève — le numéro vient de sa fiche";
+  lab.textContent = "Élève — les adresses viennent de sa fiche";
   zone.appendChild(lab);
 
   /* Saisie libre avec suggestions : plus rapide que de dérouler
@@ -902,7 +902,9 @@ async function afficherRappelManuel(){
     const o = document.createElement('option');
     const f = ficheDe(n);
     o.value = n;
-    o.textContent = (f && f.telephone) ? telLisible(f.telephone) : 'sans numéro';
+    /* L'adresse, pas le numéro : c'est par mail que part le rappel,
+       et c'est donc elle qui manque quand il ne peut pas partir. */
+    o.textContent = (f && f.email) ? f.email : 'sans adresse mail';
     dl.appendChild(o);
   });
   zone.appendChild(dl);
@@ -912,18 +914,34 @@ async function afficherRappelManuel(){
   etatEleve.style.cssText = 'font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;';
   zone.appendChild(etatEleve);
 
-  /* Un élève absent du répertoire, ou un numéro ponctuel */
+  /* Un élève absent du répertoire, ou une adresse ponctuelle.
+     Laissées vides, ce sont celles de la fiche qui servent — et
+     c'est le cas courant : on ne saisit ici que l'exception. */
   const lt = document.createElement('label');
-  lt.textContent = 'Numéro — laisse vide pour prendre celui de sa fiche';
+  lt.textContent = "Adresse de l'élève — laisse vide pour prendre celle de sa fiche";
   zone.appendChild(lt);
 
-  const tel = document.createElement('input');
-  tel.type = 'tel';
-  tel.id = 'rapTel';
-  tel.inputMode = 'tel';
-  tel.placeholder = '06 12 34 56 78';
-  tel.style.width = '100%';
-  zone.appendChild(tel);
+  const ml = document.createElement('input');
+  ml.type = 'email';
+  ml.id = 'rapMail';
+  ml.inputMode = 'email';
+  ml.autocomplete = 'off';
+  ml.placeholder = 'prenom.nom@exemple.fr';
+  ml.style.width = '100%';
+  zone.appendChild(ml);
+
+  const lp = document.createElement('label');
+  lp.textContent = 'Adresse du financeur — laisse vide pour prendre celle de sa fiche';
+  zone.appendChild(lp);
+
+  const mp = document.createElement('input');
+  mp.type = 'email';
+  mp.id = 'rapMailPresc';
+  mp.inputMode = 'email';
+  mp.autocomplete = 'off';
+  mp.placeholder = 'mission.locale@exemple.fr — facultatif';
+  mp.style.width = '100%';
+  zone.appendChild(mp);
 
   /* Les réglages du message */
   /* Sans modèle enregistré, l'outil ne peut rien composer */
@@ -933,7 +951,7 @@ async function afficherRappelManuel(){
     v.style.cssText = 'padding:16px;line-height:1.6;';
     v.innerHTML = '📄 <strong>Aucun modèle de rappel enregistré.</strong><br>' +
       '<span style="font-size:12px;">Va dans <strong>📄 Textes types</strong>, ' +
-      'crée un texte avec l\'usage « 🔔 Rappel de cours par SMS », ' +
+      'crée un texte avec l\'usage « 🔔 Rappel de cours par mail — élève », ' +
       'et il apparaîtra ici.<br>' +
       'Le bouton 📥 Importer permet d\'en coller plusieurs d\'un coup.</span>';
     zone.appendChild(v);
@@ -1234,7 +1252,8 @@ async function afficherRappelManuel(){
   r.appendChild(bCop);
   zone.appendChild(r);
 
-  ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve', 'rapTel']
+  ['rapType', 'rapJour', 'rapVoiture', 'rapEmpl', 'rapLibre', 'rappelEleve',
+   'rapMail', 'rapMailPresc']
     .forEach(id => {
       const el = $(id);
       if(el){
@@ -1459,9 +1478,22 @@ function avecMention48h(texte){
 function destinatairesRappel(nom){
   const f = nom && typeof ficheDe === 'function' ? ficheDe(nom) : null;
   const valide = a => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(a || '').trim());
+
+  /* Ce qui est tapé à la main l'emporte sur la fiche : c'est ainsi
+     qu'on prévient un élève absent du répertoire, ou qu'on envoie
+     à une adresse de remplacement pour un cours. */
+  const saisi = id => {
+    const e = $(id);
+    return e ? String(e.value || '').trim() : '';
+  };
+  const mEleve = saisi('rapMail');
+  const mPresc = saisi('rapMailPresc');
+
   return {
-    eleve:     (f && valide(f.email))            ? f.email.trim()            : '',
-    financeur: (f && valide(f.mailPrescripteur)) ? f.mailPrescripteur.trim() : ''
+    eleve:     valide(mEleve) ? mEleve
+             : ((f && valide(f.email)) ? f.email.trim() : ''),
+    financeur: valide(mPresc) ? mPresc
+             : ((f && valide(f.mailPrescripteur)) ? f.mailPrescripteur.trim() : '')
   };
 }
 
@@ -1755,7 +1787,9 @@ async function envoyerRappelManuel(){
        envoie une information fausse à quelqu'un d'autre. */
     setTimeout(() => {
       if($('rappelEleve')) $('rappelEleve').value = '';
-      if($('rapTel')) $('rapTel').value = '';
+      /* Les adresses saisies à la main valaient pour cet élève-là */
+      if($('rapMail')) $('rapMail').value = '';
+      if($('rapMailPresc')) $('rapMailPresc').value = '';
       /* Le véhicule reste : c'est le même moniteur, la même voiture
          toute la journée. Il se change à la main au moniteur suivant. */
       /* L'heure avance d'un cran dans la journée type : on prépare
@@ -2208,14 +2242,15 @@ async function afficherHistoriqueSms(){
    Saisie à la main, lecture d'un planning, historique des envois.
    ============================================================ */
 function modeRappel(mode){
+  /* La lecture d'un planning par l'IA préparait des SMS ; elle n'a
+     plus de raison d'être depuis que les rappels partent par mail,
+     un par un, avec leur financeur. */
   const vues = {
     manuel:     $('rappelManuel'),
-    planning:   $('rappelPlanning'),
     historique: $('rappelHistoriqueBloc')
   };
   const boutons = {
     manuel:     $('rappelModeManuel'),
-    planning:   $('rappelModePlanning'),
     historique: $('rappelModeHistorique')
   };
   if(!vues.manuel) return;
