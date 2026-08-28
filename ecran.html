@@ -490,6 +490,12 @@ let horlogeServeur = null;   /* { minutes, recu } */
 let jourServeur = '';
 let planningActuel = [];
 
+/* Le plein écran se coupe depuis l'application, le temps d'un
+   contrôle : les diapositives gardent alors l'écran et les cours
+   restent dans leur liste. Actif par défaut — un classeur qui ne
+   répond pas là-dessus ne doit pas priver l'écran de la fonction. */
+let pleinEcranAutorise = true;
+
 
 /* ============================================================
    L'HEURE
@@ -664,6 +670,7 @@ async function chargerVraiment(){
     const mServeur = minutesDe(d && d.heure);
     if(mServeur !== null) horlogeServeur = { minutes: mServeur, recu: Date.now() };
     if(d && d.jour) jourServeur = d.jour;
+    if(d && d.pleinEcran !== undefined) pleinEcranAutorise = !!d.pleinEcran;
     majHeure();
 
     /* Tout va bien : on repart de zéro */
@@ -871,6 +878,10 @@ function echapper(t){
 let signatureImminent = '';
 
 function coursImminents(){
+  /* Coupé depuis l'application : plus aucun cours n'est imminent,
+     et la liste reprend sa place toute seule. */
+  if(!pleinEcranAutorise) return [];
+
   const now = maintenantMinutes();
   return planningActuel.filter(c => {
     if(c.masque) return false;
