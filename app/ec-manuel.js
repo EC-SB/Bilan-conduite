@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:35 — v638 */
+/* Déployé le 28/08/2026 à 12:49 — v648 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -80,8 +80,28 @@ const CHAMPS_MANUELS = {
     { cle:'competences', type:'competences', nom:'Compétences travaillées' },
     { cle:'resume',      type:'texte', nom:'🧠 Remarques du cours', lignes:10 }
   ],
+  /* L'évaluation se remplit rubrique par rubrique, comme la fiche
+     papier. Un bloc de notes libre ne suffisait pas : le bilan
+     attend un état ET un détail par rubrique, et ce qui était écrit
+     dans le bloc n'arrivait nulle part. */
   eval: [
-    { cle:'resume',      type:'texte', nom:'Bilan de l\'évaluation', lignes:12 },
+    { cle:'passif', type:'texte', lignes:3, nom:'🔍 Passif',
+      aide:'Ce qu\'il a déjà conduit, ce qu\'il sait déjà faire.' },
+
+    { cle:'__tdef', type:'titre',
+      nom:'🚨 Résumé des défauts vus ce jour à corriger' },
+
+    { cle:'installation', type:'texte', lignes:2, nom:'Installation' },
+
+    { cle:'rubriques.manipulation', type:'eval3', nom:'Manipulation commandes' },
+    { cle:'rubriques.trajectoire',  type:'eval3', nom:'Trajectoire' },
+    { cle:'rubriques.giratoires',   type:'eval3', nom:'Giratoires' },
+    { cle:'rubriques.vavd',         type:'eval3', nom:'VA / VD' },
+    { cle:'rubriques.manoeuvres',   type:'eval3', nom:'Manœuvres' },
+    { cle:'rubriques.pad',          type:'eval3', nom:'PAD' },
+    { cle:'rubriques.allures',      type:'eval3', nom:'Allures' },
+    { cle:'rubriques.controles',    type:'eval3', nom:'Contrôles' },
+
     { cle:'simuHeures',  type:'court', nom:'Heures de simulateur' },
     { cle:'leconsAvant', type:'court', nom:'Leçons avant examen blanc' },
     { cle:'leconsApres', type:'court', nom:'Leçons après examen blanc' }
@@ -943,6 +963,75 @@ async function ouvrirBilanManuel(){
       if(champsManuels[ch.cle]) peindreOuiNon(r, champsManuels[ch.cle]);
 
       bloc.appendChild(r);
+
+    }else if(ch.type === 'eval3'){
+      /* Une rubrique d'évaluation : son état, puis ce qu'il y a à
+         corriger. Le bilan attend les deux — un état sans le détail
+         ne dit pas à l'élève quoi retravailler.
+
+         Non touchée, la rubrique ressort « ✅ ❌ 🍊 » dans le bilan,
+         comme sur la fiche papier : c'est st3o() qui le fait, et
+         c'est voulu. */
+      const ligne = document.createElement('div');
+      ligne.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+        'margin-bottom:6px;';
+
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      l.style.cssText = 'flex:1;min-width:0;margin:0;font-size:14px;' +
+        'text-transform:none;color:var(--cream);';
+      ligne.appendChild(l);
+
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+
+      const boutons = [];
+      [['✅', '✅'], ['🍊', '🍊'], ['❌', '❌'], ['—', '']].forEach(([lab, val]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-secondary';
+        b.style.cssText = 'width:auto;padding:7px 10px;font-size:15px;margin:0;' +
+          'transition:transform .1s, background .1s;';
+        b.textContent = lab;
+        boutons.push(b);
+        b.addEventListener('click', () => {
+          champsManuels[ch.cle + '.statut'] = val;
+          boutons.forEach(x => {
+            x.style.borderColor = 'var(--line)';
+            x.style.background = 'var(--navy)';
+            x.style.color = 'var(--cream)';
+            x.style.fontWeight = '400';
+            x.style.transform = 'none';
+            x.style.boxShadow = 'none';
+          });
+          const couleurs = {
+            '✅': ['var(--orange)', '#0B0B0B'],
+            '🍊': ['var(--ambre)', 'var(--sur-ambre)'],
+            '❌': ['var(--red)', '#FFFFFF'],
+            '':   ['var(--muted)', '#0B0B0B']
+          };
+          const [fond, texte] = couleurs[val] || couleurs[''];
+          b.style.background = fond;
+          b.style.borderColor = fond;
+          b.style.color = texte;
+          b.style.fontWeight = '700';
+          b.style.transform = 'scale(1.06)';
+          b.style.boxShadow = '0 2px 10px rgba(0,0,0,.35)';
+        });
+        r.appendChild(b);
+      });
+      ligne.appendChild(r);
+      bloc.appendChild(ligne);
+
+      /* Le détail. Un point par ligne, comme dans les autres bilans. */
+      const t = document.createElement('textarea');
+      t.id = 'manEval_' + ch.cle.split('.').join('_');
+      t.rows = 2;
+      t.placeholder = 'Ce qu\'il y a à corriger — une ligne par point';
+      t.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:9px 10px;border-radius:10px;font-size:15px;' +
+        'line-height:1.5;font-family:inherit;resize:vertical;margin:0;';
+      bloc.appendChild(t);
 
     }else if(ch.type === 'ok'){
       /* Passager et voyants décident de la note d'installation */
@@ -2919,6 +3008,14 @@ function lireChampsManuels(){
         }
       });
       champsManuels[ch.cle] = obs;
+
+    }else if(ch.type === 'eval3'){
+      /* L'état est posé au clic ; il ne reste que le détail.
+         Son identifiant remplace TOUS les points : « rubriques.pad »
+         en compte un, et replace('.','_') n'en remplace qu'un seul. */
+      const t = document.getElementById('manEval_' + ch.cle.split('.').join('_'));
+      if(t) champsManuels[ch.cle + '.commentaire'] = t.value.trim();
+
     }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
              ch.type !== 'niveau' && ch.type !== 'ouinon'){
       const t = document.getElementById('man_' + ch.cle.replace('.', '_'));
@@ -3007,9 +3104,20 @@ async function genererBilanManuel(){
        véhicule ressortait vide. */
     if(k === 'manoeuvres') return;
     if(k.indexOf('.') === -1){ donnees[k] = champsManuels[k]; return; }
-    const [pere, fils] = k.split('.');
-    if(!donnees[pere]) donnees[pere] = {};
-    donnees[pere][fils] = champsManuels[k];
+
+    /* Autant de niveaux que la clé en compte. Une seule profondeur
+       suffisait tant que les clés valaient « avant.carteSD » ; les
+       rubriques d'évaluation en demandent deux
+       (« rubriques.pad.statut »), et s'arrêter au premier point
+       écrasait toute la rubrique à chaque champ. */
+    const chemin = k.split('.');
+    let cible = donnees;
+    for(let i = 0; i < chemin.length - 1; i++){
+      const pas = chemin[i];
+      if(!cible[pas] || typeof cible[pas] !== 'object') cible[pas] = {};
+      cible = cible[pas];
+    }
+    cible[chemin[chemin.length - 1]] = champsManuels[k];
   });
 
   let bilan;
