@@ -311,6 +311,17 @@ function fusionnerContexte(saisi, defauts){
   return out;
 }
 
+/* Le questionnaire a-t-il été rempli par quelqu'un ?
+
+   Porter un contexte ne suffit pas : un cours créé tout seul — par
+   un rappel, par une attribution d'examen blanc — en porte un,
+   déduit du dossier, auquel personne n'a répondu. Seule la marque
+   posée à la validation fait foi. Écrit ici une fois pour les deux
+   modes, vocal et manuel : la même question, la même réponse. */
+function questionnaireDejaRepondu(ctx){
+  return !!(ctx && ctx.repondu);
+}
+
 /* ============================================================
    QUESTIONNAIRE DE DÉPART
    Un seul écran, tout pré-rempli : le moniteur ne corrige que
@@ -1251,6 +1262,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     function fermer(reponses){
       questionnaireOuvert = false;
       if(fond.parentNode) document.body.removeChild(fond);
+
+      /* La marque de « quelqu'un y a répondu », posée ici et nulle
+         part ailleurs : c'est le seul endroit par où passe une
+         réponse humaine. Un cours préparé tout seul — par un rappel,
+         par une attribution d'examen blanc — porte bien un contexte,
+         mais personne ne l'a rempli : son questionnaire reste à
+         poser au moniteur, pré-rempli de ce qu'on savait déjà. */
+      if(reponses) reponses.repondu = 1;
       /* L'ANTS et la frise redescendent sur la fiche de l'élève : ce que
          le moniteur corrige ici doit valoir pour les prochains cours,
          sans qu'on ait à ressaisir la même chose au bureau. */
