@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:47 — v639 */
+/* Déployé le 28/08/2026 à 10:56 — v640 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1805,16 +1805,38 @@ async function ouvrirMessengerCorrection(r, correction, dit){
 }
 
 
+/* ============================================================
+   LES CONSIGNES DE CORRECTION D'UNE PROCÉDURE
+
+   ⚠️ Ce bloc existe à l'identique dans cloudflare-worker.js, pour
+   la correction automatique. Les deux doivent dire exactement la
+   même chose, sinon une même récitation se corrige différemment
+   selon qu'elle est passée par l'automatique ou par ce bouton.
+   ============================================================ */
+function consignesCorrection(ordre, libre){
+  const bouts = [];
+  if(ordre){
+    bouts.push("L'ORDRE DES ETAPES COMPTE. L'eleve doit reciter dans l'ordre " +
+      "de la procedure attendue. Une etape hors de sa place est une erreur : " +
+      "dis laquelle, et ou elle devrait etre.");
+  }
+  const l = String(libre || '').trim();
+  if(l) bouts.push("CONSIGNE DE L'AUTO-ECOLE POUR CETTE PROCEDURE :\n" + l);
+  return bouts.length ? bouts.join('\n\n') + '\n\n' : '';
+}
+
 /* La correction par l'IA, appuyée sur la procédure de référence */
 async function corrigerRecitation(r){
   /* Le texte attendu : la comparaison n'a de sens que par rapport
      à ce que l'auto-école enseigne. */
   let reference = '';
+  let regles = '';
   try{
     const mod = (typeof modelesTexte !== 'undefined' ? modelesTexte : [])
       .find(m => m.usage === 'procedure' &&
                  normaliserMot(m.nom) === normaliserMot(r.procedure));
     reference = (mod && mod.contenu) || '';
+    regles = consignesCorrection(mod && mod.ordre, mod && mod.consigne);
   }catch(e){}
 
   const consigne =
@@ -1824,6 +1846,9 @@ async function corrigerRecitation(r){
       ? 'LA PROCÉDURE ATTENDUE :\n' + reference + '\n\n'
       : 'Aucune procédure de référence enregistrée : appuie-toi sur les ' +
         'règles habituelles de la conduite.\n\n') +
+    /* Les consignes du bureau avant la récitation, le format de
+       réponse après : un texte libre ne peut pas défaire le format. */
+    regles +
     'CE QUE L\'ÉLÈVE A DIT :\n' + r.texte + '\n\n' +
     'Ta réponse, en français, sans titre ni préambule :\n' +
     '1. Ce qui est juste, en une ou deux phrases.\n' +
