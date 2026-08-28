@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:48 — v672 */
+/* Déployé le 28/08/2026 à 16:54 — v673 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -223,6 +223,38 @@ function heureLisible(minutes){
 
 /* ---------- Interface de gestion ---------- */
 
+/* ------------------------------------------------------------
+   QUELS DOSSIERS SONT OUVERTS
+
+   L'écran se redessine à chaque modification — un texte
+   enregistré, un dossier vidé, un import. Rouvrir tous les
+   dossiers à chaque fois oblige à tout refermer pour retrouver
+   celui sur lequel on travaillait.
+
+   Les dossiers ouverts sont donc retenus sur ce poste. Fermés par
+   défaut : le nombre de textes s'affiche sur chaque dossier, on
+   n'a besoin d'ouvrir que celui qu'on veut modifier.
+   ------------------------------------------------------------ */
+const CLE_DOSSIERS_TEXTES = 'ec_textes_dossiers';
+
+function dossiersOuverts(){
+  try{
+    const v = JSON.parse(localStorage.getItem(CLE_DOSSIERS_TEXTES) || '[]');
+    return Array.isArray(v) ? v : [];
+  }catch(e){ return []; }
+}
+
+function noterDossier(cat, ouvert, toutes){
+  let liste = dossiersOuverts().filter(x => x !== cat);
+  if(ouvert) liste.push(cat);
+
+  /* Un dossier renommé ou vidé n'a plus à figurer dans la liste :
+     sans ce ménage, elle enflerait à chaque changement de nom. */
+  if(Array.isArray(toutes)) liste = liste.filter(x => toutes.indexOf(x) !== -1);
+
+  try{ localStorage.setItem(CLE_DOSSIERS_TEXTES, JSON.stringify(liste)); }catch(e){}
+}
+
 async function afficherModelesTexte(){
   const zone = $('textesZone');
   if(!zone) return;
@@ -249,6 +281,22 @@ async function afficherModelesTexte(){
   bImport.title = 'Coller plusieurs modèles d\'un coup';
   bImport.addEventListener('click', ouvrirImportModeles);
   r.appendChild(bImport);
+
+  /* Les dossiers restant fermés, il faut pouvoir tout déplier pour
+     chercher un texte dont on ne sait plus où il est rangé. */
+  const bTout = document.createElement('button');
+  bTout.className = 'btn btn-secondary';
+  bTout.style.cssText = 'width:auto;padding:0 14px;margin:0;font-size:14px;';
+  bTout.textContent = '📂';
+  bTout.title = 'Ouvrir ou fermer tous les dossiers';
+  bTout.addEventListener('click', () => {
+    const blocs = [...zone.querySelectorAll('details[data-dossier]')];
+    if(!blocs.length) return;
+    /* Si un seul est fermé, on ouvre tout ; sinon on ferme tout. */
+    const ouvrir = blocs.some(d => !d.open);
+    blocs.forEach(d => { d.open = ouvrir; });
+  });
+  r.appendChild(bTout);
 
   zone.appendChild(r);
 
@@ -277,10 +325,14 @@ async function afficherModelesTexte(){
     return a.localeCompare(b, 'fr');
   });
 
+  const retenus = dossiersOuverts();
+
   cats.forEach(cat => {
     const bloc = document.createElement('details');
-    bloc.open = true;
+    bloc.open = (retenus.indexOf(cat) !== -1);
     bloc.style.cssText = 'margin-bottom:10px;';
+    bloc.setAttribute('data-dossier', cat);
+    bloc.addEventListener('toggle', () => noterDossier(cat, bloc.open, cats));
     const som = document.createElement('summary');
     som.style.cssText = 'cursor:pointer;font-size:14px;font-weight:700;' +
       'color:var(--accent-text);padding:6px 0;display:flex;align-items:center;gap:8px;';
