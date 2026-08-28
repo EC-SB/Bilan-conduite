@@ -347,11 +347,18 @@ $('recBtn').addEventListener('click', async () => {
      et ses examens se fixent en fin de séance, et le questionnaire
      de fin les redemandera. */
   const profilDepart = profilQuestionnaire($('modele').value);
-  if(!finalTranscript && !contexteDepart && profilDepart !== 'examen'){
+
+  /* Un contexte ne suffit pas à dire que le questionnaire a été
+     rempli : un cours créé par un rappel en porte un, déduit du
+     dossier, auquel personne n'a répondu. Seule la marque posée à
+     la validation compte. Le contexte connu part en pré-remplissage
+     plutôt qu'à la poubelle. */
+  const dejaRepondu = questionnaireDejaRepondu(contexteDepart);
+  if(!finalTranscript && !dejaRepondu && profilDepart !== 'examen'){
     btn.disabled = true;
     btn.textContent = 'Préparation…';
     try{
-      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de démarrer');
+      const rep = await ouvrirQuestionnaireDepart(contexteDepart, 'Avant de démarrer');
       if(rep){
         contexteDepart = rep;
         if(typeof afficherSaisieDuJour === 'function') afficherSaisieDuJour(rep);
