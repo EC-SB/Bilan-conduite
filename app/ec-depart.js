@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 10:35 — v638 */
+/* Déployé le 28/08/2026 à 12:43 — v647 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -554,6 +554,11 @@ async function rechercherEleve(){
         $('resultText').value = item.bilan;
         afficherNote(item.note);
         marquerExport(true);
+
+        /* Une fiche d'évaluation retrouve ses sorties : le PDF pour
+           le dossier ou la préfecture, et l'envoi par mail. Sans
+           cela, il fallait refaire la fiche pour ravoir son PDF. */
+        if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
 
         /* Le bilan appartient à l'onglet Cours : depuis la recherche,
            il restait masqué par la classe « hors-onglet ». */
