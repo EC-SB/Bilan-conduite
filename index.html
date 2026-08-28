@@ -93,6 +93,33 @@
   header h1{font-size:17px;margin:0;line-height:1.3;}
   header p{margin:2px 0 0;font-size:12px;color:var(--muted);}
 
+  /* Quatre boutons dans l'en-tête, c'est trop pour un téléphone étroit :
+     ils se resserrent, et l'adresse des sites cède la place au numéro de
+     version — la seule chose qu'on lise vraiment là. La marge des boutons
+     est écrite dans leur attribut style, d'où le !important. */
+  @media (max-width:470px){
+    header{gap:8px;flex-wrap:wrap;}
+    header #guideBtn, header #versionBtn,
+    header #logoutBtn, header #themeBtn{
+      width:38px;height:38px;font-size:16px;margin-left:0 !important;
+    }
+    header .ec-lieux{display:none;}
+    /* Le titre prend la place libre : les boutons restent au bord droit,
+       même quand ils ne sont pas tous affichés. */
+    header .ec-titre{flex:1 1 0;min-width:0;}
+    /* Qui est connecté passe sur sa propre ligne : sur 360 px, comprimé
+       à côté des boutons, il ne restait qu'une lettre du prénom. */
+    header #qui{order:5;flex-basis:100%;margin-left:0;text-align:left;}
+    header #quiNom, header #quiRole{display:inline;}
+    header #quiRole::before{content:" · ";}
+  }
+  @media (max-width:380px){
+    header{gap:6px;}
+    header h1{font-size:15px;}
+    header #guideBtn, header #versionBtn,
+    header #logoutBtn, header #themeBtn{width:36px;height:36px;font-size:15px;}
+  }
+
   .card{
     background: var(--navy-deep);
     border:1px solid var(--line);
@@ -817,9 +844,9 @@
 <div class="wrap">
   <header>
     <div class="logo">EC</div>
-    <div>
+    <div class="ec-titre">
       <h1>Bilan de conduite</h1>
-      <p>Évolution Conduites — Saint-Brieuc · Loudéac <span style="color:var(--accent-text);font-weight:700;">v655</span></p>
+      <p><span class="ec-lieux">Évolution Conduites — Saint-Brieuc · Loudéac </span><span style="color:var(--accent-text);font-weight:700;">v656</span></p>
     </div>
     <div id="qui" style="display:none;margin-left:auto;text-align:right;
          line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
@@ -828,6 +855,17 @@
       <div id="quiRole" style="font-size:11px;color:var(--muted);
            white-space:nowrap;"></div>
     </div>
+    <!-- Le guide s'ouvre dans un autre onglet : une question posée
+         au milieu d'un cours ne doit pas coûter l'enregistrement.
+         Le ?v= suit celui des modules, sinon le navigateur ressort
+         l'ancien guide de son cache. -->
+    <a id="guideBtn" href="guide.html?v=656" target="_blank" rel="noopener"
+       title="Guide d'utilisation" style="display:none;
+            margin-left:8px;background:transparent;border:1px solid var(--line);
+            color:var(--cream);border-radius:10px;width:44px;height:44px;
+            font-size:18px;cursor:pointer;flex-shrink:0;text-decoration:none;
+            align-items:center;justify-content:center;">📘</a>
+
     <!-- Vérifier que le moniteur a bien la dernière version :
          un écran figé sur une vieille version explique beaucoup
          de « ça ne marche pas ». -->
@@ -2112,58 +2150,58 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=655"></script>
-<script src="app/ec-modeles.js?v=655"></script>
-<script src="app/ec-consignes.js?v=655"></script>
-<script src="app/ec-noyau.js?v=655"></script>
-<script src="app/ec-vocal.js?v=655"></script>
-<script src="app/ec-reseau.js?v=655"></script>
-<script src="app/ec-manuel.js?v=655"></script>
-<script src="app/ec-fenetres.js?v=655"></script>
-<script src="app/ec-questionnaire.js?v=655"></script>
-<script src="app/ec-permis.js?v=655"></script>
-<script src="app/ec-prepares.js?v=655"></script>
-<script src="app/ec-bureau.js?v=655"></script>
-<script src="app/ec-places.js?v=655"></script>
-<script src="app/ec-listes.js?v=655"></script>
-<script src="app/ec-permis-listes.js?v=655"></script>
-<script src="app/ec-postpermis.js?v=655"></script>
-<script src="app/ec-textes.js?v=655"></script>
-<script src="app/ec-correction.js?v=655"></script>
-<script src="app/ec-bilans.js?v=655"></script>
-<script src="app/ec-ecran.js?v=655"></script>
-<script src="app/ec-version.js?v=655"></script>
-<script src="app/ec-paie.js?v=655"></script>
-<script src="app/ec-flotte.js?v=655"></script>
-<script src="app/ec-solo.js?v=655"></script>
-<script src="app/ec-handicap-pdf.js?v=655"></script>
-<script src="app/ec-moto.js?v=655"></script>
-<script src="app/ec-remorque.js?v=655"></script>
-<script src="app/ec-arriereplan.js?v=655"></script>
-<script src="app/ec-placesbe.js?v=655"></script>
-<script src="app/ec-codeamenage.js?v=655"></script>
-<script src="app/ec-financements.js?v=655"></script>
-<script src="app/ec-eval-aac.js?v=655"></script>
-<script src="app/ec-postes.js?v=655"></script>
-<script src="app/ec-tarifs.js?v=655"></script>
-<script src="app/ec-evaluation.js?v=655"></script>
-<script src="app/ec-paiement.js?v=655"></script>
-<script src="app/ec-handicap.js?v=655"></script>
-<script src="app/ec-code.js?v=655"></script>
-<script src="app/ec-proccorriger.js?v=655"></script>
-<script src="app/ec-sessions.js?v=655"></script>
-<script src="app/ec-notifs.js?v=655"></script>
-<script src="app/ec-ecoutes.js?v=655"></script>
-<script src="app/ec-taches.js?v=655"></script>
-<script src="app/ec-memoire.js?v=655"></script>
-<script src="app/ec-historique.js?v=655"></script>
-<script src="app/ec-rappels.js?v=655"></script>
-<script src="app/ec-stats.js?v=655"></script>
-<script src="app/ec-messenger.js?v=655"></script>
-<script src="app/ec-journal.js?v=655"></script>
-<script src="app/ec-depart.js?v=655"></script>
-<script src="app/ec-onglets.js?v=655"></script>
-<script src="app/ec-demarrage.js?v=655"></script>
+  <script src="app/ec-etat.js?v=656"></script>
+<script src="app/ec-modeles.js?v=656"></script>
+<script src="app/ec-consignes.js?v=656"></script>
+<script src="app/ec-noyau.js?v=656"></script>
+<script src="app/ec-vocal.js?v=656"></script>
+<script src="app/ec-reseau.js?v=656"></script>
+<script src="app/ec-manuel.js?v=656"></script>
+<script src="app/ec-fenetres.js?v=656"></script>
+<script src="app/ec-questionnaire.js?v=656"></script>
+<script src="app/ec-permis.js?v=656"></script>
+<script src="app/ec-prepares.js?v=656"></script>
+<script src="app/ec-bureau.js?v=656"></script>
+<script src="app/ec-places.js?v=656"></script>
+<script src="app/ec-listes.js?v=656"></script>
+<script src="app/ec-permis-listes.js?v=656"></script>
+<script src="app/ec-postpermis.js?v=656"></script>
+<script src="app/ec-textes.js?v=656"></script>
+<script src="app/ec-correction.js?v=656"></script>
+<script src="app/ec-bilans.js?v=656"></script>
+<script src="app/ec-ecran.js?v=656"></script>
+<script src="app/ec-version.js?v=656"></script>
+<script src="app/ec-paie.js?v=656"></script>
+<script src="app/ec-flotte.js?v=656"></script>
+<script src="app/ec-solo.js?v=656"></script>
+<script src="app/ec-handicap-pdf.js?v=656"></script>
+<script src="app/ec-moto.js?v=656"></script>
+<script src="app/ec-remorque.js?v=656"></script>
+<script src="app/ec-arriereplan.js?v=656"></script>
+<script src="app/ec-placesbe.js?v=656"></script>
+<script src="app/ec-codeamenage.js?v=656"></script>
+<script src="app/ec-financements.js?v=656"></script>
+<script src="app/ec-eval-aac.js?v=656"></script>
+<script src="app/ec-postes.js?v=656"></script>
+<script src="app/ec-tarifs.js?v=656"></script>
+<script src="app/ec-evaluation.js?v=656"></script>
+<script src="app/ec-paiement.js?v=656"></script>
+<script src="app/ec-handicap.js?v=656"></script>
+<script src="app/ec-code.js?v=656"></script>
+<script src="app/ec-proccorriger.js?v=656"></script>
+<script src="app/ec-sessions.js?v=656"></script>
+<script src="app/ec-notifs.js?v=656"></script>
+<script src="app/ec-ecoutes.js?v=656"></script>
+<script src="app/ec-taches.js?v=656"></script>
+<script src="app/ec-memoire.js?v=656"></script>
+<script src="app/ec-historique.js?v=656"></script>
+<script src="app/ec-rappels.js?v=656"></script>
+<script src="app/ec-stats.js?v=656"></script>
+<script src="app/ec-messenger.js?v=656"></script>
+<script src="app/ec-journal.js?v=656"></script>
+<script src="app/ec-depart.js?v=656"></script>
+<script src="app/ec-onglets.js?v=656"></script>
+<script src="app/ec-demarrage.js?v=656"></script>
 
 </body>
 </html>
