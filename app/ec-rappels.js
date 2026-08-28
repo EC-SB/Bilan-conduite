@@ -971,7 +971,14 @@ async function afficherRappelManuel(){
   /* La liste des emplacements, la même que dans l'affichage */
   const selEmpl = zone.querySelector('#rapEmpl');
   remplirListeLieux(selEmpl, (choixRappel && choixRappel.emplacement) || '', true);
-  selEmpl.addEventListener('change', apercuRappel);
+  selEmpl.addEventListener('change', () => {
+    /* Un « change » ne part jamais d'une écriture par le code :
+       c'est donc bien le bureau qui vient de choisir. On cesse de
+       déduire jusqu'au prochain élève. */
+    lieuChoisiALaMain = true;
+    majMentionLieuAuto(false);
+    apercuRappel();
+  });
 
   const selVeh = zone.querySelector('#rapVehicule');
   if(selVeh){
@@ -1236,6 +1243,14 @@ async function afficherRappelManuel(){
       }
     });
 
+  /* Ce qui décide de l'emplacement : le type, le jour, l'heure, le
+     moniteur et la voiture. Chacun relance la déduction. */
+  ['rapType', 'rapJour', 'rapHeure', 'rapHeureChoix', 'rapMoniteur',
+   'rapVehicule', 'rapVehLibre'].forEach(id => {
+    const el = $(id);
+    if(el) el.addEventListener('change', () => majLieuAuto());
+  });
+
   /* On reprend les réglages du rappel précédent */
   const m = relireChoixRappel();
   if($('rapType') && m.type){
@@ -1251,6 +1266,7 @@ async function afficherRappelManuel(){
   });
 
   apercuRappel();
+  majLieuAuto();
 }
 
 function lireChoixRappel(){
@@ -1581,6 +1597,19 @@ async function envoyerRappelManuel(){
 
       /* Le moniteur et le jour restent : ils ne changent pas
          d'un élève à l'autre dans une série de rappels. */
+
+      /* Le cours qu'on vient de prévenir compte pour le suivant :
+         c'est lui qui dira si la voiture change. */
+      noterCoursDuJour(dateDuRappel($('rapJour') ? $('rapJour').value : ''),
+                       $('rapMoniteur') ? $('rapMoniteur').value : '',
+                       hEnvoyee,
+                       $('rapVoiture') ? $('rapVoiture').value : '');
+
+      /* L'élève suivant repart d'une déduction neuve : le lieu
+         choisi à la main valait pour celui qu'on vient d'envoyer. */
+      lieuChoisiALaMain = false;
+      majMentionLieuAuto(false);
+      majLieuAuto();
 
       texteModifie = false;
       apercuRappel();
@@ -2031,6 +2060,201 @@ function modeRappel(mode){
    cours demain. La préparation se crée donc toute seule, pour que
    le cours apparaisse dans « Mes prochains cours ».
    ============================================================ */
+/* ============================================================
+   OÙ EST LA VOITURE, DÉDUIT
+
+   Le bureau le saisissait à la main pour chaque élève, alors que
+   la règle est connue : le type de séance décide d'abord, et
+   quand il ne dit rien de particulier, l'heure tranche.
+
+   Le premier cours d'une demi-journée sort de la cour ; les
+   suivants attendent devant, le long du trottoir — sauf si la
+   voiture change d'un cours à l'autre, auquel cas l'élève revient
+   dans la cour la chercher.
+
+   Rien n'est imposé : dès que le bureau choisit un lieu à la
+   main, on ne le réécrit plus, comme pour l'aperçu du SMS.
+   ============================================================ */
+
+/* Les séances qui se tiennent ailleurs qu'au volant d'une voiture.
+
+   Reconnues par mots-clés plutôt que par le titre exact : ces
+   titres sont des textes types, et les renommer ne doit pas
+   casser la règle en silence. L'ordre compte — « AM voiturette »
+   est une voiturette avant d'être un AM. */
+const LIEU_PAR_SEANCE = [
+  { motif: /th[ée]orique/i,  lieu: 'cours' },
+  { motif: /visio/i,         lieu: 'visio' },
+  { motif: /agence/i,        lieu: 'cours' },
+  { motif: /voiturette/i,    lieu: 'voiturette' },
+  { motif: /scooter|\bAM\b/i, lieu: 'scooter' },
+  { motif: /moto|\bA1\b/i,    lieu: 'moto' }
+];
+
+function lieuDuTypeDeSeance(titre){
+  const t = String(titre || '');
+  if(!t.trim()) return '';
+  const trouve = LIEU_PAR_SEANCE.find(x => x.motif.test(t));
+  return trouve ? trouve.lieu : '';
+}
+
+/* Le planning du jour visé, pour savoir ce que le moniteur a déjà
+   avant ce cours-là. Gardé en mémoire : on le relit une fois par
+   date, et les rappels qu'on vient d'envoyer s'y ajoutent au fur
+   et à mesure plutôt que de tout redemander. */
+let planningRappels = { jour: '', lignes: null, enCours: null };
+
+async function planningDuJourRappels(jourIso){
+  if(!jourIso) return [];
+  if(planningRappels.jour === jourIso && planningRappels.lignes){
+    return planningRappels.lignes;
+  }
+  if(planningRappels.jour === jourIso && planningRappels.enCours){
+    return planningRappels.enCours;
+  }
+
+  planningRappels.jour = jourIso;
+  planningRappels.lignes = null;
+  planningRappels.enCours = (async () => {
+    try{
+      const r = await appelPrep({ action: 'ecranPlanningJour', jour: jourIso });
+      planningRappels.lignes = (r && r.planning) || [];
+    }catch(e){
+      /* Sans planning, la déduction se tait : mieux vaut un champ
+         vide qu'un emplacement inventé. */
+      planningRappels.lignes = [];
+    }
+    planningRappels.enCours = null;
+    return planningRappels.lignes;
+  })();
+  return planningRappels.enCours;
+}
+
+/* Le rappel qu'on vient d'envoyer compte pour le suivant */
+function noterCoursDuJour(jourIso, moniteur, heure, vehicule){
+  if(!jourIso || planningRappels.jour !== jourIso || !planningRappels.lignes) return;
+  planningRappels.lignes.push({
+    moniteur: moniteur || '', heure: heure || '', vehicule: vehicule || ''
+  });
+}
+
+/* « 08:00 » ou « 8h30 » valent des minutes : c'est la seule façon
+   de comparer deux heures sans se tromper. */
+function minutesDeHeureRappel(h){
+  const m = String(h || '').match(/^(\d{1,2})\s*[:h]\s*(\d{2})?$/);
+  if(!m) return null;
+  return Number(m[1]) * 60 + Number(m[2] || 0);
+}
+
+/* Ce que ce moniteur a déjà, ce jour-là, dans la même demi-journée,
+   avant cette heure. Le matin et l'après-midi se comptent à part :
+   la voiture rentre dans la cour entre les deux. */
+function coursAvantDansLaDemiJournee(lignes, moniteur, minutes){
+  const mon = normaliserMot(moniteur || '');
+  const matin = minutes < 12 * 60;
+
+  return (lignes || [])
+    .map(l => ({ l: l, m: minutesDeHeureRappel(l.heure) }))
+    .filter(x => x.m !== null && x.m < minutes)
+    .filter(x => (x.m < 12 * 60) === matin)
+    .filter(x => !mon || normaliserMot(x.l.moniteur || '') === mon)
+    .sort((a, b) => a.m - b.m)
+    .map(x => x.l);
+}
+
+/* La règle horaire elle-même */
+function lieuSelonHeure(lignes, moniteur, minutes, vehicule){
+  if(minutes === null) return '';
+
+  const avant = coursAvantDansLaDemiJournee(lignes, moniteur, minutes);
+
+  /* Premier cours de la demi-journée : la voiture est au garage,
+     l'élève vient la chercher dans la cour. */
+  if(!avant.length) return 'cour';
+
+  /* La voiture change : elle n'est pas celle que le moniteur vient
+     de garer devant, il faut aller la prendre dans la cour. */
+  const precedent = avant[avant.length - 1];
+  if(normaliserMot(precedent.vehicule || '') !== normaliserMot(vehicule || '')){
+    return 'cour';
+  }
+  return 'devant';
+}
+
+/* Le bureau a-t-il choisi le lieu lui-même ? On ne réécrit alors
+   plus rien, jusqu'au prochain élève. */
+let lieuChoisiALaMain = false;
+
+async function majLieuAuto(){
+  const sel = $('rapEmpl');
+  if(!sel || lieuChoisiALaMain) return;
+
+  const titre = titreDuType($('rapType') ? $('rapType').value : '');
+
+  /* Le type de séance d'abord : une visio n'a pas d'heure de
+     stationnement. */
+  const impose = lieuDuTypeDeSeance(titre);
+  if(impose){ poserLieuAuto(impose); return; }
+
+  /* Sinon l'heure, mais seulement pour les séances qui se
+     déroulent au volant. Les autres, on n'y touche pas. */
+  if(!seanceEnVoiture(titre)) return;
+
+  const minutes = minutesDeHeureRappel($('rapHeure') ? $('rapHeure').value : '');
+  if(minutes === null) return;
+
+  const jourIso = dateDuRappel($('rapJour') ? $('rapJour').value : '');
+  const moniteur = $('rapMoniteur') ? $('rapMoniteur').value : '';
+  const vehicule = $('rapVoiture') ? $('rapVoiture').value : '';
+
+  const lignes = await planningDuJourRappels(jourIso);
+  /* Le bureau a pu choisir entre-temps : on ne lui passe pas dessus */
+  if(lieuChoisiALaMain) return;
+
+  const lieu = lieuSelonHeure(lignes, moniteur, minutes, vehicule);
+  if(lieu) poserLieuAuto(lieu);
+}
+
+/* Les séances au volant : celles que la règle horaire concerne.
+   Tout ce qui n'est ni un cours, ni un rendez-vous, ni une
+   évaluation, ni un permis voiture est laissé au bureau. */
+function seanceEnVoiture(titre){
+  return /cours|rendez|\bRDV\b|[ée]valuation|permis/i.test(String(titre || ''));
+}
+
+function poserLieuAuto(cle){
+  const sel = $('rapEmpl');
+  if(!sel || sel.value === cle) return;
+
+  /* Un emplacement retiré de la liste ne se pose pas : le menu
+     afficherait une valeur qu'il ne contient pas. */
+  const existe = Array.prototype.some.call(sel.options, o => o.value === cle);
+  if(!existe) return;
+
+  sel.value = cle;
+  if(typeof apercuRappel === 'function') apercuRappel();
+  if(typeof memoriserChoixRappel === 'function') memoriserChoixRappel();
+  majMentionLieuAuto(true);
+}
+
+/* Dire que c'est déduit, sans en faire un plat */
+function majMentionLieuAuto(auto){
+  const sel = $('rapEmpl');
+  if(!sel || !sel.parentNode) return;
+
+  let n = sel.parentNode.querySelector('.lieuAuto');
+  if(!auto){ if(n) n.remove(); return; }
+
+  if(!n){
+    n = document.createElement('div');
+    n.className = 'lieuAuto';
+    n.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;';
+    sel.parentNode.appendChild(n);
+  }
+  n.textContent = 'Déduit de la séance et de l\'heure — tu peux le changer.';
+}
+
+
 /* ============================================================
    LE BILAN QUI VA AVEC LA SÉANCE
 
