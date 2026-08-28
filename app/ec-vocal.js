@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 11:32 — v601 */
+/* Déployé le 28/08/2026 à 10:35 — v638 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1972,7 +1972,10 @@ async function exporterVersSheets(silencieux){
     });
     if(!r.ok) throw new Error('HTTP ' + r.status);
     const rep = await r.json().catch(() => ({}));
-    if(!verifierVersionScript(rep)){ marquerExport(false); return false; }
+    /* Le await manquait : la fonction est asynchrone, et une promesse
+       est toujours vraie. Le garde-fou ne s'est jamais déclenché — un
+       bilan enregistré sans sa note passait pour enregistré. */
+    if(!await verifierVersionScript(rep)){ marquerExport(false); return false; }
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
     marquerExport(true);
