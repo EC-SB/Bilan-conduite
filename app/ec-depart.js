@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:22 — v668 */
+/* Déployé le 28/08/2026 à 16:44 — v671 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1715,7 +1715,10 @@ async function verifierNotesExamen(){
     const liste = (d && d.notes) || [];
 
     liste.forEach(x => {
-      const neuve = normaliserNoteExamen(x.note);
+      /* Nettoyage complet : la ligne d'examen remise en forme, mais
+         aussi les segments empilés au fil des cours — trois fois la
+         même date d'examen, deux fois le même examen blanc. */
+      const neuve = nettoyerNote(x.note);
       if(neuve && neuve !== x.note){
         reparNotes.push({ eleve: x.eleve, ligne: x.ligne,
                           avant: x.note, apres: neuve });
@@ -1725,13 +1728,17 @@ async function verifierNotesExamen(){
     if(!reparNotes.length){
       etat.style.color = 'var(--accent-text)';
       etat.textContent = '✅ ' + liste.length + ' note(s) relue(s) — ' +
-        'toutes sont déjà à la bonne forme.';
+        'aucune à nettoyer.';
       return;
     }
 
     etat.style.color = 'var(--warn-text)';
-    etat.textContent = reparNotes.length + ' note(s) à remettre en forme, ' +
-      'sur ' + liste.length + ' relue(s).';
+    const gagnes = reparNotes.reduce((n, x) =>
+      n + (x.avant.split(/[·\n]/).filter(y => y.trim()).length -
+           x.apres.split(' · ').length), 0);
+    etat.textContent = reparNotes.length + ' note(s) à nettoyer, sur ' +
+      liste.length + ' relue(s)' +
+      (gagnes > 0 ? ' — ' + gagnes + ' ligne(s) en double à retirer.' : '.');
 
     reparNotes.forEach(x => zone.appendChild(ligneReparNote(x)));
 
@@ -1739,7 +1746,7 @@ async function verifierNotesExamen(){
     b.className = 'btn btn-primary';
     b.id = 'reparNotesAppliquer';
     b.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
-    b.textContent = '✅ Corriger ces ' + reparNotes.length + ' note(s)';
+    b.textContent = '✅ Nettoyer ces ' + reparNotes.length + ' note(s)';
     b.addEventListener('click', appliquerNotesExamen);
     zone.appendChild(b);
 
@@ -1748,7 +1755,7 @@ async function verifierNotesExamen(){
     etat.textContent = '⚠️ ' + e.message;
   }finally{
     btn.disabled = false;
-    btn.textContent = "🎨 Vérifier les lignes d'examen";
+    btn.textContent = "🧹 Vérifier les notes internes";
   }
 }
 
@@ -1770,10 +1777,11 @@ function ligneReparNote(x){
 async function appliquerNotesExamen(){
   if(!reparNotes.length) return;
 
-  if(!await confirmer("Remettre en forme la ligne d'examen de " +
-      reparNotes.length + ' note(s) ?\n\n' +
-      "Seule cette ligne change : le reste de chaque note — numéro de " +
-      "leçon, examen blanc, remarques du moniteur — est recopié tel quel.\n\n" +
+  if(!await confirmer('Nettoyer ' + reparNotes.length + ' note(s) ?\n\n' +
+      "La ligne d'examen est remise en forme, et les lignes empilées en " +
+      "double au fil des cours sont retirées — on garde la plus récente " +
+      "de chaque sorte, comme dans les résumés.\n\n" +
+      "Les remarques de tes moniteurs ne sont jamais jetées.\n\n" +
       "Seule la note la plus récente de chaque élève est touchée : les " +
       "bilans plus anciens gardent ce qu'ils disaient.")) return;
 
@@ -1796,11 +1804,11 @@ async function appliquerNotesExamen(){
 
   if(etat){
     etat.style.color = rates.length ? 'var(--warn-text)' : 'var(--accent-text)';
-    etat.textContent = ok + ' note(s) corrigée(s)' +
+    etat.textContent = ok + ' note(s) nettoyée(s)' +
       (rates.length ? ' · ' + rates.length + ' en échec : ' + rates.join(' · ') : '') +
       ' — recharge la page pour voir les couleurs.';
   }
-  showToast(rates.length ? 'Corrigé, avec des échecs ⚠️' : ok + ' note(s) corrigée(s) ✅');
+  showToast(rates.length ? 'Nettoyé, avec des échecs ⚠️' : ok + ' note(s) nettoyée(s) ✅');
 
   if(btn) btn.remove();
   reparNotes = [];
