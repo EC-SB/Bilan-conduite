@@ -644,9 +644,12 @@ async function ouvrirBilanManuel(){
      de la boîte de vitesses. On passe directement à la fiche. */
   if(modeleCle === 'examen-officiel'){
     /* rien à demander */
-  }else if(!contexteDepart){
+  }else if(!questionnaireDejaRepondu(contexteDepart)){
+    /* Même règle qu'en vocal : un contexte déduit tout seul n'est
+       pas une réponse. Il sert à pré-remplir, pas à sauter l'étape. */
     try{
-      const rep = await ouvrirQuestionnaireDepart(null, 'Avant de remplir le bilan', 'Continuer');
+      const rep = await ouvrirQuestionnaireDepart(contexteDepart,
+                                                  'Avant de remplir le bilan', 'Continuer');
       if(rep){
         contexteDepart = rep;
         if(typeof afficherSaisieDuJour === 'function'){
