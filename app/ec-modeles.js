@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:14 — v651 */
+/* Déployé le 28/08/2026 à 13:26 — v653 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1115,59 +1115,91 @@ function buildRvp(ai, ctx){
     'https://www.facebook.com/groups/174715876519873/learning_content/?filter=944490172398475&ref=edit_unit',
     '💡 Tu peux continuer pendant ta conduite accompagnée à réserver de l\'𝙚́𝙘𝙤𝙪𝙩𝙚 𝙥𝙚́𝙙𝙖𝙜𝙤𝙜𝙞𝙦𝙪𝙚 💡.',
     '',
-    '➡️𝙀𝙓𝘼𝙈𝙀𝙉 𝘽𝙇𝘼𝙉𝘾, es-tu prêt à en faire un ?  ✅❌ ',
-    '👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !',
-    'Continue de travailler, écoutes pédagogiques, groupes de travail et continue ta conduite accompagnée pour t\'améliorer en relisant bien ce bilan. ',
-    '💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ',
-    'Tu peux passer ton permis en boite auto si tu as de gros soucis mécaniques, lien ici : https://m.facebook.com/groups/963972327360861/permalink/1121120328312726/ ',
-    '',
-    '👉 𝙊𝙐𝙄 ✅  go 🏎️ 💨 : ',
-    '',
-    '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻  ✅❌',
-    '❌ Tu as oublié de dire : "c\'est moi qui aie emmené le véhicule, j\'ai déjà fait mes réglages"',
-    '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧✅❌',
-    '𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ✅❌',
-    '𝙉𝙤𝙩𝙚 :  /2 ',
-    '',
-    '𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ',
-    '𝙉𝙤𝙩𝙚 :  /3',
-    'https://www.facebook.com/groups/864826058258637',
-    ' ',
-    '𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :'
   ];
-  const nRefl = Math.max(refl.length, 22);
-  for(let i = 0; i < nRefl; i++){
-    parts.push('👨‍✈️' + (refl[i] ? ' ' + refl[i] : ''));
-  }
-  parts.push('');
-  parts.push('𝟯-𝘽𝙄𝙇𝘼𝙉 𝙀𝙍𝙍𝙊𝙍𝙎 :'.replace('𝙀𝙍𝙍𝙊𝙍𝙎', '𝙀𝙍𝙍𝙀𝙐𝙍𝙎'));
-  const nErr = Math.max(errs.length, 5);
-  for(let i = 0; i < nErr; i++){
-    const e = errs[i] || {};
-    parts.push('👉 ' + txt(e.erreur));
-    parts.push('- qu\'en penses-tu ?' + (txt(e.penses) ? ' ' + txt(e.penses) : ''));
-    parts.push('- quelles sont TES solutions ?' + (txt(e.solutions) ? ' ' + txt(e.solutions) : ''));
-    parts.push('- ce que je te PROPOSE : ' + txt(e.propose));
+
+  /* L'examen blanc du rendez-vous : la question se répond dans le
+     formulaire. Sans réponse, le bilan garde sa forme d'avant —
+     la question ouverte et son canevas à remplir à la main. */
+  const fait = String((ai && ai.examenBlancFait) || '').toLowerCase();
+
+  parts.push('➡️𝙀𝙓𝘼𝙈𝙀𝙉 𝘽𝙇𝘼𝙉𝘾, es-tu prêt à en faire un ?  ' +
+    (fait === 'oui' ? '✅' : (fait === 'non' ? '❌' : '✅❌')) + ' ');
+
+  /* Le conseil à celui qui n'est pas prêt : hors de propos quand
+     l'examen blanc vient d'être fait. */
+  if(fait !== 'oui'){
+    parts.push('👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !');
+    parts.push('Continue de travailler, écoutes pédagogiques, groupes de travail et continue ta conduite accompagnée pour t\'améliorer en relisant bien ce bilan. ');
+    parts.push('💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ');
+    parts.push('Tu peux passer ton permis en boite auto si tu as de gros soucis mécaniques, lien ici : https://m.facebook.com/groups/963972327360861/permalink/1121120328312726/ ');
     parts.push('');
   }
-  parts.push('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
-  parts.push('');
-  parts.push('𝟰-𝟭👉 𝙊𝙐𝙄 ✅');
-  parts.push('❓ 𝘾𝙤𝙢𝙗𝙞𝙚𝙣 𝙙\'𝙝𝙚𝙪𝙧𝙚𝙨 𝙖𝙫𝙖𝙣𝙩 𝙥𝙚𝙧𝙢𝙞𝙨 :  ? + 3h avant permis (sous réserve de progression). ');
-  parts.push('');
-  parts.push('❓Cela correspond à ta 𝙁𝙍𝙄𝙎𝙀 𝘿𝙀 𝙁𝙊𝙍𝙈𝘼𝙏𝙄𝙊𝙉 𝙑𝙊𝙄𝙏𝙐𝙍𝙀 selon ton évaluation APRÈS examen blanc ? : ✅OUI     ❌ NON +   h');
-  parts.push('𝙁𝙍𝙄𝙎𝙀 𝘿𝙀 𝙁𝙊𝙍𝙈𝘼𝙏𝙄𝙊𝙉 𝙑𝙊𝙄𝙏𝙐𝙍𝙀   : ❓ leçons de 2 heures + exam blanc + ❓ leçons de 2 heures (❓h) + 3h avant examen ');
-  parts.push('');
-  parts.push('❓𝙏𝙐 𝘼𝙎 𝘿𝙀́𝙅𝘼̀ 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀 👮 :');
-  parts.push('🚗  as-tu planifié tes heures avant permis ? : ');
-  parts.push('✅ OUI, ton planning permis est validé selon le résultat de ton examen blanc');
-  parts.push('❌ NON, planifie les en URGENCE, si tu ne trouves pas de place sur le planning, contacte nous IMMÉDIATEMENT. ');
-  parts.push('💡𝙍𝙖𝙥𝙥𝙚𝙡 : 𝙨𝙞 𝙩𝙚𝙨 𝙝𝙚𝙪𝙧𝙚𝙨 𝙚𝙩 𝙩𝙤𝙣 𝙥𝙖𝙨𝙨𝙖𝙜𝙚 𝙖̀ 𝙡\'𝙚𝙭𝙖𝙢𝙚𝙣 𝙣\'𝙤𝙣𝙩 𝙥𝙖𝙨 𝙚́𝙩𝙚́ 𝙖𝙘𝙝𝙚𝙩𝙚́𝙨,  𝘁𝗼𝗻 𝗲𝘅𝗮𝗺𝗲𝗻 𝗱𝘂 𝗽𝗲𝗿𝗺𝗶𝘀 𝗱𝗲 𝗰𝗼𝗻𝗱𝘂𝗶𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗲́𝗰𝗮𝗹𝗲́.');
-  parts.push('');
-  parts.push('❓𝙏𝙐 𝙉\'𝘼𝙎 𝙋𝘼𝙎 𝙀𝙉𝘾𝙊𝙍𝙀 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀⏳  : ');
-  parts.push('- as-tu posé tes heures, en gardant 1 leçon de 2h (2h) + 3h avant examen pour les planifier au plus proche de ta prochaine date de permis ?  : ✅❌');
-  parts.push('- ton passage à l\'examen a bien été acheté ?');
-  parts.push('');
+
+  /* L'examen blanc lui-même. Trois cas, et un seul bloc à chaque
+     fois — l'élève ne doit jamais recevoir la grille vide ET la
+     grille remplie.
+
+       oui  + module rempli → la grille remplie
+       oui  + module vide   → le canevas, à remplir à la main
+       non                  → rien
+       sans réponse         → le canevas, comme avant ce module */
+  const eb = ai && ai.examenBlanc;
+  const modulePret = (fait === 'oui') && examenBlancRempli(eb);
+
+  if(modulePret){
+    parts.push('');
+    parts.push(buildExamenBlanc(Object.assign({}, eb, { sansAvant: true }), ctx));
+  }
+
+  if(fait !== 'non' && !modulePret){
+    parts.push('👉 𝙊𝙐𝙄 ✅  go 🏎️ 💨 : ');
+    parts.push('');
+    parts.push('𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻  ✅❌');
+    parts.push('❌ Tu as oublié de dire : "c\'est moi qui aie emmené le véhicule, j\'ai déjà fait mes réglages"');
+    parts.push('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧✅❌');
+    parts.push('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ✅❌');
+    parts.push('𝙉𝙤𝙩𝙚 :  /2 ');
+    parts.push('');
+    parts.push('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ');
+    parts.push('𝙉𝙤𝙩𝙚 :  /3');
+    parts.push('https://www.facebook.com/groups/864826058258637');
+    parts.push(' ');
+    parts.push('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
+    const nRefl = Math.max(refl.length, 22);
+    for(let i = 0; i < nRefl; i++){
+      parts.push('👨‍✈️' + (refl[i] ? ' ' + refl[i] : ''));
+    }
+    parts.push('');
+    parts.push('𝟯-𝘽𝙄𝙇𝘼𝙉 𝙀𝙍𝙍𝙊𝙍𝙎 :'.replace('𝙀𝙍𝙍𝙊𝙍𝙎', '𝙀𝙍𝙍𝙀𝙐𝙍𝙎'));
+    const nErr = Math.max(errs.length, 5);
+    for(let i = 0; i < nErr; i++){
+      const e = errs[i] || {};
+      parts.push('👉 ' + txt(e.erreur));
+      parts.push('- qu\'en penses-tu ?' + (txt(e.penses) ? ' ' + txt(e.penses) : ''));
+      parts.push('- quelles sont TES solutions ?' + (txt(e.solutions) ? ' ' + txt(e.solutions) : ''));
+      parts.push('- ce que je te PROPOSE : ' + txt(e.propose));
+      parts.push('');
+    }
+    parts.push('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
+    parts.push('');
+    parts.push('𝟰-𝟭👉 𝙊𝙐𝙄 ✅');
+    parts.push('❓ 𝘾𝙤𝙢𝙗𝙞𝙚𝙣 𝙙\'𝙝𝙚𝙪𝙧𝙚𝙨 𝙖𝙫𝙖𝙣𝙩 𝙥𝙚𝙧𝙢𝙞𝙨 :  ? + 3h avant permis (sous réserve de progression). ');
+    parts.push('');
+    parts.push('❓Cela correspond à ta 𝙁𝙍𝙄𝙎𝙀 𝘿𝙀 𝙁𝙊𝙍𝙈𝘼𝙏𝙄𝙊𝙉 𝙑𝙊𝙄𝙏𝙐𝙍𝙀 selon ton évaluation APRÈS examen blanc ? : ✅OUI     ❌ NON +   h');
+    parts.push('𝙁𝙍𝙄𝙎𝙀 𝘿𝙀 𝙁𝙊𝙍𝙈𝘼𝙏𝙄𝙊𝙉 𝙑𝙊𝙄𝙏𝙐𝙍𝙀   : ❓ leçons de 2 heures + exam blanc + ❓ leçons de 2 heures (❓h) + 3h avant examen ');
+    parts.push('');
+    parts.push('❓𝙏𝙐 𝘼𝙎 𝘿𝙀́𝙅𝘼̀ 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀 👮 :');
+    parts.push('🚗  as-tu planifié tes heures avant permis ? : ');
+    parts.push('✅ OUI, ton planning permis est validé selon le résultat de ton examen blanc');
+    parts.push('❌ NON, planifie les en URGENCE, si tu ne trouves pas de place sur le planning, contacte nous IMMÉDIATEMENT. ');
+    parts.push('💡𝙍𝙖𝙥𝙥𝙚𝙡 : 𝙨𝙞 𝙩𝙚𝙨 𝙝𝙚𝙪𝙧𝙚𝙨 𝙚𝙩 𝙩𝙤𝙣 𝙥𝙖𝙨𝙨𝙖𝙜𝙚 𝙖̀ 𝙡\'𝙚𝙭𝙖𝙢𝙚𝙣 𝙣\'𝙤𝙣𝙩 𝙥𝙖𝙨 𝙚́𝙩𝙚́ 𝙖𝙘𝙝𝙚𝙩𝙚́𝙨,  𝘁𝗼𝗻 𝗲𝘅𝗮𝗺𝗲𝗻 𝗱𝘂 𝗽𝗲𝗿𝗺𝗶𝘀 𝗱𝗲 𝗰𝗼𝗻𝗱𝘂𝗶𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗲́𝗰𝗮𝗹𝗲́.');
+    parts.push('');
+    parts.push('❓𝙏𝙐 𝙉\'𝘼𝙎 𝙋𝘼𝙎 𝙀𝙉𝘾𝙊𝙍𝙀 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀⏳  : ');
+    parts.push('- as-tu posé tes heures, en gardant 1 leçon de 2h (2h) + 3h avant examen pour les planifier au plus proche de ta prochaine date de permis ?  : ✅❌');
+    parts.push('- ton passage à l\'examen a bien été acheté ?');
+    parts.push('');
+  }
+
   parts.push('𝟱- 𝙍𝙀𝙁𝘼𝙄𝙎 𝗧𝗢𝗡 𝗕𝗜𝗟𝗔𝗡 𝗔𝗣𝗥𝗘̀𝗦 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 𝘼𝙑𝙀𝘾 𝘾𝙊𝙍𝙍𝙀𝘾𝙏𝙄𝙊𝙉 𝘿𝙀 𝙇𝘼 𝙍𝙀𝙎𝙋𝙊𝙉𝙎𝘼𝘽𝙇𝙀 𝙋𝙀́𝘿𝘼𝙂𝙊𝙂𝙄𝙌𝙐𝙀 (𝙜𝙧𝙖𝙩𝙪𝙞𝙩 𝙨𝙪𝙧 𝙢𝙚𝙨𝙨𝙚𝙣𝙜𝙚𝙧) :');
   parts.push('Pour être sûr(e) que tu as compris, ton bilan avec ton moniteur (trice). ');
   parts.push('Il faut que tu sois capable de t\'auto-évaluer pour éviter de te planter !');
@@ -1182,15 +1214,6 @@ function buildRvp(ai, ctx){
   parts.push('');
   parts.push('𝟴- 𝙇𝘼 𝙑𝙀𝙄𝙇𝙇𝙀 𝘿𝙀 𝙏𝙊𝙉 𝙀𝙓𝘼𝙈𝙀𝙉 🆔');
   parts.push('N\'oublie pas de nous donner ta carte d\'identité et en attendant envoie-moi la photo de ta carte d\'identité recto verso ici (pour s\'assurer qu\'elle est bien en ta possession, car pas de carte d\'identité, pas de permis !)');
-
-  /* L'examen blanc fait pendant le rendez-vous, s'il y en a eu un.
-     Il vient à la fin, après tout le reste, et rien ne change au
-     bilan quand le moniteur n'a pas ouvert le module. */
-  const eb = ai && ai.examenBlanc;
-  if(examenBlancRempli(eb)){
-    parts.push('');
-    parts.push(buildExamenBlanc(Object.assign({}, eb, { sansAvant: true }), ctx));
-  }
 
   return parts.join('\n');
 }
