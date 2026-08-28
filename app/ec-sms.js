@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:11 — v677 */
+/* Déployé le 28/08/2026 à 17:13 — v678 */
 /* ============================================================
    ec-sms.js
    L'envoi de SMS, réservé au bureau.
@@ -325,6 +325,28 @@ function voyantEnvoi(etat, confirmeLe, jeton){
   return { p: '🟢', nom: 'envoyé', c: 'var(--accent-text)' };
 }
 
+/* La légende des voyants. Elle vit ici, à côté de voyantEnvoi :
+   une légende qui ne suit pas les voyants qu'elle explique est
+   pire que pas de légende du tout.
+
+   « avecReponse » : les SMS ne portent pas de bouton, annoncer une
+   confirmation sur cet écran-là n'aurait aucun sens. */
+function legendeVoyants(avecReponse){
+  const etats = [['🔵', 'présence confirmée'],
+                 ['⏳', 'sans réponse'],
+                 ['🟢', 'envoyé'],
+                 ['🔴', 'refusé']]
+    .filter(x => avecReponse || (x[0] !== '🔵' && x[0] !== '⏳'));
+
+  const d = document.createElement('div');
+  d.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:10px;' +
+    'font-size:12px;color:var(--muted);line-height:1.7;';
+  d.innerHTML = etats
+    .map(([p, nom]) => '<span>' + p + '&nbsp;' + nom + '</span>')
+    .join('');
+  return d;
+}
+
 async function afficherJournalEnvois(recharger){
   const zone = $('smsJournal');
   if(!zone) return;
@@ -384,8 +406,9 @@ async function afficherJournalEnvois(recharger){
   const rech = document.createElement('input');
   rech.type = 'text';
   rech.placeholder = '🔍 Filtrer par élève, adresse, numéro ou moniteur';
-  rech.style.marginBottom = '10px';
+  rech.style.marginBottom = '8px';
   zone.appendChild(rech);
+  zone.appendChild(legendeVoyants(false));
 
   const liste = document.createElement('div');
   zone.appendChild(liste);
