@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 15:28 — v666 */
+/* Déployé le 28/08/2026 à 16:13 — v667 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -19,7 +19,7 @@ const SECTIONS_ONGLET = {
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie',
-            'bureau_messages', 'admin']
+            'bureau_messages', 'sms', 'admin']
 };
 
 let ongletActif = '';
@@ -167,6 +167,7 @@ const VUES = {
            ['flotte',     '🚗 Flotte',                  'flotte'],
            ['paie',       '💶 Paie',                    'paie'],
            ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
+           ['sms',        '💬 SMS',                     'sms'],
            ['tarifs',     '💰 Tarifs',                 'tarifs'],
            ['admin',      '⚙️ Accès',                  'admin']]
 };
@@ -301,6 +302,7 @@ function reveillerVue(cle){
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
+    sms:        () => afficherSms(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA()
   };
