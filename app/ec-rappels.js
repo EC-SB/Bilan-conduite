@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:58 — v646 */
+/* Déployé le 28/08/2026 à 12:57 — v649 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -323,6 +323,12 @@ async function afficherRappels(){
           restants.map(x => '• ' + (x.choisi || x.eleve)).join('\n') +
           '\n\nIls partent un par un ; tu peux suivre l\'avancement.')) return;
 
+      /* Ceux dont le planning ne nomme pas le moniteur ne créeront
+         aucun cours. Une série entière pouvait ainsi partir sans
+         rien préparer, en silence. */
+      const sansQui = restants.filter(x => !String(x.moniteur || '').trim());
+      if(sansQui.length && !await accepterSansMoniteur(sansQui.length)) return;
+
       bTous.disabled = true;
       let ok = 0, rates = [];
       for(let i = 0; i < restants.length; i++){
@@ -397,8 +403,13 @@ function ligneRappel(c, i){
     a.className = 'btn btn-primary';
     a.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;flex-shrink:0;';
     a.textContent = '💬 Envoyer';
-    a.addEventListener('click', () => {
+    a.addEventListener('click', async () => {
       const qui = c.choisi || c.eleve;
+
+      /* Le planning ne dit pas toujours qui fera le cours. Sans
+         moniteur, rien ne sera préparé : on le dit avant l'envoi. */
+      if(!String(c.moniteur || '').trim() &&
+         !await accepterSansMoniteur(1)) return;
 
       /* L'écran rend la main tout de suite : l'envoi traverse le
          Worker puis Allo, et le bureau n'a rien à attendre pour
@@ -1055,21 +1066,48 @@ async function afficherRappelManuel(){
     "dans « Mes prochains cours » et sur l'écran de l'accueil.";
   zone.appendChild(aideH);
 
-  /* La liste des moniteurs, chargée une fois */
-  (async () => {
+  /* La liste des moniteurs.
+
+     Elle se chargeait en silence : quand la lecture échouait — un
+     réseau lent au petit matin suffit — le menu restait sur
+     « ne pas créer le cours », personne n'était proposé, et TOUS
+     les rappels de la matinée partaient sans créer de cours sans
+     que rien ne le dise. On le dit maintenant, avec de quoi
+     réessayer. */
+  const remplirMoniteurs = async () => {
+    aideMon.style.color = 'var(--muted)';
+    aideMon.textContent = 'Lecture de la liste des moniteurs…';
     try{
       if(typeof chargerMoniteurs === 'function' &&
          (typeof moniteursActifs === 'undefined' || !moniteursActifs.length)){
         await chargerMoniteurs();
       }
       const liste = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+      if(!liste.length) throw new Error('liste vide');
+
       selMon.innerHTML = '<option value="">— ne pas créer le cours —</option>' +
         liste.map(m => '<option value="' + String(m).replace(/"/g, '&quot;') + '">' +
                        m + '</option>').join('');
       /* Un moniteur qui utilise l'outil se propose lui-même */
       if(liste.indexOf(ACCES.moniteur) !== -1) selMon.value = ACCES.moniteur;
-    }catch(e){ /* sans liste, le champ reste sur « ne pas créer » */ }
-  })();
+
+      aideMon.style.color = 'var(--muted)';
+      aideMon.textContent = "Le cours apparaîtra dans « Mes prochains cours » du " +
+        'moniteur choisi. Sans moniteur, le rappel part sans créer de cours.';
+    }catch(e){
+      aideMon.style.color = 'var(--warn-text)';
+      aideMon.innerHTML = '⚠️ La liste des moniteurs n\'a pas pu être lue. ' +
+        'Les rappels partiront <strong>sans créer de cours</strong>. ';
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:6px 0 0;';
+      b.textContent = '🔄 Réessayer';
+      b.addEventListener('click', () => remplirMoniteurs());
+      aideMon.appendChild(b);
+    }
+  };
+  remplirMoniteurs();
 
   /* Les mentions à ajouter */
   const t = document.createElement('label');
@@ -1335,6 +1373,35 @@ async function envoyerSmsAllo(numero, texte, eleve){
 
 
 /* ============================================================
+   PARTIR SANS CRÉER LE COURS
+
+   Un rappel envoyé sans moniteur ne crée rien : ni cours dans
+   « Mes prochains cours », ni ligne sur l'écran de l'accueil.
+   C'est parfois voulu. Mais quand la liste des moniteurs n'a pas
+   pu se charger, ça ne l'est pas — et une matinée entière de
+   rappels partait sans que personne s'en aperçoive.
+
+   La question n'est posée qu'une fois par écran : sur une série
+   de quinze rappels, la reposer serait pire que le mal.
+   ============================================================ */
+let sansMoniteurAccepte = false;
+
+async function accepterSansMoniteur(combien){
+  if(sansMoniteurAccepte) return true;
+
+  const ok = await confirmer(
+    'Aucun moniteur choisi.\n\n' +
+    (combien > 1 ? 'Les ' + combien + ' rappels partiront' : 'Le rappel partira') +
+    " sans créer de cours : rien n'apparaîtra dans « Mes prochains " +
+    "cours », ni sur l'écran de l'accueil.\n\n" +
+    'Continuer quand même ?');
+
+  if(ok) sansMoniteurAccepte = true;
+  return ok;
+}
+
+
+/* ============================================================
    LE RÉPERTOIRE SE COMPLÈTE TOUT SEUL
 
    Un numéro tapé pour un rappel ne servait qu'une fois : le champ
@@ -1439,6 +1506,10 @@ async function envoyerRappelManuel(){
       texte.length + ' caractères' +
       (parts > 1 ? ' — découpé en ' + parts + ' SMS, facturés séparément.'
                  : ' — 1 SMS.'))) return;
+
+  /* Sans moniteur, rien ne sera préparé. On le dit avant, pas après */
+  if(!($('rapMoniteur') && $('rapMoniteur').value) &&
+     !await accepterSansMoniteur(1)) return;
 
   b.disabled = true;
   b.textContent = 'Envoi…';
@@ -1596,6 +1667,230 @@ async function envoyerMessageComplet(numero, texte, eleve){
 
 
 /* ============================================================
+   RATTRAPER LES COURS DEPUIS LES RAPPELS ENVOYÉS
+
+   Quand les rappels sont partis sans créer les cours — liste des
+   moniteurs muette, moniteur oublié — tout n'est pas perdu : le
+   journal SMS garde l'élève, l'heure d'envoi et le texte du
+   message. On les relit, le bureau désigne qui fera quoi, et les
+   cours se créent d'un coup.
+
+   Volontairement manuel : on ne devine pas le moniteur, on le
+   demande. C'est justement de l'avoir deviné en silence que vient
+   le problème qu'on répare.
+   ============================================================ */
+
+/* L'heure du cours, lue dans le texte du rappel. Le message dit
+   « 13h » ou « 13h30 » ; on prend la PREMIÈRE heure trouvée, celle
+   du début du cours. Rien de sûr : le bureau corrige à l'écran. */
+function heureDuMessage(message){
+  const m = String(message || '').match(/\b([0-1]?\d|2[0-3])\s*h\s*([0-5]\d)?\b/);
+  if(!m) return '';
+  const hh = String(m[1]).padStart(2, '0');
+  const mm = m[2] ? m[2] : '00';
+  return hh + ':' + mm;
+}
+
+/* Les rappels d'un jour donné, un par élève : un élève prévenu
+   deux fois ne doit pas donner deux cours. */
+function rappelsDuJour(liste, jjmmaaaa){
+  const vus = {};
+  const out = [];
+  (liste || []).forEach(x => {
+    if(String(x.quand || '').indexOf(jjmmaaaa) !== 0) return;
+    const nom = String(x.eleve || '').trim();
+    if(nom.length < 3) return;
+    const k = normaliserMot(nom);
+    if(vus[k]) return;
+    vus[k] = true;
+    out.push({ eleve: nom, heure: heureDuMessage(x.message), quand: x.quand });
+  });
+  return out;
+}
+
+async function ouvrirRattrapageCours(liste){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px, 95vw);max-height:90vh;overflow-y:auto;';
+
+  const auj = new Date().toLocaleDateString('fr-FR');
+  const demain = (() => {
+    const d = new Date(); d.setDate(d.getDate() + 1);
+    const p = x => String(x).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  })();
+
+  boite.innerHTML = '<h3>🔁 Rattraper les cours</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+      'Les élèves prévenus par SMS, repris du journal des envois. ' +
+      'Désigne qui fera le cours et il rejoindra ses prochains cours, ' +
+      'avec sa ligne sur l\'écran de l\'accueil.</div>' +
+
+    '<label for="raJour">Rappels envoyés le</label>' +
+    '<input type="text" id="raJour" value="' + auj + '" ' +
+      'placeholder="jj/mm/aaaa">' +
+
+    '<label for="raDate">Cours à créer pour le</label>' +
+    '<input type="date" id="raDate" value="' + demain + '">' +
+
+    '<label for="raTous">Tout attribuer à</label>' +
+    '<select id="raTous"><option value="">— choisis un moniteur —</option></select>';
+
+  const zListe = document.createElement('div');
+  zListe.style.cssText = 'border-top:1px solid var(--line);margin-top:12px;padding-top:10px;';
+  boite.appendChild(zListe);
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'font-size:13px;margin-top:8px;min-height:16px;line-height:1.5;';
+  boite.appendChild(msg);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  rangee.style.marginTop = '10px';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Fermer';
+  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '📅 Créer les cours';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  /* Les moniteurs, avec le même filet que l'écran de composition */
+  const selTous = boite.querySelector('#raTous');
+  try{
+    if(typeof chargerMoniteurs === 'function' &&
+       (typeof moniteursActifs === 'undefined' || !moniteursActifs.length)){
+      await chargerMoniteurs();
+    }
+  }catch(e){}
+  const moniteurs = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  if(!moniteurs.length){
+    msg.style.color = 'var(--warn-text)';
+    msg.textContent = '⚠️ La liste des moniteurs n\'a pas pu être lue. ' +
+      'Ferme et réessaie dans un instant.';
+  }
+  const optionsMon = '<option value="">— aucun —</option>' +
+    moniteurs.map(m => '<option value="' + String(m).replace(/"/g, '&quot;') + '">' +
+                       m + '</option>').join('');
+  selTous.innerHTML = '<option value="">— choisis un moniteur —</option>' +
+    moniteurs.map(m => '<option value="' + String(m).replace(/"/g, '&quot;') + '">' +
+                       m + '</option>').join('');
+
+  const lignes = [];
+
+  const dessiner = () => {
+    const jour = boite.querySelector('#raJour').value.trim();
+    const trouves = rappelsDuJour(liste, jour);
+    lignes.length = 0;
+    zListe.innerHTML = '';
+
+    if(!trouves.length){
+      zListe.innerHTML = '<div style="font-size:13px;color:var(--muted);">' +
+        'Aucun rappel envoyé ce jour-là.</div>';
+      return;
+    }
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+      'margin-bottom:8px;';
+    t.textContent = trouves.length + ' élève(s) prévenu(s)';
+    zListe.appendChild(t);
+
+    trouves.forEach(r => {
+      const d = document.createElement('div');
+      d.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;' +
+        'padding:7px 0;border-bottom:1px solid rgba(255,255,255,.05);';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = true;
+      cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
+      d.appendChild(cb);
+
+      const n = document.createElement('span');
+      n.style.cssText = 'flex:1;min-width:120px;font-size:14px;';
+      n.textContent = r.eleve;
+      d.appendChild(n);
+
+      const h = document.createElement('input');
+      h.type = 'time';
+      h.value = r.heure || '';
+      h.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:13px;flex-shrink:0;';
+      d.appendChild(h);
+
+      const s = document.createElement('select');
+      s.innerHTML = optionsMon;
+      s.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:13px;min-width:110px;';
+      d.appendChild(s);
+
+      zListe.appendChild(d);
+      lignes.push({ eleve: r.eleve, cb: cb, heure: h, sel: s });
+    });
+  };
+
+  boite.querySelector('#raJour').addEventListener('change', dessiner);
+  selTous.addEventListener('change', () => {
+    lignes.forEach(l => { l.sel.value = selTous.value; });
+  });
+  dessiner();
+
+  bOk.addEventListener('click', async () => {
+    const iso = boite.querySelector('#raDate').value;
+    if(!iso){ msg.style.color = 'var(--warn-text)';
+              msg.textContent = 'Choisis la date des cours.'; return; }
+
+    const aFaire = lignes.filter(l => l.cb.checked && l.sel.value);
+    if(!aFaire.length){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Aucun cours à créer : coche des élèves et désigne un moniteur.';
+      return;
+    }
+
+    const sansQui = lignes.filter(l => l.cb.checked && !l.sel.value).length;
+    if(sansQui && !await confirmer(
+        sansQui + ' élève(s) coché(s) sans moniteur seront ignorés.\n\n' +
+        'Créer les ' + aFaire.length + ' autres cours ?')) return;
+
+    bOk.disabled = true;
+    let faits = 0;
+    const rates = [];
+    /* Ceux qui n'ont rien donné : cours déjà là, formation sans
+       bilan… On les nomme plutôt que de les compter en réussites. */
+    const deja = [];
+    for(let i = 0; i < aFaire.length; i++){
+      const l = aFaire[i];
+      bOk.textContent = 'Création ' + (i + 1) + ' sur ' + aFaire.length + '…';
+      try{
+        /* Le même chemin que l'envoi d'un rappel : mêmes règles,
+           même contexte, même ligne d'écran. Refaire un chemin
+           parallèle, c'est se garantir deux comportements. */
+        const ok = await preparerDepuisRappel(l.eleve, iso, l.sel.value,
+                                             { heure: l.heure.value || '' });
+        if(ok) faits++;
+        else deja.push(l.eleve);
+      }catch(e){ rates.push(l.eleve + ' : ' + e.message); }
+    }
+
+    bOk.disabled = false;
+    bOk.textContent = '📅 Créer les cours';
+    msg.style.color = rates.length ? 'var(--warn-text)' : 'var(--accent-text)';
+    msg.textContent = faits + ' cours créé(s)' +
+      (deja.length ? ' · ' + deja.length + ' sans effet (déjà présent, ou ' +
+                     'formation sans bilan) : ' + deja.join(' · ') : '') +
+      (rates.length ? ' · ' + rates.length + ' échec(s) : ' + rates.join(' · ') : '');
+    if(typeof afficherPrepares === 'function') afficherPrepares();
+  });
+}
+
+
+/* ============================================================
    HISTORIQUE DES ENVOIS
    Savoir qui a été prévenu, quand et par qui. Sans ça, personne
    ne peut trancher quand un élève dit ne pas avoir reçu le rappel.
@@ -1628,6 +1923,17 @@ async function afficherHistoriqueSms(){
       '<br><span style="font-size:12px;color:var(--muted);">' +
       (d.total || liste.length) + ' au total · les 150 derniers sont affichés</span>';
     zone.appendChild(t);
+
+    /* De quoi rattraper des cours que les rappels n'auraient pas
+       créés. Placé ici : c'est le seul écran qui sait qui a été
+       prévenu, et c'est là qu'on vient quand quelque chose manque. */
+    const bRat = document.createElement('button');
+    bRat.className = 'btn btn-secondary';
+    bRat.style.cssText = 'width:100%;padding:10px;font-size:13px;margin-bottom:10px;';
+    bRat.textContent = '🔁 Rattraper les cours depuis ces rappels';
+    bRat.title = 'Créer les cours des élèves prévenus, sans renvoyer de SMS';
+    bRat.addEventListener('click', () => ouvrirRattrapageCours(liste));
+    zone.appendChild(bRat);
 
     const rech = document.createElement('input');
     rech.type = 'text';
@@ -1784,16 +2090,19 @@ function verifierModele(cle){
 }
 
 
+/* Renvoie true si un cours a bien été créé. Les appels d'origine
+   ignorent la réponse ; le rattrapage, lui, compte ce qui a marché
+   plutôt que d'annoncer des cours qui n'existent pas. */
 async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
-  if(!eleve || eleve.length < 3) return;
+  if(!eleve || eleve.length < 3) return false;
 
   /* Sans moniteur désigné, on ne crée rien : un cours attribué au
      hasard encombrerait la liste de quelqu'un qui ne le fera pas. */
   const qui = String(moniteur || '').trim();
-  if(!qui) return;
+  if(!qui) return false;
 
   const iso = dateDuRappel(jourTexte);
-  if(!iso) return;
+  if(!iso) return false;
 
   try{
     /* Rien à faire si elle existe déjà */
@@ -1801,7 +2110,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
     const liste = (d && d.preparations) || [];
     const deja = liste.some(x =>
       normaliserMot(x.eleve || '') === normaliserMot(eleve) && x.date === iso);
-    if(deja) return;
+    if(deja) return false;
 
     /* La boîte de l'élève décide du type de bilan. Sans indication —
        fiche vide, élève tout neuf — on part sur l'automatique :
@@ -1816,7 +2125,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
     if(typeof formationVoiture === 'function' && !formationVoiture(formation)){
       showToast('Rappel envoyé — pas de bilan pour cette formation ' +
                 '(' + formation + ')');
-      return;
+      return false;
     }
 
     let cle = 'conduite-auto';
@@ -1928,6 +2237,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
 
     showToast('Cours ajouté aux prochains cours de ' + qui + ' 📅' +
               (note ? '' : ' — infos à renseigner'));
+    return true;
   }catch(e){
     console.warn('Préparation non créée depuis le rappel :', e);
 
@@ -1937,6 +2247,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       showToast('⚠️ Cours NON créé pour ' + eleve +
                 ' — refais le rappel ou ajoute-le à la main');
     }
+    return false;
   }
 }
 
@@ -1956,6 +2267,12 @@ function lettresSimples(texte){
 
 /* « DEMAIN », « LUNDI »… devient une date ISO */
 function dateDuRappel(jourTexte){
+  /* Une date déjà écrite en clair se garde telle quelle : le
+     rattrapage depuis le journal SMS en fournit une, et la faire
+     passer par les noms de jours ne rendait rien. */
+  const brut = String(jourTexte || '').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(brut)) return brut;
+
   const t = normaliserMot(lettresSimples(jourTexte || ''));
   const d = new Date();
 
