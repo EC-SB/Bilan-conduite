@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 12:07 — v603 */
+/* Déployé le 28/08/2026 à 15:28 — v666 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -207,6 +207,11 @@ function construireBarresVues(){
       vueActive[onglet] = dispo[0][0];
     }
   });
+
+  /* Les boutons viennent d'être refaits : les pastilles déjà
+     comptées doivent revenir, sinon un simple changement de droits
+     effacerait des comptes que plus personne ne recalcule. */
+  Object.keys(COMPTES_VUE).forEach(c => poserCompteVue(c, COMPTES_VUE[c]));
 }
 
 /* Un onglet sans vues affiche tous ses blocs. Sans ce ménage, la
@@ -393,27 +398,59 @@ function poserAlerte(onglet, nombre){
   p.title = nombre + ' à prévoir';
 }
 
+/* Ce que chaque vue signale comme travail en attente.
+   Une seule source : la pastille du sous-onglet et celle de
+   l'onglet lisent le même registre, elles ne peuvent pas diverger. */
+const COMPTES_VUE = {};
+
+/* Dans quel onglet vit une vue. Déduit de VUES : déplacer une vue
+   d'un onglet à l'autre ne laisse plus de pastille orpheline —
+   c'est exactement ce qui avait rendu invisibles les comptes des
+   tâches et de la flotte après leur passage dans Gestion. */
+function ongletDeVue(cle){
+  return Object.keys(VUES).find(o => VUES[o].some(v => v[0] === cle)) || '';
+}
+
+/* La pastille d'un onglet : la somme de ce que ses vues signalent.
+   Elle reste visible même quand la barre de vues est masquée
+   (un onglet à une seule vue n'affiche pas ses boutons). */
+function majAlerteOnglet(onglet){
+  if(!onglet || !VUES[onglet]) return;
+  const total = VUES[onglet].reduce((s, v) => s + (COMPTES_VUE[v[0]] || 0), 0);
+  poserAlerte(onglet, total);
+}
+
 /* Un compte affiché sur un bouton de sous-onglet : le nombre de
-   tâches se voit sans ouvrir la vue. */
-function poserCompteVue(onglet, cle, nombre){
+   tâches se voit sans ouvrir la vue. L'onglet n'est plus donné par
+   l'appelant, il se déduit de VUES. */
+function poserCompteVue(cle, nombre){
+  /* Ancienne forme (onglet, cle, nombre) : l'onglet passé est ignoré */
+  if(arguments.length >= 3){ cle = arguments[1]; nombre = arguments[2]; }
+
+  nombre = Number(nombre) || 0;
+  COMPTES_VUE[cle] = nombre;
+
+  const onglet = ongletDeVue(cle);
   const b = document.querySelector('.barre-vues[data-pour="' + onglet + '"] ' +
                                    'button[data-vue-cible="' + cle + '"]');
-  if(!b) return;
+  if(b){
+    let p = b.querySelector('.compte-vue');
+    if(!nombre){
+      if(p) p.remove();
+    }else{
+      if(!p){
+        p = document.createElement('span');
+        p.className = 'compte-vue';
+        p.style.cssText = 'display:inline-block;margin-left:6px;min-width:18px;' +
+          'padding:0 5px;border-radius:9px;background:var(--orange);color:#0B0B0B;' +
+          'font-size:11px;font-weight:800;line-height:18px;text-align:center;';
+        b.appendChild(p);
+      }
+      p.textContent = (nombre > 99) ? '99+' : String(nombre);
+    }
+  }
 
-  let p = b.querySelector('.compte-vue');
-  if(!nombre){
-    if(p) p.remove();
-    return;
-  }
-  if(!p){
-    p = document.createElement('span');
-    p.className = 'compte-vue';
-    p.style.cssText = 'display:inline-block;margin-left:6px;min-width:18px;' +
-      'padding:0 5px;border-radius:9px;background:var(--orange);color:#0B0B0B;' +
-      'font-size:11px;font-weight:800;line-height:18px;text-align:center;';
-    b.appendChild(p);
-  }
-  p.textContent = (nombre > 99) ? '99+' : String(nombre);
+  majAlerteOnglet(onglet);
 }
 
 /* Signale que ce module est bien chargé */
