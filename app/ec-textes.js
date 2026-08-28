@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 11:12 — v641 */
+/* Déployé le 28/08/2026 à 11:16 — v642 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -658,6 +658,39 @@ async function afficherProcedures(){
     corps.style.cssText = 'margin-top:8px;font-size:15px;line-height:1.6;white-space:pre-wrap;';
     corps.textContent = m.contenu;
     d.appendChild(corps);
+
+    /* Les consignes de correction, visibles sans ouvrir Modifier :
+       elles changent la façon dont l'élève est jugé, et devoir
+       entrer dans l'éditeur pour savoir ce qui s'applique revient
+       à ne pas le savoir. */
+    if(m.ordre || String(m.consigne || '').trim()){
+      const ia = document.createElement('div');
+      ia.style.cssText = 'margin-top:10px;border:1px solid var(--line);' +
+        'border-radius:10px;padding:9px 11px;font-size:13px;line-height:1.5;';
+
+      const th = document.createElement('div');
+      th.style.cssText = 'font-weight:700;color:var(--accent-text);margin-bottom:4px;';
+      th.textContent = '✨ Correction par l\'IA';
+      ia.appendChild(th);
+
+      if(m.ordre){
+        const o = document.createElement('div');
+        o.style.cssText = 'color:var(--cream);';
+        o.textContent = '☑️ L\'ordre des étapes compte';
+        ia.appendChild(o);
+      }
+
+      const libre = String(m.consigne || '').trim();
+      if(libre){
+        const c = document.createElement('div');
+        c.style.cssText = 'color:var(--muted);white-space:pre-wrap;' +
+          (m.ordre ? 'margin-top:4px;' : '');
+        c.textContent = libre;
+        ia.appendChild(c);
+      }
+
+      d.appendChild(ia);
+    }
 
     const pied = document.createElement('div');
     pied.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;';
