@@ -2039,10 +2039,10 @@ function modeRappel(mode){
    courant — et le moniteur le change d'un geste si besoin.
    ============================================================ */
 const BILAN_DU_RAPPEL = {
-  /* Les cours de conduite, par site */
-  cours:            'conduite-auto',
-  'cours-sb':       'conduite-auto',
-  'cours-loudeac':  'conduite-auto',
+  /* Un « cours » n'impose rien : il dit que c'est une leçon de
+     conduite, ce que la fiche de l'élève sait déjà, et mieux — elle
+     connaît sa boîte et son parcours (AAC ou non). Y répondre
+     « conduite-auto » écrasait justement ces deux informations. */
 
   simulateur:       'simu-auto',
 
@@ -2077,8 +2077,9 @@ function modeleDuTypeDeRappel(type){
   if(t.indexOf('prealable') !== -1) return verifierModele('rdv-prealable-auto');
   if(t.indexOf('blanc') !== -1) return verifierModele('examen-blanc');
   if(t.indexOf('permis') !== -1) return verifierModele('examen-officiel');
-  if(t.indexOf('cours') !== -1) return verifierModele('conduite-auto');
 
+  /* Rien ici pour « cours » : voir le commentaire de BILAN_DU_RAPPEL.
+     Sans imposition, c'est la fiche de l'élève qui décide. */
   return '';
 }
 
@@ -2157,7 +2158,14 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
     }
 
     const manuelle = /manuel|\bbv\b|b[oô]ite m/i.test(formation);
-    let cle = manuelle ? 'conduite-manuelle' : 'conduite-auto';
+
+    /* Un élève en conduite accompagnée fait des leçons d'AAC : son
+       bilan le dit et rappelle son parcours. La conduite supervisée
+       n'a pas de modèle à elle — elle garde Conduite. */
+    const aac = /\baac\b/i.test(formation);
+    let cle = verifierModele((aac ? 'aac' : 'conduite') +
+                             (manuelle ? '-manuelle' : '-auto'))
+              || (manuelle ? 'conduite-manuelle' : 'conduite-auto');
 
     /* Le type de séance dit de quelle séance il s'agit — simulateur,
        rendez-vous préalable, examen — mais pas dans quelle boîte :
