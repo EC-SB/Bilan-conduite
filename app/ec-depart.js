@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 12:43 — v647 */
+/* Déployé le 28/08/2026 à 15:28 — v666 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1204,19 +1204,16 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   /* Ce qui attend une décision du bureau se compte en tâche de
      fond : la pastille apparaît sur l'onglet Suivi sans que
      personne ait eu à l'ouvrir. */
-  if(typeof verifierAPrevoirEnFond === 'function'){
-    setTimeout(() => verifierAPrevoirEnFond(), 2500);
-    /* La pastille des procédures à corriger, sans retarder l'écran */
-    if(typeof chargerProcEnFond === 'function'){
-      setTimeout(() => chargerProcEnFond(), 3200);
-    }
-    if(typeof chargerFlotteEnFond === 'function'){
-      setTimeout(() => chargerFlotteEnFond(), 3800);
-    }
-  }
-  if(typeof compterTachesEnFond === 'function'){
-    setTimeout(() => compterTachesEnFond(), 3200);
-  }
+  /* Chaque compte est lancé pour lui-même : imbriqués, les trois
+     autres ne partaient pas si le module du bureau manquait, et
+     leurs pastilles n'apparaissaient qu'après ouverture de la vue. */
+  [[2500, 'verifierAPrevoirEnFond'],
+   [3200, 'chargerProcEnFond'],
+   [3200, 'compterTachesEnFond'],
+   [3800, 'chargerFlotteEnFond']].forEach(([delai, nom]) => {
+    const f = window[nom];
+    if(typeof f === 'function') setTimeout(() => f(), delai);
+  });
 
   /* Une application laissée ouverte doit se verrouiller aussi :
      vérifier au chargement ne suffit pas si personne ne recharge. */
