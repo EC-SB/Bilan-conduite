@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:38 — v670 */
+/* Déployé le 28/08/2026 à 16:48 — v672 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1434,7 +1434,6 @@ const MODELE_FINANCEUR_DEFAUT =
   "Lieu de rendez-vous : {emplacement}\n" +
   "{moniteurligne}" +
   "\n{mention48h}\n\n" +
-  "Le détail de la séance : {lien}\n\n" +
   "Cordialement,\n" +
   "Évolution Conduites";
 
@@ -1511,12 +1510,76 @@ async function creerLienDuCours(nom, r, moniteur, mentions){
 
 /* Le lien s'insère à la place de {lien} si le modèle le prévoit,
    et s'ajoute à la fin sinon — un modèle écrit avant que le lien
-   existe ne doit pas le perdre. */
+   existe ne doit pas le perdre.
+
+   C'est la version texte du message, celle que reçoivent les rares
+   clients qui n'affichent pas de HTML : là, un bouton ne peut être
+   qu'une adresse écrite en clair. */
 function avecLien(texte, lien){
   const t = String(texte || '');
   if(!lien) return t.split('{lien}').join('').replace(/\n{3,}/g, '\n\n').trim();
   if(t.indexOf('{lien}') !== -1) return t.split('{lien}').join(lien);
-  return t.replace(/\s*$/, '') + '\n\nLe détail de ton cours : ' + lien;
+  return t.replace(/\s*$/, '') +
+    '\n\nPour confirmer ta présence, ouvre ce lien :\n' + lien;
+}
+
+/* ------------------------------------------------------------
+   LE BOUTON DANS LE MAIL
+
+   Un mail ne peut rien exécuter : ce qu'on appelle un bouton y est
+   toujours un lien, habillé. Ce qui change, c'est ce qu'il ouvre —
+   ici une page qui dit merci, et rien d'autre.
+
+   Le message texte est repris tel quel, sans être réécrit : les
+   deux versions doivent dire la même chose, et l'une ne doit pas
+   pouvoir dériver de l'autre.
+   ------------------------------------------------------------ */
+function echapperHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function mailEnHtml(texte, lien){
+  /* Le lien est retiré du corps : il repart dans le bouton. Sans
+     ça, l'adresse apparaîtrait deux fois. */
+  const corps = String(texte || '')
+    .replace(/\n*Pour confirmer ta présence[^\n]*\n?[^\n]*\n?/, '\n')
+    .split(lien || '\u0000').join('')
+    .replace(/\n{3,}/g, '\n\n').trim();
+
+  const paragraphes = corps.split(/\n{2,}/)
+    .map(p => '<p style="margin:0 0 14px;">' +
+              echapperHtml(p).split('\n').join('<br>') + '</p>')
+    .join('');
+
+  const bouton = lien
+    ? '<table role="presentation" cellpadding="0" cellspacing="0" ' +
+        'style="margin:26px auto 8px;"><tr><td align="center" ' +
+        'style="border-radius:12px;background:#E8A33D;">' +
+        '<a href="' + echapperHtml(lien) + '" ' +
+          'style="display:inline-block;padding:15px 34px;font-size:17px;' +
+          'font-weight:700;color:#111111;text-decoration:none;' +
+          'font-family:Arial,Helvetica,sans-serif;">' +
+        '&#9995;&nbsp; Je serai présent</a></td></tr></table>' +
+        '<p style="margin:0;text-align:center;font-size:12px;color:#8A857C;">' +
+        'Un appui suffit — tu n\'as rien d\'autre à faire.</p>'
+    : '';
+
+  return '<!doctype html><html lang="fr"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
+    '<body style="margin:0;padding:0;background:#F4F2ED;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
+      'style="background:#F4F2ED;padding:24px 12px;"><tr><td align="center">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
+      'style="max-width:520px;background:#FFFFFF;border-radius:14px;' +
+      'padding:26px 24px;font-family:Arial,Helvetica,sans-serif;' +
+      'font-size:15px;line-height:1.6;color:#1A1A1A;"><tr><td>' +
+    paragraphes + bouton +
+    '<p style="margin:26px 0 0;padding-top:14px;border-top:1px solid #E4E0D8;' +
+      'font-size:12px;color:#8A857C;text-align:center;">' +
+      'Évolution Conduites &middot; Saint-Brieuc et Loudéac</p>' +
+    '</td></tr></table></td></tr></table></body></html>';
 }
 
 /* À qui part le rappel. Le financeur n'est prévenu que s'il est
@@ -1587,7 +1650,7 @@ async function envoyerRappelParMail(nom, r, moniteur){
       await appelPrep({ action: 'mailBilan', to: [dest.eleve],
         sujet: 'Ton cours de conduite ' + (quand ? 'du ' + quand : '') +
                (heure ? ' à ' + heure : ''),
-        texte: texte });
+        texte: texte, html: mailEnHtml(texte, lien) });
       resultats.push({ qui: 'élève', adresse: dest.eleve, ok: true });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.eleve,
                                etat: 'envoyé', message: texte, jeton: jeton });
@@ -1600,12 +1663,14 @@ async function envoyerRappelParMail(nom, r, moniteur){
 
   if(dest.financeur){
     const texte = avecLien(composerRappelFinanceur(
-      Object.assign({}, r, { eleve: nom }), moniteur), lien);
+      Object.assign({}, r, { eleve: nom }), moniteur), '');
     try{
+      /* Le financeur n'a pas à confirmer la présence à la place de
+         l'élève : il reçoit le même message, sans le bouton. */
       await appelPrep({ action: 'mailBilan', to: [dest.financeur],
         sujet: 'Séance de conduite — ' + nom +
                (quand ? ' — ' + quand : '') + (heure ? ' à ' + heure : ''),
-        texte: texte });
+        texte: texte, html: mailEnHtml(texte, '') });
       resultats.push({ qui: 'financeur', adresse: dest.financeur, ok: true });
       await journaliserEnvoi({ canal: 'mail', eleve: nom, destinataires: dest.financeur,
                                etat: 'envoyé (financeur)', message: texte, jeton: jeton });
