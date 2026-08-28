@@ -440,8 +440,18 @@ function blocInterrupteur(){
    Le titre nomme la fonction et ne bouge pas ; en dessous, l'état
    en clair. « Ouvrir » ne disait pas ce qui allait se passer :
    un interrupteur, lui, se comprend sans le lire. */
+/* Un interrupteur de réglage, dessiné plutôt qu'écrit.
+
+   Deux réglages sur trois valent « oui » quand ils sont actifs et
+   rien du tout sinon. Certains, au contraire, doivent être actifs
+   tant qu'on ne les a pas coupés : « o.valeurs » permet de dire ce
+   qu'on écrit dans chaque sens, et « o.apres » quel écran redessiner
+   — sans quoi cet interrupteur ne servirait qu'ici. */
 function interrupteur(o){
   const danger = o.danger && o.ouvert;
+  const valActif   = (o.valeurs && o.valeurs.actif   !== undefined) ? o.valeurs.actif   : 'oui';
+  const valInactif = (o.valeurs && o.valeurs.inactif !== undefined) ? o.valeurs.inactif : '';
+  const apres = o.apres || afficherProcCorriger;
 
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid ' +
@@ -493,11 +503,11 @@ function interrupteur(o){
     try{
       await appelPrep({
         action: 'reglageSet', cle: o.cle,
-        valeur: o.ouvert ? '' : 'oui',
+        valeur: o.ouvert ? valInactif : valActif,
         par: ACCES.moniteur || ''
       });
       showToast(o.ouvert ? 'Désactivé ✅' : 'Activé ✅');
-      afficherProcCorriger();
+      apres();
     }catch(e){
       showToast('Impossible : ' + e.message);
       b.disabled = false;
