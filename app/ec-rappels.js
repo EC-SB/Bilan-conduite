@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 17:37 — v630 */
+/* Déployé le 28/08/2026 à 11:58 — v646 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1334,6 +1334,83 @@ async function envoyerSmsAllo(numero, texte, eleve){
 }
 
 
+/* ============================================================
+   LE RÉPERTOIRE SE COMPLÈTE TOUT SEUL
+
+   Un numéro tapé pour un rappel ne servait qu'une fois : le champ
+   se vidait après l'envoi, et il fallait le retaper au cours
+   suivant. On le range dans la fiche de l'élève.
+
+   Rien ne se fait en silence quand il y a un doute : créer une
+   fiche et remplacer un numéro se demandent. Le champ nom est
+   libre — « Kevin » au lieu de « Kevin Martin » créerait un doublon
+   que personne n'irait nettoyer.
+   ============================================================ */
+
+/* Deux écritures d'un même numéro : « 06 12 34 56 78 », « 0612345678 »,
+   « +33612345678 ». Les comparer telles quelles ferait passer le même
+   numéro pour un changement. */
+function memeNumero(a, b){
+  const propre = t => {
+    let n = String(t || '').replace(/[^\d+]/g, '');
+    if(/^\+33\d{9}$/.test(n)) n = '0' + n.slice(3);
+    return n;
+  };
+  const x = propre(a), y = propre(b);
+  return !!x && x === y;
+}
+
+async function completerFicheDepuisRappel(nom, numero){
+  const propre = String(nom || '').trim();
+  const tel = String(numero || '').trim();
+  /* Un envoi à un numéro seul, sans nom : rien à ranger */
+  if(propre.length < 3 || !tel) return;
+
+  const f = (typeof ficheDe === 'function') ? ficheDe(propre) : null;
+
+  if(!f){
+    if(!await confirmer(
+        'Créer la fiche de « ' + propre + ' » ?\n\n' +
+        'Numéro : ' + telLisible(tel) + '\n\n' +
+        'Vérifie l\'orthographe du nom : elle entrera telle quelle ' +
+        'dans le répertoire des élèves.')) return;
+
+  }else if(!f.telephone){
+    /* Fiche connue mais sans numéro : on comble un vide, rien ne
+       peut être perdu. Pas de question à poser. */
+
+  }else if(memeNumero(f.telephone, tel)){
+    return;                       /* déjà à jour, rien à faire */
+
+  }else{
+    if(!await confirmer(
+        'Sa fiche indique ' + telLisible(f.telephone) + ',\n' +
+        'le SMS est parti au ' + telLisible(tel) + '.\n\n' +
+        'Mettre à jour sa fiche avec ce nouveau numéro ?')) return;
+  }
+
+  try{
+    await appelPrep({ action: 'ficheSet', eleve: propre, telephone: tel });
+
+    /* La fiche en mémoire suit tout de suite : sans cela, le rappel
+       suivant au même élève redemanderait son numéro. */
+    if(typeof fichesEleves !== 'undefined'){
+      const f2 = (typeof ficheDe === 'function') ? ficheDe(propre) : null;
+      if(f2) f2.telephone = tel;
+      else fichesEleves.push({ eleve: propre, telephone: tel });
+    }
+    if(typeof fichesLues !== 'undefined') fichesLues = 0;
+
+    showToast(f ? 'Numéro enregistré dans sa fiche ✅'
+                : 'Fiche créée dans le répertoire ✅');
+  }catch(e){
+    /* Le SMS est parti : l'échec du rangement ne doit pas passer
+       pour un échec d'envoi. */
+    showToast('SMS envoyé, mais fiche non enregistrée : ' + e.message);
+  }
+}
+
+
 /* Envoi depuis l'écran de composition */
 async function envoyerRappelManuel(){
   direEtatEnvoi('');
@@ -1371,6 +1448,11 @@ async function envoyerRappelManuel(){
     direEtatEnvoi((n > 1 ? n + ' SMS envoyés' : 'SMS envoyé') +
                   ' au ' + telLisible(numero) + (nom ? ' — ' + nom : ''), false);
     showToast(n > 1 ? n + ' SMS envoyés ✅' : 'SMS envoyé ✅');
+
+    /* Le numéro qui vient de servir rejoint le répertoire : sans
+       cela il ne vivait que le temps de l'envoi, et il fallait le
+       retaper au rappel suivant. */
+    await completerFicheDepuisRappel(nom, numero);
 
     /* Le cours annoncé rejoint « Mes prochains cours » du moniteur */
     preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
