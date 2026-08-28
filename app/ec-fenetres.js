@@ -19,7 +19,7 @@ const DUREE_CACHE = 600000;    /* 10 minutes — le temps d'un début de cours.
 /* La forme du dossier a changé au fil des versions : marques de la
    fiche véhicule, frise. Un dossier gardé sous l'ancienne forme
    renverrait des champs vides pendant dix minutes. */
-const FORME_DOSSIER = 3;
+const FORME_DOSSIER = 4;   /* 4 : le compte de leçons ne suit plus un total non tronqué */
 
 function lireCacheDossier(nom){
   const k = normaliserMot(nom);
