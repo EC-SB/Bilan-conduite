@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 17:45 — v632 */
+/* Déployé le 28/08/2026 à 10:56 — v640 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -404,7 +404,43 @@ function ouvrirEditeurModele(modele, usageImpose){
     '<textarea id="mdContenu" rows="14" ' +
       'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
       'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;font-family:inherit;' +
-      'resize:vertical;margin-bottom:12px;"></textarea>');
+      'resize:vertical;margin-bottom:12px;"></textarea>' +
+
+    /* Comment l'IA doit corriger CELLE-CI.
+
+       Ces consignes ne peuvent pas vivre dans le texte au-dessus :
+       ce texte est ce que l'élève apprend, et ce à quoi l'IA
+       compare. Une ligne « à réciter dans l'ordre » glissée dedans
+       serait lue par l'élève comme une étape de la procédure, et
+       comparée comme telle. */
+    '<div id="mdBlocIA" style="display:none;border:1px solid var(--line);' +
+      'border-radius:12px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:3px;">' +
+        '✨ Comment l\'IA doit corriger celle-ci</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;' +
+        'line-height:1.5;">Vaut pour la correction automatique comme ' +
+        'pour le bouton ✨. Laisse vide si rien de particulier.</div>' +
+
+      '<label style="display:flex;align-items:flex-start;gap:9px;padding:4px 0;' +
+        'font-size:14px;text-transform:none;margin:0 0 10px;font-weight:400;' +
+        'cursor:pointer;color:var(--cream);">' +
+        '<input type="checkbox" id="mdOrdre" ' +
+          'style="width:18px;height:18px;flex-shrink:0;margin-top:2px;">' +
+        '<span style="flex:1;min-width:0;">L\'ordre des étapes compte' +
+          '<div style="font-size:11px;color:var(--muted);line-height:1.4;">' +
+            'Une étape hors de sa place est comptée comme une erreur. ' +
+            'Pour un déroulé ; pas pour un inventaire de vérifications.' +
+          '</div></span>' +
+      '</label>' +
+
+      '<label for="mdConsigne">Autre consigne (facultatif)</label>' +
+      '<textarea id="mdConsigne" rows="3" ' +
+        'placeholder="Ex : exige les mots exacts du référentiel. ' +
+          'Ou : ne pénalise pas le vocabulaire approximatif." ' +
+        'style="width:100%;background:var(--navy);border:1px solid var(--line);' +
+        'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:14px;' +
+        'line-height:1.5;font-family:inherit;resize:vertical;margin:0;"></textarea>' +
+    '</div>');
 
   const rangee = document.createElement('div');
   rangee.className = 'btn-row';
@@ -421,15 +457,24 @@ function ouvrirEditeurModele(modele, usageImpose){
   msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
   boite.appendChild(msg);
 
-  /* Le choix de boîte n'a de sens que pour une procédure */
+  /* La boîte et les consignes de correction n'ont de sens que pour
+     une procédure : un texte type ne se récite pas. */
   const majBoite = () => {
+    const estProc = (boite.querySelector('#mdUsage').value === 'procedure');
     const b = boite.querySelector('#mdBlocBoite');
-    if(b) b.style.display = (boite.querySelector('#mdUsage').value === 'procedure')
-      ? 'block' : 'none';
+    if(b) b.style.display = estProc ? 'block' : 'none';
+    const ia = boite.querySelector('#mdBlocIA');
+    if(ia) ia.style.display = estProc ? 'block' : 'none';
   };
   boite.querySelector('#mdUsage').addEventListener('change', majBoite);
   if(modele && modele.boite && boite.querySelector('#mdBoite')){
     boite.querySelector('#mdBoite').value = modele.boite;
+  }
+  if(modele && boite.querySelector('#mdOrdre')){
+    boite.querySelector('#mdOrdre').checked = !!modele.ordre;
+  }
+  if(modele && boite.querySelector('#mdConsigne')){
+    boite.querySelector('#mdConsigne').value = modele.consigne || '';
   }
   majBoite();
 
@@ -509,6 +554,11 @@ function ouvrirEditeurModele(modele, usageImpose){
         /* La boîte ne concerne que les procédures */
         boite: (g('mdUsage').value === 'procedure' && g('mdBoite'))
           ? g('mdBoite').value : '',
+        /* Comment l'IA doit corriger celle-ci — procédures uniquement */
+        ordre: (g('mdUsage').value === 'procedure' && g('mdOrdre'))
+          ? g('mdOrdre').checked : false,
+        consigne: (g('mdUsage').value === 'procedure' && g('mdConsigne'))
+          ? g('mdConsigne').value.trim() : '',
         contenu: contenu
       });
 
