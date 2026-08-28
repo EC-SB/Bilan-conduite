@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:22 — v668 */
+/* Déployé le 28/08/2026 à 16:38 — v670 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,13 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 155;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 156;   /* voir apps-script.js */
+
+/* L'adresse de la page publique d'un cours, déduite de celle de
+   l'application : elle vit dans le même dossier. Écrire l'adresse
+   en dur ici casserait les liens le jour d'un déménagement. */
+CONFIG.LIEN_COURS = location.origin +
+  location.pathname.replace(/[^/]*$/, '') + 'cours.html';
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
