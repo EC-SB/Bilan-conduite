@@ -383,7 +383,16 @@ async function afficherPrepares(recharger, silencieux){
     if(cours.note){
       const n = document.createElement('span');
       n.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
-      n.textContent = '📌 ' + cours.note;
+      /* La ligne d'examen ressort en couleur : c'est ce qu'on
+         cherche en premier dans une note. */
+      if(typeof colorerNote === 'function'){
+        n.appendChild(document.createTextNode('📌 '));
+        const dedans = document.createElement('span');
+        colorerNote(dedans, cours.note);
+        n.appendChild(dedans);
+      }else{
+        n.textContent = '📌 ' + cours.note;
+      }
       meta.appendChild(n);
     }
     row.appendChild(meta);
