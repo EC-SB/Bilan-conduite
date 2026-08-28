@@ -2089,6 +2089,34 @@ function verifierModele(cle){
   return MODELES[cle] ? cle : '';
 }
 
+/* ============================================================
+   LA SÉANCE DIT QUEL BILAN, LA FORMATION DIT QUELLE BOÎTE
+
+   Ce sont deux questions distinctes, et elles étaient confondues :
+   le type de séance écrasait la boîte déduite de la fiche, et tout
+   élève en boîte manuelle repartait sur un bilan automatique dès
+   que sa séance était nommée — c'est-à-dire presque toujours.
+   ============================================================ */
+
+/* Les modèles vont par paires « -auto » / « -manuelle » : conduite,
+   AAC, rendez-vous préalable, simulateur, évaluation. La paire se
+   déduit du nom plutôt que d'une seconde liste à tenir d'accord
+   avec MODELES. Un modèle sans paire est rendu tel quel. */
+function modeleDansLaBoite(cle, manuelle){
+  if(!cle) return cle;
+  const paire = manuelle ? cle.replace(/-auto$/, '-manuelle')
+                         : cle.replace(/-manuelle$/, '-auto');
+  return (paire !== cle && verifierModele(paire)) ? paire : cle;
+}
+
+/* La passerelle est la seule séance qui décide elle-même de la
+   boîte : on y vient justement apprendre la manuelle, quelle que
+   soit la formation encore inscrite sur la fiche. Partout ailleurs,
+   c'est la formation de l'élève qui tranche. */
+function seanceImposeLaBoite(type){
+  return normaliserMot(String(type || '')).indexOf('passerelle') !== -1;
+}
+
 
 /* Renvoie true si un cours a bien été créé. Les appels d'origine
    ignorent la réponse ; le rattrapage, lui, compte ce qui a marché
@@ -2128,16 +2156,22 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       return false;
     }
 
-    let cle = 'conduite-auto';
-    if(/manuel|\bbv\b|b[oô]ite m/i.test(formation)) cle = 'conduite-manuelle';
+    const manuelle = /manuel|\bbv\b|b[oô]ite m/i.test(formation);
+    let cle = manuelle ? 'conduite-manuelle' : 'conduite-auto';
 
-    /* Le type de séance prime sur la boîte : un simulateur ou un
-       rendez-vous préalable n'est pas un cours de conduite. */
-    /* Le titre d'abord : c'est lui qui dit de quelle séance il
-       s'agit. La clé ne sert que pour les types d'origine. */
-    const impose = modeleDuTypeDeRappel(
-      (details && details.titreType) || (details && details.type));
-    if(impose) cle = impose;
+    /* Le type de séance dit de quelle séance il s'agit — simulateur,
+       rendez-vous préalable, examen — mais pas dans quelle boîte :
+       ça, c'est la fiche de l'élève qui le sait. On garde donc le
+       modèle imposé par la séance, dans la boîte de l'élève.
+       Le titre d'abord : la clé ne sert que pour les types d'origine. */
+    const typeSeance = (details && details.titreType) ||
+                       (details && details.type) || '';
+    const impose = modeleDuTypeDeRappel(typeSeance);
+    if(impose){
+      cle = seanceImposeLaBoite(typeSeance)
+              ? impose
+              : modeleDansLaBoite(impose, manuelle);
+    }
 
     /* Le dossier de l'élève, pour que le moniteur n'ait pas à tout
        ressaisir : numéro de leçon, frise, note du cours précédent.
