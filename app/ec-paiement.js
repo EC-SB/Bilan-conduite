@@ -1,3 +1,4 @@
+/* Déployé le 30/08/2026 à 06:20 — v723 */
 /* ============================================================
    ec-paiement.js
    Le paiement en plusieurs fois.
@@ -251,13 +252,10 @@ async function envoyerPaiementMail(montant, options){
     adresse = ((d && d.contact) || {}).email || '';
   }catch(e){}
 
-  if(!adresse){
-    showToast('Aucune adresse dans la fiche de ' + nom + '.');
-    return;
-  }
-
-  if(!await confirmer('Envoyer les possibilités de règlement à ' +
-      adresse + ' ?')) return;
+  /* La fenêtre remplace la confirmation : elle montre l'adresse ET
+     laisse la corriger, ce que « oui / non » ne permettait pas. */
+  adresse = await confirmerAdresseEleve(nom, adresse);
+  if(!adresse) return;
 
   try{
     await appelPrep({
