@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:40 — v654 */
+/* Déployé le 29/08/2026 à 21:00 — v708 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -642,23 +642,11 @@ async function ouvrirBilanManuel(){
   /* L'examen officiel n'a pas de leçon à préparer : le
      questionnaire n'apprendrait rien, et son bilan ne dépend pas
      de la boîte de vitesses. On passe directement à la fiche. */
-  if(modeleCle === 'examen-officiel'){
-    /* rien à demander */
-  }else if(!questionnaireDejaRepondu(contexteDepart)){
-    /* Même règle qu'en vocal : un contexte déduit tout seul n'est
-       pas une réponse. Il sert à pré-remplir, pas à sauter l'étape. */
-    try{
-      const rep = await ouvrirQuestionnaireDepart(contexteDepart,
-                                                  'Avant de remplir le bilan', 'Continuer');
-      if(rep){
-        contexteDepart = rep;
-        if(typeof afficherSaisieDuJour === 'function'){
-          afficherSaisieDuJour(rep, 'preparationManuel');
-        }
-        appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
-      }
-    }catch(e){}
-  }
+  /* Le questionnaire ne s'ouvre plus avant le bilan : même règle
+     qu'en vocal. Ce qui manque s'écrit en rouge sur le bouton
+     « 📋 Compléter les infos », et le questionnaire de fin
+     redemandera ce qui a bougé pendant le cours. */
+  if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
 
   /* Ce qui se remplit tout seul : frise, manœuvres déjà validées */
   let dossier = { manoeuvres: [], frise: '' };
