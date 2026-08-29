@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v698 */
+/* Déployé le 29/08/2026 à 15:10 — v702 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -978,7 +978,13 @@ async function chargerPrepareInterne(cours){
          tout ce que le moniteur avait renseigné à la préparation. */
       const frais = defautsDepuisNote(d.derniereNote);
       if(d.frise) frais.frise = d.frise;
-      if(d.lecons !== null) frais.lecon = String(d.lecons + 1);
+      /* Un rang qu'on n'a pas le droit d'affirmer ne s'écrit pas :
+         zéro bilan au classeur n'est pas une « 1ère leçon ». */
+      const debut = cestLePremierCours(contexte.premierCours) ||
+                    cestLePremierCours(cours.note);
+      const rang = rangConnu(d.lecons, cours.modele, debut);
+      if(rang !== null) frais.lecon = String(rang);
+      frais.sansBilan = (rang === null);
       frais.manoeuvresFaites = d.manoeuvres.length;
       frais.totalManoeuvres = BLOC.ficheListeConduite.length;
       frais.leconsDepuisEB = d.leconsDepuisEB;
