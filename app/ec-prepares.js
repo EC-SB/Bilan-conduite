@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 11:20 — v689 */
+/* Déployé le 29/08/2026 à 13:05 — v690 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -508,7 +508,19 @@ async function afficherPrepares(recharger, silencieux){
     const donne = cours.preparePar && cours.moniteur &&
       normaliserMot(cours.preparePar) !== normaliserMot(cours.moniteur);
 
+    /* La formation de l'élève, à côté du type de cours : c'est elle
+       qui décide de la boîte, de la frise et du bilan. La lire sur la
+       carte évite d'ouvrir la fiche pour savoir à quoi s'attendre. */
+    const fi = (typeof ficheDe === 'function') ? ficheDe(cours.eleve) : null;
+    const formation = (fi && String(fi.formation || '').trim()) || '';
+    const boite = (formation && typeof boiteDeLaFormation === 'function')
+      ? boiteDeLaFormation(formation) : '';
+
     sous.textContent = [cours.modeleLabel,
+                        formation ? '🎓 ' + formation : '',
+                        /* La boîte n'est répétée que si la formation
+                           ne la dit pas déjà — « AAC BV » la porte. */
+                        (boite && formation.indexOf(boite) === -1) ? '⚙️ ' + boite : '',
                         cours.moniteur ? '👤 ' + cours.moniteur : '',
                         donne ? '↩️ préparé par ' + cours.preparePar : '',
                         passe ? '⚠️ pas encore enregistré' : ''].filter(Boolean).join(' · ');
