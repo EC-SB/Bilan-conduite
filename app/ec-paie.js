@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 22:45 — v709 */
+/* Déployé le 30/08/2026 à 00:20 — v711 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -885,6 +885,36 @@ function lundisDuMois(mois){
   return lundisTouchant(mois).filter(l => moisDeLaSemaine(l) === mois);
 }
 
+/* ------------------------------------------------------------
+   DÉPLACER UN SALARIÉ DANS LE TABLEAU
+
+   Les rangs se renumérotent tous à chaque déplacement : 1, 2, 3…
+   Sans ça, deux salariés finiraient par partager un rang et
+   l'ordre redeviendrait celui de l'alphabet, sans qu'on comprenne
+   pourquoi.
+   ------------------------------------------------------------ */
+async function deplacerSalarie(s, sens){
+  const liste = salariesPaie.filter(x => x.actif);
+  const i = liste.findIndex(x => String(x.id) === String(s.id));
+  const j = i + sens;
+  if(i === -1 || j < 0 || j >= liste.length) return;
+
+  const t = liste[i]; liste[i] = liste[j]; liste[j] = t;
+
+  try{
+    for(let k = 0; k < liste.length; k++){
+      const rang = k + 1;
+      if(liste[k].ordre === rang) continue;   /* rien à réécrire */
+      await appelPrep({ action: 'paieSalarieSet', id: liste[k].id,
+                        ordre: rang, par: ACCES.moniteur || '' });
+      liste[k].ordre = rang;
+    }
+  }catch(e){
+    showToast('Impossible : ' + e.message);
+  }
+  afficherPaie();
+}
+
 function semaineDe(idSalarie, lundi){
   return semainesPaie.find(x => x.idSalarie === idSalarie && x.semaine === lundi) || null;
 }
@@ -1085,15 +1115,35 @@ function redessinerPaieQuandPossible(){
    ------------------------------------------------------------ */
 function semaineEnArret(idSalarie, lundi){
   if(!lundi) return false;
-  const d = new Date(lundi + 'T12:00:00');
-  d.setDate(d.getDate() + 6);
-  const dimanche = d.toISOString().slice(0, 10);
 
-  return (absencesPaie || []).some(a => {
-    if(a.idSalarie !== idSalarie || a.type !== 'arret' || !a.du) return false;
-    const fin = a.au || todayLocal();
-    return a.du <= lundi && fin >= dimanche;
-  });
+  /* JOUR PAR JOUR, et non arrêt par arrêt.
+
+     Un arrêt long ne se saisit presque jamais d'un bloc : il
+     arrive par prolongations, une ligne par certificat. Demander
+     qu'UN seul arrêt couvre la semaine entière laissait donc en
+     blanc les semaines couvertes par deux lignes qui se suivent —
+     la salariée était en arrêt jusqu'en octobre, et ses semaines
+     restaient à remplir.
+
+     On regarde donc chaque jour de la semaine, et on demande
+     qu'aucun ne soit libre, quel que soit l'arrêt qui le couvre. */
+  const arrets = (absencesPaie || []).filter(a =>
+    String(a.idSalarie) === String(idSalarie) && a.type === 'arret' && a.du);
+  if(!arrets.length) return false;
+
+  const d = new Date(lundi + 'T12:00:00');
+  for(let k = 0; k < 7; k++){
+    const jour = d.getFullYear() + '-' +
+                 String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                 String(d.getDate()).padStart(2, '0');
+    /* Un arrêt sans date de fin court toujours : il couvre tout ce
+       qui suit son début. Le borner à aujourd'hui laissait les
+       semaines à venir en blanc alors qu'il n'y a rien à y saisir. */
+    const couvert = arrets.some(a => a.du <= jour && (!a.au || a.au >= jour));
+    if(!couvert) return false;
+    d.setDate(d.getDate() + 1);
+  }
+  return true;
 }
 
 /* Le tableau du mois : une case d'heures par semaine, tout le
@@ -1135,11 +1185,38 @@ function tableauPaie(){
     tr.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);';
 
     const td0 = document.createElement('td');
-    td0.style.cssText = 'padding:7px 8px;font-weight:700;white-space:nowrap;' +
-      'cursor:pointer;';
-    td0.textContent = s.nom;
-    td0.title = 'Sa fiche';
-    td0.addEventListener('click', () => ouvrirSalarie(s));
+    td0.style.cssText = 'padding:7px 8px;font-weight:700;white-space:nowrap;';
+
+    /* Les flèches AVANT le nom : un salarié en arrêt long se
+       descend en bas du tableau, où il ne gêne plus la saisie de
+       ceux qui travaillent. L'ordre voulu vit sur sa fiche, pas
+       dans l'écran : il tient d'une session à l'autre. */
+    const fleches = document.createElement('span');
+    fleches.style.cssText = 'display:inline-flex;gap:2px;margin-right:6px;' +
+      'vertical-align:middle;';
+    [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.textContent = signe;
+      b.title = (sens < 0 ? 'Monter' : 'Descendre') + ' ' + s.nom;
+      b.style.cssText = 'width:auto;margin:0;padding:1px 5px;font-size:10px;' +
+        'line-height:1.3;opacity:.6;';
+      b.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        b.disabled = true;
+        await deplacerSalarie(s, sens);
+        b.disabled = false;
+      });
+      fleches.appendChild(b);
+    });
+    td0.appendChild(fleches);
+
+    const nom = document.createElement('span');
+    nom.textContent = s.nom;
+    nom.style.cursor = 'pointer';
+    nom.title = 'Sa fiche';
+    nom.addEventListener('click', () => ouvrirSalarie(s));
+    td0.appendChild(nom);
     tr.appendChild(td0);
 
     /* Une case par semaine : on tape les heures, rien d'autre */
