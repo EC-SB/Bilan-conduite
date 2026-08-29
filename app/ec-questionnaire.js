@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v710 */
+/* Déployé le 30/08/2026 à 02:30 — v715 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1663,6 +1663,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const restantes = totalManoeuvres - manoeuvresAvant.length;
     boite.innerHTML =
       '<h3>' + (titre || 'Avant de démarrer') + '</h3>' +
+      /* L'état de l'élève AVANT les questions : on vient ici pour
+         savoir ce qui manque, pas pour relire quinze champs. */
+      recapEnHtml(recapDuCours(prec, eleve, modeleCle, ficheEleve)) +
       '<div style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5;">' +
         (eleve ? '<strong style="color:var(--cream);font-size:15px;">' + eleve + '</strong><br>' : '') +
         (profil === 'complet'
@@ -3636,6 +3639,95 @@ function ajouterANote(champ, texte){
   sauvegarderLocal();
 }
 
+
+
+/* ------------------------------------------------------------
+   CE QU'ON SAIT DÉJÀ DE CET ÉLÈVE, EN HUIT LIGNES
+
+   Le questionnaire pose quinze questions ; l'état de l'élève tient
+   en un coup d'œil. Le montrer en tête, c'est répondre à la seule
+   question qu'on se pose en ouvrant cet écran : « qu'est-ce qui
+   manque ? » — sans faire défiler quinze champs pour la trouver.
+
+   Ce qui manque est DANS la même liste, en rouge, et pas dans un
+   bloc à part : deux listes, et on lit deux fois.
+   ------------------------------------------------------------ */
+function recapDuCours(q, eleve, modeleCle, fiche){
+  const c = q || {};
+  const f = fiche || {};
+  const dit = v => String(v || '').trim();
+
+  const formation = dit(c.formation) || dit(f.formation);
+  const frise = dit(c.frise) || dit(f.frise);
+  const imposee = (typeof friseDeLaFormation === 'function')
+    ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
+
+  const boite = (formation && typeof boiteDeLaFormation === 'function')
+    ? boiteDeLaFormation(formation) : '';
+
+  const amg = Array.isArray(c.amenagements)
+    ? c.amenagements.map(x => (typeof libelleAmenagement === 'function')
+        ? libelleAmenagement(x) : x).join(' · ')
+    : '';
+
+  /* Un examen blanc « pas encore évoqué » n'est pas un manque pour
+     un parcours qui n'en a pas : la table le sait. */
+  const sansObjet = (typeof sansObjetPourLaFormation === 'function')
+    ? sansObjetPourLaFormation(formation) : [];
+  const aBesoin = cle => sansObjet.indexOf(cle) === -1;
+
+  const lignes = [];
+  const pose = (icone, nom, valeur, manque) =>
+    lignes.push({ icone: icone, nom: nom, valeur: valeur, manque: !!manque });
+
+  pose('🎓', 'Formation', formation, !formation);
+  if(boite) pose('⚙️', 'Boîte', boite, false);
+
+  if(imposee === null) pose('📏', 'Frise', frise, !frise);
+  else if(imposee) pose('📏', 'Frise', imposee, false);
+
+  if(typeof leconCompteDansLaFrise === 'function' &&
+     leconCompteDansLaFrise(modeleCle)){
+    pose('🔢', 'Leçon n°', dit(c.lecon), !parseInt(c.lecon, 10));
+  }
+
+  if(c.handicap === 'oui') pose('♿', 'Conduite aménagée', amg || 'oui', false);
+  if(c.coussin === 'oui') pose('🟩', 'Coussin vert', 'oui', false);
+
+  if(aBesoin('examBlanc')){
+    const eb = (c.examBlanc === 'passe') ? 'passé'
+             : (c.examBlanc === 'reserve') ? 'réservé'
+             : (c.examBlanc === 'impossible') ? 'à ne pas prévoir'
+             : dit(c.examBlanc);
+    pose('🅱️', 'Examen blanc', eb, !eb);
+  }
+  if(aBesoin('examPermis')){
+    const ep = dit(c.examDate) ? 'le ' + dit(c.examDate)
+             : (c.examPermis === 'non' ? 'pas de date' : dit(c.examPermis));
+    pose('📅', 'Examen officiel', ep, !ep);
+  }
+
+  return lignes;
+}
+
+/* Le même récapitulatif, en HTML. Séparé pour que la règle se
+   teste sans passer par un écran. */
+function recapEnHtml(lignes){
+  if(!lignes || !lignes.length) return '';
+  const echap = t => String(t || '').replace(/</g, '&lt;');
+  return '<div style="background:var(--navy);border:1px solid var(--line);' +
+    'border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;' +
+    'line-height:1.75;">' +
+    lignes.map(l =>
+      '<div style="display:flex;gap:8px;">' +
+        '<span style="width:130px;flex-shrink:0;color:var(--muted);">' +
+          l.icone + ' ' + echap(l.nom) + '</span>' +
+        (l.manque
+          ? '<span style="color:var(--red);font-weight:700;">⚠️ à renseigner</span>'
+          : '<span style="color:var(--cream);">' + echap(l.valeur) + '</span>') +
+      '</div>').join('') +
+    '</div>';
+}
 
 /* ------------------------------------------------------------
    CE QUI MANQUE POUR QUE LA NOTE SOIT JUSTE
