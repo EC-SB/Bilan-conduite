@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:37 — v684 */
+/* Déployé le 29/08/2026 à 09:10 — v688 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2826,19 +2826,35 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
         new Promise(r => setTimeout(() => r(null), 6000))
       ]);
       if(d && (d.lecons || d.derniereNote || d.frise)){
-        const rep = {
+        /* Ce que la note du cours précédent apprend déjà : la date
+           d'examen, l'examen blanc, le simulateur, le coussin.
+           Sans elle, le cours préparé repartait de rien et écrivait
+           « PAS DE DATE D'EXAMEN OFFICIEL » juste au-dessus d'un 📌
+           qui donnait la date — la contradiction que les moniteurs
+           voyaient sur leur carte. */
+        const acquis = (typeof defautsDepuisNote === 'function' && d.derniereNote)
+          ? defautsDepuisNote(d.derniereNote) : {};
+
+        const rep = Object.assign(acquis, {
           lecon: d.lecons ? String(d.lecons + 1) : '',
           frise: d.frise || '',
           modele: cle
-        };
+        });
         if(jetonRappel) rep.jeton = jetonRappel;
         contexte = JSON.stringify(rep);
         note = (typeof noteDepuisQuestionnaire === 'function')
           ? noteDepuisQuestionnaire(rep) : '';
 
-        /* Ce que le moniteur précédent a laissé comme consigne */
-        if(d.derniereNote){
-          note = (note ? note + '\n\n' : '') + '📌 ' + d.derniereNote;
+        /* Les deux se fondent : une ligne par sujet, la plus
+           complète, et le 📌 ne garde que les mots du moniteur.
+           Recopier la note entière derrière le 📌, c'était
+           l'empilement qu'on lisait sur les cartes — cinq fois la
+           même date d'examen, deux fois le même examen blanc. */
+        if(d.derniereNote && typeof fondreNotePreparee === 'function'){
+          const f = fondreNotePreparee(note, d.derniereNote);
+          note = assemblerNotePreparee('', f.corps, f.consigne);
+        }else if(d.derniereNote){
+          note = assemblerNotePreparee('', note, d.derniereNote);
         }
       }else{
         note = '❓ Informations à renseigner : aucun cours enregistré pour ' +
