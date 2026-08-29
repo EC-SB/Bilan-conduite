@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:10 — v681 */
+/* Déployé le 29/08/2026 à 08:09 — v686 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -434,6 +434,26 @@ function majAffichageNoteInterne(){
 
    Le texte libre du moniteur et les messages du bureau n'y sont
    pas : eux, on ne les efface jamais. */
+/* Les deux formes de la ligne d'examen officiel, en gras Unicode :
+   la note voyage dans un tableur et dans un SMS, où aucune mise en
+   forme ne survit. Écrites ici une fois, reconnues à l'affichage
+   pour la couleur — rouge quand la date existe, bleu sinon.
+
+   Déclarées AVANT la table des familles, qui s'en sert : la purge
+   ne reconnaissait pas la forme grasse de « PAS DE DATE » — seule
+   celle d'« EXAMEN » figurait dans le motif — et cette ligne-là
+   s'empilait à chaque bilan. */
+const EXAMEN_PREVU = '𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟 𝗣𝗥𝗘́𝗩𝗨 𝗟𝗘';
+const EXAMEN_SANS_DATE = '𝗣𝗔𝗦 𝗗𝗘 𝗗𝗔𝗧𝗘 𝗗\'𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟';
+
+/* Le motif des lignes d'examen, construit à partir des libellés
+   eux-mêmes : impossible qu'il en oublie un. */
+const RE_FAMILLE_EXAMEN = new RegExp(
+  '^(?:🚗\\s*)?(?:' +
+  EXAMEN_PREVU.slice(0, 12) + '|' + EXAMEN_SANS_DATE.slice(0, 12) + '|' +
+  "EXAMEN|PAS DE DATE|Examen (?:prévu|du permis)|Date d'examen" +
+  ')', 'i');
+
 const FAMILLES_NOTE = [
   { cle:'repassage',   motif:/^🔁\s*\d+\S*\s+repassage/i },
   { cle:'handicap',    motif:/^♿\s*Conduite aménagée/i },
@@ -447,7 +467,7 @@ const FAMILLES_NOTE = [
   { cle:'friseEtat',   motif:/frise (?:dépassée|depassee|terminée|terminee)/i },
   { cle:'avantEB',     motif:/encore \d+\s+le[çc]ons?\s+avant/i },
   { cle:'examenBlanc', motif:/examen blanc/i },
-  { cle:'examenPermis', motif:/^(?:🚗\s*)?(?:𝗘𝗫𝗔𝗠𝗘𝗡|EXAMEN|PAS DE DATE|Examen (?:prévu|du permis)|Date d'examen)/i },
+  { cle:'examenPermis', motif: RE_FAMILLE_EXAMEN },
   { cle:'trois_h',     motif:/plus que les 3h avant examen/i },
   { cle:'ecoutes',     motif:/^Pas d'écoutes pédagogiques/i },
   { cle:'simuNuit',    motif:/^Simulateur nuit et risques/i },
@@ -1487,12 +1507,6 @@ function noteDepuisQuestionnaire(q){
 }
 
 /* Partie commune : examens, fiche véhicule, cases à cocher, note libre */
-/* Les deux formes de la ligne d'examen officiel, en gras Unicode :
-   la note voyage dans un tableur et dans un SMS, où aucune mise en
-   forme ne survit. Écrites ici une fois, reconnues à l'affichage
-   pour la couleur — rouge quand la date existe, bleu sinon. */
-const EXAMEN_PREVU = '𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟 𝗣𝗥𝗘́𝗩𝗨 𝗟𝗘';
-const EXAMEN_SANS_DATE = '𝗣𝗔𝗦 𝗗𝗘 𝗗𝗔𝗧𝗘 𝗗\'𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟';
 
 /* « lundi 31 août 2026 » devient « LUNDI 31 AOÛT 2026 » : les
    accents montent aussi, ce que toUpperCase fait déjà en français. */
@@ -1661,6 +1675,31 @@ function nettoyerNote(note){
 }
 
 
+/* ------------------------------------------------------------
+   LA LIGNE D'EXAMEN QUAND IL N'Y A RIEN À DIRE
+
+   Un moniteur a demandé à voir « PAS DE DATE D'EXAMEN OFFICIEL »
+   en permanence, pour repérer d'un coup d'œil ceux dont la date
+   reste à prendre. Sur un élève qui débute, cette ligne n'apprend
+   rien à personne — d'où l'interrupteur.
+
+   Il ne concerne QUE le cas où le moniteur n'a rien répondu : une
+   réponse explicite — à prévoir, prévu le, annulé, non planifiable
+   — s'écrit toujours.
+   ------------------------------------------------------------ */
+let ligneExamenToujours = true;
+
+async function chargerReglageLigneExamen(){
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    const r = (d && d.reglages) || {};
+    /* Activé tant qu'on n'a pas dit le contraire : c'est un
+       moniteur qui l'a demandé, on ne le lui retire pas en
+       silence. */
+    ligneExamenToujours = String(r.ligneExamenToujours || 'oui') !== 'non';
+  }catch(e){ /* injoignable : on garde le comportement demandé */ }
+}
+
 function ajouterSuite(bouts, q){
   const n = q.examBlancN;
   const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
@@ -1748,7 +1787,9 @@ function ajouterSuite(bouts, q){
                (q.examMotif ? ' (' + q.examMotif + ')' : ''));
   }else if(q.examPermis === 'aprevoir'){
     bouts.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
-  }else{
+  }else if(ligneExamenToujours){
+    /* Rien de répondu : la ligne n'apparaît que si le bureau veut
+       la voir en permanence. */
     bouts.push(EXAMEN_SANS_DATE);
   }
 
