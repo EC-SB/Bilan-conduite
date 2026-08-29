@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:16 — v679 */
+/* Déployé le 28/08/2026 à 17:21 — v680 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -233,6 +233,80 @@ function etatPresence(cours){
         couleur: 'var(--muted)' };
 }
 
+/* ------------------------------------------------------------
+   VOIR LA RÉPONSE ARRIVER
+
+   Recharger toute la liste pour une ligne de douze pixels serait
+   disproportionné : on relit les seules confirmations, et on
+   repeint les lignes qui ont changé, sans toucher au reste de
+   l'écran — ni au défilement, ni à une carte ouverte.
+
+   Et quand plus personne n'est attendu, la veille s'arrête d'elle
+   même : il n'y a plus rien à guetter.
+   ------------------------------------------------------------ */
+let minuteurPresences = null;
+
+/* Les jetons affichés qui attendent encore une réponse */
+function presencesEnAttente(){
+  return [...document.querySelectorAll('.presence[data-jeton]')]
+    .filter(el => !confirmationsPresence ||
+                  !confirmationsPresence[el.getAttribute('data-jeton')])
+    .map(el => el.getAttribute('data-jeton'))
+    .filter(Boolean);
+}
+
+async function rafraichirPresences(){
+  if(!presencesEnAttente().length) return 0;
+
+  const avant = confirmationsPresence || {};
+  await chargerConfirmations();
+
+  let nouvelles = 0;
+  document.querySelectorAll('.presence[data-jeton]').forEach(el => {
+    const j = el.getAttribute('data-jeton');
+    const quand = confirmationsPresence[j];
+    if(!quand || avant[j]) return;
+
+    el.textContent = '✋ présence confirmée';
+    el.style.color = 'var(--bleu)';
+    el.title = 'Confirmée le ' + quand;
+    nouvelles++;
+
+    /* Un clignotement bref : la ligne a changé pendant qu'on
+       regardait ailleurs, il faut que l'œil y revienne. */
+    el.style.transition = 'opacity .25s';
+    el.style.opacity = '0.15';
+    setTimeout(() => { el.style.opacity = '1'; }, 260);
+  });
+
+  if(nouvelles && typeof showToast === 'function'){
+    showToast(nouvelles === 1
+      ? '✋ Un élève vient de confirmer sa présence'
+      : '✋ ' + nouvelles + ' élèves viennent de confirmer leur présence');
+  }
+  return nouvelles;
+}
+
+function veillerPresences(){
+  clearInterval(minuteurPresences);
+  minuteurPresences = setInterval(() => {
+    if(typeof ACCES === 'undefined' || !ACCES.code) return;
+    /* Personne devant l'écran : relire ne servirait qu'à consommer
+       des appels. */
+    if(document.hidden) return;
+    if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
+    rafraichirPresences();
+  }, 45000);
+}
+
+/* Revenir sur l'application, c'est le moment où l'on veut voir ce
+   qui s'est passé pendant qu'on avait le nez ailleurs. */
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden) return;
+  if(typeof ACCES === 'undefined' || !ACCES.code) return;
+  rafraichirPresences();
+});
+
 async function afficherPrepares(recharger, silencieux){
   const zone = $('listePrepares');
   if(!zone) return;
@@ -245,6 +319,11 @@ async function afficherPrepares(recharger, silencieux){
       chargerPrepares(),
       chargerConfirmations()
     ]);
+
+    /* La veille des réponses part avec la liste, et se relance à
+       chaque affichage : un minuteur laissé derrière un écran fermé
+       continuerait d'appeler pour rien. */
+    veillerPresences();
     if(!enLigne && prepares.length){
       /* Dire pourquoi : un moniteur qui voit « hors ligne » alors
          que son téléphone marche ne sait pas quoi faire. */
@@ -411,7 +490,8 @@ async function afficherPrepares(recharger, silencieux){
       (h ? '<div style="font-size:19px;font-weight:800;' +
            'color:var(--accent-text);line-height:1.2;">' +
            h.replace(':', 'h') + '</div>' : '') +
-      (presence ? '<div style="font-size:12px;font-weight:600;color:' +
+      (presence ? '<div class="presence" data-jeton="' + jetonDuCours(cours) +
+           '" style="font-size:12px;font-weight:600;color:' +
            presence.couleur + ';line-height:1.5;" title="' +
            presence.titre + '">' + presence.texte + '</div>' : '') +
       '<div>' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
