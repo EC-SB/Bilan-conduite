@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 17:15 — v704 */
+/* Déployé le 29/08/2026 à 21:00 — v708 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -687,6 +687,35 @@ function redessinerPaieQuandPossible(){
   afficherPaie();
 }
 
+/* ------------------------------------------------------------
+   UNE SEMAINE QU'UN ARRÊT COUVRE EN ENTIER
+
+   Il n'y a rien à y saisir : le salarié n'a pas travaillé de la
+   semaine. La reconnaître d'un coup d'œil évite de la chercher, et
+   évite surtout de croire qu'on a oublié de la remplir — une case
+   vide ressemble à un oubli, et c'est ce qu'on relit trois fois en
+   faisant la paie.
+
+   ENTIÈREMENT couverte, et pas seulement touchée : une semaine
+   commencée avant l'arrêt garde des heures à saisir.
+
+   Un arrêt sans date de fin court toujours : on le tient pour
+   couvrant jusqu'à aujourd'hui, pas au-delà — les semaines à venir
+   ne sont pas encore écrites.
+   ------------------------------------------------------------ */
+function semaineEnArret(idSalarie, lundi){
+  if(!lundi) return false;
+  const d = new Date(lundi + 'T12:00:00');
+  d.setDate(d.getDate() + 6);
+  const dimanche = d.toISOString().slice(0, 10);
+
+  return (absencesPaie || []).some(a => {
+    if(a.idSalarie !== idSalarie || a.type !== 'arret' || !a.du) return false;
+    const fin = a.au || todayLocal();
+    return a.du <= lundi && fin >= dimanche;
+  });
+}
+
 /* Le tableau du mois : une case d'heures par semaine, tout le
    reste se calcule. */
 function tableauPaie(){
@@ -736,9 +765,11 @@ function tableauPaie(){
     /* Une case par semaine : on tape les heures, rien d'autre */
     lundis.forEach(l => {
       const w = semaineDe(s.id, l);
+      const enArret = semaineEnArret(s.id, l);
       const td = document.createElement('td');
       td.style.cssText = 'padding:3px;border-left:1px solid var(--line);' +
-        'text-align:center;';
+        'text-align:center;' +
+        (enArret ? 'background:rgba(226,90,90,.13);' : '');
 
       const ch = document.createElement('input');
       /* Texte, pas « number » : c'est ce qui laisse passer la
@@ -746,10 +777,15 @@ function tableauPaie(){
       ch.type = 'text';
       ch.inputMode = 'decimal';
       ch.value = (w && w.heures) ? versChampPaie(w.heures) : '';
-      ch.placeholder = '·';
+      /* Une semaine d'arrêt reste saisissable — il arrive qu'un
+         salarié reprenne un jour au milieu — mais elle ne se fait
+         plus passer pour un oubli. */
+      ch.placeholder = enArret ? '—' : '·';
+      ch.title = enArret ? 'Semaine entièrement en arrêt : rien à saisir' : '';
       ch.style.cssText = 'width:58px;margin:0;padding:5px 4px;font-size:13px;' +
         'text-align:center;background:var(--navy);border:1px solid transparent;' +
-        'font-variant-numeric:tabular-nums;';
+        'font-variant-numeric:tabular-nums;' +
+        (enArret ? 'color:var(--red);border-color:rgba(226,90,90,.45);' : '');
 
       /* Ce qu'on en déduit, en info-bulle */
       const majTitre = () => {
@@ -819,7 +855,14 @@ function tableauPaie(){
       const jAbs = (w && w.joursAbsents) ||
                    joursAbsentsDeduits(s.id, l, s.joursSemaine);
 
-      if(!jAbs && (!w || !w.heures)){
+      if(enArret && (!w || !w.heures)){
+        /* Dit AVANT le reste : sur une semaine entièrement en
+           arrêt, « 0 j abs. » ou une case vide se lisent comme un
+           oubli. Ici il n'y a rien à saisir, et c'est ça qu'il faut
+           lire. */
+        bDet.innerHTML = '<span style="color:var(--red);font-weight:700;">' +
+          '🤒 arrêt</span>';
+      }else if(!jAbs && (!w || !w.heures)){
         bDet.innerHTML = '&nbsp;';
       }else if(!w || !w.heures){
         /* Des absences sans heures saisies : on montre quand même
