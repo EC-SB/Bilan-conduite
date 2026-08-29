@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 22:20 — v697 */
+/* Déployé le 29/08/2026 à 23:30 — v698 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -32,6 +32,15 @@ const RE_TYPE_RDV_POST     = /rdv\s+post-?permis|rendez-vous\s+post-?permis/i;
    élèves en conduite accompagnée. C'est la même règle que
    leconCompteDansLaFrise, appliquée au libellé au lieu de la clé —
    dans le classeur, c'est le libellé qui est écrit. */
+/* La boîte d'un cours, lue sur son libellé : « Conduite — Boîte
+   manuelle » se conduit en BV. */
+function boiteDuType(type){
+  const t = String(type || '');
+  if(/manuelle/i.test(t)) return 'BV';
+  if(/automatique/i.test(t)) return 'BEA';
+  return '';
+}
+
 function estUneLecon(type){
   const t = String(type || '');
   if(!/^Conduite/i.test(t) && !/^AAC/i.test(t)) return false;
@@ -42,6 +51,7 @@ function estUneLecon(type){
 async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], marques: {}, derniereNote: '',
                  leconsDepuisEB: null, leconsDepuisRdvPost: null,
+                 leconsParBoite: { BV: 0, BEA: 0 },
                  dernierHorodatage: '', boite: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
 
@@ -99,12 +109,20 @@ async function chargerDossierEleve(nomEleve){
     let lecons = 0;
     let vus = 0;
     const manoeuvres = [];
+    const parBoite = { BV: 0, BEA: 0 };
     /* Le premier résultat est le plus récent */
     const dernier = res[0] || {};
 
     res.forEach(item => {
       if(!frise) frise = extraireFrise(item.note) || extraireFriseTexte(item.bilan);
-      if(estUneLecon(item.type)) lecons++;
+      if(estUneLecon(item.type)){
+        lecons++;
+        /* Par boîte aussi : une passerelle repart de zéro, et ses
+           leçons sont les SEULES que l'élève ait faites dans cette
+           boîte — il a passé son permis dans l'autre. */
+        const b = boiteDuType(item.type);
+        if(b) parBoite[b]++;
+      }
       vus++;
       const liste = item.manoeuvres
         ? String(item.manoeuvres).split('|').map(x => x.trim()).filter(Boolean)
@@ -164,10 +182,44 @@ async function chargerDossierEleve(nomEleve){
       return n;
     };
 
+    /* Le rendez-vous post-permis, lui, ne laisse AUCUN bilan : il se
+       conclut dans le suivi, et sa préparation est effacée derrière
+       lui. Impossible de le repérer comme une position dans
+       l'historique — il faut compter depuis SA DATE.
+
+       C'est pour ça qu'Enzo restait annoncé « après l'examen
+       blanc » alors que son post-permis datait du 19 août. */
+    const isoDuCours = t => {
+      const v = String(t || '');
+      if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+      return (typeof dateFrVersIso === 'function') ? dateFrVersIso(v) : '';
+    };
+
+    const apresLaDate = (iso) => {
+      if(!iso) return null;
+      let n = 0;
+      for(let k = 0; k < res.length; k++){
+        const d = isoDuCours(res[k].date);
+        if(d && d > iso && estUneLecon(res[k].type)) n++;
+      }
+      return n;
+    };
+
+    let depuisRdvPost = apres(RE_TYPE_RDV_POST);
+    if(depuisRdvPost === null){
+      try{
+        const sv = (typeof suiviDe === 'function') ? (suiviDe(nomEleve) || {}) : {};
+        if(sv.rdvPostFait === 'oui' && sv.rdvPostDate){
+          depuisRdvPost = apresLaDate(String(sv.rdvPostDate));
+        }
+      }catch(e){ /* suivi non chargé : on ne dira rien plutôt qu'un faux */ }
+    }
+
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
                        marques: marques,
                        leconsDepuisEB: apres(RE_TYPE_EXAMEN_BLANC),
-                       leconsDepuisRdvPost: apres(RE_TYPE_RDV_POST),
+                       leconsDepuisRdvPost: depuisRdvPost,
+                       leconsParBoite: parBoite,
                        derniereNote: dernier.note || '',
                        dernierHorodatage: dernier.horodatage || dernier.date || '',
                        boite: boite };
@@ -510,7 +562,7 @@ function seanceDeLaFrise(){
    dans le classeur. Une préparation vieille de trois jours ne doit
    pas les figer — l'élève a peut-être eu un cours entre-temps. */
 const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres',
-                         'leconsDepuisEB', 'leconsDepuisRdvPost'];
+                         'leconsDepuisEB', 'leconsDepuisRdvPost', 'leconsParBoite'];
 
 /* Fusionne : le jugement du moniteur l'emporte, les faits sont rafraîchis */
 function fusionnerContexte(saisi, defauts){
@@ -833,7 +885,12 @@ const PARCOURS_FORMATION = [
      Elle n'a ni frise, ni examen blanc — l'élève a déjà son permis,
      il n'y a rien à blanchir — et l'écoute pédagogique du jour du
      permis n'a donc pas d'objet non plus. */
+  /* On repart de zéro : la passerelle est une formation à elle
+     seule, l'élève a déjà son permis. Ses leçons sont les seules
+     qu'il ait faites en manuelle — il a passé le sien en
+     automatique — et c'est ainsi qu'on les compte. */
   { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
+    repartDeZero:true,
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
                'ebPasse', 'ebLecons', 'ebImpossibleLe', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
@@ -2409,6 +2466,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         /* Où il en est dans sa moitié de frise : relu, jamais saisi */
         leconsDepuisEB: dossier.leconsDepuisEB,
         leconsDepuisRdvPost: dossier.leconsDepuisRdvPost,
+        leconsParBoite: dossier.leconsParBoite,
         /* Le rendez-vous post-permis n'est pas une question posée au
            moniteur : c'est le bureau qui le pose et le conclut. On
            le fait donc voyager tel qu'on l'a lu, sans quoi il
@@ -2486,13 +2544,31 @@ function positionDansLaFrise(q){
   const plus = courtDansLaFrise(q) ? 1 : 0;
   const pl = k => (k > 1 ? 's' : '');
 
+  /* Une formation qui repart de zéro : la passerelle. Compter
+     depuis les débuts de l'élève n'aurait aucun sens — il a déjà
+     son permis. Ses leçons de passerelle sont celles qu'il a faites
+     dans la boîte de ce parcours. */
+  const parcours = parcoursDeLaFormation(q.formation);
+  if(parcours && parcours.repartDeZero){
+    const faites = q.leconsParBoite && q.leconsParBoite[parcours.boite];
+    const r = (typeof faites === 'number') ? faites + plus : n;
+    return dire(rangLecon(r) + ' leçon de passerelle');
+  }
+
   /* Après le rendez-vous post-permis : ce sont ses heures qui font
      loi, pas la frise du permis d'origine. Elles s'annoncent en
-     HEURES — c'est ainsi qu'elles ont été décidées ce jour-là. */
+     HEURES — c'est ainsi qu'elles ont été décidées ce jour-là.
+
+     Il prime même quand on ne sait pas compter depuis lui : un
+     post-permis fait est la charnière la plus récente, et dire
+     « après l'examen blanc » à sa place serait faux. */
   const depuisRdv = parseInt(q.leconsDepuisRdvPost, 10);
-  if(q.rdvPostFait === 'oui' && !isNaN(depuisRdv)){
-    const r = depuisRdv + plus;
+  if(q.rdvPostFait === 'oui'){
     const h = String(q.heuresRepassage || '').trim();
+    if(isNaN(depuisRdv)){
+      return dire('leçon après le post-permis' + (h ? ' (' + h + 'h prévues)' : ''));
+    }
+    const r = depuisRdv + plus;
     return dire(rangLecon(r) + ' leçon après le post-permis' +
                 (h ? ' (' + h + 'h prévues)' : ''));
   }
