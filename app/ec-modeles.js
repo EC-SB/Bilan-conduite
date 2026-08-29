@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 11:20 — v689 */
+/* Déployé le 29/08/2026 à 14:20 — v701 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1238,6 +1238,14 @@ function extraireFrise(note){
   const morceaux = t.split(/[·\n\r]+/);
   for(let i = 0; i < morceaux.length; i++){
     const m = morceaux[i].trim();
+    /* Une frise à trous n'est pas une frise. Le questionnaire a
+       écrit pendant quelques versions des « ❓ leçons de 2h + exam
+       blanc + 2 leçons de 2h » quand il n'avait pas pu relire le
+       dossier. Les refuser ici, c'est laisser la recherche
+       remonter jusqu'au dernier cours qui portait la vraie : les
+       élèves abîmés se réparent tout seuls à leur prochain cours,
+       sans que personne ait à ressaisir quoi que ce soit. */
+    if(m.indexOf('❓') !== -1) continue;
     if(/le[çc]ons? de 2h/i.test(m) && /exam(en)? blanc/i.test(m)) return m;
   }
   return '';
@@ -1261,14 +1269,21 @@ function leconsPrevuesAacCs(frise){
   return m ? parseInt(m[1], 10) : null;
 }
 
-/* Construit la phrase de frise à partir des deux nombres */
+/* Construit la phrase de frise à partir des deux nombres.
+
+   Une moitié de frise n'est pas une frise. On écrivait « ❓ leçons
+   de 2h + exam blanc + 2 leçons de 2h » dès qu'un seul des deux
+   nombres était connu — et cette phrase-là, elle, avait l'air
+   d'une frise : elle s'enregistrait, elle s'affichait, elle
+   remplaçait la vraie. Tant que les deux nombres ne sont pas là,
+   la frise n'est pas déterminée ; l'ancienne reste, et c'est bien
+   ce qu'on veut. */
 function composerFrise(avant, apres){
   const a = String(avant || '').trim();
   const b = String(apres || '').trim();
-  if(!a && !b) return '';
-  const heures = b ? (parseInt(b, 10) * 2) + 'h' : '❓h';
-  return (a || '❓') + ' leçons de 2h + exam blanc + ' + (b || '❓') +
-         ' leçons de 2h (' + heures + ') + 3h avant examen';
+  if(!a || !b) return '';
+  return a + ' leçons de 2h + exam blanc + ' + b +
+         ' leçons de 2h (' + (parseInt(b, 10) * 2) + 'h) + 3h avant examen';
 }
 
 /* ============================================================
