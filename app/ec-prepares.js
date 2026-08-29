@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:26 — v734 */
+/* Déployé le 29/08/2026 à 15:39 — v737 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -111,6 +111,20 @@ async function ecrireRangDuCours(cours, rang){
   cours.note = note;
   cours.contexte = ctx;
   return note;
+}
+
+/* Le rang depuis la charnière, tel que la note l'annonce déjà.
+
+   Tant que personne n'a répondu à la deuxième case, c'est la
+   seule chose qu'on sache — et laisser la case vide sous une
+   ligne qui dit « 4ème leçon après l'examen blanc » n'aiderait
+   personne. */
+function rangApresDansLaNote(note){
+  const m = String(note || '')
+    .match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+le[çc]ons?\s+apr[èe]s\s/i);
+  if(!m) return null;
+  const v = parseInt(m[1], 10);
+  return (v > 0) ? v : null;
 }
 
 /* CE QU'IL Y AVAIT AVANT LA CHARNIÈRE, ÉCRIT SUR LE COURS.
@@ -666,8 +680,10 @@ async function afficherPrepares(recharger, silencieux){
 
     if(pos){
       const p = document.createElement('div');
+      /* Toute la largeur pour elle : partagée avec les deux cases,
+         elle se retrouvait comprimée à un mot par ligne. */
       p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.35;' +
-        'color:var(--accent-text);flex:1;min-width:0;';
+        'color:var(--accent-text);flex:1 1 100%;min-width:0;';
       p.textContent = pos;
       ligneRang.appendChild(p);
     }
@@ -720,7 +736,17 @@ async function afficherPrepares(recharger, silencieux){
           boite.disabled = false;
         }
       });
-      ligneRang.appendChild(boite);
+      /* Les cases sur leur propre ligne, sous la phrase : sur un
+         téléphone, quatre éléments côte à côte ne tiennent pas. */
+      const ligneCases = document.createElement('div');
+      ligneCases.style.cssText = 'display:flex;gap:5px;align-items:center;' +
+        'flex-wrap:wrap;flex-basis:100%;';
+      ligneCases.appendChild(boite);
+      const dit1 = document.createElement('span');
+      dit1.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+      dit1.textContent = 'ème leçon';
+      ligneCases.appendChild(dit1);
+      ligneRang.appendChild(ligneCases);
 
       /* LA DEUXIÈME CASE : DEPUIS LA CHARNIÈRE.
 
@@ -741,15 +767,20 @@ async function afficherPrepares(recharger, silencieux){
            avant, sous-entendait le contraire. */
         const apres = document.createElement('span');
         apres.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-        apres.textContent = 'ème leçon · et la';
-        ligneRang.appendChild(apres);
+        apres.textContent = '· et la';
+        ligneCases.appendChild(apres);
 
         const bDep = document.createElement('input');
         bDep.type = 'text';
         bDep.inputMode = 'numeric';
         bDep.placeholder = 'n°';
         bDep.title = 'La combientième leçon depuis ' + charn.court;
-        const depEcrit = rangDepuisLaCharniere(ctxCours, rangEcrit, charn.cle);
+        /* Ce que la carte annonce déjà, à défaut de réponse
+           enregistrée : la case ne doit pas rester vide sous une
+           ligne qui dit « 4ème leçon après l'examen blanc ». */
+        const dejaDit = rangDepuisLaCharniere(ctxCours, rangEcrit, charn.cle);
+        const depEcrit = (dejaDit !== null && dejaDit !== undefined)
+          ? dejaDit : rangApresDansLaNote(cours.note);
         bDep.value = (depEcrit !== null) ? String(depEcrit) : '';
         bDep.style.cssText = boite.style.cssText;
 
@@ -782,12 +813,12 @@ async function afficherPrepares(recharger, silencieux){
             bDep.disabled = false;
           }
         });
-        ligneRang.appendChild(bDep);
+        ligneCases.appendChild(bDep);
 
         const fin = document.createElement('span');
         fin.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
         fin.textContent = 'ème après ' + charn.court;
-        ligneRang.appendChild(fin);
+        ligneCases.appendChild(fin);
       }
     }
 
