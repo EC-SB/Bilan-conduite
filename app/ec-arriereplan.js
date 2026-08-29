@@ -1,3 +1,4 @@
+/* Déployé le 29/08/2026 à 07:52 — v685 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -255,13 +256,17 @@ async function reprendreBilanEnFond(i){
    moniteur la retrouve même depuis un autre téléphone.
    ============================================================ */
 
-async function deposerBrouillonServeur(){
-  const texte = (typeof finalTranscript !== 'undefined' && finalTranscript) ||
-                ($('transcriptBox') && $('transcriptBox').value) || '';
+function texteDicteEnCours(){
+  return (typeof finalTranscript !== 'undefined' && finalTranscript) ||
+         ($('transcriptBox') && $('transcriptBox').value) || '';
+}
+
+async function deposerBrouillonServeur(extra){
+  const texte = texteDicteEnCours();
   if(!String(texte).trim()) return;
 
   try{
-    await appelPrep({
+    await appelPrep(Object.assign({
       action: 'brouillonSet',
       eleve: ($('studentName') && $('studentName').value.trim()) || '',
       dateCours: ($('lessonDate') && $('lessonDate').value) || '',
@@ -269,11 +274,65 @@ async function deposerBrouillonServeur(){
       site: ($('site') && $('site').value) || '',
       transcript: texte,
       note: ($('noteInterne') && $('noteInterne').value) || ''
-    });
+    }, extra || {}));
   }catch(e){
     /* Le dépôt n'est pas indispensable : la sauvegarde locale
        reste. On ne bloque pas la génération pour autant. */
   }
+}
+
+
+/* ============================================================
+   LA MISE À L'ABRI PENDANT LE COURS
+
+   La dictée n'était déposée qu'au moment de générer : une heure
+   de parole ne vivait donc que dans le téléphone du moniteur —
+   précisément là où le bureau ne peut pas aller. Une batterie
+   vide et tout était perdu, pour lui comme pour nous.
+
+   On dépose maintenant en cours de route. Mesurément :
+     • toutes les deux minutes, et SEULEMENT si la dictée a
+       changé — un moniteur qui roule sans parler n'envoie rien ;
+     • pas avant deux cents caractères : un cours qui vient de
+       commencer n'a rien à sauver ;
+     • et surtout au moment où l'application passe en arrière-plan,
+       qui est l'instant où l'on perd tout.
+
+   Silencieux, jamais bloquant : un échec est ignoré, la
+   sauvegarde locale reste derrière.
+   ============================================================ */
+const PAS_DEPOT = 2 * 60 * 1000;
+const MINI_DEPOT = 200;
+
+let minuteurDepot = null;
+let dernierDepot = '';
+
+async function deposerSiChange(){
+  try{
+    if(typeof ACCES === 'undefined' || !ACCES.code) return;
+    const texte = String(texteDicteEnCours());
+    if(texte.length < MINI_DEPOT) return;
+    if(texte === dernierDepot) return;
+
+    dernierDepot = texte;
+    await deposerBrouillonServeur();
+  }catch(e){ /* rien ne doit remonter d'ici */ }
+}
+
+function veillerDepotBrouillon(){
+  clearInterval(minuteurDepot);
+  minuteurDepot = setInterval(() => {
+    if(document.hidden) return;      /* le passage en arrière-plan a déjà déposé */
+    deposerSiChange();
+  }, PAS_DEPOT);
+
+  /* L'instant où le téléphone s'endort, où l'onglet se ferme, où
+     l'appel arrive : c'est là qu'on perd tout, et c'est là que le
+     dépôt vaut le plus cher. */
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) deposerSiChange();
+  });
+  window.addEventListener('pagehide', () => { deposerSiChange(); });
 }
 
 
@@ -292,10 +351,49 @@ async function retirerBrouillonServeur(eleve){
    Au démarrage : ce qui a été déposé mais jamais abouti.
    ============================================================ */
 
-async function chercherBrouillonsServeur(){
+/* Le bureau peut renvoyer un bilan pendant que l'application est
+   ouverte : sans cette veille, le moniteur ne le verrait qu'au
+   prochain démarrage — parfois le lendemain. */
+let minuteurBrouillons = null;
+
+function veillerBrouillonsServeur(){
+  clearInterval(minuteurBrouillons);
+  minuteurBrouillons = setInterval(() => {
+    if(document.hidden) return;
+    if(typeof ACCES === 'undefined' || !ACCES.code) return;
+    /* Pas pendant un cours en cours de dictée : le bandeau
+       viendrait par-dessus le travail en train de se faire. */
+    if(String(texteDicteEnCours()).trim()) return;
+    chercherBrouillonsServeur(true);
+  }, 3 * 60 * 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden && !String(texteDicteEnCours()).trim()){
+      chercherBrouillonsServeur(true);
+    }
+  });
+}
+
+async function chercherBrouillonsServeur(silencieux){
   try{
     const d = await appelPrep({ action: 'brouillonList' });
     const l = (d && d.brouillons) || [];
+
+    /* Un bilan à corriger passe devant : c'est celui qui attend
+       une action, et le bureau vient de le renvoyer. */
+    l.sort((a, b) => (b.etat === 'a-corriger') - (a.etat === 'a-corriger'));
+
+    /* Annoncé une fois, à voix haute : le moniteur doit savoir
+       tout de suite que son cours l'attend. */
+    if(l.length && l[0].etat === 'a-corriger' && typeof showToast === 'function'){
+      try{
+        if(localStorage.getItem('ec_bilan_annonce') !== l[0].id){
+          localStorage.setItem('ec_bilan_annonce', l[0].id);
+          showToast('📝 Un bilan généré au bureau t\'attend — à corriger');
+        }
+      }catch(e){}
+    }
+
     if(l.length) proposerBrouillonServeur(l[0], l.length);
   }catch(e){ /* hors ligne : la sauvegarde locale prend le relais */ }
 }
@@ -313,10 +411,15 @@ function proposerBrouillonServeur(b, combien){
   const d = document.createElement('div');
   d.style.cssText = 'display:flex;gap:9px;align-items:center;';
 
+  const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
+
   const t = document.createElement('span');
   t.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
-  t.innerHTML = '<strong style="color:var(--accent-text);">💾 Un cours n\'a ' +
-    'pas abouti</strong>' +
+  t.innerHTML = (aCorriger
+      ? '<strong style="color:var(--bleu);">📝 Un bilan t\'attend</strong>' +
+        '<span style="color:var(--muted);font-size:11px;"> — généré au bureau</span>'
+      : '<strong style="color:var(--accent-text);">💾 Un cours n\'a ' +
+        'pas abouti</strong>') +
     '<div style="font-size:11px;color:var(--muted);">' +
       (b.eleve || 'sans nom').replace(/</g, '&lt;') +
       (b.dateCours ? ' · ' + b.dateCours : '') +
@@ -329,7 +432,7 @@ function proposerBrouillonServeur(b, combien){
   bR.className = 'btn btn-primary';
   bR.style.cssText = 'width:auto;padding:9px 13px;font-size:12px;margin:0;' +
     'flex-shrink:0;';
-  bR.textContent = '↩️ Reprendre';
+  bR.textContent = aCorriger ? '↩️ Le corriger' : '↩️ Reprendre';
   bR.addEventListener('click', () => reprendreBrouillonServeur(b));
   d.appendChild(bR);
 
@@ -363,6 +466,10 @@ async function reprendreBrouillonServeur(b){
     $('modele').value = b.modele;
     if(typeof adapterAuModele === 'function') adapterAuModele();
   }
+  /* Le nom du moniteur voyage avec le brouillon : sans lui, un
+     bilan repris au bureau serait enregistré au nom de qui l'a
+     généré — faux dans l'historique de l'élève, faux pour la paie. */
+  if($('monitorName') && b.moniteur) $('monitorName').value = b.moniteur;
   if($('studentName')) $('studentName').value = b.eleve || '';
   if($('lessonDate') && b.dateCours) $('lessonDate').value = b.dateCours;
   if($('site') && b.site) $('site').value = b.site;
@@ -377,16 +484,126 @@ async function reprendreBrouillonServeur(b){
     committedTranscript = b.transcript || '';
   }
 
-  if($('resultView')) $('resultView').style.display = 'none';
-  if($('generatingView')) $('generatingView').style.display = 'none';
-  if($('recordView')) $('recordView').style.display = 'block';
+  /* Ce brouillon est-il repris depuis le bureau ? On le retient :
+     le bouton « renvoyer au moniteur » n'a de sens que là. */
+  brouillonRepris = b;
+
+  const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
+
+  if(aCorriger){
+    /* Le bureau a déjà généré : on atterrit sur le bilan, pas sur
+       l'écran de dictée. Le moniteur ne doit pas une seconde
+       croire qu'il faut tout recommencer. */
+    if($('resultText')) $('resultText').value = b.bilan;
+    if($('noteResult')) $('noteResult').value = b.note || '';
+    if($('recordView')) $('recordView').style.display = 'none';
+    if($('generatingView')) $('generatingView').style.display = 'none';
+    if($('resultView')) $('resultView').style.display = 'block';
+  }else{
+    if($('resultView')) $('resultView').style.display = 'none';
+    if($('generatingView')) $('generatingView').style.display = 'none';
+    if($('recordView')) $('recordView').style.display = 'block';
+  }
 
   const zone = $('bilanPretBanner');
   if(zone){ zone.innerHTML = ''; zone.style.display = 'none'; }
 
+  majBoutonRenvoi();
+
   if(typeof sauvegarderLocal === 'function') sauvegarderLocal(true);
   window.scrollTo(0, 0);
-  showToast('Cours retrouvé — appuie sur Terminer pour générer');
+  showToast(aCorriger
+    ? 'Bilan généré au bureau — relis, corrige, puis enregistre'
+    : 'Cours retrouvé — appuie sur Terminer pour générer');
+}
+
+
+/* ============================================================
+   RENVOYER LE BILAN AU MONITEUR
+
+   Le bureau génère vite, avec une bonne connexion. Mais il n'était
+   pas dans la voiture : il ne peut pas dire si la correction de
+   l'IA est juste. Ce qu'il produit est une PROPOSITION, pas un
+   bilan — seul le moniteur qui a fait le cours peut la valider,
+   et c'est lui qui l'enregistrera, sous son nom.
+   ============================================================ */
+let brouillonRepris = null;
+
+/* Le bouton n'apparaît que sur le cours d'un autre moniteur */
+function majBoutonRenvoi(){
+  const b = $('renvoyerMoniteur');
+  if(!b) return;
+
+  const bp = brouillonRepris;
+  const moi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+  const autre = bp && bp.moniteur &&
+                normaliserMot(bp.moniteur) !== normaliserMot(moi);
+
+  b.style.display = autre ? 'block' : 'none';
+  if(autre) b.textContent = '📤 Renvoyer à ' + bp.moniteur + ' pour correction';
+}
+
+async function renvoyerAuMoniteur(){
+  const bp = brouillonRepris;
+  if(!bp || !bp.moniteur) return;
+
+  const bilan = ($('resultText') && $('resultText').value.trim()) || '';
+  if(!bilan){
+    showToast("Génère le bilan avant de le renvoyer.");
+    return;
+  }
+
+  if(!await confirmer('Renvoyer ce bilan à ' + bp.moniteur + ' ?\n\n' +
+      "Rien n'est enregistré : il le relira, le corrigera et " +
+      "l'enregistrera lui-même — c'est lui qui était dans la voiture.")) return;
+
+  const b = $('renvoyerMoniteur');
+  if(b){ b.disabled = true; b.textContent = 'Envoi…'; }
+
+  try{
+    await deposerBrouillonServeur({
+      pour: bp.moniteur,
+      eleve: bp.eleve,
+      dateCours: bp.dateCours || '',
+      modele: bp.modele || '',
+      site: bp.site || '',
+      transcript: bp.transcript || '',
+      note: ($('noteResult') && $('noteResult').value) || bp.note || '',
+      bilan: bilan,
+      etat: 'a-corriger'
+    });
+
+    /* Prévenir tout de suite : sans message, il rouvrirait
+       l'application le lendemain sans savoir que son cours l'attend. */
+    if(typeof envoyerConsigne === 'function'){
+      try{
+        await envoyerConsigne(bp.eleve, 'bilan',
+          'Bilan généré au bureau — à relire, corriger et enregistrer (' +
+          (bp.dateCours || '') + ')');
+      }catch(e){}
+    }
+
+    showToast('Renvoyé à ' + bp.moniteur + ' ✅');
+    if(b){ b.disabled = false; b.textContent = '✅ Renvoyé à ' + bp.moniteur; }
+
+    /* On ne garde pas le cours d'un autre à l'écran : ce serait
+       l'occasion de l'enregistrer par mégarde à sa place. */
+    setTimeout(() => {
+      brouillonRepris = null;
+      if($('resultView')) $('resultView').style.display = 'none';
+      if($('recordView')) $('recordView').style.display = 'block';
+      if($('resultText')) $('resultText').value = '';
+      if($('studentName')) $('studentName').value = '';
+      if($('transcriptBox')) $('transcriptBox').value = '';
+      if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+      majBoutonRenvoi();
+      if(typeof afficherEnCours === 'function') afficherEnCours(true);
+    }, 1200);
+
+  }catch(e){
+    showToast('Envoi impossible : ' + e.message);
+    if(b){ b.disabled = false; majBoutonRenvoi(); }
+  }
 }
 
 
