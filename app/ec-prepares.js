@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:10 — v702 */
+/* Déployé le 29/08/2026 à 16:30 — v703 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -576,8 +576,61 @@ async function afficherPrepares(recharger, silencieux){
        jour passe en premier, juste sous le nom. */
     meta.appendChild(sous);
 
-    const reste = (typeof sansLignePosition === 'function')
+    /* Le poste de conduite, sur sa ligne à lui : c'est ce que le
+       moniteur doit savoir AVANT que l'élève arrive, pour régler la
+       voiture. Il vient de la fiche — un élève qui a besoin du
+       coussin en a besoin à toutes ses leçons — et il se corrige
+       ici d'un clic, sans rien ouvrir.
+
+       Ces deux cases n'ouvrent RIEN et ne bloquent RIEN : elles
+       s'affichent, elles se cochent, c'est tout. */
+    if(typeof posteDeConduite === 'function'){
+      const poste = document.createElement('div');
+      poste.style.cssText = 'display:flex;gap:6px;align-items:center;' +
+        'flex-wrap:wrap;margin:2px 0 1px;';
+      [['amenagee', '♿', 'Conduite aménagée'],
+       ['coussin', '🟩', 'Coussin vert']].forEach(([champ, emoji, titre]) => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-secondary';
+        b.title = titre + ' — cliquer pour changer';
+        const peindre = () => {
+          const actif = posteDeConduite(cours.eleve)[champ];
+          b.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:12px;' +
+            'line-height:1.4;opacity:' + (actif ? '1' : '.35') + ';' +
+            (actif ? 'border-color:var(--accent-text);color:var(--accent-text);' : '');
+          b.textContent = emoji + (actif ? ' ' + titre : '');
+        };
+        peindre();
+        b.addEventListener('click', async () => {
+          const avant = posteDeConduite(cours.eleve)[champ];
+          b.disabled = true;
+          await ecrirePosteDeConduite(cours.eleve, champ, !avant);
+          b.disabled = false;
+          peindre();
+        });
+        poste.appendChild(b);
+      });
+      meta.appendChild(poste);
+    }
+
+    let reste = (typeof sansLignePosition === 'function')
       ? sansLignePosition(partsNote.corps) : partsNote.corps;
+
+    /* Le poste de conduite est déjà sur ses deux pastilles, juste
+       au-dessus : le relire en texte dans la note ferait deux fois
+       la même information sur la même carte. On le retire de
+       l'AFFICHAGE seulement — la note continue de le porter, parce
+       que le bilan et l'historique le lisent là.
+
+       EXACTEMENT ces deux libellés, et rien d'autre : « ♿ Conduite
+       aménagée — commandes au volant » dit quelque chose que la
+       pastille ne sait pas dire, et doit rester lisible. */
+    const DEJA_SUR_LA_CARTE = ['♿ Conduite aménagée', '🟩 Coussin vert'];
+    reste = reste.split('\n').map(l =>
+      l.split(' · ')
+       .filter(s => DEJA_SUR_LA_CARTE.indexOf(s.trim()) === -1)
+       .join(' · ')
+    ).filter(Boolean).join('\n');
 
     const texteNote = [reste,
                        partsNote.consigne ? '📌 ' + partsNote.consigne : '']
