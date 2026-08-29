@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:14 — v732 */
+/* Déployé le 29/08/2026 à 15:52 — v739 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1199,11 +1199,60 @@ async function afficherFicheDuCours(){
 
     l.appendChild(t);
 
+    /* LA CASE 🚗 : DÉJÀ FAIT AILLEURS.
+
+       Elle n'existait que dans le questionnaire de départ, qui ne
+       s'ouvre plus tout seul. Or c'est ici qu'on s'en aperçoit :
+       en plein cours, quand l'élève sort un créneau impeccable
+       alors que sa fiche est vide. Une manœuvre faite ailleurs
+       compte comme acquise, mais ne prend l'émoji d'aucun de nos
+       moniteurs — ils ne l'ont pas vu conduire.
+
+       Elle reste décochable une fois posée : cochée par erreur,
+       elle se retire, et la fiche repart comme avant. */
+    const ail = document.createElement('label');
+    ail.style.cssText = 'display:flex;align-items:center;gap:4px;margin:0;' +
+      'font-size:12px;text-transform:none;font-weight:400;flex-shrink:0;' +
+      'color:var(--muted);cursor:pointer;';
+    ail.title = "Déjà fait dans une autre auto-école";
+
+    const cbA = document.createElement('input');
+    cbA.type = 'checkbox';
+    cbA.className = 'mAilleurs';
+    cbA.value = libelle;
+    cbA.checked = (deja.indexOf(MARQUE_AILLEURS) !== -1) ||
+                  manoeuvresAilleursEnCours().indexOf(libelle) !== -1;
+    cbA.style.cssText = 'width:15px;height:15px;flex-shrink:0;margin:0;';
+    /* Ce qui était déjà marqué 🚗 dans un bilan : le décocher est
+       un retrait, et il doit s'enregistrer comme tel. */
+    cbA.dataset.dejaMarque = (deja.indexOf(MARQUE_AILLEURS) !== -1) ? '1' : '';
+    cbA.addEventListener('click', e => e.stopPropagation());
+    ail.appendChild(cbA);
+    ail.appendChild(document.createTextNode('🚗'));
+    l.appendChild(ail);
+
     d.appendChild(l);
   });
 
   zone.appendChild(d);
   zone.style.display = 'block';
+}
+
+/* Ce qui vient d'une autre auto-école, coché dans ce tiroir. */
+function manoeuvresAilleursEnCours(){
+  return [...document.querySelectorAll('.mAilleurs')]
+    .filter(x => x.checked && !x.dataset.dejaMarque)
+    .map(x => x.value);
+}
+
+/* Et ce qu'on RETIRE : une 🚗 déjà inscrite dans un bilan, que le
+   moniteur décoche. Sans cette liste, une erreur de coche restait
+   pour toujours — la fiche se reconstruit à chaque bilan à partir
+   des marques du précédent. */
+function manoeuvresRetireesEnCours(){
+  return [...document.querySelectorAll('.mAilleurs')]
+    .filter(x => !x.checked && x.dataset.dejaMarque)
+    .map(x => x.value);
 }
 
 /* ============================================================
