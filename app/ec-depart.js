@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:37 — v684 */
+/* Déployé le 29/08/2026 à 07:52 — v685 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1223,6 +1223,12 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
      connexion on ne sait pas de qui elles viennent, et l'appel
      serait refusé. */
   if(typeof veillerIncidents === 'function') veillerIncidents();
+
+  /* La dictée se met à l'abri en cours de route, et un bilan
+     renvoyé par le bureau se signale sans attendre le prochain
+     démarrage. */
+  if(typeof veillerDepotBrouillon === 'function') veillerDepotBrouillon();
+  if(typeof veillerBrouillonsServeur === 'function') veillerBrouillonsServeur();
 
   /* La version se contrôle aux créneaux, jamais pendant un cours */
   if(typeof lancerSurveillanceVersion === 'function') lancerSurveillanceVersion();
