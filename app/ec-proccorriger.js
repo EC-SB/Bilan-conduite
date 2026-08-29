@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:51 — v730 */
+/* Déployé le 29/08/2026 à 15:34 — v736 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -2376,17 +2376,61 @@ async function chargerProcEnFond(){
      tant qu'il n'ouvrait pas la vue. */
   if(typeof aDroit === 'function' && !aDroit('proccorriger')) return;
   try{
-    /* Les réglages avec : c'est eux qui disent si ce compte a le
-       raccourci en haut de l'écran, et sans eux il n'apparaîtrait
-       qu'après un passage par l'écran des procédures. */
-    const [d, rg] = await Promise.all([
+    /* LES DEUX LISTES QUE LE COMPTE ADDITIONNE.
+
+       Voilà pourquoi la pastille n'apparaissait qu'en ouvrant
+       l'écran : nbProcACorriger() compte les fiches ET les
+       récitations, et ce chargement-là n'allait chercher que les
+       fiches. Un bureau dont le travail en attente est fait de
+       récitations voyait donc zéro — jusqu'à ce qu'il ouvre la
+       vue, qui, elle, charge les deux. Une même règle écrite à
+       deux endroits, et un seul des deux tenu à jour.
+
+       Les réglages avec : ils disent si ce compte a le raccourci
+       en haut de l'écran. */
+    const [d, r, rg] = await Promise.all([
       appelPrep({ action: 'procCorrigerList' }),
+      appelPrep({ action: 'recitationsList' }).catch(() => null),
       appelPrep({ action: 'reglagesList' }).catch(() => null)
     ]);
     procACorriger = (d && d.fiches) || [];
+    recitations = (r && r.recitations) || [];
     if(rg && rg.reglages) reglagesProc = rg.reglages;
     majPastilleProc();
-  }catch(e){ /* la pastille attendra le prochain passage */ }
+  }catch(e){
+    /* Plus en silence : deux gardes muettes — le droit, puis cette
+       capture — ont fait passer un défaut pour un choix. */
+    console.warn('Procédures à corriger : compte non mis à jour —', e);
+  }
+}
+
+/* ------------------------------------------------------------
+   ET LE COMPTE SE REFAIT TOUT SEUL
+
+   Une fois au démarrage ne suffit pas : l'application reste
+   ouverte toute la journée, et une procédure déposée à onze
+   heures n'allumait rien avant le lendemain. On recompte au
+   retour sur l'application — le geste le plus fréquent — et
+   toutes les dix minutes tant qu'elle est sous les yeux.
+
+   Rien quand elle est en arrière-plan : compter pour un écran
+   que personne ne regarde ne fait que vider la batterie.
+   ------------------------------------------------------------ */
+let minuteurProcFond = null;
+
+function veillerProcACorriger(){
+  if(minuteurProcFond) return;          /* déjà en place */
+
+  const recompter = () => {
+    if(document.hidden) return;
+    if(typeof ACCES === 'undefined' || !ACCES || !ACCES.code) return;
+    chargerProcEnFond();
+  };
+
+  minuteurProcFond = setInterval(recompter, 600000);
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden) recompter();
+  });
 }
 
 
