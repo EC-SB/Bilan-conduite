@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:29 — v683 */
+/* Déployé le 29/08/2026 à 07:52 — v685 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -60,11 +60,28 @@ async function afficherEnCours(recharger){
     return;
   }
 
-  if(brouillonsTous.length){
-    zone.appendChild(titreBloc('✍️ Dictées sans bilan', brouillonsTous.length,
+  /* Ce que le bureau a déjà repris et renvoyé : ce n'est plus à
+     lui d'agir, c'est au moniteur — mais il faut pouvoir le
+     relancer s'il ne le fait jamais. */
+  const aCorriger = brouillonsTous.filter(b => b.etat === 'a-corriger');
+  const dictees   = brouillonsTous.filter(b => b.etat !== 'a-corriger');
+
+  if(aCorriger.length){
+    zone.appendChild(titreBloc('⏳ Bilans renvoyés, en attente de correction',
+      aCorriger.length,
+      "Tu les as générés, le moniteur doit les relire et les enregistrer. " +
+      "S'ils traînent, relance-le."));
+    aCorriger
+      .slice()
+      .sort((a, b) => String(b.deposeLe || '').localeCompare(String(a.deposeLe || '')))
+      .forEach(b => zone.appendChild(ligneBrouillon(b)));
+  }
+
+  if(dictees.length){
+    zone.appendChild(titreBloc('✍️ Dictées sans bilan', dictees.length,
       'La dictée est arrivée sur le serveur mais le bilan n\'a jamais été ' +
       'enregistré. C\'est le cas qui bloque : tu peux le reprendre ici.'));
-    brouillonsTous
+    dictees
       .slice()
       .sort((a, b) => String(b.deposeLe || '').localeCompare(String(a.deposeLe || '')))
       .forEach(b => zone.appendChild(ligneBrouillon(b)));
@@ -164,6 +181,10 @@ function ligneBrouillon(b){
       (b.deposeLe ? 'déposé le ' + b.deposeLe : '') +
       (age ? ' · ' + (vieux ? '⚠️ ' : '') + age : '') +
       ' · ' + mots + ' mots dictés' +
+      (b.etat === 'a-corriger'
+        ? '<br><span style="color:var(--bleu);">📝 bilan proposé — ' +
+          'en attente de sa correction</span>'
+        : '') +
     '</div>';
 
   const r = document.createElement('div');
@@ -172,8 +193,11 @@ function ligneBrouillon(b){
   const bR = document.createElement('button');
   bR.className = 'btn btn-primary';
   bR.style.cssText = 'flex:1;padding:10px;font-size:13px;margin:0;';
-  bR.textContent = '↩️ Reprendre ici';
-  bR.title = "Charge sa dictée dans ton écran pour générer le bilan à sa place";
+  const enAttente = (b.etat === 'a-corriger');
+  bR.textContent = enAttente ? '👁️ Revoir le bilan proposé' : '↩️ Reprendre ici';
+  bR.title = enAttente
+    ? "Le bilan est déjà généré et l'attend : ceci le rouvre chez toi"
+    : "Charge sa dictée dans ton écran pour générer le bilan à sa place";
   bR.addEventListener('click', async () => {
     if(typeof reprendreBrouillonServeur !== 'function'){
       showToast('Reprise indisponible sur cet écran.');
