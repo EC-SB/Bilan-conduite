@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:44 — v671 */
+/* Déployé le 29/08/2026 à 07:37 — v684 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1218,6 +1218,11 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
   /* Une application laissée ouverte doit se verrouiller aussi :
      vérifier au chargement ne suffit pas si personne ne recharge. */
   lancerSurveillanceSession();
+
+  /* Les erreurs remontent au bureau à partir d'ici : avant la
+     connexion on ne sait pas de qui elles viennent, et l'appel
+     serait refusé. */
+  if(typeof veillerIncidents === 'function') veillerIncidents();
 
   /* La version se contrôle aux créneaux, jamais pendant un cours */
   if(typeof lancerSurveillanceVersion === 'function') lancerSurveillanceVersion();
