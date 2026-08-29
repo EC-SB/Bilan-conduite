@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 04:30 — v719 */
+/* Déployé le 30/08/2026 à 05:20 — v721 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1316,7 +1316,12 @@ async function preparerNouveauCours(){
 
   let rep = null;
   try{
-    rep = await ouvrirQuestionnaireDepart(null, 'Préparer le cours de ' + eleve, 'Enregistrer');
+    /* Réduit : on ne demande que ce qui manque, et rien du tout
+       quand rien ne manque. Le questionnaire complet reste à un
+       clic, sous « Tout revoir » — ou par le crayon de la carte
+       une fois le cours préparé. */
+    rep = await ouvrirQuestionnaireDepart(null, 'Préparer le cours de ' + eleve,
+                                          'Enregistrer', true);
   }finally{
     btnPrep.disabled = false;
     btnPrep.textContent = '📝 Préparer les notes';
