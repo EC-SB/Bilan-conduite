@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:07 — v731 */
+/* Déployé le 29/08/2026 à 15:14 — v732 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -188,16 +188,21 @@ function libelleDate(iso){
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-/* Les tiroirs ouverts ou fermés par le moniteur, gardés d'une fois
-   sur l'autre : sa mise en page lui appartient. */
-const CLE_TIROIRS = 'tiroirs_prepares';
+/* LES TIROIRS : AUJOURD'HUI OUVERT, LE RESTE FERMÉ.
+
+   Ils étaient gardés d'une fois sur l'autre dans l'appareil, et
+   ils s'accumulaient : on ouvrait un jeudi pour vérifier quelque
+   chose, et l'écran rouvrait ce jeudi-là des semaines durant. La
+   journée qu'on vient consulter, c'est celle d'aujourd'hui.
+
+   Ce qu'on ouvre à la main reste ouvert — mais pour cette
+   session seulement, le temps qu'on s'en serve. Au rechargement,
+   l'écran reprend sa forme simple. C'est aussi ce qui empêche un
+   redessin de refermer ce que le moniteur vient d'ouvrir. */
 let tiroirsPrepares = {};
 /* La liste telle qu'affichée, pour que les flèches déplacent ce que
    le moniteur voit et non l'ensemble des cours. */
 let listeAffichee = [];
-try{
-  tiroirsPrepares = JSON.parse(localStorage.getItem(CLE_TIROIRS) || '{}') || {};
-}catch(e){ tiroirsPrepares = {}; }
 
 
 /* Les moniteurs qui ont des cours, avec leur nombre. On ne propose
@@ -492,12 +497,6 @@ async function afficherPrepares(recharger, silencieux){
      replié. Sans ça, un moniteur qui prépare deux semaines à
      l'avance fait défiler sa journée pour la trouver. */
   const auj = todayLocal();
-  const dem = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    const p2 = n => String(n).padStart(2, '0');
-    return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
-  })();
 
   /* Dans une journée, l'ordre choisi par le moniteur prime : c'est
      lui qui connaît l'enchaînement de ses cours. */
@@ -523,7 +522,6 @@ async function afficherPrepares(recharger, silencieux){
     if(cours.date !== dateCourante){
       dateCourante = cours.date;
       const estAuj = (cours.date === auj);
-      const estDem = (cours.date === dem);
       const passe = cours.date && cours.date < auj;
 
       /* Combien de cours ce jour-là : utile quand c'est replié */
@@ -533,15 +531,15 @@ async function afficherPrepares(recharger, silencieux){
       /* Ce que le moniteur a ouvert ou fermé lui-même prime : sans
          ça, chaque redessin rouvrait les tiroirs qu'il venait de
          replier. */
+      /* Aujourd'hui, et rien d'autre. Demain et les jours passés
+         s'ouvraient aussi : trois tiroirs déroulés dès l'arrivée,
+         là où on ne vient chercher que la journée en cours. */
       tiroir.open = (tiroirsPrepares[cours.date] !== undefined)
         ? tiroirsPrepares[cours.date]
-        : (estAuj || estDem || passe);
+        : estAuj;
 
       tiroir.addEventListener('toggle', () => {
         tiroirsPrepares[cours.date] = tiroir.open;
-        try{
-          localStorage.setItem(CLE_TIROIRS, JSON.stringify(tiroirsPrepares));
-        }catch(e){ /* mémoire pleine : l'état vaut pour cette session */ }
       });
       tiroir.style.cssText = 'border:1px solid ' +
         (estAuj ? 'var(--orange)' : 'var(--line)') +
