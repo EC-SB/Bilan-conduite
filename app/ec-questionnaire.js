@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 04:15 — v718 */
+/* Déployé le 30/08/2026 à 04:50 — v720 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3796,9 +3796,21 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
 function majBoutonCompleter(){
   const eleve = ($('studentName') && $('studentName').value.trim()) || '';
   const modele = ($('modele') && $('modele').value) || '';
-  const manque = cequiManqueAuCours(contexteDepart, eleve, modele);
+
+  /* SANS ÉLÈVE, RIEN À COMPLÉTER.
+
+     L'écran vide affichait « Il manque la formation, la frise et le
+     numéro de leçon » : c'est vrai de personne. Le bouton réclamait
+     des informations sur un élève que le moniteur n'avait pas
+     encore choisi.
+
+     Deux mots au moins, comme partout ailleurs : un prénom seul en
+     cours de frappe n'est pas encore un élève. */
+  const connu = eleve.length >= 3 && eleve.split(/\s+/).length >= 2;
+  const manque = connu ? cequiManqueAuCours(contexteDepart, eleve, modele) : [];
 
   document.querySelectorAll('[data-completer]').forEach(b => {
+    b.style.display = connu ? '' : 'none';
     if(manque.length){
       b.textContent = '📋 Il manque ' + manque.join(' et ');
       b.title = 'Ouvrir le questionnaire';
@@ -3825,10 +3837,11 @@ function majBoutonCompleter(){
       if(b.parentNode) b.parentNode.insertBefore(ligne, b.nextSibling);
     }
 
-    const fiche = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
-    const su = recapDuCours(contexteDepart, eleve, modele, fiche)
-      .filter(x => !x.manque)
-      .map(x => x.icone + ' ' + x.valeur);
+    const fiche = (connu && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+    const su = connu
+      ? recapDuCours(contexteDepart, eleve, modele, fiche)
+          .filter(x => !x.manque).map(x => x.icone + ' ' + x.valeur)
+      : [];
     ligne.textContent = su.length ? su.join(' · ') : '';
   });
 }
@@ -3880,6 +3893,10 @@ function planifierHistorique(){
   /* On attend que le moniteur ait fini de taper : une recherche
      par lettre saturerait Sheets pour rien. */
   minuteurHistorique = setTimeout(() => {
+    /* Le bouton apparaît avec l'élève et dit ce qui lui manque :
+       il n'a rien à annoncer tant qu'on ne sait pas de qui on
+       parle. */
+    if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
     chargerHistoriqueEleve();
     /* Et ce qui a été préparé pour ce cours, s'il y a une préparation */
     if(typeof afficherPreparationEleve === 'function') afficherPreparationEleve();
