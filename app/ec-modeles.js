@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:26 — v653 */
+/* Déployé le 29/08/2026 à 11:20 — v689 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1230,8 +1230,12 @@ const FRISE_VIDE = '❓ leçons de 2h + exam blanc + ❓ leçons de 2h (❓h) + 
 /* Retrouve une frise dans un texte de note interne */
 function extraireFrise(note){
   const t = String(note || '');
-  /* Une frise contient toujours « exam blanc » et « leçons de 2h » */
-  const morceaux = t.split('·');
+  /* Une frise contient toujours « exam blanc » et « leçons de 2h ».
+
+     Les retours à la ligne séparent aussi : une note s'écrit
+     maintenant en blocs — la frise, où il en est, le permis — et ne
+     couper que sur « · » ramenait tout le bloc comme frise. */
+  const morceaux = t.split(/[·\n\r]+/);
   for(let i = 0; i < morceaux.length; i++){
     const m = morceaux[i].trim();
     if(/le[çc]ons? de 2h/i.test(m) && /exam(en)? blanc/i.test(m)) return m;
