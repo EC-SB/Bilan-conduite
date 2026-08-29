@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:23 — v727 */
+/* Déployé le 29/08/2026 à 14:30 — v728 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -897,8 +897,20 @@ function fondreNotePreparee(neuf, ancien){
   );
 
   /* Les sujets dont le neuf ne parle pas restent ceux de l'ancien :
-     ils seraient perdus autrement. */
-  const restants = Object.keys(dits).filter(c => !vus[c]).map(c => dits[c]);
+     ils seraient perdus autrement.
+
+     SAUF LE RANG DE LA LEÇON. Il décrit la séance du JOUR, pas
+     l'élève : hérité, il annonce la séance d'hier. Quand la note
+     neuve n'en dit rien, c'est qu'il n'y a rien à en dire — un
+     simulateur n'a pas de rang, un élève dont on ignore le compte
+     non plus — et le silence est la bonne réponse. C'est ainsi
+     qu'un cours de simulateur portait encore « 1ère leçon sur 2 —
+     encore 1 leçon avant l'examen blanc », phrase écrite pour un
+     autre cours, par une version d'avant. */
+  const DU_JOUR = ['lecon', 'leconVide', 'avantEB', 'friseEtat'];
+  const restants = Object.keys(dits)
+    .filter(c => !vus[c] && DU_JOUR.indexOf(c) === -1)
+    .map(c => dits[c]);
   if(restants.length) sorties.push(restants.join(' · '));
 
   return { corps: sorties.filter(Boolean).join('\n'), consigne: libres };
@@ -2943,6 +2955,19 @@ function positionDansLaFrise(q){
   };
   if(EVENEMENT[q.modele]) return dire(EVENEMENT[q.modele]);
 
+  /* UNE SÉANCE QUI N'EST PAS UNE LEÇON N'A PAS DE RANG.
+
+     Un simulateur, un rendez-vous préalable, une formation
+     accompagnateur, un rendez-vous post-permis occupent un créneau
+     sans faire avancer le compteur : leur annoncer « 1ère leçon —
+     encore 1 leçon avant l'examen blanc » est faux deux fois. La
+     carte dit déjà de quelle séance il s'agit, en tête.
+
+     C'est la même table qu'ailleurs qui répond — celle qui dit si
+     le cours du jour compte dans la frise. Sans type de séance
+     (une vieille note), on ne conclut rien et on continue. */
+  if(q.modele && !leconCompteDansLaFrise(q.modele)) return '';
+
   const n = parseInt(q.lecon, 10);
   if(isNaN(n) || !n){
     /* Pas de rang, et le classeur ne porte aucun bilan : on ne sait
@@ -3034,12 +3059,19 @@ function positionDansLaFrise(q){
                   : '';
     if(franchi) return dire(rangLecon(n) + ' leçon après ' + franchi);
 
+    /* Ce vers quoi ces leçons comptent est écrit dans SA frise :
+       la formation de l'accompagnateur, le rendez-vous préalable.
+       « La fin de la fiche véhicule » nommait un document ; ce que
+       le moniteur veut savoir, c'est ce qui attend l'élève. */
+    const etape = (typeof etapeApresFicheVehicule === 'function')
+      ? etapeApresFicheVehicule(q.frise) : 'la fin de la fiche véhicule';
+
     if(n < totalAacCs){
-      return dire(rangLecon(n) + ' leçon — plus que ' + (totalAacCs - n) +
-                  ' leçon' + pl(totalAacCs - n) + ' avant la fin de la fiche véhicule');
+      return dire(rangLecon(n) + ' leçon — encore ' + (totalAacCs - n) +
+                  ' leçon' + pl(totalAacCs - n) + ' avant ' + etape);
     }
     if(n === totalAacCs){
-      return dire(rangLecon(n) + ' leçon — dernière de la fiche véhicule');
+      return dire(rangLecon(n) + ' leçon — dernière avant ' + etape);
     }
     return dire(rangLecon(n) + ' leçon — fiche véhicule dépassée (' +
                 totalAacCs + ' prévue' + pl(totalAacCs) + ')');
