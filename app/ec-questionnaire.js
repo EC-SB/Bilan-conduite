@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:44 — v738 */
+/* Déployé le 29/08/2026 à 15:56 — v740 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2766,10 +2766,16 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
        à un élève qui a fait son post-permis serait faux.
        ---------------------------------------------------------- */
     const charniere = (function(){
-      if(prec.rdvPostFait === 'oui'){
+      /* La charnière la plus récente, demandée aux sources qui font
+         foi : un post-permis vit dans le suivi, pas dans le
+         contexte du cours. Sans elles, la case disait « après
+         l'examen blanc » à un élève qui l'a dépassé depuis. */
+      const su = Object.assign({}, prec,
+        (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {});
+      if(su.rdvPostFait === 'oui'){
         return { cle: 'avantRdvPost', nom: 'le post-permis' };
       }
-      if(prec.examBlanc === 'passe' || prec.ebPasse){
+      if(su.examBlanc === 'passe' || su.ebPasse){
         return { cle: 'avantEB', nom: "l'examen blanc" };
       }
       return null;
@@ -2778,11 +2784,26 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const chDepuis = boite.querySelector('#qLeconDepuis');
     const zEffet = boite.querySelector('#qLeconEffet');
 
+    /* « 1ère », pas « 1ème » : la terminaison suit le nombre, et
+       elle le suit aussi quand on le change. */
+    const majLibs = () => {
+      const l1 = boite.querySelector('label[for="qLecon"]');
+      const ch1 = boite.querySelector('#qLecon');
+      if(l1 && ch1) l1.textContent = "C'est la " + suffixeRang(ch1.value) + ' leçon';
+      const lib = boite.querySelector('#qLibDepuis');
+      if(lib && charniere){
+        lib.textContent = 'et la ' + suffixeRang(chDepuis ? chDepuis.value : '') +
+                          ' après ' + charniere.nom;
+      }
+    };
+    ['#qLecon', '#qLeconDepuis'].forEach(x => {
+      const el = boite.querySelector(x);
+      if(el) el.addEventListener('input', majLibs);
+    });
+
     if(charniere && seanceDeLaFrise()){
       const bloc = boite.querySelector('#qBlocDepuis');
       if(bloc) bloc.style.display = '';
-      const lib = boite.querySelector('#qLibDepuis');
-      if(lib) lib.textContent = 'et la ...ème après ' + charniere.nom;
       /* Pré-rempli avec ce que l'outil sait en déduire : le
          corriger est un geste, le retaper à chaque cours en serait
          un autre. */
@@ -2790,6 +2811,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         prec, parseInt(boite.querySelector('#qLecon').value, 10), charniere.cle);
       if(dejaSu !== null && chDepuis) chDepuis.value = dejaSu;
     }
+    majLibs();
 
     /* CE QUE LES DEUX CHIFFRES PRODUISENT, EN DIRECT.
 
@@ -3059,6 +3081,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 /* Le rang, à la française : « 1ère », puis « 2ème ». */
 function rangLecon(n){
   return (n === 1) ? '1ère' : n + 'ème';
+}
+
+/* La terminaison seule, pour les étiquettes qui suivent une case
+   de saisie : « [1] ère leçon », « [5] ème leçon ». Une case dont
+   l'étiquette dit toujours « ème » fait écrire « 1ème ». */
+function suffixeRang(n){
+  return (parseInt(n, 10) === 1) ? 'ère' : 'ème';
 }
 
 /* Le cours du jour fait-il avancer le compteur ?
