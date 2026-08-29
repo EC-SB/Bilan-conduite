@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 13:14 — v651 */
+/* Déployé le 29/08/2026 à 07:25 — v682 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -571,6 +571,15 @@ $('confirmGen').addEventListener('click', async () => {
     }
 
     const donnees = await appelIA(modeleCle, coursCorrige, studentName, monitorName, site, dateStr);
+
+    /* La réponse est arrivée tronquée : le bilan existe, mais sa
+       fin manque. On le dit clairement plutôt que de le laisser
+       passer pour complet — et surtout on ne bloque pas : le
+       moniteur préfère un bilan à finir à la main qu'un écran qui
+       refuse de générer. */
+    const bilanCoupe = !!donnees.__coupe;
+    delete donnees.__coupe;
+
     /* Le moniteur a le dernier mot sur ce qu'il a coché lui-même */
     Object.assign(donnees, enteteDuCours());
 
@@ -591,6 +600,11 @@ $('confirmGen').addEventListener('click', async () => {
     if(typeof sansEcoutes === 'function' &&
        sansEcoutes({ note: $('noteInterne').value })){
       bilan += '\n\n' + rappelEcoutes();
+    }
+
+    if(bilanCoupe){
+      bilan = '⚠️ RÉPONSE COUPÉE — la fin du bilan manque, relis et complète.\n\n' + bilan;
+      showToast('⚠️ Bilan incomplet : la réponse a été coupée, vérifie la fin');
     }
 
     /* Un seul rappel des écoutes, quelle qu'en soit la provenance */
@@ -1580,6 +1594,56 @@ async function corrigerCours(transcript, surProgres){
 
 /* Répare les JSON contenant des retours à la ligne bruts dans les
    chaînes : c'est le défaut le plus fréquent des réponses longues. */
+/* ------------------------------------------------------------
+   UNE RÉPONSE COUPÉE N'EST PAS UNE RÉPONSE PERDUE
+
+   Quand le modèle atteint sa limite, il s'arrête au milieu d'une
+   phrase : le JSON n'a plus d'accolade fermante et devient
+   illisible. Tout était jeté — le bilan entier, pour une dernière
+   phrase manquante — et le moniteur relançait indéfiniment, avec
+   le même résultat. C'est exactement ce qui a bloqué une monitrice
+   toute une soirée.
+
+   On referme donc ce qui est resté ouvert : la chaîne en cours,
+   puis les tableaux et objets, dans l'ordre inverse de leur
+   ouverture. Ce qui est arrivé est conservé ; ce qui manque est
+   signalé au moniteur, à lui de compléter la fin.
+   ------------------------------------------------------------ */
+function refermerJsonCoupe(brut){
+  let dansChaine = false;
+  let echappe = false;
+  const pile = [];
+
+  for(let i = 0; i < brut.length; i++){
+    const ch = brut[i];
+    if(echappe){ echappe = false; continue; }
+    if(ch === '\\'){ echappe = true; continue; }
+    if(ch === '"'){ dansChaine = !dansChaine; continue; }
+    if(dansChaine) continue;
+    if(ch === '{' || ch === '[') pile.push(ch);
+    else if(ch === '}' || ch === ']') pile.pop();
+  }
+
+  let sortie = brut;
+
+  /* Une chaîne laissée ouverte : on la ferme, après avoir retiré
+     une éventuelle échappement en suspens qui invaliderait tout. */
+  if(dansChaine){
+    if(echappe) sortie = sortie.slice(0, -1);
+    sortie += '"';
+  }
+
+  /* Une virgule ou un deux-points en attente d'une valeur qui n'est
+     jamais venue : la clé orpheline part avec. */
+  sortie = sortie.replace(/,\s*$/, '').replace(/:\s*$/, ': ""');
+  sortie = sortie.replace(/,\s*"[^"]*"\s*$/, '');
+
+  for(let i = pile.length - 1; i >= 0; i--){
+    sortie += (pile[i] === '{') ? '}' : ']';
+  }
+  return sortie;
+}
+
 function reparerJson(brut){
   let sortie = '';
   let dansChaine = false;
@@ -1710,10 +1774,23 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
 
   brut = brut.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
   const debut = brut.indexOf('{');
-  const fin = brut.lastIndexOf('}');
-  if(debut === -1 || fin === -1) throw new Error('Réponse non exploitable : ' + brut.slice(0, 200));
+  if(debut === -1){
+    throw new Error('Réponse non exploitable : ' + brut.slice(0, 200));
+  }
 
-  const corps = brut.slice(debut, fin + 1);
+  const fin = brut.lastIndexOf('}');
+
+  /* Pas d'accolade fermante : la réponse s'est arrêtée en route.
+     On referme et on garde ce qui est arrivé, plutôt que de tout
+     perdre pour une phrase manquante. */
+  let coupe = false;
+  let corps;
+  if(fin === -1 || fin < debut){
+    corps = refermerJsonCoupe(brut.slice(debut));
+    coupe = true;
+  }else{
+    corps = brut.slice(debut, fin + 1);
+  }
 
   /* Certaines réponses contiennent la suite « \n » sous forme de texte
      au lieu d'un vrai retour à la ligne : on rétablit. */
@@ -1730,17 +1807,38 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
     return obj;
   }
 
+  /* Marquer le résultat plutôt que de le renvoyer nu : celui qui
+     l'affiche doit pouvoir prévenir que la fin manque. */
+  const marquer = o => {
+    if(o && typeof o === 'object' && (coupe || data.stop_reason === 'max_tokens')){
+      o.__coupe = true;
+    }
+    return o;
+  };
+
   try{
-    return nettoyerRetours(JSON.parse(corps));
+    return marquer(nettoyerRetours(JSON.parse(corps)));
   }catch(e){
     /* Deuxième chance : on échappe les retours à la ligne bruts */
     try{
-      return nettoyerRetours(JSON.parse(reparerJson(corps)));
+      return marquer(nettoyerRetours(JSON.parse(reparerJson(corps))));
     }catch(e2){
-      if(data.stop_reason === 'max_tokens'){
-        throw new Error('Réponse coupée en cours de route : le cours est trop long. Découpe-le en deux bilans.');
+      /* Troisième : refermer ce qui est resté ouvert, même quand une
+         accolade fermante existait — elle peut appartenir à un objet
+         intérieur, l'objet du dessus restant béant. */
+      try{
+        const rattrape = nettoyerRetours(
+          JSON.parse(reparerJson(refermerJsonCoupe(brut.slice(debut)))));
+        coupe = true;
+        return marquer(rattrape);
+      }catch(e3){
+        if(data.stop_reason === 'max_tokens'){
+          throw new Error('Réponse coupée en cours de route et irrécupérable : ' +
+            'le cours est trop long. Découpe-le en deux bilans.');
+        }
+        throw new Error('JSON illisible : ' + e.message +
+                        ' — début reçu : ' + brut.slice(0, 120));
       }
-      throw new Error('JSON illisible : ' + e.message + ' — début reçu : ' + brut.slice(0, 120));
     }
   }
 }
