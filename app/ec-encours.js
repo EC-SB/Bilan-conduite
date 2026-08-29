@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:52 — v685 */
+/* Déployé le 29/08/2026 à 15:14 — v732 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -64,7 +64,37 @@ async function afficherEnCours(recharger){
      lui d'agir, c'est au moniteur — mais il faut pouvoir le
      relancer s'il ne le fait jamais. */
   const aCorriger = brouillonsTous.filter(b => b.etat === 'a-corriger');
-  const dictees   = brouillonsTous.filter(b => b.etat !== 'a-corriger');
+
+  /* CE QUI EST EN TRAIN DE SE GÉNÉRER.
+
+     Le moniteur a appuyé sur « Terminer », l'IA travaille. Ce
+     n'est pas un cours en panne, et le ranger avec les dictées
+     sans bilan faisait chercher un problème là où il n'y en avait
+     pas encore.
+
+     Passé une demi-heure, ce n'est plus une génération en cours :
+     c'est une génération qui n'a jamais abouti. La ligne redescend
+     alors d'elle-même chez les cours en panne — l'état ne s'efface
+     qu'au moment où le bilan est enregistré, et son âge fait le
+     reste. */
+  const enGeneration = brouillonsTous.filter(b =>
+    b.etat === 'en-generation' && depuisDepot(b) < 30);
+
+  const dictees = brouillonsTous.filter(b =>
+    b.etat !== 'a-corriger' && enGeneration.indexOf(b) === -1);
+
+  if(enGeneration.length){
+    zone.appendChild(titreBloc('⚙️ Bilans en cours de génération',
+      enGeneration.length,
+      "L'IA travaille en ce moment sur ces cours. Il n'y a rien à " +
+      'faire : ils disparaîtront d\'eux-mêmes une fois enregistrés. ' +
+      'S\'ils sont encore là dans une demi-heure, ils passeront plus ' +
+      'bas — c\'est que la génération a échoué.'));
+    enGeneration
+      .slice()
+      .sort((a, b) => String(b.deposeLe || '').localeCompare(String(a.deposeLe || '')))
+      .forEach(b => zone.appendChild(ligneBrouillon(b)));
+  }
 
   if(aCorriger.length){
     zone.appendChild(titreBloc('⏳ Bilans renvoyés, en attente de correction',
@@ -144,6 +174,22 @@ function depuisQuand(texte){
   return 'il y a ' + j + ' jour' + (j > 1 ? 's' : '');
 }
 
+/* Depuis combien de MINUTES la dictée a-t-elle été déposée.
+
+   « depuisQuand » arrondit à l'heure, ce qui suffit pour dire
+   qu'un cours traîne ; pour distinguer une génération en route
+   d'une génération abandonnée, il faut la minute. Une date
+   illisible rend l'infini : dans le doute, on ne dit pas qu'un
+   bilan est en train de se faire. */
+function depuisDepot(b){
+  const m = String((b && b.deposeLe) || '')
+    .match(/(\d{2})\/(\d{2})\/(\d{4})[ àT]+(\d{1,2})[h:](\d{2})/);
+  if(!m) return Infinity;
+  const d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+  const min = (Date.now() - d.getTime()) / 60000;
+  return (isNaN(min) || min < 0) ? Infinity : min;
+}
+
 /* « 2026-08-28 » se lit mal quand on cherche vite : on le rend
    dans la forme qu'on écrit en français. */
 function dateLisible(iso){
@@ -184,6 +230,16 @@ function ligneBrouillon(b){
       (b.etat === 'a-corriger'
         ? '<br><span style="color:var(--bleu);">📝 bilan proposé — ' +
           'en attente de sa correction</span>'
+        : '') +
+      (b.etat === 'en-generation'
+        ? (depuisDepot(b) < 30
+            ? '<br><span style="color:var(--accent-text);">⚙️ génération ' +
+              'en cours…</span>'
+            /* La même ligne dit la panne : le bilan a été lancé et
+               n'est jamais revenu. C'est plus précis que « dictée
+               sans bilan », et ça oriente. */
+            : '<br><span style="color:var(--warn-text);">⚙️ génération ' +
+              'lancée, jamais aboutie</span>')
         : '') +
     '</div>';
 
