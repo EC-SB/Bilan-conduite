@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 16:30 — v693 */
+/* Déployé le 29/08/2026 à 18:15 — v694 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -558,6 +558,24 @@ function morceauxDeNotePreparee(note){
   return { entete: entete, corps: corps, consigne: consigne };
 }
 
+/* La ligne de position — « 3ÈME LEÇON — PLUS QUE 2 LEÇONS… ».
+
+   C'est celle qu'un moniteur cherche en premier, et la carte
+   l'écrit en gros et en vert foncé. On la reconnaît à son repère
+   🎯, posé au moment où elle est écrite : pas de seconde règle à
+   tenir à jour, pas de motif à deviner. */
+const RE_LIGNE_POSITION = /^\s*🎯/;
+
+function lignePosition(corps){
+  return String(corps || '').split('\n')
+    .find(l => RE_LIGNE_POSITION.test(l)) || '';
+}
+
+function sansLignePosition(corps){
+  return String(corps || '').split('\n')
+    .filter(l => !RE_LIGNE_POSITION.test(l)).join('\n');
+}
+
 function assemblerNotePreparee(entete, corps, consigne){
   const tete = String(entete || '').trim();
   const c = String(corps || '');
@@ -714,8 +732,10 @@ const PARCOURS_FORMATION = [
      il n'y a rien à blanchir — et l'écoute pédagogique du jour du
      permis n'a donc pas d'objet non plus. */
   { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
-    sansObjet:['examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
-               'ebPasse', 'ebLecons', 'pasEcoute'] }
+    sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
+               'ebPasse', 'ebLecons', 'ebImpossibleLe', 'pasEcoute',
+               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPassage'] }
 ];
 
 function parcoursDeLaFormation(formation){
@@ -802,6 +822,7 @@ const CHAMP_DE_LA_REPONSE = {
   examBlancRang: '#qBlocEbRang',
   examBlancDate: '#qExamBlancDate',
   ebPasse:       '#qEBPasse',
+  ebImpossibleLe:'#qExamBlanc',
   ebLecons:      '#qEBLecons',
   examPermis:    '#qExamPermis',
   examDate:      '#qExamDate',
@@ -952,6 +973,9 @@ const ETAT_EB_APREVOIR  = grasNote('EXAMEN BLANC À PRÉVOIR');
 /* La formulation ne change pas : c'est celle que le lecteur de
    notes cherche pour comprendre qu'aucun examen blanc n'est prévu. */
 const ETAT_EB_IMPOSSIBLE = grasNote("NE PAS PRÉVOIR D'EXAMEN BLANC");
+/* Quand personne n'a rien dit. Une ligne quand même : sans elle on
+   ne distingue pas « pas encore évoqué » de « sans objet ». */
+const ETAT_EB_RIEN      = grasNote("EXAMEN BLANC PAS ENCORE ÉVOQUÉ");
 const ETAT_SIMU         = grasNote('SIMULATEUR NUIT ET RISQUES');
 const ETAT_RDV_POST     = grasNote('RDV POST-PERMIS');
 const ETAT_REPASSAGE    = grasNote('REPASSAGE');
@@ -1427,6 +1451,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         : '') +
       '</div>' +
 
+      /* Tout l'examen officiel dans un seul bloc : une passerelle
+         n'y mène pas, et il doit pouvoir disparaître d'un coup. */
+      '<div id="qBlocExamPermis">' +
       '<label for="qExamPermis">Examen du permis</label>' +
       '<select id="qExamPermis">' +
         '<option value="">— pas de date —</option>' +
@@ -1455,6 +1482,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       '<div id="qLibNouvelleDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;">' +
       'Nouvelle date (laisse vide si en attente)</div>' +
       '<input type="date" id="qNouvelleDate" style="display:none;">' +
+      '</div>' +
 
       '<label id="qBlocEcoutes" style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qPasEcoute" style="width:20px;height:20px;">' +
@@ -1709,8 +1737,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
        Le masquage suit la liste « sansObjet » du parcours, il ne la
        double pas : ajouter un élément là-bas suffit ici. */
     const BLOCS_DU_CHAMP = {
-      examBlanc: ['#qBlocExamBlanc'],
-      pasEcoute: ['#qBlocEcoutes']
+      examBlanc:  ['#qBlocExamBlanc'],
+      pasEcoute:  ['#qBlocEcoutes'],
+      /* Une passerelle ne mène à aucun examen : l'élève a déjà son
+         permis. Demander une date qui n'existera jamais, c'est
+         inviter à en poser une. */
+      examPermis: ['#qBlocExamPermis']
     };
 
     function masquerCeQueLeParcoursNaPas(){
@@ -2182,6 +2214,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         examBlancN: nEB.value.trim(),
         examBlancRang: rangEB ? rangEB.value : '',
         examBlancDate: dateEB ? dateEB.value : '',
+        /* « Ne pas prévoir d'examen blanc » : on retient QUAND ça a
+           été décidé. La date ne bouge plus tant que la réponse ne
+           change pas — sinon elle dirait toujours « aujourd'hui »,
+           et ne dirait donc plus rien. */
+        ebImpossibleLe: (selEB.value === 'impossible')
+          ? (prec.ebImpossibleLe ||
+             ($('lessonDate') && $('lessonDate').value) || todayLocal())
+          : '',
         examPermis: selEP.value,
         examMotif: ((boite.querySelector('#qExamMotif') || {}).value || '').trim(),
         examDate: dEP.value,
@@ -2286,26 +2326,19 @@ function positionDansLaFrise(q){
 
   const plus = courtDansLaFrise(q) ? 1 : 0;
   const pl = k => (k > 1 ? 's' : '');
+  /* MAJUSCULES : c'est la ligne qu'on lit en premier sur une carte,
+     et elle doit se distinguer sans qu'on la cherche. */
+  const dire = t => '🎯 ' + majusculeNote(t);
 
   /* Après le rendez-vous post-permis : ce sont ses heures qui font
-     loi, pas la frise du permis d'origine. */
+     loi, pas la frise du permis d'origine. Elles s'annoncent en
+     HEURES — c'est ainsi qu'elles ont été décidées ce jour-là. */
   const depuisRdv = parseInt(q.leconsDepuisRdvPost, 10);
   if(q.rdvPostFait === 'oui' && !isNaN(depuisRdv)){
     const r = depuisRdv + plus;
-    const prevues = parseInt(q.heuresRepassage, 10);
-    const total = isNaN(prevues) ? null : Math.ceil(prevues / 2);
-    if(total && r < total){
-      return '🎯 ' + rangLecon(r) + ' leçon sur ' + total +
-             ' depuis le rendez-vous post-permis — encore ' + (total - r) +
-             ' leçon' + pl(total - r);
-    }
-    if(total && r === total){
-      return '🎯 ' + rangLecon(r) + ' leçon sur ' + total +
-             ' depuis le rendez-vous post-permis — dernière prévue';
-    }
-    if(total) return '🎯 ' + rangLecon(r) + ' leçon depuis le rendez-vous ' +
-                     'post-permis — frise dépassée (' + total + ' prévue' + pl(total) + ')';
-    return '🎯 ' + rangLecon(r) + ' leçon depuis le rendez-vous post-permis';
+    const h = String(q.heuresRepassage || '').trim();
+    return dire(rangLecon(r) + ' leçon après le post-permis' +
+                (h ? ' (' + h + 'h prévues)' : ''));
   }
 
   /* Parcours AAC ou CS. Le nombre inscrit dans la frise — « que 4
@@ -2318,23 +2351,25 @@ function positionDansLaFrise(q){
      charnières comme la formation classique a son examen blanc. */
   const totalAacCs = leconsPrevuesAacCs(q.frise);
   if(totalAacCs){
-    const franchi = (q.rvp2 === 'fait') ? 'le rendez-vous pédagogique n°2'
-                  : (q.rvp1 === 'fait') ? 'le rendez-vous pédagogique n°1'
+    /* « le RVP 2 » et non « le rendez-vous pédagogique n°2 » : cette
+       ligne s'écrit en gros sur la carte, et le libellé long la
+       faisait déborder sur trois lignes. C'est le même mot que
+       partout ailleurs. */
+    const franchi = (q.rvp2 === 'fait') ? 'le RVP 2'
+                  : (q.rvp1 === 'fait') ? 'le RVP 1'
                   : (q.rvPrealable === 'fait') ? 'le rendez-vous préalable'
                   : '';
-    if(franchi) return '🎯 ' + rangLecon(n) + ' leçon — après ' + franchi;
+    if(franchi) return dire(rangLecon(n) + ' leçon après ' + franchi);
 
     if(n < totalAacCs){
-      return '🎯 ' + rangLecon(n) + ' leçon sur ' + totalAacCs + ' — encore ' +
-             (totalAacCs - n) + ' leçon' + pl(totalAacCs - n) +
-             ' avant la fin de la fiche véhicule';
+      return dire(rangLecon(n) + ' leçon — plus que ' + (totalAacCs - n) +
+                  ' leçon' + pl(totalAacCs - n) + ' avant la fin de la fiche véhicule');
     }
     if(n === totalAacCs){
-      return '🎯 ' + rangLecon(n) + ' leçon sur ' + totalAacCs +
-             ' — dernière de la fiche véhicule';
+      return dire(rangLecon(n) + ' leçon — dernière de la fiche véhicule');
     }
-    return '🎯 ' + rangLecon(n) + ' leçon — fiche véhicule dépassée (' +
-           totalAacCs + ' prévue' + pl(totalAacCs) + ')';
+    return dire(rangLecon(n) + ' leçon — fiche véhicule dépassée (' +
+                totalAacCs + ' prévue' + pl(totalAacCs) + ')');
   }
 
   /* L'examen blanc est-il derrière nous ? */
@@ -2343,41 +2378,35 @@ function positionDansLaFrise(q){
 
   if(ebPasse){
     const apres = leconsApresExamenBlanc(q.frise);
+    const dit = (t) => dire(t + (apres ? ' (' + apres + ' prévue' + pl(apres) + ')' : ''));
+
     /* Sans le compte depuis l'examen blanc — historique trop court,
        examen blanc passé ailleurs — on ne raconte pas d'histoire :
        on dit le rang global et on s'arrête. */
-    if(isNaN(depuisEB)){
-      return '🎯 ' + rangLecon(n) + " leçon — après l'examen blanc";
-    }
+    if(isNaN(depuisEB)) return dit(rangLecon(n) + " leçon après l'examen blanc");
+
     const r = depuisEB + plus;
-    if(apres && r < apres){
-      return '🎯 ' + rangLecon(r) + ' leçon sur ' + apres + " après l'examen blanc — encore " +
-             (apres - r) + ' leçon' + pl(apres - r) + ' + 3h avant examen';
+    if(apres && r > apres){
+      return dire(rangLecon(r) + " leçon après l'examen blanc — frise dépassée (" +
+                  apres + ' prévue' + pl(apres) + ')');
     }
-    if(apres && r === apres){
-      return '🎯 ' + rangLecon(r) + ' leçon sur ' + apres +
-             " après l'examen blanc — dernière avant les 3h";
-    }
-    if(apres){
-      return '🎯 ' + rangLecon(r) + " leçon après l'examen blanc — frise dépassée (" +
-             apres + ' prévue' + pl(apres) + ')';
-    }
-    return '🎯 ' + rangLecon(r) + " leçon après l'examen blanc";
+    return dit(rangLecon(r) + " leçon après l'examen blanc");
   }
 
   /* Avant l'examen blanc : la première moitié de la frise */
   const prevues = leconsAvantExamenBlanc(q.frise);
   if(prevues && n < prevues){
-    return '🎯 ' + rangLecon(n) + ' leçon sur ' + prevues + ' — encore ' +
-           (prevues - n) + ' leçon' + pl(prevues - n) + " avant l'examen blanc";
+    return dire(rangLecon(n) + ' leçon — plus que ' + (prevues - n) +
+                ' leçon' + pl(prevues - n) + " avant l'examen blanc");
   }
   if(prevues && n === prevues){
-    return '🎯 ' + rangLecon(n) + ' leçon sur ' + prevues + " — dernière avant l'examen blanc";
+    return dire(rangLecon(n) + " leçon — dernière avant l'examen blanc");
   }
   if(prevues && n > prevues){
-    return '🎯 ' + rangLecon(n) + ' leçon — frise dépassée (' + prevues + ' prévue' + pl(prevues) + ')';
+    return dire(rangLecon(n) + ' leçon — frise dépassée (' + prevues +
+                ' prévue' + pl(prevues) + ')');
   }
-  return '🎯 ' + rangLecon(n) + ' leçon';
+  return dire(rangLecon(n) + ' leçon');
 }
 
 /* ------------------------------------------------------------
@@ -2438,12 +2467,15 @@ function noteDepuisQuestionnaire(q){
       : '♿ Prêt à être présenté à la préfecture');
   }
 
-  const position = positionDansLaFrise(q);
-  if(position) etats.push(position);
-
   ajouterSuite(etats, permis, mots, q);
 
-  const corps = [alertes.join(' · '),
+  /* La position en TÊTE, sur sa propre ligne : c'est ce qu'un
+     moniteur cherche en premier en ouvrant sa journée — à quelle
+     leçon il en est, et ce qu'il reste. Tout le reste vient
+     dessous. Son repère 🎯 permet à la carte de la retrouver pour
+     l'écrire en gros. */
+  const corps = [positionDansLaFrise(q),
+                 alertes.join(' · '),
                  q.frise || '',
                  etats.join(' · '),
                  permis.join(' · ')].filter(Boolean).join('\n');
@@ -2726,6 +2758,14 @@ async function chargerReglageLigneExamen(){
    écrit. Trois listes plutôt qu'une seule : c'est ce qui met chaque
    information sur sa ligne. */
 function ajouterSuite(etats, permis, mots, q){
+  /* Ce que le parcours de l'élève n'a pas : une passerelle n'a ni
+     examen blanc ni examen officiel, et la ligne qui dirait qu'ils
+     manquent n'aurait pas plus de sens que celle qui les annonce. */
+  const sans = (typeof sansObjetPourLaFormation === 'function')
+    ? sansObjetPourLaFormation(q.formation) : [];
+  const sansExamenBlanc = sans.indexOf('examBlanc') !== -1;
+  const sansExamenPermis = sans.indexOf('examPermis') !== -1;
+
   const n = q.examBlancN;
   const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
 
@@ -2780,7 +2820,18 @@ function ajouterSuite(etats, permis, mots, q){
     etats.push('🅱️ ' + numero + ETAT_EB_APREVOIR +
                (n ? ' dans ' + n + ' leçon' + pl(n) : ''));
   }else if(q.examBlanc === 'impossible'){
-    etats.push('🅱️ ' + ETAT_EB_IMPOSSIBLE + ' pour le moment');
+    /* La date de la décision, pas celle d'aujourd'hui : savoir
+       depuis QUAND on ne prévoit pas d'examen blanc, c'est savoir
+       s'il est temps d'y revenir. */
+    const quand = String(q.ebImpossibleLe || '').trim();
+    etats.push('🅱️ ' + ETAT_EB_IMPOSSIBLE + ' pour le moment' +
+               (quand ? ' — noté le ' + (dateEnToutesLettres(quand) || quand) : ''));
+  }else if(!sansExamenBlanc){
+    /* Rien de renseigné, et pourtant la ligne s'écrit : sans elle,
+       on ne distingue pas « personne n'a répondu » de « la question
+       ne se pose pas ». C'est la même règle que pour l'examen
+       officiel, qui dit toujours s'il a une date ou non. */
+    etats.push('🅱️ ' + ETAT_EB_RIEN);
   }
 
   /* Le rendez-vous post-permis : trois états, une seule ligne.
@@ -2834,9 +2885,10 @@ function ajouterSuite(etats, permis, mots, q){
                 (q.examMotif ? ' (' + q.examMotif + ')' : ''));
   }else if(q.examPermis === 'aprevoir'){
     permis.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
-  }else if(ligneExamenToujours){
+  }else if(ligneExamenToujours && !sansExamenPermis){
     /* Rien de répondu : la ligne n'apparaît que si le bureau veut
-       la voir en permanence. */
+       la voir en permanence — et jamais sur un parcours qui ne
+       mène à aucun examen. */
     permis.push(EXAMEN_SANS_DATE);
   }
 
