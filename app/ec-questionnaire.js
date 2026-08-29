@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:44 — v671 */
+/* Déployé le 29/08/2026 à 07:10 — v681 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -807,7 +807,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '<option value="aprevoir">Date à prévoir</option>' +
         '<option value="prevu">Prévu le…</option>' +
         '<option value="annule">Annulé</option>' +
+        '<option value="nonplanifiable">Non planifiable</option>' +
       '</select>' +
+      '<input type="text" id="qExamMotif" style="display:none;" ' +
+      'placeholder="Pourquoi ? (facultatif — ANTS, dossier, médical…)">' +
       '<div id="qLibExamDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;"></div>' +
       '<input type="date" id="qExamDate" style="display:none;">' +
       '<div id="qBlocPassage" style="display:none;">' +
@@ -1311,6 +1314,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       if(bp) bp.style.display = (v === 'prevu' || v === 'aprevoir') ? 'block' : 'none';
       nvDate.style.display = (v === 'annule') ? 'block' : 'none';
       libNv.style.display = (v === 'annule') ? 'block' : 'none';
+
+      /* Non planifiable : ni date, ni décompte de leçons — c'est le
+         dossier qui bloque, pas le niveau. On demande seulement
+         pourquoi, pour que le bureau sache quoi débloquer. */
+      const motif = boite.querySelector('#qExamMotif');
+      if(motif) motif.style.display = (v === 'nonplanifiable') ? 'block' : 'none';
     });
 
     /* Pour qu'une ouverture concurrente puisse fermer celui-ci
@@ -1361,6 +1370,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         examBlancRang: rangEB ? rangEB.value : '',
         examBlancDate: dateEB ? dateEB.value : '',
         examPermis: selEP.value,
+        examMotif: ((boite.querySelector('#qExamMotif') || {}).value || '').trim(),
         examDate: dEP.value,
         pasEcoute: boite.querySelector('#qPasEcoute').checked,
         simuNuit: boite.querySelector('#qSimuNuit').value,
@@ -1516,6 +1526,28 @@ function colorerNote(el, note){
     i = m.index + m[0].length;
   }
   if(i < t.length) el.appendChild(document.createTextNode(t.slice(i)));
+}
+
+/* Un examen que rien ne permet de planifier — dossier ANTS en
+   attente, avis médical, pièce manquante. Ce n'est pas « pas le
+   niveau » : le bureau a quelque chose à débloquer.
+
+   Écrite ici une fois, cette reconnaissance sert au questionnaire
+   comme à la liste du bureau : les deux ne peuvent pas se mettre
+   à chercher des choses différentes. */
+const RE_NON_PLANIFIABLE = /non\s*planifiable/i;
+
+function examenNonPlanifiable(note){
+  return (typeof segmentsDeNote === 'function' ? segmentsDeNote(note) : [])
+    .some(x => RE_NON_PLANIFIABLE.test(x));
+}
+
+/* Le motif écrit entre parenthèses, s'il y en a un */
+function motifNonPlanifiable(note){
+  const seg = (typeof segmentsDeNote === 'function' ? segmentsDeNote(note) : [])
+    .find(x => RE_NON_PLANIFIABLE.test(x)) || '';
+  const m = seg.match(/non\s*planifiable\s*\(([^)]+)\)/i);
+  return m ? m[1].trim() : '';
 }
 
 /* ------------------------------------------------------------
@@ -1709,6 +1741,11 @@ function ajouterSuite(bouts, q){
       ? ' — reprogrammé le ' + dateEnToutesLettres(q.nouvelleDate)
       : ' — nouvelle date en attente';
     bouts.push(phrase);
+  }else if(q.examPermis === 'nonplanifiable'){
+    /* Le bureau le retrouve dans Permis → Pas prêts grâce à cette
+       mention : elle est le seul repère, elle doit rester stable. */
+    bouts.push(EXAMEN_SANS_DATE + ' — non planifiable' +
+               (q.examMotif ? ' (' + q.examMotif + ')' : ''));
   }else if(q.examPermis === 'aprevoir'){
     bouts.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
   }else{
