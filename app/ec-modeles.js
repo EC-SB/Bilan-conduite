@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:30 — v728 */
+/* Déployé le 29/08/2026 à 15:52 — v739 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1433,7 +1433,7 @@ function unSeulRappelEcoutes(bilan){
     .replace(/\n{3,}/g, '\n\n');
 }
 
-function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant, faitesAilleurs){
+function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant, faitesAilleurs, retirees){
   /* Ce qui a déjà été validé lors des cours précédents, avec les
      marques accumulées : ✅ la première fois, puis l'émoji de chaque
      moniteur qui l'a retravaillée. */
@@ -1446,6 +1446,13 @@ function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant, faitesAi
   /* Ce que l'élève avait déjà fait dans une autre auto-école */
   const ailleurs = {};
   (faitesAilleurs || []).forEach(n => { ailleurs[normaliserMot(n)] = true; });
+
+  /* Ce qu'on RETIRE : une 🚗 cochée par erreur dans un bilan
+     précédent. La fiche se reconstruit à chaque bilan d'après les
+     marques du précédent ; sans ce retrait, l'erreur se recopierait
+     indéfiniment. */
+  const oteés = {};
+  (retirees || []).forEach(n => { oteés[normaliserMot(n)] = true; });
 
   const marques = marquesAvant || {};
   const emoji = (typeof ACCES !== 'undefined' && ACCES.emoji) ? ACCES.emoji : '';
@@ -1466,9 +1473,16 @@ function blocFicheConduite(faitesAujourdhui, faitesAvant, marquesAvant, faitesAi
     const dejaAvant = proche(avant);
     const faiteCeJour = proche(aujourdhui);
     const faiteAilleurs = proche(ailleurs);
+    const retiree = proche(oteés);
 
     /* On reprend les marques déjà présentes dans le bilan précédent */
     let suite = marques[cle] || (dejaAvant ? MARQUE_FAITE : '');
+
+    /* Retirée : on ne garde que ce qu'un moniteur de chez nous a
+       vraiment vu. La 🚗 s'en va, ses émojis restent. */
+    if(retiree){
+      suite = suite.split(/\s+/).filter(x => x && x !== MARQUE_AILLEURS).join(' ');
+    }
 
     /* La 🚗 passe en tête : elle dit d'où part l'élève, avant que
        le moindre moniteur de chez nous l'ait vu. Les émojis des
@@ -1661,13 +1675,22 @@ function buildConduite(ai, faitesAvant, texteCours, noteInterne, marquesAvant){
      prepareEnCours.contexte){
     sourcesAilleurs.push(prepareEnCours.contexte.manoeuvresAilleurs);
   }
+  /* Et celles cochées 🚗 pendant le cours lui-même : c'est là
+     qu'on s'aperçoit qu'un élève arrive d'ailleurs. */
+  if(typeof manoeuvresAilleursEnCours === 'function'){
+    sourcesAilleurs.push(manoeuvresAilleursEnCours());
+  }
   sourcesAilleurs.forEach(liste => {
     (liste || []).forEach(m => {
       if(ailleurs.indexOf(m) === -1) ailleurs.push(m);
     });
   });
 
-  parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant, ailleurs));
+  /* Ce qu'on retire : une 🚗 décochée. */
+  const retirees = (typeof manoeuvresRetireesEnCours === 'function')
+    ? manoeuvresRetireesEnCours() : [];
+
+  parts.push(blocFicheConduite(duJour, faitesAvant, marquesAvant, ailleurs, retirees));
   parts.push('');
   /* Sans émoji au bout : la question se suffit, et une coche
      laissée au hasard n'apprend rien à l'élève. */
