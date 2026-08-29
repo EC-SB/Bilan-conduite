@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 00:40 — v699 */
+/* Déployé le 29/08/2026 à 15:10 — v702 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2878,8 +2878,22 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
           Object.keys(foi).forEach(k => { acquis[k] = foi[k]; });
         }
 
+        /* « Passe chercher ta carte SD » ne se coche qu'une fois
+           dans une formation : le jour du premier cours en
+           voiture. C'est la seule preuve qui autorise à écrire
+           « 1ère leçon » sur un élève sans bilan — partout
+           ailleurs, zéro bilan veut simplement dire qu'on ne sait
+           pas (élève repris d'une autre auto-école, cours plus
+           anciens que ce qu'on relit). */
+        const debut = (typeof cestLePremierCours === 'function') &&
+                      cestLePremierCours((details && details.options) || []);
+
         const rep = Object.assign(acquis, {
-          lecon: d.lecons ? String(d.lecons + 1) : '',
+          lecon: (typeof rangConnu === 'function')
+            ? String(rangConnu(d.lecons, cle, debut) || '')
+            : (d.lecons ? String(d.lecons + 1) : ''),
+          premierCours: debut ? 'oui' : '',
+          sansBilan: !d.lecons && !debut,
           frise: d.frise || '',
           /* Où il en est dans sa moitié de frise : sans ces deux
              comptes, un élève ayant passé son examen blanc restait
@@ -2908,13 +2922,25 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
           note = assemblerNotePreparee('', note, d.derniereNote);
         }
       }else{
-        note = '❓ Informations à renseigner : aucun cours enregistré pour ' +
-               'cet élève.';
-        if(jetonRappel) contexte = JSON.stringify({ jeton: jetonRappel });
+        /* Aucun bilan au classeur. Ce n'est PAS « première leçon » :
+           l'élève peut venir d'une autre auto-école. Sauf si le
+           rappel demandait sa carte SD — là, il débute vraiment. */
+        const debut = (typeof cestLePremierCours === 'function') &&
+                      cestLePremierCours((details && details.options) || []);
+        note = debut
+          ? '❓ Premier cours en voiture — questionnaire à remplir.'
+          : '❓ Informations à renseigner : aucun cours enregistré pour ' +
+            'cet élève.';
+        const dep = { sansBilan: !debut, modele: cle };
+        if(debut){ dep.premierCours = 'oui'; dep.lecon = '1'; }
+        if(jetonRappel) dep.jeton = jetonRappel;
+        contexte = JSON.stringify(dep);
       }
     }catch(e){
       note = '❓ Informations à renseigner — dossier non lu.';
-      if(jetonRappel) contexte = JSON.stringify({ jeton: jetonRappel });
+      const dep = { sansBilan: true, modele: cle };
+      if(jetonRappel) dep.jeton = jetonRappel;
+      contexte = JSON.stringify(dep);
     }
 
     const r = await appelPrep({
