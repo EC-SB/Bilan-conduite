@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 01:45 — v714 */
+/* Déployé le 29/08/2026 à 14:51 — v730 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 168;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 169;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -204,6 +204,9 @@ function verrouiller(message, garderSession){
   if($('versionBtn')) $('versionBtn').style.display = 'none';
   if($('guideBtn')) $('guideBtn').style.display = 'none';
   if($('qui')) $('qui').style.display = 'none';
+  /* Le raccourci des procédures compte le travail de quelqu'un :
+     il ne reste pas affiché sur l'écran de connexion. */
+  if($('procRaccourci')) $('procRaccourci').style.display = 'none';
 
   /* Rien d'autre que le code d'accès sur l'écran de connexion */
   if($('barreOnglets')) $('barreOnglets').style.display = 'none';
