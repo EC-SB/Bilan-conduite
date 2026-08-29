@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:10 — v691 */
+/* Déployé le 29/08/2026 à 18:15 — v694 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -533,7 +533,6 @@ async function afficherPrepares(recharger, silencieux){
                         passe ? '⚠️ pas encore enregistré' : ''].filter(Boolean).join(' · ');
     if(passe) sous.style.color = 'var(--warn-text)';
     meta.appendChild(nom);
-    meta.appendChild(sous);
     /* La note, telle qu'elle est écrite — et rien de plus.
 
        La carte ajoutait son propre « 📌 » devant, alors que la note
@@ -545,7 +544,27 @@ async function afficherPrepares(recharger, silencieux){
       ? morceauxDeNotePreparee(cours.note)
       : { entete: '', corps: String(cours.note || ''), consigne: '' };
 
-    const texteNote = [partsNote.corps,
+    /* À quelle leçon on en est : en gros, en vert, juste sous le
+       nom. C'est la première question qu'on se pose en ouvrant sa
+       journée, et elle se perdait au milieu du reste. */
+    const pos = (typeof lignePosition === 'function')
+      ? lignePosition(partsNote.corps) : '';
+    if(pos){
+      const p = document.createElement('div');
+      p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.35;' +
+        'color:var(--accent-text);margin:3px 0 2px;';
+      p.textContent = pos;
+      meta.appendChild(p);
+    }
+
+    /* Le type de bilan et la formation VIENNENT APRÈS : la leçon du
+       jour passe en premier, juste sous le nom. */
+    meta.appendChild(sous);
+
+    const reste = (typeof sansLignePosition === 'function')
+      ? sansLignePosition(partsNote.corps) : partsNote.corps;
+
+    const texteNote = [reste,
                        partsNote.consigne ? '📌 ' + partsNote.consigne : '']
       .filter(Boolean).join('\n');
 
