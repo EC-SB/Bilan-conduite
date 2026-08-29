@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 15:28 — v666 */
+/* Déployé le 30/08/2026 à 06:20 — v723 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1522,13 +1522,12 @@ async function ouvrirCodesEleves(){
           try{
             /* L'adresse vit dans sa fiche, pas ici */
             const d = await appelPrep({ action: 'contactEleve', eleve: a.eleve });
-            const adresse = ((d && d.contact) || {}).email || '';
+            let adresse = ((d && d.contact) || {}).email || '';
 
-            if(!adresse){
-              showToast('Aucune adresse dans sa fiche.');
-              bMail.disabled = false;
-              return;
-            }
+            /* Confirmée avant l'envoi : une adresse enregistrée il y
+               a des mois peut ne plus être la bonne. */
+            adresse = await confirmerAdresseEleve(a.eleve, adresse);
+            if(!adresse){ bMail.disabled = false; return; }
 
             await appelPrep({
               action: 'mailBilan',
