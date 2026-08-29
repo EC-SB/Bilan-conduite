@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 19:30 — v707 */
+/* Déployé le 29/08/2026 à 21:00 — v708 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -157,6 +157,35 @@ async function chargerDossierEleve(nomEleve){
        passait tel quel — c'est ainsi qu'on a vu « 160ème leçon », le
        relais renvoyant la taille du classeur entier. */
     if(vus >= plafond && totalConnu > vus) lecons += (totalConnu - vus);
+
+    /* ----------------------------------------------------------
+       LE DERNIER RANG ÉCRIT PAR UN HUMAIN FAIT LOI
+
+       Le classeur ne compte que ce qu'il contient. Un élève repris
+       d'une autre auto-école, ou dont les leçons sont plus
+       anciennes que l'outil, y sera toujours en retard — de deux,
+       de cinq, on ne sait pas.
+
+       Le bureau corrige alors le rang à la main sur la carte,
+       d'après Drivup. Cette correction doit TENIR : sans ça il
+       faudrait la refaire à chaque leçon, et on retomberait sur le
+       compte court dès le cours suivant.
+
+       On repart donc du dernier rang qu'un bilan porte, et on
+       compte les leçons qui l'ont suivi. Corrigé une fois, l'élève
+       est calé pour de bon.
+       ---------------------------------------------------------- */
+    for(let k = 0; k < res.length; k++){
+      if(!estUneLecon(res[k].type)) continue;
+      const m = String(res[k].note || '').match(RE_NUM_LECON);
+      if(!m) continue;
+      const dit = parseInt(String(m[0]), 10);
+      if(isNaN(dit) || dit <= 0) break;
+      let depuis = 0;
+      for(let q = 0; q < k; q++) if(estUneLecon(res[q].type)) depuis++;
+      lecons = dit + depuis;
+      break;
+    }
 
     /* Où l'élève en est dans SA moitié de frise.
 
@@ -608,7 +637,19 @@ const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres'
 /* Fusionne : le jugement du moniteur l'emporte, les faits sont rafraîchis */
 function fusionnerContexte(saisi, defauts){
   const out = Object.assign({}, defauts || {});
+
+  /* Un rang tapé à la main est un FAIT, pas un affichage : il vient
+     de Drivup, pas du comptage du classeur. Le rafraîchissement ne
+     repasse donc pas derrière — sinon corriger « 8 » sur la carte
+     n'aurait tenu que jusqu'au prochain chargement, et on aurait
+     recorrigé le même élève à chaque leçon. */
+  const rangTapeALaMain = saisi && String(saisi.leconMain || '') === 'oui';
+
   Object.keys(saisi || {}).forEach(k => {
+    if(k === 'lecon' && rangTapeALaMain){
+      if(saisi.lecon) out.lecon = saisi.lecon;
+      return;
+    }
     if(CHAMPS_FACTUELS.indexOf(k) !== -1 &&
        defauts && defauts[k] !== undefined && defauts[k] !== '') return;
     const v = saisi[k];
@@ -1515,6 +1556,35 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     Object.keys(foi).forEach(k => { base[k] = foi[k]; });
 
     prec = base;
+  }else{
+    /* Le questionnaire a déjà été rempli pour ce cours. Ses
+       réponses restent celles du moniteur — mais le monde a pu
+       bouger depuis : il arrive qu'un moniteur nous écrive PENDANT
+       son cours pour faire poser un examen blanc ou un examen, et
+       que le bureau le fasse dans la foulée. Rouvrir « Compléter
+       les infos » doit le lui montrer.
+
+       On ne reprend donc que ce qui a une SOURCE — le suivi, les
+       sessions, un message du bureau — et seulement quand cette
+       source dit quelque chose. Un silence ne recouvre rien : ce
+       serait rendre au moniteur, sous forme de vide, la réponse
+       qu'il vient de saisir. */
+    prec = Object.assign({}, prec);
+
+    if(consignesBureau.length){
+      const duBureau = defautsDepuisNote(consignesBureau.map(x => x.texte).join(' · '));
+      Object.keys(duBureau).forEach(k => {
+        if(duBureau[k] !== undefined && duBureau[k] !== '') prec[k] = duBureau[k];
+      });
+    }
+
+    const foi = etatQuiFaitFoi(eleve);
+    Object.keys(foi).forEach(k => {
+      const v = foi[k];
+      if(v === undefined || v === null || v === '') return;
+      if(Array.isArray(v) && !v.length) return;
+      prec[k] = v;
+    });
   }
 
   /* La frise saisie sur la fiche de l'élève fait autorité : elle a été
@@ -1553,6 +1623,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     }
     if(ficheEleve.coussin !== undefined && ficheEleve.coussin !== ''){
       prec.coussin = (String(ficheEleve.coussin) === 'oui') ? 'oui' : '';
+    }
+    /* Et QUELS aménagements : « conduite aménagée » sans le détail
+       n'apprend rien au moniteur qui prépare la voiture. */
+    if(ficheEleve.amenagements !== undefined && ficheEleve.amenagements !== ''){
+      prec.amenagements = String(ficheEleve.amenagements)
+        .split('|').map(x => x.trim()).filter(Boolean);
     }
   }
 
@@ -2594,6 +2670,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
            questionnaire ». */
         sansBilan: !rangDuJour && !leconSaisie(),
         premierCours: premierCours ? 'oui' : '',
+        /* Un rang tapé ici est de la même eau que celui tapé sur la
+           carte : une main humaine, d'après Drivup. Le recomptage
+           ne doit pas davantage repasser derrière. */
+        leconMain: (function(){
+          const c = boite.querySelector('#qLecon');
+          const tape = c ? c.value.trim() : '';
+          if(tape && tape !== String(rangDuJour || '')) return 'oui';
+          return prec.leconMain || '';
+        })(),
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
         examBlancRang: rangEB ? rangEB.value : '',
@@ -2677,7 +2762,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
            EST le premier. Elle ne se redemande nulle part, et la
            perdre remettrait « il faut remplir le questionnaire »
            sur un élève dont on sait justement qu'il débute. */
-        premierCours: prec.premierCours || ''
+        premierCours: prec.premierCours || '',
+        /* Le rang tapé à la main reste tapé à la main : perdre
+           cette marque, c'est rendre le recomptage au classeur et
+           reperdre la correction du bureau. */
+        leconMain: prec.leconMain || ''
       });
     });
   });
@@ -3549,6 +3638,66 @@ function ajouterANote(champ, texte){
   sauvegarderLocal();
 }
 
+
+/* ------------------------------------------------------------
+   CE QUI MANQUE POUR QUE LA NOTE SOIT JUSTE
+
+   Le questionnaire ne s'ouvre plus au démarrage : le cours part,
+   et le moniteur conduit. Ce qui manque doit donc se voir ailleurs
+   — sur le bouton qui sert à le compléter, en rouge, avec le
+   compte de ce qui reste.
+
+   Trois choses, et trois seulement, empêchent une note d'être
+   juste : la formation, qui décide de tout le reste ; la frise,
+   quand ce parcours en a une ; et le rang de la leçon. Le poste de
+   conduite n'en fait PAS partie — il s'affiche sur la carte pour
+   que le moniteur prépare la voiture, il ne bloque rien.
+   ------------------------------------------------------------ */
+function cequiManqueAuCours(ctx, eleve, modeleCle){
+  const manque = [];
+  const c = ctx || {};
+  const fiche = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+
+  const formation = String(c.formation || (fiche && fiche.formation) || '').trim();
+  if(!formation) manque.push('la formation');
+
+  /* Une passerelle n'a pas de frise du tout : son absence n'est pas
+     un manque. C'est la table qui le sait, on ne le devine pas. */
+  const imposee = (typeof friseDeLaFormation === 'function')
+    ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
+  const frise = String(c.frise || (fiche && fiche.frise) || '').trim();
+  if(imposee === null && !frise) manque.push('la frise');
+
+  if(typeof leconCompteDansLaFrise === 'function' &&
+     leconCompteDansLaFrise(modeleCle) && !parseInt(c.lecon, 10)){
+    manque.push('le numéro de leçon');
+  }
+
+  return manque;
+}
+
+/* Le bouton dit ce qui manque, ou ne dit rien. */
+function majBoutonCompleter(){
+  document.querySelectorAll('[data-completer]').forEach(b => {
+    const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+    const modele = ($('modele') && $('modele').value) || '';
+    const manque = cequiManqueAuCours(contexteDepart, eleve, modele);
+    if(manque.length){
+      b.textContent = '📋 Compléter les infos (' + manque.length + ')';
+      b.title = 'Il manque ' + manque.join(', ');
+      b.style.color = 'var(--red)';
+      b.style.borderColor = 'var(--red)';
+      b.style.fontWeight = '700';
+    }else{
+      b.textContent = '📋 Compléter les infos';
+      b.title = 'Revoir la formation, la frise, les examens';
+      b.style.color = '';
+      b.style.borderColor = '';
+      b.style.fontWeight = '';
+    }
+  });
+}
+
 /* Construit la rangée de boutons sous un champ de note */
 function creerRaccourcis(idConteneur, idChamp){
   const zone = $(idConteneur);
@@ -3559,6 +3708,7 @@ function creerRaccourcis(idConteneur, idChamp){
     b.type = 'button';
     b.className = 'raccourci';
     b.textContent = r.libelle;
+    if(r.special === 'questionnaire') b.dataset.completer = '1';
     b.addEventListener('click', async () => {
       let texte;
       if(r.special === 'questionnaire'){
@@ -3574,12 +3724,14 @@ function creerRaccourcis(idConteneur, idChamp){
         }finally{
           b.disabled = false;
           b.textContent = r.libelle;
+          majBoutonCompleter();
         }
       }
       if(texte) ajouterANote($(idChamp), texte);   /* inutilisé : le questionnaire écrit lui-même */
     });
     zone.appendChild(b);
   });
+  majBoutonCompleter();
 }
 
 
@@ -4133,6 +4285,14 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
     const av = (String(avant[f] || '') === 'oui') ? 'oui' : 'non';
     if(v !== av) maj[f] = v;
   });
+
+  /* La liste des aménagements descend avec la case : cochés, ils
+     rejoignent la fiche ; retirés, ils la quittent. */
+  if(Array.isArray(reponses.amenagements)){
+    const liste = reponses.amenagements.join('|');
+    const av = String(avant.amenagements || '');
+    if(liste !== av) maj.amenagements = liste || 'non';
+  }
 
   if(!Object.keys(maj).length) return;
 
