@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 18:15 — v694 */
+/* Déployé le 29/08/2026 à 21:05 — v696 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -215,7 +215,13 @@ async function chargerConfirmations(){
 
 /* Le jeton d'un cours, rangé dans son contexte à la création */
 function jetonDuCours(cours){
-  const ctx = (cours && cours.contexte) || null;
+  /* Le contexte arrive tantôt en objet — relu du classeur — tantôt
+     en texte, quand un rappel vient de le poser dans la liste sans
+     attendre le rechargement. Les deux doivent répondre. */
+  let ctx = (cours && cours.contexte) || null;
+  if(typeof ctx === 'string'){
+    try{ ctx = JSON.parse(ctx); }catch(e){ ctx = null; }
+  }
   return (ctx && ctx.jeton) ? String(ctx.jeton) : '';
 }
 
@@ -543,6 +549,14 @@ async function afficherPrepares(recharger, silencieux){
     const partsNote = (typeof morceauxDeNotePreparee === 'function')
       ? morceauxDeNotePreparee(cours.note)
       : { entete: '', corps: String(cours.note || ''), consigne: '' };
+
+    /* La formation prime, même sur une note écrite avant qu'elle ne
+       change : un élève passé en passerelle ne doit plus voir la
+       frise ni la date d'examen de son parcours d'avant, sans
+       attendre que la réparation passe. */
+    if(formation && typeof noteSelonLaFormation === 'function'){
+      partsNote.corps = noteSelonLaFormation(partsNote.corps, formation);
+    }
 
     /* À quelle leçon on en est : en gros, en vert, juste sous le
        nom. C'est la première question qu'on se pose en ouvrant sa
