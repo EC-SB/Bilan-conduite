@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 13:05 — v690 */
+/* Déployé le 29/08/2026 à 14:10 — v691 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -511,10 +511,17 @@ async function afficherPrepares(recharger, silencieux){
     /* La formation de l'élève, à côté du type de cours : c'est elle
        qui décide de la boîte, de la frise et du bilan. La lire sur la
        carte évite d'ouvrir la fiche pour savoir à quoi s'attendre. */
-    const fi = (typeof ficheDe === 'function') ? ficheDe(cours.eleve) : null;
-    const formation = (fi && String(fi.formation || '').trim()) || '';
-    const boite = (formation && typeof boiteDeLaFormation === 'function')
-      ? boiteDeLaFormation(formation) : '';
+    let formation = '', boite = '';
+    try{
+      /* Les fiches ne sont pas chargées sur tous les écrans : un
+         moniteur peut n'en avoir aucune. La carte doit s'afficher
+         quand même — c'est son cours qu'elle porte, pas la fiche. */
+      const fi = (typeof ficheDe === 'function') ? ficheDe(cours.eleve) : null;
+      formation = (fi && String(fi.formation || '').trim()) || '';
+      if(formation && typeof boiteDeLaFormation === 'function'){
+        boite = boiteDeLaFormation(formation);
+      }
+    }catch(e){ /* sans fiche, la carte se lit très bien */ }
 
     sous.textContent = [cours.modeleLabel,
                         formation ? '🎓 ' + formation : '',
