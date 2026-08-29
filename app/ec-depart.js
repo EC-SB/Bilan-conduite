@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:51 — v730 */
+/* Déployé le 29/08/2026 à 15:34 — v736 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1212,8 +1212,19 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
    [3200, 'compterTachesEnFond'],
    [3800, 'chargerFlotteEnFond']].forEach(([delai, nom]) => {
     const f = window[nom];
-    if(typeof f === 'function') setTimeout(() => f(), delai);
+    /* Une étape absente passait inaperçue : le compte ne se faisait
+       jamais, et rien ne le disait. */
+    if(typeof f !== 'function'){
+      console.warn('Compte de fond « ' + nom + ' » : fonction introuvable');
+      return;
+    }
+    setTimeout(() => f(), delai);
   });
+
+  /* Et le compte des procédures se refait tout seul ensuite : une
+     procédure déposée à onze heures doit allumer le bouton du haut
+     sans qu'on recharge la page. */
+  if(typeof veillerProcACorriger === 'function') veillerProcACorriger();
 
   /* Une application laissée ouverte doit se verrouiller aussi :
      vérifier au chargement ne suffit pas si personne ne recharge. */
