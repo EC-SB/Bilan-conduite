@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:30 — v728 */
+/* Déployé le 29/08/2026 à 14:34 — v729 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -855,7 +855,21 @@ function assemblerNotePreparee(entete, corps, consigne){
    perdre.
    ------------------------------------------------------------ */
 function fondreNotePreparee(neuf, ancien){
-  const propre = ancien ? nettoyerNote(ancien) : '';
+  /* L'EN-TÊTE DE L'ANCIENNE NOTE RESTE À SON COURS.
+
+     « 🕐 13h00 🆔 » dit l'heure, la carte d'identité et la carte SD
+     DE CE COURS-LÀ. Fondu tel quel, rien ne le reconnaissait comme
+     un en-tête : il redescendait en texte libre derrière le 📌, et
+     la carte affichait l'heure deux fois — en gros en haut, en
+     petit en bas. Le nouveau cours a son propre en-tête, posé par
+     son rappel. */
+  const separe = (typeof morceauxDeNotePreparee === 'function' && ancien)
+    ? morceauxDeNotePreparee(ancien) : null;
+  const sansEntete = separe
+    ? [separe.corps, separe.consigne].filter(Boolean).join('\n')
+    : ancien;
+
+  const propre = sansEntete ? nettoyerNote(sansEntete) : '';
   if(!propre) return { corps: String(neuf || ''), consigne: '' };
 
   /* Les mots du moniteur, sauf ceux que le neuf redit déjà : le
