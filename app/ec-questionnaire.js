@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 18:15 — v694 */
+/* Déployé le 29/08/2026 à 19:40 — v695 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -267,6 +267,27 @@ function etatQuiFaitFoi(nom){
     const jour = (typeof dateDeSessionDe === 'function') ? dateDeSessionDe(nom) : '';
     if(jour){ d.examDate = jour; d.examPermis = 'prevu'; }
   }catch(e){ /* sessions non chargées : idem */ }
+
+  /* La formation du répertoire : c'est elle qui dit le parcours, et
+     donc la frise. Sans cela, un élève en AAC gardait la frise
+     classique de ses débuts À CÔTÉ de sa frise AAC — l'application
+     n'allait chercher la formation que dans le questionnaire,
+     jamais quand un rappel écrivait la note. */
+  try{
+    const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+    const formation = (f && String(f.formation || '').trim()) || '';
+    if(formation){
+      d.formation = formation;
+      const boite = (typeof boiteDeLaFormation === 'function')
+        ? boiteDeLaFormation(formation) : '';
+      const fr = (typeof friseDeLaFormation === 'function')
+        ? friseDeLaFormation(formation, boite !== 'BEA') : null;
+      /* Une frise imposée s'impose ; '' veut dire « ce parcours n'en
+         a pas » et vaut aussi. null veut dire « à saisir » : là on
+         ne touche à rien. */
+      if(fr !== null && fr !== undefined) d.frise = fr;
+    }
+  }catch(e){ /* fiches non chargées : la note fera sans */ }
 
   return d;
 }
@@ -567,13 +588,22 @@ function morceauxDeNotePreparee(note){
 const RE_LIGNE_POSITION = /^\s*🎯/;
 
 function lignePosition(corps){
-  return String(corps || '').split('\n')
-    .find(l => RE_LIGNE_POSITION.test(l)) || '';
+  const l = String(corps || '').split('\n')
+    .find(x => RE_LIGNE_POSITION.test(x)) || '';
+  /* Le premier segment, et lui seul. Les notes écrites avant que la
+     position ait sa propre ligne la collaient au reste des états :
+     tout partait en gros, « Formation accompagnateur faite » y
+     compris. En gros, on ne veut QUE le rang. */
+  return l ? segmentsDeNote(l)[0] || '' : '';
 }
 
 function sansLignePosition(corps){
-  return String(corps || '').split('\n')
-    .filter(l => !RE_LIGNE_POSITION.test(l)).join('\n');
+  return String(corps || '').split('\n').map(l => {
+    if(!RE_LIGNE_POSITION.test(l)) return l;
+    /* Ce qui suivait la position sur sa ligne n'est pas perdu : il
+       redescend avec le reste, en écriture normale. */
+    return segmentsDeNote(l).slice(1).join(' · ');
+  }).filter(Boolean).join('\n');
 }
 
 function assemblerNotePreparee(entete, corps, consigne){
@@ -997,8 +1027,11 @@ const FAMILLES_NOTE = [
   { cle:'repassage',   motif:/^🔁\s*\d+\S*\s+repassage/i },
   { cle:'handicap',    motif:/^♿\s*Conduite aménagée/i },
   { cle:'coussin',     motif:/^🟩\s*Coussin vert/i },
-  { cle:'frise',       motif:/le[çc]ons? de 2h.*exam(?:en)? blanc/i },
-  { cle:'friseAacCs',  motif:/^(?:AAC|CS)\b/i },
+  /* UNE seule famille pour la frise, classique ou AAC/CS. En
+     faire deux les laissait cohabiter : un élève en AAC portait sa
+     frise AAC ET une frise classique, l'une sous l'autre. Un élève
+     n'a qu'un parcours. */
+  { cle:'frise',       motif:/le[çc]ons? de 2h.*exam(?:en)? blanc|^(?:AAC|CS)\b/i },
   { cle:'problematique', motif:/^❓\s*Problématique/i },
   { cle:'prefecture',  motif:/^♿\s*(?:Encore .*préfecture|Prêt à être présenté)/i },
   { cle:'lecon',       motif:/^(?:🎯\s*)?\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i },
@@ -2493,8 +2526,12 @@ function majusculeNote(t){
 
 /* La ligne d'examen dans une note déjà écrite. Reconnue à partir
    des deux libellés ci-dessus, jusqu'au séparateur suivant. */
+/* La ligne d'examen va jusqu'au séparateur suivant — « · » OU un
+   retour à la ligne. Sans le retour à la ligne, la couleur rouge
+   débordait sur tout le bloc suivant : la frise d'un élève en AAC
+   s'affichait en rouge derrière sa date d'examen. */
 const RE_EXAMEN_NOTE = new RegExp(
-  '(' + EXAMEN_PREVU + '|' + EXAMEN_SANS_DATE + ')([^·]*)', 'g');
+  '(' + EXAMEN_PREVU + '|' + EXAMEN_SANS_DATE + ')([^·\\n\\r]*)', 'g');
 
 /* Écrit une note dans un élément, la ligne d'examen en couleur :
    rouge quand la date est posée, bleu quand elle manque. On
@@ -2922,7 +2959,9 @@ function ajouterSuite(etats, permis, mots, q){
        navigateur trois endroits où couper. Chaque rendez-vous
        occupait quatre lignes sur la carte. C'est aussi le nom que
        porte le bilan. */
-    const tete = '🧭 ' + grasNote('RVP ' + k);
+    /* « RVP 1 FAIT », et c'est tout : ni pictogramme, ni libellé
+       long. Cette ligne était la plus mal fichue de la note. */
+    const tete = grasNote('RVP ' + k);
     if(v === 'aprevoir') etats.push(tete + ' ' + grasNote('À PRÉVOIR'));
     else if(v === 'prevu') etats.push(tete + ' ' + grasNote('PRÉVU'));
     else if(v === 'fait') etats.push(tete + ' ' + grasNote('FAIT') + ' ✅');
