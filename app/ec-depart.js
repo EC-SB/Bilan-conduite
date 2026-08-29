@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:10 — v702 */
+/* Déployé le 29/08/2026 à 14:51 — v730 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1362,6 +1362,12 @@ brancher('logoutBtn', 'click', async () => {
   if(!await confirmer('Se déconnecter ?')) return;
   verrouiller('');
   showToast('Déconnecté');
+});
+
+/* Le raccourci des procédures : il n'ouvre rien de plus que
+   l'écran qui existe déjà, il évite d'avoir à y penser. */
+brancher('procRaccourci', 'click', () => {
+  if(typeof ouvrirLesProcAcorriger === 'function') ouvrirLesProcAcorriger();
 });
 
 /* Le bouton Déverrouiller est branché dans la page elle-même,
