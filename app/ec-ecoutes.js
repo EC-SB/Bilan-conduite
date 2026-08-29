@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v710 */
+/* Déployé le 30/08/2026 à 06:20 — v723 */
 /* ============================================================
    ec-ecoutes.js
    Suivi des écoutes pédagogiques.
@@ -168,10 +168,12 @@ async function afficherEcoutes(){
     /* L'adresse d'abord : inutile d'enregistrer si le mail demandé
        ne peut pas partir. */
     const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
-    const adresse = (fiche && fiche.email) || '';
-    if(caseSms.checked && !adresse){
-      showToast("Pas d'adresse mail sur sa fiche : le message ne peut pas partir.");
-      return;
+    let adresse = (fiche && fiche.email) || '';
+    if(caseSms.checked){
+      /* Confirmée avant l'envoi : elle a pu changer, et un mail
+         perdu ne se signale jamais. */
+      adresse = await confirmerAdresseEleve(nom, adresse);
+      if(!adresse) return;
     }
 
     bAbs.disabled = true;
