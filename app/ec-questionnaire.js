@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 08:15 — v687 */
+/* Déployé le 29/08/2026 à 09:10 — v688 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -183,7 +183,18 @@ function passageDepuisNote(note){
   return m ? m[1] : '';
 }
 
+/* La ligne d'examen voyage en gras Unicode — la note vit dans un
+   tableur, elle ne peut pas porter de mise en forme. Le lecteur de
+   notes, lui, cherche « Examen prévu le ». Sans cette traduction,
+   une note déjà mise à la forme actuelle ne se relisait plus : la
+   date d'examen s'y trouvait, et on répondait qu'il n'y en avait
+   pas. */
+function noteEnClair(note){
+  return String(note || '').split(EXAMEN_PREVU).join('Examen prévu le');
+}
+
 function defautsDepuisNote(note){
+  note = noteEnClair(note);
   const a = analyserNote(note);
   const d = {};
   if(a.examBlanc){
@@ -328,12 +339,137 @@ function fusionnerContexte(saisi, defauts){
   return out;
 }
 
-/* Le numéro de leçon dans un texte : « 5ème leçon », « 5e leçon »,
-   « 5 leçon ». Écrit une seule fois — la note du cours préparé, le
-   bilan et la réparation s'en servent tous les trois. Le suffixe,
-   lui, appartient à chaque document : la note écrit « 5ème », le
-   bilan « 5e ». */
-const RE_NUM_LECON = /\d+\s*(?:ère|ere|ème|eme|e)?(\s*le[çc]on)/i;
+/* Le RANG d'une leçon dans un texte : « 5ème leçon », « 5e leçon ».
+   Écrit une seule fois — la note du cours préparé, le bilan et la
+   réparation s'en servent tous les trois. Le suffixe, lui, appartient
+   à chaque document : la note écrit « 5ème », le bilan « 5e ».
+
+   Deux garde-fous, et ils ont coûté cher :
+
+   • le suffixe ordinal est OBLIGATOIRE. Une note ne parle pas que de
+     rangs, elle compte aussi : « 5 leçons de 2h » dans une frise,
+     « encore 2 leçons avant l'examen blanc ». Sans le suffixe, la
+     frise était attrapée la première et la correction du rang la
+     réécrivait — « 3èmeleçons de 2h + exam blanc… » ;
+
+   • le pluriel est refusé. « leçons » n'est jamais un rang, et cela
+     rend aussi les frises déjà abîmées intouchables : la réparation
+     les reconstruit, elle ne les rature pas une seconde fois. */
+const RE_NUM_LECON = /\d+\s*(?:ère|ere|ème|eme|e)(\s*le[çc]on)(?!s)/i;
+
+/* ------------------------------------------------------------
+   LA NOTE D'UN COURS PRÉPARÉ — TROIS MORCEAUX
+
+   Une note de cours préparé est toujours faite des mêmes trois
+   parties, dans le même ordre :
+
+     🕐 13h00 🆔          ← l'en-tête, posé par le rappel
+     5 leçons de 2h · …   ← le corps, écrit par le questionnaire
+     📌 …                 ← la consigne reprise du cours précédent
+
+   Trois endroits les assemblaient chacun à leur manière, et aucun
+   ne savait les séparer : réparer le corps effaçait la consigne,
+   nettoyer la consigne abîmait l'en-tête. Un seul assemble
+   désormais, un seul sépare.
+   ------------------------------------------------------------ */
+function morceauxDeNotePreparee(note){
+  const lignes = String(note || '').split('\n');
+
+  /* L'en-tête tient sur la première ligne et ne porte que des
+     pictogrammes : l'heure, la carte d'identité, la carte SD. */
+  let entete = '';
+  if(lignes.length && /^\s*(?:🕐|🆔|💾)/.test(lignes[0])) entete = lignes.shift();
+
+  let i = -1;
+  for(let k = 0; k < lignes.length; k++){
+    if(/^\s*📌/.test(lignes[k])){ i = k; break; }
+  }
+
+  const corps = (i === -1 ? lignes : lignes.slice(0, i)).join('\n').trim();
+  const consigne = (i === -1) ? ''
+    : lignes.slice(i).join('\n').replace(/^\s*📌\s*/, '').trim();
+
+  return { entete: entete, corps: corps, consigne: consigne };
+}
+
+function assemblerNotePreparee(entete, corps, consigne){
+  const tete = String(entete || '').trim();
+  const c = String(corps || '');
+  /* Un morceau absent ne laisse pas sa ligne derrière lui : sans
+     cela, un cours sans corps donnait une ligne vide entre l'heure
+     et la consigne. */
+  let t = tete ? (c ? tete + '\n' + c : tete) : c;
+  if(consigne) t += (t ? '\n\n' : '') + '📌 ' + consigne;
+  return t;
+}
+
+/* ------------------------------------------------------------
+   FONDRE CE QUE LE QUESTIONNAIRE ÉCRIT ET CE QUE LE COURS
+   PRÉCÉDENT A LAISSÉ
+
+   Les deux disent souvent la même chose, mais pas aussi bien : le
+   questionnaire écrit « EXAMEN OFFICIEL PRÉVU LE LUNDI 31 AOÛT
+   2026 », le bureau avait écrit la même ligne avec le centre et
+   l'heure. Empilées, elles se répétaient cinq fois ; choisies au
+   hasard, on perdait le centre.
+
+   Trois règles, et elles suffisent :
+
+     • une famille ne s'écrit qu'une fois. Le NEUF a le dernier mot :
+       c'est la réponse du moniteur, pas l'histoire. Si le
+       questionnaire dit « examen annulé », un ancien « examen prévu
+       le 31 » ne doit pas ressusciter ;
+
+     • sauf quand l'ancien dit exactement la même chose en plus
+       complet — la ligne du bureau porte le centre et l'heure de
+       convocation, que le questionnaire ne sait pas écrire. Le
+       critère est net : l'ancien commence par le neuf ;
+
+     • ce que le questionnaire ne sait pas redire — les mots du
+       moniteur — n'entre pas dans le corps : il reste derrière son
+       📌, à sa place, parce que c'est à cela que sert le 📌.
+
+   « ancien » est tout ce qui était écrit avant : la note du cours
+   précédent, ou le corps ET le 📌 d'un cours qu'on répare. Passer
+   les deux permet à la réparation de tourner deux fois sans rien
+   perdre.
+   ------------------------------------------------------------ */
+function fondreNotePreparee(neuf, ancien){
+  const propre = ancien ? nettoyerNote(ancien) : '';
+  if(!propre) return { corps: String(neuf || ''), consigne: '' };
+
+  /* Les mots du moniteur, sauf ceux que le neuf redit déjà : le
+     questionnaire porte lui aussi un champ libre, et l'y voir deux
+     fois — dans le corps et sous le 📌 — serait le même empilement
+     qu'on cherche à faire disparaître. */
+  const dejaLa = segmentsDeNote(String(neuf || ''));
+  const aPart = segmentsDeNote(retirerSegmentsRegeneres(propre))
+    .filter(s => dejaLa.indexOf(s) === -1);
+  const libres = aPart.join(' · ');
+
+  /* Ce que l'ancien disait, sujet par sujet */
+  const dits = {};
+  segmentsDeNote(propre).forEach(s => {
+    if(aPart.indexOf(s) !== -1) return;
+    const f = FAMILLES_NOTE.find(x => x.motif.test(s));
+    if(f) dits[f.cle] = s;
+  });
+
+  const vus = {};
+  const sortie = segmentsDeNote(String(neuf || '')).map(s => {
+    const f = FAMILLES_NOTE.find(x => x.motif.test(s));
+    if(!f) return s;
+    vus[f.cle] = true;
+    const avant = dits[f.cle];
+    return (avant && avant !== s && avant.indexOf(s) === 0) ? avant : s;
+  });
+
+  /* Les sujets dont le neuf ne parle pas restent ceux de l'ancien :
+     ils seraient perdus autrement. */
+  Object.keys(dits).forEach(cle => { if(!vus[cle]) sortie.push(dits[cle]); });
+
+  return { corps: sortie.join(' · '), consigne: libres };
+}
 
 /* Le cours du jour compte-t-il comme une leçon de la frise ? Un
    simulateur, un examen blanc ou un rendez-vous post-permis occupent
