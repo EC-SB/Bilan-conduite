@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:05 — v696 */
+/* Déployé le 29/08/2026 à 23:30 — v698 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1625,6 +1625,7 @@ function noteJusteDuCours(cours, rang, dossier){
   if(dossier){
     if(dossier.leconsDepuisEB !== undefined) ctx.leconsDepuisEB = dossier.leconsDepuisEB;
     if(dossier.leconsDepuisRdvPost !== undefined) ctx.leconsDepuisRdvPost = dossier.leconsDepuisRdvPost;
+    if(dossier.leconsParBoite) ctx.leconsParBoite = dossier.leconsParBoite;
     if(dossier.lecons !== null && dossier.lecons !== undefined){
       ctx.leconsFaites = dossier.lecons;
     }
