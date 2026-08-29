@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 05:20 — v721 */
+/* Déployé le 30/08/2026 à 05:45 — v722 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3985,6 +3985,7 @@ function planifierHistorique(){
        il n'a rien à annoncer tant qu'on ne sait pas de qui on
        parle. */
     if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
+    if(typeof majEtatMailEleve === 'function') majEtatMailEleve();
     chargerHistoriqueEleve();
     /* Et ce qui a été préparé pour ce cours, s'il y a une préparation */
     if(typeof afficherPreparationEleve === 'function') afficherPreparationEleve();
