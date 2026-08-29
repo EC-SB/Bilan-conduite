@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v710 */
+/* Déployé le 30/08/2026 à 05:45 — v722 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -523,7 +523,12 @@ if($('prepEleve')){
   $('prepEleve').addEventListener('change', majPrep);
 }
 if($('eleveMessenger')){
-  $('eleveMessenger').addEventListener('input', majLienMessenger);
+  $('eleveMessenger').addEventListener('input', () => {
+    majLienMessenger();
+    /* Le rouge tombe dès que l'adresse est tapée : attendre la
+       sortie du champ laisserait l'alerte pendant la frappe. */
+    if(typeof majEtatMailEleve === 'function') majEtatMailEleve();
+  });
   $('eleveMessenger').addEventListener('blur', enregistrerMessengerEleve);
 }
 brancherFichierCsv();
