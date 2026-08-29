@@ -1,5 +1,6 @@
 /* Déployé le 29/08/2026 à 16:30 — v693 */
-   ec-sessions.js
+/*===========================================================
+      ec-sessions.js
    Les sessions d'examen, place par place.
 
    Une session = une demi-journée avec un inspecteur. On la crée
