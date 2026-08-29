@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 02:30 — v715 */
+/* Déployé le 30/08/2026 à 03:40 — v717 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -872,7 +872,12 @@ function fondreNotePreparee(neuf, ancien){
   segmentsDeNote(propre).forEach(s => {
     if(aPart.indexOf(s) !== -1) return;
     const f = familleDuSegment(s);
-    if(f) dits[f.cle] = s;
+    if(!f) return;
+    /* Une frise à trous ne se recolle pas : la garder, c'est la
+       promener de note en note indéfiniment. */
+    if(f.cle === 'frise' && typeof friseUtilisable === 'function' &&
+       !friseUtilisable(sansGras(s))) return;
+    dits[f.cle] = s;
   });
 
   /* Ligne à ligne : la note neuve est bâtie en blocs — la frise, où
@@ -1589,6 +1594,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
   /* La frise saisie sur la fiche de l'élève fait autorité : elle a été
      posée une fois pour toutes, inutile de la redemander à chaque cours. */
+  /* Une frise abîmée ne compte pas comme une frise : on repart
+     alors de celle de la fiche, ou de rien. */
+  if(typeof friseUtilisable === 'function') prec.frise = friseUtilisable(prec.frise);
   if(!prec.frise){
     const qui = ($('studentName') && $('studentName').value.trim()) ||
                 ($('prepEleve') && $('prepEleve').value.trim()) || '';
@@ -1636,8 +1644,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
      formation, le dernier cours, la fiche de l'élève. Sans ce
      dernier recours, un dossier momentanément indisponible faisait
      perdre une frise pourtant enregistrée. */
-  const frisePrecedente = friseDeduite || dossier.frise ||
-                          (ficheEleve && ficheEleve.frise) || '';
+  /* Chaque source passe par le filtre : une frise à trous héritée
+     d'un cours ancien ne doit pas remplir les cases à la place du
+     moniteur. Mieux vaut deux cases vides qu'un « 2 » que
+     personne n'a saisi. */
+  const utilisable = f => (typeof friseUtilisable === 'function')
+    ? friseUtilisable(f) : String(f || '');
+  const frisePrecedente = friseDeduite || utilisable(dossier.frise) ||
+                          utilisable(ficheEleve && ficheEleve.frise) || '';
   const compteDansLaFrise = leconCompteDansLaFrise(modeleCle);
   const faites = dossier.lecons;
 
@@ -2214,7 +2228,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     if(selForm){
       let choix = formationDeLaFiche;
       if(!choix){
-        const base = prec.frise || frisePrecedente || '';
+        const base = utilisable(prec.frise) || frisePrecedente || '';
         if(/^AAC /i.test(base)) choix = manuelleDuBilan ? 'AAC BV' : 'AAC BEA';
         else if(/^CS /i.test(base)) choix = manuelleDuBilan ? 'CS BV' : 'CS BEA';
       }
@@ -2269,7 +2283,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     }
 
     if(chAvant){
-      const base = prec.frise || frisePrecedente;
+      const base = utilisable(prec.frise) || frisePrecedente;
       const av = leconsAvantExamenBlanc(base);
       const ap = leconsApresExamenBlanc(base);
       /* Ce que la frise dit, et RIEN d'autre.
@@ -3658,7 +3672,9 @@ function recapDuCours(q, eleve, modeleCle, fiche){
   const dit = v => String(v || '').trim();
 
   const formation = dit(c.formation) || dit(f.formation);
-  const frise = dit(c.frise) || dit(f.frise);
+  const utile = x => (typeof friseUtilisable === 'function')
+    ? friseUtilisable(x) : dit(x);
+  const frise = utile(c.frise) || utile(f.frise);
   const imposee = (typeof friseDeLaFormation === 'function')
     ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
 
@@ -3755,7 +3771,11 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
      un manque. C'est la table qui le sait, on ne le devine pas. */
   const imposee = (typeof friseDeLaFormation === 'function')
     ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
-  const frise = String(c.frise || (fiche && fiche.frise) || '').trim();
+  /* Une frise à trous est une frise manquante : la réclamer est la
+     seule façon d'en sortir. */
+  const brute = String(c.frise || (fiche && fiche.frise) || '').trim();
+  const frise = (typeof friseUtilisable === 'function')
+    ? friseUtilisable(brute) : brute;
   if(imposee === null && !frise) manque.push('la frise');
 
   if(typeof leconCompteDansLaFrise === 'function' &&
