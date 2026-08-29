@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 08:09 — v686 */
+/* Déployé le 29/08/2026 à 08:15 — v687 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1649,25 +1649,60 @@ function normaliserNoteExamen(note){
    qui n'appartient à aucune famille — les remarques du moniteur —
    n'est jamais jeté, seulement dédoublonné à l'identique.
    ------------------------------------------------------------ */
+/* Parmi plusieurs lignes d'une même famille, laquelle garder ?
+
+   La dernière écrite fait foi — c'est la règle posée par Chrystel.
+   Sauf quand cette dernière n'est que le DÉBUT d'une autre : une
+   « PAS DE DATE D'EXAMEN OFFICIEL » toute nue ne doit pas effacer
+   « PAS DE DATE D'EXAMEN OFFICIEL — non planifiable (Pas le
+   niveau) », qui dit la même chose ET pourquoi. Sans cette
+   nuance, le ménage faisait disparaître un élève de la liste
+   Permis → Pas prêts. */
+function meilleurDeLaFamille(segs){
+  const dernier = segs[segs.length - 1];
+  const plusRiche = segs
+    .filter(x => x !== dernier && x.indexOf(dernier) === 0)
+    .sort((a, b) => b.length - a.length)[0];
+  return plusRiche || dernier;
+}
+
 function nettoyerNote(note){
   const segs = segmentsDeNote(note).map(x => normaliserLigneExamen(x));
 
-  /* À l'envers : le premier rencontré est le dernier écrit. */
+  /* Ce que chaque famille a écrit, dans l'ordre */
+  const parFamille = {};
+  segs.forEach(seg => {
+    const f = FAMILLES_NOTE.find(x => x.motif.test(seg));
+    if(!f) return;
+    (parFamille[f.cle] = parFamille[f.cle] || []).push(seg);
+  });
+
+  const retenu = {};
+  Object.keys(parFamille).forEach(cle => {
+    retenu[cle] = meilleurDeLaFamille(parFamille[cle]);
+  });
+
+  /* À l'envers : le premier rencontré est le dernier écrit, et
+     c'est sa place qu'on garde. */
   const famillesVues = {};
   const identiquesVus = {};
   const gardes = [];
 
   for(let i = segs.length - 1; i >= 0; i--){
     const seg = segs[i];
-
-    if(identiquesVus[seg]) continue;
-    identiquesVus[seg] = true;
-
     const f = FAMILLES_NOTE.find(x => x.motif.test(seg));
+
     if(f){
       if(famillesVues[f.cle]) continue;
       famillesVues[f.cle] = true;
+      gardes.push(retenu[f.cle]);
+      continue;
     }
+
+    /* Hors famille — les remarques des moniteurs : on ne jette
+       que les doublons à l'identique. */
+    if(identiquesVus[seg]) continue;
+    identiquesVus[seg] = true;
     gardes.push(seg);
   }
 
