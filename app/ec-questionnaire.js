@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:10 — v725 */
+/* Déployé le 29/08/2026 à 14:16 — v726 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3051,20 +3051,34 @@ function positionDansLaFrise(q){
 
   if(ebPasse){
     const apres = leconsApresExamenBlanc(q.frise);
+    const avant = leconsAvantExamenBlanc(q.frise);
     const prevues = apres ? apres + ' prévue' + pl(apres) : '';
     const dit = (t, r) => dire(t + entreParentheses(prevues, n, r));
 
-    /* Sans le compte depuis l'examen blanc — historique trop court,
-       examen blanc passé ailleurs — on ne raconte pas d'histoire :
-       on dit le rang global et on s'arrête. */
-    if(isNaN(depuisEB)) return dit(rangLecon(n) + " leçon après l'examen blanc", n);
+    /* LE RANG DERRIÈRE LA CHARNIÈRE SE DÉDUIT DU RANG AFFICHÉ.
 
-    /* Jamais « 0ème » : l'examen blanc est derrière, donc la leçon
-       qui vient est au moins la première d'après. C'est ce que
-       lisait Mamadou — l'examen blanc noté à la main par le bureau
-       était le dernier enregistrement du dossier, zéro leçon le
-       suivait, et le compteur affichait ce zéro tel quel. */
-    const r = Math.max(1, depuisEB + plus);
+       « Un examen blanc n'est jamais compté comme une leçon »
+       (Chrystel, 30 août). Le rang saisi ne compte donc que des
+       leçons de conduite, et la frise dit combien il y en avait
+       avant l'examen blanc : une soustraction suffit, et la carte
+       ne peut plus se contredire elle-même — la pastille disait 8
+       pendant que la ligne verte disait 0.
+
+       Mamadou : 8ème leçon, 5 avant l'examen blanc → la 3ème
+       après, alors que la frise n'en prévoyait que 2. C'est un
+       dépassement réel, et c'est ce qu'il faut lire.
+
+       Le compte du dossier ne sert plus que de recours : il est
+       vide pour tous les élèves qui ont conduit avant l'outil, et
+       c'est justement là qu'il affichait « 0ème ». */
+    const deduit = (avant !== null && n > avant) ? n - avant : null;
+    const duDossier = isNaN(depuisEB) ? null : Math.max(1, depuisEB + plus);
+    const r = (deduit !== null) ? deduit : duDossier;
+
+    /* Ni frise exploitable ni historique : on ne raconte pas
+       d'histoire, on dit le rang global et on s'arrête. */
+    if(r === null) return dit(rangLecon(n) + " leçon après l'examen blanc", n);
+
     if(apres && r > apres){
       return dire(rangLecon(r) + " leçon après l'examen blanc — frise dépassée" +
                   entreParentheses(prevues, n, r));
