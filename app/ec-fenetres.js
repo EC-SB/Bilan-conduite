@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 04:15 — v718 */
+/* Déployé le 30/08/2026 à 05:45 — v722 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1897,7 +1897,11 @@ async function chargerMessengerEleve(){
   if(!champ) return;
 
   majLienMessenger();
-  if(nom.length < 3){ champ.value = ''; messengerCharge = ''; return; }
+  if(nom.length < 3){
+    champ.value = ''; messengerCharge = '';
+    majEtatMailEleve();
+    return;
+  }
 
   /* Le dossier est récupéré dès la saisie du nom, pendant que le
      moniteur remplit le reste : au démarrage, tout est déjà prêt. */
@@ -1924,7 +1928,57 @@ async function chargerMessengerEleve(){
     champ.value = (f && f.email) || '';
     messengerCharge = champ.value;
     majLienMessenger();
+    majEtatMailEleve();
   }catch(e){}
+}
+
+/* ------------------------------------------------------------
+   L'ADRESSE MANQUANTE SE VOIT
+
+   Sans elle, le bilan ne pourra pas partir — et on ne s'en aperçoit
+   qu'au moment de l'envoyer, cours terminé, élève reparti. Le champ
+   le dit donc pendant le cours, tant qu'il est encore temps de la
+   demander.
+
+   Rien tant qu'aucun élève n'est choisi : réclamer une adresse à
+   personne, c'est ce que faisait le bouton « Compléter les infos »
+   sur un écran vide.
+   ------------------------------------------------------------ */
+function majEtatMailEleve(){
+  const champ = $('eleveMessenger');
+  const etat = $('eleveMessengerEtat');
+  const lab = document.querySelector('label[for="eleveMessenger"]');
+  if(!champ) return;
+
+  const nom = $('studentName') ? $('studentName').value.trim() : '';
+  const connu = nom.length >= 3 && nom.split(/\s+/).length >= 2;
+  const v = champ.value.trim();
+
+  const peindre = (couleur, texte, gras) => {
+    champ.style.borderColor = couleur || '';
+    if(lab){ lab.style.color = couleur || ''; }
+    if(etat){
+      etat.style.color = couleur || 'var(--muted)';
+      etat.style.fontWeight = gras ? '700' : '';
+      etat.textContent = texte;
+    }
+  };
+
+  if(!connu){
+    peindre('', 'Saisie une fois, elle est retenue : tous les moniteurs la retrouveront ici.');
+    return;
+  }
+  if(!v){
+    peindre('var(--red)',
+            "⚠️ Aucune adresse mail — son bilan ne pourra pas lui être envoyé. " +
+            'Demande-la-lui pendant le cours.', true);
+    return;
+  }
+  if(v.indexOf('@') === -1){
+    peindre('var(--warn-text)', 'Cette adresse ne semble pas valable.', true);
+    return;
+  }
+  peindre('', '✅ Enregistrée : tous les moniteurs la retrouveront ici.');
 }
 
 function majLienMessenger(){
@@ -1950,6 +2004,7 @@ async function enregistrerMessengerEleve(){
   const nom = $('studentName') ? $('studentName').value.trim() : '';
   majLienMessenger();
 
+  majEtatMailEleve();
   if(!nom || nom.split(' ').length < 2) return;
   if(v === messengerCharge) return;
   /* Une adresse sans @ n'est pas une adresse : l'enregistrer
