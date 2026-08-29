@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:39 — v737 */
+/* Déployé le 29/08/2026 à 15:44 — v738 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -923,10 +923,24 @@ async function afficherPrepares(recharger, silencieux){
        EXACTEMENT ces deux libellés, et rien d'autre : « ♿ Conduite
        aménagée — commandes au volant » dit quelque chose que la
        pastille ne sait pas dire, et doit rester lisible. */
+    /* L'HEURE EST DÉJÀ EN GROS, TOUT EN HAUT.
+
+       Elle appartient à l'en-tête de la note. Les cours préparés
+       avant qu'on cesse de la recopier la portent encore dans leur
+       texte — parfois deux fois, une par reprise. Elle se retire
+       de l'AFFICHAGE, comme le poste de conduite : la note
+       continue de la porter, c'est l'écran qui cesse de la redire.
+
+       Seulement quand le segment ne dit QUE ça : « 🕐 15h00
+       rendez-vous devant la mairie » est un mot du moniteur, et il
+       reste. */
+    const RIEN_QUE_ENTETE = /^(?:🕐\s*\d{1,2}\s*[h:]\s*\d{0,2}|🆔|💾|\s)+$/;
+
     const DEJA_SUR_LA_CARTE = ['♿ Conduite aménagée', '🟩 Coussin vert'];
-    reste = reste.split('\n').map(l =>
+    const sansRedites = t => String(t || '').split('\n').map(l =>
       l.split(' · ')
        .filter(s => DEJA_SUR_LA_CARTE.indexOf(s.trim()) === -1)
+       .filter(s => !RIEN_QUE_ENTETE.test(s.trim()))
        /* Une frise à trous n'apprend rien et fait croire à une
           frise : la carte dit déjà qu'elle manque, juste au-dessus. */
        .filter(s => !(/le[çc]ons? de 2h/i.test(s) &&
@@ -935,8 +949,12 @@ async function afficherPrepares(recharger, silencieux){
        .join(' · ')
     ).filter(Boolean).join('\n');
 
-    const texteNote = [reste,
-                       partsNote.consigne ? '📌 ' + partsNote.consigne : '']
+    reste = sansRedites(reste);
+    /* Le 📌 aussi : c'est là que les heures recopiées s'étaient
+       accumulées. */
+    const consigne = sansRedites(partsNote.consigne);
+
+    const texteNote = [reste, consigne ? '📌 ' + consigne : '']
       .filter(Boolean).join('\n');
 
     if(texteNote){
