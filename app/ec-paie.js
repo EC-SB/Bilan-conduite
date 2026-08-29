@@ -1,3 +1,4 @@
+/* Déployé le 29/08/2026 à 17:15 — v704 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -47,6 +48,47 @@ function arrondiQuart(h){ return Math.round((h || 0) * 4) / 4; }
 function enHeures(h){
   const n = arrondiQuart(h);
   return String(n).replace('.', ',') + 'h';
+}
+
+/* ------------------------------------------------------------
+   LA VIRGULE VAUT LE POINT
+
+   Toute cette page s'écrit à la française — « 33,25h » — et les
+   champs de saisie, eux, étaient des <input type="number">. Or un
+   champ « number » REFUSE la virgule : sur un clavier français, la
+   touche décimale du pavé numérique en produit une, le navigateur
+   la jette, et .value revient VIDE.
+
+   On tapait donc « 33,25 », il s'enregistrait zéro, et rien ne le
+   disait. Les nombres entiers passaient — c'est pour ça que la
+   semaine à 45h était juste et que les deux suivantes restaient
+   obstinément vides.
+
+   On lit le nombre nous-mêmes, et les champs deviennent du texte
+   en mode décimal : le clavier numérique s'ouvre quand même sur un
+   téléphone, et les deux séparateurs passent.
+   ------------------------------------------------------------ */
+function nombrePaie(v){
+  const t = String(v === undefined || v === null ? '' : v)
+    .replace(/\s/g, '').replace(',', '.');
+  if(!t) return null;
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+/* Le même nombre, prêt à être réaffiché dans un champ : avec la
+   virgule, comme le reste de la page l'écrit. */
+function versChampPaie(n){
+  if(n === null || n === undefined || n === '') return '';
+  return String(n).replace('.', ',');
+}
+
+/* Un forçage laissé vide n'est pas zéro : c'est « on ne force
+   rien », et le serveur fait la différence entre les deux. Envoyer
+   0 à la place ferait une semaine à zéro heure normale. */
+function champForcePaie(v){
+  const n = nombrePaie(v);
+  return (n === null) ? '' : n;
 }
 
 
@@ -151,6 +193,23 @@ async function afficherPaie(){
   }
 
   zone.innerHTML = '';
+  paieARedessiner = false;
+
+  /* Le redessin mis en attente pendant la saisie finit par
+     arriver : dès qu'on quitte la dernière case, les totaux se
+     remettent à jour. Posé une seule fois par écran — la zone est
+     recréée à chaque affichage, l'écouteur part avec elle. */
+  zone.addEventListener('focusout', () => {
+    /* Le temps que le navigateur pose le focus sur sa nouvelle
+       cible : sans ce délai, activeElement vaut encore <body> et on
+       redessinerait entre deux cases. */
+    setTimeout(() => {
+      if(paieARedessiner && !saisieEnCoursDansLaPaie()){
+        paieARedessiner = false;
+        afficherPaie();
+      }
+    }, 60);
+  });
 
   const barre = document.createElement('div');
   barre.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px;';
@@ -598,6 +657,36 @@ function absencesDuMois(idSalarie){
 }
 
 
+/* ------------------------------------------------------------
+   NE PAS ARRACHER LA SAISIE EN COURS
+
+   Enregistrer une case appelait afficherPaie(), qui vide l'écran
+   entier, relit le classeur et le redessine. Or on remplit quatre
+   semaines à la suite — c'est le geste normal, pas l'exception :
+   on tape 33,25 dans le 17/08, on passe au 24/08, on commence à
+   taper 28,5… et l'enregistrement de la case précédente détruit
+   sous les doigts la case en cours. La deuxième semaine ne
+   s'enregistrait jamais.
+
+   Tant que quelqu'un est encore dans une case, on garde le
+   redessin en attente. Il se fait à la sortie du tableau.
+   ------------------------------------------------------------ */
+let paieARedessiner = false;
+
+function saisieEnCoursDansLaPaie(){
+  const a = document.activeElement;
+  const zone = $('paieZone');
+  return !!(a && zone && zone.contains(a) &&
+            (a.tagName === 'INPUT' || a.tagName === 'SELECT' ||
+             a.tagName === 'TEXTAREA'));
+}
+
+function redessinerPaieQuandPossible(){
+  if(saisieEnCoursDansLaPaie()){ paieARedessiner = true; return; }
+  paieARedessiner = false;
+  afficherPaie();
+}
+
 /* Le tableau du mois : une case d'heures par semaine, tout le
    reste se calcule. */
 function tableauPaie(){
@@ -652,10 +741,11 @@ function tableauPaie(){
         'text-align:center;';
 
       const ch = document.createElement('input');
-      ch.type = 'number';
-      ch.step = '0.25';
+      /* Texte, pas « number » : c'est ce qui laisse passer la
+         virgule du pavé numérique français. */
+      ch.type = 'text';
       ch.inputMode = 'decimal';
-      ch.value = (w && w.heures) ? w.heures : '';
+      ch.value = (w && w.heures) ? versChampPaie(w.heures) : '';
       ch.placeholder = '·';
       ch.style.cssText = 'width:58px;margin:0;padding:5px 4px;font-size:13px;' +
         'text-align:center;background:var(--navy);border:1px solid transparent;' +
@@ -665,7 +755,7 @@ function tableauPaie(){
       const majTitre = () => {
         const j = (w && w.joursAbsents) ||
                   joursAbsentsDeduits(s.id, l, s.joursSemaine);
-        const h = parseFloat(ch.value) || 0;
+        const h = nombrePaie(ch.value) || 0;
         if(!h && !j){ ch.title = 'Heures de la semaine'; return; }
         const r = repartirSemaine(h, j, s.baseHebdo, s.heuresJour);
         ch.title = h + 'h faites' + (j ? ' · ' + j + ' j absent' : '') +
@@ -675,13 +765,17 @@ function tableauPaie(){
 
       /* On enregistre à la sortie du champ, pas à chaque frappe */
       ch.addEventListener('change', async () => {
-        const h = parseFloat(ch.value) || 0;
+        const h = nombrePaie(ch.value) || 0;
         const j = (w && w.joursAbsents !== undefined && w.joursAbsents !== null)
                     ? w.joursAbsents
                     : joursAbsentsDeduits(s.id, l, s.joursSemaine);
+        /* Ce qui est relu tout de suite : la virgule devient la
+           virgule, « 33.25 » devient « 33,25 », et un gribouillis
+           redevient vide au lieu de faire croire à une saisie. */
+        ch.value = versChampPaie(h || '');
         ch.style.borderColor = 'var(--orange)';
         try{
-          await appelPrep({
+          const r = await appelPrep({
             action: 'paieSemaineSet',
             id: w ? w.id : '',
             idSalarie: s.id,
@@ -694,7 +788,21 @@ function tableauPaie(){
             par: ACCES.moniteur || ''
           });
           ch.style.borderColor = 'transparent';
-          afficherPaie();
+
+          /* La semaine qu'on vient d'écrire, en mémoire : sans ça
+             une deuxième correction de la même case repartirait
+             sans identifiant. */
+          if(r && r.id){
+            if(w){ w.id = r.id; w.heures = h; w.joursAbsents = j; }
+            else {
+              const neuve = { id: r.id, idSalarie: s.id, semaine: l,
+                              heures: h, joursAbsents: j,
+                              normalForce: null, majoreForce: null,
+                              remarque: '' };
+              semainesPaie.push(neuve);
+            }
+          }
+          redessinerPaieQuandPossible();
         }catch(e){
           ch.style.borderColor = 'var(--red)';
           showToast('Impossible : ' + e.message);
@@ -836,7 +944,7 @@ function ouvrirSemaine(s, lundi, w){
 
     '<div class="duo">' +
       '<div><label for="swHeures">Heures faites</label>' +
-        '<input type="number" id="swHeures" step="0.25" inputmode="decimal" ' +
+        '<input type="text" id="swHeures" inputmode="decimal" ' +
           'placeholder="Ex : 40"></div>' +
       '<div><label for="swAbs">Jours CP ou fériés</label>' +
         '<input type="number" id="swAbs" step="1" min="0"></div>' +
@@ -861,9 +969,9 @@ function ouvrirSemaine(s, lundi, w){
         'Laisse vide pour revenir au calcul.</div>' +
       '<div class="duo">' +
         '<div><label for="swNormal">Normal</label>' +
-          '<input type="number" id="swNormal" step="0.25" inputmode="decimal"></div>' +
+          '<input type="text" id="swNormal" inputmode="decimal"></div>' +
         '<div><label for="swMajore">Majoré 25%</label>' +
-          '<input type="number" id="swMajore" step="0.25" inputmode="decimal"></div>' +
+          '<input type="text" id="swMajore" inputmode="decimal"></div>' +
       '</div>' +
     '</details>' +
 
@@ -875,23 +983,23 @@ function ouvrirSemaine(s, lundi, w){
     : jDeduits;
 
   if(w){
-    boite.querySelector('#swHeures').value = w.heures || '';
-    if(w.normalForce !== null) boite.querySelector('#swNormal').value = w.normalForce;
-    if(w.majoreForce !== null) boite.querySelector('#swMajore').value = w.majoreForce;
+    boite.querySelector('#swHeures').value = versChampPaie(w.heures || '');
+    if(w.normalForce !== null) boite.querySelector('#swNormal').value = versChampPaie(w.normalForce);
+    if(w.majoreForce !== null) boite.querySelector('#swMajore').value = versChampPaie(w.majoreForce);
     boite.querySelector('#swRem').value = w.remarque || '';
   }
 
   const zAp = boite.querySelector('#swApercu');
   const majApercu = () => {
-    const h = parseFloat(boite.querySelector('#swHeures').value) || 0;
+    const h = nombrePaie(boite.querySelector('#swHeures').value) || 0;
     const j = parseInt(boite.querySelector('#swAbs').value, 10) || 0;
     const nF = boite.querySelector('#swNormal').value;
     const mF = boite.querySelector('#swMajore').value;
 
     if(nF !== '' || mF !== ''){
       zAp.innerHTML = '<span style="color:var(--warn-text);">✍️ Corrigé à la main : ' +
-        '</span>Normal <strong>' + enHeures(parseFloat(nF) || 0) + '</strong> · ' +
-        '25% <strong>' + enHeures(parseFloat(mF) || 0) + '</strong>';
+        '</span>Normal <strong>' + enHeures(nombrePaie(nF) || 0) + '</strong> · ' +
+        '25% <strong>' + enHeures(nombrePaie(mF) || 0) + '</strong>';
       return;
     }
 
@@ -951,10 +1059,10 @@ function ouvrirSemaine(s, lundi, w){
         id: w ? w.id : '',
         idSalarie: s.id,
         semaine: lundi,
-        heures: boite.querySelector('#swHeures').value || 0,
+        heures: nombrePaie(boite.querySelector('#swHeures').value) || 0,
         joursAbsents: boite.querySelector('#swAbs').value || 0,
-        normalForce: boite.querySelector('#swNormal').value,
-        majoreForce: boite.querySelector('#swMajore').value,
+        normalForce: champForcePaie(boite.querySelector('#swNormal').value),
+        majoreForce: champForcePaie(boite.querySelector('#swMajore').value),
         remarque: boite.querySelector('#swRem').value.trim(),
         par: ACCES.moniteur || ''
       });
@@ -992,7 +1100,7 @@ function ouvrirSalarie(s){
     '<input type="text" id="slNom" placeholder="Comme sur le bulletin de paie">' +
     '<div class="duo">' +
       '<div><label for="slBase">Base hebdomadaire</label>' +
-        '<input type="number" id="slBase" step="0.25" value="35"></div>' +
+        '<input type="text" id="slBase" inputmode="decimal" value="35"></div>' +
       '<div><label for="slJours">Jours par semaine</label>' +
         '<input type="number" id="slJours" step="1" value="4"></div>' +
     '</div>' +
@@ -1001,7 +1109,7 @@ function ouvrirSalarie(s){
 
     '<div class="duo">' +
       '<div><label for="slReport">Report en heures</label>' +
-        '<input type="number" id="slReport" step="0.25" inputmode="decimal" ' +
+        '<input type="text" id="slReport" inputmode="decimal" ' +
           'placeholder="0"></div>' +
       '<div><label for="slReportMois">À déduire sur</label>' +
         '<input type="month" id="slReportMois"></div>' +
@@ -1019,9 +1127,9 @@ function ouvrirSalarie(s){
 
   if(s){
     boite.querySelector('#slNom').value = s.nom || '';
-    boite.querySelector('#slBase').value = s.baseHebdo || 35;
+    boite.querySelector('#slBase').value = versChampPaie(s.baseHebdo || 35);
     boite.querySelector('#slJours').value = s.joursSemaine || 4;
-    boite.querySelector('#slReport').value = s.report || '';
+    boite.querySelector('#slReport').value = versChampPaie(s.report || '');
     boite.querySelector('#slReportMois').value = s.reportMois || '';
     boite.querySelector('#slActif').checked = s.actif;
     boite.querySelector('#slRem').value = s.remarque || '';
@@ -1029,7 +1137,7 @@ function ouvrirSalarie(s){
 
   const zd = boite.querySelector('#slDeduit');
   const majDeduit = () => {
-    const b = parseFloat(boite.querySelector('#slBase').value) || 35;
+    const b = nombrePaie(boite.querySelector('#slBase').value) || 35;
     const j = parseInt(boite.querySelector('#slJours').value, 10) || 4;
     zd.textContent = 'Soit ' + enHeures(b / j) + ' par jour travaillé.';
   };
@@ -1071,7 +1179,7 @@ function ouvrirSalarie(s){
     const nom = boite.querySelector('#slNom').value.trim();
     if(!nom){ showToast('Indique son nom.'); return; }
 
-    const base = parseFloat(boite.querySelector('#slBase').value) || 35;
+    const base = nombrePaie(boite.querySelector('#slBase').value) || 35;
     const jours = parseInt(boite.querySelector('#slJours').value, 10) || 4;
 
     bOk.disabled = true;
@@ -1083,7 +1191,7 @@ function ouvrirSalarie(s){
         baseHebdo: base,
         joursSemaine: jours,
         heuresJour: arrondiQuart(base / jours),
-        report: boite.querySelector('#slReport').value || 0,
+        report: nombrePaie(boite.querySelector('#slReport').value) || 0,
         reportMois: boite.querySelector('#slReportMois').value,
         actif: boite.querySelector('#slActif').checked ? 'oui' : 'non',
         remarque: boite.querySelector('#slRem').value.trim(),
@@ -1255,14 +1363,14 @@ function ouvrirGasoil(g){
     '<div class="duo">' +
       '<div><label for="gzDate">Date</label><input type="date" id="gzDate"></div>' +
       '<div><label for="gzMontant">Montant</label>' +
-        '<input type="number" id="gzMontant" step="0.01" inputmode="decimal" ' +
+        '<input type="text" id="gzMontant" inputmode="decimal" ' +
           'placeholder="€"></div>' +
     '</div>' +
     '<div class="duo">' +
       '<div><label for="gzVeh">Véhicule</label>' +
         '<input type="text" id="gzVeh" placeholder="Ex : A3 4"></div>' +
       '<div><label for="gzLitres">Litres</label>' +
-        '<input type="number" id="gzLitres" step="0.01" inputmode="decimal" ' +
+        '<input type="text" id="gzLitres" inputmode="decimal" ' +
           'placeholder="Facultatif"></div>' +
     '</div>' +
     '<label for="gzRem">Remarque</label>' +
@@ -1271,9 +1379,9 @@ function ouvrirGasoil(g){
   boite.querySelector('#gzDate').value = g ? (g.date || todayLocal()) : todayLocal();
   if(g){
     boite.querySelector('#gzSal').value = g.idSalarie;
-    boite.querySelector('#gzMontant').value = g.montant || '';
+    boite.querySelector('#gzMontant').value = versChampPaie(g.montant || '');
     boite.querySelector('#gzVeh').value = g.vehicule || '';
-    boite.querySelector('#gzLitres').value = g.litres || '';
+    boite.querySelector('#gzLitres').value = versChampPaie(g.litres || '');
     boite.querySelector('#gzRem').value = g.remarque || '';
   }
 
@@ -1307,7 +1415,7 @@ function ouvrirGasoil(g){
   bOk.className = 'btn btn-primary';
   bOk.textContent = g ? '💾 Enregistrer' : '➕ Ajouter';
   bOk.addEventListener('click', async () => {
-    const m = parseFloat(boite.querySelector('#gzMontant').value);
+    const m = nombrePaie(boite.querySelector('#gzMontant').value);
     if(!m){ showToast('Indique le montant.'); return; }
 
     bOk.disabled = true;
@@ -1319,7 +1427,7 @@ function ouvrirGasoil(g){
         date: boite.querySelector('#gzDate').value,
         montant: m,
         vehicule: boite.querySelector('#gzVeh').value.trim(),
-        litres: boite.querySelector('#gzLitres').value || 0,
+        litres: nombrePaie(boite.querySelector('#gzLitres').value) || 0,
         remarque: boite.querySelector('#gzRem').value.trim(),
         par: ACCES.moniteur || ''
       });
