@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:44 — v738 */
+/* Déployé le 29/08/2026 à 15:56 — v740 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -742,9 +742,15 @@ async function afficherPrepares(recharger, silencieux){
       ligneCases.style.cssText = 'display:flex;gap:5px;align-items:center;' +
         'flex-wrap:wrap;flex-basis:100%;';
       ligneCases.appendChild(boite);
+      /* « 1ère », pas « 1ème » : la terminaison suit le nombre, et
+         elle le suit aussi quand on le change. */
       const dit1 = document.createElement('span');
       dit1.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-      dit1.textContent = 'ème leçon';
+      const majDit1 = () => {
+        dit1.textContent = suffixeRang(boite.value) + ' leçon';
+      };
+      majDit1();
+      boite.addEventListener('input', majDit1);
       ligneCases.appendChild(dit1);
       ligneRang.appendChild(ligneCases);
 
@@ -755,8 +761,17 @@ async function afficherPrepares(recharger, silencieux){
          pas le rang d'après, qui vieillirait d'un cours à l'autre,
          mais le nombre de leçons faites AVANT la charnière : écrit
          une fois, l'élève est calé pour toute la suite. */
-      const ctxCours = contexteEnObjet(cours.contexte);
-      const charn = (ctxCours.rdvPostFait === 'oui')
+      /* La charnière la plus récente, et elle se demande aux
+         sources qui font foi : un post-permis vit dans le suivi,
+         pas dans le contexte du cours. Sans elle, la case disait
+         « après exam blanc » à un élève qui a passé son
+         post-permis — la charnière d'avant, donc la mauvaise. */
+      const ctxCours = Object.assign(
+        {}, contexteEnObjet(cours.contexte),
+        (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(cours.eleve) : {});
+
+      const charn = (ctxCours.rdvPostFait === 'oui' ||
+                     /le[çc]ons?\s+apr[èe]s\s+le\s+post/i.test(cours.note || ''))
         ? { cle: 'avantRdvPost', court: 'post-permis' }
         : (ctxCours.examBlanc === 'passe' || ctxCours.ebPasse)
         ? { cle: 'avantEB', court: 'exam blanc' } : null;
@@ -817,7 +832,11 @@ async function afficherPrepares(recharger, silencieux){
 
         const fin = document.createElement('span');
         fin.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-        fin.textContent = 'ème après ' + charn.court;
+        const majFin = () => {
+          fin.textContent = suffixeRang(bDep.value) + ' après ' + charn.court;
+        };
+        majFin();
+        bDep.addEventListener('input', majFin);
         ligneCases.appendChild(fin);
       }
     }
