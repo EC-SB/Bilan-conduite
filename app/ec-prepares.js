@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 18:05 — v705 */
+/* Déployé le 29/08/2026 à 21:00 — v708 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -66,6 +66,51 @@ async function appelPrep(corps){
   }
 
   return rep;
+}
+
+/* ------------------------------------------------------------
+   ÉCRIRE LE RANG D'UN COURS DEPUIS SA CARTE
+
+   Une seule fonction pour une seule écriture : le contexte du
+   cours, sa note refaite avec le bon rang, et la marque qui dit
+   que ce rang vient d'une main humaine — c'est elle qui empêche le
+   recomptage de repasser derrière.
+
+   La note est REFAITE, pas raturée : « 3ème leçon » devient « 8ème
+   leçon », mais aussi « plus que 2 leçons avant l'examen blanc »
+   devient ce qu'il faut, parce que ces deux phrases-là disent la
+   même chose et doivent bouger ensemble.
+   ------------------------------------------------------------ */
+async function ecrireRangDuCours(cours, rang){
+  const ctx = Object.assign({}, contexteEnObjet(cours.contexte));
+  ctx.lecon = String(rang);
+  ctx.leconMain = 'oui';
+  if(!ctx.modele && cours.modele) ctx.modele = cours.modele;
+  /* Le rang saisi vaut aussi réponse : on sait désormais où il en
+     est, la note n'a plus à réclamer le questionnaire. */
+  ctx.sansBilan = false;
+
+  let note = cours.note;
+  if(typeof noteJusteDuCours === 'function'){
+    try{ note = noteJusteDuCours(Object.assign({}, cours, { contexte: ctx }), rang, null); }
+    catch(e){ note = cours.note; }
+  }
+
+  await appelPrep({
+    action: 'prepAdd', id: cours.id, date: cours.date,
+    eleve: cours.eleve, modele: cours.modele,
+    modeleLabel: cours.modeleLabel || '',
+    site: cours.site || '',
+    note: note,
+    contexte: JSON.stringify(ctx),
+    moniteur: cours.moniteur || ''
+  });
+
+  /* La liste en mémoire suit : l'écran ne doit pas attendre une
+     relecture complète pour montrer le bon rang. */
+  cours.note = note;
+  cours.contexte = ctx;
+  return note;
 }
 
 /* Charge depuis Sheets, avec repli sur le cache si le réseau manque */
@@ -577,13 +622,71 @@ async function afficherPrepares(recharger, silencieux){
        journée, et elle se perdait au milieu du reste. */
     const pos = (typeof lignePosition === 'function')
       ? lignePosition(partsNote.corps) : '';
+
+    const ligneRang = document.createElement('div');
+    ligneRang.style.cssText = 'display:flex;gap:7px;align-items:center;' +
+      'margin:3px 0 2px;flex-wrap:wrap;';
+
     if(pos){
       const p = document.createElement('div');
       p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.35;' +
-        'color:var(--accent-text);margin:3px 0 2px;';
+        'color:var(--accent-text);flex:1;min-width:0;';
       p.textContent = pos;
-      meta.appendChild(p);
+      ligneRang.appendChild(p);
     }
+
+    /* LA CASE DU NUMÉRO DE LEÇON
+
+       Le rang du cours que le moniteur va faire en appuyant sur
+       Ouvrir — pas les leçons déjà faites. C'est celui qu'on lit
+       sur Drivup, et c'est pour ça qu'il se tape ici : plus vite
+       qu'en ouvrant le questionnaire, et au moment où on le voit.
+
+       Ce qu'un humain tape est un fait : le recomptage du classeur
+       ne repasse pas derrière, et les cours suivants repartent de
+       ce rang-là. Corrigé une fois, l'élève est calé.
+
+       Seulement sur une séance qui a un rang : un examen ou un
+       simulateur n'en ont pas, et leur en donner un décalerait
+       toute la frise. */
+    if(typeof leconCompteDansLaFrise === 'function' &&
+       leconCompteDansLaFrise(cours.modele)){
+      const boite = document.createElement('input');
+      boite.type = 'text';
+      boite.inputMode = 'numeric';
+      boite.placeholder = 'n°';
+      boite.title = 'Numéro de la leçon qui va être faite';
+      const rangEcrit = (typeof numeroLeconDuCours === 'function')
+        ? numeroLeconDuCours(cours) : null;
+      boite.value = (rangEcrit !== null && rangEcrit !== undefined)
+        ? String(rangEcrit) : '';
+      boite.style.cssText = 'width:46px;margin:0;padding:3px 4px;font-size:13px;' +
+        'text-align:center;flex-shrink:0;font-variant-numeric:tabular-nums;' +
+        'background:var(--navy);border:1px solid var(--line);';
+
+      boite.addEventListener('change', async () => {
+        const n = parseInt(String(boite.value).replace(/\D/g, ''), 10);
+        if(isNaN(n) || n <= 0 || n === rangEcrit){
+          boite.value = (rangEcrit !== null) ? String(rangEcrit) : '';
+          return;
+        }
+        boite.disabled = true;
+        boite.style.borderColor = 'var(--orange)';
+        try{
+          await ecrireRangDuCours(cours, n);
+          boite.style.borderColor = 'var(--line)';
+          afficherPrepares(false);
+        }catch(e){
+          boite.style.borderColor = 'var(--red)';
+          showToast('Impossible : ' + e.message);
+        }finally{
+          boite.disabled = false;
+        }
+      });
+      ligneRang.appendChild(boite);
+    }
+
+    if(ligneRang.childNodes.length) meta.appendChild(ligneRang);
 
     /* Le type de bilan et la formation VIENNENT APRÈS : la leçon du
        jour passe en premier, juste sous le nom. */
@@ -611,11 +714,29 @@ async function afficherPrepares(recharger, silencieux){
           b.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:12px;' +
             'line-height:1.4;opacity:' + (actif ? '1' : '.35') + ';' +
             (actif ? 'border-color:var(--accent-text);color:var(--accent-text);' : '');
-          b.textContent = emoji + (actif ? ' ' + titre : '');
+          /* Quels aménagements, et pas seulement qu'il y en a :
+             c'est ce que le moniteur doit lire avant de préparer
+             la voiture. */
+          const detail = (champ === 'amenagee' && actif &&
+                          typeof amenagementsDe === 'function')
+            ? amenagementsDe(cours.eleve)
+                .map(c => (typeof libelleAmenagement === 'function')
+                  ? libelleAmenagement(c) : c).join(' · ')
+            : '';
+          b.textContent = emoji + (actif ? ' ' + (detail || titre) : '');
         };
         peindre();
         b.addEventListener('click', async () => {
           const avant = posteDeConduite(cours.eleve)[champ];
+          /* La conduite aménagée ne se coche pas à l'aveugle : on
+             demande QUOI monter dans la voiture, et sans réponse la
+             case ne se coche pas. La décocher, elle, ne demande
+             rien. */
+          if(champ === 'amenagee' && !avant){
+            await choisirLesAmenagements(cours.eleve);
+            peindre();
+            return;
+          }
           b.disabled = true;
           await ecrirePosteDeConduite(cours.eleve, champ, !avant);
           b.disabled = false;
