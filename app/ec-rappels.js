@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:05 — v696 */
+/* Déployé le 29/08/2026 à 23:30 — v698 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2860,6 +2860,9 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
              annoncé « encore 3 leçons avant l'examen blanc ». */
           leconsDepuisEB: d.leconsDepuisEB,
           leconsDepuisRdvPost: d.leconsDepuisRdvPost,
+          /* Une passerelle repart de zéro : ses leçons sont celles
+             de sa boîte, pas celles de toute la formation. */
+          leconsParBoite: d.leconsParBoite,
           modele: cle
         });
         if(jetonRappel) rep.jeton = jetonRappel;
