@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 09:10 — v688 */
+/* Déployé le 29/08/2026 à 11:20 — v689 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -21,9 +21,27 @@ const RACCOURCIS_NOTE = [
 const MAXI_DOSSIER = 40;
 const MAXI_SERVEUR_ELEVE = 30;
 
+/* Les deux charnières de la frise, reconnues au type du bilan */
+const RE_TYPE_EXAMEN_BLANC = /examen\s+blanc/i;
+const RE_TYPE_RDV_POST     = /rdv\s+post-?permis|rendez-vous\s+post-?permis/i;
+
+/* Ce cours fait-il avancer le compteur de leçons ?
+
+   Un rendez-vous pédagogique porte le libellé « AAC — … » sans être
+   une leçon de conduite : le compter décalait la frise de tous les
+   élèves en conduite accompagnée. C'est la même règle que
+   leconCompteDansLaFrise, appliquée au libellé au lieu de la clé —
+   dans le classeur, c'est le libellé qui est écrit. */
+function estUneLecon(type){
+  const t = String(type || '');
+  if(!/^Conduite/i.test(t) && !/^AAC/i.test(t)) return false;
+  return !/rendez-vous|rvp/i.test(t);
+}
+
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
 async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], marques: {}, derniereNote: '',
+                 leconsDepuisEB: null, leconsDepuisRdvPost: null,
                  dernierHorodatage: '', boite: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
 
@@ -86,8 +104,7 @@ async function chargerDossierEleve(nomEleve){
 
     res.forEach(item => {
       if(!frise) frise = extraireFrise(item.note) || extraireFriseTexte(item.bilan);
-      const type = String(item.type || '');
-      if(/^Conduite/i.test(type) || /^AAC/i.test(type)) lecons++;
+      if(estUneLecon(item.type)) lecons++;
       vus++;
       const liste = item.manoeuvres
         ? String(item.manoeuvres).split('|').map(x => x.trim()).filter(Boolean)
@@ -123,8 +140,34 @@ async function chargerDossierEleve(nomEleve){
        relais renvoyant la taille du classeur entier. */
     if(vus >= plafond && totalConnu > vus) lecons += (totalConnu - vus);
 
+    /* Où l'élève en est dans SA moitié de frise.
+
+       La frise a une charnière — l'examen blanc — et un élève qui
+       l'a passé n'est plus « à 3 leçons de l'examen blanc » : il est
+       à la 1ère des 2 leçons qui suivent. Compter depuis toujours ne
+       répond donc qu'à la moitié de la question.
+
+       Les cours arrivent du plus récent au plus ancien : la charnière
+       est une POSITION dans cette liste, pas une date à analyser.
+       Tout ce qui la précède est postérieur. */
+    const apres = (motif) => {
+      let i = -1;
+      for(let k = 0; k < res.length; k++){
+        if(motif.test(String(res[k].type || ''))){ i = k; break; }
+      }
+      /* Introuvable : soit ça n'a pas eu lieu, soit c'est plus vieux
+         que ce qu'on a relu. Dans les deux cas on ne sait pas, et
+         mieux vaut ne rien dire que dire un chiffre faux. */
+      if(i === -1) return null;
+      let n = 0;
+      for(let k = 0; k < i; k++) if(estUneLecon(res[k].type)) n++;
+      return n;
+    };
+
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
                        marques: marques,
+                       leconsDepuisEB: apres(RE_TYPE_EXAMEN_BLANC),
+                       leconsDepuisRdvPost: apres(RE_TYPE_RDV_POST),
                        derniereNote: dernier.note || '',
                        dernierHorodatage: dernier.horodatage || dernier.date || '',
                        boite: boite };
@@ -190,7 +233,9 @@ function passageDepuisNote(note){
    date d'examen s'y trouvait, et on répondait qu'il n'y en avait
    pas. */
 function noteEnClair(note){
-  return String(note || '').split(EXAMEN_PREVU).join('Examen prévu le');
+  /* Le gras d'abord : « 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 𝗣𝗔𝗦𝗦𝗘́ » n'est pas
+     « EXAMEN BLANC PASSÉ » pour une expression régulière. */
+  return sansGras(note).split('EXAMEN OFFICIEL PRÉVU LE').join('Examen prévu le');
 }
 
 function defautsDepuisNote(note){
@@ -237,6 +282,34 @@ function defautsDepuisNote(note){
   if(/Rendez-vous préalable fait/i.test(note || '')) d.rvPrealable = 'fait';
   else if(/Rendez-vous préalable déjà prévu/i.test(note || '')) d.rvPrealable = 'prevu';
   else if(/Rendez-vous préalable à prévoir/i.test(note || '')) d.rvPrealable = 'aprevoir';
+
+  /* Le rendez-vous post-permis, relu dans la note.
+
+     Le bureau y écrit ses trois étapes au fil de l'eau — « à
+     prévoir », « le 19 août avec Chrystel », « fait — 6h à faire ».
+     Sans cette lecture, elles restaient trois phrases recopiées
+     côte à côte au lieu d'un état ; c'est exactement l'empilement
+     que Chrystel a relevé. */
+  const RDV = '(?:rdv|rendez-vous)\\s+post-?permis';
+  let r;
+  if((r = n.match(new RegExp(RDV + '\\s+fait', 'i')))){
+    d.rdvPostFait = 'oui';
+    const h = n.match(/(\d+)\s*h\s+à\s+faire/i);
+    if(h) d.heuresRepassage = h[1];
+    const q = n.match(new RegExp(RDV + '[^·\\n]*?\\bavec\\s+([^—·(\\n]+)', 'i'));
+    if(q) d.rdvPostMoniteur = q[1].trim();
+    const j = n.match(new RegExp(RDV + '[^·\\n]*?\\ble\\s+([^—·(\\n]+)', 'i'));
+    if(j){ const iso = dateFrVersIso(j[1]); if(iso) d.rdvPostDate = iso; }
+  }else if((r = n.match(new RegExp(RDV + '\\s+(?:pr[ée]vu\\s+)?le\\s+([^—·(\\n]+)', 'i')))){
+    const iso = dateFrVersIso(r[1]);
+    if(iso) d.rdvPostDate = iso;
+    const q = r[1].match(/\bavec\s+(.+)$/i);
+    if(q) d.rdvPostMoniteur = q[1].trim();
+  }else if(new RegExp(RDV + '\\s+à\\s+pr[ée]voir', 'i').test(n) ||
+           /bilan d'examen et rendez-vous post-?permis à prévoir/i.test(n)){
+    d.rdvPostAPrevoir = 'oui';
+  }
+
   return d;
 }
 
@@ -259,9 +332,10 @@ function examensBlancsPasses(){
     if(!isNaN(n)) return n;
   }catch(e){}
 
-  /* À défaut, ce que disent ses notes */
+  /* À défaut, ce que disent ses notes — gras défait d'abord, sans
+     quoi « 2e 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 » ne se lit plus. */
   try{
-    const t = ($('noteInterne') && $('noteInterne').value) || '';
+    const t = sansGras(($('noteInterne') && $('noteInterne').value) || '');
     const m = t.match(/(\d+)\s*(?:e|er|ème|eme)?\s*examens?\s+blancs?/i);
     if(m) return parseInt(m[1], 10);
   }catch(e){}
@@ -323,7 +397,11 @@ function seanceDeLaFrise(){
 }
 
 
-const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres'];
+/* Ces champs-là ne sont pas un jugement : ce sont des comptes relus
+   dans le classeur. Une préparation vieille de trois jours ne doit
+   pas les figer — l'élève a peut-être eu un cours entre-temps. */
+const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres',
+                         'leconsDepuisEB', 'leconsDepuisRdvPost'];
 
 /* Fusionne : le jugement du moniteur l'emporte, les faits sont rafraîchis */
 function fusionnerContexte(saisi, defauts){
@@ -451,24 +529,32 @@ function fondreNotePreparee(neuf, ancien){
   const dits = {};
   segmentsDeNote(propre).forEach(s => {
     if(aPart.indexOf(s) !== -1) return;
-    const f = FAMILLES_NOTE.find(x => x.motif.test(s));
+    const f = familleDuSegment(s);
     if(f) dits[f.cle] = s;
   });
 
+  /* Ligne à ligne : la note neuve est bâtie en blocs — la frise, où
+     il en est, l'examen officiel — et fondre le tout d'un bloc les
+     aurait recollés en un seul pavé. */
   const vus = {};
-  const sortie = segmentsDeNote(String(neuf || '')).map(s => {
-    const f = FAMILLES_NOTE.find(x => x.motif.test(s));
-    if(!f) return s;
-    vus[f.cle] = true;
-    const avant = dits[f.cle];
-    return (avant && avant !== s && avant.indexOf(s) === 0) ? avant : s;
-  });
+  const sorties = String(neuf || '').split('\n').map(ligne =>
+    segmentsDeNote(ligne).map(s => {
+      const f = familleDuSegment(s);
+      if(!f) return s;
+      vus[f.cle] = true;
+      const avant = dits[f.cle];
+      const enrichit = avant && avant !== s &&
+                       sansGras(avant).indexOf(sansGras(s)) === 0;
+      return enrichit ? avant : s;
+    }).join(' · ')
+  );
 
   /* Les sujets dont le neuf ne parle pas restent ceux de l'ancien :
      ils seraient perdus autrement. */
-  Object.keys(dits).forEach(cle => { if(!vus[cle]) sortie.push(dits[cle]); });
+  const restants = Object.keys(dits).filter(c => !vus[c]).map(c => dits[c]);
+  if(restants.length) sorties.push(restants.join(' · '));
 
-  return { corps: sortie.join(' · '), consigne: libres };
+  return { corps: sorties.filter(Boolean).join('\n'), consigne: libres };
 }
 
 /* Le cours du jour compte-t-il comme une leçon de la frise ? Un
@@ -570,17 +656,76 @@ function majAffichageNoteInterne(){
 
    Le texte libre du moniteur et les messages du bureau n'y sont
    pas : eux, on ne les efface jamais. */
-/* Les deux formes de la ligne d'examen officiel, en gras Unicode :
-   la note voyage dans un tableur et dans un SMS, où aucune mise en
-   forme ne survit. Écrites ici une fois, reconnues à l'affichage
-   pour la couleur — rouge quand la date existe, bleu sinon.
+/* ------------------------------------------------------------
+   LE GRAS DES NOTES
+
+   Une note vit dans un tableur : elle ne peut porter aucune mise en
+   forme. Le gras s'écrit donc en caractères Unicode, lettre par
+   lettre. Les accents ne sont pas concernés — « É » n'a pas de
+   forme grasse — d'où la décomposition : on met en gras la lettre
+   nue et on lui rend son accent.
+
+   Et surtout : ce qui a été mis en gras doit pouvoir être RELU.
+   « 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 𝗣𝗔𝗦𝗦𝗘́ » n'est plus « Examen blanc passé » pour
+   qui le cherche ; sans sansGras(), mettre un état en gras revenait
+   à le rendre invisible à tout le reste de l'application.
+   ------------------------------------------------------------ */
+function grasNote(t){
+  return String(t || '').normalize('NFD').split('').map(ch => {
+    const c = ch.charCodeAt(0);
+    if(c >= 65  && c <= 90)  return String.fromCodePoint(0x1D5D4 + (c - 65));
+    if(c >= 97  && c <= 122) return String.fromCodePoint(0x1D5EE + (c - 97));
+    if(c >= 48  && c <= 57)  return String.fromCodePoint(0x1D7EC + (c - 48));
+    return ch;
+  }).join('');
+}
+
+/* Les alphabets décoratifs d'Unicode, chacun rendu à ses lettres.
+   Écrit ici plutôt qu'emprunté à ec-segments.js : tout le
+   dédoublonnage des notes en dépend, et un module qui ne se charge
+   pas ne doit pas faire échouer une note en silence. */
+const BLOCS_GRAS = [0x1D400, 0x1D434, 0x1D468, 0x1D49C, 0x1D4D0, 0x1D504,
+                    0x1D538, 0x1D56C, 0x1D5A0, 0x1D5D4, 0x1D608, 0x1D63C,
+                    0x1D670];
+
+function sansGras(t){
+  return [...String(t || '')].map(ch => {
+    const c = ch.codePointAt(0);
+    for(let i = 0; i < BLOCS_GRAS.length; i++){
+      const d = BLOCS_GRAS[i];
+      if(c >= d && c < d + 26) return String.fromCharCode(65 + (c - d));
+      if(c >= d + 26 && c < d + 52) return String.fromCharCode(97 + (c - d - 26));
+    }
+    /* Les chiffres décoratifs, sur le même principe */
+    if(c >= 0x1D7CE && c <= 0x1D7FF) return String((c - 0x1D7CE) % 10);
+    return ch;
+  }).join('').normalize('NFC');
+}
+
+/* Les deux formes de la ligne d'examen officiel. Écrites ici une
+   fois, reconnues à l'affichage pour la couleur — rouge quand la
+   date existe, bleu sinon.
 
    Déclarées AVANT la table des familles, qui s'en sert : la purge
    ne reconnaissait pas la forme grasse de « PAS DE DATE » — seule
    celle d'« EXAMEN » figurait dans le motif — et cette ligne-là
    s'empilait à chaque bilan. */
-const EXAMEN_PREVU = '𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟 𝗣𝗥𝗘́𝗩𝗨 𝗟𝗘';
-const EXAMEN_SANS_DATE = '𝗣𝗔𝗦 𝗗𝗘 𝗗𝗔𝗧𝗘 𝗗\'𝗘𝗫𝗔𝗠𝗘𝗡 𝗢𝗙𝗙𝗜𝗖𝗜𝗘𝗟';
+const EXAMEN_PREVU = grasNote('EXAMEN OFFICIEL PRÉVU LE');
+const EXAMEN_SANS_DATE = grasNote("PAS DE DATE D'EXAMEN OFFICIEL");
+
+/* Les états qui décident de la suite, en gras eux aussi : ce sont
+   ceux qu'on cherche d'un coup d'œil sur la carte du cours. La date
+   qui les suit reste en écriture ordinaire — elle doit rester
+   cherchable au Ctrl+F dans le classeur. */
+const ETAT_EB_PASSE     = grasNote('EXAMEN BLANC PASSÉ');
+const ETAT_EB_RESERVE   = grasNote('EXAMEN BLANC RÉSERVÉ');
+const ETAT_EB_APREVOIR  = grasNote('EXAMEN BLANC À PRÉVOIR');
+/* La formulation ne change pas : c'est celle que le lecteur de
+   notes cherche pour comprendre qu'aucun examen blanc n'est prévu. */
+const ETAT_EB_IMPOSSIBLE = grasNote("NE PAS PRÉVOIR D'EXAMEN BLANC");
+const ETAT_SIMU         = grasNote('SIMULATEUR NUIT ET RISQUES');
+const ETAT_RDV_POST     = grasNote('RDV POST-PERMIS');
+const ETAT_REPASSAGE    = grasNote('REPASSAGE');
 
 /* Le motif des lignes d'examen, construit à partir des libellés
    eux-mêmes : impossible qu'il en oublie un. */
@@ -590,6 +735,11 @@ const RE_FAMILLE_EXAMEN = new RegExp(
   "EXAMEN|PAS DE DATE|Examen (?:prévu|du permis)|Date d'examen" +
   ')', 'i');
 
+/* Chaque famille dit aussi ce qui, chez elle, n'est qu'une
+   intention. Une intention ne survit pas à côté d'une décision :
+   « rendez-vous post-permis à prévoir » n'a plus lieu d'être une
+   fois qu'on lit « rendez-vous post-permis le 19 août ». C'est ce
+   qui empilait quatre lignes là où une seule disait tout. */
 const FAMILLES_NOTE = [
   { cle:'repassage',   motif:/^🔁\s*\d+\S*\s+repassage/i },
   { cle:'handicap',    motif:/^♿\s*Conduite aménagée/i },
@@ -598,17 +748,22 @@ const FAMILLES_NOTE = [
   { cle:'friseAacCs',  motif:/^(?:AAC|CS)\b/i },
   { cle:'problematique', motif:/^❓\s*Problématique/i },
   { cle:'prefecture',  motif:/^♿\s*(?:Encore .*préfecture|Prêt à être présenté)/i },
-  { cle:'lecon',       motif:/^\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i },
+  { cle:'lecon',       motif:/^(?:🎯\s*)?\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i },
   { cle:'leconVide',   motif:/^❓\s*le[çc]ons/i },
   { cle:'friseEtat',   motif:/frise (?:dépassée|depassee|terminée|terminee)/i },
   { cle:'avantEB',     motif:/encore \d+\s+le[çc]ons?\s+avant/i },
-  { cle:'examenBlanc', motif:/examen blanc/i },
-  { cle:'examenPermis', motif: RE_FAMILLE_EXAMEN },
+  { cle:'examenBlanc', motif:/examen blanc/i, intention:/à\s*prévoir/i },
+  { cle:'examenPermis', motif: RE_FAMILLE_EXAMEN, intention:/—\s*à\s*prévoir\s*$/i },
   { cle:'trois_h',     motif:/plus que les 3h avant examen/i },
   { cle:'ecoutes',     motif:/^Pas d'écoutes pédagogiques/i },
-  { cle:'simuNuit',    motif:/^Simulateur nuit et risques/i },
-  { cle:'formAccomp',  motif:/^Formation accompagnateur/i },
-  { cle:'rvPrealable', motif:/^Rendez-vous préalable/i }
+  { cle:'simuNuit',    motif:/simulateur nuit et risques/i, intention:/à\s*prévoir/i },
+  { cle:'formAccomp',  motif:/^Formation accompagnateur/i, intention:/à\s*prévoir/i },
+  { cle:'rvPrealable', motif:/^Rendez-vous préalable/i, intention:/à\s*prévoir/i },
+  /* Le rendez-vous post-permis n'avait pas de famille : ses trois
+     annonces — à prévoir, planifié, fait — s'écrivaient donc côte
+     à côte sur la carte du moniteur. */
+  { cle:'rdvPost',     motif:/(?:rdv|rendez-vous|bilan d'examen et rendez-vous)\s*post-?permis/i,
+                       intention:/à\s*prévoir/i }
 ];
 
 const SEGMENTS_REGENERES = FAMILLES_NOTE.map(f => f.motif);
@@ -623,9 +778,24 @@ function segmentsDeNote(note){
     .filter(Boolean);
 }
 
+/* La famille d'un segment, gras défait d'abord.
+
+   Les motifs cherchent « examen blanc », pas « 𝗲𝘅𝗮𝗺𝗲𝗻 𝗯𝗹𝗮𝗻𝗰 ».
+   Sans ce passage, mettre un état en gras le faisait sortir de sa
+   famille : il ne se dédoublonnait plus, et s'empilait. */
+function familleDuSegment(seg){
+  const clair = sansGras(seg);
+  return FAMILLES_NOTE.find(f => f.motif.test(clair)) || null;
+}
+
+/* Ce segment n'est-il qu'une intention, dans sa famille ? */
+function segmentEstUneIntention(seg, famille){
+  return !!(famille && famille.intention && famille.intention.test(sansGras(seg)));
+}
+
 function retirerSegmentsRegeneres(note){
   return segmentsDeNote(note)
-    .filter(x => !SEGMENTS_REGENERES.some(r => r.test(x)))
+    .filter(x => !familleDuSegment(x))
     .join(' · ');
 }
 
@@ -642,8 +812,15 @@ function appliquerNoteQuestionnaire(nouvelle){
      lieu d'être puisqu'on vient d'en recalculer une. */
   actuel = retirerSegmentsRegeneres(actuel);
 
+  /* Ce qui reste, ce sont des mots d'humains : ils vont derrière le
+     📌, pas au bout de la ligne d'examen. La note s'écrit en blocs
+     depuis qu'on la veut lisible d'un coup d'œil ; recoller le reste
+     avec un « · » les aurait remis en pavé. */
+  const dejaLa = nouvelle ? morceauxDeNotePreparee(nouvelle) : null;
+  const consigne = [dejaLa && dejaLa.consigne, actuel].filter(Boolean).join(' · ');
+
   champ.value = nouvelle
-    ? (actuel ? nouvelle + ' · ' + actuel : nouvelle)
+    ? assemblerNotePreparee(dejaLa.entete, dejaLa.corps, consigne)
     : actuel;
   majAffichageNoteInterne();
 
@@ -721,22 +898,42 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   }
 
   /* Le moniteur a-t-il déjà répondu pendant ce cours ? Si oui, ses
-     réponses priment sur tout : c'est lui qui vient de les saisir. */
-  const dejaRepondu = Object.keys(prec).length > 0;
+     réponses priment sur tout : c'est lui qui vient de les saisir.
+
+     « Porter un contexte » ne veut pas dire « avoir répondu ». Un
+     cours créé par un rappel en porte un — leçon, frise, modèle,
+     jeton — que personne n'a saisi. Compter ses clés faisait donc
+     conclure « déjà répondu », et TOUT le pré-remplissage était
+     sauté : le moniteur ouvrait le crayon sur un questionnaire vide,
+     sans l'examen blanc ni la date d'examen, et devait tout
+     ressaisir. Seule la marque posée à la validation fait foi, et la
+     fonction qui la lit existe depuis toujours — elle n'était
+     simplement pas appelée ici. */
+  const dejaRepondu = questionnaireDejaRepondu(prec);
 
   if(!dejaRepondu){
-    /* Premier passage : on repart de l'état du dernier cours… */
-    if(dossier.derniereNote) prec = defautsDepuisNote(dossier.derniereNote);
+    /* Trois sources, de la plus ancienne à la plus récente. Chacune
+       recouvre la précédente là où elle dit quelque chose. */
 
-    /* …complété par les messages du bureau, plus récents que le
-       dernier bilan. Une date qu'il vient de fixer doit apparaître
-       dans le champ, pas seulement dans l'encadré vert. */
+    /* 1. L'état du dernier cours */
+    let base = dossier.derniereNote ? defautsDepuisNote(dossier.derniereNote) : {};
+
+    /* 2. Ce que le cours porte déjà : la leçon recalculée, la frise,
+       le jeton du rappel. Posé après le dernier bilan, donc plus
+       frais — et surtout, la seule source de la leçon du jour. */
+    base = Object.assign(base, prec);
+
+    /* 3. Les messages du bureau, plus récents que le dernier bilan.
+       Une date qu'il vient de fixer doit apparaître dans le champ,
+       pas seulement dans l'encadré vert. */
     if(consignesBureau.length){
       const duBureau = defautsDepuisNote(consignesBureau.map(x => x.texte).join(' · '));
       Object.keys(duBureau).forEach(k => {
-        if(duBureau[k] !== undefined && duBureau[k] !== '') prec[k] = duBureau[k];
+        if(duBureau[k] !== undefined && duBureau[k] !== '') base[k] = duBureau[k];
       });
     }
+
+    prec = base;
   }
 
   /* La frise saisie sur la fiche de l'élève fait autorité : elle a été
@@ -1564,82 +1761,198 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         manoeuvresAilleurs: manoeuvresAilleursQuestionnaire(boite._marquesConnues || {}),
         leconsFaites: faites,
         manoeuvresFaites: manoeuvresAvant.length,
-        totalManoeuvres: totalManoeuvres
+        totalManoeuvres: totalManoeuvres,
+        /* Où il en est dans sa moitié de frise : relu, jamais saisi */
+        leconsDepuisEB: dossier.leconsDepuisEB,
+        leconsDepuisRdvPost: dossier.leconsDepuisRdvPost,
+        /* Le rendez-vous post-permis n'est pas une question posée au
+           moniteur : c'est le bureau qui le pose et le conclut. On
+           le fait donc voyager tel qu'on l'a lu, sans quoi il
+           disparaîtrait de la note au premier questionnaire. */
+        rdvPostAPrevoir: prec.rdvPostAPrevoir || '',
+        rdvPostDate: prec.rdvPostDate || '',
+        rdvPostMoniteur: prec.rdvPostMoniteur || '',
+        rdvPostFait: prec.rdvPostFait || '',
+        heuresRepassage: prec.heuresRepassage || ''
       });
     });
   });
 }
 
-/* Transforme les réponses en texte de note interne */
+/* Le rang, à la française : « 1ère », puis « 2ème ». */
+function rangLecon(n){
+  return (n === 1) ? '1ère' : n + 'ème';
+}
+
+/* Le cours du jour fait-il avancer le compteur ?
+
+   La question se pose deux fois : au moment de compter le rang
+   global (déjà fait à la lecture du dossier) et au moment de
+   compter dans la moitié de frise en cours. Les deux doivent
+   répondre pareil, sinon le rang saute d'une leçon. */
+function courtDansLaFrise(q){
+  const n = parseInt(q.lecon, 10);
+  const f = parseInt(q.leconsFaites, 10);
+  if(!isNaN(n) && !isNaN(f)) return n === f + 1;
+  if(q.modele) return leconCompteDansLaFrise(q.modele);
+  return true;
+}
+
+/* ------------------------------------------------------------
+   OÙ L'ÉLÈVE EN EST DANS SA FRISE
+
+   Une frise a une charnière : l'examen blanc. Avant, on compte vers
+   lui ; après, on compte les leçons qui le suivent. Un élève qui l'a
+   passé n'est plus « à 3 leçons de l'examen blanc » — et l'écrire
+   quand même, juste à côté de « examen blanc passé », c'est ce que
+   les moniteurs lisaient sur leur carte.
+
+   Le repassage a sa propre charnière, plus récente encore : le
+   rendez-vous post-permis. Après lui, ce sont les heures décidées
+   ce jour-là qui comptent, plus la frise d'origine.
+   ------------------------------------------------------------ */
+function positionDansLaFrise(q){
+  const n = parseInt(q.lecon, 10);
+  if(isNaN(n) || !n) return '';
+
+  const plus = courtDansLaFrise(q) ? 1 : 0;
+  const pl = k => (k > 1 ? 's' : '');
+
+  /* Après le rendez-vous post-permis : ce sont ses heures qui font
+     loi, pas la frise du permis d'origine. */
+  const depuisRdv = parseInt(q.leconsDepuisRdvPost, 10);
+  if(q.rdvPostFait === 'oui' && !isNaN(depuisRdv)){
+    const r = depuisRdv + plus;
+    const prevues = parseInt(q.heuresRepassage, 10);
+    const total = isNaN(prevues) ? null : Math.ceil(prevues / 2);
+    if(total && r < total){
+      return '🎯 ' + rangLecon(r) + ' leçon sur ' + total +
+             ' depuis le rendez-vous post-permis — encore ' + (total - r) +
+             ' leçon' + pl(total - r);
+    }
+    if(total && r === total){
+      return '🎯 ' + rangLecon(r) + ' leçon sur ' + total +
+             ' depuis le rendez-vous post-permis — dernière prévue';
+    }
+    if(total) return '🎯 ' + rangLecon(r) + ' leçon depuis le rendez-vous ' +
+                     'post-permis — frise dépassée (' + total + ' prévues)';
+    return '🎯 ' + rangLecon(r) + ' leçon depuis le rendez-vous post-permis';
+  }
+
+  /* Parcours AAC ou CS : le total figure dans la frise, en une
+     seule pièce — il n'y a pas d'examen blanc au milieu. */
+  const totalAacCs = leconsPrevuesAacCs(q.frise);
+  if(totalAacCs){
+    if(n < totalAacCs){
+      return '🎯 ' + rangLecon(n) + ' leçon sur ' + totalAacCs + ' — encore ' +
+             (totalAacCs - n) + ' leçon' + pl(totalAacCs - n) +
+             ' avant la fin de la fiche véhicule';
+    }
+    if(n === totalAacCs){
+      return '🎯 ' + rangLecon(n) + ' leçon sur ' + totalAacCs + ' — dernière prévue';
+    }
+    return '🎯 ' + rangLecon(n) + ' leçon — frise dépassée (' + totalAacCs + ' prévues)';
+  }
+
+  /* L'examen blanc est-il derrière nous ? */
+  const ebPasse = (q.examBlanc === 'passe') || !!q.ebPasse;
+  const depuisEB = parseInt(q.leconsDepuisEB, 10);
+
+  if(ebPasse){
+    const apres = leconsApresExamenBlanc(q.frise);
+    /* Sans le compte depuis l'examen blanc — historique trop court,
+       examen blanc passé ailleurs — on ne raconte pas d'histoire :
+       on dit le rang global et on s'arrête. */
+    if(isNaN(depuisEB)){
+      return '🎯 ' + rangLecon(n) + " leçon — après l'examen blanc";
+    }
+    const r = depuisEB + plus;
+    if(apres && r < apres){
+      return '🎯 ' + rangLecon(r) + ' leçon sur ' + apres + " après l'examen blanc — encore " +
+             (apres - r) + ' leçon' + pl(apres - r) + ' + 3h avant examen';
+    }
+    if(apres && r === apres){
+      return '🎯 ' + rangLecon(r) + ' leçon sur ' + apres +
+             " après l'examen blanc — dernière avant les 3h";
+    }
+    if(apres){
+      return '🎯 ' + rangLecon(r) + " leçon après l'examen blanc — frise dépassée (" +
+             apres + ' prévues)';
+    }
+    return '🎯 ' + rangLecon(r) + " leçon après l'examen blanc";
+  }
+
+  /* Avant l'examen blanc : la première moitié de la frise */
+  const prevues = leconsAvantExamenBlanc(q.frise);
+  if(prevues && n < prevues){
+    return '🎯 ' + rangLecon(n) + ' leçon sur ' + prevues + ' — encore ' +
+           (prevues - n) + ' leçon' + pl(prevues - n) + " avant l'examen blanc";
+  }
+  if(prevues && n === prevues){
+    return '🎯 ' + rangLecon(n) + ' leçon sur ' + prevues + " — dernière avant l'examen blanc";
+  }
+  if(prevues && n > prevues){
+    return '🎯 ' + rangLecon(n) + ' leçon — frise dépassée (' + prevues + ' prévues)';
+  }
+  return '🎯 ' + rangLecon(n) + ' leçon';
+}
+
+/* ------------------------------------------------------------
+   LA NOTE, EN QUATRE BLOCS
+
+   Ce qui alerte · la frise · où il en est · le permis · les mots
+   des moniteurs. Chacun sur sa ligne : c'est ce qui permet de
+   trouver l'information sans la chercher.
+   ------------------------------------------------------------ */
 function noteDepuisQuestionnaire(q){
   if(!q) return '';
-  const bouts = [];
+
+  const alertes = [];
+  const etats = [];
+  const permis = [];
+  const mots = [];
 
   /* Un repassage se signale avant tout le reste */
   if(q.repassages){
-    bouts.push('🔁 ' + q.repassages + (q.repassages === 1 ? 'er' : 'e') + ' repassage' +
+    alertes.push('🔁 ' + q.repassages + (q.repassages === 1 ? 'er' : 'e') + ' ' +
+      ETAT_REPASSAGE +
       (q.dateAjournement ? ' — ajourné le ' + q.dateAjournement : ''));
   }
 
   /* Les aménagements passent en premier : le moniteur doit les voir d'emblée */
   if(q.handicap === 'oui'){
     const amg = (q.amenagements || []).map(libelleAmenagement);
-    bouts.push('♿ Conduite aménagée' + (amg.length ? ' — ' + amg.join(' · ') : ''));
+    alertes.push('♿ Conduite aménagée' + (amg.length ? ' — ' + amg.join(' · ') : ''));
   }
 
   /* Le coussin se prépare avant que l'élève monte : il a sa place
      dans la note, au même titre que les aménagements. */
-  if(q.coussin === 'oui') bouts.push('🟩 Coussin vert');
-
-  if(q.frise) bouts.push(q.frise);
+  if(q.coussin === 'oui') alertes.push('🟩 Coussin vert');
 
   /* La fiche d'évaluation : sa problématique et ses leçons */
   if(String(q.problematique || '').trim()){
-    bouts.push('❓ Problématique : ' + String(q.problematique).trim());
+    alertes.push('❓ Problématique : ' + String(q.problematique).trim());
   }
 
   if(String(q.prefecture || '').trim()){
-    const n = Number(q.prefecture);
-    bouts.push(n > 0
-      ? '♿ Encore ' + n + ' leçon' + (n > 1 ? 's' : '') +
+    const k = Number(q.prefecture);
+    alertes.push(k > 0
+      ? '♿ Encore ' + k + ' leçon' + (k > 1 ? 's' : '') +
         ' avant présentation à la préfecture'
       : '♿ Prêt à être présenté à la préfecture');
   }
 
-  if(q.lecon){
-    const n = parseInt(q.lecon, 10);
-    const rang = (n === 1) ? '1ère' : n + 'ème';
+  const position = positionDansLaFrise(q);
+  if(position) etats.push(position);
 
-    /* Parcours AAC ou CS : le total figure dans la frise */
-    const totalAacCs = leconsPrevuesAacCs(q.frise);
-    if(totalAacCs){
-      if(n < totalAacCs){
-        bouts.push(rang + ' leçon sur ' + totalAacCs + ' — encore ' + (totalAacCs - n) +
-                   ' leçon' + ((totalAacCs - n) > 1 ? 's' : '') + ' avant la fin de la fiche véhicule');
-      }else if(n === totalAacCs){
-        bouts.push(rang + ' leçon sur ' + totalAacCs + ' — dernière prévue');
-      }else{
-        bouts.push(rang + ' leçon — frise dépassée (' + totalAacCs + ' prévues)');
-      }
-      ajouterSuite(bouts, q);
-      return bouts.join(' · ');
-    }
+  ajouterSuite(etats, permis, mots, q);
 
-    const prevues = leconsAvantExamenBlanc(q.frise);
-    if(prevues && n < prevues){
-      bouts.push(rang + ' leçon sur ' + prevues + ' — encore ' + (prevues - n) +
-                 ' leçon' + ((prevues - n) > 1 ? 's' : '') + " avant l'examen blanc");
-    }else if(prevues && n === prevues){
-      bouts.push(rang + ' leçon sur ' + prevues + " — dernière avant l'examen blanc");
-    }else if(prevues && n > prevues){
-      bouts.push(rang + ' leçon — frise dépassée (' + prevues + ' prévues)');
-    }else{
-      bouts.push(rang + ' leçon');
-    }
-  }
+  const corps = [alertes.join(' · '),
+                 q.frise || '',
+                 etats.join(' · '),
+                 permis.join(' · ')].filter(Boolean).join('\n');
 
-  ajouterSuite(bouts, q);
-  return bouts.join(' · ');
+  return mots.length ? assemblerNotePreparee('', corps, mots.join(' · ')) : corps;
 }
 
 /* Partie commune : examens, fiche véhicule, cases à cocher, note libre */
@@ -1659,22 +1972,51 @@ const RE_EXAMEN_NOTE = new RegExp(
    rouge quand la date est posée, bleu quand elle manque. On
    fabrique des nœuds plutôt que du HTML — une note contient du
    texte saisi par un moniteur, il n'a pas à être interprété. */
+/* Tout ce qui a été écrit en gras Unicode, quel qu'il soit. La note
+   en porte cinq états — examen blanc, simulateur, repassage,
+   rendez-vous post-permis, examen officiel — et les énumérer ici
+   serait une seconde liste à tenir à jour. On reconnaît le gras
+   lui-même : ce qui est gras dans la note est gras à l'écran. */
+const RE_GRAS_NOTE = /[\u{1D5D4}-\u{1D607}\u{1D7EC}-\u{1D7F5}][\u{1D5D4}-\u{1D607}\u{1D7EC}-\u{1D7F5}̀-ͯ '’\-]*/gu;
+
 function colorerNote(el, note){
   if(!el) return;
   el.textContent = '';
   const t = String(note || '');
-  let i = 0, m;
+
+  /* Les lignes d'examen d'abord : elles ne sont pas seulement en
+     gras, elles sont colorées — rouge quand la date est posée, bleu
+     quand elle manque. Les autres passages en gras suivent. */
+  const marques = [];
+  let m;
 
   RE_EXAMEN_NOTE.lastIndex = 0;
   while((m = RE_EXAMEN_NOTE.exec(t)) !== null){
-    if(m.index > i) el.appendChild(document.createTextNode(t.slice(i, m.index)));
+    marques.push({ debut: m.index, fin: m.index + m[0].length,
+                   couleur: (m[1] === EXAMEN_PREVU) ? 'var(--red)' : 'var(--bleu)' });
+  }
+
+  RE_GRAS_NOTE.lastIndex = 0;
+  while((m = RE_GRAS_NOTE.exec(t)) !== null){
+    const debut = m.index, fin = m.index + m[0].length;
+    /* Déjà pris par une ligne d'examen : ne pas la découper */
+    if(marques.some(x => debut < x.fin && fin > x.debut)) continue;
+    marques.push({ debut: debut, fin: fin, couleur: '' });
+  }
+
+  marques.sort((a, b) => a.debut - b.debut);
+
+  let i = 0;
+  marques.forEach(x => {
+    if(x.debut < i) return;
+    if(x.debut > i) el.appendChild(document.createTextNode(t.slice(i, x.debut)));
     const s = document.createElement('span');
     s.style.fontWeight = '800';
-    s.style.color = (m[1] === EXAMEN_PREVU) ? 'var(--red)' : 'var(--bleu)';
-    s.textContent = m[0];
+    if(x.couleur) s.style.color = x.couleur;
+    s.textContent = t.slice(x.debut, x.fin);
     el.appendChild(s);
-    i = m.index + m[0].length;
-  }
+    i = x.fin;
+  });
   if(i < t.length) el.appendChild(document.createTextNode(t.slice(i)));
 }
 
@@ -1808,14 +2150,25 @@ function nettoyerNote(note){
   /* Ce que chaque famille a écrit, dans l'ordre */
   const parFamille = {};
   segs.forEach(seg => {
-    const f = FAMILLES_NOTE.find(x => x.motif.test(seg));
+    const f = familleDuSegment(seg);
     if(!f) return;
     (parFamille[f.cle] = parFamille[f.cle] || []).push(seg);
   });
 
   const retenu = {};
   Object.keys(parFamille).forEach(cle => {
-    retenu[cle] = meilleurDeLaFamille(parFamille[cle]);
+    const f = FAMILLES_NOTE.find(x => x.cle === cle);
+    let liste = parFamille[cle];
+
+    /* Une intention ne survit pas à côté d'une décision : dès qu'un
+       segment de la famille annonce autre chose qu'un « à prévoir »,
+       les « à prévoir » sortent. C'est ce qui laissait lire
+       « rendez-vous post-permis à prévoir » juste avant
+       « rendez-vous post-permis le 19 août ». */
+    const decides = liste.filter(s => !segmentEstUneIntention(s, f));
+    if(decides.length) liste = decides;
+
+    retenu[cle] = meilleurDeLaFamille(liste);
   });
 
   /* À l'envers : le premier rencontré est le dernier écrit, et
@@ -1826,7 +2179,7 @@ function nettoyerNote(note){
 
   for(let i = segs.length - 1; i >= 0; i--){
     const seg = segs[i];
-    const f = FAMILLES_NOTE.find(x => x.motif.test(seg));
+    const f = familleDuSegment(seg);
 
     if(f){
       if(famillesVues[f.cle]) continue;
@@ -1871,16 +2224,22 @@ async function chargerReglageLigneExamen(){
   }catch(e){ /* injoignable : on garde le comportement demandé */ }
 }
 
-function ajouterSuite(bouts, q){
+/* Les états et les mots vont dans des blocs différents : « etats »
+   pour ce qui dit où en est l'élève, « permis » pour l'examen
+   officiel et ce qui s'y rattache, « mots » pour ce qu'un humain a
+   écrit. Trois listes plutôt qu'une seule : c'est ce qui met chaque
+   information sur sa ligne. */
+function ajouterSuite(etats, permis, mots, q){
   const n = q.examBlancN;
   const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
 
   /* Le rang de l'examen blanc : « 2e examen blanc » plutôt que
-     « examen blanc », pour savoir combien l'élève en a déjà passé. */
+     « examen blanc », pour savoir combien l'élève en a déjà passé.
+     Le libellé est en gras — c'est l'un des états qu'on cherche
+     d'un coup d'œil — la date qui suit, non : elle doit rester
+     cherchable au Ctrl+F dans le classeur. */
   const rang = String(q.examBlancRang || '').trim();
-  const eb = rang
-    ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
-    : 'Examen blanc';
+  const numero = rang ? (rang === '1' ? '1er ' : rang + 'e ') : '';
 
   /* Le rang du passage au permis : « 2e passage » plutôt que rien.
      C'est ce qui dit s'il s'agit d'un repassage. */
@@ -1890,10 +2249,6 @@ function ajouterSuite(bouts, q){
        : rp === '5' ? ' — 5e passage ou plus'
        : ' — ' + rp + 'e passage')
     : '';
-  const ebMin = rang
-    ? (rang === '1' ? '1er examen blanc' : rang + 'e examen blanc')
-    : 'examen blanc';
-
   /* La date saisie, en toutes lettres : « le mardi 15 septembre 2026 » */
   const jourEB = q.examBlancDate
     ? ' le ' + (dateEnToutesLettres(q.examBlancDate) || q.examBlancDate)
@@ -1902,27 +2257,46 @@ function ajouterSuite(bouts, q){
   /* L'examen blanc vient d'avoir lieu : sa conclusion prime */
   if(q.ebPasse){
     const jour = dateEnToutesLettres($('lessonDate').value || todayLocal());
+    const tete = '🅱️ ' + numero + ETAT_EB_PASSE + ' le ' + jour;
     if(q.ebPasse === '3h'){
-      bouts.push(eb + ' passé le ' + jour + ' — plus que les 3h avant examen');
+      etats.push(tete + ' — plus que les 3h avant examen');
     }else if(q.ebPasse === 'lecons'){
-      const n = q.ebLecons;
-      bouts.push(eb + ' passé le ' + jour + ' — encore ' + (n || '❓') +
-                 ' leçon' + (parseInt(n, 10) > 1 ? 's' : '') + ' avant examen');
+      const k = q.ebLecons;
+      etats.push(tete + ' — encore ' + (k || '❓') +
+                 ' leçon' + (parseInt(k, 10) > 1 ? 's' : '') + ' avant examen');
     }else{
-      bouts.push(eb + ' passé le ' + jour + ' — pas le niveau');
+      etats.push(tete + ' — pas le niveau');
     }
   }else if(q.examBlanc === 'passe'){
-    bouts.push(n ? eb + ' passé' + jourEB + ' — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
+    const tete = '🅱️ ' + numero + ETAT_EB_PASSE;
+    etats.push(n ? tete + jourEB + ' — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
                    ' avant le permis (+ 3h avant examen)'
-                 : eb + ' passé' + (jourEB || ' — déjà fait'));
+                 : tete + (jourEB || ' — déjà fait'));
   }else if(q.examBlanc === 'reserve'){
-    bouts.push(eb + ' réservé' + jourEB +
+    etats.push('🅱️ ' + numero + ETAT_EB_RESERVE + jourEB +
                (n ? ' — dans ' + n + ' leçon' + pl(n) : ''));
   }else if(q.examBlanc === 'aprevoir'){
-    bouts.push(n ? eb + ' à prévoir dans ' + n + ' leçon' + pl(n)
-                 : eb + ' à prévoir');
+    etats.push('🅱️ ' + numero + ETAT_EB_APREVOIR +
+               (n ? ' dans ' + n + ' leçon' + pl(n) : ''));
   }else if(q.examBlanc === 'impossible'){
-    bouts.push("Ne pas prévoir d'" + ebMin + ' pour le moment');
+    etats.push('🅱️ ' + ETAT_EB_IMPOSSIBLE + ' pour le moment');
+  }
+
+  /* Le rendez-vous post-permis : trois états, une seule ligne.
+     Ils s'écrivaient jusqu'ici en messages du bureau recopiés côte
+     à côte — « à prévoir », puis « le 19 août », puis « fait ». */
+  if(q.rdvPostFait === 'oui'){
+    const h = String(q.heuresRepassage || '').trim();
+    etats.push('🤝 ' + ETAT_RDV_POST + ' 𝗙𝗔𝗜𝗧' +
+      (q.rdvPostDate ? ' le ' + dateEnToutesLettres(q.rdvPostDate) : '') +
+      (q.rdvPostMoniteur ? ' avec ' + q.rdvPostMoniteur : '') +
+      (h ? ' — ' + h + 'h à faire' : ''));
+  }else if(q.rdvPostDate){
+    etats.push('🤝 ' + ETAT_RDV_POST + ' ' + grasNote('PRÉVU') +
+      ' le ' + dateEnToutesLettres(q.rdvPostDate) +
+      (q.rdvPostMoniteur ? ' avec ' + q.rdvPostMoniteur : ''));
+  }else if(q.rdvPostAPrevoir){
+    etats.push('🤝 ' + ETAT_RDV_POST + ' ' + grasNote('À PRÉVOIR'));
   }
 
   /* L'EXAMEN OFFICIEL — une seule ligne, toujours présente.
@@ -1942,7 +2316,7 @@ function ajouterSuite(bouts, q){
         ? ' — plus que les 3h avant examen'
         : ' — encore ' + np + ' leçon' + pl(np) + ' + 3h avant examen';
     }
-    bouts.push(phrase);
+    permis.push(phrase);
   }else if(q.examPermis === 'annule'){
     let phrase = EXAMEN_SANS_DATE + (q.examDate
       ? ' — celui du ' + dateEnToutesLettres(q.examDate) + ' est annulé'
@@ -1950,37 +2324,51 @@ function ajouterSuite(bouts, q){
     phrase += q.nouvelleDate
       ? ' — reprogrammé le ' + dateEnToutesLettres(q.nouvelleDate)
       : ' — nouvelle date en attente';
-    bouts.push(phrase);
+    permis.push(phrase);
   }else if(q.examPermis === 'nonplanifiable'){
     /* Le bureau le retrouve dans Permis → Pas prêts grâce à cette
        mention : elle est le seul repère, elle doit rester stable. */
-    bouts.push(EXAMEN_SANS_DATE + ' — non planifiable' +
-               (q.examMotif ? ' (' + q.examMotif + ')' : ''));
+    permis.push(EXAMEN_SANS_DATE + ' — non planifiable' +
+                (q.examMotif ? ' (' + q.examMotif + ')' : ''));
   }else if(q.examPermis === 'aprevoir'){
-    bouts.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
+    permis.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
   }else if(ligneExamenToujours){
     /* Rien de répondu : la ligne n'apparaît que si le bureau veut
        la voir en permanence. */
-    bouts.push(EXAMEN_SANS_DATE);
+    permis.push(EXAMEN_SANS_DATE);
   }
 
   /* L'écoute pédagogique : le bureau doit le savoir pour ne pas
-     la planifier inutilement le jour du permis. */
-  if(q.pasEcoute) bouts.push("Pas d'écoutes pédagogiques");
-  if(q.simuNuit === 'aprevoir') bouts.push('Simulateur nuit et risques à prévoir');
-  else if(q.simuNuit === 'prevu') bouts.push('Simulateur nuit et risques déjà prévu');
-  else if(q.simuNuit === 'fait') bouts.push('Simulateur nuit et risques fait ✅');
+     la planifier inutilement le jour du permis. Elle se rattache à
+     l'examen, elle reste donc sur sa ligne. */
+  if(q.pasEcoute) permis.push("Pas d'écoutes pédagogiques");
 
+  /* Les étapes qui restent à franchir : elles disent où en est
+     l'élève, elles vont donc avec le reste de son parcours. */
+  if(q.simuNuit === 'aprevoir') etats.push('🌙 ' + ETAT_SIMU + ' ' + grasNote('À PRÉVOIR'));
+  else if(q.simuNuit === 'prevu') etats.push('🌙 ' + ETAT_SIMU + ' ' + grasNote('DÉJÀ PRÉVU'));
+  else if(q.simuNuit === 'fait') etats.push('🌙 ' + ETAT_SIMU + ' ' + grasNote('FAIT') + ' ✅');
 
-  if(q.formAccomp === 'aprevoir') bouts.push('Formation accompagnateur à prévoir');
-  else if(q.formAccomp === 'prevue') bouts.push('Formation accompagnateur déjà prévue');
-  else if(q.formAccomp === 'faite') bouts.push('Formation accompagnateur faite');
+  if(q.formAccomp === 'aprevoir') etats.push('Formation accompagnateur à prévoir');
+  else if(q.formAccomp === 'prevue') etats.push('Formation accompagnateur déjà prévue');
+  else if(q.formAccomp === 'faite') etats.push('Formation accompagnateur faite');
 
-  if(q.rvPrealable === 'aprevoir') bouts.push('Rendez-vous préalable à prévoir');
-  else if(q.rvPrealable === 'prevu') bouts.push('Rendez-vous préalable déjà prévu');
-  else if(q.rvPrealable === 'fait') bouts.push('Rendez-vous préalable fait');
-  if(q.libre) bouts.push(q.libre);
-  (q.consignes || []).forEach(t => bouts.push(t));
+  if(q.rvPrealable === 'aprevoir') etats.push('Rendez-vous préalable à prévoir');
+  else if(q.rvPrealable === 'prevu') etats.push('Rendez-vous préalable déjà prévu');
+  else if(q.rvPrealable === 'fait') etats.push('Rendez-vous préalable fait');
+
+  /* Ce qu'un humain a écrit — le champ libre du moniteur, les
+     messages du bureau — va derrière le 📌, à sa place.
+
+     Les messages du bureau n'y entrent que pour ce que la note ne
+     sait pas dire elle-même : « rendez-vous post-permis à prévoir »
+     est désormais un état, pas une phrase à recopier, et c'est en
+     le recopiant qu'on lisait quatre fois la même chose. */
+  if(q.libre) mots.push(q.libre);
+  (q.consignes || []).forEach(t => {
+    const reste = retirerSegmentsRegeneres(t);
+    if(reste && mots.indexOf(reste) === -1) mots.push(reste);
+  });
 }
 
 /* Choix d'une date au calendrier plutôt qu'à la saisie manuelle */
