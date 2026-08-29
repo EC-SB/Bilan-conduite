@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:30 — v735 */
+/* Déployé le 29/08/2026 à 15:44 — v738 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -948,7 +948,7 @@ function fondreNotePreparee(neuf, ancien){
      qu'un cours de simulateur portait encore « 1ère leçon sur 2 —
      encore 1 leçon avant l'examen blanc », phrase écrite pour un
      autre cours, par une version d'avant. */
-  const DU_JOUR = ['lecon', 'leconVide', 'avantEB', 'friseEtat'];
+  const DU_JOUR = ['lecon', 'leconVide', 'avantEB', 'friseEtat', 'entete'];
   const restants = Object.keys(dits)
     .filter(c => !vus[c] && DU_JOUR.indexOf(c) === -1)
     .map(c => dits[c]);
@@ -1396,6 +1396,11 @@ const RE_FAMILLE_EXAMEN = new RegExp(
    fois qu'on lit « rendez-vous post-permis le 19 août ». C'est ce
    qui empilait quatre lignes là où une seule disait tout. */
 const FAMILLES_NOTE = [
+  /* L'en-tête d'un cours — son heure, son 🆔, son 💾 — quand il
+     s'est retrouvé dans le texte. Une famille, donc : régénérable,
+     il ne se recopie plus d'une note à l'autre, et c'est ainsi
+     qu'on lisait « 📌 🕐 15h00 · 📌 🕐 15h00 » au bas des cartes. */
+  { cle:'entete',      motif:/^(?:🕐\s*\d{1,2}\s*[h:]\s*\d{0,2}|🆔|💾|\s)+$/ },
   { cle:'repassage',   motif:/^🔁\s*\d+\S*\s+repassage/i },
   { cle:'handicap',    motif:/^♿\s*Conduite aménagée/i },
   { cle:'coussin',     motif:/^🟩\s*Coussin vert/i },
