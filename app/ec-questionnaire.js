@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:10 — v702 */
+/* Déployé le 29/08/2026 à 16:30 — v703 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1525,6 +1525,21 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   /* L'ANTS vient de la fiche s'il n'a pas déjà été saisi dans ce cours :
      il est renseigné à l'inscription, pas à chaque leçon. */
   if(!prec.ants && ficheEleve && ficheEleve.ants) prec.ants = ficheEleve.ants;
+
+  /* Le poste de conduite vient de la fiche, TOUJOURS : c'est là
+     qu'il vit. Un cours ne le contredit que le temps de ce cours —
+     et la réponse du questionnaire redescendra sur la fiche.
+
+     Sans ça, décocher le coussin sur la fiche n'aurait servi à
+     rien : le cours précédent l'aurait recoché indéfiniment. */
+  if(ficheEleve){
+    if(ficheEleve.amenagee !== undefined && ficheEleve.amenagee !== ''){
+      prec.handicap = (String(ficheEleve.amenagee) === 'oui') ? 'oui' : '';
+    }
+    if(ficheEleve.coussin !== undefined && ficheEleve.coussin !== ''){
+      prec.coussin = (String(ficheEleve.coussin) === 'oui') ? 'oui' : '';
+    }
+  }
 
   /* Trois sources, de la plus sûre à la plus générale : la
      formation, le dernier cours, la fiche de l'élève. Sans ce
@@ -4062,6 +4077,21 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
   if(reponses.formation && reponses.formation !== (avant.formation || '')){
     maj.formation = reponses.formation;
   }
+
+  /* Le poste de conduite descend aussi — et lui doit pouvoir se
+     DÉCOCHER : un élève qui n'a plus besoin du coussin doit
+     pouvoir le perdre. D'où 'non' et non '' : côté serveur le vide
+     veut dire « le formulaire n'en parlait pas », pas « non ».
+
+     Ces deux-là sont des faits de l'ÉLÈVE, pas du cours. C'est
+     pour ça qu'ils vivent sur la fiche : posés une fois, ils
+     reviennent sur toutes ses cartes sans qu'on les recoche. */
+  [['handicap', 'amenagee'], ['coussin', 'coussin']].forEach(([q, f]) => {
+    if(reponses[q] === undefined) return;
+    const v  = (reponses[q] === 'oui') ? 'oui' : 'non';
+    const av = (String(avant[f] || '') === 'oui') ? 'oui' : 'non';
+    if(v !== av) maj[f] = v;
+  });
 
   if(!Object.keys(maj).length) return;
 
