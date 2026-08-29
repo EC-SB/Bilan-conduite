@@ -1,3 +1,4 @@
+/* Déployé le 29/08/2026 à 08:09 — v686 */
 /* ============================================================
    ec-bilans.js
    Gestion des modèles de bilan.
@@ -97,6 +98,34 @@ async function afficherTextesBilan(){
     '✍️ <strong>Mode manuel</strong> : le moniteur remplit lui-même les mêmes rubriques, ' +
     "sans IA.<br>Le texte produit est identique dans les deux cas.";
   zone.appendChild(info);
+
+  /* Un réglage qui touche au CONTENU du bilan a sa place ici,
+     pas dans l'affichage de l'écran d'accueil. */
+  if(typeof interrupteur === 'function'){
+    let r = {};
+    try{
+      const d = await appelPrep({ action: 'reglagesList' });
+      r = (d && d.reglages) || {};
+    }catch(e){}
+
+    const toujours = String(r.ligneExamenToujours || 'oui') !== 'non';
+    zone.appendChild(interrupteur({
+      cle: 'ligneExamenToujours',
+      titre: "🎓 Rappeler l'absence de date d'examen",
+      ouvert: toujours,
+      valeurs: { actif: 'oui', inactif: 'non' },
+      quandOuvert: "« PAS DE DATE D'EXAMEN OFFICIEL » est écrit dans chaque " +
+        "note tant qu'aucune date n'est posée — pratique pour repérer ceux " +
+        "à qui il faut en prendre une.",
+      quandFerme: "La ligne n'apparaît que si le moniteur répond quelque " +
+        "chose à la question Examen du questionnaire. Rien pour un élève " +
+        "qui débute.",
+      apres: () => { afficherTextesBilan();
+                     if(typeof chargerReglageLigneExamen === 'function'){
+                       chargerReglageLigneExamen();
+                     } }
+    }));
+  }
 
   const bNouveau = document.createElement('button');
   bNouveau.className = 'btn btn-primary';
@@ -432,11 +461,6 @@ const TYPES_CHAMP = [
   { cle:'ouinon',      nom:'👍 Oui ou non',         aide:'Deux états' },
   { cle:'photo',       nom:'📷 Photo',              aide:'Capture, non envoyée dans le bilan' }
 ];
-
-function nomTypeChamp(cle){
-  const t = TYPES_CHAMP.find(x => x.cle === cle);
-  return t ? t.nom : cle;
-}
 
 /* Les champs enregistrés par l'auto-école pour une structure */
 function champsPersonnalises(schema){
