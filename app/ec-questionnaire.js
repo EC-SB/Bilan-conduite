@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:16 — v726 */
+/* Déployé le 29/08/2026 à 14:23 — v727 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3763,6 +3763,45 @@ function ajouterANote(champ, texte){
 
 
 /* ------------------------------------------------------------
+   LE RANG DE LA LEÇON DU JOUR, D'OÙ QU'IL VIENNE
+
+   Trois endroits l'affichent — la case du questionnaire, le
+   récapitulatif en tête, le bouton qui dit ce qui manque — et ils
+   doivent dire la même chose. Le bouton annonçait « il manque le
+   numéro de leçon » pendant que la case, juste en dessous, en
+   montrait un : la case le déduisait du classeur, le bouton ne
+   lisait que les réponses du questionnaire. Deux écritures d'une
+   même règle, encore.
+
+   Le rang saisi gagne toujours — c'est une réponse, pas une
+   déduction. À défaut, le compte du classeur : le dossier est relu
+   dès la saisie du nom et gardé dix minutes en mémoire, le lire
+   ici ne coûte donc ni appel ni attente.
+   ------------------------------------------------------------ */
+function rangDuCours(ctx, eleve, modeleCle){
+  const c = ctx || {};
+  const saisi = parseInt(c.lecon, 10);
+  if(!isNaN(saisi) && saisi) return saisi;
+
+  const faites = (c.leconsFaites === undefined || c.leconsFaites === null)
+    ? ((typeof lireCacheDossier === 'function' && eleve)
+        ? (lireCacheDossier(eleve) || {}).lecons : null)
+    : c.leconsFaites;
+
+  /* « 1ère leçon » ne s'affirme que si le rappel demandait la carte
+     SD : sans bilan au classeur, on ne sait pas où en est l'élève,
+     et c'est bien le questionnaire qu'il faut remplir. */
+  const note = (typeof $ === 'function' && $('noteInterne'))
+    ? $('noteInterne').value : '';
+  const premier = (typeof cestLePremierCours === 'function')
+    ? (cestLePremierCours(c.premierCours) || cestLePremierCours(note))
+    : false;
+
+  return (typeof rangConnu === 'function')
+    ? rangConnu(faites, modeleCle, premier) : null;
+}
+
+/* ------------------------------------------------------------
    CE QU'ON SAIT DÉJÀ DE CET ÉLÈVE, EN HUIT LIGNES
 
    Le questionnaire pose quinze questions ; l'état de l'élève tient
@@ -3811,7 +3850,10 @@ function recapDuCours(q, eleve, modeleCle, fiche){
 
   if(typeof leconCompteDansLaFrise === 'function' &&
      leconCompteDansLaFrise(modeleCle)){
-    pose('🔢', 'Leçon n°', dit(c.lecon), !parseInt(c.lecon, 10));
+    /* Le même rang que la case du questionnaire : déduit du
+       classeur quand personne ne l'a saisi. */
+    const rang = rangDuCours(c, eleve, modeleCle);
+    pose('🔢', 'Leçon n°', rang ? String(rang) : '', !rang);
   }
 
   if(c.handicap === 'oui') pose('♿', 'Conduite aménagée', amg || 'oui', false);
@@ -3885,8 +3927,11 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
     ? friseUtilisable(brute) : brute;
   if(imposee === null && !frise) manque.push('la frise');
 
+  /* Le rang déduit du classeur compte comme connu : le réclamer
+     pendant que la case l'affiche, c'est envoyer le moniteur
+     vérifier une information qui est déjà là. */
   if(typeof leconCompteDansLaFrise === 'function' &&
-     leconCompteDansLaFrise(modeleCle) && !parseInt(c.lecon, 10)){
+     leconCompteDansLaFrise(modeleCle) && !rangDuCours(c, eleve, modeleCle)){
     manque.push('le numéro de leçon');
   }
 
