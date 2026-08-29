@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:19 — v733 */
+/* Déployé le 29/08/2026 à 15:30 — v735 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2803,9 +2803,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           ', pour ' + tot + ' leçons en tout.</span>';
         return;
       }
+      /* friseImposee(), et non la variable « imposee » : celle-là
+         est calculée à la validation, dans une autre portée. Une
+         fonction se demande d'où l'on veut ; une variable, non. */
+      const impose = friseImposee();
       const essai = Object.assign({}, prec, {
         lecon: String(tot), modele: modeleCle,
-        frise: (imposee !== null) ? imposee : friseSaisie(),
+        frise: (impose !== null) ? impose : friseSaisie(),
         examBlanc: selEB ? selEB.value : prec.examBlanc
       });
       if(charniere && !isNaN(dep)){
