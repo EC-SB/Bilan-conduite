@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:07 — v731 */
+/* Déployé le 29/08/2026 à 15:19 — v733 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1204,7 +1204,7 @@ const CHAMP_DE_LA_REPONSE = {
   lecon:         '#qLecon',
   /* Les deux réponses portées par la même case : le nombre de
      leçons avant la charnière ne s'écrit pas directement, il se
-     déduit du « dont depuis ». Les déclarer ici, c'est empêcher un
+     déduit du second rang. Les déclarer ici, c'est empêcher un
      questionnaire qui ne pose pas la question d'effacer ce qu'on
      savait — la protection vaut pour ce qui se déduit comme pour
      ce qui se tape. */
@@ -1920,11 +1920,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          l'autre se voie tout de suite. */
       '<div id="qBlocLecon">' +
         '<div class="duo">' +
-          '<div><label for="qLecon">Leçon n° — total</label>' +
+          '<div><label for="qLecon">C\'est la ...ème leçon</label>' +
             '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
           '</div>' +
           '<div id="qBlocDepuis" style="display:none;">' +
-            '<label for="qLeconDepuis" id="qLibDepuis">dont depuis</label>' +
+            '<label for="qLeconDepuis" id="qLibDepuis">et la ...ème après</label>' +
             '<input type="text" id="qLeconDepuis" inputmode="numeric" placeholder="—">' +
           '</div>' +
         '</div>' +
@@ -2777,7 +2777,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const bloc = boite.querySelector('#qBlocDepuis');
       if(bloc) bloc.style.display = '';
       const lib = boite.querySelector('#qLibDepuis');
-      if(lib) lib.textContent = 'dont depuis ' + charniere.nom;
+      if(lib) lib.textContent = 'et la ...ème après ' + charniere.nom;
       /* Pré-rempli avec ce que l'outil sait en déduire : le
          corriger est un geste, le retaper à chaque cours en serait
          un autre. */
@@ -4048,7 +4048,20 @@ function rangDuCours(ctx, eleve, modeleCle){
    bloc à part : deux listes, et on lit deux fois.
    ------------------------------------------------------------ */
 function recapDuCours(q, eleve, modeleCle, fiche){
-  const c = q || {};
+  /* LE SUIVI ET LES SESSIONS D'ABORD.
+
+     Le récapitulatif ne lisait que le contexte du cours — ce que
+     le questionnaire de départ avait produit. Or ce pop-up
+     n'existe plus : sur un cours démarré directement, ce contexte
+     est presque vide, et l'écran réclamait une date d'examen que
+     la note, deux centimètres plus bas, affichait déjà.
+
+     Ces sources-là passent devant, comme partout ailleurs : le
+     bureau peut poser une date pendant le cours, et ce qu'il pose
+     est plus récent que tout ce qu'un moniteur a saisi avant. */
+  const foi = (typeof etatQuiFaitFoi === 'function' && eleve)
+    ? etatQuiFaitFoi(eleve) : {};
+  const c = Object.assign({}, q || {}, foi);
   const f = fiche || {};
   const dit = v => String(v || '').trim();
 
