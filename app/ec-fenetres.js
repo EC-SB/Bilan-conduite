@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 11:20 — v689 */
+/* Déployé le 29/08/2026 à 13:05 — v690 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -378,7 +378,9 @@ const FORMATIONS_BASE = [
   { cle: 'Conduite supervisée', nom: '🚗 Conduite supervisée', voiture: true },
   { cle: 'CS BV',           nom: '🚗 CS manuelle (ancien)',   voiture: true },
   { cle: 'CS BEA',          nom: '🚗 CS automatique (ancien)', voiture: true },
-  { cle: 'Passerelle BEA→BV',   nom: '🚗 Passerelle BEA→BV',   voiture: true },
+  /* B78 est le code porté sur un permis obtenu en boîte automatique :
+     la passerelle mène au permis B, et se conduit en manuelle. */
+  { cle: 'Passerelle BEA→BV',   nom: '🚗 Passerelle B78 → B (manuelle)', voiture: true },
   { cle: 'Moto A',          nom: '🏍️ Moto (A)',              voiture: false },
   { cle: 'A1 permis',       nom: '🛵 A1 permis',              voiture: false },
   { cle: 'A1 passerelle',   nom: '🛵 A1 passerelle',          voiture: false },
@@ -422,6 +424,15 @@ function formationVoiture(v){
 function boiteDeLaFormation(v){
   const t = String(v || '');
   if(/\bBE\b|remorque/i.test(t)) return 'BE';
+
+  /* La table des parcours d'abord : elle sait ce que le nom ne dit
+     pas. « Passerelle BEA→BV » contient « BEA », mais la passerelle
+     se conduit en boîte MANUELLE — c'est tout son objet. */
+  if(typeof parcoursDeLaFormation === 'function'){
+    const p = parcoursDeLaFormation(t);
+    if(p && p.boite) return p.boite;
+  }
+
   if(/BEA|automatique/i.test(t)) return 'BEA';
   if(/\bBV\b|manuelle/i.test(t)) return 'BV';
   return '';
