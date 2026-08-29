@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 13:05 — v690 */
+/* Déployé le 29/08/2026 à 16:30 — v703 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -458,6 +458,60 @@ function ficheDe(nom){
   return fichesEleves.find(f => normaliserMot(f.eleve) === normaliserMot(nom)) || null;
 }
 
+/* ------------------------------------------------------------
+   LE POSTE DE CONDUITE — UNE SEULE ÉCRITURE
+
+   ♿ conduite aménagée et 🟩 coussin vert se saisissent de trois
+   endroits : la fiche de l'élève, la ligne du répertoire, et la
+   carte de « Mes prochains cours ». Trois portes, mais une seule
+   destination — la fiche — et une seule fonction pour y écrire.
+
+   C'est la règle « tout est lié » prise au mot : l'information
+   n'existe qu'à un endroit, et poser la case ici la fait
+   apparaître partout ailleurs sans recopie.
+   ------------------------------------------------------------ */
+function posteDeConduite(nom){
+  const f = ficheDe(nom) || {};
+  return { amenagee: String(f.amenagee || '') === 'oui',
+           coussin:  String(f.coussin  || '') === 'oui' };
+}
+
+/* Le résumé lisible, pour les cartes et les listes. Vide quand il
+   n'y a rien à préparer : une ligne « rien de particulier » ne
+   mérite pas la place qu'elle prend. */
+function texteDuPoste(nom){
+  const p = posteDeConduite(nom);
+  const bouts = [];
+  if(p.amenagee) bouts.push('♿ Conduite aménagée');
+  if(p.coussin)  bouts.push('🟩 Coussin vert');
+  return bouts.join(' · ');
+}
+
+async function ecrirePosteDeConduite(nom, champ, actif){
+  const propre = String(nom || '').trim();
+  if(!propre || ['amenagee', 'coussin'].indexOf(champ) === -1) return false;
+
+  /* 'non' et non '' : c'est une réponse. Le vide, côté serveur,
+     veut dire « le formulaire n'en parlait pas » et ne touche à
+     rien — sans quoi cette case ne pourrait jamais se décocher. */
+  const maj = {}; maj[champ] = actif ? 'oui' : 'non';
+
+  try{
+    await appelPrep(Object.assign({ action: 'ficheSet', eleve: propre }, maj));
+  }catch(e){
+    showToast('Enregistrement impossible : ' + e.message);
+    return false;
+  }
+
+  /* La mémoire suit tout de suite : les autres écrans lisent
+     fichesEleves, et attendre le rechargement leur ferait afficher
+     l'ancienne valeur. */
+  const f = ficheDe(propre);
+  if(f) f[champ] = maj[champ];
+  else fichesEleves.push(Object.assign({ eleve: propre }, maj));
+  return true;
+}
+
 /* Un numéro français, mis en forme pour l'affichage et les liens */
 function telLisible(t){
   const n = String(t || '').replace(/[^\d+]/g, '');
@@ -663,6 +717,37 @@ function ligneFicheEleve(nom){
     (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
     '</div>';
   h.appendChild(info);
+
+  /* Le poste de conduite se coche ici, sans ouvrir la fiche : c'est
+     l'information qu'on corrige le plus vite, souvent en revenant
+     d'un cours. Deux pastilles qui basculent, allumées quand c'est
+     actif. */
+  const poste = document.createElement('div');
+  poste.style.cssText = 'display:flex;gap:4px;flex-shrink:0;';
+  [['amenagee', '♿', 'Conduite aménagée'],
+   ['coussin', '🟩', 'Coussin vert']].forEach(([champ, emoji, titre]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.title = titre + ' — cliquer pour changer';
+    const peindre = () => {
+      const actif = posteDeConduite(nom)[champ];
+      b.style.cssText = 'width:auto;padding:7px 9px;font-size:14px;margin:0;' +
+        'flex-shrink:0;opacity:' + (actif ? '1' : '.32') + ';' +
+        (actif ? 'border-color:var(--accent-text);' : '');
+      b.textContent = emoji;
+    };
+    peindre();
+    b.addEventListener('click', async () => {
+      const avant = posteDeConduite(nom)[champ];
+      b.disabled = true;
+      const ok = await ecrirePosteDeConduite(nom, champ, !avant);
+      b.disabled = false;
+      peindre();
+      if(ok) showToast(titre + (avant ? ' retiré' : ' noté') + ' ✅');
+    });
+    poste.appendChild(b);
+  });
+  h.appendChild(poste);
 
   /* Écrire par SMS, si on a le numéro */
   if(f.telephone){
@@ -1150,6 +1235,25 @@ function ouvrirFicheEleve(nom, f){
       'reprennent seuls. Laisse vide si elle n\'est pas encore déterminée.</div>' +
     '<input type="hidden" id="fiFrise">' +
 
+    /* Le poste de conduite : ce qu'il faut savoir AVANT que l'élève
+       monte dans la voiture. Ça ne change pas d'une leçon à
+       l'autre — un élève qui a besoin du coussin en a besoin
+       toujours — donc ça se saisit ici, une fois, et le moniteur le
+       lit sur sa carte au lieu de se le faire redemander à chaque
+       cours. */
+    '<label>🚗 Poste de conduite</label>' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:6px;font-weight:400;">' +
+      '<input type="checkbox" id="fiAmenagee" style="width:19px;height:19px;">' +
+      '♿ Conduite aménagée</label>' +
+    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+      'font-size:15px;color:var(--cream);margin-bottom:6px;font-weight:400;">' +
+      '<input type="checkbox" id="fiCoussin" style="width:19px;height:19px;">' +
+      '🟩 Coussin vert</label>' +
+    '<div style="font-size:11px;color:var(--muted);margin:0 0 12px;line-height:1.4;">' +
+      'Affiché sur la carte du cours, pour que le moniteur prépare la voiture ' +
+      'avant que l\'élève arrive.</div>' +
+
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
       'font-size:15px;color:var(--cream);margin-bottom:6px;font-weight:400;">' +
       '<input type="checkbox" id="fiAutreAE" style="width:19px;height:19px;">' +
@@ -1230,6 +1334,8 @@ function ouvrirFicheEleve(nom, f){
     g(id).addEventListener('input', majFrise);
   });
   majFrise();
+  g('fiAmenagee').checked = String((f && f.amenagee) || '') === 'oui';
+  g('fiCoussin').checked  = String((f && f.coussin) || '') === 'oui';
   g('fiAutreAE').checked = !!(f && f.autreAE);
   g('fiAutreAENom').value = (f && f.autreAENom) || '';
   g('fiAutreAENom').style.display = g('fiAutreAE').checked ? 'block' : 'none';
@@ -1301,6 +1407,12 @@ function ouvrirFicheEleve(nom, f){
                         frise: g('fiFrise').value.trim(),
                         autreAE: g('fiAutreAE').checked ? 'oui' : '',
                         autreAENom: g('fiAutreAENom').value.trim(),
+                        /* 'non' et pas '' : ces deux cases doivent
+                           pouvoir se DÉCOCHER. Côté serveur, un
+                           champ vide veut dire « le formulaire
+                           n'en parlait pas » et ne touche à rien. */
+                        amenagee: g('fiAmenagee').checked ? 'oui' : 'non',
+                        coussin: g('fiCoussin').checked ? 'oui' : 'non',
                         remarques: g('fiRem').value.trim() });
       /* La fiche en mémoire suit tout de suite : l'écran ne doit pas
          attendre le rechargement pour montrer la bonne valeur. */
@@ -1312,6 +1424,8 @@ function ouvrirFicheEleve(nom, f){
                       frise: g('fiFrise').value.trim(),
                       autreAE: g('fiAutreAE').checked ? 'oui' : '',
                       autreAENom: g('fiAutreAENom').value.trim(),
+                      amenagee: g('fiAmenagee').checked ? 'oui' : 'non',
+                      coussin: g('fiCoussin').checked ? 'oui' : 'non',
                       remarques: g('fiRem').value.trim() };
       if(f2) Object.assign(f2, saisi);
       else fichesEleves.push(Object.assign({ eleve: nom }, saisi));
