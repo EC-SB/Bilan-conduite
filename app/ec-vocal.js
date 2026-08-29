@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:00 — v708 */
+/* Déployé le 29/08/2026 à 15:14 — v732 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -518,7 +518,11 @@ $('confirmGen').addEventListener('click', async () => {
      jamais coûter deux heures de cours. */
   if(typeof deposerBrouillonServeur === 'function'){
     $('progressionGen').textContent = 'Mise à l\'abri du cours…';
-    await deposerBrouillonServeur();
+    /* « en-generation » : le bureau voit que ce cours-là est en
+       train de se faire, et non qu'il a été abandonné. Et si la
+       génération n'aboutit jamais, l'état reste — il dit alors
+       exactement où ça s'est arrêté. */
+    await deposerBrouillonServeur({ etat: 'en-generation' });
   }
   const oldDetail = $('genErrorDetail');
   if(oldDetail) oldDetail.remove();
