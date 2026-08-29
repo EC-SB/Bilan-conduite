@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:20 — v723 */
+/* Déployé le 29/08/2026 à 15:52 — v739 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3025,6 +3025,26 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
         lab.appendChild(cb);
         lab.appendChild(document.createTextNode(nom + (dejaOk ? '  (déjà validée)' : '')));
+
+        /* 🚗 : déjà fait dans une autre auto-école. La même case que
+           sur l'écran de cours — une manœuvre acquise ailleurs ne
+           porte l'émoji d'aucun de nos moniteurs. */
+        if(!dejaOk){
+          const ail = document.createElement('label');
+          ail.style.cssText = 'display:flex;align-items:center;gap:4px;margin:0 0 0 auto;' +
+            'font-size:12px;text-transform:none;color:var(--muted);flex-shrink:0;';
+          ail.title = 'Déjà fait dans une autre auto-école';
+          const cbA = document.createElement('input');
+          cbA.type = 'checkbox';
+          cbA.className = 'mAilleurs';
+          cbA.value = nom;
+          cbA.style.cssText = 'width:15px;height:15px;flex-shrink:0;margin:0;';
+          cbA.addEventListener('click', e => e.stopPropagation());
+          ail.appendChild(cbA);
+          ail.appendChild(document.createTextNode('🚗'));
+          lab.appendChild(ail);
+        }
+
         zm.appendChild(lab);
       });
       bloc.appendChild(zm);
