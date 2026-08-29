@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:05 — v696 */
+/* Déployé le 29/08/2026 à 22:20 — v697 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -603,22 +603,69 @@ function lignePosition(corps){
    frise et la date d'examen de son parcours d'avant, et elles
    restent là jusqu'à ce que la réparation passe. Le type de
    formation prime — y compris à l'affichage, tout de suite. */
-function noteSelonLaFormation(note, formation){
-  const sans = sansObjetPourLaFormation(formation);
-  if(!sans.length) return String(note || '');
+function noteSelonLaFormation(note, formation, modele){
+  const texte = String(note || '');
 
-  /* Les familles que ce parcours n'a pas. On les nomme par leur
-     champ : « examBlanc » est aussi la clé de sa famille. */
+  /* Ce que le parcours n'a pas, d'après la fiche de l'élève */
+  const sans = sansObjetPourLaFormation(formation);
   const familles = {};
   sans.forEach(c => { familles[c] = true; });
   if(sans.indexOf('examPermis') !== -1) familles.examenPermis = true;
   if(sans.indexOf('pasEcoute') !== -1) familles.ecoutes = true;
 
-  return String(note || '').split('\n').map(l =>
-    segmentsDeNote(l).filter(seg => {
+  /* Et ce que la note dit d'elle-même : ses rendez-vous
+     pédagogiques la désignent comme un parcours AAC, fiche remplie
+     ou non. */
+  const relu = (typeof defautsDepuisNote === 'function')
+    ? defautsDepuisNote(texte) : {};
+  const q = { rvp1: relu.rvp1, rvp2: relu.rvp2, formation: formation,
+              modele: modele || '', frise: extraireFrise(texte) };
+
+  const aac = estUnParcoursAac(q);
+  const friseAac = aac ? friseAacDe(q) : '';
+
+  /* Un rendez-vous pédagogique passé rend « examen blanc pas
+     encore évoqué » faux : il a eu lieu pendant, ou il n'y en aura
+     pas. On ne retire QUE cette ligne-là — un examen blanc daté
+     reste une information. */
+  const rienDitSurEB = aac && rvpDejaFait(q) &&
+                       !relu.examBlanc && !relu.ebPasse;
+
+  if(!sans.length && !friseAac && !rienDitSurEB) return texte;
+
+  /* La ligne de tête aussi peut mentir : « DERNIÈRE AVANT L'EXAMEN
+     BLANC » sur un élève dont le rendez-vous pédagogique est déjà
+     passé. On la refait — avec la même règle que le rédacteur, et
+     à partir du rang qu'elle porte déjà. */
+  let positionRefaite = '';
+  if(rienDitSurEB){
+    const ancienne = lignePosition(texte);
+    if(/examen blanc|fiche véhicule/i.test(sansGras(ancienne))){
+      const m = sansGras(ancienne).match(RE_NUM_LECON);
+      const rang = m ? parseInt(String(m[0]), 10) : NaN;
+      if(!isNaN(rang) && rang > 0){
+        positionRefaite = positionDansLaFrise({
+          lecon: String(rang), leconsFaites: rang - 1,
+          frise: friseAac || q.frise, modele: q.modele,
+          rvPrealable: relu.rvPrealable, rvp1: relu.rvp1, rvp2: relu.rvp2
+        });
+      }
+    }
+  }
+
+  return texte.split('\n').map(l =>
+    segmentsDeNote(l).map(seg => {
+      if(positionRefaite && RE_LIGNE_POSITION.test(seg)) return positionRefaite;
       const f = familleDuSegment(seg);
-      return !(f && familles[f.cle]);
-    }).join(' · ')
+      if(f && familles[f.cle]) return '';
+      if(f && f.cle === 'examenBlanc' && rienDitSurEB &&
+         /pas encore/i.test(sansGras(seg))) return '';
+      /* La frise classique d'un élève en AAC : c'est la frise AAC
+         qui vaut, et elle est écrite dans une table, pas devinée. */
+      if(f && f.cle === 'frise' && friseAac &&
+         !/^AAC\b/i.test(sansGras(seg))) return friseAac;
+      return seg;
+    }).filter(Boolean).join(' · ')
   ).filter(Boolean).join('\n');
 }
 
@@ -812,6 +859,43 @@ function parcoursDeLaFormation(formation){
 /* La frise qu'impose une formation : une clé de FRISES_FIXES, ou
    la chaîne vide quand ce parcours n'a pas de frise, ou null quand
    elle se saisit à la main. */
+/* ------------------------------------------------------------
+   RECONNAÎTRE UN PARCOURS AAC SANS SA FICHE
+
+   Les rendez-vous pédagogiques n'existent qu'en conduite
+   accompagnée. Une note qui en porte un dit donc le parcours de
+   l'élève — même quand sa fiche au répertoire est restée vide, et
+   c'est le cas le plus fréquent : on ne remplit pas une fiche pour
+   un élève qu'on connaît.
+
+   Axel avait ses deux RVP faits, et portait quand même une frise
+   classique et « examen blanc pas encore évoqué ». Tout était écrit
+   dans sa note ; personne ne le lisait.
+   ------------------------------------------------------------ */
+function estUnParcoursAac(q){
+  if(!q) return false;
+  if(q.rvp1 || q.rvp2) return true;
+  if(/^AAC\b/i.test(String(q.frise || ''))) return true;
+  const p = parcoursDeLaFormation(q.formation);
+  return !!(p && p.aac);
+}
+
+/* La frise d'un AAC, dans la boîte de l'élève. La boîte se lit sur
+   son bilan, ou à défaut sur ce que sa frise disait déjà. */
+function friseAacDe(q){
+  const indices = String((q && q.modele) || '') + ' ' + String((q && q.frise) || '');
+  return FRISES_FIXES[/auto|bea/i.test(indices) ? 'aacbea' : 'aacbv'] || '';
+}
+
+/* Un rendez-vous pédagogique a-t-il eu lieu ?
+
+   L'examen blanc de l'AAC se passe PENDANT le rendez-vous n°2. Une
+   fois un rendez-vous fait, écrire « examen blanc pas encore
+   évoqué » est faux : il a eu lieu, ou il n'y en aura pas. */
+function rvpDejaFait(q){
+  return !!(q && (q.rvp1 === 'fait' || q.rvp2 === 'fait'));
+}
+
 function friseDeLaFormation(formation, manuelle){
   const p = parcoursDeLaFormation(formation);
   if(!p) return null;
@@ -2504,6 +2588,14 @@ function noteDepuisQuestionnaire(q){
     sansObjet.forEach(cle => { q[cle] = ''; });
   }
 
+  /* Un élève en AAC porte la frise de l'AAC. La sienne pouvait
+     dater d'avant son passage en conduite accompagnée : ses deux
+     rendez-vous pédagogiques disent que ce n'est plus la bonne. */
+  if(estUnParcoursAac(q) && !/^AAC\b/i.test(String(q.frise || ''))){
+    const aac = friseAacDe(q);
+    if(aac){ q = Object.assign({}, q, { frise: aac }); }
+  }
+
   const alertes = [];
   const etats = [];
   const permis = [];
@@ -2839,7 +2931,13 @@ function ajouterSuite(etats, permis, mots, q){
      manquent n'aurait pas plus de sens que celle qui les annonce. */
   const sans = (typeof sansObjetPourLaFormation === 'function')
     ? sansObjetPourLaFormation(q.formation) : [];
-  const sansExamenBlanc = sans.indexOf('examBlanc') !== -1;
+  /* L'examen blanc de l'AAC se passe pendant le rendez-vous n°2 :
+     une fois un rendez-vous fait, « pas encore évoqué » est faux.
+     Un examen blanc explicitement saisi, lui, s'écrit toujours —
+     c'est celui qu'on prévoit à part quand l'élève n'avait pas le
+     niveau ce jour-là. */
+  const sansExamenBlanc = sans.indexOf('examBlanc') !== -1 ||
+                          (rvpDejaFait(q) && !q.examBlanc && !q.ebPasse);
   const sansExamenPermis = sans.indexOf('examPermis') !== -1;
 
   const n = q.examBlancN;
