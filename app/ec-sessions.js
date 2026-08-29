@@ -1,4 +1,4 @@
-/* ============================================================
+/* Déployé le 29/08/2026 à 16:30 — v693 */
    ec-sessions.js
    Les sessions d'examen, place par place.
 
@@ -118,23 +118,26 @@ function redessinerSessions(){
 }
 
 
-async function afficherSessionsPermis(){
-  const zone = $('sessionsPermis');
-  if(!zone) return;
+/* Charger les sessions, sans rien dessiner.
 
-  zone.innerHTML = '<div class="empty">Lecture des sessions…</div>';
-  try{
-    /* Le suivi en même temps : c'est lui qui porte « à remplacer »,
-       « tout est OK » et le reste à payer. */
-    const [d] = await Promise.all([
-      appelPrep({ action: 'sessionList' }),
-      /* Le suivi porte les fiches de préparation. On le recharge
-         à chaque affichage : une fiche modifiée ailleurs doit se
-         voir ici, et le cache de 30 s évite les appels inutiles. */
-      (typeof chargerBureau === 'function')
-        ? chargerBureau(false).catch(() => null) : Promise.resolve()
-    ]);
-    sessionsPermis = (d && d.sessions) || [];
+   La place d'un élève dans une session vaut date d'examen, et cette
+   date-là ne s'écrit dans aucune note : le rappel et la réparation
+   en ont besoin autant que cet écran. Séparé du dessin pour qu'ils
+   puissent l'appeler sans repeindre une page qu'ils n'affichent
+   pas. */
+async function chargerSessionsPermis(){
+  /* Le suivi en même temps : c'est lui qui porte « à remplacer »,
+     « tout est OK » et le reste à payer. */
+  const [d] = await Promise.all([
+    appelPrep({ action: 'sessionList' }),
+    /* Le suivi porte les fiches de préparation. On le recharge
+       à chaque affichage : une fiche modifiée ailleurs doit se
+       voir ici, et le cache de 30 s évite les appels inutiles. */
+    (typeof chargerBureau === 'function')
+      ? chargerBureau(false).catch(() => null) : Promise.resolve()
+  ]);
+  sessionsPermis = (d && d.sessions) || [];
+
   /* Par date, puis par heure : deux sessions du même jour se suivent
      dans l'ordre où elles ont lieu. */
   sessionsPermis.sort((a, b) => {
@@ -142,6 +145,17 @@ async function afficherSessionsPermis(){
     if(j !== 0) return j;
     return String(a.heureDebut || '').localeCompare(String(b.heureDebut || ''));
   });
+
+  return sessionsPermis;
+}
+
+async function afficherSessionsPermis(){
+  const zone = $('sessionsPermis');
+  if(!zone) return;
+
+  zone.innerHTML = '<div class="empty">Lecture des sessions…</div>';
+  try{
+    await chargerSessionsPermis();
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
