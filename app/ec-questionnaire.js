@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:34 — v729 */
+/* Déployé le 29/08/2026 à 15:07 — v731 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -497,6 +497,33 @@ function defautsDepuisNote(note){
     const m2 = seg.match(/(\d+)\s*h\s+à\s+faire/i);
     return m2 ? m2[1] : '';
   };
+
+  /* COMBIEN DE LEÇONS AVANT LA CHARNIÈRE, RELU DANS LA NOTE.
+
+     La ligne de position porte les deux nombres — « 3ÈME LEÇON
+     APRÈS L'EXAMEN BLANC (2 PRÉVUES, 8ÈME AU TOTAL) » — et leur
+     différence est le seul des trois qui ne vieillisse pas : 5
+     leçons avant l'examen blanc, et ce sera encore vrai dans six
+     mois. Le relire ici, c'est ce qui dispense de retaper la
+     deuxième case à chaque cours.
+
+     On ne le déduit que d'une ligne qui porte VRAIMENT les deux :
+     sans « au total », le rang d'après vaut le total, et la
+     soustraction ne dirait rien. */
+  const APRES_CHARNIERE = new RegExp(
+    '(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+le[çc]on\\s+après\\s+' +
+    "(l'examen blanc|le post-?permis)" +
+    '[^(\\n]*\\(([^)\\n]*?)(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+au total', 'i');
+  {
+    const m = n.match(APRES_CHARNIERE);
+    if(m){
+      const depuis = parseInt(m[1], 10);
+      const total = parseInt(m[4], 10);
+      if(!isNaN(depuis) && !isNaN(total) && total > depuis){
+        d[/post/i.test(m[2]) ? 'avantRdvPost' : 'avantEB'] = String(total - depuis);
+      }
+    }
+  }
 
   /* Le résultat de l'examen blanc, quand il est écrit.
 
@@ -1175,6 +1202,14 @@ function profilQuestionnaire(modeleCle){
 const CHAMP_DE_LA_REPONSE = {
   formation:     '#qFormation',
   lecon:         '#qLecon',
+  /* Les deux réponses portées par la même case : le nombre de
+     leçons avant la charnière ne s'écrit pas directement, il se
+     déduit du « dont depuis ». Les déclarer ici, c'est empêcher un
+     questionnaire qui ne pose pas la question d'effacer ce qu'on
+     savait — la protection vaut pour ce qui se déduit comme pour
+     ce qui se tape. */
+  avantEB:       '#qLeconDepuis',
+  avantRdvPost:  '#qLeconDepuis',
   frise:         '#qFriseClassique',
   examBlanc:     '#qExamBlanc',
   examBlancN:    '#qExamBlancN',
@@ -1487,7 +1522,7 @@ function blocsDuSujetManquant(quoi){
   const T = {
     'la formation':        ['#qFormation', '#qFormationEffet'],
     'la frise':            ['#qFriseClassique', '#qFriseFixe'],
-    'le numéro de leçon':  ['#qLecon']
+    'le numéro de leçon':  ['#qLecon', '#qLeconDepuis']
   };
   return T[quoi] || [];
 }
@@ -1874,9 +1909,27 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4;">' +
       'Laisse vide si la frise n\'est pas encore déterminée.</div>' +
 
+      /* DEUX CASES, DEUX FAITS.
+
+         Le total est celui de Drivup. Le second — combien depuis
+         l'examen blanc ou le post-permis — ne s'en déduit pas chez
+         les élèves qui conduisaient avant l'outil : leur classeur
+         ne porte pas leurs premières leçons, et leur frise n'a pas
+         été suivie à la lettre. La phrase en dessous montre ce que
+         les deux chiffres produisent, pour qu'un chiffre pris pour
+         l'autre se voie tout de suite. */
       '<div id="qBlocLecon">' +
-        '<label for="qLecon">Leçon n°</label>' +
-        '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
+        '<div class="duo">' +
+          '<div><label for="qLecon">Leçon n° — total</label>' +
+            '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
+          '</div>' +
+          '<div id="qBlocDepuis" style="display:none;">' +
+            '<label for="qLeconDepuis" id="qLibDepuis">dont depuis</label>' +
+            '<input type="text" id="qLeconDepuis" inputmode="numeric" placeholder="—">' +
+          '</div>' +
+        '</div>' +
+        '<div id="qLeconEffet" style="font-size:12px;color:var(--muted);' +
+          'margin:-6px 0 12px;line-height:1.45;"></div>' +
       '</div>' +
 
       /* Tout l'examen blanc dans un seul bloc : une passerelle n'en
@@ -2111,16 +2164,16 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const aMasquer = (profil === 'handicap')
         /* La fiche d'évaluation : tout part, sauf les leçons
            avant la préfecture. */
-        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
+        ? ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
            '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
            '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
            '#qFriseClassique', '#qFriseFixe', '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
            '#qBlocEbDate', '#qBlocEbRang', '#qExamBlancDate', '#qEBPasse',
            '#qEBLecons', '#qFormAccomp', '#qRvPrealable', '#qExamPassage']
         : (profil === 'examen')
-        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
+        ? ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
            '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe']
-        : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
+        : ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
            '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
            '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
 
@@ -2698,6 +2751,78 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         if(!selEP.value) selEP.value = 'prevu';
       }
     }
+    /* ----------------------------------------------------------
+       LA DEUXIÈME CASE : DEPUIS LA CHARNIÈRE
+
+       Elle n'existe que si une charnière est derrière nous — avant
+       cela, le rang d'après n'a aucun sens et une case de plus ne
+       serait qu'une case de plus. Elle prend le nom de la
+       charnière la plus récente : dire « depuis l'examen blanc »
+       à un élève qui a fait son post-permis serait faux.
+       ---------------------------------------------------------- */
+    const charniere = (function(){
+      if(prec.rdvPostFait === 'oui'){
+        return { cle: 'avantRdvPost', nom: 'le post-permis' };
+      }
+      if(prec.examBlanc === 'passe' || prec.ebPasse){
+        return { cle: 'avantEB', nom: "l'examen blanc" };
+      }
+      return null;
+    })();
+
+    const chDepuis = boite.querySelector('#qLeconDepuis');
+    const zEffet = boite.querySelector('#qLeconEffet');
+
+    if(charniere && seanceDeLaFrise()){
+      const bloc = boite.querySelector('#qBlocDepuis');
+      if(bloc) bloc.style.display = '';
+      const lib = boite.querySelector('#qLibDepuis');
+      if(lib) lib.textContent = 'dont depuis ' + charniere.nom;
+      /* Pré-rempli avec ce que l'outil sait en déduire : le
+         corriger est un geste, le retaper à chaque cours en serait
+         un autre. */
+      const dejaSu = rangDepuisLaCharniere(
+        prec, parseInt(boite.querySelector('#qLecon').value, 10), charniere.cle);
+      if(dejaSu !== null && chDepuis) chDepuis.value = dejaSu;
+    }
+
+    /* CE QUE LES DEUX CHIFFRES PRODUISENT, EN DIRECT.
+
+       C'est le garde-fou : quelqu'un qui lit « 3ÈME LEÇON APRÈS
+       L'EXAMEN BLANC » sur la carte et tape 3 dans le total voit
+       aussitôt la phrase se contredire. */
+    const majEffetLecon = () => {
+      if(!zEffet) return;
+      const tot = parseInt(boite.querySelector('#qLecon').value, 10);
+      const dep = chDepuis ? parseInt(chDepuis.value, 10) : NaN;
+
+      if(!tot){ zEffet.textContent = ''; return; }
+      if(charniere && !isNaN(dep) && dep > tot){
+        zEffet.innerHTML = '<span style="color:var(--red);font-weight:700;">' +
+          'Impossible : ' + dep + ' depuis ' + charniere.nom +
+          ', pour ' + tot + ' leçons en tout.</span>';
+        return;
+      }
+      const essai = Object.assign({}, prec, {
+        lecon: String(tot), modele: modeleCle,
+        frise: (imposee !== null) ? imposee : friseSaisie(),
+        examBlanc: selEB ? selEB.value : prec.examBlanc
+      });
+      if(charniere && !isNaN(dep)){
+        essai[charniere.cle] = avantLaCharniere(tot, dep);
+      }
+      const p = positionDansLaFrise(essai);
+      zEffet.innerHTML = p
+        ? '→ ' + String(p).replace(/^🎯\s*/, '').replace(/</g, '&lt;')
+        : 'Toutes ses leçons de conduite depuis le début. ' +
+          "L'examen blanc n'en est pas une.";
+    };
+    ['#qLecon', '#qLeconDepuis'].forEach(x => {
+      const el = boite.querySelector(x);
+      if(el) el.addEventListener('input', majEffetLecon);
+    });
+    majEffetLecon();
+
     /* Le nombre de leçons ne se demande que si l'examen blanc en appelle */
     const selEB2 = boite.querySelector('#qEBPasse');
     const nEB2 = boite.querySelector('#qEBLecons');
@@ -2795,6 +2920,22 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         formation: formationChoisie(),
         frise: (imposee !== null) ? imposee : friseSaisie(),
         lecon: leconSaisie(),
+        /* CE QU'IL Y AVAIT AVANT LA CHARNIÈRE.
+
+           Ce n'est pas le rang d'après qu'on garde — il vieillirait
+           d'une leçon à l'autre — mais le nombre de leçons faites
+           AVANT, qui ne bougera plus jamais. Écrit une fois, il
+           calera tous les cours suivants de cet élève. */
+        avantEB: (function(){
+          const v = charniere && charniere.cle === 'avantEB' && chDepuis
+            ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
+          return v || prec.avantEB || '';
+        })(),
+        avantRdvPost: (function(){
+          const v = charniere && charniere.cle === 'avantRdvPost' && chDepuis
+            ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
+          return v || prec.avantRdvPost || '';
+        })(),
         /* Ce que le classeur ne sait pas dire de cet élève, et la
            seule preuve qu'on ait qu'il débute. La note en a besoin
            pour choisir entre « 1ère leçon » et « il faut remplir le
@@ -2956,6 +3097,38 @@ function courtDansLaFrise(q){
    « 3ème leçon sur 3 » le jour de l'examen, c'est vrai et c'est
    inutile : ce qui compte ce matin-là, c'est que c'est l'examen.
    La ligne de tête doit dire l'événement, pas le compteur. */
+/* ------------------------------------------------------------
+   CE QU'UNE MAIN A DIT DERRIÈRE LA CHARNIÈRE
+
+   Deux faits indépendants, et c'est pour cela qu'il y a deux
+   cases : le TOTAL des leçons (celui de Drivup) et, quand une
+   charnière est passée, combien en ont été faites DEPUIS.
+
+   Aucun des deux ne se déduit de l'autre chez les élèves qui
+   conduisaient avant l'outil : le classeur ne porte pas leurs
+   premières leçons, et leur frise n'a pas été suivie à la lettre.
+
+   Ce qu'on garde n'est pas le rang d'après — il vieillirait d'une
+   leçon à l'autre — mais LE NOMBRE DE LEÇONS AVANT LA CHARNIÈRE,
+   qui, lui, ne bougera plus jamais. Écrit une fois, l'élève est
+   calé pour toute la suite de sa formation. */
+function rangDepuisLaCharniere(q, total, cle){
+  const avant = parseInt((q || {})[cle], 10);
+  if(isNaN(avant) || !total) return null;
+  const r = total - avant;
+  return (r >= 1) ? r : null;
+}
+
+/* Et l'inverse, au moment où la main répond : « 8 au total, 3
+   depuis l'examen blanc » veut dire 5 avant. C'est cette
+   soustraction-là qu'on enregistre. */
+function avantLaCharniere(total, depuis){
+  const t = parseInt(total, 10);
+  const d = parseInt(depuis, 10);
+  if(isNaN(t) || isNaN(d) || d < 1 || d > t) return '';
+  return String(t - d);
+}
+
 function positionDansLaFrise(q){
   /* MAJUSCULES : c'est la ligne qu'on lit en premier sur une carte,
      et elle doit se distinguer sans qu'on la cherche. */
@@ -3043,6 +3216,13 @@ function positionDansLaFrise(q){
   const depuisRdv = parseInt(q.leconsDepuisRdvPost, 10);
   if(q.rdvPostFait === 'oui'){
     const h = String(q.heuresRepassage || '').trim();
+    /* Ce qu'une main a dit, d'abord : voir plus bas, à l'examen
+       blanc, pourquoi aucun calcul ne peut le remplacer. */
+    const dit = rangDepuisLaCharniere(q, n, 'avantRdvPost');
+    if(dit !== null){
+      return dire(rangLecon(dit) + ' leçon après le post-permis' +
+                  entreParentheses(h ? h + 'h prévues' : '', n, dit));
+    }
     if(isNaN(depuisRdv)){
       return dire('leçon après le post-permis' + (h ? ' (' + h + 'h prévues)' : ''));
     }
@@ -3116,10 +3296,19 @@ function positionDansLaFrise(q){
 
        Le compte du dossier ne sert plus que de recours : il est
        vide pour tous les élèves qui ont conduit avant l'outil, et
-       c'est justement là qu'il affichait « 0ème ». */
+       c'est justement là qu'il affichait « 0ème ».
+
+       MAIS LA SOUSTRACTION SUPPOSE QUE LA FRISE A ÉTÉ SUIVIE.
+       Un élève qui a fait 9 leçons avant son examen blanc là où la
+       frise en prévoyait 5 s'entendait annoncer sa 4ème d'après
+       alors qu'il en est à sa 1ère — et rien ne permettait de le
+       corriger. C'est le cas de tous les élèves d'avant l'outil.
+       D'où la deuxième case : ce qu'une main a dit passe avant
+       tout calcul, et une fois dit, il n'y a plus à le redire. */
+    const dit2 = rangDepuisLaCharniere(q, n, 'avantEB');
     const deduit = (avant !== null && n > avant) ? n - avant : null;
     const duDossier = isNaN(depuisEB) ? null : Math.max(1, depuisEB + plus);
-    const r = (deduit !== null) ? deduit : duDossier;
+    const r = (dit2 !== null) ? dit2 : (deduit !== null) ? deduit : duDossier;
 
     /* Ni frise exploitable ni historique : on ne raconte pas
        d'histoire, on dit le rang global et on s'arrête. */
@@ -4579,6 +4768,7 @@ function allegerQuestionnaireFin(boite, prec){
     if(apres && apres.style && apres.style.fontSize === '12px') apres.style.display = 'none';
   });
   cacher('#qLecon');
+  cacher('#qLeconDepuis');
 
   /* L'écoute pédagogique se décide en préparant la journée de permis.
      Deux noms pour la même chose selon l'écran — la case et son
