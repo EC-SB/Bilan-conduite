@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:52 — v685 */
+/* Déployé le 29/08/2026 à 23:30 — v710 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -644,6 +644,11 @@ reprendreSession();
 $('prepDate').value = todayLocal();
 $('addDate').value = todayLocal();
 creerRaccourcis('raccourcisNoteResult', 'noteResult');
+/* Le même bouton sur l'écran de cours et sur le bilan manuel : le
+   questionnaire ne s'ouvrant plus au départ, il faut pouvoir
+   l'ouvrir de là où on est. */
+creerRaccourcis('raccourcisNoteCours', 'noteInterne');
+creerRaccourcis('raccourcisNoteManuel', 'noteInterne');
 remplirModeles();
 adapterAuModele();
 $('modele').addEventListener('change', () => {
