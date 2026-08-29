@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 16:30 — v703 */
+/* Déployé le 29/08/2026 à 19:30 — v707 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1119,6 +1119,12 @@ const CHAMP_DE_LA_REPONSE = {
   nouvelleDate:  '#qNouvelleDate',
   examPassage:   '#qExamPassage',
   pasEcoute:     '#qBlocEcoutes',
+  /* Le poste de conduite manquait à cette table : masqué en fin de
+     cours, il revenait vide et se décochait tout seul — et depuis
+     qu'il vit sur la fiche, il s'y décochait pour de bon. */
+  handicap:      '#qHandicap',
+  amenagements:  '#qZoneHandicap',
+  coussin:       '#qCoussin',
   simuNuit:      '#qSimuNuit',
   formAccomp:    '#qFormAccomp',
   rvPrealable:   '#qRvPrealable',
@@ -1351,7 +1357,16 @@ function retirerSegmentsRegeneres(note){
 
 function appliquerNoteQuestionnaire(nouvelle){
   const champ = $('noteInterne');
-  let actuel = champ.value.trim();
+
+  /* L'en-tête du cours — l'heure, le 🆔, le 💾 — appartient à la
+     note AFFICHÉE. Celle que le questionnaire régénère n'en porte
+     jamais : aller la chercher chez elle, c'était la trouver vide.
+     L'heure redescendait alors dans le texte libre derrière un 📌,
+     et un 📌 de plus s'ajoutait à chaque passage — deux appuis sur
+     « Compléter les infos » et la note portait « 📌 📌 🕐 15h00 ».
+     On la reprend là où elle est. */
+  const affichee = morceauxDeNotePreparee(champ.value);
+  let actuel = [affichee.corps, affichee.consigne].filter(Boolean).join('\n').trim();
 
   if(noteQuestionnaire && actuel.indexOf(noteQuestionnaire) !== -1){
     actuel = actuel.replace(noteQuestionnaire, '').replace(/^\s*·\s*|\s*·\s*$/g, '').trim();
@@ -1370,8 +1385,8 @@ function appliquerNoteQuestionnaire(nouvelle){
   const consigne = [dejaLa && dejaLa.consigne, actuel].filter(Boolean).join(' · ');
 
   champ.value = nouvelle
-    ? assemblerNotePreparee(dejaLa.entete, dejaLa.corps, consigne)
-    : actuel;
+    ? assemblerNotePreparee(affichee.entete || dejaLa.entete, dejaLa.corps, consigne)
+    : assemblerNotePreparee(affichee.entete, actuel, '');
   majAffichageNoteInterne();
 
   noteQuestionnaire = nouvelle;
@@ -2282,7 +2297,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite._marquesConnues = marquesConnues;
 
     /* Après le cours : on n'affiche que ce qui peut avoir changé */
-    if(/après ce cours/i.test(titre || '')) allegerQuestionnaireFin(boite, prec);
+    /* Le questionnaire de fin masque encore d'autres champs. Il
+       DIT lesquels : un champ masqué que personne ne déclare est
+       relu vide à la validation, et écrase la vraie réponse. C'est
+       comme ça que les rendez-vous pédagogiques et l'écoute
+       disparaissaient en fin de cours. */
+    if(/après ce cours/i.test(titre || '')){
+      champsMasques = champsMasques.concat(allegerQuestionnaireFin(boite, prec) || []);
+    }
 
     /* Boîte déduite du type de bilan, ANTS repris s'il est connu.
        Chaque champ est vérifié : certains profils de questionnaire
@@ -4008,10 +4030,21 @@ async function chargerHistoriquePrep(){
    attend, et chaque champ inutile est une chance d'erreur.
    ============================================================ */
 function allegerQuestionnaireFin(boite, prec){
-  if(!boite) return;
+  if(!boite) return [];
+
+  /* Tout ce qu'on masque ici est RENDU à l'appelant.
+
+     Un champ masqué revient vide du formulaire. Si personne ne
+     déclare qu'il n'a pas été posé, ce vide est pris pour une
+     réponse et écrase ce qu'on savait. Le questionnaire de fin
+     effaçait ainsi, à chaque cours, les rendez-vous pédagogiques,
+     l'écoute pédagogique, et — depuis que la fiche les porte — le
+     coussin et la conduite aménagée de l'élève. */
+  const masques = [];
 
   /* Masque un champ et l'étiquette qui le précède */
   const cacher = sel => {
+    masques.push(sel);
     const e = boite.querySelector(sel);
     if(!e) return;
     /* Une case à cocher vit dans son étiquette : on masque celle-ci */
@@ -4026,12 +4059,14 @@ function allegerQuestionnaireFin(boite, prec){
   cacher('#qCoussin');
   const zh = boite.querySelector('#qZoneHandicap');
   if(zh) zh.style.display = 'none';
+  masques.push('#qZoneHandicap');
 
   /* L'ANTS est traité avec les autres coordonnées manquantes :
      l'ancienne règle isolée masquait le champ sans son bloc. */
 
   /* Frise et numéro de leçon : renseignés au départ */
   ['#qFriseClassique', '#qFriseFixe', '#qBlocAacCs'].forEach(s => {
+    masques.push(s);
     const e = boite.querySelector(s);
     if(!e) return;
     const avant = e.previousElementSibling;
@@ -4042,8 +4077,14 @@ function allegerQuestionnaireFin(boite, prec){
   });
   cacher('#qLecon');
 
-  /* L'écoute pédagogique se décide en préparant la journée de permis */
+  /* L'écoute pédagogique se décide en préparant la journée de permis.
+     Deux noms pour la même chose selon l'écran — la case et son
+     bloc : on déclare les deux, sinon la réponse ne se retrouve
+     pas et le vide gagne. */
   cacher('#qPasEcoute');
+  masques.push('#qBlocEcoutes');
+
+  return masques;
 }
 
 /* Ce que le moniteur corrige dans le questionnaire redescend sur la
