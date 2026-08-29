@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 05:45 — v722 */
+/* Déployé le 30/08/2026 à 06:45 — v724 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1476,7 +1476,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider, reduire){
   /* Filet : le verrou ne doit jamais rester bloqué */
   const secours = setTimeout(() => { questionnaireOuvert = false; }, 30000);
   try{
-    return await construireQuestionnaire(prec, titre, libelleValider);
+    return await construireQuestionnaire(prec, titre, libelleValider, reduire);
   }catch(e){
     questionnaireOuvert = false;
     console.error('Questionnaire :', e);
@@ -1487,7 +1487,7 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider, reduire){
   }
 }
 
-async function construireQuestionnaire(prec, titre, libelleValider){
+async function construireQuestionnaire(prec, titre, libelleValider, reduire){
   prec = prec || {};
   const eleve = $('studentName').value.trim();
   const modeleCle = $('modele').value;
@@ -1691,6 +1691,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
      reste la porte d'entrée quand le bureau veut poser quelque
      chose — une date d'examen, un examen blanc à réserver. */
   if(reduire && !cequiManqueAuCours(prec, eleve, modeleCle).length){
+    /* Le verrou se relâche ici : il n'est levé nulle part ailleurs
+       que par la fermeture de la fenêtre, et aucune fenêtre ne
+       s'ouvre. Sans ça, le questionnaire suivant se croirait déjà
+       ouvert. */
+    questionnaireOuvert = false;
     return Promise.resolve(Object.assign({}, prec, { modele: modeleCle }));
   }
 
