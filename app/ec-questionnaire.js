@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 12:55 — v700 */
+/* Déployé le 29/08/2026 à 14:20 — v701 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1907,6 +1907,42 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       return friseDeLaFormation(formationChoisie(), manuelleDuBilan);
     }
 
+    /* ----------------------------------------------------------
+       CE QU'ON NE SAIT PAS N'EFFACE PAS CE QU'ON SAVAIT
+
+       Deux champs du questionnaire s'ouvrent pré-remplis depuis le
+       dossier de l'élève : sa frise et son numéro de leçon. Quand
+       le dossier n'a pas pu être relu — Apps Script lent, réseau
+       coupé, cache vide — ils s'ouvrent vides. Le moniteur, lui,
+       ne le voit pas : il répond à SES questions, valide, et
+       l'enregistrement écrivait ces deux vides par-dessus une
+       frise et un rang parfaitement connus.
+
+       D'où les deux plaintes des moniteurs : la frise « qui n'est
+       pas persistante » et le numéro de leçon « pas forcément
+       persistant ». Ce n'était pas de l'oubli, c'était de
+       l'écrasement.
+
+       La règle est la même que pour les questions non posées : un
+       champ vide n'est pas une réponse. On retombe alors sur ce
+       que le questionnaire savait en s'ouvrant.
+       ---------------------------------------------------------- */
+    function friseSaisie(){
+      const f = composerFrise(chAvant ? chAvant.value : '',
+                              chApres ? chApres.value : '');
+      return f || prec.frise || frisePrecedente || '';
+    }
+
+    function leconSaisie(){
+      const champ = boite.querySelector('#qLecon');
+      const v = champ ? champ.value.trim() : '';
+      if(v) return v;
+      /* Un examen, un simulateur : le rang y est vide EXPRÈS, et le
+         garder serait décaler la frise. */
+      if(!seanceDeLaFrise()) return '';
+      return String(prec.lecon || (rangDuJour !== null ? rangDuJour : '') || '');
+    }
+
     function majParcours(){
       /* La fiche d'évaluation n'a pas de frise : sans ce garde-fou,
          l'appel plantait et laissait le reste affiché. */
@@ -2067,9 +2103,18 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       const base = prec.frise || frisePrecedente;
       const av = leconsAvantExamenBlanc(base);
       const ap = leconsApresExamenBlanc(base);
+      /* Ce que la frise dit, et RIEN d'autre.
+
+         Ce champ proposait 2 tout seul quand il ne savait pas —
+         « presque toujours 2 leçons après l'examen blanc ». Mais
+         il ne sait pas surtout quand le dossier n'a pas pu être
+         relu : le moniteur ouvrait alors un questionnaire portant
+         une frise inventée, l'enregistrait sans y toucher — ce
+         n'est pas son travail de la ressaisir — et la vraie frise
+         de l'élève était remplacée par « 2 leçons après ». C'est
+         la frise qui « retombait à 2 ». */
       chAvant.value = av !== null ? av : '';
-      /* Presque toujours 2 leçons après l'examen blanc */
-      chApres.value = ap !== null ? ap : '2';
+      chApres.value = ap !== null ? ap : '';
 
       const majHeures = () => {
         const b = chApres.value.trim();
@@ -2443,11 +2488,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         consignes: consignesBureau.map(x => x.texte),
         /* Ce que le moniteur a choisi retourne au répertoire */
         formation: formationChoisie(),
-        frise: (imposee !== null)
-          ? imposee
-          : composerFrise(chAvant ? chAvant.value : '',
-                          chApres ? chApres.value : ''),
-        lecon: boite.querySelector('#qLecon').value.trim(),
+        frise: (imposee !== null) ? imposee : friseSaisie(),
+        lecon: leconSaisie(),
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
         examBlancRang: rangEB ? rangEB.value : '',
@@ -2542,12 +2584,25 @@ function rangLecon(n){
    La question se pose deux fois : au moment de compter le rang
    global (déjà fait à la lecture du dossier) et au moment de
    compter dans la moitié de frise en cours. Les deux doivent
-   répondre pareil, sinon le rang saute d'une leçon. */
+   répondre pareil, sinon le rang saute d'une leçon.
+
+   C'est le TYPE de séance qui répond, et lui seul : une leçon de
+   conduite fait avancer le compteur, un examen blanc, un
+   simulateur ou un examen officiel non. C'est déjà la règle qui
+   calcule le rang du jour à l'ouverture du questionnaire ; s'en
+   remettre à elle ici, c'est la même réponse aux deux endroits.
+
+   On la devinait avant par une soustraction — « le rang du jour
+   vaut-il les leçons faites + 1 ? ». Les deux nombres viennent de
+   sources différentes : dès que le moniteur corrigeait le rang à
+   la main avec le crayon, la soustraction répondait « aujourd'hui
+   ne compte pas », et la leçon qui suivait l'examen blanc
+   s'affichait « 0ème ». */
 function courtDansLaFrise(q){
+  if(q.modele) return leconCompteDansLaFrise(q.modele);
   const n = parseInt(q.lecon, 10);
   const f = parseInt(q.leconsFaites, 10);
   if(!isNaN(n) && !isNaN(f)) return n === f + 1;
-  if(q.modele) return leconCompteDansLaFrise(q.modele);
   return true;
 }
 
@@ -2588,6 +2643,26 @@ function positionDansLaFrise(q){
   const plus = courtDansLaFrise(q) ? 1 : 0;
   const pl = k => (k > 1 ? 's' : '');
 
+  /* Passé une charnière — l'examen blanc, le rendez-vous
+     post-permis — on compte depuis elle : « 1ère leçon après
+     l'examen blanc ». Mais le rang total ne disparaît pas pour
+     autant : c'est celui que le moniteur a saisi, c'est celui
+     qu'il cherche sur la carte, et c'est celui qui dit combien de
+     leçons l'élève a faites en tout.
+
+     Tout ce qui précise la ligne tient dans UNE parenthèse — ce
+     qui est prévu, puis le total. Deux tirets à la suite, ou deux
+     parenthèses, et la ligne passait à trois lignes sur un
+     téléphone, en gros et en vert. On ne redit pas le total quand
+     il vaut déjà le rang affiché : « 1ère après l'examen blanc
+     (1ère au total) » ne serait qu'un bégaiement. */
+  const entreParentheses = (prevu, total, rang) => {
+    const bouts = [];
+    if(prevu) bouts.push(prevu);
+    if(total && total !== rang) bouts.push(rangLecon(total) + ' au total');
+    return bouts.length ? ' (' + bouts.join(', ') + ')' : '';
+  };
+
   /* Une formation qui repart de zéro : la passerelle. Compter
      depuis les débuts de l'élève n'aurait aucun sens — il a déjà
      son permis. Ses leçons de passerelle sont celles qu'il a faites
@@ -2612,9 +2687,11 @@ function positionDansLaFrise(q){
     if(isNaN(depuisRdv)){
       return dire('leçon après le post-permis' + (h ? ' (' + h + 'h prévues)' : ''));
     }
-    const r = depuisRdv + plus;
+    /* Jamais « 0ème » : la charnière est derrière nous, donc la
+       leçon qui vient est au moins la première d'après. */
+    const r = Math.max(1, depuisRdv + plus);
     return dire(rangLecon(r) + ' leçon après le post-permis' +
-                (h ? ' (' + h + 'h prévues)' : ''));
+                entreParentheses(h ? h + 'h prévues' : '', n, r));
   }
 
   /* Parcours AAC ou CS. Le nombre inscrit dans la frise — « que 4
@@ -2654,19 +2731,25 @@ function positionDansLaFrise(q){
 
   if(ebPasse){
     const apres = leconsApresExamenBlanc(q.frise);
-    const dit = (t) => dire(t + (apres ? ' (' + apres + ' prévue' + pl(apres) + ')' : ''));
+    const prevues = apres ? apres + ' prévue' + pl(apres) : '';
+    const dit = (t, r) => dire(t + entreParentheses(prevues, n, r));
 
     /* Sans le compte depuis l'examen blanc — historique trop court,
        examen blanc passé ailleurs — on ne raconte pas d'histoire :
        on dit le rang global et on s'arrête. */
-    if(isNaN(depuisEB)) return dit(rangLecon(n) + " leçon après l'examen blanc");
+    if(isNaN(depuisEB)) return dit(rangLecon(n) + " leçon après l'examen blanc", n);
 
-    const r = depuisEB + plus;
+    /* Jamais « 0ème » : l'examen blanc est derrière, donc la leçon
+       qui vient est au moins la première d'après. C'est ce que
+       lisait Mamadou — l'examen blanc noté à la main par le bureau
+       était le dernier enregistrement du dossier, zéro leçon le
+       suivait, et le compteur affichait ce zéro tel quel. */
+    const r = Math.max(1, depuisEB + plus);
     if(apres && r > apres){
-      return dire(rangLecon(r) + " leçon après l'examen blanc — frise dépassée (" +
-                  apres + ' prévue' + pl(apres) + ')');
+      return dire(rangLecon(r) + " leçon après l'examen blanc — frise dépassée" +
+                  entreParentheses(prevues, n, r));
     }
-    return dit(rangLecon(r) + " leçon après l'examen blanc");
+    return dit(rangLecon(r) + " leçon après l'examen blanc", r);
   }
 
   /* Avant l'examen blanc : la première moitié de la frise */
