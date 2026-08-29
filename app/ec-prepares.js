@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 05:20 — v721 */
+/* Déployé le 29/08/2026 à 14:34 — v729 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -560,7 +560,11 @@ async function afficherPrepares(recharger, silencieux){
            presence.titre + '">' + presence.texte + '</div>' : '') +
       '<div>' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
       (aApporter ? ' <span style="font-size:15px;" title="' +
-        aApporter.titre + '">' + aApporter.emojis + '</span>' : '') +
+        aApporter.titre + '">' + aApporter.emojis +
+        (aApporter.texte
+          ? '<span style="font-size:13px;font-weight:800;color:var(--warn-text);">' +
+            ' ' + aApporter.texte + '</span>' : '') +
+        '</span>' : '') +
       '</div>';
     const sous = document.createElement('span');
     /* Un cours dont la date est passée n'a pas été enregistré :
@@ -2064,7 +2068,12 @@ function repereDeNote(cours){
   if(debut.indexOf('💾') !== -1){ emojis.push('💾'); quoi.push('carte SD'); }
 
   if(!emojis.length) return null;
-  return { emojis: emojis.join(''), titre: 'À prévoir : ' + quoi.join(' · ') };
+  /* L'émoji seul ne se lit pas : il faut savoir ce qu'il veut dire,
+     et l'info-bulle demande de survoler — ce qu'on ne fait pas sur
+     un téléphone. La carte d'identité se prend AVANT le cours ou
+     pas du tout : elle s'écrit en toutes lettres. */
+  return { emojis: emojis.join(''), titre: 'À prévoir : ' + quoi.join(' · '),
+           texte: debut.indexOf('🆔') !== -1 ? 'Prendre CI !' : '' };
 }
 
 
