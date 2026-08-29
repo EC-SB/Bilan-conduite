@@ -1,3 +1,4 @@
+/* Déployé le 29/08/2026 à 23:30 — v710 */
 /* ============================================================
    ec-ecoutes.js
    Suivi des écoutes pédagogiques.
@@ -62,19 +63,22 @@ async function afficherEcoutes(){
     '<label for="ecEleve">Élève</label>' +
     '<input type="text" id="ecEleve" list="listeEleves" autocomplete="off" ' +
       'placeholder="Prénom et nom">' +
-    /* Le numéro sous le nom : le moniteur voit tout de suite si le
-       SMS pourra partir, sans attendre l'enregistrement. */
+    /* L'adresse sous le nom : le moniteur voit tout de suite si le
+       mail pourra partir, sans attendre l'enregistrement. */
     '<div id="ecTel" style="font-size:12px;margin:-6px 0 10px;' +
       'min-height:17px;line-height:1.4;"></div>' +
     '<label for="ecDate">Date du rendez-vous manqué</label>' +
     '<input type="date" id="ecDate">' +
 
-    /* Le SMS n'est pas automatique : le moniteur décide, et relit
-       le texte avant de l'envoyer. */
+    /* Le message n'est pas automatique : le moniteur décide, et
+       relit le texte avant de l'envoyer.
+
+       Par MAIL et non plus par SMS : c'est par là que les moniteurs
+       écrivent aux élèves désormais. */
     '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
       'font-size:15px;color:var(--cream);margin:6px 0 8px;font-weight:400;">' +
       '<input type="checkbox" id="ecSms" style="width:19px;height:19px;">' +
-      '📱 Le prévenir par SMS</label>' +
+      '✉️ Le prévenir par mail</label>' +
     '<div id="ecBlocSms" style="display:none;">' +
       '<textarea id="ecTexte" rows="10" ' +
         'style="width:100%;background:var(--navy);border:1px solid var(--line);' +
@@ -102,12 +106,13 @@ async function afficherEcoutes(){
     }
 
     const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
-    if(fiche && fiche.telephone){
-      zTel.innerHTML = '<span style="color:var(--accent-text);">📱 ' +
-        String(fiche.telephone).replace(/</g, '&lt;') + '</span>';
+    if(fiche && fiche.email){
+      zTel.innerHTML = '<span style="color:var(--accent-text);">✉️ ' +
+        String(fiche.email).replace(/</g, '&lt;') + '</span>';
     }else if(fiche){
       zTel.innerHTML = '<span style="color:var(--warn-text);">' +
-        '⚠️ Aucun numéro sur sa fiche — le SMS ne pourra pas partir</span>';
+        '⚠️ Aucune adresse mail sur sa fiche — le message ne pourra ' +
+        'pas partir</span>';
     }else{
       zTel.innerHTML = '<span style="color:var(--muted);">' +
         'Élève inconnu du répertoire</span>';
@@ -131,15 +136,13 @@ async function afficherEcoutes(){
         (ACCES.emoji ? ' ' + ACCES.emoji : '') : '');
   }
 
+  /* Un mail n'a pas de limite de caractères à surveiller : le
+     compteur ne sert plus qu'à voir la longueur du message. */
   const majCompteurSms = () => {
     const cp = f.querySelector('#ecCompteur');
     if(!cp || !champTexte) return;
-    const n = champTexte.value.length;
-    const parts = (typeof decouperMessage === 'function')
-      ? decouperMessage(champTexte.value, LIMITE_SMS).length
-      : Math.ceil(n / 160);
-    cp.style.color = (parts > 1) ? '#E8A33D' : 'var(--muted)';
-    cp.textContent = n + ' caractères — ' + parts + ' SMS';
+    cp.style.color = 'var(--muted)';
+    cp.textContent = champTexte.value.length + ' caractères';
   };
   if(champTexte) champTexte.addEventListener('input', majCompteurSms);
   if(caseSms){
@@ -162,12 +165,12 @@ async function afficherEcoutes(){
     }
     if(!date){ showToast('Indique la date du rendez-vous.'); return; }
 
-    /* Le numéro d'abord : inutile d'enregistrer si le SMS demandé
+    /* L'adresse d'abord : inutile d'enregistrer si le mail demandé
        ne peut pas partir. */
     const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
-    const tel = (fiche && fiche.telephone) || '';
-    if(caseSms.checked && !tel){
-      showToast("Pas de numéro sur sa fiche : le SMS ne peut pas partir.");
+    const adresse = (fiche && fiche.email) || '';
+    if(caseSms.checked && !adresse){
+      showToast("Pas d'adresse mail sur sa fiche : le message ne peut pas partir.");
       return;
     }
 
@@ -178,17 +181,22 @@ async function afficherEcoutes(){
                         dateRdv: date, par: ACCES.moniteur || '' });
 
       if(caseSms.checked){
-        bAbs.textContent = 'Envoi du SMS…';
-        const n = await envoyerMessageComplet(tel, champTexte.value.trim(), nom);
-        showToast('Absence enregistrée · ' + (n > 1 ? n + ' SMS envoyés' : 'SMS envoyé') + ' ✅');
+        bAbs.textContent = 'Envoi du mail…';
+        await appelPrep({
+          action: 'mailBilan',
+          to: [adresse],
+          sujet: 'Ton écoute pédagogique — Évolution Conduites',
+          texte: champTexte.value.trim()
+        });
+        showToast('Absence enregistrée · mail envoyé ✅');
       }else{
         showToast('Absence enregistrée ✅');
       }
       afficherEcoutes();
     }catch(e){
-      /* L'absence est enregistrée même si le SMS échoue : c'est le
+      /* L'absence est enregistrée même si le mail échoue : c'est le
          suivi qui compte, le message peut se renvoyer. */
-      showToast('Absence notée, mais SMS impossible : ' + e.message);
+      showToast('Absence notée, mais mail impossible : ' + e.message);
       bAbs.disabled = false;
       bAbs.textContent = '💾 Enregistrer l\'absence';
     }
