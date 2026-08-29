@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 01:15 — v713 */
+/* Déployé le 30/08/2026 à 01:45 — v714 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -720,25 +720,35 @@ function blocCloture(){
           'ensuite ne les changera plus, il faudra rouvrir le mois.')) return;
       bVal.disabled = true;
       bVal.textContent = 'Validation…';
-      let ok = 0;
-      for(const x of lignes){
-        try{
-          await appelPrep({
-            action: 'paieClotureSet',
-            idSalarie: x.s.id, mois: moisPaie,
-            normalesCalc: x.c.calcN, majoreesCalc: x.c.calcM,
-            normalesPayees: x.etat.payeN, majoreesPayees: x.etat.payeM,
-            normalesRecup: x.etat.recupN, majoreesRecup: x.etat.recupM,
-            tauxRecup: x.etat.taux,
-            recupCreditee: recupCreditee(x.etat.recupN, x.etat.recupM, x.etat.taux),
-            remarque: '', par: ACCES.moniteur || ''
-          });
-          ok++;
-        }catch(e){
-          showToast('Impossible pour ' + x.s.nom + ' : ' + e.message);
-        }
+
+      /* TOUT LE MOIS EN UN APPEL.
+
+         Un aller-retour par salarié, c'est une seconde par
+         salarié : sept lignes, sept secondes d'attente sur un
+         seul clic. Le serveur écrit la feuille en une passe. */
+      const aEcrire = lignes.map(x => ({
+        idSalarie: x.s.id,
+        normalesCalc: x.c.calcN, majoreesCalc: x.c.calcM,
+        normalesPayees: x.etat.payeN, majoreesPayees: x.etat.payeM,
+        normalesRecup: x.etat.recupN, majoreesRecup: x.etat.recupM,
+        tauxRecup: x.etat.taux,
+        recupCreditee: recupCreditee(x.etat.recupN, x.etat.recupM, x.etat.taux),
+        remarque: ''
+      }));
+
+      try{
+        await appelPrep({ action: 'paieCloturerMois', mois: moisPaie,
+                          lignes: JSON.stringify(aEcrire),
+                          par: ACCES.moniteur || '' });
+        showToast(lignes.length + ' salarié(s) clôturé(s) ✅');
+      }catch(e){
+        bVal.disabled = false;
+        bVal.textContent = '✅ Valider le mois';
+        showToast('Clôture impossible : ' + e.message);
+        return;
       }
-      if(ok) showToast(ok + ' salarié(s) clôturé(s) ✅');
+      /* Ici on relit : une clôture change ce que le serveur sait,
+         et les compteurs des mois suivants s'en déduisent. */
       afficherPaie();
     });
     rangee.appendChild(bVal);
@@ -754,12 +764,16 @@ function blocCloture(){
           ' ?\n\nLes décisions prises sur ce mois seront effacées et les ' +
           'compteurs des mois suivants recalculés.')) return;
       bRe.disabled = true;
-      for(const s of actifs){
-        const c = clotureDe(s.id, moisPaie);
-        if(!c) continue;
-        try{ await appelPrep({ action: 'paieClotureDelete', id: c.id }); }catch(e){}
+      /* Le mois entier en un appel, comme la validation. */
+      try{
+        await appelPrep({ action: 'paieRouvrirMois', mois: moisPaie,
+                          par: ACCES.moniteur || '' });
+        showToast('Mois rouvert 🔓');
+      }catch(e){
+        bRe.disabled = false;
+        showToast('Impossible : ' + e.message);
+        return;
       }
-      showToast('Mois rouvert 🔓');
       afficherPaie();
     });
     rangee.appendChild(bRe);
