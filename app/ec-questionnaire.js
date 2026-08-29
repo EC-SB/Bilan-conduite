@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 03:40 — v717 */
+/* Déployé le 30/08/2026 à 04:15 — v718 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3786,15 +3786,22 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
   return manque;
 }
 
-/* Le bouton dit ce qui manque, ou ne dit rien. */
+/* Le bouton dit ce qui manque, ou ne dit rien.
+
+   Il portait un compte — « (1) » — et le détail en info-bulle. Une
+   info-bulle ne se lit pas : il faut savoir qu'elle existe, et
+   survoler. Le bouton NOMME donc ce qui manque, et ce qui est
+   enregistré s'écrit juste en dessous, sur une ligne à part.
+   C'est la seule question qu'on se pose devant cet écran. */
 function majBoutonCompleter(){
+  const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+  const modele = ($('modele') && $('modele').value) || '';
+  const manque = cequiManqueAuCours(contexteDepart, eleve, modele);
+
   document.querySelectorAll('[data-completer]').forEach(b => {
-    const eleve = ($('studentName') && $('studentName').value.trim()) || '';
-    const modele = ($('modele') && $('modele').value) || '';
-    const manque = cequiManqueAuCours(contexteDepart, eleve, modele);
     if(manque.length){
-      b.textContent = '📋 Compléter les infos (' + manque.length + ')';
-      b.title = 'Il manque ' + manque.join(', ');
+      b.textContent = '📋 Il manque ' + manque.join(' et ');
+      b.title = 'Ouvrir le questionnaire';
       b.style.color = 'var(--red)';
       b.style.borderColor = 'var(--red)';
       b.style.fontWeight = '700';
@@ -3805,6 +3812,24 @@ function majBoutonCompleter(){
       b.style.borderColor = '';
       b.style.fontWeight = '';
     }
+
+    /* Ce qui EST enregistré, sous le bouton : le moniteur voit
+       l'état de l'élève sans rien ouvrir. Une ligne par bouton,
+       posée une fois et remise à jour ensuite. */
+    let ligne = b.nextElementSibling;
+    if(!ligne || !ligne.dataset || ligne.dataset.recapCompleter !== '1'){
+      ligne = document.createElement('div');
+      ligne.dataset.recapCompleter = '1';
+      ligne.style.cssText = 'flex-basis:100%;font-size:11px;color:var(--muted);' +
+        'line-height:1.5;margin-top:2px;';
+      if(b.parentNode) b.parentNode.insertBefore(ligne, b.nextSibling);
+    }
+
+    const fiche = (eleve && typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+    const su = recapDuCours(contexteDepart, eleve, modele, fiche)
+      .filter(x => !x.manque)
+      .map(x => x.icone + ' ' + x.valeur);
+    ligne.textContent = su.length ? su.join(' · ') : '';
   });
 }
 
