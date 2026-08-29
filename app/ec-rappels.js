@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:16 — v679 */
+/* Déployé le 29/08/2026 à 07:37 — v684 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2672,13 +2672,36 @@ function modeleDuTypeDeRappel(type){
   /* Le type exact d'abord */
   if(BILAN_DU_RAPPEL[t]) return verifierModele(BILAN_DU_RAPPEL[t]);
 
-  /* À défaut, ce que le libellé raconte */
-  if(t.indexOf('simu') !== -1) return verifierModele('simu-auto');
-  if(t.indexOf('passerelle') !== -1) return verifierModele('conduite-manuelle');
-  if(t.indexOf('accompagnateur') !== -1) return verifierModele('formation-accompagnateur');
-  if(t.indexOf('prealable') !== -1) return verifierModele('rdv-prealable-auto');
-  if(t.indexOf('blanc') !== -1) return verifierModele('examen-blanc');
-  if(t.indexOf('permis') !== -1) return verifierModele('examen-officiel');
+  /* À défaut, ce que le libellé raconte. En table plutôt qu'en
+     cascade de « if » : l'ordre compte, et il doit se lire.
+
+     Les deux-roues d'abord : « Permis moto » contient le mot
+     permis, et repartait en examen officiel. Rien à imposer pour
+     eux — l'application refuse déjà de créer un cours pour une
+     formation sans bilan. */
+  const REGLES = [
+    { motif: /moto|scooter|voiturette|\bam\b|\ba1\b/, modele: '' },
+
+    { motif: /simu/,                    modele: 'simu-auto' },
+    { motif: /passerelle/,              modele: 'conduite-manuelle' },
+    { motif: /accompagnateur/,          modele: 'formation-accompagnateur' },
+    { motif: /prealable/,               modele: 'rdv-prealable-auto' },
+
+    /* L'évaluation de départ a son propre bilan : sans cette ligne
+       elle repartait en conduite ordinaire. */
+    { motif: /evaluation|\beval\b/,     modele: 'eval-auto' },
+
+    { motif: /examen\s*blanc|\bblanc\b/, modele: 'examen-blanc' },
+
+    /* L'examen officiel, et lui seul. « Rappel permis voiture comme
+       groupe » est une leçon ordinaire : le mot « permis » n'y
+       annonce pas un passage. On exige donc qu'il soit question
+       d'examen, ou que le libellé se réduise au mot. */
+    { motif: /examen|passage|^permis$|^rappel[- ]?permis$/, modele: 'examen-officiel' }
+  ];
+
+  const regle = REGLES.find(r => r.motif.test(t));
+  if(regle) return regle.modele ? verifierModele(regle.modele) : '';
 
   /* Rien ici pour « cours » : voir le commentaire de BILAN_DU_RAPPEL.
      Sans imposition, c'est la fiche de l'élève qui décide. */
