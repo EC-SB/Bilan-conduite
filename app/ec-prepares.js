@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:05 — v696 */
+/* Déployé le 29/08/2026 à 22:20 — v697 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -554,8 +554,9 @@ async function afficherPrepares(recharger, silencieux){
        change : un élève passé en passerelle ne doit plus voir la
        frise ni la date d'examen de son parcours d'avant, sans
        attendre que la réparation passe. */
-    if(formation && typeof noteSelonLaFormation === 'function'){
-      partsNote.corps = noteSelonLaFormation(partsNote.corps, formation);
+    if(typeof noteSelonLaFormation === 'function'){
+      partsNote.corps = noteSelonLaFormation(partsNote.corps, formation,
+                                             cours.modele);
     }
 
     /* À quelle leçon on en est : en gros, en vert, juste sous le
