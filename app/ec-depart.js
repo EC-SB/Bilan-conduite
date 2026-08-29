@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 11:20 — v689 */
+/* Déployé le 29/08/2026 à 14:10 — v691 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1579,16 +1579,32 @@ function numeroLeconDuCours(cours){
 function noteJusteDuCours(cours, rang, dossier){
   const m = morceauxDeNotePreparee(cours.note);
 
-  /* La note sait des choses que le contexte ignore : les cours
-     créés par un rappel n'y mettaient que la leçon et la frise, et
-     la date d'examen restait prisonnière du texte. On la relit —
-     toute la note, corps et 📌, pour que réparer deux fois ne
-     perde rien. Le contexte, lui, est une réponse de moniteur : il
-     l'emporte partout où il dit quelque chose. */
-  const acquis = (typeof defautsDepuisNote === 'function')
-    ? defautsDepuisNote(cours.note) : {};
-  const ctx = Object.assign(acquis, cours.contexte || {});
+  /* Trois sources, de la moins sûre à la plus sûre.
+
+     1. La note du DERNIER COURS de l'élève : le filet. Un cours
+        préparé dont la note a été appauvrie — un examen officiel
+        qui a effacé la frise, une préparation d'avant tout ceci —
+        ne peut se réparer qu'en allant chercher ce que son dossier
+        sait encore.
+     2. Sa propre note, corps et 📌 : ce que quelqu'un a écrit sur
+        CE cours, et qui vaut mieux que l'historique.
+     3. Son contexte : des réponses de moniteur. Elles l'emportent
+        partout où elles disent quelque chose. */
+  const lire = t => ((typeof defautsDepuisNote === 'function' && t)
+    ? defautsDepuisNote(t) : {});
+
+  const ctx = Object.assign(lire(dossier && dossier.derniereNote),
+                            lire(cours.note),
+                            cours.contexte || {});
   ctx.lecon = String(rang);
+
+  /* La frise ne se devine pas : si le cours l'a perdue, le dossier
+     la porte encore — dans sa note ou sur la fiche de l'élève. */
+  if(!ctx.frise && dossier && dossier.frise) ctx.frise = dossier.frise;
+  if(!ctx.frise && typeof extraireFrise === 'function'){
+    ctx.frise = extraireFrise(cours.note) ||
+                extraireFrise((dossier && dossier.derniereNote) || '') || '';
+  }
 
   /* Le dossier vient d'être relu pour recompter : il sait dans
      quelle moitié de frise l'élève se trouve. Les cours préparés
