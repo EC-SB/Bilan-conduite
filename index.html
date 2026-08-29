@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v698
+     VERSION APPLICATION : v699
      VERSION APPS SCRIPT REQUISE : v162
-     Mis à jour le : 29/08/2026 à 23:30
+     Mis à jour le : 30/08/2026 à 00:40
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -867,7 +867,7 @@
          au milieu d'un cours ne doit pas coûter l'enregistrement.
          Le ?v= suit celui des modules, sinon le navigateur ressort
          l'ancien guide de son cache. -->
-    <a id="guideBtn" href="guide.html?v=698" target="_blank" rel="noopener"
+    <a id="guideBtn" href="guide.html?v=699" target="_blank" rel="noopener"
        title="Guide d'utilisation" style="display:none;
             margin-left:8px;background:transparent;border:1px solid var(--line);
             color:var(--cream);border-radius:10px;width:44px;height:44px;
@@ -2141,6 +2141,23 @@
         <button class="btn btn-secondary" id="reparNotesBtn">🧹 Vérifier les notes internes</button>
         <div id="reparNotesEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
         <div id="reparNotesListe"></div>
+
+        <div style="font-size:12px;color:var(--muted);margin:18px 0 12px;line-height:1.5;
+                    border-top:1px solid var(--line);padding-top:14px;">
+          Rattache les <strong>cours à venir</strong> au rappel qui les a annoncés :
+          c'est ce lien qui fait apparaître « ✉️ rappel envoyé » puis
+          « ✋ présence confirmée » sous l'heure, dans Mes prochains cours.
+          Le journal des envois garde qui, quand et quel lien ; il suffit de
+          recoller les deux. Rien d'autre ne bouge — ni la note, ni le type de
+          bilan, ni le moniteur.
+          <br><br>
+          Si le bouton répond qu'<strong>aucun envoi ne porte de lien</strong>,
+          c'est que la création du lien de confirmation échoue en amont : les
+          mails partent alors sans bouton, et il n'y a rien à rattacher.
+        </div>
+        <button class="btn btn-secondary" id="reparJetonsBtn">✉️ Rattacher les rappels aux cours</button>
+        <div id="reparJetonsEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+        <div id="reparJetonsListe"></div>
       </div>
     </details>
   </div>
@@ -2235,62 +2252,62 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=698"></script>
-<script src="app/ec-modeles.js?v=698"></script>
-<script src="app/ec-consignes.js?v=698"></script>
-<script src="app/ec-noyau.js?v=698"></script>
-<script src="app/ec-vocal.js?v=698"></script>
-<script src="app/ec-reseau.js?v=698"></script>
-<script src="app/ec-manuel.js?v=698"></script>
-<script src="app/ec-fenetres.js?v=698"></script>
-<script src="app/ec-questionnaire.js?v=698"></script>
-<script src="app/ec-permis.js?v=698"></script>
-<script src="app/ec-prepares.js?v=698"></script>
-<script src="app/ec-bureau.js?v=698"></script>
-<script src="app/ec-places.js?v=698"></script>
-<script src="app/ec-listes.js?v=698"></script>
-<script src="app/ec-permis-listes.js?v=698"></script>
-<script src="app/ec-postpermis.js?v=698"></script>
-<script src="app/ec-textes.js?v=698"></script>
-<script src="app/ec-correction.js?v=698"></script>
-<script src="app/ec-bilans.js?v=698"></script>
-<script src="app/ec-ecran.js?v=698"></script>
-<script src="app/ec-version.js?v=698"></script>
-<script src="app/ec-paie.js?v=698"></script>
-<script src="app/ec-flotte.js?v=698"></script>
-<script src="app/ec-solo.js?v=698"></script>
-<script src="app/ec-handicap-pdf.js?v=698"></script>
-<script src="app/ec-moto.js?v=698"></script>
-<script src="app/ec-remorque.js?v=698"></script>
-<script src="app/ec-arriereplan.js?v=698"></script>
-<script src="app/ec-placesbe.js?v=698"></script>
-<script src="app/ec-codeamenage.js?v=698"></script>
-<script src="app/ec-financements.js?v=698"></script>
-<script src="app/ec-eval-aac.js?v=698"></script>
-<script src="app/ec-postes.js?v=698"></script>
-<script src="app/ec-tarifs.js?v=698"></script>
-<script src="app/ec-evaluation.js?v=698"></script>
-<script src="app/ec-paiement.js?v=698"></script>
-<script src="app/ec-handicap.js?v=698"></script>
-<script src="app/ec-code.js?v=698"></script>
-<script src="app/ec-proccorriger.js?v=698"></script>
-<script src="app/ec-sessions.js?v=698"></script>
-<script src="app/ec-notifs.js?v=698"></script>
-<script src="app/ec-ecoutes.js?v=698"></script>
-<script src="app/ec-taches.js?v=698"></script>
-<script src="app/ec-memoire.js?v=698"></script>
-<script src="app/ec-historique.js?v=698"></script>
-<script src="app/ec-rappels.js?v=698"></script>
-<script src="app/ec-segments.js?v=698"></script>
-<script src="app/ec-sms.js?v=698"></script>
-<script src="app/ec-encours.js?v=698"></script>
-<script src="app/ec-incidents.js?v=698"></script>
-<script src="app/ec-stats.js?v=698"></script>
-<script src="app/ec-messenger.js?v=698"></script>
-<script src="app/ec-journal.js?v=698"></script>
-<script src="app/ec-depart.js?v=698"></script>
-<script src="app/ec-onglets.js?v=698"></script>
-<script src="app/ec-demarrage.js?v=698"></script>
+  <script src="app/ec-etat.js?v=699"></script>
+<script src="app/ec-modeles.js?v=699"></script>
+<script src="app/ec-consignes.js?v=699"></script>
+<script src="app/ec-noyau.js?v=699"></script>
+<script src="app/ec-vocal.js?v=699"></script>
+<script src="app/ec-reseau.js?v=699"></script>
+<script src="app/ec-manuel.js?v=699"></script>
+<script src="app/ec-fenetres.js?v=699"></script>
+<script src="app/ec-questionnaire.js?v=699"></script>
+<script src="app/ec-permis.js?v=699"></script>
+<script src="app/ec-prepares.js?v=699"></script>
+<script src="app/ec-bureau.js?v=699"></script>
+<script src="app/ec-places.js?v=699"></script>
+<script src="app/ec-listes.js?v=699"></script>
+<script src="app/ec-permis-listes.js?v=699"></script>
+<script src="app/ec-postpermis.js?v=699"></script>
+<script src="app/ec-textes.js?v=699"></script>
+<script src="app/ec-correction.js?v=699"></script>
+<script src="app/ec-bilans.js?v=699"></script>
+<script src="app/ec-ecran.js?v=699"></script>
+<script src="app/ec-version.js?v=699"></script>
+<script src="app/ec-paie.js?v=699"></script>
+<script src="app/ec-flotte.js?v=699"></script>
+<script src="app/ec-solo.js?v=699"></script>
+<script src="app/ec-handicap-pdf.js?v=699"></script>
+<script src="app/ec-moto.js?v=699"></script>
+<script src="app/ec-remorque.js?v=699"></script>
+<script src="app/ec-arriereplan.js?v=699"></script>
+<script src="app/ec-placesbe.js?v=699"></script>
+<script src="app/ec-codeamenage.js?v=699"></script>
+<script src="app/ec-financements.js?v=699"></script>
+<script src="app/ec-eval-aac.js?v=699"></script>
+<script src="app/ec-postes.js?v=699"></script>
+<script src="app/ec-tarifs.js?v=699"></script>
+<script src="app/ec-evaluation.js?v=699"></script>
+<script src="app/ec-paiement.js?v=699"></script>
+<script src="app/ec-handicap.js?v=699"></script>
+<script src="app/ec-code.js?v=699"></script>
+<script src="app/ec-proccorriger.js?v=699"></script>
+<script src="app/ec-sessions.js?v=699"></script>
+<script src="app/ec-notifs.js?v=699"></script>
+<script src="app/ec-ecoutes.js?v=699"></script>
+<script src="app/ec-taches.js?v=699"></script>
+<script src="app/ec-memoire.js?v=699"></script>
+<script src="app/ec-historique.js?v=699"></script>
+<script src="app/ec-rappels.js?v=699"></script>
+<script src="app/ec-segments.js?v=699"></script>
+<script src="app/ec-sms.js?v=699"></script>
+<script src="app/ec-encours.js?v=699"></script>
+<script src="app/ec-incidents.js?v=699"></script>
+<script src="app/ec-stats.js?v=699"></script>
+<script src="app/ec-messenger.js?v=699"></script>
+<script src="app/ec-journal.js?v=699"></script>
+<script src="app/ec-depart.js?v=699"></script>
+<script src="app/ec-onglets.js?v=699"></script>
+<script src="app/ec-demarrage.js?v=699"></script>
 
 <script>
 /* ============================================================
