@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 03:40 — v717 */
+/* Déployé le 29/08/2026 à 14:30 — v728 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1300,6 +1300,25 @@ function leconsApresExamenBlanc(frise){
 function leconsPrevuesAacCs(frise){
   const m = String(frise || '').match(/que\s*(\d+)\s*le[çc]ons?\s+voiture/i);
   return m ? parseInt(m[1], 10) : null;
+}
+
+/* CE VERS QUOI COMPTENT LES LEÇONS D'UN AAC OU D'UNE CS
+
+   « Encore 2 leçons avant l'examen blanc » n'a aucun sens sur un
+   AAC : sa charnière à lui, c'est la formation de l'accompagnateur
+   et le rendez-vous préalable. Et « avant la fin de la fiche
+   véhicule » nommait un document, pas ce qui attend l'élève.
+
+   L'étape se lit dans SA frise, elle ne se devine pas : un
+   parcours qui ne mentionne pas de formation accompagnateur n'en
+   a pas, et le dire serait inventer. Sans rien de reconnu, on
+   retombe sur la fiche véhicule — c'est toujours vrai. */
+function etapeApresFicheVehicule(frise){
+  const t = String(frise || '');
+  const bouts = [];
+  if(/formation\s+accompagnateur/i.test(t)) bouts.push('la formation accompagnateur');
+  if(/rendez[-\s]?vous\s+pr[ée]alable/i.test(t)) bouts.push('le rendez-vous préalable');
+  return bouts.length ? bouts.join(' et ') : 'la fin de la fiche véhicule';
 }
 
 /* Construit la phrase de frise à partir des deux nombres.
