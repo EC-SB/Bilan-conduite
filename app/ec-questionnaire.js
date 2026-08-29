@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v698 */
+/* Déployé le 29/08/2026 à 12:55 — v700 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -309,6 +309,11 @@ function etatQuiFaitFoi(nom){
     if(s.rdvPostFait === 'oui') d.rdvPostFait = 'oui';
     if(s.heuresRepassage) d.heuresRepassage = String(s.heuresRepassage);
     if(s.heuresRestantes) d.heuresRestantes = String(s.heuresRestantes);
+    if(s.ebNiveau) d.ebNiveau = String(s.ebNiveau);
+    if(s.ebDate){
+      const iso = dateFrVersIso(String(s.ebDate));
+      if(iso) d.examBlancDate = iso;
+    }
     if(s.nbAjournements) d.repassages = parseInt(s.nbAjournements, 10) || 0;
     if(s.dateAjournement) d.dateAjournement = String(s.dateAjournement);
   }catch(e){ /* suivi non chargé : la note fera sans */ }
@@ -356,6 +361,24 @@ function noteEnClair(note){
   return sansGras(note).split('EXAMEN OFFICIEL PRÉVU LE').join('Examen prévu le');
 }
 
+/* La conclusion d'un examen blanc, telle qu'elle se range.
+
+   « pas le niveau », « plus que les 3h », « encore 2 leçons » : la
+   même information sert au bureau, au suivi et à la note. Chaque
+   leçon annoncée vaut deux heures. Écrite ici une seule fois, elle
+   ne peut pas dire deux choses différentes selon l'écran. */
+function conclusionExamenBlanc(a){
+  const d = {};
+  if(!a || !a.ebSuite) return d;
+
+  d.ebNiveau = (a.ebSuite === 'pasleniveau') ? 'non' : 'oui';
+  if(a.ebSuite === '3h') d.heuresRestantes = '0';
+  else if(a.ebSuite === 'lecons' && a.ebLecons){
+    d.heuresRestantes = String(Number(a.ebLecons) * 2);
+  }
+  return d;
+}
+
 function defautsDepuisNote(note){
   note = noteEnClair(note);
   const a = analyserNote(note);
@@ -363,6 +386,20 @@ function defautsDepuisNote(note){
   if(a.examBlanc){
     d.examBlanc = a.examBlanc;
     if(a.examBlancN !== null) d.examBlancN = String(a.examBlancN);
+
+    /* La DATE et la CONCLUSION, que le lecteur trouvait déjà et que
+       personne ne reprenait. C'est pour ça qu'un message du bureau
+       — « examen blanc passé le 26 août — pas le niveau » — restait
+       une phrase à relire et à ressaisir à la main. */
+    if(a.ebDate){
+      const iso = dateFrVersIso(a.ebDate);
+      if(iso) d.examBlancDate = iso;
+    }
+    if(a.examBlancDate){
+      const iso = dateFrVersIso(a.examBlancDate);
+      if(iso) d.examBlancDate = iso;
+    }
+    Object.assign(d, conclusionExamenBlanc(a));
   }
   if(a.simuNuit) d.simuNuit = a.simuNuit;
   const rgP = passageDepuisNote(note);
@@ -1018,6 +1055,8 @@ const CHAMP_DE_LA_REPONSE = {
   examBlancRang: '#qBlocEbRang',
   examBlancDate: '#qExamBlancDate',
   ebPasse:       '#qEBPasse',
+  ebNiveau:      '#qExamBlanc',
+  heuresRestantes:'#qExamBlanc',
   ebImpossibleLe:'#qExamBlanc',
   ebLecons:      '#qEBLecons',
   examPermis:    '#qExamPermis',
@@ -2471,6 +2510,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
            moniteur : c'est le bureau qui le pose et le conclut. On
            le fait donc voyager tel qu'on l'a lu, sans quoi il
            disparaîtrait de la note au premier questionnaire. */
+        /* La conclusion d'un examen blanc n'est pas une question de
+           ce questionnaire-ci : elle vient du bureau ou de la séance
+           d'examen blanc elle-même. Elle traverse. */
+        ebNiveau: prec.ebNiveau || '',
+        heuresRestantes: prec.heuresRestantes || '',
         rdvPostAPrevoir: prec.rdvPostAPrevoir || '',
         rdvPostDate: prec.rdvPostDate || '',
         rdvPostMoniteur: prec.rdvPostMoniteur || '',
@@ -3059,10 +3103,17 @@ function ajouterSuite(etats, permis, mots, q){
        heures de leçons, puis les trois heures d'avant examen.
        C'est ce chiffre qu'on cherche pour placer une date. */
     const hEB = String(q.heuresRestantes || '').trim();
-    etats.push(hEB ? tete + jourEB + ' — ' + hEB + ' + 3h'
-             : n  ? tete + jourEB + ' — ' + n + ' leçon' + pl(n) + ' prévue' + pl(n) +
-                    ' avant le permis (+ 3h avant examen)'
-                  : tete + (jourEB || ' — déjà fait'));
+    /* « Pas le niveau » prime sur tout chiffre : c'est la conclusion
+       qui décide de la suite, et le bureau la cherche en premier. */
+    const conclusion =
+        (String(q.ebNiveau || '') === 'non') ? ' — pas le niveau'
+      : (hEB === '0')                        ? ' — plus que les 3h avant examen'
+      : hEB                                  ? ' — ' + hEB + ' + 3h'
+      : n                                    ? ' — ' + n + ' leçon' + pl(n) +
+                                               ' prévue' + pl(n) +
+                                               ' avant le permis (+ 3h avant examen)'
+      : (jourEB ? '' : ' — déjà fait');
+    etats.push(tete + jourEB + conclusion);
   }else if(q.examBlanc === 'reserve'){
     etats.push('🅱️ ' + numero + ETAT_EB_RESERVE + jourEB +
                (n ? ' — dans ' + n + ' leçon' + pl(n) : ''));
