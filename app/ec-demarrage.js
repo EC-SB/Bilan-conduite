@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 05:45 — v722 */
+/* Déployé le 29/08/2026 à 15:26 — v734 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -464,6 +464,64 @@ function travailEnCoursMoniteur(){
   }
 
   return false;
+}
+
+/* ------------------------------------------------------------
+   UN SEUL COURS OUVERT À LA FOIS
+
+   Ouvrir un cours pendant qu'un autre l'est laissait le premier
+   à l'écran — sa fiche manuelle, son bilan généré, son micro —
+   sous le nouveau. Deux cours ouverts, et la parole de l'un
+   pouvait finir dans le bilan de l'autre.
+
+   Fermer ne veut pas dire perdre : la dictée est déposée sur le
+   serveur avant, et le cours se retrouve dans « Cours non
+   terminés ». Ici on ne fait que rendre l'écran à un seul cours.
+   ------------------------------------------------------------ */
+/* Où le cours qu'on ferme se retrouvera. On ne promet pas la même
+   chose selon ce qu'il y a à sauver : une dictée part sur le
+   serveur, une fiche manuelle reste dans cet appareil. Promettre
+   « Cours non terminés » pour une fiche manuelle serait envoyer le
+   moniteur chercher là où il n'y a rien. */
+function ouOnRetrouveLeCoursOuvert(){
+  const t = $('transcriptBox');
+  if(t && t.value.trim()){
+    return 'Il est mis à l\'abri sur le serveur — tu le retrouveras dans ' +
+           '« Cours non terminés ».';
+  }
+  return 'Il est sauvegardé dans cet appareil.';
+}
+
+function fermerLeCoursOuvert(){
+  /* Le micro d'abord : un enregistrement qui continue pendant le
+     cours suivant écrirait la parole de l'un chez l'autre. */
+  if(typeof isRecording !== 'undefined' && isRecording){
+    isRecording = false;
+    try{ if(recognition) recognition.stop(); }catch(e){}
+    if(typeof arreterUI === 'function') arreterUI();
+  }
+  if(typeof libererEcran === 'function'){
+    try{ libererEcran(); }catch(e){}
+  }
+
+  if(typeof modeManuel !== 'undefined') modeManuel = false;
+  if(typeof champsManuels !== 'undefined') champsManuels = {};
+  if($('manuelView')) $('manuelView').style.display = 'none';
+  if($('generatingView')) $('generatingView').style.display = 'none';
+  if($('resultView')) $('resultView').style.display = 'none';
+
+  /* Le bilan du cours précédent ne doit pas se retrouver dans le
+     suivant : il est déjà sur le serveur si quelqu'un l'a
+     enregistré, et dans « Cours non terminés » sinon. */
+  if($('resultText')) $('resultText').value = '';
+  if($('noteResult')) $('noteResult').value = '';
+  if(typeof bilanEnregistre !== 'undefined') bilanEnregistre = false;
+
+  const b = $('bilanPretBanner');
+  if(b && !(typeof bilansEnFond !== 'undefined' && bilansEnFond.length)){
+    b.innerHTML = '';
+    b.style.display = 'none';
+  }
 }
 
 
