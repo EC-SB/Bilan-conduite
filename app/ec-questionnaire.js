@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 04:50 — v720 */
+/* Déployé le 30/08/2026 à 05:20 — v721 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1455,7 +1455,18 @@ function fermerQuestionnaireOuvert(){
 }
 
 
-async function ouvrirQuestionnaireDepart(prec, titre, libelleValider){
+/* Les blocs à laisser visibles selon ce qui manque. La table vit
+   ici, dans la seule fonction qui s'en sert. */
+function blocsDuSujetManquant(quoi){
+  const T = {
+    'la formation':        ['#qFormation', '#qFormationEffet'],
+    'la frise':            ['#qFriseClassique', '#qFriseFixe'],
+    'le numéro de leçon':  ['#qLecon']
+  };
+  return T[quoi] || [];
+}
+
+async function ouvrirQuestionnaireDepart(prec, titre, libelleValider, reduire){
   /* Un questionnaire déjà ouvert appartient au cours précédent : on
      le ferme au lieu d'ignorer la demande. Ignorer laissait le
      moniteur devant l'ancien élève en croyant avoir ouvert le
@@ -1665,6 +1676,23 @@ async function construireQuestionnaire(prec, titre, libelleValider){
   const rangDuJour = rangConnu(faites, modeleCle, premierCours);
   const manoeuvresAvant = dossier.manoeuvres || [];
   const totalManoeuvres = BLOC.ficheListeConduite.length;
+
+  /* RIEN À DEMANDER : ON N'OUVRE RIEN.
+
+     En préparant un cours d'un élève à jour, les quinze questions
+     ont déjà leur réponse : la formation vient du répertoire, la
+     frise de sa fiche, le rang du classeur. Ouvrir une fenêtre
+     pour faire valider ce qu'on sait déjà, c'est du temps pris
+     pour rien.
+
+     On rend alors ce qu'on a réuni, sans marquer « répondu » :
+     personne n'a répondu, et le jour du cours les sources qui font
+     foi seront relues comme d'habitude. Le crayon de la carte
+     reste la porte d'entrée quand le bureau veut poser quelque
+     chose — une date d'examen, un examen blanc à réserver. */
+  if(reduire && !cequiManqueAuCours(prec, eleve, modeleCle).length){
+    return Promise.resolve(Object.assign({}, prec, { modele: modeleCle }));
+  }
 
   return new Promise(resolve => {
     const fond = document.createElement('div');
@@ -2027,6 +2055,66 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.appendChild(rangee);
     fond.appendChild(boite);
     document.body.appendChild(fond);
+
+    /* ----------------------------------------------------------
+       LE QUESTIONNAIRE RÉDUIT
+
+       En préparant un cours, quatorze des quinze questions ont
+       déjà leur réponse. On ne montre donc que ce qui manque —
+       mais un repli rend tout le reste en un clic : le bureau
+       vient souvent poser quelque chose qui ne « manque » pas,
+       une date d'examen, un examen blanc à réserver. Sans ce
+       repli, on aurait remplacé « trop de questions » par
+       « impossible de répondre ».
+
+       Ce qu'on masque est DÉCLARÉ, comme partout : un champ caché
+       revient vide du formulaire, et sans déclaration ce vide
+       écraserait la réponse qu'on avait.
+       ---------------------------------------------------------- */
+    if(reduire){
+      const aVoir = [];
+      cequiManqueAuCours(prec, eleve, modeleCle)
+        .forEach(q => blocsDuSujetManquant(q).forEach(x => aVoir.push(x)));
+
+      const tous = Object.keys(CHAMP_DE_LA_REPONSE)
+        .map(k => CHAMP_DE_LA_REPONSE[k])
+        .filter((x, i, t) => t.indexOf(x) === i);
+
+      const aReplier = tous.filter(x => aVoir.indexOf(x) === -1);
+      const caches = [];
+
+      aReplier.forEach(sel => {
+        const el = boite.querySelector(sel);
+        if(!el) return;
+        const cible = (el.type === 'checkbox' && el.closest('label'))
+          ? el.closest('label') : el;
+        const lab = boite.querySelector('label[for="' + sel.slice(1) + '"]');
+        const avant = cible.previousElementSibling;
+        [cible, lab, (avant && avant.tagName === 'LABEL') ? avant : null]
+          .forEach(x => { if(x){ x.dataset.replie = '1'; x.style.display = 'none'; } });
+        caches.push(sel);
+      });
+
+      champsMasques = champsMasques.concat(caches);
+
+      const bTout = document.createElement('button');
+      bTout.type = 'button';
+      bTout.className = 'btn btn-secondary';
+      bTout.style.cssText = 'margin:2px 0 14px;padding:10px;font-size:13px;';
+      bTout.textContent = '▸ Tout revoir (examen blanc, date d\'examen, simulateur…)';
+      bTout.addEventListener('click', () => {
+        boite.querySelectorAll('[data-replie]').forEach(x => {
+          x.style.display = '';
+          delete x.dataset.replie;
+        });
+        /* Déplié, plus rien n'est masqué : les réponses redeviennent
+           celles du formulaire, et la protection n'a plus lieu
+           d'être — la garder figerait ce qu'on vient d'ouvrir. */
+        champsMasques = champsMasques.filter(x => caches.indexOf(x) === -1);
+        bTout.remove();
+      });
+      boite.insertBefore(bTout, boite.querySelector('.btn-row'));
+    }
 
     /* Pré-remplissage */
     const chAvant = boite.querySelector('#qFriseAvant');
