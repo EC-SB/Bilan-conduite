@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 22:20 — v697 */
+/* Déployé le 29/08/2026 à 23:30 — v698 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -983,6 +983,7 @@ async function chargerPrepareInterne(cours){
       frais.totalManoeuvres = BLOC.ficheListeConduite.length;
       frais.leconsDepuisEB = d.leconsDepuisEB;
       frais.leconsDepuisRdvPost = d.leconsDepuisRdvPost;
+      frais.leconsParBoite = d.leconsParBoite;
 
       contexte = fusionnerContexte(contexte, frais);
       contexte.source = d.dernierHorodatage;
