@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:00 — v708 */
+/* Déployé le 30/08/2026 à 04:15 — v718 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1878,9 +1878,16 @@ function lienMessenger(v){
 
 
 /* ============================================================
-   LE MESSENGER DE L'ÉLÈVE, AU DÉMARRAGE DU COURS
-   Le moniteur le saisit une fois ; il est retenu et proposé
-   à tous les autres ensuite.
+   L'ADRESSE MAIL DE L'ÉLÈVE, AU DÉMARRAGE DU COURS
+
+   Le moniteur la saisit une fois ; elle est retenue et proposée à
+   tous les autres ensuite.
+
+   C'était le Messenger. Les moniteurs n'écrivent plus que par
+   mail, et c'est cette adresse qu'il faut pour envoyer un bilan :
+   demander l'autre au bord de la route n'apportait plus rien. Les
+   identifiants de champ n'ont pas changé — les renommer aurait
+   touché neuf endroits pour un gain nul.
    ============================================================ */
 let messengerCharge = '';
 
@@ -1908,13 +1915,13 @@ async function chargerMessengerEleve(){
        élève n'a pas de Messenger connu, on relit avant de conclure.
        Deux minutes de battement pour ne pas relire à chaque frappe. */
     let f = ficheDe(nom);
-    if((!f || !f.messenger) && Date.now() - fichesLues > 120000){
+    if((!f || !f.email) && Date.now() - fichesLues > 120000){
       await chargerFiches();
       f = ficheDe(nom);
     }
     /* On n'écrase pas une saisie en cours */
     if(champ.value.trim() && champ.value.trim() !== messengerCharge) return;
-    champ.value = (f && f.messenger) || '';
+    champ.value = (f && f.email) || '';
     messengerCharge = champ.value;
     majLienMessenger();
   }catch(e){}
@@ -1926,13 +1933,10 @@ function majLienMessenger(){
   if(!champ || !lien) return;
 
   const v = champ.value.trim();
-  if(!v){ lien.style.display = 'none'; return; }
-
-  let url = v;
-  if(!/^https?:\/\//i.test(v)){
-    url = 'https://m.me/' + v.replace(/^@/, '').replace(/\s+/g, '');
-  }
-  lien.href = url;
+  /* Le bouton n'apparaît que sur une adresse plausible : offrir
+     d'écrire à « jean » ouvrirait un message sans destinataire. */
+  if(!v || v.indexOf('@') === -1){ lien.style.display = 'none'; return; }
+  lien.href = 'mailto:' + v;
   lien.style.display = 'inline-flex';
 }
 
@@ -1948,21 +1952,30 @@ async function enregistrerMessengerEleve(){
 
   if(!nom || nom.split(' ').length < 2) return;
   if(v === messengerCharge) return;
+  /* Une adresse sans @ n'est pas une adresse : l'enregistrer
+     empêcherait le bilan de partir sans qu'on sache pourquoi. */
+  if(v && v.indexOf('@') === -1){
+    if(etat){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = "Cette adresse ne semble pas valable — elle n'est pas enregistrée.";
+    }
+    return;
+  }
 
   try{
-    await appelPrep({ action: 'ficheSet', eleve: nom, messenger: v });
+    await appelPrep({ action: 'ficheSet', eleve: nom, email: v });
     messengerCharge = v;
     /* La fiche en mémoire suit, sinon le répertoire et le bouton
-       d'envoi continueraient d'ignorer ce Messenger. */
+       d'envoi continueraient d'ignorer cette adresse. */
     const f3 = ficheDe(nom);
-    if(f3) f3.messenger = v;
-    else fichesEleves.push({ eleve: nom, messenger: v });
+    if(f3) f3.email = v;
+    else fichesEleves.push({ eleve: nom, email: v });
     /* Et la prochaine lecture ira au serveur : la mémoire seule
        ne suffit pas si un autre onglet a modifié la fiche. */
     fichesLues = 0;
     if(etat){
       etat.style.color = 'var(--accent-text)';
-      etat.textContent = '✅ Enregistré : les autres moniteurs le retrouveront ici.';
+      etat.textContent = '✅ Enregistrée : les autres moniteurs la retrouveront ici.';
     }
     fichesEleves = [];
   }catch(e){
