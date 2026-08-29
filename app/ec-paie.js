@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 01:45 — v714 */
+/* Déployé le 30/08/2026 à 03:00 — v716 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -573,9 +573,13 @@ function blocCloture(){
   aide.innerHTML =
     '<strong>reporté</strong> = ce qui restait des mois clôturés · ' +
     '<strong>ce mois</strong> = ce que le tableau au-dessus a produit · ' +
-    '<strong>je paie</strong> = la seule case à remplir, pré-remplie avec tout · ' +
-    '<strong>récup</strong> = transformé en temps au lieu d\'argent.<br>' +
-    'Ce qui n\'est ni payé ni mis en récup repart au mois suivant.';
+    '<strong>je paie</strong> = la seule case à remplir, pré-remplie avec tout.<br>' +
+    'Ce qui n\'est ni payé ni mis en récup <strong>repart au mois ' +
+    'suivant</strong> et revient dans « dispo ».<br>' +
+    '<strong>La récup se décide quand tu veux</strong>, pas forcément le ' +
+    'mois où les heures ont été faites : laisse-les repartir, et passe-les ' +
+    'en récup le mois où tu sauras. Le taux (×1 ou ×1,25) se choisit à ce ' +
+    'moment-là, et reste attaché à cette conversion.';
   d.appendChild(aide);
 
   const lignes = [];
@@ -664,27 +668,48 @@ function blocCloture(){
           majApres();
         });
         w.appendChild(e); w.appendChild(i);
+        /* Le champ voyage avec son enveloppe : le retrouver ensuite
+           par un sélecteur attraperait le premier des deux. */
+        w.champ = i;
         return w;
       };
 
       r.appendChild(champ(cleP, 'je paie', 54));
-      r.appendChild(champ(cleR, 'récup', 48));
+      const boiteRecup = champ(cleR, 'récup', 48);
+      r.appendChild(boiteRecup);
 
-      /* Le taux ne concerne QUE les heures à 25 % : une heure
-         normale vaut toujours une heure de récup. */
+      /* LE TAUX NE SE DEMANDE QU'AU MOMENT DE LA CONVERSION.
+
+         Il ne concerne que les heures à 25 % — une heure normale
+         vaut toujours une heure de récup — et surtout : il ne se
+         décide pas en clôturant. On ne sait pas, en août, ce qu'on
+         fera de ces heures en septembre ou en octobre.
+
+         Le sélecteur restait donc affiché sur chaque ligne, à ×1,
+         comme si la question était posée. Il n'apparaît plus que
+         lorsqu'on met vraiment des heures en récup — c'est-à-dire
+         le jour où on tranche. */
       if(cleR === 'recupM'){
         const sel = document.createElement('select');
         sel.disabled = c.close;
-        sel.style.cssText = 'width:auto;margin:0;padding:4px 6px;font-size:11px;' +
-          (c.close ? 'opacity:.55;' : '');
         sel.innerHTML = '<option value="1">×1</option><option value="1.25">×1,25</option>';
         sel.value = String(etat.taux);
         sel.title = 'Une heure à 25 % vaut une heure de récup, ou une heure un quart';
+        const montrerLeTaux = () => {
+          const utile = (etat.recupM || 0) !== 0;
+          sel.style.cssText = 'width:auto;margin:0;padding:4px 6px;font-size:11px;' +
+            (c.close ? 'opacity:.55;' : '') +
+            (utile ? 'border-color:var(--accent-text);' : 'display:none;');
+        };
+        montrerLeTaux();
         sel.addEventListener('change', () => {
           etat.taux = parseFloat(sel.value) || 1;
           majApres();
         });
         r.appendChild(sel);
+        /* Le champ de récup fait apparaître le taux dès qu'il porte
+           un nombre : la question se pose là, et pas avant. */
+        if(boiteRecup.champ) boiteRecup.champ.addEventListener('input', montrerLeTaux);
       }
 
       const dis = document.createElement('span');
