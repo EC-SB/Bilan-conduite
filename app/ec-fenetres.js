@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 16:30 — v703 */
+/* Déployé le 29/08/2026 à 21:00 — v708 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -487,7 +487,88 @@ function texteDuPoste(nom){
   return bouts.join(' · ');
 }
 
-async function ecrirePosteDeConduite(nom, champ, actif){
+/* Les aménagements du véhicule, tels qu'ils sont enregistrés. */
+function amenagementsDe(nom){
+  const f = ficheDe(nom) || {};
+  return String(f.amenagements || '').split('|').map(x => x.trim()).filter(Boolean);
+}
+
+/* ------------------------------------------------------------
+   COCHER ♿ SANS DIRE QUOI NE SERT À RIEN
+
+   « Conduite aménagée » tout court n'apprend rien au moniteur : ce
+   qu'il lui faut savoir, c'est QUOI monter dans la voiture — une
+   boule à gauche, un accélérateur à gauche, des rétroviseurs. On ne
+   coche donc pas la case, on ouvre la liste ; et la case ne se
+   coche que si au moins un aménagement est choisi.
+
+   Décocher, en revanche, ne demande rien : on retire tout.
+   ------------------------------------------------------------ */
+function choisirLesAmenagements(nom){
+  return new Promise(resolve => {
+    const liste = (typeof AMENAGEMENTS !== 'undefined') ? AMENAGEMENTS : [];
+    const dejaLa = amenagementsDe(nom);
+
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(400px, 94vw);';
+
+    boite.innerHTML =
+      '<h3>♿ Conduite aménagée</h3>' +
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5;">' +
+        '<strong style="color:var(--cream);">' + String(nom).replace(/</g, '&lt;') +
+        '</strong><br>Qu\'est-ce qu\'il faut monter dans la voiture ?</div>' +
+      liste.map(a =>
+        '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
+        'font-size:15px;color:var(--cream);margin-bottom:9px;font-weight:400;">' +
+        '<input type="checkbox" class="amgChoix" value="' + a.cle +
+        '" style="width:19px;height:19px;"' +
+        (dejaLa.indexOf(a.cle) !== -1 ? ' checked' : '') + '>' +
+        a.court + ' ' + a.nom.replace(/</g, '&lt;') + '</label>').join('') +
+      '<div id="amgErreur" style="font-size:12px;color:var(--red);' +
+      'margin:4px 0 10px;line-height:1.4;display:none;">' +
+      'Coche au moins un aménagement : « conduite aménagée » sans ' +
+      'préciser quoi n\'apprend rien au moniteur.</div>';
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    bAnn.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+    rangee.appendChild(bAnn);
+
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = 'Enregistrer';
+    bOk.addEventListener('click', async () => {
+      const choisis = [...boite.querySelectorAll('.amgChoix')]
+        .filter(x => x.checked).map(x => x.value);
+      if(!choisis.length){
+        boite.querySelector('#amgErreur').style.display = 'block';
+        return;
+      }
+      bOk.disabled = true;
+      bOk.textContent = 'Enregistrement…';
+      const ok = await ecrirePosteDeConduite(nom, 'amenagee', true, choisis);
+      if(fond.parentNode) document.body.removeChild(fond);
+      resolve(ok ? choisis : null);
+    });
+    rangee.appendChild(bOk);
+
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+  });
+}
+
+async function ecrirePosteDeConduite(nom, champ, actif, amenagements){
   const propre = String(nom || '').trim();
   if(!propre || ['amenagee', 'coussin'].indexOf(champ) === -1) return false;
 
@@ -495,6 +576,13 @@ async function ecrirePosteDeConduite(nom, champ, actif){
      veut dire « le formulaire n'en parlait pas » et ne touche à
      rien — sans quoi cette case ne pourrait jamais se décocher. */
   const maj = {}; maj[champ] = actif ? 'oui' : 'non';
+
+  /* Les aménagements suivent la case : choisis quand on la coche,
+     effacés quand on la décoche. Les laisser derrière ferait dire
+     à la fiche « pas de conduite aménagée, mais boule à gauche ». */
+  if(champ === 'amenagee'){
+    maj.amenagements = actif ? (amenagements || []).join('|') : 'non';
+  }
 
   try{
     await appelPrep(Object.assign({ action: 'ficheSet', eleve: propre }, maj));
@@ -506,9 +594,11 @@ async function ecrirePosteDeConduite(nom, champ, actif){
   /* La mémoire suit tout de suite : les autres écrans lisent
      fichesEleves, et attendre le rechargement leur ferait afficher
      l'ancienne valeur. */
+  const enMemoire = Object.assign({}, maj);
+  if(enMemoire.amenagements === 'non') enMemoire.amenagements = '';
   const f = ficheDe(propre);
-  if(f) f[champ] = maj[champ];
-  else fichesEleves.push(Object.assign({ eleve: propre }, maj));
+  if(f) Object.assign(f, enMemoire);
+  else fichesEleves.push(Object.assign({ eleve: propre }, enMemoire));
   return true;
 }
 
@@ -739,6 +829,14 @@ function ligneFicheEleve(nom){
     peindre();
     b.addEventListener('click', async () => {
       const avant = posteDeConduite(nom)[champ];
+      /* Même règle qu'ailleurs : cocher la conduite aménagée
+         demande de dire lesquels. */
+      if(champ === 'amenagee' && !avant){
+        const choisis = await choisirLesAmenagements(nom);
+        peindre();
+        if(choisis) showToast(titre + ' notée ✅');
+        return;
+      }
       b.disabled = true;
       const ok = await ecrirePosteDeConduite(nom, champ, !avant);
       b.disabled = false;
@@ -1335,6 +1433,13 @@ function ouvrirFicheEleve(nom, f){
   });
   majFrise();
   g('fiAmenagee').checked = String((f && f.amenagee) || '') === 'oui';
+  /* Cocher ici demande aussi QUOI monter dans la voiture : la
+     règle est la même partout, elle ne vit qu'à un endroit. */
+  g('fiAmenagee').addEventListener('change', async () => {
+    if(!g('fiAmenagee').checked) return;
+    const choisis = await choisirLesAmenagements(nom);
+    if(!choisis) g('fiAmenagee').checked = false;
+  });
   g('fiCoussin').checked  = String((f && f.coussin) || '') === 'oui';
   g('fiAutreAE').checked = !!(f && f.autreAE);
   g('fiAutreAENom').value = (f && f.autreAENom) || '';
