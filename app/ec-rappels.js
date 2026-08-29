@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 11:20 — v689 */
+/* Déployé le 29/08/2026 à 16:30 — v693 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2834,6 +2834,14 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
            voyaient sur leur carte. */
         const acquis = (typeof defautsDepuisNote === 'function' && d.derniereNote)
           ? defautsDepuisNote(d.derniereNote) : {};
+
+        /* Et par-dessus : ce que le suivi et les sessions savent —
+           la conclusion d'un post-permis, une date d'examen qui
+           vient d'être posée. Aucun texte ne les porte. */
+        if(typeof etatQuiFaitFoi === 'function'){
+          const foi = etatQuiFaitFoi(eleve);
+          Object.keys(foi).forEach(k => { acquis[k] = foi[k]; });
+        }
 
         const rep = Object.assign(acquis, {
           lecon: d.lecons ? String(d.lecons + 1) : '',
