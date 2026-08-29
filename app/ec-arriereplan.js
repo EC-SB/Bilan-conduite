@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:14 — v732 */
+/* Déployé le 29/08/2026 à 15:26 — v734 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -457,10 +457,22 @@ function proposerBrouillonServeur(b, combien){
 
 
 async function reprendreBrouillonServeur(b){
-  const enCours = ($('transcriptBox') && $('transcriptBox').value.trim());
-  if(enCours && !await confirmer(
-      'Un cours est déjà en cours de saisie.\n\n' +
-      'Reprendre celui de ' + b.eleve + ' à la place ?')) return;
+  /* UN SEUL COURS OUVERT À LA FOIS — l'autre porte d'entrée de
+     l'écran de cours, même règle que « Mes prochains cours ». On
+     ne regardait que la dictée : un bilan généré et pas encore
+     enregistré ou une fiche manuelle en cours restaient dessous. */
+  if(typeof travailEnCoursMoniteur === 'function' && travailEnCoursMoniteur()){
+    const ouvert = ($('studentName') && $('studentName').value.trim()) || 'Un autre';
+    if(!await confirmer(
+        'Le cours de ' + ouvert + ' est encore ouvert.\n\n' +
+        ouOnRetrouveLeCoursOuvert() + ' Reprendre celui de ' + b.eleve +
+        ' à la place ?', 'Reprendre quand même')) return;
+
+    if(typeof deposerBrouillonServeur === 'function'){
+      try{ await deposerBrouillonServeur(); }catch(e){}
+    }
+    if(typeof fermerLeCoursOuvert === 'function') fermerLeCoursOuvert();
+  }
 
   if($('modele') && b.modele){
     $('modele').value = b.modele;
