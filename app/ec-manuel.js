@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:00 — v708 */
+/* Déployé le 30/08/2026 à 06:20 — v723 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2317,7 +2317,12 @@ function ouvrirEnvoiAvant(eleve, message){
       adresse = ((d && d.contact) || {}).email || '';
     }catch(e){}
 
-    if(!adresse){ showToast('Aucune adresse dans sa fiche.'); return; }
+    /* L'adresse se confirme avant de partir : elle peut avoir
+       changé depuis sa saisie, et un mail perdu ne se signale
+       jamais. Même sans adresse connue, on la demande — la fenêtre
+       sert à ça. */
+    adresse = await confirmerAdresseEleve(eleve, adresse);
+    if(!adresse) return;
 
     bMail.disabled = true;
     bMail.textContent = 'Envoi…';
