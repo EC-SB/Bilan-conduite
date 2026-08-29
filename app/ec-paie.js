@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 00:55 — v712 */
+/* Déployé le 30/08/2026 à 01:15 — v713 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -219,7 +219,7 @@ async function afficherPaie(sansRelire){
     setTimeout(() => {
       if(paieARedessiner && !saisieEnCoursDansLaPaie()){
         paieARedessiner = false;
-        afficherPaie();
+        afficherPaie(true);
       }
     }, 60);
   });
@@ -1118,7 +1118,11 @@ function saisieEnCoursDansLaPaie(){
 function redessinerPaieQuandPossible(){
   if(saisieEnCoursDansLaPaie()){ paieARedessiner = true; return; }
   paieARedessiner = false;
-  afficherPaie();
+  /* Sans relire le classeur : ce qu'on vient de saisir est déjà en
+     mémoire, et tout le reste de l'écran s'en déduit. Relire ne
+     changerait rien à l'affichage et coûterait la seconde d'attente
+     qu'on cherche justement à supprimer. */
+  afficherPaie(true);
 }
 
 /* ------------------------------------------------------------
@@ -1291,38 +1295,64 @@ function tableauPaie(){
            redevient vide au lieu de faire croire à une saisie. */
         ch.value = versChampPaie(h || '');
         ch.style.borderColor = 'var(--orange)';
+
+        /* LA MÉMOIRE D'ABORD, LE SERVEUR ENSUITE.
+
+           Les totaux, la clôture et les soldes se calculent tous à
+           partir de semainesPaie : une fois cette liste à jour,
+           l'écran peut se redessiner sans rien relire. On le
+           faisait dans l'autre sens — attendre le serveur, puis
+           recharger le mois entier — et taper une heure rechargeait
+           la page. */
+        /* Ce qu'on écrase, au cas où le serveur refuse : on ne
+           peut pas laisser un chiffre non enregistré compter dans
+           les totaux et dans la clôture. */
+        const heuresAvant = w ? w.heures : null;
+
+        const wDansLaListe = w || (() => {
+          const neuve = { id: '', idSalarie: s.id, semaine: l,
+                          heures: 0, joursAbsents: j,
+                          normalForce: null, majoreForce: null, remarque: '' };
+          semainesPaie.push(neuve);
+          return neuve;
+        })();
+        wDansLaListe.heures = h;
+        wDansLaListe.joursAbsents = j;
+        redessinerPaieQuandPossible();
+
         try{
           const r = await appelPrep({
             action: 'paieSemaineSet',
-            id: w ? w.id : '',
+            id: wDansLaListe.id || '',
             idSalarie: s.id,
             semaine: l,
             heures: h,
             joursAbsents: j,
-            normalForce: (w && w.normalForce !== null) ? w.normalForce : '',
-            majoreForce: (w && w.majoreForce !== null) ? w.majoreForce : '',
-            remarque: (w && w.remarque) || '',
+            normalForce: (wDansLaListe.normalForce !== null)
+                           ? wDansLaListe.normalForce : '',
+            majoreForce: (wDansLaListe.majoreForce !== null)
+                           ? wDansLaListe.majoreForce : '',
+            remarque: wDansLaListe.remarque || '',
             par: ACCES.moniteur || ''
           });
           ch.style.borderColor = 'transparent';
-
-          /* La semaine qu'on vient d'écrire, en mémoire : sans ça
+          /* L'identifiant que le serveur vient de poser : sans lui,
              une deuxième correction de la même case repartirait
              sans identifiant. */
-          if(r && r.id){
-            if(w){ w.id = r.id; w.heures = h; w.joursAbsents = j; }
-            else {
-              const neuve = { id: r.id, idSalarie: s.id, semaine: l,
-                              heures: h, joursAbsents: j,
-                              normalForce: null, majoreForce: null,
-                              remarque: '' };
-              semainesPaie.push(neuve);
-            }
+          if(r && r.id) wDansLaListe.id = r.id;
+        }catch(e){
+          /* Le serveur a refusé : on remet la mémoire dans l'état
+             où elle était. Laisser le chiffre ferait mentir les
+             totaux et la clôture — et cette page sert à payer des
+             gens. */
+          if(heuresAvant === null){
+            const k = semainesPaie.indexOf(wDansLaListe);
+            if(k !== -1) semainesPaie.splice(k, 1);
+          }else{
+            wDansLaListe.heures = heuresAvant;
           }
           redessinerPaieQuandPossible();
-        }catch(e){
-          ch.style.borderColor = 'var(--red)';
-          showToast('Impossible : ' + e.message);
+          showToast('Heures NON enregistrées : ' + e.message);
         }
       });
 
