@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:20 — v701 */
+/* Déployé le 29/08/2026 à 15:10 — v702 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -599,7 +599,11 @@ function seanceDeLaFrise(){
    dans le classeur. Une préparation vieille de trois jours ne doit
    pas les figer — l'élève a peut-être eu un cours entre-temps. */
 const CHAMPS_FACTUELS = ['lecon', 'frise', 'manoeuvresFaites', 'totalManoeuvres',
-                         'leconsDepuisEB', 'leconsDepuisRdvPost', 'leconsParBoite'];
+                         'leconsDepuisEB', 'leconsDepuisRdvPost', 'leconsParBoite',
+                         /* « le classeur ne sait rien de cet élève » se
+                            reperd dès qu'un bilan existe : c'est un
+                            constat du jour, pas une réponse gardée. */
+                         'sansBilan'];
 
 /* Fusionne : le jugement du moniteur l'emporte, les faits sont rafraîchis */
 function fusionnerContexte(saisi, defauts){
@@ -860,6 +864,56 @@ function fondreNotePreparee(neuf, ancien){
 function leconCompteDansLaFrise(modeleCle){
   return ['conduite-auto', 'conduite-manuelle',
           'aac-auto', 'aac-manuelle'].indexOf(modeleCle) !== -1;
+}
+
+/* ------------------------------------------------------------
+   EST-CE VRAIMENT SON PREMIER COURS ?
+
+   « Récupérer sa carte SD au bureau » ne se coche qu'une fois dans
+   une formation : le jour où l'élève monte dans la voiture pour la
+   première fois. Les deux options « Premier cours en voiture » le
+   disent plus clairement encore.
+
+   C'est la SEULE chose qui autorise à écrire « 1ère leçon » quand
+   le classeur ne porte aucun bilan — voir rangConnu plus bas.
+
+   Trois formes selon d'où vient la réponse : la case cochée au
+   rappel (un tableau d'options), la trace que le rappel a laissée
+   en tête de note (le 💾), ou un booléen déjà rangé dans le
+   contexte du cours. */
+function cestLePremierCours(source){
+  /* La table vit ici, dans la seule fonction qui s'en sert : elle
+     n'a pas à être chargée séparément pour que la question ait une
+     réponse. */
+  const OPTIONS = ['sd', '1er-bv', '1er-bea'];
+  if(!source) return false;
+  if(source === true || source === 'oui') return true;
+  if(Array.isArray(source)){
+    return source.some(o => OPTIONS.indexOf(String(o)) !== -1);
+  }
+  return String(source).indexOf('💾') !== -1;
+}
+
+/* ------------------------------------------------------------
+   LE RANG QUE L'APPLICATION A LE DROIT D'AFFIRMER
+
+   Zéro bilan au classeur ne veut PAS dire zéro leçon. L'élève peut
+   arriver d'une autre auto-école, ses cours peuvent être plus
+   vieux que ce qu'on relit, son dossier peut simplement n'avoir
+   pas répondu. Compter « 0 + 1 » là-dessus et écrire « 1ère
+   leçon », c'est inventer un rang — et c'est ce que les moniteurs
+   lisaient sur des élèves qui en étaient à leur quinzième.
+
+   Une seule chose prouve le contraire : le rappel qui dit de venir
+   chercher sa carte SD, ou celui du premier cours en voiture.
+   Sinon on ne sait pas, on rend null, et la note le dira.
+   ------------------------------------------------------------ */
+function rangConnu(lecons, modeleCle, premierCours){
+  if(lecons === null || lecons === undefined) return null;
+  const n = parseInt(lecons, 10);
+  if(isNaN(n)) return null;
+  if(n === 0 && !cestLePremierCours(premierCours)) return null;
+  return leconCompteDansLaFrise(modeleCle) ? n + 1 : n;
 }
 
 
@@ -1480,8 +1534,15 @@ async function construireQuestionnaire(prec, titre, libelleValider){
                           (ficheEleve && ficheEleve.frise) || '';
   const compteDansLaFrise = leconCompteDansLaFrise(modeleCle);
   const faites = dossier.lecons;
-  const rangDuJour = (faites === null) ? null
-                                       : (compteDansLaFrise ? faites + 1 : faites);
+
+  /* Le rappel de ce cours disait-il d'aller chercher sa carte SD ?
+     C'est la seule chose qui permette d'affirmer « 1ère leçon » sur
+     un élève sans bilan. Le contexte le porte depuis le rappel ; le
+     💾 en tête de note vaut la même preuve pour les cours créés
+     avant que le contexte le transporte. */
+  const premierCours = cestLePremierCours(prec.premierCours) ||
+                       cestLePremierCours(($('noteInterne') && $('noteInterne').value) || '');
+  const rangDuJour = rangConnu(faites, modeleCle, premierCours);
   const manoeuvresAvant = dossier.manoeuvres || [];
   const totalManoeuvres = BLOC.ficheListeConduite.length;
 
@@ -2490,6 +2551,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         formation: formationChoisie(),
         frise: (imposee !== null) ? imposee : friseSaisie(),
         lecon: leconSaisie(),
+        /* Ce que le classeur ne sait pas dire de cet élève, et la
+           seule preuve qu'on ait qu'il débute. La note en a besoin
+           pour choisir entre « 1ère leçon » et « il faut remplir le
+           questionnaire ». */
+        sansBilan: !rangDuJour && !leconSaisie(),
+        premierCours: premierCours ? 'oui' : '',
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
         examBlancRang: rangEB ? rangEB.value : '',
@@ -2568,7 +2635,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
            ni si l'élève a confirmé — et il suffisait d'ouvrir le
            crayon une fois pour le perdre. */
         jeton: prec.jeton || '',
-        rdvPost: prec.rdvPost || ''
+        rdvPost: prec.rdvPost || '',
+        /* La carte SD demandée au rappel : la preuve que ce cours
+           EST le premier. Elle ne se redemande nulle part, et la
+           perdre remettrait « il faut remplir le questionnaire »
+           sur un élève dont on sait justement qu'il débute. */
+        premierCours: prec.premierCours || ''
       });
     });
   });
@@ -2638,7 +2710,21 @@ function positionDansLaFrise(q){
   if(EVENEMENT[q.modele]) return dire(EVENEMENT[q.modele]);
 
   const n = parseInt(q.lecon, 10);
-  if(isNaN(n) || !n) return '';
+  if(isNaN(n) || !n){
+    /* Pas de rang, et le classeur ne porte aucun bilan : on ne sait
+       pas où en est cet élève, et personne ne l'a dit. Le taire
+       laissait la carte muette là où il fallait une consigne — le
+       moniteur croyait la note complète et démarrait sans avoir
+       rempli le questionnaire.
+
+       Une séance qui n'a pas de rang par nature — simulateur,
+       examen, post-permis — n'a rien à réclamer : son vide est
+       voulu. */
+    if(q.sansBilan && (!q.modele || leconCompteDansLaFrise(q.modele))){
+      return dire('Il faut remplir le questionnaire');
+    }
+    return '';
+  }
 
   const plus = courtDansLaFrise(q) ? 1 : 0;
   const pl = k => (k > 1 ? 's' : '');
