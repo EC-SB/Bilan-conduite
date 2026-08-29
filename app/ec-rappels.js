@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 16:30 — v693 */
+/* Déployé le 29/08/2026 à 21:05 — v696 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2747,6 +2747,15 @@ function seanceImposeLaBoite(type){
 /* Renvoie true si un cours a bien été créé. Les appels d'origine
    ignorent la réponse ; le rattrapage, lui, compte ce qui a marché
    plutôt que d'annoncer des cours qui n'existent pas. */
+/* Le contexte voyage en texte vers le serveur et en objet dans
+   l'écran. Une seule fonction pour passer de l'un à l'autre : les
+   deux formes se sont mélangées assez souvent comme ça. */
+function contexteEnObjet(c){
+  if(!c) return null;
+  if(typeof c === 'object') return c;
+  try{ return JSON.parse(c); }catch(e){ return null; }
+}
+
 async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
   if(!eleve || eleve.length < 3) return false;
 
@@ -2913,7 +2922,12 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
               ? MODELES[cle].label : '',
             site: (f && f.site) || '',
             note: enTeteDeNote(details) + note,
-            contexte: contexte,
+            /* En OBJET, pas en texte. Le serveur reçoit du JSON ;
+               la liste en mémoire, elle, est lue directement.
+               Poussée en texte, « contexte.jeton » valait undefined
+               et la carte ne pouvait plus dire que le rappel était
+               parti — jusqu'au prochain rechargement complet. */
+            contexte: contexteEnObjet(contexte),
             moniteur: qui
           });
         }
