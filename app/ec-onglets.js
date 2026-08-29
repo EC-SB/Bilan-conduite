@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:13 — v667 */
+/* Déployé le 29/08/2026 à 07:29 — v683 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -19,7 +19,7 @@ const SECTIONS_ONGLET = {
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie',
-            'bureau_messages', 'sms', 'admin']
+            'bureau_messages', 'sms', 'encours', 'admin']
 };
 
 let ongletActif = '';
@@ -168,6 +168,7 @@ const VUES = {
            ['paie',       '💶 Paie',                    'paie'],
            ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
            ['sms',        '💬 SMS',                     'sms'],
+           ['encours',    '🩹 Cours non terminés',      'encours'],
            ['tarifs',     '💰 Tarifs',                 'tarifs'],
            ['admin',      '⚙️ Accès',                  'admin']]
 };
@@ -182,6 +183,8 @@ function construireBarresVues(){
     barre.innerHTML = '';
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
+      /* Le travail des autres moniteurs : au bureau seulement */
+      if(cle === 'encours') return ACCES.role === 'admin';
       if(cle === 'admin')   return ACCES.role === 'admin';
 
       return typeof aDroit !== 'function' || aDroit(section);
@@ -303,6 +306,7 @@ function reveillerVue(cle){
     notifs:     () => afficherNotifs(),
     taches:     () => afficherTaches(),
     sms:        () => afficherSms(),
+    encours:    () => afficherEnCours(),
     ecoutes:    () => afficherEcoutes(),
     memoire:    () => afficherMemoireIA()
   };
