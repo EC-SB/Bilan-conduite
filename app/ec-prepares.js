@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:34 — v729 */
+/* Déployé le 29/08/2026 à 15:07 — v731 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -108,6 +108,41 @@ async function ecrireRangDuCours(cours, rang){
 
   /* La liste en mémoire suit : l'écran ne doit pas attendre une
      relecture complète pour montrer le bon rang. */
+  cours.note = note;
+  cours.contexte = ctx;
+  return note;
+}
+
+/* CE QU'IL Y AVAIT AVANT LA CHARNIÈRE, ÉCRIT SUR LE COURS.
+
+   Le même chemin que le rang : on refait la note plutôt que de la
+   raturer, et la liste en mémoire suit tout de suite. Ce nombre-là
+   ne vieillira pas — c'est ce qui dispense de le retaper. */
+async function ecrireAvantCharniere(cours, cle, valeur){
+  const ctx = Object.assign({}, contexteEnObjet(cours.contexte));
+  ctx[cle] = String(valeur);
+  if(!ctx.modele && cours.modele) ctx.modele = cours.modele;
+
+  const rang = (typeof numeroLeconDuCours === 'function')
+    ? numeroLeconDuCours(cours) : parseInt(ctx.lecon, 10);
+
+  let note = cours.note;
+  if(typeof noteJusteDuCours === 'function'){
+    try{ note = noteJusteDuCours(Object.assign({}, cours, { contexte: ctx }),
+                                 rang, null); }
+    catch(e){ note = cours.note; }
+  }
+
+  await appelPrep({
+    action: 'prepAdd', id: cours.id, date: cours.date,
+    eleve: cours.eleve, modele: cours.modele,
+    modeleLabel: cours.modeleLabel || '',
+    site: cours.site || '',
+    note: note,
+    contexte: JSON.stringify(ctx),
+    moniteur: cours.moniteur || ''
+  });
+
   cours.note = note;
   cours.contexte = ctx;
   return note;
@@ -688,6 +723,66 @@ async function afficherPrepares(recharger, silencieux){
         }
       });
       ligneRang.appendChild(boite);
+
+      /* LA DEUXIÈME CASE : DEPUIS LA CHARNIÈRE.
+
+         Elle n'apparaît que derrière une charnière — avant, le
+         rang d'après n'a pas de sens. Ce qu'elle enregistre n'est
+         pas le rang d'après, qui vieillirait d'un cours à l'autre,
+         mais le nombre de leçons faites AVANT la charnière : écrit
+         une fois, l'élève est calé pour toute la suite. */
+      const ctxCours = contexteEnObjet(cours.contexte);
+      const charn = (ctxCours.rdvPostFait === 'oui')
+        ? { cle: 'avantRdvPost', court: 'post-permis' }
+        : (ctxCours.examBlanc === 'passe' || ctxCours.ebPasse)
+        ? { cle: 'avantEB', court: 'exam blanc' } : null;
+
+      if(charn && typeof rangDepuisLaCharniere === 'function'){
+        const lib = document.createElement('span');
+        lib.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+        lib.textContent = 'dont depuis ' + charn.court;
+        ligneRang.appendChild(lib);
+
+        const bDep = document.createElement('input');
+        bDep.type = 'text';
+        bDep.inputMode = 'numeric';
+        bDep.placeholder = 'n°';
+        bDep.title = 'Leçons faites depuis ' + charn.court;
+        const depEcrit = rangDepuisLaCharniere(ctxCours, rangEcrit, charn.cle);
+        bDep.value = (depEcrit !== null) ? String(depEcrit) : '';
+        bDep.style.cssText = boite.style.cssText;
+
+        bDep.addEventListener('change', async () => {
+          const n = parseInt(String(bDep.value).replace(/\D/g, ''), 10);
+          const avant = (typeof avantLaCharniere === 'function')
+            ? avantLaCharniere(rangEcrit, n) : '';
+          /* Rien de neuf, ou un chiffre qui ne peut pas être vrai —
+             plus de leçons depuis la charnière qu'en tout : on
+             remet ce qui était là plutôt que d'enregistrer une
+             contradiction. */
+          if(avant === '' || n === depEcrit){
+            bDep.value = (depEcrit !== null) ? String(depEcrit) : '';
+            if(avant === '' && !isNaN(n)){
+              showToast('Impossible : ' + n + ' depuis ' + charn.court +
+                        ', pour ' + rangEcrit + ' leçons en tout.');
+            }
+            return;
+          }
+          bDep.disabled = true;
+          bDep.style.borderColor = 'var(--orange)';
+          try{
+            await ecrireAvantCharniere(cours, charn.cle, avant);
+            bDep.style.borderColor = 'var(--line)';
+            afficherPrepares(false);
+          }catch(e){
+            bDep.style.borderColor = 'var(--red)';
+            showToast('Impossible : ' + e.message);
+          }finally{
+            bDep.disabled = false;
+          }
+        });
+        ligneRang.appendChild(bDep);
+      }
     }
 
     if(ligneRang.childNodes.length) meta.appendChild(ligneRang);
