@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:14 — v732 */
+/* Déployé le 29/08/2026 à 15:19 — v733 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -736,16 +736,19 @@ async function afficherPrepares(recharger, silencieux){
         ? { cle: 'avantEB', court: 'exam blanc' } : null;
 
       if(charn && typeof rangDepuisLaCharniere === 'function'){
-        const lib = document.createElement('span');
-        lib.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-        lib.textContent = 'dont depuis ' + charn.court;
-        ligneRang.appendChild(lib);
+        /* « ème leçon », puis « et la … ème après » : ce sont deux
+           rangs, pas une part d'un tout. « Dont », qu'on lisait
+           avant, sous-entendait le contraire. */
+        const apres = document.createElement('span');
+        apres.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+        apres.textContent = 'ème leçon · et la';
+        ligneRang.appendChild(apres);
 
         const bDep = document.createElement('input');
         bDep.type = 'text';
         bDep.inputMode = 'numeric';
         bDep.placeholder = 'n°';
-        bDep.title = 'Leçons faites depuis ' + charn.court;
+        bDep.title = 'La combientième leçon depuis ' + charn.court;
         const depEcrit = rangDepuisLaCharniere(ctxCours, rangEcrit, charn.cle);
         bDep.value = (depEcrit !== null) ? String(depEcrit) : '';
         bDep.style.cssText = boite.style.cssText;
@@ -780,6 +783,11 @@ async function afficherPrepares(recharger, silencieux){
           }
         });
         ligneRang.appendChild(bDep);
+
+        const fin = document.createElement('span');
+        fin.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+        fin.textContent = 'ème après ' + charn.court;
+        ligneRang.appendChild(fin);
       }
     }
 
