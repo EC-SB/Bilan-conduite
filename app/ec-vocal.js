@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:25 — v682 */
+/* Déployé le 29/08/2026 à 21:00 — v708 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -339,36 +339,23 @@ $('recBtn').addEventListener('click', async () => {
     return;
   }
 
-  /* Questionnaire au tout début du cours seulement.
+  /* LE QUESTIONNAIRE NE S'OUVRE PLUS AU DÉPART.
 
-     L'examen officiel n'a rien à demander avant : tout se décide
-     après. L'évaluation, si — mais allégée : les coordonnées, les
-     manœuvres déjà faites ailleurs et les notes libres. Sa frise
-     et ses examens se fixent en fin de séance, et le questionnaire
-     de fin les redemandera. */
-  const profilDepart = profilQuestionnaire($('modele').value);
+     Il demandait au moniteur de valider une quinzaine de champs
+     avant de conduire, dont la plupart sont des FAITS que
+     l'application connaît mieux que lui — la formation vient du
+     répertoire, la frise de la fiche, le rang du classeur. Lui
+     faire confirmer ça, c'était lui faire perdre du temps sur ce
+     qu'il ne peut pas savoir mieux ; et un moniteur qui valide
+     sans lire est pire qu'un moniteur qui n'ouvre rien : sa
+     validation estampille « vérifié » une donnée que personne n'a
+     vérifiée.
 
-  /* Un contexte ne suffit pas à dire que le questionnaire a été
-     rempli : un cours créé par un rappel en porte un, déduit du
-     dossier, auquel personne n'a répondu. Seule la marque posée à
-     la validation compte. Le contexte connu part en pré-remplissage
-     plutôt qu'à la poubelle. */
-  const dejaRepondu = questionnaireDejaRepondu(contexteDepart);
-  if(!finalTranscript && !dejaRepondu && profilDepart !== 'examen'){
-    btn.disabled = true;
-    btn.textContent = 'Préparation…';
-    try{
-      const rep = await ouvrirQuestionnaireDepart(contexteDepart, 'Avant de démarrer');
-      if(rep){
-        contexteDepart = rep;
-        if(typeof afficherSaisieDuJour === 'function') afficherSaisieDuJour(rep);
-        appliquerNoteQuestionnaire(noteDepuisQuestionnaire(rep));
-      }
-    }finally{
-      btn.disabled = false;
-      btn.textContent = '🎙️ Démarrer le cours';
-    }
-  }
+     Ce qui manque est désormais écrit là où on le lit sans le
+     chercher : sur la carte, et en rouge sur le bouton
+     « 📋 Compléter les infos », qui rouvre le questionnaire entier
+     quand le moniteur en a besoin. */
+  if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
 
   if(!finalTranscript){
     $('transcriptBox').value = '';
