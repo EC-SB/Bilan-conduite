@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:10 — v691 */
+/* Déployé le 29/08/2026 à 15:00 — v692 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -628,8 +628,14 @@ const PARCOURS_FORMATION = [
   { cle:'CS BV',   boite:'BV',  modele:'conduite-manuelle', frise:'csbv' },
   { cle:'CS BEA',  boite:'BEA', modele:'conduite-auto',     frise:'csbea' },
   /* B78 est le code porté sur un permis obtenu en boîte
-     automatique : la passerelle mène au permis B, en manuelle. */
-  { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'' }
+     automatique : la passerelle mène au permis B, en manuelle.
+
+     Elle n'a ni frise, ni examen blanc — l'élève a déjà son permis,
+     il n'y a rien à blanchir — et l'écoute pédagogique du jour du
+     permis n'a donc pas d'objet non plus. */
+  { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
+    sansObjet:['examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
+               'ebPasse', 'ebLecons', 'pasEcoute'] }
 ];
 
 function parcoursDeLaFormation(formation){
@@ -732,17 +738,39 @@ const CHAMP_DE_LA_REPONSE = {
   problematique: '#qProblematique'
 };
 
-/* Les réponses, complétées de ce que ce profil n'a pas demandé.
-   « avant » est l'état connu en ouvrant le questionnaire. */
-function conserverLeNonDemande(reponses, avant, champsMasques){
-  if(!reponses || !avant || !champsMasques || !champsMasques.length) return reponses;
+/* Ce qu'un parcours n'a pas du tout.
 
-  Object.keys(CHAMP_DE_LA_REPONSE).forEach(cle => {
-    if(champsMasques.indexOf(CHAMP_DE_LA_REPONSE[cle]) === -1) return;
-    const v = avant[cle];
-    if(v === undefined || v === null || v === '') return;
-    reponses[cle] = v;
-  });
+   À ne pas confondre avec une question non posée : une question
+   non posée garde sa réponse — l'examen officiel ne demande pas la
+   frise, mais l'élève en a une. Une chose qui n'existe pas, elle,
+   doit disparaître : une passerelle n'a pas d'examen blanc, et un
+   « examen blanc passé » hérité d'une autre formation n'a rien à
+   faire sur sa note. */
+function sansObjetPourLaFormation(formation){
+  const p = parcoursDeLaFormation(formation);
+  return (p && p.sansObjet) || [];
+}
+
+/* Les réponses, complétées de ce que ce profil n'a pas demandé, et
+   débarrassées de ce que ce parcours n'a pas.
+
+   « avant » est l'état connu en ouvrant le questionnaire. */
+function conserverLeNonDemande(reponses, avant, champsMasques, sansObjet){
+  if(!reponses) return reponses;
+
+  if(avant && champsMasques && champsMasques.length){
+    Object.keys(CHAMP_DE_LA_REPONSE).forEach(cle => {
+      if(champsMasques.indexOf(CHAMP_DE_LA_REPONSE[cle]) === -1) return;
+      const v = avant[cle];
+      if(v === undefined || v === null || v === '') return;
+      reponses[cle] = v;
+    });
+  }
+
+  /* Après, et jamais avant : ce que le parcours n'a pas sort, même
+     si le profil venait de le remettre. */
+  (sansObjet || []).forEach(cle => { reponses[cle] = ''; });
+
   return reponses;
 }
 
@@ -1146,6 +1174,25 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           : '') +
       '</div>' +
 
+      /* LA FORMATION EN PREMIER.
+
+         C'est elle qui décide de tout le reste — la boîte, le type
+         de bilan, la frise, et jusqu'aux questions qui seront
+         posées. La demander au milieu de l'écran, c'était faire
+         corriger au moniteur des réponses qu'elle allait changer.
+
+         Elle vient du répertoire et y retourne : une seule version
+         de l'information, pas deux. */
+      '<label for="qFormation">🎓 Formation</label>' +
+      '<select id="qFormation" style="margin-bottom:6px;">' +
+        toutesLesFormations()
+          .filter(x => x.voiture || !x.cle)
+          .map(x => '<option value="' + x.cle.replace(/"/g, '&quot;') + '">' +
+                    x.nom.replace(/</g, '&lt;') + '</option>').join('') +
+      '</select>' +
+      '<div id="qFormationEffet" style="font-size:12px;color:var(--muted);' +
+      'margin:-2px 0 14px;line-height:1.4;"></div>' +
+
       '<label for="qBoite">Boîte</label>' +
       '<select id="qBoite">' +
         '<option value="bea">BEA — boîte automatique</option>' +
@@ -1220,20 +1267,6 @@ async function construireQuestionnaire(prec, titre, libelleValider){
          dans ce bloc : un seul masquage suffit. */
       '<div id="qBlocSauf">' +
 
-      /* La formation d'abord : c'est elle qui décide de la boîte, du
-         type de bilan et de la frise. Elle vient du répertoire et y
-         retourne — deux cases à cocher côte à côte laissaient deux
-         endroits dire deux choses différentes du même élève. */
-      '<label for="qFormation">Formation</label>' +
-      '<select id="qFormation" style="margin-bottom:6px;">' +
-        toutesLesFormations()
-          .filter(x => x.voiture || !x.cle)
-          .map(x => '<option value="' + x.cle.replace(/"/g, '&quot;') + '">' +
-                    x.nom.replace(/</g, '&lt;') + '</option>').join('') +
-      '</select>' +
-      '<div id="qFormationEffet" style="font-size:12px;color:var(--muted);' +
-      'margin:-2px 0 14px;line-height:1.4;"></div>' +
-
       '<label>Frise de formation</label>' +
 
       '<div id="qFriseClassique" style="background:var(--navy);border:1px solid var(--line);' +
@@ -1256,6 +1289,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         '<input type="text" id="qLecon" inputmode="numeric" placeholder="—">' +
       '</div>' +
 
+      /* Tout l'examen blanc dans un seul bloc : une passerelle n'en
+         a pas, et il doit pouvoir disparaître d'un coup. */
+      '<div id="qBlocExamBlanc">' +
       '<label>Examen blanc</label>' +
       '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
         'margin-bottom:10px;">' +
@@ -1303,6 +1339,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           '<input type="text" id="qEBLecons" inputmode="numeric" ' +
           'placeholder="Combien de leçons avant l\'examen ?" style="display:none;">'
         : '') +
+      '</div>' +
 
       '<label for="qExamPermis">Examen du permis</label>' +
       '<select id="qExamPermis">' +
@@ -1552,10 +1589,13 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         const p = parcoursDeLaFormation(formationChoisie());
         blocRvp.style.display = (p && p.aac && profil === 'complet') ? 'block' : 'none';
       }
+
       if(profil === 'examen'){
         zoneClassique.style.display = 'none';
         zoneFixe.style.display = 'none';
       }
+
+      masquerCeQueLeParcoursNaPas();
 
       /* Dire ce que le choix entraîne, plutôt que de le faire en
          silence : le moniteur voit la boîte et le bilan changer. */
@@ -1564,10 +1604,46 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         const cleM = p && p.modele;
         const lib = (cleM && typeof MODELES !== 'undefined' && MODELES[cleM])
           ? MODELES[cleM].label : '';
-        effetForm.textContent = lib
-          ? 'Bilan : ' + lib + (fixe === '' ? ' · pas de frise pour ce parcours' : '')
-          : (fixe === '' ? 'Pas de frise pour ce parcours.' : '');
+        const sans = sansObjetPourLaFormation(formationChoisie());
+        const bouts = [];
+        if(lib) bouts.push('Bilan : ' + lib);
+        if(fixe === '') bouts.push('pas de frise');
+        if(sans.indexOf('examBlanc') !== -1) bouts.push("pas d'examen blanc");
+        effetForm.textContent = bouts.join(' · ');
       }
+    }
+
+    /* Ce que ce parcours n'a pas ne se demande pas.
+
+       Une passerelle n'a pas d'examen blanc — l'élève a déjà son
+       permis — et l'écoute pédagogique du jour du permis n'a donc
+       pas d'objet non plus. Poser la question, c'est inviter à y
+       répondre, et une réponse de trop finit toujours sur la note.
+
+       Le masquage suit la liste « sansObjet » du parcours, il ne la
+       double pas : ajouter un élément là-bas suffit ici. */
+    const BLOCS_DU_CHAMP = {
+      examBlanc: ['#qBlocExamBlanc'],
+      pasEcoute: ['#qBlocEcoutes']
+    };
+
+    function masquerCeQueLeParcoursNaPas(){
+      const sans = sansObjetPourLaFormation(formationChoisie());
+
+      Object.keys(BLOCS_DU_CHAMP).forEach(cle => {
+        const cache = sans.indexOf(cle) !== -1;
+        BLOCS_DU_CHAMP[cle].forEach(sel => {
+          const el = boite.querySelector(sel);
+          if(!el) return;
+          /* On retient l'affichage d'origine : « qBlocEcoutes » est
+             une étiquette en flex, la remettre à « block » la
+             casserait. */
+          if(el.dataset.affichage === undefined){
+            el.dataset.affichage = el.style.display || '';
+          }
+          el.style.display = cache ? 'none' : el.dataset.affichage;
+        });
+      });
     }
 
     /* Ce que le répertoire dit déjà : la liste s'ouvre dessus. À
@@ -1586,6 +1662,7 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       }
       selForm.addEventListener('change', () => {
         majParcours();
+        suivreLaBoite();
         suivreLeModele();
       });
     }
@@ -1600,6 +1677,17 @@ async function construireQuestionnaire(prec, titre, libelleValider){
        On ne le fait qu'au changement, jamais à l'ouverture : ouvrir
        un questionnaire ne doit rien modifier tant que personne n'a
        rien dit. */
+    /* La boîte suit la formation : « AAC BV » se conduit en
+       manuelle, et la passerelle aussi — malgré le « BEA » de son
+       nom. C'est la table qui le sait, pas le libellé. */
+    function suivreLaBoite(){
+      const p = parcoursDeLaFormation(formationChoisie());
+      const champ = boite.querySelector('#qBoite');
+      if(!p || !p.boite || !champ) return;
+      const v = (p.boite === 'BEA') ? 'bea' : (p.boite === 'BV') ? 'bv' : '';
+      if(v && [...champ.options].some(o => o.value === v)) champ.value = v;
+    }
+
     function suivreLeModele(){
       const p = parcoursDeLaFormation(formationChoisie());
       if(!p || !p.modele) return;
@@ -1970,8 +2058,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
          poser au moniteur, pré-rempli de ce qu'on savait déjà. */
       /* Ce que ce profil n'a pas demandé garde sa valeur : un
          questionnaire n'efface jamais une réponse qu'il n'a pas
-         posée. */
-      conserverLeNonDemande(reponses, prec, champsMasques);
+         posée. Ce que le parcours n'a pas, en revanche, sort. */
+      conserverLeNonDemande(reponses, prec, champsMasques,
+                            sansObjetPourLaFormation(formationChoisie()));
 
       if(reponses) reponses.repondu = 1;
       /* L'ANTS et la frise redescendent sur la fiche de l'élève : ce que
@@ -2200,6 +2289,19 @@ function positionDansLaFrise(q){
    ------------------------------------------------------------ */
 function noteDepuisQuestionnaire(q){
   if(!q) return '';
+
+  /* Ce que le parcours de l'élève n'a pas ne s'écrit pas — même si
+     le contexte en a gardé la trace d'une formation précédente.
+
+     Ici et pas plus loin : la position dans la frise lit elle aussi
+     l'examen blanc, et une passerelle serait annoncée « après
+     l'examen blanc » alors qu'elle n'en a jamais eu. */
+  const sansObjet = (typeof sansObjetPourLaFormation === 'function')
+    ? sansObjetPourLaFormation(q.formation) : [];
+  if(sansObjet.length){
+    q = Object.assign({}, q);
+    sansObjet.forEach(cle => { q[cle] = ''; });
+  }
 
   const alertes = [];
   const etats = [];
