@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 00:40 — v699 */
+/* Déployé le 29/08/2026 à 15:10 — v702 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1629,6 +1629,12 @@ function noteJusteDuCours(cours, rang, dossier){
     if(dossier.lecons !== null && dossier.lecons !== undefined){
       ctx.leconsFaites = dossier.lecons;
     }
+    /* Le classeur ne porte aucun bilan de cet élève : la note doit
+       le dire au lieu d'inventer « 1ère leçon ». Sauf si le rappel
+       demandait la carte SD — là, c'est vraiment le premier. */
+    ctx.sansBilan = !dossier.lecons &&
+      !((typeof cestLePremierCours === 'function') &&
+        (cestLePremierCours(ctx.premierCours) || cestLePremierCours(cours.note)));
   }
 
   const champDate = $('lessonDate');
@@ -1706,10 +1712,12 @@ async function verifierNumerosLecon(){
       if(!dossier || dossier.lecons === null) continue;
 
       cours.forEach(c => {
-        /* Le vrai rang : le même calcul que le questionnaire */
-        const juste = leconCompteDansLaFrise(c.modele)
-          ? dossier.lecons + 1
-          : dossier.lecons;
+        /* Le vrai rang : le même calcul que le questionnaire — et
+           il peut ne pas exister. Zéro bilan au classeur ne fait
+           pas une « 1ère leçon » : on ne réécrit alors rien. */
+        const debut = cestLePremierCours((c.contexte && c.contexte.premierCours) || c.note);
+        const juste = rangConnu(dossier.lecons, c.modele, debut);
+        if(juste === null) return;
         const ecrit = numeroLeconDuCours(c);
 
         /* Un cours sans aucun contexte ne se refait pas : il n'y a
