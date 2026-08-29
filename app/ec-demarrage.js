@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:31 — v669 */
+/* Déployé le 29/08/2026 à 07:52 — v685 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -656,3 +656,8 @@ refreshHistory();
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-demarrage.js'] = true;
+
+/* Le renvoi d'un bilan au moniteur qui a fait le cours */
+if($('renvoyerMoniteur')){
+  $('renvoyerMoniteur').addEventListener('click', renvoyerAuMoniteur);
+}
