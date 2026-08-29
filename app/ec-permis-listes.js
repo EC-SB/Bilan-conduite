@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 14:10 — v618 */
+/* Déployé le 29/08/2026 à 07:10 — v681 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -927,6 +927,7 @@ function afficherExamensPermis(tous){
   afficherPasNiveau(tous);
   afficherAttenteBilan(tous);
   afficherPasDeRepassage(tous);
+  afficherExamenNonPlanifiable(tous);
   afficherAlertePrise(per);
 
   zPer.innerHTML = '';
@@ -1481,6 +1482,64 @@ function ouvrirFichePermis(e){
       setTimeout(fermer, 700);
     }
   }, 400);
+}
+
+/* ------------------------------------------------------------
+   EXAMEN NON PLANIFIABLE
+
+   Le moniteur l'a signalé depuis le questionnaire : ce n'est pas
+   une question de niveau, c'est un dossier qui bloque. L'élève
+   n'a donc rien à faire dans « pas le niveau », et il ne doit pas
+   non plus disparaître — quelqu'un doit débloquer la situation.
+   ------------------------------------------------------------ */
+function afficherExamenNonPlanifiable(tous){
+  const zone = $('listeNonPlanifiable');
+  if(!zone) return;
+
+  const liste = (tous || []).filter(e =>
+    typeof examenNonPlanifiable === 'function' && examenNonPlanifiable(e.note));
+
+  zone.innerHTML = '';
+  majVolet('cptNonPlanif', liste.length);
+
+  if(!liste.length){
+    zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
+    return;
+  }
+
+  liste.forEach(e => {
+    const motif = (typeof motifNonPlanifiable === 'function')
+      ? motifNonPlanifiable(e.note) : '';
+
+    zone.appendChild(ligneBureau(e, {
+      replier: true,
+      info: () => '🚫 examen non planifiable' + (motif ? ' — ' + motif : ''),
+      resume: () => e.note || '',
+      alerte: () => motif || 'Motif non précisé — à voir avec le moniteur',
+      actions: (x, boite) => {
+        const b = document.createElement('button');
+        b.className = 'btn btn-primary';
+        b.style.cssText = 'padding:10px;font-size:13px;';
+        b.textContent = "✅ C'est débloqué — date d'examen à prévoir";
+        b.addEventListener('click', async () => {
+          if(!await confirmer("Remettre " + x.eleve +
+                              " dans les élèves dont l'examen est à prévoir ?")) return;
+          b.disabled = true;
+          try{
+            /* Une consigne, pas une écriture directe dans la note :
+               c'est le chemin que suit déjà tout ce que le bureau
+               annonce au moniteur, et elle sera reprise au prochain
+               bilan comme les autres. */
+            await envoyerConsigne(x.eleve, 'permis',
+              "Examen de nouveau planifiable — date à prévoir (bureau)");
+            showToast(x.eleve + " : c'est noté");
+            redessinerBureau();
+          }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
+        });
+        boite.appendChild(b);
+      }
+    }));
+  });
 }
 
 /* Élèves pour qui le repassage n'est pas envisageable pour le moment */
