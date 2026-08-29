@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:10 — v691 */
+/* Déployé le 29/08/2026 à 16:30 — v693 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1595,7 +1595,14 @@ function noteJusteDuCours(cours, rang, dossier){
 
   const ctx = Object.assign(lire(dossier && dossier.derniereNote),
                             lire(cours.note),
-                            cours.contexte || {});
+                            cours.contexte || {},
+                            /* 4. Et par-dessus tout : le suivi et les
+                               sessions. Ni l'un ni l'autre ne s'écrit
+                               dans une note, et ce sont eux qui savent
+                               qu'un post-permis est fait ou qu'une date
+                               d'examen vient d'être posée. */
+                            (typeof etatQuiFaitFoi === 'function')
+                              ? etatQuiFaitFoi(cours.eleve) : {});
   ctx.lecon = String(rang);
 
   /* La frise ne se devine pas : si le cours l'a perdue, le dossier
@@ -1652,6 +1659,18 @@ async function verifierNumerosLecon(){
   etat.textContent = 'Lecture des cours préparés…';
 
   try{
+    /* Le suivi et les sessions AVANT tout le reste : ce sont eux qui
+       savent qu'un post-permis est fait ou qu'un élève vient d'être
+       placé à une date d'examen. Deux appels pour tout le lot, pas
+       deux par élève — sans eux la réparation réécrirait les mêmes
+       notes incomplètes. */
+    await Promise.all([
+      (typeof chargerBureau === 'function')
+        ? chargerBureau(false).catch(() => null) : Promise.resolve(),
+      (typeof chargerSessionsPermis === 'function')
+        ? chargerSessionsPermis().catch(() => null) : Promise.resolve()
+    ]);
+
     const d = await appelPrep({ action: 'prepList' });
     const liste = (d && d.preparations) || [];
 
