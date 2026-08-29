@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v698 */
+/* Déployé le 30/08/2026 à 00:40 — v699 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1485,7 +1485,17 @@ function avecMention48h(texte){
    cours. Il ne connecte à rien : le code du coin révisions est
    permanent, le faire circuler par mail le rendrait irrévocable.
    ------------------------------------------------------------ */
+/* Pourquoi le dernier lien n'a pas pu être créé.
+
+   Le rappel part quand même — mieux vaut un mail sans bouton
+   qu'aucun mail — mais l'échec ne doit plus être MUET. Sans jeton,
+   il n'y a ni bouton dans le mail, ni « rappel envoyé » sur la
+   carte du moniteur, ni voyant d'attente dans le journal : trois
+   symptômes pour une seule cause, et rien pour la nommer. */
+let raisonSansLien = '';
+
 async function creerLienDuCours(nom, r, moniteur, mentions){
+  raisonSansLien = '';
   try{
     const d = await appelPrep({
       action: 'coursLienCreer',
@@ -1499,11 +1509,17 @@ async function creerLienDuCours(nom, r, moniteur, mentions){
       moniteur: moniteur || '',
       mentions: mentions || ''
     });
-    if(!d || !d.jeton) return '';
+    if(!d || !d.jeton){
+      raisonSansLien = (d && d.message) ? String(d.message)
+                                        : 'le classeur n\'a pas rendu de jeton';
+      return '';
+    }
     return CONFIG.LIEN_COURS + '?c=' + d.jeton;
   }catch(e){
     /* Le classeur n'a pas répondu : le rappel part quand même,
-       sans lien. Mieux vaut un mail sans bouton qu'aucun mail. */
+       sans lien. Mieux vaut un mail sans bouton qu'aucun mail —
+       mais on retient pourquoi, et on le dit. */
+    raisonSansLien = (e && e.message) ? String(e.message) : 'appel refusé';
     return '';
   }
 }
@@ -1884,6 +1900,16 @@ async function envoyerRappelManuel(){
       rates.length > 0);
     showToast(rates.length ? 'Rappel envoyé, mais pas à tout le monde ⚠️'
                            : 'Rappel envoyé ✅');
+
+    /* Le mail est parti, mais sans bouton de confirmation : il faut
+       le dire ici, sinon le moniteur cherchera longtemps pourquoi
+       « rappel envoyé » n'apparaît pas dans ses prochains cours. */
+    if(!dernierJetonRappel){
+      direEtatEnvoi('⚠️ Mail parti, mais SANS bouton de confirmation' +
+        (raisonSansLien ? ' — ' + raisonSansLien : '') +
+        '. L\'élève ne pourra pas confirmer sa présence, et le cours ' +
+        'ne dira pas que le rappel est parti.', true);
+    }
 
     /* Le cours annoncé rejoint « Mes prochains cours » du moniteur */
     preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
