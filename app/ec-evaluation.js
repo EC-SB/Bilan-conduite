@@ -1,3 +1,4 @@
+/* Déployé le 30/08/2026 à 06:20 — v723 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -405,7 +406,9 @@ async function ouvrirTexteAac(heures, auto, supervisee, mail){
         adresse = ((d && d.contact) || {}).email || '';
       }catch(e){}
 
-      if(!adresse){ showToast('Aucune adresse dans sa fiche.'); return; }
+      /* Confirmée avant l'envoi : elle a pu changer. */
+      adresse = await confirmerAdresseEleve(nom, adresse);
+      if(!adresse) return;
 
       bMail.disabled = true;
       bMail.textContent = 'Envoi…';
@@ -704,7 +707,9 @@ async function ouvrirTexteEvaluation(quoi, r){
         adresse = ((d && d.contact) || {}).email || '';
       }catch(e){}
 
-      if(!adresse){ showToast('Aucune adresse dans sa fiche.'); return; }
+      /* Confirmée avant l'envoi : elle a pu changer. */
+      adresse = await confirmerAdresseEleve(nom, adresse);
+      if(!adresse) return;
 
       bMail.disabled = true;
       bMail.textContent = 'Envoi…';
