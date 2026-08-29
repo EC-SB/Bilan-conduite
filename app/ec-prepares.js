@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:21 — v680 */
+/* Déployé le 29/08/2026 à 11:20 — v689 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -515,18 +515,30 @@ async function afficherPrepares(recharger, silencieux){
     if(passe) sous.style.color = 'var(--warn-text)';
     meta.appendChild(nom);
     meta.appendChild(sous);
-    if(cours.note){
+    /* La note, telle qu'elle est écrite — et rien de plus.
+
+       La carte ajoutait son propre « 📌 » devant, alors que la note
+       en porte déjà un pour la consigne du moniteur : on lisait deux
+       blocs 📌 pour un seul cours. Et elle réaffichait l'en-tête
+       (l'heure, 🆔, 💾) que la carte montre déjà en grand juste
+       au-dessus. */
+    const partsNote = (typeof morceauxDeNotePreparee === 'function')
+      ? morceauxDeNotePreparee(cours.note)
+      : { entete: '', corps: String(cours.note || ''), consigne: '' };
+
+    const texteNote = [partsNote.corps,
+                       partsNote.consigne ? '📌 ' + partsNote.consigne : '']
+      .filter(Boolean).join('\n');
+
+    if(texteNote){
       const n = document.createElement('span');
       n.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
       /* La ligne d'examen ressort en couleur : c'est ce qu'on
          cherche en premier dans une note. */
       if(typeof colorerNote === 'function'){
-        n.appendChild(document.createTextNode('📌 '));
-        const dedans = document.createElement('span');
-        colorerNote(dedans, cours.note);
-        n.appendChild(dedans);
+        colorerNote(n, texteNote);
       }else{
-        n.textContent = '📌 ' + cours.note;
+        n.textContent = texteNote;
       }
       meta.appendChild(n);
     }
@@ -916,6 +928,8 @@ async function chargerPrepareInterne(cours){
       if(d.lecons !== null) frais.lecon = String(d.lecons + 1);
       frais.manoeuvresFaites = d.manoeuvres.length;
       frais.totalManoeuvres = BLOC.ficheListeConduite.length;
+      frais.leconsDepuisEB = d.leconsDepuisEB;
+      frais.leconsDepuisRdvPost = d.leconsDepuisRdvPost;
 
       contexte = fusionnerContexte(contexte, frais);
       contexte.source = d.dernierHorodatage;
