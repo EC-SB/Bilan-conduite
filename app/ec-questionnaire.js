@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 13:05 — v690 */
+/* Déployé le 29/08/2026 à 14:10 — v691 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -690,6 +690,62 @@ function profilQuestionnaire(modeleCle){
   return PROFILS_QUESTIONNAIRE[modeleCle] || 'complet';
 }
 
+/* ------------------------------------------------------------
+   QUEL CHAMP PORTE QUELLE RÉPONSE
+
+   Un questionnaire ne pose pas toujours toutes ses questions :
+   celui d'un examen officiel masque la leçon, la frise, l'examen
+   blanc et le simulateur — ils ne le regardent pas.
+
+   Mais la validation relisait TOUS les champs, masqués compris.
+   Masqués, donc vides. Et ces vides étaient écrits par-dessus le
+   parcours de l'élève : un cours d'examen effaçait la frise, le
+   numéro de leçon et l'examen blanc que ses leçons avaient
+   construits. Chrystel l'a vu sur Enzo — deux mois de suivi
+   ramenés à « 2ème leçon · PAS DE DATE ».
+
+   Cette table dit quel champ porte quelle réponse. Ce qui n'a pas
+   été demandé garde ce qu'il valait.
+   ------------------------------------------------------------ */
+const CHAMP_DE_LA_REPONSE = {
+  formation:     '#qFormation',
+  lecon:         '#qLecon',
+  frise:         '#qFriseClassique',
+  examBlanc:     '#qExamBlanc',
+  examBlancN:    '#qExamBlancN',
+  examBlancRang: '#qBlocEbRang',
+  examBlancDate: '#qExamBlancDate',
+  ebPasse:       '#qEBPasse',
+  ebLecons:      '#qEBLecons',
+  examPermis:    '#qExamPermis',
+  examDate:      '#qExamDate',
+  examPermisN:   '#qExamPermisN',
+  nouvelleDate:  '#qNouvelleDate',
+  examPassage:   '#qExamPassage',
+  pasEcoute:     '#qBlocEcoutes',
+  simuNuit:      '#qSimuNuit',
+  formAccomp:    '#qFormAccomp',
+  rvPrealable:   '#qRvPrealable',
+  rvp1:          '#qBlocAacCs',
+  rvp2:          '#qBlocAacCs',
+  prefecture:    '#qPrefecture',
+  problematique: '#qProblematique'
+};
+
+/* Les réponses, complétées de ce que ce profil n'a pas demandé.
+   « avant » est l'état connu en ouvrant le questionnaire. */
+function conserverLeNonDemande(reponses, avant, champsMasques){
+  if(!reponses || !avant || !champsMasques || !champsMasques.length) return reponses;
+
+  Object.keys(CHAMP_DE_LA_REPONSE).forEach(cle => {
+    if(champsMasques.indexOf(CHAMP_DE_LA_REPONSE[cle]) === -1) return;
+    const v = avant[cle];
+    if(v === undefined || v === null || v === '') return;
+    reponses[cle] = v;
+  });
+  return reponses;
+}
+
 /* contexteDepart : déclaré dans ec-etat.js */
 /* noteQuestionnaire : déclaré dans ec-etat.js */
 /* questionnaireOuvert : déclaré dans ec-etat.js */
@@ -990,8 +1046,18 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     /* 2. Ce que le cours porte déjà : la leçon recalculée, la frise,
        le jeton du rappel. Posé après le dernier bilan, donc plus
-       frais — et surtout, la seule source de la leçon du jour. */
-    base = Object.assign(base, prec);
+       frais — et surtout, la seule source de la leçon du jour.
+
+       Mais une valeur VIDE n'est pas une réponse : c'est la trace
+       d'un questionnaire qui n'a pas posé la question. La recopier
+       par-dessus ce que le dernier cours savait, c'est effacer une
+       deuxième fois. */
+    Object.keys(prec).forEach(k => {
+      const v = prec[k];
+      if(v === undefined || v === null || v === '') return;
+      if(Array.isArray(v) && !v.length) return;
+      base[k] = v;
+    });
 
     /* 3. Les messages du bureau, plus récents que le dernier bilan.
        Une date qu'il vient de fixer doit apparaître dans le champ,
@@ -1405,6 +1471,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
 
     const blocAacCs = boite.querySelector('#qBlocAacCs');
 
+    /* Ce que ce profil ne demande pas. Gardé hors du bloc : c'est
+       lui qui dira, à la validation, ce qu'il ne faut pas écraser. */
+    let champsMasques = [];
+
     /* Adaptation au profil : on retire ce qui ne concerne pas ce type de cours */
     if(profil !== 'complet'){
       const aMasquer = (profil === 'handicap')
@@ -1422,6 +1492,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
            '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
            '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
+
+      champsMasques = aMasquer;
 
       aMasquer.forEach(sel => {
         const el = boite.querySelector(sel);
@@ -1896,6 +1968,11 @@ async function construireQuestionnaire(prec, titre, libelleValider){
          par une attribution d'examen blanc — porte bien un contexte,
          mais personne ne l'a rempli : son questionnaire reste à
          poser au moniteur, pré-rempli de ce qu'on savait déjà. */
+      /* Ce que ce profil n'a pas demandé garde sa valeur : un
+         questionnaire n'efface jamais une réponse qu'il n'a pas
+         posée. */
+      conserverLeNonDemande(reponses, prec, champsMasques);
+
       if(reponses) reponses.repondu = 1;
       /* L'ANTS et la frise redescendent sur la fiche de l'élève : ce que
          le moniteur corrige ici doit valoir pour les prochains cours,
