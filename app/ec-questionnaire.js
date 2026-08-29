@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 11:20 — v689 */
+/* Déployé le 29/08/2026 à 13:05 — v690 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -282,6 +282,14 @@ function defautsDepuisNote(note){
   if(/Rendez-vous préalable fait/i.test(note || '')) d.rvPrealable = 'fait';
   else if(/Rendez-vous préalable déjà prévu/i.test(note || '')) d.rvPrealable = 'prevu';
   else if(/Rendez-vous préalable à prévoir/i.test(note || '')) d.rvPrealable = 'aprevoir';
+
+  /* Les deux rendez-vous pédagogiques de l'AAC */
+  [1, 2].forEach(k => {
+    const re = s => new RegExp('rendez-vous pédagogique n°' + k + '\\s+' + s, 'i');
+    if(re('fait').test(n)) d['rvp' + k] = 'fait';
+    else if(re('déjà prévu').test(n)) d['rvp' + k] = 'prevu';
+    else if(re('à prévoir').test(n)) d['rvp' + k] = 'aprevoir';
+  });
 
   /* Le rendez-vous post-permis, relu dans la note.
 
@@ -594,6 +602,63 @@ const FRISES_FIXES = {
 /* Parcours proposé par défaut selon le type de bilan */
 const PARCOURS_PAR_TYPE = { 'aac-auto': 'aacbea', 'aac-manuelle': 'aacbv' };
 
+/* ------------------------------------------------------------
+   CE QUE LA FORMATION IMPLIQUE
+
+   La formation vient du répertoire, et tout en découle : la boîte,
+   le type de bilan, la frise, et jusqu'aux questions posées.
+
+   Une seule table, parce qu'il y en avait trois — une case
+   « conduite supervisée » dans le questionnaire, une déduction par
+   type de bilan pour l'AAC, une boîte devinée au nom de la
+   formation. Trois endroits pour une même règle finissent toujours
+   par ne plus dire la même chose : c'est ainsi qu'un élève en AAC
+   repartait sur un bilan Conduite.
+
+   « frise » vaut la clé d'une frise fixe quand le parcours l'impose,
+   null quand elle se saisit à la main, et '' quand il n'y en a pas
+   du tout — le cas de la passerelle, qui n'a ni examen blanc ni
+   progression à jalonner.
+   ------------------------------------------------------------ */
+const PARCOURS_FORMATION = [
+  { cle:'BV',      boite:'BV',  modele:'conduite-manuelle', frise:null },
+  { cle:'BEA',     boite:'BEA', modele:'conduite-auto',     frise:null },
+  { cle:'AAC BV',  boite:'BV',  modele:'aac-manuelle', frise:'aacbv',  aac:true },
+  { cle:'AAC BEA', boite:'BEA', modele:'aac-auto',     frise:'aacbea', aac:true },
+  { cle:'CS BV',   boite:'BV',  modele:'conduite-manuelle', frise:'csbv' },
+  { cle:'CS BEA',  boite:'BEA', modele:'conduite-auto',     frise:'csbea' },
+  /* B78 est le code porté sur un permis obtenu en boîte
+     automatique : la passerelle mène au permis B, en manuelle. */
+  { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'' }
+];
+
+function parcoursDeLaFormation(formation){
+  const t = normaliserMot(String(formation || ''));
+  if(!t) return null;
+
+  const exact = PARCOURS_FORMATION.find(p => normaliserMot(p.cle) === t);
+  if(exact) return exact;
+
+  /* « Conduite supervisée » sans boîte, saisi avant que les deux
+     existent : on lui rend la boîte qu'on connaît par ailleurs. */
+  if(/conduite supervisee/.test(t)) return { cle:'CS', suivreLaBoite:'cs' };
+  if(/passerelle/.test(t)){
+    return PARCOURS_FORMATION.find(p => /passerelle/i.test(p.cle));
+  }
+  return null;
+}
+
+/* La frise qu'impose une formation : une clé de FRISES_FIXES, ou
+   la chaîne vide quand ce parcours n'a pas de frise, ou null quand
+   elle se saisit à la main. */
+function friseDeLaFormation(formation, manuelle){
+  const p = parcoursDeLaFormation(formation);
+  if(!p) return null;
+  if(p.suivreLaBoite === 'cs') return FRISES_FIXES[manuelle ? 'csbv' : 'csbea'];
+  if(p.frise === null) return null;
+  return p.frise ? FRISES_FIXES[p.frise] : '';
+}
+
 /* Aménagements possibles d'un véhicule adapté */
 const AMENAGEMENTS = [
   { cle:'boule_g',  court:'🔘⬅️', nom:'Boule avec commande à gauche' },
@@ -759,6 +824,11 @@ const FAMILLES_NOTE = [
   { cle:'simuNuit',    motif:/simulateur nuit et risques/i, intention:/à\s*prévoir/i },
   { cle:'formAccomp',  motif:/^Formation accompagnateur/i, intention:/à\s*prévoir/i },
   { cle:'rvPrealable', motif:/^Rendez-vous préalable/i, intention:/à\s*prévoir/i },
+  /* Les deux rendez-vous pédagogiques de l'AAC sont deux sujets
+     distincts : les mettre dans une même famille ferait disparaître
+     le n°1 dès que le n°2 est renseigné. */
+  { cle:'rvp1', motif:/rendez-vous pédagogique n°1/i, intention:/à\s*prévoir/i },
+  { cle:'rvp2', motif:/rendez-vous pédagogique n°2/i, intention:/à\s*prévoir/i },
   /* Le rendez-vous post-permis n'avait pas de famille : ses trois
      annonces — à prévoir, planifié, fait — s'écrivaient donc côte
      à côte sur la carte du moniteur. */
@@ -945,19 +1015,25 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     if(fiche && fiche.frise) prec.frise = fiche.frise;
   }
 
-  /* Frise entièrement déduite du type de bilan (cas AAC) */
-  const friseDeduite = FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
-  /* Clé de conduite supervisée correspondant à la boîte du bilan */
-  const cleCS = /auto/i.test(modeleCle) ? 'csbea' : 'csbv';
-  /* Trois sources, de la plus sûre à la plus générale : le type de
-     bilan, le dernier cours, la fiche de l'élève. Sans ce dernier
-     recours, un dossier momentanément indisponible faisait perdre
-     une frise pourtant enregistrée. */
   const ficheEleve = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+
+  /* La formation du répertoire : c'est d'elle que tout découle
+     désormais — la boîte, le type de bilan, la frise. */
+  const formationDeLaFiche = (ficheEleve && String(ficheEleve.formation || '').trim()) || '';
+  const manuelleDuBilan = !/auto/i.test(modeleCle);
+
+  /* La frise qu'impose la formation, quand elle en impose une */
+  const friseDeduite = friseDeLaFormation(formationDeLaFiche, manuelleDuBilan) ||
+                       FRISES_FIXES[PARCOURS_PAR_TYPE[modeleCle] || ''] || '';
 
   /* L'ANTS vient de la fiche s'il n'a pas déjà été saisi dans ce cours :
      il est renseigné à l'inscription, pas à chaque leçon. */
   if(!prec.ants && ficheEleve && ficheEleve.ants) prec.ants = ficheEleve.ants;
+
+  /* Trois sources, de la plus sûre à la plus générale : la
+     formation, le dernier cours, la fiche de l'élève. Sans ce
+     dernier recours, un dossier momentanément indisponible faisait
+     perdre une frise pourtant enregistrée. */
   const frisePrecedente = friseDeduite || dossier.frise ||
                           (ficheEleve && ficheEleve.frise) || '';
   const compteDansLaFrise = leconCompteDansLaFrise(modeleCle);
@@ -1077,14 +1153,22 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       /* Tout ce que la fiche d'évaluation ne demande pas tient
          dans ce bloc : un seul masquage suffit. */
       '<div id="qBlocSauf">' +
+
+      /* La formation d'abord : c'est elle qui décide de la boîte, du
+         type de bilan et de la frise. Elle vient du répertoire et y
+         retourne — deux cases à cocher côte à côte laissaient deux
+         endroits dire deux choses différentes du même élève. */
+      '<label for="qFormation">Formation</label>' +
+      '<select id="qFormation" style="margin-bottom:6px;">' +
+        toutesLesFormations()
+          .filter(x => x.voiture || !x.cle)
+          .map(x => '<option value="' + x.cle.replace(/"/g, '&quot;') + '">' +
+                    x.nom.replace(/</g, '&lt;') + '</option>').join('') +
+      '</select>' +
+      '<div id="qFormationEffet" style="font-size:12px;color:var(--muted);' +
+      'margin:-2px 0 14px;line-height:1.4;"></div>' +
+
       '<label>Frise de formation</label>' +
-      (friseDeduite
-        ? ''
-        : '<label style="display:flex;align-items:center;gap:10px;text-transform:none;' +
-          'font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-            '<input type="checkbox" id="qCS" style="width:20px;height:20px;">' +
-            'Conduite supervisée' +
-          '</label>') +
 
       '<div id="qFriseClassique" style="background:var(--navy);border:1px solid var(--line);' +
       'border-radius:10px;padding:12px;margin-bottom:6px;font-size:15px;line-height:2;">' +
@@ -1212,6 +1296,36 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           '<option value="prevu">Déjà prévu</option>' +
           '<option value="fait">Déjà fait</option>' +
         '</select>' +
+
+        /* Les deux rendez-vous pédagogiques n'existent qu'en AAC :
+           la conduite supervisée n'en a pas. Ils jalonnent l'année
+           entre le rendez-vous préalable et l'examen — c'est au
+           second que se joue l'examen blanc. */
+        '<div id="qBlocRvp" style="display:none;">' +
+          '<label for="qRvp1">Rendez-vous pédagogique n°1' +
+          '<span style="text-transform:none;font-weight:400;color:var(--muted);">' +
+          ' — environ 6 mois après le préalable</span></label>' +
+          '<select id="qRvp1">' +
+            '<option value="">— non évoqué —</option>' +
+            '<option value="aprevoir">À prévoir</option>' +
+            '<option value="prevu">Déjà prévu</option>' +
+            '<option value="fait">Déjà fait</option>' +
+          '</select>' +
+          '<label for="qRvp2">Rendez-vous pédagogique n°2' +
+          '<span style="text-transform:none;font-weight:400;color:var(--muted);">' +
+          ' — environ 10 mois après, ou 2 mois avant ses 17 ans</span></label>' +
+          '<select id="qRvp2">' +
+            '<option value="">— non évoqué —</option>' +
+            '<option value="aprevoir">À prévoir</option>' +
+            '<option value="prevu">Déjà prévu</option>' +
+            '<option value="fait">Déjà fait</option>' +
+          '</select>' +
+          '<div style="font-size:12px;color:var(--muted);margin:-6px 0 14px;' +
+          'line-height:1.4;">L\'examen blanc se passe pendant le rendez-vous ' +
+          'pédagogique n°2. Ne le renseigne au-dessus que s\'il faut en ' +
+          'prévoir un à part, parce que l\'élève n\'avait pas le niveau ce ' +
+          'jour-là.</div>' +
+        '</div>' +
       '</div>' +
 
       '</div>' +
@@ -1281,7 +1395,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     const chApres = boite.querySelector('#qFriseApres');
     const chHeures = boite.querySelector('#qFriseHeures');
 
-    const caseCS = boite.querySelector('#qCS');
+    const selForm = boite.querySelector('#qFormation');
+    const effetForm = boite.querySelector('#qFormationEffet');
     /* La fiche d'évaluation n'a pas de frise : la chercher la
        ferait réapparaître après son masquage. */
     const surFiche = (profil === 'handicap');
@@ -1298,12 +1413,12 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
            '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
            '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
-           '#qFriseClassique', '#qFriseFixe', '#qCS', '#qBlocEcoutes',
+           '#qFriseClassique', '#qFriseFixe', '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
            '#qBlocEbDate', '#qBlocEbRang', '#qExamBlancDate', '#qEBPasse',
            '#qEBLecons', '#qFormAccomp', '#qRvPrealable', '#qExamPassage']
         : (profil === 'examen')
         ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
-           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe', '#qCS']
+           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe']
         : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
            '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
            '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
@@ -1320,33 +1435,117 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       });
     }
 
+    /* La formation choisie ici, ou celle du répertoire à défaut */
+    function formationChoisie(){
+      return (selForm && selForm.value) || formationDeLaFiche;
+    }
+
+    /* La frise imposée par la formation. Rend '' quand ce parcours
+       n'en a pas (la passerelle), null quand elle se saisit. */
+    function friseImposee(){
+      return friseDeLaFormation(formationChoisie(), manuelleDuBilan);
+    }
+
     function majParcours(){
-      /* La fiche d évaluation n a pas de frise : sans ce garde-fou,
-         l appel plantait et laissait le reste affiché. */
+      /* La fiche d'évaluation n'a pas de frise : sans ce garde-fou,
+         l'appel plantait et laissait le reste affiché. */
       if(!zoneClassique || !zoneFixe) return;
 
-      const fixe = friseDeduite || ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '');
+      const fixe = friseImposee();
+
       if(fixe){
+        /* Une frise toute faite : on la montre, on ne la demande pas */
         zoneClassique.style.display = 'none';
         zoneFixe.style.display = 'block';
         zoneFixe.textContent = fixe;
+      }else if(fixe === ''){
+        /* Ce parcours n'a pas de frise du tout — la passerelle.
+           Demander deux nombres qui n'existent pas, c'est inviter
+           à en inventer. */
+        zoneClassique.style.display = 'none';
+        zoneFixe.style.display = 'none';
       }else{
         zoneClassique.style.display = 'block';
         zoneFixe.style.display = 'none';
       }
+
       /* Formation accompagnateur et RDV préalable ne concernent que AAC et CS */
       if(blocAacCs && profil === 'complet'){
         blocAacCs.style.display = fixe ? 'block' : 'none';
+      }
+
+      /* Les rendez-vous pédagogiques, eux, n'existent qu'en AAC */
+      const blocRvp = boite.querySelector('#qBlocRvp');
+      if(blocRvp){
+        const p = parcoursDeLaFormation(formationChoisie());
+        blocRvp.style.display = (p && p.aac && profil === 'complet') ? 'block' : 'none';
       }
       if(profil === 'examen'){
         zoneClassique.style.display = 'none';
         zoneFixe.style.display = 'none';
       }
+
+      /* Dire ce que le choix entraîne, plutôt que de le faire en
+         silence : le moniteur voit la boîte et le bilan changer. */
+      if(effetForm){
+        const p = parcoursDeLaFormation(formationChoisie());
+        const cleM = p && p.modele;
+        const lib = (cleM && typeof MODELES !== 'undefined' && MODELES[cleM])
+          ? MODELES[cleM].label : '';
+        effetForm.textContent = lib
+          ? 'Bilan : ' + lib + (fixe === '' ? ' · pas de frise pour ce parcours' : '')
+          : (fixe === '' ? 'Pas de frise pour ce parcours.' : '');
+      }
     }
-    /* Reprise de la conduite supervisée notée les cours précédents */
-    if(caseCS && /^CS /.test(prec.frise || frisePrecedente || '')) caseCS.checked = true;
-    if(caseCS) caseCS.addEventListener('change', majParcours);
+
+    /* Ce que le répertoire dit déjà : la liste s'ouvre dessus. À
+       défaut, ce que la frise du dernier cours laisse deviner —
+       une fiche jamais renseignée ne doit pas effacer un parcours
+       que les notes connaissent. */
+    if(selForm){
+      let choix = formationDeLaFiche;
+      if(!choix){
+        const base = prec.frise || frisePrecedente || '';
+        if(/^AAC /i.test(base)) choix = manuelleDuBilan ? 'AAC BV' : 'AAC BEA';
+        else if(/^CS /i.test(base)) choix = manuelleDuBilan ? 'CS BV' : 'CS BEA';
+      }
+      if(choix && [...selForm.options].some(o => o.value === choix)){
+        selForm.value = choix;
+      }
+      selForm.addEventListener('change', () => {
+        majParcours();
+        suivreLeModele();
+      });
+    }
     majParcours();
+
+    /* Le type de bilan suit la formation — mais seulement pour les
+       leçons de conduite. Un simulateur, un examen blanc ou un
+       rendez-vous post-permis restent ce qu'ils sont, quelle que
+       soit la formation de l'élève : ils ne disent pas la même
+       chose que son parcours.
+
+       On ne le fait qu'au changement, jamais à l'ouverture : ouvrir
+       un questionnaire ne doit rien modifier tant que personne n'a
+       rien dit. */
+    function suivreLeModele(){
+      const p = parcoursDeLaFormation(formationChoisie());
+      if(!p || !p.modele) return;
+
+      const dansLaFenetre = boite.querySelector('#qModele');
+      const champ = (dansLaFenetre && dansLaFenetre.offsetParent !== null)
+        ? dansLaFenetre : $('modele');
+      if(!champ || !champ.value) return;
+
+      if(!leconCompteDansLaFrise(champ.value)) return;
+      if(champ.value === p.modele) return;
+      if(![...champ.options].some(o => o.value === p.modele)) return;
+
+      champ.value = p.modele;
+      if(champ !== dansLaFenetre && typeof adapterAuModele === 'function'){
+        adapterAuModele();
+      }
+    }
 
     if(chAvant){
       const base = prec.frise || frisePrecedente;
@@ -1380,6 +1579,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
     boite.querySelector('#qSimuNuit').value = prec.simuNuit || '';
     boite.querySelector('#qFormAccomp').value = prec.formAccomp || '';
     boite.querySelector('#qRvPrealable').value = prec.rvPrealable || '';
+    ['qRvp1', 'qRvp2'].forEach((id, i) => {
+      const el = boite.querySelector('#' + id);
+      if(el) el.value = prec['rvp' + (i + 1)] || '';
+    });
     boite.querySelector('#qLibre').value = prec.libre || '';
 
     /* Le point demandé par le bureau, en tête du questionnaire :
@@ -1708,15 +1911,20 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       consignesBureau.forEach(x => {
         appelPrep({ action: 'consigneDone', id: x.id }).catch(() => {});
       });
+      /* La frise suit la formation : imposée quand le parcours en
+         impose une, vide quand ce parcours n'en a pas (passerelle),
+         saisie à la main sinon. */
+      const imposee = friseImposee();
+
       fermer({
         source: dossier.dernierHorodatage || '',
         consignes: consignesBureau.map(x => x.texte),
-        frise: friseDeduite ||
-               ((caseCS && caseCS.checked) ? FRISES_FIXES[cleCS] : '') ||
-               composerFrise(
-          chAvant ? chAvant.value : '',
-          chApres ? chApres.value : ''
-        ),
+        /* Ce que le moniteur a choisi retourne au répertoire */
+        formation: formationChoisie(),
+        frise: (imposee !== null)
+          ? imposee
+          : composerFrise(chAvant ? chAvant.value : '',
+                          chApres ? chApres.value : ''),
         lecon: boite.querySelector('#qLecon').value.trim(),
         examBlanc: selEB.value,
         examBlancN: nEB.value.trim(),
@@ -1744,6 +1952,8 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
         rvPrealable: boite.querySelector('#qRvPrealable').value,
+        rvp1: ((boite.querySelector('#qRvp1') || {}).value || ''),
+        rvp2: ((boite.querySelector('#qRvp2') || {}).value || ''),
         boite: boite.querySelector('#qBoite').value,
         handicap: boite.querySelector('#qHandicap').checked ? 'oui' : '',
         coussin: boite.querySelector('#qCoussin').checked ? 'oui' : '',
@@ -1773,7 +1983,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         rdvPostDate: prec.rdvPostDate || '',
         rdvPostMoniteur: prec.rdvPostMoniteur || '',
         rdvPostFait: prec.rdvPostFait || '',
-        heuresRepassage: prec.heuresRepassage || ''
+        heuresRepassage: prec.heuresRepassage || '',
+        /* Ce que le cours porte et que le questionnaire ne demande
+           jamais : le jeton du rappel en tête. Sans lui, « Mes
+           prochains cours » ne sait plus dire si le rappel est parti
+           ni si l'élève a confirmé — et il suffisait d'ouvrir le
+           crayon une fois pour le perdre. */
+        jeton: prec.jeton || '',
+        rdvPost: prec.rdvPost || ''
       });
     });
   });
@@ -2356,6 +2573,18 @@ function ajouterSuite(etats, permis, mots, q){
   if(q.rvPrealable === 'aprevoir') etats.push('Rendez-vous préalable à prévoir');
   else if(q.rvPrealable === 'prevu') etats.push('Rendez-vous préalable déjà prévu');
   else if(q.rvPrealable === 'fait') etats.push('Rendez-vous préalable fait');
+
+  /* Les deux rendez-vous pédagogiques de l'AAC, dans leur ordre :
+     ils suivent le rendez-vous préalable, et c'est au second que se
+     joue l'examen blanc. */
+  [1, 2].forEach(k => {
+    const v = q['rvp' + k];
+    if(!v) return;
+    const tete = '🧭 ' + grasNote('RENDEZ-VOUS PÉDAGOGIQUE N°' + k);
+    if(v === 'aprevoir') etats.push(tete + ' ' + grasNote('À PRÉVOIR'));
+    else if(v === 'prevu') etats.push(tete + ' ' + grasNote('DÉJÀ PRÉVU'));
+    else if(v === 'fait') etats.push(tete + ' ' + grasNote('FAIT') + ' ✅');
+  });
 
   /* Ce qu'un humain a écrit — le champ libre du moniteur, les
      messages du bureau — va derrière le 📌, à sa place.
@@ -3011,6 +3240,14 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
     maj.email = reponses.email;
   }
   if(reponses.frise && reponses.frise !== (avant.frise || '')) maj.frise = reponses.frise;
+
+  /* La formation choisie au questionnaire redescend au répertoire :
+     c'est la même information, elle ne doit pas exister en deux
+     versions. Un élève passé en AAC en cours de route était jusqu'ici
+     corrigé à la main, cours après cours. */
+  if(reponses.formation && reponses.formation !== (avant.formation || '')){
+    maj.formation = reponses.formation;
+  }
 
   if(!Object.keys(maj).length) return;
 
