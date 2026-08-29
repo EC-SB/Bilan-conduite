@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:52 — v685 */
+/* Déployé le 29/08/2026 à 15:14 — v732 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -488,6 +488,16 @@ async function reprendreBrouillonServeur(b){
      le bouton « renvoyer au moniteur » n'a de sens que là. */
   brouillonRepris = b;
 
+  /* ET ON Y EST DÉJÀ.
+
+     Montrer la carte du cours ne suffit pas : elle appartient à
+     l'onglet « Cours », et tant qu'on reste sur « Cours non
+     terminés » c'est cet onglet-là qui décide de ce qui s'affiche.
+     Reprendre un cours obligeait donc à aller ensuite le chercher
+     à la main. */
+  if(typeof afficherOnglet === 'function') afficherOnglet('cours', true);
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+
   const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
 
   if(aCorriger){
@@ -503,6 +513,24 @@ async function reprendreBrouillonServeur(b){
     if($('resultView')) $('resultView').style.display = 'none';
     if($('generatingView')) $('generatingView').style.display = 'none';
     if($('recordView')) $('recordView').style.display = 'block';
+
+    /* LE COURS REPRIS EST PRÊT À ÊTRE TERMINÉ.
+
+       La dictée était bien chargée, mais l'écran restait celui
+       d'un cours qui n'a pas commencé : ni compteur, ni bouton
+       « Terminer et générer ». Il fallait relancer le micro pour
+       le faire apparaître — sur un cours pourtant déjà fini. */
+    const t = $('transcriptBox');
+    if(t && t.value.trim()){
+      if($('transcriptAide')) $('transcriptAide').style.display = 'block';
+      if($('compteur')){
+        $('compteur').style.display = 'block';
+        $('compteur').textContent =
+          t.value.trim().split(/\s+/).filter(Boolean).length + ' mots';
+      }
+      if($('finishBtn')) $('finishBtn').style.display = 'block';
+      if($('recBtn')) $('recBtn').textContent = "🎙️ Reprendre l'enregistrement";
+    }
   }
 
   const zone = $('bilanPretBanner');
