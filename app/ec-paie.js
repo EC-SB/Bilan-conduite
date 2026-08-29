@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:23 — v727 */
+/* Déployé le 29/08/2026 à 14:51 — v730 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -315,9 +315,166 @@ function soldesSemaine(w, s){
     };
   }
 
-  const r = repartirSemaine(w.heures, w.joursAbsents, s.baseHebdo, s.heuresJour);
+  /* Les jours retirés du dû se DEMANDENT, ils ne se lisent pas
+     dans la ligne : c'est là que les jours fériés entrent dans le
+     calcul, et c'est la même réponse que celle affichée sous la
+     case. La semaine porte son lundi, il n'y a rien à passer. */
+  const jAbs = (typeof joursAbsentsDeLaSemaine === 'function' && w.semaine)
+    ? joursAbsentsDeLaSemaine(s, w.semaine, w) : w.joursAbsents;
+
+  const r = repartirSemaine(w.heures, jAbs, s.baseHebdo, s.heuresJour);
   return { normal: r.normal, majore: r.majore, calcule: true,
-           vide: !w.heures && !w.joursAbsents };
+           vide: !w.heures && !jAbs };
+}
+
+/* ============================================================
+   LES JOURS FÉRIÉS NE SE SAISISSENT PAS : ILS SE CALCULENT
+
+   Chrystel : « avec le calendrier des jours fériés tu peux le
+   mettre automatiquement si ça tombe sur un jour travaillé, sans
+   que j'aie besoin d'aller indiquer que ce salarié a un jour
+   férié ». Le calendrier est fixe et les onze dates se déduisent
+   d'une seule inconnue, Pâques. Ce qu'il manquait, c'est de savoir
+   QUELS jours chacun travaille : c'est ce que porte désormais sa
+   fiche.
+
+   Deux garde-fous, décidés avec elle :
+   — un férié déjà saisi en absence gagne : la main l'emporte, et
+     rien ne se compte deux fois ;
+   — une fiche qui ne dit pas quels jours sont travaillés ne se
+     voit rien déduire — on ne devine pas un planning.
+   ============================================================ */
+
+const JOURS_DE_LA_SEMAINE = [
+  { n:1, court:'Lun' }, { n:2, court:'Mar' }, { n:3, court:'Mer' },
+  { n:4, court:'Jeu' }, { n:5, court:'Ven' }, { n:6, court:'Sam' }
+];
+
+/* Le lundi de Pâques et ce qui en découle. Algorithme de Meeus,
+   celui du comput grégorien : il vaut jusqu'en 2099 largement. */
+function paquesDe(an){
+  const a = an % 19, b = Math.floor(an / 100), c = an % 100;
+  const d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const t = h + l - 7 * m + 114;
+  return new Date(an + '-' + String(Math.floor(t / 31)).padStart(2, '0') +
+                  '-' + String((t % 31) + 1).padStart(2, '0') + 'T12:00:00');
+}
+
+function isoDuJour(d){
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') +
+         '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function feriesDeLAnnee(an){
+  const n = Number(an);
+  if(!n) return [];
+  const decale = j => {
+    const d = paquesDe(n);
+    d.setDate(d.getDate() + j);
+    return isoDuJour(d);
+  };
+  /* Les onze fériés de la métropole. L'Alsace-Moselle en a deux de
+     plus ; ce n'est pas notre convention. */
+  return [
+    { date: n + '-01-01', nom: '1er janvier' },
+    { date: decale(1),    nom: 'lundi de Pâques' },
+    { date: n + '-05-01', nom: '1er mai' },
+    { date: n + '-05-08', nom: '8 mai' },
+    { date: decale(39),   nom: 'Ascension' },
+    { date: decale(50),   nom: 'lundi de Pentecôte' },
+    { date: n + '-07-14', nom: '14 juillet' },
+    { date: n + '-08-15', nom: '15 août' },
+    { date: n + '-11-01', nom: 'Toussaint' },
+    { date: n + '-11-11', nom: '11 novembre' },
+    { date: n + '-12-25', nom: 'Noël' }
+  ];
+}
+
+/* Les jours de la semaine que ce salarié travaille : [1..6],
+   lundi = 1. Vide quand sa fiche ne le dit pas — et un vide se
+   traite comme une ignorance, jamais comme « aucun ». */
+function joursTravaillesDe(s){
+  return String((s && s.joursTravailles) || '')
+    .split(/[^\d]+/).filter(Boolean).map(Number)
+    .filter(j => j >= 1 && j <= 7)
+    .filter((j, i, t) => t.indexOf(j) === i)
+    .sort();
+}
+
+/* Le rythme réel : les jours cochés s'il y en a, le nombre de la
+   fiche sinon. Une seule réponse, pour que le plafond du dû et le
+   décompte des congés ne divergent pas. */
+function rythmeDe(s){
+  const jt = joursTravaillesDe(s);
+  return jt.length || (s && s.joursSemaine) || 4;
+}
+
+/* Un jour est-il déjà couvert par une absence saisie, quelle
+   qu'elle soit ? Si oui, l'automatique s'efface : la main gagne. */
+function absenceCouvre(idSalarie, iso){
+  return absencesPaie.some(a => a.idSalarie === idSalarie && a.du &&
+    a.du <= iso && (a.au ? a.au >= iso : a.du === iso));
+}
+
+/* Les fériés d'une semaine qui tombent un jour travaillé et que
+   personne n'a saisis. */
+function feriesDeLaSemaine(s, lundi){
+  const jt = joursTravaillesDe(s);
+  if(!jt.length) return [];
+
+  const fin = new Date(lundi + 'T12:00:00');
+  fin.setDate(fin.getDate() + 6);
+  const d2 = isoDuJour(fin);
+
+  /* Une semaine peut chevaucher deux années — celle du 1er janvier. */
+  const ans = [Number(lundi.slice(0, 4)), Number(d2.slice(0, 4))]
+    .filter((a, i, t) => t.indexOf(a) === i);
+
+  return ans.reduce((liste, an) => liste.concat(feriesDeLAnnee(an)), [])
+    .filter(f => f.date >= lundi && f.date <= d2)
+    .filter(f => {
+      const j = new Date(f.date + 'T12:00:00').getDay();
+      return jt.indexOf(j === 0 ? 7 : j) !== -1;
+    })
+    .filter(f => !absenceCouvre(s.id, f.date));
+}
+
+/* LES JOURS RETIRÉS DU DÛ D'UNE SEMAINE — LA SEULE RÉPONSE.
+
+   Trois endroits la calculaient, et deux d'entre eux avec un
+   « || » qui faisait retomber un 0 sur le calcul : corriger une
+   semaine à zéro jour d'absence ne tenait pas.
+
+   Ce qui est DÉCIDÉ sur la semaine l'emporte — c'est ainsi qu'un
+   jour férié se décoche, en écrivant 0. Et « décidé » ne se
+   confond pas avec « enregistré » : la colonne d'à côté portait
+   l'instantané qu'on écrivait en tapant les heures, un 0 qui ne
+   voulait rien dire. Une décision a sa propre colonne, vide tant
+   que personne n'a rien décidé. */
+function joursAbsentsDeLaSemaine(s, lundi, w){
+  const decide = w ? w.joursForces : null;
+  if(decide !== null && decide !== undefined && decide !== ''){
+    const n = Number(decide);
+    if(!isNaN(n)) return n;
+  }
+  return Math.min(joursAbsentsDeduits(s.id, lundi, rythmeDe(s)) +
+                  feriesDeLaSemaine(s, lundi).length, rythmeDe(s));
+}
+
+/* Laisser le chiffre proposé, ce n'est rien décider : la semaine
+   continue de suivre le calcul. Le changer, si — même pour 0, et
+   c'est précisément comme ça qu'un jour férié se décoche. */
+function joursForcesSaisis(champ, proposes){
+  const t = String(champ === null || champ === undefined ? '' : champ).trim();
+  if(t === '') return '';
+  const n = parseInt(t, 10);
+  if(isNaN(n)) return '';
+  return (n === proposes) ? '' : n;
 }
 
 /* Les jours d'absence d'une semaine, déduits des CP et fériés déjà
@@ -1323,12 +1480,13 @@ function tableauPaie(){
 
       /* Ce qu'on en déduit, en info-bulle */
       const majTitre = () => {
-        const j = (w && w.joursAbsents) ||
-                  joursAbsentsDeduits(s.id, l, s.joursSemaine);
+        const j = joursAbsentsDeLaSemaine(s, l, w);
+        const fer = feriesDeLaSemaine(s, l);
         const h = nombrePaie(ch.value) || 0;
         if(!h && !j){ ch.title = 'Heures de la semaine'; return; }
         const r = repartirSemaine(h, j, s.baseHebdo, s.heuresJour);
         ch.title = h + 'h faites' + (j ? ' · ' + j + ' j absent' : '') +
+          (fer.length ? ' (dont ' + fer.map(x => x.nom).join(', ') + ')' : '') +
           ' · dû ' + r.dues + 'h → ' + r.normal + ' normal · ' + r.majore + ' à 25%';
       };
       majTitre();
@@ -1336,9 +1494,7 @@ function tableauPaie(){
       /* On enregistre à la sortie du champ, pas à chaque frappe */
       ch.addEventListener('change', async () => {
         const h = nombrePaie(ch.value) || 0;
-        const j = (w && w.joursAbsents !== undefined && w.joursAbsents !== null)
-                    ? w.joursAbsents
-                    : joursAbsentsDeduits(s.id, l, s.joursSemaine);
+        const j = joursAbsentsDeLaSemaine(s, l, w);
         /* Ce qui est relu tout de suite : la virgule devient la
            virgule, « 33.25 » devient « 33,25 », et un gribouillis
            redevient vide au lieu de faire croire à une saisie. */
@@ -1360,12 +1516,16 @@ function tableauPaie(){
 
         const wDansLaListe = w || (() => {
           const neuve = { id: '', idSalarie: s.id, semaine: l,
-                          heures: 0, joursAbsents: j,
+                          heures: 0, joursAbsents: j, joursForces: null,
                           normalForce: null, majoreForce: null, remarque: '' };
           semainesPaie.push(neuve);
           return neuve;
         })();
         wDansLaListe.heures = h;
+        /* On enregistre ce qui s'applique, pour que la feuille se
+           lise ; on ne DÉCIDE rien pour autant. Taper des heures
+           n'est pas décider d'un jour d'absence, et l'avoir traité
+           comme tel empêchait les jours fériés de s'appliquer. */
         wDansLaListe.joursAbsents = j;
         redessinerPaieQuandPossible();
 
@@ -1377,6 +1537,9 @@ function tableauPaie(){
             semaine: l,
             heures: h,
             joursAbsents: j,
+            joursForces: (wDansLaListe.joursForces !== null &&
+                          wDansLaListe.joursForces !== undefined)
+                           ? wDansLaListe.joursForces : '',
             normalForce: (wDansLaListe.normalForce !== null)
                            ? wDansLaListe.normalForce : '',
             majoreForce: (wDansLaListe.majoreForce !== null)
@@ -1412,8 +1575,13 @@ function tableauPaie(){
       bDet.style.cssText = 'font-size:10px;cursor:pointer;margin-top:2px;' +
         'line-height:1.35;';
       const so = soldesSemaine(w, s);
-      const jAbs = (w && w.joursAbsents) ||
-                   joursAbsentsDeduits(s.id, l, s.joursSemaine);
+      const jAbs = joursAbsentsDeLaSemaine(s, l, w);
+      /* D'où vient le chiffre : un jour retiré du dû sans qu'on
+         sache pourquoi ne se vérifie pas. */
+      const feries = feriesDeLaSemaine(s, l);
+      const mentionFerie = feries.length
+        ? '<br><span style="color:var(--accent-text);">🎌 ' +
+          feries.map(x => x.nom).join(', ') + '</span>' : '';
 
       if(enArret && (!w || !w.heures)){
         /* Dit AVANT le reste : sur une semaine entièrement en
@@ -1428,7 +1596,7 @@ function tableauPaie(){
         /* Des absences sans heures saisies : on montre quand même
            ce qui sera retiré du dû. */
         bDet.innerHTML = '<span style="color:var(--warn-text);">' +
-          jAbs + ' j abs.</span>';
+          jAbs + ' j abs.</span>' + mentionFerie;
       }else{
         bDet.innerHTML =
           '<span style="color:' + (so.normal < 0 ? 'var(--red)' : 'var(--muted)') + ';">' +
@@ -1437,6 +1605,7 @@ function tableauPaie(){
             (so.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
             (so.majore ? String(so.majore).replace('.', ',') : '0') + '↑</span>' +
           (jAbs ? '<br><span style="color:var(--muted);">' + jAbs + ' j abs.</span>' : '') +
+          mentionFerie +
           (so.force ? '<br><span style="color:var(--warn-text);">forcé</span>' : '');
       }
       bDet.addEventListener('click', () => ouvrirSemaine(s, l, w));
@@ -1536,7 +1705,11 @@ function ouvrirSemaine(s, lundi, w){
   const fin = new Date(d);
   fin.setDate(fin.getDate() + 6);
 
-  const jDeduits = joursAbsentsDeduits(s.id, lundi, s.joursSemaine);
+  /* Ce que le calcul propose, fériés compris — et de quoi c'est
+     fait, pour que le décocher soit un choix et non un doute. */
+  const jFeries = feriesDeLaSemaine(s, lundi);
+  const jProposes = joursAbsentsDeLaSemaine(s, lundi, null);
+  const jDeduits = jProposes;
 
   boite.innerHTML =
     '<h3>' + s.nom.replace(/</g, '&lt;') + '</h3>' +
@@ -1553,9 +1726,16 @@ function ouvrirSemaine(s, lundi, w){
         '<input type="number" id="swAbs" step="1" min="0"></div>' +
     '</div>' +
     '<div style="font-size:11px;color:var(--muted);margin:-6px 0 10px;line-height:1.5;">' +
+      (jFeries.length
+        ? '<span style="color:var(--accent-text);font-weight:700;">🎌 ' +
+          jFeries.map(x => x.nom).join(', ') + '</span> — ' +
+          (jFeries.length > 1 ? 'jours fériés tombant' : 'jour férié tombant') +
+          ' sur un jour travaillé, compté' + (jFeries.length > 1 ? 's' : '') +
+          ' tout seul. Mets un autre chiffre pour ne pas le' +
+          (jFeries.length > 1 ? 's' : '') + ' compter.<br>' : '') +
       (jDeduits
-        ? jDeduits + ' jour(s) déduit(s) des absences saisies. Corrige si besoin.'
-        : 'Aucune absence saisie sur cette semaine.') +
+        ? jDeduits + ' jour(s) déduit(s) au total. Corrige si besoin.'
+        : 'Aucune absence sur cette semaine.') +
     '</div>' +
 
     '<div id="swApercu" style="font-size:13px;line-height:1.6;' +
@@ -1581,9 +1761,9 @@ function ouvrirSemaine(s, lundi, w){
     '<label for="swRem">Remarque</label>' +
     '<input type="text" id="swRem" placeholder="Facultatif">';
 
-  boite.querySelector('#swAbs').value = w
-    ? (w.joursAbsents !== null && w.joursAbsents !== undefined ? w.joursAbsents : jDeduits)
-    : jDeduits;
+  /* Le même chiffre que la case du tableau : la fenêtre ne doit pas
+     annoncer autre chose que ce qu'on vient d'y lire. */
+  boite.querySelector('#swAbs').value = joursAbsentsDeLaSemaine(s, lundi, w);
 
   if(w){
     boite.querySelector('#swHeures').value = versChampPaie(w.heures || '');
@@ -1664,6 +1844,12 @@ function ouvrirSemaine(s, lundi, w){
         semaine: lundi,
         heures: nombrePaie(boite.querySelector('#swHeures').value) || 0,
         joursAbsents: boite.querySelector('#swAbs').value || 0,
+        /* Ici, c'est une DÉCISION : quelqu'un a ouvert la semaine et
+           répondu. Sauf s'il a laissé le chiffre proposé — auquel
+           cas il n'a rien décidé, et la semaine doit continuer de
+           suivre le calcul, jours fériés compris. */
+        joursForces: joursForcesSaisis(
+          boite.querySelector('#swAbs').value, jProposes),
         normalForce: champForcePaie(boite.querySelector('#swNormal').value),
         majoreForce: champForcePaie(boite.querySelector('#swMajore').value),
         remarque: boite.querySelector('#swRem').value.trim(),
@@ -1707,7 +1893,21 @@ function ouvrirSalarie(s){
       '<div><label for="slJours">Jours par semaine</label>' +
         '<input type="number" id="slJours" step="1" value="4"></div>' +
     '</div>' +
-    '<div id="slDeduit" style="font-size:12px;color:var(--muted);margin:-6px 0 12px;' +
+
+    /* QUELS jours, et pas seulement combien : c'est ce qui permet
+       de savoir si un jour férié tombe sur un jour de travail. */
+    '<label>Jours travaillés</label>' +
+    '<div id="slJoursCases" style="display:flex;gap:6px;flex-wrap:wrap;' +
+      'margin-bottom:8px;">' +
+      JOURS_DE_LA_SEMAINE.map(j =>
+        '<label style="display:flex;align-items:center;gap:5px;' +
+          'text-transform:none;font-size:14px;color:var(--cream);' +
+          'border:1px solid var(--line);border-radius:9px;padding:6px 9px;' +
+          'margin:0;cursor:pointer;">' +
+          '<input type="checkbox" data-jour="' + j.n + '" ' +
+            'style="width:17px;height:17px;margin:0;">' + j.court + '</label>').join('') +
+    '</div>' +
+    '<div id="slDeduit" style="font-size:12px;color:var(--muted);margin:-2px 0 12px;' +
       'line-height:1.5;"></div>' +
 
     '<div class="duo">' +
@@ -1728,6 +1928,11 @@ function ouvrirSalarie(s){
     '<label for="slRem">Remarque</label>' +
     '<input type="text" id="slRem" placeholder="Facultatif">';
 
+  const cases = () => Array.prototype.slice.call(
+    boite.querySelectorAll('#slJoursCases input[type="checkbox"]'));
+  const coches = () => cases().filter(c => c.checked)
+    .map(c => Number(c.dataset.jour));
+
   if(s){
     boite.querySelector('#slNom').value = s.nom || '';
     boite.querySelector('#slBase').value = versChampPaie(s.baseHebdo || 35);
@@ -1736,16 +1941,25 @@ function ouvrirSalarie(s){
     boite.querySelector('#slReportMois').value = s.reportMois || '';
     boite.querySelector('#slActif').checked = s.actif;
     boite.querySelector('#slRem').value = s.remarque || '';
+    const jt = joursTravaillesDe(s);
+    cases().forEach(c => { c.checked = jt.indexOf(Number(c.dataset.jour)) !== -1; });
   }
 
   const zd = boite.querySelector('#slDeduit');
   const majDeduit = () => {
     const b = nombrePaie(boite.querySelector('#slBase').value) || 35;
+    const n = coches().length;
+    /* Les cases cochées font le nombre : deux façons de dire la
+       même chose finiraient par ne plus la dire pareil. */
+    if(n) boite.querySelector('#slJours').value = n;
     const j = parseInt(boite.querySelector('#slJours').value, 10) || 4;
-    zd.textContent = 'Soit ' + enHeures(b / j) + ' par jour travaillé.';
+    zd.innerHTML = 'Soit ' + enHeures(b / j) + ' par jour travaillé.' +
+      (n ? '' : '<br><span style="color:var(--warn-text);">Coche ses jours pour ' +
+                'que les jours fériés se comptent tout seuls.</span>');
   };
   ['#slBase', '#slJours'].forEach(x =>
     boite.querySelector(x).addEventListener('input', majDeduit));
+  cases().forEach(c => c.addEventListener('change', majDeduit));
   majDeduit();
 
   const r = document.createElement('div');
@@ -1783,7 +1997,8 @@ function ouvrirSalarie(s){
     if(!nom){ showToast('Indique son nom.'); return; }
 
     const base = nombrePaie(boite.querySelector('#slBase').value) || 35;
-    const jours = parseInt(boite.querySelector('#slJours').value, 10) || 4;
+    const jt = coches();
+    const jours = jt.length || parseInt(boite.querySelector('#slJours').value, 10) || 4;
 
     bOk.disabled = true;
     try{
@@ -1793,6 +2008,7 @@ function ouvrirSalarie(s){
         nom: nom,
         baseHebdo: base,
         joursSemaine: jours,
+        joursTravailles: jt.join(','),
         heuresJour: arrondiQuart(base / jours),
         report: nombrePaie(boite.querySelector('#slReport').value) || 0,
         reportMois: boite.querySelector('#slReportMois').value,
