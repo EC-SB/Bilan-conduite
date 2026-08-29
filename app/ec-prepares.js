@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:19 — v733 */
+/* Déployé le 29/08/2026 à 15:26 — v734 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1279,7 +1279,30 @@ async function chargerPrepareInterne(cours){
     return;
   }
 
-  if(finalTranscript && !await confirmer('Un enregistrement est en cours. Le remplacer ?')) return;
+  /* UN SEUL COURS OUVERT À LA FOIS.
+
+     On ne regardait que la dictée : un bilan généré et pas encore
+     enregistré, une fiche manuelle à moitié remplie, un micro qui
+     tourne — rien de tout cela n'arrêtait l'ouverture, et le cours
+     précédent restait affiché sous le nouveau.
+
+     Fermer ne veut pas dire perdre : la dictée part sur le serveur
+     avant qu'on écrase l'écran, et le cours se retrouve dans
+     « Cours non terminés ». */
+  if(typeof travailEnCoursMoniteur === 'function' && travailEnCoursMoniteur()){
+    const ouvert = ($('studentName') && $('studentName').value.trim()) || 'Un autre';
+    if(!await confirmer(
+        'Le cours de ' + ouvert + ' est encore ouvert.\n\n' +
+        ouOnRetrouveLeCoursOuvert() + ' Ouvrir celui de ' +
+        (cours.eleve || 'cet élève') + ' à la place ?', 'Ouvrir quand même')) return;
+
+    /* Le dernier instant où la dictée de l'autre est encore
+       lisible à l'écran : après, elle est écrasée. */
+    if(typeof deposerBrouillonServeur === 'function'){
+      try{ await deposerBrouillonServeur(); }catch(e){}
+    }
+    if(typeof fermerLeCoursOuvert === 'function') fermerLeCoursOuvert();
+  }
 
   /* Un rendez-vous post-permis ne passe pas par l'enregistrement */
   if(cours.modele === 'rdv-post'){
