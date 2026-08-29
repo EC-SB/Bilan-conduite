@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 03:40 — v717 */
+/* Déployé le 30/08/2026 à 04:30 — v719 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -704,8 +704,11 @@ async function afficherPrepares(recharger, silencieux){
 
     if(manqueIci.length){
       const av = document.createElement('div');
-      av.style.cssText = 'font-size:12px;color:var(--warn-text);' +
-        'margin:1px 0 2px;line-height:1.45;cursor:pointer;font-weight:600;';
+      /* La même taille et la même graisse que la ligne de position :
+         ce qui manque se lit d'aussi loin que le rang de la leçon,
+         parce que c'est ce qui empêche la note d'être juste. */
+      av.style.cssText = 'font-size:15px;font-weight:800;line-height:1.35;' +
+        'color:var(--warn-text);margin:2px 0 2px;cursor:pointer;';
       av.textContent = '⚠️ Il manque ' + manqueIci.join(' et ') +
                        ' — ✏️ pour compléter';
       av.title = 'Ouvrir le questionnaire de ' + cours.eleve;
