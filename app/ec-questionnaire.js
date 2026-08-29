@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:45 — v724 */
+/* Déployé le 29/08/2026 à 14:10 — v725 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2061,6 +2061,57 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     fond.appendChild(boite);
     document.body.appendChild(fond);
 
+    /* Pré-remplissage */
+    const chAvant = boite.querySelector('#qFriseAvant');
+    const chApres = boite.querySelector('#qFriseApres');
+    const chHeures = boite.querySelector('#qFriseHeures');
+
+    const selForm = boite.querySelector('#qFormation');
+    const effetForm = boite.querySelector('#qFormationEffet');
+    /* La fiche d'évaluation n'a pas de frise : la chercher la
+       ferait réapparaître après son masquage. */
+    const surFiche = (profil === 'handicap');
+    const zoneClassique = surFiche ? null : boite.querySelector('#qFriseClassique');
+    const zoneFixe = surFiche ? null : boite.querySelector('#qFriseFixe');
+
+    const blocAacCs = boite.querySelector('#qBlocAacCs');
+
+    /* Ce que ce profil ne demande pas. Gardé hors du bloc : c'est
+       lui qui dira, à la validation, ce qu'il ne faut pas écraser. */
+    let champsMasques = [];
+
+    /* Adaptation au profil : on retire ce qui ne concerne pas ce type de cours */
+    if(profil !== 'complet'){
+      const aMasquer = (profil === 'handicap')
+        /* La fiche d'évaluation : tout part, sauf les leçons
+           avant la préfecture. */
+        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
+           '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
+           '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
+           '#qFriseClassique', '#qFriseFixe', '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
+           '#qBlocEbDate', '#qBlocEbRang', '#qExamBlancDate', '#qEBPasse',
+           '#qEBLecons', '#qFormAccomp', '#qRvPrealable', '#qExamPassage']
+        : (profil === 'examen')
+        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
+           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe']
+        : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
+           '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
+           '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
+
+      champsMasques = aMasquer;
+
+      aMasquer.forEach(sel => {
+        const el = boite.querySelector(sel);
+        if(!el) return;
+        /* On masque aussi l'étiquette qui précède le champ */
+        const lab = boite.querySelector('label[for="' + sel.slice(1) + '"]');
+        if(lab) lab.style.display = 'none';
+        const parent = el.closest('label');
+        if(parent) parent.style.display = 'none';
+        else el.style.display = 'none';
+      });
+    }
+
     /* ----------------------------------------------------------
        LE QUESTIONNAIRE RÉDUIT
 
@@ -2119,57 +2170,6 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         bTout.remove();
       });
       boite.insertBefore(bTout, boite.querySelector('.btn-row'));
-    }
-
-    /* Pré-remplissage */
-    const chAvant = boite.querySelector('#qFriseAvant');
-    const chApres = boite.querySelector('#qFriseApres');
-    const chHeures = boite.querySelector('#qFriseHeures');
-
-    const selForm = boite.querySelector('#qFormation');
-    const effetForm = boite.querySelector('#qFormationEffet');
-    /* La fiche d'évaluation n'a pas de frise : la chercher la
-       ferait réapparaître après son masquage. */
-    const surFiche = (profil === 'handicap');
-    const zoneClassique = surFiche ? null : boite.querySelector('#qFriseClassique');
-    const zoneFixe = surFiche ? null : boite.querySelector('#qFriseFixe');
-
-    const blocAacCs = boite.querySelector('#qBlocAacCs');
-
-    /* Ce que ce profil ne demande pas. Gardé hors du bloc : c'est
-       lui qui dira, à la validation, ce qu'il ne faut pas écraser. */
-    let champsMasques = [];
-
-    /* Adaptation au profil : on retire ce qui ne concerne pas ce type de cours */
-    if(profil !== 'complet'){
-      const aMasquer = (profil === 'handicap')
-        /* La fiche d'évaluation : tout part, sauf les leçons
-           avant la préfecture. */
-        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
-           '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
-           '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
-           '#qFriseClassique', '#qFriseFixe', '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
-           '#qBlocEbDate', '#qBlocEbRang', '#qExamBlancDate', '#qEBPasse',
-           '#qEBLecons', '#qFormAccomp', '#qRvPrealable', '#qExamPassage']
-        : (profil === 'examen')
-        ? ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
-           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe']
-        : ['#qLecon', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
-           '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
-           '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
-
-      champsMasques = aMasquer;
-
-      aMasquer.forEach(sel => {
-        const el = boite.querySelector(sel);
-        if(!el) return;
-        /* On masque aussi l'étiquette qui précède le champ */
-        const lab = boite.querySelector('label[for="' + sel.slice(1) + '"]');
-        if(lab) lab.style.display = 'none';
-        const parent = el.closest('label');
-        if(parent) parent.style.display = 'none';
-        else el.style.display = 'none';
-      });
     }
 
     /* La formation choisie ici, ou celle du répertoire à défaut */
