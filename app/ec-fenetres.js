@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 05:45 — v722 */
+/* Déployé le 30/08/2026 à 06:20 — v723 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1109,13 +1109,13 @@ async function afficherEspaceEleve(nom, zone){
   bMail.textContent = '✉️ Lui envoyer par mail';
   bMail.addEventListener('click', async () => {
     const champ = document.getElementById('fiMail');
-    const adresse = champ ? champ.value.trim() : '';
+    let adresse = champ ? champ.value.trim() : '';
 
-    if(!adresse){
-      showToast('Renseigne son adresse mail ci-dessus.');
-      if(champ) champ.focus();
-      return;
-    }
+    /* Confirmée avant l'envoi, comme partout ailleurs. Le champ de
+       la fiche suit si elle a été corrigée. */
+    adresse = await confirmerAdresseEleve(nom, adresse);
+    if(!adresse) return;
+    if(champ) champ.value = adresse;
 
     bMail.disabled = true;
     bMail.textContent = 'Envoi…';
@@ -1930,6 +1930,94 @@ async function chargerMessengerEleve(){
     majLienMessenger();
     majEtatMailEleve();
   }catch(e){}
+}
+
+/* ------------------------------------------------------------
+   CONFIRMER L'ADRESSE AVANT D'ENVOYER
+
+   Une adresse enregistrée il y a huit mois peut ne plus être la
+   bonne, et on ne s'en aperçoit jamais : le mail part, personne ne
+   le reçoit, et rien ne le dit. Le moniteur voit l'élève devant
+   lui — c'est le seul moment où la question peut être posée.
+
+   Une seule fenêtre pour les sept endroits qui écrivent à un
+   élève : sans cela, corriger l'adresse marcherait à un endroit et
+   pas aux six autres.
+
+   Rend l'adresse à utiliser, ou null si on renonce. Une adresse
+   corrigée redescend sur la fiche : la prochaine fois, elle sera
+   la bonne pour tout le monde.
+   ------------------------------------------------------------ */
+function confirmerAdresseEleve(nom, adresseConnue){
+  return new Promise(resolve => {
+    const depart = String(adresseConnue || '').trim();
+
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(430px, 94vw);';
+
+    boite.innerHTML =
+      '<h3>✉️ Envoyer à</h3>' +
+      '<div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5;">' +
+        '<strong style="color:var(--cream);">' +
+        String(nom || '').replace(/</g, '&lt;') + '</strong><br>' +
+        (depart ? 'Vérifie l\'adresse : elle peut avoir changé depuis sa dernière saisie.'
+                : 'Aucune adresse enregistrée — demande-la-lui.') + '</div>' +
+      '<label for="cadMail">Adresse mail</label>' +
+      '<input type="email" id="cadMail" inputmode="email" autocomplete="off" ' +
+        'placeholder="prenom.nom@exemple.fr">' +
+      '<div id="cadEtat" style="font-size:12px;color:var(--muted);' +
+      'margin:-6px 0 12px;line-height:1.4;"></div>';
+
+    const champ = boite.querySelector('#cadMail');
+    const etat = boite.querySelector('#cadEtat');
+    champ.value = depart;
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    bAnn.addEventListener('click', () => {
+      document.body.removeChild(fond);
+      resolve(null);
+    });
+    rangee.appendChild(bAnn);
+
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = '✉️ Envoyer';
+    bOk.addEventListener('click', async () => {
+      const v = champ.value.trim();
+      if(!v || v.indexOf('@') === -1){
+        etat.style.color = 'var(--red)';
+        etat.textContent = 'Cette adresse ne semble pas valable.';
+        return;
+      }
+      /* Corrigée : elle redescend sur la fiche, sinon on la
+         recorrigerait au prochain envoi. L'envoi ne dépend pas de
+         cet enregistrement — il part même si la fiche résiste. */
+      if(v !== depart){
+        try{
+          await appelPrep({ action: 'ficheSet', eleve: nom, email: v });
+          const f = ficheDe(nom);
+          if(f) f.email = v; else fichesEleves.push({ eleve: nom, email: v });
+          fichesLues = 0;
+        }catch(e){ /* l'envoi prime */ }
+      }
+      document.body.removeChild(fond);
+      resolve(v);
+    });
+    rangee.appendChild(bOk);
+
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    setTimeout(() => champ.focus(), 80);
+  });
 }
 
 /* ------------------------------------------------------------
