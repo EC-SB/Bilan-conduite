@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:20 — v701 */
+/* Déployé le 30/08/2026 à 03:40 — v717 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1251,10 +1251,43 @@ function extraireFrise(note){
   return '';
 }
 
-/* Nombre de leçons prévues AVANT l'examen blanc, d'après la frise */
+/* Nombre de leçons prévues AVANT l'examen blanc, d'après la frise.
+
+   Cherché UNIQUEMENT dans ce qui précède l'examen blanc. Le motif
+   traversait la charnière : sur une frise abîmée « ❓ leçons de 2h
+   + exam blanc + 2 leçons de 2h », il attrapait le 2 d'APRÈS et le
+   rendait comme celui d'avant. Le questionnaire s'ouvrait alors
+   sur « 2 et 2 » — deux nombres que personne n'avait saisis. */
 function leconsAvantExamenBlanc(frise){
-  const m = String(frise || '').match(/(\d+)\s*le[çc]ons?\s+de\s+2h[^]*?exam/i);
+  const t = String(frise || '');
+  const i = t.search(/exam(?:en)?\s+blanc/i);
+  const avant = (i === -1) ? t : t.slice(0, i);
+  const m = avant.match(/(\d+)\s*le[çc]ons?\s+de\s+2h/i);
   return m ? parseInt(m[1], 10) : null;
+}
+
+/* ------------------------------------------------------------
+   UNE FRISE À TROUS N'EST PAS UNE FRISE
+
+   Une phrase qui ressemble à une frise mais à qui il manque un
+   nombre n'en est pas une : elle s'enregistre, elle s'affiche, et
+   tout ce qui la lit en tire des chiffres faux.
+
+   Rendre '' plutôt que la phrase abîmée, c'est faire dire à
+   l'application « je ne sais pas » — ce qui est vrai — au lieu de
+   « voici la frise », ce qui ne l'est pas. La carte réclame alors
+   la frise, et le questionnaire s'ouvre sur des cases vides.
+   ------------------------------------------------------------ */
+function friseUtilisable(frise){
+  const t = String(frise || '').trim();
+  if(!t) return '';
+  if(t.indexOf('❓') !== -1) return '';
+  /* Une frise AAC ou CS porte son compte autrement : « que 4
+     leçons voiture ». Elle n'a pas de charnière d'examen blanc. */
+  if(leconsPrevuesAacCs(t) !== null) return t;
+  if(leconsAvantExamenBlanc(t) === null) return '';
+  if(leconsApresExamenBlanc(t) === null) return '';
+  return t;
 }
 
 /* Nombre de leçons prévues APRÈS l'examen blanc */
