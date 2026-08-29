@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 19:40 — v695 */
+/* Déployé le 29/08/2026 à 21:05 — v696 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -595,6 +595,31 @@ function lignePosition(corps){
      tout partait en gros, « Formation accompagnateur faite » y
      compris. En gros, on ne veut QUE le rang. */
   return l ? segmentsDeNote(l)[0] || '' : '';
+}
+
+/* Une note écrite avant un changement de formation.
+
+   Chrystel passe un élève en passerelle : sa note porte encore la
+   frise et la date d'examen de son parcours d'avant, et elles
+   restent là jusqu'à ce que la réparation passe. Le type de
+   formation prime — y compris à l'affichage, tout de suite. */
+function noteSelonLaFormation(note, formation){
+  const sans = sansObjetPourLaFormation(formation);
+  if(!sans.length) return String(note || '');
+
+  /* Les familles que ce parcours n'a pas. On les nomme par leur
+     champ : « examBlanc » est aussi la clé de sa famille. */
+  const familles = {};
+  sans.forEach(c => { familles[c] = true; });
+  if(sans.indexOf('examPermis') !== -1) familles.examenPermis = true;
+  if(sans.indexOf('pasEcoute') !== -1) familles.ecoutes = true;
+
+  return String(note || '').split('\n').map(l =>
+    segmentsDeNote(l).filter(seg => {
+      const f = familleDuSegment(seg);
+      return !(f && familles[f.cle]);
+    }).join(' · ')
+  ).filter(Boolean).join('\n');
 }
 
 function sansLignePosition(corps){
@@ -2353,15 +2378,29 @@ function courtDansLaFrise(q){
    rendez-vous post-permis. Après lui, ce sont les heures décidées
    ce jour-là qui comptent, plus la frise d'origine.
    ------------------------------------------------------------ */
+/* Quand le cours du jour EST l'événement, le rang n'apprend rien.
+
+   « 3ème leçon sur 3 » le jour de l'examen, c'est vrai et c'est
+   inutile : ce qui compte ce matin-là, c'est que c'est l'examen.
+   La ligne de tête doit dire l'événement, pas le compteur. */
 function positionDansLaFrise(q){
+  /* MAJUSCULES : c'est la ligne qu'on lit en premier sur une carte,
+     et elle doit se distinguer sans qu'on la cherche. */
+  const dire = t => '🎯 ' + majusculeNote(t);
+
+  /* La table vit ici, dans la seule fonction qui s'en sert : elle
+     n'a pas à être chargée séparément pour que le rang se calcule. */
+  const EVENEMENT = {
+    'examen-officiel': 'Examen ce jour',
+    'examen-blanc':    "C'est l'examen blanc"
+  };
+  if(EVENEMENT[q.modele]) return dire(EVENEMENT[q.modele]);
+
   const n = parseInt(q.lecon, 10);
   if(isNaN(n) || !n) return '';
 
   const plus = courtDansLaFrise(q) ? 1 : 0;
   const pl = k => (k > 1 ? 's' : '');
-  /* MAJUSCULES : c'est la ligne qu'on lit en premier sur une carte,
-     et elle doit se distinguer sans qu'on la cherche. */
-  const dire = t => '🎯 ' + majusculeNote(t);
 
   /* Après le rendez-vous post-permis : ce sont ses heures qui font
      loi, pas la frise du permis d'origine. Elles s'annoncent en
