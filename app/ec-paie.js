@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 03:00 — v716 */
+/* Déployé le 29/08/2026 à 14:23 — v727 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -1115,11 +1115,21 @@ function totalMois(s){
   );
 }
 
+/* Le premier et le dernier jour du mois affiché. Deux endroits les
+   calculaient chacun de leur côté ; ils les demandent maintenant
+   ici. */
+function bornesDuMois(){
+  if(!moisPaie) return null;
+  const [an, m] = moisPaie.split('-').map(Number);
+  return {
+    debut: moisPaie + '-01',
+    fin: moisPaie + '-' + String(new Date(an, m, 0).getDate()).padStart(2, '0')
+  };
+}
+
 function absencesDuMois(idSalarie){
   if(!moisPaie) return [];
-  const [an, m] = moisPaie.split('-').map(Number);
-  const debut = moisPaie + '-01';
-  const fin = moisPaie + '-' + String(new Date(an, m, 0).getDate()).padStart(2, '0');
+  const { debut, fin } = bornesDuMois();
 
   return absencesPaie.filter(a => {
     if(a.idSalarie !== idSalarie || !a.du) return false;
@@ -2253,20 +2263,33 @@ function prenomDe(nom){
 }
 
 function composerMessageDirection(){
-  const lignes = ['Heures supp ' + (moisEnToutesLettres(moisPaie) || moisPaie) + ' :', ''];
+  const mois = moisEnToutesLettres(moisPaie) || moisPaie;
+  const lignes = ['Heures supp et CP ' + mois + ' :', ''];
   let un = false;
+  const b = bornesDuMois();
 
   salariesPaie.filter(s => s.actif).forEach(s => {
     const m = produitDuMois(s);
     const avant = reportAvant(s, moisPaie);
     const totN = arrondiQuart(m.normales + avant.normales);
     const totM = arrondiQuart(m.majorees + avant.majorees);
-    if(!totN && !totM && !avant.recup) return;
+    /* Les congés du mois, comptés en jours ouvrés comme partout
+       ailleurs — c'est le même calcul que le récapitulatif, pas une
+       seconde version. */
+    const cp = b ? totauxPeriode(s, b.debut, b.fin).cp : 0;
+    if(!totN && !totM && !avant.recup && !cp) return;
     un = true;
 
     const bouts = [];
-    bouts.push(enHeures(totN) + ' normales');
-    bouts.push(enHeures(totM) + ' à 25%');
+    /* Les deux natures d'heures se disent ensemble, même à zéro :
+       la direction compare les lignes entre elles. Mais quelqu'un
+       qui n'a QUE des congés n'a pas à traîner deux zéros — sa
+       ligne ne parle que de ses congés. */
+    if(totN || totM || avant.recup){
+      bouts.push(enHeures(totN) + ' normales');
+      bouts.push(enHeures(totM) + ' à 25%');
+    }
+    if(cp) bouts.push(cp + ' j de CP');
     /* Ce qui traîne des mois d'avant se dit : la direction décide
        sur le total dû, pas sur le seul mois écoulé. */
     if(avant.normales || avant.majorees){
@@ -2280,7 +2303,7 @@ function composerMessageDirection(){
     lignes.push(prenomDe(s.nom) + ' : ' + bouts.join(', '));
   });
 
-  if(!un) return 'Aucune heure supplémentaire ce mois-ci.';
+  if(!un) return 'Aucune heure supplémentaire ni congé ce mois-ci.';
   lignes.push('', 'On paie tout ? On en garde en récup ?');
   return lignes.join('\n');
 }
