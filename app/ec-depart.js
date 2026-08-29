@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 16:30 — v693 */
+/* Déployé le 29/08/2026 à 21:05 — v696 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1604,6 +1604,10 @@ function noteJusteDuCours(cours, rang, dossier){
                             (typeof etatQuiFaitFoi === 'function')
                               ? etatQuiFaitFoi(cours.eleve) : {});
   ctx.lecon = String(rang);
+
+  /* Le type de bilan du cours, quand le contexte ne le porte pas :
+     c'est lui qui dit qu'aujourd'hui, c'est l'examen. */
+  if(!ctx.modele && cours.modele) ctx.modele = cours.modele;
 
   /* La frise ne se devine pas : si le cours l'a perdue, le dossier
      la porte encore — dans sa note ou sur la fiche de l'élève. */
