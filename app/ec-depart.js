@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v698 */
+/* Déployé le 30/08/2026 à 00:40 — v699 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1966,5 +1966,163 @@ async function appliquerNotesExamen(){
   reparNotes = [];
 }
 
+/* ============================================================
+   RATTACHER LES COURS À LEUR RAPPEL
+
+   « Rappel envoyé » et « présence confirmée » ne s'affichent que
+   si le cours porte le JETON du rappel — celui qui identifie le
+   lien de confirmation envoyé à l'élève.
+
+   Il pouvait manquer pour trois raisons : le lien n'a pas pu être
+   créé, le cours a été préparé sans passer par le rappel, ou le
+   questionnaire l'a effacé en se refermant. Les deux dernières sont
+   corrigées ; restent les cours déjà écrits.
+
+   Le journal des envois, lui, garde tout : qui, quand, quel jeton.
+   Il suffit de recoller les deux.
+   ============================================================ */
+let reparJetons = [];
+
+/* Le jour d'un envoi, tel que le journal l'écrit */
+function jourDeLEnvoi(quand){
+  const t = String(quand || '');
+  const m = t.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if(m) return m[3] + '-' + m[2] + '-' + m[1];
+  const iso = t.match(/^(\d{4}-\d{2}-\d{2})/);
+  return iso ? iso[1] : '';
+}
+
+async function verifierJetonsRappel(){
+  const btn  = $('reparJetonsBtn');
+  const etat = $('reparJetonsEtat');
+  const zone = $('reparJetonsListe');
+  if(!btn || !etat || !zone) return;
+
+  reparJetons = [];
+  zone.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = 'Lecture…';
+  etat.style.color = 'var(--muted)';
+  etat.textContent = 'Lecture des cours et du journal…';
+
+  try{
+    const [p, j] = await Promise.all([
+      appelPrep({ action: 'prepList' }),
+      appelPrep({ action: 'smsList', combien: 300 })
+    ]);
+
+    const cours = (p && p.preparations) || [];
+    const envois = ((j && j.sms) || []).filter(x => x.jeton);
+
+    if(!envois.length){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = "Aucun envoi du journal ne porte de jeton. " +
+        "C'est donc la création du lien de confirmation qui échoue, " +
+        "pas son rattachement : les mails partent sans bouton.";
+      return;
+    }
+
+    /* Le dernier envoi de chaque élève, par jour de cours */
+    const parEleve = {};
+    envois.forEach(x => {
+      const k = normaliserMot(x.eleve || '');
+      if(!k) return;
+      if(!parEleve[k]) parEleve[k] = x;   /* la liste vient du plus récent */
+    });
+
+    cours.forEach(c => {
+      let ctx = c.contexte;
+      if(typeof ctx === 'string'){
+        try{ ctx = JSON.parse(ctx); }catch(e){ ctx = null; }
+      }
+      if(ctx && ctx.jeton) return;               /* déjà rattaché */
+      if(c.date && c.date < todayLocal()) return; /* passé : sans objet */
+
+      const env = parEleve[normaliserMot(c.eleve || '')];
+      if(!env || !env.jeton) return;
+
+      reparJetons.push({ cours: c, contexte: Object.assign({}, ctx || {}),
+                         jeton: env.jeton, quand: env.quand || '' });
+    });
+
+    if(!reparJetons.length){
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = '✅ Rien à rattacher : les ' + cours.length +
+        ' cours à venir portent déjà leur rappel, ou n\'en ont pas reçu.';
+      return;
+    }
+
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = reparJetons.length + ' cours à rattacher à leur rappel :';
+
+    reparJetons.forEach(x => {
+      const d = document.createElement('div');
+      d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
+        'padding:8px 11px;margin-top:6px;font-size:12px;line-height:1.55;';
+      d.innerHTML = '<strong>' + reparTexte(x.cours.eleve) + '</strong>' +
+        (x.cours.date ? ' <span style="color:var(--muted);">(cours du ' +
+          reparTexte(x.cours.date) + ')</span>' : '') +
+        '<div style="color:var(--muted);margin-top:3px;">rappel envoyé ' +
+        reparTexte(x.quand) + '</div>';
+      zone.appendChild(d);
+    });
+
+    const b = document.createElement('button');
+    b.className = 'btn btn-primary';
+    b.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
+    b.textContent = '✅ Rattacher ces ' + reparJetons.length + ' cours';
+    b.addEventListener('click', appliquerJetonsRappel);
+    zone.appendChild(b);
+
+  }catch(e){
+    etat.style.color = 'var(--warn-text)';
+    etat.textContent = '⚠️ ' + (e && e.message ? e.message : e);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = '✉️ Rattacher les rappels aux cours';
+  }
+}
+
+async function appliquerJetonsRappel(){
+  if(!reparJetons.length) return;
+
+  if(!await confirmer('Rattacher ' + reparJetons.length + ' cours à leur ' +
+      'rappel ?\n\nSeul le lien de confirmation est posé : la note, le ' +
+      'type de bilan et le moniteur ne bougent pas.')) return;
+
+  const etat = $('reparJetonsEtat');
+  let ok = 0;
+  const rates = [];
+
+  for(const x of reparJetons){
+    try{
+      const ctx = Object.assign({}, x.contexte, { jeton: x.jeton });
+      await appelPrep({
+        action: 'prepAdd', id: x.cours.id, date: x.cours.date,
+        eleve: x.cours.eleve, modele: x.cours.modele,
+        modeleLabel: x.cours.modeleLabel || '',
+        site: x.cours.site || '', note: x.cours.note || '',
+        contexte: JSON.stringify(ctx),
+        moniteur: x.cours.moniteur || ''
+      });
+      const dans = (typeof prepares !== 'undefined')
+        ? prepares.find(y => String(y.id) === String(x.cours.id)) : null;
+      if(dans) dans.contexte = ctx;
+      ok++;
+    }catch(e){ rates.push(x.cours.eleve + ' : ' + (e && e.message ? e.message : e)); }
+  }
+
+  reparJetons = [];
+  if($('reparJetonsListe')) $('reparJetonsListe').innerHTML = '';
+  if(etat){
+    etat.style.color = rates.length ? 'var(--warn-text)' : 'var(--accent-text)';
+    etat.textContent = ok + ' cours rattaché(s)' +
+      (rates.length ? ' · ' + rates.length + ' échec(s) : ' + rates.join(' · ') : ' ✅');
+  }
+  showToast(ok + ' rappel(s) rattaché(s) ✅');
+  if(typeof afficherPrepares === 'function') afficherPrepares(true);
+}
+
+brancher('reparJetonsBtn', 'click', verifierJetonsRappel);
 brancher('reparNotesBtn', 'click', verifierNotesExamen);
 brancher('reparLeconsBtn', 'click', verifierNumerosLecon);
