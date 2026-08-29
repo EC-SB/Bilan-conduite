@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:20 — v723 */
+/* Déployé le 29/08/2026 à 14:23 — v727 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1906,7 +1906,12 @@ async function chargerMessengerEleve(){
   /* Le dossier est récupéré dès la saisie du nom, pendant que le
      moniteur remplit le reste : au démarrage, tout est déjà prêt. */
   if(typeof chargerDossierEleve === 'function'){
-    chargerDossierEleve(nom).catch(() => {});
+    /* Et le bouton se refait quand il arrive : c'est le classeur
+       qui sait le rang de la leçon, et le bouton l'annonçait
+       manquant tant qu'il n'était pas revenu. */
+    chargerDossierEleve(nom)
+      .then(() => { if(typeof majBoutonCompleter === 'function') majBoutonCompleter(); })
+      .catch(() => {});
   }
   if(typeof consignesDe === 'function'){
     consignesDe(nom).catch(() => {});
