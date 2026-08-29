@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 09:10 — v688 */
+/* Déployé le 29/08/2026 à 11:20 — v689 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1576,7 +1576,7 @@ function numeroLeconDuCours(cours){
    phrases du questionnaire la lisent à l'écran, et les dater
    d'aujourd'hui serait inventer.
    ------------------------------------------------------------ */
-function noteJusteDuCours(cours, rang){
+function noteJusteDuCours(cours, rang, dossier){
   const m = morceauxDeNotePreparee(cours.note);
 
   /* La note sait des choses que le contexte ignore : les cours
@@ -1589,6 +1589,19 @@ function noteJusteDuCours(cours, rang){
     ? defautsDepuisNote(cours.note) : {};
   const ctx = Object.assign(acquis, cours.contexte || {});
   ctx.lecon = String(rang);
+
+  /* Le dossier vient d'être relu pour recompter : il sait dans
+     quelle moitié de frise l'élève se trouve. Les cours préparés
+     avant que ce compte existe ne le portent pas — sans lui, la
+     réparation écrirait « 3ème leçon — après l'examen blanc » là où
+     il faut lire « 1ère leçon sur 2 après l'examen blanc ». */
+  if(dossier){
+    if(dossier.leconsDepuisEB !== undefined) ctx.leconsDepuisEB = dossier.leconsDepuisEB;
+    if(dossier.leconsDepuisRdvPost !== undefined) ctx.leconsDepuisRdvPost = dossier.leconsDepuisRdvPost;
+    if(dossier.lecons !== null && dossier.lecons !== undefined){
+      ctx.leconsFaites = dossier.lecons;
+    }
+  }
 
   const champDate = $('lessonDate');
   const dateAvant = champDate ? champDate.value : null;
@@ -1664,7 +1677,7 @@ async function verifierNumerosLecon(){
         if(!c.contexte || !Object.keys(c.contexte).length) return;
 
         let note = '';
-        try{ note = noteJusteDuCours(c, juste); }catch(e){ return; }
+        try{ note = noteJusteDuCours(c, juste, dossier); }catch(e){ return; }
         if(!note || note === c.note) return;
 
         reparLecons.push({ cours: c, eleve: nom, note: note,
