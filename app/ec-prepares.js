@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 02:30 — v715 */
+/* Déployé le 30/08/2026 à 03:40 — v717 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -788,6 +788,11 @@ async function afficherPrepares(recharger, silencieux){
     reste = reste.split('\n').map(l =>
       l.split(' · ')
        .filter(s => DEJA_SUR_LA_CARTE.indexOf(s.trim()) === -1)
+       /* Une frise à trous n'apprend rien et fait croire à une
+          frise : la carte dit déjà qu'elle manque, juste au-dessus. */
+       .filter(s => !(/le[çc]ons? de 2h/i.test(s) &&
+                      typeof friseUtilisable === 'function' &&
+                      !friseUtilisable(s)))
        .join(' · ')
     ).filter(Boolean).join('\n');
 
