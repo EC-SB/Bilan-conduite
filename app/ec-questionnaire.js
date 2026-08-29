@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:00 — v708 */
+/* Déployé le 29/08/2026 à 23:30 — v710 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1749,11 +1749,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
           'line-height:1.4;font-weight:700;">' +
           '📇 Coordonnées manquantes — demande-les à l\'élève</div>' +
 
-        '<div id="qBlocMessenger" style="display:none;">' +
-          '<label for="qMessenger">💬 Messenger de l\'élève</label>' +
-          '<input type="text" id="qMessenger" autocomplete="off" ' +
-            'placeholder="Lien de sa conversation, ou pseudo">' +
-        '</div>' +
+        /* Le Messenger de l'élève ne se demande plus ici : les
+           bilans partent par mail, et c'est le mail qui manque
+           quand il manque quelque chose. Le champ reste au
+           répertoire pour ceux qui l'ont déjà. */
 
         '<div id="qBlocMail" style="display:none;">' +
           '<label for="qMail">✉️ Adresse mail de l\'élève</label>' +
@@ -2406,11 +2405,9 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       selMod.value = modeleCle;
     }
 
-    const champMess = boite.querySelector('#qMessenger');
     const champMail = boite.querySelector('#qMail');
 
     const manque = {
-      messenger: !((ficheEleve && ficheEleve.messenger) || ''),
       mail:      !((ficheEleve && ficheEleve.email) || ''),
       ants:      !((ficheEleve && ficheEleve.ants) || '') && !prec.ants
     };
@@ -2419,16 +2416,14 @@ async function construireQuestionnaire(prec, titre, libelleValider){
       const b = boite.querySelector(id);
       if(b) b.style.display = oui ? 'block' : 'none';
     };
-    montrer('#qBlocMessenger', manque.messenger);
     montrer('#qBlocMail', manque.mail);
     montrer('#qBlocAnts', manque.ants);
     /* L'encadré entier disparaît si tout est déjà renseigné */
     /* Le mail du prescripteur se saisit au répertoire uniquement :
        c'est une donnée de dossier, pas quelque chose qu'on demande
        à l'élève au bord de la route. */
-    montrer('#qBlocCoord', manque.messenger || manque.mail || manque.ants);
+    montrer('#qBlocCoord', manque.mail || manque.ants);
 
-    if(champMess) champMess.value = prec.messenger || '';
     if(champMail) champMail.value = prec.email || '';
 
     /* Conduite aménagée */
@@ -2723,7 +2718,10 @@ async function construireQuestionnaire(prec, titre, libelleValider){
         ants: chAnts ? chAnts.value : '',
         /* Le type de bilan choisi, quand on prépare un cours */
         modele: (selMod && enPreparation) ? selMod.value : '',
-        messenger: champMess ? champMess.value.trim() : '',
+        /* Le Messenger ne se saisit plus au questionnaire : ce
+           qu'on en savait traverse quand même, pour ne pas
+           l'effacer de la fiche de ceux qui en ont un. */
+        messenger: prec.messenger || '',
         email: champMail ? champMail.value.trim() : '',
         libre: boite.querySelector('#qLibre').value.trim(),
         /* Les manœuvres cochées en plus, à signer de l'émoji du moniteur */
