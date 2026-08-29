@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 23:30 — v710 */
+/* Déployé le 30/08/2026 à 02:30 — v715 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -688,6 +688,31 @@ async function afficherPrepares(recharger, silencieux){
 
     if(ligneRang.childNodes.length) meta.appendChild(ligneRang);
 
+    /* CE QUI MANQUE SE DIT, ET S'OUVRE.
+
+       Le questionnaire ne s'ouvre plus au départ : ce qui manque
+       doit donc se lire ici, nommément — « il manque la formation »
+       est utile, un point rouge ne l'est pas. Et la phrase ouvre
+       l'écran qui le règle, pour ne pas avoir à le chercher.
+
+       Rien ne s'affiche quand tout est là : une ligne qui dit que
+       tout va bien sur chaque carte ne se lit plus au bout de
+       trois jours. */
+    const manqueIci = (typeof cequiManqueAuCours === 'function')
+      ? cequiManqueAuCours(contexteEnObjet(cours.contexte), cours.eleve, cours.modele)
+      : [];
+
+    if(manqueIci.length){
+      const av = document.createElement('div');
+      av.style.cssText = 'font-size:12px;color:var(--warn-text);' +
+        'margin:1px 0 2px;line-height:1.45;cursor:pointer;font-weight:600;';
+      av.textContent = '⚠️ Il manque ' + manqueIci.join(' et ') +
+                       ' — ✏️ pour compléter';
+      av.title = 'Ouvrir le questionnaire de ' + cours.eleve;
+      av.addEventListener('click', () => completerLesInfosDuCours(cours));
+      meta.appendChild(av);
+    }
+
     /* Le type de bilan et la formation VIENNENT APRÈS : la leçon du
        jour passe en premier, juste sous le nom. */
     meta.appendChild(sous);
@@ -972,9 +997,18 @@ async function afficherPrepares(recharger, silencieux){
        supprimer la préparation et à tout refaire. */
     const bMod = document.createElement('button');
     bMod.className = 'btn btn-secondary';
-    bMod.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+    /* Plus gros et en couleur SEULEMENT quand il manque quelque
+       chose : grossir les huit boutons de toutes les lignes ne
+       ferait ressortir aucune. Ce sont les cartes qui réclament
+       quelque chose qui doivent sauter aux yeux. */
+    bMod.style.cssText = manqueIci.length
+      ? 'width:auto;padding:11px 15px;font-size:20px;line-height:1;' +
+        'border-color:var(--orange);color:var(--orange);'
+      : 'width:auto;padding:9px 12px;font-size:13px;';
     bMod.textContent = '✏️';
-    bMod.title = 'Modifier la préparation de ' + cours.eleve;
+    bMod.title = manqueIci.length
+      ? 'Il manque ' + manqueIci.join(' et ') + ' — modifier la préparation'
+      : 'Modifier la préparation de ' + cours.eleve;
     bMod.addEventListener('click', async () => {
       if(bMod.disabled) return;
       bMod.disabled = true;
@@ -1720,7 +1754,15 @@ async function afficherPreparationEleve(){
 /* Rouvre le questionnaire d'une préparation et l'enregistre à la
    place de l'ancienne. Le contexte est repris tel quel : on ne
    repart pas de zéro. */
-async function modifierPreparation(cours){
+/* Compléter les infos depuis la carte : le même écran et la même
+   écriture que le crayon, sous un autre titre. Deux chemins vers
+   un seul enregistrement — c'est la règle de toute l'application,
+   et elle vaut ici comme ailleurs. */
+async function completerLesInfosDuCours(cours){
+  return modifierPreparation(cours, 'Compléter les infos', 'Valider');
+}
+
+async function modifierPreparation(cours, titre, valider){
   if(!cours || !cours.id) return;
 
   /* Le questionnaire lit l'élève et le modèle dans l'écran de cours */
@@ -1735,7 +1777,8 @@ async function modifierPreparation(cours){
   let rep = null;
   try{
     rep = await ouvrirQuestionnaireDepart(cours.contexte || {},
-                                          'Modifier la préparation', 'Enregistrer');
+                                          titre || 'Modifier la préparation',
+                                          valider || 'Enregistrer');
   }finally{
     /* On remet l'écran comme on l'a trouvé */
     if($('studentName')) $('studentName').value = nomAvant;
@@ -1753,6 +1796,27 @@ async function modifierPreparation(cours){
        quand on retouche les notes. */
     const hDejaLa = heureDeLaPreparation(cours);
 
+    /* LES MOTS DU MONITEUR SURVIVENT AU CRAYON.
+
+       On remplaçait la note par celle que le questionnaire écrit —
+       et le 📌 du moniteur précédent partait avec. Ouvrir le
+       crayon pour corriger une date d'examen effaçait donc « a du
+       mal avec les créneaux ».
+
+       Les deux se fondent : une ligne par sujet, celle du
+       questionnaire, et le 📌 ne garde que ce qu'aucun champ ne
+       sait redire. C'est déjà ce que fait le rappel. */
+    const neuf = noteDepuisQuestionnaire(rep);
+    let corps = neuf, consigne = '';
+    if(typeof fondreNotePreparee === 'function'){
+      const f = fondreNotePreparee(neuf, cours.note || '');
+      corps = f.corps; consigne = f.consigne;
+    }
+    const noteRefaite = (typeof assemblerNotePreparee === 'function')
+      ? assemblerNotePreparee(hDejaLa ? '🕐 ' + hDejaLa.replace(':', 'h') : '',
+                              corps, consigne)
+      : (hDejaLa ? '🕐 ' + hDejaLa.replace(':', 'h') + '\n' : '') + neuf;
+
     await appelPrep({
       action: 'prepAdd',
       id: cours.id,                    /* même identifiant : on remplace */
@@ -1764,8 +1828,7 @@ async function modifierPreparation(cours){
       site: cours.site || '',
       /* On modifie une préparation existante : son heure vient du
          cours lui-même, pas du formulaire de création. */
-      note: (hDejaLa ? '🕐 ' + hDejaLa.replace(':', 'h') + '\n' : '') +
-            noteDepuisQuestionnaire(rep),
+      note: noteRefaite,
       contexte: JSON.stringify(rep),
       moniteur: cours.moniteur || ACCES.moniteur || ''
     });
@@ -1779,11 +1842,11 @@ async function modifierPreparation(cours){
       /* La même note que celle envoyée au serveur, heure comprise :
          sans elle, l'heure disparaissait de l'écran jusqu'au
          prochain rafraîchissement. */
-      dans.note = (hDejaLa ? '🕐 ' + hDejaLa.replace(':', 'h') + '\n' : '') +
-                  noteDepuisQuestionnaire(rep);
+      dans.note = noteRefaite;
       dans.contexte = rep;
     }
-    showToast('Préparation modifiée ✅');
+    showToast((titre === 'Compléter les infos')
+      ? 'Infos complétées ✅' : 'Préparation modifiée ✅');
     await afficherPrepares(false);
   }catch(e){
     showToast('Modification impossible : ' + e.message);
