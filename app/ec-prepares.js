@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:00 — v708 */
+/* Déployé le 29/08/2026 à 23:30 — v710 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1196,6 +1196,9 @@ async function chargerPrepareInterne(cours){
 
   /* Le questionnaire a déjà été rempli à la préparation : on ne le redemande pas */
   contexteDepart = contexte;
+  /* Le bouton doit dire tout de suite ce qui manque sur CET élève :
+     il ne se recalcule pas tout seul en changeant de cours. */
+  if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
   noteQuestionnaire = note;
 
   finalTranscript = '';
