@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 00:20 — v711 */
+/* Déployé le 30/08/2026 à 00:55 — v712 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -176,7 +176,11 @@ function repartirSemaine(faites, joursAbsents, base, heuresJour){
    L'ÉCRAN
    ============================================================ */
 
-async function afficherPaie(){
+/* « sansRelire » redessine l'écran avec ce qu'on a déjà en
+   mémoire, sans repasser par le serveur. Un simple déplacement de
+   ligne n'a rien à relire : les chiffres n'ont pas bougé, c'est
+   l'ordre qui change. */
+async function afficherPaie(sansRelire){
   const zone = $('paieZone');
   if(!zone) return;
 
@@ -185,6 +189,7 @@ async function afficherPaie(){
     moisPaie = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   }
 
+  if(!sansRelire){
   zone.innerHTML = '<div class="empty">Lecture…</div>';
   try{
     const d = await appelPrep({ action: 'paieList' });
@@ -197,6 +202,7 @@ async function afficherPaie(){
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
     return;
+  }
   }
 
   zone.innerHTML = '';
@@ -901,18 +907,36 @@ async function deplacerSalarie(s, sens){
 
   const t = liste[i]; liste[i] = liste[j]; liste[j] = t;
 
+  /* Les rangs se renumérotent tous : sans ça deux salariés
+     finiraient par partager un rang et l'ordre redeviendrait celui
+     de l'alphabet, sans qu'on comprenne pourquoi. */
+  liste.forEach((x, k) => { x.ordre = k + 1; });
+
+  /* L'écran suit TOUT DE SUITE, avec ce qu'on a déjà en mémoire.
+
+     On envoyait un appel par salarié, l'un après l'autre, puis on
+     rechargeait tout le mois : huit secondes d'attente pour
+     descendre une ligne d'un cran. L'enregistrement part
+     maintenant en UN appel, derrière, pendant qu'on continue. */
+  salariesPaie.sort((a, b) => {
+    const oa = a.ordre || 999, ob = b.ordre || 999;
+    if(oa !== ob) return oa - ob;
+    return String(a.nom).localeCompare(String(b.nom), 'fr');
+  });
+  afficherPaie(true);
+
   try{
-    for(let k = 0; k < liste.length; k++){
-      const rang = k + 1;
-      if(liste[k].ordre === rang) continue;   /* rien à réécrire */
-      await appelPrep({ action: 'paieSalarieSet', id: liste[k].id,
-                        ordre: rang, par: ACCES.moniteur || '' });
-      liste[k].ordre = rang;
-    }
+    await appelPrep({
+      action: 'paieOrdre',
+      ordres: JSON.stringify(liste.map(x => ({ id: x.id, ordre: x.ordre }))),
+      par: ACCES.moniteur || ''
+    });
   }catch(e){
-    showToast('Impossible : ' + e.message);
+    /* L'écran montre déjà le nouvel ordre : il faut donc dire
+       clairement qu'il n'a pas été gardé, sinon on croirait que
+       c'est fait. */
+    showToast('Ordre non enregistré : ' + e.message);
   }
-  afficherPaie();
 }
 
 function semaineDe(idSalarie, lundi){
