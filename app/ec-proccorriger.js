@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:20 — v723 */
+/* Déployé le 29/08/2026 à 14:51 — v730 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -424,6 +424,7 @@ function blocInterrupteur(){
   }
 
   enveloppe.appendChild(blocMailNotification());
+  if(ACCES.role === 'admin') enveloppe.appendChild(blocRaccourciProc());
 
   /* Le dernier bloc n'a pas besoin de marge : le tiroir la porte */
   const der = enveloppe.lastElementChild;
@@ -432,6 +433,95 @@ function blocInterrupteur(){
   dedans.appendChild(enveloppe);
   tiroir.appendChild(dedans);
   return tiroir;
+}
+
+
+/* ------------------------------------------------------------
+   QUI VOIT LE RACCOURCI DES PROCÉDURES
+
+   Une case par personne, plutôt qu'un oui/non pour tout le monde :
+   ce raccourci ne sert qu'à ceux qui corrigent, et il encombrerait
+   les autres. Personne de coché = les administrateurs seuls.
+
+   Les noms viennent de la liste des accès, jamais d'une liste
+   écrite à la main : une liste recopiée se périme au premier
+   départ.
+   ------------------------------------------------------------ */
+function blocRaccourciProc(){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+
+  const choisis = comptesDuRaccourciProc();
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">📥 Raccourci « procédures à corriger »' +
+    '<span style="font-weight:400;font-size:11px;color:var(--muted);"> — ' +
+    (choisis.length ? choisis.join(' · ') : 'administrateurs seuls') +
+    '</span></summary>' +
+    '<div style="font-size:11px;color:var(--muted);margin:9px 0;line-height:1.5;">' +
+      'Un bouton en haut de l\'écran, à côté du nom, avec le nombre de ' +
+      'procédures à corriger. Il n\'apparaît que s\'il y en a.<br>' +
+      'Personne de coché : les administrateurs seuls.</div>' +
+    '<div id="procRacListe" style="font-size:13px;color:var(--muted);">Lecture…</div>';
+
+  const zone = d.querySelector('#procRacListe');
+
+  /* La liste ne se charge qu'à l'ouverture du tiroir : c'est un
+     appel serveur, et on n'y touche presque jamais. */
+  let chargee = false;
+  d.addEventListener('toggle', async () => {
+    if(!d.open || chargee) return;
+    chargee = true;
+    let liste = [];
+    try{
+      const data = await appelAdmin({ action: 'list' });
+      liste = (data && data.utilisateurs) || [];
+    }catch(e){
+      zone.textContent = 'Liste des accès indisponible : ' + e.message;
+      chargee = false;
+      return;
+    }
+
+    zone.innerHTML = '';
+    const enCours = comptesDuRaccourciProc();
+
+    liste.forEach(u => {
+      const l = document.createElement('label');
+      l.style.cssText = 'display:flex;align-items:center;gap:9px;' +
+        'text-transform:none;font-size:14px;color:var(--cream);' +
+        'margin:0 0 7px;cursor:pointer;';
+      const c = document.createElement('input');
+      c.type = 'checkbox';
+      c.style.cssText = 'width:18px;height:18px;margin:0;';
+      c.checked = enCours.indexOf(u.nom) !== -1;
+      c.addEventListener('change', async () => {
+        const cases = Array.prototype.slice.call(
+          zone.querySelectorAll('input[type="checkbox"]'));
+        const noms = cases.filter(x => x.checked).map(x => x.dataset.nom);
+        c.disabled = true;
+        try{
+          await appelPrep({ action: 'reglageSet', cle: 'raccourciProc',
+                            valeur: noms.join(', '),
+                            par: ACCES.moniteur || '' });
+          reglagesProc.raccourciProc = noms.join(', ');
+          majRaccourciProc();
+        }catch(e){
+          /* Refusé : la case revient où elle était, sinon l'écran
+             montrerait un réglage que personne n'a enregistré. */
+          c.checked = !c.checked;
+          showToast('Non enregistré : ' + e.message);
+        }
+        c.disabled = false;
+      });
+      c.dataset.nom = u.nom;
+      l.appendChild(c);
+      l.appendChild(document.createTextNode(
+        u.nom + (u.role === 'admin' ? ' — admin' : '')));
+      zone.appendChild(l);
+    });
+  });
+
+  return d;
 }
 
 
@@ -2230,6 +2320,53 @@ function majPastilleProc(){
   if(typeof poserCompteVue === 'function'){
     poserCompteVue('proccorriger', n);
   }
+  majRaccourciProc(n);
+}
+
+/* ------------------------------------------------------------
+   LE RACCOURCI EN HAUT DE L'ÉCRAN
+
+   Les procédures à corriger attendaient dans Élève > Procédures :
+   il fallait penser à y passer pour découvrir qu'il y en avait.
+   Le raccourci les amène là où on regarde déjà — à côté de son
+   propre nom — et il n'existe que tant qu'il y a du travail : un
+   compteur à zéro affiché en permanence, on cesse de le voir.
+
+   Qui l'a se règle dans Élève > Procédures. Tant que personne
+   n'est nommé, les administrateurs seuls — c'est ce qui a été
+   demandé pour commencer.
+   ------------------------------------------------------------ */
+function comptesDuRaccourciProc(){
+  return String(reglagesProc.raccourciProc || '')
+    .split(/\s*[,;]\s*/).map(x => x.trim()).filter(Boolean);
+}
+
+function aLeRaccourciProc(){
+  /* Le droit d'abord : un raccourci vers un écran interdit n'est
+     pas un raccourci, c'est une porte fermée. */
+  if(typeof aDroit === 'function' && !aDroit('proccorriger')) return false;
+  const liste = comptesDuRaccourciProc();
+  if(!liste.length) return ACCES.role === 'admin';
+  return liste.indexOf(String(ACCES.moniteur || '')) !== -1;
+}
+
+function majRaccourciProc(n){
+  const b = $('procRaccourci');
+  if(!b) return;
+  const compte = (n === undefined || n === null) ? nbProcACorriger() : n;
+
+  if(!compte || !aLeRaccourciProc()){ b.style.display = 'none'; return; }
+
+  b.style.display = 'inline-flex';
+  b.title = compte + ' procédure' + (compte > 1 ? 's' : '') + ' à corriger';
+  const z = $('procRaccourciN');
+  if(z) z.textContent = compte;
+}
+
+function ouvrirLesProcAcorriger(){
+  if(typeof afficherOnglet === 'function') afficherOnglet('eleves', true);
+  if(typeof afficherVue === 'function') afficherVue('eleves', 'proccorriger');
+  afficherProcCorriger();
 }
 
 /* Le compte, chargé en fond après la connexion */
@@ -2239,8 +2376,15 @@ async function chargerProcEnFond(){
      tant qu'il n'ouvrait pas la vue. */
   if(typeof aDroit === 'function' && !aDroit('proccorriger')) return;
   try{
-    const d = await appelPrep({ action: 'procCorrigerList' });
+    /* Les réglages avec : c'est eux qui disent si ce compte a le
+       raccourci en haut de l'écran, et sans eux il n'apparaîtrait
+       qu'après un passage par l'écran des procédures. */
+    const [d, rg] = await Promise.all([
+      appelPrep({ action: 'procCorrigerList' }),
+      appelPrep({ action: 'reglagesList' }).catch(() => null)
+    ]);
     procACorriger = (d && d.fiches) || [];
+    if(rg && rg.reglages) reglagesProc = rg.reglages;
     majPastilleProc();
   }catch(e){ /* la pastille attendra le prochain passage */ }
 }
