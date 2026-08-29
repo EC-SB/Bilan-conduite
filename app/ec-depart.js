@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 08:09 — v686 */
+/* Déployé le 29/08/2026 à 09:10 — v688 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1395,11 +1395,17 @@ function majBoutonCorrection(){
 }
 
 
-/* Le numéro de leçon lu dans le bilan affiché */
+/* Le numéro de leçon lu dans le bilan affiché.
+
+   Le bilan porte aussi la frise — « 5 leçons de 2h » — et il ne
+   faut surtout pas la lire comme un rang : c'est la même règle
+   qu'ailleurs, donc la même expression, écrite une seule fois. */
 function leconDuBilan(){
   const t = ($('resultText') && $('resultText').value) || '';
-  const m = t.match(/(\d+)\s*(?:ère|ere|e|ème|eme)?\s*le[çc]on/i);
-  return m ? m[1] : '';
+  const m = t.match(RE_NUM_LECON);
+  if(!m) return '';
+  const n = String(m[0]).match(/\d+/);
+  return n ? n[0] : '';
 }
 
 
@@ -1540,18 +1546,68 @@ function reparTexte(s){
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 }
 
-/* Le numéro écrit sur un cours préparé, contexte d'abord */
-function numeroLeconDuCours(cours){
-  const ctx = cours.contexte || {};
-  const n = parseInt(ctx.lecon, 10);
-  if(!isNaN(n) && n > 0) return n;
+/* Le numéro écrit sur un cours préparé.
 
+   La NOTE d'abord, le contexte ensuite : c'est la note que le
+   moniteur lit sur sa carte, et les deux ont divergé. Une première
+   version de cette réparation corrigeait le contexte mais ratait la
+   note — elle déclarait ensuite « rien à corriger » en regardant le
+   contexte, pendant que la carte affichait toujours « 159ème ». */
+function numeroLeconDuCours(cours){
   const m = String(cours.note || '').match(RE_NUM_LECON);
   if(m){
     const v = parseInt(String(m[0]), 10);
     if(!isNaN(v) && v > 0) return v;
   }
-  return null;
+  const n = parseInt((cours.contexte || {}).lecon, 10);
+  return (!isNaN(n) && n > 0) ? n : null;
+}
+
+/* ------------------------------------------------------------
+   LA NOTE QUE CE COURS DEVRAIT PORTER
+
+   On ne rature plus : on refait. Le corps de la note est ce que le
+   questionnaire écrirait avec le bon numéro de leçon — donc la
+   frise intacte, et la phrase de rang juste jusqu'au bout
+   (« 3ème leçon sur 5 — encore 2 leçons avant l'examen blanc », et
+   non « 3ème leçon — frise dépassée » héritée du 159).
+
+   La date du jour est celle du cours pendant ce calcul : certaines
+   phrases du questionnaire la lisent à l'écran, et les dater
+   d'aujourd'hui serait inventer.
+   ------------------------------------------------------------ */
+function noteJusteDuCours(cours, rang){
+  const m = morceauxDeNotePreparee(cours.note);
+
+  /* La note sait des choses que le contexte ignore : les cours
+     créés par un rappel n'y mettaient que la leçon et la frise, et
+     la date d'examen restait prisonnière du texte. On la relit —
+     toute la note, corps et 📌, pour que réparer deux fois ne
+     perde rien. Le contexte, lui, est une réponse de moniteur : il
+     l'emporte partout où il dit quelque chose. */
+  const acquis = (typeof defautsDepuisNote === 'function')
+    ? defautsDepuisNote(cours.note) : {};
+  const ctx = Object.assign(acquis, cours.contexte || {});
+  ctx.lecon = String(rang);
+
+  const champDate = $('lessonDate');
+  const dateAvant = champDate ? champDate.value : null;
+  if(champDate && cours.date) champDate.value = cours.date;
+  let corps = '';
+  try{
+    corps = noteDepuisQuestionnaire(ctx);
+  }finally{
+    if(champDate && dateAvant !== null) champDate.value = dateAvant;
+  }
+
+  /* Le neuf et l'ancien se fondent : une ligne par sujet, celle du
+     questionnaire, enrichie de l'ancienne quand elle en disait
+     davantage — la ligne du bureau porte le centre et l'heure de
+     convocation. Le 📌 ne garde que les mots du moniteur. C'est là
+     que les cinq lignes d'examen empilées disparaissent. */
+  const ancien = [m.corps, m.consigne].filter(Boolean).join(' · ');
+  const f = fondreNotePreparee(corps, ancien);
+  return assemblerNotePreparee(m.entete, f.corps, f.consigne);
 }
 
 async function verifierNumerosLecon(){
@@ -1602,46 +1658,78 @@ async function verifierNumerosLecon(){
           ? dossier.lecons + 1
           : dossier.lecons;
         const ecrit = numeroLeconDuCours(c);
-        if(ecrit === null || ecrit === juste) return;
-        reparLecons.push({ cours: c, eleve: nom, ecrit: ecrit, juste: juste });
+
+        /* Un cours sans aucun contexte ne se refait pas : il n'y a
+           rien à partir de quoi réécrire sa note. */
+        if(!c.contexte || !Object.keys(c.contexte).length) return;
+
+        let note = '';
+        try{ note = noteJusteDuCours(c, juste); }catch(e){ return; }
+        if(!note || note === c.note) return;
+
+        reparLecons.push({ cours: c, eleve: nom, note: note,
+                           ecrit: (ecrit === null ? juste : ecrit),
+                           juste: juste });
       });
     }
 
     if(!reparLecons.length){
       etat.textContent = 'Rien à corriger : les ' + cles.length +
-                         ' élève(s) vérifié(s) ont le bon numéro. ✅';
+                         ' élève(s) vérifié(s) ont la bonne note. ✅';
       return;
     }
 
     etat.textContent = reparLecons.length + ' cours à corriger :';
-    zone.innerHTML =
-      '<div style="margin:10px 0;font-size:14px;line-height:1.7;">' +
-      reparLecons.map(x =>
-        '<div>· <strong>' + reparTexte(x.eleve) + '</strong> — ' +
-        x.ecrit + 'ème → <strong>' + x.juste + 'ème leçon</strong>' +
-        (x.cours.date ? ' <span style="color:var(--muted);">(cours du ' +
-          reparTexte(x.cours.date) + ')</span>' : '') + '</div>').join('') +
-      '</div>' +
-      '<button class="btn btn-primary" id="reparLeconsAppliquer">' +
-      '✅ Corriger ces ' + reparLecons.length + ' cours</button>';
+    zone.innerHTML = '';
 
-    brancher('reparLeconsAppliquer', 'click', appliquerNumerosLecon);
+    /* Avant et après, en entier : une réécriture en masse se lit
+       avant de se lancer, et ce n'est plus un seul chiffre qui
+       change — c'est toute la note. */
+    reparLecons.forEach(x => {
+      const d = document.createElement('div');
+      d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
+        'padding:8px 11px;margin-top:6px;font-size:12px;line-height:1.55;';
+      d.innerHTML =
+        '<strong>' + reparTexte(x.eleve) + '</strong>' +
+        (x.ecrit !== x.juste
+          ? ' — <strong>' + x.ecrit + 'ème → ' + x.juste + 'ème leçon</strong>'
+          : ' <span style="color:var(--muted);">— ' + x.juste +
+            'ème leçon (note à remettre au propre)</span>') +
+        (x.cours.date ? ' <span style="color:var(--muted);">(cours du ' +
+          reparTexte(x.cours.date) + ')</span>' : '') +
+        '<div style="color:var(--muted);margin-top:4px;white-space:pre-wrap;">' +
+        'avant : ' + reparTexte(x.cours.note) + '</div>' +
+        '<div style="color:var(--accent-text);margin-top:2px;white-space:pre-wrap;">' +
+        'après : ' + reparTexte(x.note) + '</div>';
+      zone.appendChild(d);
+    });
+
+    const bAppl = document.createElement('button');
+    bAppl.className = 'btn btn-primary';
+    bAppl.id = 'reparLeconsAppliquer';
+    bAppl.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
+    bAppl.textContent = '✅ Corriger ces ' + reparLecons.length + ' cours';
+    bAppl.addEventListener('click', appliquerNumerosLecon);
+    zone.appendChild(bAppl);
 
   }catch(e){
     etat.textContent = 'Vérification impossible : ' + (e && e.message ? e.message : e);
   }finally{
     btn.disabled = false;
-    btn.textContent = '🔢 Vérifier les numéros de leçon';
+    btn.textContent = '🔢 Vérifier les cours préparés';
   }
 }
 
 async function appliquerNumerosLecon(){
   if(!reparLecons.length) return;
 
-  if(!await confirmer('Corriger le numéro de leçon de ' + reparLecons.length +
+  if(!await confirmer('Corriger ' + reparLecons.length +
       ' cours préparé(s) ?\n\n' +
-      'Seul ce numéro change : la note, le type de bilan et le moniteur ' +
-      'ne bougent pas. Les bilans déjà enregistrés ne sont pas touchés.')) return;
+      'La note est refaite avec le bon numéro de leçon : la frise ' +
+      'redevient lisible et la consigne du moniteur précédent est ' +
+      'dédoublonnée.\n\n' +
+      'Le type de bilan, le moniteur et l\'heure ne bougent pas. Les ' +
+      'bilans déjà enregistrés ne sont pas touchés.')) return;
 
   const btn = $('reparLeconsAppliquer');
   const etat = $('reparLeconsEtat');
@@ -1659,10 +1747,9 @@ async function appliquerNumerosLecon(){
       const ctx = Object.assign({}, c.contexte || {});
       ctx.lecon = String(x.juste);
 
-      /* La note garde tout le reste : l'heure, les pictogrammes, la
-         consigne du moniteur précédent. Seul le rang est réécrit. */
-      const rang = (x.juste === 1) ? '1ère' : (x.juste + 'ème');
-      const note = String(c.note || '').replace(RE_NUM_LECON, rang + '$1');
+      /* La note a été refaite à la vérification, et c'est celle-là
+         qu'on a montrée : on écrit exactement ce qui a été validé. */
+      const note = x.note;
 
       await appelPrep({
         action: 'prepAdd', id: c.id, date: c.date,
