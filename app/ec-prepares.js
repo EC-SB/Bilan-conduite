@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 16:30 — v703 */
+/* Déployé le 29/08/2026 à 18:05 — v705 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -319,11 +319,24 @@ async function afficherPrepares(recharger, silencieux){
 
   if(recharger !== false){
     if(!silencieux) zone.innerHTML = '<div class="empty">Chargement…</div>';
-    /* Les deux en parallèle : la seconde ne doit pas retarder la
-       première, dont dépend tout l'écran. */
+    /* En parallèle : les suivantes ne doivent pas retarder la
+       première, dont dépend tout l'écran.
+
+       Les fiches en font partie depuis que la carte les lit — la
+       formation, la boîte et le poste de conduite viennent toutes
+       du répertoire. Cet écran ne les chargeait jamais : il se
+       contentait de celles qu'un AUTRE écran avait pu charger
+       avant lui. D'où des cartes sans 🎓, et des cases de coussin
+       éteintes sur des élèves qui en ont besoin.
+
+       On ne les redemande que si on ne les a pas : c'est un appel
+       de plus, il n'a pas à se répéter à chaque ouverture. */
     const [enLigne] = await Promise.all([
       chargerPrepares(),
-      chargerConfirmations()
+      chargerConfirmations(),
+      (typeof chargerFiches === 'function' &&
+       typeof fichesEleves !== 'undefined' && !fichesEleves.length)
+        ? chargerFiches().catch(() => []) : Promise.resolve()
     ]);
 
     /* La veille des réponses part avec la liste, et se relance à
