@@ -128,12 +128,7 @@ function rien(message, diag){
 }
 
 function confirmer(c, manuel){
-  fetch(PROXY + '/cours', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ c: jeton, confirmer: true })
-  })
-  .then(function(r){ return r.json(); })
+  envoyerConfirmation()
   .then(function(d){
     if(d && d.confirmeLe) merci(c, d.confirmeLe);
     else throw new Error('échec');
@@ -148,19 +143,76 @@ function confirmer(c, manuel){
   });
 }
 
+/* ============================================================
+   LES DEUX DEMANDES PARTENT ENSEMBLE
+
+   L'élève attendait deux allers-retours l'un derrière l'autre :
+   d'abord lire son cours, ENSUITE confirmer. Chacun passe par le
+   classeur, qui met plusieurs secondes — et lui n'a qu'un bouton
+   à appuyer, sur son téléphone, souvent en 4G.
+
+   Les deux ne dépendent pourtant pas l'une de l'autre : la
+   confirmation n'a besoin que du jeton, qui est dans le lien.
+   Elles partent donc en même temps, et l'attente n'est plus que
+   celle de la plus lente des deux au lieu de leur somme.
+
+   La lecture ne sert qu'à écrire son prénom et l'heure de son
+   cours : si elle traîne, le « c'est noté » s'affiche sans, et se
+   complète quand elle arrive. Ce qu'il est venu faire est fait.
+   ============================================================ */
+function envoyerConfirmation(){
+  return fetch(PROXY + '/cours', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ c: jeton, confirmer: true })
+  }).then(function(r){ return r.json(); });
+}
+
 if(!jeton){
   rien('Ce lien est incomplet.');
 }else{
-  fetch(PROXY + '/cours?c=' + encodeURIComponent(jeton))
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(!d || !d.cours) return rien((d && (d.message || d.error)) ||
-                                     'Ce lien a expiré.', d && d.diag);
-      /* Déjà confirmé : on ne le redemande pas, on le rappelle. */
-      if(d.cours.confirmeLe) return merci(d.cours, d.cours.confirmeLe);
-      confirmer(d.cours, false);
-    })
-    .catch(function(){ rien('Impossible de te répondre pour le moment.'); });
+  var laLecture = fetch(PROXY + '/cours?c=' + encodeURIComponent(jeton))
+    .then(function(r){ return r.json(); });
+  var laConfirmation = envoyerConfirmation();
+
+  /* Ce qui est déjà affiché, pour ne pas l'écrire deux fois */
+  var affiche = '';
+
+  laConfirmation.then(function(d){
+    if(!d || !d.confirmeLe) return;          /* la lecture dira pourquoi */
+    affiche = 'merci';
+    merci(null, d.confirmeLe);
+    /* Le prénom et l'horaire complètent l'écran dès qu'ils sont là. */
+    laLecture.then(function(l){
+      if(l && l.cours) merci(l.cours, d.confirmeLe);
+    }).catch(function(){ /* l'essentiel est dit */ });
+  }).catch(function(){ /* la lecture décidera de la suite */ });
+
+  laLecture.then(function(d){
+    if(affiche) return;                      /* déjà remercié */
+    if(!d || !d.cours) return rien((d && (d.message || d.error)) ||
+                                   'Ce lien a expiré.', d && d.diag);
+    /* Déjà confirmé un autre jour : on ne le redemande pas. */
+    if(d.cours.confirmeLe){ affiche = 'merci'; return merci(d.cours, d.cours.confirmeLe); }
+
+    /* La confirmation est partie : on attend sa réponse plutôt que
+       d'en lancer une seconde. */
+    laConfirmation.then(function(r){
+      if(affiche) return;
+      if(r && r.confirmeLe){ affiche = 'merci'; merci(d.cours, r.confirmeLe); }
+      else aConfirmer(d.cours);
+    }).catch(function(){ if(!affiche) aConfirmer(d.cours); });
+  }).catch(function(){
+    /* Sans la lecture, la confirmation peut tout de même avoir
+       abouti : on ne dit « impossible » qu'après l'avoir attendue. */
+    laConfirmation.then(function(r){
+      if(affiche) return;
+      if(r && r.confirmeLe){ affiche = 'merci'; merci(null, r.confirmeLe); }
+      else rien('Impossible de te répondre pour le moment.');
+    }).catch(function(){
+      if(!affiche) rien('Impossible de te répondre pour le moment.');
+    });
+  });
 }
 </script>
 </body>
