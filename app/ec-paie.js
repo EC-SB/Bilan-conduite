@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 21:00 — v708 */
+/* Déployé le 29/08/2026 à 22:45 — v709 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -22,6 +22,7 @@ let salariesPaie = [];
 let semainesPaie = [];
 let absencesPaie = [];
 let gasoilPaie = [];
+let cloturesPaie = [];
 let rattachements = {};
 let moisPaie = '';
 
@@ -38,6 +39,11 @@ const TYPES_ABSENCE = [
   { cle:'cp',     nom:'🏖️ Congés payés',      court:'CP' },
   { cle:'arret',  nom:'🤒 Arrêt de travail',   court:'Arrêt' },
   { cle:'ferie',  nom:'📅 Jour férié',         court:'Férié' },
+  /* La récupération n'est pas une absence comme les autres : elle
+     ne retire rien au dû, elle CONSOMME des heures que le salarié
+     avait déjà gagnées. Un CP diminue les heures qu'il doit ; une
+     récup diminue celles qu'on lui doit. */
+  { cle:'recup',  nom:'🕐 Récupération',       court:'Récup' },
   { cle:'ss',     nom:'📄 Sans solde',         court:'Sans solde' },
   { cle:'autre',  nom:'📝 Autre absence',      court:'Absence' }
 ];
@@ -186,6 +192,7 @@ async function afficherPaie(){
     semainesPaie = (d && d.semaines) || [];
     absencesPaie = (d && d.absences) || [];
     gasoilPaie = (d && d.gasoil) || [];
+    cloturesPaie = (d && d.clotures) || [];
     rattachements = (d && d.rattachements) || {};
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + e.message.replace(/</g, '&lt;') + '</div>';
@@ -269,6 +276,11 @@ async function afficherPaie(){
      deux colonnes par semaine. */
   zone.appendChild(tableauPaie());
 
+  /* Ce qu'on DÉCIDE de ces heures, juste sous le tableau qui les
+     produit : c'est là qu'on les a sous les yeux, et c'est là
+     qu'on tranche. */
+  zone.appendChild(blocCloture());
+
   /* Les absences du mois, cliquables : sans cette liste, une
      absence saisie ne pouvait plus être corrigée. */
   zone.appendChild(blocAbsencesPaie());
@@ -311,8 +323,13 @@ function joursAbsentsDeduits(idSalarie, lundi, joursSemaine){
   const d2 = d.toISOString().slice(0, 10);
 
   let jours = 0;
+  /* La récup retire son quota du dû, comme un CP. Sans ça la
+     semaine afficherait une dette — le salarié n'a pas fait ses
+     heures — ALORS QUE son compteur de récup baisse déjà. On lui
+     ferait payer deux fois la même journée. */
   absencesPaie.filter(a => a.idSalarie === idSalarie && a.du &&
-                           (a.type === 'cp' || a.type === 'ferie'))
+                           (a.type === 'cp' || a.type === 'ferie' ||
+                            a.type === 'recup'))
     .forEach(a => {
       if(a.du > d2) return;
       if(a.au && a.au < d1) return;
@@ -508,6 +525,256 @@ function blocSemainesDeBord(){
   return d;
 }
 
+
+/* ============================================================
+   LA CLÔTURE DU MOIS
+
+   Une ligne par salarié, et une seule saisie par ligne : ce qu'on
+   paie. Le reste se déduit et s'écrit sous les yeux pendant qu'on
+   tape — ce qui part en récup, et ce qui repart au mois suivant.
+
+   Par défaut on paie tout ; ce qu'on ne paie pas attend d'être payé
+   le mois prochain. La récup, elle, ne se met jamais toute seule :
+   c'est une décision, pas un reste.
+   ============================================================ */
+function blocCloture(){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px;margin-top:14px;';
+
+  const actifs = salariesPaie.filter(s => s.actif);
+  const clos = actifs.length && actifs.every(s => !!clotureDe(s.id, moisPaie));
+
+  const tete = document.createElement('div');
+  tete.style.cssText = 'display:flex;gap:8px;align-items:center;' +
+    'flex-wrap:wrap;margin-bottom:10px;';
+  tete.innerHTML = '<div style="flex:1;min-width:0;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">🔒 Clôture — ' +
+    (moisEnToutesLettres(moisPaie) || moisPaie) +
+    (clos ? ' <span style="color:var(--muted);font-weight:400;">· validée</span>' : '') +
+    '</div>';
+  d.appendChild(tete);
+
+  if(!actifs.length){
+    d.innerHTML += '<div style="font-size:12px;color:var(--muted);">' +
+      'Aucun salarié actif.</div>';
+    return d;
+  }
+
+  const aide = document.createElement('div');
+  aide.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:10px;' +
+    'line-height:1.5;';
+  aide.innerHTML =
+    '<strong>reporté</strong> = ce qui restait des mois clôturés · ' +
+    '<strong>ce mois</strong> = ce que le tableau au-dessus a produit · ' +
+    '<strong>je paie</strong> = la seule case à remplir, pré-remplie avec tout · ' +
+    '<strong>récup</strong> = transformé en temps au lieu d\'argent.<br>' +
+    'Ce qui n\'est ni payé ni mis en récup repart au mois suivant.';
+  d.appendChild(aide);
+
+  const lignes = [];
+
+  actifs.forEach(s => {
+    const c = clotureParDefaut(s);
+    const l = document.createElement('div');
+    l.style.cssText = 'border-top:1px solid rgba(255,255,255,.06);padding:9px 0;';
+
+    const etat = { payeN: c.payeN, payeM: c.payeM,
+                   recupN: c.recupN, recupM: c.recupM, taux: c.taux };
+
+    const nom = document.createElement('div');
+    nom.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:5px;';
+    nom.textContent = s.nom;
+    l.appendChild(nom);
+
+    /* Le rappel de ce qui arrive : ce n'est pas une saisie, c'est
+       le point de départ. Sans lui on ne comprend pas pourquoi il y
+       a plus à payer que le mois n'en a produit. */
+    const avant = [];
+    if(c.avant.normales) avant.push(enHeures(c.avant.normales) + ' N');
+    if(c.avant.majorees) avant.push(enHeures(c.avant.majorees) + ' à 25%');
+    if(c.avant.recup) avant.push('🕐 ' + enHeures(c.avant.recup) + ' de récup');
+    if(avant.length){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--warn-text);margin-bottom:5px;';
+      a.textContent = '↳ reporté : ' + avant.join(' · ');
+      l.appendChild(a);
+    }
+
+    const zApres = document.createElement('div');
+    zApres.style.cssText = 'font-size:11px;margin-top:5px;line-height:1.5;';
+
+    const majApres = () => {
+      const resteN = arrondiQuart(c.dispoN - etat.payeN - etat.recupN);
+      const resteM = arrondiQuart(c.dispoM - etat.payeM - etat.recupM);
+      const credit = recupCreditee(etat.recupN, etat.recupM, etat.taux);
+      const bouts = [];
+      if(credit) bouts.push('<span style="color:var(--accent-text);">🕐 +' +
+        enHeures(credit) + ' de récup créditée</span>');
+      if(resteN || resteM){
+        const dits = [];
+        if(resteN) dits.push(enHeures(resteN) + ' N');
+        if(resteM) dits.push(enHeures(resteM) + ' à 25%');
+        const doit = (resteN < 0 || resteM < 0);
+        bouts.push('<span style="color:' + (doit ? 'var(--red)' : 'var(--warn-text)') +
+          ';">' + (doit ? '⚠️ ' : '💶 ') + dits.join(' · ') +
+          (doit ? ' — il doit ces heures' : ' à payer le mois prochain') + '</span>');
+      }
+      if(!bouts.length) bouts.push('<span style="color:var(--muted);">tout soldé</span>');
+      zApres.innerHTML = '→ ' + bouts.join(' · ');
+    };
+
+    /* Deux lignes, parce que les deux ne se paient pas au même
+       tarif et qu'on ne peut pas les additionner. */
+    [['normales', 'N', 'payeN', 'recupN', c.dispoN, c.calcN],
+     ['à 25 %', '↑', 'payeM', 'recupM', c.dispoM, c.calcM]
+    ].forEach(([libelle, court, cleP, cleR, dispo, ceMois]) => {
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex;gap:7px;align-items:center;' +
+        'flex-wrap:wrap;font-size:12px;margin-bottom:4px;';
+
+      r.innerHTML = '<span style="width:58px;flex-shrink:0;color:var(--muted);">' +
+        libelle + '</span>' +
+        '<span style="width:74px;flex-shrink:0;font-variant-numeric:tabular-nums;">' +
+        (ceMois ? (ceMois > 0 ? '+' : '') + enHeures(ceMois) : '·') + '</span>';
+
+      const champ = (cle, etiquette, largeur) => {
+        const w = document.createElement('span');
+        w.style.cssText = 'display:inline-flex;align-items:center;gap:4px;';
+        const e = document.createElement('span');
+        e.style.cssText = 'color:var(--muted);font-size:11px;';
+        e.textContent = etiquette;
+        const i = document.createElement('input');
+        i.type = 'text';
+        i.inputMode = 'decimal';
+        i.value = versChampPaie(etat[cle] || '');
+        i.placeholder = '0';
+        i.disabled = c.close;
+        i.style.cssText = 'width:' + largeur + 'px;margin:0;padding:4px;font-size:12px;' +
+          'text-align:center;font-variant-numeric:tabular-nums;background:var(--navy);' +
+          'border:1px solid var(--line);' + (c.close ? 'opacity:.55;' : '');
+        i.addEventListener('input', () => {
+          etat[cle] = nombrePaie(i.value) || 0;
+          majApres();
+        });
+        w.appendChild(e); w.appendChild(i);
+        return w;
+      };
+
+      r.appendChild(champ(cleP, 'je paie', 54));
+      r.appendChild(champ(cleR, 'récup', 48));
+
+      /* Le taux ne concerne QUE les heures à 25 % : une heure
+         normale vaut toujours une heure de récup. */
+      if(cleR === 'recupM'){
+        const sel = document.createElement('select');
+        sel.disabled = c.close;
+        sel.style.cssText = 'width:auto;margin:0;padding:4px 6px;font-size:11px;' +
+          (c.close ? 'opacity:.55;' : '');
+        sel.innerHTML = '<option value="1">×1</option><option value="1.25">×1,25</option>';
+        sel.value = String(etat.taux);
+        sel.title = 'Une heure à 25 % vaut une heure de récup, ou une heure un quart';
+        sel.addEventListener('change', () => {
+          etat.taux = parseFloat(sel.value) || 1;
+          majApres();
+        });
+        r.appendChild(sel);
+      }
+
+      const dis = document.createElement('span');
+      dis.style.cssText = 'font-size:11px;color:var(--muted);';
+      dis.textContent = 'dispo ' + enHeures(dispo);
+      r.appendChild(dis);
+
+      l.appendChild(r);
+    });
+
+    majApres();
+    l.appendChild(zApres);
+    d.appendChild(l);
+    lignes.push({ s: s, c: c, etat: etat });
+  });
+
+  /* --- Valider, ou rouvrir --- */
+  const rangee = document.createElement('div');
+  rangee.style.cssText = 'display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;';
+
+  const etatTexte = document.createElement('div');
+  etatTexte.style.cssText = 'font-size:12px;color:var(--muted);margin-top:8px;' +
+    'line-height:1.5;';
+
+  if(!clos){
+    const bVal = document.createElement('button');
+    bVal.className = 'btn btn-primary';
+    bVal.style.cssText = 'flex:1;min-width:170px;padding:12px;font-size:13px;margin:0;';
+    bVal.textContent = '✅ Valider le mois';
+    bVal.addEventListener('click', async () => {
+      if(!await confirmer('Valider ' + (moisEnToutesLettres(moisPaie) || moisPaie) +
+          ' ?\n\nLes chiffres de ce mois seront figés : corriger une semaine ' +
+          'ensuite ne les changera plus, il faudra rouvrir le mois.')) return;
+      bVal.disabled = true;
+      bVal.textContent = 'Validation…';
+      let ok = 0;
+      for(const x of lignes){
+        try{
+          await appelPrep({
+            action: 'paieClotureSet',
+            idSalarie: x.s.id, mois: moisPaie,
+            normalesCalc: x.c.calcN, majoreesCalc: x.c.calcM,
+            normalesPayees: x.etat.payeN, majoreesPayees: x.etat.payeM,
+            normalesRecup: x.etat.recupN, majoreesRecup: x.etat.recupM,
+            tauxRecup: x.etat.taux,
+            recupCreditee: recupCreditee(x.etat.recupN, x.etat.recupM, x.etat.taux),
+            remarque: '', par: ACCES.moniteur || ''
+          });
+          ok++;
+        }catch(e){
+          showToast('Impossible pour ' + x.s.nom + ' : ' + e.message);
+        }
+      }
+      if(ok) showToast(ok + ' salarié(s) clôturé(s) ✅');
+      afficherPaie();
+    });
+    rangee.appendChild(bVal);
+    etatTexte.textContent = 'Une fois validé, ce mois ne bouge plus : ' +
+      'c\'est ce qui rend les compteurs fiables.';
+  }else{
+    const bRe = document.createElement('button');
+    bRe.className = 'btn btn-secondary';
+    bRe.style.cssText = 'flex:1;min-width:170px;padding:12px;font-size:13px;margin:0;';
+    bRe.textContent = '🔓 Rouvrir le mois';
+    bRe.addEventListener('click', async () => {
+      if(!await confirmer('Rouvrir ' + (moisEnToutesLettres(moisPaie) || moisPaie) +
+          ' ?\n\nLes décisions prises sur ce mois seront effacées et les ' +
+          'compteurs des mois suivants recalculés.')) return;
+      bRe.disabled = true;
+      for(const s of actifs){
+        const c = clotureDe(s.id, moisPaie);
+        if(!c) continue;
+        try{ await appelPrep({ action: 'paieClotureDelete', id: c.id }); }catch(e){}
+      }
+      showToast('Mois rouvert 🔓');
+      afficherPaie();
+    });
+    rangee.appendChild(bRe);
+    const q = lignes[0] && lignes[0].c.ligne;
+    etatTexte.textContent = 'Validé' + (q && q.valideLe ? ' le ' + q.valideLe : '') +
+      (q && q.par ? ' par ' + q.par : '') + '.';
+  }
+
+  const bDir = document.createElement('button');
+  bDir.className = 'btn btn-secondary';
+  bDir.style.cssText = 'flex:1;min-width:170px;padding:12px;font-size:13px;margin:0;';
+  bDir.textContent = '💬 Message direction';
+  bDir.title = 'Les heures supp de chacun, à coller sur Messenger';
+  bDir.addEventListener('click', () => ouvrirMessageDirection());
+  rangee.appendChild(bDir);
+
+  d.appendChild(rangee);
+  d.appendChild(etatTexte);
+  return d;
+}
+
 /* Les absences qui touchent le mois, pour les revoir et corriger.
    Nom propre au module : ec-ecoutes.js déclare déjà blocAbsences,
    et deux fonctions du même nom se percutent. */
@@ -542,12 +809,12 @@ function blocAbsencesPaie(){
     const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
     const jours = (a.type === 'cp')
       ? joursTravaillesEntre(a.du, a.au || a.du, JOURS_CP_SEMAINE)
-      : (a.type === 'ferie')
+      : (a.type === 'ferie' || a.type === 'recup')
       ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine)
       : joursEntre(a.du, a.au || todayLocal());
 
     /* Un CP ne retire pas le même nombre de jours au dû qu'au solde */
-    const auDu = (a.type === 'cp' || a.type === 'ferie')
+    const auDu = (a.type === 'cp' || a.type === 'ferie' || a.type === 'recup')
       ? joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine) : 0;
 
     const l = document.createElement('div');
@@ -620,6 +887,119 @@ function lundisDuMois(mois){
 
 function semaineDe(idSalarie, lundi){
   return semainesPaie.find(x => x.idSalarie === idSalarie && x.semaine === lundi) || null;
+}
+
+
+/* ============================================================
+   LES COMPTEURS SE LISENT, ILS NE S'ÉCRIVENT PAS
+
+   Ce qu'on doit à un salarié — de l'argent, du temps — est la
+   somme de ce qui a été décidé mois après mois. Personne ne tient
+   ce nombre à la main : il se relit à chaque ouverture, et il ne
+   peut donc pas dériver. C'est toute la différence avec l'ancien
+   champ « report », un nombre mutable posé sur la fiche, qui
+   s'écrasait au mois suivant sans laisser de trace.
+
+   Trois compteurs, parce que trois dettes qui ne s'éteignent pas
+   pareil :
+
+     • les heures NORMALES pas encore payées,
+     • les heures à 25 % pas encore payées,
+     • la RÉCUP à prendre, en heures de temps.
+
+   Les deux premières restent séparées : elles ne se paient pas au
+   même tarif, et les additionner ferait perdre de l'argent à
+   quelqu'un. Elles peuvent être négatives — c'est alors le salarié
+   qui doit des heures.
+   ============================================================ */
+
+/* La clôture d'un salarié pour un mois donné, ou rien. */
+function clotureDe(idSalarie, mois){
+  return (cloturesPaie || []).find(c =>
+    String(c.idSalarie) === String(idSalarie) && String(c.mois) === String(mois)) || null;
+}
+
+function moisEstClos(mois){
+  return (cloturesPaie || []).some(c => String(c.mois) === String(mois));
+}
+
+/* La récup effectivement prise, en heures.
+
+   Une journée de récup vaut la journée de travail du salarié :
+   c'est le seul taux qui ait un sens, puisqu'il pose un jour qu'il
+   aurait travaillé. */
+function recupPrise(s, avantMois){
+  const hj = s.heuresJour || 8.75;
+  let h = 0;
+  (absencesPaie || []).forEach(a => {
+    if(String(a.idSalarie) !== String(s.id) || a.type !== 'recup' || !a.du) return;
+    if(avantMois && String(a.du).slice(0, 7) >= String(avantMois)) return;
+    h += joursTravaillesEntre(a.du, a.au || a.du, s.joursSemaine) * hj;
+  });
+  return arrondiQuart(h);
+}
+
+/* Ce qui reste dû AVANT le mois affiché : la somme de tout ce qui
+   a été produit et pas encore soldé, sur les mois déjà clos. */
+function reportAvant(s, mois){
+  let n = 0, m = 0, credit = 0;
+  (cloturesPaie || []).forEach(c => {
+    if(String(c.idSalarie) !== String(s.id)) return;
+    if(mois && String(c.mois) >= String(mois)) return;
+    n += (c.normalesCalc || 0) - (c.normalesPayees || 0) - (c.normalesRecup || 0);
+    m += (c.majoreesCalc || 0) - (c.majoreesPayees || 0) - (c.majoreesRecup || 0);
+    credit += (c.recupCreditee || 0);
+  });
+  return { normales: arrondiQuart(n), majorees: arrondiQuart(m),
+           recup: arrondiQuart(credit - recupPrise(s, mois)) };
+}
+
+/* Ce que le mois affiché a produit, avant toute décision. */
+function produitDuMois(s){
+  let normal = 0, majore = 0;
+  lundisDuMois(moisPaie).forEach(l => {
+    const w = semaineDe(s.id, l);
+    if(!w) return;
+    const so = soldesSemaine(w, s);
+    normal += so.normal;
+    majore += so.majore;
+  });
+  return { normales: arrondiQuart(normal), majorees: arrondiQuart(majore) };
+}
+
+/* Une heure à 25 % ne vaut pas forcément une heure de récup : elle
+   peut en valoir une et quart. C'est la direction qui tranche, au
+   cas par cas, et le taux retenu se garde avec la décision.
+   Une heure normale, elle, vaut toujours une heure. */
+function recupCreditee(normalesRecup, majoreesRecup, taux){
+  return arrondiQuart((normalesRecup || 0) + (majoreesRecup || 0) * (taux || 1));
+}
+
+/* La décision par défaut : on paie tout ce qui est disponible, et
+   ce qu'on ne paie pas attend d'être payé le mois prochain. La
+   récup ne se met jamais toute seule — c'est un choix. */
+function clotureParDefaut(s){
+  const avant = reportAvant(s, moisPaie);
+  const mois = produitDuMois(s);
+  const dispoN = arrondiQuart(avant.normales + mois.normales);
+  const dispoM = arrondiQuart(avant.majorees + mois.majorees);
+  const c = clotureDe(s.id, moisPaie);
+
+  return {
+    dispoN: dispoN, dispoM: dispoM,
+    calcN: mois.normales, calcM: mois.majorees,
+    avant: avant,
+    /* Une dette du salarié ne se « paie » pas : elle attend d'être
+       absorbée par ses prochaines heures. On ne propose donc de
+       payer que ce qui est positif. */
+    payeN: c ? c.normalesPayees : Math.max(0, dispoN),
+    payeM: c ? c.majoreesPayees : Math.max(0, dispoM),
+    recupN: c ? c.normalesRecup : 0,
+    recupM: c ? c.majoreesRecup : 0,
+    taux: c ? (c.tauxRecup || 1) : 1,
+    remarque: c ? (c.remarque || '') : '',
+    close: !!c, ligne: c
+  };
 }
 
 /* Les totaux du mois pour un salarié */
@@ -1681,6 +2061,108 @@ function recapTexte(du, au){
   return l.join('\n');
 }
 
+
+/* ------------------------------------------------------------
+   LE MESSAGE POUR LA DIRECTION
+
+   Court, et rien d'autre que ce qu'il faut pour trancher : le
+   prénom, ses heures supp normales, ses heures à 25 %. Il se colle
+   sur Messenger, on répond « paie tout » ou « garde-en la moitié
+   en récup », et on clôture derrière.
+
+   C'est un message AVANT la décision — à ne pas confondre avec
+   celui du gestionnaire de paie, qui part APRÈS et qui dit ce
+   qu'on a décidé. */
+function prenomDe(nom){
+  const t = String(nom || '').trim();
+  if(!t) return '';
+  /* « Criquet Maryne » : le prénom est le dernier mot chez nous —
+     les fiches sont saisies NOM Prénom. Un seul mot reste lui-même. */
+  const mots = t.split(/\s+/);
+  return mots.length > 1 ? mots[mots.length - 1] : mots[0];
+}
+
+function composerMessageDirection(){
+  const lignes = ['Heures supp ' + (moisEnToutesLettres(moisPaie) || moisPaie) + ' :', ''];
+  let un = false;
+
+  salariesPaie.filter(s => s.actif).forEach(s => {
+    const m = produitDuMois(s);
+    const avant = reportAvant(s, moisPaie);
+    const totN = arrondiQuart(m.normales + avant.normales);
+    const totM = arrondiQuart(m.majorees + avant.majorees);
+    if(!totN && !totM && !avant.recup) return;
+    un = true;
+
+    const bouts = [];
+    bouts.push(enHeures(totN) + ' normales');
+    bouts.push(enHeures(totM) + ' à 25%');
+    /* Ce qui traîne des mois d'avant se dit : la direction décide
+       sur le total dû, pas sur le seul mois écoulé. */
+    if(avant.normales || avant.majorees){
+      const r = [];
+      if(avant.normales) r.push(enHeures(avant.normales) + ' N');
+      if(avant.majorees) r.push(enHeures(avant.majorees) + ' à 25%');
+      bouts.push('dont ' + r.join(' et ') + ' reporté(s)');
+    }
+    if(avant.recup) bouts.push(enHeures(avant.recup) + ' de récup à prendre');
+
+    lignes.push(prenomDe(s.nom) + ' : ' + bouts.join(', '));
+  });
+
+  if(!un) return 'Aucune heure supplémentaire ce mois-ci.';
+  lignes.push('', 'On paie tout ? On en garde en récup ?');
+  return lignes.join('\n');
+}
+
+function ouvrirMessageDirection(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px, 95vw);max-height:88vh;overflow-y:auto;';
+
+  boite.innerHTML = '<h3>💬 Message direction</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">' +
+      'À coller sur Messenger, pour décider quoi faire des heures supp ' +
+      'avant de clôturer le mois.</div>';
+
+  const z = document.createElement('textarea');
+  z.rows = 12;
+  z.value = composerMessageDirection();
+  z.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:14px;' +
+    'line-height:1.55;font-family:inherit;resize:vertical;margin-bottom:12px;';
+  boite.appendChild(z);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  bF.addEventListener('click', () => document.body.removeChild(fond));
+  rangee.appendChild(bF);
+
+  const bC = document.createElement('button');
+  bC.className = 'btn btn-primary';
+  bC.textContent = '📋 Copier';
+  bC.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(z.value);
+      showToast('Copié ✅');
+    }catch(e){
+      z.select();
+      showToast('Sélectionné — fais copier');
+    }
+  });
+  rangee.appendChild(bC);
+
+  boite.appendChild(rangee);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+}
+
 /* ============================================================
    LE MESSAGE
    ============================================================ */
@@ -1691,15 +2173,41 @@ function composerMessagePaie(){
   if(moisTexte) lignes.push('Éléments variables pour ' + moisTexte + ' :', '');
 
   salariesPaie.filter(s => s.actif).forEach(s => {
-    const t = totalMois(s);
+    /* Ce qu'on a DÉCIDÉ quand le mois est clôturé, ce qui est
+       calculé sinon. Le gestionnaire doit recevoir la décision,
+       pas le brouillon : c'est lui qui va payer. */
+    const c = clotureDe(s.id, moisPaie);
+    const brut = totalMois(s);
+    const t = c
+      ? { normales: c.normalesPayees, majorees: c.majoreesPayees, report: 0 }
+      : brut;
     const abs = absencesDuMois(s.id);
 
     /* Un salarié sans rien à signaler n'encombre pas le message */
-    if(!t.normales && !t.majorees && !t.report && !abs.length) return;
+    if(!t.normales && !t.majorees && !t.report && !abs.length &&
+       !(c && c.recupCreditee)) return;
 
     const bouts = [];
     if(t.majorees) bouts.push('Heures supplémentaires à 25% : ' + enHeures(t.majorees));
     if(t.normales) bouts.push('Heures supplémentaires normales : ' + enHeures(t.normales));
+    if(c && c.recupCreditee){
+      bouts.push(enHeures(c.recupCreditee) + ' passées en récupération, ' +
+                 'à ne pas payer');
+    }
+    if(c){
+      const resteN = arrondiQuart(c.normalesCalc - c.normalesPayees - c.normalesRecup);
+      const resteM = arrondiQuart(c.majoreesCalc - c.majoreesPayees - c.majoreesRecup);
+      if(resteN > 0 || resteM > 0){
+        const r = [];
+        if(resteN > 0) r.push(enHeures(resteN) + ' normales');
+        if(resteM > 0) r.push(enHeures(resteM) + ' à 25%');
+        bouts.push(r.join(' et ') + ' reportées sur le mois suivant');
+      }
+      if(resteN < 0 || resteM < 0){
+        bouts.push('il reste ' + enHeures(Math.abs(resteN) + Math.abs(resteM)) +
+                   ' à rattraper');
+      }
+    }
 
     abs.forEach(a => {
       const ty = TYPES_ABSENCE.find(x => x.cle === a.type);
