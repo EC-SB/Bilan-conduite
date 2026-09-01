@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:07 — v750 */
+/* Déployé le 01/09/2026 à 15:10 — v776 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1583,12 +1583,21 @@ async function supprimerDepuisRepertoire(n, bouton){
   bouton.disabled = true;
   const etat = $('importEtat');
   try{
-    const faits = await supprimerEleveComplet(n, t => {
+    const r = await supprimerEleveComplet(n, t => {
       if(etat){ etat.style.color = 'var(--muted)'; etat.textContent = n + ' — ' + t; }
     });
     if(etat){
       etat.style.color = 'var(--accent-text)';
-      etat.textContent = '✅ ' + n + ' supprimé — ' + (faits.join(' · ') || 'rien à retirer');
+      const bilan = (r && r.faits) ? r : { faits: [], rates: [] };
+      if(bilan.rates.length){
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = '⚠️ ' + n + ' — effacement INCOMPLET. Fait : ' +
+          (bilan.faits.join(' · ') || 'rien') + '. N\'a pas pu être effacé : ' +
+          bilan.rates.join(', ') + '. Recommence.';
+      }else{
+        etat.textContent = '✅ ' + n + ' supprimé — ' +
+          (bilan.faits.join(' · ') || 'rien à retirer');
+      }
     }
     await chargerEleves();
     afficherRepertoire();
@@ -1609,6 +1618,20 @@ async function supprimerDepuisRepertoire(n, bouton){
 async function supprimerEleveComplet(nom, rapporter){
   const dire = t => { if(typeof rapporter === 'function') rapporter(t); };
   const faits = [];
+  /* ------------------------------------------------------------
+     CE QUI A RATÉ SE DIT AUSSI.
+
+     Sept étapes, sept « catch » vides, et un message final qui
+     n'énumérait que les réussites. Six d'entre elles pouvaient
+     échouer — réseau, droits, feuille absente — et l'écran
+     annonçait quand même « ✅ Léa supprimée ». Le bureau croyait
+     le dossier parti ; l'élève restait dans le répertoire, avec
+     son adresse et son numéro.
+
+     Un effacement partiel n'est pas un effacement. Il faut le
+     savoir pour recommencer.
+     ------------------------------------------------------------ */
+  const rates = [];
 
   /* Messages au bureau : on les efface, pas seulement les marquer traités.
      Ce sont eux qui décrivent l'état de l'élève dans les listes. */
@@ -1616,7 +1639,7 @@ async function supprimerEleveComplet(nom, rapporter){
   try{
     const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: nom });
     if(r && r.effacees) faits.push(r.effacees + ' message(s)');
-  }catch(e){}
+  }catch(e){ rates.push('les messages au bureau'); }
 
   /* Cours préparés, passés comme à venir */
   dire('Cours préparés…');
@@ -1624,29 +1647,39 @@ async function supprimerEleveComplet(nom, rapporter){
     const d = await appelPrep({ action: 'prepList' });
     const siens = ((d && d.preparations) || [])
       .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+    let ratesPrep = 0;
     for(const pr of siens){
-      try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
+      try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }
+      catch(e){ ratesPrep++; }
     }
-    if(siens.length) faits.push(siens.length + ' cours préparé(s)');
-  }catch(e){}
+    if(siens.length - ratesPrep){
+      faits.push((siens.length - ratesPrep) + ' cours préparé(s)');
+    }
+    /* Une boucle qui avale ses échecs annonce le compte de ce
+       qu'elle a ESSAYÉ, pas de ce qu'elle a fait. */
+    if(ratesPrep) rates.push(ratesPrep + ' cours préparé(s)');
+  }catch(e){ rates.push('les cours préparés'); }
 
   /* Fiche de suivi : examens, dates, disponibilités */
   dire('Fiche de suivi…');
   try{
     await appelPrep({ action: 'suiviDelete', eleve: nom });
     faits.push('fiche de suivi');
-  }catch(e){}
+  }catch(e){ rates.push('la fiche de suivi'); }
 
   /* Captures du CEPC */
   dire('Captures du CEPC…');
   try{
     const d = await appelPrep({ action: 'captureList', eleve: nom });
     const caps = (d && d.captures) || [];
+    let ratesCap = 0;
     for(const cap of caps){
-      try{ await appelPrep({ action: 'captureDelete', id: cap.id }); }catch(e){}
+      try{ await appelPrep({ action: 'captureDelete', id: cap.id }); }
+      catch(e){ ratesCap++; }
     }
-    if(caps.length) faits.push(caps.length + ' capture(s)');
-  }catch(e){}
+    if(caps.length - ratesCap) faits.push((caps.length - ratesCap) + ' capture(s)');
+    if(ratesCap) rates.push(ratesCap + ' capture(s) du CEPC');
+  }catch(e){ rates.push('les captures du CEPC'); }
 
   /* Bilans */
   dire('Bilans…');
@@ -1659,15 +1692,25 @@ async function supprimerEleveComplet(nom, rapporter){
     if(r.ok){
       const d = await r.json().catch(() => ({}));
       faits.push((d.supprimees || 0) + ' bilan(s)');
+      /* Le classeur dit ce qu'il a balayé ailleurs : on le reprend
+         plutôt que de le supposer. */
+      const a = (d && d.ailleurs) || {};
+      if(a.ailleurs) faits.push(a.ailleurs + ' ligne(s) ailleurs');
+      if(a.resultats) faits.push(a.resultats + ' résultat(s) anonymisé(s)');
+    }else{
+      rates.push('les bilans (HTTP ' + r.status + ')');
     }
-  }catch(e){}
+  }catch(e){ rates.push('les bilans'); }
 
   /* Répertoire */
   dire('Répertoire…');
-  try{ await appelPrep({ action: 'eleveRetirer', eleve: nom }); }catch(e){}
+  try{
+    await appelPrep({ action: 'eleveRetirer', eleve: nom });
+    faits.push('répertoire');
+  }catch(e){ rates.push('le répertoire'); }
 
   viderCaches(nom);
-  return faits;
+  return { faits: faits, rates: rates };
 }
 
 
