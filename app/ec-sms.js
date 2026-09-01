@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 17:13 — v678 */
+/* Déployé le 01/09/2026 à 13:21 — v768 */
 /* ============================================================
    ec-sms.js
    L'envoi de SMS, réservé au bureau.
@@ -314,13 +314,16 @@ async function envoyerSmsDepuisEcran(){
    ou un mail d'avant que la confirmation existe). Sans cette
    nuance, on ne peut pas savoir s'il faut relancer l'élève ou si
    la question ne se pose pas. */
-function voyantEnvoi(etat, confirmeLe, jeton){
+/* « jeton » est devenu « attendReponse » : le journal ne rend
+   plus le jeton lui-même, seulement le fait qu'on attend une
+   réponse. C'est tout ce dont ce voyant avait besoin. */
+function voyantEnvoi(etat, confirmeLe, attendReponse){
   const e = String(etat || '').toLowerCase();
   if(e.indexOf('refus') !== -1 || e.indexOf('échec') !== -1 ||
      e.indexOf('echec') !== -1) return { p: '🔴', nom: 'refusé', c: 'var(--warn-text)' };
   if(confirmeLe) return { p: '🔵', nom: 'présence confirmée le ' + confirmeLe,
                           c: 'var(--bleu)' };
-  if(jeton) return { p: '⏳', nom: "envoyé — pas encore de réponse",
+  if(attendReponse) return { p: '⏳', nom: "envoyé — pas encore de réponse",
                      c: 'var(--muted)' };
   return { p: '🟢', nom: 'envoyé', c: 'var(--accent-text)' };
 }
@@ -435,7 +438,7 @@ async function afficherJournalEnvois(recharger){
 
 function ligneJournal(x){
   const canal = String(x.canal || 'sms');
-  const v = voyantEnvoi(x.etat, x.confirmeLe, x.jeton);
+  const v = voyantEnvoi(x.etat, x.confirmeLe, x.attendReponse);
 
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
@@ -461,7 +464,7 @@ function ligneJournal(x){
           cout +
           ' · <span style="color:' + v.c + ';">' +
           String(x.confirmeLe ? '✋ ' + v.nom
-                              : (x.jeton ? v.nom : (x.etat || v.nom)))
+                              : (x.attendReponse ? v.nom : (x.etat || v.nom)))
             .replace(/</g, '&lt;') + '</span>' +
         '</div>' +
       '</span>' +
