@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 10:08 — v759 */
+/* Déployé le 01/09/2026 à 10:28 — v760 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -190,6 +190,54 @@ async function chargerPrepares(){
 
 /* Ce qui a fait échouer le dernier chargement */
 let derniereErreurPrep = '';
+
+
+/* ============================================================
+   LE COURS D'AVANT, QUAND IL N'A PAS ENCORE DE BILAN
+
+   Chrystel : « j'ai tout rempli aujourd'hui pour un élève dont
+   c'est la première leçon — on est d'accord qu'il n'avait pas de
+   frise ni son numéro. Je fais un rappel pour demain de sa
+   deuxième leçon et je dois remplir 2 dans la case. »
+
+   Le dossier d'un élève est lu dans les BILANS du classeur. Or le
+   cours d'aujourd'hui n'a pas encore de bilan : il n'a qu'une
+   préparation, avec ce qu'elle vient d'y écrire. Le rappel du
+   lendemain ne voyait donc rien, et repartait de zéro — sur un
+   élève dont tout venait d'être renseigné.
+
+   Cette fonction rend la dernière préparation ANTÉRIEURE à une
+   date. Antérieure au sens strict : deux cours le même jour ne se
+   succèdent pas dans la frise, et compter le second comme la suite
+   du premier ferait avancer le rang d'un cran de trop.
+   ============================================================ */
+function preparationPrecedenteDe(eleve, avantIso){
+  if(!eleve || typeof normaliserMot !== 'function') return null;
+  const qui = normaliserMot(eleve);
+  const borne = String(avantIso || '');
+
+  const siennes = (prepares || []).filter(x =>
+    x && x.eleve && normaliserMot(x.eleve) === qui &&
+    x.date && (!borne || x.date < borne));
+
+  if(!siennes.length) return null;
+  siennes.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return siennes[0];
+}
+
+/* Le rang qu'annonce une préparation : son contexte d'abord — une
+   main l'y a écrit — puis sa note. */
+function rangDeLaPreparation(prep){
+  if(!prep) return null;
+  const ctx = prep.contexte || {};
+  const dit = parseInt(ctx.lecon, 10);
+  if(!isNaN(dit) && dit > 0) return dit;
+  if(typeof numeroLeconDuCours === 'function'){
+    const n = numeroLeconDuCours(prep);
+    if(n > 0) return n;
+  }
+  return null;
+}
 
 
 /* ============================================================
