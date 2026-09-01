@@ -1,3 +1,4 @@
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-postes.js
    Le simulateur à plusieurs élèves.
@@ -109,6 +110,23 @@ function demarrerPostes(noms){
     /* Ce qu'il a coché : l'en-tête du cours et la fiche véhicule */
     entete: null,
     fiche: null,
+    /* ------------------------------------------------------
+       ET SES RÉPONSES AU QUESTIONNAIRE.
+
+       Elles vivaient dans deux variables GLOBALES —
+       `contexteDepart` et `noteQuestionnaire` — que tous les
+       postes se partageaient. Sur une séance à trois, les deux
+       derniers élèves héritaient donc des réponses du premier :
+       sa boîte, son numéro de leçon, ses manœuvres. Et ces
+       réponses ne restent pas à l'écran, elles partent dans la
+       ligne du classeur.
+
+       C'est la même famille que les boutons ✅ / ❌ perdus en
+       v762 : ce qui ne vit que dans la mémoire de la page doit
+       appartenir à quelqu'un.
+       ------------------------------------------------------ */
+    quest: null,
+    noteQuest: '',
     fait: false
   }));
 
@@ -342,6 +360,31 @@ function retablirEcranPoste(p){
   if(typeof afficherFicheDuCours === 'function'){
     try{ afficherFicheDuCours(); }catch(e){}
   }
+
+  /* Ses réponses au questionnaire reviennent avec lui — et
+     REPARTENT DE ZÉRO quand il n'en a pas encore données. Les
+     laisser en place, c'est prêter au deuxième élève les réponses
+     du premier. */
+  if(typeof contexteDepart !== 'undefined'){
+    contexteDepart = p.quest || null;
+  }
+  if(typeof noteQuestionnaire !== 'undefined'){
+    noteQuestionnaire = p.noteQuest || '';
+  }
+
+  /* Le récapitulatif du questionnaire suit ce qu'on vient de
+     reposer. On le VIDE d'abord : afficherSaisieDuJour() ne fait
+     rien quand il n'y a pas de réponses, et le cadre du poste
+     précédent serait resté à l'écran — le pire des deux mondes,
+     puisqu'il aurait affiché les réponses de quelqu'un d'autre. */
+  const zq = $('saisieDuJour');
+  if(zq){ zq.innerHTML = ''; zq.style.display = 'none'; }
+  if(p.quest && typeof afficherSaisieDuJour === 'function'){
+    try{ afficherSaisieDuJour(p.quest); }catch(e){}
+  }
+  if(typeof majBoutonCompleter === 'function'){
+    try{ majBoutonCompleter(); }catch(e){}
+  }
 }
 
 
@@ -373,6 +416,15 @@ function rangerPosteActif(){
 
   const zn = $('noteInterne');
   if(zn) p.note = zn.value;
+
+  /* Ses réponses au questionnaire : elles sont à lui, pas à la
+     page. */
+  if(typeof contexteDepart !== 'undefined'){
+    p.quest = contexteDepart || null;
+  }
+  if(typeof noteQuestionnaire !== 'undefined'){
+    p.noteQuest = noteQuestionnaire || '';
+  }
 }
 
 
