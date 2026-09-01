@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 12:35 — v765 */
+/* Déployé le 01/09/2026 à 13:01 — v767 */
 /* ============================================================
    ec-version.js
    Rester à jour sans jamais interrompre un cours.
@@ -300,16 +300,52 @@ async function etatDeLaSerrure(){
     const d = await appelPrep({ action: 'diagnostic' });
     if(!d) return '';
 
+    /* LA VERSION D'ABORD, ET DANS TOUS LES CAS.
+
+       Un message qui dit « le classeur est encore ouvert » sans dire
+       QUELLE version du script a répondu envoie chercher une
+       propriété mal écrite, alors que le vrai coupable est presque
+       toujours ailleurs : le code a été collé, mais pas DÉPLOYÉ.
+       Apps Script sert la dernière version publiée, pas celle de
+       l'éditeur. Le numéro le dit d'un coup d'œil. */
+    const vs = Number(d.versionScript || 0);
+    const attendue = Number(CONFIG.VERSION_SCRIPT_ATTENDUE || 0);
+    const ou = (typeof d.secretWorker === 'string')
+      ? ('\nCôté Cloudflare : secret ' + (d.secretWorker === 'pose'
+          ? 'posé ✅' : 'ABSENT ❌') + '.') : '';
+
+    if(vs && attendue && vs < attendue){
+      return '\n\n🔓 Le classeur répond en script v' + vs +
+             ', alors que cette version en attend v' + attendue + '.\n\n' +
+             "Le code a été collé mais pas déployé : dans Apps Script, " +
+             'Déployer → Gérer les déploiements → ✏️ → Version : ' +
+             '« Nouvelle version » → Déployer.' + ou;
+    }
+
     if(d.serrure !== 'armee'){
-      return '\n\n🔓 Le classeur est encore ouvert à tous.\n' +
-             'Pose SECRET_PARTAGE dans les propriétés du script.';
+      return '\n\n🔓 Le classeur est encore ouvert à tous — script v' +
+             (vs || '?') + '.\n\n' +
+             'La propriété SECRET_PARTAGE est absente ou vide. Apps ' +
+             'Script → ⚙️ Paramètres du projet → Propriétés du script ' +
+             '(pas les propriétés utilisateur), nom exact en ' +
+             'majuscules.' + ou;
     }
-    if(d.secretJuste === false || d.secretRecu !== 'oui'){
-      return '\n\n⚠️ Les deux secrets ne se répondent pas.\n' +
+    if(d.secretRecu !== 'oui'){
+      return '\n\n🛑 LE CLASSEUR EST VERROUILLÉ ET LE WORKER N\'ENVOIE ' +
+             'AUCUN SECRET.\n\nPlus rien ne passe : ni les élèves, ni ' +
+             'les bilans.\n\n' +
+             'Pour rouvrir tout de suite : retire SECRET_PARTAGE des ' +
+             'propriétés du script.\n' +
+             'Puis ajoute SHEETS_SECRET dans les variables du Worker ' +
+             '(et appuie sur Deploy).' + ou;
+    }
+    if(d.secretJuste === false){
+      return '\n\n⚠️ Les deux secrets ne se répondent pas — une faute ' +
+             'de frappe, ou un espace au bout.\n\n' +
              'Rien ne passe : retire SECRET_PARTAGE du script pour ' +
-             'rouvrir, puis recommence.';
+             'rouvrir, puis recopie-le des deux côtés.' + ou;
     }
-    return '\n\n🔒 Classeur verrouillé — script v' + (d.versionScript || '?') + '.';
+    return '\n\n🔒 Classeur verrouillé — script v' + (vs || '?') + '.';
   }catch(e){
     /* Une vérification qui échoue ne dit rien de la serrure : on
        se tait plutôt que d'affirmer. */
