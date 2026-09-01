@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:35 — v748 */
+/* Déployé le 01/09/2026 à 09:07 — v750 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -19,7 +19,7 @@ const DUREE_CACHE = 600000;    /* 10 minutes — le temps d'un début de cours.
 /* La forme du dossier a changé au fil des versions : marques de la
    fiche véhicule, frise. Un dossier gardé sous l'ancienne forme
    renverrait des champs vides pendant dix minutes. */
-const FORME_DOSSIER = 5;   /* 5 : les leçons depuis l'examen blanc et depuis le RDV post-permis */
+const FORME_DOSSIER = 6;   /* 6 : + le simulateur nuit et risques déjà fait */
 
 function lireCacheDossier(nom){
   const k = normaliserMot(nom);
