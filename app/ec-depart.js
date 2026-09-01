@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:39 — v737 */
+/* Déployé le 01/09/2026 à 12:35 — v765 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1143,12 +1143,15 @@ brancher('createBtn', 'click', async () => {
 
 
 /* Ouvre la session et met en place l'interface */
-function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre){
+function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
+                      droitsRegles){
   ACCES = { code: code, moniteur: moniteur || '', role: role || 'moniteur',
             emoji: emoji || '', genre: genre || '',
-            droits: droits || [] };
+            droits: droits || {},
+            /* « Réglés à la main, même à vide ». Voir niveauDroit(). */
+            droitsRegles: !!droitsRegles };
   memoriserSession(ACCES.code, ACCES.moniteur, ACCES.role, ACCES.droits,
-                   ACCES.emoji, ACCES.genre);
+                   ACCES.emoji, ACCES.genre, ACCES.droitsRegles);
 
   $('lockView').style.display = 'none';
   $('appView').style.display = 'block';
@@ -1274,8 +1277,11 @@ async function reprendreSession(){
     const msg = $('codeMsg');
     if(msg && typeof raisonDeconnexion !== 'undefined' && raisonDeconnexion){
       msg.style.color = 'var(--muted)';
-      msg.textContent = (raisonDeconnexion === 'hebdo')
+      msg.textContent =
+          (raisonDeconnexion === 'hebdo')
         ? 'Déconnexion du samedi soir — reconnecte-toi.'
+        : (raisonDeconnexion === 'droits')
+        ? 'Mise à jour des accès — retape ton code, une seule fois.'
         : 'Déconnecté après 48 h sans activité.';
       raisonDeconnexion = '';
     }
@@ -1300,15 +1306,18 @@ async function reprendreSession(){
         return false;
       }
       /* Doute : on garde la session mémorisée */
-      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre);
+      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre,
+                    s.droitsRegles);
       return true;
     }
 
-    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits, data.emoji, data.genre);
+    ouvrirSession(s.code, data.moniteur, data.role, false, data.droits,
+                  data.emoji, data.genre, data.droitsRegles);
     return true;
   }catch(e){
     /* Hors ligne : on fait confiance à la session mémorisée */
-    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre);
+    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre,
+                    s.droitsRegles);
     return true;
   }
 }
@@ -1359,7 +1368,8 @@ async function deverrouiller(){
       $('codeInput').value = '';
       return;
     }
-    ouvrirSession(code, data.moniteur, data.role, true, data.droits, data.emoji, data.genre);
+    ouvrirSession(code, data.moniteur, data.role, true, data.droits,
+                data.emoji, data.genre, data.droitsRegles);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Connexion impossible : ' + e.message;
