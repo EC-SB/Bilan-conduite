@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 10:03 — v758 */
+/* Déployé le 01/09/2026 à 10:28 — v760 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2934,15 +2934,40 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
         chargerDossierEleve(eleve),
         new Promise(r => setTimeout(() => r(null), 6000))
       ]);
-      if(d && (d.lecons || d.derniereNote || d.frise)){
+      /* LE COURS D'AVANT, MÊME SANS BILAN.
+
+         Le dossier ne lit que les bilans du classeur. Une leçon
+         préparée aujourd'hui et pas encore terminée n'y figure
+         pas — et c'est justement celle dont le rappel du lendemain
+         est la suite. Sans ça, un élève dont tout venait d'être
+         renseigné repartait de zéro le lendemain. */
+      const veille = (typeof preparationPrecedenteDe === 'function')
+        ? preparationPrecedenteDe(eleve, iso) : null;
+      const rangVeille = (veille && typeof rangDeLaPreparation === 'function')
+        ? rangDeLaPreparation(veille) : null;
+
+      if((d && (d.lecons || d.derniereNote || d.frise)) || veille){
         /* Ce que la note du cours précédent apprend déjà : la date
            d'examen, l'examen blanc, le simulateur, le coussin.
            Sans elle, le cours préparé repartait de rien et écrivait
            « PAS DE DATE D'EXAMEN OFFICIEL » juste au-dessus d'un 📌
            qui donnait la date — la contradiction que les moniteurs
            voyaient sur leur carte. */
-        const acquis = (typeof defautsDepuisNote === 'function' && d.derniereNote)
-          ? defautsDepuisNote(d.derniereNote) : {};
+        const lireNote = t => ((typeof defautsDepuisNote === 'function' && t)
+          ? defautsDepuisNote(t) : {});
+
+        /* Du plus ancien au plus récent : le dernier bilan, puis la
+           préparation de la veille — elle porte ce que le moniteur
+           vient de renseigner et que rien d'autre ne sait encore. */
+        const acquis = Object.assign(
+          lireNote(d && d.derniereNote),
+          lireNote(veille && veille.note),
+          (veille && veille.contexte) || {});
+        /* Ce qui appartient au cours d'HIER ne se recopie pas sur
+           celui de demain : son heure, son jeton de confirmation,
+           sa marque de « quelqu'un y a répondu ». */
+        ['jeton', 'repondu', 'lecon', 'leconMain', 'sansBilan',
+         'premierCours'].forEach(k => { delete acquis[k]; });
 
         /* Et par-dessus : ce que le suivi et les sessions savent —
            la conclusion d'un post-permis, une date d'examen qui
@@ -2962,21 +2987,37 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
         const debut = (typeof cestLePremierCours === 'function') &&
                       cestLePremierCours((details && details.options) || []);
 
+        /* DEUX SOURCES POUR LE RANG, ET ON PREND LA PLUS AVANCÉE.
+
+           Les bilans du classeur d'un côté, la préparation de la
+           veille de l'autre. Elles disent normalement la même
+           chose — la veille + 1 — mais l'une des deux peut être en
+           retard : les bilans quand la leçon d'hier n'est pas
+           encore générée, la préparation quand il n'y en a pas
+           eu. La plus avancée est la bonne. */
+        const parLesBilans = (typeof rangConnu === 'function')
+          ? rangConnu(d && d.lecons, cle, debut) : null;
+        const parLaVeille = (rangVeille &&
+          (typeof leconCompteDansLaFrise !== 'function' ||
+           leconCompteDansLaFrise(cle)))
+          ? rangVeille + 1 : rangVeille;
+
+        const rang = Math.max(parLesBilans || 0, parLaVeille || 0) || '';
+
         const rep = Object.assign(acquis, {
-          lecon: (typeof rangConnu === 'function')
-            ? String(rangConnu(d.lecons, cle, debut) || '')
-            : (d.lecons ? String(d.lecons + 1) : ''),
+          lecon: String(rang),
           premierCours: debut ? 'oui' : '',
-          sansBilan: !d.lecons && !debut,
-          frise: d.frise || '',
+          /* On sait où il en est dès qu'une des deux sources parle. */
+          sansBilan: !(d && d.lecons) && !debut && !rangVeille,
+          frise: (d && d.frise) || acquis.frise || '',
           /* Où il en est dans sa moitié de frise : sans ces deux
              comptes, un élève ayant passé son examen blanc restait
              annoncé « encore 3 leçons avant l'examen blanc ». */
-          leconsDepuisEB: d.leconsDepuisEB,
-          leconsDepuisRdvPost: d.leconsDepuisRdvPost,
+          leconsDepuisEB: d && d.leconsDepuisEB,
+          leconsDepuisRdvPost: d && d.leconsDepuisRdvPost,
           /* Une passerelle repart de zéro : ses leçons sont celles
              de sa boîte, pas celles de toute la formation. */
-          leconsParBoite: d.leconsParBoite,
+          leconsParBoite: d && d.leconsParBoite,
           modele: cle
         });
         if(jetonRappel) rep.jeton = jetonRappel;
@@ -2989,11 +3030,14 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
            Recopier la note entière derrière le 📌, c'était
            l'empilement qu'on lisait sur les cartes — cinq fois la
            même date d'examen, deux fois le même examen blanc. */
-        if(d.derniereNote && typeof fondreNotePreparee === 'function'){
-          const f = fondreNotePreparee(note, d.derniereNote);
+        /* La plus récente des deux notes sert de fond : celle de la
+           veille quand elle existe, sinon le dernier bilan. */
+        const fond = (veille && veille.note) || (d && d.derniereNote) || '';
+        if(fond && typeof fondreNotePreparee === 'function'){
+          const f = fondreNotePreparee(note, fond);
           note = assemblerNotePreparee('', f.corps, f.consigne);
-        }else if(d.derniereNote){
-          note = assemblerNotePreparee('', note, d.derniereNote);
+        }else if(fond){
+          note = assemblerNotePreparee('', note, fond);
         }
       }else{
         /* Aucun bilan au classeur. Ce n'est PAS « première leçon » :
