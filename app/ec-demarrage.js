@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:23 — v782 */
+/* Déployé le 01/09/2026 à 16:49 — v784 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -407,7 +407,12 @@ function reprendreCours(){
 /* ---------- Thème clair / sombre ---------- */
 function appliquerTheme(clair){
   document.body.classList.toggle('clair', clair);
-  $('themeBtn').textContent = clair ? '☀️' : '🌙';
+  /* On écrit dans l'emoji, PAS dans le bouton. Depuis que le bouton
+     porte aussi « Changer de thème », écrire son textContent
+     effacerait le libellé du même geste — et un menu dont les mots
+     disparaissent ne sert plus à rien. */
+  const ico = $('themeIcone') || $('themeBtn');
+  if(ico) ico.textContent = clair ? '☀️' : '🌙';
   try{ localStorage.setItem('theme', clair ? 'clair' : 'sombre'); }catch(e){}
 }
 
