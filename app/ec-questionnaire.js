@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:56 — v740 */
+/* Déployé le 01/09/2026 à 08:05 — v746 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -4888,14 +4888,75 @@ async function majFicheDepuisQuestionnaire(eleve, reponses, ficheAvant){
 
   if(!Object.keys(maj).length) return;
 
-  try{
-    await appelPrep(Object.assign({ action: 'ficheSet', eleve: eleve }, maj));
-    /* La fiche en mémoire suit, sinon l'écran afficherait l'ancienne */
-    const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
-    if(f) Object.assign(f, maj);
-  }catch(e){
-    console.warn('Fiche non mise à jour :', e);
+  return enregistrerFicheEleve(eleve, maj);
+}
+
+/* CE QUI ÉCHOUE ICI DOIT SE VOIR.
+
+   Cette écriture ne disait rien quand elle ratait : un
+   console.warn, et le questionnaire se refermait comme si tout
+   s'était bien passé. Le moniteur repartait convaincu d'avoir
+   enregistré la formation et la frise de son élève. Elles étaient
+   perdues, et personne ne l'apprenait — ni lui, ni le bureau.
+
+   On insiste trois fois, à une seconde puis quatre : la coupure
+   d'un tunnel dure rarement plus. Si ça ne passe toujours pas, on
+   le dit, et on propose de réessayer.
+
+   La reprise repart de `maj` — ce qu'il faut écrire — et non des
+   réponses du questionnaire : les retraduire une seconde fois
+   serait l'occasion de les traduire autrement. */
+async function enregistrerFicheEleve(eleve, maj){
+  const attendre = ms => new Promise(r => setTimeout(r, ms));
+  let dernierEchec = null;
+
+  for(const pause of [0, 1000, 4000]){
+    if(pause) await attendre(pause);
+    try{
+      await appelPrep(Object.assign({ action: 'ficheSet', eleve: eleve }, maj));
+      /* La fiche en mémoire suit, sinon l'écran afficherait l'ancienne */
+      const f = (typeof ficheDe === 'function') ? ficheDe(eleve) : null;
+      if(f) Object.assign(f, maj);
+      return true;
+    }catch(e){ dernierEchec = e; }
   }
+
+  console.warn('Fiche non mise à jour :', dernierEchec);
+  const encore = await direFicheNonEnregistree(eleve, maj, dernierEchec);
+  return encore ? enregistrerFicheEleve(eleve, maj) : false;
+}
+
+/* Ce qui n'est pas passé, nommé — « la formation, la frise » — et
+   non « des informations » : le moniteur doit savoir quoi
+   ressaisir s'il renonce. */
+const NOMS_CHAMPS_FICHE = {
+  ants: 'le numéro ANTS', messenger: 'le nom Messenger', email: "l'adresse mail",
+  frise: 'la frise', formation: 'la formation', amenagee: 'la conduite aménagée',
+  coussin: 'le coussin', amenagements: 'les aménagements'
+};
+
+async function direFicheNonEnregistree(eleve, maj, erreur){
+  const quoi = Object.keys(maj).map(k => NOMS_CHAMPS_FICHE[k] || k);
+  const liste = quoi.length > 1
+    ? quoi.slice(0, -1).join(', ') + ' et ' + quoi[quoi.length - 1]
+    : (quoi[0] || 'ces informations');
+
+  const message =
+    'Sur la fiche de ' + eleve + ', ' + liste +
+    " n'a pas pu être enregistré.\n\n" +
+    'Ce que tu as répondu reste dans ce cours — rien de perdu ici. ' +
+    "Mais la fiche de l'élève, elle, n'a pas changé : les prochains " +
+    'cours ne le sauront pas.\n\n' +
+    (erreur && erreur.message ? '(' + erreur.message + ')' : '');
+
+  if(typeof fenetre !== 'function'){
+    if(typeof showToast === 'function') showToast('⚠️ Fiche non enregistrée');
+    return false;
+  }
+  return await fenetre(message, [
+    { nom: 'Tant pis', valeur: false },
+    { nom: '🔄 Réessayer', valeur: true, principal: true }
+  ], '⚠️ Fiche non enregistrée') === true;
 }
 
 /* ============================================================
