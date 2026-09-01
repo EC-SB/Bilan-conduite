@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:51 — v749 */
+/* Déployé le 01/09/2026 à 09:07 — v750 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -24,6 +24,11 @@ const MAXI_SERVEUR_ELEVE = 30;
 /* Les deux charnières de la frise, reconnues au type du bilan */
 const RE_TYPE_EXAMEN_BLANC = /examen\s+blanc/i;
 const RE_TYPE_RDV_POST     = /rdv\s+post-?permis|rendez-vous\s+post-?permis/i;
+/* Le simulateur nuit et risques ne laisse pas de date dans le
+   suivi — il n'y en a pas de prévue. Ce qu'il laisse, c'est un
+   bilan : « Simulateur — Boîte manuelle ». C'est cette trace-là qui
+   dit qu'il a eu lieu. */
+const RE_TYPE_SIMU         = /^simulateur/i;
 
 /* Ce cours fait-il avancer le compteur de leçons ?
 
@@ -50,7 +55,7 @@ function estUneLecon(type){
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
 async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], marques: {}, derniereNote: '',
-                 leconsDepuisEB: null, leconsDepuisRdvPost: null,
+                 leconsDepuisEB: null, leconsDepuisRdvPost: null, simuFait: false,
                  leconsParBoite: { BV: 0, BEA: 0 },
                  dernierHorodatage: '', boite: '' };
   if(!nomEleve || nomEleve.trim().length < 2) return vide;
@@ -247,6 +252,9 @@ async function chargerDossierEleve(nomEleve){
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
                        marques: marques,
                        leconsDepuisEB: apres(RE_TYPE_EXAMEN_BLANC),
+                       /* Un simulateur dans son historique : il est
+                          fait, et personne n'a plus à le cocher. */
+                       simuFait: res.some(x => RE_TYPE_SIMU.test(String(x.type || ''))),
                        leconsDepuisRdvPost: depuisRdvPost,
                        leconsParBoite: parBoite,
                        derniereNote: dernier.note || '',
@@ -374,6 +382,50 @@ function etatQuiFaitFoi(nom){
       if(fr !== null && fr !== undefined) d.frise = fr;
     }
   }catch(e){ /* fiches non chargées : la note fera sans */ }
+
+  /* ------------------------------------------------------------
+     CE QUI A EU LIEU A EU LIEU.
+
+     Chrystel : « un examen blanc qui était prévu fin août ne se met
+     pas en déjà passé, j'ai dû le mettre à la main pour que ça
+     indique le résultat ». Elle avait raison, et rien ne le
+     rattrapait : la date PRÉVUE de l'examen blanc vit dans le suivi
+     sous « ebDatePrevue », et personne ne la lisait ici. Seule
+     « ebDate » — la date du jour où il a été FAIT — était consultée.
+     Tant que le bureau n'écrivait pas cette seconde date, l'élève
+     restait « examen blanc réservé » indéfiniment, sa charnière
+     avec, et son décompte de leçons aussi.
+
+     Une date d'examen blanc dépassée veut dire qu'il a eu lieu.
+     Pas celle du jour même : le cours d'aujourd'hui est peut-être
+     l'examen blanc, et le déclarer passé avant de le faire serait
+     écrire la fin avant le début.
+
+     Le simulateur, lui, n'a pas de date prévue. Ce qu'il laisse
+     derrière lui, c'est un bilan — et c'est cette trace qu'on lit.
+     ------------------------------------------------------------ */
+  try{
+    const aujourdhui = (typeof todayLocal === 'function') ? todayLocal() : '';
+
+    const prevue = (typeof suiviDe === 'function')
+      ? String((suiviDe(nom) || {}).ebDatePrevue || '') : '';
+    const isoPrevue = prevue ? dateFrVersIso(prevue) : '';
+    if(isoPrevue){
+      if(!d.examBlancDate) d.examBlancDate = isoPrevue;
+      if(aujourdhui && isoPrevue < aujourdhui) d.examBlanc = 'passe';
+      else if(!d.examBlanc) d.examBlanc = 'reserve';
+    }
+
+    /* Et la preuve la plus sûre : son bilan est dans le classeur. */
+    const dossier = (typeof lireCacheDossier === 'function')
+      ? lireCacheDossier(nom) : null;
+    if(dossier){
+      if(dossier.leconsDepuisEB !== null && dossier.leconsDepuisEB !== undefined){
+        d.examBlanc = 'passe';
+      }
+      if(dossier.simuFait) d.simuNuit = 'fait';
+    }
+  }catch(e){ /* rien de lu : on ne promeut rien plutôt que de deviner */ }
 
   return d;
 }
