@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:05 — v771 */
+/* Déployé le 01/09/2026 à 15:10 — v776 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -974,12 +974,24 @@ function blocDemandesEnCours(){
       'flex-shrink:0;color:var(--red);border-color:var(--red);';
     bSup.textContent = '🗑️';
     bSup.title = 'Retirer cette demande';
+    /* UNE CONFIRMATION. Ce 🗑️ est collé à la ligne, sur un écran
+       qu'on parcourt au pouce : il partait au premier effleurement,
+       sans rien demander, et la demande faite à l'élève était
+       perdue — il ne la verrait jamais dans son espace. */
     bSup.addEventListener('click', async () => {
+      if(!await confirmer('Retirer cette demande ?\n\n' +
+          (x.eleve || '?') + ' — ' + (x.procedure || '?') + '\n\n' +
+          "Elle disparaîtra de son espace : il ne saura plus qu'on " +
+          'la lui a demandée.')) return;
+      bSup.disabled = true;
       try{
         await appelPrep({ action: 'demandeDelete', id: x.id });
         showToast('Retirée ✅');
         afficherProcCorriger();
-      }catch(e){ showToast('Impossible : ' + e.message); }
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        bSup.disabled = false;
+      }
     });
     l.appendChild(bSup);
     z.appendChild(l);
@@ -1304,12 +1316,22 @@ async function ouvrirDemande(){
         bSup.style.cssText = 'width:auto;padding:7px 9px;font-size:13px;margin:0;' +
           'flex-shrink:0;color:var(--red);border-color:var(--red);';
         bSup.textContent = '🗑️';
+        bSup.title = 'Retirer cette demande';
+        /* Même bouton, même piège : voir plus haut. */
         bSup.addEventListener('click', async () => {
+          if(!await confirmer('Retirer cette demande ?\n\n' +
+              (x.eleve || '?') + ' — ' + (x.procedure || '?') + '\n\n' +
+              "Elle disparaîtra de son espace : il ne saura plus qu'on " +
+              'la lui a demandée.')) return;
+          bSup.disabled = true;
           try{
             await appelPrep({ action: 'demandeDelete', id: x.id });
             showToast('Retirée ✅');
             dessiner();
-          }catch(e){ showToast('Impossible : ' + e.message); }
+          }catch(e){
+            showToast('Impossible : ' + e.message);
+            bSup.disabled = false;
+          }
         });
         l.appendChild(bSup);
         zListe.appendChild(l);
