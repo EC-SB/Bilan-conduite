@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 07:47 — v745 */
+/* Déployé le 01/09/2026 à 08:05 — v746 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -34,6 +34,17 @@ function sauvegarderLocal(force){
       /* Ce que le moniteur a coché pendant le cours : sans ça, un
          plantage lui faisait tout recocher de mémoire. */
       entete: (typeof enteteDuCours === 'function') ? enteteDuCours() : null,
+      /* CE QU'IL A RÉPONDU AU QUESTIONNAIRE.
+
+         Une monitrice a rempli « 📋 Compléter les infos » en entier
+         — formation, frise, numéro de leçon, examens — et n'en a
+         rien retrouvé. C'est que ces réponses ne vivaient que dans
+         la mémoire de la page : ni ici, ni dans le brouillon
+         manuel. Fermer la fiche, ouvrir le cours d'à côté,
+         recharger l'application, et tout était perdu. Ce qu'elle a
+         tapé se range désormais avec le reste. */
+      quest: (typeof contexteDepart !== 'undefined' && contexteDepart)
+               ? contexteDepart : null,
       fiche: [...document.querySelectorAll('.mCours')]
                .filter(x => x.checked)
                .map(x => x.value)
@@ -284,6 +295,15 @@ function reprendreCours(){
   if(s.date) $('lessonDate').value = s.date;
   $('noteInterne').value = s.note || '';
   if(typeof majAffichageNoteInterne === 'function') majAffichageNoteInterne();
+
+  /* Ses réponses au questionnaire reviennent avec le cours : le
+     bouton « Compléter les infos » retrouve son vert, le
+     récapitulatif se réaffiche, et rien n'est à retaper. */
+  if(s.quest && typeof contexteDepart !== 'undefined'){
+    contexteDepart = s.quest;
+    if(typeof afficherSaisieDuJour === 'function') afficherSaisieDuJour(s.quest);
+    if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
+  }
 
   finalTranscript = s.transcript || '';
   committedTranscript = finalTranscript;
