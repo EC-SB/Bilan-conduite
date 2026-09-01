@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 09:32 — v547 */
+/* Déployé le 01/09/2026 à 15:18 — v777 */
 /* ============================================================
    ec-journal.js
    Journal d'activité — réservé aux administrateurs.
@@ -181,9 +181,16 @@ async function afficherJournal(jourPrecis){
       ? Object.keys(parPersonne).sort()
           .map(n => n.replace(/</g, '&lt;') + ' (' + parPersonne[n] + ')').join(' · ')
       : '') +
-    '<br><span style="opacity:.8;">Journal conservé ' +
-    ((data && data.conservation) || 90) + ' jours · ' +
-    ((data && data.total) || 0) + ' ligne(s) au total</span>';
+    '<br><span style="opacity:.8;">' + phraseConservation(data) + '</span>' +
+    /* UNE RECHERCHE QUI S'ARRÊTE DOIT LE DIRE. Sinon « rien
+       trouvé » veut dire à la fois « ça n'existe pas » et « je
+       n'ai pas cherché jusqu'au bout ». */
+    ((data && data.complet === false)
+      ? '<br><span style="color:var(--warn-text);">⚠️ Recherche ' +
+        'interrompue après ' + (data.lues || 0) + ' lignes remontées ' +
+        "jusqu'au " + jourFr(data.plusAncienLu) + '. Ajoute une date ' +
+        'de début pour chercher plus loin.</span>'
+      : '');
   zone.appendChild(tete);
 
   if(lignes.length){
@@ -338,6 +345,38 @@ function boutonAnnulerResultat(l){
   return b;
 }
 
+
+/* « 2026-08-24 » → « 24/08/2026 ». */
+function jourFr(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '?');
+}
+
+/* ------------------------------------------------------------
+   CE QUE LE JOURNAL GARDE VRAIMENT
+
+   L'écran annonçait « conservé 90 jours » et c'était la règle,
+   pas le fait : un plafond de 20 000 lignes s'applique en plus, et
+   depuis que TOUTES les actions sont journalisées (v765) c'est lui
+   qui mord en premier. Annoncer 90 jours quand la plus ancienne
+   ligne date de trois semaines, c'est promettre une trace qui
+   n'existe pas — et on ne s'en aperçoit que le jour où on la
+   cherche.
+   ------------------------------------------------------------ */
+function phraseConservation(data){
+  const total = (data && data.total) || 0;
+  const jours = (data && data.conservation) || 90;
+  const plafond = 20000;
+
+  let p = 'Journal : ' + total + ' ligne(s), conservées ' + jours + ' jours';
+  if(total >= plafond * 0.95){
+    p += ' — <strong>plafond de ' + plafond + ' lignes quasi atteint</strong>' +
+         (data && data.plusAncienLu
+            ? ', la trace ne remonte plus qu\'au ' + jourFr(data.plusAncienLu)
+            : ', la trace ne remonte plus aussi loin qu\'annoncé');
+  }
+  return p;
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
