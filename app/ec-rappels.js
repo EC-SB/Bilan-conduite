@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 10:28 — v760 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -333,17 +333,37 @@ async function afficherRappels(){
 
       bTous.disabled = true;
       let ok = 0, rates = [];
+      const nonPrepares = [];
       for(let i = 0; i < restants.length; i++){
         const cr = restants[i];
         bTous.textContent = 'Envoi ' + (i + 1) + ' sur ' + restants.length + '…';
         try{
           await envoyerMessageComplet(cr.telephone, messageRappel(cr), cr.choisi || cr.eleve);
           cr.envoye = true;
-          /* Chaque cours va au moniteur lu sur le planning */
-          preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur,
-                               { type: typeDeLaLigne(cr),
-                                 titreType: titreDuType(typeDeLaLigne(cr)) });
           ok++;
+
+          /* ------------------------------------------------
+             LE COURS PRÉPARÉ S'ATTEND.
+
+             Cet appel n'était pas attendu. preparerDepuisRappel()
+             lève pourtant « le cours n'a pas été enregistré » —
+             mais l'exception d'une promesse non attendue ÉCHAPPE
+             au try/catch qui l'entoure. L'élève recevait donc
+             « rendez-vous demain à 14h », le moniteur n'avait
+             aucun cours dans sa liste, et l'écran disait
+             « 12 SMS envoyés ✅ ».
+
+             Attendu ici, et compté à part : un SMS parti reste un
+             SMS parti, même si la préparation a raté. Ce sont deux
+             faits, et le bureau doit voir les deux.
+             ------------------------------------------------ */
+          try{
+            await preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur,
+                                 { type: typeDeLaLigne(cr),
+                                   titreType: titreDuType(typeDeLaLigne(cr)) });
+          }catch(ep){
+            nonPrepares.push((cr.choisi || cr.eleve) + ' : ' + ep.message);
+          }
         }catch(e){
           rates.push((cr.choisi || cr.eleve) + ' : ' + e.message);
           /* Quota atteint : inutile d'insister, les suivants échoueront */
@@ -354,8 +374,21 @@ async function afficherRappels(){
           }
         }
       }
-      showToast(ok + ' SMS envoyé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
+      showToast(ok + ' SMS envoyé(s)' +
+                (rates.length ? ' · ' + rates.length + ' échec(s)' : '') +
+                (nonPrepares.length ? ' · ' + nonPrepares.length +
+                 ' cours non préparé(s)' : ''));
       if(rates.length) await informer('Envois manqués :\n\n' + rates.join('\n'));
+
+      /* Deux pannes différentes, deux messages différents : un
+         élève prévenu dont le cours n'existe nulle part est un
+         problème du moniteur, pas du bureau. */
+      if(nonPrepares.length){
+        await informer('Ces élèves ont bien reçu leur message, mais le ' +
+          "cours n'a pas pu être ajouté à « Mes prochains cours » :\n\n" +
+          nonPrepares.join('\n') +
+          '\n\nÀ préparer à la main, sinon le moniteur ne le verra pas.');
+      }
       afficherRappels();
     });
     zone.appendChild(bTous);
@@ -419,10 +452,16 @@ function ligneRappel(c, i){
       c.envoye = true;
 
       /* Le cours rejoint les prochains cours du moniteur lu sur
-         le planning */
+         le planning. Attendu, et signalé s'il rate : un élève
+         prévenu dont le cours n'existe nulle part, c'est le
+         moniteur qui le découvre au volant. */
       preparerDepuisRappel(qui, c.jour, c.moniteur,
                            { type: typeDeLaLigne(c),
-                             titreType: titreDuType(typeDeLaLigne(c)) });
+                             titreType: titreDuType(typeDeLaLigne(c)) })
+        .catch(ep => {
+          showToast('⚠️ ' + qui + ' prévenu, mais cours non préparé : ' +
+                    ep.message);
+        });
 
       envoyerMessageComplet(c.telephone, messageRappel(c), qui)
         .then(() => {
