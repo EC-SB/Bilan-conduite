@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:41 — v783 */
+/* Déployé le 01/09/2026 à 16:49 — v784 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -222,17 +222,24 @@ function brancherMenuPlus(){
   if(!b || !m || b.dataset.branche) return;
   b.dataset.branche = 'oui';
 
-  const fermer = () => { m.hidden = true; };
+  /* Ouvert / fermé se lit et s'écrit au MÊME endroit : le
+     « display » du bloc. C'est l'attribut « hidden » qui m'avait
+     eu — il pose « display:none », et le style inline du menu
+     disait « display:flex ». L'inline gagne, le menu restait
+     ouvert. */
+  const ouvert = () => m.style.display !== 'none';
+  const fermer = () => { m.style.display = 'none'; };
+  const ouvrir = () => { m.style.display = 'flex'; };
 
   b.addEventListener('click', e => {
     e.stopPropagation();
-    m.hidden = !m.hidden;
+    if(ouvert()) fermer(); else ouvrir();
   });
 
   /* Un menu qui ne se referme pas au premier clic à côté finit
      par rester ouvert par-dessus le travail. */
   document.addEventListener('click', e => {
-    if(m.hidden) return;
+    if(!ouvert()) return;
     if(m.contains(e.target) || b.contains(e.target)) return;
     fermer();
   });
