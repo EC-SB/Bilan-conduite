@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:36 — v754 */
+/* Déployé le 01/09/2026 à 10:28 — v760 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -583,11 +583,15 @@ function defautsDepuisNote(note){
     }
   }
 
-  /* « AJOURNÉ LE … — REPREND LA CONDUITE » : l'état se relit comme
-     tout le reste, sinon le cours suivant repartirait sans savoir
-     qu'il est déjà allé à l'examen. */
+  /* « DERNIER EXAMEN LE …, AJOURNÉ — REPREND LA CONDUITE » :
+     l'état se relit comme tout le reste, sinon le cours suivant
+     repartirait sans savoir qu'il est déjà allé à l'examen.
+
+     L'ancienne forme — « ajourné le … — reprend » — se relit
+     encore : les notes déjà écrites ne se réécrivent pas. */
   {
-    const m = n.match(/ajourné le\s+([^\n—]+?)\s*—\s*reprend/i);
+    const m = n.match(/dernier examen le\s+([^\n—]+?)\s*,\s*ajourné/i) ||
+              n.match(/ajourné le\s+([^\n—]+?)\s*—\s*reprend/i);
     if(m){
       d.examPermis = 'passe';
       const iso = (typeof dateFrVersIso === 'function')
@@ -1019,7 +1023,11 @@ function fondreNotePreparee(neuf, ancien){
      qu'un cours de simulateur portait encore « 1ère leçon sur 2 —
      encore 1 leçon avant l'examen blanc », phrase écrite pour un
      autre cours, par une version d'avant. */
-  const DU_JOUR = ['lecon', 'leconVide', 'avantEB', 'friseEtat', 'entete'];
+  /* « aRenseigner » en fait partie, et pour la même raison : c'est
+     un constat du jour où la note s'est écrite, pas un fait sur
+     l'élève. Le lendemain, on sait. */
+  const DU_JOUR = ['lecon', 'leconVide', 'avantEB', 'friseEtat', 'entete',
+                   'aRenseigner'];
   const restants = Object.keys(dits)
     .filter(c => !vus[c] && DU_JOUR.indexOf(c) === -1)
     .map(c => dits[c]);
@@ -1181,7 +1189,12 @@ const PARCOURS_FORMATION = [
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
                'ebPasse', 'ebLecons', 'ebImpossibleLe', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
-               'examPassage'] }
+               'examPassage',
+               /* Un rendez-vous post-permis suit un ajournement.
+                  Une passerelle n'en connaît pas : l'élève a déjà
+                  son permis. */
+               'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
+               'rdvPostMoniteur'] }
 ];
 
 function parcoursDeLaFormation(formation){
@@ -1511,6 +1524,22 @@ const FAMILLES_NOTE = [
   { cle:'prefecture',  motif:/^♿\s*(?:Encore .*préfecture|Prêt à être présenté)/i },
   { cle:'lecon',       motif:/^(?:🎯\s*)?\d+(?:ère|ere|ème|eme|e)\s+le[çc]on\b/i },
   { cle:'leconVide',   motif:/^❓\s*le[çc]ons/i },
+  /* CE QUE L'OUTIL DIT DE SA PROPRE IGNORANCE.
+
+     « Il faut remplir le questionnaire », « informations à
+     renseigner : aucun cours enregistré », « dossier non lu » : ce
+     ne sont pas les mots d'un moniteur, ce sont ceux de l'outil un
+     jour où il ne savait rien de cet élève. Sans famille, ils
+     passaient pour du texte libre — donc pour des mots d'humain —
+     et se réinstallaient derrière le 📌 de tous les cours
+     suivants. Chrystel les lisait encore sur une élève dont la
+     frise, le rang et l'examen blanc étaient renseignés : « pourquoi
+     c'est écrit en bas il faut remplir le questionnaire ? »
+
+     Une phrase qui dit qu'on ne sait rien n'a pas à survivre au
+     moment où l'on sait. */
+  { cle:'aRenseigner',
+    motif:/^(?:🎯|❓|📌|\s)*(?:il faut remplir le questionnaire|informations?\s+à\s+renseigner|premier cours en voiture\s*[—-]\s*questionnaire à remplir)/i },
   { cle:'friseEtat',   motif:/frise (?:dépassée|depassee|terminée|terminee)/i },
   { cle:'avantEB',     motif:/encore \d+\s+le[çc]ons?\s+avant/i },
   { cle:'examenBlanc', motif:/examen blanc/i, intention:/à\s*prévoir/i },
@@ -2129,6 +2158,28 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<input type="date" id="qNouvelleDate" style="display:none;">' +
       '</div>' +
 
+      /* LE RENDEZ-VOUS POST-PERMIS, SOUS L'EXAMEN OFFICIEL.
+
+         Chrystel : « ajoute la date du post-permis sous examen
+         officiel pour avoir une visu aussi ici, et que ça mette à
+         jour pour les 2 cases ».
+
+         Il vivait dans le suivi, tenu par le bureau, et le
+         questionnaire n'en montrait rien — alors que c'est LUI qui
+         décide depuis quoi on compte les leçons dès qu'il est
+         fait. Le moniteur voyait la deuxième case changer de nom
+         sans savoir pourquoi. */
+      '<div id="qBlocRdvPost">' +
+        '<label for="qRdvPost">Rendez-vous post-permis</label>' +
+        '<select id="qRdvPost">' +
+          '<option value="">— non évoqué —</option>' +
+          '<option value="aprevoir">À prévoir</option>' +
+          '<option value="prevu">Prévu le…</option>' +
+          '<option value="fait">Fait ✅</option>' +
+        '</select>' +
+        '<input type="date" id="qRdvPostDate" style="display:none;">' +
+      '</div>' +
+
       '<label id="qBlocEcoutes" style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
         '<input type="checkbox" id="qPasEcoute" style="width:20px;height:20px;">' +
         "Pas d'écoutes pédagogiques" +
@@ -2333,7 +2384,20 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         .map(k => CHAMP_DE_LA_REPONSE[k])
         .filter((x, i, t) => t.indexOf(x) === i);
 
-      const aReplier = tous.filter(x => aVoir.indexOf(x) === -1);
+      /* SAUF CE QUI EST LE SUJET MÊME DE LA SÉANCE.
+
+         Chrystel : « dans le questionnaire, quand c'est un type de
+         bilan simulateur, je n'ai plus accès à la frise ». Le
+         questionnaire du simulateur l'annonce pourtant lui-même —
+         « seule la frise est demandée ici » — mais le repli la
+         faisait disparaître avec le reste : il ne restait plus
+         rien à répondre. Un bloc qui EST la question ne se replie
+         pas. */
+      const jamaisReplie = (profil === 'simulateur')
+        ? blocsDuSujetManquant('la frise') : [];
+
+      const aReplier = tous.filter(x => aVoir.indexOf(x) === -1 &&
+                                        jamaisReplie.indexOf(x) === -1);
       const caches = [];
 
       aReplier.forEach(sel => {
@@ -2512,7 +2576,9 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       /* Une passerelle ne mène à aucun examen : l'élève a déjà son
          permis. Demander une date qui n'existera jamais, c'est
          inviter à en poser une. */
-      examPermis: ['#qBlocExamPermis']
+      examPermis: ['#qBlocExamPermis'],
+      /* Il vit sous l'examen officiel et disparaît avec lui. */
+      rdvPostFait: ['#qBlocRdvPost']
     };
 
     function masquerCeQueLeParcoursNaPas(){
@@ -2892,6 +2958,22 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         if(!selEP.value) selEP.value = 'prevu';
       }
     }
+
+    /* Une date d'examen dépassée n'est plus une convocation : le
+       menu s'ouvre sur ce qui est vrai aujourd'hui, sans quoi le
+       moniteur relit « prévu le 24 août » une semaine après. */
+    if(examenDejaPasse({ examPermis: selEP.value, examDate: dEP.value })){
+      selEP.value = 'passe';
+    }
+
+    /* Le combientième passage : le bureau compte les ajournements,
+       et personne n'a à recompter ce qu'il tient déjà. Saisi, il
+       reste saisi. */
+    if(passEP && !passEP.value){
+      const n = numeroDuPassage(Object.assign({}, prec,
+        (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {}));
+      if(n) passEP.value = String(Math.min(n, 5));
+    }
     /* ----------------------------------------------------------
        LA DEUXIÈME CASE : DEPUIS LA CHARNIÈRE
 
@@ -2903,9 +2985,57 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
        ---------------------------------------------------------- */
     /* La charnière se demande aux sources qui font foi — un
        post-permis vit dans le suivi, pas dans le contexte du cours
-       — et à la MÊME fonction que la carte. */
-    const charniere = charniereDuCours(Object.assign({}, prec,
-      (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {}));
+       — et à la MÊME fonction que la carte.
+
+       ELLE SE REDEMANDE, ELLE NE SE FIGE PAS. Le post-permis se
+       renseigne maintenant ici même : le figer à l'ouverture
+       laisserait la deuxième case dire « après l'examen blanc »
+       une seconde après qu'on a coché « post-permis fait ». C'est
+       la leçon de `friseImposee()` — une fonction se demande d'où
+       l'on veut, une variable non. */
+    const etatDeBase = Object.assign({}, prec,
+      (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {});
+
+    const charniereMaintenant = () => {
+      const e = Object.assign({}, etatDeBase);
+      /* L'examen officiel se répond ici aussi : passer un élève en
+         « déjà passé — ajourné » change la charnière sur-le-champ. */
+      const se = boite.querySelector('#qExamPermis');
+      if(se){
+        e.examPermis = se.value;
+        const dEx = boite.querySelector('#qExamDate');
+        e.examDate = dEx ? (dEx.value || '') : '';
+      }
+      const sp = boite.querySelector('#qRdvPost');
+      if(sp){
+        e.rdvPostFait = (sp.value === 'fait') ? 'oui' : '';
+        const dp = boite.querySelector('#qRdvPostDate');
+        if(dp) e.rdvPostDate = dp.value || '';
+      }
+      return charniereDuCours(e);
+    };
+
+    /* CE QUE LES SOURCES SAVENT DÉJÀ DU POST-PERMIS S'AFFICHE
+       AVANT TOUT CALCUL.
+
+       La charnière se demande à ce menu ; un menu encore vide
+       dirait « pas de post-permis » d'un élève qui l'a fait, et la
+       deuxième case s'ouvrirait sur la mauvaise charnière avant de
+       se corriger toute seule sous les yeux du moniteur. */
+    const selRP = boite.querySelector('#qRdvPost');
+    const datRP = boite.querySelector('#qRdvPostDate');
+    const majDateRP = () => {
+      if(!selRP || !datRP) return;
+      datRP.style.display =
+        (selRP.value === 'prevu' || selRP.value === 'fait') ? 'block' : 'none';
+    };
+    if(selRP){
+      selRP.value = (etatDeBase.rdvPostFait === 'oui') ? 'fait'
+                  : (etatDeBase.rdvPostDate ? 'prevu'
+                  : (etatDeBase.rdvPostAPrevoir ? 'aprevoir' : ''));
+      if(datRP) datRP.value = etatDeBase.rdvPostDate || '';
+      majDateRP();
+    }
 
     const chDepuis = boite.querySelector('#qLeconDepuis');
     const zEffet = boite.querySelector('#qLeconEffet');
@@ -2917,9 +3047,10 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const ch1 = boite.querySelector('#qLecon');
       if(l1 && ch1) l1.textContent = "C'est la " + suffixeRang(ch1.value) + ' leçon';
       const lib = boite.querySelector('#qLibDepuis');
-      if(lib && charniere){
+      const ch = charniereMaintenant();
+      if(lib && ch){
         lib.textContent = 'et la ' + suffixeRang(chDepuis ? chDepuis.value : '') +
-                          ' après ' + charniere.nom;
+                          ' après ' + ch.nom;
       }
     };
     ['#qLecon', '#qLeconDepuis'].forEach(x => {
@@ -2927,17 +3058,39 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       if(el) el.addEventListener('input', majLibs);
     });
 
-    if(charniere && seanceDeLaFrise()){
+    /* LA DEUXIÈME CASE SUIT LA CHARNIÈRE.
+
+       Elle s'ouvre, se ferme et change de nom au rythme des
+       réponses — cocher « post-permis fait » doit la faire passer
+       de « après l'examen blanc » à « après le post-permis » sans
+       fermer la fenêtre. Et quand la charnière change, le rang
+       qu'on y lisait ne veut plus rien dire : on le reprend aux
+       sources, et à défaut on le vide plutôt que de laisser un
+       chiffre juste pour une autre question. */
+    let charniereMontree = null;
+    const majBlocDepuis = () => {
+      const ch = charniereMaintenant();
       const bloc = boite.querySelector('#qBlocDepuis');
-      if(bloc) bloc.style.display = '';
-      /* Pré-rempli avec ce que l'outil sait en déduire : le
-         corriger est un geste, le retaper à chaque cours en serait
-         un autre. */
-      const dejaSu = rangDepuisLaCharniere(
-        prec, parseInt(boite.querySelector('#qLecon').value, 10), charniere.cle);
-      if(dejaSu !== null && chDepuis) chDepuis.value = dejaSu;
-    }
-    majLibs();
+      const visible = !!(ch && seanceDeLaFrise());
+      if(bloc) bloc.style.display = visible ? '' : 'none';
+
+      if(visible && ch.cle !== charniereMontree){
+        const premier = (charniereMontree === null);
+        charniereMontree = ch.cle;
+        /* Pré-rempli avec ce que l'outil sait en déduire : le
+           corriger est un geste, le retaper à chaque cours en
+           serait un autre. */
+        const dejaSu = rangDepuisLaCharniere(
+          prec, parseInt(boite.querySelector('#qLecon').value, 10), ch.cle);
+        if(chDepuis){
+          if(dejaSu !== null) chDepuis.value = dejaSu;
+          else if(!premier) chDepuis.value = '';
+        }
+      }
+      if(!visible) charniereMontree = null;
+      majLibs();
+    };
+    majBlocDepuis();
 
     /* CE QUE LES DEUX CHIFFRES PRODUISENT, EN DIRECT.
 
@@ -2949,10 +3102,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const tot = parseInt(boite.querySelector('#qLecon').value, 10);
       const dep = chDepuis ? parseInt(chDepuis.value, 10) : NaN;
 
+      const ch = charniereMaintenant();
       if(!tot){ zEffet.textContent = ''; return; }
-      if(charniere && !isNaN(dep) && dep > tot){
+      if(ch && !isNaN(dep) && dep > tot){
         zEffet.innerHTML = '<span style="color:var(--red);font-weight:700;">' +
-          'Impossible : ' + dep + ' depuis ' + charniere.nom +
+          'Impossible : ' + dep + ' depuis ' + ch.nom +
           ', pour ' + tot + ' leçons en tout.</span>';
         return;
       }
@@ -2965,8 +3119,8 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         frise: (impose !== null) ? impose : friseSaisie(),
         examBlanc: selEB ? selEB.value : prec.examBlanc
       });
-      if(charniere && !isNaN(dep)){
-        essai[charniere.cle] = avantLaCharniere(tot, dep);
+      if(ch && !isNaN(dep)){
+        essai[ch.cle] = avantLaCharniere(tot, dep);
       }
       const p = positionDansLaFrise(essai);
       zEffet.innerHTML = p
@@ -2979,6 +3133,15 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       if(el) el.addEventListener('input', majEffetLecon);
     });
     majEffetLecon();
+
+    /* « que ça mette à jour pour les 2 cases » : le total et le
+       rang depuis la charnière suivent le post-permis à la
+       seconde où on le renseigne. */
+    if(selRP){
+      const surRP = () => { majDateRP(); majBlocDepuis(); majEffetLecon(); };
+      selRP.addEventListener('change', surRP);
+      if(datRP) datRP.addEventListener('change', surRP);
+    }
 
     /* Le nombre de leçons ne se demande que si l'examen blanc en appelle */
     const selEB2 = boite.querySelector('#qEBPasse');
@@ -3017,9 +3180,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       if(v === 'prevu' && !dEP.value) dEP.value = todayLocal();
 
       nEP.style.display = (v === 'prevu') ? 'block' : 'none';
-      /* Le rang du passage n'a de sens que pour un examen à venir */
+      /* Le rang du passage vaut pour un examen à venir COMME pour
+         celui qu'on vient de rater : « c'est le combientième
+         examen ? » se pose dans les deux sens. */
       const bp = boite.querySelector('#qBlocPassage');
-      if(bp) bp.style.display = (v === 'prevu' || v === 'aprevoir') ? 'block' : 'none';
+      if(bp){
+        bp.style.display =
+          (v === 'prevu' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
+      }
       nvDate.style.display = (v === 'annule') ? 'block' : 'none';
       libNv.style.display = (v === 'annule') ? 'block' : 'none';
 
@@ -3028,6 +3196,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          pourquoi, pour que le bureau sache quoi débloquer. */
       const motif = boite.querySelector('#qExamMotif');
       if(motif) motif.style.display = (v === 'nonplanifiable') ? 'block' : 'none';
+
+      /* La charnière peut avoir changé : les deux cases suivent. */
+      majBlocDepuis();
+      majEffetLecon();
+    });
+    if(dEP) dEP.addEventListener('change', () => {
+      majBlocDepuis();
+      majEffetLecon();
     });
 
     /* Pour qu'une ouverture concurrente puisse fermer celui-ci
@@ -3088,17 +3264,20 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            AVANT, qui ne bougera plus jamais. Écrit une fois, il
            calera tous les cours suivants de cet élève. */
         avantEB: (function(){
-          const v = charniere && charniere.cle === 'avantEB' && chDepuis
+          const ch = charniereMaintenant();
+          const v = ch && ch.cle === 'avantEB' && chDepuis
             ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
           return v || prec.avantEB || '';
         })(),
         avantRdvPost: (function(){
-          const v = charniere && charniere.cle === 'avantRdvPost' && chDepuis
+          const ch = charniereMaintenant();
+          const v = ch && ch.cle === 'avantRdvPost' && chDepuis
             ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
           return v || prec.avantRdvPost || '';
         })(),
         avantExamRate: (function(){
-          const v = charniere && charniere.cle === 'avantExamRate' && chDepuis
+          const ch = charniereMaintenant();
+          const v = ch && ch.cle === 'avantExamRate' && chDepuis
             ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
           return v || prec.avantExamRate || '';
         })(),
@@ -3178,19 +3357,31 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         leconsDepuisEB: dossier.leconsDepuisEB,
         leconsDepuisRdvPost: dossier.leconsDepuisRdvPost,
         leconsParBoite: dossier.leconsParBoite,
-        /* Le rendez-vous post-permis n'est pas une question posée au
-           moniteur : c'est le bureau qui le pose et le conclut. On
-           le fait donc voyager tel qu'on l'a lu, sans quoi il
-           disparaîtrait de la note au premier questionnaire. */
         /* La conclusion d'un examen blanc n'est pas une question de
            ce questionnaire-ci : elle vient du bureau ou de la séance
            d'examen blanc elle-même. Elle traverse. */
         ebNiveau: prec.ebNiveau || '',
         heuresRestantes: prec.heuresRestantes || '',
-        rdvPostAPrevoir: prec.rdvPostAPrevoir || '',
-        rdvPostDate: prec.rdvPostDate || '',
-        rdvPostMoniteur: prec.rdvPostMoniteur || '',
-        rdvPostFait: prec.rdvPostFait || '',
+        /* LE RENDEZ-VOUS POST-PERMIS, TEL QU'IL EST AFFICHÉ.
+
+           Le bureau le pose et le conclut, mais le moniteur le voit
+           désormais ici et peut le corriger : ce qui repart est
+           donc le menu, et non plus ce qu'on avait lu. Le menu, lui,
+           s'ouvre sur les sources qui font foi — rien ne se perd.
+           Le moniteur du rendez-vous reste au bureau : on ne le
+           demande pas ici, et il ne survit pas à un « non évoqué ». */
+        rdvPostAPrevoir: selRP
+          ? (selRP.value === 'aprevoir' ? 'oui' : '')
+          : (prec.rdvPostAPrevoir || ''),
+        rdvPostDate: selRP
+          ? ((selRP.value === 'prevu' || selRP.value === 'fait')
+              ? ((datRP && datRP.value) || prec.rdvPostDate || '') : '')
+          : (prec.rdvPostDate || ''),
+        rdvPostMoniteur: (selRP && !selRP.value)
+          ? '' : (prec.rdvPostMoniteur || ''),
+        rdvPostFait: selRP
+          ? (selRP.value === 'fait' ? 'oui' : '')
+          : (prec.rdvPostFait || ''),
         heuresRepassage: prec.heuresRepassage || '',
         /* Ce que le cours porte et que le questionnaire ne demande
            jamais : le jeton du rappel en tête. Sans lui, « Mes
@@ -3223,6 +3414,57 @@ function rangLecon(n){
    l'étiquette dit toujours « ème » fait écrire « 1ème ». */
 function suffixeRang(n){
   return (parseInt(n, 10) === 1) ? 'ère' : 'ème';
+}
+
+/* Le rang au masculin : « 1er examen blanc », « 2ème passage ».
+   rangLecon() dit « 1ère », ce qui va pour une leçon et pas pour
+   un examen. */
+function rangMasculin(n){
+  const k = parseInt(n, 10);
+  if(!k || k < 1) return '';
+  return (k === 1) ? '1er' : k + 'ème';
+}
+
+/* ------------------------------------------------------------
+   COMBIEN DE FOIS IL Y VA
+
+   Chrystel : « examen officiel prévu le… mais c'est le
+   combientième examen ? ». La réponse existe à deux endroits — le
+   passage saisi au questionnaire, et le nombre d'ajournements que
+   le bureau tient — et une seule des deux était lue. Elles ne se
+   contredisent pas : le passage saisi est une réponse, le compte
+   des ajournements un fait. Un élève ajourné deux fois en est à
+   son troisième passage.
+   ------------------------------------------------------------ */
+function numeroDuPassage(q){
+  const e = q || {};
+  const dit = parseInt(e.examPassage, 10);
+  if(dit >= 1) return dit;
+  const rep = parseInt(e.repassages, 10);
+  if(rep >= 1) return rep + 1;
+  return null;
+}
+
+/* ------------------------------------------------------------
+   CE QUI EST PASSÉ N'EST PLUS PRÉVU
+
+   Chrystel : « examen officiel prévu le 24/08, on est le 01/09 —
+   il n'est plus prévu, mais dernier examen le 24 août ». La carte
+   annonçait une convocation pour une date vieille d'une semaine,
+   juste au-dessus d'un « ajourné le 2026-08-24 » qui la
+   contredisait.
+
+   C'est la même règle que pour l'examen blanc : une date dépassée
+   veut dire que la chose a eu lieu. Pas celle du jour même — le
+   cours d'aujourd'hui EST peut-être l'examen.
+   ------------------------------------------------------------ */
+function examenDejaPasse(q, jour){
+  const e = q || {};
+  if(String(e.examPermis || '') !== 'prevu') return false;
+  const d = String(e.examDate || '').trim();
+  if(!d) return false;
+  const j = jour || ((typeof todayLocal === 'function') ? todayLocal() : '');
+  return !!(j && d < j);
 }
 
 /* Le cours du jour fait-il avancer le compteur ?
@@ -3307,7 +3549,7 @@ function charniereDuCours(etat, note){
      bureau qui inscrit l'élève en session fait repasser examPermis
      à « prévu », et sans `avantExamRate` le décompte retomberait
      sur l'examen blanc d'il y a un an. */
-  if(e.examPermis === 'passe' || e.avantExamRate){
+  if(e.examPermis === 'passe' || e.avantExamRate || examenDejaPasse(e)){
     return { cle: 'avantExamRate', nom: 'le dernier ajournement',
              court: 'dernier ajournement' };
   }
@@ -3348,11 +3590,21 @@ function positionDansLaFrise(q){
 
   /* La table vit ici, dans la seule fonction qui s'en sert : elle
      n'a pas à être chargée séparément pour que le rang se calcule. */
-  const EVENEMENT = {
-    'examen-officiel': 'Examen ce jour',
-    'examen-blanc':    "C'est l'examen blanc"
-  };
-  if(EVENEMENT[q.modele]) return dire(EVENEMENT[q.modele]);
+  /* LEQUEL, exactement.
+
+     Chrystel : « précise ici dans "c'est l'examen blanc" lequel
+     c'est — par exemple ici c'est le 2ème ; pareil pour le numéro
+     d'examen officiel ». C'est la ligne qu'on lit en premier : y
+     lire « c'est l'examen blanc » sur un élève qui en a déjà passé
+     un, c'est perdre l'information qui compte. */
+  if(q.modele === 'examen-blanc'){
+    const r = rangMasculin(q.examBlancRang);
+    return dire(r ? "C'est le " + r + ' examen blanc' : "C'est l'examen blanc");
+  }
+  if(q.modele === 'examen-officiel'){
+    const p = rangMasculin(numeroDuPassage(q));
+    return dire(p ? 'Examen ce jour — ' + p + ' passage' : 'Examen ce jour');
+  }
 
   /* UNE SÉANCE QUI N'EST PAS UNE LEÇON N'A PAS DE RANG.
 
@@ -3963,8 +4215,11 @@ function ajouterSuite(etats, permis, mots, q){
   const numero = rang ? (rang === '1' ? '1er ' : rang + 'e ') : '';
 
   /* Le rang du passage au permis : « 2e passage » plutôt que rien.
-     C'est ce qui dit s'il s'agit d'un repassage. */
-  const rp = String(q.examPassage || '').trim();
+     C'est ce qui dit s'il s'agit d'un repassage. À défaut de
+     réponse saisie, le compte d'ajournements du bureau le dit —
+     deux ajournements font un troisième passage. */
+  const rpN = numeroDuPassage(q);
+  const rp = rpN ? String(rpN) : '';
   const passage = rp
     ? (rp === '1' ? ' — 1er passage'
        : rp === '5' ? ' — 5e passage ou plus'
@@ -4052,7 +4307,11 @@ function ajouterSuite(etats, permis, mots, q){
      lignes. Le gras est écrit en caractères Unicode : la note vit
      dans un tableur, elle ne peut pas porter de mise en forme. La
      couleur, elle, est posée à l'affichage (voir colorerNote). */
-  if(q.examPermis === 'prevu' && q.examDate){
+  /* Une date dépassée n'est plus une convocation : elle devient le
+     dernier examen passé. Voir examenDejaPasse(). */
+  const examPasse = examenDejaPasse(q);
+
+  if(q.examPermis === 'prevu' && q.examDate && !examPasse){
     let phrase = EXAMEN_PREVU + ' ' +
                  majusculeNote(dateEnToutesLettres(q.examDate)) + passage;
     const np = q.examPermisN;
@@ -4070,15 +4329,16 @@ function ajouterSuite(etats, permis, mots, q){
       ? ' — reprogrammé le ' + dateEnToutesLettres(q.nouvelleDate)
       : ' — nouvelle date en attente';
     permis.push(phrase);
-  }else if(q.examPermis === 'passe'){
+  }else if(q.examPermis === 'passe' || examPasse){
     /* IL EST DÉJÀ ALLÉ À L'EXAMEN, ET IL REVIENT.
 
        La ligne dit les deux choses que le bureau cherche : quand il
        a été ajourné, et qu'il reprend. Sans la seconde, on lit une
        vieille note ; sans la première, on croit qu'il n'y est
        jamais allé. */
-    permis.push(EXAMEN_SANS_DATE +
-      (q.examDate ? ' — ajourné le ' + dateEnToutesLettres(q.examDate)
+    permis.push(EXAMEN_SANS_DATE + passage +
+      (q.examDate ? ' — dernier examen le ' + dateEnToutesLettres(q.examDate) +
+                    ', ajourné'
                   : ' — déjà passé, ajourné') +
       ' — reprend la conduite — à reprogrammer');
   }else if(q.examPermis === 'nonplanifiable'){
