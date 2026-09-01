@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 10:28 — v760 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1815,6 +1815,26 @@ function ouvrirRdvPost(cours){
   $('rdvPostEleveBilan').value = s.bilanEleve || '';
   $('rdvPostTexte').value = s.texteMoniteur || '';
 
+  /* Ce qui avait été tapé et jamais enregistré revient par-dessus :
+     c'est plus récent que ce que le classeur porte. */
+  const garde = rdvPostGarde(cours.eleve);
+  if(garde){
+    CHAMPS_RDV_POST.forEach(id => {
+      if($(id) && String(garde[id] || '').trim()) $(id).value = garde[id];
+    });
+    if(typeof showToast === 'function'){
+      setTimeout(() => showToast('Ce que tu avais tapé est revenu ✅'), 400);
+    }
+  }
+
+  /* Et tout ce qu'on tape est gardé au fil de l'eau. */
+  CHAMPS_RDV_POST.forEach(id => {
+    const el = $(id);
+    if(!el || el.dataset.garde) return;
+    el.dataset.garde = '1';
+    ['input', 'change'].forEach(ev => el.addEventListener(ev, garderRdvPost));
+  });
+
   const sel = $('rdvPostSuite');
   sel.innerHTML = '<option value="">— à définir —</option>';
   SUITES_POST.forEach(x => {
@@ -1847,7 +1867,55 @@ function ouvrirRdvPost(cours){
   window.scrollTo(0, 0);
 }
 
-function fermerRdvPost(){
+/* ------------------------------------------------------------
+   LE BILAN D'EXAMEN NE VIT QUE DANS LA PAGE
+
+   Quatre champs de texte libre — souvent quinze à vingt lignes
+   recopiées à la main depuis la feuille de l'inspecteur — et rien
+   ne les mettait à l'abri. Un rechargement, un appel entrant, un
+   appui sur « Annuler » : tout partait, sans un mot.
+
+   C'est la même famille que les boutons ✅ / ❌ perdus en v762 et
+   que le questionnaire partagé entre postes : ce qui ne vit que
+   dans la mémoire de la page doit être gardé quelque part.
+   ------------------------------------------------------------ */
+const CLE_RDV_POST = 'rdv_post_en_cours';
+const CHAMPS_RDV_POST = ['rdvPostBilan', 'rdvPostEleveBilan',
+                         'rdvPostTexte', 'rdvPostHeures', 'rdvPostSuite'];
+
+function garderRdvPost(){
+  if(!rdvPostEnCours) return;
+  const d = { eleve: rdvPostEnCours.eleve, ts: Date.now() };
+  CHAMPS_RDV_POST.forEach(id => { if($(id)) d[id] = $(id).value; });
+  try{ localStorage.setItem(CLE_RDV_POST, JSON.stringify(d)); }catch(e){}
+}
+
+function oublierRdvPost(){
+  try{ localStorage.removeItem(CLE_RDV_POST); }catch(e){}
+}
+
+/* Ce qui avait été tapé pour CET élève-là, et pas plus vieux
+   qu'une journée : au-delà, ce n'est plus le même rendez-vous. */
+function rdvPostGarde(eleve){
+  try{
+    const d = JSON.parse(localStorage.getItem(CLE_RDV_POST) || 'null');
+    if(!d || !d.eleve) return null;
+    if(normaliserMot(d.eleve) !== normaliserMot(eleve || '')) return null;
+    if(Date.now() - (d.ts || 0) > 24 * 3600 * 1000) return null;
+    const ecrit = CHAMPS_RDV_POST.some(id => String(d[id] || '').trim());
+    return ecrit ? d : null;
+  }catch(e){ return null; }
+}
+
+async function fermerRdvPost(){
+  /* On ne referme pas sur du travail sans le dire. */
+  const ecrit = CHAMPS_RDV_POST.some(id => $(id) && String($(id).value || '').trim());
+  if(ecrit && typeof confirmer === 'function'){
+    if(!await confirmer('Fermer sans enregistrer ?\n\n' +
+        "Ce que tu as tapé est gardé sur cet appareil : tu le " +
+        'retrouveras en rouvrant ce rendez-vous.', 'Fermer')) return;
+  }
+  garderRdvPost();
   rdvPostEnCours = null;
   $('rdvPostView').style.display = 'none';
   $('recordView').style.display = 'block';
@@ -1920,8 +1988,18 @@ async function terminerRdvPost(){
     msg.style.color = 'var(--accent-text)';
     msg.textContent = '✅ ' + conclusion + ' — le bureau est informé.';
     showToast('Rendez-vous terminé ✅');
+
+    /* Enregistré : la copie de secours n'a plus lieu d'être, et
+       elle ne doit pas revenir hanter le prochain rendez-vous. */
+    oublierRdvPost();
+
     await afficherPrepares();
-    setTimeout(fermerRdvPost, 1400);
+    setTimeout(() => {
+      rdvPostEnCours = null;
+      $('rdvPostView').style.display = 'none';
+      $('recordView').style.display = 'block';
+      if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+    }, 1400);
   }catch(e){
     msg.style.color = 'var(--warn-text)';
     msg.textContent = 'Erreur : ' + e.message;
