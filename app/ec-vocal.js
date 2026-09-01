@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:18 — v751 */
+/* Déployé le 01/09/2026 à 13:21 — v768 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1768,9 +1768,32 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
                        (typeof consigneLieuxIA === 'function' ? consigneLieuxIA() : '') +
                        consigneProceduresIA() +
                        consigneMoniteurIA(transcript);
+  /* ------------------------------------------------------------
+     LE NOM DE FAMILLE NE SORT PAS
+
+     Ce message part chez Anthropic, hors Union européenne. Il
+     portait le nom COMPLET de l'élève, celui du moniteur, le lieu,
+     la date et la transcription intégrale de la leçon : un dossier
+     nominatif, sur un traitement dont l'élève n'a jamais été
+     informé.
+
+     Le prénom, lui, reste — et il faut dire pourquoi plutôt que de
+     faire semblant. La transcription est de la parole : le moniteur
+     y appelle son élève par son prénom d'un bout à l'autre, et
+     aucun filtre ne le retirerait de façon fiable. Le retirer de
+     l'en-tête seul donnerait l'illusion d'avoir anonymisé, ce qui
+     est pire que de ne rien faire. Ce qu'on retire vraiment, c'est
+     le nom de famille — celui qui transforme un prénom en dossier
+     identifiable.
+
+     Le nom complet reste côté application : c'est elle qui classe
+     le bilan, pas le modèle.
+     ------------------------------------------------------------ */
+  const prenomSeul = n => String(n || '').trim().split(/\s+/)[0] || '';
+
   const userMsg = 'Type de bilan : ' + MODELES[modeleCle].label + '\n' +
-    'Moniteur : ' + (monitorName || 'non renseigné') + '\n' +
-    'Élève : ' + studentName + '\n' +
+    'Moniteur : ' + (prenomSeul(monitorName) || 'non renseigné') + '\n' +
+    'Élève : ' + (prenomSeul(studentName) || "l'élève") + '\n' +
     'Site : ' + site + '\n' +
     'Date : ' + dateStr + '\n\n' +
     'Transcription brute du cours :\n"""\n' + transcript + '\n"""';
