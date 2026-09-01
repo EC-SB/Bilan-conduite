@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:35 — v748 */
+/* Déployé le 01/09/2026 à 08:51 — v749 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -512,7 +512,7 @@ function defautsDepuisNote(note){
      soustraction ne dirait rien. */
   const APRES_CHARNIERE = new RegExp(
     '(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+le[çc]on\\s+après\\s+' +
-    "(l'examen blanc|le post-?permis)" +
+    "(l'examen blanc|le post-?permis|l'examen ajourné)" +
     '[^(\\n]*\\(([^)\\n]*?)(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+au total', 'i');
   {
     const m = n.match(APRES_CHARNIERE);
@@ -520,8 +520,24 @@ function defautsDepuisNote(note){
       const depuis = parseInt(m[1], 10);
       const total = parseInt(m[4], 10);
       if(!isNaN(depuis) && !isNaN(total) && total > depuis){
-        d[/post/i.test(m[2]) ? 'avantRdvPost' : 'avantEB'] = String(total - depuis);
+        const quelle = /post/i.test(m[2]) ? 'avantRdvPost'
+                     : /ajourn/i.test(m[2]) ? 'avantExamRate'
+                     : 'avantEB';
+        d[quelle] = String(total - depuis);
       }
+    }
+  }
+
+  /* « AJOURNÉ LE … — REPREND LA CONDUITE » : l'état se relit comme
+     tout le reste, sinon le cours suivant repartirait sans savoir
+     qu'il est déjà allé à l'examen. */
+  {
+    const m = n.match(/ajourné le\s+([^\n—]+?)\s*—\s*reprend/i);
+    if(m){
+      d.examPermis = 'passe';
+      const iso = (typeof dateFrVersIso === 'function')
+        ? dateFrVersIso(m[1].trim()) : '';
+      if(iso) d.examDate = iso;
     }
   }
 
@@ -1236,6 +1252,7 @@ const CHAMP_DE_LA_REPONSE = {
      ce qui se tape. */
   avantEB:       '#qLeconDepuis',
   avantRdvPost:  '#qLeconDepuis',
+  avantExamRate: '#qLeconDepuis',
   frise:         '#qFriseClassique',
   examBlanc:     '#qExamBlanc',
   examBlancN:    '#qExamBlancN',
@@ -2024,6 +2041,15 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<option value="aprevoir">Date à prévoir</option>' +
         '<option value="prevu">Prévu le…</option>' +
         '<option value="annule">Annulé</option>' +
+        /* L'ÉLÈVE QUI REVIENT.
+
+           Chrystel : « j'ai le cas d'un élève qui reprend sa
+           conduite après un examen de décembre 2025 ». Aucun des
+           choix ne le disait : « Prévu le 12/12/2025 » écrivait
+           EXAMEN PRÉVU sur une date passée et le remettait dans les
+           permis à venir ; « à prévoir » effaçait le fait qu'il en
+           avait déjà passé un. */
+        '<option value="passe">Déjà passé — ajourné</option>' +
         '<option value="nonplanifiable">Non planifiable</option>' +
       '</select>' +
       '<input type="text" id="qExamMotif" style="display:none;" ' +
@@ -2827,6 +2853,17 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          l'examen blanc » à un élève qui l'a dépassé depuis. */
       const su = Object.assign({}, prec,
         (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {});
+      /* Un examen déjà passé prime : c'est le dernier repère de son
+         parcours, et c'est celui à partir duquel Chrystel veut
+         compter — « la charnière est l'examen lui-même, RDV
+         post-permis ou pas ». */
+      /* On garde ce repère même une fois la nouvelle date posée :
+         le bureau qui l'inscrit en session fait repasser examPermis
+         à « prévu », et sans cette seconde condition le décompte
+         serait retombé sur l'examen blanc d'il y a un an. */
+      if(su.examPermis === 'passe' || su.avantExamRate){
+        return { cle: 'avantExamRate', nom: "l'examen ajourné" };
+      }
       if(su.rdvPostFait === 'oui'){
         return { cle: 'avantRdvPost', nom: 'le post-permis' };
       }
@@ -2931,14 +2968,18 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
     selEP.addEventListener('change', () => {
       const v = selEP.value;
-      const avecDate = (v === 'prevu' || v === 'annule');
+      const avecDate = (v === 'prevu' || v === 'annule' || v === 'passe');
 
       dEP.style.display = avecDate ? 'block' : 'none';
       libDate.style.display = avecDate ? 'block' : 'none';
       libDate.textContent = (v === 'annule')
         ? "Date à laquelle l'examen était prévu"
+        : (v === 'passe')
+        ? "Date de l'examen déjà passé"
         : "Date de l'examen";
-      /* Pas de date du jour pour un examen annulé : elle est passée */
+      /* Pas de date du jour pour un examen annulé ni pour un examen
+         déjà passé : la leur est derrière nous, et la proposer
+         reviendrait à la faire dire au moniteur. */
       if(v === 'prevu' && !dEP.value) dEP.value = todayLocal();
 
       nEP.style.display = (v === 'prevu') ? 'block' : 'none';
@@ -3021,6 +3062,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           const v = charniere && charniere.cle === 'avantRdvPost' && chDepuis
             ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
           return v || prec.avantRdvPost || '';
+        })(),
+        avantExamRate: (function(){
+          const v = charniere && charniere.cle === 'avantExamRate' && chDepuis
+            ? avantLaCharniere(leconSaisie(), chDepuis.value) : '';
+          return v || prec.avantExamRate || '';
         })(),
         /* Ce que le classeur ne sait pas dire de cet élève, et la
            seule preuve qu'on ait qu'il débute. La note en a besoin
@@ -3297,6 +3343,33 @@ function positionDansLaFrise(q){
     const faites = q.leconsParBoite && q.leconsParBoite[parcours.boite];
     const r = (typeof faites === 'number') ? faites + plus : n;
     return dire(rangLecon(r) + ' leçon de passerelle');
+  }
+
+  /* IL EST DÉJÀ ALLÉ À L'EXAMEN, ET IL A REPRIS.
+
+     C'est la charnière la plus récente de son parcours, et elle
+     prime sur tout le reste : lui annoncer « 3ème leçon après
+     l'examen blanc » alors qu'il a passé son permis en décembre
+     serait remonter d'un an en arrière.
+
+     Le rang depuis l'examen ne se calcule pas : le classeur ne
+     porte pas les leçons faites avant l'outil, et l'élève a pu en
+     faire ailleurs. C'est le moniteur qui le dit, dans la deuxième
+     case ; sans lui, on annonce la reprise sans inventer de rang. */
+  if(q.examPermis === 'passe' || q.avantExamRate){
+    const dit2 = rangDepuisLaCharniere(q, n, 'avantExamRate');
+    if(dit2 !== null){
+      return dire(rangLecon(dit2) + " leçon après l'examen ajourné" +
+                  entreParentheses('', n, dit2));
+    }
+    /* Sans rang depuis l'examen, on annonce la reprise — mais
+       seulement tant qu'aucune nouvelle date n'est posée : « reprise
+       après l'examen ajourné » sur un élève qui repasse dans trois
+       semaines serait une vieille nouvelle. */
+    if(q.examPermis === 'passe'){
+      return dire("reprise après l'examen ajourné" +
+                  entreParentheses('', n, 0));
+    }
   }
 
   /* Après le rendez-vous post-permis : ce sont ses heures qui font
@@ -3924,6 +3997,17 @@ function ajouterSuite(etats, permis, mots, q){
       ? ' — reprogrammé le ' + dateEnToutesLettres(q.nouvelleDate)
       : ' — nouvelle date en attente';
     permis.push(phrase);
+  }else if(q.examPermis === 'passe'){
+    /* IL EST DÉJÀ ALLÉ À L'EXAMEN, ET IL REVIENT.
+
+       La ligne dit les deux choses que le bureau cherche : quand il
+       a été ajourné, et qu'il reprend. Sans la seconde, on lit une
+       vieille note ; sans la première, on croit qu'il n'y est
+       jamais allé. */
+    permis.push(EXAMEN_SANS_DATE +
+      (q.examDate ? ' — ajourné le ' + dateEnToutesLettres(q.examDate)
+                  : ' — déjà passé, ajourné') +
+      ' — reprend la conduite — à reprogrammer');
   }else if(q.examPermis === 'nonplanifiable'){
     /* Le bureau le retrouve dans Permis → Pas prêts grâce à cette
        mention : elle est le seul repère, elle doit rester stable. */
@@ -4208,7 +4292,12 @@ function recapDuCours(q, eleve, modeleCle, fiche){
     pose('🅱️', 'Examen blanc', eb, !eb);
   }
   if(aBesoin('examPermis')){
-    const ep = dit(c.examDate) ? 'le ' + dit(c.examDate)
+    /* Un examen déjà passé porte une date lui aussi : sans le mot
+       « ajourné », le récapitulatif l'annonçait comme une date à
+       venir. */
+    const ep = (c.examPermis === 'passe')
+             ? 'ajourné' + (dit(c.examDate) ? ' le ' + dit(c.examDate) : '')
+             : dit(c.examDate) ? 'le ' + dit(c.examDate)
              : (c.examPermis === 'non' ? 'pas de date' : dit(c.examPermis));
     pose('📅', 'Examen officiel', ep, !ep);
   }
