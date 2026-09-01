@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:05 — v771 */
+/* Déployé le 01/09/2026 à 14:23 — v772 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -75,6 +75,19 @@ const SECTIONS = [
   { cle:'bilans',           nom:'📋 Modèles de bilan' },
   { cle:'procedures',       nom:'🚦 Procédures de conduite' },
   { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
+  /* CES QUATRE-LÀ N'ÉTAIENT PAS DONNABLES.
+
+     Ils existaient comme écrans sans exister comme droits : on les
+     réservait aux administratrices, faute de pouvoir les cocher.
+     C'était un contournement du piège de la v744 — un écran neuf
+     est absent des droits déjà enregistrés, et absent veut dire
+     refusé. Le piège est traité à la racine côté Worker
+     (VERSION_SECTIONS) : ils redeviennent des sections ordinaires,
+     et le contournement n'a plus lieu d'être. */
+  { cle:'caisse',           nom:'🏦 Caisse et remises en banque' },
+  { cle:'coutsia',          nom:"💸 Ce que coûte l'IA" },
+  { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)' },
+  { cle:'incidents',        nom:'🚨 Signalements' },
   { cle:'admin',            nom:'⚙️ Administration des accès' }
 ];
 
@@ -107,18 +120,28 @@ function niveauDroit(section){
 function aDroit(section){ return niveauDroit(section) !== ''; }
 function peutModifier(section){ return niveauDroit(section) === 'm'; }
 
+/* ------------------------------------------------------------
+   UNE CARTE A-T-ELLE LE DROIT DE S'AFFICHER
+
+   Écrite ici, et pas deux fois : « appliquerDroits » masquait
+   selon le droit, puis « afficherVue » rallumait la carte de la
+   vue choisie SANS le redemander. Les deux ne pouvaient que finir
+   par se contredire — c'est déjà arrivé cinq fois cette semaine
+   sur d'autres sujets.
+
+   « bureau » n'est pas une section : c'est une carte qui vit tant
+   qu'une de ses parties vit. */
+function sectionVisible(s){
+  if(!s) return true;
+  if(s === 'bureau') return ['bureau_simu', 'bureau_examblanc'].some(aDroit);
+  return aDroit(s);
+}
+
 /* Masque ou passe en lecture seule selon le niveau accordé */
 function appliquerDroits(){
-  /* Le bloc « Suivi bureau » ne s'affiche que si une de ses parties est permise */
-  const partiesBureau = ['bureau_simu','bureau_examblanc','bureau_places',
-                         'bureau_permis','bureau_messages'];
-  /* La carte « simulateurs et examens blancs » ne dépend plus que
-     de ses propres sous-sections, le permis ayant sa carte à part. */
-  const bureauVisible = ['bureau_simu', 'bureau_examblanc'].some(aDroit);
-
   document.querySelectorAll('[data-section]').forEach(el => {
     const s = el.getAttribute('data-section');
-    const visible = (s === 'bureau') ? bureauVisible : aDroit(s);
+    const visible = sectionVisible(s);
     /* Une vue non sélectionnée reste masquée : les onglets décident */
     if(visible && el.classList.contains('hors-vue')) el.style.display = 'none';
     else el.style.display = visible ? '' : 'none';
