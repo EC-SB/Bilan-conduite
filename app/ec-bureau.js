@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 13:06 — v613 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -827,11 +827,21 @@ function boutonMenage(eleve, zoneParente){
     b.disabled = true;
     b.textContent = 'Nettoyage…';
     const faits = [];
+    /* ------------------------------------------------------------
+       CE QUI A RATÉ SE DIT.
+
+       Les trois écritures étaient enveloppées d'un catch vide. Si
+       les trois échouaient, l'écran annonçait
+       « ✅ retiré — rien à retirer » : le succès et l'échec total
+       donnaient exactement le même message, et l'élève restait
+       dans toutes les listes sans que personne ne le sache.
+       ------------------------------------------------------------ */
+    const rates = [];
     try{
       try{
         const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: eleve });
         if(r && r.effacees) faits.push(r.effacees + ' message(s)');
-      }catch(e){}
+      }catch(e){ rates.push('ses messages au bureau'); }
 
       try{
         const d = await appelPrep({ action: 'prepList' });
@@ -841,15 +851,24 @@ function boutonMenage(eleve, zoneParente){
           try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
         }
         if(siens.length) faits.push(siens.length + ' cours préparé(s)');
-      }catch(e){}
+      }catch(e){ rates.push('ses cours à venir'); }
 
       try{
         await appelPrep({ action: 'suiviDelete', eleve: eleve });
         faits.push('fiche de suivi');
-      }catch(e){}
+      }catch(e){ rates.push('sa fiche de suivi'); }
 
       viderCaches(eleve);
-      showToast('✅ ' + eleve + ' retiré — ' + (faits.join(' · ') || 'rien à retirer'));
+
+      if(rates.length){
+        await informer(eleve + " n'a pas été entièrement retiré.\n\n" +
+          'Ce qui a échoué :\n· ' + rates.join('\n· ') +
+          (faits.length ? '\n\nCe qui est passé :\n· ' + faits.join('\n· ') : '') +
+          '\n\nRéessaie : ce qui est déjà retiré ne se retire pas deux fois.');
+      }else{
+        showToast('✅ ' + eleve + ' retiré — ' +
+                  (faits.join(' · ') || 'rien à retirer'));
+      }
       afficherBureau();
     }catch(e){
       showToast('Erreur : ' + e.message);
