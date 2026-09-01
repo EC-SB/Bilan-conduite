@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:00 — v780 */
+/* Déployé le 01/09/2026 à 16:23 — v782 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -770,6 +770,62 @@ function resumeEffacement(d){
   if(a.ailleurs)     bouts.push(a.ailleurs + ' ligne(s) ailleurs');
   if(a.resultats)    bouts.push(a.resultats + ' résultat(s) anonymisé(s)');
   return bouts;
+}
+
+/* ============================================================
+   ENVOYER UN BILAN PAR MAIL — UNE SEULE FOIS, POUR TOUT LE MONDE
+
+   « Il a corrigé le bilan et quand il a terminé il n'avait pas le
+   bouton pour envoyer par mail. »
+
+   Le bouton n'existait que si l'élève avait déjà une adresse sur
+   sa fiche. Sinon, une phrase : « l'envoi par mail n'est pas
+   possible ». Un cul-de-sac, à la fin du cours, quand l'élève est
+   déjà reparti.
+
+   Or SEPT autres écrans savaient déjà quoi faire — la fiche
+   d'évaluation, les écoutes, les procédures, le paiement… : ils
+   demandent l'adresse, l'enregistrent sur la fiche, et envoient.
+   Le seul écran qui ne le faisait pas est celui qui compte le
+   plus. Il le fait maintenant, par la même porte que les autres.
+   ============================================================ */
+function adressesDuBilan(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const out = [];
+  if(f && f.email) out.push(String(f.email).trim());
+  if(f && f.mailPrescripteur) out.push(String(f.mailPrescripteur).trim());
+  return out.filter(Boolean);
+}
+
+/* Rend le nombre d'adresses servies, ou 0. Lève si l'envoi rate :
+   c'est à l'appelant de le dire à sa façon, près de son bouton. */
+async function envoyerBilanParMail(eleve, dateCours, texte){
+  const nom = String(eleve || '').trim();
+  if(!String(texte || '').trim()){
+    throw new Error('Ce bilan est vide : il n\'y a rien à envoyer.');
+  }
+
+  let mails = adressesDuBilan(nom);
+
+  /* AUCUNE ADRESSE N'EST PLUS UN CUL-DE-SAC. On la demande, et
+     elle redescend sur la fiche — sinon on la redemanderait au
+     prochain cours. */
+  if(!mails.length){
+    if(typeof confirmerAdresseEleve !== 'function'){
+      throw new Error('Aucune adresse mail sur sa fiche.');
+    }
+    const saisie = await confirmerAdresseEleve(nom, '');
+    if(!saisie) return 0;             /* annulé : ce n'est pas un échec */
+    mails = [saisie];
+  }
+
+  const jour = (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(dateCours) || dateCours) : dateCours;
+
+  await appelPrep({ action: 'mailBilan', to: mails,
+                    sujet: 'Ton bilan de conduite du ' + (jour || ''),
+                    texte: texte });
+  return mails.length;
 }
 
 const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
