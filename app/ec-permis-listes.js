@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 11:24 — v764 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2169,8 +2169,15 @@ const LISTES_PERMIS = [
      neutralise:true,
      note:'Examen blanc passé le {jour} — pas le niveau (bureau)' },
 
+  /* Cette liste-là ne se reconnaît PAS aux mêmes champs que les
+     autres : elle demande « resultat === ajourne ». Sans lui,
+     l'élève quittait sa liste sans arriver dans celle-ci — la
+     panne corrigée en v764 sur la case d'à côté, restée entière
+     ici parce que je n'avais regardé que celle dont Chrystel se
+     plaignait. */
   { cle:'attente',   nom:'⏳ Attente bilan post-permis',
-     champs:{ rdvPostFait:'', aPlanifier:'', retireAPrevoir:'', datePermis:'' },
+     champs:{ resultat:'ajourne', rdvPostFait:'', aPlanifier:'',
+              retireAPrevoir:'', datePermis:'' },
      neutralise:true },
 
   { cle:'pause',     nom:'⛔ Ne plus suivre pour le moment',
