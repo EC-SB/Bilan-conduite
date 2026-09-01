@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:10 — v702 */
+/* Déployé le 01/09/2026 à 08:33 — v748 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2817,12 +2817,21 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
       return false;
     }
 
-    const manuelle = /manuel|\bbv\b|b[oô]ite m/i.test(formation);
+    /* La table des parcours sait la boîte de chaque formation :
+       la deviner ici au nom serait la deuxième réponse à la même
+       question, et « Autre auto école BV » ne s'y lit pas bien. Le
+       nom ne sert plus que pour une formation ajoutée à la main. */
+    const parcours = (typeof parcoursDeLaFormation === 'function')
+      ? parcoursDeLaFormation(formation) : null;
+
+    const manuelle = (parcours && parcours.boite)
+      ? (parcours.boite === 'BV')
+      : /manuel|\bbv\b|b[oô]ite m/i.test(formation);
 
     /* Un élève en conduite accompagnée fait des leçons d'AAC : son
        bilan le dit et rappelle son parcours. La conduite supervisée
        n'a pas de modèle à elle — elle garde Conduite. */
-    const aac = /\baac\b/i.test(formation);
+    const aac = parcours ? !!parcours.aac : /\baac\b/i.test(formation);
     let cle = verifierModele((aac ? 'aac' : 'conduite') +
                              (manuelle ? '-manuelle' : '-auto'))
               || (manuelle ? 'conduite-manuelle' : 'conduite-auto');
