@@ -1,3 +1,4 @@
+/* Déployé le 01/09/2026 à 14:05 — v771 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -1226,7 +1227,11 @@ function blocAdresses(){
   const base = 'https://ec-sb.github.io/Bilan-conduite/ecran.html';
   const champs = [];
 
-  [['🏠 Accueil — avec le planning', 'accueil&anonyme=1'],
+  /* « anonyme=1 » n'a plus lieu d'être dans l'adresse : c'est
+     devenu le comportement par défaut (script v175). Les adresses
+     déjà collées dans les téléviseurs continuent de marcher — un
+     paramètre en trop n'a jamais gêné personne. */
+  [['🏠 Accueil — avec le planning', 'accueil'],
    ['🪟 Vitrine — sans le planning', 'vitrine']]
   .forEach(([nom, suite]) => {
     const t = document.createElement('div');
@@ -1282,9 +1287,11 @@ function blocAdresses(){
 
   const n = document.createElement('div');
   n.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;';
-  n.innerHTML = '💡 <strong>anonyme=1</strong> affiche « Ambre G. » plutôt que le nom ' +
-    'entier : l\'écran d\'accueil est vu par d\'autres élèves et par des visiteurs. ' +
-    'Retire-le si tu préfères les noms complets.';
+  n.innerHTML = '💡 Le planning s\'affiche en <strong>« Ambre G. »</strong>, ' +
+    'jamais en nom entier : cet écran est vu par d\'autres élèves et par ' +
+    'des visiteurs.<br>Pour les noms complets — dans un bureau fermé — ' +
+    'ajoute <strong>&amp;complet=1</strong> à l\'adresse. La vitrine, elle, ' +
+    'ne l\'accepte jamais : ce qui se voit du trottoir ne nomme personne.';
   d.appendChild(n);
 
   return d;
