@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:10 — v776 */
+/* Déployé le 01/09/2026 à 15:34 — v778 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1633,56 +1633,21 @@ async function supprimerEleveComplet(nom, rapporter){
      ------------------------------------------------------------ */
   const rates = [];
 
-  /* Messages au bureau : on les efface, pas seulement les marquer traités.
-     Ce sont eux qui décrivent l'état de l'élève dans les listes. */
-  dire('Messages au bureau…');
-  try{
-    const r = await appelPrep({ action: 'consigneEffacerEleve', eleve: nom });
-    if(r && r.effacees) faits.push(r.effacees + ' message(s)');
-  }catch(e){ rates.push('les messages au bureau'); }
+  /* ------------------------------------------------------------
+     TOUT SE FAIT EN UN SEUL APPEL, DANS LE CLASSEUR.
 
-  /* Cours préparés, passés comme à venir */
-  dire('Cours préparés…');
-  try{
-    const d = await appelPrep({ action: 'prepList' });
-    const siens = ((d && d.preparations) || [])
-      .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
-    let ratesPrep = 0;
-    for(const pr of siens){
-      try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }
-      catch(e){ ratesPrep++; }
-    }
-    if(siens.length - ratesPrep){
-      faits.push((siens.length - ratesPrep) + ' cours préparé(s)');
-    }
-    /* Une boucle qui avale ses échecs annonce le compte de ce
-       qu'elle a ESSAYÉ, pas de ce qu'elle a fait. */
-    if(ratesPrep) rates.push(ratesPrep + ' cours préparé(s)');
-  }catch(e){ rates.push('les cours préparés'); }
+     Cette fonction faisait la tournée elle-même : messages, cours
+     préparés, fiche de suivi, captures, bilans, répertoire — six
+     allers-retours, et six occasions d'en oublier un. Les deux
+     autres écrans qui « suppriment un élève » ne faisaient pas la
+     même tournée, et personne ne s'en apercevait.
 
-  /* Fiche de suivi : examens, dates, disponibilités */
-  dire('Fiche de suivi…');
-  try{
-    await appelPrep({ action: 'suiviDelete', eleve: nom });
-    faits.push('fiche de suivi');
-  }catch(e){ rates.push('la fiche de suivi'); }
+     L'effacement vit maintenant à un seul endroit, du côté du
+     classeur, là où sont les données. Les trois écrans y mènent.
+     ------------------------------------------------------------ */
 
-  /* Captures du CEPC */
-  dire('Captures du CEPC…');
-  try{
-    const d = await appelPrep({ action: 'captureList', eleve: nom });
-    const caps = (d && d.captures) || [];
-    let ratesCap = 0;
-    for(const cap of caps){
-      try{ await appelPrep({ action: 'captureDelete', id: cap.id }); }
-      catch(e){ ratesCap++; }
-    }
-    if(caps.length - ratesCap) faits.push((caps.length - ratesCap) + ' capture(s)');
-    if(ratesCap) rates.push(ratesCap + ' capture(s) du CEPC');
-  }catch(e){ rates.push('les captures du CEPC'); }
-
-  /* Bilans */
-  dire('Bilans…');
+  /* Bilans, et tout le reste avec */
+  dire('Effacement du dossier…');
   try{
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
@@ -1691,23 +1656,13 @@ async function supprimerEleveComplet(nom, rapporter){
     }, 25000, 2);
     if(r.ok){
       const d = await r.json().catch(() => ({}));
-      faits.push((d.supprimees || 0) + ' bilan(s)');
-      /* Le classeur dit ce qu'il a balayé ailleurs : on le reprend
-         plutôt que de le supposer. */
-      const a = (d && d.ailleurs) || {};
-      if(a.ailleurs) faits.push(a.ailleurs + ' ligne(s) ailleurs');
-      if(a.resultats) faits.push(a.resultats + ' résultat(s) anonymisé(s)');
+      /* Le classeur dit ce qu'il a fait : on le reprend mot pour
+         mot plutôt que de le supposer. */
+      resumeEffacement(d).forEach(x => faits.push(x));
     }else{
       rates.push('les bilans (HTTP ' + r.status + ')');
     }
   }catch(e){ rates.push('les bilans'); }
-
-  /* Répertoire */
-  dire('Répertoire…');
-  try{
-    await appelPrep({ action: 'eleveRetirer', eleve: nom });
-    faits.push('répertoire');
-  }catch(e){ rates.push('le répertoire'); }
 
   viderCaches(nom);
   return { faits: faits, rates: rates };
