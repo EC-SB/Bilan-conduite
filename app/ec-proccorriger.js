@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:20 — v747 */
+/* Déployé le 01/09/2026 à 09:07 — v750 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -18,6 +18,11 @@ let reglagesProc = {};
    n'offre que les catégories réellement présentes. Une liste écrite
    en dur se serait périmée dès la première procédure ajoutée. */
 let proceduresConnues = [];
+
+/* L'adresse de l'espace élève, écrite une fois. Elle apparaît
+   aussi dans les messages que le bureau envoie — même adresse,
+   même endroit. */
+const LIEN_ESPACE_ELEVE = 'https://ec-sb.github.io/Bilan-conduite/eleve.html';
 
 /* Ce qui reste à corriger, pour la pastille */
 function nbProcACorriger(){
@@ -68,6 +73,18 @@ async function afficherProcCorriger(){
     r.appendChild(b);
   });
   zone.appendChild(r);
+
+  /* LE LIEN DE L'ESPACE ÉLÈVE, SOUS LES YEUX DE TOUS.
+
+     C'est l'adresse qu'on donne aux élèves toute la journée, et
+     elle n'était écrite nulle part dans l'application : il fallait
+     la retrouver dans un ancien message, ou la retaper de mémoire.
+     Un lien qu'on ne peut pas copier d'un geste est un lien qu'on
+     recopie de travers.
+
+     Visible pour tout le monde : ce n'est pas un réglage, c'est une
+     adresse publique — celle que l'élève ouvrira de son côté. */
+  zone.appendChild(blocLienEspaceEleve());
 
   /* Les récitations envoyées depuis l'espace élève, en premier :
      l'élève attend, et la correction est déjà rédigée. */
@@ -1591,7 +1608,7 @@ async function ouvrirCodesEleves(){
         const messageAcces = () =>
           'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
           'Voici ton coin révisions :\n' +
-          'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+          LIEN_ESPACE_ELEVE + '\n\n' +
           'Ton nom : ' + a.eleve + '\n' +
           'Ton code : ' + a.code + '\n\n' +
           'Tu y récites tes procédures et suis tes séances de code.\n' +
@@ -1790,6 +1807,48 @@ function ligneRecitation(r){
   return l;
 }
 
+
+function blocLienEspaceEleve(){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:11px;' +
+    'padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.6;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'color:var(--muted);margin-bottom:5px;';
+  t.textContent = "🔗 L'espace élève — à donner aux élèves pour qu'ils " +
+    'envoient leurs procédures :';
+  d.appendChild(t);
+
+  const a = document.createElement('a');
+  a.href = LIEN_ESPACE_ELEVE;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.textContent = LIEN_ESPACE_ELEVE;
+  a.style.cssText = 'color:var(--accent-text);word-break:break-all;' +
+    'font-weight:700;text-decoration:underline;';
+  d.appendChild(a);
+
+  /* Copier plutôt que sélectionner à la main sur un téléphone. */
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'margin-top:8px;padding:8px 12px;font-size:12px;';
+  b.textContent = '📋 Copier le lien';
+  b.addEventListener('click', async () => {
+    try{
+      await navigator.clipboard.writeText(LIEN_ESPACE_ELEVE);
+      b.textContent = '✅ Copié';
+      setTimeout(() => { b.textContent = '📋 Copier le lien'; }, 1800);
+    }catch(e){
+      /* Refusé par le navigateur : le lien reste sélectionnable,
+         on ne prétend pas avoir copié. */
+      b.textContent = 'Copie refusée — sélectionne le lien';
+    }
+  });
+  d.appendChild(b);
+
+  return d;
+}
 
 /* La procédure du catalogue qui porte ce nom, ou null. C'est le
    même rapprochement que fait le classeur : par le nom, parce que
