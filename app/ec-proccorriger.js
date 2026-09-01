@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:43 — v757 */
+/* Déployé le 01/09/2026 à 12:35 — v765 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1601,16 +1601,46 @@ async function ouvrirCodesEleves(){
                         : '') +
             '</div>' +
           '</span>' +
-          '<code style="flex-shrink:0;font-size:15px;letter-spacing:.12em;' +
-            'color:var(--accent-text);font-weight:700;">' + a.code + '</code>';
+          '<code data-code style="flex-shrink:0;font-size:15px;' +
+            'letter-spacing:.12em;color:var(--accent-text);font-weight:700;' +
+            'cursor:pointer;" title="Afficher le code">' +
+            (a.aUnCode ? '••••••' : '—') + '</code>';
+
+        /* ------------------------------------------------------
+           LE CODE NE VOYAGE PLUS AVEC LA LISTE
+
+           Elle les rendait TOUS en clair, d'un seul appel. Il se
+           demande maintenant un par un, pour l'élève qu'on veut
+           prévenir, et la demande laisse une trace au journal.
+
+           Il est gardé le temps de la fenêtre : les deux boutons
+           d'envoi et l'affichage s'en servent, et un aller-retour
+           par bouton n'apprendrait rien de plus. */
+        let codeSu = '';
+        const codeDe = async () => {
+          if(codeSu) return codeSu;
+          const d = await appelPrep({ action: 'accesEleveCode', eleve: a.eleve });
+          codeSu = String((d && d.code) || '');
+          if(!codeSu) throw new Error('code introuvable');
+          return codeSu;
+        };
+
+        const zCode = l.querySelector('[data-code]');
+        if(zCode && a.aUnCode){
+          zCode.addEventListener('click', async () => {
+            try{
+              zCode.textContent = await codeDe();
+            }catch(e){ showToast('Code illisible : ' + e.message); }
+          });
+        }
 
         /* Le message d'accès, une fois pour les deux boutons */
-        const messageAcces = () =>
+        const messageAcces = async () =>
           'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
           'Voici ton coin révisions :\n' +
           LIEN_ESPACE_ELEVE + '\n\n' +
           'Ton nom : ' + a.eleve + '\n' +
-          'Ton code : ' + a.code + '\n\n' +
+          'Ton code : ' + (await codeDe()) + '\n\n' +
           'Tu y récites tes procédures et suis tes séances de code.\n' +
           'Ce n\'est pas le site pour réserver tes cours.\n\n' +
           'Garde ce code, il te servira à chaque fois.\n\n' +
@@ -1640,7 +1670,7 @@ async function ouvrirCodesEleves(){
               action: 'mailBilan',
               to: [adresse],
               sujet: 'Ton coin révisions — Évolution Conduites',
-              texte: messageAcces()
+              texte: await messageAcces()
             });
             bMail.textContent = '✅';
             showToast('Envoyé à ' + adresse + ' ✅');
@@ -1660,7 +1690,7 @@ async function ouvrirCodesEleves(){
         bCop.title = 'Copier le message pour l\'élève';
         bCop.addEventListener('click', async () => {
           try{
-            await navigator.clipboard.writeText(messageAcces());
+            await navigator.clipboard.writeText(await messageAcces());
             showToast('Message copié ✅');
           }catch(e){ showToast('Copie impossible'); }
         });
