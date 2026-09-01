@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:20 — v723 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-paiement.js
    Le paiement en plusieurs fois.
@@ -168,7 +168,17 @@ function dessinerPaiement(){
   bMail.className = 'btn btn-primary';
   bMail.style.cssText = 'flex:1;padding:12px;font-size:13px;margin:0;';
   bMail.textContent = '✉️ Envoyer par mail';
-  bMail.addEventListener('click', () => envoyerPaiementMail(montant, options));
+  /* Verrouillé pendant l'envoi : un second appui expédiait deux
+     fois le même message de paiement à l'élève. Tous les boutons
+     équivalents de l'outil se désactivent ; ces deux-là avaient
+     été oubliés. */
+  bMail.addEventListener('click', async () => {
+    bMail.disabled = true;
+    const libelle = bMail.textContent;
+    bMail.textContent = 'Envoi…';
+    try{ await envoyerPaiementMail(montant, options); }
+    finally{ bMail.disabled = false; bMail.textContent = libelle; }
+  });
   r.appendChild(bMail);
 
   const bCop = document.createElement('button');
@@ -191,7 +201,15 @@ function dessinerPaiement(){
   bSuivi.style.cssText = 'margin-top:8px;padding:12px;font-size:13px;' +
     'border-color:var(--ambre);color:var(--ambre);';
   bSuivi.textContent = '💾 Ajouter au suivi';
-  bSuivi.addEventListener('click', () => enregistrerAuSuivi(montant));
+  /* Idem : le garde-fou anti-doublon compare à la liste, et la
+     liste n'est pas encore rechargée au second appui. */
+  bSuivi.addEventListener('click', async () => {
+    bSuivi.disabled = true;
+    const libelle = bSuivi.textContent;
+    bSuivi.textContent = 'Enregistrement…';
+    try{ await enregistrerAuSuivi(montant); }
+    finally{ bSuivi.disabled = false; bSuivi.textContent = libelle; }
+  });
   zone.appendChild(bSuivi);
 
   /* Le message tel qu'il partira : on le voit avant d'envoyer */
