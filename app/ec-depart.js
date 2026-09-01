@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 12:35 — v765 */
+/* Déployé le 01/09/2026 à 13:21 — v768 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1305,9 +1305,9 @@ async function reprendreSession(){
         oublierSession();
         return false;
       }
-      /* Doute : on garde la session mémorisée */
-      ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre,
-                    s.droitsRegles);
+      /* Doute : le serveur n'a pas répondu clairement. On ouvre,
+         mais en mode réduit — voir ouvrirSessionDegradee(). */
+      ouvrirSessionDegradee(s);
       return true;
     }
 
@@ -1315,10 +1315,44 @@ async function reprendreSession(){
                   data.emoji, data.genre, data.droitsRegles);
     return true;
   }catch(e){
-    /* Hors ligne : on fait confiance à la session mémorisée */
-    ouvrirSession(s.code, s.moniteur, s.role, false, s.droits, s.emoji, s.genre,
-                    s.droitsRegles);
+    /* Hors ligne : on travaille, mais avec les droits du volant. */
+    ouvrirSessionDegradee(s);
     return true;
+  }
+}
+
+
+/* ------------------------------------------------------------
+   HORS LIGNE : ON TRAVAILLE, MAIS PAS AVEC N'IMPORTE QUOI
+
+   Quand le serveur ne répond pas, la session se rouvrait avec le
+   rôle et les droits MÉMORISÉS DANS LE TÉLÉPHONE. Or ce qui est
+   dans le téléphone se modifie : ouvrir le stockage du navigateur,
+   écrire « admin », passer en mode avion, recharger — et l'écran
+   s'ouvrait en administrateur.
+
+   Fermer complètement serait pire : un moniteur dans une zone
+   blanche doit pouvoir dicter son bilan et voir ses cours. On
+   ouvre donc en MODE RÉDUIT, avec ce qui fonctionne vraiment sans
+   réseau. Tout le reste — la paie, les tarifs, le bureau, les
+   accès — appelle le classeur de toute façon : le masquer ne
+   retire rien, cela dit seulement la vérité.
+
+   Le code, lui, reste celui du téléphone : c'est le serveur qui
+   dira ce qu'il vaut à la première réponse, et la session
+   redeviendra complète toute seule.
+   ------------------------------------------------------------ */
+const DROITS_HORS_LIGNE = { prepares: 'm', cours: 'm', recherche: 'v' };
+
+function ouvrirSessionDegradee(s){
+  ouvrirSession(s.code, s.moniteur, 'moniteur', false,
+                Object.assign({}, DROITS_HORS_LIGNE),
+                s.emoji, s.genre, true);
+
+  /* Le dire, sinon on croit à une panne — ou pire, on croit avoir
+     perdu des droits. */
+  if(typeof showToast === 'function'){
+    setTimeout(() => showToast('Hors ligne — écran réduit au volant'), 600);
   }
 }
 
@@ -1380,8 +1414,25 @@ async function deverrouiller(){
 }
 
 brancher('logoutBtn', 'click', async () => {
-  if(!await confirmer('Se déconnecter ?')) return;
+  /* CE QU'ON EFFACE, ON LE DIT AVANT.
+
+     Une déconnexion voulue vide l'appareil — c'est le moment où un
+     téléphone se rend, se prête ou se fait réparer. Mais un bilan
+     dicté et non envoyé n'a parfois pas d'autre exemplaire :
+     l'effacer en silence, ce serait détruire le travail de
+     quelqu'un pour une raison qu'il n'a pas comprise. */
+  const reste = (typeof travailNonTermine === 'function')
+    ? travailNonTermine() : 0;
+
+  const question = reste
+    ? 'Se déconnecter ?\n\nIl reste ' + reste + ' travail(aux) non ' +
+      'terminé(s) sur cet appareil (bilan dicté, fiche en cours).\n' +
+      'La déconnexion les efface.'
+    : 'Se déconnecter ?';
+
+  if(!await confirmer(question)) return;
   verrouiller('');
+  if(typeof oublierLeTravail === 'function') oublierLeTravail();
   showToast('Déconnecté');
 });
 
