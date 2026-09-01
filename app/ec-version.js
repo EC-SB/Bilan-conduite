@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:39 — v774 */
+/* Déployé le 01/09/2026 à 16:49 — v784 */
 /* ============================================================
    ec-version.js
    Rester à jour sans jamais interrompre un cours.
@@ -241,8 +241,13 @@ function lancerSurveillanceVersion(){
 
 async function verifierVersionMaintenant(){
   const b = $('versionBtn');
-  const ancien = b ? b.textContent : '';
-  if(b){ b.disabled = true; b.textContent = '⏳'; }
+  /* Le sablier va dans l'emoji, pas dans le bouton : celui-ci porte
+     aussi « Vérifier la version », et écrire son textContent
+     emporterait le libellé avec l'icône. */
+  const ico = $('versionIcone') || b;
+  const ancien = ico ? ico.textContent : '';
+  if(b) b.disabled = true;
+  if(ico) ico.textContent = '⏳';
 
   const ici = lireVersionChargee();
 
@@ -277,7 +282,8 @@ async function verifierVersionMaintenant(){
                    'Version chargée ici : v' + ici + '\n' +
                    'Détail : ' + (e.message || e), 'Version');
   }finally{
-    if(b){ b.disabled = false; b.textContent = ancien || '🔄'; }
+    if(b) b.disabled = false;
+    if(ico) ico.textContent = ancien || '🔄';
   }
 }
 
