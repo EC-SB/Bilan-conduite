@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 775
+     GUIDE-VERSION: 777
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v775</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v777</strong><br>
     Mis à jour le 1<sup>er</sup> septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -498,7 +498,6 @@ html{scroll-behavior:smooth}
           <li><a href="#textes">Textes types</a></li>
           <li><a href="#memoire">Mémoire de l'IA</a></li>
           <li><a href="#modeles-bilan">Modèles de bilan</a></li>
-          <li><a href="#historique-cours">Historique des cours</a></li>
           <li><a href="#reussite">Taux de réussite</a></li>
           <li><a href="#journal">Journal d'activité</a></li>
         </ol>
@@ -524,7 +523,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v775</strong>, relu le 1<sup>er</sup> septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v777</strong>, relu le 1<sup>er</sup> septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -2228,14 +2227,6 @@ Jours ouverts à la prise de date
     <p>Le modèle <em>RDV post-permis</em> n'a ni formulaire ni consignes&nbsp;: il passe par son écran dédié.</p>
   </section>
 
-  <section id="historique-cours">
-    <h3>📚 Historique des cours</h3>
-    <p><em>« Ce qui s'enregistre en ce moment, et tout ce qui a été enregistré. »</em></p>
-    <div class="note bug"><span class="tag">Anomalie connue</span><p><strong>Cette vue ne se charge jamais toute seule&nbsp;: elle reste bloquée sur <span class="ch">Chargement…</span>.</strong> C'est un défaut de l'application, pas une lenteur du réseau. Le contenu décrit ci-dessous est ce que l'écran est <em>censé</em> montrer.</p></div>
-    <p><strong>🎙️ Cours en cours</strong> — les enregistrements démarrés dont le bilan n'est pas encore enregistré, en cartes orange&nbsp;: le nom de l'élève, le moniteur, le type, le site, et l'heure de démarrage. Un bouton <span class="b">✕ Retirer</span> les enlève de la liste — <em>« Cela ne supprime aucun bilan&nbsp;: ça retire seulement la mention “en cours”. Si le moniteur enregistre plus tard, son bilan sera bien pris en compte. »</em></p>
-    <p><strong>📚 Cours enregistrés</strong> — avec un filtre texte, un menu de moniteur et une période (7 jours / 30 jours / tout), groupés par jour. <strong>Seuls les 200 derniers bilans sont lus</strong>&nbsp;: le filtre « Tout » ne remonte pas plus loin, même si le compteur affiche le total réel du classeur.</p>
-  </section>
-
   <section id="reussite">
     <h3>📈 Taux de réussite</h3>
     <p><em>« Calculés à partir des résultats saisis dans “Examens passés”. »</em></p>
@@ -2257,6 +2248,10 @@ Jours ouverts à la prise de date
     <h4>↩️ Défaire un résultat noté par erreur</h4>
     <p>Un bouton <span class="b">↩️</span> apparaît sur les lignes de résultat ou de suppression de suivi. Il propose trois choix&nbsp;: <span class="b">Annuler</span>, <span class="b">Le remettre ajourné</span>, <span class="b">En attente de résultat</span>. Un compte rendu détaillé suit, et en cas d'échec partiel&nbsp;: <em>« Le résultat est effacé, mais son suivi n'a pas pu être recréé. Refais-lui un bilan pour le remettre dans les listes. »</em></p>
     <p>La lecture est plafonnée à <strong>300 lignes</strong>&nbsp;: au-delà, l'écran le dit et il faut affiner les filtres.</p>
+
+    <div class="note astuce"><span class="tag">Il s'ouvre vite à nouveau — v777</span><p>Le journal lisait la feuille <strong>entière</strong> — jusqu'à vingt mille lignes sur six colonnes — pour en afficher trois cents. Tant que peu d'actions y entraient, ça passait&nbsp;; depuis que <em>toutes</em> les actions y sont journalisées (une correction de sécurité de la v765), le volume a été multiplié et l'écran est devenu très long à s'ouvrir. Il lit désormais par la fin, par blocs, et s'arrête dès qu'il a de quoi remplir l'écran.</p><p>Si une recherche filtrée s'arrête avant d'avoir tout remonté, <strong>elle le dit</strong> et indique jusqu'à quelle date elle est allée&nbsp;: « rien trouvé » ne doit pas vouloir dire à la fois « ça n'existe pas » et « je n'ai pas cherché jusqu'au bout ».</p></div>
+
+    <div class="note piege"><span class="tag">« Conservé 90 jours » est une règle, pas une promesse</span><p>Un <strong>second plafond de 20 000 lignes</strong> s'applique en même temps, et c'est lui qui mord en premier maintenant que tout est journalisé. Le récapitulatif prévient quand on en approche, et dit jusqu'à quelle date la trace remonte réellement. Une trace qu'on croit avoir et qui n'existe pas ne se découvre que le jour où on la cherche.</p></div>
   </section>
 </article>
 
@@ -2578,7 +2573,6 @@ Jours ouverts à la prise de date
     <thead><tr><th>Où</th><th>Le défaut</th><th>Ce qu'on peut faire en attendant</th></tr></thead>
     <tbody>
       <tr><td>Textes types</td><td>Le bouton <span class="b">📥 Importer</span> n'ouvre rien.</td><td>Créer les textes un par un.</td></tr>
-      <tr><td>Historique des cours</td><td>La vue reste bloquée sur <span class="ch">Chargement…</span>.</td><td>Passer par <span class="b">📚 Historique des leçons</span> dans l'onglet Élèves.</td></tr>
       <tr><td>Tâches · Flotte</td><td>Le compteur ne s'affiche jamais sur le bouton de la vue.</td><td>Ouvrir la vue pour voir le nombre.</td></tr>
       <tr><td>Affichage dynamique</td><td>Un emplacement personnalisé n'apparaît pas dans les lignes du planning déjà affichées.</td><td>Utiliser la fenêtre d'ajout manuel, qui les propose bien.</td></tr>
       <tr><td>Alertes</td><td>Le texte d'aide renvoie encore à « Outils → ⚙️ Accès ».</td><td>C'est dans <strong>Gestion</strong>.</td></tr>
