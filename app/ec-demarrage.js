@@ -95,18 +95,31 @@ function proposerReprise(){
   const b1 = $('repriseOui');
   if(b1) b1.style.display = '';
 
-  if(!s || (!s.transcript && !s.bilan)){
-    /* Plusieurs élèves en cours : on les liste plutôt que de n'en
-       proposer qu'un. */
-    if(brouillons.length > 1){
-      proposerListeBrouillons(brouillons, banniere);
-      return;
-    }
-    if(brouillons.length === 1){
-      proposerRepriseManuelle(brouillons[0], banniere);
-      return;
-    }
+  /* TOUT CE QUI EST EN COURS, PAS L'UN OU L'AUTRE.
+
+     La bannière choisissait : une dictée interrompue OU les fiches
+     manuelles, jamais les deux. Le jour d'un examen, un moniteur
+     qui avait dicté un cours le matin ne voyait plus aucune de ses
+     fiches d'examen en haut de l'écran — elles étaient pourtant
+     bien enregistrées, et c'est là qu'il devait les reprendre.
+
+     Une seule règle désormais : dès qu'il y a plus d'une chose en
+     chantier, on les liste toutes. */
+  const vocal = (s && (s.transcript || s.bilan)) ? s : null;
+  const enChantier = brouillons.length + (vocal ? 1 : 0);
+
+  if(!enChantier){
     banniere.style.display = 'none';
+    return;
+  }
+
+  if(enChantier > 1){
+    proposerListeBrouillons(brouillons, banniere, vocal);
+    return;
+  }
+
+  if(!vocal){
+    proposerRepriseManuelle(brouillons[0], banniere);
     return;
   }
 
@@ -127,14 +140,42 @@ function proposerReprise(){
 
 /* Plusieurs bilans en cours : le jour d'un examen, le moniteur
    en a un par élève dans la voiture. */
-function proposerListeBrouillons(liste, banniere){
+function proposerListeBrouillons(liste, banniere, vocal){
   const zone = $('repriseInfo');
   zone.innerHTML = '';
 
+  const total = liste.length + (vocal ? 1 : 0);
   const t = document.createElement('div');
   t.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;';
-  t.textContent = liste.length + ' bilan(s) commencé(s) — appuie pour reprendre';
+  t.textContent = total + ' bilan(s) commencé(s) — appuie pour reprendre';
   zone.appendChild(t);
+
+  /* La dictée interrompue prend sa place dans la liste, au même
+     titre qu'une fiche : c'est du travail commencé, et le moniteur
+     n'a pas à savoir par quel écran il l'a commencé. */
+  if(vocal){
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:9px;align-items:center;padding:8px 0;' +
+      'border-top:1px solid rgba(255,255,255,.06);cursor:pointer;';
+    const q = new Date(vocal.ts || Date.now());
+    const p2 = n => String(n).padStart(2, '0');
+    const mots = String(vocal.transcript || '').trim()
+      .split(/\s+/).filter(Boolean).length;
+
+    l.innerHTML = '<span style="flex:1;min-width:0;font-size:14px;' +
+      'line-height:1.4;color:var(--cream);">' +
+      '<strong>🎙️ ' + String(vocal.eleve || '?').replace(/</g, '&lt;') +
+      '</strong><div style="font-size:11px;color:var(--muted);">' +
+        mots + ' mots dictés' + (vocal.bilan ? ' · bilan généré' : '') + ' · ' +
+        p2(q.getHours()) + ':' + p2(q.getMinutes()) +
+      '</div></span>' +
+      '<span style="flex-shrink:0;color:var(--accent-text);">▸</span>';
+
+    l.addEventListener('click', () => {
+      if(typeof reprendreCours === 'function') reprendreCours();
+    });
+    zone.appendChild(l);
+  }
 
   liste.forEach(b => {
     const l = document.createElement('div');
@@ -493,6 +534,19 @@ function ouOnRetrouveLeCoursOuvert(){
 }
 
 function fermerLeCoursOuvert(){
+  /* LA FICHE D'EXAMEN EST MISE À L'ABRI AVANT D'ÊTRE FERMÉE.
+
+     Le jour d'un examen, les élèves passent l'un après l'autre :
+     le moniteur envoie la partie avant examen, ouvre le suivant,
+     et revient sur la première fiche au moment de l'examen. Elle
+     ne doit donc pas disparaître parce qu'on en a ouvert une
+     autre. Elle s'enregistre toute seule une seconde après la
+     dernière frappe ; ici, on ne laisse pas cette seconde
+     décider. */
+  if(typeof sauvegarderManuel === 'function'){
+    try{ sauvegarderManuel(); }catch(e){}
+  }
+
   /* Le micro d'abord : un enregistrement qui continue pendant le
      cours suivant écrirait la parole de l'un chez l'autre. */
   if(typeof isRecording !== 'undefined' && isRecording){
@@ -522,6 +576,12 @@ function fermerLeCoursOuvert(){
     b.innerHTML = '';
     b.style.display = 'none';
   }
+
+  /* Et elle remonte en haut de l'écran, là où on la reprendra.
+     Elle n'y remontait que par le bouton « Élève suivant » : par
+     tout autre chemin — ouvrir le cours d'à côté, par exemple —
+     elle restait enregistrée mais invisible. */
+  if(typeof proposerReprise === 'function') proposerReprise();
 }
 
 
