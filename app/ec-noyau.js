@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:01 — v767 */
+/* Déployé le 01/09/2026 à 13:21 — v768 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 173;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 174;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -226,8 +226,94 @@ function rafraichirSession(){
   }catch(e){}
 }
 
-function oublierSession(){
-  try{ localStorage.removeItem(CLE_SESSION); }catch(e){}
+/* ------------------------------------------------------------
+   SE DÉCONNECTER, C'EST AUSSI VIDER L'APPAREIL
+
+   Ceci n'effaçait qu'une clé : celle de la session. Restaient
+   derrière, indéfiniment et sans aucun code pour les lire : la
+   liste complète des noms de TOUS les élèves, la transcription
+   intégrale du dernier cours, les fiches manuelles en attente, le
+   cache des cours préparés. Un téléphone rendu, perdu ou porté en
+   réparation les livrait tels quels.
+
+   DEUX FAMILLES, ET ON NE LES TRAITE PAS PAREIL.
+
+   Les LISTES sont des copies de ce que le serveur sait déjà : les
+   effacer ne coûte rien à personne, et c'est la plus grosse
+   exposition. Elles partent à chaque fermeture de session, y
+   compris automatique.
+
+   Le TRAVAIL — un bilan dicté, une fiche d'examen remplie — n'a
+   parfois pas d'autre exemplaire. L'effacer sur une coupure de 48 h
+   ou du samedi soir, c'est-à-dire sans que personne l'ait demandé,
+   détruirait le travail de quelqu'un. Il ne part donc QUE sur une
+   déconnexion voulue, et seulement après l'avoir dit.
+
+   Ce qui reste dans tous les cas : le thème, l'onglet ouvert, les
+   lieux, les formations, le taux de change. Aucune donnée d'élève,
+   et les effacer ne ferait que tout reconfigurer à chaque reprise.
+   ------------------------------------------------------------ */
+const CLES_LISTES = [
+  'session_acces',            /* la session elle-même */
+  'eleves_connus',            /* tous les noms d'élèves */
+  'cache_prepares'            /* les cours préparés : élèves, horaires */
+];
+
+const CLES_TRAVAIL = [
+  'bilan_en_cours',           /* nom, note interne, transcription */
+  'bilan_manuel_en_cours',
+  'bilans_manuels',           /* les douze fiches gardées */
+  'ec_groupes_simu',          /* une séance à plusieurs en cours */
+  'ec_postes_simu'
+];
+
+/* ------------------------------------------------------------
+   ÉCHAPPER, UNE FOIS POUR TOUTES
+
+   Le fichier comptait environ deux cents « .replace(/</g,'&lt;') »
+   recopiés à la main. Un taux d'oubli d'un sur deux cents est
+   normal ; le défaut, c'est de l'avoir recopié deux cents fois.
+
+   L'oubli trouvé était le pire possible : le champ « version »
+   d'un signalement, seul non échappé au milieu de cinq voisins qui
+   l'étaient — et il s'affiche dans la session ADMINISTRATRICE,
+   celle qui porte le code d'accès.
+
+   Les guillemets aussi : « &lt; » seul suffit dans le corps d'une
+   balise, pas dans un attribut.
+   ------------------------------------------------------------ */
+function echapper(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function retirerCles(liste){
+  liste.forEach(cle => {
+    try{ localStorage.removeItem(cle); }catch(e){}
+  });
+}
+
+function oublierSession(){ retirerCles(CLES_LISTES); }
+
+/* Le travail non terminé. Appelé par le bouton « Se déconnecter »,
+   et par lui seul. */
+function oublierLeTravail(){ retirerCles(CLES_TRAVAIL); }
+
+/* Y a-t-il quelque chose à perdre ? On le demande avant d'effacer :
+   un moniteur qui rend son téléphone doit pouvoir finir d'abord. */
+function travailNonTermine(){
+  let n = 0;
+  CLES_TRAVAIL.forEach(cle => {
+    try{
+      const v = localStorage.getItem(cle);
+      if(v && v !== '[]' && v !== '{}' && v !== 'null') n++;
+    }catch(e){}
+  });
+  return n;
 }
 
 function verrouiller(message, garderSession){
