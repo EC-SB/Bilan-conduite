@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:49 — v775 */
+/* Déployé le 01/09/2026 à 15:34 — v778 */
 /* ============================================================
    ec-menage.js
    Ce qu'on garde, et ce qu'on pourrait ne plus garder.
@@ -206,17 +206,13 @@ function ligneMenage(x, quoi){
           : 'Aucune récitation trouvée.');
       }else{
         const r = await appelPrep({ action: 'supprimerEleve', eleve: x.eleve });
-        /* CE QUI A ÉTÉ FAIT, PAS CE QU'ON ESPÉRAIT. Le classeur
-           rend le compte exact : on le répète, plutôt que
-           d'annoncer un succès qu'on n'a pas vérifié. */
-        const a = (r && r.ailleurs) || {};
-        const bouts = [];
-        if(r && r.supprimees) bouts.push(r.supprimees + ' bilan(s)');
-        if(a.acces) bouts.push('son accès');
-        if(a.recitations) bouts.push(a.recitations + ' récitation(s)');
-        if(a.demandes) bouts.push(a.demandes + ' demande(s)');
-        if(a.ailleurs) bouts.push(a.ailleurs + ' ligne(s) ailleurs');
-        if(a.resultats) bouts.push(a.resultats + ' résultat(s) anonymisé(s)');
+        /* CE QUI A ÉTÉ FAIT, PAS CE QU'ON ESPÉRAIT — et la même
+           phrase que les deux autres écrans qui suppriment un
+           dossier : trois résumés écrits séparément n'énuméraient
+           pas les mêmes choses, et on ne savait pas si la
+           différence venait du dossier ou de l'écran. */
+        const bouts = (typeof resumeEffacement === 'function')
+          ? resumeEffacement(r) : [];
         showToast(bouts.length
           ? 'Supprimé : ' + bouts.join(', ') + ' ✅'
           : 'Rien trouvé à supprimer pour ce dossier.');
@@ -243,7 +239,10 @@ function confirmerDossier(x){
   if(x.recitations){
     quoi.push(x.recitations + ' récitation' + (x.recitations > 1 ? 's' : ''));
   }
+  quoi.push('sa fiche du répertoire (nom, téléphone, adresse)');
   quoi.push('son accès au coin révisions');
+  quoi.push('ses cours préparés et ses captures du CEPC');
+  quoi.push('sa fiche de suivi');
   quoi.push('ses lignes dans le journal des envois');
 
   const message =
