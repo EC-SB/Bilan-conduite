@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:33 — v748 */
+/* Déployé le 01/09/2026 à 09:18 — v751 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -62,7 +62,9 @@ async function lirePlanning(){
     const r = await fetch(CONFIG.IA_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: ACCES.code, payload: {
+      body: JSON.stringify({ code: ACCES.code,
+        quoi: 'Lecture du planning (photo)',
+        payload: {
         model: CONFIG.MODELE_IA || 'claude-sonnet-5',
         max_tokens: 4000,
         messages: [{ role: 'user', content: contenu }]
@@ -339,10 +341,8 @@ async function afficherRappels(){
           cr.envoye = true;
           /* Chaque cours va au moniteur lu sur le planning */
           preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur,
-                               { type: cr.type ||
-                                       (choixRappel && choixRappel.type) || '',
-                                 titreType: titreDuType(cr.type ||
-                                   (choixRappel && choixRappel.type)) });
+                               { type: typeDeLaLigne(cr),
+                                 titreType: titreDuType(typeDeLaLigne(cr)) });
           ok++;
         }catch(e){
           rates.push((cr.choisi || cr.eleve) + ' : ' + e.message);
@@ -421,10 +421,8 @@ function ligneRappel(c, i){
       /* Le cours rejoint les prochains cours du moniteur lu sur
          le planning */
       preparerDepuisRappel(qui, c.jour, c.moniteur,
-                           { type: c.type ||
-                                   (choixRappel && choixRappel.type) || '',
-                             titreType: titreDuType(c.type ||
-                               (choixRappel && choixRappel.type)) });
+                           { type: typeDeLaLigne(c),
+                             titreType: titreDuType(typeDeLaLigne(c)) });
 
       envoyerMessageComplet(c.telephone, messageRappel(c), qui)
         .then(() => {
@@ -1288,6 +1286,33 @@ async function afficherRappelManuel(){
   majLieuAuto();
 }
 
+/* LE TYPE DE SÉANCE, DEMANDÉ À L'ÉCRAN.
+
+   `choixRappel` est un souvenir : `relireChoixRappel()` ne le
+   remplit qu'au dessin de l'écran, et changer le menu ne le touche
+   pas. Tout ce qui décide du BILAN doit donc passer par ici, comme
+   le message le fait déjà. */
+function typeChoisiMaintenant(){
+  const m = $('rapType');
+  if(m && m.value) return m.value;
+  return (typeof choixRappel !== 'undefined' && choixRappel && choixRappel.type)
+    ? choixRappel.type : '';
+}
+
+/* LE TYPE D'UNE LIGNE DU PLANNING.
+
+   Les lignes lues sur le planning ne portent pas de type. Elles
+   retombaient sur celui de l'écran de composition — c'est-à-dire
+   sur le type d'un AUTRE écran : préparer un examen blanc à la
+   main, puis envoyer les douze rappels du planning, créait douze
+   examens blancs.
+
+   Une ligne sans type n'impose rien : c'est la fiche de l'élève
+   qui décide, et c'est le seul choix honnête. */
+function typeDeLaLigne(ligne){
+  return (ligne && ligne.type) ? ligne.type : '';
+}
+
 function lireChoixRappel(){
   const options = [];
   document.querySelectorAll('.optionRappel').forEach(cb => {
@@ -1918,12 +1943,23 @@ async function envoyerRappelManuel(){
                            /* Le type de séance décide du bilan : sans
                               lui, un examen blanc devenait un cours
                               de conduite ordinaire. */
-                           type: (choixRappel && choixRappel.type) || '',
+                           /* LE TYPE SE LIT À L'ÉCRAN, PAS EN MÉMOIRE.
+
+                              Il se lisait dans `choixRappel`, un objet
+                              rafraîchi une seule fois — au dessin de
+                              l'écran. Le MESSAGE, lui, part de
+                              `lireChoixRappel()`, qui lit le menu.
+                              Changer le type puis envoyer donnait donc
+                              le bon mail et le cours du type PRÉCÉDENT :
+                              le bilan était en retard d'un rappel, à
+                              chaque fois.
+
+                              Une seule source, celle que le bureau voit. */
+                           type: typeChoisiMaintenant(),
                            /* Vos types viennent des Textes types : leur
                               clé est « perso:xxx », qui ne dit rien.
                               C'est le titre qui porte le sens. */
-                           titreType: titreDuType(choixRappel &&
-                                                  choixRappel.type),
+                           titreType: titreDuType(typeChoisiMaintenant()),
                            heure: $('rapHeure') ? $('rapHeure').value : '',
                            /* Ce que l'élève doit apporter : le moniteur
                               le voit dans ses prochains cours, sans
@@ -2692,7 +2728,19 @@ const BILAN_DU_RAPPEL = {
 };
 
 function modeleDuTypeDeRappel(type){
-  const t = normaliserMot(String(type || ''));
+  /* LES CARACTÈRES STYLISÉS SE RAMÈNENT À DES LETTRES.
+
+     Toute l'application écrit ses titres en gras Unicode —
+     « 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 ». Or `normaliserMot` ne décompose PAS ces
+     caractères-là : ce sont des lettres mathématiques, pas des
+     lettres accentuées. Aucune règle ne matchait, et un examen
+     blanc repartait en cours de conduite. La fonction qui les
+     ramène à l'alphabet existait déjà, elle ne servait qu'aux
+     dates. */
+  const t = normaliserMot(
+    (typeof lettresSimples === 'function')
+      ? lettresSimples(String(type || ''))
+      : String(type || ''));
   if(!t) return '';
 
   /* Le type exact d'abord */
