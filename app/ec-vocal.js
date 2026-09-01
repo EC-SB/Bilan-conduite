@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:21 — v768 */
+/* Déployé le 01/09/2026 à 14:31 — v773 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2167,6 +2167,29 @@ async function exporterVersSheets(silencieux){
     retenirConsignesIA($('transcriptBox').value,
                        currentLessonMeta && currentLessonMeta.studentName);
     if(typeof signalerCoursFini === 'function') signalerCoursFini();
+
+    /* ------------------------------------------------------------
+       LE BROUILLON MEURT ICI, ET PAS AILLEURS
+
+       Il était retiré à la fin de la GÉNÉRATION — un instant plus
+       tôt, et ce n'est pas le même instant. Entre les deux, le
+       dépôt automatique continuait de tourner : dès que la dictée
+       bougeait, ou à la première mise en veille du téléphone, un
+       brouillon repartait sur le serveur APRÈS que le bilan y était
+       déjà. Personne ne le reprenait jamais, et « Cours non
+       terminés » accusait un cours parfaitement enregistré — « le
+       bilan n'est pas généré » alors qu'on le voit dans Sheets.
+
+       Le seul instant qui vaut est celui-ci : la ligne est écrite
+       dans le classeur. C'est là que le brouillon n'a plus de
+       raison d'être.
+       ------------------------------------------------------------ */
+    if(typeof retirerBrouillonServeur === 'function'){
+      retirerBrouillonServeur((currentLessonMeta &&
+                               currentLessonMeta.studentName) ||
+                              ($('studentName') ? $('studentName').value.trim() : ''));
+    }
+
     viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
