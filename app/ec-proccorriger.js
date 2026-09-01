@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:22 — v752 */
+/* Déployé le 01/09/2026 à 09:29 — v753 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -2306,10 +2306,11 @@ async function corrigerRecitation(r){
       quoi: 'Correction de procédure',
       payload: {
         model: 'claude-sonnet-5',
-        /* Même raison que côté serveur : un plafond atteint rend
-           une réponse vide, et une réponse vide se paie autant
-           qu'une réponse utile. */
-        max_tokens: 2000,
+        /* Le raisonnement du modèle compte dans le même plafond
+           que sa réponse : à 2000, il épuisait son budget à
+           réfléchir et n'écrivait rien. Même plafond que les
+           bilans dictés, qui marchent depuis toujours. */
+        max_tokens: 8000,
         system: consigne,
         messages: [{ role: 'user', content:
           'Corrige cette récitation.' }]
