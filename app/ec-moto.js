@@ -1,3 +1,4 @@
+/* Déployé le 01/09/2026 à 15:10 — v776 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -262,26 +263,46 @@ function champRemarqueMoto(nom, s){
     'padding:8px 10px;background:var(--navy);' +
     'border:1px solid var(--line);border-radius:9px;color:var(--cream);';
 
+  /* ------------------------------------------------------------
+     UN SEUL ENREGISTREMENT, POUR LES DEUX CHEMINS.
+
+     Il y en avait deux, et ils ne se comportaient pas pareil :
+     celui de la frappe parlait quand ça ratait, celui du départ
+     du champ avalait tout — « .catch(() => {}) ». Or c'est
+     justement celui-là qui compte : on quitte le champ, on passe
+     à autre chose, et la remarque n'est jamais partie.
+
+     Et aucun des deux ne mettait à jour la valeur connue : après
+     un enregistrement réussi, quitter le champ le refaisait.
+     ------------------------------------------------------------ */
+  async function garder(){
+    if(i.value === String(s.motoRemarque || '')) return;   /* rien de neuf */
+    const valeur = i.value;
+    try{
+      await majSuivi(nom, { motoRemarque: valeur });
+      s.motoRemarque = valeur;          /* ce qu'on sait, à jour */
+      i.style.borderColor = 'var(--orange)';
+      setTimeout(() => { i.style.borderColor = 'var(--line)'; }, 900);
+    }catch(e){
+      i.style.borderColor = 'var(--red)';
+      showToast('⚠️ Remarque de ' + nom + ' non enregistrée : ' +
+                (e && e.message ? e.message : 'réseau'));
+    }
+  }
+
   /* On enregistre quand le moniteur a fini d'écrire, pas à chaque
      lettre : sinon c'est un appel réseau par frappe. */
   let minuteur = null;
 
   i.addEventListener('input', () => {
     clearTimeout(minuteur);
-    minuteur = setTimeout(async () => {
-      try{
-        await majSuivi(nom, { motoRemarque: i.value });
-        i.style.borderColor = 'var(--orange)';
-        setTimeout(() => { i.style.borderColor = 'var(--line)'; }, 900);
-      }catch(e){ showToast('Remarque non enregistrée'); }
-    }, 900);
+    minuteur = setTimeout(garder, 900);
   });
 
   /* Quitter le champ enregistre tout de suite */
   i.addEventListener('blur', () => {
     clearTimeout(minuteur);
-    if(i.value === String(s.motoRemarque || '')) return;
-    majSuivi(nom, { motoRemarque: i.value }).catch(() => {});
+    garder();
   });
 
   return i;
