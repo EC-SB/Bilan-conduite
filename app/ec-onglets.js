@@ -188,6 +188,20 @@ function construireBarresVues(){
       /* Le travail des autres moniteurs : au bureau seulement */
       if(cle === 'encours') return ACCES.role === 'admin';
       if(cle === 'incidents') return ACCES.role === 'admin';
+      /* LA CAISSE EST UNE AFFAIRE DE BUREAU.
+
+         Elle a d'abord été posée comme une section ordinaire, à
+         donner dans ⚙️ Accès. Résultat : un compte dont les accès
+         avaient déjà été réglés ne la voyait pas — la section
+         n'existait pas le jour où ils ont été enregistrés, elle
+         était donc absente de la liste, et absente veut dire
+         refusée. Un module tout neuf, invisible chez celle qui
+         l'avait demandé.
+
+         Elle suit désormais « Cours non terminés » et
+         « Signalements » : réservée aux administrateurs, sans
+         droit à donner. Rien à cocher, donc rien à oublier. */
+      if(cle === 'caisse') return ACCES.role === 'admin';
       if(cle === 'admin')   return ACCES.role === 'admin';
 
       return typeof aDroit !== 'function' || aDroit(section);
