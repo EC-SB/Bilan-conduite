@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:18 — v751 */
+/* Déployé le 01/09/2026 à 10:03 — v758 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2523,6 +2523,10 @@ function modeRappel(mode){
    casser la règle en silence. L'ordre compte — « AM voiturette »
    est une voiturette avant d'être un AM. */
 const LIEU_PAR_SEANCE = [
+  /* Le simulateur ne se passe pas au volant : l'élève se présente
+     devant la machine, et le message doit le dire. Chrystel le
+     corrigeait à la main à chaque rappel. */
+  { motif: /simu/i,          lieu: 'simulateur' },
   { motif: /th[ée]orique/i,  lieu: 'cours' },
   { motif: /visio/i,         lieu: 'visio' },
   { motif: /agence/i,        lieu: 'cours' },
@@ -2532,7 +2536,15 @@ const LIEU_PAR_SEANCE = [
 ];
 
 function lieuDuTypeDeSeance(titre){
-  const t = String(titre || '');
+  /* LES TITRES SONT ÉCRITS EN GRAS UNICODE.
+
+     « 𝗦𝗜𝗠𝗨𝗟𝗔𝗧𝗘𝗨𝗥 » n'est pas « SIMULATEUR » pour une expression
+     régulière : ce sont des lettres mathématiques. C'est le même
+     piège que pour le type de bilan, et il se répare avec la même
+     fonction. */
+  const t = (typeof lettresSimples === 'function')
+    ? lettresSimples(String(titre || ''))
+    : String(titre || '');
   if(!t.trim()) return '';
   const trouve = LIEU_PAR_SEANCE.find(x => x.motif.test(t));
   return trouve ? trouve.lieu : '';
@@ -2659,7 +2671,12 @@ async function majLieuAuto(){
    Tout ce qui n'est ni un cours, ni un rendez-vous, ni une
    évaluation, ni un permis voiture est laissé au bureau. */
 function seanceEnVoiture(titre){
-  return /cours|rendez|\bRDV\b|[ée]valuation|permis/i.test(String(titre || ''));
+  /* Même raison qu'au-dessus : un titre en gras ne se reconnaît
+     qu'une fois ramené à l'alphabet. */
+  const t = (typeof lettresSimples === 'function')
+    ? lettresSimples(String(titre || ''))
+    : String(titre || '');
+  return /cours|rendez|\bRDV\b|[ée]valuation|permis/i.test(t);
 }
 
 function poserLieuAuto(cle){
