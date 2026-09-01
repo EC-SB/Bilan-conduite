@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:10 — v776 */
+/* Déployé le 01/09/2026 à 15:34 — v778 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -242,7 +242,14 @@ async function preparerDepart(){
     const bSup = document.createElement('button');
     bSup.className = 'btn btn-secondary';
     bSup.style.cssText = 'margin-top:8px;color:var(--red);border-color:var(--red);';
-    bSup.textContent = '🗑️ Supprimer les ' + nb + ' bilan(s) de ' + nom;
+    /* LE LIBELLÉ DISAIT MOINS QUE LE BOUTON NE FAISAIT. « Supprimer
+       les 14 bilans » laissait croire que le reste survivait — et
+       c'était vrai avant : ce bouton n'effaçait effectivement que
+       les bilans, pendant que celui du répertoire, lui, allait
+       jusqu'au répertoire. Les deux font maintenant la même chose,
+       et le libellé le dit. */
+    bSup.textContent = '🗑️ Supprimer tout le dossier de ' + nom +
+                       ' (' + nb + ' bilan(s))';
     bSup.addEventListener('click', () => {
       eleveAffiche = nom;
       nbBilansAffiches = nb;
@@ -279,8 +286,15 @@ async function supprimerDossierEleve(bouton){
 
   /* Première confirmation */
   if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
-              'Tous les bilans de ' + eleveAffiche + ' (' + nbBilansAffiches + ') vont être effacés.\n\n' +
-              'Cette action est IRRÉVERSIBLE : ni toi ni personne ne pourra les récupérer.\n\n' +
+              'TOUT le dossier de ' + eleveAffiche + ' va être effacé : ses ' +
+              nbBilansAffiches + ' bilan(s), sa fiche du répertoire (nom, ' +
+              'téléphone, adresse), son accès au coin révisions, ses ' +
+              'récitations, ses cours préparés, ses captures du CEPC, sa ' +
+              "fiche de suivi et ses lignes dans le journal des envois.\n\n" +
+              "Ce qui reste : sa ligne de résultat d'examen, SANS son nom — " +
+              'ton taux de réussite ne bougera pas.\n\n' +
+              'Cette action est IRRÉVERSIBLE : ni toi ni personne ne pourra ' +
+              'les récupérer.\n\n' +
               'Continuer ?')) return;
 
   /* Seconde confirmation : le nom doit être retapé */
@@ -327,7 +341,12 @@ async function supprimerDossierEleve(bouton){
     const data = await r.json().catch(() => ({}));
     if(!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
 
-    dire('✅ ' + (data.supprimees || 0) + ' bilan(s) supprimé(s) définitivement.');
+    /* Ce que le classeur DIT avoir fait, pas ce qu'on espérait. */
+    const quoi = (typeof resumeEffacement === 'function')
+      ? resumeEffacement(data) : [];
+    dire(quoi.length
+      ? '✅ Effacé : ' + quoi.join(', ') + '.'
+      : '✅ Rien trouvé à effacer pour ce dossier.');
     showToast('Dossier supprimé ✅');
 
     $('searchResults').innerHTML = '<div class="empty">Dossier supprimé.</div>';
