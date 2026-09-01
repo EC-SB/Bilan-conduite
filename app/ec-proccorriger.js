@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:05 — v746 */
+/* Déployé le 01/09/2026 à 08:20 — v747 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1849,7 +1849,8 @@ function pourquoiPasCorrigeeDoffice(r){
      pas croire à un réglage qui ne marche pas. */
   return '⚠️ <strong>Elle aurait dû être corrigée toute seule.</strong> ' +
     'Sa catégorie est bien cochée : la demande à l\'IA est partie et ' +
-    "n'a pas abouti. Le bouton ✨ la relance.";
+    "n'a pas abouti. Le bouton ✨ la relance — et la raison de " +
+    "l'échec est écrite dans <strong>Gestion → 🚨 Signalements</strong>.";
 }
 
 async function ouvrirRecitation(r){
@@ -1940,16 +1941,38 @@ async function ouvrirRecitation(r){
   bIA.textContent = r.correction ? '🔄 Refaire la correction' : '✨ Corriger avec l\'IA';
   bIA.addEventListener('click', async () => {
     bIA.disabled = true;
-    zEtat.textContent = 'Lecture de la procédure de référence…';
+
+    /* CE QUE DIT L'ÉCRAN DOIT ÊTRE VRAI.
+
+       « Lecture de la procédure de référence… » restait affiché
+       pendant tout l'appel — or la référence est lue ici même, en
+       mémoire, instantanément. Ce qui prend du temps, c'est l'IA.
+       Le message le dit, et les secondes défilent : un écran qui
+       ne bouge pas ne se distingue pas d'un écran bloqué. */
+    const debut = Date.now();
+    const tic = setInterval(() => {
+      const s = Math.round((Date.now() - debut) / 1000);
+      zEtat.textContent = "L'IA rédige la correction… " + s + ' s';
+    }, 1000);
+    zEtat.textContent = "L'IA rédige la correction…";
+
     try{
       /* On corrige le texte à l'écran, pas celui d'origine : le
          moniteur a pu rectifier une transcription fautive. */
       const texte = await corrigerRecitation(
         Object.assign({}, r, { texte: boite.querySelector('#rcTexte').value }));
       boite.querySelector('#rcCorrection').value = texte;
+      clearInterval(tic);
       zEtat.textContent = 'Proposition de l\'IA — relis-la avant de valider.';
     }catch(e){
-      zEtat.textContent = 'Correction impossible : ' + e.message;
+      clearInterval(tic);
+      /* Un abandon au bout de soixante secondes n'est pas une
+         panne de l'IA : c'est le réseau, et on ne dit pas au
+         moniteur la mauvaise cause. */
+      zEtat.textContent = (e && e.name === 'AbortError')
+        ? "L'IA n'a pas répondu en une minute. Réessaie — sa " +
+          'récitation est enregistrée, rien n\'est perdu.'
+        : 'Correction impossible : ' + e.message;
     }
     bIA.disabled = false;
     bIA.textContent = '🔄 Refaire la correction';
@@ -2157,7 +2180,17 @@ function consignesCorrection(ordre, libre){
 /* La correction par l'IA, appuyée sur la procédure de référence */
 async function corrigerRecitation(r){
   /* Le texte attendu : la comparaison n'a de sens que par rapport
-     à ce que l'auto-école enseigne. */
+     à ce que l'auto-école enseigne.
+
+     ON S'ASSURE DE L'AVOIR. `modelesTexte` n'est rempli que par les
+     écrans qui s'en servent : un moniteur arrivé directement sur
+     une récitation corrigeait sans référence, et l'IA rendait une
+     correction générique au lieu de comparer à la procédure de la
+     maison. Rien ne le disait — la correction avait l'air normale. */
+  if(typeof chargerModelesTexte === 'function'){
+    try{ await chargerModelesTexte(); }catch(e){}
+  }
+
   let reference = '';
   let regles = '';
   try{
@@ -2187,7 +2220,19 @@ async function corrigerRecitation(r){
 
   /* Le même relais que les bilans : le code du moniteur y donne
      accès, pas celui de l'élève. */
-  const rep = await fetch(CONFIG.IA_URL, {
+  /* UN APPEL QUI NE PEUT PAS RESTER SUSPENDU.
+
+     C'était un fetch nu, sans délai : quand il ne revenait pas, le
+     moniteur restait devant « Lecture de la procédure de
+     référence… » indéfiniment, sans erreur, sans rien. Soixante
+     secondes : l'IA met parfois vingt secondes sur une longue
+     récitation, jamais une minute. Au-delà, c'est perdu, et il
+     vaut mieux le dire que faire attendre. */
+  const envoyer = (typeof fetchFiable === 'function')
+    ? (u, o) => fetchFiable(u, o, 60000, 1)
+    : (u, o) => fetch(u, o);
+
+  const rep = await envoyer(CONFIG.IA_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
