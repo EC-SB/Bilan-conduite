@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:52 — v739 */
+/* Déployé le 01/09/2026 à 09:18 — v751 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1545,7 +1545,8 @@ async function corrigerUneTranche(tranche, i, total, surEssai, avant){
                                     (typeof consigneLieuxIA === 'function'
                                       ? consigneLieuxIA() : '') +
                                     consigneMoniteurIA(tranche) + contexte,
-                                    tranche, 8000);
+                                    tranche, 8000,
+                                    'Correction de la transcription');
       const propre = (txt || '').trim();
 
       /* Une correction fait forcément une longueur comparable à
@@ -1709,12 +1710,18 @@ function reparerJson(brut){
 }
 
 /* Appel simple au modèle, renvoie du texte brut (pas de JSON) */
-async function appelBrutIA(systemPrompt, message, maxTokens){
+async function appelBrutIA(systemPrompt, message, maxTokens, quoi){
   const r = await fetch(CONFIG.IA_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       code: ACCES.code,
+      /* CE QUE COÛTE CETTE GÉNÉRATION, ET POURQUOI.
+
+         Le Worker note chaque appel facturé : sans un mot sur ce
+         qu'on lui demande, la facture ne dirait que « des appels ».
+         Le nom voyage avec la demande, il ne se devine pas. */
+      quoi: quoi || 'Génération IA',
       payload: {
         model: 'claude-sonnet-5',
         max_tokens: maxTokens || 8000,
@@ -1773,6 +1780,7 @@ async function appelIA(modeleCle, transcript, studentName, monitorName, site, da
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       code: ACCES.code,
+      quoi: 'Bilan — ' + MODELES[modeleCle].label,
       payload: {
         model: 'claude-sonnet-5',
         max_tokens: 8000,
