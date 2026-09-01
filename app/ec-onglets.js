@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:23 — v772 */
+/* Déployé le 01/09/2026 à 14:49 — v775 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -24,7 +24,8 @@ const SECTIONS_ONGLET = {
      l'écran qu'on venait de lui ouvrir. Un droit qui ne mène nulle
      part est pire qu'un droit refusé — on croit l'avoir donné. */
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie', 'caisse', 'coutsia',
-            'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs', 'admin']
+            'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs',
+            'menage', 'admin']
 };
 
 let ongletActif = '';
@@ -177,6 +178,7 @@ const VUES = {
            ['sms',        '💬 SMS',                     'sms'],
            ['encours',    '🩹 Cours non terminés',      'encours'],
            ['incidents',  '🚨 Signalements',            'incidents'],
+           ['menage',     '🧹 Ménage',                  'menage'],
            ['tarifs',     '💰 Tarifs',                 'tarifs'],
            ['admin',      '⚙️ Accès',                  'admin']]
 };
@@ -328,6 +330,7 @@ function reveillerVue(cle){
     financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
     caisse:     () => afficherCaisse(),
+    menage:     () => afficherMenage(),
     coutsia:    () => afficherCoutsIa(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
