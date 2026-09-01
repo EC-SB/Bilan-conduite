@@ -18,7 +18,7 @@ const SECTIONS_ONGLET = {
   permis: ['bureau_permis', 'bureau_places'],
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
-  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie',
+  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie', 'caisse',
             'bureau_messages', 'sms', 'encours', 'incidents', 'admin']
 };
 
@@ -166,6 +166,7 @@ const VUES = {
            ['taches',     '✅ Tâches',                  'taches'],
            ['flotte',     '🚗 Flotte',                  'flotte'],
            ['paie',       '💶 Paie',                    'paie'],
+           ['caisse',     '🏦 Caisse',                  'caisse'],
            ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
            ['sms',        '💬 SMS',                     'sms'],
            ['encours',    '🩹 Cours non terminés',      'encours'],
@@ -303,6 +304,7 @@ function reveillerVue(cle){
     evaluation: () => afficherEvaluation(),
     financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
+    caisse:     () => afficherCaisse(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
