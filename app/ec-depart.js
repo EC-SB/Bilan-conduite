@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:41 — v783 */
+/* Déployé le 01/09/2026 à 16:49 — v784 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1336,10 +1336,11 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
      Branchée ici, une fois les droits connus. */
   if(typeof brancherLoupe === 'function') brancherLoupe();
 
-  /* Le contrôle de version : à côté du prénom, là où le moniteur
-     regarde quand il doute. */
+  /* Le contrôle de version : dans le menu ⋯, avec son libellé.
+     « flex » comme les deux autres lignes du menu — c'est ce qui
+     aligne l'emoji et les mots ; « block » les décalait. */
   if($('versionBtn')){
-    $('versionBtn').style.display = 'block';
+    $('versionBtn').style.display = 'flex';
     if(typeof brancherBoutonVersion === 'function') brancherBoutonVersion();
   }
 
