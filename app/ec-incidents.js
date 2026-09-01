@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:37 — v684 */
+/* Déployé le 01/09/2026 à 13:21 — v768 */
 /* ============================================================
    ec-incidents.js
    Quand ça casse chez un moniteur, le bureau doit le savoir.
@@ -227,7 +227,10 @@ function ligneIncident(f){
       (f.ou ? '📍 ' + String(f.ou).replace(/</g, '&lt;') + '<br>' : '') +
       '👤 ' + (qui.length ? qui.join(', ').replace(/</g, '&lt;') : 'inconnu') +
       (seul ? '' : ' — ' + qui.length + ' personnes') +
-      '<br>📦 ' + (versions.join(', ') || '?') +
+      /* Ce champ vient du client, et il s'affiche dans la session
+         qui a le plus de droits. C'était le seul des six à ne pas
+         être échappé. */
+      '<br>📦 ' + (echapper(versions.join(', ')) || '?') +
       ' · 📱 ' + (appareils.join(' · ').replace(/</g, '&lt;') || '?') +
       '<br>🔁 ' + f.combien + ' fois · dernier : ' +
       String(f.dernier || '').replace(/</g, '&lt;') +
