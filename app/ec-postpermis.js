@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 11:24 — v764 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -1605,7 +1605,23 @@ async function consignerResultat(e, resultat, iso){
       centre: s.centre || '',
       rang: String((parseInt(s.nbAjournements, 10) || 0) + 1)
     });
-  }catch(err){ console.warn('Résultat non consigné :', err); }
+  }catch(err){
+    /* LE RÉSULTAT NE SE RATTRAPE PAS.
+
+       L'échec ne partait qu'en console : l'élève sortait des
+       listes, la statistique de réussite le perdait pour
+       toujours, et personne ne l'apprenait. Un résultat d'examen
+       ne se retrouve pas — il faut le dire au moment où il ne
+       s'écrit pas. */
+    console.warn('Résultat non consigné :', err);
+    try{
+      await informer("Le résultat de " + e.eleve + " n'a PAS été " +
+        'enregistré dans les statistiques.\n\n' +
+        'Détail : ' + (err && err.message ? err.message : err) + '\n\n' +
+        "Le reste de l'opération se poursuit. Note-le : ce chiffre-là " +
+        'ne se rattrape pas tout seul.', 'Résultat non consigné');
+    }catch(e2){}
+  }
 }
 
 /* Signale que ce module est bien chargé */
