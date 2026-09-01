@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:41 — v783 */
+/* Déployé le 01/09/2026 à 16:49 — v784 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -356,7 +356,7 @@ function verrouiller(message, garderSession){
   /* La loupe cherche parmi les élèves : elle n'a rien à faire sur
      l'écran de connexion. Le ⋯ reste, lui : il porte le thème. */
   if($('loupeBtn')) $('loupeBtn').style.display = 'none';
-  if($('plusMenu')) $('plusMenu').hidden = true;
+  if($('plusMenu')) $('plusMenu').style.display = 'none';
 
   /* Rien d'autre que le code d'accès sur l'écran de connexion */
   if($('barreOnglets')) $('barreOnglets').style.display = 'none';
