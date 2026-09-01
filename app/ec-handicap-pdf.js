@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 12:43 — v647 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-handicap-pdf.js
    La fiche d'évaluation, en PDF.
@@ -397,7 +397,12 @@ async function envoyerFicheHandicap(bouton){
       piecesJointes: [{
         nom: nomFichierHandicap(h),
         type: 'application/pdf',
-        contenu_base64: base64
+        /* « contenu », comme partout ailleurs. Ce champ s'appelait
+           « contenu_base64 » ici, et ici seulement : le Worker
+           lisait « contenu », trouvait vide, et expédiait un PDF de
+           zéro octet — pendant que l'écran affichait « ✅ Envoyé ».
+           Personne n'apprenait jamais que le document était vide. */
+        contenu: base64
       }]
     });
 
