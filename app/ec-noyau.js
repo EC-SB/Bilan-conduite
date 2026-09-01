@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:18 — v751 */
+/* Déployé le 01/09/2026 à 12:35 — v765 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 171;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 172;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -78,10 +78,30 @@ const SECTIONS = [
   { cle:'admin',            nom:'⚙️ Administration des accès' }
 ];
 
-/* Niveau d'accès : 'm' modifier, 'v' voir, '' rien */
+/* ------------------------------------------------------------
+   NIVEAU D'ACCÈS : 'm' modifier, 'v' voir, '' rien
+
+   IL Y AVAIT ICI UN PIÈGE, ET IL SE REFERMAIT SUR CELUI QUI
+   VOULAIT BIEN FAIRE.
+
+   « Aucun droit coché » rendait 'm' — c'est-à-dire TOUT. Le geste
+   le plus naturel pour restreindre un compte produisait donc
+   exactement l'inverse, pendant que la fenêtre d'administration
+   affirmait « elle ne verra que l'écran d'accueil ».
+
+   Le serveur, lui, savait déjà distinguer « jamais réglé » de
+   « réglé à vide » : il garde `droitsRegles`. Il ne l'envoyait
+   simplement pas jusqu'ici. Maintenant si.
+
+   Et le repli disparaît complètement : un jeu de droits vide veut
+   dire vide. Si les droits n'arrivaient pas, l'écran se
+   viderait — c'est une panne visible, alors que l'ancien défaut
+   ouvrait tout en silence. Entre les deux, il n'y a pas à
+   hésiter.
+   ------------------------------------------------------------ */
 function niveauDroit(section){
   const d = ACCES.droits;
-  if(!d || !Object.keys(d).length) return 'm';   /* compte sans réglage : tout */
+  if(!d) return '';
   return d[section] || '';
 }
 function aDroit(section){ return niveauDroit(section) !== ''; }
@@ -120,11 +140,12 @@ function appliquerDroits(){
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
 }
 
-function memoriserSession(code, moniteur, role, droits, emoji, genre){
+function memoriserSession(code, moniteur, role, droits, emoji, genre, regles){
   try{
     localStorage.setItem(CLE_SESSION, JSON.stringify({
       code: code, moniteur: moniteur, role: role,
-      emoji: emoji || '', genre: genre || '', droits: droits || [], ts: Date.now()
+      emoji: emoji || '', genre: genre || '', droits: droits || {},
+      droitsRegles: !!regles, ts: Date.now()
     }));
   }catch(e){}
 }
@@ -148,6 +169,22 @@ function lireSession(){
     if(coupureHebdoDepassee(s.ts)){
       oublierSession();
       raisonDeconnexion = 'hebdo';
+      return null;
+    }
+
+    /* UNE SESSION D'AVANT LA CORRECTION DES DROITS NE SE REPREND
+       PAS.
+
+       Elle a été rangée quand « aucun droit » voulait dire « tous
+       les droits », et ses droits mémorisés peuvent être un
+       tableau vide — l'ancienne forme. Repris tels quels, ils
+       donneraient un écran vide au premier moniteur hors ligne, et
+       il croirait à une panne. Une reconnexion, une fois, et tout
+       repart du serveur. */
+    if(s.droitsRegles === undefined ||
+       !s.droits || typeof s.droits !== 'object' || Array.isArray(s.droits)){
+      oublierSession();
+      raisonDeconnexion = 'droits';
       return null;
     }
 
