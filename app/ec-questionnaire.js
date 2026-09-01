@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:07 — v750 */
+/* Déployé le 01/09/2026 à 09:36 — v754 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -564,7 +564,10 @@ function defautsDepuisNote(note){
      soustraction ne dirait rien. */
   const APRES_CHARNIERE = new RegExp(
     '(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+le[çc]on\\s+après\\s+' +
-    "(l'examen blanc|le post-?permis|l'examen ajourné)" +
+    /* « l'examen ajourné » est la formulation des notes écrites le
+       1er septembre, avant qu'on ne reprenne les mots de Chrystel.
+       Une note déjà écrite doit continuer de se relire. */
+    "(l'examen blanc|le post-?permis|le dernier ajournement|l'examen ajourné)" +
     '[^(\\n]*\\(([^)\\n]*?)(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+au total', 'i');
   {
     const m = n.match(APRES_CHARNIERE);
@@ -2898,32 +2901,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
        charnière la plus récente : dire « depuis l'examen blanc »
        à un élève qui a fait son post-permis serait faux.
        ---------------------------------------------------------- */
-    const charniere = (function(){
-      /* La charnière la plus récente, demandée aux sources qui font
-         foi : un post-permis vit dans le suivi, pas dans le
-         contexte du cours. Sans elles, la case disait « après
-         l'examen blanc » à un élève qui l'a dépassé depuis. */
-      const su = Object.assign({}, prec,
-        (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {});
-      /* Un examen déjà passé prime : c'est le dernier repère de son
-         parcours, et c'est celui à partir duquel Chrystel veut
-         compter — « la charnière est l'examen lui-même, RDV
-         post-permis ou pas ». */
-      /* On garde ce repère même une fois la nouvelle date posée :
-         le bureau qui l'inscrit en session fait repasser examPermis
-         à « prévu », et sans cette seconde condition le décompte
-         serait retombé sur l'examen blanc d'il y a un an. */
-      if(su.examPermis === 'passe' || su.avantExamRate){
-        return { cle: 'avantExamRate', nom: "l'examen ajourné" };
-      }
-      if(su.rdvPostFait === 'oui'){
-        return { cle: 'avantRdvPost', nom: 'le post-permis' };
-      }
-      if(su.examBlanc === 'passe' || su.ebPasse){
-        return { cle: 'avantEB', nom: "l'examen blanc" };
-      }
-      return null;
-    })();
+    /* La charnière se demande aux sources qui font foi — un
+       post-permis vit dans le suivi, pas dans le contexte du cours
+       — et à la MÊME fonction que la carte. */
+    const charniere = charniereDuCours(Object.assign({}, prec,
+      (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(eleve) : {}));
 
     const chDepuis = boite.querySelector('#qLeconDepuis');
     const zEffet = boite.querySelector('#qLeconEffet');
@@ -3303,6 +3285,45 @@ function courtDansLaFrise(q){
    leçon à l'autre — mais LE NOMBRE DE LEÇONS AVANT LA CHARNIÈRE,
    qui, lui, ne bougera plus jamais. Écrit une fois, l'élève est
    calé pour toute la suite de sa formation. */
+/* LA CHARNIÈRE D'UN ÉLÈVE, DITE UNE SEULE FOIS.
+
+   Le questionnaire et la carte la calculaient chacun de leur côté.
+   Ils ont divergé dès la première charnière nouvelle : la carte
+   d'Amadou disait « et la 1ère après exam blanc » sous une ligne
+   qui annonçait « REPRISE APRÈS LE DERNIER AJOURNEMENT ». Deux
+   endroits, deux réponses — c'est toujours ainsi que ça finit.
+
+   L'ordre est celui du temps : on compte depuis le repère le plus
+   RÉCENT du parcours. Un ajournement est postérieur à un
+   post-permis, qui est postérieur à l'examen blanc.
+
+   `nom` sert aux phrases (« et la 1ère après le dernier
+   ajournement »), `court` aux endroits étroits — l'infobulle d'une
+   case sur un téléphone. */
+function charniereDuCours(etat, note){
+  const e = etat || {};
+
+  /* On garde ce repère même une fois la nouvelle date posée : le
+     bureau qui inscrit l'élève en session fait repasser examPermis
+     à « prévu », et sans `avantExamRate` le décompte retomberait
+     sur l'examen blanc d'il y a un an. */
+  if(e.examPermis === 'passe' || e.avantExamRate){
+    return { cle: 'avantExamRate', nom: 'le dernier ajournement',
+             court: 'dernier ajournement' };
+  }
+  /* Le post-permis ne laisse pas toujours de trace dans l'état :
+     la note du cours précédent, elle, le dit. */
+  if(e.rdvPostFait === 'oui' ||
+     /le[çc]ons?\s+apr[èe]s\s+le\s+post/i.test(String(note || ''))){
+    return { cle: 'avantRdvPost', nom: 'le post-permis',
+             court: 'post-permis' };
+  }
+  if(e.examBlanc === 'passe' || e.ebPasse){
+    return { cle: 'avantEB', nom: "l'examen blanc", court: 'exam blanc' };
+  }
+  return null;
+}
+
 function rangDepuisLaCharniere(q, total, cle){
   const avant = parseInt((q || {})[cle], 10);
   if(isNaN(avant) || !total) return null;
@@ -3411,7 +3432,7 @@ function positionDansLaFrise(q){
   if(q.examPermis === 'passe' || q.avantExamRate){
     const dit2 = rangDepuisLaCharniere(q, n, 'avantExamRate');
     if(dit2 !== null){
-      return dire(rangLecon(dit2) + " leçon après l'examen ajourné" +
+      return dire(rangLecon(dit2) + ' leçon après le dernier ajournement' +
                   entreParentheses('', n, dit2));
     }
     /* Sans rang depuis l'examen, on annonce la reprise — mais
@@ -3419,7 +3440,7 @@ function positionDansLaFrise(q){
        après l'examen ajourné » sur un élève qui repasse dans trois
        semaines serait une vieille nouvelle. */
     if(q.examPermis === 'passe'){
-      return dire("reprise après l'examen ajourné" +
+      return dire('reprise après le dernier ajournement' +
                   entreParentheses('', n, 0));
     }
   }
