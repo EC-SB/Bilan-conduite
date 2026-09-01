@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:05 — v746 */
+/* Déployé le 01/09/2026 à 08:35 — v748 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1065,10 +1065,36 @@ const PARCOURS_PAR_TYPE = { 'aac-auto': 'aacbea', 'aac-manuelle': 'aacbv' };
 const PARCOURS_FORMATION = [
   { cle:'BV',      boite:'BV',  modele:'conduite-manuelle', frise:null },
   { cle:'BEA',     boite:'BEA', modele:'conduite-auto',     frise:null },
-  { cle:'AAC BV',  boite:'BV',  modele:'aac-manuelle', frise:'aacbv',  aac:true },
-  { cle:'AAC BEA', boite:'BEA', modele:'aac-auto',     frise:'aacbea', aac:true },
-  { cle:'CS BV',   boite:'BV',  modele:'conduite-manuelle', frise:'csbv' },
-  { cle:'CS BEA',  boite:'BEA', modele:'conduite-auto',     frise:'csbea' },
+  { cle:'AAC BV',  boite:'BV',  modele:'aac-manuelle', frise:'aacbv',  aac:true, accompagnee:true },
+  { cle:'AAC BEA', boite:'BEA', modele:'aac-auto',     frise:'aacbea', aac:true, accompagnee:true },
+  { cle:'CS BV',   boite:'BV',  modele:'conduite-manuelle', frise:'csbv', accompagnee:true },
+  { cle:'CS BEA',  boite:'BEA', modele:'conduite-auto',     frise:'csbea', accompagnee:true },
+  /* UN ÉLÈVE DONT LE DOSSIER EST AILLEURS.
+
+     Il prend des leçons ici, son dossier est dans une autre
+     auto-école. La boîte et le modèle de bilan ne changent pas —
+     c'est la même conduite — mais LA FRISE, SI.
+
+     Chrystel : « pour toutes ces nouvelles formations ce sont des
+     frises classiques ». Nos frises toutes faites décrivent NOTRE
+     parcours, étape par étape ; un élève venu d'ailleurs n'a pas
+     suivi ces étapes-là, et lui en imposer une reviendrait à
+     décrire un parcours qu'il n'a pas fait. Sa frise se saisit
+     donc à la main, comme pour une conduite ordinaire.
+
+     Les rendez-vous pédagogiques, eux, restent demandés en AAC :
+     ils ont pu être faits dans l'autre auto-école, et c'est
+     justement ce qu'on veut noter. */
+  { cle:'Autre AE BV',      boite:'BV',  modele:'conduite-manuelle', frise:null },
+  { cle:'Autre AE BEA',     boite:'BEA', modele:'conduite-auto',     frise:null },
+  { cle:'AAC BV autre AE',  boite:'BV',  modele:'aac-manuelle', frise:null,
+    aac:true, accompagnee:true },
+  { cle:'AAC BEA autre AE', boite:'BEA', modele:'aac-auto',     frise:null,
+    aac:true, accompagnee:true },
+  { cle:'CS BV autre AE',   boite:'BV',  modele:'conduite-manuelle', frise:null,
+    accompagnee:true },
+  { cle:'CS BEA autre AE',  boite:'BEA', modele:'conduite-auto',     frise:null,
+    accompagnee:true },
   /* B78 est le code porté sur un permis obtenu en boîte
      automatique : la passerelle mène au permis B, en manuelle.
 
@@ -1096,7 +1122,7 @@ function parcoursDeLaFormation(formation){
 
   /* « Conduite supervisée » sans boîte, saisi avant que les deux
      existent : on lui rend la boîte qu'on connaît par ailleurs. */
-  if(/conduite supervisee/.test(t)) return { cle:'CS', suivreLaBoite:'cs' };
+  if(/conduite supervisee/.test(t)) return { cle:'CS', suivreLaBoite:'cs', accompagnee:true };
   if(/passerelle/.test(t)){
     return PARCOURS_FORMATION.find(p => /passerelle/i.test(p.cle));
   }
@@ -2056,6 +2082,12 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            la conduite supervisée n'en a pas. Ils jalonnent l'année
            entre le rendez-vous préalable et l'examen — c'est au
            second que se joue l'examen blanc. */
+        '<div id="qRvpAilleurs" style="display:none;font-size:12px;' +
+          'color:var(--muted);line-height:1.5;margin:-4px 0 10px;">' +
+          "Cet élève vient d'une autre auto-école : indique « Déjà fait » " +
+          'pour ce qui a été fait là-bas.' +
+        '</div>' +
+
         '<div id="qBlocRvp" style="display:none;">' +
           '<label for="qRvp1">Rendez-vous pédagogique n°1' +
           '<span style="text-transform:none;font-weight:400;color:var(--muted);">' +
@@ -2326,16 +2358,39 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         zoneFixe.style.display = 'none';
       }
 
-      /* Formation accompagnateur et RDV préalable ne concernent que AAC et CS */
+      /* FORMATION ACCOMPAGNATEUR ET RDV PRÉALABLE : LA FORMATION
+         LE DIT, PAS LA FRISE.
+
+         Ce bloc s'affichait quand la frise était imposée — ce qui
+         revenait au même tant que seules l'AAC et la CS d'ici
+         avaient une frise toute faite. Les formations « autre AE »
+         ont cassé le raccourci : elles sont bien de l'AAC ou de la
+         CS, mais leur frise se saisit à la main, et le bloc
+         disparaissait avec elle. Un élève en AAC venu d'ailleurs
+         n'aurait jamais eu ses rendez-vous pédagogiques.
+
+         C'est le parcours qui décide, comme partout ailleurs. */
+      const parcoursChoisi = parcoursDeLaFormation(formationChoisie());
       if(blocAacCs && profil === 'complet'){
-        blocAacCs.style.display = fixe ? 'block' : 'none';
+        blocAacCs.style.display =
+          (parcoursChoisi && parcoursChoisi.accompagnee) ? 'block' : 'none';
       }
 
       /* Les rendez-vous pédagogiques, eux, n'existent qu'en AAC */
       const blocRvp = boite.querySelector('#qBlocRvp');
       if(blocRvp){
-        const p = parcoursDeLaFormation(formationChoisie());
-        blocRvp.style.display = (p && p.aac && profil === 'complet') ? 'block' : 'none';
+        blocRvp.style.display =
+          (parcoursChoisi && parcoursChoisi.aac && profil === 'complet')
+            ? 'block' : 'none';
+      }
+
+      /* Venu d'ailleurs : ses rendez-vous ont pu être faits là-bas,
+         et c'est exactement ce qu'on lui demande de noter. */
+      const ailleurs = boite.querySelector('#qRvpAilleurs');
+      if(ailleurs){
+        ailleurs.style.display =
+          (parcoursChoisi && parcoursChoisi.accompagnee &&
+           /autre AE/i.test(parcoursChoisi.cle || '')) ? 'block' : 'none';
       }
 
       if(profil === 'examen'){
