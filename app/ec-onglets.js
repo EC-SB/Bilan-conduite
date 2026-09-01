@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:05 — v771 */
+/* Déployé le 01/09/2026 à 14:23 — v772 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -191,28 +191,21 @@ function construireBarresVues(){
     barre.innerHTML = '';
     const dispo = VUES[onglet].filter(([cle, , section]) => {
       if(cle === 'journal') return ACCES.role === 'admin';
-      /* Le travail des autres moniteurs : au bureau seulement */
-      if(cle === 'encours') return ACCES.role === 'admin';
-      if(cle === 'incidents') return ACCES.role === 'admin';
-      /* LA CAISSE EST UNE AFFAIRE DE BUREAU.
-
-         Elle a d'abord été posée comme une section ordinaire, à
-         donner dans ⚙️ Accès. Résultat : un compte dont les accès
-         avaient déjà été réglés ne la voyait pas — la section
-         n'existait pas le jour où ils ont été enregistrés, elle
-         était donc absente de la liste, et absente veut dire
-         refusée. Un module tout neuf, invisible chez celle qui
-         l'avait demandé.
-
-         Elle suit désormais « Cours non terminés » et
-         « Signalements » : réservée aux administrateurs, sans
-         droit à donner. Rien à cocher, donc rien à oublier. */
-      if(cle === 'caisse') return ACCES.role === 'admin';
-      /* Même raison, et même nature : ce que l'IA coûte regarde
-         celle qui paie la facture. */
-      if(cle === 'coutsia') return ACCES.role === 'admin';
       if(cle === 'admin')   return ACCES.role === 'admin';
 
+      /* CAISSE · COÛTS IA · COURS NON TERMINÉS · SIGNALEMENTS
+
+         Ces quatre-là étaient écrits ici en dur, « réservé aux
+         administratrices ». Ce n'était pas un choix de fond : la
+         caisse avait d'abord été posée comme une section ordinaire
+         et ne s'affichait pas chez celle qui l'avait demandée —
+         ses droits étaient réglés d'avant la naissance de la
+         section, et absent veut dire refusé. On avait fermé la
+         porte plutôt que de réparer le loquet.
+
+         Le loquet est réparé côté Worker (VERSION_SECTIONS) : une
+         section née après un réglage n'a jamais été soumise, donc
+         jamais refusée. Ils redeviennent des droits qu'on donne. */
       return typeof aDroit !== 'function' || aDroit(section);
     });
 
@@ -273,9 +266,16 @@ function afficherVue(onglet, cle){
       : une !== cle;
 
     el.classList.toggle('hors-vue', cache);
-    /* Les droits touchent aussi au style : on ne laisse pas de doute */
+    /* Les droits touchent aussi au style : on ne laisse pas de doute.
+       ET ON REDEMANDE LE DROIT AVANT DE RALLUMER : cette ligne
+       rallumait une carte que « appliquerDroits » venait d'éteindre,
+       sans jamais vérifier qu'elle avait le droit de revenir. Deux
+       mécanismes pour une même question finissent toujours par se
+       contredire — ici, en faveur de l'ouverture. */
     if(cache) el.style.display = 'none';
-    else if(el.style.display === 'none') el.style.display = '';
+    else if(el.style.display === 'none' &&
+            (typeof sectionVisible !== 'function' ||
+             sectionVisible(el.getAttribute('data-section')))) el.style.display = '';
   });
 
   /* Les tiroirs de cette carte : chacun a sa vue */
