@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 777
+     GUIDE-VERSION: 779
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v777</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v779</strong><br>
     Mis à jour le 1<sup>er</sup> septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -523,7 +523,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v777</strong>, relu le 1<sup>er</sup> septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v779</strong>, relu le 1<sup>er</sup> septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1407,7 +1407,13 @@ html{scroll-behavior:smooth}
 
     <h4>La liste</h4>
     <p>En tête&nbsp;: <span class="ch">312 élève(s) · 248 avec un numéro</span>. Un champ <span class="b">🔍 Rechercher un élève, un numéro, une formation</span> qui cherche aussi dans le mail et le Messenger. <strong>Plafond d'affichage&nbsp;: 100 fiches</strong> — au-delà, <span class="ch">📋 100 fiches affichées sur 312. Affine la recherche.</span></p>
-    <p>Chaque ligne&nbsp;: <span class="ch">♀</span>/<span class="ch">♂</span>, le nom, la formation, <span class="ch">🏫</span> et le nom de l'ancienne auto-école si l'élève vient d'ailleurs&nbsp;; puis <span class="ch">📱</span> (ou <span class="ch">📱 pas de numéro</span>), <span class="ch">💬 Messenger</span>, <span class="ch">✉️ mail</span>, <span class="ch">👤 mail du prescripteur</span>, <span class="ch">📇 ANTS</span>, <span class="ch">🧭 frise</span>. Trois boutons&nbsp;: <span class="b">💬</span> (ouvre l'application SMS, seulement s'il y a un numéro), <span class="b">✏️</span> (la fiche) et <span class="b">🗑️</span> (admin seulement).</p>
+    <p>Chaque ligne&nbsp;: <span class="ch">♀</span>/<span class="ch">♂</span>, le nom, la formation, <span class="ch">🏫</span> et le nom de l'ancienne auto-école si l'élève vient d'ailleurs&nbsp;; puis <span class="ch">📱</span> (ou <span class="ch">📱 pas de numéro</span>), <span class="ch">💬 Messenger</span>, <span class="ch">✉️ mail</span>, <span class="ch">👤 mail du prescripteur</span>, <span class="ch">📇 ANTS</span>, <span class="ch">🧭 frise</span>. Quatre boutons&nbsp;: <span class="b">💬</span> (ouvre l'application SMS, seulement s'il y a un numéro), <span class="b">✏️</span> (la fiche), <span class="b">📄</span> (son dossier complet) et <span class="b">🗑️</span> (admin seulement).</p>
+
+    <h5>📄 Son dossier complet — le droit d'accès</h5>
+    <p>Un élève a le droit de demander <strong>une copie de tout ce que vous détenez sur lui</strong>. Ce bouton édite cette copie dans un onglet à part, prête à imprimer en PDF&nbsp;: sa fiche, ses bilans en entier, sa fiche de suivi, ses résultats d'examen, ses cours préparés, ses captures du CEPC, ses récitations, les procédures qu'on lui a demandées, ses corrections du code, les messages internes le concernant, les SMS et mails reçus, les liens de cours, son accès au coin révisions et le journal des actions le concernant.</p>
+    <div class="note danger"><span class="tag">À relire avant de le transmettre</span><p><strong>Le dossier contient vos notes internes du bureau.</strong> Elles font partie de ce qu'il a le droit de consulter, mais elles n'ont pas été écrites pour lui. Un avertissement rouge le rappelle en tête de la page — et il <em>disparaît à l'impression</em>, puisqu'il s'adresse à vous.</p></div>
+    <div class="note astuce"><span class="tag">Trois choses n'y sont pas, volontairement</span><p><strong>Son code d'accès</strong> au coin révisions&nbsp;: c'est une clé, pas une donnée le concernant — et un dossier se transmet parfois par mail. La page dit qu'un accès existe, depuis quand, et sa dernière visite.<br><strong>Les noms de vos salariés</strong> dans le journal&nbsp;: ce sont leurs données, pas les siennes. Le dossier rend la date et l'action, jamais qui l'a faite.<br><strong>Les images</strong> des captures du CEPC&nbsp;: trop lourdes pour un PDF, seules leurs références figurent.</p></div>
+    <p>Une catégorie sans rien affiche <span class="ch">Rien dans cette catégorie</span> plutôt que de disparaître&nbsp;: « il n'y a rien » et « je n'ai pas cherché » ne doivent pas se ressembler.</p>
 
     <h5>Deux boutons de rattrapage</h5>
     <ul>
@@ -1614,8 +1620,11 @@ html{scroll-behavior:smooth}
     <p><em>« Élève qui arrête sa formation ou part ailleurs. Réservé au bureau. »</em></p>
     <p>Trois champs&nbsp;: le nom, le <span class="b">Motif</span> (transfert vers une autre auto-école, déménagement, arrêt de la formation, motif financier, sans nouvelles de l'élève, autre) et la <span class="b">Date du départ</span>. Puis <span class="b">🚪 Préparer le départ</span>.</p>
     <p>S'affichent alors&nbsp;: le <strong>message à l'élève</strong> (modifiable, avec <span class="b">📋 Copier ce message</span>) et une liste <span class="b">✅ À faire au bureau</span> — Facebook, Driv'up, solde du compte, réservations à annuler, Enpc-center, dossier papier. <strong>Si le motif est un transfert</strong>, quatre tâches s'ajoutent en tête&nbsp;: certificat de fin de formation, transmission du dossier ANTS, restitution des pièces, solde de tout compte.</p>
+    <div class="note astuce"><span class="tag">Les cases sont gardées — v776</span><p>Elles ne vivaient que dans la page&nbsp;: un rechargement, et tout repartait vierge. On recochait de mémoire, ou on refaisait une démarche déjà faite — un dossier ANTS transmis deux fois, ce n'est pas rien. Chaque clic est maintenant enregistré, avec la date et qui l'a coché.</p><p><strong>Si la relecture échoue, l'écran le dit</strong> au lieu d'afficher des cases vides&nbsp;: des cases vides faute d'avoir pu lire ressemblent exactement à des cases vides parce que rien n'est fait.</p></div>
     <div class="note piege"><span class="tag">Piège</span><p>Le message à l'élève est <strong>le même quel que soit le motif</strong>, y compris « Sans nouvelles de l'élève ». Relisez-le avant de l'envoyer.</p></div>
-    <div class="note danger"><span class="tag">Réservé aux administrateurs</span><p>Les deux boutons de clôture — <span class="b">🧹 Retirer de toutes les listes de suivi</span> et <span class="b">🗑️ Supprimer les N bilan(s)</span> — <strong>n'apparaissent que pour un rôle admin</strong>. Un compte bureau voit la carte, le message et les tâches, mais aucune action&nbsp;: la ligne du bas est vide chez lui.</p></div>
+    <div class="note danger"><span class="tag">Réservé aux administrateurs</span><p>Les deux boutons de clôture — <span class="b">🧹 Retirer de toutes les listes de suivi</span> et <span class="b">🗑️ Supprimer tout le dossier</span> — <strong>n'apparaissent que pour un rôle admin</strong>. Un compte bureau voit la carte, le message et les tâches, mais aucune action&nbsp;: la ligne du bas est vide chez lui.</p></div>
+
+    <div class="note danger"><span class="tag">⚠️ Corrigé le 1<sup>er</sup> septembre — v778</span><p>Ce bouton s'appelait <span class="ch">🗑️ Supprimer les 14 bilan(s)</span>, et il <strong>ne supprimait effectivement que les bilans</strong>. La fiche du répertoire — nom, téléphone, adresse mail, numéro ANTS —, les cours préparés, les captures du CEPC, les messages au bureau et la fiche de suivi <em>restaient en place</em>. Le bouton du 🧹 Ménage avait le même défaut.</p><p><strong>Trois écrans proposaient de supprimer un élève, et ils ne faisaient pas la même chose.</strong> Un droit à l'effacement qui dépend du bouton sur lequel on a appuyé n'en est pas un. Les trois passent désormais par le même effacement, écrit à un seul endroit&nbsp;: si vous répondez à une demande d'effacement, il ne reste rien de l'élève, d'où que vous le fassiez.</p></div>
     <div class="note astuce"><span class="tag">La suppression efface vraiment tout — v771</span><p>Elle balayait trois feuilles et en oubliait six&nbsp;: le nom de l'élève restait dans le journal des envois, les liens de cours, les corrections ETG, les cours en route, les alertes masquées et les coûts IA — et son adresse dans les mails manqués. <strong>Un droit à l'effacement qui laisse six traces n'en est pas un.</strong> Les neuf feuilles sont maintenant balayées.</p><p>Et surtout&nbsp;: <strong>si l'élève n'avait aucun bilan, rien n'était effacé du tout.</strong> Un élève parti avant son premier cours gardait son accès au coin révisions, ses récitations et ses lignes dans le journal. Ce n'est plus le cas.</p><p>Seule exception, volontaire&nbsp;: sa ligne de résultat d'examen est <a href="#menage" class="aller">anonymisée</a> plutôt que supprimée, pour que le taux de réussite ne bouge pas.</p></div>
     <p>Enfin&nbsp;: cette vue ne propose <strong>pas</strong> de suppression totale (captures, cours préparés, fiche du répertoire). Pour un ménage complet, il faut le 🗑️ du <a href="#repertoire" class="aller">Répertoire</a>.</p>
   </section>
@@ -2483,6 +2492,7 @@ Jours ouverts à la prise de date
     </table></div>
     <p>Chaque ligne dit <strong>pourquoi</strong> elle est là (<span class="ch">dernier cours le 14/03/2025 (18 mois)</span>) et <strong>ce que contient le dossier</strong> (<span class="ch">📁 14 bilans · 3 récitations</span>). Un dossier plein et un dossier vide ne se décident pas de la même façon.</p>
     <div class="note astuce"><span class="tag">Votre taux de réussite ne bouge pas</span><p>Supprimer un dossier <strong>n'efface pas sa ligne de résultat d'examen</strong>&nbsp;: seul le nom en est retiré et remplacé par <span class="ch">(élève effacé)</span>. La date, le résultat, la boîte, le moniteur, le centre et le rang restent. Sans cela, « on supprime tout quand ils ont leur permis » effacerait précisément les réussites de l'année.</p></div>
+    <div class="note astuce"><span class="tag">Le même effacement que partout ailleurs</span><p>Depuis la v778, ce bouton, celui du <a href="#depart" class="aller">départ de l'auto-école</a> et celui du <a href="#repertoire" class="aller">répertoire</a> font <strong>exactement la même chose</strong> — écrite à un seul endroit. La confirmation énumère ce qui part&nbsp;: sa fiche du répertoire, son accès, ses cours préparés, ses captures, sa fiche de suivi, ses lignes dans le journal des envois.</p></div>
     <div class="note piege"><span class="tag">Ce que le ménage ne fera jamais</span><p>Un dossier dont la date est illisible <strong>n'est jamais proposé</strong> — une date qu'on ne sait pas lire ne vaut pas « c'est vieux, on peut jeter ». Et la suppression passe par le même chemin que partout ailleurs dans l'outil&nbsp;: il n'existe pas de second mécanisme d'effacement.</p></div>
   </section>
 
