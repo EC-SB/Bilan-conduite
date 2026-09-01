@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:10 — v776 */
+/* Déployé le 01/09/2026 à 16:23 — v782 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2190,6 +2190,18 @@ async function exporterVersSheets(silencieux){
                               ($('studentName') ? $('studentName').value.trim() : ''));
     }
 
+    /* ET LE BROUILLON LOCAL AVEC. J'avais corrigé celui du serveur
+       en v773 et laissé celui-ci : même défaut, une couche plus
+       bas. Le cours restait dans le stockage du téléphone après
+       son enregistrement, alors au rechargement la bannière le
+       proposait comme « interrompu » et la transcription revenait
+       dans son bloc — pour un bilan pourtant bien enregistré.
+
+       L'écran, lui, ne bouge pas : on retire une mémoire, pas un
+       contenu. Le moniteur garde son bilan sous les yeux pour le
+       coller sur Messenger. */
+    if(typeof effacerSauvegarde === 'function') effacerSauvegarde();
+
     viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
 
@@ -2344,51 +2356,61 @@ function confirmerFinDeCours(){
         "⚠️ Aucun Messenger enregistré pour cet élève. Pense à le saisir au " +
         'démarrage du prochain cours.</div>'));
 
-  /* Envoi par mail : à l'élève et à son prescripteur */
-  const mails = [];
-  if(f && f.email) mails.push(f.email);
-  if(f && f.mailPrescripteur) mails.push(f.mailPrescripteur);
+  /* ------------------------------------------------------------
+     LE BOUTON D'ENVOI EST TOUJOURS LÀ.
 
-  if(mails.length){
-    const bMail = document.createElement('button');
-    bMail.className = 'btn btn-secondary';
-    bMail.style.cssText = 'margin-top:10px;padding:13px;font-size:14px;';
-    bMail.textContent = '✉️ Envoyer par mail (' + mails.length + ')';
-    bMail.title = mails.join(' · ');
-    bMail.addEventListener('click', async () => {
-      bMail.disabled = true;
-      bMail.textContent = 'Envoi…';
-      try{
-        await appelPrep({ action: 'mailBilan',
-                          to: mails,
-                          sujet: 'Ton bilan de conduite du ' +
-                                 (dateEnToutesLettres($('lessonDate').value) ||
-                                  $('lessonDate').value),
-                          texte: $('resultText').value });
-        bMail.textContent = '✅ Envoyé à ' + mails.length + ' adresse(s)';
-      }catch(e){
-        bMail.textContent = '⚠️ Échec';
+     Il n'apparaissait QUE si l'élève avait déjà une adresse sur sa
+     fiche. Sinon : « l'envoi par mail n'est pas possible » — un
+     cul-de-sac, en fin de cours, l'élève déjà reparti. Sept autres
+     écrans savaient pourtant demander l'adresse et la ranger sur
+     la fiche ; celui-ci, non.
+     ------------------------------------------------------------ */
+  const mails = (typeof adressesDuBilan === 'function')
+    ? adressesDuBilan(eleve) : [];
+
+  const bMail = document.createElement('button');
+  bMail.className = 'btn btn-secondary';
+  bMail.style.cssText = 'margin-top:10px;padding:13px;font-size:14px;';
+  bMail.textContent = mails.length
+    ? '✉️ Envoyer par mail (' + mails.length + ')'
+    : '✉️ Envoyer par mail…';
+  bMail.title = mails.length ? mails.join(' · ')
+                             : "On te demandera son adresse";
+  bMail.addEventListener('click', async () => {
+    const libelle = bMail.textContent;
+    bMail.disabled = true;
+    bMail.textContent = 'Envoi…';
+    try{
+      const combien = await envoyerBilanParMail(eleve, $('lessonDate').value,
+                                                $('resultText').value);
+      if(!combien){
+        /* Annulé à la fenêtre d'adresse : ce n'est pas un échec, et
+           ça ne doit pas ressembler à un envoi. */
         bMail.disabled = false;
-        /* Le détail sous le bouton : « HTTP 400 » seul n'aide personne */
-        const d3 = document.createElement('div');
-        d3.style.cssText = 'font-size:11px;color:var(--warn-text);margin-top:4px;' +
-          'line-height:1.4;word-break:break-word;';
-        d3.textContent = e.message;
-        bMail.after(d3);
+        bMail.textContent = libelle;
+        return;
       }
-    });
-    boite.appendChild(bMail);
+      bMail.textContent = '✅ Envoyé à ' + combien + ' adresse(s)';
+    }catch(e){
+      bMail.textContent = '⚠️ Échec';
+      bMail.disabled = false;
+      /* Le détail sous le bouton : « HTTP 400 » seul n'aide personne */
+      const d3 = document.createElement('div');
+      d3.style.cssText = 'font-size:11px;color:var(--warn-text);margin-top:4px;' +
+        'line-height:1.4;word-break:break-word;';
+      d3.textContent = e.message;
+      bMail.after(d3);
+    }
+  });
+  boite.appendChild(bMail);
 
-    const d2 = document.createElement('div');
-    d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;';
-    d2.textContent = mails.join(' · ');
-    boite.appendChild(d2);
-  }else{
-    const d2 = document.createElement('div');
-    d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;';
-    d2.textContent = "Aucune adresse mail sur sa fiche : l'envoi par mail n'est pas possible.";
-    boite.appendChild(d2);
-  }
+  const d2 = document.createElement('div');
+  d2.style.cssText = 'font-size:11px;color:var(--muted);margin-top:4px;line-height:1.4;';
+  d2.textContent = mails.length
+    ? mails.join(' · ')
+    : "Aucune adresse sur sa fiche : on te la demandera, et elle y sera " +
+      'rangée pour la prochaine fois.';
+  boite.appendChild(d2);
 
   const r = document.createElement('div');
   r.className = 'btn-row';
