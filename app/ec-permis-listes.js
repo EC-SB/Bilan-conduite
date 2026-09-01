@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 07:10 — v681 */
+/* Déployé le 01/09/2026 à 11:24 — v764 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2126,24 +2126,62 @@ function boutonExamenBlanc(nom){
    change que sa place dans le parcours.
    ============================================================ */
 
+/* ------------------------------------------------------------
+   OÙ ENVOYER UN ÉLÈVE
+
+   UNE LISTE-CIBLE DOIT EFFACER CE QUI LE RETENAIT AILLEURS.
+
+   Chrystel : « dans "examen passé, résultat à saisir", j'ai des
+   élèves qui n'ont pas passé leur permis. J'ai bien le bouton pour
+   les envoyer dans une autre liste, mais ça ne change rien : elle
+   reste ici alors qu'elle ne devrait pas. »
+
+   Elle a raison. Cette liste-là ne regarde ni `aPlanifier` ni
+   `retireAPrevoir` — les seuls champs que les cibles touchaient.
+   Elle se reconnaît à DEUX choses : une date d'examen passée, et
+   pas de résultat. Tant que la date reste, l'élève reste, quelle
+   que soit la liste qu'on lui a choisie.
+
+   Or aucune de ces cinq destinations ne décrit un élève convoqué :
+   toutes effacent donc la date. C'est déjà ce que fait
+   l'ajournement, et c'est la convention du module — `datePermis`
+   dit « convoqué à cette date », pas « y est allé ce jour-là ».
+
+   Et la date vit à deux endroits : la fiche de suivi ET la note du
+   dernier cours, que le bureau ne peut pas réécrire. D'où
+   `neutralise` : une consigne qui annonce que l'examen est de
+   nouveau à prévoir, et qui prime sur l'annonce précédente
+   puisque c'est la DERNIÈRE qui fait foi. Sans elle, l'élève
+   quittait la fiche de suivi sans quitter la liste.
+   ------------------------------------------------------------ */
 const LISTES_PERMIS = [
   { cle:'envisager', nom:'🤔 Élèves prêts au permis',
-     champs:{ aPlanifier:'', retireAPrevoir:'', statut:'' },
+     champs:{ aPlanifier:'', retireAPrevoir:'', statut:'', datePermis:'' },
+     neutralise:true,
      note:'Examen blanc passé le {jour} — plus que les 3h avant examen (bureau)' },
 
   { cle:'rdv',       nom:'🗓️ Liste RDV Permis',
-     champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'' } },
+     champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'', datePermis:'' },
+     neutralise:true },
 
   { cle:'pasret',    nom:'⛔ Pas le niveau',
-     champs:{ ebNiveau:'non', aPlanifier:'', retireAPrevoir:'' },
+     champs:{ ebNiveau:'non', aPlanifier:'', retireAPrevoir:'', datePermis:'' },
+     neutralise:true,
      note:'Examen blanc passé le {jour} — pas le niveau (bureau)' },
 
   { cle:'attente',   nom:'⏳ Attente bilan post-permis',
-     champs:{ rdvPostFait:'', aPlanifier:'', retireAPrevoir:'' } },
+     champs:{ rdvPostFait:'', aPlanifier:'', retireAPrevoir:'', datePermis:'' },
+     neutralise:true },
 
   { cle:'pause',     nom:'⛔ Ne plus suivre pour le moment',
-     champs:{ retireAPrevoir:'oui', aPlanifier:'' } }
+     champs:{ retireAPrevoir:'oui', aPlanifier:'', datePermis:'' },
+     neutralise:true }
 ];
+
+/* La phrase qui défait une convocation. C'est la dernière annonce
+   de la note qui fait foi (voir analyserNote) : celle-ci remplace
+   donc « Examen du permis fixé au … » sans avoir à la retrouver. */
+const CONSIGNE_EXAMEN_A_REPRENDRE = "Date d'examen à prévoir (bureau)";
 
 
 async function envoyerVersListe(nom){
@@ -2172,6 +2210,16 @@ async function envoyerVersListe(nom){
       await envoyerConsigne(nom, 'examblanc',
                             cible.note.replace('{jour}', jour));
     }
+
+    /* Et la convocation elle-même : effacée du suivi ci-dessus,
+       elle vit encore dans la note du dernier cours. */
+    if(cible.neutralise && typeof envoyerConsigne === 'function'){
+      try{
+        await envoyerConsigne(nom, 'permis', CONSIGNE_EXAMEN_A_REPRENDRE);
+      }catch(err){ /* la liste change quand même */ }
+    }
+
+    viderCaches(nom);
 
     showToast(nom + ' → ' + cible.nom.replace(/^[^ ]+ /, '') + ' ✅');
     redessinerBureau();
