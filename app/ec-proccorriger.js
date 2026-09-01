@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:34 — v736 */
+/* Déployé le 01/09/2026 à 08:05 — v746 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1791,6 +1791,67 @@ function ligneRecitation(r){
 }
 
 
+/* La procédure du catalogue qui porte ce nom, ou null. C'est le
+   même rapprochement que fait le classeur : par le nom, parce que
+   c'est tout ce que la récitation en garde. */
+function procedureConnueParNom(nom){
+  const cherche = (typeof normaliserMot === 'function')
+    ? normaliserMot(nom || '')
+    : String(nom || '').trim().toLowerCase();
+  return proceduresConnues.find(p => {
+    const n = (typeof normaliserMot === 'function')
+      ? normaliserMot(p.nom || '')
+      : String(p.nom || '').trim().toLowerCase();
+    return n === cherche;
+  }) || null;
+}
+
+/* En une phrase, ce qui a empêché la correction d'office. Rend ''
+   quand il n'y a rien à dire. */
+function pourquoiPasCorrigeeDoffice(r){
+  const actives = categoriesIAActives();
+  const nom = String(r.procedure || '');
+  const echappe = t => String(t).replace(/</g, '&lt;');
+
+  if(!actives.length){
+    return '○ <strong>La correction automatique est désactivée.</strong> ' +
+      'Elle se règle par catégorie, plus haut dans cet écran.';
+  }
+
+  const p = procedureConnueParNom(nom);
+  if(!p){
+    return '⚠️ <strong>« ' + echappe(nom) + ' » ne figure plus dans les ' +
+      'procédures.</strong> Nom modifié, ou procédure supprimée. Sans ' +
+      "référence, l'IA ne corrige pas d'office — le bouton ✨ la lance " +
+      'quand même, mais sans texte de comparaison.';
+  }
+
+  const siennes = categoriesDeBoiteProc(p.boite);
+  if(!siennes.some(c => actives.indexOf(c) !== -1)){
+    const nomsSiennes = siennes.length
+      ? siennes.map(c => (CATEGORIES_PROC[c] || {}).court || c).join(' · ')
+      : 'aucune catégorie';
+    const nomsActives = actives.map(c => CATEGORIES_PROC[c].court).join(' · ');
+    return '○ <strong>Pas corrigée d\'office : mauvaise catégorie.</strong><br>' +
+      '« ' + echappe(nom) + ' » est rangée en <strong>' + nomsSiennes +
+      '</strong>' +
+      (String(p.boite || '').trim()
+        ? ' (boîte « ' + echappe(p.boite) + ' »)'
+        : ' (aucune boîte renseignée : elle vaut pour tout le monde)') +
+      ', et la correction automatique n\'est cochée que pour <strong>' +
+      nomsActives + '</strong>.<br>' +
+      'Corrige la boîte de la procédure dans 🚦 Procédures, ou coche sa ' +
+      'catégorie plus haut.';
+  }
+
+  /* Tout concordait : la demande est donc partie et n'a pas
+     abouti. On ne prétend pas savoir pourquoi — mais on ne laisse
+     pas croire à un réglage qui ne marche pas. */
+  return '⚠️ <strong>Elle aurait dû être corrigée toute seule.</strong> ' +
+    'Sa catégorie est bien cochée : la demande à l\'IA est partie et ' +
+    "n'a pas abouti. Le bouton ✨ la relance.";
+}
+
 async function ouvrirRecitation(r){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
@@ -1849,6 +1910,28 @@ async function ouvrirRecitation(r){
   boite.querySelector('#rcCorrection').value = r.correction || '';
 
   const zEtat = boite.querySelector('#rcEtat');
+
+  /* POURQUOI L'IA NE L'A PAS CORRIGÉE TOUTE SEULE.
+
+     « J'ai activé la correction IA pour les procédures BE mais ça
+     ne corrige pas. » Rien nulle part ne disait pourquoi : ni la
+     fiche, ni le réglage, ni le classeur. Il fallait deviner entre
+     quatre causes possibles — et deviner, sur un réglage qu'on
+     vient de cocher, c'est conclure que le réglage ne marche pas.
+
+     La raison est calculable ici, tout de suite, avec ce que
+     l'écran a déjà en main. */
+  if(!r.correction){
+    const raison = pourquoiPasCorrigeeDoffice(r);
+    if(raison){
+      const d = document.createElement('div');
+      d.style.cssText = 'font-size:12px;line-height:1.55;margin-bottom:12px;' +
+        'padding:9px 11px;border-radius:9px;border:1px solid var(--line);' +
+        'color:var(--muted);';
+      d.innerHTML = raison;
+      boite.appendChild(d);
+    }
+  }
 
   /* La correction par l'IA, si elle n'existe pas encore */
   const bIA = document.createElement('button');
