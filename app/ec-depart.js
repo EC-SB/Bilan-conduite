@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 01/09/2026 à 15:10 — v776 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -108,10 +108,30 @@ async function preparerDepart(){
     TACHES_TRANSFERT.forEach(t => taches.unshift(t));
   }
 
+  /* ------------------------------------------------------------
+     LA CHECK-LIST SE GARDE, MAINTENANT.
+
+     Ces cases ne vivaient QUE dans la page. Rechargée — un
+     téléphone qui se verrouille, un onglet fermé — la liste
+     repartait vierge, et le bureau recochait de mémoire ou
+     refaisait une démarche déjà faite. Un dossier ANTS transmis
+     deux fois, ce n'est pas rien.
+
+     Elles ne peuvent pas vivre dans la fiche de suivi : le bouton
+     juste en dessous l'efface. Elles ont leur propre feuille.
+     ------------------------------------------------------------ */
   const bloc = document.createElement('div');
   bloc.style.cssText = 'margin-top:20px;padding-top:16px;border-top:1px solid var(--line);';
   bloc.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--accent-text);' +
     'margin-bottom:10px;">✅ À faire au bureau</div>';
+
+  const etatTaches = document.createElement('div');
+  etatTaches.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;' +
+    'margin-bottom:8px;';
+  etatTaches.textContent = 'Lecture de ce qui est déjà fait…';
+  bloc.appendChild(etatTaches);
+
+  const cases = [];
   taches.forEach(t => {
     const l = document.createElement('label');
     l.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:8px 0;' +
@@ -119,6 +139,7 @@ async function preparerDepart(){
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;margin-top:2px;';
+    cb.dataset.tache = t[0];
     const txt = document.createElement('div');
     txt.innerHTML = '<div style="font-size:15px;color:var(--cream);line-height:1.4;">' +
       t[0].replace(/</g,'&lt;') + '</div>' +
@@ -126,8 +147,51 @@ async function preparerDepart(){
         t[1].replace(/</g,'&lt;') + '</div>' : '');
     l.appendChild(cb); l.appendChild(txt);
     bloc.appendChild(l);
+    cases.push(cb);
   });
   zone.appendChild(bloc);
+
+  /* Ce qui était déjà coché la dernière fois. */
+  (async () => {
+    try{
+      const d = await appelPrep({ action: 'departTachesList', eleve: nom });
+      const faites = (d && d.faites) || [];
+      cases.forEach(cb => { cb.checked = faites.indexOf(cb.dataset.tache) !== -1; });
+      etatTaches.textContent = faites.length
+        ? faites.length + ' déjà fait(s)' +
+          (d.quand ? ' · dernière mise à jour le ' + d.quand : '') +
+          (d.par ? ' par ' + d.par : '')
+        : 'Rien de coché pour le moment. Les cases sont gardées.';
+    }catch(e){
+      /* NE PAS FAIRE SEMBLANT. Des cases vides parce qu'on n'a rien
+         pu lire ressemblent exactement à des cases vides parce que
+         rien n'est fait — et c'est justement ce qu'on répare. */
+      etatTaches.innerHTML = '⚠️ <strong>Impossible de relire ce qui est ' +
+        'déjà fait.</strong> Les cases ci-dessous ne veulent rien dire tant ' +
+        'que ce message est là.';
+      etatTaches.style.color = 'var(--warn-text)';
+    }
+  })();
+
+  /* Chaque clic part au classeur, et le dit s'il n'y arrive pas. */
+  let enregistrement = null;
+  cases.forEach(cb => cb.addEventListener('change', () => {
+    clearTimeout(enregistrement);
+    enregistrement = setTimeout(async () => {
+      const faites = cases.filter(c => c.checked).map(c => c.dataset.tache);
+      try{
+        await appelPrep({ action: 'departTachesSet', eleve: nom, faites: faites });
+        etatTaches.style.color = 'var(--muted)';
+        etatTaches.textContent = faites.length
+          ? faites.length + ' fait(s) · enregistré ✅'
+          : 'Rien de coché · enregistré ✅';
+      }catch(e){
+        etatTaches.style.color = 'var(--warn-text)';
+        etatTaches.innerHTML = '⚠️ <strong>Non enregistré</strong> — ' +
+          echapper(e.message) + '. Recoche une case pour réessayer.';
+      }
+    }, 400);
+  }));
 
   /* Retrait des listes de suivi */
   const actions = document.createElement('div');
@@ -142,14 +206,26 @@ async function preparerDepart(){
     bSuivi.disabled = true;
     try{
       const d = await appelPrep({ action:'consigneList', eleve: nom });
+      /* CHAQUE ÉCHEC SE COMPTE. Ces consignes étaient marquées
+         traitées dans une boucle qui avalait tout : une seule qui
+         rate, et le message annonçait quand même « retiré des
+         listes » pendant que l'élève y restait. */
+      let ratees = 0;
       for(const cs of ((d && d.consignes) || [])){
         if(cs.traite !== 'oui'){
-          try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
+          try{ await appelPrep({ action:'consigneDone', id: cs.id }); }
+          catch(e){ ratees++; }
         }
       }
       await appelPrep({ action:'suiviDelete', eleve: nom });
-      showToast(nom + ' retiré des listes ✅');
-      bSuivi.textContent = '✅ Retiré des listes';
+      if(ratees){
+        showToast('⚠️ Fiche retirée, mais ' + ratees + ' message(s) en ' +
+                  'attente n\'ont pas pu être classés — ils reviendront.');
+        bSuivi.textContent = '⚠️ Retiré, ' + ratees + ' message(s) restés';
+      }else{
+        showToast(nom + ' retiré des listes ✅');
+        bSuivi.textContent = '✅ Retiré des listes';
+      }
     }catch(e){
       showToast('Erreur : ' + e.message);
       bSuivi.disabled = false;
