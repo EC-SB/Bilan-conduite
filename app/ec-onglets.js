@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:18 — v751 */
+/* Déployé le 01/09/2026 à 14:05 — v771 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -18,8 +18,13 @@ const SECTIONS_ONGLET = {
   permis: ['bureau_permis', 'bureau_places'],
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
+  /* « tarifs » manquait ici, et il est pourtant accordable dans
+     ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
+     n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
+     l'écran qu'on venait de lui ouvrir. Un droit qui ne mène nulle
+     part est pire qu'un droit refusé — on croit l'avoir donné. */
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie', 'caisse', 'coutsia',
-            'bureau_messages', 'sms', 'encours', 'incidents', 'admin']
+            'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs', 'admin']
 };
 
 let ongletActif = '';
