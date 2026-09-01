@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:05 — v746 */
+/* Déployé le 01/09/2026 à 10:59 — v762 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1833,15 +1833,41 @@ function sauvegarderManuel(){
     });
   });
 
+  /* ------------------------------------------------------------
+     CE QUI NE VIT QUE DANS LA MÉMOIRE DE LA PAGE
+
+     Chrystel : « dans les examens officiels, ça note la partie
+     avant examen, j'envoie à l'élève, et quand je reviens sur la
+     fiche il n'y a plus rien au niveau des cases cochées ».
+
+     Elle a raison, et la cause est nette : les ✅ / ❌ ne sont pas
+     des cases à cocher, ce sont des BOUTONS. Ils n'écrivent nulle
+     part dans la page — ils posent leur réponse dans
+     `champsManuels`, un objet de la mémoire. La sauvegarde, elle,
+     ne parcourait que les `input`, `textarea` et `select` : elle
+     ne les voyait pas. Et rouvrir la fiche repart de
+     `champsManuels = {}`.
+
+     C'est la même leçon que pour les réponses du questionnaire,
+     perdues pour exactement la même raison : ce qui ne vit que
+     dans la mémoire de la page doit voyager avec le brouillon.
+     ------------------------------------------------------------ */
+  const memoire = (typeof champsManuels !== 'undefined' && champsManuels)
+    ? Object.assign({}, champsManuels) : null;
+  const enMemoire = memoire && Object.keys(memoire)
+    .some(k => memoire[k] !== '' && memoire[k] !== undefined);
+
   /* Rien de saisi : inutile de proposer une reprise vide.
 
-     « Rien » compte aussi le questionnaire : un moniteur qui a
+     « Rien » compte aussi le questionnaire — un moniteur qui a
      renseigné la formation, la frise et les examens sans avoir
      encore coché une seule case de la fiche a bel et bien du
-     travail à ne pas perdre. */
+     travail à ne pas perdre — et les boutons, pour la même
+     raison : trois ✅ sur la partie avant examen sont un travail
+     fait. */
   const quest = (typeof contexteDepart !== 'undefined' && contexteDepart)
                   ? contexteDepart : null;
-  if(!saisies.some(x => x.valeur) && !quest) return;
+  if(!saisies.some(x => x.valeur) && !quest && !enMemoire) return;
 
   const eleve = $('studentName').value.trim();
   const brouillon = {
@@ -1853,6 +1879,9 @@ function sauvegarderManuel(){
     date: $('lessonDate').value,
     note: $('noteInterne') ? $('noteInterne').value : '',
     avantEnvoye: !!avantExamenEnvoye,
+    /* Les boutons ✅ / ❌ / A-B-C et tout ce qui ne s'écrit pas
+       dans un champ de la page. */
+    champs: memoire,
     /* Ses réponses au questionnaire — même raison qu'en dictée :
        elles ne vivaient que dans la mémoire de la page, et une
        monitrice qui avait tout rempli n'en retrouvait rien. */
@@ -1876,6 +1905,42 @@ function sauvegarderManuel(){
 
 /* Vrai quand la partie avant examen a déjà été envoyée */
 let avantExamenEnvoye = false;
+
+/* ------------------------------------------------------------
+   RALLUMER LES BOUTONS
+
+   Une réponse posée par un bouton — ✅ / ❌, A-B-C, ✅🍊❌ — vit
+   dans `champsManuels` et NULLE PART dans la page. Restaurer la
+   valeur sans rallumer le bouton donnerait une fiche qui paraît
+   vide et produit pourtant un bilan rempli : pire que de tout
+   perdre, parce qu'on ne s'en apercevrait pas.
+
+   On rejoue donc le clic, qui sait déjà repeindre — et qui reste
+   le seul endroit où la couleur d'un bouton se décide.
+   ------------------------------------------------------------ */
+function repeindreBoutonsManuels(){
+  const zone = $('manuelChamps');
+  if(!zone) return 0;
+
+  let n = 0;
+  Array.prototype.forEach.call(zone.querySelectorAll('[data-champ]'), groupe => {
+    const cle = groupe.getAttribute('data-champ');
+    const voulu = champsManuels[cle];
+    if(voulu === undefined) return;
+
+    const b = Array.prototype.filter.call(groupe.children,
+      x => x.getAttribute('data-val') === String(voulu))[0];
+    if(!b) return;
+
+    /* On efface avant de cliquer : les boutons A-B-C basculent au
+       second appui, et cliquer sur celui qui est déjà pris
+       l'aurait éteint. */
+    champsManuels[cle] = ' ';
+    b.click();
+    n++;
+  });
+  return n;
+}
 
 /* Repose ce qui avait été saisi, une fois la fiche dessinée */
 function replacerSaisiesManuelles(saisies){
@@ -1934,7 +1999,14 @@ function surveillerChampsManuels(){
   const zone = $('manuelChamps');
   if(!zone) return;
 
-  ['input', 'change'].forEach(ev => {
+  /* LE CLIC AUSSI.
+
+     Les ✅ / ❌ sont des boutons : ils ne déclenchent ni « input »
+     ni « change ». Une fiche d'examen où l'on n'avait fait
+     qu'appuyer sur des boutons ne s'enregistrait donc JAMAIS toute
+     seule — elle n'était gardée qu'en fermant la fiche, et une
+     page rechargée entre-temps emportait tout. */
+  ['input', 'change', 'click'].forEach(ev => {
     zone.addEventListener(ev, planifierSauvegardeManuelle);
   });
 }
@@ -2420,7 +2492,27 @@ function reprendreBrouillon(b){
 
   /* La fiche se dessine, puis on y repose les saisies */
   ouvrirBilanManuel().then(() => {
-    const n = replacerSaisiesManuelles(b.saisies);
+    let n = replacerSaisiesManuelles(b.saisies);
+
+    /* ET CE QUI NE VIT QUE DANS LA MÉMOIRE.
+
+       `ouvrirBilanManuel()` repart de `champsManuels = {}` : les
+       réponses des boutons — les ✅ / ❌ de l'avant-examen, les
+       A-B-C de la fiche handicap — sont donc à remettre, puis à
+       rallumer à l'écran. Remettre l'une sans l'autre serait pire
+       que rien : une fiche qui paraît vide et qui produit pourtant
+       un bilan rempli. */
+    if(b.champs && typeof champsManuels !== 'undefined'){
+      Object.keys(b.champs).forEach(k => { champsManuels[k] = b.champs[k]; });
+      /* Après les valeurs par défaut, qui se posent sur un
+         minuteur : sinon elles repeindraient par-dessus. */
+      setTimeout(() => {
+        try{ repeindreBoutonsManuels(); }catch(e){ console.warn('Boutons :', e); }
+      }, 0);
+      n += Object.keys(b.champs).filter(k => b.champs[k] !== '' &&
+                                             b.champs[k] !== undefined).length;
+    }
+
     /* Le récapitulatif du questionnaire se redessine APRÈS la
        fiche : il s'accroche à un cadre qui n'existe pas avant. */
     if(b.quest && typeof afficherSaisieDuJour === 'function'){
@@ -2652,6 +2744,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
       const r = document.createElement('div');
       r.id = 'abc_' + ch.cle.replace('.', '_');
+      r.setAttribute('data-champ', ch.cle);
       r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
 
       const couleurs = { A:'var(--orange)', B:'#E8850C', C:'var(--red)' };
@@ -2928,6 +3021,10 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
 
       const boutons = [];
+      /* Le groupe dit quelle réponse il porte, et chaque bouton
+         laquelle il pose : c'est ainsi qu'une reprise sait
+         lesquels rallumer. Voir repeindreBoutonsManuels(). */
+      r.setAttribute('data-champ', ch.cle + '.statut');
       [['✅', '✅'], ['🍊', '🍊'], ['❌', '❌'], ['—', '']].forEach(([lab, val]) => {
         const b = document.createElement('button');
         b.type = 'button';
@@ -2935,6 +3032,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         b.style.cssText = 'width:auto;padding:7px 10px;font-size:15px;margin:0;' +
           'transition:transform .1s, background .1s;';
         b.textContent = lab;
+        b.setAttribute('data-val', val);
         boutons.push(b);
         b.addEventListener('click', () => {
           champsManuels[ch.cle + '.statut'] = val;
@@ -2992,6 +3090,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       bloc.appendChild(l);
       const r = document.createElement('div');
       r.style.cssText = 'display:flex;gap:5px;flex-shrink:0;';
+      r.setAttribute('data-champ', ch.cle);
       [['✅','✅'], ['❌','❌'], ['—','']].forEach(([lab, val]) => {
         const b = document.createElement('button');
         b.type = 'button';
@@ -2999,6 +3098,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         b.style.cssText = 'width:auto;padding:7px 11px;font-size:15px;margin:0;' +
           'transition:transform .1s, background .1s;';
         b.textContent = lab;
+        b.setAttribute('data-val', val);
         b.addEventListener('click', () => {
           champsManuels[ch.cle] = val;
 
