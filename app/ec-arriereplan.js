@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:26 — v734 */
+/* Déployé le 01/09/2026 à 14:31 — v773 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -310,6 +310,21 @@ let dernierDepot = '';
 async function deposerSiChange(){
   try{
     if(typeof ACCES === 'undefined' || !ACCES.code) return;
+
+    /* UN BILAN DÉJÀ ENREGISTRÉ NE REDÉPOSE PAS SA DICTÉE.
+
+       Le dépôt tourne toutes les quelques secondes, et se déclenche
+       aussi quand le téléphone s'endort. Après l'enregistrement la
+       dictée est toujours à l'écran : le moindre mot corrigé, ou la
+       simple mise en veille, redéposait un brouillon PAR-DESSUS un
+       cours terminé. Il n'en repartait plus jamais, et « Cours non
+       terminés » le montrait comme une dictée sans bilan — pendant
+       que le bilan, lui, était bien dans Sheets.
+
+       Le filet reste entier : tant que le bilan n'est pas
+       enregistré, tout se dépose comme avant. */
+    if(typeof bilanEnregistre !== 'undefined' && bilanEnregistre) return;
+
     const texte = String(texteDicteEnCours());
     if(texte.length < MINI_DEPOT) return;
     if(texte === dernierDepot) return;
