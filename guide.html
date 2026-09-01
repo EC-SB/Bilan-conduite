@@ -496,6 +496,11 @@ html{scroll-behavior:smooth}
           <li><a href="#paie">Paie</a></li>
           <li><a href="#messages">Messages aux moniteurs</a></li>
           <li><a href="#tarifs">Tarifs</a></li>
+          <li><a href="#caisse">Caisse et remises</a></li>
+          <li><a href="#coutsia">Ce que coûte l'IA</a></li>
+          <li><a href="#encours">Cours non terminés</a></li>
+          <li><a href="#signalements">Signalements</a></li>
+          <li><a href="#menage">Ménage des dossiers</a></li>
           <li><a href="#acces">Administration des accès</a></li>
         </ol>
       </li>
@@ -503,7 +508,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en v656. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v775</strong> (script v177), au 1<sup>er</sup> septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -516,7 +521,7 @@ html{scroll-behavior:smooth}
     <div class="repere"><div class="k">6</div><div class="v">onglets</div></div>
     <div class="repere"><div class="k">3</div><div class="v">rôles</div></div>
     <div class="repere"><div class="k">16</div><div class="v">types de bilan</div></div>
-    <div class="repere"><div class="k">37</div><div class="v">droits réglables</div></div>
+    <div class="repere"><div class="k">42</div><div class="v">droits réglables</div></div>
   </div>
 </header>
 
@@ -711,7 +716,7 @@ html{scroll-behavior:smooth}
 
   <section id="roles">
     <h3>Rôles et droits</h3>
-    <p>Il existe <strong>trois rôles</strong>, et <strong>37 sections</strong> réglables une par une.</p>
+    <p>Il existe <strong>trois rôles</strong>, et <strong>42 sections</strong> réglables une par une.</p>
 
     <div class="tab"><table>
       <thead><tr><th>Rôle</th><th>Ce qu'il obtient d'office</th></tr></thead>
@@ -724,9 +729,11 @@ html{scroll-behavior:smooth}
 
     <p>Chaque section peut valoir <strong>Rien</strong>, <strong>👁️ Voir</strong> ou <strong>✏️ Modifier</strong>. Une carte en lecture seule affiche en tête la mention <span class="b">👁️ Lecture seule</span> et tous ses boutons deviennent inertes et translucides.</p>
 
-    <div class="note danger"><span class="tag">Piège majeur — à connaître absolument</span><p>Un compte dont on a <strong>tout décoché</strong> obtient l'inverse de ce qu'on croit&nbsp;: l'application lui accorde <em>Modifier sur tout</em>. Le message affiché à l'administrateur dit pourtant <span class="ch">Rien de coché pour X : il ne verra que l'écran d'accueil.</span> — <strong>c'est faux.</strong> Pour restreindre un compte, il faut lui cocher explicitement ce à quoi il a droit, jamais tout décocher.</p></div>
+    <div class="note astuce"><span class="tag">Corrigé le 1<sup>er</sup> septembre 2026 — v765</span><p><strong>Vide veut enfin dire vide.</strong> Jusque-là, un compte dont on avait <em>tout décoché</em> obtenait l'inverse de ce qu'on croyait&nbsp;: l'application lui accordait <em>Modifier sur tout</em>, pendant que le message affirmait <span class="ch">il ne verra que l'écran d'accueil</span>. Le geste le plus naturel pour restreindre quelqu'un ouvrait donc tout.</p><p>Ce n'est plus le cas&nbsp;: décoché veut dire refusé, et le message dit vrai. <strong>Vérifiez vos comptes</strong> — quelqu'un qui voyait tout par erreur ne verra plus rien.</p></div>
 
-    <div class="note piege"><span class="tag">Ce que les droits font, et ne font pas</span><p>Les droits <strong>organisent l'écran</strong>&nbsp;: ils décident de ce qui s'affiche. Ils ne verrouillent pas les données côté serveur — sauf pour l'envoi de SMS, seule action réellement contrôlée. C'est un outil interne dans une équipe qui se connaît, pas un coffre-fort.</p></div>
+    <div class="note astuce"><span class="tag">Ce que les droits font — v769</span><p>Les droits ne se contentent plus d'<strong>organiser l'écran</strong>&nbsp;: depuis le 1<sup>er</sup> septembre, le serveur consulte une table qui associe chacune des ~150 actions à une section et à un niveau. Une action demandée sans le droit correspondant est refusée <em>avant</em> d'atteindre le classeur, quel que soit l'écran d'où elle part.</p><p>La table démarre en <strong>mode observation</strong>&nbsp;: elle calcule le refus, ne refuse rien, et dépose une ligne 🔐 dans <a href="#signalements" class="aller">🚨 Signalements</a>. On lit, on corrige ce qui a été mal classé, puis on bascule en mode « applique ».</p></div>
+
+    <div class="note piege"><span class="tag">Et une section neuve, alors&nbsp;?</span><p>Un écran ajouté après qu'un compte a été réglé <strong>n'a jamais été soumis à personne</strong>&nbsp;: il ne peut donc pas avoir été refusé. Ces sections-là prennent le défaut du rôle en attendant qu'on tranche — sans quoi un module tout neuf serait invisible chez la personne qui l'avait demandé. Une fois la case vue et décochée, en revanche, elle reste décochée.</p></div>
 
     <p>Deux exceptions dures&nbsp;: un administrateur voit <strong>toujours</strong> les onglets Outils et Gestion, même sans aucun droit coché. Et deux cartes ont une condition double&nbsp;: <span class="b">🚪 Départ</span> demande le droit <em>et</em> le rôle bureau ou admin&nbsp;; <span class="b">⚙️ Administration des accès</span> demande le droit <em>et</em> le rôle admin.</p>
   </section>
@@ -906,9 +913,10 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">📇 Coordonnées manquantes</span></td><td>Bloc entier masqué si tout est connu. Sinon&nbsp;: Messenger, adresse mail, <span class="b">📇 Dossier ANTS</span>.</td></tr>
         <tr><td><span class="b">Frise de formation</span></td><td>Une case <span class="b">Conduite supervisée</span>, puis la frise en clair avec deux petits champs à remplir. Le second est pré-rempli à 2. En AAC ou CS, un texte fixe remplace les cases.</td></tr>
         <tr><td><span class="b">Leçon n°</span></td><td>Pré-rempli avec le rang calculé. <strong>Masqué</strong> pour un simulateur, un examen blanc ou un examen officiel — ces séances ne comptent pas dans la frise.</td></tr>
-        <tr><td><span class="b">Examen blanc</span></td><td><span class="ch">— non évoqué —</span> / <span class="ch">À prévoir</span> / <span class="ch">Réservé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable pour le moment</span>. Ouvre ensuite le rang (1<sup>er</sup> à 5<sup>e</sup>), la date, et un nombre de leçons.</td></tr>
+        <tr><td><span class="b">Examen blanc</span></td><td><span class="ch">— non évoqué —</span> / <span class="ch">À prévoir</span> / <span class="ch">Réservé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable pour le moment</span>. Ouvre ensuite le rang (1<sup>er</sup> à 5<sup>e</sup>), la date, et un nombre de leçons. <strong>La ligne de tête dit lequel c'est</strong> — <span class="ch">C'est le 2<sup>e</sup> examen blanc</span> — au lieu de laisser deviner.</td></tr>
         <tr><td><span class="b">Conclusion de l'examen blanc</span></td><td><span class="ch">✅ Plus que les 3h avant examen</span> / <span class="ch">⏳ Encore des leçons avant examen</span> / <span class="ch">⛔ Pas le niveau</span>. <strong>N'apparaît que sur le modèle Examen blanc, et seulement en fin de cours.</strong> C'est cette phrase que le bureau relit dans ses listes.</td></tr>
-        <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span>, avec les champs qui vont avec, et <span class="b">Quel passage ?</span></td></tr>
+        <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span>, avec les champs qui vont avec, et <span class="b">Quel passage ?</span> La ligne de tête dit le combientième&nbsp;: <span class="ch">Examen ce jour — 2<sup>e</sup> passage</span>.</td></tr>
+        <tr><td><span class="b">Rendez-vous post-permis</span></td><td>Sous l'examen officiel, sa date se répond ici aussi&nbsp;: on l'a sous les yeux au moment où l'on parle de l'examen. <strong>Les deux cases se mettent à jour ensemble</strong> — il n'y a qu'une date, elle ne peut pas dire deux choses.</td></tr>
         <tr><td><span class="b">Pas d'écoutes pédagogiques</span></td><td>Une case. Elle inscrit l'élève dans la liste que suit le bureau, et ajoute un rappel en fin de bilan. <strong>La décocher l'en retire.</strong></td></tr>
         <tr><td><span class="b">Simulateur nuit et risques</span></td><td><span class="ch">À prévoir</span> / <span class="ch">Déjà prévu</span> / <span class="ch">Fait ✅</span>.</td></tr>
         <tr><td><span class="b">Formation accompagnateur</span> et <span class="b">Rendez-vous préalable</span></td><td>N'apparaissent que si la frise est AAC ou CS.</td></tr>
@@ -1464,7 +1472,9 @@ html{scroll-behavior:smooth}
 
     <h4>🔑 Codes du coin révisions</h4>
     <p>En haut&nbsp;: <span class="b">Donner un accès à</span>, <span class="b">Sa langue</span> (avec un <span class="b">⚙️</span> pour gérer la liste des langues) et <span class="b">🔑 Créer son code</span>. <em>« Ouvrir une autre langue lui permet de réciter dans sa langue. Chaque récitation coûte alors une traduction en plus — à réserver à ceux qui en ont besoin. »</em></p>
-    <p>Puis une carte par élève&nbsp;: le nom, <span class="ch">vu le …</span> ou <span class="ch">jamais venu</span>, la langue, <strong>le code à six chiffres</strong>, et quatre boutons — <span class="b">✉️</span> (envoyer l'accès par mail), <span class="b">📋</span> (copier le message), <span class="b">🌍</span> (changer sa langue), <span class="b">🔄</span> (nouveau code&nbsp;: <em>« l'ancien ne marchera plus »</em>) et <span class="b">🗑️</span>.</p>
+    <p>Puis une carte par élève&nbsp;: le nom, <span class="ch">vu le …</span> ou <span class="ch">jamais venu</span>, la langue, le code <strong>masqué</strong> (<span class="ch">••••••</span>), et les boutons — <span class="b">✉️</span> (envoyer l'accès par mail), <span class="b">📋</span> (copier le message), <span class="b">🌍</span> (changer sa langue), <span class="b">🔄</span> (nouveau code&nbsp;: <em>« l'ancien ne marchera plus »</em>) et <span class="b">🗑️</span>.</p>
+    <div class="note astuce"><span class="tag">Les codes sont masqués — v765</span><p>La liste rendait auparavant <strong>les codes de tous les espaces élèves en clair</strong>, d'un seul coup. Elle affiche maintenant <span class="ch">••••••</span>&nbsp;: appuyez dessus pour en afficher <em>un</em>, et la demande est journalisée. Les boutons ✉️ et 📋 fonctionnent comme avant — ils vont chercher le code tout seuls.</p></div>
+    <div class="note astuce"><span class="tag">Les codes périment — v771</span><p><strong>Douze mois sans venir, et le code ne vaut plus.</strong> La carte l'annonce&nbsp;: <span class="ch">⏳ code expiré (12 mois sans venir)</span>, et l'élève qui essaie lit <em>« Ton accès a expiré. Demande un nouveau code à l'auto-école. »</em> — un message distinct d'un code faux, pour qu'il sache à qui s'adresser.</p><p>Le compte n'est pas effacé&nbsp;: <span class="b">🔄</span> le rouvre, et l'élève garde ses récitations. C'est une porte qui se referme, pas un dossier qu'on jette.</p></div>
 
     <h5>📚 Révisions — ce à quoi il a accès</h5>
     <p>Sous chaque élève, un tiroir&nbsp;: <span class="ch">📚 Révisions — 🚚 Remorque — permis BE · 7 procédures</span>. Chaque procédure a une case.</p>
@@ -1591,6 +1601,7 @@ html{scroll-behavior:smooth}
     <p>S'affichent alors&nbsp;: le <strong>message à l'élève</strong> (modifiable, avec <span class="b">📋 Copier ce message</span>) et une liste <span class="b">✅ À faire au bureau</span> — Facebook, Driv'up, solde du compte, réservations à annuler, Enpc-center, dossier papier. <strong>Si le motif est un transfert</strong>, quatre tâches s'ajoutent en tête&nbsp;: certificat de fin de formation, transmission du dossier ANTS, restitution des pièces, solde de tout compte.</p>
     <div class="note piege"><span class="tag">Piège</span><p>Le message à l'élève est <strong>le même quel que soit le motif</strong>, y compris « Sans nouvelles de l'élève ». Relisez-le avant de l'envoyer.</p></div>
     <div class="note danger"><span class="tag">Réservé aux administrateurs</span><p>Les deux boutons de clôture — <span class="b">🧹 Retirer de toutes les listes de suivi</span> et <span class="b">🗑️ Supprimer les N bilan(s)</span> — <strong>n'apparaissent que pour un rôle admin</strong>. Un compte bureau voit la carte, le message et les tâches, mais aucune action&nbsp;: la ligne du bas est vide chez lui.</p></div>
+    <div class="note astuce"><span class="tag">La suppression efface vraiment tout — v771</span><p>Elle balayait trois feuilles et en oubliait six&nbsp;: le nom de l'élève restait dans le journal des envois, les liens de cours, les corrections ETG, les cours en route, les alertes masquées et les coûts IA — et son adresse dans les mails manqués. <strong>Un droit à l'effacement qui laisse six traces n'en est pas un.</strong> Les neuf feuilles sont maintenant balayées.</p><p>Et surtout&nbsp;: <strong>si l'élève n'avait aucun bilan, rien n'était effacé du tout.</strong> Un élève parti avant son premier cours gardait son accès au coin révisions, ses récitations et ses lignes dans le journal. Ce n'est plus le cas.</p><p>Seule exception, volontaire&nbsp;: sa ligne de résultat d'examen est <a href="#menage" class="aller">anonymisée</a> plutôt que supprimée, pour que le taux de réussite ne bouge pas.</p></div>
     <p>Enfin&nbsp;: cette vue ne propose <strong>pas</strong> de suppression totale (captures, cours préparés, fiche du répertoire). Pour un ménage complet, il faut le 🗑️ du <a href="#repertoire" class="aller">Répertoire</a>.</p>
   </section>
 </article>
@@ -2258,7 +2269,8 @@ Jours ouverts à la prise de date
 
     <h4>📺 Adresses des écrans</h4>
     <p><em>« À ouvrir sur le téléviseur, en plein écran. Le jeton est déjà dans l'adresse&nbsp;: copie-la telle quelle. Elles ne donnent accès qu'à l'affichage&nbsp;: ni bilans, ni élèves, ni réglages. »</em></p>
-    <p>Deux adresses, chacune avec son <span class="b">📋</span>&nbsp;: <span class="b">🏠 Accueil — avec le planning</span> et <span class="b">🪟 Vitrine — sans le planning</span>. Le paramètre <code>anonyme=1</code> affiche « Ambre G. » plutôt que le nom entier&nbsp;: <em>l'écran d'accueil est vu par d'autres élèves et par des visiteurs.</em></p>
+    <p>Deux adresses, chacune avec son <span class="b">📋</span>&nbsp;: <span class="b">🏠 Accueil — avec le planning</span> et <span class="b">🪟 Vitrine — sans le planning</span>.</p>
+    <div class="note astuce"><span class="tag">Le défaut a été inversé — v771</span><p>Le planning affiche <strong>« Ambre G. » par défaut</strong>, prénom et initiale. Il fallait auparavant penser à ajouter <code>anonyme=1</code> pour cela&nbsp;: sans ce paramètre, les noms entiers s'affichaient en salle d'attente <em>et côté rue</em>. Un réglage qu'il faut penser à mettre est un réglage qu'on oublie.</p><p>Pour afficher les noms entiers, il faut désormais le demander expressément avec <code>&amp;complet=1</code>. Et <strong>la vitrine ne l'accepte jamais</strong>, quoi qu'on écrive dans l'adresse&nbsp;: ce qui se voit depuis le trottoir n'a pas à nommer les élèves. Si vos anciennes adresses portent encore <code>anonyme=1</code>, vous pouvez le retirer&nbsp;: il ne fait plus rien.</p></div>
 
     <h4>📍 Gérer les emplacements</h4>
     <p>Chaque emplacement porte son emoji, son nom, la mention « sans véhicule » le cas échéant, et un extrait du texte qui part dans le SMS de rappel. On peut les réordonner, les modifier, les supprimer — mais <strong>il faut en garder au moins un</strong>.</p>
@@ -2388,7 +2400,79 @@ Jours ouverts à la prise de date
     <p><strong>Deux lignes en couleur</strong> ont une quantité non saisissable&nbsp;: le simulateur et la conduite de 2&nbsp;h. Leur quantité vient de l'évaluation&nbsp;; seuls leurs tarifs se modifient, et elles n'ont pas de bouton de suppression.</p>
     <div class="note danger"><span class="tag">Piège majeur</span><p><strong>Toutes les modifications sont perdues si l'on quitte la vue sans appuyer sur <span class="b">💾 Enregistrer</span>.</strong> Aucune sauvegarde automatique, aucun avertissement au départ.</p></div>
     <p>En bas, un bloc de contrôle rejoue la mécanique de l'évaluation pour vérifier le résultat&nbsp;: <span class="ch">🚗 20 h en boîte manuelle : 1 623,50 €</span> · <span class="ch">🚙 13 h en boîte automatique : 1 241,00 €</span>.</p>
-    <div class="note bug"><span class="tag">À savoir</span><p>Un compte qui n'aurait <em>que</em> le droit « tarifs » et rien d'autre en Gestion <strong>ne verrait jamais l'onglet Gestion</strong>, donc jamais les tarifs. Il faut lui ouvrir une autre section de cet onglet.</p></div>
+    <div class="note astuce"><span class="tag">Corrigé en v771</span><p>Un compte qui n'a <em>que</em> le droit « tarifs » obtient enfin l'onglet Gestion. Auparavant il ne le voyait pas, et n'atteignait donc jamais l'écran qu'on venait de lui ouvrir&nbsp;: un droit qui ne mène nulle part est pire qu'un droit refusé, on croit l'avoir donné.</p></div>
+  </section>
+
+  <section id="caisse">
+    <h3>🏦 Caisse et remises en banque</h3>
+    <p>Le comptage de la caisse et la préparation d'une remise. Un compteur de billets (500 € à 5 €), un <strong>fond de caisse</strong> réglable qui reste d'un comptage à l'autre, et la saisie des chèques avec leur compte et leur montant. Le total de la remise se calcule tout seul, et chaque dépôt reste dans un historique.</p>
+    <p>Tous les montants sont tenus en centimes et divisés au moment de l'affichage seulement&nbsp;: aucun arrondi ne se glisse dans un total.</p>
+  </section>
+
+  <section id="coutsia">
+    <h3>💸 Ce que coûte l'IA</h3>
+    <p>Chaque bilan généré, chaque procédure corrigée est facturée à l'usage. Cet écran montre la dépense <strong>par personne, par type de bilan et par jour</strong>, avec une projection mensuelle.</p>
+    <div class="note astuce"><span class="tag">En euros, TTC — v761 et v763</span><p>Les prix du fournisseur sont en dollars. L'écran affiche la conversion en euros, <strong>TVA 20&nbsp;% par défaut et modifiable</strong> (mettez 0 en autoliquidation). Le taux de change est repris tout seul auprès de la BCE une fois par jour, et reste corrigeable à la main.</p><p>Ce qui est enregistré, ce sont les <strong>jetons consommés et le taux du jour</strong>, jamais une somme figée&nbsp;: un tarif qui change plus tard ne réécrit pas le passé.</p></div>
+    <div class="note piege"><span class="tag">Pourquoi c'est parfois cher</span><p>Le modèle « réfléchit » avant d'écrire, et ces jetons de réflexion sont facturés au tarif de sortie — le plus élevé. C'est souvent l'essentiel de la note d'un bilan long.</p></div>
+  </section>
+
+  <section id="encours">
+    <h3>🩹 Cours non terminés</h3>
+    <p>Ce que les moniteurs ont commencé et n'ont pas fini. La dictée part sur le serveur <em>au fil du cours</em>, sans attendre le bilan&nbsp;: si quelqu'un reste bloqué, son travail est ici et le bureau peut le reprendre à sa place.</p>
+    <div class="tab"><table>
+      <thead><tr><th>Bloc</th><th>Ce que ça veut dire</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">✅ Bilan déjà enregistré — dictée à effacer</span></td><td>Le bilan est bien dans le classeur&nbsp;: <strong>il n'y a rien à reprendre</strong>. C'est la dictée qui est restée. La ligne nomme le bilan trouvé et sa date. On efface sans risque.</td></tr>
+        <tr><td><span class="b">⚙️ Bilans en cours de génération</span></td><td>L'IA travaille en ce moment. Rien à faire&nbsp;; ils disparaissent seuls. Encore là dans une demi-heure, ils descendent plus bas.</td></tr>
+        <tr><td><span class="b">⏳ Bilans renvoyés, en attente de correction</span></td><td>Vous les avez générés, le moniteur doit les relire et les enregistrer. S'ils traînent, relancez-le.</td></tr>
+        <tr><td><span class="b">✍️ Dictées sans bilan</span></td><td><strong>Vérifié</strong>&nbsp;: aucun bilan enregistré pour ces cours. C'est le cas qui bloque vraiment — <span class="b">↩️ Reprendre ici</span> charge la dictée chez vous.</td></tr>
+        <tr><td><span class="b">⏺️ Cours démarrés, non terminés</span></td><td>Le cours a été lancé et le signal de fin n'est jamais arrivé — écran fermé, réseau coupé. Rien n'a été dicté.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note astuce"><span class="tag">Les faux positifs sont réglés — v773</span><p>L'écran affirmait « le bilan n'a jamais été enregistré » <strong>sans jamais aller regarder les bilans</strong>&nbsp;: il déduisait l'absence d'un bilan de la présence d'une dictée, deux choses qui n'ont rien à voir. La cause&nbsp;: la dictée était retirée à la fin de la <em>génération</em> et non à l'<em>enregistrement</em>, si bien qu'un téléphone qui s'endormait sur la dictée encore à l'écran en redéposait une par-dessus un cours déjà terminé.</p><p>Les deux sont corrigés. Et si la liste des bilans n'a pas pu être lue, l'écran le dit au lieu d'accuser.</p></div>
+    <p>Chaque ligne a maintenant un <span class="b">🗑️</span> (effacer la dictée) et chaque cours démarré un <span class="b">✕ Retirer de la liste</span>. <strong>Aucun des deux ne touche à un bilan.</strong> La confirmation change de ton quand aucun bilan n'existe&nbsp;: effacer là, c'est perdre la dictée pour de bon.</p>
+  </section>
+
+  <section id="signalements">
+    <h3>🚨 Signalements</h3>
+    <p>Quand ça casse chez un moniteur, le bureau doit le savoir. Chaque erreur part au classeur avec qui, quelle version, quel appareil et quel message — au lieu de s'afficher chez celui qui la subit puis de disparaître.</p>
+    <p>Trois principes&nbsp;: cela ne gêne <em>jamais</em> le moniteur, la même erreur répétée n'est envoyée qu'une fois, et rien de l'élève n'y figure — le message technique, pas la transcription ni le bilan.</p>
+    <p>On y trouve aussi les lignes 🔐 du <a href="#roles" class="aller">mode observation des droits</a>, et le compte rendu du <a href="#menage" class="aller">ménage de nuit</a>.</p>
+  </section>
+
+  <section id="menage">
+    <h3>🧹 Ménage des dossiers</h3>
+    <p>Rien n'était purgé&nbsp;: des noms, des numéros et des adresses de 2024 dormaient encore dans le classeur. Depuis le 1<sup>er</sup> septembre, la conservation suit <strong>deux régimes séparés</strong>.</p>
+
+    <h4>Ce qui part tout seul, la nuit</h4>
+    <p>Uniquement des feuilles techniques, où rien ne se perd. Chaque nuit vers 4&nbsp;h&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>Quoi</th><th>Au bout de</th></tr></thead>
+      <tbody>
+        <tr><td>Liens de cours, mails manqués, coûts IA, alertes masquées</td><td>12 mois</td></tr>
+        <tr><td>Cours restés « en route »</td><td>3 mois</td></tr>
+        <tr><td>Journal des SMS — <strong>dépouillé, pas effacé</strong></td><td>3 mois</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note astuce"><span class="tag">Le journal des SMS ne disparaît pas</span><p>On retire le nom, le numéro et le texte du message&nbsp;; la date, le nombre de parties, l'état et le canal restent. <strong>Vous perdez la preuve nominative, pas la comptabilité.</strong></p></div>
+    <p>Le ménage écrit une ligne dans <a href="#signalements" class="aller">🚨 Signalements</a> <strong>seulement quand il a fait quelque chose</strong> — une ligne quotidienne « rien à faire » finirait par ne plus se lire. Le compte rendu détaille feuille par feuille&nbsp;: combien, de quelle période, et ce qui reste. <strong>Il ne nomme jamais un élève</strong>&nbsp;: il serait absurde d'effacer un nom pour le réécrire dans le rapport de son effacement.</p>
+    <div class="note piege"><span class="tag">À faire une fois</span><p>Le déclencheur se pose depuis l'éditeur Apps Script&nbsp;: lancez la fonction <span class="b">installerMenage</span>. Le voyant <span class="b">🔄</span> à côté de votre prénom dit la date du dernier passage, et vous rappelle de le poser s'il n'a jamais tourné.</p></div>
+
+    <h4>Ce qui se propose, et n'efface rien tout seul</h4>
+    <p>Dès qu'un élève est concerné, l'outil <strong>propose</strong> et vous appuyez. Une année creuse, une élève qui revient au bout de deux ans, et un effacement automatique aurait jeté un travail que personne n'avait demandé de jeter.</p>
+    <div class="tab"><table>
+      <thead><tr><th>Liste</th><th>Règle</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">🎓 Permis obtenu</span></td><td>La règle de la maison&nbsp;: on solde le dossier.</td></tr>
+        <tr><td><span class="b">📅 Plus de 12 mois sans cours</span></td><td>Sans permis obtenu. C'est le <strong>dernier cours</strong> qui compte, pas le dernier examen ni l'inscription&nbsp;: c'est la seule date qui dit qu'une formation vit encore.</td></tr>
+        <tr><td><span class="b">📭 Inscrits jamais venus</span></td><td>Dossier de plus de 12 mois, aucun bilan.</td></tr>
+        <tr><td><span class="b">👀 À surveiller</span></td><td>Inscrits depuis 3 mois sans cours. <strong>Aucun bouton, volontairement</strong>&nbsp;: ils sont là pour être vus, pas pour être effacés.</td></tr>
+        <tr><td><span class="b">🎙️ Récitations</span></td><td>3 mois sans connexion <strong>et</strong> aucun cours sur la même période. Seules les récitations partent&nbsp;; le dossier reste entier.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Chaque ligne dit <strong>pourquoi</strong> elle est là (<span class="ch">dernier cours le 14/03/2025 (18 mois)</span>) et <strong>ce que contient le dossier</strong> (<span class="ch">📁 14 bilans · 3 récitations</span>). Un dossier plein et un dossier vide ne se décident pas de la même façon.</p>
+    <div class="note astuce"><span class="tag">Votre taux de réussite ne bouge pas</span><p>Supprimer un dossier <strong>n'efface pas sa ligne de résultat d'examen</strong>&nbsp;: seul le nom en est retiré et remplacé par <span class="ch">(élève effacé)</span>. La date, le résultat, la boîte, le moniteur, le centre et le rang restent. Sans cela, « on supprime tout quand ils ont leur permis » effacerait précisément les réussites de l'année.</p></div>
+    <div class="note piege"><span class="tag">Ce que le ménage ne fera jamais</span><p>Un dossier dont la date est illisible <strong>n'est jamais proposé</strong> — une date qu'on ne sait pas lire ne vaut pas « c'est vieux, on peut jeter ». Et la suppression passe par le même chemin que partout ailleurs dans l'outil&nbsp;: il n'existe pas de second mécanisme d'effacement.</p></div>
   </section>
 
   <section id="acces">
@@ -2411,8 +2495,9 @@ Jours ouverts à la prise de date
     </table></div>
 
     <h4>Le tiroir des droits fins</h4>
-    <p>Sous chaque compte&nbsp;: <span class="ch">Ce que David voit (12 sections)</span>. Ouvert, il liste les 37 sections, chacune avec trois valeurs&nbsp;: <span class="b">Rien</span> · <span class="b">👁️ Voir</span> · <span class="b">✏️ Modifier</span>. Puis <span class="b">💾 Enregistrer les accès</span>.</p>
-    <div class="note danger"><span class="tag">Le piège à ne pas manquer</span><p>Si rien n'est coché, l'écran affiche <span class="ch">Rien de coché pour David : il ne verra que l'écran d'accueil.</span> — <strong>c'est faux, et le message disparaît en une fraction de seconde de toute façon.</strong> Un jeu de droits vide ouvre l'interface <em>entièrement</em>. Pour restreindre un compte, cochez explicitement ce à quoi il a droit.</p></div>
+    <p>Sous chaque compte&nbsp;: <span class="ch">Ce que David voit (12 sections)</span>. Ouvert, il liste les 42 sections, chacune avec trois valeurs&nbsp;: <span class="b">Rien</span> · <span class="b">👁️ Voir</span> · <span class="b">✏️ Modifier</span>. Puis <span class="b">💾 Enregistrer les accès</span>.</p>
+    <div class="note astuce"><span class="tag">Le message dit vrai depuis la v765</span><p>Si rien n'est coché, l'écran affiche <span class="ch">Rien de coché pour David : il ne verra que l'écran d'accueil.</span> — et c'est désormais <strong>exact</strong>. Avant cette correction, un jeu de droits vide ouvrait l'interface <em>entièrement</em>&nbsp;: le geste qui devait restreindre donnait tout.</p></div>
+    <div class="note astuce"><span class="tag">Cinq sections de plus — v772 et v775</span><p><span class="b">🏦 Caisse</span>, <span class="b">💸 Coûts IA</span>, <span class="b">🩹 Cours non terminés</span>, <span class="b">🚨 Signalements</span> et <span class="b">🧹 Ménage</span> se donnent maintenant comme les autres. Elles étaient réservées aux administratrices — non par choix, mais parce qu'un écran neuf restait invisible chez les comptes déjà réglés. Le défaut est corrigé à la racine&nbsp;; ces cinq écrans redeviennent des droits qu'on accorde.</p></div>
     <p>Deux garde-fous côté serveur&nbsp;: on ne peut pas se retirer à soi-même le droit d'administration, ni son propre rôle, ni son propre code.</p>
 
     <h4>Créer un accès</h4>
@@ -2481,6 +2566,7 @@ Jours ouverts à la prise de date
       <tr><td>Tâches · Flotte</td><td>Le compteur ne s'affiche jamais sur le bouton de la vue.</td><td>Ouvrir la vue pour voir le nombre.</td></tr>
       <tr><td>Affichage dynamique</td><td>Un emplacement personnalisé n'apparaît pas dans les lignes du planning déjà affichées.</td><td>Utiliser la fenêtre d'ajout manuel, qui les propose bien.</td></tr>
       <tr><td>Alertes</td><td>Le texte d'aide renvoie encore à « Outils → ⚙️ Accès ».</td><td>C'est dans <strong>Gestion</strong>.</td></tr>
+      <tr><td>Onglet Gestion</td><td><span class="b">🏦 Caisse</span>, <span class="b">💸 Coûts IA</span>, <span class="b">🩹 Cours non terminés</span> et <span class="b">🚨 Signalements</span> portent chacun une carte dans la page sans être déclarés côté serveur comme les autres sections.</td><td>Rien&nbsp;: ils fonctionnent. Deux mécanismes d'autorisation cohabitent, c'est une dette notée.</td></tr>
       <tr><td>Rappels de cours</td><td>Le mode planning crée les cours pour <strong>demain</strong>, pas pour la date lue.</td><td>Corriger les dates ensuite avec le bouton 📅 de chaque carte.</td></tr>
       <tr><td>Connexion</td><td>Le bouton s'appelle « Se connecter » puis « Déverrouiller » après un échec.</td><td>Rien&nbsp;: c'est le même bouton.</td></tr>
     </tbody>
@@ -2489,6 +2575,10 @@ Jours ouverts à la prise de date
   <h3>Que faire quand…</h3>
   <dl class="defs">
     <div><dt>… l'application refuse de démarrer et parle du script Google</dt><dd>La version du script du classeur ne correspond pas à celle de l'application. C'est un problème de déploiement&nbsp;: il faut mettre à jour l'Apps Script avant le reste.</dd></div>
+    <div><dt>… plus rien ne passe, aucun élève ne s'affiche</dt><dd>Le classeur est protégé par un <strong>secret partagé</strong> depuis le 1<sup>er</sup> septembre&nbsp;: le relais Cloudflare l'envoie, le classeur le vérifie. Si les deux côtés ne se répondent plus, tout s'arrête d'un coup.<br>Appuyez sur le bouton <span class="b">🔄</span> à côté de votre prénom&nbsp;: <strong>la fenêtre nomme la cause</strong> — <span class="ch">🔒 Classeur verrouillé</span> (tout va bien) · <span class="ch">🔓 Le classeur est encore ouvert à tous</span> · <span class="ch">🛑 le Worker n'envoie aucun secret</span> · <span class="ch">⚠️ Les deux secrets ne se répondent pas</span>.<br><strong>Pour rouvrir tout de suite&nbsp;:</strong> supprimez la propriété <code>SECRET_PARTAGE</code> dans Apps Script. C'est réversible en dix secondes et ne demande aucun redéploiement.</dd></div>
+    <div><dt>… je veux savoir si le ménage de nuit tourne</dt><dd>Le même bouton <span class="b">🔄</span> le dit&nbsp;: <span class="ch">🧹 Dernier ménage : 01/09/2026 04:00.</span> S'il n'a jamais tourné, il vous rappelle de lancer <span class="b">installerMenage</span> une fois depuis l'éditeur Apps Script. Le ménage n'écrit dans 🚨 Signalements que lorsqu'il a fait quelque chose&nbsp;: sans cette date, « aucun signalement » ne dirait pas si c'est parce qu'il n'y a rien à nettoyer ou parce qu'il ne tourne pas.</dd></div>
+    <div><dt>… un élève dit que son code du coin révisions ne marche plus</dt><dd>Il a probablement <strong>expiré au bout de douze mois sans venir</strong>. Sa carte dans <a href="#procedures" class="aller">🔑 Codes</a> porte <span class="ch">⏳ code expiré</span>&nbsp;: le bouton <span class="b">🔄</span> lui en donne un neuf, et il retrouve ses récitations.</dd></div>
+    <div><dt>… « Cours non terminés » signale un bilan que je vois pourtant dans Sheets</dt><dd>C'était un défaut, corrigé en v773&nbsp;: la dictée était retirée à la fin de la génération et non à l'enregistrement, et un téléphone qui s'endormait dessus en redéposait une par-dessus un cours terminé. L'écran <a href="#encours" class="aller">vérifie maintenant</a> et range ces lignes dans <span class="b">✅ Bilan déjà enregistré — dictée à effacer</span>, avec un 🗑️.</dd></div>
     <div><dt>… un bandeau rouge annonce des fichiers manquants</dt><dd>La mise en ligne est incomplète. Les fichiers listés doivent être remis dans le dossier <code>app/</code>, puis recharger la page.</dd></div>
     <div><dt>… le micro duplique ce qui vient d'être dit</dt><dd>Mettez en pause, corrigez la zone de texte à la main, puis reprenez&nbsp;: la boîte fait autorité, la dictée qui suit s'ajoute à votre version.</dd></div>
     <div><dt>… un cours a disparu de « Mes prochains cours »</dt><dd>Trois causes possibles&nbsp;: il a plus de 7 jours (ils ne s'affichent plus), il a été donné à quelqu'un d'autre (décochez « Voir aussi les cours des autres moniteurs »), ou il a été marqué <span class="b">✓ Fait</span>.</dd></div>
