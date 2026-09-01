@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:18 — v751 */
+/* Déployé le 01/09/2026 à 09:22 — v752 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -2020,9 +2020,16 @@ async function ouvrirRecitation(r){
          moniteur a pu rectifier une transcription fautive. */
       const texte = await corrigerRecitation(
         Object.assign({}, r, { texte: boite.querySelector('#rcTexte').value }));
-      boite.querySelector('#rcCorrection').value = texte;
       clearInterval(tic);
-      zEtat.textContent = 'Proposition de l\'IA — relis-la avant de valider.';
+      /* On n'écrase pas ce qui est déjà là par du vide : une
+         correction en cours de rédaction vaut mieux que rien. */
+      if(!String(texte || '').trim()){
+        zEtat.textContent = "L'IA n'a rien renvoyé. Réessaie, " +
+          'ou écris la correction toi-même.';
+      }else{
+        boite.querySelector('#rcCorrection').value = texte;
+        zEtat.textContent = 'Proposition de l\'IA — relis-la avant de valider.';
+      }
     }catch(e){
       clearInterval(tic);
       /* Un abandon au bout de soixante secondes n'est pas une
@@ -2299,7 +2306,10 @@ async function corrigerRecitation(r){
       quoi: 'Correction de procédure',
       payload: {
         model: 'claude-sonnet-5',
-        max_tokens: 1200,
+        /* Même raison que côté serveur : un plafond atteint rend
+           une réponse vide, et une réponse vide se paie autant
+           qu'une réponse utile. */
+        max_tokens: 2000,
         system: consigne,
         messages: [{ role: 'user', content:
           'Corrige cette récitation.' }]
@@ -2316,11 +2326,26 @@ async function corrigerRecitation(r){
   const d = await rep.json();
   if(d.error) throw new Error((d.error && d.error.message) || 'Erreur IA');
 
-  return (d.content || [])
-    .filter(x => x.type === 'text')
-    .map(x => x.text)
-    .join('\n')
-    .trim();
+  /* LE TEXTE, D'OÙ QU'IL VIENNE — et s'il n'y en a pas, on le dit.
+
+     On ne gardait que les blocs « text », et une réponse sans bloc
+     de ce type ressortait vide. Le bouton remplissait alors la
+     case avec RIEN en annonçant « proposition de l'IA » : Chrystel
+     s'est retrouvée devant un cadre vide, sans savoir si l'IA
+     avait échoué ou si elle-même avait mal cliqué. */
+  const blocs = Array.isArray(d.content) ? d.content : [];
+  const texte = blocs.filter(x => x && x.type === 'text')
+                     .map(x => String(x.text || '')).join('\n').trim()
+    || blocs.map(x => String((x && (x.text || x.thinking)) || ''))
+            .join('\n').trim();
+
+  if(!texte){
+    throw new Error("l'IA a répondu sans texte (arrêt : " +
+      String(d.stop_reason || '?') + ', blocs : ' +
+      (blocs.length ? blocs.map(x => (x && x.type) || '?').join(', ') : 'aucun') +
+      ')');
+  }
+  return texte;
 }
 
 
