@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 07:47 — v745 */
+/* Déployé le 01/09/2026 à 08:05 — v746 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -226,6 +226,12 @@ const CHAMPS_MANUELS = {
     { cle:'examen.installation', type:'ok', nom:'EXAMEN — Installation', defaut:'' },
     { cle:'examen.passager',     type:'ok', nom:'EXAMEN — Passager',     defaut:'' },
     { cle:'examen.voyants',      type:'ok', nom:'EXAMEN — Voyants',      defaut:'' },
+    /* Une seule case pour les trois : installation, passager et
+       voyants se notent ensemble sur /2, et ce qui a coincé se
+       raconte d'une traite. Trois cases auraient fait répéter la
+       même phrase. */
+    { cle:'examen.installTexte', type:'texte', lignes:3,
+      nom:'Explication ou correction — installation, passager et voyants' },
     { cle:'examen.verifQuestion', type:'court',
       nom:'N° de la question de vérification' },
     { cle:'examen.vi',           type:'ok', nom:'Vérification', defaut:'' },
@@ -1827,8 +1833,15 @@ function sauvegarderManuel(){
     });
   });
 
-  /* Rien de saisi : inutile de proposer une reprise vide */
-  if(!saisies.some(x => x.valeur)) return;
+  /* Rien de saisi : inutile de proposer une reprise vide.
+
+     « Rien » compte aussi le questionnaire : un moniteur qui a
+     renseigné la formation, la frise et les examens sans avoir
+     encore coché une seule case de la fiche a bel et bien du
+     travail à ne pas perdre. */
+  const quest = (typeof contexteDepart !== 'undefined' && contexteDepart)
+                  ? contexteDepart : null;
+  if(!saisies.some(x => x.valeur) && !quest) return;
 
   const eleve = $('studentName').value.trim();
   const brouillon = {
@@ -1840,6 +1853,10 @@ function sauvegarderManuel(){
     date: $('lessonDate').value,
     note: $('noteInterne') ? $('noteInterne').value : '',
     avantEnvoye: !!avantExamenEnvoye,
+    /* Ses réponses au questionnaire — même raison qu'en dictée :
+       elles ne vivaient que dans la mémoire de la page, et une
+       monitrice qui avait tout rempli n'en retrouvait rien. */
+    quest: quest,
     saisies: saisies
   };
 
@@ -2393,12 +2410,23 @@ function reprendreBrouillon(b){
 
   if(b.note && $('noteInterne')) $('noteInterne').value = b.note;
 
+  /* Ce qu'il avait répondu au questionnaire revient avec la fiche */
+  if(b.quest && typeof contexteDepart !== 'undefined'){
+    contexteDepart = b.quest;
+  }
+
   const ban = $('repriseBanner');
   if(ban) ban.style.display = 'none';
 
   /* La fiche se dessine, puis on y repose les saisies */
   ouvrirBilanManuel().then(() => {
     const n = replacerSaisiesManuelles(b.saisies);
+    /* Le récapitulatif du questionnaire se redessine APRÈS la
+       fiche : il s'accroche à un cadre qui n'existe pas avant. */
+    if(b.quest && typeof afficherSaisieDuJour === 'function'){
+      afficherSaisieDuJour(b.quest, 'preparationManuel');
+    }
+    if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
     showToast(n ? 'Bilan retrouvé — ' + n + ' réponse(s) ✅'
                 : 'Bilan rouvert ✅');
   }).catch(() => {});
