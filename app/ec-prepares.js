@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:56 — v740 */
+/* Déployé le 01/09/2026 à 09:36 — v754 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -770,11 +770,15 @@ async function afficherPrepares(recharger, silencieux){
         {}, contexteEnObjet(cours.contexte),
         (typeof etatQuiFaitFoi === 'function') ? etatQuiFaitFoi(cours.eleve) : {});
 
-      const charn = (ctxCours.rdvPostFait === 'oui' ||
-                     /le[çc]ons?\s+apr[èe]s\s+le\s+post/i.test(cours.note || ''))
-        ? { cle: 'avantRdvPost', court: 'post-permis' }
-        : (ctxCours.examBlanc === 'passe' || ctxCours.ebPasse)
-        ? { cle: 'avantEB', court: 'exam blanc' } : null;
+      /* LA MÊME FONCTION QUE LE QUESTIONNAIRE.
+
+         Cette carte avait sa propre table de charnières. Elle
+         ignorait donc l'ajournement, ajouté ailleurs : la carte
+         d'Amadou annonçait « REPRISE APRÈS LE DERNIER AJOURNEMENT »
+         et proposait, juste en dessous, « et la 1ère après exam
+         blanc ». Deux endroits pour une même règle, deux réponses. */
+      const charn = (typeof charniereDuCours === 'function')
+        ? charniereDuCours(ctxCours, cours.note) : null;
 
       if(charn && typeof rangDepuisLaCharniere === 'function'){
         /* « ème leçon », puis « et la … ème après » : ce sont deux
