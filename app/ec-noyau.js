@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:23 — v782 */
+/* Déployé le 01/09/2026 à 16:41 — v783 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -353,6 +353,10 @@ function verrouiller(message, garderSession){
   /* Le raccourci des procédures compte le travail de quelqu'un :
      il ne reste pas affiché sur l'écran de connexion. */
   if($('procRaccourci')) $('procRaccourci').style.display = 'none';
+  /* La loupe cherche parmi les élèves : elle n'a rien à faire sur
+     l'écran de connexion. Le ⋯ reste, lui : il porte le thème. */
+  if($('loupeBtn')) $('loupeBtn').style.display = 'none';
+  if($('plusMenu')) $('plusMenu').hidden = true;
 
   /* Rien d'autre que le code d'accès sur l'écran de connexion */
   if($('barreOnglets')) $('barreOnglets').style.display = 'none';
@@ -828,7 +832,7 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
   return mails.length;
 }
 
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-loupe.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
 
 function verifierModules(){
   const charges = window.EC_MODULES || {};
