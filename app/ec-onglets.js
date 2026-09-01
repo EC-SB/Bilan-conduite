@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 07:47 — v745 */
+/* Déployé le 01/09/2026 à 09:18 — v751 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -18,7 +18,7 @@ const SECTIONS_ONGLET = {
   permis: ['bureau_permis', 'bureau_places'],
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
             'stats', 'journal'],
-  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie', 'caisse',
+  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie', 'caisse', 'coutsia',
             'bureau_messages', 'sms', 'encours', 'incidents', 'admin']
 };
 
@@ -167,6 +167,7 @@ const VUES = {
            ['flotte',     '🚗 Flotte',                  'flotte'],
            ['paie',       '💶 Paie',                    'paie'],
            ['caisse',     '🏦 Caisse',                  'caisse'],
+           ['coutsia',    '💸 Coûts IA',                'coutsia'],
            ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
            ['sms',        '💬 SMS',                     'sms'],
            ['encours',    '🩹 Cours non terminés',      'encours'],
@@ -202,6 +203,9 @@ function construireBarresVues(){
          « Signalements » : réservée aux administrateurs, sans
          droit à donner. Rien à cocher, donc rien à oublier. */
       if(cle === 'caisse') return ACCES.role === 'admin';
+      /* Même raison, et même nature : ce que l'IA coûte regarde
+         celle qui paie la facture. */
+      if(cle === 'coutsia') return ACCES.role === 'admin';
       if(cle === 'admin')   return ACCES.role === 'admin';
 
       return typeof aDroit !== 'function' || aDroit(section);
@@ -319,6 +323,7 @@ function reveillerVue(cle){
     financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
     caisse:     () => afficherCaisse(),
+    coutsia:    () => afficherCoutsIa(),
     paiement:   () => afficherPaiement(),
     placesbe:   () => afficherPlacesBE(),
     notifs:     () => afficherNotifs(),
