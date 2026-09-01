@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v782
+     VERSION APPLICATION : v783
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 01/09/2026 à 16:23
+     Mis à jour le : 01/09/2026 à 16:41
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -875,33 +875,64 @@
             align-items:center;gap:5px;">📥<span id="procRaccourciN"
             style="font-size:14px;">0</span></button>
 
-    <!-- Le guide s'ouvre dans un autre onglet : une question posée
-         au milieu d'un cours ne doit pas coûter l'enregistrement.
-         Le ?v= suit celui des modules, sinon le navigateur ressort
-         l'ancien guide de son cache. -->
-    <a id="guideBtn" href="guide.html?v=782" target="_blank" rel="noopener"
-       title="Guide d'utilisation" style="display:none;
+    <!-- CHERCHER UN ÉLÈVE, D'OÙ QU'ON SOIT.
+
+         On pense « Léa », pas « quel écran ». L'outil obligeait à
+         traduire : Élèves > Historique pour ses cours, Élèves >
+         Répertoire pour sa fiche. La loupe part du nom.
+
+         Elle cherche DANS LA MÉMOIRE DU TÉLÉPHONE : les noms sont
+         déjà là, aucun appel réseau tant qu'on n'a pas choisi
+         quoi faire. -->
+    <button id="loupeBtn" title="Chercher un élève" style="display:none;
             margin-left:8px;background:transparent;border:1px solid var(--line);
             color:var(--cream);border-radius:10px;width:44px;height:44px;
-            font-size:18px;cursor:pointer;flex-shrink:0;text-decoration:none;
-            align-items:center;justify-content:center;">📘</a>
+            font-size:18px;cursor:pointer;flex-shrink:0;">🔍</button>
 
-    <!-- Vérifier que le moniteur a bien la dernière version :
-         un écran figé sur une vieille version explique beaucoup
-         de « ça ne marche pas ». -->
-    <button id="versionBtn" title="Vérifier la version" style="display:none;
-            margin-left:8px;background:transparent;border:1px solid var(--line);
-            color:var(--cream);border-radius:10px;width:44px;height:44px;
-            font-size:18px;cursor:pointer;flex-shrink:0;">🔄</button>
+    <!-- CE QUI NE SERT PAS TOUS LES JOURS PASSE DERRIÈRE UN ⋯.
 
+         Il y avait cinq boutons ici, dont un seul concernait le
+         travail du jour. Le guide, le thème et le contrôle de
+         version s'ouvrent une fois par mois : ils prenaient la
+         place de ce qu'on cherche vraiment. Ils restent à un seul
+         geste, mais ils ne se disputent plus l'espace.
+
+         Les identifiants ne changent pas : tout ce qui les affiche
+         ou les branche ailleurs continue de fonctionner. -->
+    <div id="plusZone" style="position:relative;flex-shrink:0;">
+      <button id="plusBtn" title="Guide, thème, version" style="
+              margin-left:8px;background:transparent;border:1px solid var(--line);
+              color:var(--cream);border-radius:10px;width:44px;height:44px;
+              font-size:20px;cursor:pointer;flex-shrink:0;">⋯</button>
+
+      <div id="plusMenu" hidden style="position:absolute;right:0;top:52px;
+           z-index:60;background:var(--navy);border:1px solid var(--line);
+           border-radius:12px;padding:8px;display:flex;flex-direction:column;
+           gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
+
+        <a id="guideBtn" href="guide.html?v=783" target="_blank" rel="noopener"
+           style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                  border-radius:9px;color:var(--cream);text-decoration:none;
+                  font-size:14px;">📘 <span>Guide d'utilisation</span></a>
+
+        <button id="versionBtn" style="display:flex;align-items:center;gap:10px;
+                padding:10px 12px;border-radius:9px;background:transparent;
+                border:none;color:var(--cream);font-size:14px;cursor:pointer;
+                text-align:left;width:100%;">🔄 <span>Vérifier la version</span></button>
+
+        <button id="themeBtn" style="display:flex;align-items:center;gap:10px;
+                padding:10px 12px;border-radius:9px;background:transparent;
+                border:none;color:var(--cream);font-size:14px;cursor:pointer;
+                text-align:left;width:100%;">🌙 <span>Changer de thème</span></button>
+      </div>
+    </div>
+
+    <!-- La déconnexion reste dehors : c'est le seul geste qu'on
+         cherche parfois en urgence, sur un téléphone qu'on prête. -->
     <button id="logoutBtn" title="Se déconnecter" style="display:none;
             margin-left:8px;background:transparent;border:1px solid var(--line);
             color:var(--cream);border-radius:10px;width:44px;height:44px;
             font-size:18px;cursor:pointer;flex-shrink:0;">🔓</button>
-    <button id="themeBtn" title="Changer de thème"
-            style="margin-left:8px;background:transparent;border:1px solid var(--line);
-                   color:var(--cream);border-radius:10px;width:44px;height:44px;
-                   font-size:20px;cursor:pointer;flex-shrink:0;">🌙</button>
   </header>
 
   <div id="unsupportedBox"></div>
@@ -2289,65 +2320,66 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=782"></script>
-<script src="app/ec-modeles.js?v=782"></script>
-<script src="app/ec-consignes.js?v=782"></script>
-<script src="app/ec-noyau.js?v=782"></script>
-<script src="app/ec-vocal.js?v=782"></script>
-<script src="app/ec-reseau.js?v=782"></script>
-<script src="app/ec-manuel.js?v=782"></script>
-<script src="app/ec-fenetres.js?v=782"></script>
-<script src="app/ec-questionnaire.js?v=782"></script>
-<script src="app/ec-permis.js?v=782"></script>
-<script src="app/ec-prepares.js?v=782"></script>
-<script src="app/ec-bureau.js?v=782"></script>
-<script src="app/ec-places.js?v=782"></script>
-<script src="app/ec-listes.js?v=782"></script>
-<script src="app/ec-permis-listes.js?v=782"></script>
-<script src="app/ec-postpermis.js?v=782"></script>
-<script src="app/ec-textes.js?v=782"></script>
-<script src="app/ec-correction.js?v=782"></script>
-<script src="app/ec-bilans.js?v=782"></script>
-<script src="app/ec-ecran.js?v=782"></script>
-<script src="app/ec-version.js?v=782"></script>
-<script src="app/ec-paie.js?v=782"></script>
-<script src="app/ec-flotte.js?v=782"></script>
-<script src="app/ec-solo.js?v=782"></script>
-<script src="app/ec-handicap-pdf.js?v=782"></script>
-<script src="app/ec-moto.js?v=782"></script>
-<script src="app/ec-remorque.js?v=782"></script>
-<script src="app/ec-arriereplan.js?v=782"></script>
-<script src="app/ec-placesbe.js?v=782"></script>
-<script src="app/ec-codeamenage.js?v=782"></script>
-<script src="app/ec-financements.js?v=782"></script>
-<script src="app/ec-eval-aac.js?v=782"></script>
-<script src="app/ec-postes.js?v=782"></script>
-<script src="app/ec-tarifs.js?v=782"></script>
-<script src="app/ec-caisse.js?v=782"></script>
-<script src="app/ec-menage.js?v=782"></script>
-<script src="app/ec-coutsia.js?v=782"></script>
-<script src="app/ec-evaluation.js?v=782"></script>
-<script src="app/ec-paiement.js?v=782"></script>
-<script src="app/ec-handicap.js?v=782"></script>
-<script src="app/ec-code.js?v=782"></script>
-<script src="app/ec-proccorriger.js?v=782"></script>
-<script src="app/ec-sessions.js?v=782"></script>
-<script src="app/ec-notifs.js?v=782"></script>
-<script src="app/ec-ecoutes.js?v=782"></script>
-<script src="app/ec-taches.js?v=782"></script>
-<script src="app/ec-memoire.js?v=782"></script>
-<script src="app/ec-historique.js?v=782"></script>
-<script src="app/ec-rappels.js?v=782"></script>
-<script src="app/ec-segments.js?v=782"></script>
-<script src="app/ec-sms.js?v=782"></script>
-<script src="app/ec-encours.js?v=782"></script>
-<script src="app/ec-incidents.js?v=782"></script>
-<script src="app/ec-stats.js?v=782"></script>
-<script src="app/ec-messenger.js?v=782"></script>
-<script src="app/ec-journal.js?v=782"></script>
-<script src="app/ec-depart.js?v=782"></script>
-<script src="app/ec-onglets.js?v=782"></script>
-<script src="app/ec-demarrage.js?v=782"></script>
+  <script src="app/ec-etat.js?v=783"></script>
+<script src="app/ec-modeles.js?v=783"></script>
+<script src="app/ec-consignes.js?v=783"></script>
+<script src="app/ec-noyau.js?v=783"></script>
+<script src="app/ec-vocal.js?v=783"></script>
+<script src="app/ec-reseau.js?v=783"></script>
+<script src="app/ec-manuel.js?v=783"></script>
+<script src="app/ec-fenetres.js?v=783"></script>
+<script src="app/ec-questionnaire.js?v=783"></script>
+<script src="app/ec-permis.js?v=783"></script>
+<script src="app/ec-prepares.js?v=783"></script>
+<script src="app/ec-bureau.js?v=783"></script>
+<script src="app/ec-places.js?v=783"></script>
+<script src="app/ec-listes.js?v=783"></script>
+<script src="app/ec-permis-listes.js?v=783"></script>
+<script src="app/ec-postpermis.js?v=783"></script>
+<script src="app/ec-textes.js?v=783"></script>
+<script src="app/ec-correction.js?v=783"></script>
+<script src="app/ec-bilans.js?v=783"></script>
+<script src="app/ec-ecran.js?v=783"></script>
+<script src="app/ec-version.js?v=783"></script>
+<script src="app/ec-paie.js?v=783"></script>
+<script src="app/ec-flotte.js?v=783"></script>
+<script src="app/ec-solo.js?v=783"></script>
+<script src="app/ec-handicap-pdf.js?v=783"></script>
+<script src="app/ec-moto.js?v=783"></script>
+<script src="app/ec-remorque.js?v=783"></script>
+<script src="app/ec-arriereplan.js?v=783"></script>
+<script src="app/ec-placesbe.js?v=783"></script>
+<script src="app/ec-codeamenage.js?v=783"></script>
+<script src="app/ec-financements.js?v=783"></script>
+<script src="app/ec-eval-aac.js?v=783"></script>
+<script src="app/ec-postes.js?v=783"></script>
+<script src="app/ec-tarifs.js?v=783"></script>
+<script src="app/ec-caisse.js?v=783"></script>
+<script src="app/ec-menage.js?v=783"></script>
+<script src="app/ec-loupe.js?v=783"></script>
+<script src="app/ec-coutsia.js?v=783"></script>
+<script src="app/ec-evaluation.js?v=783"></script>
+<script src="app/ec-paiement.js?v=783"></script>
+<script src="app/ec-handicap.js?v=783"></script>
+<script src="app/ec-code.js?v=783"></script>
+<script src="app/ec-proccorriger.js?v=783"></script>
+<script src="app/ec-sessions.js?v=783"></script>
+<script src="app/ec-notifs.js?v=783"></script>
+<script src="app/ec-ecoutes.js?v=783"></script>
+<script src="app/ec-taches.js?v=783"></script>
+<script src="app/ec-memoire.js?v=783"></script>
+<script src="app/ec-historique.js?v=783"></script>
+<script src="app/ec-rappels.js?v=783"></script>
+<script src="app/ec-segments.js?v=783"></script>
+<script src="app/ec-sms.js?v=783"></script>
+<script src="app/ec-encours.js?v=783"></script>
+<script src="app/ec-incidents.js?v=783"></script>
+<script src="app/ec-stats.js?v=783"></script>
+<script src="app/ec-messenger.js?v=783"></script>
+<script src="app/ec-journal.js?v=783"></script>
+<script src="app/ec-depart.js?v=783"></script>
+<script src="app/ec-onglets.js?v=783"></script>
+<script src="app/ec-demarrage.js?v=783"></script>
 
 <script>
 /* ============================================================
