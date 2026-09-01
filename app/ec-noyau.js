@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:18 — v777 */
+/* Déployé le 01/09/2026 à 15:34 — v778 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -744,6 +744,34 @@ window.EC_MODULES['ec-noyau.js'] = true;
    Un fichier absent du serveur ne provoque aucune erreur visible :
    des boutons cessent simplement de répondre. On le signale.
    ============================================================ */
+/* ------------------------------------------------------------
+   CE QUE L'EFFACEMENT A RÉELLEMENT FAIT
+
+   Écrit une fois, lu par les trois écrans qui suppriment un
+   dossier. Chacun rédigeait son propre résumé, et les trois
+   n'énuméraient pas les mêmes choses : on ne savait pas si la
+   différence venait du dossier ou de l'écran.
+
+   On répète ce que le classeur DIT avoir fait, jamais ce qu'on
+   espérait qu'il fasse.
+   ------------------------------------------------------------ */
+function resumeEffacement(d){
+  const a = (d && d.ailleurs) || {};
+  const bouts = [];
+  if(d && d.supprimees) bouts.push(d.supprimees + ' bilan(s)');
+  if(a.repertoire)   bouts.push('sa fiche du répertoire');
+  if(a.acces)        bouts.push('son accès au coin révisions');
+  if(a.recitations)  bouts.push(a.recitations + ' récitation(s)');
+  if(a.demandes)     bouts.push(a.demandes + ' procédure(s) demandée(s)');
+  if(a.preparations) bouts.push(a.preparations + ' cours préparé(s)');
+  if(a.captures)     bouts.push(a.captures + ' capture(s) du CEPC');
+  if(a.consignes)    bouts.push(a.consignes + ' message(s) au bureau');
+  if(a.suivi)        bouts.push('sa fiche de suivi');
+  if(a.ailleurs)     bouts.push(a.ailleurs + ' ligne(s) ailleurs');
+  if(a.resultats)    bouts.push(a.resultats + ' résultat(s) anonymisé(s)');
+  return bouts;
+}
+
 const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js"];
 
 function verifierModules(){
