@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:29 — v753 */
+/* Déployé le 01/09/2026 à 09:43 — v757 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1799,7 +1799,13 @@ function ligneRecitation(r){
         (r.envoyeLe || '').replace(/</g, '&lt;') +
         (r.etat === 'valide'
           ? ' · <span style="color:var(--accent-text);">✅ validée</span>'
-          : (r.correction ? ' · correction prête' : ' · à corriger')) +
+          /* Une correction gardée sans être envoyée doit se voir
+             d'ici : sinon on rouvre la fiche pour savoir où on en
+             est, et on la garde une seconde fois. */
+          : (r.correction
+              ? ' · <span style="color:var(--orange);">💾 gardée — ' +
+                'à valider</span>'
+              : ' · à corriger')) +
       '</div>' +
     '</span>';
 
@@ -1903,16 +1909,86 @@ function pourquoiPasCorrigeeDoffice(r){
       'catégorie plus haut.';
   }
 
-  /* Tout concordait : la demande est donc partie et n'a pas
-     abouti. On ne prétend pas savoir pourquoi — mais on ne laisse
-     pas croire à un réglage qui ne marche pas. */
+  /* ELLE EST PEUT-ÊTRE ENCORE EN TRAIN DE SE FAIRE.
+
+     La correction d'office part quand l'élève envoie, et elle met
+     une trentaine de secondes — le modèle réfléchit avant
+     d'écrire. Ouvrir la fiche dans la foulée, c'est arriver avant
+     elle.
+
+     Ce message-là disait « elle aurait dû être corrigée toute
+     seule » à quelqu'un qui n'avait simplement pas attendu.
+     Chrystel a cliqué sur ✨ et a payé une seconde génération pour
+     une correction qui arrivait. On ne l'accuse plus tant que le
+     délai n'est pas écoulé, et on le dit franchement. */
+  const minutes = minutesDepuis(r.envoyeLe);
+  if(minutes !== null && minutes < 3){
+    return '⏳ <strong>La correction automatique est sans doute en ' +
+      'cours.</strong> Elle part dès l\'envoi et met une trentaine de ' +
+      'secondes — le modèle réfléchit avant d\'écrire.<br>' +
+      'Ferme et rouvre cette fiche dans une minute plutôt que de ' +
+      'cliquer sur ✨ : <strong>chaque génération est facturée</strong>, ' +
+      'et tu paierais deux fois la même correction.';
+  }
+
+  /* Le délai est passé : là, c'est un échec. */
   return '⚠️ <strong>Elle aurait dû être corrigée toute seule.</strong> ' +
-    'Sa catégorie est bien cochée : la demande à l\'IA est partie et ' +
-    "n'a pas abouti. Le bouton ✨ la relance — et la raison de " +
-    "l'échec est écrite dans <strong>Gestion → 🚨 Signalements</strong>.";
+    'Sa catégorie est bien cochée' +
+    (minutes !== null ? ', et il y a ' + Math.round(minutes) +
+      ' minutes qu\'elle est arrivée' : '') +
+    " : la demande à l'IA est partie et n'a pas abouti. Le bouton ✨ " +
+    "la relance — et la raison de l'échec est écrite dans " +
+    '<strong>Gestion → 🚨 Signalements</strong>.';
 }
 
-async function ouvrirRecitation(r){
+/* Depuis combien de minutes cette récitation est-elle là ?
+   « 01/09/2026 14:03 » → un nombre. Rend null si l'heure n'est pas
+   lisible : mieux vaut ne rien conclure que conclure de travers. */
+function minutesDepuis(horodatage){
+  const m = String(horodatage || '')
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+  if(!m) return null;
+  const d = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]);
+  if(isNaN(d)) return null;
+  const min = (Date.now() - d.getTime()) / 60000;
+  /* Une heure dans le futur — horloge décalée — ne dit rien. */
+  return (min < -5) ? null : Math.max(0, min);
+}
+
+/* CE QUE L'ÉCRAN CROIT SAVOIR PEUT DATER.
+
+   La liste des récitations est lue une fois, au dessin de l'écran.
+   La correction d'office, elle, arrive une trentaine de secondes
+   après l'envoi de l'élève. Entre les deux, la fiche ouverte
+   affiche une récitation SANS correction — alors qu'elle est
+   arrivée, et que Chrystel l'a même reçue par mail.
+
+   Elle a donc cliqué sur ✨ et payé une seconde génération pour
+   une correction qu'elle avait déjà. Un appel de plus avant
+   d'ouvrir coûte une fraction de seconde ; une génération de plus
+   coûte six centimes. */
+async function relireRecitation(r){
+  if(!r || !r.id || r.correction) return r;
+  try{
+    const d = await appelPrep({ action: 'recitationsList' });
+    const liste = (d && d.recitations) || [];
+    const fraiche = liste.find(x => String(x.id) === String(r.id));
+    if(fraiche){
+      /* La liste de l'écran suit, sinon la carte d'à côté
+         continuerait d'annoncer « à corriger ». */
+      recitations = liste;
+      return fraiche;
+    }
+  }catch(e){ /* pas de réseau : on ouvre avec ce qu'on a */ }
+  return r;
+}
+
+async function ouvrirRecitation(rDemandee){
+  /* On relit avant de dessiner : dessiner puis corriger ferait
+     clignoter la fiche, et le moniteur aurait le temps de cliquer
+     sur ✨ entre les deux. */
+  const r = await relireRecitation(rDemandee);
+
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
@@ -2078,11 +2154,89 @@ async function ouvrirRecitation(r){
   const rw = document.createElement('div');
   rw.className = 'btn-row';
 
+  /* CE QUI ÉTAIT LÀ EN OUVRANT.
+
+     Sert à savoir si le moniteur a écrit quelque chose depuis :
+     fermer sur du travail non enregistré doit se confirmer, pas se
+     faire en silence. */
+  const dejaLa = {
+    correction: boite.querySelector('#rcCorrection').value,
+    texte: boite.querySelector('#rcTexte').value,
+    traduite: boite.querySelector('#rcTraduite')
+      ? boite.querySelector('#rcTraduite').value : ''
+  };
+  const aChange = () =>
+    boite.querySelector('#rcCorrection').value !== dejaLa.correction ||
+    boite.querySelector('#rcTexte').value !== dejaLa.texte ||
+    ((boite.querySelector('#rcTraduite')
+      ? boite.querySelector('#rcTraduite').value : '') !== dejaLa.traduite);
+
+  /* Ce qu'on enregistre sans rien envoyer : la correction telle
+     quelle, l'état INCHANGÉ. Sans « valide », le classeur
+     n'expédie aucun mail et l'élève ne voit rien — c'est ce qu'on
+     veut d'un travail qu'on finira plus tard. */
+  const enregistrerSansEnvoyer = async () => {
+    await appelPrep({
+      action: 'recitationSet', id: r.id,
+      texte: boite.querySelector('#rcTexte').value,
+      correction: boite.querySelector('#rcCorrection').value,
+      correctionTraduite: boite.querySelector('#rcTraduite')
+        ? boite.querySelector('#rcTraduite').value : ''
+    });
+  };
+
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', async () => {
+    /* CHRYSTEL A PERDU UNE CORRECTION ICI.
+
+       « J'ai fermé sans envoyer car je veux corriger plus tard, et
+       je n'ai plus rien dans le cadre. » Une génération payée, un
+       texte relu, et rien qui prévienne. Fermer ne jette plus en
+       silence : on propose d'abord de garder. */
+    if(aChange()){
+      const quoi = await fenetre(
+        'Ta correction n\'est pas enregistrée.\n\n' +
+        'Tu peux la garder pour plus tard : elle t\'attendra ici, ' +
+        'et l\'élève ne la verra pas tant qu\'elle n\'est pas validée.',
+        [{ nom: 'Jeter', valeur: 'jeter', danger: true },
+         { nom: '💾 Garder', valeur: 'garder', principal: true }],
+        'Correction non enregistrée');
+      if(quoi === 'garder'){
+        try{
+          await enregistrerSansEnvoyer();
+          showToast('Correction gardée — à finir plus tard 💾');
+          afficherProcCorriger();
+        }catch(e){ showToast('Impossible : ' + e.message); return; }
+      }
+    }
+    if(fond.parentNode) document.body.removeChild(fond);
+  });
   rw.appendChild(bAnn);
+
+  /* Et le geste direct, pour qui sait déjà qu'il finira plus tard. */
+  const bGarder = document.createElement('button');
+  bGarder.className = 'btn btn-secondary';
+  bGarder.textContent = '💾 Garder';
+  bGarder.title = "Enregistrer sans envoyer : l'élève ne la verra pas encore";
+  bGarder.addEventListener('click', async () => {
+    if(!boite.querySelector('#rcCorrection').value.trim() && !aChange()){
+      showToast('Rien à garder pour le moment.');
+      return;
+    }
+    bGarder.disabled = true;
+    try{
+      await enregistrerSansEnvoyer();
+      if(fond.parentNode) document.body.removeChild(fond);
+      showToast('Correction gardée — à finir plus tard 💾');
+      afficherProcCorriger();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bGarder.disabled = false;
+    }
+  });
+  rw.appendChild(bGarder);
 
   const bSup = document.createElement('button');
   bSup.className = 'btn btn-secondary';
