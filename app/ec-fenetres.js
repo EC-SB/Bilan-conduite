@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:34 — v778 */
+/* Déployé le 01/09/2026 à 15:39 — v779 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -884,6 +884,18 @@ function ligneFicheEleve(nom){
   bMod.addEventListener('click', () => ouvrirFicheEleve(nom, f));
   h.appendChild(bMod);
 
+  /* LE DROIT D'ACCÈS : « donnez-moi tout ce que vous avez sur
+     moi ». Il est à côté du 🗑️ à dessein — ce sont les deux
+     demandes qu'un élève peut faire, et elles portent sur
+     exactement le même périmètre. */
+  const bDoc = document.createElement('button');
+  bDoc.className = 'btn btn-secondary';
+  bDoc.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
+  bDoc.textContent = '📄';
+  bDoc.title = "Éditer son dossier complet (droit d'accès)";
+  bDoc.addEventListener('click', () => editerDossierEleve(nom, bDoc));
+  h.appendChild(bDoc);
+
   if(ACCES.role === 'admin'){
     const x = document.createElement('button');
     x.className = 'btn btn-secondary';
@@ -1564,6 +1576,136 @@ function ouvrirFicheEleve(nom, f){
     }
   });
 }
+
+/* ============================================================
+   LE DOSSIER COMPLET D'UN ÉLÈVE (DROIT D'ACCÈS)
+
+   Il s'ouvre dans un onglet à part, prêt à imprimer en PDF. Deux
+   partis pris :
+
+   · IL S'AFFICHE AVANT DE PARTIR. Un export qui se télécharge
+     directement se transmet sans être relu — or il contient les
+     notes internes du bureau. On le lit, puis on décide.
+   · IL DIT CE QU'IL NE CONTIENT PAS. Un dossier muet sur ses
+     absences laisse croire qu'il est exhaustif ; celui-ci nomme
+     les deux choses qu'on a volontairement retirées.
+   ============================================================ */
+async function editerDossierEleve(nom, bouton){
+  const libelle = bouton ? bouton.textContent : '';
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+
+  /* La fenêtre s'ouvre TOUT DE SUITE, sur le geste du bureau : un
+     onglet ouvert après un appel réseau se fait bloquer par le
+     navigateur, et on croit que le bouton ne marche pas. */
+  const onglet = window.open('', '_blank');
+  if(onglet){
+    onglet.document.write('<p style="font-family:system-ui;padding:24px;">' +
+      'Lecture du dossier de ' + echapper(nom) + '…</p>');
+  }
+
+  try{
+    const d = await appelPrep({ action: 'dossierEleve', eleve: nom });
+    if(!d || d.status !== 'ok') throw new Error((d && d.message) || 'Dossier illisible.');
+
+    const page = pageDossier(d);
+    if(onglet){
+      onglet.document.open();
+      onglet.document.write(page);
+      onglet.document.close();
+    }else{
+      /* Fenêtre bloquée : on ne fait pas semblant. */
+      await informer("Le navigateur a bloqué l'ouverture de l'onglet. " +
+        "Autorise les fenêtres pour ce site, puis réessaie.", 'Dossier');
+    }
+    showToast(d.total + ' ligne(s) dans son dossier');
+  }catch(e){
+    if(onglet) onglet.close();
+    showToast('Dossier impossible : ' + e.message);
+  }finally{
+    if(bouton){ bouton.disabled = false; bouton.textContent = libelle; }
+  }
+}
+
+/* La page elle-même. Volontairement sobre : elle finira en PDF. */
+function pageDossier(d){
+  const e = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  let corps = '';
+  (d.parties || []).forEach(p => {
+    corps += '<section><h2>' + e(p.titre) +
+      ' <span class="n">' + p.lignes.length + '</span></h2>';
+    if(p.note) corps += '<p class="note">' + p.note + '</p>';
+
+    if(!p.lignes.length){
+      corps += '<p class="vide">Rien dans cette catégorie.</p></section>';
+      return;
+    }
+    p.lignes.forEach(l => {
+      corps += '<div class="bloc">';
+      Object.keys(l).forEach(k => {
+        if(String(l[k] || '').trim() === '') return;
+        corps += '<div class="champ"><span class="cle">' + e(k) + '</span>' +
+                 '<span class="val">' + e(l[k]) + '</span></div>';
+      });
+      corps += '</div>';
+    });
+    corps += '</section>';
+  });
+
+  const mentions = (d.mentions || []).map(m => '<li>' + e(m) + '</li>').join('');
+
+  return '<!doctype html><html lang="fr"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Dossier — ' + e(d.eleve) + '</title><style>' +
+    'body{font-family:system-ui,-apple-system,sans-serif;max-width:820px;' +
+    'margin:0 auto;padding:28px 20px 60px;color:#1a1a1a;line-height:1.55;}' +
+    'h1{font-size:22px;margin:0 0 4px;}' +
+    'h2{font-size:15px;margin:26px 0 6px;padding-bottom:5px;' +
+    'border-bottom:2px solid #1a1a1a;}' +
+    '.n{font-weight:400;color:#666;font-size:13px;}' +
+    '.chapo{color:#555;font-size:13px;margin:0 0 18px;}' +
+    '.note{font-size:12px;color:#555;margin:4px 0 10px;font-style:italic;}' +
+    '.vide{font-size:13px;color:#888;margin:4px 0 0;}' +
+    '.bloc{border:1px solid #ddd;border-radius:7px;padding:9px 12px;' +
+    'margin:8px 0;page-break-inside:avoid;}' +
+    '.champ{display:flex;gap:10px;font-size:13px;padding:2px 0;' +
+    'align-items:flex-start;}' +
+    '.cle{flex:0 0 190px;color:#666;}' +
+    '.val{flex:1;min-width:0;white-space:pre-wrap;}' +
+    '.avert{border:2px solid #b00;border-radius:8px;padding:12px 14px;' +
+    'margin:18px 0;font-size:13px;}' +
+    '.avert h3{margin:0 0 6px;font-size:14px;color:#b00;}' +
+    '.avert ul{margin:6px 0 0;padding-left:20px;}' +
+    'button{font-size:14px;padding:10px 16px;border-radius:8px;' +
+    'border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;cursor:pointer;}' +
+    '@media print{button,.avert.ecran{display:none;}}' +
+    '</style></head><body>' +
+    '<h1>Dossier de ' + e(d.eleve) + '</h1>' +
+    '<p class="chapo">Évolution Conduites · édité le ' + e(d.edite) +
+    ' · ' + d.total + ' élément(s)</p>' +
+    '<div class="avert ecran"><h3>À relire avant de le transmettre</h3>' +
+    '<p>Ce dossier contient <strong>les notes internes du bureau</strong> ' +
+    'le concernant. Elles font partie de ce qu\'il a le droit de ' +
+    'consulter, mais relis-les : elles n\'ont pas été écrites pour ' +
+    'lui.</p>' +
+    '<p style="margin:8px 0 0;"><strong>Ce qui n\'y est pas, ' +
+    'volontairement :</strong></p><ul>' +
+    '<li>son <strong>code d\'accès</strong> au coin révisions — c\'est ' +
+    'une clé, pas une donnée le concernant ;</li>' +
+    '<li>les <strong>noms des salariés</strong> dans le journal — ce ' +
+    'sont leurs données, pas les siennes ;</li>' +
+    '<li>les <strong>images</strong> des captures du CEPC — seules leurs ' +
+    'références figurent.</li>' +
+    (mentions ? '</ul><p style="margin:8px 0 0;"><strong>À signaler :' +
+     '</strong></p><ul>' + mentions : '') +
+    '</ul>' +
+    '<p style="margin:10px 0 0;"><button onclick="window.print()">' +
+    '🖨️ Imprimer / enregistrer en PDF</button></p></div>' +
+    corps +
+    '</body></html>';
+}
+
 
 async function supprimerDepuisRepertoire(n, bouton){
   if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
