@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:36 — v754 */
+/* Déployé le 01/09/2026 à 10:08 — v759 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -190,6 +190,79 @@ async function chargerPrepares(){
 
 /* Ce qui a fait échouer le dernier chargement */
 let derniereErreurPrep = '';
+
+
+/* ============================================================
+   UNE CARTE NE DOIT PAS CONTREDIRE LE CLASSEUR
+
+   Chrystel, épuisée : « j'en ai marre de devoir vérifier chaque
+   leçon dans mes prochains cours pour être sûre que tout soit
+   bon ». Elle avait raison de vérifier : la note d'un cours
+   préparé est écrite UNE FOIS, le jour de la préparation. Tout ce
+   qui arrive ensuite — une date d'examen posée dans une session,
+   un examen blanc passé, un post-permis fait — ne s'y écrit
+   jamais. La carte affiche donc une photo, et la photo vieillit.
+
+   `noteJusteDuCours()` sait déjà refaire une note à partir des
+   sources qui font foi. Elle ne servait qu'à réparer un rang tapé
+   à la main. On s'en sert maintenant pour l'AFFICHAGE, à chaque
+   chargement.
+
+   UNE NOTE NE S'APPAUVRIT JAMAIS TOUTE SEULE.
+
+   C'est le garde-fou, et il n'est pas théorique : si les sources
+   n'ont pas fini de charger, la note refaite dirait « pas de date
+   d'examen » sur un élève qui en a une — et on aurait remplacé une
+   information vieille par une information fausse, ce qui est pire.
+   On compare donc l'avant et l'après sur les faits qui comptent :
+   dès que le neuf en dit MOINS, on garde l'ancien.
+
+   Rien n'est enregistré : c'est l'écran qu'on met à jour, pas le
+   classeur. La note écrite se remettra d'elle-même quand quelqu'un
+   touchera le cours.
+   ============================================================ */
+
+/* Les faits qu'une note ne doit jamais perdre en se refaisant. */
+const FAITS_DE_LA_NOTE = ['examDate', 'examPermis', 'examBlanc', 'ebPasse',
+                          'rdvPostFait', 'frise', 'formation', 'avantEB',
+                          'avantRdvPost', 'avantExamRate'];
+
+function noteAppauvrie(avant, apres){
+  if(typeof defautsDepuisNote !== 'function') return true;
+  const a = defautsDepuisNote(avant || '');
+  const b = defautsDepuisNote(apres || '');
+  return FAITS_DE_LA_NOTE.some(k => {
+    const av = String(a[k] == null ? '' : a[k]).trim();
+    const ap = String(b[k] == null ? '' : b[k]).trim();
+    return av && !ap;
+  });
+}
+
+function rafraichirNotesPreparees(){
+  if(typeof noteJusteDuCours !== 'function') return 0;
+
+  let refaites = 0;
+  (prepares || []).forEach(cours => {
+    if(!cours || !cours.eleve) return;
+    try{
+      /* Le rang que la note annonce déjà : on ne le recalcule pas
+         ici, on ne fait que rafraîchir ce qui l'entoure. */
+      const ctx = cours.contexte || {};
+      const rang = (ctx.lecon !== undefined && ctx.lecon !== '')
+        ? ctx.lecon
+        : (typeof numeroLeconDuCours === 'function'
+            ? (numeroLeconDuCours(cours) || '') : '');
+
+      const neuve = noteJusteDuCours(cours, rang, null);
+      if(!neuve || neuve === cours.note) return;
+      if(noteAppauvrie(cours.note, neuve)) return;
+
+      cours.note = neuve;
+      refaites++;
+    }catch(e){ /* une carte qui résiste ne bloque pas les autres */ }
+  });
+  return refaites;
+}
 
 function libelleDate(iso){
   if(!iso) return 'Sans date';
@@ -435,8 +508,38 @@ async function afficherPrepares(recharger, silencieux){
       chargerConfirmations(),
       (typeof chargerFiches === 'function' &&
        typeof fichesEleves !== 'undefined' && !fichesEleves.length)
-        ? chargerFiches().catch(() => []) : Promise.resolve()
+        ? chargerFiches().catch(() => []) : Promise.resolve(),
+
+      /* LE SUIVI ET LES SESSIONS, QUE CET ÉCRAN N'ALLAIT JAMAIS
+         CHERCHER.
+
+         Chrystel : « pourtant il y a bien une date d'examen de
+         prévu », sur une carte qui affichait « PAS DE DATE
+         D'EXAMEN OFFICIEL ». La note d'un cours préparé est écrite
+         une fois, au moment de la préparation. Une date d'examen
+         posée après — une session, une fiche de suivi — ne s'y
+         inscrit jamais toute seule.
+
+         Le questionnaire, lui, va la chercher depuis longtemps :
+         c'est `etatQuiFaitFoi()`. Mais il lui faut le suivi et les
+         sessions en mémoire, et CET écran ne les chargeait pas. Il
+         se contentait de ce qu'un autre écran avait pu charger
+         avant lui — d'où des cartes justes le lundi et fausses le
+         mardi, sans qu'on puisse s'y fier.
+
+         Comme pour les fiches : on ne les redemande que si on ne
+         les a pas, et en parallèle du reste. */
+      (typeof chargerBureau === 'function' &&
+       typeof etatBureau !== 'undefined' &&
+       !(etatBureau.suivi && etatBureau.suivi.length))
+        ? chargerBureau().catch(() => null) : Promise.resolve(),
+      (typeof chargerSessionsPermis === 'function' &&
+       typeof sessionsPermis !== 'undefined' && !sessionsPermis.length)
+        ? chargerSessionsPermis().catch(() => null) : Promise.resolve()
     ]);
+
+    /* Les sources sont là : les notes peuvent se remettre à jour. */
+    rafraichirNotesPreparees();
 
     /* La veille des réponses part avec la liste, et se relance à
        chaque affichage : un minuteur laissé derrière un écran fermé
