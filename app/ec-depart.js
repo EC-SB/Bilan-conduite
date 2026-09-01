@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:34 — v778 */
+/* Déployé le 01/09/2026 à 16:23 — v782 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -629,6 +629,62 @@ async function rechercherEleve(){
       meta.appendChild(s);
       if(item.horodatage) meta.appendChild(h);
       row.appendChild(meta);
+
+      /* ------------------------------------------------------------
+         RENVOYER UN BILAN, DEPUIS L'HISTORIQUE.
+
+         Il fallait rouvrir le bilan, descendre jusqu'au bas de
+         l'écran de cours, et retrouver la fenêtre de fin — qui ne
+         s'ouvre qu'après un enregistrement. Autant dire que ça ne
+         se faisait pas : on recopiait à la main dans un mail.
+
+         Le bouton passe par la même porte que la fin de cours : si
+         l'élève n'a pas d'adresse, on la demande, et elle redescend
+         sur sa fiche.
+         ------------------------------------------------------------ */
+      if(item.bilan){
+        const bMail = document.createElement('button');
+        bMail.className = 'btn btn-secondary';
+        bMail.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;' +
+          'margin:0;flex-shrink:0;';
+        bMail.textContent = '\u2709\uFE0F';
+        bMail.title = 'Renvoyer ce bilan par mail';
+        bMail.addEventListener('click', async ev => {
+          ev.stopPropagation();
+          if(typeof envoyerBilanParMail !== 'function'){
+            showToast('Envoi indisponible sur cet écran.');
+            return;
+          }
+          /* On confirme AVANT. Ce bouton est collé à la ligne, sur
+             un écran qu'on parcourt au pouce : il partirait au
+             premier effleurement, et un mail envoyé ne se rappelle
+             pas. */
+          if(!await confirmer('Renvoyer par mail le bilan du ' +
+              (item.date || '?') + ' à ' + (item.eleve || 'cet élève') +
+              " ?\n\nIl le recevra une seconde fois s'il l'a déjà eu.")) return;
+
+          bMail.disabled = true;
+          bMail.textContent = '…';
+          try{
+            const combien = await envoyerBilanParMail(item.eleve, item.date,
+                                                      item.bilan);
+            if(!combien){
+              /* Annulé à la fenêtre d'adresse : ce n'est pas un
+                 échec, et ça ne doit pas ressembler à un envoi. */
+              bMail.disabled = false;
+              bMail.textContent = '\u2709\uFE0F';
+              return;
+            }
+            bMail.textContent = '\u2705';
+            showToast('Envoyé à ' + combien + ' adresse(s) ✅');
+          }catch(e){
+            bMail.disabled = false;
+            bMail.textContent = '\u2709\uFE0F';
+            showToast('Envoi impossible : ' + e.message);
+          }
+        });
+        row.appendChild(bMail);
+      }
 
       /* Supprimer un bilan : administrateurs seuls, et jamais par
          mégarde. Le numéro de leçon se recalcule tout seul, il se
