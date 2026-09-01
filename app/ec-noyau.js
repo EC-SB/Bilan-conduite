@@ -57,7 +57,6 @@ const SECTIONS = [
   { cle:'placesbe',         nom:'🚚 Demande de places BE' },
   { cle:'evaluation',       nom:'📊 Évaluation de départ' },
   { cle:'tarifs',           nom:'💰 Prestations et tarifs' },
-  { cle:'caisse',           nom:'🏦 Caisse et dépôts en banque' },
   { cle:'financements',     nom:'💶 Financements extérieurs' },
   { cle:'rappels',          nom:'🔔 Rappels de cours par mail' },
   /* L'envoi de SMS est facturé au segment : il se donne à part,
