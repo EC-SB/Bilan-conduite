@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:18 — v751 */
+/* Déployé le 01/09/2026 à 09:29 — v753 */
 /* ============================================================
    ec-coutsia.js
    Ce que l'IA coûte à l'auto-école.
@@ -211,10 +211,21 @@ function blocPeriodeCouts(){
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:9px;' +
     'line-height:1.5;';
-  aide.textContent = 'Montants en dollars, la monnaie de la facture Anthropic. ' +
+  aide.innerHTML = 'Montants en dollars, la monnaie de la facture Anthropic. ' +
     'Chaque ligne garde le tarif qui s\'appliquait le jour de la génération ' +
     '(repère actuel : ' + PRIX_IA_REPERE.entree + ' $ et ' +
-    PRIX_IA_REPERE.sortie + ' $ par million de jetons, entrée et sortie).';
+    PRIX_IA_REPERE.sortie + ' $ par million de jetons, entrée et sortie).' +
+    /* CE QUI EXPLIQUE LE GROS DE LA FACTURE.
+
+       Le modèle réfléchit avant d'écrire, et ce raisonnement est
+       facturé au prix de la sortie — souvent plusieurs milliers de
+       jetons pour une correction de dix lignes. Sans cette phrase,
+       le total paraît sans rapport avec ce qu'on voit à l'écran, et
+       on cherche l'erreur là où elle n'est pas. */
+    '<br><br>Une génération coûte surtout par ce que le modèle ' +
+    '<strong>réfléchit</strong> avant d\'écrire : ce raisonnement est ' +
+    'facturé au prix de la sortie, et il pèse bien plus lourd que la ' +
+    'réponse elle-même. Quelques centimes par correction sont normaux.';
   d.appendChild(aide);
 
   return d;
