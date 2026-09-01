@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 15:52 — v739 */
+/* Déployé le 01/09/2026 à 08:05 — v746 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1037,6 +1037,10 @@ function buildExamen(ai){
     '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(e.installation) + ' (⚠️si tu t\'es mal installé, on ne le verra pas de derrière)',
     '𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + st(e.passager),
     '𝗩𝗼𝘆𝗮𝗻𝘁𝘀 ' + st(e.voyants),
+    /* Ce que le moniteur explique sur les trois d'un coup : ils se
+       notent ensemble sur /2, et sans texte la ligne disparaît
+       plutôt que de laisser un blanc. */
+    ...ligneParLigne(e.installTexte),
     '𝙉𝙤𝙩𝙚 :  /2 ',
     '',
     '𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(e.verifQuestion),
