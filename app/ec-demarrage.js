@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:05 — v746 */
+/* Déployé le 01/09/2026 à 16:23 — v782 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -30,6 +30,14 @@ function sauvegarderLocal(force){
       note: $('noteInterne').value,
       transcript: texte || '',
       bilan: resultat ? resultat.value : '',
+      /* UN BILAN ENREGISTRÉ N'EST PAS UN COURS INTERROMPU.
+
+         Le brouillon local est effacé à l'enregistrement. Mais si
+         le moniteur corrige son bilan APRÈS l'avoir enregistré, la
+         sauvegarde automatique le recrée — c'est voulu, sa
+         correction ne doit pas se perdre. Sans ce repère, la
+         bannière le reprendrait pour un cours abandonné. */
+      enregistre: (typeof bilanEnregistre !== 'undefined') && !!bilanEnregistre,
       noteResult: $('noteResult') ? $('noteResult').value : '',
       /* Ce que le moniteur a coché pendant le cours : sans ça, un
          plantage lui faisait tout recocher de mémoire. */
@@ -143,9 +151,15 @@ function proposerReprise(){
   const quandTexte = p2(quand.getDate()) + '/' + p2(quand.getMonth() + 1) +
                      ' à ' + p2(quand.getHours()) + ':' + p2(quand.getMinutes());
 
+  /* « Interrompu » et « déjà enregistré, puis retouché » ne sont
+     pas la même chose, et un moniteur qui lit le premier pour le
+     second cherche un problème qui n'existe pas. */
   $('repriseInfo').textContent =
     (s.eleve ? s.eleve + ' — ' : '') + mots + ' mots' +
-    (s.bilan ? ' + bilan généré' : '') + ' · interrompu le ' + quandTexte;
+    (s.bilan ? ' + bilan généré' : '') +
+    (s.enregistre
+      ? ' · déjà enregistré, retouché le ' + quandTexte
+      : ' · interrompu le ' + quandTexte);
   banniere.style.display = 'block';
 }
 
