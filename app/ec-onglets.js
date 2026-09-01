@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:49 — v775 */
+/* Déployé le 01/09/2026 à 15:18 — v777 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -16,7 +16,9 @@ const SECTIONS_ONGLET = {
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
-  outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans', 'historique',
+  /* « historique » a été retiré le 1er septembre : voir la barre
+     de vues plus bas. */
+  outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans',
             'stats', 'journal'],
   /* « tarifs » manquait ici, et il est pourtant accordable dans
      ⚙️ Accès : un compte à qui l'on n'accordait QUE les tarifs
@@ -162,7 +164,23 @@ const VUES = {
            ['textes',     '📄 Textes types',           'textes'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
            ['bilans',     '📋 Modèles de bilan',       'bilans'],
-           ['historique', '📚 Historique des cours',    'historique'],
+           /* « 📚 Historique des cours » a été retiré.
+
+              Ce bouton ne chargeait RIEN : sa vue n'était branchée
+              nulle part dans « reveillerVue », et l'écran restait
+              sur « Chargement… » pour toujours. Personne n'a donc
+              jamais pu s'en servir.
+
+              Ses deux moitiés vivent ailleurs, et en mieux :
+              · les cours en cours → 🩹 Cours non terminés
+                (Gestion), qui montre en plus les dictées déposées
+                et va vérifier si le bilan existe déjà ;
+              · les cours enregistrés → 📚 Historique des leçons
+                (onglet Élèves).
+
+              Le FICHIER reste : « signalerCoursDemarre » et
+              « signalerCoursFini » y vivent, et tout cours
+              enregistré passe par elles. */
            ['stats',      '📈 Réussite',               'stats'],
            ['journal',    '📊 Journal',                'journal']],
 
