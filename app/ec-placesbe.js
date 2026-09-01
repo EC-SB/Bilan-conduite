@@ -1,3 +1,4 @@
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-placesbe.js
    La demande d'unités PL et BE.
@@ -657,9 +658,21 @@ async function envoyerPlacesBE(){
         destinataire: propre,
         par: ACCES.moniteur || ''
       });
-    }catch(e){}
+      showToast('Envoyée à ' + propre + ' ✅');
+    }catch(e){
+      /* LA DEMANDE EST PARTIE, MAIS ELLE N'EST PAS NOTÉE.
 
-    showToast('Envoyée à ' + propre + ' ✅');
+         Le catch était vide : la DDTM recevait le courrier, le
+         classeur ne le savait pas, et la demande repartirait le
+         mois suivant — deux fois la même à la préfecture, sans
+         que personne ne comprenne pourquoi. */
+      await informer('La demande est bien PARTIE à ' + propre + '.\n\n' +
+        "Mais elle n'a pas pu être notée comme envoyée : " + e.message +
+        '\n\nNote-le quelque part, sinon elle repartira le mois ' +
+        'prochain — et la DDTM la recevra deux fois.',
+        'Demande envoyée, non enregistrée');
+    }
+
     afficherListeBE();
   }catch(e){
     showToast('Impossible : ' + e.message);
