@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:01 — v767 */
+/* Déployé le 01/09/2026 à 14:39 — v774 */
 /* ============================================================
    ec-version.js
    Rester à jour sans jamais interrompre un cours.
@@ -345,7 +345,18 @@ async function etatDeLaSerrure(){
              'Rien ne passe : retire SECRET_PARTAGE du script pour ' +
              'rouvrir, puis recopie-le des deux côtés.' + ou;
     }
-    return '\n\n🔒 Classeur verrouillé — script v' + (vs || '?') + '.';
+    /* LE MÉNAGE NE PARLE QUE QUAND IL A FAIT QUELQUE CHOSE — il
+       fallait donc un endroit où il dise simplement qu'il tourne.
+       Sans ça, « aucun signalement » voudrait dire à la fois
+       « rien à nettoyer » et « le déclencheur n'a jamais été
+       posé », et ce n'est pas la même chose du tout. */
+    const m = String(d.menageDernierPassage || '');
+    const menage = m
+      ? '\n🧹 Dernier ménage : ' + m + '.'
+      : "\n🧹 Le ménage n'a jamais tourné — lance « installerMenage » " +
+        "une fois depuis l'éditeur Apps Script.";
+
+    return '\n\n🔒 Classeur verrouillé — script v' + (vs || '?') + '.' + menage;
   }catch(e){
     /* Une vérification qui échoue ne dit rien de la serrure : on
        se tait plutôt que d'affirmer. */
