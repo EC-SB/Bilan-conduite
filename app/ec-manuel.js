@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 10:59 — v762 */
+/* Déployé le 01/09/2026 à 15:10 — v776 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1325,7 +1325,7 @@ function remplirFrises(champs, surEcran){
    report, il fallait le lui redemander.
    ============================================================ */
 
-function remonterHeuresAuBureau(eleve, heures, niveau){
+async function remonterHeuresAuBureau(eleve, heures, niveau){
   if(!eleve) return;
 
   const h = String(heures || '').trim();
@@ -1335,9 +1335,20 @@ function remonterHeuresAuBureau(eleve, heures, niveau){
 
   if(niveau !== 'oui' && !valeur) return;      /* rien à dire */
 
+  /* ------------------------------------------------------------
+     ET SI ÇA NE PASSE PAS, ON LE DIT.
+
+     L'appel n'était ni attendu ni vérifié : un « catch » vide,
+     et les heures que le moniteur venait de décider partaient
+     dans le vide. Le bureau donnait ensuite une date d'examen
+     sans elles, sans savoir qu'il lui en manquait.
+
+     Le bilan prime toujours — on ne bloque pas l'enregistrement
+     pour ça — mais un travail perdu doit au moins se voir.
+     ------------------------------------------------------------ */
   try{
     if(typeof majSuivi === 'function'){
-      majSuivi(eleve, {
+      await majSuivi(eleve, {
         heuresRestantes: valeur,
         /* Ce que le moniteur a conclu, pour que le bureau le voie */
         ebNiveau: niveau === 'oui' ? 'oui'
@@ -1346,7 +1357,16 @@ function remonterHeuresAuBureau(eleve, heures, niveau){
         ebDate: ($('lessonDate') && $('lessonDate').value) || ''
       });
     }
-  }catch(e){ /* le bilan prime : on ne bloque pas pour cela */ }
+  }catch(e){
+    if(typeof showToast === 'function'){
+      showToast('⚠️ Les heures avant permis de ' + eleve + " n'ont pas " +
+                'atteint le bureau. Note-les-lui.');
+    }
+    if(typeof signalerIncident === 'function'){
+      signalerIncident('heures avant permis non remontées',
+                       'Bilan manuel', String((e && e.message) || e));
+    }
+  }
 }
 
 
@@ -2164,9 +2184,9 @@ async function genererBilanManuel(){
     /* Les heures avant permis remontent au bureau : c'est ce
        qu'il regarde en donnant les dates, et le moniteur vient de
        les décider. */
-    remonterHeuresAuBureau($('studentName').value.trim(),
-                           champsManuels.heuresAvant,
-                           champsManuels.niveau);
+    await remonterHeuresAuBureau($('studentName').value.trim(),
+                                 champsManuels.heuresAvant,
+                                 champsManuels.niveau);
   }
 
   /* Mise à jour des infos, comme à la fin d'un cours enregistré.
@@ -2184,9 +2204,9 @@ async function genererBilanManuel(){
     if(maj.heuresRemontees !== undefined &&
        typeof remonterHeuresAuBureau === 'function' &&
        modeleCle !== 'examen-blanc'){
-      remonterHeuresAuBureau($('studentName').value.trim(),
-                             maj.heuresRemontees,
-                             maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
+      await remonterHeuresAuBureau($('studentName').value.trim(),
+                                   maj.heuresRemontees,
+                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
