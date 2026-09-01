@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:31 — v773 */
+/* Déployé le 01/09/2026 à 15:10 — v776 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -456,9 +456,9 @@ $('finishBtn').addEventListener('click', async () => {
        regarde en donnant les dates. */
     if(maj.heuresRemontees !== undefined &&
        typeof remonterHeuresAuBureau === 'function'){
-      remonterHeuresAuBureau($('studentName').value.trim(),
-                             maj.heuresRemontees,
-                             maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
+      await remonterHeuresAuBureau($('studentName').value.trim(),
+                                   maj.heuresRemontees,
+                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
