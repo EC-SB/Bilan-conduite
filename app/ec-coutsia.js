@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:29 — v753 */
+/* Déployé le 01/09/2026 à 10:53 — v761 */
 /* ============================================================
    ec-coutsia.js
    Ce que l'IA coûte à l'auto-école.
@@ -15,10 +15,23 @@
    l'appel. Un changement de prix chez Anthropic ne réécrit donc
    pas le passé, et un total de juillet reste le total de juillet.
 
-   Les montants sont en DOLLARS : c'est la monnaie de la facture.
-   Les convertir en euros ici demanderait un taux de change, qui
-   bouge lui aussi — et un chiffre converti au mauvais taux est
-   plus trompeur qu'un chiffre en dollars.
+   LA FACTURE EST EN DOLLARS, LE COMPTE EN EUROS.
+
+   Anthropic facture en dollars : c'est ce que les lignes portent,
+   et ce qu'on ne réécrit jamais. Mais ce qui sort du compte de
+   l'auto-école est en euros, et c'est cette question-là qu'on se
+   pose en ouvrant l'écran.
+
+   D'où la conversion, et une seule règle : le taux est AFFICHÉ, il
+   se règle à la main, et il reste sur l'appareil. Un taux caché
+   serait pire qu'un chiffre en dollars — on ne saurait plus ce
+   qu'on lit. Celui du relevé bancaire vaut mieux que n'importe
+   quel repère : la banque prend sa commission au passage.
+
+   La conversion se fait à l'AFFICHAGE, jamais à l'enregistrement.
+   Changer de taux ne réécrit donc rien, et le dollar reste la
+   mesure — c'est lui qui fait foi le jour où on compare avec la
+   facture.
 
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
@@ -37,6 +50,34 @@ let coutsAu = '';
    voyage avec chaque ligne : celui affiché ici n'est qu'un repère
    pour la ligne du haut. */
 const PRIX_IA_REPERE = { entree: 3, sortie: 15 };
+
+/* Ce que vaut un dollar en euros, à défaut de mieux. Un repère,
+   pas une vérité : c'est pour cela qu'il s'affiche et qu'il se
+   règle. */
+const TAUX_EURO_REPERE = 0.92;
+const CLE_TAUX_EURO = 'ec-taux-euro';
+
+/* La monnaie affichée. L'euro par défaut : c'est celle du compte
+   de l'auto-école. */
+let coutsMonnaie = 'EUR';
+
+function tauxEuro(){
+  try{
+    const v = parseFloat(localStorage.getItem(CLE_TAUX_EURO));
+    if(v > 0 && v < 10) return v;
+  }catch(e){ /* stockage refusé : le repère fera */ }
+  return TAUX_EURO_REPERE;
+}
+
+/* Un taux se tape « 0,92 » ici comme partout ailleurs en France.
+   Rend faux quand ce n'est pas un taux : on ne garde pas un
+   chiffre qui ferait mentir tout l'écran. */
+function reglerTauxEuro(v){
+  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  if(!(n > 0 && n < 10)) return false;
+  try{ localStorage.setItem(CLE_TAUX_EURO, String(n)); }catch(e){}
+  return true;
+}
 
 
 /* ------------------------------------------------------------
@@ -100,9 +141,38 @@ function jourLisible(iso){
    d'un centime chacune : arrondir en chemin les ferait toutes
    valoir zéro. */
 function dollars(v){
-  const n = Number(v) || 0;
-  if(n && Math.abs(n) < 0.01) return '< 0,01 $';
-  return (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' $';
+  return sou(Number(v) || 0, '$');
+}
+
+/* Le même montant, converti au taux du jour — celui qui est
+   affiché à l'écran, et que Chrystel peut corriger sur son
+   relevé. */
+function euros(v){
+  return sou((Number(v) || 0) * tauxEuro(), '€');
+}
+
+/* Les deux passent par ici : deux façons d'écrire un montant
+   finiraient par se contredire d'une colonne à l'autre. */
+function sou(n, signe){
+  if(n && Math.abs(n) < 0.01) return '< 0,01 ' + signe;
+  return (Math.round(n * 100) / 100).toFixed(2).replace('.', ',') + ' ' + signe;
+}
+
+/* UN MONTANT, DANS LA MONNAIE CHOISIE À L'ÉCRAN.
+
+   Tout l'écran passe par cette fonction — le total, les tableaux,
+   le détail. Basculer le bouton change donc tout d'un coup, et
+   aucune colonne ne peut rester en dollars pendant que la voisine
+   est en euros. */
+function argent(v){
+  return (coutsMonnaie === 'EUR') ? euros(v) : dollars(v);
+}
+
+/* Et le même montant dans l'autre monnaie : le total le dit
+   toujours, pour qu'on puisse le comparer à la facture sans
+   changer d'écran. */
+function autreMonnaie(v){
+  return (coutsMonnaie === 'EUR') ? dollars(v) : euros(v);
 }
 
 /* Le total exact d'une liste, sans arrondi intermédiaire. */
@@ -208,10 +278,14 @@ function blocPeriodeCouts(){
     }));
   }
 
+  d.appendChild(blocMonnaie());
+
   const aide = document.createElement('div');
   aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:9px;' +
     'line-height:1.5;';
-  aide.innerHTML = 'Montants en dollars, la monnaie de la facture Anthropic. ' +
+  aide.innerHTML = 'Anthropic facture en dollars : les euros sont une ' +
+    'conversion d\'affichage, au taux ci-dessus. Le relevé bancaire fera ' +
+    'toujours un peu plus — la banque prend sa commission au passage. ' +
     'Chaque ligne garde le tarif qui s\'appliquait le jour de la génération ' +
     '(repère actuel : ' + PRIX_IA_REPERE.entree + ' $ et ' +
     PRIX_IA_REPERE.sortie + ' $ par million de jetons, entrée et sortie).' +
@@ -229,6 +303,64 @@ function blocPeriodeCouts(){
   d.appendChild(aide);
 
   return d;
+}
+
+/* ------------------------------------------------------------
+   LA MONNAIE, ET LE TAUX QUI VA AVEC
+
+   Deux boutons et une case. Le taux s'affiche toujours, même quand
+   on regarde les dollars : c'est lui qui explique l'écart avec le
+   relevé bancaire, et on ne devrait jamais avoir à le deviner.
+   ------------------------------------------------------------ */
+function blocMonnaie(){
+  const z = document.createElement('div');
+  z.style.cssText = 'display:flex;gap:9px;align-items:center;flex-wrap:wrap;' +
+    'margin-top:10px;padding-top:10px;border-top:1px solid var(--line);';
+
+  [['EUR', '€ Euros'], ['USD', '$ Dollars']].forEach(([cle, nom]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (coutsMonnaie === cle ? 'btn-primary' : 'btn-secondary');
+    b.style.cssText = 'flex:none;padding:8px 13px;font-size:13px;margin:0;';
+    b.textContent = nom;
+    b.addEventListener('click', () => {
+      coutsMonnaie = cle;
+      /* On ne recharge rien : les lignes sont déjà là, seule leur
+         écriture change. */
+      afficherCoutsIa();
+    });
+    z.appendChild(b);
+  });
+
+  const t = document.createElement('div');
+  t.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;' +
+    'color:var(--muted);flex:1;min-width:180px;justify-content:flex-end;';
+  t.innerHTML = '<span>1 $ =</span>';
+
+  const ch = document.createElement('input');
+  ch.type = 'text';
+  ch.inputMode = 'decimal';
+  ch.value = String(tauxEuro()).replace('.', ',');
+  ch.style.cssText = 'width:70px;margin:0;padding:6px;text-align:center;' +
+    'font-size:13px;';
+  ch.title = 'Le taux de ton relevé bancaire vaut mieux que ce repère : ' +
+             'la banque prend sa commission au passage.';
+  ch.addEventListener('change', () => {
+    if(reglerTauxEuro(ch.value)){
+      afficherCoutsIa();
+    }else{
+      /* Un taux impossible ne s'enregistre pas, et la case reprend
+         celui qui vaut : on ne laisse pas l'écran mentir. */
+      ch.value = String(tauxEuro()).replace('.', ',');
+    }
+  });
+  t.appendChild(ch);
+  const e = document.createElement('span');
+  e.textContent = '€';
+  t.appendChild(e);
+  z.appendChild(t);
+
+  return z;
 }
 
 async function chargerCoutsIa(){
@@ -272,12 +404,21 @@ function dessinerCoutsIa(bornes){
     '<div style="display:flex;justify-content:space-between;align-items:baseline;' +
       'margin-top:5px;gap:9px;">' +
       '<strong>' + lignes.length + ' génération(s)</strong>' +
-      '<strong style="font-size:24px;">' + dollars(totalDesCouts(lignes)) +
+      '<strong style="font-size:24px;">' + argent(totalDesCouts(lignes)) +
       '</strong></div>' +
+    /* LE TOTAL DIT LES DEUX MONNAIES, TOUJOURS.
+
+       Celle qu'on regarde en gros, et l'autre juste dessous : le
+       jour où le total surprend, la première chose à faire est de
+       le comparer à la facture, qui est en dollars. La chercher
+       derrière un bouton, c'est la perdre. */
+    '<div style="font-size:12px;color:var(--muted);text-align:right;' +
+      'margin-top:2px;">soit ' + autreMonnaie(totalDesCouts(lignes)) +
+      ' — 1 $ = ' + String(tauxEuro()).replace('.', ',') + ' €</div>' +
     (proj
       ? '<div style="font-size:12px;color:var(--muted);margin-top:6px;' +
-        'line-height:1.5;">Soit ' + dollars(proj.parJour) + ' par jour sur ' +
-        proj.jours + ' jours — <strong>environ ' + dollars(proj.parMois) +
+        'line-height:1.5;">Soit ' + argent(proj.parJour) + ' par jour sur ' +
+        proj.jours + ' jours — <strong>environ ' + argent(proj.parMois) +
         ' par mois</strong> à ce rythme.</div>'
       : '<div style="font-size:12px;color:var(--muted);margin-top:6px;">' +
         'Période trop courte pour estimer un mois.</div>');
@@ -327,7 +468,7 @@ function tableauCouts(titre, groupes, parJour){
 
     const c = document.createElement('div');
     c.style.cssText = 'font-weight:700;flex:none;min-width:74px;text-align:right;';
-    c.textContent = dollars(g.cout);
+    c.textContent = argent(g.cout);
     l.appendChild(c);
 
     d.appendChild(l);
@@ -365,7 +506,7 @@ function detailDesCouts(lignes){
     l.innerHTML =
       '<div style="display:flex;justify-content:space-between;gap:9px;">' +
         '<span>' + p(x.quand) + '</span>' +
-        '<strong>' + dollars(x.cout) + '</strong></div>' +
+        '<strong>' + argent(x.cout) + '</strong></div>' +
       '<div style="color:var(--muted);">' + p(x.quoi) +
         (x.qui ? ' · ' + p(x.qui) : '') +
         '<br>' + (Number(x.entree) || 0).toLocaleString('fr-FR') + ' → ' +
