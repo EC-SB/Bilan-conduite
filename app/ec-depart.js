@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:23 — v782 */
+/* Déployé le 01/09/2026 à 16:41 — v783 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1331,6 +1331,10 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
   $('appView').style.display = 'block';
   $('logoutBtn').style.display = 'block';
   majBoutonSuppressionHistorique();
+
+  /* La loupe : elle ne s'affiche que si elle mène quelque part.
+     Branchée ici, une fois les droits connus. */
+  if(typeof brancherLoupe === 'function') brancherLoupe();
 
   /* Le contrôle de version : à côté du prénom, là où le moniteur
      regarde quand il doute. */
