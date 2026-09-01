@@ -1,6 +1,6 @@
-/* Déployé le 29/08/2026 à 16:30 — v693 */
-/*===========================================================
-      ec-sessions.js
+/* Déployé le 01/09/2026 à 08:33 — v748 */
+/* ============================================================
+   ec-sessions.js
    Les sessions d'examen, place par place.
 
    Une session = une demi-journée avec un inspecteur. On la crée
@@ -35,8 +35,22 @@ function boiteDe(nom){
 
   /* Sa fiche du répertoire, quand elle porte la formation */
   const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
-  if(f && /auto|bea/i.test(f.formation || '')) return 'bea';
-  if(f && f.formation) return 'bv';
+  if(f && f.formation){
+    /* LA TABLE DES PARCOURS D'ABORD.
+
+       Elle sait déjà dans quelle boîte roule chaque formation.
+       Chercher « auto » dans le nom une seconde fois ici, c'était
+       se donner deux réponses pour une question — et « Autre auto
+       école BV » les envoyait toutes sur la boîte automatique, à
+       cause du mot « auto » d'« auto école ». */
+    const p = (typeof parcoursDeLaFormation === 'function')
+      ? parcoursDeLaFormation(f.formation) : null;
+    if(p && p.boite) return String(p.boite).toLowerCase();
+
+    /* Une formation saisie à la main, hors table : on lit son nom. */
+    if(/auto|bea/i.test(f.formation)) return 'bea';
+    return 'bv';
+  }
 
   return '';
 }
