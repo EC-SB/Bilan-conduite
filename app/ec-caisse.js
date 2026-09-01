@@ -1,3 +1,4 @@
+/* Déployé le 01/09/2026 à 07:48 — v745 */
 /* ============================================================
    ec-caisse.js
    La caisse et les remises en banque.
