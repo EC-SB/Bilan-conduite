@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 12:35 — v765 */
+/* Déployé le 01/09/2026 à 14:05 — v771 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1597,6 +1597,7 @@ async function ouvrirCodesEleves(){
               (a.derniereVisite ? 'vu le ' + a.derniereVisite.replace(/</g, '&lt;')
                                 : 'jamais venu') +
               (a.actif ? '' : ' · accès coupé') +
+              (a.perime ? ' · ⏳ code expiré (12 mois sans venir)' : '') +
               (a.langue ? '<br>🌍 ' + nomLangue(a.langue).replace(/</g, '&lt;')
                         : '') +
             '</div>' +
