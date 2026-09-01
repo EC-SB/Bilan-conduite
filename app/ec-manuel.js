@@ -2406,10 +2406,16 @@ function reprendreBrouillon(b){
 
 
 function fermerBilanManuel(){
+  /* Enregistrée avant d'être refermée, et remontée en haut : c'est
+     là qu'on la reprend après l'examen. La sauvegarde automatique
+     attend une seconde de calme — on ne la laisse pas décider. */
+  try{ sauvegarderManuel(); }catch(e){}
+
   modeManuel = false;
   $('manuelView').style.display = 'none';
   $('recordView').style.display = 'block';
   if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+  if(typeof proposerReprise === 'function') proposerReprise();
 }
 
 
