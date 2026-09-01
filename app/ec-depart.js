@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:21 — v768 */
+/* Déployé le 01/09/2026 à 13:48 — v770 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -170,7 +170,9 @@ async function preparerDepart(){
     bSup.addEventListener('click', () => {
       eleveAffiche = nom;
       nbBilansAffiches = nb;
-      supprimerDossierEleve();
+      /* Son propre bouton : c'est lui qu'il faut désactiver, et
+         c'est près de lui que le résultat doit s'écrire. */
+      supprimerDossierEleve(bSup);
     });
     actions.appendChild(bSup);
   }
@@ -196,7 +198,7 @@ function majZoneSuppression(){
   }
 }
 
-async function supprimerDossierEleve(){
+async function supprimerDossierEleve(bouton){
   if(!eleveAffiche) return;
 
   /* Première confirmation */
@@ -213,10 +215,32 @@ async function supprimerDossierEleve(){
     return;
   }
 
-  const btn = $('supprimerEleveBtn');
+  /* ------------------------------------------------------------
+     LE BOUTON QUI A ÉTÉ APPUYÉ, PAS UN AUTRE.
+
+     Cette fonction prenait toujours le bouton et le cadre de
+     l'écran « Recherche ». Appelée depuis « Préparer le départ »,
+     elle écrivait donc son compte rendu dans un élément MASQUÉ :
+     un échec ne se voyait pas, et on croyait les bilans effacés.
+     Et le vrai bouton n'étant jamais désactivé, un second appui
+     relançait une suppression définitive.
+     ------------------------------------------------------------ */
+  const btn = bouton || $('supprimerEleveBtn');
   const msg = $('suppressionMsg');
-  btn.disabled = true;
-  btn.textContent = 'Suppression…';
+  const libelle = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Suppression…'; }
+
+  /* Quand le compte rendu ne peut pas s'afficher — l'autre écran —
+     il se dit à voix haute plutôt que dans le vide. */
+  const dire = (texte, rate) => {
+    if(msg && msg.offsetParent !== null){
+      msg.style.color = rate ? 'var(--warn-text)' : 'var(--accent-text)';
+      msg.textContent = texte;
+    }else if(rate){
+      informer(texte, 'Suppression');
+    }
+    if(rate) showToast('⚠️ ' + texte);
+  };
 
   try{
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
@@ -227,8 +251,7 @@ async function supprimerDossierEleve(){
     const data = await r.json().catch(() => ({}));
     if(!r.ok || data.error) throw new Error(data.error || ('HTTP ' + r.status));
 
-    msg.style.color = 'var(--accent-text)';
-    msg.textContent = '✅ ' + (data.supprimees || 0) + ' bilan(s) supprimé(s) définitivement.';
+    dire('✅ ' + (data.supprimees || 0) + ' bilan(s) supprimé(s) définitivement.');
     showToast('Dossier supprimé ✅');
 
     $('searchResults').innerHTML = '<div class="empty">Dossier supprimé.</div>';
@@ -237,10 +260,9 @@ async function supprimerDossierEleve(){
     $('zoneSuppression').style.display = 'none';
     chargerEleves();
   }catch(e){
-    msg.style.color = 'var(--warn-text)';
-    msg.textContent = 'Erreur : ' + e.message;
+    dire('Suppression impossible : ' + e.message, true);
   }finally{
-    btn.disabled = false;
+    if(btn){ btn.disabled = false; btn.textContent = libelle; }
   }
 }
 
@@ -249,7 +271,8 @@ async function supprimerDossierEleve(){
 
    Le rôle n'est connu qu'après la connexion : on branche le
    bouton et on décide de l'afficher au moment voulu. */
-brancher('supprimerEleveBtn', 'click', supprimerDossierEleve);
+brancher('supprimerEleveBtn', 'click',
+         () => supprimerDossierEleve($('supprimerEleveBtn')));
 
 function majBoutonSuppressionHistorique(){
   const b = $('supprimerEleveBtn');
