@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:51 — v730 */
+/* Déployé le 01/09/2026 à 07:47 — v745 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
