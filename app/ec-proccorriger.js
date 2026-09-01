@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 09:07 — v750 */
+/* Déployé le 01/09/2026 à 09:18 — v751 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -2296,6 +2296,7 @@ async function corrigerRecitation(r){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       code: ACCES.code,
+      quoi: 'Correction de procédure',
       payload: {
         model: 'claude-sonnet-5',
         max_tokens: 1200,
