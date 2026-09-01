@@ -1,4 +1,4 @@
-/* Déployé le 26/08/2026 à 09:49 — v550 */
+/* Déployé le 01/09/2026 à 11:24 — v764 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -135,6 +135,53 @@ async function afficherPostExamen(tous){
           }catch(err){ showToast('Erreur : ' + err.message); bNon.disabled = false; }
         });
         r.appendChild(bNon);
+
+        /* ------------------------------------------------------
+           IL N'Y EST PAS ALLÉ
+
+           Chrystel : « j'ai des élèves qui n'ont pas passé leur
+           permis, il faut que je puisse les enlever ».
+
+           Ni « obtenu » ni « ajourné » : la troisième réponse
+           manquait, et c'est la seule qui soit vraie quand
+           l'examen n'a pas eu lieu. Un ajournement fabriqué à sa
+           place aurait compté un repassage de plus et déclenché
+           tout le suivi post-permis pour rien.
+
+           Sa date s'efface — des deux endroits où elle vit, la
+           fiche de suivi ET la note du dernier cours — et il
+           repart dans les élèves prêts au permis, où le bureau le
+           replacera.
+           ------------------------------------------------------ */
+        const bAbs = document.createElement('button');
+        bAbs.className = 'btn btn-secondary';
+        bAbs.style.cssText = 'width:auto;padding:10px 14px;font-size:14px;';
+        bAbs.textContent = "🚫 Ne l'a pas passé";
+        bAbs.title = "L'examen n'a pas eu lieu : sa date s'efface et il " +
+                     'repart dans les élèves prêts au permis';
+        bAbs.addEventListener('click', async () => {
+          if(!await confirmer(x.eleve + " n'a pas passé son examen ?\n\n" +
+              "Sa date est effacée et il repart dans « Élèves prêts au " +
+              "permis ».\nAucun repassage n'est compté.")) return;
+          bAbs.disabled = true;
+          try{
+            await majSuivi(x.eleve, {
+              datePermis: '', aPlanifier: '', retireAPrevoir: '', statut: ''
+            });
+            /* La note du dernier cours annonce encore la
+               convocation, et le bureau ne peut pas la réécrire :
+               c'est la dernière annonce qui fait foi. */
+            await envoyerConsigne(x.eleve, 'permis',
+                                  "Date d'examen à prévoir (bureau)");
+            if(typeof viderCaches === 'function') viderCaches(x.eleve);
+            showToast(x.eleve + ' → prêt au permis ✅');
+            afficherBureau(true);
+          }catch(err){
+            showToast('Erreur : ' + err.message);
+            bAbs.disabled = false;
+          }
+        });
+        r.appendChild(bAbs);
 
         boite.appendChild(r);
       }
