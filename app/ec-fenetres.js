@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:23 — v727 */
+/* Déployé le 01/09/2026 à 08:35 — v748 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -376,8 +376,25 @@ const FORMATIONS_BASE = [
   /* La conduite supervisée se coche dans le questionnaire ; elle
      reste proposée ici pour les fiches qui la portent déjà. */
   { cle: 'Conduite supervisée', nom: '🚗 Conduite supervisée', voiture: true },
-  { cle: 'CS BV',           nom: '🚗 CS manuelle (ancien)',   voiture: true },
-  { cle: 'CS BEA',          nom: '🚗 CS automatique (ancien)', voiture: true },
+  { cle: 'CS BV',           nom: '🚗 CS manuelle',            voiture: true },
+  { cle: 'CS BEA',          nom: '🚗 CS automatique',         voiture: true },
+  /* UN ÉLÈVE QUI VIENT D'AILLEURS.
+
+     Son dossier est dans une autre auto-école ; il prend des
+     leçons ici. La boîte, le modèle de bilan et la frise sont les
+     mêmes que pour les nôtres — c'est la même conduite. Ce qui
+     change, c'est qu'on sait d'où il vient.
+
+     Les clés ne disent pas « auto école » exprès : plusieurs
+     endroits déduisaient la boîte en cherchant « auto » dans le
+     nom de la formation, et « Autre auto école BV » les aurait
+     tous envoyés sur la boîte automatique. */
+  { cle: 'Autre AE BV',      nom: '🏫 Autre auto école BV',     voiture: true },
+  { cle: 'Autre AE BEA',     nom: '🏫 Autre auto école BEA',    voiture: true },
+  { cle: 'AAC BV autre AE',  nom: '🏫 AAC Boite Manuelle autre AE',    voiture: true },
+  { cle: 'AAC BEA autre AE', nom: '🏫 AAC Boite Automatique autre AE', voiture: true },
+  { cle: 'CS BV autre AE',   nom: '🏫 CS Boite Manuelle autre AE',     voiture: true },
+  { cle: 'CS BEA autre AE',  nom: '🏫 CS Boite Automatique autre AE',  voiture: true },
   /* B78 est le code porté sur un permis obtenu en boîte automatique :
      la passerelle mène au permis B, et se conduit en manuelle. */
   { cle: 'Passerelle BEA→BV',   nom: '🚗 Passerelle B78 → B (manuelle)', voiture: true },
