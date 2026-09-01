@@ -1,3 +1,4 @@
+/* Déployé le 01/09/2026 à 12:35 — v765 */
 /* ============================================================
    ec-version.js
    Rester à jour sans jamais interrompre un cours.
@@ -269,14 +270,50 @@ async function verifierVersionMaintenant(){
       return;
     }
 
-    await informer('Tu as bien la dernière version : v' + ici + '.',
-                   'Version à jour');
+    await informer('Tu as bien la dernière version : v' + ici + '.' +
+                   (await etatDeLaSerrure()), 'Version à jour');
   }catch(e){
     await informer('La vérification a échoué.\n\n' +
                    'Version chargée ici : v' + ici + '\n' +
                    'Détail : ' + (e.message || e), 'Version');
   }finally{
     if(b){ b.disabled = false; b.textContent = ancien || '🔄'; }
+  }
+}
+
+
+/* ------------------------------------------------------------
+   LA SERRURE DU CLASSEUR, EN CLAIR
+
+   Le secret partagé se pose à la main des deux côtés : dans les
+   propriétés du script Google, et dans les variables du Worker. Un
+   réglage à la main se croit fait alors qu'il ne l'est qu'à
+   moitié — et on se croirait alors protégé.
+
+   Cette ligne le dit, dans la fenêtre que l'administratrice ouvre
+   déjà pour vérifier sa version. Elle ne montre jamais le secret :
+   seulement s'il y en a un de chaque côté, et s'ils se répondent.
+   ------------------------------------------------------------ */
+async function etatDeLaSerrure(){
+  if(typeof ACCES === 'undefined' || !ACCES || ACCES.role !== 'admin') return '';
+  try{
+    const d = await appelPrep({ action: 'diagnostic' });
+    if(!d) return '';
+
+    if(d.serrure !== 'armee'){
+      return '\n\n🔓 Le classeur est encore ouvert à tous.\n' +
+             'Pose SECRET_PARTAGE dans les propriétés du script.';
+    }
+    if(d.secretJuste === false || d.secretRecu !== 'oui'){
+      return '\n\n⚠️ Les deux secrets ne se répondent pas.\n' +
+             'Rien ne passe : retire SECRET_PARTAGE du script pour ' +
+             'rouvrir, puis recommence.';
+    }
+    return '\n\n🔒 Classeur verrouillé — script v' + (d.versionScript || '?') + '.';
+  }catch(e){
+    /* Une vérification qui échoue ne dit rien de la serrure : on
+       se tait plutôt que d'affirmer. */
+    return '';
   }
 }
 
