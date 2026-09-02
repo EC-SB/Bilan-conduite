@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:55 — v809 */
+/* Déployé le 02/09/2026 à 14:16 — v811 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -628,7 +628,6 @@ function ouvrirEditeurModele(modele, usageImpose){
     }
     sel.value = v;
   }
-  majBoite();
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
@@ -704,17 +703,26 @@ function ouvrirEditeurModele(modele, usageImpose){
     g('mdUsage').value = usageImpose;
     g('mdUsage').disabled = true;
     g('mdUsage').style.opacity = '.6';
-
-    /* L'affichage a été calculé avant que l'usage soit posé : les
-       blocs réservés aux procédures restaient cachés.
-
-       On rappelle majBoite() au lieu de rejouer la règle ici. La
-       copie qui traînait à cet endroit ne connaissait que « Pour
-       qui ? » : le bloc des consignes de correction, ajouté après,
-       est resté invisible. Deux copies d'une même décision, c'est
-       la seconde qu'on oublie de compléter. */
-    majBoite();
   }
+
+  /* ⚠️ APRÈS QUE L'USAGE EST POSÉ, ET UNE SEULE FOIS.
+
+     majBoite() décide quels blocs s'affichent D'APRÈS L'USAGE. Il
+     était appelé plus haut, AVANT que l'usage du modèle qu'on
+     ouvre soit écrit dans le menu — donc toujours sur « libre ».
+     Le rattrapage n'existait que pour le tiroir des procédures, et
+     le commentaire d'alors le disait déjà : « l'affichage a été
+     calculé avant que l'usage soit posé ».
+
+     Résultat : en ouvrant un rappel de cours DÉJÀ ÉCRIT, le menu
+     « 📄 Le bilan que ce rappel doit créer » restait invisible.
+     Chrystel : « je fais comment pour les rappels qui sont déjà
+     créés, je n'ai pas le bouton, et je vais pas m'amuser à tous
+     les recréer ». Elle avait raison : il n'y avait rien à
+     recréer, c'est l'écran qui ne montrait pas.
+
+     Un seul appel, ici, quand tout est posé. */
+  majBoite();
   majVars();
 
   bAnn.addEventListener('click', () => document.body.removeChild(fond));
