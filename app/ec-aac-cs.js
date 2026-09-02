@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:31 — v808 */
+/* Déployé le 02/09/2026 à 14:49 — v815 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -655,6 +655,13 @@ function boutonsCs(x, zone){
       }));
     return;
   }
+
+  /* La correction, avant tout le reste : une date de préalable tapée
+     à côté fausse le compteur et l'attente entière, et c'est le
+     genre d'erreur qu'on veut pouvoir reprendre tout de suite. */
+  zone.appendChild(petitBouton('✏️ Corriger sa date de préalable',
+    'Changer la date, ou revenir sur un préalable noté par erreur',
+    () => corrigerRendezVous(x)));
 
   /* Il a dit oui : la porte vers l'examen blanc, et rien d'autre. */
   if(x.etat.cle === 'pret'){
@@ -1920,28 +1927,78 @@ function echeancesAac(s, naissance){
    ⚠️ ET LE ROUGE NE SERT QU'À UNE CHOSE : échéance dépassée, sur un
    rendez-vous ENCORE ATTENDU. Un parcours abandonné n'attend plus
    rien : le faire rougir noierait le seul retard qui compte. */
+/* ⚠️ « PROCHE » : L'ÉCHÉANCE EST À DEUX MOIS OU MOINS.
+
+   « Quand c'est attendu à 2 mois, écrit en orange ; avant, laisse en
+   noir. » Un rendez-vous attendu dans huit mois n'appelle aucun
+   geste : le peindre en orange dès aujourd'hui rendrait la liste
+   entièrement orange, et l'orange ne voudrait plus rien dire.
+
+   Le calcul vit ICI, avec les dates, et pas dans le code qui
+   dessine : c'est une règle métier, pas une couleur. */
+const MOIS_AVANT_ALERTE_RDV = 2;
+
 function etatRdv(etat, date, echeance, attendu, auJour){
   const e = String(etat || '').trim();
   const d = String(date || '').trim();
   const auj = String(auJour || (typeof todayLocal === 'function'
                 ? todayLocal() : new Date().toISOString().slice(0, 10)));
 
-  if(e === 'fait')     return { cle:'fait', retard:false,
+  if(e === 'fait')     return { cle:'fait', retard:false, proche:false,
     txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') };
-  if(e === 'ailleurs') return { cle:'ailleurs', retard:false,
+  if(e === 'ailleurs') return { cle:'ailleurs', retard:false, proche:false,
     txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') + ' (autre auto-école)' };
-  if(e === 'prevu')    return { cle:'prevu', retard:false,
+  if(e === 'prevu')    return { cle:'prevu', retard:false, proche:false,
     txt:'prévu' + (d ? ' le ' + jourFrCs(d) : ' — date à fixer') };
 
-  if(!attendu) return { cle:'sansobjet', retard:false, txt:'plus attendu' };
+  if(!attendu) return { cle:'sansobjet', retard:false, proche:false,
+    txt:'plus attendu' };
 
   if(echeance){
     const tard = echeance < auj;
+    const limite = decalerMois(auj, MOIS_AVANT_ALERTE_RDV);
     return { cle: tard ? 'retard' : 'aprevoir', retard: tard,
+      proche: tard || (!!limite && echeance <= limite),
       txt: (tard ? 'EN RETARD — attendu le ' : 'attendu le ') +
            jourFrCs(echeance) };
   }
-  return { cle:'aprevoir', retard:false, txt:'à prévoir' };
+  /* Sans échéance, « à prévoir » n'a pas de date à comparer : il ne
+     réclame donc rien de particulier aujourd'hui. */
+  return { cle:'aprevoir', retard:false, proche:false, txt:'à prévoir' };
+}
+
+
+/* ------------------------------------------------------------
+   UNE LIGNE DE RENDEZ-VOUS, ET SA COULEUR
+
+   « Quand c'est attendu, écris-le en plus gros et en orange ; quand
+   c'est fait, en vert. Là il n'y a que les RVP qui sont en vert,
+   pas le rendez-vous préalable. »
+
+   ⚠️ ET C'EST BIEN LE PROBLÈME : le préalable était dessiné À PART,
+   dans son coin, sans une seule ligne de style. Les trois autres
+   passaient par une boucle qui, elle, colorait. Une même chose
+   écrite à deux endroits, et c'est celle qu'on oublie qui reste
+   grise.
+
+   Une seule fonction pour les quatre, maintenant.
+   ------------------------------------------------------------ */
+function ligneRdvAacCs(titre, e){
+  const l = document.createElement('span');
+  l.textContent = titre + ' — ' + e.txt;
+
+  if(e.cle === 'fait' || e.cle === 'ailleurs' || e.cle === 'prevu'){
+    l.style.color = 'var(--accent-text)';
+  }else if(e.proche){
+    /* Ce qui appelle un geste, et rien d'autre : dans les deux
+       mois, ou déjà en retard. */
+    l.style.color = 'var(--warn-text)';
+    l.style.fontSize = '14px';
+    l.style.fontWeight = e.retard ? '800' : '700';
+  }else if(e.cle === 'sansobjet'){
+    l.style.opacity = '.6';
+  }
+  return l;
 }
 
 
@@ -2143,20 +2200,12 @@ function ligneAac(x){
   }
   meta.appendChild(ex);
 
-  const prea = document.createElement('span');
-  prea.textContent = '① Préalable — ' + x.rdv.prealable.txt;
-  meta.appendChild(prea);
-
-  [['② RVP 1', x.rdv.rvp1], ['③ RVP 2', x.rdv.rvp2],
-   ['🗣️ Théorique', x.rdv.rvt]].forEach(([titre, e]) => {
-    const l = document.createElement('span');
-    l.style.color = e.retard ? 'var(--warn-text)'
-                  : (e.cle === 'fait' || e.cle === 'ailleurs' ||
-                     e.cle === 'prevu') ? 'var(--accent-text)' : '';
-    if(e.cle === 'sansobjet') l.style.opacity = '.6';
-    l.textContent = titre + ' — ' + e.txt;
-    meta.appendChild(l);
-  });
+  /* Les quatre rendez-vous, par la même fonction — le préalable
+     compris. Il était dessiné à part, sans style : c'est pour ça
+     qu'il restait gris quand les RVP passaient au vert. */
+  [['① Préalable', x.rdv.prealable], ['② RVP 1', x.rdv.rvp1],
+   ['③ RVP 2', x.rdv.rvp2], ['🗣️ Théorique', x.rdv.rvt]]
+    .forEach(([titre, e]) => meta.appendChild(ligneRdvAacCs(titre, e)));
 
   if(x.eb.txt){
     const eb = document.createElement('span');
@@ -2271,11 +2320,22 @@ function boutonsAac(x, zone){
         }));
     });
 
-    /* « Il faut qu'on puisse indiquer ce qu'il a déjà fait ou non »
-       pour un élève repris d'une autre auto-école. */
-    zone.appendChild(petitBouton('🏫 Fait ailleurs…',
-      "Ce qu'il a fait dans une autre auto-école", () => marquerAilleurs(x)));
   }
+
+  /* ⚠️ TOUJOURS LÀ, MÊME QUAND TOUT EST FAIT.
+
+     Les boutons « ✅ … fait » disparaissent une fois la date posée :
+     l'outil considérait qu'une chose faite ne se défait pas. Or une
+     date se tape à côté, et un rendez-vous se saisit parfois sur le
+     mauvais élève. Celui-ci reste, quoi qu'il arrive — c'est la
+     porte de sortie, et elle sert aussi à dire « fait ailleurs ».
+
+     (Sans date de préalable, on n'arrive jamais ici : la fonction
+     rend la main plus haut, sur le bouton qui la demande. Il n'y a
+     alors rien à corriger.) */
+  zone.appendChild(petitBouton('✏️ Corriger ses rendez-vous',
+    'Changer une date, ou revenir sur un rendez-vous noté par erreur',
+    () => corrigerRendezVous(x)));
 
   /* LE PARCOURS. Changeable à tout moment — sauf après un examen
      passé depuis l'abandon : là, c'est définitif, et la ligne dit
@@ -2306,26 +2366,143 @@ function boutonsAac(x, zone){
 }
 
 
-async function marquerAilleurs(x){
-  const quoi = await demander(
-    "Qu'a-t-il fait dans son autre auto-école ?\n\n" +
-    'Écris : prealable, rvp1, rvp2 ou theorique — séparés par une virgule.',
-    '', '🏫 Fait ailleurs');
-  if(quoi === null) return;
+/* ------------------------------------------------------------
+   CORRIGER LES RENDEZ-VOUS — DATES ET ÉTATS
 
-  const cles = { prealable:'rvp', rvp1:'rvp1', rvp2:'rvp2', theorique:'rvt' };
-  const maj = {};
-  String(quoi).toLowerCase().split(/[,;\s]+/).forEach(m => {
-    const c = cles[m.trim()];
-    if(c) maj[c + 'Etat'] = 'ailleurs';
-  });
-  if(!Object.keys(maj).length){
-    showToast('Aucun rendez-vous reconnu.');
-    return;
+   « Il faut que je puisse modifier les dates dans le suivi AAC et
+   CS en cas d'erreur de saisie : là j'ai enregistré un RVP, sauf
+   que l'élève ne l'a pas fait encore. »
+
+   ⚠️ CE QUI MANQUAIT N'ÉTAIT PAS LA MODIFICATION, C'ÉTAIT LE
+   RETOUR EN ARRIÈRE.
+
+   Les boutons « ✅ RVP 1 fait » disparaissaient une fois la date
+   posée : l'outil considérait qu'une chose faite ne se défait pas.
+   Or une date se tape à côté, et un rendez-vous se saisit parfois
+   sur le mauvais élève. Sans porte de sortie, il fallait vivre avec
+   — ou aller corriger le classeur à la main, ce qui est exactement
+   ce que cet outil existe pour éviter.
+
+   Une seule fenêtre pour les quatre rendez-vous : elle remplace
+   aussi l'ancien « 🏫 Fait ailleurs », qui demandait d'écrire
+   « prealable, rvp1 » dans une boîte de texte — deux écrans pour
+   le même travail, et le plus maladroit était le seul qui savait
+   dire « ailleurs ».
+   ------------------------------------------------------------ */
+const ETATS_RDV_AAC = [
+  { v:'',         nom:'— pas encore fait' },
+  { v:'fait',     nom:'✅ Fait' },
+  { v:'prevu',    nom:'📌 Prévu' },
+  { v:'ailleurs', nom:'🏫 Fait dans une autre auto-école' }
+];
+
+async function marquerAilleurs(x){ return corrigerRendezVous(x); }
+
+async function corrigerRendezVous(x){
+  const nom = x.eleve;
+  const s = x.suivi || {};
+
+  /* Le préalable pour tout le monde ; les trois autres seulement là
+     où ils existent. Montrer « RVP 1 » à une conduite supervisée,
+     c'est inviter à le remplir. */
+  const lignes = [{ cle:'rvp', titre:'① Rendez-vous préalable' }];
+  if(x.parcours && x.parcours.rdvAttendus){
+    lignes.push({ cle:'rvp1', titre:'② RVP 1' },
+                { cle:'rvp2', titre:'③ RVP 2' },
+                { cle:'rvt',  titre:'🗣️ Rendez-vous théorique' });
   }
-  await majSuivi(x.eleve, maj);
-  showToast('Noté — fait ailleurs ✅');
-  redessinerAacCs();
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(520px,94vw);max-height:90vh;overflow-y:auto;';
+
+  const ech = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>✏️ Corriger ses rendez-vous</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
+      'line-height:1.5;">' + ech(nom) + '. Une date tapée à côté, un ' +
+      'rendez-vous noté sur le mauvais élève&nbsp;: tout se reprend ici. ' +
+      '<strong>« Pas encore fait » efface la date</strong> et le remet dans ' +
+      'la liste de ce qui est attendu.</div>' +
+    lignes.map(l =>
+      '<div style="border:1px solid var(--line);border-radius:11px;' +
+        'padding:11px 12px;margin-bottom:10px;">' +
+        '<div style="font-weight:700;font-size:13px;margin-bottom:7px;">' +
+          ech(l.titre) + '</div>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap;">' +
+          '<select id="cr_' + l.cle + '_etat" style="flex:2;min-width:190px;' +
+            'margin:0;">' +
+            ETATS_RDV_AAC.map(e => '<option value="' + e.v + '">' +
+              ech(e.nom) + '</option>').join('') +
+          '</select>' +
+          '<input type="date" id="cr_' + l.cle + '_date" ' +
+            'style="flex:1;min-width:150px;margin:0;">' +
+        '</div>' +
+      '</div>').join('') +
+    '<div id="crEtat" style="font-size:13px;line-height:1.5;' +
+      'margin-bottom:10px;"></div>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-secondary" id="crAnnuler">Annuler</button>' +
+      '<button class="btn btn-primary" id="crOk">💾 Enregistrer</button>' +
+    '</div>');
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const g = id => boite.querySelector('#' + id);
+
+  lignes.forEach(l => {
+    g('cr_' + l.cle + '_etat').value = String(s[l.cle + 'Etat'] || '');
+    g('cr_' + l.cle + '_date').value = String(s[l.cle + 'Date'] || '');
+  });
+
+  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  g('crAnnuler').addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+
+  g('crOk').addEventListener('click', async () => {
+    const maj = {};
+    lignes.forEach(l => {
+      const etat = g('cr_' + l.cle + '_etat').value;
+      const date = g('cr_' + l.cle + '_date').value;
+      /* « Pas encore fait » efface les deux : un état vide avec une
+         date derrière, c'est la date qui finirait par ressortir. */
+      maj[l.cle + 'Etat'] = etat;
+      maj[l.cle + 'Date'] = etat ? date : '';
+    });
+
+    /* ⚠️ EFFACER LE PRÉALABLE, C'EST TOUT EFFACER.
+
+       Le compteur, les échéances des deux RVP, la date d'examen
+       possible : tout se compte à partir de lui. On le dit avant,
+       pas après. */
+    if(!maj.rvpEtat && s.rvpEtat){
+      if(!await confirmer(
+          'Sans rendez-vous préalable, plus rien ne se compte pour ' +
+          nom + '\u00A0: ni depuis combien de temps il est parti, ni ' +
+          "les échéances de ses rendez-vous, ni sa date d'examen " +
+          'possible.\n\nContinuer ?', 'Effacer le préalable')) return;
+    }
+
+    const b = g('crOk');
+    b.disabled = true;
+    b.textContent = 'Enregistrement…';
+    try{
+      await majSuivi(nom, maj);
+      fermer();
+      showToast('Corrigé ✅');
+      redessinerAacCs();
+    }catch(e){
+      b.disabled = false; b.textContent = '💾 Enregistrer';
+      const z = g('crEtat');
+      z.style.color = 'var(--warn-text)';
+      z.textContent = 'Impossible : ' + e.message;
+    }
+  });
 }
 
 
