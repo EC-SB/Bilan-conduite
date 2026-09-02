@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 09:10 — v791 */
+/* Déployé le 02/09/2026 à 09:40 — v793 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1073,7 +1073,7 @@ function lignePlace(p, sess){
                     su.aRemplacer !== 'oui' && su.fairePoint !== 'oui';
 
   nom.innerHTML = vide
-    ? '<span style="color:var(--muted);font-style:italic;">👻 Place libre — ' +
+    ? '<span style="color:var(--muted);font-style:italic;">⬜ Place libre — ' +
       'appuie pour y mettre un élève</span>'
     : '<strong style="color:' + etat.couleur + ';">' +
       p.eleve.replace(/</g, '&lt;') + '</strong>' +
@@ -1252,6 +1252,24 @@ function ouvrirPlace(p, sess){
     (sess.centre ? ' · ' + sess.centre : '');
   boite.appendChild(st);
 
+  /* Prête-nom ou à remplacer : on le dit AVANT que le bureau touche
+     à quoi que ce soit. Sans ça, on ne sait pas si cette place est
+     ferme, et les deux boutons du bas n'ont pas de sens. */
+  if(p.eleve && typeof etatPlace === 'function'){
+    const et = etatPlace(p, null);
+    if(et.cle === 'pretenom' || et.cle === 'remplacer'){
+      const b = document.createElement('div');
+      b.style.cssText = 'font-size:12.5px;line-height:1.5;margin:-6px 0 12px;' +
+        'padding:8px 10px;border-radius:9px;border:1px solid ' + et.couleur +
+        ';color:' + et.couleur + ';';
+      b.textContent = et.emoji + ' ' + et.texte +
+        (et.cle === 'pretenom'
+          ? ' — sa place peut être reprise sans le prévenir.'
+          : ' — il a été prévenu : pense à le rappeler si tu la reprends.');
+      boite.appendChild(b);
+    }
+  }
+
   /* Où en est son examen blanc : c'est ce qui décide s'il est
      prêt à passer. Le bureau doit le voir en donnant la place. */
   if(p.eleve && typeof mentionExamenBlanc === 'function'){
@@ -1429,24 +1447,75 @@ function ouvrirPlace(p, sess){
   bAnn.addEventListener('click', () => document.body.removeChild(fond));
   r.appendChild(bAnn);
 
-  /* Retirer l'élève : la place redevient fantôme, elle ne disparaît pas */
+  /* ============================================================
+     DEUX GESTES, ET ILS N'ÉTAIENT QU'UN
+
+     Il n'y avait qu'un bouton, « 👻 Retirer », et il EFFAÇAIT LE
+     NOM. Résultat : on ne voyait plus qui tenait cette date — et
+     c'est justement l'information dont le bureau a besoin.
+
+     Ce sont pourtant deux choses différentes :
+
+     · 👻 LE MARQUER PRÊTE-NOM — il garde sa place ET son nom
+       reste visible. On sait juste qu'il n'est pas ferme et que la
+       place est reprenable. C'est ce qui manquait.
+
+     · ⬜ VIDER LA PLACE — le nom s'en va pour de bon, la place
+       redevient un créneau libre.
+
+     ⚠️ Et l'ancien bouton MENTAIT : sa fenêtre annonçait « sa date
+     d'examen est effacée », alors qu'il ne touchait qu'à la place.
+     L'élève gardait sa date sur sa fiche sans être sur aucune
+     session. C'est réparé : « vider » efface vraiment la date et
+     le renvoie dans la liste RDV Permis.
+     ============================================================ */
   if(p.eleve){
+    const suP = (typeof suiviDe === 'function') ? (suiviDe(p.eleve) || {}) : {};
+    const estPreteNom = (suP.fantome === 'oui');
+
+    const bFan = document.createElement('button');
+    bFan.className = 'btn btn-secondary';
+    bFan.style.cssText = 'color:#E8A33D;border-color:#E8A33D;';
+    bFan.textContent = estPreteNom ? '👻 Plus un prête-nom' : '👻 Prête-nom';
+    bFan.title = estPreteNom
+      ? 'Il tient cette place pour de bon'
+      : 'Il garde la place et son nom reste visible, mais elle est reprenable';
+    bFan.addEventListener('click', async () => {
+      const nom = p.eleve;
+      try{
+        await majSuivi(nom, { fantome: estPreteNom ? '' : 'oui' });
+        document.body.removeChild(fond);
+        showToast(estPreteNom
+          ? nom + ' tient sa place pour de bon'
+          : nom + ' est prête-nom sur cette date 👻');
+        redessinerSessions();
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    r.appendChild(bFan);
+
     const bVider = document.createElement('button');
     bVider.className = 'btn btn-secondary';
     bVider.style.cssText = 'color:var(--warn-text);border-color:var(--orange);';
-    bVider.textContent = '👻 Retirer';
-    bVider.title = 'La place reste, elle redevient libre';
+    bVider.textContent = '⬜ Vider la place';
+    bVider.title = 'Le nom s\'en va, la place redevient un créneau libre';
     bVider.addEventListener('click', async () => {
-      if(!await confirmer('Retirer ' + p.eleve + ' de cette place ?\n\n' +
-          'La place reste ouverte, et sa date d\'examen est effacée : ' +
-          'il redevient un élève sans date.')) return;
+      const nom = p.eleve;
+      if(!await confirmer('Retirer ' + nom + ' de cette place ?\n\n' +
+          'Son nom disparaît de cette date et la place redevient libre. ' +
+          "Sa date d'examen est effacée : il repart dans la liste " +
+          'RDV Permis.\n\nPour garder son nom visible, utilise plutôt ' +
+          '👻 Prête-nom.')) return;
       try{
         Object.assign(p, { eleve: '', prevenu: false, dossierOk: false, remarque: '' });
         document.body.removeChild(fond);
-        showToast('Place libérée 👻');
+        showToast('Place vidée ⬜');
         redessinerSessions();
         await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
                           eleve: '', prevenu: '', dossierOk: '', remarque: '' });
+        /* Ce que la fenêtre annonce, et que personne ne faisait. */
+        await majSuivi(nom, { datePermis: '', aPlanifier: 'oui', statut: '',
+                              fantome: '', aRemplacer: '' });
+        redessinerSessions();
       }catch(e){ showToast('Impossible : ' + e.message); }
     });
     r.appendChild(bVider);
