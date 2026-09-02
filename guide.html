@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 808
+     GUIDE-VERSION: 809
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v808</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v809</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v808</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v809</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1292,7 +1292,9 @@ html{scroll-behavior:smooth}
     <div class="note"><span class="tag">🗓️ Les dates se lisent en français — v795</span><p>Les dates de la fiche de suivi arrivent telles que la feuille les stocke, en <span class="ch">2026-09-02</span>. Affichées brutes, elles se lisaient à l'anglaise au milieu de phrases françaises&nbsp;; et sur la ligne des sources, « son cours préparé du mercredi 2 septembre · son bilan du 2026-09-02 » demandait de comparer deux dates qui ne s'écrivaient pas pareil — alors que c'est justement cette ligne qui sert à vérifier <em>de quand</em> parle le résumé.</p><p>Tout le dossier affiche désormais <span class="ch">02/09/2026</span>&nbsp;: le résumé, le simulateur, l'examen blanc, la date d'examen, les désaccords. <strong>Seule la session d'examen garde son jour de la semaine</strong> — on organise une matinée d'examen autour d'un mercredi, pas autour d'un 02/09.</p></div>
     <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v789</span><p>Ce résumé lisait <strong>la note du dernier bilan enregistré</strong>. Or ce n'est pas la dernière chose qu'on ait dite d'un élève&nbsp;: <strong>le cours qu'on lui a préparé l'est</strong>. Résultat, une élève à sa 8<sup>e</sup> leçon avec son examen blanc réservé s'affichait « 2<sup>ème</sup> leçon sur 4 · examen blanc à prévoir ». Le résumé lit désormais, dans l'ordre&nbsp;: le dernier bilan, <strong>le cours préparé</strong>, puis les consignes du bureau — qui priment.</p><p>Au passage&nbsp;: le nombre de leçons tient compte du <strong>plus grand numéro jamais écrit</strong>, pour les élèves venus de l'ancien fonctionnement qui n'ont qu'un ou deux bilans enregistrés.</p></div>
 
-    <h4>Les huit onglets</h4>
+    <div class="note"><span class="tag">✨ Le numéro de leçon, enfin le même — v809</span><p><em>« Le résumé dans la fiche élève n'est toujours pas bon pour le numéro de leçon, je veux la même chose que dans mes prochains cours. »</em> Ses trois phrases, et ce qu'elles veulent dire&nbsp;:</p><table><thead><tr><th>Ce que la note dit</th><th>La leçon</th><th>Pourquoi</th></tr></thead><tbody><tr><td><span class="ch">1ère leçon après l'examen blanc (2 prévues, 5ème au total)</span></td><td><strong>5</strong></td><td>le premier nombre compte <em>depuis</em> l'examen blanc&nbsp;; le total est dit en toutes lettres</td></tr><tr><td><span class="ch">12 ème leçon frise dépassée (5 prévues)</span></td><td><strong>12</strong></td><td>l'espace entre le nombre et le suffixe se glisse tout seul dans les notes dictées</td></tr><tr><td><span class="ch">1ère leçon - plus que 6 avant l'examen blanc</span></td><td><strong>1</strong></td><td>le 6 est ce qui reste à faire, pas un rang</td></tr></tbody></table><p><strong>Deux lectures cohabitaient.</strong> « Mes prochains cours » lisait la note avec la règle complète et rendait 5, 12 et 1. Le résumé passait par un second motif qui ne connaissait ni la charnière — il ramenait une élève de sa 5<sup>e</sup> à sa 1<sup>ère</sup> — ni l'espace de « 12 ème », auquel cas il ne trouvait rien et retombait sur le <em>nombre de bilans enregistrés</em>, qui rajeunit de plusieurs leçons les élèves venus de l'ancien fonctionnement.</p><p>La règle est maintenant écrite <strong>une seule fois</strong>, et les deux écrans l'appellent. Une note qui compte depuis une charnière sans annoncer de total ne dit rien du total&nbsp;: dans ce cas l'outil se tait plutôt que de deviner.</p></div>
+
+    <h4>Les neuf onglets</h4>
     <table>
       <thead><tr><th>Onglet</th><th>Ce qu'on y trouve</th><th>Droit</th></tr></thead>
       <tbody>
@@ -1309,7 +1311,8 @@ html{scroll-behavior:smooth}
     <div class="note piege"><span class="tag">Resserrement — v788</span><p>L'export du droit d'accès était accessible depuis le répertoire à <strong>tout compte ayant « eleves »</strong>. Il sort pourtant <em>tout</em> sur une personne&nbsp;: ses bilans en entier, ses notes, son suivi — la plus large sortie de données de l'outil. Il est désormais <strong>réservé aux administrateurs</strong>.</p></div>
 
     <h4>Ce qu'il ne fait pas</h4>
-    <p><strong>Le dossier affiche et délègue&nbsp;: il n'enregistre rien lui-même.</strong> Chaque geste appelle la fonction qui sait déjà faire. Deux onglets manquent volontairement&nbsp;: <span class="b">📋 Questionnaire</span> (il n'a pas d'enregistrement à lui) et <span class="b">🎓 AAC</span> (les rendez-vous préalables ne sont stockés nulle part, ils sont relus dans du texte libre). Les ajouter donnerait une apparence de suivi à une devinette.</p>
+    <p><strong>Le dossier affiche et délègue&nbsp;: il n'enregistre rien lui-même.</strong> Chaque geste appelle la fonction qui sait déjà faire. Un onglet manque volontairement&nbsp;: <span class="b">🎓 AAC</span> — les rendez-vous préalables ne sont stockés nulle part, ils sont relus dans du texte libre, et un onglet donnerait une apparence de suivi à une devinette.</p>
+    <div class="note"><span class="tag">✨ 📋 Questionnaire — v809</span><p><em>« Tu peux mettre la visibilité du questionnaire dans le dossier élève. »</em> Et, plus tôt&nbsp;: <em>« oui, mais en lecture. »</em></p><p>L'onglet montre <strong>ce qui a été répondu sur son dernier cours</strong>&nbsp;: d'abord d'où vient ce qu'on lit (le cours préparé du tel jour, par tel moniteur), puis les réponses gardées une par une, puis <strong>la note entière telle qu'elle est écrite</strong> — celle que le moniteur lira au volant.</p><p>Sans cours préparé, il relit ce qu'il peut dans la note du dernier bilan et <strong>le dit</strong>&nbsp;: <span class="ch">📋 Aucun cours préparé : ce qui suit est relu dans la note du dernier bilan, ce ne sont pas des réponses gardées.</span></p><p><strong>Il n'écrit rien, et c'est la condition pour qu'il existe.</strong> Le questionnaire est un formulaire dont les réponses sont consommées par le cours&nbsp;; lui ouvrir un second chemin d'enregistrement depuis le dossier serait exactement la faute que cette page répare. L'onglet le dit en pied&nbsp;: les réponses se changent dans le questionnaire du cours, depuis 📅 Mes prochains cours.</p></div>
   </section>
 
   <section id="historique-lecons">
@@ -2352,6 +2355,10 @@ Jours ouverts à la prise de date
     <h4>Les onze emplacements</h4>
     <p>Chaque texte est rangé sous un <strong>usage</strong>, qui décide où il apparaîtra dans l'application&nbsp;:</p>
     <p><span class="b">📣 Groupe Messenger — planning du jour</span> · <span class="b">📌 Groupe Messenger — rappels avant examen</span> · <span class="b">🎓 Élève ayant obtenu son permis</span> · <span class="b">📝 Examen blanc — message à l'élève</span> · <span class="b">🔁 Rendez-vous post-permis</span> · <span class="b">🚪 Départ de l'auto-école</span> · <span class="b">😱 Rappel écoutes pédagogiques</span> · <span class="b">🚨 Planning formation avant permis</span> · <span class="b">🔔 Rappel de cours par SMS</span> · <span class="b">🚦 Procédure de conduite</span> · <span class="b">📄 Texte libre</span></p>
+
+    <h4>📄 Le bilan qu'un rappel doit créer — v809</h4>
+    <div class="note"><span class="tag">✨ La fin d'une devinette</span><p><em>« Quand je fais un rappel avec type de séance permis voiture dans mes prochains cours, il apparaît avec type de bilan conduite BEA alors qu'il devrait apparaître en tant que type de bilan examen officiel. J'ai l'impression que ça fait 15 fois que je dis la même chose pour ça. »</em></p><p><strong>La table de référence était bonne&nbsp;; c'est son principe qui ne l'était pas.</strong> Les types de séance des rappels ne sont pas fournis par l'outil&nbsp;: ce sont ces textes-ci, écrits à la main. Le bilan à créer était donc <em>deviné d'après le titre</em>. « Permis voiture » ne tombait dans aucune règle et repartait en conduite ordinaire, donc en BEA d'après la fiche. Un titre libre ne peut pas porter une règle&nbsp;: chaque correction de la devinette en cassait une autre.</p><p>Un texte d'usage <span class="b">🔔 Rappel de cours</span> porte maintenant un menu <span class="b">📄 Le bilan que ce rappel doit créer</span>. Choisis-le une fois, et le cours ajouté à « Mes prochains cours » portera celui-là — quel que soit son titre.</p><p><strong>La boîte suit l'élève&nbsp;:</strong> choisis la famille (« Conduite — Boîte automatique »), l'outil prend la version automatique ou manuelle d'après sa fiche. Laissé sur <span class="ch">— d'après la fiche de l'élève —</span>, c'est sa formation qui décide, ce qu'il faut pour une leçon ordinaire.</p></div>
+    <div class="note piege"><span class="tag">En attendant que tu les configures</span><p>Un texte qui ne déclare rien retombe sur la lecture du titre&nbsp;: les textes déjà écrits continuent de marcher. Cette lecture a été corrigée au passage — <strong>un titre qui parle de permis veut dire l'examen officiel</strong> (« Permis voiture », « Rappel permis »…), sauf pour les deux-roues, qui n'imposent jamais rien. Mais dès qu'un texte déclare son bilan, le titre ne décide plus.</p></div>
 
     <h4>Les variables</h4>
     <p>Chaque usage annonce les siennes, sous forme de <strong>boutons cliquables qui insèrent la variable à l'endroit du curseur</strong>.</p>
