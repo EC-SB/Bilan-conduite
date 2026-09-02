@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 02/09/2026 à 07:38 — v785 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -415,6 +415,15 @@ async function afficherBureau(silencieux){
    ============================================================ */
 
 async function redessinerBureau(){
+  /* LE DOSSIER ÉLÈVE APPELLE LES MÊMES FONCTIONS QUE LE BUREAU.
+
+     Elles finissent toutes ici. Quand c'est la page élève qui les a
+     appelées, c'est elle qu'il faut remettre à jour — sinon la
+     modification part bien au serveur mais l'écran garde l'ancienne
+     valeur, et on appuie trois fois en croyant que ça n'a pas
+     marché. C'est un rafraîchissement, pas une deuxième écriture. */
+  if(typeof rafraichirPageEleve === 'function') rafraichirPageEleve();
+
   if(!$('listeExamBlanc')) return;
 
   const tous = etatBureau.eleves;
