@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 10:01 — v795 */
+/* Déployé le 02/09/2026 à 12:14 — v801 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -446,6 +446,19 @@ function etapesCroiseesEleve(nom){
     out.push({ ok:null, emoji:'❔', txt:"Date d'examen — rien de noté", flou:true });
   }
 
+  /* ── L'ACCOMPAGNEMENT, EN UNE LIGNE ──
+
+     « Oui, avec une vue directe d'où ils en sont. » Une ligne, pas
+     un bloc : le résumé sert à savoir en un coup d'œil, le détail
+     est dans l'onglet 🎓 Permis juste à côté.
+
+     Elle change la lecture de tout ce qui précède : un examen « à
+     prévoir » sur un élève de 15 ans en conduite accompagnée n'est
+     pas un retard, c'est le calendrier normal. */
+  const accomp = (typeof ligneAccompagnementResume === 'function')
+    ? ligneAccompagnementResume(nom) : null;
+  if(accomp) out.push(accomp);
+
   /* ── Le résultat, s'il y en a un ── */
   if(s.resultat){
     out.push({ ok:true, emoji:'🏁', txt:'Résultat : ' + s.resultat });
@@ -454,6 +467,48 @@ function etapesCroiseesEleve(nom){
   if(a.pasEcoute) out.push({ ok:true, emoji:'✅', txt:"Pas d'écoutes pédagogiques" });
 
   return out;
+}
+
+
+/* La ligne d'accompagnement du mini-résumé, ou null.
+
+   Elle se lit d'un coup d'œil, donc elle ne dit que ce qui appelle
+   un geste : le retard s'il y en a un, sinon la prochaine échéance,
+   sinon l'état. Tout énumérer ici reviendrait à recopier l'onglet
+   Permis dans le résumé, et à ne plus rien voir. */
+function ligneAccompagnementResume(nom){
+  if(typeof typeAccompagnement !== 'function') return null;
+  const type = typeAccompagnement(nom);
+  if(!type) return null;
+
+  if(type === 'CS'){
+    const s = suiviDe(nom);
+    const duree = dureeDepuis(s.rvpDate);
+    const etat = etatQuestionEb(s, duree);
+    if(!duree){
+      return { ok:null, emoji:'🤝', flou:true,
+        txt:'Conduite supervisée — pas de date de rendez-vous préalable' };
+    }
+    return { ok: etat.urgent ? false : (etat.cle === 'pret' ? true : null),
+      emoji:'🤝',
+      txt:'Conduite supervisée depuis ' + duree.txt + ' — ' +
+          etat.txt.replace(/^[^\wÀ-ÿ]+\s*/, '') };
+  }
+
+  const x = dossierAac(nom);
+  const bouts = [x.parcours.long];
+
+  /* Le retard d'abord : c'est la seule chose qui demande un geste. */
+  const enRetard = [['RVP 1', x.rdv.rvp1], ['RVP 2', x.rdv.rvp2]]
+    .filter(([, e]) => e.retard).map(([t]) => t);
+  if(enRetard.length) bouts.push('⚠️ ' + enRetard.join(' et ') + ' en retard');
+  else if(x.rvtManquant) bouts.push('🗣️ théorique jamais fait');
+  else if(x.ech.exam.iso) bouts.push('examen possible le ' + jourFr(x.ech.exam.iso));
+
+  if(!x.naissance) bouts.push('date de naissance manquante');
+
+  return { ok: (enRetard.length || x.rvtManquant) ? false : null,
+           emoji:'🎓', txt: bouts.join(' — ') };
 }
 
 
@@ -1173,6 +1228,109 @@ async function ongletCours(corps, nom){
    bureau. Et chaque bouton appelle une fonction qui existait avant
    cette page.
    ============================================================ */
+
+/* ------------------------------------------------------------
+   L'ACCOMPAGNEMENT — AAC OU CS
+
+   « Faut-il voir les élèves AAC et CS dans le dossier élève aussi ?
+   — Oui, avec une vue directe d'où ils en sont. »
+
+   Le même contenu que les listes de Suivi, dans le dossier. Pas une
+   deuxième lecture : ce sont LES MÊMES fonctions — dossierAac,
+   etatQuestionEb, dureeDepuis — et LES MÊMES boutons. Le dossier
+   affiche et délègue, c'est la règle du module.
+
+   Rien ne s'affiche pour un élève qui n'est ni AAC ni CS : un cadre
+   vide sur les trois quarts des dossiers, c'est du bruit.
+   ------------------------------------------------------------ */
+function blocAccompagnement(corps, nom){
+  if(typeof typeAccompagnement !== 'function') return;
+  const type = typeAccompagnement(nom);
+  if(!type) return;
+
+  corps.appendChild(sousTitreDossier(
+    type === 'AAC' ? 'Sa conduite accompagnée' : 'Sa conduite supervisée'));
+
+  const zone = document.createElement('div');
+  zone.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+
+  (type === 'AAC' ? lignesAacDossier(nom) : lignesCsDossier(nom))
+    .forEach(l => {
+      const d = document.createElement('div');
+      d.style.cssText = 'font-size:12.5px;line-height:1.6;' +
+        (l.couleur ? 'color:' + l.couleur + ';' : '') +
+        (l.fort ? 'font-weight:700;' : '') +
+        (l.faible ? 'opacity:.65;' : '');
+      d.textContent = l.txt;
+      zone.appendChild(d);
+    });
+  corps.appendChild(zone);
+
+  /* LES MÊMES BOUTONS QUE LA LISTE. Ils redessinent les deux écrans
+     par redessinerAacCs : le dossier ouvert et la liste derrière. */
+  const act = document.createElement('div');
+  act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;margin:9px 0 4px;';
+  try{
+    if(type === 'AAC' && typeof boutonsAac === 'function'){
+      boutonsAac(dossierAac(nom), act);
+    }else if(type === 'CS' && typeof boutonsCs === 'function'){
+      const s = suiviDe(nom);
+      const duree = dureeDepuis(s.rvpDate);
+      boutonsCs({ eleve: nom, suivi: s, duree: duree,
+                  etat: etatQuestionEb(s, duree),
+                  eb: examenBlancDe(nom) }, act);
+    }
+  }catch(e){ /* sans les boutons, la lecture reste juste */ }
+  if(act.children.length) corps.appendChild(act);
+}
+
+
+/* Ce qu'on lit d'un AAC dans son dossier — les mêmes phrases que la
+   liste, dans le même ordre. */
+function lignesAacDossier(nom){
+  const x = dossierAac(nom);
+  const out = [{ txt: x.parcours.long, fort: true }];
+
+  out.push(x.ech.exam.iso
+    ? { txt: '🎓 Examen possible le ' + jourFr(x.ech.exam.iso) +
+             ' (' + x.ech.exam.pourquoi + ')', fort: true }
+    : { txt: "🎓 Date d'examen possible inconnue — il manque " +
+             (x.ech.exam.manque === 'naissance' ? 'sa date de naissance'
+                                                : 'son rendez-vous préalable'),
+        couleur: 'var(--warn-text)' });
+
+  out.push({ txt: '① Préalable — ' + x.rdv.prealable.txt });
+  [['② RVP 1', x.rdv.rvp1], ['③ RVP 2', x.rdv.rvp2],
+   ['🗣️ Théorique', x.rdv.rvt]].forEach(([t, e]) => {
+    out.push({ txt: t + ' — ' + e.txt,
+      couleur: e.retard ? 'var(--warn-text)'
+             : (e.cle === 'fait' || e.cle === 'ailleurs' || e.cle === 'prevu')
+               ? 'var(--accent-text)' : '',
+      faible: e.cle === 'sansobjet' });
+  });
+  return out;
+}
+
+
+function lignesCsDossier(nom){
+  const s = suiviDe(nom);
+  const duree = dureeDepuis(s.rvpDate);
+  const etat = etatQuestionEb(s, duree);
+
+  const out = [];
+  out.push(duree
+    ? { txt: 'CS depuis ' + duree.txt + ' — préalable le ' + jourFr(s.rvpDate),
+        fort: true }
+    : { txt: '🎂 Pas de date de rendez-vous préalable — rien à compter ' +
+             "tant qu'elle manque", couleur: 'var(--warn-text)' });
+
+  out.push({ txt: etat.txt,
+    couleur: etat.urgent ? 'var(--warn-text)'
+           : (etat.cle === 'pret' ? 'var(--accent-text)' : '') });
+  return out;
+}
+
+
 function ongletPermis(corps, nom){
   if(typeof suiviDe !== 'function' || typeof majSuivi !== 'function'){
     corps.appendChild(vidDossier(
@@ -1192,6 +1350,19 @@ function ongletPermis(corps, nom){
   }
 
   const refaire = () => dessinerPageEleve();
+
+  /* ── L'ACCOMPAGNEMENT, QUAND IL Y EN A UN ──
+
+     En tête, parce que c'est le cadre : tout le reste de cet onglet
+     se lit différemment selon qu'il est en AAC ou pas. Un examen
+     « à prévoir » sur un élève de 15 ans en conduite accompagnée
+     n'est pas un retard, c'est le calendrier normal.
+
+     ⚠️ CE BLOC AFFICHE ET DÉLÈGUE, comme tout le reste du dossier :
+     il appelle les fonctions de ec-aac-cs, celles-là mêmes que la
+     liste de Suivi utilise. Une donnée, deux écrans, une seule
+     écriture. */
+  blocAccompagnement(corps, nom);
 
   /* ── Avant l'examen ── */
   corps.appendChild(sousTitreDossier("Avant l'examen"));
