@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 815
+     GUIDE-VERSION: 816
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v815</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v816</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v815</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v816</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -948,6 +948,7 @@ html{scroll-behavior:smooth}
     <p>Trois formulations selon l'état&nbsp;: <span class="ch">Examen prévu le…</span>, <span class="ch">Examen passé le…</span>, <span class="ch">Examen qui était prévu le…</span> pour un examen annulé. Sur <span class="ch">Date à prévoir</span> et <span class="ch">Non planifiable</span>, rien ne s'affiche — il n'y a rien à lire.</p>
     <p>Quand il n'y a pas de date, la ligne <strong>dit pourquoi</strong> au lieu de laisser un champ vide&nbsp;: <span class="ch">🎓 Aucune date d'examen — c'est le bureau qui la pose, depuis 🎓 Suivi permis.</span> Un champ vide se lit « à toi de la mettre », et c'est précisément ce qu'on retire.</p>
     <p><span class="b">« Reprogrammé le… »</span> suit la même règle et a disparu de la même façon&nbsp;: c'est une date d'examen sous un autre nom. Le moniteur dit <span class="ch">Annulé</span>, le bureau reprogramme.</p>
+    <div class="note piege"><span class="tag">⚠️ Ajourné puis replacé — corrigé v816</span><p><em>« Elle a déjà une nouvelle date de prévue. »</em></p><p>Un élève ajourné et replacé est dans <strong>deux sessions</strong>&nbsp;: celle de son ajournement et celle de son repassage. L'outil rendait <strong>la première trouvée</strong> — et comme les sessions sont triées par date croissante, c'était toujours la plus <em>ancienne</em>. Une élève ajournée le 24 août et replacée le 14 septembre voyait donc <span class="ch">Examen passé le lundi 24 août 2026</span> sur son questionnaire, et <span class="ch">PAS DE DATE D'EXAMEN OFFICIEL — à reprogrammer</span> sur sa carte, alors que sa nouvelle date était posée depuis longtemps.</p><p>La règle&nbsp;: <strong>ce qui est devant d'abord</strong>, et la plus proche des dates à venir — c'est celle-là qu'on prépare. À défaut, la plus récente des passées, qui dit ce qui a eu lieu. Le jour même compte comme à venir.</p></div>
 
     <div class="note"><span class="tag">📨 Et le moniteur n'est pas laissé sans recours</span><p>Une date qui lui paraît fausse — l'élève annonce le 18 quand la note dit le 12 — se <strong>signale</strong> en une ligne&nbsp;: le bouton <span class="b">📨 Signaler au bureau</span> sous la date. Le message part dans les <strong>messages en attente</strong>, l'écran que le bureau lit déjà, et il dit qui signale, quelle date est contestée, et pourquoi.</p><p>Le bouton <strong>ne corrige rien</strong>&nbsp;: il prévient. Corriger serait rouvrir la porte par la fenêtre. Sans lui, une date fausse resterait fausse jusqu'à ce que quelqu'un rappelle le bureau.</p></div>
 
