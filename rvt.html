@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 02/09/2026 à 13:15 — v807 -->
+<!-- Déployé le 02/09/2026 à 13:31 — v808 -->
 <!-- ============================================================
      RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
      Évolution Conduites
@@ -212,7 +212,28 @@ function dessiner(){
   });
 
   if(!clos){
-    h += '<label for="qui">Qui remplit cette réponse&nbsp;?</label>' +
+    /* ⚠️ « AUCUNE DE CES DATES » DOIT ÊTRE UN GESTE, PAS SIX.
+
+       Sans ce bouton, la famille qui ne peut à aucune date devait
+       appuyer « on ne peut pas » sur chaque créneau. Beaucoup
+       s'arrêtaient en route ou ne répondaient pas du tout — et le
+       bureau lisait un silence là où il y avait un non clair, donc
+       relançait quelqu'un qui avait déjà répondu.
+
+       Il coche tous les créneaux en « on ne peut pas » et laisse
+       la main : rien ne part avant le bouton d'envoi. */
+    var tousNon = (d.creneaux || []).length &&
+      (d.creneaux || []).every(function(c){
+        return etat.reponses[c.id] === 'non';
+      });
+    h += '<button type="button" id="aucune" class="' +
+      (tousNon ? 'non on' : '') + '" ' +
+      'style="background:transparent;border:1.5px solid var(--ligne);' +
+      'color:var(--creme);font-size:15px;padding:12px;' +
+      (tousNon ? 'background:var(--orange);color:#0B0B0B;' +
+                 'border-color:var(--orange);' : '') + '">' +
+      '✖️ Aucune de ces dates ne nous convient</button>' +
+      '<label for="qui">Qui remplit cette réponse&nbsp;?</label>' +
       '<div class="choix">' +
         '<button type="button" data-qui="eleve" class="' +
           (etat.repond === 'eleve' ? 'on' : '') + '">L\'élève</button>' +
@@ -256,6 +277,24 @@ function brancher(){
       dessiner();
     });
   });
+  var auc = document.getElementById('aucune');
+  if(auc) auc.addEventListener('click', function(){
+    var champ = document.getElementById('acc');
+    if(champ) etat.accompagnateur = champ.value;
+    /* Un second appui défait : c'est un bouton, pas un piège. */
+    var tousNon = (donnees.creneaux || []).length &&
+      (donnees.creneaux || []).every(function(c){
+        return etat.reponses[c.id] === 'non';
+      });
+    etat.reponses = {};
+    if(!tousNon){
+      (donnees.creneaux || []).forEach(function(c){
+        etat.reponses[c.id] = 'non';
+      });
+    }
+    dessiner();
+  });
+
   var env = document.getElementById('envoyer');
   if(env) env.addEventListener('click', envoyer);
 }
