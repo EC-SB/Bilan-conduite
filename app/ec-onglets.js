@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 11:49 — v798 */
+/* Déployé le 02/09/2026 à 12:00 — v799 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -138,23 +138,32 @@ const VUES = {
      permis prévus, places à ouvrir, élèves à qui prendre une date. */
   /* Le parcours d'un élève, dans l'ordre où il le suit : pas
      prêt, à envisager, préparé, suivi, résultat. */
-  /* AAC / CS EN PREMIER, ET C'EST VOULU. C'est la phase la plus
-     longue et la moins visible : un élève accompagné n'a pas de date
-     d'examen, donc il n'est dans aucune des six vues qui suivent ; et
-     il ne prend pas une leçon par semaine, donc il ne remonte pas
-     dans les rappels. On ne le revoit que le jour où quelqu'un y
-     repense — c'est comme ça qu'un rendez-vous théorique prend six
-     mois de retard. */
-  permis: [['aaccs',     '🤝 AAC / CS',         'bureau_permis'],
-           ['pasprets',  '⛔ Pas prêts',        'bureau_permis'],
+  permis: [['pasprets',  '⛔ Pas prêts',        'bureau_permis'],
            ['envisager', '🤔 À envisager',      'bureau_permis'],
            ['preppermis','📣 Préparation',      'bureau_permis'],
            ['sessions',  '🎓 Suivi permis',     'bureau_permis'],
            ['resultats', '🏁 Résultats',        'bureau_permis'],
            ['moto',      '🏍️ Moto',            'bureau_permis'],
            ['remorque',  '🚚 Remorque',         'bureau_permis']],
-  suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
-           ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
+  /* LE SUIVI CS ET LE SUIVI AAC SONT DANS SUIVI, ET SÉPARÉS.
+
+     Dans SUIVI, parce que ces élèves-là n'ont pas de date d'examen :
+     ils ne sont candidats à rien encore. On les SUIT, on ne prépare
+     pas leur passage — et les deux listes débouchent sur l'examen
+     blanc, qui est dans la même vue.
+
+     SÉPARÉS, parce qu'ils ne se ressemblent pas. La CS, c'est un
+     compteur et une question. L'AAC, c'est trois rendez-vous, des
+     échéances calculées et trois parcours possibles. Dans un seul
+     écran, il fallait replier l'un pour lire l'autre.
+
+     Après « Simulateurs et examens blancs », pas avant : c'est
+     l'écran de tous les jours, et on ne déplace pas ce sur quoi le
+     bureau atterrit sans qu'il l'ait demandé. */
+  suivi:  [['simu',     '🌙 Simulateurs et examens blancs', 'bureau_simu'],
+           ['suivics',  '🤝 Suivi CS',                      'bureau_examblanc'],
+           ['suiviaac', '🎓 Suivi AAC',                     'bureau_examblanc'],
+           ['ecoutes',  '👂 Écoutes pédagogiques',          'ecoutes']],
   /* LE DOSSIER EN PREMIER, ET C'EST TOUT LE POINT.
 
      On ne pense pas « quel écran », on pense « Léa ». Les neuf vues
@@ -356,7 +365,11 @@ function reveillerVue(cle){
     /* Une vue branchée nulle part reste sur « Chargement… » pour
        toujours — c'est ce qui était arrivé à « Historique des
        cours », et ça ne se voit qu'en ouvrant la vue. */
-    aaccs:      () => (typeof afficherAacCs === 'function') && afficherAacCs(),
+    /* LES DEUX VUES APPELLENT LA MÊME FONCTION. Elles lisent la même
+       fiche de suivi et le même répertoire ; deux chargements
+       séparés, c'était deux occasions de ne pas être d'accord. */
+    suivics:    () => (typeof afficherAacCs === 'function') && afficherAacCs(),
+    suiviaac:   () => (typeof afficherAacCs === 'function') && afficherAacCs(),
     /* Les cinq vues du permis partagent le même chargement */
     pasprets:   () => afficherBureau(),
     envisager:  () => afficherBureau(),
