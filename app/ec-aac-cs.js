@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 11:49 — v798 */
+/* Déployé le 02/09/2026 à 12:00 — v799 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -328,14 +328,7 @@ async function afficherAacCs(){
 
   dessinerReglageCs();
   if(zC) dessinerListeCs(zC);
-  /* La liste AAC arrive à l'étape suivante : elle demande les trois
-     parcours et les échéances. Dire qu'elle vient, plutôt que de
-     laisser un cadre vide qui se lit « aucun élève en AAC ». */
-  if(zA && !zA.dataset.rempli){
-    zA.innerHTML = '<div class="empty">La liste AAC arrive juste après.<br>' +
-      '<span style="font-size:12px;">Les colonnes sont en place ; il reste ' +
-      'les trois parcours et les échéances des rendez-vous.</span></div>';
-  }
+  if(zA) dessinerListeAac(zA);
 }
 
 
@@ -615,3 +608,537 @@ function boutonsCs(x, zone){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-aac-cs.js'] = true;
+
+
+/* ============================================================
+   LE SUIVI AAC
+
+   Trois rendez-vous jalonnent l'année, et deux conditions ouvrent
+   l'examen. Rien de tout ça ne s'écrivait nulle part avant la v185 :
+   le questionnaire posait les bonnes questions et n'en gardait que
+   des états, dans le texte de la note.
+   ============================================================ */
+
+/* Les trois parcours possibles.
+
+   Chrystel : « on doit pouvoir dire qu'un élève ne veut pas valider
+   sa conduite accompagnée — la décision peut être prise en cours de
+   route — et il repart dans un schéma classique. Il faudra aussi
+   l'option de fausse conduite accompagnée : il fait son rendez-vous
+   préalable, il conduit, mais il ne fera aucun rendez-vous
+   pédagogique, il attend 17 ans pour passer son examen. »
+
+   🚗 et 👻 se comportent PAREIL : plus aucun rendez-vous attendu,
+   examen à 17 ans révolus. On garde les deux mots quand même, parce
+   que ce n'est pas la même histoire — et c'est le bureau qui la
+   raconte au téléphone. « Il a fait son RVP 1 puis a renoncé » et
+   « il n'a jamais eu l'intention de valider » n'appellent pas la
+   même explication à un parent. */
+const PARCOURS_AAC = {
+  '':          { court:'🎓 à valider',   long:'AAC à valider',
+                 rdvAttendus:true,  unAn:true },
+  'abandonne': { court:'🚗 abandonnée',  long:'AAC abandonnée',
+                 rdvAttendus:false, unAn:false },
+  'fausse':    { court:'👻 fausse AAC',  long:'Fausse conduite accompagnée',
+                 rdvAttendus:false, unAn:false }
+};
+
+function parcoursDe(s){
+  const c = String((s && s.parcoursAac) || '').trim();
+  return PARCOURS_AAC[c] ? c : '';
+}
+
+
+/* ------------------------------------------------------------
+   LA DATE À PARTIR DE LAQUELLE L'EXAMEN EST POSSIBLE
+
+   Deux conditions, et il faut LES DEUX :
+
+     · 17 ans révolus — le lendemain de l'anniversaire ;
+     · 1 an entre le rendez-vous préalable et l'examen, pour VALIDER
+       la conduite accompagnée.
+
+   Donc la PLUS TARDIVE des deux. « Un élève qui part à 16 ans et
+   demi pour son rendez-vous préalable ne peut passer son examen
+   qu'à 17 ans et demi pour valider la conduite accompagnée. »
+
+   Quand l'AAC est abandonnée ou fausse, la règle du 1 an tombe avec
+   la validation : il ne reste que l'âge.
+
+   ⚠️ ON NE DIT JAMAIS « il peut passer ». On dit « examen possible
+   le … », et on dit LAQUELLE des deux conditions commande. Le
+   kilométrage est suivi dans DriveUp, l'outil n'en sait rien — une
+   date qui se présenterait comme un feu vert serait un mensonge.
+   ------------------------------------------------------------ */
+function examenPossibleLe(s, naissance){
+  const p = PARCOURS_AAC[parcoursDe(s)];
+  const dix7 = (typeof jour17AnsRevolus === 'function')
+    ? jour17AnsRevolus(naissance) : '';
+
+  let unAn = '';
+  const rvp = String((s && s.rvpDate) || '').trim();
+  if(p.unAn && /^\d{4}-\d{2}-\d{2}$/.test(rvp)){
+    const d = new Date(rvp + 'T12:00:00');
+    if(!isNaN(d.getTime())){
+      d.setFullYear(d.getFullYear() + 1);
+      unAn = d.getFullYear() + '-' +
+             ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+             ('0' + d.getDate()).slice(-2);
+    }
+  }
+
+  /* Sans date de naissance on ne peut RIEN annoncer : l'âge est une
+     des deux conditions. Mieux vaut le dire que de rendre la seule
+     qu'on connaît en la faisant passer pour la réponse. */
+  if(!dix7) return { iso:'', pourquoi:'', manque:'naissance' };
+  if(p.unAn && !unAn) return { iso:'', pourquoi:'', manque:'prealable' };
+
+  if(unAn && unAn > dix7) return { iso:unAn, pourquoi:'le 1 an' };
+  return { iso:dix7, pourquoi:'ses 17 ans' };
+}
+
+
+/* ------------------------------------------------------------
+   LES ÉCHÉANCES DES RENDEZ-VOUS
+
+   · RVP 1 ≈ 6 mois après le préalable.
+   · RVP 2 : la PLUS TARDIVE de (préalable + 10 mois) et
+     (examen possible − 2 mois). C'est le dernier point de contrôle
+     avant l'examen : il se place PRÈS de l'examen, pas au plus tôt.
+     Calé au plus tôt, un élève parti à 15 ans l'aurait passé à
+     15 ans et 10 mois, un an avant de pouvoir présenter quoi que ce
+     soit.
+   · Le théorique : AUCUNE échéance. « N'importe quand après le
+     préalable, de préférence entre les deux, mais ce n'est pas une
+     obligation. » On ne calcule donc rien — seulement son état, et
+     c'est bien assez pour voir qu'il manque.
+   ------------------------------------------------------------ */
+function decalerMois(iso, mois){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) return '';
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d.getTime())) return '';
+  const jour = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + mois);
+  /* Le 31 mai + 1 mois n'est pas le 1er juillet : on retombe sur le
+     dernier jour du mois quand il est plus court. */
+  const dernier = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(jour, dernier));
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) +
+         '-' + ('0' + d.getDate()).slice(-2);
+}
+
+function echeancesAac(s, naissance){
+  const rvp = String((s && s.rvpDate) || '').trim();
+  const exam = examenPossibleLe(s, naissance);
+
+  const dixMois = decalerMois(rvp, 10);
+  const moins2 = exam.iso ? decalerMois(exam.iso, -2) : '';
+
+  return {
+    rvp1: decalerMois(rvp, 6),
+    /* La plus TARDIVE — dernier point de contrôle. */
+    rvp2: (dixMois && moins2) ? (moins2 > dixMois ? moins2 : dixMois)
+                              : (dixMois || moins2),
+    rvt: '',                 /* aucune échéance, et c'est voulu */
+    exam: exam
+  };
+}
+
+
+/* L'état d'un rendez-vous, prêt à afficher.
+
+   Quatre états, et le quatrième compte : « fait ailleurs » se
+   comporte comme « fait », mais il prévient qu'IL N'Y A AUCUN BILAN
+   À ALLER LIRE. Sans lui, on cherche une trace qui n'existe pas.
+
+   ⚠️ ET LE ROUGE NE SERT QU'À UNE CHOSE : échéance dépassée, sur un
+   rendez-vous ENCORE ATTENDU. Un parcours abandonné n'attend plus
+   rien : le faire rougir noierait le seul retard qui compte. */
+function etatRdv(etat, date, echeance, attendu, auJour){
+  const e = String(etat || '').trim();
+  const d = String(date || '').trim();
+  const auj = String(auJour || (typeof todayLocal === 'function'
+                ? todayLocal() : new Date().toISOString().slice(0, 10)));
+
+  if(e === 'fait')     return { cle:'fait', retard:false,
+    txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') };
+  if(e === 'ailleurs') return { cle:'ailleurs', retard:false,
+    txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') + ' (autre auto-école)' };
+  if(e === 'prevu')    return { cle:'prevu', retard:false,
+    txt:'prévu' + (d ? ' le ' + jourFrCs(d) : ' — date à fixer') };
+
+  if(!attendu) return { cle:'sansobjet', retard:false, txt:'plus attendu' };
+
+  if(echeance){
+    const tard = echeance < auj;
+    return { cle: tard ? 'retard' : 'aprevoir', retard: tard,
+      txt: (tard ? 'EN RETARD — attendu le ' : 'attendu le ') +
+           jourFrCs(echeance) };
+  }
+  return { cle:'aprevoir', retard:false, txt:'à prévoir' };
+}
+
+
+/* Un élève AAC, tout ce qu'il faut pour sa ligne. */
+function dossierAac(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const naissance = (f && f.naissance) || '';
+  const cle = parcoursDe(s);
+  const p = PARCOURS_AAC[cle];
+  const ech = echeancesAac(s, naissance);
+  const attendus = p.rdvAttendus;
+
+  const rdv = {
+    prealable: etatRdv(s.rvpEtat, s.rvpDate, '', true),
+    rvp1: etatRdv(s.rvp1Etat, s.rvp1Date, ech.rvp1, attendus),
+    rvp2: etatRdv(s.rvp2Etat, s.rvp2Date, ech.rvp2, attendus),
+    rvt:  etatRdv(s.rvtEtat, s.rvtDate, '', attendus)
+  };
+
+  return {
+    eleve: nom, suivi: s, fiche: f, naissance: naissance,
+    age: (typeof ageDe === 'function') ? ageDe(naissance) : null,
+    parcoursCle: cle, parcours: p,
+    ech: ech, rdv: rdv,
+    eb: examenBlancDe(nom),
+    retard: Object.keys(rdv).some(k => rdv[k].retard),
+    /* Le théorique jamais fait, sur un parcours qui l'attend : c'est
+       le retard dont Chrystel parlait, et il n'a pas d'échéance pour
+       le signaler tout seul. */
+    rvtManquant: attendus && rdv.rvt.cle === 'aprevoir'
+  };
+}
+
+
+function elevesAac(){
+  const tous = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
+    ? etatBureau.eleves : [];
+  const noms = {};
+  tous.forEach(e => { noms[normaliserMot(e.eleve)] = e.eleve; });
+  ((typeof fichesEleves !== 'undefined' && fichesEleves) || []).forEach(f => {
+    if(f.eleve) noms[normaliserMot(f.eleve)] = noms[normaliserMot(f.eleve)] || f.eleve;
+  });
+
+  const out = [];
+  Object.keys(noms).forEach(k => {
+    if(typeAccompagnement(noms[k]) !== 'AAC') return;
+    out.push(dossierAac(noms[k]));
+  });
+
+  /* Les retards d'abord, puis ceux dont le théorique manque, puis
+     par date d'examen possible — les plus proches en tête. */
+  out.sort((a, b) => {
+    if(a.retard !== b.retard) return a.retard ? -1 : 1;
+    if(a.rvtManquant !== b.rvtManquant) return a.rvtManquant ? -1 : 1;
+    const da = a.ech.exam.iso || '9999';
+    const db = b.ech.exam.iso || '9999';
+    return da < db ? -1 : (da > db ? 1 : 0);
+  });
+  return out;
+}
+
+
+/* ------------------------------------------------------------
+   L'ÉCRAN AAC
+   ------------------------------------------------------------ */
+let filtreAac = 'tous';
+
+function dessinerListeAac(zone){
+  const liste = elevesAac();
+  zone.innerHTML = '';
+
+  if(typeof majVolet === 'function'){
+    majVolet('cptAac', liste.length, liste.filter(x => x.retard).length);
+  }
+  dessinerFiltresAac(liste);
+
+  if(!liste.length){
+    zone.innerHTML = '<div class="empty">Aucun élève en conduite accompagnée.' +
+      '<br><span style="font-size:12px;">La formation se lit sur la fiche ' +
+      'de l\'élève — « AAC BV », « AAC BEA ».</span></div>';
+    return;
+  }
+
+  const vus = liste.filter(x => {
+    if(filtreAac === 'retard') return x.retard;
+    if(filtreAac === 'theorique') return x.rvtManquant;
+    if(filtreAac === 'horsparcours') return x.parcoursCle !== '';
+    return true;
+  });
+
+  if(!vus.length){
+    zone.innerHTML = '<div class="empty">Personne dans ce filtre — ' +
+      'et c\'est une bonne nouvelle.</div>';
+    return;
+  }
+  vus.forEach(x => zone.appendChild(ligneAac(x)));
+}
+
+
+function dessinerFiltresAac(liste){
+  const z = $('filtresAac');
+  if(!z) return;
+  z.innerHTML = '';
+  z.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+
+  [['tous', 'Tous', liste.length],
+   ['retard', '⚠️ En retard', liste.filter(x => x.retard).length],
+   ['theorique', '🗣️ Théorique à faire', liste.filter(x => x.rvtManquant).length],
+   ['horsparcours', 'Ne valident pas',
+    liste.filter(x => x.parcoursCle !== '').length]
+  ].forEach(([cle, nom, n]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:11.5px;' +
+      (filtreAac === cle ? 'border-color:var(--accent-text);' +
+                           'color:var(--accent-text);' : '');
+    b.textContent = nom + (n ? ' (' + n + ')' : '');
+    b.addEventListener('click', () => { filtreAac = cle; afficherAacCs(); });
+    z.appendChild(b);
+  });
+}
+
+
+function ligneAac(x){
+  const row = document.createElement('div');
+  row.className = 'history-item';
+  row.style.cssText = 'flex-direction:column;align-items:stretch;';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  /* Nom · âge · parcours — les trois choses qu'elle a demandées en
+     tête de ligne : « nom prénom âge formation ». */
+  const nom = document.createElement('strong');
+  nom.textContent = x.eleve +
+    (x.age === null ? ' · âge inconnu' : ' · ' + x.age + ' ans') +
+    ' · ' + x.parcours.court;
+  if(x.age === null) nom.style.color = 'var(--warn-text)';
+  meta.appendChild(nom);
+
+  /* LA LIGNE QUI GOUVERNE TOUT : quand l'examen devient possible, et
+     LAQUELLE des deux conditions commande. Une date sans sa raison
+     ne se vérifie pas et ne s'explique pas au téléphone. */
+  const ex = document.createElement('span');
+  if(x.ech.exam.iso){
+    ex.innerHTML = 'Examen possible le <strong>' +
+      jourFrCs(x.ech.exam.iso) + '</strong> <span style="opacity:.75">(' +
+      x.ech.exam.pourquoi + ')</span>';
+  }else{
+    ex.style.color = 'var(--warn-text)';
+    ex.textContent = x.ech.exam.manque === 'naissance'
+      ? "Date d'examen possible inconnue — il manque sa date de naissance"
+      : "Date d'examen possible inconnue — il manque son rendez-vous préalable";
+  }
+  meta.appendChild(ex);
+
+  const prea = document.createElement('span');
+  prea.textContent = '① Préalable — ' + x.rdv.prealable.txt;
+  meta.appendChild(prea);
+
+  [['② RVP 1', x.rdv.rvp1], ['③ RVP 2', x.rdv.rvp2],
+   ['🗣️ Théorique', x.rdv.rvt]].forEach(([titre, e]) => {
+    const l = document.createElement('span');
+    l.style.color = e.retard ? 'var(--warn-text)'
+                  : (e.cle === 'fait' || e.cle === 'ailleurs' ||
+                     e.cle === 'prevu') ? 'var(--accent-text)' : '';
+    if(e.cle === 'sansobjet') l.style.opacity = '.6';
+    l.textContent = titre + ' — ' + e.txt;
+    meta.appendChild(l);
+  });
+
+  if(x.eb.txt){
+    const eb = document.createElement('span');
+    eb.style.color = (x.eb.cle === 'date' || x.eb.cle === 'passe')
+      ? 'var(--accent-text)' : '';
+    eb.textContent = x.eb.txt;
+    meta.appendChild(eb);
+  }
+
+  if(x.parcoursCle && x.suivi.parcoursLe){
+    const q = document.createElement('span');
+    q.style.opacity = '.7';
+    q.textContent = x.parcours.long + ' — noté le ' + jourFrCs(x.suivi.parcoursLe);
+    meta.appendChild(q);
+  }
+
+  row.appendChild(meta);
+
+  const act = document.createElement('div');
+  act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;';
+  boutonsAac(x, act);
+  if(act.children.length) row.appendChild(act);
+
+  return row;
+}
+
+
+/* Un examen officiel a-t-il été passé DEPUIS l'abandon ?
+
+   « S'il a passé son examen en cassant la conduite accompagnée, il
+   ne peut pas revenir en arrière. S'il n'a pas encore passé son
+   examen, on peut revenir dessus. »
+
+   C'est pour ça que la date de l'abandon est enregistrée : sans
+   elle, impossible de savoir si l'examen est venu avant ou après. */
+function examenPasseDepuisAbandon(x){
+  const le = String((x.suivi && x.suivi.parcoursLe) || '').trim();
+  if(!le) return '';
+  const d = String((x.suivi && x.suivi.datePermis) || '').trim();
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d
+            : ((typeof dateFrVersIso === 'function') ? dateFrVersIso(d) : '');
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  return (iso && iso >= le && iso <= auj) ? iso : '';
+}
+
+
+function boutonsAac(x, zone){
+  const nom = x.eleve;
+  const auj = () => (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  if(!x.naissance){
+    zone.appendChild(petitBouton('🎂 Sa date de naissance',
+      "L'âge est une des deux conditions de l'examen", async () => {
+        const iso = await choisirDate('Date de naissance');
+        if(!iso) return;
+        /* On délègue : la fiche appartient à ec-fenetres, et c'est
+           lui qui l'écrit — pour la fiche, pour le dossier élève et
+           pour ici. Un troisième écran qui écrirait sa version, on
+           connaît la suite. */
+        if(!await fixerDateNaissance(nom, iso)) return;
+        showToast('Enregistré ✅');
+        afficherAacCs();
+      }));
+  }
+
+  if(!x.suivi.rvpDate){
+    zone.appendChild(petitBouton('📅 Sa date de préalable',
+      'Tout se compte à partir de là', async () => {
+        const iso = await choisirDate('Rendez-vous préalable');
+        if(!iso) return;
+        await majSuivi(nom, { rvpDate: iso, rvpEtat: 'fait' });
+        showToast('Enregistré ✅');
+        afficherAacCs();
+      }));
+    return;
+  }
+
+  /* Les rendez-vous, seulement tant qu'ils sont attendus. */
+  if(x.parcours.rdvAttendus){
+    [['② RVP 1', 'rvp1'], ['③ RVP 2', 'rvp2'],
+     ['🗣️ Théorique', 'rvt']].forEach(([titre, cle]) => {
+      if(x.rdv[cle === 'rvt' ? 'rvt' : cle].cle === 'fait' ||
+         x.rdv[cle === 'rvt' ? 'rvt' : cle].cle === 'ailleurs') return;
+      zone.appendChild(petitBouton('✅ ' + titre + ' fait',
+        'Noter la date à laquelle il a eu lieu', async () => {
+          const iso = await choisirDate(titre);
+          if(!iso) return;
+          const maj = {};
+          maj[cle + 'Etat'] = 'fait';
+          maj[cle + 'Date'] = iso;
+          await majSuivi(nom, maj);
+          showToast('Enregistré ✅');
+          afficherAacCs();
+        }));
+    });
+
+    /* « Il faut qu'on puisse indiquer ce qu'il a déjà fait ou non »
+       pour un élève repris d'une autre auto-école. */
+    zone.appendChild(petitBouton('🏫 Fait ailleurs…',
+      "Ce qu'il a fait dans une autre auto-école", () => marquerAilleurs(x)));
+  }
+
+  /* LE PARCOURS. Changeable à tout moment — sauf après un examen
+     passé depuis l'abandon : là, c'est définitif, et la ligne dit
+     pourquoi au lieu de laisser un bouton disparaître en silence. */
+  const passe = x.parcoursCle ? examenPasseDepuisAbandon(x) : '';
+  if(passe){
+    const d = document.createElement('span');
+    d.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.5;' +
+      'flex:1;min-width:180px;';
+    d.textContent = '🔒 Examen officiel passé le ' + jourFrCs(passe) +
+      ' : la conduite accompagnée ne peut plus être validée.';
+    zone.appendChild(d);
+    return;
+  }
+
+  if(!x.parcoursCle){
+    zone.appendChild(petitBouton('🚗 Il ne validera pas',
+      "Il repart en examen blanc, chemin classique",
+      () => changerParcours(x, 'abandonne')));
+    zone.appendChild(petitBouton('👻 Fausse AAC',
+      'Aucun rendez-vous pédagogique prévu, il attend ses 17 ans',
+      () => changerParcours(x, 'fausse')));
+  }else{
+    zone.appendChild(petitBouton('↩️ Revenir à « à valider »',
+      'Les rendez-vous faits sont toujours là, les échéances reviennent',
+      () => changerParcours(x, '')));
+  }
+}
+
+
+async function marquerAilleurs(x){
+  const quoi = await demander(
+    "Qu'a-t-il fait dans son autre auto-école ?\n\n" +
+    'Écris : prealable, rvp1, rvp2 ou theorique — séparés par une virgule.',
+    '', '🏫 Fait ailleurs');
+  if(quoi === null) return;
+
+  const cles = { prealable:'rvp', rvp1:'rvp1', rvp2:'rvp2', theorique:'rvt' };
+  const maj = {};
+  String(quoi).toLowerCase().split(/[,;\s]+/).forEach(m => {
+    const c = cles[m.trim()];
+    if(c) maj[c + 'Etat'] = 'ailleurs';
+  });
+  if(!Object.keys(maj).length){
+    showToast('Aucun rendez-vous reconnu.');
+    return;
+  }
+  await majSuivi(x.eleve, maj);
+  showToast('Noté — fait ailleurs ✅');
+  afficherAacCs();
+}
+
+
+async function changerParcours(x, vers){
+  const p = PARCOURS_AAC[vers];
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  /* CE QUE ÇA FAIT, DIT AVANT DE LE FAIRE. Une bascule qui replace
+     l'élève dans une autre liste sans le dire, on en a déjà corrigé
+     une. */
+  let quoi = vers
+    ? 'Ses rendez-vous pédagogiques ne seront plus attendus — ' +
+      'ceux qui ont été faits restent écrits.\n\n' +
+      "L'examen redevient possible dès ses 17 ans révolus : la règle " +
+      'du 1 an tombe avec la validation.'
+    : 'Ses rendez-vous pédagogiques redeviennent attendus, avec leurs ' +
+      'échéances. Rien de ce qui a été fait n\'est effacé.';
+
+  /* L'examen blanc d'office — mais JAMAIS par-dessus un existant. */
+  const poser = vers === 'abandonne' && !x.eb.cle;
+  if(poser){
+    quoi += '\n\nIl part dans « 📝 Examen blanc à prévoir ».';
+  }else if(vers === 'abandonne' && x.eb.cle){
+    quoi += '\n\n' + x.eb.txt + " — rien n'est reposé.";
+  }
+
+  if(!await confirmer(p.long + ' ?\n\n' + quoi, 'Changer le parcours')) return;
+
+  try{
+    await majSuivi(x.eleve, { parcoursAac: vers, parcoursLe: vers ? auj : '' });
+    if(poser){
+      /* LE RELAIS, le même que pour la CS : on ouvre la porte de la
+         liste qui existe déjà, on ne pose pas d'examen blanc ici. */
+      await envoyerConsigne(x.eleve, 'examblanc',
+        "Examen blanc à prévoir — conduite accompagnée non validée");
+    }
+    showToast(p.long + ' ✅');
+    afficherAacCs();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
