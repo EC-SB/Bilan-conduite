@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 11:29 — v797 */
+/* Déployé le 02/09/2026 à 12:00 — v799 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -616,6 +616,37 @@ async function ecrirePosteDeConduite(nom, champ, actif, amenagements){
   const f = ficheDe(propre);
   if(f) Object.assign(f, enMemoire);
   else fichesEleves.push(Object.assign({ eleve: propre }, enMemoire));
+  return true;
+}
+
+
+/* LA DATE DE NAISSANCE, DEPUIS N'IMPORTE OÙ.
+
+   Elle vit sur la fiche, donc elle s'écrit ICI — comme les deux
+   pastilles au-dessus. Le suivi AAC en a besoin (l'âge est une des
+   deux conditions de l'examen), le dossier élève l'affichera, et il
+   n'y aura pas trois écrans qui écrivent chacun sa version.
+
+   'non' l'efface, un vide ne touche à rien : la même règle que
+   partout ailleurs sur cette fiche. */
+async function fixerDateNaissance(nom, iso){
+  const propre = String(nom || '').trim();
+  if(!propre) return false;
+  const v = String(iso || '').trim() || 'non';
+
+  try{
+    await appelPrep({ action: 'ficheSet', eleve: propre, naissance: v });
+  }catch(e){
+    showToast('Enregistrement impossible : ' + e.message);
+    return false;
+  }
+
+  /* La mémoire suit tout de suite, et garde la VALEUR — pas le mot
+     qui l'efface. */
+  const f = ficheDe(propre);
+  const gardee = (v === 'non') ? '' : v;
+  if(f) f.naissance = gardee;
+  else fichesEleves.push({ eleve: propre, naissance: gardee });
   return true;
 }
 
