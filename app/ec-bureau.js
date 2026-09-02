@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:38 — v785 */
+/* Déployé le 02/09/2026 à 11:49 — v798 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -163,6 +163,9 @@ async function chargerBureau(forcer){
     etatBureau.suivi = [];
   }
   chargerPlaces(data && data.places);
+  /* Les réglages du bureau arrivent par le même appel : les seuils de
+     la liste CS n'ont pas besoin d'un aller-retour à eux. */
+  if(typeof chargerReglages === 'function') chargerReglages(data && data.reglages);
   /* Les périodes terminées sortent d'elles-mêmes */
   if(nettoyerPeriodesEchues()){
     try{ await enregistrerPlaces(); }catch(e){}
