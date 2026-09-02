@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:50 — v790 */
+/* Déployé le 02/09/2026 à 09:10 — v791 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -202,16 +202,44 @@ function preparationDe(nom){
 let prepDemandeesPourDossier = false;
 function assurerPreparations(){
   if(typeof prepares === 'undefined') return;
-  if(prepares.length) return;
 
-  if(typeof lireCachePrepares === 'function'){
-    const cache = lireCachePrepares();
-    if(cache && cache.length){ prepares = cache; return; }
+  if(!prepares.length){
+    if(typeof lireCachePrepares === 'function'){
+      const cache = lireCachePrepares();
+      if(cache && cache.length) prepares = cache;
+    }
   }
 
-  if(prepDemandeesPourDossier || typeof chargerPrepares !== 'function') return;
-  prepDemandeesPourDossier = true;
-  chargerPrepares().then(() => rafraichirPageEleve()).catch(() => {});
+  if(!prepares.length){
+    if(prepDemandeesPourDossier || typeof chargerPrepares !== 'function') return;
+    prepDemandeesPourDossier = true;
+    chargerPrepares()
+      .then(() => { refaireLesNotesPreparees(); rafraichirPageEleve(); })
+      .catch(() => {});
+    return;
+  }
+
+  refaireLesNotesPreparees();
+}
+
+/* ⚠️ LA NOTE STOCKÉE D'UN COURS PRÉPARÉ EST PÉRIMÉE PAR
+   CONSTRUCTION — ET C'EST POUR ÇA QUE CETTE FONCTION EXISTE.
+
+   Elle est écrite AU MOMENT DE LA PRÉPARATION. À la fin de la
+   leçon, le moniteur répond au questionnaire : ce sont les
+   réponses (« contexte ») qui changent, pas le texte. L'écran des
+   prochains cours ne montre donc jamais la note stockée — il
+   appelle rafraichirNotesPreparees(), qui la REFAIT à partir du
+   contexte.
+
+   Sans cet appel, le dossier lisait la photo d'AVANT la leçon :
+   « 4ème leçon sur 4 · examen blanc à prévoir » pour une élève
+   que le bureau voyait à sa 8ème avec son examen blanc réservé.
+
+   AUCUN ÉCRAN NE DOIT LIRE « prep.note » SANS L'AVOIR REFAITE. */
+function refaireLesNotesPreparees(){
+  if(typeof rafraichirNotesPreparees !== 'function') return;
+  try{ rafraichirNotesPreparees(); }catch(e){ /* une note qui résiste */ }
 }
 
 /* Les contradictions entre la fiche de suivi et la note. Une par
@@ -292,8 +320,12 @@ function blocResumeEleve(nom){
   if(prep){
     const src = document.createElement('div');
     src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
+    /* En français, comme partout ailleurs : « 2026-09-02 » est une
+       date de machine. */
+    const jour = (prep.date && typeof dateEnToutesLettres === 'function')
+      ? (dateEnToutesLettres(prep.date) || prep.date) : prep.date;
     src.textContent = '🗓️ D\'après son cours préparé' +
-      (prep.date ? ' du ' + prep.date : '') +
+      (jour ? ' du ' + jour : '') +
       ((e && e.date) ? ' · dernier bilan le ' + e.date : '');
     d.appendChild(src);
   }else if(e && e.date){
