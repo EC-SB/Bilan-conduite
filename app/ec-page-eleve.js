@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:31 — v808 */
+/* Déployé le 02/09/2026 à 13:55 — v809 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -56,29 +56,28 @@ function jourFr(v){
    voit pas grisé, il ne le voit pas. C'est sectionVisible() qui
    décide, comme sur les cinquante autres écrans.
 
-   ⚠️ DEUX ONGLETS MANQUENT À CETTE LISTE, ET C'EST VOULU.
-
-   📋 QUESTIONNAIRE. Le questionnaire n'est pas un écran qui
-   enregistre : c'est un formulaire dont les réponses sont
-   consommées par le cours. L'ouvrir ici demanderait de lui écrire
-   un SECOND chemin d'enregistrement — et un même travail écrit à
-   deux endroits est exactement la faute que cette page répare.
-   Il y viendra quand il aura un vrai enregistrement, écrit une
-   fois.
+   ⚠️ UN ONGLET MANQUE À CETTE LISTE, ET C'EST VOULU.
 
    🎓 AAC. RVP 1, RVP 2 et le rendez-vous théorique ne sont stockés
    nulle part : ils sont relus au lasso dans le texte libre du
    dernier bilan. Un onglet qui montrerait ça donnerait une
-   apparence de suivi à une devinette.
+   apparence de suivi à une devinette. C'est écrit dans
+   TODO-general.md ; ne pas l'ajouter avant que la donnée existe.
 
-   Les deux sont écrits dans TODO-general.md. Ne pas les ajouter
-   ici avant que la donnée existe. */
+   📋 QUESTIONNAIRE, lui, EST là depuis la v809 — mais EN LECTURE
+   SEULE, et c'est la condition pour qu'il y soit. Le questionnaire
+   n'est pas un écran qui enregistre : lui ouvrir un second chemin
+   d'écriture depuis ici serait exactement la faute que cette page
+   répare. Il montre ce qui a été répondu et dit où le changer. */
 const ONGLETS_ELEVE = [
   { cle:'fiche',    emoji:'📇', titre:'Fiche',       section:'eleves' },
   { cle:'cours',    emoji:'📚', titre:'Cours',       section:'recherche' },
   { cle:'permis',   emoji:'🎓', titre:'Permis',      section:'permis' },
   { cle:'acces',    emoji:'🔑', titre:'Accès',       section:'proccorriger' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
+  /* En lecture seule — voir la note ci-dessus. Il suit le droit du
+     cours : qui peut lire un bilan peut lire ce qui l'a produit. */
+  { cle:'quest',    emoji:'📋', titre:'Questionnaire', section:'recherche' },
   { cle:'financement', emoji:'💶', titre:'Financement', section:'financements' },
   { cle:'handicap', emoji:'♿', titre:'Handicap',    section:'handicap' },
   /* 🔒 RGPD : ADMINISTRATEURS SEULEMENT.
@@ -882,9 +881,150 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'permis')      return ongletPermis(corps, nom);
   if(cle === 'acces')       return ongletAcces(corps, nom);
   if(cle === 'proc')        return ongletProcedures(corps, nom);
+  if(cle === 'quest')       return ongletQuestionnaire(corps, nom);
   if(cle === 'financement') return ongletFinancement(corps, nom);
   if(cle === 'handicap')    return ongletHandicap(corps, nom);
   if(cle === 'rgpd')        return ongletRgpd(corps, nom);
+}
+
+
+/* ============================================================
+   📋 QUESTIONNAIRE — EN LECTURE, ET SEULEMENT EN LECTURE
+
+   « Tu peux mettre la visibilité du questionnaire dans le dossier
+   élève. » Et, plus tôt : « le questionnaire dans le dossier — mon
+   avis : oui, mais EN LECTURE. »
+
+   ⚠️ CET ONGLET N'ENREGISTRE RIEN, ET C'EST LA CONDITION POUR
+   QU'IL EXISTE.
+
+   Le questionnaire n'est pas un écran qui enregistre : c'est un
+   formulaire dont les réponses sont consommées par le cours. Lui
+   ouvrir un SECOND chemin d'écriture depuis ici, ce serait deux
+   endroits qui écrivent la même chose — la faute que cette page
+   répare partout ailleurs. On montre donc ce qui a été répondu, et
+   on dit où aller pour le changer.
+
+   Deux sources, dans cet ordre :
+   1. le cours préparé — les réponses gardées, telles quelles ;
+   2. à défaut, ce que la note du dernier bilan laisse relire.
+   La seconde est une relecture au lasso dans du texte libre : elle
+   est annoncée comme telle, jamais présentée comme une réponse.
+   ============================================================ */
+
+/* Le nom lisible d'une réponse gardée. Les clés inconnues sont
+   montrées telles quelles plutôt que masquées : une réponse qu'on
+   ne sait pas nommer reste une réponse, et la cacher ferait croire
+   que le moniteur n'avait rien dit. */
+const NOMS_REPONSES_QUEST = {
+  lecon: 'Numéro de leçon', leconMain: 'Numéro tapé à la main',
+  frise: 'Frise', formation: 'Formation',
+  manoeuvresFaites: 'Manœuvres faites', totalManoeuvres: 'Manœuvres au total',
+  leconsDepuisEB: "Leçons depuis l'examen blanc",
+  leconsDepuisRdvPost: 'Leçons depuis le RDV post-permis',
+  leconsParBoite: 'Leçons par boîte',
+  examBlanc: 'Examen blanc', examBlancN: 'Examen blanc dans (leçons)',
+  examBlancDate: "Date de l'examen blanc",
+  ebPasse: 'Examen blanc passé', ebSuite: "Suite de l'examen blanc",
+  avantEB: "Leçons avant l'examen blanc",
+  examDate: "Date d'examen", examPermis: 'Examen du permis',
+  examPermisN: 'Examen dans (leçons)', examPassage: 'Passage',
+  nouvelleDate: 'Nouvelle date', dateAjournement: "Date d'ajournement",
+  repassages: 'Repassages', heuresRepassage: 'Heures de repassage',
+  heuresRestantes: 'Heures restantes',
+  simuNuit: 'Simulateur nuit et risques',
+  rvPrealable: 'Rendez-vous préalable', formAccomp: 'Formation accompagnateur',
+  rdvPostFait: 'RDV post-permis fait', rdvPostDate: 'Date du RDV post-permis',
+  rdvPostMoniteur: 'Moniteur du RDV post-permis',
+  rdvPostAPrevoir: 'RDV post-permis à prévoir',
+  avantRdvPost: 'Avant le RDV post-permis',
+  avantExamRate: 'Avant examen manqué',
+  handicap: 'Handicap', amenagements: 'Aménagements',
+  coussin: 'Coussin vert', sansBilan: 'Aucun bilan au classeur',
+  modele: 'Modèle de bilan', premierCours: 'Premier cours'
+};
+
+function ongletQuestionnaire(corps, nom){
+  corps.innerHTML = '';
+
+  const prep = preparationDe(nom);
+  const e = eleveDuBureau(nom);
+
+  if(!prep && !(e && e.note)){
+    corps.appendChild(vidDossier(
+      'Rien à montrer : aucun cours préparé, aucun bilan enregistré.'));
+    return;
+  }
+
+  /* ── D'OÙ VIENT CE QU'ON MONTRE, DIT EN PREMIER ── */
+  const src = document.createElement('div');
+  src.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.6;' +
+    'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
+    'margin-bottom:12px;';
+  src.innerHTML = prep
+    ? '📋 Les réponses du <strong>cours préparé' +
+      (prep.date ? ' du ' + jourFr(prep.date) : '') + '</strong>' +
+      (prep.moniteur ? ', par ' + String(prep.moniteur).replace(/</g, '&lt;')
+                     : '') + '.'
+    : '📋 Aucun cours préparé : ce qui suit est <strong>relu dans la note ' +
+      'du dernier bilan</strong>, ce ne sont pas des réponses gardées.';
+  corps.appendChild(src);
+
+  /* ── CE QUI A ÉTÉ RÉPONDU ── */
+  const ctx = prep
+    ? ((typeof contexteEnObjet === 'function')
+        ? (contexteEnObjet(prep.contexte) || {}) : (prep.contexte || {}))
+    : ((typeof defautsDepuisNote === 'function')
+        ? defautsDepuisNote((e && e.note) || '') : {});
+
+  const cles = Object.keys(ctx || {})
+    .filter(k => {
+      const v = ctx[k];
+      if(v === '' || v === null || v === undefined) return false;
+      if(Array.isArray(v) && !v.length) return false;
+      return true;
+    })
+    .sort((a, b) => String(NOMS_REPONSES_QUEST[a] || a)
+      .localeCompare(String(NOMS_REPONSES_QUEST[b] || b), 'fr'));
+
+  if(cles.length){
+    corps.appendChild(sousTitreDossier(prep ? 'Réponses gardées'
+                                            : 'Relu dans la note'));
+    cles.forEach(k => {
+      const v = ctx[k];
+      corps.appendChild(ligneDossier(
+        NOMS_REPONSES_QUEST[k] || k,
+        Array.isArray(v) ? v.join(' · ') : String(v)));
+    });
+  }else{
+    corps.appendChild(vidDossier('Aucune réponse gardée sur ce cours.'));
+  }
+
+  /* ── ET LA NOTE ENTIÈRE, PARCE QUE C'EST ELLE QUI VOYAGE ──
+
+     C'est la note que le moniteur lira au volant, et celle que le
+     bureau relit dans ses listes. La montrer entière évite d'avoir
+     à croire sur parole le découpage du dessus. */
+  const note = (prep && prep.note) || (e && e.note) || '';
+  if(String(note).trim()){
+    corps.appendChild(sousTitreDossier('La note, telle qu\'elle est écrite'));
+    const z = document.createElement('div');
+    z.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+      'padding:11px 12px;font-size:13px;line-height:1.7;white-space:pre-wrap;' +
+      'word-break:break-word;';
+    z.textContent = (typeof noteEnClair === 'function')
+      ? noteEnClair(note) : String(note);
+    corps.appendChild(z);
+  }
+
+  /* ── OÙ ALLER POUR LA CHANGER ── */
+  const pied = document.createElement('div');
+  pied.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.6;' +
+    'margin-top:14px;';
+  pied.textContent = 'Cet onglet ne modifie rien. Les réponses se changent ' +
+    'là où elles sont posées : dans le questionnaire du cours, depuis ' +
+    '📅 Mes prochains cours.';
+  corps.appendChild(pied);
 }
 
 
