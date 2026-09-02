@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:14 — v801 */
+/* Déployé le 02/09/2026 à 12:19 — v802 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1308,6 +1308,29 @@ function lignesAacDossier(nom){
                ? 'var(--accent-text)' : '',
       faible: e.cle === 'sansobjet' });
   });
+
+  lignesExamenDossier(x.exam).forEach(l => out.push(l));
+  return out;
+}
+
+
+/* L'EXAMEN OFFICIEL : ajourné quand, et une nouvelle date ou pas.
+
+   Les mêmes deux phrases que les listes de Suivi — c'est
+   examenOfficielDe qui les compose, ici comme là-bas. Le dossier ne
+   relit rien de son côté. */
+function lignesExamenDossier(exam){
+  if(!exam) return [];
+  const out = [];
+  if(exam.ajourne){
+    out.push({ txt: exam.ajourne.txt, couleur: 'var(--warn-text)' });
+  }
+  if(exam.devant.txt){
+    out.push({ txt: exam.devant.txt,
+      couleur: exam.aReprogrammer ? 'var(--warn-text)'
+             : (exam.devant.cle === 'prevu' || exam.devant.cle === 'obtenu'
+                ? 'var(--accent-text)' : '') });
+  }
   return out;
 }
 
@@ -1327,6 +1350,8 @@ function lignesCsDossier(nom){
   out.push({ txt: etat.txt,
     couleur: etat.urgent ? 'var(--warn-text)'
            : (etat.cle === 'pret' ? 'var(--accent-text)' : '') });
+
+  lignesExamenDossier(examenOfficielDe(nom)).forEach(l => out.push(l));
   return out;
 }
 
