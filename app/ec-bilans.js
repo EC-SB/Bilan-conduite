@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 08:09 — v686 */
+/* Déployé le 02/09/2026 à 14:09 — v810 */
 /* ============================================================
    ec-bilans.js
    Gestion des modèles de bilan.
@@ -25,12 +25,16 @@ const DESCRIPTION_SCHEMA = {
   eval:           "Évaluation de départ : bilan, heures et frise prévisionnelle.",
   examen:         "Examen officiel : vérifications et observations de l'inspecteur.",
   examenblanc:    "Examen blanc : CEPC noté, bilan erreurs, niveau permis.",
-  rdvpost:        "Rendez-vous post-permis : écran dédié, sans texte assemblé."
+  rdvpost:        "Rendez-vous post-permis : écran dédié, sans texte assemblé.",
+  handicap:       "Fiche d'évaluation handicap : le tableau des contrôles, " +
+                  "rempli à la main.",
+  prefecture:     "Présentation à la préfecture : validé ou non validé, et " +
+                  "les réflexions de l'inspecteur. Pas de CEPC."
 };
 
 /* Les groupes, dans l'ordre d'affichage */
 const GROUPES_MODELE = ['Conduite', 'Conduite accompagnée', 'Rendez-vous préalable',
-                        'Simulateur', 'Évaluation', 'Examen'];
+                        'Simulateur', 'Évaluation', 'Examen', 'Handicap'];
 
 /* Modèles ajoutés par l'auto-école, en plus des modèles d'origine */
 let modelesAjoutes = [];
