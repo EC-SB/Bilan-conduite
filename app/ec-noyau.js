@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:15 — v807 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 189;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 190;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -34,6 +34,78 @@ const CLE_SESSION = 'session_acces';
 const DUREE_SESSION = 48 * 3600 * 1000;
 
 /* ACCES : déclaré dans ec-etat.js */
+
+
+/* ============================================================
+   RETROUVER UN ÉLÈVE SANS RELIRE TOUTE LA LISTE
+
+   ─ CE QUI RENDAIT LE SUIVI AAC SI LONG ─
+
+   Trois fonctions cherchent un élève par son nom : suiviDe (sa
+   fiche de suivi), ficheDe (sa fiche de répertoire) et
+   eleveDuBureau (son dernier état). Toutes les trois faisaient un
+   « .find » qui NORMALISE CHAQUE NOM DE LA LISTE À CHAQUE APPEL —
+   minuscules, NFD, retrait des accents, une expression régulière.
+
+   Dessiner UNE ligne de la liste AAC en appelle huit. Pour trois
+   cents élèves : trois cents lignes × huit appels × trois cents
+   noms normalisés — sept cent mille normalisations pour afficher
+   un écran. Et le même écran se redessine entièrement à chaque
+   date qu'on pose.
+
+   Ici, un index par liste : la liste est parcourue UNE fois, les
+   recherches suivantes sont immédiates.
+
+   ⚠️ QUAND L'INDEX SE REFAIT. Il est accroché AU TABLEAU lui-même,
+   pas à une variable : une liste rechargée est un nouveau tableau,
+   donc un nouvel index. Une ligne AJOUTÉE change la longueur, et
+   l'index se refait aussi. Une ligne MODIFIÉE en place ne change
+   rien — l'index rend l'objet, et c'est le même objet qu'on vient
+   de modifier. C'est exactement ce que fait majSuivi.
+
+   La seule chose qui le mettrait en défaut serait de RENOMMER un
+   élève dans une ligne existante sans toucher à la longueur de la
+   liste. Personne ne fait ça : le nom EST la clé.
+   ============================================================ */
+const _indexNoms = new WeakMap();
+
+function trouverParNom(tableau, nom, champ){
+  if(!tableau || !tableau.length || !nom) return null;
+  const cle = normaliserMot(nom);
+  if(!cle) return null;
+
+  const c = champ || 'eleve';
+  let e = _indexNoms.get(tableau);
+  if(!e || e.n !== tableau.length || e.champ !== c){
+    e = { n: tableau.length, champ: c, m: new Map() };
+    for(let i = 0; i < tableau.length; i++){
+      const x = tableau[i];
+      const k = normaliserMot(x && x[c]);
+      /* LE PREMIER GAGNE, comme le faisait « .find ». Un doublon
+         existe dans le classeur de temps en temps : l'index ne doit
+         pas désigner une autre ligne que celle que l'écran montrait
+         hier. */
+      if(k && !e.m.has(k)) e.m.set(k, x);
+    }
+    _indexNoms.set(tableau, e);
+  }
+  return e.m.get(cle) || null;
+}
+
+
+/* ------------------------------------------------------------
+   L'ÉTAT D'UN ÉLÈVE AU BUREAU — UNE SEULE FONCTION
+
+   Elle existait DEUX FOIS, dans ec-page-eleve.js et dans
+   ec-sessions.js, avec deux corps légèrement différents. Celui
+   qui gagnait dépendait de l'ordre des balises <script> — c'est
+   la faute qui revient dans ce dossier depuis le début : une même
+   chose écrite à deux endroits, et c'est le mauvais qui gagne.
+   ------------------------------------------------------------ */
+function eleveDuBureau(nom){
+  if(!nom || typeof etatBureau === 'undefined') return null;
+  return trouverParNom(etatBureau.eleves || [], nom);
+}
 
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
