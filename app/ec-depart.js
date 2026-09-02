@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:40 — v789 */
+/* Déployé le 02/09/2026 à 13:55 — v809 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1846,32 +1846,19 @@ function reparTexte(s){
    note — elle déclarait ensuite « rien à corriger » en regardant le
    contexte, pendant que la carte affichait toujours « 159ème ». */
 function numeroLeconDuCours(cours){
-  const note = String(cours.note || '');
+  /* LA RÈGLE DE LECTURE N'EST PLUS ÉCRITE ICI.
 
-  /* DERRIÈRE UNE CHARNIÈRE, LA LIGNE ANNONCE DEUX RANGS.
+     Elle vit dans rangDansLaNote, à côté du motif qu'elle utilise,
+     parce que le résumé de la fiche élève doit lire EXACTEMENT la
+     même chose que cet écran-ci. Elle l'était en double, et les
+     deux versions ne disaient pas pareil sur « 1ère leçon après
+     l'examen blanc (…, 5ème au total) » ni sur « 12 ème leçon ».
 
-     « 4ème leçon après l'examen blanc — frise dépassée (2 prévues,
-     9ème au total) » : le premier nombre n'est PAS le total. Le
-     lire comme tel ramenait la 9ème leçon d'Astrid à sa 4ème — la
-     case du total affichait 4 pendant que le questionnaire, qui
-     lit le contexte, affichait 9. Quand la ligne porte un total,
-     il s'y dit en toutes lettres. */
-  const tot = note.match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+au total/i);
-  if(tot){
-    const v = parseInt(tot[1], 10);
-    if(v > 0) return v;
-  }
-
-  /* Une ligne qui compte depuis une charnière sans dire de total
-     ne dit rien du total : on ne prend surtout pas son rang. Le
-     contexte, lui, le sait. */
-  if(!/le[çc]ons?\s+apr[èe]s\s/i.test(note)){
-    const m = note.match(RE_NUM_LECON);
-    if(m){
-      const v = parseInt(String(m[0]), 10);
-      if(!isNaN(v) && v > 0) return v;
-    }
-  }
+     Ce qui reste ici est ce que cette fonction seule connaît : le
+     contexte du cours, où une main a pu écrire le rang. */
+  const v = (typeof rangDansLaNote === 'function')
+    ? rangDansLaNote(cours.note) : null;
+  if(v) return v;
 
   const n = parseInt((cours.contexte || {}).lecon, 10);
   return (!isNaN(n) && n > 0) ? n : null;
