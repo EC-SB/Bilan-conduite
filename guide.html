@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 809
+     GUIDE-VERSION: 810
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v809</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v810</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v809</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v810</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1497,7 +1497,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">💬 Messenger</span></td><td><em>« Les moniteurs le retrouveront depuis le cours. »</em></td></tr>
         <tr><td><span class="b">Genre</span></td><td>Pour les accords du bilan.</td></tr>
         <tr><td><span class="b">📇 Dossier ANTS</span></td><td><em>« Le questionnaire la reprend, et la met à jour si un moniteur la corrige. »</em></td></tr>
-        <tr><td><span class="b">🎓 Formation</span></td><td>16 formations d'origine, plus <span class="b">⌨️ Une autre formation…</span>. <strong>Seules les formations “voiture” créent un bilan de conduite au rappel.</strong></td></tr>
+        <tr><td><span class="b">🎓 Formation</span></td><td>18 formations d'origine, plus <span class="b">⌨️ Une autre formation…</span>. <strong>Seules les formations “voiture” créent un bilan de conduite au rappel.</strong></td></tr>
         <tr><td><span class="b">🧭 Frise de formation</span></td><td>Deux petites cases dans une phrase&nbsp;; le total en heures se calcule en direct. <strong>Elle n'est enregistrée que si les deux nombres sont remplis.</strong></td></tr>
         <tr><td><span class="b">🏫 Vient d'une autre auto-école</span></td><td>Cocher fait apparaître le nom de l'auto-école précédente.</td></tr>
       </tbody>
@@ -1629,6 +1629,17 @@ html{scroll-behavior:smooth}
     <p>Dans la fiche, l'équipement se coche dans une <strong>liste</strong>, pas en texte libre&nbsp;; ce qui avait été saisi autrefois hors liste apparaît en dessous sous <span class="ch">Aussi noté : …</span> et est conservé tel quel.</p>
     <div class="note astuce"><span class="tag">Pourquoi l'enregistrement paraît lent</span><p>La fiche écrit <strong>un champ à la fois</strong>, en cinq à sept appels successifs&nbsp;: le classeur reste maître du reste, et une écriture ratée n'en emporte pas d'autres.</p></div>
     <p>La <strong>fiche d'évaluation PDF</strong> ne se produit pas ici mais depuis l'onglet Cours&nbsp;: voir <a href="#resultat" class="aller">l'écran de résultat</a>.</p>
+
+    <h4>♿ Régularisation de permis — la formation</h4>
+    <div class="note"><span class="tag">✨ Ajoutée — v810</span><p><em>« Ce sont des élèves qui ont déjà le permis mais qui doivent faire des leçons avant de repasser devant la préfecture pour valider un nouveau permis avec des aménagements du véhicule. Ça découle de l'onglet handicap. »</em></p><p>Deux formations sur la fiche de l'élève&nbsp;: <span class="b">♿ Régularisation de permis (BEA)</span> et <span class="b">♿ Régularisation de permis (BV)</span>. Le bilan reste un bilan de conduite — c'est la même conduite — mais le questionnaire change.</p></div>
+    <p><strong>Ce que ce parcours n'a pas</strong>, et qui disparaît du questionnaire comme de la note&nbsp;: <strong>pas de frise</strong>, <strong>pas d'examen blanc</strong>, <strong>pas de simulateur</strong> (il conduit depuis des années&nbsp;; ce qui s'apprend ici est un poste de conduite, et il ne s'apprend pas sur un simulateur qui n'est pas aménagé), <strong>pas de rendez-vous post-permis</strong> (il n'y a pas d'ajournement à rattraper), <strong>pas la case « pas d'écoutes pédagogiques »</strong>, et <strong>pas d'examen officiel</strong>.</p>
+    <div class="note piege"><span class="tag">⚠️ Le poste de conduite est OBLIGATOIRE — la seule exception de l'outil</span><p>Partout ailleurs, ♿ conduite aménagée ne bloque rien&nbsp;: elle s'affiche sur la carte pour que le moniteur prépare la voiture. <strong>Ici, c'est l'objet même des leçons</strong> — et c'est ce qu'on présentera à la préfecture. Le bouton le réclame comme il réclame une frise&nbsp;: <span class="ch">📋 Il manque les aménagements du véhicule</span>, et il ouvre la case <em>et</em> la liste.</p><p>La case cochée sur la <strong>fiche</strong> compte autant que dans le questionnaire&nbsp;: c'est la même information, la réclamer deux fois ferait ressaisir ce qui est déjà là.</p></div>
+    <p><strong>Ce qui remplace la frise</strong>&nbsp;: le compteur <span class="b">Leçons avant présentation à la préfecture</span>, celui de la fiche d'évaluation dont ces leçons découlent. Il apparaît sur leurs bilans, et lui seul — la <em>Problématique</em> reste attachée à la fiche d'évaluation.</p>
+    <p><strong>Leur numéro de leçon repart de zéro</strong>&nbsp;: ils ont déjà leur permis, compter leurs leçons de jeune conducteur n'aurait aucun sens. La note dit <span class="ch">3ème leçon de régularisation</span>.</p>
+
+    <h4>♿ Présentation à la préfecture — le bilan du jour J</h4>
+    <div class="note"><span class="tag">✨ Nouveau modèle de bilan — v810</span><p><em>« Ils repassent, mais ce n'est pas vraiment un examen&nbsp;: il n'y a pas de CEPC, c'est juste validé ou non validé. Par contre il y a quand même des réflexions à noter que fait l'inspecteur. »</em></p><p>Un modèle à part, rangé sous <strong>Handicap</strong> avec la fiche d'évaluation, et <strong>rempli à la main</strong>&nbsp;: il n'y a pas de cours dicté ce jour-là, seulement ce que l'inspecteur a dit.</p><p>Ce qu'il demande&nbsp;: <span class="b">Nouveau permis validé</span> (✅ oui / ❌ non), la date, les <span class="b">aménagements présentés</span>, les <span class="b">réflexions de l'inspecteur</span>, ce qui reste à faire, et une <span class="b">🔒 note pour l'équipe</span> qui ne part jamais à l'élève.</p><p><strong>Aucun CEPC, aucune case, aucun E.</strong> Le type « observations » de l'examen officiel range chaque remarque sous une catégorie du CEPC&nbsp;: s'en servir ici donnerait à l'élève une grille vide qui ne veut rien dire.</p></div>
+    <div class="note piege"><span class="tag">« Non validé » n'est pas « ajourné »</span><p>Le bilan l'écrit noir sur blanc&nbsp;: <span class="ch">Ce n'est pas un ajournement : il n'y a pas d'examen à repasser. On reprend des leçons, et on se représente.</span> Un ajournement se rattrape par un rendez-vous post-permis et un nouvel examen&nbsp;; ici il n'y a ni l'un ni l'autre.</p></div>
   </section>
 
   <section id="evaluation">
