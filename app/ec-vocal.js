@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:23 — v782 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -28,8 +28,37 @@ const LEXIQUE = [
   'insérer','insertion','décélération','se rabattre','rabats-toi'
 ];
 
+/* \u26a0\ufe0f M\u00c9MORIS\u00c9E, PARCE QU'ELLE EST APPEL\u00c9E PAR CENTAINES DE MILLIERS.
+
+   C'est la fonction la plus appel\u00e9e de toute l'application : chaque
+   comparaison de nom passe par elle, et normalize('NFD') suivi d'une
+   expression r\u00e9guli\u00e8re n'est pas gratuit. Les noms d'\u00e9l\u00e8ves sont
+   quelques centaines de cha\u00eenes qui reviennent sans arr\u00eat : on garde
+   le r\u00e9sultat.
+
+   Les longs textes (un bilan dict\u00e9, une note) ne sont PAS mis en
+   cache \u2014 ils ne reviennent jamais deux fois, et les garder ferait
+   grossir la m\u00e9moire pour rien.
+
+   \u26a0\ufe0f LE CACHE VIT DANS LA FONCTION, pas \u00e0 c\u00f4t\u00e9 d'elle. Les fichiers
+   de test extraient des fonctions une par une pour les faire
+   tourner \u00e0 part : une variable d\u00e9clar\u00e9e au-dessus resterait
+   derri\u00e8re, et la fonction extraite planterait. */
 function normaliserMot(s){
-  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const t = String(s || '');
+  const nu = () => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if(t.length > 80) return nu();
+
+  const cache = normaliserMot._cache ||
+                (normaliserMot._cache = new Map());
+  let v = cache.get(t);
+  if(v === undefined){
+    v = nu();
+    /* Un garde-fou : au-del\u00e0, on calcule sans garder. Une session qui
+       durerait des heures ne doit pas accumuler ind\u00e9finiment. */
+    if(cache.size < 8000) cache.set(t, v);
+  }
+  return v;
 }
 const LEXIQUE_NORM = LEXIQUE.map(normaliserMot);
 
