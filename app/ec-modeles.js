@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:05 — v746 */
+/* Déployé le 02/09/2026 à 14:09 — v810 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -739,6 +739,65 @@ const HANDICAP_LIGNES = [
   { cle:'concentration', nom:'Concentration :',          titre:true },
   { cle:'autoeval',      nom:'Auto évaluation :',        titre:true }
 ];
+
+
+/* ------------------------------------------------------------
+   LA PRÉSENTATION À LA PRÉFECTURE
+
+   « Ce n'est pas vraiment un examen : il n'y a pas de CEPC, c'est
+   juste validé ou non validé. Par contre il y a quand même des
+   réflexions à noter que fait l'inspecteur. »
+
+   Le bilan dit donc trois choses, et pas une de plus : ce qui a
+   été présenté, ce que l'inspecteur en a dit, et si le permis est
+   validé. Pas de grille, pas de note, pas de E — il n'y en a pas.
+
+   ⚠️ « NON VALIDÉ » N'EST PAS « AJOURNÉ ». Un ajournement se
+   rattrape par un rendez-vous post-permis et un nouvel examen ; ici
+   il n'y a ni l'un ni l'autre, seulement d'autres leçons et une
+   nouvelle présentation. Le bilan le dit dans ces mots-là.
+   ------------------------------------------------------------ */
+function buildPrefecture(ai, ctx){
+  const lignes = [];
+  const L = t => lignes.push(t);
+  const a = ai || {};
+
+  L(grasUnicode('PRÉSENTATION À LA PRÉFECTURE'));
+  L('━━━━━━━━━━━━━━━━━━');
+  L('');
+  if(txt(a.quand)) L('📅 ' + txt(a.quand));
+  if(txt(a.poste)){
+    L('♿ Poste de conduite présenté :');
+    ligneParLigne(a.poste).forEach(o => L('   ' + o));
+  }
+  L('');
+
+  /* LE RÉSULTAT EN PREMIER, ET EN TOUTES LETTRES. C'est la seule
+     chose que la famille cherche en ouvrant le bilan. */
+  if(txt(a.valide) === 'oui'){
+    L(grasUnicode('✅ NOUVEAU PERMIS VALIDÉ'));
+  }else if(txt(a.valide) === 'non'){
+    L(grasUnicode('❌ NOUVEAU PERMIS NON VALIDÉ'));
+    L("Ce n'est pas un ajournement : il n'y a pas d'examen à repasser.");
+    L('On reprend des leçons, et on se représente.');
+  }
+  L('');
+
+  if(txt(a.reflexions)){
+    L('━━━━━━━━━━━━━━━━━━');
+    L('');
+    L('🗣️ ' + grasUnicode("Ce que l'inspecteur a dit"));
+    ligneParLigne(a.reflexions).forEach(o => L(o));
+    L('');
+  }
+
+  if(txt(a.suite)){
+    L('📋 ' + grasUnicode('Ce qui reste à faire'));
+    ligneParLigne(a.suite).forEach(o => L(o));
+  }
+
+  return lignes.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
 
 
 function buildHandicap(ai, ctx){
@@ -1839,6 +1898,14 @@ const MODELES = {
   'handicap': {
     label: '♿ Fiche d\'évaluation', groupe: 'Handicap',
     schema: 'handicap', build: buildHandicap, manuelSeul: true
+  },
+
+  /* Le jour où l'élève en régularisation passe devant la
+     préfecture. À la main aussi : il n'y a pas de cours dicté ce
+     jour-là, seulement ce que l'inspecteur a dit. */
+  'prefecture': {
+    label: '♿ Présentation à la préfecture', groupe: 'Handicap',
+    schema: 'prefecture', build: buildPrefecture, manuelSeul: true
   }
 };
 
