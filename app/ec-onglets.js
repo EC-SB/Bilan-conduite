@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:38 — v785 */
+/* Déployé le 02/09/2026 à 08:11 — v788 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -155,7 +155,11 @@ const VUES = {
   eleves: [['dossier',    '👤 Dossier élève',         'eleves'],
            ['recherche',  '📚 Historique des leçons', 'recherche'],
            ['rappels',    '🔔 Rappels de cours',      'rappels'],
-           ['eleves',     '👥 Répertoire',            'eleves'],
+           /* Le répertoire est devenu ce qu'il restait de lui une
+              fois que tout le per-élève est parti dans le dossier :
+              l'import, la création, et la liste pour vérifier
+              qu'un import a bien atterri. */
+           ['eleves',     '➕ Ajouter des élèves',     'eleves'],
            ['proccorriger','📥 Procédures',            'proccorriger'],
            ['code',       '🎓 Code',                   'code'],
            ['handicap',   '♿ Handicap',               'handicap'],
