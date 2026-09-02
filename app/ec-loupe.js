@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:39 — v785 */
+/* Déployé le 02/09/2026 à 07:50 — v786 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -95,9 +95,14 @@ function ouvrirLoupe(){
   const etat = boite.querySelector('#loupeEtat');
   const liste = boite.querySelector('#loupeListe');
 
-  /* Les noms connus, tels qu'ils sont déjà en mémoire. */
-  const tous = (typeof elevesConnus !== 'undefined' && Array.isArray(elevesConnus))
-    ? elevesConnus.slice() : [];
+  /* Les noms connus, tels qu'ils sont déjà en mémoire — noms des
+     bilans ET fiches du répertoire. Elle ne lisait que les
+     premiers : un élève inscrit qui n'avait pas encore de bilan
+     était introuvable ici, alors qu'il était bien au répertoire. */
+  const tous = (typeof nomsConnusEleves === 'function')
+    ? nomsConnusEleves()
+    : ((typeof elevesConnus !== 'undefined' && Array.isArray(elevesConnus))
+        ? elevesConnus.slice() : []);
 
   if(!tous.length){
     etat.innerHTML = "⚠️ <strong>Aucun élève en mémoire sur cet appareil.</strong> " +
@@ -117,11 +122,17 @@ function ouvrirLoupe(){
       return;
     }
 
-    const trouves = tous.filter(n => {
-      const c = (typeof normaliserMot === 'function')
-        ? normaliserMot(n) : String(n).toLowerCase();
-      return c.indexOf(q) !== -1;
-    }).slice(0, 40);
+    /* Le même filtre que le répertoire et le dossier : nom, numéro,
+       mail, formation, Messenger. Elle ne cherchait que dans le
+       nom — chercher un élève par son numéro marchait deux écrans
+       plus loin, et pas ici. */
+    const trouves = (typeof chercherEleves === 'function')
+      ? chercherEleves(champ.value, 40)
+      : tous.filter(n => {
+          const c = (typeof normaliserMot === 'function')
+            ? normaliserMot(n) : String(n).toLowerCase();
+          return c.indexOf(q) !== -1;
+        }).slice(0, 40);
 
     if(!trouves.length){
       /* « Rien trouvé » ne doit pas vouloir dire « il n'existe
