@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 02/09/2026 à 12:35 — v804 -->
+<!-- Déployé le 02/09/2026 à 13:15 — v807 -->
 <!-- ============================================================
      RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
      Évolution Conduites
@@ -100,15 +100,53 @@ function ech(s){
     .replace(/"/g,'&quot;');
 }
 
-function jourFr(iso){
-  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if(!m) return String(iso || '');
-  var d = new Date(iso + 'T12:00:00');
-  if(isNaN(d.getTime())) return m[3] + '/' + m[2] + '/' + m[1];
+/* ⚠️ CETTE FONCTION NE VOIT PAS QUE DE L'ISO.
+
+   La date limite part « 2026-09-15 » dans le classeur, mais Google
+   la reconvertit en objet Date : selon le chemin de lecture elle
+   revient « 2026-09-15 », « 15/09/2026 », ou
+   « Mon Sep 15 2026 00:00:00 GMT+0200 ». La première version ne
+   reconnaissait que la première forme et RECOPIAIT les autres telles
+   quelles — les familles lisaient donc leur date limite en anglais
+   et en GMT. La source est corrigée des deux côtés ; ici on accepte
+   quand même les trois, pour qu'un tour déjà ouvert reste lisible. */
+function jourFr(v){
+  var t = String(v == null ? '' : v).trim();
+  if(!t) return '';
+
+  var a = '', mo = '', j = '';
+  var m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m){ a = m[1]; mo = m[2]; j = m[3]; }
+  if(!a){
+    m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(m){ j = ('0' + m[1]).slice(-2); mo = ('0' + m[2]).slice(-2); a = m[3]; }
+  }
+  if(!a){
+    /* Dernier recours : la forme anglaise que rend String(Date),
+       « Mon Sep 15 2026 00:00:00 GMT+0200 ».
+
+       ⚠️ ON LA LIT AU MOT, ON NE LA PASSE PAS DANS new Date().
+       new Date() la ramènerait au fuseau du visiteur : la même
+       chaîne rendrait le 15 à Paris et le 14 à Londres, sur une
+       date limite. Ici les chiffres écrits sont les bons. */
+    var MOIS_EN = { jan:'01', feb:'02', mar:'03', apr:'04', may:'05',
+                    jun:'06', jul:'07', aug:'08', sep:'09', oct:'10',
+                    nov:'11', dec:'12' };
+    m = t.match(/\b([A-Za-z]{3})[a-z]*\s+(\d{1,2})\s+(\d{4})\b/);
+    if(m && MOIS_EN[m[1].toLowerCase()]){
+      mo = MOIS_EN[m[1].toLowerCase()];
+      j = ('0' + m[2]).slice(-2);
+      a = m[3];
+    }
+  }
+  if(!a) return t;
+
+  var d = new Date(a + '-' + mo + '-' + j + 'T12:00:00');
+  if(isNaN(d.getTime())) return j + '/' + mo + '/' + a;
   try{
     return d.toLocaleDateString('fr-FR',
       { weekday:'long', day:'numeric', month:'long' });
-  }catch(e){ return m[3] + '/' + m[2] + '/' + m[1]; }
+  }catch(e){ return j + '/' + mo + '/' + a; }
 }
 
 function rien(msg){
@@ -134,7 +172,18 @@ function dessiner(){
   var h = '<div class="pastille centre">🗣️</div>' +
     '<h1>Bonjour ' + ech(d.prenom) + '</h1>' +
     '<p>Nous organisons le <strong>rendez-vous pédagogique</strong> de ' +
-    ech(d.eleve) + '. L\'élève vient <strong>avec son accompagnateur</strong>.</p>';
+    ech(d.eleve) + '. L\'élève vient <strong>avec son accompagnateur</strong>.</p>' +
+    /* ⚠️ LA RÈGLE DU JEU SE DIT AVANT LES CASES.
+
+       Sans elle, la famille coche la date qui l'arrange et s'arrête
+       là : le bureau récolte huit réponses qui ne se croisent nulle
+       part. Ce rendez-vous réunit plusieurs familles, il faut donc
+       TOUTES leurs disponibilités. */
+    '<div class="avis">Vous serez <strong>plusieurs familles</strong> à ce ' +
+    'rendez-vous. Merci de sélectionner <strong>toutes les dates</strong> ' +
+    'auxquelles vous êtes disponibles : celle qui aura obtenu la ' +
+    '<strong>majorité</strong> des réponses sera retenue, et nous vous la ' +
+    'confirmerons ultérieurement.</div>';
 
   if(clos){
     h += '<div class="avis chaud">Les réponses sont closes' +
@@ -279,8 +328,17 @@ function merci(quand){
       'Nous vous proposerons d\'autres dates.</div>';
   }
 
-  h += '<p class="gris centre" style="margin-top:16px">Nous vous ' +
-    'confirmerons la date retenue.</p>';
+  /* ⚠️ ON LE REDIT ICI, AU MOMENT DE LA CONFIRMATION.
+
+     C'est le seul écran que la famille relit : « c'est noté » seul
+     laisse croire que la date cochée est acquise, et elle note sa
+     date sur le frigo. Elle doit repartir en sachant qu'ils seront
+     plusieurs, que c'est la majorité qui décide, et que la vraie
+     date arrivera plus tard. */
+  h += '<div class="avis" style="margin-top:16px">Vous serez ' +
+    '<strong>plusieurs familles</strong> à ce rendez-vous. La date ayant ' +
+    'obtenu la <strong>majorité</strong> des réponses sera retenue, et ' +
+    'nous vous la <strong>confirmerons ultérieurement</strong>.</div>';
 
   if(donnees.limite){
     h += '<div class="avis">Vous pouvez revenir sur ce lien et modifier ' +
