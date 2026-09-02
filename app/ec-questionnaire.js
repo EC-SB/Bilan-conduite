@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:40 — v814 */
+/* Déployé le 02/09/2026 à 16:30 — v816 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -753,22 +753,52 @@ function montrerDateExamen(boite, etat){
 /* La même chose, pour un élève qu'on nomme — un cours préparé par
    un rappel, un cours qu'on répare : ni l'un ni l'autre n'a d'écran
    où lire un nom. */
+/* ⚠️ UN ÉLÈVE PEUT ÊTRE DANS DEUX SESSIONS : CELLE OÙ IL A ÉTÉ
+   AJOURNÉ, ET CELLE OÙ IL REPASSE.
+
+   Cette fonction rendait LA PREMIÈRE TROUVÉE, dans l'ordre du
+   tableau. Pour La Perle, ajournée le 24 août et replacée le
+   14 septembre, c'était l'ancienne : le questionnaire annonçait
+   « examen passé le lundi 24 août », et la carte « PAS DE DATE
+   D'EXAMEN OFFICIEL — à reprogrammer » sur une élève qui avait
+   déjà sa nouvelle date. Chrystel : « elle a déjà une nouvelle
+   date de prévue ».
+
+   La règle : CE QUI EST DEVANT D'ABORD, et la plus proche des
+   dates à venir — c'est celle-là qu'on prépare. À défaut, la plus
+   récente des passées, qui dit ce qui a eu lieu.
+
+   Le jour même compte comme à venir : le cours d'aujourd'hui est
+   peut-être l'examen. C'est déjà la règle partout ailleurs. */
 function dateDeSessionDe(nom){
   if(!nom) return '';
 
   try{
     if(typeof sessionsPermis === 'undefined' || !sessionsPermis.length) return '';
 
+    const auj = (typeof todayLocal === 'function')
+      ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+    let devant = '', derriere = '';
     for(const s of sessionsPermis){
       const dedans = (s.eleves || []).some(p =>
         p.eleve && normaliserMot(p.eleve) === normaliserMot(nom));
       if(!dedans) continue;
 
       /* La session porte sa date, en ISO ou en toutes lettres */
-      const d = s.dateIso || s.iso || s.date || '';
+      const brut = s.dateIso || s.iso || s.date || '';
+      if(!brut) continue;
+      const d = /^\d{4}-\d{2}-\d{2}$/.test(brut)
+        ? brut : (dateFrVersIso(brut) || '');
       if(!d) continue;
-      return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : (dateFrVersIso(d) || '');
+
+      if(d >= auj){
+        if(!devant || d < devant) devant = d;
+      }else if(!derriere || d > derriere){
+        derriere = d;
+      }
     }
+    return devant || derriere;
   }catch(e){}
 
   return '';
