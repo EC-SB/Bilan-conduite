@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:38 — v785 */
+/* Déployé le 02/09/2026 à 07:50 — v786 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -686,6 +686,57 @@ async function rattraperLesFormations(){
 }
 
 
+/* ============================================================
+   CHERCHER UN ÉLÈVE — UNE SEULE RÈGLE, POUR TOUS LES ÉCRANS
+
+   Il y en avait deux, et elles ne trouvaient pas les mêmes gens.
+   Le répertoire cherchait dans le nom, le numéro, le mail, la
+   formation et le Messenger, sur l'union des noms connus ET des
+   fiches. La loupe cherchait dans le seul nom, sur les seuls noms
+   connus — donc un élève inscrit au répertoire mais qui n'avait
+   pas encore de bilan était introuvable à la loupe, alors qu'il
+   était bien là, deux écrans plus loin.
+
+   Personne ne s'en est jamais plaint : on croyait simplement qu'il
+   n'existait pas.
+   ============================================================ */
+
+/* Tous les élèves qu'on connaît, avec ou sans fiche, triés. */
+function nomsConnusEleves(){
+  const noms = [];
+  if(typeof elevesConnus !== 'undefined'){
+    elevesConnus.forEach(n => { if(n) noms.push(n); });
+  }
+  if(typeof fichesEleves !== 'undefined'){
+    fichesEleves.forEach(f => {
+      if(!f || !f.eleve) return;
+      if(!noms.some(n => normaliserMot(n) === normaliserMot(f.eleve))){
+        noms.push(f.eleve);
+      }
+    });
+  }
+  return noms.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+/* Ceux qui correspondent. Une recherche vide rend tout le monde :
+   c'est à l'écran de décider s'il affiche une liste entière. */
+function chercherEleves(q, max){
+  const cible = normaliserMot(String(q || ''));
+  const tous = nomsConnusEleves();
+
+  const vus = !cible ? tous : tous.filter(n => {
+    const f = (typeof ficheDe === 'function') ? (ficheDe(n) || {}) : {};
+    return normaliserMot(n).indexOf(cible) !== -1 ||
+           normaliserMot(f.telephone || '').indexOf(cible) !== -1 ||
+           normaliserMot(f.email || '').indexOf(cible) !== -1 ||
+           normaliserMot(f.formation || '').indexOf(cible) !== -1 ||
+           normaliserMot(f.messenger || '').indexOf(cible) !== -1;
+  });
+
+  return max ? vus.slice(0, max) : vus;
+}
+
+
 async function afficherRepertoire(recharger){
   const zone = $('repertoireListe');
   if(!zone) return;
@@ -696,13 +747,9 @@ async function afficherRepertoire(recharger){
   if(recharger || !fichesEleves.length) await chargerFiches();
   zone.innerHTML = '';
 
-  /* Tous les élèves connus, avec ou sans fiche */
-  const noms = [];
-  elevesConnus.forEach(n => { if(n) noms.push(n); });
-  fichesEleves.forEach(f => {
-    if(!noms.some(n => normaliserMot(n) === normaliserMot(f.eleve))) noms.push(f.eleve);
-  });
-  noms.sort((a, b) => a.localeCompare(b, 'fr'));
+  /* Tous les élèves connus, avec ou sans fiche — la même liste que
+     la loupe et le dossier, depuis la v786. */
+  const noms = nomsConnusEleves();
 
   if(!noms.length){
     zone.innerHTML = '<div class="empty">Aucun élève connu pour le moment.</div>';
@@ -755,18 +802,11 @@ async function afficherRepertoire(recharger){
   zone.appendChild(liste);
 
   function dessiner(){
-    const q = normaliserMot(rech.value);
     liste.innerHTML = '';
 
-    const vus = noms.filter(n => {
-      if(!q) return true;
-      const f = ficheDe(n) || {};
-      return normaliserMot(n).indexOf(q) !== -1 ||
-             normaliserMot(f.telephone || '').indexOf(q) !== -1 ||
-             normaliserMot(f.email || '').indexOf(q) !== -1 ||
-             normaliserMot(f.formation || '').indexOf(q) !== -1 ||
-             normaliserMot(f.messenger || '').indexOf(q) !== -1;
-    });
+    /* Le même filtre que la loupe et le dossier : nom, numéro,
+       mail, formation, Messenger. */
+    const vus = chercherEleves(rech.value);
 
     if(!vus.length){
       liste.innerHTML = '<div class="empty">Aucun élève ne correspond.</div>';
