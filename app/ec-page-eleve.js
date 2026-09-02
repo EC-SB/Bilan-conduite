@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:19 — v802 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -175,10 +175,11 @@ function ongletEleveDeDepart(){
    dates. Quand une date existe et que la note continue de dire
    « à prévoir », choisir en silence serait le pire des deux.
    ============================================================ */
-function eleveDuBureau(nom){
-  return ((typeof etatBureau !== 'undefined' && etatBureau.eleves) || [])
-    .find(x => normaliserMot(x.eleve) === normaliserMot(nom)) || null;
-}
+/* eleveDuBureau : déclarée UNE fois, dans ec-noyau.js.
+
+   Elle vivait ici ET dans ec-sessions.js, avec deux corps
+   différents : celui qui gagnait dépendait de l'ordre des balises
+   <script>. Et aucune des deux n'était indexée. */
 
 /* ============================================================
    LA DERNIÈRE CHOSE DITE N'EST PAS LE DERNIER BILAN
