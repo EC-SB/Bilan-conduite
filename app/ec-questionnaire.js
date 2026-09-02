@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:55 — v809 */
+/* Déployé le 02/09/2026 à 14:09 — v810 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1317,8 +1317,59 @@ const PARCOURS_FORMATION = [
      seule, l'élève a déjà son permis. Ses leçons sont les seules
      qu'il ait faites en manuelle — il a passé le sien en
      automatique — et c'est ainsi qu'on les compte. */
+  /* ------------------------------------------------------------
+     LA RÉGULARISATION DE PERMIS
+
+     « Ce sont des élèves qui ont déjà le permis mais qui doivent
+     faire des leçons avant de repasser devant la préfecture pour
+     valider un nouveau permis avec des aménagements du véhicule.
+     Ça découle de l'onglet handicap. »
+
+     Elle ressemble à la passerelle — un permis déjà en poche, donc
+     ni frise, ni examen blanc, ni écoute pédagogique du jour du
+     permis — avec trois différences qui lui sont propres :
+
+     · PAS DE SIMULATEUR. Il conduit depuis des années ; ce qui
+       s'apprend ici, c'est un poste de conduite, et il ne s'apprend
+       pas sur un simulateur qui n'est pas aménagé.
+
+     · PAS DE RENDEZ-VOUS POST-PERMIS. Il n'y a pas d'ajournement à
+       rattraper : il n'y a pas d'examen.
+
+     · LE POSTE DE CONDUITE EST OBLIGATOIRE. C'est TOUT l'objet de
+       ces leçons : le véhicule est aménagé, et le bilan qui ne le
+       dirait pas ne dirait rien. Voir amenageeObligatoire.
+
+     Ce qui remplace la frise : « leçons avant présentation à la
+     préfecture », le compteur de la fiche d'évaluation handicap
+     dont ces leçons découlent.
+
+     Ce qui remplace l'examen : la présentation elle-même. Elle a
+     son bilan à elle — « ♿ Présentation à la préfecture » —
+     parce qu'il n'y a PAS de CEPC : c'est validé ou non validé, et
+     ce sont les réflexions de l'inspecteur qu'on note. */
+  { cle:'Régularisation BEA', boite:'BEA', modele:'conduite-auto', frise:'',
+    repartDeZero:true, motRang:'de régularisation',
+    amenageeObligatoire:true, compteurPrefecture:true,
+    sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
+               'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+               'pasEcoute', 'simuNuit',
+               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPassage',
+               'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
+               'rdvPostMoniteur'] },
+  { cle:'Régularisation BV', boite:'BV', modele:'conduite-manuelle', frise:'',
+    repartDeZero:true, motRang:'de régularisation',
+    amenageeObligatoire:true, compteurPrefecture:true,
+    sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
+               'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+               'pasEcoute', 'simuNuit',
+               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPassage',
+               'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
+               'rdvPostMoniteur'] },
   { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
-    repartDeZero:true,
+    repartDeZero:true, motRang:'de passerelle',
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
                'ebPasse', 'ebLecons', 'ebImpossibleLe', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
@@ -1496,6 +1547,36 @@ const CHAMP_DE_LA_REPONSE = {
 function sansObjetPourLaFormation(formation){
   const p = parcoursDeLaFormation(formation);
   return (p && p.sansObjet) || [];
+}
+
+/* ------------------------------------------------------------
+   CE QUE LA RÉGULARISATION EXIGE, ET CE QU'ELLE COMPTE
+
+   Deux questions qui se posaient chacune à deux endroits — le
+   compteur préfecture était montré par DEUX lignes de code
+   différentes, et il aurait fallu penser aux deux. Elles sont
+   posées ici, une fois.
+   ------------------------------------------------------------ */
+
+/* ⚠️ LE POSTE DE CONDUITE, OBLIGATOIRE SUR CE PARCOURS-LÀ.
+
+   Partout ailleurs il ne bloque rien : il s'affiche sur la carte
+   pour que le moniteur prépare la voiture. En régularisation de
+   permis, c'est TOUT l'objet des leçons — l'élève a déjà son
+   permis, il vient apprendre un poste de conduite aménagé. Un
+   bilan qui ne dirait pas lequel ne dirait rien, et c'est lui
+   qu'on présentera à la préfecture. */
+function posteAmenageObligatoire(formation){
+  const p = parcoursDeLaFormation(formation);
+  return !!(p && p.amenageeObligatoire);
+}
+
+/* Le compteur qui remplace la frise : « leçons avant présentation
+   à la préfecture ». Il vient de la fiche d'évaluation handicap,
+   dont ces leçons découlent. */
+function compteurPrefecturePourLaFormation(formation){
+  const p = parcoursDeLaFormation(formation);
+  return !!(p && p.compteurPrefecture);
 }
 
 /* Les réponses, complétées de ce que ce profil n'a pas demandé, et
@@ -1787,7 +1868,11 @@ function blocsDuSujetManquant(quoi){
   const T = {
     'la formation':        ['#qFormation', '#qFormationEffet'],
     'la frise':            ['#qFriseClassique', '#qFriseFixe'],
-    'le numéro de leçon':  ['#qLecon', '#qLeconDepuis']
+    'le numéro de leçon':  ['#qLecon', '#qLeconDepuis'],
+    /* La régularisation de permis réclame son poste de conduite :
+       la case ET la liste, sinon on demanderait de cocher une case
+       sans pouvoir dire ce qu'elle recouvre. */
+    'les aménagements du véhicule': ['#qHandicap', '#qZoneHandicap']
   };
   return T[quoi] || [];
 }
@@ -2899,8 +2984,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         if(bf) bf.style.display = 'none';
       }
 
+      /* La régularisation de permis compte elle aussi ses leçons
+         avant la préfecture : c'est ce qui lui tient lieu de frise. */
       const zp = boite.querySelector('#qBlocPrefecture');
-      if(zp) zp.style.display = surEval ? 'block' : 'none';
+      if(zp){
+        zp.style.display =
+          (surEval || compteurPrefecturePourLaFormation(formationChoisie()))
+            ? 'block' : 'none';
+      }
     }
 
     /* La fiche véhicule, pré-cochée d'après les bilans précédents */
@@ -3024,7 +3115,26 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const zPref = boite.querySelector('#qBlocPrefecture');
     if(zPref){
       const surFicheEval = (profil === 'handicap');
-      zPref.style.display = surFicheEval ? 'block' : 'none';
+      /* ⚠️ ET LA RÉGULARISATION DE PERMIS, qui n'a ni frise ni
+         examen : ce compteur est le seul repère de son avancement.
+         Cette bascule existe à deux endroits — les deux doivent le
+         savoir, sinon le bloc réapparaît puis disparaît selon
+         l'ordre où elles passent. */
+      const compteurSeul =
+        !surFicheEval && compteurPrefecturePourLaFormation(formationChoisie());
+      zPref.style.display = (surFicheEval || compteurSeul) ? 'block' : 'none';
+
+      /* La problématique appartient à la fiche d'évaluation : sur
+         une leçon de régularisation, seul le compteur a un sens. */
+      const zProb = boite.querySelector('#qProblematique');
+      if(zProb){
+        const eti = boite.querySelector('label[for="qProblematique"]');
+        zProb.style.display = compteurSeul ? 'none' : '';
+        if(eti) eti.style.display = compteurSeul ? 'none' : '';
+      }
+      if(compteurSeul){
+        boite.querySelector('#qPrefecture').value = prec.prefecture || '';
+      }
 
       if(surFicheEval){
         boite.querySelector('#qPrefecture').value = prec.prefecture || '';
@@ -3817,7 +3927,11 @@ function positionDansLaFrise(q){
   if(parcours && parcours.repartDeZero){
     const faites = q.leconsParBoite && q.leconsParBoite[parcours.boite];
     const r = (typeof faites === 'number') ? faites + plus : n;
-    return dire(rangLecon(r) + ' leçon de passerelle');
+    /* Le mot vient du parcours : « leçon de passerelle » était écrit
+       en dur, et la régularisation s'y serait annoncée comme une
+       passerelle — deux formations différentes sous le même mot. */
+    return dire(rangLecon(r) + ' leçon ' +
+                (parcours.motRang || 'de passerelle'));
   }
 
   /* IL EST DÉJÀ ALLÉ À L'EXAMEN, ET IL A REPRIS.
@@ -4828,6 +4942,12 @@ function recapEnHtml(lignes){
    quand ce parcours en a une ; et le rang de la leçon. Le poste de
    conduite n'en fait PAS partie — il s'affiche sur la carte pour
    que le moniteur prépare la voiture, il ne bloque rien.
+
+   ⚠️ SAUF EN RÉGULARISATION DE PERMIS, et c'est la seule
+   exception. Là, le poste de conduite aménagé n'est pas un confort
+   d'organisation : c'est l'objet même des leçons, et ce qu'on
+   présentera à la préfecture. Un bilan de régularisation qui ne
+   dirait pas quels aménagements ne dirait rien.
    ------------------------------------------------------------ */
 function cequiManqueAuCours(ctx, eleve, modeleCle){
   const manque = [];
@@ -4854,6 +4974,26 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
   if(typeof leconCompteDansLaFrise === 'function' &&
      leconCompteDansLaFrise(modeleCle) && !rangDuCours(c, eleve, modeleCle)){
     manque.push('le numéro de leçon');
+  }
+
+  /* ⚠️ LE POSTE DE CONDUITE AMÉNAGÉ, SUR CE PARCOURS-LÀ.
+
+     On le réclame comme une frise : sans lui, le bilan ne dit pas
+     ce que ces leçons ont servi à apprendre. On accepte la fiche
+     comme le questionnaire — la case peut avoir été cochée d'un
+     côté ou de l'autre, c'est la même information. */
+  if(typeof posteAmenageObligatoire === 'function' &&
+     posteAmenageObligatoire(formation)){
+    const coche = String(c.handicap || (fiche && fiche.amenagee) || '')
+                    .toLowerCase() === 'oui';
+    const listeC = Array.isArray(c.amenagements)
+      ? c.amenagements
+      : String(c.amenagements || '').split('|').filter(Boolean);
+    const listeF = String((fiche && fiche.amenagements) || '')
+      .split('|').map(x => x.trim()).filter(Boolean);
+    if(!coche || (!listeC.length && !listeF.length)){
+      manque.push('les aménagements du véhicule');
+    }
   }
 
   return manque;
