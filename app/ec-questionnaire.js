@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:09 — v810 */
+/* Déployé le 02/09/2026 à 14:24 — v812 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1393,6 +1393,26 @@ function parcoursDeLaFormation(formation){
   if(/conduite supervisee/.test(t)) return { cle:'CS', suivreLaBoite:'cs', accompagnee:true };
   if(/passerelle/.test(t)){
     return PARCOURS_FORMATION.find(p => /passerelle/i.test(p.cle));
+  }
+
+  /* ⚠️ UNE RÉGULARISATION ÉCRITE À LA MAIN EN EST UNE QUAND MÊME.
+
+     « Régularisation de permis » a pu être ajoutée à la main avant
+     que l'outil la connaisse — c'est une formation libre, tapée
+     dans le champ « une autre formation ». Sans cette ligne, elle
+     ne correspondait à aucun parcours : ni frise supprimée, ni
+     examen blanc supprimé, ni simulateur supprimé, ni poste de
+     conduite réclamé. Tout ce que ce parcours doit faire, il ne le
+     faisait pas — et rien ne le disait.
+
+     La boîte se lit dans le nom quand il la porte ; sinon
+     l'automatique, qui est celle des véhicules aménagés dans
+     l'immense majorité des cas. Les deux entrées nommées restent le
+     bon choix : elles ne laissent aucun doute. */
+  if(/regularisation/.test(t)){
+    const bv = /\bbv\b|manuelle/.test(t);
+    return PARCOURS_FORMATION.find(p =>
+      p.cle === (bv ? 'Régularisation BV' : 'Régularisation BEA'));
   }
   return null;
 }
@@ -2812,7 +2832,21 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          inviter à en poser une. */
       examPermis: ['#qBlocExamPermis'],
       /* Il vit sous l'examen officiel et disparaît avec lui. */
-      rdvPostFait: ['#qBlocRdvPost']
+      rdvPostFait: ['#qBlocRdvPost'],
+      /* ⚠️ LE SIMULATEUR MANQUAIT À CETTE TABLE.
+
+         « Quand je mets ce type, il reste encore la partie
+         simulateur nuit et risques, ça ne sert à rien. » Elle avait
+         raison : « simuNuit » était bien dans la liste sansObjet de
+         la régularisation — la réponse était donc effacée — mais
+         RIEN ICI NE LE CACHAIT. La question restait posée, et une
+         question posée finit par recevoir une réponse.
+
+         Le commentaire au-dessus promettait qu'« ajouter un élément
+         là-bas suffit ici ». C'était faux tant que cette table ne
+         couvrait que quatre clés sur les dix-neuf possibles : une
+         table de correspondance incomplète est un mensonge poli. */
+      simuNuit: ['#qSimuNuit']
     };
 
     function masquerCeQueLeParcoursNaPas(){
@@ -2845,7 +2879,30 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         if(/^AAC /i.test(base)) choix = manuelleDuBilan ? 'AAC BV' : 'AAC BEA';
         else if(/^CS /i.test(base)) choix = manuelleDuBilan ? 'CS BV' : 'CS BEA';
       }
-      if(choix && [...selForm.options].some(o => o.value === choix)){
+      /* ⚠️ UNE FORMATION ABSENTE DE LA LISTE SE MONTRE QUAND MÊME.
+
+         « Le type de formation n'est pas persistant : j'enregistre,
+         et quand je rouvre le questionnaire ça n'y est plus. »
+
+         Elle y était pourtant, sur la fiche. C'est le menu qui ne
+         savait pas la montrer : quand la valeur enregistrée ne
+         correspondait à aucune option — une formation ajoutée à la
+         main, ou une formation d'avant — cette ligne ne faisait
+         RIEN, et le menu restait sur « — à préciser — ». Le
+         moniteur lisait « effacée ».
+
+         La fiche de l'élève, elle, savait déjà faire : elle ajoute
+         l'option manquante plutôt que de l'ignorer. Deux écrans,
+         deux façons de traiter le même cas, et c'est le silencieux
+         qui a gagné pendant des mois. On fait comme la fiche. */
+      if(choix){
+        if(![...selForm.options].some(o => o.value === choix)){
+          const o = document.createElement('option');
+          o.value = choix;
+          o.textContent = choix;
+          selForm.insertBefore(o, selForm.firstChild ? selForm.firstChild.nextSibling
+                                                     : null);
+        }
         selForm.value = choix;
       }
       selForm.addEventListener('change', () => {
