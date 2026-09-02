@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:11 — v788 */
+/* Déployé le 02/09/2026 à 11:29 — v797 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1362,6 +1362,17 @@ function ouvrirFicheEleve(nom, f){
       'Information interne. Le questionnaire la reprend, et la met à jour ' +
       'si un moniteur la corrige.</div>' +
 
+    /* LA DATE DE NAISSANCE, JUSTE AU-DESSUS DE LA FORMATION.
+
+       Là parce que c'est là qu'on la regarde : en AAC, l'examen
+       n'est possible qu'à 17 ans révolus, et cette date commande le
+       rendez-vous pédagogique n°2. Les deux se lisent ensemble ou
+       ne se lisent pas. */
+    '<label for="fiNaissance">🎂 Date de naissance</label>' +
+    '<input type="date" id="fiNaissance">' +
+    '<div id="fiAge" style="font-size:11px;color:var(--muted);' +
+      'margin:-8px 0 12px;line-height:1.4;"></div>' +
+
     '<label for="fiForm">🎓 Formation</label>' +
     '<select id="fiForm">' +
       toutesLesFormations().map(x =>
@@ -1467,6 +1478,24 @@ function ouvrirFicheEleve(nom, f){
   g('fiMess').value = (f && f.messenger) || '';
   g('fiGenre').value = (f && f.genre) || '';
   g('fiAnts').value = (f && f.ants) || '';
+
+  /* L'âge se recalcule à chaque frappe : une date de naissance mal
+     tapée se voit tout de suite si l'âge annoncé est absurde. */
+  const majAge = () => {
+    const z = g('fiAge');
+    if(!z) return;
+    const v = g('fiNaissance').value;
+    const a = ageDe(v);
+    if(a === null){ z.textContent = "L'âge et, en AAC, la date d'examen " +
+                      'possible en dépendent.'; return; }
+    const dix7 = jour17AnsRevolus(v);
+    z.textContent = a + ' ans' +
+      (a < 17 && dix7 ? ' · 17 ans révolus le ' +
+        ((typeof dateCourte === 'function') ? dateCourte(dix7) : dix7) : '');
+  };
+  g('fiNaissance').value = (f && f.naissance) || '';
+  g('fiNaissance').addEventListener('input', majAge);
+  majAge();
   /* On relit la frise enregistrée pour retrouver les deux nombres */
   const friseAvant = ((f && f.frise) || '').match(/^\s*(\d+)\s*leçons?\s*de\s*2h/i);
   const friseApres = ((f && f.frise) || '').match(/\+\s*(\d+)\s*leçons?\s*de\s*2h/i);
@@ -1572,6 +1601,11 @@ function ouvrirFicheEleve(nom, f){
                            n'en parlait pas » et ne touche à rien. */
                         amenagee: g('fiAmenagee').checked ? 'oui' : 'non',
                         coussin: g('fiCoussin').checked ? 'oui' : 'non',
+                        /* Même règle que les aménagements : 'non'
+                           efface, un champ vide ne touche à rien.
+                           Sans ce 'non', une date de naissance saisie
+                           par erreur ne pouvait plus se retirer. */
+                        naissance: g('fiNaissance').value || 'non',
                         remarques: g('fiRem').value.trim() });
       /* La fiche en mémoire suit tout de suite : l'écran ne doit pas
          attendre le rechargement pour montrer la bonne valeur. */
@@ -1585,6 +1619,10 @@ function ouvrirFicheEleve(nom, f){
                       autreAENom: g('fiAutreAENom').value.trim(),
                       amenagee: g('fiAmenagee').checked ? 'oui' : 'non',
                       coussin: g('fiCoussin').checked ? 'oui' : 'non',
+                      /* La mémoire garde la VALEUR, pas le mot qui
+                         l'efface : 'non' est une consigne pour le
+                         serveur, ce n'est pas une date de naissance. */
+                      naissance: g('fiNaissance').value || '',
                       remarques: g('fiRem').value.trim() };
       if(f2) Object.assign(f2, saisi);
       else fichesEleves.push(Object.assign({ eleve: nom }, saisi));
@@ -1868,6 +1906,77 @@ const ENTETES_FORMATION = ['formation', 'type', 'categorie', 'catégorie',
                            'boite', 'boîte', 'parcours', 'permis'];
 const ENTETES_GENRE = ['genre', 'civilite', 'civilité', 'sexe', 'titre', 'madame monsieur'];
 
+/* LA DATE DE NAISSANCE ET LE MAIL DU PRESCRIPTEUR À L'IMPORT (v185).
+
+   Les deux existaient déjà dans la fiche, et se saisissaient un par
+   un, à la main, sur des élèves qu'on venait justement d'importer en
+   lot. La date de naissance commande l'âge et toute l'échéance AAC ;
+   le mail du prescripteur est l'adresse de l'accompagnateur, celle à
+   qui partira la proposition de rendez-vous théorique. Les retaper
+   quarante fois, c'était trente-neuf occasions d'en sauter un. */
+const ENTETES_NAISSANCE = ['date de naissance', 'naissance', 'ne le', 'né le',
+                           'nee le', 'née le', 'ddn', 'date naissance',
+                           'birthdate', 'anniversaire'];
+const ENTETES_PRESCRIPTEUR = ['mail prescripteur', 'email prescripteur',
+                              'prescripteur', 'mail representant',
+                              'mail représentant', 'representant legal',
+                              'représentant légal', 'mail accompagnateur',
+                              'accompagnateur', 'mail parent', 'parent'];
+
+/* Une date d'import n'a pas de forme garantie : 12/03/2009, 2009-03-12,
+   parfois 12-03-2009. On rend l'ISO, seule forme que le reste sait
+   relire — et RIEN quand on ne sait pas lire, plutôt qu'une date
+   inventée à partir d'un texte qu'on n'a pas compris. */
+function isoNaissance(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const m = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  if(!m) return '';
+  const j = +m[1], mo = +m[2];
+  if(j < 1 || j > 31 || mo < 1 || mo > 12) return '';
+  return m[3] + '-' + ('0' + mo).slice(-2) + '-' + ('0' + j).slice(-2);
+}
+
+/* L'ÂGE, ET LE JOUR OÙ IL A 17 ANS RÉVOLUS.
+
+   « 17 ans révolu, c'est le lendemain de son anniversaire » — et
+   c'est à partir de ce jour-là qu'un élève peut présenter l'examen.
+   La règle est écrite ICI, une seule fois : elle sert à la fiche,
+   aux listes AAC et CS, et au dossier élève. Trois écrans qui
+   calculeraient chacun leur âge finiraient par ne pas être d'accord
+   un 29 février.
+
+   Une date illisible rend null, jamais un âge approché : on préfère
+   « âge inconnu » à un nombre faux. */
+function ageDe(iso, auJour){
+  const t = String(iso || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(t)) return null;
+  const n = new Date(t + 'T12:00:00');
+  if(isNaN(n.getTime())) return null;
+
+  const j = auJour ? new Date(String(auJour) + 'T12:00:00') : new Date();
+  if(isNaN(j.getTime())) return null;
+
+  let a = j.getFullYear() - n.getFullYear();
+  const m = j.getMonth() - n.getMonth();
+  if(m < 0 || (m === 0 && j.getDate() < n.getDate())) a--;
+  return (a >= 0 && a < 130) ? a : null;
+}
+
+/* Le lendemain du 17e anniversaire, en ISO. */
+function jour17AnsRevolus(iso){
+  const t = String(iso || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(t)) return '';
+  const n = new Date(t + 'T12:00:00');
+  if(isNaN(n.getTime())) return '';
+  n.setFullYear(n.getFullYear() + 17);
+  n.setDate(n.getDate() + 1);          /* révolu = le LENDEMAIN */
+  return n.getFullYear() + '-' +
+         ('0' + (n.getMonth() + 1)).slice(-2) + '-' +
+         ('0' + n.getDate()).slice(-2);
+}
+
 /* « Madame », « M. », « F » : tout devient F ou M. */
 function normaliserGenre(v){
   const t = normaliserMot(v || '');
@@ -1954,6 +2063,14 @@ function lireCsvEleves(texte){
   const iMail = entete ? trouver(ENTETES_MAIL) : -1;
   const iForm = entete ? trouver(ENTETES_FORMATION) : -1;
   const iGenre = entete ? trouver(ENTETES_GENRE) : -1;
+  /* Ces deux-là ne se devinent PAS sans en-tête. Une colonne de dates
+     peut être une date de naissance comme une date d'inscription, et
+     une colonne de mails peut être celle de l'élève. Se tromper
+     écrirait l'anniversaire de l'inscription et enverrait les
+     rendez-vous à la mauvaise adresse : sans en-tête nommé, on ne
+     prend rien. */
+  const iNais = entete ? trouver(ENTETES_NAISSANCE) : -1;
+  const iPresc = entete ? trouver(ENTETES_PRESCRIPTEUR) : -1;
 
   /* Sans en-tête : on repère une colonne qui ressemble à des numéros
      ou à des adresses, plutôt que de perdre l'information. */
@@ -1987,7 +2104,9 @@ function lireCsvEleves(texte){
       telephone: colTel >= 0 ? normaliserTel(cases[colTel]) : '',
       email: colMail >= 0 ? (cases[colMail] || '').trim() : '',
       formation: iForm >= 0 ? (cases[iForm] || '').trim() : '',
-      genre: iGenre >= 0 ? normaliserGenre(cases[iGenre]) : ''
+      genre: iGenre >= 0 ? normaliserGenre(cases[iGenre]) : '',
+      naissance: iNais >= 0 ? isoNaissance(cases[iNais]) : '',
+      mailPrescripteur: iPresc >= 0 ? (cases[iPresc] || '').trim() : ''
     });
   });
 
@@ -1999,13 +2118,29 @@ function lireCsvEleves(texte){
   if(nMail) dit.push(nMail + ' avec mail');
   const nGenre = fiches.filter(f => f.genre).length;
   if(nGenre) dit.push(nGenre + ' avec genre');
+  const nNais = fiches.filter(f => f.naissance).length;
+  if(nNais) dit.push(nNais + ' avec date de naissance');
+  const nPresc = fiches.filter(f => f.mailPrescripteur).length;
+  if(nPresc) dit.push(nPresc + ' avec mail prescripteur');
+
+  /* ET ON DIT QUAND UNE COLONNE A ÉTÉ LUE MAIS PAS COMPRISE. Une
+     colonne « date de naissance » remplie de « 12 mars 2009 » ne
+     donne aucune date ISO : sans cette ligne, l'import annonçait
+     « 40 élèves » et les quarante arrivaient sans âge, sans que rien
+     ne le signale. Un silence, ce n'est pas un compte rendu. */
+  if(iNais >= 0 && nNais < fiches.length){
+    dit.push('⚠️ ' + (fiches.length - nNais) + ' date(s) de naissance ' +
+             'illisible(s) — attendu 12/03/2009 ou 2009-03-12');
+  }
 
   const info = dit.join(' · ') + ' · séparateur « ' +
     (sep === '\t' ? 'tabulation' : sep) + ' » · nom : ' +
     colonnes.map(c => premiere[c] || ('n°' + (c + 1))).join(' + ') +
     (colTel >= 0 ? ' · tél : ' + (premiere[colTel] || ('n°' + (colTel + 1))) : '') +
     (colMail >= 0 ? ' · mail : ' + (premiere[colMail] || ('n°' + (colMail + 1))) : '') +
-    (iGenre >= 0 ? ' · genre : ' + (premiere[iGenre] || ('n°' + (iGenre + 1))) : '');
+    (iGenre >= 0 ? ' · genre : ' + (premiere[iGenre] || ('n°' + (iGenre + 1))) : '') +
+    (iNais >= 0 ? ' · naissance : ' + (premiere[iNais] || ('n°' + (iNais + 1))) : '') +
+    (iPresc >= 0 ? ' · prescripteur : ' + (premiere[iPresc] || ('n°' + (iPresc + 1))) : '');
 
   return { fiches: fiches, noms: fiches.map(f => f.eleve), info: info };
 }
@@ -2045,9 +2180,16 @@ function brancherFichierCsv(){
       fichesAImporter = r.fiches || [];
       /* Le genre apparaît dans l'aperçu : sans lui, impossible de
          vérifier avant d'importer que la colonne a bien été lue. */
+      /* L'aperçu montre CE QUI A ÉTÉ LU, colonne par colonne : sans
+         lui, impossible de vérifier avant d'importer qu'une colonne
+         a bien été comprise. La date de naissance et le mail du
+         prescripteur en font partie — ce sont justement les deux
+         qu'on ne devine pas sans en-tête nommé. */
       zone.value = (r.fiches || []).map(f => {
         const g = f.genre === 'F' ? '♀' : (f.genre === 'M' ? '♂' : '');
-        return [g, f.eleve, f.telephone, f.email, f.formation]
+        return [g, f.eleve, f.telephone, f.email, f.formation,
+                f.naissance ? '🎂 ' + f.naissance : '',
+                f.mailPrescripteur ? '✉️ ' + f.mailPrescripteur : '']
           .filter(Boolean).join(' · ');
       }).join('\n');
       etat.style.color = 'var(--accent-text)';
