@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 793
+     GUIDE-VERSION: 795
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v793</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v795</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v793</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v795</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -931,7 +931,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">Leçon n°</span></td><td>Pré-rempli avec le rang calculé. <strong>Masqué</strong> pour un simulateur, un examen blanc ou un examen officiel — ces séances ne comptent pas dans la frise.</td></tr>
         <tr><td><span class="b">Examen blanc</span></td><td><span class="ch">— non évoqué —</span> / <span class="ch">À prévoir</span> / <span class="ch">Réservé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable pour le moment</span>. Ouvre ensuite le rang (1<sup>er</sup> à 5<sup>e</sup>), la date, et un nombre de leçons. <strong>La ligne de tête dit lequel c'est</strong> — <span class="ch">C'est le 2<sup>e</sup> examen blanc</span> — au lieu de laisser deviner.</td></tr>
         <tr><td><span class="b">Conclusion de l'examen blanc</span></td><td><span class="ch">✅ Plus que les 3h avant examen</span> / <span class="ch">⏳ Encore des leçons avant examen</span> / <span class="ch">⛔ Pas le niveau</span>. <strong>N'apparaît que sur le modèle Examen blanc, et seulement en fin de cours.</strong> C'est cette phrase que le bureau relit dans ses listes.</td></tr>
-        <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span>, avec les champs qui vont avec, et <span class="b">Quel passage ?</span> La ligne de tête dit le combientième&nbsp;: <span class="ch">Examen ce jour — 2<sup>e</sup> passage</span>.</td></tr>
+        <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable</span>, et <span class="b">Quel passage ?</span> <strong>Le moniteur ne saisit plus la date</strong> — elle s'affiche en lecture seule&nbsp;: <span class="ch">🎓 Examen prévu le mercredi 16 septembre 2026 · Posée par le bureau d'après sa place d'examen. Elle ne se change pas ici.</span> Voir <em>« Un moniteur n'écrit pas une date d'examen »</em> juste dessous.</td></tr>
         <tr><td><span class="b">Rendez-vous post-permis</span></td><td>Sous l'examen officiel, sa date se répond ici aussi&nbsp;: on l'a sous les yeux au moment où l'on parle de l'examen. <strong>Les deux cases se mettent à jour ensemble</strong> — il n'y a qu'une date, elle ne peut pas dire deux choses.</td></tr>
         <tr><td><span class="b">Pas d'écoutes pédagogiques</span></td><td>Une case. Elle inscrit l'élève dans la liste que suit le bureau, et ajoute un rappel en fin de bilan. <strong>La décocher l'en retire.</strong></td></tr>
         <tr><td><span class="b">Simulateur nuit et risques</span></td><td><span class="ch">À prévoir</span> / <span class="ch">Déjà prévu</span> / <span class="ch">Fait ✅</span>.</td></tr>
@@ -940,6 +940,24 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">Vos autres notes</span></td><td>Texte libre, 400 caractères.</td></tr>
       </tbody>
     </table></div>
+
+    <h4>Un moniteur n'écrit pas une date d'examen</h4>
+    <div class="note danger"><span class="tag">⚠️ Nouveau — v795</span><p>Le questionnaire portait un <strong>calendrier libre</strong> sous <span class="ch">Prévu le…</span>, pré-rempli à la date du jour. C'était la dernière porte ouverte, et de loin la plus fréquentée&nbsp;: elle s'ouvrait plusieurs fois par jour, en voiture, sur un téléphone. Les six calendriers du bureau avaient été fermés en v790 — condamner six portes et laisser l'entrée principale ouverte ne servait à rien.</p></div>
+    <p><strong>La date d'examen vient des sessions d'examen, et de nulle part ailleurs.</strong> Le bureau place l'élève sur une place de préfecture&nbsp;; c'est ce geste-là, et lui seul, qui pose la date. Le questionnaire la <em>lit</em>&nbsp;:</p>
+    <div class="ecran">🎓 <strong>Examen prévu le mercredi 16 septembre 2026</strong><br><span style="opacity:.7">Posée par le bureau d'après sa place d'examen. Elle ne se change pas ici.</span></div>
+    <p>Trois formulations selon l'état&nbsp;: <span class="ch">Examen prévu le…</span>, <span class="ch">Examen passé le…</span>, <span class="ch">Examen qui était prévu le…</span> pour un examen annulé. Sur <span class="ch">Date à prévoir</span> et <span class="ch">Non planifiable</span>, rien ne s'affiche — il n'y a rien à lire.</p>
+    <p>Quand il n'y a pas de date, la ligne <strong>dit pourquoi</strong> au lieu de laisser un champ vide&nbsp;: <span class="ch">🎓 Aucune date d'examen — c'est le bureau qui la pose, depuis 🎓 Suivi permis.</span> Un champ vide se lit « à toi de la mettre », et c'est précisément ce qu'on retire.</p>
+    <p><span class="b">« Reprogrammé le… »</span> suit la même règle et a disparu de la même façon&nbsp;: c'est une date d'examen sous un autre nom. Le moniteur dit <span class="ch">Annulé</span>, le bureau reprogramme.</p>
+
+    <div class="note"><span class="tag">📨 Et le moniteur n'est pas laissé sans recours</span><p>Une date qui lui paraît fausse — l'élève annonce le 18 quand la note dit le 12 — se <strong>signale</strong> en une ligne&nbsp;: le bouton <span class="b">📨 Signaler au bureau</span> sous la date. Le message part dans les <strong>messages en attente</strong>, l'écran que le bureau lit déjà, et il dit qui signale, quelle date est contestée, et pourquoi.</p><p>Le bouton <strong>ne corrige rien</strong>&nbsp;: il prévient. Corriger serait rouvrir la porte par la fenêtre. Sans lui, une date fausse resterait fausse jusqu'à ce que quelqu'un rappelle le bureau.</p></div>
+
+    <p><strong>Ce que le moniteur garde</strong>, parce que ce sont ses observations et non des dates&nbsp;: <span class="ch">Annulé</span>, <span class="ch">Déjà passé</span>, <span class="ch">Non planifiable</span>, le <strong>combientième passage</strong>, et les leçons restantes avant l'examen. <strong>La date d'examen blanc reste saisissable</strong>&nbsp;: un examen blanc n'occupe aucune place de préfecture, il n'a pas de session — c'est le moniteur qui le pose.</p>
+
+    <h4>Le combientième passage, d'un coup d'œil</h4>
+    <p><em>« Dans la note j'ai besoin de savoir c'est son combientième passage d'examen officiel en un coup d'œil. »</em></p>
+    <p>Il y était déjà, mais en texte ordinaire et en fin de ligne — et <strong>deux lignes sur cinq ne le portaient pas du tout</strong>. Il est maintenant <strong>en gras</strong>, comme les autres états qu'on cherche d'un coup d'œil, et sur <strong>toutes</strong> les lignes d'examen&nbsp;:</p>
+    <div class="ecran">🚗 <strong>EXAMEN OFFICIEL PRÉVU LE MERCREDI 16 SEPTEMBRE 2026</strong> — <strong>2E PASSAGE</strong> — encore 2 leçons + 3h avant examen<br>🚗 <strong>PAS DE DATE D'EXAMEN OFFICIEL</strong> — <strong>3E PASSAGE</strong> — dernier examen le 12/08/2026, ajourné — reprend la conduite — à reprogrammer</div>
+    <p>Le numéro vient de <span class="b">Quel passage ?</span> quand le moniteur l'a saisi, et retombe sinon sur le <strong>compte d'ajournements tenu par le bureau</strong>. Au-delà de cinq&nbsp;: <span class="ch">5E PASSAGE OU PLUS</span>.</p>
 
     <h4>La fiche véhicule dans le questionnaire</h4>
     <p>Deux colonnes de cases&nbsp;: à gauche « travaillée chez nous », à droite <strong>🚗</strong>. Chaque colonne a sa case <span class="b">Tout cocher</span>. La légende dit&nbsp;: <span class="ch">🚗 = autre auto-école</span>.</p>
@@ -1267,7 +1285,8 @@ html{scroll-behavior:smooth}
     <div class="note astuce"><span class="tag">La même recherche partout</span><p>Depuis la v786, le répertoire, la loupe et le dossier utilisent <strong>la même règle</strong>&nbsp;: nom, numéro, mail, formation, Messenger, sur les élèves connus <em>et</em> ceux qui n'ont qu'une fiche. Avant, la loupe ne cherchait que dans le nom et ignorait les élèves sans bilan — ils semblaient ne pas exister.</p></div>
 
     <h4>📍 Où en est cet élève</h4>
-    <p>En haut, toujours visible&nbsp;: le même encadré que l'historique des leçons — leçon, simulateur, examen blanc, date d'examen, repassages. Une ligne dit <strong>d'où vient ce qu'on lit</strong>&nbsp;: <span class="ch">🗓️ D'après son cours préparé du 03/09 · dernier bilan le 12/07</span>.</p>
+    <p>En haut, toujours visible&nbsp;: le même encadré que l'historique des leçons — leçon, simulateur, examen blanc, date d'examen, repassages. Une ligne dit <strong>d'où vient ce qu'on lit</strong>&nbsp;: <span class="ch">🗓️ Son cours préparé du 03/09/2026 · son bilan du 12/07/2026 · sa fiche de suivi</span>.</p>
+    <div class="note"><span class="tag">🗓️ Les dates se lisent en français — v795</span><p>Les dates de la fiche de suivi arrivent telles que la feuille les stocke, en <span class="ch">2026-09-02</span>. Affichées brutes, elles se lisaient à l'anglaise au milieu de phrases françaises&nbsp;; et sur la ligne des sources, « son cours préparé du mercredi 2 septembre · son bilan du 2026-09-02 » demandait de comparer deux dates qui ne s'écrivaient pas pareil — alors que c'est justement cette ligne qui sert à vérifier <em>de quand</em> parle le résumé.</p><p>Tout le dossier affiche désormais <span class="ch">02/09/2026</span>&nbsp;: le résumé, le simulateur, l'examen blanc, la date d'examen, les désaccords. <strong>Seule la session d'examen garde son jour de la semaine</strong> — on organise une matinée d'examen autour d'un mercredi, pas autour d'un 02/09.</p></div>
     <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v789</span><p>Ce résumé lisait <strong>la note du dernier bilan enregistré</strong>. Or ce n'est pas la dernière chose qu'on ait dite d'un élève&nbsp;: <strong>le cours qu'on lui a préparé l'est</strong>. Résultat, une élève à sa 8<sup>e</sup> leçon avec son examen blanc réservé s'affichait « 2<sup>ème</sup> leçon sur 4 · examen blanc à prévoir ». Le résumé lit désormais, dans l'ordre&nbsp;: le dernier bilan, <strong>le cours préparé</strong>, puis les consignes du bureau — qui priment.</p><p>Au passage&nbsp;: le nombre de leçons tient compte du <strong>plus grand numéro jamais écrit</strong>, pour les élèves venus de l'ancien fonctionnement qui n'ont qu'un ou deux bilans enregistrés.</p></div>
 
     <h4>Les huit onglets</h4>
