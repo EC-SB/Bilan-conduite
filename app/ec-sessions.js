@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:50 — v790 */
+/* Déployé le 02/09/2026 à 09:10 — v791 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -69,9 +69,28 @@ function etiquetteBoite(boite){
 
 /* Un élève est « au vert » quand tout est fait : prévenu, dossier
    vérifié, et rien qui traîne côté préparation. */
+/* ============================================================
+   UN MOT, UN SENS — « FANTÔME » EN DÉSIGNAIT DEUX
+
+   Il existe une vraie case « 👻 fantôme » sur la fiche de suivi :
+   elle dit qu'un élève tient une place en PRÊTE-NOM — placé sur
+   RDV permis, mais jamais prévenu. C'est le sens métier.
+
+   Et cette fonction appelait « 👻 Place fantôme » un créneau SANS
+   AUCUN NOM. Deux choses différentes, un seul mot — et c'est le
+   mauvais qui gagnait : le bloc « ⚠️ À traiter » ne ramassait que
+   les créneaux vides, donc les vrais prête-noms n'apparaissaient
+   NULLE PART. On ne voyait plus qui était placé sur RDV permis.
+
+   Depuis la v791, trois états distincts :
+   · ⬜ place libre  — personne dessus, rien à faire ;
+   · 👻 prête-nom    — quelqu'un tient la place, jamais prévenu ;
+   · 🔄 à remplacer  — quelqu'un de prévenu, qui a conduit, et
+                       qu'il faut remplacer.
+   ============================================================ */
 function etatPlace(place, eleveBureau){
   if(!place.eleve){
-    return { cle:'vide', emoji:'👻', texte:'Place fantôme',
+    return { cle:'vide', emoji:'⬜', texte:'Place libre',
              couleur:'var(--muted)' };
   }
 
@@ -82,6 +101,13 @@ function etatPlace(place, eleveBureau){
   if(su.aRemplacer === 'oui'){
     return { cle:'remplacer', emoji:'🔄', texte:'À REMPLACER — place à donner',
              couleur:'var(--red)' };
+  }
+
+  /* Le prête-nom : la place est tenue, mais on peut la reprendre
+     sans rien coûter à personne — il n'a jamais été prévenu. */
+  if(su.fantome === 'oui'){
+    return { cle:'pretenom', emoji:'👻', texte:'PRÊTE-NOM — pas prévenu',
+             couleur:'#E8A33D' };
   }
 
   /* « Tout est OK » tranche : c'est le bureau qui le dit, après
@@ -181,34 +207,75 @@ async function chargerSessionsPermis(){
    les remplir.
    ============================================================ */
 
-/* Toutes les places libres à venir, la plus proche d'abord. */
-function placesLibresExamen(){
+/* TROIS SORTES DE PLACES PRENABLES, ET ON DIT QUI ON ENLÈVE.
+
+   Ne proposer que les créneaux vides était trop étroit : une place
+   tenue par un prête-nom se reprend sans rien coûter, et une place
+   « à remplacer » attend justement qu'on la redonne. Les ignorer
+   revenait à dire « aucune place » alors qu'il y en avait.
+
+   L'ordre compte : les vraies places libres d'abord. On ne déloge
+   personne tant qu'il reste un créneau vide. */
+const RANG_PRENABLE = { vide: 0, pretenom: 1, remplacer: 2 };
+
+function placesPrenablesExamen(){
   const auj = (typeof todayLocal === 'function')
     ? todayLocal() : new Date().toISOString().slice(0, 10);
 
   const out = [];
   (sessionsPermis || []).forEach(s => {
     if(!s.date || String(s.date) < auj) return;
+
+    const libres = (s.eleves || []).filter(x => !x.eleve).length;
+    const total = (s.eleves || []).length;
+
     (s.eleves || []).forEach(p => {
-      if(p.eleve) return;                       /* la place est prise */
+      let genre = 'vide';
+      if(p.eleve){
+        const su = (typeof suiviDe === 'function') ? suiviDe(p.eleve) : {};
+        if(su.aRemplacer === 'oui') genre = 'remplacer';
+        else if(su.fantome === 'oui') genre = 'pretenom';
+        else return;                    /* place occupée pour de bon */
+      }
+
       out.push({
-        idSession: s.id, rang: p.rang,
+        idSession: s.id, rang: p.rang, genre: genre,
+        /* Qui on enlève. Vide pour un créneau libre — et un nom
+           qu'on ne voit pas est un nom qu'on efface sans le savoir. */
+        occupant: p.eleve || '',
         date: s.date, centre: s.centre || '',
         heure: p.heure || s.heureDebut || '',
         moniteur: s.moniteur || '', inspecteur: s.inspecteur || '',
-        /* Combien il en reste ce jour-là : « 1 place libre sur 4 »
-           se lit autrement que « 4 sur 4 ». */
-        libres: (s.eleves || []).filter(x => !x.eleve).length,
-        total: (s.eleves || []).length
+        /* Combien de créneaux vides ce jour-là : « 1 place libre
+           sur 4 » ne se lit pas comme « 4 sur 4 ». */
+        libres: libres, total: total
       });
     });
   });
 
   out.sort((a, b) => {
+    if(RANG_PRENABLE[a.genre] !== RANG_PRENABLE[b.genre]){
+      return RANG_PRENABLE[a.genre] - RANG_PRENABLE[b.genre];
+    }
     const j = String(a.date).localeCompare(String(b.date));
     return j !== 0 ? j : String(a.heure).localeCompare(String(b.heure));
   });
   return out;
+}
+
+/* Comment se lit chaque sorte, au même endroit pour tout le monde. */
+function libellePrenable(p){
+  if(p.genre === 'pretenom'){
+    return { emoji:'👻', quoi:'Prête-nom : ' + p.occupant,
+             detail:"il n'a jamais été prévenu",
+             couleur:'#E8A33D' };
+  }
+  if(p.genre === 'remplacer'){
+    return { emoji:'🔄', quoi:'À remplacer : ' + p.occupant,
+             detail:'il a été prévenu et a conduit',
+             couleur:'var(--red)' };
+  }
+  return { emoji:'⬜', quoi:'Place libre', detail:'', couleur:'var(--muted)' };
 }
 
 /* La session d'un élève : avec qui il passe, et à quelle heure.
@@ -251,6 +318,23 @@ function sessionDeLEleve(nom){
 async function placerEleveSurPlace(nom, place){
   if(!nom || !place) return false;
 
+  /* DÉLOGER QUELQU'UN NE LE FAIT PAS DISPARAÎTRE.
+
+     Prête-nom ou élève à remplacer, il a toujours besoin d'une
+     date : il repart dans la liste RDV Permis. Et il perd son
+     étiquette — le prête-nom n'en tient plus une, celui à
+     remplacer a été remplacé. Le bureau la remettra au besoin.
+
+     Fait AVANT de donner la place : si l'écriture échoue, la place
+     n'a pas encore changé de main et on peut recommencer. */
+  if(place.occupant &&
+     normaliserMot(place.occupant) !== normaliserMot(nom)){
+    await majSuivi(place.occupant, {
+      datePermis: '', aPlanifier: 'oui', statut: '',
+      fantome: '', aRemplacer: ''
+    });
+  }
+
   await appelPrep({ action:'sessionPlace', idSession: place.idSession,
                     rang: place.rang, eleve: nom,
                     heure: place.heure || '',
@@ -286,28 +370,34 @@ async function choisirPlaceExamen(nom, voeu){
     return null;
   }
 
-  const libres = placesLibresExamen();
+  /* On ne se propose pas sa propre place. */
+  const prenables = placesPrenablesExamen()
+    .filter(p => normaliserMot(p.occupant || '') !== normaliserMot(nom));
 
-  if(!libres.length){
+  if(!prenables.length){
     await informer(
-      "Aucune place d'examen libre à venir.\n\n" +
-      "Une date se prend sur une journée ouverte. Ouvre la journée " +
-      'dans 🎓 Suivi permis (➕ Nouvelle session), puis reviens placer ' +
-      (nom || 'cet élève') + '.', "Pas de place libre");
+      "Aucune place d'examen prenable à venir.\n\n" +
+      'Ni créneau libre, ni prête-nom, ni place à remplacer. Une date ' +
+      'se prend sur une journée ouverte : ouvre-la dans 🎓 Suivi permis ' +
+      '(➕ Nouvelle session), puis reviens placer ' +
+      (nom || 'cet élève') + '.', "Pas de place prenable");
     return null;
   }
+
+  const vides = prenables.filter(p => p.genre === 'vide').length;
 
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
     const boite = document.createElement('div');
     boite.className = 'modal';
-    boite.style.cssText = 'max-width:min(480px, 94vw);';
+    boite.style.cssText = 'max-width:min(500px, 94vw);';
 
     boite.innerHTML = '<h3>🎓 Sa place d\'examen</h3>' +
       '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
       'margin-bottom:10px;">' + String(nom || '').replace(/</g, '&lt;') +
-      ' — ' + libres.length + ' place(s) libre(s) à venir.' +
+      ' — ' + prenables.length + ' place(s) prenable(s), dont ' + vides +
+      ' vraiment libre(s).' +
       (voeu ? '<br><strong style="color:var(--accent-text);">🗓️ Il a demandé : ' +
               String(voeu).replace(/</g, '&lt;') + '</strong>' : '') +
       '</div>';
@@ -321,21 +411,58 @@ async function choisirPlaceExamen(nom, voeu){
       resolve(v || null);
     };
 
-    libres.forEach(p => {
+    let genrePose = '';
+    prenables.forEach(p => {
+      /* Un intertitre par sorte : on doit voir d'un coup d'œil qu'on
+         est passé des créneaux vides à ceux qu'il faut reprendre à
+         quelqu'un. */
+      if(p.genre !== genrePose){
+        genrePose = p.genre;
+        const t = document.createElement('div');
+        t.style.cssText = 'font-size:11px;letter-spacing:.08em;' +
+          'text-transform:uppercase;color:var(--muted);margin:10px 0 6px;';
+        t.textContent = p.genre === 'vide' ? 'Places libres'
+          : (p.genre === 'pretenom'
+              ? 'Tenues par un prête-nom — on peut les reprendre'
+              : 'À remplacer — la personne a été prévenue');
+        liste.appendChild(t);
+      }
+
+      const lib = libellePrenable(p);
       const b = document.createElement('button');
       b.className = 'btn btn-secondary';
       b.style.cssText = 'width:100%;text-align:left;margin:0 0 7px;' +
-        'padding:10px 12px;font-size:13.5px;line-height:1.45;';
-      b.innerHTML = '<strong>👻 ' +
+        'padding:10px 12px;font-size:13.5px;line-height:1.45;' +
+        (p.genre !== 'vide' ? 'border-color:' + lib.couleur + ';' : '');
+      b.innerHTML = '<strong>' +
         ((typeof dateEnToutesLettres === 'function')
           ? dateEnToutesLettres(p.date) : p.date) +
         (p.heure ? ' — ' + p.heure : '') + '</strong>' +
+        '<div style="font-size:12px;color:' + lib.couleur + ';">' +
+        lib.emoji + ' ' + lib.quoi.replace(/</g, '&lt;') +
+        (lib.detail ? ' · ' + lib.detail : '') + '</div>' +
         '<div style="font-size:11.5px;color:var(--muted);">' +
         (p.centre || 'centre non précisé') +
         ' · ' + p.libres + ' place(s) libre(s) sur ' + p.total +
         (p.moniteur ? ' · ' + p.moniteur.replace(/</g, '&lt;') : '') +
         '</div>';
-      b.addEventListener('click', () => fermer(p));
+
+      b.addEventListener('click', async () => {
+        /* REPRENDRE LA PLACE DE QUELQU'UN SE CONFIRME, ET ON LE NOMME.
+           Le faire sans lire son nom est exactement le geste qu'on
+           regrette. */
+        if(p.occupant){
+          const quoi = (p.genre === 'pretenom')
+            ? 'Reprendre la place de ' + p.occupant + ' ?\n\n' +
+              "Il la tenait en prête-nom et n'a jamais été prévenu. " +
+              'Il repart dans la liste RDV Permis, sans son étiquette 👻.'
+            : 'Reprendre la place de ' + p.occupant + ' ?\n\n' +
+              '⚠️ IL A ÉTÉ PRÉVENU et a conduit. Il repart dans la liste ' +
+              'RDV Permis — pense à le rappeler pour lui dire.';
+          if(!await confirmer(quoi)) return;
+        }
+        fermer(p);
+      });
       liste.appendChild(b);
     });
 
@@ -438,19 +565,28 @@ zone.innerHTML = '';
 
   /* Ce qui demande une action, tous jours confondus : les listes
      que le bloc « Permis prévus » donnait avant. */
+  /* TROIS LOTS, PLUS DEUX.
+
+     Les prête-noms manquaient à ce bloc : il ne ramassait que les
+     créneaux VIDES et les appelait « fantômes ». Les élèves placés
+     en prête-nom — ceux dont la case 👻 est cochée — n'y
+     figuraient nulle part, alors que ce sont eux qu'on cherche
+     quand on demande « qui est sur RDV permis ? ». */
   const aRemplacer = [];
-  const fantomes = [];
+  const pretenoms = [];
+  const libres = [];
   const jourAuj = todayLocal();
   sessionsPermis.filter(s => !s.date || s.date >= jourAuj).forEach(s => {
     s.eleves.forEach(p => {
       const su = (p.eleve && typeof suiviDe === 'function') ? suiviDe(p.eleve) : {};
-      if(!p.eleve) fantomes.push({ s: s, p: p });
+      if(!p.eleve) libres.push({ s: s, p: p });
       else if(su.aRemplacer === 'oui') aRemplacer.push({ s: s, p: p, su: su });
+      else if(su.fantome === 'oui') pretenoms.push({ s: s, p: p, su: su });
     });
   });
 
-  if(aRemplacer.length || fantomes.length){
-    zone.appendChild(blocAIntervenir(aRemplacer, fantomes));
+  if(aRemplacer.length || pretenoms.length || libres.length){
+    zone.appendChild(blocAIntervenir(aRemplacer, pretenoms, libres));
   }
 
   const auj = todayLocal();
@@ -464,9 +600,16 @@ zone.innerHTML = '';
   const compte = document.createElement('div');
   compte.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;';
   const total = aVenir.reduce((n, s) => n + s.eleves.filter(x => x.eleve).length, 0);
+  /* « fantôme » disait deux choses ; ce compteur comptait des cases
+     vides et les appelait des fantômes. Les deux se comptent
+     maintenant à part. */
   const vides = aVenir.reduce((n, s) => n + s.eleves.filter(x => !x.eleve).length, 0);
+  const tenues = aVenir.reduce((n, s) => n + s.eleves.filter(x =>
+    x.eleve && typeof suiviDe === 'function' &&
+    suiviDe(x.eleve).fantome === 'oui').length, 0);
   compte.textContent = aVenir.length + ' session(s) à venir · ' + total + ' élève(s)' +
-    (vides ? ' · ' + vides + ' place(s) fantôme(s)' : '');
+    (vides ? ' · ⬜ ' + vides + ' place(s) libre(s)' : '') +
+    (tenues ? ' · 👻 ' + tenues + ' prête-nom(s)' : '');
   zone.appendChild(compte);
 
   /* Deux sessions le même jour : on les numérote, sinon rien ne les
@@ -511,16 +654,18 @@ zone.innerHTML = '';
 
 /* Les places à donner et les places libres, réunies en tête :
    c'est ce qu'on cherche en premier le matin. */
-function blocAIntervenir(aRemplacer, fantomes){
+function blocAIntervenir(aRemplacer, pretenoms, libres){
   const d = document.createElement('details');
   d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
     'padding:10px 12px;margin-bottom:14px;';
 
+  const bouts = [];
+  if(aRemplacer.length) bouts.push(aRemplacer.length + ' à remplacer');
+  if(pretenoms.length) bouts.push(pretenoms.length + ' prête-nom(s)');
+  if(libres.length) bouts.push(libres.length + ' place(s) libre(s)');
+
   d.innerHTML = '<summary style="cursor:pointer;font-size:14px;font-weight:700;' +
-    'color:var(--accent-text);">⚠️ À traiter — ' +
-    (aRemplacer.length ? aRemplacer.length + ' à remplacer' : '') +
-    (aRemplacer.length && fantomes.length ? ' · ' : '') +
-    (fantomes.length ? fantomes.length + ' place(s) libre(s)' : '') +
+    'color:var(--accent-text);">⚠️ À traiter — ' + bouts.join(' · ') +
     '</summary>';
 
   const ajouter = (titre, lot, couleur) => {
@@ -547,8 +692,9 @@ function blocAIntervenir(aRemplacer, fantomes){
     });
   };
 
-  ajouter('🔄 Places à remplacer', aRemplacer, 'var(--red)');
-  ajouter('👻 Places libres', fantomes, 'var(--muted)');
+  ajouter('🔄 À remplacer — prévenus, à rappeler', aRemplacer, 'var(--red)');
+  ajouter('👻 Prête-noms — jamais prévenus', pretenoms, '#E8A33D');
+  ajouter('⬜ Places libres — personne dessus', libres, 'var(--muted)');
 
   return d;
 }
