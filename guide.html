@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 810
+     GUIDE-VERSION: 811
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v810</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v811</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v810</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v811</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1293,6 +1293,7 @@ html{scroll-behavior:smooth}
     <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v789</span><p>Ce résumé lisait <strong>la note du dernier bilan enregistré</strong>. Or ce n'est pas la dernière chose qu'on ait dite d'un élève&nbsp;: <strong>le cours qu'on lui a préparé l'est</strong>. Résultat, une élève à sa 8<sup>e</sup> leçon avec son examen blanc réservé s'affichait « 2<sup>ème</sup> leçon sur 4 · examen blanc à prévoir ». Le résumé lit désormais, dans l'ordre&nbsp;: le dernier bilan, <strong>le cours préparé</strong>, puis les consignes du bureau — qui priment.</p><p>Au passage&nbsp;: le nombre de leçons tient compte du <strong>plus grand numéro jamais écrit</strong>, pour les élèves venus de l'ancien fonctionnement qui n'ont qu'un ou deux bilans enregistrés.</p></div>
 
     <div class="note"><span class="tag">✨ Le numéro de leçon, enfin le même — v809</span><p><em>« Le résumé dans la fiche élève n'est toujours pas bon pour le numéro de leçon, je veux la même chose que dans mes prochains cours. »</em> Ses trois phrases, et ce qu'elles veulent dire&nbsp;:</p><table><thead><tr><th>Ce que la note dit</th><th>La leçon</th><th>Pourquoi</th></tr></thead><tbody><tr><td><span class="ch">1ère leçon après l'examen blanc (2 prévues, 5ème au total)</span></td><td><strong>5</strong></td><td>le premier nombre compte <em>depuis</em> l'examen blanc&nbsp;; le total est dit en toutes lettres</td></tr><tr><td><span class="ch">12 ème leçon frise dépassée (5 prévues)</span></td><td><strong>12</strong></td><td>l'espace entre le nombre et le suffixe se glisse tout seul dans les notes dictées</td></tr><tr><td><span class="ch">1ère leçon - plus que 6 avant l'examen blanc</span></td><td><strong>1</strong></td><td>le 6 est ce qui reste à faire, pas un rang</td></tr></tbody></table><p><strong>Deux lectures cohabitaient.</strong> « Mes prochains cours » lisait la note avec la règle complète et rendait 5, 12 et 1. Le résumé passait par un second motif qui ne connaissait ni la charnière — il ramenait une élève de sa 5<sup>e</sup> à sa 1<sup>ère</sup> — ni l'espace de « 12 ème », auquel cas il ne trouvait rien et retombait sur le <em>nombre de bilans enregistrés</em>, qui rajeunit de plusieurs leçons les élèves venus de l'ancien fonctionnement.</p><p>La règle est maintenant écrite <strong>une seule fois</strong>, et les deux écrans l'appellent. Une note qui compte depuis une charnière sans annoncer de total ne dit rien du total&nbsp;: dans ce cas l'outil se tait plutôt que de deviner.</p></div>
+    <div class="note"><span class="tag">✨ La même PHRASE, pas le même chiffre — v811</span><p>La v809 corrigeait le chiffre&nbsp;: le dossier affichait enfin <span class="ch">6ème leçon</span> au lieu de <span class="ch">1ère leçon</span>. Ce n'était pas la demande.</p><p><em>« À la place de 6ème leçon dans le dossier, je veux 1ère leçon après l'examen blanc (2 prévues, 6ème au total). »</em></p><p>La carte de Mes prochains cours ne calcule rien&nbsp;: elle prend <strong>la ligne 🎯 de la note</strong>, celle que le questionnaire a écrite, et l'affiche en gros. Reconstruire « 6ème leçon » à côté, c'était redire la même chose en moins bien — on y perdait la charnière, ce qui reste avant l'examen blanc, et la frise dépassée.</p><p>Le résumé du dossier lit désormais <strong>cette ligne-là, par la même fonction</strong>, et n'en reconstruit une que s'il n'y a ni cours préparé ni note à lire — auquel cas il le dit.</p></div>
 
     <h4>Les neuf onglets</h4>
     <table>
@@ -2369,6 +2370,7 @@ Jours ouverts à la prise de date
 
     <h4>📄 Le bilan qu'un rappel doit créer — v809</h4>
     <div class="note"><span class="tag">✨ La fin d'une devinette</span><p><em>« Quand je fais un rappel avec type de séance permis voiture dans mes prochains cours, il apparaît avec type de bilan conduite BEA alors qu'il devrait apparaître en tant que type de bilan examen officiel. J'ai l'impression que ça fait 15 fois que je dis la même chose pour ça. »</em></p><p><strong>La table de référence était bonne&nbsp;; c'est son principe qui ne l'était pas.</strong> Les types de séance des rappels ne sont pas fournis par l'outil&nbsp;: ce sont ces textes-ci, écrits à la main. Le bilan à créer était donc <em>deviné d'après le titre</em>. « Permis voiture » ne tombait dans aucune règle et repartait en conduite ordinaire, donc en BEA d'après la fiche. Un titre libre ne peut pas porter une règle&nbsp;: chaque correction de la devinette en cassait une autre.</p><p>Un texte d'usage <span class="b">🔔 Rappel de cours</span> porte maintenant un menu <span class="b">📄 Le bilan que ce rappel doit créer</span>. Choisis-le une fois, et le cours ajouté à « Mes prochains cours » portera celui-là — quel que soit son titre.</p><p><strong>La boîte suit l'élève&nbsp;:</strong> choisis la famille (« Conduite — Boîte automatique »), l'outil prend la version automatique ou manuelle d'après sa fiche. Laissé sur <span class="ch">— d'après la fiche de l'élève —</span>, c'est sa formation qui décide, ce qu'il faut pour une leçon ordinaire.</p></div>
+    <div class="note astuce"><span class="tag">Rien à recréer — v811</span><p><em>« Je fais comment pour les rappels qui sont déjà créés ? Je n'ai pas le bouton, et je vais pas m'amuser à tous les recréer. »</em></p><p>Il n'y avait rien à recréer&nbsp;: <strong>c'est l'écran qui ne montrait pas le menu</strong>. Il décidait quels blocs afficher <em>avant</em> de lire l'usage du texte qu'on venait d'ouvrir — donc toujours comme s'il s'agissait d'un texte libre. Corrigé&nbsp;: ouvre n'importe quel rappel existant avec <span class="b">✏️ Modifier</span>, le menu y est.</p></div>
     <div class="note piege"><span class="tag">En attendant que tu les configures</span><p>Un texte qui ne déclare rien retombe sur la lecture du titre&nbsp;: les textes déjà écrits continuent de marcher. Cette lecture a été corrigée au passage — <strong>un titre qui parle de permis veut dire l'examen officiel</strong> (« Permis voiture », « Rappel permis »…), sauf pour les deux-roues, qui n'imposent jamais rien. Mais dès qu'un texte déclare son bilan, le titre ne décide plus.</p></div>
 
     <h4>Les variables</h4>
