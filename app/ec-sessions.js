@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 09:40 — v793 */
+/* Déployé le 02/09/2026 à 10:14 — v796 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -315,24 +315,66 @@ function sessionDeLEleve(nom){
    aura une place occupée sans date sur la fiche, ce qui se voit
    dans 🎓 Suivi permis. L'inverse — une date sans place — est
    exactement ce qu'on vient de corriger. */
+/* SORTIR QUELQU'UN D'UNE SESSION, C'EST TOUJOURS LA MÊME CHOSE.
+
+   « Il réapparaît dans RDV Permis quand il est enlevé d'une session
+   examen. » — et il y a QUATRE portes qui mènent dehors :
+
+     · on lui prend sa place (placerEleveSurPlace) ;
+     · on vide sa place (⬜ Vider la place) ;
+     · on efface son nom dans l'éditeur de place (retirerDeLaSession) ;
+     · on supprime la session entière (🗑️ Supprimer).
+
+   Les quatre écrivaient chacune SA version des mêmes champs, et
+   deux d'entre elles laissaient l'élève nulle part :
+
+     · 🗑️ SUPPRIMER n'écrivait rien du tout. La session partait avec
+       ses places, l'élève gardait sa date sur sa fiche sans être sur
+       aucune session, et dejaPlace() voyait cette date : exclu de RDV
+       Permis, absent des sessions. Disparu, avec une date d'examen à
+       laquelle personne ne l'attendait.
+
+     · L'ÉDITEUR DE PLACE effaçait la date mais oubliait
+       « aPlanifier ». Or la liste RDV Permis se construit sur
+       aPlanifier === 'oui', pas sur l'absence de date : il tombait
+       de la liste, exactement pareil. Et il gardait son 👻 sans
+       tenir aucune place.
+
+   C'est le défaut du vieux « 👻 Retirer » corrigé en v793, sur trois
+   autres portes. Écrite une seule fois ici, la règle ne peut plus
+   être oubliée par l'une d'elles. */
+function champsSortieDeSession(){
+  return {
+    /* aPlanifier, PAS seulement la date effacée : c'est lui qui le
+       fait apparaître dans RDV Permis (afficherRdvPermis). Et
+       statut vide, sinon un « annulé » l'en écarte encore. */
+    datePermis: '', aPlanifier: 'oui', statut: '',
+    /* Il perd son étiquette : le prête-nom n'en tient plus une,
+       celui à remplacer a été remplacé. Le bureau la remettra. */
+    fantome: '', aRemplacer: '',
+    /* Et ce qui n'avait de sens qu'avec cette date-là : un centre
+       d'examen et un « tout est OK » sans examen sont deux réponses
+       à une question qu'on ne pose plus. */
+    centre: '', toutOk: ''
+  };
+}
+
+async function rendreALaListeRdvPermis(nom){
+  if(!nom) return;
+  await majSuivi(nom, champsSortieDeSession());
+}
+
+
 async function placerEleveSurPlace(nom, place){
   if(!nom || !place) return false;
 
   /* DÉLOGER QUELQU'UN NE LE FAIT PAS DISPARAÎTRE.
 
-     Prête-nom ou élève à remplacer, il a toujours besoin d'une
-     date : il repart dans la liste RDV Permis. Et il perd son
-     étiquette — le prête-nom n'en tient plus une, celui à
-     remplacer a été remplacé. Le bureau la remettra au besoin.
-
      Fait AVANT de donner la place : si l'écriture échoue, la place
      n'a pas encore changé de main et on peut recommencer. */
   if(place.occupant &&
      normaliserMot(place.occupant) !== normaliserMot(nom)){
-    await majSuivi(place.occupant, {
-      datePermis: '', aPlanifier: 'oui', statut: '',
-      fantome: '', aRemplacer: ''
-    });
+    await rendreALaListeRdvPermis(place.occupant);
   }
 
   await appelPrep({ action:'sessionPlace', idSession: place.idSession,
@@ -874,12 +916,31 @@ function remplirPlaces(zone, sess){
     'color:var(--red);border-color:var(--red);';
   bSup.textContent = '🗑️ Supprimer';
   bSup.addEventListener('click', async () => {
-    const n = sess.eleves.filter(x => x.eleve).length;
+    /* LA TROISIÈME PORTE — voir rendreALaListeRdvPermis().
+
+       Ces élèves-là perdent leur date en même temps que la session,
+       et la fenêtre le DIT : supprimer une session, c'est décider
+       pour tous ceux qui y étaient. */
+    const dedans = sess.eleves.filter(x => x.eleve).map(x => x.eleve);
     if(!await confirmer('Supprimer cette session ?' +
-        (n ? '\n\n' + n + ' élève(s) y sont inscrits.' : ''))) return;
+        (dedans.length
+          ? '\n\n' + dedans.length + ' élève(s) y sont inscrits : ' +
+            dedans.join(', ') + '.\n\nLeur date d\'examen est effacée et ' +
+            'ils repartent dans la liste RDV Permis.'
+          : ''))) return;
     try{
+      /* Les fiches AVANT la suppression : si une écriture échoue, la
+         session existe encore et personne n'est perdu — on
+         recommence. Dans l'autre sens, une suppression réussie
+         suivie d'une écriture ratée laissait un élève avec une date
+         d'examen et aucune session, invisible partout. */
+      for(const nom of dedans) await rendreALaListeRdvPermis(nom);
+
       await appelPrep({ action: 'sessionDelete', id: sess.id });
-      showToast('Session supprimée ✅');
+      showToast(dedans.length
+        ? 'Session supprimée — ' + dedans.length +
+          ' élève(s) renvoyé(s) dans RDV Permis ✅'
+        : 'Session supprimée ✅');
       afficherSessionsPermis();
     }catch(e){ showToast('Impossible : ' + e.message); }
   });
@@ -922,10 +983,14 @@ async function retirerDeLaSession(nom, sess){
       try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(err){}
     }
 
-    /* Le suivi perd sa date : l'élève retourne « à prévoir » */
+    /* Le suivi perd sa date, et l'élève RETOURNE DANS RDV PERMIS.
+
+       Cette porte-ci écrivait sa propre version : elle effaçait bien
+       la date, mais oubliait « aPlanifier » — le champ sur lequel la
+       liste se construit — et le 👻. L'élève sortait de la session
+       et de la liste en même temps. Voir rendreALaListeRdvPermis. */
     if(typeof majSuivi === 'function'){
-      await majSuivi(nom, { datePermis: '', centre: '', statut: '',
-                            aRemplacer: '', toutOk: '' });
+      await rendreALaListeRdvPermis(nom);
     }
 
     /* Et le moniteur l'apprend */
@@ -1513,8 +1578,7 @@ function ouvrirPlace(p, sess){
         await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
                           eleve: '', prevenu: '', dossierOk: '', remarque: '' });
         /* Ce que la fenêtre annonce, et que personne ne faisait. */
-        await majSuivi(nom, { datePermis: '', aPlanifier: 'oui', statut: '',
-                              fantome: '', aRemplacer: '' });
+        await rendreALaListeRdvPermis(nom);
         redessinerSessions();
       }catch(e){ showToast('Impossible : ' + e.message); }
     });
@@ -1586,14 +1650,15 @@ function ouvrirPlace(p, sess){
         }
       }
 
-      /* Celui qu'on retire perd sa date dans la mémoire aussi */
+      /* Celui qu'on retire perd sa date dans la mémoire aussi — LES
+         MÊMES CHAMPS que ce qui part au serveur, pas une deuxième
+         liste écrite à la main. C'en était une, et elle avait déjà
+         divergé : l'écran gardait son 👻 et le laissait hors de RDV
+         Permis jusqu'au prochain rechargement. */
       if(retire && typeof etatBureau !== 'undefined'){
         const parti = (etatBureau.suivi || []).find(x =>
           normaliserMot(x.eleve) === normaliserMot(ancienNom));
-        if(parti){
-          Object.assign(parti, { datePermis: '', centre: '', statut: '',
-                                 aRemplacer: '', toutOk: '' });
-        }
+        if(parti) Object.assign(parti, champsSortieDeSession());
       }
 
       /* La fenêtre se ferme tout de suite : la mémoire est à jour,
