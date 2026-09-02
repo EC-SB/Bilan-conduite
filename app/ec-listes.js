@@ -1,9 +1,43 @@
-/* Déployé le 27/08/2026 à 13:06 — v613 */
+/* Déployé le 02/09/2026 à 07:38 — v785 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
+
+/* ============================================================
+   FIXER LA DATE DU SIMULATEUR — UNE SEULE PORTE
+
+   Elle fait deux choses, et c'est voulu, parce que ce sont DEUX
+   TRAVAUX DIFFÉRENTS :
+
+   · la COLONNE « Date simulateur » de la fiche de suivi, qui est
+     la vérité — on peut la relire, la trier, la compter ;
+   · la CONSIGNE, qui est une annonce au moniteur : elle s'invite
+     dans la note de son prochain cours.
+
+   Jusqu'à la v785, seule la consigne existait. La date ne vivait
+   donc que dans une phrase, et disparaissait à la phrase suivante.
+   Elle est maintenant écrite, et la phrase reste ce qu'elle a
+   toujours été : un message.
+
+   Écrite ICI et nulle part ailleurs : le bureau et la page élève
+   passent par cette fonction. Deux boutons qui fixent la même date
+   de deux façons, c'est la faute qu'on répare depuis une semaine.
+   ============================================================ */
+async function fixerDateSimu(eleve, iso){
+  const jour = (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(iso) || iso) : iso;
+
+  /* La colonne d'abord : si la consigne partait seule et que
+     l'enregistrement échouait ensuite, le moniteur lirait une date
+     que la fiche ne connaîtrait pas. */
+  await majSuivi(eleve, { simuDate: jour });
+  await envoyerConsigne(eleve, 'simu',
+    'Simulateur nuit et risques fixé au ' + jour + ' (bureau)');
+  return jour;
+}
+
 
 /* Une case « prévenu », partagée par les listes qui en ont besoin */
 function casePrevenu(x, champ, libelle){
@@ -714,9 +748,10 @@ function afficherSimulateurs(tous){
           zone.appendChild(casePrevenu(x, 'simuPrevenu',
             '📣 Message envoyé pour réserver'));
 
+          /* La même porte que la page élève : la date s'enregistre
+             ET s'annonce, écrites une seule fois (fixerDateSimu). */
           zone.appendChild(boutonDate('📅 Fixer la date', async iso => {
-            await envoyerConsigne(x.eleve, 'simu',
-              'Simulateur nuit et risques fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
+            await fixerDateSimu(x.eleve, iso);
             showToast('Date transmise ✅');
             redessinerBureau();
           }));
