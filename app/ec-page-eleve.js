@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:11 — v788 */
+/* Déployé le 02/09/2026 à 08:40 — v789 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -162,6 +162,58 @@ function eleveDuBureau(nom){
     .find(x => normaliserMot(x.eleve) === normaliserMot(nom)) || null;
 }
 
+/* ============================================================
+   LA DERNIÈRE CHOSE DITE N'EST PAS LE DERNIER BILAN
+
+   Le résumé se trompait, et de beaucoup : « 2ème leçon sur 4 »
+   pour une élève que l'écran des prochains cours annonçait à sa
+   « 8ème leçon — frise dépassée », avec son examen blanc réservé
+   et son simulateur fait.
+
+   La cause : « où en est un élève » était lu dans la note de son
+   dernier bilan ENREGISTRÉ. Or ce n'est pas la dernière chose
+   qu'on ait dite de lui — le cours qu'on lui a PRÉPARÉ l'est, et
+   c'est celui que le bureau lit chaque matin. Deux écrans, deux
+   sources, deux vérités.
+
+   Les trois sources, de la plus ancienne à la plus récente :
+   le dernier bilan, le cours préparé, les consignes du bureau
+   (qui priment, c'est la règle depuis toujours). analyserNote
+   sait déjà que c'est la DERNIÈRE annonce qui fait foi : il
+   suffit de les lui donner dans l'ordre.
+   ============================================================ */
+function preparationDe(nom){
+  const liste = (typeof prepares !== 'undefined' && Array.isArray(prepares))
+    ? prepares : [];
+  const siennes = liste.filter(x =>
+    normaliserMot(x.eleve || '') === normaliserMot(nom) &&
+    String(x.note || '').trim());
+  if(!siennes.length) return null;
+
+  /* La plus récente : un élève peut avoir deux cours préparés. */
+  return siennes.sort((a, b) =>
+    String(b.date || '').localeCompare(String(a.date || '')))[0];
+}
+
+/* Les cours préparés ne sont chargés que si l'onglet Cours a été
+   ouvert. On prend d'abord le cache du téléphone — gratuit — puis
+   on va les chercher UNE fois, et on redessine. L'écran ne reste
+   jamais faux en attendant : il dit d'où vient ce qu'il montre. */
+let prepDemandeesPourDossier = false;
+function assurerPreparations(){
+  if(typeof prepares === 'undefined') return;
+  if(prepares.length) return;
+
+  if(typeof lireCachePrepares === 'function'){
+    const cache = lireCachePrepares();
+    if(cache && cache.length){ prepares = cache; return; }
+  }
+
+  if(prepDemandeesPourDossier || typeof chargerPrepares !== 'function') return;
+  prepDemandeesPourDossier = true;
+  chargerPrepares().then(() => rafraichirPageEleve()).catch(() => {});
+}
+
 /* Les contradictions entre la fiche de suivi et la note. Une par
    ligne, dites telles quelles. */
 function desaccordsSuivi(s, etat){
@@ -197,9 +249,20 @@ function blocResumeEleve(nom){
   t.textContent = '📍 Où en est ' + nom;
   d.appendChild(t);
 
+  /* Le cours préparé, s'il y en a un : c'est la dernière chose
+     qu'on ait dite de cet élève. */
+  assurerPreparations();
+  const prep = preparationDe(nom);
+
+  /* Bilan, puis cours préparé, puis consignes du bureau : de la
+     plus ancienne annonce à la plus récente. La consigne reste en
+     dernier — elle prime, c'est la règle depuis toujours. */
+  const dit = [(e && e.note) || '', (prep && prep.note) || '']
+    .filter(x => String(x).trim()).join(' · ');
+
   /* La fonction de l'historique des leçons, telle quelle. */
-  const etapes = (typeof etapesEleve === 'function' && e)
-    ? etapesEleve(e.note, e.enAttente) : [];
+  const etapes = (typeof etapesEleve === 'function' && (e || prep))
+    ? etapesEleve(dit, (e && e.enAttente) || [], e && e.leconNum) : [];
 
   if(!etapes.length){
     const v = document.createElement('div');
@@ -219,6 +282,26 @@ function blocResumeEleve(nom){
                        (x.ok === false ? '⏳ ' : '📌 ')) + x.txt;
       d.appendChild(l);
     });
+  }
+
+  /* D'OÙ VIENT CE QU'ON MONTRE.
+
+     Sans cette ligne, on ne peut pas savoir si le résumé parle du
+     cours de la semaine prochaine ou du bilan d'il y a deux mois —
+     et c'est exactement ce qui a rendu l'erreur invisible. */
+  if(prep){
+    const src = document.createElement('div');
+    src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
+    src.textContent = '🗓️ D\'après son cours préparé' +
+      (prep.date ? ' du ' + prep.date : '') +
+      ((e && e.date) ? ' · dernier bilan le ' + e.date : '');
+    d.appendChild(src);
+  }else if(e && e.date){
+    const src = document.createElement('div');
+    src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
+    src.textContent = '🗓️ D\'après son bilan du ' + e.date +
+      ' — aucun cours préparé.';
+    d.appendChild(src);
   }
 
   desaccordsSuivi(s, e && e.etat).forEach(phrase => {
@@ -769,33 +852,53 @@ function ongletRgpd(corps, nom){
 /* ============================================================
    📚 COURS — un appel, filtré par nom côté serveur
    ============================================================ */
-function ongletCours(corps, nom){
-  /* L'écran de recherche fait déjà ce travail, et mieux que je ne
-     le referais : on lui donne le nom et on le laisse travailler. */
-  const champ = $('searchName');
-  if(!champ || typeof rechercherEleve !== 'function'){
+async function ongletCours(corps, nom){
+  if(typeof ligneBilan !== 'function'){
     corps.appendChild(vidDossier(
       "L'historique des leçons n'est pas disponible sur cet écran."));
     return;
   }
 
-  corps.appendChild(vidDossier(
-    'Ses leçons s\'ouvrent dans l\'historique, avec le renvoi de ' +
-    'bilan par mail et le détail de chaque cours.'));
+  attenteDossier(corps, 'Lecture de ses leçons…');
 
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-top:4px;padding:12px;font-size:14px;';
-  b.textContent = '📚 Voir ses leçons';
-  b.addEventListener('click', () => {
-    champ.value = nom;
-    /* L'écran d'abord, la recherche ensuite : lancer l'appel sans
-       amener le moniteur devant le résultat le laisserait devant
-       une page qui ne bouge pas. */
-    if(typeof afficherVue === 'function') afficherVue('eleves', 'recherche');
-    rechercherEleve();
-  });
-  corps.appendChild(b);
+  let res = [];
+  try{
+    /* La recherche filtre par nom CÔTÉ SERVEUR : un seul appel, et
+       seulement ses lignes à lui. */
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code,
+                             eleve: nom, moniteur: '', site: '' })
+    });
+    if(r.status === 403){ verrouiller('Session expirée, saisis ton code à nouveau.'); return; }
+    const data = await r.json();
+    res = (data && data.resultats) || [];
+  }catch(e){ return echecDossier(corps, e); }
+
+  if(ongletPageEleve !== 'cours') return;
+  corps.innerHTML = '';
+
+  if(!res.length){
+    corps.appendChild(vidDossier(
+      "Aucun bilan enregistré pour cet élève. Vérifie que son nom " +
+      'est écrit comme lors des cours.'));
+    return;
+  }
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:9px;';
+  t.textContent = res.length + ' leçon(s) — la plus récente en premier. ' +
+    '✉️ renvoie le bilan par mail.';
+  corps.appendChild(t);
+
+  /* LA MÊME LIGNE QUE L'HISTORIQUE DES LEÇONS, PAS UNE COPIE.
+
+     Elle vivait enfermée dans « rechercherEleve » ; elle en est
+     sortie pour que les deux écrans la partagent. Le jour où le
+     renvoi par mail changera, il changera pour les deux. */
+  res.forEach(item => corps.appendChild(
+    ligneBilan(item, nom, () => dessinerPageEleve())));
 }
 
 
@@ -1009,26 +1112,41 @@ async function ongletProcedures(corps, nom){
   corps.innerHTML = '';
 
   const enCours = demandes.filter(x => x.etat !== 'fait');
+  const faites = demandes.filter(x => x.etat === 'fait');
+
   if(enCours.length){
     corps.appendChild(sousTitreDossier('Demandé, pas encore fait'));
     enCours.forEach(x => corps.appendChild(ligneDossier(
       '📥 ' + (x.procedure || x.texte || 'Procédure'),
-      [x.creeLe, x.par].filter(Boolean).join(' · '),
+      ['demandé le ' + (x.creeLe || '?'), x.par ? 'par ' + x.par : '',
+       x.etat && x.etat !== 'fait' ? x.etat : ''].filter(Boolean).join(' · '),
       'var(--warn-text)')));
   }
 
   if(recits.length){
-    corps.appendChild(sousTitreDossier('Récitées'));
-    recits.slice(0, 30).forEach(x => corps.appendChild(ligneDossier(
-      '🗣️ ' + (x.procedure || 'Procédure'),
-      [x.quand || x.creeLe, x.note].filter(Boolean).join(' · '))));
+    corps.appendChild(sousTitreDossier(
+      recits.length + ' procédure(s) récitée(s)'));
+    /* La plus récente en premier : c'est celle qui dit où il en est. */
+    recits.slice()
+      .sort((a, b) => String(b.quand || b.creeLe || '')
+                        .localeCompare(String(a.quand || a.creeLe || '')))
+      .slice(0, 30)
+      .forEach(x => corps.appendChild(ligneDossier(
+        (x.valide === 'oui' ? '✅ ' : '🗣️ ') + (x.procedure || 'Procédure'),
+        [x.quand || x.creeLe, x.note, x.par ? 'corrigé par ' + x.par : '']
+          .filter(Boolean).join(' · '),
+        x.valide === 'oui' ? 'var(--accent-text)' : '')));
+  }
+
+  if(faites.length){
+    corps.appendChild(sousTitreDossier(faites.length + ' demande(s) traitée(s)'));
   }
 
   if(!enCours.length && !recits.length){
     corps.appendChild(vidDossier('Aucune procédure demandée ni récitée.'));
   }
 
-  boutonEcranComplet(corps, '📥 Ouvrir les procédures', 'proccorriger');
+  boutonEcranComplet(corps, '📥 Ouvrir les procédures à corriger', 'proccorriger');
 }
 
 
