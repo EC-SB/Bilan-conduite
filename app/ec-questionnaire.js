@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:24 — v812 */
+/* Déployé le 02/09/2026 à 14:32 — v813 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1349,7 +1349,10 @@ const PARCOURS_FORMATION = [
      parce qu'il n'y a PAS de CEPC : c'est validé ou non validé, et
      ce sont les réflexions de l'inspecteur qu'on note. */
   { cle:'Régularisation BEA', boite:'BEA', modele:'conduite-auto', frise:'',
-    repartDeZero:true, motRang:'de régularisation',
+    /* ⚠️ SON RANG NE SE COMPTE PAS PAR BOÎTE — voir la note de la
+       passerelle juste dessous. Elle porte son mot à elle, et rien
+       de plus : le numéro reste celui de ses leçons chez nous. */
+    motRang:'de régularisation',
     amenageeObligatoire:true, compteurPrefecture:true,
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
@@ -1359,7 +1362,7 @@ const PARCOURS_FORMATION = [
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
                'rdvPostMoniteur'] },
   { cle:'Régularisation BV', boite:'BV', modele:'conduite-manuelle', frise:'',
-    repartDeZero:true, motRang:'de régularisation',
+    motRang:'de régularisation',
     amenageeObligatoire:true, compteurPrefecture:true,
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
@@ -1368,8 +1371,29 @@ const PARCOURS_FORMATION = [
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
                'rdvPostMoniteur'] },
+  /* ⚠️ « compteParBoite » N'EST VRAI QUE POUR LA PASSERELLE.
+
+     Elle et la régularisation partagent la même situation — un
+     permis déjà en poche — mais pas la même façon de compter, et
+     j'avais donné la règle de l'une à l'autre.
+
+     La passerelle : l'élève a passé son permis en automatique, donc
+     TOUTE leçon en manuelle est une leçon de passerelle. Compter
+     ses leçons dans cette boîte est exact.
+
+     La régularisation : il a déjà un permis, il a donc pu conduire
+     dans les deux boîtes avant, et ses leçons d'aujourd'hui peuvent
+     être enregistrées sous n'importe quel libellé. La boîte ne
+     distingue rien. Le compte par boîte rendait 0, et écrasait le
+     7 que le questionnaire venait d'afficher : « dans le
+     questionnaire c'est bien noté 7ème, mais sur mes prochains
+     cours c'est écrit 1 ».
+
+     Elle garde donc son mot — « leçon de régularisation » — et le
+     rang ordinaire, celui de ses leçons chez nous. Corrigé une fois
+     à la main, il tient pour de bon : c'est déjà la règle. */
   { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
-    repartDeZero:true, motRang:'de passerelle',
+    compteParBoite:true, motRang:'de passerelle',
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
                'ebPasse', 'ebLecons', 'ebImpossibleLe', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
@@ -3976,19 +4000,24 @@ function positionDansLaFrise(q){
     return bouts.length ? ' (' + bouts.join(', ') + ')' : '';
   };
 
-  /* Une formation qui repart de zéro : la passerelle. Compter
-     depuis les débuts de l'élève n'aurait aucun sens — il a déjà
-     son permis. Ses leçons de passerelle sont celles qu'il a faites
-     dans la boîte de ce parcours. */
+  /* Un parcours qui dit ses leçons avec son mot à lui : la
+     passerelle, la régularisation. L'élève a déjà son permis, et
+     « 12ème leçon » sans autre précision ferait croire à un
+     parcours ordinaire.
+
+     ⚠️ DEUX QUESTIONS, PAS UNE. Le MOT vient toujours du parcours ;
+     le NOMBRE, lui, ne se compte par boîte que là où la boîte
+     distingue vraiment quelque chose — c'est-à-dire pour la seule
+     passerelle. Les avoir confondus faisait annoncer « 1ère leçon
+     de régularisation » à un élève que le questionnaire venait
+     d'afficher à sa 7ème. */
   const parcours = parcoursDeLaFormation(q.formation);
-  if(parcours && parcours.repartDeZero){
-    const faites = q.leconsParBoite && q.leconsParBoite[parcours.boite];
+  if(parcours && parcours.motRang){
+    const faites = parcours.compteParBoite
+      ? (q.leconsParBoite && q.leconsParBoite[parcours.boite])
+      : null;
     const r = (typeof faites === 'number') ? faites + plus : n;
-    /* Le mot vient du parcours : « leçon de passerelle » était écrit
-       en dur, et la régularisation s'y serait annoncée comme une
-       passerelle — deux formations différentes sous le même mot. */
-    return dire(rangLecon(r) + ' leçon ' +
-                (parcours.motRang || 'de passerelle'));
+    return dire(rangLecon(r) + ' leçon ' + parcours.motRang);
   }
 
   /* IL EST DÉJÀ ALLÉ À L'EXAMEN, ET IL A REPRIS.
