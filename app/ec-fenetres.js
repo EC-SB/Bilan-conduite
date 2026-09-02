@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:00 — v799 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -472,7 +472,7 @@ async function chargerFiches(){
 }
 
 function ficheDe(nom){
-  return fichesEleves.find(f => normaliserMot(f.eleve) === normaliserMot(nom)) || null;
+  return trouverParNom(fichesEleves, nom);
 }
 
 /* ------------------------------------------------------------
@@ -1661,7 +1661,20 @@ function ouvrirFicheEleve(nom, f){
 
       document.body.removeChild(fond);
       showToast('Fiche enregistrée ✅');
-      afficherRepertoire(true);
+      /* ⚠️ ON NE RELIT PAS LE CLASSEUR POUR REDESSINER.
+
+         « Quand on enregistre les modifications de la fiche, c'est
+         long. » Ça l'était : l'écriture partait, puis on RELISAIT
+         les quelques centaines de fiches avant de redessiner — le
+         double du temps, pour retrouver exactement ce qu'on venait
+         d'écrire.
+
+         La fiche en mémoire est déjà à jour, deux lignes plus haut :
+         le répertoire se redessine tout de suite, sans réseau. Et
+         « fichesLues = 0 » reste posé — la prochaine ouverture
+         naturelle relira le classeur, au cas où il aurait reformaté
+         quelque chose. */
+      afficherRepertoire(false);
     }catch(e){
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Erreur : ' + e.message;
