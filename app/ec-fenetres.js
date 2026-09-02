@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:39 — v779 */
+/* Déployé le 02/09/2026 à 07:38 — v785 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -803,6 +803,20 @@ function ligneFicheEleve(nom){
 
   const info = document.createElement('div');
   info.style.cssText = 'flex:1;min-width:0;';
+
+  /* APPUYER SUR LE NOM OUVRE SON DOSSIER.
+
+     Le répertoire reste ce qu'il est — la liste, et l'import. Ce
+     qui change, c'est ce qu'on trouve derrière une ligne : plus
+     seulement quatre boutons, mais tout ce qui concerne cette
+     personne. Les boutons de la ligne ne bougent pas : chacun
+     arrête le clic pour lui-même. */
+  if(typeof ouvrirPageEleve === 'function'){
+    info.style.cursor = 'pointer';
+    info.title = 'Ouvrir le dossier de ' + nom;
+    info.addEventListener('click', () => ouvrirPageEleve(nom));
+  }
+
   /* Les repères visibles d'un coup d'œil, comme dans les listes permis */
   const genre = f.genre === 'F' ? '♀' : (f.genre === 'M' ? '♂' : '');
 
