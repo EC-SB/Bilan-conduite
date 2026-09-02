@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 10:14 — v796 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1980,11 +1980,8 @@ function ouvrirEditeurSession(sess){
 
 
 /* L'élève dans les données du bureau, pour lire sa préparation */
-function eleveDuBureau(nom){
-  if(!nom || typeof etatBureau === 'undefined') return null;
-  return (etatBureau.eleves || [])
-    .find(x => normaliserMot(x.eleve) === normaliserMot(nom)) || null;
-}
+/* eleveDuBureau : déclarée UNE fois, dans ec-noyau.js — voir la
+   note de ec-page-eleve.js. */
 
 
 /* ============================================================
