@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 10:28 — v760 */
+/* Déployé le 02/09/2026 à 10:01 — v795 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -673,6 +673,81 @@ function examensBlancsPasses(){
    dans ses notes. */
 function dateDepuisSession(){
   return dateDeSessionDe(($('studentName') && $('studentName').value.trim()) || '');
+}
+
+/* ============================================================
+   LA DATE D'EXAMEN, MONTRÉE ET NON DEMANDÉE
+
+   Le moniteur la lit, il ne l'écrit pas. Elle vient de la place
+   que le bureau lui a donnée dans 🎓 Suivi permis.
+
+   Et quand elle lui paraît fausse — l'élève lui annonce le 18
+   alors que la note dit le 12 — il ne corrige pas : il le SIGNALE.
+   Sinon il n'a aucun recours, et une date fausse reste fausse
+   jusqu'à ce que quelqu'un rappelle le bureau.
+   ============================================================ */
+function montrerDateExamen(boite, etat){
+  const vue = boite.querySelector('#qExamDateVue');
+  const dEP = boite.querySelector('#qExamDate');
+  if(!vue || !dEP) return;
+
+  const avecDate = (etat === 'prevu' || etat === 'annule' || etat === 'passe');
+  if(!avecDate){ vue.style.display = 'none'; return; }
+
+  vue.style.display = 'block';
+  vue.innerHTML = '';
+
+  const jour = dEP.value
+    ? (dateEnToutesLettres(dEP.value) || dEP.value) : '';
+
+  const t = document.createElement('div');
+  if(jour){
+    t.innerHTML = '🎓 <strong>' +
+      (etat === 'passe' ? 'Examen passé le ' :
+       etat === 'annule' ? 'Examen qui était prévu le ' : 'Examen prévu le ') +
+      String(jour).replace(/</g, '&lt;') + '</strong>' +
+      '<div style="font-size:11.5px;color:var(--muted);">Posée par le bureau ' +
+      "d'après sa place d'examen. Elle ne se change pas ici.</div>";
+  }else{
+    t.innerHTML = "🎓 <strong>Aucune date d'examen</strong>" +
+      '<div style="font-size:11.5px;color:var(--muted);">' +
+      "C'est le bureau qui la pose, depuis 🎓 Suivi permis. " +
+      'Tu peux le lui signaler ci-dessous.</div>';
+  }
+  vue.appendChild(t);
+
+  /* Le recours : une ligne au bureau, pas une correction. */
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;margin:8px 0 0;padding:7px 11px;font-size:12px;';
+  b.textContent = '📨 Signaler au bureau';
+  b.title = "Prévenir le bureau que cette date ne va pas";
+  b.addEventListener('click', async () => {
+    const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+    if(!eleve){ showToast("Saisis d'abord le nom de l'élève."); return; }
+
+    const quoi = await demander(
+      "Qu'est-ce qui ne va pas avec sa date d'examen ?\n\n" +
+      'Le bureau le lira dans ses messages en attente.',
+      jour ? 'La date annoncée est le ' : "L'élève dit avoir une date : ",
+      "Signaler au bureau");
+    if(quoi === null || !String(quoi).trim()) return;
+
+    b.disabled = true;
+    try{
+      await envoyerConsigne(eleve, 'message',
+        '📅 ' + (ACCES.moniteur || 'Un moniteur') + ' signale à propos de sa ' +
+        "date d'examen" + (jour ? ' (' + jour + ')' : ' (aucune date)') +
+        ' : ' + String(quoi).trim());
+      showToast('Signalé au bureau ✅');
+      b.textContent = '✅ Signalé';
+    }catch(e){
+      b.disabled = false;
+      showToast('Impossible : ' + e.message);
+    }
+  });
+  vue.appendChild(b);
 }
 
 /* La même chose, pour un élève qu'on nomme — un cours préparé par
@@ -2139,7 +2214,23 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<input type="text" id="qExamMotif" style="display:none;" ' +
       'placeholder="Pourquoi ? (facultatif — ANTS, dossier, médical…)">' +
       '<div id="qLibExamDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;"></div>' +
+      /* ⚠️ UN MONITEUR N'ÉCRIT PAS UNE DATE D'EXAMEN.
+
+         Ce champ était un calendrier libre, et c'était la porte
+         restée ouverte après qu'on ait fermé les six du bureau —
+         celle qu'on ouvre le plus souvent, en voiture. Une date
+         d'examen ne s'invente pas : elle vient de la place que le
+         bureau a donnée dans 🎓 Suivi permis, et de nulle part
+         ailleurs.
+
+         Le champ reste dans la page, caché, parce que tout le
+         questionnaire lit « qExamDate » pour écrire la note. Il
+         n'est simplement plus saisissable : ce qui s'affiche à sa
+         place, c'est la date de sa session, en toutes lettres. */
       '<input type="date" id="qExamDate" style="display:none;">' +
+      '<div id="qExamDateVue" style="display:none;font-size:13px;' +
+      'line-height:1.5;padding:9px 11px;border:1px solid var(--line);' +
+      'border-radius:9px;margin:-4px 0 10px;"></div>' +
       '<div id="qBlocPassage" style="display:none;">' +
         '<label for="qExamPassage">Quel passage ?</label>' +
         '<select id="qExamPassage">' +
@@ -3167,17 +3258,15 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const v = selEP.value;
       const avecDate = (v === 'prevu' || v === 'annule' || v === 'passe');
 
-      dEP.style.display = avecDate ? 'block' : 'none';
-      libDate.style.display = avecDate ? 'block' : 'none';
-      libDate.textContent = (v === 'annule')
-        ? "Date à laquelle l'examen était prévu"
-        : (v === 'passe')
-        ? "Date de l'examen déjà passé"
-        : "Date de l'examen";
-      /* Pas de date du jour pour un examen annulé ni pour un examen
-         déjà passé : la leur est derrière nous, et la proposer
-         reviendrait à la faire dire au moniteur. */
-      if(v === 'prevu' && !dEP.value) dEP.value = todayLocal();
+      /* ⚠️ LE CALENDRIER NE S'OUVRE PLUS. On montre la date que le
+         bureau a posée, on ne la demande pas. Le champ reste caché
+         et gardé : c'est lui que la note relit. */
+      dEP.style.display = 'none';
+      libDate.style.display = 'none';
+      montrerDateExamen(boite, v);
+
+      /* Et surtout PAS la date du jour en cadeau : proposer une date
+         revenait à la faire dire au moniteur. */
 
       nEP.style.display = (v === 'prevu') ? 'block' : 'none';
       /* Le rang du passage vaut pour un examen à venir COMME pour
@@ -3188,8 +3277,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         bp.style.display =
           (v === 'prevu' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
       }
-      nvDate.style.display = (v === 'annule') ? 'block' : 'none';
-      libNv.style.display = (v === 'annule') ? 'block' : 'none';
+      /* « Reprogrammé le … » est une date d'examen déguisée : elle
+         suit la même règle. Le moniteur dit « annulé », le bureau
+         reprogramme depuis 🎓 Suivi permis. */
+      nvDate.style.display = 'none';
+      libNv.style.display = 'none';
 
       /* Non planifiable : ni date, ni décompte de leçons — c'est le
          dossier qui bloque, pas le niveau. On demande seulement
@@ -4220,10 +4312,18 @@ function ajouterSuite(etats, permis, mots, q){
      deux ajournements font un troisième passage. */
   const rpN = numeroDuPassage(q);
   const rp = rpN ? String(rpN) : '';
+  /* EN GRAS, ET SUR TOUTES LES LIGNES D'EXAMEN.
+
+     « C'est son combientième passage ? » est une des premières
+     questions qu'on se pose devant une note, et elle se lisait en
+     texte ordinaire, noyée en fin de ligne — quand elle y était :
+     les lignes « annulé » et « non planifiable » ne la portaient
+     pas du tout. Le gras, ici, c'est ce qui se trouve d'un coup
+     d'œil, comme les autres états. */
   const passage = rp
-    ? (rp === '1' ? ' — 1er passage'
-       : rp === '5' ? ' — 5e passage ou plus'
-       : ' — ' + rp + 'e passage')
+    ? (rp === '1' ? ' — ' + grasNote('1ER PASSAGE')
+       : rp === '5' ? ' — ' + grasNote('5E PASSAGE OU PLUS')
+       : ' — ' + grasNote(rp + 'E PASSAGE'))
     : '';
   /* La date saisie, en toutes lettres : « le mardi 15 septembre 2026 » */
   const jourEB = q.examBlancDate
@@ -4322,7 +4422,7 @@ function ajouterSuite(etats, permis, mots, q){
     }
     permis.push(phrase);
   }else if(q.examPermis === 'annule'){
-    let phrase = EXAMEN_SANS_DATE + (q.examDate
+    let phrase = EXAMEN_SANS_DATE + passage + (q.examDate
       ? ' — celui du ' + dateEnToutesLettres(q.examDate) + ' est annulé'
       : ' — annulé');
     phrase += q.nouvelleDate
@@ -4344,7 +4444,7 @@ function ajouterSuite(etats, permis, mots, q){
   }else if(q.examPermis === 'nonplanifiable'){
     /* Le bureau le retrouve dans Permis → Pas prêts grâce à cette
        mention : elle est le seul repère, elle doit rester stable. */
-    permis.push(EXAMEN_SANS_DATE + ' — non planifiable' +
+    permis.push(EXAMEN_SANS_DATE + passage + ' — non planifiable' +
                 (q.examMotif ? ' (' + q.examMotif + ')' : ''));
   }else if(q.examPermis === 'aprevoir'){
     permis.push(EXAMEN_SANS_DATE + ' — à prévoir' + passage);
