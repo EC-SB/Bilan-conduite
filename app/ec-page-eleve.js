@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 09:43 — v794 */
+/* Déployé le 02/09/2026 à 10:01 — v795 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -32,6 +32,24 @@
 
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
+
+/* UNE DATE SE LIT EN FRANÇAIS : 02/09/2026, jamais 2026-09-02.
+
+   Les dates de la fiche de suivi arrivent telles que la feuille les
+   stocke — en ISO. Affichées brutes, elles se lisaient à l'anglaise
+   au milieu de phrases françaises, et sur « 05/08 » contre
+   « 2026-08-05 » on ne sait plus lequel est le jour.
+
+   La règle de conversion n'est PAS réécrite ici : dateCourte, dans
+   ec-permis-listes, la tient depuis toujours. Ce nom-ci ne fait que
+   la rendre appelable sans supposer que son module est chargé — une
+   deuxième règle de date serait exactement la faute qu'on répare
+   partout ailleurs. */
+function jourFr(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  return (typeof dateCourte === 'function') ? dateCourte(t) : t;
+}
 
 /* Les onglets, dans l'ordre où ils s'affichent. Chacun porte sa
    section : un compte sans le droit ne voit pas l'onglet — il ne le
@@ -273,9 +291,9 @@ function refaireLesNotesPreparees(){
 /* Une date française déjà passée ? Sert à dire « fait le » plutôt
    que « prévu le ». Une date illisible ne se devine pas : on la
    rend telle quelle, sans conclure. */
-function jourDejaPasse(jourFr){
+function jourDejaPasse(valeur){
   if(typeof dateFrVersIso !== 'function') return null;
-  const iso = dateFrVersIso(String(jourFr || ''));
+  const iso = dateFrVersIso(String(valeur || ''));
   if(!iso) return null;
   const auj = (typeof todayLocal === 'function')
     ? todayLocal() : new Date().toISOString().slice(0, 10);
@@ -369,12 +387,12 @@ function etapesCroiseesEleve(nom){
     const passe = jourDejaPasse(s.simuDate);
     out.push({ ok:true, emoji: passe === false ? '📌' : '✅',
       txt: 'Simulateur nuit et risques — ' +
-           (passe === false ? 'prévu le ' : 'fait le ') + s.simuDate });
+           (passe === false ? 'prévu le ' : 'fait le ') + jourFr(s.simuDate) });
   }else if(a.simuNuit === 'fait'){
     out.push({ ok:true, emoji:'✅', txt:'Simulateur nuit et risques fait' });
   }else if(a.simuDate){
     out.push({ ok:null, emoji:'📌',
-      txt:'Simulateur nuit et risques prévu le ' + a.simuDate });
+      txt:'Simulateur nuit et risques prévu le ' + jourFr(a.simuDate) });
   }else if(a.simuNuit === 'prevu'){
     out.push({ ok:null, emoji:'📌', txt:'Simulateur nuit et risques prévu' });
   }else if(a.simuNuit === 'aprevoir'){
@@ -388,15 +406,15 @@ function etapesCroiseesEleve(nom){
   if(s.ebDate){
     out.push({ ok:true, emoji:'✅',
       txt: 'Examen blanc ' + (jourDejaPasse(s.ebDate) === false ? 'prévu' : 'passé') +
-           ' le ' + s.ebDate +
+           ' le ' + jourFr(s.ebDate) +
            (s.ebNiveau === 'non' ? ' — pas le niveau' : '') });
   }else if(a.examBlanc === 'passe'){
     out.push({ ok:true, emoji:'✅',
-      txt:'Examen blanc passé' + (a.ebDate ? ' le ' + a.ebDate : '') });
+      txt:'Examen blanc passé' + (a.ebDate ? ' le ' + jourFr(a.ebDate) : '') });
   }else if(a.examBlanc === 'reserve'){
     out.push({ ok:null, emoji:'📌',
       txt:'Examen blanc réservé' +
-          (a.examBlancDate ? ' le ' + a.examBlancDate
+          (a.examBlancDate ? ' le ' + jourFr(a.examBlancDate)
             : (a.examBlancN !== null && a.examBlancN !== undefined
                 ? ' dans ' + a.examBlancN + ' leçon(s)' : '')) });
   }else if(a.examBlanc === 'impossible'){
@@ -413,11 +431,12 @@ function etapesCroiseesEleve(nom){
   /* ── La date d'examen — TOUJOURS AFFICHÉE ── */
   if(s.datePermis){
     out.push({ ok:true, emoji:'🎓',
-      txt:"Examen du permis le " + s.datePermis +
+      txt:"Examen du permis le " + jourFr(s.datePermis) +
           (s.centre ? ' · ' + s.centre : '') });
   }else if(a.permis === 'prevu' && a.permisDate){
     out.push({ ok:true, emoji:'🎓',
-      txt:"Examen du permis le " + a.permisDate + ' (annoncé au moniteur)' });
+      txt:"Examen du permis le " + jourFr(a.permisDate) +
+          ' (annoncé au moniteur)' });
   }else if(a.permis === 'annule'){
     out.push({ ok:false, emoji:'⏳', txt:'Examen du permis annulé' });
   }else if(a.permis === 'aprevoir' || s.aPlanifier === 'oui'){
@@ -445,15 +464,15 @@ function desaccordsSuivi(s, etat){
   if(!s || !etat) return dits;
 
   if(s.datePermis && etat.permis === 'aprevoir'){
-    dits.push('La fiche de suivi porte un examen le ' + s.datePermis +
+    dits.push('La fiche de suivi porte un examen le ' + jourFr(s.datePermis) +
               ", alors que le dernier bilan dit « date à prévoir ».");
   }
   if(s.ebDate && etat.examBlanc === 'aprevoir'){
-    dits.push("La fiche de suivi porte un examen blanc le " + s.ebDate +
+    dits.push("La fiche de suivi porte un examen blanc le " + jourFr(s.ebDate) +
               ", alors que le dernier bilan dit « à prévoir ».");
   }
   if(s.simuDate && etat.simuNuit === 'aprevoir'){
-    dits.push('La fiche de suivi porte un simulateur le ' + s.simuDate +
+    dits.push('La fiche de suivi porte un simulateur le ' + jourFr(s.simuDate) +
               ", alors que le dernier bilan dit « à prévoir ».");
   }
   return dits;
@@ -528,11 +547,13 @@ function blocResumeEleve(nom){
     const src = document.createElement('div');
     src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
     /* En français, comme partout ailleurs : « 2026-09-02 » est une
-       date de machine. */
-    const jour = (prep.date && typeof dateEnToutesLettres === 'function')
-      ? (dateEnToutesLettres(prep.date) || prep.date) : prep.date;
-    src.textContent = '🗓️ Son cours préparé' + (jour ? ' du ' + jour : '') +
-      ((e && e.date) ? ' · son bilan du ' + e.date : '') +
+       date de machine. Et les DEUX dates de la ligne s'écrivent
+       pareil — l'une en toutes lettres et l'autre en ISO, on
+       comparait deux choses qui ne se lisaient pas de la même
+       façon. */
+    src.textContent = '🗓️ Son cours préparé' +
+      (prep.date ? ' du ' + jourFr(prep.date) : '') +
+      ((e && e.date) ? ' · son bilan du ' + jourFr(e.date) : '') +
       ' · sa fiche de suivi';
     d.appendChild(src);
   }else if(e && e.date){
@@ -542,7 +563,7 @@ function blocResumeEleve(nom){
        bilan » quand la moitié des lignes vient de la fiche de suivi
        serait faux — et c'est ce qui m'a fait chercher au mauvais
        endroit deux fois de suite. */
-    src.textContent = '🗓️ Son bilan du ' + e.date +
+    src.textContent = '🗓️ Son bilan du ' + jourFr(e.date) +
       ' · sa fiche de suivi — aucun cours préparé.';
     d.appendChild(src);
   }
@@ -1185,9 +1206,9 @@ function ongletPermis(corps, nom){
   const simuFait = (a.simuNuit === 'fait');
   const lSimu = ligneDossier(
     '🌙 Simulateur nuit et risques',
-    s.simuDate ? 'Prévu le ' + s.simuDate
-      : (a.simuDate ? 'Prévu le ' + a.simuDate + ' — annoncé dans un bilan, ' +
-                      'pas encore enregistré'
+    s.simuDate ? 'Prévu le ' + jourFr(s.simuDate)
+      : (a.simuDate ? 'Prévu le ' + jourFr(a.simuDate) +
+                      ' — annoncé dans un bilan, pas encore enregistré'
         : (simuFait ? "Fait — date non enregistrée, d'après le dernier bilan"
           : (a.simuNuit === 'prevu' ? 'Prévu — date non enregistrée'
             : 'À prévoir'))),
@@ -1215,12 +1236,12 @@ function ongletPermis(corps, nom){
   /* L'EXAMEN BLANC. */
   const lEb = ligneDossier(
     '📝 Examen blanc',
-    s.ebDate ? 'Passé le ' + s.ebDate +
+    s.ebDate ? 'Passé le ' + jourFr(s.ebDate) +
         (s.ebNiveau === 'non' ? " — pas le niveau" : '') +
         (s.ebMoniteur ? ' · ' + s.ebMoniteur : '')
       : (a.examBlanc === 'passe' ? 'Passé — date non enregistrée'
         : (a.examBlanc === 'reserve' ? 'Réservé' +
-             (a.examBlancDate ? ' le ' + a.examBlancDate : '')
+             (a.examBlancDate ? ' le ' + jourFr(a.examBlancDate) : '')
           : (a.examBlanc === 'impossible' ? 'Non planifiable'
             : 'À prévoir' + (a.examBlancN !== null && a.examBlancN !== undefined
                 ? ' dans ' + a.examBlancN + ' leçon(s)' : '')))),
@@ -1253,8 +1274,9 @@ function ongletPermis(corps, nom){
 
   const lDate = ligneDossier(
     '📅 Date d\'examen',
-    s.datePermis ? s.datePermis + (s.centre ? ' · ' + s.centre : '')
-      : (a.permis === 'prevu' && a.permisDate ? a.permisDate + ' (annoncé au moniteur)'
+    s.datePermis ? jourFr(s.datePermis) + (s.centre ? ' · ' + s.centre : '')
+      : (a.permis === 'prevu' && a.permisDate
+          ? jourFr(a.permisDate) + ' (annoncé au moniteur)'
         : (a.permis === 'annule' ? 'Annulé' : 'À prévoir')),
     s.datePermis ? 'var(--accent-text)' : 'var(--warn-text)');
 
@@ -1426,7 +1448,7 @@ function libelleListePermis(s){
       String(s[k] || '') === String(l.champs[k] || '')));
 
   if(colle) return colle.nom;
-  if(s.datePermis) return '🎓 Date fixée le ' + s.datePermis;
+  if(s.datePermis) return '🎓 Date fixée le ' + jourFr(s.datePermis);
   return 'Dans aucune liste';
 }
 
