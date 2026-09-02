@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:15 — v807 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -827,6 +827,123 @@ function tourOuvertDe(nom){
 
 
 /* ------------------------------------------------------------
+   LES DEUX CHAMPS COMMUNS AUX TROIS FENÊTRES
+
+   Trois fenêtres se partagent les mêmes deux champs : ouvrir un
+   tour, ajouter des familles à un tour ouvert, changer ses
+   créneaux. Les recopier dans chacune, c'était accepter que
+   l'avertissement des adresses manquantes finisse par n'exister
+   que dans une des trois — la faute qui revient sans arrêt dans ce
+   dossier : une même chose écrite à deux endroits.
+   ------------------------------------------------------------ */
+
+/* La liste à cocher, avec l'état des adresses de chacun.
+
+   « Avant l'envoi il dit qui n'a pas d'adresse. » Une adresse
+   manquante découverte après coup ressemble à quelqu'un qui n'a
+   pas répondu. */
+function dessinerElevesRvt(zone, possibles, choisis, apres){
+  zone.innerHTML = '';
+  possibles.forEach(x => {
+    const nom = x.eleve || x;
+    const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+    const mail = (f && f.email) || '';
+    const presc = (f && f.mailPrescripteur) || '';
+
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;gap:9px;align-items:flex-start;' +
+      'padding:5px 0;font-size:13px;cursor:pointer;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!choisis[nom];
+    cb.style.cssText = 'margin-top:3px;flex-shrink:0;';
+    cb.addEventListener('change', () => {
+      choisis[nom] = cb.checked;
+      if(apres) apres();
+    });
+    l.appendChild(cb);
+
+    const t = document.createElement('div');
+    t.style.cssText = 'flex:1;min-width:0;line-height:1.5;';
+    const adresses = [mail ? '✉️ élève' : '', presc ? '✉️ prescripteur' : '']
+      .filter(Boolean).join(' · ');
+    t.innerHTML = '<strong>' + String(nom).replace(/</g, '&lt;') + '</strong>' +
+      '<br><span style="font-size:11.5px;color:' +
+      (adresses ? 'var(--muted)' : 'var(--warn-text)') + ';">' +
+      (adresses || '⚠️ aucune adresse — il ne recevra rien') + '</span>';
+    l.appendChild(t);
+    zone.appendChild(l);
+  });
+  if(apres) apres();
+}
+
+/* Le compte, et l'avertissement des quatre.
+
+   LE MINIMUM DE 4 AVERTIT, IL N'EMPÊCHE PAS : « avertissement pour
+   nous, et on décide si on le fait ou pas ». */
+function majCompteRvt(zone, n, dejaDedans){
+  if(!zone) return;
+  const total = n + (dejaDedans || 0);
+  if(total < 4){
+    zone.style.color = 'var(--warn-text)';
+    zone.textContent = '⚠️ ' + total + ' famille(s) en tout — il en faut ' +
+      'normalement 4. À toi de voir.';
+  }else{
+    zone.style.color = 'var(--accent-text)';
+    zone.textContent = total + ' famille(s) en tout' +
+      (dejaDedans ? ' (dont ' + dejaDedans + ' déjà invitée(s))' : '') + '.';
+  }
+}
+
+/* Les lignes date + heure. « verrouilles » porte les identifiants
+   des créneaux déjà proposés : on les montre autrement, parce que
+   les toucher coûte les réponses déjà reçues. */
+function dessinerCreneauxRvt(zone, creneaux, redessiner, dejaRepondu){
+  zone.innerHTML = '';
+  creneaux.forEach((c, i) => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:6px;align-items:center;' +
+      'margin-bottom:7px;';
+    l.innerHTML =
+      '<input type="date" data-i="' + i + '" data-k="date" ' +
+        'style="flex:2;min-width:0;margin:0;" value="' + (c.date || '') + '">' +
+      '<input type="time" data-i="' + i + '" data-k="heure" ' +
+        'style="flex:1;min-width:0;margin:0;" value="' + (c.heure || '') + '">';
+    const sup = document.createElement('button');
+    sup.className = 'btn btn-secondary';
+    sup.style.cssText = 'width:auto;margin:0;padding:9px 10px;flex-shrink:0;';
+    sup.textContent = '✕';
+    sup.title = 'Retirer ce créneau';
+    sup.addEventListener('click', () => {
+      creneaux.splice(i, 1);
+      if(creneaux.length < 2) creneaux.push({});
+      redessiner();
+    });
+    l.appendChild(sup);
+    zone.appendChild(l);
+
+    /* Un créneau déjà proposé et déjà répondu : on dit ce que le
+       déplacer coûterait, AVANT qu'on le déplace. */
+    const n = (dejaRepondu && c.id) ? (dejaRepondu[c.id] || 0) : 0;
+    if(n){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:11px;color:var(--muted);' +
+        'margin:-4px 0 8px 2px;line-height:1.4;';
+      a.textContent = '↑ ' + n + ' réponse(s) portent sur ce créneau — ' +
+        'le déplacer ou le retirer les effacera.';
+      zone.appendChild(a);
+    }
+  });
+  zone.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      creneaux[+inp.getAttribute('data-i')][inp.getAttribute('data-k')] =
+        inp.value;
+    });
+  });
+}
+
+
+/* ------------------------------------------------------------
    OUVRIR UN TOUR
    ------------------------------------------------------------ */
 async function ouvrirTourRvt(liste){
@@ -895,91 +1012,15 @@ async function ouvrirTourRvt(liste){
   const choisis = {};
   possibles.forEach(x => { choisis[x.eleve] = true; });
 
-  const dessinerEleves = () => {
-    const z = g('rvtEleves');
-    z.innerHTML = '';
-    possibles.forEach(x => {
-      const f = (typeof ficheDe === 'function') ? ficheDe(x.eleve) : null;
-      const mail = (f && f.email) || '';
-      const presc = (f && f.mailPrescripteur) || '';
-
-      const l = document.createElement('label');
-      l.style.cssText = 'display:flex;gap:9px;align-items:flex-start;' +
-        'padding:5px 0;font-size:13px;cursor:pointer;';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = !!choisis[x.eleve];
-      cb.style.cssText = 'margin-top:3px;flex-shrink:0;';
-      cb.addEventListener('change', () => {
-        choisis[x.eleve] = cb.checked;
-        majCompte();
-      });
-      l.appendChild(cb);
-
-      const t = document.createElement('div');
-      t.style.cssText = 'flex:1;min-width:0;line-height:1.5;';
-      const adresses = [mail ? '✉️ élève' : '', presc ? '✉️ prescripteur' : '']
-        .filter(Boolean).join(' · ');
-      t.innerHTML = '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong>' +
-        '<br><span style="font-size:11.5px;color:' +
-        (adresses ? 'var(--muted)' : 'var(--warn-text)') + ';">' +
-        (adresses || '⚠️ aucune adresse — il ne recevra rien') + '</span>';
-      l.appendChild(t);
-      z.appendChild(l);
-    });
-    majCompte();
-  };
-
-  const majCompte = () => {
-    const n = Object.keys(choisis).filter(k => choisis[k]).length;
-    const z = g('rvtCompte');
-    /* LE MINIMUM DE 4 AVERTIT, IL N'EMPÊCHE PAS. « Avertissement
-       pour nous, et on décide si on le fait ou pas. » */
-    if(n < 4){
-      z.style.color = 'var(--warn-text)';
-      z.textContent = '⚠️ ' + n + ' élève(s) — il en faut normalement 4. ' +
-        'À toi de voir.';
-    }else{
-      z.style.color = 'var(--accent-text)';
-      z.textContent = n + ' élèves invités.';
-    }
-  };
+  const majCompte = () => majCompteRvt(g('rvtCompte'),
+    Object.keys(choisis).filter(k => choisis[k]).length, 0);
 
   /* ── Les créneaux ── */
   let creneaux = [{}, {}, {}];
-  const dessinerCreneaux = () => {
-    const z = g('rvtCreneaux');
-    z.innerHTML = '';
-    creneaux.forEach((c, i) => {
-      const l = document.createElement('div');
-      l.style.cssText = 'display:flex;gap:6px;align-items:center;' +
-        'margin-bottom:7px;';
-      l.innerHTML =
-        '<input type="date" data-i="' + i + '" data-k="date" ' +
-          'style="flex:2;min-width:0;margin:0;" value="' + (c.date || '') + '">' +
-        '<input type="time" data-i="' + i + '" data-k="heure" ' +
-          'style="flex:1;min-width:0;margin:0;" value="' + (c.heure || '') + '">';
-      const sup = document.createElement('button');
-      sup.className = 'btn btn-secondary';
-      sup.style.cssText = 'width:auto;margin:0;padding:9px 10px;flex-shrink:0;';
-      sup.textContent = '✕';
-      sup.title = 'Retirer ce créneau';
-      sup.addEventListener('click', () => {
-        creneaux.splice(i, 1);
-        if(creneaux.length < 2) creneaux.push({});
-        dessinerCreneaux();
-      });
-      l.appendChild(sup);
-      z.appendChild(l);
-    });
-    z.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('input', () => {
-        creneaux[+inp.getAttribute('data-i')][inp.getAttribute('data-k')] =
-          inp.value;
-      });
-    });
-  };
-  dessinerEleves();
+  const dessinerCreneaux = () =>
+    dessinerCreneauxRvt(g('rvtCreneaux'), creneaux, dessinerCreneaux);
+
+  dessinerElevesRvt(g('rvtEleves'), possibles, choisis, majCompte);
   dessinerCreneaux();
 
   g('rvtPlus').addEventListener('click', () => {
@@ -1082,6 +1123,302 @@ async function ouvrirTourRvt(liste){
 
 
 /* ------------------------------------------------------------
+   AJOUTER DES FAMILLES À UN TOUR DÉJÀ PARTI
+
+   « Une fois que c'est envoyé je ne peux ajouter personne. Il me
+   faut la possibilité d'ajouter du monde à cette organisation même
+   si une première salve est partie. »
+
+   Les nouvelles reçoivent LES MÊMES créneaux et la MÊME date
+   limite : c'est le même rendez-vous, pas un second tour. Elles
+   voient donc exactement la même page que les premières.
+   ------------------------------------------------------------ */
+async function ajouterAuTourRvt(tour){
+  const dedans = {};
+  (tour.eleves || []).forEach(e => { dedans[normaliserMot(e.eleve)] = true; });
+
+  /* Ceux dont le théorique est à prévoir, qui ne sont pas déjà dans
+     CE tour, ni dans un autre encore ouvert. */
+  const possibles = elevesAac().filter(x =>
+    x.parcours.rdvAttendus && x.rdv.rvt.cle === 'aprevoir' &&
+    !dedans[normaliserMot(x.eleve)] && !tourOuvertDe(x.eleve));
+
+  if(!possibles.length){
+    showToast('Personne à ajouter : tous ont leur théorique, ou une ' +
+              'proposition déjà en cours.');
+    return;
+  }
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px,94vw);max-height:90vh;overflow-y:auto;';
+
+  const lignes = (tour.creneaux || []).map(c =>
+    '<li>' + (jourFrCs(c.date) || c.date) +
+    (c.heure ? ' à ' + c.heure : '') + '</li>').join('');
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>➕ Ajouter des familles</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Elles reçoivent <strong>les mêmes créneaux</strong> ' +
+      'et la même date limite — c\'est le même rendez-vous.' +
+      '<ul style="margin:6px 0 0 16px;padding:0;">' + lignes + '</ul></div>' +
+    '<label>Les familles à ajouter</label>' +
+    '<div id="rvtAjEleves" style="background:var(--navy);border:1px solid ' +
+      'var(--line);border-radius:10px;padding:10px 12px;max-height:240px;' +
+      'overflow-y:auto;margin-bottom:6px;"></div>' +
+    '<div id="rvtAjCompte" style="font-size:12px;margin:-2px 0 12px;' +
+      'line-height:1.5;"></div>' +
+    '<div id="rvtAjEtat" style="font-size:13px;line-height:1.5;' +
+      'margin-bottom:10px;"></div>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-secondary" id="rvtAjAnnuler">Annuler</button>' +
+      '<button class="btn btn-primary" id="rvtAjEnvoyer">📨 Les inviter</button>' +
+    '</div>');
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const g = id => boite.querySelector('#' + id);
+
+  /* Rien de coché au départ : on vient en ajouter quelques-uns
+     nommément, pas relancer toute la liste. */
+  const choisis = {};
+  const majCompte = () => majCompteRvt(g('rvtAjCompte'),
+    Object.keys(choisis).filter(k => choisis[k]).length,
+    (tour.eleves || []).length);
+  dessinerElevesRvt(g('rvtAjEleves'), possibles, choisis, majCompte);
+
+  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  g('rvtAjAnnuler').addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+
+  g('rvtAjEnvoyer').addEventListener('click', async () => {
+    const noms = Object.keys(choisis).filter(k => choisis[k]);
+    const etat = g('rvtAjEtat');
+    if(!noms.length){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Aucune famille cochée.';
+      return;
+    }
+
+    const sansAdresse = noms.filter(n => {
+      const f = (typeof ficheDe === 'function') ? ficheDe(n) : null;
+      return !((f && f.email) || (f && f.mailPrescripteur));
+    });
+    if(sansAdresse.length &&
+       !await confirmer(sansAdresse.length + ' élève(s) sans adresse :\n' +
+         sansAdresse.join(', ') + '\n\nIls ne recevront rien. Continuer ?',
+         'Adresses manquantes')) return;
+
+    const b = g('rvtAjEnvoyer');
+    b.disabled = true;
+    b.textContent = 'Envoi…';
+    etat.style.color = 'var(--muted)';
+    etat.textContent = 'Les mails partent un par un, ça prend un moment…';
+
+    try{
+      const r = await appelPrep({
+        action: 'rvtAjouter', id: tour.id,
+        eleves: JSON.stringify(noms.map(n => {
+          const f = (typeof ficheDe === 'function') ? ficheDe(n) : null;
+          return { eleve: n, mail: (f && f.email) || '',
+                   mailPrescripteur: (f && f.mailPrescripteur) || '' };
+        })),
+        par: ACCES.moniteur || ''
+      });
+
+      if(!r || r.status !== 'ok'){
+        b.disabled = false; b.textContent = '📨 Les inviter';
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = (r && r.message) || "L'ajout n'a pas abouti.";
+        return;
+      }
+
+      const envois = await envoyerMailsRvt(r.envois || [],
+        r.creneaux || tour.creneaux, r.limite || tour.limite);
+      try{
+        await appelPrep({ action: 'rvtEnvois', id: tour.id,
+                          envois: JSON.stringify(envois) });
+      }catch(e){ /* la grille dira « envoi inconnu », c'est déjà ça */ }
+
+      const rates = envois.filter(x => x.etat !== 'envoyé');
+      fermer();
+      showToast(rates.length
+        ? '📨 ' + (envois.length - rates.length) + ' ajoutée(s), ' +
+          rates.length + ' en échec — regarde le tour'
+        : '📨 ' + envois.length + ' famille(s) ajoutée(s) ✅');
+      await chargerToursRvt(true);
+      redessinerAacCs();
+    }catch(e){
+      b.disabled = false; b.textContent = '📨 Les inviter';
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Impossible : ' + e.message;
+    }
+  });
+}
+
+
+/* ------------------------------------------------------------
+   CHANGER LES CRÉNEAUX D'UN TOUR OUVERT
+
+   « Et la possibilité d'ajouter des dates ou de changer des dates
+   en fonction de certains retours. »
+
+   ⚠️ UNE RÉPONSE PORTE SUR UNE DATE. Si « samedi 12 à 9 h » devient
+   « samedi 19 à 9 h », ceux qui avaient dit oui avaient dit oui au
+   12 : garder leur oui, c'est leur faire dire ce qu'ils n'ont pas
+   dit, et convoquer un samedi matin des gens qui ne viendront pas.
+
+   Un créneau déplacé ou retiré perd donc ses réponses. L'écran le
+   dit AVANT — sous chaque créneau déjà répondu — puis le redemande
+   dans la confirmation, avec le compte exact.
+   ------------------------------------------------------------ */
+async function changerCreneauxRvt(tour){
+  /* Combien de réponses portent sur chaque créneau : c'est ce qu'on
+     perdrait en le touchant. */
+  const repondu = {};
+  (tour.eleves || []).forEach(e => {
+    Object.keys(e.reponses || {}).forEach(k => {
+      repondu[k] = (repondu[k] || 0) + 1;
+    });
+  });
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px,94vw);max-height:90vh;overflow-y:auto;';
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>📅 Les créneaux proposés</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Un créneau <strong>déplacé ou retiré perd ses ' +
+      'réponses</strong> : ceux qui avaient dit oui avaient dit oui à ' +
+      'l\'ancienne date. Ajouter un créneau, en revanche, ne touche à ' +
+      'rien.</div>' +
+    '<div id="rvtCrListe"></div>' +
+    '<button class="btn btn-secondary" id="rvtCrPlus" style="width:auto;' +
+      'padding:8px 12px;font-size:12px;margin:0 0 14px;">➕ Un créneau de ' +
+      'plus</button>' +
+    '<label style="display:flex;gap:9px;align-items:flex-start;' +
+      'font-size:13px;cursor:pointer;margin-bottom:12px;">' +
+      '<input type="checkbox" id="rvtCrPrevenir" checked ' +
+        'style="margin-top:3px;flex-shrink:0;">' +
+      '<span style="flex:1;line-height:1.5;">Prévenir les familles du ' +
+      'changement<br><span style="font-size:11.5px;color:var(--muted);">' +
+      'Elles reçoivent la liste à jour, avec leur lien habituel.</span>' +
+      '</span></label>' +
+    '<div id="rvtCrEtat" style="font-size:13px;line-height:1.5;' +
+      'margin-bottom:10px;"></div>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-secondary" id="rvtCrAnnuler">Annuler</button>' +
+      '<button class="btn btn-primary" id="rvtCrOk">💾 Enregistrer</button>' +
+    '</div>');
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  const g = id => boite.querySelector('#' + id);
+
+  /* Une copie : tant qu'on n'a pas enregistré, le tour affiché
+     derrière ne doit pas bouger. */
+  const creneaux = (tour.creneaux || []).map(c => ({
+    id: c.id, date: c.date || '', heure: c.heure || '', lieu: c.lieu || ''
+  }));
+  const redessiner = () =>
+    dessinerCreneauxRvt(g('rvtCrListe'), creneaux, redessiner, repondu);
+  redessiner();
+
+  g('rvtCrPlus').addEventListener('click', () => {
+    if(creneaux.length >= 6){
+      showToast('Six créneaux, c\'est déjà beaucoup à lire.');
+      return;
+    }
+    creneaux.push({});
+    redessiner();
+  });
+
+  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  g('rvtCrAnnuler').addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+
+  g('rvtCrOk').addEventListener('click', async () => {
+    const etat = g('rvtCrEtat');
+    const gardes = creneaux.filter(c => c.date);
+    if(gardes.length < 2){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Il faut au moins deux créneaux avec une date.';
+      return;
+    }
+
+    /* CE QU'ON VA PERDRE, DIT AVANT DE LE PERDRE. Les identifiants
+       encore présents ET inchangés gardent leurs réponses ; tous les
+       autres les perdent. Le classeur applique la même règle — c'est
+       lui qui décide, on ne fait que l'annoncer. */
+    const avant = {};
+    (tour.creneaux || []).forEach(c => { avant[String(c.id)] = c; });
+    let perdues = 0;
+    Object.keys(repondu).forEach(id => {
+      const a = avant[id];
+      const reste = gardes.some(c => String(c.id) === id &&
+        String(c.date || '') === String(a && a.date || '') &&
+        String(c.heure || '') === String(a && a.heure || ''));
+      if(!reste) perdues += repondu[id];
+    });
+
+    if(perdues && !await confirmer(
+        perdues + ' réponse(s) portent sur un créneau que tu déplaces ou ' +
+        'que tu retires.\n\nElles seront effacées : ceux qui avaient dit ' +
+        'oui avaient dit oui à l\'ancienne date.\n\nContinuer ?',
+        'Effacer ces réponses')) return;
+
+    const b = g('rvtCrOk');
+    b.disabled = true;
+    b.textContent = 'Enregistrement…';
+
+    try{
+      const r = await appelPrep({
+        action: 'rvtCreneaux', id: tour.id,
+        creneaux: JSON.stringify(gardes),
+        par: ACCES.moniteur || ''
+      });
+
+      if(!r || r.status !== 'ok'){
+        b.disabled = false; b.textContent = '💾 Enregistrer';
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = (r && r.message) ||
+          "Les créneaux n'ont pas pu être changés.";
+        return;
+      }
+
+      let mot = '📅 Créneaux mis à jour ✅';
+      if(g('rvtCrPrevenir').checked && (r.familles || []).length){
+        b.textContent = 'Envoi des mails…';
+        const envois = await envoyerMailsRvt(r.familles, r.creneaux,
+                                             r.limite || tour.limite, 'change');
+        const rates = envois.filter(x => x.etat !== 'envoyé');
+        mot = rates.length
+          ? '📅 Créneaux à jour · ' + (envois.length - rates.length) +
+            ' famille(s) prévenue(s), ' + rates.length + ' en échec'
+          : '📅 Créneaux à jour · ' + envois.length +
+            ' famille(s) prévenue(s) ✅';
+      }
+
+      fermer();
+      showToast(mot);
+      await chargerToursRvt(true);
+      redessinerAacCs();
+    }catch(e){
+      b.disabled = false; b.textContent = '💾 Enregistrer';
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Impossible : ' + e.message;
+    }
+  });
+}
+
+
+/* ------------------------------------------------------------
    LES MAILS DE LA PROPOSITION
 
    Un mail par famille, aux DEUX adresses à la fois — élève et
@@ -1090,8 +1427,9 @@ async function ouvrirTourRvt(liste){
    Par « mailBilan », comme tout le reste de l'application : c'est le
    Worker qui les relaie en SMTP depuis contact@evolutionconduites.fr.
    ------------------------------------------------------------ */
-async function envoyerMailsRvt(envois, creneaux, limite){
+async function envoyerMailsRvt(envois, creneaux, limite, variante){
   const out = [];
+  const change = variante === 'change';
 
   for(const env of envois){
     const dest = (env.mails || []).filter(m => /@/.test(m));
@@ -1103,14 +1441,19 @@ async function envoyerMailsRvt(envois, creneaux, limite){
     }
 
     const lien = lienRvt() + '?r=' + env.jeton;
-    const texte = texteMailRvt(env.eleve, creneaux, lien, limite);
+    const texte = texteMailRvt(env.eleve, creneaux, lien, limite, change);
     try{
       await appelPrep({ action: 'mailBilan', to: dest,
-        sujet: 'Rendez-vous pédagogique de ' + env.eleve +
-               ' — vos disponibilités',
+        sujet: change
+          ? 'Rendez-vous pédagogique de ' + env.eleve +
+            ' — les dates ont changé'
+          : 'Rendez-vous pédagogique de ' + env.eleve +
+            ' — vos disponibilités',
         texte: texte,
         html: (typeof mailEnHtml === 'function')
-          ? mailEnHtml(texte, lien, '🗓️ Indiquer nos disponibilités')
+          ? mailEnHtml(texte, lien, change
+              ? '🗓️ Voir les nouvelles dates'
+              : '🗓️ Indiquer nos disponibilités')
           : undefined });
       out.push({ jeton: env.jeton, eleve: env.eleve, etat: 'envoyé' });
     }catch(e){
@@ -1130,14 +1473,27 @@ async function envoyerMailsRvt(envois, creneaux, limite){
    croisent nulle part. Le rendez-vous théorique réunit quatre
    familles au minimum — il faut donc TOUTES leurs disponibilités, et
    la date sort de la majorité, pas du premier qui a répondu. */
-function texteMailRvt(eleve, creneaux, lien, limite){
-  const l = ['Bonjour,', '',
-    'Nous organisons le rendez-vous pédagogique de ' + eleve + '.',
-    "C'est un rendez-vous où l'élève vient AVEC son accompagnateur.",
-    '',
-    'Vous serez plusieurs familles à ce rendez-vous : nous cherchons',
-    'la date qui convient au plus grand nombre.',
-    '', 'Voici les créneaux possibles :'];
+function texteMailRvt(eleve, creneaux, lien, limite, change){
+  /* ⚠️ UN CHANGEMENT SE DIT DÈS LA PREMIÈRE LIGNE, et le mail dit
+     pourquoi la réponse déjà donnée ne vaut plus. Une famille qui
+     recevrait deux fois le même mail croirait à un doublon, ne le
+     rouvrirait pas, et resterait sur les anciennes dates. */
+  const l = change
+    ? ['Bonjour,', '',
+       'Les dates proposées pour le rendez-vous pédagogique de ' +
+         eleve + ' ONT CHANGÉ.',
+       '',
+       'Si vous nous aviez déjà répondu sur une date qui a été',
+       "déplacée, cette réponse ne vaut plus : merci de nous",
+       'réindiquer vos disponibilités.',
+       '', 'Voici les créneaux à jour :']
+    : ['Bonjour,', '',
+       'Nous organisons le rendez-vous pédagogique de ' + eleve + '.',
+       "C'est un rendez-vous où l'élève vient AVEC son accompagnateur.",
+       '',
+       'Vous serez plusieurs familles à ce rendez-vous : nous cherchons',
+       'la date qui convient au plus grand nombre.',
+       '', 'Voici les créneaux possibles :'];
 
   (creneaux || []).forEach(c => {
     l.push('  · ' + (jourFrCs(c.date) || c.date) +
@@ -1290,6 +1646,26 @@ function carteTourRvt(t){
     d.appendChild(m);
   }
 
+  /* ⚠️ « AUCUNE DE CES DATES » EST UNE RÉPONSE, PAS UN SILENCE.
+
+     Ils ont répondu, et ils ont répondu non partout. Les laisser
+     fondus dans la grille, c'est les relancer pour rien — et
+     surtout, c'est ne pas voir qu'il leur faut un autre tour. */
+  const aucune = (t.eleves || []).filter(e => {
+    const r = e.reponses || {};
+    const cles = Object.keys(r);
+    return e.reponduLe && cles.length &&
+           cles.every(k => r[k] === 'non');
+  }).map(e => e.eleve);
+  if(aucune.length){
+    const m = document.createElement('div');
+    m.style.cssText = 'font-size:11.5px;color:var(--warn-text);' +
+      'margin-bottom:9px;line-height:1.5;';
+    m.textContent = '✖️ Aucune de ces dates : ' + aucune.join(', ') +
+      ' — il leur faudra d\'autres créneaux.';
+    d.appendChild(m);
+  }
+
   const act = document.createElement('div');
   act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;';
 
@@ -1302,6 +1678,20 @@ function carteTourRvt(t){
       await chargerToursRvt(true);
       redessinerAacCs();
     }));
+
+  /* ⚠️ UN TOUR N'EST PAS UNE LISTE CLOSE.
+
+     « Une fois que c'est envoyé je ne peux ajouter personne. » On
+     invite quatre familles, deux répondent qu'elles ne peuvent pas,
+     on en ajoute trois — et parfois on déplace une date en fonction
+     des retours. Les deux se font tant que le tour est ouvert. */
+  act.appendChild(petitBouton('➕ Ajouter des familles',
+    'Elles reçoivent les mêmes créneaux — c\'est le même rendez-vous',
+    () => ajouterAuTourRvt(t)));
+
+  act.appendChild(petitBouton('📅 Modifier les créneaux',
+    'Ajouter une date, ou en déplacer une selon les retours',
+    () => changerCreneauxRvt(t)));
 
   (t.creneaux || []).forEach(c => {
     if(!comptes[c.id]) return;
