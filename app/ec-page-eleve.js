@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:55 — v809 */
+/* Déployé le 02/09/2026 à 14:16 — v811 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -353,6 +353,44 @@ function numeroLeconEleve(nom, e){
   return { valeur: 0 };
 }
 
+/* ------------------------------------------------------------
+   LA PHRASE DE LA LEÇON, TELLE QUE LA CARTE L'AFFICHE
+
+   « Je veux dans le dossier élève la même chose que dans mes
+   prochains cours. »
+
+   La carte ne calcule rien : elle prend la ligne 🎯 de la note et
+   l'écrit en gros. C'est lignePosition qui la trouve. Le dossier
+   appelle la MÊME fonction sur la MÊME note — deux façons de dire
+   où en est un élève, c'est une de trop, et c'est toujours la
+   mauvaise qui s'affiche là où on regarde.
+
+   Le 🎯 saute : la ligne du dossier porte déjà son propre repère,
+   et deux marqueurs côte à côte ne disent pas deux choses.
+   ------------------------------------------------------------ */
+function phraseLeconDeLEleve(nom, e){
+  if(typeof lignePosition !== 'function' ||
+     typeof morceauxDeNotePreparee !== 'function') return '';
+
+  const lire = (note) => {
+    if(!String(note || '').trim()) return '';
+    let corps = note;
+    try{ corps = morceauxDeNotePreparee(note).corps || note; }
+    catch(err){ corps = note; }
+    return String(lignePosition(corps) || '').replace(/^\s*🎯\s*/, '').trim();
+  };
+
+  /* Le cours préparé d'abord : c'est exactement ce que le bureau a
+     sous les yeux dans « Mes prochains cours ». */
+  const prep = preparationDe(nom);
+  const p = prep ? lire(prep.note) : '';
+  if(p) return p;
+
+  /* À défaut, son dernier bilan : la phrase y est écrite pareil. */
+  return lire(e && e.note);
+}
+
+
 /* Les étapes, dans l'ordre du parcours. Chacune dit ce qu'elle
    sait, d'où elle le tient, et si c'est fait ou à faire. */
 function etapesCroiseesEleve(nom){
@@ -370,16 +408,37 @@ function etapesCroiseesEleve(nom){
            (quand ? ' — ajourné le ' + quand : '') });
   }
 
-  /* ── LA LEÇON : LA MÊME RÈGLE QUE « PROCHAINS COURS » ── */
-  const n = numeroLeconEleve(nom, e);
-  if(n.valeur){
-    out.push({ ok:true, emoji:'✅',
-      txt: n.valeur + (n.valeur === 1 ? 'ère' : 'ème') + ' leçon' +
-           (a.leconTotal ? ' sur ' + a.leconTotal : '') +
-           (a.friseDepassee ? ' — frise dépassée' : '') +
-           (n.approx ? " (d'après ses bilans enregistrés)" : '') });
+  /* ── LA LEÇON : LA MÊME PHRASE QUE « PROCHAINS COURS » ──
+
+     ⚠️ LA MÊME PHRASE, PAS LE MÊME CHIFFRE.
+
+     J'avais compris « le même numéro », et corrigé le numéro. Ce
+     n'était pas la demande : « à la place de 6ème leçon dans le
+     dossier, je veux 1ère leçon après l'examen blanc (2 prévues,
+     6ème au total) ». La carte n'affiche pas un rang reconstruit —
+     elle affiche LA LIGNE 🎯 DE LA NOTE, celle que le
+     questionnaire a écrite. Rebâtir « 6ème leçon » à côté, c'est
+     redire la même chose en moins bien : on perd la charnière, ce
+     qui reste avant l'examen blanc, et la frise dépassée.
+
+     Le dossier lit donc la même ligne, par la même fonction —
+     lignePosition — et ne reconstruit plus rien quand elle existe.
+     La reconstruction reste le filet, pour les élèves sans cours
+     préparé et sans note. */
+  const phrase = phraseLeconDeLEleve(nom, e);
+  if(phrase){
+    out.push({ ok:true, emoji:'✅', txt: phrase });
   }else{
-    out.push({ ok:null, emoji:'❔', txt:'Numéro de leçon inconnu', flou:true });
+    const n = numeroLeconEleve(nom, e);
+    if(n.valeur){
+      out.push({ ok:true, emoji:'✅',
+        txt: n.valeur + (n.valeur === 1 ? 'ère' : 'ème') + ' leçon' +
+             (a.leconTotal ? ' sur ' + a.leconTotal : '') +
+             (a.friseDepassee ? ' — frise dépassée' : '') +
+             (n.approx ? " (d'après ses bilans enregistrés)" : '') });
+    }else{
+      out.push({ ok:null, emoji:'❔', txt:'Numéro de leçon inconnu', flou:true });
+    }
   }
 
   /* ── Le simulateur — TOUJOURS AFFICHÉ ── */
