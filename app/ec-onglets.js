@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:00 — v799 */
+/* Déployé le 02/09/2026 à 12:23 — v803 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -14,7 +14,7 @@ const CLE_ONGLET = 'onglet_actif';
 const SECTIONS_ONGLET = {
   cours:  ['prepares', 'cours'],
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
-  suivi:  ['bureau_simu', 'bureau_examblanc', 'ecoutes'],
+  suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
   /* « historique » a été retiré le 1er septembre : voir la barre
      de vues plus bas. */
@@ -161,8 +161,8 @@ const VUES = {
      l'écran de tous les jours, et on ne déplace pas ce sur quoi le
      bureau atterrit sans qu'il l'ait demandé. */
   suivi:  [['simu',     '🌙 Simulateurs et examens blancs', 'bureau_simu'],
-           ['suivics',  '🤝 Suivi CS',                      'bureau_examblanc'],
-           ['suiviaac', '🎓 Suivi AAC',                     'bureau_examblanc'],
+           ['suivics',  '🤝 Suivi CS',                      'suivi_aac_cs'],
+           ['suiviaac', '🎓 Suivi AAC',                     'suivi_aac_cs'],
            ['ecoutes',  '👂 Écoutes pédagogiques',          'ecoutes']],
   /* LE DOSSIER EN PREMIER, ET C'EST TOUT LE POINT.
 
