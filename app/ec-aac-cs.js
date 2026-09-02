@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:19 — v802 */
+/* Déployé le 02/09/2026 à 12:34 — v804 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -433,6 +433,10 @@ async function afficherAacCs(){
     try{ await chargerFiches(); }catch(e){}
   }
 
+  /* Les tours de rendez-vous théorique : ils décident de ce que la
+     liste AAC peut proposer, donc ils arrivent avec elle. */
+  if(zA) await chargerToursRvt();
+
   dessinerReglageCs();
   if(zC) dessinerListeCs(zC);
   if(zA) dessinerListeAac(zA);
@@ -749,6 +753,499 @@ function boutonsCs(x, zone){
 }
 
 
+/* ============================================================
+   LE RENDEZ-VOUS THÉORIQUE — REMPLACER LE DOODLE
+
+   Chrystel : « j'ai besoin de plusieurs élèves en même temps, au
+   minimum 4. J'utilise un Doodle avec des propositions de date, je
+   prends celle où il y en a le plus, et je remets les autres en
+   attente. Je veux supprimer ce Doodle. »
+
+   Le tour de piste :
+
+     1. on coche les élèves dont le théorique est à prévoir ;
+     2. on propose 3 à 5 créneaux et une date limite ;
+     3. chaque famille reçoit UN lien — élève et accompagnateur ;
+     4. elle coche ce qui lui va sur une page ;
+     5. le bureau lit la grille et retient le créneau gagnant ;
+     6. ceux qui ne pouvaient pas restent dans la liste.
+
+   Ce qui n'est PAS ici : l'envoi des mails et l'écriture des
+   réponses. Les deux vivent côté serveur, et la page des familles a
+   sa propre route publique. Voir apps-script.js, section « LE
+   RENDEZ-VOUS THÉORIQUE ».
+   ============================================================ */
+
+let toursRvt = [];
+let toursRvtLus = 0;
+
+async function chargerToursRvt(forcer){
+  if(!forcer && toursRvtLus && Date.now() - toursRvtLus < 30000) return toursRvt;
+  try{
+    const d = await appelPrep({ action: 'rvtList' });
+    toursRvt = (d && d.tours) || [];
+    toursRvtLus = Date.now();
+  }catch(e){ /* la liste AAC reste lisible sans les tours */ }
+  return toursRvt;
+}
+
+/* Les tours encore ouverts, par élève : c'est ce qui empêche d'en
+   ouvrir un second et ce qui s'affiche sur sa ligne. */
+function tourOuvertDe(nom){
+  const k = normaliserMot(nom);
+  return toursRvt.find(t => !t.clos &&
+    (t.eleves || []).some(e => normaliserMot(e.eleve) === k)) || null;
+}
+
+
+/* ------------------------------------------------------------
+   OUVRIR UN TOUR
+   ------------------------------------------------------------ */
+async function ouvrirTourRvt(liste){
+  /* Ceux dont le théorique est à prévoir, et qui n'ont pas déjà une
+     proposition en cours. */
+  const possibles = liste.filter(x =>
+    x.parcours.rdvAttendus && x.rdv.rvt.cle === 'aprevoir' &&
+    !tourOuvertDe(x.eleve));
+
+  if(!possibles.length){
+    showToast('Personne à proposer : tous ont leur théorique, ou une ' +
+              'proposition déjà en cours.');
+    return;
+  }
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(560px,94vw);max-height:90vh;overflow-y:auto;';
+
+  const dans7 = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  };
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>🗣️ Proposer un rendez-vous théorique</h3>' +
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+      'line-height:1.5;">Chaque famille reçoit <strong>un seul lien</strong> ' +
+      '— élève et accompagnateur — et remplit <strong>une seule</strong> ' +
+      'grille.</div>' +
+    '<label>Les élèves à inviter</label>' +
+    '<div id="rvtEleves" style="background:var(--navy);border:1px solid ' +
+      'var(--line);border-radius:10px;padding:10px 12px;max-height:210px;' +
+      'overflow-y:auto;margin-bottom:6px;"></div>' +
+    '<div id="rvtCompte" style="font-size:12px;margin:-2px 0 12px;' +
+      'line-height:1.5;"></div>' +
+    '<label>Les créneaux proposés</label>' +
+    '<div id="rvtCreneaux"></div>' +
+    '<button class="btn btn-secondary" id="rvtPlus" style="width:auto;' +
+      'padding:8px 12px;font-size:12px;margin:0 0 14px;">➕ Un créneau de plus</button>' +
+    '<label for="rvtLimite">Ils peuvent modifier jusqu\'au</label>' +
+    '<input type="date" id="rvtLimite" value="' + dans7() + '">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 14px;' +
+      'line-height:1.4;">Passé ce jour, leur lien n\'accepte plus de ' +
+      'réponse — il montre encore ce qu\'ils avaient indiqué.</div>' +
+    '<div id="rvtEtat" style="font-size:13px;line-height:1.5;' +
+      'margin-bottom:10px;"></div>' +
+    '<div style="display:flex;gap:8px;">' +
+      '<button class="btn btn-secondary" id="rvtAnnuler">Annuler</button>' +
+      '<button class="btn btn-primary" id="rvtEnvoyer">📨 Envoyer</button>' +
+    '</div>');
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+
+  const g = id => boite.querySelector('#' + id);
+
+  /* ── Les élèves, avec l'état de leurs adresses ──
+
+     « Avant l'envoi il dit qui n'a pas d'adresse. » Une adresse
+     manquante découverte après coup ressemble à quelqu'un qui n'a
+     pas répondu. */
+  const choisis = {};
+  possibles.forEach(x => { choisis[x.eleve] = true; });
+
+  const dessinerEleves = () => {
+    const z = g('rvtEleves');
+    z.innerHTML = '';
+    possibles.forEach(x => {
+      const f = (typeof ficheDe === 'function') ? ficheDe(x.eleve) : null;
+      const mail = (f && f.email) || '';
+      const presc = (f && f.mailPrescripteur) || '';
+
+      const l = document.createElement('label');
+      l.style.cssText = 'display:flex;gap:9px;align-items:flex-start;' +
+        'padding:5px 0;font-size:13px;cursor:pointer;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!choisis[x.eleve];
+      cb.style.cssText = 'margin-top:3px;flex-shrink:0;';
+      cb.addEventListener('change', () => {
+        choisis[x.eleve] = cb.checked;
+        majCompte();
+      });
+      l.appendChild(cb);
+
+      const t = document.createElement('div');
+      t.style.cssText = 'flex:1;min-width:0;line-height:1.5;';
+      const adresses = [mail ? '✉️ élève' : '', presc ? '✉️ prescripteur' : '']
+        .filter(Boolean).join(' · ');
+      t.innerHTML = '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong>' +
+        '<br><span style="font-size:11.5px;color:' +
+        (adresses ? 'var(--muted)' : 'var(--warn-text)') + ';">' +
+        (adresses || '⚠️ aucune adresse — il ne recevra rien') + '</span>';
+      l.appendChild(t);
+      z.appendChild(l);
+    });
+    majCompte();
+  };
+
+  const majCompte = () => {
+    const n = Object.keys(choisis).filter(k => choisis[k]).length;
+    const z = g('rvtCompte');
+    /* LE MINIMUM DE 4 AVERTIT, IL N'EMPÊCHE PAS. « Avertissement
+       pour nous, et on décide si on le fait ou pas. » */
+    if(n < 4){
+      z.style.color = 'var(--warn-text)';
+      z.textContent = '⚠️ ' + n + ' élève(s) — il en faut normalement 4. ' +
+        'À toi de voir.';
+    }else{
+      z.style.color = 'var(--accent-text)';
+      z.textContent = n + ' élèves invités.';
+    }
+  };
+
+  /* ── Les créneaux ── */
+  let creneaux = [{}, {}, {}];
+  const dessinerCreneaux = () => {
+    const z = g('rvtCreneaux');
+    z.innerHTML = '';
+    creneaux.forEach((c, i) => {
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:6px;align-items:center;' +
+        'margin-bottom:7px;';
+      l.innerHTML =
+        '<input type="date" data-i="' + i + '" data-k="date" ' +
+          'style="flex:2;min-width:0;margin:0;" value="' + (c.date || '') + '">' +
+        '<input type="time" data-i="' + i + '" data-k="heure" ' +
+          'style="flex:1;min-width:0;margin:0;" value="' + (c.heure || '') + '">';
+      const sup = document.createElement('button');
+      sup.className = 'btn btn-secondary';
+      sup.style.cssText = 'width:auto;margin:0;padding:9px 10px;flex-shrink:0;';
+      sup.textContent = '✕';
+      sup.title = 'Retirer ce créneau';
+      sup.addEventListener('click', () => {
+        creneaux.splice(i, 1);
+        if(creneaux.length < 2) creneaux.push({});
+        dessinerCreneaux();
+      });
+      l.appendChild(sup);
+      z.appendChild(l);
+    });
+    z.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        creneaux[+inp.getAttribute('data-i')][inp.getAttribute('data-k')] =
+          inp.value;
+      });
+    });
+  };
+  dessinerEleves();
+  dessinerCreneaux();
+
+  g('rvtPlus').addEventListener('click', () => {
+    if(creneaux.length >= 6){
+      showToast('Six créneaux, c\'est déjà beaucoup à lire.');
+      return;
+    }
+    creneaux.push({});
+    dessinerCreneaux();
+  });
+
+  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  g('rvtAnnuler').addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+
+  g('rvtEnvoyer').addEventListener('click', async () => {
+    const noms = Object.keys(choisis).filter(k => choisis[k]);
+    const cr = creneaux
+      .filter(c => c.date)
+      .map((c, i) => ({ id: 'c' + (i + 1), date: c.date,
+                        heure: c.heure || '', lieu: '' }));
+
+    const etat = g('rvtEtat');
+    if(!noms.length){ etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Aucun élève coché.'; return; }
+    if(cr.length < 2){ etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Il faut au moins deux créneaux avec une date.';
+      return; }
+
+    const sansAdresse = noms.filter(n => {
+      const f = (typeof ficheDe === 'function') ? ficheDe(n) : null;
+      return !((f && f.email) || (f && f.mailPrescripteur));
+    });
+    if(sansAdresse.length &&
+       !await confirmer(sansAdresse.length + ' élève(s) sans adresse :\n' +
+         sansAdresse.join(', ') + '\n\nIls ne recevront rien. Continuer ?',
+         'Adresses manquantes')) return;
+
+    const b = g('rvtEnvoyer');
+    b.disabled = true;
+    b.textContent = 'Envoi…';
+    etat.style.color = 'var(--muted)';
+    etat.textContent = 'Les mails partent un par un, ça prend un moment…';
+
+    try{
+      const r = await appelPrep({
+        action: 'rvtOuvrir',
+        eleves: JSON.stringify(noms.map(n => {
+          const f = (typeof ficheDe === 'function') ? ficheDe(n) : null;
+          return { eleve: n, mail: (f && f.email) || '',
+                   mailPrescripteur: (f && f.mailPrescripteur) || '' };
+        })),
+        creneaux: JSON.stringify(cr),
+        limite: g('rvtLimite').value || '',
+        lien: lienRvt(),
+        par: ACCES.moniteur || ''
+      });
+
+      if(!r || r.status !== 'ok'){
+        b.disabled = false; b.textContent = '📨 Envoyer';
+        etat.style.color = 'var(--warn-text)';
+        etat.textContent = (r && r.message) || "L'envoi n'a pas abouti.";
+        return;
+      }
+
+      /* CE QUI EST PARTI, ET CE QUI N'EST PAS PARTI. Un compte rendu
+         qui ne dit que « envoyé » laisse croire que tout est parti. */
+      const rates = (r.envois || []).filter(x => x.etat !== 'envoyé');
+      fermer();
+      showToast(rates.length
+        ? '📨 ' + ((r.envois || []).length - rates.length) + ' envoyé(s), ' +
+          rates.length + ' en échec — regarde le tour'
+        : '📨 ' + r.ouverts + ' famille(s) prévenue(s) ✅');
+      await chargerToursRvt(true);
+      redessinerAacCs();
+    }catch(e){
+      b.disabled = false; b.textContent = '📨 Envoyer';
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = 'Impossible : ' + e.message;
+    }
+  });
+}
+
+
+/* L'adresse de la page des familles, déduite de celle de
+   l'application : elle vit dans le même dossier. L'écrire en dur
+   casserait les liens le jour d'un déménagement — c'est déjà la
+   règle du lien de cours. */
+function lienRvt(){
+  return location.origin +
+         location.pathname.replace(/[^/]*$/, '') + 'rvt.html';
+}
+
+
+/* ------------------------------------------------------------
+   LA GRILLE DES RÉPONSES
+
+   « Un tableau élèves × créneaux, avec le compte sous chaque colonne
+   et le meilleur mis en avant. »
+   ------------------------------------------------------------ */
+function dessinerToursRvt(zone){
+  zone.innerHTML = '';
+  const ouverts = toursRvt.filter(t => !t.clos);
+  if(!ouverts.length) return;
+
+  ouverts.forEach(t => zone.appendChild(carteTourRvt(t)));
+}
+
+
+function comptesTourRvt(t){
+  const out = {};
+  (t.creneaux || []).forEach(c => { out[c.id] = 0; });
+  (t.eleves || []).forEach(e => {
+    Object.keys(e.reponses || {}).forEach(k => {
+      if(e.reponses[k] === 'oui' && out[k] !== undefined) out[k]++;
+    });
+  });
+  return out;
+}
+
+
+function carteTourRvt(t){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
+    'padding:11px 13px;margin-bottom:12px;';
+
+  const comptes = comptesTourRvt(t);
+  const meilleur = Object.keys(comptes)
+    .sort((a, b) => comptes[b] - comptes[a])[0];
+
+  const attendus = (t.eleves || []).length;
+  const repondus = (t.eleves || []).filter(e => e.reponduLe).length;
+
+  const tete = document.createElement('div');
+  tete.style.cssText = 'font-weight:700;font-size:13px;margin-bottom:3px;';
+  tete.textContent = '🗣️ Proposition du ' + (t.creee || '').split(' ')[0] +
+    ' — ' + repondus + ' réponse(s) sur ' + attendus;
+  d.appendChild(tete);
+
+  const sous = document.createElement('div');
+  sous.style.cssText = 'font-size:11.5px;color:var(--muted);' +
+    'margin-bottom:9px;line-height:1.5;';
+  sous.textContent = t.limite
+    ? 'Ils peuvent répondre jusqu\'au ' + jourFrCs(t.limite)
+    : 'Sans date limite';
+  d.appendChild(sous);
+
+  /* Une colonne par créneau, une ligne par élève. */
+  const env = document.createElement('div');
+  env.style.cssText = 'overflow-x:auto;margin-bottom:9px;';
+  const tab = document.createElement('table');
+  tab.style.cssText = 'border-collapse:collapse;font-size:12px;width:100%;';
+
+  const thead = document.createElement('tr');
+  thead.appendChild(cell('th', ''));
+  (t.creneaux || []).forEach(c => {
+    const th = cell('th', jourFrCs(c.date) + (c.heure ? '\n' + c.heure : ''));
+    th.style.whiteSpace = 'pre-line';
+    if(c.id === meilleur && comptes[c.id] > 0){
+      th.style.color = 'var(--accent-text)';
+      th.style.fontWeight = '800';
+    }
+    thead.appendChild(th);
+  });
+  tab.appendChild(thead);
+
+  (t.eleves || []).forEach(e => {
+    const tr = document.createElement('tr');
+    const nom = cell('td', e.eleve);
+    nom.style.textAlign = 'left';
+    /* CE QUI N'EST PAS PARTI SE DIT ICI, pas ailleurs : c'est la
+       ligne de celui qui ne répondra jamais. */
+    if(e.envoi && e.envoi !== 'envoyé'){
+      nom.style.color = 'var(--warn-text)';
+      nom.title = 'Mail : ' + e.envoi;
+      nom.textContent = '⚠️ ' + e.eleve;
+    }
+    tr.appendChild(nom);
+
+    (t.creneaux || []).forEach(c => {
+      const r = (e.reponses || {})[c.id];
+      /* « Pas de réponse » EST UN ÉTAT À PART. Le confondre avec
+         « ne peut pas », c'est ne jamais relancer celui qui n'a rien
+         dit — et compter comme un refus un silence. */
+      const td = cell('td', r === 'oui' ? '✅' : (r === 'non' ? '✖️' : '·'));
+      if(!r) td.style.opacity = '.4';
+      tr.appendChild(td);
+    });
+    tab.appendChild(tr);
+  });
+
+  const pied = document.createElement('tr');
+  pied.appendChild(cell('td', ''));
+  (t.creneaux || []).forEach(c => {
+    const td = cell('td', String(comptes[c.id]));
+    td.style.fontWeight = '800';
+    if(c.id === meilleur && comptes[c.id] > 0) td.style.color = 'var(--accent-text)';
+    pied.appendChild(td);
+  });
+  tab.appendChild(pied);
+
+  env.appendChild(tab);
+  d.appendChild(env);
+
+  /* Les sans-réponse, nommés : c'est eux qu'on relance. */
+  const muets = (t.eleves || []).filter(e => !e.reponduLe).map(e => e.eleve);
+  if(muets.length){
+    const m = document.createElement('div');
+    m.style.cssText = 'font-size:11.5px;color:var(--muted);' +
+      'margin-bottom:9px;line-height:1.5;';
+    m.textContent = '⏳ Sans réponse : ' + muets.join(', ');
+    d.appendChild(m);
+  }
+
+  const act = document.createElement('div');
+  act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;';
+
+  (t.creneaux || []).forEach(c => {
+    if(!comptes[c.id]) return;
+    act.appendChild(petitBouton(
+      '📅 Retenir le ' + jourFrCs(c.date) + ' (' + comptes[c.id] + ')',
+      'Le rendez-vous est fixé pour ceux qui ont dit oui',
+      () => retenirCreneauRvt(t, c, comptes[c.id])));
+  });
+
+  act.appendChild(petitBouton('🗑️ Abandonner', 'Aucun créneau ne va — ' +
+    'les élèves redeviennent proposables', async () => {
+      if(!await confirmer('Abandonner cette proposition ?\n\n' +
+        'Les ' + attendus + ' élèves redeviennent proposables, et leurs ' +
+        'réponses restent consultables.', 'Abandonner')) return;
+      await appelPrep({ action: 'rvtFermer', id: t.id });
+      await chargerToursRvt(true);
+      redessinerAacCs();
+    }));
+
+  d.appendChild(act);
+  return d;
+}
+
+
+function cell(type, texte){
+  const c = document.createElement(type);
+  c.textContent = texte;
+  c.style.cssText = 'border:1px solid var(--line);padding:5px 7px;' +
+    'text-align:center;';
+  return c;
+}
+
+
+async function retenirCreneauRvt(t, c, combien){
+  const ouis = (t.eleves || [])
+    .filter(e => (e.reponses || {})[c.id] === 'oui').map(e => e.eleve);
+  const autres = (t.eleves || [])
+    .filter(e => (e.reponses || {})[c.id] !== 'oui').map(e => e.eleve);
+
+  /* CE QUE ÇA FAIT, DIT AVANT DE LE FAIRE — et surtout ce que ça ne
+     fait PAS : celui qui n'a pas répondu n'a pas dit oui. */
+  if(!await confirmer(
+      'Fixer le rendez-vous théorique au ' + jourFrCs(c.date) +
+      (c.heure ? ' à ' + c.heure : '') + ' ?\n\n' +
+      '✅ ' + ouis.length + ' élève(s) : ' + ouis.join(', ') +
+      '\n\n' + (autres.length
+        ? '⏳ ' + autres.length + ' laissé(s) pour un prochain tour : ' +
+          autres.join(', ') + '\n(ceux qui ne pouvaient pas, ET ceux qui ' +
+          "n'ont pas répondu)"
+        : 'Tout le monde peut venir.'),
+      'Retenir ce créneau')) return;
+
+  try{
+    const r = await appelPrep({ action: 'rvtRetenir', id: t.id,
+                                creneau: c.id, par: ACCES.moniteur || '' });
+    if(!r || r.status !== 'ok'){
+      showToast((r && r.message) || 'Impossible.');
+      return;
+    }
+    showToast('Rendez-vous fixé pour ' + (r.retenus || []).length +
+              ' élève(s) ✅');
+
+    /* ⚠️ LA FICHE DE SUIVI A CHANGÉ CÔTÉ SERVEUR, PAS EN MÉMOIRE.
+
+       C'est le serveur qui écrit « théorique prévu le … » sur chaque
+       élève retenu — il est le seul à savoir lesquels ont dit oui.
+       L'écran, lui, lit encore l'ancien état : sans ce rechargement,
+       la liste continuerait d'afficher « théorique à prévoir » sur
+       des élèves qu'on vient de placer, et on les replacerait. */
+    if(typeof chargerBureau === 'function'){
+      try{ await chargerBureau(true); }catch(e){}
+    }
+    await chargerToursRvt(true);
+    redessinerAacCs();
+  }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-aac-cs.js'] = true;
@@ -1008,6 +1505,13 @@ function dessinerListeAac(zone){
   }
   dessinerFiltresAac(liste);
 
+  /* LES PROPOSITIONS EN COURS, AU-DESSUS DE LA LISTE. Une grille de
+     réponses qu'il faudrait aller chercher ailleurs ne se regarde
+     pas — et c'est justement quand elle se remplit qu'on veut la
+     voir. */
+  const zT = $('toursRvt');
+  if(zT) dessinerToursRvt(zT);
+
   if(!liste.length){
     zone.innerHTML = '<div class="empty">Aucun élève en conduite accompagnée.' +
       '<br><span style="font-size:12px;">La formation se lit sur la fiche ' +
@@ -1057,6 +1561,28 @@ function dessinerFiltresAac(liste){
        le dossier. */
     z.appendChild(b);
   });
+
+  /* LE REMPLACEMENT DU DOODLE, à droite des filtres. Il ne compte
+     que ceux qu'on peut réellement inviter : théorique à prévoir,
+     et pas déjà dans une proposition en cours. */
+  const invitables = liste.filter(x =>
+    x.parcours.rdvAttendus && x.rdv.rvt.cle === 'aprevoir' &&
+    !tourOuvertDe(x.eleve)).length;
+
+  const p = document.createElement('button');
+  p.className = 'btn btn-secondary';
+  p.style.cssText = 'width:auto;margin:0 0 0 auto;padding:6px 10px;' +
+    'font-size:11.5px;' +
+    (invitables >= 4 ? 'border-color:var(--accent-text);' +
+                       'color:var(--accent-text);' : '');
+  p.textContent = '🗣️ Proposer des dates' +
+                  (invitables ? ' (' + invitables + ')' : '');
+  p.title = invitables
+    ? 'Envoyer des créneaux aux familles, et récupérer leurs réponses'
+    : 'Personne à inviter pour le moment';
+  p.disabled = !invitables;
+  p.addEventListener('click', () => ouvrirTourRvt(liste));
+  z.appendChild(p);
 }
 
 
@@ -1117,6 +1643,20 @@ function ligneAac(x){
   }
 
   lignesExamenOfficiel(x.exam).forEach(l => meta.appendChild(l));
+
+  /* Invité et pas encore répondu : la ligne le dit, sinon on le
+     réinvite en croyant l'avoir oublié. */
+  const tour = tourOuvertDe(x.eleve);
+  if(tour){
+    const moi = (tour.eleves || []).find(e =>
+      normaliserMot(e.eleve) === normaliserMot(x.eleve)) || {};
+    const t = document.createElement('span');
+    t.style.color = moi.reponduLe ? 'var(--accent-text)' : 'var(--muted)';
+    t.textContent = moi.reponduLe
+      ? '🗣️ A répondu à la proposition du ' + (tour.creee || '').split(' ')[0]
+      : '🗣️ Proposition envoyée — on attend sa réponse';
+    meta.appendChild(t);
+  }
 
   if(x.parcoursCle && x.suivi.parcoursLe){
     const q = document.createElement('span');
