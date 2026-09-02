@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 11:49 — v798 */
+/* Déployé le 02/09/2026 à 13:15 — v807 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -787,6 +787,14 @@ function lancerActualisationAuto(){
     }
 
     if(tiroirOuvert('messages')) afficherConsignesEnAttente();
+
+    /* Les réponses des familles au rendez-vous théorique : elles
+       arrivent une par une dans la journée, et le bureau les
+       attendait en rechargeant la page entière. */
+    if(tiroirOuvert('suiviaac') &&
+       typeof rafraichirToursRvtAuto === 'function'){
+      rafraichirToursRvtAuto();
+    }
   }, 90000);   /* toutes les 90 secondes */
 }
 
