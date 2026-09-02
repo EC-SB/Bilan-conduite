@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 10:01 — v795 */
+/* Déployé le 02/09/2026 à 13:55 — v809 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -854,6 +854,64 @@ function fusionnerContexte(saisi, defauts){
      rend aussi les frises déjà abîmées intouchables : la réparation
      les reconstruit, elle ne les rature pas une seconde fois. */
 const RE_NUM_LECON = /\d+\s*(?:ère|ere|ème|eme|e)(\s*le[çc]on)(?!s)/i;
+
+
+/* ============================================================
+   LE RANG QU'ANNONCE UNE NOTE — UNE SEULE RÈGLE, ICI
+
+   Chrystel, plusieurs fois : « le résumé dans la fiche élève n'est
+   toujours pas bon pour le numéro de leçon, je veux la même chose
+   que dans mes prochains cours ». Elle a fini par donner les trois
+   phrases qui montrent tout :
+
+     1ère leçon après l'examen blanc (2 prévues, 5ème au total) → 5
+     12 ème leçon frise dépassée (5 prévues)                    → 12
+     1ère leçon - plus que 6 avant l'examen blanc               → 1
+
+   Deux lectures cohabitaient. « Mes prochains cours » lisait la
+   note avec la règle complète et rendait 5, 12 et 1. Le résumé,
+   lui, passait par analyserNote, dont le motif ne connaissait ni
+   la charnière ni l'espace : il rendait 1 (le rang DEPUIS l'examen
+   blanc, pris pour un total) et, sur « 12 ème » avec son espace,
+   rien du tout — la ligne retombait alors sur le nombre de bilans
+   enregistrés, qui rajeunit de plusieurs leçons les élèves venus
+   de l'ancien fonctionnement.
+
+   Une même chose lue à deux endroits, et c'est le mauvais qui
+   gagne. La règle vit ici, à côté du motif, et les deux écrans
+   l'appellent.
+
+   ⚠️ L'ORDRE DES DEUX PREMIÈRES ÉTAPES EST LA RÈGLE.
+
+   Derrière une charnière, la ligne porte DEUX rangs : celui depuis
+   la charnière, et le vrai total dit en toutes lettres. Le total
+   d'abord, donc. Et une ligne qui compte depuis une charnière SANS
+   annoncer de total ne dit rien du total : on ne prend surtout pas
+   son rang — la note ne le sait pas, et se taire vaut mieux que
+   ramener une élève de sa neuvième leçon à sa quatrième.
+   ============================================================ */
+function rangDansLaNote(note){
+  const t = String(note || '');
+
+  /* 1. Le total annoncé en toutes lettres : il fait foi. */
+  const tot = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+au total/i);
+  if(tot){
+    const v = parseInt(tot[1], 10);
+    if(v > 0) return v;
+  }
+
+  /* 2. Une charnière sans total ne dit rien du total. */
+  if(/le[çc]ons?\s+apr[èe]s\s/i.test(t)) return null;
+
+  /* 3. Sinon, le rang écrit — « 12 ème leçon » compris, l'espace
+        se glisse tout seul dans les notes dictées. */
+  const m = t.match(RE_NUM_LECON);
+  if(m){
+    const v = parseInt(String(m[0]), 10);
+    if(!isNaN(v) && v > 0) return v;
+  }
+  return null;
+}
 
 /* ------------------------------------------------------------
    LA NOTE D'UN COURS PRÉPARÉ — TROIS MORCEAUX
