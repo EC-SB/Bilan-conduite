@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 795
+     GUIDE-VERSION: 801
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v795</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v801</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v795</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v801</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -959,7 +959,9 @@ html{scroll-behavior:smooth}
     <div class="ecran">🚗 <strong>EXAMEN OFFICIEL PRÉVU LE MERCREDI 16 SEPTEMBRE 2026</strong> — <strong>2E PASSAGE</strong> — encore 2 leçons + 3h avant examen<br>🚗 <strong>PAS DE DATE D'EXAMEN OFFICIEL</strong> — <strong>3E PASSAGE</strong> — dernier examen le 12/08/2026, ajourné — reprend la conduite — à reprogrammer</div>
     <p>Le numéro vient de <span class="b">Quel passage ?</span> quand le moniteur l'a saisi, et retombe sinon sur le <strong>compte d'ajournements tenu par le bureau</strong>. Au-delà de cinq&nbsp;: <span class="ch">5E PASSAGE OU PLUS</span>.</p>
 
-    <h4>La fiche véhicule dans le questionnaire</h4>
+    <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v800</span><p><strong>Deux cours préparés le même jour pour le même élève&nbsp;: les deux disparaissaient.</strong></p><p>Le ménage du serveur supprimait toute préparation dont l'élève avait un bilan « le jour même, ou après ». Il ne connaissait que la <em>date</em> du dernier bilan, jamais leur nombre. Une élève avec une leçon à 14&nbsp;h et une autre à 15&nbsp;h perdait donc <strong>les deux cartes</strong> à la minute où la première leçon était enregistrée — et c'était une <strong>suppression de la feuille</strong>, pas un masquage&nbsp;: rafraîchir ne les ramenait pas.</p><p>La règle supposait un cours par élève et par jour. Désormais on ne supprime que dans deux cas&nbsp;: un bilan <strong>strictement plus tard</strong> que la préparation, ou <strong>autant de bilans que de préparations</strong> ce jour-là. Tant qu'il en reste une à faire, aucune ne part.</p><p><em>Avec trois préparations et deux bilans, les trois restent. L'outil pourrait deviner laquelle est passée&nbsp;; se tromper effacerait la préparation du cours à venir, et elle est irrécupérable. Une carte qui traîne se referme au bilan suivant.</em></p></div>
+
+<h4>La fiche véhicule dans le questionnaire</h4>
     <p>Deux colonnes de cases&nbsp;: à gauche « travaillée chez nous », à droite <strong>🚗</strong>. Chaque colonne a sa case <span class="b">Tout cocher</span>. La légende dit&nbsp;: <span class="ch">🚗 = autre auto-école</span>.</p>
     <p><em>« Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront signées de ton emoji. La colonne 🚗 est pour un élève repris d'une autre auto-école&nbsp;: ce qu'il y a déjà fait porte 🚗, pas ton emoji. »</em></p>
     <div class="note piege"><span class="tag">Piège</span><p>Une manœuvre déjà marquée <strong>🚗</strong> dans un bilan antérieur a sa case droite <strong>grisée et non décochable</strong>&nbsp;: la marque est écrite, on ne la reprend pas. Une manœuvre revue ensuite chez nous affiche les deux&nbsp;: <span class="ch">🚗 👼</span>.</p></div>
@@ -1458,6 +1460,10 @@ html{scroll-behavior:smooth}
     <p>Après lecture d'un fichier, un état vert récapitule ce qui a été compris&nbsp;: <span class="ch">📄 42 élève(s) · 38 avec téléphone · 30 avec mail · séparateur « ; » · nom : Nom + Prénom · tél : Portable</span>. Résultat d'import&nbsp;: <span class="ch">✅ 30 ajouté(s) · 8 complété(s) · 4 inchangé(s) · 312 au total</span>.</p>
     <div class="note piege"><span class="tag">Piège</span><p>Si vous avez chargé un fichier CSV, la zone de texte n'est <strong>qu'un aperçu</strong>&nbsp;: c'est la liste du fichier qui part. La modifier à la main n'a aucun effet.</p></div>
 
+    <div class="note"><span class="tag">✨ Deux colonnes de plus — v797</span><p>L'import reconnaît aussi la <strong>date de naissance</strong> (« date de naissance », « né le », « ddn »…) et le <strong>mail du prescripteur</strong> (« prescripteur », « représentant légal », « accompagnateur »…). Les deux se saisissaient un par un, à la main, sur des élèves qu'on venait justement d'importer en lot.</p><p><strong>Mais seulement sur un en-tête nommé.</strong> Une colonne de dates peut être une date d'inscription, une colonne de mails peut être celle de l'élève&nbsp;: sans en-tête reconnu, l'import ne prend rien. Se tromper enverrait les rendez-vous théoriques à la mauvaise adresse.</p><p>L'aperçu les montre — <span class="ch">🎂 2009-03-12 · ✉️ papa@exemple.fr</span> — et <strong>il dit ce qu'il n'a pas compris</strong>&nbsp;: <span class="ch">⚠️ 3 date(s) de naissance illisible(s) — attendu 12/03/2009 ou 2009-03-12</span>. Sans cette ligne, l'import annonçait 42 élèves et quarante arrivaient sans âge, en silence.</p></div>
+
+    <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v797</span><p><strong>Chaque élève importé repartait avec une frise fausse.</strong> Les deux imports construisaient leur ligne en comptant les virgules, et « Ajouté le » tombait en colonne 8 — la <strong>frise</strong> — tandis que « Par » atterrissait en 9, « Autre AE ». Un élève importé avait donc une frise valant <span class="ch">02/09/2026 11:20</span> et une auto-école d'origine nommée d'après celui qui avait lancé l'import.</p><p>Rien ne plantait&nbsp;: une frise illisible ne dit simplement rien, et le questionnaire repose la question. <strong>Si vous avez importé des élèves récemment, la colonne Frise de leur ligne est à vider.</strong></p></div>
+
     <h4>La liste</h4>
     <p>En tête&nbsp;: <span class="ch">312 élève(s) · 248 avec un numéro</span>. Un champ <span class="b">🔍 Rechercher un élève, un numéro, une formation</span> qui cherche aussi dans le mail et le Messenger. <strong>Plafond d'affichage&nbsp;: 100 fiches</strong> — au-delà, <span class="ch">📋 100 fiches affichées sur 312. Affine la recherche.</span></p>
     <p>Chaque ligne&nbsp;: <span class="ch">♀</span>/<span class="ch">♂</span>, le nom, la formation, <span class="ch">🏫</span> et le nom de l'ancienne auto-école si l'élève vient d'ailleurs&nbsp;; puis <span class="ch">📱</span> (ou <span class="ch">📱 pas de numéro</span>), <span class="ch">💬 Messenger</span>, <span class="ch">✉️ mail</span>, <span class="ch">👤 mail du prescripteur</span>, <span class="ch">📇 ANTS</span>, <span class="ch">🧭 frise</span>. Quatre boutons&nbsp;: <span class="b">💬</span> (ouvre l'application SMS, seulement s'il y a un numéro), <span class="b">✏️</span> (la fiche), <span class="b">📄</span> (son dossier complet) et <span class="b">🗑️</span> (admin seulement).</p>
@@ -1482,7 +1488,8 @@ html{scroll-behavior:smooth}
       <tbody>
         <tr><td><span class="b">📱 Téléphone portable</span></td><td>Contrôlé&nbsp;: <span class="ch">Ce numéro ne semble pas valable.</span></td></tr>
         <tr><td><span class="b">✉️ Adresse mail</span></td><td>Il faut une arobase.</td></tr>
-        <tr><td><span class="b">✉️ Mail du prescripteur</span></td><td><em>« Représentant légal, ou celui qui paie. Recevra une copie des bilans, en plus de l'élève. »</em></td></tr>
+        <tr><td><span class="b">✉️ Mail du prescripteur</span></td><td><em>« Représentant légal, ou celui qui paie. Recevra une copie des bilans, en plus de l'élève. »</em> <strong>C'est aussi l'adresse de l'accompagnateur</strong> en conduite accompagnée.</td></tr>
+        <tr><td><span class="b">🎂 Date de naissance</span></td><td><span class="tag" style="color:var(--vert)">✨ v797</span> Juste au-dessus de la formation, parce que c'est là qu'on la regarde. <strong>L'âge se recalcule à chaque frappe</strong>, avec les 17 ans révolus&nbsp;: <span class="ch">16 ans · 17 ans révolus le 04/04/2027</span>. Une date absurde se voit tout de suite.<br>Elle n'est pas du confort&nbsp;: en AAC, l'examen n'est possible qu'à 17 ans révolus, et c'est elle qui commande le rendez-vous pédagogique n°2.</td></tr>
         <tr><td><span class="b">💬 Messenger</span></td><td><em>« Les moniteurs le retrouveront depuis le cours. »</em></td></tr>
         <tr><td><span class="b">Genre</span></td><td>Pour les accords du bilan.</td></tr>
         <tr><td><span class="b">📇 Dossier ANTS</span></td><td><em>« Le questionnaire la reprend, et la met à jour si un moniteur la corrige. »</em></td></tr>
@@ -1696,7 +1703,7 @@ html{scroll-behavior:smooth}
   <div class="tab"><table>
     <thead><tr><th>Onglet</th><th>Vues</th></tr></thead>
     <tbody>
-      <tr><td><span class="b">📓 Suivi</span></td><td><span class="b">🌙 Simulateurs et examens blancs</span> · <span class="b">👂 Écoutes pédagogiques</span></td></tr>
+      <tr><td><span class="b">📓 Suivi</span></td><td><span class="b">🌙 Simulateurs et examens blancs</span> · <span class="b">🤝 Suivi CS</span> · <span class="b">🎓 Suivi AAC</span> · <span class="b">👂 Écoutes pédagogiques</span></td></tr>
       <tr><td><span class="b">🚗 Permis</span></td><td><span class="b">⛔ Pas prêts</span> · <span class="b">🤔 À envisager</span> · <span class="b">📣 Préparation</span> · <span class="b">🎓 Suivi permis</span> · <span class="b">🏁 Résultats</span> · <span class="b">🏍️ Moto</span> · <span class="b">🚚 Remorque</span></td></tr>
     </tbody>
   </table></div>
@@ -1757,6 +1764,82 @@ html{scroll-behavior:smooth}
         <li>La liste <strong>📝 Examens blancs prévus</strong> — ceux dont la date est déjà posée — <strong>n'est pas ici</strong> mais dans l'onglet Permis, vue <a href="#envisager" class="aller">🤔 À envisager</a>.</li>
       </ul>
     </div>
+  </section>
+
+  <section id="suivi-cs">
+    <h3>🤝 Suivi CS — la conduite supervisée</h3>
+    <div class="note"><span class="tag">✨ Nouveau — v798</span><p>Un élève en conduite supervisée <strong>disparaissait de tous les écrans pendant des mois</strong>&nbsp;: pas de date d'examen, donc absent de toutes les listes du permis&nbsp;; pas une leçon par semaine, donc absent des rappels. On ne le revoyait que le jour où quelqu'un y repensait.</p></div>
+
+    <p>Une ligne par élève, et <strong>le compteur part du rendez-vous préalable</strong>&nbsp;: <span class="ch">CS depuis 1 mois et 3 jours — préalable le 30/07/2026</span>. Il est <strong>calculé</strong>, jamais saisi — une durée qu'on écrit est fausse le lendemain — et il compte en <strong>mois de calendrier</strong>&nbsp;: parti le 31 janvier, il n'est pas encore à un mois le 28 février.</p>
+
+    <h4>La question « te sens-tu prêt pour un examen blanc ? »</h4>
+    <p>Quatre états, et il faut les quatre&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>État</th><th>Ce qu'il veut dire</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ch">Question pas encore posée — sous le seuil</span></td><td>Il vient de partir. La liste ne crie pas.</td></tr>
+        <tr><td><span class="ch">⏰ Personne ne lui a rien demandé</span></td><td>Au-delà du seuil. <strong>C'est le cas que cette liste existe pour montrer.</strong></td></tr>
+        <tr><td><span class="ch">⏳ Demandé le 14/08 — on attend sa réponse</span></td><td>Puis <span class="ch">🔔</span> au bout du délai de relance.</td></tr>
+        <tr><td><span class="ch">✅ Prêt — a répondu oui le 20/08</span> · <span class="ch">⏳ Pas encore prêt</span></td><td>Il a répondu.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><span class="tag">Pourquoi quatre et pas trois</span><p><strong>« Jamais posée » et « posée sans réponse » demandent deux gestes différents.</strong> Les confondre, c'est relancer quelqu'un à qui on n'a jamais rien demandé. Et <strong>« pas encore » n'est pas « non »</strong>&nbsp;: la ligne garde la date et propose de redemander — sinon il sort de la liste et personne ne le rappelle jamais.</p></div>
+
+    <h4>⏰ Le seuil, réglable, en haut de la liste</h4>
+    <p><strong>2 mois</strong> avant de signaler un élève à qui personne n'a rien demandé, puis <strong>1 mois</strong> entre deux relances. Le bouton <span class="b">Changer</span> les modifie&nbsp;; ils sont enregistrés dans la feuille, donc <strong>partagés par tous les postes</strong> — un seuil réglé sur le téléphone du bureau et invisible depuis l'ordinateur, ce serait deux vérités.</p>
+    <div class="note piege"><span class="tag">Piège</span><p>Le bouton <span class="b">Changer</span> <strong>n'apparaît que si le compte peut écrire les places</strong> (droit <span class="ch">bureau_places</span> en modification). Un bouton qui échoue vaut moins qu'un bouton absent.</p></div>
+
+    <h4>⏸️ La pause — « je pars en vacances trois mois »</h4>
+    <p>Une date, et il ne remonte plus jusque-là. <strong>Elle se lève toute seule</strong> quand la date passe&nbsp;: une pause qu'il faudrait lever à la main serait un élève oublié.</p>
+
+    <h4>Et quand il dit oui</h4>
+    <p>La liste <strong>ne pose pas l'examen blanc elle-même</strong>&nbsp;: elle envoie la consigne, exactement comme le bouton 📅 Planifier du bureau, et l'élève entre dans <a href="#suivi-simu" class="aller">📝 Examen blanc à prévoir</a> avec tous les autres. À partir de là, plus rien n'est spécifique à la CS.</p>
+    <div class="note piege"><span class="tag">Pas encore là</span><p>Le bouton <span class="b">📨 Bientôt&nbsp;: lui envoyer</span> <strong>annonce qu'il n'envoie pas encore</strong> et refuse. L'envoi par mail arrivera avec le rendez-vous théorique, qui a besoin de la même page de réponse. Noter « envoyé » sans rien envoyer ferait attendre une réponse qui ne viendrait jamais — et on ne relancerait pas, croyant avoir demandé. En attendant&nbsp;: <span class="b">✋ Posée de vive voix</span>.</p></div>
+  </section>
+
+  <section id="suivi-aac">
+    <h3>🎓 Suivi AAC — la conduite accompagnée</h3>
+    <div class="note"><span class="tag">✨ Nouveau — v799</span><p>Trois rendez-vous jalonnent l'année, et <strong>deux conditions</strong> ouvrent l'examen. Rien de tout ça ne s'écrivait nulle part avant&nbsp;: le questionnaire posait les bonnes questions et n'en gardait que des états, dans le texte de la note.</p></div>
+
+    <h4>La ligne qui gouverne tout</h4>
+    <p><span class="ch">Examen possible le 12/02/2027 (le 1 an)</span> — <strong>la plus tardive</strong> de&nbsp;:</p>
+    <ul>
+      <li><strong>17 ans révolus</strong>, c'est-à-dire le <strong>lendemain</strong> de l'anniversaire&nbsp;;</li>
+      <li><strong>1 an après le rendez-vous préalable</strong>, pour <em>valider</em> la conduite accompagnée.</li>
+    </ul>
+    <p>Un élève qui fait son préalable à 16 ans et demi ne passe donc qu'à <strong>17 ans et demi</strong>. La ligne <strong>dit laquelle des deux conditions commande</strong>&nbsp;: une date sans sa raison ne se vérifie pas, et ne s'explique pas au téléphone.</p>
+    <div class="note danger"><span class="tag">⚠️ Ce que l'outil ne dit pas</span><p>Il n'écrit <strong>jamais</strong> « il peut passer ». Il dit « examen possible le … », et c'est une affirmation sur les <em>dates</em> uniquement. <strong>Le kilométrage est suivi dans DriveUp</strong>&nbsp;: l'outil n'en sait rien et n'en parle nulle part. Une date qui se présenterait comme un feu vert serait un mensonge.</p></div>
+
+    <h4>Les trois rendez-vous</h4>
+    <div class="tab"><table>
+      <thead><tr><th>Rendez-vous</th><th>Quand</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">① Préalable</span></td><td>Le départ. Tout se compte à partir de lui.</td></tr>
+        <tr><td><span class="b">② RVP 1</span></td><td>Six mois après le préalable.</td></tr>
+        <tr><td><span class="b">③ RVP 2</span></td><td><strong>La plus tardive</strong> de (préalable + 10 mois) et (examen possible − 2 mois). C'est le <strong>dernier point de contrôle avant l'examen</strong>&nbsp;: calé au plus tôt, un élève parti à 15 ans l'aurait passé un an avant de pouvoir présenter quoi que ce soit.</td></tr>
+        <tr><td><span class="b">🗣️ Théorique</span></td><td><strong>Aucune échéance</strong>, et c'est voulu&nbsp;: n'importe quand après le préalable, de préférence entre les deux, mais ce n'est pas une obligation. Seul son état s'affiche — et c'est bien assez pour voir qu'il manque.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Chacun a <strong>quatre états</strong>&nbsp;: <span class="ch">à prévoir</span> · <span class="ch">prévu le …</span> · <span class="ch">fait le …</span> · <span class="ch">fait le … (autre auto-école)</span>. Le quatrième compte&nbsp;: il se comporte comme « fait », mais il prévient qu'<strong>il n'y a aucun bilan à aller lire</strong>. Sans ce mot, on cherche une trace qui n'existe pas. Le bouton <span class="b">🏫 Fait ailleurs…</span> le saisit pour un élève repris d'une autre auto-école.</p>
+
+    <h4>Les trois parcours</h4>
+    <div class="tab"><table>
+      <thead><tr><th>Parcours</th><th>Ce que ça veut dire</th><th>Effet</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">🎓 à valider</span></td><td>Le parcours normal, par défaut.</td><td>Les trois rendez-vous sont attendus, et la règle du 1 an s'applique.</td></tr>
+        <tr><td><span class="b">🚗 abandonnée</span></td><td>« Attendre un an, c'est trop long — il a 17 ans, il veut passer. »</td><td>Plus aucun rendez-vous attendu&nbsp;; ceux qui ont été faits <strong>restent écrits</strong>. La règle du 1 an tombe avec la validation. <strong>Il part dans « examen blanc à prévoir ».</strong></td></tr>
+        <tr><td><span class="b">👻 fausse AAC</span></td><td>Préalable fait, il conduit, mais aucun rendez-vous pédagogique n'est prévu. Il attend ses 17 ans.</td><td>Idem, sans examen blanc d'office&nbsp;: le poser deux ans à l'avance polluerait la liste tout ce temps.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note"><span class="tag">Pourquoi deux mots pour un même comportement</span><p>🚗 et 👻 se comportent pareil dans le code. On garde les deux parce que <strong>ce n'est pas la même histoire</strong>&nbsp;: « il a fait son RVP 1 puis a renoncé » et « il n'a jamais eu l'intention de valider » n'appellent pas la même explication à un parent.</p></div>
+    <div class="note danger"><span class="tag">⚠️ Deux gardes</span><p><strong>« D'office » ne veut pas dire « par-dessus ».</strong> Si l'élève a déjà passé un examen blanc, la bascule n'en repose pas un second&nbsp;: la fenêtre dit <span class="ch">examen blanc passé le 12/05 — rien n'est reposé</span>. Sinon, un élève dont l'examen blanc disait « pas le niveau » serait renvoyé dans « à prévoir » par un automatisme, effaçant un résultat réel.</p><p><strong>Le retour en arrière est une porte à sens unique.</strong> Tant qu'aucun examen officiel n'a été passé depuis l'abandon, le parcours se rechange librement. Après, le bouton disparaît et la ligne dit pourquoi&nbsp;: <span class="ch">🔒 Examen officiel passé le 14/10 : la conduite accompagnée ne peut plus être validée.</span> C'est pour ça que <strong>la date de la bascule est enregistrée</strong>.</p></div>
+
+    <h4>Le rouge ne veut dire qu'une chose</h4>
+    <p><strong>Échéance dépassée, sur un rendez-vous encore attendu.</strong> Rien d'autre. Un parcours abandonné n'attend plus rien&nbsp;: ses rendez-vous ne rougissent jamais. Sinon le rouge se mettrait à signaler ce que personne n'attend, et le seul retard qui compte s'y noierait.</p>
+    <p>Quatre filtres en tête de liste&nbsp;: <span class="b">Tous</span> · <span class="b">⚠️ En retard</span> · <span class="b">🗣️ Théorique à faire</span> · <span class="b">Ne valident pas</span>.</p>
+
+    <h4>🎂 L'âge, et ce qui se passe sans lui</h4>
+    <p>La <strong>date de naissance</strong> se saisit sur la fiche de l'élève (sous la formation), s'importe depuis un CSV, et se saisit aussi depuis cette liste. Sans elle&nbsp;: <span class="ch">âge inconnu</span>, et la ligne <strong>refuse d'annoncer une date d'examen possible</strong> — l'âge est une des deux conditions, en donner une seule serait pire qu'un blanc.</p>
   </section>
 
   <section id="ecoutes">
