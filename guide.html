@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 801
+     GUIDE-VERSION: 802
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v801</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v802</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v801</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v802</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1837,6 +1837,15 @@ html{scroll-behavior:smooth}
     <h4>Le rouge ne veut dire qu'une chose</h4>
     <p><strong>Échéance dépassée, sur un rendez-vous encore attendu.</strong> Rien d'autre. Un parcours abandonné n'attend plus rien&nbsp;: ses rendez-vous ne rougissent jamais. Sinon le rouge se mettrait à signaler ce que personne n'attend, et le seul retard qui compte s'y noierait.</p>
     <p>Quatre filtres en tête de liste&nbsp;: <span class="b">Tous</span> · <span class="b">⚠️ En retard</span> · <span class="b">🗣️ Théorique à faire</span> · <span class="b">Ne valident pas</span>.</p>
+
+    <h4>🎓 L'examen officiel — ajourné quand, et une nouvelle date ou pas</h4>
+    <div class="note"><span class="tag">✨ Ajouté — v802</span><p><em>« Il me manque l'examen officiel : s'il a déjà une date, s'il a déjà été ajourné, si oui quand. Par exemple Axel Hinault, je n'ai pas l'information qu'il a été ajourné et si un nouvel examen est prévu. »</em></p></div>
+    <p><strong>Deux lignes, parce qu'il y a deux faits</strong>, et qu'ils ne se déduisent pas l'un de l'autre&nbsp;:</p>
+    <div class="ecran">🔁 <strong>2<sup>e</sup> passage — ajourné le 24/08/2026</strong><br>🎓 Pas de date d'examen</div>
+    <p>Un élève ajourné en août peut avoir une date en octobre comme n'en avoir aucune. C'est justement cette différence qui appelle un geste — les fondre en une phrase ferait disparaître celui des deux qu'on ne cherchait pas.</p>
+    <p>La ligne du bas dit, selon le cas&nbsp;: <span class="ch">🎓 Examen le 16/10/2026 · Saint-Brieuc</span> · <span class="ch">🎓 Dernier examen le 24/08/2026 — aucun nouvel examen prévu</span> · <span class="ch">🎓 Examen annulé — date à reprendre</span> · <span class="ch">🎓 Date d'examen à prévoir</span> · <span class="ch">🏁 Permis obtenu</span>. Une date qui ne vient que d'un bilan, et pas de la fiche de suivi, le dit&nbsp;: <span class="ch">(annoncé dans un bilan)</span>.</p>
+    <div class="note piege"><span class="tag">Deux détails qui comptent</span><p><strong>Le jour même est encore « à venir »</strong>&nbsp;: le cours d'aujourd'hui est peut-être l'examen. C'est la veille qu'une date devient « dernier examen ».</p><p><strong>Quand la date passée est déjà celle de l'ajournement, elle n'est pas redite</strong> — deux fois la même date sur deux lignes, et on croit qu'il s'agit de deux examens.</p></div>
+    <p><strong>Ceux qui sont ajournés sans nouvelle date passent en tête de liste</strong>, devant les rendez-vous en retard&nbsp;: un RVP en retard se rattrape le mois prochain, un élève ajourné et non reprogrammé, personne ne le rappelle. Ils ont leur filtre&nbsp;: <span class="b">🔁 À reprogrammer</span>. <em>Les deux mêmes lignes apparaissent en Suivi CS et dans le dossier élève.</em></p>
 
     <h4>🎂 L'âge, et ce qui se passe sans lui</h4>
     <p>La <strong>date de naissance</strong> se saisit sur la fiche de l'élève (sous la formation), s'importe depuis un CSV, et se saisit aussi depuis cette liste. Sans elle&nbsp;: <span class="ch">âge inconnu</span>, et la ligne <strong>refuse d'annoncer une date d'examen possible</strong> — l'âge est une des deux conditions, en donner une seule serait pire qu'un blanc.</p>
