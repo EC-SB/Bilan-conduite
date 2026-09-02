@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 08:33 — v748 */
+/* Déployé le 02/09/2026 à 08:50 — v790 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -162,6 +162,195 @@ async function chargerSessionsPermis(){
   });
 
   return sessionsPermis;
+}
+
+
+/* ============================================================
+   CHOISIR UNE PLACE, PAS UNE DATE
+
+   Une date d'examen ne se choisit pas dans un calendrier : elle
+   se prend sur une journée que la préfecture a donnée. Le bon
+   objet existe depuis toujours et s'affiche déjà dans 🎓 Suivi
+   permis — la 👻 PLACE FANTÔME, un créneau ouvert sans nom dessus.
+
+   Cette fenêtre est la seule façon de prendre une date. Les
+   calendriers libres qui l'entouraient disparaissent : quinze
+   portes pour une règle, c'est quatorze portes de trop.
+
+   Les places s'OUVRENT dans 🎓 Suivi permis. Ici, on ne fait que
+   les remplir.
+   ============================================================ */
+
+/* Toutes les places libres à venir, la plus proche d'abord. */
+function placesLibresExamen(){
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  const out = [];
+  (sessionsPermis || []).forEach(s => {
+    if(!s.date || String(s.date) < auj) return;
+    (s.eleves || []).forEach(p => {
+      if(p.eleve) return;                       /* la place est prise */
+      out.push({
+        idSession: s.id, rang: p.rang,
+        date: s.date, centre: s.centre || '',
+        heure: p.heure || s.heureDebut || '',
+        moniteur: s.moniteur || '', inspecteur: s.inspecteur || '',
+        /* Combien il en reste ce jour-là : « 1 place libre sur 4 »
+           se lit autrement que « 4 sur 4 ». */
+        libres: (s.eleves || []).filter(x => !x.eleve).length,
+        total: (s.eleves || []).length
+      });
+    });
+  });
+
+  out.sort((a, b) => {
+    const j = String(a.date).localeCompare(String(b.date));
+    return j !== 0 ? j : String(a.heure).localeCompare(String(b.heure));
+  });
+  return out;
+}
+
+/* La session d'un élève : avec qui il passe, et à quelle heure.
+   L'heure de passage n'est PAS sur la fiche de suivi — elle vit
+   sur la place. C'est la seule façon de la connaître. */
+function sessionDeLEleve(nom){
+  const cle = normaliserMot(nom || '');
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  let trouvee = null;
+  (sessionsPermis || []).forEach(s => {
+    (s.eleves || []).forEach(p => {
+      if(normaliserMot(p.eleve || '') !== cle) return;
+      /* La plus proche à venir ; à défaut, la plus récente passée —
+         un examen d'hier reste ce qu'on veut voir aujourd'hui. */
+      if(!trouvee) { trouvee = { session: s, place: p }; return; }
+      const aVenir = x => String(x.session.date || '') >= auj;
+      if(aVenir({session:s}) && !aVenir(trouvee)) trouvee = { session: s, place: p };
+      else if(aVenir({session:s}) === aVenir(trouvee) &&
+              String(s.date) < String(trouvee.session.date) && aVenir({session:s})){
+        trouvee = { session: s, place: p };
+      }
+    });
+  });
+  return trouvee;
+}
+
+/* PRENDRE LA PLACE, ET LE DIRE PARTOUT.
+
+   Deux écritures, indissociables : la place accueille l'élève, et
+   sa fiche de suivi porte la date. Écrites ICI, une seule fois —
+   le dossier, la liste RDV Permis et l'écran des sessions
+   passent tous par cette porte.
+
+   La place d'abord : si l'écriture de la fiche échoue ensuite, on
+   aura une place occupée sans date sur la fiche, ce qui se voit
+   dans 🎓 Suivi permis. L'inverse — une date sans place — est
+   exactement ce qu'on vient de corriger. */
+async function placerEleveSurPlace(nom, place){
+  if(!nom || !place) return false;
+
+  await appelPrep({ action:'sessionPlace', idSession: place.idSession,
+                    rang: place.rang, eleve: nom,
+                    heure: place.heure || '',
+                    par: ACCES.moniteur || '' });
+
+  const jour = (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(place.date) || place.date) : place.date;
+
+  await majSuivi(nom, { datePermis: jour, centre: place.centre || '',
+                        aPlanifier: '', statut: '' });
+
+  /* Le moniteur le lira dans la note de son prochain cours. */
+  if(typeof envoyerConsigne === 'function'){
+    try{
+      await envoyerConsigne(nom, 'permis',
+        'Examen du permis fixé au ' + jour + ' (bureau)');
+    }catch(e){ /* la date est prise, le message se rattrapera */ }
+  }
+
+  sessionsPermis = [];      /* relu au prochain besoin */
+  return true;
+}
+
+
+/* La fenêtre. Rend la place choisie, ou null.
+   « voeu » : la semaine que l'élève a demandée — on la rappelle en
+   haut, parce que c'est une demande à respecter, pas une
+   préférence à oublier au moment de placer. */
+async function choisirPlaceExamen(nom, voeu){
+  try{ await chargerSessionsPermis(); }
+  catch(e){
+    await informer('Impossible de lire les sessions : ' + e.message);
+    return null;
+  }
+
+  const libres = placesLibresExamen();
+
+  if(!libres.length){
+    await informer(
+      "Aucune place d'examen libre à venir.\n\n" +
+      "Une date se prend sur une journée ouverte. Ouvre la journée " +
+      'dans 🎓 Suivi permis (➕ Nouvelle session), puis reviens placer ' +
+      (nom || 'cet élève') + '.', "Pas de place libre");
+    return null;
+  }
+
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(480px, 94vw);';
+
+    boite.innerHTML = '<h3>🎓 Sa place d\'examen</h3>' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:10px;">' + String(nom || '').replace(/</g, '&lt;') +
+      ' — ' + libres.length + ' place(s) libre(s) à venir.' +
+      (voeu ? '<br><strong style="color:var(--accent-text);">🗓️ Il a demandé : ' +
+              String(voeu).replace(/</g, '&lt;') + '</strong>' : '') +
+      '</div>';
+
+    const liste = document.createElement('div');
+    liste.style.cssText = 'max-height:52vh;overflow-y:auto;';
+    boite.appendChild(liste);
+
+    const fermer = (v) => {
+      if(fond.parentNode) document.body.removeChild(fond);
+      resolve(v || null);
+    };
+
+    libres.forEach(p => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:100%;text-align:left;margin:0 0 7px;' +
+        'padding:10px 12px;font-size:13.5px;line-height:1.45;';
+      b.innerHTML = '<strong>👻 ' +
+        ((typeof dateEnToutesLettres === 'function')
+          ? dateEnToutesLettres(p.date) : p.date) +
+        (p.heure ? ' — ' + p.heure : '') + '</strong>' +
+        '<div style="font-size:11.5px;color:var(--muted);">' +
+        (p.centre || 'centre non précisé') +
+        ' · ' + p.libres + ' place(s) libre(s) sur ' + p.total +
+        (p.moniteur ? ' · ' + p.moniteur.replace(/</g, '&lt;') : '') +
+        '</div>';
+      b.addEventListener('click', () => fermer(p));
+      liste.appendChild(b);
+    });
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    bAnn.addEventListener('click', () => fermer(null));
+    rangee.appendChild(bAnn);
+    boite.appendChild(rangee);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+  });
 }
 
 async function afficherSessionsPermis(){
