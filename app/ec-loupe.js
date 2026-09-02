@@ -1,12 +1,11 @@
-/* Déployé le 01/09/2026 à 16:49 — v784 */
+/* Déployé le 02/09/2026 à 07:39 — v785 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
 
    On pense « Léa », pas « quel écran ». L'outil obligeait à
    traduire : Élèves → Historique pour voir ses cours, Élèves →
-   Répertoire pour corriger son numéro. Deux chemins à connaître
-   pour deux gestes qu'on fait dix fois par jour.
+   Répertoire pour corriger son numéro.
 
    ─ DEUX PARTIS PRIS ─
 
@@ -17,28 +16,30 @@
    que le chemin qu'elle remplace, où il fallait taper un nom PUIS
    déclencher une recherche serveur.
 
-   ELLE NE PROPOSE QUE CE QUI EXISTE. « Modifier le questionnaire »
-   manque à cette liste, et c'est voulu : le questionnaire n'est
-   pas un écran qui enregistre, c'est un formulaire dont les
-   réponses sont consommées par le cours. L'ouvrir ici demanderait
-   de lui écrire un SECOND chemin d'enregistrement — et un même
-   travail écrit à deux endroits, c'est la faute qu'on passe la
-   semaine à réparer ailleurs. Il y viendra, quand il aura un vrai
-   enregistrement, écrit une fois.
+   ELLE NE DÉCIDE PLUS OÙ ALLER. Depuis la v785 elle mène à un seul
+   endroit : le dossier de l'élève, qui contient les deux
+   destinations d'avant et le reste. Elle ne connaît donc plus
+   aucun écran de destination — c'est le dossier qui sait ce qu'il
+   contient. Un tri de moins à tenir à jour ici.
 
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* Ce que la loupe sait faire. Chaque action dit à quel droit elle
-   tient : proposer un écran qu'on ne peut pas ouvrir serait pire
-   que de ne rien proposer. */
+/* CE QUE LA LOUPE SAIT FAIRE : UNE SEULE CHOSE, MAINTENANT.
+
+   Elle en proposait deux — « voir ses cours » et « modifier sa
+   fiche » — parce que c'étaient les deux écrans qui existaient.
+   Depuis la v785 il y a un endroit qui contient les deux et le
+   reste : le dossier de l'élève. On tape le nom, on arrive.
+   Choisir entre deux boutons qui mènent au même endroit n'est pas
+   un choix, c'est un tap de plus.
+
+   L'action garde son droit : proposer un écran qu'on ne peut pas
+   ouvrir serait pire que de ne rien proposer. */
 const ACTIONS_LOUPE = [
-  { cle: 'cours', droit: 'recherche', emoji: '📚',
-    titre: 'Voir ses derniers cours',
-    detail: "Ouvre l'historique de ses leçons" },
-  { cle: 'fiche', droit: 'eleves', emoji: '✏️',
-    titre: 'Modifier sa fiche identité',
-    detail: 'Téléphone, mail, Messenger, ANTS, formation' }
+  { cle: 'dossier', droit: 'eleves', emoji: '👤',
+    titre: 'Ouvrir son dossier',
+    detail: 'Fiche, cours, permis, procédures — tout au même endroit' }
 ];
 
 function actionsLoupeDisponibles(){
@@ -181,35 +182,13 @@ function ouvrirLoupe(){
 /* Ce que fait chaque action. Elle ne réinvente rien : elle emmène
    sur l'écran qui sait déjà faire, et le met en route. */
 function lancerActionLoupe(cle, nom){
-  if(cle === 'fiche'){
-    if(typeof ouvrirFicheEleve !== 'function'){
-      showToast('Le répertoire n\'est pas disponible sur cet écran.');
-      return;
-    }
-    ouvrirFicheEleve(nom, (typeof ficheDe === 'function') ? ficheDe(nom) : null);
+  if(cle !== 'dossier') return;
+
+  if(typeof ouvrirPageEleve !== 'function'){
+    showToast("Le dossier élève n'est pas disponible sur cet écran.");
     return;
   }
-
-  if(cle === 'cours'){
-    const champ = $('searchName');
-    if(!champ || typeof rechercherEleve !== 'function'){
-      showToast("L'historique n'est pas disponible sur cet écran.");
-      return;
-    }
-    champ.value = nom;
-
-    /* L'écran d'abord, la recherche ensuite : lancer l'appel sans
-       amener le moniteur devant le résultat le laisserait devant
-       une page qui ne bouge pas. */
-    if(typeof afficherOnglet === 'function') afficherOnglet('eleves');
-    if(typeof afficherVue === 'function') afficherVue('eleves', 'recherche');
-
-    const carte = document.querySelector('[data-vue="recherche"]');
-    if(carte && carte.scrollIntoView){
-      carte.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    rechercherEleve();
-  }
+  ouvrirPageEleve(nom);
 }
 
 
