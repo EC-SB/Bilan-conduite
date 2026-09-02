@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:34 — v804 */
+/* Déployé le 02/09/2026 à 12:50 — v806 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -827,7 +827,7 @@ async function ouvrirTourRvt(liste){
   };
 
   boite.insertAdjacentHTML('beforeend',
-    '<h3>🗣️ Proposer un rendez-vous théorique</h3>' +
+    '<h3>🗣️ Organiser un rendez-vous théorique</h3>' +
     '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
       'line-height:1.5;">Chaque famille reçoit <strong>un seul lien</strong> ' +
       '— élève et accompagnateur — et remplit <strong>une seule</strong> ' +
@@ -1013,18 +1013,35 @@ async function ouvrirTourRvt(liste){
       if(!r || r.status !== 'ok'){
         b.disabled = false; b.textContent = '📨 Envoyer';
         etat.style.color = 'var(--warn-text)';
-        etat.textContent = (r && r.message) || "L'envoi n'a pas abouti.";
+        etat.textContent = (r && r.message) || "La proposition n'a pas " +
+          'pu être ouverte.';
         return;
       }
 
-      /* CE QUI EST PARTI, ET CE QUI N'EST PAS PARTI. Un compte rendu
-         qui ne dit que « envoyé » laisse croire que tout est parti. */
-      const rates = (r.envois || []).filter(x => x.etat !== 'envoyé');
+      /* ⚠️ LES MAILS PARTENT D'ICI, PAR « mailBilan ».
+
+         Ils partaient d'Apps Script, donc du compte Google du script,
+         et ils ne partaient pas. TOUTE l'application envoie par
+         mailBilan — le Worker le relaie en SMTP depuis
+         contact@evolutionconduites.fr. Les rappels, les bilans, les
+         convocations : tous passent par là. Un second canal à côté,
+         c'était un canal que personne ne surveillait. */
+      const envois = await envoyerMailsRvt(r.envois || [], cr,
+                                           g('rvtLimite').value || '');
+
+      /* Ce qui est parti retourne au classeur : un mail dont on ne
+         sait pas s'il est parti se renvoie deux fois. */
+      try{
+        await appelPrep({ action: 'rvtEnvois', id: r.id,
+                          envois: JSON.stringify(envois) });
+      }catch(e){ /* la grille dira « envoi inconnu », c'est déjà ça */ }
+
+      const rates = envois.filter(x => x.etat !== 'envoyé');
       fermer();
       showToast(rates.length
-        ? '📨 ' + ((r.envois || []).length - rates.length) + ' envoyé(s), ' +
+        ? '📨 ' + (envois.length - rates.length) + ' envoyé(s), ' +
           rates.length + ' en échec — regarde le tour'
-        : '📨 ' + r.ouverts + ' famille(s) prévenue(s) ✅');
+        : '📨 ' + envois.length + ' famille(s) prévenue(s) ✅');
       await chargerToursRvt(true);
       redessinerAacCs();
     }catch(e){
@@ -1033,6 +1050,70 @@ async function ouvrirTourRvt(liste){
       etat.textContent = 'Impossible : ' + e.message;
     }
   });
+}
+
+
+/* ------------------------------------------------------------
+   LES MAILS DE LA PROPOSITION
+
+   Un mail par famille, aux DEUX adresses à la fois — élève et
+   prescripteur — donc UN SEUL LIEN et une seule grille à remplir.
+
+   Par « mailBilan », comme tout le reste de l'application : c'est le
+   Worker qui les relaie en SMTP depuis contact@evolutionconduites.fr.
+   ------------------------------------------------------------ */
+async function envoyerMailsRvt(envois, creneaux, limite){
+  const out = [];
+
+  for(const env of envois){
+    const dest = (env.mails || []).filter(m => /@/.test(m));
+    if(!dest.length){
+      /* Pas d'adresse : ce n'est pas un échec d'envoi, c'est une
+         fiche incomplète. Les deux se réparent autrement. */
+      out.push({ jeton: env.jeton, eleve: env.eleve, etat: 'aucune adresse' });
+      continue;
+    }
+
+    const lien = lienRvt() + '?r=' + env.jeton;
+    const texte = texteMailRvt(env.eleve, creneaux, lien, limite);
+    try{
+      await appelPrep({ action: 'mailBilan', to: dest,
+        sujet: 'Rendez-vous pédagogique de ' + env.eleve +
+               ' — vos disponibilités',
+        texte: texte,
+        html: (typeof mailEnHtml === 'function')
+          ? mailEnHtml(texte, lien, '🗓️ Indiquer nos disponibilités')
+          : undefined });
+      out.push({ jeton: env.jeton, eleve: env.eleve, etat: 'envoyé' });
+    }catch(e){
+      out.push({ jeton: env.jeton, eleve: env.eleve,
+                 etat: 'échec : ' + (e && e.message ? e.message : 'inconnu') });
+    }
+  }
+  return out;
+}
+
+
+function texteMailRvt(eleve, creneaux, lien, limite){
+  const l = ['Bonjour,', '',
+    'Nous organisons le rendez-vous pédagogique de ' + eleve + '.',
+    "C'est un rendez-vous où l'élève vient AVEC son accompagnateur.",
+    '', 'Voici les créneaux possibles :'];
+
+  (creneaux || []).forEach(c => {
+    l.push('  · ' + (jourFrCs(c.date) || c.date) +
+           (c.heure ? ' à ' + c.heure : ''));
+  });
+
+  l.push('', 'Dites-nous lesquels vous conviennent ici :', lien, '');
+  if(limite){
+    l.push('Vous pouvez répondre et modifier votre réponse ' +
+           "jusqu'au " + (jourFrCs(limite) || limite) + '.', '');
+  }
+  l.push("Ce lien vous est personnel : l'élève et l'accompagnateur",
+         'remplissent la même réponse, une seule fois.', '',
+         'Évolution Conduites');
+  return l.join('\n');
 }
 
 
@@ -1575,7 +1656,7 @@ function dessinerFiltresAac(liste){
     'font-size:11.5px;' +
     (invitables >= 4 ? 'border-color:var(--accent-text);' +
                        'color:var(--accent-text);' : '');
-  p.textContent = '🗣️ Proposer des dates' +
+  p.textContent = '🗣️ Organiser rendez-vous théorique' +
                   (invitables ? ' (' + invitables + ')' : '');
   p.title = invitables
     ? 'Envoyer des créneaux aux familles, et récupérer leurs réponses'
