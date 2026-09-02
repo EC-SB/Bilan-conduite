@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<!-- Déployé le 02/09/2026 à 12:35 — v804 -->
+<!-- ============================================================
+     RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
+     Évolution Conduites
+
+     Un élève et son accompagnateur arrivent ici depuis leur mail.
+     Ils reçoivent LE MÊME LIEN et remplissent LA MÊME grille : ils
+     viennent ensemble, ils répondent ensemble.
+
+     ⚠️ CETTE PAGE LIT D'ABORD, ET N'ÉCRIT QUE SUR CLIC.
+
+     Les messageries ouvrent les liens toutes seules pour les
+     contrôler — Outlook et Gmail le font systématiquement. Une page
+     qui enregistrerait une disponibilité à l'ouverture enregistrerait
+     donc des réponses que personne n'a données, et le bureau
+     choisirait sa date là-dessus. C'est déjà la règle du lien de
+     cours, pour la même raison.
+
+     Le jeton ne vaut que pour cette proposition. Il ne connecte à
+     rien, ne montre aucun autre élève, et meurt à la date limite.
+     ============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Vos disponibilités — Évolution Conduites</title>
+<style>
+  :root{
+    --fond:#0B0B0B; --carte:#121212; --ligne:#2A2A2A; --creme:#F2EFE9;
+    --gris:#9A968E; --orange:#E8A33D; --vert:#B6FF0E; --bleu:#5EC8FF;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --fond:#F4F2ED; --carte:#FFFFFF; --ligne:#E4E0D8; --creme:#1A1A1A;
+           --gris:#8A857C; --orange:#B87A12; --vert:#7FB800; --bleu:#0B6FA4; }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:0; background:var(--fond); color:var(--creme);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.6; -webkit-text-size-adjust:100%;
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+  }
+  .page{max-width:460px;width:100%;padding:28px 18px 40px}
+  .marque{font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+          color:var(--gris);margin-bottom:22px;text-align:center}
+  .pastille{font-size:48px;line-height:1;margin-bottom:12px;text-align:center}
+  h1{font-size:22px;margin:0 0 8px;line-height:1.3}
+  p{margin:0 0 14px;font-size:16px}
+  .gris{color:var(--gris);font-size:14px}
+  .centre{text-align:center}
+
+  .creneau{background:var(--carte);border:1px solid var(--ligne);
+           border-radius:13px;padding:13px 15px;margin-bottom:10px}
+  .creneau .quand{font-weight:800;font-size:17px;margin-bottom:2px}
+  .creneau .ou{color:var(--gris);font-size:14px;margin-bottom:10px}
+  .choix{display:flex;gap:8px}
+  .choix button{flex:1;margin:0;padding:11px;font-size:15px;
+                background:transparent;border:1.5px solid var(--ligne);
+                color:var(--creme);font-weight:600}
+  .choix button.on{background:var(--vert);color:#0B0B0B;border-color:var(--vert)}
+  .choix button.non.on{background:var(--orange);color:#0B0B0B;
+                       border-color:var(--orange)}
+
+  label{display:block;font-size:13px;color:var(--gris);margin:18px 0 6px}
+  input[type=text]{width:100%;padding:13px;font-size:16px;border-radius:11px;
+    border:1.5px solid var(--ligne);background:var(--carte);color:var(--creme);
+    font-family:inherit}
+  button{
+    width:100%;padding:15px;font-size:17px;font-weight:700;cursor:pointer;
+    border-radius:12px;border:0;background:var(--vert);color:#0B0B0B;
+    font-family:inherit;margin-top:18px;
+  }
+  button:disabled{opacity:.5;cursor:default}
+  .avis{background:var(--carte);border:1px solid var(--ligne);
+        border-radius:11px;padding:12px 14px;margin:16px 0;font-size:14px}
+  .avis.chaud{border-color:var(--orange);color:var(--orange)}
+  .pied{color:var(--gris);font-size:12px;margin-top:26px;line-height:1.7;
+        text-align:center}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="marque">Évolution Conduites</div>
+  <div id="zone"><p class="gris centre">Un instant…</p></div>
+</div>
+
+<script>
+var PROXY = 'https://bilan-proxy.evolutionconduites.workers.dev';
+
+var jeton = (location.search.match(/[?&]r=([A-Za-z0-9]{22})/) || [])[1] || '';
+var zone = document.getElementById('zone');
+var etat = { reponses: {}, accompagnateur: '', repond: '' };
+var donnees = null;
+
+function ech(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function jourFr(iso){
+  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m) return String(iso || '');
+  var d = new Date(iso + 'T12:00:00');
+  if(isNaN(d.getTime())) return m[3] + '/' + m[2] + '/' + m[1];
+  try{
+    return d.toLocaleDateString('fr-FR',
+      { weekday:'long', day:'numeric', month:'long' });
+  }catch(e){ return m[3] + '/' + m[2] + '/' + m[1]; }
+}
+
+function rien(msg){
+  zone.innerHTML = '<div class="pastille centre">🔗</div>' +
+    '<h1 class="centre">Ce lien ne fonctionne plus</h1>' +
+    '<p class="gris centre">' + ech(msg || '') + '</p>' +
+    '<p class="pied">Appelez-nous, nous vous donnerons les dates ' +
+    'par téléphone.</p>';
+}
+
+/* ============================================================
+   L'ÉCRAN
+
+   Une carte par créneau, deux boutons : on peut / on ne peut pas.
+   PAS de case à cocher : « décoché » et « pas encore répondu » se
+   ressemblent trop, et c'est précisément la distinction dont le
+   bureau a besoin.
+   ============================================================ */
+function dessiner(){
+  var d = donnees;
+  var clos = !!d.clos;
+
+  var h = '<div class="pastille centre">🗣️</div>' +
+    '<h1>Bonjour ' + ech(d.prenom) + '</h1>' +
+    '<p>Nous organisons le <strong>rendez-vous pédagogique</strong> de ' +
+    ech(d.eleve) + '. L\'élève vient <strong>avec son accompagnateur</strong>.</p>';
+
+  if(clos){
+    h += '<div class="avis chaud">Les réponses sont closes' +
+      (d.limite ? ' depuis le ' + ech(jourFr(d.limite)) : '') + '.<br>' +
+      'Voici ce que vous nous aviez indiqué.</div>';
+  }else{
+    h += '<p class="gris">Dites-nous ce qui vous convient. Vous pourrez ' +
+      'modifier' + (d.limite ? " jusqu'au <strong>" + ech(jourFr(d.limite)) +
+      '</strong>' : '') + '.</p>';
+  }
+
+  (d.creneaux || []).forEach(function(c){
+    var r = etat.reponses[c.id] || '';
+    h += '<div class="creneau">' +
+      '<div class="quand">' + ech(jourFr(c.date)) +
+        (c.heure ? ' à ' + ech(c.heure) : '') + '</div>' +
+      (c.lieu ? '<div class="ou">' + ech(c.lieu) + '</div>' : '') +
+      '<div class="choix">' +
+        '<button type="button" data-c="' + ech(c.id) + '" data-v="oui"' +
+          (clos ? ' disabled' : '') +
+          ' class="' + (r === 'oui' ? 'on' : '') + '">✅ On peut</button>' +
+        '<button type="button" data-c="' + ech(c.id) + '" data-v="non"' +
+          (clos ? ' disabled' : '') +
+          ' class="non ' + (r === 'non' ? 'on' : '') + '">✖️ On ne peut pas</button>' +
+      '</div></div>';
+  });
+
+  if(!clos){
+    h += '<label for="qui">Qui remplit cette réponse&nbsp;?</label>' +
+      '<div class="choix">' +
+        '<button type="button" data-qui="eleve" class="' +
+          (etat.repond === 'eleve' ? 'on' : '') + '">L\'élève</button>' +
+        '<button type="button" data-qui="accompagnateur" class="' +
+          (etat.repond === 'accompagnateur' ? 'on' : '') +
+          '">L\'accompagnateur</button>' +
+      '</div>' +
+      '<label for="acc">Nom de l\'accompagnateur qui viendra</label>' +
+      '<input type="text" id="acc" autocomplete="name" ' +
+        'placeholder="Prénom et nom" value="' + ech(etat.accompagnateur) + '">' +
+      '<button id="envoyer" type="button">Envoyer nos disponibilités</button>' +
+      '<div id="msg" class="gris centre" style="margin-top:10px"></div>';
+  }
+
+  if(d.reponduLe){
+    h += '<p class="pied">Dernière réponse enregistrée le ' +
+      ech(d.reponduLe) +
+      (d.accompagnateur ? '<br>Accompagnateur indiqué&nbsp;: ' +
+        ech(d.accompagnateur) : '') + '</p>';
+  }
+
+  h += '<p class="pied">Ce lien vous est personnel. L\'élève et ' +
+    'l\'accompagnateur remplissent la même réponse.</p>';
+
+  zone.innerHTML = h;
+  brancher();
+}
+
+function brancher(){
+  zone.querySelectorAll('button[data-c]').forEach(function(b){
+    b.addEventListener('click', function(){
+      etat.reponses[b.getAttribute('data-c')] = b.getAttribute('data-v');
+      dessiner();
+    });
+  });
+  zone.querySelectorAll('button[data-qui]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var champ = document.getElementById('acc');
+      if(champ) etat.accompagnateur = champ.value;
+      etat.repond = b.getAttribute('data-qui');
+      dessiner();
+    });
+  });
+  var env = document.getElementById('envoyer');
+  if(env) env.addEventListener('click', envoyer);
+}
+
+/* ============================================================
+   L'ENVOI — en POST, et seulement sur ce clic
+   ============================================================ */
+function envoyer(){
+  var champ = document.getElementById('acc');
+  if(champ) etat.accompagnateur = champ.value.trim();
+
+  var msg = document.getElementById('msg');
+  var b = document.getElementById('envoyer');
+
+  /* UNE RÉPONSE VIDE NE PART PAS. « Je n'ai rien coché » et « je ne
+     peux à aucune date » sont deux choses différentes, et le bureau
+     doit pouvoir les distinguer. */
+  var repondus = Object.keys(etat.reponses).length;
+  if(!repondus){
+    msg.textContent = 'Indiquez au moins un créneau, même pour dire ' +
+                      'que vous ne pouvez pas.';
+    return;
+  }
+
+  b.disabled = true;
+  msg.textContent = 'Envoi…';
+
+  fetch(PROXY + '/rvt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ r: jeton, reponses: etat.reponses,
+                           accompagnateur: etat.accompagnateur,
+                           repond: etat.repond })
+  }).then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || d.status !== 'ok'){
+        b.disabled = false;
+        msg.textContent = (d && (d.message || d.error)) ||
+                          "L'envoi n'a pas abouti. Réessayez.";
+        return;
+      }
+      merci(d.reponduLe);
+    })
+    .catch(function(){
+      b.disabled = false;
+      msg.textContent = "L'envoi n'a pas abouti. Réessayez.";
+    });
+}
+
+function merci(quand){
+  var ouis = (donnees.creneaux || []).filter(function(c){
+    return etat.reponses[c.id] === 'oui';
+  });
+
+  var h = '<div class="pastille centre">✅</div>' +
+    '<h1 class="centre">C\'est noté, merci</h1>';
+
+  /* ON REDIT CE QU'ILS VIENNENT DE DIRE. Un « merci » seul laisse
+     douter de ce qui est parti. */
+  if(ouis.length){
+    h += '<p class="gris">Vous nous avez indiqué&nbsp;:</p>';
+    ouis.forEach(function(c){
+      h += '<div class="creneau"><div class="quand">✅ ' +
+        ech(jourFr(c.date)) + (c.heure ? ' à ' + ech(c.heure) : '') +
+        '</div></div>';
+    });
+  }else{
+    h += '<div class="avis chaud">Vous nous avez indiqué que ' +
+      '<strong>aucun de ces créneaux</strong> ne vous convient. ' +
+      'Nous vous proposerons d\'autres dates.</div>';
+  }
+
+  h += '<p class="gris centre" style="margin-top:16px">Nous vous ' +
+    'confirmerons la date retenue.</p>';
+
+  if(donnees.limite){
+    h += '<div class="avis">Vous pouvez revenir sur ce lien et modifier ' +
+      "votre réponse jusqu'au <strong>" + ech(jourFr(donnees.limite)) +
+      '</strong>.</div>' +
+      '<button type="button" id="revenir">Modifier ma réponse</button>';
+  }
+
+  h += '<p class="pied">Enregistré le ' + ech(quand || '') + '</p>';
+  zone.innerHTML = h;
+
+  var rev = document.getElementById('revenir');
+  if(rev) rev.addEventListener('click', function(){ dessiner(); });
+}
+
+/* ============================================================
+   AU CHARGEMENT : ON LIT, ET RIEN D'AUTRE
+   ============================================================ */
+if(!jeton){
+  rien('Ce lien est incomplet.');
+}else{
+  fetch(PROXY + '/rvt?r=' + encodeURIComponent(jeton))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || d.status !== 'ok'){
+        return rien((d && (d.message || d.error)) || 'Ce lien a expiré.');
+      }
+      donnees = d;
+      etat.reponses = d.reponses || {};
+      etat.accompagnateur = d.accompagnateur || '';
+      etat.repond = d.repond || '';
+      dessiner();
+    })
+    .catch(function(){
+      rien("Nous n'arrivons pas à joindre nos données pour le moment.");
+    });
+}
+</script>
+</body>
+</html>
