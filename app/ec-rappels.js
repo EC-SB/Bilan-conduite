@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 02/09/2026 à 12:41 — v805 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -838,6 +838,18 @@ function majChampsVehicule(){
 /* L'entête d'une note de préparation : l'heure, puis ce que l'élève
    doit apporter. Ces repères se lisent d'un coup d'œil dans
    « Mes prochains cours ». */
+/* L'HEURE D'UN COURS, LUE EN TÊTE DE SA NOTE.
+
+   Jumelle de heureDeNote dans apps-script.js — deux runtimes, deux
+   fonctions, et test-deux-cours-meme-jour vérifie qu'elles répondent
+   la même chose sur les mêmes textes. Sans ça, l'écran accepterait
+   ce que le serveur refuse, ou l'inverse. */
+function heureDeNote(note){
+  const m = String(note || '').match(/🕐\s*(\d{1,2})\s*h\s*(\d{2})?/);
+  if(!m) return '';
+  return ('0' + m[1]).slice(-2) + ':' + (m[2] || '00');
+}
+
 function enTeteDeNote(details){
   if(!details) return '';
 
@@ -2898,11 +2910,21 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
   if(!iso) return false;
 
   try{
-    /* Rien à faire si elle existe déjà */
+    /* Rien à faire si LE MÊME cours existe déjà.
+
+       « Le même » veut dire : même élève, même jour, ET MÊME HEURE.
+       Le contrôle portait sur (élève, jour) : une élève avec une
+       leçon à 14 h et une autre à 15 h ne pouvait avoir que la
+       première. Ce qu'on veut écarter, c'est le double appui sur
+       « Créer les cours » — et un double appui refait exactement le
+       même créneau. */
     const d = await appelPrep({ action: 'prepList' });
     const liste = (d && d.preparations) || [];
+    const hVoulue = heureDeNote('🕐 ' +
+      String((details && details.heure) || '').replace(':', 'h'));
     const deja = liste.some(x =>
-      normaliserMot(x.eleve || '') === normaliserMot(eleve) && x.date === iso);
+      normaliserMot(x.eleve || '') === normaliserMot(eleve) &&
+      x.date === iso && heureDeNote(x.note) === hVoulue);
     if(deja) return false;
 
     /* La boîte de l'élève décide du type de bilan. Sans indication —
