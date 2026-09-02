@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 09:10 — v791 */
+/* Déployé le 02/09/2026 à 09:37 — v792 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -242,6 +242,153 @@ function refaireLesNotesPreparees(){
   try{ rafraichirNotesPreparees(); }catch(e){ /* une note qui résiste */ }
 }
 
+/* ============================================================
+   CE QU'ON SAIT DE CHAQUE ÉTAPE — LES DEUX SOURCES, CROISÉES
+
+   Le résumé ne montrait QUE ce que la note raconte. Pour un élève
+   dont la note est pauvre, il affichait « 4ème leçon » et rien
+   d'autre : ni simulateur, ni examen blanc, ni date d'examen. Pas
+   parce qu'on ne sait rien — parce qu'on ne regardait qu'un seul
+   endroit.
+
+   LA FICHE DE SUIVI SAIT. Elle porte les vraies dates, en clair :
+   date d'examen, date d'examen blanc, date de simulateur, résultat.
+   Je m'en servais pour SIGNALER LES CONTRADICTIONS, jamais pour
+   COMBLER LES SILENCES. C'est la même faute que d'habitude, dans
+   l'autre sens : une information disponible, lue à un seul endroit.
+
+   ─ ET LES TROIS LIGNES SONT TOUJOURS LÀ ─
+
+   Simulateur, examen blanc, date d'examen s'affichent MÊME QUAND
+   ON NE SAIT RIEN. Une ligne absente se lit « rien à signaler » ;
+   or « personne ne sait » n'est pas « rien à signaler ».
+
+   ─ UNE SEULE FOIS, POUR DEUX ÉCRANS ─
+
+   Le résumé ET l'onglet 🎓 Permis lisent d'ici. J'avais écrit ce
+   croisement dans l'onglet Permis et pas dans le résumé : deux
+   endroits, deux vérités — encore.
+   ============================================================ */
+
+/* Une date française déjà passée ? Sert à dire « fait le » plutôt
+   que « prévu le ». Une date illisible ne se devine pas : on la
+   rend telle quelle, sans conclure. */
+function jourDejaPasse(jourFr){
+  if(typeof dateFrVersIso !== 'function') return null;
+  const iso = dateFrVersIso(String(jourFr || ''));
+  if(!iso) return null;
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  return iso <= auj;
+}
+
+/* Les étapes, dans l'ordre du parcours. Chacune dit ce qu'elle
+   sait, d'où elle le tient, et si c'est fait ou à faire. */
+function etapesCroiseesEleve(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const e = eleveDuBureau(nom);
+  const a = (e && e.etat) || {};
+  const out = [];
+
+  /* ── Repassages ── */
+  if(a.repassages || s.nbAjournements){
+    const n = Math.max(Number(a.repassages) || 0, Number(s.nbAjournements) || 0);
+    const quand = s.dateAjournement || a.dateAjournement || '';
+    out.push({ ok:false, emoji:'🔁',
+      txt: n + (n === 1 ? 'er' : 'e') + ' repassage' +
+           (quand ? ' — ajourné le ' + quand : '') });
+  }
+
+  /* ── La leçon. TROIS comptes, et le plus grand gagne :
+     ce que dit la note, le plus grand numéro jamais écrit, et
+     le nombre de bilans réellement enregistrés. Un élève venu de
+     l'ancien fonctionnement en a moins d'enregistrés qu'il n'en a
+     faites ; un autre peut avoir des bilans sans que sa note porte
+     un numéro. ── */
+  const n = Math.max(Number(a.lecon) || 0,
+                     Number(e && e.leconNum) || 0,
+                     Number(e && e.lecons) || 0);
+  if(n){
+    out.push({ ok:true, emoji:'✅',
+      txt: n + (n === 1 ? 'ère' : 'ème') + ' leçon' +
+           (a.leconTotal ? ' sur ' + a.leconTotal : '') +
+           (a.friseDepassee ? ' — frise dépassée' : '') });
+  }
+
+  /* ── Le simulateur — TOUJOURS AFFICHÉ ── */
+  if(s.simuDate){
+    const passe = jourDejaPasse(s.simuDate);
+    out.push({ ok:true, emoji: passe === false ? '📌' : '✅',
+      txt: 'Simulateur nuit et risques — ' +
+           (passe === false ? 'prévu le ' : 'fait le ') + s.simuDate });
+  }else if(a.simuNuit === 'fait'){
+    out.push({ ok:true, emoji:'✅', txt:'Simulateur nuit et risques fait' });
+  }else if(a.simuDate){
+    out.push({ ok:null, emoji:'📌',
+      txt:'Simulateur nuit et risques prévu le ' + a.simuDate });
+  }else if(a.simuNuit === 'prevu'){
+    out.push({ ok:null, emoji:'📌', txt:'Simulateur nuit et risques prévu' });
+  }else if(a.simuNuit === 'aprevoir'){
+    out.push({ ok:false, emoji:'⏳', txt:'Simulateur nuit et risques à prévoir' });
+  }else{
+    out.push({ ok:null, emoji:'❔', txt:'Simulateur nuit et risques — rien de noté',
+               flou:true });
+  }
+
+  /* ── L'examen blanc — TOUJOURS AFFICHÉ ── */
+  if(s.ebDate){
+    out.push({ ok:true, emoji:'✅',
+      txt: 'Examen blanc ' + (jourDejaPasse(s.ebDate) === false ? 'prévu' : 'passé') +
+           ' le ' + s.ebDate +
+           (s.ebNiveau === 'non' ? ' — pas le niveau' : '') });
+  }else if(a.examBlanc === 'passe'){
+    out.push({ ok:true, emoji:'✅',
+      txt:'Examen blanc passé' + (a.ebDate ? ' le ' + a.ebDate : '') });
+  }else if(a.examBlanc === 'reserve'){
+    out.push({ ok:null, emoji:'📌',
+      txt:'Examen blanc réservé' +
+          (a.examBlancDate ? ' le ' + a.examBlancDate
+            : (a.examBlancN !== null && a.examBlancN !== undefined
+                ? ' dans ' + a.examBlancN + ' leçon(s)' : '')) });
+  }else if(a.examBlanc === 'impossible'){
+    out.push({ ok:false, emoji:'⏳', txt:'Examen blanc non planifiable' });
+  }else if(a.examBlanc === 'aprevoir'){
+    out.push({ ok:false, emoji:'⏳',
+      txt:'Examen blanc à prévoir' +
+          (a.examBlancN !== null && a.examBlancN !== undefined
+            ? ' dans ' + a.examBlancN + ' leçon(s)' : '') });
+  }else{
+    out.push({ ok:null, emoji:'❔', txt:'Examen blanc — rien de noté', flou:true });
+  }
+
+  /* ── La date d'examen — TOUJOURS AFFICHÉE ── */
+  if(s.datePermis){
+    out.push({ ok:true, emoji:'🎓',
+      txt:"Examen du permis le " + s.datePermis +
+          (s.centre ? ' · ' + s.centre : '') });
+  }else if(a.permis === 'prevu' && a.permisDate){
+    out.push({ ok:true, emoji:'🎓',
+      txt:"Examen du permis le " + a.permisDate + ' (annoncé au moniteur)' });
+  }else if(a.permis === 'annule'){
+    out.push({ ok:false, emoji:'⏳', txt:'Examen du permis annulé' });
+  }else if(a.permis === 'aprevoir' || s.aPlanifier === 'oui'){
+    out.push({ ok:false, emoji:'⏳', txt:"Date d'examen à prévoir" +
+      (s.semaine ? ' — il a demandé ' + s.semaine : '') });
+  }else{
+    out.push({ ok:null, emoji:'❔', txt:"Date d'examen — rien de noté", flou:true });
+  }
+
+  /* ── Le résultat, s'il y en a un ── */
+  if(s.resultat){
+    out.push({ ok:true, emoji:'🏁', txt:'Résultat : ' + s.resultat });
+  }
+
+  if(a.pasEcoute) out.push({ ok:true, emoji:'✅', txt:"Pas d'écoutes pédagogiques" });
+
+  return out;
+}
+
+
 /* Les contradictions entre la fiche de suivi et la note. Une par
    ligne, dites telles quelles. */
 function desaccordsSuivi(s, etat){
@@ -284,30 +431,41 @@ function blocResumeEleve(nom){
 
   /* Bilan, puis cours préparé, puis consignes du bureau : de la
      plus ancienne annonce à la plus récente. La consigne reste en
-     dernier — elle prime, c'est la règle depuis toujours. */
+     dernier — elle prime, c'est la règle depuis toujours.
+
+     Ce texte-là ne sert plus qu'à NOURRIR l'analyse : le résumé se
+     construit ensuite en croisant ce qu'il en tire avec la fiche
+     de suivi. */
   const dit = [(e && e.note) || '', (prep && prep.note) || '']
     .filter(x => String(x).trim()).join(' · ');
 
-  /* La fonction de l'historique des leçons, telle quelle. */
-  const etapes = (typeof etapesEleve === 'function' && (e || prep))
-    ? etapesEleve(dit, (e && e.enAttente) || [], e && e.leconNum) : [];
+  /* L'état lu dans le texte, remis dans l'élève : etapesCroiseesEleve
+     s'en sert, et il doit tenir compte du cours préparé. */
+  if(e && typeof analyserNote === 'function'){
+    const aJour = analyserNote(dit + ' · ' +
+      ((e.enAttente || []).map(x => x.texte).join(' · ')));
+    Object.keys(aJour).forEach(k => {
+      if(aJour[k] !== null && aJour[k] !== false) e.etat[k] = aJour[k];
+    });
+  }
 
-  if(!etapes.length){
+  if(!e){
     const v = document.createElement('div');
     v.style.cssText = 'color:var(--muted);font-size:13px;line-height:1.5;';
     /* « Rien à dire » et « pas encore chargé » ne se ressemblent
        pas : l'un est une réponse, l'autre une absence. */
-    v.textContent = e
-      ? "Rien à signaler dans son dernier bilan."
-      : "Son parcours n'est pas encore chargé sur cet appareil.";
+    v.textContent = "Son parcours n'est pas encore chargé sur cet appareil.";
     d.appendChild(v);
   }else{
-    etapes.forEach(x => {
+    /* Les deux sources croisées, et les trois étapes clés toujours
+       affichées — même quand personne ne sait. */
+    etapesCroiseesEleve(nom).forEach(x => {
       const l = document.createElement('div');
-      l.style.color = (x.ok === true) ? 'var(--accent-text)'
-                    : (x.ok === false ? 'var(--warn-text)' : 'var(--cream)');
-      l.textContent = ((x.ok === true) ? '✅ ' :
-                       (x.ok === false ? '⏳ ' : '📌 ')) + x.txt;
+      l.style.color = x.flou ? 'var(--muted)'
+                    : ((x.ok === true) ? 'var(--accent-text)'
+                      : (x.ok === false ? 'var(--warn-text)' : 'var(--cream)'));
+      if(x.flou) l.style.fontSize = '13px';
+      l.textContent = (x.emoji || '📌') + ' ' + x.txt;
       d.appendChild(l);
     });
   }
@@ -324,15 +482,19 @@ function blocResumeEleve(nom){
        date de machine. */
     const jour = (prep.date && typeof dateEnToutesLettres === 'function')
       ? (dateEnToutesLettres(prep.date) || prep.date) : prep.date;
-    src.textContent = '🗓️ D\'après son cours préparé' +
-      (jour ? ' du ' + jour : '') +
-      ((e && e.date) ? ' · dernier bilan le ' + e.date : '');
+    src.textContent = '🗓️ Son cours préparé' + (jour ? ' du ' + jour : '') +
+      ((e && e.date) ? ' · son bilan du ' + e.date : '') +
+      ' · sa fiche de suivi';
     d.appendChild(src);
   }else if(e && e.date){
     const src = document.createElement('div');
     src.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:7px;';
-    src.textContent = '🗓️ D\'après son bilan du ' + e.date +
-      ' — aucun cours préparé.';
+    /* On nomme les DEUX sources lues, toujours. Dire « d'après son
+       bilan » quand la moitié des lignes vient de la fiche de suivi
+       serait faux — et c'est ce qui m'a fait chercher au mauvais
+       endroit deux fois de suite. */
+    src.textContent = '🗓️ Son bilan du ' + e.date +
+      ' · sa fiche de suivi — aucun cours préparé.';
     d.appendChild(src);
   }
 
