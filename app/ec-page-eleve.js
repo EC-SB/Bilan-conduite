@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 09:37 — v792 */
+/* Déployé le 02/09/2026 à 09:43 — v794 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -282,6 +282,59 @@ function jourDejaPasse(jourFr){
   return iso <= auj;
 }
 
+/* ============================================================
+   LE NUMÉRO DE LEÇON — CELUI DES PROCHAINS COURS, PAS UN AUTRE
+
+   Je prenais le plus grand de trois comptes : ce que dit la note,
+   le plus grand numéro jamais écrit, et le nombre de bilans
+   enregistrés. Une règle de plus, et elle se trompait sur le cas
+   que le bureau voit le plus souvent : UNE NOTE QUI COMPTE DEPUIS
+   UNE CHARNIÈRE.
+
+   « 4ème leçon après l'examen blanc » ne veut pas dire quatrième
+   leçon — c'est la quatrième DEPUIS l'examen blanc. La lire comme
+   un total ramène un élève de sa neuvième à sa quatrième.
+
+   numeroLeconDuCours() sait déjà tout ça : le total annoncé en
+   toutes lettres (« 9ème au total »), la charnière qu'il ne faut
+   surtout pas prendre pour un rang, et le contexte du
+   questionnaire en dernier recours. C'est elle qui fait le numéro
+   des prochains cours. On l'APPELLE ; on n'en réécrit pas une
+   version.
+
+   Trois sources, dans cet ordre :
+   1. le cours préparé — exactement ce que le bureau lit ;
+   2. la note du dernier bilan, avec la même règle ;
+   3. à défaut, le nombre de bilans enregistrés — mais DIT comme
+      tel, parce que ce n'est qu'une approximation.
+   ============================================================ */
+function numeroLeconEleve(nom, e){
+  if(typeof numeroLeconDuCours !== 'function') return { valeur: 0 };
+
+  /* 1. Le cours préparé : la même valeur, au chiffre près, que
+     celle de « Prochains cours ». */
+  const prep = preparationDe(nom);
+  if(prep){
+    const n = numeroLeconDuCours(prep);
+    if(n) return { valeur: n };
+  }
+
+  /* 2. Son dernier bilan, lu avec la même règle. */
+  if(e && e.note){
+    const n = numeroLeconDuCours({ note: e.note, contexte: null });
+    if(n) return { valeur: n };
+  }
+
+  /* 3. Le compte des bilans enregistrés. Il se trompe pour les
+     élèves venus de l'ancien fonctionnement, qui ont moins de
+     bilans que de leçons faites — alors on le dit au lieu de le
+     faire passer pour la vérité. */
+  const combien = Number(e && e.lecons) || 0;
+  if(combien) return { valeur: combien, approx: true };
+
+  return { valeur: 0 };
+}
+
 /* Les étapes, dans l'ordre du parcours. Chacune dit ce qu'elle
    sait, d'où elle le tient, et si c'est fait ou à faire. */
 function etapesCroiseesEleve(nom){
@@ -299,20 +352,16 @@ function etapesCroiseesEleve(nom){
            (quand ? ' — ajourné le ' + quand : '') });
   }
 
-  /* ── La leçon. TROIS comptes, et le plus grand gagne :
-     ce que dit la note, le plus grand numéro jamais écrit, et
-     le nombre de bilans réellement enregistrés. Un élève venu de
-     l'ancien fonctionnement en a moins d'enregistrés qu'il n'en a
-     faites ; un autre peut avoir des bilans sans que sa note porte
-     un numéro. ── */
-  const n = Math.max(Number(a.lecon) || 0,
-                     Number(e && e.leconNum) || 0,
-                     Number(e && e.lecons) || 0);
-  if(n){
+  /* ── LA LEÇON : LA MÊME RÈGLE QUE « PROCHAINS COURS » ── */
+  const n = numeroLeconEleve(nom, e);
+  if(n.valeur){
     out.push({ ok:true, emoji:'✅',
-      txt: n + (n === 1 ? 'ère' : 'ème') + ' leçon' +
+      txt: n.valeur + (n.valeur === 1 ? 'ère' : 'ème') + ' leçon' +
            (a.leconTotal ? ' sur ' + a.leconTotal : '') +
-           (a.friseDepassee ? ' — frise dépassée' : '') });
+           (a.friseDepassee ? ' — frise dépassée' : '') +
+           (n.approx ? " (d'après ses bilans enregistrés)" : '') });
+  }else{
+    out.push({ ok:null, emoji:'❔', txt:'Numéro de leçon inconnu', flou:true });
   }
 
   /* ── Le simulateur — TOUJOURS AFFICHÉ ── */
