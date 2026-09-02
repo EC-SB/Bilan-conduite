@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:50 — v786 */
+/* Déployé le 02/09/2026 à 08:11 — v788 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -59,9 +59,22 @@ const ONGLETS_ELEVE = [
   { cle:'fiche',    emoji:'📇', titre:'Fiche',       section:'eleves' },
   { cle:'cours',    emoji:'📚', titre:'Cours',       section:'recherche' },
   { cle:'permis',   emoji:'🎓', titre:'Permis',      section:'permis' },
+  { cle:'acces',    emoji:'🔑', titre:'Accès',       section:'proccorriger' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
   { cle:'financement', emoji:'💶', titre:'Financement', section:'financements' },
-  { cle:'handicap', emoji:'♿', titre:'Handicap',    section:'handicap' }
+  { cle:'handicap', emoji:'♿', titre:'Handicap',    section:'handicap' },
+  /* 🔒 RGPD : ADMINISTRATEURS SEULEMENT.
+
+     Ses deux actions sont les plus lourdes de l'outil. L'export du
+     droit d'accès sort TOUT sur une personne — ses bilans en
+     entier, ses notes, son suivi : c'est la plus large sortie de
+     données que l'application sache produire. La suppression est
+     irréversible.
+
+     Avant la v788, l'export était accessible à tout compte ayant
+     le droit « eleves », depuis le répertoire. C'est un
+     resserrement délibéré, décidé le 2 septembre. */
+  { cle:'rgpd',     emoji:'🔒', titre:'RGPD',        admin:true }
 ];
 
 const CLE_ONGLET_ELEVE = 'onglet_page_eleve';
@@ -105,10 +118,15 @@ function ouvrirPageEleve(nom){
   }
 }
 
-/* Les onglets que CE compte peut voir */
+/* Les onglets que CE compte peut voir. Un onglet marqué « admin »
+   ne se donne pas par une section : il tient au rôle, comme le
+   🗑️ du répertoire l'a toujours fait. */
 function ongletsEleveVisibles(){
-  return ONGLETS_ELEVE.filter(o =>
-    typeof sectionVisible !== 'function' || sectionVisible(o.section));
+  const estAdmin = (typeof ACCES !== 'undefined') && ACCES.role === 'admin';
+  return ONGLETS_ELEVE.filter(o => {
+    if(o.admin) return estAdmin;
+    return typeof sectionVisible !== 'function' || sectionVisible(o.section);
+  });
 }
 
 /* L'onglet à ouvrir : le dernier choisi s'il est encore permis,
@@ -294,6 +312,22 @@ function dessinerTrouvesEleve(){
       "peut-être quand même — ouvre une fois le répertoire, ou " +
       "cherche-le dans l'historique des leçons.</span>";
     zone.appendChild(v);
+
+    /* CRÉER, ICI, MAINTENANT.
+
+       C'est le moment exact où l'on découvre qu'il n'existe pas.
+       Envoyer chercher un bouton « ➕ Créer un élève » sur un autre
+       écran, puis retaper le nom, serait deux corvées et une
+       occasion de l'écrire autrement. Le nom part avec. */
+    if(typeof creerEleveALaMain === 'function' &&
+       (typeof sectionVisible !== 'function' || sectionVisible('eleves'))){
+      const b = document.createElement('button');
+      b.className = 'btn btn-primary';
+      b.style.cssText = 'margin-top:10px;padding:12px;font-size:14px;';
+      b.textContent = '➕ Créer « ' + q + ' »';
+      b.addEventListener('click', () => creerEleveALaMain(q));
+      zone.appendChild(b);
+    }
     return;
   }
 
@@ -443,9 +477,11 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'fiche')       return ongletFiche(corps, nom);
   if(cle === 'cours')       return ongletCours(corps, nom);
   if(cle === 'permis')      return ongletPermis(corps, nom);
+  if(cle === 'acces')       return ongletAcces(corps, nom);
   if(cle === 'proc')        return ongletProcedures(corps, nom);
   if(cle === 'financement') return ongletFinancement(corps, nom);
   if(cle === 'handicap')    return ongletHandicap(corps, nom);
+  if(cle === 'rgpd')        return ongletRgpd(corps, nom);
 }
 
 
@@ -587,12 +623,38 @@ function ongletFiche(corps, nom){
     }
   }
 
+  /* LE POSTE DE CONDUITE, QUI SE COCHE SANS OUVRIR LA FICHE.
+
+     C'est l'information qu'on corrige le plus vite, souvent en
+     revenant d'un cours. Les deux pastilles viennent du répertoire
+     telles quelles — pastillesPosteDeConduite() les écrit une
+     seule fois, ici comme ailleurs. */
+  if(typeof pastillesPosteDeConduite === 'function'){
+    const p = document.createElement('div');
+    p.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'margin-top:12px;padding:10px 12px;border:1px solid var(--line);' +
+      'border-radius:10px;';
+
+    const l = document.createElement('div');
+    l.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.45;';
+    l.innerHTML = '🪑 <strong>Poste de conduite</strong>' +
+      '<div style="font-size:11.5px;color:var(--muted);">' +
+      'Conduite aménagée, coussin — ce qu\'il faut monter dans la ' +
+      'voiture.</div>';
+    p.appendChild(l);
+    p.appendChild(pastillesPosteDeConduite(nom, () => dessinerPageEleve()));
+    corps.appendChild(p);
+  }
+
+  const rangee = document.createElement('div');
+  rangee.style.cssText = 'display:flex;gap:8px;margin-top:12px;';
+
   /* La modification passe par la fenêtre du répertoire, telle
      quelle : c'est elle qui sait enregistrer, et elle le sait
      depuis longtemps. */
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
-  b.style.cssText = 'margin-top:12px;padding:12px;font-size:14px;';
+  b.style.cssText = 'flex:1;margin:0;padding:12px;font-size:14px;';
   b.textContent = '✏️ Modifier la fiche';
   b.addEventListener('click', () => {
     if(typeof ouvrirFicheEleve !== 'function'){
@@ -601,7 +663,106 @@ function ongletFiche(corps, nom){
     }
     ouvrirFicheEleve(nom, (typeof ficheDe === 'function') ? ficheDe(nom) : null);
   });
-  corps.appendChild(b);
+  rangee.appendChild(b);
+
+  /* Lui écrire, s'il a un numéro. */
+  if(f && f.telephone && typeof telPourLien === 'function'){
+    const s = document.createElement('a');
+    s.href = 'sms:' + telPourLien(f.telephone);
+    s.className = 'btn btn-secondary';
+    s.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:12px 14px;' +
+      'font-size:15px;text-decoration:none;display:inline-flex;' +
+      'align-items:center;';
+    s.textContent = '💬';
+    s.title = 'Envoyer un SMS à ' + nom;
+    rangee.appendChild(s);
+  }
+
+  corps.appendChild(rangee);
+}
+
+
+/* ============================================================
+   🔑 ACCÈS — SON COIN RÉVISIONS
+
+   afficherEspaceEleve() sait déjà tout faire : lire son code, le
+   lui créer, choisir ce qu'il trouve dans son espace, et le lui
+   envoyer. Elle vivait au fond de la fenêtre de modification, où
+   il fallait savoir qu'elle était.
+   ============================================================ */
+function ongletAcces(corps, nom){
+  if(typeof afficherEspaceEleve !== 'function'){
+    corps.appendChild(vidDossier(
+      "Le coin révisions n'est pas disponible sur cet écran."));
+    return;
+  }
+  afficherEspaceEleve(nom, corps);
+}
+
+
+/* ============================================================
+   🔒 RGPD — LES DEUX DEMANDES QU'UN ÉLÈVE PEUT FAIRE
+
+   « Donnez-moi tout ce que vous avez sur moi » et « effacez tout ».
+   Elles portent sur exactement le même périmètre, et c'est pour ça
+   qu'elles sont côte à côte : voir ce qu'on détient avant de
+   l'effacer est la seule façon de savoir ce qu'on efface.
+
+   Onglet réservé aux administrateurs.
+   ============================================================ */
+function ongletRgpd(corps, nom){
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.55;' +
+    'margin-bottom:12px;';
+  t.innerHTML = 'Les deux demandes qu\'un élève peut faire au titre du ' +
+    'RGPD. Elles portent sur le <strong>même périmètre</strong> : tout ' +
+    'ce que l\'outil détient à son nom.';
+  corps.appendChild(t);
+
+  /* La zone d'avancement : l'effacement prend une dizaine de
+     secondes, et un écran muet pendant dix secondes ressemble à une
+     panne. */
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:12.5px;line-height:1.5;margin:12px 0;' +
+    'color:var(--muted);';
+  const dire = (texte, couleur) => {
+    etat.style.color = couleur || 'var(--muted)';
+    etat.textContent = texte;
+  };
+
+  /* Le droit d'accès. */
+  const lExp = ligneDossier('📄 Éditer son dossier complet',
+    "Tout ce qu'on détient à son nom, en un document — bilans, " +
+    'suivi, résultats, procédures.');
+  actionDossier(lExp, '📄 Éditer', async () => {
+    if(typeof editerDossierEleve !== 'function'){
+      showToast("L'export n'est pas disponible sur cet écran.");
+      return;
+    }
+    await editerDossierEleve(nom, null);
+  });
+  corps.appendChild(lExp);
+
+  /* L'effacement. */
+  const lSup = ligneDossier('🗑️ Tout supprimer',
+    "Bilans, fiche de suivi, examens, cours à venir, captures, " +
+    'messages, répertoire. Irréversible.', 'var(--warn-text)');
+  actionDossier(lSup, '🗑️ Supprimer', async () => {
+    if(typeof supprimerDepuisRepertoire !== 'function'){
+      showToast("La suppression n'est pas disponible sur cet écran.");
+      return;
+    }
+    const bilan = await supprimerDepuisRepertoire(nom, null, dire);
+    /* On NE REFERME PAS la page tout de suite, et c'est voulu : le
+       compte rendu dit ce qui a été effacé — et, le cas échéant, ce
+       qui a raté. L'escamoter au bout d'une seconde reviendrait à
+       annoncer « supprimé » sans laisser vérifier. La recherche,
+       elle, ne le trouvera plus. */
+    if(bilan) lSup.style.opacity = '.5';
+  });
+  corps.appendChild(lSup);
+
+  corps.appendChild(etat);
 }
 
 
@@ -927,12 +1088,18 @@ async function ongletHandicap(corps, nom){
   corps.innerHTML = '';
 
   /* Le poste de conduite vient du répertoire, pas de cette feuille :
-     deux choses différentes, qu'on montre côte à côte. */
+     deux choses différentes, qu'on montre côte à côte.
+
+     ⚠️ EN LECTURE SEULE ICI, ET C'EST DÉLIBÉRÉ. Il se coche dans
+     l'onglet 📇 Fiche. Le rendre modifiable des deux endroits
+     ferait deux chemins d'écriture pour une même donnée — la faute
+     que ce dossier tout entier répare. */
   const p = (typeof posteDeConduite === 'function') ? posteDeConduite(nom) : {};
   if(p && (p.amenagee || p.coussin)){
     corps.appendChild(ligneDossier('🪑 Poste de conduite',
       [p.amenagee ? 'Conduite aménagée' : '',
-       p.coussin ? 'Coussin vert' : ''].filter(Boolean).join(' · '),
+       p.coussin ? 'Coussin vert' : ''].filter(Boolean).join(' · ') +
+      ' — se règle dans 📇 Fiche',
       'var(--accent-text)'));
   }
 
