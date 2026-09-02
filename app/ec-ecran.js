@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:05 — v771 */
+/* Déployé le 02/09/2026 à 08:00 — v787 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -888,23 +888,55 @@ function lignePlanningEcran(c, liste, z){
   });
   h1.appendChild(selMon);
 
-  /* Monter et descendre dans l'affichage */
+  /* MONTER ET DESCENDRE — SEULEMENT ENTRE COURS DE MÊME HEURE.
+
+     Depuis la v787 c'est l'heure qui range le planning. Ces deux
+     boutons ne servent donc plus qu'à départager deux cours à la
+     même heure. Déplacer un cours par-dessus une autre heure ne
+     tiendrait pas : le serveur le remettrait à sa place au
+     prochain chargement.
+
+     Alors on ne fait pas semblant. Le bouton le dit, au lieu de
+     bouger une ligne qui reviendrait toute seule — un écran qui
+     défait ce qu'on vient d'y faire est pire qu'un bouton qui
+     refuse. */
   [['▲', -1], ['▼', 1]].forEach(([signe, sens]) => {
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
     b.style.cssText = 'width:auto;padding:5px 7px;font-size:11px;margin:0;flex-shrink:0;';
     b.textContent = signe;
+    b.title = 'Changer la place parmi les cours de la même heure';
     b.addEventListener('click', async () => {
       const i = liste.indexOf(c);
       const j = i + sens;
       if(i === -1 || j < 0 || j >= liste.length) return;
 
-      const a = liste[i]; liste[i] = liste[j]; liste[j] = a;
-      liste.forEach((x, n) => { x.ordre = n + 1; });
+      const voisin = liste[j];
+      if((c.heure || '') !== (voisin.heure || '')){
+        showToast('Le planning se range par heure. Change l\'heure du ' +
+                  'cours pour le déplacer.');
+        return;
+      }
+
+      liste[i] = voisin; liste[j] = c;
+
+      /* Celui qui est passé devant prend le plus petit numéro.
+         On numérote APRÈS l'échange, d'après les places réelles :
+         échanger les deux « ordre » entre eux ne marche pas quand
+         ils valent la même chose — et ils valent la même chose tant
+         que personne n'a jamais rangé cette journée à la main.
+
+         Et on n'enregistre que ces deux-là. Renuméroter toute la
+         liste en mémoire pour n'en enregistrer que deux faisait
+         diverger l'écran et la feuille dès le second déplacement. */
+      const lo = Math.min(i, j);
+      const hi = Math.max(i, j);
+      liste[lo].ordre = lo + 1;
+      liste[hi].ordre = hi + 1;
 
       dessinerLignes(liste, z);
       try{
-        await Promise.all([liste[i], liste[j]].map(x => enregistrerLigne(x, true)));
+        await Promise.all([c, voisin].map(x => enregistrerLigne(x, true)));
       }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
     });
     h1.appendChild(b);
