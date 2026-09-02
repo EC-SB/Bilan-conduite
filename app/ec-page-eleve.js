@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:40 — v785 */
+/* Déployé le 02/09/2026 à 07:50 — v786 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -87,6 +87,17 @@ function ouvrirPageEleve(nom){
   if(typeof afficherVue === 'function') afficherVue('eleves', 'dossier');
 
   dessinerPageEleve();
+
+  /* La recherche se range : on vient d'ouvrir quelqu'un, la liste
+     des résultats n'a plus rien à dire. Fait ICI et pas dans le
+     bouton, parce qu'on entre aussi par le répertoire et par la
+     loupe — trois portes, un seul rangement. */
+  const champ = $('pageEleveChamp');
+  if(champ) champ.value = '';
+  const trouves = $('pageEleveTrouves');
+  if(trouves) trouves.innerHTML = '';
+  const dossier = $('pageEleveDossier');
+  if(dossier) dossier.style.display = '';
 
   const carte = document.querySelector('[data-vue="dossier"]');
   if(carte && carte.scrollIntoView){
@@ -205,16 +216,140 @@ function blocResumeEleve(nom){
 
 
 /* ============================================================
+   LA RECHERCHE, EN HAUT DE LA PAGE
+
+   Elle disait : « choisis un élève dans le répertoire, ou cherche-le
+   avec la loupe ». Autrement dit : va ailleurs. Un écran qui envoie
+   quelque part n'est pas un écran, c'est un panneau — et c'est
+   exactement le défaut que ce dossier était censé réparer.
+
+   Le champ est donc ICI, en haut, et il ne se redessine jamais :
+   recréer un champ à chaque frappe fait perdre le curseur au bout
+   d'une lettre. Seuls les résultats et le dossier en dessous
+   changent.
+
+   Elle cherche avec chercherEleves() — la règle du répertoire, pas
+   une deuxième.
+   ============================================================ */
+function poserRechercheEleve(zone){
+  if($('pageEleveRecherche')) return;
+
+  const bloc = document.createElement('div');
+  bloc.id = 'pageEleveRecherche';
+  bloc.style.marginBottom = '14px';
+
+  const champ = document.createElement('input');
+  champ.type = 'text';
+  champ.id = 'pageEleveChamp';
+  champ.autocomplete = 'off';
+  champ.placeholder = '🔍 Un nom, un numéro, un mail, une formation';
+  champ.style.marginBottom = '8px';
+  bloc.appendChild(champ);
+
+  const trouves = document.createElement('div');
+  trouves.id = 'pageEleveTrouves';
+  bloc.appendChild(trouves);
+
+  champ.addEventListener('input', () => dessinerTrouvesEleve());
+  /* Entrée sur un seul résultat : on ne fait pas cliquer pour rien.
+     Sur plusieurs, on ne devine pas. */
+  champ.addEventListener('keydown', e => {
+    if(e.key !== 'Enter') return;
+    const b = trouves.querySelectorAll('button');
+    if(b.length === 1) b[0].click();
+  });
+
+  zone.appendChild(bloc);
+}
+
+/* Les noms qui correspondent, sous le champ. */
+function dessinerTrouvesEleve(){
+  const champ = $('pageEleveChamp');
+  const zone = $('pageEleveTrouves');
+  const dossier = $('pageEleveDossier');
+  if(!champ || !zone) return;
+
+  const q = champ.value.trim();
+  zone.innerHTML = '';
+
+  /* Champ vide : on rend la place au dossier ouvert. */
+  if(!q){
+    if(dossier) dossier.style.display = '';
+    return;
+  }
+
+  const trouves = (typeof chercherEleves === 'function')
+    ? chercherEleves(q, 40) : [];
+
+  if(dossier) dossier.style.display = trouves.length ? 'none' : '';
+
+  if(!trouves.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.style.cssText = 'padding:12px;font-size:13px;line-height:1.5;';
+    /* « Rien trouvé » ne veut pas dire « il n'existe pas » : cette
+       liste est celle de CET appareil. */
+    v.innerHTML = 'Aucun élève ne correspond <strong>dans la mémoire de ' +
+      'cet appareil</strong>.<br><span style="font-size:12px;">Il existe ' +
+      "peut-être quand même — ouvre une fois le répertoire, ou " +
+      "cherche-le dans l'historique des leçons.</span>";
+    zone.appendChild(v);
+    return;
+  }
+
+  trouves.forEach(n => {
+    const f = (typeof ficheDe === 'function') ? (ficheDe(n) || {}) : {};
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:100%;text-align:left;margin:0 0 6px;' +
+      'padding:10px 12px;font-size:13.5px;line-height:1.45;';
+    b.innerHTML = '<strong>' + n.replace(/</g, '&lt;') + '</strong>' +
+      (f.formation ? ' <span style="font-size:11px;color:var(--accent-text);">' +
+        String(f.formation).replace(/</g, '&lt;') + '</span>' : '') +
+      (f.telephone ? '<br><span style="font-size:11.5px;color:var(--muted);">📱 ' +
+        String(f.telephone).replace(/</g, '&lt;') + '</span>' : '');
+    b.addEventListener('click', () => {
+      champ.value = '';
+      champ.blur();
+      ouvrirPageEleve(n);
+    });
+    zone.appendChild(b);
+  });
+
+  if(trouves.length === 40){
+    const a = document.createElement('div');
+    a.className = 'empty';
+    a.style.cssText = 'padding:10px;font-size:12px;';
+    a.textContent = '40 premiers résultats — affine la recherche.';
+    zone.appendChild(a);
+  }
+}
+
+
+/* ============================================================
    LA PAGE
    ============================================================ */
 function dessinerPageEleve(){
-  const zone = $('pageEleve');
-  if(!zone) return;
+  const racine = $('pageEleve');
+  if(!racine) return;
+
+  /* Le champ de recherche est posé une fois pour toutes ; seul le
+     dossier en dessous se redessine. */
+  poserRechercheEleve(racine);
+
+  let zone = $('pageEleveDossier');
+  if(!zone){
+    zone = document.createElement('div');
+    zone.id = 'pageEleveDossier';
+    racine.appendChild(zone);
+  }
 
   const nom = elevePageOuverte;
   if(!nom){
-    zone.innerHTML = '<div class="empty">Choisis un élève dans le ' +
-      'répertoire, ou cherche-le avec la loupe 🔍.</div>';
+    zone.innerHTML = '<div class="empty" style="padding:14px;line-height:1.5;">' +
+      "👆 Tape le nom d'un élève pour ouvrir son dossier." +
+      '<br><span style="font-size:12px;">Sa fiche, ses cours, son permis, ' +
+      'ses procédures — tout au même endroit.</span></div>';
     return;
   }
 
