@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 02/09/2026 à 08:50 — v790 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -358,25 +358,36 @@ function tableauAPlacer(liste){
 
           const nom = document.createElement('span');
           nom.style.cssText = 'flex:1;color:var(--cream);font-size:14px;min-width:0;';
+          /* LA SEMAINE QU'IL A DEMANDÉE, SUR SA LIGNE.
+
+             Elle ne servait que d'en-tête de groupe, et disparaissait
+             dès qu'on regardait un élève en particulier. C'est une
+             demande de l'ÉLÈVE, pas un rangement du bureau : elle
+             doit rester sous les yeux au moment où l'on place. */
           nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
-            (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir');
+            (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
+            (s.semaine ? ' · 🗓️ ' + s.semaine : ' · 🗓️ aucune semaine demandée');
           l.appendChild(nom);
 
           const bCal = document.createElement('button');
           bCal.className = 'btn btn-secondary';
           bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
           bCal.textContent = '📅';
-          bCal.title = 'Date obtenue pour ' + e.eleve;
+          bCal.title = 'Lui donner une place d\'examen';
+          /* Plus de calendrier libre : on prend une place réellement
+             ouverte, et son vœu de semaine part avec pour qu'on le
+             voie au moment de choisir. */
           bCal.addEventListener('click', async () => {
-            const iso = await choisirDate('Date obtenue — ' + e.eleve);
-            if(!iso) return;
+            if(typeof choisirPlaceExamen !== 'function'){
+              showToast("Les sessions d'examen ne sont pas disponibles ici.");
+              return;
+            }
+            const place = await choisirPlaceExamen(e.eleve, s.semaine);
+            if(!place) return;
             bCal.disabled = true;
             try{
-              await envoyerConsigne(e.eleve, 'permis',
-                'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-              await majSuivi(e.eleve, { datePermis: dateEnToutesLettres(iso),
-                                        aPlanifier: '', statut: '' });
-              showToast('Date transmise ✅');
+              await placerEleveSurPlace(e.eleve, place);
+              showToast('Place prise ✅');
               redessinerBureau();
             }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
           });
@@ -2367,20 +2378,25 @@ async function ajouterManuellementAuPermis(mode){
     return;
   }
 
-  let iso = '';
+  /* Une date d'examen se prend sur une place ouverte, plus dans un
+     calendrier : c'est la même porte que le dossier et la liste
+     RDV Permis. */
+  let place = null;
   if(mode === 'prevu'){
-    iso = await choisirDate('Date du permis de ' + eleve);
-    if(!iso) return;
+    if(typeof choisirPlaceExamen !== 'function'){
+      showToast("Les sessions d'examen ne sont pas disponibles ici.");
+      return;
+    }
+    place = await choisirPlaceExamen(eleve, (suiviDe(eleve) || {}).semaine);
+    if(!place) return;
   }
 
   try{
     if(mode === 'prevu'){
-      const enLettres = dateEnToutesLettres(iso);
-      /* Le message alimente le questionnaire du moniteur */
-      await envoyerConsigne(eleve, 'permis',
-        'Examen du permis fixé au ' + enLettres + ' (bureau)');
-      await majSuivi(eleve, { datePermis: enLettres, retireAPrevoir: '' });
-      showToast(eleve + ' → permis le ' + dateCourte(iso) + ' ✅');
+      await placerEleveSurPlace(eleve, place);
+      /* On garde ce que cette liste faisait en propre. */
+      await majSuivi(eleve, { retireAPrevoir: '' });
+      showToast(eleve + ' → permis le ' + dateCourte(place.date) + ' ✅');
     }else{
       await envoyerConsigne(eleve, 'permis', "Date d'examen à prévoir (bureau)");
       await majSuivi(eleve, { retireAPrevoir: '', aPlanifier: '' });
