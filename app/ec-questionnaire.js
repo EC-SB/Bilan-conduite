@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:32 — v813 */
+/* Déployé le 02/09/2026 à 14:40 — v814 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -972,15 +972,56 @@ function lignePosition(corps){
    frise et la date d'examen de son parcours d'avant, et elles
    restent là jusqu'à ce que la réparation passe. Le type de
    formation prime — y compris à l'affichage, tout de suite. */
+/* Le pont entre le nom d'une réponse et le nom de la ligne de note
+   qui la porte. Tout ce qui est dans « sansObjet » doit pouvoir
+   dire quelle famille de segments il emporte — sans quoi la
+   réponse est bien effacée, mais la phrase reste écrite. */
+const FAMILLE_DU_CHAMP = {
+  examBlanc: 'examenBlanc', examBlancN: 'examenBlanc',
+  examBlancRang: 'examenBlanc', examBlancDate: 'examenBlanc',
+  ebPasse: 'examenBlanc', ebLecons: 'examenBlanc',
+  ebImpossibleLe: 'examenBlanc',
+  /* « Encore 2 leçons avant l'examen blanc » et « plus que les 3h
+     avant examen » parlent du même examen blanc, sur leur propre
+     ligne : elles partent avec lui. */
+  avantEB: 'avantEB',
+  examPermis: 'examenPermis', examDate: 'examenPermis',
+  examPermisN: 'examenPermis', nouvelleDate: 'examenPermis',
+  examPassage: 'examenPermis',
+  pasEcoute: 'ecoutes',
+  rdvPostFait: 'rdvPost', rdvPostDate: 'rdvPost',
+  rdvPostAPrevoir: 'rdvPost', rdvPostMoniteur: 'rdvPost',
+  simuNuit: 'simuNuit', frise: 'frise',
+  formAccomp: 'formAccomp', rvPrealable: 'rvPrealable'
+};
+
 function noteSelonLaFormation(note, formation, modele){
   const texte = String(note || '');
 
   /* Ce que le parcours n'a pas, d'après la fiche de l'élève */
   const sans = sansObjetPourLaFormation(formation);
   const familles = {};
-  sans.forEach(c => { familles[c] = true; });
-  if(sans.indexOf('examPermis') !== -1) familles.examenPermis = true;
-  if(sans.indexOf('pasEcoute') !== -1) familles.ecoutes = true;
+  sans.forEach(c => {
+    familles[c] = true;
+    /* ⚠️ ET LA FAMILLE DE NOTE QUI PORTE LE MÊME SUJET.
+
+       Les réponses et les lignes de note ne se nomment pas pareil :
+       la réponse « examBlanc » s'écrit dans la famille
+       « examenBlanc », « rdvPostFait » dans « rdvPost ». Deux
+       ponts existaient, écrits à la main, pour l'examen officiel
+       et les écoutes — et il en manquait deux.
+
+       Résultat : « 🅱️ EXAMEN BLANC PAS ENCORE ÉVOQUÉ » restait sur
+       la carte d'une régularisation et d'une passerelle, alors que
+       ces parcours n'ont pas d'examen blanc du tout. Chrystel :
+       « pour régularisation pas besoin d'écrire examen blanc pas
+       encore évoqué, idem pour passerelle ».
+
+       Une table plutôt que des « if » : un pont qu'on ajoute à la
+       main est un pont qu'on oublie d'ajouter. */
+    const f = FAMILLE_DU_CHAMP[c];
+    if(f) familles[f] = true;
+  });
 
   /* Et ce que la note dit d'elle-même : ses rendez-vous
      pédagogiques la désignent comme un parcours AAC, fiche remplie
@@ -1356,6 +1397,9 @@ const PARCOURS_FORMATION = [
     amenageeObligatoire:true, compteurPrefecture:true,
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+               /* « Encore 2 leçons avant l'examen blanc » compte vers
+                  un examen blanc qui n'existe pas ici. */
+               'avantEB',
                'pasEcoute', 'simuNuit',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
                'examPassage',
@@ -1366,6 +1410,9 @@ const PARCOURS_FORMATION = [
     amenageeObligatoire:true, compteurPrefecture:true,
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+               /* « Encore 2 leçons avant l'examen blanc » compte vers
+                  un examen blanc qui n'existe pas ici. */
+               'avantEB',
                'pasEcoute', 'simuNuit',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
                'examPassage',
@@ -1395,7 +1442,7 @@ const PARCOURS_FORMATION = [
   { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
     compteParBoite:true, motRang:'de passerelle',
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
-               'ebPasse', 'ebLecons', 'ebImpossibleLe', 'pasEcoute',
+               'ebPasse', 'ebLecons', 'ebImpossibleLe', 'avantEB', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
                'examPassage',
                /* Un rendez-vous post-permis suit un ajournement.
