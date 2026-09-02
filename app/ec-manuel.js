@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:10 — v776 */
+/* Déployé le 02/09/2026 à 14:09 — v810 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -257,6 +257,49 @@ const CHAMPS_MANUELS = {
       aide:'Ce que le moniteur du rendez-vous post-permis doit savoir : ' +
            'l\'état de l\'élève, un souci pendant l\'examen, une ' +
            'remarque de l\'inspecteur.' }
+  ],
+  /* ------------------------------------------------------------
+     LA PRÉSENTATION À LA PRÉFECTURE
+
+     « Ils repassent, mais ce n'est pas vraiment un examen : il n'y
+     a pas de CEPC, c'est juste validé ou non validé. Par contre il
+     y a quand même des réflexions à noter que fait l'inspecteur. »
+
+     ⚠️ PAS DE CEPC, DONC PAS D'« observations ».
+
+     Le type « observations » de l'examen officiel range chaque
+     remarque sous une catégorie du CEPC : elle décide du E et du
+     rangement dans le bilan. Ici il n'y a pas de grille — s'en
+     servir quand même donnerait un CEPC vide sur un bilan qui n'en
+     a pas, et l'élève lirait des cases qui ne veulent rien dire.
+     Les réflexions de l'inspecteur sont donc du texte, tel qu'il
+     l'a dit.
+     ------------------------------------------------------------ */
+  prefecture: [
+    { cle:'__titre', type:'titre', nom:'♿ Présentation à la préfecture',
+      aide:'Pas de CEPC : le nouveau permis est validé ou non, et on ' +
+           "note ce que l'inspecteur a dit." },
+    { cle:'valide',  type:'ouinon', nom:'Nouveau permis validé' },
+    { cle:'quand',   type:'court',  nom:'Date de la présentation' },
+    { cle:'poste',   type:'texte',  lignes:2,
+      nom:'Aménagements présentés',
+      aide:'Le poste de conduite tel qu\'il a été présenté. Repris de ' +
+           'sa fiche, à corriger si besoin.' },
+    { cle:'reflexions', type:'texte', lignes:6,
+      nom:"Réflexions de l'inspecteur",
+      aide:"Ce qu'il a dit pendant et après la présentation, dans ses " +
+           'mots.' },
+    { cle:'suite',   type:'texte', lignes:3,
+      nom:'Ce qui reste à faire',
+      aide:'Vide si le permis est validé.' },
+
+    /* Comme pour l'examen officiel : ce qui suit ne part jamais à
+       l'élève. */
+    { cle:'__titrePourNous', type:'titre', nom:'🔒 Pour nous seulement',
+      aide:"Rien de ce qui suit ne figure sur le bilan de l'élève. " +
+           "Tout va dans ses notes, pour l'équipe." },
+    { cle:'noteEquipe', type:'texte', lignes:4,
+      nom:"Note pour l'équipe" }
   ],
   /* Le rendez-vous pédagogique : ce que le constructeur attend,
      et rien d'autre. Le bloc de notes unique d'avant n'était lu
