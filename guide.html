@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 807
+     GUIDE-VERSION: 808
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v807</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v808</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v807</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v808</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1802,6 +1802,8 @@ html{scroll-behavior:smooth}
     <h3>🎓 Suivi AAC — la conduite accompagnée</h3>
     <div class="note"><span class="tag">✨ Nouveau — v799</span><p>Trois rendez-vous jalonnent l'année, et <strong>deux conditions</strong> ouvrent l'examen. Rien de tout ça ne s'écrivait nulle part avant&nbsp;: le questionnaire posait les bonnes questions et n'en gardait que des états, dans le texte de la note.</p></div>
 
+    <div class="note"><span class="tag">⚡ Plus rapide — v808</span><p><em>« Le suivi AAC c'est super long à charger, et quand on met les dates. Idem dans dossier élèves quand on enregistre les modifications de la fiche. »</em></p><p>Trois fonctions cherchent un élève par son nom — sa fiche de suivi, sa fiche de répertoire, son dernier état — et chacune <strong>relisait toute la liste en normalisant chaque nom au passage</strong>. Dessiner une seule ligne du suivi AAC en appelle huit&nbsp;: pour trois cents élèves, cela faisait <strong>sept cent mille normalisations pour afficher un écran</strong>, repayées entièrement à chaque date posée. Les listes sont maintenant indexées une fois par chargement&nbsp;: le même affichage coûte plus de cinquante fois moins.</p><p>Deux relectures inutiles ont sauté avec&nbsp;: <strong>enregistrer une fiche</strong> ne relit plus les centaines de fiches au classeur avant de redessiner (la fiche en mémoire vient d'être mise à jour), et <strong>poser une date</strong> ne jette plus tout l'état du bureau — le cache et la mémoire partagent le même tableau, celui qu'on vient justement de modifier.</p></div>
+
     <h4>La ligne qui gouverne tout</h4>
     <p><span class="ch">Examen possible le 12/02/2027 (le 1 an)</span> — <strong>la plus tardive</strong> de&nbsp;:</p>
     <ul>
@@ -1856,6 +1858,9 @@ html{scroll-behavior:smooth}
     <p>Sur leur page&nbsp;: <strong>deux boutons par créneau</strong>, <span class="b">✅ On peut</span> et <span class="b">✖️ On ne peut pas</span>, jamais une case à cocher — « décoché » et « pas encore répondu » se ressemblent trop. Une réponse vide ne part pas. Ils peuvent revenir modifier jusqu'à la date limite.</p>
     <p>Côté bureau, une grille <strong>élèves × créneaux</strong> avec le compte sous chaque colonne et le meilleur mis en avant. <strong>Trois signes pour trois états</strong>&nbsp;: <span class="ch">✅</span>, <span class="ch">✖️</span>, <span class="ch">·</span> pour le silence — et les muets sont nommés en clair, ce sont eux qu'on relance. <span class="b">📅 Retenir le …</span> fixe le rendez-vous <strong>pour ceux qui ont dit oui seulement</strong>&nbsp;; les autres redeviennent proposables.</p>
     <div class="note"><span class="tag">✨ Les réponses en direct — v807</span><p><em>« La page où ils indiquent la confirmation est très longue à charger, et je n'ai pas en direct les réponses côté outil, je dois recharger la page. »</em></p><p>La page des familles <strong>s'ouvre maintenant en une fraction de seconde</strong>&nbsp;: elle ne réveille plus le classeur, c'est le Worker qui lit — le même chemin que 🎓 Suivi permis et le répertoire.</p><p>Et la grille <strong>se relit toute seule toutes les 90 secondes</strong> tant que la vue est ouverte, avec les mêmes garde-fous que le reste du bureau (curseur dans un champ, fenêtre ouverte, onglet en arrière-plan…). Elle ne se redessine que si quelque chose a changé. Un bouton <span class="b">🔄 Actualiser les réponses</span> relit tout de suite — on regarde souvent juste après avoir raccroché.</p></div>
+    <div class="note"><span class="tag">✨ Un tour n'est pas une liste close — v808</span><p><em>« Une fois que c'est envoyé je ne peux ajouter personne. Il me faut la possibilité d'ajouter du monde à cette organisation même si une première salve est partie, et la possibilité d'ajouter des dates ou de changer des dates en fonction de certains retours. »</em></p><p>Deux boutons de plus sur la carte du tour, tant qu'il est ouvert&nbsp;:</p><p><span class="b">➕ Ajouter des familles</span> — la même liste à cocher, mais seulement ceux qui ne sont ni dans ce tour ni dans un autre. Ils reçoivent <strong>les mêmes créneaux et la même date limite</strong>&nbsp;: c'est le même rendez-vous, pas un second tour. Le compte des quatre tient compte de ceux déjà invités.</p><p><span class="b">📅 Modifier les créneaux</span> — ajouter une date, en déplacer une, en retirer une. Une case <span class="b">Prévenir les familles du changement</span> (cochée par défaut) leur envoie la liste à jour, avec <strong>leur lien habituel</strong> et un mail qui dit dès la première ligne que les dates ont changé.</p></div>
+    <div class="note piege"><span class="tag">⚠️ Une réponse porte sur une date</span><p>Si <span class="ch">samedi 12 à 9 h</span> devient <span class="ch">samedi 19 à 9 h</span>, ceux qui avaient dit oui avaient dit oui <strong>au 12</strong>. Garder leur oui, ce serait leur faire dire ce qu'ils n'ont pas dit — et attendre un samedi matin des gens qui ne viendront pas.</p><p>Donc&nbsp;: <strong>un créneau déplacé ou retiré perd ses réponses</strong>&nbsp;; un créneau ajouté ne coûte rien&nbsp;; un créneau inchangé garde les siennes. L'écran le dit <strong>deux fois</strong>&nbsp;: sous chaque créneau déjà répondu (<span class="ch">↑ 3 réponse(s) portent sur ce créneau — le déplacer ou le retirer les effacera</span>), puis dans la confirmation, avec le compte exact.</p><p><strong>La date de réponse, elle, reste.</strong> La famille a répondu, même si ce sur quoi elle répondait a changé&nbsp;: « pas de réponse » et « a répondu sur des dates qui ont bougé » ne se relancent pas pareil.</p></div>
+    <div class="note"><span class="tag">✨ « Aucune de ces dates » — v808</span><p>Un bouton <span class="b">✖️ Aucune de ces dates ne nous convient</span> sur la page des familles&nbsp;: il coche tout en « on ne peut pas » d'un geste (un second appui défait), et <strong>n'envoie rien tout seul</strong> — rien ne part avant le bouton d'envoi.</p><p>Il fallait sinon appuyer six fois&nbsp;; beaucoup s'arrêtaient en route, et le bureau lisait un silence là où il y avait un non clair. Côté bureau, ils sont <strong>nommés à part</strong>&nbsp;: <span class="ch">✖️ Aucune de ces dates : Axel Hinault, Nolwenn Tanguy — il leur faudra d'autres créneaux.</span> Les relancer comme des sans-réponse, ce serait déranger quelqu'un qui a répondu.</p></div>
     <div class="note piege"><span class="tag">Deux garanties</span><p><strong>Le lien ouvre une page, il n'enregistre rien.</strong> Outlook et Gmail ouvrent chaque lien d'un mail entrant pour le contrôler&nbsp;: une page qui enregistrerait une disponibilité à l'ouverture donnerait au bureau des réponses que personne n'a données. Seul le clic sur le bouton répond. C'est déjà la règle du lien de cours.</p><p><strong>Un seul tour ouvert par élève.</strong> Deux propositions en même temps, et on ne saurait plus à laquelle il a dit oui. Ceux qui sont déjà dans un tour sont écartés — <em>et nommés</em>&nbsp;: les écarter en silence, c'est croire les avoir invités.</p></div>
 
     <h4>🎂 L'âge, et ce qui se passe sans lui</h4>
