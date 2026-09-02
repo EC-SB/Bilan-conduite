@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:15 — v807 */
+/* Déployé le 02/09/2026 à 13:31 — v808 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -220,12 +220,11 @@ async function envoyerConsigne(eleve, type, texte, valeur){
 
 /* Fiche de suivi d'un élève, ou objet vide */
 function suiviDe(eleve){
-  return etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve)) || {};
+  return trouverParNom(etatBureau.suivi, eleve) || {};
 }
 
 /* Met à jour quelques champs sans écraser le reste */
 async function majSuivi(eleve, champs){
-  cacheBureau = null;
   const s = suiviDe(eleve);
 
   await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
@@ -235,13 +234,30 @@ async function majSuivi(eleve, champs){
   /* La mémoire suit tout de suite : sans ça, l'écran redessiné
      relisait l'ancienne valeur, et il fallait appuyer plusieurs
      fois avant que le changement paraisse tenir. */
-  const dans = etatBureau.suivi.find(
-    x => normaliserMot(x.eleve) === normaliserMot(eleve));
+  const dans = trouverParNom(etatBureau.suivi, eleve);
   if(dans){
     Object.assign(dans, champs);
   }else{
     etatBureau.suivi.push(Object.assign({ eleve: eleve }, s, champs));
   }
+
+  /* ⚠️ ON NE JETTE PLUS LE CACHE DU BUREAU.
+
+     « Quand on met les dates, c'est long. » Une partie du temps
+     venait d'ici : « cacheBureau = null » obligeait le PROCHAIN
+     écran à relire tout l'état du bureau — tous les élèves, tous
+     les bilans, toutes les consignes — pour une seule case de
+     suivi qu'on venait d'écrire.
+
+     Or le cache n'est pas devenu faux : chargerBureau pose
+     « etatBureau.suivi = data.suivi », donc le cache et la mémoire
+     partagent LE MÊME TABLEAU. Les trois lignes au-dessus viennent
+     de le mettre à jour — le cache l'est aussi, par la même
+     écriture. Le jeter, c'était recharger pour retrouver ce qu'on
+     avait déjà.
+
+     Et si le classeur avait reformaté quelque chose, la relecture
+     automatique des 90 secondes le rattrape. */
 }
 
 /* Fiche de préparation administrative d'un passage au permis */
