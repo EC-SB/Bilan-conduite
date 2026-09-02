@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:50 — v806 */
+/* Déployé le 02/09/2026 à 13:15 — v807 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -789,6 +789,34 @@ async function chargerToursRvt(forcer){
   return toursRvt;
 }
 
+/* ------------------------------------------------------------
+   LES RÉPONSES QUI ARRIVENT PENDANT QU'ON REGARDE
+
+   Les familles répondent dans la journée, une par une. L'écran ne
+   relisait les tours qu'à l'ouverture de la vue : le bureau voyait
+   « 2 réponses sur 6 » pendant deux heures et devait recharger la
+   page pour découvrir qu'elles étaient toutes arrivées.
+
+   On se branche donc sur l'actualisation automatique du bureau —
+   celle des cours préparés et des places d'examen, avec ses cinq
+   garde-fous : curseur dans un champ, fenêtre ouverte, tiroir
+   déplié contenant une saisie, onglet en arrière-plan, ou serveur
+   qui vient de refuser. Pas de second minuteur : deux horloges
+   dans une même page finissent toujours par se marcher dessus.
+
+   ⚠️ ON NE REDESSINE QUE SI QUELQUE CHOSE A CHANGÉ. Redessiner
+   dans le vide toutes les 90 secondes ferait sauter la liste sous
+   la souris pour rien.
+   ------------------------------------------------------------ */
+async function rafraichirToursRvtAuto(){
+  const zA = $('listeAac');
+  if(!zA) return;
+  const avant = JSON.stringify(toursRvt);
+  await chargerToursRvt(true);
+  if(JSON.stringify(toursRvt) === avant) return;
+  dessinerListeAac(zA);
+}
+
 /* Les tours encore ouverts, par élève : c'est ce qui empêche d'en
    ouvrir un second et ce qui s'affiche sur sa ligne. */
 function tourOuvertDe(nom){
@@ -1094,10 +1122,21 @@ async function envoyerMailsRvt(envois, creneaux, limite){
 }
 
 
+/* ⚠️ CE MAIL DOIT DIRE QU'ILS SERONT PLUSIEURS.
+
+   Sans cette phrase, la famille lit « voici les créneaux possibles »
+   comme « choisissez le vôtre » : elle coche une seule date, la
+   sienne, et le bureau se retrouve avec huit réponses qui ne se
+   croisent nulle part. Le rendez-vous théorique réunit quatre
+   familles au minimum — il faut donc TOUTES leurs disponibilités, et
+   la date sort de la majorité, pas du premier qui a répondu. */
 function texteMailRvt(eleve, creneaux, lien, limite){
   const l = ['Bonjour,', '',
     'Nous organisons le rendez-vous pédagogique de ' + eleve + '.',
     "C'est un rendez-vous où l'élève vient AVEC son accompagnateur.",
+    '',
+    'Vous serez plusieurs familles à ce rendez-vous : nous cherchons',
+    'la date qui convient au plus grand nombre.',
     '', 'Voici les créneaux possibles :'];
 
   (creneaux || []).forEach(c => {
@@ -1105,7 +1144,11 @@ function texteMailRvt(eleve, creneaux, lien, limite){
            (c.heure ? ' à ' + c.heure : ''));
   });
 
-  l.push('', 'Dites-nous lesquels vous conviennent ici :', lien, '');
+  l.push('',
+    'Merci donc de sélectionner TOUTES les dates auxquelles vous êtes',
+    'disponibles. La date ayant obtenu la majorité des réponses sera',
+    'finalement retenue, et nous vous la confirmerons ultérieurement.',
+    '', 'Indiquez vos disponibilités ici :', lien, '');
   if(limite){
     l.push('Vous pouvez répondre et modifier votre réponse ' +
            "jusqu'au " + (jourFrCs(limite) || limite) + '.', '');
@@ -1249,6 +1292,16 @@ function carteTourRvt(t){
 
   const act = document.createElement('div');
   act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;';
+
+  /* L'écran se relit tout seul toutes les 90 secondes, mais on
+     regarde souvent juste après avoir raccroché : ce bouton évite
+     de recharger la page pour gagner une minute. */
+  act.appendChild(petitBouton('🔄 Actualiser les réponses',
+    'Relire tout de suite ce que les familles ont répondu',
+    async () => {
+      await chargerToursRvt(true);
+      redessinerAacCs();
+    }));
 
   (t.creneaux || []).forEach(c => {
     if(!comptes[c.id]) return;
