@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:41 — v805 */
+/* Déployé le 02/09/2026 à 12:50 — v806 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1632,7 +1632,11 @@ function echapperHtml(s){
     .replace(/"/g, '&quot;');
 }
 
-function mailEnHtml(texte, lien){
+/* Le libellé du bouton se donne : le rappel dit « Je serai
+   présent », la proposition de rendez-vous théorique dit « Indiquer
+   nos disponibilités ». Un second fabricant de mails HTML pour un
+   mot différent, c'était deux mises en page à tenir. */
+function mailEnHtml(texte, lien, libelle){
   /* Le lien est retiré du corps : il repart dans le bouton. Sans
      ça, l'adresse apparaîtrait deux fois. */
   const corps = String(texte || '')
@@ -1653,9 +1657,10 @@ function mailEnHtml(texte, lien){
           'style="display:inline-block;padding:15px 34px;font-size:17px;' +
           'font-weight:700;color:#0B0B0B;text-decoration:none;' +
           'font-family:Arial,Helvetica,sans-serif;">' +
-        '&#9995;&nbsp; Je serai présent</a></td></tr></table>' +
+        echapperHtml(libelle || '\u270B\u00A0 Je serai présent') +
+        '</a></td></tr></table>' +
         '<p style="margin:0;text-align:center;font-size:12px;color:#8A857C;">' +
-        'Un appui suffit — tu n\'as rien d\'autre à faire.</p>'
+        'Un appui suffit.</p>'
     : '';
 
   return '<!doctype html><html lang="fr"><head><meta charset="utf-8">' +
