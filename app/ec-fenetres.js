@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:31 — v808 */
+/* Déployé le 02/09/2026 à 14:09 — v810 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -398,6 +398,18 @@ const FORMATIONS_BASE = [
   /* B78 est le code porté sur un permis obtenu en boîte automatique :
      la passerelle mène au permis B, et se conduit en manuelle. */
   { cle: 'Passerelle BEA→BV',   nom: '🚗 Passerelle B78 → B (manuelle)', voiture: true },
+  /* LA RÉGULARISATION DE PERMIS.
+
+     « Des élèves qui ont déjà le permis mais qui doivent faire des
+     leçons avant de repasser devant la préfecture pour valider un
+     nouveau permis avec des aménagements du véhicule. Ça découle
+     de l'onglet handicap. »
+
+     Ni frise, ni examen blanc, ni simulateur, ni rendez-vous
+     post-permis — et le poste de conduite est obligatoire : c'est
+     tout l'objet de ces leçons. Voir PARCOURS_FORMATION. */
+  { cle: 'Régularisation BEA', nom: '♿ Régularisation de permis (BEA)', voiture: true },
+  { cle: 'Régularisation BV',  nom: '♿ Régularisation de permis (BV)',  voiture: true },
   { cle: 'Moto A',          nom: '🏍️ Moto (A)',              voiture: false },
   { cle: 'A1 permis',       nom: '🛵 A1 permis',              voiture: false },
   { cle: 'A1 passerelle',   nom: '🛵 A1 passerelle',          voiture: false },
