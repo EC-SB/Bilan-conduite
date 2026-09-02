@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:09 — v810 */
+/* Déployé le 02/09/2026 à 14:24 — v812 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -429,9 +429,26 @@ function formationsAjoutees(){
   }catch(e){ return []; }
 }
 
+/* ⚠️ UNE FORMATION AJOUTÉE À LA MAIN EST UNE FORMATION VOITURE,
+   SAUF SI SON NOM DIT LE CONTRAIRE.
+
+   Elles arrivaient toutes avec « voiture: false ». Or le
+   questionnaire ne propose que les formations voiture : une
+   formation ajoutée à la main N'APPARAISSAIT DONC JAMAIS dans son
+   menu. Le moniteur ouvrait le questionnaire d'un élève qui en
+   portait une et voyait le champ Formation vide — « ça n'y est
+   plus » — alors que sa fiche, elle, l'avait toujours.
+
+   On leur applique la même lecture qu'à n'importe quelle formation
+   inconnue ailleurs dans l'outil : moto, remorque et voiturette ne
+   font pas de bilan de conduite, tout le reste en fait un. */
 function toutesLesFormations(){
   return FORMATIONS_BASE.concat(
-    formationsAjoutees().map(x => ({ cle: x, nom: x, voiture: false })));
+    formationsAjoutees().map(x => ({
+      cle: x, nom: x, ajoutee: true,
+      voiture: !/moto|scooter|\bA1\b|\bA2\b|\bAM\b|\bBE\b|remorque|roues|voiturette/i
+                 .test(String(x))
+    })));
 }
 
 /* Cette formation donne-t-elle lieu à un bilan de conduite ? */
