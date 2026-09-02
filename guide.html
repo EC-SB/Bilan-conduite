@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 790
+     GUIDE-VERSION: 793
      ============================================================ -->
 
 <style>
@@ -412,7 +412,7 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v790</strong><br>
+  <p class="sous">Guide d'utilisation · <strong>v793</strong><br>
     Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v790</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v793</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -1981,7 +1981,12 @@ Jours ouverts à la prise de date
     <h5>La fiche d'une place</h5>
     <p>Un bandeau examen blanc, puis <strong>trois boutons</strong> — <em>« Deux boutons plutôt qu'un crayon&nbsp;: le bureau doit voir qu'il peut renseigner l'un ou l'autre »</em> — <span class="b">📝 Examen blanc</span>, <span class="b">🔁 Post-permis</span>, <span class="b">❓ Faire le point</span>. Puis les <strong>heures en cases</strong>&nbsp;: 0, 2, 4, 6, 8, 10 et un champ libre, dans un cadre bordé d'orange si les heures manquent.</p>
     <p>Puis un formulaire complet&nbsp;: élève sur cette place (<em>« Laisse vide pour une place fantôme »</em>), heure, remarque, <span class="b">📣 Élève prévenu</span>, <span class="b">📁 Dossier vérifié</span>, puis sous un séparateur <span class="b">📋 Sa préparation</span> — <span class="b">✅ Tout est OK</span>, <span class="b">🔄 À remplacer</span>, <span class="b">❓ Faire le point</span>, reste à payer, paiement prévu le, leçons de 2&nbsp;h et de 1&nbsp;h à poser, boîte, relancer le, nature du paiement, accompagnement à payer, réservations posées sur le planning, auto-école à qui donner la date, autres notes.</p>
-    <p><span class="b">👻 Retirer</span> vide la place&nbsp;: <em>« La place reste ouverte, et sa date d'examen est effacée&nbsp;: il redevient un élève sans date. »</em></p>
+    <p>Deux boutons, et ils ne faisaient qu'un jusqu'à la v793&nbsp;:</p>
+    <ul>
+      <li><span class="b">👻 Prête-nom</span> — il <strong>garde sa place et son nom reste visible</strong>. On sait seulement qu'il n'est pas ferme et que la place est reprenable sans le prévenir.</li>
+      <li><span class="b">⬜ Vider la place</span> — <em>« Son nom disparaît de cette date et la place redevient libre. Sa date d'examen est effacée : il repart dans la liste RDV Permis. »</em></li>
+    </ul>
+    <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v793</span><p>Il n'y avait qu'un bouton, <span class="ch">👻 Retirer</span>, et il <strong>effaçait le nom</strong>&nbsp;: on ne voyait plus qui tenait cette date, alors que c'est justement l'information dont le bureau a besoin.</p><p>Et sa fenêtre annonçait « sa date d'examen est effacée » <strong>alors qu'il ne touchait qu'à la place</strong>. L'élève gardait sa date sur sa fiche sans être sur aucune session. Les deux sont réparés.</p></div>
     <p><span class="b">💾 Enregistrer</span> est l'action la plus étendue de l'application. La fenêtre se ferme <strong>immédiatement</strong>, et en arrière-plan&nbsp;: la place est enregistrée, la fiche de suivi mise à jour, et <strong>si un élève a été remplacé, l'ancien perd sa date, son centre et ses drapeaux</strong> et reçoit <span class="ch">Examen du permis annulé (était le …) — date à reprendre (bureau)</span>. Le nouvel occupant, lui, reçoit sa date. En cas d'échec&nbsp;: <span class="ch">⚠️ Marie Dupont : enregistrement incomplet — vérifie et refais</span>.</p>
     <div class="note danger"><span class="tag">Deux pièges</span>
       <ul style="margin-bottom:0">
