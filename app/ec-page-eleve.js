@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:40 — v789 */
+/* Déployé le 02/09/2026 à 08:50 — v790 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1015,15 +1015,36 @@ function ongletPermis(corps, nom){
         : (a.permis === 'annule' ? 'Annulé' : 'À prévoir')),
     s.datePermis ? 'var(--accent-text)' : 'var(--warn-text)');
 
-  actionDossier(lDate, s.datePermis ? '📅 Changer' : '📅 Planifier',
+  /* ON CHOISIT UNE PLACE, PAS UNE DATE.
+
+     Le calendrier libre a disparu : il laissait prendre n'importe
+     quel jour, et le serveur fabriquait la session derrière. On
+     prend une place réellement ouverte — et le vœu de l'élève part
+     avec, parce que c'est une demande à respecter, pas une
+     préférence à oublier au moment de placer. */
+  actionDossier(lDate, s.datePermis ? '📅 Changer de place' : '📅 Prendre une place',
     async () => {
-      const iso = await choisirDate("Date de l'examen du permis");
-      if(!iso) return;
-      await majSuivi(nom, { datePermis: dateEnToutesLettres(iso) || iso });
-      showToast('Date enregistrée ✅');
+      if(typeof choisirPlaceExamen !== 'function'){
+        showToast("Les sessions d'examen ne sont pas disponibles ici.");
+        return;
+      }
+      const place = await choisirPlaceExamen(nom, s.semaine);
+      if(!place) return;
+      await placerEleveSurPlace(nom, place);
+      showToast('Place prise ✅');
       refaire();
     });
   corps.appendChild(lDate);
+
+  /* Ce que l'élève a demandé. Il ne se règle pas ici — c'est le
+     bureau qui le note dans la liste RDV Permis — mais il se
+     RAPPELLE ici, sinon on place quelqu'un contre son vœu sans
+     jamais le voir. */
+  if(s.semaine){
+    corps.appendChild(ligneDossier('🗓️ Il a demandé',
+      s.semaine + (s.datePermis ? '' : ' — pas encore placé'),
+      s.datePermis ? '' : 'var(--warn-text)'));
+  }
 
   /* LA LISTE. envoyerVersListe fait déjà tout : les champs de la
      fiche, la consigne qui va avec, le vidage des caches. */
@@ -1037,17 +1058,17 @@ function ongletPermis(corps, nom){
   }
   corps.appendChild(lListe);
 
-  const lGroupe = ligneDossier('👥 Groupe d\'examen',
-    s.groupePermis || 'Aucun groupe', 'var(--cream)');
-  if(typeof choisirGroupePermis === 'function'){
-    actionDossier(lGroupe, '👥 Choisir', async () => {
-      const iso = (typeof dateFrVersIso === 'function')
-        ? dateFrVersIso(s.datePermis || '') : '';
-      await choisirGroupePermis(nom, iso, s.groupePermis || '');
-      refaire();
-    });
-  }
-  corps.appendChild(lGroupe);
+  /* ═══ SA SESSION, À LA PLACE DU « GROUPE D'EXAMEN ».
+
+     Le groupe était une étiquette de texte, sans aucun lien avec
+     les sessions : elle ne servait qu'à cibler les messages
+     Messenger quand une même date compte deux inspecteurs. Dans un
+     dossier, elle ne répondait à aucune question.
+
+     Ce qu'on veut savoir, c'est AVEC QUI il passe et À QUELLE
+     HEURE. Ça vit sur la place, pas sur la fiche de suivi — d'où
+     l'appel réseau de cet onglet. */
+  zoneSessionEleve(corps, nom);
 
   /* ── Ce qui est passé ── */
   const passe = [];
@@ -1072,6 +1093,84 @@ function ongletPermis(corps, nom){
 
   boutonEcranComplet(corps, '🎓 Ouvrir le suivi permis complet', 'permis');
 }
+
+/* ============================================================
+   SA SESSION D'EXAMEN — AVEC QUI, ET À QUELLE HEURE
+
+   Le seul appel réseau de l'onglet 🎓 Permis, et il est assumé :
+   l'heure de passage n'existe nulle part ailleurs. Elle n'est PAS
+   sur la fiche de suivi — « heurePermis » y est écrit mais jamais
+   relu — elle vit sur la place de la session.
+   ============================================================ */
+async function zoneSessionEleve(corps, nom){
+  const zone = document.createElement('div');
+  zone.appendChild(sousTitreDossier('Sa session d\'examen'));
+  const dedans = document.createElement('div');
+  dedans.innerHTML = '<div class="empty" style="padding:10px;font-size:12px;">' +
+    'Lecture des sessions…</div>';
+  zone.appendChild(dedans);
+  corps.appendChild(zone);
+
+  if(typeof chargerSessionsPermis !== 'function'){
+    dedans.innerHTML = '';
+    dedans.appendChild(vidDossier("Les sessions ne sont pas disponibles ici."));
+    return;
+  }
+
+  try{ await chargerSessionsPermis(); }
+  catch(e){
+    dedans.innerHTML = '';
+    dedans.appendChild(vidDossier('⚠️ ' + (e.message || e)));
+    return;
+  }
+
+  /* L'onglet a pu changer pendant l'appel. */
+  if(ongletPageEleve !== 'permis') return;
+  dedans.innerHTML = '';
+
+  const t = sessionDeLEleve(nom);
+  if(!t){
+    dedans.appendChild(vidDossier(
+      "Il n'est sur aucune session d'examen."));
+    return;
+  }
+
+  const s = t.session, p = t.place;
+  dedans.appendChild(ligneDossier(
+    '🎓 ' + ((typeof dateEnToutesLettres === 'function')
+              ? dateEnToutesLettres(s.date) : s.date) +
+      (s.centre ? ' — ' + s.centre : ''),
+    ['🕐 Son passage : ' + (p.heure || s.heureDebut || 'heure non fixée'),
+     s.moniteur ? '🚗 ' + s.moniteur : '',
+     s.inspecteur ? '👤 ' + s.inspecteur : '',
+     p.dossierOk ? '✅ dossier OK' : '',
+     p.prevenu ? '📣 prévenu' : ''].filter(Boolean).join(' · '),
+    'var(--accent-text)'));
+
+  /* Les autres du même créneau : c'est la question qu'on se pose
+     vraiment — avec qui il passe, et dans quel ordre. */
+  const autres = (s.eleves || []).slice()
+    .sort((a, b) => (a.rang || 0) - (b.rang || 0));
+  if(autres.length > 1 || autres.some(x => !x.eleve)){
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+      'padding:9px 11px;margin-bottom:7px;font-size:12.5px;line-height:1.7;';
+    bloc.innerHTML = '<div style="font-weight:700;font-size:12.5px;' +
+      'margin-bottom:4px;">Les autres du même jour</div>' +
+      autres.map(x => {
+        const heure = x.heure || '—';
+        if(!x.eleve){
+          return '<div style="color:var(--muted);">' + heure +
+                 ' — 👻 place libre</div>';
+        }
+        const moi = normaliserMot(x.eleve) === normaliserMot(nom);
+        return '<div' + (moi ? ' style="color:var(--accent-text);font-weight:700;"' : '') +
+               '>' + heure + ' — ' + x.eleve.replace(/</g, '&lt;') + '</div>';
+      }).join('');
+    dedans.appendChild(bloc);
+  }
+}
+
 
 /* Dans quelle liste il tombe, d'après sa fiche de suivi. C'est
    LISTES_PERMIS qui décide, pas une deuxième règle écrite ici :
