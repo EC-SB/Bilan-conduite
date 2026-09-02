@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:49 — v784 */
+/* Déployé le 02/09/2026 à 08:40 — v789 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -427,9 +427,16 @@ async function verifierVersionScript(reponse){
 }
 
 
-/* Où en est l'élève dans son parcours, d'après son dernier bilan
-   et les consignes du bureau encore en attente. */
-function etapesEleve(note, consignes){
+/* Où en est l'élève dans son parcours, d'après ce qui a été dit de
+   lui : son dernier bilan, le cours qu'on lui a préparé, et les
+   consignes du bureau encore en attente.
+
+   « leconsConnues » est le plus grand numéro de leçon jamais écrit
+   dans un de ses bilans, que le serveur calcule déjà. Il sert aux
+   élèves venus de l'ancien fonctionnement : ils n'ont qu'un ou deux
+   bilans enregistrés alors qu'ils en sont à leur huitième leçon, et
+   la dernière note relue seule les rajeunit de six leçons. */
+function etapesEleve(note, consignes, leconsConnues){
   const t = String(note || '') + ' · ' + (consignes || []).map(x => x.texte).join(' · ');
   const a = analyserNote(t);
   const etapes = [];
@@ -440,8 +447,11 @@ function etapesEleve(note, consignes){
       (a.dateAjournement ? ' — ajourné le ' + a.dateAjournement : '') });
   }
 
-  if(a.lecon){
-    etapes.push({ ok:true, txt: a.lecon + (a.lecon === 1 ? 'ère' : 'ème') + ' leçon' +
+  /* Le plus grand des deux gagne : un numéro écrit quelque part ne
+     peut pas être « oublié » par une note plus pauvre. */
+  const nLecon = Math.max(Number(a.lecon) || 0, Number(leconsConnues) || 0);
+  if(nLecon){
+    etapes.push({ ok:true, txt: nLecon + (nLecon === 1 ? 'ère' : 'ème') + ' leçon' +
       (a.leconTotal ? ' sur ' + a.leconTotal : '') + (a.friseDepassee ? ' — frise dépassée' : '') });
   }
 
@@ -490,6 +500,203 @@ function blocParcours(eleve, note, consignes){
              e.txt.replace(/</g,'&lt;') + '</div>';
     }).join('');
   return d;
+}
+
+
+/* ============================================================
+   UNE LIGNE DE LEÇON — ÉCRITE UNE FOIS, AFFICHÉE PARTOUT
+
+   Elle vivait à l'intérieur de « rechercherEleve », donc elle
+   n'existait que sur l'écran de recherche. Le dossier élève ne
+   pouvait pas la montrer : il proposait un bouton pour aller la
+   voir ailleurs — un panneau, pas un écran.
+
+   Elle est sortie telle quelle. Deux écrans, un seul dessin : le
+   jour où le renvoi par mail changera, il changera pour les deux.
+
+   « nomCherche » : vide ou trop court, c'est une recherche par
+   moniteur, et c'est le nom de l'élève qui prend la vedette.
+   « refaire » : ce qu'il faut relancer après une suppression —
+   la recherche, ou le dossier.
+   ============================================================ */
+function ligneBilan(item, nomCherche, refaire){
+  const nom = String(nomCherche || '');
+    const row = document.createElement('div');
+    row.className = 'history-item';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const note = (item.note || '').trim();
+    const t = document.createElement('strong');
+    if(!nom || nom.length < 2){
+      /* Recherche par moniteur : on met l'élève en avant */
+      t.textContent = item.eleve || '(sans nom)';
+    }else if(note){
+      /* La note interne prend la place du titre : c'est ce que le
+         moniteur suivant doit voir en premier, en entier. */
+      if(typeof colorerNote === 'function'){
+        t.appendChild(document.createTextNode('📌 '));
+        const dedans = document.createElement('span');
+        colorerNote(dedans, note);
+        t.appendChild(dedans);
+      }else{
+        t.textContent = '📌 ' + note;
+      }
+      t.style.color = 'var(--accent-text)';
+      t.style.whiteSpace = 'pre-wrap';
+      t.style.lineHeight = '1.45';
+      t.style.overflow = 'visible';
+      t.style.textOverflow = 'clip';
+    }else{
+      t.textContent = item.type || 'Bilan';
+    }
+    const s = document.createElement('span');
+    s.textContent = 'Cours du ' + (item.date || '?') +
+                    [' ', item.site, item.moniteur, note ? item.type : '']
+                      .filter(Boolean).join(' · ');
+
+    const h = document.createElement('span');
+    h.style.opacity = '.75';
+    h.textContent = item.horodatage ? 'Bilan généré le ' + item.horodatage : '';
+
+    meta.appendChild(t);
+    meta.appendChild(s);
+    if(item.horodatage) meta.appendChild(h);
+    row.appendChild(meta);
+
+    /* ------------------------------------------------------------
+       RENVOYER UN BILAN, DEPUIS L'HISTORIQUE.
+
+       Il fallait rouvrir le bilan, descendre jusqu'au bas de
+       l'écran de cours, et retrouver la fenêtre de fin — qui ne
+       s'ouvre qu'après un enregistrement. Autant dire que ça ne
+       se faisait pas : on recopiait à la main dans un mail.
+
+       Le bouton passe par la même porte que la fin de cours : si
+       l'élève n'a pas d'adresse, on la demande, et elle redescend
+       sur sa fiche.
+       ------------------------------------------------------------ */
+    if(item.bilan){
+      const bMail = document.createElement('button');
+      bMail.className = 'btn btn-secondary';
+      bMail.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;' +
+        'margin:0;flex-shrink:0;';
+      bMail.textContent = '\u2709\uFE0F';
+      bMail.title = 'Renvoyer ce bilan par mail';
+      bMail.addEventListener('click', async ev => {
+        ev.stopPropagation();
+        if(typeof envoyerBilanParMail !== 'function'){
+          showToast('Envoi indisponible sur cet écran.');
+          return;
+        }
+        /* On confirme AVANT. Ce bouton est collé à la ligne, sur
+           un écran qu'on parcourt au pouce : il partirait au
+           premier effleurement, et un mail envoyé ne se rappelle
+           pas. */
+        if(!await confirmer('Renvoyer par mail le bilan du ' +
+            (item.date || '?') + ' à ' + (item.eleve || 'cet élève') +
+            " ?\n\nIl le recevra une seconde fois s'il l'a déjà eu.")) return;
+
+        bMail.disabled = true;
+        bMail.textContent = '…';
+        try{
+          const combien = await envoyerBilanParMail(item.eleve, item.date,
+                                                    item.bilan);
+          if(!combien){
+            /* Annulé à la fenêtre d'adresse : ce n'est pas un
+               échec, et ça ne doit pas ressembler à un envoi. */
+            bMail.disabled = false;
+            bMail.textContent = '\u2709\uFE0F';
+            return;
+          }
+          bMail.textContent = '\u2705';
+          showToast('Envoyé à ' + combien + ' adresse(s) ✅');
+        }catch(e){
+          bMail.disabled = false;
+          bMail.textContent = '\u2709\uFE0F';
+          showToast('Envoi impossible : ' + e.message);
+        }
+      });
+      row.appendChild(bMail);
+    }
+
+    /* Supprimer un bilan : administrateurs seuls, et jamais par
+       mégarde. Le numéro de leçon se recalcule tout seul, il se
+       déduit du nombre de bilans restants. */
+    if(ACCES.role === 'admin' && item.ligne){
+      const bSup = document.createElement('button');
+      bSup.className = 'btn btn-secondary';
+      bSup.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
+        'flex-shrink:0;color:var(--red);border-color:var(--red);';
+      bSup.textContent = '🗑️';
+      bSup.title = 'Supprimer ce bilan';
+      bSup.addEventListener('click', async ev => {
+        ev.stopPropagation();
+        if(!await confirmer('Supprimer le bilan du ' + (item.date || '?') +
+            ' pour ' + item.eleve + ' ?\n\n' +
+            'Cette suppression est DÉFINITIVE : le texte du bilan et sa note ' +
+            'seront perdus.\n\nLes leçons suivantes seront renumérotées.')) return;
+
+        bSup.disabled = true;
+        bSup.textContent = '…';
+        try{
+          await appelPrep({ action: 'bilanSupprimer', ligne: item.ligne,
+                            eleve: item.eleve });
+          showToast('Bilan supprimé ✅');
+          viderCaches(item.eleve);
+          /* On redessine l'écran d'où l'on vient : la recherche, ou
+             le dossier de l'élève. Rappeler « rechercherEleve » en
+             dur laisserait le dossier affichant un bilan qui
+             n'existe plus. */
+          if(typeof refaire === 'function') refaire();
+        }catch(e){
+          showToast('Suppression impossible : ' + e.message);
+          bSup.disabled = false;
+          bSup.textContent = '🗑️';
+        }
+      });
+      row.appendChild(bSup);
+    }
+
+    const arrow = document.createElement('div');
+    arrow.className = 'arrow';
+    arrow.textContent = '›';
+    row.appendChild(arrow);
+    row.addEventListener('click', () => {
+      currentLessonMeta = {
+        modeleLabel: item.type, studentName: item.eleve, monitorName: item.moniteur,
+        site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now(),
+        /* On retient d'où il vient : le corriger doit le remplacer,
+           pas en créer un second. */
+        ligne: item.ligne || null
+      };
+      $('resultText').value = item.bilan;
+      afficherNote(item.note);
+      marquerExport(true);
+
+      /* Une fiche d'évaluation retrouve ses sorties : le PDF pour
+         le dossier ou la préfecture, et l'envoi par mail. Sans
+         cela, il fallait refaire la fiche pour ravoir son PDF. */
+      if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
+
+      /* Le bilan appartient à l'onglet Cours : depuis la recherche,
+         il restait masqué par la classe « hors-onglet ». */
+      if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+
+      $('recordView').style.display = 'none';
+      $('generatingView').style.display = 'none';
+      $('resultView').style.display = 'block';
+  /* Les procédures à cocher, prêtes dès l'affichage du bilan */
+  if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
+      $('resultView').classList.remove('hors-onglet', 'hors-vue');
+      majBoutonCorrection();
+      /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt
+         que de laisser le moniteur le chercher. */
+      setTimeout(() => {
+        try{ $('resultView').scrollIntoView({ behavior:'smooth', block:'start' }); }
+        catch(e){ window.scrollTo(0, $('resultView').offsetTop - 10); }
+      }, 120);
+    });
+  return row;
 }
 
 /* ---------- Recherche des anciens bilans d'un élève ---------- */
@@ -587,180 +794,8 @@ async function rechercherEleve(){
       zone.appendChild(entete);
     }
 
-    res.forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'history-item';
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      const note = (item.note || '').trim();
-      const t = document.createElement('strong');
-      if(!nom || nom.length < 2){
-        /* Recherche par moniteur : on met l'élève en avant */
-        t.textContent = item.eleve || '(sans nom)';
-      }else if(note){
-        /* La note interne prend la place du titre : c'est ce que le
-           moniteur suivant doit voir en premier, en entier. */
-        if(typeof colorerNote === 'function'){
-          t.appendChild(document.createTextNode('📌 '));
-          const dedans = document.createElement('span');
-          colorerNote(dedans, note);
-          t.appendChild(dedans);
-        }else{
-          t.textContent = '📌 ' + note;
-        }
-        t.style.color = 'var(--accent-text)';
-        t.style.whiteSpace = 'pre-wrap';
-        t.style.lineHeight = '1.45';
-        t.style.overflow = 'visible';
-        t.style.textOverflow = 'clip';
-      }else{
-        t.textContent = item.type || 'Bilan';
-      }
-      const s = document.createElement('span');
-      s.textContent = 'Cours du ' + (item.date || '?') +
-                      [' ', item.site, item.moniteur, note ? item.type : '']
-                        .filter(Boolean).join(' · ');
-
-      const h = document.createElement('span');
-      h.style.opacity = '.75';
-      h.textContent = item.horodatage ? 'Bilan généré le ' + item.horodatage : '';
-
-      meta.appendChild(t);
-      meta.appendChild(s);
-      if(item.horodatage) meta.appendChild(h);
-      row.appendChild(meta);
-
-      /* ------------------------------------------------------------
-         RENVOYER UN BILAN, DEPUIS L'HISTORIQUE.
-
-         Il fallait rouvrir le bilan, descendre jusqu'au bas de
-         l'écran de cours, et retrouver la fenêtre de fin — qui ne
-         s'ouvre qu'après un enregistrement. Autant dire que ça ne
-         se faisait pas : on recopiait à la main dans un mail.
-
-         Le bouton passe par la même porte que la fin de cours : si
-         l'élève n'a pas d'adresse, on la demande, et elle redescend
-         sur sa fiche.
-         ------------------------------------------------------------ */
-      if(item.bilan){
-        const bMail = document.createElement('button');
-        bMail.className = 'btn btn-secondary';
-        bMail.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;' +
-          'margin:0;flex-shrink:0;';
-        bMail.textContent = '\u2709\uFE0F';
-        bMail.title = 'Renvoyer ce bilan par mail';
-        bMail.addEventListener('click', async ev => {
-          ev.stopPropagation();
-          if(typeof envoyerBilanParMail !== 'function'){
-            showToast('Envoi indisponible sur cet écran.');
-            return;
-          }
-          /* On confirme AVANT. Ce bouton est collé à la ligne, sur
-             un écran qu'on parcourt au pouce : il partirait au
-             premier effleurement, et un mail envoyé ne se rappelle
-             pas. */
-          if(!await confirmer('Renvoyer par mail le bilan du ' +
-              (item.date || '?') + ' à ' + (item.eleve || 'cet élève') +
-              " ?\n\nIl le recevra une seconde fois s'il l'a déjà eu.")) return;
-
-          bMail.disabled = true;
-          bMail.textContent = '…';
-          try{
-            const combien = await envoyerBilanParMail(item.eleve, item.date,
-                                                      item.bilan);
-            if(!combien){
-              /* Annulé à la fenêtre d'adresse : ce n'est pas un
-                 échec, et ça ne doit pas ressembler à un envoi. */
-              bMail.disabled = false;
-              bMail.textContent = '\u2709\uFE0F';
-              return;
-            }
-            bMail.textContent = '\u2705';
-            showToast('Envoyé à ' + combien + ' adresse(s) ✅');
-          }catch(e){
-            bMail.disabled = false;
-            bMail.textContent = '\u2709\uFE0F';
-            showToast('Envoi impossible : ' + e.message);
-          }
-        });
-        row.appendChild(bMail);
-      }
-
-      /* Supprimer un bilan : administrateurs seuls, et jamais par
-         mégarde. Le numéro de leçon se recalcule tout seul, il se
-         déduit du nombre de bilans restants. */
-      if(ACCES.role === 'admin' && item.ligne){
-        const bSup = document.createElement('button');
-        bSup.className = 'btn btn-secondary';
-        bSup.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
-          'flex-shrink:0;color:var(--red);border-color:var(--red);';
-        bSup.textContent = '🗑️';
-        bSup.title = 'Supprimer ce bilan';
-        bSup.addEventListener('click', async ev => {
-          ev.stopPropagation();
-          if(!await confirmer('Supprimer le bilan du ' + (item.date || '?') +
-              ' pour ' + item.eleve + ' ?\n\n' +
-              'Cette suppression est DÉFINITIVE : le texte du bilan et sa note ' +
-              'seront perdus.\n\nLes leçons suivantes seront renumérotées.')) return;
-
-          bSup.disabled = true;
-          bSup.textContent = '…';
-          try{
-            await appelPrep({ action: 'bilanSupprimer', ligne: item.ligne,
-                              eleve: item.eleve });
-            showToast('Bilan supprimé ✅');
-            viderCaches(item.eleve);
-            rechercherEleve();
-          }catch(e){
-            showToast('Suppression impossible : ' + e.message);
-            bSup.disabled = false;
-            bSup.textContent = '🗑️';
-          }
-        });
-        row.appendChild(bSup);
-      }
-
-      const arrow = document.createElement('div');
-      arrow.className = 'arrow';
-      arrow.textContent = '›';
-      row.appendChild(arrow);
-      row.addEventListener('click', () => {
-        currentLessonMeta = {
-          modeleLabel: item.type, studentName: item.eleve, monitorName: item.moniteur,
-          site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now(),
-          /* On retient d'où il vient : le corriger doit le remplacer,
-             pas en créer un second. */
-          ligne: item.ligne || null
-        };
-        $('resultText').value = item.bilan;
-        afficherNote(item.note);
-        marquerExport(true);
-
-        /* Une fiche d'évaluation retrouve ses sorties : le PDF pour
-           le dossier ou la préfecture, et l'envoi par mail. Sans
-           cela, il fallait refaire la fiche pour ravoir son PDF. */
-        if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
-
-        /* Le bilan appartient à l'onglet Cours : depuis la recherche,
-           il restait masqué par la classe « hors-onglet ». */
-        if(typeof afficherOnglet === 'function') afficherOnglet('cours');
-
-        $('recordView').style.display = 'none';
-        $('generatingView').style.display = 'none';
-        $('resultView').style.display = 'block';
-    /* Les procédures à cocher, prêtes dès l'affichage du bilan */
-    if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
-        $('resultView').classList.remove('hors-onglet', 'hors-vue');
-        majBoutonCorrection();
-        /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt
-           que de laisser le moniteur le chercher. */
-        setTimeout(() => {
-          try{ $('resultView').scrollIntoView({ behavior:'smooth', block:'start' }); }
-          catch(e){ window.scrollTo(0, $('resultView').offsetTop - 10); }
-        }, 120);
-      });
-      zone.appendChild(row);
-    });
+    res.forEach(item => zone.appendChild(
+      ligneBilan(item, nom, rechercherEleve)));
   }catch(e){
     console.error('Erreur recherche:', e);
     zone.innerHTML = '<div class="empty">Erreur de recherche : ' + e.message + '</div>';
