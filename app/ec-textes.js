@@ -1,4 +1,4 @@
-/* Déployé le 28/08/2026 à 16:54 — v673 */
+/* Déployé le 02/09/2026 à 13:55 — v809 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -125,6 +125,47 @@ async function chargerModelesTexte(forcer){
 function perimerModeles(){
   modelesLusA = 0;
 }
+
+/* ------------------------------------------------------------
+   LES BILANS QU'UN RAPPEL PEUT CRÉER
+
+   Le catalogue des modèles de bilan, groupé comme il l'est
+   partout ailleurs. Il n'est PAS recopié : il est lu dans MODELES,
+   la seule liste qui existe. Une seconde liste à tenir d'accord
+   finirait par proposer un bilan disparu, ou par en cacher un
+   nouveau.
+
+   Les paires « — Boîte automatique » / « — Boîte manuelle » sont
+   toutes deux proposées : ce qui est choisi n'est qu'un point de
+   départ, modeleDansLaBoite prend ensuite la version qui
+   correspond à la fiche de l'élève.
+   ------------------------------------------------------------ */
+function optionsBilanDuRappel(){
+  const ech = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  let h = '<option value="">— d\'après la fiche de l\'élève —</option>';
+  if(typeof MODELES === 'undefined') return h;
+
+  const groupes = {};
+  Object.keys(MODELES).forEach(cle => {
+    const m = MODELES[cle] || {};
+    if(!m.label) return;
+    (groupes[m.groupe || 'Autres'] =
+      groupes[m.groupe || 'Autres'] || []).push({ cle: cle, label: m.label });
+  });
+
+  Object.keys(groupes).forEach(g => {
+    h += '<optgroup label="' + ech(g) + '">';
+    groupes[g].forEach(o => {
+      h += '<option value="' + ech(o.cle) + '">' + ech(o.label) + '</option>';
+    });
+    h += '</optgroup>';
+  });
+  return h;
+}
+
 
 /* Le premier modèle enregistré pour cet usage, s'il en existe un */
 function modelePour(usage){
@@ -506,6 +547,33 @@ function ouvrirEditeurModele(modele, usageImpose){
         'style="width:100%;background:var(--navy);border:1px solid var(--line);' +
         'color:var(--cream);padding:10px 11px;border-radius:10px;font-size:14px;' +
         'line-height:1.5;font-family:inherit;resize:vertical;margin:0;"></textarea>' +
+    '</div>' +
+
+    /* ⚠️ CE MENU REMPLACE UNE DEVINETTE.
+
+       Les types de séance des rappels sont ces textes-ci : l'outil
+       n'en fournit aucun d'origine. Le bilan à créer était donc
+       DEVINÉ d'après le titre écrit à la main — « Permis voiture »
+       ne tombait dans aucune règle et repartait en conduite
+       ordinaire, donc en BEA d'après la fiche. Signalé quinze fois,
+       et chaque correction de la devinette en cassait une autre.
+
+       Le titre ne décide plus. Le texte le DIT, une fois. */
+    '<div id="mdBlocBilan" style="display:none;border:1px solid var(--line);' +
+      'border-radius:12px;padding:12px;margin-bottom:12px;">' +
+      '<div style="font-size:14px;font-weight:700;margin-bottom:3px;">' +
+        '📄 Le bilan que ce rappel doit créer</div>' +
+      '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;' +
+        'line-height:1.5;">Le cours ajouté à « Mes prochains cours » ' +
+        'portera ce bilan-là. <strong>La boîte suit l\'élève</strong> : ' +
+        'choisis la famille, l\'outil prend la version automatique ou ' +
+        'manuelle selon sa fiche.</div>' +
+      '<select id="mdBilan">' + optionsBilanDuRappel() + '</select>' +
+      '<div style="font-size:11px;color:var(--muted);margin:-8px 0 0;' +
+        'line-height:1.5;">Laissé sur « d\'après la fiche de l\'élève », ' +
+        'c\'est sa formation qui décide — ce qu\'il faut pour une leçon de ' +
+        'conduite ordinaire, et ce qu\'il ne faut pas pour un examen.' +
+      '</div>' +
     '</div>');
 
   const rangee = document.createElement('div');
@@ -526,11 +594,16 @@ function ouvrirEditeurModele(modele, usageImpose){
   /* La boîte et les consignes de correction n'ont de sens que pour
      une procédure : un texte type ne se récite pas. */
   const majBoite = () => {
-    const estProc = (boite.querySelector('#mdUsage').value === 'procedure');
+    const usage = boite.querySelector('#mdUsage').value;
+    const estProc = (usage === 'procedure');
     const b = boite.querySelector('#mdBlocBoite');
     if(b) b.style.display = estProc ? 'block' : 'none';
     const ia = boite.querySelector('#mdBlocIA');
     if(ia) ia.style.display = estProc ? 'block' : 'none';
+    /* Le bilan à créer n'a de sens que pour un rappel de cours :
+       c'est le seul usage qui fabrique un cours. */
+    const bi = boite.querySelector('#mdBlocBilan');
+    if(bi) bi.style.display = (usage === 'rappel_cours') ? 'block' : 'none';
   };
   boite.querySelector('#mdUsage').addEventListener('change', majBoite);
   if(modele && modele.boite && boite.querySelector('#mdBoite')){
@@ -541,6 +614,19 @@ function ouvrirEditeurModele(modele, usageImpose){
   }
   if(modele && boite.querySelector('#mdConsigne')){
     boite.querySelector('#mdConsigne').value = modele.consigne || '';
+  }
+  if(modele && boite.querySelector('#mdBilan')){
+    /* Un bilan disparu du catalogue ne doit pas se transformer en
+       « d'après la fiche » sans le dire : le menu le garde, marqué. */
+    const sel = boite.querySelector('#mdBilan');
+    const v = String(modele.bilan || '');
+    if(v && ![...sel.options].some(o => o.value === v)){
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = '⚠️ ' + v + ' — ce bilan n\'existe plus';
+      sel.appendChild(o);
+    }
+    sel.value = v;
   }
   majBoite();
 
@@ -655,6 +741,9 @@ function ouvrirEditeurModele(modele, usageImpose){
           ? g('mdOrdre').checked : false,
         consigne: (g('mdUsage').value === 'procedure' && g('mdConsigne'))
           ? g('mdConsigne').value.trim() : '',
+        /* Le bilan que ce rappel doit créer — rappels uniquement */
+        bilan: (g('mdUsage').value === 'rappel_cours' && g('mdBilan'))
+          ? g('mdBilan').value : '',
         contenu: contenu
       });
 
