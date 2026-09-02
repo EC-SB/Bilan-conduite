@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:50 — v806 */
+/* Déployé le 02/09/2026 à 13:55 — v809 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -2800,7 +2800,40 @@ const BILAN_DU_RAPPEL = {
   'examen-blanc':   'examen-blanc'
 };
 
-function modeleDuTypeDeRappel(type){
+/* ------------------------------------------------------------
+   LE BILAN QUE CE TYPE DE SÉANCE DÉCLARE
+
+   ⚠️ ET QUI PASSE AVANT TOUTE DEVINETTE.
+
+   Les types de séance sont les textes types de Chrystel : l'outil
+   n'en fournit aucun d'origine. Le bilan était donc deviné d'après
+   le TITRE qu'elle avait écrit — « Permis voiture » ne tombait dans
+   aucune règle, repartait en conduite ordinaire, et s'affichait en
+   « conduite BEA » d'après la fiche. Elle l'a signalé quinze fois,
+   et chaque correction de la devinette en cassait une autre : un
+   titre libre ne peut pas porter une règle.
+
+   Le texte le dit maintenant lui-même, dans ⚙️ Textes types. Tant
+   qu'il ne dit rien, la devinette reste — il faut bien que les
+   textes déjà écrits continuent de marcher — mais elle ne décide
+   plus dès que quelqu'un a répondu.
+   ------------------------------------------------------------ */
+function bilanDeclareDuType(cleType){
+  const cle = String(cleType || '');
+  if(cle.indexOf('perso:') !== 0) return '';
+  const id = cle.slice(6);
+  const m = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
+    .find(x => String(x.id) === id);
+  const voulu = String((m && m.bilan) || '').trim();
+  return voulu ? verifierModele(voulu) : '';
+}
+
+function modeleDuTypeDeRappel(type, cleType){
+  /* Ce que le texte DÉCLARE l'emporte sur ce que son titre laisse
+     croire. C'est tout l'objet de la colonne. */
+  const declare = bilanDeclareDuType(cleType);
+  if(declare) return declare;
+
   /* LES CARACTÈRES STYLISÉS SE RAMÈNENT À DES LETTRES.
 
      Toute l'application écrit ses titres en gras Unicode —
@@ -2840,11 +2873,18 @@ function modeleDuTypeDeRappel(type){
 
     { motif: /examen\s*blanc|\bblanc\b/, modele: 'examen-blanc' },
 
-    /* L'examen officiel, et lui seul. « Rappel permis voiture comme
-       groupe » est une leçon ordinaire : le mot « permis » n'y
-       annonce pas un passage. On exige donc qu'il soit question
-       d'examen, ou que le libellé se réduise au mot. */
-    { motif: /examen|passage|^permis$|^rappel[- ]?permis$/, modele: 'examen-officiel' }
+    /* ⚠️ « PERMIS » VEUT DIRE L'EXAMEN.
+
+       J'avais posé l'inverse : « Rappel permis voiture comme groupe
+       est une leçon ordinaire, le mot permis n'y annonce pas un
+       passage », et j'exigeais donc que le libellé se réduise au
+       mot. C'était mon raisonnement, pas le sien — « Permis
+       voiture » ne tombait alors dans aucune règle et repartait en
+       conduite BEA. Chez elle, un type de séance qui parle de
+       permis est un passage.
+
+       Les deux-roues sont déjà sortis par la première règle. */
+    { motif: /examen|passage|permis/, modele: 'examen-officiel' }
   ];
 
   const regle = REGLES.find(r => r.motif.test(t));
@@ -2974,7 +3014,8 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
        Le titre d'abord : la clé ne sert que pour les types d'origine. */
     const typeSeance = (details && details.titreType) ||
                        (details && details.type) || '';
-    const impose = modeleDuTypeDeRappel(typeSeance);
+    const impose = modeleDuTypeDeRappel(typeSeance,
+                                        (details && details.type) || '');
     if(impose){
       cle = seanceImposeLaBoite(typeSeance)
               ? impose
