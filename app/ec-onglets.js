@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:11 — v788 */
+/* Déployé le 02/09/2026 à 11:49 — v798 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -138,7 +138,15 @@ const VUES = {
      permis prévus, places à ouvrir, élèves à qui prendre une date. */
   /* Le parcours d'un élève, dans l'ordre où il le suit : pas
      prêt, à envisager, préparé, suivi, résultat. */
-  permis: [['pasprets',  '⛔ Pas prêts',        'bureau_permis'],
+  /* AAC / CS EN PREMIER, ET C'EST VOULU. C'est la phase la plus
+     longue et la moins visible : un élève accompagné n'a pas de date
+     d'examen, donc il n'est dans aucune des six vues qui suivent ; et
+     il ne prend pas une leçon par semaine, donc il ne remonte pas
+     dans les rappels. On ne le revoit que le jour où quelqu'un y
+     repense — c'est comme ça qu'un rendez-vous théorique prend six
+     mois de retard. */
+  permis: [['aaccs',     '🤝 AAC / CS',         'bureau_permis'],
+           ['pasprets',  '⛔ Pas prêts',        'bureau_permis'],
            ['envisager', '🤔 À envisager',      'bureau_permis'],
            ['preppermis','📣 Préparation',      'bureau_permis'],
            ['sessions',  '🎓 Suivi permis',     'bureau_permis'],
@@ -345,6 +353,10 @@ function reveillerVue(cle){
     dossier:    () => (typeof dessinerPageEleve === 'function') && dessinerPageEleve(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
+    /* Une vue branchée nulle part reste sur « Chargement… » pour
+       toujours — c'est ce qui était arrivé à « Historique des
+       cours », et ça ne se voit qu'en ouvrant la vue. */
+    aaccs:      () => (typeof afficherAacCs === 'function') && afficherAacCs(),
     /* Les cinq vues du permis partagent le même chargement */
     pasprets:   () => afficherBureau(),
     envisager:  () => afficherBureau(),
