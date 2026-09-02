@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:18 — v777 */
+/* Déployé le 02/09/2026 à 07:38 — v785 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -147,7 +147,13 @@ const VUES = {
            ['remorque',  '🚚 Remorque',         'bureau_permis']],
   suivi:  [['simu',    '🌙 Simulateurs et examens blancs', 'bureau_simu'],
            ['ecoutes', '👂 Écoutes pédagogiques',          'ecoutes']],
-  eleves: [['recherche',  '📚 Historique des leçons', 'recherche'],
+  /* LE DOSSIER EN PREMIER, ET C'EST TOUT LE POINT.
+
+     On ne pense pas « quel écran », on pense « Léa ». Les neuf vues
+     qui suivent restent : elles font le travail de fond, liste par
+     liste. Celle-ci fait le travail par personne. */
+  eleves: [['dossier',    '👤 Dossier élève',         'eleves'],
+           ['recherche',  '📚 Historique des leçons', 'recherche'],
            ['rappels',    '🔔 Rappels de cours',      'rappels'],
            ['eleves',     '👥 Répertoire',            'eleves'],
            ['proccorriger','📥 Procédures',            'proccorriger'],
@@ -328,6 +334,11 @@ function reveillerVue(cle){
     journal:    () => ACCES.role === 'admin' && afficherJournal(),
     admin:      () => chargerUtilisateurs(),
     eleves:     () => afficherRepertoire(),
+    /* Le dossier se redessine seul quand on y revient : le nom
+       ouvert est en mémoire, et tout ce qu'il montre aussi. Une vue
+       branchée nulle part reste sur « Chargement… » pour toujours —
+       c'est ce qui est arrivé à « Historique des cours ». */
+    dossier:    () => (typeof dessinerPageEleve === 'function') && dessinerPageEleve(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
     /* Les cinq vues du permis partagent le même chargement */
