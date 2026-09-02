@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 779
+     GUIDE-VERSION: 790
      ============================================================ -->
 
 <style>
@@ -412,8 +412,8 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v779</strong><br>
-    Mis à jour le 1<sup>er</sup> septembre 2026 · Évolution Conduites</p>
+  <p class="sous">Guide d'utilisation · <strong>v790</strong><br>
+    Mis à jour le 2 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
     <div class="titre">Filtrer par rôle</div>
@@ -463,6 +463,7 @@ html{scroll-behavior:smooth}
       </li>
       <li><a data-n="4" href="#ch3">Suivre les élèves</a>
         <ol>
+          <li><a href="#dossier-eleve">Dossier élève</a></li>
           <li><a href="#historique-lecons">Historique des leçons</a></li>
           <li><a href="#rappels">Rappels de cours</a></li>
           <li><a href="#repertoire">Répertoire</a></li>
@@ -523,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v779</strong>, relu le 1<sup>er</sup> septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v790</strong>, relu le 2 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -827,7 +828,7 @@ html{scroll-behavior:smooth}
       <tbody>
         <tr><td><span class="b">▶ Ouvrir</span></td><td>Charge le cours dans le module d'enregistrement, remplit tout, et fait défiler jusqu'au bouton micro. Devient <span class="b">⏳ Ouverture…</span>.</td><td>Visible seulement si le cours est à vous, sans moniteur, ou si vous êtes admin. Si un enregistrement tourne déjà&nbsp;: <span class="ch">Un enregistrement est en cours. Le remplacer ?</span>. Sur un modèle « RDV post-permis », ouvre l'écran dédié.</td></tr>
         <tr><td><span class="b">↩️ Reprendre</span></td><td>Se réattribuer le cours d'un collègue.</td><td>Remplace <span class="b">▶ Ouvrir</span> quand le cours est à quelqu'un d'autre. Confirmation <span class="ch">Ce cours est attribué à Paul. Le reprendre à ton nom ?</span> puis <span class="ch">Cours repris ✅</span>.</td></tr>
-        <tr><td><span class="b">▲</span> <span class="b">▼</span></td><td>Monter ou descendre le cours dans la journée.</td><td>Toute la journée est renumérotée et enregistrée. En bout de liste&nbsp;: <span class="ch">Déjà en premier</span> / <span class="ch">Déjà en dernier</span>.</td></tr>
+        <tr><td><span class="b">▲</span> <span class="b">▼</span></td><td>Changer la place parmi les cours <strong>de la même heure</strong>.</td><td>Depuis la v787, <strong>c'est l'heure qui range le planning</strong>. Ces flèches ne départagent plus que deux cours à la même heure&nbsp;; sur une autre heure&nbsp;: <span class="ch">Le planning se range par heure. Change l'heure du cours pour le déplacer.</span></td></tr>
         <tr><td><span class="b">📅</span></td><td>Ouvre <span class="ch">Cours de Pierre Dupont</span> avec <span class="b">Date</span> et <span class="b">Heure</span>.</td><td>L'heure est réécrite en tête de la note sous la forme <span class="ch">🕐 9h30</span>.</td></tr>
         <tr><td><span class="b">🆔</span></td><td>Ouvre <span class="ch">À prévoir pour Pierre Dupont</span> — deux cases&nbsp;: <span class="b">🆔 Carte d'identité à déposer</span> et <span class="b">💾 Carte SD à récupérer</span>.</td><td>Les repères se rangent en première ligne de la note. C'est ce qui fait apparaître les emojis à côté du nom.</td></tr>
         <tr><td><span class="b">✓ Fait</span></td><td>Retire la préparation de la liste.</td><td><strong>N'apparaît que sur un cours dont la date est passée.</strong> <em>« Son bilan reste enregistré&nbsp;: on retire seulement la préparation, qui n'a plus lieu d'être. »</em></td></tr>
@@ -1249,12 +1250,45 @@ html{scroll-behavior:smooth}
   <div class="entete-chap">
     <span class="num-chap">Chapitre 4</span>
     <h2>Suivre les élèves</h2>
-    <p class="intro-chap">L'onglet <span class="b">🔍 Élèves</span> et ses dix vues&nbsp;: retrouver un bilan, envoyer les rappels de la journée, tenir le répertoire, corriger les procédures, suivre le code, les dossiers handicap, les financements, et clore un dossier.</p>
+    <p class="intro-chap">L'onglet <span class="b">🔍 Élèves</span> et ses onze vues&nbsp;: retrouver un bilan, envoyer les rappels de la journée, tenir le répertoire, corriger les procédures, suivre le code, les dossiers handicap, les financements, et clore un dossier.</p>
   </div>
 
   <div class="qui"><span class="lab">Ce chapitre s'adresse au</span> <span class="role bureau">Bureau</span> <span class="ou">— le moniteur n'y voit d'office que l'historique des leçons, en lecture seule.</span></div>
 
-  <p>Les dix vues, dans l'ordre de la barre&nbsp;: <span class="b">📚 Historique des leçons</span> · <span class="b">🔔 Rappels de cours</span> · <span class="b">👥 Répertoire</span> · <span class="b">📥 Procédures</span> · <span class="b">🎓 Code</span> · <span class="b">♿ Handicap</span> · <span class="b">📊 Évaluation</span> · <span class="b">💶 Financements</span> · <span class="b">🎓 Permis obtenu</span> · <span class="b">🚪 Départ</span>. Chacune n'apparaît que si le compte y a droit.</p>
+  <p>Les onze vues, dans l'ordre de la barre&nbsp;: <span class="b">👤 Dossier élève</span> · <span class="b">📚 Historique des leçons</span> · <span class="b">🔔 Rappels de cours</span> · <span class="b">➕ Ajouter des élèves</span> · <span class="b">📥 Procédures</span> · <span class="b">🎓 Code</span> · <span class="b">♿ Handicap</span> · <span class="b">📊 Évaluation</span> · <span class="b">💶 Financements</span> · <span class="b">🎓 Permis obtenu</span> · <span class="b">🚪 Départ</span>. Chacune n'apparaît que si le compte y a droit.</p>
+
+  <section id="dossier-eleve">
+    <h3>👤 Dossier élève</h3>
+    <div class="qui mini"><span class="lab">Vue</span> <span class="role moniteur">Moniteur</span><span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— chaque onglet n'apparaît que si le compte y a droit.</span></div>
+    <p><strong>Un endroit par élève, où l'on voit tout et d'où l'on modifie tout.</strong> L'outil était rangé par outil — répertoire, historique, handicap, financements… Mais on ne pense pas « quel écran », on pense « Léa ». C'est la première vue de l'onglet Élèves, et le point d'arrivée du répertoire comme de la loupe 🔍.</p>
+
+    <h4>Y arriver</h4>
+    <p>Trois chemins, un seul écran&nbsp;: le champ de recherche <strong>en haut du dossier</strong> (un nom, un numéro, un mail, une formation), la <strong>loupe 🔍 de l'en-tête</strong>, ou <strong>une ligne du répertoire</strong>. Une recherche sans résultat propose <span class="b">➕ Créer « Marie Dupont »</span>, avec le nom déjà tapé.</p>
+    <div class="note astuce"><span class="tag">La même recherche partout</span><p>Depuis la v786, le répertoire, la loupe et le dossier utilisent <strong>la même règle</strong>&nbsp;: nom, numéro, mail, formation, Messenger, sur les élèves connus <em>et</em> ceux qui n'ont qu'une fiche. Avant, la loupe ne cherchait que dans le nom et ignorait les élèves sans bilan — ils semblaient ne pas exister.</p></div>
+
+    <h4>📍 Où en est cet élève</h4>
+    <p>En haut, toujours visible&nbsp;: le même encadré que l'historique des leçons — leçon, simulateur, examen blanc, date d'examen, repassages. Une ligne dit <strong>d'où vient ce qu'on lit</strong>&nbsp;: <span class="ch">🗓️ D'après son cours préparé du 03/09 · dernier bilan le 12/07</span>.</p>
+    <div class="note danger"><span class="tag">⚠️ Corrigé le 2 septembre — v789</span><p>Ce résumé lisait <strong>la note du dernier bilan enregistré</strong>. Or ce n'est pas la dernière chose qu'on ait dite d'un élève&nbsp;: <strong>le cours qu'on lui a préparé l'est</strong>. Résultat, une élève à sa 8<sup>e</sup> leçon avec son examen blanc réservé s'affichait « 2<sup>ème</sup> leçon sur 4 · examen blanc à prévoir ». Le résumé lit désormais, dans l'ordre&nbsp;: le dernier bilan, <strong>le cours préparé</strong>, puis les consignes du bureau — qui priment.</p><p>Au passage&nbsp;: le nombre de leçons tient compte du <strong>plus grand numéro jamais écrit</strong>, pour les élèves venus de l'ancien fonctionnement qui n'ont qu'un ou deux bilans enregistrés.</p></div>
+
+    <h4>Les huit onglets</h4>
+    <table>
+      <thead><tr><th>Onglet</th><th>Ce qu'on y trouve</th><th>Droit</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">📇 Fiche</span></td><td>Téléphone, mail, prescripteur, Messenger, ANTS, frise. Les pastilles <span class="b">♿</span> <span class="b">🟩</span> du poste de conduite, le <span class="b">💬</span> SMS, et <span class="b">✏️ Modifier la fiche</span>.</td><td><span class="ch">eleves</span></td></tr>
+        <tr><td><span class="b">📚 Cours</span></td><td>Ses leçons, <strong>affichées ici</strong>, avec le ✉️ de renvoi du bilan par mail — la même ligne que l'historique.</td><td><span class="ch">recherche</span></td></tr>
+        <tr><td><span class="b">🎓 Permis</span></td><td>Simulateur, examen blanc, place d'examen, liste, <strong>sa session</strong> (avec qui il passe et à quelle heure), résultat.</td><td><span class="ch">permis</span></td></tr>
+        <tr><td><span class="b">🔑 Accès</span></td><td>Son coin révisions&nbsp;: le code, ce qu'il y trouve, et l'envoi.</td><td><span class="ch">proccorriger</span></td></tr>
+        <tr><td><span class="b">📄 Procédures</span></td><td>Ce qui lui a été demandé, et ce qu'il a récité.</td><td><span class="ch">proccorriger</span></td></tr>
+        <tr><td><span class="b">💶 Financement</span></td><td>Ses dossiers, et ce que porte sa fiche de suivi.</td><td><span class="ch">financements</span></td></tr>
+        <tr><td><span class="b">♿ Handicap</span></td><td>Son suivi. Le poste de conduite y est <strong>en lecture seule</strong>&nbsp;: il se règle dans 📇 Fiche.</td><td><span class="ch">handicap</span></td></tr>
+        <tr><td><span class="b">🔒 RGPD</span></td><td>L'export du droit d'accès et la suppression complète.</td><td><strong>administrateurs</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="note piege"><span class="tag">Resserrement — v788</span><p>L'export du droit d'accès était accessible depuis le répertoire à <strong>tout compte ayant « eleves »</strong>. Il sort pourtant <em>tout</em> sur une personne&nbsp;: ses bilans en entier, ses notes, son suivi — la plus large sortie de données de l'outil. Il est désormais <strong>réservé aux administrateurs</strong>.</p></div>
+
+    <h4>Ce qu'il ne fait pas</h4>
+    <p><strong>Le dossier affiche et délègue&nbsp;: il n'enregistre rien lui-même.</strong> Chaque geste appelle la fonction qui sait déjà faire. Deux onglets manquent volontairement&nbsp;: <span class="b">📋 Questionnaire</span> (il n'a pas d'enregistrement à lui) et <span class="b">🎓 AAC</span> (les rendez-vous préalables ne sont stockés nulle part, ils sont relus dans du texte libre). Les ajouter donnerait une apparence de suivi à une devinette.</p>
+  </section>
 
   <section id="historique-lecons">
     <h3>📚 Historique des leçons</h3>
@@ -1393,7 +1427,7 @@ html{scroll-behavior:smooth}
   </section>
 
   <section id="repertoire">
-    <h3>👥 Répertoire des élèves</h3>
+    <h3>➕ Ajouter des élèves <span style="font-weight:400;font-size:.8em;">(anciennement « Répertoire »)</span></h3>
     <div class="qui mini"><span class="lab">Vue</span> <span class="role bureau">Bureau</span><span class="role admin">Admin</span> <span class="ou">— la suppression complète est réservée aux admins.</span></div>
     <p><em>« Les noms proposés dans les listes viennent des bilans déjà saisis. Un élève qui n'a pas encore de bilan n'apparaît donc nulle part. Colle ici ta liste réelle pour qu'ils soient tous proposés. »</em></p>
 
