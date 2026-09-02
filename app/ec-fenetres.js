@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:50 — v786 */
+/* Déployé le 02/09/2026 à 08:11 — v788 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -619,6 +619,64 @@ async function ecrirePosteDeConduite(nom, champ, actif, amenagements){
   return true;
 }
 
+/* ============================================================
+   LES DEUX PASTILLES DU POSTE DE CONDUITE
+
+   ♿ conduite aménagée, 🟩 coussin rehausseur. Elles se cochent
+   sans ouvrir la fiche : c'est l'information qu'on corrige le plus
+   vite, souvent en revenant d'un cours.
+
+   Elles vivaient sur la ligne du répertoire ; elles vivent
+   maintenant dans l'onglet 📇 Fiche du dossier, avec le reste de
+   ce qui concerne cette personne. Écrites ICI, à un seul endroit,
+   pour qu'aucun écran qui les affiche ne soit tenté d'en refaire
+   une deuxième version.
+   ============================================================ */
+function pastillesPosteDeConduite(nom, apres){
+  const zone = document.createElement('div');
+  zone.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+
+  [['amenagee', '♿', 'Conduite aménagée'],
+   ['coussin', '🟩', 'Coussin vert']].forEach(([champ, emoji, titre]) => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.title = titre + ' — cliquer pour changer';
+    const peindre = () => {
+      const actif = posteDeConduite(nom)[champ];
+      b.style.cssText = 'width:auto;padding:7px 9px;font-size:14px;margin:0;' +
+        'flex-shrink:0;opacity:' + (actif ? '1' : '.32') + ';' +
+        (actif ? 'border-color:var(--accent-text);' : '');
+      b.textContent = emoji;
+    };
+    peindre();
+    b.addEventListener('click', async () => {
+      const avant = posteDeConduite(nom)[champ];
+      /* Cocher la conduite aménagée demande de dire LESQUELS : le
+         moniteur a besoin de savoir quoi monter dans la voiture. */
+      if(champ === 'amenagee' && !avant){
+        const choisis = await choisirLesAmenagements(nom);
+        peindre();
+        if(choisis){
+          showToast(titre + ' notée ✅');
+          if(typeof apres === 'function') apres();
+        }
+        return;
+      }
+      b.disabled = true;
+      const ok = await ecrirePosteDeConduite(nom, champ, !avant);
+      b.disabled = false;
+      peindre();
+      if(ok){
+        showToast(titre + (avant ? ' retiré' : ' noté') + ' ✅');
+        if(typeof apres === 'function') apres();
+      }
+    });
+    zone.appendChild(b);
+  });
+
+  return zone;
+}
+
 /* Un numéro français, mis en forme pour l'affichage et les liens */
 function telLisible(t){
   const n = String(t || '').replace(/[^\d+]/g, '');
@@ -835,133 +893,46 @@ async function afficherRepertoire(recharger){
 function ligneFicheEleve(nom){
   const f = ficheDe(nom) || {};
   const d = document.createElement('div');
-  d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px 12px;' +
-    'margin-bottom:7px;';
+  d.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+    'padding:10px 12px;margin-bottom:7px;cursor:pointer;';
+  d.title = 'Ouvrir le dossier de ' + nom;
 
-  const h = document.createElement('div');
-  h.style.cssText = 'display:flex;align-items:flex-start;gap:8px;';
+  /* TOUTE LA LIGNE OUVRE SON DOSSIER.
 
-  const info = document.createElement('div');
-  info.style.cssText = 'flex:1;min-width:0;';
+     Elle portait six boutons : les deux pastilles du poste de
+     conduite, le SMS, la modification, l'export du droit d'accès et
+     la suppression. Chacun était une petite porte vers une chose
+     qui concerne CETTE personne — et il fallait les connaître.
 
-  /* APPUYER SUR LE NOM OUVRE SON DOSSIER.
-
-     Le répertoire reste ce qu'il est — la liste, et l'import. Ce
-     qui change, c'est ce qu'on trouve derrière une ligne : plus
-     seulement quatre boutons, mais tout ce qui concerne cette
-     personne. Les boutons de la ligne ne bougent pas : chacun
-     arrête le clic pour lui-même. */
+     Ils vivent tous dans son dossier maintenant, chacun dans son
+     onglet. Ici il ne reste que ce qui sert à le RECONNAÎTRE dans
+     une liste : son nom, sa formation, son numéro. Une ligne,
+     un geste. */
   if(typeof ouvrirPageEleve === 'function'){
-    info.style.cursor = 'pointer';
-    info.title = 'Ouvrir le dossier de ' + nom;
-    info.addEventListener('click', () => ouvrirPageEleve(nom));
+    d.addEventListener('click', () => ouvrirPageEleve(nom));
   }
 
-  /* Les repères visibles d'un coup d'œil, comme dans les listes permis */
-  const genre = f.genre === 'F' ? '♀' : (f.genre === 'M' ? '♂' : '');
+  const genre = f.genre === 'F' ? '\u2640' : (f.genre === 'M' ? '\u2642' : '');
+  const poste = (typeof posteDeConduite === 'function')
+    ? posteDeConduite(nom) : {};
 
-  info.innerHTML = '<strong style="font-size:15px;">' +
+  d.innerHTML = '<strong style="font-size:15px;">' +
     (genre ? genre + ' ' : '') + nom.replace(/</g, '&lt;') + '</strong>' +
     (f.formation ? ' <span style="font-size:11px;color:var(--accent-text);">' +
       f.formation.replace(/</g, '&lt;') + '</span>' : '') +
-    (f.autreAE ? ' <span style="font-size:11px;color:#E8A33D;">🏫 ' +
-      (f.autreAENom ? f.autreAENom.replace(/</g, '&lt;') : 'autre auto-école') +
+    (f.autreAE ? ' <span style="font-size:11px;color:#E8A33D;">\ud83c\udfeb ' +
+      (f.autreAENom ? f.autreAENom.replace(/</g, '&lt;') : 'autre auto-\u00e9cole') +
       '</span>' : '') +
-    '<div style="font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;">' +
-    (f.telephone ? '📱 ' + telLisible(f.telephone) : '📱 pas de numéro') +
-    (f.messenger ? '<br>💬 ' + lienMessenger(f.messenger) : '') +
-    (f.email ? '<br>✉️ ' + f.email.replace(/</g, '&lt;') : '') +
-    (f.mailPrescripteur ? '<br>👤 ' + f.mailPrescripteur.replace(/</g, '&lt;') : '') +
-    (f.ants ? '<br>📇 ANTS ' +
-      (f.ants === 'nous' ? 'fait par nous' : "fait par l'élève") : '') +
-    (f.frise ? '<br>🧭 ' + f.frise.replace(/</g, '&lt;') : '') +
-    (f.remarques ? '<br>' + f.remarques.replace(/</g, '&lt;') : '') +
+    /* Le poste de conduite reste visible : c'est ce qu'on doit
+       savoir AVANT d'ouvrir quoi que ce soit. Il se règle dans
+       l'onglet Fiche du dossier. */
+    (poste.amenagee ? ' \u267f' : '') + (poste.coussin ? ' \ud83d\udfe9' : '') +
+    '<div style="font-size:12px;color:var(--muted);margin-top:2px;' +
+    'line-height:1.5;">' +
+    (f.telephone ? '\ud83d\udcf1 ' + telLisible(f.telephone) : '\ud83d\udcf1 pas de num\u00e9ro') +
+    (f.email ? ' \u00b7 \u2709\ufe0f ' + f.email.replace(/</g, '&lt;') : '') +
     '</div>';
-  h.appendChild(info);
 
-  /* Le poste de conduite se coche ici, sans ouvrir la fiche : c'est
-     l'information qu'on corrige le plus vite, souvent en revenant
-     d'un cours. Deux pastilles qui basculent, allumées quand c'est
-     actif. */
-  const poste = document.createElement('div');
-  poste.style.cssText = 'display:flex;gap:4px;flex-shrink:0;';
-  [['amenagee', '♿', 'Conduite aménagée'],
-   ['coussin', '🟩', 'Coussin vert']].forEach(([champ, emoji, titre]) => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.title = titre + ' — cliquer pour changer';
-    const peindre = () => {
-      const actif = posteDeConduite(nom)[champ];
-      b.style.cssText = 'width:auto;padding:7px 9px;font-size:14px;margin:0;' +
-        'flex-shrink:0;opacity:' + (actif ? '1' : '.32') + ';' +
-        (actif ? 'border-color:var(--accent-text);' : '');
-      b.textContent = emoji;
-    };
-    peindre();
-    b.addEventListener('click', async () => {
-      const avant = posteDeConduite(nom)[champ];
-      /* Même règle qu'ailleurs : cocher la conduite aménagée
-         demande de dire lesquels. */
-      if(champ === 'amenagee' && !avant){
-        const choisis = await choisirLesAmenagements(nom);
-        peindre();
-        if(choisis) showToast(titre + ' notée ✅');
-        return;
-      }
-      b.disabled = true;
-      const ok = await ecrirePosteDeConduite(nom, champ, !avant);
-      b.disabled = false;
-      peindre();
-      if(ok) showToast(titre + (avant ? ' retiré' : ' noté') + ' ✅');
-    });
-    poste.appendChild(b);
-  });
-  h.appendChild(poste);
-
-  /* Écrire par SMS, si on a le numéro */
-  if(f.telephone){
-    const bSms = document.createElement('a');
-    bSms.href = 'sms:' + telPourLien(f.telephone);
-    bSms.className = 'btn btn-secondary';
-    bSms.style.cssText = 'width:auto;padding:7px 10px;font-size:14px;margin:0;flex-shrink:0;' +
-      'text-decoration:none;display:inline-flex;align-items:center;';
-    bSms.textContent = '💬';
-    bSms.title = 'Envoyer un SMS à ' + nom;
-    h.appendChild(bSms);
-  }
-
-  const bMod = document.createElement('button');
-  bMod.className = 'btn btn-secondary';
-  bMod.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
-  bMod.textContent = '✏️';
-  bMod.title = 'Modifier la fiche';
-  bMod.addEventListener('click', () => ouvrirFicheEleve(nom, f));
-  h.appendChild(bMod);
-
-  /* LE DROIT D'ACCÈS : « donnez-moi tout ce que vous avez sur
-     moi ». Il est à côté du 🗑️ à dessein — ce sont les deux
-     demandes qu'un élève peut faire, et elles portent sur
-     exactement le même périmètre. */
-  const bDoc = document.createElement('button');
-  bDoc.className = 'btn btn-secondary';
-  bDoc.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;';
-  bDoc.textContent = '📄';
-  bDoc.title = "Éditer son dossier complet (droit d'accès)";
-  bDoc.addEventListener('click', () => editerDossierEleve(nom, bDoc));
-  h.appendChild(bDoc);
-
-  if(ACCES.role === 'admin'){
-    const x = document.createElement('button');
-    x.className = 'btn btn-secondary';
-    x.style.cssText = 'width:auto;padding:7px 10px;font-size:13px;margin:0;flex-shrink:0;' +
-      'color:var(--red);border-color:var(--red);';
-    x.textContent = '🗑️';
-    x.title = 'Tout supprimer pour cet élève';
-    x.addEventListener('click', () => supprimerDepuisRepertoire(nom, x));
-    h.appendChild(x);
-  }
-
-  d.appendChild(h);
   return d;
 }
 
@@ -1761,46 +1732,61 @@ function pageDossier(d){
 }
 
 
-async function supprimerDepuisRepertoire(n, bouton){
-  if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
-      'Tout ce qui concerne ' + n + ' va être effacé :\n' +
-      '• ses bilans\n• sa fiche de suivi et ses examens\n' +
-      '• ses cours à venir\n• ses captures de CEPC\n' +
-      '• ses messages en attente\n• sa fiche du répertoire\n\n' +
-      "Il n'apparaîtra plus nulle part. Cette action est IRRÉVERSIBLE.")) return;
+/* LA SUPPRESSION COMPLÈTE, DEMANDÉE DEPUIS N'IMPORTE OÙ.
+
+   Elle écrivait son avancement dans « importEtat » — un élément du
+   RÉPERTOIRE. Lancée depuis l'onglet RGPD du dossier, elle aurait
+   parlé dans une zone cachée : l'effacement peut prendre une
+   dizaine de secondes, et on serait resté devant un écran muet.
+
+   L'appelant dit donc OÙ écrire. Le reste — les deux confirmations,
+   dont la recopie du nom — est écrit ici une seule fois : c'est le
+   geste le plus irréversible de l'outil, il n'aura jamais deux
+   versions. */
+async function supprimerDepuisRepertoire(n, bouton, dire){
+  const ecrire = (texte, couleur) => {
+    if(typeof dire === 'function') return dire(texte, couleur);
+    const etat = $('importEtat');
+    if(etat){ etat.style.color = couleur || 'var(--muted)'; etat.textContent = texte; }
+  };
+
+  if(!await confirmer('\u26a0\ufe0f SUPPRESSION D\u00c9FINITIVE\n\n' +
+      'Tout ce qui concerne ' + n + ' va \u00eatre effac\u00e9 :\n' +
+      '\u2022 ses bilans\n\u2022 sa fiche de suivi et ses examens\n' +
+      '\u2022 ses cours \u00e0 venir\n\u2022 ses captures de CEPC\n' +
+      '\u2022 ses messages en attente\n\u2022 sa fiche du r\u00e9pertoire\n\n' +
+      "Il n'appara\u00eetra plus nulle part. Cette action est IRR\u00c9VERSIBLE.")) return;
 
   const saisi = await demander("Pour confirmer, recopie exactement son nom :\n\n" + n);
   if(saisi === null) return;
   if(normaliserMot(saisi) !== normaliserMot(n)){
-    await informer('Le nom saisi ne correspond pas. Suppression annulée.');
+    await informer('Le nom saisi ne correspond pas. Suppression annul\u00e9e.');
     return;
   }
 
-  bouton.disabled = true;
-  const etat = $('importEtat');
+  if(bouton) bouton.disabled = true;
   try{
-    const r = await supprimerEleveComplet(n, t => {
-      if(etat){ etat.style.color = 'var(--muted)'; etat.textContent = n + ' — ' + t; }
-    });
-    if(etat){
-      etat.style.color = 'var(--accent-text)';
-      const bilan = (r && r.faits) ? r : { faits: [], rates: [] };
-      if(bilan.rates.length){
-        etat.style.color = 'var(--warn-text)';
-        etat.textContent = '⚠️ ' + n + ' — effacement INCOMPLET. Fait : ' +
-          (bilan.faits.join(' · ') || 'rien') + '. N\'a pas pu être effacé : ' +
-          bilan.rates.join(', ') + '. Recommence.';
-      }else{
-        etat.textContent = '✅ ' + n + ' supprimé — ' +
-          (bilan.faits.join(' · ') || 'rien à retirer');
-      }
+    const r = await supprimerEleveComplet(n, t => ecrire(n + ' \u2014 ' + t));
+
+    const bilan = (r && r.faits) ? r : { faits: [], rates: [] };
+    if(bilan.rates.length){
+      /* Un effacement incomplet se DIT. Annoncer « supprim\u00e9 » sur
+         un travail \u00e0 moiti\u00e9 fait serait le pire des deux. */
+      ecrire('\u26a0\ufe0f ' + n + ' \u2014 effacement INCOMPLET. Fait : ' +
+        (bilan.faits.join(' \u00b7 ') || 'rien') + ". N'a pas pu \u00eatre effac\u00e9 : " +
+        bilan.rates.join(', ') + '. Recommence.', 'var(--warn-text)');
+    }else{
+      ecrire('\u2705 ' + n + ' supprim\u00e9 \u2014 ' +
+        (bilan.faits.join(' \u00b7 ') || 'rien \u00e0 retirer'), 'var(--accent-text)');
     }
+
     await chargerEleves();
     afficherRepertoire();
     if(typeof afficherBureau === 'function') afficherBureau(true);
+    return bilan;
   }catch(e){
-    if(etat){ etat.style.color = 'var(--warn-text)'; etat.textContent = 'Erreur : ' + e.message; }
-    bouton.disabled = false;
+    ecrire('Erreur : ' + e.message, 'var(--warn-text)');
+    if(bouton) bouton.disabled = false;
   }
 }
 
@@ -2353,7 +2339,7 @@ async function enregistrerMessengerEleve(){
    inaperçue et fabrique un doublon qu'on ne verra que des mois
    plus tard, quand l'historique sera coupé en deux.
    ============================================================ */
-function choisirEleveConnu(titre, aide){
+function choisirEleveConnu(titre, aide, propose){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
@@ -2373,6 +2359,10 @@ function choisirEleveConnu(titre, aide){
     champ.setAttribute('list', 'celListe');
     champ.autocomplete = 'off';
     champ.placeholder = 'Tape les premières lettres';
+    /* Ce qu'on vient de chercher sans le trouver : le retaper serait
+       une corvée, et une occasion de l'écrire autrement — deux
+       fiches pour la même personne commencent toujours comme ça. */
+    if(propose) champ.value = String(propose);
     boite.appendChild(champ);
 
     const dl = document.createElement('datalist');
@@ -2481,10 +2471,14 @@ function choisirEleveConnu(titre, aide){
 /* Créer un élève de toutes pièces : on demande son nom, puis on
    ouvre sa fiche vide. Toutes les informations se saisissent là,
    au même endroit que pour une modification. */
-async function creerEleveALaMain(){
+/* « nomPropose » vient de la recherche du dossier, quand elle n'a
+   rien trouvé : c'est le moment exact où l'on découvre qu'il
+   n'existe pas. */
+async function creerEleveALaMain(nomPropose){
   const nom = await choisirEleveConnu(
     'Créer un élève',
-    "Vérifie qu'il n'existe pas déjà : les élèves connus sont proposés.");
+    "Vérifie qu'il n'existe pas déjà : les élèves connus sont proposés.",
+    nomPropose);
   if(!nom) return;
 
   const existe = ficheDe(nom);
