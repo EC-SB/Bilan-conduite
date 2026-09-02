@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:08 — v800 */
+/* Déployé le 02/09/2026 à 12:23 — v803 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -42,6 +42,14 @@ const SECTIONS = [
   { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
   { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
   { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
+  /* SON PROPRE DROIT, ET PAS CELUI DES EXAMENS BLANCS.
+
+     Les deux suivis y étaient accrochés : un droit nommé « Examens
+     blancs à prévoir » ouvrait trois écrans, et on ne pouvait ni
+     donner les suivis sans les examens blancs, ni l'inverse. Un
+     droit qui n'ouvre pas ce que son nom annonce, on ne peut plus
+     s'en servir pour décider. */
+  { cle:'suivi_aac_cs',     nom:'🤝 Suivi AAC et conduite supervisée' },
   { cle:'ecoutes',          nom:'👂 Écoutes pédagogiques' },
   { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
   { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
