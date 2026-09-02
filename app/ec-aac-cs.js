@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:00 — v799 */
+/* Déployé le 02/09/2026 à 12:14 — v801 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -313,7 +313,22 @@ function elevesAccompagnes(type){
    L'ÉCRAN
    ============================================================ */
 
-/* Le tour de la liste, redessiné après chaque geste. */
+/* APRÈS UN GESTE, ON REDESSINE CE QUI EST À L'ÉCRAN.
+
+   Les mêmes gestes servent à DEUX écrans : les listes de Suivi, et
+   le bloc AAC/CS du dossier élève. Leur donner chacun sa façon de
+   se rafraîchir, c'est la porte ouverte à un écran qui reste en
+   retard sur l'autre — et on ne sait plus lequel dit vrai.
+
+   Les deux fonctions appelées sortent d'elles-mêmes quand leur
+   écran n'est pas affiché : on peut les appeler toujours. */
+function redessinerAacCs(){
+  afficherAacCs();
+  if(typeof rafraichirPageEleve === 'function') rafraichirPageEleve();
+}
+
+
+/* Le tour des deux listes, redessiné après chaque geste. */
 async function afficherAacCs(){
   const zC = $('listeCs');
   const zA = $('listeAac');
@@ -391,7 +406,7 @@ async function changerSeuilsCs(){
   try{
     await enregistrerReglages();
     showToast('Réglages enregistrés ✅');
-    afficherAacCs();
+    redessinerAacCs();
   }catch(e){
     /* On remet ce qui était vrai : un écran qui montre un seuil que
        le serveur n'a pas gardé ment jusqu'au rechargement. */
@@ -503,7 +518,7 @@ function boutonsCs(x, zone){
         if(!iso) return;
         await majSuivi(nom, { rvpDate: iso, rvpEtat: 'fait' });
         showToast('Enregistré ✅');
-        afficherAacCs();
+        redessinerAacCs();
       }));
     return;
   }
@@ -523,7 +538,7 @@ function boutonsCs(x, zone){
             await noterExamenBlanc(nom, '', jour);
           }
           showToast('Examen blanc planifié ✅');
-          afficherAacCs();
+          redessinerAacCs();
         }));
     }
     return;
@@ -534,7 +549,7 @@ function boutonsCs(x, zone){
       'Il repasse dans la liste dès maintenant', async () => {
         await majSuivi(nom, { pauseJusquau: '', pauseMotif: '' });
         showToast('Suivi repris ✅');
-        afficherAacCs();
+        redessinerAacCs();
       }));
     return;
   }
@@ -548,7 +563,7 @@ function boutonsCs(x, zone){
     await majSuivi(nom, { csQuestionLe: auj, csQuestionPar: par,
                           csReponse: '', csReponseLe: '' });
     showToast(par === 'mail' ? 'Noté — envoi à faire' : 'Noté ✅');
-    afficherAacCs();
+    redessinerAacCs();
   };
 
   zone.appendChild(petitBouton('✋ Posée de vive voix',
@@ -577,14 +592,14 @@ function boutonsCs(x, zone){
         await envoyerConsigne(nom, 'examblanc',
           "Examen blanc à prévoir — il se sent prêt (conduite supervisée)");
         showToast('Dans « examen blanc à prévoir » ✅');
-        afficherAacCs();
+        redessinerAacCs();
       }));
 
     zone.appendChild(petitBouton('⏳ Pas encore',
       'On le redemandera — il ne sort pas de la liste', async () => {
         await majSuivi(nom, { csReponse: 'pasencore', csReponseLe: auj() });
         showToast('Noté — on redemandera');
-        afficherAacCs();
+        redessinerAacCs();
       }));
   }
 
@@ -600,7 +615,7 @@ function boutonsCs(x, zone){
       await majSuivi(nom, { pauseJusquau: iso,
                             pauseMotif: String(quoi || '').trim() });
       showToast('En pause jusqu\'au ' + jourFrCs(iso));
-      afficherAacCs();
+      redessinerAacCs();
     }));
 }
 
@@ -896,6 +911,8 @@ function dessinerFiltresAac(liste){
                            'color:var(--accent-text);' : '');
     b.textContent = nom + (n ? ' (' + n + ')' : '');
     b.addEventListener('click', () => { filtreAac = cle; afficherAacCs(); });
+    /* Le filtre ne change aucune donnée : il redessine la liste, pas
+       le dossier. */
     z.appendChild(b);
   });
 }
@@ -1011,7 +1028,7 @@ function boutonsAac(x, zone){
            connaît la suite. */
         if(!await fixerDateNaissance(nom, iso)) return;
         showToast('Enregistré ✅');
-        afficherAacCs();
+        redessinerAacCs();
       }));
   }
 
@@ -1022,7 +1039,7 @@ function boutonsAac(x, zone){
         if(!iso) return;
         await majSuivi(nom, { rvpDate: iso, rvpEtat: 'fait' });
         showToast('Enregistré ✅');
-        afficherAacCs();
+        redessinerAacCs();
       }));
     return;
   }
@@ -1042,7 +1059,7 @@ function boutonsAac(x, zone){
           maj[cle + 'Date'] = iso;
           await majSuivi(nom, maj);
           showToast('Enregistré ✅');
-          afficherAacCs();
+          redessinerAacCs();
         }));
     });
 
@@ -1100,7 +1117,7 @@ async function marquerAilleurs(x){
   }
   await majSuivi(x.eleve, maj);
   showToast('Noté — fait ailleurs ✅');
-  afficherAacCs();
+  redessinerAacCs();
 }
 
 
@@ -1139,6 +1156,6 @@ async function changerParcours(x, vers){
         "Examen blanc à prévoir — conduite accompagnée non validée");
     }
     showToast(p.long + ' ✅');
-    afficherAacCs();
+    redessinerAacCs();
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
