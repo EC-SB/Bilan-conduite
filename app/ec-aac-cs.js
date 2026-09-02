@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:14 — v801 */
+/* Déployé le 02/09/2026 à 12:19 — v802 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -269,6 +269,92 @@ function examenBlancDe(nom){
 
 
 /* ------------------------------------------------------------
+   OÙ EN EST SON EXAMEN OFFICIEL
+
+   Chrystel : « dans le suivi conduite accompagnée il me manque
+   l'examen officiel : s'il a déjà une date, s'il a déjà été ajourné,
+   et si oui quand. Par exemple Axel Hinault, je n'ai pas
+   l'information qu'il a été ajourné et si un nouvel examen est
+   prévu. »
+
+   Deux faits, et il faut les deux : CE QUI EST DERRIÈRE (ajourné, et
+   quand) et CE QUI EST DEVANT (une date, ou rien). Ils ne se
+   déduisent pas l'un de l'autre — un élève ajourné en août peut
+   avoir une date en octobre, comme il peut n'en avoir aucune, et
+   c'est justement la différence qui appelle un geste.
+
+   Mêmes sources et même ordre que partout ailleurs : la COLONNE de
+   la fiche de suivi d'abord, la note ensuite. Et le compte des
+   repassages se lit comme le mini-résumé le lit déjà — le plus grand
+   des deux, parce que l'un des deux peut être en retard.
+   ------------------------------------------------------------ */
+function examenOfficielDe(nom, auJour){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const a = (e && e.etat) || {};
+
+  const auj = String(auJour || (typeof todayLocal === 'function'
+                ? todayLocal() : new Date().toISOString().slice(0, 10)));
+  const iso = (v) => {
+    const t = String(v || '').trim();
+    if(/^\d{4}-\d{2}-\d{2}/.test(t)) return t.slice(0, 10);
+    return (typeof dateFrVersIso === 'function') ? (dateFrVersIso(t) || '') : '';
+  };
+
+  /* ── CE QUI EST DERRIÈRE ── */
+  const nb = Math.max(Number(a.repassages) || 0, Number(s.nbAjournements) || 0);
+  const quand = iso(s.dateAjournement || a.dateAjournement || '');
+  const ajourne = nb ? {
+    nb: nb,
+    /* nb ajournements = il en est à son (nb+1)e passage. */
+    passage: nb + 1,
+    quand: quand,
+    txt: '🔁 ' + (nb + 1) + 'e passage — ajourné' +
+         (quand ? ' le ' + jourFrCs(quand) : ' (date inconnue)')
+  } : null;
+
+  /* ── CE QUI EST DEVANT ── */
+  const dateBrute = s.datePermis || a.permisDate || '';
+  const d = iso(dateBrute);
+  const source = s.datePermis ? '' : ' (annoncé dans un bilan)';
+
+  let devant;
+  if(s.resultat && /obtenu|réussi|reussi|favorable/i.test(String(s.resultat))){
+    devant = { cle:'obtenu', txt:'🏁 Permis obtenu' };
+  }else if(d && d >= auj){
+    /* Le jour même compte comme à venir : le cours d'aujourd'hui EST
+       peut-être l'examen. C'est la règle d'examenDejaPasse. */
+    devant = { cle:'prevu',
+      txt:'🎓 Examen le ' + jourFrCs(d) +
+          (s.centre ? ' · ' + s.centre : '') + source };
+  }else if(d){
+    /* Une date dépassée n'est plus une convocation. Si elle est déjà
+       comptée dans l'ajournement, on ne la redit pas. */
+    devant = (ajourne && ajourne.quand === d)
+      ? { cle:'passe', txt:'🎓 Aucun nouvel examen prévu' }
+      : { cle:'passe', txt:'🎓 Dernier examen le ' + jourFrCs(d) +
+                           ' — aucun nouvel examen prévu' };
+  }else if(a.permis === 'annule'){
+    devant = { cle:'annule', txt:'🎓 Examen annulé — date à reprendre' };
+  }else if(a.permis === 'aprevoir' || s.aPlanifier === 'oui'){
+    devant = { cle:'aprevoir', txt:"🎓 Date d'examen à prévoir" };
+  }else{
+    devant = { cle:'', txt:"🎓 Pas de date d'examen" };
+  }
+
+  return {
+    ajourne: ajourne,
+    devant: devant,
+    /* Ce qui appelle un geste : ajourné et rien de reprogrammé. */
+    aReprogrammer: !!(ajourne && (devant.cle === 'passe' ||
+                                  devant.cle === 'annule' ||
+                                  devant.cle === 'aprevoir' ||
+                                  devant.cle === ''))
+  };
+}
+
+
+/* ------------------------------------------------------------
    LES ÉLÈVES DE LA LISTE
 
    Tout le monde n'a pas de date de rendez-vous préalable : on ne
@@ -295,13 +381,19 @@ function elevesAccompagnes(type){
     const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
     const duree = dureeDepuis(s.rvpDate);
     out.push({ eleve: nom, suivi: s, duree: duree,
-               etat: etatQuestionEb(s, duree), eb: examenBlancDe(nom) });
+               etat: etatQuestionEb(s, duree), eb: examenBlancDe(nom),
+               exam: examenOfficielDe(nom) });
   });
 
   /* Ceux sans date d'abord — c'est ce qu'il manque pour que la
      liste serve. Puis les urgents, puis les plus anciens. */
   out.sort((a, b) => {
     if(!a.duree !== !b.duree) return a.duree ? 1 : -1;
+    /* Même règle qu'en AAC : ajourné et non reprogrammé passe devant
+       la question de l'examen blanc — il a déjà eu son examen, la
+       question ne se pose plus dans le même ordre. */
+    if(a.exam.aReprogrammer !== b.exam.aReprogrammer)
+      return a.exam.aReprogrammer ? -1 : 1;
     if(a.etat.urgent !== b.etat.urgent) return a.etat.urgent ? -1 : 1;
     return (b.duree ? b.duree.mois : 0) - (a.duree ? a.duree.mois : 0);
   });
@@ -437,6 +529,41 @@ function dessinerListeCs(zone){
 }
 
 
+/* L'EXAMEN OFFICIEL, EN UNE OU DEUX LIGNES.
+
+   Écrite une fois, elle sert aux deux listes et au dossier : l'état
+   de l'examen officiel se lit pareil qu'on soit en AAC ou en CS.
+
+   DEUX LIGNES QUAND IL Y A DEUX CHOSES À DIRE. « Ajourné le 24/08 »
+   et « aucun nouvel examen prévu » sont deux faits distincts, et
+   c'est leur ASSOCIATION qui appelle un geste. Les fondre en une
+   phrase ferait disparaître celui des deux qu'on ne cherchait pas. */
+function lignesExamenOfficiel(exam){
+  if(!exam) return [];
+  const out = [];
+
+  if(exam.ajourne){
+    const l = document.createElement('span');
+    l.style.color = 'var(--warn-text)';
+    l.textContent = exam.ajourne.txt;
+    out.push(l);
+  }
+
+  if(exam.devant.txt){
+    const l = document.createElement('span');
+    /* Le orange ne se met que sur ce qui appelle un geste : ajourné
+       ET rien de reprogrammé. Une date à venir est une bonne
+       nouvelle, pas une alerte. */
+    l.style.color = exam.aReprogrammer ? 'var(--warn-text)'
+                  : (exam.devant.cle === 'prevu' || exam.devant.cle === 'obtenu'
+                     ? 'var(--accent-text)' : '');
+    l.textContent = exam.devant.txt;
+    out.push(l);
+  }
+  return out;
+}
+
+
 function ligneCs(x){
   const row = document.createElement('div');
   row.className = 'history-item';
@@ -478,6 +605,8 @@ function ligneCs(x){
     eb.textContent = x.eb.txt;
     meta.appendChild(eb);
   }
+
+  lignesExamenOfficiel(x.exam).forEach(l => meta.appendChild(l));
   row.appendChild(meta);
 
   const act = document.createElement('div');
@@ -818,6 +947,9 @@ function dossierAac(nom){
     parcoursCle: cle, parcours: p,
     ech: ech, rdv: rdv,
     eb: examenBlancDe(nom),
+    /* Où en est son examen officiel : ajourné quand, et une nouvelle
+       date ou pas. Deux faits distincts, voir examenOfficielDe. */
+    exam: examenOfficielDe(nom),
     retard: Object.keys(rdv).some(k => rdv[k].retard),
     /* Le théorique jamais fait, sur un parcours qui l'attend : c'est
        le retard dont Chrystel parlait, et il n'a pas d'échéance pour
@@ -845,6 +977,12 @@ function elevesAac(){
   /* Les retards d'abord, puis ceux dont le théorique manque, puis
      par date d'examen possible — les plus proches en tête. */
   out.sort((a, b) => {
+    /* AJOURNÉ SANS NOUVELLE DATE D'ABORD : c'est celui-là qui attend
+       qu'on fasse quelque chose. Un rendez-vous en retard peut se
+       rattraper le mois prochain ; un élève ajourné et non
+       reprogrammé, personne ne le rappelle. */
+    if(a.exam.aReprogrammer !== b.exam.aReprogrammer)
+      return a.exam.aReprogrammer ? -1 : 1;
     if(a.retard !== b.retard) return a.retard ? -1 : 1;
     if(a.rvtManquant !== b.rvtManquant) return a.rvtManquant ? -1 : 1;
     const da = a.ech.exam.iso || '9999';
@@ -865,7 +1003,8 @@ function dessinerListeAac(zone){
   zone.innerHTML = '';
 
   if(typeof majVolet === 'function'){
-    majVolet('cptAac', liste.length, liste.filter(x => x.retard).length);
+    majVolet('cptAac', liste.length,
+             liste.filter(x => x.retard || x.exam.aReprogrammer).length);
   }
   dessinerFiltresAac(liste);
 
@@ -879,6 +1018,7 @@ function dessinerListeAac(zone){
   const vus = liste.filter(x => {
     if(filtreAac === 'retard') return x.retard;
     if(filtreAac === 'theorique') return x.rvtManquant;
+    if(filtreAac === 'areprogrammer') return x.exam.aReprogrammer;
     if(filtreAac === 'horsparcours') return x.parcoursCle !== '';
     return true;
   });
@@ -901,6 +1041,8 @@ function dessinerFiltresAac(liste){
   [['tous', 'Tous', liste.length],
    ['retard', '⚠️ En retard', liste.filter(x => x.retard).length],
    ['theorique', '🗣️ Théorique à faire', liste.filter(x => x.rvtManquant).length],
+   ['areprogrammer', '🔁 À reprogrammer',
+    liste.filter(x => x.exam.aReprogrammer).length],
    ['horsparcours', 'Ne valident pas',
     liste.filter(x => x.parcoursCle !== '').length]
   ].forEach(([cle, nom, n]) => {
@@ -973,6 +1115,8 @@ function ligneAac(x){
     eb.textContent = x.eb.txt;
     meta.appendChild(eb);
   }
+
+  lignesExamenOfficiel(x.exam).forEach(l => meta.appendChild(l));
 
   if(x.parcoursCle && x.suivi.parcoursLe){
     const q = document.createElement('span');
