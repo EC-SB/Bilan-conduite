@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:41 — v829 */
+/* Déployé le 03/09/2026 à 09:48 — v830 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1689,6 +1689,7 @@ async function chargerPrepareInterne(cours){
      un cours ouvert est un cours qui a commencé, qu'on dicte au fil
      de l'eau ou pas du tout. En fond, sans « await » — le moniteur
      n'attend pas le réseau pour démarrer. */
+  if(typeof marquerCoursSignale === 'function') marquerCoursSignale();
   if(typeof signalerCoursDemarre === 'function'){
     try{
       signalerCoursDemarre(cours.eleve || '',
