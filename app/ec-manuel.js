@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:09 — v810 */
+/* Déployé le 03/09/2026 à 09:09 — v825 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2496,6 +2496,33 @@ function ouvrirEnvoiAvant(eleve, message){
 
   boite.appendChild(r1);
 
+  /* ── LES AUTRES EXAMENS DE LA MATINÉE ────────────────────────
+
+     Un moniteur qui présente quatre élèves le même jour faisait
+     quatre fois le même trajet : refermer, retourner dans 📅 Mes
+     prochains cours, retrouver le suivant, appuyer sur ▶ Ouvrir.
+
+     Chrystel : « il faudrait un choix avec les élèves du même
+     moniteur qui sont dans mes prochains cours avec le type bilan
+     examen officiel le même jour, et que ça ouvre la fiche suivante
+     sans que le moniteur doive retourner dans mes prochains
+     cours ».
+
+     La liste est déjà en mémoire, et l'ouverture est déjà écrite :
+     il n'y a rien à inventer, seulement à relier. */
+  const suite = examensAEnchainer($('studentName').value);
+  if(suite.length){
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:12px;font-weight:700;margin:14px 0 6px;' +
+      'color:var(--accent-text);';
+    t.textContent = '👤 Enchaîner — ' + suite.length + ' autre' +
+      (suite.length > 1 ? 's' : '') + ' examen' +
+      (suite.length > 1 ? 's' : '') + ' ce jour-là';
+    boite.appendChild(t);
+
+    suite.forEach(x => boite.appendChild(ligneEnchainement(x, fond)));
+  }
+
   const r = document.createElement('div');
   r.className = 'btn-row';
 
@@ -2507,7 +2534,13 @@ function ouvrirEnvoiAvant(eleve, message){
 
   const bSuivant = document.createElement('button');
   bSuivant.className = 'btn btn-primary';
-  bSuivant.textContent = '👤 Élève suivant';
+  /* Sans personne à enchaîner, le bouton garde son ancien rôle — et
+     le dit, plutôt que de laisser croire à une liste vide. */
+  bSuivant.textContent = suite.length ? '📋 Revenir à la liste'
+                                      : '👤 Élève suivant';
+  bSuivant.title = suite.length
+    ? 'Fermer sans ouvrir personne'
+    : "Aucun autre examen officiel ce jour-là pour toi";
   bSuivant.addEventListener('click', () => {
     document.body.removeChild(fond);
     fermerBilanManuel();
@@ -2520,6 +2553,111 @@ function ouvrirEnvoiAvant(eleve, message){
   boite.appendChild(r);
   fond.appendChild(boite);
   document.body.appendChild(fond);
+}
+
+
+/* ------------------------------------------------------------
+   LES EXAMENS OFFICIELS QUI RESTENT À CE MONITEUR, CE JOUR-LÀ
+
+   Rien n'est demandé au réseau : « prepares » est chargé depuis
+   l'ouverture de l'application, et l'ordre est celui que le
+   moniteur a lui-même posé dans sa liste — c'est lui qui connaît
+   l'enchaînement de sa matinée.
+   ------------------------------------------------------------ */
+function examensAEnchainer(eleveActuel){
+  if(typeof prepares === 'undefined' || !prepares) return [];
+
+  const jour = ($('lessonDate') && $('lessonDate').value) ||
+               (typeof todayLocal === 'function' ? todayLocal() : '');
+  if(!jour) return [];
+
+  const moi = ($('monitorName') && $('monitorName').value.trim()) ||
+              (typeof ACCES !== 'undefined' ? (ACCES.moniteur || '') : '');
+  const sansMoi = normaliserMot(eleveActuel || '');
+
+  /* Ce qui a déjà été envoyé, élève par élève : un ✅ vaut mieux
+     qu'un nom de plus à reconnaître dans une liste. */
+  const dejaEnvoye = {};
+  (typeof tousLesBrouillons === 'function' ? tousLesBrouillons() : [])
+    .forEach(b => {
+      if(b && b.eleve && b.avantEnvoye) dejaEnvoye[normaliserMot(b.eleve)] = true;
+    });
+
+  return prepares
+    .filter(c => {
+      if(String(c.date || '') !== jour) return false;
+      if(String(c.modele || '') !== 'examen-officiel') return false;
+      if(!c.eleve || normaliserMot(c.eleve) === sansMoi) return false;
+      /* Le cours d'un autre ne s'ouvre pas d'ici : chargerPrepare
+         le refuserait, autant ne pas le proposer. */
+      if(c.moniteur && normaliserMot(c.moniteur) !== normaliserMot(moi)) return false;
+      return true;
+    })
+    /* Le même ordre que dans 📅 Mes prochains cours : celui du
+       moniteur d'abord, la création pour départager. */
+    .sort((a, b) => {
+      const oa = a.ordre || 0, ob = b.ordre || 0;
+      if(oa && ob) return oa - ob;
+      if(oa) return -1;
+      if(ob) return 1;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    })
+    .map(c => Object.assign({}, c, { fait: !!dejaEnvoye[normaliserMot(c.eleve)] }));
+}
+
+/* Une ligne de la liste d'enchaînement. */
+function ligneEnchainement(cours, fond){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:100%;margin:0 0 6px;padding:10px 12px;' +
+    'font-size:13px;text-align:left;display:flex;align-items:center;gap:9px;' +
+    (cours.fait ? 'opacity:.6;' : '');
+
+  /* L'heure se lit comme dans 📅 Mes prochains cours, par la même
+     fonction : deux lectures de la même note finiraient par ne pas
+     trouver la même heure. */
+  const heure = (typeof heureDeLaPreparation === 'function')
+    ? (heureDeLaPreparation(cours) || '') : '';
+
+  b.innerHTML = '<span style="flex:0 0 auto;">' +
+      (cours.fait ? '✅' : '▶') + '</span>' +
+    '<span style="flex:1;min-width:0;">' +
+      (heure ? '<span style="color:var(--muted);">' + echapper(heure) +
+               '</span> ' : '') +
+      '<strong>' + echapper(cours.eleve) + '</strong>' +
+      (cours.fait ? '<br><span style="font-size:11px;color:var(--muted);">' +
+                    'partie avant examen déjà envoyée</span>' : '') +
+    '</span>';
+
+  b.addEventListener('click', async () => {
+    if(b.disabled) return;
+    b.disabled = true;
+    b.style.opacity = '.6';
+
+    /* ⚠️ ON REFERME AVANT D'OUVRIR, ET DANS CET ORDRE.
+
+       « fermerBilanManuel » commence par « sauvegarderManuel » : la
+       fiche qu'on quitte est mise à l'abri avant que l'écran ne
+       change. Ouvrir d'abord l'écraserait avec celle du suivant, et
+       le travail de l'examen en cours serait perdu — bien pire que
+       le trajet qu'on répare ici. */
+    if(fond.parentNode) document.body.removeChild(fond);
+    fermerBilanManuel();
+
+    /* Et l'ouverture est CELLE DU BOUTON ▶ Ouvrir, pas une
+       deuxième : un second chemin pour ouvrir un cours préparé
+       finirait par ne plus faire la même chose que le premier. */
+    if(typeof chargerPrepare === 'function'){
+      try{
+        await chargerPrepare(cours);
+        showToast('👤 ' + cours.eleve);
+      }catch(e){
+        showToast('Impossible : ' + (e.message || e));
+      }
+    }
+  });
+
+  return b;
 }
 
 
