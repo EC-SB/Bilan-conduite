@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:39 — v822 */
+/* Déployé le 03/09/2026 à 11:30 — v836 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -410,6 +410,21 @@ const FORMATIONS_BASE = [
      tout l'objet de ces leçons. Voir PARCOURS_FORMATION. */
   { cle: 'Régularisation BEA', nom: '♿ Régularisation de permis (BEA)', voiture: true },
   { cle: 'Régularisation BV',  nom: '♿ Régularisation de permis (BV)',  voiture: true },
+  /* LA REMISE À NIVEAU.
+
+     Un conducteur qui a son permis et qui n'a plus conduit depuis
+     longtemps. Comme la régularisation : ni frise, ni examen blanc,
+     ni date d'examen, ni rendez-vous post-permis. Ce qui lui est
+     propre : son parcours se compte EN HEURES et en trois temps —
+     simulateur, notre voiture, la sienne. Voir PARCOURS_FORMATION.
+
+     ⚠️ « Remise à niveau BV » existait déjà, ajoutée à la main :
+     elle ne vivait que dans le navigateur du bureau, et les
+     moniteurs ne l'avaient pas. L'orthographe est reprise au mot
+     près — sinon les élèves qui la portent déjà ne retomberaient
+     pas sur ce parcours. */
+  { cle: 'Remise à niveau BV',  nom: '🔄 Remise à niveau (BV)',  voiture: true },
+  { cle: 'Remise à niveau BEA', nom: '🔄 Remise à niveau (BEA)', voiture: true },
   { cle: 'Moto A',          nom: '🏍️ Moto (A)',              voiture: false },
   { cle: 'A1 permis',       nom: '🛵 A1 permis',              voiture: false },
   { cle: 'A1 passerelle',   nom: '🛵 A1 passerelle',          voiture: false },
