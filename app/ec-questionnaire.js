@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 10:36 — v834 */
+/* Déployé le 03/09/2026 à 11:30 — v836 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1503,6 +1503,47 @@ const PARCOURS_FORMATION = [
      Elle garde donc son mot — « leçon de régularisation » — et le
      rang ordinaire, celui de ses leçons chez nous. Corrigé une fois
      à la main, il tient pour de bon : c'est déjà la règle. */
+  /* ------------------------------------------------------------
+     LA REMISE À NIVEAU
+
+     Un conducteur qui a son permis et qui n'a plus conduit depuis
+     longtemps. Comme la régularisation : ni frise, ni examen blanc,
+     ni date d'examen, ni rendez-vous post-permis — il a déjà son
+     permis, il n'y a rien à blanchir.
+
+     CE QUI LUI EST PROPRE : SON PARCOURS SE COMPTE EN HEURES, ET
+     EN TROIS ÉTAPES. « Tant d'heures en simu, puis tant d'heures
+     dans notre voiture, puis tant d'heures dans sa voiture. » Ces
+     trois nombres REMPLACENT la frise : c'est le même rôle — dire
+     le parcours prévu — écrit autrement.
+
+     Une leçon vaut une heure, et les étapes s'enchaînent dans cet
+     ordre. Une étape qu'on ne fait pas vaut zéro : c'est ce que
+     Chrystel a demandé, et c'est ce qui permet de sauter le
+     simulateur sans rien casser.
+
+     Le poste de conduite aménagé n'est pas obligatoire ici — mais
+     il reste demandable, « au cas où » : il n'est donc pas dans
+     « sansObjet ». Le simulateur non plus, pour la même raison
+     inverse de la régularisation : ici, il compte. */
+  { cle:'Remise à niveau BV', boite:'BV', modele:'conduite-manuelle', frise:'',
+    motRang:'de remise à niveau', etapesHeures:true,
+    sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
+               'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+               'avantEB', 'pasEcoute',
+               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPassage',
+               'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
+               'rdvPostMoniteur'] },
+  { cle:'Remise à niveau BEA', boite:'BEA', modele:'conduite-auto', frise:'',
+    motRang:'de remise à niveau', etapesHeures:true,
+    sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
+               'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
+               'avantEB', 'pasEcoute',
+               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPassage',
+               'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
+               'rdvPostMoniteur'] },
   { cle:'Passerelle BEA→BV', boite:'BV', modele:'conduite-manuelle', frise:'',
     compteParBoite:true, motRang:'de passerelle',
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
@@ -1548,6 +1589,70 @@ function parcoursDeLaFormation(formation){
     const bv = /\bbv\b|manuelle/.test(t);
     return PARCOURS_FORMATION.find(p =>
       p.cle === (bv ? 'Régularisation BV' : 'Régularisation BEA'));
+  }
+
+  /* ⚠️ UNE REMISE À NIVEAU ÉCRITE À LA MAIN EN EST UNE QUAND MÊME.
+
+     « Remise à niveau BV » a été ajoutée à la main dans le menu des
+     formations bien avant que l'outil la connaisse — elle vivait
+     dans le navigateur du bureau, et nulle part ailleurs. Les
+     élèves qui la portent déjà doivent retomber sur ce parcours-ci
+     sans qu'on retouche une seule fiche.
+
+     La boîte se lit dans le nom quand il la porte ; sinon la
+     manuelle, qui est celle de la première entrée créée. */
+  if(/remise a niveau/.test(t)){
+    const bea = /\bbea\b|automatique/.test(t);
+    return PARCOURS_FORMATION.find(p =>
+      p.cle === (bea ? 'Remise à niveau BEA' : 'Remise à niveau BV'));
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------
+   LE PARCOURS SE COMPTE-T-IL EN TROIS ÉTAPES D'HEURES ?
+
+   Écrit une seule fois, comme « compteurPrefecturePourLaFormation »
+   à côté : le questionnaire, la carte du cours et la phrase de
+   position posent tous les trois la même question, et aucun ne doit
+   y répondre tout seul.
+   ------------------------------------------------------------ */
+const ETAPES_REMISE_A_NIVEAU = [
+  { cle:'rnSimu',   nom:'simulateur',        court:'simu',        ou:'sur ' },
+  { cle:'rnNotre',  nom:'notre voiture',     court:'notre auto',  ou:'dans ' },
+  { cle:'rnSienne', nom:'sa voiture',        court:'sa voiture',  ou:'dans ' }
+];
+
+function etapesHeuresPourLaFormation(formation){
+  var p = parcoursDeLaFormation(formation);
+  return !!(p && p.etapesHeures);
+}
+
+/* Les trois nombres d'un contexte, lus comme des nombres. Un vide
+   vaut zéro : « il se peut qu'il n'y ait pas de simulateur ni
+   d'heure dans sa voiture, mais on mettra 0 ». */
+function etapesDuParcours(q){
+  return ETAPES_REMISE_A_NIVEAU.map(e => {
+    const n = parseInt(String((q && q[e.cle]) || '').replace(/\D/g, ''), 10);
+    return { cle: e.cle, nom: e.nom, court: e.court, ou: e.ou,
+             heures: (isNaN(n) || n < 0) ? 0 : n };
+  });
+}
+
+/* Où tombe la n-ième heure, dans ces trois étapes. Rend null quand
+   le programme n'est pas encore saisi (tout à zéro) ou quand on
+   l'a dépassé : dans les deux cas il n'y a rien à annoncer, et
+   inventer une étape serait pire que se taire. */
+function etapeDeLHeure(etapes, n){
+  if(!(n > 0)) return null;
+  let bas = 0;
+  for(let i = 0; i < etapes.length; i++){
+    const e = etapes[i];
+    if(!e.heures) continue;
+    if(n <= bas + e.heures){
+      return { etape: e, rang: n - bas, reste: bas + e.heures - n };
+    }
+    bas += e.heures;
   }
   return null;
 }
@@ -1661,6 +1766,14 @@ const CHAMP_DE_LA_REPONSE = {
   avantRdvPost:  '#qLeconDepuis',
   avantExamRate: '#qLeconDepuis',
   frise:         '#qFriseClassique',
+  /* Les trois nombres de la remise à niveau tiennent lieu de frise,
+     et se protègent comme elle : un questionnaire qui ne les pose
+     pas — la fin de cours, un examen — ne doit pas revenir les
+     effacer. Ils vivent dans la même case, donc sous le même
+     sélecteur. */
+  rnSimu:        '#qEtapesRN',
+  rnNotre:       '#qEtapesRN',
+  rnSienne:      '#qEtapesRN',
   examBlanc:     '#qExamBlanc',
   examBlancN:    '#qExamBlancN',
   examBlancRang: '#qBlocEbRang',
@@ -2022,7 +2135,7 @@ function fermerQuestionnaireOuvert(){
 function blocsDuSujetManquant(quoi){
   const T = {
     'la formation':        ['#qFormation', '#qFormationEffet'],
-    'la frise':            ['#qFriseClassique', '#qFriseFixe'],
+    'la frise':            ['#qFriseClassique', '#qFriseFixe', '#qEtapesRN'],
     'le numéro de leçon':  ['#qLecon', '#qLeconDepuis'],
     /* La régularisation de permis réclame son poste de conduite :
        la case ET la liste, sinon on demanderait de cocher une case
@@ -2411,6 +2524,28 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '</div>' +
       '<div id="qFriseFixe" style="display:none;background:var(--navy);border:1px solid var(--line);' +
       'border-radius:10px;padding:11px 12px;font-size:14px;line-height:1.5;margin-bottom:6px;"></div>' +
+
+      /* LA REMISE À NIVEAU N'A PAS DE FRISE : ELLE A TROIS NOMBRES.
+
+         Ils disent la même chose qu'une frise — le parcours prévu —
+         et ils prennent sa place à l'écran, exactement là où elle
+         serait. Une étape qu'on ne fait pas se met à 0. */
+      '<div id="qEtapesRN" style="display:none;background:var(--navy);' +
+      'border:1px solid var(--line);border-radius:10px;padding:12px;' +
+      'margin-bottom:6px;font-size:15px;line-height:2.2;">' +
+        '<input type="text" id="qRnSimu" inputmode="numeric" maxlength="2" ' +
+        'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;' +
+        'text-align:center;font-size:16px;"> h sur simulateur<br>' +
+        '<input type="text" id="qRnNotre" inputmode="numeric" maxlength="2" ' +
+        'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;' +
+        'text-align:center;font-size:16px;"> h dans notre voiture<br>' +
+        '<input type="text" id="qRnSienne" inputmode="numeric" maxlength="2" ' +
+        'style="width:52px;display:inline-block;margin:0 4px 0 0;padding:7px;' +
+        'text-align:center;font-size:16px;"> h dans sa voiture' +
+        '<div id="qRnEffet" style="font-size:12px;color:var(--accent-text);' +
+        'line-height:1.5;margin-top:6px;"></div>' +
+      '</div>' +
+
       '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.4;">' +
       'Laisse vide si la frise n\'est pas encore déterminée.</div>' +
 
@@ -2711,6 +2846,49 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const zoneClassique = surFiche ? null : boite.querySelector('#qFriseClassique');
     const zoneFixe = surFiche ? null : boite.querySelector('#qFriseFixe');
 
+    /* Les trois nombres de la remise à niveau : ils tiennent la
+       place de la frise, et se lisent au même endroit. */
+    const zoneEtapes = surFiche ? null : boite.querySelector('#qEtapesRN');
+    const chEtapes = {
+      rnSimu:   boite.querySelector('#qRnSimu'),
+      rnNotre:  boite.querySelector('#qRnNotre'),
+      rnSienne: boite.querySelector('#qRnSienne')
+    };
+    Object.keys(chEtapes).forEach(k => {
+      if(chEtapes[k]) chEtapes[k].value = String(prec[k] || '');
+    });
+
+    /* Ce que les trois nombres produisent, en direct — le même
+       garde-fou que sous les deux cases de leçon : un chiffre pris
+       pour l'autre doit se voir tout de suite. */
+    function etapesSaisies(){
+      const out = {};
+      Object.keys(chEtapes).forEach(k => {
+        const v = chEtapes[k] ? chEtapes[k].value.trim() : '';
+        out[k] = v || (prec[k] || '');
+      });
+      return out;
+    }
+
+    function majEffetEtapes(){
+      const z = boite.querySelector('#qRnEffet');
+      if(!z) return;
+      const etapes = etapesDuParcours(etapesSaisies());
+      const total = etapes.reduce((s, e) => s + e.heures, 0);
+      if(!total){ z.textContent = ''; return; }
+
+      const n = parseInt(leconSaisie(), 10);
+      const ou = etapeDeLHeure(etapes, n);
+      z.textContent = total + ' h en tout' +
+        (ou ? ' — aujourd\'hui : ' + rangLecon(ou.rang) + ' ' +
+              ou.etape.ou + ou.etape.nom
+            : (n > 0 ? ' — le programme est déjà dépassé' : ''));
+    }
+
+    Object.keys(chEtapes).forEach(k => {
+      if(chEtapes[k]) chEtapes[k].addEventListener('input', majEffetEtapes);
+    });
+
     const blocAacCs = boite.querySelector('#qBlocAacCs');
 
     /* Ce que ce profil ne demande pas. Gardé hors du bloc : c'est
@@ -2725,12 +2903,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         ? ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
            '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
            '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
-           '#qFriseClassique', '#qFriseFixe', '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
+           '#qFriseClassique', '#qFriseFixe', '#qEtapesRN',
+           '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
            '#qBlocEbDate', '#qBlocEbRang', '#qExamBlancDate', '#qEBPasse',
            '#qEBLecons', '#qFormAccomp', '#qRvPrealable', '#qExamPassage']
         : (profil === 'examen')
         ? ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qFinirFiche',
-           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe']
+           '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe',
+           '#qEtapesRN']
         : ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
            '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
            '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
@@ -2876,7 +3056,21 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       const fixe = friseImposee();
 
-      if(fixe){
+      /* LA REMISE À NIVEAU PREND LA PLACE DE LA FRISE.
+
+         Ses trois nombres disent le parcours prévu : c'est le même
+         rôle, écrit autrement. Ils s'affichent donc là où la frise
+         s'afficherait, et jamais en même temps qu'elle — deux
+         parcours à l'écran, et le moniteur en remplirait un pour
+         rien. */
+      const surEtapes = etapesHeuresPourLaFormation(formationChoisie());
+      if(zoneEtapes) zoneEtapes.style.display = surEtapes ? 'block' : 'none';
+      if(surEtapes) majEffetEtapes();
+
+      if(surEtapes){
+        zoneClassique.style.display = 'none';
+        zoneFixe.style.display = 'none';
+      }else if(fixe){
         /* Une frise toute faite : on la montre, on ne la demande pas */
         zoneClassique.style.display = 'none';
         zoneFixe.style.display = 'block';
@@ -3565,7 +3759,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          est calculée à la validation, dans une autre portée. Une
          fonction se demande d'où l'on veut ; une variable, non. */
       const impose = friseImposee();
-      const essai = Object.assign({}, prec, {
+      const essai = Object.assign({}, prec, etapesSaisies(), {
         lecon: String(tot), modele: modeleCle,
         frise: (impose !== null) ? impose : friseSaisie(),
         examBlanc: selEB ? selEB.value : prec.examBlanc,
@@ -3590,6 +3784,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const el = boite.querySelector(x);
       if(el) el.addEventListener('input', majEffetLecon);
     });
+    /* Le rang décide de l'étape : les trois nombres se relisent
+       quand il change, sinon l'aperçu du parcours resterait sur
+       l'heure d'avant. */
+    {
+      const el = boite.querySelector('#qLecon');
+      if(el) el.addEventListener('input', majEffetEtapes);
+    }
     majEffetLecon();
 
     /* « que ça mette à jour pour les 2 cases » : le total et le
@@ -3715,6 +3916,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         /* Ce que le moniteur a choisi retourne au répertoire */
         formation: formationChoisie(),
         frise: (imposee !== null) ? imposee : friseSaisie(),
+        /* Les trois nombres de la remise à niveau tiennent lieu de
+           frise : ils partent avec elle, et un champ vide retombe
+           sur ce qu'on savait — même règle que la frise et le rang,
+           pour la même raison : un vide n'est pas une réponse. */
+        rnSimu:   etapesSaisies().rnSimu,
+        rnNotre:  etapesSaisies().rnNotre,
+        rnSienne: etapesSaisies().rnSienne,
         lecon: leconSaisie(),
         /* CE QU'IL Y AVAIT AVANT LA CHARNIÈRE.
 
@@ -3745,7 +3953,12 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            pour choisir entre « 1ère leçon » et « il faut remplir le
            questionnaire ». */
         sansBilan: !rangDuJour && !leconSaisie(),
-        premierCours: premierCours ? 'oui' : '',
+        /* La carte SD demandée au rappel : la preuve que ce cours
+           EST le premier. Elle ne se redemande nulle part, et la
+           perdre remettrait « il faut remplir le questionnaire »
+           sur un élève dont on sait justement qu'il débute — d'où
+           le repli sur ce qu'on savait. */
+        premierCours: premierCours ? 'oui' : (prec.premierCours || ''),
         /* Un rang tapé ici est de la même eau que celui tapé sur la
            carte : une main humaine, d'après Drivup. Le recomptage
            ne doit pas davantage repasser derrière. */
@@ -3848,16 +4061,24 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            ni si l'élève a confirmé — et il suffisait d'ouvrir le
            crayon une fois pour le perdre. */
         jeton: prec.jeton || '',
-        rdvPost: prec.rdvPost || '',
-        /* La carte SD demandée au rappel : la preuve que ce cours
-           EST le premier. Elle ne se redemande nulle part, et la
-           perdre remettrait « il faut remplir le questionnaire »
-           sur un élève dont on sait justement qu'il débute. */
-        premierCours: prec.premierCours || '',
-        /* Le rang tapé à la main reste tapé à la main : perdre
-           cette marque, c'est rendre le recomptage au classeur et
-           reperdre la correction du bureau. */
-        leconMain: prec.leconMain || ''
+        rdvPost: prec.rdvPost || ''
+        /* ⚠️ DEUX CLÉS ÉTAIENT ÉCRITES DEUX FOIS DANS CET OBJET.
+
+           « leconMain » et « premierCours » figuraient ici ET une
+           centaine de lignes plus haut. En JavaScript, c'est la
+           DERNIÈRE qui gagne : les deux calculs du haut ne
+           servaient à rien, en silence, depuis le début.
+
+           Pour « leconMain », la conséquence se voit : corriger un
+           rang dans le questionnaire laissait le recomptage
+           repasser derrière — exactement ce que cette marque
+           existe pour empêcher. Pour « premierCours », la carte SD
+           demandée au rappel ne se marquait jamais depuis ici.
+
+           Les deux ont été ramenées à UN endroit, en haut, où
+           chacune retombe sur ce qu'on savait quand elle n'a rien
+           à dire. Une même chose écrite à deux endroits, et c'est
+           le mauvais qui gagne — dans le même objet, cette fois. */
       });
     });
   });
@@ -4158,6 +4379,32 @@ function positionDansLaFrise(q){
       ? (q.leconsParBoite && q.leconsParBoite[parcours.boite])
       : null;
     const r = (typeof faites === 'number') ? faites + plus : n;
+
+    /* ⚠️ TROIS ÉTAPES D'HEURES À LA PLACE D'UNE FRISE.
+
+       La remise à niveau ne dit pas son avancement en frise mais en
+       heures, et en trois temps : le simulateur, notre voiture, la
+       sienne. Une leçon vaut une heure, et les étapes s'enchaînent
+       dans cet ordre — c'est ce qui permet de dire « 2ème dans
+       notre voiture » à partir du seul rang de la leçon.
+
+       Le rang de la formation ne disparaît pas pour autant : il
+       part entre parenthèses. Chrystel : « 3ème leçon de remise à
+       niveau a encore son sens ». Les deux se lisent d'un coup,
+       et sur une seule ligne.
+
+       Le programme pas encore saisi, ou déjà dépassé : on annonce
+       le rang seul. Inventer une étape serait pire que se taire. */
+    if(parcours.etapesHeures){
+      const ou = etapeDeLHeure(etapesDuParcours(q), r);
+      if(ou){
+        return dire(rangLecon(ou.rang) + ' ' + ou.etape.ou + ou.etape.nom +
+                    ' (' + rangLecon(r) + ' leçon ' + parcours.motRang +
+                    (ou.reste ? ', encore ' + ou.reste + ' h' : ', dernière') +
+                    ')');
+      }
+    }
+
     return dire(rangLecon(r) + ' leçon ' + parcours.motRang);
   }
 
@@ -5815,7 +6062,7 @@ function allegerQuestionnaireFin(boite, prec){
      l'ancienne règle isolée masquait le champ sans son bloc. */
 
   /* Frise et numéro de leçon : renseignés au départ */
-  ['#qFriseClassique', '#qFriseFixe', '#qBlocAacCs'].forEach(s => {
+  ['#qFriseClassique', '#qFriseFixe', '#qEtapesRN', '#qBlocAacCs'].forEach(s => {
     masques.push(s);
     const e = boite.querySelector(s);
     if(!e) return;
