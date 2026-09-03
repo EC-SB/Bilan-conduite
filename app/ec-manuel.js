@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:23 — v827 */
+/* Déployé le 03/09/2026 à 09:41 — v829 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2112,8 +2112,11 @@ let dernierDepotManuel = 0;
 /* La fiche en clair : « Rubrique — réponse », une par ligne. On
    n'envoie que ce qui est rempli : une fiche vide n'apprend rien et
    remplirait la feuille de blancs. */
-function ficheManuelleEnTexte(){
-  const zone = $('manuelChamps');
+function ficheManuelleEnTexte(quelleZone){
+  /* Une zone peut être donnée : le rendez-vous post-permis a son
+     propre écran, avec ses propres champs. Deux fonctions pour lire
+     deux formulaires finiraient par ne pas lire pareil. */
+  const zone = quelleZone || $('manuelChamps');
   if(!zone) return '';
 
   const lignes = [];
@@ -2150,18 +2153,74 @@ function ficheManuelleEnTexte(){
   return lignes.join('\n');
 }
 
-function deposerFicheManuelle(force){
-  if(!modeManuel) return;
+/* ------------------------------------------------------------
+   LE RENDEZ-VOUS POST-PERMIS SE DÉPOSE AUSSI
+
+   Il a son écran à lui, donc il ne passe par aucune des deux
+   surveillances de la fiche manuelle. Il n'a pas non plus de
+   sauvegarde locale : ce qui est écrit dans ses trois grandes
+   zones — le bilan de l'examen, celui que l'élève a rédigé, les
+   remarques du moniteur — ne vit QUE dans la page ouverte. Un
+   onglet fermé et tout est perdu.
+
+   Une seule surveillance, posée une fois, et le même dépôt que
+   partout ailleurs.
+   ------------------------------------------------------------ */
+function veillerDepotRdvPost(cours){
+  const zone = $('rdvPostView');
+  if(!zone || !cours) return;
+
+  dernierDepotManuel = 0;
+  if(typeof reinitialiserDepotBrouillon === 'function'){
+    reinitialiserDepotBrouillon();
+  }
+
+  const infos = { eleve: cours.eleve || '', date: cours.date || '',
+                  modele: 'rdv-post', site: cours.site || '' };
+
+  /* Posée UNE fois : l'écran se redessine à chaque rendez-vous, et
+     des écouteurs empilés déposeraient autant de fois. Les infos,
+     elles, suivent l'élève du moment. */
+  zone.dataset.eleveDepot = infos.eleve;
+  if(zone.dataset.veille) return;
+  zone.dataset.veille = 'oui';
+
+  ['input', 'change'].forEach(ev => {
+    zone.addEventListener(ev, () => {
+      clearTimeout(zone._minuteurDepot);
+      zone._minuteurDepot = setTimeout(() => {
+        deposerFicheManuelle(false, zone,
+          Object.assign({}, infos, { eleve: zone.dataset.eleveDepot || '' }));
+      }, 1000);
+    });
+  });
+
+  /* Et à l'instant où l'on perd tout : l'onglet qui se ferme, le
+     téléphone qui s'endort. */
+  window.addEventListener('pagehide', () => {
+    if(zone.style.display === 'none') return;
+    deposerFicheManuelle(true, zone,
+      Object.assign({}, infos, { eleve: zone.dataset.eleveDepot || '' }));
+  });
+}
+
+function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
+  /* Sans zone donnée, c'est la fiche manuelle ordinaire : elle
+     n'existe que si « modeManuel » est vrai. Avec une zone, c'est
+     un écran qui se garde lui-même — le rendez-vous post-permis. */
+  if(!quelleZone && !modeManuel) return;
 
   const maintenant = Date.now();
   if(!force && maintenant - dernierDepotManuel < SECONDES_ENTRE_DEUX_DEPOTS * 1000){
     return;
   }
 
-  const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+  const info = quiEtQuoi || {};
+  const eleve = info.eleve ||
+    ($('studentName') && $('studentName').value.trim()) || '';
   if(eleve.length < 2) return;
 
-  const texte = ficheManuelleEnTexte();
+  const texte = ficheManuelleEnTexte(quelleZone);
   if(!texte) return;                 /* rien de rempli : rien à déposer */
 
   dernierDepotManuel = maintenant;
@@ -2172,9 +2231,9 @@ function deposerFicheManuelle(force){
   appelPrep({
     action: 'brouillonSet',
     eleve: eleve,
-    dateCours: ($('lessonDate') && $('lessonDate').value) || '',
-    modele: ($('modele') && $('modele').value) || '',
-    site: ($('site') && $('site').value) || '',
+    dateCours: info.date || ($('lessonDate') && $('lessonDate').value) || '',
+    modele: info.modele || ($('modele') && $('modele').value) || '',
+    site: info.site || ($('site') && $('site').value) || '',
     transcript: texte,
     note: ($('noteInterne') && $('noteInterne').value) || ''
   }).catch(() => {});
