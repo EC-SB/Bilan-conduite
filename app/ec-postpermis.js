@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 03/09/2026 à 08:29 — v821 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -457,40 +457,117 @@ function joursAvant(iso){
   return Math.round((a - b) / 86400000);
 }
 
-/* Les deux prochaines échéances de prise de dates */
+/* À combien de jours la prise de dates se signale. UN SEUL chiffre,
+   pour l'écran 🚗 Permis comme pour le bandeau du jour : deux
+   seuils pour une même alerte finiraient par ne plus dire la même
+   chose, et on ne saurait plus lequel des deux écrans croire. */
+const JOURS_AVANT_PRISE = 10;
+
+/* ------------------------------------------------------------
+   LES DEUX PROCHAINES PRISES DE DATES
+
+   ⚠️ ON PARCOURT LES MOIS VISÉS, PAS LES MOIS DE PRISE.
+
+   C'était l'inverse, et ça ne pouvait pas accueillir d'exception :
+   partir du 1ᵉʳ mardi de septembre pour en déduire octobre marche
+   tant que la préfecture suit le calendrier. Le jour où elle
+   décale — « il y a eu un bug, on prendra la 1ʳᵉ quinzaine
+   d'octobre mardi prochain » —, la date du 1ᵉʳ mardi est PASSÉE :
+   l'ancienne boucle la sautait, et la quinzaine disparaissait de
+   l'écran alors qu'elle était justement à prendre.
+
+   Ce qui identifie une prise, c'est LA QUINZAINE QU'ELLE OUVRE.
+   On part donc d'elle, on regarde si une date lui a été réglée à
+   la main (voir « priseReglee » dans ec-places), et à défaut
+   seulement on applique la règle : 1ᵉʳ ou 2ᵉ mardi du mois
+   précédent.
+   ------------------------------------------------------------ */
 function prochainesPrises(){
   const p2 = n => String(n).padStart(2, '0');
   const auj = new Date();
   auj.setHours(12, 0, 0, 0);
   const out = [];
 
-  for(let d = 0; d < 3; d++){
-    const ref = new Date(auj.getFullYear(), auj.getMonth() + d, 1);
-    const an = ref.getFullYear(), mo = ref.getMonth() + 1;
-    const mardis = mardisDuMois(an, mo);
+  /* d = 0 : le mois en cours. Sa prise est normalement passée, mais
+     une date réglée à la main peut l'avoir ramenée devant nous. */
+  for(let d = 0; d <= 4; d++){
+    const cible = new Date(auj.getFullYear(), auj.getMonth() + d, 1);
+    const anC = cible.getFullYear(), moC = cible.getMonth() + 1;
+    const isoMois = anC + '-' + p2(moC);
+    const finMois = new Date(anC, moC, 0).getDate();
 
-    [0, 1].forEach(i => {
-      if(mardis[i] === undefined) return;
-      const jour = new Date(an, mo - 1, mardis[i], 12);
+    /* Le mois où l'on prend : celui d'avant. */
+    const src = new Date(anC, moC - 2, 1);
+    const anS = src.getFullYear(), moS = src.getMonth() + 1;
+    const mardis = mardisDuMois(anS, moS);
+
+    [1, 2].forEach(q => {
+      const regle = (mardis[q - 1] !== undefined)
+        ? anS + '-' + p2(moS) + '-' + p2(mardis[q - 1]) : '';
+      const aLaMain = (typeof priseReglee === 'function')
+        ? priseReglee(isoMois, q) : '';
+
+      const date = aLaMain || regle;
+      if(!date) return;
+
+      const jour = new Date(date + 'T12:00:00');
       if(jour < auj && !memeJour(jour, auj)) return;
 
-      /* Le mois visé est le suivant */
-      const cible = new Date(an, mo, 1);
-      const anC = cible.getFullYear(), moC = cible.getMonth() + 1;
-      const finMois = new Date(anC, moC, 0).getDate();
-
       out.push({
-        date: an + '-' + p2(mo) + '-' + p2(mardis[i]),
-        quinzaine: i + 1,
-        moisCible: anC + '-' + p2(moC),
-        du: (i === 0) ? anC + '-' + p2(moC) + '-01' : anC + '-' + p2(moC) + '-16',
-        au: (i === 0) ? anC + '-' + p2(moC) + '-15'
-                      : anC + '-' + p2(moC) + '-' + p2(finMois)
+        date: date,
+        quinzaine: q,
+        /* Pour le dire à l'écran : une date réglée à la main n'est
+           pas une date déduite, et on doit pouvoir s'en souvenir. */
+        reglee: !!aLaMain,
+        moisCible: isoMois,
+        du: (q === 1) ? isoMois + '-01' : isoMois + '-16',
+        au: (q === 1) ? isoMois + '-15' : isoMois + '-' + p2(finMois),
+        /* Le nombre de places à prendre, tel que le bureau l'a
+           saisi dans le même écran que la date. */
+        places: (typeof placesDeLaQuinzaine === 'function')
+          ? placesDeLaQuinzaine(isoMois, q) : ''
       });
     });
   }
   out.sort((a, b) => a.date.localeCompare(b.date));
   return out.slice(0, 2);
+}
+
+
+/* ------------------------------------------------------------
+   COMMENT UNE PRISE SE DIT — À UN SEUL ENDROIT
+
+   L'écran 🚗 Permis et le bandeau du jour montrent la même chose.
+   Deux phrases écrites séparément finiraient par différer d'un mot,
+   puis d'une date. Elles se composent donc ici.
+   ------------------------------------------------------------ */
+function libellePrise(p){
+  const j = joursAvant(p.date);
+  const jourLong = new Date(p.date + 'T12:00:00')
+    .toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  const mois = new Date(p.moisCible + '-15T12:00:00')
+    .toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
+
+  return {
+    jours: j,
+    urgent: (j <= 1),
+    quand: (j === 0) ? "aujourd'hui" : (j === 1) ? 'demain' : 'dans ' + j + ' jours',
+    titre: 'Prise de dates ' + ((j === 0) ? "aujourd'hui"
+             : (j === 1) ? 'demain' : 'dans ' + j + ' jours') + ' — ' + jourLong,
+    /* « de octobre » se disait tel quel. Une élision manquante sur
+       un écran qu'on lit tous les jours finit par se voir. */
+    periode: (p.quinzaine === 1 ? '1ʳᵉ' : '2ᵉ') + ' quinzaine ' +
+      (/^[aeiouâêîôûàéèù]/i.test(mois) ? "d'" : 'de ') + mois +
+      ' (' + new Date(p.du + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric' }) +
+      ' au ' + new Date(p.au + 'T12:00:00')
+        .toLocaleDateString('fr-FR', { day:'numeric', month:'long' }) + ')',
+    /* Le chiffre saisi dans le même écran que la date. Vide, on le
+       DIT : un « 0 places » ferait croire qu'il n'y a rien à prendre. */
+    places: p.places
+      ? p.places + ' place' + (Number(p.places) > 1 ? 's' : '') + ' à prendre'
+      : 'nombre de places à renseigner',
+    reglee: !!p.reglee
+  };
 }
 
 /* Un élève peut-il passer sur cette période ? */
@@ -521,30 +598,32 @@ function afficherAlertePrise(candidats){
 
   prochainesPrises().forEach(p => {
     const j = joursAvant(p.date);
-    if(j < 0 || j > 10) return;   /* on ne montre que ce qui arrive bientôt */
+    /* On ne montre que ce qui arrive bientôt — et « bientôt » se lit
+       dans UNE constante, la même que celle du bandeau du jour. */
+    if(j < 0 || j > JOURS_AVANT_PRISE) return;
 
     const eligibles = candidats.filter(e => disponibleSur(suiviDe(e.eleve), p.du, p.au));
     const ecartes = candidats.filter(e => !disponibleSur(suiviDe(e.eleve), p.du, p.au));
-    const urgent = (j <= 1);
+
+    /* Les mots viennent de « libellePrise », comme ceux du bandeau :
+       deux phrases écrites séparément finiraient par différer d'un
+       mot, puis d'une date. */
+    const lib = libellePrise(p);
+    const urgent = lib.urgent;
 
     const d = document.createElement('div');
     d.style.cssText = 'border-radius:10px;padding:12px;margin-bottom:8px;font-size:14px;' +
       'line-height:1.7;border:1px solid ' + (urgent ? 'var(--red)' : 'var(--orange)') + ';' +
       'background:' + (urgent ? 'var(--warn-bg)' : 'rgba(182,255,14,.08)') + ';';
 
-    const quand = (j === 0) ? "aujourd'hui" : (j === 1) ? 'demain' : 'dans ' + j + ' jours';
-    const libP = new Date(p.date + 'T12:00:00')
-      .toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-    const libM = new Date(p.moisCible + '-15T12:00:00')
-      .toLocaleDateString('fr-FR', { month:'long', year:'numeric' });
-
     d.innerHTML = '<div style="font-weight:700;margin-bottom:4px;">' +
-      (urgent ? '🔔' : '📆') + ' Prise de dates ' + quand + ' — ' + libP + '</div>' +
-      '<div>Places de la <strong>' + (p.quinzaine === 1 ? '1ʳᵉ' : '2ᵉ') +
-      ' quinzaine de ' + libM + '</strong> (' +
-      new Date(p.du + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric' }) + ' au ' +
-      new Date(p.au + 'T12:00:00').toLocaleDateString('fr-FR', { day:'numeric', month:'long' }) +
-      ')</div>' +
+      (urgent ? '🔔' : '📆') + ' ' + echapper(lib.titre) + '</div>' +
+      '<div>Places de la <strong>' + echapper(lib.periode) + '</strong> — ' +
+      '<strong style="color:var(--orange);">' + echapper(lib.places) +
+      '</strong></div>' +
+      (lib.reglee
+        ? '<div style="font-size:12px;color:var(--muted);">📌 Date réglée à ' +
+          'la main dans 📊 Réglage des places</div>' : '') +
       '<div style="margin-top:4px;"><strong>' + eligibles.length +
       '</strong> élève(s) présentable(s)' +
       (ecartes.length ? ' · <span style="color:var(--muted);">' + ecartes.length +
