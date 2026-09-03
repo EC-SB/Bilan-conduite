@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 03/09/2026 à 08:47 — v823 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -418,9 +418,21 @@ function dessinerBandeau(){
 
   const urgent = lignes.some(l => l.urgente);
   const reduit = !!lireReglageBandeau(CLE_BANDEAU_REDUIT, false);
-  const teinte = urgent
-    ? { bord:'var(--red)', fond:'var(--warn-bg)' }
-    : { bord:'var(--orange)', fond:'rgba(232,163,61,.10)' };
+
+  /* ⚠️ LE FOND NE CRIE PAS, LE TEXTE SI.
+
+     « Trop agressif, le fond rouge. » Il l'était : dès qu'une seule
+     ligne était en retard, tout le bandeau passait en rouge pâle —
+     et il l'aurait été presque tous les matins. Une nappe rouge
+     quotidienne ne veut plus rien dire au bout de trois jours, et
+     elle fatigue au lieu de prévenir.
+
+     Le fond est donc TOUJOURS le même crème, un ton plus foncé que
+     la page pour se détacher. Ce qui presse se voit là où c'est
+     vrai : sur la ligne concernée, en gras et en rouge, et sur le
+     liseré de gauche. */
+  const teinte = { bord: urgent ? 'var(--red)' : 'var(--orange)',
+                   fond: 'var(--bandeau-bg)' };
 
   if(reduit){
     zone.appendChild(bandeauReduit(lignes.length, teinte));
@@ -428,8 +440,9 @@ function dessinerBandeau(){
   }
 
   const b = document.createElement('div');
-  b.style.cssText = 'border:1px solid ' + teinte.bord + ';border-radius:12px;' +
-    'background:' + teinte.fond + ';padding:10px 12px;margin-bottom:10px;';
+  b.style.cssText = 'border:1px solid var(--line);border-left:3px solid ' +
+    teinte.bord + ';border-radius:12px;background:' + teinte.fond + ';' +
+    'padding:10px 12px;margin-bottom:10px;';
 
   b.appendChild(enteteBandeau(lignes.length));
   lignes.forEach((l, i) => b.appendChild(ligneBandeau(l, i > 0)));
