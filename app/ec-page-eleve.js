@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:16 — v811 */
+/* Déployé le 03/09/2026 à 07:41 — v819 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -873,7 +873,14 @@ function dessinerPageEleve(){
 }
 
 /* Prénom Nom, et la formation à côté : les deux choses qu'on
-   vérifie avant de parler de quelqu'un. */
+   vérifie avant de parler de quelqu'un.
+
+   L'ÂGE Y EST AUSSI, ET IL NE SE TAIT JAMAIS. « Je veux voir l'âge
+   à côté du nom prénom ; quand la date de naissance n'est pas
+   enregistrée tu mets ❓ ans. » Un âge absent qui ne s'affiche pas
+   se confond avec un âge qu'on n'a pas regardé — et l'âge est une
+   des deux conditions de l'examen. La pastille se clique dans les
+   deux cas : pour poser la date, ou pour corriger une saisie. */
 function enteteEleve(nom){
   const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : {};
 
@@ -886,6 +893,15 @@ function enteteEleve(nom){
     'line-height:1.25;';
   t.textContent = (f.genre === 'F' ? '♀ ' : (f.genre === 'M' ? '♂ ' : '')) + nom;
   d.appendChild(t);
+
+  d.appendChild(pastilleAgeEleve(nom, f));
+
+  /* Corriger une faute de frappe dans le nom. Réservé au bureau et
+     aux administratrices : renommer touche toutes les feuilles du
+     classeur, ce n'est pas un geste de bord de route. */
+  if(typeof peutModifier !== 'function' || peutModifier('eleves')){
+    d.appendChild(boutonRenommerEleve(nom));
+  }
 
   if(f.formation){
     const p = document.createElement('span');
@@ -905,6 +921,78 @@ function enteteEleve(nom){
   }
 
   return d;
+}
+
+
+/* ── L'ÂGE, TOUJOURS AFFICHÉ ────────────────────────────────────
+
+   Le calcul n'est pas refait ici : c'est « ageDe », dans
+   ec-fenetres.js, la même règle que pour les listes AAC et CS.
+   Deux écrans qui compteraient chacun leur âge finiraient par ne
+   pas être d'accord un 29 février. */
+function pastilleAgeEleve(nom, f){
+  const iso = (f && f.naissance) || '';
+  const a = (typeof ageDe === 'function') ? ageDe(iso) : null;
+  const connu = (a !== null && a !== undefined);
+
+  const p = document.createElement('button');
+  p.className = 'btn btn-secondary';
+  p.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:5px 11px;' +
+    'font-size:12px;font-weight:700;border-radius:999px;white-space:nowrap;' +
+    (connu ? '' : 'border-color:var(--orange);color:var(--orange);');
+  p.textContent = '🎂 ' + (connu ? a : '❓') + ' ans';
+  p.title = connu
+    ? 'Né(e) le ' + ((typeof dateEnToutesLettres === 'function')
+        ? dateEnToutesLettres(iso) : iso) + ' — clique pour corriger'
+    : 'Date de naissance inconnue — clique pour la poser';
+
+  p.addEventListener('click', async () => {
+    if(typeof choisirDate !== 'function' ||
+       typeof fixerDateNaissance !== 'function') return;
+    const choisie = await choisirDate('Date de naissance', iso);
+    if(!choisie) return;
+    /* On délègue : la fiche appartient à ec-fenetres, et c'est lui
+       qui l'écrit — pour la fiche, pour les listes AAC et pour ici. */
+    if(!await fixerDateNaissance(nom, choisie)) return;
+    showToast('Enregistré ✅');
+    dessinerPageEleve();
+  });
+
+  return p;
+}
+
+
+/* ── CORRIGER UNE FAUTE DE FRAPPE DANS LE NOM ───────────────────
+
+   « Il faut que je puisse changer le nom prénom si j'ai fait une
+   erreur de frappe. »
+
+   Ce n'est pas une modification de fiche : LE NOM EST LA CLÉ. Il
+   est écrit dans une vingtaine de feuilles — les bilans, le suivi,
+   les places d'examen, les cours préparés, les consignes, l'accès à
+   l'espace élève… Le corriger d'un seul côté couperait le dossier
+   en deux, et l'ancienne moitié serait introuvable.
+
+   Le renommage vit donc dans le classeur, en un seul passage. Et
+   côté écran il vit dans ec-fenetres, avec le reste de la fiche :
+   CETTE PAGE N'ÉCRIT RIEN ELLE-MÊME, c'est la règle qui tient tout
+   le module — voir l'en-tête. Elle appelle, comme pour la date de
+   naissance juste au-dessus. */
+function boutonRenommerEleve(nom){
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:5px 10px;' +
+    'font-size:12px;border-radius:999px;white-space:nowrap;';
+  b.textContent = '✏️ Nom';
+  b.title = 'Corriger une faute de frappe dans le nom ou le prénom';
+  b.addEventListener('click', async () => {
+    if(typeof corrigerNomEleve !== 'function') return;
+    const apres = await corrigerNomEleve(nom);
+    if(!apres) return;
+    elevePageOuverte = apres;
+    dessinerPageEleve();
+  });
+  return b;
 }
 
 function barreOngletsEleve(onglets){
