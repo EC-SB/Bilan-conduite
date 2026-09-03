@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 10:02 — v831 */
+/* Déployé le 03/09/2026 à 10:28 — v833 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2111,13 +2111,178 @@ const SECONDES_ENTRE_DEUX_DEPOTS = 60;
 let dernierDepotManuel = 0;
 let depotManuelEnAttente = null;
 
-/* La fiche en clair : « Rubrique — réponse », une par ligne. On
-   n'envoie que ce qui est rempli : une fiche vide n'apprend rien et
-   remplirait la feuille de blancs. */
+/* ============================================================
+   LA FICHE DÉPOSÉE DOIT RESSEMBLER À LA FICHE
+
+   « Je ne vois toujours pas les catégories. »
+
+   Le miroir parcourait la PAGE : il ne voyait donc que les cases
+   qui portent une valeur, et les nommait avec leur clé technique
+   quand aucune étiquette ne les entourait. Une fiche de conduite
+   entièrement remplie ressortait en quatre lignes — « carteSD —
+   oui » — c'est-à-dire les quatre cases cochées d'avance, et rien
+   du travail du moniteur.
+
+   Il parcourt maintenant LE SCHÉMA, le même que celui qui dessine
+   la fiche et le même que celui qui la relit : les titres sont
+   ceux de l'écran, l'ordre est celui de l'écran, et une rubrique
+   vide sort avec son titre — c'est justement ce qu'on veut voir
+   depuis le bureau. Un champ ajouté au schéma apparaît des trois
+   côtés sans qu'on y pense.
+
+   Les valeurs, elles, ne sont plus relues de la page : c'est
+   « lireChampsManuels » qui sait le faire, pour tous les types de
+   champs, et il le fait déjà. Deux lecteurs auraient fini par ne
+   pas lire pareil.
+   ============================================================ */
+
+/* Ce qu'une réponse devient à l'écrit, quelle que soit sa forme :
+   texte, liste de manœuvres, tableau de compétences. */
+function valeurLisible(v){
+  if(v === null || v === undefined || v === false || v === '') return '';
+
+  if(Array.isArray(v)){
+    return v.map(x => {
+      if(x && typeof x === 'object'){
+        if(x.nom) return String(x.nom);
+        return [x.inspecteur, x.reponse].filter(Boolean).join(' → ');
+      }
+      return String(x);
+    }).filter(Boolean).join(', ');
+  }
+
+  if(typeof v === 'object'){
+    return Object.keys(v).map(k => {
+      const x = v[k];
+      if(x && typeof x === 'object'){
+        const e = (x.erreurs || []).join(' / ');
+        return k + ' : ' + (x.statut || '') + (e ? ' — ' + e : '');
+      }
+      return k + ' : ' + String(x);
+    }).filter(Boolean).join(' · ');
+  }
+
+  return String(v).trim();
+}
+
+/* Les champs qui en contiennent d'autres : les neuf rubriques, les
+   compétences, l'en-tête. Leurs titres viennent d'où l'écran les
+   prend — une deuxième liste de noms finirait par dire autre
+   chose que la fiche. */
+function sousLignesDuChamp(ch, modele){
+  if(ch.type === 'rubriques'){
+    return (typeof RUBRIQUES !== 'undefined' ? RUBRIQUES : []).map(paire => ({
+      titre: String(paire[1]).replace(/\s*:\s*$/, ''),
+      valeur: valeurLisible(champsManuels[ch.cle + '.' + paire[0]])
+    }));
+  }
+
+  if(ch.type === 'competences'){
+    const dedans = champsManuels[ch.cle] || {};
+    return ((modele && modele.comps) || []).map(c => {
+      const x = dedans[c.cle] || null;
+      const e = x ? (x.erreurs || []).join(' / ') : '';
+      return {
+        titre: c.titre || c.nom || c.cle,
+        valeur: x ? ((x.statut || '') + (e ? ' — ' + e : '')).trim() : ''
+      };
+    });
+  }
+
+  if(ch.type === 'cepc'){
+    const dedans = champsManuels[ch.cle] || {};
+    return Object.keys(dedans).map(k => ({
+      titre: k, valeur: valeurLisible(dedans[k])
+    }));
+  }
+
+  if(ch.type === 'entete'){
+    const zone = $('manuelChamps');
+    if(!zone) return [];
+    return Array.prototype.map.call(
+      zone.querySelectorAll('.enteteCase, .enteteTexte'), el => {
+        const rangee = el.parentNode;
+        const fort = rangee ? rangee.querySelector('strong') : null;
+        const cle = el.getAttribute('data-cle') || '';
+        return {
+          titre: (fort && fort.textContent) ? fort.textContent.trim() : cle,
+          valeur: valeurLisible(champsManuels[cle]),
+          parDefaut: true      /* cochées d'avance : ce n'est pas du travail */
+        };
+      });
+  }
+
+  return null;
+}
+
+/* La fiche en clair, dans l'ordre de l'écran. Les titres des
+   catégories sortent même vides : c'est ce que le bureau regarde
+   pour savoir où en est le moniteur. */
 function ficheManuelleEnTexte(quelleZone){
-  /* Une zone peut être donnée : le rendez-vous post-permis a son
-     propre écran, avec ses propres champs. Deux fonctions pour lire
-     deux formulaires finiraient par ne pas lire pareil. */
+  /* Une zone donnée, c'est un écran sans schéma — le rendez-vous
+     post-permis. Lui se lit toujours à même la page. */
+  if(quelleZone) return champsDeLaZoneEnTexte(quelleZone);
+
+  const sel = (typeof $ === 'function') ? $('modele') : null;
+  const modele = (sel && typeof MODELES === 'object') ? MODELES[sel.value] : null;
+  const champs = modele
+    ? ((modele.schema === 'handicap' && typeof schemaHandicap === 'function')
+        ? schemaHandicap() : CHAMPS_MANUELS[modele.schema])
+    : null;
+
+  /* Pas de schéma connu : on retombe sur la lecture de la page,
+     qui vaut toujours mieux que rien. */
+  if(!champs || !champs.length) return champsDeLaZoneEnTexte($('manuelChamps'));
+
+  try{ lireChampsManuels(); }catch(e){ /* l'écran peut être à moitié dessiné */ }
+
+  const lignes = [];
+  let remplis = 0;
+
+  champs.forEach(ch => {
+    if(ch.type === 'envoiAvant' || ch.type === 'rappelFrise' ||
+       ch.type === 'photo') return;
+
+    if(ch.type === 'titre'){
+      lignes.push('');
+      lignes.push('— ' + String(ch.nom || '').trim() + ' —');
+      return;
+    }
+
+    const sous = sousLignesDuChamp(ch, modele);
+    if(sous){
+      lignes.push(String(ch.nom || ch.cle) + ' :');
+      sous.forEach(s => {
+        if(s.valeur && !s.parDefaut) remplis++;
+        lignes.push('   ' + s.titre + ' — ' + (s.valeur || '—'));
+      });
+      return;
+    }
+
+    const v = valeurLisible(champsManuels[ch.cle]);
+    const commentaire = (ch.type === 'eval3')
+      ? valeurLisible(champsManuels[ch.cle + '.commentaire']) : '';
+
+    /* Une réponse laissée à sa valeur d'usine n'est pas une
+       réponse : sans cette nuance, une fiche à peine ouverte
+       partirait comme une fiche remplie. */
+    const parDefaut = (ch.type === 'ok') && (v === (ch.defaut || ''));
+    if((v || commentaire) && !parDefaut) remplis++;
+
+    lignes.push(String(ch.nom || ch.cle) + ' — ' + (v || '—') +
+                (commentaire ? ' · ' + commentaire : ''));
+  });
+
+  /* Rien de saisi : rien à déposer. Le bureau n'a que faire d'un
+     formulaire vierge, et la feuille se remplirait de blancs. */
+  if(!remplis) return '';
+
+  return lignes.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/* La lecture à même la page — l'ancien chemin, gardé pour les
+   écrans qui n'ont pas de schéma. */
+function champsDeLaZoneEnTexte(quelleZone){
   const zone = quelleZone || $('manuelChamps');
   if(!zone) return '';
 
@@ -2158,9 +2323,9 @@ function ficheManuelleEnTexte(quelleZone){
   if(typeof champsManuels === 'object' && champsManuels){
     Object.keys(champsManuels).forEach(k => {
       if(vus[k]) return;
-      const v = champsManuels[k];
-      if(v === '' || v === null || v === undefined || v === false) return;
-      lignes.push(k + ' — ' + String(v));
+      const v = valeurLisible(champsManuels[k]);
+      if(!v) return;
+      lignes.push(k + ' — ' + v);
     });
   }
 
