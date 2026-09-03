@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:41 — v829 */
+/* Déployé le 03/09/2026 à 09:48 — v830 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -735,6 +735,7 @@ async function ouvrirBilanManuel(){
   }
   dernierDepotManuel = 0;
 
+  if(typeof marquerCoursSignale === 'function') marquerCoursSignale();
   if(typeof signalerCoursDemarre === 'function'){
     try{
       signalerCoursDemarre(eleve,
