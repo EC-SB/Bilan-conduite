@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 12:23 — v803 */
+/* Déployé le 03/09/2026 à 08:29 — v821 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -347,7 +347,13 @@ function afficherVue(onglet, cle){
 function reveillerVue(cle){
   const actions = {
     prepares:   () => aDroit('cours') && afficherPrepares(true, true),
-    messages:   () => afficherConsignesEnAttente(),
+    /* Deux façons de parler à quelqu'un vivent sur cet écran : le
+       message attaché à un ÉLÈVE, et celui épinglé à une PERSONNE.
+       Les deux se réveillent ensemble. */
+    messages:   () => { afficherConsignesEnAttente();
+                        if(typeof afficherMessagesPerso === 'function'){
+                          afficherMessagesPerso(true);
+                        } },
     textes:     () => afficherModelesTexte(),
     procedures: () => afficherProcedures(),
     bilans:     () => afficherTextesBilan(),
