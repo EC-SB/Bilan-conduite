@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:31 — v773 */
+/* Déployé le 03/09/2026 à 09:23 — v827 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -306,6 +306,28 @@ const MINI_DEPOT = 200;
 
 let minuteurDepot = null;
 let dernierDepot = '';
+
+/* ------------------------------------------------------------
+   UN NOUVEAU COURS COMMENCE : LE GARDE-FOU REPART À ZÉRO
+
+   Deux verrous protègent le dépôt d'écrire pour rien, et tous
+   deux survivaient d'un cours à l'autre :
+
+     · « dernierDepot » retient le dernier texte envoyé, pour ne
+       pas réécrire la même chose deux fois ;
+     · « bilanEnregistre » arrête le dépôt une fois le bilan dans
+       le classeur — et ne redescendait qu'en ouvrant un cours
+       préparé.
+
+   Le second a coûté cher : un moniteur qui enchaînait deux cours
+   sans passer par sa liste ne déposait plus rien du tout, en
+   silence. Les deux se relâchent maintenant au démarrage, vocal
+   comme manuel.
+   ------------------------------------------------------------ */
+function reinitialiserDepotBrouillon(){
+  dernierDepot = '';
+  if(typeof bilanEnregistre !== 'undefined') bilanEnregistre = false;
+}
 
 async function deposerSiChange(){
   try{
