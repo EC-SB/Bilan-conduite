@@ -1,11 +1,62 @@
+/* Déployé le 03/09/2026 à 08:29 — v821 */
 /* ============================================================
    ec-places.js
    Réglage des mois, semaines et jours ouverts.
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
+/* ------------------------------------------------------------
+   « p1 » ET « p2 » — LE JOUR OÙ ON PREND LES PLACES
+
+   La règle habituelle est écrite dans ec-postpermis : 1ᵉʳ mardi du
+   mois précédent pour la 1ʳᵉ quinzaine, 2ᵉ mardi pour la 2ᵉ. Elle
+   suffit onze mois sur douze.
+
+   Chrystel, le 3 septembre : « il y a eu un bug à la préfecture, on
+   pourra prendre les places de la première quinzaine d'octobre
+   mardi prochain et celles de la deuxième quinzaine mardi
+   15 septembre. » La règle ne sait pas dire ça — elle connaît le
+   calendrier, pas la préfecture.
+
+   D'où ces deux dates, VIDES PAR DÉFAUT. Vide veut dire « la règle
+   s'applique » ; remplie veut dire « la préfecture a décidé
+   autrement », et c'est elle qui gagne.
+
+   ⚠️ ELLES VIVENT ICI, ET PAS DANS UN ÉCRAN À ELLES. « 15 places à
+   prendre le 8 septembre pour la 2ᵉ quinzaine d'octobre » est UNE
+   information : la couper en deux écrans, c'est la faute qu'on
+   répare partout ailleurs dans ce dossier. Et comme le mois
+   disparaît tout seul une fois écoulé, ses deux dates partent avec
+   lui — il n'y a jamais rien à nettoyer.
+   ------------------------------------------------------------ */
 function moisVide(iso){
-  return { mois: iso || '', total:'', q1:'', q2:'', semaines: [] };
+  return { mois: iso || '', total:'', q1:'', q2:'', p1:'', p2:'', semaines: [] };
+}
+
+/* La date de prise réglée à la main pour une quinzaine d'un mois,
+   ou '' si c'est la règle qui s'applique.
+
+   Lue ICI et nulle part ailleurs : ec-postpermis l'appelle, le
+   bandeau l'appelle. Trois lectures du même réglage finiraient par
+   ne pas être d'accord. */
+function priseReglee(isoMois, quinzaine){
+  if(typeof placesConfig === 'undefined' || !placesConfig) return '';
+  const m = (placesConfig.mois || [])
+    .find(x => String(x.mois || '') === String(isoMois || ''));
+  if(!m) return '';
+  const v = String((quinzaine === 1 ? m.p1 : m.p2) || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+}
+
+/* Le nombre de places d'une quinzaine, tel que le bureau l'a saisi.
+   '' quand il n'a pas encore été renseigné — et le bandeau le dit
+   plutôt que d'afficher un zéro qui ferait croire à zéro place. */
+function placesDeLaQuinzaine(isoMois, quinzaine){
+  if(typeof placesConfig === 'undefined' || !placesConfig) return '';
+  const m = (placesConfig.mois || [])
+    .find(x => String(x.mois || '') === String(isoMois || ''));
+  if(!m) return '';
+  return String((quinzaine === 1 ? m.q1 : m.q2) || '').trim();
 }
 
 function chargerPlaces(brut){
@@ -254,13 +305,26 @@ function afficherPlaces(stats){
           (m.total || '') + '">' +
         '<div style="display:flex;gap:8px;">' +
           '<div style="flex:1;"><label>1ʳᵉ quinzaine</label>' +
-            '<input type="text" class="mQ1" inputmode="numeric" value="' + (m.q1 || '') + '"></div>' +
+            '<input type="text" class="mQ1" inputmode="numeric" value="' + (m.q1 || '') + '">' +
+            '<label style="margin-top:6px;">Prise le</label>' +
+            '<input type="date" class="mP1" value="' + (m.p1 || '') + '"></div>' +
           '<div style="flex:1;"><label>2ᵉ quinzaine</label>' +
-            '<input type="text" class="mQ2" inputmode="numeric" value="' + (m.q2 || '') + '"></div>' +
-        '</div>';
+            '<input type="text" class="mQ2" inputmode="numeric" value="' + (m.q2 || '') + '">' +
+            '<label style="margin-top:6px;">Prise le</label>' +
+            '<input type="date" class="mP2" value="' + (m.p2 || '') + '"></div>' +
+        '</div>' +
+        /* Le vide n'est pas un oubli : c'est le mode normal. Sans
+           cette phrase, on remplirait les deux dates « pour bien
+           faire », et la règle ne servirait plus jamais. */
+        '<div style="font-size:11px;color:var(--muted);line-height:1.5;' +
+          'margin-top:2px;">Laisse « Prise le » vide pour garder la règle : ' +
+          '1ᵉʳ et 2ᵉ mardi du mois précédent. Ne la remplis que si la ' +
+          'préfecture décale.</div>';
       grille.querySelector('.mTotal').addEventListener('input', e => { m.total = e.target.value.trim(); });
       grille.querySelector('.mQ1').addEventListener('input', e => { m.q1 = e.target.value.trim(); });
       grille.querySelector('.mQ2').addEventListener('input', e => { m.q2 = e.target.value.trim(); });
+      grille.querySelector('.mP1').addEventListener('change', e => { m.p1 = e.target.value; });
+      grille.querySelector('.mP2').addEventListener('change', e => { m.p2 = e.target.value; });
       bloc.appendChild(grille);
 
       (m.semaines || []).forEach((w, iw) => {
