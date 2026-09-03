@@ -1,3 +1,4 @@
+/* Déployé le 03/09/2026 à 15:29 — v841 */
 /* ============================================================
    ec-handicap.js
    Le suivi des élèves en situation de handicap.
@@ -25,6 +26,117 @@ const ETAPES_HANDICAP = [
   { cle:'codification', nom:'Codification faite',       court:'Codification' },
   { cle:'demandeTitre', nom:'Demande de titre à faire', court:'Titre' }
 ];
+
+/* ============================================================
+   LE SUIVI HANDICAP, LU À UN SEUL ENDROIT
+
+   Trois écrans le demandent maintenant : l'écran ♿ lui-même, le
+   dossier de l'élève, et la carte de « Mes prochains cours ». Un
+   résumé recalculé dans chacun finirait par ne pas dire la même
+   chose — c'est la faute que ce dossier passe ses journées à
+   réparer.
+
+   Le chargement se garde cinq minutes : trois écrans ouverts à la
+   suite ne doivent pas faire trois appels, et un suivi handicap ne
+   bouge pas dans la minute.
+   ============================================================ */
+let handicapCharge = 0;
+let handicapEnCours = null;
+
+async function chargerHandicapSiBesoin(forcer){
+  if(!forcer && handicapEleves.length && Date.now() - handicapCharge < 300000){
+    return handicapEleves;
+  }
+  /* Deux écrans qui s'ouvrent ensemble ne lancent qu'un seul appel :
+     le second attend le premier. */
+  if(handicapEnCours) return handicapEnCours;
+
+  handicapEnCours = (async () => {
+    try{
+      const d = await appelPrep({ action: 'handicapList' });
+      if(d && d.status === 'error') throw new Error(d.message || 'Lecture impossible');
+      handicapEleves = (d && d.eleves) || [];
+      handicapEquipements = (d && d.equipements) || [];
+      handicapCharge = Date.now();
+    }finally{
+      handicapEnCours = null;
+    }
+    return handicapEleves;
+  })();
+
+  return handicapEnCours;
+}
+
+/* Le suivi d'un élève, quel que soit l'ordre de son nom.
+
+   ⚠️ La feuille du suivi handicap est tenue en « Nom Prénom », le
+   reste de l'outil en « Prénom Nom ». « trouverPersonne » essaie
+   l'exact sur toute la liste avant d'essayer l'ordre des mots. */
+function suiviHandicapDe(nom){
+  if(typeof trouverPersonne === 'function'){
+    return trouverPersonne(handicapEleves, nom);
+  }
+  return handicapEleves.find(x =>
+    normaliserMot(x.eleve || '') === normaliserMot(nom || '')) || null;
+}
+
+/* Tout ce qu'un écran peut vouloir en dire, calculé une seule fois.
+   Rend null quand cet élève n'a pas de suivi. */
+function resumeHandicap(nom){
+  const e = suiviHandicapDe(nom);
+  if(!e) return null;
+
+  /* « Demande de titre » clôt le dossier : elle ne compte pas dans
+     l'avancement, exactement comme sur l'écran ♿. */
+  const suivies = ETAPES_HANDICAP.filter(x => x.cle !== 'demandeTitre');
+  const faites = suivies.filter(x => e[x.cle]).length;
+
+  return {
+    ligne: e,
+    eleve: e.eleve,
+    /* Le nom tel qu'il est rangé dans la feuille, quand il diffère
+       de celui qu'on a demandé : le bureau doit pouvoir s'y
+       retrouver sans le chercher. */
+    nomRange: (normaliserMot(e.eleve || '') !== normaliserMot(nom || ''))
+      ? e.eleve : '',
+    parcours: e.dejaPermis ? 'Régularisation'
+            : (e.pasEncore ? 'Codification' : ''),
+    faites: faites,
+    total: suivies.length,
+    fini: faites >= suivies.length,
+    pathologie: String(e.pathologie || '').trim(),
+    equipement: String(e.equipement || '').trim(),
+    commentaire: String(e.commentaire || '').trim(),
+    etapes: ETAPES_HANDICAP.map(x => ({
+      cle: x.cle, nom: x.nom, court: x.court, fait: !!e[x.cle],
+      date: (x.cle === 'evalPlacee') ? String(e.dateEval || '').trim()
+          : (x.cle === 'dossierDdtm') ? String(e.dateDdtm || '').trim() : ''
+    })),
+    /* LE RENDEZ-VOUS DDTM, ET SON ABSENCE.
+
+       « S'il n'est pas fixé, mettre rendez-vous à prendre. » Un
+       champ vide ne dit rien ; « à prendre » dit qu'il manque
+       quelque chose à faire, et c'est toute la différence entre
+       une information et un blanc. */
+    ddtm: {
+      envoye: !!e.dossierDdtm,
+      date: String(e.dateDdtm || '').trim(),
+      aPrendre: !String(e.dateDdtm || '').trim()
+    }
+  };
+}
+
+/* La même chose en une ligne, pour une carte de cours. */
+function ligneHandicapCourte(r){
+  if(!r) return '';
+  const bouts = [];
+  if(r.parcours) bouts.push(r.parcours);
+  bouts.push(r.faites + '/' + r.total + ' étapes');
+  bouts.push(r.ddtm.aPrendre ? '📋 RDV DDTM à prendre'
+                             : '📋 DDTM le ' + r.ddtm.date);
+  if(r.equipement) bouts.push(r.equipement.split('\n')[0]);
+  return bouts.join(' · ');
+}
 
 
 async function afficherHandicap(){
