@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:23 — v827 */
+/* Déployé le 03/09/2026 à 09:48 — v830 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -449,6 +449,7 @@ $('recBtn').addEventListener('click', async () => {
   afficherFicheDuCours();
 
   /* Le bureau voit qui est en cours, sans avoir à appeler */
+  if(typeof marquerCoursSignale === 'function') marquerCoursSignale();
   if(typeof signalerCoursDemarre === 'function'){
     signalerCoursDemarre($('studentName').value.trim(),
                          $('modele').selectedOptions[0]
