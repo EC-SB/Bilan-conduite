@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:48 — v830 */
+/* Déployé le 03/09/2026 à 10:02 — v831 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2109,6 +2109,7 @@ function planifierSauvegardeManuelle(){
    ============================================================ */
 const SECONDES_ENTRE_DEUX_DEPOTS = 60;
 let dernierDepotManuel = 0;
+let depotManuelEnAttente = null;
 
 /* La fiche en clair : « Rubrique — réponse », une par ligne. On
    n'envoie que ce qui est rempli : une fiche vide n'apprend rien et
@@ -2121,19 +2122,26 @@ function ficheManuelleEnTexte(quelleZone){
   if(!zone) return '';
 
   const lignes = [];
+  const vus = {};
+
   zone.querySelectorAll('input, textarea, select').forEach(el => {
     const rempli = (el.type === 'checkbox' || el.type === 'radio')
       ? el.checked : String(el.value || '').trim();
     if(!rempli) return;
 
-    /* Le libellé le plus proche : l'étiquette du champ, sinon la
-       clé technique. Mieux vaut une clé qu'un blanc. */
+    /* Le libellé le plus proche : l'étiquette du champ, sinon le
+       thème, sinon la clé technique. Mieux vaut une clé qu'un blanc —
+       et « data-theme » compte, c'est lui qui nomme les rubriques
+       d'erreurs du jour. */
+    const cle = el.getAttribute('data-cle') || el.getAttribute('data-comp') ||
+                el.getAttribute('data-theme') || el.name || '';
     let titre = '';
     const lab = el.closest('label') ||
       (el.id ? zone.querySelector('label[for="' + el.id + '"]') : null);
     if(lab) titre = String(lab.textContent || '').trim().slice(0, 60);
-    if(!titre) titre = el.getAttribute('data-cle') ||
-                       el.getAttribute('data-comp') || el.name || '';
+    if(!titre) titre = cle;
+
+    if(cle) vus[cle] = true;
 
     const valeur = (el.type === 'checkbox' || el.type === 'radio')
       ? 'oui' : String(el.value || '').trim();
@@ -2142,11 +2150,16 @@ function ficheManuelleEnTexte(quelleZone){
 
   /* Les réponses posées par des boutons — ✅ / ❌, A-B-C — ne vivent
      dans aucun champ : sans elles, une fiche d'examen entièrement
-     remplie au doigt partirait vide. */
+     remplie au doigt partirait vide.
+
+     Sans le garde-fou « vus », une réponse portée À LA FOIS par une
+     case et par la mémoire sortirait deux fois, et on lirait une
+     fiche qui se répète. */
   if(typeof champsManuels === 'object' && champsManuels){
     Object.keys(champsManuels).forEach(k => {
+      if(vus[k]) return;
       const v = champsManuels[k];
-      if(v === '' || v === null || v === undefined) return;
+      if(v === '' || v === null || v === undefined || v === false) return;
       lignes.push(k + ' — ' + String(v));
     });
   }
@@ -2212,8 +2225,39 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
   if(!quelleZone && !modeManuel) return;
 
   const maintenant = Date.now();
-  if(!force && maintenant - dernierDepotManuel < SECONDES_ENTRE_DEUX_DEPOTS * 1000){
+  const reste = SECONDES_ENTRE_DEUX_DEPOTS * 1000 - (maintenant - dernierDepotManuel);
+
+  /* ⚠️ UN DÉPÔT BRIDÉ N'EST PAS UN DÉPÔT ANNULÉ.
+
+     Chrystel, capture à l'appui : « ça ne garde pas tout, uniquement
+     les boutons 😥 ». Elle avait raison, et le défaut était dans ce
+     bridage-ci.
+
+     Il ne gardait QUE le premier dépôt de chaque minute et jetait
+     les suivants. Or une fiche se remplit ainsi : on coche quatre
+     cases en dix secondes — premier dépôt, il ne contient que les
+     cases — puis on écrit ses paragraphes. Le dépôt suivant était
+     refusé, et si le moniteur s'arrêtait d'écrire là, PLUS AUCUN
+     événement ne venait : le texte n'était jamais mis à l'abri.
+     Sur le serveur il ne restait que les boutons.
+
+     Un dépôt refusé est donc désormais REPORTÉ à la fin de la
+     minute en cours, pas jeté. Ce qui est à l'écran finit toujours
+     par partir — au pire soixante secondes plus tard. */
+  if(!force && reste > 0){
+    if(!depotManuelEnAttente){
+      depotManuelEnAttente = setTimeout(() => {
+        depotManuelEnAttente = null;
+        deposerFicheManuelle(true, quelleZone, quiEtQuoi);
+      }, reste + 50);
+    }
     return;
+  }
+
+  /* Un dépôt immédiat rend le report inutile. */
+  if(depotManuelEnAttente){
+    clearTimeout(depotManuelEnAttente);
+    depotManuelEnAttente = null;
   }
 
   const info = quiEtQuoi || {};
