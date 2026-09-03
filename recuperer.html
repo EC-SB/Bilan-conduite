@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<!-- Déployé le 03/09/2026 — v838 -->
+<!-- ============================================================
+     RÉCUPÉRER CE QUI EST RESTÉ DANS LE TÉLÉPHONE
+
+     « Elle se plaint que ses examens officiels n'ont rien
+     sauvegardé, et il n'y a rien du tout dans les brouillons. »
+
+     C'est exact, et ce n'est pas une panne : le dépôt d'une FICHE
+     MANUELLE sur le classeur est arrivé en v831. Une application
+     figée en v730 ne l'a pas. Ses examens ne sont donc jamais
+     partis sur le serveur — ils n'ont jamais pu.
+
+     Mais la sauvegarde SUR L'APPAREIL, elle, est bien plus
+     ancienne. Le travail est probablement encore là, dans la
+     mémoire du navigateur, sous les clés « bilans_manuels » et
+     « bilan_manuel_en_cours ».
+
+     L'application ne le montre plus au-delà de 48 heures : c'est
+     un filtre d'affichage, pas un effacement. Cette page-ci ne
+     filtre rien et n'écrit rien. Elle lit, elle montre, elle
+     laisse copier.
+
+     ⚠️ ELLE DOIT ÊTRE OUVERTE SUR LE TÉLÉPHONE CONCERNÉ, et
+     depuis la MÊME adresse que l'application — la mémoire d'un
+     navigateur appartient à un site, pas à une personne.
+
+     Application Bilan de conduite — Évolution Conduites
+     ============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Récupérer un bilan — Évolution Conduites</title>
+<style>
+  :root{
+    --fond:#0B0B0B; --carte:#121212; --ligne:#2A2A2A; --creme:#F2EFE9;
+    --gris:#9A968E; --orange:#E8A33D; --vert:#B6FF0E; --rouge:#FF5C33;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --fond:#F4F2ED; --carte:#FFFFFF; --ligne:#E4E0D8; --creme:#1A1A1A;
+           --gris:#6E6A62; --orange:#B87A12; --vert:#3B6900; --rouge:#C33A12; }
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:16px; background:var(--fond); color:var(--creme);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.55; -webkit-text-size-adjust:100%; font-size:15px;
+  }
+  h1{font-size:20px; margin:0 0 4px;}
+  .sous{color:var(--gris); font-size:13px; margin-bottom:16px;}
+  .carte{
+    background:var(--carte); border:1px solid var(--ligne);
+    border-radius:12px; padding:13px; margin-bottom:12px;
+  }
+  .titre{font-weight:700; font-size:16px;}
+  .meta{color:var(--gris); font-size:12.5px; margin-top:2px;}
+  .compte{color:var(--vert); font-weight:700;}
+  pre{
+    white-space:pre-wrap; word-break:break-word; font-size:13px;
+    background:var(--fond); border:1px solid var(--ligne);
+    border-radius:9px; padding:10px; margin:10px 0 0;
+    max-height:300px; overflow:auto; line-height:1.5;
+  }
+  button{
+    font:inherit; font-size:14px; font-weight:700; padding:11px 14px;
+    border-radius:10px; border:1px solid var(--ligne);
+    background:var(--carte); color:var(--creme); cursor:pointer;
+    margin:8px 8px 0 0;
+  }
+  button.fort{background:var(--vert); color:#0B0B0B; border-color:var(--vert);}
+  .vide{color:var(--gris); text-align:center; padding:30px 10px;}
+  .alerte{
+    border-left:3px solid var(--orange); background:rgba(232,163,61,.12);
+    padding:11px 13px; border-radius:0 9px 9px 0; margin-bottom:16px;
+    font-size:13.5px;
+  }
+  .danger{border-left-color:var(--rouge); background:rgba(255,92,51,.10);}
+</style>
+</head>
+<body>
+
+<h1>🛟 Récupérer un bilan</h1>
+<div class="sous">Ce qui est resté dans la mémoire de CE téléphone.</div>
+
+<div class="alerte danger">
+  <strong>N'efface rien avant d'avoir lu cette page.</strong><br>
+  Ni les données du site, ni l'historique, ni l'application. Ce qui est
+  affiché ci-dessous n'existe peut-être qu'ici.
+</div>
+
+<div id="zone"><div class="vide">Lecture…</div></div>
+
+<script>
+(function(){
+  var zone = document.getElementById('zone');
+
+  function ecrire(html){ zone.innerHTML = html; }
+  function ech(t){
+    return String(t == null ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* Une date lisible, quelle que soit la forme gardée */
+  function quand(ts){
+    if(!ts) return '';
+    try{
+      var d = new Date(Number(ts));
+      if(isNaN(d.getTime())) return '';
+      var j = String(d.getDate()).padStart(2, '0');
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var h = String(d.getHours()).padStart(2, '0');
+      var mi = String(d.getMinutes()).padStart(2, '0');
+      return j + '/' + m + '/' + d.getFullYear() + ' à ' + h + 'h' + mi;
+    }catch(e){ return ''; }
+  }
+
+  /* Une fiche en texte lisible. On ne cherche pas à être beau : on
+     cherche à ne rien perdre. */
+  function enTexte(b){
+    var l = [];
+    l.push('=== ' + (b.eleve || '(élève non saisi)') + ' ===');
+    if(b.modele) l.push('Type de bilan : ' + b.modele);
+    if(b.moniteur) l.push('Moniteur : ' + b.moniteur);
+    if(b.date) l.push('Date du cours : ' + b.date);
+    if(b.site) l.push('Site : ' + b.site);
+    if(b.ts) l.push('Dernière modification : ' + quand(b.ts));
+    if(b.note) l.push('\nNote interne :\n' + b.note);
+
+    /* Les réponses des champs de la page */
+    var s = b.saisies || [];
+    var eus = 0;
+    var bloc = [];
+    for(var i = 0; i < s.length; i++){
+      var v = s[i] && s[i].valeur;
+      if(v === undefined || v === null || String(v).trim() === '') continue;
+      eus++;
+      bloc.push('  ' + (s[i].cle || ('champ ' + s[i].i)) + ' — ' + v);
+    }
+    if(bloc.length) l.push('\nCe qui est écrit dans la fiche (' + eus + ') :\n' +
+                           bloc.join('\n'));
+
+    /* Ce qui ne vit que dans la mémoire : boutons, observations,
+       compétences, grille CEPC. C'est souvent l'essentiel d'un
+       examen officiel. */
+    if(b.champs){
+      var m = [];
+      for(var k in b.champs){
+        if(!Object.prototype.hasOwnProperty.call(b.champs, k)) continue;
+        var val = b.champs[k];
+        if(val === '' || val === null || val === undefined || val === false) continue;
+        if(Object.prototype.toString.call(val) === '[object Array]'){
+          if(!val.length) continue;
+          var bouts = [];
+          for(var j = 0; j < val.length; j++){
+            var o = val[j];
+            if(o && typeof o === 'object'){
+              if(o.nom) bouts.push(o.nom);
+              else bouts.push([o.inspecteur, o.reponse].filter(Boolean).join(' → ') +
+                              (o.categorie ? '  ☠️ ' + o.categorie : '') +
+                              (o.grave ? '  ⚠️ ' + o.grave : '') +
+                              (o.moins ? '  ➖ ' + o.moins : ''));
+            }else bouts.push(String(o));
+          }
+          m.push('  ' + k + ' :\n    ' + bouts.join('\n    '));
+        }else if(typeof val === 'object'){
+          var sous = [];
+          for(var c in val){
+            if(!Object.prototype.hasOwnProperty.call(val, c)) continue;
+            var x = val[c];
+            if(x && typeof x === 'object'){
+              sous.push(c + ' : ' + (x.statut || '') +
+                        ((x.erreurs && x.erreurs.length) ? ' — ' + x.erreurs.join(' / ') : ''));
+            }else if(x !== '' && x != null) sous.push(c + ' : ' + x);
+          }
+          if(sous.length) m.push('  ' + k + ' :\n    ' + sous.join('\n    '));
+        }else{
+          m.push('  ' + k + ' — ' + val);
+        }
+      }
+      if(m.length) l.push('\nRéponses gardées en mémoire (boutons, ' +
+                          'observations, CEPC) :\n' + m.join('\n'));
+    }
+
+    if(b.quest){
+      try{ l.push('\nQuestionnaire de départ :\n  ' +
+                  JSON.stringify(b.quest)); }catch(e){}
+    }
+    return l.join('\n');
+  }
+
+  /* --- Lecture, sans aucun filtre de date --- */
+  var tout = [];
+
+  try{
+    var liste = JSON.parse(localStorage.getItem('bilans_manuels') || '[]');
+    if(Object.prototype.toString.call(liste) === '[object Array]'){
+      for(var i = 0; i < liste.length; i++){
+        if(liste[i]) tout.push(liste[i]);
+      }
+    }
+  }catch(e){}
+
+  try{
+    var seul = JSON.parse(localStorage.getItem('bilan_manuel_en_cours') || 'null');
+    if(seul){
+      var deja = false;
+      for(var k = 0; k < tout.length; k++){
+        if(tout[k].ts === seul.ts &&
+           String(tout[k].eleve || '') === String(seul.eleve || '')) deja = true;
+      }
+      if(!deja) tout.push(seul);
+    }
+  }catch(e){}
+
+  /* La dictée vocale en cours, si elle existe encore */
+  var dictee = null;
+  try{
+    dictee = JSON.parse(localStorage.getItem('bilan_en_cours') || 'null');
+  }catch(e){}
+
+  tout.sort(function(a, b){ return (b.ts || 0) - (a.ts || 0); });
+
+  if(!tout.length && !dictee){
+    ecrire('<div class="carte"><div class="vide">' +
+      '<strong>Rien trouvé dans ce téléphone.</strong><br><br>' +
+      'Deux explications possibles, et une seule est grave :<br><br>' +
+      '① Cette page n\'est pas ouverte sur le bon appareil, ou pas à la ' +
+      'même adresse que l\'application. La mémoire d\'un navigateur ' +
+      'appartient à un site : elle ne suit ni la personne ni le compte.<br><br>' +
+      '② Les données du site ont été effacées.<br><br>' +
+      '<span style="color:var(--gris);font-size:12.5px;">Vérifie que ' +
+      'l\'adresse de cette page commence exactement comme celle de ' +
+      'l\'application.</span></div></div>');
+    return;
+  }
+
+  var html = '';
+  html += '<div class="carte"><span class="compte">' + tout.length +
+          ' bilan(s) manuel(s) retrouvé(s)</span>' +
+          '<div class="meta">Aucun filtre de date : même ce que ' +
+          'l\'application ne montre plus est ici.</div>' +
+          '<button class="fort" id="toutCopier">📋 Tout copier</button>' +
+          '</div>';
+
+  var textes = [];
+  for(var i = 0; i < tout.length; i++){
+    var b = tout[i];
+    var t = enTexte(b);
+    textes.push(t);
+    html += '<div class="carte">' +
+      '<div class="titre">' + ech(b.eleve || '(élève non saisi)') + '</div>' +
+      '<div class="meta">' + ech(b.modele || 'type inconnu') +
+      (b.ts ? ' · ' + ech(quand(b.ts)) : '') + '</div>' +
+      '<pre>' + ech(t) + '</pre>' +
+      '<button data-i="' + i + '" class="copier">📋 Copier celui-ci</button>' +
+      '</div>';
+  }
+
+  if(dictee && (dictee.transcript || dictee.texte)){
+    var d = dictee.transcript || dictee.texte || '';
+    textes.push('=== DICTÉE EN COURS ===\n' + d);
+    html += '<div class="carte">' +
+      '<div class="titre">🎙️ Une dictée est aussi restée</div>' +
+      '<div class="meta">' + ech(dictee.eleve || '') + '</div>' +
+      '<pre>' + ech(d) + '</pre></div>';
+  }
+
+  ecrire(html);
+
+  function copier(t, bouton){
+    var fini = function(ok){
+      bouton.textContent = ok ? '✅ Copié' : '⚠️ Sélectionne et copie à la main';
+      setTimeout(function(){ bouton.textContent = '📋 Copier'; }, 2500);
+    };
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(function(){ fini(true); },
+                                             function(){ fini(false); });
+        return;
+      }
+    }catch(e){}
+    /* Les vieux navigateurs : on passe par une zone de texte */
+    try{
+      var z = document.createElement('textarea');
+      z.value = t;
+      z.style.cssText = 'position:fixed;left:-9999px;';
+      document.body.appendChild(z);
+      z.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(z);
+      fini(ok);
+    }catch(e){ fini(false); }
+  }
+
+  var b1 = document.getElementById('toutCopier');
+  if(b1) b1.addEventListener('click', function(){
+    copier(textes.join('\n\n\n'), b1);
+  });
+
+  var lots = document.querySelectorAll('.copier');
+  for(var q = 0; q < lots.length; q++){
+    (function(el){
+      el.addEventListener('click', function(){
+        copier(textes[Number(el.getAttribute('data-i'))], el);
+      });
+    })(lots[q]);
+  }
+})();
+</script>
+</body>
+</html>
