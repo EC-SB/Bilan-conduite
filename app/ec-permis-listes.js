@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:21 — v840 */
+/* Déployé le 03/09/2026 à 15:51 — v842 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -275,6 +275,30 @@ function resumeSuivi(eleve){
 /* Une entrée par mois : on planifie en général sur le mois en cours, M+1 et M+2 */
 /* placesConfig : déclaré dans ec-etat.js */
 
+/* ============================================================
+   LA RÉPARTITION, RANGÉE COMME ON PREND LES PLACES
+
+   « Il y a trop d'info ici, les dates se répètent. Quand on prend
+   les places sur le site des rendez-vous, chaque personne a sa
+   liste. »
+
+   Deux défauts, un seul geste pour les deux :
+
+   ① LE RANGEMENT NE SUIVAIT PAS LE TRAVAIL. L'écran groupait par
+      semaine ; le site des rendez-vous, lui, demande une liste par
+      personne. On recomposait donc de tête, à chaque fois.
+
+   ② LA MÊME DATE, QUATRE FOIS. La semaine et le centre étaient
+      écrits en tête du groupe, puis redits sur CHAQUE ligne
+      d'élève. Trois élèves d'une même semaine, et l'œil devait
+      vérifier trois fois que c'était bien la même.
+
+   La ligne d'un élève ne porte donc plus que son nom. La vue par
+   semaine reste, derrière un bouton : c'est elle qui montre qu'une
+   semaine est surchargée.
+   ============================================================ */
+let vuePlaces = 'personne';
+
 function tableauAPlacer(liste){
   const bloc = document.createElement('div');
   if(!liste.length) return bloc;
@@ -282,18 +306,8 @@ function tableauAPlacer(liste){
   const nb = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; };
   const CENTRES = ['Saint-Brieuc', 'Loudéac'];
 
-  /* Regroupement par semaine puis par centre */
-  const parSemaine = {};
-  liste.forEach(e => {
-    const s = suiviDe(e.eleve);
-    const se = s.semaine || '— semaine à définir —';
-    const ce = s.centre || '— centre à définir —';
-    if(!parSemaine[se]) parSemaine[se] = {};
-    if(!parSemaine[se][ce]) parSemaine[se][ce] = [];
-    parSemaine[se][ce].push(e);
-  });
-
-  /* Jours ouverts de chaque semaine, pour comparer à la demande */
+  /* Les places de chaque semaine, par centre : c'est ce qu'on
+     ajoute au bout de chaque titre. */
   const joursDe = {};
   toutesSemaines().forEach(w => {
     const lib = libelleSemaine(w) +
@@ -303,166 +317,249 @@ function tableauAPlacer(liste){
 
   const det = document.createElement('details');
   det.open = true;
-  det.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:700;' +
-    'font-size:14px;margin-bottom:8px;">📊 Répartition des places — ' +
-    liste.length + ' élève(s) dans la liste</summary>';
+  const som = document.createElement('summary');
+  som.style.cssText = 'cursor:pointer;color:var(--accent-text);font-weight:700;' +
+    'font-size:14px;margin-bottom:8px;';
+  som.textContent = '📊 Répartition des places — ' + liste.length + ' élève(s)';
+  det.appendChild(som);
 
   const corps = document.createElement('div');
   corps.style.cssText = 'margin-bottom:12px;';
 
-  /* Les semaines datées d'abord, les indéfinies à la fin */
-  Object.keys(parSemaine).sort((a, b) => {
-    const ia = a.startsWith('—') ? 1 : 0, ib = b.startsWith('—') ? 1 : 0;
+  /* Le bouton de bascule : la vue par personne pour prendre les
+     dates, la vue par semaine pour vérifier qu'aucune ne déborde. */
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;';
+  [['personne', '👤 Par personne'], ['semaine', '📅 Par semaine']].forEach(([v, lib]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;' +
+      'border-radius:8px;' + (vuePlaces === v
+        ? 'background:var(--accent);color:var(--navy-deep);border:1px solid var(--accent);font-weight:700;'
+        : 'background:var(--navy);color:var(--cream);border:1px solid var(--line);');
+    b.textContent = lib;
+    b.addEventListener('click', () => { vuePlaces = v; redessinerBureau(); });
+    barre.appendChild(b);
+  });
+  corps.appendChild(barre);
+
+  /* ---- Le titre d'un groupe semaine + centre, avec ses places ----
+
+     « Au bout de la ligne, ajoute le nombre de places ouvertes pour
+     le centre et la semaine en question. » C'est le chiffre qui
+     décide si l'on peut encore poser quelqu'un là : il se lit au
+     bout du titre, pas sur une ligne à part. */
+  const titreGroupe = (semaine, centre, combien) => {
+    const t = document.createElement('div');
+    t.style.cssText = 'display:flex;gap:8px;align-items:baseline;margin:8px 0 3px;' +
+      'font-size:13px;font-weight:700;color:var(--accent-text);flex-wrap:wrap;';
+
+    const g = document.createElement('span');
+    g.style.cssText = 'flex:1;min-width:0;';
+    g.textContent = '📍 ' + centre + ' · ' + semaine;
+    t.appendChild(g);
+
+    const dispo = joursDe[semaine] ? joursDe[semaine][centre] : undefined;
+    const p = document.createElement('span');
+    p.style.cssText = 'font-size:11.5px;font-weight:700;flex-shrink:0;' +
+      'white-space:nowrap;color:' +
+      (dispo === undefined ? 'var(--muted)'
+       : (dispo === 0 ? 'var(--red)'
+          : (combien > dispo ? 'var(--warn-text)' : 'var(--muted)')));
+    p.textContent = (dispo === undefined)
+      ? combien + ' élève(s)'
+      : combien + ' élève(s) · ' + dispo + ' place(s) ouverte(s)' +
+        (dispo === 0 ? ' ⚠️' : (combien > dispo ? ' ⚠️ plus que de places' : ''));
+    t.appendChild(p);
+
+    return t;
+  };
+
+  /* ---- Une ligne d'élève : son nom, et rien qu'on ait déjà dit ---- */
+  const ligneEleve = (e, sansMoniteur) => {
+    const s = suiviDe(e.eleve);
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0 4px 16px;';
+
+    const nom = document.createElement('span');
+    nom.style.cssText = 'flex:1;color:var(--cream);font-size:14px;min-width:0;';
+    nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
+      (sansMoniteur ? ' · moniteur à définir' : '');
+    l.appendChild(nom);
+
+    /* La mention post-permis reste : elle dit qu'il n'est pas encore
+       plaçable, et c'est justement au moment de placer qu'on la lit. */
+    if(s.rdvPostDate && s.rdvPostFait !== 'oui'){
+      const att = document.createElement('span');
+      att.style.cssText = 'flex-shrink:0;font-size:11px;font-weight:700;' +
+        'color:var(--orange);border:1px solid var(--orange);' +
+        'border-radius:999px;padding:2px 8px;white-space:nowrap;';
+      att.textContent = '⏳ attente post-permis';
+      att.title = 'Rendez-vous post-permis prévu le ' +
+        ((typeof dateEnToutesLettres === 'function')
+          ? dateEnToutesLettres(s.rdvPostDate) : s.rdvPostDate) +
+        ". Sa place d'examen se prend après.";
+      l.appendChild(att);
+    }
+
+    const bCal = document.createElement('button');
+    bCal.className = 'btn btn-secondary';
+    bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
+    bCal.textContent = '📅';
+    bCal.title = 'Lui donner une place d\'examen';
+    bCal.addEventListener('click', async () => {
+      if(typeof choisirPlaceExamen !== 'function'){
+        showToast("Les sessions d'examen ne sont pas disponibles ici.");
+        return;
+      }
+      const place = await choisirPlaceExamen(e.eleve, s.semaine);
+      if(!place) return;
+      bCal.disabled = true;
+      try{
+        await placerEleveSurPlace(e.eleve, place);
+        showToast('Place prise ✅');
+        redessinerBureau();
+      }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
+    });
+    l.appendChild(bCal);
+
+    const bDel = document.createElement('button');
+    bDel.className = 'btn btn-secondary';
+    bDel.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;' +
+      'color:var(--red);border-color:var(--red);';
+    bDel.textContent = '✕';
+    bDel.title = 'Retirer de la liste RDV PERMIS';
+    bDel.addEventListener('click', async () => {
+      if(!await confirmer('Retirer ' + e.eleve + ' de la liste RDV PERMIS ?\n\n' +
+          'Son suivi n\'est pas supprimé : il y reviendra si un moniteur ' +
+          'le redemande.')) return;
+      bDel.disabled = true;
+      try{
+        await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: 'oui' });
+        showToast('Retiré ✅');
+        redessinerBureau();
+      }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
+    });
+    l.appendChild(bDel);
+
+    return l;
+  };
+
+  /* ---- Le rangement : deux niveaux, dans l'ordre qu'on a choisi ---- */
+  const cle1 = e => (vuePlaces === 'personne')
+    ? (suiviDe(e.eleve).moniteurDate || '⚠️ À attribuer')
+    : (suiviDe(e.eleve).semaine || '— semaine à définir —');
+
+  const groupes = {};
+  liste.forEach(e => {
+    const s = suiviDe(e.eleve);
+    const g1 = cle1(e);
+    const g2 = (vuePlaces === 'personne')
+      ? (s.semaine || '— semaine à définir —')
+      : (s.centre || '— centre à définir —');
+    const g3 = (vuePlaces === 'personne')
+      ? (s.centre || '— centre à définir —')
+      : '';
+    if(!groupes[g1]) groupes[g1] = {};
+    const k = (vuePlaces === 'personne') ? (g3 + ' ⟨⟩ ' + g2) : (g2 + ' ⟨⟩ ' + g1);
+    if(!groupes[g1][k]) groupes[g1][k] = [];
+    groupes[g1][k].push(e);
+  });
+
+  /* « À attribuer » en dernier : c'est ce qui reste à faire, pas ce
+     qu'on est en train de faire. */
+  Object.keys(groupes).sort((a, b) => {
+    const ia = a.startsWith('⚠️') || a.startsWith('—') ? 1 : 0;
+    const ib = b.startsWith('⚠️') || b.startsWith('—') ? 1 : 0;
     return ia !== ib ? ia - ib : a.localeCompare(b);
-  }).forEach(se => {
+  }).forEach(g1 => {
     const bs = document.createElement('div');
-    bs.style.cssText = 'background:var(--navy);border:1px solid var(--line);border-radius:10px;' +
-      'padding:10px 12px;margin-bottom:8px;font-size:13px;line-height:1.6;';
+    bs.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
+      'border-radius:10px;padding:10px 12px;margin-bottom:8px;';
 
     let total = 0;
-    Object.keys(parSemaine[se]).forEach(ce => { total += parSemaine[se][ce].length; });
+    Object.keys(groupes[g1]).forEach(k => { total += groupes[g1][k].length; });
 
     const tete = document.createElement('div');
-    tete.style.cssText = 'font-size:14px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
-    tete.textContent = '🗓️ ' + se + ' — ' + total + ' élève(s)';
+    tete.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;';
+
+    const t1 = document.createElement('div');
+    t1.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:700;' +
+      'color:var(--cream);';
+    t1.textContent = (vuePlaces === 'personne' ? '👤 ' : '📅 ') + g1 +
+      ' — ' + total + ' élève(s)';
+    tete.appendChild(t1);
+
+    /* ---- COPIER SA LISTE, AU FORMAT DU SITE DES RENDEZ-VOUS ----
+
+       C'est le geste que Chrystel décrit : « chaque personne a sa
+       liste ». Le bouton met dans le presse-papier exactement ce
+       qu'elle tape là-bas — un appui, un collage, et plus aucun nom
+       recopié à la main, donc plus aucun nom oublié. */
+    if(vuePlaces === 'personne'){
+      const bCop = document.createElement('button');
+      bCop.type = 'button';
+      bCop.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:11.5px;' +
+        'border-radius:8px;background:var(--navy);color:var(--cream);' +
+        'border:1px solid var(--line);flex-shrink:0;';
+      bCop.textContent = '📋 Copier';
+      bCop.title = 'Copier la liste de ' + g1 + ' pour le site des rendez-vous';
+      bCop.addEventListener('click', () => {
+        const lignes = [g1, ''];
+        Object.keys(groupes[g1]).sort().forEach(k => {
+          const [centre, semaine] = k.split(' ⟨⟩ ');
+          lignes.push('Semaine ' + semaine + ' — ' + centre + ' :');
+          groupes[g1][k].forEach(e => lignes.push(e.eleve));
+          lignes.push('');
+        });
+        copierTexte(lignes.join('\n').trim(), bCop);
+      });
+      tete.appendChild(bCop);
+    }
+
     bs.appendChild(tete);
 
-    /* Chaque centre, avec les jours ouverts en regard */
-    const centresPresents = Object.keys(parSemaine[se]);
-    CENTRES.concat(centresPresents.filter(x => CENTRES.indexOf(x) === -1))
-      .forEach(ce => {
-        const eleves = parSemaine[se][ce];
-        const dispo = joursDe[se] ? joursDe[se][ce] : undefined;
-        if(!eleves && !dispo) return;
-
-        const n = eleves ? eleves.length : 0;
-        const ligne = document.createElement('div');
-        ligne.style.cssText = 'margin-top:4px;';
-
-        let etat = '';
-        if(dispo !== undefined){
-          /* Un jour d'examen accueille plusieurs candidats : on affiche les deux */
-          etat = ' · <span style="color:var(--muted);">' + dispo + ' jour(s) ouvert(s)</span>';
-          if(dispo === 0 && n > 0){
-            etat += ' <span style="color:var(--red);font-weight:700;">⚠️ aucun jour ici</span>';
-          }
-        }
-        ligne.innerHTML = '<strong>📍 ' + ce.replace(/</g,'&lt;') + '</strong> — ' +
-          n + ' élève(s)' + etat;
-        bs.appendChild(ligne);
-
-        (eleves || []).forEach(e => {
-          const s = suiviDe(e.eleve);
-          const l = document.createElement('div');
-          l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0 4px 18px;';
-
-          const nom = document.createElement('span');
-          nom.style.cssText = 'flex:1;color:var(--cream);font-size:14px;min-width:0;';
-          /* LA SEMAINE QU'IL A DEMANDÉE, SUR SA LIGNE.
-
-             Elle ne servait que d'en-tête de groupe, et disparaissait
-             dès qu'on regardait un élève en particulier. C'est une
-             demande de l'ÉLÈVE, pas un rangement du bureau : elle
-             doit rester sous les yeux au moment où l'on place. */
-          nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
-            (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
-            (s.semaine ? ' · 🗓️ ' + s.semaine : ' · 🗓️ aucune semaine demandée');
-          l.appendChild(nom);
-
-          /* ------------------------------------------------------------
-             IL PEUT ÊTRE DANS LES DEUX LISTES À LA FOIS
-
-             « Un élève qui est dans la liste post-permis, il faut que
-             je puisse le mettre aussi dans RDV PERMIS, avec la mention
-             attente post permis. »
-
-             Il pouvait déjà y être : la case « Mettre dans la liste
-             RDV PERMIS » reste offerte à côté de son rendez-vous, et
-             les deux listes ne s'excluent pas. Ce qui manquait, c'est
-             que la liste le DISE — rien ne distinguait ici un élève
-             prêt à recevoir une date d'un élève qui attend encore son
-             rendez-vous. On lui prenait une place sans le savoir.
-
-             La mention porte la date du rendez-vous : c'est elle qui
-             dit à partir de quand il sera vraiment plaçable.
-             ------------------------------------------------------------ */
-          if(s.rdvPostDate && s.rdvPostFait !== 'oui'){
-            const att = document.createElement('span');
-            att.style.cssText = 'flex-shrink:0;font-size:11px;font-weight:700;' +
-              'color:var(--orange);border:1px solid var(--orange);' +
-              'border-radius:999px;padding:2px 8px;white-space:nowrap;';
-            att.textContent = '⏳ attente post-permis';
-            att.title = 'Rendez-vous post-permis prévu le ' +
-              ((typeof dateEnToutesLettres === 'function')
-                ? dateEnToutesLettres(s.rdvPostDate) : s.rdvPostDate) +
-              ". Sa place d'examen se prend après.";
-            l.appendChild(att);
-          }
-
-          const bCal = document.createElement('button');
-          bCal.className = 'btn btn-secondary';
-          bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
-          bCal.textContent = '📅';
-          bCal.title = 'Lui donner une place d\'examen';
-          /* Plus de calendrier libre : on prend une place réellement
-             ouverte, et son vœu de semaine part avec pour qu'on le
-             voie au moment de choisir. */
-          bCal.addEventListener('click', async () => {
-            if(typeof choisirPlaceExamen !== 'function'){
-              showToast("Les sessions d'examen ne sont pas disponibles ici.");
-              return;
-            }
-            const place = await choisirPlaceExamen(e.eleve, s.semaine);
-            if(!place) return;
-            bCal.disabled = true;
-            try{
-              await placerEleveSurPlace(e.eleve, place);
-              showToast('Place prise ✅');
-              redessinerBureau();
-            }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
-          });
-          l.appendChild(bCal);
-
-          const bDel = document.createElement('button');
-          bDel.className = 'btn btn-secondary';
-          bDel.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;' +
-            'color:var(--red);border-color:var(--red);';
-          bDel.textContent = '✕';
-          bDel.title = 'Retirer de la liste RDV PERMIS';
-          bDel.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + e.eleve + ' de la liste RDV PERMIS ?\n\n' +
-                        'Il retourne dans « Élèves prêts au permis ».')) return;
-            bDel.disabled = true;
-            try{
-              await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: '' });
-              showToast(e.eleve + ' est retourné en « à prévoir »');
-              redessinerBureau();
-            }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
-          });
-          l.appendChild(bDel);
-
-          bs.appendChild(l);
-        });
-      });
+    Object.keys(groupes[g1]).sort().forEach(k => {
+      const [a, b] = k.split(' ⟨⟩ ');
+      const centre = (vuePlaces === 'personne') ? a : b;
+      const semaine = (vuePlaces === 'personne') ? b : a;
+      bs.appendChild(titreGroupe(semaine, centre, groupes[g1][k].length));
+      groupes[g1][k].forEach(e =>
+        bs.appendChild(ligneEleve(e, !suiviDe(e.eleve).moniteurDate)));
+    });
 
     corps.appendChild(bs);
   });
 
-  /* Rappel du total par moniteur, sous forme compacte */
-  const parMoniteur = {};
-  liste.forEach(e => {
-    const m = suiviDe(e.eleve).moniteurDate || '— à définir —';
-    parMoniteur[m] = (parMoniteur[m] || 0) + 1;
-  });
-  const pied = document.createElement('div');
-  pied.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;padding:4px 2px;';
-  pied.innerHTML = '👤 ' + Object.keys(parMoniteur).sort()
-    .map(m => m.replace(/</g,'&lt;') + ' (' + parMoniteur[m] + ')').join(' · ');
-  corps.appendChild(pied);
-
   det.appendChild(corps);
   bloc.appendChild(det);
   return bloc;
+}
+
+/* Copier un texte, avec un repli pour les vieux navigateurs. */
+function copierTexte(t, bouton){
+  const fini = ok => {
+    const avant = bouton ? bouton.textContent : '';
+    if(bouton) bouton.textContent = ok ? '✅ Copié' : '⚠️ Impossible';
+    setTimeout(() => { if(bouton) bouton.textContent = avant; }, 2000);
+    if(!ok) showToast('Copie impossible sur cet appareil.');
+  };
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(() => fini(true), () => fini(false));
+      return;
+    }
+  }catch(e){}
+  try{
+    const z = document.createElement('textarea');
+    z.value = t;
+    z.style.cssText = 'position:fixed;left:-9999px;';
+    document.body.appendChild(z);
+    z.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(z);
+    fini(ok);
+  }catch(e){ fini(false); }
 }
 
 /* Élèves dont l'examen blanc a montré qu'ils n'avaient pas le niveau */
@@ -470,6 +567,11 @@ function afficherRdvPermis(tous){
   const zAP = $('listeAPlacer');
   const aPlacer = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
                                    suiviDe(e.eleve).statut !== 'annule');
+
+  /* Les favoris de « qui prend la date » arrivent des réglages
+     partagés. On les demande une fois par session, sans attendre :
+     les trois noms d'usage s'affichent en attendant. */
+  if(typeof assurerFavorisPrise === 'function') assurerFavorisPrise();
   zAP.innerHTML = '';
   if(!aPlacer.length){
     zAP.innerHTML = '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>';
@@ -505,7 +607,10 @@ function afficherRdvPermis(tous){
                      : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
           return t + ' · ' + (s.centre || 'centre à définir') +
                  (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
-                 (s.semaine ? ' · ' + s.semaine : '') +
+                 /* L'absence se dit : cette fiche ne s'ouvre QUE sur
+                    un dossier incomplet, et c'est justement ce qui
+                    manque qu'on vient y lire. */
+                 (s.semaine ? ' · ' + s.semaine : ' · aucune semaine demandée') +
                  mentionHeuresRestantes(x.eleve) +
                  mentionExamenBlanc(x);
         },
@@ -522,68 +627,103 @@ function afficherRdvPermis(tous){
           zone.appendChild(boutonEnvoyerVers(x.eleve));
           const s = suiviDe(x.eleve);
 
-          const selC = document.createElement('select');
-          selC.style.marginBottom = '8px';
-          selC.innerHTML = '<option value="">— centre d\'examen —</option>' +
-            '<option value="Saint-Brieuc">Saint-Brieuc</option>' +
-            '<option value="Loudéac">Loudéac</option>';
-          selC.value = s.centre || '';
-          selC.addEventListener('change', async () => {
-            selC.disabled = true;
-            try{ await majSuivi(x.eleve, { centre: selC.value }); await chargerBureau(); redessinerBureau(); }
-            catch(e){ showToast('Erreur : ' + e.message); }
-            selC.disabled = false;
-          });
-          zone.appendChild(selC);
+          /* ============================================================
+             TROIS RANGÉES DE BOUTONS, PLUS TROIS MENUS
 
-          const selM = document.createElement('select');
-          selM.style.marginBottom = '8px';
-          selM.innerHTML = '<option value="">— moniteur qui prend la date —</option>';
-          moniteursActifs.forEach(n => {
-            const o = document.createElement('option');
-            o.value = n; o.textContent = n;
-            selM.appendChild(o);
-          });
-          selM.value = s.moniteurDate || '';
-          selM.addEventListener('change', async () => {
-            selM.disabled = true;
-            try{ await majSuivi(x.eleve, { moniteurDate: selM.value }); await chargerBureau(); }
-            catch(e){ showToast('Erreur : ' + e.message); }
-            selM.disabled = false;
-          });
-          zone.appendChild(selM);
+             « Est-ce qu'on ne peut pas mettre des boutons plutôt que
+             des listes déroulantes ? »
 
-          const selS = document.createElement('select');
-          selS.style.marginBottom = '8px';
-          selS.innerHTML = '<option value="">— semaine à viser —</option>';
-          toutesSemaines().forEach(w => {
-            const lib = libelleSemaine(w) +
-                        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-            const o = document.createElement('option');
-            o.value = lib; o.textContent = lib;
-            selS.appendChild(o);
-          });
+             Un menu déroulant demande deux gestes — ouvrir, choisir —
+             pour deux réponses possibles dans le cas du centre. Et le
+             calendrier des semaines est déjà ouvert à côté : le
+             redemander dans un menu, c'est le fermer pour le rouvrir.
+
+             Les trois réglages s'écrivent aux mêmes endroits qu'avant,
+             sous les mêmes noms : c'est l'écran qui change, pas la
+             donnée. Aucun élève déjà renseigné n'est à reprendre.
+             ============================================================ */
+          zone.appendChild(rangeeBoutons('Centre d\'examen',
+            ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
+            s.centre || '',
+            async val => {
+              await majSuivi(x.eleve, { centre: val });
+              await chargerBureau();
+              redessinerBureau();
+            }));
+
+          /* QUI PREND LA DATE — DES FAVORIS, PAS UNE LISTE EN DUR.
+
+             « Le dur me pose problème, je peux pas mettre des
+             favoris ? » Si, et c'est mieux que les deux options que
+             je proposais : une liste en dur vieillit au premier
+             départ, un classement calculé change d'ordre sous les
+             doigts. Un favori se choisit une fois et ne bouge plus
+             tant que personne ne le change.
+
+             Ils sont RANGÉS AVEC LES RÉGLAGES DU BUREAU, donc partagés :
+             les gens qui prennent les dates sont les mêmes pour tout
+             le monde, et chacun ne doit pas refaire son propre
+             classement. */
+          zone.appendChild(rangeeBoutons('Qui prend la date',
+            favorisPrise().map(n => ({ val: n, lib: n })),
+            s.moniteurDate || '',
+            async val => {
+              await majSuivi(x.eleve, { moniteurDate: val });
+              await chargerBureau();
+              redessinerBureau();
+            },
+            {
+              /* Le fourre-tout : tous les autres, et de quoi épingler */
+              autre: 'Autre…',
+              surAutre: async () => {
+                const n = await choisirQuiPrendLaDate(s.moniteurDate || '');
+                if(n === null) return;
+                await majSuivi(x.eleve, { moniteurDate: n });
+                await chargerBureau();
+                redessinerBureau();
+              }
+            }));
+
+          /* LES SEMAINES, AVEC LES PLACES DU CENTRE CHOISI.
+
+             « 2 SB / 2.5 LO » sur un élève dont on vient de dire
+             qu'il passe à Saint-Brieuc, c'est un chiffre à écarter du
+             regard à chaque lecture. Le centre est choisi juste
+             au-dessus : le bouton n'annonce que ce qui le concerne.
+
+             Trois ou quatre semaines sont ouvertes en même temps,
+             rarement plus — au-delà de cinq, le reste passe derrière
+             « Autres… » pour que la fiche ne devienne pas un mur de
+             boutons. */
           const libDe = w => libelleSemaine(w) +
             ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
 
           /* Une valeur enregistrée avant l'ajout du numéro doit
              retrouver sa semaine, pas créer une entrée en double. */
-          const correspond = toutesSemaines().find(w => memeSemaine(libDe(w), s.semaine));
-          if(s.semaine && correspond){
-            s.semaine = libDe(correspond);
-          }else if(s.semaine){
-            const o = document.createElement('option');
-            o.value = s.semaine; o.textContent = s.semaine;
-            selS.appendChild(o);
+          const semaines = toutesSemaines();
+          const correspond = semaines.find(w => memeSemaine(libDe(w), s.semaine));
+          if(s.semaine && correspond) s.semaine = libDe(correspond);
+
+          const choixSem = semaines.map(w => ({
+            val: libDe(w),
+            lib: semaineCourte(w),
+            sous: placesDuCentre(w, s.centre)
+          }));
+          /* Une semaine choisie autrefois et depuis refermée reste
+             proposée : sinon elle disparaîtrait de l'écran sans que
+             personne ne l'ait retirée. */
+          if(s.semaine && !choixSem.some(c => c.val === s.semaine)){
+            choixSem.push({ val: s.semaine, lib: s.semaine, sous: '' });
           }
-          selS.value = s.semaine || '';
-          selS.addEventListener('change', async () => {
-            selS.disabled = true;
-            try{ await majSuivi(x.eleve, { semaine: selS.value }); await chargerBureau(); }
-            catch(e){ showToast('Erreur : ' + e.message); }
-            selS.disabled = false;
-          });
-          zone.appendChild(selS);
+
+          zone.appendChild(rangeeBoutons('Semaine à viser', choixSem,
+            s.semaine || '',
+            async val => {
+              await majSuivi(x.eleve, { semaine: val });
+              await chargerBureau();
+              redessinerBureau();
+            },
+            { max: 5, autre: 'Autres…' }));
 
           zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
@@ -597,6 +737,285 @@ function afficherRdvPermis(tous){
       }));
     });
   }
+}
+
+
+
+/* ============================================================
+   UNE RANGÉE DE BOUTONS À LA PLACE D'UN MENU
+
+   Écrite une fois, servie trois fois : le centre, qui prend la
+   date, la semaine. Trois rangées écrites séparément auraient fini
+   par ne pas se comporter pareil — l'une se dédisant au second
+   appui, l'autre non.
+
+   Règles communes :
+     • le choix courant est plein, les autres sont creux ;
+     • RAPPUYER SUR LE CHOIX COURANT LE RETIRE. Sans cela, une
+       erreur de doigt ne se rattrape qu'en cherchant un « — aucun — »
+       dans une liste, et il n'y en a plus ;
+     • au-delà de « max », le reste passe derrière « Autres… » ;
+     • pendant l'écriture, toute la rangée se fige : deux appuis
+       rapides écriraient deux fois.
+   ============================================================ */
+function rangeeBoutons(titre, choix, courant, surChoix, opts){
+  const o = opts || {};
+  const bloc = document.createElement('div');
+  bloc.style.cssText = 'margin-bottom:10px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:10.5px;color:var(--muted);text-transform:uppercase;' +
+    'letter-spacing:.08em;margin-bottom:5px;';
+  t.textContent = titre;
+  bloc.appendChild(t);
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:5px;flex-wrap:wrap;';
+  bloc.appendChild(r);
+
+  /* Ce qui est choisi reste visible même s'il dépasse le maximum :
+     cacher le choix courant derrière « Autres… » ferait croire
+     qu'il n'y a rien de choisi. */
+  let visibles = choix;
+  let caches = [];
+  if(o.max && choix.length > o.max){
+    visibles = choix.slice(0, o.max);
+    caches = choix.slice(o.max);
+    const dedans = caches.find(c => c.val === courant);
+    if(dedans){
+      caches = caches.filter(c => c !== dedans);
+      visibles = visibles.slice(0, o.max - 1).concat([dedans]);
+      caches = choix.filter(c => visibles.indexOf(c) === -1);
+    }
+  }
+
+  const figer = etat => Array.prototype.forEach.call(
+    r.querySelectorAll('button'), b => { b.disabled = etat; });
+
+  const faire = (c) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const pris = (c.val === courant);
+    b.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12.5px;' +
+      'border-radius:8px;line-height:1.25;text-align:center;' +
+      (pris
+        ? 'background:var(--accent);color:var(--navy-deep);border:1px solid var(--accent);font-weight:700;'
+        : 'background:var(--navy);color:var(--cream);border:1px solid var(--line);');
+    b.innerHTML = String(c.lib).replace(/</g, '&lt;') +
+      (c.sous ? '<div style="font-size:9.5px;font-weight:400;opacity:.75;">' +
+                String(c.sous).replace(/</g, '&lt;') + '</div>' : '');
+    b.title = c.titre || c.lib;
+    b.addEventListener('click', async () => {
+      figer(true);
+      try{
+        /* Rappuyer sur le choix courant le retire */
+        await surChoix(pris ? '' : c.val);
+      }catch(e){ showToast('Erreur : ' + e.message); figer(false); }
+    });
+    return b;
+  };
+
+  visibles.forEach(c => r.appendChild(faire(c)));
+
+  /* « Autre… » : le fourre-tout, en pointillés pour qu'il ne se
+     confonde pas avec un vrai choix. */
+  if(o.autre){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12.5px;' +
+      'border-radius:8px;background:transparent;color:var(--muted);' +
+      'border:1px dashed var(--line);';
+    b.textContent = o.autre;
+    b.addEventListener('click', async () => {
+      figer(true);
+      try{
+        if(o.surAutre){ await o.surAutre(); return; }
+        const c = await choisirDansUneListe(titre, caches.length ? caches : choix, courant);
+        if(c === null){ figer(false); return; }
+        await surChoix(c);
+      }catch(e){ showToast('Erreur : ' + e.message); figer(false); }
+    });
+    r.appendChild(b);
+  }
+
+  return bloc;
+}
+
+/* Le choix long, quand il ne tient pas en boutons */
+function choisirDansUneListe(titre, choix, courant){
+  const boutons = choix.map(c => ({ nom: c.lib || c.val, valeur: c.val }));
+  boutons.push({ nom: '— aucun —', valeur: '' });
+  boutons.push({ nom: 'Annuler', valeur: null });
+  return fenetre('', boutons, titre);
+}
+
+/* ============================================================
+   LES FAVORIS DE « QUI PREND LA DATE »
+
+   Rangés avec les réglages du bureau, donc PARTAGÉS : les gens qui
+   prennent les dates sont les mêmes pour tout le monde, et chacun
+   n'a pas à refaire son classement.
+
+   Vides au départ, on propose les trois noms d'usage — mais ce
+   sont des favoris, pas une liste en dur : ils s'épinglent et se
+   dépinglent depuis « Autre… », et l'ordre est celui du choix.
+   ============================================================ */
+const FAVORIS_PRISE_DEPART = ['Chrystel', 'David', 'Maryne'];
+let favorisPriseListe = FAVORIS_PRISE_DEPART.slice();
+let favorisPriseCharges = false;
+
+/* Ils arrivent des réglages partagés, une seule fois par session.
+   En attendant, les trois noms d'usage s'affichent : un écran qui
+   attendrait le réseau pour montrer trois boutons serait pire que
+   trois boutons parfois à revoir. */
+async function assurerFavorisPrise(){
+  if(favorisPriseCharges) return;
+  favorisPriseCharges = true;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    const g = (d && d.reglages) || {};
+    const brut = String(g.favorisDate || '').trim();
+    if(!brut) return;
+    const lu = brut.split('|').map(x => x.trim()).filter(Boolean);
+    if(lu.join('|') === favorisPriseListe.join('|')) return;
+    favorisPriseListe = lu;
+    /* Ils ont changé depuis l'affichage : on redessine une fois. */
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+  }catch(e){ /* les trois noms d'usage feront l'affaire */ }
+}
+
+function favorisPrise(){
+  /* Un favori qui n'est plus dans l'équipe ne s'affiche plus, mais
+     on ne le retire pas du réglage : un congé n'est pas un départ. */
+  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  if(!gens.length) return favorisPriseListe.slice(0, 4);
+  return favorisPriseListe.filter(n =>
+    gens.some(g => normaliserMot(g) === normaliserMot(n))).slice(0, 4);
+}
+
+async function basculerFavoriPrise(nom){
+  favorisPrise();
+  const i = favorisPriseListe.findIndex(x => normaliserMot(x) === normaliserMot(nom));
+  if(i === -1) favorisPriseListe.push(nom);
+  else favorisPriseListe.splice(i, 1);
+
+  try{
+    await appelPrep({ action: 'reglageSet', cle: 'favorisDate',
+                      valeur: favorisPriseListe.join('|'),
+                      par: ACCES.moniteur || '' });
+  }catch(e){ showToast('Épinglé ici, mais pas enregistré.'); }
+}
+
+/* La fenêtre « Autre… » : tout le monde, avec une étoile pour
+   épingler. Rend le nom choisi, ou null si on ferme. */
+function choisirQuiPrendLaDate(courant){
+  return new Promise(resolve => {
+    const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(420px,94vw);';
+
+    boite.innerHTML = '<h3>Qui prend la date</h3>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
+        'line-height:1.5;">L\'étoile épingle quelqu\'un dans les boutons, ' +
+        'pour tout le monde.</div>';
+
+    const liste = document.createElement('div');
+    liste.style.cssText = 'max-height:min(52vh,420px);overflow-y:auto;' +
+      'margin-bottom:12px;';
+
+    const fermer = v => {
+      if(fond.parentNode) document.body.removeChild(fond);
+      resolve(v);
+    };
+
+    gens.forEach(n => {
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:3px 0;';
+
+      const et = document.createElement('button');
+      et.type = 'button';
+      const estFav = () => favorisPrise().some(x => normaliserMot(x) === normaliserMot(n));
+      et.style.cssText = 'width:auto;margin:0;padding:8px 10px;font-size:16px;' +
+        'background:transparent;border:1px solid var(--line);border-radius:8px;' +
+        'flex-shrink:0;';
+      const majEt = () => { et.textContent = estFav() ? '⭐' : '☆'; };
+      majEt();
+      et.addEventListener('click', async e => {
+        e.stopPropagation();
+        et.disabled = true;
+        await basculerFavoriPrise(n);
+        majEt();
+        et.disabled = false;
+      });
+      l.appendChild(et);
+
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'flex:1;margin:0;padding:10px 12px;font-size:14px;' +
+        'text-align:left;' +
+        (normaliserMot(n) === normaliserMot(courant || '')
+          ? 'border-color:var(--accent);color:var(--accent-text);' : '');
+      b.textContent = n;
+      b.addEventListener('click', () => fermer(n));
+      l.appendChild(b);
+
+      liste.appendChild(l);
+    });
+    boite.appendChild(liste);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const bAucun = document.createElement('button');
+    bAucun.className = 'btn btn-secondary';
+    bAucun.textContent = '— aucun —';
+    bAucun.addEventListener('click', () => fermer(''));
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Fermer';
+    bAnn.addEventListener('click', () => fermer(null));
+    rangee.appendChild(bAucun);
+    rangee.appendChild(bAnn);
+    boite.appendChild(rangee);
+
+    fond.appendChild(boite);
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+    document.body.appendChild(fond);
+  });
+}
+
+/* « 12→16 oct · S42 » — la semaine en trois mots, pour un bouton */
+function semaineCourte(w){
+  const lib = libelleSemaine(w);
+  const n = numeroSemaine(w.du);
+  const j = iso => {
+    if(!iso) return '?';
+    const d = new Date(iso + 'T12:00:00');
+    return isNaN(d) ? '?' : d.getDate();
+  };
+  const mois = iso => {
+    if(!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { month:'short' });
+  };
+  if(!w.du && !w.au) return lib;
+  return j(w.du) + '→' + j(w.au) + ' ' + mois(w.au) + (n ? ' · S' + n : '');
+}
+
+/* Les places d'une semaine, dans le centre choisi. Sans centre, on
+   donne les deux — mais dès qu'il est choisi, le chiffre qui ne
+   concerne pas cet élève disparaît. */
+function placesDuCentre(w, centre){
+  const sb = Number(w.sb) || 0;
+  const lo = Number(w.lo) || 0;
+  if(!sb && !lo) return '';
+  if(/brieuc/i.test(centre || '')) return sb + ' place' + (sb > 1 ? 's' : '');
+  if(/loud/i.test(centre || '')) return lo + ' place' + (lo > 1 ? 's' : '');
+  return sb + ' SB / ' + lo + ' LO';
 }
 
 
