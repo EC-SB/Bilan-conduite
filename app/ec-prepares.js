@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:30 — v828 */
+/* Déployé le 03/09/2026 à 09:41 — v829 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1832,6 +1832,24 @@ function ouvrirRdvPost(cours){
   rdvPostEnCours = cours;
   const s = suiviDe(cours.eleve) || {};
 
+  /* ⚠️ LUI AUSSI EST UN COURS EN TRAIN DE SE FAIRE.
+
+     Le rendez-vous post-permis sort de « ouvrirBilanManuel » AVANT
+     tout le reste : il a son propre écran, ses propres champs. Il
+     échappait donc aux deux réparations du matin — ni signal de
+     démarrage, ni dépôt — et le bureau ne voyait pas l'élève qui
+     est assis là depuis une heure.
+
+     Le signal est le même que partout ailleurs, et le dépôt lit
+     SES champs par la même fonction : on lui passe sa zone. */
+  if(typeof signalerCoursDemarre === 'function'){
+    try{
+      signalerCoursDemarre(cours.eleve || '',
+        'Rendez-vous post-permis', cours.site || '');
+    }catch(e){ /* un signalement raté n'arrête pas un rendez-vous */ }
+  }
+  if(typeof veillerDepotRdvPost === 'function') veillerDepotRdvPost(cours);
+
   $('rdvPostEleve').textContent = cours.eleve || '';
   $('rdvPostInfo').textContent = 'Prévu le ' + libelleDate(cours.date) +
     (cours.moniteur ? ' · ' + cours.moniteur : '') +
@@ -2024,6 +2042,13 @@ async function terminerRdvPost(){
       par: ACCES.moniteur || ''
     };
     await majSuivi(eleve, majs);
+
+    /* Le compte rendu est dans le suivi : le brouillon du serveur
+       n'a plus lieu d'être, sinon 🩹 Cours non terminés réclamerait
+       un rendez-vous qui est fait. */
+    if(typeof retirerBrouillonServeur === 'function'){
+      retirerBrouillonServeur(eleve);
+    }
 
     /* Le bureau est informé, et la note oriente les listes */
     const conclusion = libelleSuite(suite) +
