@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:39 — v822 */
+/* Déployé le 03/09/2026 à 09:30 — v828 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1671,6 +1671,31 @@ async function chargerPrepareInterne(cours){
      le moniteur croit qu'il ne s'est rien passé et descend à la
      main. On attend l'affichage, sinon la position est fausse. */
   amenerAuCours();
+
+  /* ⚠️ OUVRIR UN COURS, C'EST LE COMMENCER.
+
+     Chrystel, un matin d'examens : « je sais que j'ai 3 cours qui se
+     déroulent et je ne vois rien ». Sa feuille EnCours n'avait rien
+     reçu depuis la veille — et la cause n'était ni un droit ni le
+     réseau : PERSONNE N'AVAIT ENCORE APPUYÉ SUR LE MICRO.
+
+     Le signal « cours démarré » ne partait qu'au lancement de
+     l'enregistrement. Or un moniteur ouvre son cours, roule une
+     heure, et ne dicte qu'à la fin — quand l'élève est descendu.
+     Entre les deux, le bureau ne voyait rien, et c'est justement
+     l'heure où il a besoin de savoir qui est au volant.
+
+     Le signal part donc à L'OUVERTURE. Même appel, au bon moment :
+     un cours ouvert est un cours qui a commencé, qu'on dicte au fil
+     de l'eau ou pas du tout. En fond, sans « await » — le moniteur
+     n'attend pas le réseau pour démarrer. */
+  if(typeof signalerCoursDemarre === 'function'){
+    try{
+      signalerCoursDemarre(cours.eleve || '',
+        cours.modeleLabel || cours.modele || '', cours.site || '');
+    }catch(e){ /* un signalement raté n'arrête pas un cours */ }
+  }
+
   showToast('Cours de ' + (cours.eleve || 'l\'élève') + ' chargé ✅');
 }
 
