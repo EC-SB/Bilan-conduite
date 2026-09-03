@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 16:05 — v845 */
+/* Déployé le 03/09/2026 à 16:07 — v846 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -428,29 +428,74 @@ function tableauAPlacer(liste){
        désigné, ou dans la vue par semaine, où le groupe ne dit pas
        qui prend. Dans la vue par personne, le nom est déjà en tête
        du groupe. */
-    if(!s.moniteurDate || vuePlaces === 'semaine'){
-      const bQui = document.createElement('button');
-      bQui.className = 'btn btn-secondary';
-      bQui.style.cssText = 'width:auto;padding:6px 9px;font-size:14px;margin:0;' +
-        'flex-shrink:0;' + (s.moniteurDate ? '' :
+    /* Trois réglages, trois boutons, TOUJOURS LÀ.
+
+       « Et pareil quand ils sont déjà attribués. » Un bouton qui
+       n'apparaît qu'au moment où quelque chose manque ne sert
+       qu'une fois : il faut aussi pouvoir CHANGER. Ils sont donc
+       tous les trois sur chaque ligne, en orange quand la réponse
+       manque, discrets quand elle est là. */
+    const reglage = (icone, titre, valeur, ouvrir, champ) => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;padding:6px 9px;font-size:14px;margin:0;' +
+        'flex-shrink:0;' + (valeur ? '' :
           'color:var(--orange);border-color:var(--orange);');
-      bQui.textContent = '👤';
-      bQui.title = s.moniteurDate
-        ? ('Changer : ' + s.moniteurDate + ' prend la date')
-        : 'Dire qui prend la date';
-      bQui.addEventListener('click', async () => {
-        const n = await choisirQuiPrendLaDate(s.moniteurDate || '');
-        if(n === null) return;
-        bQui.disabled = true;
+      b.textContent = icone;
+      b.title = valeur ? (titre + ' : ' + valeur + ' — appuie pour changer')
+                       : titre;
+      b.addEventListener('click', async () => {
+        const v = await ouvrir();
+        if(v === null) return;
+        b.disabled = true;
         try{
-          await majSuivi(e.eleve, { moniteurDate: n });
+          const maj = {};
+          maj[champ] = v;
+          await majSuivi(e.eleve, maj);
           await chargerBureau();
-          showToast(n ? (n + ' prend la date ✅') : 'Moniteur retiré ✅');
           redessinerBureau();
-        }catch(err){ showToast('Erreur : ' + err.message); bQui.disabled = false; }
+        }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
       });
-      l.appendChild(bQui);
-    }
+      l.appendChild(b);
+    };
+
+    reglage('👤', 'Qui prend la date', s.moniteurDate || '',
+            () => choisirQuiPrendLaDate(s.moniteurDate || ''), 'moniteurDate');
+
+    reglage('📍', "Centre d'examen", s.centre || '',
+            () => choisirDansUneListe("Centre d'examen",
+              ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
+              s.centre || ''), 'centre');
+
+    /* LES SEMAINES, DANS LE MÊME ORDRE QU'AILLEURS.
+
+       Celles dont la journée d'attribution est passée descendent en
+       bas de la liste — comme dans la fiche. Deux tris différents
+       pour une même question finiraient par proposer deux choses
+       différentes. */
+    reglage('🗓️', 'Semaine à viser', s.semaine || '', () => {
+      const libDe = w => libelleSemaine(w) +
+        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
+      const encore = w => {
+        if(typeof dateDePrise !== 'function') return true;
+        const iso = String(w.du || w.au || '');
+        const m2 = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
+        if(!m2) return true;
+        const d = dateDePrise(m2[1], Number(m2[2]) <= 15 ? 1 : 2);
+        if(!d) return true;
+        return d >= todayLocal();
+      };
+      const toutes = toutesSemaines();
+      const vers = w => ({
+        val: libDe(w),
+        lib: semaineCourte(w) +
+             (joursDuCentre(w, s.centre) ? ' — ' + joursDuCentre(w, s.centre) : '') +
+             (encore(w) ? '' : ' · prise passée')
+      });
+      return choisirDansUneListe('Semaine à viser',
+        toutes.filter(encore).map(vers).concat(toutes.filter(w => !encore(w)).map(vers)),
+        s.semaine || '');
+    }, 'semaine');
 
     const bCal = document.createElement('button');
     bCal.className = 'btn btn-secondary';
