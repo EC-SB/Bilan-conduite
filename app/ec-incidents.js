@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:21 — v768 */
+/* Déployé le 03/09/2026 à 07:52 — v820 */
 /* ============================================================
    ec-incidents.js
    Quand ça casse chez un moniteur, le bureau doit le savoir.
@@ -128,6 +128,35 @@ function veillerIncidents(){
    ------------------------------------------------------------ */
 let incidents = null;
 
+/* ------------------------------------------------------------
+   UN HORODATAGE SE COMPARE EN ISO, JAMAIS EN TEXTE
+
+   Le classeur écrit « 02/09/2026 14:16 ». Comparées comme des
+   textes, ces dates se rangent par leur PREMIER CHIFFRE : le
+   28/08 passait pour plus récent que le 02/09, et « dernier »
+   affichait le plus ancien. Le tri des problèmes était donc faux
+   depuis le début, sans que ça se voie — jusqu'au jour où on filtre
+   par date, et où ça se voit tout de suite.
+   ------------------------------------------------------------ */
+function momentIncident(quand){
+  const m = String(quand || '')
+    .match(/(\d{1,2})[\/\s-](\d{1,2})[\/\s-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if(!m) return '';
+  return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) +
+         'T' + ('0' + (m[4] || '00')).slice(-2) + ':' + (m[5] || '00');
+}
+
+/* Le filtre en cours. « '' » veut dire « tout ». */
+let depuisIncidents = '';
+
+/* Le jour d'il y a N jours, en ISO. */
+function ilYaNJours(n){
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) +
+         '-' + ('0' + d.getDate()).slice(-2);
+}
+
 async function afficherIncidents(recharger){
   const zone = $('incidentsZone');
   if(!zone) return;
@@ -139,7 +168,7 @@ async function afficherIncidents(recharger){
       ? htmlAttente('Lecture des signalements…')
       : '<div class="empty">Lecture…</div>';
     try{
-      const d = await appelPrep({ action: 'incidentList', combien: 120 });
+      const d = await appelPrep({ action: 'incidentList', combien: 400 });
       incidents = (d && d.incidents) || [];
     }catch(e){
       zone.innerHTML = '<div class="empty">⚠️ ' +
@@ -172,13 +201,31 @@ async function afficherIncidents(recharger){
     return;
   }
 
+  zone.appendChild(barreDatesIncidents());
+
+  /* Le filtre agit sur ce qui est DÉJÀ chargé : pas d'aller-retour
+     réseau pour changer de période. */
+  const vus = depuisIncidents
+    ? incidents.filter(x => momentIncident(x.quand) >= depuisIncidents)
+    : incidents.slice();
+
+  if(!vus.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = '✅ <strong>Rien sur cette période.</strong><br>' +
+      '<span style="font-size:12px;">' + incidents.length +
+      ' signalement(s) plus anciens sont masqués.</span>';
+    zone.appendChild(v);
+    return;
+  }
+
   /* Regroupé par message : dix fois la même erreur chez trois
      moniteurs, c'est UN problème, pas trente. */
   const familles = {};
-  incidents.forEach(x => {
+  vus.forEach(x => {
     const cle = String(x.message || '').slice(0, 120);
     if(!familles[cle]){
-      familles[cle] = { message: x.message, ou: x.ou, combien: 0,
+      familles[cle] = { cle: cle, message: x.message, ou: x.ou, combien: 0,
                         qui: {}, versions: {}, appareils: {},
                         premier: x.quand, dernier: x.quand, details: x.details };
     }
@@ -187,22 +234,137 @@ async function afficherIncidents(recharger){
     if(x.moniteur) f.qui[x.moniteur] = true;
     if(x.version) f.versions[x.version] = true;
     if(x.appareil) f.appareils[x.appareil] = true;
-    if(String(x.quand || '') > String(f.dernier || '')) f.dernier = x.quand;
-    if(String(x.quand || '') < String(f.premier || '')) f.premier = x.quand;
+    if(momentIncident(x.quand) > momentIncident(f.dernier)) f.dernier = x.quand;
+    if(momentIncident(x.quand) < momentIncident(f.premier)) f.premier = x.quand;
     if(!f.details && x.details) f.details = x.details;
   });
 
   const liste = Object.keys(familles).map(k => familles[k])
-    .sort((a, b) => String(b.dernier || '').localeCompare(String(a.dernier || '')));
+    .sort((a, b) => momentIncident(b.dernier).localeCompare(momentIncident(a.dernier)));
 
   const t = document.createElement('div');
   t.style.cssText = 'padding:10px 12px;border:1px solid var(--line);' +
     'border-radius:10px;margin-bottom:10px;font-size:13px;line-height:1.6;';
   t.innerHTML = '<strong>' + liste.length + ' problème(s) distinct(s)</strong>' +
-    ' · ' + incidents.length + ' signalement(s)';
+    ' · ' + vus.length + ' signalement(s)' +
+    (vus.length < incidents.length
+      ? ' <span style="color:var(--muted);">(' +
+        (incidents.length - vus.length) + ' plus anciens masqués)</span>' : '');
   zone.appendChild(t);
 
   liste.forEach(f => zone.appendChild(ligneIncident(f)));
+}
+
+/* ------------------------------------------------------------
+   LE FILTRE PAR DATE, ET LA VIDANGE
+
+   « Un filtre par date. » Quatre périodes qui couvrent tout ce
+   qu'on regarde vraiment — ce qui est arrivé aujourd'hui, cette
+   semaine, ce mois — et « tout » pour les fois où l'on cherche
+   quelque chose de précis.
+
+   Le bouton de vidange est à côté du filtre, et pas ailleurs :
+   il efface EXACTEMENT ce que le filtre masque. On ne supprime
+   jamais ce qu'on ne voit pas, et on ne supprime jamais ce qu'on
+   voit — deux règles qui font qu'il n'y a rien à se demander.
+   ------------------------------------------------------------ */
+const PERIODES_INCIDENTS = [
+  { cle: '',   nom: 'Tout' },
+  { cle: '30', nom: '30 jours' },
+  { cle: '7',  nom: '7 jours' },
+  { cle: '0',  nom: "Aujourd'hui" }
+];
+
+let periodeIncidents = '';
+
+function barreDatesIncidents(){
+  const b = document.createElement('div');
+  b.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;' +
+    'margin-bottom:10px;';
+
+  PERIODES_INCIDENTS.forEach(p => {
+    const actif = (p.cle === periodeIncidents);
+    const x = document.createElement('button');
+    x.className = 'btn btn-secondary';
+    x.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:7px 12px;' +
+      'font-size:12px;border-radius:999px;white-space:nowrap;' +
+      (actif ? 'background:var(--orange);color:var(--navy-deep);' +
+               'border-color:var(--orange);font-weight:700;' : '');
+    x.textContent = p.nom;
+    x.addEventListener('click', () => {
+      periodeIncidents = p.cle;
+      depuisIncidents = p.cle === '' ? '' : ilYaNJours(Number(p.cle));
+      afficherIncidents();
+    });
+    b.appendChild(x);
+  });
+
+  /* La vidange ne s'offre que quand il y a quelque chose à vider :
+     un bouton qui ne fait rien apprend à ne plus lire les boutons. */
+  if(depuisIncidents &&
+     incidents.some(x => momentIncident(x.quand) < depuisIncidents)){
+    const v = document.createElement('button');
+    v.className = 'btn btn-secondary';
+    v.style.cssText = 'width:auto;flex:0 0 auto;margin:0 0 0 auto;' +
+      'padding:7px 12px;font-size:12px;border-radius:999px;' +
+      'white-space:nowrap;color:var(--red);border-color:var(--red);';
+    v.textContent = '🧹 Vider ce qui est masqué';
+    v.addEventListener('click', () => viderIncidentsAvant(depuisIncidents, v));
+    b.appendChild(v);
+  }
+
+  return b;
+}
+
+async function viderIncidentsAvant(avant, bouton){
+  const combien = incidents.filter(x => momentIncident(x.quand) < avant).length;
+  const ok = await confirmer(
+    'Effacer définitivement les ' + combien + " signalement(s) d'avant le " +
+    (typeof dateEnToutesLettres === 'function'
+      ? dateEnToutesLettres(avant) : avant) + ' ?\n\n' +
+    'Ce sont exactement ceux que le filtre masque en ce moment. ' +
+    'Ceux qui sont affichés restent.',
+    'Vider les anciens', true);
+  if(!ok) return;
+
+  bouton.disabled = true;
+  bouton.textContent = 'Effacement…';
+  try{
+    const r = await appelPrep({ action: 'incidentDelete', avant: avant });
+    if(r && r.status === 'error') throw new Error(r.message);
+    showToast('🧹 ' + ((r && r.supprimes) || 0) + ' signalement(s) effacé(s)');
+    afficherIncidents(true);
+  }catch(e){
+    showToast('Impossible : ' + (e.message || e));
+    bouton.disabled = false;
+    bouton.textContent = '🧹 Vider ce qui est masqué';
+  }
+}
+
+/* « Celui-là est réglé. » Toutes ses lignes partent d'un coup, y
+   compris celles des autres moniteurs : l'écran regroupe par
+   problème, on supprime donc le problème, pas une ligne isolée
+   qu'on n'aurait pas regardée. */
+async function effacerProblemeIncident(f, bouton){
+  const ok = await confirmer(
+    'Effacer définitivement les ' + f.combien + ' ligne(s) de ce problème ?\n\n' +
+    String(f.message || '').slice(0, 160) + '\n\n' +
+    "À faire quand il est réglé : s'il revient, une nouvelle ligne s'écrira.",
+    'Problème réglé', true);
+  if(!ok) return;
+
+  bouton.disabled = true;
+  bouton.textContent = '…';
+  try{
+    const r = await appelPrep({ action: 'incidentDelete', message: f.cle });
+    if(r && r.status === 'error') throw new Error(r.message);
+    showToast('🗑️ ' + ((r && r.supprimes) || 0) + ' ligne(s) effacée(s)');
+    afficherIncidents(true);
+  }catch(e){
+    showToast('Impossible : ' + (e.message || e));
+    bouton.disabled = false;
+    bouton.textContent = '🗑️ Réglé';
+  }
 }
 
 function ligneIncident(f){
@@ -245,6 +407,19 @@ function ligneIncident(f){
       'color:var(--muted);word-break:break-word;">' +
       String(f.details).replace(/</g, '&lt;') + '</div>';
     d.appendChild(det);
+  }
+
+  /* Le bouton du tri, sur le problème lui-même — là où on vient de
+     lire de quoi il s'agit, et pas dans un menu ailleurs. */
+  if(typeof peutModifier !== 'function' || peutModifier('incidents')){
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:8px 0 0;padding:6px 11px;' +
+      'font-size:12px;border-radius:999px;';
+    b.textContent = '🗑️ Réglé';
+    b.title = 'Effacer les ' + f.combien + ' ligne(s) de ce problème';
+    b.addEventListener('click', () => effacerProblemeIncident(f, b));
+    d.appendChild(b);
   }
 
   return d;
