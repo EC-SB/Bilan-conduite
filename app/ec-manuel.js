@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 12:14 — v837 */
+/* Déployé le 03/09/2026 à 13:10 — v839 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -135,6 +135,10 @@ const CHAMPS_MANUELS = {
       nom:'2-1 · Remarque sur l\'installation',
       aide:'Facultatif : ce qui a manqué à son installation.' },
 
+    /* Le même repère qu'à l'examen officiel : les numéros 2-1,
+       2-2 séparaient déjà, mais pas assez pour un écran de
+       téléphone tenu à bout de bras. */
+    { cle:'__sVerifB', type:'sousTitre', nom:'🧰 Vérifications' },
     { cle:'examen.verifNote',     type:'note3',
       nom:'2-2 · Note des vérifications' },
     { cle:'examen.verifQuestion', type:'court',
@@ -223,6 +227,14 @@ const CHAMPS_MANUELS = {
     /* Ces champs se rangent sous « examen » : c'est là que le
        constructeur du bilan va les chercher. Sans le préfixe,
        ils n'apparaissaient nulle part. */
+    /* ⚠️ QUATRE SUJETS SE SUIVAIENT SANS RIEN ENTRE EUX.
+
+       « Mettre plus visible vérif pour séparer. » Installation,
+       vérifications, sécurité routière et premiers secours ont
+       chacun leur case ✅/❌ et leur explication : à bout de bras
+       dans une voiture, on ne voyait plus où finissait l'un. Un
+       sous-titre par sujet, et la case cochée est la bonne. */
+    { cle:'__sInstall', type:'sousTitre', nom:'🚗 Installation' },
     { cle:'examen.installation', type:'ok', nom:'EXAMEN — Installation', defaut:'' },
     { cle:'examen.passager',     type:'ok', nom:'EXAMEN — Passager',     defaut:'' },
     { cle:'examen.voyants',      type:'ok', nom:'EXAMEN — Voyants',      defaut:'' },
@@ -232,14 +244,17 @@ const CHAMPS_MANUELS = {
        même phrase. */
     { cle:'examen.installTexte', type:'texte', lignes:3,
       nom:'Explication ou correction — installation, passager et voyants' },
+    { cle:'__sVerif', type:'sousTitre', nom:'🧰 Vérification' },
     { cle:'examen.verifQuestion', type:'court',
       nom:'N° de la question de vérification' },
     { cle:'examen.vi',           type:'ok', nom:'Vérification', defaut:'' },
     { cle:'examen.viTexte',      type:'texte', lignes:3,
       nom:'Explication ou correction — vérification' },
+    { cle:'__sQser', type:'sousTitre', nom:'🚦 Question sécurité routière' },
     { cle:'examen.qser',         type:'ok', nom:'Question sécurité routière', defaut:'' },
     { cle:'examen.qserTexte',    type:'texte', lignes:3,
       nom:'Explication ou correction — sécurité routière' },
+    { cle:'__sSecours', type:'sousTitre', nom:'🚑 Premiers secours' },
     { cle:'examen.secours',      type:'ok', nom:'Premiers secours', defaut:'' },
     { cle:'examen.secoursTexte', type:'texte', lignes:3,
       nom:'Explication ou correction — premiers secours' },
@@ -2354,6 +2369,16 @@ function ficheManuelleEnTexte(quelleZone){
       return;
     }
 
+    /* Un sous-titre sépare aussi dans le miroir que lit le bureau :
+       sans lui, « Vérification — ✅ » et « Premiers secours — ✅ »
+       se suivraient sans qu'on sache à quoi se rapporte
+       l'explication d'à côté. */
+    if(ch.type === 'sousTitre'){
+      lignes.push('');
+      lignes.push('  · ' + String(ch.nom || '').trim());
+      return;
+    }
+
     const sous = sousLignesDuChamp(ch, modele);
     if(sous){
       lignes.push(String(ch.nom || ch.cle) + ' :');
@@ -2670,9 +2695,10 @@ function lireChampsManuels(champsVoulus){
   if(!champs) return;
 
   champs.forEach(ch => {
-    if(ch.type === 'titre' || ch.type === 'envoiAvant' ||
-       ch.type === 'rappelFrise'){
-      /* Ni un intertitre ni un bouton ne portent de réponse */
+    if(ch.type === 'titre' || ch.type === 'sousTitre' ||
+       ch.type === 'envoiAvant' || ch.type === 'rappelFrise'){
+      /* Ni un intertitre, ni un sous-titre, ni un bouton ne
+         portent de réponse */
 
 
     }else if(ch.type === 'abc' || ch.type === 'tableauHandicap'){
@@ -4302,6 +4328,41 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         bloc.appendChild(a);
       }
 
+    }else if(ch.type === 'sousTitre'){
+      /* ------------------------------------------------------------
+         UN REPÈRE À L'INTÉRIEUR D'UNE PARTIE
+
+         « Mettre plus visible vérif pour séparer. »
+
+         Sous 🏁 Examen, quatre sujets se suivaient sans rien entre
+         eux : l'installation, les vérifications, la question de
+         sécurité routière, les premiers secours. Chacun a sa case
+         ✅/❌ et son explication — et à bout de bras, dans une
+         voiture, on ne voyait plus où finissait l'un et où
+         commençait l'autre. Le moniteur cochait la mauvaise ligne.
+
+         Un sous-titre, pas un titre : il sépare sans concurrencer
+         le grand repère de la partie. Plus petit, à gauche, avec un
+         filet fin — la hiérarchie doit se lire d'un coup d'œil,
+         sinon elle ne sert à rien.
+         ------------------------------------------------------------ */
+      bloc.style.cssText = 'margin:20px 0 10px;padding:9px 11px;' +
+        'border-left:3px solid var(--orange);border-radius:0 8px 8px 0;' +
+        'background:rgba(232,163,61,.10);';
+
+      const t = document.createElement('div');
+      t.style.cssText = 'font-size:15.5px;font-weight:800;color:var(--orange);' +
+        'letter-spacing:.01em;';
+      t.textContent = ch.nom;
+      bloc.appendChild(t);
+
+      if(ch.aide){
+        const a = document.createElement('div');
+        a.style.cssText = 'font-size:11.5px;color:var(--muted);margin-top:2px;' +
+          'line-height:1.45;';
+        a.textContent = ch.aide;
+        bloc.appendChild(a);
+      }
 
     }else if(ch.type === 'entete'){
       /* La première partie du bilan, telle que l'élève la lira :
