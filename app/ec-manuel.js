@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:09 — v825 */
+/* Déployé le 03/09/2026 à 09:23 — v827 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -710,6 +710,39 @@ async function ouvrirBilanManuel(){
 
   champsManuels = {};
   modeManuel = true;
+
+  /* ⚠️ LE BUREAU DOIT SAVOIR QU'UN EXAMEN EST EN COURS.
+
+     Chrystel, un matin d'examens : « je sais que j'ai 3 cours qui se
+     déroulent et je ne vois rien ». Elle avait raison, et le trou
+     était là depuis le début.
+
+     🩹 Cours non terminés ne lit que le classeur, et une fiche
+     remplie à la main n'y arrivait JAMAIS : les deux signaux — le
+     cours démarré et la dictée déposée — partent tous les deux du
+     MICRO. Un examen officiel, un examen blanc, un rendez-vous
+     post-permis n'allument pas le micro : ils n'existaient donc
+     pour personne d'autre que le téléphone qui les portait.
+
+     Même appel que le vocal, au même moment : au démarrage. Il part
+     en fond, sans « await » — un examen ne doit pas attendre le
+     réseau pour commencer. */
+  /* Le même relâchement des verrous que le vocal : une fiche
+     ouverte après un bilan enregistré doit se déposer, elle aussi.
+     Voir « reinitialiserDepotBrouillon ». */
+  if(typeof reinitialiserDepotBrouillon === 'function'){
+    reinitialiserDepotBrouillon();
+  }
+  dernierDepotManuel = 0;
+
+  if(typeof signalerCoursDemarre === 'function'){
+    try{
+      signalerCoursDemarre(eleve,
+        ($('modele').selectedOptions[0]
+          ? $('modele').selectedOptions[0].textContent : modeleCle),
+        $('site') ? $('site').value : '');
+    }catch(e){ /* un signalement raté n'arrête pas un examen */ }
+  }
 
   /* Sa date de permis, si elle est connue : la redemander au
      moniteur n'apprend rien de plus. */
@@ -2038,7 +2071,113 @@ function replacerSaisiesManuelles(saisies){
    ralentirait la saisie. */
 function planifierSauvegardeManuelle(){
   clearTimeout(minuteurManuel);
-  minuteurManuel = setTimeout(sauvegarderManuel, 1000);
+  minuteurManuel = setTimeout(() => {
+    sauvegarderManuel();
+    deposerFicheManuelle();
+  }, 1000);
+}
+
+
+/* ============================================================
+   LA FICHE MANUELLE PART AUSSI SUR LE SERVEUR
+
+   « Je sais que j'ai 3 cours qui se déroulent et je ne vois rien,
+   et on me demande de savoir où c'est enregistré. »
+
+   La réponse était mauvaise : NULLE PART, sauf dans le navigateur
+   du moniteur. La dictée, elle, se dépose sur le classeur au fil du
+   cours depuis longtemps — précisément parce que « la sauvegarde
+   sur l'appareil échoue en silence quand le stockage est plein, et
+   disparaît avec le navigateur ». Une fiche d'examen remplie à la
+   main court exactement le même risque, et personne ne l'avait vu :
+   elle n'allume pas le micro, donc elle ne passait par aucun des
+   deux chemins qui déposent.
+
+   Elle passe par LE MÊME dépôt que la dictée — « brouillonSet »,
+   la même feuille, le même écran 🩹 Cours non terminés. Ce qui
+   change est ce qu'on met dans la colonne « Transcription » : pas
+   des paroles, mais la fiche telle qu'elle est remplie à cet
+   instant, en clair. Le bureau la lit, et le moniteur la retrouve
+   depuis un autre téléphone.
+
+   ⚠️ PAS À CHAQUE FRAPPE. Le dépôt est bridé à une fois par minute :
+   une fiche d'examen se remplit case par case pendant une heure, et
+   soixante écritures par minute rempliraient le classeur avant la
+   fin de l'épreuve. Entre deux dépôts, la sauvegarde locale tient —
+   elle, elle est immédiate.
+   ============================================================ */
+const SECONDES_ENTRE_DEUX_DEPOTS = 60;
+let dernierDepotManuel = 0;
+
+/* La fiche en clair : « Rubrique — réponse », une par ligne. On
+   n'envoie que ce qui est rempli : une fiche vide n'apprend rien et
+   remplirait la feuille de blancs. */
+function ficheManuelleEnTexte(){
+  const zone = $('manuelChamps');
+  if(!zone) return '';
+
+  const lignes = [];
+  zone.querySelectorAll('input, textarea, select').forEach(el => {
+    const rempli = (el.type === 'checkbox' || el.type === 'radio')
+      ? el.checked : String(el.value || '').trim();
+    if(!rempli) return;
+
+    /* Le libellé le plus proche : l'étiquette du champ, sinon la
+       clé technique. Mieux vaut une clé qu'un blanc. */
+    let titre = '';
+    const lab = el.closest('label') ||
+      (el.id ? zone.querySelector('label[for="' + el.id + '"]') : null);
+    if(lab) titre = String(lab.textContent || '').trim().slice(0, 60);
+    if(!titre) titre = el.getAttribute('data-cle') ||
+                       el.getAttribute('data-comp') || el.name || '';
+
+    const valeur = (el.type === 'checkbox' || el.type === 'radio')
+      ? 'oui' : String(el.value || '').trim();
+    lignes.push((titre ? titre + ' — ' : '') + valeur);
+  });
+
+  /* Les réponses posées par des boutons — ✅ / ❌, A-B-C — ne vivent
+     dans aucun champ : sans elles, une fiche d'examen entièrement
+     remplie au doigt partirait vide. */
+  if(typeof champsManuels === 'object' && champsManuels){
+    Object.keys(champsManuels).forEach(k => {
+      const v = champsManuels[k];
+      if(v === '' || v === null || v === undefined) return;
+      lignes.push(k + ' — ' + String(v));
+    });
+  }
+
+  return lignes.join('\n');
+}
+
+function deposerFicheManuelle(force){
+  if(!modeManuel) return;
+
+  const maintenant = Date.now();
+  if(!force && maintenant - dernierDepotManuel < SECONDES_ENTRE_DEUX_DEPOTS * 1000){
+    return;
+  }
+
+  const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+  if(eleve.length < 2) return;
+
+  const texte = ficheManuelleEnTexte();
+  if(!texte) return;                 /* rien de rempli : rien à déposer */
+
+  dernierDepotManuel = maintenant;
+
+  /* En fond, et sans jamais se plaindre : le dépôt est un filet,
+     pas une condition. La sauvegarde locale reste, et un examen ne
+     s'arrête pas parce que le réseau tousse. */
+  appelPrep({
+    action: 'brouillonSet',
+    eleve: eleve,
+    dateCours: ($('lessonDate') && $('lessonDate').value) || '',
+    modele: ($('modele') && $('modele').value) || '',
+    site: ($('site') && $('site').value) || '',
+    transcript: texte,
+    note: ($('noteInterne') && $('noteInterne').value) || ''
+  }).catch(() => {});
 }
 
 /* Ce qui a été saisi et jamais terminé */
@@ -2360,6 +2499,14 @@ async function genererBilanManuel(){
      examens de la matinée restent. */
   effacerBrouillonDe($('studentName').value.trim());
   try{ localStorage.removeItem('bilan_manuel_en_cours'); }catch(e){}
+
+  /* Et celui du serveur avec lui : le bilan est composé, la fiche
+     n'a plus à traîner dans 🩹 Cours non terminés. Exactement ce
+     que fait la dictée après sa génération. */
+  if(typeof retirerBrouillonServeur === 'function'){
+    retirerBrouillonServeur($('studentName').value.trim());
+  }
+
   avantExamenEnvoye = false;
 }
 
@@ -2417,6 +2564,9 @@ async function envoyerAvantExamen(){
      sauvegarde. */
   avantExamenEnvoye = true;
   sauvegarderManuel();
+  /* Et on dépose sans attendre : la partie avant examen vient de
+     partir à l'élève, c'est le moment le plus coûteux à refaire. */
+  try{ deposerFicheManuelle(true); }catch(e){}
 
   ouvrirEnvoiAvant(eleve, message);
 }
@@ -2731,6 +2881,12 @@ function fermerBilanManuel(){
      là qu'on la reprend après l'examen. La sauvegarde automatique
      attend une seconde de calme — on ne la laisse pas décider. */
   try{ sauvegarderManuel(); }catch(e){}
+
+  /* Et déposée sur le serveur, sans attendre la minute du bridage :
+     on referme, donc c'est le moment où la fiche doit être en
+     sécurité ailleurs que dans ce téléphone. AVANT « modeManuel =
+     false », qui coupe le dépôt. */
+  try{ deposerFicheManuelle(true); }catch(e){}
 
   modeManuel = false;
   $('manuelView').style.display = 'none';
