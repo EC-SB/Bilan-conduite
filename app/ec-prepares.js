@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:48 — v830 */
+/* Déployé le 03/09/2026 à 11:30 — v836 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -939,6 +939,67 @@ async function afficherPrepares(recharger, silencieux){
       majDit1();
       boite.addEventListener('input', majDit1);
       ligneCases.appendChild(dit1);
+
+      /* ------------------------------------------------------------
+         LES TROIS ÉTAPES D'UNE REMISE À NIVEAU
+
+         Son parcours ne se lit pas en frise mais en heures, et en
+         trois temps : le simulateur, notre voiture, la sienne. Ces
+         trois nombres se corrigent ici comme le rang se corrige à
+         côté — au moment où on les voit, sans rouvrir le
+         questionnaire.
+
+         Ils passent par « ecrireAvantCharniere », qui sait déjà
+         écrire un champ du contexte ET refaire la note avec. Une
+         deuxième fonction d'écriture finirait par ne pas refaire la
+         note de la même façon, et la carte annoncerait une étape
+         quand la note en dirait une autre.
+         ------------------------------------------------------------ */
+      const ctxEtapes = contexteEnObjet(cours.contexte) || {};
+      if(typeof etapesHeuresPourLaFormation === 'function' &&
+         etapesHeuresPourLaFormation(ctxEtapes.formation)){
+        (typeof ETAPES_REMISE_A_NIVEAU !== 'undefined'
+          ? ETAPES_REMISE_A_NIVEAU : []).forEach(e => {
+          const c = document.createElement('input');
+          c.type = 'text';
+          c.inputMode = 'numeric';
+          c.placeholder = 'h';
+          c.title = 'Heures prévues ' + e.ou + e.nom;
+          const avant = String(ctxEtapes[e.cle] || '');
+          c.value = avant;
+          c.style.cssText = 'width:42px;margin:0;padding:3px 4px;font-size:13px;' +
+            'text-align:center;flex-shrink:0;font-variant-numeric:tabular-nums;' +
+            'background:var(--navy);border:1px solid var(--line);';
+
+          c.addEventListener('change', async () => {
+            /* Zéro EST une réponse — « il se peut qu'il n'y ait pas
+               de simulateur, mais on mettra 0 ». Vide en est une
+               autre : on ne sait pas encore. */
+            const propre = String(c.value).replace(/\D/g, '');
+            if(propre === avant){ c.value = avant; return; }
+            c.disabled = true;
+            c.style.borderColor = 'var(--orange)';
+            try{
+              await ecrireAvantCharniere(cours, e.cle, propre);
+              c.style.borderColor = 'var(--line)';
+              afficherPrepares(false);
+            }catch(err){
+              c.style.borderColor = 'var(--red)';
+              showToast('Impossible : ' + err.message);
+            }finally{
+              c.disabled = false;
+            }
+          });
+
+          const et = document.createElement('span');
+          et.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+          et.textContent = 'h ' + e.court;
+
+          ligneCases.appendChild(c);
+          ligneCases.appendChild(et);
+        });
+      }
+
       ligneRang.appendChild(ligneCases);
 
       /* LA DEUXIÈME CASE : DEPUIS LA CHARNIÈRE.
