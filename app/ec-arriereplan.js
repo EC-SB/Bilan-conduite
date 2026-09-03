@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:49 — v830 */
+/* Déployé le 03/09/2026 à 10:41 — v835 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -558,6 +558,55 @@ async function reprendreBrouillonServeur(b){
       try{ await deposerBrouillonServeur(); }catch(e){}
     }
     if(typeof fermerLeCoursOuvert === 'function') fermerLeCoursOuvert();
+  }
+
+  /* ============================================================
+     UNE FICHE SE ROUVRE, ELLE NE SE RECOLLE PAS
+
+     « Quand je reprends un cours manuel, tout le texte apparaît
+     dans la case de transcription vocale, je ne peux pas le
+     continuer. »
+
+     Le brouillon d'un bilan manuel porte deux choses : le MIROIR
+     lisible — c'est ce que le bureau lit dans la liste — et les
+     RÉPONSES elles-mêmes. Sans les secondes, reprendre ne pouvait
+     que recoller le premier, et la seule case qui accepte du texte
+     libre est celle de la dictée.
+
+     Quand les réponses sont là, on passe par « reprendreBrouillon »
+     — LA MÊME fonction que la reprise sur l'appareil, celle qui
+     repose chaque valeur dans sa case et rallume les boutons. Un
+     deuxième chemin de réouverture finirait par ne pas faire la
+     même chose que le premier.
+     ============================================================ */
+  const fiche = (function(){
+    try{
+      const o = JSON.parse(b.fiche || 'null');
+      return (o && (o.saisies || o.champs)) ? o : null;
+    }catch(e){ return null; }
+  })();
+
+  if(fiche && typeof reprendreBrouillon === 'function'){
+    /* Le bureau doit pouvoir le renvoyer au moniteur : c'est cette
+       marque-là qui fait apparaître le bouton. */
+    brouillonRepris = b;
+
+    /* Rien dans la case de dictée : ce cours n'en a pas, et un
+       reste de texte y partirait dans le bilan. */
+    if($('transcriptBox')) $('transcriptBox').value = '';
+    if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+    if(typeof committedTranscript !== 'undefined') committedTranscript = '';
+
+    if(typeof afficherOnglet === 'function') afficherOnglet('cours', true);
+    if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+
+    /* Le moniteur du brouillon, pas celui qui appuie : le bilan
+       doit rester au nom de qui a fait le cours. */
+    if(!fiche.moniteur && b.moniteur) fiche.moniteur = b.moniteur;
+    if(!fiche.eleve && b.eleve) fiche.eleve = b.eleve;
+
+    reprendreBrouillon(fiche);
+    return;
   }
 
   if($('modele') && b.modele){
