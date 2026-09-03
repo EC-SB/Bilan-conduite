@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:50 — v790 */
+/* Déployé le 03/09/2026 à 15:21 — v840 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -368,6 +368,36 @@ function tableauAPlacer(liste){
             (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
             (s.semaine ? ' · 🗓️ ' + s.semaine : ' · 🗓️ aucune semaine demandée');
           l.appendChild(nom);
+
+          /* ------------------------------------------------------------
+             IL PEUT ÊTRE DANS LES DEUX LISTES À LA FOIS
+
+             « Un élève qui est dans la liste post-permis, il faut que
+             je puisse le mettre aussi dans RDV PERMIS, avec la mention
+             attente post permis. »
+
+             Il pouvait déjà y être : la case « Mettre dans la liste
+             RDV PERMIS » reste offerte à côté de son rendez-vous, et
+             les deux listes ne s'excluent pas. Ce qui manquait, c'est
+             que la liste le DISE — rien ne distinguait ici un élève
+             prêt à recevoir une date d'un élève qui attend encore son
+             rendez-vous. On lui prenait une place sans le savoir.
+
+             La mention porte la date du rendez-vous : c'est elle qui
+             dit à partir de quand il sera vraiment plaçable.
+             ------------------------------------------------------------ */
+          if(s.rdvPostDate && s.rdvPostFait !== 'oui'){
+            const att = document.createElement('span');
+            att.style.cssText = 'flex-shrink:0;font-size:11px;font-weight:700;' +
+              'color:var(--orange);border:1px solid var(--orange);' +
+              'border-radius:999px;padding:2px 8px;white-space:nowrap;';
+            att.textContent = '⏳ attente post-permis';
+            att.title = 'Rendez-vous post-permis prévu le ' +
+              ((typeof dateEnToutesLettres === 'function')
+                ? dateEnToutesLettres(s.rdvPostDate) : s.rdvPostDate) +
+              ". Sa place d'examen se prend après.";
+            l.appendChild(att);
+          }
 
           const bCal = document.createElement('button');
           bCal.className = 'btn btn-secondary';
