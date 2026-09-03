@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:49 — v784 */
+/* Déployé le 03/09/2026 à 13:03 — v838 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -90,6 +90,17 @@ function proposerReprise(){
   const s = lireSauvegarde();
   const banniere = $('repriseBanner');
   if(!banniere) return;
+
+  /* Le bouton de suppression repart neuf à chaque dessin : un
+     « combien » laissé par un affichage précédent lui ferait tout
+     effacer alors qu'un seul brouillon est à l'écran. C'est la
+     faute qu'on vient de corriger — on ne la laisse pas revenir
+     par la porte de derrière. */
+  const bNon = $('repriseNon');
+  if(bNon){
+    delete bNon.dataset.combien;
+    bNon.textContent = '🗑️ Supprimer';
+  }
 
   /* Ce que le serveur garde : un cours déposé mais jamais abouti.
      Il survit au rechargement, au changement d'appareil, à un
@@ -224,13 +235,56 @@ function proposerListeBrouillons(liste, banniere, vocal){
     l.addEventListener('click', () => {
       if(typeof reprendreBrouillon === 'function') reprendreBrouillon(b);
     });
+
+    /* ⚠️ UNE CORBEILLE PAR LIGNE.
+
+       Il n'y en avait qu'une, en bas, pour toute la liste — et
+       elle effaçait TOUT. Un moniteur qui voulait sortir un seul
+       brouillon de la liste perdait sa matinée d'examens. */
+    const bX = document.createElement('button');
+    bX.type = 'button';
+    bX.textContent = '🗑️';
+    bX.title = 'Supprimer le brouillon de ' + (b.eleve || 'cet élève');
+    bX.style.cssText = 'flex-shrink:0;background:transparent;border:none;' +
+      'font-size:16px;padding:6px 4px;cursor:pointer;opacity:.7;';
+    bX.addEventListener('click', async e => {
+      e.stopPropagation();
+      const qui = b.eleve || 'cet élève';
+      const ok = (typeof confirmer === 'function')
+        ? await confirmer('Supprimer le brouillon de ' + qui + ' ?\n\n' +
+            'Les autres bilans commencés ne bougent pas.')
+        : window.confirm('Supprimer le brouillon de ' + qui + ' ?');
+      if(!ok) return;
+      if(typeof effacerBrouillonDe === 'function') effacerBrouillonDe(b.eleve);
+      proposerReprise();
+      if(typeof showToast === 'function') showToast('Supprimé ✅');
+    });
+    l.appendChild(bX);
+
     zone.appendChild(l);
   });
 
   /* Le bouton Reprendre n'a plus de sens : on choisit dans la
-     liste. Seule la suppression reste. */
+     liste. */
   const b1 = $('repriseOui');
   if(b1) b1.style.display = 'none';
+
+  /* ⚠️ ET LE BOUTON DU BAS DIT ENFIN CE QU'IL FAIT.
+
+     Il portait « 🗑️ Supprimer » et demandait « Supprimer
+     définitivement CE cours interrompu ? » — au singulier, sous
+     une liste de cinq examens. Il les effaçait tous les cinq.
+
+     Une monitrice a perdu sa matinée exactement comme ça : mise à
+     jour, la liste apparaît, un appui, et la table entière partait.
+     Le compte est maintenant dans le libellé, et la question nomme
+     ce qui va disparaître. */
+  const b2 = $('repriseNon');
+  if(b2){
+    b2.dataset.combien = String(total);
+    b2.textContent = (total > 1) ? ('🗑️ Tout supprimer (' + total + ')')
+                                 : '🗑️ Supprimer';
+  }
 
   banniere.style.display = 'block';
 }
@@ -430,19 +484,80 @@ function appliquerTheme(clair){
 })();
 
 $('repriseOui').addEventListener('click', reprendreCours);
+/* ============================================================
+   SUPPRIMER CE QUI EST DÉSIGNÉ, ET RIEN D'AUTRE
+
+   ⚠️ LE DÉFAUT LE PLUS COÛTEUX DE LA SEMAINE.
+
+   Ce bouton demandait « Supprimer définitivement CE cours
+   interrompu ? » — au singulier — et effaçait ENSUITE la table
+   entière des bilans manuels : tous les élèves, toute la journée.
+   Sous une liste de cinq examens, un seul appui suffisait.
+
+   Une monitrice a perdu sa matinée exactement comme ça. Elle avait
+   lu la question, elle y avait répondu, et la question ne disait
+   pas la vérité.
+
+   Désormais : on n'efface que ce que la bannière propose. Un seul
+   brouillon affiché → celui-là. Une liste → chaque ligne a sa
+   corbeille, et le bouton du bas annonce le nombre.
+
+   Et « genererBilanManuel » le faisait déjà bien, quinze lignes
+   plus loin dans un autre fichier : « seul le brouillon de cet
+   élève disparaît, ceux des autres examens de la matinée
+   restent ». Le soin existait ; il n'était pas ici.
+   ============================================================ */
 $('repriseNon').addEventListener('click', async () => {
-  if(!await confirmer('Supprimer définitivement ce cours interrompu ?')) return;
-
-  /* Les deux brouillons : le vocal et le manuel. N'en effacer
-     qu'un laissait la bannière revenir au rechargement. */
-  effacerSauvegarde();
-  if(typeof effacerBrouillonManuel === 'function') effacerBrouillonManuel();
-  try{ localStorage.removeItem('ec_postes_simu'); }catch(e){}
-
   const b = $('repriseOui');
-  if(b) delete b.dataset.manuel;
+  const surListe = Number(($('repriseNon').dataset.combien) || 0) > 1;
+  const surManuel = !!(b && b.dataset.manuel === 'oui');
 
+  /* La question nomme ce qui va partir, et ce qui reste. */
+  const question = surListe
+    ? ('Supprimer les ' + $('repriseNon').dataset.combien +
+       ' bilans commencés ?\n\n' +
+       "Tout ce qui est dans la liste sera perdu, y compris les examens " +
+       "d'aujourd'hui. Pour n'en retirer qu'un, utilise la corbeille de sa " +
+       'ligne.')
+    : 'Supprimer définitivement ce cours interrompu ?';
+
+  if(!await confirmer(question)) return;
+
+  if(surListe){
+    /* Là seulement on a le droit de tout prendre : la question l'a
+       dit, avec le nombre. */
+    effacerSauvegarde();
+    if(typeof effacerBrouillonManuel === 'function') effacerBrouillonManuel();
+    try{ localStorage.removeItem('ec_postes_simu'); }catch(e){}
+  }else if(surManuel){
+    /* Un seul brouillon manuel affiché : celui-là, et lui seul. */
+    const man = (typeof brouillonManuel === 'function') ? brouillonManuel() : null;
+    const liste = (typeof tousLesBrouillons === 'function')
+      ? tousLesBrouillons() : [];
+    const cible = (man && man.eleve) || (liste[0] && liste[0].eleve) || '';
+    if(cible && typeof effacerBrouillonDe === 'function'){
+      effacerBrouillonDe(cible);
+      try{ localStorage.removeItem('bilan_manuel_en_cours'); }catch(e){}
+    }else if(typeof effacerBrouillonManuel === 'function'){
+      /* Sans nom, on ne sait pas viser : c'est le seul cas où l'on
+         reprend l'ancien geste, et il n'y a alors qu'un brouillon. */
+      effacerBrouillonManuel();
+    }
+  }else{
+    /* La dictée seule */
+    effacerSauvegarde();
+    try{ localStorage.removeItem('ec_postes_simu'); }catch(e){}
+  }
+
+  if(b) delete b.dataset.manuel;
+  delete $('repriseNon').dataset.combien;
+  $('repriseNon').textContent = '🗑️ Supprimer';
+
+  /* On redessine au lieu de masquer : s'il reste du travail
+     commencé, il doit rester à l'écran. Masquer donnait
+     l'impression que tout était parti. */
   $('repriseBanner').style.display = 'none';
+  if(typeof proposerReprise === 'function') proposerReprise();
   showToast('Supprimé ✅');
 });
 
