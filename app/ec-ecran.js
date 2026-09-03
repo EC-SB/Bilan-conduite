@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 08:00 — v787 */
+/* Déployé le 03/09/2026 à 08:58 — v824 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -870,10 +870,17 @@ function lignePlanningEcran(c, liste, z){
                               'ajouté à la main</span>' : '') +
     (c.masque ? ' <span style="font-size:10px;color:var(--warn-text);">' +
                 'retiré de l\'écran</span>' : '') +
-    '<div style="font-size:11px;color:var(--muted);">' +
-      '👁️ ' + abregeNom(c.eleveComplet || c.eleve) +
-    '</div>';
+    '<div class="apercuNomPublic" style="font-size:11px;color:var(--muted);' +
+      'cursor:pointer;"></div>';
   h1.appendChild(t);
+
+  /* Le 👁️ dit ce que la salle d'attente verra — et il se corrige.
+     C'est le seul endroit où l'on voit l'abréviation, donc le seul
+     où l'on s'aperçoit qu'elle est fausse : « La Perle Mossongo
+     Molodjo » y devenait « La M. ». Un clic, on écrit ce qu'il
+     faut, et ça vaut pour tous les écrans. */
+  peindreApercuNomPublic(t.querySelector('.apercuNomPublic'),
+                         c.eleveComplet || c.eleve);
 
   /* Le moniteur, changeable : un rappel mal saisi ou un échange
      de dernière minute ne doit pas obliger à tout refaire. */
@@ -1218,11 +1225,114 @@ function ouvrirLigneManuelle(z){
 }
 
 
-/* « Ambre Guillebon » devient « Ambre G. », comme sur l'écran */
+/* ------------------------------------------------------------
+   LE NOM SUR L'ÉCRAN PUBLIC
+
+   ⚠️ CETTE RÈGLE SE TROMPE, ET ON LE SAIT.
+
+   « Ambre Guillebon » devient « Ambre G. » — mais « La Perle
+   Mossongo Molodjo » devient « La M. ». Aucune règle ne sait où
+   finit un prénom : « La Perle Mossongo Molodjo » et « Jean Pierre
+   Martin Dupont » ont la même forme et se coupent ailleurs.
+
+   On ne l'a pas rendue plus bavarde pour autant : « tout sauf le
+   dernier mot » serait plus juste et plus IDENTIFIANT — l'inverse
+   du but sur un écran de salle d'attente.
+
+   Le remède est le champ « Nom affiché » de la fiche, saisi à la
+   main pour les quelques cas qui le demandent. C'est « nomPublic »
+   qui le consulte.
+
+   ⚠️ Cette fonction existe à l'identique dans apps-script.js et
+   dans cloudflare-worker.js. test-nom-affiche.js refuse qu'elles
+   divergent.
+   ------------------------------------------------------------ */
 function abregeNom(nom){
   const b = String(nom || '').trim().split(/\s+/);
   if(b.length < 2) return b[0] || '';
   return b[0] + ' ' + b[b.length - 1].charAt(0).toUpperCase() + '.';
+}
+
+/* Le nom choisi à la main s'il existe, la règle sinon. La fiche est
+   déjà en mémoire : aucun appel réseau. */
+function nomPublicEleve(nom){
+  const propre = String(nom || '').trim();
+  if(!propre) return '';
+  const f = (typeof ficheDe === 'function') ? ficheDe(propre) : null;
+  const choisi = (f && String(f.nomAffiche || '').trim()) || '';
+  return choisi || abregeNom(propre);
+}
+
+
+/* L'aperçu sous le nom, et le clic qui le corrige. */
+function peindreApercuNomPublic(zone, nom){
+  if(!zone || !nom) return;
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const choisi = (f && String(f.nomAffiche || '').trim()) || '';
+
+  zone.textContent = '👁️ ' + nomPublicEleve(nom) +
+    (choisi ? ' ✏️' : '');
+  zone.title = choisi
+    ? 'Nom affiché choisi à la main — clique pour le changer'
+    : "Ce que la salle d'attente verra — clique pour le corriger";
+
+  if(zone.dataset.branche) return;
+  zone.dataset.branche = 'oui';
+  zone.addEventListener('click', async () => {
+    if(await corrigerNomPublic(nom)) peindreApercuNomPublic(zone, nom);
+  });
+}
+
+/* ------------------------------------------------------------
+   CORRIGER CE QUE LA SALLE D'ATTENTE VOIT
+
+   Chrystel : « La Perle Mossongo Molodjo — La Perle c'est son
+   prénom, Mossongo Molodjo son nom de famille, et j'ai des élèves
+   avec plusieurs noms de famille ». Aucune règle ne sait couper ça.
+
+   On n'écrit donc rien de neuf : on ÉCRIT LA FICHE, par la même
+   fonction que le reste — un champ de plus au répertoire, pas un
+   réglage à part. Vide, la règle reprend la main.
+   ------------------------------------------------------------ */
+async function corrigerNomPublic(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const actuel = (f && String(f.nomAffiche || '').trim()) || '';
+
+  const saisi = await demander(
+    "Ce que la salle d'attente affichera pour « " + nom + " ».\n\n" +
+    'Laisse vide pour revenir à l\'abréviation automatique (' +
+    abregeNom(nom) + ').',
+    actuel, '👁️ Nom affiché');
+  if(saisi === null || saisi === false) return false;
+
+  const propre = String(saisi).trim().replace(/\s+/g, ' ');
+  if(propre === actuel) return false;
+
+  /* ⚠️ LE NOM ENTIER SUR UN ÉCRAN PUBLIC : on prévient, on
+     n'interdit pas. C'est sa salle d'attente, pas la nôtre — mais
+     personne ne doit y arriver sans l'avoir voulu. */
+  if(propre && (typeof normaliserMot === 'function') &&
+     normaliserMot(propre) === normaliserMot(nom)){
+    if(!await confirmer(
+      "C'est le nom entier. Il s'affichera tel quel sur l'écran de " +
+      "la salle d'attente, visible de tous.\n\nC'est bien ce que tu veux ?",
+      '👁️ Nom affiché', true)) return false;
+  }
+
+  try{
+    await appelPrep({ action: 'ficheSet', eleve: nom,
+                      nomAffiche: propre || 'non' });
+    /* La mémoire suit : l'aperçu se repeint sans recharger. */
+    if(f) f.nomAffiche = propre;
+    else if(typeof fichesEleves !== 'undefined'){
+      fichesEleves.push({ eleve: nom, nomAffiche: propre });
+    }
+    showToast(propre ? '👁️ ' + propre : '👁️ Abréviation automatique');
+    return true;
+  }catch(e){
+    showToast('Impossible : ' + (e.message || e));
+    return false;
+  }
 }
 
 
