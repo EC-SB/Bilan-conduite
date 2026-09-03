@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:24 — v812 */
+/* Déployé le 03/09/2026 à 07:41 — v819 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -677,6 +677,142 @@ async function fixerDateNaissance(nom, iso){
   if(f) f.naissance = gardee;
   else fichesEleves.push({ eleve: propre, naissance: gardee });
   return true;
+}
+
+
+/* ============================================================
+   CORRIGER UNE FAUTE DE FRAPPE DANS UN NOM
+
+   « Il faut que je puisse changer le nom prénom si j'ai fait une
+   erreur de frappe. »
+
+   Ce n'est PAS une modification de fiche — et c'est pour ça que ce
+   n'est pas un champ de plus dans la fenêtre au-dessus. LE NOM EST
+   LA CLÉ : il n'existe pas d'identifiant d'élève dans ce classeur,
+   chaque feuille retrouve la bonne ligne en comparant des noms.
+   Corriger le nom du seul répertoire couperait le dossier en deux —
+   les bilans, le suivi, la place d'examen et l'accès à l'espace
+   resteraient accrochés à l'ancienne orthographe, invisibles depuis
+   la nouvelle, et le bureau les croirait perdus.
+
+   Le renommage vit donc dans le classeur, en un seul passage
+   (« renommerEleve », côté Apps Script), et il vit ICI côté écran,
+   avec le reste de la fiche. Le dossier élève ne fait que
+   l'appeler : cette page-là n'écrit rien elle-même.
+
+   Rend le nouveau nom, ou null si rien n'a changé.
+   ============================================================ */
+function corrigerNomEleve(ancien){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(420px, 92vw)';
+
+    const h = document.createElement('h3');
+    h.textContent = '✏️ Corriger le nom';
+    boite.appendChild(h);
+
+    const avert = document.createElement('div');
+    avert.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:10px;';
+    avert.textContent = 'Le nom sera corrigé partout : bilans, suivi, ' +
+      "places d'examen, cours préparés, consignes, accès à l'espace " +
+      "élève. À n'utiliser que pour une faute de frappe — pas pour " +
+      "mettre quelqu'un d'autre à la place.";
+    boite.appendChild(avert);
+
+    const champ = document.createElement('input');
+    champ.type = 'text';
+    champ.value = ancien;
+    champ.style.cssText = 'width:100%;font-size:16px;padding:12px;';
+    boite.appendChild(champ);
+
+    const msg = document.createElement('div');
+    msg.style.cssText = 'font-size:12px;margin-top:8px;min-height:16px;';
+    boite.appendChild(msg);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+
+    const annuler = document.createElement('button');
+    annuler.className = 'btn btn-secondary';
+    annuler.textContent = 'Annuler';
+
+    const ok = document.createElement('button');
+    ok.className = 'btn btn-primary';
+    ok.textContent = '💾 Corriger partout';
+
+    function fermer(valeur){
+      if(fond.parentNode) document.body.removeChild(fond);
+      resolve(valeur);
+    }
+    annuler.addEventListener('click', () => fermer(null));
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+
+    ok.addEventListener('click', async () => {
+      const propre = champ.value.trim().replace(/\s+/g, ' ');
+
+      if(propre.length < 3 || propre.split(' ').length < 2){
+        msg.style.color = 'var(--warn-text)';
+        msg.textContent = 'Il faut un prénom ET un nom.';
+        return;
+      }
+      if(propre === ancien) return fermer(null);
+
+      /* Un nom déjà pris, c'est deux dossiers fusionnés sans le
+         vouloir, et rien ne permettrait ensuite de les redémêler. Le
+         classeur refuse aussi — le dire ici évite l'aller-retour. */
+      if(ficheDe(propre)){
+        msg.style.color = 'var(--warn-text)';
+        msg.textContent = 'Un élève porte déjà ce nom.';
+        return;
+      }
+
+      ok.disabled = true;
+      ok.textContent = 'Correction…';
+      try{
+        /* « eleve » sert au journal du classeur, qui nomme sa
+           colonne Élève à partir de là ; « ancien » lui donne son
+           détail, sans lequel on ne pourrait pas revenir dessus. */
+        const r = await appelPrep({ action: 'eleveRenommer',
+                                    ancien: ancien, nouveau: propre,
+                                    eleve: propre });
+        if(r && r.status === 'error') throw new Error(r.message);
+
+        /* TOUT est à relire. Les listes en mémoire portent encore
+           l'ancien nom, et l'index par nom est accroché au tableau :
+           le corriger ligne à ligne serait exactement la faute que
+           ce dossier répare partout. On relit, c'est tout. */
+        viderCaches();
+        await Promise.all([
+          chargerFiches(),
+          (typeof chargerBureau === 'function') ? chargerBureau(true) : null,
+          (typeof chargerPrepares === 'function') ? chargerPrepares() : null,
+          (typeof chargerSessionsPermis === 'function')
+            ? chargerSessionsPermis() : null
+        ].filter(Boolean).map(p => Promise.resolve(p).catch(() => null)));
+
+        showToast('✅ ' + propre + ' — ' + ((r && r.lignes) || 0) +
+                  ' ligne(s) corrigée(s)');
+        fermer(propre);
+      }catch(e){
+        msg.style.color = 'var(--warn-text)';
+        msg.textContent = 'Impossible : ' + (e.message || e);
+        ok.disabled = false;
+        ok.textContent = '💾 Corriger partout';
+      }
+    });
+
+    rangee.appendChild(annuler);
+    rangee.appendChild(ok);
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    setTimeout(() => champ.focus(), 80);
+  });
 }
 
 /* ============================================================
