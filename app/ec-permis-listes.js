@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:58 — v844 */
+/* Déployé le 03/09/2026 à 16:05 — v845 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -413,6 +413,45 @@ function tableauAPlacer(liste){
       l.appendChild(att);
     }
 
+    /* ------------------------------------------------------------
+       ATTRIBUER SANS OUVRIR LA FICHE
+
+       « Quand ils sont là, il faut que je puisse les attribuer. »
+
+       Le groupe « ⚠️ À attribuer » nommait le manque sans donner de
+       quoi le combler : il fallait descendre chercher la fiche
+       détaillée de chacun. Le bouton ouvre la même fenêtre que la
+       fiche — avec les favoris et leurs étoiles — donc un seul
+       endroit décide de qui peut prendre une date.
+
+       Il n'apparaît que là où il sert : quand personne n'est
+       désigné, ou dans la vue par semaine, où le groupe ne dit pas
+       qui prend. Dans la vue par personne, le nom est déjà en tête
+       du groupe. */
+    if(!s.moniteurDate || vuePlaces === 'semaine'){
+      const bQui = document.createElement('button');
+      bQui.className = 'btn btn-secondary';
+      bQui.style.cssText = 'width:auto;padding:6px 9px;font-size:14px;margin:0;' +
+        'flex-shrink:0;' + (s.moniteurDate ? '' :
+          'color:var(--orange);border-color:var(--orange);');
+      bQui.textContent = '👤';
+      bQui.title = s.moniteurDate
+        ? ('Changer : ' + s.moniteurDate + ' prend la date')
+        : 'Dire qui prend la date';
+      bQui.addEventListener('click', async () => {
+        const n = await choisirQuiPrendLaDate(s.moniteurDate || '');
+        if(n === null) return;
+        bQui.disabled = true;
+        try{
+          await majSuivi(e.eleve, { moniteurDate: n });
+          await chargerBureau();
+          showToast(n ? (n + ' prend la date ✅') : 'Moniteur retiré ✅');
+          redessinerBureau();
+        }catch(err){ showToast('Erreur : ' + err.message); bQui.disabled = false; }
+      });
+      l.appendChild(bQui);
+    }
+
     const bCal = document.createElement('button');
     bCal.className = 'btn btn-secondary';
     bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
@@ -534,8 +573,53 @@ function tableauAPlacer(liste){
       const [a, b] = k.split(' ⟨⟩ ');
       const centre = (vuePlaces === 'personne') ? a : b;
       const semaine = (vuePlaces === 'personne') ? b : a;
-      bs.appendChild(titreGroupe(semaine, centre, groupes[g1][k].length));
-      groupes[g1][k].forEach(e =>
+      const lot = groupes[g1][k];
+
+      const t = titreGroupe(semaine, centre, lot.length);
+
+      /* PLUSIEURS À ATTRIBUER AU MÊME ENDROIT : UN SEUL GESTE.
+
+         Une semaine, un centre, trois élèves sans personne pour
+         prendre leurs dates — c'est le cas normal, pas l'exception :
+         celui qui va à la préfecture prend toute la liste d'un
+         coup. Les attribuer un par un ferait trois fois la même
+         fenêtre pour la même réponse. */
+      const sans = lot.filter(e => !suiviDe(e.eleve).moniteurDate);
+      if(sans.length > 1){
+        const bTous = document.createElement('button');
+        bTous.type = 'button';
+        bTous.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:11px;' +
+          'border-radius:7px;background:var(--navy);color:var(--orange);' +
+          'border:1px solid var(--orange);flex-shrink:0;';
+        bTous.textContent = '👤 Attribuer les ' + sans.length;
+        bTous.title = 'Donner ces ' + sans.length + ' élèves à la même personne';
+        bTous.addEventListener('click', async () => {
+          const n = await choisirQuiPrendLaDate('');
+          if(n === null) return;
+          bTous.disabled = true;
+          bTous.textContent = '…';
+          try{
+            /* Une écriture par élève : chacun a sa ligne de suivi, et
+               il n'existe pas d'écriture groupée. On ne relit le
+               bureau qu'UNE fois, à la fin. */
+            for(const e of sans){
+              await majSuivi(e.eleve, { moniteurDate: n });
+            }
+            await chargerBureau();
+            showToast(n ? (sans.length + ' élèves pour ' + n + ' ✅')
+                        : 'Moniteur retiré ✅');
+            redessinerBureau();
+          }catch(err){
+            showToast('Erreur : ' + err.message);
+            bTous.disabled = false;
+            bTous.textContent = '👤 Attribuer les ' + sans.length;
+          }
+        });
+        t.appendChild(bTous);
+      }
+
+      bs.appendChild(t);
+      lot.forEach(e =>
         bs.appendChild(ligneEleve(e, !suiviDe(e.eleve).moniteurDate)));
     });
 
