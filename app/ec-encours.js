@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 14:31 — v773 */
+/* Déployé le 03/09/2026 à 10:21 — v832 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -477,7 +477,8 @@ function ligneEnCours(c){
   b.style.cssText = 'width:auto;padding:9px 13px;font-size:13px;margin:9px 0 0;' +
     'color:var(--red);border-color:var(--red);';
   b.textContent = '✕ Retirer de la liste';
-  b.title = "Retire la mention « en cours ». Aucun bilan n'est supprimé.";
+  b.title = "Retire la mention « en cours » pour la journée. " +
+    "Aucun bilan n'est supprimé.";
   b.addEventListener('click', async () => {
     const ok = await (typeof confirmer === 'function'
       ? confirmer('Retirer ce cours de la liste ?\n\n' +
@@ -491,9 +492,25 @@ function ligneEnCours(c){
     b.disabled = true;
     b.textContent = '…';
     try{
-      await appelPrep({ action: 'coursRetirer',
-                        moniteur: c.moniteur, eleve: c.eleve });
-      showToast('Retiré de la liste ✅');
+      /* On envoie AUSSI l'heure de départ : c'est elle qui date la
+         marque côté serveur, et sans elle une ligne resignalée
+         entre l'affichage et le clic reviendrait le lendemain de
+         son propre chef. */
+      const r = await appelPrep({ action: 'coursRetirer',
+                                  moniteur: c.moniteur,
+                                  eleve: c.eleve,
+                                  depuis: c.depuis || '' });
+
+      /* La carte part tout de suite : attendre le rechargement
+         donnait l'impression que rien ne s'était passé. */
+      if(d.parentNode) d.parentNode.removeChild(d);
+
+      /* Le serveur dit combien de lignes il a réellement trouvées.
+         L'écran l'ignorait et annonçait « ✅ » dans tous les cas :
+         quand rien n'était retiré, il mentait. */
+      showToast((r && r.retires)
+        ? 'Retiré de la liste ✅'
+        : 'Ligne déjà partie — elle ne reviendra plus ✅');
       afficherEnCours(true);
     }catch(e){
       showToast('Retrait impossible : ' + e.message);
