@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:48 — v830 */
+/* Déployé le 03/09/2026 à 15:29 — v841 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -61,6 +61,69 @@ function normaliserMot(s){
   return v;
 }
 const LEXIQUE_NORM = LEXIQUE.map(normaliserMot);
+
+/* ============================================================
+   « PASCAL GORTAIS » ET « GORTAIS PASCAL » SONT LA MÊME PERSONNE
+
+   Le dossier de Pascal Gortais annonçait « aucun suivi handicap à
+   son nom » — alors que son dossier existait, sous « Gortais
+   Pascal ». Ce n'est pas une faute de frappe : la feuille du suivi
+   handicap est tenue en « Nom Prénom », tout le reste de l'outil
+   en « Prénom Nom ». Deux conventions, et deux écrans qui ne se
+   reconnaissent plus.
+
+   Le rapprochement se fait en deux temps, et l'ordre compte :
+
+     ① le nom exact, normalisé — c'est la règle, elle décide seule
+       tant qu'elle trouve quelqu'un ;
+     ② à défaut SEULEMENT, les mêmes mots dans un autre ordre.
+
+   Le second n'est pas une devinette : il exige exactement les
+   mêmes mots, tous présents, aucun en trop. « Pascal Gortais » et
+   « Gortais Pascal » se retrouvent ; « Pascal Gortais » et
+   « Pascal Gortais-Legrand », non.
+
+   Il reste un cas où il se tromperait : deux personnes portant les
+   mêmes deux mots inversés — un Jean Marc et un Marc Jean. C'est
+   pour cela que l'exact passe d'abord, sur TOUTE la liste, avant
+   qu'on essaie l'ordre des mots.
+   ============================================================ */
+function motsDuNom(nom){
+  return normaliserMot(nom)
+    .replace(/[-'’.]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort();
+}
+
+function memePersonne(a, b){
+  const na = normaliserMot(String(a || '')).trim();
+  const nb = normaliserMot(String(b || '')).trim();
+  if(!na || !nb) return false;
+  if(na === nb) return true;
+
+  const ma = motsDuNom(a), mb = motsDuNom(b);
+  /* Un seul mot de chaque côté : c'est déjà l'égalité ci-dessus, ou
+     ce sont deux personnes différentes. On ne rapproche pas deux
+     prénoms seuls. */
+  if(ma.length < 2 || ma.length !== mb.length) return false;
+  return ma.every((m, i) => m === mb[i]);
+}
+
+/* Retrouver quelqu'un dans une liste. L'exact d'abord, sur toute la
+   liste, AVANT d'essayer l'ordre des mots : chercher les deux en un
+   seul passage laisserait le premier venu gagner. */
+function trouverPersonne(liste, nom, champ){
+  const cle = champ || 'eleve';
+  const arr = liste || [];
+  const n = normaliserMot(String(nom || '')).trim();
+  if(!n) return null;
+
+  const exact = arr.find(x => normaliserMot(String(x[cle] || '')).trim() === n);
+  if(exact) return exact;
+
+  return arr.find(x => memePersonne(x[cle], nom)) || null;
+}
 
 function scoreMetier(texte){
   const t = normaliserMot(texte);
