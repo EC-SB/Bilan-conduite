@@ -1,3 +1,4 @@
+/* Déployé le 03/09/2026 à 08:47 — v823 */
 /* ============================================================
    ec-notifs.js
    Ce qui attend une décision du bureau.
@@ -8,14 +9,19 @@
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* Les trois alertes suivies, avec le droit qui les gouverne */
+/* Les trois alertes suivies, avec le droit qui les gouverne.
+
+   « champ » : ce que la NOTE du moniteur raconte.
+   « foi »   : ce que le CLASSEUR sait — la fiche de suivi et les
+               sessions d'examen. Quand les deux se contredisent,
+               c'est le classeur qui a raison. Voir notifsEnAttente. */
 const TYPES_NOTIF = [
   { cle:'examblanc', nom:'📝 Examen blanc à prévoir',
-    droit:'notif_examblanc', champ:'examBlanc' },
+    droit:'notif_examblanc', champ:'examBlanc', foi:'examBlanc' },
   { cle:'simu',      nom:'🌙 Simulateur nuit et risques à prévoir',
-    droit:'notif_simu',      champ:'simuNuit' },
+    droit:'notif_simu',      champ:'simuNuit',  foi:'simuNuit' },
   { cle:'permis',    nom:"🚗 Date d'examen du permis à prévoir",
-    droit:'notif_permis',    champ:'permis' }
+    droit:'notif_permis',    champ:'permis',    foi:'examPermis' }
 ];
 
 let notifsMasquees = [];
@@ -43,8 +49,29 @@ function notifsEnAttente(eleves, ignorerDroits){
   const out = [];
   (eleves || []).forEach(e => {
     const a = analyserNote(e.note || '');
+
+    /* ⚠️ LA NOTE N'EST PAS LA SOURCE, ELLE EST UN RÉCIT.
+
+       « Lucile Xardel a une date d'examen » — et le bandeau
+       réclamait quand même « Date d'examen du permis à prévoir ».
+       La note du moniteur avait été écrite avant que le bureau ne
+       lui donne sa place du 21 septembre ; elle disait donc encore
+       « à prévoir », et personne ne relisait le classeur derrière
+       elle. C'est la faute qu'on répare partout dans ce dossier :
+       une même chose lue à deux endroits, et c'est le mauvais qui
+       gagne.
+
+       « etatQuiFaitFoi » existe justement pour ça — c'est lui qui a
+       déjà réparé les cartes de « Mes prochains cours » en v817. Il
+       lit la fiche de suivi et les sessions, qui sont plus récentes
+       que tout ce qu'un moniteur a pu écrire. On le consulte
+       D'ABORD, et la note ne parle que de ce qu'il ignore. */
+    const foi = (typeof etatQuiFaitFoi === 'function')
+      ? (etatQuiFaitFoi(e.eleve) || {}) : {};
+
     TYPES_NOTIF.forEach(t => {
-      if(a[t.champ] !== 'aprevoir') return;
+      const etat = foi[t.foi] || a[t.champ];
+      if(etat !== 'aprevoir') return;
       if(!ignorerDroits && typeof aDroit === 'function' && !aDroit(t.droit)) return;
       if(notifMasquee(e.eleve, t.cle)) return;
       out.push({ eleve: e.eleve, type: t.cle, nom: t.nom,
