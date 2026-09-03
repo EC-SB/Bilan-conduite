@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 10:28 — v833 */
+/* Déployé le 03/09/2026 à 12:14 — v837 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -912,7 +912,7 @@ function peindreOuiNon(rangee, valeur){
 }
 
 
-function ajouterObservationManuelle(zone){
+function ajouterObservationManuelle(zone, valeurs){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
 
@@ -1105,7 +1105,68 @@ function ajouterObservationManuelle(zone){
 
   d.appendChild(r);
   zone.appendChild(d);
+
+  /* ------------------------------------------------------------
+     REPOSER UNE OBSERVATION GARDÉE
+
+     « Si ça saute, ça disparaît, on ne le retrouve pas. » Il avait
+     raison : les remarques revenaient — elles sont dans les
+     champs, et la reprise les replace par leur rang — mais
+     ☠️, ⚠️ et ➖ vivent sur le BLOC, dans son « dataset ». Rien ne
+     les reposait, et une ligne au-delà de la vingtième n'existait
+     même plus pour les recevoir.
+
+     On les repose ici, dans la fonction qui construit la ligne :
+     c'est le seul endroit d'où l'on peut rallumer les trois
+     boutons, parce que ce sont ses fonctions à elle qui savent les
+     peindre. Le faire ailleurs demanderait de les réécrire, et
+     deux peintres finiraient par ne pas peindre pareil.
+     ------------------------------------------------------------ */
+  if(valeurs){
+    insp.value = String(valeurs.inspecteur || '');
+    rep.value = String(valeurs.reponse || '');
+    d.dataset.categorie = String(valeurs.categorie || '');
+    d.dataset.grave = String(valeurs.grave || '');
+    d.dataset.moins = String(valeurs.moins || '');
+    majMort();
+    majGrave();
+    majMoins();
+  }
+
   return d;
+}
+
+/* ------------------------------------------------------------
+   REMETTRE TOUTES LES OBSERVATIONS D'UN BROUILLON
+
+   Vingt lignes vides sont posées à l'ouverture ; un examen peut
+   en compter davantage. On reconstruit donc la zone à partir de
+   ce qui a été gardé, puis on complète jusqu'à vingt — jamais
+   moins, sinon le moniteur repartirait sans place pour écrire.
+   ------------------------------------------------------------ */
+function replacerObservationsManuelles(liste){
+  const zone = document.getElementById('obsManuel');
+  if(!zone || !Array.isArray(liste) || !liste.length) return 0;
+
+  zone.innerHTML = '';
+  let n = 0;
+  liste.forEach(o => {
+    if(!o) return;
+    ajouterObservationManuelle(zone, o);
+    if(String(o.inspecteur || '').trim() || String(o.reponse || '').trim()) n++;
+  });
+  while(zone.children.length < 20) ajouterObservationManuelle(zone);
+
+  /* Le CEPC et le bilan des erreurs se déduisent de ces marques :
+     les reposer sans les recalculer laisserait une grille qui
+     contredit les lignes juste au-dessus. */
+  try{
+    if(typeof retirerPointsCepc === 'function') retirerPointsCepc();
+    if(typeof rafraichirEliminatoires === 'function') rafraichirEliminatoires();
+    if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
+  }catch(e){ /* un repeint raté ne doit pas perdre les remarques */ }
+
+  return n;
 }
 
 
@@ -1911,9 +1972,44 @@ function effacerBrouillonDe(eleve){
   rangerBrouillons(reste);
 }
 
-function sauvegarderManuel(){
+/* ============================================================
+   LE BROUILLON DE LA FICHE, EN UN SEUL OBJET
+
+   Il servait à une seule chose : la reprise sur l'appareil. Il en
+   sert deux, maintenant — c'est LUI qu'on dépose sur le classeur,
+   pour que « ↩️ Reprendre ici » rouvre une VRAIE fiche et pas un
+   pavé de texte dans la case de dictée.
+
+   « Quand je reprends un cours manuel, tout le texte apparaît
+   dans la case de transcription vocale, je ne peux pas le
+   continuer. » Le miroir lisible partait sur le serveur, et rien
+   d'autre : à la reprise il n'y avait donc rien à reposer dans les
+   cases. Le miroir reste — c'est ce que le bureau LIT — mais il
+   voyage désormais avec les réponses elles-mêmes.
+
+   Une seule construction pour les deux usages : deux objets
+   auraient fini par ne pas porter la même chose, et c'est
+   toujours celui qu'on n'a pas regardé qui manque.
+   ============================================================ */
+function brouillonManuelActuel(){
   const zone = $('manuelChamps');
-  if(!zone) return;
+  if(!zone) return null;
+
+  /* ⚠️ ON RELIT L'ÉCRAN AVANT DE GARDER.
+
+     Les observations d'un examen officiel, les compétences, la
+     grille CEPC ne vivent pas dans un champ : elles vivent dans
+     « champsManuels », et c'est « lireChampsManuels » qui les y
+     met en relisant la page. La sauvegarde sur l'appareil, elle,
+     se contentait de recopier « champsManuels » TEL QU'IL ÉTAIT —
+     donc dans l'état de la dernière génération ou du dernier
+     dépôt, jamais celui de l'instant.
+
+     Une minute de retard sur une fiche d'examen, c'est trois
+     remarques d'inspecteur perdues. On relit d'abord. */
+  try{
+    if(typeof lireChampsManuels === 'function') lireChampsManuels();
+  }catch(e){ /* un écran à moitié dessiné ne doit pas bloquer la garde */ }
 
   /* On garde l'état des champs eux-mêmes plutôt que leur
      interprétation : chaque type de rubrique se redessine
@@ -1964,10 +2060,10 @@ function sauvegarderManuel(){
      fait. */
   const quest = (typeof contexteDepart !== 'undefined' && contexteDepart)
                   ? contexteDepart : null;
-  if(!saisies.some(x => x.valeur) && !quest && !enMemoire) return;
+  if(!saisies.some(x => x.valeur) && !quest && !enMemoire) return null;
 
   const eleve = $('studentName').value.trim();
-  const brouillon = {
+  return {
     ts: Date.now(),
     modele: $('modele').value,
     moniteur: $('monitorName').value,
@@ -1985,6 +2081,15 @@ function sauvegarderManuel(){
     quest: quest,
     saisies: saisies
   };
+}
+
+/* La sauvegarde sur l'appareil : immédiate, et c'est elle qui
+   tient entre deux dépôts. */
+function sauvegarderManuel(){
+  const brouillon = brouillonManuelActuel();
+  if(!brouillon) return;
+
+  const eleve = brouillon.eleve;
 
   /* Le brouillon de cet élève remplace le sien, pas celui d'un
      autre : plusieurs examens se déroulent en parallèle. */
@@ -2438,6 +2543,37 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
   /* En fond, et sans jamais se plaindre : le dépôt est un filet,
      pas une condition. La sauvegarde locale reste, et un examen ne
      s'arrête pas parce que le réseau tousse. */
+  /* ⚠️ LE MIROIR SE LIT, IL NE SE CONTINUE PAS.
+
+     « Quand je reprends un cours manuel, tout le texte apparaît
+     dans la case de transcription vocale, je ne peux pas le
+     continuer. »
+
+     C'est exact : on n'envoyait QUE le miroir — du texte, fait
+     pour être lu par le bureau. Reprendre ne pouvait donc que le
+     recoller quelque part, et la seule case qui accepte du texte
+     libre est celle de la dictée.
+
+     Les réponses elles-mêmes voyagent maintenant à côté, dans le
+     MÊME objet que la sauvegarde sur l'appareil — celui que
+     « reprendreBrouillon » sait déjà reposer case par case. Un
+     deuxième format aurait fini par ne pas porter la même chose.
+
+     L'écran du rendez-vous post-permis n'a pas de fiche à
+     reposer : il garde le miroir seul. */
+  let fiche = '';
+  if(!quelleZone){
+    try{
+      const objet = brouillonManuelActuel();
+      if(objet){
+        const j = JSON.stringify(objet);
+        /* Trop gros pour la cellule : mieux vaut le miroir seul
+           qu'un objet coupé, qui se reposerait de travers. */
+        if(j.length <= 44000) fiche = j;
+      }
+    }catch(e){ /* la fiche voyage si elle peut ; le miroir part toujours */ }
+  }
+
   appelPrep({
     action: 'brouillonSet',
     eleve: eleve,
@@ -2445,6 +2581,7 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
     modele: info.modele || ($('modele') && $('modele').value) || '',
     site: info.site || ($('site') && $('site').value) || '',
     transcript: texte,
+    fiche: fiche,
     note: ($('noteInterne') && $('noteInterne').value) || ''
   }).catch(() => {});
 }
@@ -2480,6 +2617,42 @@ function surveillerChampsManuels(){
   ['input', 'change', 'click'].forEach(ev => {
     zone.addEventListener(ev, planifierSauvegardeManuelle);
   });
+
+  /* ⚠️ ET À L'INSTANT OÙ L'ON PERD TOUT.
+
+     « Si ça saute, ça disparaît, on ne le retrouve pas. »
+
+     La sauvegarde attend une seconde de calme, le dépôt au plus
+     une minute. Entre les deux, l'onglet qui se ferme, le
+     téléphone qui s'endort ou le navigateur qui manque de mémoire
+     emportaient la dernière minute de travail — sur une fiche
+     d'examen, ce sont les trois dernières remarques de
+     l'inspecteur.
+
+     Le rendez-vous post-permis avait ce filet depuis le début ; la
+     fiche manuelle, non. Posé une seule fois, comme les
+     écouteurs au-dessus. */
+  if(!zone.dataset.filetSortie){
+    zone.dataset.filetSortie = 'oui';
+    window.addEventListener('pagehide', () => {
+      if(!modeManuel) return;
+      try{ sauvegarderManuel(); }catch(e){}
+      try{ deposerFicheManuelle(true); }catch(e){}
+    });
+
+    /* Et on prévient avant de fermer : un onglet refermé par
+       erreur au milieu d'un examen ne doit pas se refermer sans
+       rien dire. Le navigateur choisit son texte — on ne fait que
+       demander la question. */
+    window.addEventListener('beforeunload', e => {
+      if(!modeManuel) return;
+      const b = brouillonManuelActuel();
+      if(!b) return;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    });
+  }
 }
 
 
@@ -3112,7 +3285,31 @@ function reprendreBrouillon(b){
 
   /* La fiche se dessine, puis on y repose les saisies */
   ouvrirBilanManuel().then(() => {
-    let n = replacerSaisiesManuelles(b.saisies);
+    /* ⚠️ LES OBSERVATIONS D'ABORD, ET C'EST UNE QUESTION D'ORDRE.
+
+       « Si ça saute, ça disparaît, on ne le retrouve pas. »
+
+       Les saisies se replacent PAR LEUR RANG parmi les champs de
+       la page. Or la zone des observations rouvre avec vingt
+       lignes : un examen qui en comptait vingt-cinq décalait donc
+       tout ce qui vient après, et la vérification de sécurité —
+       « est-ce bien la même case ? » — faisait sauter la suite en
+       silence plutôt que d'écrire de travers.
+
+       On rétablit donc le bon NOMBRE de lignes avant de compter
+       les rangs. Ensuite seulement, les saisies retombent juste.
+
+       Leurs marques ☠️ ⚠️ ➖ voyagent avec elles : elles vivent sur
+       le bloc de la ligne, pas dans un champ, et rien ne les
+       reposait jusqu'ici. */
+    let n = 0;
+    const obs = (b.champs && b.champs.observations) || null;
+    if(Array.isArray(obs) && obs.length &&
+       typeof replacerObservationsManuelles === 'function'){
+      n += replacerObservationsManuelles(obs);
+    }
+
+    n += replacerSaisiesManuelles(b.saisies);
 
     /* ET CE QUI NE VIT QUE DANS LA MÉMOIRE.
 
@@ -3124,6 +3321,7 @@ function reprendreBrouillon(b){
        un bilan rempli. */
     if(b.champs && typeof champsManuels !== 'undefined'){
       Object.keys(b.champs).forEach(k => { champsManuels[k] = b.champs[k]; });
+
       /* Après les valeurs par défaut, qui se posent sur un
          minuteur : sinon elles repeindraient par-dessus. */
       setTimeout(() => {
