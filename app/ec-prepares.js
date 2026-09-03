@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 11:30 — v836 */
+/* Déployé le 03/09/2026 à 15:29 — v841 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1095,6 +1095,24 @@ async function afficherPrepares(recharger, silencieux){
 
     if(ligneRang.childNodes.length) meta.appendChild(ligneRang);
 
+    /* ------------------------------------------------------------
+       LE SUIVI HANDICAP SUR LA CARTE
+
+       « Je veux voir ça aussi dans Mes prochains cours. » Le
+       moniteur monte en voiture avec quelqu'un dont l'équipement,
+       l'avancement du dossier et le rendez-vous DDTM comptent — et
+       il n'allait pas les chercher dans un autre écran.
+
+       La case est posée VIDE ici, et remplie plus tard, en un seul
+       passage, quand le suivi est chargé : attendre le réseau carte
+       par carte ferait clignoter toute la liste. Voir
+       « peindreHandicapDesCartes ». */
+    const zH = document.createElement('div');
+    zH.className = 'handicapCarte';
+    zH.dataset.eleve = cours.eleve || '';
+    zH.style.display = 'none';
+    meta.appendChild(zH);
+
     /* CE QUI MANQUE SE DIT, ET S'OUVRE.
 
        Le questionnaire ne s'ouvre plus au départ : ce qui manque
@@ -1527,6 +1545,58 @@ async function afficherPrepares(recharger, silencieux){
     row.appendChild(actions);
     /* Dans le tiroir du jour, pas dans la liste générale */
     (tiroir || zone).appendChild(row);
+  });
+
+  /* Les cases handicap se remplissent après coup, en un passage */
+  peindreHandicapDesCartes();
+}
+
+/* ============================================================
+   REMPLIR LES CASES HANDICAP, EN UN SEUL PASSAGE
+
+   Les cartes sont dessinées tout de suite ; le suivi handicap
+   arrive quand il arrive. Le demander carte par carte ferait
+   autant d'appels que d'élèves et ferait clignoter la liste.
+
+   Un seul chargement — gardé cinq minutes par
+   « chargerHandicapSiBesoin » — puis on remplit les cases posées
+   vides. Un échec ne laisse rien de visible : c'est un confort sur
+   une carte, pas une information dont dépend le cours.
+   ============================================================ */
+async function peindreHandicapDesCartes(){
+  const cases = document.querySelectorAll('.handicapCarte');
+  if(!cases.length) return;
+  if(typeof chargerHandicapSiBesoin !== 'function') return;
+
+  try{ await chargerHandicapSiBesoin(); }
+  catch(e){ return; }
+
+  Array.prototype.forEach.call(cases, z => {
+    const r = (typeof resumeHandicap === 'function')
+      ? resumeHandicap(z.dataset.eleve || '') : null;
+    if(!r) return;
+
+    /* Le rendez-vous DDTM en couleur quand il reste à prendre :
+       c'est la seule partie qui appelle un geste du bureau. */
+    z.style.display = 'block';
+    z.style.cssText = 'display:block;margin-top:6px;padding:6px 9px;' +
+      'border-left:3px solid ' +
+      (r.ddtm.aPrendre ? 'var(--orange)' : 'var(--accent-text)') + ';' +
+      'background:rgba(232,163,61,.08);border-radius:0 8px 8px 0;' +
+      'font-size:12px;line-height:1.5;color:var(--muted);';
+
+    const ligne = (typeof ligneHandicapCourte === 'function')
+      ? ligneHandicapCourte(r) : '';
+    z.innerHTML = '<span style="color:var(--cream);font-weight:700;">♿ ' +
+      (r.fini ? 'Dossier complet' : 'Dossier handicap') + '</span> · ' +
+      String(ligne).replace(/</g, '&lt;') +
+      (r.pathologie
+        ? '<div style="margin-top:2px;">🩺 ' +
+          r.pathologie.split('\n')[0].replace(/</g, '&lt;') + '</div>'
+        : '');
+    z.title = r.etapes
+      .map(e => (e.fait ? '✅ ' : '⬜ ') + e.nom + (e.date ? ' — ' + e.date : ''))
+      .join('\n');
   });
 }
 
