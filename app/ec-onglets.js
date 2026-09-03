@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 03/09/2026 à 08:58 — v824 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -219,7 +219,7 @@ const VUES = {
            ['paie',       '💶 Paie',                    'paie'],
            ['caisse',     '🏦 Caisse',                  'caisse'],
            ['coutsia',    '💸 Coûts IA',                'coutsia'],
-           ['messages',   '📨 Messages aux moniteurs', 'bureau_messages'],
+           ['messages',   '📨 Messages internes',      'bureau_messages'],
            ['sms',        '💬 SMS',                     'sms'],
            ['encours',    '🩹 Cours non terminés',      'encours'],
            ['incidents',  '🚨 Signalements',            'incidents'],
