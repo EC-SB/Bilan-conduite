@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 03/09/2026 à 08:58 — v824 */
 /* ============================================================
    ec-messages-perso.js
    Un message épinglé à une personne, pas à un élève.
@@ -69,9 +69,10 @@ async function afficherMessagesPerso(recharger){
     const v = document.createElement('div');
     v.className = 'empty';
     v.style.marginTop = '12px';
-    v.innerHTML = 'Aucun message épinglé.<br>' +
+    v.innerHTML = "Tu n'as épinglé aucun message.<br>" +
       '<span style="font-size:12px;">Ceux que tu écris ici s\'affichent en ' +
-      'tête du bandeau de leurs destinataires.</span>';
+      'tête du bandeau de leurs destinataires. Chacun ne gère que les ' +
+      'siens — les administratrices voient tout.</span>';
     zone.appendChild(v);
     return;
   }
@@ -79,10 +80,24 @@ async function afficherMessagesPerso(recharger){
   const auj = (typeof todayLocal === 'function')
     ? todayLocal() : new Date().toISOString().slice(0, 10);
 
+  /* ⚠️ CHACUN NE VOIT QUE CE QU'IL A ÉCRIT — sauf les
+     administratrices, qui voient tout. Le tri est fait par le
+     CLASSEUR, pas ici : cette phrase ne fait que le dire. */
+  const admin = (typeof ACCES !== 'undefined') && ACCES.role === 'admin';
+
   const t = document.createElement('div');
   t.style.cssText = 'margin-top:14px;font-size:13px;font-weight:700;';
   t.textContent = messagesPerso.length + ' message(s) épinglé(s)';
   zone.appendChild(t);
+
+  const q = document.createElement('div');
+  q.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.5;' +
+    'margin-bottom:2px;';
+  q.textContent = admin
+    ? "Tu vois ceux de tout le monde : c'est le privilège des administratrices."
+    : "Tu ne vois que les tiens. Ceux qu'ont écrits les autres ne te " +
+      'regardent pas, et les tiens ne les regardent pas non plus.';
+  zone.appendChild(q);
 
   messagesPerso.forEach(m => zone.appendChild(ligneMessagePerso(m, auj)));
 }
