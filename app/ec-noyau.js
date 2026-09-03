@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:55 — v809 */
+/* Déployé le 03/09/2026 à 07:26 — v818 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -131,6 +131,11 @@ const SECTIONS = [
   { cle:'stats',            nom:'📈 Taux de réussite' },
   { cle:'eleves',           nom:'👥 Répertoire des élèves' },
   { cle:'proccorriger',     nom:'📥 Procédures à corriger' },
+  /* Les codes de l'espace élève étaient donnés PAR « Procédures à
+     corriger », faute d'avoir un droit à eux. Ouvrir un accès et
+     relire le code pour le transmettre à une famille est un
+     travail de bureau ; corriger une procédure en est un autre. */
+  { cle:'acces_eleves',     nom:"🔑 Accès à l'espace élève (codes)" },
   { cle:'code',             nom:'🎓 Code (salle et aménagé)' },
   { cle:'handicap',         nom:'♿ Suivi handicap' },
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois' },
