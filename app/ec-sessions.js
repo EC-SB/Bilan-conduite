@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:31 — v808 */
+/* Déployé le 03/09/2026 à 07:41 — v819 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1667,18 +1667,39 @@ function ouvrirPlace(p, sess){
       showToast('Enregistré ✅');
       redessinerSessions();
 
-      /* Les enregistrements poursuivent leur route en fond. Ils
-         partent ensemble : en série, on attendait deux fois. */
-      Promise.all([
-        appelPrep(Object.assign({ action: 'sessionPlace',
-                                  idSession: sess.id, rang: p.rang }, champsPlace)),
+      /* ⚠️ LA PLACE D'ABORD, LE SUIVI ENSUITE — ET SURTOUT PAS LES
+         DEUX EN MÊME TEMPS.
+
+         Ils partaient ensemble, « pour ne pas attendre deux fois ».
+         Voici ce que ça a donné le 2 septembre, sur la session du
+         15 septembre à Saint-Brieuc, complète :
+
+           · « sessionPlace » écrit Axel à la place de Daouda ;
+           · « suiviSet » écrit la date d'examen d'Axel, et le
+             classeur, comme il le doit, lui cherche une place ce
+             jour-là.
+
+         Les deux partis ensemble, la recherche de place a lieu
+         AVANT que la place ne change de nom : toutes les places
+         sont encore prises, aucune n'est libre. Le classeur refuse
+         — c'est son rôle, il n'invente plus de place depuis la
+         v790 — et laisse la ligne 🎫 « Place inventée » dans
+         🚨 Signalements. La date d'examen d'Axel n'a jamais été
+         écrite, et l'écran affichait « Enregistré ✅ ».
+
+         En série, « suiviSet » trouve Axel déjà sur sa place et
+         n'a plus rien à chercher. Une demi-seconde de plus, et la
+         date est écrite pour de bon. */
+      appelPrep(Object.assign({ action: 'sessionPlace',
+                               idSession: sess.id, rang: p.rang }, champsPlace))
+      .then(() => Promise.all([
         (champsSuivi && typeof majSuivi === 'function')
           ? majSuivi(nomSaisi, champsSuivi) : Promise.resolve(),
 
         /* Celui qu'on retire perd sa date : sans cela, il restait
            « avec une date » dans le questionnaire et les notes. */
         retire ? retirerDeLaSession(ancienNom, sess) : Promise.resolve()
-      ])
+      ]))
       .then(() => {
         /* Le moniteur doit voir la date dans ses cours préparés :
            sans consigne, elle ne quittait pas l'écran du bureau. */
@@ -1691,9 +1712,12 @@ function ouvrirPlace(p, sess){
       })
       .catch(err => {
         /* Un échec en fond doit se voir : sans cela, le bureau
-           croirait sa saisie enregistrée. */
-        showToast('⚠️ ' + (champsPlace.eleve || 'La place') +
-                  ' : enregistrement incomplet — vérifie et refais');
+           croirait sa saisie enregistrée. Et il doit DIRE quoi : un
+           refus de place ne se répare pas comme une coupure de
+           réseau — il faut ouvrir la journée avant de recommencer. */
+        showToast('⚠️ ' + (champsPlace.eleve || 'La place') + ' : ' +
+                  ((err && err.message) || 'enregistrement incomplet') +
+                  ' — vérifie et refais');
       });
     }catch(e){
       showToast('Impossible : ' + e.message);
