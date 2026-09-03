@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 03/09/2026 à 15:58 — v844 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -482,6 +482,40 @@ const JOURS_AVANT_PRISE = 10;
    seulement on applique la règle : 1ᵉʳ ou 2ᵉ mardi du mois
    précédent.
    ------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   LA DATE À LAQUELLE ON PREND LES PLACES D'UNE QUINZAINE
+
+   Écrite ici, et lue partout : « prochainesPrises » s'en sert pour
+   annoncer les deux suivantes, et la liste RDV Permis pour savoir
+   quelles semaines valent encore la peine d'être visées.
+
+   La règle : 1ᵉʳ et 2ᵉ mardi du mois PRÉCÉDENT. Une date réglée à
+   la main dans l'écran des places l'emporte — c'est elle qui dit
+   que la préfecture a décalé.
+
+   Rend '' quand on ne sait pas : un mois sans mardi calculable, un
+   mois hors des bornes. Et « on ne sait pas » ne doit jamais faire
+   disparaître quelque chose de l'écran.
+   ------------------------------------------------------------ */
+function dateDePrise(isoMois, quinzaine){
+  const p2 = n => String(n).padStart(2, '0');
+  const m = String(isoMois || '').match(/^(\d{4})-(\d{2})$/);
+  if(!m) return '';
+  const anC = Number(m[1]), moC = Number(m[2]);
+  const q = (Number(quinzaine) === 2) ? 2 : 1;
+
+  const aLaMain = (typeof priseReglee === 'function')
+    ? priseReglee(isoMois, q) : '';
+  if(aLaMain) return aLaMain;
+
+  /* Le mois où l'on prend : celui d'avant. */
+  const src = new Date(anC, moC - 2, 1);
+  const anS = src.getFullYear(), moS = src.getMonth() + 1;
+  const mardis = mardisDuMois(anS, moS);
+  if(mardis[q - 1] === undefined) return '';
+  return anS + '-' + p2(moS) + '-' + p2(mardis[q - 1]);
+}
+
 function prochainesPrises(){
   const p2 = n => String(n).padStart(2, '0');
   const auj = new Date();
@@ -496,19 +530,14 @@ function prochainesPrises(){
     const isoMois = anC + '-' + p2(moC);
     const finMois = new Date(anC, moC, 0).getDate();
 
-    /* Le mois où l'on prend : celui d'avant. */
-    const src = new Date(anC, moC - 2, 1);
-    const anS = src.getFullYear(), moS = src.getMonth() + 1;
-    const mardis = mardisDuMois(anS, moS);
-
     [1, 2].forEach(q => {
-      const regle = (mardis[q - 1] !== undefined)
-        ? anS + '-' + p2(moS) + '-' + p2(mardis[q - 1]) : '';
+      /* La date se demande à « dateDePrise » : la règle et le
+         réglage à la main y vivent ensemble, et une seule fois. */
+      const date = dateDePrise(isoMois, q);
+      if(!date) return;
+
       const aLaMain = (typeof priseReglee === 'function')
         ? priseReglee(isoMois, q) : '';
-
-      const date = aLaMain || regle;
-      if(!date) return;
 
       const jour = new Date(date + 'T12:00:00');
       if(jour < auj && !memeJour(jour, auj)) return;
