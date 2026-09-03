@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 07:41 — v819 */
+/* Déployé le 03/09/2026 à 10:36 — v834 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3568,7 +3568,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       const essai = Object.assign({}, prec, {
         lecon: String(tot), modele: modeleCle,
         frise: (impose !== null) ? impose : friseSaisie(),
-        examBlanc: selEB ? selEB.value : prec.examBlanc
+        examBlanc: selEB ? selEB.value : prec.examBlanc,
+        /* Le chiffre qu'on est en train de taper est de la même eau
+           que celui tapé sur la carte : une main humaine. C'est la
+           MÊME règle qu'à l'enregistrement, quelques lignes plus
+           bas — sans elle, l'aperçu annonçait encore le comptage du
+           classeur et se contredisait sous les doigts. */
+        leconMain: (String(tot) !== String(rangDuJour || ''))
+          ? 'oui' : (prec.leconMain || '')
       });
       if(ch && !isNaN(dep)){
         essai[ch.cle] = avantLaCharniere(tot, dep);
@@ -4124,7 +4131,30 @@ function positionDansLaFrise(q){
      d'afficher à sa 7ème. */
   const parcours = parcoursDeLaFormation(q.formation);
   if(parcours && parcours.motRang){
-    const faites = parcours.compteParBoite
+    /* ⚠️ UNE MAIN HUMAINE PASSE AVANT UN COMPTAGE.
+
+       « Sur le questionnaire c'est bien mis 2, mais sur la case
+       1ère » — et corriger la case ne servait à rien : elle
+       revenait à 1 au chargement suivant.
+
+       Le comptage par boîte est juste dans son principe — toute
+       leçon en manuelle est une leçon de passerelle — mais il ne
+       compte que ce que NOTRE classeur porte. Les leçons faites
+       avant l'outil, ou enregistrées sous un autre libellé, valent
+       zéro pour lui : il rendait « 1ère », et il écrasait le
+       chiffre que le bureau venait d'écrire.
+
+       « leconMain » existe précisément pour empêcher ça. Il était
+       honoré à la fusion du contexte, mais PAS ICI, où la phrase
+       se fabrique. La marque était posée, et le seul endroit qui
+       comptait ne la regardait pas : une règle appliquée à un
+       endroit sur deux ne protège rien.
+
+       Le mot du parcours, lui, ne bouge pas — c'est « leçon de
+       passerelle » dans les deux cas. Seul le NOMBRE change de
+       source. */
+    const aLaMain = String(q.leconMain || '') === 'oui';
+    const faites = (parcours.compteParBoite && !aLaMain)
       ? (q.leconsParBoite && q.leconsParBoite[parcours.boite])
       : null;
     const r = (typeof faites === 'number') ? faites + plus : n;
