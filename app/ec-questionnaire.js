@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 16:38 — v817 */
+/* Déployé le 03/09/2026 à 07:41 — v819 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -4876,8 +4876,12 @@ function ajouterSuite(etats, permis, mots, q){
   });
 }
 
-/* Choix d'une date au calendrier plutôt qu'à la saisie manuelle */
-function choisirDate(titre){
+/* Choix d'une date au calendrier plutôt qu'à la saisie manuelle.
+
+   « valeur » : la date déjà connue, pour la corriger au lieu de la
+   ressaisir. Sans elle le calendrier s'ouvre sur aujourd'hui — bien
+   pour un rendez-vous, absurde pour une date de naissance. */
+function choisirDate(titre, valeur){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
@@ -4893,8 +4897,9 @@ function choisirDate(titre){
     const champ = document.createElement('input');
     champ.type = 'date';
     champ.style.cssText = 'width:100%;font-size:18px;padding:14px;text-align:center;';
-    /* Pré-rempli à aujourd'hui : le calendrier s'ouvre au bon mois */
-    champ.value = todayLocal();
+    /* Pré-rempli : le calendrier s'ouvre au bon mois */
+    champ.value = /^\d{4}-\d{2}-\d{2}$/.test(String(valeur || ''))
+      ? String(valeur) : todayLocal();
     boite.appendChild(champ);
 
     const rangee = document.createElement('div');
