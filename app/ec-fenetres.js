@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 07:41 — v819 */
+/* Déployé le 03/09/2026 à 08:39 — v822 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -795,8 +795,32 @@ function corrigerNomEleve(ancien){
             ? chargerSessionsPermis() : null
         ].filter(Boolean).map(p => Promise.resolve(p).catch(() => null)));
 
+        /* ⚠️ RELIRE NE SUFFIT PAS : IL FAUT REDESSINER.
+
+           « Ça le change bien, par contre il ne s'affiche pas en
+           direct, je dois recharger la page. » Les listes en mémoire
+           étaient bien à jour — mais rien n'avait redemandé aux
+           écrans de se repeindre, et ils montraient encore ce qui
+           avait été dessiné avant. Chacun est isolé : un écran fermé
+           ou un module absent ne doit pas faire échouer un renommage
+           qui, lui, est déjà fait. */
+        [['prochains cours', () => (typeof afficherPrepares === 'function') &&
+                                    afficherPrepares(false, true)],
+         ['bureau',          () => (typeof redessinerBureau === 'function') &&
+                                    redessinerBureau()],
+         ['sessions',        () => (typeof redessinerSessions === 'function') &&
+                                    redessinerSessions()],
+         ['répertoire',      () => (typeof afficherRepertoire === 'function') &&
+                                    afficherRepertoire(false)]
+        ].forEach(([quoi, f]) => {
+          try{ f(); }catch(e){ console.warn('Après renommage — ' + quoi + ' :', e); }
+        });
+
         showToast('✅ ' + propre + ' — ' + ((r && r.lignes) || 0) +
-                  ' ligne(s) corrigée(s)');
+                  ' ligne(s) corrigée(s)' +
+                  /* Une reprise après un appel resté en route : on le
+                     dit, sinon « 0 ligne » ressemble à un échec. */
+                  (r && r.reprise ? ' (reprise)' : ''));
         fermer(propre);
       }catch(e){
         msg.style.color = 'var(--warn-text)';
