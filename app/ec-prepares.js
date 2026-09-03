@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 03/09/2026 à 07:27 — v818 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -58,10 +58,32 @@ async function appelPrep(corps){
     /* Un refus du serveur — trop d'essais, trop d'appels — veut
        dire « pas maintenant ». On met les rafraîchissements en
        sommeil : insister ne ferait que prolonger le blocage. */
+    /* SAUF un refus de DROIT. Celui-là ne dit rien du réseau : il
+       dit qu'on a frappé à une pièce qu'on n'a pas. Endormir les
+       rafraîchissements pour ça arrêterait les écrans qui, eux,
+       marchent très bien. Voir « droit » dans le Worker. */
     if((r.status === 403 || r.status === 429) &&
+       !(rep && rep.droit) &&
        typeof noterRefusReseau === 'function'){
       noterRefusReseau(r.status === 429 ? 300 : 120);
     }
+
+    /* Le serveur ne connaît que la CLÉ de la section ; le nom
+       lisible vit une seule fois, dans SECTIONS (ec-noyau.js) — le
+       même que la case cochée dans ⚙️ Accès. Un Worker qui
+       l'écrirait aussi finirait par dire autre chose que la
+       fenêtre. */
+    if(rep && rep.droit){
+      const cle = String(rep.droit).replace(' (lecture seule)', '');
+      const s = (typeof SECTIONS !== 'undefined')
+        ? SECTIONS.find(x => x.cle === cle) : null;
+      if(s){
+        throw new Error('🔒 ' + s.nom + (/lecture seule/.test(rep.droit)
+          ? ' — tu peux le voir, pas le modifier.'
+          : " — cette partie de l'outil ne t'est pas ouverte."));
+      }
+    }
+
     throw new Error(rep && rep.error ? rep.error : 'HTTP ' + r.status);
   }
 
