@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:31 — v808 */
+/* Déployé le 03/09/2026 à 07:41 — v819 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -119,8 +119,21 @@ function analyserNote(note){
   while((mn = gN.exec(t)) !== null) dernierN = +mn[1];
   if(dernierN !== null) r.permisN = dernierN;
 
-  if((m = t.match(/(\d+)(?:ère|ème) leçon sur (\d+)/i))){ r.lecon=+m[1]; r.leconTotal=+m[2]; }
-  else if((m = t.match(/(\d+)(?:ère|ème) leçon/i))) r.lecon = +m[1];
+  /* ⚠️ LE RANG SE LIT AVEC LA RÈGLE COMMUNE, PAS AVEC UN MOTIF À
+     SOI. Celui d'ici ignorait la charnière (« 1ère leçon APRÈS
+     l'examen blanc … 5ème au total » rendait 1) et refusait
+     l'espace (« 12 ème leçon » ne rendait rien du tout, et le
+     résumé retombait sur le nombre de bilans enregistrés). Deux
+     lectures d'une même phrase, et c'est la mauvaise qui
+     s'affichait dans la fiche. */
+  r.lecon = (typeof rangDansLaNote === 'function')
+    ? rangDansLaNote(t) : null;
+
+  /* Le total sur lequel la frise est posée : « 3ème leçon sur 5 ».
+     Il ne se déduit pas du rang, il est écrit à côté. */
+  if((m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+le[çc]on\s+sur\s+(\d+)/i))){
+    r.leconTotal = +m[2];
+  }
   if(/frise dépassée/i.test(t)) r.friseDepassee = true;
   if((m = t.match(/(\d+)(?:er|e) repassage/i))) r.repassages = +m[1];
   if((m = t.match(/[Aa]journé le ([^—·(]+)/))) r.dateAjournement = m[1].trim();
@@ -227,9 +240,28 @@ function suiviDe(eleve){
 async function majSuivi(eleve, champs){
   const s = suiviDe(eleve);
 
-  await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
+  const rep = await appelPrep(Object.assign({ action:'suiviSet' }, s, champs, {
     eleve: eleve, par: ACCES.moniteur || ''
   }));
+
+  /* ⚠️ UN REFUS DU CLASSEUR N'EST PAS UNE RÉUSSITE.
+
+     « enregistrerSuivi » peut refuser — une date d'examen sans
+     place libre ce jour-là — et il le dit par « status: 'error' »
+     dans une réponse par ailleurs normale. appelPrep, lui, ne lève
+     que sur une panne HTTP : le refus passait donc sans bruit, la
+     mémoire posait quand même la valeur, et l'écran affichait
+     « Enregistré ✅ » sur une ligne que le classeur n'avait pas
+     écrite. C'est ce qui est arrivé le 2 septembre à Axel Hinault
+     — la ligne 🎫 dans 🚨 Signalements était le SEUL endroit où
+     ça se voyait.
+
+     Une erreur ici remonte donc à l'appelant, qui sait quoi en
+     dire, et la mémoire ne bouge pas : mieux vaut un écran qui
+     réclame qu'un écran qui ment. */
+  if(rep && rep.status === 'error'){
+    throw new Error(rep.message || 'Le classeur a refusé cet enregistrement.');
+  }
 
   /* La mémoire suit tout de suite : sans ça, l'écran redessiné
      relisait l'ancienne valeur, et il fallait appuyer plusieurs
