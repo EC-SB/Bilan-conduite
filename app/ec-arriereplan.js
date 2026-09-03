@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 09:23 — v827 */
+/* Déployé le 03/09/2026 à 09:49 — v830 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -326,7 +326,45 @@ let dernierDepot = '';
    ------------------------------------------------------------ */
 function reinitialiserDepotBrouillon(){
   dernierDepot = '';
+  coursSignaleServeur = false;
   if(typeof bilanEnregistre !== 'undefined') bilanEnregistre = false;
+}
+
+/* ------------------------------------------------------------
+   LA PREMIÈRE TRACE D'UN COURS LE SIGNALE
+
+   Trois chemins signalent déjà le démarrage : ouvrir un cours
+   préparé, ouvrir une fiche à remplir à la main, lancer le micro.
+   Il en restait un quatrième, et Chrystel a eu raison d'insister :
+   « il faut que ça fonctionne pour les autres types de bilan si le
+   moniteur décide de le faire en manuel ».
+
+   Un moniteur peut taper le nom de l'élève à la main, ne jamais
+   toucher au micro, et ÉCRIRE sa dictée au clavier dans la zone de
+   transcription. Aucun des trois chemins ne passe par là — et le
+   bureau ne voyait rien, comme ce matin.
+
+   La règle qui les couvre tous : dès qu'un cours produit quelque
+   chose à mettre à l'abri, c'est qu'il a commencé. Une seule fois
+   par cours — « demarrerCours » remplace la ligne du moniteur, mais
+   la réécrire toutes les deux minutes serait un appel pour rien.
+   ------------------------------------------------------------ */
+let coursSignaleServeur = false;
+
+function marquerCoursSignale(){ coursSignaleServeur = true; }
+
+function signalerCoursSiBesoin(){
+  try{
+    if(coursSignaleServeur) return;
+    if(typeof signalerCoursDemarre !== 'function') return;
+    coursSignaleServeur = true;
+    signalerCoursDemarre(
+      ($('studentName') && $('studentName').value.trim()) || '',
+      ($('modele') && $('modele').selectedOptions[0]
+        ? $('modele').selectedOptions[0].textContent
+        : ($('modele') && $('modele').value) || ''),
+      ($('site') && $('site').value) || '');
+  }catch(e){ /* un signalement raté n'arrête ni le cours ni le dépôt */ }
 }
 
 async function deposerSiChange(){
@@ -350,6 +388,17 @@ async function deposerSiChange(){
     const texte = String(texteDicteEnCours());
     if(texte.length < MINI_DEPOT) return;
     if(texte === dernierDepot) return;
+
+    /* Le cours existe : il produit du texte. On le dit au bureau
+       avant de déposer — c'est l'ordre naturel, et si le dépôt
+       échoue ensuite le cours reste visible quand même.
+
+       ⚠️ DANS SA PROPRE FONCTION, ET SON PROPRE FILET. Écrit ici en
+       ligne, la moindre erreur — un champ absent, une variable pas
+       encore déclarée — remontait au « catch » du dessous et
+       ANNULAIT LE DÉPÔT. Le signalement est un confort ; le dépôt
+       est le filet. Le confort ne doit jamais casser le filet. */
+    signalerCoursSiBesoin();
 
     dernierDepot = texte;
     await deposerBrouillonServeur();
