@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 07:27 — v818 */
+/* Déployé le 03/09/2026 à 08:39 — v822 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -31,9 +31,23 @@ function ecrireCachePrepares(liste){
    nouvelle tentative. Relancer un import qui a peut-être abouti
    créerait des doublons. */
 const ACTIONS_LOURDES = { bureauEtat: 25000, elevesImport: 90000,
-                          smsList: 25000, resultatList: 25000 };
+                          smsList: 25000, resultatList: 25000,
+                          /* Vingt-trois feuilles à relire et à réécrire.
+                             À douze secondes, l'application croyait à une
+                             panne — voir SANS_REPRISE juste dessous. */
+                          eleveRenommer: 90000 };
+/* ⚠️ CELLES QU'ON NE RECOMMENCE JAMAIS.
+
+   « eleveRenommer » y manquait, et ça s'est vu au premier usage : le
+   renommage dépassait les douze secondes, l'application le relançait
+   croyant à une panne, et la deuxième tentative trouvait le nom DÉJÀ
+   changé — d'où « Un élève porte déjà ce nom » sur un renommage
+   parfaitement réussi. Le classeur a été rendu plus rapide et plus
+   tolérant, mais la vraie règle est ici : une écriture en masse ne se
+   rejoue pas, jamais. */
 const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
-                      'smsLog', 'eleveRetirer', 'consigneEffacerEleve'];
+                      'smsLog', 'eleveRetirer', 'eleveRenommer',
+                      'consigneEffacerEleve'];
 
 async function appelPrep(corps){
   /* Se servir de l'application repousse le délai d'inactivité :
