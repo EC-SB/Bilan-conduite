@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 03/09/2026 à 15:21 — v840 */
 /* ============================================================
    ec-places.js
    Réglage des mois, semaines et jours ouverts.
@@ -107,8 +107,36 @@ function toutesSemaines(){
 }
 
 async function enregistrerPlaces(){
-  await appelPrep({ action:'configSet', cle:'places',
-                    valeur: JSON.stringify(placesConfig) });
+  const valeur = JSON.stringify(placesConfig);
+  await appelPrep({ action:'configSet', cle:'places', valeur: valeur });
+
+  /* ⚠️ LE CACHE DU BUREAU TIENT TRENTE SECONDES, ET IL GAGNAIT.
+
+     « Les champs Prise le ne se sauvegardent pas. »
+
+     Ils partaient très bien. C'est le RETOUR qui les écrasait : le
+     bouton 💾 enregistre, puis rappelle « afficherBureau », qui
+     relit l'état du bureau — et « chargerBureau » rend la réponse
+     gardée en cache pendant trente secondes, donc CELLE D'AVANT
+     L'ENREGISTREMENT. « chargerPlaces » reposait cette ancienne
+     configuration par-dessus la neuve, et l'écran se redessinait
+     sans les dates.
+
+     Pire : si « nettoyerPeriodesEchues » trouvait ensuite une
+     période à retirer, il RENVOYAIT cette version périmée au
+     classeur. Ce n'était plus un affichage trompeur, c'était une
+     perte pour de bon.
+
+     Une même chose lue à deux endroits — la configuration qu'on
+     vient d'écrire, et sa copie de trente secondes — et c'est la
+     mauvaise qui gagnait. On met donc le cache à jour avec ce
+     qu'on vient d'enregistrer : il dit la vérité au lieu d'être
+     seulement jeune. */
+  try{
+    if(typeof cacheBureau !== 'undefined' && cacheBureau && cacheBureau.data){
+      cacheBureau.data.places = valeur;
+    }
+  }catch(e){ /* pas de cache : rien à corriger */ }
 }
 
 /* Le numéro de semaine ISO : c'est ainsi que la préfecture
@@ -323,8 +351,15 @@ function afficherPlaces(stats){
       grille.querySelector('.mTotal').addEventListener('input', e => { m.total = e.target.value.trim(); });
       grille.querySelector('.mQ1').addEventListener('input', e => { m.q1 = e.target.value.trim(); });
       grille.querySelector('.mQ2').addEventListener('input', e => { m.q2 = e.target.value.trim(); });
-      grille.querySelector('.mP1').addEventListener('change', e => { m.p1 = e.target.value; });
-      grille.querySelector('.mP2').addEventListener('change', e => { m.p2 = e.target.value; });
+      /* « input » ET « change » : une date tapée au clavier plutôt
+         que choisie dans le calendrier ne déclenche « change »
+         qu'en quittant le champ — et on quitte le champ en appuyant
+         sur 💾, ce qui est exactement le moment où il est trop
+         tard pour s'en apercevoir. */
+      ['input', 'change'].forEach(ev => {
+        grille.querySelector('.mP1').addEventListener(ev, e => { m.p1 = e.target.value; });
+        grille.querySelector('.mP2').addEventListener(ev, e => { m.p2 = e.target.value; });
+      });
       bloc.appendChild(grille);
 
       (m.semaines || []).forEach((w, iw) => {
