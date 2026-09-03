@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:54 — v843 */
+/* Déployé le 03/09/2026 à 15:58 — v844 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -715,11 +715,42 @@ function afficherRdvPermis(tous){
           const correspond = semaines.find(w => memeSemaine(libDe(w), s.semaine));
           if(s.semaine && correspond) s.semaine = libDe(correspond);
 
-          const choixSem = semaines.map(w => ({
+          /* ⚠️ UNE SEMAINE DONT LES PLACES SONT DÉJÀ PRISES N'EST
+             PLUS UNE SEMAINE À VISER.
+
+             « Là on va prendre les places pour octobre ; une fois
+             les journées d'attribution passées, ça ne sert plus à
+             rien de les voir ici. »
+
+             Exact, et c'est même trompeur : proposer une semaine de
+             septembre le 3 septembre, c'est proposer une date qu'on
+             ne peut plus obtenir. Le moniteur la choisit, le bureau
+             la lit, et personne ne voit qu'elle est morte.
+
+             Les semaines dont la prise est passée ne disparaissent
+             pas pour autant : elles passent DERRIÈRE « Autres… ».
+             Une place se libère parfois, un dossier se reprend — on
+             ne rend jamais quelque chose inatteignable, on cesse
+             seulement de le proposer en premier. */
+          const encoreVisable = w => {
+            if(typeof dateDePrise !== 'function') return true;
+            const iso = String(w.du || w.au || '');
+            const m = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
+            if(!m) return true;              /* sans date, on ne juge pas */
+            const d = dateDePrise(m[1], Number(m[2]) <= 15 ? 1 : 2);
+            if(!d) return true;              /* prise inconnue : on montre */
+            return d >= todayLocal();
+          };
+
+          const enTete = semaines.filter(encoreVisable);
+          const passees = semaines.filter(w => !encoreVisable(w));
+
+          const versChoix = w => ({
             val: libDe(w),
             lib: semaineCourte(w),
             sous: joursDuCentre(w, s.centre)
-          }));
+          });
+          const choixSem = enTete.map(versChoix).concat(passees.map(versChoix));
           /* Une semaine choisie autrefois et depuis refermée reste
              proposée : sinon elle disparaîtrait de l'écran sans que
              personne ne l'ait retirée. */
@@ -727,6 +758,9 @@ function afficherRdvPermis(tous){
             choixSem.push({ val: s.semaine, lib: s.semaine, sous: '' });
           }
 
+          /* Le maximum suit ce qui est encore visable : les semaines
+             dont la prise est passée sont derrière « Autres… », pas
+             comptées dans les cinq premières. */
           zone.appendChild(rangeeBoutons('Semaine à viser', choixSem,
             s.semaine || '',
             async val => {
@@ -734,7 +768,7 @@ function afficherRdvPermis(tous){
               await chargerBureau();
               redessinerBureau();
             },
-            { max: 5, autre: 'Autres…' }));
+            { max: Math.max(1, Math.min(5, enTete.length)), autre: 'Autres…' }));
 
           zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
             await envoyerConsigne(x.eleve, 'permis',
