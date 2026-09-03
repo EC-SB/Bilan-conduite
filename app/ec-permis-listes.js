@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:51 — v842 */
+/* Déployé le 03/09/2026 à 15:54 — v843 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -359,17 +359,28 @@ function tableauAPlacer(liste){
     g.textContent = '📍 ' + centre + ' · ' + semaine;
     t.appendChild(g);
 
+    /* ⚠️ CE SONT DES JOURS OUVERTS, PAS DES PLACES.
+
+       Chrystel : « c'est pas des places qui sont ouvertes sur les
+       semaines, ce sont des jours ». Les PLACES se comptent au
+       mois — le total, la 1ʳᵉ et la 2ᵉ quinzaine. Les JOURS
+       d'examen se comptent à la semaine, par centre.
+
+       La nuance décide d'une alerte : un jour d'examen accueille
+       PLUSIEURS candidats. Comparer le nombre d'élèves au nombre
+       de jours n'a donc aucun sens, et l'avertissement « plus que
+       de places » aurait crié à tort toutes les semaines. Seul
+       zéro jour ouvert est une vraie alerte : là, personne ne peut
+       passer. */
     const dispo = joursDe[semaine] ? joursDe[semaine][centre] : undefined;
     const p = document.createElement('span');
     p.style.cssText = 'font-size:11.5px;font-weight:700;flex-shrink:0;' +
       'white-space:nowrap;color:' +
-      (dispo === undefined ? 'var(--muted)'
-       : (dispo === 0 ? 'var(--red)'
-          : (combien > dispo ? 'var(--warn-text)' : 'var(--muted)')));
+      (dispo === 0 ? 'var(--red)' : 'var(--muted)');
     p.textContent = (dispo === undefined)
       ? combien + ' élève(s)'
-      : combien + ' élève(s) · ' + dispo + ' place(s) ouverte(s)' +
-        (dispo === 0 ? ' ⚠️' : (combien > dispo ? ' ⚠️ plus que de places' : ''));
+      : combien + ' élève(s) · ' + nbFr(dispo) + ' jour(s) ouvert(s)' +
+        (dispo === 0 ? ' ⚠️ aucun jour ici' : '');
     t.appendChild(p);
 
     return t;
@@ -707,7 +718,7 @@ function afficherRdvPermis(tous){
           const choixSem = semaines.map(w => ({
             val: libDe(w),
             lib: semaineCourte(w),
-            sous: placesDuCentre(w, s.centre)
+            sous: joursDuCentre(w, s.centre)
           }));
           /* Une semaine choisie autrefois et depuis refermée reste
              proposée : sinon elle disparaîtrait de l'écran sans que
@@ -1006,16 +1017,24 @@ function semaineCourte(w){
   return j(w.du) + '→' + j(w.au) + ' ' + mois(w.au) + (n ? ' · S' + n : '');
 }
 
-/* Les places d'une semaine, dans le centre choisi. Sans centre, on
-   donne les deux — mais dès qu'il est choisi, le chiffre qui ne
-   concerne pas cet élève disparaît. */
-function placesDuCentre(w, centre){
+/* Un nombre à la française : 2,5 et non 2.5 */
+function nbFr(n){
+  return String(n).replace('.', ',');
+}
+
+/* Les JOURS D'EXAMEN ouverts une semaine donnée, dans le centre
+   choisi. Sans centre, on donne les deux — mais dès qu'il est
+   choisi, le chiffre qui ne concerne pas cet élève disparaît.
+
+   ⚠️ Des jours, pas des places : les places se comptent au mois,
+   les jours à la semaine, et un jour reçoit plusieurs candidats. */
+function joursDuCentre(w, centre){
   const sb = Number(w.sb) || 0;
   const lo = Number(w.lo) || 0;
   if(!sb && !lo) return '';
-  if(/brieuc/i.test(centre || '')) return sb + ' place' + (sb > 1 ? 's' : '');
-  if(/loud/i.test(centre || '')) return lo + ' place' + (lo > 1 ? 's' : '');
-  return sb + ' SB / ' + lo + ' LO';
+  if(/brieuc/i.test(centre || '')) return nbFr(sb) + ' jour' + (sb > 1 ? 's' : '');
+  if(/loud/i.test(centre || '')) return nbFr(lo) + ' jour' + (lo > 1 ? 's' : '');
+  return nbFr(sb) + ' SB / ' + nbFr(lo) + ' LO';
 }
 
 
