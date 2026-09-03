@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:55 — v809 */
+/* Déployé le 03/09/2026 à 08:29 — v821 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1424,10 +1424,15 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
   /* Chaque compte est lancé pour lui-même : imbriqués, les trois
      autres ne partaient pas si le module du bureau manquait, et
      leurs pastilles n'apparaissaient qu'après ouverture de la vue. */
+  /* Le bandeau du jour vient APRÈS « verifierAPrevoirEnFond » :
+     celui-ci charge l'état du bureau et les masquages, dont le
+     bandeau se sert. Lancé avant, il aurait relu deux fois la même
+     chose pour l'afficher une. */
   [[2500, 'verifierAPrevoirEnFond'],
    [3200, 'chargerProcEnFond'],
    [3200, 'compterTachesEnFond'],
-   [3800, 'chargerFlotteEnFond']].forEach(([delai, nom]) => {
+   [3800, 'chargerFlotteEnFond'],
+   [4200, 'reveillerBandeau']].forEach(([delai, nom]) => {
     const f = window[nom];
     /* Une étape absente passait inaperçue : le compte ne se faisait
        jamais, et rien ne le disait. */
