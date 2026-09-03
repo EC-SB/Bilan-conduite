@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:31 — v808 */
+/* Déployé le 03/09/2026 à 09:23 — v827 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -366,6 +366,36 @@ $('recBtn').addEventListener('click', async () => {
   if(probleme){
     $('status').textContent = probleme;
     return;
+  }
+
+  /* ⚠️ UN NOUVEAU COURS N'EST PAS UN BILAN DÉJÀ ENREGISTRÉ.
+
+     Chrystel, un matin d'examens : « j'ai l'impression qu'il ne se
+     génère plus de brouillon pour les bilans en vocal non plus ».
+     Elle avait raison, et voici pourquoi.
+
+     « bilanEnregistre » passe à vrai quand un bilan part dans le
+     classeur, et le dépôt de la dictée s'arrête alors — c'est
+     voulu : sans ça, la dictée restée à l'écran se redéposait
+     par-dessus un cours terminé, et « Cours non terminés »
+     l'accusait indéfiniment.
+
+     Mais c'est une variable de PAGE, pas de cours. Elle ne
+     redescendait que par « fermerLeCoursOuvert » — donc uniquement
+     en ouvrant un cours PRÉPARÉ.
+
+     Un moniteur qui enregistre un bilan, puis tape le nom suivant
+     à la main et appuie sur Démarrer, gardait donc
+     « bilanEnregistre » à vrai. Sa dictée ne partait plus JAMAIS
+     sur le serveur, pour le reste de sa journée, sans un mot pour
+     le dire : le bureau ne voyait rien, et une batterie vide
+     emportait une heure de parole.
+
+     Démarrer un cours, c'est repartir de zéro. Ici, et pas
+     ailleurs. */
+  if(typeof marquerExport === 'function') marquerExport(false);
+  if(typeof reinitialiserDepotBrouillon === 'function'){
+    reinitialiserDepotBrouillon();
   }
 
   /* LE QUESTIONNAIRE NE S'OUVRE PLUS AU DÉPART.
