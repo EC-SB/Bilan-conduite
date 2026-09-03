@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 16:30 — v816 */
+/* Déployé le 02/09/2026 à 16:38 — v817 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -353,10 +353,44 @@ function etatQuiFaitFoi(nom){
     }
     if(s.nbAjournements) d.repassages = parseInt(s.nbAjournements, 10) || 0;
     if(s.dateAjournement) d.dateAjournement = String(s.dateAjournement);
+
+    /* ⚠️ LA DATE D'EXAMEN DE SA FICHE DE SUIVI.
+
+       Elle y est écrite noir sur blanc dès que le bureau lui donne
+       une place — « majSuivi(nom, { datePermis: jour, … }) » — et
+       PERSONNE NE LA RELISAIT ICI. La note allait la chercher dans
+       les sessions en mémoire, et seulement là : quand l'écran des
+       sessions n'avait pas encore été ouvert, la carte annonçait
+       « PAS DE DATE D'EXAMEN OFFICIEL — à reprogrammer » sur une
+       élève dont la date était posée depuis des jours. Chrystel :
+       « j'ai toujours pas sa nouvelle date d'examen et il me la
+       faut — dans le questionnaire c'est bon mais pas dans mes
+       prochains cours », puis « il a fallu que j'enregistre le
+       questionnaire pour que ça se mette à jour ».
+
+       Le suivi, lui, est chargé par tous les écrans qui affichent
+       des cartes. C'est donc le filet, et il ne dépend d'aucun
+       autre écran ouvert avant.
+
+       « prévu » seulement si la date est à venir : un examen passé
+       ne s'annonce pas comme prévu — c'est examenDejaPasse qui en
+       décide, et il a besoin de la date, pas d'un état faux. */
+    const dp = String(s.datePermis || '').trim();
+    if(dp){
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(dp)
+        ? dp : ((typeof dateFrVersIso === 'function') ? dateFrVersIso(dp) : '');
+      if(iso){
+        d.examDate = iso;
+        const auj = (typeof todayLocal === 'function')
+          ? todayLocal() : new Date().toISOString().slice(0, 10);
+        if(iso >= auj) d.examPermis = 'prevu';
+      }
+    }
   }catch(e){ /* suivi non chargé : la note fera sans */ }
 
   /* La session d'examen : elle vaut date, et elle est plus récente
-     que tout ce qu'un moniteur a pu écrire. */
+     que tout ce qu'un moniteur a pu écrire — y compris que la date
+     recopiée dans sa fiche de suivi juste au-dessus. */
   try{
     const jour = (typeof dateDeSessionDe === 'function') ? dateDeSessionDe(nom) : '';
     if(jour){ d.examDate = jour; d.examPermis = 'prevu'; }
