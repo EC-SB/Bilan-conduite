@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 03/09/2026 à 08:58 — v824 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 194;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 195;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -125,7 +125,7 @@ const SECTIONS = [
   { cle:'ecoutes',          nom:'👂 Écoutes pédagogiques' },
   { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
   { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
-  { cle:'bureau_messages',  nom:'📨 Messages aux moniteurs' },
+  { cle:'bureau_messages',  nom:'📨 Messages internes' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
   { cle:'stats',            nom:'📈 Taux de réussite' },
