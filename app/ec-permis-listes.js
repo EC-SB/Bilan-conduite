@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 07:42 — v849 */
+/* Déployé le 04/09/2026 à 08:25 — v851 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -546,18 +546,28 @@ function tableauAPlacer(liste){
     ? (suiviDe(e.eleve).moniteurDate || '⚠️ À attribuer')
     : (suiviDe(e.eleve).semaine || '— semaine à définir —');
 
+  /* ⚠️ LA CLÉ S'ÉCRIT ET SE RELIT DANS LE MÊME ORDRE.
+
+     Elle valait déjà « centre ⟨⟩ semaine » dans les DEUX vues — mais
+     elle était relue avec une condition, et cette condition
+     inversait les deux moitiés en vue « par date ». Le nombre de
+     jours ouverts se cherchait alors sous un nom de centre, ne
+     trouvait jamais rien : « 2 jours » ne s'affichait pas, et
+     « ⚠️ aucun jour ici » ne s'est jamais déclenché dans la vue
+     faite exprès pour le voir.
+
+     Une même chose écrite d'un côté et lue de l'autre. On retire
+     donc la condition des DEUX côtés, au lieu de la corriger d'un
+     seul — sinon elle repoussera. */
+  const centreDe = s => s.centre || '— centre à définir —';
+  const semaineDe = s => s.semaine || '— semaine à définir —';
+
   const groupes = {};
   liste.forEach(e => {
     const s = suiviDe(e.eleve);
     const g1 = cle1(e);
-    const g2 = (vuePlaces === 'personne')
-      ? (s.semaine || '— semaine à définir —')
-      : (s.centre || '— centre à définir —');
-    const g3 = (vuePlaces === 'personne')
-      ? (s.centre || '— centre à définir —')
-      : '';
     if(!groupes[g1]) groupes[g1] = {};
-    const k = (vuePlaces === 'personne') ? (g3 + ' ⟨⟩ ' + g2) : (g2 + ' ⟨⟩ ' + g1);
+    const k = centreDe(s) + ' ⟨⟩ ' + semaineDe(s);
     if(!groupes[g1][k]) groupes[g1][k] = [];
     groupes[g1][k].push(e);
   });
@@ -616,9 +626,8 @@ function tableauAPlacer(liste){
     bs.appendChild(tete);
 
     Object.keys(groupes[g1]).sort().forEach(k => {
-      const [a, b] = k.split(' ⟨⟩ ');
-      const centre = (vuePlaces === 'personne') ? a : b;
-      const semaine = (vuePlaces === 'personne') ? b : a;
+      /* Même ordre qu'à l'écriture, sans condition : voir plus haut. */
+      const [centre, semaine] = k.split(' ⟨⟩ ');
       const lot = groupes[g1][k];
 
       const t = titreGroupe(semaine, centre, lot.length);
