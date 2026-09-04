@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:02 — v850 */
+/* Déployé le 04/09/2026 à 13:25 — v866 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -154,20 +154,96 @@ function mettreEnSourdine(id){
    « ou »    : où la ligne emmène quand on la touche.
    ============================================================ */
 
-/* ── 📌 Les messages épinglés du bureau ─────────────────────── */
+/* ── 📌 Les messages épinglés du bureau ───────────────────────
+
+   ⚠️ DEUX FORMES, ET UN ACCUSÉ DE RÉCEPTION.
+
+   Chrystel, le 4 septembre : « j'aimerais pouvoir leur pousser un
+   message rapidement, et la possibilité d'indiquer qu'ils l'ont
+   bien vu ». Puis : deux niveaux avec une case ; et le message
+   disparaît pour de bon chez celui qui a répondu, « oui SI de notre
+   côté on voit qui a mis j'ai vu ».
+
+   · ordinaire → une ligne du bandeau, avec « ✅ J'ai vu » ;
+   · important → le gros cadre, comme le rappel de prise, et sans
+     croix : le seul moyen de le refermer est de dire qu'on l'a vu.
+
+   La croix « pour la journée » a disparu des messages : elle ne
+   remontait à personne, et se taire pour la journée n'est pas
+   répondre. */
 function lignesMessages(){
-  return (messagesEpingles || []).map(m => ({
-    id: 'msg:' + m.id,
-    famille: 'message',
-    emoji: '📌',
-    texte: m.texte,
-    sous: m.par ? 'de ' + m.par : '',
-    /* Un message qu'on t'adresse ne s'éteint pas dans un menu, mais
-       il se tait pour la journée une fois lu. Sa disparition
-       définitive appartient à celui qui l'a écrit. */
-    urgente: false,
-    croix: 'jour'
-  }));
+  return (messagesEpingles || [])
+    .filter(m => !m.important)
+    .map(m => ({
+      id: 'msg:' + m.id,
+      famille: 'message',
+      emoji: '📌',
+      texte: m.texte,
+      sous: m.par ? 'de ' + m.par : '',
+      urgente: false,
+      /* Ni croix ni sourdine : un bouton qui écrit au classeur. */
+      vu: m.id
+    }));
+}
+
+/* Les messages importants, en gros cadre. Le même dessin que le
+   rappel de prise — « sur le même principe », c'est sa demande —
+   mais en rouge : celui-ci n'est pas une échéance qui approche,
+   c'est quelqu'un qui parle. */
+function cartesMessagesImportants(){
+  return (messagesEpingles || []).filter(m => m.important).map(m => {
+    const carte = document.createElement('div');
+    carte.style.cssText = 'background:var(--red);color:var(--navy-deep);' +
+      'border-radius:12px;padding:14px 16px;margin-bottom:10px;';
+
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:11px;font-weight:700;letter-spacing:.08em;' +
+      'text-transform:uppercase;opacity:.8;';
+    h.textContent = 'Message important' + (m.par ? ' — ' + m.par : '');
+    carte.appendChild(h);
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:20px;font-weight:800;line-height:1.25;' +
+      'margin:4px 0 10px;white-space:pre-wrap;word-break:break-word;';
+    t.textContent = m.texte;
+    carte.appendChild(t);
+
+    /* ⚠️ PAS de « btn-secondary » ici : ses couleurs sont faites
+       pour le fond de l'application, pas pour cette carte rouge —
+       c'est comme ça qu'on obtient du blanc sur blanc, la faute
+       corrigée en v847. Le bouton prend les couleurs de la carte,
+       justes dans les deux thèmes. */
+    const b = document.createElement('button');
+    b.style.cssText = 'width:auto;margin:0;padding:8px 16px;font-size:14px;' +
+      'background:var(--navy-deep);color:var(--red);border:none;' +
+      'border-radius:9px;cursor:pointer;font-weight:800;';
+    b.textContent = '✅ J’ai bien vu';
+    b.addEventListener('click', () => direQueJaiVu(m.id, b, '✅ J’ai bien vu'));
+    carte.appendChild(b);
+
+    return carte;
+  });
+}
+
+/* L'accusé de réception. Il part au classeur, et le message
+   disparaît — chez celui qui a répondu, et seulement chez lui.
+
+   ⚠️ ON RETIRE APRÈS, JAMAIS AVANT. Faire disparaître d'abord et
+   écrire ensuite, c'est perdre le message au premier réseau
+   capricieux : personne au bureau ne saurait qu'il a été lu, et il
+   reviendrait au rechargement suivant — ce qui donne l'impression
+   que le bouton ne marche pas. */
+async function direQueJaiVu(id, bouton, libelle){
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  try{
+    const r = await appelPrep({ action: 'msgBandeauVu', id: id });
+    if(r && r.status === 'error') throw new Error(r.message);
+    messagesEpingles = (messagesEpingles || []).filter(m => m.id !== id);
+    dessinerBandeau();
+  }catch(e){
+    showToast('Impossible : ' + (e.message || e));
+    if(bouton){ bouton.disabled = false; bouton.textContent = libelle || '✅'; }
+  }
 }
 
 /* ── 📆 La prise de dates ───────────────────────────────────── */
@@ -575,8 +651,40 @@ function lancerMinuteurRappelPrise(){
      tout de suite : le minuteur d'un onglet en arrière-plan est
      ralenti par le navigateur, parfois jusqu'à la minute près. */
   document.addEventListener('visibilitychange', () => {
-    if(!document.hidden){ try{ if(bandeauPret) dessinerBandeau(); }catch(e){} }
+    if(document.hidden) return;
+    try{ if(bandeauPret) dessinerBandeau(); }catch(e){}
+    relireMessagesAuRetour();
   });
+}
+
+/* ------------------------------------------------------------
+   « RAPIDEMENT » — EN COMBIEN DE TEMPS, AU JUSTE
+
+   Chrystel : « j'aimerais pouvoir leur pousser un message
+   rapidement ». Les messages n'étaient lus qu'UNE fois, au
+   démarrage : un moniteur qui garde son onglet ouvert depuis le
+   matin ne voyait rien avant de recharger.
+
+   Ils sont donc relus quand il REVIENT sur l'application — le seul
+   moment où ça se voit. Pas à chaque minute : ce serait un appel
+   réseau par moniteur et par minute, toute la journée, pour un
+   message qu'on écrit deux fois par mois.
+
+   Deux minutes de battement entre deux relectures : poser puis
+   reprendre son téléphone dix fois de suite n'appelle qu'une fois.
+   ------------------------------------------------------------ */
+let derniereRelectureMessages = 0;
+async function relireMessagesAuRetour(){
+  if(typeof chargerMessagesEpingles !== 'function') return;
+  if(Date.now() - derniereRelectureMessages < 120000) return;
+  derniereRelectureMessages = Date.now();
+  try{
+    messagesEpingles = await chargerMessagesEpingles();
+    if(bandeauPret) dessinerBandeau();
+  }catch(e){
+    /* Un message qui n'arrive pas n'est pas une panne à annoncer :
+       le bandeau garde ce qu'il avait. */
+  }
 }
 
 
@@ -598,14 +706,19 @@ function dessinerBandeau(){
      s'affiche alors qu'il n'a rien d'autre à dire. */
   const rappel = carteRappelPrise();
 
+  /* Les messages importants passent devant tout, rappel compris :
+     c'est quelqu'un qui parle, et il attend une réponse. */
+  const importants = cartesMessagesImportants();
+
   /* RIEN À DIRE : IL DISPARAÎT. Pas de « ✅ rien aujourd'hui » — un
      bandeau qui est là tous les jours devient un décor, et on cesse
      de le lire. C'est sa disparition qui lui donne son poids. */
-  if(!lignes.length && !rappel){
+  if(!lignes.length && !rappel && !importants.length){
     zone.style.display = 'none';
     return;
   }
   zone.style.display = '';
+  importants.forEach(c => zone.appendChild(c));
   if(rappel) zone.appendChild(rappel);
   if(!lignes.length) return;
 
@@ -716,6 +829,22 @@ function ligneBandeau(l, avecTrait){
       echapper(l.sous) + '</div>' : '');
   if(l.ou) txt.addEventListener('click', () => allerDepuisBandeau(l));
   d.appendChild(txt);
+
+  /* ✅ J'ai vu — pour un message, la croix n'a plus de sens : se
+     taire pour la journée n'est pas répondre. */
+  if(l.vu){
+    const v = document.createElement('button');
+    v.className = 'btn btn-secondary';
+    v.style.cssText = 'width:auto;margin:0;padding:2px 10px;font-size:11px;' +
+      'border-radius:999px;flex-shrink:0;font-weight:700;';
+    v.textContent = '✅ J’ai vu';
+    v.title = 'Le retirer de ton bandeau, et dire au bureau que tu l’as lu';
+    v.addEventListener('click', e => {
+      e.stopPropagation();
+      direQueJaiVu(l.vu, v, '✅ J’ai vu');
+    });
+    d.appendChild(v);
+  }
 
   if(l.croix){
     const x = document.createElement('button');
