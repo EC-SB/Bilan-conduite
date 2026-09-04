@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:52 — v855 */
+/* Déployé le 04/09/2026 à 09:15 — v857 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2810,9 +2810,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<label>🦉 Fiche véhicule — coche ce qui est acquis</label>' +
         '<div style="font-size:11px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;">' +
           'Les manœuvres déjà validées sont cochées. Celles que tu ajoutes seront ' +
-          'signées de ton émoji.<br>' +
-          'La colonne 🚗 est pour un élève repris d\'une autre auto-école : ' +
-          'ce qu\'il y a déjà fait porte 🚗, pas ton émoji.</div>' +
+          'signées de ton émoji.</div>' +
         '<div id="qFiche" style="background:var(--navy);border:1px solid var(--line);' +
           'border-radius:10px;padding:10px 12px;max-height:240px;overflow-y:auto;' +
           'margin-bottom:14px;"></div>' +
@@ -3414,8 +3412,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       blocFiche.style.display = (enFinDeCours || surFiche) ? 'none' : 'block';
     }
 
+    /* Lu ICI, une fois, par la même fonction que l'écran de cours et
+       la fiche à la main : « vient-il d'une autre auto-école ? » ne
+       doit avoir qu'une seule réponse dans tout l'outil. */
     remplirFicheQuestionnaire(marquesConnues, prec.manoeuvresAjoutees || [],
-                              prec.manoeuvresAilleurs || []);
+                              prec.manoeuvresAilleurs || [],
+                              (typeof vientDuneAutreAE === 'function')
+                                ? vientDuneAutreAE(eleve) : false);
     boite._marquesConnues = marquesConnues;
 
     /* Après le cours : on n'affiche que ce qui peut avoir changé */
@@ -5846,22 +5849,39 @@ function blocFicheVehiculeEleve(bilans, toutAfficher){
    Le moniteur complète ce qui a été acquis pendant son cours.
    Ce qu'il ajoute porte son émoji, comme dans le bilan.
    ============================================================ */
-function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs){
+/* ------------------------------------------------------------
+   LA FICHE VÉHICULE DU QUESTIONNAIRE
+
+   ⚠️ LA 🚗 N'EST PLUS UNE COLONNE — Chrystel, le 4 septembre :
+   « dans le questionnaire, pour les élèves autre auto-école, ne mets
+   pas la case des manœuvres en face de chaque ligne ; tu mets juste
+   une seule case en haut avec écrit “manœuvres autre auto-école” ».
+
+   Elle a raison deux fois. Dix-neuf cases pour une réponse qui est
+   la même partout, c'est dix-neuf occasions de se tromper de ligne —
+   et sur les élèves qui NE viennent PAS d'ailleurs, cette colonne
+   demandait dix-neuf fois une question dont la réponse est toujours
+   non.
+
+   Donc : pas de colonne du tout. Une seule case, en tête, et
+   seulement pour un élève venu d'ailleurs.
+
+   Les cases par ligne existent encore, MAIS CACHÉES : c'est elles
+   que relit « manoeuvresAilleursQuestionnaire », et que le bilan
+   transforme en 🚗. Les retirer obligerait à réécrire ce lecteur —
+   donc à avoir deux façons de dire la même chose, le temps que
+   l'une des deux se trompe.
+   ------------------------------------------------------------ */
+function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs,
+                                   venuDAilleurs){
   const zone = $('qFiche');
   if(!zone) return;
 
   const marques = marquesAvant || {};
   zone.innerHTML = '';
 
-  /* La colonne 🚗 a sa largeur fixe, la même sur toutes les lignes :
-     sans elle les cases se décalaient au gré de la longueur des
-     libellés, et on ne savait plus quelle case allait avec quoi. */
-  const LARGEUR_AILLEURS = '42px';
-
-  /* L'en-tête : deux « tout cocher », un par colonne. Cocher
-     dix-neuf cases une par une est absurde, et ça l'est deux fois
-     plus pour un élève repris qui arrive avec la fiche à moitié
-     faite. */
+  /* L'en-tête : « tout cocher » les manœuvres travaillées. Cocher
+     dix-neuf cases une par une est absurde. */
   const tout = document.createElement('div');
   tout.style.cssText = 'display:flex;align-items:center;gap:9px;padding:4px 0 8px;' +
     'margin:0 0 6px;border-bottom:1px solid var(--line);';
@@ -5882,39 +5902,46 @@ function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs){
   gauche.appendChild(tt);
   tout.appendChild(gauche);
 
-  const droite = document.createElement('label');
-  droite.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px;' +
-    'width:' + LARGEUR_AILLEURS + ';flex-shrink:0;font-size:14px;text-transform:none;' +
-    'margin:0;font-weight:700;color:var(--accent-text);cursor:pointer;';
-  droite.title = "Tout cocher — déjà fait dans une autre auto-école";
-  const cbToutAilleurs = document.createElement('input');
-  cbToutAilleurs.type = 'checkbox';
-  cbToutAilleurs.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
-  cbToutAilleurs.addEventListener('change', () => {
-    zone.querySelectorAll('.qAilleurs').forEach(x => {
-      /* Une manœuvre qui porte déjà la 🚗 d'un bilan précédent n'est
-         pas décochable : sa marque est écrite, on ne la reprend pas. */
-      if(x.disabled) return;
-      x.checked = cbToutAilleurs.checked;
-    });
-  });
-  droite.appendChild(cbToutAilleurs);
-  const dt = document.createElement('span');
-  dt.style.cssText = 'font-size:13px;line-height:1;';
-  dt.textContent = '🚗';
-  droite.appendChild(dt);
-  tout.appendChild(droite);
-
   zone.appendChild(tout);
 
-  /* Ce qu'est la colonne 🚗, écrit une fois en toutes lettres :
-     l'émoji seul en tête de colonne ne dit rien à qui ouvre
-     l'écran pour la première fois. */
-  const legende = document.createElement('div');
-  legende.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;' +
-    'margin:0 0 8px;';
-  legende.textContent = '🚗 = autre auto-école';
-  zone.appendChild(legende);
+  /* LA CASE UNIQUE — seulement pour un élève venu d'ailleurs.
+
+     Elle coche toutes les manœuvres d'un coup comme « déjà faites
+     dans une autre auto-école » : elles compteront comme acquises,
+     et porteront la 🚗 plutôt que l'émoji d'un de nos moniteurs —
+     ils ne l'ont pas vu conduire. */
+  let cbAilleurs = null;
+  if(venuDAilleurs){
+    const l1 = document.createElement('label');
+    l1.style.cssText = 'display:flex;align-items:center;gap:9px;padding:6px 8px;' +
+      'margin:0 0 8px;font-size:14px;text-transform:none;font-weight:700;' +
+      'color:var(--accent-text);cursor:pointer;border:1px solid var(--line);' +
+      'border-radius:9px;';
+    cbAilleurs = document.createElement('input');
+    cbAilleurs.type = 'checkbox';
+    cbAilleurs.id = 'qAilleursTout';
+    cbAilleurs.style.cssText = 'width:17px;height:17px;flex-shrink:0;';
+    cbAilleurs.addEventListener('change', () => {
+      zone.querySelectorAll('.qAilleurs').forEach(x => {
+        /* Une manœuvre qui porte déjà la 🚗 d'un bilan précédent
+           n'est pas décochable : sa marque est écrite. */
+        if(x.disabled) return;
+        x.checked = cbAilleurs.checked;
+      });
+    });
+    l1.appendChild(cbAilleurs);
+    const t1 = document.createElement('span');
+    t1.textContent = '🚗 Manœuvres autre auto-école';
+    l1.appendChild(t1);
+    zone.appendChild(l1);
+
+    const aide = document.createElement('div');
+    aide.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.4;' +
+      'margin:-4px 0 8px;';
+    aide.textContent = 'Ce qu’il a déjà fait ailleurs compte comme acquis, ' +
+      'et porte 🚗 au lieu de l’émoji d’un moniteur.';
+    zone.appendChild(aide);
+  }
 
   /* Ce que le moniteur avait coché à la préparation, ou plus tôt
      dans ce cours : sans ça, rouvrir le questionnaire effaçait tout
@@ -5963,23 +5990,31 @@ function remplirFicheQuestionnaire(marquesAvant, dejaCochees, dejaAilleurs){
 
     ligne.appendChild(l);
 
-    const la = document.createElement('label');
-    la.style.cssText = 'display:flex;align-items:center;justify-content:center;' +
-      'width:' + LARGEUR_AILLEURS + ';flex-shrink:0;margin:0;padding:0;cursor:pointer;';
-    la.title = libelle + " — déjà fait dans une autre auto-école";
+    /* ⚠️ CACHÉE, PAS SUPPRIMÉE. C'est cette case que relit
+       « manoeuvresAilleursQuestionnaire », et que le bilan
+       transforme en 🚗. Elle n'a plus de colonne à l'écran — la
+       case unique du haut la commande — mais elle porte toujours
+       la réponse, y compris celles héritées d'un bilan précédent
+       qu'aucune case visible ne doit pouvoir défaire. */
     const cba = document.createElement('input');
     cba.type = 'checkbox';
     cba.className = 'qAilleurs';
     cba.value = libelle;
     cba.checked = ailleursAcquis || ailleursCochee;
     cba.disabled = ailleursAcquis;
-    cba.style.cssText = 'width:17px;height:17px;flex-shrink:0;' +
-      (ailleursAcquis ? 'opacity:.55;' : '');
-    la.appendChild(cba);
-    ligne.appendChild(la);
+    cba.hidden = true;
+    ligne.appendChild(cba);
 
     zone.appendChild(ligne);
   });
+
+  /* La case du haut dit l'état qu'elle commande : rouvrir le
+     questionnaire sur un élève déjà marqué doit la montrer cochée,
+     sinon on croit que rien n'a été fait et on recommence. */
+  if(cbAilleurs){
+    const cases = [...zone.querySelectorAll('.qAilleurs')];
+    cbAilleurs.checked = cases.length > 0 && cases.every(x => x.checked);
+  }
 }
 
 /* Ce que le moniteur vient de cocher en plus */
