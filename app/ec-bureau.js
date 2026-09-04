@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 07:41 — v819 */
+/* Déployé le 04/09/2026 à 10:50 — v862 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -234,6 +234,59 @@ async function envoyerConsigne(eleve, type, texte, valeur){
 /* Fiche de suivi d'un élève, ou objet vide */
 function suiviDe(eleve){
   return trouverParNom(etatBureau.suivi, eleve) || {};
+}
+
+/* ============================================================
+   PRÊTE-NOM ET PLACE À REMPLACER : LA MÊME PHRASE PARTOUT
+
+   Deux cases de la fiche de suivi, et deux situations où l'élève
+   qui monte en voiture n'est pas celui qu'on croit :
+
+     · 👻 prête-nom   — il tient une place d'examen, il n'a JAMAIS
+                        été prévenu ;
+     · 🔄 à remplacer — il a été prévenu, mais sa place doit être
+                        donnée à quelqu'un d'autre.
+
+   Elles ne se lisaient que dans 🎓 Suivi permis, l'écran du
+   bureau. Le moniteur, lui, ouvrait sa journée sans rien en
+   savoir.
+
+   Chrystel, le 4 septembre : « dans Mes prochains cours, quand il
+   y a un examen officiel de prévu, est-ce qu'au bout tu peux
+   mettre si l'élève est coché comme à remplacer ou en prête-nom,
+   pour que le moniteur soit au courant » — puis « idem dans les
+   notes du dossier ».
+
+   Trois écrans, une seule phrase. Recopiée, elle finirait par ne
+   plus dire la même chose ici et là — c'est la faute que ce
+   dossier passe ses journées à réparer.
+
+   Rend null quand il n'y a rien à signaler.
+   ============================================================ */
+function marquePlaceExamen(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+
+  /* « À remplacer » passe avant : c'est celle qui appelle un geste
+     tout de suite. Le même ordre que dans 🎓 Suivi permis. */
+  if(String(s.aRemplacer || '') === 'oui'){
+    return {
+      cle: 'remplacer', emoji: '🔄', couleur: 'var(--red)',
+      court: 'À REMPLACER',
+      texte: 'À REMPLACER — place à donner',
+      long: 'Place à remplacer : elle doit être redonnée à un autre élève.'
+    };
+  }
+
+  if(String(s.fantome || '') === 'oui'){
+    return {
+      cle: 'pretenom', emoji: '👻', couleur: '#E8A33D',
+      court: 'PRÊTE-NOM',
+      texte: 'PRÊTE-NOM — pas prévenu',
+      long: 'Prête-nom : il tient la place d\'examen, il n\'a jamais été prévenu.'
+    };
+  }
+
+  return null;
 }
 
 /* Met à jour quelques champs sans écraser le reste */
