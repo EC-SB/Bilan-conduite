@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:32 — v873 */
+/* Déployé le 04/09/2026 à 15:56 — v875 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -138,6 +138,147 @@ function resultatExamenBlanc(nom, a){
              couleur:'var(--warn-text)' };
   }
   return null;
+}
+
+/* ============================================================
+   LA LIGNE DU HAUT, QUAND L'EXAMEN EST PRIS
+
+   Chrystel, le 4 septembre, devant la carte de Raphael Pape :
+   « quand un élève a un examen officiel de prévu, là où c'est écrit
+   "1ère après l'examen blanc", ce n'est pas utile. L'information la
+   plus importante, c'est qu'il lui reste 2 leçons + 3h avant
+   examen : c'est ça qu'il faut écrire en haut. »
+
+     Reste encore 2 leçons + 3h (1ère après l'examen blanc, 12 au total)
+
+   Le rang ne disparaît pas — il passe entre parenthèses, abrégé.
+   Ce qu'elle en a retiré en écrivant sa phrase dit la règle : le
+   mot « leçon », et le nombre de leçons prévues. Ce qu'elle a
+   gardé : le rang, la charnière, et le total.
+   ============================================================ */
+
+/* Le rang, en plus court. « 1ère leçon après l'examen blanc
+   (2 prévues, 12ème au total) » devient « 1ère après l'examen
+   blanc, 12 au total ».
+
+   On ne réécrit pas la phrase : on la raccourcit. La reconstruire
+   depuis les données serait une seconde façon de dire le rang, et
+   les deux finiraient par ne plus dire la même chose — c'est la
+   faute que ce dossier passe ses journées à réparer. */
+function positionAbregee(pos){
+  let t = String(pos || '').trim();
+  if(!t) return '';
+
+  /* Le mot « leçon » juste après le rang : on parle de leçons, on
+     n'a pas besoin de le dire. */
+  t = t.replace(/^(\d+\s*(?:ère|ere|ème|eme|e))\s+le[çc]ons?\b/i, '$1');
+
+  /* La parenthèse finale : on ne garde que le total, et sans son
+     suffixe — « (2 prévues, 12ème au total) » → « , 12 au total ».
+     Une parenthèse qui ne dit que les leçons prévues s'en va
+     entièrement : Chrystel n'en a « besoin nulle part ». */
+  t = t.replace(/\s*\(([^)]*)\)\s*$/, (tout, dedans) => {
+    const m = String(dedans).match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*au total/i);
+    return m ? ', ' + m[1] + ' au total' : '';
+  });
+
+  return t.trim();
+}
+
+/* La phrase du haut quand une date d'examen est prise et qu'on sait
+   ce qu'il reste. « reste » vaut null quand on ne sait pas : on
+   rend alors la position telle quelle, sans rien inventer. */
+function ligneRestantAvantExamen(position, reste){
+  const pos = String(position || '').trim();
+  const n = (reste === null || reste === undefined || reste === '')
+    ? null : parseInt(reste, 10);
+
+  if(n === null || isNaN(n)) return pos;
+
+  /* À zéro, ce sont les mots du questionnaire : « plus que les 3h
+     avant examen ». Pas « 0 leçon ». */
+  const tete = (n === 0)
+    ? 'Plus que les 3h avant examen'
+    : 'Reste encore ' + n + ' leçon' + (n > 1 ? 's' : '') + ' + 3h';
+
+  const court = positionAbregee(pos);
+  return court ? tete + ' (' + court + ')' : tete;
+}
+
+/* ============================================================
+   … ET QUAND IL N'AVAIT PAS LE NIVEAU
+
+   Chrystel, dans la foulée : « quand un élève a un permis de prévu
+   mais qu'il n'avait pas le niveau après l'examen blanc, et qu'il
+   est noté comme à remplacer ou prête-nom, tu mets le numéro de la
+   leçon après examen blanc pas le niveau — refaire un point
+   (nombre de leçons total) ».
+
+   C'est le seul cas où le compte à rebours ment : il reste peut-être
+   deux leçons avant la date, mais cette date n'est pas pour lui —
+   sa place est tenue pour quelqu'un d'autre, ou elle doit être
+   rendue. Lui annoncer « reste encore 2 leçons + 3h » enverrait le
+   moniteur préparer un examen qui n'aura pas lieu.
+   ============================================================ */
+function lignePasLeNiveauAvantExamen(position){
+  const court = positionAbregee(position);
+  const total = /,\s*(\d+) au total/.exec(court);
+  const rang = /^([^,—(]+)/.exec(court);
+
+  const bouts = [];
+  if(rang) bouts.push(rang[1].trim());
+  bouts.push('pas le niveau — Refaire un point');
+
+  return bouts.join(' ').trim() +
+         (total ? ' (' + total[1] + ' au total)' : '');
+}
+
+/* ============================================================
+   LA LIGNE DU HAUT — DÉCIDÉE UNE FOIS POUR LES DEUX ÉCRANS
+
+   Chrystel : « partout » — la carte de 📅 Mes prochains cours ET le
+   bloc d'ouverture du cours. Deux écrans qui choisiraient chacun
+   leur phrase finiraient par ne plus dire la même chose, et c'est
+   précisément ce qu'on vient de réparer entre les deux blocs.
+
+   Trois cas, dans cet ordre :
+
+     1. examen pris + pas le niveau + place tenue pour un autre →
+        « 1ère après l'examen blanc pas le niveau — Refaire un
+        point (12 au total) » ;
+     2. examen pris + on sait ce qu'il reste →
+        « Reste encore 2 leçons + 3h (1ère après l'examen blanc,
+        12 au total) » ;
+     3. tout le reste → la ligne 🎯 telle qu'elle est écrite.
+   ============================================================ */
+function lignePositionDuHaut(nom, corps, note){
+  const pos = (typeof lignePosition === 'function')
+    ? lignePosition(corps || '') : '';
+
+  const etat = (typeof etatQuiFaitFoi === 'function')
+    ? (etatQuiFaitFoi(nom) || {}) : {};
+  const clair = (typeof noteEnClair === 'function')
+    ? noteEnClair(note || corps || '') : String(note || corps || '');
+  const a = (typeof analyserNote === 'function') ? (analyserNote(clair) || {}) : {};
+
+  /* Sans date d'examen, le parcours reste ce qui compte : un compte
+     à rebours sans échéance n'est pas un compte à rebours. */
+  const dateExam = etat.examDate || (a.permis === 'prevu' ? a.permisDate : '');
+  if(!dateExam) return pos;
+
+  /* ⚠️ LE CAS OÙ LE COMPTE À REBOURS MENTIRAIT. Sa place est tenue
+     pour quelqu'un d'autre, ou elle doit être rendue : lui annoncer
+     « reste encore 2 leçons » enverrait le moniteur préparer un
+     examen qui n'aura pas lieu. */
+  const r = (typeof resultatExamenBlanc === 'function')
+    ? resultatExamenBlanc(nom, a) : null;
+  const place = (typeof marquePlaceExamen === 'function')
+    ? marquePlaceExamen(nom) : null;
+  if(r && r.cle === 'pasleniveau' && place){
+    return lignePasLeNiveauAvantExamen(pos);
+  }
+
+  return ligneRestantAvantExamen(pos, a.permisN);
 }
 
 /* ------------------------------------------------------------
@@ -475,7 +616,7 @@ function blocAvantLeCours(nom, res, prep, opts){
   }
 
   /* ── Le rang, en gros ── */
-  const pos = (typeof lignePosition === 'function') ? lignePosition(corps) : '';
+  const pos = lignePositionDuHaut(nom, corps, brute);
   if(pos){
     const p = document.createElement('div');
     p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.3;' +
