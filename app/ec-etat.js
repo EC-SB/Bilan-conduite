@@ -1,4 +1,4 @@
-/* Déployé le 22/08/2026 à 10:00 — v499 */
+/* Déployé le 04/09/2026 à 13:25 — v866 */
 /* ============================================================
    ec-etat.js
    État partagé entre les modules.
@@ -27,6 +27,12 @@ var dernierEvenement = '—';   /* diagnostic */
 var dernierEchecCorrection = null;
 var bilanEnregistre = false;
 var moniteursActifs = [];
+/* TOUS les comptes, pas seulement ceux qui donnent des cours :
+   { nom, role, cours }. Le relais les rend depuis toujours, sous
+   « comptes » ; personne ne les lisait. Chrystel, le 4 septembre,
+   sur qui doit apparaître dans les manquants d'un message poussé :
+   « tous les comptes ». */
+var comptesActifs = [];
 var champsManuels = {};   /* valeurs saisies */
 var modeManuel = false;
 var cacheBureau = null;
