@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 13:54 — v867 */
+/* Déployé le 04/09/2026 à 14:06 — v869 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -102,8 +102,23 @@ function resultatExamenBlanc(nom, a){
   const heures = String(s.heuresRestantes || '').trim();
 
   if(note.ebSuite === 'pasleniveau' || niveau === 'non'){
-    return { cle:'pasleniveau', emoji:'⛔', texte:'pas le niveau',
-             couleur:'var(--red)' };
+    /* Chrystel, le 4 septembre : « quand un examen blanc n'a pas le
+       niveau, il faut bien écrire PAS LE NIVEAU et ajouter en
+       majuscules FAIRE LE POINT À CHAQUE LEÇON ».
+
+       Les majuscules sont la consigne, pas une décoration : c'est
+       la seule ligne de tout le bloc qui demande au moniteur de
+       changer sa façon de faire le cours, et elle doit se lire
+       avant tout le reste. */
+    /* Les mots viennent de « CONSIGNE_PAS_LE_NIVEAU »
+       (ec-questionnaire.js), celle que la note écrit dans le
+       classeur. Les recopier ici, c'est prendre rendez-vous avec le
+       jour où l'un des deux changera sans l'autre. */
+    const consigne = (typeof CONSIGNE_PAS_LE_NIVEAU !== 'undefined')
+      ? CONSIGNE_PAS_LE_NIVEAU : 'FAIRE LE POINT À CHAQUE LEÇON';
+    return { cle:'pasleniveau', emoji:'⛔',
+             texte:'pas le niveau — ' + consigne,
+             couleur:'var(--red)', gras:true };
   }
   if(note.ebSuite === '3h' || (niveau === 'oui' && heures === '0')){
     return { cle:'3h', emoji:'✅', texte:'plus que les 3h avant examen',
@@ -168,7 +183,8 @@ function lignesEtatAvantCours(nom, note){
        signaler », et c'est le contraire : personne n'a encore dit
        si l'élève est prêt. */
     out.push(r
-      ? { emoji:r.emoji, texte:r.texte, couleur:r.couleur, decale:true }
+      ? { emoji:r.emoji, texte:r.texte, couleur:r.couleur, decale:true,
+          gras:r.gras }
       : { emoji:'⏳', texte:'résultat à renseigner',
           couleur:'var(--warn-text)', decale:true });
   }else if(etat.examBlanc === 'reserve' || a.examBlanc === 'reserve'){
@@ -473,6 +489,9 @@ function blocAvantLeCours(nom, res, prep, opts){
       const d = document.createElement('div');
       d.style.color = l.couleur || 'var(--cream)';
       if(l.decale) d.style.paddingLeft = '18px';
+      /* « FAIRE LE POINT À CHAQUE LEÇON » demande un geste au
+         moniteur : elle ne se lit pas comme un état de plus. */
+      if(l.gras) d.style.fontWeight = '800';
       d.textContent = l.emoji + ' ' + l.texte;
       z.appendChild(d);
     });
