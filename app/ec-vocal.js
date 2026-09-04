@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:29 — v841 */
+/* Déployé le 04/09/2026 à 08:38 — v853 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -1243,6 +1243,11 @@ async function afficherFicheDuCours(){
   /* On garde les cases déjà cochées si l'écran se redessine */
   const dejaCoche = manoeuvresCocheesEnCours();
 
+  /* Lu UNE fois pour toute la liste : dix-neuf appels rendraient la
+     même réponse, et l'un d'eux finirait par différer. */
+  const venuDAilleurs = (typeof vientDuneAutreAE === 'function')
+    ? vientDuneAutreAE(nom) : true;
+
   zone.innerHTML = '';
   const d = document.createElement('details');
   d.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:10px 12px;';
@@ -1332,27 +1337,38 @@ async function afficherFicheDuCours(){
        moniteurs — ils ne l'ont pas vu conduire.
 
        Elle reste décochable une fois posée : cochée par erreur,
-       elle se retire, et la fiche repart comme avant. */
-    const ail = document.createElement('label');
-    ail.style.cssText = 'display:flex;align-items:center;gap:4px;margin:0;' +
-      'font-size:12px;text-transform:none;font-weight:400;flex-shrink:0;' +
-      'color:var(--muted);cursor:pointer;';
-    ail.title = "Déjà fait dans une autre auto-école";
+       elle se retire, et la fiche repart comme avant.
 
-    const cbA = document.createElement('input');
-    cbA.type = 'checkbox';
-    cbA.className = 'mAilleurs';
-    cbA.value = libelle;
-    cbA.checked = (deja.indexOf(MARQUE_AILLEURS) !== -1) ||
-                  manoeuvresAilleursEnCours().indexOf(libelle) !== -1;
-    cbA.style.cssText = 'width:15px;height:15px;flex-shrink:0;margin:0;';
-    /* Ce qui était déjà marqué 🚗 dans un bilan : le décocher est
-       un retrait, et il doit s'enregistrer comme tel. */
-    cbA.dataset.dejaMarque = (deja.indexOf(MARQUE_AILLEURS) !== -1) ? '1' : '';
-    cbA.addEventListener('click', e => e.stopPropagation());
-    ail.appendChild(cbA);
-    ail.appendChild(document.createTextNode('🚗'));
-    l.appendChild(ail);
+       ⚠️ ELLE NE S'AFFICHE QUE POUR UN ÉLÈVE VENU D'AILLEURS
+       (Chrystel, 4 septembre). Sur les nôtres, elle se répétait sur
+       les dix-neuf lignes pour une réponse qui est toujours non — et
+       une case qui ne sert jamais finit par être cochée par erreur.
+
+       Sauf si elle est DÉJÀ COCHÉE : une marque 🚗 posée avant que
+       la formation soit corrigée doit rester retirable, sinon elle
+       serait là pour toujours. On ne cache jamais ce qui existe. */
+    if(venuDAilleurs || deja.indexOf(MARQUE_AILLEURS) !== -1){
+      const ail = document.createElement('label');
+      ail.style.cssText = 'display:flex;align-items:center;gap:4px;margin:0;' +
+        'font-size:12px;text-transform:none;font-weight:400;flex-shrink:0;' +
+        'color:var(--muted);cursor:pointer;';
+      ail.title = "Déjà fait dans une autre auto-école";
+
+      const cbA = document.createElement('input');
+      cbA.type = 'checkbox';
+      cbA.className = 'mAilleurs';
+      cbA.value = libelle;
+      cbA.checked = (deja.indexOf(MARQUE_AILLEURS) !== -1) ||
+                    manoeuvresAilleursEnCours().indexOf(libelle) !== -1;
+      cbA.style.cssText = 'width:15px;height:15px;flex-shrink:0;margin:0;';
+      /* Ce qui était déjà marqué 🚗 dans un bilan : le décocher est
+         un retrait, et il doit s'enregistrer comme tel. */
+      cbA.dataset.dejaMarque = (deja.indexOf(MARQUE_AILLEURS) !== -1) ? '1' : '';
+      cbA.addEventListener('click', e => e.stopPropagation());
+      ail.appendChild(cbA);
+      ail.appendChild(document.createTextNode('🚗'));
+      l.appendChild(ail);
+    }
 
     d.appendChild(l);
   });
