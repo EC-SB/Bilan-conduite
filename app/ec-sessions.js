@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:35 — v858 */
+/* Déployé le 04/09/2026 à 09:49 — v859 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1896,6 +1896,25 @@ function ouvrirEditeurSession(sess){
     'et de la durée.';
   boite.appendChild(aide);
 
+  /* ------------------------------------------------------------
+     LES GROUPES PRÉPARÉS DANS LA SEMAINE
+
+     Chrystel, le 4 septembre : « quand on ouvre les sessions
+     d'examen, ça serait bien qu'on retrouve ces groupes
+     directement ».
+
+     C'est tout l'intérêt d'avoir groupé une semaine à l'avance : le
+     mardi, on ne recompose pas la liste de tête. Un appui verse le
+     groupe dans les places libres.
+
+     ⚠️ IL VERSE, IL NE VALIDE PAS. Les noms atterrissent dans les
+     champs ; rien n'est écrit tant qu'on n'a pas enregistré. Et il
+     ne touche à aucune place déjà occupée : on ne remplace personne
+     sans le dire. */
+  const zGroupes = document.createElement('div');
+  zGroupes.style.cssText = 'margin:-4px 0 12px;';
+  boite.appendChild(zGroupes);
+
   /* Un champ par place, redessiné quand le nombre change */
   const zEleves = boite.querySelector('#seEleves');
   const champNombre = boite.querySelector('#sePlaces');
@@ -1940,10 +1959,70 @@ function ouvrirEditeurSession(sess){
     });
   };
 
+  /* Les boutons de groupe, une fois les champs de place en place :
+     ils écrivent dedans, ils ne peuvent pas les précéder. */
+  const peindreGroupes = () => {
+    zGroupes.innerHTML = '';
+    if(typeof etatBureau === 'undefined' || !etatBureau.suivi) return;
+
+    const parGroupe = {};
+    (etatBureau.suivi || []).forEach(s => {
+      const g = String(s.groupeSemaine || '').trim();
+      if(!g || !s.eleve) return;
+      /* Déjà placé sur une date : son groupe de semaine a servi. */
+      if(String(s.datePermis || '').trim()) return;
+      (parGroupe[g] = parGroupe[g] || []).push(s.eleve);
+    });
+    const noms = Object.keys(parGroupe)
+      .sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+    if(!noms.length) return;
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:5px;' +
+      'line-height:1.4;';
+    t.textContent = 'Groupes préparés dans la semaine — un appui remplit les ' +
+      'places libres, rien n’est enregistré avant le bouton du bas :';
+    zGroupes.appendChild(t);
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+    noms.forEach(g => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:12px;';
+      b.textContent = '👥 ' + g + ' (' + parGroupe[g].length + ')';
+      b.title = parGroupe[g].join(' · ');
+      b.addEventListener('click', () => {
+        const champs = [...zEleves.querySelectorAll('.seEleve')];
+        const dedans = champs.map(x => normaliserMot(x.value.trim()))
+                             .filter(Boolean);
+        let pose = 0, sansPlace = 0;
+        parGroupe[g].forEach(nom => {
+          if(dedans.indexOf(normaliserMot(nom)) !== -1) return;   /* déjà là */
+          const libre = champs.find(x => !x.value.trim());
+          if(!libre){ sansPlace++; return; }
+          libre.value = nom;
+          dedans.push(normaliserMot(nom));
+          pose++;
+        });
+        /* Ce qui n'a pas tenu se DIT : sinon on enregistre en croyant
+           que le groupe entier est posé. */
+        showToast(sansPlace
+          ? pose + ' posé(s) — ' + sansPlace + ' sans place libre, ' +
+            'augmente le nombre de places'
+          : (pose ? pose + ' élève(s) posé(s) ✅' : 'Ils y sont déjà'));
+      });
+      r.appendChild(b);
+    });
+    zGroupes.appendChild(r);
+  };
+
   champNombre.addEventListener('input', refaireChamps);
   champHeure.addEventListener('input', majHeures);
   champDuree.addEventListener('input', majHeures);
   refaireChamps();
+  peindreGroupes();
 
   const r = document.createElement('div');
   r.className = 'btn-row';
