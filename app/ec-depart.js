@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:29 — v821 */
+/* Déployé le 04/09/2026 à 13:54 — v867 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -861,7 +861,7 @@ async function terminerCours(){
   /* Les blocs du cours précédent : sans ça, le dossier et la
      préparation de l'élève d'avant restaient affichés sous un
      champ vide, et le moniteur suivant pouvait s'y fier. */
-  ['historiqueEleve', 'preparationEleve', 'saisieDuJour',
+  ['historiqueEleve', 'saisieDuJour',
    'enteteCours', 'ficheCours'].forEach(id => {
     const z = $(id);
     if(!z) return;
