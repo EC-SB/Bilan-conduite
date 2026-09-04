@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 11:30 — v836 */
+/* Déployé le 04/09/2026 à 08:38 — v853 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -517,6 +517,42 @@ async function chargerFiches(){
 
 function ficheDe(nom){
   return trouverParNom(fichesEleves, nom);
+}
+
+/* ------------------------------------------------------------
+   VIENT-IL D'UNE AUTRE AUTO-ÉCOLE ?
+
+   Chrystel, le 4 septembre : « les cases voiture dans la fiche
+   véhicule, il faut qu'elles apparaissent seulement quand la
+   formation est autre auto-école BV ou BEA ».
+
+   La case 🚗 « déjà fait dans une autre auto-école » n'a de sens
+   que pour quelqu'un qui vient d'ailleurs. Sur nos élèves, elle
+   s'affichait sur chacune des dix-neuf lignes de la fiche véhicule,
+   pour une réponse qui est toujours non — et une case qui ne sert
+   jamais finit par être cochée par erreur.
+
+   ⚠️ SIX FORMATIONS, PAS DEUX. Chrystel a nommé les deux qu'elle
+   avait sous les yeux, mais l'école en compte six qui décrivent un
+   élève venu d'ailleurs : les AAC et les CS « autre AE » aussi. Les
+   écarter reviendrait à cacher la case exactement à ceux pour qui
+   elle est faite.
+
+   Et la case « 🏫 Vient d'une autre auto-école » de sa fiche compte
+   autant : c'est la même information dite autrement. La lire ICI,
+   une seule fois, évite qu'un écran dise oui pendant que l'autre
+   dit non.
+   ------------------------------------------------------------ */
+function vientDuneAutreAE(nom){
+  const f = ficheDe(nom);
+  if(!f) return false;
+  if(String(f.autreAE || '').trim()) return true;
+  const form = normaliserMot(f.formation || '');
+  if(!form) return false;
+  /* « autre ae » sous toutes ses formes : « Autre AE BV »,
+     « AAC BV autre AE »… La clé porte toujours ces deux mots.
+     Et « autre auto » rattrape les formations tapées à la main. */
+  return /(^| )autre ae( |$)/.test(form) || form.indexOf('autre auto') !== -1;
 }
 
 /* ------------------------------------------------------------
