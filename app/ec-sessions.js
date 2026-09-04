@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 10:08 — v861 */
+/* Déployé le 04/09/2026 à 10:50 — v862 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -96,18 +96,16 @@ function etatPlace(place, eleveBureau){
 
   const su = (typeof suiviDe === 'function') ? suiviDe(place.eleve) : {};
 
-  /* Une place à remplacer passe avant tout le reste : c'est elle
-     qu'il faut traiter en premier. */
-  if(su.aRemplacer === 'oui'){
-    return { cle:'remplacer', emoji:'🔄', texte:'À REMPLACER — place à donner',
-             couleur:'var(--red)' };
-  }
-
-  /* Le prête-nom : la place est tenue, mais on peut la reprendre
-     sans rien coûter à personne — il n'a jamais été prévenu. */
-  if(su.fantome === 'oui'){
-    return { cle:'pretenom', emoji:'👻', texte:'PRÊTE-NOM — pas prévenu',
-             couleur:'#E8A33D' };
+  /* « À remplacer » d'abord, « prête-nom » ensuite — mais la règle
+     n'est plus écrite ici : « marquePlaceExamen » (ec-bureau.js) la
+     tient pour les trois écrans qui la lisent maintenant, celui-ci,
+     la carte de 📅 Mes prochains cours et le dossier de l'élève.
+     Recopiée, elle aurait fini par ne plus dire la même chose. */
+  const marque = (typeof marquePlaceExamen === 'function')
+    ? marquePlaceExamen(place.eleve) : null;
+  if(marque){
+    return { cle: marque.cle, emoji: marque.emoji,
+             texte: marque.texte, couleur: marque.couleur };
   }
 
   /* « Tout est OK » tranche : c'est le bureau qui le dit, après
