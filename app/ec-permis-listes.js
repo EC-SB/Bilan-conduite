@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:49 — v859 */
+/* Déployé le 04/09/2026 à 10:08 — v861 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -770,10 +770,60 @@ function tableauAPlacer(liste){
    ici.
    ============================================================ */
 
-/* Le groupe d'un élève, ou '' */
+/* Le groupe d'un élève, ou '' — la CLÉ, pas le nom : voir juste en
+   dessous pourquoi les deux ne sont pas la même chose. */
 function groupeSemaineDe(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
   return String(s.groupeSemaine || '').trim();
+}
+
+/* ------------------------------------------------------------
+   ⚠️ UN GROUPE EST UNE CHOSE ; SON NOM EN EST UNE AUTRE
+
+   Chrystel, le 4 septembre : « il faut que je puisse renommer les
+   groupes pour les retrouver dans sessions examen ; là tu les
+   regroupes par semaine, il ne faut pas — il faut bien garder
+   chaque groupe de liste rendez-vous permis indépendant ».
+
+   Le défaut venait de ce que le groupe N'ÉTAIT que son nom.
+   « ✂️ Faire des groupes » numérote à l'intérieur de chaque semaine :
+   deux semaines produisent chacune un « Groupe 1 », et l'éditeur de
+   session, qui ne voyait que le nom, en faisait UN seul bouton de
+   six élèves. Renommer aurait été le seul moyen de les séparer —
+   c'est-à-dire qu'une faute de frappe aurait fusionné deux groupes.
+
+   La colonne porte donc deux choses séparées par ' ⟨⟩ ' : un
+   identifiant qu'on ne montre jamais, et le nom qu'on affiche. Deux
+   groupes ne peuvent plus se confondre, même appelés pareil, et
+   renommer ne change que le second — sans jamais déplacer personne.
+
+   Les valeurs écrites avant celle-ci (« Groupe 1 » tout court) sont
+   leur propre identifiant : elles continuent de marcher comme
+   avant, et le premier renommage — ou le premier « refaire les
+   groupes » — leur en donne un vrai.
+   ------------------------------------------------------------ */
+const SEP_GROUPE = ' ⟨⟩ ';
+
+function idGroupe(cle){
+  const v = String(cle || '');
+  const i = v.indexOf(SEP_GROUPE);
+  return i === -1 ? v : v.slice(0, i);
+}
+function libelleGroupe(cle){
+  const v = String(cle || '');
+  const i = v.indexOf(SEP_GROUPE);
+  return i === -1 ? v : v.slice(i + SEP_GROUPE.length);
+}
+function cleGroupe(id, libelle){ return id + SEP_GROUPE + libelle; }
+function nouvelIdGroupe(){
+  return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+/* Une clé d'avant n'a pas d'identifiant : on lui en donne un neuf
+   plutôt que de prendre son nom pour un identifiant — sinon deux
+   « Groupe 1 » renommés resteraient collés l'un à l'autre. */
+function idOuNeuf(cle){
+  return String(cle || '').indexOf(SEP_GROUPE) === -1
+    ? nouvelIdGroupe() : idGroupe(cle);
 }
 
 /* La boîte telle qu'on la montre : écrite si quelqu'un a tranché,
@@ -828,8 +878,12 @@ function boutonFaireGroupes(lot){
     b.textContent = '…';
     try{
       for(let i = 0; i < paquets.length; i++){
+        /* Un identifiant par paquet, partagé par ses élèves : c'est
+           lui qui fait qu'un groupe reste UN groupe, et que le
+           « Groupe 1 » d'une autre semaine ne s'y mêle pas. */
+        const cle = cleGroupe(nouvelIdGroupe(), 'Groupe ' + (i + 1));
         for(const nom of paquets[i]){
-          await majSuivi(nom, { groupeSemaine: 'Groupe ' + (i + 1) });
+          await majSuivi(nom, { groupeSemaine: cle });
         }
       }
       await chargerBureau();
@@ -959,18 +1013,46 @@ async function choisirGroupeSemaine(nom, zoneGroupes){
     .map(z => z.dataset.groupe).filter(Boolean);
   const uniques = [];
   noms.forEach(g => { if(uniques.indexOf(g) === -1) uniques.push(g); });
-  const choix = uniques.map(g => ({ val: g, lib: g }));
+  /* On choisit un groupe par son NOM et on écrit sa CLÉ : c'est tout
+     l'écart entre ce qui se lit et ce qui s'enregistre. */
+  const choix = uniques.map(g => ({ val: g, lib: libelleGroupe(g) }));
   choix.push({ val: '➕ Nouveau groupe', lib: '➕ Nouveau groupe' });
   const v = await choisirDansUneListe('Groupe de ' + nom, choix,
                                       groupeSemaineDe(nom));
   if(v === null) return;
   let vers = v;
-  if(v === '➕ Nouveau groupe') vers = 'Groupe ' + (uniques.length + 1);
+  if(v === '➕ Nouveau groupe'){
+    vers = cleGroupe(nouvelIdGroupe(), 'Groupe ' + (uniques.length + 1));
+  }
   try{
     await majSuivi(nom, { groupeSemaine: vers });
     await chargerBureau();
     redessinerBureau();
   }catch(err){ showToast('Erreur : ' + err.message); }
+}
+
+/* Renommer, c'est réécrire le NOM de tous ceux qui sont dedans, et
+   surtout PAS leur identifiant : personne ne change de groupe.
+   Chrystel : « il faut que je puisse renommer les groupes pour les
+   retrouver dans sessions examen ». */
+async function renommerGroupeSemaine(cle, noms, bouton){
+  const avant = libelleGroupe(cle);
+  const v = await demander('Nom de ce groupe — c\'est celui que tu ' +
+    'retrouveras en créant la session d\'examen :', avant, '✏️ Renommer le groupe');
+  if(v === null) return;
+  const nom = String(v).trim();
+  if(!nom || nom === avant) return;
+  const vers = cleGroupe(idOuNeuf(cle), nom);
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  try{
+    for(const n of noms) await majSuivi(n, { groupeSemaine: vers });
+    await chargerBureau();
+    showToast('Groupe renommé « ' + nom + ' » ✅');
+    redessinerBureau();
+  }catch(err){
+    showToast('Erreur : ' + err.message);
+    if(bouton){ bouton.disabled = false; bouton.textContent = '✏️'; }
+  }
 }
 
 /* ------------------------------------------------------------
@@ -988,8 +1070,11 @@ function dessinerGroupesDuLot(bs, lot, ligneEleve){
     const g = groupeSemaineDe(e.eleve);
     (parGroupe[g] = parGroupe[g] || []).push(e);
   });
+  /* On range sur ce qui se LIT — le nom — pas sur l'identifiant, qui
+     est fait pour ne jamais se voir. */
   const groupes = Object.keys(parGroupe).filter(Boolean).sort(
-    (a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+    (a, b) => libelleGroupe(a).localeCompare(libelleGroupe(b), 'fr',
+                                             { numeric: true }));
 
   /* Personne n'est groupé : rien ne change à l'écran. */
   if(!groupes.length){
@@ -1009,7 +1094,7 @@ function dessinerGroupesDuLot(bs, lot, ligneEleve){
     const h = document.createElement('div');
     h.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' +
       'font-size:12px;font-weight:700;margin:2px 0 4px;';
-    h.innerHTML = (avecTitre ? titre : '— sans groupe —') +
+    h.innerHTML = echapper(avecTitre ? libelleGroupe(titre) : '— sans groupe —') +
       ' <span style="font-weight:400;color:var(--muted);">' +
       liste.length + ' élève(s) · ' + r.texte + '</span>' +
       /* On SIGNALE SANS INTERDIRE : une voiture est manuelle ou
@@ -1019,6 +1104,21 @@ function dessinerGroupesDuLot(bs, lot, ligneEleve){
         ? ' <span style="font-weight:700;color:var(--warn-text);">' +
           '⚠️ mélange BV et BEA</span>'
         : '');
+
+    /* ✏️ RENOMMER — sur l'en-tête, là où le nom se lit. */
+    if(avecTitre){
+      const bRen = document.createElement('button');
+      bRen.type = 'button';
+      bRen.textContent = '✏️';
+      bRen.title = 'Renommer ce groupe — le nom se retrouve à la ' +
+                   'création de la session d\'examen';
+      bRen.style.cssText = 'width:auto;margin:0;padding:1px 6px;font-size:12px;' +
+        'border-radius:6px;background:var(--navy);color:var(--cream);' +
+        'border:1px solid var(--line);flex-shrink:0;';
+      bRen.addEventListener('click',
+        () => renommerGroupeSemaine(titre, liste.map(e => e.eleve), bRen));
+      h.appendChild(bRen);
+    }
     z.appendChild(h);
 
     liste.forEach(e => {
