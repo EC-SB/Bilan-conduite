@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:12 — v870 */
+/* Déployé le 04/09/2026 à 14:14 — v871 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -573,6 +573,42 @@ function blocAvantLeCours(nom, res, prep, opts){
   }
 
   return carte;
+}
+
+/* ============================================================
+   CE QUE LE BLOC LIT, ET QU'IL DOIT ALLER CHERCHER
+
+   ⚠️ LA FAUTE DÉJÀ COMMISE UNE FOIS, AILLEURS.
+
+   Tout ce que le bloc dit de l'examen — la date, le centre, le
+   résultat de l'examen blanc, et « 🔄 à remplacer » comme « 👻
+   prête-nom » — vit dans la FICHE DE SUIVI et dans les SESSIONS.
+   Or cet écran ne les chargeait pas : il se contentait de ce qu'un
+   autre écran avait pu charger avant lui.
+
+   En venant de 📅 Mes prochains cours, tout est là — cet écran-là
+   les charge. Mais en ouvrant un cours depuis la préparation, ou en
+   tapant un nom directement, le suivi pouvait être vide : le bloc
+   annonçait alors « pas de date d'examen officiel » à un élève qui
+   en a une, et l'état de sa place n'apparaissait jamais.
+
+   C'est mot pour mot ce que Chrystel avait signalé sur la carte des
+   prochains cours — « pourtant il y a bien une date d'examen de
+   prévu » — et qui a été réparé là-bas de la même façon : on ne
+   redemande que ce qu'on n'a pas, et en parallèle.
+   ============================================================ */
+async function sourcesDuBlocAvantCours(){
+  await Promise.all([
+    (typeof chargerBureau === 'function' && typeof etatBureau !== 'undefined' &&
+     !(etatBureau.suivi && etatBureau.suivi.length))
+      ? chargerBureau().catch(() => null) : Promise.resolve(),
+    (typeof chargerSessionsPermis === 'function' &&
+     typeof sessionsPermis !== 'undefined' && !sessionsPermis.length)
+      ? chargerSessionsPermis().catch(() => null) : Promise.resolve(),
+    (typeof chargerFiches === 'function' &&
+     typeof fichesEleves !== 'undefined' && !fichesEleves.length)
+      ? chargerFiches().catch(() => []) : Promise.resolve()
+  ]);
 }
 
 /* La préparation d'un élève pour ce jour-là, ou la plus récente.
