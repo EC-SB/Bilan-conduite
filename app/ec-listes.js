@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:38 — v785 */
+/* Déployé le 04/09/2026 à 14:06 — v869 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -131,7 +131,7 @@ async function ouvrirPasNiveauManuel(){
          « Examen blanc passé le … — pas le niveau ». */
       await envoyerConsigne(nom, 'examblanc',
         'Examen blanc passé le ' + (dateEnToutesLettres(d) || d) +
-        ' — pas le niveau' + (quoi ? ' : ' + quoi : '') + ' (bureau)');
+        SUITE_PAS_LE_NIVEAU + (quoi ? ' : ' + quoi : '') + ' (bureau)');
       await noterExamenBlanc(nom, 'non', dateEnToutesLettres(d) || d);
 
       document.body.removeChild(fond);
@@ -549,7 +549,7 @@ function boutonsSuiteExamBlanc(e, zone){
         'blanc ou fixer des heures.')) return;
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
-        'Examen blanc passé le ' + jour() + ' — pas le niveau');
+        'Examen blanc passé le ' + jour() + SUITE_PAS_LE_NIVEAU);
       await noterExamenBlanc(e.eleve, 'non', jour());
       showToast('Noté ✅');
       redessinerBureau();
