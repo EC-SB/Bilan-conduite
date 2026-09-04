@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 10:50 — v862 */
+/* Déployé le 04/09/2026 à 12:37 — v865 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1908,7 +1908,94 @@ function ongletPermis(corps, nom){
     passe.forEach(([t, d]) => corps.appendChild(ligneDossier(t, d)));
   }
 
+  /* La passerelle, quand la question ne s'est pas ouverte au bon
+     moment. Asynchrone : voir juste en dessous. */
+  zonePasserelleEleve(corps, nom, refaire);
+
   boutonEcranComplet(corps, '🎓 Ouvrir le suivi permis complet', 'permis');
+}
+
+/* ============================================================
+   🔀 LA PASSERELLE BEA → BV, QUAND ELLE N'A PAS ÉTÉ PROPOSÉE
+
+   Chrystel, le 4 septembre : « il est où le bouton, quand un élève
+   en BEA a eu son permis, pour dupliquer sa fiche en passerelle ? »
+
+   Il n'y en avait pas : la question s'ouvre toute seule après
+   « ✅ Permis obtenu », et une fois passée elle ne revient jamais.
+   Or elle ne s'ouvrait pas du tout pour les élèves dont la boîte
+   n'est écrite que dans leur formation (corrigé en v864) — et pour
+   ceux-là, le geste n'existait plus nulle part.
+
+   D'où ce bouton, dans son dossier, à l'endroit qu'elle a choisi.
+   Il fait EXACTEMENT la même chose : « proposerPasserelle », avec
+   sa fenêtre, son archive d'abord et son effacement en dernier.
+   Deux chemins, un seul geste.
+
+   ⚠️ « PERMIS OBTENU » EFFACE LA FICHE DE SUIVI. On ne peut donc
+   pas lire le résultat là où on le lit d'habitude : il faut la
+   feuille des Résultats, la seule trace qui survit — celle qui
+   nourrit les taux de réussite, déjà lue et gardée cinq minutes
+   par « chargerResultatsConnus ».
+
+   Et la boîte se lit par « boiteDe », PAS par ce que cette feuille
+   dit : jusqu'à la v864 elle y était consignée par la fonction
+   appauvrie, donc « BV » pour les élèves qu'on veut justement
+   rattraper. Croire la trace ici, ce serait croire l'erreur.
+   ============================================================ */
+async function zonePasserelleEleve(corps, nom, refaire){
+  if(typeof proposerPasserelle !== 'function') return;
+  /* Proposer un effacement définitif à qui ne peut que regarder,
+     c'est promettre ce que le serveur refusera. */
+  if(typeof peutModifier === 'function' && !peutModifier('eleves')) return;
+
+  const boite = (typeof boiteDe === 'function')
+    ? String(boiteDe(nom) || '').toLowerCase() : '';
+  if(boite !== 'bea') return;
+
+  /* La place est prise tout de suite, remplie après : l'ordre des
+     blocs de l'onglet ne doit pas dépendre du réseau. */
+  const zone = document.createElement('div');
+  corps.appendChild(zone);
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  let obtenu = /obtenu/i.test(String(s.resultat || ''));
+
+  if(!obtenu && typeof chargerResultatsConnus === 'function'){
+    try{
+      const connus = await chargerResultatsConnus();
+      const r = connus[normaliserMot(nom)];
+      obtenu = !!(r && /obtenu/i.test(String(r.resultat || '')));
+    }catch(e){
+      /* Résultats illisibles : on n'affiche rien plutôt que de
+         proposer un effacement sur une supposition. */
+    }
+  }
+  if(!obtenu) return;
+
+  zone.appendChild(sousTitreDossier('Passerelle BEA → BV'));
+
+  /* Déjà faite : on le DIT, au lieu de reproposer un geste qui
+     créerait une seconde fiche du même nom. */
+  const nomPass = nomFichePasserelle(nom);
+  if(typeof ficheDe === 'function' && ficheDe(nomPass)){
+    zone.appendChild(ligneDossier('✅ Sa fiche passerelle existe déjà',
+      nomPass + ' — ses prochains cours se préparent sur celle-là.',
+      'var(--accent-text)'));
+    return;
+  }
+
+  const l = ligneDossier('🔀 Permis obtenu en boîte automatique',
+    'Sa fiche peut être dupliquée en passerelle BEA → BV. Son dossier BEA ' +
+    'sera archivé sur le Drive, puis effacé — la fenêtre redit tout avant ' +
+    'de commencer, et rien n’est effacé si l’archive échoue.',
+    'var(--warn-text)');
+  actionDossier(l, '🔀 Passerelle BEA → BV', async () => {
+    await proposerPasserelle({ eleve: nom }, 'BEA');
+    if(typeof viderCaches === 'function') viderCaches(nom);
+    refaire();
+  });
+  zone.appendChild(l);
 }
 
 /* ============================================================
