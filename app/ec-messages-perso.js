@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:58 — v824 */
+/* Déployé le 04/09/2026 à 13:25 — v866 */
 /* ============================================================
    ec-messages-perso.js
    Un message épinglé à une personne, pas à un élève.
@@ -120,18 +120,66 @@ function ligneMessagePerso(m, auj){
 
   d.innerHTML =
     '<div style="font-weight:700;word-break:break-word;">' +
-      echapper(m.texte) + '</div>' +
+      (m.important ? '⚠️ ' : '') + echapper(m.texte) + '</div>' +
     '<div style="font-size:12px;color:var(--muted);margin-top:3px;">' +
       echapper(qui) +
       (m.par ? ' · écrit par ' + echapper(m.par) : '') +
+      (m.important ? '<br>⚠️ en gros cadre, refermable seulement par ' +
+                     '« ✅ J’ai bien vu »' : '') +
       (m.du ? '<br>à partir du ' + echapper(jour(m.du)) : '') +
       (m.au ? (m.du ? ' · ' : '<br>') + "jusqu'au " + echapper(jour(m.au)) : '') +
+      (m.relance ? '<br>🔁 relancé le ' + echapper(m.relance) : '') +
       (fini ? '<br>⏳ terminé' : pasCommence ? '<br>⏳ pas encore affiché' : '') +
     '</div>';
 
+  /* ── QUI L'A VU, ET QUI RESTE ──
+
+     Chrystel, le 4 septembre : le message disparaît chez celui qui
+     dit l'avoir vu, « oui SI de notre côté on voit qui a mis j'ai
+     vu ». C'est la contrepartie exacte de sa disparition — sans
+     cette ligne, un message poussé s'évanouirait sans qu'on sache
+     s'il a servi. */
+  d.appendChild(blocLecturesDuMessage(m));
+
+  const rangee = document.createElement('div');
+  rangee.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;';
+
+  /* ── 🔁 RELANCER ──
+
+     « Bien évidemment. » Elle remet le gros cadre chez ceux qui
+     n'ont pas encore répondu, et redemande l'accusé à ceux qui
+     l'avaient donné : c'est le sens d'une relance. Rien n'est
+     effacé — la lecture d'avant reste au classeur, elle ne compte
+     simplement plus. */
+  const bRel = document.createElement('button');
+  bRel.className = 'btn btn-secondary';
+  bRel.style.cssText = 'width:auto;margin:0;padding:5px 11px;font-size:12px;' +
+    'border-radius:999px;';
+  bRel.textContent = '🔁 Relancer';
+  bRel.title = 'Le remettre en gros cadre, et redemander à tout le monde ' +
+               'de dire qu’il l’a vu';
+  bRel.addEventListener('click', async () => {
+    if(!await confirmer(
+        'Relancer ce message ?\n\n' + m.texte + '\n\n' +
+        'Il repasse en ⚠️ gros cadre, et TOUT LE MONDE devra de nouveau ' +
+        'dire qu’il l’a vu — y compris ceux qui l’avaient déjà fait.',
+        'Relancer')) return;
+    bRel.disabled = true;
+    try{
+      const r = await appelPrep({ action: 'msgBandeauRelance', id: m.id });
+      if(r && r.status === 'error') throw new Error(r.message);
+      showToast('🔁 Relancé');
+      afficherMessagesPerso(true);
+    }catch(e){
+      showToast('Impossible : ' + (e.message || e));
+      bRel.disabled = false;
+    }
+  });
+  rangee.appendChild(bRel);
+
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
-  b.style.cssText = 'width:auto;margin:8px 0 0;padding:5px 11px;font-size:12px;' +
+  b.style.cssText = 'width:auto;margin:0;padding:5px 11px;font-size:12px;' +
     'border-radius:999px;';
   b.textContent = '🗑️ Retirer';
   b.addEventListener('click', async () => {
@@ -148,9 +196,81 @@ function ligneMessagePerso(m, auj){
       b.disabled = false;
     }
   });
-  d.appendChild(b);
+  rangee.appendChild(b);
+  d.appendChild(rangee);
 
   return d;
+}
+
+/* ============================================================
+   LES DESTINATAIRES D'UN MESSAGE, ET CEUX QUI N'ONT PAS RÉPONDU
+
+   ⚠️ « TOUT LE MONDE », C'EST TOUS LES COMPTES — Chrystel, le
+   4 septembre. Pas seulement ceux qui donnent des cours : le
+   relais rend les deux listes, et c'est la plus large qu'on prend
+   ici. Une personne du bureau qui ne conduit pas doit quand même
+   avoir vu le message.
+
+   Sans la liste des comptes (elle arrive avec la connexion), on ne
+   dit RIEN sur les manquants plutôt que d'annoncer « 3 sur 3 » en
+   n'ayant compté que trois noms sur cinq.
+   ============================================================ */
+function destinatairesDuMessage(m){
+  const dits = String((m && m.destinataires) || '').trim();
+  if(dits && dits !== 'tous'){
+    return dits.split('|').map(x => x.trim()).filter(Boolean);
+  }
+  const tous = (typeof comptesActifs !== 'undefined' && comptesActifs) || [];
+  return tous.map(c => (typeof c === 'string') ? c : (c && c.nom) || '')
+             .filter(Boolean);
+}
+
+function blocLecturesDuMessage(m){
+  const z = document.createElement('div');
+  z.style.cssText = 'font-size:12px;line-height:1.6;margin-top:6px;' +
+    'padding-top:6px;border-top:1px solid var(--line);';
+
+  const vus = (m && m.vus) || [];
+  const attendus = destinatairesDuMessage(m);
+
+  const aVu = nom => vus.some(v =>
+    normaliserMot(v.qui || '') === normaliserMot(nom));
+  const manquants = attendus.filter(n => !aVu(n));
+
+  if(!vus.length && !attendus.length){
+    z.style.color = 'var(--muted)';
+    z.textContent = '👀 Personne ne l’a encore dit vu.';
+    return z;
+  }
+
+  const tousVus = attendus.length && !manquants.length;
+  const tete = document.createElement('div');
+  tete.style.cssText = 'font-weight:700;color:' +
+    (tousVus ? 'var(--accent-text)' : 'var(--cream)') + ';';
+  tete.textContent = attendus.length
+    ? (tousVus ? '✅ Vu par tout le monde (' + vus.length + ')'
+               : '👀 Vu par ' + vus.length + ' / ' + attendus.length)
+    : '👀 Vu par ' + vus.length;
+  z.appendChild(tete);
+
+  if(vus.length){
+    const l = document.createElement('div');
+    l.style.color = 'var(--muted)';
+    l.textContent = vus.map(v => v.qui + (v.quand ? ' (' + v.quand + ')' : ''))
+                       .join(' · ');
+    z.appendChild(l);
+  }
+
+  /* Les manquants NOMMÉS : « 3 sur 5 » ne dit pas à qui aller
+     parler. C'est pourtant la seule chose qu'on veut savoir. */
+  if(manquants.length){
+    const q = document.createElement('div');
+    q.style.color = 'var(--warn-text)';
+    q.textContent = '⏳ en attente : ' + manquants.join(', ');
+    z.appendChild(q);
+  }
+
+  return z;
 }
 
 /* ------------------------------------------------------------
@@ -245,6 +365,32 @@ function formulaireMessagePerso(){
   txt.style.cssText = 'width:100%;';
   f.appendChild(txt);
 
+  /* ── ⚠️ IMPORTANT : LE GROS CADRE ──
+
+     Chrystel : « deux niveaux, avec la case ». Un message ordinaire
+     reste une ligne du bandeau ; un message important prend le
+     cadre du rappel de prise des places, et ne se referme QUE par
+     « ✅ J'ai bien vu ». Si tout était important, plus rien ne le
+     serait — c'est pourquoi c'est une case, et pas le défaut. */
+  let important = false;
+  const bImp = document.createElement('button');
+  bImp.type = 'button';
+  bImp.className = 'btn btn-secondary';
+  bImp.style.cssText = 'width:auto;margin:8px 0 2px;padding:6px 12px;' +
+    'font-size:12px;border-radius:999px;';
+  const peindreImp = () => {
+    bImp.textContent = (important ? '⚠️ Important' : '⬜ Message ordinaire');
+    bImp.style.background = important ? 'var(--red)' : '';
+    bImp.style.color = important ? 'var(--navy-deep)' : '';
+    bImp.style.borderColor = important ? 'var(--red)' : '';
+    bImp.style.fontWeight = important ? '700' : '';
+  };
+  bImp.title = 'Un message important s’affiche en gros cadre et ne peut se ' +
+               'refermer qu’en disant qu’on l’a vu';
+  bImp.addEventListener('click', () => { important = !important; peindreImp(); });
+  peindreImp();
+  f.appendChild(bImp);
+
   /* Les dates, facultatives */
   const dl = document.createElement('div');
   dl.style.cssText = 'display:flex;gap:8px;';
@@ -277,6 +423,7 @@ function formulaireMessagePerso(){
         action: 'msgBandeauSet',
         destinataires: pourTous ? 'tous' : Object.keys(choisis).join('|'),
         texte: texte,
+        important: important ? 'oui' : '',
         du: dl.querySelector('.mpDu').value,
         au: dl.querySelector('.mpAu').value,
         par: ACCES.moniteur || ''
