@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 13:03 — v838 */
+/* Déployé le 04/09/2026 à 08:25 — v851 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -850,9 +850,20 @@ if($('prepTiroir')){
    sur ces bilans-là n'a pas de sens.
    ============================================================ */
 /* Ces bilans se remplissent à la main : dicter un tableau de
-   notes n a pas de sens. */
+   notes n a pas de sens.
+
+   ⚠️ « prefecture » MANQUAIT ICI. Le modèle ♿ Présentation à la
+   préfecture porte pourtant « manuelSeul:true » dans ec-modeles.js —
+   mais ce drapeau n'est lu NULLE PART : c'est cette liste-ci qui
+   agit. Résultat : sur ce bilan, le micro restait proposé, le bouton
+   « à la main » n'était pas mis en avant et l'écran ne disait pas
+   « Ce bilan se remplit à la main », alors qu'il n'y a aucun cours
+   dicté ce jour-là.
+
+   Deux endroits pour dire la même chose, et c'est celui qu'on ne
+   lisait pas qui portait la vérité. */
 const MODELES_SANS_VOCAL = ['examen-blanc', 'examen-officiel', 'rdv-post',
-                            'handicap'];
+                            'handicap', 'prefecture'];
 
 function adapterAuModele(){
   const cle = $('modele') ? $('modele').value : '';
