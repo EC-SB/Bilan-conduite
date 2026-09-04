@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 10:50 — v862 */
+/* Déployé le 04/09/2026 à 12:28 — v863 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -835,40 +835,6 @@ async function afficherPrepares(recharger, silencieux){
                         passe ? '⚠️ pas encore enregistré' : ''].filter(Boolean).join(' · ');
     if(passe) sous.style.color = 'var(--warn-text)';
 
-    /* ------------------------------------------------------------
-       AU BOUT DE LA LIGNE : PRÊTE-NOM, OU PLACE À REMPLACER
-
-       Chrystel, le 4 septembre : « quand il y a un examen officiel
-       de prévu, est-ce qu'au bout tu peux mettre si l'élève est
-       coché comme à remplacer ou en prête-nom, pour que le moniteur
-       soit au courant ».
-
-       Ces deux cases ne se cochent QUE sur quelqu'un qui tient une
-       place d'examen — les poser est le geste par lequel le bureau
-       place l'élève, et « ✅ Permis obtenu » comme « 🚫 Ne l'a pas
-       passé » les effacent. La mention ne s'affiche donc jamais
-       sur un élève qui n'a rien à passer, et il n'y a pas à la
-       réserver aux seules cartes d'examen : le moniteur qui donne
-       la leçon de la veille a la même raison de le savoir.
-
-       Elle est LUE, jamais écrite : la fiche de suivi reste le seul
-       endroit où ces deux cases se posent. */
-    const marquePlace = (typeof marquePlaceExamen === 'function')
-      ? marquePlaceExamen(cours.eleve) : null;
-    if(marquePlace){
-      const m = document.createElement('span');
-      /* Un contour, pas un fond plein : la couleur est fixe pour le
-         prête-nom, et un texte posé dessus ne serait lisible que
-         dans l'un des deux thèmes. */
-      m.style.cssText = 'margin-left:7px;padding:1px 7px;border-radius:7px;' +
-        'font-weight:800;font-size:11.5px;white-space:nowrap;' +
-        'color:' + marquePlace.couleur + ';' +
-        'border:1px solid ' + marquePlace.couleur + ';';
-      m.textContent = marquePlace.emoji + ' ' + marquePlace.court;
-      m.title = marquePlace.long;
-      sous.appendChild(m);
-    }
-
     meta.appendChild(nom);
     /* La note, telle qu'elle est écrite — et rien de plus.
 
@@ -1293,6 +1259,52 @@ async function afficherPrepares(recharger, silencieux){
       }
       meta.appendChild(n);
     }
+
+    /* ------------------------------------------------------------
+       PRÊTE-NOM, OU PLACE À REMPLACER — DERRIÈRE LA LIGNE D'EXAMEN
+
+       Chrystel, le 4 septembre : « quand il y a un examen officiel
+       de prévu, est-ce qu'au bout tu peux mettre si l'élève est
+       coché comme à remplacer ou en prête-nom, pour que le moniteur
+       soit au courant ».
+
+       Puis, la capture à l'appui : « mets-le juste derrière la
+       partie examen officiel ; ici on a l'impression qu'il faut
+       remplacer son cours ». Je l'avais posé au bout de la ligne du
+       type de bilan — « Conduite — Boîte automatique · BEA ». Une
+       mention accrochée à cette ligne-là parle du COURS. C'est de
+       la place d'examen qu'elle parle, donc elle vient après la
+       note, où la ligne « EXAMEN OFFICIEL PRÉVU LE … » est écrite,
+       et elle dit « place » en toutes lettres.
+
+       Ces deux cases ne se cochent QUE sur quelqu'un qui tient une
+       place d'examen — les poser est le geste par lequel le bureau
+       le place, et « ✅ Permis obtenu » comme « 🚫 Ne l'a pas
+       passé » les effacent. Elle est LUE, jamais écrite : la fiche
+       de suivi reste le seul endroit où ces deux cases se posent.
+       ------------------------------------------------------------ */
+    const marquePlace = (typeof marquePlaceExamen === 'function')
+      ? marquePlaceExamen(cours.eleve) : null;
+    if(marquePlace){
+      const m = document.createElement('span');
+      /* Un contour, pas un fond plein : la couleur est fixe pour le
+         prête-nom, et un texte posé dessus ne serait lisible que
+         dans l'un des deux thèmes.
+
+         « display:inline-block » : la feuille de style met TOUS les
+         span de la carte en « block » (.history-item .meta span).
+         Le cadre s'étirait donc sur toute la largeur — ce qui le
+         faisait justement lire comme un bandeau sur le cours
+         entier, au lieu d'une étiquette. */
+      m.style.cssText = 'display:inline-block;margin-top:5px;' +
+        'padding:2px 9px;border-radius:8px;font-weight:800;font-size:12px;' +
+        'color:' + marquePlace.couleur + ';' +
+        'border:1px solid ' + marquePlace.couleur + ';';
+      m.textContent = marquePlace.emoji + ' ' + marquePlace.court;
+      m.title = marquePlace.long;
+      meta.appendChild(m);
+    }
+
     row.appendChild(meta);
 
     const actions = document.createElement('div');
