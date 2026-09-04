@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 07:41 — v819 */
+/* Déployé le 04/09/2026 à 07:42 — v849 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1970,6 +1970,34 @@ function ouvrirEditeurSession(sess){
            et le message Messenger. */
         if(typeof majSuivi === 'function'){
           await Promise.all(noms.filter(Boolean).map(nom =>
+            majSuivi(nom, { datePermis: date,
+                            centre: boite.querySelector('#seCentre').value.trim() })
+              .catch(() => null)));
+        }
+      }
+
+      /* ⚠️ DÉPLACER UNE SESSION DÉPLACE SES ÉLÈVES.
+
+         Cette fenêtre ne réécrivait la date que des noms TAPÉS dans
+         ses champs. Un élève déjà installé sur la session — mis là
+         depuis la liste, ou repris d'une autre date — n'était pas
+         dans cette boucle : la session partait au 3 septembre et sa
+         fiche restait au 2, ou n'avait plus de date du tout.
+
+         Il tombait alors entre deux listes : « dejaPlace » voyait
+         sa place et l'écartait de RDV Permis, tandis que les examens
+         passés, qui lisaient sa fiche, ne lui réclamaient rien.
+         C'est ce qui est arrivé à Romain Kikela le 3 septembre.
+
+         Ceux qu'on vient d'écrire ci-dessus sont sautés : on ne
+         récrit pas deux fois la même chose dans le même geste. */
+      if(idS && sess && typeof majSuivi === 'function'){
+        const dejaEcrits = noms.filter(Boolean).map(x => normaliserMot(x));
+        const aSuivre = (sess.eleves || [])
+          .map(p => String(p.eleve || '').trim())
+          .filter(nom => nom && dejaEcrits.indexOf(normaliserMot(nom)) === -1);
+        if(aSuivre.length){
+          await Promise.all(aSuivre.map(nom =>
             majSuivi(nom, { datePermis: date,
                             centre: boite.querySelector('#seCentre').value.trim() })
               .catch(() => null)));
