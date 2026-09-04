@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 13:54 — v867 */
+/* Déployé le 04/09/2026 à 14:06 — v869 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1971,6 +1971,23 @@ const ETAT_EB_IMPOSSIBLE = grasNote("NE PAS PRÉVOIR D'EXAMEN BLANC");
 /* Quand personne n'a rien dit. Une ligne quand même : sans elle on
    ne distingue pas « pas encore évoqué » de « sans objet ». */
 const ETAT_EB_RIEN      = grasNote("EXAMEN BLANC PAS ENCORE ÉVOQUÉ");
+/* ⚠️ « PAS LE NIVEAU » NE VOYAGE PLUS SEUL — Chrystel, le
+   4 septembre : « quand un examen blanc n'a pas le niveau, il faut
+   bien écrire pas le niveau ET ajouter en majuscules FAIRE LE POINT
+   À CHAQUE LEÇON ».
+
+   Elle est collée au MÊME segment que « pas le niveau », jamais
+   posée à côté : un segment séparé n'appartiendrait à aucune
+   famille de note, passerait donc pour un mot de moniteur, et se
+   réinstallerait derrière le 📌 de tous les cours suivants — la
+   faute que « aRenseigner » a servi à réparer.
+
+   Écrite ici une seule fois : le questionnaire, le bureau et les
+   écrans qui la relisent y puisent tous. */
+const CONSIGNE_PAS_LE_NIVEAU = 'FAIRE LE POINT À CHAQUE LEÇON';
+const SUITE_PAS_LE_NIVEAU = ' — pas le niveau — ' +
+  grasNote(CONSIGNE_PAS_LE_NIVEAU);
+
 const ETAT_SIMU         = grasNote('SIMULATEUR NUIT ET RISQUES');
 const ETAT_RDV_POST     = grasNote('RDV POST-PERMIS');
 const ETAT_REPASSAGE    = grasNote('REPASSAGE');
@@ -5045,7 +5062,7 @@ function ajouterSuite(etats, permis, mots, q){
       etats.push(tete + ' — encore ' + (k || '❓') +
                  ' leçon' + (parseInt(k, 10) > 1 ? 's' : '') + ' avant examen');
     }else{
-      etats.push(tete + ' — pas le niveau');
+      etats.push(tete + SUITE_PAS_LE_NIVEAU);
     }
   }else if(q.examBlanc === 'passe'){
     const tete = '🅱️ ' + numero + ETAT_EB_PASSE;
@@ -5056,7 +5073,7 @@ function ajouterSuite(etats, permis, mots, q){
     /* « Pas le niveau » prime sur tout chiffre : c'est la conclusion
        qui décide de la suite, et le bureau la cherche en premier. */
     const conclusion =
-        (String(q.ebNiveau || '') === 'non') ? ' — pas le niveau'
+        (String(q.ebNiveau || '') === 'non') ? SUITE_PAS_LE_NIVEAU
       : (hEB === '0')                        ? ' — plus que les 3h avant examen'
       : hEB                                  ? ' — ' + hEB + ' + 3h'
       : n                                    ? ' — ' + n + ' leçon' + pl(n) +
