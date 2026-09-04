@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:21 — v840 */
+/* Déployé le 04/09/2026 à 07:34 — v848 */
 /* ============================================================
    ec-places.js
    Réglage des mois, semaines et jours ouverts.
@@ -30,7 +30,100 @@
    lui — il n'y a jamais rien à nettoyer.
    ------------------------------------------------------------ */
 function moisVide(iso){
-  return { mois: iso || '', total:'', q1:'', q2:'', p1:'', p2:'', semaines: [] };
+  return { mois: iso || '', total:'', q1:'', q2:'', p1:'', p2:'',
+           s1:'', s2:'', etp:'', mT:'', m1:'', m2:'', semaines: [] };
+}
+
+/* ------------------------------------------------------------
+   LE CALCUL DE LA PRÉFECTURE — « s1 », « s2 », « etp »
+
+   Chrystel, le 4 septembre. Le mail de la préfecture donne des
+   SEUILS CUMULÉS, en deux temps :
+
+     « Pour la catégorie B, le seuil est désormais fixé à 5 avec
+       une publication en deux temps :
+         · Mardi 8 septembre  : seuil de 2,5
+         · Mardi 15 septembre : seuil porté à 5 »
+
+   Donc la 2ᵉ quinzaine ne vaut pas 5 : elle vaut 5 − 2,5. « Pour
+   certains c'est compliqué de faire une soustraction ici au
+   bureau » — c'est la raison d'être de ces deux cases. On RECOPIE
+   ce que le mail écrit (2,5 puis 5), la machine soustrait.
+
+   Puis chaque tranche est multipliée par le total des ETP B de
+   l'école, relevé sur le site rendez-vous permis. Un seul ETP pour
+   les deux centres ; il change tous les deux ou trois mois.
+
+   ⚠️ CHAQUE MOIS GARDE L'ETP AVEC LEQUEL IL A ÉTÉ CALCULÉ (« m.etp »),
+   et non l'ETP du jour. Sinon, changer l'ETP en décembre
+   réécrirait le nombre de places d'octobre — des places déjà
+   prises. Quand les deux diffèrent, l'écran le DIT et propose de
+   recalculer ; il ne le fait jamais tout seul.
+   ------------------------------------------------------------ */
+
+/* Un nombre saisi à la française : « 2,5 » vaut 2,5. null si vide. */
+function nombreFr(v){
+  const t = String(v == null ? '' : v).replace(',', '.').trim();
+  if(!t) return null;
+  const n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+/* Écrit un nombre à la française : 8.75 → « 8,75 » */
+function texteFr(n){
+  if(n == null || isNaN(n)) return '';
+  return String(Math.round(n * 1e6) / 1e6).replace('.', ',');
+}
+
+/* L'arrondi retenu par Chrystel : au plus proche, la moitié vers
+   le haut. « 8,51 = 9, 8,49 = 8 » — et donc 8,5 = 9.
+
+   ⚠️ Le passage par 1e6 n'est pas de la coquetterie : en virgule
+   flottante, 2,5 × 3,4 vaut 8,499999999999998. Sans lui, ce cas
+   tomberait à 8 alors que la règle dit 9. */
+function arrondiPlaces(x){
+  if(x == null || isNaN(x)) return null;
+  return Math.floor(Math.round(x * 1e6) / 1e6 + 0.5);
+}
+
+/* Le calcul complet d'un mois, ou null tant qu'il manque un des
+   trois nombres. Aucune écriture ici : cette fonction ne fait que
+   dire ce que le calcul donne — c'est l'écran qui décide d'en
+   tenir compte ou de garder la valeur tapée à la main. */
+function calculPlacesDuMois(m){
+  if(!m) return null;
+  const s1 = nombreFr(m.s1), s2 = nombreFr(m.s2), etp = nombreFr(m.etp);
+  if(s1 == null || s2 == null || etp == null) return null;
+  const tranche2 = s2 - s1;
+  const exact1 = s1 * etp, exact2 = tranche2 * etp, exactTotal = s2 * etp;
+  const q1 = arrondiPlaces(exact1), q2 = arrondiPlaces(exact2);
+  return {
+    s1: s1, s2: s2, etp: etp, tranche2: tranche2,
+    exact1: exact1, exact2: exact2, exactTotal: exactTotal,
+    q1: q1, q2: q2,
+    total: q1 + q2,
+    totalDuSeuil: arrondiPlaces(exactTotal),
+    /* Le mail lu à l'envers : 2,5 en second et 5 en premier. Ça
+       donnerait une 2ᵉ quinzaine négative — on le dit au lieu de
+       poser un nombre absurde dans la case. */
+    negatif: tranche2 < 0
+  };
+}
+
+/* Pose le résultat du calcul dans les cases restées automatiques.
+
+   ⚠️ Elle ne touche JAMAIS une case marquée « à la main ». C'est la
+   règle demandée le 4 septembre : « laisse-moi la possibilité de
+   mettre à la main quand même le résultat des calculs », et rien ne
+   réécrit cette valeur tout seul — ni un seuil corrigé, ni un
+   rechargement, ni un changement d'ETP. Seul le ↩︎ rend la case au
+   calcul. */
+function poserCalcul(m){
+  const c = calculPlacesDuMois(m);
+  if(!c || c.negatif) return;
+  if(String(m.m1 || '') !== 'main') m.q1 = String(c.q1);
+  if(String(m.m2 || '') !== 'main') m.q2 = String(c.q2);
+  if(String(m.mT || '') !== 'main') m.total = String(c.total);
 }
 
 /* La date de prise réglée à la main pour une quinzaine d'un mois,
@@ -60,10 +153,18 @@ function placesDeLaQuinzaine(isoMois, quinzaine){
 }
 
 function chargerPlaces(brut){
-  placesConfig = { mois: [] };
+  placesConfig = { mois: [], etp: '' };
   try{
     const o = brut ? JSON.parse(brut) : null;
     if(!o || typeof o !== 'object') return;
+
+    /* ⚠️ L'ETP DE L'ÉCOLE SE RELIT AUSSI.
+       Il vit à la racine, à côté de « mois ». Oublier cette ligne
+       le ferait disparaître au premier rechargement : on l'aurait
+       saisi, enregistré, et il ne serait plus là — sans message,
+       sans erreur, exactement le genre de perte qu'on répare
+       ailleurs dans ce dossier. */
+    if(o.etp != null) placesConfig.etp = String(o.etp);
 
     if(Array.isArray(o.mois)){
       placesConfig.mois = o.mois.map(m => Object.assign(moisVide(), m,
@@ -300,6 +401,35 @@ function afficherPlaces(stats){
   function dessinerTout(){
     corps.innerHTML = '';
 
+    /* ---- L'ETP de l'école : une seule case, tout en haut ----
+       Un seul ETP pour Saint-Brieuc et Loudéac (Chrystel, 4 septembre),
+       relevé sur le site rendez-vous permis, changé tous les deux ou
+       trois mois. Il vit ICI et nulle part ailleurs : le retaper dans
+       chaque mois, c'est la même chose écrite à douze endroits — et
+       c'est le mauvais qui finirait par gagner. */
+    const zEtp = document.createElement('div');
+    zEtp.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+      'padding:12px;margin-bottom:14px;';
+    zEtp.innerHTML =
+      '<label>Total de nos ETP B <span style="font-weight:400;color:var(--muted);">' +
+        '(site rendez-vous permis)</span></label>' +
+      '<input type="text" class="etpEcole" inputmode="decimal" value="' +
+        (placesConfig.etp || '') + '">' +
+      '<div style="font-size:11px;color:var(--muted);line-height:1.5;margin-top:2px;">' +
+        'Sert à tous les mois. Le changer ici ne retouche aucun mois déjà ' +
+        'calculé — chaque mois garde l’ETP avec lequel il a été fait, et ' +
+        'te propose de le recalculer si tu veux.</div>';
+    /* Chaque mois dépose ici de quoi se repeindre. Changer l'ETP
+       touche tous les mois à la fois — mais en repeignant, pas en
+       redessinant : sinon la case qu'on vient de quitter disparaît
+       sous le doigt qui allait ailleurs. */
+    const repeindre = [];
+    zEtp.querySelector('.etpEcole').addEventListener('input', e => {
+      placesConfig.etp = e.target.value.trim();
+      repeindre.forEach(f => { try{ f(); }catch(err){} });
+    });
+    corps.appendChild(zEtp);
+
     placesConfig.mois.forEach((m, im) => {
       const bloc = document.createElement('div');
       bloc.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px;';
@@ -327,17 +457,73 @@ function afficherPlaces(stats){
       tete.appendChild(bGen);
       bloc.appendChild(tete);
 
+      /* ---- Ce que dit le mail de la préfecture ---- */
+      const mail = document.createElement('div');
+      mail.style.cssText = 'border:1px dashed var(--line);border-radius:10px;' +
+        'padding:10px;margin-bottom:10px;';
+      mail.innerHTML =
+        '<div style="font-size:13px;font-weight:700;margin-bottom:6px;">' +
+          '📬 Ce que dit le mail de la préfecture</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<div style="flex:1;"><label>Seuil du 1ᵉʳ mardi</label>' +
+            '<input type="text" class="mS1" inputmode="decimal" value="' + (m.s1 || '') + '"></div>' +
+          '<div style="flex:1;"><label>Seuil total (2ᵉ mardi)</label>' +
+            '<input type="text" class="mS2" inputmode="decimal" value="' + (m.s2 || '') + '"></div>' +
+        '</div>' +
+        /* On recopie, on ne calcule pas. C'est toute la demande. */
+        '<div style="font-size:11px;color:var(--muted);line-height:1.5;margin-top:2px;">' +
+          'Recopie les deux chiffres du mail tels quels — par exemple ' +
+          '<strong>2,5</strong> puis <strong>5</strong>. Le second est le ' +
+          '<strong>total</strong> : la soustraction est faite ici.</div>';
+      bloc.appendChild(mail);
+
+      /* Le détail du calcul, en toutes lettres — pour qu'on puisse le
+         refaire à la main et voir où ça diverge, plutôt que de croire
+         une machine sur parole. */
+      const det2 = document.createElement('div');
+      det2.style.cssText = 'font-size:12px;line-height:1.7;margin:-4px 0 10px;padding:0 2px;';
+      bloc.appendChild(det2);
+
+      const bMaj = document.createElement('button');
+      bMaj.className = 'btn btn-secondary';
+      bMaj.style.cssText = 'margin-bottom:10px;padding:8px;font-size:12px;';
+      bMaj.hidden = true;
+      bMaj.addEventListener('click', () => {
+        m.etp = String(placesConfig.etp || '').trim();
+        poserCalcul(m);
+        peindreCalcul();
+      });
+      bloc.appendChild(bMaj);
+
+      /* ---- Les nombres retenus ---- */
+      /* « calculé : 9 ↩︎ » sous une case tapée à la main : la valeur
+         de Chrystel reste, et le calcul se voit à côté sans jamais
+         la remplacer. Une seule source pour tout le reste de
+         l'application — « m.q1 » — et une trace de sa provenance.
+
+         La ligne est TOUJOURS dans la page, montrée ou cachée. La
+         fabriquer à la volée obligerait à redessiner tout le
+         réglage à chaque frappe — et redessiner, c'est détruire la
+         case où le doigt allait se poser. */
+      const sousCase = drapeau =>
+        '<div class="rappelCalc" data-drapeau="' + drapeau + '" hidden ' +
+        'style="font-size:11px;color:var(--warn-text);margin-top:-6px;' +
+        'margin-bottom:8px;cursor:pointer;"></div>';
+
       const grille = document.createElement('div');
       grille.innerHTML =
         '<label>Places du mois</label><input type="text" class="mTotal" inputmode="numeric" value="' +
           (m.total || '') + '">' +
+        sousCase('mT') +
         '<div style="display:flex;gap:8px;">' +
           '<div style="flex:1;"><label>1ʳᵉ quinzaine</label>' +
             '<input type="text" class="mQ1" inputmode="numeric" value="' + (m.q1 || '') + '">' +
+            sousCase('m1') +
             '<label style="margin-top:6px;">Prise le</label>' +
             '<input type="date" class="mP1" value="' + (m.p1 || '') + '"></div>' +
           '<div style="flex:1;"><label>2ᵉ quinzaine</label>' +
             '<input type="text" class="mQ2" inputmode="numeric" value="' + (m.q2 || '') + '">' +
+            sousCase('m2') +
             '<label style="margin-top:6px;">Prise le</label>' +
             '<input type="date" class="mP2" value="' + (m.p2 || '') + '"></div>' +
         '</div>' +
@@ -348,9 +534,129 @@ function afficherPlaces(stats){
           'margin-top:2px;">Laisse « Prise le » vide pour garder la règle : ' +
           '1ᵉʳ et 2ᵉ mardi du mois précédent. Ne la remplis que si la ' +
           'préfecture décale.</div>';
-      grille.querySelector('.mTotal').addEventListener('input', e => { m.total = e.target.value.trim(); });
-      grille.querySelector('.mQ1').addEventListener('input', e => { m.q1 = e.target.value.trim(); });
-      grille.querySelector('.mQ2').addEventListener('input', e => { m.q2 = e.target.value.trim(); });
+
+      /* ------------------------------------------------------------
+         REPEINDRE SANS REDESSINER
+
+         Tout ce qui suit se met à jour à chaque frappe, EN PLACE.
+         Un « dessinerTout() » serait plus court à écrire — et il
+         détruirait les champs pendant qu'on tape dedans : le curseur
+         saute, et sur téléphone le clavier se referme. On repeint
+         donc le texte et les valeurs, jamais la structure.
+         ------------------------------------------------------------ */
+      const chQ = {
+        mT: grille.querySelector('.mTotal'),
+        m1: grille.querySelector('.mQ1'),
+        m2: grille.querySelector('.mQ2')
+      };
+      const cleDuDrapeau = { mT:'total', m1:'q1', m2:'q2' };
+
+      function peindreCalcul(){
+        const calc = calculPlacesDuMois(m);
+        const etpEcole = String(placesConfig.etp || '').trim();
+        const etpMois = String(m.etp || '').trim();
+        const etpDecale = !!(calc && etpEcole && etpMois && etpEcole !== etpMois);
+
+        /* Le détail du calcul, en toutes lettres — pour qu'on puisse
+           le refaire à la main et voir où ça diverge, plutôt que de
+           croire une machine sur parole. */
+        if(!calc){
+          det2.style.color = 'var(--muted)';
+          det2.textContent = etpEcole
+            ? 'Remplis les deux seuils pour que le calcul se fasse.'
+            : 'Remplis les deux seuils, et l’ETP B tout en haut de ce réglage.';
+        }else if(calc.negatif){
+          det2.style.color = 'var(--warn-text)';
+          det2.innerHTML = '⚠️ Le seuil total (' + texteFr(calc.s2) +
+            ') est <strong>inférieur</strong> au seuil du 1ᵉʳ mardi (' +
+            texteFr(calc.s1) + '). Les deux chiffres sont sans doute ' +
+            'inversés : le second doit être le total. Rien n’a été calculé.';
+        }else{
+          det2.style.color = '';
+          det2.innerHTML =
+            '1ʳᵉ quinzaine : ' + texteFr(calc.s1) + ' × ' + texteFr(calc.etp) +
+              ' = ' + texteFr(calc.exact1) + ' → <strong>' + calc.q1 + '</strong><br>' +
+            '2ᵉ quinzaine : (' + texteFr(calc.s2) + ' − ' + texteFr(calc.s1) + ') × ' +
+              texteFr(calc.etp) + ' = ' + texteFr(calc.exact2) +
+              ' → <strong>' + calc.q2 + '</strong>' +
+            /* Deux arrondis ne font pas toujours le même total qu'un
+               seul : 7,5 + 7,5 donne 8 + 8 = 16, là où 15 arrondi en
+               fait 15. On le DIT, on ne le corrige pas — c'est à elle
+               de savoir ce que la préfecture accepte. */
+            (calc.totalDuSeuil !== calc.total
+              ? '<br><span style="color:var(--warn-text);">⚠️ Pris d’un bloc, le seuil ' +
+                'total donnerait <strong>' + calc.totalDuSeuil + '</strong> places (' +
+                texteFr(calc.s2) + ' × ' + texteFr(calc.etp) + ' = ' +
+                texteFr(calc.exactTotal) + '), alors que les deux quinzaines arrondies ' +
+                'en font <strong>' + calc.total + '</strong> — deux arrondis au lieu ' +
+                'd’un. À toi de trancher.</span>'
+              : '') +
+            (etpDecale
+              ? '<br><span style="color:var(--warn-text);">⚠️ Ce mois a été calculé avec ' +
+                'un ETP de <strong>' + texteFr(nombreFr(etpMois)) + '</strong> ; l’école ' +
+                'est aujourd’hui à <strong>' + texteFr(nombreFr(etpEcole)) +
+                '</strong>.</span>'
+              : '');
+        }
+
+        bMaj.hidden = !etpDecale;
+        if(etpDecale){
+          bMaj.textContent = '🔁 Recalculer ce mois avec l’ETP actuel (' +
+            texteFr(nombreFr(etpEcole)) + ')';
+        }
+
+        /* Les valeurs, et le rappel du calcul sous celles reprises à
+           la main. On ne touche jamais au champ où le doigt est posé. */
+        const bon = calc && !calc.negatif ? calc : null;
+        Object.keys(chQ).forEach(drapeau => {
+          const champ = chQ[drapeau];
+          const attendu = !bon ? null
+            : (drapeau === 'mT' ? bon.total : drapeau === 'm1' ? bon.q1 : bon.q2);
+          if(champ !== document.activeElement) champ.value = m[cleDuDrapeau[drapeau]] || '';
+          const rappel = grille.querySelector('.rappelCalc[data-drapeau="' + drapeau + '"]');
+          if(!rappel) return;
+          const aLaMain = String(m[drapeau] || '') === 'main';
+          rappel.hidden = !(aLaMain && attendu != null);
+          if(!rappel.hidden){
+            rappel.innerHTML = '✏️ à la main · calculé : <strong>' + attendu +
+              '</strong> ↩︎';
+          }
+        });
+      }
+
+      /* Taper dans une case, c'est la reprendre à la main : le calcul
+         ne la touchera plus tant qu'on n'a pas appuyé sur ↩︎. */
+      Object.keys(chQ).forEach(drapeau => {
+        chQ[drapeau].addEventListener('input', e => {
+          m[cleDuDrapeau[drapeau]] = e.target.value.trim();
+          m[drapeau] = 'main';
+          peindreCalcul();
+        });
+      });
+
+      grille.querySelectorAll('.rappelCalc').forEach(el => {
+        el.addEventListener('click', () => {
+          m[el.dataset.drapeau] = '';
+          poserCalcul(m);
+          peindreCalcul();
+        });
+      });
+
+      /* Les seuils : on recalcule, mais on ne touche qu'aux cases
+         restées automatiques. */
+      ['mS1', 'mS2'].forEach((cls, i) => {
+        mail.querySelector('.' + cls).addEventListener('input', e => {
+          m[i === 0 ? 's1' : 's2'] = e.target.value.trim();
+          /* Le mois se fige sur l'ETP du jour au moment où on le
+             calcule — pas sur celui de décembre prochain. */
+          if(!String(m.etp || '').trim()) m.etp = String(placesConfig.etp || '').trim();
+          poserCalcul(m);
+          peindreCalcul();
+        });
+      });
+
+      peindreCalcul();
+      repeindre.push(peindreCalcul);
       /* « input » ET « change » : une date tapée au clavier plutôt
          que choisie dans le calendrier ne déclenche « change »
          qu'en quittant le champ — et on quitte le champ en appuyant
