@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:29 — v841 */
+/* Déployé le 04/09/2026 à 08:25 — v851 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -73,7 +73,19 @@ const ONGLETS_ELEVE = [
   { cle:'fiche',    emoji:'📇', titre:'Fiche',       section:'eleves' },
   { cle:'cours',    emoji:'📚', titre:'Cours',       section:'recherche' },
   { cle:'permis',   emoji:'🎓', titre:'Permis',      section:'permis' },
-  { cle:'acces',    emoji:'🔑', titre:'Accès',       section:'proccorriger' },
+  /* ⚠️ « acces_eleves », PAS « proccorriger ».
+
+     Le serveur exige « acces_eleves » sur les quatre actions des
+     codes élèves depuis la v818 ; cet onglet, lui, était resté sur
+     le droit d'avant. Un compte ayant « proccorriger » sans
+     « acces_eleves » voyait donc l'onglet, l'ouvrait — et se prenait
+     un refus. L'écran promettait ce que le serveur refusait, et
+     c'est le pire des deux mondes : la porte a l'air ouverte.
+
+     Corriger une procédure et redonner son code à une famille sont
+     deux métiers différents : c'est pour cela qu'ils ont été
+     séparés en v818. */
+  { cle:'acces',    emoji:'🔑', titre:'Accès',       section:'acces_eleves' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
   /* En lecture seule — voir la note ci-dessus. Il suit le droit du
      cours : qui peut lire un bilan peut lire ce qui l'a produit. */
