@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:06 — v869 */
+/* Déployé le 04/09/2026 à 14:12 — v870 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -154,7 +154,20 @@ function lignesEtatAvantCours(nom, note){
     ? noteEnClair(note || '') : String(note || '');
   const a = (typeof analyserNote === 'function') ? (analyserNote(clair) || {}) : {};
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-  const jour = iso => (typeof jourFr === 'function') ? jourFr(iso) : iso;
+  /* ⚠️ EN TOUTES LETTRES, COMME PARTOUT AILLEURS. « 29/08/2026 »
+     est une date de machine ; la note du moniteur écrit « le samedi
+     29 août 2026 », et c'est ce qu'il cherche des yeux. Les dates
+     arrivent tantôt en ISO (la fiche de suivi), tantôt en français
+     (la note) : on essaie les deux avant de renoncer. */
+  const jour = v => {
+    const t = String(v || '').trim();
+    if(!t) return '';
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(t)
+      ? t : ((typeof dateFrVersIso === 'function') ? dateFrVersIso(t) : '');
+    const lettres = (iso && typeof dateEnToutesLettres === 'function')
+      ? dateEnToutesLettres(iso) : '';
+    return lettres || ((typeof jourFr === 'function') ? jourFr(t) : t);
+  };
 
   const out = [];
 
@@ -210,6 +223,21 @@ function lignesEtatAvantCours(nom, note){
                couleur:'var(--warn-text)' });
   }else if(a.permis === 'aprevoir' || s.aPlanifier === 'oui'){
     out.push({ emoji:'🎓', texte:"Date d'examen à prévoir",
+               couleur:'var(--warn-text)' });
+  }else{
+    /* ⚠️ ET QUAND IL N'Y A RIEN, ON LE DIT.
+
+       Chrystel, le 4 septembre : « il me manque la partie examen
+       officiel ». La note l'écrivait — « PAS DE DATE D'EXAMEN
+       OFFICIEL » — et je la retirais du texte sans la remplacer :
+       le bloc se taisait donc sur le sujet le plus attendu de la
+       fin de parcours.
+
+       C'est la seule des trois lignes qui s'affiche toujours. Le
+       simulateur et l'examen blanc peuvent ne concerner personne
+       encore ; une date d'examen absente, elle, concerne tout le
+       monde — c'est ce qu'on cherche à savoir. */
+    out.push({ emoji:'🎓', texte:"Pas de date d'examen officiel",
                couleur:'var(--warn-text)' });
   }
 
