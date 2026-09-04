@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:38 — v853 */
+/* Déployé le 04/09/2026 à 13:25 — v866 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2616,6 +2616,11 @@ async function chargerMoniteurs(){
     if(!r.ok) return;
     const data = await r.json().catch(() => ({}));
     moniteursActifs = (data && data.moniteurs) || [];
+    /* Le relais rend DEUX listes : « moniteurs », ceux qui donnent
+       des cours, et « comptes », tout le monde. La seconde était
+       renvoyée depuis toujours sans que personne la lise — elle sert
+       maintenant à dire qui n'a pas encore vu un message poussé. */
+    comptesActifs = (data && data.comptes) || [];
     const sel = $('searchMoniteur');
     if(sel){
       const choix = sel.value;
