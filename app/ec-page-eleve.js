@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:25 — v851 */
+/* Déployé le 04/09/2026 à 09:35 — v858 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1796,6 +1796,44 @@ function ongletPermis(corps, nom){
       refaire();
     });
   corps.appendChild(lDate);
+
+  /* ── UNE DATE QUE PLUS RIEN NE PORTE ──
+
+     Chrystel, le 4 septembre : « je l'ai enlevée et supprimé la
+     session, et sa fiche dit toujours que son permis est prévu le
+     04/09. Je veux la remettre dans les élèves prêts au permis, je
+     ne peux pas. »
+
+     Sa FICHE n'a plus de date, mais la NOTE de son dernier cours
+     l'annonce encore — et le bureau ne peut pas réécrire une note.
+     « dejaPlace » lit cette annonce, la croit, et l'écarte de la
+     liste des élèves prêts au permis. Elle n'est plus nulle part.
+
+     La v857 empêche que ça se reproduise. Ce bouton-ci répare
+     celles à qui c'est déjà arrivé — et il ne s'affiche QUE dans ce
+     cas précis : une annonce, pas de date sur la fiche, pas de
+     place sur une session. */
+  const annonceSeule = !s.datePermis && a.permis === 'prevu' && a.permisDate &&
+    !(typeof placeEnSessionDe === 'function' && placeEnSessionDe(nom));
+  if(annonceSeule && typeof rendreALaListeRdvPermis === 'function'){
+    const lBloc = ligneDossier('⚠️ Une date que plus rien ne porte',
+      'Le dernier cours annonce un examen le ' + jourFr(a.permisDate) +
+      ', mais sa fiche n’a pas de date et il ne tient aucune place. ' +
+      'Tant que cette annonce est là, il reste écarté des élèves prêts ' +
+      'au permis.', 'var(--warn-text)');
+    actionDossier(lBloc, '↩️ Le remettre', async () => {
+      if(!await confirmer('Remettre ' + nom + ' dans les élèves prêts ' +
+          'au permis ?\n\nL’annonce « examen prévu le ' +
+          jourFr(a.permisDate) + ' » est défaite : le moniteur lira ' +
+          '« date à reprendre ».')) return;
+      await rendreALaListeRdvPermis(nom, a.permisDate || '');
+      if(typeof viderCaches === 'function') viderCaches(nom);
+      if(typeof afficherBureau === 'function') await afficherBureau(true);
+      showToast(nom + ' → élèves prêts au permis ✅');
+      refaire();
+    });
+    corps.appendChild(lBloc);
+  }
 
   /* Ce que l'élève a demandé. Il ne se règle pas ici — c'est le
      bureau qui le note dans la liste RDV Permis — mais il se
