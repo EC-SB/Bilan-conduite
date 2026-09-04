@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 07:42 — v849 */
+/* Déployé le 04/09/2026 à 09:35 — v858 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -359,9 +359,61 @@ function champsSortieDeSession(){
   };
 }
 
-async function rendreALaListeRdvPermis(nom){
+/* ⚠️ LA CINQUIÈME CHOSE À DÉFAIRE : CE QUE LA NOTE ANNONCE.
+
+   Chrystel, le 4 septembre : « j'avais prévu une élève au permis le
+   4 septembre, je l'ai enlevée et supprimé la session — et je vois
+   sur sa fiche que son permis est toujours prévu le 04/09. Je veux
+   la mettre dans les élèves prêts au permis mais je ne peux pas. »
+
+   La v796 avait réuni ici les CHAMPS DE LA FICHE, et c'était la
+   moitié du travail. L'autre moitié, c'est la NOTE du dernier cours
+   — « Examen du permis fixé au 4 septembre » — que le bureau ne peut
+   pas réécrire. Tant qu'elle est là, « analyserNote » rend une date
+   d'examen, « dejaPlace » la voit, et l'élève reste écarté des
+   élèves prêts au permis : il n'a plus de place, plus de date sur sa
+   fiche, et il est quand même invisible.
+
+   UNE SEULE des quatre portes le faisait — « retirer de la session ».
+   Les trois autres (vider la place, déloger quelqu'un, supprimer la
+   session) laissaient l'annonce en place. C'est le même défaut que
+   la v796, à un étage de plus.
+
+   Tout est donc ici : solder les consignes qui portaient cette date,
+   effacer les champs, puis annoncer par-dessus. L'ORDRE COMPTE — la
+   nouvelle annonce parle d'examen, elle serait soldée avec les
+   anciennes si on la posait avant. */
+async function rendreALaListeRdvPermis(nom, quand){
   if(!nom) return;
+
+  /* 1. Les consignes qui annonçaient cette date n'ont plus d'objet */
+  try{
+    const e = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
+      ? etatBureau.eleves.find(x => normaliserMot(x.eleve) === normaliserMot(nom))
+      : null;
+    const obsoletes = ((e && e.enAttente) || []).filter(cs =>
+      /permis|examen/i.test((cs.type || '') + ' ' + (cs.texte || '')));
+    for(const cs of obsoletes){
+      try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(err){}
+    }
+  }catch(e){ /* pas de consigne lisible : le reste vaut mieux que rien */ }
+
+  /* 2. Les champs de sa fiche */
   await majSuivi(nom, champsSortieDeSession());
+
+  /* 3. Et la note du dernier cours, par-dessus : c'est la DERNIÈRE
+        annonce qui fait foi (voir analyserNote). Sans elle, l'élève
+        garde une date que personne ne peut plus effacer. */
+  if(typeof envoyerConsigne === 'function'){
+    try{
+      await envoyerConsigne(nom, 'permis',
+        'Examen du permis annulé' +
+        (quand ? ' (était le ' +
+          ((typeof dateEnToutesLettres === 'function')
+            ? (dateEnToutesLettres(quand) || quand) : quand) + ')' : '') +
+        ' — date à reprendre (bureau)');
+    }catch(e){ /* la fiche est déjà rendue : on ne bloque pas dessus */ }
+  }
 }
 
 
@@ -374,7 +426,7 @@ async function placerEleveSurPlace(nom, place){
      n'a pas encore changé de main et on peut recommencer. */
   if(place.occupant &&
      normaliserMot(place.occupant) !== normaliserMot(nom)){
-    await rendreALaListeRdvPermis(place.occupant);
+    await rendreALaListeRdvPermis(place.occupant, place.date || '');
   }
 
   await appelPrep({ action:'sessionPlace', idSession: place.idSession,
@@ -934,7 +986,7 @@ function remplirPlaces(zone, sess){
          recommence. Dans l'autre sens, une suppression réussie
          suivie d'une écriture ratée laissait un élève avec une date
          d'examen et aucune session, invisible partout. */
-      for(const nom of dedans) await rendreALaListeRdvPermis(nom);
+      for(const nom of dedans) await rendreALaListeRdvPermis(nom, sess.date || '');
 
       await appelPrep({ action: 'sessionDelete', id: sess.id });
       showToast(dedans.length
@@ -969,37 +1021,13 @@ function etatDe(nom){
    ayant une place. */
 async function retirerDeLaSession(nom, sess){
   if(!nom) return;
-
+  /* Tout se fait dans « rendreALaListeRdvPermis » : les consignes
+     soldées, les champs de la fiche, et l'annonce qui défait la
+     précédente. Cette porte-ci en avait sa propre version, complète
+     — et c'était justement le problème : les trois autres n'en
+     avaient qu'une moitié, sans que rien ne le dise. */
   try{
-    /* Les consignes qui portaient cette date n'ont plus d'objet */
-    const e = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
-      ? etatBureau.eleves.find(x => normaliserMot(x.eleve) === normaliserMot(nom))
-      : null;
-
-    const obsoletes = ((e && e.enAttente) || []).filter(cs =>
-      /permis|examen/i.test((cs.type || '') + ' ' + (cs.texte || '')));
-
-    for(const cs of obsoletes){
-      try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(err){}
-    }
-
-    /* Le suivi perd sa date, et l'élève RETOURNE DANS RDV PERMIS.
-
-       Cette porte-ci écrivait sa propre version : elle effaçait bien
-       la date, mais oubliait « aPlanifier » — le champ sur lequel la
-       liste se construit — et le 👻. L'élève sortait de la session
-       et de la liste en même temps. Voir rendreALaListeRdvPermis. */
-    if(typeof majSuivi === 'function'){
-      await rendreALaListeRdvPermis(nom);
-    }
-
-    /* Et le moniteur l'apprend */
-    if(typeof envoyerConsigne === 'function'){
-      await envoyerConsigne(nom, 'permis',
-        "Examen du permis annulé" +
-        (sess && sess.date ? ' (était le ' + dateEnToutesLettres(sess.date) + ')' : '') +
-        ' — date à reprendre (bureau)');
-    }
+    await rendreALaListeRdvPermis(nom, (sess && sess.date) || '');
   }catch(e){ /* la place est libérée, c'est déjà cela */ }
 }
 
@@ -1578,7 +1606,7 @@ function ouvrirPlace(p, sess){
         await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
                           eleve: '', prevenu: '', dossierOk: '', remarque: '' });
         /* Ce que la fenêtre annonce, et que personne ne faisait. */
-        await rendreALaListeRdvPermis(nom);
+        await rendreALaListeRdvPermis(nom, sess.date || '');
         redessinerSessions();
       }catch(e){ showToast('Impossible : ' + e.message); }
     });
