@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:35 — v874 */
+/* Déployé le 04/09/2026 à 15:56 — v875 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -4589,7 +4589,19 @@ function positionDansLaFrise(q){
   if(ebPasse){
     const apres = leconsApresExamenBlanc(q.frise);
     const avant = leconsAvantExamenBlanc(q.frise);
-    const prevues = apres ? apres + ' prévue' + pl(apres) : '';
+    /* ⚠️ PLUS DE « 2 PRÉVUES » APRÈS L'EXAMEN BLANC — Chrystel, le
+       4 septembre : « ce qui m'embête, c'est que dès que c'est après
+       l'examen blanc, dans la parenthèse il y a le nombre de
+       prévues : ça, je n'en ai besoin nulle part ».
+
+       Elle a raison, et c'est même trompeur : ce qui compte à ce
+       stade n'est plus ce que la frise prévoyait, c'est ce qu'il
+       reste avant l'examen — et cette phrase-là s'écrit ailleurs.
+       « frise dépassée » suffit à dire qu'on est allé au-delà.
+
+       Le nombre continue d'exister : il sert au calcul du
+       dépassement, deux lignes plus bas. Il ne s'écrit plus. */
+    const prevues = '';
     const dit = (t, r) => dire(t + entreParentheses(prevues, n, r));
 
     /* LE RANG DERRIÈRE LA CHARNIÈRE SE DÉDUIT DU RANG AFFICHÉ.
