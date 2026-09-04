@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:43 — v854 */
+/* Déployé le 04/09/2026 à 09:03 — v856 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -117,6 +117,14 @@ async function afficherPostExamen(tous){
             await preparerPermis();
             afficherBureau();
             showToast('Messages prêts dans le module permis ✅');
+
+            /* Un permis obtenu en automatique ouvre la passerelle.
+               La question se pose ICI, tout de suite : dans une
+               semaine, plus personne ne saura qu'il vient d'obtenir
+               un B78. Elle ne bloque rien — le permis est déjà
+               enregistré à ce stade. */
+            try{ await proposerPasserelle(x, boiteDePostPermis(x)); }
+            catch(err){ showToast('Passerelle : ' + err.message); }
           }catch(err){ showToast('Erreur : ' + err.message); bOk.disabled = false; }
         });
         r.appendChild(bOk);
@@ -1870,6 +1878,141 @@ function parcoursDe(e){
 /* Nom propre au module : ec-sessions déclare une boiteDe qui
    attend un nom, pas un élève entier. Chargée après, elle
    écrasait celle-ci. */
+/* ============================================================
+   🚗 → 🅱️ LE PASSAGE EN PASSERELLE BEA → BV
+
+   Chrystel, le 4 septembre 2026 : « quand c'est un permis obtenu en
+   BEA, que ça inscrive automatiquement l'élève à une autre formation
+   de type passerelle BEA → BV, et que ça supprime tous ses bilans de
+   conduite BEA — avec une validation avant, bien évidemment ».
+
+   Et sur la trace : « pour vider la base de données et faire de la
+   place, on ne reviendra plus jamais dessus — comme supprimer son
+   dossier, mais on garde une autre fiche pour la passerelle avec ses
+   prochains cours ». Puis : « uniquement si TU le fais
+   automatiquement, moi je ne le ferai pas ».
+
+   ⚠️ L'ORDRE EST LA SEULE CHOSE QUI PROTÈGE ICI.
+
+     1. ARCHIVER — le dossier complet part sur le Drive.
+     2. DUPLIQUER — la fiche passerelle est créée.
+     3. EFFACER — et seulement alors.
+
+   Chaque étape ne se fait que si la précédente a réussi. Une
+   archive ratée arrête tout : mieux vaut un dossier qui prend de la
+   place qu'un dossier perdu. Et la duplication passe AVANT
+   l'effacement, sinon un échec de création laisserait l'élève sans
+   rien du tout.
+
+   La confirmation dit ce qui va partir, et le nom qu'il portera.
+   ============================================================ */
+const FORMATION_PASSERELLE = 'Passerelle BEA→BV';
+
+/* Le nom de la seconde fiche. Même forme que « ➕ Une autre
+   formation pour cet élève » : le suffixe entre parenthèses. */
+function nomFichePasserelle(nom){
+  return String(nom || '').trim() + ' (Passerelle BV)';
+}
+
+async function proposerPasserelle(x, boite){
+  const nom = String((x && x.eleve) || '').trim();
+  if(!nom) return;
+  /* La passerelle part d'un permis en BOÎTE AUTOMATIQUE, et de
+     nulle part ailleurs : c'est le B78 qu'elle vient lever. */
+  if(String(boite || '') !== 'BEA') return;
+  /* ⚠️ « peutModifier », pas « aDroit » : celui-ci ne prend qu'un
+     argument et se contente d'un droit de LECTURE. Proposer un
+     effacement définitif à qui ne peut que regarder, c'est promettre
+     ce que le serveur refusera. */
+  if(typeof peutModifier === 'function' && !peutModifier('eleves')) return;
+
+  const nouveau = nomFichePasserelle(nom);
+
+  if(!await confirmer(
+      'Duplication de fiche en passerelle BEA → BV ?\n\n' +
+      nom + ' vient d’obtenir son permis en automatique.\n\n' +
+      '✅ Une fiche « ' + nouveau + ' » est créée, en passerelle.\n' +
+      '📄 Son dossier complet est archivé sur le Drive.\n' +
+      '🗑️ Puis son dossier BEA est effacé — bilans, suivi, cours à ' +
+      'venir, captures.\n\n' +
+      'L’effacement est DÉFINITIF, et n’a lieu que si l’archive ' +
+      'a bien été écrite.')) return;
+
+  const dire = t => showToast(t);
+
+  /* ---- 1. L'ARCHIVE, D'ABORD ---- */
+  dire('Archivage du dossier…');
+  let archive;
+  try{
+    archive = await appelPrep({ action:'archiverDossier', eleve: nom });
+  }catch(e){
+    await informer('Le dossier de ' + nom + " n'a PAS pu être archivé.\n\n" +
+      'Détail : ' + (e && e.message ? e.message : e) + '\n\n' +
+      "RIEN n'a été effacé, et aucune fiche n'a été créée. " +
+      'Recommence, ou fais-le à la main depuis 🔒 RGPD.', 'Passerelle');
+    return;
+  }
+  if(!archive || archive.status !== 'ok' || !archive.lien){
+    await informer('Le dossier de ' + nom + " n'a PAS pu être archivé.\n\n" +
+      ((archive && archive.message) || 'Réponse inattendue du classeur.') +
+      "\n\nRIEN n'a été effacé.", 'Passerelle');
+    return;
+  }
+
+  /* ---- 2. LA FICHE PASSERELLE ---- */
+  dire('Création de sa fiche passerelle…');
+  const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : {};
+  try{
+    await appelPrep({
+      action: 'ficheSet',
+      eleve: nouveau,
+      telephone: f.telephone || '',
+      email: f.email || '',
+      formation: FORMATION_PASSERELLE,
+      messenger: f.messenger || '',
+      site: f.site || '',
+      remarques: 'Passerelle après permis BEA obtenu — dossier BEA archivé le ' +
+                 new Date().toLocaleDateString('fr-FR'),
+      par: ACCES.moniteur || ''
+    });
+  }catch(e){
+    await informer('Sa fiche passerelle n’a pas pu être créée.\n\n' +
+      'Détail : ' + (e && e.message ? e.message : e) + '\n\n' +
+      "RIEN n'a été effacé — son dossier BEA est intact. " +
+      'L’archive, elle, est déjà sur le Drive.', 'Passerelle');
+    return;
+  }
+
+  /* ---- 3. L'EFFACEMENT, EN DERNIER ---- */
+  dire('Effacement du dossier BEA…');
+  let bilan = null;
+  try{
+    bilan = await supprimerEleveComplet(nom, t => dire(nom + ' — ' + t));
+  }catch(e){
+    bilan = { faits: [], rates: ['tout (' + (e && e.message ? e.message : e) + ')'] };
+  }
+
+  if(typeof chargerEleves === 'function') await chargerEleves();
+  if(typeof afficherRepertoire === 'function') afficherRepertoire(true);
+  if(typeof afficherBureau === 'function') afficherBureau(true);
+
+  const rates = (bilan && bilan.rates) || [];
+  await informer(
+    (rates.length ? '⚠️ Passage en passerelle — effacement INCOMPLET'
+                  : '✅ ' + nom + ' est passé en passerelle') + '\n\n' +
+    '📄 Archive : ' + archive.fichier + ' (' + archive.lignes + ' ligne(s))\n' +
+    '   ' + archive.lien + '\n\n' +
+    '✅ Fiche créée : ' + nouveau + '\n\n' +
+    (rates.length
+      ? "🗑️ N'a PAS pu être effacé : " + rates.join(', ') +
+        '.\nCe qui est parti : ' + (((bilan && bilan.faits) || []).join(' · ') || 'rien') +
+        '.\nRecommence l’effacement depuis 🔒 RGPD — l’archive, elle, est faite.'
+      : '🗑️ Dossier BEA effacé : ' +
+        (((bilan && bilan.faits) || []).join(' · ') || 'rien à retirer')),
+    'Passerelle BEA → BV');
+}
+
+
 function boiteDePostPermis(e){
   const s = suiviDe(e.eleve) || {};
   if(e._boite === 'bea' || /bea|automatique/i.test(s.typeExamen || '')) return 'BEA';
