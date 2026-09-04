@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:49 — v859 */
+/* Déployé le 04/09/2026 à 09:57 — v860 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -156,6 +156,9 @@ function redessinerSessions(){
   const zone = $('sessionsPermis');
   if(!zone) return;
   dessinerSessions(zone);
+  /* Un redessin refabrique les boutons : sans ça, la place retenue
+     perdrait sa couleur et on ne saurait plus ce qu'on a choisi. */
+  peindreEchange();
 }
 
 
@@ -587,6 +590,9 @@ async function afficherSessionsPermis(){
   }
 
   dessinerSessions(zone);
+  /* Un redessin refabrique les boutons : sans ça, la place retenue
+     perdrait sa couleur et on ne saurait plus ce qu'on a choisi. */
+  peindreEchange();
 }
 
 
@@ -1262,12 +1268,11 @@ function lignePlace(p, sess){
     l.appendChild(bPrev);
 
     const bEch = document.createElement('button');
-    bEch.className = 'btn btn-secondary';
-    bEch.style.cssText = 'width:auto;padding:5px 8px;font-size:14px;margin:0;flex-shrink:0;' +
-      ((echangeEnCours && echangeEnCours.idSession === sess.id &&
-        echangeEnCours.rang === p.rang) ? 'border-color:var(--orange);' : '');
+    bEch.className = 'btn btn-secondary echPlace';
+    bEch.dataset.idSession = String(sess.id);
+    bEch.dataset.rang = String(p.rang);
+    bEch.style.cssText = 'width:auto;padding:5px 8px;font-size:14px;margin:0;flex-shrink:0;';
     bEch.textContent = '🔄';
-    bEch.title = 'Échanger de place';
     bEch.addEventListener('click', async ev => {
       ev.stopPropagation();
       await gererEchange(p, sess);
@@ -1275,7 +1280,140 @@ function lignePlace(p, sess){
     l.appendChild(bEch);
   }
 
+  /* La ligne se désigne : le glisser-déposer y dépose, et le 🔄 s'y
+     repeint, sans que la page soit redessinée. */
+  l.dataset.place = sess.id + '|' + p.rang;
+  rendrePlaceDeplacable(l, p, sess);
+
   return l;
+}
+
+
+/* ------------------------------------------------------------
+   LE 🔄 SE REPEINT SANS REDESSINER LA PAGE
+
+   Chrystel, le 4 septembre : « le bouton agit sur la vitesse, c'est
+   horrible : on appuie sur le bouton, ça ferme la page ; on appuie
+   sur l'autre, ça referme la page et la rouvre ».
+
+   Elle décrivait exactement ce que faisait le code : le premier
+   appui appelait « afficherSessionsPermis », qui vide l'écran,
+   RELIT LE CLASSEUR et redessine tout — pour changer la couleur
+   d'une bordure. Un aller-retour réseau pour dire « j'ai retenu
+   cette place ».
+
+   Retenir une place ne change aucune donnée. Ça ne doit donc
+   toucher que les boutons.
+   ------------------------------------------------------------ */
+function peindreEchange(){
+  document.querySelectorAll('.echPlace').forEach(b => {
+    const pris = !!(echangeEnCours &&
+      String(echangeEnCours.idSession) === b.dataset.idSession &&
+      String(echangeEnCours.rang) === b.dataset.rang);
+    b.style.borderColor = pris ? 'var(--orange)' : '';
+    b.style.color = pris ? 'var(--orange)' : '';
+    /* Une place retenue fait des autres des cibles : le dire évite
+       de chercher où appuyer. */
+    b.title = pris
+      ? 'Place retenue — appuie de nouveau pour annuler'
+      : (echangeEnCours
+          ? 'Échanger avec ' + (echangeEnCours.eleve || 'la place retenue')
+          : 'Échanger de place');
+  });
+}
+
+
+/* ------------------------------------------------------------
+   CE QUE L'ÉCHANGE OUBLIAIT : LES FICHES
+
+   L'échange déplaçait les noms sur les places et s'arrêtait là. Deux
+   élèves permutés entre deux sessions de DATES DIFFÉRENTES gardaient
+   chacun l'ancienne date sur leur fiche — et c'est cette date que
+   lisent le bureau, les listes et la note du moniteur.
+
+   Ce n'était pas visible parce que l'échange sert surtout à
+   réordonner DANS une session : là, la date ne change pas, et il n'y
+   avait rien à mettre à jour. C'est le cas d'à côté qui mentait.
+
+   ⚠️ ON NE TOUCHE PAS À LA FICHE DE PRÉPARATION. Chrystel, le
+   4 septembre : « non, car si on change, on l'a déjà prévenu — tu
+   gardes intacte la fiche de préparation ». Donc « prévenu »,
+   « dossier OK » et la remarque suivent l'élève sans être remis à
+   zéro. Ce sont ses affaires à lui, pas celles de la place.
+
+   Et rien ne part quand la date ET le centre sont les mêmes : le
+   réordonnancement dans une session reste instantané.
+   ------------------------------------------------------------ */
+async function suivreLaDateApresEchange(nom, sessAvant, sessApres){
+  if(!nom) return false;
+  const dAvant = String((sessAvant && sessAvant.date) || '');
+  const dApres = String((sessApres && sessApres.date) || '');
+  const cAvant = String((sessAvant && sessAvant.centre) || '');
+  const cApres = String((sessApres && sessApres.centre) || '');
+  if(dAvant === dApres && cAvant === cApres) return false;
+
+  const jour = (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(dApres) || dApres) : dApres;
+
+  if(typeof majSuivi === 'function'){
+    await majSuivi(nom, { datePermis: jour, centre: cApres,
+                          aPlanifier: '', statut: '' });
+  }
+  /* Le moniteur ne lit pas cet écran : il lit la note de son
+     prochain cours. C'est la dernière annonce qui fait foi. */
+  if(typeof envoyerConsigne === 'function'){
+    try{
+      await envoyerConsigne(nom, 'permis',
+        'Examen du permis fixé au ' + jour + ' (bureau)');
+    }catch(e){ /* la date est écrite, le message se rattrapera */ }
+  }
+  return true;
+}
+
+
+/* Le cœur de l'échange, partagé par le bouton 🔄 et le
+   glisser-déposer. Deux gestes, une seule règle. */
+async function echangerDeuxPlaces(depuis, versP, versSess){
+  const sessA = sessionsPermis.find(s => String(s.id) === String(depuis.idSession));
+  const src = (sessA || {}).eleves || [];
+  const a = src.find(x => Number(x.rang) === Number(depuis.rang));
+  const b = versP;
+  if(!a || !b) return;
+
+  /* Qui va où, retenu AVANT la permutation en mémoire. */
+  const nomA = String(a.eleve || '').trim();
+  const nomB = String(b.eleve || '').trim();
+
+  /* La permutation se voit tout de suite : l'heure appartient à la
+     place, seuls les élèves et leur état changent de côté. */
+  ['eleve', 'prevenu', 'dossierOk', 'remarque'].forEach(cle => {
+    const t = a[cle]; a[cle] = b[cle]; b[cle] = t;
+  });
+  redessinerSessions();
+
+  try{
+    await appelPrep({ action: 'sessionPlace',
+                      idSession: depuis.idSession, rang: depuis.rang,
+                      echangeAvec: JSON.stringify({ idSession: versSess.id,
+                                                    rang: versP.rang }) });
+
+    /* Les fiches suivent — et seulement si la date ou le centre
+       change vraiment. */
+    let bouge = false;
+    if(nomA) bouge = await suivreLaDateApresEchange(nomA, sessA, versSess) || bouge;
+    if(nomB) bouge = await suivreLaDateApresEchange(nomB, versSess, sessA) || bouge;
+
+    if(bouge){
+      if(typeof chargerBureau === 'function') await chargerBureau(true);
+      showToast('Échangés — leurs dates ont suivi ✅');
+      redessinerSessions();
+    }else{
+      showToast('Échangés ✅');
+    }
+  }catch(e){
+    showToast('Échange impossible : ' + e.message);
+    afficherSessionsPermis();          /* on relit, l'état est incertain */
+  }
 }
 
 
@@ -1284,42 +1422,113 @@ async function gererEchange(p, sess){
   if(!echangeEnCours){
     echangeEnCours = { idSession: sess.id, rang: p.rang, eleve: p.eleve };
     showToast('Choisis la place avec qui échanger 🔄');
-    afficherSessionsPermis();
+    /* Repeindre, pas recharger : voir peindreEchange. */
+    peindreEchange();
     return;
   }
 
-  if(echangeEnCours.idSession === sess.id && echangeEnCours.rang === p.rang){
+  if(String(echangeEnCours.idSession) === String(sess.id) &&
+     Number(echangeEnCours.rang) === Number(p.rang)){
     echangeEnCours = null;
-    afficherSessionsPermis();
+    peindreEchange();
     return;
   }
 
   const depuis = echangeEnCours;
   echangeEnCours = null;
-
-  /* La permutation se voit tout de suite : l'heure appartient à la
-     place, seuls les élèves et leur état changent de côté. */
-  const src = (sessionsPermis.find(s => s.id === depuis.idSession) || {}).eleves || [];
-  const a = src.find(x => x.rang === depuis.rang);
-  const b = p;
-
-  if(a && b){
-    ['eleve', 'prevenu', 'dossierOk', 'remarque'].forEach(cle => {
-      const t = a[cle]; a[cle] = b[cle]; b[cle] = t;
-    });
-    redessinerSessions();
-  }
-
-  try{
-    await appelPrep({ action: 'sessionPlace',
-                      idSession: depuis.idSession, rang: depuis.rang,
-                      echangeAvec: JSON.stringify({ idSession: sess.id, rang: p.rang }) });
-    showToast('Échangés ✅');
-  }catch(e){
-    showToast('Échange impossible : ' + e.message);
-    afficherSessionsPermis();          /* on relit, l'état est incertain */
-  }
+  await echangerDeuxPlaces(depuis, p, sess);
 }
+
+
+/* ------------------------------------------------------------
+   LE GLISSER-DÉPOSER ENTRE PLACES
+
+   Même technique que les groupes de la semaine : des événements de
+   POINTEUR, qui couvrent la souris et le doigt. Le glisser-déposer
+   natif du navigateur ne marche pas au doigt.
+
+   Une place se saisit par sa ligne et se lâche sur une autre —
+   occupée (échange) ou libre (déplacement). Un appui sans
+   glissement ne fait rien : les boutons de la ligne gardent leur
+   travail, et le 🔄 reste là pour qui préfère deux appuis.
+   ------------------------------------------------------------ */
+function rendrePlaceDeplacable(ligne, p, sess){
+  if(!p || !p.eleve) return;             /* une place vide ne se prend pas */
+  let etat = null;
+
+  const nettoyer = () => {
+    if(etat && etat.fantome && etat.fantome.parentNode){
+      etat.fantome.parentNode.removeChild(etat.fantome);
+    }
+    document.querySelectorAll('[data-place]').forEach(z => { z.style.outline = ''; });
+    ligne.style.opacity = '';
+    etat = null;
+  };
+
+  ligne.style.touchAction = 'none';
+
+  ligne.addEventListener('pointerdown', ev => {
+    /* Les boutons de la ligne d'abord : on ne vole pas leur appui. */
+    if(ev.target.closest && ev.target.closest('button')) return;
+    ligne.setPointerCapture(ev.pointerId);
+    etat = { x: ev.clientX, y: ev.clientY, bouge: false, fantome: null };
+  });
+
+  ligne.addEventListener('pointermove', ev => {
+    if(!etat) return;
+    const d = Math.abs(ev.clientX - etat.x) + Math.abs(ev.clientY - etat.y);
+    if(!etat.bouge && d < 8) return;      /* en dessous, c'est un appui */
+
+    if(!etat.bouge){
+      etat.bouge = true;
+      ligne.style.opacity = '.4';
+      const f = document.createElement('div');
+      f.textContent = p.eleve + (p.heure ? ' · ' + p.heure : '');
+      f.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;' +
+        'background:var(--navy);border:1px solid var(--orange);' +
+        'color:var(--cream);border-radius:8px;padding:5px 10px;' +
+        'font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.45);';
+      document.body.appendChild(f);
+      etat.fantome = f;
+    }
+    etat.fantome.style.left = (ev.clientX + 12) + 'px';
+    etat.fantome.style.top = (ev.clientY - 14) + 'px';
+
+    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
+    const cible = sous && sous.closest ? sous.closest('[data-place]') : null;
+    document.querySelectorAll('[data-place]').forEach(z => {
+      z.style.outline = (z === cible && z !== ligne)
+        ? '2px solid var(--orange)' : '';
+    });
+  });
+
+  ligne.addEventListener('pointerup', async ev => {
+    if(!etat) return;
+    const bouge = etat.bouge;
+    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
+    const cible = sous && sous.closest ? sous.closest('[data-place]') : null;
+    nettoyer();
+    if(!bouge || !cible || cible === ligne) return;
+
+    const [idS, rang] = String(cible.dataset.place || '').split('|');
+    if(!idS) return;
+    const sessB = sessionsPermis.find(s => String(s.id) === String(idS));
+    const placeB = sessB && (sessB.eleves || [])
+      .find(x => Number(x.rang) === Number(rang));
+    if(!sessB || !placeB) return;
+
+    /* Le 🔄 en attente n'a plus lieu d'être : on vient de faire le
+       geste autrement. */
+    echangeEnCours = null;
+    peindreEchange();
+    await echangerDeuxPlaces({ idSession: sess.id, rang: p.rang, eleve: p.eleve },
+                             placeB, sessB);
+  });
+
+  ligne.addEventListener('pointercancel', nettoyer);
+}
+
+
 
 
 /* ============================================================
