@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:15 — v857 */
+/* Déployé le 04/09/2026 à 13:54 — v867 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -5648,9 +5648,8 @@ function planifierHistorique(){
        parle. */
     if(typeof majBoutonCompleter === 'function') majBoutonCompleter();
     if(typeof majEtatMailEleve === 'function') majEtatMailEleve();
+    /* Un seul appel : le bloc porte la préparation ET le dossier. */
     chargerHistoriqueEleve();
-    /* Et ce qui a été préparé pour ce cours, s'il y a une préparation */
-    if(typeof afficherPreparationEleve === 'function') afficherPreparationEleve();
   }, 700);
 }
 
@@ -5684,10 +5683,13 @@ async function chargerHistoriqueEleve(){
     const data = await r.json().catch(() => ({}));
     const res = (data && data.resultats) || [];
 
-    if(!res.length){
-      zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Aucun cours précédent pour cet élève.</div>';
-      return;
-    }
+    /* ⚠️ ON NE SORT PLUS QUAND IL N'A AUCUN BILAN.
+
+       Un élève sans cours enregistré peut très bien avoir un cours
+       PRÉPARÉ, une date d'examen, un examen blanc réservé — un
+       élève venu d'une autre auto-école en a tout un dossier. On
+       sortait ici, et le bloc ne s'affichait pas du tout. Le bloc
+       sait dire « aucun cours enregistré » et montrer le reste. */
 
     /* Boîte de l'élève, pour vérifier que le modèle correspond */
     let boiteEleve = '';
@@ -5699,150 +5701,38 @@ async function chargerHistoriqueEleve(){
     verifierBoiteModele(boiteEleve);
     derniereBoiteEleve = boiteEleve;
 
-    const dernier = res[0];
-    const note = (dernier.note || '').trim();
+    /* ⚠️ UN SEUL BLOC — voir ec-avant-cours.js.
 
+       Cet écran en dessinait un, « afficherPreparationEleve » en
+       dessinait un second juste dessous, et les deux se
+       contredisaient : celui-ci lisait la note du DERNIER BILAN,
+       l'autre celle du COURS PRÉPARÉ. Chrystel, le 4 septembre :
+       « on fait du ménage pour ne pas tout avoir, là on confond
+       plein de choses ». */
     zone.innerHTML = '';
-    const carte = document.createElement('div');
-    carte.style.cssText = 'border:1px solid ' + (note ? 'var(--orange)' : 'var(--line)') +
-      ';border-radius:12px;padding:12px 14px;background:' +
-      (note ? 'rgba(182,255,14,.08)' : 'transparent') + ';';
-
-    const titre = document.createElement('div');
-    titre.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
-    titre.textContent = res.length + ' cours précédent' + (res.length > 1 ? 's' : '') +
-      ' · dernier le ' + (dateEnToutesLettres(dateFrVersIso(dernier.date)) || dernier.date || '?') +
-      (dernier.moniteur ? ' avec ' + dernier.moniteur : '');
-    carte.appendChild(titre);
-
-    /* La note du moniteur précédent : frise, examen blanc, date
-       d'examen. C'est ce que le moniteur doit voir en premier. */
-    if(note){
-      const n = document.createElement('div');
-      n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
-        'line-height:1.45;white-space:pre-wrap;margin-bottom:10px;';
-      n.textContent = '📌 ' + note;
-      carte.appendChild(n);
-    }else{
-      const n = document.createElement('div');
-      n.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:10px;';
-      n.textContent = 'Pas de note laissée par le moniteur précédent.';
-      carte.appendChild(n);
-    }
-
-    /* Puis la fiche véhicule, avec les émojis des moniteurs */
-    const sep = document.createElement('div');
-    sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
-    carte.appendChild(sep);
-    carte.appendChild(blocFicheVehiculeEleve(res));
-
-    const lien = document.createElement('button');
-    lien.type = 'button';
-    lien.className = 'btn btn-secondary';
-    lien.style.cssText = 'margin-top:10px;font-size:13px;padding:9px 12px;';
-    lien.textContent = '👁️ Voir le dernier bilan';
-    lien.addEventListener('click', () => {
-      currentLessonMeta = {
-        modeleLabel: dernier.type, studentName: dernier.eleve, monitorName: dernier.moniteur,
-        site: dernier.site, dateStr: dernier.date, noteInterne: dernier.note || '', ts: Date.now()
-      };
-      $('resultText').value = dernier.bilan;
-      afficherNote(dernier.note);
-      marquerExport(true);
-      $('recordView').style.display = 'none';
-      $('resultView').style.display = 'block';
-      window.scrollTo(0, 0);
-    });
-    carte.appendChild(lien);
-
-    zone.appendChild(carte);
+    const jour = $('lessonDate') ? $('lessonDate').value : '';
+    const prep = (typeof preparationDuCours === 'function')
+      ? preparationDuCours(nom, jour) : null;
+    zone.appendChild(blocAvantLeCours(nom, res, prep, { avecDernierBilan: true }));
   }catch(e){
     zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Historique indisponible.</div>';
   }
 }
 
 /* ============================================================
-   FICHE VÉHICULE DE L'ÉLÈVE
-   Ce que le moniteur a besoin de savoir avant de partir : quelles
-   manœuvres sont validées, par qui, et lesquelles restent à faire.
+   FICHE VÉHICULE DE L'ÉLÈVE — DÉMÉNAGÉE
+
+   « blocFicheVehiculeEleve » vivait ici et dessinait la fiche à sa
+   façon : ce qui est fait, et ce qui reste replié derrière un
+   triangle. Le bloc « préparé le » en avait une autre, dépliée, qui
+   savait en plus marquer « prévue aujourd'hui ».
+
+   Deux dessinateurs pour une même fiche, et c'est le moins complet
+   qui s'affichait en premier. Il n'en reste qu'un —
+   « ficheVehiculeAvantCours », dans ec-avant-cours.js — et il est
+   celui du bloc « préparé le », enrichi du repli que Chrystel a
+   demandé le 4 septembre : « déplié, mais possibilité de replier ».
    ============================================================ */
-function blocFicheVehiculeEleve(bilans, toutAfficher){
-  const d = document.createElement('div');
-
-  /* On part du plus récent : ses marques sont les plus complètes */
-  let marques = {};
-  (bilans || []).slice().reverse().forEach(item => {
-    const m = (typeof marquesDejaPosees === 'function')
-      ? marquesDejaPosees(item.bilan) : {};
-    Object.keys(m).forEach(k => { marques[k] = m[k]; });
-  });
-
-  const liste = (typeof BLOC !== 'undefined' && BLOC.ficheListeConduite)
-    ? BLOC.ficheListeConduite : [];
-
-  const faites = [];
-  const restantes = [];
-  liste.forEach(libelle => {
-    const cle = normaliserMot(libelle);
-    if(marques[cle]) faites.push({ nom: libelle, marque: marques[cle] });
-    else restantes.push(libelle);
-  });
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:6px;';
-  t.textContent = '🦉 Fiche véhicule — ' + faites.length + ' sur ' + liste.length;
-  d.appendChild(t);
-
-  if(!faites.length){
-    const v = document.createElement('div');
-    v.style.cssText = 'font-size:13px;color:var(--muted);';
-    v.textContent = 'Aucune manœuvre validée pour le moment.';
-    d.appendChild(v);
-    return d;
-  }
-
-  const z = document.createElement('div');
-  z.style.cssText = 'font-size:13px;line-height:1.7;';
-  faites.forEach(x => {
-    const l = document.createElement('div');
-    l.innerHTML = '<span style="color:var(--cream);">' +
-      x.nom.replace(/</g, '&lt;') + '</span> ' +
-      '<span style="letter-spacing:1px;">' + x.marque + '</span>';
-    z.appendChild(l);
-  });
-  d.appendChild(z);
-
-  /* Ce qui reste : déplié quand on prépare un cours, replié sinon */
-  if(restantes.length){
-    if(toutAfficher){
-      const t2 = document.createElement('div');
-      t2.style.cssText = 'font-size:12px;color:var(--muted);margin:8px 0 3px;font-weight:700;';
-      t2.textContent = '❓ Reste à travailler — ' + restantes.length;
-      d.appendChild(t2);
-
-      const r = document.createElement('div');
-      r.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.7;';
-      restantes.forEach(x => {
-        const l = document.createElement('div');
-        l.textContent = '· ' + x;
-        r.appendChild(l);
-      });
-      d.appendChild(r);
-    }else{
-      const det = document.createElement('details');
-      det.style.marginTop = '8px';
-      det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
-        '❓ ' + restantes.length + ' manœuvre(s) restante(s)</summary>';
-      const r = document.createElement('div');
-      r.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px;';
-      r.textContent = restantes.join(' · ');
-      det.appendChild(r);
-      d.appendChild(det);
-    }
-  }
-
-  return d;
-}
 
 /* ============================================================
    FICHE VÉHICULE DANS LE QUESTIONNAIRE
@@ -6066,41 +5956,20 @@ async function chargerHistoriquePrep(){
     const data = await r.json().catch(() => ({}));
     const res = (data && data.resultats) || [];
 
+    /* ⚠️ LE MÊME BLOC QU'À L'OUVERTURE DU COURS — Chrystel, le
+       4 septembre : « le même ménage dans le questionnaire de
+       préparation ? — oui ».
+
+       Ce dossier-ci redessinait sa propre version, en plus pauvre :
+       la note brute, et la fiche véhicule. Ni le résultat de
+       l'examen blanc, ni l'état de la place, ni les états qui font
+       foi. Deux dessins pour une même chose, et c'était toujours le
+       plus pauvre qui servait à préparer. */
     zone.innerHTML = '';
-    if(!res.length){
-      zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">' +
-        'Aucun cours précédent pour cet élève.</div>';
-      return;
-    }
-
-    const dernier = res[0];
-    const carte = document.createElement('div');
-    carte.style.cssText = 'border:1px solid var(--line);border-radius:12px;padding:12px 14px;';
-
-    const t = document.createElement('div');
-    t.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
-    t.textContent = res.length + ' cours précédent' + (res.length > 1 ? 's' : '') +
-      ' · dernier le ' + (dateEnToutesLettres(dateFrVersIso(dernier.date)) || dernier.date || '?') +
-      (dernier.moniteur ? ' avec ' + dernier.moniteur : '');
-    carte.appendChild(t);
-
-    const note = (dernier.note || '').trim();
-    const n = document.createElement('div');
-    if(note){
-      n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
-        'line-height:1.45;white-space:pre-wrap;margin-bottom:10px;';
-      n.textContent = '📌 ' + note;
-    }else{
-      n.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:10px;';
-      n.textContent = 'Pas de note laissée par le moniteur précédent.';
-    }
-    carte.appendChild(n);
-
-    const sep = document.createElement('div');
-    sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
-    carte.appendChild(sep);
-    /* Déplié : on prépare un cours, on veut voir ce qui reste */
-    carte.appendChild(blocFicheVehiculeEleve(res, true));
+    const carte = blocAvantLeCours(nom, res,
+      (typeof preparationDuCours === 'function')
+        ? preparationDuCours(nom, $('prepDate') ? $('prepDate').value : '') : null,
+      { avecDernierBilan: false });
 
     zone.appendChild(carte);
   }catch(e){
