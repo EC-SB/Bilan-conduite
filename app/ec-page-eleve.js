@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:35 — v858 */
+/* Déployé le 04/09/2026 à 10:50 — v862 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -515,6 +515,24 @@ function etapesCroiseesEleve(nom){
       (s.semaine ? ' — il a demandé ' + s.semaine : '') });
   }else{
     out.push({ ok:null, emoji:'❔', txt:"Date d'examen — rien de noté", flou:true });
+  }
+
+  /* ── PRÊTE-NOM, OU PLACE À REMPLACER ──
+
+     « Idem dans les notes du dossier » — Chrystel, le 4 septembre,
+     juste après l'avoir demandé sur la carte de 📅 Mes prochains
+     cours. La ligne vient donc TOUT DE SUITE après la date
+     d'examen : c'est elle qu'elle corrige. « Examen du permis le
+     12 septembre » ne veut pas dire la même chose selon que la
+     place est tenue pour de vrai ou pour occuper le créneau.
+
+     La phrase n'est pas réécrite ici : c'est « marquePlaceExamen »
+     (ec-bureau.js), celle qui sert aussi à la carte et à 🎓 Suivi
+     permis. */
+  const marquePlace = (typeof marquePlaceExamen === 'function')
+    ? marquePlaceExamen(nom) : null;
+  if(marquePlace){
+    out.push({ ok:false, emoji: marquePlace.emoji, txt: marquePlace.long });
   }
 
   /* ── L'ACCOMPAGNEMENT, EN UNE LIGNE ──
