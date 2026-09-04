@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 12:28 — v863 */
+/* Déployé le 04/09/2026 à 15:56 — v875 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -859,8 +859,15 @@ async function afficherPrepares(recharger, silencieux){
     /* À quelle leçon on en est : en gros, en vert, juste sous le
        nom. C'est la première question qu'on se pose en ouvrant sa
        journée, et elle se perdait au milieu du reste. */
-    const pos = (typeof lignePosition === 'function')
-      ? lignePosition(partsNote.corps) : '';
+    /* ⚠️ LA MÊME LIGNE QUE LE BLOC D'OUVERTURE — Chrystel, le
+       4 septembre : « partout ». Quand l'examen est pris, ce qui
+       compte n'est plus le rang mais ce qu'il reste à faire avant.
+       Deux écrans qui choisiraient chacun leur phrase finiraient
+       par ne plus dire la même chose. */
+    const pos = (typeof lignePositionDuHaut === 'function')
+      ? lignePositionDuHaut(cours.eleve, partsNote.corps, cours.note)
+      : ((typeof lignePosition === 'function')
+          ? lignePosition(partsNote.corps) : '');
 
     const ligneRang = document.createElement('div');
     ligneRang.style.cssText = 'display:flex;gap:7px;align-items:center;' +
@@ -1834,9 +1841,10 @@ async function chargerPrepareInterne(cours){
 
   /* Le résumé du cours précédent, comme lors d'une saisie normale :
      le moniteur doit voir ce qui a été travaillé avant de démarrer. */
+  /* Un seul appel, pour un seul bloc : il porte désormais la
+     préparation ET le dossier. Il y en avait trois, dont deux
+     identiques — ils dessinaient deux cadres l'un sous l'autre. */
   if(typeof chargerHistoriqueEleve === 'function') chargerHistoriqueEleve();
-  afficherPreparationEleve();
-  chargerHistoriqueEleve();
 
   /* Les deux panneaux dès l'ouverture : la fiche véhicule montre
      ce qui est déjà acquis, avec la marque du moniteur qui l'a
@@ -2279,184 +2287,23 @@ async function terminerRdvPost(){
    Le moniteur doit voir, avant de démarrer, ce que le collègue
    a noté en préparant — au même titre que le dernier cours.
    ============================================================ */
-async function afficherPreparationEleve(){
-  const zone = $('preparationEleve');
-  if(!zone) return;
+/* ============================================================
+   « afficherPreparationEleve » N'EXISTE PLUS — v867
 
-  const nom = $('studentName') ? $('studentName').value.trim() : '';
-  if(nom.length < 3){ zone.style.display = 'none'; zone.innerHTML = ''; return; }
+   Elle dessinait, sous le dossier de l'élève, un SECOND bloc : la
+   note du cours préparé, les procédures, la fiche véhicule. Le
+   premier bloc disait la même chose à partir du dernier bilan — et
+   les deux se contredisaient, puisque l'un lisait une photo d'avant
+   le dernier cours et l'autre ce qu'on sait aujourd'hui.
 
-  let liste = prepares || [];
-  if(!liste.length){
-    try{
-      const d = await appelPrep({ action: 'prepList' });
-      liste = (d && d.preparations) || [];
-    }catch(e){ liste = []; }
-  }
-
-  const jour = $('lessonDate') ? $('lessonDate').value : '';
-  const siennes = liste.filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
-  const prep = siennes.find(x => x.date === jour) ||
-               siennes.sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
-
-  if(!prep){
-    zone.style.display = 'none';
-    zone.innerHTML = '';
-    return;
-  }
-
-  zone.innerHTML = '';
-  const carte = document.createElement('div');
-  carte.style.cssText = 'border:1px solid var(--orange);border-radius:12px;' +
-    'padding:12px 14px;background:rgba(182,255,14,.08);';
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;color:var(--muted);margin-bottom:6px;';
-  t.textContent = '📝 Préparé le ' +
-    (dateEnToutesLettres(prep.date) || prep.date || '?') +
-    (prep.preparePar ? ' par ' + prep.preparePar : '') +
-    (prep.modeleLabel ? ' · ' + prep.modeleLabel : '');
-  carte.appendChild(t);
-
-  const note = String(prep.note || '').trim();
-
-  /* Une consigne du type « pas d'écoute pédagogique » se noie dans
-     la note : on la sort en évidence. */
-  if(/pas d'écoutes? pédagogiques?/i.test(note)){
-    const a = document.createElement('div');
-    a.style.cssText = 'font-size:14px;font-weight:700;color:var(--warn-text);' +
-      'margin-bottom:6px;';
-    a.textContent = "🚫 Pas d'écoutes pédagogiques";
-    carte.appendChild(a);
-  }
-
-  const n = document.createElement('div');
-  if(note){
-    n.style.cssText = 'font-size:15px;font-weight:600;color:var(--accent-text);' +
-      'line-height:1.45;white-space:pre-wrap;';
-    n.textContent = note;
-  }else{
-    n.style.cssText = 'font-size:13px;color:var(--muted);';
-    n.textContent = 'Cours préparé, sans note particulière.';
-  }
-  carte.appendChild(n);
-
-  /* Les procédures demandées : le moniteur doit savoir d'un coup
-     d'œil si l'élève a fait ce qu'on lui a demandé. */
-  const zRecit = document.createElement('div');
-  carte.appendChild(zRecit);
-  afficherEtatRecitations(nom, zRecit);
-
-  /* Les manœuvres cochées à la préparation : le moniteur qui prend
-     le cours doit savoir ce que son collègue comptait valider.
-     La section s'affiche toujours — une absence silencieuse laisse
-     croire à un défaut d'affichage. */
-  /* Le contexte arrive parfois en texte : il vient du classeur,
-     où tout est stocké tel quel. */
-  let ctx = prep.contexte;
-  if(typeof ctx === 'string' && ctx.trim()){
-    try{ ctx = JSON.parse(ctx); }catch(e){ ctx = null; }
-  }
-  const ajoutees = (ctx && ctx.manoeuvresAjoutees) || [];
-  /* Ce que l'élève avait déjà fait dans une autre auto-école : ce
-     n'est pas au programme du jour, c'est de l'acquis. */
-  const ailleurs = (ctx && ctx.manoeuvresAilleurs) || [];
-
-  const sep = document.createElement('div');
-  sep.style.cssText = 'border-top:1px solid var(--line);margin:10px 0;';
-  carte.appendChild(sep);
-
-  /* Les marques déjà posées par les moniteurs précédents, pour
-     signer chaque manœuvre de qui l'a fait travailler. */
-  let marquesConnues = {};
-  try{
-    const d = await chargerDossierEleve(nom);
-    marquesConnues = (d && d.marques) || {};
-  }catch(e){ /* hors ligne : on affiche sans les émojis */ }
-
-  /* Ce qui est acquis, quel qu'en soit le cours : les manœuvres
-     déjà validées par un moniteur comptent autant que celles
-     cochées à la préparation. */
-  const acquises = BLOC.ficheListeConduite.filter(x =>
-    (marquesConnues[normaliserMot(x)] || ailleurs.indexOf(x) !== -1) &&
-    ajoutees.indexOf(x) === -1);
-
-  const faites = ajoutees.concat(acquises);
-
-  const t2 = document.createElement('div');
-  t2.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:4px;';
-  t2.textContent = '🦉 Fiche véhicule — ' + faites.length + ' sur ' +
-                   BLOC.ficheListeConduite.length;
-  carte.appendChild(t2);
-
-  const ligneManoeuvre = (x, prevue) => {
-    const li = document.createElement('div');
-    /* Tant que le bilan n'est pas parti, la 🚗 n'existe que dans le
-       contexte de préparation : sans ce repli, une manœuvre faite
-       ailleurs s'affichait nue et paraissait non acquise. */
-    const marque = marquesConnues[normaliserMot(x)] ||
-      (ailleurs.indexOf(x) !== -1 ? MARQUE_AILLEURS : '');
-    li.innerHTML = '· ' + x.replace(/</g, '&lt;') +
-      (marque ? ' <span style="letter-spacing:1px;">' + marque + '</span>' : '') +
-      (prevue ? ' <span style="font-size:11px;color:var(--muted);">' +
-                'prévue aujourd\'hui</span>' : '');
-    return li;
-  };
-
-  if(faites.length){
-    const l = document.createElement('div');
-    l.style.cssText = 'font-size:13px;line-height:1.7;';
-    /* Celles du jour d'abord, les acquises ensuite */
-    ajoutees.forEach(x => l.appendChild(ligneManoeuvre(x, true)));
-    acquises.forEach(x => l.appendChild(ligneManoeuvre(x, false)));
-    carte.appendChild(l);
-
-    /* Sans rien de coché à la préparation, on le dit quand même :
-       la liste ne montre alors que ce qui vient d'avant. */
-    if(!ajoutees.length){
-      const n = document.createElement('div');
-      n.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;margin-top:5px;';
-      n.textContent = ctx
-        ? 'Aucune manœuvre cochée lors de la préparation — ci-dessus, ' +
-          'ce qui est déjà acquis.'
-        : 'Préparation antérieure à la fiche véhicule — ci-dessus, ' +
-          'ce qui est déjà acquis.';
-      carte.appendChild(n);
-    }
-  }else{
-    const v = document.createElement('div');
-    v.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
-    v.textContent = ctx
-      ? 'Aucune manœuvre cochée lors de la préparation, et rien d\'acquis ' +
-        'pour l\'instant.'
-      : 'Préparation antérieure à la fiche véhicule : rien à afficher.';
-    carte.appendChild(v);
-  }
-
-  /* Ce qui reste : c'est ce que le moniteur doit travailler aujourd'hui */
-  const restantes = BLOC.ficheListeConduite.filter(
-    x => faites.indexOf(x) === -1);
-
-  if(restantes.length){
-    const t3 = document.createElement('div');
-    t3.style.cssText = 'font-size:13px;font-weight:700;color:var(--warn-text);' +
-      'margin:10px 0 4px;';
-    t3.textContent = '❓ Reste à travailler — ' + restantes.length;
-    carte.appendChild(t3);
-
-    const r = document.createElement('div');
-    r.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.7;';
-    restantes.forEach(x => {
-      const li = document.createElement('div');
-      li.textContent = '· ' + x;
-      r.appendChild(li);
-    });
-    carte.appendChild(r);
-  }
-
-  zone.appendChild(carte);
-  zone.style.display = 'block';
-}
+   Tout ce qu'elle faisait de mieux — la fiche véhicule dépliée avec
+   « prévue aujourd'hui », les procédures à réciter, la mise en
+   évidence de « pas d'écoutes pédagogiques » — a été repris dans
+   « blocAvantLeCours » (ec-avant-cours.js), qui dessine
+   maintenant l'unique bloc. Chercher la préparation, elle, est
+   devenu « preparationDuCours(nom, jour) » : elle rend la
+   préparation et ne touche à rien.
+   ============================================================ */
 
 /* Rouvre le questionnaire d'une préparation et l'enregistre à la
    place de l'ancienne. Le contexte est repris tel quel : on ne
