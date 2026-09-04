@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 16:07 — v846 */
+/* Déployé le 03/09/2026 à 16:15 — v847 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -333,10 +333,11 @@ function tableauAPlacer(liste){
   [['personne', '👤 Par personne'], ['semaine', '📅 Par semaine']].forEach(([v, lib]) => {
     const b = document.createElement('button');
     b.type = 'button';
+    /* Mêmes classes que partout : une couleur écrite à la main ici
+       serait la troisième définition du même bouton. */
+    b.className = 'btn ' + (vuePlaces === v ? 'btn-primary' : 'btn-secondary');
     b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;' +
-      'border-radius:8px;' + (vuePlaces === v
-        ? 'background:var(--accent);color:var(--navy-deep);border:1px solid var(--accent);font-weight:700;'
-        : 'background:var(--navy);color:var(--cream);border:1px solid var(--line);');
+      'border-radius:8px;' + (vuePlaces === v ? 'font-weight:700;' : '');
     b.textContent = lib;
     b.addEventListener('click', () => { vuePlaces = v; redessinerBureau(); });
     barre.appendChild(b);
@@ -970,12 +971,24 @@ function rangeeBoutons(titre, choix, courant, surChoix, opts){
     const b = document.createElement('button');
     b.type = 'button';
     const pris = (c.val === courant);
+
+    /* ⚠️ LES CLASSES DE L'APPLICATION, PAS DES COULEURS À MOI.
+
+       J'avais écrit « background:var(--accent) » — une variable qui
+       N'EXISTE PAS : seul « --accent-text » est défini. Le fond
+       restait donc transparent, et le texte prenait
+       « --navy-deep », qui vaut #FFFFFF en thème clair. Résultat :
+       blanc sur blanc. Le choix sélectionné devenait invisible,
+       exactement là où il fallait le voir.
+
+       « btn-primary » et « btn-secondary » existent depuis toujours
+       et sont justes dans les deux thèmes. On les utilise, et la
+       coche dit le reste — une couleur peut se perdre, un ✓ non. */
+    b.className = 'btn ' + (pris ? 'btn-primary' : 'btn-secondary');
     b.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12.5px;' +
       'border-radius:8px;line-height:1.25;text-align:center;' +
-      (pris
-        ? 'background:var(--accent);color:var(--navy-deep);border:1px solid var(--accent);font-weight:700;'
-        : 'background:var(--navy);color:var(--cream);border:1px solid var(--line);');
-    b.innerHTML = String(c.lib).replace(/</g, '&lt;') +
+      (pris ? 'font-weight:700;' : '');
+    b.innerHTML = (pris ? '✓ ' : '') + String(c.lib).replace(/</g, '&lt;') +
       (c.sous ? '<div style="font-size:9.5px;font-weight:400;opacity:.75;">' +
                 String(c.sous).replace(/</g, '&lt;') + '</div>' : '');
     b.title = c.titre || c.lib;
@@ -1015,12 +1028,89 @@ function rangeeBoutons(titre, choix, courant, surChoix, opts){
   return bloc;
 }
 
-/* Le choix long, quand il ne tient pas en boutons */
+/* ============================================================
+   LE CHOIX LONG, QUAND IL NE TIENT PAS EN BOUTONS
+
+   ⚠️ « Je n'ai pas de bouton pour fermer ça si j'ai missclick. »
+
+   Elle avait raison, et la cause était bête : je passais la liste
+   à « fenetre », qui range TOUS ses boutons dans une même rangée.
+   Prévue pour deux ou trois, elle en recevait huit — les semaines,
+   puis « — aucune — », puis « Annuler ». Les deux derniers
+   partaient hors de la fenêtre, invisibles et donc inatteignables.
+   Un écran dont on ne peut pas sortir est pire qu'un écran qui
+   manque.
+
+   Une vraie fenêtre de liste, donc : les choix défilent, le pied
+   ne bouge pas. Et trois façons d'en sortir — le bouton, la touche
+   Échap, un appui à côté — parce qu'une seule ne suffit jamais
+   quand on s'est trompé de doigt.
+   ============================================================ */
 function choisirDansUneListe(titre, choix, courant){
-  const boutons = choix.map(c => ({ nom: c.lib || c.val, valeur: c.val }));
-  boutons.push({ nom: '— aucun —', valeur: '' });
-  boutons.push({ nom: 'Annuler', valeur: null });
-  return fenetre('', boutons, titre);
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(440px,94vw);';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    let parti = false;
+    const fermer = v => {
+      if(parti) return;
+      parti = true;
+      document.removeEventListener('keydown', surTouche);
+      if(fond.parentNode) document.body.removeChild(fond);
+      resolve(v);
+    };
+    const surTouche = ev => { if(ev.key === 'Escape') fermer(null); };
+    document.addEventListener('keydown', surTouche);
+
+    /* Les choix défilent : dix semaines ne doivent pas pousser le
+       pied de la fenêtre hors de l'écran. */
+    const liste = document.createElement('div');
+    liste.style.cssText = 'max-height:min(50vh,400px);overflow-y:auto;' +
+      'margin-bottom:12px;display:flex;flex-direction:column;gap:6px;';
+
+    (choix || []).forEach(c => {
+      const pris = (c.val === courant);
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (pris ? 'btn-primary' : 'btn-secondary');
+      b.style.cssText = 'width:100%;margin:0;padding:11px 13px;font-size:14px;' +
+        'text-align:left;' + (pris ? 'font-weight:700;' : '');
+      b.textContent = (pris ? '✓ ' : '') + (c.lib || c.val);
+      b.addEventListener('click', () => fermer(c.val));
+      liste.appendChild(b);
+    });
+    boite.appendChild(liste);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+
+    const bAucun = document.createElement('button');
+    bAucun.className = 'btn btn-secondary';
+    bAucun.textContent = '— aucune —';
+    bAucun.title = 'Effacer la réponse';
+    bAucun.addEventListener('click', () => fermer(''));
+    rangee.appendChild(bAucun);
+
+    const bFerm = document.createElement('button');
+    bFerm.className = 'btn btn-secondary';
+    bFerm.textContent = 'Fermer';
+    bFerm.addEventListener('click', () => fermer(null));
+    rangee.appendChild(bFerm);
+
+    boite.appendChild(rangee);
+    fond.appendChild(boite);
+    /* Un appui à côté referme : c'est le geste de celui qui s'est
+       trompé de bouton. */
+    fond.addEventListener('click', ev => { if(ev.target === fond) fermer(null); });
+    document.body.appendChild(fond);
+  });
 }
 
 /* ============================================================
@@ -1133,8 +1223,10 @@ function choisirQuiPrendLaDate(courant){
       b.style.cssText = 'flex:1;margin:0;padding:10px 12px;font-size:14px;' +
         'text-align:left;' +
         (normaliserMot(n) === normaliserMot(courant || '')
-          ? 'border-color:var(--accent);color:var(--accent-text);' : '');
-      b.textContent = n;
+          ? 'border-color:var(--accent-text);color:var(--accent-text);' +
+            'font-weight:700;' : '');
+      b.textContent = (normaliserMot(n) === normaliserMot(courant || '')
+        ? '✓ ' : '') + n;
       b.addEventListener('click', () => fermer(n));
       l.appendChild(b);
 
@@ -1157,7 +1249,16 @@ function choisirQuiPrendLaDate(courant){
     boite.appendChild(rangee);
 
     fond.appendChild(boite);
+    /* Trois façons d'en sortir : le bouton, la touche Échap, un
+       appui à côté. Une seule ne suffit jamais quand on s'est
+       trompé de doigt. */
     fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+    const surTouche = ev => {
+      if(ev.key !== 'Escape') return;
+      document.removeEventListener('keydown', surTouche);
+      fermer(null);
+    };
+    document.addEventListener('keydown', surTouche);
     document.body.appendChild(fond);
   });
 }
@@ -3092,3 +3193,4 @@ function memeSemaine(a, b){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-permis-listes.js'] = true;
+
