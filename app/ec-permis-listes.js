@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 16:15 — v847 */
+/* Déployé le 04/09/2026 à 07:42 — v849 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1618,13 +1618,103 @@ function afficherPermisPrevus(tous){
 }
 
 
-/* Examens passés : résultat à saisir */
+/* ------------------------------------------------------------
+   LA PLACE QU'UN ÉLÈVE TIENT DANS UNE SESSION
+
+   Écrite ICI, et lue par les deux écrans qui en dépendent :
+   « dejaPlace » (qui l'écarte de RDV Permis) et les examens passés
+   (qui lui réclament son résultat). Deux lectures séparées, c'est
+   la garantie qu'un jour l'une dira oui et l'autre non — et c'est
+   très exactement ce qui est arrivé.
+   ------------------------------------------------------------ */
+function placeEnSessionDe(nom){
+  const cle = normaliserMot(nom || '');
+  if(!cle) return null;
+  try{
+    if(typeof sessionsPermis === 'undefined' || !sessionsPermis) return null;
+    for(const se of sessionsPermis){
+      for(const p of (se.eleves || [])){
+        if(p.eleve && normaliserMot(p.eleve) === cle){
+          return { session: se, place: p, date: se.date || '' };
+        }
+      }
+    }
+  }catch(err){ /* sans les sessions, on ne sait rien de plus */ }
+  return null;
+}
+
+
+/* ------------------------------------------------------------
+   EXAMENS PASSÉS : RÉSULTAT À SAISIR
+
+   Chrystel, le 4 septembre : « il me manque Romain Kikela dans les
+   examens passés ». Il était bien sur la session du 3 septembre,
+   avec deux autres élèves qui, eux, apparaissaient.
+
+   Vérifié dans le classeur : sa ligne de suivi n'a PAS de
+   `datePermis` — la colonne est vide — alors que celle d'Alhassane
+   BAH porte 2026-09-03. Sa dernière écriture de date remonte au
+   12 août, pour une session du 2 septembre qui a bougé depuis.
+
+   Il tombait donc entre deux listes :
+     · `dejaPlace` LIT LES SESSIONS, voyait sa place, et l'écartait
+       de « Élèves prêts au permis » ;
+     · cette liste-ci NE LISAIT QUE LE SUIVI, ne voyait pas de date,
+       et ne le réclamait pas.
+
+   Une place occupée sur une session passée est une convocation,
+   qu'une colonne du suivi le confirme ou non. C'est la session qui
+   dit qui était là ce jour-là — on la lit donc ici aussi, par la
+   même porte que `dejaPlace`.
+
+   ⚠️ Et l'élève peut n'exister QUE là : sans bilan, sans consigne,
+   il est absent de `tous` et l'ancien code le laissait tomber sans
+   un mot. On lui fabrique alors la fiche minimale qui manque
+   plutôt que de faire comme s'il n'existait pas.
+   ------------------------------------------------------------ */
 async function afficherPostExamenDepuisPrevus(tous, prevus){
-  await afficherPostExamen(prevus.concat(
-    tous.filter(e => suiviDe(e.eleve).datePermis &&
-                     !prevus.some(p => normaliserMot(p.eleve) === normaliserMot(e.eleve)))
-        .map(e => Object.assign({}, e, { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }))
-  ));
+  const liste = prevus.slice();
+  const dedans = nom => liste.some(p => normaliserMot(p.eleve) === normaliserMot(nom));
+
+  /* 1. Ceux dont le suivi porte une date */
+  tous.forEach(e => {
+    if(!suiviDe(e.eleve).datePermis || dedans(e.eleve)) return;
+    liste.push(Object.assign({}, e,
+      { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }));
+  });
+
+  /* 2. Ceux qui tiennent une place sur une session passée */
+  const auj = todayLocal();
+  try{
+    (typeof sessionsPermis !== 'undefined' ? (sessionsPermis || []) : []).forEach(se => {
+      if(!se.date || se.date >= auj) return;
+      (se.eleves || []).forEach(p => {
+        if(!p.eleve || dedans(p.eleve)) return;
+        const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(p.eleve));
+        liste.push(Object.assign({}, base || ficheMinimale(p.eleve), {
+          _iso: se.date,
+          _datePermis: se.date,
+          /* D'où il vient : l'écran le dit, parce qu'un élève qui
+             apparaît sans que sa fiche porte de date mérite qu'on
+             sache pourquoi il est là. */
+          _sansDateDeSuivi: !String(suiviDe(p.eleve).datePermis || '').trim()
+        }));
+      });
+    });
+  }catch(err){ /* sans les sessions, on s'en tient au suivi */ }
+
+  await afficherPostExamen(liste);
+}
+
+
+/* Un élève qui n'existe que par sa place : ni bilan, ni consigne.
+   La fiche a la même forme que celles de `chargerBureau`, sinon
+   les écrans qui la reçoivent tombent sur un champ manquant. */
+function ficheMinimale(nom){
+  return { eleve: nom, note: '', date: '', type: '', horodatage: '',
+           moniteur: '', boite: '', ants: '', lecons: 0,
+           etat: (typeof analyserNote === 'function') ? analyserNote('') : {},
+           enAttente: [], urgence: '' };
 }
 
 
@@ -2453,15 +2543,11 @@ function dejaPlace(e){
   if(String(s.datePermis || '').trim()) return true;
   if(e.etat && String(e.etat.permisDate || '').trim()) return true;
 
-  /* Une place dans une session : c'est une date, elle aussi */
-  try{
-    if(typeof sessionsPermis !== 'undefined' && sessionsPermis.length){
-      const dedans = sessionsPermis.some(se =>
-        (se.eleves || []).some(p =>
-          p.eleve && normaliserMot(p.eleve) === normaliserMot(e.eleve)));
-      if(dedans) return true;
-    }
-  }catch(err){ /* sans les sessions, les dates suffisent */ }
+  /* Une place dans une session : c'est une date, elle aussi.
+     Même lecture que les examens passés — voir « placeEnSessionDe ».
+     Tant qu'elles étaient écrites deux fois, l'une pouvait le voir
+     placé pendant que l'autre ne lui réclamait pas son résultat. */
+  if(placeEnSessionDe(e.eleve)) return true;
 
   return false;
 }
@@ -3193,4 +3279,3 @@ function memeSemaine(a, b){
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
 window.EC_MODULES['ec-permis-listes.js'] = true;
-
