@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:47 — v823 */
+/* Déployé le 04/09/2026 à 08:02 — v850 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -395,6 +395,192 @@ function lignesDuBandeau(){
 
 
 /* ============================================================
+   🔔 LE RAPPEL DU JOUR DE PRISE
+
+   Chrystel, le 4 septembre : « le jour de prise de place d'examen,
+   il faut un message en gros que l'on voie peu importe où on est
+   sur l'outil, à 11h15 : prise de place B à 11h30 ; et à 14h05 un
+   autre gros message : prise de place moto HC 14h15, CIR 14h30 ».
+
+   ⚠️ UNE FENÊTRE, PAS UN INSTANT. Un minuteur ne bat que si
+   l'onglet est ouvert. Si l'outil est fermé à 11h15, rien ne part —
+   et si elle l'ouvre à 11h22, il faut quand même qu'elle le voie.
+   Le rappel s'affiche donc pendant TOUT l'intervalle qui précède
+   l'heure, à l'ouverture comme en cours de route.
+
+   ⚠️ ET C'EST UN CONFORT, JAMAIS UN FILET. Rien de ce qui doit
+   arriver à coup sûr ne passe par là : le jour de prise est déjà
+   annoncé plusieurs jours à l'avance dans les lignes du bandeau
+   (famille « prise »), et il est écrit dans le réglage des places.
+   Ceci n'est qu'un coup de coude au bon moment.
+   ============================================================ */
+
+/* Les deux rendez-vous d'un jour de prise. Les heures vivent ICI et
+   nulle part ailleurs : le texte affiché les relit, la fenêtre
+   d'affichage les relit, le test les relit. */
+function rendezVousDePrise(){
+  return [
+    { cle:'b', emoji:'🚗', titre:'Prise de place B',
+      alerte:'11:15', etapes:[{ quoi:'', h:'11:30' }] },
+    { cle:'a', emoji:'🏍️', titre:'Prise de place moto',
+      alerte:'14:05', etapes:[{ quoi:'HC', h:'14:15' },
+                              { quoi:'CIR', h:'14:30' }] }
+  ];
+}
+
+/* « 11:15 » → 675. null si ce n'est pas une heure. */
+function minutesDeLHeure(hhmm){
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m) return null;
+  const h = +m[1], mi = +m[2];
+  if(h > 23 || mi > 59) return null;
+  return h * 60 + mi;
+}
+
+/* Le rendez-vous en cours à cet instant précis, ou null.
+
+   Fonction PURE : on lui donne le jour, l'heure et les prises
+   prévues, elle répond. C'est ce qui permet de rejouer une journée
+   minute par minute dans un test, au lieu d'attendre mardi 11h15
+   pour savoir si ça marche. */
+function rappelDePriseA(dateIso, heureHHMM, prises){
+  const dujour = (prises || []).filter(p => String(p.date || '') === String(dateIso || ''));
+  if(!dujour.length) return null;
+
+  const maintenant = minutesDeLHeure(heureHHMM);
+  if(maintenant == null) return null;
+
+  const rv = rendezVousDePrise().find(x => {
+    const debut = minutesDeLHeure(x.alerte);
+    const fin = minutesDeLHeure(x.etapes[x.etapes.length - 1].h);
+    if(debut == null || fin == null) return false;
+    /* On entre à l'heure d'alerte, on sort à la dernière heure de
+       prise : passé 11h30, le message n'a plus rien à annoncer. */
+    return maintenant >= debut && maintenant < fin;
+  });
+  if(!rv) return null;
+
+  return {
+    rv: rv,
+    prise: dujour[0],
+    /* De quoi écrire « dans 15 minutes » sans le recalculer ailleurs */
+    dans: minutesDeLHeure(rv.etapes[0].h) - maintenant,
+    id: 'prise:' + dateIso + ':' + rv.cle
+  };
+}
+
+/* Le ✕ range le rappel JUSQU'AU RENDEZ-VOUS SUIVANT — pas cinq
+   minutes, pas la journée entière. Fermer celui de 11h15 ne fait
+   pas sauter celui de 14h05 : ce sont deux informations, pas deux
+   copies de la même. */
+const CLE_RAPPEL_RANGE = 'ec.rappelPrise.range';
+
+function rappelPriseRange(id){
+  try{ return localStorage.getItem(CLE_RAPPEL_RANGE) === id; }
+  catch(e){ return false; }
+}
+function rangerRappelPrise(id){
+  try{ localStorage.setItem(CLE_RAPPEL_RANGE, id); }catch(e){}
+}
+
+/* La carte elle-même, ou null s'il n'y a rien à montrer. */
+function carteRappelPrise(){
+  if(typeof aDroit === 'function' && !aDroit('bureau_places')) return null;
+  if(typeof prochainesPrises !== 'function') return null;
+
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const jour = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  const heure = p2(d.getHours()) + ':' + p2(d.getMinutes());
+
+  let etat = null;
+  try{ etat = rappelDePriseA(jour, heure, prochainesPrises()); }
+  catch(e){ return null; }
+  if(!etat || rappelPriseRange(etat.id)) return null;
+
+  const pr = etat.prise;
+  /* Les places à prendre : la B a sa fonction, la A la sienne.
+     Elles lisent le même réglage — on n'en recalcule aucune ici. */
+  const places = etat.rv.cle === 'a'
+    ? ((typeof placesAdeLaQuinzaine === 'function')
+        ? placesAdeLaQuinzaine(pr.moisCible, pr.quinzaine) : '')
+    : (pr.places || '');
+
+  const carte = document.createElement('div');
+  carte.style.cssText = 'background:var(--accent-text);color:var(--navy-deep);' +
+    'border-radius:12px;padding:14px 16px;margin-bottom:10px;' +
+    'display:flex;gap:12px;align-items:flex-start;';
+
+  const corps = document.createElement('div');
+  corps.style.cssText = 'flex:1;min-width:0;';
+
+  const heures = etat.rv.etapes
+    .map(e => (e.quoi ? e.quoi + ' ' : '') + e.h.replace(':', 'h'))
+    .join(' · ');
+
+  const quandTexte = etat.dans > 1 ? 'Dans ' + etat.dans + ' minutes'
+                   : etat.dans === 1 ? 'Dans une minute'
+                   : "C'est maintenant";
+
+  const periode = (pr.quinzaine === 1 ? '1ʳᵉ' : '2ᵉ') + ' quinzaine de ' +
+    (pr.moisCible
+      ? new Date(pr.moisCible + '-15T12:00:00')
+          .toLocaleDateString('fr-FR', { month:'long' })
+      : '?');
+
+  corps.innerHTML =
+    '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;' +
+      'text-transform:uppercase;opacity:.75;">' + quandTexte + '</div>' +
+    '<div style="font-size:24px;font-weight:800;line-height:1.15;margin:3px 0 5px;">' +
+      etat.rv.emoji + ' ' + etat.rv.titre + ' à ' + heures + '</div>' +
+    '<div style="font-size:13px;">' + periode +
+      (places ? ' — ' + places + ' place(s)' : '') + '</div>';
+  carte.appendChild(corps);
+
+  /* ⚠️ PAS de « btn-secondary » ici : ses couleurs sont faites pour
+     le fond de l'application, pas pour cette carte verte — c'est
+     comme ça qu'on obtient du blanc sur blanc, la faute corrigée en
+     v847. Le bouton hérite donc des couleurs de la carte, qui sont
+     justes dans les deux thèmes. */
+  const x = document.createElement('button');
+  x.style.cssText = 'width:auto;padding:6px 11px;font-size:14px;flex:0 0 auto;' +
+    'background:transparent;color:inherit;border:1px solid currentColor;' +
+    'border-radius:8px;cursor:pointer;font-weight:700;opacity:.65;';
+  x.textContent = '✕';
+  x.title = 'Le ranger jusqu’au prochain rendez-vous';
+  x.addEventListener('click', () => {
+    rangerRappelPrise(etat.id);
+    dessinerBandeau();
+  });
+  carte.appendChild(x);
+
+  return carte;
+}
+
+/* ------------------------------------------------------------
+   LE BATTEMENT
+
+   Une fois par minute, et seulement pour repeindre le bandeau. Il
+   ne charge rien, n'appelle rien : c'est l'heure qui change, pas
+   les données. Sans lui, un onglet resté ouvert depuis 9h ne
+   verrait jamais arriver 11h15.
+   ------------------------------------------------------------ */
+let minuteurRappelPrise = null;
+function lancerMinuteurRappelPrise(){
+  if(minuteurRappelPrise) return;
+  minuteurRappelPrise = setInterval(() => {
+    try{ if(bandeauPret) dessinerBandeau(); }catch(e){}
+  }, 60000);
+  /* Revenir sur l'onglet après une heure de veille doit rafraîchir
+     tout de suite : le minuteur d'un onglet en arrière-plan est
+     ralenti par le navigateur, parfois jusqu'à la minute près. */
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden){ try{ if(bandeauPret) dessinerBandeau(); }catch(e){} }
+  });
+}
+
+
+/* ============================================================
    LE DESSIN
    ============================================================ */
 
@@ -407,14 +593,21 @@ function dessinerBandeau(){
 
   const lignes = lignesDuBandeau();
 
+  /* Le gros rappel du jour de prise passe AVANT tout le reste, et
+     il ne dépend pas des lignes : c'est le seul cas où le bandeau
+     s'affiche alors qu'il n'a rien d'autre à dire. */
+  const rappel = carteRappelPrise();
+
   /* RIEN À DIRE : IL DISPARAÎT. Pas de « ✅ rien aujourd'hui » — un
      bandeau qui est là tous les jours devient un décor, et on cesse
      de le lire. C'est sa disparition qui lui donne son poids. */
-  if(!lignes.length){
+  if(!lignes.length && !rappel){
     zone.style.display = 'none';
     return;
   }
   zone.style.display = '';
+  if(rappel) zone.appendChild(rappel);
+  if(!lignes.length) return;
 
   const urgent = lignes.some(l => l.urgente);
   const reduit = !!lireReglageBandeau(CLE_BANDEAU_REDUIT, false);
@@ -676,6 +869,7 @@ async function reveillerBandeau(){
 
     bandeauPret = true;
     dessinerBandeau();
+    lancerMinuteurRappelPrise();
   }catch(e){
     /* Un bandeau qui n'a pas ses données ne s'affiche pas, et ne
        dit rien : ce n'est pas une panne, c'est une absence. */
