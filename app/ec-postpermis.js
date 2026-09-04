@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:03 — v856 */
+/* Déployé le 04/09/2026 à 12:34 — v864 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -2013,10 +2013,34 @@ async function proposerPasserelle(x, boite){
 }
 
 
+/* ⚠️ DEUX FAÇONS DE SAVOIR LA BOÎTE, ET C'EST LA PLUS COURTE QUI
+   DÉCIDAIT SI LA PASSERELLE EST PROPOSÉE.
+
+   Chrystel, le 4 septembre : « il est où le bouton, quand un élève
+   en BEA a eu son permis, pour dupliquer sa fiche en passerelle ? »
+
+   Il n'y a pas de bouton : la question s'ouvre toute seule après
+   « ✅ Permis obtenu » — mais seulement si on sait qu'il roulait en
+   automatique. Or « _boite » ne regarde que la colonne
+   « typeExamen » du suivi et le type du bilan. Un élève dont la
+   BOÎTE N'EST ÉCRITE QUE DANS SA FORMATION (« CS BEA », « AAC
+   BEA ») passait donc pour un BV, et la question ne s'ouvrait
+   jamais.
+
+   « boiteDe » (ec-sessions.js) sait déjà lire les trois sources
+   dans l'ordre : le suivi, le bilan, puis la formation de sa fiche.
+   C'est elle qui répond au bouton 🅑/🅰 de la répartition. On la
+   prend en dernier recours plutôt que d'entretenir une seconde
+   réponse, plus pauvre, à la même question. */
 function boiteDePostPermis(e){
   const s = suiviDe(e.eleve) || {};
   if(e._boite === 'bea' || /bea|automatique/i.test(s.typeExamen || '')) return 'BEA';
   if(e._boite === 'handicap') return 'Handicap';
+
+  const deduite = (typeof boiteDe === 'function')
+    ? String(boiteDe(e.eleve) || '').toLowerCase() : '';
+  if(deduite === 'bea') return 'BEA';
+
   return 'BV';
 }
 
