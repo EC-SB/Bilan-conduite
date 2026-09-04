@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 12:37 — v865 */
+/* Déployé le 04/09/2026 à 13:54 — v867 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -473,15 +473,27 @@ function etapesCroiseesEleve(nom){
                flou:true });
   }
 
-  /* ── L'examen blanc — TOUJOURS AFFICHÉ ── */
+  /* ── L'examen blanc — TOUJOURS AFFICHÉ ──
+
+     ⚠️ SON RÉSULTAT SE DIT AVEC LES MÊMES MOTS QU'AILLEURS.
+     « — pas le niveau » était écrit ici, et nulle part la suite :
+     ni « plus que les 3h », ni « encore 2 leçons ». Le bloc d'avant
+     le cours (ec-avant-cours.js) sait les trois, par
+     « resultatExamenBlanc » : on l'appelle plutôt que d'en écrire
+     une seconde version, forcément plus pauvre. */
+  const resEB = (typeof resultatExamenBlanc === 'function')
+    ? resultatExamenBlanc(nom, a) : null;
+  const suiteEB = resEB ? ' — ' + resEB.texte : '';
+
   if(s.ebDate){
     out.push({ ok:true, emoji:'✅',
       txt: 'Examen blanc ' + (jourDejaPasse(s.ebDate) === false ? 'prévu' : 'passé') +
            ' le ' + jourFr(s.ebDate) +
-           (s.ebNiveau === 'non' ? ' — pas le niveau' : '') });
+           (jourDejaPasse(s.ebDate) === false ? '' : suiteEB) });
   }else if(a.examBlanc === 'passe'){
     out.push({ ok:true, emoji:'✅',
-      txt:'Examen blanc passé' + (a.ebDate ? ' le ' + jourFr(a.ebDate) : '') });
+      txt:'Examen blanc passé' + (a.ebDate ? ' le ' + jourFr(a.ebDate) : '') +
+          suiteEB });
   }else if(a.examBlanc === 'reserve'){
     out.push({ ok:null, emoji:'📌',
       txt:'Examen blanc réservé' +
