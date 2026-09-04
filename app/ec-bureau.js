@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 10:50 — v862 */
+/* Déployé le 04/09/2026 à 12:28 — v863 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -271,7 +271,11 @@ function marquePlaceExamen(nom){
   if(String(s.aRemplacer || '') === 'oui'){
     return {
       cle: 'remplacer', emoji: '🔄', couleur: 'var(--red)',
-      court: 'À REMPLACER',
+      /* « PLACE » en toutes lettres, et pas « À REMPLACER » tout
+         court : Chrystel, devant la carte du 4 septembre — « on a
+         l'impression qu'il faut remplacer son cours ». C'est la
+         place d'examen qui est à redonner, jamais la leçon. */
+      court: 'PLACE D\'EXAMEN À REMPLACER',
       texte: 'À REMPLACER — place à donner',
       long: 'Place à remplacer : elle doit être redonnée à un autre élève.'
     };
@@ -280,7 +284,7 @@ function marquePlaceExamen(nom){
   if(String(s.fantome || '') === 'oui'){
     return {
       cle: 'pretenom', emoji: '👻', couleur: '#E8A33D',
-      court: 'PRÊTE-NOM',
+      court: 'PRÊTE-NOM SUR LA PLACE D\'EXAMEN',
       texte: 'PRÊTE-NOM — pas prévenu',
       long: 'Prête-nom : il tient la place d\'examen, il n\'a jamais été prévenu.'
     };
