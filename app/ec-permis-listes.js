@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:25 — v851 */
+/* Déployé le 04/09/2026 à 09:49 — v859 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -498,6 +498,68 @@ function tableauAPlacer(liste){
         s.semaine || '');
     }, 'semaine');
 
+    /* ------------------------------------------------------------
+       LA BOÎTE — DÉDUITE, PUIS ÉCRITE, ET L'ÉCRAN DIT LEQUEL
+
+       Chrystel, le 4 septembre : « ici il me manque s'ils sont en BV
+       ou BEA, et la possibilité de changer ».
+
+       C'est plus qu'un affichage : une voiture est manuelle OU
+       automatique, donc c'est la boîte qui décide qui peut passer
+       avec qui. Sans elle sous les yeux, on forme des groupes qui ne
+       tiennent pas dans une voiture.
+
+       Trois états, et le bouton les distingue :
+         · CREUX  — personne n'a tranché, la boîte vient de sa
+                    formation. C'est une déduction, elle se voit
+                    comme telle.
+         · PLEIN  — quelqu'un a répondu : c'est écrit dans
+                    « typeExamen », et ça vaut partout ailleurs.
+         · le troisième appui rend la case à la formation. Sans ce
+           retour, une erreur de doigt s'écrirait pour toujours.
+
+       ⚠️ Il écrit EXACTEMENT le champ que le menu « Boîte » de la
+       fiche de place remplit déjà. Une seule colonne, deux endroits
+       pour la poser — jamais deux colonnes. */
+    const bBoite = document.createElement('button');
+    bBoite.className = 'btn btn-secondary';
+    const peindreBoite = () => {
+      const ecrit = String(s.typeExamen || '').toLowerCase();
+      const vue = ecrit || (typeof boiteDe === 'function'
+        ? String(boiteDe(e.eleve) || '').toLowerCase() : '');
+      const bea = (vue === 'bea');
+      const teinte = !vue ? 'var(--orange)' : (bea ? '#5DADE2' : 'var(--accent-text)');
+      bBoite.textContent = vue ? vue.toUpperCase() : '？';
+      bBoite.style.cssText = 'width:auto;padding:6px 8px;font-size:11px;' +
+        'font-weight:800;margin:0;flex-shrink:0;letter-spacing:.03em;' +
+        'color:' + teinte + ';border-color:' + teinte + ';' +
+        /* Plein = quelqu'un a répondu. Creux = c'est déduit. */
+        (ecrit ? 'background:' + (bea ? 'rgba(93,173,226,.18)'
+                                      : 'rgba(182,255,14,.14)') + ';' : '');
+      bBoite.title = !vue
+        ? 'Boîte inconnue — appuie pour la choisir'
+        : (ecrit ? 'Boîte : ' + vue.toUpperCase() +
+                   ' (choisie) — appuie pour changer'
+                 : 'Boîte : ' + vue.toUpperCase() +
+                   " (d'après sa formation) — appuie pour la fixer");
+    };
+    peindreBoite();
+    bBoite.addEventListener('click', async () => {
+      const ecrit = String(s.typeExamen || '').toLowerCase();
+      /* bv → bea → d'après sa formation → bv … */
+      const suite = ecrit === 'bv' ? 'bea' : ecrit === 'bea' ? '' : 'bv';
+      bBoite.disabled = true;
+      try{
+        await majSuivi(e.eleve, { typeExamen: suite });
+        await chargerBureau();
+        redessinerBureau();
+      }catch(err){
+        showToast('Erreur : ' + err.message);
+        bBoite.disabled = false;
+      }
+    });
+    l.appendChild(bBoite);
+
     const bCal = document.createElement('button');
     bCal.className = 'btn btn-secondary';
     bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
@@ -673,9 +735,11 @@ function tableauAPlacer(liste){
         t.appendChild(bTous);
       }
 
+      /* ✂️ FAIRE DES GROUPES — voir dessinerGroupesDuLot. */
+      if(lot.length > 1) t.appendChild(boutonFaireGroupes(lot));
+
       bs.appendChild(t);
-      lot.forEach(e =>
-        bs.appendChild(ligneEleve(e, !suiviDe(e.eleve).moniteurDate)));
+      dessinerGroupesDuLot(bs, lot, ligneEleve);
     });
 
     corps.appendChild(bs);
@@ -685,6 +749,299 @@ function tableauAPlacer(liste){
   bloc.appendChild(det);
   return bloc;
 }
+
+/* ============================================================
+   ✂️ LES GROUPES DE LA SEMAINE
+
+   Chrystel, le 4 septembre : « à l'intérieur de la semaine, il
+   faudrait que je puisse faire des groupes, mais facilement :
+   pour cette semaine-là je prends un groupe de 2 élèves et un
+   groupe de 3 ».
+
+   ⚠️ UN CHAMP À PART, ET C'EST VOULU. « groupePermis » existe déjà,
+   mais il sert le JOUR de l'examen — « Matin », « Inspecteur A ». Ce
+   sont deux moments et deux découpages : celui qu'on prépare une
+   semaine à l'avance, et celui que la préfecture impose le jour
+   venu. Chrystel a tranché : « pour le moment on garde séparé ».
+   D'où « groupeSemaine ».
+
+   Le pont entre les deux se fait dans l'éditeur de session, qui
+   propose les groupes de la semaine au moment de les remplir — pas
+   ici.
+   ============================================================ */
+
+/* Le groupe d'un élève, ou '' */
+function groupeSemaineDe(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  return String(s.groupeSemaine || '').trim();
+}
+
+/* La boîte telle qu'on la montre : écrite si quelqu'un a tranché,
+   déduite de la formation sinon. La même règle que le bouton. */
+function boiteVisible(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const ecrit = String(s.typeExamen || '').toLowerCase();
+  if(ecrit) return ecrit;
+  return (typeof boiteDe === 'function')
+    ? String(boiteDe(nom) || '').toLowerCase() : '';
+}
+
+/* Le découpage proposé : par BOÎTE, parce que c'est la seule
+   contrainte réelle — une voiture est manuelle ou automatique.
+   Ce n'est qu'un point de départ : tout se corrige derrière. */
+function groupesProposes(lot){
+  const paquets = {};
+  (lot || []).forEach(e => {
+    const b = boiteVisible(e.eleve) || 'inconnue';
+    (paquets[b] = paquets[b] || []).push(e.eleve);
+  });
+  const out = [];
+  /* BV d'abord, puis BEA, puis ce qu'on ne sait pas : un ordre
+     stable, sinon les numéros changent à chaque redessin. */
+  ['bv', 'bea', 'inconnue'].forEach(b => {
+    if(paquets[b] && paquets[b].length) out.push(paquets[b]);
+  });
+  Object.keys(paquets).sort().forEach(b => {
+    if(['bv', 'bea', 'inconnue'].indexOf(b) === -1) out.push(paquets[b]);
+  });
+  return out;
+}
+
+function boutonFaireGroupes(lot){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:11px;' +
+    'border-radius:7px;background:var(--navy);color:var(--accent-text);' +
+    'border:1px solid var(--line);flex-shrink:0;';
+  const dejaGroupes = lot.some(e => groupeSemaineDe(e.eleve));
+  b.textContent = dejaGroupes ? '✂️ Refaire les groupes' : '✂️ Faire des groupes';
+  b.title = 'Découpe cette semaine par boîte — tu corriges ensuite ' +
+            'en glissant les noms';
+  b.addEventListener('click', async () => {
+    const paquets = groupesProposes(lot);
+    if(dejaGroupes && !await confirmer(
+        'Refaire les groupes de cette semaine ?\n\n' +
+        'Le découpage repart de la boîte de chacun : ' +
+        paquets.map((p, i) => 'Groupe ' + (i + 1) + ' (' + p.length + ')').join(', ') +
+        '.\nCe que tu avais déplacé à la main sera perdu.')) return;
+    b.disabled = true;
+    b.textContent = '…';
+    try{
+      for(let i = 0; i < paquets.length; i++){
+        for(const nom of paquets[i]){
+          await majSuivi(nom, { groupeSemaine: 'Groupe ' + (i + 1) });
+        }
+      }
+      await chargerBureau();
+      showToast(paquets.length + ' groupe(s) ✅');
+      redessinerBureau();
+    }catch(err){
+      showToast('Erreur : ' + err.message);
+      b.disabled = false;
+      b.textContent = '✂️ Faire des groupes';
+    }
+  });
+  return b;
+}
+
+/* Ce qu'un groupe contient comme boîtes : « 3 BV », ou le mélange
+   signalé. On SIGNALE SANS INTERDIRE — Chrystel, 4 septembre. */
+function resumeBoitesDuGroupe(noms){
+  const compte = {};
+  noms.forEach(n => {
+    const b = boiteVisible(n) || '?';
+    compte[b] = (compte[b] || 0) + 1;
+  });
+  const cles = Object.keys(compte);
+  const lisible = cles.map(b => compte[b] + ' ' + b.toUpperCase()).join(' · ');
+  return { texte: lisible, melange: cles.filter(b => b === 'bv' || b === 'bea').length > 1 };
+}
+
+/* ------------------------------------------------------------
+   LE GLISSER-DÉPOSER
+
+   Demandé le 4 septembre : « est-ce que tu peux faire en sorte que
+   l'on puisse faire un cliquer-glisser pour les déplacer de groupe
+   si besoin ? »
+
+   ⚠️ EN « POINTER EVENTS », PAS EN DRAG AND DROP HTML. Le
+   glisser-déposer natif du navigateur ne marche PAS au doigt : sur
+   téléphone et sur tablette, il ne se passe rien du tout. Les
+   événements de pointeur, eux, couvrent la souris ET le doigt avec
+   le même code.
+
+   Et il reste une sortie sans glisser : appuyer sur la poignée sans
+   bouger ouvre la liste des groupes. Un écran où le seul chemin est
+   un geste précis exclut ceux qui ne peuvent pas le faire.
+   ------------------------------------------------------------ */
+function rendreDeplacable(poignee, ligne, nom, zoneGroupes){
+  let enCours = null;
+
+  const finir = async (cible) => {
+    if(enCours && enCours.fantome && enCours.fantome.parentNode){
+      enCours.fantome.parentNode.removeChild(enCours.fantome);
+    }
+    zoneGroupes.querySelectorAll('[data-groupe]').forEach(z => {
+      z.style.outline = '';
+    });
+    ligne.style.opacity = '';
+    enCours = null;
+    if(!cible) return;
+    const vers = cible.dataset.groupe || '';
+    if(vers === groupeSemaineDe(nom)) return;
+    try{
+      await majSuivi(nom, { groupeSemaine: vers });
+      await chargerBureau();
+      redessinerBureau();
+    }catch(err){ showToast('Erreur : ' + err.message); }
+  };
+
+  poignee.style.cursor = 'grab';
+  /* Sans « touch-action:none », le doigt fait défiler la page au
+     lieu de déplacer le nom : le geste ne démarre jamais. */
+  poignee.style.touchAction = 'none';
+
+  poignee.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    poignee.setPointerCapture(ev.pointerId);
+    enCours = { x: ev.clientX, y: ev.clientY, bouge: false, fantome: null };
+  });
+
+  poignee.addEventListener('pointermove', ev => {
+    if(!enCours) return;
+    const d = Math.abs(ev.clientX - enCours.x) + Math.abs(ev.clientY - enCours.y);
+    /* Six pixels : en dessous, c'est un appui, pas un glissement.
+       Sans ce seuil, un simple clic déplacerait l'élève. */
+    if(!enCours.bouge && d < 6) return;
+
+    if(!enCours.bouge){
+      enCours.bouge = true;
+      ligne.style.opacity = '.4';
+      const f = document.createElement('div');
+      f.textContent = nom;
+      f.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;' +
+        'background:var(--navy);border:1px solid var(--accent-text);' +
+        'color:var(--cream);border-radius:8px;padding:5px 10px;' +
+        'font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.45);';
+      document.body.appendChild(f);
+      enCours.fantome = f;
+    }
+    enCours.fantome.style.left = (ev.clientX + 12) + 'px';
+    enCours.fantome.style.top = (ev.clientY - 14) + 'px';
+
+    /* La zone survolée s'allume : sans retour visuel, on lâche au
+       jugé et on découvre le résultat après coup. */
+    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
+    const cible = sous && sous.closest ? sous.closest('[data-groupe]') : null;
+    zoneGroupes.querySelectorAll('[data-groupe]').forEach(z => {
+      z.style.outline = (z === cible) ? '2px solid var(--accent-text)' : '';
+    });
+  });
+
+  const lacher = ev => {
+    if(!enCours) return;
+    if(!enCours.bouge){
+      /* Appui sans glissement : la sortie pour ceux qui ne peuvent
+         pas viser, et pour la souris qui préfère une liste. */
+      finir(null);
+      choisirGroupeSemaine(nom, zoneGroupes);
+      return;
+    }
+    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
+    finir(sous && sous.closest ? sous.closest('[data-groupe]') : null);
+  };
+  poignee.addEventListener('pointerup', lacher);
+  poignee.addEventListener('pointercancel', () => finir(null));
+}
+
+async function choisirGroupeSemaine(nom, zoneGroupes){
+  const noms = [...zoneGroupes.querySelectorAll('[data-groupe]')]
+    .map(z => z.dataset.groupe).filter(Boolean);
+  const uniques = [];
+  noms.forEach(g => { if(uniques.indexOf(g) === -1) uniques.push(g); });
+  const choix = uniques.map(g => ({ val: g, lib: g }));
+  choix.push({ val: '➕ Nouveau groupe', lib: '➕ Nouveau groupe' });
+  const v = await choisirDansUneListe('Groupe de ' + nom, choix,
+                                      groupeSemaineDe(nom));
+  if(v === null) return;
+  let vers = v;
+  if(v === '➕ Nouveau groupe') vers = 'Groupe ' + (uniques.length + 1);
+  try{
+    await majSuivi(nom, { groupeSemaine: vers });
+    await chargerBureau();
+    redessinerBureau();
+  }catch(err){ showToast('Erreur : ' + err.message); }
+}
+
+/* ------------------------------------------------------------
+   LE DESSIN DES GROUPES
+
+   Sans groupe : la liste telle qu'elle était. Le découpage ne
+   s'impose pas — il arrive quand on le demande.
+   ------------------------------------------------------------ */
+function dessinerGroupesDuLot(bs, lot, ligneEleve){
+  const zone = document.createElement('div');
+  bs.appendChild(zone);
+
+  const parGroupe = {};
+  lot.forEach(e => {
+    const g = groupeSemaineDe(e.eleve);
+    (parGroupe[g] = parGroupe[g] || []).push(e);
+  });
+  const groupes = Object.keys(parGroupe).filter(Boolean).sort(
+    (a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+
+  /* Personne n'est groupé : rien ne change à l'écran. */
+  if(!groupes.length){
+    lot.forEach(e => zone.appendChild(
+      ligneEleve(e, !suiviDe(e.eleve).moniteurDate)));
+    return;
+  }
+
+  const bloc = (titre, liste, avecTitre) => {
+    const z = document.createElement('div');
+    z.dataset.groupe = avecTitre ? titre : '';
+    z.style.cssText = 'border-left:3px solid ' +
+      (avecTitre ? 'var(--accent-text)' : 'var(--line)') +
+      ';padding-left:8px;margin:0 0 8px;border-radius:2px;';
+
+    const r = resumeBoitesDuGroupe(liste.map(e => e.eleve));
+    const h = document.createElement('div');
+    h.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' +
+      'font-size:12px;font-weight:700;margin:2px 0 4px;';
+    h.innerHTML = (avecTitre ? titre : '— sans groupe —') +
+      ' <span style="font-weight:400;color:var(--muted);">' +
+      liste.length + ' élève(s) · ' + r.texte + '</span>' +
+      /* On SIGNALE SANS INTERDIRE : une voiture est manuelle ou
+         automatique, mais c'est Chrystel qui sait si deux voitures
+         sortent la même demi-journée. */
+      (r.melange
+        ? ' <span style="font-weight:700;color:var(--warn-text);">' +
+          '⚠️ mélange BV et BEA</span>'
+        : '');
+    z.appendChild(h);
+
+    liste.forEach(e => {
+      const l = ligneEleve(e, !suiviDe(e.eleve).moniteurDate);
+      /* La poignée, en tête de ligne : on saisit là, pas n'importe
+         où — sinon un appui sur un bouton déclencherait un
+         déplacement. */
+      const p = document.createElement('span');
+      p.textContent = '⠿';
+      p.title = 'Glisse pour changer de groupe, ou appuie pour choisir';
+      p.style.cssText = 'flex-shrink:0;color:var(--muted);font-size:15px;' +
+        'padding:0 2px;user-select:none;';
+      l.insertBefore(p, l.firstChild);
+      rendreDeplacable(p, l, e.eleve, zone);
+      z.appendChild(l);
+    });
+    return z;
+  };
+
+  groupes.forEach(g => zone.appendChild(bloc(g, parGroupe[g], true)));
+  if(parGroupe['']) zone.appendChild(bloc('', parGroupe[''], false));
+}
+
 
 /* Copier un texte, avec un repli pour les vieux navigateurs. */
 function copierTexte(t, bouton){
@@ -1681,6 +2038,68 @@ function placeEnSessionDe(nom){
    un mot. On lui fabrique alors la fiche minimale qui manque
    plutôt que de faire comme s'il n'existait pas.
    ------------------------------------------------------------ */
+/* ------------------------------------------------------------
+   ⚠️ LE RÉSULTAT DOIT SURVIVRE À LA FICHE — MA FAUTE DE LA v849
+
+   Chrystel, le 4 septembre : « j'ai bien cliqué sur obtenu,
+   supprimer des listes, mais elle est encore là — j'ai eu deux fois
+   le cas ».
+
+   « ✅ Permis obtenu » fait trois choses : il consigne le résultat
+   dans les statistiques, solde les consignes, et SUPPRIME la fiche
+   de suivi. Jusqu'à la v849 l'élève disparaissait, parce que cette
+   liste ne lisait que les fiches.
+
+   Depuis la v849 elle lit AUSSI les places tenues sur une session
+   passée — et cette place, elle, ne bouge pas : c'est la trace que
+   l'élève est bien allé à l'examen ce jour-là. Sans fiche pour
+   porter son résultat, il revenait aussitôt, avec en prime la
+   mention « aucune date sur sa fiche » que je venais d'ajouter.
+
+   J'avais ajouté une source sans ajouter de quoi la refermer.
+
+   La trace qui survit à la suppression de la fiche existe : c'est la
+   feuille des Résultats, celle qui nourrit les taux de réussite. On
+   la lit ici, une fois, gardée cinq minutes.
+
+   ⚠️ On ne libère PAS la place sur la session : elle dit qui est
+   allé à l'examen ce jour-là, et cette histoire ne s'efface pas
+   parce qu'on a saisi une note.
+   ------------------------------------------------------------ */
+let resultatsConnus = null;          /* { ts, parNom } */
+
+async function chargerResultatsConnus(){
+  const MAX_AGE = 300000;            /* cinq minutes */
+  if(resultatsConnus && Date.now() - resultatsConnus.ts < MAX_AGE){
+    return resultatsConnus.parNom;
+  }
+  const parNom = {};
+  try{
+    /* Six mois suffisent : au-delà, personne ne tient plus de place
+       sur une session que cette liste regarde. */
+    const d = new Date();
+    d.setMonth(d.getMonth() - 6);
+    const depuis = d.toISOString().slice(0, 10);
+    const r = await appelPrep({ action:'resultatList', depuis: depuis });
+    ((r && r.resultats) || []).forEach(x => {
+      const k = normaliserMot(x.eleve || '');
+      if(k) parNom[k] = x;
+    });
+  }catch(e){
+    /* Résultats illisibles (droit manquant, réseau) : on ne bloque
+       rien. Un élève réapparaîtra peut-être une fois de trop — c'est
+       moins grave que de le faire disparaître à tort. */
+  }
+  resultatsConnus = { ts: Date.now(), parNom: parNom };
+  return parNom;
+}
+
+/* À oublier dès qu'un résultat vient d'être saisi : sinon le cache
+   de cinq minutes ferait revenir l'élève qu'on vient de sortir —
+   exactement la faute du cache de trente secondes des places. */
+function oublierResultatsConnus(){ resultatsConnus = null; }
+
+
 async function afficherPostExamenDepuisPrevus(tous, prevus){
   const liste = prevus.slice();
   const dedans = nom => liste.some(p => normaliserMot(p.eleve) === normaliserMot(nom));
@@ -1692,13 +2111,18 @@ async function afficherPostExamenDepuisPrevus(tous, prevus){
       { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }));
   });
 
-  /* 2. Ceux qui tiennent une place sur une session passée */
+  /* 2. Ceux qui tiennent une place sur une session passée, ET dont
+        le résultat n'est écrit nulle part. */
   const auj = todayLocal();
+  const dejaConsigne = await chargerResultatsConnus();
   try{
     (typeof sessionsPermis !== 'undefined' ? (sessionsPermis || []) : []).forEach(se => {
       if(!se.date || se.date >= auj) return;
       (se.eleves || []).forEach(p => {
         if(!p.eleve || dedans(p.eleve)) return;
+        /* Son résultat est consigné : la question est réglée, même
+           si sa fiche de suivi n'existe plus. */
+        if(dejaConsigne[normaliserMot(p.eleve)]) return;
         const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(p.eleve));
         liste.push(Object.assign({}, base || ficheMinimale(p.eleve), {
           _iso: se.date,
