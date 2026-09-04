@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:06 — v869 */
+/* Déployé le 04/09/2026 à 14:14 — v871 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -5726,6 +5726,13 @@ async function chargerHistoriqueEleve(){
        l'autre celle du COURS PRÉPARÉ. Chrystel, le 4 septembre :
        « on fait du ménage pour ne pas tout avoir, là on confond
        plein de choses ». */
+    /* Le suivi et les sessions, sans quoi le bloc dirait « pas de
+       date d'examen » à un élève qui en a une — voir
+       « sourcesDuBlocAvantCours ». */
+    if(typeof sourcesDuBlocAvantCours === 'function'){
+      await sourcesDuBlocAvantCours();
+    }
+
     zone.innerHTML = '';
     const jour = $('lessonDate') ? $('lessonDate').value : '';
     const prep = (typeof preparationDuCours === 'function')
@@ -5982,6 +5989,10 @@ async function chargerHistoriquePrep(){
        l'examen blanc, ni l'état de la place, ni les états qui font
        foi. Deux dessins pour une même chose, et c'était toujours le
        plus pauvre qui servait à préparer. */
+    if(typeof sourcesDuBlocAvantCours === 'function'){
+      await sourcesDuBlocAvantCours();
+    }
+
     zone.innerHTML = '';
     const carte = blocAvantLeCours(nom, res,
       (typeof preparationDuCours === 'function')
