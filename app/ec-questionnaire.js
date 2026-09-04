@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 11:30 — v836 */
+/* Déployé le 04/09/2026 à 08:25 — v851 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2406,9 +2406,16 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
                   'font-size:14px;line-height:1.9;color:var(--cream);"></div>' +
                 '</details>'
               : '')
+          /* ⚠️ CHAQUE PROFIL DIT SON NOM, ET LE DERNIER N'EST PAS UN
+             FOURRE-TOUT. « handicap » tombait dans la branche par
+             défaut : la fiche d'évaluation d'un élève en situation
+             de handicap s'annonçait « Examen officiel ». Un écran
+             qui se trompe de nom fait douter de tout le reste. */
           : (profil === 'simulateur' ? 'Séance sur simulateur — seule la frise est demandée ici.'
             : profil === 'evaluation' ? 'Évaluation de départ — la frise se définit en fin de séance.'
-            : 'Examen officiel — note interne uniquement.')) +
+            : profil === 'handicap' ? 'Fiche d’évaluation — combien de leçons avant la préfecture.'
+            : profil === 'examen' ? 'Examen officiel — note interne uniquement.'
+            : '')) +
         (consignesBureau.length
           ? '<div style="margin-top:10px;padding:10px 12px;background:rgba(182,255,14,.10);' +
             'border:1px solid var(--orange);border-radius:10px;color:var(--accent-text);' +
