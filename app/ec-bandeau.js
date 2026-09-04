@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 13:25 — v866 */
+/* Déployé le 04/09/2026 à 14:06 — v869 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -646,6 +646,16 @@ function lancerMinuteurRappelPrise(){
   if(minuteurRappelPrise) return;
   minuteurRappelPrise = setInterval(() => {
     try{ if(bandeauPret) dessinerBandeau(); }catch(e){}
+    /* ⚠️ ET LES MESSAGES, TOUTES LES CINQ MINUTES.
+
+       Le battement d'une minute ne fait que repeindre — il ne coûte
+       rien. Relire les messages, si : c'est un appel réseau par
+       moniteur. Une fois sur cinq, donc : un message poussé arrive
+       en cinq minutes au pire, sans que personne ait à toucher son
+       téléphone. Chaque minute, ce serait soixante appels par heure
+       et par moniteur pour un message qu'on écrit deux fois par
+       mois. */
+    relireMessagesAuRetour(300000);
   }, 60000);
   /* Revenir sur l'onglet après une heure de veille doit rafraîchir
      tout de suite : le minuteur d'un onglet en arrière-plan est
@@ -674,9 +684,11 @@ function lancerMinuteurRappelPrise(){
    reprendre son téléphone dix fois de suite n'appelle qu'une fois.
    ------------------------------------------------------------ */
 let derniereRelectureMessages = 0;
-async function relireMessagesAuRetour(){
+async function relireMessagesAuRetour(battement){
   if(typeof chargerMessagesEpingles !== 'function') return;
-  if(Date.now() - derniereRelectureMessages < 120000) return;
+  /* Une minute au retour sur l'application, cinq pour le battement
+     de fond : revenir dessus est un signe qu'on va regarder. */
+  if(Date.now() - derniereRelectureMessages < (battement || 60000)) return;
   derniereRelectureMessages = Date.now();
   try{
     messagesEpingles = await chargerMessagesEpingles();
@@ -970,31 +982,72 @@ function ouvrirReglageBandeau(){
 
 
 /* ============================================================
-   LE RÉVEIL — EN FOND, APRÈS LE PREMIER ÉCRAN
+   LE RÉVEIL — EN DEUX TEMPS
+
+   ⚠️ UN MESSAGE POUSSÉ NE PEUT PAS ARRIVER EN DERNIER.
+
+   Chrystel, le 4 septembre : « le message important met énormément
+   de temps à apparaître ». Elle avait raison, et c'était écrit dans
+   l'ordre du code : le bandeau se réveillait quatre secondes après
+   l'ouverture, puis attendait QUATRE lectures À LA SUITE — les
+   messages, les masquages, l'état du bureau, les fiches — avant de
+   dessiner quoi que ce soit. Sur un téléphone en 4G, ça fait dix à
+   quinze secondes pendant lesquelles rien ne s'affiche.
+
+   Or les messages sont la SEULE famille du bandeau qui n'attende
+   rien d'autre : le classeur les rend filtrés, prêts à l'emploi.
+
+   Deux temps, donc :
+
+     1. les messages, seuls, et on dessine — c'est ce qui presse ;
+     2. le reste, EN PARALLÈLE, et on redessine.
+
+   Le bandeau se complète au lieu de se faire attendre. Rien ne
+   saute : les messages sont en tête, ce qui arrive ensuite s'ajoute
+   en dessous.
    ============================================================ */
+
+/* Le premier temps : lancé tôt, il ne lit qu'une chose. */
+async function reveillerMessagesDuBandeau(){
+  if(typeof chargerMessagesEpingles !== 'function') return;
+  try{
+    messagesEpingles = await chargerMessagesEpingles();
+    derniereRelectureMessages = Date.now();
+    bandeauPret = true;
+    dessinerBandeau();
+  }catch(e){
+    /* Pas de message, pas de bandeau : ce n'est pas une panne. */
+  }
+}
+
 async function reveillerBandeau(){
   try{
-    /* Les messages épinglés : le seul appel qui soit propre au
-       bandeau. Le classeur filtre par destinataire, on ne reçoit
-       que les siens. */
-    if(typeof chargerMessagesEpingles === 'function'){
+    /* Les messages, s'ils ne sont pas déjà arrivés par le premier
+       temps — un réveil manuel, ou un premier temps qui a échoué. */
+    if(!messagesEpingles.length && typeof chargerMessagesEpingles === 'function'){
       messagesEpingles = await chargerMessagesEpingles();
+      derniereRelectureMessages = Date.now();
+      bandeauPret = true;
+      dessinerBandeau();
     }
 
-    /* Les masquages, sinon les alertes barrées hier réapparaissent. */
-    if(typeof chargerNotifsMasquees === 'function'){
-      await chargerNotifsMasquees();
-    }
-
-    /* Ce dont les familles ont besoin, SANS forcer une relecture :
-       « verifierAPrevoirEnFond » vient de charger l'état du bureau,
-       et les fiches sont là depuis l'ouverture. On se sert de ce
-       qui existe. */
-    if(typeof chargerBureau === 'function') await chargerBureau(false);
-    if(typeof fichesEleves !== 'undefined' && !fichesEleves.length &&
-       typeof chargerFiches === 'function'){
-      await chargerFiches();
-    }
+    /* ⚠️ EN PARALLÈLE, PAS À LA SUITE. Ces trois lectures ne
+       dépendent pas les unes des autres : les enchaîner ajoutait
+       leurs temps d'attente au lieu de les superposer. */
+    await Promise.all([
+      /* Les masquages, sinon les alertes barrées hier
+         réapparaissent. */
+      (typeof chargerNotifsMasquees === 'function')
+        ? chargerNotifsMasquees().catch(() => null) : Promise.resolve(),
+      /* Ce dont les familles ont besoin, SANS forcer une relecture :
+         « verifierAPrevoirEnFond » vient de charger l'état du
+         bureau. On se sert de ce qui existe. */
+      (typeof chargerBureau === 'function')
+        ? chargerBureau(false).catch(() => null) : Promise.resolve(),
+      (typeof fichesEleves !== 'undefined' && !fichesEleves.length &&
+       typeof chargerFiches === 'function')
+        ? chargerFiches().catch(() => null) : Promise.resolve()
+    ]);
 
     bandeauPret = true;
     dessinerBandeau();
