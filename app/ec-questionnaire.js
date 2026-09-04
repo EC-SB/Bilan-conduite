@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:14 — v871 */
+/* Déployé le 04/09/2026 à 14:35 — v874 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -347,6 +347,25 @@ function etatQuiFaitFoi(nom){
     if(s.heuresRepassage) d.heuresRepassage = String(s.heuresRepassage);
     if(s.heuresRestantes) d.heuresRestantes = String(s.heuresRestantes);
     if(s.ebNiveau) d.ebNiveau = String(s.ebNiveau);
+    /* ⚠️ UN RÉSULTAT VAUT PREUVE QUE L'EXAMEN A EU LIEU.
+
+       Chrystel, le 4 septembre, sur Raphael Pape : « je n'ai pas son
+       examen blanc, alors qu'il l'a — son résultat était bien
+       enregistré sur l'appli, mais il n'était pas dans le
+       questionnaire non plus ».
+
+       Sa fiche portait « ebNiveau », et rien ne le lisait comme une
+       conclusion : ni date du jour où il a été fait, ni bilan à son
+       dossier (il n'en a aucun), donc « examen blanc » restait vide
+       partout — et le questionnaire cachait jusqu'à la case du
+       résultat, celle qui aurait permis de le corriger.
+
+       On ne note pas « pas le niveau » ni « plus que les 3h » sur un
+       examen blanc qui n'a pas eu lieu : le résultat suffit à dire
+       qu'il est passé. « avenir » n'est pas un résultat — c'est une
+       date à venir, et elle ne conclut rien. */
+    const niv = String(s.ebNiveau || '').toLowerCase();
+    if(niv === 'oui' || niv === 'non') d.examBlanc = 'passe';
     if(s.ebDate){
       const iso = dateFrVersIso(String(s.ebDate));
       if(iso) d.examBlancDate = iso;
