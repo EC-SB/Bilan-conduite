@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 13:10 — v839 */
+/* Déployé le 04/09/2026 à 08:38 — v853 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3989,6 +3989,13 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
     }else if(ch.type === 'manoeuvres'){
       const liste = BLOC.ficheListeConduite;
       const dejaFaites = (dossier.manoeuvres || []).map(normaliserMot);
+      /* La case 🚗 ne s'affiche que pour un élève venu d'ailleurs —
+         même règle qu'à l'écran de cours, et lue par la MÊME
+         fonction. Deux lectures de « vient-il d'ailleurs ? »
+         auraient fini par ne pas être d'accord. */
+      const nomIci = $('studentName') ? $('studentName').value.trim() : '';
+      const venuDAilleurs = (typeof vientDuneAutreAE === 'function')
+        ? vientDuneAutreAE(nomIci) : true;
 
       const lm = document.createElement('label');
       lm.textContent = ch.nom + ' — coche celles travaillées aujourd\'hui';
@@ -4012,8 +4019,11 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
         /* 🚗 : déjà fait dans une autre auto-école. La même case que
            sur l'écran de cours — une manœuvre acquise ailleurs ne
-           porte l'émoji d'aucun de nos moniteurs. */
-        if(!dejaOk){
+           porte l'émoji d'aucun de nos moniteurs.
+
+           Et la même condition : seulement pour un élève venu
+           d'ailleurs. */
+        if(!dejaOk && venuDAilleurs){
           const ail = document.createElement('label');
           ail.style.cssText = 'display:flex;align-items:center;gap:4px;margin:0 0 0 auto;' +
             'font-size:12px;text-transform:none;color:var(--muted);flex-shrink:0;';
