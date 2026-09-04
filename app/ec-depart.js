@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 13:54 — v867 */
+/* Déployé le 04/09/2026 à 14:06 — v869 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1428,7 +1428,13 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
      celui-ci charge l'état du bureau et les masquages, dont le
      bandeau se sert. Lancé avant, il aurait relu deux fois la même
      chose pour l'afficher une. */
-  [[2500, 'verifierAPrevoirEnFond'],
+  /* ⚠️ LES MESSAGES PARTENT LES PREMIERS — Chrystel, le
+     4 septembre : « le message important met énormément de temps à
+     apparaître ». Ils n'attendent rien d'autre : une seule lecture,
+     déjà filtrée par le classeur. Le reste du bandeau se réveille à
+     4,2 s comme avant, et se pose en dessous. */
+  [[600,  'reveillerMessagesDuBandeau'],
+   [2500, 'verifierAPrevoirEnFond'],
    [3200, 'chargerProcEnFond'],
    [3200, 'compterTachesEnFond'],
    [3800, 'chargerFlotteEnFond'],
