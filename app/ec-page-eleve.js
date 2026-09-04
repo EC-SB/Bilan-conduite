@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 13:54 — v867 */
+/* Déployé le 04/09/2026 à 14:06 — v869 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1763,7 +1763,14 @@ function ongletPermis(corps, nom){
   const lEb = ligneDossier(
     '📝 Examen blanc',
     s.ebDate ? 'Passé le ' + jourFr(s.ebDate) +
-        (s.ebNiveau === 'non' ? " — pas le niveau" : '') +
+        /* La consigne suit le résultat ici aussi : c'est l'écran où
+           le bureau replace un examen blanc, et il doit savoir ce
+           qu'on a demandé au moniteur entre-temps. */
+        (s.ebNiveau === 'non'
+          ? ' — pas le niveau — ' +
+            ((typeof CONSIGNE_PAS_LE_NIVEAU !== 'undefined')
+              ? CONSIGNE_PAS_LE_NIVEAU : 'FAIRE LE POINT À CHAQUE LEÇON')
+          : '') +
         (s.ebMoniteur ? ' · ' + s.ebMoniteur : '')
       : (a.examBlanc === 'passe' ? 'Passé — date non enregistrée'
         : (a.examBlanc === 'reserve' ? 'Réservé' +
