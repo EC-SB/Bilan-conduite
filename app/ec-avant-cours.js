@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 15:56 — v875 */
+/* Déployé le 04/09/2026 à 16:03 — v876 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -138,6 +138,52 @@ function resultatExamenBlanc(nom, a){
              couleur:'var(--warn-text)' };
   }
   return null;
+}
+
+/* ============================================================
+   LA NOTE D'UN BILAN, COMPLÉTÉE DE CE QU'ON A APPRIS DEPUIS
+
+   Chrystel, le 4 septembre : « dans le dossier élève > Cours, mets
+   le résultat de l'examen blanc à la suite de "examen blanc passé
+   le" ».
+
+   La note d'un bilan est écrite LE JOUR DU COURS. Le résultat de
+   l'examen blanc, lui, se saisit après — au cours suivant, ou par
+   le bureau. La ligne du bilan dit donc « EXAMEN BLANC PASSÉ le
+   29 août » et s'arrête là, alors que la conclusion est connue
+   depuis.
+
+   ⚠️ ON NE RÉÉCRIT PAS LA NOTE, ON COMPLÈTE L'AFFICHAGE. Le bilan
+   enregistré ne bouge pas : c'est ce qui a été dit ce jour-là, et
+   ça n'a pas à changer trois mois plus tard. Seul l'écran ajoute la
+   suite, et seulement si la note ne la porte pas déjà.
+   ============================================================ */
+function noteAvecResultatExamenBlanc(nom, note){
+  const t = String(note || '');
+  if(!t) return t;
+
+  /* Le résultat tel que la fiche de suivi le connaît AUJOURD'HUI —
+     on ne lui donne pas la note à relire, sinon il ne dirait que ce
+     qu'elle dit déjà. */
+  const r = (typeof resultatExamenBlanc === 'function')
+    ? resultatExamenBlanc(nom, {}) : null;
+  if(!r) return t;
+
+  /* Le libellé voyage en gras Unicode dans la note : on cherche les
+     deux formes, comme « colorerNote » le fait pour l'examen. */
+  const enGras = (typeof ETAT_EB_PASSE !== 'undefined') ? ETAT_EB_PASSE : '';
+  const motif = new RegExp(
+    '(' + (enGras ? enGras + '|' : '') + 'EXAMEN BLANC PASS[ÉE]|Examen blanc pass[ée])' +
+    '([^·\n\r]*)', 'i');
+
+  /* Une suite déjà écrite ne se double pas. */
+  const DEJA = /pas le niveau|plus que les 3h|encore \d+\s*le[çc]on/i;
+
+  return t.replace(motif, (tout, tete, suite) => {
+    const clair = (typeof sansGras === 'function') ? sansGras(tout) : tout;
+    if(DEJA.test(clair)) return tout;
+    return tete + String(suite).replace(/\s+$/, '') + ' — ' + r.texte;
+  });
 }
 
 /* ============================================================
