@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 12:28 — v863 */
+/* Déployé le 04/09/2026 à 14:20 — v872 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -218,9 +218,66 @@ async function chargerBureau(forcer){
   return etatBureau;
 }
 
+/* ============================================================
+   UNE CONSIGNE D'ÉTAT REMPLACE LA PRÉCÉDENTE
+
+   Chrystel, le 4 septembre, capture à l'appui : « ce sont des gens
+   qui avaient une date, à qui j'ai enlevé la date d'examen — donc
+   ça ne doit plus apparaître quand ils repartent dans élèves prêts
+   au permis ». Sur sa liste, on lisait à la suite :
+
+     « Examen du permis fixé au mercredi 2 septembre 2026 avant
+       (bureau) · Examen du permis fixé au mercredi 2 septembre 2026
+       avant (bureau) · Date d'examen à prévoir (bureau) »
+
+   Trois annonces pour une seule question, dont deux fausses.
+
+   ⚠️ CE N'EST PAS QU'UN PROBLÈME D'AFFICHAGE. Les consignes en
+   attente sont TOUTES versées dans la note du prochain cours : le
+   moniteur aurait lu la date annulée à côté de son annulation, et
+   « analyserNote » n'aurait tranché que par l'ordre des mots.
+
+   Une consigne qui décrit un ÉTAT — la date d'examen, l'examen
+   blanc, le simulateur — n'a qu'une valeur à la fois : la dernière.
+   Les précédentes du même type sont donc soldées à l'écriture. Un
+   MESSAGE, lui, s'empile : deux mots du bureau sont deux mots, et
+   le second ne remplace pas le premier.
+
+   Écrit ici, au seul endroit par où toutes les consignes passent :
+   les six écrans qui fixent une date d'examen n'ont rien à savoir
+   de cette règle.
+   ============================================================ */
+const TYPES_CONSIGNE_ETAT = ['permis', 'examblanc', 'simu'];
+
+async function solderConsignesDuMemeType(eleve, type){
+  if(TYPES_CONSIGNE_ETAT.indexOf(String(type || '')) === -1) return;
+  if(typeof etatBureau === 'undefined') return;
+
+  /* On lit ce qu'on a en mémoire : relire le classeur avant chaque
+     consigne coûterait un aller-retour pour zéro ou une ligne. Ce
+     qui manquerait ici sera soldé au prochain passage. */
+  const dedans = (etatBureau.consignes || []).filter(cs =>
+    cs && cs.id &&
+    normaliserMot(cs.eleve || '') === normaliserMot(eleve || '') &&
+    String(cs.type || '') === String(type) &&
+    cs.traite !== 'oui');
+
+  for(const cs of dedans){
+    try{
+      await appelPrep({ action: 'consigneDone', id: cs.id });
+      cs.traite = 'oui';   /* la mémoire suit, sans relire */
+    }catch(e){
+      /* Une consigne qui résiste ne doit pas empêcher la nouvelle
+         de partir : mieux vaut une annonce de trop que pas
+         d'annonce du tout. */
+    }
+  }
+}
+
 /* Enregistre une consigne : elle sera injectée dans la note du prochain cours */
 async function envoyerConsigne(eleve, type, texte, valeur){
   cacheBureau = null;
+  await solderConsignesDuMemeType(eleve, type);
   await appelPrep({
     action: 'consigneAdd',
     eleve: eleve, type: type, texte: texte, valeur: valeur || '',
