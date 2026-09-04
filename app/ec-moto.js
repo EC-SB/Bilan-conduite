@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:10 — v776 */
+/* Déployé le 04/09/2026 à 08:02 — v850 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -152,6 +152,13 @@ async function afficherMoto(){
   const tous = elevesMoto();
   zone.innerHTML = '';
 
+  /* Les semaines ouvertes, tout en haut — demandé le 4 septembre.
+     EN LECTURE SEULE : on règle dans 🎓 Suivi permis, on regarde
+     ici. Deux écrans où l'on saisirait les mêmes jours, ce serait
+     deux vérités, et une seule de juste. */
+  const cadreS = cadreSemainesMoto();
+  if(cadreS) zone.appendChild(cadreS);
+
   zone.appendChild(boutonAjouterMoto());
 
   const cadres = [
@@ -182,6 +189,96 @@ async function afficherMoto(){
   });
 
   zone.appendChild(blocStats2R('moto', '📊 Statistiques moto'));
+}
+
+
+/* ------------------------------------------------------------
+   🗓️ LES SEMAINES OUVERTES À LA PRISE DE DATE — CADRE MOTO
+
+   Chrystel, le 4 septembre : « on voit les semaines ouvertes avec le
+   nombre de jours dans un cadre dans la partie permis moto tout en
+   haut ».
+
+   Il ne fait que RELIRE le réglage des places de 🎓 Suivi permis.
+   Aucune saisie ici, aucune copie : les jours HC et CIR sont écrits
+   une fois, à un seul endroit.
+
+   Renvoie null quand il n'y a rien à montrer — un cadre vide qui
+   annonce « 0 » ferait croire à un réglage à zéro alors qu'il n'a
+   simplement pas encore été chargé.
+   ------------------------------------------------------------ */
+function cadreSemainesMoto(){
+  if(typeof placesConfig === 'undefined' || !placesConfig) return null;
+  if(typeof joursMotoDeLaSemaine !== 'function') return null;
+  const mois = (placesConfig.mois || []).filter(m => (m.semaines || []).length);
+  if(!mois.length) return null;
+
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const nb = n => (typeof nbFrPlaces === 'function')
+    ? nbFrPlaces(n) : String(n);
+
+  const d = document.createElement('details');
+  d.className = 'volet-liste';
+  d.open = true;
+
+  let totalHC = 0, totalCIR = 0, lignes = '';
+
+  mois.forEach(m => {
+    /* Une semaine terminée ne se prend plus : elle n'a rien à
+       faire dans une liste de semaines « ouvertes ». */
+    const semaines = (m.semaines || []).filter(w => !w.au || w.au >= auj);
+    if(!semaines.length) return;
+
+    let hcM = 0, cirM = 0;
+    const corps = semaines.map(w => {
+      const j = joursMotoDeLaSemaine(w);
+      hcM += j.hc; cirM += j.cir;
+      const lib = (typeof libelleSemaine === 'function')
+        ? libelleSemaine(w) : ((w.du || '?') + ' → ' + (w.au || '?'));
+      /* Une semaine sans jour moto se DIT. Un blanc se lit « je
+         n'ai pas regardé » ; « aucun jour ici » se lit « il n'y en
+         a pas », et on cesse de la chercher. */
+      return '<div style="margin-bottom:3px;">• ' + lib + ' — ' +
+        (j.hc || j.cir
+          ? '🏍️ <strong>' + nb(j.hc) + '</strong> j HC · <strong>' +
+            nb(j.cir) + '</strong> j CIR'
+          : '<span style="color:var(--warn-text);">⚠️ aucun jour moto ici</span>') +
+        '</div>';
+    }).join('');
+
+    totalHC += hcM; totalCIR += cirM;
+
+    const libMois = m.mois
+      ? new Date(m.mois + '-15T12:00:00')
+          .toLocaleDateString('fr-FR', { month:'long', year:'numeric' })
+      : 'Mois non renseigné';
+    const pA = [m.aQ1, m.aQ2];
+    lignes += '<div style="margin-top:7px;">' +
+      '<div style="font-weight:700;text-transform:capitalize;">' +
+        libMois + '</div>' + corps +
+      ((pA[0] || pA[1])
+        ? '<div style="color:var(--muted);">Places A : ' + (pA[0] || '?') +
+          ' en 1ʳᵉ quinzaine · ' + (pA[1] || '?') + ' en 2ᵉ</div>'
+        : '') +
+      '</div>';
+  });
+
+  if(!lignes) return null;
+
+  const s = document.createElement('summary');
+  s.innerHTML = '🗓️ Semaines ouvertes à la prise de date ' +
+    '<span class="compteur">' + nb(totalHC) + ' HC · ' + nb(totalCIR) + ' CIR</span>';
+  d.appendChild(s);
+
+  const c = document.createElement('div');
+  c.style.cssText = 'font-size:13px;line-height:1.7;';
+  c.innerHTML = lignes +
+    '<div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--line);' +
+      'font-size:12px;color:var(--muted);">Réglé dans 🎓 Suivi permis → ' +
+      '⚙️ Régler les places disponibles. Cet écran ne fait que le relire.</div>';
+  d.appendChild(c);
+  return d;
 }
 
 
