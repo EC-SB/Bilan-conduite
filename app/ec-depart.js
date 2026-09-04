@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:06 — v869 */
+/* Déployé le 04/09/2026 à 16:03 — v876 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -525,7 +525,16 @@ function ligneBilan(item, nomCherche, refaire){
     row.className = 'history-item';
     const meta = document.createElement('div');
     meta.className = 'meta';
-    const note = (item.note || '').trim();
+    /* ⚠️ LE RÉSULTAT DE L'EXAMEN BLANC ARRIVE APRÈS LE BILAN.
+
+     Chrystel, le 4 septembre : « dans le dossier élève > Cours, mets
+     le résultat de l'examen blanc à la suite de "examen blanc passé
+     le" ». La note du bilan est écrite le jour du cours ; la
+     conclusion se saisit plus tard. On complète l'AFFICHAGE, jamais
+     le bilan enregistré — voir noteAvecResultatExamenBlanc. */
+  const note = ((typeof noteAvecResultatExamenBlanc === 'function')
+    ? noteAvecResultatExamenBlanc(item.eleve, item.note)
+    : (item.note || '')).trim();
     const t = document.createElement('strong');
     if(!nom || nom.length < 2){
       /* Recherche par moniteur : on met l'élève en avant */
