@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:58 — v844 */
+/* Déployé le 04/09/2026 à 07:42 — v849 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -51,6 +51,34 @@ async function afficherPostExamen(tous){
     return;
   }
 
+  /* ------------------------------------------------------------
+     QUAND LA SESSION ET LA FICHE NE DISENT PAS LA MÊME CHOSE
+
+     Deux endroits écrivent qui est convoqué et quand : la place
+     tenue sur une session, et « datePermis » sur la fiche de
+     suivi. Les deux sens du désaccord se voient ici :
+
+       · une PLACE sans date sur la fiche — c'était Romain Kikela
+         le 3 septembre, absent de cette liste jusqu'ici ;
+       · une DATE sans place — les « anciens noms » retirés des
+         sessions et restés dans la liste.
+
+     On ne répare rien tout seul : on le DIT, sur la ligne de
+     l'élève. Effacer une date d'examen sur un doute, ce serait
+     rejouer le bouton qui a effacé une matinée d'examens.
+     ------------------------------------------------------------ */
+  const sessionsConnues = (typeof sessionsPermis !== 'undefined') &&
+                          (sessionsPermis || []).length > 0 &&
+                          typeof placeEnSessionDe === 'function';
+  const mentionDesaccord = (x, s) => {
+    if(!sessionsConnues) return '';
+    if(x._sansDateDeSuivi) return ' · ⚠️ sa place sur la session, mais aucune date sur sa fiche';
+    if(String(s.datePermis || '').trim() && !placeEnSessionDe(x.eleve)){
+      return ' · ⚠️ une date sur sa fiche, mais plus de place sur aucune session';
+    }
+    return '';
+  };
+
   majVolet('cptPasses', attente.length, attente.length > 0);
   attente.forEach(e => {
     const s = suiviDe(e.eleve);
@@ -58,7 +86,8 @@ async function afficherPostExamen(tous){
     zone.appendChild(ligneBureau(e, {
       info: x => 'Examen passé le ' + (x._datePermis || s.datePermis || iso) +
                  (s.nbAjournements
-                   ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : ''),
+                   ? ' · ' + mentionAjournements(s.nbAjournements, s.dateAjournement) : '') +
+                 mentionDesaccord(x, s),
       resume: () => '',
       alerte: () => 'Résultat à saisir',
       actions: (x, boite) => {
