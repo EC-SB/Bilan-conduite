@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 09:57 — v860 */
+/* Déployé le 04/09/2026 à 10:08 — v861 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -2174,17 +2174,42 @@ function ouvrirEditeurSession(sess){
     zGroupes.innerHTML = '';
     if(typeof etatBureau === 'undefined' || !etatBureau.suivi) return;
 
-    const parGroupe = {};
+    /* ⚠️ ON REGROUPE SUR LA CLÉ, PAS SUR LE NOM.
+
+       Chrystel, le 4 septembre : « là tu les regroupes par semaine,
+       il ne faut pas — il faut bien garder chaque groupe de liste
+       rendez-vous permis indépendant ». « Groupe 1 » de la semaine 37
+       et « Groupe 1 » de la semaine 38 ne faisaient qu'un bouton de
+       six élèves. La clé porte un identifiant propre à chaque
+       groupe : ils ne peuvent plus se confondre, même appelés
+       pareil. */
+    const parGroupe = {}, ou = {};
     (etatBureau.suivi || []).forEach(s => {
       const g = String(s.groupeSemaine || '').trim();
       if(!g || !s.eleve) return;
       /* Déjà placé sur une date : son groupe de semaine a servi. */
       if(String(s.datePermis || '').trim()) return;
       (parGroupe[g] = parGroupe[g] || []).push(s.eleve);
+      if(!ou[g]){
+        ou[g] = [String(s.semaine || '').trim(), String(s.centre || '').trim()]
+                  .filter(Boolean).join(' · ');
+      }
     });
-    const noms = Object.keys(parGroupe)
-      .sort((a, b) => a.localeCompare(b, 'fr', { numeric: true }));
+    const noms = Object.keys(parGroupe).sort((a, b) => {
+      const c = (ou[a] || '').localeCompare(ou[b] || '', 'fr', { numeric: true });
+      return c || libelleGroupe(a).localeCompare(libelleGroupe(b), 'fr',
+                                                { numeric: true });
+    });
     if(!noms.length) return;
+
+    /* Deux groupes peuvent porter le même nom sans être le même
+       groupe. Alors — et seulement alors — on dit d'où ils viennent :
+       ajouter la semaine partout encombrerait sans rien distinguer. */
+    const combien = {};
+    noms.forEach(g => {
+      const l = libelleGroupe(g);
+      combien[l] = (combien[l] || 0) + 1;
+    });
 
     const t = document.createElement('div');
     t.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:5px;' +
@@ -2200,8 +2225,11 @@ function ouvrirEditeurSession(sess){
       b.type = 'button';
       b.className = 'btn btn-secondary';
       b.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:12px;';
-      b.textContent = '👥 ' + g + ' (' + parGroupe[g].length + ')';
-      b.title = parGroupe[g].join(' · ');
+      const lib = libelleGroupe(g);
+      b.textContent = '👥 ' + lib +
+        ((combien[lib] > 1 && ou[g]) ? ' · ' + ou[g] : '') +
+        ' (' + parGroupe[g].length + ')';
+      b.title = (ou[g] ? ou[g] + '\n' : '') + parGroupe[g].join(' · ');
       b.addEventListener('click', () => {
         const champs = [...zEleves.querySelectorAll('.seEleve')];
         const dedans = champs.map(x => normaliserMot(x.value.trim()))
