@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:25 — v851 */
+/* Déployé le 04/09/2026 à 08:52 — v855 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2615,20 +2615,38 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       '<input type="text" id="qExamBlancN" inputmode="numeric" placeholder="Dans combien de leçons ?" style="display:none;">' +
 
-      /* La conclusion se donne à la FIN de l'examen blanc, pas au
-         départ : elle n'a rien à faire dans le questionnaire
-         d'ouverture. */
-      (modeleCle === 'examen-blanc' && !/^Avant/i.test(String(titre || ''))
-        ? '<label for="qEBPasse">Conclusion de l\'examen blanc</label>' +
-          '<select id="qEBPasse">' +
-            '<option value="">— à renseigner —</option>' +
-            '<option value="3h">✅ Plus que les 3h avant examen</option>' +
-            '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
-            '<option value="pasleniveau">⛔ Pas le niveau</option>' +
-          '</select>' +
-          '<input type="text" id="qEBLecons" inputmode="numeric" ' +
-          'placeholder="Combien de leçons avant l\'examen ?" style="display:none;">'
-        : '') +
+      /* ------------------------------------------------------------
+         LE RÉSULTAT DE L'EXAMEN BLANC
+
+         Il se donne à la FIN de l'examen blanc — il n'a rien à faire
+         dans le questionnaire d'ouverture, où l'épreuve n'a pas
+         encore eu lieu.
+
+         ⚠️ MAIS IL DOIT POUVOIR SE RATTRAPER. Chrystel, le
+         4 septembre : « j'ai un élève qui a eu un examen blanc au
+         mois de mai et je ne peux pas mettre le résultat ». Le champ
+         n'existait QUE sur le modèle examen blanc, en fin de cours.
+         Un examen passé avant, ailleurs, ou dont personne n'avait
+         saisi la conclusion sur le moment, restait sans résultat
+         pour toujours — et c'est ce résultat que lisent les listes
+         du bureau pour savoir qui est prêt.
+
+         Il est donc présent dans TOUS les questionnaires, et se
+         montre dès qu'on coche « Déjà passé » : c'est exactement le
+         moment où l'on sait qu'il y a un résultat à écrire. Voir
+         « majEB », qui décide de son affichage.
+         ------------------------------------------------------------ */
+      '<div id="qBlocEbSuite" style="display:none;">' +
+        '<label for="qEBPasse">Résultat de l\'examen blanc</label>' +
+        '<select id="qEBPasse">' +
+          '<option value="">— à renseigner —</option>' +
+          '<option value="3h">✅ Plus que les 3h avant examen</option>' +
+          '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
+          '<option value="pasleniveau">⛔ Pas le niveau</option>' +
+        '</select>' +
+        '<input type="text" id="qEBLecons" inputmode="numeric" ' +
+        'placeholder="Combien de leçons avant l\'examen ?" style="display:none;">' +
+      '</div>' +
       '</div>' +
 
       /* Tout l'examen officiel dans un seul bloc : une passerelle
@@ -3575,6 +3593,24 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       if(blocRang) blocRang.style.display = v ? 'block' : 'none';
       /* La date : seulement s'il est réservé ou déjà passé */
       if(blocDate) blocDate.style.display = (v === 'reserve' || v === 'passe') ? 'block' : 'none';
+
+      /* LE RÉSULTAT — deux moments, une seule case.
+
+         · à la fin d'un examen blanc du jour : c'est la conclusion
+           qu'on vient de tirer, elle se demande d'office ;
+         · sur n'importe quel autre cours, dès que « Déjà passé » est
+           coché : c'est le rattrapage d'un examen blanc passé avant,
+           dont personne n'avait saisi le résultat.
+
+         Elle reste visible si une réponse y est déjà : la cacher
+         rendrait impossible de corriger ce qu'on vient d'écrire. */
+      const finDExamenBlanc = cejour && !/^Avant/i.test(String(titre || ''));
+      const blocSuite = boite.querySelector('#qBlocEbSuite');
+      if(blocSuite){
+        const dejaRepondu = !!((boite.querySelector('#qEBPasse') || {}).value);
+        blocSuite.style.display =
+          (finDExamenBlanc || v === 'passe' || dejaRepondu) ? 'block' : 'none';
+      }
     }
 
     /* Un objet qui se comporte comme l'ancien menu, pour le reste du code */
@@ -4985,7 +5021,19 @@ function ajouterSuite(etats, permis, mots, q){
 
   /* L'examen blanc vient d'avoir lieu : sa conclusion prime */
   if(q.ebPasse){
-    const jour = dateEnToutesLettres($('lessonDate').value || todayLocal());
+    /* ⚠️ LA DATE DE L'EXAMEN, PAS CELLE DU COURS.
+
+       La conclusion se saisissait toujours le jour même, et cette
+       ligne écrivait donc la date de la leçon en cours. Depuis le
+       4 septembre, le résultat se rattrape des mois après — un
+       examen blanc de mai daté du 4 septembre serait faux, et c'est
+       cette date que le bureau relit pour placer un examen.
+
+       Vide, c'est bien aujourd'hui : c'est le cas normal, celui de
+       l'examen blanc qu'on vient de terminer. */
+    const jour = q.examBlancDate
+      ? (dateEnToutesLettres(q.examBlancDate) || q.examBlancDate)
+      : dateEnToutesLettres($('lessonDate').value || todayLocal());
     const tete = '🅱️ ' + numero + ETAT_EB_PASSE + ' le ' + jour;
     if(q.ebPasse === '3h'){
       etats.push(tete + ' — plus que les 3h avant examen');
