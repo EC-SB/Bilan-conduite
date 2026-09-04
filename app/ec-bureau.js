@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:20 — v872 */
+/* Déployé le 04/09/2026 à 15:56 — v875 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -113,8 +113,21 @@ function analyserNote(note){
 
   if(r.permis === 'annule') r.permisDate = null;
 
-  /* Le nombre de leçons restantes suit la dernière date annoncée */
-  const gN = /Examen prévu le [^—·]+— encore (\d+) leçon/gi;
+  /* Le nombre de leçons restantes suit la dernière date annoncée.
+
+     ⚠️ ET IL NE SE COLLE PAS À LA DATE. La note écrit « Examen
+     prévu le lundi 14 septembre 2026 — 1ER PASSAGE — encore 2
+     leçons + 3h avant examen » : le passage s'intercale entre les
+     deux. Avec un motif qui s'arrêtait au premier tiret, le nombre
+     n'était JAMAIS relu — il était pourtant écrit noir sur blanc
+     sur la carte de Raphael Pape.
+
+     On traverse donc les tirets, mais PAS les séparateurs de
+     segment : « · » et le retour à la ligne. Sans cette limite, on
+     irait chercher le « encore 6 leçons » de la ligne de l'examen
+     blanc juste à côté, et on annoncerait six leçons avant le
+     permis là où il y en a deux. */
+  const gN = /Examen prévu le [^·\n\r]*?— encore (\d+) leçon/gi;
   let mn, dernierN = null;
   while((mn = gN.exec(t)) !== null) dernierN = +mn[1];
   if(dernierN !== null) r.permisN = dernierN;
