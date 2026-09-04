@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:14 — v871 */
+/* Déployé le 04/09/2026 à 14:32 — v873 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -612,8 +612,31 @@ async function sourcesDuBlocAvantCours(){
 }
 
 /* La préparation d'un élève pour ce jour-là, ou la plus récente.
-   Elle ne dessine rien : c'est le bloc qui dessine. */
+   Elle ne dessine rien : c'est le bloc qui dessine.
+
+   ⚠️ LA NOTE STOCKÉE D'UN COURS PRÉPARÉ EST PÉRIMÉE PAR
+   CONSTRUCTION — ET C'EST POUR ÇA QU'ON LA REFAIT ICI.
+
+   Elle est écrite AU MOMENT DE LA PRÉPARATION. Quand le moniteur
+   revient sur le questionnaire et corrige une réponse — « l'examen
+   blanc, finalement, pas le niveau » — ce sont les RÉPONSES qui
+   changent, pas le texte. « rafraichirNotesPreparees » refait la
+   note à partir d'elles ; sans cet appel, on lit la photo d'avant
+   la correction.
+
+   Chrystel, le 4 septembre : « je viens de modifier le
+   questionnaire et rouvert le cours, mais ça ne se met pas à jour
+   pour l'examen blanc ». La carte de 📅 Mes prochains cours, elle,
+   affichait la bonne phrase — parce qu'elle fait cet appel depuis
+   longtemps. La règle était même écrite en toutes lettres dans le
+   dossier de l'élève : AUCUN ÉCRAN NE DOIT LIRE « prep.note » SANS
+   L'AVOIR REFAITE. Ce bloc-ci la lisait. */
 function preparationDuCours(nom, jour){
+  if(typeof rafraichirNotesPreparees === 'function'){
+    try{ rafraichirNotesPreparees(); }
+    catch(e){ /* une note qui résiste ne doit pas cacher le bloc */ }
+  }
+
   const liste = (typeof prepares !== 'undefined' && Array.isArray(prepares))
     ? prepares : [];
   const siennes = liste.filter(x =>
