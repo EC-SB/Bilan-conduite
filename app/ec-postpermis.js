@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 07:42 — v849 */
+/* Déployé le 04/09/2026 à 08:43 — v854 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -189,11 +189,42 @@ async function afficherPostExamen(tous){
         bAbs.title = "L'examen n'a pas eu lieu : sa date s'efface et il " +
                      'repart dans les élèves prêts au permis';
         bAbs.addEventListener('click', async () => {
+          /* ⚠️ SA PLACE AUSSI, PAS SEULEMENT SA DATE.
+
+             Effacer la date sans libérer la place le laissait entre
+             deux listes : « Élèves prêts au permis » voyait sa place
+             et l'écartait, pendant que cette liste-ci, qui lit les
+             sessions passées depuis la v849, continuait de lui
+             réclamer un résultat. Il n'aurait été nulle part —
+             exactement le défaut qu'on venait de réparer.
+
+             Et c'est la vérité : il n'y est pas allé, il ne tenait
+             donc pas cette place. La confirmation le dit. */
+          const place = (typeof placeEnSessionDe === 'function')
+            ? placeEnSessionDe(x.eleve) : null;
           if(!await confirmer(x.eleve + " n'a pas passé son examen ?\n\n" +
               "Sa date est effacée et il repart dans « Élèves prêts au " +
-              "permis ».\nAucun repassage n'est compté.")) return;
+              "permis ».\nAucun repassage n'est compté." +
+              (place ? "\n\nSa place du " + (place.date || '?') +
+                       ' redevient libre.' : ''))) return;
           bAbs.disabled = true;
           try{
+            if(place && place.session && place.place){
+              try{
+                await appelPrep({ action:'sessionPlace',
+                                  idSession: place.session.id,
+                                  rang: place.place.rang, eleve: '',
+                                  prevenu: '', dossierOk: '', remarque: '' });
+                place.place.eleve = '';
+                if(typeof sessionsPermis !== 'undefined') sessionsPermis = [];
+              }catch(e2){
+                /* La place n'a pas pu être libérée : on le DIT, sinon
+                   il repart dans une liste tout en restant coincé
+                   dans l'autre. */
+                showToast('⚠️ Sa place n’a pas pu être libérée — ' +
+                          'vide-la à la main dans la session.');
+              }
+            }
             await majSuivi(x.eleve, {
               datePermis: '', aPlanifier: '', retireAPrevoir: '', statut: ''
             });
@@ -1095,8 +1126,25 @@ async function ouvrirMessagesAjourne(eleve){
   const d1 = etape(1, 'La marche à suivre', messagesAjourne.m1);
   d1.open = true;
 
-  etape(2, 'Les captures du CEPC', '',
-    'Envoie les captures du résultat — celles déposées dans sa fiche.');
+  /* ⚠️ LES CAPTURES SE MONTRENT ICI, ELLES NE SE DÉCRIVENT PAS.
+
+     Chrystel, le 4 septembre : « quand ils sont ajournés, tu peux me
+     remettre les captures d'écran ici, pour que je puisse copier
+     coller directement sans avoir à fermer et rouvrir ce pop-up ? »
+
+     L'étape 2 disait « envoie les captures — celles déposées dans sa
+     fiche », et rien d'autre. Pour les envoyer il fallait fermer
+     cette fenêtre, retrouver l'élève, ouvrir sa fiche, copier, puis
+     revenir. Une consigne qui oblige à quitter l'écran où elle est
+     écrite n'est pas une consigne, c'est un renvoi.
+
+     EN LECTURE SEULE : on ajoute et on retire les captures dans sa
+     fiche ; ici on les prend. Deux endroits pour les retirer, ce
+     serait deux endroits pour les perdre. */
+  const d2 = etape(2, 'Les captures du CEPC', '',
+    'Celles déposées dans sa fiche. Copie-les une par une et colle-les ' +
+    'sur Messenger — pas besoin de sortir d’ici.');
+  d2.lastElementChild.appendChild(galerieCapturesAcopier(eleve));
 
   etape(3, 'Le modèle de bilan post-permis', messagesAjourne.m3);
 
@@ -1503,6 +1551,108 @@ function modifierMessagesAjourne(eleve){
 }
 
 
+/* ------------------------------------------------------------
+   LA GALERIE À COPIER — LECTURE SEULE
+
+   Les mêmes captures que « blocCaptures », mais sans rien pour en
+   ajouter ni en retirer : celles-là se gèrent dans la fiche de
+   l'élève, à un seul endroit.
+
+   Ici, un seul geste : mettre l'image dans le presse-papier pour la
+   coller sur Messenger.
+
+   ⚠️ La copie d'une IMAGE n'est pas celle d'un texte : elle demande
+   un vrai fichier, et le presse-papier n'accepte que le PNG. On
+   repasse donc par un canvas — une capture réduite en JPEG serait
+   refusée telle quelle. Et quand le navigateur ne sait pas le
+   faire (téléphones, navigation privée), on le DIT et on ouvre
+   l'image en grand pour qu'elle soit prise à la main.
+   ------------------------------------------------------------ */
+async function copierImageDansPressePapier(src){
+  /* Le navigateur sait-il seulement écrire une image ? */
+  if(typeof ClipboardItem === 'undefined' ||
+     !navigator.clipboard || !navigator.clipboard.write){
+    throw new Error('presse-papier images indisponible');
+  }
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise((ok, ko) => {
+    img.onload = ok;
+    img.onerror = () => ko(new Error('image illisible'));
+    img.src = src;
+  });
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  const blob = await new Promise((ok, ko) =>
+    c.toBlob(b => b ? ok(b) : ko(new Error('conversion impossible')), 'image/png'));
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+}
+
+function galerieCapturesAcopier(eleve){
+  const zone = document.createElement('div');
+  zone.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;';
+  zone.innerHTML = '<div style="font-size:12px;color:var(--muted);">Chargement…</div>';
+
+  (async () => {
+    const liste = await chargerCaptures(eleve);
+    zone.innerHTML = '';
+
+    /* L'absence se dit, et elle dit où aller. Un cadre vide
+       laisserait croire que la fenêtre n'a pas fini de charger. */
+    if(!liste.length){
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12px;color:var(--warn-text);line-height:1.5;';
+      v.textContent = 'Aucune capture déposée pour cet élève. ' +
+        'Elles s’ajoutent depuis sa fiche, dans « 🏁 Résultats ».';
+      zone.appendChild(v);
+      return;
+    }
+
+    liste.forEach((cap, i) => {
+      const vig = document.createElement('div');
+      vig.style.cssText = 'width:120px;flex-shrink:0;';
+
+      const img = document.createElement('img');
+      img.src = cap.image;
+      img.style.cssText = 'width:100%;height:110px;object-fit:cover;border-radius:8px;' +
+        'border:1px solid var(--line);cursor:zoom-in;display:block;';
+      img.title = 'Capture ' + (i + 1) + ' — appuie pour agrandir';
+      img.addEventListener('click', () => agrandirImage(cap.image, eleve));
+      vig.appendChild(img);
+
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:100%;margin-top:5px;padding:7px;font-size:12px;';
+      b.textContent = '📋 Copier';
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try{
+          await copierImageDansPressePapier(cap.image);
+          b.textContent = '✅ Copiée';
+          showToast('Capture copiée ✅');
+          setTimeout(() => { b.textContent = '📋 Copier'; b.disabled = false; }, 2500);
+        }catch(e){
+          b.disabled = false;
+          /* On n'échoue pas en silence : on ouvre l'image en grand,
+             et on dit quoi faire à la main. */
+          showToast('Ton navigateur ne sait pas copier une image — ' +
+                    'garde-la depuis l’aperçu.');
+          agrandirImage(cap.image, eleve);
+        }
+      });
+      vig.appendChild(b);
+
+      zone.appendChild(vig);
+    });
+  })();
+
+  return zone;
+}
+
+
 function blocCaptures(eleve, dateExamen){
   const d = document.createElement('div');
   d.style.cssText = 'margin-bottom:12px;';
@@ -1730,6 +1880,20 @@ function boiteDePostPermis(e){
 /* Consigne le résultat, pour les statistiques */
 async function consignerResultat(e, resultat, iso){
   const s = suiviDe(e.eleve) || {};
+
+  /* ⚠️ LE CACHE DES RÉSULTATS DOIT OUBLIER, SINON L'ÉLÈVE REVIENT.
+
+     La liste des examens passés garde cinq minutes la feuille des
+     Résultats pour savoir qui a déjà le sien. On vient d'en écrire
+     un : sans cet oubli, la copie d'il y a trois minutes gagnerait
+     et l'élève qu'on sort réapparaîtrait aussitôt.
+
+     C'est le défaut du cache de trente secondes qui ravalait les
+     dates de prise des places, et celui du cache du bureau. On
+     oublie AVANT d'écrire : si l'écriture échoue, on aura seulement
+     relu une fois de trop. */
+  if(typeof oublierResultatsConnus === 'function') oublierResultatsConnus();
+
   try{
     await appelPrep({
       action: 'resultatAdd',
