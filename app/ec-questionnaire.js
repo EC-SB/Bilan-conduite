@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 15:56 — v875 */
+/* Déployé le 05/09/2026 à 07:44 — v879 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -333,9 +333,74 @@ function passageDepuisNote(note){
    OFFICIEL ». Dans les deux cas l'information existait ; personne
    n'allait la chercher.
    ------------------------------------------------------------ */
+/* ============================================================
+   LA DATE D'EXAMEN BLANC DU SUIVI NE VAUT QUE CORROBORÉE
+
+   La colonne « ebDate » de la fiche de suivi porte, en principe,
+   le jour où l'examen blanc a été fait. En pratique elle a reçu,
+   pendant des mois, la date de N'IMPORTE QUEL cours : à chaque
+   fin de leçon, la remontée des heures avant permis l'écrivait
+   (remonterHeuresAuBureau, corrigé en v879). La colonne est donc
+   sale pour tout ce qui précède, et le restera.
+
+   Chrystel, le 5 septembre : « le premier c'est sa deuxième
+   leçon, impossible qu'il ait fait son examen blanc ; la deuxième
+   c'est une AAC, pas d'examen blanc ».
+
+   On ne la lit donc plus seule. Il faut une preuve que l'examen
+   blanc existe, et ces preuves-là ne s'écrivent que pour lui :
+
+     · le bureau l'a planifié — « ebDatePrevue » ou le moniteur
+       désigné, tous deux écrits par le seul écran des examens
+       blancs ;
+     · la note le dit — passé ou réservé ;
+     · le dossier compte des leçons depuis l'examen blanc.
+
+   Écrit ici une seule fois : quatre écrans affichaient cette date,
+   chacun avec sa propre idée de quand y croire.
+   ============================================================ */
+function examenBlancEtabli(nom, a){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  if(String(s.ebDatePrevue || '').trim()) return true;
+  if(String(s.ebMoniteur || '').trim()) return true;
+
+  /* Un résultat qui ne s'écrit que sur un examen blanc : « non »
+     (pas le niveau) et « peut ». « oui » était le défaut de la
+     remontée des heures — il ne prouve rien. */
+  const niv = String(s.ebNiveau || '').toLowerCase();
+  if(niv === 'non' || niv === 'peut') return true;
+
+  const etat = a || {};
+  if(etat.examBlanc === 'passe' || etat.examBlanc === 'reserve') return true;
+
+  try{
+    const dossier = (typeof lireCacheDossier === 'function')
+      ? lireCacheDossier(nom) : null;
+    if(dossier && dossier.leconsDepuisEB !== null &&
+       dossier.leconsDepuisEB !== undefined) return true;
+  }catch(e){ /* dossier non lu : on ne promeut rien */ }
+
+  return false;
+}
+
+/* La date elle-même, ou rien. Le « rien » est voulu : mieux vaut
+   un examen blanc sans date qu'une date de leçon présentée comme
+   celle d'un examen blanc. */
+function dateExamenBlancDuSuivi(nom, a){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const brute = String(s.ebDate || '').trim();
+  if(!brute) return '';
+  return examenBlancEtabli(nom, a) ? brute : '';
+}
+
 function etatQuiFaitFoi(nom){
   const d = {};
   if(!nom) return d;
+
+  /* La date d'examen blanc écrite dans le suivi : gardée de côté,
+     posée seulement à la fin, et seulement si un examen blanc est
+     établi. Voir le ⚠️ de v879 quelques lignes plus bas. */
+  let dateEbDuSuivi = '';
 
   /* Le suivi : la conclusion des examens et les heures qui restent */
   try{
@@ -364,11 +429,51 @@ function etatQuiFaitFoi(nom){
        examen blanc qui n'a pas eu lieu : le résultat suffit à dire
        qu'il est passé. « avenir » n'est pas un résultat — c'est une
        date à venir, et elle ne conclut rien. */
+    /* ⚠️ ET POURQUOI CE N'EST PLUS UNE PREUVE — v879.
+
+       Chrystel, le 5 septembre : « le premier c'est sa deuxième
+       leçon, impossible qu'il ait fait son examen blanc ; la
+       deuxième c'est une AAC, pas d'examen blanc. Ça considère
+       tous les précédents cours comme un examen blanc ».
+
+       Elle avait raison et la faute était ici. « ebNiveau » et
+       « ebDate » ne sont PAS remplis par le seul examen blanc :
+       à la fin de N'IMPORTE QUEL cours, quand le questionnaire
+       remonte les heures avant permis au bureau, l'outil écrivait
+       « ebNiveau = oui » et « ebDate = la date du cours du jour »
+       (remonterHeuresAuBureau, ec-manuel.js). Personne ne lisait
+       ces deux colonnes comme une conclusion — jusqu'à ce que
+       cette règle-ci le fasse. Résultat : « EXAMEN BLANC PASSÉ le
+       samedi 29 août » sur une 2ème leçon.
+
+       L'écriture est corrigée à la source, mais la colonne reste
+       salie pour tous les cours d'avant : on ne peut donc plus
+       s'en servir comme preuve. Ce qui fait foi reste ce qui ne
+       ment pas — la date PRÉVUE dépassée, le bilan au dossier,
+       la note. La date du suivi ne sert qu'à DATER un examen
+       blanc déjà établi par ailleurs, et seulement s'il n'a pas
+       déjà une date à lui. */
+    /* ⚠️ CE QUI SÉPARE UN VRAI RÉSULTAT D'UN « oui » PAR DÉFAUT.
+
+       La remontée des heures d'un cours ordinaire écrivait
+       « ebNiveau = oui » DÈS QUE LE QUESTIONNAIRE NE DISAIT PAS
+       « pas le niveau » — donc sur des élèves qui n'avaient jamais
+       passé d'examen blanc. « oui » ne prouve donc rien.
+
+       « non » et « peut », eux, ne s'écrivent que lorsque
+       quelqu'un a conclu SUR un examen blanc : « non » vient de
+       « pas le niveau », « peut » du questionnaire de l'examen
+       blanc lui-même. Ceux-là valent toujours preuve — c'est le
+       cas de Raphael Pape, dont le résultat était enregistré sans
+       date ni bilan. */
     const niv = String(s.ebNiveau || '').toLowerCase();
-    if(niv === 'oui' || niv === 'non') d.examBlanc = 'passe';
-    if(s.ebDate){
-      const iso = dateFrVersIso(String(s.ebDate));
-      if(iso) d.examBlancDate = iso;
+    if(niv === 'non' || niv === 'peut') d.examBlanc = 'passe';
+
+    const brute = (typeof dateExamenBlancDuSuivi === 'function')
+      ? (dateExamenBlancDuSuivi(nom, null) || '') : '';
+    if(brute){
+      const isoEb = dateFrVersIso(String(brute));
+      if(isoEb) dateEbDuSuivi = isoEb;
     }
     if(s.nbAjournements) d.repassages = parseInt(s.nbAjournements, 10) || 0;
     if(s.dateAjournement) d.dateAjournement = String(s.dateAjournement);
@@ -479,6 +584,14 @@ function etatQuiFaitFoi(nom){
       if(dossier.simuFait) d.simuNuit = 'fait';
     }
   }catch(e){ /* rien de lu : on ne promeut rien plutôt que de deviner */ }
+
+  /* La date du suivi, en dernier ressort : elle date un examen
+     blanc que quelqu'un d'autre a établi, elle n'en établit
+     aucun. Et elle ne prend la place d'aucune date déjà connue. */
+  if(dateEbDuSuivi && !d.examBlancDate &&
+     (d.examBlanc === 'passe' || d.examBlanc === 'reserve')){
+    d.examBlancDate = dateEbDuSuivi;
+  }
 
   return d;
 }
