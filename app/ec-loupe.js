@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 07:50 — v786 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -76,7 +76,7 @@ function ouvrirLoupe(){
     '<div id="loupeListe" style="max-height:46vh;overflow-y:auto;"></div>';
 
   const fermer = () => {
-    if(fond.parentNode) document.body.removeChild(fond);
+    if(fond.parentNode) fermerFond(fond);
   };
 
   const rangee = document.createElement('div');
