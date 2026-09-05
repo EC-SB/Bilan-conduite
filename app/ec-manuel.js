@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:38 — v853 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1478,7 +1478,29 @@ function remplirFrises(champs, surEcran){
    report, il fallait le lui redemander.
    ============================================================ */
 
-async function remonterHeuresAuBureau(eleve, heures, niveau){
+/* ⚠️ LE QUATRIÈME ARGUMENT N'EST PAS UN DÉTAIL — v879.
+
+   « estExamenBlanc » dit si le cours qu'on vient de terminer ÉTAIT
+   l'examen blanc. Sans lui, cette fonction écrivait « ebNiveau » et
+   surtout « ebDate = la date du jour » à la fin de N'IMPORTE QUEL
+   cours — la colonne s'appelle « date de l'examen blanc », et elle
+   recevait la date d'une leçon ordinaire.
+
+   Chrystel, le 5 septembre : « ça considère tous les précédents
+   cours comme un examen blanc, ça m'a foutu une merde sans nom ».
+   Une 2ème leçon portait « EXAMEN BLANC PASSÉ le samedi 29 août »,
+   une AAC sans examen blanc en portait un aussi.
+
+   Les heures avant permis, elles, remontent depuis n'importe quel
+   cours : c'est le sens même de la question posée au moniteur. Ce
+   sont les DEUX AUTRES colonnes qui ne devaient jamais partir de
+   là.
+
+   L'appelant le sait ; cette fonction, non. On le lui dit plutôt
+   que de lui faire relire « $('modele') » — une fonction qui va
+   chercher son contexte sur l'écran d'à côté finit toujours par
+   répondre à la mauvaise question. */
+async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc){
   if(!eleve) return;
 
   const h = String(heures || '').trim();
@@ -1501,14 +1523,26 @@ async function remonterHeuresAuBureau(eleve, heures, niveau){
      ------------------------------------------------------------ */
   try{
     if(typeof majSuivi === 'function'){
-      await majSuivi(eleve, {
-        heuresRestantes: valeur,
-        /* Ce que le moniteur a conclu, pour que le bureau le voie */
-        ebNiveau: niveau === 'oui' ? 'oui'
-                : niveau === 'peut' ? 'peut'
-                : niveau === 'non' ? 'non' : '',
-        ebDate: ($('lessonDate') && $('lessonDate').value) || ''
-      });
+      const majs = { heuresRestantes: valeur };
+
+      /* LA DATE N'APPARTIENT QU'À L'EXAMEN BLANC.
+
+         « ebDate » veut dire « le jour où l'examen blanc a été
+         fait ». La date d'une leçon ordinaire n'a rien à y faire :
+         c'est elle qui a fait écrire « EXAMEN BLANC PASSÉ le
+         samedi 29 août » sur une 2ème leçon. */
+      if(estExamenBlanc){
+        majs.ebNiveau = niveau === 'oui' ? 'oui'
+                      : niveau === 'peut' ? 'peut'
+                      : niveau === 'non' ? 'non' : '';
+        majs.ebDate = ($('lessonDate') && $('lessonDate').value) || '';
+      }
+      /* Et rien d'autre depuis un cours ordinaire. « Pas le
+         niveau » conclu hors examen blanc n'a pas besoin de
+         passer par ici : la note le porte, et c'est elle que le
+         bureau relit pour remplir la colonne (ec-permis-listes). */
+
+      await majSuivi(eleve, majs);
     }
   }catch(e){
     if(typeof showToast === 'function'){
@@ -1847,7 +1881,7 @@ function choisirCategorieCepc(toutes, quoi){
         'text-align:left;line-height:1.4;';
       b.textContent = nom;
       b.addEventListener('click', () => {
-        document.body.removeChild(fond);
+        fermerFond(fond);
         resolve(nom);
       });
       boite.appendChild(b);
@@ -1858,7 +1892,7 @@ function choisirCategorieCepc(toutes, quoi){
     bA.style.cssText = 'padding:12px;font-size:13px;margin-top:6px;';
     bA.textContent = 'Annuler';
     bA.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve('');
     });
     boite.appendChild(bA);
@@ -2836,7 +2870,8 @@ async function genererBilanManuel(){
        les décider. */
     await remonterHeuresAuBureau($('studentName').value.trim(),
                                  champsManuels.heuresAvant,
-                                 champsManuels.niveau);
+                                 champsManuels.niveau,
+                                 true);   /* c'est l'examen blanc */
   }
 
   /* Mise à jour des infos, comme à la fin d'un cours enregistré.
@@ -2856,7 +2891,8 @@ async function genererBilanManuel(){
        modeleCle !== 'examen-blanc'){
       await remonterHeuresAuBureau($('studentName').value.trim(),
                                    maj.heuresRemontees,
-                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
+                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui',
+                                   false);  /* cours ordinaire */
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
@@ -3147,7 +3183,7 @@ function ouvrirEnvoiAvant(eleve, message){
   const bRester = document.createElement('button');
   bRester.className = 'btn btn-secondary';
   bRester.textContent = 'Rester sur la fiche';
-  bRester.addEventListener('click', () => document.body.removeChild(fond));
+  bRester.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bRester);
 
   const bSuivant = document.createElement('button');
@@ -3160,7 +3196,7 @@ function ouvrirEnvoiAvant(eleve, message){
     ? 'Fermer sans ouvrir personne'
     : "Aucun autre examen officiel ce jour-là pour toi";
   bSuivant.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     fermerBilanManuel();
     $('studentName').value = '';
     if(typeof proposerReprise === 'function') proposerReprise();
@@ -3259,7 +3295,7 @@ function ligneEnchainement(cours, fond){
        change. Ouvrir d'abord l'écraserait avec celle du suivant, et
        le travail de l'examen en cours serait perdu — bien pire que
        le trajet qu'on répare ici. */
-    if(fond.parentNode) document.body.removeChild(fond);
+    if(fond.parentNode) fermerFond(fond);
     fermerBilanManuel();
 
     /* Et l'ouverture est CELLE DU BOUTON ▶ Ouvrir, pas une
