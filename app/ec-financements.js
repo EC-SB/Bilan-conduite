@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-financements.js
    Les financements extérieurs.
@@ -486,7 +487,7 @@ function ouvrirDossierPE(d){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   if(d){
@@ -500,7 +501,7 @@ function ouvrirDossierPE(d){
           'La ligne sera supprimée du classeur.')) return;
       try{
         await appelPrep({ action: 'peDelete', ligne: d.ligne });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Retiré ✅');
         afficherFinancements();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -535,7 +536,7 @@ function ouvrirDossierPE(d){
     bO.textContent = 'Enregistrement…';
     try{
       await appelPrep(envoi);
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherFinancements();
     }catch(e){
