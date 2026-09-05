@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 11:24 — v884 */
+/* Déployé le 05/09/2026 à 11:57 — v885 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 201;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 202;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -170,6 +170,9 @@ const SECTIONS = [
      et le contournement n'a plus lieu d'être. */
   { cle:'caisse',           nom:'🏦 Caisse et remises en banque' },
   { cle:'coutsia',          nom:"💸 Ce que coûte l'IA" },
+  /* La carrosserie est à part de la flotte : tout le monde y
+     déclare une rayure, personne n'y voit les coûts du parc. */
+  { cle:'carrosserie',      nom:'🩹 Carrosserie des véhicules' },
   { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)' },
   { cle:'incidents',        nom:'🚨 Signalements' },
   { cle:'menage',           nom:'🧹 Ménage des dossiers' },
@@ -917,7 +920,7 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
   return mails.length;
 }
 
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-page-eleve.js", "ec-loupe.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js", "ec-messages-perso.js", "ec-bandeau.js"];
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-carrosserie.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-page-eleve.js", "ec-loupe.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js", "ec-messages-perso.js", "ec-bandeau.js"];
 
 function verifierModules(){
   const charges = window.EC_MODULES || {};
