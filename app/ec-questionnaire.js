@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:44 — v879 */
+/* Déployé le 05/09/2026 à 09:28 — v880 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2172,7 +2172,33 @@ const FAMILLES_NOTE = [
   { cle:'aRenseigner',
     motif:/^(?:🎯|❓|📌|\s)*(?:il faut remplir le questionnaire|informations?\s+à\s+renseigner|premier cours en voiture\s*[—-]\s*questionnaire à remplir)/i },
   { cle:'friseEtat',   motif:/frise (?:dépassée|depassee|terminée|terminee)/i },
-  { cle:'avantEB',     motif:/encore \d+\s+le[çc]ons?\s+avant/i },
+  /* ⚠️ « AVANT » TOUT COURT PRENAIT L'EXAMEN BLANC LUI-MÊME — v880.
+
+     Chrystel, le 7 septembre, deux captures de Nolwenn Chafotec :
+     la carte annonçait DEUX fois l'examen blanc, une fois « passé
+     le mardi 11 août — encore 3 leçons avant examen », une fois
+     « pas encore évoqué ». Puis, le soir, « passé le 7 septembre —
+     encore 3 leçons » ET « passé le 7 septembre — 6 + 3h ».
+
+     La faute est dans ce motif. Le questionnaire écrit la
+     conclusion d'un examen blanc ainsi :
+
+         🅱️ 1er EXAMEN BLANC PASSÉ le mardi 11 août
+             — encore 3 leçons avant examen
+
+     « encore 3 leçons avant » — le motif mordait, et cette
+     famille-ci passe AVANT « examenBlanc » dans la liste. Tout le
+     bloc de l'examen blanc était donc rangé sous « leçons avant
+     l'examen blanc » : il ne se dédoublonnait plus avec les autres
+     lignes d'examen blanc (d'où les doublons), et comme
+     « avantEB » est une famille DU JOUR, il pouvait disparaître au
+     cours suivant.
+
+     Cette famille ne parle que du DÉCOMPTE avant l'examen blanc.
+     On le lui fait dire : « avant l'examen blanc », pas « avant »
+     n'importe quoi. */
+  { cle:'avantEB',
+    motif:/encore \d+\s+le[çc]ons?\s+avant\s+l['’]?\s*exam(?:en)?\s+blanc/i },
   { cle:'examenBlanc', motif:/examen blanc/i, intention:/à\s*prévoir/i },
   { cle:'examenPermis', motif: RE_FAMILLE_EXAMEN, intention:/—\s*à\s*prévoir\s*$/i },
   { cle:'trois_h',     motif:/plus que les 3h avant examen/i },
