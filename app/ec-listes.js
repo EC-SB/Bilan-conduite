@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:06 — v869 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -178,7 +178,7 @@ function afficherEBPrevus(tous){
        il n'y a plus rien à décider ici. */
     if(e.etat.permis === 'prevu' || e.etat.datePermis) return;
 
-    const iso = isoDeDateFr(e.etat.examBlancDate);
+    const iso = isoDeDateEcrite(e.etat.examBlancDate);
     vus[normaliserMot(e.eleve) + '|' + iso] = true;
     liste.push({ eleve: e.eleve, iso: iso,
                  quand: e.etat.examBlancDate, source: 'bureau', fiche: e });
@@ -605,7 +605,13 @@ function boutonsSuiteExamBlanc(e, zone){
 
    Deux écritures circulent : « 24/08/2026 » du bureau, et
    « mardi 26 août 2026 » du questionnaire de préparation. */
-function isoDeDateFr(v){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « isoDeDateFr »,
+   comme celle de ec-bandeau.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : ec-bandeau gagnait, et celle-ci — la seule qui
+   sache lire « mardi 26 août 2026 » — ne servait plus à rien.
+   Le nom dit maintenant de quelle date il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function isoDeDateEcrite(v){
   const t = String(v || '').trim();
   if(!t) return '9999';
 
