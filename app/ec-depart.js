@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 16:03 — v876 */
+/* Déployé le 05/09/2026 à 09:39 — v881 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1914,9 +1914,33 @@ function noteJusteDuCours(cours, rang, dossier){
   const lire = t => ((typeof defautsDepuisNote === 'function' && t)
     ? defautsDepuisNote(t) : {});
 
+  /* 1 bis. LE COURS PRÉCÉDENT DU MÊME ÉLÈVE, MÊME CE MATIN.
+
+     Chrystel, le 7 septembre : « je fais tous mes rappels, tout
+     part dans mes prochains cours, et ensuite je remplis les
+     questionnaires — ça va bien me mettre à jour directement le
+     cours suivant du même jour ? »
+
+     Il le fait maintenant. Le questionnaire de 8h dit l'examen
+     blanc passé et son résultat ; le cours de 17h l'apprend au
+     redessin, sans que rien ne soit réécrit dans le classeur.
+
+     Il passe AVANT la note ET le contexte de ce cours-ci : les
+     deux ont été écrits ce matin par le rappel, à partir de ce
+     qu'on savait alors, et ce qui a été appris depuis est plus
+     récent. La question « et si quelqu'un avait corrigé CE
+     cours-ci après ? » est tranchée à la source : un cours répondu
+     plus tard ne rend rien du tout. Tout ce qui appartient à la
+     journée — le rang, le type de bilan, le jeton — a été retiré
+     là-bas aussi (RIEN_DU_COURS_PRECEDENT), et le suivi passe
+     encore par-dessus. */
+  const duCoursDavant = (typeof etatDuCoursPrecedent === 'function')
+    ? (etatDuCoursPrecedent(cours) || {}) : {};
+
   const ctx = Object.assign(lire(dossier && dossier.derniereNote),
                             lire(cours.note),
                             cours.contexte || {},
+                            duCoursDavant,
                             /* 4. Et par-dessus tout : le suivi et les
                                sessions. Ni l'un ni l'autre ne s'écrit
                                dans une note, et ce sont eux qui savent
