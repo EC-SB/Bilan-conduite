@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 10:08 — v861 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1529,7 +1529,7 @@ function choisirDansUneListe(titre, choix, courant){
       if(parti) return;
       parti = true;
       document.removeEventListener('keydown', surTouche);
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
       resolve(v);
     };
     const surTouche = ev => { if(ev.key === 'Escape') fermer(null); };
@@ -1658,7 +1658,7 @@ function choisirQuiPrendLaDate(courant){
       'margin-bottom:12px;';
 
     const fermer = v => {
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
       resolve(v);
     };
 
@@ -2835,7 +2835,7 @@ function ouvrirFichePermis(e){
   function fermer(){
     if(ferme) return;
     ferme = true;
-    if(fond.parentNode) document.body.removeChild(fond);
+    if(fond.parentNode) fermerFond(fond);
     afficherBureau(true);
   }
 
