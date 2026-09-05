@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 16:05 — v877 */
+/* Déployé le 05/09/2026 à 07:44 — v879 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -390,7 +390,14 @@ function lignesEtatAvantCours(nom, note){
 
   /* ── L'examen blanc, et SON RÉSULTAT ── */
   const ebPasse = (etat.examBlanc === 'passe') || (a.examBlanc === 'passe');
-  const ebDate = s.ebDate || etat.examBlancDate || a.ebDate || a.examBlancDate || '';
+  /* ⚠️ v879 : la date du suivi EN DERNIER, et seulement si un
+     examen blanc est établi. Elle passait en premier, et comme
+     elle recevait la date de n'importe quelle leçon, elle datait
+     l'examen blanc du jour du dernier cours. */
+  const ebDuSuivi = (typeof dateExamenBlancDuSuivi === 'function')
+    ? dateExamenBlancDuSuivi(nom, a) : '';
+  const ebDate = etat.examBlancDate || a.ebDate || a.examBlancDate ||
+                 ebDuSuivi || '';
   if(ebPasse){
     out.push({ emoji:'🅑', texte:'Examen blanc passé' +
       (ebDate ? ' le ' + jour(ebDate) : ''), couleur:'var(--accent-text)' });
