@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-remorque.js
    Le parcours du permis remorque (BE).
@@ -441,7 +442,7 @@ function choisirDansListe2R(titre, aide, options, valeurActuelle){
     bA.className = 'btn btn-secondary';
     bA.textContent = 'Annuler';
     bA.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(null);
     });
 
@@ -450,7 +451,7 @@ function choisirDansListe2R(titre, aide, options, valeurActuelle){
     bOk.textContent = 'Valider';
     bOk.addEventListener('click', () => {
       const v = sel.value;
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(v);
     });
 
