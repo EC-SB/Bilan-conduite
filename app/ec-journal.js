@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:32 — v878 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-journal.js
    Journal d'activité — réservé aux administrateurs.
@@ -120,7 +120,10 @@ function exporterJournal(lignes){
   a.click();
   setTimeout(() => {
     URL.revokeObjectURL(a.href);
-    document.body.removeChild(a);
+    /* Même porte que les fenêtres : retirer ce qui n'est plus là
+       n'est pas une erreur. Voir fermerFond (ec-fenetres.js). */
+    if(typeof fermerFond === 'function') fermerFond(a);
+    else if(a.parentNode) a.parentNode.removeChild(a);
   }, 500);
 
   showToast(lignes.length + ' ligne(s) exportée(s) ✅');
