@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-code.js
    Le suivi des séances de code en salle.
@@ -450,7 +451,7 @@ function ouvrirSaisieEtg(eleve, seance, actuel){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   /* Retirer une saisie : le formulaire reprend la main */
@@ -464,7 +465,7 @@ function ouvrirSaisieEtg(eleve, seance, actuel){
       try{
         await appelPrep({ action: 'etgCorriger', eleve: eleve,
                           seance: seance, score: '' });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Saisie retirée ✅');
         afficherCodeSalle();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -492,7 +493,7 @@ function ouvrirSaisieEtg(eleve, seance, actuel){
         date: chD.value,
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherCodeSalle();
     }catch(e){
