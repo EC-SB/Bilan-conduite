@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:58 — v824 */
+/* Déployé le 05/09/2026 à 11:57 — v885 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -12,7 +12,13 @@ const CLE_ONGLET = 'onglet_actif';
 /* Quelles sections rendent un onglet utile.
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
-  cours:  ['prepares', 'cours'],
+  /* ⚠️ « carrosserie » EST DANS L'ONGLET COURS, ET C'EST VOULU.
+     Chrystel, le 8 septembre : « tout le monde » déclare un
+     dommage. Un moniteur n'a que cet onglet-là — mettre la
+     carrosserie en Gestion, c'est la donner à des gens qui ne la
+     verront jamais, et un droit qui ne mène nulle part est pire
+     qu'un droit refusé. */
+  cours:  ['prepares', 'cours', 'carrosserie'],
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
@@ -404,7 +410,8 @@ function reveillerVue(cle){
     encours:    () => afficherEnCours(),
     incidents:  () => afficherIncidents(),
     ecoutes:    () => afficherEcoutes(),
-    memoire:    () => afficherMemoireIA()
+    memoire:    () => afficherMemoireIA(),
+    carrosserie: () => afficherCarrosserie()
   };
   const f = actions[cle];
   if(typeof f === 'function'){
