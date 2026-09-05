@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 15:29 — v841 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-handicap.js
    Le suivi des élèves en situation de handicap.
@@ -521,7 +521,7 @@ function ouvrirFicheHandicap(e){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   rw.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -563,7 +563,7 @@ function ouvrirFicheHandicap(e){
         if(!ligne && r && r.ligne) ligne = r.ligne;
       }
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherHandicap();
     }catch(err){
