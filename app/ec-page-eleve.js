@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:06 — v869 */
+/* Déployé le 05/09/2026 à 07:44 — v879 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -485,11 +485,16 @@ function etapesCroiseesEleve(nom){
     ? resultatExamenBlanc(nom, a) : null;
   const suiteEB = resEB ? ' — ' + resEB.texte : '';
 
-  if(s.ebDate){
+  /* ⚠️ v879 : « s.ebDate » ne se lit plus seule — la colonne a reçu
+     la date de n'importe quel cours pendant des mois. Voir
+     dateExamenBlancDuSuivi() dans ec-questionnaire.js. */
+  const ebDuSuivi = (typeof dateExamenBlancDuSuivi === 'function')
+    ? dateExamenBlancDuSuivi(nom, a) : '';
+  if(ebDuSuivi){
     out.push({ ok:true, emoji:'✅',
-      txt: 'Examen blanc ' + (jourDejaPasse(s.ebDate) === false ? 'prévu' : 'passé') +
-           ' le ' + jourFr(s.ebDate) +
-           (jourDejaPasse(s.ebDate) === false ? '' : suiteEB) });
+      txt: 'Examen blanc ' + (jourDejaPasse(ebDuSuivi) === false ? 'prévu' : 'passé') +
+           ' le ' + jourFr(ebDuSuivi) +
+           (jourDejaPasse(ebDuSuivi) === false ? '' : suiteEB) });
   }else if(a.examBlanc === 'passe'){
     out.push({ ok:true, emoji:'✅',
       txt:'Examen blanc passé' + (a.ebDate ? ' le ' + jourFr(a.ebDate) : '') +
@@ -615,16 +620,25 @@ function ligneAccompagnementResume(nom){
 
 /* Les contradictions entre la fiche de suivi et la note. Une par
    ligne, dites telles quelles. */
-function desaccordsSuivi(s, etat){
+function desaccordsSuivi(s, etat, ebDateSure){
   const dits = [];
   if(!s || !etat) return dits;
+
+  /* ⚠️ v879 : la date d'examen blanc arrive DÉJÀ FILTRÉE (voir
+     dateExamenBlancDuSuivi, ec-questionnaire.js). Sans le filtre,
+     cet écran criait « la fiche de suivi porte un examen blanc le
+     29 août » sur chaque élève dont la remontée des heures avait
+     sali la colonne — une contradiction inventée de toutes
+     pièces. Quand l'appelant ne dit rien, on prend ce qu'il y a :
+     les tests appellent cette fonction directement. */
+  const ebDate = (ebDateSure === undefined) ? s.ebDate : ebDateSure;
 
   if(s.datePermis && etat.permis === 'aprevoir'){
     dits.push('La fiche de suivi porte un examen le ' + jourFr(s.datePermis) +
               ", alors que le dernier bilan dit « date à prévoir ».");
   }
-  if(s.ebDate && etat.examBlanc === 'aprevoir'){
-    dits.push("La fiche de suivi porte un examen blanc le " + jourFr(s.ebDate) +
+  if(ebDate && etat.examBlanc === 'aprevoir'){
+    dits.push("La fiche de suivi porte un examen blanc le " + jourFr(ebDate) +
               ", alors que le dernier bilan dit « à prévoir ».");
   }
   if(s.simuDate && etat.simuNuit === 'aprevoir'){
@@ -724,7 +738,10 @@ function blocResumeEleve(nom){
     d.appendChild(src);
   }
 
-  desaccordsSuivi(s, e && e.etat).forEach(phrase => {
+  desaccordsSuivi(s, e && e.etat,
+                  (typeof dateExamenBlancDuSuivi === 'function')
+                    ? dateExamenBlancDuSuivi(nom, e && e.etat) : '')
+    .forEach(phrase => {
     const l = document.createElement('div');
     l.style.cssText = 'color:var(--warn-text);font-size:12.5px;line-height:1.5;' +
       'margin-top:7px;padding-top:7px;border-top:1px solid var(--line);';
@@ -1759,10 +1776,16 @@ function ongletPermis(corps, nom){
     corps.appendChild(c);
   }
 
-  /* L'EXAMEN BLANC. */
+  /* L'EXAMEN BLANC.
+
+     ⚠️ v879 : la date du suivi passe par le filtre — sans lui, la
+     date de la dernière leçon s'affichait ici comme celle d'un
+     examen blanc qui n'avait pas eu lieu. */
+  const ebDate = (typeof dateExamenBlancDuSuivi === 'function')
+    ? dateExamenBlancDuSuivi(nom, a) : '';
   const lEb = ligneDossier(
     '📝 Examen blanc',
-    s.ebDate ? 'Passé le ' + jourFr(s.ebDate) +
+    ebDate ? 'Passé le ' + jourFr(ebDate) +
         /* La consigne suit le résultat ici aussi : c'est l'écran où
            le bureau replace un examen blanc, et il doit savoir ce
            qu'on a demandé au moniteur entre-temps. */
@@ -1778,7 +1801,7 @@ function ongletPermis(corps, nom){
           : (a.examBlanc === 'impossible' ? 'Non planifiable'
             : 'À prévoir' + (a.examBlancN !== null && a.examBlancN !== undefined
                 ? ' dans ' + a.examBlancN + ' leçon(s)' : '')))),
-    (s.ebDate || a.examBlanc === 'passe') ? 'var(--accent-text)'
+    (ebDate || a.examBlanc === 'passe') ? 'var(--accent-text)'
       : (a.examBlanc === 'reserve' ? 'var(--cream)' : 'var(--warn-text)'));
 
   actionDossier(lEb, '📅 Planifier', async () => {
