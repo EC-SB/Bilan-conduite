@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 14:06 — v869 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -504,8 +504,27 @@ function rendezVousDePrise(){
   ];
 }
 
-/* « 11:15 » → 675. null si ce n'est pas une heure. */
-function minutesDeLHeure(hhmm){
+/* « 11:15 » → 675. null si ce n'est pas une heure.
+
+   ⚠️ ELLE PORTAIT LE MÊME NOM QUE CELLE DE ec-textes.js — ET C'EST
+   CELLE-CI QUI GAGNAIT.
+
+   Chrystel, le 5 septembre : « {heure-5min} ne fonctionne plus dans
+   les rappels ». Les deux fichiers déclaraient au niveau global une
+   fonction du même nom ; ec-bandeau.js est chargé APRÈS
+   ec-textes.js, donc c'est cette version-ci qui répondait aux deux.
+
+   Or elle n'accepte QUE « 11:15 » — et c'est voulu : les heures de
+   prise de place s'écrivent ainsi, et « 25:00 » doit être refusé.
+   Les heures de cours, elles, s'écrivent « 17h00 » ou « 17h ».
+   Elles rendaient donc null, et « calculerHeuresDecalees » EFFACE
+   les décalages quand il n'a pas d'heure de départ : le
+   {heure-5min} disparaissait du SMS sans laisser de trace.
+
+   Le nom dit maintenant ce qu'elle fait, et les deux ne peuvent
+   plus se confondre. C'est la faute que ce dossier passe ses
+   journées à réparer : une même chose écrite à deux endroits. */
+function minutesDuRendezVous(hhmm){
   const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})$/);
   if(!m) return null;
   const h = +m[1], mi = +m[2];
@@ -523,12 +542,12 @@ function rappelDePriseA(dateIso, heureHHMM, prises){
   const dujour = (prises || []).filter(p => String(p.date || '') === String(dateIso || ''));
   if(!dujour.length) return null;
 
-  const maintenant = minutesDeLHeure(heureHHMM);
+  const maintenant = minutesDuRendezVous(heureHHMM);
   if(maintenant == null) return null;
 
   const rv = rendezVousDePrise().find(x => {
-    const debut = minutesDeLHeure(x.alerte);
-    const fin = minutesDeLHeure(x.etapes[x.etapes.length - 1].h);
+    const debut = minutesDuRendezVous(x.alerte);
+    const fin = minutesDuRendezVous(x.etapes[x.etapes.length - 1].h);
     if(debut == null || fin == null) return false;
     /* On entre à l'heure d'alerte, on sort à la dernière heure de
        prise : passé 11h30, le message n'a plus rien à annoncer. */
@@ -540,7 +559,7 @@ function rappelDePriseA(dateIso, heureHHMM, prises){
     rv: rv,
     prise: dujour[0],
     /* De quoi écrire « dans 15 minutes » sans le recalculer ailleurs */
-    dans: minutesDeLHeure(rv.etapes[0].h) - maintenant,
+    dans: minutesDuRendezVous(rv.etapes[0].h) - maintenant,
     id: 'prise:' + dateIso + ':' + rv.cle
   };
 }
