@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 05/09/2026 à 15:18 — v887 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -24,6 +24,52 @@ function pleinEcranActif(){
   return String(reglagesEcran.ecranPleinEcran || '') !== 'non';
 }
 
+/* ============================================================
+   COMBIEN DE TEMPS LE COURS PREND L'ÉCRAN
+
+   Chrystel, le 9 septembre 2026 : « est-ce que tu peux faire en
+   sorte que je puisse changer le temps manuellement ».
+
+   C'était cinq minutes avant et cinq après, écrites en dur à deux
+   endroits — la phrase de l'interrupteur ici, et le calcul dans
+   ecran.html. Deux nombres qu'on ne pouvait changer qu'en touchant
+   au code, et qui pouvaient se contredire.
+
+   Ils vivent maintenant dans les réglages, à côté de
+   l'interrupteur : le classeur les envoie à l'écran avec le reste,
+   et la phrase les relit. Une seule vérité, réglable depuis
+   l'application.
+
+   ⚠️ CINQ RESTE LE DÉFAUT, et il n'est écrit qu'ici. Un réglage
+   jamais touché doit se comporter comme avant.
+   ============================================================ */
+const MINUTES_ECRAN_DEFAUT = 5;
+
+/* Un réglage lu en nombre de minutes : vide, illisible ou négatif
+   valent le défaut. On plafonne à 120 — au-delà, le cours ne quitte
+   plus l'écran et les diapositives ne passent jamais. */
+function minutesEcran(cle){
+  const brut = String(reglagesEcran[cle] == null ? '' : reglagesEcran[cle]).trim();
+  if(!brut) return MINUTES_ECRAN_DEFAUT;
+  const n = parseInt(brut, 10);
+  if(isNaN(n) || n < 0) return MINUTES_ECRAN_DEFAUT;
+  return Math.min(n, 120);
+}
+
+function minutesAvantEcran(){ return minutesEcran('ecranMinutesAvant'); }
+function minutesApresEcran(){ return minutesEcran('ecranMinutesApres'); }
+
+/* « De 5 minutes avant à 5 minutes après » — avec les vrais
+   nombres, et au singulier quand il le faut. */
+function phraseDureePleinEcran(){
+  const a = minutesAvantEcran(), b = minutesApresEcran();
+  const min = n => n + ' minute' + (n > 1 ? 's' : '');
+  const debut = a === 0 ? 'De l\'heure du cours' : 'De ' + min(a) + ' avant';
+  const fin = b === 0 ? 'à l\'heure pile' : 'à ' + min(b) + ' après';
+  return debut + ' ' + fin + ', le cours prend tout l\'écran de ' +
+         'l\'accueil. Les diapositives continuent derrière.';
+}
+
 /* L'interrupteur du plein écran. Il se sert du même composant que
    les réglages des procédures : un seul interrupteur dessiné dans
    toute l'application. */
@@ -42,8 +88,7 @@ function blocPleinEcran(){
     cle: 'ecranPleinEcran',
     titre: '🖥️ Cours en plein écran à l\'heure du cours',
     ouvert: pleinEcranActif(),
-    quandOuvert: 'De 5 minutes avant à 5 minutes après, le cours prend tout ' +
-                 'l\'écran de l\'accueil. Les diapositives continuent derrière.',
+    quandOuvert: phraseDureePleinEcran(),
     quandFerme: 'Les cours restent dans leur liste, à gauche. Les diapositives ' +
                 'gardent l\'écran — le temps d\'un contrôle, par exemple.',
     confirmation: '',
@@ -53,7 +98,88 @@ function blocPleinEcran(){
     apres: afficherEcran
   }));
 
+  /* Les deux durées, sous l'interrupteur — et seulement quand il est
+     ouvert : régler la durée d'un plein écran coupé n'apprend rien
+     à personne. */
+  if(pleinEcranActif()) z.appendChild(blocDureesPleinEcran());
+
   return z;
+}
+
+function blocDureesPleinEcran(){
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-top:none;' +
+    'border-radius:0 0 12px 12px;padding:12px 14px;margin:-13px 0 12px;';
+
+  d.innerHTML =
+    '<div style="font-size:12px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:10px;">Combien de temps le cours occupe l\'écran, ' +
+      'autour de son heure. À zéro, il apparaît pile à l\'heure — ou ' +
+      'disparaît pile à l\'heure.</div>' +
+    '<div class="duo">' +
+      '<div><label for="ecrAv">Minutes avant</label>' +
+        '<input type="number" id="ecrAv" inputmode="numeric" min="0" max="120"></div>' +
+      '<div><label for="ecrAp">Minutes après</label>' +
+        '<input type="number" id="ecrAp" inputmode="numeric" min="0" max="120"></div>' +
+    '</div>' +
+    '<div id="ecrDureeEtat" style="font-size:12px;color:var(--muted);' +
+      'min-height:16px;line-height:1.5;margin-bottom:8px;"></div>';
+
+  const av = d.querySelector('#ecrAv');
+  const ap = d.querySelector('#ecrAp');
+  const etat = d.querySelector('#ecrDureeEtat');
+  av.value = minutesAvantEcran();
+  ap.value = minutesApresEcran();
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:8px 14px;font-size:13px;margin:0;';
+  b.textContent = '💾 Enregistrer les durées';
+  b.addEventListener('click', async () => {
+    /* ⚠️ Le verrou avant l'attente réseau, comme partout ailleurs. */
+    if(b.disabled) return;
+
+    const lire = champ => {
+      const n = parseInt(String(champ.value).trim(), 10);
+      if(isNaN(n) || n < 0) return null;
+      return Math.min(n, 120);
+    };
+    const a = lire(av), p = lire(ap);
+    if(a === null || p === null){
+      etat.style.color = 'var(--red)';
+      etat.textContent = 'Deux nombres de minutes, de 0 à 120.';
+      return;
+    }
+
+    b.disabled = true;
+    const libelle = b.textContent;
+    b.textContent = 'Enregistrement…';
+    etat.style.color = 'var(--muted)';
+    etat.textContent = '';
+    try{
+      /* Deux réglages, deux écritures : la feuille des réglages est
+         une clé par ligne, et c'est ce qui la rend relisible à la
+         main dans le classeur. */
+      await appelPrep({ action: 'reglageSet', cle: 'ecranMinutesAvant',
+                        valeur: String(a), par: ACCES.moniteur || '' });
+      await appelPrep({ action: 'reglageSet', cle: 'ecranMinutesApres',
+                        valeur: String(p), par: ACCES.moniteur || '' });
+      reglagesEcran.ecranMinutesAvant = String(a);
+      reglagesEcran.ecranMinutesApres = String(p);
+      showToast('Durées enregistrées ✅');
+      /* L'écran de la vitrine les relit à son prochain passage —
+         une minute au plus, il n'y a rien à y faire. */
+      afficherEcran();
+    }catch(e){
+      etat.style.color = 'var(--red)';
+      etat.textContent = 'Impossible : ' + e.message;
+      b.disabled = false;
+      b.textContent = libelle;
+    }
+  });
+  d.appendChild(b);
+
+  return d;
 }
 
 async function afficherEcran(){
