@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 13:25 — v866 */
+/* Déployé le 05/09/2026 à 07:44 — v879 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -579,9 +579,14 @@ $('finishBtn').addEventListener('click', async () => {
        regarde en donnant les dates. */
     if(maj.heuresRemontees !== undefined &&
        typeof remonterHeuresAuBureau === 'function'){
+      /* Le vocal ne sert jamais à un examen blanc — il est dans
+         MODELES_SANS_VOCAL. Les heures montent, la conclusion et
+         sa date restent où elles sont. Voir le ⚠️ de v879 dans
+         ec-manuel.js. */
       await remonterHeuresAuBureau($('studentName').value.trim(),
                                    maj.heuresRemontees,
-                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui');
+                                   maj.ebPasse === 'pasleniveau' ? 'non' : 'oui',
+                                   false);
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
