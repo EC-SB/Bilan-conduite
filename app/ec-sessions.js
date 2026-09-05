@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 05/09/2026 à 14:24 — v886 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1281,7 +1281,37 @@ function lignePlace(p, sess){
   /* La ligne se désigne : le glisser-déposer y dépose, et le 🔄 s'y
      repeint, sans que la page soit redessinée. */
   l.dataset.place = sess.id + '|' + p.rang;
-  rendrePlaceDeplacable(l, p, sess);
+
+  /* ⚠️ LE GLISSEMENT PART D'UNE POIGNÉE, PAS DE LA LIGNE ENTIÈRE.
+
+     Chrystel, le 9 septembre : « je ne peux plus cliquer sur les
+     élèves dans permis pour modifier la préparation » — puis :
+     « quand je clique, ça n'ouvre pas le questionnaire, ça me
+     permet de bouger l'élève ».
+
+     Le glisser-déposer était posé sur TOUTE la ligne, et il prenait
+     le pointeur dès l'appui (setPointerCapture). Deux dégâts, tous
+     deux invisibles à la lecture :
+
+       · le clic qui suit est alors adressé à la LIGNE, plus au nom
+         — le geste de tous les jours, ouvrir la fiche, ne partait
+         plus nulle part ;
+       · « touch-action:none » sur la ligne entière empêchait aussi
+         de faire défiler la liste au doigt.
+
+     La liste des groupes, elle, fait ça depuis toujours avec une
+     poignée (ec-permis-listes.js). Deux glisser-déposer dans le
+     même outil, deux comportements : c'est cette différence-là que
+     Chrystel a rencontrée. Ils font désormais pareil. */
+  if(p.eleve){
+    const poignee = document.createElement('span');
+    poignee.textContent = '⠿';
+    poignee.title = 'Glisse pour déplacer ' + p.eleve;
+    poignee.style.cssText = 'flex-shrink:0;font-size:15px;color:var(--muted);' +
+      'cursor:grab;padding:2px 4px;margin-left:2px;';
+    l.appendChild(poignee);
+    rendrePlaceDeplacable(poignee, l, p, sess);
+  }
 
   return l;
 }
@@ -1445,12 +1475,25 @@ async function gererEchange(p, sess){
    POINTEUR, qui couvrent la souris et le doigt. Le glisser-déposer
    natif du navigateur ne marche pas au doigt.
 
-   Une place se saisit par sa ligne et se lâche sur une autre —
-   occupée (échange) ou libre (déplacement). Un appui sans
-   glissement ne fait rien : les boutons de la ligne gardent leur
-   travail, et le 🔄 reste là pour qui préfère deux appuis.
+   Une place se saisit PAR SA POIGNÉE ⠿ et se lâche sur une autre —
+   occupée (échange) ou libre (déplacement). Le 🔄 reste là pour qui
+   préfère deux appuis.
+
+   ⚠️ ET LA POIGNÉE N'EST PAS UN DÉTAIL DE STYLE.
+
+   Le glissement était posé sur la LIGNE ENTIÈRE, et il prenait le
+   pointeur dès l'appui. Un clic sur le nom était alors adressé à la
+   ligne, plus au nom : ouvrir la fiche d'un élève — le geste de
+   tous les jours dans cet écran — ne faisait plus rien du tout.
+   Chrystel, le 9 septembre : « quand je clique, ça n'ouvre pas le
+   questionnaire, ça me permet de bouger l'élève ».
+
+   Un geste rare ne prend pas la place d'un geste quotidien. La
+   poignée sépare les deux, et rend au passage le défilement de la
+   liste au doigt, que « touch-action:none » sur la ligne entière
+   avait emporté avec lui.
    ------------------------------------------------------------ */
-function rendrePlaceDeplacable(ligne, p, sess){
+function rendrePlaceDeplacable(poignee, ligne, p, sess){
   if(!p || !p.eleve) return;             /* une place vide ne se prend pas */
   let etat = null;
 
@@ -1463,16 +1506,18 @@ function rendrePlaceDeplacable(ligne, p, sess){
     etat = null;
   };
 
-  ligne.style.touchAction = 'none';
+  /* Sans « touch-action:none », le doigt fait défiler la page au lieu
+     de déplacer le nom. Sur la POIGNÉE seule : ailleurs sur la ligne,
+     le défilement reste normal. */
+  poignee.style.touchAction = 'none';
 
-  ligne.addEventListener('pointerdown', ev => {
-    /* Les boutons de la ligne d'abord : on ne vole pas leur appui. */
-    if(ev.target.closest && ev.target.closest('button')) return;
-    ligne.setPointerCapture(ev.pointerId);
+  poignee.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    poignee.setPointerCapture(ev.pointerId);
     etat = { x: ev.clientX, y: ev.clientY, bouge: false, fantome: null };
   });
 
-  ligne.addEventListener('pointermove', ev => {
+  poignee.addEventListener('pointermove', ev => {
     if(!etat) return;
     const d = Math.abs(ev.clientX - etat.x) + Math.abs(ev.clientY - etat.y);
     if(!etat.bouge && d < 8) return;      /* en dessous, c'est un appui */
@@ -1500,7 +1545,7 @@ function rendrePlaceDeplacable(ligne, p, sess){
     });
   });
 
-  ligne.addEventListener('pointerup', async ev => {
+  poignee.addEventListener('pointerup', async ev => {
     if(!etat) return;
     const bouge = etat.bouge;
     const sous = document.elementFromPoint(ev.clientX, ev.clientY);
@@ -1523,7 +1568,7 @@ function rendrePlaceDeplacable(ligne, p, sess){
                              placeB, sessB);
   });
 
-  ligne.addEventListener('pointercancel', nettoyer);
+  poignee.addEventListener('pointercancel', nettoyer);
 }
 
 
