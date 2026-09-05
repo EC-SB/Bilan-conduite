@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:44 — v879 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2564,7 +2564,7 @@ function confirmerFinDeCours(){
   bMod.className = 'btn btn-secondary';
   bMod.textContent = '✏️ Modifier ce bilan';
   bMod.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     /* On reste sur le bilan : le corriger le mettra à jour en place */
     if($('resultText')) $('resultText').focus();
   });
@@ -2573,7 +2573,7 @@ function confirmerFinDeCours(){
   bFin.className = 'btn btn-primary';
   bFin.textContent = '🏠 Accueil';
   bFin.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     if(typeof terminerCours === 'function') terminerCours();
   });
 
@@ -2693,7 +2693,7 @@ function choisirDansListe(titre, options, valeurActuelle){
     fond.appendChild(boite);
     document.body.appendChild(fond);
 
-    const fermer = v => { document.body.removeChild(fond); resolve(v); };
+    const fermer = v => { fermerFond(fond); resolve(v); };
     annuler.addEventListener('click', () => fermer(null));
     valider.addEventListener('click', () => fermer(sel.value || null));
     fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
