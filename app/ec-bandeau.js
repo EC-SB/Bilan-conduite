@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:32 — v878 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -991,7 +991,7 @@ function ouvrirReglageBandeau(){
   const ok = document.createElement('button');
   ok.className = 'btn btn-primary';
   ok.textContent = 'Fermer';
-  ok.addEventListener('click', () => document.body.removeChild(fond));
+  ok.addEventListener('click', () => fermerFond(fond));
   rangee.appendChild(ok);
   boite.appendChild(rangee);
 
