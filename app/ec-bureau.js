@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 15:56 — v875 */
+/* Déployé le 05/09/2026 à 09:52 — v882 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -127,9 +127,28 @@ function analyserNote(note){
      irait chercher le « encore 6 leçons » de la ligne de l'examen
      blanc juste à côté, et on annoncerait six leçons avant le
      permis là où il y en a deux. */
-  const gN = /Examen prévu le [^·\n\r]*?— encore (\d+) leçon/gi;
+  /* ⚠️ ET « PLUS QUE LES 3H » VAUT ZÉRO — v882.
+
+     Chrystel, le 7 septembre, sur le cours de 17h de Nolwenn
+     Chafotec : « c'est la dernière leçon, il ne reste que les 3h
+     avant examen ; à 8h je suis d'accord, mais à 17h il ne reste
+     que les 3h ».
+
+     Le questionnaire écrit deux phrases pour la même chose :
+     « — encore 2 leçons + 3h avant examen » tant qu'il en reste, et
+     « — plus que les 3h avant examen » à zéro. Seule la PREMIÈRE
+     était relue. Le nombre restait donc inconnu au dernier cours —
+     celui où il est le plus utile — et la carte retombait sur sa
+     ligne de parcours, « 3ème leçon après l'examen blanc », qui ne
+     dit pas ce qu'on veut savoir.
+
+     Zéro n'est pas « on ne sait pas » : c'est une réponse, et c'est
+     la plus importante des deux. */
+  const gN = /Examen prévu le [^·\n\r]*?— (?:encore (\d+) leçon|plus que les 3h)/gi;
   let mn, dernierN = null;
-  while((mn = gN.exec(t)) !== null) dernierN = +mn[1];
+  while((mn = gN.exec(t)) !== null){
+    dernierN = (mn[1] === undefined) ? 0 : +mn[1];
+  }
   if(dernierN !== null) r.permisN = dernierN;
 
   /* ⚠️ LE RANG SE LIT AVEC LA RÈGLE COMMUNE, PAS AVEC UN MOTIF À
