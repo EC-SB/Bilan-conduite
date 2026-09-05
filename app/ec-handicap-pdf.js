@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-handicap-pdf.js
    La fiche d'évaluation, en PDF.
@@ -52,7 +52,14 @@ function donneesHandicap(){
    ============================================================ */
 
 /* L'inverse de grasUnicode() : 𝗥𝗲𝗴𝗮𝗿𝗱 redevient Regard */
-function sansGras(s){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « sansGras »,
+   comme celle de ec-questionnaire.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : celle-ci gagnait POUR TOUTE L'APPLICATION,
+   et elle oublie le .normalize('NFC') : « PASSÉ » revenait
+   décomposé, donc introuvable par les motifs qui le cherchent.
+   Le nom dit maintenant de quelle remise en clair il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function sansGrasFiche(s){
   return Array.from(String(s || '')).map(ch => {
     const c = ch.codePointAt(0);
     if(c >= 0x1D5D4 && c <= 0x1D5ED) return String.fromCharCode(65 + (c - 0x1D5D4));
@@ -66,7 +73,7 @@ function sansGras(s){
    interroge, pas une étiquette : le bilan rouvert depuis
    l'historique ne dit plus quel modèle l'a produit. */
 function estFicheEvaluation(texte){
-  const t = sansGras(String(texte || ''))
+  const t = sansGrasFiche(String(texte || ''))
     .toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   return /FICHE\s+D['’]EVALUATION/.test(t);
 }
@@ -74,7 +81,7 @@ function estFicheEvaluation(texte){
 /* La clé de comparaison d'un libellé : sans gras, sans accents,
    sans le deux-points final des titres. */
 function clefLigneHandicap(s){
-  return sansGras(String(s || ''))
+  return sansGrasFiche(String(s || ''))
     .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, ' ').replace(/\s*:\s*$/, '').trim();
 }
@@ -96,7 +103,7 @@ function handicapDepuisTexte(texte){
 
   brut.split('\n').forEach(ligneBrute => {
     const ligne = String(ligneBrute).replace(/\s+$/, '');
-    const nu = sansGras(ligne).trim();
+    const nu = sansGrasFiche(ligne).trim();
 
     /* Un séparateur ferme la section en cours */
     if(/^[━─—_-]{3,}$/.test(nu)){
