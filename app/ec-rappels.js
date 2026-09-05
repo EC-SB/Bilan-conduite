@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 13:55 — v809 */
+/* Déployé le 05/09/2026 à 09:28 — v880 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -892,6 +892,26 @@ function memoriserChoixRappel(){
   try{
     const r = lireChoixRappel();
     delete r.libre;   /* propre à un élève, on ne le reporte pas */
+
+    /* ⚠️ LE TYPE DE SÉANCE NE SE REPORTE PAS — v880.
+
+       Chrystel, le 7 septembre : « j'ai fait un rappel examen
+       blanc et tous les prochains cours avec les rappels d'après
+       se sont mis en examen blanc ».
+
+       Le jour, la voiture, l'emplacement se répètent d'un rappel
+       à l'autre : les reporter fait gagner du temps. Le TYPE, non.
+       Il change à chaque élève, et il ne décide pas seulement du
+       texte du SMS : c'est lui qui choisit LE BILAN du cours créé
+       derrière. Reporté, il fabriquait un examen blanc pour chaque
+       rappel envoyé après un examen blanc — sans que rien à
+       l'écran ne le dise, et le moniteur ne le découvrait qu'en
+       ouvrant son cours.
+
+       Un réglage qui se souvient doit être un réglage qu'on voit.
+       Celui-là ne se voyait pas. */
+    delete r.type;
+
     localStorage.setItem(CLE_RAPPEL, JSON.stringify(r));
   }catch(e){}
 }
@@ -1321,10 +1341,12 @@ async function afficherRappelManuel(){
 
   /* On reprend les réglages du rappel précédent */
   const m = relireChoixRappel();
-  if($('rapType') && m.type){
-    const existe = Array.prototype.some.call($('rapType').options, o => o.value === m.type);
-    if(existe) $('rapType').value = m.type;
-  }
+  /* ⚠️ LE TYPE NE SE REPREND PAS — v880. On ne l'enregistre plus
+     (voir memoriserChoixRappel), et on ne relit plus celui qui
+     dort déjà dans l'appareil : sans cette seconde moitié, le
+     « Examen blanc » d'hier reviendrait encore demain matin. Le
+     type de séance se choisit à chaque rappel, parce que c'est lui
+     qui décide du bilan du cours créé derrière. */
   if($('rapJour') && m.jour) $('rapJour').value = m.jour;
   if($('rapVoiture') && m.voiture) $('rapVoiture').value = m.voiture;
   if($('rapEmpl') && m.emplacement !== undefined) $('rapEmpl').value = m.emplacement;
