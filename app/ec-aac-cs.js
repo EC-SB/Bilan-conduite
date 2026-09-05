@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:44 — v879 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -1044,7 +1044,7 @@ async function ouvrirTourRvt(liste){
     dessinerCreneaux();
   });
 
-  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  const fermer = () => { try{ fermerFond(fond); }catch(e){} };
   g('rvtAnnuler').addEventListener('click', fermer);
   fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
 
@@ -1202,7 +1202,7 @@ async function ajouterAuTourRvt(tour){
     (tour.eleves || []).length);
   dessinerElevesRvt(g('rvtAjEleves'), possibles, choisis, majCompte);
 
-  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  const fermer = () => { try{ fermerFond(fond); }catch(e){} };
   g('rvtAjAnnuler').addEventListener('click', fermer);
   fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
 
@@ -1351,7 +1351,7 @@ async function changerCreneauxRvt(tour){
     redessiner();
   });
 
-  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  const fermer = () => { try{ fermerFond(fond); }catch(e){} };
   g('rvtCrAnnuler').addEventListener('click', fermer);
   fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
 
@@ -2471,7 +2471,7 @@ async function corrigerRendezVous(x){
     g('cr_' + l.cle + '_date').value = String(s[l.cle + 'Date'] || '');
   });
 
-  const fermer = () => { try{ document.body.removeChild(fond); }catch(e){} };
+  const fermer = () => { try{ fermerFond(fond); }catch(e){} };
   g('crAnnuler').addEventListener('click', fermer);
   fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
 
