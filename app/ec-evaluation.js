@@ -1,4 +1,4 @@
-/* Déployé le 30/08/2026 à 06:20 — v723 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -549,36 +549,6 @@ function texteMail(r, auto){
 PIED_MAIL
   ].join('\n');
 }
-
-
-/* Driv'up n'accepte ni émoji ni caractère stylisé : il les
-   remplace par des points d'interrogation. Les accents
-   ordinaires, eux, passent très bien. */
-function sansAccentNiEmoji(t){
-  return String(t || '')
-    /* Les gras et italiques mathématiques reviennent en lettres */
-    .replace(/[\uD835][\uDC00-\uDFFF]/g, ch => {
-      const c = ch.codePointAt(0);
-      const bases = [
-        [0x1D400, 65], [0x1D41A, 97], [0x1D434, 65], [0x1D44E, 97],
-        [0x1D468, 65], [0x1D482, 97], [0x1D5A0, 65], [0x1D5BA, 97],
-        [0x1D5D4, 65], [0x1D5EE, 97], [0x1D608, 65], [0x1D622, 97],
-        [0x1D63C, 65], [0x1D656, 97], [0x1D670, 65], [0x1D68A, 97]
-      ];
-      for(const [debut, ascii] of bases){
-        if(c >= debut && c < debut + 26){
-          return String.fromCharCode(ascii + (c - debut));
-        }
-      }
-      return '';
-    })
-    /* Puis les émojis eux-mêmes */
-    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2190}-\u{21FF}]/gu, '')
-    .replace(/[·•]/g, '-')
-    .replace(/[ \t]{2,}/g, ' ')
-    .split('\n').map(l => l.replace(/^\s+/, '')).join('\n');
-}
-
 
 
 /* Driv'up n'accepte ni émoji ni caractère stylisé : il les
