@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-codeamenage.js
    Le code aménagé.
@@ -257,7 +258,7 @@ function ouvrirEleveCodeam(e){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -276,7 +277,7 @@ function ouvrirEleveCodeam(e){
     bO.disabled = true;
     try{
       await appelPrep(envoi);
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherCodeAmenage();
     }catch(err){
