@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:32 — v878 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -109,7 +109,7 @@ async function ouvrirPasNiveauManuel(){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bOk = document.createElement('button');
@@ -134,7 +134,7 @@ async function ouvrirPasNiveauManuel(){
         SUITE_PAS_LE_NIVEAU + (quoi ? ' : ' + quoi : '') + ' (bureau)');
       await noterExamenBlanc(nom, 'non', dateEnToutesLettres(d) || d);
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Élève ajouté ✅');
       afficherBureau(true);
     }catch(e){
@@ -362,7 +362,7 @@ function ouvrirExamBlancManuel(){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -416,7 +416,7 @@ function ouvrirExamBlancManuel(){
         }
       }
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Examen blanc prévu ✅');
       redessinerBureau();
     }catch(e){
