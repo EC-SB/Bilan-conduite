@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:38 — v853 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -99,7 +99,7 @@ function fenetre(contenu, boutons, titre){
       el.textContent = b.nom;
       el.addEventListener('click', () => {
         const saisie = zone.querySelector('input');
-        document.body.removeChild(fond);
+        fermerFond(fond);
         resolve(b.valeur !== undefined ? b.valeur : (saisie ? saisie.value : true));
       });
       rangee.appendChild(el);
@@ -155,7 +155,7 @@ function demander(message, valeurParDefaut, titre){
     fond.appendChild(boite);
     document.body.appendChild(fond);
 
-    const fermer = val => { document.body.removeChild(fond); resolve(val); };
+    const fermer = val => { fermerFond(fond); resolve(val); };
     a.addEventListener('click', () => fermer(null));
     v.addEventListener('click', () => fermer(inp.value));
     inp.addEventListener('keydown', e => { if(e.key === 'Enter') fermer(inp.value); });
@@ -636,7 +636,7 @@ function choisirLesAmenagements(nom){
     bAnn.className = 'btn btn-secondary';
     bAnn.textContent = 'Annuler';
     bAnn.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(null);
     });
     rangee.appendChild(bAnn);
@@ -654,7 +654,7 @@ function choisirLesAmenagements(nom){
       bOk.disabled = true;
       bOk.textContent = 'Enregistrement…';
       const ok = await ecrirePosteDeConduite(nom, 'amenagee', true, choisis);
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
       resolve(ok ? choisis : null);
     });
     rangee.appendChild(bOk);
@@ -797,7 +797,7 @@ function corrigerNomEleve(ancien){
     ok.textContent = '💾 Corriger partout';
 
     function fermer(valeur){
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
       resolve(valeur);
     }
     annuler.addEventListener('click', () => fermer(null));
@@ -1536,7 +1536,7 @@ function dupliquerPourAutreFormation(nom, f){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -1574,7 +1574,7 @@ function dupliquerPourAutreFormation(nom, f){
         par: ACCES.moniteur || ''
       });
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Fiche créée : ' + nouveau + ' ✅');
       afficherRepertoire(true);
     }catch(e){
@@ -1720,7 +1720,7 @@ function ouvrirFicheEleve(nom, f){
     bDup.style.cssText = 'margin-top:8px;padding:11px;font-size:13px;';
     bDup.textContent = '➕ Une autre formation pour cet élève';
     bDup.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       dupliquerPourAutreFormation(nom, f);
     });
     boite.appendChild(bDup);
@@ -1838,7 +1838,7 @@ function ouvrirFicheEleve(nom, f){
 
   g('fiRem').value = (f && f.remarques) || '';
 
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
 
   bOk.addEventListener('click', async () => {
     const tel = g('fiTel').value.trim();
@@ -1899,7 +1899,7 @@ function ouvrirFicheEleve(nom, f){
       else fichesEleves.push(Object.assign({ eleve: nom }, saisi));
       fichesLues = 0;
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Fiche enregistrée ✅');
       /* ⚠️ ON NE RELIT PAS LE CLASSEUR POUR REDESSINER.
 
@@ -2576,6 +2576,37 @@ async function chargerMessengerEleve(){
    corrigée redescend sur la fiche : la prochaine fois, elle sera
    la bonne pour tout le monde.
    ------------------------------------------------------------ */
+/* ============================================================
+   FERMER UNE FENÊTRE — UNE SEULE FOIS, MÊME SI ON APPUIE DEUX FOIS
+
+   Chrystel, le 8 septembre, capture à l'appui : « ⚠️ Erreur au
+   chargement — Promesse rejetée : Failed to execute 'removeChild'
+   on 'Node': The node to be removed is not a child of this node ».
+   Le bilan de Florian Desble était pourtant enregistré, et le mail
+   parti.
+
+   CE QUI SE PASSE. Un bouton « Envoyer » demande l'adresse, range
+   l'adresse sur la fiche — un aller-retour réseau, une seconde ou
+   deux — puis ferme la fenêtre. Sur un téléphone, une seconde
+   d'attente sans que rien ne bouge, c'est un deuxième appui. Le
+   gestionnaire repart, le premier ferme la fenêtre, le second
+   essaie de la fermer encore : le navigateur refuse, et comme le
+   gestionnaire est asynchrone, le refus remonte en « promesse
+   rejetée » — un bandeau rouge en travers de l'écran pour une
+   fenêtre qui s'est correctement fermée.
+
+   « fermerFond(fond) » exige que la fenêtre soit
+   encore là. On ne l'exige plus : fermer ce qui est déjà fermé
+   n'est pas une erreur, c'est le résultat voulu.
+
+   Quarante-quatre gestionnaires asynchrones fermaient ainsi, sans
+   filet. Ils passent tous par ici. */
+function fermerFond(fond){
+  try{
+    if(fond && fond.parentNode) fond.parentNode.removeChild(fond);
+  }catch(e){ /* déjà fermée : c'est ce qu'on voulait */ }
+}
+
 function confirmerAdresseEleve(nom, adresseConnue){
   return new Promise(resolve => {
     const depart = String(adresseConnue || '').trim();
@@ -2610,7 +2641,9 @@ function confirmerAdresseEleve(nom, adresseConnue){
     bAnn.className = 'btn btn-secondary';
     bAnn.textContent = 'Annuler';
     bAnn.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      if(bAnn.disabled) return;
+      bAnn.disabled = true;
+      fermerFond(fond);
       resolve(null);
     });
     rangee.appendChild(bAnn);
@@ -2625,6 +2658,22 @@ function confirmerAdresseEleve(nom, adresseConnue){
         etat.textContent = 'Cette adresse ne semble pas valable.';
         return;
       }
+
+      /* ⚠️ UN SEUL ENVOI, MÊME SI ON APPUIE DEUX FOIS.
+
+         L'enregistrement de l'adresse sur la fiche est un
+         aller-retour réseau. Pendant qu'il dure, le bouton restait
+         vif et ne disait rien : sur un téléphone, une seconde sans
+         réaction, c'est un deuxième appui. Deux écritures de fiche
+         partaient, et la fenêtre se fermait deux fois — c'est la
+         « promesse rejetée » que Chrystel a lue en travers de son
+         écran le 8 septembre.
+
+         On verrouille, et on le dit. */
+      if(bOk.disabled) return;
+      bOk.disabled = true;
+      bAnn.disabled = true;
+      bOk.textContent = 'Envoi…';
       /* Corrigée : elle redescend sur la fiche, sinon on la
          recorrigerait au prochain envoi. L'envoi ne dépend pas de
          cet enregistrement — il part même si la fiche résiste. */
@@ -2636,7 +2685,7 @@ function confirmerAdresseEleve(nom, adresseConnue){
           fichesLues = 0;
         }catch(e){ /* l'envoi prime */ }
       }
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(v);
     });
     rangee.appendChild(bOk);
@@ -2872,7 +2921,7 @@ function choisirEleveConnu(titre, aide, propose){
     fond.appendChild(boite);
     document.body.appendChild(fond);
 
-    const fermer = v => { document.body.removeChild(fond); resolve(v); };
+    const fermer = v => { fermerFond(fond); resolve(v); };
 
     bAnn.addEventListener('click', () => fermer(null));
     bOk.addEventListener('click', async () => {
