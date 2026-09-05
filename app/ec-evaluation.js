@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:32 — v878 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -434,7 +434,7 @@ async function ouvrirTexteAac(heures, auto, supervisee, mail){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   rw.appendChild(bF);
   boite.appendChild(rw);
 
@@ -705,7 +705,7 @@ async function ouvrirTexteEvaluation(quoi, r){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   rw.appendChild(bF);
 
   boite.appendChild(rw);
