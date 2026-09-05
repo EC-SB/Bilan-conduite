@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 12:34 — v864 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -1169,7 +1169,7 @@ async function ouvrirMessagesAjourne(eleve){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bF);
 
   /* Chacun corrige les messages : ils décrivent nos démarches,
@@ -1181,7 +1181,7 @@ async function ouvrirMessagesAjourne(eleve){
   bM.textContent = '✏️ Messages';
   bM.title = 'Modifier les messages';
   bM.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     modifierMessagesAjourne(eleve);
   });
   r.appendChild(bM);
@@ -1435,7 +1435,7 @@ function modifierAfaireAjourne(eleve){
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
   bA.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     ouvrirMessagesAjourne(eleve);
   });
   r.appendChild(bA);
@@ -1460,7 +1460,7 @@ function modifierAfaireAjourne(eleve){
     bO.disabled = true;
     afaireAjourne = brouillon.filter(x => String(x.nom || '').trim());
     if(await rangerAfaireAjourne()){
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Liste enregistrée ✅');
       ouvrirMessagesAjourne(eleve);
     }else{
@@ -1510,7 +1510,7 @@ function modifierMessagesAjourne(eleve){
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
   bA.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     ouvrirMessagesAjourne(eleve);
   });
   r.appendChild(bA);
@@ -1543,7 +1543,7 @@ function modifierMessagesAjourne(eleve){
                           par: ACCES.moniteur || '' });
         messagesAjourne[cle] = zones[cle].zone.value;
       }
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Messages enregistrés ✅');
       ouvrirMessagesAjourne(eleve);
     }catch(e){
@@ -1864,7 +1864,7 @@ function agrandirImage(src, titre){
   img.style.cssText = 'max-width:96vw;max-height:92vh;border-radius:10px;';
   img.alt = titre || '';
   fond.appendChild(img);
-  fond.addEventListener('click', () => document.body.removeChild(fond));
+  fond.addEventListener('click', () => fermerFond(fond));
   document.body.appendChild(fond);
 }
 
