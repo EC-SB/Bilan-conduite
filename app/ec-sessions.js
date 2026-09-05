@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 10:50 — v862 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -502,7 +502,7 @@ async function choisirPlaceExamen(nom, voeu){
     boite.appendChild(liste);
 
     const fermer = (v) => {
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
       resolve(v || null);
     };
 
@@ -1606,7 +1606,7 @@ function ouvrirPlace(p, sess){
       b.style.cssText = 'flex:1;padding:10px;font-size:12px;margin:0;';
       b.textContent = libelle;
       b.addEventListener('click', () => {
-        document.body.removeChild(fond);
+        fermerFond(fond);
         if(typeof action === 'function') action(p.eleve);
       });
       rB.appendChild(b);
@@ -1744,7 +1744,7 @@ function ouvrirPlace(p, sess){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   /* ============================================================
@@ -1784,7 +1784,7 @@ function ouvrirPlace(p, sess){
       const nom = p.eleve;
       try{
         await majSuivi(nom, { fantome: estPreteNom ? '' : 'oui' });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast(estPreteNom
           ? nom + ' tient sa place pour de bon'
           : nom + ' est prête-nom sur cette date 👻');
@@ -1807,7 +1807,7 @@ function ouvrirPlace(p, sess){
           '👻 Prête-nom.')) return;
       try{
         Object.assign(p, { eleve: '', prevenu: false, dossierOk: false, remarque: '' });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Place vidée ⬜');
         redessinerSessions();
         await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
@@ -1898,7 +1898,7 @@ function ouvrirPlace(p, sess){
 
       /* La fenêtre se ferme tout de suite : la mémoire est à jour,
          et le bureau n'a rien à attendre du réseau. */
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       redessinerSessions();
 
@@ -2265,7 +2265,7 @@ function ouvrirEditeurSession(sess){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bOk = document.createElement('button');
@@ -2346,7 +2346,7 @@ function ouvrirEditeurSession(sess){
         }
       }
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
 
       /* Le serveur a pu refuser d'enlever des places occupées : on
          relit plutôt que d'afficher ce qu'on croyait obtenir. */
