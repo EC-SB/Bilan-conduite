@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:09 — v810 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-bilans.js
    Gestion des modèles de bilan.
@@ -377,7 +377,7 @@ function ouvrirEditeurModeleBilan(){
   selS.addEventListener('change', majDesc);
   majDesc();
 
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
 
   bOk.addEventListener('click', async () => {
     const nom = boite.querySelector('#mbNom').value.trim();
@@ -402,7 +402,7 @@ function ouvrirEditeurModeleBilan(){
       });
       const ouvrirForm = boite.querySelector('#mbFormulaire').checked;
       const schemaChoisi = selS.value;
-      document.body.removeChild(fond);
+      fermerFond(fond);
       await chargerModelesBilan();
       appliquerModelesAjoutes();
       if(typeof remplirModeles === 'function') remplirModeles();
