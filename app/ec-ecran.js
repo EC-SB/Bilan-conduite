@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:58 — v824 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -374,7 +374,7 @@ function ouvrirLigneAutreJour(jour, rafraichir){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -399,7 +399,7 @@ function ouvrirLigneAutreJour(jour, rafraichir){
         ordre: 0,
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Ajoutée ✅');
       rafraichir();
     }catch(e){
@@ -549,7 +549,7 @@ function ouvrirGestionLieux(){
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
   bF.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     afficherEcran();
   });
   r.appendChild(bF);
@@ -628,7 +628,7 @@ function ficheLieu(l){
     bA.className = 'btn btn-secondary';
     bA.textContent = 'Annuler';
     bA.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(null);
     });
     r.appendChild(bA);
@@ -646,7 +646,7 @@ function ficheLieu(l){
                     : normaliserMot(nom).replace(/[^a-z0-9]/g, '') ||
                       ('lieu' + Date.now());
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve({
         cle: cle,
         emoji: boite.querySelector('#flEmoji').value.trim(),
@@ -1181,7 +1181,7 @@ function ouvrirLigneManuelle(z){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bOk = document.createElement('button');
@@ -1207,7 +1207,7 @@ function ouvrirLigneManuelle(z){
         ordre: 0,
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Ajouté au planning ✅');
       chargerPlanningEcran(z);
     }catch(e){
@@ -1747,7 +1747,7 @@ function ouvrirEditeurDiapo(d){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(d){
@@ -1759,7 +1759,7 @@ function ouvrirEditeurDiapo(d){
       if(!await confirmer('Supprimer cette diapositive ?')) return;
       try{
         await appelPrep({ action: 'ecranDelete', id: d.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimée ✅');
         afficherEcran();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -1805,7 +1805,7 @@ function ouvrirEditeurDiapo(d){
         ordre: d ? d.ordre : 0,
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast(d ? 'Diapositive modifiée ✅' : 'Diapositive ajoutée ✅');
       afficherEcran();
     }catch(e){
