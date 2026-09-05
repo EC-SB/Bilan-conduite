@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 09:28 — v880 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -278,7 +278,7 @@ function ouvrirAttente(message){
       '<div style="font-size:15px;color:var(--soft);">' + (message || 'Chargement…') + '</div>' +
     '</div>';
   document.body.appendChild(fond);
-  return () => { if(fond.parentNode) document.body.removeChild(fond); };
+  return () => { if(fond.parentNode) fermerFond(fond); };
 }
 
 /* Convertit « mardi 4 août 2026 » en « 2026-08-04 » pour le calendrier */
@@ -4097,7 +4097,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
     function fermer(reponses){
       questionnaireOuvert = false;
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
 
       /* La marque de « quelqu'un y a répondu », posée ici et nulle
          part ailleurs : c'est le seul endroit par où passe une
@@ -5442,7 +5442,7 @@ function choisirDate(titre, valeur){
     document.body.appendChild(fond);
 
     function fermer(valeur){
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(valeur);
     }
     annuler.addEventListener('click', () => fermer(null));
