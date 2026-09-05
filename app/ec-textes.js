@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:16 — v811 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -725,7 +725,7 @@ function ouvrirEditeurModele(modele, usageImpose){
   majBoite();
   majVars();
 
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
 
   bOk.addEventListener('click', async () => {
     const nom = g('mdNom').value.trim();
@@ -758,7 +758,7 @@ function ouvrirEditeurModele(modele, usageImpose){
       /* Le texte a changé : le cache n'a plus lieu d'être */
       perimerModeles();
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       if(usageImpose === 'procedure') afficherProcedures();
       else afficherModelesTexte();
@@ -1019,7 +1019,7 @@ async function ouvrirImportModeles(){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   const bOk = document.createElement('button');
   bOk.className = 'btn btn-primary';
   bOk.textContent = '📥 Importer';
@@ -1072,7 +1072,7 @@ async function ouvrirImportModeles(){
       }catch(e){ rates.push(liste[i].titre + ' : ' + e.message); }
     }
 
-    document.body.removeChild(fond);
+    fermerFond(fond);
     showToast(ok + ' modèle(s) importé(s)' + (rates.length ? ' · ' + rates.length + ' échec(s)' : ''));
     if(rates.length) await informer('Modèles non importés :\n\n' + rates.join('\n'));
     afficherModelesTexte();
