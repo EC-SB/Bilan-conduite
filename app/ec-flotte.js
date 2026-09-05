@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -572,7 +573,7 @@ function ouvrirFicheVehicule(v){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(v){
@@ -587,7 +588,7 @@ function ouvrirFicheVehicule(v){
           'Pour un véhicule revendu, préfère « Sorti du parc ».')) return;
       try{
         await appelPrep({ action: 'flotteDelete', id: v.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimé ✅');
         afficherFlotte();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -633,7 +634,7 @@ function ouvrirFicheVehicule(v){
         etat: boite.querySelector('#vEtat').value,
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast(v ? 'Enregistré ✅' : 'Véhicule ajouté ✅');
       afficherFlotte();
     }catch(e){
@@ -671,7 +672,7 @@ function blocHistoriqueVehicule(v, fond){
   bPlus.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:0;';
   bPlus.textContent = '➕ Ajouter';
   bPlus.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     ouvrirEvenement(v, null);
   });
   t.appendChild(bPlus);
@@ -707,7 +708,7 @@ function blocHistoriqueVehicule(v, fond){
         '</div>' +
       '</span>';
     l.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       ouvrirEvenement(v, e);
     });
     z.appendChild(l);
@@ -812,7 +813,7 @@ function ouvrirEvenement(v, e){
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
   bAnn.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     ouvrirFicheVehicule(v);
   });
   r.appendChild(bAnn);
@@ -826,7 +827,7 @@ function ouvrirEvenement(v, e){
       if(!await confirmer('Supprimer cette ligne de l\'historique ?')) return;
       try{
         await appelPrep({ action: 'flotteEventDelete', id: e.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimée ✅');
         afficherFlotte();
       }catch(err){ showToast('Impossible : ' + err.message); }
@@ -854,7 +855,7 @@ function ouvrirEvenement(v, e){
         etat: boite.querySelector('#ePrevu').checked ? 'prevu' : 'fait',
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherFlotte();
     }catch(err){
