@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 11:06 — v763 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-coutsia.js
    Ce que l'IA coûte à l'auto-école.
@@ -256,7 +256,13 @@ function dollars(v){
 /* Le même montant, converti au taux du jour — celui qui est
    affiché à l'écran, et que Chrystel peut corriger sur son
    relevé. */
-function euros(v){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « euros »,
+   comme celle de ec-paiement.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : ec-paiement gagnait, et un coût en dollars
+   se serait affiché tel quel avec un « € » au bout.
+   Le nom dit maintenant de quelle écriture de montant il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function eurosDuCout(v){
   return sou((Number(v) || 0) * tauxEuro(), '€');
 }
 
@@ -341,14 +347,20 @@ function regrouperCouts(lignes, cle){
    d'une matinée donnerait un chiffre au hasard, et un chiffre au
    hasard sur une facture est pire que pas de chiffre. */
 function projectionMensuelle(lignes, du, au){
-  const jours = joursEntre(du, au);
+  const jours = joursDeLaPeriode(du, au);
   if(!jours || jours < 3) return null;
   const total = totalDesCouts(lignes);
   if(!total) return null;
   return { parJour: total / jours, parMois: (total / jours) * 30, jours: jours };
 }
 
-function joursEntre(du, au){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « joursEntre »,
+   comme celle de ec-paie.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : celle-ci gagnait, et la paie, qui appelle
+   parfois sans date de fin, recevait 0 jour au lieu de 1.
+   Le nom dit maintenant de quelle période il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function joursDeLaPeriode(du, au){
   if(!du || !au) return 0;
   const a = new Date(du + 'T12:00:00'), b = new Date(au + 'T12:00:00');
   if(isNaN(a) || isNaN(b)) return 0;
