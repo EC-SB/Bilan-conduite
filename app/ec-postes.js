@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-postes.js
    Le simulateur à plusieurs élèves.
@@ -61,7 +61,7 @@ function ouvrirSeancePostes(){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -87,7 +87,7 @@ function ouvrirSeancePostes(){
       vus[k] = true;
     }
 
-    document.body.removeChild(fond);
+    fermerFond(fond);
     demarrerPostes(noms);
   });
   r.appendChild(bO);
@@ -718,7 +718,7 @@ function modifierGroupe(g){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -729,7 +729,7 @@ function modifierGroupe(g){
       .map(x => normaliserMot(x.cours.eleve));
 
     marquerGroupeDefait(g.cle, sortis.join(','));
-    document.body.removeChild(fond);
+    fermerFond(fond);
 
     if(typeof afficherPrepares === 'function') afficherPrepares();
     showToast('Séance mise à jour ✅');
