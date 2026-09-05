@@ -194,10 +194,11 @@
   /* ============================================================
      LE COURS QUI COMMENCE
 
-     Cinq minutes avant l'heure et cinq minutes après, le cours prend
-     tout l'écran : l'élève qui pousse la porte cherche son moniteur
-     et sa voiture, pas la liste de la journée. Les photos continuent
-     de tourner derrière, floutées.
+     Quelques minutes avant l'heure et quelques minutes après — cinq
+     et cinq par défaut, réglables depuis 📺 Affichage — le cours
+     prend tout l'écran : l'élève qui pousse la porte cherche son
+     moniteur et sa voiture, pas la liste de la journée. Les photos
+     continuent de tourner derrière, floutées.
      ============================================================ */
   #imminent{
     position:absolute; inset:0; z-index:8;
@@ -467,11 +468,23 @@ const LAT = 48.5136, LON = -2.7653;      /* Saint-Brieuc */
 const DELAI_DONNEES = 60000;
 const DELAI_METEO   = 900000;
 
-/* Le cours prend tout l'écran cinq minutes avant son heure, et le
-   quitte cinq minutes après. Ensuite il redescend dans la liste,
-   d'où le classeur le retire un quart d'heure après l'heure. */
-const IMMINENT_AVANT = 5;
-const IMMINENT_APRES = 5;
+/* ⚠️ COMBIEN DE TEMPS LE COURS PREND L'ÉCRAN — RÉGLABLE DEPUIS
+   L'APPLICATION.
+
+   Chrystel, le 9 septembre 2026 : « est-ce que tu peux faire en
+   sorte que je puisse changer le temps manuellement ».
+
+   C'était deux constantes ici, et une phrase écrite en dur dans
+   l'application — deux endroits pour un même nombre, et aucun des
+   deux réglable. Les durées arrivent maintenant avec les données,
+   à chaque passage (une minute au plus). Cinq reste ce qu'on
+   applique tant que le classeur n'a rien dit d'autre : un écran qui
+   perd le réseau garde le comportement de toujours.
+
+   Ensuite le cours redescend dans la liste, d'où le classeur le
+   retire un quart d'heure après l'heure. */
+let IMMINENT_AVANT = 5;
+let IMMINENT_APRES = 5;
 const DELAI_IMMINENT = 10000;
 
 if(OU === 'vitrine') document.body.classList.add('vitrine');
@@ -671,6 +684,19 @@ async function chargerVraiment(){
     if(mServeur !== null) horlogeServeur = { minutes: mServeur, recu: Date.now() };
     if(d && d.jour) jourServeur = d.jour;
     if(d && d.pleinEcran !== undefined) pleinEcranAutorise = !!d.pleinEcran;
+    /* Les deux durées du plein écran, réglées depuis l'application.
+       Un nombre absent ou aberrant ne remplace rien : mieux vaut
+       cinq minutes que zéro par accident. */
+    const dureeEcran = (v, defaut) => {
+      const n = Number(v);
+      return (isFinite(n) && n >= 0 && n <= 120) ? Math.round(n) : defaut;
+    };
+    if(d && d.minutesAvant !== undefined){
+      IMMINENT_AVANT = dureeEcran(d.minutesAvant, IMMINENT_AVANT);
+    }
+    if(d && d.minutesApres !== undefined){
+      IMMINENT_APRES = dureeEcran(d.minutesApres, IMMINENT_APRES);
+    }
     majHeure();
 
     /* Tout va bien : on repart de zéro */
@@ -871,9 +897,10 @@ function echapper(t){
 /* ============================================================
    LE COURS QUI COMMENCE
 
-   Cinq minutes avant l'heure, cinq minutes après. Passé ce
-   moment, le cours redescend dans la liste — c'est le classeur
-   qui l'en retire un quart d'heure après l'heure.
+   Les minutes avant et après viennent des réglages (IMMINENT_AVANT
+   et IMMINENT_APRES, rafraîchis à chaque passage). Passé ce moment,
+   le cours redescend dans la liste — c'est le classeur qui l'en
+   retire un quart d'heure après l'heure.
    ============================================================ */
 let signatureImminent = '';
 
