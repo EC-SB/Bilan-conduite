@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:10 — v776 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -835,7 +835,7 @@ async function ouvrirEtatMails(){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bF);
   boite.appendChild(r);
 
@@ -905,7 +905,7 @@ function ouvrirMailNotification(actuelle){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bOk = document.createElement('button');
@@ -923,7 +923,7 @@ function ouvrirMailNotification(actuelle){
         action: 'reglageSet', cle: 'mailNotification',
         valeur: v, par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Adresse enregistrée ✅');
       afficherProcCorriger();
     }catch(e){
@@ -1172,7 +1172,7 @@ async function ouvrirGestionLangues(){
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
   bF.addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     ouvrirCodesEleves();
   });
   r.appendChild(bF);
@@ -1211,7 +1211,7 @@ function choisirLangue(a, langues){
     bA.className = 'btn btn-secondary';
     bA.textContent = 'Annuler';
     bA.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(null);
     });
     r.appendChild(bA);
@@ -1221,7 +1221,7 @@ function choisirLangue(a, langues){
     bO.textContent = '💾 Enregistrer';
     bO.addEventListener('click', () => {
       const v = boite.querySelector('#clChoix').value;
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(v);
     });
     r.appendChild(bO);
@@ -1348,7 +1348,7 @@ async function ouvrirDemande(){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bOk = document.createElement('button');
@@ -1579,7 +1579,7 @@ async function ouvrirCodesEleves(){
   };
 
   boite.querySelector('#ceGererLangues').addEventListener('click', () => {
-    document.body.removeChild(fond);
+    fermerFond(fond);
     ouvrirGestionLangues();
   });
 
@@ -1818,7 +1818,7 @@ async function ouvrirCodesEleves(){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   rw.appendChild(bF);
   boite.appendChild(rw);
 
@@ -2264,7 +2264,7 @@ async function ouvrirRecitation(rDemandee){
         }catch(e){ showToast('Impossible : ' + e.message); return; }
       }
     }
-    if(fond.parentNode) document.body.removeChild(fond);
+    if(fond.parentNode) fermerFond(fond);
   });
   rw.appendChild(bAnn);
 
@@ -2281,7 +2281,7 @@ async function ouvrirRecitation(rDemandee){
     bGarder.disabled = true;
     try{
       await enregistrerSansEnvoyer();
-      if(fond.parentNode) document.body.removeChild(fond);
+      if(fond.parentNode) fermerFond(fond);
       showToast('Correction gardée — à finir plus tard 💾');
       afficherProcCorriger();
     }catch(e){
@@ -2299,7 +2299,7 @@ async function ouvrirRecitation(rDemandee){
     if(!await confirmer('Supprimer cette récitation ?')) return;
     try{
       await appelPrep({ action: 'recitationDelete', id: r.id });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Supprimée ✅');
       afficherProcCorriger();
     }catch(e){ showToast('Impossible : ' + e.message); }
@@ -2329,7 +2329,7 @@ async function ouvrirRecitation(rDemandee){
         par: ACCES.moniteur || ''
       });
 
-      document.body.removeChild(fond);
+      fermerFond(fond);
 
       const m = rep && rep.mail;
       if(envoyerMail.checked && m && !m.envoye){
@@ -2406,7 +2406,7 @@ async function ouvrirMessengerCorrection(r, correction, dit){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   rw.appendChild(bF);
 
   const bC = document.createElement('button');
@@ -2665,7 +2665,7 @@ async function ouvrirFicheProc(x){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(x){
@@ -2677,7 +2677,7 @@ async function ouvrirFicheProc(x){
       if(!await confirmer('Supprimer cette procédure de la liste ?')) return;
       try{
         await appelPrep({ action: 'procCorrigerDelete', id: x.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimée ✅');
         afficherProcCorriger();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -2707,7 +2707,7 @@ async function ouvrirFicheProc(x){
                    ? image : '',
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast(x ? 'Modifiée ✅' : 'Ajoutée ✅');
       afficherProcCorriger();
     }catch(e){
