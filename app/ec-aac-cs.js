@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:49 — v815 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -1815,7 +1815,13 @@ const PARCOURS_AAC = {
                  rdvAttendus:false, unAn:false }
 };
 
-function parcoursDe(s){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « parcoursDe »,
+   comme celle de ec-postpermis.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : celle-ci gagnait, et le post-permis, qui lui
+   passe un élève entier et non un suivi, recevait toujours ''.
+   Le nom dit maintenant de quelle parcours il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function parcoursAacDe(s){
   const c = String((s && s.parcoursAac) || '').trim();
   return PARCOURS_AAC[c] ? c : '';
 }
@@ -1843,7 +1849,7 @@ function parcoursDe(s){
    date qui se présenterait comme un feu vert serait un mensonge.
    ------------------------------------------------------------ */
 function examenPossibleLe(s, naissance){
-  const p = PARCOURS_AAC[parcoursDe(s)];
+  const p = PARCOURS_AAC[parcoursAacDe(s)];
   const dix7 = (typeof jour17AnsRevolus === 'function')
     ? jour17AnsRevolus(naissance) : '';
 
@@ -2007,7 +2013,7 @@ function dossierAac(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
   const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
   const naissance = (f && f.naissance) || '';
-  const cle = parcoursDe(s);
+  const cle = parcoursAacDe(s);
   const p = PARCOURS_AAC[cle];
   const ech = echeancesAac(s, naissance);
   const attendus = p.rdvAttendus;
