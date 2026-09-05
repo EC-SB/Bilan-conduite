@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-correction.js
    Signaler une erreur du moniteur dans un bilan et la remplacer
@@ -112,7 +113,7 @@ async function ouvrirCorrectionMoniteur(){
     });
   }
 
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
 
   bOk.addEventListener('click', async () => {
     const proc = zone.value.trim();
@@ -140,7 +141,7 @@ async function ouvrirCorrectionMoniteur(){
       }
     }
 
-    document.body.removeChild(fond);
+    fermerFond(fond);
     marquerExport(false);
     showToast('Correction ajoutée au bilan ✅');
     if(typeof sauvegarderLocal === 'function') sauvegarderLocal(true);
