@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-placesbe.js
    La demande d'unités PL et BE.
@@ -24,7 +24,13 @@ const MOIS_BE = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
 
 /* Les numéros de semaine d'un mois, au sens ISO : c'est ainsi
    que la préfecture les compte. */
-function semainesDuMois(annee, mois){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « semainesDuMois »,
+   comme celle de ec-places.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : celle-ci gagnait, et ec-places l'appelait avec
+   un seul argument « 2026-10 » : le mois valait NaN.
+   Le nom dit maintenant de quelle découpe en semaines il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function semainesDuMoisBE(annee, mois){
   const out = [];
   const d = new Date(Date.UTC(annee, mois - 1, 1));
   const fin = new Date(Date.UTC(annee, mois, 0));
@@ -168,7 +174,7 @@ function dessinerPlacesBE(){
       l.toLocaleDateString('fr-FR') + ' — ' + jours + ' jours.</span>';
   }
 
-  const semaines = semainesDuMois(annee, mois);
+  const semaines = semainesDuMoisBE(annee, mois);
 
   /* On garde ce qui a été saisi quand on change de mois */
   const ancien = {};
