@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:18 — v777 */
+/* Déployé le 05/09/2026 à 07:32 — v878 */
 /* ============================================================
    ec-journal.js
    Journal d'activité — réservé aux administrateurs.
@@ -188,7 +188,7 @@ async function afficherJournal(jourPrecis){
     ((data && data.complet === false)
       ? '<br><span style="color:var(--warn-text);">⚠️ Recherche ' +
         'interrompue après ' + (data.lues || 0) + ' lignes remontées ' +
-        "jusqu'au " + jourFr(data.plusAncienLu) + '. Ajoute une date ' +
+        "jusqu'au " + jourDuJournal(data.plusAncienLu) + '. Ajoute une date ' +
         'de début pour chercher plus loin.</span>'
       : '');
   zone.appendChild(tete);
@@ -347,7 +347,13 @@ function boutonAnnulerResultat(l){
 
 
 /* « 2026-08-24 » → « 24/08/2026 ». */
-function jourFr(iso){
+/* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « jourFr »,
+   comme celle de ec-page-eleve.js. Deux fonctions de même nom au niveau
+   global, et c'est la dernière chargée qui répond aux deux : celle-ci gagnait, et les vingt-six dates du
+   dossier élève perdaient leur mise en forme.
+   Le nom dit maintenant de quelle date il s'agit. Voir
+   test-heures-decalees.js, qui refuse désormais tout doublon. */
+function jourDuJournal(iso){
   const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? (m[3] + '/' + m[2] + '/' + m[1]) : (iso || '?');
 }
@@ -372,7 +378,7 @@ function phraseConservation(data){
   if(total >= plafond * 0.95){
     p += ' — <strong>plafond de ' + plafond + ' lignes quasi atteint</strong>' +
          (data && data.plusAncienLu
-            ? ', la trace ne remonte plus qu\'au ' + jourFr(data.plusAncienLu)
+            ? ', la trace ne remonte plus qu\'au ' + jourDuJournal(data.plusAncienLu)
             : ', la trace ne remonte plus aussi loin qu\'annoncé');
   }
   return p;
