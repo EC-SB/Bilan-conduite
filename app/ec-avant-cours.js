@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 16:03 — v876 */
+/* Déployé le 04/09/2026 à 16:05 — v877 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -215,6 +215,20 @@ function positionAbregee(pos){
   let t = String(pos || '').trim();
   if(!t) return '';
 
+  /* ⚠️ LA LIGNE 🎯 ARRIVE EN GRAS ET AVEC SON REPÈRE.
+
+     Elle est écrite « 🎯 𝟭𝗘̀𝗥𝗘 𝗟𝗘𝗖̧𝗢𝗡 𝗔𝗣𝗥𝗘̀𝗦… » : le gras est
+     en caractères Unicode, parce que la note vit dans un tableur et
+     ne peut pas porter de mise en forme. Sans ce dégraissage, ni le
+     rang ni le mot « leçon » ne se reconnaissent — on obtenait
+     « Reste encore 2 leçons + 3h (🎯 𝟭𝗘̀𝗥𝗘 𝗟𝗘𝗖̧𝗢𝗡 …) », le
+     repère et le mot compris.
+
+     Ce n'est que de l'AFFICHAGE : la note du classeur garde son
+     gras et son 🎯. */
+  if(typeof sansGras === 'function') t = sansGras(t);
+  t = t.replace(/^\s*🎯\s*/, '').trim();
+
   /* Le mot « leçon » juste après le rang : on parle de leçons, on
      n'a pas besoin de le dire. */
   t = t.replace(/^(\d+\s*(?:ère|ere|ème|eme|e))\s+le[çc]ons?\b/i, '$1');
@@ -224,8 +238,11 @@ function positionAbregee(pos){
      Une parenthèse qui ne dit que les leçons prévues s'en va
      entièrement : Chrystel n'en a « besoin nulle part ». */
   t = t.replace(/\s*\(([^)]*)\)\s*$/, (tout, dedans) => {
-    const m = String(dedans).match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*au total/i);
-    return m ? ', ' + m[1] + ' au total' : '';
+    const m = String(dedans).match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*(au total)/i);
+    /* « au total » est repris TEL QU'IL EST ÉCRIT : la ligne 🎯 est
+       en majuscules dans la note, et une moitié de phrase en
+       minuscules se verrait. */
+    return m ? ', ' + m[1] + ' ' + m[2] : '';
   });
 
   return t.trim();
