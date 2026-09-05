@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 15:56 — v875 */
+/* Déployé le 05/09/2026 à 09:39 — v881 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -261,6 +261,102 @@ function preparationPrecedenteDe(eleve, avantIso){
   return siennes[0];
 }
 
+/* ============================================================
+   CE QUE LE COURS D'AVANT A APPRIS — MÊME CE MATIN
+
+   Chrystel, le 7 septembre : « je fais tous mes rappels, donc tout
+   part dans mes prochains cours, et ensuite je remplis les
+   questionnaires — ça va bien me mettre à jour directement le cours
+   suivant du même jour ? »
+
+   Elle avait vu le trou. Le matin, les rappels créent les cours de
+   la journée avec ce qu'on sait à ce moment-là. Elle remplit
+   ensuite le questionnaire du cours de 8h — examen blanc passé,
+   résultat, date d'examen — et le cours de 17h du MÊME élève
+   continuait d'afficher ce qu'on savait à 7h. Rien ne le relisait :
+   une carte se refait depuis la fiche de suivi, les sessions, le
+   répertoire et les bilans du classeur, et un cours préparé n'est
+   aucun des quatre.
+
+   ⚠️ CE N'EST PAS « preparationPrecedenteDe », ET C'EST VOULU.
+
+   Celle-là s'arrête à la veille : deux cours le même jour ne se
+   suivent pas dans la frise, et compter le second comme la suite du
+   premier ferait avancer le rang d'un cran de trop. Ici on ne
+   cherche pas le rang — on cherche L'ÉTAT DE L'ÉLÈVE : son examen
+   blanc, sa date d'examen, son simulateur, son post-permis. Ces
+   choses-là ne se démentent pas d'une heure à l'autre, et tout ce
+   qui appartient à la journée est retiré juste en dessous.
+
+   Rien n'est enregistré : c'est l'écran qu'on met à jour. La note
+   écrite se remettra d'elle-même quand quelqu'un touchera le cours.
+   ============================================================ */
+
+/* L'heure d'un cours, pour les ranger dans l'ordre où ils ont lieu.
+   Sans heure, on le met en fin de journée : il ne peut alors rien
+   apprendre à personne, ce qui est la prudence même. */
+function heureDuCoursPrepare(cours){
+  const h = (typeof heureDeLaPreparation === 'function')
+    ? heureDeLaPreparation(cours) : '';
+  return h || '99:99';
+}
+
+function avantDansLaJournee(a, b){
+  const da = String((a && a.date) || ''), db = String((b && b.date) || '');
+  if(da !== db) return da < db;
+  return heureDuCoursPrepare(a) < heureDuCoursPrepare(b);
+}
+
+/* Les cours d'un élève, du plus ancien au plus récent. */
+function coursPreparesDe(eleve){
+  if(!eleve || typeof normaliserMot !== 'function') return [];
+  const qui = normaliserMot(eleve);
+  return (prepares || [])
+    .filter(x => x && x.eleve && normaliserMot(x.eleve) === qui && x.date)
+    .sort((a, b) => avantDansLaJournee(a, b) ? -1
+                  : avantDansLaJournee(b, a) ? 1 : 0);
+}
+
+/* CE QUI APPARTIENT À LA JOURNÉE NE SE RECOPIE PAS.
+
+   Le rang, le jeton de confirmation, la marque de réponse, le type
+   de bilan : tout cela décrit LA SÉANCE, pas l'élève. Hérités, ils
+   annonceraient la séance d'avant — et le type de bilan, hérité,
+   ferait d'un cours ordinaire un second examen blanc, la faute
+   même dont on sort. */
+const RIEN_DU_COURS_PRECEDENT = ['jeton', 'repondu', 'repondule', 'lecon',
+                                 'leconMain', 'sansBilan', 'premierCours',
+                                 'modele', 'leconsFaites', 'aRenseigner'];
+
+function etatDuCoursPrecedent(cours){
+  if(!cours || !cours.eleve) return null;
+
+  const siens = coursPreparesDe(cours.eleve);
+  let avant = null;
+  for(const x of siens){
+    if(String(x.id) === String(cours.id)) continue;
+    if(avantDansLaJournee(x, cours)) avant = x;   /* le dernier qui précède */
+  }
+  if(!avant) return null;
+
+  /* LE PLUS RÉCEMMENT RÉPONDU L'EMPORTE.
+
+     Si quelqu'un a rempli le questionnaire de CE cours après avoir
+     rempli celui d'avant, c'est lui qui sait. Sans cette
+     comparaison, une correction faite sur le cours de 17h se
+     ferait recouvrir par le cours de 8h à chaque redessin — et le
+     moniteur verrait sa saisie s'effacer sous ses yeux. */
+  const monQuand = String(((cours.contexte || {}).repondule) || '');
+  const sonQuand = String(((avant.contexte || {}).repondule) || '');
+  if(monQuand && monQuand >= sonQuand) return null;
+
+  const lire = t => ((typeof defautsDepuisNote === 'function' && t)
+    ? defautsDepuisNote(t) : {});
+  const acquis = Object.assign({}, lire(avant.note), avant.contexte || {});
+  RIEN_DU_COURS_PRECEDENT.forEach(k => { delete acquis[k]; });
+  return acquis;
+}
+
 /* Le rang qu'annonce une préparation : son contexte d'abord — une
    main l'y a écrit — puis sa note. */
 function rangDeLaPreparation(prep){
@@ -326,7 +422,16 @@ function rafraichirNotesPreparees(){
   if(typeof noteJusteDuCours !== 'function') return 0;
 
   let refaites = 0;
-  (prepares || []).forEach(cours => {
+  /* DANS L'ORDRE DU TEMPS, et pas dans celui de la liste : chaque
+     carte peut désormais apprendre du cours qui la précède
+     (etatDuCoursPrecedent). Prises dans le désordre, le cours de
+     17h se referait avant celui de 12h et n'aurait qu'une passe de
+     retard — visible, et incompréhensible pour qui le regarde. */
+  const enOrdre = (prepares || []).slice()
+    .sort((a, b) => avantDansLaJournee(a, b) ? -1
+                  : avantDansLaJournee(b, a) ? 1 : 0);
+
+  enOrdre.forEach(cours => {
     if(!cours || !cours.eleve) return;
     try{
       /* Le rang que la note annonce déjà : on ne le recalcule pas
@@ -2345,6 +2450,19 @@ async function modifierPreparation(cours, titre, valider){
   try{
     /* Le moniteur a pu changer le type de bilan dans le questionnaire */
     const cleModele = rep.modele || cours.modele;
+
+    /* ⚠️ QUAND QUELQU'UN A RÉPONDU SUR CE COURS-CI — v881.
+
+       Un cours peut désormais apprendre du cours précédent du même
+       élève (etatDuCoursPrecedent). Reste à savoir lequel des deux
+       est le plus récent : celui que le rappel a écrit ce matin,
+       ou celui qu'une main vient de remplir. Sans cette marque, une
+       correction faite sur le cours de 17h se ferait recouvrir par
+       le cours de 8h à chaque redessin.
+
+       Une date, posée là où une main répond. Les cours créés par un
+       rappel n'en portent pas : ils n'ont rien à opposer. */
+    rep.repondule = new Date().toISOString();
 
     /* L'heure déjà posée sur ce cours : elle ne doit pas se perdre
        quand on retouche les notes. */
