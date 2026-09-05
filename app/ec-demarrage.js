@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:25 — v851 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -617,7 +617,7 @@ window.addEventListener('popstate', () => {
       fond.querySelectorAll('button'),
       b => /annuler|fermer/i.test(b.textContent));
     if(annuler){ annuler.click(); return; }
-    try{ document.body.removeChild(fond); }catch(e){}
+    try{ fermerFond(fond); }catch(e){}
     return;
   }
 
