@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:32 — v878 */
+/* Déployé le 05/09/2026 à 07:44 — v879 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -257,7 +257,12 @@ function examenBlancDe(nom){
   const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
   const a = (e && e.etat) || {};
 
-  if(s.ebDate) return { cle: 'date', txt: '✅ Examen blanc le ' + jourFrCs(s.ebDate) };
+  /* ⚠️ v879 : la date du suivi n'est retenue que si un examen
+     blanc est établi par ailleurs — elle a longtemps reçu la date
+     de la dernière leçon. Voir ec-questionnaire.js. */
+  const ebDate = (typeof dateExamenBlancDuSuivi === 'function')
+    ? dateExamenBlancDuSuivi(nom, a) : '';
+  if(ebDate) return { cle: 'date', txt: '✅ Examen blanc le ' + jourFrCs(ebDate) };
   if(a.examBlanc === 'passe') return { cle: 'passe', txt: '✅ Examen blanc passé' };
   if(a.examBlanc === 'reserve') return { cle: 'reserve', txt: '📌 Examen blanc réservé' };
   if(a.examBlanc === 'impossible')
