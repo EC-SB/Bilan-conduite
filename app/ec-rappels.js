@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 09:28 — v880 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -560,7 +560,7 @@ async function choisirAutreEleve(c){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   boite.appendChild(bAnn);
 
   fond.appendChild(boite);
@@ -583,7 +583,7 @@ async function choisirAutreEleve(c){
       b.textContent = n + (f && f.telephone ? '  📱' : '  (sans numéro)');
       b.addEventListener('click', () => {
         c.choisi = n;
-        document.body.removeChild(fond);
+        fermerFond(fond);
         afficherRappels();
       });
       liste.appendChild(b);
@@ -2269,7 +2269,7 @@ async function ouvrirRattrapageCours(liste){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   const bOk = document.createElement('button');
   bOk.className = 'btn btn-primary';
   bOk.textContent = '📅 Créer les cours';
