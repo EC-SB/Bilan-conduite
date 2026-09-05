@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 09:39 — v881 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2660,7 +2660,7 @@ function ouvrirMentions(cours){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bO = document.createElement('button');
@@ -2697,7 +2697,7 @@ function ouvrirMentions(cours){
       });
       const dans = prepares.find(x => String(x.id) === String(cours.id));
       if(dans) dans.note = nouvelle;
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherPrepares();
     }catch(e){
@@ -2799,7 +2799,7 @@ function demanderDate(titre, dateActuelle, heureActuelle){
     bAnn.className = 'btn btn-secondary';
     bAnn.textContent = 'Annuler';
     bAnn.addEventListener('click', () => {
-      document.body.removeChild(fond);
+      fermerFond(fond);
       resolve(null);
     });
 
@@ -2809,7 +2809,7 @@ function demanderDate(titre, dateActuelle, heureActuelle){
     bOk.addEventListener('click', () => {
       const v = champ.value;
       const hv = champH.value;
-      document.body.removeChild(fond);
+      fermerFond(fond);
       /* On rend les deux : l'appelant prend ce qui l'intéresse */
       resolve(v ? { date: v, heure: hv } : null);
     });
