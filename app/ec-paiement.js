@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:48 — v770 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-paiement.js
    Le paiement en plusieurs fois.
@@ -662,7 +662,7 @@ function ouvrirProcessPaiement(){
   const bA = document.createElement('button');
   bA.className = 'btn btn-secondary';
   bA.textContent = 'Annuler';
-  bA.addEventListener('click', () => document.body.removeChild(fond));
+  bA.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bA);
 
   const bRaz = document.createElement('button');
@@ -684,7 +684,7 @@ function ouvrirProcessPaiement(){
         valeur: z.value, par: ACCES.moniteur || ''
       });
       processPaiement = z.value;
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherProcessPaiement();
     }catch(e){
