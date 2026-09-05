@@ -1,3 +1,4 @@
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-taches.js
    Les tâches du bureau : qui fait quoi, avec quelle urgence.
@@ -416,7 +417,7 @@ function ouvrirEditeurTache(tache){
      fermant, sinon il resterait actif après la fenêtre. */
   const fermerTout = () => {
     document.removeEventListener('paste', surCollage);
-    document.body.removeChild(fond);
+    fermerFond(fond);
   };
 
   bAnn.addEventListener('click', fermerTout);
