@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 05/09/2026 à 11:57 — v885 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -646,8 +646,37 @@ function ouvrirFicheVehicule(v){
   r.appendChild(bOk);
   boite.appendChild(r);
 
-  /* L'historique, sous la fiche */
+  /* La carrosserie, et l'historique, sous la fiche */
   if(v){
+    /* ⚠️ LE DESSIN VIT DANS SON PROPRE MODULE, ET C'EST VOULU.
+
+       Il est ouvert à tous les moniteurs (🩹 Carrosserie, onglet
+       Cours) alors que cette fiche-ci ne l'est pas : les échéances,
+       les coûts et les factures du parc ne les regardent pas. Le
+       bureau, lui, y arrive d'ici — c'est le même écran, la même
+       feuille, une seule vérité. */
+    if(typeof ouvrirCarrosserie === 'function'){
+      const bCar = document.createElement('button');
+      bCar.className = 'btn btn-secondary';
+      bCar.style.cssText = 'margin-top:12px;';
+      const n = (typeof aReparerSur === 'function') ? aReparerSur(v.id) : 0;
+      bCar.textContent = n
+        ? '🩹 Carrosserie — ' + n + ' à réparer'
+        : '🩹 Carrosserie';
+      bCar.addEventListener('click', async () => {
+        bCar.disabled = true;
+        try{
+          if(typeof chargerCarrosserie === 'function') await chargerCarrosserie(true);
+          fermerFond(fond);
+          ouvrirCarrosserie(v);
+        }catch(e){
+          showToast('Impossible : ' + e.message);
+          bCar.disabled = false;
+        }
+      });
+      boite.appendChild(bCar);
+    }
+
     boite.appendChild(blocHistoriqueVehicule(v, fond));
   }
 
