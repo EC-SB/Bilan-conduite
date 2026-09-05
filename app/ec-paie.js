@@ -1,4 +1,4 @@
-/* Déployé le 29/08/2026 à 14:51 — v730 */
+/* Déployé le 05/09/2026 à 10:30 — v883 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -1811,7 +1811,7 @@ function ouvrirSemaine(s, lundi, w){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(w){
@@ -1823,7 +1823,7 @@ function ouvrirSemaine(s, lundi, w){
       if(!await confirmer('Effacer cette semaine ?')) return;
       try{
         await appelPrep({ action: 'paieSemaineDelete', id: w.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Effacée ✅');
         afficherPaie();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -1855,7 +1855,7 @@ function ouvrirSemaine(s, lundi, w){
         remarque: boite.querySelector('#swRem').value.trim(),
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherPaie();
     }catch(e){
@@ -1968,7 +1968,7 @@ function ouvrirSalarie(s){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(s){
@@ -1981,7 +1981,7 @@ function ouvrirSalarie(s){
           'Pour un départ, décoche plutôt « Toujours dans l\'effectif ».')) return;
       try{
         await appelPrep({ action: 'paieSalarieDelete', id: s.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimé ✅');
         afficherPaie();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -2016,7 +2016,7 @@ function ouvrirSalarie(s){
         remarque: boite.querySelector('#slRem').value.trim(),
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherPaie();
     }catch(e){
@@ -2105,7 +2105,7 @@ function ouvrirAbsence(a){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Annuler';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(a){
@@ -2117,7 +2117,7 @@ function ouvrirAbsence(a){
       if(!await confirmer('Supprimer cette absence ?')) return;
       try{
         await appelPrep({ action: 'paieAbsenceDelete', id: a.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimée ✅');
         afficherPaie();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -2144,7 +2144,7 @@ function ouvrirAbsence(a){
         remarque: boite.querySelector('#abRem').value.trim(),
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistrée ✅');
       afficherPaie();
     }catch(e){
@@ -2210,7 +2210,7 @@ function ouvrirGasoil(g){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   if(g){
@@ -2222,7 +2222,7 @@ function ouvrirGasoil(g){
       if(!await confirmer('Supprimer cette ligne ?')) return;
       try{
         await appelPrep({ action: 'paieGasoilDelete', id: g.id });
-        document.body.removeChild(fond);
+        fermerFond(fond);
         showToast('Supprimée ✅');
         afficherPaie();
       }catch(e){ showToast('Impossible : ' + e.message); }
@@ -2250,7 +2250,7 @@ function ouvrirGasoil(g){
         remarque: boite.querySelector('#gzRem').value.trim(),
         par: ACCES.moniteur || ''
       });
-      document.body.removeChild(fond);
+      fermerFond(fond);
       showToast('Enregistré ✅');
       afficherPaie();
     }catch(e){
@@ -2281,7 +2281,7 @@ function ouvrirGasoil(g){
           x.vehicule.replace(/</g, '&lt;') + '</span>' : '') + '</span>' +
         '<strong style="flex-shrink:0;">' + enEuros(x.montant) + '</strong>';
       l.addEventListener('click', () => {
-        document.body.removeChild(fond);
+        fermerFond(fond);
         ouvrirGasoil(x);
       });
       z.appendChild(l);
@@ -2345,7 +2345,7 @@ function ouvrirRecap(){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bCop = document.createElement('button');
@@ -2550,7 +2550,7 @@ function ouvrirMessageDirection(){
   const bF = document.createElement('button');
   bF.className = 'btn btn-secondary';
   bF.textContent = 'Fermer';
-  bF.addEventListener('click', () => document.body.removeChild(fond));
+  bF.addEventListener('click', () => fermerFond(fond));
   rangee.appendChild(bF);
 
   const bC = document.createElement('button');
@@ -2686,7 +2686,7 @@ function ouvrirMessagePaie(){
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
-  bAnn.addEventListener('click', () => document.body.removeChild(fond));
+  bAnn.addEventListener('click', () => fermerFond(fond));
   r.appendChild(bAnn);
 
   const bCop = document.createElement('button');
