@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 11:24 — v895 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -60,14 +60,20 @@ const FAMILLES_BANDEAU = [
   { cle:'aprevoir', emoji:'📝', nom:'Examens blancs et simulateurs à prévoir',
     droit:'',              reglable:true },
   { cle:'anniv',    emoji:'🎂', nom:'Anniversaires du jour',
-    droit:'cours',         reglable:true }
+    droit:'cours',         reglable:true },
+  /* La CB Gasoil, mais SEULEMENT quand elle traîne. Le bouton 💳 de
+     la barre du haut porte l'état tous les jours ; cette ligne-ci
+     ne dit que « ça dure depuis hier », et elle appelle un geste —
+     un coup de fil, ou se lever pour aller la reposer. */
+  { cle:'cbgasoil', emoji:'⛽', nom:'CB Gasoil pas reposée',
+    droit:'cbgasoil',      reglable:true }
 ];
 
 /* À combien de jours un rendez-vous AAC monte dans le bandeau. */
 const JOURS_AVANT_RDV_AAC = 15;
 
 /* Un anniversaire ne remonte plus au bout d'un an sans cours.
-   Chrystel : « tous les élèves : oui sauf si pas de cours depuis
+   David : « tous les élèves : oui sauf si pas de cours depuis
    plus d'un an ». Un élève parti reste au répertoire — c'est
    normal, on garde son dossier — mais son anniversaire n'a plus à
    revenir chaque année dans le bandeau de toute l'équipe. */
@@ -158,7 +164,7 @@ function mettreEnSourdine(id){
 
    ⚠️ DEUX FORMES, ET UN ACCUSÉ DE RÉCEPTION.
 
-   Chrystel, le 4 septembre : « j'aimerais pouvoir leur pousser un
+   David, le 4 septembre : « j'aimerais pouvoir leur pousser un
    message rapidement, et la possibilité d'indiquer qu'ils l'ont
    bien vu ». Puis : deux niveaux avec une case ; et le message
    disparaît pour de bon chez celui qui a répondu, « oui SI de notre
@@ -446,7 +452,8 @@ function lignesDuBandeau(){
     prise:    lignesPriseDeDates,
     aac:      lignesAacCs,
     aprevoir: lignesAPrevoir,
-    anniv:    lignesAnniversaires
+    anniv:    lignesAnniversaires,
+    cbgasoil: (typeof lignesCbGasoil === 'function') ? lignesCbGasoil : (() => [])
   };
 
   let out = [];
@@ -473,7 +480,7 @@ function lignesDuBandeau(){
 /* ============================================================
    🔔 LE RAPPEL DU JOUR DE PRISE
 
-   Chrystel, le 4 septembre : « le jour de prise de place d'examen,
+   David, le 4 septembre : « le jour de prise de place d'examen,
    il faut un message en gros que l'on voie peu importe où on est
    sur l'outil, à 11h15 : prise de place B à 11h30 ; et à 14h05 un
    autre gros message : prise de place moto HC 14h15, CIR 14h30 ».
@@ -509,7 +516,7 @@ function rendezVousDePrise(){
    ⚠️ ELLE PORTAIT LE MÊME NOM QUE CELLE DE ec-textes.js — ET C'EST
    CELLE-CI QUI GAGNAIT.
 
-   Chrystel, le 5 septembre : « {heure-5min} ne fonctionne plus dans
+   David, le 5 septembre : « {heure-5min} ne fonctionne plus dans
    les rappels ». Les deux fichiers déclaraient au niveau global une
    fonction du même nom ; ec-bandeau.js est chargé APRÈS
    ec-textes.js, donc c'est cette version-ci qui répondait aux deux.
@@ -689,7 +696,7 @@ function lancerMinuteurRappelPrise(){
 /* ------------------------------------------------------------
    « RAPIDEMENT » — EN COMBIEN DE TEMPS, AU JUSTE
 
-   Chrystel : « j'aimerais pouvoir leur pousser un message
+   David : « j'aimerais pouvoir leur pousser un message
    rapidement ». Les messages n'étaient lus qu'UNE fois, au
    démarrage : un moniteur qui garde son onglet ouvert depuis le
    matin ne voyait rien avant de recharger.
@@ -853,13 +860,36 @@ function ligneBandeau(l, avecTrait){
   const txt = document.createElement('div');
   txt.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;' +
     (l.ou ? 'cursor:pointer;' : '');
+  /* ⚠️ UNE LIGNE QUI S'ADRESSE À TOI SE DIT AUTREMENT.
+
+     David : « pour celui qui n'a pas reposé, tu le mets en
+     important en grand : Tu as toujours la CB de Saint-Brieuc, il
+     faut la reposer ». Les autres lisent une information ; lui
+     doit se lever. La même taille de police pour les deux, ce
+     serait laisser au lecteur le soin de deviner que c'est de lui
+     qu'on parle. */
   txt.innerHTML = '<div style="font-weight:' + (l.urgente ? '800' : '600') + ';' +
+      (l.gros ? 'font-size:16px;line-height:1.35;' : '') +
       (l.urgente ? 'color:var(--warn-text);' : '') + '">' +
       echapper(l.texte) + '</div>' +
-    (l.sous ? '<div style="font-size:12px;color:var(--muted);">' +
-      echapper(l.sous) + '</div>' : '');
+    (l.sous ? '<div style="font-size:' + (l.gros ? '14px;font-weight:800;' +
+        'color:var(--warn-text);letter-spacing:.02em;' : '12px;color:var(--muted);') +
+      '">' + echapper(l.sous) + '</div>' : '');
   if(l.ou) txt.addEventListener('click', () => allerDepuisBandeau(l));
   d.appendChild(txt);
+
+  /* Le geste, à portée de la phrase qui le demande : lui dire
+     « il faut la reposer » sans lui donner le bouton, c'est
+     l'envoyer chercher ailleurs ce qui tient ici. */
+  if(typeof l.action === 'function'){
+    const a = document.createElement('button');
+    a.className = 'btn btn-primary';
+    a.style.cssText = 'width:auto;margin:0;padding:6px 11px;font-size:12px;' +
+      'flex-shrink:0;';
+    a.textContent = l.actionTexte || 'Faire';
+    a.addEventListener('click', e => { e.stopPropagation(); l.action(); });
+    d.appendChild(a);
+  }
 
   /* ✅ J'ai vu — pour un message, la croix n'a plus de sens : se
      taire pour la journée n'est pas répondre. */
@@ -1005,7 +1035,7 @@ function ouvrirReglageBandeau(){
 
    ⚠️ UN MESSAGE POUSSÉ NE PEUT PAS ARRIVER EN DERNIER.
 
-   Chrystel, le 4 septembre : « le message important met énormément
+   David, le 4 septembre : « le message important met énormément
    de temps à apparaître ». Elle avait raison, et c'était écrit dans
    l'ordre du code : le bandeau se réveillait quatre secondes après
    l'ouverture, puis attendait QUATRE lectures À LA SUITE — les
