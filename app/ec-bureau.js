@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 09:52 — v882 */
+/* Déployé le 09/09/2026 à 09:26 — v892 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -129,7 +129,7 @@ function analyserNote(note){
      permis là où il y en a deux. */
   /* ⚠️ ET « PLUS QUE LES 3H » VAUT ZÉRO — v882.
 
-     Chrystel, le 7 septembre, sur le cours de 17h de Nolwenn
+     David, le 7 septembre, sur le cours de 17h de Nolwenn
      Chafotec : « c'est la dernière leçon, il ne reste que les 3h
      avant examen ; à 8h je suis d'accord, mais à 17h il ne reste
      que les 3h ».
@@ -253,7 +253,7 @@ async function chargerBureau(forcer){
 /* ============================================================
    UNE CONSIGNE D'ÉTAT REMPLACE LA PRÉCÉDENTE
 
-   Chrystel, le 4 septembre, capture à l'appui : « ce sont des gens
+   David, le 4 septembre, capture à l'appui : « ce sont des gens
    qui avaient une date, à qui j'ai enlevé la date d'examen — donc
    ça ne doit plus apparaître quand ils repartent dans élèves prêts
    au permis ». Sur sa liste, on lisait à la suite :
@@ -340,7 +340,7 @@ function suiviDe(eleve){
    bureau. Le moniteur, lui, ouvrait sa journée sans rien en
    savoir.
 
-   Chrystel, le 4 septembre : « dans Mes prochains cours, quand il
+   David, le 4 septembre : « dans Mes prochains cours, quand il
    y a un examen officiel de prévu, est-ce qu'au bout tu peux
    mettre si l'élève est coché comme à remplacer ou en prête-nom,
    pour que le moniteur soit au courant » — puis « idem dans les
@@ -361,7 +361,7 @@ function marquePlaceExamen(nom){
     return {
       cle: 'remplacer', emoji: '🔄', couleur: 'var(--red)',
       /* « PLACE » en toutes lettres, et pas « À REMPLACER » tout
-         court : Chrystel, devant la carte du 4 septembre — « on a
+         court : David, devant la carte du 4 septembre — « on a
          l'impression qu'il faut remplacer son cours ». C'est la
          place d'examen qui est à redonner, jamais la leçon. */
       court: 'PLACE D\'EXAMEN À REMPLACER',
@@ -642,7 +642,31 @@ async function redessinerBureau(){
     }
   }
   afficherSimulateurs(tous);
-  afficherRdvPermis(tous);
+
+  /* ⚠️ LES SESSIONS AVANT LA LISTE RDV PERMIS.
+
+     David : « il faut que tu penses à faire le tri sur la liste
+     rendez-vous permis avec ceux qui ont une session examen, que
+     je n'aie pas à le faire à la main ».
+
+     Le tri lit les places tenues sur les sessions ouvertes. Sans
+     ce chargement, la liste s'affiche avant de savoir qui est
+     déjà placé — et le tri ne se ferait qu'au deuxième passage,
+     c'est-à-dire jamais du point de vue de celui qui regarde.
+
+     Même geste que pour les examens blancs préparés juste
+     au-dessus : on dessine tout de suite avec ce qu'on a, et on
+     redessine quand les sessions arrivent. */
+  if(typeof sessionsPermis !== 'undefined' && !sessionsPermis.length &&
+     typeof chargerSessionsPermis === 'function'){
+    afficherRdvPermis(tous);
+    chargerSessionsPermis()
+      .then(() => afficherRdvPermis(tous))
+      .catch(() => {});
+  }else{
+    afficherRdvPermis(tous);
+  }
+
   const prevus = afficherPermisPrevus(tous);
   await afficherPostExamenDepuisPrevus(tous, prevus);
   afficherExamensPermis(tous);
