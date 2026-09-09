@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 11:57 — v885 */
+/* Déployé le 09/09/2026 à 13:30 — v902 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -12,13 +12,22 @@ const CLE_ONGLET = 'onglet_actif';
 /* Quelles sections rendent un onglet utile.
    Un onglet dont aucune section n'est autorisée disparaît. */
 const SECTIONS_ONGLET = {
-  /* ⚠️ « carrosserie » EST DANS L'ONGLET COURS, ET C'EST VOULU.
-     Chrystel, le 8 septembre : « tout le monde » déclare un
-     dommage. Un moniteur n'a que cet onglet-là — mettre la
-     carrosserie en Gestion, c'est la donner à des gens qui ne la
-     verront jamais, et un droit qui ne mène nulle part est pire
-     qu'un droit refusé. */
-  cours:  ['prepares', 'cours', 'carrosserie'],
+  /* ⚠️ « carrosserie » A QUITTÉ L'ONGLET COURS LE 9 SEPTEMBRE.
+
+     Elle y était pour une raison qui tenait : David, le 8
+     septembre, « tout le monde » déclare un dommage — et un
+     moniteur n'a que cet onglet-là. Le prix en était une carte hors
+     sujet au milieu du geste quotidien, et David l'a dit le
+     lendemain : « normalement c'est dans flotte qu'il doit être, il
+     n'a rien à faire dans cours ».
+
+     Ce qui rend le déplacement possible sans rien lui retirer :
+     « carrosserie » est maintenant dans la liste de GESTION plus
+     bas. C'est donc ce droit-là qui ouvre l'onglet au moniteur, et
+     il n'y trouve que cette carte. La règle n'a pas changé d'un
+     mot : un droit qui ne mène nulle part est pire qu'un droit
+     refusé. */
+  cours:  ['prepares', 'cours'],
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
   suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes'],
   permis: ['bureau_permis', 'bureau_places'],
@@ -31,7 +40,12 @@ const SECTIONS_ONGLET = {
      n'obtenait pas l'onglet Gestion, et n'atteignait donc jamais
      l'écran qu'on venait de lui ouvrir. Un droit qui ne mène nulle
      part est pire qu'un droit refusé — on croit l'avoir donné. */
-  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'paie', 'caisse', 'coutsia',
+  /* « carrosserie » a rejoint la flotte le 9 septembre — David :
+     « normalement c'est dans flotte qu'il doit être ». C'est elle
+     qui ouvre l'onglet Gestion à un moniteur, et elle seule : il y
+     trouvera cette carte et rien d'autre. */
+  gestion: ['ecran', 'notifs', 'taches', 'flotte', 'carrosserie', 'paie',
+            'caisse', 'coutsia',
             'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs',
             'menage', 'admin']
 };
@@ -221,7 +235,14 @@ const VUES = {
   gestion: [['ecran',     '📺 Affichage',               'ecran'],
            ['notifs',     '🔔 Alertes',                 'notifs'],
            ['taches',     '✅ Tâches',                  'taches'],
-           ['flotte',     '🚗 Flotte',                  'flotte'],
+           /* ⚠️ DEUX DROITS OUVRENT CE BOUTON. La flotte pour ceux
+              qui suivent le parc, la carrosserie pour ceux qui n'y
+              déclarent qu'une rayure. Chacun n'y voit que sa carte —
+              c'est « appliquerDroits » qui éteint l'autre. Sans ça,
+              un moniteur aurait l'onglet Gestion sans aucun bouton
+              pour y entrer : un droit qui ne mène nulle part est
+              pire qu'un droit refusé. */
+           ['flotte',     '🚗 Flotte',                  ['flotte', 'carrosserie']],
            ['paie',       '💶 Paie',                    'paie'],
            ['caisse',     '🏦 Caisse',                  'caisse'],
            ['coutsia',    '💸 Coûts IA',                'coutsia'],
@@ -259,7 +280,12 @@ function construireBarresVues(){
          Le loquet est réparé côté Worker (VERSION_SECTIONS) : une
          section née après un réglage n'a jamais été soumise, donc
          jamais refusée. Ils redeviennent des droits qu'on donne. */
-      return typeof aDroit !== 'function' || aDroit(section);
+      /* Un bouton peut être ouvert par PLUSIEURS droits : on le
+         montre à qui en a au moins un. Voir « Flotte ». */
+      if(typeof aDroit !== 'function') return true;
+      return Array.isArray(section)
+        ? section.some(x => aDroit(x))
+        : aDroit(section);
     });
 
     if(dispo.length < 2){
@@ -391,7 +417,22 @@ function reveillerVue(cle){
     moto:       () => afficherMoto(),
     remorque:   () => afficherRemorque(),
     paie:       () => afficherPaie(),
-    flotte:     () => afficherFlotte(),
+    /* ⚠️ DEUX ÉCRANS SOUS UN SEUL BOUTON, ET CHACUN DEMANDE SON
+       DROIT AVANT DE PARTIR.
+
+       Depuis que la carrosserie a rejoint la flotte, ce bouton en
+       ouvre deux. Appeler « afficherFlotte » chez un moniteur qui
+       n'a que la carrosserie, ce serait un appel refusé par le
+       Worker — et un refus met les rafraîchissements en sommeil
+       pour deux minutes. Une carte éteinte ne doit pas quand même
+       aller frapper à la porte. */
+    flotte:     () => {
+      const peut = c => typeof aDroit !== 'function' || aDroit(c);
+      if(peut('flotte') && typeof afficherFlotte === 'function') afficherFlotte();
+      if(peut('carrosserie') && typeof afficherCarrosserie === 'function'){
+        afficherCarrosserie();
+      }
+    },
     ecran:      () => afficherEcran(),
     proccorriger: () => afficherProcCorriger(),
     code:       () => afficherCode(),
@@ -410,8 +451,7 @@ function reveillerVue(cle){
     encours:    () => afficherEnCours(),
     incidents:  () => afficherIncidents(),
     ecoutes:    () => afficherEcoutes(),
-    memoire:    () => afficherMemoireIA(),
-    carrosserie: () => afficherCarrosserie()
+    memoire:    () => afficherMemoireIA()
   };
   const f = actions[cle];
   if(typeof f === 'function'){
