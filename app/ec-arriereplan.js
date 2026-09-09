@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:38 — v888 */
+/* Déployé le 09/09/2026 à 09:26 — v892 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -463,7 +463,15 @@ function veillerBrouillonsServeur(){
 async function chercherBrouillonsServeur(silencieux){
   try{
     const d = await appelPrep({ action: 'brouillonList' });
-    const l = (d && d.brouillons) || [];
+
+    /* ⚠️ CE QUE LE MONITEUR A ÉCARTÉ NE REVIENT PAS.
+
+       Il a supprimé sa copie et rangé la ligne : la redonner au
+       passage suivant serait exactement le bandeau qui revient
+       tout seul, celui qui a fait paniquer Chrystel. La dictée,
+       elle, n'a pas bougé — elle attend au bureau, dans
+       « Cours non terminés ». */
+    const l = ((d && d.brouillons) || []).filter(b => b && b.etat !== 'ecarte');
 
     /* Un bilan à corriger passe devant : c'est celui qui attend
        une action, et le bureau vient de le renvoyer. */
@@ -520,6 +528,150 @@ function cleDuBrouillon(b){
 }
 
 
+/* ============================================================
+   UN COURS = UNE LIGNE
+
+   David : « avant même que tu supprimes, le même cours s'affiche
+   deux fois : en haut ta copie, en bas le serveur ».
+
+   Les deux bandeaux ne parlent pas de la même mémoire — celui du
+   haut dit ce qui est SUR CET APPAREIL, celui du bas ce qui est
+   SUR LE SERVEUR — mais pour le moniteur c'est un seul cours, et
+   deux lignes pour un cours donnent l'impression que deux cours
+   se sont perdus.
+
+   Celui du haut gagne : c'est lui qui rouvre la fiche avec
+   chaque réponse à sa place. Celui du bas s'efface.
+   ============================================================ */
+function coursDeCetAppareil(){
+  const noms = [];
+
+  try{
+    const s = (typeof lireSauvegarde === 'function') ? lireSauvegarde() : null;
+    if(s && s.eleve && (s.transcript || s.bilan)) noms.push(s.eleve);
+  }catch(e){}
+
+  try{
+    const l = (typeof tousLesBrouillons === 'function') ? tousLesBrouillons() : [];
+    l.forEach(x => { if(x && x.eleve) noms.push(x.eleve); });
+  }catch(e){}
+
+  return noms;
+}
+
+
+function dejaSurCetAppareil(b){
+  const qui = (typeof normaliserMot === 'function')
+    ? normaliserMot(String((b && b.eleve) || '')) : '';
+  if(!qui) return false;
+  return coursDeCetAppareil().some(n => normaliserMot(n) === qui);
+}
+
+
+/* Le moniteur a supprimé sa copie : la ligne se range, la dictée
+   reste. C'est le seul geste du moniteur sur le serveur, et il ne
+   détruit rien — seul le bureau supprime, devant sa liste. */
+async function ecarterBrouillonServeur(eleve, id){
+  if(!eleve && !id) return false;
+  try{
+    const r = await appelPrep({ action: 'brouillonEtat', etat: 'ecarte',
+                                id: id || '', eleve: eleve || '' });
+    return !!(r && r.touche);
+  }catch(e){ return false; }
+}
+
+
+/* ============================================================
+   DIRE POURQUOI, ET DIRE QUOI
+
+   David : « ce qui serait bien quand c'est en bas pour les cours
+   n'a pas abouti, c'est que ça écrive clairement pourquoi il est
+   là et le type de cours que c'était ».
+
+   Trois raisons possibles, et elles n'appellent pas le même
+   geste. Les confondre sous « un cours n'a pas abouti », c'est
+   demander au moniteur de rouvrir la dictée pour comprendre ce
+   qu'on attend de lui.
+   ============================================================ */
+function raisonBrouillon(b){
+  const etat = String((b && b.etat) || '');
+
+  if(etat === 'a-corriger'){
+    return 'Le bureau l\'a généré à ta place : relis-le, corrige, ' +
+           'puis enregistre.';
+  }
+
+  if(etat === 'en-generation'){
+    /* Passé une demi-heure ce n'est plus une génération en cours,
+       c'est une génération qui n'est jamais revenue. Même seuil
+       qu'au bureau, dans ec-encours.js. */
+    const vieux = (function(){
+      const m = String((b && b.deposeLe) || '')
+        .match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+      if(!m) return false;
+      const t = new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]).getTime();
+      return (Date.now() - t) > 30 * 60 * 1000;
+    })();
+
+    return vieux
+      ? 'La génération a été lancée et n\'est jamais revenue. ' +
+        'Reprends-le pour la relancer.'
+      : 'Le bilan est en train de se fabriquer…';
+  }
+
+  return 'Ta dictée est sur le serveur, mais le bilan n\'a jamais ' +
+         'été enregistré.';
+}
+
+
+/* Le modèle de bilan, sous son nom lisible. « examen-blanc » ne
+   dit rien au moniteur ; « Examen blanc », si. */
+function nomDuModeleBrouillon(b){
+  const cle = String((b && b.modele) || '').trim();
+  if(!cle) return '';
+  try{
+    const m = (typeof MODELES !== 'undefined') ? MODELES[cle] : null;
+    if(m && m.label) return m.label;
+  }catch(e){}
+  return cle;
+}
+
+
+/* Ce qu'il y a dedans : une dictée de trois mots et une de mille
+   ne se reprennent pas de la même façon. */
+function motsDuBrouillon(b){
+  const n = String((b && b.transcript) || '').trim()
+    .split(/\s+/).filter(Boolean).length;
+
+  /* Une fiche remplie n'a pas de mots dictés : c'est le miroir de
+     ses cases qu'on compterait, et ça ne voudrait rien dire. */
+  if(String((b && b.fiche) || '').trim()) return 'Fiche remplie à la main';
+
+  return n ? n + ' mots dictés' : 'Rien de dicté';
+}
+
+
+/* Ce que le serveur garde pour cet élève, s'il garde quelque
+   chose.
+
+   ⚠️ SANS RÉSEAU, ON REND « RIEN ». C'est volontaire : la
+   question posée au moniteur sera alors la ferme — « rien n'a été
+   déposé, ce cours est perdu pour de bon ». Mieux vaut retenir sa
+   main pour rien que lui promettre une sécurité qu'on n'a pas pu
+   vérifier. */
+async function brouillonServeurDe(eleve){
+  const qui = (typeof normaliserMot === 'function')
+    ? normaliserMot(String(eleve || '')) : '';
+  if(!qui) return null;
+  try{
+    const d = await appelPrep({ action: 'brouillonList' });
+    const l = (d && d.brouillons) || [];
+    return l.find(b => b && b.etat !== 'ecarte' &&
+                       normaliserMot(String(b.eleve || '')) === qui) || null;
+  }catch(e){ return null; }
+}
+
+
 function proposerBrouillonServeur(b, combien){
   const zone = $('bilanPretBanner');
   if(!zone || !b) return;
@@ -543,6 +695,19 @@ function proposerBrouillonServeur(b, combien){
   Array.prototype.slice.call(zone.querySelectorAll('.ligneBrouillonServeur'))
     .forEach(x => x.remove());
 
+  const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
+
+  /* ⚠️ UN COURS = UNE LIGNE. Ce cours est déjà en haut de l'écran,
+     avec sa fiche complète : on ne le redit pas ici.
+
+     Sauf un bilan que le bureau vient de renvoyer — celui-là est
+     une nouvelle, pas un doublon, et il doit se voir même si le
+     moniteur a encore sa copie. */
+  if(!aCorriger && dejaSurCetAppareil(b)){
+    if(!zone.children.length) zone.style.display = 'none';
+    return;
+  }
+
   /* Déjà masqué sur cet appareil : ne pas le reproposer */
   try{
     if(localStorage.getItem('ec_brouillon_vu') === cle){
@@ -555,7 +720,7 @@ function proposerBrouillonServeur(b, combien){
   d.className = 'ligneBrouillonServeur';
   d.style.cssText = 'display:flex;gap:9px;align-items:center;';
 
-  const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
+  const echap = s => String(s || '').replace(/</g, '&lt;');
 
   const t = document.createElement('span');
   t.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
@@ -564,10 +729,26 @@ function proposerBrouillonServeur(b, combien){
         '<span style="color:var(--muted);font-size:11px;"> — généré au bureau</span>'
       : '<strong style="color:var(--accent-text);">💾 Un cours n\'a ' +
         'pas abouti</strong>') +
+    /* ⚠️ POURQUOI CETTE LIGNE EST LÀ, ÉCRIT NOIR SUR BLANC.
+
+       David : « ce qui serait bien, c'est que ça écrive clairement
+       pourquoi il est là et le type de cours que c'était ».
+
+       « Un cours n'a pas abouti » dit qu'il y a un problème, pas
+       lequel — et devant sept lignes identiques on ne peut ni les
+       distinguer ni décider laquelle reprendre. La raison et le
+       modèle changent tout : un examen blanc de ce matin ne se
+       traite pas comme une leçon d'il y a trois jours. */
+    '<div style="font-size:11.5px;color:var(--cream);margin-top:3px;">' +
+      raisonBrouillon(b) + '</div>' +
     '<div style="font-size:11px;color:var(--muted);">' +
-      (b.eleve || 'sans nom').replace(/</g, '&lt;') +
-      (b.dateCours ? ' · ' + b.dateCours : '') +
-      (b.deposeLe ? ' · déposé le ' + b.deposeLe : '') +
+      echap(b.eleve || 'sans nom') +
+      (nomDuModeleBrouillon(b) ? ' · ' + echap(nomDuModeleBrouillon(b)) : '') +
+      (b.dateCours ? ' · cours du ' + echap(b.dateCours) : '') +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--muted);">' +
+      motsDuBrouillon(b) +
+      (b.deposeLe ? ' · déposé le ' + echap(b.deposeLe) : '') +
       (combien > 1 ? ' · ' + combien + ' au total' : '') +
     '</div>';
   d.appendChild(t);
