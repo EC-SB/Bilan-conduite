@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 10:41 — v835 */
+/* Déployé le 09/09/2026 à 08:38 — v888 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -335,7 +335,7 @@ function reinitialiserDepotBrouillon(){
 
    Trois chemins signalent déjà le démarrage : ouvrir un cours
    préparé, ouvrir une fiche à remplir à la main, lancer le micro.
-   Il en restait un quatrième, et Chrystel a eu raison d'insister :
+   Il en restait un quatrième, et David a eu raison d'insister :
    « il faut que ça fonctionne pour les autres types de bilan si le
    moniteur décide de le faire en manuel ».
 
@@ -470,18 +470,53 @@ async function chercherBrouillonsServeur(silencieux){
     l.sort((a, b) => (b.etat === 'a-corriger') - (a.etat === 'a-corriger'));
 
     /* Annoncé une fois, à voix haute : le moniteur doit savoir
-       tout de suite que son cours l'attend. */
+       tout de suite que son cours l'attend. Une fois par COURS,
+       pas une fois par dépôt — l'identifiant, lui, change à
+       chaque fois que le classeur repose la ligne. */
     if(l.length && l[0].etat === 'a-corriger' && typeof showToast === 'function'){
       try{
-        if(localStorage.getItem('ec_bilan_annonce') !== l[0].id){
-          localStorage.setItem('ec_bilan_annonce', l[0].id);
+        const cle = cleDuBrouillon(l[0]);
+        if(localStorage.getItem('ec_bilan_annonce') !== cle){
+          localStorage.setItem('ec_bilan_annonce', cle);
           showToast('📝 Un bilan généré au bureau t\'attend — à corriger');
         }
       }catch(e){}
     }
 
-    if(l.length) proposerBrouillonServeur(l[0], l.length);
+    if(l.length){
+      proposerBrouillonServeur(l[0], l.length);
+    }else{
+      /* Plus rien en attente : la ligne s'en va d'elle-même. Sans
+         ça, un bilan enregistré ailleurs laissait sa bannière
+         jusqu'au prochain rechargement de la page. */
+      const zone = $('bilanPretBanner');
+      if(zone){
+        Array.prototype.slice.call(zone.querySelectorAll('.ligneBrouillonServeur'))
+          .forEach(x => x.remove());
+        if(!zone.children.length) zone.style.display = 'none';
+      }
+    }
   }catch(e){ /* hors ligne : la sauvegarde locale prend le relais */ }
+}
+
+
+/* ============================================================
+   CE QUI DÉSIGNE LE COURS, ET PAS LE DÉPÔT
+
+   L'identifiant du brouillon change à CHAQUE dépôt : le classeur
+   remplace la ligne et refabrique un « br + heure ». Il ne
+   pouvait donc désigner ni « celui que j'ai déjà masqué » ni
+   « celui que j'affiche déjà » — c'est le cours qu'il faut
+   nommer, pas le dépôt.
+
+   L'état en fait partie : masquer « un cours n'a pas abouti » ne
+   doit pas masquer le bilan que le bureau renvoie ensuite pour
+   le même cours.
+   ============================================================ */
+function cleDuBrouillon(b){
+  return [String((b && b.eleve) || ''),
+          String((b && b.dateCours) || ''),
+          String((b && b.etat) || '')].join('|');
 }
 
 
@@ -489,12 +524,35 @@ function proposerBrouillonServeur(b, combien){
   const zone = $('bilanPretBanner');
   if(!zone || !b) return;
 
-  /* Déjà repris sur cet appareil : ne pas le proposer deux fois */
+  const cle = cleDuBrouillon(b);
+
+  /* ------------------------------------------------------------
+     UNE SEULE LIGNE PAR COURS
+
+     « Pourquoi est-ce que j'ai autant de lignes ? »
+
+     Cette bannière est relue toutes les trois minutes et à chaque
+     retour sur l'application — et elle AJOUTAIT à chaque fois.
+     Un seul cours en attente donnait sept lignes en une matinée,
+     toutes les mêmes, et ça ressemblait à sept cours perdus.
+
+     On efface les lignes de brouillon avant de reposer celle du
+     moment. Les lignes de « afficherBilansEnFond » vivent dans la
+     même zone et ne bougent pas : c'est à ça que sert la classe.
+     ------------------------------------------------------------ */
+  Array.prototype.slice.call(zone.querySelectorAll('.ligneBrouillonServeur'))
+    .forEach(x => x.remove());
+
+  /* Déjà masqué sur cet appareil : ne pas le reproposer */
   try{
-    if(localStorage.getItem('ec_brouillon_vu') === b.id) return;
+    if(localStorage.getItem('ec_brouillon_vu') === cle){
+      if(!zone.children.length) zone.style.display = 'none';
+      return;
+    }
   }catch(e){}
 
   const d = document.createElement('div');
+  d.className = 'ligneBrouillonServeur';
   d.style.cssText = 'display:flex;gap:9px;align-items:center;';
 
   const aCorriger = (b.etat === 'a-corriger') && String(b.bilan || '').trim();
@@ -531,7 +589,7 @@ function proposerBrouillonServeur(b, combien){
   bX.addEventListener('click', () => {
     /* On masque sans supprimer : le cours reste récupérable
        depuis un autre appareil. */
-    try{ localStorage.setItem('ec_brouillon_vu', b.id); }catch(e){}
+    try{ localStorage.setItem('ec_brouillon_vu', cle); }catch(e){}
     d.remove();
     if(!zone.children.length) zone.style.display = 'none';
   });
