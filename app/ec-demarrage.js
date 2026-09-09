@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 09:19 — v891 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -507,19 +507,98 @@ $('repriseOui').addEventListener('click', reprendreCours);
    élève disparaît, ceux des autres examens de la matinée
    restent ». Le soin existait ; il n'était pas ici.
    ============================================================ */
+/* ============================================================
+   ET CE QUE LA SUPPRESSION FAIT DU CÔTÉ DU SERVEUR — v891
+
+   David : « il supprime en haut, ça masque en bas ; par contre on
+   se garde une sécu dans cours non terminé avec les infos
+   exactes ».
+
+   ⚠️ SUPPRIMER NE DÉTRUIT PAS LA DICTÉE. Elle vaut deux heures de
+   cours et c'est parfois la seule copie qui reste : un appui
+   malheureux dans la voiture ne doit pas pouvoir l'effacer. Elle
+   est donc ÉCARTÉE — la ligne quitte l'écran du moniteur et va
+   dans « Cours non terminés », au bureau, avec l'élève, la date,
+   l'heure du dépôt et la dictée entière.
+
+   Le seul geste qui détruise vraiment reste celui du bureau,
+   devant sa liste, en connaissance de cause.
+
+   ET LA QUESTION NE PEUT PAS ÊTRE LA MÊME DANS LES DEUX CAS. Si
+   rien n'a été déposé — fiche manuelle jamais partie, cours dicté
+   hors réseau — alors c'est une VRAIE perte, et il faut le dire
+   sans détour. Une question rassurante devant une perte définitive
+   est exactement ce qui a coûté une matinée à une monitrice.
+   ============================================================ */
+
+/* Les élèves que ce bouton s'apprête à retirer. Connus AVANT de
+   poser la question : c'est ce qui permet de dire la vérité. */
+function elevesVisesParSuppression(surListe, surManuel){
+  if(surListe){
+    const noms = [];
+    try{
+      const s = lireSauvegarde();
+      if(s && s.eleve && (s.transcript || s.bilan)) noms.push(s.eleve);
+    }catch(e){}
+    try{
+      ((typeof tousLesBrouillons === 'function') ? tousLesBrouillons() : [])
+        .forEach(x => { if(x && x.eleve) noms.push(x.eleve); });
+    }catch(e){}
+    return noms;
+  }
+
+  if(surManuel){
+    const man = (typeof brouillonManuel === 'function') ? brouillonManuel() : null;
+    const liste = (typeof tousLesBrouillons === 'function')
+      ? tousLesBrouillons() : [];
+    const cible = (man && man.eleve) || (liste[0] && liste[0].eleve) || '';
+    return cible ? [cible] : [];
+  }
+
+  try{
+    const s = lireSauvegarde();
+    return (s && s.eleve) ? [s.eleve] : [];
+  }catch(e){ return []; }
+}
+
+
 $('repriseNon').addEventListener('click', async () => {
   const b = $('repriseOui');
   const surListe = Number(($('repriseNon').dataset.combien) || 0) > 1;
   const surManuel = !!(b && b.dataset.manuel === 'oui');
 
+  const vises = elevesVisesParSuppression(surListe, surManuel);
+
+  /* Ce que le serveur garde de ces cours-là. Sans réseau on ne
+     trouve rien, et la question devient la ferme : mieux vaut
+     retenir sa main pour rien que promettre une sécurité qu'on
+     n'a pas pu vérifier. */
+  const gardes = [];
+  if(typeof brouillonServeurDe === 'function'){
+    for(const nom of vises){
+      const g = await brouillonServeurDe(nom);
+      if(g) gardes.push(g);
+    }
+  }
+
   /* La question nomme ce qui va partir, et ce qui reste. */
+  const enSecurite = gardes.length
+    ? ('\n\n✅ ' + (gardes.length > 1
+        ? 'Leurs dictées restent'
+        : 'La dictée reste') +
+       ' en sécurité : le bureau les retrouve dans ' +
+       '« Cours non terminés ».')
+    : "\n\n⚠️ Rien n'a été déposé sur le serveur : si tu supprimes, " +
+      'ce cours est perdu pour de bon.';
+
   const question = surListe
     ? ('Supprimer les ' + $('repriseNon').dataset.combien +
        ' bilans commencés ?\n\n' +
-       "Tout ce qui est dans la liste sera perdu, y compris les examens " +
+       "Ta copie sur cet appareil part, y compris les examens " +
        "d'aujourd'hui. Pour n'en retirer qu'un, utilise la corbeille de sa " +
-       'ligne.')
-    : 'Supprimer définitivement ce cours interrompu ?';
+       'ligne.' + enSecurite)
+    : ('Supprimer ce cours interrompu ?\n\n' +
+       'Ta copie sur cet appareil part.' + enSecurite);
 
   if(!await confirmer(question)) return;
 
@@ -531,10 +610,7 @@ $('repriseNon').addEventListener('click', async () => {
     try{ localStorage.removeItem('ec_postes_simu'); }catch(e){}
   }else if(surManuel){
     /* Un seul brouillon manuel affiché : celui-là, et lui seul. */
-    const man = (typeof brouillonManuel === 'function') ? brouillonManuel() : null;
-    const liste = (typeof tousLesBrouillons === 'function')
-      ? tousLesBrouillons() : [];
-    const cible = (man && man.eleve) || (liste[0] && liste[0].eleve) || '';
+    const cible = vises[0] || '';
     if(cible && typeof effacerBrouillonDe === 'function'){
       effacerBrouillonDe(cible);
       try{ localStorage.removeItem('bilan_manuel_en_cours'); }catch(e){}
@@ -549,6 +625,15 @@ $('repriseNon').addEventListener('click', async () => {
     try{ localStorage.removeItem('ec_postes_simu'); }catch(e){}
   }
 
+  /* La copie locale est partie : on range la ligne du serveur pour
+     qu'elle ne revienne pas au prochain passage. On l'ÉCARTE — on
+     ne la supprime pas. */
+  if(typeof ecarterBrouillonServeur === 'function'){
+    for(const g of gardes){
+      try{ await ecarterBrouillonServeur(g.eleve, g.id); }catch(e){}
+    }
+  }
+
   if(b) delete b.dataset.manuel;
   delete $('repriseNon').dataset.combien;
   $('repriseNon').textContent = '🗑️ Supprimer';
@@ -558,7 +643,16 @@ $('repriseNon').addEventListener('click', async () => {
      l'impression que tout était parti. */
   $('repriseBanner').style.display = 'none';
   if(typeof proposerReprise === 'function') proposerReprise();
-  showToast('Supprimé ✅');
+
+  /* Et la ligne d'en bas s'en va tout de suite, sans attendre les
+     trois minutes du prochain passage. */
+  if(typeof chercherBrouillonsServeur === 'function'){
+    try{ chercherBrouillonsServeur(true); }catch(e){}
+  }
+
+  showToast(gardes.length
+    ? 'Supprimé ✅ — la dictée reste au bureau'
+    : 'Supprimé ✅');
 });
 
 /* Sauvegarde aussi les corrections manuelles et les champs du formulaire */
