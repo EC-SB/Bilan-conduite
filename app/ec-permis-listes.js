@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:48 — v889 */
+/* Déployé le 09/09/2026 à 09:26 — v892 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1170,20 +1170,103 @@ function copierTexte(t, bouton){
 }
 
 /* Élèves dont l'examen blanc a montré qu'ils n'avaient pas le niveau */
+/* ------------------------------------------------------------
+   IL A DÉJÀ UNE DATE DEVANT LUI
+
+   David : « quand un élève est sur une session d'examen il faut
+   l'enlever de la liste rendez-vous permis, sinon on risque
+   d'essayer de prendre une place pour cet élève à la publication
+   suivante alors qu'il a déjà une date ».
+
+   ⚠️ « DEVANT LUI », ET C'EST TOUTE LA NUANCE. Un examen PASSÉ ne
+   le retire pas : ajourné hier, il est de nouveau à placer, et le
+   cacher serait pire que de le montrer en double. Seule une date
+   à venir — aujourd'hui compris — veut dire « ne lui en cherchez
+   pas une autre ».
+
+   Deux traces possibles, et il faut les deux : la place tenue sur
+   une session ouverte, et la date écrite sur sa fiche. Elles ne
+   se déduisent pas l'une de l'autre — c'est exactement ce qui
+   manquait à Romain Kikela le 4 septembre, place tenue et colonne
+   vide.
+   ------------------------------------------------------------ */
+function dateExamenAVenir(nom){
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+  const aVenir = v => {
+    const iso = (typeof dateFrVersIso === 'function')
+      ? dateFrVersIso(v || '') : '';
+    return !!(iso && (!auj || iso >= auj));
+  };
+
+  /* Sa place sur une session : c'est une convocation */
+  const pl = (typeof placeEnSessionDe === 'function')
+    ? placeEnSessionDe(nom) : null;
+  if(pl && aVenir(pl.date)) return dateCourte(dateFrVersIso(pl.date) || pl.date);
+
+  /* Ou la date posée sur sa fiche, sans session connue */
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  if(aVenir(s.datePermis)){
+    return dateCourte(dateFrVersIso(s.datePermis) || s.datePermis);
+  }
+
+  return '';
+}
+
+
 function afficherRdvPermis(tous){
   const zAP = $('listeAPlacer');
-  const aPlacer = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
-                                   suiviDe(e.eleve).statut !== 'annule');
+
+  const demandes = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
+                                    suiviDe(e.eleve).statut !== 'annule');
+
+  /* Le tri se fait ici, tout seul : David n'a pas à retirer à la
+     main ceux qui ont déjà leur date. Rien n'est réécrit dans le
+     classeur — on affiche ce qui fait foi, et la fiche se corrige
+     d'elle-même à la prochaine écriture de sa place. */
+  const dejaDates = [];
+  const aPlacer = demandes.filter(e => {
+    const quand = dateExamenAVenir(e.eleve);
+    if(!quand) return true;
+    dejaDates.push({ eleve: e.eleve, quand: quand });
+    return false;
+  });
 
   /* Les favoris de « qui prend la date » arrivent des réglages
      partagés. On les demande une fois par session, sans attendre :
      les trois noms d'usage s'affichent en attendant. */
   if(typeof assurerFavorisPrise === 'function') assurerFavorisPrise();
   zAP.innerHTML = '';
+
+  /* Le compteur suit la liste triée, dans les deux cas : laissé au
+     nombre d'avant, il annoncerait des élèves que le volet ne
+     montre plus. */
+  majVolet('cptAPlacer', aPlacer.length);
+
+  /* ⚠️ ON DIT QUI A ÉTÉ RETIRÉ, ET POURQUOI.
+
+     Un élève qui disparaît d'une liste sans explication se cherche
+     à la main — c'est exactement le travail qu'on voulait éviter.
+     Une ligne discrète, avec sa date : le tri se voit, et il se
+     vérifie. */
+  if(dejaDates.length){
+    const n = document.createElement('div');
+    n.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.6;' +
+      'border:1px solid var(--line);border-radius:10px;padding:9px 11px;' +
+      'margin-bottom:10px;';
+    n.textContent = '🎓 ' + dejaDates.length + ' élève(s) retiré(s) de la ' +
+      'liste : ils ont déjà une date d\'examen — ' +
+      dejaDates
+        .slice()
+        .sort((a, b) => a.eleve.localeCompare(b.eleve))
+        .map(x => x.eleve + ' (' + x.quand + ')')
+        .join(' · ');
+    zAP.appendChild(n);
+  }
+
   if(!aPlacer.length){
-    zAP.innerHTML = '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>';
+    zAP.insertAdjacentHTML('beforeend',
+      '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>');
   }else{
-    majVolet('cptAPlacer', aPlacer.length);
     zAP.appendChild(tableauAPlacer(aPlacer));
 
     /* Seuls les dossiers incomplets méritent une fiche détaillée :
