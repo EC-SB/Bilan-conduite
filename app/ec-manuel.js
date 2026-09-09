@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:38 — v888 */
+/* Déployé le 09/09/2026 à 08:53 — v890 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -182,9 +182,21 @@ const CHAMPS_MANUELS = {
       nom:'2-4 · Observations',
       aide:'Une observation par ligne.' },
 
-    { cle:'eliminatoires', type:'texte', lignes:6, mort:true,
-      nom:'2-5 · Fautes éliminatoires',
-      aide:'Une faute par ligne. Le bouton ☠️ la marque comme éliminatoire.' },
+    /* ⚠️ LE 2-5 « FAUTES ÉLIMINATOIRES » A ÉTÉ RETIRÉ — v890.
+
+       David : « le bloc 2-5 n'a plus de raison d'exister puisque
+       tout va dans le 3 - Bilan des erreurs ».
+
+       C'était devenu une deuxième liste des mêmes fautes : depuis
+       que le bouton ☠️ range chaque erreur sous sa ligne du CEPC
+       et remplit le bloc 3 tout seul, ce cadre ne servait plus
+       qu'à les retaper. Deux endroits pour la même chose, et un
+       jour l'un des deux aurait dit autre chose que l'autre.
+
+       Ce qui a été écrit dedans autrefois ne s'affiche plus : le
+       même ⚠️ est posé dans buildExamenBlanc, d'où l'impression a
+       été retirée en même temps. Les deux vont ensemble — laisser
+       l'un des deux ferait réapparaître le bloc par un bout. */
 
     { cle:'__t3', type:'titre', nom:'𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦' },
 
