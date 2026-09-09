@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 13:17 — v901 */
+/* Déployé le 09/09/2026 à 13:39 — v904 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -945,3 +945,134 @@ function verifierModules(){
 
 /* On laisse le temps aux derniers scripts d'arriver */
 setTimeout(verifierModules, 2500);
+
+
+/* ============================================================
+   RANGER UNE LISTE PAR JOURNÉE
+
+   David, le 9 septembre 2026 : « range les élèves par dates
+   d'examen avec en titre bien visible la date d'examen » — pour le
+   plateau et la circulation, puis « oui la même chose pour les
+   passées et idem pour les permis remorque ».
+
+   ⚠️ ÉCRIT ICI, ET UNE SEULE FOIS.
+
+   Cinq cadres de la moto et deux de la remorque veulent le même
+   rangement. Chaque module aurait pu avoir le sien : cinq minutes
+   de moins à écrire, et une divergence garantie — celui qui
+   corrige un jour l'ordre des journées dans la moto ne pense pas à
+   la remorque, et les deux écrans cessent de se ressembler sans que
+   personne l'ait décidé. C'est la faute de ce dossier depuis le
+   début, et elle ne mérite pas un septième exemplaire.
+
+   Ces listes ne sont pas des listes d'élèves : ce sont des listes
+   de JOURNÉES. On n'y demande pas « où en est Machin », on y
+   demande « qui passe jeudi ».
+   ============================================================ */
+
+/* Les journées d'une liste, dans l'ordre — la plus proche d'abord.
+
+   « dateDe » rend la date BRUTE d'un élément, telle qu'elle est
+   écrite dans le classeur. C'est ici qu'on la lit, pas chez
+   l'appelant : une seule façon de lire une date. */
+function groupesParJour(liste, dateDe){
+  const par = {};
+
+  (liste || []).forEach(x => {
+    const brut = String(dateDe(x) || '').trim();
+    const iso = (typeof dateFrVersIso === 'function')
+      ? (dateFrVersIso(brut) || '') : '';
+
+    /* ⚠️ UNE DATE ILLISIBLE NE FAIT DISPARAÎTRE PERSONNE.
+
+       C'est la règle du 9 septembre au matin, celle qui a coûté une
+       journée de sessions d'examen : un format qu'on ne sait pas
+       lire n'est pas une absence de date. Il est rangé à part, EN
+       BAS, où on le voit — plutôt que fondu dans une journée qui
+       n'est pas la sienne, ou pire, tombé de la liste.
+
+       Le « ~ » trie après tous les chiffres : c'est ce qui met ces
+       lignes-là en dernier sans avoir à trier deux fois. */
+    const k = iso || '~';
+    if(!par[k]) par[k] = { iso: iso, brut: brut, elements: [] };
+    par[k].elements.push(x);
+    /* La première date illisible rencontrée sert d'exemple dans le
+       titre : c'est elle qu'on ira corriger. */
+    if(!iso && !par[k].brut) par[k].brut = brut;
+  });
+
+  return Object.keys(par).sort().map(k => par[k]);
+}
+
+
+/* « Jeudi 12 mars 2026 ».
+
+   ⚠️ L'ANNÉE SE DIT. Une date d'examen se pose des mois à l'avance,
+   et « jeudi 12 mars » tout seul ne dit pas lequel. Le jour de la
+   semaine aussi : c'est comme ça qu'on en parle à voix haute. */
+function jourLongAvecAnnee(iso){
+  const d = new Date(String(iso || '') + 'T12:00:00');
+  if(isNaN(d.getTime())) return String(iso || '');
+  const t = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric',
+                                            month: 'long', year: 'numeric' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+
+/* Dans combien de temps — ou depuis combien de temps.
+
+   Sur une journée à venir, il dit s'il reste le temps de préparer.
+   Sur une journée passée, il dit depuis quand un résultat attend
+   d'être saisi, et c'est là qu'il est le plus utile. */
+function delaiEnJours(iso){
+  if(!iso) return '';
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  if(iso === auj) return "aujourd'hui";
+
+  const a = new Date(auj + 'T12:00:00').getTime();
+  const b = new Date(String(iso) + 'T12:00:00').getTime();
+  if(isNaN(a) || isNaN(b)) return '';
+
+  const n = Math.round((b - a) / 86400000);
+  if(n === 1) return 'demain';
+  if(n === -1) return 'hier';
+  if(n < 0) return 'il y a ' + (-n) + ' jours';
+  return 'dans ' + n + ' jours';
+}
+
+
+/* ⚠️ LE TITRE D'UNE JOURNÉE EST UN TITRE, PAS UN INTERTITRE GRIS.
+
+   C'est ce que David a demandé — « en titre bien visible ». Un
+   petit libellé discret se confondrait avec les lignes qu'il
+   sépare, et on retomberait à lire les noms un par un pour trouver
+   où commence mardi.
+
+   « libelle » permet de s'en servir pour autre chose qu'une date —
+   la remorque range aussi par MOIS ceux qui attendent une place. Le
+   titre est le même : c'est le même geste de lecture. */
+function enteteJournee(g, libelle){
+  const t = document.createElement('div');
+  t.style.cssText = 'display:flex;align-items:baseline;gap:8px;' +
+    'flex-wrap:wrap;margin:14px 0 8px;padding:7px 11px;border-radius:9px;' +
+    'border-left:3px solid var(--accent-text);' +
+    'background:rgba(182,255,14,.10);';
+
+  const j = document.createElement('div');
+  j.style.cssText = 'font-size:14.5px;font-weight:800;flex:1;min-width:0;';
+  j.textContent = '📅 ' + (libelle || (g.iso
+    ? jourLongAvecAnnee(g.iso)
+    : (g.brut ? 'Date illisible : « ' + g.brut + ' »' : 'Sans date')));
+  t.appendChild(j);
+
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:12px;color:var(--muted);flex-shrink:0;';
+  /* Le compte ET le délai : l'un dit combien de monde il y a ce
+     jour-là, l'autre à quelle distance on en est. */
+  const d = g.iso ? delaiEnJours(g.iso) : '';
+  n.textContent = (g.elements || []).length + ' élève(s)' + (d ? ' · ' + d : '');
+  t.appendChild(n);
+
+  return t;
+}
