@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 08:38 — v888 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -10,6 +10,14 @@
    Le moniteur remplit chaque rubrique ; il peut dicter dans
    chaque champ séparément s'il le souhaite.
    ============================================================ */
+
+/* La phrase que David écrivait à la main à chaque examen blanc.
+   Écrite ICI, une seule fois : la case qui la pose et le code qui
+   la retire lisent la même. Deux copies auraient fini par ne plus
+   se reconnaître, et la case n'aurait plus rien décoché. */
+const PHRASE_VOITURE_APPORTEE =
+  "Tu as oublié de dire c'est moi qui aie emmener la voiture, " +
+  "j'ai déjà fais mes réglages";
 
 /* Ce que le moniteur doit renseigner, selon le modèle choisi */
 /* Les rubriques du résumé, dans l'ordre du bilan */
@@ -127,13 +135,23 @@ const CHAMPS_MANUELS = {
       aide:'Une erreur par ligne.' },
 
     { cle:'__t2', type:'titre', nom:"𝟮 - 𝗣𝗘𝗡𝗗𝗔𝗡𝗧 𝗟'𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖" },
-    /* Deux boutons plutôt qu'un texte à corriger : la note du
-       CEPC s'en déduit toute seule. */
-    { cle:'examen.instPassager', type:'ok', nom:'2-1 · Passager', defaut:'' },
-    { cle:'examen.instVoyants',  type:'ok', nom:'2-1 · Voyants',  defaut:'' },
+    /* Trois boutons plutôt qu'un texte à corriger.
+
+       L'INSTALLATION NE COMPTE PAS DANS LA NOTE. David : « elle
+       est sur 2 sur le CEPC ». La note reste Passager + Voyants,
+       comme au barème officiel : la case Installation dit ce qui
+       s'est passé, elle ne note pas. */
+    { cle:'examen.instInstallation', type:'ok', nom:'2-1 · Installation', defaut:'' },
+    { cle:'examen.instPassager',     type:'ok', nom:'2-1 · Passager', defaut:'' },
+    { cle:'examen.instVoyants',      type:'ok', nom:'2-1 · Voyants',  defaut:'' },
     { cle:'examen.installation', type:'texte', lignes:3,
-      nom:'2-1 · Remarque sur l\'installation',
-      aide:'Facultatif : ce qui a manqué à son installation.' },
+      nom:'2-1 · Remarque sur installation, passagers, voyants',
+      aide:'Facultatif : ce qui a manqué à son installation.',
+      /* La phrase qui revient à chaque examen blanc : une case
+         plutôt que dix-huit mots à retaper dans la voiture. Elle
+         se pose EN PREMIER dans le cadre et repart si on décoche,
+         sans toucher au reste de ce qui est écrit. */
+      phraseCoche:PHRASE_VOITURE_APPORTEE },
 
     /* Le même repère qu'à l'examen officiel : les numéros 2-1,
        2-2 séparaient déjà, mais pas assez pour un écran de
@@ -143,6 +161,13 @@ const CHAMPS_MANUELS = {
       nom:'2-2 · Note des vérifications' },
     { cle:'examen.verifQuestion', type:'court',
       nom:'2-2 · N° de la question' },
+    /* Ce qui s'est dit pendant la vérification n'avait aucune
+       case : il finissait dans les observations, mêlé à la
+       conduite, ou nulle part. Laissé vide, il ne laisse aucune
+       trace dans le bilan. */
+    { cle:'examen.verifRemarque', type:'texte', lignes:3,
+      nom:'2-2 · Remarque sur les vérifications',
+      aide:'Facultatif : ce qu\'il a su, ce qui a manqué.' },
 
     /* Vingt paires, comme pour l'examen officiel : la remarque de
        l'inspecteur, puis l'explication du moniteur. */
@@ -728,7 +753,7 @@ async function ouvrirBilanManuel(){
 
   /* ⚠️ LE BUREAU DOIT SAVOIR QU'UN EXAMEN EST EN COURS.
 
-     Chrystel, un matin d'examens : « je sais que j'ai 3 cours qui se
+     David, un matin d'examens : « je sais que j'ai 3 cours qui se
      déroulent et je ne vois rien ». Elle avait raison, et le trou
      était là depuis le début.
 
@@ -1292,6 +1317,25 @@ function majBilanEliminatoires(){
 
   const bouts = [];
 
+  /* ------------------------------------------------------------
+     LES TROIS QUESTIONS NE SE POSENT QU'UNE FOIS PAR COMPÉTENCE
+
+     Elles suivaient chaque remarque : trois erreurs de commandes
+     donnaient trois fois « qu'en penses-tu ? », et l'élève
+     répondait trois fois à la même question. On regroupe les
+     remarques de la compétence, et on demande une seule fois.
+
+     LE MÊME TEXTE EST ÉCRIT DANS ec-modeles.js, pour le bilan
+     généré quand ce cadre est resté vide. Les deux doivent dire
+     la même chose — test-bilan-eliminatoires.js le vérifie.
+     ------------------------------------------------------------ */
+  const QUESTIONS = ["- qu'en penses-tu ?",
+                     '- quelles sont TES solutions ?',
+                     '- ce que je te PROPOSE : '];
+
+  /* Une remarque : ce que l'inspecteur a dit, ce que le moniteur
+     a expliqué. Sans les questions — elles viennent après le
+     groupe. */
   const ecrire = o => {
     if(o.inspecteur){
       bouts.push('👨‍✈️ ' + o.inspecteur +
@@ -1300,19 +1344,26 @@ function majBilanEliminatoires(){
       bouts.push('☠️ Erreur éliminatoire');
     }
     if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
-    bouts.push("- qu'en penses-tu ?");
-    bouts.push('- quelles sont TES solutions ?');
-    bouts.push('- ce que je te PROPOSE : ');
+  };
+
+  /* Un groupe : ses remarques les unes sous les autres, puis les
+     trois questions, une seule fois. */
+  const ecrireGroupe = liste => {
+    liste.forEach(ecrire);
+    bouts.push('');
+    QUESTIONS.forEach(q => bouts.push(q));
     bouts.push('');
   };
 
   ordre.forEach(cat => {
     bouts.push('👉 ' + grasUnicode(cat));
     bouts.push('');
-    par[cat].forEach(ecrire);
+    ecrireGroupe(par[cat]);
   });
 
-  sansCategorie.forEach(ecrire);
+  /* Les remarques sans compétence : un seul bloc de questions
+     pour tout le groupe, comme une compétence. */
+  if(sansCategorie.length) ecrireGroupe(sansCategorie);
 
   const propose = bouts.join('\n').trim();
 
@@ -1338,10 +1389,9 @@ function majBilanEliminatoires(){
     manquantes.forEach(cat => {
       sup.push('👉 ' + grasUnicode(cat));
       sup.push('');
-      const g = par[cat];
       const avant = bouts.length;
       bouts.length = 0;
-      g.forEach(ecrire);
+      ecrireGroupe(par[cat]);
       sup.push.apply(sup, bouts);
       bouts.length = avant;
     });
@@ -1486,7 +1536,7 @@ function remplirFrises(champs, surEcran){
    cours — la colonne s'appelle « date de l'examen blanc », et elle
    recevait la date d'une leçon ordinaire.
 
-   Chrystel, le 5 septembre : « ça considère tous les précédents
+   David, le 5 septembre : « ça considère tous les précédents
    cours comme un examen blanc, ça m'a foutu une merde sans nom ».
    Une 2ème leçon portait « EXAMEN BLANC PASSÉ le samedi 29 août »,
    une AAC sans examen blanc en portait un aussi.
@@ -2078,7 +2128,7 @@ function brouillonManuelActuel(){
   /* ------------------------------------------------------------
      CE QUI NE VIT QUE DANS LA MÉMOIRE DE LA PAGE
 
-     Chrystel : « dans les examens officiels, ça note la partie
+     David : « dans les examens officiels, ça note la partie
      avant examen, j'envoie à l'élève, et quand je reviens sur la
      fiche il n'y a plus rien au niveau des cases cochées ».
 
@@ -2558,7 +2608,7 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
 
   /* ⚠️ UN DÉPÔT BRIDÉ N'EST PAS UN DÉPÔT ANNULÉ.
 
-     Chrystel, capture à l'appui : « ça ne garde pas tout, uniquement
+     David, capture à l'appui : « ça ne garde pas tout, uniquement
      les boutons 😥 ». Elle avait raison, et le défaut était dans ce
      bridage-ci.
 
@@ -3156,7 +3206,7 @@ function ouvrirEnvoiAvant(eleve, message){
      quatre fois le même trajet : refermer, retourner dans 📅 Mes
      prochains cours, retrouver le suivant, appuyer sur ▶ Ouvrir.
 
-     Chrystel : « il faudrait un choix avec les élèves du même
+     David : « il faudrait un choix avec les élèves du même
      moniteur qui sont dans mes prochains cours avec le type bilan
      examen officiel le même jour, et que ça ouvre la fiche suivante
      sans que le moniteur doive retourner dans mes prochains
@@ -4632,6 +4682,61 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       const t = document.createElement('textarea');
       t.rows = (ch.type === 'court') ? 1 : (ch.lignes || 6);
       t.id = idChamp(ch.cle);
+
+      /* ------------------------------------------------------
+         UNE PHRASE TOUTE PRÊTE, POSÉE PAR UNE CASE
+
+         La case n'a pas d'état à elle : elle est cochée quand la
+         phrase est dans le cadre, décochée sinon. Un état séparé
+         serait une deuxième vérité — celle qui se retrouve un
+         jour cochée sur un cadre vide.
+         ------------------------------------------------------ */
+      if(ch.phraseCoche){
+        const phrase = String(ch.phraseCoche);
+
+        const lab = document.createElement('label');
+        lab.style.cssText = 'display:flex;align-items:flex-start;gap:9px;' +
+          'margin:0 0 8px;font-size:13.5px;line-height:1.45;' +
+          'text-transform:none;color:var(--cream);cursor:pointer;';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin-top:1px;';
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(phrase));
+
+        /* Retirer, c'est retirer la phrase ET la ligne vide qu'elle
+           a poussée devant elle — sinon le cadre garde un blanc en
+           tête à chaque aller-retour sur la case. */
+        const sansLaPhrase = v =>
+          String(v || '').split(phrase).join('').replace(/^\s*\n+/, '').trim();
+
+        cb.addEventListener('change', () => {
+          const reste = sansLaPhrase(t.value);
+          t.value = cb.checked
+            ? (reste ? phrase + '\n' + reste : phrase)
+            : reste;
+          champsManuels[ch.cle] = t.value;
+          if(typeof sauvegarderBrouillonManuel === 'function'){
+            sauvegarderBrouillonManuel();
+          }
+        });
+
+        /* Le moniteur efface la phrase à la main : la case suit,
+           au lieu de rester cochée sur un cadre qui ne la contient
+           plus. */
+        t.addEventListener('input', () => {
+          cb.checked = (t.value.indexOf(phrase) !== -1);
+        });
+
+        /* Une fiche rouverte retrouve sa case dans le bon état */
+        setTimeout(() => {
+          cb.checked = (String(t.value).indexOf(phrase) !== -1);
+        }, 0);
+
+        bloc.appendChild(lab);
+      }
+
       /* Le texte pré-rempli : le moniteur n'a plus qu'à effacer
          l'émoji qui ne convient pas et compléter les blancs. */
       if(ch.defaut) t.value = ch.defaut;
