@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 10:21 — v832 */
+/* Déployé le 09/09/2026 à 09:19 — v891 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -92,10 +92,31 @@ async function afficherEnCours(recharger){
      à l'enregistrement, et le dépôt s'arrête après. Reste ce qui
      s'est accumulé avant, et le principe : ON VÉRIFIE AVANT
      D'ACCUSER. */
-  const dejaFaits = brouillonsTous.filter(b =>
-    b.etat !== 'a-corriger' && bilanExistant(b));
+  /* ------------------------------------------------------------
+     LA SÉCU DU MONITEUR — v891
 
-  const restePlainte = brouillonsTous.filter(b => dejaFaits.indexOf(b) === -1);
+     David : « il supprime en haut, ça masque en bas ; par contre
+     on se garde une sécu dans cours non terminé avec les infos
+     exactes ».
+
+     Quand le moniteur supprime son cours, sa copie part de son
+     appareil et la ligne quitte son écran — mais la dictée, elle,
+     reste ici entière. Elle vaut parfois deux heures de cours, et
+     c'est la seule qui reste : lui laisser la détruire d'un appui
+     dans la voiture n'était pas tenable.
+
+     Ces lignes-là ne sont pas en panne : elles sont RANGÉES. Elles
+     descendent donc tout en bas, loin de ce qui appelle un geste —
+     c'est la liste des sept lignes rouges qui a fait paniquer
+     Chrystel, et une ligne rangée ne doit plus jamais y ressembler.
+     ------------------------------------------------------------ */
+  const ecartes = brouillonsTous.filter(b => b.etat === 'ecarte');
+
+  const dejaFaits = brouillonsTous.filter(b =>
+    b.etat !== 'a-corriger' && b.etat !== 'ecarte' && bilanExistant(b));
+
+  const restePlainte = brouillonsTous.filter(b =>
+    dejaFaits.indexOf(b) === -1 && ecartes.indexOf(b) === -1);
 
   if(dejaFaits.length){
     zone.appendChild(titreBloc('✅ Bilan déjà enregistré — dictée à effacer',
@@ -188,6 +209,21 @@ async function afficherEnCours(recharger){
       'écran fermé, réseau coupé. Rien n\'a encore été dicté, ou rien ' +
       'n\'est remonté.'));
     restants.forEach(c => zone.appendChild(ligneEnCours(c)));
+  }
+
+  /* Tout en bas : ce que les moniteurs ont rangé. Rien à faire,
+     mais tout est là si jamais il y a un souci. */
+  if(ecartes.length){
+    zone.appendChild(titreBloc('🚫 Écartés par le moniteur', ecartes.length,
+      'Le moniteur a supprimé sa copie sur son appareil : ces cours ne ' +
+      "sont plus sur son écran. LA DICTÉE, ELLE, EST ICI, ENTIÈRE — " +
+      'c\'est la sécurité. Rien à faire, sauf si quelqu\'un la réclame : ' +
+      'tu peux la lire, la reprendre, ou l\'effacer.'));
+    ecartes
+      .slice()
+      .sort((a, b) => String(b.ecarteLe || b.deposeLe || '')
+                        .localeCompare(String(a.ecarteLe || a.deposeLe || '')))
+      .forEach(b => zone.appendChild(ligneBrouillon(b)));
   }
 }
 
@@ -328,6 +364,15 @@ function ligneBrouillon(b){
       (b.etat === 'a-corriger'
         ? '<br><span style="color:var(--bleu);">📝 bilan proposé — ' +
           'en attente de sa correction</span>'
+        : '') +
+      /* La sécu : qui l'a rangée, et quand. Sans le « quand », le
+         bureau ne peut pas dire si le moniteur vient de la ranger
+         ou s'il l'a oubliée la semaine dernière. */
+      (b.etat === 'ecarte'
+        ? '<br><span style="color:var(--muted);">🚫 écarté par ' +
+          String(b.moniteur || 'le moniteur').replace(/</g, '&lt;') +
+          (b.ecarteLe ? ' le ' + String(b.ecarteLe).replace(/</g, '&lt;') : '') +
+          ' — la dictée est gardée ici</span>'
         : '') +
       (b.etat === 'en-generation'
         ? (depuisDepot(b) < 30
