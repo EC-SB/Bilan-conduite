@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 09:26 — v892 */
+/* Déployé le 09/09/2026 à 11:49 — v897 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -323,6 +323,46 @@ async function envoyerConsigne(eleve, type, texte, valeur){
 /* Fiche de suivi d'un élève, ou objet vide */
 function suiviDe(eleve){
   return trouverParNom(etatBureau.suivi, eleve) || {};
+}
+
+
+/* ⚠️ POSER LES FICHES QUE LE SERVEUR VIENT D'ÉCRIRE.
+
+   David : « je dois rafraîchir la page pour que ça apparaisse sur
+   les noms », en retenant une date de rendez-vous théorique.
+
+   Ce n'était pas un cache. L'écriture passe par Apps Script ; la
+   relecture de l'état du bureau passe par le Worker, qui lit la
+   feuille directement. Deux portes sur le même classeur, et rien
+   qui fasse attendre la seconde que la première ait fini de poser :
+   l'écran redemandait quelques centièmes de seconde après le
+   « c'est fait », et la feuille répondait avec ce qu'elle avait.
+
+   Une pause avant de relire aurait marché presque toujours — donc
+   raté un jour, sans prévenir. La bonne réponse est celle de celui
+   qui vient d'écrire : il relit SA feuille, il voit forcément son
+   écriture, et il la rend avec son accusé de réception. Ici on ne
+   fait que la poser.
+
+   C'est la MÊME forme de ligne que celle du Worker — c'est tout
+   l'objet de test-suivi-deux-lecteurs : les deux lecteurs rendent
+   le même objet, sinon poser l'un par-dessus l'autre effacerait
+   des colonnes au passage. */
+function poserSuiviLocal(fiches){
+  if(!Array.isArray(fiches) || !fiches.length) return 0;
+  if(!Array.isArray(etatBureau.suivi)) etatBureau.suivi = [];
+
+  let n = 0;
+  fiches.forEach(f => {
+    if(!f || !f.eleve) return;
+    const cible = normaliserMot(f.eleve);
+    const i = etatBureau.suivi.findIndex(s =>
+      s && normaliserMot(s.eleve) === cible);
+    if(i >= 0) etatBureau.suivi[i] = f;
+    else etatBureau.suivi.push(f);
+    n++;
+  });
+  return n;
 }
 
 /* ============================================================
@@ -1013,6 +1053,15 @@ function lancerActualisationAuto(){
        typeof rafraichirToursRvtAuto === 'function'){
       rafraichirToursRvtAuto();
     }
+
+    /* ⚠️ LA CB SE RELIT SANS QU'ON OUVRE RIEN.
+
+       Elle est la seule chose de cette liste qui se lise sur le
+       BANDEAU, en permanence, sans tiroir ouvert : quatre moniteurs
+       à Saint-Brieuc pour une carte, et celui qui regarde son bouton
+       n'a rien ouvert du tout. C'est justement à lui qu'il faut dire
+       qu'elle vient de partir. */
+    if(typeof rafraichirCbAuto === 'function') rafraichirCbAuto();
   }, 90000);   /* toutes les 90 secondes */
 }
 
