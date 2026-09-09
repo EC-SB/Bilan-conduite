@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 14:24 — v886 */
+/* Déployé le 09/09/2026 à 12:02 — v898 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -362,7 +362,7 @@ function champsSortieDeSession(){
 
 /* ⚠️ LA CINQUIÈME CHOSE À DÉFAIRE : CE QUE LA NOTE ANNONCE.
 
-   Chrystel, le 4 septembre : « j'avais prévu une élève au permis le
+   David, le 4 septembre : « j'avais prévu une élève au permis le
    4 septembre, je l'ai enlevée et supprimé la session — et je vois
    sur sa fiche que son permis est toujours prévu le 04/09. Je veux
    la mettre dans les élèves prêts au permis mais je ne peux pas. »
@@ -650,6 +650,25 @@ zone.innerHTML = '';
     }
   });
   zone.appendChild(bRep);
+
+  /* ⚠️ RETROUVER QUI ÉTAIT SUR UNE PLACE VIDÉE.
+
+     David, le 9 septembre 2026 : « ma collègue a fait un cliquer-
+     glisser pour modifier les sessions de certaines personnes et
+     tout a disparu ; ce qu'elle a décalé s'est transformé en place
+     libre et on ne sait plus qui était sur ces places ».
+
+     Le bouton RESTE une fois la crise passée : une place peut se
+     vider pour d'autres raisons — un effacement de trop, une date
+     retirée par erreur — et savoir qui y était se cherchera
+     toujours de la même façon. */
+  const bPer = document.createElement('button');
+  bPer.className = 'btn btn-secondary';
+  bPer.style.cssText = 'margin-bottom:14px;padding:11px;font-size:13px;';
+  bPer.textContent = '🔎 Retrouver les places vidées';
+  bPer.title = 'Qui était sur les places devenues libres, et par quelle preuve';
+  bPer.addEventListener('click', () => ouvrirPlacesPerdues());
+  zone.appendChild(bPer);
 
   if(!sessionsPermis.length){
     const v = document.createElement('div');
@@ -1284,7 +1303,7 @@ function lignePlace(p, sess){
 
   /* ⚠️ LE GLISSEMENT PART D'UNE POIGNÉE, PAS DE LA LIGNE ENTIÈRE.
 
-     Chrystel, le 9 septembre : « je ne peux plus cliquer sur les
+     David, le 9 septembre : « je ne peux plus cliquer sur les
      élèves dans permis pour modifier la préparation » — puis :
      « quand je clique, ça n'ouvre pas le questionnaire, ça me
      permet de bouger l'élève ».
@@ -1302,7 +1321,7 @@ function lignePlace(p, sess){
      La liste des groupes, elle, fait ça depuis toujours avec une
      poignée (ec-permis-listes.js). Deux glisser-déposer dans le
      même outil, deux comportements : c'est cette différence-là que
-     Chrystel a rencontrée. Ils font désormais pareil. */
+     David a rencontrée. Ils font désormais pareil. */
   if(p.eleve){
     const poignee = document.createElement('span');
     poignee.textContent = '⠿';
@@ -1320,7 +1339,7 @@ function lignePlace(p, sess){
 /* ------------------------------------------------------------
    LE 🔄 SE REPEINT SANS REDESSINER LA PAGE
 
-   Chrystel, le 4 septembre : « le bouton agit sur la vitesse, c'est
+   David, le 4 septembre : « le bouton agit sur la vitesse, c'est
    horrible : on appuie sur le bouton, ça ferme la page ; on appuie
    sur l'autre, ça referme la page et la rouvre ».
 
@@ -1363,7 +1382,7 @@ function peindreEchange(){
    réordonner DANS une session : là, la date ne change pas, et il n'y
    avait rien à mettre à jour. C'est le cas d'à côté qui mentait.
 
-   ⚠️ ON NE TOUCHE PAS À LA FICHE DE PRÉPARATION. Chrystel, le
+   ⚠️ ON NE TOUCHE PAS À LA FICHE DE PRÉPARATION. David, le
    4 septembre : « non, car si on change, on l'a déjà prévenu — tu
    gardes intacte la fiche de préparation ». Donc « prévenu »,
    « dossier OK » et la remarque suivent l'élève sans être remis à
@@ -1485,7 +1504,7 @@ async function gererEchange(p, sess){
    pointeur dès l'appui. Un clic sur le nom était alors adressé à la
    ligne, plus au nom : ouvrir la fiche d'un élève — le geste de
    tous les jours dans cet écran — ne faisait plus rien du tout.
-   Chrystel, le 9 septembre : « quand je clique, ça n'ouvre pas le
+   David, le 9 septembre : « quand je clique, ça n'ouvre pas le
    questionnaire, ça me permet de bouger l'élève ».
 
    Un geste rare ne prend pas la place d'un geste quotidien. La
@@ -2151,7 +2170,7 @@ function ouvrirEditeurSession(sess){
   /* ------------------------------------------------------------
      LES GROUPES PRÉPARÉS DANS LA SEMAINE
 
-     Chrystel, le 4 septembre : « quand on ouvre les sessions
+     David, le 4 septembre : « quand on ouvre les sessions
      d'examen, ça serait bien qu'on retrouve ces groupes
      directement ».
 
@@ -2219,7 +2238,7 @@ function ouvrirEditeurSession(sess){
 
     /* ⚠️ ON REGROUPE SUR LA CLÉ, PAS SUR LE NOM.
 
-       Chrystel, le 4 septembre : « là tu les regroupes par semaine,
+       David, le 4 septembre : « là tu les regroupes par semaine,
        il ne faut pas — il faut bien garder chaque groupe de liste
        rendez-vous permis indépendant ». « Groupe 1 » de la semaine 37
        et « Groupe 1 » de la semaine 38 ne faisaient qu'un bouton de
@@ -2532,6 +2551,292 @@ async function reprendreDatesExistantes(){
 
   return { creees: creees, places: places };
 }
+
+/* ============================================================
+   LES PLACES VIDÉES — CE QU'ON SAIT, ET RIEN DE PLUS
+
+   David : « on ne sait plus qui était sur ces places ». On le sait,
+   en fait, par trois traces que le dégât n'a pas emportées — et
+   l'écran les montre TOUTES LES TROIS au lieu de choisir à sa
+   place :
+
+     1. la place elle-même, qui garde son heure, son « prévenu »,
+        son « dossier OK » et sa remarque ;
+     2. la fiche de l'élève, qui porte toujours sa date d'examen ;
+     3. le journal du classeur, avec l'heure du geste et son auteur.
+
+   ⚠️ ON NE REMET RIEN TOUT SEUL. Un outil qui « répare » sur trois
+   indices ferait un jour une deuxième catastrophe pour effacer la
+   première. Ici, chaque nom se remet d'un appui, en voyant la
+   preuve en face — et la place ne se donne qu'une fois : si elle a
+   été redonnée entre-temps, le classeur refuse et dit à qui.
+   ============================================================ */
+
+async function ouvrirPlacesPerdues(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(640px,95vw);max-height:90vh;overflow-y:auto;';
+  boite.innerHTML = '<h3>🔎 Les places vidées</h3>' +
+    '<div style="font-size:12.5px;color:var(--muted);line-height:1.55;' +
+      'margin-bottom:14px;">Une place qui a été donnée puis vidée garde ' +
+      'ses marques : son heure, « prévenu », « dossier OK », sa remarque. ' +
+      'Et la fiche de l\'élève garde sa date d\'examen. C\'est en ' +
+      'rapprochant les deux qu\'on retrouve qui était là.</div>';
+
+  const zone = document.createElement('div');
+  zone.innerHTML = '<div class="empty">Lecture…</div>';
+  boite.appendChild(zone);
+
+  const r = document.createElement('div');
+  r.style.cssText = 'display:flex;gap:8px;margin-top:14px;';
+  const bF = document.createElement('button');
+  bF.className = 'btn btn-secondary';
+  bF.textContent = 'Fermer';
+  const fermer = () => { try{ fermerFond(fond); }catch(e){} };
+  bF.addEventListener('click', () => { fermer(); afficherSessionsPermis(); });
+  r.appendChild(bF);
+  boite.appendChild(r);
+
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  fond.addEventListener('click', e => {
+    if(e.target === fond){ fermer(); afficherSessionsPermis(); }
+  });
+
+  const dessiner = async () => {
+    let d;
+    try{
+      d = await appelPrep({ action: 'placesPerdues' });
+    }catch(e){
+      zone.innerHTML = '<div class="empty">⚠️ ' +
+        String(e.message).replace(/</g, '&lt;') + '</div>';
+      return;
+    }
+
+    const liste = (d && d.sessions) || [];
+    zone.innerHTML = '';
+
+    /* ⚠️ « RIEN À RÉPARER » EST UNE RÉPONSE, PAS UN ÉCRAN VIDE. */
+    if(!liste.length){
+      zone.innerHTML = '<div class="empty">✅ Aucune place vidée.<br>' +
+        '<span style="font-size:12px;">Toutes les sessions à venir ont ' +
+        'les élèves que leurs fiches annoncent.</span></div>';
+      return;
+    }
+
+    liste.forEach(s => zone.appendChild(blocSessionPerdue(s, dessiner)));
+  };
+
+  await dessiner();
+}
+
+
+function blocSessionPerdue(s, redessiner){
+  const b = document.createElement('div');
+  b.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px 13px;margin-bottom:12px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:3px;';
+  t.textContent = '🎓 ' + ((typeof libelleDate === 'function')
+    ? libelleDate(s.date) : s.date) + (s.centre ? ' · ' + s.centre : '');
+  b.appendChild(t);
+
+  const st = document.createElement('div');
+  st.style.cssText = 'font-size:11.5px;color:var(--muted);margin-bottom:10px;';
+  st.textContent = s.libres + ' place(s) libre(s) · ' +
+    s.trous.length + ' portant encore des marques';
+  b.appendChild(st);
+
+  /* ── LES ABSENTS : la trace la plus sûre des trois ── */
+  if(s.absents.length){
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:6px;';
+    h.textContent = 'Leur fiche dit cette date, aucune place ne les porte :';
+    b.appendChild(h);
+
+    s.absents.forEach(a => b.appendChild(ligneAbsentPerdu(s, a, redessiner)));
+  }else{
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;';
+    h.textContent = 'Aucune fiche ne réclame cette session : les places ' +
+      'vidées ci-dessous ont sans doute été libérées volontairement.';
+    b.appendChild(h);
+  }
+
+  /* ── LES PLACES QUI GARDENT LEURS MARQUES ── */
+  if(s.trous.length){
+    const h = document.createElement('div');
+    h.style.cssText = 'font-size:12px;color:var(--muted);margin:12px 0 6px;';
+    h.textContent = 'Places vides qui portent encore des marques :';
+    b.appendChild(h);
+
+    s.trous.forEach(x => {
+      const l = document.createElement('div');
+      l.style.cssText = 'font-size:12.5px;line-height:1.5;padding:4px 0;' +
+        'color:var(--muted);';
+      l.textContent = '· place ' + x.rang + (x.heure ? ' à ' + x.heure : '') +
+        ' — ' + x.marques;
+      b.appendChild(l);
+    });
+  }
+
+  /* ── LA PREUVE DATÉE ── */
+  if(s.preuves && s.preuves.length){
+    const det = document.createElement('details');
+    det.style.cssText = 'margin-top:10px;font-size:12px;';
+    const som = document.createElement('summary');
+    som.style.cssText = 'cursor:pointer;color:var(--muted);';
+    som.textContent = '📜 ' + s.preuves.length +
+      ' ligne(s) du journal pour cette date';
+    det.appendChild(som);
+
+    s.preuves.forEach(p => {
+      const l = document.createElement('div');
+      l.style.cssText = 'padding:4px 0 4px 10px;line-height:1.5;' +
+        'color:var(--muted);';
+      l.textContent = p.quand + ' · ' + (p.par || '?') + ' · ' +
+        (p.eleve || '') + ' — ' + p.detail;
+      det.appendChild(l);
+    });
+    b.appendChild(det);
+  }
+
+  return b;
+}
+
+
+/* Une ligne d'absent, avec le bouton qui le remet — sur la place
+   qu'on choisit, jamais sur une place devinée. */
+function ligneAbsentPerdu(s, a, redessiner){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:8px;align-items:center;' +
+    'border:1px solid var(--line);border-radius:9px;padding:8px 10px;' +
+    'margin-bottom:6px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.45;';
+  t.innerHTML = '<strong>' + String(a.eleve).replace(/</g, '&lt;') +
+    '</strong><div style="font-size:11.5px;color:var(--muted);">' +
+    'sa fiche : ' + String(a.dateEcrite || '').replace(/</g, '&lt;') +
+    (a.centre ? ' · ' + String(a.centre).replace(/</g, '&lt;') : '') +
+    '</div>';
+  l.appendChild(t);
+
+  const bt = document.createElement('button');
+  bt.className = 'btn btn-primary';
+  bt.style.cssText = 'width:auto;padding:8px 11px;font-size:12.5px;margin:0;' +
+    'flex-shrink:0;';
+  bt.textContent = '↩️ Le remettre';
+  bt.addEventListener('click', async () => {
+    /* ⚠️ LA PLACE SE CHOISIT. On sait qu'il était sur CETTE session ;
+       on ne sait pas sur quel rang. Deviner reviendrait à inventer,
+       et c'est exactement ce qui a fait le dégât. */
+    const rang = await choisirPlaceLibre(s, a.eleve);
+    if(!rang) return;
+
+    bt.disabled = true;
+    bt.textContent = '…';
+    try{
+      const r = await appelPrep({ action: 'placeRemettre',
+                                  idSession: s.id, rang: rang,
+                                  eleve: a.eleve });
+      if(!r || r.status !== 'ok'){
+        showToast((r && r.message) || 'Impossible.');
+        bt.disabled = false;
+        bt.textContent = '↩️ Le remettre';
+        return;
+      }
+      showToast(a.eleve + ' remis en place ' + rang + ' ✅');
+      sessionsPermis = [];          /* relu au prochain besoin */
+      await redessiner();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bt.disabled = false;
+      bt.textContent = '↩️ Le remettre';
+    }
+  });
+  l.appendChild(bt);
+
+  return l;
+}
+
+
+/* Les places libres de cette session, à choisir. Celles qui portent
+   encore des marques sont proposées en premier : ce sont elles qui
+   ont été vidées. */
+async function choisirPlaceLibre(s, eleve){
+  const trous = s.trous || [];
+  if(!trous.length){
+    showToast('Aucune place vidée sur cette session — ' +
+              'donne-lui une place depuis la session elle-même');
+    return 0;
+  }
+
+  if(trous.length === 1){
+    const x = trous[0];
+    return await confirmer(
+      'Remettre ' + eleve + ' sur la place ' + x.rang +
+      (x.heure ? ' de ' + x.heure : '') + ' ?\n\n' +
+      'Cette place porte encore : ' + x.marques,
+      'Le remettre') ? x.rang : 0;
+  }
+
+  return await demanderPlacePerdue(s, eleve, trous);
+}
+
+
+/* Plusieurs places vidées : on les montre avec leurs marques, et
+   c'est David qui reconnaît la sienne. */
+function demanderPlacePerdue(s, eleve, trous){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(480px,94vw);max-height:85vh;overflow-y:auto;';
+    boite.innerHTML = '<h3>Quelle place pour ' +
+      String(eleve).replace(/</g, '&lt;') + ' ?</h3>' +
+      '<div style="font-size:12.5px;color:var(--muted);line-height:1.55;' +
+        'margin-bottom:12px;">Ces places ont été vidées. Ce qu\'elles ' +
+        'portent encore devrait te dire laquelle était la sienne.</div>';
+
+    let repondu = false;
+    const finir = v => {
+      if(repondu) return;
+      repondu = true;
+      try{ fermerFond(fond); }catch(e){}
+      resolve(v);
+    };
+
+    trous.forEach(x => {
+      const bt = document.createElement('button');
+      bt.className = 'btn btn-secondary';
+      bt.style.cssText = 'text-align:left;padding:10px 12px;font-size:13px;' +
+        'margin-bottom:7px;line-height:1.5;';
+      bt.innerHTML = '<strong>Place ' + x.rang +
+        (x.heure ? ' · ' + String(x.heure).replace(/</g, '&lt;') : '') +
+        '</strong><div style="font-size:11.5px;color:var(--muted);">' +
+        String(x.marques).replace(/</g, '&lt;') + '</div>';
+      bt.addEventListener('click', () => finir(x.rang));
+      boite.appendChild(bt);
+    });
+
+    const ann = document.createElement('button');
+    ann.className = 'btn btn-secondary';
+    ann.style.cssText = 'margin-top:8px;';
+    ann.textContent = 'Annuler';
+    ann.addEventListener('click', () => finir(0));
+    boite.appendChild(ann);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    fond.addEventListener('click', e => { if(e.target === fond) finir(0); });
+  });
+}
+
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
