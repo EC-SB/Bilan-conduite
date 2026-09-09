@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 10:02 — v894 */
+/* Déployé le 09/09/2026 à 11:23 — v895 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 207;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 208;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -444,6 +444,9 @@ function verrouiller(message, garderSession){
   /* La loupe cherche parmi les élèves : elle n'a rien à faire sur
      l'écran de connexion. Le ⋯ reste, lui : il porte le thème. */
   if($('loupeBtn')) $('loupeBtn').style.display = 'none';
+  /* La CB Gasoil non plus : elle dit qui a la carte, ce n'est pas
+     une information d'écran de connexion. */
+  if($('cbBtn')) $('cbBtn').style.display = 'none';
   if($('plusMenu')) $('plusMenu').style.display = 'none';
 
   /* Rien d'autre que le code d'accès sur l'écran de connexion */
