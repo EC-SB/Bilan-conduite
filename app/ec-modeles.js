@@ -1,4 +1,4 @@
-/* Déployé le 02/09/2026 à 14:09 — v810 */
+/* Déployé le 09/09/2026 à 08:38 — v888 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -898,19 +898,30 @@ function buildExamenBlanc(ai, ctx){
   L('━━━━━━━━━━━━━━━━━━');
   L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : l'examen blanc consiste à se mettre en conditions réelles d'examen ! L'enseignant N'EST PLUS enseignant MAIS inspecteur du permis de conduire 👮");
   L('');
-  /* L'installation : deux cases cochées valent deux points */
+  /* L'installation : deux cases cochées valent deux points.
+
+     LA CASE « INSTALLATION » N'EN FAIT PAS PARTIE. David :
+     « elle est sur 2 sur le CEPC ». Elle dit ce qui s'est passé,
+     elle ne note pas — la note reste Passager + Voyants. */
   const nInst = (ex.instPassager || ex.instVoyants)
     ? ((ex.instPassager === '✅' ? 1 : 0) + (ex.instVoyants === '✅' ? 1 : 0))
     : '';
 
-  L('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻');
-  if(txt(ex.installation)) ligneParLigne(ex.installation).forEach(o => L(o));
+  /* L'ordre du questionnaire, à la ligne près : les trois cases,
+     la note, puis la remarque. Le moniteur retrouve sous les yeux
+     ce qu'il vient de remplir. */
+  L('𝟮-𝟭. 𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' +
+    (ex.instInstallation ? st(ex.instInstallation) : '✅❌'));
   L('𝙋𝙖𝙨𝙨𝙖𝙜𝙚𝙧 ' + (ex.instPassager ? st(ex.instPassager) : '✅❌'));
   L('𝙑𝙤𝙮𝙖𝙣𝙩𝙨 ' + (ex.instVoyants ? st(ex.instVoyants) : '✅❌'));
   L('𝙉𝙤𝙩𝙚 : ' + (nInst === '' ? ' ' : ' ' + nInst) + ' /2');
+  if(txt(ex.installation)) ligneParLigne(ex.installation).forEach(o => L(o));
   L('');
   L('𝟮-𝟮. 𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(ex.verifQuestion));
   L('𝙉𝙤𝙩𝙚 : ' + (txt(ex.verifNote) ? ' ' + txt(ex.verifNote) : ' ') + ' /3');
+  /* Laissée vide, elle ne laisse aucune trace : pas de ligne
+     blanche, pas de titre orphelin. */
+  if(txt(ex.verifRemarque)) ligneParLigne(ex.verifRemarque).forEach(o => L(o));
   L('https://www.facebook.com/groups/864826058258637');
   L(' ');
   L('𝟮-𝟯. 𝙍𝙚́𝙛𝙡𝙚𝙭𝙞𝙤𝙣𝙨 𝙞𝙣𝙨𝙥𝙚𝙘𝙩𝙚𝙪𝙧 𝙚𝙩 𝙚𝙭𝙥𝙡𝙞𝙘𝙖𝙩𝙞𝙛 𝙢𝙤𝙣𝙞𝙩𝙚𝙪𝙧(𝙩𝙧𝙞𝙘𝙚) :');
@@ -958,45 +969,72 @@ function buildExamenBlanc(ai, ctx){
   /* Les observations de l'examen blanc vivent sous « examen » :
      c'est là que la fiche les range. */
   const obsBilan = (ex && ex.observations) || ai.observations;
+
+  /* ------------------------------------------------------------
+     LES TROIS QUESTIONS, UNE SEULE FOIS PAR COMPÉTENCE
+
+     Le tri par ligne du CEPC ne change pas : ce sont les
+     questions qui ne se répètent plus. Toutes les remarques de la
+     compétence se suivent, et on demande une fois à la fin.
+
+     LE MÊME TEXTE EST ÉCRIT DANS ec-manuel.js, pour le cadre qui
+     se remplit en direct pendant l'examen blanc. Ces deux-là
+     doivent dire la même chose — test-bilan-eliminatoires.js le
+     vérifie, parce que c'est exactement le genre d'endroit où
+     l'un des deux se corrige et pas l'autre.
+     ------------------------------------------------------------ */
+  const QUESTIONS_ELIM = ["- qu'en penses-tu ?",
+                          '- quelles sont TES solutions ?',
+                          '- ce que je te PROPOSE : '];
+
+  /* Une remarque, sans ses questions : elles viennent après le
+     groupe entier. */
+  const ecrireErreur = o => {
+    /* L'élimination se signale sur l'erreur : une compétence
+       peut porter une éliminatoire et d'autres fautes. */
+    if(txt(o.inspecteur)){
+      L('👨‍✈️ ' + txt(o.inspecteur) +
+        (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
+    }else if(o.categorie){
+      L('☠️ Erreur éliminatoire');
+    }
+    if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
+  };
+
+  const questionsElim = () => {
+    L('');
+    QUESTIONS_ELIM.forEach(q => L(q));
+    L('');
+  };
+
   const elim = txt(ai.bilanElim) ? [] : erreursParCompetence(obsBilan);
   elim.forEach(g => {
     /* Le titre en gras : le moniteur repère ses compétences d'un
        coup d'œil dans un bilan long. */
     L('👉 ' + grasUnicode(g.categorie));
     L('');
-    g.fautes.forEach(o => {
-      /* L'élimination se signale sur l'erreur : une compétence
-         peut porter une éliminatoire et d'autres fautes. */
-      if(txt(o.inspecteur)){
-        L('👨‍✈️ ' + txt(o.inspecteur) +
-          (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
-      }else if(o.categorie){
-        L('☠️ Erreur éliminatoire');
-      }
-      if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
-      L("- qu'en penses-tu ?");
-      L('- quelles sont TES solutions ?');
-      L('- ce que je te PROPOSE : ');
-      L('');
-    });
+    g.fautes.forEach(ecrireErreur);
+    questionsElim();
   });
 
   /* Les erreurs graves sans être éliminatoires : marquées ⚠️,
-     elles rejoignent le bilan sans toucher au CEPC. */
+     elles rejoignent le bilan sans toucher au CEPC. Un seul bloc
+     de questions pour tout le groupe, comme une compétence. */
   if(!txt(ai.bilanElim)){
-    (Array.isArray(obsBilan) ? obsBilan : []).forEach(o => {
-      if(!o) return;
+    const sansCat = (Array.isArray(obsBilan) ? obsBilan : []).filter(o => {
+      if(!o) return false;
       /* Celles qui portent une compétence sont déjà écrites */
-      if(o.categorie || o.moins || o.grave) return;
-      if(!txt(o.inspecteur) && !txt(o.reponse)) return;
-
-      if(txt(o.inspecteur)) L('👨‍✈️ ' + txt(o.inspecteur));
-      if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
-      L("- qu'en penses-tu ?");
-      L('- quelles sont TES solutions ?');
-      L('- ce que je te PROPOSE : ');
-      L('');
+      if(o.categorie || o.moins || o.grave) return false;
+      return txt(o.inspecteur) || txt(o.reponse);
     });
+
+    if(sansCat.length){
+      sansCat.forEach(o => {
+        if(txt(o.inspecteur)) L('👨‍✈️ ' + txt(o.inspecteur));
+        if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
+      });
+      questionsElim();
+    }
   }
 
   /* Trois blocs complets, même vides : le moniteur a son repère
