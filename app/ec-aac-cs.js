@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:32 — v896 */
+/* Déployé le 09/09/2026 à 11:49 — v897 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -1910,10 +1910,13 @@ async function envoyerMailsRvt(envois, creneaux, limite, variante){
     const texte = texteMailRvt(env.eleve, creneaux, lien, limite, change);
     try{
       await appelPrep({ action: 'mailBilan', to: dest,
+        /* Le mot est dans l'OBJET aussi : c'est la seule ligne que
+           la famille voit dans sa boîte, et c'est là qu'elle décide
+           si ce mail est bien celui qu'elle attendait. */
         sujet: change
-          ? 'Rendez-vous pédagogique de ' + env.eleve +
+          ? 'Rendez-vous pédagogique théorique de ' + env.eleve +
             ' — les dates ont changé'
-          : 'Rendez-vous pédagogique de ' + env.eleve +
+          : 'Rendez-vous pédagogique théorique de ' + env.eleve +
             ' — vos disponibilités',
         texte: texte,
         html: (typeof mailEnHtml === 'function')
@@ -2003,6 +2006,114 @@ function texteMailRvt(eleve, creneaux, lien, limite, change){
          'remplissent la même réponse, une seule fois.', '',
          'Évolution Conduites');
   return l.join('\n');
+}
+
+
+/* ============================================================
+   LA CLÔTURE SE DIT AUX FAMILLES
+
+   David : « on ne reçoit pas de mail de confirmation de rendez-vous ? »
+   Non — et c'était le trou. La famille cochait ses disponibilités,
+   la date partait dans l'outil du bureau, et chez elle : rien. Elle
+   avait répondu à une question et n'obtenait pas la réponse.
+
+   Deux mails, parce qu'il y a deux nouvelles à donner, et qu'une
+   seule des deux est une convocation :
+
+     · aux retenus — la date, l'heure, le lieu, et le rappel que
+       l'élève vient AVEC son accompagnateur ;
+     · aux laissés — « aucune date ne réunissait tout le monde,
+       nous vous en reproposerons ». Sans ce mot, ils attendent une
+       réponse qui ne vient jamais et rappellent le bureau.
+
+   ⚠️ RIEN NE PART SANS QUE DAVID L'AIT VU. Ces mails vont à des
+   familles, ils annoncent une date, et une date annoncée par erreur
+   se rattrape mal. La liste des destinataires se lit AVANT l'envoi.
+   ============================================================ */
+
+/* ⚠️ CE MAIL EST UNE CONVOCATION, PAS UN ACCUSÉ DE RÉCEPTION.
+
+   Tout ce qui décide d'un déplacement tient dans les trois
+   premières lignes : quel jour, quelle heure, quelle adresse. Le
+   reste peut ne pas être lu. */
+function texteMailRvtFixe(eleve, date, heure, lieu){
+  const l = ['Bonjour,', '',
+    'Le rendez-vous pédagogique théorique de ' + eleve + ' est fixé au',
+    (jourFrCs(date) || date) + (heure ? ' à ' + heure : '') + '.'];
+
+  if(lieu) l.push('', '📍 ' + lieu);
+
+  l.push('',
+    "L'élève vient AVEC son accompagnateur.",
+    '',
+    'Merci de nous prévenir si un empêchement survenait.',
+    '', 'Évolution Conduites');
+  return l.join('\n');
+}
+
+
+/* ⚠️ CE MAIL DIT POURQUOI, ET IL DIT QUE ÇA CONTINUE.
+
+   « Vous n'êtes pas retenu » tout seul se lit comme un refus. Ce
+   n'en est pas un : leurs dates ne croisaient pas celles de la
+   majorité, et ils repassent au tour suivant. Les deux moitiés se
+   disent ensemble ou pas du tout. */
+function texteMailRvtReporte(eleve){
+  return ['Bonjour,', '',
+    'Merci de nous avoir indiqué vos disponibilités pour le',
+    'rendez-vous pédagogique théorique de ' + eleve + '.',
+    '',
+    "Aucune date ne réunissait tout le monde : nous vous en",
+    'reproposerons prochainement.',
+    '', 'Évolution Conduites'].join('\n');
+}
+
+
+/* Les adresses d'une famille : celle de l'élève et celle du
+   prescripteur, comme pour la proposition. Une fiche sans adresse
+   n'est pas un échec d'envoi — c'est une fiche à compléter. */
+function mailsDeLaFamille(nom){
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  return [(f && f.email) || '', (f && f.mailPrescripteur) || '']
+    .filter(m => /@/.test(m));
+}
+
+
+/* L'envoi de la clôture, les deux variantes par le même chemin que
+   tout le reste — « mailBilan », donc contact@evolutionconduites.fr
+   et pas le compte Google du script. */
+async function envoyerMailsCloture(retenus, laisses, info){
+  const out = [];
+
+  const un = async (nom, variante) => {
+    const dest = mailsDeLaFamille(nom);
+    if(!dest.length){
+      out.push({ eleve: nom, variante: variante, etat: 'aucune adresse' });
+      return;
+    }
+    const texte = variante === 'fixe'
+      ? texteMailRvtFixe(nom, info.date, info.heure, info.lieu)
+      : texteMailRvtReporte(nom);
+    try{
+      await appelPrep({ action: 'mailBilan', to: dest,
+        sujet: variante === 'fixe'
+          ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+            'c\'est le ' + (jourFrCs(info.date) || info.date)
+          : 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+            'de nouvelles dates à venir',
+        texte: texte,
+        html: (typeof mailEnHtml === 'function')
+          ? mailEnHtml(texte) : undefined });
+      out.push({ eleve: nom, variante: variante, etat: 'envoyé' });
+    }catch(e){
+      out.push({ eleve: nom, variante: variante,
+                 etat: 'échec : ' + (e && e.message ? e.message : 'inconnu') });
+    }
+  };
+
+  for(const n of (retenus || [])) await un(n, 'fixe');
+  for(const n of (laisses || [])) await un(n, 'reporte');
+  return out;
 }
 
 
@@ -2256,15 +2367,92 @@ async function retenirCreneauRvt(t, c, combien){
 
        C'est le serveur qui écrit « théorique prévu le … » sur chaque
        élève retenu — il est le seul à savoir lesquels ont dit oui.
-       L'écran, lui, lit encore l'ancien état : sans ce rechargement,
-       la liste continuerait d'afficher « théorique à prévoir » sur
-       des élèves qu'on vient de placer, et on les replacerait. */
-    if(typeof chargerBureau === 'function'){
+       L'écran, lui, lit encore l'ancien état : sans quoi la liste
+       continuerait d'afficher « théorique à prévoir » sur des élèves
+       qu'on vient de placer, et on les replacerait.
+
+       ⚠️ ON POSE CE QU'IL REND, ON NE VA PAS LE RECHERCHER.
+
+       David : « je dois rafraîchir la page pour que ça apparaisse
+       sur les noms ». Ce n'était pas un cache : la date s'écrit par
+       Apps Script, et on allait la relire par l'AUTRE porte — le
+       Worker, qui lit la feuille directement. Deux portes sur le
+       même classeur, et rien qui fasse attendre la seconde que la
+       première ait fini de poser.
+
+       Le serveur rend maintenant les fiches qu'il vient d'écrire :
+       il relit SA feuille, il ne peut pas être en retard sur
+       lui-même. La grande relecture ne reste qu'en secours, pour le
+       jour où un vieux script répondrait sans elles. */
+    const poses = (typeof poserSuiviLocal === 'function')
+      ? poserSuiviLocal(r.suivi) : 0;
+    if(!poses && typeof chargerBureau === 'function'){
       try{ await chargerBureau(true); }catch(e){}
     }
     await chargerToursRvt(true);
     redessinerAacCs();
+
+    /* La date est posée ; reste à la DIRE aux familles. */
+    await prevenirFamillesRvt(r, c);
   }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+
+/* ⚠️ RIEN NE PART SANS QUE DAVID AIT VU QUI LE REÇOIT.
+
+   Ces mails annoncent une date à des familles. Une date annoncée
+   par erreur ne se rattrape pas d'un clic : elle se rattrape par
+   des appels. La liste se lit donc AVANT l'envoi, avec le nombre
+   d'adresses en face de chaque nom — c'est là qu'une fiche sans
+   mail se voit, et pas trois jours plus tard.
+
+   Refuser l'envoi ne défait rien : la date est retenue, elle est
+   sur les fiches. On pourra toujours prévenir autrement. */
+async function prevenirFamillesRvt(r, c){
+  const retenus = r.retenus || [];
+  const laisses = r.laisses || [];
+  if(!retenus.length && !laisses.length) return;
+
+  const sansMail = retenus.concat(laisses)
+    .filter(n => !mailsDeLaFamille(n).length);
+
+  const quand = (jourFrCs(r.date || c.date) || c.date) +
+                ((r.heure || c.heure) ? ' à ' + (r.heure || c.heure) : '');
+
+  const lignes = ['Prévenir les familles par mail ?', ''];
+  if(retenus.length){
+    lignes.push('✅ Convocation au ' + quand +
+                ((r.lieu || c.lieu) ? ' — 📍 ' + (r.lieu || c.lieu) : '') + ' :',
+                '   ' + retenus.join(', '), '');
+  }
+  if(laisses.length){
+    lignes.push('⏳ « Aucune date ne réunissait tout le monde, nous vous en ' +
+                'reproposerons » :',
+                '   ' + laisses.join(', '), '');
+  }
+  if(sansMail.length){
+    lignes.push('⚠️ Sans adresse mail, donc à prévenir à la main :',
+                '   ' + sansMail.join(', '), '');
+  }
+  lignes.push('Envoi depuis contact@evolutionconduites.fr.');
+
+  if(!await confirmer(lignes.join('\n'), '📨 Envoyer')) {
+    showToast('Aucun mail envoyé — la date reste fixée');
+    return;
+  }
+
+  showToast('Envoi en cours…');
+  const envois = await envoyerMailsCloture(retenus, laisses, {
+    date: r.date || c.date, heure: r.heure || c.heure,
+    lieu: r.lieu || c.lieu
+  });
+
+  const partis = envois.filter(x => x.etat === 'envoyé').length;
+  const rates = envois.filter(x => x.etat !== 'envoyé');
+  showToast(rates.length
+    ? '📨 ' + partis + ' envoyé(s), ' + rates.length + ' à faire à la main : ' +
+      rates.map(x => x.eleve).join(', ')
+    : '📨 ' + partis + ' famille(s) prévenue(s) ✅');
 }
 
 
