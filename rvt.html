@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 02/09/2026 à 13:31 — v808 -->
+<!-- Déployé le 09/09/2026 à 11:32 — v896 -->
 <!-- ============================================================
      RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
      Évolution Conduites
@@ -171,7 +171,10 @@ function dessiner(){
 
   var h = '<div class="pastille centre">🗣️</div>' +
     '<h1>Bonjour ' + ech(d.prenom) + '</h1>' +
-    '<p>Nous organisons le <strong>rendez-vous pédagogique</strong> de ' +
+    /* « théorique » se dit ici comme dans le mail : la famille
+       reçoit aussi des convocations pour les rendez-vous
+       pédagogiques PRATIQUES, qui ne réunissent qu'elle. */
+    '<p>Nous organisons le <strong>rendez-vous pédagogique théorique</strong> de ' +
     ech(d.eleve) + '. L\'élève vient <strong>avec son accompagnateur</strong>.</p>' +
     /* ⚠️ LA RÈGLE DU JEU SE DIT AVANT LES CASES.
 
