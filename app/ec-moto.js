@@ -1,4 +1,4 @@
-/* Déployé le 04/09/2026 à 08:02 — v850 */
+/* Déployé le 09/09/2026 à 08:47 — v889 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -149,6 +149,13 @@ async function afficherMoto(){
   }
 
   await chargerFichesMoto();
+
+  /* La date du dernier ajournement se lit dans la feuille des
+     résultats : sans ce chargement, les lignes se dessineraient
+     sans elle et personne ne saurait pourquoi. Rechargée à chaque
+     passage — un résultat vient peut-être d'être saisi. */
+  try{ await chargerResultats2R(true); }catch(e){}
+
   const tous = elevesMoto();
   zone.innerHTML = '';
 
@@ -195,7 +202,7 @@ async function afficherMoto(){
 /* ------------------------------------------------------------
    🗓️ LES SEMAINES OUVERTES À LA PRISE DE DATE — CADRE MOTO
 
-   Chrystel, le 4 septembre : « on voit les semaines ouvertes avec le
+   David, le 4 septembre : « on voit les semaines ouvertes avec le
    nombre de jours dans un cadre dans la partie permis moto tout en
    haut ».
 
@@ -330,7 +337,7 @@ function ligneMoto(e, etape){
   const info = document.createElement('div');
   info.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.6;' +
     'margin-bottom:9px;';
-  info.textContent = resumeMoto(s, etape);
+  info.textContent = resumeMoto(s, etape, e.eleve);
   l.appendChild(info);
 
   /* Une note libre qui suit l'élève d'un cadre à l'autre : ce que
@@ -406,9 +413,12 @@ function champRemarqueMoto(nom, s){
 }
 
 
-function resumeMoto(s, etape){
+function resumeMoto(s, etape, nom){
   const bouts = [];
   const nb = Number(s.motoPassages) || 0;
+
+  /* Le dernier ajournement, s'il y en a eu un */
+  const echecPlateau = nb ? phraseEchec2R('moto', nom, 'Plateau') : '';
 
   if(etape === 'preparation'){
     const ants = s.motoAnts === 'fait' ? '✅ ANTS fait'
@@ -427,11 +437,15 @@ function resumeMoto(s, etape){
     if(String(s.motoLecons || '').trim()){
       bouts.push('🏍️ Prêt dans ' + s.motoLecons + ' leçon(s)');
     }
-    if(nb) bouts.push('🔢 ' + nb + ' plateau(x) déjà passé(s)');
+    if(nb) bouts.push('🔢 ' + nb + ' plateau(x) déjà passé(s)' + echecPlateau);
   }
 
   else if(etape === 'aplacer'){
-    bouts.push(nb ? '❌ Plateau échoué' : '✅ Prêt pour le plateau');
+    /* « Plateau échoué le 12/03/2026 · ça fait 5 mois et 27 jours ».
+       Sans la date, le bureau ne savait pas si l'ajournement datait
+       de la semaine dernière ou du printemps. */
+    bouts.push(nb ? '❌ Plateau échoué' + echecPlateau
+                  : '✅ Prêt pour le plateau');
     if(nb) bouts.push(nb + ' passage(s)');
     bouts.push('📅 date à poser');
   }
@@ -452,7 +466,13 @@ function resumeMoto(s, etape){
       bouts.push('🛣️ ' + s.motoCircuLecons + ' leçon(s) restantes');
     }
     const nc = Number(s.motoCircuPassages) || 0;
-    if(nc) bouts.push('❌ circulation échouée · ' + nc + ' passage(s)');
+    /* Même chose pour l'autre épreuve : un ajournement est un
+       ajournement, et le bureau a besoin de la même date. */
+    if(nc){
+      bouts.push('❌ Circulation échouée' +
+                 phraseEchec2R('moto', nom, 'Circulation') +
+                 ' · ' + nc + ' passage(s)');
+    }
     bouts.push("📅 date à poser");
   }
 
@@ -584,6 +604,73 @@ async function chargerResultats2R(force){
     resultats2R = (d && d.resultats) || [];
   }catch(e){ resultats2R = resultats2R || []; }
   return resultats2R;
+}
+
+
+/* ============================================================
+   LE DERNIER AJOURNEMENT, ET DEPUIS QUAND
+
+   David : « dans permis moto j'ai besoin de la date du dernier
+   ajournement, avec un compteur — plateau échoué le ???, ça fait
+   jours mois années ».
+
+   ⚠️ CETTE DATE N'EST NULLE PART DANS LE SUIVI, ET C'EST VOULU :
+   au moment de l'échec, « motoDatePlateau » est REMISE À BLANC —
+   l'élève retourne dans « plateau à prévoir » et cette case
+   attend la date suivante. La seule mémoire de l'échec est la
+   feuille des résultats, où il a été noté à la seconde même.
+
+   On la lit donc là, et on n'ajoute pas une deuxième colonne au
+   suivi pour dire ce que la feuille sait déjà. En échange, cette
+   liste doit être chargée avant de dessiner : c'est fait dans
+   afficherMoto.
+
+   La date de l'examen d'abord ; à défaut, le jour où le résultat
+   a été noté — c'est le même jour dans presque tous les cas, et
+   une date approchée vaut mieux qu'un blanc.
+   ============================================================ */
+function dernierEchec2R(permis, eleve, epreuve){
+  if(!Array.isArray(resultats2R) || !eleve) return null;
+
+  const memeNom = (typeof normaliserMot === 'function')
+    ? (a, b) => normaliserMot(a) === normaliserMot(b)
+    : (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+
+  const iso = v => (typeof dateFrVersIso === 'function')
+    ? dateFrVersIso(v || '') : '';
+
+  let meilleur = null;
+  resultats2R.forEach(r => {
+    if(!r || r.resultat !== 'echoue') return;
+    if(String(r.permis || '') !== permis) return;
+    if(!memeNom(r.eleve || '', eleve)) return;
+    if(String(r.epreuve || '') !== epreuve) return;
+
+    const quand = iso(r.dateExamen) || iso(r.horodatage);
+    if(!quand) return;
+    if(!meilleur || quand > meilleur.iso){
+      meilleur = { iso: quand, passage: r.passage || '' };
+    }
+  });
+
+  return meilleur;
+}
+
+
+/* « le 12/03/2026 · ça fait 5 mois et 27 jours ».
+
+   Le compteur se calcule, il ne se saisit jamais — c'est la même
+   règle et la MÊME fonction que le « depuis » de l'AAC. Deux
+   façons de compter les mois dans le même outil finiraient par
+   ne pas tomber d'accord. */
+function phraseEchec2R(permis, eleve, epreuve){
+  const e = dernierEchec2R(permis, eleve, epreuve);
+  if(!e) return '';
+
+  const jour = (typeof dateCourte === 'function') ? dateCourte(e.iso) : e.iso;
+  const d = (typeof dureeDepuis === 'function') ? dureeDepuis(e.iso) : null;
+
+  return ' le ' + jour + (d ? ' · ça fait ' + d.txt : '');
 }
 
 
