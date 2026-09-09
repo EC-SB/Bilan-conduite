@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 11:23 — v895 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -247,6 +247,23 @@ function brancherLoupe(){
     b.dataset.branche = 'oui';
     b.addEventListener('click', ouvrirLoupe);
   }
+
+  /* La CB Gasoil vit dans la même barre, elle se branche au même
+     moment : deux endroits qui allumeraient les boutons du haut
+     finiraient par ne pas les allumer ensemble. */
+  const c = $('cbBtn');
+  if(c && !c.dataset.branche){
+    c.dataset.branche = 'oui';
+    c.addEventListener('click', () => {
+      if(typeof ouvrirCbGasoil === 'function') ouvrirCbGasoil();
+    });
+  }
+  if(typeof chargerCbGasoil === 'function'){
+    chargerCbGasoil()
+      .then(() => { if(typeof majBoutonCb === 'function') majBoutonCb(); })
+      .catch(() => {});
+  }
+
   brancherMenuPlus();
   majBoutonLoupe();
 }
