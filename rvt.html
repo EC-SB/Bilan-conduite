@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 09/09/2026 à 11:32 — v896 -->
+<!-- Déployé le 09/09/2026 à 11:49 — v897 -->
 <!-- ============================================================
      RENDEZ-VOUS PÉDAGOGIQUE — VOS DISPONIBILITÉS
      Évolution Conduites
@@ -189,9 +189,43 @@ function dessiner(){
     'confirmerons ultérieurement.</div>';
 
   if(clos){
-    h += '<div class="avis chaud">Les réponses sont closes' +
-      (d.limite ? ' depuis le ' + ech(jourFr(d.limite)) : '') + '.<br>' +
-      'Voici ce que vous nous aviez indiqué.</div>';
+    /* ⚠️ CLOS N'EST PAS UNE RÉPONSE.
+
+       David : « votre rendez-vous est le … pour les retenus, et un
+       "nous vous reproposerons" pour les autres ».
+
+       La page disait la même chose à tout le monde — « les réponses
+       sont closes, voici ce que vous nous aviez indiqué » — c'est-à-
+       dire rien de ce que la famille était venue chercher. Elle a
+       coché ses disponibilités, elle veut savoir si elle vient, et
+       quand. Deux situations, donc deux phrases, et chacune n'en dit
+       qu'une.
+
+       Le troisième cas existe et reste le message d'avant : un tour
+       fermé par la date limite, sans qu'aucun créneau ait été
+       retenu. Là, il n'y a effectivement rien à annoncer. */
+    var creneauRetenu = null;
+    (d.creneaux || []).forEach(function(c){
+      if(d.retenu && String(c.id) === String(d.retenu)) creneauRetenu = c;
+    });
+
+    if(creneauRetenu && d.retenuPourVous){
+      h += '<div class="avis">✅ <strong>Votre rendez-vous est le ' +
+        ech(jourFr(creneauRetenu.date)) +
+        (creneauRetenu.heure ? ' à ' + ech(creneauRetenu.heure) : '') +
+        '.</strong>' +
+        (creneauRetenu.lieu ? '<br>📍 ' + ech(creneauRetenu.lieu) : '') +
+        "<br>L'élève vient <strong>avec son accompagnateur</strong>.</div>";
+    }else if(creneauRetenu){
+      h += '<div class="avis chaud">' +
+        '⏳ Aucune date ne réunissait tout le monde : ' +
+        '<strong>nous vous en reproposerons</strong> prochainement.' +
+        '<br>Voici ce que vous nous aviez indiqué.</div>';
+    }else{
+      h += '<div class="avis chaud">Les réponses sont closes' +
+        (d.limite ? ' depuis le ' + ech(jourFr(d.limite)) : '') + '.<br>' +
+        'Voici ce que vous nous aviez indiqué.</div>';
+    }
   }else{
     h += '<p class="gris">Dites-nous ce qui vous convient. Vous pourrez ' +
       'modifier' + (d.limite ? " jusqu'au <strong>" + ech(jourFr(d.limite)) +
