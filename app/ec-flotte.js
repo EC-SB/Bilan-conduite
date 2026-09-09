@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 11:57 — v885 */
+/* Déployé le 09/09/2026 à 11:23 — v895 */
 /* ============================================================
    ec-flotte.js
    Le suivi de la flotte.
@@ -126,6 +126,15 @@ async function afficherFlotte(){
 
   zone.innerHTML = '';
   majPastilleFlotte();
+
+  /* La CB Gasoil, au-dessus des véhicules : son historique et les
+     pleins du mois. Les cartes se chargent seules — on ne fait pas
+     attendre la flotte pour ça. */
+  if(typeof chargerCbGasoil === 'function'){
+    chargerCbGasoil()
+      .then(() => { if(typeof dessinerCbFlotte === 'function') dessinerCbFlotte(); })
+      .catch(() => {});
+  }
 
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
