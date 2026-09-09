@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:49 — v897 */
+/* Déployé le 09/09/2026 à 12:08 — v899 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1419,6 +1419,12 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
        bouton de la CB : c'est là qu'il doit être à jour. */
     ['retour CB',     () => { if(typeof ecouterRetourCb === 'function')
                                 ecouterRetourCb(); }],
+    /* Le bouton de la CB est en haut de l'écran en permanence, et
+       la question qu'on lui pose est « est-ce que je peux y aller
+       MAINTENANT ». Il a donc son battement à lui, plus court que
+       celui des listes qu'on ouvre quand on en a besoin. */
+    ['battement CB',  () => { if(typeof lancerBattementCb === 'function')
+                                lancerBattementCb(); }],
     ['cours préparés',() => { if(aDroit('cours')) afficherPrepares(); }],
     ['actualisation', () => lancerActualisationAuto()]
   ];
