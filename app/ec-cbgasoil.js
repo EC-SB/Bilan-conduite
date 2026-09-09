@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:23 — v895 */
+/* Déployé le 09/09/2026 à 11:49 — v897 */
 /* ============================================================
    ec-cbgasoil.js
    La CB Gasoil : où elle est, qui l'a, et les pleins faits avec.
@@ -76,14 +76,49 @@ async function chargerCbGasoil(force){
 
   try{
     const d = await appelPrep({ action: 'cbList' });
-    cbCartes = (d && d.cartes && d.cartes.length) ? d.cartes : CB_CARTES_DEPART.slice();
-    cbEvents = (d && d.events) || [];
-    cbCharge = Date.now();
+    poserCbGasoil(d);
   }catch(e){
     cbCartes = cbCartes || CB_CARTES_DEPART.slice();
     cbEvents = cbEvents || [];
   }
 }
+
+
+/* ⚠️ UNE RÉPONSE QUI PORTE LA LISTE VAUT UNE RELECTURE.
+
+   David : « les enregistrements sont super longs ». Ils l'étaient
+   deux fois : un appel pour écrire, un second pour relire ce qu'on
+   venait d'écrire. Le serveur rend maintenant la liste à jour avec
+   son accusé de réception — celui qui vient d'écrire est le seul
+   qui ne puisse pas être en retard sur lui-même.
+
+   Une réponse sans liste ne touche à rien : mieux vaut la liste
+   d'il y a dix secondes qu'un écran vide. */
+function poserCbGasoil(d){
+  if(!d || !Array.isArray(d.events)) return false;
+  cbCartes = (d.cartes && d.cartes.length) ? d.cartes : CB_CARTES_DEPART.slice();
+  cbEvents = d.events;
+  cbCharge = Date.now();
+  return true;
+}
+
+
+/* Le geste est fait, l'écran suit : le bouton, le bandeau, et le
+   panneau s'il est ouvert. Trois endroits qui disent la même
+   chose — donc un seul endroit qui les remet d'accord. */
+function rafraichirEcransCb(){
+  majBoutonCb();
+  if(typeof dessinerBandeau === 'function') dessinerBandeau();
+  if(typeof cbRedessinerPanneau === 'function' && cbRedessinerPanneau){
+    try{ cbRedessinerPanneau(); }catch(e){}
+  }
+}
+
+
+/* Le panneau ouvert, quand il l'est. C'est lui qui se redessine
+   quand une réponse arrive derrière — sinon le panneau montrerait
+   l'état d'avant le geste qu'on vient de faire dedans. */
+let cbRedessinerPanneau = null;
 
 
 function listeCbCartes(){
@@ -228,10 +263,20 @@ function majBoutonCb(){
     etats.forEach(x => {
       const s = document.createElement('span');
       s.textContent = sigleCb(x.carte.cle);
+      /* ⚠️ CELLE QUI RESTE S'ÉCRIT EN BLANC.
+
+         David : « quand on a une carte, la carte restante n'est pas
+         assez claire ». Elle était en gris discret — la couleur de
+         ce qui n'a pas d'importance. Or c'est exactement l'inverse :
+         à côté d'une lettre rouge, la lettre restante est LA
+         réponse à la seule question qu'on se pose en regardant ce
+         bouton, « est-ce qu'il en reste une ». Le gris la faisait
+         passer pour une carte éteinte, et on ouvrait le panneau
+         pour vérifier. */
       s.style.cssText = 'font-size:12.5px;font-weight:800;letter-spacing:.04em;' +
         'margin-left:4px;color:' +
         (x.ou === 'moi' ? 'var(--or)'
-         : x.ou === 'autre' ? 'var(--warn-text)' : 'var(--muted)');
+         : x.ou === 'autre' ? 'var(--warn-text)' : 'var(--cream)');
       b.appendChild(s);
     });
   }else{
@@ -267,7 +312,22 @@ function majBoutonCb(){
    ============================================================ */
 
 async function ouvrirCbGasoil(){
-  await chargerCbGasoil(true);
+  /* ⚠️ LE PANNEAU S'OUVRE AVEC CE QU'ON A DÉJÀ.
+
+     David : « le bouton de CB est super long à s'ouvrir ». Il
+     attendait le réseau AVANT de dessiner quoi que ce soit : on
+     appuyait, et il ne se passait rien pendant plusieurs secondes.
+
+     Or ce qu'il allait chercher, le bouton l'affiche déjà — c'est
+     la même liste qui a servi à colorer ses lettres. On ouvre donc
+     tout de suite avec elle, et la relecture arrive derrière : si
+     elle apporte du neuf, le panneau se redessine sous les yeux.
+
+     La première fois seulement — jamais rien chargé — il n'y a rien
+     à montrer : on attend, et on le dit. */
+  if(!cbEvents){
+    try{ await chargerCbGasoil(true); }catch(e){}
+  }
   majBoutonCb();
 
   const fond = document.createElement('div');
@@ -280,7 +340,13 @@ async function ouvrirCbGasoil(){
   const zone = document.createElement('div');
   boite.appendChild(zone);
 
-  const fermer = () => { try{ fermerFond(fond); }catch(e){} };
+  /* Fermer, c'est aussi cesser d'être le panneau qu'on redessine :
+     sans cet oubli, une réponse arrivée après coup ferait travailler
+     un écran que plus personne ne regarde. */
+  const fermer = () => {
+    cbRedessinerPanneau = null;
+    try{ fermerFond(fond); }catch(e){}
+  };
 
   const dessiner = () => {
     zone.innerHTML = '';
@@ -328,11 +394,12 @@ async function ouvrirCbGasoil(){
           b.disabled = true;
           b.textContent = '…';
           try{
-            await appelPrep({ action:'cbEvent', carte:x.carte.cle, type:'prise' });
-            await chargerCbGasoil(true);
-            majBoutonCb();
-            if(typeof dessinerBandeau === 'function') dessinerBandeau();
-            dessiner();
+            /* La réponse porte la liste à jour : plus de seconde
+               attente pour relire ce qu'on vient d'écrire. */
+            const rep = await appelPrep({ action:'cbEvent',
+                                          carte:x.carte.cle, type:'prise' });
+            if(!poserCbGasoil(rep)) await chargerCbGasoil(true);
+            rafraichirEcransCb();
             showToast('Tu as la ' + nomCb(x.carte.cle) + ' ✅');
           }catch(e){
             b.disabled = false;
@@ -360,6 +427,22 @@ async function ouvrirCbGasoil(){
   fond.appendChild(boite);
   document.body.appendChild(fond);
   fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+
+  /* Tant que ce panneau est là, c'est lui qu'on redessine quand une
+     réponse arrive — d'où qu'elle vienne. Le « fermer » du haut
+     l'oublie déjà : un panneau fermé ne se redessine pas. */
+  cbRedessinerPanneau = dessiner;
+
+  /* ⚠️ LA RELECTURE ARRIVE DERRIÈRE, PAS DEVANT.
+
+     Le panneau est déjà à l'écran ; on va simplement vérifier que
+     rien n'a bougé chez les autres pendant qu'on ne regardait pas.
+     S'il s'est fermé entre-temps, on ne redessine rien : redessiner
+     un panneau fermé rouvrirait un écran que personne n'a demandé. */
+  chargerCbGasoil(true).then(() => {
+    majBoutonCb();
+    if(cbRedessinerPanneau === dessiner) dessiner();
+  }).catch(() => {});
 }
 
 
@@ -609,13 +692,14 @@ async function reposerCb(cle){
     bOk.disabled = true;
     bOk.textContent = 'Enregistrement…';
     try{
-      await appelPrep({ action:'cbEvent', carte:cle, type:'depot',
+      /* Le dépôt et ses pleins partent ensemble, et la liste à jour
+         revient avec — un seul aller-retour au lieu de deux. */
+      const rep = await appelPrep({ action:'cbEvent', carte:cle, type:'depot',
                         vers: vers,
                         sansPlein: sansPlein ? 'oui' : '',
                         pleins: JSON.stringify(gardes) });
-      await chargerCbGasoil(true);
-      majBoutonCb();
-      if(typeof dessinerBandeau === 'function') dessinerBandeau();
+      if(!poserCbGasoil(rep)) await chargerCbGasoil(true);
+      rafraichirEcransCb();
       if(typeof dessinerCbFlotte === 'function') dessinerCbFlotte();
       fermer();
       showToast(gardes.length
@@ -913,6 +997,51 @@ async function corrigerPleinCb(e){
     dessinerCbFlotte();
     showToast('Corrigé ✅');
   }catch(err){ showToast('Impossible : ' + err.message); }
+}
+
+
+/* ============================================================
+   LA CARTE BOUGE CHEZ QUELQU'UN D'AUTRE
+
+   David : « la maj chez les autres moniteurs n'est pas
+   instantanée ». Elle ne l'était pas du tout : rien ne relisait la
+   liste tant qu'on ne rouvrait pas le panneau. Sur Saint-Brieuc,
+   quatre moniteurs pour une carte — celui qui regardait son bouton
+   voyait l'état d'il y a une heure.
+
+   Deux moments où l'on relit, et ce sont les deux seuls qui
+   comptent :
+
+     · toutes les 90 secondes, avec le reste de l'application ;
+     · au RETOUR sur l'onglet — c'est le geste de quelqu'un qui
+       revient, et donc le moment exact où il regarde le bouton.
+
+   ⚠️ CE N'EST PAS DE L'INSTANTANÉ, ET IL FAUT LE DIRE. Le vrai
+   instantané demande une notification poussée par le serveur — le
+   § F de la todolist. Ici, c'est une relecture régulière : entre
+   deux, le bouton peut être en retard d'une minute et demie. Ce
+   qui l'empêche de mentir longtemps, ce n'est pas la vitesse, c'est
+   le fait qu'on prenne une carte déjà prise SANS refus : l'outil
+   accepte la réalité et se corrige, il ne discute pas.
+   ============================================================ */
+function rafraichirCbAuto(){
+  if(typeof sectionVisible === 'function' && !sectionVisible('cbgasoil')) return;
+  chargerCbGasoil(true).then(() => rafraichirEcransCb()).catch(() => {});
+}
+
+
+let cbEcouteRetour = false;
+function ecouterRetourCb(){
+  if(cbEcouteRetour) return;
+  cbEcouteRetour = true;
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) return;
+    if(typeof ACCES === 'undefined' || !ACCES.code) return;
+    /* Après un refus du serveur on se tait : insister prolongerait
+       le blocage au lieu de le laisser expirer. */
+    if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
+    rafraichirCbAuto();
+  });
 }
 
 
