@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 09:54 — v893 */
+/* Déployé le 09/09/2026 à 11:32 — v896 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -722,8 +722,19 @@ async function afficherAacCs(){
   }
 
   /* Les tours de rendez-vous théorique : ils décident de ce que la
-     liste AAC peut proposer, donc ils arrivent avec elle. */
-  if(zA) await chargerToursRvt();
+     liste AAC peut proposer, donc ils arrivent avec elle.
+
+     ⚠️ ON FORCE LA RELECTURE. David : « les réponses ne se mettent
+     pas à jour toutes seules, je dois rafraîchir la page une
+     première fois ».
+
+     Le cache de trente secondes est fait pour les redessins en
+     rafale — pas pour une VISITE. Ouvrir cet écran, c'est
+     justement demander « où en sont les réponses maintenant » : y
+     répondre avec ce qu'on avait il y a vingt secondes, c'est
+     répondre à côté. Le rafraîchissement automatique des
+     90 secondes prend le relais ensuite. */
+  if(zA) await chargerToursRvt(true);
 
   /* Les lieux avant de dessiner : une rangée de pastilles qui
      arriverait après coup montrerait deux villes puis quatre, et
@@ -1935,15 +1946,21 @@ function texteMailRvt(eleve, creneaux, lien, limite, change){
      rouvrirait pas, et resterait sur les anciennes dates. */
   const l = change
     ? ['Bonjour,', '',
-       'Les dates proposées pour le rendez-vous pédagogique de ' +
-         eleve + ' ONT CHANGÉ.',
+       'Les dates proposées pour le rendez-vous pédagogique théorique ' +
+         'de ' + eleve + ' ONT CHANGÉ.',
        '',
        'Si vous nous aviez déjà répondu sur une date qui a été',
        "déplacée, cette réponse ne vaut plus : merci de nous",
        'réindiquer vos disponibilités.',
        '', 'Voici les créneaux à jour :']
     : ['Bonjour,', '',
-       'Nous organisons le rendez-vous pédagogique de ' + eleve + '.',
+       /* ⚠️ « THÉORIQUE » SE DIT. David : la famille reçoit aussi
+          des convocations pour les RVP 1 et 2, qui sont
+          pratiques et ne réunissent qu'elle. Sans le mot, elle
+          lit « rendez-vous pédagogique » et croit reconnaître
+          celui qu'elle attend. */
+       'Nous organisons le rendez-vous pédagogique théorique de ' +
+         eleve + '.',
        "C'est un rendez-vous où l'élève vient AVEC son accompagnateur.",
        '',
        'Vous serez plusieurs familles à ce rendez-vous : nous cherchons',
