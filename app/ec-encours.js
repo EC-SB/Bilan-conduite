@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 09:19 — v891 */
+/* Déployé le 09/09/2026 à 10:02 — v894 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -346,7 +346,33 @@ function ligneBrouillon(b){
   const vieux = /jour/.test(age) ||
                 (/il y a (\d+) h/.test(age) && parseInt(RegExp.$1, 10) >= 8);
 
-  const mots = String(b.transcript || '').trim().split(/\s+/).filter(Boolean).length;
+  /* ⚠️ CE QU'IL Y A DEDANS, DIT JUSTE.
+
+     David : « ça me met 361 mots dictés » — sur un examen blanc
+     rempli à la main. Ce n'étaient pas des mots dictés : c'était
+     le MIROIR de la fiche, du texte fabriqué pour être lu par le
+     bureau. Le compter en mots de dictée fait chercher une dictée
+     qui n'existe pas. */
+  const aFiche = !!String(b.fiche || '').trim();
+  const mots = aFiche
+    ? 'fiche remplie à la main'
+    : (String(b.transcript || '').trim().split(/\s+/).filter(Boolean).length +
+       ' mots dictés');
+
+  /* Et de QUEL bilan il s'agit — David : « dans écarté par le
+     moniteur j'ai aussi besoin de savoir quel type de bilan
+     c'était ». Un examen blanc et une leçon ne se reprennent pas
+     de la même façon. */
+  const type = (function(){
+    const cle = String(b.modele || '').trim();
+    if(!cle) return '';
+    try{
+      const m = (typeof MODELES !== 'undefined') ? MODELES[cle] : null;
+      if(m && m.label) return m.label;
+    }catch(e){}
+    return cle;
+  })();
+
   const fait = bilanExistant(b);
 
   d.innerHTML =
@@ -357,10 +383,11 @@ function ligneBrouillon(b){
     '</div>' +
     '<div style="font-size:12px;color:' +
       (vieux ? 'var(--warn-text)' : 'var(--muted)') + ';line-height:1.6;">' +
+      (type ? '📋 ' + type.replace(/</g, '&lt;') + ' · ' : '') +
       (b.dateCours ? '📅 ' + dateLisible(b.dateCours) + ' · ' : '') +
       (b.deposeLe ? 'déposé le ' + b.deposeLe : '') +
       (age ? ' · ' + (vieux ? '⚠️ ' : '') + age : '') +
-      ' · ' + mots + ' mots dictés' +
+      ' · ' + mots +
       (b.etat === 'a-corriger'
         ? '<br><span style="color:var(--bleu);">📝 bilan proposé — ' +
           'en attente de sa correction</span>'
@@ -486,6 +513,14 @@ function ligneBrouillon(b){
     'white-space:pre-wrap;color:var(--muted);background:var(--navy);' +
     'padding:9px 11px;border-radius:8px;max-height:280px;overflow-y:auto;';
   z.textContent = b.transcript || '(dictée vide)';
+  /* Sur une fiche, ce qu'on lit est le miroir : on le dit, sinon
+     on croit lire une dictée dont les phrases sonnent faux. */
+  if(aFiche){
+    const av = document.createElement('div');
+    av.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:6px;';
+    av.textContent = '📋 Ceci est le résumé de la fiche, pas une dictée.';
+    z.insertBefore(av, z.firstChild);
+  }
   d.appendChild(z);
 
   return d;
