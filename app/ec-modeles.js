@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:38 — v888 */
+/* Déployé le 09/09/2026 à 08:53 — v890 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -945,11 +945,19 @@ function buildExamenBlanc(ai, ctx){
 
   /* ---- Le bilan de compétences, en tableau ---- */
   L(construireCepcTexte(ai.cepc, ai.observations, cep));
-  if(txt(ai.eliminatoires)){
-    L('');
-    L('☠️ Fautes éliminatoires relevées :');
-    ligneParLigne(ai.eliminatoires).forEach(o => L('   • ' + o));
-  }
+
+  /* ⚠️ LE 2-5 « FAUTES ÉLIMINATOIRES RELEVÉES » A ÉTÉ RETIRÉ — v890.
+
+     David : « le bloc 2-5 n'a plus de raison d'exister puisque
+     tout va dans le 3 - Bilan des erreurs ».
+
+     Les mêmes fautes étaient écrites deux fois dans le même
+     bilan : ici en liste à puces, et quelques lignes plus bas
+     rangées par ligne du CEPC, avec les questions. Le champ a
+     disparu du questionnaire en même temps (même ⚠️ dans
+     CHAMPS_MANUELS.examenblanc) — retirer l'un sans l'autre
+     ferait reparaître le bloc par un bout. */
+
   L('');
 
   L('𝟯 - 𝗕𝗜𝗟𝗔𝗡 𝗗𝗘𝗦 𝗘𝗥𝗥𝗘𝗨𝗥𝗦');
