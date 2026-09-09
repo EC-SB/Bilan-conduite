@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:49 — v897 */
+/* Déployé le 09/09/2026 à 13:17 — v901 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -2036,7 +2036,7 @@ function texteMailRvt(eleve, creneaux, lien, limite, change){
    Tout ce qui décide d'un déplacement tient dans les trois
    premières lignes : quel jour, quelle heure, quelle adresse. Le
    reste peut ne pas être lu. */
-function texteMailRvtFixe(eleve, date, heure, lieu){
+function texteMailRvtFixe(eleve, date, heure, lieu, lien){
   const l = ['Bonjour,', '',
     'Le rendez-vous pédagogique théorique de ' + eleve + ' est fixé au',
     (jourFrCs(date) || date) + (heure ? ' à ' + heure : '') + '.'];
@@ -2046,8 +2046,26 @@ function texteMailRvtFixe(eleve, date, heure, lieu){
   l.push('',
     "L'élève vient AVEC son accompagnateur.",
     '',
-    'Merci de nous prévenir si un empêchement survenait.',
-    '', 'Évolution Conduites');
+    'Merci de nous prévenir si un empêchement survenait.');
+
+  /* ⚠️ LE LIEN REVIENT DANS LA CONVOCATION.
+
+     David, le 9 septembre : « il faudrait pouvoir leur renvoyer
+     leur lien pour qu'ils voient bien la date de rendez-vous sur le
+     site ». C'était le vrai manque : la famille avait un lien pour
+     DONNER ses disponibilités, et plus rien pour RELIRE ce qui avait
+     été décidé. Un mail se perd au fond d'une boîte ; une page se
+     rouvre.
+
+     C'est le même lien que celui de la proposition — celui qu'elle a
+     déjà utilisé, qu'elle reconnaît, et qui affiche maintenant
+     « votre rendez-vous est le … ». Un second lien pour la même
+     chose, ce serait deux adresses à tenir. */
+  if(lien){
+    l.push('', 'Vous pouvez retrouver ce rendez-vous ici :', lien);
+  }
+
+  l.push('', 'Évolution Conduites');
   return l.join('\n');
 }
 
@@ -2082,8 +2100,9 @@ function mailsDeLaFamille(nom){
 /* L'envoi de la clôture, les deux variantes par le même chemin que
    tout le reste — « mailBilan », donc contact@evolutionconduites.fr
    et pas le compte Google du script. */
-async function envoyerMailsCloture(retenus, laisses, info){
+async function envoyerMailsCloture(retenus, laisses, info, jetons){
   const out = [];
+  const j = jetons || {};
 
   const un = async (nom, variante) => {
     const dest = mailsDeLaFamille(nom);
@@ -2091,8 +2110,14 @@ async function envoyerMailsCloture(retenus, laisses, info){
       out.push({ eleve: nom, variante: variante, etat: 'aucune adresse' });
       return;
     }
+    /* Le lien de CETTE famille. Sans jeton — une ligne trop vieille,
+       un tour d'avant — le mail part quand même, sans lien : mieux
+       vaut une convocation sans page qu'une famille non prévenue. */
+    const lien = j[normaliserMot(nom)]
+      ? lienRvt() + '?r=' + j[normaliserMot(nom)] : '';
+
     const texte = variante === 'fixe'
-      ? texteMailRvtFixe(nom, info.date, info.heure, info.lieu)
+      ? texteMailRvtFixe(nom, info.date, info.heure, info.lieu, lien)
       : texteMailRvtReporte(nom);
     try{
       await appelPrep({ action: 'mailBilan', to: dest,
@@ -2103,7 +2128,8 @@ async function envoyerMailsCloture(retenus, laisses, info){
             'de nouvelles dates à venir',
         texte: texte,
         html: (typeof mailEnHtml === 'function')
-          ? mailEnHtml(texte) : undefined });
+          ? mailEnHtml(texte, variante === 'fixe' ? lien : '',
+                       '🗓️ Voir mon rendez-vous') : undefined });
       out.push({ eleve: nom, variante: variante, etat: 'envoyé' });
     }catch(e){
       out.push({ eleve: nom, variante: variante,
@@ -2113,6 +2139,17 @@ async function envoyerMailsCloture(retenus, laisses, info){
 
   for(const n of (retenus || [])) await un(n, 'fixe');
   for(const n of (laisses || [])) await un(n, 'reporte');
+  return out;
+}
+
+
+/* Les jetons d'un tour, par nom d'élève. C'est la grille du bureau
+   qui les porte : elle est derrière le droit du suivi AAC. */
+function jetonsDuTour(t){
+  const out = {};
+  ((t && t.eleves) || []).forEach(e => {
+    if(e && e.eleve && e.jeton) out[normaliserMot(e.eleve)] = e.jeton;
+  });
   return out;
 }
 
@@ -2202,6 +2239,7 @@ function carteTourRvt(t){
     }
     thead.appendChild(th);
   });
+  thead.appendChild(cell('th', ''));
   tab.appendChild(thead);
 
   (t.eleves || []).forEach(e => {
@@ -2226,6 +2264,19 @@ function carteTourRvt(t){
       if(!r) td.style.opacity = '.4';
       tr.appendChild(td);
     });
+
+    /* ⚠️ LES DEUX GESTES SONT SUR LA LIGNE DE CELUI QU'ILS
+       CONCERNENT.
+
+       David, le 9 septembre : « qu'on puisse renvoyer les mails
+       individuellement dans le tableau, et qu'on puisse supprimer
+       l'accès au site à certains élèves dans le tableau ».
+
+       Ailleurs, il faudrait choisir un nom dans une liste — et se
+       tromper de nom sur une relance est sans gravité, mais se
+       tromper de nom en coupant un accès en a. Le geste est à côté
+       de la personne : il n'y a rien à désigner. */
+    tr.appendChild(cellGestesRvt(t, e));
     tab.appendChild(tr);
   });
 
@@ -2237,6 +2288,7 @@ function carteTourRvt(t){
     if(c.id === meilleur && comptes[c.id] > 0) td.style.color = 'var(--accent-text)';
     pied.appendChild(td);
   });
+  pied.appendChild(cell('td', ''));
   tab.appendChild(pied);
 
   env.appendChild(tab);
@@ -2393,7 +2445,7 @@ async function retenirCreneauRvt(t, c, combien){
     redessinerAacCs();
 
     /* La date est posée ; reste à la DIRE aux familles. */
-    await prevenirFamillesRvt(r, c);
+    await prevenirFamillesRvt(r, c, t);
   }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
@@ -2408,7 +2460,7 @@ async function retenirCreneauRvt(t, c, combien){
 
    Refuser l'envoi ne défait rien : la date est retenue, elle est
    sur les fiches. On pourra toujours prévenir autrement. */
-async function prevenirFamillesRvt(r, c){
+async function prevenirFamillesRvt(r, c, t){
   const retenus = r.retenus || [];
   const laisses = r.laisses || [];
   if(!retenus.length && !laisses.length) return;
@@ -2445,7 +2497,7 @@ async function prevenirFamillesRvt(r, c){
   const envois = await envoyerMailsCloture(retenus, laisses, {
     date: r.date || c.date, heure: r.heure || c.heure,
     lieu: r.lieu || c.lieu
-  });
+  }, jetonsDuTour(t));
 
   const partis = envois.filter(x => x.etat === 'envoyé').length;
   const rates = envois.filter(x => x.etat !== 'envoyé');
@@ -2453,6 +2505,319 @@ async function prevenirFamillesRvt(r, c){
     ? '📨 ' + partis + ' envoyé(s), ' + rates.length + ' à faire à la main : ' +
       rates.map(x => x.eleve).join(', ')
     : '📨 ' + partis + ' famille(s) prévenue(s) ✅');
+}
+
+
+/* ============================================================
+   LES DEUX GESTES D'UNE LIGNE : RELANCER, ET COUPER
+
+   David, le 9 septembre 2026 : « qu'on puisse renvoyer les mails
+   individuellement dans le tableau, et qu'on puisse supprimer
+   l'accès au site à certains élèves dans le tableau », et sur le
+   second : « c'est pour un lien parti par erreur ».
+
+   ⚠️ CE QU'ON RENVOIE DÉPEND DE L'ÉTAT DU TOUR, ET C'EST TOUT.
+
+   Tour ouvert  → l'invitation. C'est une RELANCE : « vous n'avez
+                  pas encore répondu ». Elle repart avec les mêmes
+                  créneaux et la même date limite — c'est le même
+                  rendez-vous, pas un second tour.
+   Tour retenu  → la convocation. C'est un RAPPEL : « c'est le
+                  jeudi 12 à 18 h ». La date est déjà prise.
+
+   Un seul bouton, donc, et l'écran sait lequel des deux mails
+   part. Deux boutons obligeraient à savoir, avant d'appuyer, dans
+   quel état est le tour — et c'est justement ce que l'écran a sous
+   les yeux et pas la personne.
+   ============================================================ */
+
+function cellGestesRvt(t, e){
+  const td = document.createElement('td');
+  td.style.cssText = 'border:1px solid var(--line);padding:4px 5px;' +
+    'text-align:center;white-space:nowrap;';
+
+  /* ⚠️ UN ACCÈS COUPÉ SE VOIT SUR LA LIGNE. Sans ça, on relancerait
+     quelqu'un dont le lien ne s'ouvre plus — et on attendrait sa
+     réponse. */
+  if(e.accesRetire){
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:4px 7px;font-size:11px;margin:0;';
+    b.textContent = '🔓 Rendre';
+    b.title = 'Son lien ne s\'ouvre plus. Le remettre en service.';
+    b.addEventListener('click', () => changerAccesRvt(t, e, false));
+    td.appendChild(b);
+    return td;
+  }
+
+  const env = document.createElement('button');
+  env.className = 'btn btn-secondary';
+  env.style.cssText = 'width:auto;padding:4px 7px;font-size:11px;margin:0 4px 0 0;';
+  env.textContent = '📨';
+  env.title = t.clos
+    ? 'Renvoyer la convocation à ' + e.eleve + ', avec son lien'
+    : 'Relancer ' + e.eleve + ' — mêmes créneaux, même date limite';
+  env.addEventListener('click', () => renvoyerMailRvt(t, e, env));
+  td.appendChild(env);
+
+  const coup = document.createElement('button');
+  coup.className = 'btn btn-secondary';
+  coup.style.cssText = 'width:auto;padding:4px 7px;font-size:11px;margin:0;';
+  coup.textContent = '🔒';
+  coup.title = 'Couper l\'accès de ' + e.eleve + ' — pour un lien parti ' +
+               'par erreur';
+  coup.addEventListener('click', () => changerAccesRvt(t, e, true));
+  td.appendChild(coup);
+
+  return td;
+}
+
+
+/* Renvoyer LE mail qui correspond à l'état du tour, à une seule
+   famille. Rien n'est envoyé sans que David ait lu qui le reçoit :
+   c'est la même règle que pour la clôture. */
+async function renvoyerMailRvt(t, e, bouton){
+  const dest = mailsDeLaFamille(e.eleve);
+  if(!dest.length){
+    showToast('Aucune adresse mail sur la fiche de ' + e.eleve);
+    return;
+  }
+
+  const creneau = (t.creneaux || [])
+    .filter(c => t.retenu && String(c.id) === String(t.retenu))[0];
+
+  /* ⚠️ UN TOUR CLOS SANS CRÉNEAU RETENU N'A RIEN À RAPPELER. Il a
+     été abandonné : renvoyer quoi que ce soit dirait à la famille
+     qu'un rendez-vous existe. */
+  if(t.clos && !creneau){
+    showToast('Cette proposition a été abandonnée — rien à renvoyer');
+    return;
+  }
+
+  const quoi = creneau
+    ? 'la convocation du ' + jourFrCs(creneau.date) +
+      (creneau.heure ? ' à ' + creneau.heure : '')
+    : 'les créneaux à choisir';
+
+  if(!await confirmer(
+      'Renvoyer ' + quoi + ' à ' + e.eleve + ' ?\n\n' +
+      '📨 ' + dest.join(', ') + '\n\n' +
+      (creneau
+        ? 'Le mail portera son lien : il pourra relire la date sur le site.'
+        : 'Mêmes créneaux, même date limite — c\'est une relance.'),
+      '📨 Envoyer')) return;
+
+  bouton.disabled = true;
+  bouton.textContent = '…';
+  try{
+    let etat;
+    if(creneau){
+      const r = await envoyerMailsCloture([e.eleve], [], {
+        date: creneau.date, heure: creneau.heure, lieu: creneau.lieu
+      }, jetonsDuTour(t));
+      etat = (r[0] || {}).etat;
+    }else{
+      const r = await envoyerMailsRvt(
+        [{ eleve: e.eleve, jeton: e.jeton, mails: dest }],
+        t.creneaux || [], t.limite || '');
+      etat = (r[0] || {}).etat;
+      /* Ce qui est parti retourne au classeur : un mail dont on ne
+         sait pas s'il est parti se renvoie deux fois. */
+      try{
+        await appelPrep({ action: 'rvtEnvois', id: t.id,
+                          envois: JSON.stringify(r) });
+      }catch(err){ /* la grille dira « envoi inconnu », c'est déjà ça */ }
+    }
+    showToast(etat === 'envoyé'
+      ? '📨 Renvoyé à ' + e.eleve + ' ✅'
+      : 'Pas parti : ' + (etat || 'inconnu'));
+    await chargerToursRvt(true);
+    redessinerAacCs();
+  }catch(err){
+    showToast('Impossible : ' + err.message);
+    bouton.disabled = false;
+    bouton.textContent = '📨';
+  }
+}
+
+
+/* ⚠️ COUPER UN ACCÈS SE DIT EN ENTIER AVANT DE LE FAIRE.
+
+   Ce n'est pas un réglage : c'est une porte qu'on ferme au nez de
+   quelqu'un. Il faut donc dire ce qu'il verra — « ce lien n'est
+   plus valable » — et rappeler que ça se défait, sinon personne
+   n'ose s'en servir. */
+async function changerAccesRvt(t, e, retirer){
+  if(retirer){
+    if(!await confirmer(
+        'Couper l\'accès au site de ' + e.eleve + ' ?\n\n' +
+        'Son lien cessera de s\'ouvrir : il lira « ce lien n\'est plus ' +
+        'valable ».\n\n' +
+        'Ses réponses restent visibles ici, et tu peux lui rendre ' +
+        'l\'accès quand tu veux.',
+        '🔒 Couper')) return;
+  }
+
+  try{
+    const r = await appelPrep({ action: 'rvtAcces', id: t.id,
+                                eleve: e.eleve,
+                                retire: retirer ? 'oui' : '' });
+    if(!r || r.status !== 'ok'){
+      showToast((r && r.message) || 'Impossible.');
+      return;
+    }
+    showToast(retirer
+      ? '🔒 Lien de ' + e.eleve + ' coupé'
+      : '🔓 Lien de ' + e.eleve + ' remis en service');
+    await chargerToursRvt(true);
+    redessinerAacCs();
+  }catch(err){ showToast('Impossible : ' + err.message); }
+}
+
+
+/* ============================================================
+   LES RENDEZ-VOUS THÉORIQUES PRÉVUS
+
+   David, le 9 septembre 2026 : « il faudrait, comme "tous en
+   retard" etc., un endroit où on voit les rendez-vous théoriques
+   retenus avec la liste des élèves ».
+
+   Il manquait un état à cet écran. On voyait ce qui est À FAIRE —
+   les tours ouverts, les théoriques à prévoir — et plus rien une
+   fois la date prise. Or c'est justement entre les deux qu'on
+   travaille : rappeler la veille, renvoyer un lien perdu, savoir
+   qui vient jeudi.
+
+   ⚠️ IL DISPARAÎT LE LENDEMAIN. David : « jusqu'au lendemain ».
+   Le jour même il sert encore — qui vient, à quelle heure. Le
+   surlendemain, c'est de l'histoire, et une liste qui garde son
+   histoire cesse d'être une liste de ce qu'on a à faire.
+   ============================================================ */
+
+function rvtPrevus(){
+  /* Le même « aujourd'hui » que partout dans ce module — l'heure
+     locale, pas l'heure de Greenwich : à 1 h du matin en été, le
+     décalage ferait disparaître le rendez-vous du jour. */
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  const out = [];
+  (toursRvt || []).forEach(t => {
+    if(!t.clos || !t.retenu) return;
+    const c = (t.creneaux || [])
+      .filter(x => String(x.id) === String(t.retenu))[0];
+    if(!c || !c.date || c.date < auj) return;
+    const eleves = (t.eleves || []).filter(e => e.retenu === 'oui');
+    if(!eleves.length) return;
+    out.push({ tour: t, creneau: c, eleves: eleves });
+  });
+
+  /* Le plus proche en tête : c'est celui dont on s'occupe. */
+  out.sort((a, b) => String(a.creneau.date).localeCompare(String(b.creneau.date)));
+  return out;
+}
+
+
+function dessinerRvtPrevus(zone){
+  zone.innerHTML = '';
+  const liste = rvtPrevus();
+  if(!liste.length) return;
+
+  liste.forEach(p => zone.appendChild(carteRvtPrevu(p)));
+}
+
+
+function carteRvtPrevu(p){
+  const t = p.tour, c = p.creneau;
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--accent-text);border-radius:12px;' +
+    'padding:11px 13px;margin-bottom:12px;';
+
+  const tete = document.createElement('div');
+  tete.style.cssText = 'font-weight:700;font-size:13.5px;margin-bottom:2px;';
+  tete.textContent = '🗣️ Rendez-vous théorique du ' + jourFrCs(c.date) +
+                     (c.heure ? ' à ' + c.heure : '');
+  d.appendChild(tete);
+
+  const ou = nomLieuRdv(c.lieuCle) || String(c.lieu || '');
+  const sous = document.createElement('div');
+  sous.style.cssText = 'font-size:11.5px;color:var(--muted);' +
+    'margin-bottom:9px;line-height:1.5;';
+  sous.textContent = (ou ? '📍 ' + ou + ' · ' : '') +
+    p.eleves.length + ' famille(s) attendue(s)';
+  d.appendChild(sous);
+
+  const env = document.createElement('div');
+  env.style.cssText = 'overflow-x:auto;margin-bottom:9px;';
+  const tab = document.createElement('table');
+  tab.style.cssText = 'border-collapse:collapse;font-size:12px;width:100%;';
+
+  p.eleves.forEach(e => {
+    const tr = document.createElement('tr');
+    const nom = cell('td', e.eleve + (e.accompagnateur
+      ? ' · avec ' + e.accompagnateur : ''));
+    nom.style.textAlign = 'left';
+    if(e.accesRetire){
+      nom.style.opacity = '.55';
+      nom.textContent = '🔒 ' + nom.textContent;
+      nom.title = 'Son lien ne s\'ouvre plus';
+    }
+    tr.appendChild(nom);
+    tr.appendChild(cellGestesRvt(t, e));
+    tab.appendChild(tr);
+  });
+
+  env.appendChild(tab);
+  d.appendChild(env);
+
+  const act = document.createElement('div');
+  act.style.cssText = 'display:flex;flex-wrap:wrap;gap:7px;';
+
+  /* Le rappel à tout le monde, la veille : c'est le geste du jour
+     d'avant, et il ne vaut pas la peine d'appuyer huit fois. */
+  act.appendChild(petitBouton('📨 Rappeler la date à tous',
+    'Chacun reçoit sa convocation avec son lien',
+    () => rappelerTousRvt(p)));
+
+  d.appendChild(act);
+  return d;
+}
+
+
+/* ⚠️ LE RAPPEL À TOUS NE PART PAS AUX ACCÈS COUPÉS. Un lien coupé
+   est un lien parti par erreur : le renvoyer serait refaire
+   l'erreur, avec la date en plus. */
+async function rappelerTousRvt(p){
+  const vises = p.eleves.filter(e => !e.accesRetire).map(e => e.eleve);
+  if(!vises.length){
+    showToast('Personne à rappeler — tous les liens sont coupés');
+    return;
+  }
+
+  const sansMail = vises.filter(n => !mailsDeLaFamille(n).length);
+  const lignes = ['Rappeler la date à ' + vises.length + ' famille(s) ?', '',
+    '🗣️ ' + jourFrCs(p.creneau.date) +
+      (p.creneau.heure ? ' à ' + p.creneau.heure : ''),
+    '   ' + vises.join(', '), ''];
+  if(sansMail.length){
+    lignes.push('⚠️ Sans adresse mail, donc à prévenir à la main :',
+                '   ' + sansMail.join(', '), '');
+  }
+  lignes.push('Chacun reçoit son lien : il pourra relire la date sur le site.');
+
+  if(!await confirmer(lignes.join('\n'), '📨 Envoyer')) return;
+
+  showToast('Envoi en cours…');
+  const envois = await envoyerMailsCloture(vises, [], {
+    date: p.creneau.date, heure: p.creneau.heure, lieu: p.creneau.lieu
+  }, jetonsDuTour(p.tour));
+
+  const partis = envois.filter(x => x.etat === 'envoyé').length;
+  const rates = envois.filter(x => x.etat !== 'envoyé');
+  showToast(rates.length
+    ? '📨 ' + partis + ' envoyé(s), ' + rates.length + ' à faire à la main : ' +
+      rates.map(x => x.eleve).join(', ')
+    : '📨 ' + partis + ' famille(s) rappelée(s) ✅');
 }
 
 
@@ -2788,6 +3153,12 @@ function dessinerListeAac(zone){
      voir. */
   const zT = $('toursRvt');
   if(zT) dessinerToursRvt(zT);
+
+  /* Les rendez-vous déjà retenus, sous les propositions en cours :
+     le même écran porte ce qui est à décider ET ce qui est décidé,
+     dans cet ordre. */
+  const zP = $('rvtPrevus');
+  if(zP) dessinerRvtPrevus(zP);
 
   if(!liste.length){
     zone.innerHTML = '<div class="empty">Aucun élève en conduite accompagnée.' +
