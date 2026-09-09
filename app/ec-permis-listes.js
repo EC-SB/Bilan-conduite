@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 08:48 — v889 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -362,7 +362,7 @@ function tableauAPlacer(liste){
 
     /* ⚠️ CE SONT DES JOURS OUVERTS, PAS DES PLACES.
 
-       Chrystel : « c'est pas des places qui sont ouvertes sur les
+       David : « c'est pas des places qui sont ouvertes sur les
        semaines, ce sont des jours ». Les PLACES se comptent au
        mois — le total, la 1ʳᵉ et la 2ᵉ quinzaine. Les JOURS
        d'examen se comptent à la semaine, par centre.
@@ -501,7 +501,7 @@ function tableauAPlacer(liste){
     /* ------------------------------------------------------------
        LA BOÎTE — DÉDUITE, PUIS ÉCRITE, ET L'ÉCRAN DIT LEQUEL
 
-       Chrystel, le 4 septembre : « ici il me manque s'ils sont en BV
+       David, le 4 septembre : « ici il me manque s'ils sont en BV
        ou BEA, et la possibilité de changer ».
 
        C'est plus qu'un affichage : une voiture est manuelle OU
@@ -660,7 +660,7 @@ function tableauAPlacer(liste){
 
     /* ---- COPIER SA LISTE, AU FORMAT DU SITE DES RENDEZ-VOUS ----
 
-       C'est le geste que Chrystel décrit : « chaque personne a sa
+       C'est le geste que David décrit : « chaque personne a sa
        liste ». Le bouton met dans le presse-papier exactement ce
        qu'elle tape là-bas — un appui, un collage, et plus aucun nom
        recopié à la main, donc plus aucun nom oublié. */
@@ -753,7 +753,7 @@ function tableauAPlacer(liste){
 /* ============================================================
    ✂️ LES GROUPES DE LA SEMAINE
 
-   Chrystel, le 4 septembre : « à l'intérieur de la semaine, il
+   David, le 4 septembre : « à l'intérieur de la semaine, il
    faudrait que je puisse faire des groupes, mais facilement :
    pour cette semaine-là je prends un groupe de 2 élèves et un
    groupe de 3 ».
@@ -762,7 +762,7 @@ function tableauAPlacer(liste){
    mais il sert le JOUR de l'examen — « Matin », « Inspecteur A ». Ce
    sont deux moments et deux découpages : celui qu'on prépare une
    semaine à l'avance, et celui que la préfecture impose le jour
-   venu. Chrystel a tranché : « pour le moment on garde séparé ».
+   venu. David a tranché : « pour le moment on garde séparé ».
    D'où « groupeSemaine ».
 
    Le pont entre les deux se fait dans l'éditeur de session, qui
@@ -780,7 +780,7 @@ function groupeSemaineDe(nom){
 /* ------------------------------------------------------------
    ⚠️ UN GROUPE EST UNE CHOSE ; SON NOM EN EST UNE AUTRE
 
-   Chrystel, le 4 septembre : « il faut que je puisse renommer les
+   David, le 4 septembre : « il faut que je puisse renommer les
    groupes pour les retrouver dans sessions examen ; là tu les
    regroupes par semaine, il ne faut pas — il faut bien garder
    chaque groupe de liste rendez-vous permis indépendant ».
@@ -899,7 +899,7 @@ function boutonFaireGroupes(lot){
 }
 
 /* Ce qu'un groupe contient comme boîtes : « 3 BV », ou le mélange
-   signalé. On SIGNALE SANS INTERDIRE — Chrystel, 4 septembre. */
+   signalé. On SIGNALE SANS INTERDIRE — David, 4 septembre. */
 function resumeBoitesDuGroupe(noms){
   const compte = {};
   noms.forEach(n => {
@@ -1033,7 +1033,7 @@ async function choisirGroupeSemaine(nom, zoneGroupes){
 
 /* Renommer, c'est réécrire le NOM de tous ceux qui sont dedans, et
    surtout PAS leur identifiant : personne ne change de groupe.
-   Chrystel : « il faut que je puisse renommer les groupes pour les
+   David : « il faut que je puisse renommer les groupes pour les
    retrouver dans sessions examen ». */
 async function renommerGroupeSemaine(cle, noms, bouton){
   const avant = libelleGroupe(cle);
@@ -1098,7 +1098,7 @@ function dessinerGroupesDuLot(bs, lot, ligneEleve){
       ' <span style="font-weight:400;color:var(--muted);">' +
       liste.length + ' élève(s) · ' + r.texte + '</span>' +
       /* On SIGNALE SANS INTERDIRE : une voiture est manuelle ou
-         automatique, mais c'est Chrystel qui sait si deux voitures
+         automatique, mais c'est David qui sait si deux voitures
          sortent la même demi-journée. */
       (r.melange
         ? ' <span style="font-weight:700;color:var(--warn-text);">' +
@@ -2113,7 +2113,7 @@ function placeEnSessionDe(nom){
 /* ------------------------------------------------------------
    EXAMENS PASSÉS : RÉSULTAT À SAISIR
 
-   Chrystel, le 4 septembre : « il me manque Romain Kikela dans les
+   David, le 4 septembre : « il me manque Romain Kikela dans les
    examens passés ». Il était bien sur la session du 3 septembre,
    avec deux autres élèves qui, eux, apparaissaient.
 
@@ -2141,7 +2141,7 @@ function placeEnSessionDe(nom){
 /* ------------------------------------------------------------
    ⚠️ LE RÉSULTAT DOIT SURVIVRE À LA FICHE — MA FAUTE DE LA v849
 
-   Chrystel, le 4 septembre : « j'ai bien cliqué sur obtenu,
+   David, le 4 septembre : « j'ai bien cliqué sur obtenu,
    supprimer des listes, mais elle est encore là — j'ai eu deux fois
    le cas ».
 
@@ -3310,6 +3310,44 @@ async function saisirHeuresRestantes(nom){
 
    Le bureau donne les dates : savoir si l'élève a le niveau, et
    depuis quand, change tout. */
+/* ------------------------------------------------------------
+   UNE DATE D'EXAMEN BLANC, TOUJOURS EN JOUR / MOIS / ANNÉE
+
+   David : « le format de la date dans session examen pour les
+   examens blancs n'est pas bon, il est écrit année mois jour ».
+   Il avait raison, et c'était logique : ces dates arrivent de
+   trois écritures différentes — « 2026-09-12 » quand le bureau
+   pose la date prévue, « vendredi 12 septembre 2026 » quand il
+   saisit le passage, « 12/09/2026 » quand la valeur revient du
+   classeur. Elles s'affichaient telles qu'elles arrivaient.
+
+   Ici, elles passent toutes par la même porte et sortent en
+   12/09/2026.
+   ------------------------------------------------------------ */
+function dateEB(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  const iso = (typeof dateFrVersIso === 'function') ? dateFrVersIso(t) : '';
+  return dateCourte(iso || t);
+}
+
+
+/* La date de l'examen blanc que le bureau a PRÉVU.
+
+   ⚠️ ELLE NE VIT PAS OÙ ON LA CHERCHAIT. « ebDate » est le jour
+   où l'examen blanc a été FAIT ; le jour où il est PRÉVU
+   s'appelle « ebDatePrevue », et personne ne le lisait ici.
+
+   David, sur Romain Rodriguez : « il a un examen blanc de prévu
+   le 12 septembre, c'est bien noté dans examen blanc prévu, mais
+   dans session examen c'est indiqué pas encore d'examen blanc ».
+   La date existait, elle était juste lue au mauvais endroit. */
+function datePrevueExamenBlanc(nom){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  return String(s.ebDatePrevue || '').trim();
+}
+
+
 function mentionExamenBlanc(x){
   const s = (typeof suiviDe === 'function') ? suiviDe(x.eleve) : {};
 
@@ -3325,12 +3363,16 @@ function mentionExamenBlanc(x){
                   peut:'🤔 Pourrait avoir le niveau',
                   avenir:'📅 Examen blanc à venir' }[s.ebNiveau] || s.ebNiveau;
 
-    /* « À venir » se lit « le 12 septembre », pas « (12 septembre) » */
+    /* « À venir » se lit « le 12/09/2026 », pas « (12/09/2026) ».
+       Sans date saisie au passage, celle qui était prévue fait
+       l'affaire : c'est le même examen blanc. */
+    const quand = dateEB(s.ebDate || datePrevueExamenBlanc(x.eleve));
+
     if(s.ebNiveau === 'avenir'){
-      return ' · ' + nom + (s.ebDate ? ' le ' + s.ebDate : '');
+      return ' · ' + nom + (quand ? ' le ' + quand : '');
     }
 
-    return ' · ' + nom + (s.ebDate ? ' (' + s.ebDate + ')' : '');
+    return ' · ' + nom + (quand ? ' (' + quand + ')' : '');
   }
 
   const e = x.etat || {};
@@ -3338,6 +3380,23 @@ function mentionExamenBlanc(x){
   /* Les lignes d'info sont posées en texte, pas en HTML : une
      balise y ressortirait telle quelle. */
   if(e.examBlanc !== 'passe'){
+    /* Rien de saisi, mais une date posée : on la dit. C'est ce
+       qui manquait — « pas encore d'examen blanc » était faux
+       pour un élève qui en avait un dans trois jours. */
+    const prevue = datePrevueExamenBlanc(x.eleve) || e.examBlancDate || '';
+    const isoP = (typeof dateFrVersIso === 'function')
+      ? dateFrVersIso(prevue) : '';
+
+    if(isoP){
+      const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+      /* Une date dépassée ne se dit plus « prévu » : l'examen a
+         eu lieu, c'est son résultat qui manque. Même règle que
+         etatQuiFaitFoi, qui bascule sur « passé » le lendemain. */
+      return (auj && isoP < auj)
+        ? ' · 🏁 Examen blanc du ' + dateEB(isoP) + ' — résultat à saisir'
+        : ' · 📅 Examen blanc prévu le ' + dateEB(isoP);
+    }
+
     return " · 📝 pas encore d'examen blanc";
   }
 
@@ -3347,7 +3406,8 @@ function mentionExamenBlanc(x){
     'lecons': '⏳ Encore ' + (e.ebLecons || '?') + ' leçon(s)'
   }[e.ebSuite] || '📝 Examen blanc passé';
 
-  return ' · ' + suite + (e.ebDate ? ' (' + e.ebDate + ')' : '');
+  const quand = dateEB(e.ebDate || datePrevueExamenBlanc(x.eleve));
+  return ' · ' + suite + (quand ? ' (' + quand + ')' : '');
 }
 
 
@@ -3493,7 +3553,7 @@ function boutonExamenBlanc(nom){
 
    UNE LISTE-CIBLE DOIT EFFACER CE QUI LE RETENAIT AILLEURS.
 
-   Chrystel : « dans "examen passé, résultat à saisir", j'ai des
+   David : « dans "examen passé, résultat à saisir", j'ai des
    élèves qui n'ont pas passé leur permis. J'ai bien le bouton pour
    les envoyer dans une autre liste, mais ça ne change rien : elle
    reste ici alors qu'elle ne devrait pas. »
@@ -3535,7 +3595,7 @@ const LISTES_PERMIS = [
      autres : elle demande « resultat === ajourne ». Sans lui,
      l'élève quittait sa liste sans arriver dans celle-ci — la
      panne corrigée en v764 sur la case d'à côté, restée entière
-     ici parce que je n'avais regardé que celle dont Chrystel se
+     ici parce que je n'avais regardé que celle dont David se
      plaignait. */
   { cle:'attente',   nom:'⏳ Attente bilan post-permis',
      champs:{ resultat:'ajourne', rdvPostFait:'', aPlanifier:'',
