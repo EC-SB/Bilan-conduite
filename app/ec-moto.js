@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 13:35 — v903 */
+/* Déployé le 09/09/2026 à 13:39 — v904 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -335,8 +335,8 @@ function cadreMoto(cle, titre, aide, liste){
   }
 
   groupes.forEach(g => {
-    d.appendChild(enteteDateMoto(g));
-    g.eleves.forEach(e => d.appendChild(ligneMoto(e, cle)));
+    d.appendChild(enteteJournee(g));
+    g.elements.forEach(e => d.appendChild(ligneMoto(e, cle)));
   });
   return d;
 }
@@ -348,9 +348,15 @@ function cadreMoto(cle, titre, aide, liste){
    résumé de la ligne qui cesse alors de répéter la date. Trois
    listes séparées finiraient par diverger, et on verrait un cadre
    groupé dont les lignes redisent la date, ou l'inverse : un cadre
-   plat où plus personne n'a de date du tout. */
+   plat où plus personne n'a de date du tout.
+
+   ⚠️ LES CADRES « PASSÉ » EN SONT AUSSI, depuis que David l'a
+   demandé : « oui la même chose pour les passées ». Ce sont même
+   ceux où le délai compte le plus — il dit depuis combien de jours
+   un résultat attend d'être saisi. */
 function groupeParDateMoto(cle){
-  return cle === 'plateau' || cle === 'circuprevue';
+  return cle === 'plateau' || cle === 'circuprevue' ||
+         cle === 'plateaupasse' || cle === 'circupassee';
 }
 
 
@@ -370,86 +376,14 @@ function dateExamenMoto(s, cle){
 
 
 /* Les journées d'un cadre, dans l'ordre. Rend null quand ce cadre
-   n'a pas de date : on ne groupe pas ce qui n'a rien à grouper. */
+   n'a pas de date : on ne groupe pas ce qui n'a rien à grouper.
+
+   Le rangement lui-même vit dans ec-noyau.js — la remorque en fait
+   autant, et deux exemplaires finiraient par ne plus se ressembler. */
 function groupesParDateMoto(liste, cle){
   if(!groupeParDateMoto(cle)) return null;
-
-  const par = {};
-  liste.forEach(e => {
-    const s = suiviDe(e.eleve) || {};
-    const brut = dateExamenMoto(s, cle);
-    const iso = (typeof dateFrVersIso === 'function')
-      ? (dateFrVersIso(brut) || '') : '';
-    /* ⚠️ UNE DATE ILLISIBLE NE FAIT PAS DISPARAÎTRE QUELQU'UN.
-
-       C'est la règle du 9 septembre au matin, celle qui a coûté une
-       journée de sessions : un format qu'on ne sait pas lire n'est
-       pas une absence de date. Il est rangé à part, en bas, où on le
-       voit — plutôt que fondu dans une journée qui n'est pas la
-       sienne, ou pire, tombé de la liste. */
-    const k = iso || '~';
-    (par[k] = par[k] || { iso: iso, brut: brut, eleves: [] }).eleves.push(e);
-  });
-
-  return Object.keys(par).sort().map(k => par[k]);
-}
-
-
-/* ⚠️ LE TITRE DE LA JOURNÉE SE VOIT DE LOIN.
-
-   C'est ce que David a demandé — « en titre bien visible ». Un
-   petit intertitre gris se confondrait avec les lignes qu'il
-   sépare, et on retomberait à lire les noms un par un pour trouver
-   où commence mardi. */
-function enteteDateMoto(g){
-  const t = document.createElement('div');
-  t.style.cssText = 'display:flex;align-items:baseline;gap:8px;' +
-    'flex-wrap:wrap;margin:14px 0 8px;padding:7px 11px;border-radius:9px;' +
-    'border-left:3px solid var(--accent-text);' +
-    'background:rgba(182,255,14,.10);';
-
-  const j = document.createElement('div');
-  j.style.cssText = 'font-size:14.5px;font-weight:800;flex:1;min-width:0;';
-  j.textContent = '📅 ' + (g.iso ? jourLongMoto(g.iso)
-    : (g.brut ? 'Date illisible : « ' + g.brut + ' »' : 'Sans date'));
-  t.appendChild(j);
-
-  const n = document.createElement('div');
-  n.style.cssText = 'font-size:12px;color:var(--muted);flex-shrink:0;';
-  /* Le compte ET le délai : l'un dit combien de motos il faut ce
-     jour-là, l'autre dit s'il reste le temps de préparer. */
-  n.textContent = g.eleves.length + ' élève(s)' +
-    (g.iso ? ' · ' + delaiMoto(g.iso) : '');
-  t.appendChild(n);
-
-  return t;
-}
-
-
-/* « jeudi 12 mars 2026 ». L'ANNÉE SE DIT : une date de moto se pose
-   des mois à l'avance, et « jeudi 12 mars » tout seul ne dit pas
-   lequel. */
-function jourLongMoto(iso){
-  const d = new Date(iso + 'T12:00:00');
-  if(isNaN(d.getTime())) return iso;
-  const t = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric',
-                                            month: 'long', year: 'numeric' });
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}
-
-
-/* Dans combien de temps. « Aujourd'hui » et « demain » se disent
-   comme on les dit à voix haute. */
-function delaiMoto(iso){
-  const auj = todayLocal();
-  if(iso === auj) return "aujourd'hui";
-  const a = new Date(auj + 'T12:00:00').getTime();
-  const b = new Date(iso + 'T12:00:00').getTime();
-  if(isNaN(a) || isNaN(b)) return '';
-  const n = Math.round((b - a) / 86400000);
-  if(n === 1) return 'demain';
-  if(n < 0) return 'il y a ' + (-n) + ' jour(s)';
-  return 'dans ' + n + ' jours';
+  return groupesParJour(liste,
+    e => dateExamenMoto(suiviDe(e.eleve) || {}, cle));
 }
 
 
@@ -603,7 +537,10 @@ function resumeMoto(s, etape, nom){
   }
 
   else if(etape === 'plateaupasse'){
-    bouts.push('🏁 Plateau passé le ' + (s.motoDatePlateau || '?'));
+    /* Le titre de la journée porte la date — voir « plateau ». */
+    bouts.push(groupeParDateMoto('plateaupasse')
+      ? '🏁 Plateau passé'
+      : '🏁 Plateau passé le ' + (s.motoDatePlateau || '?'));
     bouts.push('résultat à saisir');
   }
 
@@ -632,7 +569,9 @@ function resumeMoto(s, etape, nom){
   }
 
   else{
-    bouts.push('🏁 Circulation passée le ' + (s.motoDateExamen || '?'));
+    bouts.push(groupeParDateMoto('circupassee')
+      ? '🏁 Circulation passée'
+      : '🏁 Circulation passée le ' + (s.motoDateExamen || '?'));
     bouts.push('résultat à saisir');
   }
 
