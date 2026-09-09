@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:49 — v897 */
+/* Déployé le 09/09/2026 à 12:08 — v899 */
 /* ============================================================
    ec-cbgasoil.js
    La CB Gasoil : où elle est, qui l'a, et les pleins faits avec.
@@ -1009,24 +1009,78 @@ async function corrigerPleinCb(e){
    quatre moniteurs pour une carte — celui qui regardait son bouton
    voyait l'état d'il y a une heure.
 
-   Deux moments où l'on relit, et ce sont les deux seuls qui
-   comptent :
+   Trois moments où l'on relit :
 
-     · toutes les 90 secondes, avec le reste de l'application ;
-     · au RETOUR sur l'onglet — c'est le geste de quelqu'un qui
-       revient, et donc le moment exact où il regarde le bouton.
+     · toutes les 20 secondes, tant que quelqu'un regarde ;
+     · au RETOUR sur l'onglet — le geste de quelqu'un qui revient,
+       donc le moment exact où il regarde le bouton ;
+     · avec le reste de l'application, toutes les 90 secondes, en
+       filet de sécurité si le battement court s'est arrêté.
 
-   ⚠️ CE N'EST PAS DE L'INSTANTANÉ, ET IL FAUT LE DIRE. Le vrai
-   instantané demande une notification poussée par le serveur — le
-   § F de la todolist. Ici, c'est une relecture régulière : entre
-   deux, le bouton peut être en retard d'une minute et demie. Ce
-   qui l'empêche de mentir longtemps, ce n'est pas la vitesse, c'est
-   le fait qu'on prenne une carte déjà prise SANS refus : l'outil
+   ⚠️ POURQUOI VINGT SECONDES, ET PAS QUATRE-VINGT-DIX.
+
+   David, le 9 septembre : « j'ai reposé la carte et sur le compte
+   de ma collègue c'est toujours en rouge, il faut au moins
+   30 secondes ». Quatre-vingt-dix secondes, c'était le rythme de
+   TOUT le reste de l'application — des listes qu'on regarde quand
+   on en a besoin. Le bouton de la CB n'est pas de cette famille :
+   il est là en permanence, en haut de l'écran, et la question
+   qu'on lui pose est « est-ce que je peux y aller MAINTENANT ».
+
+   Ce qui rend ce rythme tenable, c'est que la lecture ne réveille
+   plus le classeur : elle passe par le Worker, qui lit onze
+   colonnes en une requête. Vingt secondes de ça ne coûtent rien.
+
+   ⚠️ ET ON NE REDESSINE QUE SI QUELQUE CHOSE A CHANGÉ. Toutes les
+   vingt secondes, repeindre un bouton identique ferait clignoter
+   l'écran de quelqu'un qui travaille — et rouvrirait le pli du
+   panneau ouvert. On compare l'état d'avant et d'après, et le plus
+   souvent il n'y a rien à faire.
+
+   ⚠️ CE N'EST TOUJOURS PAS DE L'INSTANTANÉ, ET IL FAUT LE DIRE. Le
+   vrai instantané demande une notification poussée par le serveur —
+   le § F de la todolist. Ici, c'est une relecture régulière : entre
+   deux, le bouton peut être en retard de vingt secondes. Ce qui
+   l'empêche de mentir longtemps, ce n'est pas la vitesse, c'est le
+   fait qu'on prenne une carte déjà prise SANS refus : l'outil
    accepte la réalité et se corrige, il ne discute pas.
    ============================================================ */
+
+/* Ce que le bouton MONTRE, résumé en une chaîne. Deux résumés
+   identiques, c'est un bouton qu'on n'a pas à repeindre. */
+function signatureCb(){
+  try{
+    return etatsCb().map(x =>
+      x.carte.cle + ':' + x.ou + ':' + (x.qui || '') + ':' + (x.depuis || '')
+    ).join('|');
+  }catch(e){ return ''; }
+}
+
+
 function rafraichirCbAuto(){
   if(typeof sectionVisible === 'function' && !sectionVisible('cbgasoil')) return;
-  chargerCbGasoil(true).then(() => rafraichirEcransCb()).catch(() => {});
+  const avant = signatureCb();
+  chargerCbGasoil(true).then(() => {
+    if(signatureCb() !== avant) rafraichirEcransCb();
+  }).catch(() => {});
+}
+
+
+/* ⚠️ LE BATTEMENT S'ARRÊTE QUAND PERSONNE NE REGARDE.
+
+   Un onglet en arrière-plan n'a personne devant : vingt secondes
+   d'appels pour un écran que nul ne lit, c'est de la dépense pure.
+   Le retour sur l'onglet relit tout seul — on ne perd rien. */
+let battementCb = null;
+function lancerBattementCb(){
+  clearInterval(battementCb);
+  battementCb = setInterval(() => {
+    if(typeof ACCES === 'undefined' || !ACCES.code) return;
+    if(document.hidden) return;
+    if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
+    if(typeof bureauOccupe === 'function' && bureauOccupe()) return;
+    rafraichirCbAuto();
+  }, 20000);
 }
 
 
