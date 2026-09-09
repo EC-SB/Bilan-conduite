@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 09:54 — v893 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -12,7 +12,7 @@
    accompagnateur, et l'auto-école ne le revoit que le jour où
    quelqu'un y repense.
 
-   Chrystel : « il faut que l'on voie AAC et CS, mais ce sera
+   David : « il faut que l'on voie AAC et CS, mais ce sera
    beaucoup plus simple : c'est juste une liste dans suivi avec la
    date de RVP, depuis combien de temps ils sont partis, est-ce qu'on
    leur a demandé s'ils sont prêts à faire un examen blanc, est-ce
@@ -60,6 +60,289 @@ const REGLAGES_PAR_DEFAUT = {
 };
 
 let reglagesBureau = Object.assign({}, REGLAGES_PAR_DEFAUT);
+
+
+/* ============================================================
+   OÙ SE TIENT LE RENDEZ-VOUS — v892
+
+   David : « il faut que l'on puisse proposer où aura lieu le
+   rendez-vous, à Saint-Brieuc ou à Loudéac, et la possibilité de
+   rajouter autre chose à la main ».
+
+   ⚠️ LES ADRESSES NE SONT PAS DANS LE CODE. Elles vivent dans les
+   réglages partagés, comme les emplacements de départ des cours.
+   Le jour où l'une change, elle se corrige à un seul endroit et
+   elle suit partout : le mail, la page des familles, la fiche de
+   l'élève, le rappel. Écrite en dur, il faudrait une livraison
+   pour un déménagement.
+
+   ⚠️ ET C'EST LA CLÉ QUI SE RANGE DANS LA FICHE, jamais l'adresse.
+   Recopiée sur chaque élève, elle resterait fausse le jour de ce
+   déménagement — et c'est elle que le rappel enverrait.
+   ============================================================ */
+const LIEUX_RDV_DEPART = [
+  { cle:'stbrieuc', nom:'Saint-Brieuc',
+    adresse:'4 rue Saint Benoît, 22000 Saint-Brieuc' },
+  { cle:'loudeac',  nom:'Loudéac',
+    adresse:'3 rue Louis Lavergne, 22600 Loudéac' }
+];
+
+let lieuxRdv = null;
+
+
+/* Lus une fois par session, comme les favoris de prise de date.
+   Tant qu'ils n'arrivent pas, les deux d'origine s'affichent : une
+   liste vide ferait croire qu'il n'y a nulle part où aller. */
+async function assurerLieuxRdv(force){
+  if(lieuxRdv && !force) return lieuxRdv;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    const brut = ((d && d.reglages) || {}).lieuxRdv;
+    const l = brut ? JSON.parse(brut) : null;
+    lieuxRdv = (Array.isArray(l) && l.length) ? l : LIEUX_RDV_DEPART.slice();
+  }catch(e){ lieuxRdv = lieuxRdv || LIEUX_RDV_DEPART.slice(); }
+  return lieuxRdv;
+}
+
+
+function listeLieuxRdv(){
+  return (lieuxRdv && lieuxRdv.length) ? lieuxRdv : LIEUX_RDV_DEPART;
+}
+
+
+function lieuRdv(cle){
+  const c = String(cle || '').trim();
+  if(!c) return null;
+  return listeLieuxRdv().find(x => x && x.cle === c) || null;
+}
+
+
+/* Le nom court : pour les listes, les cartes, le bandeau. */
+function nomLieuRdv(cle){
+  const l = lieuRdv(cle);
+  return l ? l.nom : '';
+}
+
+
+/* Le nom ET l'adresse : pour le mail et la page des familles.
+   C'est cette forme-là qui se fige sur un créneau — le mail est
+   déjà parti avec, la page doit dire la même chose. */
+function texteLieuRdv(cle){
+  const l = lieuRdv(cle);
+  if(!l) return '';
+  return l.adresse ? (l.nom + ' — ' + l.adresse) : l.nom;
+}
+
+
+/* Une clé lisible, tirée du nom. Elle ne change jamais ensuite :
+   c'est elle qui est écrite dans les fiches déjà enregistrées. */
+function cleLieuRdv(nom){
+  const base = String(nom || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'lieu';
+
+  let cle = base, n = 2;
+  while(listeLieuxRdv().some(x => x && x.cle === cle)){ cle = base + n; n++; }
+  return cle;
+}
+
+
+async function rangerLieuxRdv(liste){
+  lieuxRdv = liste;
+  await appelPrep({ action: 'reglageSet', cle: 'lieuxRdv',
+                    valeur: JSON.stringify(liste) });
+}
+
+
+/* « Autre… » S'AJOUTE À LA LISTE — David l'a demandé ainsi, « avec
+   la possibilité de supprimer ». Un lieu tapé une fois se retrouve
+   donc la fois suivante ; celui tapé de travers se retire d'un
+   geste, dans les réglages. */
+async function ajouterLieuRdv(){
+  const nom = await demander(
+    'Le nom court du lieu\n\nEx : « Saint-Brieuc », « Loudéac », ' +
+    '« Salle des fêtes de Plérin ».', '', 'Nouveau lieu');
+  if(nom === null || !String(nom).trim()) return null;
+
+  const adresse = await demander(
+    "L'adresse complète\n\nElle apparaît dans le mail et sur la page " +
+    'des familles. Tu peux la laisser vide.', '', 'Adresse');
+  if(adresse === null) return null;
+
+  const l = { cle: cleLieuRdv(nom), nom: String(nom).trim(),
+              adresse: String(adresse || '').trim() };
+
+  await rangerLieuxRdv(listeLieuxRdv().concat([l]));
+  return l;
+}
+
+
+async function supprimerLieuRdv(cle){
+  const l = lieuRdv(cle);
+  if(!l) return false;
+
+  /* ⚠️ ON NE RETIRE QUE DE LA LISTE. Les rendez-vous déjà posés
+     gardent leur clé : la retirer d'ici ne doit pas effacer le lieu
+     d'un rendez-vous de la semaine prochaine. Il s'affichera sous
+     sa clé si le lieu a disparu — mieux qu'un blanc. */
+  if(!await confirmer(
+      'Retirer « ' + l.nom + ' » de la liste ?\n\n' +
+      'Il ne sera plus proposé. Les rendez-vous déjà fixés à cet ' +
+      'endroit ne changent pas.', 'Retirer')) return false;
+
+  await rangerLieuxRdv(listeLieuxRdv().filter(x => x && x.cle !== cle));
+  return true;
+}
+
+
+/* ------------------------------------------------------------
+   LA RANGÉE DE PASTILLES
+
+   Le même geste partout : les lieux connus, puis « ✏️ Autre… ».
+   Un seul dessin, sinon deux écrans finiraient par ne pas
+   proposer la même chose.
+   ------------------------------------------------------------ */
+function rangeeLieuxRdv(choisie, surChoix){
+  const z = document.createElement('div');
+  z.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;';
+
+  const dessiner = () => {
+    z.innerHTML = '';
+
+    listeLieuxRdv().forEach(l => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      const on = (l.cle === choisie);
+      b.style.cssText = 'width:auto;padding:8px 13px;font-size:13px;margin:0;' +
+        (on ? 'background:var(--orange);border-color:var(--orange);' +
+              'color:#0B0B0B;font-weight:700;' : '');
+      b.textContent = '🏢 ' + l.nom;
+      b.title = l.adresse || l.nom;
+      b.addEventListener('click', () => {
+        choisie = on ? '' : l.cle;      /* un second appui déchoisit */
+        dessiner();
+        if(typeof surChoix === 'function') surChoix(choisie);
+      });
+      z.appendChild(b);
+    });
+
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'btn btn-secondary';
+    plus.style.cssText = 'width:auto;padding:8px 13px;font-size:13px;margin:0;';
+    plus.textContent = '✏️ Autre…';
+    plus.title = 'Ajouter un lieu à la liste';
+    plus.addEventListener('click', async () => {
+      const l = await ajouterLieuRdv();
+      if(!l) return;
+      choisie = l.cle;
+      dessiner();
+      if(typeof surChoix === 'function') surChoix(choisie);
+    });
+    z.appendChild(plus);
+
+    /* L'adresse du lieu choisi, sous la rangée : c'est elle qui
+       partira dans le mail, autant la voir avant d'envoyer. */
+    const l = lieuRdv(choisie);
+    if(l && l.adresse){
+      const a = document.createElement('div');
+      a.style.cssText = 'width:100%;font-size:11.5px;color:var(--muted);' +
+        'margin-top:2px;';
+      a.textContent = l.adresse;
+      z.appendChild(a);
+    }
+  };
+
+  dessiner();
+  return z;
+}
+
+
+/* ------------------------------------------------------------
+   « OÙ ÇA S'EST PASSÉ ? » — la petite fenêtre des RVP 1 et 2
+
+   Rend la clé choisie, '' pour « aucun lieu », ou null si on ferme
+   sans répondre — et null ne touche à rien. Trois réponses
+   possibles, trois issues différentes : « je n'en veux pas » et
+   « laisse comme c'était » ne sont pas la même chose.
+   ------------------------------------------------------------ */
+function choisirLieuRdv(titre, actuelle){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(460px,94vw);';
+
+    boite.insertAdjacentHTML('beforeend',
+      '<h3>📍 Où</h3>' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+        'margin-bottom:12px;">' + String(titre || '').replace(/</g, '&lt;') +
+      '</div>' +
+      '<div id="chLieu" style="margin-bottom:14px;"></div>');
+
+    let choisie = String(actuelle || '');
+    boite.querySelector('#chLieu')
+      .appendChild(rangeeLieuxRdv(choisie, c => { choisie = c; }));
+
+    const r = document.createElement('div');
+    r.style.cssText = 'display:flex;gap:8px;';
+
+    const fermer = v => { try{ fermerFond(fond); }catch(e){} resolve(v); };
+
+    const bP = document.createElement('button');
+    bP.className = 'btn btn-secondary';
+    bP.textContent = 'Passer';
+    bP.title = "Ne rien noter — la ligne n'affichera pas de lieu";
+    bP.addEventListener('click', () => fermer(null));
+    r.appendChild(bP);
+
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = 'Enregistrer';
+    bOk.addEventListener('click', () => fermer(choisie));
+    r.appendChild(bOk);
+
+    boite.appendChild(r);
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
+  });
+}
+
+
+/* Le même choix, en menu déroulant : sur une ligne de créneau, une
+   rangée de pastilles prendrait toute la largeur. */
+function menuLieuRdv(valeur){
+  const s = document.createElement('select');
+  s.style.cssText = 'flex:0 0 150px;min-width:0;margin:0;';
+
+  const vide = document.createElement('option');
+  vide.value = '';
+  vide.textContent = '— lieu —';
+  s.appendChild(vide);
+
+  listeLieuxRdv().forEach(l => {
+    const o = document.createElement('option');
+    o.value = l.cle;
+    o.textContent = l.nom;
+    s.appendChild(o);
+  });
+
+  /* Un lieu retiré de la liste mais encore posé sur ce créneau :
+     il reste choisissable, sinon l'ouvrir le remettrait à blanc. */
+  const v = String(valeur || '');
+  if(v && !listeLieuxRdv().some(x => x && x.cle === v)){
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = v;
+    s.appendChild(o);
+  }
+
+  s.value = v;
+  return s;
+}
 
 /* Appelé par afficherBureau, avec ce que le serveur a rendu. */
 function chargerReglages(brut){
@@ -276,7 +559,7 @@ function examenBlancDe(nom){
 /* ------------------------------------------------------------
    OÙ EN EST SON EXAMEN OFFICIEL
 
-   Chrystel : « dans le suivi conduite accompagnée il me manque
+   David : « dans le suivi conduite accompagnée il me manque
    l'examen officiel : s'il a déjà une date, s'il a déjà été ajourné,
    et si oui quand. Par exemple Axel Hinault, je n'ai pas
    l'information qu'il a été ajourné et si un nouvel examen est
@@ -442,9 +725,93 @@ async function afficherAacCs(){
      liste AAC peut proposer, donc ils arrivent avec elle. */
   if(zA) await chargerToursRvt();
 
+  /* Les lieux avant de dessiner : une rangée de pastilles qui
+     arriverait après coup montrerait deux villes puis quatre, et
+     un lieu déjà posé s'afficherait sous sa clé le temps du
+     chargement. */
+  if(zA) await assurerLieuxRdv();
+
   dessinerReglageCs();
+  if(zA) dessinerLieuxRdv();
   if(zC) dessinerListeCs(zC);
   if(zA) dessinerListeAac(zA);
+}
+
+
+/* ------------------------------------------------------------
+   LES LIEUX, EN HAUT DE LA LISTE AAC
+
+   Comme le seuil CS juste à côté : on modifie une liste là où on
+   en voit l'effet, pas trois écrans plus loin. C'est aussi la
+   seule porte pour en RETIRER un — David : « il s'ajoute avec la
+   possibilité de supprimer ».
+   ------------------------------------------------------------ */
+function dessinerLieuxRdv(){
+  const z = $('lieuxRdvAac');
+  if(!z) return;
+  z.innerHTML = '';
+
+  const d = document.createElement('details');
+  d.className = 'volet-liste';
+  d.style.marginBottom = '12px';
+
+  const t = document.createElement('summary');
+  t.textContent = '📍 Les lieux de rendez-vous (' +
+                  listeLieuxRdv().length + ')';
+  d.appendChild(t);
+
+  const dedans = document.createElement('div');
+  dedans.style.cssText = 'padding-top:8px;';
+
+  listeLieuxRdv().forEach(l => {
+    const li = document.createElement('div');
+    li.style.cssText = 'display:flex;gap:9px;align-items:center;' +
+      'border:1px solid var(--line);border-radius:10px;padding:9px 11px;' +
+      'margin-bottom:7px;';
+
+    const txt = document.createElement('div');
+    txt.style.cssText = 'flex:1;min-width:0;line-height:1.45;';
+    txt.innerHTML = '<div style="font-weight:700;font-size:14px;">🏢 ' +
+      String(l.nom || '').replace(/</g, '&lt;') + '</div>' +
+      (l.adresse ? '<div style="font-size:11.5px;color:var(--muted);">' +
+        String(l.adresse).replace(/</g, '&lt;') + '</div>' : '');
+    li.appendChild(txt);
+
+    const x = document.createElement('button');
+    x.className = 'btn btn-secondary';
+    x.style.cssText = 'width:auto;padding:8px 11px;font-size:13px;margin:0;' +
+      'flex-shrink:0;';
+    x.textContent = '🗑️';
+    x.title = 'Retirer ce lieu de la liste';
+    x.addEventListener('click', async () => {
+      try{
+        if(await supprimerLieuRdv(l.cle)){
+          showToast('Retiré ✅');
+          dessinerLieuxRdv();
+        }
+      }catch(e){ showToast('Impossible : ' + e.message); }
+    });
+    li.appendChild(x);
+
+    dedans.appendChild(li);
+  });
+
+  const plus = document.createElement('button');
+  plus.className = 'btn btn-secondary';
+  plus.style.cssText = 'width:auto;padding:9px 13px;font-size:13px;margin:0;';
+  plus.textContent = '➕ Ajouter un lieu';
+  plus.addEventListener('click', async () => {
+    try{
+      if(await ajouterLieuRdv()){
+        showToast('Ajouté ✅');
+        dessinerLieuxRdv();
+      }
+    }catch(e){ showToast('Impossible : ' + e.message); }
+  });
+  dedans.appendChild(plus);
+
+  d.appendChild(dedans);
+  z.appendChild(d);
 }
 
 
@@ -768,7 +1135,7 @@ function boutonsCs(x, zone){
 /* ============================================================
    LE RENDEZ-VOUS THÉORIQUE — REMPLACER LE DOODLE
 
-   Chrystel : « j'ai besoin de plusieurs élèves en même temps, au
+   David : « j'ai besoin de plusieurs élèves en même temps, au
    minimum 4. J'utilise un Doodle avec des propositions de date, je
    prends celle où il y en a le plus, et je remets les autres en
    attente. Je veux supprimer ce Doodle. »
@@ -921,6 +1288,20 @@ function dessinerCreneauxRvt(zone, creneaux, redessiner, dejaRepondu){
         'style="flex:2;min-width:0;margin:0;" value="' + (c.date || '') + '">' +
       '<input type="time" data-i="' + i + '" data-k="heure" ' +
         'style="flex:1;min-width:0;margin:0;" value="' + (c.heure || '') + '">';
+
+    /* ⚠️ LE LIEU DE CE CRÉNEAU-LÀ.
+
+       David a choisi la troisième façon : un lieu par défaut en haut
+       qui remplit toutes les lignes, et chaque ligne modifiable. Le
+       cas courant — tout au même endroit — reste un seul geste ; le
+       cas mixte ne demande plus deux tours.
+
+       Le lieu vit ICI, sur le créneau, et nulle part ailleurs : ce
+       qu'on voit en haut ne fait que remplir ces cases. */
+    const sel = menuLieuRdv(c.lieuCle || '');
+    sel.addEventListener('change', () => { c.lieuCle = sel.value; });
+    l.appendChild(sel);
+
     const sup = document.createElement('button');
     sup.className = 'btn btn-secondary';
     sup.style.cssText = 'width:auto;margin:0;padding:9px 10px;flex-shrink:0;';
@@ -995,6 +1376,11 @@ async function ouvrirTourRvt(liste){
       'overflow-y:auto;margin-bottom:6px;"></div>' +
     '<div id="rvtCompte" style="font-size:12px;margin:-2px 0 12px;' +
       'line-height:1.5;"></div>' +
+    '<label>Où aura lieu le rendez-vous</label>' +
+    '<div id="rvtLieu" style="margin-bottom:6px;"></div>' +
+    '<div style="font-size:11px;color:var(--muted);margin:0 0 14px;' +
+      'line-height:1.4;">Il se pose sur tous les créneaux. Tu peux en ' +
+      'changer un, ligne par ligne.</div>' +
     '<label>Les créneaux proposés</label>' +
     '<div id="rvtCreneaux"></div>' +
     '<button class="btn btn-secondary" id="rvtPlus" style="width:auto;' +
@@ -1032,6 +1418,24 @@ async function ouvrirTourRvt(liste){
   const dessinerCreneaux = () =>
     dessinerCreneauxRvt(g('rvtCreneaux'), creneaux, dessinerCreneaux);
 
+  /* ── OÙ ──
+
+     Le lieu choisi ici se POSE sur chaque ligne ; il ne vit pas à
+     part. Une ligne déjà réglée à la main n'est pas écrasée : le
+     raccourci ne défait pas un choix explicite. */
+  let lieuParDefaut = (listeLieuxRdv()[0] || {}).cle || '';
+  creneaux.forEach(c => { c.lieuCle = lieuParDefaut; });
+
+  const posePartout = cle => {
+    creneaux.forEach(c => {
+      if(!c.lieuCle || c.lieuCle === lieuParDefaut) c.lieuCle = cle;
+    });
+    lieuParDefaut = cle;
+    dessinerCreneaux();
+  };
+
+  g('rvtLieu').appendChild(rangeeLieuxRdv(lieuParDefaut, posePartout));
+
   dessinerElevesRvt(g('rvtEleves'), possibles, choisis, majCompte);
   dessinerCreneaux();
 
@@ -1040,7 +1444,9 @@ async function ouvrirTourRvt(liste){
       showToast('Six créneaux, c\'est déjà beaucoup à lire.');
       return;
     }
-    creneaux.push({});
+    /* Il naît au lieu par défaut : une ligne ajoutée à la dernière
+       minute est justement celle qu'on oublierait de renseigner. */
+    creneaux.push({ lieuCle: lieuParDefaut });
     dessinerCreneaux();
   });
 
@@ -1050,16 +1456,38 @@ async function ouvrirTourRvt(liste){
 
   g('rvtEnvoyer').addEventListener('click', async () => {
     const noms = Object.keys(choisis).filter(k => choisis[k]);
+    /* ⚠️ LE LIEU PART EN DEUX MORCEAUX, ET C'EST VOULU.
+
+       « lieu » est ce que la famille LIRA — nom et adresse, figés
+       ici. Le mail part avec cette adresse-là : si elle change
+       demain dans les réglages, la page des familles doit continuer
+       de dire ce que le mail disait, sinon on envoie deux adresses
+       différentes pour le même rendez-vous.
+
+       « lieuCle » est la clé, celle qui se rangera dans la fiche de
+       l'élève quand le créneau sera retenu. Elle, elle suit les
+       réglages. */
     const cr = creneaux
       .filter(c => c.date)
       .map((c, i) => ({ id: 'c' + (i + 1), date: c.date,
-                        heure: c.heure || '', lieu: '' }));
+                        heure: c.heure || '',
+                        lieu: texteLieuRdv(c.lieuCle),
+                        lieuCle: c.lieuCle || '' }));
 
     const etat = g('rvtEtat');
     if(!noms.length){ etat.style.color = 'var(--warn-text)';
       etat.textContent = 'Aucun élève coché.'; return; }
     if(cr.length < 2){ etat.style.color = 'var(--warn-text)';
       etat.textContent = 'Il faut au moins deux créneaux avec une date.';
+      return; }
+
+    /* ⚠️ LE LIEU EST OBLIGATOIRE ICI — David : « obligatoire pour le
+       rendez-vous théorique ». Ce mail part à des familles ; une
+       adresse manquante, c'est dix appels au bureau la veille. */
+    const sansLieu = cr.filter(c => !c.lieuCle).length;
+    if(sansLieu){ etat.style.color = 'var(--warn-text)';
+      etat.textContent = sansLieu + ' créneau(x) sans lieu. Les familles ' +
+        'doivent savoir où venir avant de choisir leur date.';
       return; }
 
     const sansAdresse = noms.filter(n => {
@@ -1336,7 +1764,8 @@ async function changerCreneauxRvt(tour){
   /* Une copie : tant qu'on n'a pas enregistré, le tour affiché
      derrière ne doit pas bouger. */
   const creneaux = (tour.creneaux || []).map(c => ({
-    id: c.id, date: c.date || '', heure: c.heure || '', lieu: c.lieu || ''
+    id: c.id, date: c.date || '', heure: c.heure || '',
+    lieu: c.lieu || '', lieuCle: c.lieuCle || ''
   }));
   const redessiner = () =>
     dessinerCreneauxRvt(g('rvtCrListe'), creneaux, redessiner, repondu);
@@ -1357,10 +1786,24 @@ async function changerCreneauxRvt(tour){
 
   g('rvtCrOk').addEventListener('click', async () => {
     const etat = g('rvtCrEtat');
-    const gardes = creneaux.filter(c => c.date);
+    /* Le texte du lieu se refabrique à l'enregistrement : c'est ce
+       que les familles reliront, et ce que le mail de changement
+       leur redira. Les deux doivent dire la même chose. */
+    const gardes = creneaux.filter(c => c.date)
+      .map(c => Object.assign({}, c, { lieu: texteLieuRdv(c.lieuCle) }));
+
     if(gardes.length < 2){
       etat.style.color = 'var(--warn-text)';
       etat.textContent = 'Il faut au moins deux créneaux avec une date.';
+      return;
+    }
+
+    /* Même règle qu'à l'ouverture : pas de créneau sans lieu. */
+    const sansLieu = gardes.filter(c => !c.lieuCle).length;
+    if(sansLieu){
+      etat.style.color = 'var(--warn-text)';
+      etat.textContent = sansLieu + ' créneau(x) sans lieu. Les familles ' +
+        'doivent savoir où venir avant de choisir leur date.';
       return;
     }
 
@@ -1510,13 +1953,31 @@ function texteMailRvt(eleve, creneaux, lien, limite, change){
   (creneaux || []).forEach(c => {
     l.push('  · ' + (jourFrCs(c.date) || c.date) +
            (c.heure ? ' à ' + c.heure : ''));
+    /* L'adresse sous SA date, pas en bas du mail : c'est la date
+       qu'on lit, et c'est là qu'il faut savoir où aller. */
+    if(c.lieu) l.push('    📍 ' + c.lieu);
   });
 
   l.push('',
     'Merci donc de sélectionner TOUTES les dates auxquelles vous êtes',
     'disponibles. La date ayant obtenu la majorité des réponses sera',
-    'finalement retenue, et nous vous la confirmerons ultérieurement.',
-    '', 'Indiquez vos disponibilités ici :', lien, '');
+    'finalement retenue, et nous vous la confirmerons ultérieurement.');
+
+  /* ⚠️ L'AVERTISSEMENT NE SE DIT QUE S'IL Y A LIEU DE LE DIRE.
+
+     Tous les créneaux au même endroit : le mail est celui de
+     toujours, avec l'adresse répétée. Deux villes dans la même
+     liste : la famille doit le savoir AVANT de cocher, sinon elle
+     coche une date et se déplace au mauvais endroit. */
+  const lieux = {};
+  (creneaux || []).forEach(c => { if(c.lieu) lieux[c.lieu] = true; });
+  if(Object.keys(lieux).length > 1){
+    l.push('',
+      "⚠️ Attention : les rendez-vous n'ont pas tous lieu au même endroit.",
+      "Vérifiez l'adresse de la date que vous choisissez.");
+  }
+
+  l.push('', 'Indiquez vos disponibilités ici :', lien, '');
   if(limite){
     l.push('Vous pouvez répondre et modifier votre réponse ' +
            "jusqu'au " + (jourFrCs(limite) || limite) + '.', '');
@@ -1600,7 +2061,12 @@ function carteTourRvt(t){
   const thead = document.createElement('tr');
   thead.appendChild(cell('th', ''));
   (t.creneaux || []).forEach(c => {
-    const th = cell('th', jourFrCs(c.date) + (c.heure ? '\n' + c.heure : ''));
+    /* ⚠️ LE LIEU SOUS LA COLONNE. Deux créneaux le même jour à la
+       même heure dans deux villes sont IDENTIQUES à l'œil sans lui :
+       on retiendrait la mauvaise. */
+    const ou = nomLieuRdv(c.lieuCle) || String(c.lieu || '').split(' — ')[0];
+    const th = cell('th', jourFrCs(c.date) + (c.heure ? '\n' + c.heure : '') +
+                          (ou ? '\n🏢 ' + ou : ''));
     th.style.whiteSpace = 'pre-line';
     if(c.id === meilleur && comptes[c.id] > 0){
       th.style.color = 'var(--accent-text)';
@@ -1747,7 +2213,10 @@ async function retenirCreneauRvt(t, c, combien){
      fait PAS : celui qui n'a pas répondu n'a pas dit oui. */
   if(!await confirmer(
       'Fixer le rendez-vous théorique au ' + jourFrCs(c.date) +
-      (c.heure ? ' à ' + c.heure : '') + ' ?\n\n' +
+      (c.heure ? ' à ' + c.heure : '') + ' ?\n' +
+      /* Le lieu se relit ici : c'est le dernier moment avant que la
+         date parte sur les fiches. */
+      (c.lieu ? '📍 ' + c.lieu + '\n' : '') + '\n' +
       '✅ ' + ouis.length + ' élève(s) : ' + ouis.join(', ') +
       '\n\n' + (autres.length
         ? '⏳ ' + autres.length + ' laissé(s) pour un prochain tour : ' +
@@ -1798,7 +2267,7 @@ window.EC_MODULES['ec-aac-cs.js'] = true;
 
 /* Les trois parcours possibles.
 
-   Chrystel : « on doit pouvoir dire qu'un élève ne veut pas valider
+   David : « on doit pouvoir dire qu'un élève ne veut pas valider
    sa conduite accompagnée — la décision peut être prise en cours de
    route — et il repart dans un schéma classique. Il faudra aussi
    l'option de fausse conduite accompagnée : il fait son rendez-vous
@@ -1949,18 +2418,29 @@ function echeancesAac(s, naissance){
    dessine : c'est une règle métier, pas une couleur. */
 const MOIS_AVANT_ALERTE_RDV = 2;
 
-function etatRdv(etat, date, echeance, attendu, auJour){
+function etatRdv(etat, date, echeance, attendu, auJour, lieu){
   const e = String(etat || '').trim();
   const d = String(date || '').trim();
   const auj = String(auJour || (typeof todayLocal === 'function'
                 ? todayLocal() : new Date().toISOString().slice(0, 10)));
 
+  /* Le lieu s'ajoute à la ligne quand il y en a un.
+
+     ⚠️ RIEN NE SE DIT QUAND IL N'Y EN A PAS. David : « pour le
+     moment ils restent sans rien du tout, avec la possibilité de
+     les mettre si on veut, mais pas de rouge — ce n'est pas
+     important sur les RVP 1 et RVP 2 ». Un « lieu non renseigné »
+     mettrait toutes les anciennes lignes en alerte pour une
+     question qu'on ne posait pas encore. */
+  const ou = nomLieuRdv(lieu);
+  const ici = ou ? ' 📍 ' + ou : '';
+
   if(e === 'fait')     return { cle:'fait', retard:false, proche:false,
-    txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') };
+    txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') + ici };
   if(e === 'ailleurs') return { cle:'ailleurs', retard:false, proche:false,
     txt:'fait' + (d ? ' le ' + jourFrCs(d) : '') + ' (autre auto-école)' };
   if(e === 'prevu')    return { cle:'prevu', retard:false, proche:false,
-    txt:'prévu' + (d ? ' le ' + jourFrCs(d) : ' — date à fixer') };
+    txt:'prévu' + (d ? ' le ' + jourFrCs(d) : ' — date à fixer') + ici };
 
   if(!attendu) return { cle:'sansobjet', retard:false, proche:false,
     txt:'plus attendu' };
@@ -2025,9 +2505,9 @@ function dossierAac(nom){
 
   const rdv = {
     prealable: etatRdv(s.rvpEtat, s.rvpDate, '', true),
-    rvp1: etatRdv(s.rvp1Etat, s.rvp1Date, ech.rvp1, attendus),
-    rvp2: etatRdv(s.rvp2Etat, s.rvp2Date, ech.rvp2, attendus),
-    rvt:  etatRdv(s.rvtEtat, s.rvtDate, '', attendus)
+    rvp1: etatRdv(s.rvp1Etat, s.rvp1Date, ech.rvp1, attendus, '', s.rvp1Lieu),
+    rvp2: etatRdv(s.rvp2Etat, s.rvp2Date, ech.rvp2, attendus, '', s.rvp2Lieu),
+    rvt:  etatRdv(s.rvtEtat, s.rvtDate, '', attendus, '', s.rvtLieu)
   };
 
   return {
@@ -2041,7 +2521,7 @@ function dossierAac(nom){
     exam: examenOfficielDe(nom),
     retard: Object.keys(rdv).some(k => rdv[k].retard),
     /* Le théorique jamais fait, sur un parcours qui l'attend : c'est
-       le retard dont Chrystel parlait, et il n'a pas d'échéance pour
+       le retard dont David parlait, et il n'a pas d'échéance pour
        le signaler tout seul. */
     rvtManquant: attendus && rdv.rvt.cle === 'aprevoir'
   };
@@ -2319,12 +2799,22 @@ function boutonsAac(x, zone){
       if(x.rdv[cle === 'rvt' ? 'rvt' : cle].cle === 'fait' ||
          x.rdv[cle === 'rvt' ? 'rvt' : cle].cle === 'ailleurs') return;
       zone.appendChild(petitBouton('✅ ' + titre + ' fait',
-        'Noter la date à laquelle il a eu lieu', async () => {
+        'Noter la date, et où il a eu lieu', async () => {
           const iso = await choisirDate(titre);
           if(!iso) return;
+
+          /* ⚠️ LE LIEU EST FACULTATIF ICI — David : « facultatif pour
+             les pratiques 1 et 2 ». On note souvent la date après
+             coup, sans forcément se rappeler où. « Passer » ferme la
+             fenêtre sans rien écrire, et la ligne n'affiche rien. */
+          const ou = await choisirLieuRdv(titre + ' — où a-t-il eu lieu ?',
+                                          (x.suivi || {})[cle + 'Lieu'] || '');
+
           const maj = {};
           maj[cle + 'Etat'] = 'fait';
           maj[cle + 'Date'] = iso;
+          if(ou !== null) maj[cle + 'Lieu'] = ou;
+
           await majSuivi(nom, maj);
           showToast('Enregistré ✅');
           redessinerAacCs();
