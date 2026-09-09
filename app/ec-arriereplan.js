@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 09:26 — v892 */
+/* Déployé le 09/09/2026 à 10:02 — v894 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -265,6 +265,30 @@ async function deposerBrouillonServeur(extra){
   const texte = texteDicteEnCours();
   if(!String(texte).trim()) return;
 
+  /* ⚠️ ET LA FICHE AVEC, SI CET ÉCRAN EN A UNE.
+
+     Ce dépôt-ci est celui de la DICTÉE : il ne parlait pas des
+     réponses case par case, et le classeur, lui, remplaçait la
+     ligne entière — la fiche déposée une minute plus tôt par
+     l'écran manuel disparaissait.
+
+     Le classeur ne l'efface plus quand on ne lui en parle pas
+     (v207), mais mieux vaut dire la vérité que compter sur le
+     silence : quand il y a une fiche à l'écran, elle part avec.
+     Les deux chemins déposent alors la même chose. */
+  let fiche;
+  try{
+    if(typeof brouillonManuelActuel === 'function'){
+      const objet = brouillonManuelActuel();
+      if(objet){
+        const j = JSON.stringify(objet);
+        /* Trop grosse pour la cellule : on n'envoie rien plutôt
+           qu'un objet coupé — et le classeur garde la précédente. */
+        if(j.length <= 44000) fiche = j;
+      }
+    }
+  }catch(e){ /* pas de fiche lisible : la dictée part seule */ }
+
   try{
     await appelPrep(Object.assign({
       action: 'brouillonSet',
@@ -274,7 +298,7 @@ async function deposerBrouillonServeur(extra){
       site: ($('site') && $('site').value) || '',
       transcript: texte,
       note: ($('noteInterne') && $('noteInterne').value) || ''
-    }, extra || {}));
+    }, (fiche === undefined ? {} : { fiche: fiche }), extra || {}));
   }catch(e){
     /* Le dépôt n'est pas indispensable : la sauvegarde locale
        reste. On ne bloque pas la génération pour autant. */
