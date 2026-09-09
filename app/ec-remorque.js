@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 09/09/2026 à 13:39 — v904 */
 /* ============================================================
    ec-remorque.js
    Le parcours du permis remorque (BE).
@@ -147,8 +147,33 @@ function cadreRemorque(cle, titre, aide, liste){
     return d;
   }
 
-  /* Ceux qui attendent une date sont groupés par mois : c'est
-     ainsi que le bureau demande ses places. */
+  /* ⚠️ LES EXAMENS PRÉVUS SE RANGENT PAR JOURNÉE.
+
+     David, le 9 septembre 2026, après la moto : « idem pour les
+     permis remorque ». Le raisonnement est le même — ce cadre n'est
+     pas une liste d'élèves, c'est une liste de JOURNÉES. On n'y
+     demande pas « où en est Machin », on y demande « qui passe
+     jeudi ».
+
+     Le rangement lui-même vit dans ec-noyau.js, avec celui de la
+     moto : deux exemplaires du même geste finiraient par ne plus se
+     ressembler, et personne ne l'aurait décidé. */
+  if(cle === 'prevus'){
+    groupesParJour(liste, e => (suiviDe(e.eleve) || {}).beDate)
+      .forEach(g => {
+        d.appendChild(enteteJournee(g));
+        g.elements.forEach(e => d.appendChild(ligneRemorque(e, cle)));
+      });
+    return d;
+  }
+
+  /* Ceux qui attendent une date sont groupés par MOIS : c'est ainsi
+     que le bureau demande ses places.
+
+     ⚠️ MÊME TITRE QUE LES JOURNÉES, ET C'EST VOULU. Ce n'est pas une
+     date, mais c'est le même geste de lecture — on cherche où
+     commence son mois. Deux façons de titrer un groupe dans le même
+     écran, c'est une hésitation à chaque coup d'œil. */
   if(cle === 'aplacer'){
     const par = {};
     liste.forEach(e => {
@@ -158,11 +183,7 @@ function cadreRemorque(cle, titre, aide, liste){
     });
 
     Object.keys(par).forEach(m => {
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:12px;font-weight:700;' +
-        'color:var(--accent-text);margin:10px 0 6px;';
-      t.textContent = '📅 ' + m + ' — ' + par[m].length + ' élève(s)';
-      d.appendChild(t);
+      d.appendChild(enteteJournee({ elements: par[m] }, m));
       par[m].forEach(e => d.appendChild(ligneRemorque(e, cle)));
     });
     return d;
@@ -238,7 +259,10 @@ function resumeRemorque(s, etape){
   }
 
   else if(etape === 'prevus'){
-    bouts.push('📅 Examen le ' + (s.beDate || '?'));
+    /* ⚠️ LA DATE N'EST PAS RÉPÉTÉE SOUS SON PROPRE TITRE. L'en-tête
+       de la journée la dit déjà, en gros. La redire ici, c'est un
+       second endroit où elle est écrite — et le jour où l'un des
+       deux se trompe, on ne sait plus lequel croire. */
     if(s.beAPasser === 'circulation') bouts.push('circulation seule');
     else bouts.push('plateau + circulation');
     if(Number(s.bePassages) > 1) bouts.push(s.bePassages + 'e passage');
