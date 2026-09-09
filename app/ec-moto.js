@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:47 — v889 */
+/* Déployé le 09/09/2026 à 13:35 — v903 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -313,8 +313,143 @@ function cadreMoto(cle, titre, aide, liste){
     return d;
   }
 
-  liste.forEach(e => d.appendChild(ligneMoto(e, cle)));
+  /* ⚠️ LES DEUX CADRES QUI PORTENT UNE DATE SE RANGENT PAR DATE.
+
+     David, le 9 septembre 2026 : « dans plateau prévu et
+     circulation prévue, est-ce que tu peux ranger les élèves par
+     dates d'examen avec en titre bien visible la date d'examen ».
+
+     Ces deux cadres-là ne sont pas des listes d'élèves : ce sont
+     des listes de JOURNÉES. On ne s'y demande pas « où en est
+     Machin », on s'y demande « qui passe jeudi ». Rangés par ordre
+     d'arrivée dans le classeur, il fallait lire les huit lignes
+     pour reconstituer la journée de mardi — et on la reconstituait
+     de tête, donc parfois faux.
+
+     Les cinq autres cadres n'ont pas de date : les grouper n'aurait
+     rien à grouper. */
+  const groupes = groupesParDateMoto(liste, cle);
+  if(!groupes){
+    liste.forEach(e => d.appendChild(ligneMoto(e, cle)));
+    return d;
+  }
+
+  groupes.forEach(g => {
+    d.appendChild(enteteDateMoto(g));
+    g.eleves.forEach(e => d.appendChild(ligneMoto(e, cle)));
+  });
   return d;
+}
+
+
+/* ⚠️ QUELLES ÉTAPES SE RANGENT PAR JOURNÉE — ÉCRIT UNE SEULE FOIS.
+
+   Trois endroits s'en servent : le groupement, l'en-tête, et le
+   résumé de la ligne qui cesse alors de répéter la date. Trois
+   listes séparées finiraient par diverger, et on verrait un cadre
+   groupé dont les lignes redisent la date, ou l'inverse : un cadre
+   plat où plus personne n'a de date du tout. */
+function groupeParDateMoto(cle){
+  return cle === 'plateau' || cle === 'circuprevue';
+}
+
+
+/* La date d'examen qui compte à cette étape — et il n'y en a
+   qu'une par étape : le plateau a la sienne, la circulation la
+   sienne. Les confondre mettrait un élève sous la mauvaise
+   journée. */
+function dateExamenMoto(s, cle){
+  if(cle === 'plateau' || cle === 'plateaupasse'){
+    return String((s && s.motoDatePlateau) || '').trim();
+  }
+  if(cle === 'circuprevue' || cle === 'circupassee'){
+    return String((s && s.motoDateExamen) || '').trim();
+  }
+  return '';
+}
+
+
+/* Les journées d'un cadre, dans l'ordre. Rend null quand ce cadre
+   n'a pas de date : on ne groupe pas ce qui n'a rien à grouper. */
+function groupesParDateMoto(liste, cle){
+  if(!groupeParDateMoto(cle)) return null;
+
+  const par = {};
+  liste.forEach(e => {
+    const s = suiviDe(e.eleve) || {};
+    const brut = dateExamenMoto(s, cle);
+    const iso = (typeof dateFrVersIso === 'function')
+      ? (dateFrVersIso(brut) || '') : '';
+    /* ⚠️ UNE DATE ILLISIBLE NE FAIT PAS DISPARAÎTRE QUELQU'UN.
+
+       C'est la règle du 9 septembre au matin, celle qui a coûté une
+       journée de sessions : un format qu'on ne sait pas lire n'est
+       pas une absence de date. Il est rangé à part, en bas, où on le
+       voit — plutôt que fondu dans une journée qui n'est pas la
+       sienne, ou pire, tombé de la liste. */
+    const k = iso || '~';
+    (par[k] = par[k] || { iso: iso, brut: brut, eleves: [] }).eleves.push(e);
+  });
+
+  return Object.keys(par).sort().map(k => par[k]);
+}
+
+
+/* ⚠️ LE TITRE DE LA JOURNÉE SE VOIT DE LOIN.
+
+   C'est ce que David a demandé — « en titre bien visible ». Un
+   petit intertitre gris se confondrait avec les lignes qu'il
+   sépare, et on retomberait à lire les noms un par un pour trouver
+   où commence mardi. */
+function enteteDateMoto(g){
+  const t = document.createElement('div');
+  t.style.cssText = 'display:flex;align-items:baseline;gap:8px;' +
+    'flex-wrap:wrap;margin:14px 0 8px;padding:7px 11px;border-radius:9px;' +
+    'border-left:3px solid var(--accent-text);' +
+    'background:rgba(182,255,14,.10);';
+
+  const j = document.createElement('div');
+  j.style.cssText = 'font-size:14.5px;font-weight:800;flex:1;min-width:0;';
+  j.textContent = '📅 ' + (g.iso ? jourLongMoto(g.iso)
+    : (g.brut ? 'Date illisible : « ' + g.brut + ' »' : 'Sans date'));
+  t.appendChild(j);
+
+  const n = document.createElement('div');
+  n.style.cssText = 'font-size:12px;color:var(--muted);flex-shrink:0;';
+  /* Le compte ET le délai : l'un dit combien de motos il faut ce
+     jour-là, l'autre dit s'il reste le temps de préparer. */
+  n.textContent = g.eleves.length + ' élève(s)' +
+    (g.iso ? ' · ' + delaiMoto(g.iso) : '');
+  t.appendChild(n);
+
+  return t;
+}
+
+
+/* « jeudi 12 mars 2026 ». L'ANNÉE SE DIT : une date de moto se pose
+   des mois à l'avance, et « jeudi 12 mars » tout seul ne dit pas
+   lequel. */
+function jourLongMoto(iso){
+  const d = new Date(iso + 'T12:00:00');
+  if(isNaN(d.getTime())) return iso;
+  const t = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric',
+                                            month: 'long', year: 'numeric' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+
+/* Dans combien de temps. « Aujourd'hui » et « demain » se disent
+   comme on les dit à voix haute. */
+function delaiMoto(iso){
+  const auj = todayLocal();
+  if(iso === auj) return "aujourd'hui";
+  const a = new Date(auj + 'T12:00:00').getTime();
+  const b = new Date(iso + 'T12:00:00').getTime();
+  if(isNaN(a) || isNaN(b)) return '';
+  const n = Math.round((b - a) / 86400000);
+  if(n === 1) return 'demain';
+  if(n < 0) return 'il y a ' + (-n) + ' jour(s)';
+  return 'dans ' + n + ' jours';
 }
 
 
@@ -451,7 +586,19 @@ function resumeMoto(s, etape, nom){
   }
 
   else if(etape === 'plateau'){
-    bouts.push('📅 Plateau le ' + (s.motoDatePlateau || '?'));
+    /* ⚠️ LA DATE N'EST PAS RÉPÉTÉE SOUS SON PROPRE TITRE.
+
+       Depuis que ce cadre est rangé par journée, l'en-tête la dit
+       déjà, en gros. La redire sur chaque ligne, c'est du bruit —
+       et surtout, c'est un second endroit où elle est écrite : le
+       jour où l'un des deux se trompe, on ne sait plus lequel
+       croire. Le titre fait foi.
+
+       Elle reste dite quand on ne peut PAS la lire : là, la ligne
+       est le seul endroit où la voir. */
+    if(!groupeParDateMoto('plateau')){
+      bouts.push('📅 Plateau le ' + (s.motoDatePlateau || '?'));
+    }
     if(nb) bouts.push((nb + 1) + 'e passage');
   }
 
@@ -478,7 +625,10 @@ function resumeMoto(s, etape, nom){
 
   else if(etape === 'circuprevue'){
     bouts.push('✅ Plateau obtenu');
-    bouts.push('📅 Circulation le ' + (s.motoDateExamen || '?'));
+    /* Même chose : le titre de la journée la porte. */
+    if(!groupeParDateMoto('circuprevue')){
+      bouts.push('📅 Circulation le ' + (s.motoDateExamen || '?'));
+    }
   }
 
   else{
