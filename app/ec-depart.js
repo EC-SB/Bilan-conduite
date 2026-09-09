@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 09:39 — v881 */
+/* Déployé le 09/09/2026 à 11:49 — v897 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -527,7 +527,7 @@ function ligneBilan(item, nomCherche, refaire){
     meta.className = 'meta';
     /* ⚠️ LE RÉSULTAT DE L'EXAMEN BLANC ARRIVE APRÈS LE BILAN.
 
-     Chrystel, le 4 septembre : « dans le dossier élève > Cours, mets
+     David, le 4 septembre : « dans le dossier élève > Cours, mets
      le résultat de l'examen blanc à la suite de "examen blanc passé
      le" ». La note du bilan est écrite le jour du cours ; la
      conclusion se saisit plus tard. On complète l'AFFICHAGE, jamais
@@ -1415,6 +1415,10 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
     ['onglets',       () => initOnglets()],
     ['modèles',       () => appliquerTextesBilan()],
     ['réseau',        () => ecouterReseau()],
+    /* Le retour sur l'onglet est le moment où quelqu'un REGARDE le
+       bouton de la CB : c'est là qu'il doit être à jour. */
+    ['retour CB',     () => { if(typeof ecouterRetourCb === 'function')
+                                ecouterRetourCb(); }],
     ['cours préparés',() => { if(aDroit('cours')) afficherPrepares(); }],
     ['actualisation', () => lancerActualisationAuto()]
   ];
@@ -1437,7 +1441,7 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
      celui-ci charge l'état du bureau et les masquages, dont le
      bandeau se sert. Lancé avant, il aurait relu deux fois la même
      chose pour l'afficher une. */
-  /* ⚠️ LES MESSAGES PARTENT LES PREMIERS — Chrystel, le
+  /* ⚠️ LES MESSAGES PARTENT LES PREMIERS — David, le
      4 septembre : « le message important met énormément de temps à
      apparaître ». Ils n'attendent rien d'autre : une seule lecture,
      déjà filtrée par le classeur. Le reste du bandeau se réveille à
@@ -1916,7 +1920,7 @@ function noteJusteDuCours(cours, rang, dossier){
 
   /* 1 bis. LE COURS PRÉCÉDENT DU MÊME ÉLÈVE, MÊME CE MATIN.
 
-     Chrystel, le 7 septembre : « je fais tous mes rappels, tout
+     David, le 7 septembre : « je fais tous mes rappels, tout
      part dans mes prochains cours, et ensuite je remplis les
      questionnaires — ça va bien me mettre à jour directement le
      cours suivant du même jour ? »
