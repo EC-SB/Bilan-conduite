@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:30 — v919 */
+/* Déployé le 10/09/2026 à 16:57 — v924 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -964,8 +964,28 @@ if($('prepTiroir')){
 
    Deux endroits pour dire la même chose, et c'est celui qu'on ne
    lisait pas qui portait la vérité. */
-const MODELES_SANS_VOCAL = ['examen-blanc', 'examen-officiel', 'rdv-post',
-                            'handicap', 'prefecture'];
+/* ⚠️ LA LISTE SE DÉDUIT DES MODÈLES — v924. ELLE NE SE RECOPIE PLUS.
+
+   Le commentaire ci-dessus décrivait la faute sans la réparer :
+   « manuelSeul » vivait dans ec-modeles.js et n'était lu nulle
+   part, cette liste-ci portait la vérité, et « prefecture » avait
+   déjà manqué à l'appel une fois pour cette raison exacte.
+
+   Deux endroits pour dire la même chose, et c'est celui qu'on ne
+   lisait pas qui portait la vérité — on l'a écrit, et on a quand
+   même laissé les deux. Le jour où David a demandé les évaluations,
+   il aurait fallu penser à modifier ici ET là.
+
+   Un modèle dit désormais LUI-MÊME qu'il se remplit à la main, à
+   côté de son libellé et de son schéma. Cette liste n'est plus
+   qu'une lecture. */
+const MODELES_SANS_VOCAL = (typeof MODELES === 'object' && MODELES)
+  ? Object.keys(MODELES).filter(c => MODELES[c] && MODELES[c].manuelSeul)
+  /* Sans les modèles — un module qui ne se charge pas — on ne
+     propose pas la dictée sur ces bilans-là plutôt que l'inverse :
+     un micro offert sur un barème est pire qu'un micro manquant. */
+  : ['examen-blanc', 'examen-officiel', 'rdv-post', 'handicap',
+     'prefecture', 'eval-manuelle', 'eval-auto'];
 
 function adapterAuModele(){
   const cle = $('modele') ? $('modele').value : '';
