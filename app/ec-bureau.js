@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:26 — v918 */
+/* Déployé le 10/09/2026 à 18:54 — v932 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -145,7 +145,37 @@ function analyserNote(note){
     r.permisDate = derniere.date;
   }
 
-  if(r.permis === 'annule') r.permisDate = null;
+  /* ⚠️ ANNULÉ N'EST PAS « PRÉVU », MAIS CE N'EST PAS RIEN — v932.
+
+     « permisDate » veut dire « la date à laquelle il passe » : un
+     examen annulé n'en a plus, et la vider est juste. Mais les deux
+     dates de l'annulation — celle qui saute, et le jour où on
+     l'annule — sont ce que le bureau doit lire. Elles étaient
+     simplement perdues, et la fiche de route affichait « Examen du
+     permis annulé » tout court.
+
+     Elles vivent donc à part, sous leur nom : personne ne les
+     confondra avec une date d'examen à venir. Voir
+     « phraseExamenAnnule », qui les écrit — ec-sessions.js. */
+  if(r.permis === 'annule'){
+    r.permisDate = null;
+    /* ⚠️ « permis » N'EST PAS UNE DATE. Le « du permis » est
+       facultatif dans la phrase : sans cette garde, « Examen du
+       permis annulé » se lisait comme « Examen · du · [permis] ·
+       annulé », et la date valait « permis ». */
+    const quelle = t.match(/[Ee]xamen (?:du permis )?du ((?!permis\b)[^—·]+?) annul[ée]/);
+    if(quelle) r.permisAnnuleDate = quelle[1].trim();
+    /* Les notes écrites avant la v932 disent la même chose
+       autrement — « annulé (était le …) ». On les relit : ce sont
+       des élèves bien réels, dont la date ne doit pas se perdre
+       parce qu'on a changé de phrase. */
+    if(!r.permisAnnuleDate){
+      const vieux = t.match(/annul[ée]\s*\(était le ([^)]+)\)/i);
+      if(vieux) r.permisAnnuleDate = vieux[1].trim();
+    }
+    const quand = t.match(/annul[ée] le ([^—·]+?)(?=\s*[—·]|$)/);
+    if(quand) r.permisAnnuleLe = quand[1].trim();
+  }
 
   /* Le nombre de leçons restantes suit la dernière date annoncée.
 
