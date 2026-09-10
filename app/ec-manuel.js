@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:38 — v920 */
+/* Déployé le 10/09/2026 à 17:12 — v925 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -5011,6 +5011,35 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
        Elles étaient identiques mot pour mot au moment du retrait :
        rien n'est perdu, seul le piège l'est.
+
+       ⚠️ ET CE COMMENTAIRE-LÀ N'AVAIT PAS DE FIN — réparé en v925.
+
+       Il lui manquait son « étoile-barre ». JavaScript a donc fermé
+       au PREMIER qu'il a trouvé — celui du petit commentaire « vingt
+       lignes prêtes », dix-huit lignes plus bas. Tout ce qu'il y
+       avait entre les deux a cessé d'exister : la branche des
+       observations entière, et avec elle le « z.id = 'obsManuel' »
+       que six endroits relisent.
+
+       Deux dégâts, dont un seul se voyait :
+
+       1. La boucle des vingt lignes, elle, restait DEHORS du
+          commentaire. Elle s'est donc mise à s'exécuter dans la
+          branche d'AU-DESSUS — l'en-tête — sur un « z » qui n'était
+          plus le sien : la zone Carte SD / Installation /
+          Vérifications. C'est ce que David a vu, « les remarques de
+          l'inspecteur et explication ou correction sur un bilan
+          classique en manuel ».
+
+       2. Et le vrai bloc des observations n'était plus dessiné nulle
+          part : l'examen blanc et l'examen officiel tombaient dans
+          le « else » final et n'avaient plus qu'un cadre de texte.
+          « #obsManuel » n'existait plus, donc les ☠️ et les ⚠️, le
+          rangement sous le CEPC et le bilan des erreurs ne lisaient
+          plus rien.
+
+       Un commentaire non fermé ne fait pas d'erreur : il DÉPLACE du
+       code. C'est pour ça que ça a tenu treize versions. */
 
     }else if(ch.type === 'observations'){
       const l = document.createElement('label');
