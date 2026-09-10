@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 13:30 — v902 */
+/* Déployé le 10/09/2026 à 18:02 — v927 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -75,8 +75,29 @@ function afficherOnglet(cle, memoriser){
     el.classList.toggle('hors-onglet', el.getAttribute('data-onglet') !== cle);
   });
 
+  /* ⚠️ UNE BARRE VIDE N'EST PAS UNE BARRE — v927.
+
+     David, capture d'un écran de 1900 px : « j'ai encore un
+     décalage de bloc, un retrait qui ne sert à rien sur un grand
+     écran ».
+
+     L'onglet Cours n'a pas de vues : « VUES » ne le contient pas,
+     et sa barre reste donc vide à jamais. Mais cette ligne
+     l'affichait quand même — elle ne regardait que le nom de
+     l'onglet. Tant que la barre était une rangée horizontale, une
+     rangée vide de zéro pixel de haut ne se voyait pas. Depuis la
+     v922 elle est devenue une COLONNE de 212 px à partir de
+     1280 px : la barre vide s'est mise à pousser toute la carte
+     des cours de 228 px vers la droite, et il n'y avait rien à
+     voir dedans pour le comprendre.
+
+     Un contenant qu'on montre sans regarder s'il contient quelque
+     chose finit toujours par occuper la place de ce qu'il n'a
+     pas. */
   document.querySelectorAll('.barre-vues').forEach(b => {
-    b.style.display = (b.getAttribute('data-pour') === cle && !b.hidden) ? 'flex' : 'none';
+    const aQuelqueChose = b.children.length > 0;
+    b.style.display = (b.getAttribute('data-pour') === cle && !b.hidden &&
+                       aQuelqueChose) ? 'flex' : 'none';
   });
   if(VUES[cle]) afficherVue(cle, vueActive[cle] || (VUES[cle][0] || [])[0]);
   else libererOngletsSansVues();
