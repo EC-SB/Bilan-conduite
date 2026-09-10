@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:57 — v915 */
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -146,24 +146,28 @@ function resultatExamenBlanc(nom, a){
 
      Une soustraction, pas une érosion : à zéro on rend les mots du
      questionnaire, pas « 0 leçon ». */
+  /* ⚠️ LA CONVERSION PASSE PAR LA PORTE — v925. C'est ici que le
+     commentaire disait « la même conversion que
+     conclusionExamenBlanc, dans l'autre sens » sans que rien ne
+     l'y oblige. Voir heuresPourLecons, dans ec-modeles.js. */
   let reserve = null;
   if(note.ebSuite === 'lecons' && note.ebLecons){
-    reserve = Number(note.ebLecons) * 2;
+    reserve = heuresPourLecons(note.ebLecons);
   }else if(niveau === 'oui'){
-    /* Les heures du suivi valent des leçons de deux heures — la même
-       conversion que « conclusionExamenBlanc », dans l'autre sens. */
+    /* Les heures du suivi SONT déjà des heures : rien à convertir
+       ici. La conversion, c'est la ligne du dessus. */
     const h = parseFloat(String(heures).replace(',', '.'));
     if(!isNaN(h) && h > 0) reserve = h;
   }
   if(reserve === null) return null;
 
-  const restant = reserve - leconsDepuisLaReserve(nom, note) * 2;
+  const restant = reserve - heuresPourLecons(leconsDepuisLaReserve(nom, note));
   if(restant <= 0){
     return { cle:'3h', emoji:'✅', texte:'plus que les 3h avant examen',
              couleur:'var(--accent-text)' };
   }
   return { cle:'lecons', emoji:'⏳',
-           texte:'encore ' + Math.round(restant / 2) + ' leçon(s) avant examen',
+           texte:'encore ' + leconsPourHeures(restant) + ' leçon(s) avant examen',
            couleur:'var(--warn-text)' };
 }
 
