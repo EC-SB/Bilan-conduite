@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 12:02 — v898 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1118,7 +1118,12 @@ function casesHeuresPermis(nom){
     const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
     const majs = (s.rdvPostFait === 'oui')
       ? { heuresRepassage: v }
-      : { heuresRestantes: v };
+      /* ⚠️ PAR LA PORTE — v908 : elle note qui l'a dit et quand,
+         sans quoi l'alerte ⏱️ nommerait le moniteur du dernier
+         bilan à la place de celui qui vient de saisir. */
+      : ((typeof champsHeuresRestantes === 'function')
+          ? champsHeuresRestantes(nom, v)
+          : { heuresRestantes: v });
 
     try{
       await majSuivi(nom, majs);
