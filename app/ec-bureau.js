@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 13:04 — v913 */
+/* Déployé le 10/09/2026 à 14:36 — v914 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -64,7 +64,7 @@ function analyserNote(note){
               examBlanc:null, examBlancN:null, examBlancDate:null,
               simuNuit:null, simuDate:null, permis:null,
               permisDate:null, permisN:null, lecon:null, leconTotal:null,
-              friseDepassee:false, pasEcoute:false };
+              friseDepassee:false, pasEcoute:false, apresEB:null };
   let m;
 
   if((m = t.match(/Examen blanc passé le ([^—·]+)— pas le niveau/i))){
@@ -194,6 +194,33 @@ function analyserNote(note){
      s'affichait dans la fiche. */
   r.lecon = (typeof rangDansLaNote === 'function')
     ? rangDansLaNote(t) : null;
+
+  /* ------------------------------------------------------------
+     COMBIEN DE LEÇONS DEPUIS L'EXAMEN BLANC
+
+     David, le 10 septembre 2026 : « c'était la 3ème leçon après
+     l'examen blanc, donc il ne peut pas rester 3 leçons avant
+     l'examen puisqu'à l'examen blanc il y avait 6h de prévues ».
+
+     Les heures prescrites à l'examen blanc sont une RÉSERVE, et une
+     réserve se consomme. Personne ne la décomptait : « encore 3
+     leçon(s) » s'affichait encore après la troisième. C'est la même
+     faute que pour l'examen officiel, réparée là-bas par un repère
+     (« examPermisNRang ») et la règle écrite à côté : sans savoir
+     depuis quand, décompter c'est inventer.
+
+     Ce nombre-là EST le depuis-quand, et il est déjà écrit dans la
+     note. On le lit ici, à l'entrée, comme tout le reste.
+
+     ⚠️ SEULEMENT L'EXAMEN BLANC. La note écrit aussi « 2ème leçon
+     après le post-permis » et « après le dernier ajournement » :
+     quand la charnière a avancé, la réserve de l'examen blanc ne
+     gouverne plus rien, et il ne faut surtout pas décompter avec
+     un compteur qui parle d'autre chose. */
+  if((m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+le[çc]ons?\s+apr[èe]s\s+l['\u2019]examen\s+blanc/i))){
+    const v = parseInt(m[1], 10);
+    if(v > 0) r.apresEB = v;
+  }
 
   /* Le total sur lequel la frise est posée : « 3ème leçon sur 5 ».
      Il ne se déduit pas du rang, il est écrit à côté. */
@@ -553,7 +580,7 @@ async function majSuivi(eleve, champs){
    date du jour ferait revenir une alerte que quelqu'un venait
    d'écarter, tous les jours, jusqu'à ce qu'on cesse de la lire.
    ============================================================ */
-function champsHeuresRestantes(eleve, valeur, champs){
+function champsHeuresRestantes(eleve, valeur, champs, depuis){
   const majs = Object.assign({}, champs || {});
   const propre = String(valeur === undefined || valeur === null ? '' : valeur).trim();
   majs.heuresRestantes = propre;
@@ -565,8 +592,32 @@ function champsHeuresRestantes(eleve, valeur, champs){
   if(propre === ''){
     majs.heuresPar = '';
     majs.heuresLe  = '';
+    majs.heuresRang = '';
     return majs;
   }
+
+  /* ⚠️ LE REPÈRE, ET POURQUOI SON ABSENCE VEUT DIRE QUELQUE CHOSE.
+
+     Une réserve d'heures n'est pas un nombre : c'est un nombre ET le
+     rang où il était plein. Sans repère, on ne peut pas la
+     décompter — et c'est exactement ce qui manquait.
+
+     « heuresRang » se compte dans la même unité que la note :
+     combien de leçons après l'examen blanc au moment où la réserve
+     était pleine. Zéro — donc vide — veut dire « depuis l'examen
+     blanc », qui est le cas normal : les heures se prescrivent À
+     l'examen blanc, c'est à ça qu'il sert. L'autre cas, « à partir
+     de la prochaine leçon », se dit en passant le compteur du jour.
+
+     ⚠️ ET LA DATE NE PEUT PAS TENIR CE RÔLE. « heuresLe » dit quand
+     le nombre a été posé, pas ce qui a été consommé depuis : ce
+     sont des LEÇONS qui consomment les heures, pas des jours. Deux
+     leçons peuvent tomber le même jour, trois semaines passer sans
+     aucune. Décompter sur la date donnerait un chiffre faux avec
+     l'air d'être juste. */
+  majs.heuresRang = (depuis === undefined || depuis === null ||
+                     String(depuis).trim() === '' || String(depuis) === '0')
+    ? '' : String(parseInt(depuis, 10) || '');
 
   majs.heuresPar = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
   majs.heuresLe  = (typeof todayLocal === 'function')
@@ -576,9 +627,9 @@ function champsHeuresRestantes(eleve, valeur, champs){
 
 /* Écrit le nombre d'heures, son auteur et sa date — et ce que
    l'appelant veut poser en même temps, dans la même écriture. */
-async function majHeuresRestantes(eleve, valeur, champs){
+async function majHeuresRestantes(eleve, valeur, champs, depuis){
   if(typeof majSuivi !== 'function') return;
-  await majSuivi(eleve, champsHeuresRestantes(eleve, valeur, champs));
+  await majSuivi(eleve, champsHeuresRestantes(eleve, valeur, champs, depuis));
 }
 
 
