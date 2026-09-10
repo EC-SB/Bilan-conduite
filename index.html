@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v916
+     VERSION APPLICATION : v917
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 10/09/2026 à 15:11
+     Mis à jour le : 10/09/2026 à 15:23
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -483,6 +483,160 @@
   }
   .recap b{color:var(--orange);}
 
+
+  /* ============================================================
+     L'ONGLET COURS — DEUX MISES EN PAGE, UN SEUL DOM
+     ============================================================
+
+     ⚠️ IL N'Y A PAS DEUX CONSTRUCTEURS DE CARTES, ET IL NE DOIT
+     JAMAIS Y EN AVOIR DEUX.
+
+     David, le 11 septembre 2026 : « je ne veux pas avoir à faire
+     les corrections sur les 2 côtés ». La promesse tient à une
+     seule chose : afficherPrepares construit UNE carte, avec les
+     mêmes données et les mêmes boutons, et tout ce qui suit n'est
+     que de la mise en page accrochée à « body.cours-neuf ».
+
+     Une correction faite dans afficherPrepares vaut donc pour les
+     deux essais, parce qu'il n'y a qu'un endroit à corriger.
+
+     Ce bloc part le jour où l'essai est tranché : soit on garde la
+     nouvelle mise en page et « body.cours-neuf » disparaît des
+     sélecteurs, soit on la retire entièrement. Dans les deux cas,
+     rien à démêler dans le code des cartes. */
+
+  /* ---- Le tiroir ⋯, construit pour tout le monde ---- */
+  /* Par défaut — l'ancienne mise en page — le tiroir est grand
+     ouvert et le ⋯ n'a pas lieu d'être : les huit boutons restent
+     côte à côte, exactement comme avant. */
+  .history-item .actions .plus{ display:contents; }
+  .history-item .actions .plusBtn{ display:none; }
+
+  body.cours-neuf .history-item .actions{ flex-wrap:wrap; }
+  body.cours-neuf .history-item .actions .plusBtn{ display:inline-flex; }
+  body.cours-neuf .history-item .actions .plus{
+    display:none; flex-basis:100%; gap:6px; flex-wrap:wrap; margin-top:6px;
+  }
+  body.cours-neuf .history-item .actions.ouvert .plus{ display:flex; }
+
+  /* ---- La carte : l'heure devient un repère, le nom passe devant ---- */
+  /* En voiture, on cherche « c'est lequel maintenant » avant de
+     chercher qui : une colonne d'heures alignées se balaie d'un
+     coup d'œil, sept lignes de texte non. */
+  body.cours-neuf .history-item{ padding:13px 4px; }
+  body.cours-neuf .history-item .tete{
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 11px;
+  }
+  body.cours-neuf .history-item .tete .heure{
+    font-size:21px !important; font-weight:900 !important;
+    padding-right:11px; border-right:3px solid var(--orange); flex-shrink:0;
+  }
+  body.cours-neuf .history-item .tete .qui{
+    font-size:17px; font-weight:800; line-height:1.2; min-width:0;
+  }
+  body.cours-neuf .history-item .tete .presence{ flex-basis:100%; }
+
+  /* La phrase du parcours : c'est la première question qu'on se
+     pose en ouvrant sa journée. Elle a droit à sa ligne et à sa
+     taille. */
+  body.cours-neuf .history-item .position{
+    font-size:16px !important; line-height:1.35; margin-top:4px;
+  }
+
+  /* ⚠️ CE QUI MANQUE PREND UN FOND, et c'est le seul de la carte.
+     C'est la ligne qui empêche le bilan d'être juste ; elle était
+     en gras orange au milieu de six autres lignes en gras. */
+  body.cours-neuf .history-item .manque{
+    background:var(--warn-bg); border-left:4px solid var(--red);
+    border-radius:0 8px 8px 0; padding:6px 9px; margin:6px 0 !important;
+  }
+
+  /* Le reste respire, et se range derrière. */
+  body.cours-neuf .history-item .sous{ margin-top:5px; }
+  body.cours-neuf .history-item .note{
+    display:block; margin-top:6px; padding-top:6px;
+    border-top:1px dashed var(--line);
+  }
+
+  /* ---- Deux volets, dès la tablette en paysage ----
+
+     La liste des cartes devient la journée à gauche ; la carte
+     choisie s'ouvre à droite. UNE SEULE liste dans le DOM : les
+     cartes non choisies se réduisent à leur en-tête et à leur
+     phrase, la choisie montre tout. Rien n'est cloné, rien n'est
+     reconstruit — donc rien ne peut diverger.
+
+     ⚠️ « OUVRIR » NE CHANGE PAS DE SENS. David : « continue comme
+     aujourd'hui ». Choisir un cours à gauche le donne à LIRE à
+     droite ; c'est ▶ Ouvrir qui mène à l'écran de cours, ici comme
+     ailleurs. */
+  @media (min-width: 1000px){
+    body.cours-neuf .listeDeuxVolets{
+      display:flex; align-items:flex-start; gap:0;
+      border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    }
+    body.cours-neuf .listeDeuxVolets > .journee{
+      width:33%; min-width:220px; max-width:340px; flex-shrink:0;
+      border-right:1px solid var(--line); background:var(--navy);
+      padding:9px; max-height:70vh; overflow:auto;
+    }
+    body.cours-neuf .listeDeuxVolets > .cours{
+      flex:1; min-width:0; padding:12px 14px;
+    }
+    /* La journée se replie, comme le bandeau du jour. */
+    body.cours-neuf .listeDeuxVolets.repliee > .journee{
+      width:40px; min-width:40px; padding:9px 4px; overflow:hidden;
+    }
+    body.cours-neuf .listeDeuxVolets.repliee > .journee > *:not(.plierJournee){
+      display:none;
+    }
+    .plierJournee{
+      width:100%; background:var(--navy-deep); border:1px solid var(--line);
+      border-radius:8px; color:var(--accent-text); font:inherit;
+      font-size:11px; font-weight:800; cursor:pointer; padding:5px 4px;
+      margin-bottom:8px;
+    }
+    body.cours-neuf .listeDeuxVolets:not(.repliee) .plierJournee{ text-align:left; }
+
+    /* Dans la journée : l'en-tête, la phrase, ce qui manque. Rien
+       d'autre — c'est un sommaire, pas une carte. */
+    body.cours-neuf .journee .history-item{
+      display:block; border:1px solid var(--line); border-radius:9px;
+      padding:7px 9px; margin-bottom:7px; background:var(--navy-deep);
+    }
+    body.cours-neuf .journee .history-item.choisi{
+      border:2px solid var(--orange);
+    }
+    body.cours-neuf .journee .history-item .rang,
+    body.cours-neuf .journee .history-item .poste,
+    body.cours-neuf .journee .history-item .sous,
+    body.cours-neuf .journee .history-item .note,
+    body.cours-neuf .journee .history-item .place,
+    body.cours-neuf .journee .history-item .handicapCarte,
+    body.cours-neuf .journee .history-item .actions{ display:none !important; }
+    body.cours-neuf .journee .history-item .tete .heure{ font-size:17px !important; }
+    body.cours-neuf .journee .history-item .tete .qui{ font-size:14px; }
+    body.cours-neuf .journee .history-item .position{
+      font-size:12.5px !important; font-weight:700;
+    }
+    body.cours-neuf .journee .history-item .manque{
+      font-size:11.5px !important; padding:3px 7px;
+    }
+
+    /* À droite, la carte choisie, entière — et les gestes de bureau
+       dépliés d'office : c'est un écran de bureau. */
+    body.cours-neuf .cours .history-item{ border-bottom:none; padding:0; }
+    /* Les gestes passent SOUS le cours, sur toute la largeur : collés
+       à droite ils se retrouvaient à un demi-écran du texte qu'ils
+       concernent, et la carte se lisait en diagonale. */
+    body.cours-neuf .cours .history-item .meta{ flex-basis:100%; padding-right:0; }
+    body.cours-neuf .cours .history-item .actions{
+      flex-basis:100%; margin-top:12px; padding-top:10px;
+      border-top:1px solid var(--line);
+    }
+    body.cours-neuf .cours .history-item .actions .plusBtn{ display:none; }
+    body.cours-neuf .cours .history-item .actions .plus{ display:flex; }
+  }
 
   /* ============================================================
      NAVIGATION PAR ONGLETS
@@ -1049,7 +1203,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=916" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=917" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -2607,76 +2761,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=916"></script>
-<script src="app/ec-modeles.js?v=916"></script>
-<script src="app/ec-consignes.js?v=916"></script>
-<script src="app/ec-noyau.js?v=916"></script>
-<script src="app/ec-vocal.js?v=916"></script>
-<script src="app/ec-reseau.js?v=916"></script>
-<script src="app/ec-manuel.js?v=916"></script>
-<script src="app/ec-fenetres.js?v=916"></script>
-<script src="app/ec-questionnaire.js?v=916"></script>
-<script src="app/ec-permis.js?v=916"></script>
-<script src="app/ec-prepares.js?v=916"></script>
-<script src="app/ec-avant-cours.js?v=916"></script>
-<script src="app/ec-bureau.js?v=916"></script>
-<script src="app/ec-places.js?v=916"></script>
-<script src="app/ec-listes.js?v=916"></script>
-<script src="app/ec-permis-listes.js?v=916"></script>
-<script src="app/ec-postpermis.js?v=916"></script>
-<script src="app/ec-textes.js?v=916"></script>
-<script src="app/ec-correction.js?v=916"></script>
-<script src="app/ec-bilans.js?v=916"></script>
-<script src="app/ec-ecran.js?v=916"></script>
-<script src="app/ec-version.js?v=916"></script>
-<script src="app/ec-paie.js?v=916"></script>
-<script src="app/ec-flotte.js?v=916"></script>
-<script src="app/ec-carrosserie.js?v=916"></script>
-<script src="app/ec-solo.js?v=916"></script>
-<script src="app/ec-handicap-pdf.js?v=916"></script>
-<script src="app/ec-moto.js?v=916"></script>
-<script src="app/ec-remorque.js?v=916"></script>
-<script src="app/ec-arriereplan.js?v=916"></script>
-<script src="app/ec-placesbe.js?v=916"></script>
-<script src="app/ec-codeamenage.js?v=916"></script>
-<script src="app/ec-financements.js?v=916"></script>
-<script src="app/ec-eval-aac.js?v=916"></script>
-<script src="app/ec-postes.js?v=916"></script>
-<script src="app/ec-tarifs.js?v=916"></script>
-<script src="app/ec-caisse.js?v=916"></script>
-<script src="app/ec-menage.js?v=916"></script>
-<script src="app/ec-page-eleve.js?v=916"></script>
-<script src="app/ec-cbgasoil.js?v=916"></script>
-<script src="app/ec-loupe.js?v=916"></script>
-<script src="app/ec-coutsia.js?v=916"></script>
-<script src="app/ec-evaluation.js?v=916"></script>
-<script src="app/ec-paiement.js?v=916"></script>
-<script src="app/ec-handicap.js?v=916"></script>
-<script src="app/ec-code.js?v=916"></script>
-<script src="app/ec-proccorriger.js?v=916"></script>
-<script src="app/ec-sessions.js?v=916"></script>
-<script src="app/ec-aac-cs.js?v=916"></script>
-<script src="app/ec-notifs.js?v=916"></script>
-<script src="app/ec-ecoutes.js?v=916"></script>
-<script src="app/ec-taches.js?v=916"></script>
-<script src="app/ec-memoire.js?v=916"></script>
-<script src="app/ec-historique.js?v=916"></script>
-<script src="app/ec-rappels.js?v=916"></script>
-<script src="app/ec-segments.js?v=916"></script>
-<script src="app/ec-sms.js?v=916"></script>
-<script src="app/ec-encours.js?v=916"></script>
-<script src="app/ec-incidents.js?v=916"></script>
+  <script src="app/ec-etat.js?v=917"></script>
+<script src="app/ec-modeles.js?v=917"></script>
+<script src="app/ec-consignes.js?v=917"></script>
+<script src="app/ec-noyau.js?v=917"></script>
+<script src="app/ec-vocal.js?v=917"></script>
+<script src="app/ec-reseau.js?v=917"></script>
+<script src="app/ec-manuel.js?v=917"></script>
+<script src="app/ec-fenetres.js?v=917"></script>
+<script src="app/ec-questionnaire.js?v=917"></script>
+<script src="app/ec-permis.js?v=917"></script>
+<script src="app/ec-prepares.js?v=917"></script>
+<script src="app/ec-avant-cours.js?v=917"></script>
+<script src="app/ec-bureau.js?v=917"></script>
+<script src="app/ec-places.js?v=917"></script>
+<script src="app/ec-listes.js?v=917"></script>
+<script src="app/ec-permis-listes.js?v=917"></script>
+<script src="app/ec-postpermis.js?v=917"></script>
+<script src="app/ec-textes.js?v=917"></script>
+<script src="app/ec-correction.js?v=917"></script>
+<script src="app/ec-bilans.js?v=917"></script>
+<script src="app/ec-ecran.js?v=917"></script>
+<script src="app/ec-version.js?v=917"></script>
+<script src="app/ec-paie.js?v=917"></script>
+<script src="app/ec-flotte.js?v=917"></script>
+<script src="app/ec-carrosserie.js?v=917"></script>
+<script src="app/ec-solo.js?v=917"></script>
+<script src="app/ec-handicap-pdf.js?v=917"></script>
+<script src="app/ec-moto.js?v=917"></script>
+<script src="app/ec-remorque.js?v=917"></script>
+<script src="app/ec-arriereplan.js?v=917"></script>
+<script src="app/ec-placesbe.js?v=917"></script>
+<script src="app/ec-codeamenage.js?v=917"></script>
+<script src="app/ec-financements.js?v=917"></script>
+<script src="app/ec-eval-aac.js?v=917"></script>
+<script src="app/ec-postes.js?v=917"></script>
+<script src="app/ec-tarifs.js?v=917"></script>
+<script src="app/ec-caisse.js?v=917"></script>
+<script src="app/ec-menage.js?v=917"></script>
+<script src="app/ec-page-eleve.js?v=917"></script>
+<script src="app/ec-cbgasoil.js?v=917"></script>
+<script src="app/ec-loupe.js?v=917"></script>
+<script src="app/ec-coutsia.js?v=917"></script>
+<script src="app/ec-evaluation.js?v=917"></script>
+<script src="app/ec-paiement.js?v=917"></script>
+<script src="app/ec-handicap.js?v=917"></script>
+<script src="app/ec-code.js?v=917"></script>
+<script src="app/ec-proccorriger.js?v=917"></script>
+<script src="app/ec-sessions.js?v=917"></script>
+<script src="app/ec-aac-cs.js?v=917"></script>
+<script src="app/ec-notifs.js?v=917"></script>
+<script src="app/ec-ecoutes.js?v=917"></script>
+<script src="app/ec-taches.js?v=917"></script>
+<script src="app/ec-memoire.js?v=917"></script>
+<script src="app/ec-historique.js?v=917"></script>
+<script src="app/ec-rappels.js?v=917"></script>
+<script src="app/ec-segments.js?v=917"></script>
+<script src="app/ec-sms.js?v=917"></script>
+<script src="app/ec-encours.js?v=917"></script>
+<script src="app/ec-incidents.js?v=917"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=916"></script>
-<script src="app/ec-bandeau.js?v=916"></script>
-<script src="app/ec-stats.js?v=916"></script>
-<script src="app/ec-messenger.js?v=916"></script>
-<script src="app/ec-journal.js?v=916"></script>
-<script src="app/ec-depart.js?v=916"></script>
-<script src="app/ec-onglets.js?v=916"></script>
-<script src="app/ec-demarrage.js?v=916"></script>
+<script src="app/ec-messages-perso.js?v=917"></script>
+<script src="app/ec-bandeau.js?v=917"></script>
+<script src="app/ec-stats.js?v=917"></script>
+<script src="app/ec-messenger.js?v=917"></script>
+<script src="app/ec-journal.js?v=917"></script>
+<script src="app/ec-depart.js?v=917"></script>
+<script src="app/ec-onglets.js?v=917"></script>
+<script src="app/ec-demarrage.js?v=917"></script>
 
 <script>
 /* ============================================================
