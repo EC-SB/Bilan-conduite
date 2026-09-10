@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 08:56 — v905 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -117,6 +117,44 @@ async function appelPrep(corps){
    devient ce qu'il faut, parce que ces deux phrases-là disent la
    même chose et doivent bouger ensemble.
    ------------------------------------------------------------ */
+/* ⚠️ POSER LE CALAGE DE L'ÉLÈVE — v905.
+
+   David, le 10 septembre 2026 : « ce cours sera le 12ème et le
+   suivant le 13ème et ainsi de suite ».
+
+   Avant, taper 12 ici écrivait 12 DANS CE COURS-LÀ. Le cours
+   suivant ne savait rien de ce 12 : il recomptait les bilans,
+   retombait sur 8, et il fallait recommencer. C'est le « je n'arrive
+   pas à tout mettre à jour correctement ».
+
+   Maintenant, taper 12 dit aussi une chose sur l'ÉLÈVE : « ce qu'on
+   compte, plus quatre ». Le cours suivant compte 9 et affiche 13.
+   Celui d'après, 14. Le calage ne fige rien — le comptage continue
+   de tourner dessous, et un bilan saisi en retard fait avancer le
+   compteur comme d'habitude.
+
+   ⚠️ ON NE POSE RIEN QU'ON NE SACHE CALCULER. Sans le compte des
+   bilans sous la main, l'écart serait deviné : on écrit alors le
+   rang sur ce cours-ci comme avant, et rien sur l'élève. Un calage
+   faux est pire qu'un calage absent — il suivrait l'élève. */
+async function poserCalageEleve(eleve, quoi, voulu, compte){
+  const n = parseInt(compte, 10);
+  const v = parseInt(voulu, 10);
+  if(!eleve || isNaN(n) || isNaN(v)) return false;
+
+  const champs = {};
+  champs['decal' + quoi] = String(v - n);
+  champs.decalPar = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+  champs.decalLe = (typeof dateCourte === 'function')
+    ? dateCourte(todayLocal()) : todayLocal();
+
+  try{
+    if(typeof majSuivi === 'function'){ await majSuivi(eleve, champs); return true; }
+  }catch(e){ /* le rang du cours reste écrit : on ne perd pas la saisie */ }
+  return false;
+}
+
+
 async function ecrireRangDuCours(cours, rang){
   const ctx = Object.assign({}, contexteEnObjet(cours.contexte));
   ctx.lecon = String(rang);
@@ -146,7 +184,56 @@ async function ecrireRangDuCours(cours, rang){
      relecture complète pour montrer le bon rang. */
   cours.note = note;
   cours.contexte = ctx;
+
+  /* Et l'élève garde le calage : c'est lui qui fera que le cours
+     suivant sera le 13ème sans qu'on y retouche. */
+  const d = (typeof lireCacheDossier === 'function')
+    ? lireCacheDossier(cours.eleve) : null;
+  if(d && !d.caleParUnBilan){
+    await poserCalageEleve(cours.eleve, 'Total', rang, rangBrutDuDossier(d, cours));
+  }
+
   return note;
+}
+
+
+/* Ce qui explique le chiffre, pour le survol de la case. */
+function detailDuRang(cours){
+  const bouts = ['Numéro de la leçon qui va être faite'];
+  const d = (typeof lireCacheDossier === 'function')
+    ? lireCacheDossier(cours && cours.eleve) : null;
+
+  if(d && d.lecons !== null && d.lecons !== undefined){
+    bouts.push(d.lecons + ' bilan(s) compté(s)');
+  }
+  if(d && d.caleParUnBilan){
+    bouts.push('un bilan écrit son rang : c\'est lui qui fait loi');
+  }
+
+  const s = (typeof suiviDe === 'function' && cours && cours.eleve)
+    ? (suiviDe(cours.eleve) || {}) : {};
+  const e = parseInt(s.decalTotal, 10);
+  if(!isNaN(e) && e !== 0){
+    bouts.push('calage ' + (e > 0 ? '+' : '') + e +
+      (s.decalLe ? ' posé le ' + s.decalLe : '') +
+      (s.decalPar ? ' par ' + s.decalPar : ''));
+  }
+  return bouts.join('\n');
+}
+
+
+/* Ce que le classeur compte AVANT tout calage — le nombre auquel il
+   faut comparer le rang voulu pour en déduire l'écart.
+
+   C'est « rangConnu » sans le calage : la même règle du « +1 quand
+   le cours du jour compte dans la frise », sinon l'écart serait
+   décalé d'une unité à chaque fois. */
+function rangBrutDuDossier(d, cours){
+  const n = parseInt(d && d.lecons, 10);
+  if(isNaN(n)) return null;
+  const compte = (typeof leconCompteDansLaFrise === 'function')
+    ? leconCompteDansLaFrise(cours && cours.modele) : true;
+  return compte ? n + 1 : n;
 }
 
 /* Le rang depuis la charnière, tel que la note l'annonce déjà.
@@ -231,7 +318,7 @@ let derniereErreurPrep = '';
 /* ============================================================
    LE COURS D'AVANT, QUAND IL N'A PAS ENCORE DE BILAN
 
-   Chrystel : « j'ai tout rempli aujourd'hui pour un élève dont
+   David : « j'ai tout rempli aujourd'hui pour un élève dont
    c'est la première leçon — on est d'accord qu'il n'avait pas de
    frise ni son numéro. Je fais un rappel pour demain de sa
    deuxième leçon et je dois remplir 2 dans la case. »
@@ -264,7 +351,7 @@ function preparationPrecedenteDe(eleve, avantIso){
 /* ============================================================
    CE QUE LE COURS D'AVANT A APPRIS — MÊME CE MATIN
 
-   Chrystel, le 7 septembre : « je fais tous mes rappels, donc tout
+   David, le 7 septembre : « je fais tous mes rappels, donc tout
    part dans mes prochains cours, et ensuite je remplis les
    questionnaires — ça va bien me mettre à jour directement le cours
    suivant du même jour ? »
@@ -375,7 +462,7 @@ function rangDeLaPreparation(prep){
 /* ============================================================
    UNE CARTE NE DOIT PAS CONTREDIRE LE CLASSEUR
 
-   Chrystel, épuisée : « j'en ai marre de devoir vérifier chaque
+   David, épuisé : « j'en ai marre de devoir vérifier chaque
    leçon dans mes prochains cours pour être sûre que tout soit
    bon ». Elle avait raison de vérifier : la note d'un cours
    préparé est écrite UNE FOIS, le jour de la préparation. Tout ce
@@ -702,7 +789,7 @@ async function afficherPrepares(recharger, silencieux){
       /* LE SUIVI ET LES SESSIONS, QUE CET ÉCRAN N'ALLAIT JAMAIS
          CHERCHER.
 
-         Chrystel : « pourtant il y a bien une date d'examen de
+         David : « pourtant il y a bien une date d'examen de
          prévu », sur une carte qui affichait « PAS DE DATE
          D'EXAMEN OFFICIEL ». La note d'un cours préparé est écrite
          une fois, au moment de la préparation. Une date d'examen
@@ -995,9 +1082,17 @@ async function afficherPrepares(recharger, silencieux){
        sur Drivup, et c'est pour ça qu'il se tape ici : plus vite
        qu'en ouvrant le questionnaire, et au moment où on le voit.
 
-       Ce qu'un humain tape est un fait : le recomptage du classeur
-       ne repasse pas derrière, et les cours suivants repartent de
-       ce rang-là. Corrigé une fois, l'élève est calé.
+       ⚠️ CE QU'ON TAPE ICI CALE L'ÉLÈVE, PAS CE COURS — v905.
+
+       David, le 10 septembre : « ce cours sera le 12ème et le
+       suivant le 13ème et ainsi de suite ». Avant, 12 s'écrivait
+       dans CE cours-là ; le suivant recomptait les bilans et
+       retombait sur 8. Maintenant, 12 pose un ÉCART sur l'élève —
+       « ce qu'on compte, plus quatre » — et le compteur continue
+       d'avancer tout seul : 13, puis 14.
+
+       Le comptage n'est pas figé pour autant : il tourne dessous,
+       et un bilan saisi en retard le fait avancer comme d'habitude.
 
        Seulement sur une séance qui a un rang : un examen ou un
        simulateur n'en ont pas, et leur en donner un décalerait
@@ -1008,7 +1103,15 @@ async function afficherPrepares(recharger, silencieux){
       boite.type = 'text';
       boite.inputMode = 'numeric';
       boite.placeholder = 'n°';
-      boite.title = 'Numéro de la leçon qui va être faite';
+      /* ⚠️ LE DÉTAIL AU SURVOL, PAS SOUS LE CHIFFRE.
+
+         David : « au survol ». Ce qu'il faut pouvoir vérifier, c'est
+         d'où sort un chiffre qui surprend — combien de bilans sont
+         comptés, et quel écart a été posé, par qui. Sans cette
+         réponse on retape le nombre par méfiance, et on empile les
+         corrections. Mais affiché en permanence, ce serait une ligne
+         technique sur un écran qui doit rester simple. */
+      boite.title = detailDuRang(cours);
       const rangEcrit = (typeof numeroLeconDuCours === 'function')
         ? numeroLeconDuCours(cours) : null;
       boite.value = (rangEcrit !== null && rangEcrit !== undefined)
@@ -1375,7 +1478,7 @@ async function afficherPrepares(recharger, silencieux){
     /* ------------------------------------------------------------
        PRÊTE-NOM, OU PLACE À REMPLACER — DERRIÈRE LA LIGNE D'EXAMEN
 
-       Chrystel, le 4 septembre : « quand il y a un examen officiel
+       David, le 4 septembre : « quand il y a un examen officiel
        de prévu, est-ce qu'au bout tu peux mettre si l'élève est
        coché comme à remplacer ou en prête-nom, pour que le moniteur
        soit au courant ».
@@ -1888,7 +1991,8 @@ async function chargerPrepareInterne(cours){
          zéro bilan au classeur n'est pas une « 1ère leçon ». */
       const debut = cestLePremierCours(contexte.premierCours) ||
                     cestLePremierCours(cours.note);
-      const rang = rangConnu(d.lecons, cours.modele, debut);
+      const rang = rangConnu(d.lecons, cours.modele, debut,
+                             cours.eleve, d);
       if(rang !== null) frais.lecon = String(rang);
       frais.sansBilan = (rang === null);
       frais.manoeuvresFaites = d.manoeuvres.length;
@@ -1965,7 +2069,7 @@ async function chargerPrepareInterne(cours){
 
   /* ⚠️ OUVRIR UN COURS, C'EST LE COMMENCER.
 
-     Chrystel, un matin d'examens : « je sais que j'ai 3 cours qui se
+     David, un matin d'examens : « je sais que j'ai 3 cours qui se
      déroulent et je ne vois rien ». Sa feuille EnCours n'avait rien
      reçu depuis la veille — et la cause n'était ni un droit ni le
      réseau : PERSONNE N'AVAIT ENCORE APPUYÉ SUR LE MICRO.
