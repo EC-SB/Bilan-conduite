@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 13:04 — v913 */
+/* Déployé le 10/09/2026 à 14:36 — v914 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1242,6 +1242,21 @@ function texteHeuresRoute(s){
   let t = (h === '0') ? 'Plus que les 3h avant examen'
                       : h + 'h + les 3h avant examen';
 
+  /* ⚠️ DEPUIS QUAND, ET PAS SEULEMENT PAR QUI — v914.
+
+     Le nombre est une réserve, et une réserve se lit avec son
+     repère : « 6h depuis l'examen blanc » et « 6h à partir de la
+     leçon d'aujourd'hui » ne veulent pas dire la même chose une
+     leçon plus tard. Sans le repère écrit, on ne peut pas vérifier
+     le décompte affiché ailleurs — et un chiffre qu'on ne peut pas
+     vérifier finit par se faire retaper par méfiance. */
+  const rang = parseInt((s && s.heuresRang), 10);
+  if(h !== '0'){
+    t += isNaN(rang) || rang <= 0
+      ? " — depuis l'examen blanc"
+      : ' — à partir de la ' + rang + 'ᵉ leçon après l\'examen blanc';
+  }
+
   const par = String((s && s.heuresPar) || '').trim();
   const le  = jourFr((s && s.heuresLe) || '');
   if(par) t += ' — dit par ' + par + (le ? ' le ' + le : '');
@@ -1251,12 +1266,40 @@ function texteHeuresRoute(s){
 
 async function modifierHeuresRoute(nom, s){
   s = s || {};
+
+  /* ⚠️ LA QUESTION NE SE POSE QUE QUAND ELLE A UNE RÉPONSE — v914.
+
+     David : « je l'ai mis aujourd'hui car sa fiche d'examen blanc
+     datait d'avant l'outil, donc pour elle il faut compter depuis
+     l'examen blanc ; mais parfois c'est à partir du jour ».
+
+     Les deux cas existent, donc on demande. Mais tant qu'aucune
+     leçon n'a eu lieu depuis l'examen blanc, les deux réponses
+     désignent le même instant : une question à réponse unique est
+     du bruit, et on ne la pose pas. */
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const apres = parseInt((e && e.etat && e.etat.apresEB), 10);
+  const choixPossible = !isNaN(apres) && apres >= 1;
+
+  const champs = [{ cle:'h', nom:"Heures avant l'examen", type:'text',
+                    exemple:'4', valeur: s.heuresRestantes || '' }];
+  if(choixPossible){
+    champs.push({ cle:'depuis', nom:'Ces heures partent de quand ?',
+      type:'choix', valeur:'eb', options:[
+        { cle:'eb',  nom:"Depuis l'examen blanc" },
+        { cle:'now', nom:"À partir de la prochaine leçon" }] });
+  }
+
   const r = await formulaireRoute("⏱️ Les heures de " + nom,
     "Ce qu'il lui reste à conduire avant l'examen, en heures. " +
     "0 veut dire « plus que les 3h » — il est prêt. Vide veut dire " +
-    "qu'on ne sait pas.",
-    [{ cle:'h', nom:"Heures avant l'examen", type:'text',
-       exemple:'4', valeur: s.heuresRestantes || '' }]);
+    "qu'on ne sait pas." +
+    (choixPossible
+      ? "\n\nIl en est à sa " + apres + "ᵉ leçon depuis l'examen blanc : " +
+        "des heures prescrites à l'examen blanc sont déjà entamées, " +
+        "des heures posées aujourd'hui ne le sont pas."
+      : ''),
+    champs);
   if(!r) return;
 
   const propre = String(r.h || '').trim().replace(',', '.');
@@ -1265,11 +1308,17 @@ async function modifierHeuresRoute(nom, s){
     return;
   }
 
-  /* La porte commune : c'est elle qui note qui l'a dit et quand,
-     et elle ne resigne pas un nombre qui n'a pas changé. */
+  /* Le repère, dans l'unité de la note : combien de leçons après
+     l'examen blanc la réserve était pleine. Vide — donc zéro — veut
+     dire « depuis l'examen blanc », le cas normal. */
+  const depuis = (choixPossible && r.depuis === 'now') ? apres : '';
+
+  /* La porte commune : c'est elle qui note qui l'a dit, quand, et
+     depuis quel rang — et elle ne resigne pas un nombre qui n'a
+     pas changé. */
   await enregistrerRoute(nom,
     (typeof champsHeuresRestantes === 'function')
-      ? champsHeuresRestantes(nom, propre)
+      ? champsHeuresRestantes(nom, propre, null, depuis)
       : { heuresRestantes: propre });
 }
 
