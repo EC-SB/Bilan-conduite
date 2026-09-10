@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 09:19 — v891 */
+/* Déployé le 10/09/2026 à 15:30 — v919 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -661,6 +661,14 @@ $('repriseNon').addEventListener('click', async () => {
     const el = $(id);
     if(el) el.addEventListener('input', () => sauvegarderLocal());
   });
+
+if($('coursNeufBtn')){
+  $('coursNeufBtn').addEventListener('click', () => {
+    if(typeof basculerEcranCours === 'function') basculerEcranCours();
+    const m = $('plusMenu');
+    if(m) m.style.display = 'none';
+  });
+}
 
 $('themeBtn').addEventListener('click', () => {
   appliquerTheme(!document.body.classList.contains('clair'));
