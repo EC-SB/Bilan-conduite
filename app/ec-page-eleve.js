@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 09:52 — v908 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -845,6 +845,18 @@ function cadreFicheDeRoute(nom, s, e){
     'Fait le, avec qui, et la suite décidée',
     () => modifierRdvPostRoute(nom, s));
 
+  /* ⚠️ LES HEURES, ET SURTOUT QUI LES A DITES — v908.
+
+     C'est le chiffre qu'on venait chercher dans les notes, et
+     qu'on ne trouvait qu'en rouvrant un cours. Il se lit ici, avec
+     son auteur : sans lui, on retape le nombre par méfiance et on
+     empile les corrections. Modifiable, parce que c'est justement
+     ce qu'on vient corriger. */
+  ligneFicheRoute(z, '⏱️', texteHeuresRoute(s),
+    String((s && s.heuresRestantes) || '').trim() !== '',
+    "Ce qu'il lui reste à conduire avant l'examen, et qui l'a dit",
+    () => modifierHeuresRoute(nom, s));
+
   z.appendChild(cadreProgrammeRoute(nom, e));
   return z;
 }
@@ -1074,12 +1086,14 @@ async function modifierExamenBlancRoute(nom, s, e){
     ]);
   if(!r) return;
 
-  const ok = await enregistrerRoute(nom, {
-    ebDatePrevue: r.prevue,
-    ebDate:       r.passe,
-    ebNiveau:     r.niveau,
-    heuresRestantes: r.heures
-  });
+  /* Les heures passent par leur porte — v908 : elle note qui les a
+     dites et quand, pour l'alerte ⏱️. Une seule écriture quand
+     même : la porte rend les champs, elle n'écrit pas à part. */
+  const champs = { ebDatePrevue: r.prevue, ebDate: r.passe, ebNiveau: r.niveau };
+  const ok = await enregistrerRoute(nom,
+    (typeof champsHeuresRestantes === 'function')
+      ? champsHeuresRestantes(nom, r.heures, champs)
+      : Object.assign(champs, { heuresRestantes: r.heures }));
   if(!ok) return;
 
   /* ⚠️ ET LA CONSIGNE, PARCE QUE LA FICHE SEULE NE SUFFIT PAS.
@@ -1190,6 +1204,56 @@ async function modifierAjournementsRoute(nom, s){
     nbAjournements: zero ? '' : String(n),
     dateAjournement: zero ? '' : r.date
   });
+}
+
+
+/* ------------------------------------------------------------
+   ⏱️ LES HEURES AVANT L'EXAMEN
+
+   David, le 10 septembre 2026 : « on doit aller chercher
+   l'information, et si on n'y pense pas ça tombe aux oubliettes ».
+   La voici, à côté du reste de son parcours.
+   ------------------------------------------------------------ */
+function texteHeuresRoute(s){
+  const h = String((s && s.heuresRestantes) || '').trim();
+  if(h === '') return "Heures avant examen non renseignées";
+
+  /* ⚠️ ZÉRO NE S'ÉCRIT PAS « 0h ». Il veut dire « plus que les 3h
+     avant examen », c'est-à-dire « il est prêt » — écrit « 0h », on
+     lit exactement le contraire. Même règle que le questionnaire et
+     que l'alerte du bandeau. */
+  let t = (h === '0') ? 'Plus que les 3h avant examen'
+                      : h + 'h + les 3h avant examen';
+
+  const par = String((s && s.heuresPar) || '').trim();
+  const le  = jourFr((s && s.heuresLe) || '');
+  if(par) t += ' — dit par ' + par + (le ? ' le ' + le : '');
+  else if(le) t += ' — dit le ' + le;
+  return t;
+}
+
+async function modifierHeuresRoute(nom, s){
+  s = s || {};
+  const r = await formulaireRoute("⏱️ Les heures de " + nom,
+    "Ce qu'il lui reste à conduire avant l'examen, en heures. " +
+    "0 veut dire « plus que les 3h » — il est prêt. Vide veut dire " +
+    "qu'on ne sait pas.",
+    [{ cle:'h', nom:"Heures avant l'examen", type:'text',
+       exemple:'4', valeur: s.heuresRestantes || '' }]);
+  if(!r) return;
+
+  const propre = String(r.h || '').trim().replace(',', '.');
+  if(propre !== '' && isNaN(Number(propre))){
+    showToast("Indique un nombre d'heures, ou laisse vide.");
+    return;
+  }
+
+  /* La porte commune : c'est elle qui note qui l'a dit et quand,
+     et elle ne resigne pas un nombre qui n'a pas changé. */
+  await enregistrerRoute(nom,
+    (typeof champsHeuresRestantes === 'function')
+      ? champsHeuresRestantes(nom, propre)
+      : { heuresRestantes: propre });
 }
 
 
