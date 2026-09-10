@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 09:52 — v908 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -490,6 +490,64 @@ async function majSuivi(eleve, champs){
      automatique des 90 secondes le rattrape. */
 }
 
+
+/* ============================================================
+   LE NOMBRE D'HEURES AVANT EXAMEN — UNE SEULE PORTE
+
+   David, le 10 septembre 2026 : « quand un moniteur indique un
+   nombre d'heures pour un passage d'examen — après un examen blanc,
+   après un post-permis, ou pendant un cours — qu'on ait une
+   notification, car là on doit aller chercher l'information et si
+   on n'y pense pas ça tombe aux oubliettes ».
+
+   ⚠️ ET C'EST L'AUTEUR QUI REND L'ALERTE CROYABLE.
+
+   « heuresRestantes » s'écrivait depuis quatre endroits, sans que
+   personne ne note QUI l'avait dit ni QUAND. L'alerte n'aurait donc
+   pu nommer que le moniteur du dernier bilan — juste la plupart du
+   temps, faux dès que le nombre vient du bureau ou d'un rendez-vous
+   post-permis. Et une alerte qui se trompe de nom, on cesse de la
+   croire ; à ce moment-là elle ne protège plus rien.
+
+   Cette fonction est donc la SEULE par où le nombre passe. Les
+   quatre écrans qui l'écrivaient n'ont rien à savoir de l'auteur :
+   il se pose ici, une fois. C'est la règle de solderConsignesDuMemeType,
+   appliquée à un autre champ.
+
+   ⚠️ ET LE MÊME NOMBRE NE SE RESIGNE PAS. Réécrire « 4 » sur un « 4 »
+   qui était déjà là ne change rien à l'information : lui remettre la
+   date du jour ferait revenir une alerte que quelqu'un venait
+   d'écarter, tous les jours, jusqu'à ce qu'on cesse de la lire.
+   ============================================================ */
+function champsHeuresRestantes(eleve, valeur, champs){
+  const majs = Object.assign({}, champs || {});
+  const propre = String(valeur === undefined || valeur === null ? '' : valeur).trim();
+  majs.heuresRestantes = propre;
+
+  const s = suiviDe(eleve) || {};
+  if(String(s.heuresRestantes || '').trim() === propre) return majs;
+
+  /* Effacer n'est pas dire : un nombre retiré n'a plus d'auteur. */
+  if(propre === ''){
+    majs.heuresPar = '';
+    majs.heuresLe  = '';
+    return majs;
+  }
+
+  majs.heuresPar = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+  majs.heuresLe  = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  return majs;
+}
+
+/* Écrit le nombre d'heures, son auteur et sa date — et ce que
+   l'appelant veut poser en même temps, dans la même écriture. */
+async function majHeuresRestantes(eleve, valeur, champs){
+  if(typeof majSuivi !== 'function') return;
+  await majSuivi(eleve, champsHeuresRestantes(eleve, valeur, champs));
+}
+
+
 /* Fiche de préparation administrative d'un passage au permis */
 function ligneBureau(e, options){
   const row = document.createElement('div');
@@ -729,10 +787,16 @@ async function redessinerBureau(){
 
 /* Le décompte revient au module des alertes : il connaît les
    masquages et les droits par type de pastille. */
+/* ⚠️ DEUXIÈME ENDROIT QUI POSAIT LA PASTILLE — et il la posait sur
+   SUIVI, comme l'autre, alors que l'écran des alertes vit dans
+   GESTION. Deux fonctions pour un même compteur : elles ne peuvent
+   se contredire que si chacune décide de l'onglet toute seule. Le
+   choix est donc fait à UN endroit — poserPastilleNotifs — et
+   celle-ci ne fait plus que compter. */
 function majAlerteSuivi(eleves){
-  if(typeof poserAlerte !== 'function') return;
-  if(typeof notifsEnAttente !== 'function'){ poserAlerte('suivi', 0); return; }
-  poserAlerte('suivi', notifsEnAttente(eleves).length);
+  if(typeof poserPastilleNotifs !== 'function') return;
+  if(typeof notifsEnAttente !== 'function'){ poserPastilleNotifs(0); return; }
+  poserPastilleNotifs(notifsEnAttente(eleves).length);
 }
 
 /* Message d'erreur, avec la possibilité de réessayer */
