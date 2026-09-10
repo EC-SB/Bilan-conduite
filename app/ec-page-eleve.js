@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:44 — v879 */
+/* Déployé le 10/09/2026 à 09:52 — v908 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -536,7 +536,7 @@ function etapesCroiseesEleve(nom){
 
   /* ── PRÊTE-NOM, OU PLACE À REMPLACER ──
 
-     « Idem dans les notes du dossier » — Chrystel, le 4 septembre,
+     « Idem dans les notes du dossier » — David, le 4 septembre,
      juste après l'avoir demandé sur la carte de 📅 Mes prochains
      cours. La ligne vient donc TOUT DE SUITE après la date
      d'examen : c'est elle qu'elle corrige. « Examen du permis le
@@ -659,7 +659,7 @@ function blocResumeEleve(nom){
 
   const t = document.createElement('div');
   t.style.cssText = 'font-weight:700;margin-bottom:6px;';
-  t.textContent = '📍 Où en est ' + nom;
+  t.textContent = '🧭 La fiche de route de ' + nom;
   d.appendChild(t);
 
   /* Le cours préparé, s'il y en a un : c'est la dernière chose
@@ -749,7 +749,577 @@ function blocResumeEleve(nom){
     d.appendChild(l);
   });
 
+  /* ⚠️ CE QUI SE CORRIGE ICI, ET PLUS AILLEURS — v908.
+
+     David, le 10 septembre 2026 : « pour le moment je dois attendre
+     de faire un rappel pour que ça aille dans mes prochains cours
+     pour mettre à jour, et je n'arrive pas à tout mettre à jour
+     correctement ».
+
+     Le seul écran qui savait écrire ces choses était le
+     questionnaire du cours — et il ne s'ouvre que depuis un cours.
+     Pour corriger un dossier, il fallait d'abord inventer un cours.
+
+     ⚠️ ET CHAQUE LIGNE ÉCRIT DANS SA SEULE CHAMBRE.
+
+     La règle que David a posée : « tout se met à jour tout seul avec
+     la dernière information, peu importe où elle a été renseignée ».
+     Elle ne tient que si une information n'est vraie QU'À UN
+     ENDROIT — alors trois portes, une seule chambre, et la dernière
+     gagne parce qu'il n'y en a qu'une. Rien n'est recopié ici :
+     la formation et la frise vont au répertoire, les examens et le
+     post-permis au suivi, le programme aux consignes. */
+  d.appendChild(cadreFicheDeRoute(nom, s, e));
+
   return d;
+}
+
+
+/* ============================================================
+   LA FICHE DE ROUTE — CE QUI SE CORRIGE SANS OUVRIR UN COURS
+   ============================================================ */
+
+function cadreFicheDeRoute(nom, s, e){
+  const z = document.createElement('div');
+  z.style.cssText = 'margin-top:10px;padding-top:9px;' +
+    'border-top:1px solid var(--line);';
+
+  /* ⚠️ « PAS ENCORE DE SUIVI » SE DIT — David : « mets "cet élève n'a
+     pas encore de suivi" et je remplirai suivant où il en est ; et
+     si c'est son premier, ça sera automatiquement à la suite du
+     premier bilan ».
+
+     On ne fabrique pas sa ligne en silence à l'ouverture d'un
+     écran : une ligne créée par un regard, c'est une ligne dont
+     personne ne sait d'où elle vient. Elle naîtra du premier geste
+     — ou du premier bilan. */
+  const aUnSuivi = !!(s && s.eleve);
+  if(!aUnSuivi){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:8px;';
+    v.textContent = "🆕 Cet élève n'a pas encore de suivi. Il s'en créera " +
+      'un au premier bilan — ou dès que tu poses une de ces lignes.';
+    z.appendChild(v);
+  }
+
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+
+  ligneFicheRoute(z, '🚗', (f && f.formation) || 'Formation non précisée',
+    !!(f && f.formation),
+    "Sa formation décide de la boîte, du modèle de bilan et de sa frise",
+    () => { if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(nom); });
+
+  ligneFicheRoute(z, '🧭', (f && f.frise) || 'Frise non posée',
+    !!(f && f.frise),
+    'La frise se pose sur la fiche du répertoire, comme la formation',
+    () => { if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(nom); });
+
+  ligneFicheRoute(z, '📝', texteExamenBlancRoute(nom, s, e),
+    !!(s && (s.ebDatePrevue || s.ebNiveau || s.heuresRestantes)) ||
+      !!datePasseeExamenBlancRoute(nom, e),
+    "Prévu, passé, son résultat",
+    () => modifierExamenBlancRoute(nom, s, e));
+
+  /* ⚠️ L'EXAMEN OFFICIEL NE SE TAPE PAS ICI — David, le 10
+     septembre : « cette information ne provient que de session
+     examen, c'est le seul endroit où on est sûr qu'un élève a un
+     examen officiel de prévu, et on ne peut changer que dans session
+     examen, nulle part d'autre ».
+
+     Une date d'examen n'est pas qu'une date : elle occupe une
+     PLACE. Tapée à la main sans place, c'est un élève qui a l'air
+     prêt et qui n'est sur aucune liste — et une place prise sans
+     qu'on le sache, c'est un élève de moins qui pourra passer. */
+  ligneFicheRoute(z, '🎓', texteExamenRoute(s), !!(s && s.datePermis),
+    "La date d'examen se pose sur une session — c'est la place qui " +
+    'la prouve, pas la saisie',
+    () => ouvrirSessionsDepuisRoute(), '📅');
+
+  ligneFicheRoute(z, '🔁', texteAjournementsRoute(s),
+    !!(s && s.nbAjournements),
+    "Combien de fois il l'a passé, et quand pour la dernière",
+    () => modifierAjournementsRoute(nom, s));
+
+  ligneFicheRoute(z, '🤝', texteRdvPostRoute(s), !!(s && s.rdvPostDate),
+    'Fait le, avec qui, et la suite décidée',
+    () => modifierRdvPostRoute(nom, s));
+
+  z.appendChild(cadreProgrammeRoute(nom, e));
+  return z;
+}
+
+
+/* Une ligne de la fiche de route : ce qu'on sait, et de quoi le
+   corriger. Le texte reste gris tant que la case est vide — ce
+   n'est pas une valeur, c'est un manque. */
+function ligneFicheRoute(zone, emoji, texte, rempli, aide, action, icone){
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:8px;align-items:center;' +
+    'font-size:13px;line-height:1.5;padding:3px 0;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;' +
+    (rempli ? '' : 'color:var(--muted);font-style:italic;');
+  t.textContent = emoji + ' ' + texte;
+  l.appendChild(t);
+
+  const b = document.createElement('button');
+  b.className = 'btn btn-secondary';
+  b.style.cssText = 'width:auto;padding:3px 8px;font-size:12px;margin:0;' +
+    'flex-shrink:0;';
+  b.textContent = icone || '✏️';
+  b.title = aide;
+  b.addEventListener('click', action);
+  l.appendChild(b);
+
+  zone.appendChild(l);
+}
+
+
+/* ------------------------------------------------------------
+   UN PETIT FORMULAIRE, PLUSIEURS CASES
+
+   « demander() » ne pose qu'une question. Ces lignes-là en posent
+   trois ou quatre qui vont ensemble — une date prévue, une date
+   passée, un résultat — et les séparer ferait trois fenêtres pour
+   une seule correction, donc trois enregistrements, donc trois
+   occasions qu'un seul passe.
+
+   Une fenêtre, un enregistrement. Rend null si on annule.
+   ------------------------------------------------------------ */
+function formulaireRoute(titre, aide, champs){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(440px, 92vw)';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    if(aide){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;' +
+        'margin-bottom:10px;white-space:pre-wrap;';
+      a.textContent = aide;
+      boite.appendChild(a);
+    }
+
+    const entrees = {};
+    champs.forEach(c => {
+      const et = document.createElement('label');
+      et.style.cssText = 'display:block;font-size:12.5px;color:var(--muted);' +
+        'margin:9px 0 3px;';
+      et.textContent = c.nom;
+      boite.appendChild(et);
+
+      let el;
+      if(c.type === 'choix'){
+        el = document.createElement('select');
+        (c.options || []).forEach(o => {
+          const op = document.createElement('option');
+          op.value = o.cle;
+          op.textContent = o.nom;
+          el.appendChild(op);
+        });
+      }else if(c.type === 'long'){
+        el = document.createElement('textarea');
+        el.rows = 3;
+      }else{
+        el = document.createElement('input');
+        el.type = c.type || 'text';
+        if(c.exemple) el.placeholder = c.exemple;
+      }
+      el.style.width = '100%';
+      el.value = (c.valeur === undefined || c.valeur === null) ? '' : String(c.valeur);
+      boite.appendChild(el);
+      entrees[c.cle] = el;
+    });
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    rangee.style.marginTop = '14px';
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    const bV = document.createElement('button');
+    bV.className = 'btn btn-primary';
+    bV.textContent = '💾 Enregistrer';
+    rangee.appendChild(bA); rangee.appendChild(bV);
+    boite.appendChild(rangee);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = val => { fermerFond(fond); resolve(val); };
+    bA.addEventListener('click', () => fermer(null));
+    bV.addEventListener('click', () => {
+      const out = {};
+      Object.keys(entrees).forEach(k => { out[k] = String(entrees[k].value || '').trim(); });
+      fermer(out);
+    });
+  });
+}
+
+
+/* Écrire dans la fiche de suivi et le dire. Un seul endroit pour
+   les trois lignes qui écrivent : une erreur se traite pareil pour
+   toutes, et l'écran se redessine avec ce qui vient d'être posé. */
+async function enregistrerRoute(nom, champs){
+  if(typeof majSuivi !== 'function'){
+    showToast("Impossible d'enregistrer depuis cet écran.");
+    return false;
+  }
+  try{
+    await majSuivi(nom, champs);
+    showToast('Enregistré ✅');
+    rafraichirPageEleve();
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+    return true;
+  }catch(e){
+    /* ⚠️ ON NE DIT PAS « ENREGISTRÉ » SUR UN REFUS. majSuivi lève
+       quand le classeur refuse — c'est exactement ce qui avait
+       fait afficher un ✅ sur une ligne jamais écrite. */
+    showToast('Impossible : ' + (e && e.message ? e.message : 'refusé'));
+    return false;
+  }
+}
+
+
+/* Une date de fiche, quel que soit son habillage, ramenée au
+   format que comprend un champ « date ». La règle de conversion
+   n'est pas réécrite ici : dateFrVersIso la tient. */
+function isoDeRoute(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  return (typeof dateFrVersIso === 'function') ? (dateFrVersIso(t) || '') : t;
+}
+
+function longDeRoute(iso){
+  if(!iso) return '';
+  return (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(iso) || iso) : iso;
+}
+
+
+/* ------------------------------------------------------------
+   📝 L'EXAMEN BLANC
+   ------------------------------------------------------------ */
+const NIVEAUX_ROUTE = [
+  { cle:'',        nom:'— pas encore de résultat —' },
+  { cle:'oui',     nom:'✅ A le niveau' },
+  { cle:'peut',    nom:'🤔 Pourrait avoir le niveau' },
+  { cle:'non',     nom:'⛔ Pas le niveau' },
+  { cle:'avenir',  nom:'📅 Examen blanc à venir' }
+];
+
+function libelleNiveauRoute(cle){
+  const n = NIVEAUX_ROUTE.find(x => x.cle === String(cle || ''));
+  return (n && n.cle) ? n.nom : '';
+}
+
+/* ⚠️ LA DATE D'UN EXAMEN BLANC PASSÉ SE LIT FILTRÉE, ICI COMME
+   AILLEURS. La colonne a été salie pendant des mois par la remontée
+   des heures de n'importe quel cours (voir le ⚠️ v879
+   d'etatQuiFaitFoi) : la lire brute ferait dire « examen blanc
+   passé » à une deuxième leçon — et, dans le formulaire, ferait
+   CONFIRMER cette date par celui qui vient la corriger. */
+function datePasseeExamenBlancRoute(nom, e){
+  return (typeof dateExamenBlancDuSuivi === 'function')
+    ? (dateExamenBlancDuSuivi(nom, e && e.etat) || '') : '';
+}
+
+function texteExamenBlancRoute(nom, s, e){
+  const bouts = [];
+
+  const passe = datePasseeExamenBlancRoute(nom, e);
+
+  if(passe) bouts.push('passé le ' + jourFr(passe));
+  else if(s && s.ebDatePrevue) bouts.push('prévu le ' + jourFr(s.ebDatePrevue));
+
+  const niv = libelleNiveauRoute(s && s.ebNiveau);
+  if(niv) bouts.push(niv);
+
+  const h = String((s && s.heuresRestantes) || '').trim();
+  if(h) bouts.push(h === '0' ? 'plus que les 3h' : h + 'h avant examen');
+
+  if(bouts.length) return 'Examen blanc : ' + bouts.join(' · ');
+
+  /* Ce que le bilan sait et que la fiche ignore se dit — sinon on
+     retape une information qui existe déjà, ou pire, on croit
+     qu'elle n'existe pas. */
+  if(e && e.etat && e.etat.examBlanc === 'passe'){
+    return "Examen blanc passé d'après son bilan — rien dans sa fiche";
+  }
+  return 'Examen blanc non renseigné';
+}
+
+
+async function modifierExamenBlancRoute(nom, s, e){
+  s = s || {};
+  const r = await formulaireRoute("📝 L'examen blanc de " + nom,
+    "Ce qui est écrit ici part dans sa fiche de suivi — c'est ce que " +
+    'liront les listes, les rappels et le questionnaire.',
+    [
+      { cle:'prevue',  nom:'Prévu le',  type:'date', valeur: isoDeRoute(s.ebDatePrevue) },
+      { cle:'passe',   nom:'Passé le',  type:'date',
+        valeur: isoDeRoute(datePasseeExamenBlancRoute(nom, e)) },
+      { cle:'niveau',  nom:'Résultat',  type:'choix', valeur: s.ebNiveau || '',
+        options: NIVEAUX_ROUTE },
+      { cle:'heures',  nom:"Heures de conduite avant l'examen (0 = plus que les 3h)",
+        type:'text', exemple:'4', valeur: s.heuresRestantes || '' }
+    ]);
+  if(!r) return;
+
+  const ok = await enregistrerRoute(nom, {
+    ebDatePrevue: r.prevue,
+    ebDate:       r.passe,
+    ebNiveau:     r.niveau,
+    heuresRestantes: r.heures
+  });
+  if(!ok) return;
+
+  /* ⚠️ ET LA CONSIGNE, PARCE QUE LA FICHE SEULE NE SUFFIT PAS.
+
+     « ebNiveau = oui » ne prouve rien : il s'écrivait tout seul à
+     la fin de n'importe quel cours. Ce qui fait foi pour dire
+     qu'un examen blanc a EU LIEU, c'est une phrase posée par
+     quelqu'un — la même que celle des autres écrans, relue par
+     analyserNote. Une seule formulation, un seul lecteur.
+
+     Elle remplace la précédente du même type : « programme »,
+     « examblanc », « permis » et « simu » sont des consignes
+     d'état, une seule ligne courante par élève. */
+  if(typeof envoyerConsigne !== 'function') return;
+  const phrase = phraseExamenBlancRoute(r);
+  if(!phrase) return;
+  try{ await envoyerConsigne(nom, 'examblanc', phrase); }
+  catch(err){ showToast("Fiche enregistrée, annonce non partie : " + err.message); }
+}
+
+
+/* La phrase que les autres écrans relisent. Elle n'invente rien :
+   c'est mot pour mot celle des boutons de l'examen blanc. */
+function phraseExamenBlancRoute(r){
+  const jourPasse = longDeRoute(r.passe);
+
+  if(jourPasse){
+    if(r.niveau === 'non'){
+      return 'Examen blanc passé le ' + jourPasse +
+             (typeof SUITE_PAS_LE_NIVEAU !== 'undefined'
+                ? SUITE_PAS_LE_NIVEAU : ' — pas le niveau');
+    }
+    const h = parseInt(String(r.heures || '').trim(), 10);
+    if(String(r.heures || '').trim() !== '' && !isNaN(h)){
+      if(h <= 0){
+        return 'Examen blanc passé le ' + jourPasse + ' — plus que les 3h avant examen';
+      }
+      /* Le bureau raisonne en leçons de deux heures : c'est la
+         conversion que fait déjà boutonsSuiteExamBlanc, à l'envers. */
+      const nb = Math.max(1, Math.round(h / 2));
+      return 'Examen blanc passé le ' + jourPasse + ' — encore ' + nb +
+             ' leçon' + (nb > 1 ? 's' : '') + ' avant examen';
+    }
+    return 'Examen blanc passé le ' + jourPasse + ' (bureau)';
+  }
+
+  const jourPrevu = longDeRoute(r.prevue);
+  if(jourPrevu) return 'Examen blanc fixé au ' + jourPrevu + ' (bureau)';
+
+  if(r.niveau === 'avenir') return 'Examen blanc à prévoir (bureau)';
+  return '';
+}
+
+
+/* ------------------------------------------------------------
+   🎓 L'EXAMEN OFFICIEL — EN LECTURE SEULE
+   ------------------------------------------------------------ */
+function texteExamenRoute(s){
+  const d = jourFr(s && s.datePermis);
+  if(d) return 'Examen officiel le ' + d;
+  return "Pas de date d'examen — elle se prend dans Suivi permis";
+}
+
+/* Le bouton 📅 n'écrit pas : il emmène là où la date s'obtient
+   avec une place. « afficherVue » réveille l'écran lui-même — on
+   ne l'appelle pas deux fois. */
+function ouvrirSessionsDepuisRoute(){
+  if(typeof afficherOnglet === 'function') afficherOnglet('permis');
+  if(typeof afficherVue === 'function'){ afficherVue('permis', 'sessions'); return; }
+  if(typeof afficherSessionsPermis === 'function') afficherSessionsPermis();
+}
+
+
+/* ------------------------------------------------------------
+   🔁 LES REPASSAGES
+   ------------------------------------------------------------ */
+function texteAjournementsRoute(s){
+  const n = parseInt((s && s.nbAjournements), 10) || 0;
+  if(!n) return "Aucun ajournement — il n'a pas encore repassé";
+  const quand = jourFr(s && s.dateAjournement);
+  return n + (n === 1 ? 'er' : 'e') + ' repassage' +
+         (quand ? ' — ajourné le ' + quand : '');
+}
+
+async function modifierAjournementsRoute(nom, s){
+  s = s || {};
+  const r = await formulaireRoute('🔁 Les repassages de ' + nom,
+    "Le nombre de fois qu'il a été ajourné, et la date du dernier " +
+    'ajournement. Zéro efface les deux.',
+    [
+      { cle:'nb',   nom:"Nombre d'ajournements", type:'text',
+        exemple:'1', valeur: s.nbAjournements || '' },
+      { cle:'date', nom:'Ajourné le (le dernier)', type:'date',
+        valeur: isoDeRoute(s.dateAjournement) }
+    ]);
+  if(!r) return;
+
+  const n = parseInt(String(r.nb || '').trim(), 10);
+  if(String(r.nb || '').trim() !== '' && (isNaN(n) || n < 0)){
+    showToast('Indique un nombre, ou laisse vide.');
+    return;
+  }
+
+  /* Zéro n'est pas « on ne sait pas » : c'est « il n'a jamais
+     repassé ». La date qui allait avec n'a alors plus d'objet. */
+  const zero = (String(r.nb || '').trim() === '' || n === 0);
+  await enregistrerRoute(nom, {
+    nbAjournements: zero ? '' : String(n),
+    dateAjournement: zero ? '' : r.date
+  });
+}
+
+
+/* ------------------------------------------------------------
+   🤝 LE RENDEZ-VOUS POST-PERMIS
+   ------------------------------------------------------------ */
+function texteRdvPostRoute(s){
+  if(!s || !s.rdvPostDate){
+    if(s && s.rdvPostFait === 'oui') return 'Post-permis fait — date non renseignée';
+    return 'Pas de rendez-vous post-permis';
+  }
+  let t = 'Post-permis le ' + jourFr(s.rdvPostDate) +
+          (s.rdvPostMoniteur ? ' avec ' + s.rdvPostMoniteur : '');
+  if(s.rdvPostFait === 'oui') t += ' · ✅ fait';
+  const suite = (typeof libelleSuite === 'function') ? libelleSuite(s.suite) : '';
+  if(suite) t += ' · ' + suite;
+  return t;
+}
+
+async function modifierRdvPostRoute(nom, s){
+  s = s || {};
+
+  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
+  const choixMoniteur = [{ cle:'', nom:'— à désigner —' }]
+    .concat(gens.map(x => ({ cle:x, nom:x })));
+  /* Un moniteur déjà inscrit qui ne serait plus dans la liste
+     active ne doit pas disparaître de sa propre fiche. */
+  if(s.rdvPostMoniteur && gens.indexOf(s.rdvPostMoniteur) === -1){
+    choixMoniteur.push({ cle:s.rdvPostMoniteur, nom:s.rdvPostMoniteur });
+  }
+
+  const suites = [{ cle:'', nom:'— pas encore décidé —' }].concat(
+    (typeof SUITES_POST !== 'undefined' ? SUITES_POST : []));
+
+  const r = await formulaireRoute('🤝 Le rendez-vous post-permis de ' + nom,
+    "Après un ajournement : quand, avec qui, et ce qui a été décidé.",
+    [
+      { cle:'date', nom:'Rendez-vous le', type:'date',
+        valeur: isoDeRoute(s.rdvPostDate) },
+      { cle:'mon',  nom:'Avec', type:'choix', valeur: s.rdvPostMoniteur || '',
+        options: choixMoniteur },
+      { cle:'fait', nom:'Déjà fait ?', type:'choix',
+        valeur: (s.rdvPostFait === 'oui') ? 'oui' : '',
+        options: [{ cle:'', nom:'— pas encore —' }, { cle:'oui', nom:'✅ Fait' }] },
+      { cle:'suite', nom:'La suite décidée', type:'choix',
+        valeur: s.suite || '', options: suites }
+    ]);
+  if(!r) return;
+
+  await enregistrerRoute(nom, {
+    rdvPostDate: r.date,
+    rdvPostMoniteur: r.mon,
+    rdvPostFait: r.fait === 'oui' ? 'oui' : '',
+    suite: r.suite
+  });
+}
+
+
+/* ------------------------------------------------------------
+   🎯 CE QUE SERA LA PROCHAINE LEÇON
+
+   David : « qu'elle sera la prochaine leçon — tout pour que quand
+   on fasse les rappels on n'ait pas besoin de modifier ».
+
+   Ce n'est PAS une colonne de la fiche de suivi : c'est une
+   consigne, exactement comme celles que le bureau pose déjà, et
+   elle s'injecte dans la note du prochain cours par le chemin qui
+   existe depuis toujours. « programme » est devenu une consigne
+   d'état (TYPES_CONSIGNE_ETAT) : la nouvelle remplace la
+   précédente, une seule ligne courante — sans quoi trois passages
+   ici empileraient trois programmes dans le même rappel.
+   ------------------------------------------------------------ */
+function programmeCourantRoute(e){
+  const att = (e && e.enAttente) || [];
+  for(let i = att.length - 1; i >= 0; i--){
+    if(att[i] && String(att[i].type || '') === 'programme'){
+      return String(att[i].texte || '');
+    }
+  }
+  return '';
+}
+
+function cadreProgrammeRoute(nom, e){
+  const z = document.createElement('div');
+  z.style.cssText = 'margin-top:8px;padding-top:8px;' +
+    'border-top:1px dashed var(--line);';
+
+  const courant = programmeCourantRoute(e);
+  ligneFicheRoute(z, '🎯', courant || 'Prochaine leçon non préparée',
+    !!courant,
+    'Ce qui sera annoncé dans le prochain rappel et repris dans la ' +
+    'note du cours',
+    () => modifierProgrammeRoute(nom, courant));
+
+  return z;
+}
+
+async function modifierProgrammeRoute(nom, courant){
+  const r = await formulaireRoute('🎯 La prochaine leçon de ' + nom,
+    'Cette phrase partira telle quelle dans son rappel et dans la note ' +
+    "du prochain cours. Laisse vide pour n'annoncer rien de particulier.",
+    [{ cle:'texte', nom:'Au programme', type:'long', valeur: courant || '' }]);
+  if(!r) return;
+
+  const texte = String(r.texte || '').trim();
+  if(texte === String(courant || '').trim()) return;
+
+  if(typeof envoyerConsigne !== 'function'){
+    showToast("Impossible d'enregistrer depuis cet écran.");
+    return;
+  }
+  try{
+    /* ⚠️ VIDE, ON SOLDE — ON NE POSE PAS UNE LIGNE VIDE.
+       envoyerConsigne solde puis ajoute : appelé avec une phrase
+       vide, il laisserait au classeur une consigne sans texte,
+       qu'aucun écran ne saurait afficher ni retirer. Effacer, c'est
+       solder la courante et s'arrêter là. */
+    if(texte) await envoyerConsigne(nom, 'programme', texte);
+    else if(typeof solderConsignesDuMemeType === 'function'){
+      cacheBureau = null;
+      await solderConsignesDuMemeType(nom, 'programme');
+    }
+    showToast(texte ? 'Programme noté ✅' : 'Programme effacé ✅');
+    if(typeof viderCaches === 'function') viderCaches(nom);
+    if(typeof chargerBureau === 'function') await chargerBureau(true);
+    rafraichirPageEleve();
+    if(typeof redessinerBureau === 'function') redessinerBureau();
+  }catch(err){
+    showToast('Impossible : ' + (err && err.message ? err.message : 'refusé'));
+  }
 }
 
 
@@ -1859,7 +2429,7 @@ function ongletPermis(corps, nom){
 
   /* ── UNE DATE QUE PLUS RIEN NE PORTE ──
 
-     Chrystel, le 4 septembre : « je l'ai enlevée et supprimé la
+     David, le 4 septembre : « je l'ai enlevée et supprimé la
      session, et sa fiche dit toujours que son permis est prévu le
      04/09. Je veux la remettre dans les élèves prêts au permis, je
      ne peux pas. »
@@ -1960,7 +2530,7 @@ function ongletPermis(corps, nom){
 /* ============================================================
    🔀 LA PASSERELLE BEA → BV, QUAND ELLE N'A PAS ÉTÉ PROPOSÉE
 
-   Chrystel, le 4 septembre : « il est où le bouton, quand un élève
+   David, le 4 septembre : « il est où le bouton, quand un élève
    en BEA a eu son permis, pour dupliquer sa fiche en passerelle ? »
 
    Il n'y en avait pas : la question s'ouvre toute seule après
@@ -2289,7 +2859,7 @@ async function ongletHandicap(corps, nom){
 
      « dossierDdtm : oui », « dateEval : 28/08 » — l'ancien code
      parcourait l'objet et affichait ce qu'il trouvait, nom de
-     colonne compris. On montre maintenant ce que Chrystel a
+     colonne compris. On montre maintenant ce que David a
      demandé : le résumé, les étapes cochées, et la date du
      rendez-vous DDTM — ou « à prendre » quand elle manque. */
   const tete = [r.parcours, r.faites + '/' + r.total + ' étapes'].filter(Boolean);
