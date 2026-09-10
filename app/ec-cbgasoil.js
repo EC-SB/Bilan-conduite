@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 12:08 — v899 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-cbgasoil.js
    La CB Gasoil : où elle est, qui l'a, et les pleins faits avec.
@@ -560,26 +560,7 @@ async function reposerCb(cle){
       const l = document.createElement('div');
       l.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
 
-      const sel = document.createElement('select');
-      sel.style.cssText = 'flex:1;min-width:0;margin:0;';
-      const vide = document.createElement('option');
-      vide.value = ''; vide.textContent = '— véhicule —';
-      sel.appendChild(vide);
-      ((typeof flotte !== 'undefined' && flotte) || []).forEach(v => {
-        const o = document.createElement('option');
-        o.value = v.nom || v.immat || '';
-        o.textContent = (v.nom || v.immat || '') +
-                        (v.immat && v.nom ? ' · ' + v.immat : '');
-        sel.appendChild(o);
-      });
-      /* Un véhicule qui n'est plus dans la flotte reste choisissable */
-      if(p.vehicule && !Array.prototype.some.call(sel.options,
-           o => o.value === p.vehicule)){
-        const o = document.createElement('option');
-        o.value = p.vehicule; o.textContent = p.vehicule;
-        sel.appendChild(o);
-      }
-      sel.value = p.vehicule || '';
+      const sel = menuVehiculeCb(p.vehicule);
       sel.addEventListener('change', () => { p.vehicule = sel.value; });
       l.appendChild(sel);
 
@@ -774,6 +755,311 @@ function lignesCbGasoil(){
 
 
 /* ============================================================
+   LE MENU DES VÉHICULES — RANGÉ, ET AVEC UN PONT
+
+   David, le 10 septembre 2026 : « dans la carte gasoil, en plus des
+   véhicules il faut rajouter plein moto, plein 125, plein scooter ;
+   voir si tu les ajoutes tels quels dans la liste des véhicules ou
+   si tu les mets à part tant que je n'ai pas créé tous les 2 roues ».
+   Puis : « fais le pont, j'ai trop de 2 roues à enregistrer
+   maintenant ».
+
+   ⚠️ IL N'Y A PAS DE DEUXIÈME LISTE À INVENTER. La flotte connaît
+   depuis toujours ses cinq catégories — voiture, moto, scooter,
+   125, remorque — et l'écran Flotte range déjà ses véhicules
+   comme ça. Le menu du plein, lui, les déroulait à plat, dans le
+   désordre, VENDUS COMPRIS. Il se range donc pareil, avec la même
+   table, et un véhicule vendu n'y est plus.
+
+   ⚠️ ET LE PONT A UN PRIX QU'ON PAIE TOUT DE SUITE.
+
+   « carburantDuVehicule » rapproche les pleins d'un véhicule PAR SON
+   NOM. Un plein noté sur « 🏍️ Moto — sans fiche » ne s'affichera
+   donc jamais sur la fiche de la moto : l'argent existe dans le
+   total du mois, mais il est invisible là où on ira le chercher.
+   Un pont sans rattrapage, c'est de l'argent perdu de vue — donc le
+   rattrapage est écrit dans la même livraison, pas « plus tard ».
+
+   Les entrées « sans fiche » disparaissent d'elles-mêmes dès qu'un
+   vrai véhicule de leur catégorie existe : il n'y a rien à penser à
+   retirer, et donc rien qui traîne trois ans.
+   ============================================================ */
+
+/* Le préfixe des véhicules sans fiche. Il vit ICI et nulle part
+   ailleurs : le menu l'écrit, le rattrapage le relit, le test le
+   relit. Deux orthographes, et le rattrapage ne trouverait plus
+   rien à rattraper. */
+const CB_SANS_FICHE = '(sans fiche) ';
+
+function estSansFicheCb(nom){
+  return String(nom || '').indexOf(CB_SANS_FICHE) === 0;
+}
+
+function categorieSansFicheCb(nom){
+  return estSansFicheCb(nom) ? String(nom).slice(CB_SANS_FICHE.length) : '';
+}
+
+/* Les catégories de la flotte, ou de quoi tenir si le module n'est
+   pas chargé — le menu ne doit pas disparaître pour ça. */
+function categoriesCb(){
+  return (typeof CATEGORIES_FLOTTE !== 'undefined' && CATEGORIES_FLOTTE) ||
+    [{ cle:'voiture', nom:'🚗 Voiture' }, { cle:'moto', nom:'🏍️ Moto' },
+     { cle:'scooter', nom:'🛵 Scooter' }, { cle:'125', nom:'🏍️ 125 cm³' },
+     { cle:'remorque', nom:'🚚 Remorque' }];
+}
+
+/* Les catégories de 2-roues encore sans aucun véhicule enregistré.
+   Ce sont elles, et elles seules, qui méritent une entrée « sans
+   fiche » : proposer « 🚗 Voiture — sans fiche » alors que la
+   flotte en compte douze n'aiderait personne. */
+function categoriesSansVehiculeCb(){
+  const parc = ((typeof flotte !== 'undefined' && flotte) || [])
+    .filter(v => v && v.etat !== 'vendu');
+  return ['moto', '125', 'scooter'].filter(cle =>
+    !parc.some(v => String(v.categorie || '') === cle));
+}
+
+function nomCategorieCb(cle){
+  const c = categoriesCb().find(x => x.cle === cle);
+  return c ? c.nom : cle;
+}
+
+/* Ce qu'un véhicule s'appelle à l'écran — « (sans fiche) moto » est
+   une clé, pas un nom qu'on montre à quelqu'un. */
+function libelleVehiculeCb(nom){
+  if(!estSansFicheCb(nom)) return String(nom || '');
+  return nomCategorieCb(categorieSansFicheCb(nom)) + ' — sans fiche';
+}
+
+/* Le menu d'un plein : les véhicules rangés par catégorie, puis le
+   pont, puis — s'il y a lieu — la valeur déjà posée qui ne serait
+   plus dans la liste. */
+function menuVehiculeCb(choisi){
+  const sel = document.createElement('select');
+  sel.style.cssText = 'flex:1;min-width:0;margin:0;';
+
+  const vide = document.createElement('option');
+  vide.value = ''; vide.textContent = '— véhicule —';
+  sel.appendChild(vide);
+
+  const parc = ((typeof flotte !== 'undefined' && flotte) || [])
+    .filter(v => v && v.etat !== 'vendu');
+
+  categoriesCb().forEach(cat => {
+    const lot = parc.filter(v => String(v.categorie || '') === cat.cle);
+    if(!lot.length) return;
+    const g = document.createElement('optgroup');
+    g.label = cat.nom;
+    lot.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.nom || v.immat || '';
+      o.textContent = (v.nom || v.immat || '') +
+                      (v.immat && v.nom ? ' · ' + v.immat : '');
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  });
+
+  /* Un véhicule sans catégorie ne se perd pas en route */
+  const orphelins = parc.filter(v =>
+    !categoriesCb().some(c => c.cle === String(v.categorie || '')));
+  if(orphelins.length){
+    const g = document.createElement('optgroup');
+    g.label = '📦 Sans catégorie';
+    orphelins.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.nom || v.immat || '';
+      o.textContent = v.nom || v.immat || '';
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+
+  /* ── LE PONT ── */
+  const manquantes = categoriesSansVehiculeCb();
+  if(manquantes.length){
+    const g = document.createElement('optgroup');
+    g.label = '⏳ Pas encore de fiche';
+    manquantes.forEach(cle => {
+      const o = document.createElement('option');
+      o.value = CB_SANS_FICHE + cle;
+      o.textContent = nomCategorieCb(cle) + ' — sans fiche';
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  }
+
+  /* Une valeur déjà posée qui n'est plus proposée reste choisissable :
+     un véhicule vendu, ou un « sans fiche » dont la catégorie a
+     depuis reçu sa fiche. Sans ça, rouvrir un plein pour corriger
+     son montant EFFACERAIT son véhicule. */
+  if(choisi && !Array.prototype.some.call(sel.querySelectorAll('option'),
+       o => o.value === choisi)){
+    const o = document.createElement('option');
+    o.value = choisi;
+    o.textContent = estSansFicheCb(choisi)
+      ? nomCategorieCb(categorieSansFicheCb(choisi)) + ' — sans fiche'
+      : choisi;
+    sel.appendChild(o);
+  }
+
+  sel.value = choisi || '';
+  return sel;
+}
+
+
+/* Une fenêtre pour choisir un véhicule et son montant. Rend null si
+   on annule — jamais un objet à moitié rempli. */
+function choisirVehiculeCb(titre, aide, vehicule, montant){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(440px, 92vw)';
+
+    const h = document.createElement('h3');
+    h.textContent = titre;
+    boite.appendChild(h);
+
+    if(aide){
+      const a = document.createElement('div');
+      a.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;' +
+        'margin-bottom:10px;';
+      a.textContent = aide;
+      boite.appendChild(a);
+    }
+
+    const lv = document.createElement('label');
+    lv.textContent = 'Le véhicule';
+    boite.appendChild(lv);
+    const sel = menuVehiculeCb(vehicule);
+    sel.style.cssText = 'width:100%;margin:0 0 10px;';
+    boite.appendChild(sel);
+
+    const lm = document.createElement('label');
+    lm.textContent = 'Le montant en €';
+    boite.appendChild(lm);
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.inputMode = 'decimal';
+    inp.value = montant || '';
+    boite.appendChild(inp);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    rangee.style.marginTop = '14px';
+    const bA = document.createElement('button');
+    bA.className = 'btn btn-secondary';
+    bA.textContent = 'Annuler';
+    const bV = document.createElement('button');
+    bV.className = 'btn btn-primary';
+    bV.textContent = '💾 Enregistrer';
+    rangee.appendChild(bA); rangee.appendChild(bV);
+    boite.appendChild(rangee);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+
+    const fermer = v => { try{ fermerFond(fond); }catch(e){} resolve(v); };
+    bA.addEventListener('click', () => fermer(null));
+    bV.addEventListener('click', () => fermer({
+      vehicule: String(sel.value || '').trim(),
+      montant:  String(inp.value || '').trim()
+    }));
+  });
+}
+
+
+/* ============================================================
+   LE RATTRAPAGE DES PLEINS SANS FICHE
+
+   ⚠️ C'EST LA CONTREPARTIE DU PONT, PAS UN CONFORT.
+
+   Tant qu'un plein porte « (sans fiche) moto », son montant n'entre
+   dans AUCUNE fiche véhicule : « carburantDuVehicule » rapproche par
+   le nom, et ce nom-là n'appartient à personne. L'argent existe dans
+   le total du mois et nulle part ailleurs — exactement le genre
+   d'écart qu'on découvre six mois plus tard, en cherchant pourquoi
+   les comptes ne tombent pas.
+
+   Ce bloc n'apparaît que lorsqu'il y a quelque chose à faire : des
+   pleins sans fiche, ET la fiche qui leur manquait désormais créée.
+   Le reste du temps il n'existe pas — on ne montre pas un chantier
+   qu'on ne peut pas encore commencer.
+   ============================================================ */
+function pleinsSansFicheCb(){
+  return (cbEvents || []).filter(e =>
+    e && e.type === 'plein' && estSansFicheCb(e.vehicule));
+}
+
+function blocRattrapageCb(){
+  const sans = pleinsSansFicheCb();
+  if(!sans.length) return null;
+
+  /* Les catégories qui ont MAINTENANT au moins un véhicule : ce
+     sont les seules rattachables. Une moto notée sans fiche alors
+     qu'aucune moto n'existe encore n'a nulle part où aller — et
+     l'annoncer serait promettre un geste impossible. */
+  const pretes = [];
+  sans.forEach(e => {
+    const cat = categorieSansFicheCb(e.vehicule);
+    if(categoriesSansVehiculeCb().indexOf(cat) !== -1) return;
+    if(pretes.indexOf(cat) === -1) pretes.push(cat);
+  });
+
+  const aFaire = sans.filter(e =>
+    pretes.indexOf(categorieSansFicheCb(e.vehicule)) !== -1);
+  if(!aFaire.length) return null;
+
+  const z = document.createElement('div');
+  z.style.cssText = 'border:1px solid var(--orange);border-radius:10px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+    'margin-bottom:3px;';
+  t.textContent = '🔗 ' + aFaire.length + ' plein' + (aFaire.length > 1 ? 's' : '') +
+    ' à rattacher';
+  z.appendChild(t);
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.5;' +
+    'margin-bottom:8px;';
+  a.textContent = 'Ces pleins ont été notés avant que la fiche du véhicule ' +
+    "existe. Tant qu'ils y restent, leur montant n'apparaît sur aucune fiche " +
+    'véhicule — seulement dans le total du mois.';
+  z.appendChild(a);
+
+  aFaire.forEach(e => {
+    const l = document.createElement('div');
+    l.style.cssText = 'display:flex;gap:8px;align-items:center;font-size:12.5px;' +
+      'padding:5px 0;border-top:1px solid var(--line);';
+
+    const d = document.createElement('div');
+    d.style.cssText = 'flex:1;min-width:0;';
+    d.textContent = String(e.quand || '') + ' · ' +
+      libelleVehiculeCb(e.vehicule) +
+      (e.montant ? ' · ' + e.montant + ' €' : '');
+    l.appendChild(d);
+
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;' +
+      'flex-shrink:0;';
+    b.textContent = '🔗 Rattacher';
+    b.title = 'Choisir le véhicule à qui appartient ce plein';
+    b.addEventListener('click', () => corrigerPleinCb(e));
+    l.appendChild(b);
+
+    z.appendChild(l);
+  });
+
+  return z;
+}
+
+
+/* ============================================================
    L'HISTORIQUE, DANS 🚗 SUIVI DE LA FLOTTE
 
    David : « je pense qu'on met juste un historique côté admin dans
@@ -831,6 +1117,11 @@ function dessinerCbFlotte(){
 
   const dedans = document.createElement('div');
   dedans.style.cssText = 'padding-top:9px;';
+
+  /* Ce qui attend un geste passe devant : des pleins qui n'entrent
+     dans aucune fiche véhicule, et dont la fiche existe maintenant. */
+  const rattrapage = blocRattrapageCb();
+  if(rattrapage) dedans.appendChild(rattrapage);
 
   /* Où est chacune, en clair */
   etatsCb().forEach(x => {
@@ -899,8 +1190,11 @@ function dessinerCbFlotte(){
         'font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);';
       li.innerHTML = '<span style="flex:1;min-width:0;">' +
         String(e.quand || '').replace(/</g, '&lt;') + ' · ' +
-        String(e.qui || '').replace(/</g, '&lt;') + ' · 🚗 ' +
-        String(e.vehicule || '').replace(/</g, '&lt;') + '</span>' +
+        String(e.qui || '').replace(/</g, '&lt;') + ' · ' +
+        /* Un « sans fiche » se dit par son nom de catégorie, pas par
+           sa clé — et sans le 🚗 d'une voiture qu'il n'est pas. */
+        (estSansFicheCb(e.vehicule) ? '' : '🚗 ') +
+        libelleVehiculeCb(e.vehicule).replace(/</g, '&lt;') + '</span>' +
         '<span style="flex-shrink:0;font-weight:700;">' +
         (e.montant ? String(e.montant).replace(/</g, '&lt;') + ' €' : '—') +
         '</span>';
@@ -984,15 +1278,26 @@ async function retirerCarteCb(cle){
 }
 
 
+/* ⚠️ LE VÉHICULE SE CHOISIT, IL NE SE RETAPE PAS — v908.
+
+   Il était demandé au clavier, avec son nom pré-rempli. Une lettre
+   de travers, et le plein cessait d'appartenir au véhicule : c'est
+   « carburantDuVehicule » qui rapproche les deux PAR LE NOM, et
+   personne n'aurait vu la différence — l'argent serait simplement
+   sorti du total de la fiche.
+
+   Et c'est cette fenêtre-là qui sert au rattrapage des pleins « sans
+   fiche » : elle doit donc proposer les vrais véhicules. */
 async function corrigerPleinCb(e){
-  const veh = await demander('Le véhicule', e.vehicule || '', 'Corriger le plein');
-  if(veh === null) return;
-  const mt = await demander('Le montant en €', e.montant || '', 'Corriger le plein');
-  if(mt === null) return;
+  const veh = await choisirVehiculeCb(
+    'Corriger le plein',
+    'Le véhicule, le montant, et la date telle qu\'elle est notée.',
+    e.vehicule || '', e.montant || '');
+  if(!veh) return;
 
   try{
     await appelPrep({ action:'cbPleinSet', id:e.id,
-                      vehicule:String(veh).trim(), montant:String(mt).trim() });
+                      vehicule:veh.vehicule, montant:veh.montant });
     await chargerCbGasoil(true);
     dessinerCbFlotte();
     showToast('Corrigé ✅');
