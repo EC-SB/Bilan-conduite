@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:02 — v927 */
+/* Déployé le 10/09/2026 à 18:10 — v928 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1947,7 +1947,15 @@ async function afficherPrepares(recharger, silencieux){
         const avant = bouton.textContent;
         bouton.textContent = '⏳ Ouverture…';
         try{
-          await chargerPrepare(cours, selType.value);
+          /* ⚠️ ON N'APPUIE QUE SI LE COURS S'EST VRAIMENT OUVERT.
+
+             « chargerPrepare » a quatre façons de renoncer, dont
+             une question à laquelle le moniteur répond non. Appuyer
+             quand même, c'était lancer la dictée sur le cours de
+             l'élève précédent — celui qu'il venait justement de
+             refuser d'écraser. */
+          const ouvert = await chargerPrepare(cours, selType.value);
+          if(ouvert !== true) return;
           /* Le cours est ouvert et l'écran y est descendu : on
              appuie sur le vrai bouton, celui qui sait démarrer. */
           const b = $(cible);
@@ -2446,6 +2454,22 @@ async function chargerPrepareInterne(cours, modeleForce){
   }
 
   showToast('Cours de ' + (cours.eleve || 'l\'élève') + ' chargé ✅');
+
+  /* ⚠️ C'EST LA SEULE SORTIE QUI DIT « VRAI », ET ELLE COMPTE — v927.
+
+     Depuis que la carte appuie elle-même sur le bouton du bas, il
+     faut savoir si le cours s'est VRAIMENT ouvert. Cette fonction a
+     quatre sorties avant celle-ci : le cours appartient à quelqu'un
+     d'autre, le moniteur refuse d'écraser le cours déjà ouvert,
+     c'est un rendez-vous post-permis qui part sur son propre écran,
+     ou la cible manque.
+
+     Sans cette réponse, la carte appuyait sur « Démarrer » APRÈS un
+     refus — et lançait la dictée sur le cours de l'élève PRÉCÉDENT,
+     encore à l'écran. Répondre non à une question et voir le micro
+     partir quand même, c'est le pire de tout : le moniteur a fait
+     ce qu'il fallait, et l'application a fait le contraire. */
+  return true;
 }
 
 /* Prépare un nouveau cours : questionnaire complet, puis mise en réserve */
