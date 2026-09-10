@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:54 — v932 */
+/* Déployé le 10/09/2026 à 19:08 — v934 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1505,18 +1505,42 @@ async function afficherPrepares(recharger, silencieux){
     const texteNote = [reste, consigne ? '📌 ' + consigne : '']
       .filter(Boolean).join('\n');
 
+    /* ------------------------------------------------------------
+       UNE LIGNE PAR INFORMATION — v934
+
+       David : « du coup maintenant tout est sur la même ligne, il
+       faut garder le saut de ligne comme avant avec les bonnes
+       couleurs ». Et il a raison : la v933 avait retiré les vrais
+       sauts de ligne en même temps que les faux.
+
+       ⚠️ CE N'EST PAS AU GRAS DE DÉCIDER OÙ LA LIGNE SE COUPE.
+       C'était le fond du défaut, dans les deux sens. La note était
+       posée d'un bloc et « colorerNote » la découpait en span pour
+       le gras ; la feuille de style mettait chaque span à la ligne.
+       Les coupures tombaient donc là où le gras commençait et
+       finissait — juste par accident la plupart du temps, et en
+       plein milieu d'un mot dès qu'une lettre accentuée s'en
+       mêlait : « EXAMEN BLANC PASS » / « É le vendredi ».
+
+       La note dit elle-même où sont ses coupures : un « · » entre
+       deux informations, un retour à la ligne entre deux blocs.
+       C'est donc la note qui décide, et le gras ne décide plus
+       rien — il colore, à l'intérieur d'une ligne.
+       ------------------------------------------------------------ */
     if(texteNote){
-      const n = document.createElement('span');
-      n.className = 'note';
-      n.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
-      /* La ligne d'examen ressort en couleur : c'est ce qu'on
-         cherche en premier dans une note. */
-      if(typeof colorerNote === 'function'){
-        colorerNote(n, texteNote);
-      }else{
-        n.textContent = texteNote;
-      }
-      meta.appendChild(n);
+      lignesDeLaNote(texteNote).forEach(ligne => {
+        const n = document.createElement('span');
+        n.className = 'note';
+        n.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
+        /* La ligne d'examen ressort en couleur : c'est ce qu'on
+           cherche en premier dans une note. */
+        if(typeof colorerNote === 'function'){
+          colorerNote(n, ligne);
+        }else{
+          n.textContent = ligne;
+        }
+        meta.appendChild(n);
+      });
     }
 
     /* ------------------------------------------------------------
@@ -3020,6 +3044,27 @@ async function dernierExamenOfficielDe(eleve){
 
   examens.sort((a, b) => (Number(b.ligne) || 0) - (Number(a.ligne) || 0));
   return examens[0];
+}
+
+/* ============================================================
+   OÙ UNE NOTE SE COUPE
+
+   Elle le dit elle-même, et depuis toujours : un retour à la ligne
+   entre deux blocs, un « · » entre deux informations d'un même
+   bloc. C'est la même séparation que « segmentsDeNote » emploie
+   pour les lire — on ne s'en invente pas une autre pour les
+   afficher.
+
+   ⚠️ ET SÛREMENT PAS LÀ OÙ LE GRAS COMMENCE. C'était le défaut des
+   v933 et d'avant, dans les deux sens : des coupures au milieu des
+   mots accentués d'un côté, tout collé de l'autre.
+   ============================================================ */
+function lignesDeLaNote(texte){
+  return String(texte || '')
+    .split('\n')
+    .reduce((out, bloc) => out.concat(bloc.split(' · ')), [])
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 /* ============================================================
