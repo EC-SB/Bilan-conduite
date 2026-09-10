@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:26 — v918 */
+/* Déployé le 10/09/2026 à 17:12 — v925 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2585,7 +2585,7 @@ function confirmerFinDeCours(){
   document.body.appendChild(fond);
 }
 
-function marquerExport(ok){
+function marquerExport(ok, sansRelire){
   bilanEnregistre = !!ok;
 
   /* ⚠️ C'EST ICI QUE LE CLASSEUR VIENT DE CHANGER, ET NULLE PART
@@ -2594,7 +2594,14 @@ function marquerExport(ok){
      Poser la relecture chez chacun des appelants aurait été une
      parade de plus qu'on oublie ; elle est donc au seul endroit
      qui sache que l'écriture a réussi. */
-  if(ok && typeof rafraichirApresBilan === 'function'){
+  /* ⚠️ « sansRelire » : ROUVRIR N'EST PAS ÉCRIRE — v925.
+
+     Rouvrir un ancien bilan pour le corriger passe aussi par ici,
+     et il y est bien « enregistré » — il l'était déjà. Mais rien
+     n'a été écrit : relire le classeur et redessiner trois écrans
+     pour une simple ouverture, c'est un aller-retour réseau et un
+     clignotement pour rien. */
+  if(ok && !sansRelire && typeof rafraichirApresBilan === 'function'){
     rafraichirApresBilan();
   }
   const b = $('exportEtat');
