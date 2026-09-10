@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 08:56 — v905 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -55,6 +55,7 @@ function estUneLecon(type){
 /* Une seule requête pour tout ce dont le questionnaire a besoin */
 async function chargerDossierEleve(nomEleve){
   const vide = { frise: '', lecons: null, manoeuvres: [], marques: {}, derniereNote: '',
+                 caleParUnBilan: false,
                  leconsDepuisEB: null, leconsDepuisRdvPost: null, simuFait: false,
                  leconsParBoite: { BV: 0, BEA: 0 },
                  dernierHorodatage: '', boite: '' };
@@ -180,6 +181,7 @@ async function chargerDossierEleve(nomEleve){
        compte les leçons qui l'ont suivi. Corrigé une fois, l'élève
        est calé pour de bon.
        ---------------------------------------------------------- */
+    let caleParUnBilan = false;
     for(let k = 0; k < res.length; k++){
       if(!estUneLecon(res[k].type)) continue;
       const m = String(res[k].note || '').match(RE_NUM_LECON);
@@ -189,6 +191,17 @@ async function chargerDossierEleve(nomEleve){
       let depuis = 0;
       for(let q = 0; q < k; q++) if(estUneLecon(res[q].type)) depuis++;
       lecons = dit + depuis;
+      /* ⚠️ ET ON LE DIT — v905.
+
+         Ce rang-là est écrit dans un BILAN : il est daté d'un cours
+         réel, et il vaut plus qu'un calage posé depuis un écran. Le
+         calage doit donc s'effacer devant lui, sinon les deux
+         s'additionnent et l'élève saute de quatre leçons d'un coup.
+
+         Deux corrections pour la même chose, c'est la faute de ce
+         dossier depuis le début. Ici, la plus forte gagne, et on
+         sait laquelle parce qu'on le note. */
+      caleParUnBilan = true;
       break;
     }
 
@@ -250,7 +263,7 @@ async function chargerDossierEleve(nomEleve){
     }
 
     const resultat = { frise: frise, lecons: lecons, manoeuvres: manoeuvres,
-                       marques: marques,
+                       marques: marques, caleParUnBilan: caleParUnBilan,
                        leconsDepuisEB: apres(RE_TYPE_EXAMEN_BLANC),
                        /* Un simulateur dans son historique : il est
                           fait, et personne n'a plus à le cocher. */
@@ -343,7 +356,7 @@ function passageDepuisNote(note){
    (remonterHeuresAuBureau, corrigé en v879). La colonne est donc
    sale pour tout ce qui précède, et le restera.
 
-   Chrystel, le 5 septembre : « le premier c'est sa deuxième
+   David, le 5 septembre : « le premier c'est sa deuxième
    leçon, impossible qu'il ait fait son examen blanc ; la deuxième
    c'est une AAC, pas d'examen blanc ».
 
@@ -414,7 +427,7 @@ function etatQuiFaitFoi(nom){
     if(s.ebNiveau) d.ebNiveau = String(s.ebNiveau);
     /* ⚠️ UN RÉSULTAT VAUT PREUVE QUE L'EXAMEN A EU LIEU.
 
-       Chrystel, le 4 septembre, sur Raphael Pape : « je n'ai pas son
+       David, le 4 septembre, sur Raphael Pape : « je n'ai pas son
        examen blanc, alors qu'il l'a — son résultat était bien
        enregistré sur l'appli, mais il n'était pas dans le
        questionnaire non plus ».
@@ -431,7 +444,7 @@ function etatQuiFaitFoi(nom){
        date à venir, et elle ne conclut rien. */
     /* ⚠️ ET POURQUOI CE N'EST PLUS UNE PREUVE — v879.
 
-       Chrystel, le 5 septembre : « le premier c'est sa deuxième
+       David, le 5 septembre : « le premier c'est sa deuxième
        leçon, impossible qu'il ait fait son examen blanc ; la
        deuxième c'est une AAC, pas d'examen blanc. Ça considère
        tous les précédents cours comme un examen blanc ».
@@ -544,7 +557,7 @@ function etatQuiFaitFoi(nom){
   /* ------------------------------------------------------------
      CE QUI A EU LIEU A EU LIEU.
 
-     Chrystel : « un examen blanc qui était prévu fin août ne se met
+     David : « un examen blanc qui était prévu fin août ne se met
      pas en déjà passé, j'ai dû le mettre à la main pour que ça
      indique le résultat ». Elle avait raison, et rien ne le
      rattrapait : la date PRÉVUE de l'examen blanc vit dans le suivi
@@ -927,7 +940,7 @@ function montrerDateExamen(boite, etat){
    14 septembre, c'était l'ancienne : le questionnaire annonçait
    « examen passé le lundi 24 août », et la carte « PAS DE DATE
    D'EXAMEN OFFICIEL — à reprogrammer » sur une élève qui avait
-   déjà sa nouvelle date. Chrystel : « elle a déjà une nouvelle
+   déjà sa nouvelle date. David : « elle a déjà une nouvelle
    date de prévue ».
 
    La règle : CE QUI EST DEVANT D'ABORD, et la plus proche des
@@ -1456,10 +1469,53 @@ function cestLePremierCours(source){
    chercher sa carte SD, ou celui du premier cours en voiture.
    Sinon on ne sait pas, on rend null, et la note le dira.
    ------------------------------------------------------------ */
-function rangConnu(lecons, modeleCle, premierCours){
+/* ============================================================
+   LE CALAGE DES COMPTEURS — UN ÉCART, PAS UN NUMÉRO
+
+   David, le 10 septembre 2026 : « ce cours sera le 12ème et le
+   suivant le 13ème et ainsi de suite ».
+
+   ⚠️ POURQUOI UN ÉCART ET PAS UN NUMÉRO.
+
+   Quand le compte est faux, ce n'est jamais « ce cours-ci est le
+   douzième ». C'est « il a pris quatre leçons qu'on n'a pas » —
+   ailleurs, avant nous, ou sans bilan enregistré. Le premier n'est
+   vrai qu'une fois ; le second reste vrai au cours suivant, et au
+   suivant. C'est toute la différence entre un compteur qui continue
+   d'avancer tout seul et un compteur qu'il faut retaper à chaque
+   leçon — ce que David faisait.
+
+   ⚠️ ET IL S'EFFACE DEVANT UN BILAN.
+
+   Le classeur applique déjà une règle plus ancienne : « le dernier
+   rang écrit par un humain dans un BILAN fait loi », et il compte
+   les leçons depuis. Ce rang-là est daté d'un cours réel. Si le
+   calage s'y ajoutait, l'élève sauterait de quatre leçons d'un
+   coup. Deux corrections pour la même chose, c'est la faute de ce
+   dossier depuis le début : ici, la plus forte gagne, et on sait
+   laquelle parce que le dossier le note.
+   ============================================================ */
+function calageDe(nom, quoi){
+  try{
+    const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+    const n = parseInt(s['decal' + quoi], 10);
+    return isNaN(n) ? 0 : n;
+  }catch(e){ return 0; }
+}
+
+
+function rangConnu(lecons, modeleCle, premierCours, nom, dossier){
   if(lecons === null || lecons === undefined) return null;
-  const n = parseInt(lecons, 10);
+  let n = parseInt(lecons, 10);
   if(isNaN(n)) return null;
+
+  /* Le calage AVANT la question du premier cours : un élève repris
+     d'ailleurs a zéro bilan chez nous et n'en est pas à sa première
+     leçon. C'est exactement le cas que le calage sert à dire. */
+  const ecart = (nom && !(dossier && dossier.caleParUnBilan))
+    ? calageDe(nom, 'Total') : 0;
+  n += ecart;
+
   if(n === 0 && !cestLePremierCours(premierCours)) return null;
   return leconCompteDansLaFrise(modeleCle) ? n + 1 : n;
 }
@@ -1524,7 +1580,7 @@ const PARCOURS_FORMATION = [
      auto-école. La boîte et le modèle de bilan ne changent pas —
      c'est la même conduite — mais LA FRISE, SI.
 
-     Chrystel : « pour toutes ces nouvelles formations ce sont des
+     David : « pour toutes ces nouvelles formations ce sont des
      frises classiques ». Nos frises toutes faites décrivent NOTRE
      parcours, étape par étape ; un élève venu d'ailleurs n'a pas
      suivi ces étapes-là, et lui en imposer une reviendrait à
@@ -2174,7 +2230,7 @@ const FAMILLES_NOTE = [
   { cle:'friseEtat',   motif:/frise (?:dépassée|depassee|terminée|terminee)/i },
   /* ⚠️ « AVANT » TOUT COURT PRENAIT L'EXAMEN BLANC LUI-MÊME — v880.
 
-     Chrystel, le 7 septembre, deux captures de Nolwenn Chafotec :
+     David, le 7 septembre, deux captures de Nolwenn Chafotec :
      la carte annonçait DEUX fois l'examen blanc, une fois « passé
      le mardi 11 août — encore 3 leçons avant examen », une fois
      « pas encore évoqué ». Puis, le soir, « passé le 7 septembre —
@@ -2527,7 +2583,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
      avant que le contexte le transporte. */
   const premierCours = cestLePremierCours(prec.premierCours) ||
                        cestLePremierCours(($('noteInterne') && $('noteInterne').value) || '');
-  const rangDuJour = rangConnu(faites, modeleCle, premierCours);
+  const rangDuJour = rangConnu(faites, modeleCle, premierCours, eleve, dossier);
   const manoeuvresAvant = dossier.manoeuvres || [];
   const totalManoeuvres = BLOC.ficheListeConduite.length;
 
@@ -2835,7 +2891,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<option value="annule">Annulé</option>' +
         /* L'ÉLÈVE QUI REVIENT.
 
-           Chrystel : « j'ai le cas d'un élève qui reprend sa
+           David : « j'ai le cas d'un élève qui reprend sa
            conduite après un examen de décembre 2025 ». Aucun des
            choix ne le disait : « Prévu le 12/12/2025 » écrivait
            EXAMEN PRÉVU sur une date passée et le remettait dans les
@@ -2884,7 +2940,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       /* LE RENDEZ-VOUS POST-PERMIS, SOUS L'EXAMEN OFFICIEL.
 
-         Chrystel : « ajoute la date du post-permis sous examen
+         David : « ajoute la date du post-permis sous examen
          officiel pour avoir une visu aussi ici, et que ça mette à
          jour pour les 2 cases ».
 
@@ -3153,7 +3209,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       /* SAUF CE QUI EST LE SUJET MÊME DE LA SÉANCE.
 
-         Chrystel : « dans le questionnaire, quand c'est un type de
+         David : « dans le questionnaire, quand c'est un type de
          bilan simulateur, je n'ai plus accès à la frise ». Le
          questionnaire du simulateur l'annonce pourtant lui-même —
          « seule la frise est demandée ici » — mais le repli la
@@ -4329,7 +4385,7 @@ function rangMasculin(n){
 /* ------------------------------------------------------------
    COMBIEN DE FOIS IL Y VA
 
-   Chrystel : « examen officiel prévu le… mais c'est le
+   David : « examen officiel prévu le… mais c'est le
    combientième examen ? ». La réponse existe à deux endroits — le
    passage saisi au questionnaire, et le nombre d'ajournements que
    le bureau tient — et une seule des deux était lue. Elles ne se
@@ -4349,7 +4405,7 @@ function numeroDuPassage(q){
 /* ------------------------------------------------------------
    CE QUI EST PASSÉ N'EST PLUS PRÉVU
 
-   Chrystel : « examen officiel prévu le 24/08, on est le 01/09 —
+   David : « examen officiel prévu le 24/08, on est le 01/09 —
    il n'est plus prévu, mais dernier examen le 24 août ». La carte
    annonçait une convocation pour une date vieille d'une semaine,
    juste au-dessus d'un « ajourné le 2026-08-24 » qui la
@@ -4493,7 +4549,7 @@ function positionDansLaFrise(q){
      n'a pas à être chargée séparément pour que le rang se calcule. */
   /* LEQUEL, exactement.
 
-     Chrystel : « précise ici dans "c'est l'examen blanc" lequel
+     David : « précise ici dans "c'est l'examen blanc" lequel
      c'est — par exemple ici c'est le 2ème ; pareil pour le numéro
      d'examen officiel ». C'est la ligne qu'on lit en premier : y
      lire « c'est l'examen blanc » sur un élève qui en a déjà passé
@@ -4610,7 +4666,7 @@ function positionDansLaFrise(q){
        notre voiture » à partir du seul rang de la leçon.
 
        Le rang de la formation ne disparaît pas pour autant : il
-       part entre parenthèses. Chrystel : « 3ème leçon de remise à
+       part entre parenthèses. David : « 3ème leçon de remise à
        niveau a encore son sens ». Les deux se lisent d'un coup,
        et sur une seule ligne.
 
@@ -5539,7 +5595,9 @@ function rangDuCours(ctx, eleve, modeleCle){
     : false;
 
   return (typeof rangConnu === 'function')
-    ? rangConnu(faites, modeleCle, premier) : null;
+    ? rangConnu(faites, modeleCle, premier, eleve,
+                (typeof lireCacheDossier === 'function' && eleve)
+                  ? lireCacheDossier(eleve) : null) : null;
 }
 
 /* ------------------------------------------------------------
@@ -5893,7 +5951,7 @@ async function chargerHistoriqueEleve(){
        Cet écran en dessinait un, « afficherPreparationEleve » en
        dessinait un second juste dessous, et les deux se
        contredisaient : celui-ci lisait la note du DERNIER BILAN,
-       l'autre celle du COURS PRÉPARÉ. Chrystel, le 4 septembre :
+       l'autre celle du COURS PRÉPARÉ. David, le 4 septembre :
        « on fait du ménage pour ne pas tout avoir, là on confond
        plein de choses ». */
     /* Le suivi et les sessions, sans quoi le bloc dirait « pas de
@@ -5936,7 +5994,7 @@ async function chargerHistoriqueEleve(){
 /* ------------------------------------------------------------
    LA FICHE VÉHICULE DU QUESTIONNAIRE
 
-   ⚠️ LA 🚗 N'EST PLUS UNE COLONNE — Chrystel, le 4 septembre :
+   ⚠️ LA 🚗 N'EST PLUS UNE COLONNE — David, le 4 septembre :
    « dans le questionnaire, pour les élèves autre auto-école, ne mets
    pas la case des manœuvres en face de chaque ligne ; tu mets juste
    une seule case en haut avec écrit “manœuvres autre auto-école” ».
