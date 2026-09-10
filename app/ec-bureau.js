@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:49 — v897 */
+/* Déployé le 10/09/2026 à 09:52 — v908 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -279,7 +279,19 @@ async function chargerBureau(forcer){
    les six écrans qui fixent une date d'examen n'ont rien à savoir
    de cette règle.
    ============================================================ */
-const TYPES_CONSIGNE_ETAT = ['permis', 'examblanc', 'simu'];
+/* ⚠️ CES CONSIGNES-LÀ SE REMPLACENT, ELLES NE S'EMPILENT PAS.
+
+   Une consigne ordinaire est un mot qu'on ajoute. Celles-ci disent
+   un ÉTAT — la date d'examen, l'examen blanc, le simulateur — et un
+   état n'a qu'une valeur courante : la dernière annoncée solde les
+   précédentes, sinon la note du prochain cours porterait deux dates
+   et le moniteur choisirait au hasard.
+
+   « programme » les rejoint le 10 septembre 2026. David voulait
+   pouvoir dire ce que sera la prochaine leçon : « une seule ligne
+   courante ». Un programme qu'on empile est un programme qu'on ne
+   lit plus. */
+const TYPES_CONSIGNE_ETAT = ['permis', 'examblanc', 'simu', 'programme'];
 
 async function solderConsignesDuMemeType(eleve, type){
   if(TYPES_CONSIGNE_ETAT.indexOf(String(type || '')) === -1) return;
