@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v926
+     VERSION APPLICATION : v927
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 10/09/2026 à 17:41
+     Mis à jour le : 10/09/2026 à 18:02
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -519,6 +519,78 @@
   }
   body.cours-neuf .history-item .actions.ouvert .plus{ display:flex; }
 
+  /* ⚠️ LE TIROIR S'ARRÊTE À LA TABLETTE EN PAYSAGE — v927.
+
+     David : « oui, à part à partir de la vue tablette horizontale,
+     car là ça ne me choque pas ». En voiture, sur un téléphone, sept
+     gestes de bureau à côté du départ sont sept occasions de se
+     tromper. Sur la dalle de 1280 px posée sur le bureau, ils
+     tiennent tous sur une ligne et les cacher ne ferait que rajouter
+     un appui à chaque geste.
+
+     C'est le MÊME seuil que le rail vertical : un écran a une
+     largeur, pas deux, et deux seuils voisins finissent par se
+     contredire sur les tailles entre les deux. */
+  @media (min-width: 1280px){
+    body.cours-neuf .history-item .actions .plus{
+      display:contents; margin-top:0;
+    }
+    body.cours-neuf .history-item .actions .plusBtn{ display:none; }
+  }
+
+  /* ---- LE DÉPART, SUR LA CARTE ----
+
+     Le nouvel écran n'a plus de « ▶ Ouvrir » : la carte porte les
+     vrais boutons, et ils démarrent vraiment. L'ancienne mise en
+     page fait l'inverse — elle rouvre ▶ Ouvrir et cache ce bloc.
+     Une seule carte construite, deux façons de la montrer. */
+  .history-item .depart{ display:none; }
+  body.cours-neuf .history-item .ouvrirAncien{ display:none; }
+
+  /* ⚠️ SUR UN TÉLÉPHONE, IL N'Y A PAS DE VOLET DE DROITE — et donc
+     aucune carte « choisie ». Sans cette première règle, le nouvel
+     écran n'aurait plus AUCUN bouton pour démarrer sous 1000 px :
+     ▶ Ouvrir caché, et le départ accroché à un état qui n'existe
+     pas. C'est la carte elle-même qui le porte, comme sur le
+     schéma du téléphone. */
+  body.cours-neuf .history-item .depart,
+  body.cours-neuf .history-item.choisi .depart,
+  body.cours-neuf .cours .history-item .depart{
+    display:block; margin-top:12px;
+    padding-top:12px; border-top:1px solid var(--line);
+  }
+  /* Dès qu'il y a deux volets, seule la carte qu'on lit à droite
+     porte son départ : la journée de gauche est un sommaire, on n'y
+     démarre rien. */
+  @media (min-width: 1000px){
+    body.cours-neuf .journee .history-item .depart{ display:none !important; }
+  }
+  body.cours-neuf .history-item.sommaire .depart{ display:none !important; }
+  .history-item .depart .typeCarteLabel{
+    display:block; font-size:11px; text-transform:uppercase;
+    letter-spacing:.04em; color:var(--muted); margin-bottom:4px;
+  }
+  .history-item .depart .typeCarte{
+    width:100%; margin:0 0 12px; padding:11px 12px; font-size:15px;
+  }
+  /* Le bouton de départ garde l'allure qu'il a en bas de l'écran :
+     c'est le même geste, il ne doit pas avoir deux visages. */
+  .history-item .depart .btnDemarrer{
+    width:100%; margin:0; padding:17px; font-size:18px; font-weight:800;
+    background:var(--action-vocal); color:var(--sur-action-vocal);
+    border:none; border-radius:14px;
+  }
+  .history-item .depart .btnMainCarte{
+    width:100%; margin:10px 0 0; padding:15px; font-size:16px; font-weight:700;
+    background:var(--action-main); color:var(--sur-action-main);
+    border:none; border-radius:14px;
+  }
+  /* Seul en piste — un bilan qui ne se dicte pas — il prend la
+     place et la taille de l'action principale. */
+  .history-item .depart .btnMainCarte.seul{
+    margin-top:0; padding:17px; font-size:18px; font-weight:800;
+  }
+
   /* ---- La carte : l'heure devient un repère, le nom passe devant ---- */
   /* En voiture, on cherche « c'est lequel maintenant » avant de
      chercher qui : une colonne d'heures alignées se balaie d'un
@@ -677,8 +749,23 @@
     body.cours-neuf #zoneTravail > #appView{
       flex:1; min-width:0;
     }
-    /* Sans barre — l'onglet Cours — le contenu prend tout. */
-    body.cours-neuf #zoneTravail > .barre-vues[style*="display:none"],
+    /* ⚠️ CETTE RÈGLE-LÀ NE SERVAIT À RIEN, ET ELLE RASSURAIT — v927.
+
+       Elle disait « sans barre, le contenu prend tout », et elle
+       cherchait pour cela « style*="display:none" ». Or le
+       navigateur écrit « display: none », avec une espace : le
+       sélecteur ne s'est jamais appliqué. Et il n'avait de toute
+       façon rien à faire — un élément en display:none ne tient
+       déjà aucune place dans une rangée flex.
+
+       Le vrai défaut était ailleurs : la barre de l'onglet Cours
+       était affichée VIDE, en display:flex, et c'est elle qui
+       poussait la carte de 228 px. Voir afficherOnglet, dans
+       ec-onglets.js.
+
+       Une règle qui a l'air de traiter un cas, qui ne s'applique
+       jamais, et qui porte le commentaire du problème : c'est ce
+       qui a fait chercher ailleurs pendant deux versions. */
     body.cours-neuf #zoneTravail > .barre-vues[hidden]{ display:none; }
   }
 
@@ -1276,7 +1363,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=926" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=927" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -2877,76 +2964,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=926"></script>
-<script src="app/ec-modeles.js?v=926"></script>
-<script src="app/ec-consignes.js?v=926"></script>
-<script src="app/ec-noyau.js?v=926"></script>
-<script src="app/ec-vocal.js?v=926"></script>
-<script src="app/ec-reseau.js?v=926"></script>
-<script src="app/ec-manuel.js?v=926"></script>
-<script src="app/ec-fenetres.js?v=926"></script>
-<script src="app/ec-questionnaire.js?v=926"></script>
-<script src="app/ec-permis.js?v=926"></script>
-<script src="app/ec-prepares.js?v=926"></script>
-<script src="app/ec-avant-cours.js?v=926"></script>
-<script src="app/ec-bureau.js?v=926"></script>
-<script src="app/ec-places.js?v=926"></script>
-<script src="app/ec-listes.js?v=926"></script>
-<script src="app/ec-permis-listes.js?v=926"></script>
-<script src="app/ec-postpermis.js?v=926"></script>
-<script src="app/ec-textes.js?v=926"></script>
-<script src="app/ec-correction.js?v=926"></script>
-<script src="app/ec-bilans.js?v=926"></script>
-<script src="app/ec-ecran.js?v=926"></script>
-<script src="app/ec-version.js?v=926"></script>
-<script src="app/ec-paie.js?v=926"></script>
-<script src="app/ec-flotte.js?v=926"></script>
-<script src="app/ec-carrosserie.js?v=926"></script>
-<script src="app/ec-solo.js?v=926"></script>
-<script src="app/ec-handicap-pdf.js?v=926"></script>
-<script src="app/ec-moto.js?v=926"></script>
-<script src="app/ec-remorque.js?v=926"></script>
-<script src="app/ec-arriereplan.js?v=926"></script>
-<script src="app/ec-placesbe.js?v=926"></script>
-<script src="app/ec-codeamenage.js?v=926"></script>
-<script src="app/ec-financements.js?v=926"></script>
-<script src="app/ec-eval-aac.js?v=926"></script>
-<script src="app/ec-postes.js?v=926"></script>
-<script src="app/ec-tarifs.js?v=926"></script>
-<script src="app/ec-caisse.js?v=926"></script>
-<script src="app/ec-menage.js?v=926"></script>
-<script src="app/ec-page-eleve.js?v=926"></script>
-<script src="app/ec-cbgasoil.js?v=926"></script>
-<script src="app/ec-loupe.js?v=926"></script>
-<script src="app/ec-coutsia.js?v=926"></script>
-<script src="app/ec-evaluation.js?v=926"></script>
-<script src="app/ec-paiement.js?v=926"></script>
-<script src="app/ec-handicap.js?v=926"></script>
-<script src="app/ec-code.js?v=926"></script>
-<script src="app/ec-proccorriger.js?v=926"></script>
-<script src="app/ec-sessions.js?v=926"></script>
-<script src="app/ec-aac-cs.js?v=926"></script>
-<script src="app/ec-notifs.js?v=926"></script>
-<script src="app/ec-ecoutes.js?v=926"></script>
-<script src="app/ec-taches.js?v=926"></script>
-<script src="app/ec-memoire.js?v=926"></script>
-<script src="app/ec-historique.js?v=926"></script>
-<script src="app/ec-rappels.js?v=926"></script>
-<script src="app/ec-segments.js?v=926"></script>
-<script src="app/ec-sms.js?v=926"></script>
-<script src="app/ec-encours.js?v=926"></script>
-<script src="app/ec-incidents.js?v=926"></script>
+  <script src="app/ec-etat.js?v=927"></script>
+<script src="app/ec-modeles.js?v=927"></script>
+<script src="app/ec-consignes.js?v=927"></script>
+<script src="app/ec-noyau.js?v=927"></script>
+<script src="app/ec-vocal.js?v=927"></script>
+<script src="app/ec-reseau.js?v=927"></script>
+<script src="app/ec-manuel.js?v=927"></script>
+<script src="app/ec-fenetres.js?v=927"></script>
+<script src="app/ec-questionnaire.js?v=927"></script>
+<script src="app/ec-permis.js?v=927"></script>
+<script src="app/ec-prepares.js?v=927"></script>
+<script src="app/ec-avant-cours.js?v=927"></script>
+<script src="app/ec-bureau.js?v=927"></script>
+<script src="app/ec-places.js?v=927"></script>
+<script src="app/ec-listes.js?v=927"></script>
+<script src="app/ec-permis-listes.js?v=927"></script>
+<script src="app/ec-postpermis.js?v=927"></script>
+<script src="app/ec-textes.js?v=927"></script>
+<script src="app/ec-correction.js?v=927"></script>
+<script src="app/ec-bilans.js?v=927"></script>
+<script src="app/ec-ecran.js?v=927"></script>
+<script src="app/ec-version.js?v=927"></script>
+<script src="app/ec-paie.js?v=927"></script>
+<script src="app/ec-flotte.js?v=927"></script>
+<script src="app/ec-carrosserie.js?v=927"></script>
+<script src="app/ec-solo.js?v=927"></script>
+<script src="app/ec-handicap-pdf.js?v=927"></script>
+<script src="app/ec-moto.js?v=927"></script>
+<script src="app/ec-remorque.js?v=927"></script>
+<script src="app/ec-arriereplan.js?v=927"></script>
+<script src="app/ec-placesbe.js?v=927"></script>
+<script src="app/ec-codeamenage.js?v=927"></script>
+<script src="app/ec-financements.js?v=927"></script>
+<script src="app/ec-eval-aac.js?v=927"></script>
+<script src="app/ec-postes.js?v=927"></script>
+<script src="app/ec-tarifs.js?v=927"></script>
+<script src="app/ec-caisse.js?v=927"></script>
+<script src="app/ec-menage.js?v=927"></script>
+<script src="app/ec-page-eleve.js?v=927"></script>
+<script src="app/ec-cbgasoil.js?v=927"></script>
+<script src="app/ec-loupe.js?v=927"></script>
+<script src="app/ec-coutsia.js?v=927"></script>
+<script src="app/ec-evaluation.js?v=927"></script>
+<script src="app/ec-paiement.js?v=927"></script>
+<script src="app/ec-handicap.js?v=927"></script>
+<script src="app/ec-code.js?v=927"></script>
+<script src="app/ec-proccorriger.js?v=927"></script>
+<script src="app/ec-sessions.js?v=927"></script>
+<script src="app/ec-aac-cs.js?v=927"></script>
+<script src="app/ec-notifs.js?v=927"></script>
+<script src="app/ec-ecoutes.js?v=927"></script>
+<script src="app/ec-taches.js?v=927"></script>
+<script src="app/ec-memoire.js?v=927"></script>
+<script src="app/ec-historique.js?v=927"></script>
+<script src="app/ec-rappels.js?v=927"></script>
+<script src="app/ec-segments.js?v=927"></script>
+<script src="app/ec-sms.js?v=927"></script>
+<script src="app/ec-encours.js?v=927"></script>
+<script src="app/ec-incidents.js?v=927"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=926"></script>
-<script src="app/ec-bandeau.js?v=926"></script>
-<script src="app/ec-stats.js?v=926"></script>
-<script src="app/ec-messenger.js?v=926"></script>
-<script src="app/ec-journal.js?v=926"></script>
-<script src="app/ec-depart.js?v=926"></script>
-<script src="app/ec-onglets.js?v=926"></script>
-<script src="app/ec-demarrage.js?v=926"></script>
+<script src="app/ec-messages-perso.js?v=927"></script>
+<script src="app/ec-bandeau.js?v=927"></script>
+<script src="app/ec-stats.js?v=927"></script>
+<script src="app/ec-messenger.js?v=927"></script>
+<script src="app/ec-journal.js?v=927"></script>
+<script src="app/ec-depart.js?v=927"></script>
+<script src="app/ec-onglets.js?v=927"></script>
+<script src="app/ec-demarrage.js?v=927"></script>
 
 <script>
 /* ============================================================
