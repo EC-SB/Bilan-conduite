@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:57 — v915 */
+/* Déployé le 10/09/2026 à 15:23 — v917 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -960,10 +960,21 @@ async function afficherPrepares(recharger, silencieux){
 
     const row = document.createElement('div');
     row.className = 'history-item';
+    /* Le jeton identifie ce cours à travers les redessins : c'est
+       par lui que la mise en page à deux volets retrouve celui
+       qu'on lisait. */
+    row.dataset.jeton = jetonDuCours(cours);
 
     const meta = document.createElement('div');
     meta.className = 'meta';
     const nom = document.createElement('strong');
+    /* ⚠️ CHAQUE MORCEAU PORTE UN NOM — v917. On ne peut pas remettre
+       en page ce qu'on ne peut pas désigner : la colonne d'actions
+       l'avait déjà montré en v915, écrasant le texte faute de
+       classe. Ces noms ne changent RIEN à l'affichage actuel ; ils
+       rendent seulement la carte adressable par la feuille de
+       style. */
+    nom.className = 'tete';
     /* L'heure à la suite du nom : c'est ce qu'on cherche en
        ouvrant la liste, avant même le type de bilan. */
     const h = heureDeLaPreparation(cours);
@@ -977,14 +988,14 @@ async function afficherPrepares(recharger, silencieux){
     const presence = etatPresence(cours);
 
     nom.innerHTML =
-      (h ? '<div style="font-size:19px;font-weight:800;' +
+      (h ? '<div class="heure" style="font-size:19px;font-weight:800;' +
            'color:var(--accent-text);line-height:1.2;">' +
            h.replace(':', 'h') + '</div>' : '') +
       (presence ? '<div class="presence" data-jeton="' + jetonDuCours(cours) +
            '" style="font-size:12px;font-weight:600;color:' +
            presence.couleur + ';line-height:1.5;" title="' +
            presence.titre + '">' + presence.texte + '</div>' : '') +
-      '<div>' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
+      '<div class="qui">' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
       (aApporter ? ' <span style="font-size:15px;" title="' +
         aApporter.titre + '">' + aApporter.emojis +
         (aApporter.texte
@@ -993,6 +1004,7 @@ async function afficherPrepares(recharger, silencieux){
         '</span>' : '') +
       '</div>';
     const sous = document.createElement('span');
+    sous.className = 'sous';
     /* Un cours dont la date est passée n'a pas été enregistré :
        sa préparation serait partie. On le signale. */
     const passe = cours.date && cours.date < todayLocal();
@@ -1062,11 +1074,13 @@ async function afficherPrepares(recharger, silencieux){
           ? lignePosition(partsNote.corps) : '');
 
     const ligneRang = document.createElement('div');
+    ligneRang.className = 'rang';
     ligneRang.style.cssText = 'display:flex;gap:7px;align-items:center;' +
       'margin:3px 0 2px;flex-wrap:wrap;';
 
     if(pos){
       const p = document.createElement('div');
+      p.className = 'position';
       /* Toute la largeur pour elle : partagée avec les deux cases,
          elle se retrouvait comprimée à un mot par ligne. */
       p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.35;' +
@@ -1345,6 +1359,7 @@ async function afficherPrepares(recharger, silencieux){
 
     if(manqueIci.length){
       const av = document.createElement('div');
+      av.className = 'manque';
       /* La même taille et la même graisse que la ligne de position :
          ce qui manque se lit d'aussi loin que le rang de la leçon,
          parce que c'est ce qui empêche la note d'être juste. */
@@ -1371,6 +1386,7 @@ async function afficherPrepares(recharger, silencieux){
        s'affichent, elles se cochent, c'est tout. */
     if(typeof posteDeConduite === 'function'){
       const poste = document.createElement('div');
+      poste.className = 'poste';
       poste.style.cssText = 'display:flex;gap:6px;align-items:center;' +
         'flex-wrap:wrap;margin:2px 0 1px;';
       [['amenagee', '♿', 'Conduite aménagée'],
@@ -1464,6 +1480,7 @@ async function afficherPrepares(recharger, silencieux){
 
     if(texteNote){
       const n = document.createElement('span');
+      n.className = 'note';
       n.style.cssText = 'color:var(--accent-text);white-space:pre-wrap;';
       /* La ligne d'examen ressort en couleur : c'est ce qu'on
          cherche en premier dans une note. */
@@ -1502,6 +1519,7 @@ async function afficherPrepares(recharger, silencieux){
       ? marquePlaceExamen(cours.eleve) : null;
     if(marquePlace){
       const m = document.createElement('span');
+      m.className = 'place';
       /* Un contour, pas un fond plein : la couleur est fixe pour le
          prête-nom, et un texte posé dessus ne serait lisible que
          dans l'un des deux thèmes.
@@ -1621,6 +1639,7 @@ async function afficherPrepares(recharger, silencieux){
           showToast('Ordre non enregistré : ' + e.message);
         }
       });
+      b.dataset.bureau = '1';
       actions.appendChild(b);
     });
 
@@ -1680,7 +1699,9 @@ async function afficherPrepares(recharger, silencieux){
         bDate.textContent = '📅';
       }
     });
+    bDate.dataset.bureau = '1';
     actions.appendChild(bDate);
+    bMent.dataset.bureau = '1';
     actions.appendChild(bMent);
 
     /* Un cours passé qui traîne encore : le moniteur le retire
@@ -1709,7 +1730,8 @@ async function afficherPrepares(recharger, silencieux){
           bFait.textContent = '✓ Fait';
         }
       });
-      actions.appendChild(bFait);
+      bFait.dataset.bureau = '1';
+    actions.appendChild(bFait);
     }
 
     /* Modifier la préparation : rouvrir le questionnaire et le
@@ -1773,6 +1795,7 @@ async function afficherPrepares(recharger, silencieux){
         bDonner.textContent = '👤';
       }
     });
+    bDonner.dataset.bureau = '1';
     actions.appendChild(bDonner);
 
     /* On ne supprime que ses propres préparations, sauf administrateur */
@@ -1802,13 +1825,56 @@ async function afficherPrepares(recharger, silencieux){
           bSupp.disabled = false;
         }
       });
-      actions.appendChild(bSupp);
+      bSupp.dataset.bureau = '1';
+    actions.appendChild(bSupp);
     }else{
       const info = document.createElement('span');
       info.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;max-width:70px;line-height:1.3;';
       /* C'est l'attributaire qui compte ici : le cours est à lui. */
       info.textContent = 'à ' + cours.moniteur;
-      actions.appendChild(info);
+      info.dataset.bureau = '1';
+    actions.appendChild(info);
+    }
+
+    /* ------------------------------------------------------------
+       LES GESTES DE BUREAU SE REPLIENT — v917
+
+       Huit boutons sur la carte, et un seul sert en voiture :
+       ▶ Ouvrir. Les autres — ranger, dater, marquer, renommer,
+       retirer — sont des gestes de bureau, posés à la même taille
+       à côté de lui.
+
+       David : « moniteur personne, mais nous au bureau le crayon
+       tout le temps ». Le ✏️ reste donc dehors avec ▶ Ouvrir ; les
+       sept autres passent derrière un ⋯.
+
+       ⚠️ ET C'EST LA FEUILLE DE STYLE QUI DÉCIDE, PAS CE CODE. Le
+       repli est construit POUR TOUT LE MONDE ; l'ancienne mise en
+       page rouvre simplement le tiroir et cache le ⋯. Un « si le
+       droit est là » ici, et on aurait deux constructeurs à
+       corriger au lieu d'un — exactement ce qu'on a promis
+       d'éviter. */
+    const plus = document.createElement('div');
+    plus.className = 'plus';
+    Array.prototype.slice.call(actions.children)
+      .filter(el => el.dataset && el.dataset.bureau === '1')
+      .forEach(el => plus.appendChild(el));
+
+    if(plus.children.length){
+      const bPlus = document.createElement('button');
+      bPlus.className = 'btn btn-secondary plusBtn';
+      bPlus.type = 'button';
+      bPlus.textContent = '⋯';
+      bPlus.title = 'Les autres gestes';
+      bPlus.setAttribute('aria-expanded', 'false');
+      bPlus.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
+      bPlus.addEventListener('click', e => {
+        e.stopPropagation();
+        const ouvert = actions.classList.toggle('ouvert');
+        bPlus.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+      });
+      actions.appendChild(bPlus);
+      actions.appendChild(plus);
     }
 
     row.appendChild(actions);
@@ -1818,6 +1884,94 @@ async function afficherPrepares(recharger, silencieux){
 
   /* Les cases handicap se remplissent après coup, en un passage */
   peindreHandicapDesCartes();
+
+  /* Et la mise en page à deux volets, s'il y a lieu */
+  mettreEnDeuxVolets(zone);
+}
+
+/* ============================================================
+   LA JOURNÉE À GAUCHE, LE COURS À DROITE — v917
+
+   Sur une tablette en paysage, la liste tenait dans une colonne au
+   milieu de l'écran avec deux bandes vides de chaque côté : la
+   moitié de la dalle ne servait à rien. Elle devient la journée du
+   moniteur, et le cours qu'il lit occupe enfin la largeur.
+
+   ⚠️ AUCUNE CARTE N'EST CLONÉE NI RECONSTRUITE. Ce sont les mêmes
+   éléments, déplacés : celle qu'on lit passe à droite, les autres
+   restent à gauche réduites à leur en-tête par la feuille de
+   style. Deux listes construites séparément finiraient par ne plus
+   dire la même chose — c'est la faute qui revient dans ce dossier
+   depuis le début, et elle n'aura pas lieu ici.
+
+   ⚠️ ET « OUVRIR » NE CHANGE PAS DE SENS. David : « continue comme
+   aujourd'hui ». Choisir un cours à gauche le donne à LIRE à
+   droite ; c'est ▶ Ouvrir qui mène à l'écran de cours.
+   ============================================================ */
+/* Ce qu'on lisait, et si la journée est repliée. En mémoire
+   seulement : un redessin les retrouve, un rechargement repart
+   propre — c'est une préférence de lecture, pas une donnée. */
+let coursLu = '';
+let journeeRepliee = false;
+
+function mettreEnDeuxVolets(zone){
+  if(!zone) return;
+  /* Le droit d'essai, et la largeur : sans les deux, la liste reste
+     telle qu'elle est. */
+  if(!document.body.classList.contains('cours-neuf')) return;
+  if(!window.matchMedia || !window.matchMedia('(min-width: 1000px)').matches) return;
+
+  const cartes = Array.prototype.slice.call(zone.querySelectorAll('.history-item'));
+  if(cartes.length < 2) return;
+
+  const cadre = document.createElement('div');
+  cadre.className = 'listeDeuxVolets' + (journeeRepliee ? ' repliee' : '');
+  const journee = document.createElement('div');
+  journee.className = 'journee';
+  const lecture = document.createElement('div');
+  lecture.className = 'cours';
+
+  const bPlier = document.createElement('button');
+  bPlier.className = 'plierJournee';
+  bPlier.type = 'button';
+  bPlier.textContent = journeeRepliee ? '›' : '‹ Replier la journée';
+  bPlier.addEventListener('click', () => {
+    journeeRepliee = !journeeRepliee;
+    cadre.classList.toggle('repliee', journeeRepliee);
+    bPlier.textContent = journeeRepliee ? '›' : '‹ Replier la journée';
+  });
+  journee.appendChild(bPlier);
+
+  /* Ce qui n'est pas une carte — les titres de journée, les
+     bandeaux de groupe — reste en tête de la colonne de gauche,
+     dans l'ordre où il a été posé. */
+  Array.prototype.slice.call(zone.childNodes).forEach(el => journee.appendChild(el));
+
+  /* Celui qu'on lisait, s'il est encore là ; sinon le premier. */
+  let choisi = cartes.filter(c => c.dataset.jeton && c.dataset.jeton === coursLu)[0]
+               || cartes[0];
+
+  const montrer = carte => {
+    coursLu = carte.dataset.jeton || '';
+    cartes.forEach(c => c.classList.toggle('choisi', c === carte));
+    lecture.innerHTML = '';
+    lecture.appendChild(carte);
+  };
+
+  cartes.forEach(c => {
+    c.addEventListener('click', e => {
+      /* Un bouton reste un bouton : on ne détourne pas le clic de
+         ▶ Ouvrir pour changer de volet. */
+      if(e.target.closest('button, input, select, a')) return;
+      if(c.parentNode === lecture) return;
+      montrer(c);
+    });
+  });
+
+  zone.appendChild(cadre);
+  cadre.appendChild(journee);
+  cadre.appendChild(lecture);
+  montrer(choisi);
 }
 
 /* ============================================================
