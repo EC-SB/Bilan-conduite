@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:38 — v914 */
+/* Déployé le 10/09/2026 à 14:57 — v915 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2185,13 +2185,88 @@ function majAffichageNoteInterne(){
    qui le cherche ; sans sansGras(), mettre un état en gras revenait
    à le rendre invisible à tout le reste de l'application.
    ------------------------------------------------------------ */
+/* ⚠️ ON NE DÉCOMPOSE PLUS — v915.
+
+   David, le 10 septembre 2026, captures de sa tablette à l'appui :
+   « EXAMEN BLANC PASS▯ », « EXAMEN OFFICIEL PR▯VU », « PAS ENCORE
+   ▯VOQU▯ ».
+
+   La décomposition partait d'une bonne intention : « É » n'a pas de
+   forme grasse dans Unicode, alors on mettait le « E » en gras et
+   on lui rendait son accent à côté. Sur un ordinateur, le
+   navigateur recompose les deux et personne ne voit rien. Sur
+   Android, la lettre grasse vient d'une police de secours à laquelle
+   l'accent flottant n'appartient pas : le moteur de rendu abandonne
+   et dessine un carré.
+
+   Une lettre accentuée reste donc droite au milieu des grasses.
+   C'est moins joli qu'un accent posé — et c'est LISIBLE PARTOUT,
+   y compris dans le mail que reçoit l'élève, qui portait le même
+   carré sans que personne nous le dise.
+
+   ⚠️ ET LES NOTES DÉJÀ ÉCRITES GARDENT L'ANCIENNE FORME. Elles sont
+   figées dans le classeur : on ne les réécrit pas, une note est un
+   compte rendu daté. Tout ce qui CHERCHE un libellé dans une note
+   doit donc reconnaître les deux formes — c'est le rôle de
+   motifGras() plus bas, et de sansGras(), qui les ramène toutes
+   deux au même texte clair. */
 function grasNote(t){
-  return String(t || '').normalize('NFD').split('').map(ch => {
-    const c = ch.charCodeAt(0);
+  return [...String(t || '')].map(ch => {
+    const c = ch.codePointAt(0);
     if(c >= 65  && c <= 90)  return String.fromCodePoint(0x1D5D4 + (c - 65));
     if(c >= 97  && c <= 122) return String.fromCodePoint(0x1D5EE + (c - 97));
     if(c >= 48  && c <= 57)  return String.fromCodePoint(0x1D7EC + (c - 48));
     return ch;
+  }).join('');
+}
+
+/* ------------------------------------------------------------
+   RECONNAÎTRE UN LIBELLÉ, QUELLE QUE SOIT LA FORME DE SON GRAS
+
+   Trois écritures coexistent maintenant dans le classeur pour un
+   même libellé :
+
+     · l'ancien gras décomposé   𝗣𝗔𝗦𝗦 + 𝗘 + ◌́   (notes d'avant)
+     · le nouveau gras           𝗣𝗔𝗦𝗦 + É        (notes d'après)
+     · le texte clair            PASSÉ            (saisi à la main)
+
+   Un motif construit sur UNE seule d'entre elles rend les deux
+   autres invisibles — et c'est exactement la faute de la v913,
+   qui avait rendu tous les états illisibles pendant plusieurs
+   versions.
+
+   Cette fonction rend une SOURCE de regex qui accepte les trois.
+   Elle vit à côté de grasNote et de sansGras : les trois décrivent
+   la même convention, et une convention décrite à deux endroits
+   finit toujours par ne plus dire la même chose.
+   ------------------------------------------------------------ */
+function motifGras(clair){
+  const echapper = c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [...String(clair || '')].map(ch => {
+    const c = ch.codePointAt(0);
+    /* La lettre nue : sa forme grasse, ou elle-même. */
+    if(c >= 65 && c <= 90)
+      return '(?:' + String.fromCodePoint(0x1D5D4 + (c - 65)) + '|' + ch + ')';
+    if(c >= 97 && c <= 122)
+      return '(?:' + String.fromCodePoint(0x1D5EE + (c - 97)) + '|' + ch + ')';
+    if(c >= 48 && c <= 57)
+      return '(?:' + String.fromCodePoint(0x1D7EC + (c - 48)) + '|' + ch + ')';
+
+    /* La lettre accentuée : elle-même — en gras elle ne change pas
+       depuis la v915 — ou, pour les notes d'avant, sa base mise en
+       gras suivie de l'accent resté seul. */
+    const d = ch.normalize('NFD');
+    if(d.length > 1){
+      const base = d.codePointAt(0);
+      const suite = echapper(d.slice(1));
+      if(base >= 65 && base <= 90)
+        return '(?:' + ch + '|' + String.fromCodePoint(0x1D5D4 + (base - 65)) + suite +
+               '|' + String.fromCharCode(base) + suite + ')';
+      if(base >= 97 && base <= 122)
+        return '(?:' + ch + '|' + String.fromCodePoint(0x1D5EE + (base - 97)) + suite +
+               '|' + String.fromCharCode(base) + suite + ')';
+    }
+    return echapper(ch);
   }).join('');
 }
 
@@ -2225,8 +2300,17 @@ function sansGras(t){
    ne reconnaissait pas la forme grasse de « PAS DE DATE » — seule
    celle d'« EXAMEN » figurait dans le motif — et cette ligne-là
    s'empilait à chaque bilan. */
-const EXAMEN_PREVU = grasNote('EXAMEN OFFICIEL PRÉVU LE');
-const EXAMEN_SANS_DATE = grasNote("PAS DE DATE D'EXAMEN OFFICIEL");
+/* ⚠️ LE LIBELLÉ EN CLAIR, ET SA FORME GRASSE, CÔTE À CÔTE.
+
+   L'un sert à ÉCRIRE, l'autre à RECONNAÎTRE — et depuis la v915 ce
+   ne sont plus deux vues du même texte : les notes d'avant portent
+   un gras décomposé que le nouveau ne produit plus. Reconnaître
+   avec la chaîne qu'on écrit reviendrait à ne plus voir aucune note
+   d'avant-hier. Tout ce qui cherche passe donc par motifGras. */
+const EXAMEN_PREVU_CLAIR = 'EXAMEN OFFICIEL PRÉVU LE';
+const EXAMEN_SANS_DATE_CLAIR = "PAS DE DATE D'EXAMEN OFFICIEL";
+const EXAMEN_PREVU = grasNote(EXAMEN_PREVU_CLAIR);
+const EXAMEN_SANS_DATE = grasNote(EXAMEN_SANS_DATE_CLAIR);
 
 /* Les états qui décident de la suite, en gras eux aussi : ce sont
    ceux qu'on cherche d'un coup d'œil sur la carte du cours. La date
@@ -2266,7 +2350,11 @@ const ETAT_REPASSAGE    = grasNote('REPASSAGE');
    eux-mêmes : impossible qu'il en oublie un. */
 const RE_FAMILLE_EXAMEN = new RegExp(
   '^(?:🚗\\s*)?(?:' +
-  EXAMEN_PREVU.slice(0, 12) + '|' + EXAMEN_SANS_DATE.slice(0, 12) + '|' +
+  /* Les premiers mots, dans n'importe laquelle des trois écritures.
+     Une tranche de la chaîne grasse marchait tant que ces douze
+     caractères-là n'avaient pas d'accent : c'était vrai par
+     chance, pas par construction. */
+  motifGras('EXAMEN OFFIC') + '|' + motifGras('PAS DE DATE ') + '|' +
   "EXAMEN|PAS DE DATE|Examen (?:prévu|du permis)|Date d'examen" +
   ')', 'i');
 
@@ -5071,7 +5159,8 @@ function majusculeNote(t){
    débordait sur tout le bloc suivant : la frise d'un élève en AAC
    s'affichait en rouge derrière sa date d'examen. */
 const RE_EXAMEN_NOTE = new RegExp(
-  '(' + EXAMEN_PREVU + '|' + EXAMEN_SANS_DATE + ')([^·\\n\\r]*)', 'g');
+  '(' + motifGras(EXAMEN_PREVU_CLAIR) + '|' +
+        motifGras(EXAMEN_SANS_DATE_CLAIR) + ')([^·\\n\\r]*)', 'g');
 
 /* Écrit une note dans un élément, la ligne d'examen en couleur :
    rouge quand la date est posée, bleu quand elle manque. On
@@ -5098,7 +5187,13 @@ function colorerNote(el, note){
   RE_EXAMEN_NOTE.lastIndex = 0;
   while((m = RE_EXAMEN_NOTE.exec(t)) !== null){
     marques.push({ debut: m.index, fin: m.index + m[0].length,
-                   couleur: (m[1] === EXAMEN_PREVU) ? 'var(--red)' : 'var(--bleu)' });
+                   /* ⚠️ ON COMPARE LE TEXTE CLAIR, PAS LA CHAÎNE GRASSE.
+                      Le motif accepte trois écritures ; l'égalité
+                      avec la seule qu'on produit aujourd'hui ferait
+                      passer toutes les notes d'avant en bleu, donc
+                      « pas de date » alors qu'elles en ont une. */
+                   couleur: (sansGras(m[1]) === EXAMEN_PREVU_CLAIR)
+                     ? 'var(--red)' : 'var(--bleu)' });
   }
 
   RE_GRAS_NOTE.lastIndex = 0;
@@ -5166,13 +5261,13 @@ function motifNonPlanifiable(note){
    le libellé était remplacé, mais « fixé au » restait et passait
    pour la date. */
 const RE_EXAMEN_ANCIEN = new RegExp(
-  '^(?:🚗\\s*)?(?:' + EXAMEN_PREVU + '|' +
+  '^(?:🚗\\s*)?(?:' + motifGras(EXAMEN_PREVU_CLAIR) + '|' +
   "EXAMEN OFFICIEL PR[EÉ]VU LE|Examen officiel pr[eé]vu le|" +
   "Examen pr[eé]vu|Examen du permis|Date d'examen|Permis pr[eé]vu" +
   ')\\s*:?\\s*(?:fix[ée]{1,2}\\s+(?:au|le)|pr[eé]vu\\s+le|au|le)?\\s*:?\\s*', 'i');
 
 const RE_SANS_DATE_ANCIEN = new RegExp(
-  '^(?:🚗\\s*)?(?:' + EXAMEN_SANS_DATE + '|' +
+  '^(?:🚗\\s*)?(?:' + motifGras(EXAMEN_SANS_DATE_CLAIR) + '|' +
   "PAS DE DATE D'EXAMEN(?: OFFICIEL)?|Pas de date d'examen(?: officiel)?|" +
   "Aucune date d'examen|Examen non pr[eé]vu" +
   ')\\s*:?\\s*', 'i');
