@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:36 — v914 */
+/* Déployé le 10/09/2026 à 15:26 — v918 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -394,6 +394,56 @@ async function envoyerConsigne(eleve, type, texte, valeur){
 
 
 /* Fiche de suivi d'un élève, ou objet vide */
+/* ============================================================
+   TOUT SE REMET À JOUR APRÈS UN BILAN — v918
+
+   David, le 12 septembre 2026 : « la partie fiche de route, je dois
+   rafraîchir après un cours pour qu'elle se mette à jour ».
+
+   ⚠️ ET J'AVAIS RÉPARÉ LE MAUVAIS ÉCRAN. La v916 relisait le
+   classeur et redessinait le bandeau du jour — ce qui était utile,
+   mais ce n'est pas ce qu'il demandait. La fiche de route, elle,
+   lit « etatBureau.suivi » et la note de l'élève par « suiviDe » et
+   « eleveDuBureau » : les deux venaient d'être relues, et personne
+   ne le lui disait.
+
+   Trois écrans lisent cet état et se dessinent à des moments
+   différents : le bandeau du jour, le dossier élève, et les cartes
+   des prochains cours — qui portent la note, donc ce que le cours
+   vient d'écrire. Les trois se redessinent ici, ensemble, une fois.
+
+   ⚠️ « forcer », SINON ELLE NE SERT À RIEN. chargerBureau garde sa
+   réponse trente secondes : sans forcer, on relirait exactement ce
+   qu'on avait avant d'enregistrer.
+
+   ⚠️ EN FOND, ET SANS BLOQUER. Le moniteur vient de terminer son
+   cours : il ne doit pas attendre un aller-retour réseau pour
+   revenir à son écran. Si la relecture échoue, on ne dit rien —
+   l'écran d'avant reste, et il n'est pas faux, il est vieux.
+
+   ⚠️ ET CHAQUE ÉCRAN DÉCIDE S'IL EST CONCERNÉ. « rafraichirPageEleve »
+   ne fait rien si aucun dossier n'est ouvert, « dessinerBandeau »
+   rien si le bandeau n'est pas prêt. On ne demande pas ici qui est
+   à l'écran : c'est à chacun de le savoir, et c'est ce qui permet
+   d'ajouter un quatrième lecteur sans revenir ici.
+   ============================================================ */
+function rafraichirApresBilan(){
+  if(typeof chargerBureau !== 'function') return;
+  Promise.resolve()
+    .then(() => chargerBureau(true))
+    .then(() => {
+      if(typeof bandeauPret !== 'undefined') bandeauPret = true;
+      if(typeof dessinerBandeau === 'function') dessinerBandeau();
+      /* La fiche de route et tout le dossier élève */
+      if(typeof rafraichirPageEleve === 'function') rafraichirPageEleve();
+      /* Les cartes des prochains cours portent la note, donc ce que
+         le bilan vient d'écrire. « false » : on redessine avec ce
+         qu'on vient de relire, on ne relit pas une deuxième fois. */
+      if(typeof afficherPrepares === 'function') afficherPrepares(false);
+    })
+    .catch(() => { /* un écran vieux n'est pas une panne */ });
+}
+
 function suiviDe(eleve){
   return trouverParNom(etatBureau.suivi, eleve) || {};
 }
