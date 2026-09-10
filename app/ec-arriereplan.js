@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 12:35 — v912 */
+/* Déployé le 10/09/2026 à 15:38 — v920 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -289,10 +289,15 @@ async function deposerBrouillonServeur(extra){
     }
   }catch(e){ /* pas de fiche lisible : la dictée part seule */ }
 
+  /* Un cours terminé ne se redépose pas, même par un minuteur
+     parti avant lui. */
+  const quiDepose = ($('studentName') && $('studentName').value.trim()) || '';
+  if(typeof depotInterdit === 'function' && depotInterdit(quiDepose)) return;
+
   try{
     await appelPrep(Object.assign({
       action: 'brouillonSet',
-      eleve: ($('studentName') && $('studentName').value.trim()) || '',
+      eleve: quiDepose,
       dateCours: ($('lessonDate') && $('lessonDate').value) || '',
       modele: ($('modele') && $('modele').value) || '',
       site: ($('site') && $('site').value) || '',
@@ -447,8 +452,72 @@ function veillerDepotBrouillon(){
 
 
 /* Le bilan est enregistré : le brouillon n'a plus lieu d'être */
+/* ============================================================
+   UN COURS FINI NE SE REDÉPOSE PLUS — v920
+
+   David, le 12 septembre 2026 : « j'ai fait terminer le cours,
+   c'est un rendez-vous post-permis, j'ai bien le message rendez-
+   vous terminé, tout est mis à jour partout, mais il reste là ».
+
+   ⚠️ LE BROUILLON ÉTAIT BIEN SUPPRIMÉ. Il revenait juste après.
+
+   L'écran du rendez-vous post-permis dépose sa fiche une seconde
+   après la dernière frappe. On choisit la suite, on tape les
+   heures, on appuie sur « Terminer » : l'enregistrement part, le
+   brouillon est retiré — et le minuteur d'une seconde, lui, arrive
+   ensuite et redépose une fiche pour un cours qui est fini. Elle
+   se réinstalle dans 🩹 Cours non terminés, et plus personne ne
+   l'en sort.
+
+   ⚠️ ET C'EST LA MÊME FAUTE QU'EN v773, RÉPARÉE UNE COUCHE PLUS
+   HAUT. Là-bas on avait déplacé la suppression APRÈS l'écriture
+   dans le classeur, en espérant gagner la course. Gagner une
+   course n'est pas la supprimer : il suffit d'un dépôt reporté,
+   d'un « pagehide », d'un réseau lent, et l'ordre s'inverse.
+
+   La parade est donc ailleurs : ce n'est plus une question
+   d'ordre, c'est une question d'ÉTAT. Un élève dont le cours vient
+   d'être terminé n'accepte plus aucun dépôt, quel que soit celui
+   qui arrive et quand. Les dépôts en retard sont refusés à
+   l'entrée au lieu d'être devancés.
+   ============================================================ */
+const coursTermines = Object.create(null);
+
+/* Trois heures : bien au-delà de tout minuteur en retard, et bien
+   en deçà d'une journée — le même élève peut avoir un autre cours
+   le soir, et celui-là doit pouvoir se déposer. */
+const OUBLI_COURS_TERMINE = 3 * 3600 * 1000;
+
+function marquerCoursTermine(eleve){
+  const cle = String(eleve || '').trim().toLowerCase();
+  if(cle) coursTermines[cle] = Date.now();
+}
+
+function depotInterdit(eleve){
+  const cle = String(eleve || '').trim().toLowerCase();
+  if(!cle) return false;
+  const quand = coursTermines[cle];
+  if(!quand) return false;
+  if(Date.now() - quand > OUBLI_COURS_TERMINE){
+    delete coursTermines[cle];
+    return false;
+  }
+  return true;
+}
+
+/* Un cours qui recommence pour cet élève lève l'interdit : c'est
+   un nouveau cours, il a le droit de se mettre à l'abri. */
+function reprendreLesDepots(eleve){
+  const cle = String(eleve || '').trim().toLowerCase();
+  if(cle) delete coursTermines[cle];
+}
+
 async function retirerBrouillonServeur(eleve){
   if(!eleve) return;
+  /* L'interdit AVANT l'appel, pas après : entre les deux il y a un
+     aller-retour réseau, et c'est précisément là que le dépôt en
+     retard se glissait. */
+  marquerCoursTermine(eleve);
   try{
     await appelPrep({ action: 'brouillonDelete', eleve: eleve });
   }catch(e){}
