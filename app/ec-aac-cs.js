@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 13:17 — v901 */
+/* Déployé le 10/09/2026 à 09:36 — v907 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -2087,6 +2087,28 @@ function texteMailRvtReporte(eleve){
 }
 
 
+/* ⚠️ UNE ANNULATION SE DIT AVEC SA DATE.
+
+   « Le rendez-vous est annulé » sans dire lequel, c'est un mot que
+   la famille ne peut pas rattacher : elle en a peut-être deux en
+   tête, le théorique et un rendez-vous pratique. La date qu'on
+   annule est la seule chose qui rende ce mail lisible.
+
+   Et il dit tout de suite que ça continue : une annulation sèche se
+   lit comme un abandon. */
+function texteMailRvtAnnule(eleve, date, heure){
+  return ['Bonjour,', '',
+    'Le rendez-vous pédagogique théorique de ' + eleve + ' prévu',
+    'le ' + (jourFrCs(date) || date) + (heure ? ' à ' + heure : '') +
+      ' est ANNULÉ.',
+    '',
+    'Nous vous reproposerons des dates prochainement.',
+    '',
+    'Avec toutes nos excuses pour le dérangement.',
+    '', 'Évolution Conduites'].join('\n');
+}
+
+
 /* Les adresses d'une famille : celle de l'élève et celle du
    prescripteur, comme pour la proposition. Une fiche sans adresse
    n'est pas un échec d'envoi — c'est une fiche à compléter. */
@@ -2118,14 +2140,19 @@ async function envoyerMailsCloture(retenus, laisses, info, jetons){
 
     const texte = variante === 'fixe'
       ? texteMailRvtFixe(nom, info.date, info.heure, info.lieu, lien)
-      : texteMailRvtReporte(nom);
+      : (variante === 'annule'
+          ? texteMailRvtAnnule(nom, info.date, info.heure)
+          : texteMailRvtReporte(nom));
     try{
       await appelPrep({ action: 'mailBilan', to: dest,
         sujet: variante === 'fixe'
           ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
             'c\'est le ' + (jourFrCs(info.date) || info.date)
-          : 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
-            'de nouvelles dates à venir',
+          : (variante === 'annule'
+              ? 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+                'ANNULÉ'
+              : 'Rendez-vous pédagogique théorique de ' + nom + ' — ' +
+                'de nouvelles dates à venir'),
         texte: texte,
         html: (typeof mailEnHtml === 'function')
           ? mailEnHtml(texte, variante === 'fixe' ? lien : '',
@@ -2138,7 +2165,7 @@ async function envoyerMailsCloture(retenus, laisses, info, jetons){
   };
 
   for(const n of (retenus || [])) await un(n, 'fixe');
-  for(const n of (laisses || [])) await un(n, 'reporte');
+  for(const n of (laisses || [])) await un(n, info && info.annule ? 'annule' : 'reporte');
   return out;
 }
 
@@ -2170,12 +2197,53 @@ function lienRvt(){
    « Un tableau élèves × créneaux, avec le compte sous chaque colonne
    et le meilleur mis en avant. »
    ------------------------------------------------------------ */
+/* ⚠️ CE QUI DEMANDE UNE ATTENTION : les propositions en cours, et
+   les rendez-vous à venir. C'est le compte du bouton de filtre. */
+function compteOrganisationRvt(){
+  const ouverts = (toursRvt || []).filter(t => !t.clos).length;
+  return ouverts + rvtPrevus().length;
+}
+
+
+/* Les propositions terminées : rendez-vous passé, ou abandonnée.
+
+   ⚠️ LES TROIS DERNIÈRES, ET PAS « DEPUIS TOUJOURS ». David :
+   « on garde juste les 3 derniers ». Au-delà, la liste ne sert plus
+   qu'une fois par an, et ce jour-là c'est le classeur qu'on ouvre.
+   Une liste qui garde tout finit par ne plus rien montrer. */
+function toursTerminesRvt(){
+  const enCours = {};
+  rvtPrevus().forEach(p => { enCours[p.tour.id] = true; });
+  return (toursRvt || [])
+    .filter(t => t.clos && !enCours[t.id])
+    .slice(0, 3);
+}
+
+
 function dessinerToursRvt(zone){
   zone.innerHTML = '';
-  const ouverts = toursRvt.filter(t => !t.clos);
-  if(!ouverts.length) return;
 
-  ouverts.forEach(t => zone.appendChild(carteTourRvt(t)));
+  /* ── EN COURS ── ce qui attend une décision de ta part */
+  const ouverts = (toursRvt || []).filter(t => !t.clos);
+  if(ouverts.length){
+    zone.appendChild(titreZoneRvt('EN COURS',
+      ouverts.length + ' proposition(s) — elles attendent ta décision'));
+    ouverts.forEach(t => zone.appendChild(carteTourRvt(t)));
+  }
+}
+
+
+/* Le titre d'une zone : trois blocs se suivent, il faut savoir où
+   l'on est sans compter les cadres. */
+function titreZoneRvt(titre, sous){
+  const d = document.createElement('div');
+  d.style.cssText = 'margin:4px 0 8px;';
+  d.innerHTML = '<div style="font-size:11.5px;font-weight:800;' +
+    'letter-spacing:.08em;color:var(--muted);">' +
+    String(titre).replace(/</g, '&lt;') + '</div>' +
+    (sous ? '<div style="font-size:11.5px;color:var(--muted);">' +
+            String(sous).replace(/</g, '&lt;') + '</div>' : '');
+  return d;
 }
 
 
@@ -2203,6 +2271,31 @@ function carteTourRvt(t){
   const attendus = (t.eleves || []).length;
   const repondus = (t.eleves || []).filter(e => e.reponduLe).length;
 
+  /* ⚠️ UN TOUR CLOS GARDE SA GRILLE — v907.
+
+     David : « je ne vois plus le tableau avec les réponses des
+     personnes. Le tableau d'avant était beaucoup mieux ».
+
+     La grille ne s'affichait que pour les tours OUVERTS. Dès qu'une
+     date était retenue — ou dès que la limite passait — le tour
+     disparaissait, tableau compris, alors que les réponses sont
+     intactes dans le classeur. On ne pouvait plus vérifier une
+     décision, ni la comprendre trois jours plus tard.
+
+     Ce qui change quand un tour est clos, c'est ce qu'on peut en
+     FAIRE — pas ce qu'on peut en VOIR. */
+  const retenu = (t.creneaux || [])
+    .filter(c => t.retenu && String(c.id) === String(t.retenu))[0] || null;
+
+  if(!t.clos){
+    d.style.borderColor = 'var(--orange)';
+  }else if(retenu){
+    d.style.borderColor = 'var(--accent-text)';
+  }else{
+    d.style.borderColor = 'var(--line)';
+    d.style.opacity = '.85';
+  }
+
   const tete = document.createElement('div');
   tete.style.cssText = 'font-weight:700;font-size:13px;margin-bottom:3px;';
   tete.textContent = '🗣️ Proposition du ' + (t.creee || '').split(' ')[0] +
@@ -2212,9 +2305,13 @@ function carteTourRvt(t){
   const sous = document.createElement('div');
   sous.style.cssText = 'font-size:11.5px;color:var(--muted);' +
     'margin-bottom:9px;line-height:1.5;';
-  sous.textContent = t.limite
-    ? 'Ils peuvent répondre jusqu\'au ' + jourFrCs(t.limite)
-    : 'Sans date limite';
+  sous.textContent = !t.clos
+    ? (t.limite ? 'Ils peuvent répondre jusqu\'au ' + jourFrCs(t.limite)
+                : 'Sans date limite')
+    : (retenu
+        ? '✅ Retenu : le ' + jourFrCs(retenu.date) +
+          (retenu.heure ? ' à ' + retenu.heure : '')
+        : '🗑️ Sans suite' + (t.closLe ? ' — ' + t.closLe : ''));
   d.appendChild(sous);
 
   /* Une colonne par créneau, une ligne par élève. */
@@ -2233,7 +2330,12 @@ function carteTourRvt(t){
     const th = cell('th', jourFrCs(c.date) + (c.heure ? '\n' + c.heure : '') +
                           (ou ? '\n🏢 ' + ou : ''));
     th.style.whiteSpace = 'pre-line';
-    if(c.id === meilleur && comptes[c.id] > 0){
+    /* Sur un tour clos, c'est la colonne RETENUE qu'on met en
+       avant — pas la meilleure. Elles ne sont pas toujours la même,
+       et c'est la décision qu'on vient relire. */
+    const enAvant = t.clos ? (retenu && c.id === retenu.id)
+                           : (c.id === meilleur && comptes[c.id] > 0);
+    if(enAvant){
       th.style.color = 'var(--accent-text)';
       th.style.fontWeight = '800';
     }
@@ -2299,8 +2401,29 @@ function carteTourRvt(t){
   if(muets.length){
     const m = document.createElement('div');
     m.style.cssText = 'font-size:11.5px;color:var(--muted);' +
-      'margin-bottom:9px;line-height:1.5;';
-    m.textContent = '⏳ Sans réponse : ' + muets.join(', ');
+      'margin-bottom:9px;line-height:1.5;display:flex;gap:8px;' +
+      'align-items:baseline;flex-wrap:wrap;';
+    const txt = document.createElement('span');
+    txt.style.cssText = 'flex:1;min-width:0;';
+    txt.textContent = '⏳ ' + muets.length + ' sans réponse : ' +
+                      muets.join(', ');
+    m.appendChild(txt);
+
+    /* ⚠️ UN SILENCE SE RELANCE RAREMENT TOUT SEUL — v907.
+
+       David : « il manque de voir ceux qui n'ont pas encore répondu
+       avec la possibilité de leur renvoyer le mail ». Le nom du
+       geste est ici, à côté des noms qu'il concerne.
+
+       Il ne part QU'AUX SANS-RÉPONSE. Relancer quelqu'un qui a
+       répondu lui ferait croire qu'on a perdu sa réponse — et sur un
+       tour où l'on attend des disponibilités, c'est la meilleure
+       façon d'en recevoir deux qui se contredisent. */
+    if(!t.clos){
+      m.appendChild(petitBouton('📨 Relancer les ' + muets.length,
+        'Le même lien, à ceux qui n\'ont rien dit',
+        () => relancerMuetsRvt(t, muets)));
+    }
     d.appendChild(m);
   }
 
@@ -2343,34 +2466,165 @@ function carteTourRvt(t){
      invite quatre familles, deux répondent qu'elles ne peuvent pas,
      on en ajoute trois — et parfois on déplace une date en fonction
      des retours. Les deux se font tant que le tour est ouvert. */
-  act.appendChild(petitBouton('➕ Ajouter des familles',
-    'Elles reçoivent les mêmes créneaux — c\'est le même rendez-vous',
-    () => ajouterAuTourRvt(t)));
+  /* ⚠️ CE QU'ON PEUT FAIRE DÉPEND DE L'ÉTAT — CE QU'ON PEUT VOIR,
+     NON. Ajouter des familles ou déplacer des créneaux sur un
+     rendez-vous déjà fixé enverrait des invitations à une date
+     décidée : ces deux-là s'arrêtent à la clôture. */
+  if(!t.clos){
+    act.appendChild(petitBouton('➕ Ajouter des familles',
+      'Elles reçoivent les mêmes créneaux — c\'est le même rendez-vous',
+      () => ajouterAuTourRvt(t)));
 
-  act.appendChild(petitBouton('📅 Modifier les créneaux',
-    'Ajouter une date, ou en déplacer une selon les retours',
-    () => changerCreneauxRvt(t)));
+    act.appendChild(petitBouton('📅 Modifier les créneaux',
+      'Ajouter une date, ou en déplacer une selon les retours',
+      () => changerCreneauxRvt(t)));
+  }
 
-  (t.creneaux || []).forEach(c => {
-    if(!comptes[c.id]) return;
-    act.appendChild(petitBouton(
-      '📅 Retenir le ' + jourFrCs(c.date) + ' (' + comptes[c.id] + ')',
-      'Le rendez-vous est fixé pour ceux qui ont dit oui',
-      () => retenirCreneauRvt(t, c, comptes[c.id])));
-  });
+  /* Retenir — ou changer la date, qui est le même geste sur un tour
+     déjà décidé. Le créneau retenu n'est pas proposé : le retenir de
+     nouveau ne changerait rien. */
+  if(!t.clos || retenu){
+    (t.creneaux || []).forEach(c => {
+      if(!comptes[c.id]) return;
+      if(retenu && c.id === retenu.id) return;
+      act.appendChild(petitBouton(
+        (retenu ? '↩️ Changer pour le ' : '📅 Retenir le ') +
+          jourFrCs(c.date) + ' (' + comptes[c.id] + ')',
+        retenu
+          ? 'Le rendez-vous se déplace — ceux qui ne peuvent pas en sortent'
+          : 'Le rendez-vous est fixé pour ceux qui ont dit oui',
+        () => retenirCreneauRvt(t, c, comptes[c.id])));
+    });
+  }
 
-  act.appendChild(petitBouton('🗑️ Abandonner', 'Aucun créneau ne va — ' +
-    'les élèves redeviennent proposables', async () => {
-      if(!await confirmer('Abandonner cette proposition ?\n\n' +
-        'Les ' + attendus + ' élèves redeviennent proposables, et leurs ' +
-        'réponses restent consultables.', 'Abandonner')) return;
-      await appelPrep({ action: 'rvtFermer', id: t.id });
-      await chargerToursRvt(true);
-      redessinerAacCs();
-    }));
+  if(!t.clos){
+    act.appendChild(petitBouton('🗑️ Abandonner', 'Aucun créneau ne va — ' +
+      'les élèves redeviennent proposables', async () => {
+        if(!await confirmer('Abandonner cette proposition ?\n\n' +
+          'Les ' + attendus + ' élèves redeviennent proposables, et leurs ' +
+          'réponses restent consultables.', 'Abandonner')) return;
+        await appelPrep({ action: 'rvtFermer', id: t.id });
+        await chargerToursRvt(true);
+        redessinerAacCs();
+      }));
+  }
+
+  if(retenu){
+    act.appendChild(petitBouton('↩️ Annuler ce rendez-vous',
+      'Le rendez-vous n\'a pas lieu — la proposition rouvre',
+      () => annulerRendezVousRvt(t, retenu)));
+  }
 
   d.appendChild(act);
   return d;
+}
+
+
+/* ⚠️ RELANCER NE PART QU'AUX SANS-RÉPONSE.
+
+   C'est le même mail et le MÊME LIEN que l'invitation : ce que la
+   famille a perdu, ce n'est pas un autre message, c'est celui-là.
+   Un second texte pour la même chose finirait par dire autre
+   chose. */
+async function relancerMuetsRvt(t, muets){
+  const vises = (t.eleves || []).filter(e =>
+    muets.indexOf(e.eleve) !== -1 && !e.accesRetire);
+  if(!vises.length){
+    showToast('Personne à relancer — leurs liens sont coupés');
+    return;
+  }
+
+  const sansMail = vises.filter(e => !mailsDeLaFamille(e.eleve).length)
+                        .map(e => e.eleve);
+  const lignes = ['Relancer ' + vises.length + ' famille(s) sans réponse ?', '',
+    '   ' + vises.map(e => e.eleve).join(', '), '',
+    'Elles reçoivent les mêmes créneaux et le même lien, avec un mot',
+    "qui dit qu'on attend encore leur réponse.", ''];
+  if(sansMail.length){
+    lignes.push('⚠️ Sans adresse mail, donc à prévenir à la main :',
+                '   ' + sansMail.join(', '), '');
+  }
+
+  if(!await confirmer(lignes.join('\n'), '📨 Relancer')) return;
+
+  showToast('Envoi en cours…');
+  const envois = await envoyerMailsRvt(
+    vises.map(e => ({ eleve: e.eleve, jeton: e.jeton,
+                      mails: mailsDeLaFamille(e.eleve) })),
+    t.creneaux || [], t.limite || '');
+
+  try{
+    await appelPrep({ action: 'rvtEnvois', id: t.id,
+                      envois: JSON.stringify(envois) });
+  }catch(e){ /* la grille dira « envoi inconnu », c'est déjà ça */ }
+
+  const partis = envois.filter(x => x.etat === 'envoyé').length;
+  const rates = envois.filter(x => x.etat !== 'envoyé');
+  showToast(rates.length
+    ? '📨 ' + partis + ' relancée(s), ' + rates.length + ' à faire à la main : ' +
+      rates.map(x => x.eleve).join(', ')
+    : '📨 ' + partis + ' famille(s) relancée(s) ✅');
+
+  await chargerToursRvt(true);
+  redessinerAacCs();
+}
+
+
+/* ⚠️ ANNULER DIT TOUT CE QU'IL DÉFAIT AVANT DE LE FAIRE.
+
+   Des familles ont pu recevoir une convocation : elles attendent ce
+   jour-là. Et la date est écrite sur la fiche de chaque élève
+   retenu — c'est elle qui les fait disparaître de « Théorique à
+   faire ». L'oublier laisserait des élèves annoncés pour un
+   rendez-vous qui n'existe plus, ET invisibles dans la liste de ceux
+   à replacer. */
+async function annulerRendezVousRvt(t, creneau){
+  const vises = (t.eleves || []).filter(e => e.retenu === 'oui');
+  const quand = jourFrCs(creneau.date) +
+                (creneau.heure ? ' à ' + creneau.heure : '');
+
+  if(!await confirmer(
+      'Annuler le rendez-vous du ' + quand + ' ?\n\n' +
+      '↩️ ' + vises.length + ' élève(s) perdent cette date et redeviennent ' +
+      'à replacer :\n   ' + vises.map(e => e.eleve).join(', ') + '\n\n' +
+      'La proposition rouvre avec toutes ses réponses : tu pourras ' +
+      'retenir une autre date sans rien redemander aux familles.',
+      '↩️ Annuler le rendez-vous')) return;
+
+  try{
+    const r = await appelPrep({ action: 'rvtAnnuler', id: t.id });
+    if(!r || r.status !== 'ok'){
+      showToast((r && r.message) || 'Impossible.');
+      return;
+    }
+    showToast('Rendez-vous annulé — ' + (r.rendus || []).length +
+              ' élève(s) à replacer');
+
+    /* ⚠️ LES FICHES ONT CHANGÉ CÔTÉ SERVEUR. Sans cette relecture,
+       la liste continuerait d'afficher « théorique prévu le … » sur
+       des élèves qui n'ont plus de rendez-vous. */
+    if(typeof chargerBureau === 'function'){
+      try{ await chargerBureau(true); }catch(e){}
+    }
+    await chargerToursRvt(true);
+    redessinerAacCs();
+
+    /* Le mot aux familles : facultatif, et DÉCOCHÉ par défaut —
+       David. La plupart des annulations arrivent avant que quoi que
+       ce soit soit parti, et un mail d'annulation à quelqu'un qui
+       n'a jamais reçu de convocation fait plus de mal que de bien. */
+    if(vises.length && await confirmer(
+        'Prévenir les ' + vises.length + ' famille(s) de l\'annulation ?\n\n' +
+        'À ne faire QUE si elles avaient reçu la convocation du ' + quand +
+        '.\n\nElles liront : « le rendez-vous du ' + quand + ' est ANNULÉ, ' +
+        'nous vous reproposerons des dates ».',
+        '📨 Prévenir de l\'annulation ?')){
+      await envoyerMailsCloture([], vises.map(e => e.eleve),
+        { date: creneau.date, heure: creneau.heure, annule: true },
+        jetonsDuTour(t));
+      showToast('📨 Familles prévenues ✅');
+    }
+  }catch(e){ showToast('Impossible : ' + e.message); }
 }
 
 
@@ -2720,10 +2974,29 @@ function rvtPrevus(){
 
 function dessinerRvtPrevus(zone){
   zone.innerHTML = '';
-  const liste = rvtPrevus();
-  if(!liste.length) return;
 
-  liste.forEach(p => zone.appendChild(carteRvtPrevu(p)));
+  const liste = rvtPrevus();
+  if(liste.length){
+    zone.appendChild(titreZoneRvt('PRÉVUS',
+      liste.length + ' rendez-vous — ils sont décidés et approchent'));
+    liste.forEach(p => zone.appendChild(carteRvtPrevu(p)));
+  }
+
+  /* ── TERMINÉES ── repliées : c'est de l'histoire, mais elle se
+     relit. Fermer un tour ne doit plus vouloir dire l'effacer. */
+  const finies = toursTerminesRvt();
+  if(!finies.length) return;
+
+  const det = document.createElement('details');
+  det.style.cssText = 'margin-top:14px;';
+  const som = document.createElement('summary');
+  som.style.cssText = 'cursor:pointer;font-size:12.5px;color:var(--muted);' +
+    'padding:6px 0;';
+  som.textContent = '🗂️ Les ' + finies.length +
+    ' dernière(s) proposition(s) terminée(s)';
+  det.appendChild(som);
+  finies.forEach(t => det.appendChild(carteTourRvt(t)));
+  zone.appendChild(det);
 }
 
 
@@ -3147,18 +3420,36 @@ function dessinerListeAac(zone){
   }
   dessinerFiltresAac(liste);
 
-  /* LES PROPOSITIONS EN COURS, AU-DESSUS DE LA LISTE. Une grille de
-     réponses qu'il faudrait aller chercher ailleurs ne se regarde
-     pas — et c'est justement quand elle se remplit qu'on veut la
-     voir. */
-  const zT = $('toursRvt');
-  if(zT) dessinerToursRvt(zT);
+  /* ⚠️ UN SEUL SUJET À L'ÉCRAN À LA FOIS.
 
-  /* Les rendez-vous déjà retenus, sous les propositions en cours :
-     le même écran porte ce qui est à décider ET ce qui est décidé,
-     dans cet ordre. */
+     Sous « 🗓️ Organisation théorique » : l'organisation, seule.
+     Sous les cinq autres filtres : la liste d'élèves, seule. Ni
+     lieux, ni propositions, ni rendez-vous prévus au-dessus. */
+  const orga = (filtreAac === 'organisation');
+  const zL = $('lieuxRdvAac');
+  if(zL) zL.style.display = orga ? '' : 'none';
+
+  const zT = $('toursRvt');
+  if(zT){
+    zT.style.display = orga ? '' : 'none';
+    if(orga) dessinerToursRvt(zT); else zT.innerHTML = '';
+  }
   const zP = $('rvtPrevus');
-  if(zP) dessinerRvtPrevus(zP);
+  if(zP){
+    zP.style.display = orga ? '' : 'none';
+    if(orga) dessinerRvtPrevus(zP); else zP.innerHTML = '';
+  }
+
+  if(orga){
+    /* Rien à décider ni à préparer : on le dit, plutôt que de
+       laisser un écran vide qui ressemble à une panne. */
+    if(!compteOrganisationRvt() && !toursTerminesRvt().length){
+      zone.innerHTML = '<div class="empty">Aucune proposition en cours, ' +
+        'aucun rendez-vous à venir.<br><span style="font-size:12px;">' +
+        'Le bouton « 🗣️ Organiser » ci-dessus en ouvre une.</span></div>';
+    }
+    return;
+  }
 
   if(!liste.length){
     zone.innerHTML = '<div class="empty">Aucun élève en conduite accompagnée.' +
@@ -3190,9 +3481,25 @@ function dessinerFiltresAac(liste){
   z.innerHTML = '';
   z.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
 
+  /* ⚠️ L'ORGANISATION EST UN FILTRE, PAS UN EMPILEMENT — v907.
+
+     David, le 10 septembre 2026 : « théorique vient à côté des
+     boutons dans AAC, là où il y a écrit Tous, En retard,
+     Théorique à faire… tu en crées un nouveau avec Organisation
+     théorique à côté de Théorique à faire ».
+
+     Les lieux, les propositions en cours et les rendez-vous prévus
+     s'empilaient AU-DESSUS d'une liste de quinze élèves qui n'a rien
+     à voir. Deux sujets dans un écran, et c'est le plus bruyant qui
+     gagne. Ils ne s'affichent plus que sous ce filtre-ci — et sous
+     lui, il n'y a pas de liste d'élèves.
+
+     Le compte dit ce qui demande une attention : les propositions en
+     cours PLUS les rendez-vous à venir. */
   [['tous', 'Tous', liste.length],
    ['retard', '⚠️ En retard', liste.filter(x => x.retard).length],
    ['theorique', '🗣️ Théorique à faire', liste.filter(x => x.rvtManquant).length],
+   ['organisation', '🗓️ Organisation théorique', compteOrganisationRvt()],
    ['areprogrammer', '🔁 À reprogrammer',
     liste.filter(x => x.exam.aReprogrammer).length],
    ['horsparcours', 'Ne valident pas',
