@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:25 — v930 */
+/* Déployé le 10/09/2026 à 18:35 — v931 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3008,24 +3008,50 @@ function ouvrirTiroirDuBilanExamen(ilYAQuelqueChose){
   if(tiroir) tiroir.open = !!ilYAQuelqueChose;
 }
 
-/* Le pose dans le champ, s'il est encore vide quand la réponse
-   arrive — et dit d'où il vient : un texte qui apparaît tout seul
-   sans qu'on sache d'où, on le relit avec méfiance. */
-async function reprendreBilanExamen(eleve){
-  const champ = $('rdvPostBilan');
+/* ============================================================
+   REPRENDRE LE BILAN DE L'EXAMEN OFFICIEL
+
+   ⚠️ DEUX ÉCRANS LE DEMANDENT, ET J'AVAIS SERVI LE MAUVAIS — v931.
+
+   David, capture à l'appui : le champ « BILAN DE L'EXAMEN
+   OFFICIEL » de la PRÉPARATION du rendez-vous post-permis est
+   vide, sur un élève dont le bilan d'examen est là, dans ses
+   cours, à deux centimètres.
+
+   La reprise posée en v924 ne servait que l'écran du moniteur —
+   « rdvPostView », celui du jour du rendez-vous. La préparation,
+   celle du bureau, lisait seulement « s.bilanExamen », qui
+   n'existe qu'APRÈS un premier rendez-vous. Sur un post-permis à
+   prévoir — le cas normal, celui qui suit un ajournement — elle
+   n'avait rien, et le bureau retournait le chercher à la main.
+
+   Une seule fonction sert donc les deux, et on lui dit où poser.
+   En écrire une seconde pour la préparation, c'était deux façons
+   de choisir « le dernier examen officiel », et un jour deux
+   réponses.
+   ============================================================ */
+async function reprendreBilanExamen(eleve, opts){
+  const o = opts || {};
+  const champ = o.champ || $('rdvPostBilan');
   if(!champ) return;
   try{
     const ex = await dernierExamenOfficielDe(eleve);
     if(!ex) return;
     /* Entre-temps le moniteur a pu écrire, ou changer d'élève. */
     if(champ.value.trim()) return;
-    if(!rdvPostEnCours || rdvPostEnCours.eleve !== eleve) return;
+
+    /* Toujours au même élève, et sur un écran toujours là. La
+       recherche relit tout l'historique : elle met plusieurs
+       secondes, et l'écran a pu se refermer entre-temps. */
+    const encoreLa = o.encoreLa
+      || (() => !!rdvPostEnCours && rdvPostEnCours.eleve === eleve);
+    if(!encoreLa()) return;
 
     champ.value = String(ex.bilan || '').trim();
     /* Le texte vient d'arriver tout seul : on le montre, sinon il
        n'a servi à rien. */
-    ouvrirTiroirDuBilanExamen(champ.value.trim());
-    const zone = $('rdvPostBilanSource');
+    if(!o.champ) ouvrirTiroirDuBilanExamen(champ.value.trim());
+    const zone = o.source || $('rdvPostBilanSource');
     if(zone){
       zone.style.display = 'block';
       zone.textContent = "↩️ Repris de son bilan d'examen officiel" +
