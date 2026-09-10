@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 12:08 — v899 */
+/* Déployé le 10/09/2026 à 08:56 — v905 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2071,7 +2071,8 @@ async function verifierNumerosLecon(){
            il peut ne pas exister. Zéro bilan au classeur ne fait
            pas une « 1ère leçon » : on ne réécrit alors rien. */
         const debut = cestLePremierCours((c.contexte && c.contexte.premierCours) || c.note);
-        const juste = rangConnu(dossier.lecons, c.modele, debut);
+        const juste = rangConnu(dossier.lecons, c.modele, debut,
+                                c.eleve, dossier);
         if(juste === null) return;
         const ecrit = numeroLeconDuCours(c);
 
