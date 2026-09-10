@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 10/09/2026 à 18:54 — v932 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -407,14 +407,49 @@ async function rendreALaListeRdvPermis(nom, quand){
         garde une date que personne ne peut plus effacer. */
   if(typeof envoyerConsigne === 'function'){
     try{
-      await envoyerConsigne(nom, 'permis',
-        'Examen du permis annulé' +
-        (quand ? ' (était le ' +
-          ((typeof dateEnToutesLettres === 'function')
-            ? (dateEnToutesLettres(quand) || quand) : quand) + ')' : '') +
-        ' — date à reprendre (bureau)');
+      await envoyerConsigne(nom, 'permis', phraseExamenAnnule(quand));
     }catch(e){ /* la fiche est déjà rendue : on ne bloque pas dessus */ }
   }
+}
+
+/* ============================================================
+   LA PHRASE DE L'ANNULATION
+
+   ⚠️ ELLE ÉTAIT ÉCRITE D'UNE FAÇON ET RELUE D'UNE AUTRE — v932.
+
+   David : « là j'ai bien écrit annulé comme il faut, par contre il
+   manque la date ». Et il a raison deux fois.
+
+   Cette phrase s'écrivait « Examen du permis annulé (était le
+   mardi 22 septembre 2026) ». Les deux lecteurs, eux, cherchent la
+   date AVANT le mot — « Examen du permis du <date> annulé » : c'est
+   la forme de « analyserNote » (ec-bureau.js) et celle de la
+   relecture du questionnaire. Aucun des deux ne trouvait donc la
+   date, et la fiche de route affichait « Examen du permis annulé »
+   tout court.
+
+   La phrase prend la forme que les lecteurs connaissent déjà — et
+   elle porte les DEUX dates, celle qui est annulée et le jour où
+   on l'annule : « Examen du permis du mardi 22 septembre 2026
+   annulé le jeudi 10 septembre 2026 ». David : « normalement
+   Examen du permis du 22/09 annulé le 10/09 ».
+
+   ⚠️ ÉCRITE ICI, ET NULLE PART AILLEURS. Les quatre portes qui
+   sortent un élève d'une session passent toutes par
+   « rendreALaListeRdvPermis » ; elles écrivent donc toutes la même
+   phrase. Une seconde façon de l'écrire, et un des lecteurs
+   cesserait de la comprendre sans que rien ne le dise.
+   ============================================================ */
+function phraseExamenAnnule(quand){
+  const enToutesLettres = v => (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(v) || v) : v;
+  const auj = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  return 'Examen du permis' +
+    (quand ? ' du ' + enToutesLettres(quand) : '') +
+    ' annulé le ' + enToutesLettres(auj) +
+    ' — date à reprendre (bureau)';
 }
 
 
