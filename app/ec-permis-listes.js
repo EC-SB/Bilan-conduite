@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 09:26 — v892 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1673,6 +1673,13 @@ function choisirDansUneListe(titre, choix, courant){
    sont des favoris, pas une liste en dur : ils s'épinglent et se
    dépinglent depuis « Autre… », et l'ordre est celui du choix.
    ============================================================ */
+/* ⚠️ CES TROIS NOMS SONT DE VRAIES PERSONNES, PAS DES ATTRIBUTIONS.
+
+   La correction « Chrystel → David » qui passe dans les commentaires
+   à chaque livraison a effacé Chrystel de cette liste en v908 : deux
+   « David » côte à côte, et une personne de moins dans la rangée de
+   ceux qui prennent les dates. Une donnée n'est pas un commentaire —
+   c'est le test des favoris qui l'a vu, pas moi. */
 const FAVORIS_PRISE_DEPART = ['Chrystel', 'David', 'Maryne'];
 let favorisPriseListe = FAVORIS_PRISE_DEPART.slice();
 let favorisPriseCharges = false;
@@ -3109,7 +3116,7 @@ async function choisirGroupePermis(eleve, iso, actuel){
   let nom = v;
   if(v === '➕ Nouveau groupe…'){
     const saisi = await demander(
-      'Nom du groupe\n\nEx : « Inspecteur A », « Matin », « Chrystel ».\n' +
+      'Nom du groupe\n\nEx : « Inspecteur A », « Matin », « David ».\n' +
       'Les élèves du même nom seront regroupés.', '', 'Groupe');
     if(saisi === null) return;
     nom = String(saisi).trim();
@@ -3295,15 +3302,25 @@ async function rattraperExamensBlancs(){
     }
 
     /* Les heures : « plus que les 3h » vaut 0, et chaque leçon
-       annoncée vaut deux heures. */
+       annoncée vaut deux heures.
+
+       ⚠️ ET ELLES PASSENT PAR LEUR PORTE — v908, comme les trois
+       autres écrans qui écrivent ce nombre. Ici on RATTRAPE ce que
+       les notes disaient déjà : l'auteur posé est donc celui qui
+       appuie sur le bouton de rattrapage, et c'est honnête — c'est
+       bien lui qui vient de le porter dans la fiche. */
+    let heures;
     if(!String(s.heuresRestantes || '').trim()){
-      if(t.ebSuite === '3h') majs.heuresRestantes = '0';
+      if(t.ebSuite === '3h') heures = '0';
       else if(t.ebSuite === 'lecons' && t.ebLecons){
-        majs.heuresRestantes = String(Number(t.ebLecons) * 2);
+        heures = String(Number(t.ebLecons) * 2);
       }
     }
+    const tout = (heures !== undefined && typeof champsHeuresRestantes === 'function')
+      ? champsHeuresRestantes(e.eleve, heures, majs)
+      : majs;
 
-    if(Object.keys(majs).length) aFaire.push({ eleve: e.eleve, majs: majs });
+    if(Object.keys(tout).length) aFaire.push({ eleve: e.eleve, majs: tout });
   });
 
   if(!aFaire.length){
@@ -3379,7 +3396,7 @@ async function saisirHeuresRestantes(nom){
   }
 
   try{
-    await majSuivi(nom, { heuresRestantes: propre });
+    await majHeuresRestantes(nom, propre);
     showToast(propre === '' ? 'Effacé'
             : propre === '0' ? 'Plus que les 3h ✅'
             : propre + ' + 3h ✅');
