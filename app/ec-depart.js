@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:12 — v925 */
+/* Déployé le 10/09/2026 à 18:02 — v927 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1021,6 +1021,14 @@ async function terminerCours(){
   $('noteInterne').value = '';
   if(typeof majAffichageNoteInterne === 'function') majAffichageNoteInterne();
   afficherNote('');
+
+  /* ⚠️ ET ON N'EST PLUS VENU D'UNE CARTE — v927. Le bloc d'avant le
+     cours se résume et se replie quand la carte a déjà tout dit. Un
+     cours saisi à la main derrière un cours ouvert depuis une carte
+     n'a rien fait lire à personne : sans cette remise à zéro, il
+     aurait hérité du repli, et le moniteur n'aurait plus eu la note
+     sous les yeux. */
+  if(typeof coursOuvertDepuisCarte !== 'undefined') coursOuvertDepuisCarte = false;
 
   /* Les blocs du cours précédent : sans ça, le dossier et la
      préparation de l'élève d'avant restaient affichés sous un
