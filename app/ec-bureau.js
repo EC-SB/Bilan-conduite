@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 10/09/2026 à 13:04 — v913 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -20,9 +20,43 @@
 
 /* Décode les phrases produites par le questionnaire */
 function analyserNote(note){
+  /* ⚠️ CE QUI EST EN GRAS SE LIT ICI, ET PLUS CHEZ L'APPELANT — v913.
+
+     David, le 10 septembre 2026, capture à l'appui : « suite au cours
+     de ce jour ça a été indiqué examen blanc ne pas prévoir, et ça
+     n'a pas mis à jour au-dessus ».
+
+     Le bilan écrit ses états en GRAS UNICODE : « NE PAS PRÉVOIR
+     D'EXAMEN BLANC » n'est pas fait des lettres N, E, P… mais de
+     leurs jumelles mathématiques. Cette fonction cherchait les
+     lettres ordinaires. Elle ne trouvait donc RIEN — ni « ne pas
+     prévoir », ni « examen blanc passé », ni « simulateur nuit et
+     risques ». TOUS les états mis en gras étaient invisibles.
+
+     ⚠️ ET C'ÉTAIT ÉCRIT NOIR SUR BLANC AU-DESSUS DE grasNote :
+     « ce qui a été mis en gras doit pouvoir être RELU ; sans
+     sansGras(), mettre un état en gras revenait à le rendre
+     invisible à tout le reste de l'application ». La parade avait
+     bien été posée — mais CHEZ TROIS APPELANTS SUR DOUZE. Les neuf
+     autres, dont l'état du bureau et le dossier élève, lisaient le
+     gras tel quel.
+
+     Une parade posée chez l'appelant est une parade qu'on oublie.
+     Elle est donc ici, à l'entrée, une seule fois : tous les
+     appelants en profitent, et ceux qui dégraissaient déjà ne
+     risquent rien — sansGras sur du texte clair ne change rien.
+
+     ⚠️ ET L'ACCENT AVEC. La mise en gras décompose « É » en « E »
+     suivi d'un accent flottant ; « PRÉVOIR » ainsi écrit n'est pas
+     le « prévoir » du motif, même en ignorant la casse. sansGras
+     recompose en NFC — c'est la seconde moitié de la réparation, et
+     elle est indissociable de la première. */
+  const clair = (typeof sansGras === 'function')
+    ? sansGras(String(note || '')) : String(note || '');
+
   /* Les téléphones remplacent l'apostrophe droite par une typographique :
      sans cette normalisation, les repères du bilan ne sont plus reconnus. */
-  const t = String(note || '')
+  const t = clair
     .replace(/[\u2018\u2019\u02BC]/g, "'")
     .replace(/[\u00A0\u202F\u2007]/g, ' ');
   const r = { repassages:null, dateAjournement:null,
