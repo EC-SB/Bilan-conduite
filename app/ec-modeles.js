@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 16:57 — v924 */
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1426,6 +1426,59 @@ function extraireFrise(note){
   return '';
 }
 
+/* ============================================================
+   UNE LEÇON DE CONDUITE VAUT DEUX HEURES
+
+   ⚠️ CETTE RÈGLE ÉTAIT ÉCRITE NEUF FOIS, DANS SIX FICHIERS — v925.
+
+   Chaque fois sous la forme d'un « × 2 » ou d'un « ÷ 2 » nu, sans
+   qu'aucun ne sache que les huit autres existaient. Et le code le
+   SAVAIT : trois commentaires le disaient déjà, mot pour mot —
+   « la même conversion que conclusionExamenBlanc, dans l'autre
+   sens », « c'est la conversion que fait déjà
+   boutonsSuiteExamBlanc, à l'envers ». Décrire une faute ne la
+   répare pas.
+
+   Le jour où l'école passerait à autre chose, ou simplement le
+   jour où l'un des neuf serait corrigé, l'application aurait
+   annoncé deux nombres différents pour la même question — et
+   c'est exactement ce qui s'est produit toute la semaine sur la
+   réserve d'heures et sur le décompte de l'examen blanc.
+
+   ⚠️ CE QUI N'EST PAS ICI, ET POURQUOI.
+
+   1. Le TEXTE de la frise — « 10 leçons de 2h + exam blanc » —
+      garde son « 2h » écrit en toutes lettres. Ce n'est pas un
+      calcul : c'est une convention déjà enregistrée dans des
+      centaines de notes, que des expressions régulières relisent.
+      La changer demanderait une reprise des notes, pas une
+      variable.
+   2. Le devis des tarifs arrondit au SUPÉRIEUR — on ne vend pas
+      une demi-leçon. Il partage donc la constante, pas
+      l'arrondi : la règle est commune, la question ne l'est pas.
+   ============================================================ */
+const HEURES_PAR_LECON = 2;
+
+/* Un nombre écrit à la main peut arriver avec une virgule, ou
+   collé à son unité (« 4h ») : on lit le nombre en tête, comme le
+   faisait chacun des neuf endroits. Rien de lisible, rien à
+   rendre — « null » veut dire « je ne sais pas », et se distingue
+   de zéro, qui est une réponse. */
+function nombreLu(v){
+  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  return isNaN(n) ? null : n;
+}
+
+function heuresPourLecons(lecons){
+  const n = nombreLu(lecons);
+  return (n === null) ? null : n * HEURES_PAR_LECON;
+}
+
+function leconsPourHeures(heures){
+  const h = nombreLu(heures);
+  return (h === null) ? null : Math.round(h / HEURES_PAR_LECON);
+}
+
 /* Nombre de leçons prévues AVANT l'examen blanc, d'après la frise.
 
    Cherché UNIQUEMENT dans ce qui précède l'examen blanc. Le motif
@@ -1509,8 +1562,10 @@ function composerFrise(avant, apres){
   const a = String(avant || '').trim();
   const b = String(apres || '').trim();
   if(!a || !b) return '';
+  /* Le « 2h » écrit est la convention de la frise ; le total entre
+     parenthèses, lui, est un calcul — il passe par la porte. */
   return a + ' leçons de 2h + exam blanc + ' + b +
-         ' leçons de 2h (' + (parseInt(b, 10) * 2) + 'h) + 3h avant examen';
+         ' leçons de 2h (' + heuresPourLecons(b) + 'h) + 3h avant examen';
 }
 
 /* ============================================================
