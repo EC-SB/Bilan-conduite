@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:45 — v909 */
+/* Déployé le 10/09/2026 à 11:39 — v910 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -319,6 +319,26 @@ const CHAMPS_MANUELS = {
     { cle:'examen.secours',      type:'ok', nom:'Premiers secours', defaut:'' },
     { cle:'examen.secoursTexte', type:'texte', lignes:3,
       nom:'Explication ou correction — premiers secours' },
+    /* ⚠️ LES BOUTONS ☠️ ET ⚠️ ÉTAIENT DÉJÀ LÀ, ET NE MENAIENT NULLE
+       PART — v910.
+
+       Le rendu des observations est le MÊME pour l'examen blanc et
+       pour l'examen officiel : une seule fonction construit chaque
+       ligne, et elle pose ses deux boutons sans savoir dans quel
+       modèle elle se trouve. Ils s'affichaient donc ici depuis
+       toujours, et un moniteur pouvait les appuyer.
+
+       Sauf que les deux choses qu'ils déclenchent visaient des
+       champs de l'examen blanc : le CEPC et son bloc « Bilan des
+       erreurs ». Aucun des deux n'existait sur l'officiel. La
+       marque se posait, et RIEN ne se rangeait ni ne s'imprimait —
+       une marque qui ne mène nulle part, comme un droit qui ne mène
+       nulle part.
+
+       Ce qui change en v910 n'est donc pas d'ajouter les boutons :
+       c'est de leur donner un endroit où atterrir. Le CEPC ci-
+       dessous est cet endroit, et buildExamen range désormais les
+       remarques sous leur compétence. */
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
 
     /* Ce qui suit ne part jamais à l'élève : c'est pour nous,
@@ -326,6 +346,28 @@ const CHAMPS_MANUELS = {
     { cle:'__titrePourNous', type:'titre', nom:'🔒 Pour nous seulement',
       aide:'Rien de ce qui suit ne figure sur le bilan de l\'élève. ' +
            'Tout va dans ses notes, pour l\'équipe.' },
+
+    /* ⚠️ NOTRE CEPC, PAS CELUI DE L'INSPECTEUR — v910.
+
+       David : « on va mettre en place un CEPC aussi, mais qui n'est
+       visible que pour les moniteurs, et qui apparaît sur le
+       rendez-vous post-permis aussi, pour le comparer avec le CEPC
+       officiel ».
+
+       Il est SOUS le titre « 🔒 Pour nous seulement », et c'est tout
+       ce qui le rend invisible à l'élève : buildExamen ne
+       l'imprime pas. L'examen blanc, lui, imprime le sien — c'est
+       le même écran de saisie, deux destinations différentes.
+
+       ⚠️ ET IL NE SE COMPARE PAS TOUT SEUL. Le CEPC officiel arrive
+       au rendez-vous post-permis en PHOTO — la galerie des captures.
+       La comparaison se fait donc à l'œil, notre grille au-dessus
+       des siennes. Calculer un écart demanderait de retaper les
+       quatorze notes de l'inspecteur, et une grille qu'on ne
+       remplit pas est une grille qui ment. */
+    { cle:'cepc', type:'cepc',
+      nom:'🧾 Notre CEPC — pour nous, jamais pour l\'élève' },
+
     { cle:'inspecteur',  type:'inspecteur', nom:'Inspecteur' },
     { cle:'repassage',   type:'repassage',  nom:'Heures avant repassage' },
     { cle:'noteEquipe',  type:'texte', lignes:5,
@@ -2124,6 +2166,74 @@ async function ajouterInspecteur(nom){
 }
 
 
+/* ============================================================
+   NOTRE CEPC — ÉCRIT DANS SA CASE, LU PAR UNE SEULE PORTE
+
+   David : « un CEPC qui n'est visible que pour les moniteurs, et
+   qui apparaît sur le rendez-vous post-permis aussi pour le
+   comparer avec le CEPC officiel ».
+
+   ⚠️ UNE GRILLE NE VOYAGE PAS EN TOUTES LETTRES. Tout ce qui est
+   « 🔒 pour nous » sur un examen officiel passe aujourd'hui par la
+   NOTE : l'inspecteur, les heures, le mot pour l'équipe. Ça tient
+   pour une phrase. Quatorze notes écrites en texte puis relues pour
+   être redessinées, c'est la faute qu'on répare partout — la note
+   est un compte rendu, pas une source.
+
+   Elle a donc sa colonne, et deux fonctions : une qui écrit, une
+   qui lit. Personne ne fabrique du JSON de son côté.
+   ============================================================ */
+function enregistrerCepcInterne(eleve, cepc){
+  if(!eleve || typeof majSuivi !== 'function') return;
+
+  /* Une grille vide n'efface pas la précédente sans le dire : le
+     moniteur qui n'a rien coché n'a pas demandé qu'on oublie
+     l'examen d'avant. On écrit ce qu'il y a, ou rien du tout. */
+  const propre = {};
+  Object.keys(cepc || {}).forEach(k => {
+    const v = String((cepc || {})[k] === undefined ? '' : (cepc || {})[k]).trim();
+    if(v !== '') propre[k] = v;
+  });
+  if(!Object.keys(propre).length) return;
+
+  let texte = '';
+  try{ texte = JSON.stringify(propre); }catch(e){ return; }
+
+  /* ⚠️ UN ÉCHEC S'ENTEND. Le bilan est composé, l'écran a changé :
+     si la grille n'atteint pas le classeur, le rendez-vous
+     post-permis n'aura rien à comparer et personne ne saura
+     pourquoi. C'est la leçon du journal des rappels. */
+  Promise.resolve()
+    .then(() => majSuivi(eleve, { cepcInterne: texte }))
+    .catch(e => {
+      console.warn('CEPC interne non enregistré :', e);
+      if(typeof showToast === 'function'){
+        showToast('⚠️ Bilan composé, mais notre CEPC n\'a pas été ' +
+                  'enregistré : ' + (e && e.message ? e.message : 'refusé'));
+      }
+    });
+}
+
+/* La grille telle qu'elle a été posée, ou rien.
+
+   ⚠️ UNE CASE ILLISIBLE N'EST PAS UNE CASE VIDE — mais ici elle le
+   devient, et c'est voulu : on préfère une grille absente à une
+   grille inventée. Le cas se signale dans la console, pas à
+   l'écran : personne ne peut rien en faire sur le moment. */
+function cepcInterneDe(eleve){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(eleve) || {}) : {};
+  const t = String(s.cepcInterne || '').trim();
+  if(!t) return null;
+  try{
+    const o = JSON.parse(t);
+    return (o && typeof o === 'object' && Object.keys(o).length) ? o : null;
+  }catch(e){
+    console.warn('CEPC interne illisible pour ' + eleve + ' :', e);
+    return null;
+  }
+}
+
+
 /* La mention gardée dans les notes après un examen officiel.
 
    Elle ne part jamais à l'élève : elle sert au moniteur qui fera
@@ -3130,9 +3240,20 @@ async function genererBilanManuel(){
   }
 
   /* Les erreurs éliminatoires cochent leur E sur le CEPC. Une
-     catégorie touchée plusieurs fois n'est cochée qu'une fois. */
-  if(modeleCle === 'examen-blanc'){
+     catégorie touchée plusieurs fois n'est cochée qu'une fois.
+
+     ⚠️ L'EXAMEN OFFICIEL AUSSI, DEPUIS LA v910. Les deux écrans
+     posent les mêmes marques avec les mêmes boutons : les faire
+     agir différemment, ce serait deux règles pour un même geste —
+     et le moniteur qui coche une ☠️ ne sait pas laquelle s'applique.
+     « cocherEliminatoiresCepc » lit déjà « champs.observations » en
+     second recours : elle n'avait jamais été appelée d'ici, c'est
+     tout. Les frises, elles, restent à l'examen blanc : un examen
+     officiel n'en pose pas. */
+  if(modeleCle === 'examen-blanc' || modeleCle === 'examen-officiel'){
     cocherEliminatoiresCepc(champsManuels);
+  }
+  if(modeleCle === 'examen-blanc'){
     remplirFrises(champsManuels);
   }
 
@@ -3150,6 +3271,14 @@ async function genererBilanManuel(){
         .join('\n').trim();
       zn.value = m ? (m + (sans ? '\n' + sans : '')) : sans;
     }
+
+    /* ⚠️ ET LE CEPC PART DANS SA CASE, PAS DANS LA NOTE.
+
+       Une grille de quatorze notes écrite en toutes lettres puis
+       relue pour être redessinée, c'est « la note est un compte
+       rendu, pas une source ». Elle a sa colonne ; le rendez-vous
+       post-permis la lit telle quelle. */
+    enregistrerCepcInterne(eleve, champsManuels.cepc);
   }
 
   currentLessonMeta = {
