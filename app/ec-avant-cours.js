@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 10/09/2026 à 18:02 — v927 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -702,6 +702,32 @@ function blocAvantLeCours(nom, res, prep, opts){
   tete.style.whiteSpace = 'pre-line';
   carte.appendChild(tete);
 
+  /* ⚠️ LE RÉSUMÉ : CE QUE LA CARTE N'A PAS DÉJÀ DIT — v927.
+
+     Quand le cours s'ouvre depuis une carte des prochains cours, la
+     carte porte déjà la note, le rang, la frise, les états, la
+     consigne et les procédures. Les redire ici, c'est deux fois la
+     même chose à l'écran — et le jour où l'une des deux se
+     trompera, on ne saura pas laquelle croire.
+
+     Il ne reste donc que ce que la carte ne montre pas : le nombre
+     de cours précédents, la fiche véhicule, et de quoi relire le
+     dernier bilan.
+
+     ⚠️ ET C'EST LA MÊME FONCTION QUI DESSINE LES DEUX. Tapé à la
+     main, sans carte, rien n'a été dit et le bloc reprend sa forme
+     entière. Deux fonctions séparées finiraient par ne plus dire la
+     même chose — c'est la faute de tout ce dossier. */
+  if(o.resume){
+    let ctxR = prep ? prep.contexte : null;
+    if(typeof ctxR === 'string' && ctxR.trim()){
+      try{ ctxR = JSON.parse(ctxR); }catch(e){ ctxR = null; }
+    }
+    carte.appendChild(ficheVehiculeAvantCours(res, ctxR));
+    if(dernier) carte.appendChild(boutonDernierBilan(dernier));
+    return carte;
+  }
+
   /* ── La note qui fait foi : celle du cours préparé, sinon celle
         du dernier bilan. On affiche ce qui fait foi, sans
         commentaire. ── */
@@ -822,29 +848,48 @@ function blocAvantLeCours(nom, res, prep, opts){
   carte.appendChild(ficheVehiculeAvantCours(res, ctx));
 
   /* ── Le dernier bilan ── */
-  if(o.avecDernierBilan && dernier){
+  if(o.avecDernierBilan && dernier) carte.appendChild(boutonDernierBilan(dernier));
+
+  return carte;
+}
+
+/* ============================================================
+   RELIRE LE DERNIER BILAN
+
+   Un seul bouton, construit à un seul endroit : le bloc entier et
+   son résumé le posent tous les deux, et il n'y a qu'une façon de
+   le faire.
+   ============================================================ */
+function boutonDernierBilan(dernier){
+  {
     const lien = document.createElement('button');
     lien.type = 'button';
     lien.className = 'btn btn-secondary';
     lien.style.cssText = 'margin-top:10px;font-size:13px;padding:9px 12px;';
     lien.textContent = '👁️ Voir le dernier bilan';
-    lien.addEventListener('click', () => {
-      currentLessonMeta = {
-        modeleLabel: dernier.type, studentName: dernier.eleve,
-        monitorName: dernier.moniteur, site: dernier.site,
-        dateStr: dernier.date, noteInterne: dernier.note || '', ts: Date.now()
-      };
-      $('resultText').value = dernier.bilan;
-      afficherNote(dernier.note);
-      marquerExport(true);
-      $('recordView').style.display = 'none';
-      $('resultView').style.display = 'block';
-      window.scrollTo(0, 0);
-    });
-    carte.appendChild(lien);
-  }
+    /* ⚠️ LA MÊME FAUTE QU'EN v925, ET ELLE AVAIT UNE SECONDE PORTE.
 
-  return carte;
+       Ce bouton-ci écrasait lui aussi le cours en cours —
+       « currentLessonMeta », le texte du bilan, la note — et
+       appelait « marquerExport(true) », qui depuis la v918 relit le
+       classeur et redessine trois écrans pour un bilan que personne
+       n'avait écrit. Réparer l'historique en v925 n'avait réparé
+       qu'un des deux chemins : celui-ci menait au même endroit, par
+       l'autre bout. Une parade posée chez UN appelant est une
+       parade qu'on oublie chez le second.
+
+       Il passe donc par la porte de la v925 : le bilan s'ouvre dans
+       SON bloc, sous ce bouton, avec de quoi le refermer. Rien
+       n'est remplacé, donc il n'y a rien à retrouver. */
+    lien.addEventListener('click', e => {
+      e.stopPropagation();
+      if(typeof ouvrirAncienBilan === 'function'){ ouvrirAncienBilan(dernier, lien); return; }
+      /* Sans la porte — un module non chargé — on ne fait rien
+         plutôt que d'écraser un cours en cours. */
+      if(typeof showToast === 'function') showToast('Bilan indisponible');
+    });
+    return lien;
+  }
 }
 
 /* ============================================================
