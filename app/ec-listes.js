@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -525,12 +525,17 @@ async function noterExamenBlanc(nom, quoi, date, heures){
   }
 
   /* Les heures que le bureau vient d'indiquer : sans elles, il
-     lisait « heures à préciser » juste après les avoir saisies. */
-  if(heures !== undefined){
-    majs.heuresRestantes = String(heures || '').trim();
-  }
+     lisait « heures à préciser » juste après les avoir saisies.
 
-  try{ await majSuivi(nom, majs); }catch(e){ /* la consigne suffit */ }
+     ⚠️ ELLES PASSENT PAR LEUR PORTE — v908. C'est elle qui note qui
+     l'a dit et quand ; sans ça l'alerte ⏱️ nommerait le moniteur du
+     dernier bilan à la place du bureau. Une seule écriture quand
+     même : la porte rend les champs, elle n'écrit pas à part. */
+  const tout = (heures !== undefined && typeof champsHeuresRestantes === 'function')
+    ? champsHeuresRestantes(nom, heures, majs)
+    : majs;
+
+  try{ await majSuivi(nom, tout); }catch(e){ /* la consigne suffit */ }
 }
 
 
@@ -804,11 +809,11 @@ async function passerSansExamenBlanc(x){
       try{ await appelPrep({ action: 'consigneDone', id: cs.id }); }catch(e){}
     }
 
-    /* Le suivi porte sa nouvelle situation */
-    await majSuivi(x.eleve, {
+    /* Le suivi porte sa nouvelle situation. Les heures passent par
+       leur porte — v908 : elle pose l'auteur et la date. */
+    await majHeuresRestantes(x.eleve, propre, {
       ebNiveau: 'oui',
       ebDate: dateEnToutesLettres(todayLocal()) || todayLocal(),
-      heuresRestantes: propre,
       retireAPrevoir: '',
       aPlanifier: ''
     });
