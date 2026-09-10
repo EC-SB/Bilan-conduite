@@ -1,9 +1,9 @@
-/* Déployé le 05/09/2026 à 07:44 — v879 */
+/* Déployé le 10/09/2026 à 14:38 — v914 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
 
-   Chrystel, le 4 septembre 2026 : « quand on ouvre un cours depuis
+   David, le 4 septembre 2026 : « quand on ouvre un cours depuis
    Mes prochains cours, on fait du ménage pour ne pas tout avoir :
    là on confond plein de choses ».
 
@@ -85,7 +85,7 @@ function resteDeLaNoteAvantCours(corps){
 /* ------------------------------------------------------------
    LE RÉSULTAT DE L'EXAMEN BLANC
 
-   Chrystel, le 4 septembre : « il manque le résultat de l'examen
+   David, le 4 septembre : « il manque le résultat de l'examen
    blanc ». « Passé le 29 août » ne dit pas si le moniteur l'a jugé
    prêt — et c'est pourtant ce qui décide de la suite.
 
@@ -102,7 +102,7 @@ function resultatExamenBlanc(nom, a){
   const heures = String(s.heuresRestantes || '').trim();
 
   if(note.ebSuite === 'pasleniveau' || niveau === 'non'){
-    /* Chrystel, le 4 septembre : « quand un examen blanc n'a pas le
+    /* David, le 4 septembre : « quand un examen blanc n'a pas le
        niveau, il faut bien écrire PAS LE NIVEAU et ajouter en
        majuscules FAIRE LE POINT À CHAQUE LEÇON ».
 
@@ -124,26 +124,75 @@ function resultatExamenBlanc(nom, a){
     return { cle:'3h', emoji:'✅', texte:'plus que les 3h avant examen',
              couleur:'var(--accent-text)' };
   }
+
+  /* ------------------------------------------------------------
+     LA RÉSERVE, PUIS CE QU'IL EN RESTE — v914
+
+     Deux façons de dire la même chose : la note écrit « encore 2
+     leçons », la fiche de suivi écrit des heures. On les ramène
+     donc à UNE grandeur — des heures — avant de retirer ce qui a
+     été consommé. Deux chemins de sortie qui décomptaient chacun
+     de leur côté finiraient par ne plus dire la même chose, et
+     c'est précisément la faute qu'on répare ici.
+
+     ⚠️ CE QUI EST ÉCRIT EST UN STOCK, PAS UN SOLDE. Le nombre
+     saisi vaut au moment où il a été posé ; les leçons faites
+     depuis l'ont entamé. Sans cette soustraction, « encore 3
+     leçon(s) avant examen » restait affiché après la troisième —
+     dans la note complétée, dans le bloc d'ouverture du cours ET
+     dans la fiche de route, pendant que la phrase du haut, elle,
+     disait déjà « plus que les 3h ». Trois écrans faux, un juste,
+     pour une seule question.
+
+     Une soustraction, pas une érosion : à zéro on rend les mots du
+     questionnaire, pas « 0 leçon ». */
+  let reserve = null;
   if(note.ebSuite === 'lecons' && note.ebLecons){
-    return { cle:'lecons', emoji:'⏳',
-             texte:'encore ' + note.ebLecons + ' leçon(s) avant examen',
-             couleur:'var(--warn-text)' };
+    reserve = Number(note.ebLecons) * 2;
+  }else if(niveau === 'oui'){
+    /* Les heures du suivi valent des leçons de deux heures — la même
+       conversion que « conclusionExamenBlanc », dans l'autre sens. */
+    const h = parseFloat(String(heures).replace(',', '.'));
+    if(!isNaN(h) && h > 0) reserve = h;
   }
-  /* Les heures du suivi valent des leçons de deux heures — la même
-     conversion que « conclusionExamenBlanc », dans l'autre sens. */
-  const h = parseFloat(String(heures).replace(',', '.'));
-  if(niveau === 'oui' && !isNaN(h) && h > 0){
-    return { cle:'lecons', emoji:'⏳',
-             texte:'encore ' + Math.round(h / 2) + ' leçon(s) avant examen',
-             couleur:'var(--warn-text)' };
+  if(reserve === null) return null;
+
+  const restant = reserve - leconsDepuisLaReserve(nom, note) * 2;
+  if(restant <= 0){
+    return { cle:'3h', emoji:'✅', texte:'plus que les 3h avant examen',
+             couleur:'var(--accent-text)' };
   }
-  return null;
+  return { cle:'lecons', emoji:'⏳',
+           texte:'encore ' + Math.round(restant / 2) + ' leçon(s) avant examen',
+           couleur:'var(--warn-text)' };
+}
+
+/* ------------------------------------------------------------
+   COMBIEN DE LEÇONS ONT ENTAMÉ LA RÉSERVE
+
+   Le compteur de la note — « 3ème leçon après l'examen blanc » —
+   moins le repère posé avec les heures. Repère absent : la réserve
+   était pleine à l'examen blanc, ce qui est le cas normal.
+
+   Rien dans la note : on ne décompte pas. Un élève dont la note ne
+   dit pas où il en est depuis l'examen blanc ne doit pas voir son
+   compte fondre au hasard — mieux vaut le stock affiché tel quel,
+   avec son auteur et sa date, que l'invention d'un solde.
+   ------------------------------------------------------------ */
+function leconsDepuisLaReserve(nom, a){
+  const apres = parseInt((a || {}).apresEB, 10);
+  if(isNaN(apres)) return 0;
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const repere = parseInt(s.heuresRang, 10);
+  const faites = apres - (isNaN(repere) ? 0 : repere);
+  return faites > 0 ? faites : 0;
 }
 
 /* ============================================================
    LA NOTE D'UN BILAN, COMPLÉTÉE DE CE QU'ON A APPRIS DEPUIS
 
-   Chrystel, le 4 septembre : « dans le dossier élève > Cours, mets
+   David, le 4 septembre : « dans le dossier élève > Cours, mets
    le résultat de l'examen blanc à la suite de "examen blanc passé
    le" ».
 
@@ -189,7 +238,7 @@ function noteAvecResultatExamenBlanc(nom, note){
 /* ============================================================
    LA LIGNE DU HAUT, QUAND L'EXAMEN EST PRIS
 
-   Chrystel, le 4 septembre, devant la carte de Raphael Pape :
+   David, le 4 septembre, devant la carte de Raphael Pape :
    « quand un élève a un examen officiel de prévu, là où c'est écrit
    "1ère après l'examen blanc", ce n'est pas utile. L'information la
    plus importante, c'est qu'il lui reste 2 leçons + 3h avant
@@ -236,7 +285,7 @@ function positionAbregee(pos){
   /* La parenthèse finale : on ne garde que le total, et sans son
      suffixe — « (2 prévues, 12ème au total) » → « , 12 au total ».
      Une parenthèse qui ne dit que les leçons prévues s'en va
-     entièrement : Chrystel n'en a « besoin nulle part ». */
+     entièrement : David n'en a « besoin nulle part ». */
   t = t.replace(/\s*\(([^)]*)\)\s*$/, (tout, dedans) => {
     const m = String(dedans).match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*(au total)/i);
     /* « au total » est repris TEL QU'IL EST ÉCRIT : la ligne 🎯 est
@@ -271,7 +320,7 @@ function ligneRestantAvantExamen(position, reste){
 /* ============================================================
    … ET QUAND IL N'AVAIT PAS LE NIVEAU
 
-   Chrystel, dans la foulée : « quand un élève a un permis de prévu
+   David, dans la foulée : « quand un élève a un permis de prévu
    mais qu'il n'avait pas le niveau après l'examen blanc, et qu'il
    est noté comme à remplacer ou prête-nom, tu mets le numéro de la
    leçon après examen blanc pas le niveau — refaire un point
@@ -299,7 +348,7 @@ function lignePasLeNiveauAvantExamen(position){
 /* ============================================================
    LA LIGNE DU HAUT — DÉCIDÉE UNE FOIS POUR LES DEUX ÉCRANS
 
-   Chrystel : « partout » — la carte de 📅 Mes prochains cours ET le
+   David : « partout » — la carte de 📅 Mes prochains cours ET le
    bloc d'ouverture du cours. Deux écrans qui choisiraient chacun
    leur phrase finiraient par ne plus dire la même chose, et c'est
    précisément ce qu'on vient de réparer entre les deux blocs.
@@ -438,7 +487,7 @@ function lignesEtatAvantCours(nom, note){
   }else{
     /* ⚠️ ET QUAND IL N'Y A RIEN, ON LE DIT.
 
-       Chrystel, le 4 septembre : « il me manque la partie examen
+       David, le 4 septembre : « il me manque la partie examen
        officiel ». La note l'écrivait — « PAS DE DATE D'EXAMEN
        OFFICIEL » — et je la retirais du texte sans la remplacer :
        le bloc se taisait donc sur le sujet le plus attendu de la
@@ -454,7 +503,7 @@ function lignesEtatAvantCours(nom, note){
 
   /* ── Et l'état de sa place ──
 
-     Chrystel, le 4 septembre : « et si un examen officiel, l'état :
+     David, le 4 septembre : « et si un examen officiel, l'état :
      si c'est à remplacer, si c'est un fantôme ». La phrase n'est pas
      réécrite ici : c'est celle de « marquePlaceExamen », la même que
      sur la carte des prochains cours, dans le dossier et dans
@@ -629,7 +678,7 @@ function blocAvantLeCours(nom, res, prep, opts){
       (prep.preparePar ? ' par ' + prep.preparePar : '') +
       (prep.modeleLabel ? ' · ' + prep.modeleLabel : ''));
   }else{
-    /* Sans préparation, TOUT LE RESTE EST IDENTIQUE — Chrystel, le
+    /* Sans préparation, TOUT LE RESTE EST IDENTIQUE — David, le
        4 septembre. Les états, le résultat de l'examen blanc, l'état
        de la place et les manœuvres ne viennent pas de la
        préparation : ils viennent de sa fiche de suivi et de ses
@@ -803,7 +852,7 @@ function blocAvantLeCours(nom, res, prep, opts){
    annonçait alors « pas de date d'examen officiel » à un élève qui
    en a une, et l'état de sa place n'apparaissait jamais.
 
-   C'est mot pour mot ce que Chrystel avait signalé sur la carte des
+   C'est mot pour mot ce que David avait signalé sur la carte des
    prochains cours — « pourtant il y a bien une date d'examen de
    prévu » — et qui a été réparé là-bas de la même façon : on ne
    redemande que ce qu'on n'a pas, et en parallèle.
@@ -835,7 +884,7 @@ async function sourcesDuBlocAvantCours(){
    note à partir d'elles ; sans cet appel, on lit la photo d'avant
    la correction.
 
-   Chrystel, le 4 septembre : « je viens de modifier le
+   David, le 4 septembre : « je viens de modifier le
    questionnaire et rouvert le cours, mais ça ne se met pas à jour
    pour l'examen blanc ». La carte de 📅 Mes prochains cours, elle,
    affichait la bonne phrase — parce qu'elle fait cet appel depuis
