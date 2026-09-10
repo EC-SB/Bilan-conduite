@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 10/09/2026 à 13:04 — v913 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1060,12 +1060,29 @@ function texteExamenBlancRoute(nom, s, e){
 
   if(bouts.length) return 'Examen blanc : ' + bouts.join(' · ');
 
-  /* Ce que le bilan sait et que la fiche ignore se dit — sinon on
-     retape une information qui existe déjà, ou pire, on croit
-     qu'elle n'existe pas. */
-  if(e && e.etat && e.etat.examBlanc === 'passe'){
-    return "Examen blanc passé d'après son bilan — rien dans sa fiche";
-  }
+  /* ⚠️ CE QUE LE BILAN SAIT ET QUE LA FICHE IGNORE SE DIT — LES
+     QUATRE ÉTATS, PLUS SEULEMENT « PASSÉ » — v913.
+
+     David, capture à l'appui : le bilan du jour disait « NE PAS
+     PRÉVOIR D'EXAMEN BLANC », et cette ligne répondait « non
+     renseigné ». Deux causes, réparées ensemble : analyserNote ne
+     savait pas lire le gras (voir son ⚠️), et cette ligne-ci ne
+     connaissait qu'un état sur quatre.
+
+     Ce n'est pas la fiche de suivi qui parle ici, c'est le bilan :
+     on le DIT, pour qu'on sache d'où vient ce qu'on lit et qu'on ne
+     retape pas une information qui existe déjà. Le vocabulaire est
+     celui du résumé juste au-dessus — deux façons de nommer le même
+     état finiraient par se contredire. */
+  const etat = (e && e.etat && e.etat.examBlanc) || '';
+  const dit = {
+    passe:      'Examen blanc passé',
+    reserve:    'Examen blanc réservé',
+    aprevoir:   'Examen blanc à prévoir',
+    impossible: 'Examen blanc à ne pas prévoir pour le moment'
+  }[etat];
+  if(dit) return dit + " — d'après son bilan, rien dans sa fiche";
+
   return 'Examen blanc non renseigné';
 }
 
