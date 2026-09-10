@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 08:56 — v905 */
+/* Déployé le 10/09/2026 à 17:12 — v925 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -670,42 +670,197 @@ function ligneBilan(item, nomCherche, refaire){
     arrow.className = 'arrow';
     arrow.textContent = '›';
     row.appendChild(arrow);
-    row.addEventListener('click', () => {
-      currentLessonMeta = {
-        modeleLabel: item.type, studentName: item.eleve, monitorName: item.moniteur,
-        site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now(),
-        /* On retient d'où il vient : le corriger doit le remplacer,
-           pas en créer un second. */
-        ligne: item.ligne || null
-      };
-      $('resultText').value = item.bilan;
-      afficherNote(item.note);
-      marquerExport(true);
+    /* ⚠️ UN ANCIEN BILAN S'OUVRE À CÔTÉ, PAS PAR-DESSUS — v925.
 
-      /* Une fiche d'évaluation retrouve ses sorties : le PDF pour
-         le dossier ou la préfecture, et l'envoi par mail. Sans
-         cela, il fallait refaire la fiche pour ravoir son PDF. */
-      if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
+       David : « quand on ouvre un ancien cours, ça se met par-dessus
+       le cours qu'on est en train de faire, ça fait des choses
+       bizarres, et il faut une touche pour fermer ce bloc car là on
+       ne peut pas revenir ».
 
-      /* Le bilan appartient à l'onglet Cours : depuis la recherche,
-         il restait masqué par la classe « hors-onglet ». */
-      if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+       Le clic écrasait TOUT ce qui portait le cours en cours :
+       « currentLessonMeta », le texte du bilan, la note — et il
+       appelait « marquerExport(true) », qui déclare le cours
+       enregistré et relit le classeur, pour un bilan qu'on voulait
+       seulement LIRE. Un moniteur en pleine dictée perdait son
+       travail, et rien ne permettait de revenir.
 
-      $('recordView').style.display = 'none';
-      $('generatingView').style.display = 'none';
-      $('resultView').style.display = 'block';
+       Lire et corriger sont deux gestes. Le clic ouvre maintenant
+       le bilan dans son propre bloc, sous la ligne où il a été
+       demandé — rien n'est remplacé, donc il n'y a rien à
+       retrouver, et un ✕ le referme. Corriger reste possible, en
+       un geste de plus, et ce geste-là prévient s'il y a un cours
+       en cours. */
+    row.addEventListener('click', () => ouvrirAncienBilan(item, row));
+  return row;
+}
+
+/* ============================================================
+   L'ANCIEN BILAN, DANS SON PROPRE BLOC
+
+   Il s'ouvre là où on l'a demandé — sous sa ligne — et il se
+   referme. Aucun écran n'est remplacé, aucun cours n'est touché.
+   ============================================================ */
+let blocAncienOuvert = null;
+
+function fermerAncienBilan(){
+  if(blocAncienOuvert && blocAncienOuvert.parentNode){
+    blocAncienOuvert.parentNode.removeChild(blocAncienOuvert);
+  }
+  blocAncienOuvert = null;
+}
+
+function ouvrirAncienBilan(item, row){
+  /* Un seul à la fois : deux anciens bilans ouverts côte à côte,
+     et on ne sait plus lequel on lit. */
+  fermerAncienBilan();
+
+  const bloc = document.createElement('div');
+  bloc.className = 'card';
+  bloc.style.cssText = 'margin:8px 0 12px;border-color:var(--orange);';
+
+  const tete = document.createElement('div');
+  tete.style.cssText = 'display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;';
+  const titre = document.createElement('div');
+  titre.style.cssText = 'flex:1;min-width:0;font-size:15px;font-weight:800;line-height:1.35;';
+  titre.textContent = '📄 ' + (item.eleve || '') +
+    (item.date ? ' — ' + item.date : '');
+  const sous = document.createElement('div');
+  sous.className = 'hint';
+  sous.style.cssText = 'margin:2px 0 0;';
+  sous.textContent = [item.type, item.moniteur ? '👤 ' + item.moniteur : '',
+                      item.site].filter(Boolean).join(' · ');
+  const gauche = document.createElement('div');
+  gauche.style.cssText = 'flex:1;min-width:0;';
+  gauche.appendChild(titre); gauche.appendChild(sous);
+
+  /* ⚠️ LA TOUCHE POUR FERMER, EN HAUT ET VISIBLE. C'est ce qui
+     manquait : sans elle, on ne pouvait pas revenir. */
+  const bFermer = document.createElement('button');
+  bFermer.className = 'btn btn-secondary';
+  bFermer.type = 'button';
+  bFermer.textContent = '✕ Fermer';
+  bFermer.style.cssText = 'width:auto;padding:8px 12px;font-size:13px;margin:0;flex-shrink:0;';
+  bFermer.addEventListener('click', e => { e.stopPropagation(); fermerAncienBilan(); });
+
+  tete.appendChild(gauche); tete.appendChild(bFermer);
+  bloc.appendChild(tete);
+
+  const texte = document.createElement('textarea');
+  texte.readOnly = true;
+  texte.rows = 14;
+  texte.value = String(item.bilan || '');
+  texte.style.cssText = 'width:100%;font-family:inherit;font-size:14px;line-height:1.6;' +
+    'resize:vertical;';
+  bloc.appendChild(texte);
+
+  if(String(item.note || '').trim()){
+    const n = document.createElement('div');
+    n.style.cssText = 'margin-top:9px;padding-top:9px;border-top:1px solid var(--line);' +
+      'font-size:13px;line-height:1.6;white-space:pre-wrap;color:var(--accent-text);';
+    n.textContent = '📝 ' + item.note;
+    bloc.appendChild(n);
+  }
+
+  const rangee = document.createElement('div');
+  rangee.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;';
+
+  const bCopier = document.createElement('button');
+  bCopier.className = 'btn btn-secondary';
+  bCopier.type = 'button';
+  bCopier.textContent = '📋 Copier le texte';
+  bCopier.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;';
+  bCopier.addEventListener('click', async e => {
+    e.stopPropagation();
+    try{
+      await navigator.clipboard.writeText(texte.value);
+      bCopier.textContent = '✅ Copié';
+      setTimeout(() => { bCopier.textContent = '📋 Copier le texte'; }, 1600);
+    }catch(err){
+      texte.select();
+      showToast('Sélectionné — fais copier');
+    }
+  });
+  rangee.appendChild(bCopier);
+
+  const bCorriger = document.createElement('button');
+  bCorriger.className = 'btn btn-secondary';
+  bCorriger.type = 'button';
+  bCorriger.textContent = '✏️ Corriger ce bilan';
+  bCorriger.style.cssText = 'width:auto;padding:10px 14px;font-size:13px;margin:0;';
+  bCorriger.addEventListener('click', async e => {
+    e.stopPropagation();
+    await corrigerAncienBilan(item);
+  });
+  rangee.appendChild(bCorriger);
+
+  bloc.appendChild(rangee);
+
+  row.parentNode.insertBefore(bloc, row.nextSibling);
+  blocAncienOuvert = bloc;
+  try{ bloc.scrollIntoView({ behavior:'smooth', block:'nearest' }); }catch(e){}
+}
+
+/* ============================================================
+   CORRIGER UN ANCIEN BILAN
+
+   C'est l'ancien comportement du clic, devenu un geste à part —
+   parce qu'il REMPLACE le cours en cours, et que ça ne doit plus
+   arriver par surprise.
+   ============================================================ */
+async function corrigerAncienBilan(item){
+  /* ⚠️ ON PRÉVIENT AVANT D'ÉCRASER. Un cours dicté et pas encore
+     enregistré ne se perd pas sur un clic mal placé. */
+  const enCours = ($('resultText') && $('resultText').value.trim()) ||
+                  (typeof texteDicteEnCours === 'function' &&
+                   String(texteDicteEnCours()).trim());
+  const pasEnregistre = (typeof bilanEnregistre === 'undefined') || !bilanEnregistre;
+  if(enCours && pasEnregistre){
+    if(!await confirmer(
+      "Tu as un cours en cours qui n'est pas enregistré.\n\n" +
+      'Ouvrir cet ancien bilan pour le corriger va le remplacer à ' +
+      "l'écran. Continuer ?", 'Remplacer')) return;
+  }
+
+  fermerAncienBilan();
+
+  currentLessonMeta = {
+    modeleLabel: item.type, studentName: item.eleve, monitorName: item.moniteur,
+    site: item.site, dateStr: item.date, noteInterne: item.note || '', ts: Date.now(),
+    /* On retient d'où il vient : le corriger doit le remplacer,
+       pas en créer un second. */
+    ligne: item.ligne || null
+  };
+  $('resultText').value = item.bilan;
+  afficherNote(item.note);
+  /* ⚠️ SANS RELIRE LE CLASSEUR. « marquerExport(true) » dit « ce
+     bilan est dans Sheets » — c'est vrai, il y est déjà — mais il
+     déclenche aussi la relecture d'après-enregistrement (v918).
+     Rien n'a été écrit ici : on pose l'état, on ne rejoue pas
+     l'écriture. */
+  marquerExport(true, true);
+
+  /* Une fiche d'évaluation retrouve ses sorties : le PDF pour le
+     dossier ou la préfecture, et l'envoi par mail. Sans cela, il
+     fallait refaire la fiche pour ravoir son PDF. */
+  if(typeof majBoutonsHandicap === 'function') majBoutonsHandicap();
+
+  /* Le bilan appartient à l'onglet Cours : depuis la recherche, il
+     restait masqué par la classe « hors-onglet ». */
+  if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+
+  $('recordView').style.display = 'none';
+  $('generatingView').style.display = 'none';
+  $('resultView').style.display = 'block';
   /* Les procédures à cocher, prêtes dès l'affichage du bilan */
   if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
-      $('resultView').classList.remove('hors-onglet', 'hors-vue');
-      majBoutonCorrection();
-      /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt
-         que de laisser le moniteur le chercher. */
-      setTimeout(() => {
-        try{ $('resultView').scrollIntoView({ behavior:'smooth', block:'start' }); }
-        catch(e){ window.scrollTo(0, $('resultView').offsetTop - 10); }
-      }, 120);
-    });
-  return row;
+  $('resultView').classList.remove('hors-onglet', 'hors-vue');
+  majBoutonCorrection();
+  /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt que
+     de laisser le moniteur le chercher. */
+  setTimeout(() => {
+    try{ $('resultView').scrollIntoView({ behavior:'smooth', block:'start' }); }
+    catch(e){ window.scrollTo(0, $('resultView').offsetTop - 10); }
+  }, 120);
 }
 
 /* ---------- Recherche des anciens bilans d'un élève ---------- */
