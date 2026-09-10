@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 08:56 — v905 */
+/* Déployé le 10/09/2026 à 09:27 — v906 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1195,7 +1195,8 @@ const FAMILLE_DU_CHAMP = {
      ligne : elles partent avec lui. */
   avantEB: 'avantEB',
   examPermis: 'examenPermis', examDate: 'examenPermis',
-  examPermisN: 'examenPermis', nouvelleDate: 'examenPermis',
+  examPermisN: 'examenPermis', examPermisNRang: 'examenPermis',
+  nouvelleDate: 'examenPermis',
   examPassage: 'examenPermis',
   pasEcoute: 'ecoutes',
   rdvPostFait: 'rdvPost', rdvPostDate: 'rdvPost',
@@ -1504,6 +1505,28 @@ function calageDe(nom, quoi){
 }
 
 
+/* Ce qu'il reste de leçons avant l'examen, au rang d'aujourd'hui.
+
+   Rend une CHAÎNE, parce que c'est la valeur d'un champ : vide quand
+   on ne sait rien, « 0 » quand il ne reste que les 3h. Zéro et vide
+   ne disent pas la même chose, et les confondre ferait disparaître
+   « plus que les 3h avant examen » du jour au lendemain. */
+function leconsAvantExamen(prec, rangDuJour){
+  const dit = parseInt((prec && prec.examPermisN), 10);
+  if(isNaN(dit)) return '';
+
+  const rangDit = parseInt((prec && prec.examPermisNRang), 10);
+  const rang = parseInt(rangDuJour, 10);
+  /* Sans repère — un nombre posé avant que l'application le garde —
+     on ne décompte pas : on rend ce qui a été dit. Décompter sans
+     savoir depuis quand, c'est inventer. */
+  if(isNaN(rangDit) || isNaN(rang)) return String(dit);
+
+  const reste = dit - (rang - rangDit);
+  return String(reste > 0 ? reste : 0);
+}
+
+
 function rangConnu(lecons, modeleCle, premierCours, nom, dossier){
   if(lecons === null || lecons === undefined) return null;
   let n = parseInt(lecons, 10);
@@ -1653,7 +1676,8 @@ const PARCOURS_FORMATION = [
                   un examen blanc qui n'existe pas ici. */
                'avantEB',
                'pasEcoute', 'simuNuit',
-               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
                'rdvPostMoniteur'] },
@@ -1666,7 +1690,8 @@ const PARCOURS_FORMATION = [
                   un examen blanc qui n'existe pas ici. */
                'avantEB',
                'pasEcoute', 'simuNuit',
-               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
                'rdvPostMoniteur'] },
@@ -1719,7 +1744,8 @@ const PARCOURS_FORMATION = [
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
                'avantEB', 'pasEcoute',
-               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
                'rdvPostMoniteur'] },
@@ -1728,7 +1754,8 @@ const PARCOURS_FORMATION = [
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang',
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
                'avantEB', 'pasEcoute',
-               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
                'rdvPostMoniteur'] },
@@ -1736,7 +1763,8 @@ const PARCOURS_FORMATION = [
     compteParBoite:true, motRang:'de passerelle',
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
                'ebPasse', 'ebLecons', 'ebImpossibleLe', 'avantEB', 'pasEcoute',
-               'examPermis', 'examDate', 'examPermisN', 'nouvelleDate',
+               'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'nouvelleDate',
                'examPassage',
                /* Un rendez-vous post-permis suit un ajournement.
                   Une passerelle n'en connaît pas : l'élève a déjà
@@ -1974,6 +2002,8 @@ const CHAMP_DE_LA_REPONSE = {
   examPermis:    '#qExamPermis',
   examDate:      '#qExamDate',
   examPermisN:   '#qExamPermisN',
+  /* Pas de champ à l'écran : c'est un repère, pas une question. */
+  examPermisNRang: '',
   nouvelleDate:  '#qNouvelleDate',
   examPassage:   '#qExamPassage',
   pasEcoute:     '#qBlocEcoutes',
@@ -4096,7 +4126,28 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const nvDate = boite.querySelector('#qNouvelleDate');
     const libDate = boite.querySelector('#qLibExamDate');
     const libNv = boite.querySelector('#qLibNouvelleDate');
-    nEP.value = prec.examPermisN || '';
+    /* ⚠️ LE NOMBRE DE LEÇONS AVANT L'EXAMEN DÉCOMPTE TOUT SEUL — v906.
+
+       David, le 10 septembre : « le nombre de leçons restantes avant
+       l'examen ne se met pas à jour tout seul ? » Non. Il était
+       recopié tel quel d'un cours au suivant : « encore 2 leçons +
+       3h » restait à 2 pendant six leçons, jusqu'à ce qu'un moniteur
+       le retape.
+
+       C'était d'autant plus visible que TOUT LE RESTE avance seul —
+       le rang, la position dans la frise. Seul ce compteur-là était
+       figé, parce que c'est un nombre libre tapé par un humain.
+
+       Il décompte maintenant depuis le RANG auquel il a été dit :
+       « encore 2, à la 10ème » vaut 1 à la 11ème et 0 à la 12ème.
+       Une soustraction, pas une érosion — un cours annulé ou deux
+       préparations pour la même leçon ne le font pas descendre.
+
+       ⚠️ ET IL NE PASSE PAS SOUS ZÉRO. Zéro veut dire « plus que les
+       3h avant examen », et c'est une réponse. En dessous, il n'y a
+       rien à dire de plus : la frise est dépassée, et c'est la ligne
+       🎯 qui le signale, pas ce compteur. */
+    nEP.value = leconsAvantExamen(prec, rangDuJour);
     nvDate.value = prec.nouvelleDate || '';
 
     selEP.addEventListener('change', () => {
@@ -4275,6 +4326,22 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           return '';
         })(),
         examPermisN: nEP.value.trim(),
+        /* ⚠️ LE REPÈRE QUI PERMET AU NOMBRE DE DÉCOMPTER — v906.
+
+           David, le 10 septembre : « le nombre de leçons restantes
+           avant l'examen ne se met pas à jour tout seul ? » Non : il
+           était recopié tel quel d'un cours au suivant, et restait à
+           « encore 2 » pendant six leçons.
+
+           Décompter à l'aveugle — un de moins à chaque cours —
+           finirait par mentir dans l'autre sens : deux cours préparés
+           pour la même leçon, un cours annulé, et le compte descend
+           sans que personne ait roulé. On garde donc LE RANG auquel
+           le nombre a été dit, et le reste se déduit : c'est une
+           soustraction, pas une érosion. */
+        examPermisNRang: (rangDuJour !== null && rangDuJour !== undefined &&
+                          String(nEP.value).trim() !== '')
+          ? String(rangDuJour) : (prec.examPermisNRang || ''),
         examPassage: passEP ? passEP.value : '',
         nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
