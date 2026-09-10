@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:37 — v914 */
+/* Déployé le 10/09/2026 à 15:23 — v917 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -176,7 +176,13 @@ const SECTIONS = [
   { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)' },
   { cle:'incidents',        nom:'🚨 Signalements' },
   { cle:'menage',           nom:'🧹 Ménage des dossiers' },
-  { cle:'admin',            nom:'⚙️ Administration des accès' }
+  { cle:'admin',            nom:'⚙️ Administration des accès' },
+  /* ⚠️ UN ESSAI, PAS UN RÉGLAGE. Cette case donne la nouvelle mise
+     en page de l'onglet Cours à qui on veut l'essayer. Elle n'est
+     donnée par aucun rôle : elle se coche à la main, une personne à
+     la fois, et elle disparaîtra avec l'ancien écran une fois
+     l'essai tranché. Voir cloudflare-worker.js. */
+  { cle:'cours_neuf',       nom:'🆕 Nouvel écran de cours (essai)' }
 ];
 
 /* ------------------------------------------------------------
@@ -227,6 +233,19 @@ function sectionVisible(s){
 
 /* Masque ou passe en lecture seule selon le niveau accordé */
 function appliquerDroits(){
+  /* ⚠️ UNE CLASSE, PAS UN DEUXIÈME ÉCRAN — v917.
+
+     La nouvelle mise en page de l'onglet Cours ne double AUCUN
+     code : c'est le même constructeur de cartes, le même DOM, les
+     mêmes données. Seule la feuille de style change, et elle
+     s'accroche à cette classe.
+
+     C'est la seule façon de tenir la promesse faite à David — « je
+     ne veux pas avoir à faire les corrections sur les deux côtés ».
+     Une correction faite dans afficherPrepares vaut pour les deux
+     mises en page, parce qu'il n'y en a qu'une à corriger. */
+  document.body.classList.toggle('cours-neuf', aDroit('cours_neuf'));
+
   document.querySelectorAll('[data-section]').forEach(el => {
     const s = el.getAttribute('data-section');
     const visible = sectionVisible(s);
