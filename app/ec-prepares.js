@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:35 — v931 */
+/* Déployé le 10/09/2026 à 18:54 — v932 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1470,6 +1470,33 @@ async function afficherPrepares(recharger, silencieux){
        .join(' · ')
     ).filter(Boolean).join('\n');
 
+    /* ------------------------------------------------------------
+       ⚠️ UNE ANNONCE D'EXAMEN QUE L'ÉTAT CONTREDIT NE S'AFFICHE PAS
+       — v932.
+
+       David : « la session d'examen a été supprimée… il n'a plus de
+       session d'examen, donc ça ne doit pas apparaître sur sa
+       fiche ». Et sa carte annonçait toujours, en rouge :
+       « EXAMEN OFFICIEL PRÉVU LE MARDI 22 SEPTEMBRE 2026 ».
+
+       Tout le reste avait pourtant bien fonctionné : la fiche de
+       suivi vidée, l'élève rendu aux « prêts au permis », la
+       consigne d'annulation posée, la fiche de route à jour. Ce qui
+       restait, c'est la NOTE du cours préparé — un texte écrit le
+       jour où la session existait, et que rien ne relit.
+
+       La carte affiche cette note presque telle quelle. Le bloc
+       d'avant le cours, lui, retire depuis longtemps les familles
+       qu'il redit lui-même (resteDeLaNoteAvantCours) ; la carte n'a
+       jamais eu cet examen de conscience.
+
+       On ne retire pas la ligne d'examen en général — sur un élève
+       qui en a un, c'est ce qu'on lit en premier. On retire
+       seulement celle que l'état CONTREDIT : annulée, ou à prévoir.
+       Une note qui dit le contraire de la vérité du jour est pire
+       qu'une note muette.
+       ------------------------------------------------------------ */
+    reste = sansAnnoncePerimee(reste, cours.eleve);
     reste = sansRedites(reste);
     /* Le 📌 aussi : c'est là que les heures recopiées s'étaient
        accumulées. */
@@ -2993,6 +3020,42 @@ async function dernierExamenOfficielDe(eleve){
 
   examens.sort((a, b) => (Number(b.ligne) || 0) - (Number(a.ligne) || 0));
   return examens[0];
+}
+
+/* ============================================================
+   CE QUE LA NOTE ANNONCE, ET QUE L'ÉTAT DÉMENT
+
+   Une note est une photo : elle dit ce qu'on savait le jour où on
+   l'a écrite. L'état, lui, se relit à chaque fois — la fiche de
+   suivi, les sessions, les consignes du bureau.
+
+   Quand les deux se contredisent sur l'examen du permis, c'est
+   l'état qui a raison, et la ligne de la note n'a plus rien à
+   faire à l'écran : elle annonce à un moniteur une date qui
+   n'existe plus.
+
+   ⚠️ ON NE RETIRE QUE CE QUI EST DÉMENTI. Sur un élève dont
+   l'examen tient toujours, cette ligne est la première chose qu'on
+   cherche sur sa carte. « Je ne sais pas » n'est pas un démenti :
+   sans état lisible, on ne touche à rien.
+   ============================================================ */
+function sansAnnoncePerimee(texte, eleve){
+  const t = String(texte || '');
+  if(!t || !eleve || typeof etatQuiFaitFoi !== 'function') return t;
+
+  let etat = null;
+  try{ etat = etatQuiFaitFoi(eleve); }catch(e){ return t; }
+  const dit = etat && etat.examPermis;
+  /* Prévu, ou rien de connu : la note garde ce qu'elle porte. */
+  if(!dit || dit === 'prevu') return t;
+
+  const estUneAnnonce = seg =>
+    (typeof familleDuSegment === 'function') &&
+    ((familleDuSegment(seg) || {}).cle === 'examenPermis');
+
+  return t.split('\n').map(ligne =>
+    ligne.split(' · ').filter(s => !estUneAnnonce(s.trim())).join(' · ')
+  ).filter(Boolean).join('\n');
 }
 
 /* ⚠️ LE TIROIR S'OUVRE QUAND IL PORTE QUELQUE CHOSE — v930.
