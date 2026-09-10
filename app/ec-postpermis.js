@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 18:35 — v931 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -380,6 +380,13 @@ function blocRdvPost(e){
       "Le rapport de l'inspecteur. Laisse vide s'il n'y en a pas.</div>" +
     '<textarea id="' + id + 'b" rows="5" placeholder="Rapport transmis par l\'inspecteur" ' +
       'style="' + zoneTexte + '"></textarea>' +
+    /* ⚠️ UN TEXTE QUI APPARAÎT TOUT SEUL DIT D'OÙ IL VIENT — v931.
+       Le bilan de l'examen se reprend depuis les cours enregistrés
+       de l'élève. Sans cette ligne, le bureau trouve un texte qu'il
+       n'a pas écrit et le relit avec méfiance — ou le prend pour le
+       sien. */
+    '<div id="' + id + 'bsrc" style="display:none;font-size:11px;' +
+      'color:var(--accent-text);margin:-4px 0 8px;line-height:1.4;"></div>' +
 
     '<label for="' + id + 'e">📝 Bilan écrit par l\'élève</label>' +
     '<div style="font-size:11px;color:var(--muted);margin:-8px 0 6px;line-height:1.4;">' +
@@ -434,6 +441,34 @@ function blocRdvPost(e){
     }
     if(g('b')) g('b').value = s.bilanExamen || '';
     if(g('e')) g('e').value = s.bilanEleve || '';
+
+    /* ⚠️ LE BILAN DE L'EXAMEN, REPRIS ICI AUSSI — v931.
+
+       David, capture à l'appui : ce champ était vide sur un élève
+       dont le bilan d'examen officiel est là, dans ses cours, à
+       deux centimètres.
+
+       « s.bilanExamen » n'existe qu'APRÈS un premier rendez-vous
+       post-permis. Sur un rendez-vous À PRÉVOIR — le cas normal,
+       celui qui suit un ajournement — il n'y avait rien, et le
+       bureau retournait chercher le bilan à la main dans
+       l'historique.
+
+       La reprise posée en v924 ne servait que l'écran du moniteur.
+       C'est la MÊME fonction qui sert ici : deux façons de choisir
+       « le dernier examen officiel », ce serait un jour deux
+       réponses. */
+    const champB = g('b');
+    if(champB && !champB.value.trim() &&
+       typeof reprendreBilanExamen === 'function'){
+      reprendreBilanExamen(e.eleve, {
+        champ: champB,
+        source: g('bsrc'),
+        /* L'écran a pu se refermer pendant la recherche : on ne
+           pose rien dans un champ qui n'est plus à l'écran. */
+        encoreLa: () => document.body.contains(champB)
+      });
+    }
   }, 0);
 
   bEnr.addEventListener('click', async () => {
