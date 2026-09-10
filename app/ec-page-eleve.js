@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:36 — v914 */
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1148,9 +1148,12 @@ function phraseExamenBlancRoute(r){
       if(h <= 0){
         return 'Examen blanc passé le ' + jourPasse + ' — plus que les 3h avant examen';
       }
-      /* Le bureau raisonne en leçons de deux heures : c'est la
-         conversion que fait déjà boutonsSuiteExamBlanc, à l'envers. */
-      const nb = Math.max(1, Math.round(h / 2));
+      /* Le bureau raisonne en leçons de deux heures. La conversion
+         a une seule porte — ce commentaire disait déjà qu'elle
+         existait ailleurs, il a fallu la v925 pour qu'il la
+         désigne. Le plancher à 1, lui, est propre à cette phrase :
+         il reste une leçon à faire, on ne l'annonce pas à zéro. */
+      const nb = Math.max(1, leconsPourHeures(h));
       return 'Examen blanc passé le ' + jourPasse + ' — encore ' + nb +
              ' leçon' + (nb > 1 ? 's' : '') + ' avant examen';
     }
