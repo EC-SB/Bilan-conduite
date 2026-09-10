@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 12:35 — v912 */
+/* Déployé le 10/09/2026 à 14:57 — v915 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1523,7 +1523,14 @@ async function afficherPrepares(recharger, silencieux){
     row.appendChild(meta);
 
     const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;align-items:center;';
+    /* ⚠️ ELLE PORTE UN NOM DEPUIS LA v915. Habillée uniquement à la
+       main, cette colonne était invisible à la feuille de style :
+       on ne pouvait pas lui dire de passer à la ligne sur un
+       téléphone, et c'est le texte de la carte qui était écrasé à
+       sa place. Le « flex-shrink:0 » part avec — voir
+       « .history-item .actions » dans index.html. */
+    actions.className = 'actions';
+    actions.style.cssText = 'display:flex;gap:6px;align-items:center;';
 
     /* Un cours donné à quelqu'un d'autre ne s'ouvre plus : le
        moniteur le voit, mais doit se le réattribuer pour le faire. */
