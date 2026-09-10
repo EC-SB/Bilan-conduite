@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:20 — v929 */
+/* Déployé le 10/09/2026 à 18:25 — v930 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2825,6 +2825,24 @@ function ouvrirRdvPost(cours){
      elle repart à zéro à chaque ouverture. */
   const zSrc = $('rdvPostBilanSource');
   if(zSrc){ zSrc.style.display = 'none'; zSrc.textContent = ''; }
+  /* ⚠️ UN TIROIR REPLIÉ SUR UN TEXTE, C'EST UN TEXTE ABSENT — v930.
+
+     David : « tu n'as pas remis en place, pour les anciens
+     ajournés qui ont un bilan d'examen officiel, dans la bonne
+     partie de la préparation du rendez-vous post-permis ? »
+
+     Il ÉTAIT remis en place — depuis la v924. Mais le champ vit
+     dans un « 📄 Bilan d'examen officiel » replié : le texte
+     arrivait, la ligne qui dit d'où il vient arrivait avec, et les
+     deux restaient derrière un triangle fermé. Pour le moniteur,
+     rien ne s'était passé, et il repartait le chercher à la main
+     dans l'historique — exactement ce que la v924 devait lui
+     éviter.
+
+     Un texte posé par l'application se montre. On n'ouvre le
+     tiroir que s'il y a quelque chose dedans : ouvrir un tiroir
+     vide serait une place prise pour rien. */
+  ouvrirTiroirDuBilanExamen($('rdvPostBilan').value.trim());
   if(!$('rdvPostBilan').value.trim()) reprendreBilanExamen(cours.eleve);
 
   /* Ce que l'élève a écrit, et ce que le moniteur ajoute */
@@ -2977,6 +2995,19 @@ async function dernierExamenOfficielDe(eleve){
   return examens[0];
 }
 
+/* ⚠️ LE TIROIR S'OUVRE QUAND IL PORTE QUELQUE CHOSE — v930.
+
+   Une seule porte pour les deux moments où le champ se remplit :
+   à l'ouverture du rendez-vous, et quand la recherche revient
+   quelques secondes plus tard. Deux endroits pour ouvrir le même
+   tiroir, et un jour l'un des deux serait oublié. */
+function ouvrirTiroirDuBilanExamen(ilYAQuelqueChose){
+  const champ = $('rdvPostBilan');
+  if(!champ || typeof champ.closest !== 'function') return;
+  const tiroir = champ.closest('details');
+  if(tiroir) tiroir.open = !!ilYAQuelqueChose;
+}
+
 /* Le pose dans le champ, s'il est encore vide quand la réponse
    arrive — et dit d'où il vient : un texte qui apparaît tout seul
    sans qu'on sache d'où, on le relit avec méfiance. */
@@ -2991,6 +3022,9 @@ async function reprendreBilanExamen(eleve){
     if(!rdvPostEnCours || rdvPostEnCours.eleve !== eleve) return;
 
     champ.value = String(ex.bilan || '').trim();
+    /* Le texte vient d'arriver tout seul : on le montre, sinon il
+       n'a servi à rien. */
+    ouvrirTiroirDuBilanExamen(champ.value.trim());
     const zone = $('rdvPostBilanSource');
     if(zone){
       zone.style.display = 'block';
