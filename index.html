@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v914
+     VERSION APPLICATION : v915
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 10/09/2026 à 14:36
+     Mis à jour le : 10/09/2026 à 14:57
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -58,6 +58,30 @@
        il ne distingue pas ce bouton des autres. */
     --ambre: #E8850C;
     --sur-ambre: #FFFFFF;
+
+    /* ============================================================
+       LE VOCABULAIRE DES ACTIONS — v915
+
+       Quatre couleurs, quatre gestes, et c'est une demande des
+       moniteurs, assumée : ils voulaient distinguer d'un coup d'œil
+       ce qu'ils sont en train de faire. On ne les change pas — on
+       leur donne enfin un nom, parce qu'elles étaient écrites à la
+       main dans la feuille de style ET dans deux attributs
+       « style » du corps de page.
+
+       ⚠️ UNE COULEUR D'ACTION VEUT DIRE QUELQUE CHOSE, OU ELLE
+       N'EXISTE PAS. Ces quatre-là ne servent plus jamais à décorer :
+       un bouton « Monter » ou « Renommer » n'a droit à aucune, sinon
+       le moniteur qui cherche l'orange du bilan manuel tombe sur
+       autre chose. */
+    --action-vocal:      var(--orange);   /* je parle, l'outil écrit  */
+    --sur-action-vocal:  var(--on-accent);
+    --action-enregistrer:#1F5C99;         /* ça tourne, ne pars pas   */
+    --sur-action-enregistrer:#FFFFFF;
+    --action-main:       var(--ambre);    /* j'écris moi-même         */
+    --sur-action-main:   var(--sur-ambre);
+    --action-terminer:   #9E3B32;         /* c'est fini, ça part      */
+    --sur-action-terminer:#FFFFFF;
   }
 
   body.clair{
@@ -172,11 +196,12 @@
      du code remettait la mise en forme du bouton. */
   .rec-btn.sans-vocal{ display:none !important; }
 
-  .rec-btn.idle{background: var(--orange); color: var(--navy-deep);}
+  .rec-btn.idle{background: var(--action-vocal); color: var(--sur-action-vocal);}
   /* Bleu profond pendant la captation. Le rouge reste réservé au
      bouton de génération, qui est facturé : deux boutons rouges
      dans le même écran diluent le signal. */
-  .rec-btn.recording{background:#1F5C99; border-color:#1F5C99; color:#fff;
+  .rec-btn.recording{background:var(--action-enregistrer);
+    border-color:var(--action-enregistrer); color:var(--sur-action-enregistrer);
                      animation: pulse 1.6s infinite;}
   .rec-btn:disabled{opacity:.5;cursor:not-allowed;animation:none;}
   @keyframes pulse{
@@ -207,7 +232,20 @@
     padding:13px 18px;border-radius:10px;border:none;
     font-size:14px;font-weight:700;cursor:pointer;width:100%;
   }
-  .btn-primary{background:var(--orange);color:var(--navy-deep);}
+  /* ⚠️ --on-accent, ET SURTOUT PAS --navy-deep — v915.
+
+     Mesuré sur cette page en mode clair : fond #B6FF0E, texte
+     #FFFFFF, contraste 1,21:1. Le bouton le plus important de
+     l'application — « Démarrer le cours » — était un aplat citron
+     presque muet, et tout le monde travaille en mode clair.
+
+     La cause tient à une variable qui servait deux rôles :
+     --navy-deep est le FOND DES CARTES. En thème sombre il vaut
+     #0B0B0B, donc de l'encre sur du citron, parfait par accident ;
+     en clair il vaut #FFFFFF. --on-accent existe depuis toujours,
+     vaut #0B0B0B dans les deux thèmes, et ne veut dire qu'une
+     chose : le texte qu'on pose sur l'accent. */
+  .btn-primary{background:var(--orange);color:var(--on-accent);}
   .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--cream);}
   .btn-row{display:flex;gap:10px;margin-top:10px;}
   .btn-row .btn{flex:1;}
@@ -233,9 +271,35 @@
   @keyframes spin{to{transform:rotate(360deg);}}
 
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 10px;}
+  /* ⚠️ ELLE PASSE À LA LIGNE, SINON ELLE ÉCRASE LE TEXTE — v915.
+
+     David, capture d'un téléphone à l'appui : « 13h00 » écrit à la
+     verticale, une lettre par ligne, et la croix sortie de l'écran.
+
+     Mesuré : les huit boutons réclament 401 px, l'écran en offre
+     358. En « nowrap », avec une colonne d'actions en
+     « flex-shrink:0 », les 43 px manquants étaient pris au TEXTE —
+     qui a min-width:0 et se laisse donc réduire jusqu'à 8 px.
+     Ce n'était pas une carte serrée, c'était une carte cassée.
+
+     Deux déclarations se contredisaient : « ne va pas à la ligne »
+     et « ne rétrécis pas ». L'une des deux devait céder, et ce
+     n'est pas au texte de disparaître pour laisser de la place aux
+     boutons. */
   .history-item{
     display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
     padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;
+    flex-wrap:wrap;
+  }
+  .history-item .meta{ flex:1 1 190px; }
+  /* La colonne des boutons porte enfin un nom : elle était habillée
+     à la main dans ec-prepares.js, donc invisible à la feuille de
+     style — on ne peut pas corriger ce qu'on ne peut pas désigner. */
+  .history-item .actions{ flex-wrap:wrap; flex-shrink:1; }
+  @media (max-width: 700px){
+    /* Sous cette largeur, les boutons prennent leur propre ligne :
+       le texte garde la sienne entière. */
+    .history-item .actions{ flex-basis:100%; }
   }
   .history-item:last-child{border-bottom:none;}
   .history-item .meta{min-width:0;}
@@ -555,7 +619,17 @@
   /* Un bloc qui n'appartient pas à l'onglet courant disparaît */
   [data-onglet].hors-onglet{ display:none !important; }
 
-  @media (min-width: 1100px){
+  /* ⚠️ 1400, ET PLUS 1100 — v915.
+
+     La tablette des moniteurs fait 1280 px en paysage et 800 px en
+     portrait : elle franchissait le seuil EN TOURNANT. La barre
+     partait en haut, puis revenait en bas, et sur un support de
+     voiture le doigt cherchait un onglet qui avait déménagé.
+
+     1400 la met au-dessus de toutes les tablettes et en dessous
+     d'un écran de bureau : les moniteurs gardent leur barre en bas
+     dans les deux orientations, le bureau garde son habitude. */
+  @media (min-width: 1400px){
     #barreOnglets{
       position:sticky;
       top:0; bottom:auto;
@@ -754,7 +828,24 @@
   }
 
   h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;}
-  .hint{font-size:11px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;}
+  /* ⚠️ LA MARGE NÉGATIVE APPARTIENT AU CHAMP, PAS À L'AIDE — v915.
+
+     Ce -8 px remonte l'aide sous un champ posé seul, qui porte sa
+     propre marge basse. Sous une ligne « flex » dont l'input est en
+     margin:0 — le champ du mail et son bouton ✉️ — il n'y a plus
+     rien à rattraper : le -8 px mord dans le champ, et
+     « Saisie une fois, elle est retenue… » s'affichait rayée par
+     la case du dessus.
+
+     On ne remonte donc plus l'aide : c'est le champ qui descend
+     moins. Là où l'aide suit une ligne flex, elle se pose
+     normalement. */
+  .hint{font-size:11px;color:var(--muted);margin:4px 0 14px;line-height:1.4;}
+  /* Le rattrapage ne se déclenche QUE derrière un champ nu, qui est
+     le seul à porter la marge basse qu'il s'agit d'annuler. Derrière
+     une ligne flex — le champ du mail et son bouton ✉️ — il n'y a
+     rien à rattraper, et l'aide se pose normalement. */
+  input + .hint, select + .hint, textarea + .hint{ margin-top:-8px; }
 
   /* ============================================================
      ADAPTATION AUX ÉCRANS
@@ -958,7 +1049,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=914" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=915" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -1231,8 +1322,8 @@
            et disparaît avec son explication. -->
       <div id="zoneManuel">
         <button class="btn" id="manuelBtn"
-                style="margin-top:12px;background:var(--ambre);
-                       color:var(--sur-ambre);">✍️ Bilan à remplir à la main</button>
+                style="margin-top:12px;background:var(--action-main);
+                       color:var(--sur-action-main);">✍️ Bilan à remplir à la main</button>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
           Sans micro ni résumé automatique : tu remplis chaque rubrique toi-même,
           en écrivant ou en dictant champ par champ.
@@ -1274,7 +1365,9 @@
          déclenche pas par réflexe comme un bouton ordinaire. -->
     <button class="btn" id="finishBtn"
             style="display:none;margin-top:46px;padding:20px;font-size:16px;
-                   background:#9E3B32;border:2px solid #9E3B32;color:#FFFFFF;
+                   background:var(--action-terminer);
+                   border:2px solid var(--action-terminer);
+                   color:var(--sur-action-terminer);
                    font-weight:700;">✅ Terminer et générer le bilan 💶</button>
   </div>
 
@@ -2442,7 +2535,9 @@
     <div class="btn-row">
       <button class="btn btn-secondary" id="cancelGen">Annuler</button>
       <button class="btn" id="confirmGen"
-              style="background:#9E3B32;border:2px solid #9E3B32;color:#FFFFFF;
+              style="background:var(--action-terminer);
+                     border:2px solid var(--action-terminer);
+                     color:var(--sur-action-terminer);
                      font-weight:700;">Générer 💶</button>
     </div>
   </div>
@@ -2512,76 +2607,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=914"></script>
-<script src="app/ec-modeles.js?v=914"></script>
-<script src="app/ec-consignes.js?v=914"></script>
-<script src="app/ec-noyau.js?v=914"></script>
-<script src="app/ec-vocal.js?v=914"></script>
-<script src="app/ec-reseau.js?v=914"></script>
-<script src="app/ec-manuel.js?v=914"></script>
-<script src="app/ec-fenetres.js?v=914"></script>
-<script src="app/ec-questionnaire.js?v=914"></script>
-<script src="app/ec-permis.js?v=914"></script>
-<script src="app/ec-prepares.js?v=914"></script>
-<script src="app/ec-avant-cours.js?v=914"></script>
-<script src="app/ec-bureau.js?v=914"></script>
-<script src="app/ec-places.js?v=914"></script>
-<script src="app/ec-listes.js?v=914"></script>
-<script src="app/ec-permis-listes.js?v=914"></script>
-<script src="app/ec-postpermis.js?v=914"></script>
-<script src="app/ec-textes.js?v=914"></script>
-<script src="app/ec-correction.js?v=914"></script>
-<script src="app/ec-bilans.js?v=914"></script>
-<script src="app/ec-ecran.js?v=914"></script>
-<script src="app/ec-version.js?v=914"></script>
-<script src="app/ec-paie.js?v=914"></script>
-<script src="app/ec-flotte.js?v=914"></script>
-<script src="app/ec-carrosserie.js?v=914"></script>
-<script src="app/ec-solo.js?v=914"></script>
-<script src="app/ec-handicap-pdf.js?v=914"></script>
-<script src="app/ec-moto.js?v=914"></script>
-<script src="app/ec-remorque.js?v=914"></script>
-<script src="app/ec-arriereplan.js?v=914"></script>
-<script src="app/ec-placesbe.js?v=914"></script>
-<script src="app/ec-codeamenage.js?v=914"></script>
-<script src="app/ec-financements.js?v=914"></script>
-<script src="app/ec-eval-aac.js?v=914"></script>
-<script src="app/ec-postes.js?v=914"></script>
-<script src="app/ec-tarifs.js?v=914"></script>
-<script src="app/ec-caisse.js?v=914"></script>
-<script src="app/ec-menage.js?v=914"></script>
-<script src="app/ec-page-eleve.js?v=914"></script>
-<script src="app/ec-cbgasoil.js?v=914"></script>
-<script src="app/ec-loupe.js?v=914"></script>
-<script src="app/ec-coutsia.js?v=914"></script>
-<script src="app/ec-evaluation.js?v=914"></script>
-<script src="app/ec-paiement.js?v=914"></script>
-<script src="app/ec-handicap.js?v=914"></script>
-<script src="app/ec-code.js?v=914"></script>
-<script src="app/ec-proccorriger.js?v=914"></script>
-<script src="app/ec-sessions.js?v=914"></script>
-<script src="app/ec-aac-cs.js?v=914"></script>
-<script src="app/ec-notifs.js?v=914"></script>
-<script src="app/ec-ecoutes.js?v=914"></script>
-<script src="app/ec-taches.js?v=914"></script>
-<script src="app/ec-memoire.js?v=914"></script>
-<script src="app/ec-historique.js?v=914"></script>
-<script src="app/ec-rappels.js?v=914"></script>
-<script src="app/ec-segments.js?v=914"></script>
-<script src="app/ec-sms.js?v=914"></script>
-<script src="app/ec-encours.js?v=914"></script>
-<script src="app/ec-incidents.js?v=914"></script>
+  <script src="app/ec-etat.js?v=915"></script>
+<script src="app/ec-modeles.js?v=915"></script>
+<script src="app/ec-consignes.js?v=915"></script>
+<script src="app/ec-noyau.js?v=915"></script>
+<script src="app/ec-vocal.js?v=915"></script>
+<script src="app/ec-reseau.js?v=915"></script>
+<script src="app/ec-manuel.js?v=915"></script>
+<script src="app/ec-fenetres.js?v=915"></script>
+<script src="app/ec-questionnaire.js?v=915"></script>
+<script src="app/ec-permis.js?v=915"></script>
+<script src="app/ec-prepares.js?v=915"></script>
+<script src="app/ec-avant-cours.js?v=915"></script>
+<script src="app/ec-bureau.js?v=915"></script>
+<script src="app/ec-places.js?v=915"></script>
+<script src="app/ec-listes.js?v=915"></script>
+<script src="app/ec-permis-listes.js?v=915"></script>
+<script src="app/ec-postpermis.js?v=915"></script>
+<script src="app/ec-textes.js?v=915"></script>
+<script src="app/ec-correction.js?v=915"></script>
+<script src="app/ec-bilans.js?v=915"></script>
+<script src="app/ec-ecran.js?v=915"></script>
+<script src="app/ec-version.js?v=915"></script>
+<script src="app/ec-paie.js?v=915"></script>
+<script src="app/ec-flotte.js?v=915"></script>
+<script src="app/ec-carrosserie.js?v=915"></script>
+<script src="app/ec-solo.js?v=915"></script>
+<script src="app/ec-handicap-pdf.js?v=915"></script>
+<script src="app/ec-moto.js?v=915"></script>
+<script src="app/ec-remorque.js?v=915"></script>
+<script src="app/ec-arriereplan.js?v=915"></script>
+<script src="app/ec-placesbe.js?v=915"></script>
+<script src="app/ec-codeamenage.js?v=915"></script>
+<script src="app/ec-financements.js?v=915"></script>
+<script src="app/ec-eval-aac.js?v=915"></script>
+<script src="app/ec-postes.js?v=915"></script>
+<script src="app/ec-tarifs.js?v=915"></script>
+<script src="app/ec-caisse.js?v=915"></script>
+<script src="app/ec-menage.js?v=915"></script>
+<script src="app/ec-page-eleve.js?v=915"></script>
+<script src="app/ec-cbgasoil.js?v=915"></script>
+<script src="app/ec-loupe.js?v=915"></script>
+<script src="app/ec-coutsia.js?v=915"></script>
+<script src="app/ec-evaluation.js?v=915"></script>
+<script src="app/ec-paiement.js?v=915"></script>
+<script src="app/ec-handicap.js?v=915"></script>
+<script src="app/ec-code.js?v=915"></script>
+<script src="app/ec-proccorriger.js?v=915"></script>
+<script src="app/ec-sessions.js?v=915"></script>
+<script src="app/ec-aac-cs.js?v=915"></script>
+<script src="app/ec-notifs.js?v=915"></script>
+<script src="app/ec-ecoutes.js?v=915"></script>
+<script src="app/ec-taches.js?v=915"></script>
+<script src="app/ec-memoire.js?v=915"></script>
+<script src="app/ec-historique.js?v=915"></script>
+<script src="app/ec-rappels.js?v=915"></script>
+<script src="app/ec-segments.js?v=915"></script>
+<script src="app/ec-sms.js?v=915"></script>
+<script src="app/ec-encours.js?v=915"></script>
+<script src="app/ec-incidents.js?v=915"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=914"></script>
-<script src="app/ec-bandeau.js?v=914"></script>
-<script src="app/ec-stats.js?v=914"></script>
-<script src="app/ec-messenger.js?v=914"></script>
-<script src="app/ec-journal.js?v=914"></script>
-<script src="app/ec-depart.js?v=914"></script>
-<script src="app/ec-onglets.js?v=914"></script>
-<script src="app/ec-demarrage.js?v=914"></script>
+<script src="app/ec-messages-perso.js?v=915"></script>
+<script src="app/ec-bandeau.js?v=915"></script>
+<script src="app/ec-stats.js?v=915"></script>
+<script src="app/ec-messenger.js?v=915"></script>
+<script src="app/ec-journal.js?v=915"></script>
+<script src="app/ec-depart.js?v=915"></script>
+<script src="app/ec-onglets.js?v=915"></script>
+<script src="app/ec-demarrage.js?v=915"></script>
 
 <script>
 /* ============================================================
