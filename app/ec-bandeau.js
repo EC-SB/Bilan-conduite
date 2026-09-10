@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:24 — v895 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -58,6 +58,16 @@ const FAMILLES_BANDEAU = [
   { cle:'aac',      emoji:'🤝', nom:'Rendez-vous AAC et conduite supervisée',
     droit:'suivi_aac_cs',  reglable:true },
   { cle:'aprevoir', emoji:'📝', nom:'Examens blancs et simulateurs à prévoir',
+    droit:'',              reglable:true },
+  /* ⚠️ LES HEURES ONT LEUR FAMILLE À ELLES — v908.
+
+     David : « pour le bandeau, j'aimerais que ce ne soit pas
+     mélangé avec tout le reste ». Une famille, ici, c'est trois
+     choses d'un coup : un bouton dans la barre, un titre dans la
+     liste, une case dans le réglage. Les trois naissent de cette
+     ligne, sans qu'on ait à y penser — c'est tout l'intérêt de la
+     table unique. */
+  { cle:'heures',   emoji:'⏱️', nom:'Heures avant examen à poser',
     droit:'',              reglable:true },
   { cle:'anniv',    emoji:'🎂', nom:'Anniversaires du jour',
     droit:'cours',         reglable:true },
@@ -326,13 +336,48 @@ function lignesAacCs(){
    croix est celle de tout le monde. */
 const PREVENU_DU_TYPE = { examblanc: 'ebPrevenu', simu: 'simuPrevenu', permis: '' };
 
-function lignesAPrevoir(){
+/* ⚠️ DEUX FAMILLES, UNE SEULE LECTURE — v908.
+
+   Les alertes du bureau arrivent toutes par notifsEnAttente ; elles
+   se répartissent ensuite dans deux familles du bandeau (📝 et ⏱️),
+   parce que David veut pouvoir les séparer à l'œil et dans le
+   réglage. On les construit donc une fois, et chaque famille filtre
+   les siennes — plutôt que deux fonctions qui reliraient chacune le
+   même état du bureau et finiraient, un jour, par ne plus dire la
+   même chose. */
+function lignesDesAlertes(){
   if(typeof notifsEnAttente !== 'function') return [];
   if(typeof etatBureau === 'undefined') return [];
 
   const out = [];
   (notifsEnAttente(etatBureau.eleves) || []).forEach(n => {
-    const champ = PREVENU_DU_TYPE[n.type];
+    const fam = n.famille || n.type;
+
+    /* ⚠️ LES HEURES NE SONT PAS DE CETTE FAMILLE — v908. Elles ont
+       la leur, avec son bouton et son titre, et elles ne connaissent
+       pas la case « prévenu » : on ne prévient personne d'un nombre
+       d'heures, on lui prend une date. */
+    if(fam === 'heures'){
+      out.push({
+        id: 'heures:' + normaliserMot(n.eleve) + ':' + n.type,
+        famille: 'heures',
+        emoji: '⏱️',
+        texte: n.eleve + ' — ' + (n.detail || ''),
+        sous: n.moniteur
+          ? ('dit par ' + n.moniteur + (n.date ? ' le ' + jourLisibleBandeau(n.date) : ''))
+          : "on ne sait pas qui l'a dit",
+        urgente: false,
+        /* La croix masque CE nombre-là, pas cet élève pour toujours :
+           un nouveau nombre fera revenir une nouvelle ligne. */
+        croix: 'notif',
+        croixType: n.type,
+        croixEleve: n.eleve,
+        ou: ['gestion', 'notifs']
+      });
+      return;
+    }
+
+    const champ = PREVENU_DU_TYPE[fam];
     const s = (typeof suiviDe === 'function') ? suiviDe(n.eleve) : {};
     const prevenu = !champ || String(s[champ] || '') === 'oui';
 
@@ -360,10 +405,33 @@ function lignesAPrevoir(){
       croix: prevenu ? 'notif' : '',
       croixType: n.type,
       croixEleve: n.eleve,
-      ou: ['suivi', 'notifs']
+      /* ⚠️ CE CLIC N'ALLAIT NULLE PART — réparé en v908.
+
+         Il demandait la vue « notifs » dans l'onglet SUIVI, alors
+         que l'écran des alertes vit dans GESTION : on atterrissait
+         sur un Suivi vide, sans un mot. Un droit qui ne mène nulle
+         part est pire qu'un droit refusé — et une ligne d'alerte
+         qui n'emmène pas à l'alerte, c'est la même chose. */
+      ou: ['gestion', 'notifs']
     });
   });
   return out;
+}
+
+function lignesAPrevoir(){
+  return lignesDesAlertes().filter(l => l.famille === 'aprevoir');
+}
+
+function lignesHeuresExamen(){
+  return lignesDesAlertes().filter(l => l.famille === 'heures');
+}
+
+/* Une date de fiche, dite comme on la dit à l'oral. La règle de
+   conversion n'est pas réécrite ici : dateCourte la tient. */
+function jourLisibleBandeau(v){
+  const t = String(v || '').trim();
+  if(!t) return '';
+  return (typeof dateCourte === 'function') ? dateCourte(t) : t;
 }
 
 /* ── 🎂 Les anniversaires du jour ───────────────────────────── */
@@ -452,6 +520,7 @@ function lignesDuBandeau(){
     prise:    lignesPriseDeDates,
     aac:      lignesAacCs,
     aprevoir: lignesAPrevoir,
+    heures:   lignesHeuresExamen,
     anniv:    lignesAnniversaires,
     cbgasoil: (typeof lignesCbGasoil === 'function') ? lignesCbGasoil : (() => [])
   };
@@ -789,8 +858,130 @@ function dessinerBandeau(){
     'padding:10px 12px;margin-bottom:10px;';
 
   b.appendChild(enteteBandeau(lignes.length));
-  lignes.forEach((l, i) => b.appendChild(ligneBandeau(l, i > 0)));
+
+  /* ⚠️ LE SOUS-ONGLET DU BANDEAU — v908.
+
+     David : « pour le bandeau, j'aimerais que ce ne soit pas mélangé
+     avec tout le reste — est-ce que tu peux faire un sous-onglet
+     dans le bandeau ? »
+
+     Une rangée de boutons, comme dans l'AAC : c'est le vocabulaire
+     de l'outil, pas une invention. Et sous « Tout », les lignes sont
+     RANGÉES PAR FAMILLE avec leur titre — parce qu'un filtre qui
+     n'est pas cliqué ne range rien, et que le mélange était là
+     aussi.
+
+     ⚠️ ET LE FILTRE NE SE RETIENT PAS D'UN JOUR À L'AUTRE. Ce
+     bandeau existe pour qu'on voie SANS CHERCHER : un filtre gardé
+     dans le navigateur, et un matin l'anniversaire ou la CB non
+     reposée n'existent plus pour toi, sans que rien ne te le dise.
+     Il vit donc en mémoire, le temps de la page — et chaque
+     ouverture repart de « Tout ». Ce qu'on veut éteindre POUR DE BON
+     se décoche dans le ⚙️, où c'est un choix et non un oubli. */
+  const fams = famillesPresentes(lignes);
+  if(fams.length > 1) b.appendChild(barreFamillesBandeau(fams, lignes));
+
+  const vues = (familleChoisieBandeau && fams.indexOf(familleChoisieBandeau) !== -1)
+    ? lignes.filter(l => l.famille === familleChoisieBandeau)
+    : lignes;
+
+  /* Sous « Tout » : un titre par famille. Sous un filtre : la barre
+     dit déjà de quoi on parle, un titre serait une redite. */
+  if(familleChoisieBandeau){
+    vues.forEach((l, i) => b.appendChild(ligneBandeau(l, i > 0)));
+  }else{
+    let famille = '';
+    let premiere = true;
+    vues.forEach(l => {
+      if(l.famille !== famille){
+        famille = l.famille;
+        b.appendChild(titreFamilleBandeau(famille,
+          vues.filter(x => x.famille === famille).length, !premiere));
+        premiere = false;
+        b.appendChild(ligneBandeau(l, false));
+        return;
+      }
+      b.appendChild(ligneBandeau(l, true));
+    });
+  }
   zone.appendChild(b);
+}
+
+
+/* ------------------------------------------------------------
+   LES FAMILLES PRÉSENTES AUJOURD'HUI
+
+   Pas toutes les familles : celles qui ont quelque chose à dire ce
+   matin. Un bouton « 🎂 0 » n'apprend rien et prend la place de
+   ceux qui comptent.
+
+   L'ordre est celui de FAMILLES_BANDEAU — le même que celui des
+   lignes, pour que le regard retrouve en bas ce qu'il a lu en haut.
+   ------------------------------------------------------------ */
+function famillesPresentes(lignes){
+  const vues = [];
+  FAMILLES_BANDEAU.forEach(f => {
+    if((lignes || []).some(l => l.famille === f.cle)) vues.push(f.cle);
+  });
+  /* Une famille inconnue de la table ne disparaît pas en silence */
+  (lignes || []).forEach(l => {
+    if(l.famille && vues.indexOf(l.famille) === -1) vues.push(l.famille);
+  });
+  return vues;
+}
+
+function familleBandeau(cle){
+  return FAMILLES_BANDEAU.find(f => f.cle === cle) ||
+         { cle: cle, emoji: '📌', nom: cle };
+}
+
+/* Le filtre du bandeau : en mémoire, jamais dans le navigateur.
+   Voir le ⚠️ de dessinerBandeau — un filtre qui survit à la nuit
+   cache des choses qu'on n'a pas choisi de cacher. */
+let familleChoisieBandeau = '';
+
+function barreFamillesBandeau(fams, lignes){
+  const z = document.createElement('div');
+  z.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;padding:7px 0 3px;';
+
+  const bouton = (libelle, cle, combien, titre) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    const on = (familleChoisieBandeau === cle);
+    b.style.cssText = 'width:auto;margin:0;padding:4px 10px;font-size:12px;' +
+      'border-radius:999px;' +
+      (on ? 'background:var(--orange);border-color:var(--orange);' +
+            'color:#0B0B0B;font-weight:700;' : '');
+    b.textContent = libelle + ' ' + combien;
+    if(titre) b.title = titre;
+    b.addEventListener('click', () => {
+      /* Recliquer le bouton allumé revient à « Tout » : sans ça, on
+         ne sait plus comment ressortir d'un filtre. */
+      familleChoisieBandeau = on ? '' : cle;
+      dessinerBandeau();
+    });
+    z.appendChild(b);
+  };
+
+  bouton('Tout', '', (lignes || []).length,
+         "Tout ce qu'il y a à voir aujourd'hui");
+  fams.forEach(cle => {
+    const f = familleBandeau(cle);
+    bouton(f.emoji, cle,
+      (lignes || []).filter(l => l.famille === cle).length, f.nom);
+  });
+  return z;
+}
+
+function titreFamilleBandeau(cle, combien, avecEspace){
+  const f = familleBandeau(cle);
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:10.5px;letter-spacing:.07em;' +
+    'text-transform:uppercase;color:var(--muted);font-weight:700;' +
+    'margin:' + (avecEspace ? '11px' : '7px') + ' 0 3px;';
+  t.textContent = f.emoji + ' ' + f.nom + ' · ' + combien;
+  return t;
 }
 
 function bandeauReduit(combien, teinte){
