@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:12 — v925 */
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1657,7 +1657,7 @@ function remplirFrises(champs, surEcran){
   if(apres !== null && annoncees && aMoi('frisePost')){
     /* Les 3h avant examen sont dans les deux comptes : elles
        s'annulent. « 4 + 3 » se compare donc à 4h de leçons. */
-    const prevuH = apres * 2;
+    const prevuH = heuresPourLecons(apres);
 
     if(annoncees <= prevuH){
       poser('frisePost', 'oui');
