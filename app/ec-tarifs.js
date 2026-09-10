@@ -1,3 +1,4 @@
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-tarifs.js
    Les prestations et leurs tarifs.
@@ -298,7 +299,12 @@ function majApercuTarifs(){
   const total = (heures, auto) => {
     /* La même mécanique que l'évaluation */
     const simu = auto ? ((heures <= 18) ? 2 : 3) : ((heures < 25) ? 3 : 4);
-    const c2h = Math.ceil((heures - (3 + simu + 6)) / 2);
+    /* ⚠️ LA CONSTANTE EST PARTAGÉE, PAS L'ARRONDI — v925. Un devis
+       ne vend pas une demi-leçon : il arrondit au SUPÉRIEUR, là où
+       le décompte du moniteur arrondit au plus proche. La règle
+       « une leçon = deux heures » est commune ; la question ne
+       l'est pas. */
+    const c2h = Math.ceil((heures - (3 + simu + 6)) / HEURES_PAR_LECON);
 
     return tarifsPrestations.reduce((s, l) => {
       const q = (l.q === 'simu') ? simu : (l.q === 'c2h') ? c2h : l.q;
