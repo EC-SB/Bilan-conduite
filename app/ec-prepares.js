@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 11:39 — v910 */
+/* Déployé le 10/09/2026 à 12:35 — v912 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2217,7 +2217,14 @@ function mentionDeLExamen(cours, suivi){
     return {
       texte: lignes[i].replace('🔒 EXAMEN OFFICIEL · ', ''),
       note: notes.join('\n'),
-      heures: m ? m[1] : ''
+      heures: m ? m[1] : '',
+      /* ⚠️ « PAS DE REPASSAGE » VOYAGE AUSSI — v912. Le moniteur de
+         l'examen peut maintenant le dire ; sans cette lecture, sa
+         phrase s'afficherait dans le mémo et le menu de la suite
+         repartirait quand même à « — à définir ». Une information
+         qu'on affiche sans s'en servir, c'est une information qu'on
+         retape. */
+      sansRepassage: /Pas de repassage pour le moment/i.test(lignes[i])
     };
   }
   return null;
@@ -2422,7 +2429,12 @@ function ouvrirRdvPost(cours){
     o.value = x.cle; o.textContent = x.nom;
     sel.appendChild(o);
   });
-  sel.value = s.suite || '';
+  /* ⚠️ CE QUE LE MONITEUR DE L'EXAMEN A DÉJÀ DIT — v912. Même règle
+     que pour les heures juste dessous : on part de ce qu'il a
+     demandé, et le moniteur du rendez-vous garde le dernier mot.
+     Sa propre réponse, si elle existe, passe devant. */
+  sel.value = s.suite ||
+    ((memo && memo.sansRepassage) ? 'impossible' : '');
 
   /* Le nombre d'heures ne se demande que si un repassage est envisagé.
      On part de ce qu'avait demandé le moniteur de l'examen : le
@@ -2952,20 +2964,92 @@ function heureDeLaPreparation(cours){
 }
 
 
+/* ============================================================
+   AMENER LE MONITEUR SUR LE BOUTON QU'IL VA APPUYER
+
+   David : « ça ne fonctionne toujours pas quand on appuie sur
+   ouvrir dans mes prochains cours ou sur reprendre en haut. Est-ce
+   que ça peut mettre l'écran directement au bon endroit en bas,
+   prêt à appuyer sur démarrer l'enregistrement ou sur remplir le
+   bilan manuel suivant le cours ? »
+
+   ⚠️ TROIS RAISONS POUR LESQUELLES ÇA NE MARCHAIT PAS. Elles se
+   cumulaient, et corriger une seule ne se voyait pas.
+
+   1. LE MAUVAIS BOUTON. On visait toujours le micro. Sur un examen
+      blanc ou un examen officiel, c'est « ✍️ Remplir le bilan » qui
+      est l'action — le micro est éteint. Le moniteur atterrissait à
+      côté de ce qu'il devait appuyer.
+
+   2. UN SEUL COUP D'ŒIL, TROP TÔT. On mesurait à 150 ms. Or le
+      résumé du cours précédent, l'en-tête et la fiche véhicule
+      arrivent APRÈS, du réseau, et ils s'insèrent AU-DESSUS : la
+      page s'allonge sous le moniteur et le bouton redescend hors de
+      l'écran. On avait bien défilé — au bon endroit d'il y a une
+      demi-seconde.
+
+   3. « REPRENDRE » NE DÉFILAIT PAS DU TOUT. Il finissait par
+      « window.scrollTo(0, 0) » : tout en haut, systématiquement.
+
+   ⚠️ ET ON NE SE BAT JAMAIS CONTRE LE MONITEUR. Dès qu'il touche
+   l'écran ou fait défiler lui-même, on s'arrête net : rien n'est
+   plus désagréable qu'une page qui vous reprend la main.
+   ============================================================ */
+function boutonDuCours(){
+  /* Le bilan est déjà généré : c'est lui qu'on vient lire. */
+  const res = $('resultView');
+  if(res && res.style.display === 'block') return $('resultText') || res;
+
+  /* Le bouton manuel quand il est l'action principale — c'est
+     « adapterAuModele » qui en décide, et lui seul. On ne redevine
+     pas la liste des modèles sans vocal ici : deux règles pour une
+     même question finiraient par ne plus dire la même chose. */
+  const bm = $('manuelBtn');
+  const zm = $('zoneManuel');
+  const manuelVisible = bm && zm && zm.style.display !== 'none' &&
+                        bm.offsetParent !== null;
+  if(manuelVisible) return bm;
+
+  return $('recBtn') || $('recordView');
+}
+
 function amenerAuCours(){
-  setTimeout(() => {
-    /* Le bouton lui-même, centré : viser le haut de la carte
-       laissait le moniteur devant les champs, avec le bouton hors
-       de l'écran et un défilement de plus à faire. */
-    const b = $('recBtn') || $('recordView');
-    if(!b) return;
+  const viser = () => {
+    const b = boutonDuCours();
+    if(!b) return false;
     try{
       b.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }catch(e){
       /* Navigateur ancien : au moins on y va */
       window.scrollTo(0, Math.max(0, b.offsetTop - 160));
     }
-  }, 150);
+    return true;
+  };
+
+  /* On vise, puis on RESTE dessus le temps que les blocs qui
+     arrivent du réseau s'installent — au plus deux secondes et
+     demie, et pas une de plus : passé ce délai, si la page bouge
+     encore, c'est qu'elle vit sa vie et ce n'est plus notre
+     affaire. */
+  let fini = false;
+  const arreter = () => {
+    if(fini) return;
+    fini = true;
+    ['wheel', 'touchstart', 'keydown'].forEach(e =>
+      window.removeEventListener(e, arreter));
+  };
+  ['wheel', 'touchstart', 'keydown'].forEach(e =>
+    window.addEventListener(e, arreter, { passive: true, once: true }));
+
+  const debut = Date.now();
+  const repasser = () => {
+    if(fini) return;
+    if(Date.now() - debut > 2500){ arreter(); return; }
+    viser();
+    setTimeout(repasser, 350);
+  };
+  setTimeout(repasser, 150);
+  setTimeout(arreter, 2600);
 }
 
 /* Demande une date, avec celle du cours pré-remplie */
