@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:10 — v928 */
+/* Déployé le 10/09/2026 à 18:20 — v929 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1933,6 +1933,25 @@ async function afficherPrepares(recharger, silencieux){
         const aLaMain = !!(m && m.manuelSeul);
         bGo.style.display = aLaMain ? 'none' : '';
         bMain.classList.toggle('seul', aLaMain);
+
+        /* ⚠️ UN RENDEZ-VOUS POST-PERMIS N'EST PAS UN BILAN À REMPLIR
+           À LA MAIN — v929.
+
+           David : « ça m'ouvre pour remplir un cours classique, et
+           en dessous le rendez-vous post-permis ; je n'ai pas
+           besoin d'un bilan classique au-dessus ».
+
+           Il porte « manuelSeul » comme les autres bilans sans
+           dictée — c'est vrai, il ne se dicte pas — et il héritait
+           donc du libellé de tous les autres. Mais il ne passe pas
+           du tout par le bilan manuel : il a son écran à lui. Le
+           bouton dit donc ce qu'il fait, et l'ouverture s'arrête
+           là. */
+        const rdv = (selType.value === 'rdv-post');
+        bMain.textContent = rdv
+          ? '📋 Ouvrir le rendez-vous post-permis'
+          : '✍️ Bilan à remplir à la main';
+        bMain.dataset.rdv = rdv ? '1' : '';
       };
       selType.addEventListener('change', majDepart);
       selType.addEventListener('click', e => e.stopPropagation());
@@ -2866,7 +2885,12 @@ function ouvrirRdvPost(cours){
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
   $('rdvPostView').style.display = 'block';
-  window.scrollTo(0, 0);
+  /* ⚠️ ON VISE CE QU'ON VIENT D'OUVRIR — v929. C'était « scrollTo(0,
+     0) », donc le haut de la page : le moniteur retombait sur la
+     liste des cours et devait descendre à la main. Voir
+     « boutonDuCours », qui connaît cet écran. */
+  if(typeof amenerAuCours === 'function') amenerAuCours();
+  else window.scrollTo(0, 0);
 }
 
 /* ------------------------------------------------------------
@@ -3464,6 +3488,22 @@ function heureDeLaPreparation(cours){
    plus désagréable qu'une page qui vous reprend la main.
    ============================================================ */
 function boutonDuCours(){
+  /* ⚠️ LE RENDEZ-VOUS POST-PERMIS A SON PROPRE ÉCRAN — v929.
+
+     David : « j'appuie sur remplir le bilan à la main, il faut que
+     je fasse défiler manuellement pour descendre ».
+
+     « ouvrirRdvPost » finissait par un « scrollTo(0, 0) » — le HAUT
+     de la page, c'est-à-dire la liste des cours, pendant que
+     l'écran du rendez-vous s'ouvrait bien plus bas. Le moniteur
+     voyait donc l'écran d'où il venait, et devait descendre à la
+     main chercher ce qu'il venait d'ouvrir.
+
+     Il passe désormais par la même porte que les autres écrans : on
+     vise ce qu'on vient d'ouvrir, jamais le sommet de la page. */
+  const rdv = $('rdvPostView');
+  if(rdv && rdv.style.display === 'block') return rdv;
+
   /* Le bilan est déjà généré : c'est lui qu'on vient lire. */
   const res = $('resultView');
   if(res && res.style.display === 'block') return $('resultText') || res;
