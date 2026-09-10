@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:23 — v917 */
+/* Déployé le 10/09/2026 à 15:30 — v919 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -212,6 +212,63 @@ function niveauDroit(section){
   return d[section] || '';
 }
 function aDroit(section){ return niveauDroit(section) !== ''; }
+
+/* ------------------------------------------------------------
+   QUI VOIT LE NOUVEL ÉCRAN DE COURS — v919
+
+   Deux façons de l'avoir, et une seule règle : le choix posé à la
+   main l'emporte, et à défaut c'est le droit qui décide.
+
+   ⚠️ LE DROIT SEUL NE SUFFISAIT PAS. ⚙️ Accès ne règle que les
+   comptes créés ; les comptes principaux — David, Chrystel — y
+   sont marqués 🔒 et n'ont aucun panneau de sections. Le droit
+   posé en v917 leur était donc indonnable : ils ne pouvaient pas
+   regarder l'essai qu'ils avaient demandé.
+
+   Le choix vit dans CE navigateur. Ce n'est pas une donnée de
+   l'auto-école : c'est une préférence d'affichage, le temps d'un
+   essai, et elle disparaîtra avec lui.
+   ------------------------------------------------------------ */
+function choixEcranCours(){
+  try{ return localStorage.getItem('ec_cours_neuf') || ''; }
+  catch(e){ return ''; }
+}
+
+function ecranCoursNeuf(){
+  const choix = choixEcranCours();
+  if(choix === 'oui') return true;
+  if(choix === 'non') return false;
+  return aDroit('cours_neuf');
+}
+
+/* La bascule ne s'offre qu'à ceux que l'essai concerne : ceux à qui
+   on l'a donnée — pour qu'ils puissent revenir en arrière en pleine
+   journée — et les administratrices, qui n'ont pas d'autre moyen. */
+function majBoutonCoursNeuf(){
+  const b = document.getElementById('coursNeufBtn');
+  if(!b) return;
+  const concerne = aDroit('cours_neuf') ||
+    (typeof ACCES !== 'undefined' && ACCES.role === 'admin');
+  b.style.display = concerne ? 'flex' : 'none';
+  const t = document.getElementById('coursNeufTexte');
+  if(t){
+    t.textContent = ecranCoursNeuf()
+      ? "Revenir à l'ancien écran de cours"
+      : 'Essayer le nouvel écran de cours';
+  }
+}
+
+function basculerEcranCours(){
+  const neuf = !ecranCoursNeuf();
+  try{ localStorage.setItem('ec_cours_neuf', neuf ? 'oui' : 'non'); }catch(e){}
+  document.body.classList.toggle('cours-neuf', neuf);
+  majBoutonCoursNeuf();
+  /* La liste se redessine : c'est elle qui monte les deux volets. */
+  if(typeof afficherPrepares === 'function') afficherPrepares(false);
+  if(typeof showToast === 'function'){
+    showToast(neuf ? '🆕 Nouvel écran de cours' : "↩️ Ancien écran de cours");
+  }
+}
 function peutModifier(section){ return niveauDroit(section) === 'm'; }
 
 /* ------------------------------------------------------------
@@ -244,7 +301,8 @@ function appliquerDroits(){
      ne veux pas avoir à faire les corrections sur les deux côtés ».
      Une correction faite dans afficherPrepares vaut pour les deux
      mises en page, parce qu'il n'y en a qu'une à corriger. */
-  document.body.classList.toggle('cours-neuf', aDroit('cours_neuf'));
+  document.body.classList.toggle('cours-neuf', ecranCoursNeuf());
+  majBoutonCoursNeuf();
 
   document.querySelectorAll('[data-section]').forEach(el => {
     const s = el.getAttribute('data-section');
