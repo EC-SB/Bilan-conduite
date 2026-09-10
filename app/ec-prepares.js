@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:23 — v917 */
+/* Déployé le 10/09/2026 à 15:42 — v921 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1942,31 +1942,71 @@ function mettreEnDeuxVolets(zone){
   });
   journee.appendChild(bPlier);
 
+  /* ------------------------------------------------------------
+     ⚠️ LA CARTE LUE RESTE DANS LA JOURNÉE — v921
+
+     David : « quand j'appuie sur un élève il disparaît, je ne le
+     revois pas si je veux modifier ».
+
+     Il avait raison, et c'était le cœur du montage : je DÉPLAÇAIS
+     la carte choisie de la colonne de gauche vers le volet de
+     droite. Elle quittait donc la journée — l'élève qu'on venait
+     d'ouvrir était le seul qu'on ne voyait plus dans sa liste, et
+     rien n'indiquait lequel était affiché à droite. Sur la capture,
+     le sommaire de gauche montrait un élève et le volet de droite
+     un autre : impossible de savoir à qui appartenait quoi.
+
+     La journée porte donc un SOMMAIRE de chaque cours — une copie
+     inerte, sans boutons ni cases — et le volet de droite porte la
+     VRAIE carte, la seule qui soit branchée.
+
+     ⚠️ ET CETTE COPIE-LÀ NE PEUT PAS DIVERGER. Ce n'est pas une
+     deuxième construction : c'est une photocopie de la carte
+     elle-même, refaite à chaque dessin, à partir de la carte
+     qu'elle résume. Ce qui diverge, ce sont deux CODES qui
+     fabriquent la même chose — pas une copie prise à l'instant.
+     Ses boutons et ses cases sont retirés : un sommaire ne se
+     manipule pas, et deux cases pour un même rang finiraient par
+     ne pas porter le même nombre.
+     ------------------------------------------------------------ */
+  const resumes = {};
+  cartes.forEach(carte => {
+    const resume = carte.cloneNode(true);
+    resume.classList.add('sommaire');
+    /* Rien d'interactif dans un sommaire : ni boutons, ni cases. */
+    Array.prototype.slice.call(resume.querySelectorAll('.actions'))
+      .forEach(el => el.remove());
+    Array.prototype.slice.call(resume.querySelectorAll('input, select, textarea'))
+      .forEach(el => el.remove());
+    resume.dataset.jeton = carte.dataset.jeton || '';
+    resumes[resume.dataset.jeton] = resume;
+    resume.addEventListener('click', () => montrer(carte));
+    /* Le sommaire prend la place de la carte, DANS sa journée :
+       les jours et les groupes restent rangés comme ils l'étaient. */
+    carte.replaceWith(resume);
+  });
+
   /* Ce qui n'est pas une carte — les titres de journée, les
-     bandeaux de groupe — reste en tête de la colonne de gauche,
-     dans l'ordre où il a été posé. */
+     bandeaux de groupe — reste dans la colonne de gauche, dans
+     l'ordre où il a été posé. */
   Array.prototype.slice.call(zone.childNodes).forEach(el => journee.appendChild(el));
 
   /* Celui qu'on lisait, s'il est encore là ; sinon le premier. */
-  let choisi = cartes.filter(c => c.dataset.jeton && c.dataset.jeton === coursLu)[0]
-               || cartes[0];
+  const choisi = cartes.filter(c => c.dataset.jeton && c.dataset.jeton === coursLu)[0]
+                 || cartes[0];
 
-  const montrer = carte => {
+  function montrer(carte){
     coursLu = carte.dataset.jeton || '';
-    cartes.forEach(c => c.classList.toggle('choisi', c === carte));
+    Object.keys(resumes).forEach(j => {
+      resumes[j].classList.toggle('choisi', j === coursLu);
+    });
     lecture.innerHTML = '';
     lecture.appendChild(carte);
-  };
-
-  cartes.forEach(c => {
-    c.addEventListener('click', e => {
-      /* Un bouton reste un bouton : on ne détourne pas le clic de
-         ▶ Ouvrir pour changer de volet. */
-      if(e.target.closest('button, input, select, a')) return;
-      if(c.parentNode === lecture) return;
-      montrer(c);
-    });
-  });
+    /* Le sommaire choisi se ramène sous les yeux : dans une journée
+       de vingt-sept cours, il peut être hors de l'écran. */
+    const r = resumes[coursLu];
+    if(r && r.scrollIntoView) r.scrollIntoView({ block:'nearest' });
+  }
 
   zone.appendChild(cadre);
   cadre.appendChild(journee);
