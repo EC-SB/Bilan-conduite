@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 15:18 — v777 */
+/* Déployé le 10/09/2026 à 15:38 — v920 */
 /* ============================================================
    ec-historique.js
    Le cours en train de se faire : on le dit, et on dit qu'il est
@@ -32,6 +32,15 @@
 /* Le moniteur s'inscrit au démarrage. Un échec ne bloque rien :
    c'est une commodité, pas une étape du cours. */
 async function signalerCoursDemarre(eleve, type, site){
+  /* ⚠️ UN COURS QUI COMMENCE LÈVE L'INTERDIT DE DÉPÔT — v920.
+
+     Un cours terminé refuse les dépôts en retard pendant trois
+     heures (voir « depotInterdit »). Mais le même élève peut
+     revenir le soir : ce cours-là a le droit de se mettre à
+     l'abri, et c'est ici qu'on le sait — c'est le seul endroit par
+     où passent les quatre façons de commencer. */
+  if(typeof reprendreLesDepots === 'function') reprendreLesDepots(eleve);
+
   try{
     await appelPrep({ action: 'coursDemarre',
                       moniteur: ACCES.moniteur || '',
