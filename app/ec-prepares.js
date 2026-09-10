@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 16:57 — v924 */
+/* Déployé le 10/09/2026 à 18:02 — v927 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1557,7 +1557,7 @@ async function afficherPrepares(recharger, silencieux){
 
     if(aMoiOuvrir || ACCES.role === 'admin'){
       const bOuvrir = document.createElement('button');
-      bOuvrir.className = 'btn btn-primary';
+      bOuvrir.className = 'btn btn-primary ouvrirAncien';
       bOuvrir.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
       bOuvrir.textContent = '▶ Ouvrir';
       bOuvrir.title = aMoiOuvrir ? 'Démarrer ce cours'
@@ -1878,6 +1878,93 @@ async function afficherPrepares(recharger, silencieux){
     }
 
     row.appendChild(actions);
+
+    /* ------------------------------------------------------------
+       LE DÉPART, SUR LA CARTE — v927
+
+       David : « plutôt que de descendre avec le bouton Ouvrir,
+       c'est plus ergonomique et mieux ». Le cours ne s'ouvre plus
+       pour qu'on aille chercher son bouton en bas : le bouton est
+       là, sur la carte qu'on vient de lire, et il démarre
+       vraiment.
+
+       ⚠️ CONSTRUIT POUR TOUT LE MONDE, MONTRÉ PAR LA FEUILLE DE
+       STYLE. Comme le tiroir ⋯ : un seul constructeur de cartes,
+       et l'ancienne mise en page cache simplement ce bloc et
+       rouvre ▶ Ouvrir. Un « si » ici, et il y aurait deux cartes à
+       corriger au lieu d'une. */
+    if(aMoiOuvrir || ACCES.role === 'admin'){
+      const depart = document.createElement('div');
+      depart.className = 'depart';
+
+      /* Le type de bilan, AU-DESSUS : c'est ce qu'on corrige avant
+         de partir, pas après. */
+      const selType = document.createElement('select');
+      selType.className = 'typeCarte';
+      if(typeof remplirUnMenuModeles === 'function') remplirUnMenuModeles(selType);
+      if(cours.modele && selType.querySelector('option[value="' + cours.modele + '"]')){
+        selType.value = cours.modele;
+      }
+      const lab = document.createElement('label');
+      lab.className = 'typeCarteLabel';
+      lab.textContent = 'Type de bilan';
+      depart.appendChild(lab);
+      depart.appendChild(selType);
+
+      const bGo = document.createElement('button');
+      bGo.type = 'button';
+      bGo.className = 'btn rec-btn idle btnDemarrer';
+      bGo.textContent = '🎙️ Démarrer le cours';
+
+      const bMain = document.createElement('button');
+      bMain.type = 'button';
+      bMain.className = 'btn btnMainCarte';
+      bMain.textContent = '✍️ Bilan à remplir à la main';
+
+      /* ⚠️ UN BILAN QUI SE REMPLIT À LA MAIN N'OFFRE PAS DE MICRO,
+         ICI NON PLUS. C'est la règle posée en v924 : le modèle le
+         dit lui-même, et cette carte la relit — elle ne tient pas
+         sa propre liste. Sans cela, un examen blanc corrigé dans
+         le menu aurait gardé son bouton de dictée, qui n'aurait
+         appuyé sur rien. */
+      const majDepart = () => {
+        const m = (typeof MODELES === 'object' && MODELES)
+          ? MODELES[selType.value] : null;
+        const aLaMain = !!(m && m.manuelSeul);
+        bGo.style.display = aLaMain ? 'none' : '';
+        bMain.classList.toggle('seul', aLaMain);
+      };
+      selType.addEventListener('change', majDepart);
+      selType.addEventListener('click', e => e.stopPropagation());
+      majDepart();
+
+      /* Les deux passent par la même porte : ouvrir le cours avec
+         le type choisi, puis appuyer sur le bouton d'en bas. On ne
+         redit pas ici ce que « chargerPrepare » sait faire. */
+      const partir = async (bouton, cible) => {
+        if(bouton.disabled) return;
+        bouton.disabled = true;
+        const avant = bouton.textContent;
+        bouton.textContent = '⏳ Ouverture…';
+        try{
+          await chargerPrepare(cours, selType.value);
+          /* Le cours est ouvert et l'écran y est descendu : on
+             appuie sur le vrai bouton, celui qui sait démarrer. */
+          const b = $(cible);
+          if(b) b.click();
+        }finally{
+          bouton.disabled = false;
+          bouton.textContent = avant;
+        }
+      };
+      bGo.addEventListener('click', () => partir(bGo, 'recBtn'));
+      bMain.addEventListener('click', () => partir(bMain, 'manuelBtn'));
+
+      depart.appendChild(bGo);
+      depart.appendChild(bMain);
+      row.appendChild(depart);
+    }
+
     /* Dans le tiroir du jour, pas dans la liste générale */
     (tiroir || zone).appendChild(row);
   });
@@ -2011,7 +2098,7 @@ function mettreEnDeuxVolets(zone){
     const resume = carte.cloneNode(true);
     resume.classList.add('sommaire');
     /* Rien d'interactif dans un sommaire : ni boutons, ni cases. */
-    Array.prototype.slice.call(resume.querySelectorAll('.actions'))
+    Array.prototype.slice.call(resume.querySelectorAll('.actions, .depart'))
       .forEach(el => el.remove());
     Array.prototype.slice.call(resume.querySelectorAll('input, select, textarea'))
       .forEach(el => el.remove());
@@ -2148,18 +2235,32 @@ async function retirerPreparationFaite(){
    rafraîchies sans effacer ce que le moniteur avait saisi. */
 let ouvertureEnCours = false;
 
-async function chargerPrepare(cours){
+/* ⚠️ LE COURS S'OUVRE DEPUIS UNE CARTE — v927.
+
+   Quand l'ouverture vient d'une carte des prochains cours, la carte
+   a DÉJÀ tout dit : la frise, l'examen blanc, l'examen officiel, la
+   place, le poste. Le bloc d'en dessous n'a plus qu'à porter ce
+   qu'elle ne montre pas — le nombre de cours précédents et la fiche
+   véhicule — et il le porte replié.
+
+   Tapé à la main, sans carte, rien n'a été dit : le bloc reprend
+   sa forme entière. C'est la MÊME fonction qui dessine les deux,
+   avec une option — deux blocs séparés finiraient par ne plus dire
+   la même chose. */
+let coursOuvertDepuisCarte = false;
+
+async function chargerPrepare(cours, modeleForce){
   /* Deux appuis rapprochés ne doivent pas lancer deux ouvertures */
   if(ouvertureEnCours) return;
   ouvertureEnCours = true;
   try{
-    return await chargerPrepareInterne(cours);
+    return await chargerPrepareInterne(cours, modeleForce);
   }finally{
     ouvertureEnCours = false;
   }
 }
 
-async function chargerPrepareInterne(cours){
+async function chargerPrepareInterne(cours, modeleForce){
   /* Garde-fou : masquer un bouton ne suffit pas. Un cours attribué
      à quelqu'un d'autre ne se démarre pas sans se le réattribuer. */
   if(cours && cours.moniteur && ACCES.role !== 'admin' &&
@@ -2201,8 +2302,22 @@ async function chargerPrepareInterne(cours){
   }
 
   prepareEnCours = cours;
+  coursOuvertDepuisCarte = true;
 
-  if(cours.modele) $('modele').value = cours.modele;
+  /* ⚠️ LE TYPE CORRIGÉ SUR LA CARTE NE TOUCHE PAS AU COURS PRÉPARÉ.
+
+     David : « parfois le rappel ne met pas le bon type de bilan,
+     j'ai eu le cas pour une évaluation — ça a mis évaluation BEA
+     alors que l'élève est en BV. C'est de notre faute, on n'a pas
+     modifié la préparation avant que le moniteur commence, et
+     lui-même n'a pas vérifié. »
+
+     Le moniteur corrige donc pour SON bilan, à l'instant où il
+     démarre, et rien ne part dans le classeur : la préparation
+     reste fausse jusqu'à ce que le bureau la corrige, et c'est
+     voulu — sinon on ne saurait jamais qu'elle l'était. */
+  if(modeleForce) $('modele').value = modeleForce;
+  else if(cours.modele) $('modele').value = cours.modele;
   /* Le modèle décide de ce qui s'affiche : micro ou saisie */
   if(typeof adapterAuModele === 'function') adapterAuModele();
   $('studentName').value = cours.eleve || '';
