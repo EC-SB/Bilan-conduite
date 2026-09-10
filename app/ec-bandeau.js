@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 10/09/2026 à 15:11 — v916 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -1258,6 +1258,40 @@ async function reveillerMessagesDuBandeau(){
   }catch(e){
     /* Pas de message, pas de bandeau : ce n'est pas une panne. */
   }
+}
+
+/* ------------------------------------------------------------
+   LE HAUT SE REMET À JOUR TOUT SEUL — v916
+
+   David, le 11 septembre 2026 : « ça ne se met pas à jour tout
+   seul en haut dès qu'un bilan est enregistré, je dois rafraîchir
+   la page ».
+
+   Le bandeau et les pastilles lisent « etatBureau », qui n'était
+   relu qu'à l'ouverture de l'application. Un bilan qui vient
+   d'écrire un examen blanc, des heures ou une date changeait donc
+   le classeur sans rien changer à l'écran : on continuait de voir
+   la liste d'avant, et l'alerte qu'on venait de solder restait
+   affichée jusqu'au prochain chargement.
+
+   ⚠️ EN FOND, ET SANS BLOQUER. Le moniteur vient de terminer son
+   cours : il ne doit pas attendre un aller-retour réseau pour
+   revenir à son écran. Si la relecture échoue, on ne dit rien —
+   l'écran d'avant reste, et il n'est pas faux, il est vieux.
+
+   ⚠️ ET « forcer », SINON ELLE NE SERT À RIEN. chargerBureau garde
+   sa réponse trente secondes : sans forcer, on relirait exactement
+   ce qu'on avait avant d'enregistrer.
+   ------------------------------------------------------------ */
+function rafraichirLeHautApresEcriture(){
+  if(typeof chargerBureau !== 'function') return;
+  Promise.resolve()
+    .then(() => chargerBureau(true))
+    .then(() => {
+      bandeauPret = true;
+      if(typeof dessinerBandeau === 'function') dessinerBandeau();
+    })
+    .catch(() => { /* un haut d'écran vieux n'est pas une panne */ });
 }
 
 async function reveillerBandeau(){
