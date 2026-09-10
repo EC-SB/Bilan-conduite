@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 08:47 — v823 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-notifs.js
    Ce qui attend une décision du bureau.
@@ -21,8 +21,89 @@ const TYPES_NOTIF = [
   { cle:'simu',      nom:'🌙 Simulateur nuit et risques à prévoir',
     droit:'notif_simu',      champ:'simuNuit',  foi:'simuNuit' },
   { cle:'permis',    nom:"🚗 Date d'examen du permis à prévoir",
-    droit:'notif_permis',    champ:'permis',    foi:'examPermis' }
+    droit:'notif_permis',    champ:'permis',    foi:'examPermis' },
+
+  /* ⚠️ CELLE-CI NE SE DÉCLENCHE PAS SUR UN ÉTAT — v908.
+
+     David, le 10 septembre 2026 : « quand un moniteur indique un
+     nombre d'heures pour un passage d'examen — soit à la suite d'un
+     examen blanc, soit à la suite d'un post-permis, soit pendant un
+     cours — que l'on ait une notification, car là on doit aller
+     chercher l'information et si on n'y pense pas ça tombe aux
+     oubliettes ».
+
+     Les trois autres alertes disent « il manque quelque chose ».
+     Celle-ci dit l'inverse : QUELQU'UN A DIT QUELQUE CHOSE, et
+     personne n'en a encore rien fait. Elle a donc son calcul à
+     elle — alerteHeures — et pas de champ de note.
+
+     « droit » vide : tout le monde la voit. David : « tout le
+     monde ». Un nombre d'heures qui traîne coûte une place
+     d'examen ; ce n'est pas une information de spécialiste. */
+  { cle:'heures',    nom:'⏱️ Heures avant examen à poser',
+    droit:'',                champ:'',          foi:'' }
 ];
+
+/* Combien d'heures il reste, dit par qui et quand — ou rien.
+
+   ⚠️ ELLE S'ÉTEINT DÈS QU'IL A SA SESSION. David : « non c'est bon
+   dès qu'il a une session ». Le nombre a servi : il n'y a plus rien
+   à aller chercher. « examPermis » vaut 'prevu' aussi bien pour une
+   date posée dans sa fiche que pour une place tenue sur une session
+   — c'est etatQuiFaitFoi qui les réunit, et pas nous. */
+function alerteHeures(nom, foi){
+  if(!nom) return null;
+  if((foi && foi.examPermis) === 'prevu') return null;
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const h = String(s.heuresRestantes || '').trim();
+
+  /* ⚠️ ZÉRO EST UNE RÉPONSE, PAS UN SILENCE. « plus que les 3h »
+     veut dire qu'il est prêt : c'est même l'alerte la plus utile
+     des deux, parce qu'elle appelle une date tout de suite. Un
+     « if(!h) » l'aurait mangée sans bruit. */
+  if(h === '') return null;
+
+  /* La suite d'un rendez-vous post-permis compte aussi, mais
+     SEULEMENT « ➕ 3h avant repassage » — David : « oui c'est ça, tu
+     les inclus quand la suite est +3h ». « Une leçon de 2h pour
+     refaire le point » ne demande pas de date : elle demande une
+     leçon, et l'écran post-permis la porte déjà. */
+  const post = (s.rdvPostFait === 'oui' && String(s.suite || '') === '3h');
+
+  return {
+    heures: h,
+    post: post,
+    par: String(s.heuresPar || '').trim(),
+    le: String(s.heuresLe || '').trim()
+  };
+}
+
+/* Ce que l'alerte ⏱️ raconte, en une ligne.
+
+   ⚠️ « 0 » NE S'AFFICHE PAS « 0h ». Zéro veut dire « plus que les
+   3h avant examen » : écrit « 0h », on lit « il n'a plus rien à
+   faire », ce qui est le contraire. C'est la même règle que dans la
+   fiche de route et dans le questionnaire. */
+function texteAlerteHeures(x){
+  const h = String((x && x.heures) || '');
+  const combien = (h === '0') ? 'plus que les 3h'
+                : h + 'h + les 3h avant examen';
+  return combien + (x && x.post ? ' — après son post-permis' : '');
+}
+
+/* Ce qui est masqué : le nombre autant que l'élève.
+
+   ⚠️ C'EST TOUTE LA RÉPONSE À « ÇA TOMBE AUX OUBLIETTES ». Écarter
+   « Nolwenn » l'écarterait pour toujours ; écarter « Nolwenn, 4h »
+   ne vaut que pour ces 4h-là. Le jour où quelqu'un dit « encore 2h »,
+   c'est une autre alerte, et elle revient d'elle-même.
+
+   La feuille NotifsMasquees garde le type en texte libre : rien à
+   changer côté classeur ni côté Worker pour ça. */
+function cleNotifHeures(x){
+  return 'heures:' + String((x && x.heures) || '');
+}
 
 let notifsMasquees = [];
 let notifsLues = 0;
@@ -70,11 +151,35 @@ function notifsEnAttente(eleves, ignorerDroits){
       ? (etatQuiFaitFoi(e.eleve) || {}) : {};
 
     TYPES_NOTIF.forEach(t => {
+      /* ⚠️ UN DROIT VIDE VEUT DIRE « TOUT LE MONDE », PAS « PERSONNE ».
+         « aDroit('') » rend faux : sans cette garde, l'alerte ⏱️ que
+         David voulait visible de tous n'aurait été visible d'aucun
+         compte — et elle serait restée à zéro sans que rien ne le
+         dise. */
+      if(t.droit && !ignorerDroits &&
+         typeof aDroit === 'function' && !aDroit(t.droit)) return;
+
+      /* Les heures ont leur calcul : c'est une chose DITE qui attend,
+         pas une chose qui manque. Voir alerteHeures. */
+      if(t.cle === 'heures'){
+        const h = alerteHeures(e.eleve, foi);
+        if(!h) return;
+        const cle = cleNotifHeures(h);
+        if(notifMasquee(e.eleve, cle)) return;
+        out.push({ eleve: e.eleve, type: cle, nom: t.nom, famille: 'heures',
+                   detail: texteAlerteHeures(h),
+                   /* Qui l'a dit prime sur le moniteur du dernier bilan :
+                      c'est exactement pour ça que les deux colonnes
+                      existent (v215). */
+                   moniteur: h.par || e.moniteur || '',
+                   date: h.le || e.date || '' });
+        return;
+      }
+
       const etat = foi[t.foi] || a[t.champ];
       if(etat !== 'aprevoir') return;
-      if(!ignorerDroits && typeof aDroit === 'function' && !aDroit(t.droit)) return;
       if(notifMasquee(e.eleve, t.cle)) return;
-      out.push({ eleve: e.eleve, type: t.cle, nom: t.nom,
+      out.push({ eleve: e.eleve, type: t.cle, nom: t.nom, famille: t.cle,
                  moniteur: e.moniteur || '', date: e.date || '' });
     });
   });
@@ -117,7 +222,8 @@ async function afficherNotifs(){
     '<div style="font-size:11px;color:var(--muted);line-height:1.55;">' +
       'Chaque type d\'alerte a son droit, à cocher compte par compte dans ' +
       '<strong>Outils → ⚙️ Accès</strong> :<br>' +
-      TYPES_NOTIF.map(t => '· ' + t.nom + ' → <em>' + t.droit + '</em>').join('<br>') +
+      TYPES_NOTIF.map(t => '· ' + t.nom + ' → <em>' +
+        (t.droit || 'tout le monde') + '</em>').join('<br>') +
       '<br><br>Un compte sans ces droits ne voit aucune pastille.</div>';
   zone.appendChild(r);
 
@@ -138,7 +244,12 @@ async function afficherNotifs(){
     l.style.marginBottom = '16px';
     /* Groupées par type : on traite les examens blancs ensemble */
     TYPES_NOTIF.forEach(t => {
-      const lot = attente.filter(x => x.type === t.cle);
+      /* ⚠️ ON REGROUPE PAR FAMILLE, PLUS PAR TYPE. Le type d'une
+         alerte ⏱️ porte son nombre (« heures:4 ») pour que le
+         masquage ne vaille que pour CE nombre-là ; le comparer au
+         nom de la famille ne rendrait plus jamais rien, et la
+         section entière aurait disparu de l'écran sans un mot. */
+      const lot = attente.filter(x => (x.famille || x.type) === t.cle);
       if(!lot.length) return;
 
       const h = document.createElement('div');
@@ -194,8 +305,14 @@ function ligneNotif(x){
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:0;font-size:14px;line-height:1.5;';
   t.innerHTML = '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong>' +
+    /* Le nombre se lit SUR la ligne. C'était toute la demande :
+       « on doit aller chercher l'information ». */
+    (x.detail ? ' — ' + String(x.detail).replace(/</g, '&lt;') : '') +
     (x.moniteur ? '<div style="font-size:11px;color:var(--muted);">' +
-      x.moniteur.replace(/</g, '&lt;') + (x.date ? ' · ' + x.date : '') + '</div>' : '');
+      (x.detail ? 'dit par ' : '') +
+      x.moniteur.replace(/</g, '&lt;') + (x.date ? ' · ' + x.date : '') + '</div>'
+      : (x.detail ? '<div style="font-size:11px;color:var(--muted);">' +
+          '👤 on ne sait pas qui l\'a dit</div>' : ''));
   d.appendChild(t);
 
   const b = document.createElement('button');
@@ -224,7 +341,13 @@ function ligneNotif(x){
 
 /* Une alerte masquée, qu'on peut remettre */
 function ligneMasquee(x){
-  const t = TYPES_NOTIF.find(y => y.cle === x.type);
+  /* ⚠️ « heures:4 » EST DE LA FAMILLE « heures ». Sans cette
+     coupure, la ligne masquée s'afficherait « Nolwenn — heures:4 »
+     au lieu de son nom, et on ne saurait pas ce qu'on remet. */
+  const famille = String(x.type || '').split(':')[0];
+  const t = TYPES_NOTIF.find(y => y.cle === famille);
+  const combien = String(x.type || '').indexOf(':') !== -1
+    ? String(x.type).slice(String(x.type).indexOf(':') + 1) : '';
 
   const d = document.createElement('div');
   d.style.cssText = 'display:flex;gap:8px;align-items:center;border:1px solid var(--line);' +
@@ -234,6 +357,8 @@ function ligneMasquee(x){
   z.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
   z.innerHTML = '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong> — ' +
     (t ? t.nom : x.type) +
+    (combien !== '' ? ' (' + (combien === '0' ? 'plus que les 3h'
+                                              : combien + 'h') + ')' : '') +
     '<div style="font-size:11px;color:var(--muted);">masquée le ' + x.quand +
     (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') + '</div>';
   d.appendChild(z);
@@ -257,14 +382,32 @@ function ligneMasquee(x){
 }
 
 
+/* ⚠️ LA PASTILLE POINTAIT LE MAUVAIS ONGLET — réparé en v908.
+
+   Elle se posait sur SUIVI (« poserAlerte('suivi', …) ») alors que
+   l'écran des alertes vit dans GESTION depuis son déménagement. Le
+   compteur disait donc « il y a 4 choses à faire » en désignant
+   l'onglet où elles ne sont pas — et l'onglet qui les contient
+   n'affichait rien du tout.
+
+   Elle passait aussi À CÔTÉ du registre commun. COMPTES_VUE existe
+   justement pour qu'une pastille d'onglet et son sous-onglet ne
+   puissent pas dire deux choses différentes ; c'est lui qui a déjà
+   réparé les tâches et la flotte après leur passage dans Gestion.
+   On ne nomme donc plus l'onglet ici : « poserCompteVue » le déduit
+   de VUES, et un futur déménagement n'aura rien à corriger. */
+function poserPastilleNotifs(nombre){
+  if(typeof poserCompteVue === 'function'){ poserCompteVue('notifs', nombre); return; }
+  /* Filet, si le module des onglets n'est pas là */
+  if(typeof poserAlerte === 'function') poserAlerte('gestion', nombre);
+}
+
 /* Recalcule la pastille après un masquage ou une remise */
 async function rafraichirPastilleSuivi(){
   try{
     await chargerNotifsMasquees(true);
     const eleves = (typeof etatBureau !== 'undefined' && etatBureau.eleves) || [];
-    if(typeof poserAlerte === 'function'){
-      poserAlerte('suivi', notifsEnAttente(eleves).length);
-    }
+    poserPastilleNotifs(notifsEnAttente(eleves).length);
   }catch(e){ /* la pastille se remettra au prochain chargement */ }
 }
 
