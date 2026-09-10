@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 19:16 — v935 */
+/* Déployé le 10/09/2026 à 19:28 — v936 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -621,14 +621,34 @@ function etatQuiFaitFoi(nom){
      un examen passé. Quand elle ne peut dater ni l'un ni l'autre,
      on ne la pose pas — la ligne dira « passé » sans dire quand,
      ce qui est exactement ce qu'on sait. */
-  if(dateEbDuSuivi && !d.examBlancDate){
-    const auj = (typeof todayLocal === 'function')
-      ? todayLocal() : new Date().toISOString().slice(0, 10);
-    if(d.examBlanc === 'reserve' && dateEbDuSuivi >= auj){
-      d.examBlancDate = dateEbDuSuivi;
-    }else if(d.examBlanc === 'passe' && dateEbDuSuivi < auj){
-      d.examBlancDate = dateEbDuSuivi;
-    }
+  const aujourdhui = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+
+  if(dateEbDuSuivi && !d.examBlancDate) d.examBlancDate = dateEbDuSuivi;
+
+  /* ⚠️ UN EXAMEN BLANC DATÉ DE DEMAIN N'EST PAS PASSÉ — v936.
+
+     David : « tu ne peux pas écrire "2e examen blanc PASSÉ le
+     vendredi 11 septembre" alors qu'au-dessus tu écris "c'est le
+     2e examen blanc". Donc en dessous, pour le moment, c'est juste
+     "2e examen blanc" et la date, comme il n'y a pas de résultat. »
+
+     ⚠️ ET LA v935 S'Y ÉTAIT PRISE À DEUX MOITIÉS, QUI SE SONT
+     NEUTRALISÉES. Elle refusait de poser une date à venir sur un
+     examen passé — mais seulement celle du suivi — puis
+     rétrogradait l'état s'il portait une date à venir. La première
+     retirait la date que la seconde attendait : l'état restait
+     « passé », sans date, et la ligne annonçait un examen blanc
+     passé qui a lieu demain.
+
+     Une seule règle, et le calendrier tranche : on pose la date
+     qu'on connaît, quelle qu'en soit la source, et un examen blanc
+     dont la date n'est pas dépassée est RÉSERVÉ. Deux gardes qui se
+     répartissent une décision finissent toujours par se contredire
+     — c'est la faute de tout ce dossier, appliquée à moi-même. */
+  if(d.examBlanc === 'passe' && d.examBlancDate &&
+     String(d.examBlancDate) >= aujourdhui){
+    d.examBlanc = 'reserve';
   }
 
   return d;
@@ -5623,19 +5643,50 @@ function ajouterSuite(etats, permis, mots, q){
        de la frise, et il porte déjà son nom. Une même variable qui
        répond à deux questions finit toujours par répondre à la
        mauvaise. */
-    const apresEB = (typeof leconsApresExamenBlanc === 'function')
-      ? leconsApresExamenBlanc(q.frise) : null;
+    /* ⚠️ RIEN DERRIÈRE, SAUF UN VRAI RÉSULTAT — v936.
+
+       David : « tu ne mets rien derrière l'examen blanc sauf quand
+       on a son résultat… là tu te bases sur la frise, mais rien
+       n'est prévu, donc tu donnes une fausse information : tu
+       déduis que ce sera la frise alors que tu n'en sais rien. »
+
+       Il a raison, et je m'étais trompé deux fois au même endroit :
+
+       · d'abord en écrivant « 5 leçons prévues avant le permis »,
+         qui était le décompte d'AVANT l'examen blanc employé dans
+         une phrase qui parlait d'après ;
+       · puis, en v935, en le remplaçant par le compte de la frise —
+         un nombre juste, mais DÉDUIT. La frise dit ce qui était
+         prévu au départ ; elle ne dit pas ce que le moniteur
+         conclura de l'examen blanc. Tant qu'il n'a pas eu lieu,
+         personne ne sait s'il restera deux leçons, six, ou pas le
+         niveau du tout.
+
+       Un chiffre déduit a exactement l'air d'un chiffre su. C'est
+       ce qui le rend pire qu'une absence : le moniteur lit « 2
+       leçons + 3h » et croit que quelqu'un l'a décidé.
+
+       Ne restent donc que les trois vraies conclusions, celles que
+       quelqu'un a saisies APRÈS l'examen : « pas le niveau », « plus
+       que les 3h », ou les heures posées. Sans l'une des trois, la
+       ligne s'arrête au libellé — et « déjà fait » part avec, qui
+       ne disait rien de plus que « PASSÉ ». */
     const conclusion =
         (String(q.ebNiveau || '') === 'non') ? SUITE_PAS_LE_NIVEAU
       : (hEB === '0')                        ? ' — plus que les 3h avant examen'
       : hEB                                  ? ' — ' + hEB + ' + 3h'
-      : apresEB                              ? ' — ' + apresEB + ' leçon' + pl(apresEB) +
-                                               ' prévue' + pl(apresEB) +
-                                               ' avant le permis (+ 3h avant examen)'
-      : (jourEB ? '' : ' — déjà fait');
+      : '';
     etats.push(tete + jourEB + conclusion);
   }else if(q.examBlanc === 'reserve'){
-    const q1 = quandEB(n);
+    /* ⚠️ UNE DATE BAT UN DÉCOMPTE — v936.
+
+       « 2e EXAMEN BLANC RÉSERVÉ le vendredi 11 septembre — encore
+       5 leçons avant l'examen blanc » : les deux moitiés se
+       contredisent, et c'est le décompte qui a tort. Il vient de la
+       frise, c'est-à-dire du plan de départ ; la date, elle, a été
+       posée par quelqu'un. Quand on sait QUAND, on ne raconte plus
+       ce qu'on avait prévu. */
+    const q1 = jourEB ? '' : quandEB(n);
     etats.push('🅱️ ' + numero + ETAT_EB_RESERVE + jourEB +
                (q1 ? (parseInt(n, 10) === 0 ? q1 : ' —' + q1) : ''));
   }else if(q.examBlanc === 'aprevoir'){
