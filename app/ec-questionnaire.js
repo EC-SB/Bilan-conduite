@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:02 — v927 */
+/* Déployé le 10/09/2026 à 18:35 — v931 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -6279,16 +6279,49 @@ async function chargerHistoriqueEleve(){
     const bloc = blocAvantLeCours(nom, res, prep,
                                   { avecDernierBilan: true, resume: depuisCarte });
 
+    /* ⚠️ DEUX ENDROITS POSSIBLES, JAMAIS LES DEUX À LA FOIS — v931.
+
+       David : « il est trop caché, le bouton cours précédent et
+       fiche véhicule ; mets-le en grand sous Compléter les infos ».
+
+       Le résumé quitte donc le haut de l'écran — un petit triangle
+       gris sous le nom de l'élève, que personne ne voyait à bout de
+       bras — pour la zone juste au-dessus du bouton de départ, là
+       où la main se trouve déjà. Le bloc entier, lui, ne bouge pas :
+       quand rien n'a été lu, il doit être la première chose qu'on
+       voit.
+
+       Les deux zones se vident à chaque fois : sans cela, changer
+       d'élève laisserait l'ancien résumé dans celle qu'on n'écrit
+       pas ce coup-ci. */
+    const zResume = $('resumeAvantCours');
+    if(zResume){ zResume.innerHTML = ''; zResume.style.display = 'none'; }
+
     if(depuisCarte){
       const d = document.createElement('details');
-      d.style.cssText = 'margin-bottom:4px;';
+      d.style.cssText = 'margin:0 0 12px;border:1px solid var(--line);' +
+        'border-radius:12px;overflow:hidden;';
       const s = document.createElement('summary');
-      s.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600;' +
-        'color:var(--muted);padding:6px 0;';
+      /* La taille d'un bouton, pas d'une ligne d'aide. */
+      s.style.cssText = 'cursor:pointer;font-size:15px;font-weight:700;' +
+        'padding:15px 14px;color:var(--accent-text);' +
+        'background:var(--navy-deep);list-style-position:inside;';
       s.textContent = '📋 Cours précédents et fiche véhicule';
       d.appendChild(s);
-      d.appendChild(bloc);
-      zone.appendChild(d);
+      const dedans = document.createElement('div');
+      dedans.style.cssText = 'padding:0 12px 12px;';
+      dedans.appendChild(bloc);
+      d.appendChild(dedans);
+
+      if(zResume){
+        zResume.appendChild(d);
+        zResume.style.display = 'block';
+        /* La zone du haut reste vide : le résumé n'est pas à deux
+           endroits, il a simplement changé de place. */
+        zone.style.display = 'none';
+      }else{
+        zone.appendChild(d);
+      }
     }else{
       zone.appendChild(bloc);
     }
