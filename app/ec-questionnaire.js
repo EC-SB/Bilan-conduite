@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:11 — v916 */
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -634,7 +634,7 @@ function conclusionExamenBlanc(a){
   d.ebNiveau = (a.ebSuite === 'pasleniveau') ? 'non' : 'oui';
   if(a.ebSuite === '3h') d.heuresRestantes = '0';
   else if(a.ebSuite === 'lecons' && a.ebLecons){
-    d.heuresRestantes = String(Number(a.ebLecons) * 2);
+    d.heuresRestantes = String(heuresPourLecons(a.ebLecons));
   }
   return d;
 }
@@ -3724,7 +3724,12 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
 
       const majHeures = () => {
         const b = chApres.value.trim();
-        chHeures.textContent = b ? '(' + (parseInt(b, 10) * 2) + 'h)' : '';
+        /* ⚠️ LA MÊME PORTE QUE composerFrise. Cet aperçu et le
+           texte de la frise annoncent le même total : les voir
+           diverger d'une heure, c'est le moniteur qui ne sait plus
+           lequel croire. */
+        const h = heuresPourLecons(b);
+        chHeures.textContent = (h === null) ? '' : '(' + h + 'h)';
       };
       chApres.addEventListener('input', majHeures);
       majHeures();
