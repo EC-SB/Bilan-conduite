@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:53 — v890 */
+/* Déployé le 10/09/2026 à 10:45 — v909 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1045,16 +1045,26 @@ function buildExamenBlanc(ai, ctx){
     }
   }
 
-  /* Trois blocs complets, même vides : le moniteur a son repère
-     visuel et remplit dans la structure au lieu de la recréer. */
-  const bil = ligneParLigne(ai.bilanErreurs);
-  for(let i = 0; i < Math.max(bil.length, 3); i++){
-    L('👉 ' + (bil[i] || ''));
-    L("- qu'en penses-tu ?");
-    L('- quelles sont TES solutions ?');
-    L('- ce que je te PROPOSE : ');
-    L('');
-  }
+  /* ⚠️ LES TROIS BLOCS « 👉 … qu'en penses-tu ? » ONT ÉTÉ RETIRÉS —
+     v909. David : « il faut enlever le bloc 3 · autres erreurs, il
+     ne sert plus à rien ».
+
+     C'était le canevas vide du champ « 3 · Autres erreurs », posé
+     ici même quand personne n'y avait rien écrit. Il datait du temps
+     où rien ne se rangeait tout seul : depuis que ☠️ et ⚠️ posent
+     chaque erreur sous sa compétence juste au-dessus, ces trois
+     blocs ne faisaient plus qu'ajouter trois canevas vides à la fin
+     d'un bilan déjà rempli — et l'élève lisait « 👉 » sans erreur en
+     face.
+
+     ⚠️ LE CHAMP PART EN MÊME TEMPS, dans ec-manuel.js. Les deux vont
+     ensemble : laisser l'un des deux ferait réapparaître le bloc par
+     un bout — c'est exactement ce que disait déjà la note du 2-5 en
+     v890.
+
+     ⚠️ ET « ai.bilanErreurs » RESTE LU PAR buildRvp. C'est un autre
+     champ, d'un autre modèle, alimenté par l'IA sur le rendez-vous
+     pédagogique. On n'y touche pas. */
 
   L('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
   L('');
