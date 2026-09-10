@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 10:02 — v894 */
+/* Déployé le 10/09/2026 à 12:35 — v912 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -949,7 +949,23 @@ async function reprendreBrouillonServeur(b){
   majBoutonRenvoi();
 
   if(typeof sauvegarderLocal === 'function') sauvegarderLocal(true);
-  window.scrollTo(0, 0);
+
+  /* ⚠️ REPRENDRE, C'ÉTAIT REMONTER TOUT EN HAUT — corrigé en v912.
+
+     David : « ça ne fonctionne toujours pas quand on appuie sur
+     ouvrir dans mes prochains cours ou sur reprendre en haut ».
+
+     Ici, c'était littéral : « window.scrollTo(0, 0) ». Le cours
+     était bien rouvert et le bouton bien prêt — et le moniteur se
+     retrouvait devant l'en-tête, à devoir descendre à la main
+     chaque fois. Le même geste que depuis « Mes prochains cours »,
+     donc la même fonction : elle vise le bouton qui sert vraiment
+     — micro, bilan à la main, ou le bilan lui-même quand il est
+     déjà généré — et elle tient la position pendant que les blocs
+     venus du réseau s'installent au-dessus. */
+  if(typeof amenerAuCours === 'function') amenerAuCours();
+  else window.scrollTo(0, 0);
+
   showToast(aCorriger
     ? 'Bilan généré au bureau — relis, corrige, puis enregistre'
     : 'Cours retrouvé — appuie sur Terminer pour générer');
