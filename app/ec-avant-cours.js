@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:38 — v914 */
+/* Déployé le 10/09/2026 à 14:57 — v915 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -218,11 +218,19 @@ function noteAvecResultatExamenBlanc(nom, note){
     ? resultatExamenBlanc(nom, {}) : null;
   if(!r) return t;
 
-  /* Le libellé voyage en gras Unicode dans la note : on cherche les
-     deux formes, comme « colorerNote » le fait pour l'examen. */
-  const enGras = (typeof ETAT_EB_PASSE !== 'undefined') ? ETAT_EB_PASSE : '';
+  /* ⚠️ TROIS ÉCRITURES, PAS DEUX — v915.
+
+     Le libellé voyage en gras Unicode dans la note, et depuis que
+     grasNote ne décompose plus les accents, les notes d'avant et
+     celles d'après ne s'écrivent plus pareil. « motifGras » les
+     accepte toutes les trois — l'ancien gras, le nouveau, et le
+     texte clair — au lieu de la seule forme du jour. Ajouter la
+     forme du jour à la main, c'était reprendre rendez-vous avec le
+     bug de la v913. */
   const motif = new RegExp(
-    '(' + (enGras ? enGras + '|' : '') + 'EXAMEN BLANC PASS[ÉE]|Examen blanc pass[ée])' +
+    '(' + ((typeof motifGras === 'function')
+             ? motifGras('EXAMEN BLANC PASSÉ') + '|' : '') +
+    'EXAMEN BLANC PASS[ÉE]|Examen blanc pass[ée])' +
     '([^·\n\r]*)', 'i');
 
   /* Une suite déjà écrite ne se double pas. */
