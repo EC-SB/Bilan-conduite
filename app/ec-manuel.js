@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 10/09/2026 à 10:45 — v909 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -203,19 +203,43 @@ const CHAMPS_MANUELS = {
     /* Les éliminatoires viennent se poser ici dès qu'elles sont
        marquées : le moniteur y répond à la fin de l'examen, sans
        attendre la génération. */
+    /* ⚠️ IL S'APPELAIT « 3 · Erreurs éliminatoires » — v909.
+
+       Il ne contient pas que des éliminatoires, et depuis
+       longtemps : les ☠️, les ⚠️ et les points retirés s'y rangent
+       tous, sous leur compétence. Le nom promettait autre chose que
+       son contenu, et un titre qui annonce « éliminatoires » sur un
+       bloc qui n'en porte parfois aucune, c'est un moniteur qui
+       hésite à y écrire. La CLÉ, elle, ne bouge pas : c'est elle
+       qui relie les brouillons en cours à leur champ. */
     { cle:'bilanElim', type:'texte', lignes:14,
-      nom:'3 · Erreurs éliminatoires',
-      aide:'Rempli tout seul quand tu marques une ☠️ plus haut. ' +
+      nom:'3 · Bilan des erreurs',
+      aide:'Rempli tout seul quand tu marques une ☠️ ou un ⚠️ plus haut. ' +
            'Réponds aux questions à la fin de l\'examen.' },
 
-    { cle:'bilanErreurs',type:'texte', lignes:14,
-      nom:'3 · Autres erreurs',
-      aide:"Les repères sont posés : écris l'erreur au bout du 👉 et ta réponse " +
-           'au bout de chaque ligne.',
-      defaut:('👉 \n' +
-              "- qu'en penses-tu ?\n" +
-              '- quelles sont TES solutions ?\n' +
-              '- ce que je te PROPOSE : \n\n').repeat(3).trim() },
+    /* ⚠️ LE BLOC « 3 · Autres erreurs » A ÉTÉ RETIRÉ — v909.
+
+       David : « il faut enlever le bloc 3 · autres erreurs, il ne
+       sert plus à rien ».
+
+       Il ne servait effectivement plus : c'était un canevas à
+       remplir à la main — trois fois « 👉 … qu'en penses-tu ? » —
+       du temps où rien ne se rangeait tout seul. Depuis que les
+       boutons ☠️ et ⚠️ posent chaque erreur sous sa compétence dans
+       le bloc au-dessus, celui-ci ne pouvait plus qu'en dire une
+       deuxième version, écrite à la main et jamais la même.
+
+       ⚠️ ET L'IMPRESSION PART AVEC. Le même ⚠️ est posé dans
+       buildExamenBlanc, d'où le canevas a été retiré au même
+       moment. Les deux vont ensemble — laisser l'un des deux ferait
+       réapparaître le bloc par un bout, exactement comme la note du
+       2-5 le disait déjà en v890.
+
+       ⚠️ ET « bilanErreurs » EXISTE AILLEURS. Le rendez-vous
+       pédagogique a un champ du même nom, alimenté par l'IA
+       (buildRvp) : il n'a rien à voir avec celui-ci, et il reste.
+       C'est justement pourquoi les clés d'examen blanc sont
+       préfixées — voir prefixeExamenBlanc. */
 
     { cle:'__t4', type:'titre', nom:'𝟰 - 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦' },
 
@@ -1056,104 +1080,108 @@ function ajouterObservationManuelle(zone, valeurs){
   };
   r.appendChild(bMort);
 
-  /* Une erreur grave sans être éliminatoire : elle rejoint le
-     bilan des erreurs, mais ne touche pas au CEPC. */
+  /* ============================================================
+     ⚠️ — UNE ERREUR À REPRENDRE, ET LE POINT EN OPTION
+
+     David, le 10 septembre 2026 : « il faut enlever le bouton ➖ en
+     bout de ligne, et à la place quand un moniteur appuie sur le
+     ⚠️, après avoir choisi la catégorie, il faut une option pour
+     savoir si le moniteur veut enlever un point ».
+
+     ⚠️ TROIS BOUTONS POUR DEUX QUESTIONS.
+
+     Le ➖ et le ⚠️ posaient LA MÊME question — sur quelle compétence
+     ranger cette erreur — et se distinguaient par une seule chose :
+     est-ce que ça coûte un point. Deux boutons côte à côte pour un
+     seul choix, à bout de bras dans une voiture, c'est un moniteur
+     qui hésite ; et rien n'empêchait d'en marquer un sans l'autre,
+     donc de retirer un point sur une compétence sans que l'erreur
+     soit écrite en face.
+
+     Une seule porte, deux temps : la compétence, puis le point.
+
+     ⚠️ ET LE POINT PART SUR LA COMPÉTENCE DU ⚠️ — pas sur une autre.
+     Le ➖ avait sa catégorie à lui, indépendante : on pouvait ranger
+     l'erreur sous « Appréhender la route » et retirer le point sur
+     « Partager la route ». Personne ne l'a jamais voulu, et ça
+     rendait le bilan illisible — la ligne perdait un point sans
+     qu'aucune erreur ne l'explique.
+
+     ⚠️ « dataset.moins » RESTE LE CHAMP QUI PORTE LE POINT. Le
+     bouton disparaît, pas la donnée : les brouillons d'examens en
+     cours en portent, retirerPointsCepc le lit, et l'impression
+     aussi. Le renommer, c'était perdre les points déjà posés dans
+     les examens de cette semaine.
+     ============================================================ */
   const bGrave = document.createElement('button');
   bGrave.type = 'button';
   bGrave.className = 'btn btn-secondary';
   bGrave.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;' +
     'margin:0;flex-shrink:0;';
   bGrave.textContent = '⚠️';
-  bGrave.title = 'À reprendre dans le bilan des erreurs';
+  bGrave.title = 'À reprendre dans le bilan des erreurs — avec ou sans point';
 
   const majGrave = () => {
     const cat = d.dataset.grave || '';
-    bGrave.style.borderColor = cat ? 'var(--accent-text)' : 'var(--line)';
-    bGrave.style.color = cat ? 'var(--accent-text)' : '';
+    /* Un point retiré se voit sur le bouton : orange quand l'erreur
+       est seulement à reprendre, rouge-orangé quand elle coûte. */
+    const coute = cat && d.dataset.moins === cat;
+    bGrave.style.borderColor = cat
+      ? (coute ? 'var(--warn-text)' : 'var(--accent-text)') : 'var(--line)';
+    bGrave.style.color = cat
+      ? (coute ? 'var(--warn-text)' : 'var(--accent-text)') : '';
 
     let etiq = d.querySelector('.obsGrave');
     if(cat){
       if(!etiq){
         etiq = document.createElement('div');
         etiq.className = 'obsGrave';
-        etiq.style.cssText = 'font-size:11px;color:var(--accent-text);' +
-          'margin-top:6px;';
+        etiq.style.cssText = 'font-size:11px;margin-top:6px;';
         d.appendChild(etiq);
       }
-      etiq.textContent = '⚠️ ' + cat;
+      etiq.style.color = coute ? 'var(--warn-text)' : 'var(--accent-text)';
+      etiq.textContent = '⚠️ ' + cat + (coute ? ' · ➖ 1 point' : '');
     }else if(etiq){
       etiq.remove();
     }
   };
 
   bGrave.addEventListener('click', async () => {
+    /* Déjà marquée : un second appui retire la marque ET son point.
+       Les séparer laisserait un point orphelin sur une compétence
+       dont l'erreur a disparu. */
     if(d.dataset.grave){
+      if(d.dataset.moins === d.dataset.grave) d.dataset.moins = '';
       d.dataset.grave = '';
       majGrave();
-      if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
-      return;
-    }
-
-    /* La ligne du CEPC sert à ranger l'erreur dans le bilan ;
-       elle ne coûte aucun point, contrairement au ➖. */
-    const cat = await choisirCategorieCepc(true, 'grave');
-    if(!cat) return;
-
-    d.dataset.grave = cat;
-    majGrave();
-    if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
-  });
-  r.appendChild(bGrave);
-
-  /* Un point en moins sur une ligne du CEPC. Trois appuis sur la
-     même catégorie lui coûtent trois crans — jamais E : seule la
-     tête de mort élimine. */
-  const bMoins = document.createElement('button');
-  bMoins.type = 'button';
-  bMoins.className = 'btn btn-secondary';
-  bMoins.style.cssText = 'width:auto;padding:10px 14px;font-size:17px;' +
-    'margin:0;flex-shrink:0;font-weight:800;';
-  bMoins.textContent = '➖';
-  bMoins.title = 'Retirer un point sur une compétence';
-
-  const majMoins = () => {
-    const cat = d.dataset.moins || '';
-    bMoins.style.borderColor = cat ? 'var(--warn-text)' : 'var(--line)';
-    bMoins.style.color = cat ? 'var(--warn-text)' : '';
-
-    let etiq = d.querySelector('.obsMoins');
-    if(cat){
-      if(!etiq){
-        etiq = document.createElement('div');
-        etiq.className = 'obsMoins';
-        etiq.style.cssText = 'font-size:11px;color:var(--warn-text);' +
-          'margin-top:6px;';
-        d.appendChild(etiq);
-      }
-      etiq.textContent = '➖ 1 point — ' + cat;
-    }else if(etiq){
-      etiq.remove();
-    }
-  };
-
-  bMoins.addEventListener('click', async () => {
-    if(d.dataset.moins){
-      d.dataset.moins = '';
-      majMoins();
       retirerPointsCepc();
       if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
       return;
     }
 
-    const cat = await choisirCategorieCepc(true, 'moins');
+    const cat = await choisirCategorieCepc(true, 'grave');
     if(!cat) return;
 
-    d.dataset.moins = cat;
-    majMoins();
+    /* Puis, et seulement alors, la question du point. Annuler ici
+       ne pose rien : on ne marque pas une erreur à moitié parce que
+       quelqu'un a hésité sur le point. */
+    const point = await demanderPointCepc(cat);
+    if(point === null) return;
+
+    d.dataset.grave = cat;
+    if(point) d.dataset.moins = cat;
+    majGrave();
     retirerPointsCepc();
     if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
   });
-  r.appendChild(bMoins);
+  r.appendChild(bGrave);
+
+  /* ⚠️ LE BOUTON ➖ A ÉTÉ RETIRÉ — v909. David : « il faut enlever le
+     bouton ➖ en bout de ligne ». Le point se demande maintenant
+     dans le ⚠️, juste au-dessus. La DONNÉE, elle, reste :
+     « dataset.moins » porte toujours le point, retirerPointsCepc le
+     lit toujours, et un brouillon d'examen ouvert avant cette
+     livraison garde les siens. */
 
   d.appendChild(r);
   zone.appendChild(d);
@@ -1169,7 +1197,7 @@ function ajouterObservationManuelle(zone, valeurs){
      même plus pour les recevoir.
 
      On les repose ici, dans la fonction qui construit la ligne :
-     c'est le seul endroit d'où l'on peut rallumer les trois
+     c'est le seul endroit d'où l'on peut rallumer les deux
      boutons, parce que ce sont ses fonctions à elle qui savent les
      peindre. Le faire ailleurs demanderait de les réécrire, et
      deux peintres finiraient par ne pas peindre pareil.
@@ -1180,9 +1208,19 @@ function ajouterObservationManuelle(zone, valeurs){
     d.dataset.categorie = String(valeurs.categorie || '');
     d.dataset.grave = String(valeurs.grave || '');
     d.dataset.moins = String(valeurs.moins || '');
+
+    /* ⚠️ UN POINT ORPHELIN SE RATTACHE — v909.
+
+       Un brouillon d'avant cette livraison peut porter un ➖ sans
+       ⚠️ : le bouton qui le posait n'existe plus, et personne ne
+       pourrait donc plus ni le voir ni le retirer — un point retiré
+       pour toujours, sans rien à l'écran pour le dire. La marque ⚠️
+       reprend sa compétence : le point reste compté, et il redevient
+       effaçable d'un appui. */
+    if(d.dataset.moins && !d.dataset.grave) d.dataset.grave = d.dataset.moins;
+
     majMort();
     majGrave();
-    majMoins();
   }
 
   return d;
@@ -1927,17 +1965,24 @@ function choisirCategorieCepc(toutes, quoi){
     boite.style.cssText = 'max-width:min(460px, 94vw);max-height:88vh;overflow-y:auto;';
 
     const titres = {
+      /* Deux temps : la compétence ici, le point juste après —
+         voir demanderPointCepc. On ne promet donc plus « aucun
+         point n'est retiré » à cet écran-là : il ne le sait pas
+         encore. */
       'grave': ['⚠️ Quelle compétence ?',
-                "L'erreur sera rangée là dans le bilan. Aucun point " +
-                "n'est retiré."],
-      'moins': ['➖ Quelle compétence ?',
-                'Un point sera retiré sur cette ligne du CEPC, et ' +
-                "l'erreur rangée là dans le bilan."],
+                "L'erreur sera rangée là dans le bilan. On te " +
+                'demandera ensuite si elle coûte un point.'],
+      /* ⚠️ L'ENTRÉE « moins » A ÉTÉ RETIRÉE — v909. Le bouton ➖
+         n'existe plus, donc plus personne n'appelait cette
+         variante ; son texte promettait « un point sera retiré »
+         sur un écran qui ne s'ouvrait jamais. Un texte mort qui
+         décrit un geste mort est ce qu'on relira un jour en croyant
+         qu'il dit vrai. */
       '':      ['☠️ Quelle catégorie ?',
                 'Le E sera coché sur cette ligne du CEPC, et ' +
                 "l'erreur rangée là dans le bilan."]
     };
-    const [t, aide] = titres[quoi || (toutes ? 'moins' : '')] || titres[''];
+    const [t, aide] = titres[quoi || ''] || titres[''];
 
     boite.innerHTML = '<h3>' + t + '</h3>' +
       '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
@@ -1964,6 +2009,64 @@ function choisirCategorieCepc(toutes, quoi){
       fermerFond(fond);
       resolve('');
     });
+    boite.appendChild(bA);
+
+    fond.appendChild(boite);
+    document.body.appendChild(fond);
+  });
+}
+
+
+/* ------------------------------------------------------------
+   « EST-CE QUE ÇA COÛTE UN POINT ? »
+
+   Le second temps du ⚠️. Rend true, false, ou null si on ferme —
+   et null ne pose RIEN : on ne marque pas une erreur à moitié
+   parce que quelqu'un a hésité sur le point.
+
+   ⚠️ LA COMPÉTENCE EST RAPPELÉE. C'est la même que celle du ⚠️, et
+   c'est justement ce qu'il faut pouvoir vérifier avant de lui
+   retirer un cran — sinon on choisit à l'aveugle, deux écrans après
+   avoir cliqué.
+   ------------------------------------------------------------ */
+function demanderPointCepc(categorie){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.maxWidth = 'min(420px, 94vw)';
+
+    boite.innerHTML = '<h3>Est-ce que ça coûte un point ?</h3>' +
+      '<div style="font-size:13px;color:var(--accent-text);' +
+        'font-weight:700;margin-bottom:4px;">' +
+        String(categorie || '').replace(/</g, '&lt;') + '</div>' +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;' +
+        'line-height:1.5;">Un point sera retiré sur cette ligne du CEPC. ' +
+        'Jamais E — seule la ☠️ élimine.</div>';
+
+    const poser = (libelle, valeur, principal) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ' + (principal ? 'btn-primary' : 'btn-secondary');
+      b.style.cssText = 'padding:12px;font-size:13px;margin-bottom:7px;' +
+        'text-align:left;line-height:1.4;';
+      b.textContent = libelle;
+      b.addEventListener('click', () => { fermerFond(fond); resolve(valeur); });
+      boite.appendChild(b);
+    };
+
+    /* « Non » d'abord : c'est le cas le plus fréquent, et le pouce
+       tombe dessus. Retirer un point est le geste qui se décide. */
+    poser('Non, juste à reprendre', false, false);
+    poser('➖ Oui, enlever un point', true, true);
+
+    const bA = document.createElement('button');
+    bA.type = 'button';
+    bA.className = 'btn btn-secondary';
+    bA.style.cssText = 'padding:12px;font-size:13px;margin-top:6px;';
+    bA.textContent = 'Annuler';
+    bA.addEventListener('click', () => { fermerFond(fond); resolve(null); });
     boite.appendChild(bA);
 
     fond.appendChild(boite);
