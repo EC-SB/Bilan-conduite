@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:42 — v921 */
+/* Déployé le 10/09/2026 à 16:57 — v924 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1914,12 +1914,49 @@ async function afficherPrepares(recharger, silencieux){
 let coursLu = '';
 let journeeRepliee = false;
 
+/* ============================================================
+   ⚠️ CHANGER LA LARGEUR REFAIT LA LISTE — v923
+
+   David, capture à l'appui : « quand je suis en plus petit je n'ai
+   pas les boutons pour modifier ».
+
+   Il avait raison, et le défaut était grave : la liste montrait
+   des SOMMAIRES sans aucun bouton, à une largeur où il n'y a pas
+   de volets.
+
+   La cause : le montage à deux volets se décide EN JAVASCRIPT, au
+   moment où la liste se dessine. Les cartes sont alors remplacées
+   par leurs sommaires — inertes, sans boutons — et la vraie carte
+   part dans le volet de droite. Mais la mise en page, elle, se
+   décide en CSS, à 1000 px. Réduire la fenêtre après coup enlevait
+   les volets sans rendre les cartes : il restait une colonne de
+   sommaires, c'est-à-dire une liste qu'on ne peut plus manipuler.
+
+   Une décision prise en JavaScript doit être REPRISE quand sa
+   condition change. On écoute donc le seuil, et on redessine —
+   c'est le seul moyen de garantir que ce qui est à l'écran
+   correspond à la largeur qu'il a maintenant, et pas à celle qu'il
+   avait au dessin.
+   ============================================================ */
+const SEUIL_DEUX_VOLETS = '(min-width: 1000px)';
+
+function veillerLargeurDesVolets(){
+  if(!window.matchMedia) return;
+  const mq = window.matchMedia(SEUIL_DEUX_VOLETS);
+  const refaire = () => {
+    if(typeof afficherPrepares === 'function') afficherPrepares(false);
+  };
+  /* Safari d'avant 14 ne connaît que l'ancienne forme. */
+  if(mq.addEventListener) mq.addEventListener('change', refaire);
+  else if(mq.addListener) mq.addListener(refaire);
+}
+
 function mettreEnDeuxVolets(zone){
   if(!zone) return;
   /* Le droit d'essai, et la largeur : sans les deux, la liste reste
      telle qu'elle est. */
   if(!document.body.classList.contains('cours-neuf')) return;
-  if(!window.matchMedia || !window.matchMedia('(min-width: 1000px)').matches) return;
+  if(!window.matchMedia || !window.matchMedia(SEUIL_DEUX_VOLETS).matches) return;
 
   const cartes = Array.prototype.slice.call(zone.querySelectorAll('.history-item'));
   if(cartes.length < 2) return;
@@ -2592,12 +2629,45 @@ function ouvrirRdvPost(cours){
   /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
   zc.appendChild(blocCaptures(cours.eleve, ''));
 
-  /* Le bilan d'examen officiel : dans la note préparée, ou dans la fiche */
+  /* ------------------------------------------------------------
+     LE BILAN DE L'EXAMEN OFFICIEL, REPRIS TOUT SEUL — v924
+
+     David : « les rendez-vous post-permis à prévoir ne reprennent
+     pas automatiquement le bilan de l'examen officiel, je dois
+     aller le chercher dans l'historique des cours et le recoller à
+     la main ».
+
+     ⚠️ ET LA REPRISE AUTOMATIQUE N'A JAMAIS FONCTIONNÉ. Ce champ
+     avait bien trois sources prévues — le séparateur « BILAN DE
+     L'EXAMEN À CORRIGER : » dans la note du cours préparé, puis la
+     fiche de suivi. Sauf que ce séparateur n'est écrit NULLE PART :
+     ni par l'application, ni par le classeur, ni par le Worker. On
+     lisait une convention que personne n'écrivait.
+
+     Restait donc « s.bilanExamen », qui n'existe qu'après un
+     premier rendez-vous. Sur un post-permis À PRÉVOIR — le cas
+     normal, celui qui suit un ajournement — le champ était vide et
+     il n'y avait rien pour le remplir.
+
+     La vraie source est là où David allait le chercher : ses
+     bilans enregistrés. On y prend le dernier examen officiel.
+
+     ⚠️ EN FOND, ET SANS ÉCRASER. La recherche relit tout
+     l'historique de l'élève : l'écran s'ouvre d'abord, le texte
+     arrive après. Et il ne se pose QUE si le champ est encore vide
+     à ce moment-là — le moniteur peut avoir commencé à écrire, et
+     ce qu'il tape ne se fait jamais remplacer.
+     ------------------------------------------------------------ */
   const note = String(cours.note || '');
   const sep = "BILAN DE L'EXAMEN À CORRIGER :";
   const i = note.indexOf(sep);
   $('rdvPostBilan').value = (i !== -1) ? note.slice(i + sep.length).trim()
                                        : (s.bilanExamen || '');
+  /* La provenance d'un rendez-vous ne vaut pas pour le suivant :
+     elle repart à zéro à chaque ouverture. */
+  const zSrc = $('rdvPostBilanSource');
+  if(zSrc){ zSrc.style.display = 'none'; zSrc.textContent = ''; }
+  if(!$('rdvPostBilan').value.trim()) reprendreBilanExamen(cours.eleve);
 
   /* Ce que l'élève a écrit, et ce que le moniteur ajoute */
   $('rdvPostEleveBilan').value = s.bilanEleve || '';
@@ -2713,6 +2783,64 @@ async function fermerRdvPost(){
   $('rdvPostView').style.display = 'none';
   $('recordView').style.display = 'block';
   if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
+}
+
+/* ============================================================
+   LE DERNIER EXAMEN OFFICIEL DE CET ÉLÈVE
+
+   Là où David allait le chercher à la main : dans ses bilans
+   enregistrés. On prend le plus récent des examens officiels.
+
+   ⚠️ LE PLUS RÉCENT SE LIT À LA LIGNE, PAS À LA DATE. Les dates
+   arrivent en texte, dans la forme où elles ont été saisies ; les
+   comparer alphabétiquement classerait « 09/10 » après « 14/09 ».
+   Le numéro de ligne, lui, grandit avec le temps parce que les
+   bilans s'ajoutent à la suite — c'est le seul ordre qui ne dépend
+   d'aucune écriture.
+   ============================================================ */
+async function dernierExamenOfficielDe(eleve){
+  const nom = String(eleve || '').trim();
+  if(nom.length < 2) return null;
+
+  const d = await appelPrep({ action: 'search', eleve: nom });
+  const res = (d && d.resultats) || [];
+
+  const examens = res.filter(x =>
+    /examen officiel/i.test(String((x && x.type) || '')) &&
+    String((x && x.bilan) || '').trim());
+  if(!examens.length) return null;
+
+  examens.sort((a, b) => (Number(b.ligne) || 0) - (Number(a.ligne) || 0));
+  return examens[0];
+}
+
+/* Le pose dans le champ, s'il est encore vide quand la réponse
+   arrive — et dit d'où il vient : un texte qui apparaît tout seul
+   sans qu'on sache d'où, on le relit avec méfiance. */
+async function reprendreBilanExamen(eleve){
+  const champ = $('rdvPostBilan');
+  if(!champ) return;
+  try{
+    const ex = await dernierExamenOfficielDe(eleve);
+    if(!ex) return;
+    /* Entre-temps le moniteur a pu écrire, ou changer d'élève. */
+    if(champ.value.trim()) return;
+    if(!rdvPostEnCours || rdvPostEnCours.eleve !== eleve) return;
+
+    champ.value = String(ex.bilan || '').trim();
+    const zone = $('rdvPostBilanSource');
+    if(zone){
+      zone.style.display = 'block';
+      zone.textContent = "↩️ Repris de son bilan d'examen officiel" +
+        (ex.date ? ' du ' + ex.date : '') +
+        (ex.moniteur ? ' — ' + ex.moniteur : '') +
+        '. Tu peux le corriger.';
+    }
+  }catch(e){
+    /* Pas le droit de chercher, ou le réseau : le champ reste vide
+       et le moniteur fait comme avant. Ce n'est pas une panne, c'est
+       un confort en moins. */
+  }
 }
 
 async function terminerRdvPost(){
@@ -3318,4 +3446,9 @@ function demanderDate(titre, dateActuelle, heureActuelle){
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
+/* La veille se pose une fois, au chargement du module : elle ne
+   dépend d'aucun écran ouvert et ne coûte rien tant que la largeur
+   ne franchit pas le seuil. */
+try{ veillerLargeurDesVolets(); }catch(e){}
+
 window.EC_MODULES['ec-prepares.js'] = true;
