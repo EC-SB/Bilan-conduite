@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 11:39 — v910 */
+/* Déployé le 10/09/2026 à 11:59 — v911 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -276,7 +276,12 @@ const CHAMPS_MANUELS = {
     { cle:'avantExamen.passager',     type:'ok', nom:'AVANT — Passager',     defaut:'' },
     { cle:'avantExamen.voyants',      type:'ok', nom:'AVANT — Voyants',      defaut:'' },
     { cle:'avantExamen.erreurs',      type:'texte', lignes:5,
-      nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)' },
+      nom:'AVANT — Erreurs à ne pas refaire (trajet vers le centre)',
+      /* La même case que sur l'examen blanc — v911. C'est sur le
+         trajet vers le centre que l'oubli se produit le plus
+         souvent : l'élève monte dans une voiture déjà réglée sans
+         penser à le dire. */
+      phraseCoche:PHRASE_VOITURE_APPORTEE },
 
     /* Le bouton vient après ce qu'il envoie : le moniteur remplit
        d'abord, puis expédie. */
@@ -304,7 +309,14 @@ const CHAMPS_MANUELS = {
        raconte d'une traite. Trois cases auraient fait répéter la
        même phrase. */
     { cle:'examen.installTexte', type:'texte', lignes:3,
-      nom:'Explication ou correction — installation, passager et voyants' },
+      nom:'Explication ou correction — installation, passager et voyants',
+      /* La même case que sur l'examen blanc — v911. Elle y était
+         depuis longtemps et manquait ici, alors que c'est le MÊME
+         oubli, le même jour, dans la même voiture. Dix-huit mots à
+         retaper à bout de bras : personne ne les retape, et
+         l'explication disparaît. Une seule phrase, écrite à un seul
+         endroit (PHRASE_VOITURE_APPORTEE), pour les trois cases. */
+      phraseCoche:PHRASE_VOITURE_APPORTEE },
     { cle:'__sVerif', type:'sousTitre', nom:'🧰 Vérification' },
     { cle:'examen.verifQuestion', type:'court',
       nom:'N° de la question de vérification' },
@@ -678,12 +690,34 @@ function ligneCepc(nom, valeurs, rang){
   const r = document.createElement('div');
   r.style.cssText = 'display:flex;gap:4px;flex-shrink:0;';
 
-  /* Le champ qui porte la valeur : les boutons ne font que l'écrire */
+  /* Le champ qui porte la valeur : les boutons ne font que l'écrire.
+
+     ⚠️ ON PART DE TOUS LES POINTS — v911.
+
+     David : « sur le CEPC, on part sur le même principe : on part de
+     tous les points et on enlève au fur et à mesure, et à la fin le
+     moniteur modifie si besoin ».
+
+     C'est le raisonnement de l'inspecteur, et c'est aussi ce qui
+     rend le ➖ honnête : sur une grille vierge, retirer un cran
+     n'avait rien à amputer. Le bouton marquait l'erreur, et la note
+     ne bougeait pas — la moitié du geste se perdait en silence.
+
+     ⚠️ ET CE MAXIMUM N'APPARTIENT À PERSONNE. « parDefaut » le dit :
+     c'est une note posée par la machine, que les marques peuvent
+     encore corriger. Dès que le moniteur touche la ligne, elle
+     devient la sienne et plus rien ne l'écrase — voir le clic
+     ci-dessous et la garde de retirerPointsCepc. */
   const champ = document.createElement('input');
   champ.type = 'hidden';
   champ.className = 'cepcNiveau';
   champ.setAttribute('data-comp', nom);
-  champ.value = '';
+
+  const maxLigne = valeurs.filter(v => v !== 'E')
+    .map(Number).reduce((a, x) => Math.max(a, x), 0);
+  champ.value = String(maxLigne);
+  champ.dataset.parDefaut = 'oui';
+
   l.appendChild(champ);
 
   /* Toutes les colonnes du document, même celles qui n'existent pas
@@ -730,6 +764,16 @@ function ligneCepc(nom, valeurs, rang){
     b.addEventListener('click', () => {
       /* Un second appui retire la note : le moniteur peut se raviser */
       champ.value = (champ.value === val) ? '' : val;
+
+      /* ⚠️ CETTE LIGNE EST MAINTENANT LA SIENNE — v911. « à la fin le
+         moniteur modifie si besoin » : ce qu'il pose ne doit plus
+         être écrasé par un ➖ ou par le retour au maximum. Les trois
+         marques de provenance tombent d'un coup : en laisser une
+         suffirait à ce qu'un recalcul reprenne la main. */
+      champ.dataset.parDefaut = '';
+      champ.dataset.parMoins = '';
+      champ.dataset.parElim = '';
+
       boutons.forEach(x => x._peindre());
       alerte.style.display = (champ.value === 'E') ? 'block' : 'none';
       majTotalCepc();
@@ -1331,8 +1375,15 @@ function rafraichirEliminatoires(){
       champ.value = 'E';
       champ.dataset.parElim = 'oui';
     }else if(!vise && pose){
-      champ.value = '';
+      /* ⚠️ UNE ☠️ RETIRÉE REND SES POINTS — v911. Elle laissait la
+         ligne VIDE : sur une grille qui part du maximum, se raviser
+         coûtait donc les points de la compétence, en silence. On
+         revient au maximum, et « retirerPointsCepc » reprendra la
+         main juste après si un ⚠️ l'ampute encore. */
+      champ.value = String(maxCepc(ligne));
       champ.dataset.parElim = '';
+      champ.dataset.parDefaut = 'oui';
+      champ.dataset.parMoins = '';
     }else{
       return;                          /* rien à changer sur cette ligne */
     }
@@ -3673,6 +3724,27 @@ function reprendreBrouillon(b){
     }
 
     n += replacerSaisiesManuelles(b.saisies);
+
+    /* ⚠️ ET LE CEPC REPRIS SE REPEINT — v911.
+
+       Ses cases vivent dans un champ caché : les valeurs revenaient
+       bien, mais AUCUN bouton ne le montrait. Sur une grille vide
+       ça se voyait à peine ; sur une grille qui part du maximum, le
+       moniteur verrait tous les points alors que sa fiche en porte
+       d'autres — il enverrait un bilan qu'il n'a pas relu.
+
+       Et une note reprise appartient à celui qui l'a posée : les
+       marques de provenance tombent, pour qu'aucun recalcul ne
+       vienne écraser ce qu'il avait saisi hier. */
+    try{
+      document.querySelectorAll('.cepcNiveau').forEach(champ => {
+        champ.dataset.parDefaut = '';
+        champ.dataset.parMoins = '';
+        champ.dataset.parElim = '';
+        if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(champ);
+      });
+      if(typeof majTotalCepc === 'function') majTotalCepc();
+    }catch(e){ console.warn('CEPC repris :', e); }
 
     /* ET CE QUI NE VIT QUE DANS LA MÉMOIRE.
 
