@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 14:38 — v914 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -408,6 +408,15 @@ const FORMATIONS_BASE = [
      Ni frise, ni examen blanc, ni simulateur, ni rendez-vous
      post-permis — et le poste de conduite est obligatoire : c'est
      tout l'objet de ces leçons. Voir PARCOURS_FORMATION. */
+  /* LA CONDUITE AMÉNAGÉE.
+
+     L'élève passe son permis comme tout le monde — frise, examen
+     blanc, simulateur, post-permis — mais dans la voiture aménagée.
+     À ne pas confondre avec la régularisation juste dessous, qui
+     concerne quelqu'un qui a DÉJÀ son permis. Voir
+     PARCOURS_FORMATION. */
+  { cle: 'Conduite aménagée BEA', nom: '♿ Conduite aménagée (BEA)', voiture: true },
+  { cle: 'Conduite aménagée BV',  nom: '♿ Conduite aménagée (BV)',  voiture: true },
   { cle: 'Régularisation BEA', nom: '♿ Régularisation de permis (BEA)', voiture: true },
   { cle: 'Régularisation BV',  nom: '♿ Régularisation de permis (BV)',  voiture: true },
   /* LA REMISE À NIVEAU.
@@ -522,7 +531,7 @@ function ficheDe(nom){
 /* ------------------------------------------------------------
    VIENT-IL D'UNE AUTRE AUTO-ÉCOLE ?
 
-   Chrystel, le 4 septembre : « les cases voiture dans la fiche
+   David, le 4 septembre : « les cases voiture dans la fiche
    véhicule, il faut qu'elles apparaissent seulement quand la
    formation est autre auto-école BV ou BEA ».
 
@@ -532,7 +541,7 @@ function ficheDe(nom){
    pour une réponse qui est toujours non — et une case qui ne sert
    jamais finit par être cochée par erreur.
 
-   ⚠️ SIX FORMATIONS, PAS DEUX. Chrystel a nommé les deux qu'elle
+   ⚠️ SIX FORMATIONS, PAS DEUX. David a nommé les deux qu'elle
    avait sous les yeux, mais l'école en compte six qui décrivent un
    élève venu d'ailleurs : les AAC et les CS « autre AE » aussi. Les
    écarter reviendrait à cacher la case exactement à ceux pour qui
@@ -2579,7 +2588,7 @@ async function chargerMessengerEleve(){
 /* ============================================================
    FERMER UNE FENÊTRE — UNE SEULE FOIS, MÊME SI ON APPUIE DEUX FOIS
 
-   Chrystel, le 8 septembre, capture à l'appui : « ⚠️ Erreur au
+   David, le 8 septembre, capture à l'appui : « ⚠️ Erreur au
    chargement — Promesse rejetée : Failed to execute 'removeChild'
    on 'Node': The node to be removed is not a child of this node ».
    Le bilan de Florian Desble était pourtant enregistré, et le mail
@@ -2666,7 +2675,7 @@ function confirmerAdresseEleve(nom, adresseConnue){
          vif et ne disait rien : sur un téléphone, une seconde sans
          réaction, c'est un deuxième appui. Deux écritures de fiche
          partaient, et la fenêtre se fermait deux fois — c'est la
-         « promesse rejetée » que Chrystel a lue en travers de son
+         « promesse rejetée » que David a lue en travers de son
          écran le 8 septembre.
 
          On verrouille, et on le dit. */
