@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 10/09/2026 à 18:02 — v927 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -6256,7 +6256,42 @@ async function chargerHistoriqueEleve(){
     const jour = $('lessonDate') ? $('lessonDate').value : '';
     const prep = (typeof preparationDuCours === 'function')
       ? preparationDuCours(nom, jour) : null;
-    zone.appendChild(blocAvantLeCours(nom, res, prep, { avecDernierBilan: true }));
+
+    /* ⚠️ VENU D'UNE CARTE : LE RÉSUMÉ, ET REPLIÉ — v927.
+
+       David : « on affiche le résumé avec juste le nombre de cours
+       précédents et la fiche véhicule, car le reste il l'a déjà :
+       la phrase, ce qui est fait, l'examen sont déjà affichés » —
+       puis « mets-le sous un bloc déroulant plutôt que de
+       l'afficher directement, et avec le bouton voir le dernier
+       bilan dedans ».
+
+       Le cours démarre maintenant DEPUIS la carte : l'écran arrive
+       ici avec le micro qui tourne. Ce qui compte à cet instant,
+       c'est le cours — pas un rappel de ce qu'on vient de lire. Le
+       peu qui reste attend derrière un triangle.
+
+       Tapé à la main, sans carte, rien n'a été lu : le bloc reprend
+       sa forme entière, dépliée. */
+    const depuisCarte = (typeof ecranCoursNeuf === 'function') && ecranCoursNeuf() &&
+                        (typeof coursOuvertDepuisCarte !== 'undefined') &&
+                        coursOuvertDepuisCarte;
+    const bloc = blocAvantLeCours(nom, res, prep,
+                                  { avecDernierBilan: true, resume: depuisCarte });
+
+    if(depuisCarte){
+      const d = document.createElement('details');
+      d.style.cssText = 'margin-bottom:4px;';
+      const s = document.createElement('summary');
+      s.style.cssText = 'cursor:pointer;font-size:13px;font-weight:600;' +
+        'color:var(--muted);padding:6px 0;';
+      s.textContent = '📋 Cours précédents et fiche véhicule';
+      d.appendChild(s);
+      d.appendChild(bloc);
+      zone.appendChild(d);
+    }else{
+      zone.appendChild(bloc);
+    }
   }catch(e){
     zone.innerHTML = '<div style="font-size:13px;color:var(--muted);">Historique indisponible.</div>';
   }
