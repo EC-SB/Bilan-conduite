@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 10/09/2026 à 18:54 — v932 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -526,7 +526,28 @@ function etapesCroiseesEleve(nom){
       txt:"Examen du permis le " + jourFr(a.permisDate) +
           ' (annoncé au moniteur)' });
   }else if(a.permis === 'annule'){
-    out.push({ ok:false, emoji:'⏳', txt:'Examen du permis annulé' });
+    /* ⚠️ QUELLE DATE, ET QUAND — v932. David : « là j'ai bien écrit
+       annulé comme il faut, par contre il manque la date…
+       normalement Examen du permis du 22/09 annulé le 10/09 ».
+
+       « Examen du permis annulé » tout court ne dit ni ce qu'on a
+       perdu ni depuis quand : le bureau ne peut ni vérifier que
+       c'est la bonne date qui a sauté, ni savoir si c'est d'hier ou
+       du mois dernier. Les deux dates sont dans la note ; il ne
+       restait qu'à les lire — voir analyserNote. */
+    const court = v => {
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(String(v || '').trim())
+        ? String(v).trim()
+        : ((typeof dateFrVersIso === 'function') ? dateFrVersIso(v) : '');
+      if(!iso) return String(v || '').trim();
+      const [, m, j] = iso.split('-');
+      return j + '/' + m;
+    };
+    out.push({ ok:false, emoji:'⏳',
+      txt:'Examen du permis' +
+        (a.permisAnnuleDate ? ' du ' + court(a.permisAnnuleDate) : '') +
+        ' annulé' +
+        (a.permisAnnuleLe ? ' le ' + court(a.permisAnnuleLe) : '') });
   }else if(a.permis === 'aprevoir' || s.aPlanifier === 'oui'){
     out.push({ ok:false, emoji:'⏳', txt:"Date d'examen à prévoir" +
       (s.semaine ? ' — il a demandé ' + s.semaine : '') });
