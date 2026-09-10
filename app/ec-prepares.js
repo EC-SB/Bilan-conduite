@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 08:56 — v905 */
+/* Déployé le 10/09/2026 à 11:39 — v910 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1051,7 +1051,7 @@ async function afficherPrepares(recharger, silencieux){
     /* À quelle leçon on en est : en gros, en vert, juste sous le
        nom. C'est la première question qu'on se pose en ouvrant sa
        journée, et elle se perdait au milieu du reste. */
-    /* ⚠️ LA MÊME LIGNE QUE LE BLOC D'OUVERTURE — Chrystel, le
+    /* ⚠️ LA MÊME LIGNE QUE LE BLOC D'OUVERTURE — David, le
        4 septembre : « partout ». Quand l'examen est pris, ce qui
        compte n'est plus le rang mais ce qu'il reste à faire avant.
        Deux écrans qui choisiraient chacun leur phrase finiraient
@@ -2224,6 +2224,95 @@ function mentionDeLExamen(cours, suivi){
 }
 
 
+/* ------------------------------------------------------------
+   NOTRE CEPC, DESSINÉ POUR ÊTRE COMPARÉ
+
+   La grille telle que le moniteur l'a posée à l'examen officiel.
+   Elle ne se modifie pas ici : ce qu'on a pensé ce jour-là est ce
+   qu'on veut comparer, pas ce qu'on penserait aujourd'hui en
+   voyant la note de l'inspecteur.
+
+   ⚠️ ET ELLE NE PARAÎT PAS QUAND ELLE N'EXISTE PAS. Un cadre vide
+   avec quatorze lignes grises donnerait à croire qu'on a rempli
+   une grille de zéros. Rien à dire : rien à l'écran.
+   ------------------------------------------------------------ */
+function blocCepcInterneRdvPost(eleve){
+  const c = (typeof cepcInterneDe === 'function') ? cepcInterneDe(eleve) : null;
+  if(!c) return null;
+  if(typeof CEPC_BLOCS === 'undefined') return null;
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--orange);border-radius:10px;' +
+    'padding:10px 12px;margin-bottom:12px;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+    'margin-bottom:2px;';
+  t.textContent = '🧾 Notre CEPC — celui du jour de l\'examen';
+  d.appendChild(t);
+
+  const a = document.createElement('div');
+  a.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.45;' +
+    'margin-bottom:8px;';
+  a.textContent = "Ce que le moniteur avait noté. À comparer avec les " +
+    "captures du CEPC de l'inspecteur, juste en dessous.";
+  d.appendChild(a);
+
+  CEPC_BLOCS.forEach(bloc => {
+    const bt = document.createElement('div');
+    bt.style.cssText = 'font-size:10.5px;letter-spacing:.06em;' +
+      'text-transform:uppercase;color:var(--muted);font-weight:700;' +
+      'margin:9px 0 3px;';
+    bt.textContent = '▸ ' + bloc.titre;
+    d.appendChild(bt);
+
+    bloc.items.forEach(it => {
+      const v = c[it.nom];
+      const l = document.createElement('div');
+      l.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
+        'font-size:12.5px;line-height:1.5;padding:1px 0;';
+
+      const n = document.createElement('div');
+      n.style.cssText = 'flex:1;min-width:0;' +
+        ((v === undefined || v === '') ? 'color:var(--muted);' : '');
+      n.textContent = it.nom;
+      l.appendChild(n);
+
+      /* La note posée, en clair. « E » se dit ⛔ : dans une grille
+         lue vite, un E se confond avec un 0 alors qu'ils ne disent
+         pas du tout la même chose. */
+      const p = document.createElement('div');
+      p.style.cssText = 'flex-shrink:0;font-weight:800;' +
+        (v === 'E' ? 'color:var(--red);'
+         : (v === undefined || v === '') ? 'color:var(--muted);'
+         : 'color:var(--accent-text);');
+      p.textContent = (v === 'E') ? '⛔ E'
+                    : (v === undefined || v === '') ? '—'
+                    : String(v).replace('.', ',');
+      l.appendChild(p);
+
+      d.appendChild(l);
+    });
+  });
+
+  /* Le total, calculé par la règle du CEPC — pas par une deuxième
+     addition écrite ici. */
+  if(typeof calculerCepc === 'function'){
+    const r = calculerCepc(c);
+    const tot = document.createElement('div');
+    tot.style.cssText = 'margin-top:9px;padding-top:8px;' +
+      'border-top:1px solid var(--line);font-size:13px;font-weight:700;' +
+      (r.elimine ? 'color:var(--red);' : '');
+    tot.textContent = r.elimine
+      ? '⛔ Éliminatoire selon nous — ' + r.eliminatoires.join(', ')
+      : 'Notre total : ' + String(r.total).replace('.', ',') + ' / ' + r.max;
+    d.appendChild(tot);
+  }
+
+  return d;
+}
+
+
 function ouvrirRdvPost(cours){
   rdvPostEnCours = cours;
   const s = suiviDe(cours.eleve) || {};
@@ -2274,9 +2363,25 @@ function ouvrirRdvPost(cours){
     }
   }
 
-  /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
+  /* ⚠️ NOTRE CEPC AU-DESSUS DE CELUI DE L'INSPECTEUR — v910.
+
+     David : « un CEPC qui apparaît sur le rendez-vous post-permis
+     aussi, pour le comparer avec le CEPC officiel ».
+
+     Le CEPC officiel arrive ici en PHOTO — c'est la galerie des
+     captures, juste en dessous. La comparaison se fait donc à
+     l'œil : notre grille, puis la sienne. Calculer un écart
+     demanderait de retaper les quatorze notes de l'inspecteur, et
+     une grille qu'on ne remplit pas est une grille qui ment.
+
+     Notre grille D'ABORD : c'est celle qu'on a en tête en arrivant,
+     et c'est en la lisant qu'on sait quoi chercher sur la photo. */
   const zc = $('rdvPostCepc');
   zc.innerHTML = '';
+  const notre = blocCepcInterneRdvPost(cours.eleve);
+  if(notre) zc.appendChild(notre);
+
+  /* Les captures du CEPC, déposées par le bureau ou ajoutées ici */
   zc.appendChild(blocCaptures(cours.eleve, ''));
 
   /* Le bilan d'examen officiel : dans la note préparée, ou dans la fiche */
