@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 11:59 — v911 */
+/* Déployé le 10/09/2026 à 12:35 — v912 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -18,6 +18,15 @@
 const PHRASE_VOITURE_APPORTEE =
   "Tu as oublié de dire c'est moi qui aie emmener la voiture, " +
   "j'ai déjà fais mes réglages";
+
+/* « Pas de repassage pour le moment » — v912.
+
+   Une valeur, pas un nombre : c'est ce qui distingue « aucun » de
+   « zéro heure », qui voudrait dire le contraire. Elle vit ICI et
+   nulle part ailleurs — la case l'écrit, la note la relit, le
+   test la relit. Deux orthographes, et la note dirait « Demandé :
+   pas de repassage heures ». */
+const REPASSAGE_AUCUN = 'aucun';
 
 /* Ce que le moniteur doit renseigner, selon le modèle choisi */
 /* Les rubriques du résumé, dans l'ordre du bilan */
@@ -1910,9 +1919,16 @@ function repeindreLigneCepc(champ){
    ============================================================ */
 
 function reporterNotesCepc(){
-  /* L'installation : deux cases, deux points */
-  const p = champsManuels[prefixeExamenBlanc + 'examen.instPassager'] || '';
-  const v = champsManuels[prefixeExamenBlanc + 'examen.instVoyants'] || '';
+  const champ = c => champsManuels[prefixeExamenBlanc + c];
+
+  /* L'installation : deux cases, deux points.
+
+     ⚠️ ET LES DEUX ÉCRANS N'APPELLENT PAS LEURS CASES PAREIL —
+     v912. L'examen blanc les nomme « instPassager » / « instVoyants »,
+     l'examen officiel « passager » / « voyants ». Une seule des deux
+     paires existe à la fois, donc on lit celle qui est là. */
+  const p = champ('examen.instPassager') || champ('examen.passager') || '';
+  const v = champ('examen.instVoyants')  || champ('examen.voyants')  || '';
 
   if(p || v){
     let n = 0;
@@ -1922,8 +1938,32 @@ function reporterNotesCepc(){
                   String(n));
   }
 
-  /* Les vérifications : la note du moniteur, telle quelle */
-  const nv = champsManuels[prefixeExamenBlanc + 'examen.verifNote'];
+  /* ⚠️ LES VÉRIFICATIONS SE COMPTENT TOUTES SEULES SUR L'EXAMEN
+     OFFICIEL — v912.
+
+     David : « le décompte des points sur les vérifications ne se
+     fait pas tout seul en fonction des 3 boutons vérifications,
+     sécurité routière et premiers secours ».
+
+     L'examen blanc a une case « Note des vérifications » où le
+     moniteur écrit directement son /3. L'examen officiel, lui, a
+     TROIS ✅/❌ — un par question — et personne ne les additionnait :
+     la ligne du CEPC restait à son maximum, et le total annonçait
+     trois points que l'élève n'avait pas eus.
+
+     Un ✅ vaut un point, comme au barème. On ne compte que si au
+     moins une des trois est répondue : trois cases vierges ne
+     veulent pas dire zéro, elles veulent dire « pas encore ». */
+  const trois = ['examen.vi', 'examen.qser', 'examen.secours'].map(c => champ(c) || '');
+  if(trois.some(x => x)){
+    poserNoteCepc('Effectuer des vérifications du véhicule',
+                  String(trois.filter(x => x === '✅').length));
+  }
+
+  /* Les vérifications de l'examen blanc : la note du moniteur,
+     telle quelle. Elle passe après, et gagne : c'est un chiffre
+     qu'il a écrit, pas un compte déduit. */
+  const nv = champ('examen.verifNote');
   if(nv !== undefined && nv !== ''){
     poserNoteCepc('Effectuer des vérifications du véhicule', String(nv));
   }
@@ -2298,7 +2338,15 @@ function mentionExamen(champs, moniteur){
 
   const bouts = ['🔒 EXAMEN OFFICIEL'];
   if(insp) bouts.push('Inspecteur : ' + insp);
-  if(rep) bouts.push('Demandé : ' + rep + ' + 3 heures avant repassage');
+  /* ⚠️ « AUCUN » N'EST PAS UN NOMBRE D'HEURES — v912. Écrit comme
+     tel, il donnerait « Demandé : aucun + 3 heures », et le
+     rendez-vous post-permis y lirait un chiffre. Il se dit en
+     toutes lettres, avec le mot exact de la conclusion post-permis. */
+  if(rep === REPASSAGE_AUCUN){
+    bouts.push('⛔ Pas de repassage pour le moment');
+  }else if(rep){
+    bouts.push('Demandé : ' + rep + ' + 3 heures avant repassage');
+  }
   if(moniteur) bouts.push('Par : ' + moniteur);
 
   let t = bouts.join(' · ');
@@ -3083,6 +3131,17 @@ function lireChampsManuels(champsVoulus){
         champsManuels[ch.cle] = String(el.value).trim();
       }
     }else if(ch.type === 'inspecteur' || ch.type === 'repassage'){
+      /* ⚠️ LA CASE PASSE AVANT LE NOMBRE — v912. Cochée, elle dit
+         « aucun repassage », et le 4 resté dans le champ n'est plus
+         qu'un reste d'affichage : le relever ferait écrire « Demandé :
+         4 heures » sur un élève dont on vient de dire qu'il ne
+         repasse pas. */
+      const aucun = document.querySelector(
+        '.repassageAucun[data-cle="' + String(ch.cle).replace(/"/g, '') + '"]');
+      if(ch.type === 'repassage' && aucun && aucun.checked){
+        champsManuels[ch.cle] = REPASSAGE_AUCUN;
+        return;
+      }
       const el = document.getElementById(idChamp(ch.cle));
       if(el && el.value && el.value !== '__autre__'){
         champsManuels[ch.cle] = el.value.trim();
@@ -4336,7 +4395,17 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       /* Passager et voyants décident de la note d'installation */
       /* La fin de la clé, pas son égalité : préfixée, elle devient
          « examenBlanc.examen.instPassager ». */
-      const surInstallation = /(^|\.)examen\.inst(Passager|Voyants)$/.test(ch.cle);
+      /* ⚠️ LES CINQ CASES QUI NOURRISSENT LE CEPC — v912.
+
+         Deux pour l'installation, trois pour les vérifications, et
+         elles ne s'appellent pas pareil d'un écran à l'autre. Cette
+         règle-ci ne connaissait que les deux de l'examen blanc :
+         sur un examen officiel, cocher les trois questions ne
+         reportait donc RIEN, et la ligne du CEPC gardait ses trois
+         points. Voir reporterNotesCepc, qui fait le compte. */
+      const surInstallation =
+        /(^|\.)examen\.(inst(Passager|Voyants)|passager|voyants|vi|qser|secours)$/
+          .test(ch.cle);
       /* Trois états : ✅ ❌ ou rien. Compact et sur une seule ligne
          avec son libellé : un bilan en compte une dizaine, et de
          gros boutons empilés faisaient défiler pour rien. */
@@ -4708,6 +4777,46 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
         '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
       bloc.appendChild(a);
 
+      /* ⚠️ « PAS DE REPASSAGE POUR LE MOMENT » — v912.
+
+         David : « sous heures avant repassage, rajoute une case pas
+         de repassage pour le moment ».
+
+         Un nombre d'heures répond à « combien ». Il ne sait pas dire
+         « aucun » : mettre 0 voudrait dire qu'il peut repasser tout
+         de suite, c'est-à-dire le contraire. Il fallait donc laisser
+         le champ à sa valeur d'usine et l'écrire en toutes lettres
+         dans la note pour l'équipe — et personne ne le faisait.
+
+         C'est le mot EXACT de la conclusion du rendez-vous
+         post-permis : un même état ne se dit pas de deux façons
+         selon l'écran d'où on le regarde. */
+      const zc = document.createElement('div');
+      zc.style.cssText = 'margin-top:9px;';
+      const lab = document.createElement('label');
+      lab.style.cssText = 'display:flex;gap:9px;align-items:center;margin:0;' +
+        'font-size:13.5px;text-transform:none;color:var(--cream);cursor:pointer;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'repassageAucun';
+      cb.setAttribute('data-cle', ch.cle);
+      cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;';
+      lab.appendChild(cb);
+      lab.appendChild(document.createTextNode('⛔ Pas de repassage pour le moment'));
+      zc.appendChild(lab);
+      bloc.appendChild(zc);
+
+      /* Cochée, la question du nombre n'a plus d'objet : le champ
+         s'éteint au lieu de rester là avec un « 4 » qui ne veut plus
+         rien dire — et que quelqu'un lirait comme une demande. */
+      const majAucun = () => {
+        iq.disabled = cb.checked;
+        d.style.opacity = cb.checked ? '.4' : '';
+        a.style.opacity = cb.checked ? '.4' : '';
+      };
+      cb.addEventListener('change', majAucun);
+      majAucun();
+
     }else if(ch.type === 'envoiAvant'){
       /* De quoi envoyer la première moitié sans attendre la fin
          de l'examen. */
@@ -4871,104 +4980,20 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
       bloc.appendChild(z);
 
-    }else if(ch.type === 'inspecteur'){
-      /* La liste des inspecteurs, partagée par toute l'équipe :
-         un nom ajouté ici sert à tout le monde. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
+    /* ⚠️ QUATRE BRANCHES MORTES ONT ÉTÉ RETIRÉES ICI — v912.
 
-      const sel = document.createElement('select');
-      sel.id = idChamp(ch.cle);
-      sel.innerHTML = '<option value="">— à choisir —</option>' +
-        inspecteursConnus().map(n =>
-          '<option value="' + String(n).replace(/"/g, '&quot;') + '">' +
-          String(n).replace(/</g, '&lt;') + '</option>').join('') +
-        '<option value="__autre__">➕ En ajouter un…</option>';
+       « inspecteur », « repassage », « envoiAvant » et « titre »
+       étaient écrits DEUX FOIS dans cette même chaîne de « else
+       if ». La seconde copie ne pouvait donc jamais s'exécuter :
+       la première l'attrapait toujours.
 
-      sel.addEventListener('change', async () => {
-        if(sel.value !== '__autre__') return;
+       Ce n'est pas qu'un doublon. C'est un PIÈGE : on corrige le
+       morceau qu'on trouve, on recharge, et rien ne change — sans
+       la moindre erreur pour dire pourquoi. La case « pas de
+       repassage » a failli être posée dans la copie morte.
 
-        const nom = await demander('Nom de l\'inspecteur', '',
-                                   'Nouvel inspecteur');
-        if(!nom || !nom.trim()){ sel.value = ''; return; }
-
-        const propre = nom.trim();
-        await ajouterInspecteur(propre);
-
-        const o = document.createElement('option');
-        o.value = propre;
-        o.textContent = propre;
-        sel.insertBefore(o, sel.lastElementChild);
-        sel.value = propre;
-      });
-      bloc.appendChild(sel);
-
-    }else if(ch.type === 'repassage'){
-      /* « 4 + 3 » : deux leçons de 2h, puis les 3h avant examen.
-         Le second nombre ne bouge pas. */
-      const l = document.createElement('label');
-      l.textContent = ch.nom;
-      bloc.appendChild(l);
-
-      const d = document.createElement('div');
-      d.style.cssText = 'display:flex;gap:9px;align-items:center;';
-
-      const iq = document.createElement('input');
-      iq.type = 'number';
-      iq.id = idChamp(ch.cle);
-      iq.min = '0';
-      iq.step = '1';
-      iq.value = '4';
-      iq.inputMode = 'numeric';
-      iq.style.cssText = 'width:82px;font-size:17px;text-align:center;margin:0;';
-      d.appendChild(iq);
-
-      const t = document.createElement('span');
-      t.style.cssText = 'font-size:16px;color:var(--muted);';
-      t.textContent = '+ 3 heures';
-      d.appendChild(t);
-
-      bloc.appendChild(d);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
-        'line-height:1.5;';
-      a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
-        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'envoiAvant'){
-      /* De quoi envoyer la première moitié sans attendre la fin
-         de l'examen. */
-      bloc.style.cssText = 'margin:2px 0 8px;';
-
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'padding:12px;font-size:13px;' +
-        'border-color:var(--ambre);color:var(--ambre);';
-      b.textContent = '📤 Envoyer la partie avant examen';
-      b.addEventListener('click', () => envoyerAvantExamen());
-      bloc.appendChild(b);
-
-      const a = document.createElement('div');
-      a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px;' +
-        'text-align:center;line-height:1.5;';
-      a.textContent = "L'élève reçoit cette partie tout de suite. " +
-        'Sa fiche reste en haut pour la suite.';
-      bloc.appendChild(a);
-
-    }else if(ch.type === 'titre'){
-      /* Un gros repère dans le formulaire : le moniteur retrouve
-         d'un coup d'œil la structure du bilan qu'il connaît. */
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:19px;font-weight:800;color:var(--accent-text);' +
-        'margin:26px 0 6px;text-align:center;line-height:1.35;';
-      t.textContent = ch.nom;
-      bloc.appendChild(t);
-      const tr = document.createElement('div');
-      tr.style.cssText = 'border-top:2px solid var(--orange);margin:0 auto 16px;width:70%;';
-      bloc.appendChild(tr);
+       Elles étaient identiques mot pour mot au moment du retrait :
+       rien n'est perdu, seul le piège l'est.
 
     }else if(ch.type === 'observations'){
       const l = document.createElement('label');
