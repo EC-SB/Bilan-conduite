@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 08:56 — v905 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -895,7 +895,7 @@ function memoriserChoixRappel(){
 
     /* ⚠️ LE TYPE DE SÉANCE NE SE REPORTE PAS — v880.
 
-       Chrystel, le 7 septembre : « j'ai fait un rappel examen
+       David, le 7 septembre : « j'ai fait un rappel examen
        blanc et tous les prochains cours avec les rappels d'après
        se sont mis en examen blanc ».
 
@@ -3125,7 +3125,7 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
            encore générée, la préparation quand il n'y en a pas
            eu. La plus avancée est la bonne. */
         const parLesBilans = (typeof rangConnu === 'function')
-          ? rangConnu(d && d.lecons, cle, debut) : null;
+          ? rangConnu(d && d.lecons, cle, debut, nom, d) : null;
         const parLaVeille = (rangVeille &&
           (typeof leconCompteDansLaFrise !== 'function' ||
            leconCompteDansLaFrise(cle)))
