@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:57 — v915 */
+/* Déployé le 10/09/2026 à 15:11 — v916 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3909,7 +3909,16 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const blocRang = boite.querySelector('#qBlocEbRang');
     const dateEB = boite.querySelector('#qExamBlancDate');
     const blocDate = boite.querySelector('#qBlocEbDate');
-    nEB.value = prec.examBlancN || '';
+    /* ⚠️ LA CASE MONTRE CE QUE LA FRISE CALCULE — v916.
+
+       Elle affichait la réponse du bilan précédent, que personne ne
+       corrigeait : le moniteur validait « 1 » à chaque leçon, et le
+       nombre ne descendait jamais. Elle montre maintenant le
+       décompte du jour, qu'il reste libre de corriger — mais il
+       corrige un chiffre juste au lieu d'en recopier un vieux. */
+    const resteEB = (typeof leconsAvantExamenBlancDuJour === 'function')
+      ? leconsAvantExamenBlancDuJour(prec) : null;
+    nEB.value = (resteEB !== null) ? String(resteEB) : (prec.examBlancN || '');
     if(rangEB) rangEB.value = prec.examBlancRang || '';
     if(dateEB) dateEB.value = prec.examBlancDate || '';
 
@@ -4747,6 +4756,40 @@ function avantLaCharniere(total, depuis){
   return String(t - d);
 }
 
+/* ------------------------------------------------------------
+   COMBIEN DE LEÇONS AVANT L'EXAMEN BLANC — v916
+
+   David, le 11 septembre 2026, sur Timothé Pinson : « c'était sa
+   10ème leçon aujourd'hui, sa frise dit 10 leçons + examen blanc,
+   donc son examen blanc n'est pas à prévoir dans 1 leçon : la
+   prochaine fois ça doit être l'examen blanc ».
+
+   ⚠️ LA MÊME QUESTION ÉTAIT POSÉE À DEUX ENDROITS, ET SEUL L'UN
+   DES DEUX COMPTAIT.
+
+   · « positionDansLaFrise » la calculait — frise moins rang — et
+     écrivait juste « 10ÈME LEÇON — DERNIÈRE AVANT L'EXAMEN BLANC » ;
+   · « examBlancN » était une case tapée à la main, recopiée de
+     bilan en bilan sans jamais décroître. Elle disait encore 1
+     alors que la ligne du dessus disait « dernière ».
+
+   Deux nombres pour un seul fait, sur la même carte, et c'est
+   toujours le figé qui a l'air d'une information.
+
+   Le décompte vit donc ici, une fois. Il rend null quand la frise
+   ne sait pas répondre : une frise à trous ou un rang inconnu ne
+   se remplacent pas par un chiffre inventé — c'est alors ce qu'une
+   main a dit qui vaut, comme partout ailleurs.
+   ------------------------------------------------------------ */
+function leconsAvantExamenBlancDuJour(q){
+  const prevues = (typeof leconsAvantExamenBlanc === 'function')
+    ? leconsAvantExamenBlanc((q || {}).frise) : null;
+  const n = parseInt((q || {}).lecon, 10);
+  if(!prevues || isNaN(n) || !n) return null;
+  const reste = prevues - n;
+  return reste > 0 ? reste : 0;
+}
+
 function positionDansLaFrise(q){
   /* MAJUSCULES : c'est la ligne qu'on lit en premier sur une carte,
      et elle doit se distinguer sans qu'on la cherche. */
@@ -5048,9 +5091,13 @@ function positionDansLaFrise(q){
 
   /* Avant l'examen blanc : la première moitié de la frise */
   const prevues = leconsAvantExamenBlanc(q.frise);
-  if(prevues && n < prevues){
-    return dire(rangLecon(n) + ' leçon — plus que ' + (prevues - n) +
-                ' leçon' + pl(prevues - n) + " avant l'examen blanc");
+  /* Le même décompte que celui qu'écrit la note : deux
+     soustractions écrites séparément finiraient par ne plus
+     s'accorder, et c'est exactement ce qu'on répare. */
+  const reste = leconsAvantExamenBlancDuJour(q);
+  if(prevues && reste !== null && reste > 0){
+    return dire(rangLecon(n) + ' leçon — plus que ' + reste +
+                ' leçon' + pl(reste) + " avant l'examen blanc");
   }
   if(prevues && n === prevues){
     return dire(rangLecon(n) + " leçon — dernière avant l'examen blanc");
@@ -5444,8 +5491,27 @@ function ajouterSuite(etats, permis, mots, q){
                           (rvpDejaFait(q) && !q.examBlanc && !q.ebPasse);
   const sansExamenPermis = sans.indexOf('examPermis') !== -1;
 
-  const n = q.examBlancN;
+  /* ⚠️ LA FRISE PASSE AVANT LA CASE — v916.
+
+     « examBlancN » se recopiait de bilan en bilan sans décroître.
+     Quand la frise sait répondre, c'est elle qui répond : elle
+     connaît le rang du jour et le nombre de leçons prévues, donc
+     la soustraction. La case reste la réponse quand la frise se
+     tait — un parcours sans frise exploitable, ou un rang inconnu.
+
+     Zéro est une réponse, et c'est la plus utile des deux : elle
+     veut dire « la prochaine fois, c'est l'examen blanc ». */
+  const calcule = (typeof leconsAvantExamenBlancDuJour === 'function')
+    ? leconsAvantExamenBlancDuJour(q) : null;
+  const n = (calcule !== null) ? calcule : q.examBlancN;
   const pl = v => (parseInt(v, 10) > 1 ? 's' : '');
+  /* « dans 0 leçon » ne se dit pas : on dit ce que ça veut dire. */
+  const quandEB = k => {
+    const v = parseInt(k, 10);
+    if(isNaN(v)) return '';
+    return (v === 0) ? " — la prochaine fois, c'est l'examen blanc"
+                     : ' dans ' + v + ' leçon' + pl(v);
+  };
 
   /* Le rang de l'examen blanc : « 2e examen blanc » plutôt que
      « examen blanc », pour savoir combien l'élève en a déjà passé.
@@ -5522,11 +5588,11 @@ function ajouterSuite(etats, permis, mots, q){
       : (jourEB ? '' : ' — déjà fait');
     etats.push(tete + jourEB + conclusion);
   }else if(q.examBlanc === 'reserve'){
+    const q1 = quandEB(n);
     etats.push('🅱️ ' + numero + ETAT_EB_RESERVE + jourEB +
-               (n ? ' — dans ' + n + ' leçon' + pl(n) : ''));
+               (q1 ? (parseInt(n, 10) === 0 ? q1 : ' —' + q1) : ''));
   }else if(q.examBlanc === 'aprevoir'){
-    etats.push('🅱️ ' + numero + ETAT_EB_APREVOIR +
-               (n ? ' dans ' + n + ' leçon' + pl(n) : ''));
+    etats.push('🅱️ ' + numero + ETAT_EB_APREVOIR + quandEB(n));
   }else if(q.examBlanc === 'impossible'){
     /* La date de la décision, pas celle d'aujourd'hui : savoir
        depuis QUAND on ne prévoit pas d'examen blanc, c'est savoir
