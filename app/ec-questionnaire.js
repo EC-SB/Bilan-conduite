@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:35 — v931 */
+/* Déployé le 10/09/2026 à 19:16 — v935 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -600,10 +600,35 @@ function etatQuiFaitFoi(nom){
 
   /* La date du suivi, en dernier ressort : elle date un examen
      blanc que quelqu'un d'autre a établi, elle n'en établit
-     aucun. Et elle ne prend la place d'aucune date déjà connue. */
-  if(dateEbDuSuivi && !d.examBlancDate &&
-     (d.examBlanc === 'passe' || d.examBlanc === 'reserve')){
-    d.examBlancDate = dateEbDuSuivi;
+     aucun. Et elle ne prend la place d'aucune date déjà connue.
+
+     ⚠️ ET ELLE NE DATE QUE CE QU'ELLE PEUT DATER — v935.
+
+     David, sur Mackenzie Leroy : sa carte annonçait « C'EST LE 2ÈME
+     EXAMEN BLANC » — le cours du jour — et, deux lignes plus bas,
+     « 2e EXAMEN BLANC PASSÉ le jeudi 10 septembre 2026 ». Le jeudi
+     10 septembre, c'était aujourd'hui, et l'examen blanc n'avait
+     pas encore eu lieu : c'était le cours qui allait commencer.
+
+     Les deux moitiés étaient vraies séparément. Elle a bien passé
+     un examen blanc — le premier — donc l'état « passé » est juste.
+     Et le bureau a bien réservé un examen blanc pour aujourd'hui,
+     donc la date est juste. Mais cette date-là est celle de
+     l'examen À VENIR : la coller sur celui qui est passé fait dire
+     à l'application qu'un cours qui n'a pas commencé est terminé.
+
+     Une date à venir date un examen réservé ; une date passée date
+     un examen passé. Quand elle ne peut dater ni l'un ni l'autre,
+     on ne la pose pas — la ligne dira « passé » sans dire quand,
+     ce qui est exactement ce qu'on sait. */
+  if(dateEbDuSuivi && !d.examBlancDate){
+    const auj = (typeof todayLocal === 'function')
+      ? todayLocal() : new Date().toISOString().slice(0, 10);
+    if(d.examBlanc === 'reserve' && dateEbDuSuivi >= auj){
+      d.examBlancDate = dateEbDuSuivi;
+    }else if(d.examBlanc === 'passe' && dateEbDuSuivi < auj){
+      d.examBlancDate = dateEbDuSuivi;
+    }
   }
 
   return d;
@@ -5583,12 +5608,29 @@ function ajouterSuite(etats, permis, mots, q){
     const hEB = String(q.heuresRestantes || '').trim();
     /* « Pas le niveau » prime sur tout chiffre : c'est la conclusion
        qui décide de la suite, et le bureau la cherche en premier. */
+    /* ⚠️ « AVANT L'EXAMEN BLANC » N'EST PAS « APRÈS » — v935.
+
+       David, sur Mackenzie Leroy : « d'où sort le chiffre 5 leçons
+       avant le permis, alors que le résultat de l'examen blanc
+       n'est pas donné ? »
+
+       De « n », qui répond à une tout autre question : combien de
+       leçons AVANT l'examen blanc. Sa frise dit « 6 leçons + exam
+       blanc + 2 leçons » et elle en était à sa première : 6 − 1 = 5.
+       Le nombre était juste, la phrase parlait d'autre chose.
+
+       Ce qui reste à faire APRÈS l'examen blanc, c'est l'autre bout
+       de la frise, et il porte déjà son nom. Une même variable qui
+       répond à deux questions finit toujours par répondre à la
+       mauvaise. */
+    const apresEB = (typeof leconsApresExamenBlanc === 'function')
+      ? leconsApresExamenBlanc(q.frise) : null;
     const conclusion =
         (String(q.ebNiveau || '') === 'non') ? SUITE_PAS_LE_NIVEAU
       : (hEB === '0')                        ? ' — plus que les 3h avant examen'
       : hEB                                  ? ' — ' + hEB + ' + 3h'
-      : n                                    ? ' — ' + n + ' leçon' + pl(n) +
-                                               ' prévue' + pl(n) +
+      : apresEB                              ? ' — ' + apresEB + ' leçon' + pl(apresEB) +
+                                               ' prévue' + pl(apresEB) +
                                                ' avant le permis (+ 3h avant examen)'
       : (jourEB ? '' : ' — déjà fait');
     etats.push(tete + jourEB + conclusion);
