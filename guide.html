@@ -32,7 +32,7 @@
      La DATE, elle, est posée par guide-build.py d'après la date du
      fichier : elle ne peut pas mentir, donc elle est automatique.
 
-     GUIDE-VERSION: 851
+     GUIDE-VERSION: 911
      ============================================================ -->
 
 <style>
@@ -412,8 +412,8 @@ html{scroll-behavior:smooth}
     <span class="plaque">EC</span>
     <span class="nom">Bilan de conduite</span>
   </div>
-  <p class="sous">Guide d'utilisation · <strong>v851</strong><br>
-    Mis à jour le 4 septembre 2026 · Évolution Conduites</p>
+  <p class="sous">Guide d'utilisation · <strong>v911</strong><br>
+    Mis à jour le 10 septembre 2026 · Évolution Conduites</p>
 
   <div class="filtre">
     <div class="titre">Filtrer par rôle</div>
@@ -524,7 +524,7 @@ html{scroll-behavior:smooth}
     </ol>
   </nav>
 
-  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v851</strong>, relu le 4 septembre 2026. Un écran modifié depuis peut différer.</p>
+  <p class="pied">Ce guide décrit l'application telle qu'elle fonctionne en <strong>v911</strong>, relu le 10 septembre 2026. Un écran modifié depuis peut différer.</p>
 </aside>
 
 <main class="corps">
@@ -688,6 +688,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">EC</span> + titre</td><td>Le logo, le nom de l'application, et sous lui les deux sites plus le numéro de version.</td><td>Toujours</td></tr>
         <tr><td>Prénom + rôle</td><td>Dit qui est connecté. Utile quand plusieurs moniteurs se partagent un téléphone. Sur un téléphone étroit, cette mention passe sur sa propre ligne, sous le titre.</td><td>Une fois connecté</td></tr>
         <tr><td><span class="b">📘</span></td><td><em>Guide d'utilisation</em> — ce document. Il s'ouvre <strong>dans un autre onglet</strong>&nbsp;: une question posée au milieu d'un cours ne doit pas coûter l'enregistrement. Il arrive déjà filtré sur ce que votre compte voit, et il suit le thème de l'application dans les deux sens.</td><td>Une fois connecté</td></tr>
+        <tr><td><span class="b">💳</span></td><td><em>La CB Gasoil</em> — où elle est, qui l'a, et de quoi la prendre ou la reposer. Voir <a href="#cbgasoil" class="aller">plus bas</a>.</td><td>droit <span class="ch">cbgasoil</span></td></tr>
         <tr><td><span class="b">🔄</span></td><td><em>Vérifier la version.</em> Relit la page en ligne et compare.</td><td>Une fois connecté</td></tr>
         <tr><td><span class="b">🔓</span></td><td><em>Se déconnecter</em>, avec confirmation.</td><td>Une fois connecté</td></tr>
         <tr><td><span class="b">🌙</span> / <span class="b">☀️</span></td><td>Bascule entre le thème sombre et le thème clair.</td><td>Toujours, même avant connexion</td></tr>
@@ -704,8 +705,22 @@ html{scroll-behavior:smooth}
     <p>L'application vérifie aussi toute seule, mais <strong>seulement dans trois créneaux</strong> — 07h50-08h00, 12h15-13h00 et 19h05-20h00 — <em>jamais pendant un cours</em>. S'il y a du nouveau, un bandeau orange s'installe en bas&nbsp;: <span class="ch">Nouvelle version disponible — Elle s'installera dès que tu auras terminé ton cours.</span> avec <span class="b">Plus tard</span> et <span class="b">↻ Installer</span>. Même « Installer » redemande confirmation si un cours est en route.</p>
 
     <h4 id="bandeaujour">Le bandeau du jour</h4>
-    <p><strong>Sous la carte, au-dessus des onglets&nbsp;: il est donc visible depuis tous les écrans.</strong> Il rassemble ce qui demande une attention aujourd'hui — les prises de dates qui approchent, les rendez-vous AAC et CS, les examens à prévoir, les anniversaires, et les messages épinglés.</p>
+    <p><strong>Sous la carte, au-dessus des onglets&nbsp;: il est donc visible depuis tous les écrans.</strong> Il rassemble ce qui demande une attention aujourd'hui — les prises de dates qui approchent, les rendez-vous AAC et CS, les examens à prévoir, <strong>les heures avant examen à poser</strong>, les anniversaires, la CB Gasoil qui traîne, et les messages épinglés.</p>
     <div class="note astuce"><span class="tag">Sa règle</span><p><strong>Rien à dire&nbsp;: il disparaît entièrement.</strong> Pas de « ✅ rien aujourd'hui » — un bandeau présent tous les jours devient un décor, et on cesse de le lire. C'est sa disparition qui lui donne son poids.</p><p>Chaque famille de lignes se règle et se met en sourdine séparément, et chaque ligne emmène, d'un appui, sur l'écran qui règle la chose.</p></div>
+
+    <h5>Les boutons de famille</h5>
+    <p>Dès qu'il y a <strong>plus d'une famille</strong> à afficher, une rangée de boutons s'installe sous le titre&nbsp;: <span class="b">Tout&nbsp;5</span> <span class="b">📆&nbsp;1</span> <span class="b">⏱️&nbsp;2</span> <span class="b">📝&nbsp;1</span> <span class="b">🎂&nbsp;1</span>. Chacun porte son compte, et un appui n'affiche plus que cette famille-là. <strong>Rappuyer sur le bouton allumé revient à « Tout ».</strong></p>
+    <p>Sous « Tout », les lignes ne sont plus à plat&nbsp;: elles sont <strong>rangées par famille, avec un petit titre</strong>. Un filtre qu'on ne clique pas ne range rien, et le mélange était là aussi.</p>
+    <div class="note astuce"><span class="tag">Le filtre ne se retient pas</span><p>Chaque ouverture de l'application <strong>repart de « Tout »</strong>. Ce bandeau existe pour qu'on voie sans chercher&nbsp;: un filtre gardé d'un jour à l'autre, et un matin l'anniversaire ou la CB non reposée n'existent plus pour vous, sans que rien ne le dise.</p><p>Ce que vous voulez éteindre <strong>pour de bon</strong> se décoche dans le <span class="b">⚙️</span> du bandeau — là, c'est un choix, pas un oubli.</p></div>
+
+    <h5>⏱️ Les heures avant examen à poser</h5>
+    <p>Quand un moniteur indique un nombre d'heures avant l'examen — après un examen blanc, après un rendez-vous post-permis, ou simplement pendant un cours — la ligne apparaît ici&nbsp;:</p>
+    <div class="ecran">⏱️ Nolwenn Chafotec — 4h + les 3h avant examen
+   dit par Erika le 08/09/2026                            ✕</div>
+    <p>Elle <strong>s'éteint toute seule dès que l'élève a une session d'examen</strong>&nbsp;: le nombre a servi, il n'y a plus rien à aller chercher. Un « 0 » se dit <span class="ch">plus que les 3h</span> — c'est la plus utile des deux, celle qui appelle une date tout de suite.</p>
+    <div class="note astuce"><span class="tag">La croix masque un NOMBRE, pas un élève</span><p>Écarter « Nolwenn, 4h » ne vaut que pour ces 4h-là. Le jour où quelqu'un dit « encore 2h », <strong>c'est une autre alerte et elle revient d'elle-même</strong>. C'est ce qui empêche qu'un nombre tombe aux oubliettes.</p></div>
+    <p>Après un rendez-vous post-permis, seule la suite <span class="b">➕ 3h avant repassage</span> déclenche cette ligne. <span class="b">🚗 Une leçon de 2h</span> ne demande pas de date, elle demande une leçon&nbsp;: <a href="#postpermis" class="aller">l'écran post-permis</a> la porte déjà.</p>
+    <p>Tout le monde la voit — elle n'a pas de droit à elle, contrairement aux trois autres alertes.</p>
 
     <h5>📌 Les messages épinglés</h5>
     <p>Un message attaché à <strong>une personne</strong>, qui s'affiche dans son bandeau jusqu'à ce qu'elle le barre. À ne pas confondre avec <a href="#messages" class="aller">📨 Messages aux moniteurs</a>, qui est attaché à <strong>un élève</strong> et remonte dans la note de son prochain cours.</p>
@@ -955,6 +970,7 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">Examen blanc</span></td><td><span class="ch">— non évoqué —</span> / <span class="ch">À prévoir</span> / <span class="ch">Réservé</span> / <span class="ch">Déjà passé — ajourné</span> / <span class="ch">Non planifiable pour le moment</span>. Ouvre ensuite le rang (1<sup>er</sup> à 5<sup>e</sup>), la date, et un nombre de leçons. <strong>La ligne de tête dit lequel c'est</strong> — <span class="ch">C'est le 2<sup>e</sup> examen blanc</span> — au lieu de laisser deviner.</td></tr>
         <tr><td><span class="b">Conclusion de l'examen blanc</span></td><td><span class="ch">✅ Plus que les 3h avant examen</span> / <span class="ch">⏳ Encore des leçons avant examen</span> / <span class="ch">⛔ Pas le niveau</span>. <strong>N'apparaît que sur le modèle Examen blanc, et seulement en fin de cours.</strong> C'est cette phrase que le bureau relit dans ses listes.</td></tr>
         <tr><td><span class="b">Examen du permis</span></td><td><span class="ch">— pas de date —</span> / <span class="ch">Date à prévoir</span> / <span class="ch">Prévu le…</span> / <span class="ch">Annulé</span> / <span class="ch">Déjà passé</span> / <span class="ch">Non planifiable</span>, et <span class="b">Quel passage ?</span> <strong>Le moniteur ne saisit plus la date</strong> — elle s'affiche en lecture seule&nbsp;: <span class="ch">🎓 Examen prévu le mercredi 16 septembre 2026 · Posée par le bureau d'après sa place d'examen. Elle ne se change pas ici.</span> Voir <em>« Un moniteur n'écrit pas une date d'examen »</em> juste dessous.</td></tr>
+        <tr><td><span class="b">Combien de leçons avant l'examen</span></td><td><strong>Il se décompte tout seul d'un cours au suivant.</strong> « Encore 2 leçons », dit à la 10<sup>e</sup>, vaut 1 à la 11<sup>e</sup> et 0 à la 12<sup>e</sup> — c'est-à-dire <em>plus que les 3h</em>. Il ne descend jamais sous zéro, et il se corrige à la main à tout moment.</td></tr>
         <tr><td><span class="b">Rendez-vous post-permis</span></td><td>Sous l'examen officiel, sa date se répond ici aussi&nbsp;: on l'a sous les yeux au moment où l'on parle de l'examen. <strong>Les deux cases se mettent à jour ensemble</strong> — il n'y a qu'une date, elle ne peut pas dire deux choses.</td></tr>
         <tr><td><span class="b">Pas d'écoutes pédagogiques</span></td><td>Une case. Elle inscrit l'élève dans la liste que suit le bureau, et ajoute un rappel en fin de bilan. <strong>La décocher l'en retire.</strong></td></tr>
         <tr><td><span class="b">Simulateur nuit et risques</span></td><td><span class="ch">À prévoir</span> / <span class="ch">Déjà prévu</span> / <span class="ch">Fait ✅</span>.</td></tr>
@@ -963,6 +979,8 @@ html{scroll-behavior:smooth}
         <tr><td><span class="b">Vos autres notes</span></td><td>Texte libre, 400 caractères.</td></tr>
       </tbody>
     </table></div>
+
+    <div class="note astuce"><span class="tag">Une soustraction, pas une érosion</span><p>Le nombre était recopié tel quel d'un cours au suivant&nbsp;: il restait à 2 pendant six leçons. Le décompter à l'aveugle — un de moins à chaque cours — mentirait dans l'autre sens&nbsp;: deux préparations pour la même leçon, ou un cours annulé, et le compte descendrait sans que personne ait roulé.</p><p>L'outil garde donc <strong>le rang auquel le nombre a été dit</strong>, et le reste se déduit. Un nombre posé avant que l'application ne garde ce repère <strong>ne se décompte pas</strong>&nbsp;: décompter sans savoir depuis quand, c'est inventer. Et <strong>vide et zéro ne disent pas la même chose</strong> — vide veut dire « on ne sait pas », zéro veut dire « plus que les 3h ».</p></div>
 
     <h4>Un moniteur n'écrit pas une date d'examen</h4>
     <div class="note danger"><span class="tag">⚠️ Nouveau — v795</span><p>Le questionnaire portait un <strong>calendrier libre</strong> sous <span class="ch">Prévu le…</span>, pré-rempli à la date du jour. C'était la dernière porte ouverte, et de loin la plus fréquentée&nbsp;: elle s'ouvrait plusieurs fois par jour, en voiture, sur un téléphone. Les six calendriers du bureau avaient été fermés en v790 — condamner six portes et laisser l'entrée principale ouverte ne servait à rien.</p></div>
@@ -1114,7 +1132,7 @@ html{scroll-behavior:smooth}
 
     <div class="note astuce"><span class="tag">Un brouillon par élève</span><p>Un jour d'examen, on peut avoir quatre ou cinq fiches ouvertes en parallèle et les reprendre depuis la bannière du haut. Chaque élève a son propre brouillon.</p></div>
     <div class="note danger"><span class="tag">⚠️ Le bouton qui a effacé une matinée d'examens — corrigé en v838</span><p>Sous la liste des bilans commencés, un seul bouton <span class="ch">🗑️ Supprimer</span> demandait <em>« Supprimer définitivement CE cours interrompu ? »</em> — <strong>au singulier</strong> — et effaçait la table <strong>entière</strong> des brouillons manuels. Une monitrice y a perdu ses examens officiels de la matinée.</p><p>Désormais&nbsp;: <strong>une corbeille 🗑️ par ligne</strong> (<em>« Supprimer le brouillon de X&nbsp;? Les autres bilans commencés ne bougent pas. »</em>), et un bouton du bas qui <strong>porte le compte</strong> — <span class="b">🗑️ Tout supprimer (5)</span>. La question nomme ce qui va partir, et la bannière se redessine au lieu de disparaître.</p></div>
-    <div class="note astuce"><span class="tag">Ce qui ne se perd plus — v837</span><p>Sur un examen officiel&nbsp;: la sauvegarde <strong>relit l'écran avant de garder</strong> (elle gardait un état vieux d'une minute), les marques <span class="b">☠️ ⚠️ ➖</span> reviennent avec leurs remarques, les lignes <strong>au-delà de la vingtième</strong> ne décalent plus tout le reste, et <strong>l'onglet qui se ferme dépose avant de partir</strong>. Ce dernier filet n'existait que pour le rendez-vous post-permis.</p></div>
+    <div class="note astuce"><span class="tag">Ce qui ne se perd plus — v837</span><p>Sur un examen officiel&nbsp;: la sauvegarde <strong>relit l'écran avant de garder</strong> (elle gardait un état vieux d'une minute), les marques <span class="b">☠️</span> et <span class="b">⚠️</span> reviennent avec leurs remarques, les lignes <strong>au-delà de la vingtième</strong> ne décalent plus tout le reste, et <strong>l'onglet qui se ferme dépose avant de partir</strong>. Ce dernier filet n'existait que pour le rendez-vous post-permis.</p><p><strong>Et le CEPC repris se repeint</strong>&nbsp;: ses cases vivent dans un champ caché, les valeurs revenaient mais aucun bouton ne les montrait. Sur une grille qui part du maximum, vous auriez vu 31/31 alors que votre fiche en portait d'autres. Une note reprise <strong>vous appartient</strong>&nbsp;: aucune marque ne l'écrase.</p></div>
   </section>
 
   <section id="champs">
@@ -1148,18 +1166,19 @@ html{scroll-behavior:smooth}
       <li>La case <span class="b">E</span> est rouge quand elle est prise, et la mention <span class="ch">Résultat éliminatoire</span> apparaît à gauche.</li>
       <li>En bas&nbsp;: <span class="ch">Total général</span> avec le verdict <span class="ch">FAVORABLE</span>, <span class="ch">INSUFFISANT</span> ou <span class="ch">ÉLIMINATOIRE</span>, et la note sur 31.</li>
     </ul>
-    <div class="note astuce"><span class="tag">Comment raisonne la grille</span><p>Sur un examen blanc, <strong>la grille est mise au maximum à l'ouverture</strong>. L'élève part avec tous ses points&nbsp;; chaque erreur en retire. C'est ainsi que l'inspecteur raisonne.</p></div>
+    <div class="note astuce"><span class="tag">Comment raisonne la grille</span><p><strong>Elle s'ouvre au maximum — 31 / 31, chaque ligne à son plus haut.</strong> L'élève part avec tous ses points&nbsp;; chaque erreur en retire. C'est ainsi que l'inspecteur raisonne, et c'est vrai sur l'examen blanc comme sur l'examen officiel.</p><p>Retirer une marque <strong>rend les points</strong>. Et <strong>une note que vous posez à la main vous appartient</strong>&nbsp;: aucune marque ne l'écrase ensuite. Le détail est dans <a href="#formulaires" class="aller">Ce que demande chaque modèle</a>.</p></div>
 
-    <h4>Les observations et leurs trois boutons</h4>
+    <h4>Les observations et leurs deux boutons</h4>
     <p><strong>20 lignes sont créées d'avance</strong> — <em>« un examen en compte facilement autant, et ajouter une ligne à chaque fois cassait le rythme »</em> — plus un bouton <span class="b">➕ Ajouter une observation</span>. Chaque ligne a un champ <span class="b">Remarque de l'inspecteur</span> (fond bleuté) et un champ <span class="b">Explication ou correction</span> (fond gris)&nbsp;: les deux fonds évitent de confondre ce que dit l'inspecteur et ce que répond le moniteur.</p>
     <div class="tab"><table>
       <thead><tr><th>Bouton</th><th>Effet</th></tr></thead>
       <tbody>
-        <tr><td><span class="b">☠️</span></td><td><em>Marquer comme erreur éliminatoire.</em> Ouvre le choix d'une catégorie du CEPC&nbsp;; le bouton passe en rouge, une étiquette s'ajoute, <strong>le E se coche aussitôt sur le CEPC</strong> et l'erreur rejoint le bilan des éliminatoires. Un second appui retire la marque.</td></tr>
-        <tr><td><span class="b">⚠️</span></td><td><em>À reprendre dans le bilan des erreurs.</em> Erreur grave <strong>sans être éliminatoire</strong>&nbsp;: elle rejoint le bilan des erreurs mais <strong>ne touche pas au CEPC</strong>.</td></tr>
-        <tr><td><span class="b">➖</span></td><td><em>Retirer un point sur une compétence.</em> Retire un cran sur une ligne du CEPC. Trois appuis coûtent trois crans, <strong>mais jamais le E</strong>&nbsp;: seule la tête de mort élimine.</td></tr>
+        <tr><td><span class="b">☠️</span></td><td><em>Marquer comme erreur éliminatoire.</em> Ouvre le choix d'une catégorie du CEPC&nbsp;; le bouton passe en rouge, une étiquette s'ajoute, <strong>le E se coche aussitôt sur le CEPC</strong> et l'erreur rejoint le bilan des erreurs. Un second appui retire la marque — <strong>et rend les points</strong>.</td></tr>
+        <tr><td><span class="b">⚠️</span></td><td><em>À reprendre dans le bilan des erreurs, avec ou sans point.</em> Deux temps&nbsp;: la compétence, puis <span class="ch">Est-ce que ça coûte un point ?</span> — <span class="b">Non, juste à reprendre</span> ou <span class="b">➖ Oui, enlever un point</span>. Avec point, la ligne affiche <span class="ch">⚠️ Appréhender la route · ➖ 1 point</span> et le CEPC perd un cran sur cette compétence. <strong>Jamais le E</strong>&nbsp;: seule la tête de mort élimine.</td></tr>
       </tbody>
     </table></div>
+    <div class="note astuce"><span class="tag">Le bouton ➖ a disparu</span><p>Il posait la <strong>même question</strong> que le ⚠️ — sous quelle compétence ranger cette erreur — et ne s'en distinguait que par le point. Deux boutons côte à côte pour un seul choix, à bout de bras dans une voiture. Le point est devenu une <em>option du ⚠️</em>, sur la même compétence.</p><p>Un second appui sur le <span class="b">⚠️</span> retire <strong>la marque et son point ensemble</strong>&nbsp;: les séparer laisserait un point orphelin sur une compétence dont l'erreur a disparu.</p></div>
+    <p><strong>Les deux boutons fonctionnent aussi sur l'examen officiel</strong> depuis la v910&nbsp;: ils y étaient déjà, mais ils ne menaient nulle part. Voir <a href="#cepc-interne" class="aller">🧾 Notre CEPC, sur l'examen officiel</a>.</p>
     <p>Il existe aussi un <span class="b">☠️</span> à côté du champ <span class="b">Fautes éliminatoires</span>&nbsp;: il insère (ou retire) le marqueur <strong>sur la ligne où se trouve le curseur</strong>. Une faute par ligne.</p>
 
     <h4>Deux champs particuliers</h4>
@@ -1189,17 +1208,54 @@ html{scroll-behavior:smooth}
     <ol class="etapes">
       <li><strong>Avant l'examen</strong> — carte SD (✅ d'office), installation (un texte pré-rempli&nbsp;: <em>« Efface l'emoji qui ne convient pas. »</em>), erreurs faites en allant au centre d'examen.</li>
       <li><strong>Pendant l'examen blanc</strong> — passager et voyants (ces deux-là <strong>calculent tout seuls la note d'installation du CEPC</strong>), remarque sur l'installation, note des vérifications et n° de la question, remarques de l'inspecteur, la grille CEPC, les observations, les fautes éliminatoires.</li>
-      <li><strong>Bilan des erreurs</strong> — <span class="b">Erreurs éliminatoires</span> se remplit tout seul quand vous marquez une ☠️ plus haut. <strong>Dès que vous y touchez, il cesse de se réécrire.</strong> Puis <span class="b">Autres erreurs</span>, pré-rempli de trois blocs à compléter avec l'élève&nbsp;: <em>« qu'en penses-tu&nbsp;? »</em>, <em>« quelles sont TES solutions&nbsp;? »</em>, <em>« ce que je te PROPOSE »</em>.</li>
+      <li><strong>Bilan des erreurs</strong> — un seul cadre, <span class="b">3 · Bilan des erreurs</span>, qui se remplit tout seul quand vous marquez une <span class="b">☠️</span> ou un <span class="b">⚠️</span> plus haut&nbsp;: chaque erreur se range sous sa compétence, suivie des trois questions à travailler avec l'élève — <em>« qu'en penses-tu&nbsp;? »</em>, <em>« quelles sont TES solutions&nbsp;? »</em>, <em>« ce que je te PROPOSE »</em>. <strong>Dès que vous y touchez, il cesse de se réécrire.</strong>
+      <div class="note" style="margin-top:6px"><span class="tag">Le bloc « 3 · Autres erreurs » a été retiré</span><p>C'était un canevas à remplir à la main — trois fois <span class="ch">👉 … qu'en penses-tu ?</span> — du temps où rien ne se rangeait tout seul. Depuis que les boutons posent chaque erreur sous sa compétence dans le cadre au-dessus, il ne pouvait plus qu'en dire une deuxième version, écrite à la main et jamais la même. Le canevas a disparu <strong>du formulaire et du bilan imprimé</strong> en même temps.</p><p>Et le cadre qui reste a changé de nom&nbsp;: il s'appelait <span class="ch">3 · Erreurs éliminatoires</span> alors qu'il porte aussi les ⚠️ et les points retirés. Un titre qui annonce « éliminatoires » sur un bloc qui n'en contient parfois aucune, c'est un moniteur qui hésite à y écrire.</p></div></li>
       <li><strong>Niveau permis</strong> — le rappel de frise, puis <span class="b">Niveau permis ?</span> et, <strong>seulement si « ✅ Oui »</strong>, les heures avant permis, la date d'examen déjà connue, le respect de la frise, les heures posées.</li>
     </ol>
 
     <h4>L'examen officiel, en trois moments</h4>
     <ul>
-      <li><strong>🚗 Avant examen</strong> — <em>« Le trajet jusqu'au centre. À envoyer dès que l'élève a fini de conduire. »</em> Installation, passager, voyants, erreurs à ne pas refaire, puis le bouton d'envoi.</li>
-      <li><strong>🏁 Examen</strong> — <em>« Ce que l'inspecteur a noté. À remplir au retour de l'élève. »</em> Quatre sujets, chacun sous son <strong>sous-titre</strong> depuis la v839 — <span class="b">🚗 Installation</span> · <span class="b">🧰 Vérification</span> · <span class="b">🚦 Question sécurité routière</span> · <span class="b">🚑 Premiers secours</span> — puis les observations de l'inspecteur.
+      <li><strong>🚗 Avant examen</strong> — <em>« Le trajet jusqu'au centre. À envoyer dès que l'élève a fini de conduire. »</em> Installation, passager, voyants, erreurs à ne pas refaire — avec <strong>la case</strong> <span class="ch">Tu as oublié de dire c'est moi qui aie emmener la voiture, j'ai déjà fais mes réglages</span> — puis le bouton d'envoi.</li>
+      <li><strong>🏁 Examen</strong> — <em>« Ce que l'inspecteur a noté. À remplir au retour de l'élève. »</em> Quatre sujets, chacun sous son <strong>sous-titre</strong> depuis la v839 — <span class="b">🚗 Installation</span> · <span class="b">🧰 Vérification</span> · <span class="b">🚦 Question sécurité routière</span> · <span class="b">🚑 Premiers secours</span> — puis les observations de l'inspecteur. L'explication de l'installation porte <strong>la même case</strong> <span class="ch">Tu as oublié de dire c'est moi qui aie emmener la voiture…</span> que l'examen blanc.
       <div class="note piege" style="margin-top:6px"><span class="tag">Pourquoi ces sous-titres</span><p>Les quatre sujets se suivaient <strong>sans rien entre eux</strong>&nbsp;: on ne voyait plus où finissait l'un, et le moniteur cochait la mauvaise ligne. L'examen blanc a reçu le sien aussi&nbsp;: <span class="b">🧰 Vérifications</span>.</p></div></li>
-      <li><strong>🔒 Pour nous seulement</strong> — <em>« Rien de ce qui suit ne figure sur le bilan de l'élève. Tout va dans ses notes, pour l'équipe. »</em> Inspecteur, heures avant repassage, note pour l'équipe.</li>
+      <li><strong>🔒 Pour nous seulement</strong> — <em>« Rien de ce qui suit ne figure sur le bilan de l'élève. Tout va dans ses notes, pour l'équipe. »</em> <strong>🧾 Notre CEPC</strong>, l'inspecteur, les heures avant repassage, la note pour l'équipe.</li>
     </ul>
+
+    <h4 id="cepc-interne">🧾 Notre CEPC, sur l'examen officiel</h4>
+    <p>Les boutons <span class="b">☠️</span> et <span class="b">⚠️</span> des observations <strong>fonctionnent maintenant sur l'examen officiel</strong>&nbsp;: la ☠️ coche son E sur notre grille, le ⚠️ range la remarque sous sa compétence, et le bilan de l'élève les présente groupées&nbsp;:</p>
+    <div class="ecran">👉 𝗖𝗼𝗻𝗻𝗮î𝘁𝗿𝗲 𝗲𝘁 𝘂𝘁𝗶𝗹𝗶𝘀𝗲𝗿 𝗹𝗲𝘀 𝗰𝗼𝗺𝗺𝗮𝗻𝗱𝗲𝘀
+
+👨‍✈️ Tu as calé au démarrage ☠️ Erreur éliminatoire
+🦁 On revoit le point de patinage</div>
+    <p><strong>Sans les trois questions</strong> — un examen officiel est passé&nbsp;: on ne demande pas ses solutions à l'élève au milieu du compte rendu de l'inspecteur. Une remarque que personne n'a marquée se dit quand même, à la suite&nbsp;: la taire parce qu'on n'a pas appuyé sur un bouton, ce serait perdre ce que l'inspecteur a dit.</p>
+    <div class="note danger"><span class="tag">⚠️ Avant, ces boutons ne menaient nulle part</span><p>Ils s'affichaient déjà sur l'examen officiel — c'est le même écran d'observations que l'examen blanc — mais ils visaient des champs qui n'existaient pas là. <strong>La marque se posait, et rien ne se rangeait ni ne s'imprimait.</strong> Ce qui a pu être marqué sur un examen officiel avant cette version est perdu&nbsp;: il n'en reste aucune trace.</p></div>
+    <div class="note astuce"><span class="tag">Notre CEPC ne part JAMAIS à l'élève</span><p>Celui de l'<strong>examen blanc</strong> est imprimé dans son bilan. Celui de l'<strong>examen officiel</strong> reste pour nous&nbsp;: c'est le même écran de saisie, et la seule chose qui les sépare est cette absence. Il réapparaît au <a href="#postpermis" class="aller">rendez-vous post-permis</a>, au-dessus des captures du CEPC de l'inspecteur.</p></div>
+
+    <h4>La grille CEPC part de tous les points</h4>
+    <p>À l'ouverture, <strong>chaque ligne est déjà à son maximum — 31 / 31</strong>. C'est le raisonnement de l'inspecteur&nbsp;: il part du haut et il enlève. Ensuite&nbsp;:</p>
+    <ul>
+      <li>une <span class="b">☠️</span> coche <strong>E</strong> sur sa compétence&nbsp;;</li>
+      <li>un <span class="b">⚠️</span> auquel vous répondez <em>« oui, enlever un point »</em> retire <strong>un cran</strong> — deux marques sur la même compétence en retirent deux&nbsp;;</li>
+      <li>retirer la marque <strong>rend les points</strong>&nbsp;: se raviser ne coûte rien&nbsp;;</li>
+      <li><strong>à la fin, vous corrigez ce que vous voulez à la main</strong> — et une note que vous posez vous appartient&nbsp;: aucune marque ne l'écrase ensuite.</li>
+    </ul>
+    <div class="note piege"><span class="tag">Pourquoi ça a changé</span><p>Le <span class="b">➖</span> retire un <em>cran</em>. Sur une grille vierge, il n'avait rien à amputer&nbsp;: le bouton marquait l'erreur, elle partait bien dans le bilan, <strong>et la note ne bougeait pas</strong>. La moitié du geste se perdait en silence, et le seul moyen de s'en apercevoir était de recompter les points à la main.</p></div>
+    <div class="note danger"><span class="tag">⚠️ Sur un examen blanc, la grille part à l'élève</span><p>Un examen blanc où personne ne touche la grille envoie donc désormais <span class="ch">31/31 — ✅ FAVORABLE</span> (avant&nbsp;: <span class="ch">0/31 — ❌ INSUFFISANT</span>). <strong>Marquez vos erreurs, ou corrigez la grille avant d'envoyer.</strong></p></div>
+
+    <h4>Le bouton ➖ a disparu</h4>
+    <p>Il y avait trois boutons en bout de ligne&nbsp;: <span class="b">☠️</span>, <span class="b">⚠️</span> et <span class="b">➖</span>. Les deux derniers posaient <strong>la même question</strong> — sous quelle compétence ranger cette erreur — et ne se distinguaient que par une chose&nbsp;: est-ce que ça coûte un point.</p>
+    <p>Le point se demande maintenant <strong>dans le ⚠️</strong>, en deux temps&nbsp;:</p>
+    <div class="ecran">⚠️ Quelle compétence ?
+   L'erreur sera rangée là dans le bilan. On te
+   demandera ensuite si elle coûte un point.
+   → Appréhender la route
+
+Est-ce que ça coûte un point ?
+   Appréhender la route
+   [ Non, juste à reprendre ]
+   [ ➖ Oui, enlever un point ]</div>
+    <p>La ligne affiche alors <span class="ch">⚠️ Appréhender la route · ➖ 1 point</span>, et le bouton passe à l'orange fort. <strong>Un second appui sur le ⚠️ retire la marque et son point ensemble</strong> — les séparer laisserait un point orphelin sur une compétence dont l'erreur a disparu.</p>
+    <div class="note astuce"><span class="tag">Le point part sur la compétence du ⚠️</span><p>Avec le ➖, on pouvait ranger l'erreur sous une compétence et retirer le point sur une autre&nbsp;: la ligne perdait un cran sans qu'aucune erreur ne l'explique. Un geste, une compétence.</p></div>
 
     <h4>📤 Envoyer la partie avant examen</h4>
     <p>Le bouton compose un message court&nbsp;: installation / passager / voyants avec leurs ✅ ou ❌, les erreurs à ne pas refaire, et <em>« Le bilan complet suivra après ton examen. Courage&nbsp;! 🍀 »</em>. La fenêtre propose <span class="b">📋 Copier</span>, <span class="b">✉️ Par mail</span>, <span class="b">Rester sur la fiche</span>, et <span class="b">👤 Élève suivant</span> qui ferme la fiche en la gardant de côté&nbsp;: <span class="ch">Fiche gardée — reprends-la en haut après l'examen</span>.</p>
@@ -1228,7 +1284,8 @@ html{scroll-behavior:smooth}
       <tbody>
         <tr><td>Info</td><td><span class="ch">Prévu le jeudi 14 mars · Marie · 🔁 2e repassage (ajourné le 3 mars 2026)</span></td></tr>
         <tr><td><span class="b">🏁 À la sortie de l'examen</span></td><td>N'apparaît que si le moniteur de l'examen officiel a laissé une trace&nbsp;: ce qu'il a demandé en heures, et sa note pour l'équipe.</td></tr>
-        <tr><td><span class="b">📷 Captures du CEPC</span></td><td><em>« Colle, glisse ou choisis tes captures&nbsp;: recto, verso, observations. »</em> Elles sont réduites automatiquement. Chaque vignette s'agrandit au clic, et un <span class="b">✕</span> la retire.</td></tr>
+        <tr><td><span class="b">🧾 Notre CEPC</span></td><td><strong>La grille que le moniteur avait posée le jour de l'examen officiel</strong>, en lecture seule, avec son verdict&nbsp;: <span class="ch">Notre total : 21 / 31</span> ou <span class="ch">⛔ Éliminatoire selon nous — Connaître et utiliser les commandes</span>. N'apparaît que s'il y en a une.</td></tr>
+        <tr><td><span class="b">📷 Captures du CEPC</span></td><td><em>« Colle, glisse ou choisis tes captures&nbsp;: recto, verso, observations. »</em> Le CEPC de l'inspecteur, en photo. Elles sont réduites automatiquement. Chaque vignette s'agrandit au clic, et un <span class="b">✕</span> la retire.</td></tr>
         <tr><td><span class="b">📄 Bilan d'examen officiel</span></td><td>Tiroir replié, pré-rempli s'il existe.</td></tr>
         <tr><td><span class="b">📝 Bilan écrit par l'élève</span></td><td><em>« Colle ici ce que l'élève a écrit, ou saisis-le pendant l'entretien. »</em></td></tr>
         <tr><td><span class="b">✍️ Tes remarques et compléments</span></td><td>Ce qu'il faut retenir de l'entretien.</td></tr>
@@ -1238,7 +1295,10 @@ html{scroll-behavior:smooth}
       </tbody>
     </table></div>
 
+    <div class="note astuce"><span class="tag">Comparer les deux CEPC</span><p>Notre grille est posée <strong>au-dessus</strong> des captures&nbsp;: c'est elle qu'on a en tête en arrivant, et c'est en la lisant qu'on sait quoi chercher sur la photo. La comparaison se fait <strong>à l'œil</strong> — le CEPC de l'inspecteur arrive en image, pas en chiffres.</p><p>Notre grille <strong>ne se modifie pas ici</strong>&nbsp;: ce qu'on a pensé le jour de l'examen est justement ce qu'on veut comparer, pas ce qu'on penserait aujourd'hui en voyant la note de l'inspecteur.</p></div>
+
     <p>Sur <span class="b">✅ Terminer le rendez-vous</span>&nbsp;: deux garde-fous (<span class="ch">Indique la suite à donner avant de terminer.</span> et <span class="ch">Indique le nombre d'heures avant le repassage.</span>), puis tout est enregistré, <strong>le bureau est prévenu automatiquement</strong> par une consigne rédigée pour lui, la préparation quitte la liste des prochains cours, et l'écran se referme au bout d'une seconde et demie.</p>
+    <div class="note astuce"><span class="tag">Et les heures remontent au bandeau</span><p>Une conclusion <span class="b">➕ 3h avant repassage</span> fait apparaître l'élève dans <a href="#bandeaujour" class="aller">l'alerte ⏱️ du bandeau du jour</a> tant qu'il n'a pas de session d'examen. <span class="b">🚗 Une leçon de 2h</span> ne le fait pas&nbsp;: elle demande une leçon, pas une date, et cet écran-ci la porte déjà.</p></div>
   </section>
 
   <section id="resultat">
@@ -1279,6 +1339,7 @@ html{scroll-behavior:smooth}
       <thead><tr><th>Bloc</th><th>Quand</th><th>Ce qu'il fait</th></tr></thead>
       <tbody>
         <tr><td><span class="b">Quelle leçon était-ce ?</span></td><td>Sur un bilan déjà enregistré, rouvert depuis la recherche.</td><td>Corrige le numéro de leçon <strong>dans le bilan et dans les notes</strong>. Un moniteur qui découvre l'outil oublie souvent le numéro la première fois, et toute la frise se décale.</td></tr>
+        <tr><td colspan="3"><div class="note astuce" style="margin:6px 0 0"><span class="tag">Le compteur continue tout seul — un ÉCART, pas un numéro</span><p><em>« Ce cours sera le 12<sup>ème</sup> et le suivant le 13<sup>ème</sup>, et ainsi de suite. »</em></p><p>Quand vous corrigez le rang d'un cours, l'outil ne retient pas « celui-ci est le douzième » — ça ne serait vrai qu'une fois. Il retient <strong>ce qui manque</strong>&nbsp;: « il a pris quatre leçons qu'on n'a pas », des leçons prises ailleurs, avant nous, ou sans bilan enregistré. Cet écart reste vrai au cours suivant, et le compteur avance de lui-même.</p><p>Au survol du numéro, l'outil dit d'où il sort — le nombre de bilans, l'écart posé, par qui et quand. Sans ça, on retape le chiffre par méfiance et on empile les corrections.</p><p><strong>Un bilan qui annonce lui-même son rang l'emporte</strong> sur l'écart&nbsp;: c'est une information plus sûre.</p></div></td></tr>
         <tr><td><span class="b">📥 Télécharger le PDF</span> et <span class="b">✉️ Envoyer par mail</span></td><td>Si le bilan affiché est une fiche d'évaluation handicap.</td><td>Le PDF s'appelle <span class="ch">Fiche-evaluation-Pierre-Dupont-14-03-2026.pdf</span>. <strong>Ces boutons réapparaissent quand on rouvre une fiche faite la semaine dernière</strong> — pas besoin de la refaire pour ravoir son PDF.</td></tr>
         <tr><td><span class="b">💾 Enregistrer la correction</span></td><td>Sur un bilan déjà enregistré.</td><td>Remplace la ligne existante au lieu d'en créer une seconde.</td></tr>
       </tbody>
@@ -1324,6 +1385,34 @@ html{scroll-behavior:smooth}
 
     <div class="note"><span class="tag">✨ Le numéro de leçon, enfin le même — v809</span><p><em>« Le résumé dans la fiche élève n'est toujours pas bon pour le numéro de leçon, je veux la même chose que dans mes prochains cours. »</em> Ses trois phrases, et ce qu'elles veulent dire&nbsp;:</p><table><thead><tr><th>Ce que la note dit</th><th>La leçon</th><th>Pourquoi</th></tr></thead><tbody><tr><td><span class="ch">1ère leçon après l'examen blanc (2 prévues, 5ème au total)</span></td><td><strong>5</strong></td><td>le premier nombre compte <em>depuis</em> l'examen blanc&nbsp;; le total est dit en toutes lettres</td></tr><tr><td><span class="ch">12 ème leçon frise dépassée (5 prévues)</span></td><td><strong>12</strong></td><td>l'espace entre le nombre et le suffixe se glisse tout seul dans les notes dictées</td></tr><tr><td><span class="ch">1ère leçon - plus que 6 avant l'examen blanc</span></td><td><strong>1</strong></td><td>le 6 est ce qui reste à faire, pas un rang</td></tr></tbody></table><p><strong>Deux lectures cohabitaient.</strong> « Mes prochains cours » lisait la note avec la règle complète et rendait 5, 12 et 1. Le résumé passait par un second motif qui ne connaissait ni la charnière — il ramenait une élève de sa 5<sup>e</sup> à sa 1<sup>ère</sup> — ni l'espace de « 12 ème », auquel cas il ne trouvait rien et retombait sur le <em>nombre de bilans enregistrés</em>, qui rajeunit de plusieurs leçons les élèves venus de l'ancien fonctionnement.</p><p>La règle est maintenant écrite <strong>une seule fois</strong>, et les deux écrans l'appellent. Une note qui compte depuis une charnière sans annoncer de total ne dit rien du total&nbsp;: dans ce cas l'outil se tait plutôt que de deviner.</p></div>
     <div class="note"><span class="tag">✨ La même PHRASE, pas le même chiffre — v811</span><p>La v809 corrigeait le chiffre&nbsp;: le dossier affichait enfin <span class="ch">6ème leçon</span> au lieu de <span class="ch">1ère leçon</span>. Ce n'était pas la demande.</p><p><em>« À la place de 6ème leçon dans le dossier, je veux 1ère leçon après l'examen blanc (2 prévues, 6ème au total). »</em></p><p>La carte de Mes prochains cours ne calcule rien&nbsp;: elle prend <strong>la ligne 🎯 de la note</strong>, celle que le questionnaire a écrite, et l'affiche en gros. Reconstruire « 6ème leçon » à côté, c'était redire la même chose en moins bien — on y perdait la charnière, ce qui reste avant l'examen blanc, et la frise dépassée.</p><p>Le résumé du dossier lit désormais <strong>cette ligne-là, par la même fonction</strong>, et n'en reconstruit une que s'il n'y a ni cours préparé ni note à lire — auquel cas il le dit.</p></div>
+
+    <h4 id="fichederoute">🧭 La fiche de route</h4>
+    <p><em>« Pour le moment je dois attendre de faire un rappel pour que ça aille dans mes prochains cours pour mettre à jour, et je n'arrive pas à tout mettre à jour correctement. »</em></p>
+    <p>Le seul écran qui savait écrire ces choses était le <strong>questionnaire du cours</strong>, et il ne s'ouvre que depuis un cours&nbsp;: pour corriger un dossier, il fallait d'abord inventer un cours. La fiche de route est en bas du résumé, et chaque ligne se corrige sur place&nbsp;:</p>
+    <div class="ecran">🧭 La fiche de route de Nolwenn Chafotec
+
+🚗 B boîte manuelle                                        ✏️
+🧭 Frise 20h                                               ✏️
+📝 Examen blanc : passé le 25/08/2026 · ✅ A le niveau      ✏️
+🎓 Examen officiel le 14/09/2026                           📅
+🔁 1er repassage — ajourné le 02/08/2026                   ✏️
+🤝 Post-permis le 10/08/2026 avec Maryne · ✅ fait          ✏️
+⏱️ 4h + les 3h avant examen — dit par Erika le 08/09/2026  ✏️
+🎯 Manœuvres en créneau                                    ✏️</div>
+    <p>Une ligne grise en italique veut dire <strong>« pas renseigné »</strong> — ce n'est pas une valeur, c'est un manque.</p>
+    <div class="tab"><table>
+      <thead><tr><th>Ligne</th><th>Où le crayon écrit</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">🚗</span> sa formation · <span class="b">🧭</span> sa frise</td><td>Elles ouvrent <strong>sa fiche du répertoire</strong>&nbsp;: c'est là qu'elles vivent, et elles ne se recopient pas ici.</td></tr>
+        <tr><td><span class="b">📝</span> examen blanc</td><td>Prévu le, passé le, le résultat, les heures — dans sa <strong>fiche de suivi</strong>, plus une phrase que tous les autres écrans relisent.</td></tr>
+        <tr><td><span class="b">🎓</span> examen officiel</td><td><strong>Rien.</strong> Le bouton est un <span class="b">📅</span> qui emmène dans Suivi permis.</td></tr>
+        <tr><td><span class="b">🔁</span> repassages · <span class="b">🤝</span> post-permis · <span class="b">⏱️</span> heures</td><td>Sa <strong>fiche de suivi</strong>.</td></tr>
+        <tr><td><span class="b">🎯</span> la prochaine leçon</td><td>Une <strong>consigne</strong>, qui part dans le rappel et dans la note du prochain cours. La nouvelle remplace la précédente.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note danger"><span class="tag">⚠️ La date d'examen ne se tape pas ici</span><p><em>« Cette information ne provient que de session examen, c'est le seul endroit où on est sûr qu'un élève a un examen officiel de prévu. »</em></p><p>Une date d'examen n'est pas qu'une date&nbsp;: <strong>elle occupe une place</strong>. Tapée à la main sans place, c'est un élève qui a l'air prêt et qui n'est sur aucune liste — et une place prise sans qu'on le sache, c'est un élève de moins qui pourra passer.</p></div>
+    <div class="note astuce"><span class="tag">Un élève sans suivi</span><p>La fiche le dit&nbsp;: <span class="ch">🆕 Cet élève n'a pas encore de suivi. Il s'en créera un au premier bilan — ou dès que tu poses une de ces lignes.</span> Elle ne fabrique pas sa ligne en silence&nbsp;: une ligne créée par un simple regard est une ligne dont personne ne sait d'où elle vient.</p></div>
+    <div class="note astuce"><span class="tag">L'auteur des heures</span><p>La ligne <span class="b">⏱️</span> dit <strong>qui a annoncé le nombre et quand</strong>. Sans lui, on retape le chiffre par méfiance et on empile les corrections. C'est aussi ce qui nourrit l'alerte ⏱️ du bandeau.</p></div>
 
     <h4>Les neuf onglets</h4>
     <table>
@@ -1471,7 +1560,9 @@ html{scroll-behavior:smooth}
     <p>Deux autres comportements à connaître&nbsp;: la ligne est marquée <span class="ch">✅ Envoyé</span> <strong>avant</strong> la réponse du serveur (elle revient en arrière en cas d'échec, pour ne pas faire attendre)&nbsp;; et un envoi en série <strong>s'interrompt entièrement</strong> au premier quota Allo atteint.</p>
 
     <h4>Mode 📜 Historique</h4>
-    <p>Les 150 derniers envois. En-tête&nbsp;: <span class="ch">4 envoi(s) aujourd'hui · 6 SMS facturés</span> puis <span class="ch">312 au total</span>. Un champ de filtre, et chaque envoi en tiroir&nbsp;: <span class="ch">✅</span> ou <span class="ch">⚠️</span>, le nom, la date, le numéro, le moniteur, le nombre de SMS, et le texte intégral en dépliant.</p>
+    <p>Les 150 derniers envois. En-tête&nbsp;: <span class="ch">4 envoi(s) aujourd'hui · 6 SMS facturés</span> puis <span class="ch">312 au total</span>. Un champ de filtre, et chaque envoi en tiroir&nbsp;: <span class="ch">✅</span> ou <span class="ch">⚠️</span>, le nom, la date, le numéro, le nombre de SMS, et le texte intégral en dépliant.</p>
+    <p><strong>Qui a envoyé se lit sur la ligne</strong>, dans une pastille&nbsp;: <span class="ch">👤 Maryne</span> en orange quand c'est quelqu'un d'autre, discrète quand c'est vous. C'est presque toujours la question qu'on se pose devant ce journal.</p>
+    <div class="note danger"><span class="tag">⚠️ Des envois manquaient au journal — et ils sont perdus</span><p><em>« Je suis dans l'historique et je ne vois nulle part ce que Maryne a envoyé ce matin. »</em></p><p>Elles n'étaient pas cachées&nbsp;: <strong>elles n'avaient jamais été écrites</strong>. Un rappel part avec le droit <span class="ch">cours</span>, que tout le monde a&nbsp;; sa ligne de journal partait avec le droit <span class="ch">sms</span>, celui qu'on donne au compte-gouttes <em>parce que les SMS se paient</em>. Ses mails partaient, sa trace était refusée, et l'erreur était avalée pour ne pas faire échouer un envoi déjà parti. <strong>Pendant des mois, sans un mot.</strong></p><p>Ce qui protège l'argent, c'est <em>l'envoi</em> d'un SMS, et il reste gardé sur sa propre route. Le journal, lui, appartient à qui envoie des rappels autant qu'à qui envoie des SMS. Et un refus s'entend désormais&nbsp;: <span class="ch">⚠️ Mail parti, mais non enregistré au journal</span>.</p><p><strong>Les lignes d'avant la correction ne peuvent pas être retrouvées.</strong> Une ligne sans auteur affiche <span class="ch">👤 auteur inconnu</span>&nbsp;: c'est le signe d'un envoi d'avant, pas d'un envoi anonyme.</p></div>
 
     <h5>🔁 Rattraper les cours depuis ces rappels</h5>
     <p><em>« Les élèves prévenus par SMS, repris du journal des envois. Désigne qui fera le cours et il rejoindra ses prochains cours. »</em> C'est la réparation quand des rappels sont partis sans créer les cours.</p>
@@ -1905,7 +1996,21 @@ html{scroll-behavior:smooth}
 
     <h4>Le rouge ne veut dire qu'une chose</h4>
     <p><strong>Échéance dépassée, sur un rendez-vous encore attendu.</strong> Rien d'autre. Un parcours abandonné n'attend plus rien&nbsp;: ses rendez-vous ne rougissent jamais. Sinon le rouge se mettrait à signaler ce que personne n'attend, et le seul retard qui compte s'y noierait.</p>
-    <p>Quatre filtres en tête de liste&nbsp;: <span class="b">Tous</span> · <span class="b">⚠️ En retard</span> · <span class="b">🗣️ Théorique à faire</span> · <span class="b">Ne valident pas</span>.</p>
+    <p>Les filtres en tête de liste&nbsp;: <span class="b">Tous</span> · <span class="b">⚠️ En retard</span> · <span class="b">🗣️ Théorique à faire</span> · <span class="b">🗓️ Organisation théorique</span> · <span class="b">🔁 À reprogrammer</span> · <span class="b">Ne valident pas</span>.</p>
+
+    <h4 id="orga-theorique">🗓️ Organisation théorique</h4>
+    <p>Un écran à part, derrière son propre bouton&nbsp;: <strong>tout ce qui concerne le rendez-vous théorique de groupe s'y trouve, et rien d'autre</strong>. Les autres filtres montrent des élèves&nbsp;; celui-ci montre des <em>tours</em>.</p>
+    <div class="tab"><table>
+      <thead><tr><th>Zone</th><th>Ce qu'on y fait</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Le tour en cours</strong></td><td>Le tableau des réponses, famille par famille et créneau par créneau — <strong>c'est lui qui sert à choisir la date</strong>. La colonne qui recueille le plus de ✅ est mise en avant. Chaque ligne porte ses gestes&nbsp;: <span class="b">📨</span> renvoyer son lien, <span class="b">🔒</span> / <span class="b">🔓</span> couper ou rendre son accès au site.</td></tr>
+        <tr><td><strong>Ceux qui n'ont pas répondu</strong></td><td>Listés à part, avec de quoi les relancer — un par un, ou tous d'un coup.</td></tr>
+        <tr><td><strong>📌 Les rendez-vous retenus</strong></td><td>Les tours clos dont la date est prise&nbsp;: la liste des élèves convoqués, et de quoi leur <strong>renvoyer leur lien</strong> pour qu'ils revoient la date sur le site.</td></tr>
+        <tr><td><strong>Les trois derniers tours terminés</strong></td><td>Pour mémoire, avec leur tableau. Au-delà de trois, ils ne servent plus.</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note astuce"><span class="tag">Retenir une date</span><p>Le bouton demande <strong>une confirmation avant d'envoyer</strong>. Les retenus reçoivent un mail de confirmation avec leur lien&nbsp;; les autres reçoivent un mot qui dit qu'<em>aucune date ne réunissait tout le monde</em> et qu'on leur en reproposera. Sur le site, chacun lit sa propre réponse&nbsp;: <span class="ch">votre rendez-vous est le …</span> ou <span class="ch">nous vous reproposerons d'autres dates</span>.</p><p>Un tour retenu peut être <strong>annulé</strong>&nbsp;: il se rouvre, et la date posée sur les fiches est retirée — seulement si elle correspond encore à ce tour-là.</p></div>
+    <div class="note astuce"><span class="tag">Couper l'accès au site</span><p>Le <span class="b">🔒</span> rend le lien d'une famille inopérant&nbsp;: <span class="ch">Ce lien n'est plus valable</span>. C'est pour un lien parti par erreur. Le <span class="b">🔓</span> le rend.</p></div>
 
     <h4>🎓 L'examen officiel — ajourné quand, et une nouvelle date ou pas</h4>
     <div class="note"><span class="tag">✨ Ajouté — v802</span><p><em>« Il me manque l'examen officiel : s'il a déjà une date, s'il a déjà été ajourné, si oui quand. Par exemple Axel Hinault, je n'ai pas l'information qu'il a été ajourné et si un nouvel examen est prévu. »</em></p></div>
@@ -2193,6 +2298,8 @@ avec une publication en deux temps :
     <p>Un bloc <span class="b">⚠️ À traiter</span> s'affiche en haut, bordé d'orange, <strong>uniquement s'il y a quelque chose</strong> — <em>« c'est ce qu'on cherche en premier le matin »</em>. Il porte <strong>trois lots, pas deux</strong>&nbsp;: <span class="b">🔄 À remplacer</span> (prévenus, à rappeler) · <span class="b">👻 Prête-noms</span> (jamais prévenus) · <span class="b">⬜ Places libres</span> (personne dessus).</p>
     <div class="note piege"><span class="tag">Déplacer une session déplace ses élèves — v849</span><p>Changer la date d'une session dans son éditeur <strong>réécrit la date d'examen de tous ceux qui y tiennent une place</strong>, y compris ceux dont le nom n'est pas dans les champs de la fenêtre.</p><p>C'est une correction, pas un effet de bord&nbsp;: avant, la session partait au 3 septembre et la fiche de l'élève restait au 2, ou perdait sa date. Il tombait alors <strong>entre deux listes</strong> — vu comme convoqué par « Élèves prêts au permis », invisible dans « Examens passés ».</p></div>
 
+    <div class="note danger"><span class="tag">⚠️ Des places vidées — et comment les retrouver</span><p><em>« Ma collègue a fait un cliquer-glisser pour modifier les sessions de certaines personnes et tout a disparu&nbsp;: ce qu'elle a décalé s'est transformé en place libre, et on ne sait plus qui était sur ces places. »</em></p><p><strong>La panne est réparée.</strong> La date d'examen s'écrit en toutes lettres — <span class="ch">lundi 14 septembre 2026</span> — et la relecture ne savait lire que <span class="ch">14/09/2026</span>&nbsp;: elle rendait donc du vide, le classeur comprenait « date effacée » et retirait l'élève de <em>toutes</em> ses places à venir. Ça se déclenchait à <strong>chaque placement</strong>, pas seulement au glisser-déposer.</p><p>Et pour ce qui a déjà été perdu, un bouton <span class="b">🔎 Retrouver les places vidées</span> en tête de l'écran des sessions&nbsp;: il liste les places devenues libres, propose les élèves qui ont perdu leur date au même moment, et les remet d'un appui.</p></div>
+
     <h5>L'en-tête d'une session</h5>
     <div class="ecran">mardi 6 octobre 2026 · 14:15   session 1/2   [3/5] 💬 ▼
 🏁 Saint-Brieuc · 👤 Chrystel · 🚗 2 BEA · 3 BV
@@ -2308,6 +2415,7 @@ Cet écran ne fait que le relire.</div>
     <div class="note astuce"><span class="tag">En lecture seule, et c'est voulu</span><p>On règle les jours dans <a href="#sessions" class="aller">🎓 Suivi permis</a>, on les <strong>regarde</strong> ici. Deux écrans où l'on saisirait les mêmes jours, ce serait deux vérités — et une seule de juste.</p><p><span class="ch">⚠️ aucun jour moto ici</span> n'est pas une semaine oubliée&nbsp;: c'est une semaine où l'on ne peut rien prendre. Le dire évite de la chercher.</p></div>
 
     <p><strong>L'étape n'est jamais choisie à la main&nbsp;: elle se déduit de ce qui est rempli.</strong> Chaque cadre est un tiroir, ouvert d'office s'il contient quelqu'un.</p>
+    <div class="note astuce"><span class="tag">Rangés par date d'examen</span><p>Dans <span class="b">🏍️ Plateau prévu</span>, <span class="b">📆 Circulation prévue</span> et leurs cadres « passé », les élèves sont <strong>groupés sous la date de leur examen</strong>, avec un titre bien visible&nbsp;: <span class="ch">📅 Lundi 14 septembre 2026 · dans 4 jours</span>. Une liste à plat ne disait pas qui passe le même jour — et c'est la seule question qu'on se pose devant ces cadres.</p><p>Une date illisible ne fait pas disparaître l'élève&nbsp;: il est rangé en dernier, sous son propre titre. <strong>Les permis remorque sont rangés de la même façon.</strong></p></div>
 
     <div class="tab"><table>
       <thead><tr><th>Cadre</th><th>Ce qu'on y fait</th></tr></thead>
@@ -2576,12 +2684,12 @@ Cet écran ne fait que le relire.</div>
   <div class="entete-chap">
     <span class="num-chap">Chapitre 7</span>
     <h2>La gestion</h2>
-    <p class="intro-chap">L'onglet <span class="b">⚙️ Gestion</span>&nbsp;: l'écran de l'accueil, les alertes, les tâches de l'équipe, la flotte, la paie, les messages aux moniteurs, les tarifs et les accès.</p>
+    <p class="intro-chap">L'onglet <span class="b">⚙️ Gestion</span>&nbsp;: l'écran de l'accueil, les alertes, les tâches de l'équipe, la flotte et la carrosserie, la paie, la caisse, les messages aux moniteurs, les tarifs et les accès.</p>
   </div>
 
   <div class="qui"><span class="lab">Ce chapitre s'adresse à</span> <span class="role admin">Admin</span> <span class="ou">— certaines vues s'ouvrent aussi à un compte bureau selon ses droits. L'administration des accès, jamais.</span></div>
 
-  <p class="chemin">Les huit vues&nbsp;: <b>📺 Affichage</b> · <b>🔔 Alertes</b> · <b>✅ Tâches</b> · <b>🚗 Flotte</b> · <b>💶 Paie</b> · <b>📨 Messages aux moniteurs</b> · <b>💰 Tarifs</b> · <b>⚙️ Accès</b></p>
+  <p class="chemin">Les vues&nbsp;: <b>📺 Affichage</b> · <b>🔔 Alertes</b> · <b>✅ Tâches</b> · <b>🚗 Flotte</b> · <b>💶 Paie</b> · <b>🏦 Caisse</b> · <b>💸 Coûts IA</b> · <b>📨 Messages internes</b> · <b>💬 SMS</b> · <b>🩹 Cours non terminés</b> · <b>🚨 Signalements</b> · <b>🧹 Ménage</b> · <b>💰 Tarifs</b> · <b>⚙️ Accès</b></p>
 
   <section id="ecran">
     <h3>📺 Affichage dynamique</h3>
@@ -2621,10 +2729,20 @@ Cet écran ne fait que le relire.</div>
 
   <section id="alertes">
     <h3>🔔 Alertes du bureau</h3>
-    <p><em>« Ce qui attend une décision, et qui voit les pastilles. »</em> Trois alertes seulement sont suivies&nbsp;: <span class="b">📝 Examen blanc à prévoir</span>, <span class="b">🌙 Simulateur nuit et risques à prévoir</span>, <span class="b">🚗 Date d'examen du permis à prévoir</span> — chacune gouvernée par son propre droit.</p>
-    <p><span class="b">🔔 En attente</span> groupe par type. Chaque ligne porte un bouton <span class="b">🙈 Masquer</span>&nbsp;: <em>« Le dossier de l'élève n'est pas modifié&nbsp;: seule l'alerte disparaît de la pastille. »</em> Les masquées sont listées dessous, avec qui les a masquées et quand, et un <span class="b">↩️ Remettre</span> sans confirmation.</p>
+    <p><em>« Ce qui attend une décision, et qui voit les pastilles. »</em> <strong>Quatre</strong> alertes sont suivies&nbsp;:</p>
+    <div class="tab"><table>
+      <thead><tr><th>Alerte</th><th>Ce qu'elle dit</th><th>Qui la voit</th></tr></thead>
+      <tbody>
+        <tr><td><span class="b">📝 Examen blanc à prévoir</span></td><td>Il en faut un, et il n'est pas posé.</td><td>droit <em>notif_examblanc</em></td></tr>
+        <tr><td><span class="b">🌙 Simulateur nuit et risques</span></td><td>Idem pour le simulateur.</td><td>droit <em>notif_simu</em></td></tr>
+        <tr><td><span class="b">🚗 Date d'examen du permis</span></td><td>Il est prêt, la date reste à prendre.</td><td>droit <em>notif_permis</em></td></tr>
+        <tr><td><span class="b">⏱️ Heures avant examen à poser</span></td><td>Quelqu'un a dit un nombre d'heures, et personne n'en a encore rien fait.</td><td><strong>tout le monde</strong></td></tr>
+      </tbody>
+    </table></div>
+    <div class="note astuce"><span class="tag">Les trois premières disent qu'il MANQUE quelque chose</span><p>La quatrième dit l'inverse&nbsp;: <strong>quelqu'un a dit quelque chose</strong>, et il faut aller le chercher. Elle porte donc le nombre <em>et son auteur</em> sur la ligne&nbsp;: <span class="ch">Nolwenn Chafotec — 4h + les 3h avant examen · dit par Erika · 08/09/2026</span>. Une alerte qui se trompe de nom, on cesse de la croire.</p><p>Elle s'éteint seule dès que l'élève a une session. Voir <a href="#bandeaujour" class="aller">le bandeau du jour</a> pour le détail.</p></div>
+    <p><span class="b">🔔 En attente</span> groupe par type. Chaque ligne porte un bouton <span class="b">🙈 Masquer</span>&nbsp;: <em>« Le dossier de l'élève n'est pas modifié&nbsp;: seule l'alerte disparaît de la pastille. »</em> Les masquées sont listées dessous, avec qui les a masquées et quand, et un <span class="b">↩️ Remettre</span> sans confirmation. Pour une alerte ⏱️, la ligne masquée rappelle <strong>le nombre</strong> qui a été écarté&nbsp;: <span class="ch">⏱️ Heures avant examen à poser (4h)</span>.</p>
     <div class="note astuce"><span class="tag">À savoir</span><p>Cet écran montre <strong>toutes</strong> les alertes, quels que soient les droits du compte connecté. C'est l'écran de réglage, pas la pastille.</p></div>
-    <div class="note bug"><span class="tag">Texte périmé</span><p>L'encart explicatif renvoie encore à <span class="ch">Outils → ⚙️ Accès</span>. L'écran des accès est désormais dans <strong>Gestion</strong>.</p></div>
+    <div class="note astuce"><span class="tag">La pastille est sur ⚙️ Gestion</span><p>Elle pointait <strong>📓 Suivi</strong> — l'onglet où les alertes ne sont pas — et le clic depuis le bandeau y menait aussi, sur un écran vide. Les deux désignent maintenant l'écran qui les porte.</p></div>
   </section>
 
   <section id="taches">
@@ -2634,7 +2752,7 @@ Cet écran ne fait que le relire.</div>
     <p>Le tri est automatique&nbsp;: urgence d'abord, puis les plus anciennes. Un filtre permet de ne voir que <span class="b">Mes tâches</span>.</p>
     <p>Trois boutons par tâche&nbsp;: un bouton d'avancement qui <strong>cycle</strong> (à faire → <span class="b">⏳ Je m'en occupe</span> → <span class="b">⏸️ Mettre en attente</span> → <span class="b">📋 Remettre à faire</span>), <span class="b">✏️ Modifier</span>, et <span class="b">✓ Terminée</span> — <em>« Elle sera SUPPRIMÉE définitivement, avec sa capture. »</em></p>
     <p>L'éditeur demande&nbsp;: <span class="b">Quoi faire</span> (120 caractères), <span class="b">Détail</span>, <span class="b">Pour qui</span> (pré-rempli sur soi-même pour une nouvelle tâche), l'importance, l'état, une date, et une <span class="b">🖼️ Capture d'écran</span>. La capture est <strong>réduite et recompressée avant envoi</strong>&nbsp;: une photo de téléphone dépasse 5&nbsp;Mo et bloquerait l'enregistrement.</p>
-    <div class="note bug"><span class="tag">Anomalie connue</span><p>Le nombre de tâches <strong>ne s'affiche jamais</strong> sur le bouton <span class="b">✅ Tâches</span>&nbsp;: le compteur vise le mauvais onglet depuis que la vue a été déplacée dans Gestion. Même chose pour la flotte.</p></div>
+    <div class="note astuce"><span class="tag">Corrigé</span><p>Le nombre de tâches ne s'affichait jamais sur le bouton <span class="b">✅ Tâches</span>&nbsp;: le compteur visait le mauvais onglet depuis que la vue avait déménagé dans Gestion. Les comptes se posent maintenant par un <strong>registre commun</strong> qui déduit l'onglet tout seul — un futur déménagement n'aura rien à corriger. La flotte et les alertes 🔔 sont réparées de la même façon.</p></div>
   </section>
 
   <section id="flotte">
@@ -2667,6 +2785,19 @@ Cet écran ne fait que le relire.</div>
     <h4>Les événements</h4>
     <p>Huit types&nbsp;: <span class="b">🔢 Relevé de compteur</span>, <span class="b">🔧 Révision / entretien</span>, <span class="b">📋 Contrôle technique</span>, <span class="b">🏭 Passage au garage</span>, <span class="b">🛞 Pneumatiques</span>, <span class="b">⚠️ Problème signalé</span>, <span class="b">📦 Accessoire</span>, <span class="b">📝 Autre</span>. La date est pré-remplie sur aujourd'hui, le compteur sur le kilométrage connu, et une case <span class="b">📅 C'est prévu, pas encore fait</span> transforme l'événement en rendez-vous.</p>
     <div class="note astuce"><span class="tag">Une aide qui annonce l'effet</span><p>Avant d'enregistrer, une phrase dit ce qui va se passer&nbsp;: <em>« Le compteur du véhicule sera mis à jour »</em>, <em>« La prochaine révision sera calculée depuis ce kilométrage »</em>, <em>« Le prochain contrôle technique sera posé automatiquement »</em>, <em>« Il restera signalé tant qu'il n'est pas marqué comme réglé »</em>.</p></div>
+
+    <h4 id="carrosserie">🩹 Carrosserie des véhicules</h4>
+    <p>Dans la même vue <span class="b">🚗 Flotte</span>, sous son propre tiroir&nbsp;: <em>« Les rayures, les chocs et les réparations, posés sur le dessin du véhicule. Une rayure signalée le jour même est une rayure qu'on n'impute à personne par erreur. »</em></p>
+    <div class="note astuce"><span class="tag">Elle était dans 🎙️ Cours</span><p><em>« Normalement c'est dans flotte qu'il doit être, il n'a rien à faire dans cours. »</em> Elle y est. Le bouton <span class="b">🚗 Flotte</span> s'ouvre sur <strong>deux droits</strong>&nbsp;: <span class="ch">flotte</span> pour ceux qui suivent le parc, <span class="ch">carrosserie</span> pour ceux qui n'y déclarent qu'une rayure. Chacun n'y voit que sa carte.</p></div>
+
+    <h4 id="cbgasoil">⛽ La CB Gasoil</h4>
+    <p>Le bouton <span class="b">💳</span> du bandeau du haut est la <strong>porte unique</strong>&nbsp;: on y prend la carte, et on la repose au même endroit. Sa couleur dit la situation la plus proche de vous&nbsp;— dorée si vous en avez une, rouge si quelqu'un d'autre en a une, neutre sinon. La <strong>lettre de chaque carte</strong> dit où elle est&nbsp;: <strong>blanche au bureau</strong>, dorée chez vous, rouge chez un autre. Un bouton <strong>barré</strong> veut dire qu'il n'y a plus rien à prendre nulle part.</p>
+    <div class="note astuce"><span class="tag">L'état ne s'écrit nulle part&nbsp;: il se déduit</span><p>Le classeur ne garde qu'une <strong>suite de gestes</strong> — prise, dépôt, plein. Le dernier de chaque carte dit où elle est. Une case « où est la carte » à côté serait une seconde vérité, et le jour où l'une des deux rate son écriture, c'est la mauvaise qui gagne.</p></div>
+    <p>En reposant la carte&nbsp;: où elle va (un des bureaux, ou <span class="b">👤 Je la passe à…</span> — une carte change souvent de main sans repasser par le bureau), puis les pleins faits, avec le véhicule, le montant, les litres et le kilométrage (facultatif). Une case <span class="b">Je n'ai pas fait le plein</span> dit ce que le silence ne dit pas&nbsp;: <em>rien fait</em> et <em>oublié de le noter</em> ne se distinguent pas autrement.</p>
+    <p>Le menu des véhicules est <strong>rangé par catégorie</strong>, comme l'écran de la flotte, et les véhicules sortis du parc n'y sont plus.</p>
+    <div class="note astuce"><span class="tag">Les 2-roues sans fiche</span><p>Tant qu'aucune moto, 125 ou scooter n'existe dans la flotte, le menu propose en bas&nbsp;: <span class="ch">⏳ Pas encore de fiche</span> → <span class="b">🏍️ Moto — sans fiche</span>, <span class="b">🏍️ 125 cm³ — sans fiche</span>, <span class="b">🛵 Scooter — sans fiche</span>. Ces entrées <strong>disparaissent d'elles-mêmes</strong> dès qu'un vrai véhicule de leur catégorie est créé.</p><p><strong>Le prix à payer, et comment on le rattrape&nbsp;:</strong> un plein noté « sans fiche » n'apparaît sur <em>aucune fiche véhicule</em> — le rapprochement se fait par le nom. Il compte bien dans le total du mois, mais il est invisible là où on ira le chercher. Dès que la fiche existe, l'écran de la flotte affiche <span class="ch">🔗 3 pleins à rattacher</span> avec un bouton par ligne.</p></div>
+    <p>L'historique — les pleins du mois et leur total — est dans <span class="b">🚗 Flotte</span>, sous le tiroir <span class="b">⛽ Les CB Gasoil</span>, avec l'endroit où chaque carte se trouve et de quoi en ajouter ou en retirer une. Le <span class="b">✏️</span> d'une ligne corrige son véhicule <strong>par un menu</strong> et son montant.</p>
+    <div class="note piege"><span class="tag">Elle traîne&nbsp;?</span><p>Une carte gardée depuis <strong>la veille</strong> — le jour du calendrier, pas vingt-quatre heures — remonte dans <a href="#bandeaujour" class="aller">le bandeau du jour</a>. Ce n'est pas le bouton qui le dit&nbsp;: lui porte l'état tous les jours&nbsp;; la ligne du bandeau appelle un geste.</p></div>
   </section>
 
   <section id="paie">
