@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 12:35 — v912 */
+/* Déployé le 10/09/2026 à 15:38 — v920 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2902,6 +2902,11 @@ function veillerDepotRdvPost(cours){
   const infos = { eleve: cours.eleve || '', date: cours.date || '',
                   modele: 'rdv-post', site: cours.site || '' };
 
+  /* Un rendez-vous qui s'ouvre est un cours qui commence : s'il en
+     restait un interdit de dépôt pour cet élève — le précédent,
+     terminé il y a une heure — il est levé ici. */
+  if(typeof reprendreLesDepots === 'function') reprendreLesDepots(infos.eleve);
+
   /* Posée UNE fois : l'écran se redessine à chaque rendez-vous, et
      des écouteurs empilés déposeraient autant de fois. Les infos,
      elles, suivent l'élève du moment. */
@@ -2974,6 +2979,18 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
   const eleve = info.eleve ||
     ($('studentName') && $('studentName').value.trim()) || '';
   if(eleve.length < 2) return;
+
+  /* ⚠️ UN COURS FINI NE SE REDÉPOSE PLUS — v920.
+
+     Ce dépôt-ci part une seconde après la dernière frappe. Sur le
+     rendez-vous post-permis, cette seconde tombait APRÈS
+     « Terminer » : le brouillon venait d'être retiré, et le
+     minuteur en retard le réinstallait dans 🩹 Cours non terminés
+     pour un rendez-vous parfaitement enregistré.
+
+     On ne cherche plus à gagner la course — on refuse le dépôt à
+     l'entrée. Voir « depotInterdit » dans ec-arriereplan.js. */
+  if(typeof depotInterdit === 'function' && depotInterdit(eleve)) return;
 
   const texte = ficheManuelleEnTexte(quelleZone);
   if(!texte) return;                 /* rien de rempli : rien à déposer */
