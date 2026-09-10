@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 10/09/2026 à 17:41 — v926 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3313,7 +3313,7 @@ async function rattraperExamensBlancs(){
     if(!String(s.heuresRestantes || '').trim()){
       if(t.ebSuite === '3h') heures = '0';
       else if(t.ebSuite === 'lecons' && t.ebLecons){
-        heures = String(Number(t.ebLecons) * 2);
+        heures = String(heuresPourLecons(t.ebLecons));
       }
     }
     const tout = (heures !== undefined && typeof champsHeuresRestantes === 'function')
