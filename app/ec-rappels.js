@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 08:56 — v905 */
+/* Déployé le 10/09/2026 à 09:27 — v906 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1741,7 +1741,26 @@ async function journaliserEnvoi(d){
       etat: d.etat || 'envoyé',
       message: d.message || ''
     });
-  }catch(e){ /* l'envoi a eu lieu : le journal ne doit pas le faire échouer */ }
+  }catch(e){
+    /* ⚠️ L'ENVOI A EU LIEU : LE JOURNAL NE DOIT PAS LE FAIRE
+       ÉCHOUER — MAIS SON REFUS DOIT S'ENTENDRE.
+
+       David, le 10 septembre : « je ne vois nulle part ce que Maryne
+       a envoyé ce matin ». Ses lignes n'étaient pas cachées : elles
+       n'avaient jamais été écrites. Le journal était derrière le
+       droit « sms », qu'elle n'a pas, et ce catch avalait le refus
+       depuis le début. Trois cent quatre-vingt-six lignes, et pas une
+       des siennes.
+
+       Le droit est corrigé côté Worker. Mais un silence qui dure des
+       mois ne doit plus être possible : si le journal refuse encore
+       une ligne, on le DIT — sans annuler l'envoi, qui est parti. */
+    if(typeof showToast === 'function'){
+      showToast('⚠️ Mail parti, mais non enregistré au journal : ' +
+                (e && e.message ? e.message : 'refus du serveur'));
+    }
+    console.warn('Journal des envois :', e);
+  }
 }
 
 /* L'envoi lui-même. Chaque destinataire reçoit son texte, et son
