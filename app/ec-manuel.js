@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 08:53 — v890 */
+/* Déployé le 10/09/2026 à 10:33 — v908 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1585,7 +1585,14 @@ async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc){
      ------------------------------------------------------------ */
   try{
     if(typeof majSuivi === 'function'){
-      const majs = { heuresRestantes: valeur };
+      /* ⚠️ LE NOMBRE PASSE PAR SA PORTE — v908. C'est ICI qu'un
+         moniteur dit « il lui faut encore 4h avant l'examen » au
+         milieu d'un cours ordinaire : le cas exact que David
+         décrivait comme tombant aux oubliettes. La porte note qui
+         l'a dit et quand, pour que l'alerte ⏱️ puisse le nommer. */
+      const majs = (typeof champsHeuresRestantes === 'function')
+        ? champsHeuresRestantes(eleve, valeur)
+        : { heuresRestantes: valeur };
 
       /* LA DATE N'APPARTIENT QU'À L'EXAMEN BLANC.
 
