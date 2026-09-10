@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 09:27 — v906 */
+/* Déployé le 10/09/2026 à 14:38 — v914 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -499,7 +499,7 @@ function etatQuiFaitFoi(nom){
        les sessions en mémoire, et seulement là : quand l'écran des
        sessions n'avait pas encore été ouvert, la carte annonçait
        « PAS DE DATE D'EXAMEN OFFICIEL — à reprogrammer » sur une
-       élève dont la date était posée depuis des jours. Chrystel :
+       élève dont la date était posée depuis des jours. David :
        « j'ai toujours pas sa nouvelle date d'examen et il me la
        faut — dans le questionnaire c'est bon mais pas dans mes
        prochains cours », puis « il a fallu que j'enregistre le
@@ -714,7 +714,7 @@ function defautsDepuisNote(note){
      prévoir », « le 19 août avec Chrystel », « fait — 6h à faire ».
      Sans cette lecture, elles restaient trois phrases recopiées
      côte à côte au lieu d'un état ; c'est exactement l'empilement
-     que Chrystel a relevé. */
+     que David a relevé. */
   /* « 2 + 3h » est la notation du bureau : deux heures de leçons,
      puis les trois heures d'avant examen. C'est ce chiffre-là qu'on
      relit — et il se lit sur la ligne où il est écrit, jamais sur
@@ -744,7 +744,7 @@ function defautsDepuisNote(note){
   const APRES_CHARNIERE = new RegExp(
     '(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+le[çc]on\\s+après\\s+' +
     /* « l'examen ajourné » est la formulation des notes écrites le
-       1er septembre, avant qu'on ne reprenne les mots de Chrystel.
+       1er septembre, avant qu'on ne reprenne les mots de David.
        Une note déjà écrite doit continuer de se relire. */
     "(l'examen blanc|le post-?permis|le dernier ajournement|l'examen ajourné)" +
     '[^(\\n]*\\(([^)\\n]*?)(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+au total', 'i');
@@ -1068,7 +1068,7 @@ const RE_NUM_LECON = /\d+\s*(?:ère|ere|ème|eme|e)(\s*le[çc]on)(?!s)/i;
 /* ============================================================
    LE RANG QU'ANNONCE UNE NOTE — UNE SEULE RÈGLE, ICI
 
-   Chrystel, plusieurs fois : « le résumé dans la fiche élève n'est
+   David, plusieurs fois : « le résumé dans la fiche élève n'est
    toujours pas bon pour le numéro de leçon, je veux la même chose
    que dans mes prochains cours ». Elle a fini par donner les trois
    phrases qui montrent tout :
@@ -1177,7 +1177,7 @@ function lignePosition(corps){
 
 /* Une note écrite avant un changement de formation.
 
-   Chrystel passe un élève en passerelle : sa note porte encore la
+   David passe un élève en passerelle : sa note porte encore la
    frise et la date d'examen de son parcours d'avant, et elles
    restent là jusqu'à ce que la réparation passe. Le type de
    formation prime — y compris à l'affichage, tout de suite. */
@@ -1223,7 +1223,7 @@ function noteSelonLaFormation(note, formation, modele){
 
        Résultat : « 🅱️ EXAMEN BLANC PAS ENCORE ÉVOQUÉ » restait sur
        la carte d'une régularisation et d'une passerelle, alors que
-       ces parcours n'ont pas d'examen blanc du tout. Chrystel :
+       ces parcours n'ont pas d'examen blanc du tout. David :
        « pour régularisation pas besoin d'écrire examen blanc pas
        encore évoqué, idem pour passerelle ».
 
@@ -1664,6 +1664,41 @@ const PARCOURS_FORMATION = [
      son bilan à elle — « ♿ Présentation à la préfecture » —
      parce qu'il n'y a PAS de CEPC : c'est validé ou non validé, et
      ce sont les réflexions de l'inspecteur qu'on note. */
+  /* ------------------------------------------------------------
+     LA CONDUITE AMÉNAGÉE
+
+     David, le 10 septembre 2026 : « il faut créer dans type de
+     formation deux nouveaux types comme on a créé Régularisation
+     BEA et Régularisation BV, sauf que là c'est comme si c'était
+     voiture automatique avec le type de bilan et le questionnaire
+     qui en découle, et si c'est Conduite aménagée BV c'est comme
+     Voiture manuelle BV. […] Ces deux formations ont une frise et
+     un examen blanc tout comme une formation classique, c'est
+     juste qu'on doit prendre obligatoirement le Q3 9 et préciser
+     les aménagements. »
+
+     ⚠️ CE N'EST PAS UNE RÉGULARISATION. La ressemblance s'arrête au
+     véhicule aménagé. Une régularisation, c'est quelqu'un qui A
+     DÉJÀ son permis et va le faire revalider : ni frise, ni examen
+     blanc, ni simulateur, ni post-permis, et un bilan à elle. Ici,
+     l'élève PASSE son permis comme tout le monde — il le passe
+     dans une voiture aménagée. Donc tout le parcours ordinaire :
+     frise saisie à la main, examen blanc, simulateur, écoute
+     pédagogique, rendez-vous post-permis. Rien dans « sansObjet ».
+
+     Deux choses lui sont propres, et deux seulement :
+
+     · LES AMÉNAGEMENTS SONT OBLIGATOIRES — même mécanique que la
+       régularisation : sans eux, la carte du cours réclame « les
+       aménagements du véhicule » comme elle réclame une frise.
+
+     · LE VÉHICULE EST IMPOSÉ. C'est le seul de la flotte qui soit
+       aménagé ; le moniteur doit le savoir avant de descendre au
+       parking, pas en arrivant devant l'élève. */
+  { cle:'Conduite aménagée BEA', boite:'BEA', modele:'conduite-auto',
+    frise:null, amenageeObligatoire:true, vehiculeImpose:'Q3' },
+  { cle:'Conduite aménagée BV',  boite:'BV',  modele:'conduite-manuelle',
+    frise:null, amenageeObligatoire:true, vehiculeImpose:'Q3' },
   { cle:'Régularisation BEA', boite:'BEA', modele:'conduite-auto', frise:'',
     /* ⚠️ SON RANG NE SE COMPTE PAS PAR BOÎTE — voir la note de la
        passerelle juste dessous. Elle porte son mot à elle, et rien
@@ -1732,7 +1767,7 @@ const PARCOURS_FORMATION = [
 
      Une leçon vaut une heure, et les étapes s'enchaînent dans cet
      ordre. Une étape qu'on ne fait pas vaut zéro : c'est ce que
-     Chrystel a demandé, et c'est ce qui permet de sauter le
+     David a demandé, et c'est ce qui permet de sauter le
      simulateur sans rien casser.
 
      Le poste de conduite aménagé n'est pas obligatoire ici — mais
@@ -1963,7 +1998,7 @@ function profilQuestionnaire(modeleCle){
    Masqués, donc vides. Et ces vides étaient écrits par-dessus le
    parcours de l'élève : un cours d'examen effaçait la frise, le
    numéro de leçon et l'examen blanc que ses leçons avaient
-   construits. Chrystel l'a vu sur Enzo — deux mois de suivi
+   construits. David l'a vu sur Enzo — deux mois de suivi
    ramenés à « 2ème leçon · PAS DE DATE ».
 
    Cette table dit quel champ porte quelle réponse. Ce qui n'a pas
@@ -2055,6 +2090,23 @@ function sansObjetPourLaFormation(formation){
 function posteAmenageObligatoire(formation){
   const p = parcoursDeLaFormation(formation);
   return !!(p && p.amenageeObligatoire);
+}
+
+/* ⚠️ LE VÉHICULE IMPOSÉ.
+
+   Une conduite aménagée ne se fait pas dans n'importe quelle
+   voiture : un seul véhicule de la flotte l'est. Il se dit donc
+   avec le reste de la préparation, à côté de la frise et de la
+   boîte — le moniteur doit le lire AVANT de descendre au parking.
+
+   On rend le MODÈLE, pas une immatriculation : la flotte nomme ses
+   voitures « Q3 9 », « A3 12 », et c'est la même convention que
+   l'affichage dynamique lit déjà (MODELES_VEHICULE). Nommer ici un
+   véhicule précis, ce serait prendre rendez-vous avec le jour où
+   il sera remplacé. */
+function vehiculeImposeParLaFormation(formation){
+  const p = parcoursDeLaFormation(formation);
+  return (p && p.vehiculeImpose) || '';
 }
 
 /* Le compteur qui remplace la frise : « leçons avant présentation
@@ -2189,7 +2241,7 @@ const ETAT_EB_IMPOSSIBLE = grasNote("NE PAS PRÉVOIR D'EXAMEN BLANC");
 /* Quand personne n'a rien dit. Une ligne quand même : sans elle on
    ne distingue pas « pas encore évoqué » de « sans objet ». */
 const ETAT_EB_RIEN      = grasNote("EXAMEN BLANC PAS ENCORE ÉVOQUÉ");
-/* ⚠️ « PAS LE NIVEAU » NE VOYAGE PLUS SEUL — Chrystel, le
+/* ⚠️ « PAS LE NIVEAU » NE VOYAGE PLUS SEUL — David, le
    4 septembre : « quand un examen blanc n'a pas le niveau, il faut
    bien écrire pas le niveau ET ajouter en majuscules FAIRE LE POINT
    À CHAQUE LEÇON ».
@@ -2249,7 +2301,7 @@ const FAMILLES_NOTE = [
      jour où il ne savait rien de cet élève. Sans famille, ils
      passaient pour du texte libre — donc pour des mots d'humain —
      et se réinstallaient derrière le 📌 de tous les cours
-     suivants. Chrystel les lisait encore sur une élève dont la
+     suivants. David les lisait encore sur une élève dont la
      frise, le rang et l'examen blanc étaient renseignés : « pourquoi
      c'est écrit en bas il faut remplir le questionnaire ? »
 
@@ -2883,7 +2935,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          dans le questionnaire d'ouverture, où l'épreuve n'a pas
          encore eu lieu.
 
-         ⚠️ MAIS IL DOIT POUVOIR SE RATTRAPER. Chrystel, le
+         ⚠️ MAIS IL DOIT POUVOIR SE RATTRAPER. David, le
          4 septembre : « j'ai un élève qui a eu un examen blanc au
          mois de mai et je ne peux pas mettre le résultat ». Le champ
          n'existait QUE sur le modèle examen blanc, en fin de cours.
@@ -4851,7 +4903,7 @@ function positionDansLaFrise(q){
   if(ebPasse){
     const apres = leconsApresExamenBlanc(q.frise);
     const avant = leconsAvantExamenBlanc(q.frise);
-    /* ⚠️ PLUS DE « 2 PRÉVUES » APRÈS L'EXAMEN BLANC — Chrystel, le
+    /* ⚠️ PLUS DE « 2 PRÉVUES » APRÈS L'EXAMEN BLANC — David, le
        4 septembre : « ce qui m'embête, c'est que dès que c'est après
        l'examen blanc, dans la parenthèse il y a le nombre de
        prévues : ça, je n'en ai besoin nulle part ».
@@ -4869,7 +4921,7 @@ function positionDansLaFrise(q){
     /* LE RANG DERRIÈRE LA CHARNIÈRE SE DÉDUIT DU RANG AFFICHÉ.
 
        « Un examen blanc n'est jamais compté comme une leçon »
-       (Chrystel, 30 août). Le rang saisi ne compte donc que des
+       (David, 30 août). Le rang saisi ne compte donc que des
        leçons de conduite, et la frise dit combien il y en avait
        avant l'examen blanc : une soustraction suffit, et la carte
        ne peut plus se contredire elle-même — la pastille disait 8
@@ -5174,7 +5226,7 @@ function normaliserNoteExamen(note){
    la même date d'examen, deux fois le même examen blanc. Chaque
    ajout était juste ; c'est leur accumulation qui ne l'est pas.
 
-   La règle est celle que Chrystel a posée : la dernière
+   La règle est celle que David a posée : la dernière
    information est la bonne. Pour chaque famille de segments
    régénérables, on ne garde donc que la DERNIÈRE, à sa place. Ce
    qui n'appartient à aucune famille — les remarques du moniteur —
@@ -5182,7 +5234,7 @@ function normaliserNoteExamen(note){
    ------------------------------------------------------------ */
 /* Parmi plusieurs lignes d'une même famille, laquelle garder ?
 
-   La dernière écrite fait foi — c'est la règle posée par Chrystel.
+   La dernière écrite fait foi — c'est la règle posée par David.
    Sauf quand cette dernière n'est que le DÉBUT d'une autre : une
    « PAS DE DATE D'EXAMEN OFFICIEL » toute nue ne doit pas effacer
    « PAS DE DATE D'EXAMEN OFFICIEL — non planifiable (Pas le
@@ -5724,6 +5776,12 @@ function recapDuCours(q, eleve, modeleCle, fiche){
   pose('🎓', 'Formation', formation, !formation);
   if(boite) pose('⚙️', 'Boîte', boite, false);
 
+  /* Le véhicule imposé se lit avec la boîte : les deux disent quoi
+     aller chercher au parking. */
+  const vImp = (typeof vehiculeImposeParLaFormation === 'function')
+    ? vehiculeImposeParLaFormation(formation) : '';
+  if(vImp) pose('🚗', 'Véhicule imposé', vImp, false);
+
   if(imposee === null) pose('📏', 'Frise', frise, !frise);
   else if(imposee) pose('📏', 'Frise', imposee, false);
 
@@ -6049,7 +6107,7 @@ async function chargerHistoriqueEleve(){
    Deux dessinateurs pour une même fiche, et c'est le moins complet
    qui s'affichait en premier. Il n'en reste qu'un —
    « ficheVehiculeAvantCours », dans ec-avant-cours.js — et il est
-   celui du bloc « préparé le », enrichi du repli que Chrystel a
+   celui du bloc « préparé le », enrichi du repli que David a
    demandé le 4 septembre : « déplié, mais possibilité de replier ».
    ============================================================ */
 
@@ -6275,7 +6333,7 @@ async function chargerHistoriquePrep(){
     const data = await r.json().catch(() => ({}));
     const res = (data && data.resultats) || [];
 
-    /* ⚠️ LE MÊME BLOC QU'À L'OUVERTURE DU COURS — Chrystel, le
+    /* ⚠️ LE MÊME BLOC QU'À L'OUVERTURE DU COURS — David, le
        4 septembre : « le même ménage dans le questionnaire de
        préparation ? — oui ».
 
