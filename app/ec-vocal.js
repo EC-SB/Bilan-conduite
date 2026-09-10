@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 10/09/2026 à 15:11 — v916 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -433,7 +433,7 @@ $('recBtn').addEventListener('click', async () => {
 
   /* ⚠️ UN NOUVEAU COURS N'EST PAS UN BILAN DÉJÀ ENREGISTRÉ.
 
-     Chrystel, un matin d'examens : « j'ai l'impression qu'il ne se
+     David, un matin d'examens : « j'ai l'impression qu'il ne se
      génère plus de brouillon pour les bilans en vocal non plus ».
      Elle avait raison, et voici pourquoi.
 
@@ -1345,7 +1345,7 @@ async function afficherFicheDuCours(){
        elle se retire, et la fiche repart comme avant.
 
        ⚠️ ELLE NE S'AFFICHE QUE POUR UN ÉLÈVE VENU D'AILLEURS
-       (Chrystel, 4 septembre). Sur les nôtres, elle se répétait sur
+       (David, 4 septembre). Sur les nôtres, elle se répétait sur
        les dix-neuf lignes pour une réponse qui est toujours non — et
        une case qui ne sert jamais finit par être cochée par erreur.
 
@@ -2587,6 +2587,16 @@ function confirmerFinDeCours(){
 
 function marquerExport(ok){
   bilanEnregistre = !!ok;
+
+  /* ⚠️ C'EST ICI QUE LE CLASSEUR VIENT DE CHANGER, ET NULLE PART
+     AILLEURS — v916. Le bilan est dans Sheets : le bandeau du jour
+     et les pastilles parlent d'un état qui n'est plus le bon.
+     Poser la relecture chez chacun des appelants aurait été une
+     parade de plus qu'on oublie ; elle est donc au seul endroit
+     qui sache que l'écriture a réussi. */
+  if(ok && typeof rafraichirLeHautApresEcriture === 'function'){
+    rafraichirLeHautApresEcriture();
+  }
   const b = $('exportEtat');
   const btn = $('exportSheetsBtn');
   if(!b) return;
