@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:30 — v919 */
+/* Déployé le 10/09/2026 à 18:02 — v927 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -176,13 +176,19 @@ const SECTIONS = [
   { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)' },
   { cle:'incidents',        nom:'🚨 Signalements' },
   { cle:'menage',           nom:'🧹 Ménage des dossiers' },
-  { cle:'admin',            nom:'⚙️ Administration des accès' },
-  /* ⚠️ UN ESSAI, PAS UN RÉGLAGE. Cette case donne la nouvelle mise
-     en page de l'onglet Cours à qui on veut l'essayer. Elle n'est
-     donnée par aucun rôle : elle se coche à la main, une personne à
-     la fois, et elle disparaîtra avec l'ancien écran une fois
-     l'essai tranché. Voir cloudflare-worker.js. */
-  { cle:'cours_neuf',       nom:'🆕 Nouvel écran de cours (essai)' }
+  { cle:'admin',            nom:'⚙️ Administration des accès' }
+  /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
+
+     C'était un droit d'essai, temporaire par construction : il
+     donnait la nouvelle mise en page de l'onglet Cours à qui
+     voulait la regarder. L'essai est tranché, tout le monde l'a,
+     et un droit que tout le monde a n'est plus un droit — c'est
+     une case de plus dans ⚙️ Accès, qui ne dit plus rien et qu'on
+     coche un jour en croyant bien faire.
+
+     ⚠️ IL PART AUSSI DU WORKER, ET LES DEUX VONT ENSEMBLE. Le
+     laisser dans « SECTIONS » là-bas ferait revenir la case par
+     l'autre bout, sans nom, à la première relecture des droits. */
 ];
 
 /* ------------------------------------------------------------
@@ -214,53 +220,65 @@ function niveauDroit(section){
 function aDroit(section){ return niveauDroit(section) !== ''; }
 
 /* ------------------------------------------------------------
-   QUI VOIT LE NOUVEL ÉCRAN DE COURS — v919
+   L'ÉCRAN DE COURS — LE NEUF PAR DÉFAUT, POUR TOUT LE MONDE (v927)
 
-   Deux façons de l'avoir, et une seule règle : le choix posé à la
-   main l'emporte, et à défaut c'est le droit qui décide.
+   David : « on met la refonte sans avoir à cliquer sur les 3
+   points, c'est l'inverse : c'est le nouvel écran, et on peut
+   repasser à l'ancien. » Et : « tout le monde bascule. »
 
-   ⚠️ LE DROIT SEUL NE SUFFISAIT PAS. ⚙️ Accès ne règle que les
-   comptes créés ; les comptes principaux — David, Chrystel — y
-   sont marqués 🔒 et n'ont aucun panneau de sections. Le droit
-   posé en v917 leur était donc indonnable : ils ne pouvaient pas
-   regarder l'essai qu'ils avaient demandé.
+   L'essai est donc tranché. Le droit « cours_neuf » disparaît —
+   un droit que tout le monde a n'est plus un droit — et il ne
+   reste qu'une chose : un moniteur qui préfère l'ancien peut y
+   revenir, dans SON navigateur, en pleine journée.
 
-   Le choix vit dans CE navigateur. Ce n'est pas une donnée de
-   l'auto-école : c'est une préférence d'affichage, le temps d'un
-   essai, et elle disparaîtra avec lui.
+   ⚠️ ET LA CLÉ CHANGE DE NOM, C'EST TOUT L'ENJEU DE CETTE
+   BASCULE.
+
+   L'ancienne clé « ec_cours_neuf » vaut « oui » chez ceux qui
+   avaient demandé l'essai — David et Chrystel. Inverser
+   seulement la LECTURE aurait fait dire à ce « oui » : « cet
+   écran-ci n'est pas le défaut, donc c'est l'ancien ». Les deux
+   seuls qui avaient dit oui auraient été les deux seuls renvoyés
+   en arrière. C'est exactement la faute de la semaine : la même
+   donnée relue avec une autre règle que celle qui l'a écrite.
+
+   La nouvelle clé dit ce qu'elle contient — « ec_cours_ancien » —
+   et personne ne l'a encore écrite : au premier chargement, tout
+   le monde est sur le neuf, y compris ceux qui portaient
+   l'ancienne. L'ancienne n'est plus lue nulle part ; elle
+   s'effacera d'elle-même avec le navigateur.
    ------------------------------------------------------------ */
 function choixEcranCours(){
-  try{ return localStorage.getItem('ec_cours_neuf') || ''; }
+  try{ return localStorage.getItem('ec_cours_ancien') || ''; }
   catch(e){ return ''; }
 }
 
 function ecranCoursNeuf(){
-  const choix = choixEcranCours();
-  if(choix === 'oui') return true;
-  if(choix === 'non') return false;
-  return aDroit('cours_neuf');
+  /* Une seule façon de ne PAS l'avoir : l'avoir demandé. */
+  return choixEcranCours() !== 'oui';
 }
 
-/* La bascule ne s'offre qu'à ceux que l'essai concerne : ceux à qui
-   on l'a donnée — pour qu'ils puissent revenir en arrière en pleine
-   journée — et les administratrices, qui n'ont pas d'autre moyen. */
+/* La bascule s'offre à tout le monde : c'est le seul moyen de
+   revenir en arrière si le nouvel écran gêne quelqu'un en pleine
+   journée. */
 function majBoutonCoursNeuf(){
   const b = document.getElementById('coursNeufBtn');
   if(!b) return;
-  const concerne = aDroit('cours_neuf') ||
-    (typeof ACCES !== 'undefined' && ACCES.role === 'admin');
-  b.style.display = concerne ? 'flex' : 'none';
+  b.style.display = 'flex';
   const t = document.getElementById('coursNeufTexte');
   if(t){
     t.textContent = ecranCoursNeuf()
       ? "Revenir à l'ancien écran de cours"
-      : 'Essayer le nouvel écran de cours';
+      : 'Revenir au nouvel écran de cours';
   }
 }
 
 function basculerEcranCours(){
   const neuf = !ecranCoursNeuf();
-  try{ localStorage.setItem('ec_cours_neuf', neuf ? 'oui' : 'non'); }catch(e){}
+  /* On écrit ce qu'on demande, pas son contraire : « ancien =
+     oui » quand on veut l'ancien. Une clé qui se lit à l'endroit
+     ne se relit jamais à l'envers. */
+  try{ localStorage.setItem('ec_cours_ancien', neuf ? 'non' : 'oui'); }catch(e){}
   document.body.classList.toggle('cours-neuf', neuf);
   majBoutonCoursNeuf();
   /* La liste se redessine : c'est elle qui monte les deux volets. */
