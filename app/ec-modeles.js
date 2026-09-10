@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:45 — v909 */
+/* Déployé le 10/09/2026 à 11:39 — v910 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1174,13 +1174,69 @@ function buildExamen(ai){
     ' ',
     ''
   ];
-  const n = Math.max(obs.length, 24);
-  for(let i = 0; i < n; i++){
-    const o = obs[i] || {};
-    parts.push('👨‍✈️' + (txt(o.inspecteur) ? ' ' + txt(o.inspecteur) : ''));
-    parts.push('🦁' + (txt(o.reponse) ? ' ' + txt(o.reponse) : ''));
+  /* ------------------------------------------------------------
+     LES REMARQUES SE RANGENT SOUS LEUR COMPÉTENCE — v910
+
+     David : « les remarques inspecteur et moniteur se rangent par
+     catégorie du CEPC, sur le même principe que les examens blancs,
+     sauf qu'il n'y a pas les 3 questions en dessous ».
+
+     ⚠️ ET LES VINGT-QUATRE PAIRES VIDES DISPARAISSENT. Le bilan
+     imprimait 👨‍✈️ / 🦁 vingt-quatre fois, remplies ou non : un
+     canevas d'avant les boutons, du temps où rien ne savait se
+     ranger. L'élève recevait donc quinze paires vides à la suite
+     d'un examen où l'inspecteur avait dit trois choses.
+
+     ⚠️ ET « erreursParCompetence » N'EST PAS RÉÉCRITE ICI. C'est
+     elle qui range déjà celles de l'examen blanc, dans l'ordre du
+     CEPC — celui que suit l'inspecteur. Un deuxième tri, et les
+     deux bilans finiraient par ne plus présenter les mêmes erreurs
+     dans le même ordre.
+
+     Ce qui diffère de l'examen blanc, et rien d'autre : pas de
+     trois questions. Un examen officiel est passé ; on ne demande
+     pas à l'élève ce qu'il propose pour la prochaine fois au milieu
+     du compte rendu de l'inspecteur. */
+  const ecrireObs = o => {
+    /* L'élimination se signale sur l'erreur, pas sur le titre :
+       une compétence peut porter une éliminatoire et d'autres
+       fautes. Même forme que dans le bilan d'examen blanc. */
+    if(txt(o.inspecteur)){
+      parts.push('👨‍✈️ ' + txt(o.inspecteur) +
+                 (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
+    }else if(o.categorie){
+      parts.push('☠️ Erreur éliminatoire');
+    }
+    if(txt(o.reponse)) parts.push('🦁 ' + txt(o.reponse));
+  };
+
+  erreursParCompetence(obs).forEach(g => {
+    parts.push('👉 ' + grasUnicode(g.categorie));
+    parts.push('');
+    g.fautes.forEach(ecrireObs);
+    parts.push('');
+  });
+
+  /* Ce qui n'a été rangé nulle part se dit quand même, à la suite.
+     Une remarque sans compétence reste une remarque de
+     l'inspecteur : la taire parce que personne n'a appuyé sur un
+     bouton, ce serait perdre ce qu'il a dit. */
+  const sansCat = (Array.isArray(obs) ? obs : []).filter(o =>
+    o && !o.categorie && !o.moins && !o.grave &&
+    (txt(o.inspecteur) || txt(o.reponse)));
+
+  if(sansCat.length){
+    sansCat.forEach(ecrireObs);
     parts.push('');
   }
+
+  /* ⚠️ ET NOTRE CEPC NE S'IMPRIME PAS ICI. David : « visible que
+     pour les moniteurs ». C'est le même écran de saisie que celui
+     de l'examen blanc — qui, lui, imprime le sien — et la seule
+     chose qui les sépare est cette absence. Ajouter un jour
+     « construireCepcTexte(ai.cepc…) » ici enverrait à l'élève une
+     grille que l'inspecteur n'a pas signée. */
+
   parts.push('𝟯-  𝙍𝙀𝙎𝙐𝙇𝙏𝘼𝙏 :');
   parts.push('- respire, c\'est fini, passe à autre chose le temps d\'avoir les résultats');
   parts.push('- on ne demande pas au moniteur (trice) ce qu\'il ou elle en pense et encore moins sur le parking d\'examen ⚠️');
