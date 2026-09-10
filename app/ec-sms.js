@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 13:21 — v768 */
+/* Déployé le 10/09/2026 à 09:27 — v906 */
 /* ============================================================
    ec-sms.js
    L'envoi de SMS, réservé au bureau.
@@ -444,6 +444,22 @@ function ligneJournal(x){
   d.style.cssText = 'border:1px solid var(--line);border-radius:9px;' +
     'padding:8px 11px;margin-bottom:5px;font-size:13px;line-height:1.55;';
 
+  /* ⚠️ QUI A ENVOYÉ SE LIT, ET SURTOUT QUAND CE N'EST PAS SOI.
+
+     David, le 10 septembre : « il faut que je voie comme si c'était
+     moi, mais oui avec qui a envoyé en plus ». Le nom y était déjà —
+     coincé en gris de onze pixels entre l'horodatage et « gratuit ·
+     envoyé ». On lisait une date, du gris, un état, et l'auteur
+     passait à travers.
+
+     La question qu'on se pose devant ce journal est presque toujours
+     « est-ce que quelqu'un l'a déjà fait ? ». C'est donc l'envoi
+     d'un AUTRE qui doit se signaler ; le sien peut rester discret. */
+  const moi = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
+  const par = String(x.par || '').trim();
+  const autre = par && (typeof normaliserMot === 'function')
+    ? normaliserMot(par) !== normaliserMot(moi) : false;
+
   const seg = parseInt(x.parties, 10) || 1;
   const cout = (canal === 'sms')
     ? ' · ' + seg + ' segment' + (seg > 1 ? 's' : '') +
@@ -455,12 +471,20 @@ function ligneJournal(x){
       '<span style="flex-shrink:0;">' + v.p + '</span>' +
       '<span style="flex:1;min-width:0;">' +
         '<strong>' + String(x.eleve || '—').replace(/</g, '&lt;') + '</strong>' +
+        (par
+          ? ' <span style="font-size:11px;padding:1px 6px;border-radius:999px;' +
+              'white-space:nowrap;' +
+              (autre
+                ? 'border:1px solid var(--orange);color:var(--accent-text);'
+                : 'border:1px solid var(--line);color:var(--muted);') + '">' +
+            (autre ? '👤 ' : '') + par.replace(/</g, '&lt;') + '</span>'
+          : ' <span style="font-size:11px;color:var(--warn-text);">' +
+            '👤 auteur inconnu</span>') +
         ' <span style="color:var(--muted);">' +
         (canal === 'mail' ? '✉️' : '💬') + ' ' +
         String(x.numero || '').replace(/</g, '&lt;') + '</span>' +
         '<div style="font-size:11px;color:var(--muted);">' +
           String(x.quand || '').replace(/</g, '&lt;') +
-          (x.par ? ' · ' + String(x.par).replace(/</g, '&lt;') : '') +
           cout +
           ' · <span style="color:' + v.c + ';">' +
           String(x.confirmeLe ? '✋ ' + v.nom
