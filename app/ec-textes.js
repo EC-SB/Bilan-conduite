@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:16 — v959 */
+/* Déployé le 11/09/2026 à 15:45 — v961 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -343,6 +343,140 @@ function etiquettesDe(m){
   return l;
 }
 
+/* ============================================================
+   LA CATÉGORIE PRIVÉE — CELLE DE CHACUN
+
+   David : « est-ce que tu peux ajouter une catégorie privée par
+   utilisateur, où chacun met ce qu'il veut, et que les admins
+   peuvent voir ».
+
+   ⚠️ PAS UNE SECONDE BIBLIOTHÈQUE. Une fiche privée est une fiche
+   comme une autre, avec une catégorie de plus : « prive:David ».
+   Un second stockage aurait voulu dire une seconde recherche, un
+   second import, une seconde liste à tenir d'accord — et le jour où
+   quelqu'un veut partager une de ses fiches, un déménagement au
+   lieu d'un clic.
+
+   Ce que ça change : les fiches privées des AUTRES ne s'affichent
+   pas. Un administrateur les voit toutes, avec le nom de leur
+   propriétaire écrit dessus — « que les admins peuvent voir »
+   veut dire voir, pas voir sans le savoir.
+   ============================================================ */
+const PREFIXE_PRIVE = 'prive:';
+
+function marqueurPriveDe(m){
+  return etiquettesDe(m).find(e => e.indexOf(PREFIXE_PRIVE) === 0) || '';
+}
+
+function proprietairePrive(m){
+  const t = marqueurPriveDe(m);
+  return t ? t.slice(PREFIXE_PRIVE.length).trim() : '';
+}
+
+function maMarquePrivee(){
+  const nom = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur)
+    ? String(ACCES.moniteur).trim() : '';
+  return nom ? PREFIXE_PRIVE + nom : '';
+}
+
+function cestMoi(nom){
+  const a = (typeof normaliserMot === 'function')
+    ? normaliserMot(nom) : String(nom || '').toLowerCase();
+  const moi = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur)
+    ? ACCES.moniteur : '';
+  const b = (typeof normaliserMot === 'function')
+    ? normaliserMot(moi) : String(moi).toLowerCase();
+  return !!a && a === b;
+}
+
+/* Un administrateur voit le privé de tout le monde. Les autres ne
+   voient que le leur. */
+function jeVoisToutLePrive(){
+  return (typeof aDroit === 'function') ? aDroit('admin') : true;
+}
+
+function jePeuxVoir(m){
+  const p = proprietairePrive(m);
+
+  /* Ma propre fiche privée, toujours. Celle d'un autre, seulement
+     si je suis administrateur. */
+  if(p && cestMoi(p)) return true;
+  if(p && !jeVoisToutLePrive()) return false;
+
+  /* ⚠️ UNE FICHE SE VOIT PAR LE CARNET OÙ ELLE EST RANGÉE. Elle en
+     a souvent plusieurs : il suffit qu'UN d'entre eux me soit
+     ouvert. Exiger qu'ils le soient tous reviendrait à cacher une
+     fiche « Conduite » parce qu'elle est aussi dans
+     « Financement » — on ne comprendrait pas pourquoi elle manque
+     dans un carnet où elle est pourtant rangée. */
+  const cats = categoriesDe(m);
+  if(!cats.length) return true;
+  return cats.some(jeVoisLaCategorie);
+}
+
+/* ============================================================
+   QUI VOIT QUELLE CATÉGORIE
+
+   David : « et qu'on puisse choisir qui voit quelle catégorie
+   aussi », puis « pour les admins, en haut, tu mets sous une roue
+   crantée, comme ça on choisit directement ici, par catégorie, qui
+   voit quelle catégorie ».
+
+   Une seule table, dans les réglages partagés : la catégorie, et
+   les noms qui la voient. Vide — ou absente — veut dire TOUT LE
+   MONDE, et c'est le cas de toutes les catégories tant que personne
+   n'a rien coché. Un réglage qui commence par tout fermer est un
+   réglage qu'on découvre en s'apercevant qu'il manque la moitié de
+   l'écran.
+   ============================================================ */
+const CLE_ACCES_CATEG = 'categories:acces';
+let accesCategories = null;
+
+async function chargerAccesCategories(){
+  if(accesCategories) return accesCategories;
+  accesCategories = {};
+  if(typeof chargerReglagesPartages !== 'function') return accesCategories;
+  try{
+    const r = await chargerReglagesPartages(false);
+    const brut = String(r[CLE_ACCES_CATEG] || '').trim();
+    if(brut) accesCategories = JSON.parse(brut) || {};
+  }catch(e){ accesCategories = {}; }
+  return accesCategories;
+}
+
+async function enregistrerAccesCategories(table){
+  accesCategories = table || {};
+  if(typeof ecrireReglagePartage !== 'function') return;
+  await ecrireReglagePartage(CLE_ACCES_CATEG, JSON.stringify(accesCategories));
+}
+
+function quiVoitLaCategorie(cat){
+  const l = (accesCategories || {})[cat];
+  return Array.isArray(l) ? l : [];
+}
+
+function jeVoisLaCategorie(cat){
+  const l = quiVoitLaCategorie(cat);
+  if(!l.length) return true;              /* personne de coché = tout le monde */
+  if(jeVoisToutLePrive()) return true;    /* un administrateur voit tout */
+  return l.some(cestMoi);
+}
+
+/* ⚠️ LA POPULATION DE L'ÉCRAN S'ÉCRIT ICI, UNE FOIS. Les compteurs
+   du rail et la liste des fiches doivent parler des mêmes fiches :
+   deux filtres, et le rail annonce douze fiches dans un carnet qui
+   en montre neuf. */
+function fichesVisibles(){
+  return (modelesTexte || []).filter(jePeuxVoir);
+}
+
+/* Les catégories d'une fiche, sans son marqueur privé : « prive:
+   David » n'est pas un carnet de l'école, il ne se range pas et ne
+   se renomme pas. */
+function categoriesDe(m){
+  return etiquettesDe(m).filter(e => e.indexOf(PREFIXE_PRIVE) !== 0);
+}
+
 /* ⚠️ L'ORDRE DES ÉTIQUETTES EST RANGÉ, PAS DEVINÉ — David : « j'ai
    besoin de modifier l'ordre des catégories aussi par un cliquer
    glisser ». Il vit dans les réglages partagés : c'est l'ordre de
@@ -375,7 +509,10 @@ async function enregistrerOrdreEtiquettes(liste){
    simplement à la fin. */
 function toutesLesEtiquettes(){
   const vues = [];
-  (modelesTexte || []).forEach(m => etiquettesDe(m).forEach(e => {
+  /* categoriesDe, pas etiquettesDe : un marqueur « prive:David »
+     n'est pas un carnet de l'école et n'a rien à faire dans le
+     rail des catégories. */
+  (modelesTexte || []).forEach(m => categoriesDe(m).forEach(e => {
     if(vues.indexOf(e) === -1) vues.push(e);
   }));
 
@@ -467,7 +604,7 @@ function fichesRangees(liste){
    masqué n'a pas déménagé. On part donc de toutes les fiches,
    rangées comme elles le sont, et on n'y bouge que celle qu'on
    tient. */
-async function bougerFiche(id, devant){
+async function bougerFiche(id, devant, apres){
   if(!id || !devant || id === devant) return;
 
   const tout = fichesRangees(modelesTexte || []).map(m => m.id);
@@ -475,7 +612,15 @@ async function bougerFiche(id, devant){
   if(de === -1 || vers === -1 || de === vers) return;
 
   const [pris] = tout.splice(de, 1);
-  tout.splice(vers, 0, pris);
+  /* ⚠️ AVANT OU APRÈS, SELON OÙ ON LÂCHE — v961. On posait toujours
+     AVANT la carte visée : impossible de mettre une fiche en
+     dernier, il n'y avait aucune carte derrière laquelle viser. Et
+     sur trois colonnes, « avant » veut dire une ligne plus haut,
+     ce qui n'est pas ce qu'on croit faire. La position du doigt
+     tranche : première moitié de la carte, on passe devant ;
+     seconde moitié, on passe derrière. */
+  const ou = tout.indexOf(devant);
+  tout.splice(apres ? ou + 1 : ou, 0, pris);
 
   ordreFiches = tout;
   dessinerListeFiches();
@@ -491,7 +636,11 @@ async function glisserFicheDUnCran(m, sens){
   const i = vues.indexOf(m.id);
   const j = i + sens;
   if(i === -1 || j < 0 || j >= vues.length) return;
-  await bougerFiche(m.id, vues[j]);
+  /* ⚠️ DESCENDRE, C'EST PASSER DERRIÈRE LE VOISIN — v961. Sans ce
+     « après », la flèche ↓ posait la fiche DEVANT celui d'en
+     dessous, c'est-à-dire exactement là où elle était déjà : le
+     bouton ne faisait rien, et rien ne le disait. */
+  await bougerFiche(m.id, vues[j], sens > 0);
 }
 
 
@@ -796,7 +945,7 @@ async function afficherModelesTexte(){
 
   zone.innerHTML = '<div class="empty">Chargement des fiches…</div>';
   await Promise.all([chargerModelesTexte(), chargerOrdreEtiquettes(),
-                     chargerOrdreFiches()]);
+                     chargerOrdreFiches(), chargerAccesCategories()]);
   dessinerBibliotheque();
 }
 
@@ -838,6 +987,19 @@ function dessinerBibliotheque(){
   bImport.addEventListener('click', ouvrirImportModeles);
   barre.appendChild(bImport);
 
+  /* ⚙️ Qui voit quelle catégorie — réservé aux administrateurs :
+     eux seuls peuvent lire la liste des comptes, et eux seuls ont à
+     décider de ce que voient les autres. */
+  if(jeVoisToutLePrive()){
+    const bReg = document.createElement('button');
+    bReg.className = 'btn btn-secondary';
+    bReg.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin:0;';
+    bReg.textContent = '⚙️';
+    bReg.title = 'Qui voit quelle catégorie';
+    bReg.addEventListener('click', ouvrirQuiVoitQuoi);
+    barre.appendChild(bReg);
+  }
+
   zone.appendChild(barre);
 
   /* ---- Le corps : les étiquettes, puis les fiches ---- */
@@ -858,9 +1020,12 @@ function dessinerRailEtiquettes(){
   if(!rail) return;
   rail.innerHTML = '';
 
-  const compte = e => (modelesTexte || [])
-    .filter(m => etiquettesDe(m).indexOf(e) !== -1).length;
-  const sans = (modelesTexte || []).filter(m => !etiquettesDe(m).length).length;
+  /* Les mêmes fiches que la liste : sinon le rail annonce douze
+     fiches dans un carnet qui en montre neuf. */
+  const vues = fichesVisibles();
+  const compte = e => vues.filter(m => categoriesDe(m).indexOf(e) !== -1).length;
+  const sans = vues.filter(m => !categoriesDe(m).length).length;
+  const prives = vues.filter(m => proprietairePrive(m)).length;
 
   const ligne = (cle, nom, n, rangeable) => {
     const b = document.createElement('button');
@@ -880,10 +1045,10 @@ function dessinerRailEtiquettes(){
       const cr = document.createElement('span');
       cr.className = 'etqCrayon';
       cr.textContent = '✏️';
-      cr.title = 'Renommer cette étiquette';
+      cr.title = 'Renommer ou supprimer cette catégorie';
       cr.addEventListener('click', e => {
         e.stopPropagation();
-        renommerEtiquette(cle);
+        ouvrirCategorie(cle);
       });
       b.appendChild(cr);
 
@@ -913,12 +1078,263 @@ function dessinerRailEtiquettes(){
     return b;
   };
 
-  ligne('', '🏷️ Toutes', (modelesTexte || []).length, false);
-  toutesLesEtiquettes().forEach(e => ligne(e, e, compte(e), true));
-  if(sans) ligne('*sans*', '📭 Sans étiquette', sans, false);
+  ligne('', '🏷️ Toutes', vues.length, false);
+
+  /* ⚠️ LE PRIVÉ EST TOUJOURS LÀ, MÊME VIDE — c'est un endroit où
+     poser quelque chose, pas un compte à afficher. Une catégorie
+     qui n'apparaît qu'une fois remplie ne se remplit jamais. */
+  ligne('*prive*',
+        jeVoisToutLePrive() ? '🔒 Privé (tout le monde)' : '🔒 Mon privé',
+        prives, false);
+
+  toutesLesEtiquettes().filter(jeVoisLaCategorie)
+    .forEach(e => ligne(e, e, compte(e), true));
+
+  /* ⚠️ « SANS CATÉGORIE » NE SE SUPPRIME PAS ET NE SE RANGE PAS —
+     David : « faire une catégorie qu'on ne peut pas supprimer, avec
+     comme nom sans catégorie ». C'est là que tombent les fiches
+     d'une catégorie qu'on efface. Elle n'existe pas dans le
+     classeur : elle est le fait de n'en avoir aucune, ce qui est
+     précisément ce qui la rend indestructible. */
+  ligne('*sans*', '📭 Sans catégorie', sans, false);
 }
 
 let glisseEtq = '';
+
+/* Les comptes de l'école, lus une fois : c'est la porte
+   d'administration qui les connaît, et elle n'est ouverte qu'aux
+   administrateurs — les seuls qui règlent cet écran. */
+let comptesConnus = null;
+
+async function chargerComptes(){
+  if(comptesConnus) return comptesConnus;
+  comptesConnus = [];
+  if(typeof appelAdmin !== 'function') return comptesConnus;
+  try{
+    const d = await appelAdmin({ action: 'list' });
+    comptesConnus = (d.utilisateurs || []).map(u => u.nom).filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, 'fr'));
+  }catch(e){ comptesConnus = []; }
+  return comptesConnus;
+}
+
+/* ============================================================
+   ⚙️ QUI VOIT QUELLE CATÉGORIE — LE PANNEAU DES ADMINISTRATEURS
+
+   David : « pour les admins, en haut, tu mets sous une roue
+   crantée, comme ça on choisit directement ici, par catégorie, qui
+   voit quelle catégorie ».
+
+   Un seul écran pour toute la table : régler carnet par carnet,
+   depuis chaque carnet, obligerait à en ouvrir douze pour savoir
+   qui voit quoi — et c'est justement la question qu'on se pose en
+   arrivant ici.
+   ============================================================ */
+async function ouvrirQuiVoitQuoi(){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(620px, 96vw);max-height:90vh;overflow-y:auto;';
+  fond.appendChild(boite);
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>⚙️ Qui voit quelle catégorie</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:14px;">Personne de coché = <strong>tout le monde ' +
+      'la voit</strong>. Coche des noms pour la réserver à ces ' +
+      'personnes-là. Les administrateurs voient tout, dans tous les ' +
+      'cas.</div>');
+
+  const zone = document.createElement('div');
+  zone.textContent = 'Chargement des comptes…';
+  zone.style.cssText = 'font-size:13px;color:var(--muted);';
+  boite.appendChild(zone);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '💾 Enregistrer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  document.body.appendChild(fond);
+
+  const gens = await chargerComptes();
+  /* Une table de travail : on ne touche à la vraie qu'au moment
+     d'enregistrer, sinon annuler ne voudrait plus rien dire. */
+  const table = JSON.parse(JSON.stringify(accesCategories || {}));
+
+  zone.textContent = '';
+  if(!gens.length){
+    zone.textContent = 'Impossible de lire la liste des comptes. ' +
+      'Cette fenêtre est réservée aux administrateurs.';
+    return;
+  }
+
+  toutesLesEtiquettes().forEach(cat => {
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'border-top:1px solid var(--line);padding:10px 0;';
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:6px;';
+    bloc.appendChild(t);
+
+    const chips = document.createElement('div');
+    chips.className = 'mdEtiq';
+    bloc.appendChild(chips);
+
+    const majTitre = () => {
+      const l = table[cat] || [];
+      t.textContent = cat + ' — ' + (l.length
+        ? l.join(', ')
+        : 'tout le monde');
+    };
+
+    gens.forEach(nom => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      const dedans = () => (table[cat] || []).indexOf(nom) !== -1;
+      const peindre = () => { b.className = 'mdEtq' + (dedans() ? ' on' : ''); };
+      b.textContent = nom;
+      peindre();
+      b.addEventListener('click', () => {
+        const l = (table[cat] || []).slice();
+        const i = l.indexOf(nom);
+        if(i === -1) l.push(nom); else l.splice(i, 1);
+        /* Une liste vide, c'est « tout le monde » : on retire la
+           clé plutôt que de garder un tableau vide qui voudrait
+           dire la même chose sous une autre forme. */
+        if(l.length) table[cat] = l; else delete table[cat];
+        peindre();
+        majTitre();
+      });
+      chips.appendChild(b);
+    });
+
+    majTitre();
+    zone.appendChild(bloc);
+  });
+
+  bOk.addEventListener('click', async () => {
+    bOk.disabled = true;
+    bOk.textContent = 'Enregistrement…';
+    try{
+      await enregistrerAccesCategories(table);
+      fermerFond(fond);
+      showToast('Enregistré ✅');
+      dessinerRailEtiquettes();
+      dessinerListeFiches();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bOk.disabled = false;
+      bOk.textContent = '💾 Enregistrer';
+    }
+  });
+}
+
+/* ============================================================
+   UNE CATÉGORIE : LA RENOMMER, OU LA SUPPRIMER
+
+   David : « je ne peux pas supprimer de catégorie ! et si elle a
+   des fiches à l'intérieur, faire une catégorie qu'on ne peut pas
+   supprimer avec comme nom sans catégorie ».
+
+   ⚠️ SUPPRIMER UNE CATÉGORIE NE SUPPRIME AUCUNE FICHE. Elle n'a
+   jamais été qu'un mot écrit sur des fiches : on l'efface de
+   celles qui le portent, et elles tombent dans « 📭 Sans
+   catégorie » — qui n'existe pas dans le classeur, qui est le fait
+   de n'en avoir aucune, et qui est donc indestructible par
+   construction.
+   ============================================================ */
+function ouvrirCategorie(cat){
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(460px, 94vw);';
+  fond.appendChild(boite);
+  fond.addEventListener('click', e => { if(e.target === fond) fermerFond(fond); });
+
+  const dedans = (modelesTexte || [])
+    .filter(m => categoriesDe(m).indexOf(cat) !== -1).length;
+
+  boite.insertAdjacentHTML('beforeend',
+    '<h3>🏷️ ' + cat.replace(/</g, '&lt;') + '</h3>' +
+    '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+      'margin-bottom:12px;">' + (dedans
+        ? dedans + ' fiche' + (dedans > 1 ? 's' : '') + ' dans cette catégorie.'
+        : 'Aucune fiche dans cette catégorie.') + '</div>' +
+    '<label for="catNom">Nom de la catégorie</label>' +
+    '<input type="text" id="catNom" style="width:100%;">');
+
+  const g = id => boite.querySelector('#' + id);
+  g('catNom').value = cat;
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'font-size:13px;min-height:16px;margin-bottom:4px;';
+  boite.appendChild(msg);
+
+  const rangee = document.createElement('div');
+  rangee.className = 'btn-row';
+  const bAnn = document.createElement('button');
+  bAnn.className = 'btn btn-secondary';
+  bAnn.textContent = 'Annuler';
+  bAnn.addEventListener('click', () => fermerFond(fond));
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.textContent = '✓ Renommer';
+  rangee.appendChild(bAnn); rangee.appendChild(bOk);
+  boite.appendChild(rangee);
+
+  bOk.addEventListener('click', async () => {
+    const neuf = g('catNom').value.trim();
+    if(!neuf || neuf === cat){ fermerFond(fond); return; }
+    if(neuf.indexOf('·') !== -1){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Le « · » sépare les catégories : il ne peut pas être dans un nom.';
+      return;
+    }
+    bOk.disabled = true;
+    bOk.textContent = 'Renommage…';
+    fermerFond(fond);
+    await renommerEtiquette(cat, neuf);
+  });
+
+  /* Discret, en bas, à part : c'est le seul geste qu'on ne
+     rattrape pas. Même règle que la suppression d'une fiche. */
+  const pied = document.createElement('div');
+  pied.style.cssText = 'margin-top:14px;padding-top:10px;' +
+    'border-top:1px solid var(--line);';
+  const bSup = document.createElement('button');
+  bSup.type = 'button';
+  bSup.className = 'fgb sup fgPetit';
+  bSup.style.marginLeft = '0';
+  bSup.textContent = '✕ Supprimer la catégorie';
+  bSup.addEventListener('click', async () => {
+    const quoi = dedans
+      ? 'Supprimer la catégorie « ' + cat + ' » ?\n\nSes ' + dedans +
+        ' fiche' + (dedans > 1 ? 's' : '') + ' ne ' +
+        (dedans > 1 ? 'sont' : 'est') + ' pas supprimée' +
+        (dedans > 1 ? 's' : '') + ' : ' + (dedans > 1 ? 'elles passent' : 'elle passe') +
+        ' dans « 📭 Sans catégorie ».'
+      : 'Supprimer la catégorie « ' + cat + ' » ?';
+    if(!await confirmer(quoi)) return;
+    bSup.disabled = true;
+    fermerFond(fond);
+    await supprimerEtiquette(cat);
+  });
+  pied.appendChild(bSup);
+  boite.appendChild(pied);
+
+  document.body.appendChild(fond);
+  setTimeout(() => g('catNom').focus(), 60);
+}
 
 /* ============================================================
    RENOMMER UNE ÉTIQUETTE
@@ -935,78 +1351,6 @@ let glisseEtq = '';
    Les fiches qui ne la portent pas ne sont pas touchées : on ne
    réécrit que ce qui change.
    ============================================================ */
-async function renommerEtiquette(ancien){
-  const rep = await demander(
-    'Ce nom sera changé sur toutes les fiches qui le portent.',
-    ancien, '🏷️ Renommer « ' + ancien + ' »');
-  if(rep === null) return;
-
-  const neuf = String(rep).trim();
-  if(!neuf || neuf === ancien) return;
-
-  /* Le point médian sépare les étiquettes dans le classeur : dans un
-     nom, il en fabriquerait deux au rechargement. */
-  if(neuf.indexOf('·') !== -1){
-    showToast('Le « · » sépare les étiquettes : il ne peut pas être dans un nom.');
-    return;
-  }
-
-  const touchees = (modelesTexte || [])
-    .filter(m => etiquettesDe(m).indexOf(ancien) !== -1);
-
-  /* L'ordre d'abord : il se range même si aucune fiche ne la porte
-     encore — une étiquette créée puis renommée avant usage. */
-  const ordre = toutesLesEtiquettes()
-    .map(e => (e === ancien ? neuf : e))
-    .filter((e, i, l) => l.indexOf(e) === i);
-
-  showToast('Renommage… ' + touchees.length + ' fiche' +
-            (touchees.length > 1 ? 's' : ''));
-
-  let rates = 0;
-
-  /* Quatre à la fois : une centaine de fiches à la queue leu leu se
-     compterait en minutes, et toutes d'un coup noierait la porte. */
-  for(let i = 0; i < touchees.length; i += 4){
-    const paquet = touchees.slice(i, i + 4).map(async m => {
-      const liste = etiquettesDe(m)
-        .map(e => (e === ancien ? neuf : e))
-        .filter((e, k, l) => l.indexOf(e) === k);
-      try{
-        /* ⚠️ ON RENVOIE LA FICHE ENTIÈRE : « modeleSet » écrit la
-           ligne complète, et un champ oublié ici s'effacerait dans
-           le classeur. Le titre part sans son ancien préfixe de
-           catégorie — elle est déjà dans la liste ci-dessus. */
-        await appelPrep({
-          action: 'modeleSet', id: m.id, usage: m.usage || 'libre',
-          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ),
-          boite: m.boite || '', ordre: !!m.ordre,
-          consigne: m.consigne || '', bilan: m.bilan || '',
-          contenu: m.contenu || ''
-        });
-        poserModeleEnMemoire(Object.assign({}, m, {
-          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ), categorie: ''
-        }));
-      }catch(e){ rates++; }
-    });
-    await Promise.all(paquet);
-  }
-
-  try{
-    await enregistrerOrdreEtiquettes(ordre);
-  }catch(e){ rates++; }
-
-  if(etiquetteChoisie === ancien) etiquetteChoisie = neuf;
-  perimerModeles();
-  dessinerRailEtiquettes();
-  dessinerListeFiches();
-
-  showToast(rates
-    ? '⚠️ Renommée, sauf ' + rates + ' fiche(s) — droit ou réseau'
-    : '🏷️ Renommée sur ' + touchees.length + ' fiche' +
-      (touchees.length > 1 ? 's' : ''));
-}
-
 /* On déplace, on n'échange pas : glisser la dernière en tête ne
    doit pas envoyer la première tout en bas. */
 async function rangerEtiquette(quoi, devant){
@@ -1029,13 +1373,107 @@ async function rangerEtiquette(quoi, devant){
    depuis le début. */
 function fichesAffichees(){
   const mots = sansAccents(rechercheFiches).split(/\s+/).filter(Boolean);
-  let liste = (modelesTexte || []).filter(m => fichePorte(m, mots));
-  if(etiquetteChoisie === '*sans*'){
-    liste = liste.filter(m => !etiquettesDe(m).length);
+  let liste = fichesVisibles().filter(m => fichePorte(m, mots));
+  if(etiquetteChoisie === '*prive*'){
+    liste = liste.filter(m => proprietairePrive(m));
+  }else if(etiquetteChoisie === '*sans*'){
+    liste = liste.filter(m => !categoriesDe(m).length);
   }else if(etiquetteChoisie){
-    liste = liste.filter(m => etiquettesDe(m).indexOf(etiquetteChoisie) !== -1);
+    liste = liste.filter(m => categoriesDe(m).indexOf(etiquetteChoisie) !== -1);
   }
   return fichesRangees(liste);
+}
+
+/* ⚠️ RENOMMER ET SUPPRIMER SONT LE MÊME GESTE — v961.
+
+   Une catégorie n'existe nulle part en propre : elle n'est que le
+   mot écrit sur les fiches qui la portent. La renommer, c'est
+   réécrire ces fiches-là ; la supprimer, c'est réécrire les mêmes
+   en retirant le mot. Deux fonctions auraient fini par ne plus
+   traiter pareil les fiches d'avant les catégories, ou par oublier
+   l'une des deux listes rangées.
+
+   Les fiches qui ne la portent pas ne sont pas touchées : on ne
+   réécrit que ce qui change. */
+async function reecrireCategorie(ancien, neuf){
+  const touchees = (modelesTexte || [])
+    .filter(m => categoriesDe(m).indexOf(ancien) !== -1);
+
+  /* L'ordre rangé d'abord : il se range même si aucune fiche ne la
+     porte encore — une catégorie créée puis renommée avant usage.
+     Et une seule des deux, c'est l'ancien nom qui revient par
+     l'autre bout à la première relecture. */
+  const ordre = toutesLesEtiquettes()
+    .map(e => (e === ancien ? neuf : e))
+    .filter(Boolean)
+    .filter((e, i, l) => l.indexOf(e) === i);
+
+  /* La table « qui voit quoi » suit le nom, sinon la restriction
+     resterait accrochée à un carnet qui n'existe plus — et le
+     nouveau serait ouvert à tous sans que personne l'ait décidé. */
+  const acces = JSON.parse(JSON.stringify(accesCategories || {}));
+  if(acces[ancien] !== undefined){
+    if(neuf) acces[neuf] = acces[ancien];
+    delete acces[ancien];
+  }
+
+  showToast((neuf ? 'Renommage… ' : 'Suppression… ') + touchees.length +
+            ' fiche' + (touchees.length > 1 ? 's' : ''));
+
+  let rates = 0;
+
+  /* Quatre à la fois : une centaine de fiches à la queue leu leu se
+     compterait en minutes, et toutes d'un coup noierait la porte. */
+  for(let i = 0; i < touchees.length; i += 4){
+    const paquet = touchees.slice(i, i + 4).map(async m => {
+      const liste = etiquettesDe(m)
+        .map(e => (e === ancien ? neuf : e))
+        .filter(Boolean)
+        .filter((e, k, l) => l.indexOf(e) === k);
+      try{
+        /* ⚠️ ON RENVOIE LA FICHE ENTIÈRE : « modeleSet » écrit la
+           ligne complète, et un champ oublié ici s'effacerait dans
+           le classeur. Le titre part sans son ancien préfixe de
+           catégorie — elle est déjà dans la liste ci-dessus. */
+        await appelPrep({
+          action: 'modeleSet', id: m.id, usage: m.usage || 'libre',
+          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ),
+          boite: m.boite || '', ordre: !!m.ordre,
+          consigne: m.consigne || '', bilan: m.bilan || '',
+          contenu: m.contenu || ''
+        });
+        poserModeleEnMemoire(Object.assign({}, m, {
+          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ), categorie: ''
+        }));
+      }catch(e){ rates++; }
+    });
+    await Promise.all(paquet);
+  }
+
+  try{ await enregistrerOrdreEtiquettes(ordre); }catch(e){ rates++; }
+  try{ await enregistrerAccesCategories(acces); }catch(e){ rates++; }
+
+  if(etiquetteChoisie === ancien) etiquetteChoisie = neuf || '';
+  perimerModeles();
+  dessinerRailEtiquettes();
+  dessinerListeFiches();
+
+  showToast(rates
+    ? '⚠️ ' + (neuf ? 'Renommée' : 'Supprimée') + ', sauf ' + rates +
+      ' fiche(s) — droit ou réseau'
+    : (neuf ? '🏷️ Renommée sur ' : '🗑️ Retirée de ') + touchees.length +
+      ' fiche' + (touchees.length > 1 ? 's' : ''));
+}
+
+async function renommerEtiquette(ancien, neuf){
+  if(!neuf || neuf === ancien) return;
+  await reecrireCategorie(ancien, neuf);
+}
+
+/* Les fiches ne sont pas supprimées : elles tombent dans
+   « 📭 Sans catégorie ». */
+async function supprimerEtiquette(cat){
+  await reecrireCategorie(cat, '');
 }
 
 function dessinerListeFiches(){
@@ -1096,15 +1534,29 @@ function carteDeFiche(m, mots){
     document.querySelectorAll('#textesZone .ficheTexte')
       .forEach(x => x.classList.remove('prise', 'cible'));
   });
+  /* De quel côté de la carte le doigt est-il ? Sur une seule
+     colonne on regarde le haut et le bas, sur plusieurs la gauche
+     et la droite — c'est là que se trouve le voisin suivant. */
+  const apresLaCarte = e => {
+    const r = d.getBoundingClientRect();
+    const enColonne = (d.parentElement || {}).clientWidth < r.width * 1.6;
+    return enColonne ? (e.clientY > r.top + r.height / 2)
+                     : (e.clientX > r.left + r.width / 2);
+  };
+
   d.addEventListener('dragover', e => {
     if(!glisseFiche || glisseFiche === m.id) return;
-    e.preventDefault(); d.classList.add('cible');
+    e.preventDefault();
+    d.classList.remove('cible', 'cibleApres');
+    d.classList.add(apresLaCarte(e) ? 'cibleApres' : 'cible');
   });
-  d.addEventListener('dragleave', () => d.classList.remove('cible'));
+  d.addEventListener('dragleave', () => d.classList.remove('cible', 'cibleApres'));
   d.addEventListener('drop', async e => {
-    e.preventDefault(); d.classList.remove('cible');
+    e.preventDefault();
+    const apres = apresLaCarte(e);
+    d.classList.remove('cible', 'cibleApres');
     if(!glisseFiche || glisseFiche === m.id) return;
-    await bougerFiche(glisseFiche, m.id);
+    await bougerFiche(glisseFiche, m.id, apres);
   });
 
   const t = document.createElement('div');
@@ -1122,10 +1574,20 @@ function carteDeFiche(m, mots){
   p.innerHTML = surligner(m.contenu || '', mots);
   d.appendChild(p);
 
-  const etq = etiquettesDe(m);
-  if(etq.length){
+  const etq = categoriesDe(m);
+  const proprio = proprietairePrive(m);
+  if(etq.length || proprio){
     const z = document.createElement('div');
     z.className = 'fe';
+    /* ⚠️ LE CADENAS DIT À QUI. Un administrateur qui voit les fiches
+       privées de son équipe doit savoir de qui elles sont : voir
+       sans le savoir, ce n'est pas voir. */
+    if(proprio){
+      const c = document.createElement('span');
+      c.className = 'fetq prive';
+      c.textContent = cestMoi(proprio) ? '🔒 Privé' : '🔒 ' + proprio;
+      z.appendChild(c);
+    }
     etq.forEach(e => {
       const s = document.createElement('span');
       s.className = 'fetq';
@@ -1336,11 +1798,15 @@ function ouvrirEditeurModele(modele, usageImpose){
     /* ⚠️ DES ÉTIQUETTES, PAS UNE CATÉGORIE — v958. On coche celles
        qu'on veut, on en crée une en la tapant. Une fiche peut en
        porter plusieurs, et en changer sans être déplacée. */
-    '<label>🏷️ Étiquettes</label>' +
+    /* ⚠️ LE MOT EST CELUI DE DAVID — v961. Il dit « catégorie »
+       depuis le premier jour ; l'écran disait « étiquette ». Deux
+       mots pour une seule chose, et une consigne écrite avec l'un
+       n'est pas suivie sur l'autre. */
+    '<label>🏷️ Catégories</label>' +
     '<div id="mdEtiq" class="mdEtiq"></div>' +
     '<div style="display:flex;gap:6px;margin:-4px 0 12px;">' +
       '<input type="text" id="mdEtiqNeuve" style="flex:1;margin:0;" ' +
-        'placeholder="Créer une étiquette…">' +
+        'placeholder="Créer une catégorie…">' +
       '<button type="button" class="btn btn-secondary" id="mdEtiqAdd" ' +
         'style="width:auto;padding:0 14px;margin:0;font-size:13px;">➕</button>' +
     '</div>' +
@@ -1630,8 +2096,35 @@ function ouvrirEditeurModele(modele, usageImpose){
     const z = g('mdEtiq');
     if(!z) return;
     z.innerHTML = '';
-    const toutes = toutesLesEtiquettes().slice();
-    mesEtiquettes.forEach(e => { if(toutes.indexOf(e) === -1) toutes.push(e); });
+
+    /* ⚠️ LA PUCE « PRIVÉ » VIENT EN PREMIER, ET C'EST UNE PUCE COMME
+       LES AUTRES — v961. Une fiche privée n'est pas rangée
+       ailleurs : elle porte une catégorie de plus. La rendre
+       publique, c'est décocher, pas déménager. */
+    const marque = marqueurPriveDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) });
+    const proprio = marque ? marque.slice(PREFIXE_PRIVE.length).trim() : '';
+    const mienne = maMarquePrivee();
+    if(mienne || marque){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mdEtq prive' + (marque ? ' on' : '');
+      b.textContent = (marque && !cestMoi(proprio))
+        ? '🔒 Privé — ' + proprio : '🔒 Privé';
+      b.title = 'Visible de toi seul, et des administrateurs';
+      b.addEventListener('click', () => {
+        if(marque){
+          mesEtiquettes.splice(mesEtiquettes.indexOf(marque), 1);
+        }else if(mienne){
+          mesEtiquettes.unshift(mienne);
+        }
+        dessinerEtiq();
+      });
+      z.appendChild(b);
+    }
+
+    const toutes = toutesLesEtiquettes().filter(jeVoisLaCategorie);
+    categoriesDe({ etiquettes: mesEtiquettes.join(SEP_ETIQ) })
+      .forEach(e => { if(toutes.indexOf(e) === -1) toutes.push(e); });
 
     toutes.forEach(e => {
       const b = document.createElement('button');
@@ -2002,7 +2495,7 @@ async function ouvrirImportModeles(){
     /* ⚠️ UNE ÉTIQUETTE, PAS UNE CATÉGORIE COLLÉE AU TITRE — v958. Et
        la liste proposée est la vraie : « listeCategories » n'a
        jamais existé nulle part, ce menu ne s'ouvrait donc jamais. */
-    '<label for="imCat">🏷️ Étiquette à poser sur tout le lot</label>' +
+    '<label for="imCat">🏷️ Catégorie à poser sur tout le lot</label>' +
     '<input type="text" id="imCat" list="imEtiqConnues" ' +
       'placeholder="Ex : 📥 Inscription — laisse vide pour ne rien poser">' +
     '<datalist id="imEtiqConnues">' +
