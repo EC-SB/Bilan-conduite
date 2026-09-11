@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:45 — v955 */
+/* Déployé le 11/09/2026 à 14:46 — v958 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 219;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 220;   /* voir apps-script.js */
 
 /* L'adresse de la page publique d'un cours, déduite de celle de
    l'application : elle vit dans le même dossier. Écrire l'adresse
@@ -263,12 +263,11 @@ function aDroit(section){ return niveauDroit(section) !== ''; }
    ⚠️ ET LA CLÉ CHANGE DE NOM, C'EST TOUT L'ENJEU DE CETTE
    BASCULE.
 
-   L'ancienne clé « ec_cours_neuf » vaut « oui » chez ceux qui
-   avaient demandé l'essai — David et Chrystel. Inverser
-   seulement la LECTURE aurait fait dire à ce « oui » : « cet
-   écran-ci n'est pas le défaut, donc c'est l'ancien ». Les deux
-   seuls qui avaient dit oui auraient été les deux seuls renvoyés
-   en arrière. C'est exactement la faute de la semaine : la même
+   L'ancienne clé « ec_cours_neuf » vaut « oui » chez celui qui
+   avait demandé l'essai — David. Inverser seulement la LECTURE
+   aurait fait dire à ce « oui » : « cet écran-ci n'est pas le
+   défaut, donc c'est l'ancien ». Le seul qui avait dit oui aurait
+   été le seul renvoyé en arrière. C'est exactement la faute de la semaine : la même
    donnée relue avec une autre règle que celle qui l'a écrite.
 
    La nouvelle clé dit ce qu'elle contient — « ec_cours_ancien » —
