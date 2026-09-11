@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:13 — v959 */
+/* Déployé le 11/09/2026 à 15:34 — v960 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -1409,6 +1409,78 @@ function libererOngletsSansVues(){
     el.classList.remove('hors-vue');
     if(el.style.display === 'none') el.style.display = '';
   });
+}
+
+/* ============================================================
+   EMMENER SUR UNE PERSONNE, PAS SEULEMENT SUR UN ÉCRAN
+
+   David, le 11 septembre : « quand on clique sur le nom de la
+   personne dans "choses à voir", est-ce qu'on arrive à l'endroit
+   concerné, sur la bonne personne, avec l'écran centré dessus, et
+   pas dans Alertes du bureau ? »
+
+   Non, on n'y arrivait pas : le bandeau demandait un ÉCRAN. Le nom
+   était écrit dans la ligne, il n'était simplement transmis à
+   personne — et pour deux familles sur quatre, l'écran demandé
+   était celui des alertes, c'est-à-dire l'endroit d'où l'on vient.
+
+   ⚠️ UNE SEULE PORTE, ET ELLE PORTE LE NOM. Le bandeau n'est pas le
+   seul endroit d'où l'on voudra « aller voir Untel » : une
+   deuxième version de ce trajet écrite ailleurs finirait par ne
+   plus ouvrir les mêmes volets ni surligner pareil.
+   ============================================================ */
+
+/* La ligne d'une personne porte son nom : « data-eleve », posé une
+   fois dans ligneBureau et dans les deux lignes du suivi AAC/CS. */
+function viserLaPersonne(nom, essais){
+  const cible = (typeof normaliserMot === 'function')
+    ? normaliserMot(nom) : String(nom || '').toLowerCase();
+  if(!cible) return;
+
+  const lignes = document.querySelectorAll('[data-eleve]');
+  let trouvee = null;
+  for(let i = 0; i < lignes.length; i++){
+    const n = lignes[i].dataset.eleve || '';
+    const vu = (typeof normaliserMot === 'function')
+      ? normaliserMot(n) : n.toLowerCase();
+    if(vu === cible && lignes[i].offsetParent !== null){ trouvee = lignes[i]; break; }
+    if(vu === cible && !trouvee) trouvee = lignes[i];
+  }
+
+  /* ⚠️ LA LISTE ARRIVE APRÈS L'ÉCRAN. Les vues se remplissent par
+     un appel réseau : chercher une seule fois, c'est chercher trop
+     tôt une fois sur deux, et abandonner sans rien dire. On
+     réessaie pendant quelques secondes, puis on renonce. */
+  if(!trouvee){
+    const reste = (essais === undefined ? 24 : essais) - 1;
+    if(reste > 0) setTimeout(() => viserLaPersonne(nom, reste), 200);
+    return;
+  }
+
+  /* Un volet replié ne se fait pas défiler : on l'ouvre d'abord.
+     C'est le cas de « À envisager », dont chaque liste est un
+     tiroir. */
+  let p = trouvee.parentElement;
+  while(p && p !== document.body){
+    if(p.tagName === 'DETAILS' && !p.open) p.open = true;
+    p = p.parentElement;
+  }
+
+  try{ trouvee.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){}
+
+  /* Et on la montre du doigt : arriver au bon endroit sans savoir
+     laquelle c'est, c'est arriver à moitié. */
+  document.querySelectorAll('.vise').forEach(x => x.classList.remove('vise'));
+  trouvee.classList.add('vise');
+  setTimeout(() => trouvee.classList.remove('vise'), 3000);
+}
+
+function allerSurLaPersonne(onglet, vue, nom){
+  try{
+    if(typeof afficherOnglet === 'function') afficherOnglet(onglet);
+    if(typeof afficherVue === 'function') afficherVue(onglet, vue);
+    if(nom) viserLaPersonne(nom);
+  }catch(e){ console.warn('Aller sur la personne :', e); }
 }
 
 function afficherVue(onglet, cle){
