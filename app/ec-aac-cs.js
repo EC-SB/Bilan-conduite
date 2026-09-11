@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 09:36 — v907 */
+/* Déployé le 11/09/2026 à 14:04 — v956 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -3409,6 +3409,65 @@ function elevesAac(){
    L'ÉCRAN AAC
    ------------------------------------------------------------ */
 let filtreAac = 'tous';
+
+/* ============================================================
+   LES COMPTES DE L'AAC, SANS DESSINER L'ÉCRAN — v956
+
+   David : « Suivi AAC tu fais une brique avec le nombre total
+   d'élève, une brique avec le nombre en retard de RVP1 et de RVP2
+   sur 2 lignes, une brique avec le nombre de rendez-vous théorique
+   à prévoir ».
+
+   ⚠️ RIEN N'EST RECOMPTÉ ICI. « En retard » et « théorique à
+   prévoir » sont déjà décidés par dossierAac — etatRdv pour le
+   retard, rvtManquant pour le théorique. Les redire autrement,
+   c'est se donner deux vérités : la tuile annoncerait trois
+   retards au-dessus d'une liste qui en montre deux.
+
+   Comme pour la moto, on ne dessine pas pour compter : cette
+   fonction ne touche à aucun élément de page, sans quoi les tuiles
+   resteraient muettes tant que personne n'aurait ouvert l'écran.
+
+   ⚠️ ET LE THÉORIQUE N'EST JAMAIS « EN RETARD » : il n'a pas
+   d'échéance — « n'importe quand après le préalable ». Son seul
+   signal est « pas encore fait », et c'est voulu. */
+function comptesAac(){
+  if(typeof elevesAac !== 'function') return null;
+  /* Le répertoire sert à reconnaître un élève tout neuf : sans lui,
+     le compte serait partiel en se donnant pour complet. */
+  if(typeof fichesEleves !== 'undefined' && !fichesEleves.length &&
+     typeof etatBureau !== 'undefined' && !(etatBureau.eleves || []).length){
+    return null;
+  }
+
+  const c = { total: 0, rvp1: 0, rvp2: 0, rvt: 0 };
+  elevesAac().forEach(x => {
+    c.total++;
+    if(x.rdv && x.rdv.rvp1 && x.rdv.rvp1.retard) c.rvp1++;
+    if(x.rdv && x.rdv.rvp2 && x.rdv.rvp2.retard) c.rvp2++;
+    if(x.rvtManquant) c.rvt++;
+  });
+  return c;
+}
+
+/* Les trois briques du suivi AAC. */
+function tuilesAac(){
+  const c = comptesAac();
+  if(c === null) return null;
+
+  return [
+    { cle:'aac:total', lib:'Élèves en AAC', vue:'suiviaac',
+      valeur:() => ({ n: c.total }) },
+    { cle:'aac:retard', lib:'Rendez-vous en retard', vue:'suiviaac', ton:'urgent',
+      valeur:() => ({ n: c.rvp1 + c.rvp2,
+                      /* Deux lignes, comme demandé : ce ne sont pas
+                         les mêmes rendez-vous ni la même échéance. */
+                      sous: (c.rvp1 + ' RVP 1') + '\n' + (c.rvp2 + ' RVP 2') }) },
+    { cle:'aac:rvt', lib:'Théoriques à prévoir', vue:'suiviaac', ton:'att',
+      valeur:() => ({ n: c.rvt }) }
+  ];
+}
+
 
 function dessinerListeAac(zone){
   const liste = elevesAac();
