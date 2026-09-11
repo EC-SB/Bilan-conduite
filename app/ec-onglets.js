@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:02 — v927 */
+/* Déployé le 11/09/2026 à 10:46 — v942 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -249,7 +249,12 @@ const VUES = {
               Le FICHIER reste : « signalerCoursDemarre » et
               « signalerCoursFini » y vivent, et tout cours
               enregistré passe par elles. */
-           ['stats',      '📈 Réussite',               'stats'],
+           /* ⚠️ DEUX DROITS OUVRENT CE BOUTON, comme pour la Flotte.
+              « stats » montre l'équipe, « stats_perso » ne montre
+              que son propre taux. Le bouton s'affiche à qui a l'un
+              des deux ; c'est l'écran qui décide ensuite de ce
+              qu'il contient. */
+           ['stats',      '📈 Réussite',               ['stats', 'stats_perso']],
            ['journal',    '📊 Journal',                'journal']],
 
   /* Ce qui relève de la gestion de l'entreprise */
