@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 08:41 — v937 */
+/* Déployé le 11/09/2026 à 10:38 — v941 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -1016,7 +1016,11 @@ if($('motoActualiser')) $('motoActualiser').addEventListener('click', () => {
   if(typeof afficherBureau === 'function') afficherBureau(true);
   if(typeof afficherMoto === 'function') afficherMoto();
 });
-if($('statsBtn')) $('statsBtn').addEventListener('click', afficherStats);
+/* Le bouton « Calculer » et le menu « Période » ont disparu de la
+   page en v941 : l'écran se calcule à l'ouverture, et la période se
+   choisit en boutons construits par ec-stats.js. On retire aussi les
+   deux branchements — un « if » qui ne trouve jamais son élément est
+   un morceau de code qui a l'air vivant. */
 if($('importBtn')) $('importBtn').addEventListener('click', importerListeEleves);
 if($('rappelModeManuel')) $('rappelModeManuel').addEventListener('click', () => modeRappel('manuel'));
 if($('rappelModeHistorique')) $('rappelModeHistorique').addEventListener('click', () => modeRappel('historique'));
@@ -1054,7 +1058,6 @@ if($('eleveMessenger')){
   $('eleveMessenger').addEventListener('blur', enregistrerMessengerEleve);
 }
 brancherFichierCsv();
-if($('statsPeriode')) $('statsPeriode').addEventListener('change', afficherStats);
 if($('statsRang')) $('statsRang').addEventListener('change', afficherStats);
 /* Le menu et le bouton sont désormais construits par ec-messenger.js,
    et l'ouverture de l'onglet Permis déclenche l'affichage. */
