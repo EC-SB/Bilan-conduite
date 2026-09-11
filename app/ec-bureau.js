@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:04 — v944 */
+/* Déployé le 11/09/2026 à 11:23 — v946 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1380,6 +1380,20 @@ function majVolet(id, nombre, alerte){
   if(!el) return;
   el.textContent = nombre ? String(nombre) : '';
   el.classList.toggle('alerte', !!alerte);
+  /* ⚠️ « ZÉRO » ET « PAS ENCORE LU » S'ÉCRIVAIENT PAREIL — v946.
+
+     Un compteur vide veut dire zéro… ou bien que sa liste n'a
+     jamais été dessinée. Tant que personne ne lisait ces compteurs
+     ailleurs, la confusion ne coûtait rien.
+
+     Les tuiles « En un coup d'œil » les lisent : sans cette
+     marque, une porte d'entrée annoncerait « rien qui attende »
+     sur des listes qu'elle n'a pas encore lues — et mentirait
+     exactement au moment où on lui fait confiance.
+
+     Une marque posée à la première écriture suffit à distinguer
+     les deux. */
+  el.dataset.pose = '1';
 }
 
 /* Retire complètement un élève depuis n'importe quelle liste du bureau.
