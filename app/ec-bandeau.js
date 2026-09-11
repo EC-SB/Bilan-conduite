@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:26 — v918 */
+/* Déployé le 11/09/2026 à 14:04 — v956 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -334,7 +334,17 @@ function lignesAacCs(){
    déjà, et la case est la même que dans les listes et le dossier
    élève — voir casePrevenu(). Le type « permis » n'en a pas : sa
    croix est celle de tout le monde. */
-const PREVENU_DU_TYPE = { examblanc: 'ebPrevenu', simu: 'simuPrevenu', permis: '' };
+/* ⚠️ LA TABLE DES CHAMPS A DÉMÉNAGÉ — v956.
+
+   Elle disait ici quel champ du suivi porte « prévenu » — et la
+   liste des examens blancs, elle, en cochait un AUTRE. Deux cases
+   pour un même fait : celui qui cochait au bureau ne décochait pas
+   la ligne du bandeau.
+
+   La réponse vit maintenant dans estPrevenu (ec-listes.js), qui lit
+   les deux traces. Ne reste ici que ce que le bandeau seul sait :
+   quelles familles ont une case, et laquelle n'en a pas. */
+const FAMILLES_AVEC_PREVENU = { examblanc: true, simu: true, permis: false };
 
 /* ⚠️ DEUX FAMILLES, UNE SEULE LECTURE — v908.
 
@@ -377,9 +387,8 @@ function lignesDesAlertes(){
       return;
     }
 
-    const champ = PREVENU_DU_TYPE[fam];
-    const s = (typeof suiviDe === 'function') ? suiviDe(n.eleve) : {};
-    const prevenu = !champ || String(s[champ] || '') === 'oui';
+    const prevenu = !FAMILLES_AVEC_PREVENU[fam] ||
+      ((typeof estPrevenu === 'function') ? estPrevenu(n.eleve, fam) : true);
 
     out.push({
       id: 'aprevoir:' + normaliserMot(n.eleve) + ':' + n.type,
