@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:04 — v956 */
+/* Déployé le 11/09/2026 à 14:18 — v957 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -230,6 +230,11 @@ const VUES = {
 
            ['evaluation', '📊 Évaluation',            'evaluation',  'Administratif'],
            ['financements','💶 Financements',         'financements','Administratif'],
+           /* ⚠️ IL A CHANGÉ D'ONGLET — v957. David : « paiement en
+              plusieurs fois, mets-le dans élèves administratif ».
+              Et derrière les financements : c'est une façon de
+              payer, elle se lit à la suite des autres. */
+           ['paiement',   '💳 Paiement en plusieurs fois', 'paiement', 'Administratif'],
            ['handicap',   '♿ Handicap',               'handicap',    'Administratif'],
            ['code',       '🎓 Code',                   'code',        'Administratif'],
 
@@ -252,7 +257,6 @@ const VUES = {
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
 
            ['placesbe',   '🚚 Places BE',              'placesbe',    'Demandes'],
-           ['paiement',   '💳 Paiement en plusieurs fois', 'paiement', 'Demandes'],
            /* « 📚 Historique des cours » a été retiré.
 
               Ce bouton ne chargeait RIEN : sa vue n'était branchée
