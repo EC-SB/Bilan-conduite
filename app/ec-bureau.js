@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:56 — v943 */
+/* Déployé le 11/09/2026 à 11:04 — v944 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1238,8 +1238,34 @@ async function ajouterDateBureau(){
    sache : d'autres personnes les modifient. On rafraîchit seul.
    ============================================================ */
 
+/* ⚠️ UN ENVOI TIENT LE CLASSEUR — v944.
+
+   Le rafraîchissement automatique se tait quand quelqu'un tape
+   dans un champ ou qu'une fenêtre est ouverte. Mais dès qu'on
+   appuie sur « Envoyer », la fenêtre de confirmation se ferme, le
+   curseur quitte le champ — et les quatre-vingt-dix secondes
+   peuvent tomber en plein milieu de l'envoi.
+
+   Le classeur ne traite qu'une chose à la fois : le lien du rappel
+   attendait alors derrière une relecture complète du bureau, et
+   dépassait son délai. Le mail partait sans son bouton de
+   confirmation, et David l'a vu plusieurs fois.
+
+   Un envoi n'est pas moins « occupé » qu'une saisie : il l'est
+   davantage — une saisie ne fait rien pendant qu'on la tape.
+
+   ⚠️ UN COMPTEUR, PAS UN BOOLÉEN. Deux envois peuvent se
+   chevaucher (l'élève et son financeur, un renvoi lancé sans
+   attendre) : un booléen remis à faux par le premier libérerait le
+   second, qui se ferait alors couper. */
+let envoisEnCours = 0;
+
+function debutEnvoi(){ envoisEnCours++; }
+function finEnvoi(){ envoisEnCours = Math.max(0, envoisEnCours - 1); }
+
 /* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
 function bureauOccupe(){
+  if(envoisEnCours > 0) return true;
   const a = document.activeElement;
   if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName || '')) return true;
   if(document.querySelector('.overlay.show')) return true;
