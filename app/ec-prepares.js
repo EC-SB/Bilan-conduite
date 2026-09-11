@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 19:08 — v934 */
+/* Déployé le 11/09/2026 à 08:41 — v937 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2041,6 +2041,58 @@ async function afficherPrepares(recharger, silencieux){
       depart.appendChild(bGo);
       depart.appendChild(bMain);
       row.appendChild(depart);
+
+      /* ------------------------------------------------------------
+         LE COURS EN ROUTE, SUR LA CARTE — v937
+
+         Deux cas, et le même état les décide :
+
+         · c'est CETTE carte qui tourne → elle se marque, et son
+           bouton ne propose plus de démarrer ce qui est déjà
+           démarré : il y ramène ;
+         · c'est une AUTRE → le bouton cesse de dire « Démarrer »
+           et dit ce qui va vraiment se passer.
+
+         ⚠️ L'AVERTISSEMENT AVANT LE DOIGT, PLUS APRÈS. La question
+         de confirmation reste derrière, inchangée. Mais on ne peut
+         plus appuyer « sans faire attention » sur un bouton qui
+         annonce « Remplacer le cours en route ». C'est ce que David
+         a préféré à un blocage : « un élève qui ne vient pas, on
+         prend le suivant ».
+         ------------------------------------------------------------ */
+      const enRoute = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
+      if(enRoute){
+        const memeEleve = normaliserMot(enRoute.eleve) ===
+                          normaliserMot(cours.eleve || '');
+        if(memeEleve){
+          row.classList.add('en-route');
+          if(enRoute.enPause) row.classList.add('en-pause');
+          marquerLaCarteEnRoute(meta, enRoute);
+
+          bGo.textContent = enRoute.enPause ? '⏸ Reprendre le cours'
+                                            : '⏺ Revenir au cours';
+          bGo.classList.add('retour');
+          bGo.style.display = '';
+          bMain.style.display = 'none';
+          /* On ne rouvre pas ce qui est ouvert : on y ramène. */
+          bGo.replaceWith(bGo.cloneNode(true));
+          depart.querySelector('.btnDemarrer').addEventListener('click', () => {
+            if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+            if(typeof amenerAuCours === 'function') amenerAuCours();
+          });
+        }else{
+          [bGo, bMain].forEach(b => {
+            if(b.style.display === 'none') return;
+            b.classList.add('remplace');
+            b.textContent = '↪️ Remplacer le cours en route ▸';
+          });
+          const raison = document.createElement('div');
+          raison.className = 'raisonRemplace';
+          raison.textContent = enRoute.eleve +
+            ' sera mis(e) à l\'abri dans « Cours non terminés ».';
+          depart.appendChild(raison);
+        }
+      }
     }
 
     /* Dans le tiroir du jour, pas dans la liste générale */
@@ -3044,6 +3096,34 @@ async function dernierExamenOfficielDe(eleve){
 
   examens.sort((a, b) => (Number(b.ligne) || 0) - (Number(a.ligne) || 0));
   return examens[0];
+}
+
+/* ============================================================
+   LA PASTILLE DU COURS EN ROUTE
+
+   Elle se pose à côté de l'heure, dans l'en-tête de la carte :
+   c'est la première chose qu'on regarde, et elle ne décale rien.
+
+   ⚠️ ELLE NE DIT PAS « EN COURS » QUAND C'EST FAUX. David : « non,
+   on écrit en pause ». Un micro arrêté ne termine rien — l'élève
+   est toujours là — mais dire « en cours » sur une dictée à
+   l'arrêt, c'est laisser croire qu'on enregistre.
+   ============================================================ */
+function marquerLaCarteEnRoute(meta, etat){
+  if(!meta || !etat) return;
+  const tete = meta.querySelector('.tete') || meta;
+  const p = document.createElement('span');
+  p.className = 'pastilleEnRoute' + (etat.enPause ? ' pause' : '');
+  const rond = document.createElement('span');
+  rond.className = 'rond';
+  p.appendChild(rond);
+  const mot = document.createElement('span');
+  const quand = (typeof depuisCombien === 'function')
+    ? depuisCombien(etat.depuis) : '';
+  mot.textContent = (etat.enPause ? 'EN PAUSE' : 'EN COURS') +
+                    (quand ? ' · ' + quand : '');
+  p.appendChild(mot);
+  tete.appendChild(p);
 }
 
 /* ============================================================
