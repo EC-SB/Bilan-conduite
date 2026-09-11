@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:35 — v931 */
+/* Déployé le 11/09/2026 à 10:25 — v940 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -176,7 +176,7 @@ async function afficherPostExamen(tous){
         /* ------------------------------------------------------
            IL N'Y EST PAS ALLÉ
 
-           Chrystel : « j'ai des élèves qui n'ont pas passé leur
+           David : « j'ai des élèves qui n'ont pas passé leur
            permis, il faut que je puisse les enlever ».
 
            Ni « obtenu » ni « ajourné » : la troisième réponse
@@ -1171,7 +1171,7 @@ async function ouvrirMessagesAjourne(eleve){
 
   /* ⚠️ LES CAPTURES SE MONTRENT ICI, ELLES NE SE DÉCRIVENT PAS.
 
-     Chrystel, le 4 septembre : « quand ils sont ajournés, tu peux me
+     David, le 4 septembre : « quand ils sont ajournés, tu peux me
      remettre les captures d'écran ici, pour que je puisse copier
      coller directement sans avoir à fermer et rouvrir ce pop-up ? »
 
@@ -1916,7 +1916,7 @@ function parcoursDe(e){
 /* ============================================================
    🚗 → 🅱️ LE PASSAGE EN PASSERELLE BEA → BV
 
-   Chrystel, le 4 septembre 2026 : « quand c'est un permis obtenu en
+   David, le 4 septembre 2026 : « quand c'est un permis obtenu en
    BEA, que ça inscrive automatiquement l'élève à une autre formation
    de type passerelle BEA → BV, et que ça supprime tous ses bilans de
    conduite BEA — avec une validation avant, bien évidemment ».
@@ -2051,7 +2051,7 @@ async function proposerPasserelle(x, boite){
 /* ⚠️ DEUX FAÇONS DE SAVOIR LA BOÎTE, ET C'EST LA PLUS COURTE QUI
    DÉCIDAIT SI LA PASSERELLE EST PROPOSÉE.
 
-   Chrystel, le 4 septembre : « il est où le bouton, quand un élève
+   David, le 4 septembre : « il est où le bouton, quand un élève
    en BEA a eu son permis, pour dupliquer sa fiche en passerelle ? »
 
    Il n'y a pas de bouton : la question s'ouvre toute seule après
@@ -2079,6 +2079,53 @@ function boiteDePostPermis(e){
   return 'BV';
 }
 
+/* ============================================================
+   QUI A PRÉSENTÉ CE CANDIDAT
+
+   David, le 11 septembre 2026 : « il faut bien prendre pour le
+   résultat le moniteur qui a fait le bilan d'examen officiel, pas
+   celui qui renseigne le résultat ».
+
+   ⚠️ TROIS NOMS TOURNENT AUTOUR D'UN RÉSULTAT D'EXAMEN, ET DEUX
+   SONT FAUX.
+
+   · « moniteurDate » (fiche de suivi) : qui va CHERCHER la date à
+     la préfecture. Un rôle administratif, attribuable en lot à une
+     liste entière — il ne dit rien de qui était dans la voiture.
+   · « e.moniteur » (état du bureau) : le moniteur de la DERNIÈRE
+     ligne de bilan de l'élève, quel qu'en soit le type. Une leçon
+     ordinaire de la veille suffit à le changer.
+   · le moniteur du BILAN D'EXAMEN OFFICIEL : celui qui a préparé
+     et présenté le candidat. C'est le seul des trois qui réponde à
+     la question posée.
+
+   On prenait les deux premiers, dans cet ordre. Le taux de
+   réussite par moniteur était donc attribué, la plupart du temps,
+   à qui avait pris la date.
+
+   Encore la faute de la semaine : la même chose lue à deux
+   endroits, et c'est le mauvais qui gagne.
+
+   ⚠️ ET L'ABSENCE DE NOM EST UNE RÉPONSE. Quand aucun bilan
+   d'examen officiel ne porte de nom, on ne sait pas qui a
+   présenté : on rend le vide. Un résultat sans moniteur n'entre
+   dans aucun taux et se rattrape à la main depuis l'écran
+   Réussite. Sans savoir qui l'a présenté, compter c'est inventer.
+   ============================================================ */
+async function moniteurQuiAPresente(eleve){
+  if(typeof dernierExamenOfficielDe !== 'function') return '';
+  try{
+    const ex = await dernierExamenOfficielDe(eleve);
+    return String((ex && ex.moniteur) || '').trim();
+  }catch(e){
+    /* Le classeur n'a pas répondu. On ne devine pas un nom pour
+       autant : un résultat sans moniteur se répare, un résultat
+       attribué au mauvais ne se voit jamais. */
+    console.warn('Moniteur du bilan d\'examen officiel introuvable :', e);
+    return '';
+  }
+}
+
 /* Consigne le résultat, pour les statistiques */
 async function consignerResultat(e, resultat, iso){
   const s = suiviDe(e.eleve) || {};
@@ -2096,6 +2143,12 @@ async function consignerResultat(e, resultat, iso){
      relu une fois de trop. */
   if(typeof oublierResultatsConnus === 'function') oublierResultatsConnus();
 
+  /* Une lecture de plus avant d'écrire : celle du bilan d'examen
+     officiel. Elle coûte un aller-retour, une fois par résultat —
+     et c'est ce qui fait la différence entre un taux de réussite
+     et un classement au hasard. */
+  const presentePar = await moniteurQuiAPresente(e.eleve);
+
   try{
     await appelPrep({
       action: 'resultatAdd',
@@ -2104,7 +2157,7 @@ async function consignerResultat(e, resultat, iso){
       resultat: resultat,
       boite: boiteDePostPermis(e),
       parcours: parcoursDe(e),
-      moniteur: s.moniteurDate || e.moniteur || '',
+      moniteur: presentePar,
       centre: s.centre || '',
       rang: String((parseInt(s.nbAjournements, 10) || 0) + 1)
     });
