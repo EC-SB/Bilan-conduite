@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:01 — v938 */
+/* Déployé le 11/09/2026 à 11:29 — v947 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -6010,14 +6010,76 @@ function ajouterANote(champ, texte){
    dès la saisie du nom et gardé dix minutes en mémoire, le lire
    ici ne coûte donc ni appel ni attente.
    ------------------------------------------------------------ */
+/* ============================================================
+   CE QU'ON SAIT DÉJÀ DE L'ÉLÈVE, SANS RIEN DEMANDER — v947
+
+   David, capture de « Mes prochains cours » : « j'ai ces messages
+   sur tous les cours alors que pour la plupart les informations
+   sont déjà connues car déjà eu des cours. Pourquoi est-ce que ça
+   ne remonte pas tout seul ? »
+
+   Parce qu'on demandait au mauvais endroit.
+
+   Le dossier complet d'un élève — sa frise, ses leçons comptées —
+   se lit par un appel réseau PAR ÉLÈVE, et se garde en cache. Ce
+   cache ne se remplit qu'en ouvrant son questionnaire ou sa fiche.
+   Au chargement de la liste des prochains cours, il est donc vide
+   pour tout le monde : dix-huit élèves qui ont tous des leçons
+   derrière eux, et dix-huit « il manque ».
+
+   ⚠️ OR LA RÉPONSE ÉTAIT DÉJÀ EN MÉMOIRE.
+
+   Cet écran charge l'état du bureau, qui porte POUR CHAQUE ÉLÈVE,
+   en un seul appel : le nombre de ses cours de conduite, et la note
+   interne de son dernier bilan — celle d'où la frise s'extrait.
+
+   La même question était donc posée à deux endroits, et c'est le
+   plus pauvre qui répondait. Cette fonction est la seule porte : le
+   cache complet s'il est là, l'état du bureau sinon, et rien
+   d'inventé au-delà.
+
+   ⚠️ ELLE NE DEMANDE RIEN AU RÉSEAU, ET C'EST LA CONDITION. Aller
+   chercher le dossier de chaque carte, ce serait dix-huit
+   allers-retours à chaque ouverture de l'écran.
+   ============================================================ */
+function dossierConnuDe(eleve){
+  if(!eleve) return null;
+
+  if(typeof lireCacheDossier === 'function'){
+    const complet = lireCacheDossier(eleve);
+    if(complet) return complet;
+  }
+
+  const b = (typeof eleveDuBureau === 'function') ? eleveDuBureau(eleve) : null;
+  if(!b) return null;
+
+  /* ⚠️ LE BUREAU NE CONNAÎT QUE LE DERNIER BILAN. Le dossier
+     complet remonte l'historique jusqu'à trouver une frise ; ici on
+     n'a que la dernière note. Une frise absente de celle-ci ne veut
+     donc pas dire qu'il n'y en a pas — elle veut dire qu'on ne la
+     voit pas d'ici. C'est déjà mieux que de ne rien regarder, et ça
+     ne ment pas dans l'autre sens : ce qu'on rend est vrai. */
+  const frise = (typeof extraireFrise === 'function')
+    ? (extraireFrise(b.note) || '') : '';
+
+  return {
+    lecons: (b.lecons === undefined || b.lecons === null) ? null : b.lecons,
+    frise: frise,
+    /* Le reste n'est pas connu d'ici : on le laisse absent plutôt
+       que de le remplir de valeurs par défaut, qui passeraient pour
+       des réponses. */
+    duBureau: true
+  };
+}
+
 function rangDuCours(ctx, eleve, modeleCle){
   const c = ctx || {};
   const saisi = parseInt(c.lecon, 10);
   if(!isNaN(saisi) && saisi) return saisi;
 
   const faites = (c.leconsFaites === undefined || c.leconsFaites === null)
-    ? ((typeof lireCacheDossier === 'function' && eleve)
-        ? (lireCacheDossier(eleve) || {}).lecons : null)
+    ? ((typeof dossierConnuDe === 'function' && eleve)
+        ? (dossierConnuDe(eleve) || {}).lecons : null)
     : c.leconsFaites;
 
   /* « 1ère leçon » ne s'affirme que si le rappel demandait la carte
@@ -6031,8 +6093,8 @@ function rangDuCours(ctx, eleve, modeleCle){
 
   return (typeof rangConnu === 'function')
     ? rangConnu(faites, modeleCle, premier, eleve,
-                (typeof lireCacheDossier === 'function' && eleve)
-                  ? lireCacheDossier(eleve) : null) : null;
+                (typeof dossierConnuDe === 'function' && eleve)
+                  ? dossierConnuDe(eleve) : null) : null;
 }
 
 /* ------------------------------------------------------------
@@ -6186,7 +6248,17 @@ function cequiManqueAuCours(ctx, eleve, modeleCle){
     ? friseDeLaFormation(formation, !/auto/i.test(String(modeleCle || ''))) : null;
   /* Une frise à trous est une frise manquante : la réclamer est la
      seule façon d'en sortir. */
-  const brute = String(c.frise || (fiche && fiche.frise) || '').trim();
+  /* ⚠️ LA FRISE SE CHERCHE AUSSI DANS CE QU'ON SAIT DÉJÀ — v947.
+
+     Elle était lue dans la préparation, puis dans la fiche du
+     répertoire, et nulle part ailleurs. Or elle vit dans les BILANS
+     de l'élève : c'est là que le dossier va la chercher, et c'est
+     pour ça que le questionnaire la connaît alors que la carte
+     l'ignorait. L'état du bureau porte la note du dernier bilan —
+     la frise s'y lit sans un appel de plus. */
+  const dejaSu = (typeof dossierConnuDe === 'function') ? dossierConnuDe(eleve) : null;
+  const brute = String(c.frise || (fiche && fiche.frise) ||
+                       (dejaSu && dejaSu.frise) || '').trim();
   const frise = (typeof friseUtilisable === 'function')
     ? friseUtilisable(brute) : brute;
   if(imposee === null && !frise) manque.push('la frise');
