@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 13:39 — v904 */
+/* Déployé le 11/09/2026 à 13:36 — v954 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -31,6 +31,110 @@ function datePassee(d){
 }
 
 
+/* ============================================================
+   LES COMPTES DE LA MOTO, SANS DESSINER L'ÉCRAN — v954
+
+   David veut ces nombres dans « En un coup d'œil », donc dès
+   l'ouverture de l'onglet Permis. Or afficherMoto() ne tourne
+   qu'en ouvrant l'écran Moto : les tuiles seraient restées à
+   « pas encore dessinée » tant que personne n'y serait allé.
+
+   ⚠️ ON NE DESSINE DONC PAS POUR COMPTER. Cette fonction ne touche
+   à aucun élément de la page : elle relit la même liste et la même
+   table d'étapes que l'écran — elevesMoto() et etapeMoto() — et se
+   contente de trier. Un comptage écrit à part aurait fini par
+   annoncer autre chose que les sept cadres.
+
+   Elle rend « null » quand le répertoire n'a pas encore été lu :
+   sans lui, un élève tout neuf n'existe nulle part, et un compte
+   partiel qui se donne pour complet est pire qu'une absence de
+   compte.
+
+   ⚠️ 1ᵉʳ PASSAGE OU REPASSAGE : c'est le compteur de passages qui
+   le dit — « motoPassages » pour le plateau, « motoCircuPassages »
+   pour la circulation. Zéro ou vide, c'est un premier passage. Et
+   on ne le déduit pas de l'échec : un élève repris d'une autre
+   école a des passages sans que nous ayons vu l'échec.
+   ============================================================ */
+function comptesMoto(){
+  if(typeof elevesMoto !== 'function') return null;
+  if(typeof fichesDuRepertoire === 'function' && !fichesDuRepertoire().length){
+    return null;                    /* le répertoire n'est pas encore lu */
+  }
+
+  const c = { total: 0,
+              plateauAPrevoir: 0, plateauRepassage: 0, plateauPrevus: 0,
+              circuAPrevoir: 0, circuRepassage: 0, circuPrevues: 0,
+              resultats: 0, resultatsPlateau: 0, resultatsCircu: 0 };
+
+  const passages = v => Number(v) || 0;
+
+  elevesMoto().forEach(e => {
+    const s = (typeof suiviDe === 'function') ? (suiviDe(e.eleve) || {}) : {};
+    c.total++;
+    switch(etapeMoto(s)){
+      case 'aplacer':
+        c.plateauAPrevoir++;
+        if(passages(s.motoPassages)) c.plateauRepassage++;
+        break;
+      case 'plateau':       c.plateauPrevus++; break;
+      case 'plateaupasse':  c.resultats++; c.resultatsPlateau++; break;
+      case 'circuaprevoir':
+        c.circuAPrevoir++;
+        if(passages(s.motoCircuPassages)) c.circuRepassage++;
+        break;
+      case 'circuprevue':   c.circuPrevues++; break;
+      case 'circupassee':   c.resultats++; c.resultatsCircu++; break;
+      default: break;       /* préparation : il n'attend pas de date */
+    }
+  });
+
+  return c;
+}
+
+
+/* Les tuiles de la section Moto — elles lisent comptesMoto, elles
+   ne comptent rien. « null » tant que le répertoire n'a pas été lu. */
+function tuilesMoto(){
+  const c = comptesMoto();
+  if(c === null) return null;
+
+  /* « 4 en 1er passage · 1 repassage » — le détail sous le nombre,
+     parce que ce n'est pas le même travail de préparer un premier
+     passage et de replacer quelqu'un qui vient d'échouer. */
+  const detail = (tout, repass) => {
+    const premiers = tout - repass;
+    const bouts = [];
+    if(premiers) bouts.push(premiers + ' en 1er passage');
+    if(repass) bouts.push(repass + ' repassage' + (repass > 1 ? 's' : ''));
+    return bouts.join(' · ');
+  };
+
+  return [
+    { cle:'moto:total', lib:'Élèves moto', vue:'moto', section:'moto',
+      valeur:() => ({ n: c.total }) },
+    { cle:'moto:plateauaprevoir', lib:'Plateau à prévoir', vue:'moto',
+      section:'moto', ton:'urgent',
+      valeur:() => ({ n: c.plateauAPrevoir,
+                      sous: detail(c.plateauAPrevoir, c.plateauRepassage) }) },
+    { cle:'moto:plateauprevus', lib:'Plateaux prévus', vue:'moto', section:'moto',
+      valeur:() => ({ n: c.plateauPrevus }) },
+    { cle:'moto:circuaprevoir', lib:'Circulation à prévoir', vue:'moto',
+      section:'moto', ton:'urgent',
+      valeur:() => ({ n: c.circuAPrevoir,
+                      sous: detail(c.circuAPrevoir, c.circuRepassage) }) },
+    { cle:'moto:circuprevues', lib:'Circulations prévues', vue:'moto',
+      section:'moto', valeur:() => ({ n: c.circuPrevues }) },
+    { cle:'moto:resultats', lib:'Résultats moto à saisir', vue:'moto',
+      section:'moto', ton:'att',
+      valeur:() => ({ n: c.resultats,
+                      sous: [c.resultatsPlateau ? c.resultatsPlateau + ' plateau' : '',
+                             c.resultatsCircu ? c.resultatsCircu + ' circulation' : '']
+                              .filter(Boolean).join(' · ') }) }
+  ];
+}
+
+
 function etapeMoto(s){
   /* La circulation, quand le plateau est acquis */
   if(s.motoPlateau === 'reussi'){
@@ -50,28 +154,43 @@ function etapeMoto(s){
 }
 
 
-/* Les fiches du répertoire, où vit la formation.
+/* ⚠️ LE RÉPERTOIRE N'EST PLUS CHARGÉ DEUX FOIS — v954.
 
-   Le suivi ne la porte pas : sans elles, un élève tout neuf
-   n'apparaissait nulle part. */
-let fichesConnues = null;
+   Les fiches du répertoire, où vit la formation : le suivi ne la
+   porte pas, et sans elles un élève tout neuf n'apparaissait
+   nulle part.
 
-/* Nommée à part : « chargerFiches » existe déjà dans
-   ec-fenetres.js et remplit fichesEleves, d'où viennent les
-   numéros de téléphone. Le doublon l'écrasait. */
+   Il y en avait DEUX COPIES dans l'application, remplies par le
+   même appel : « fichesEleves » (ec-fenetres.js), d'où viennent
+   les numéros de téléphone, et « fichesConnues » ici. Le
+   commentaire d'origine racontait même pourquoi : les deux
+   fonctions portaient le même nom et s'écrasaient. On a renommé
+   la fonction — on n'a pas supprimé le doublon, et deux caches de
+   la même liste, c'est deux appels au serveur et deux vérités qui
+   peuvent dater différemment.
+
+   Une seule liste, donc, celle de ec-fenetres, et sa porte de
+   lecture — ficheDe(). Il reste la garde de cache que la moto
+   avait et que l'autre n'a pas : chargerFiches() relit toujours,
+   et on ne veut relire que si on n'a rien. */
 async function chargerFichesMoto(force){
-  if(fichesConnues && !force) return fichesConnues;
-  try{
-    const d = await appelPrep({ action: 'fichesList' });
-    fichesConnues = (d && d.fiches) || [];
-  }catch(e){ fichesConnues = fichesConnues || []; }
-  return fichesConnues;
+  if(typeof chargerFiches !== 'function') return [];
+  if(typeof fichesEleves !== 'undefined' && fichesEleves.length && !force){
+    return fichesEleves;
+  }
+  try{ await chargerFiches(); }catch(e){ /* on fera avec ce qu'on a */ }
+  return (typeof fichesEleves !== 'undefined') ? fichesEleves : [];
 }
 
+/* Les fiches telles qu'on les lit ici : une seule source. */
+function fichesDuRepertoire(){
+  return (typeof fichesEleves !== 'undefined') ? (fichesEleves || []) : [];
+}
 
 function formationDe(nom){
-  const k = normaliserMot(nom || '');
-  const f = (fichesConnues || []).find(x => normaliserMot(x.eleve || '') === k);
+  /* La recherche par nom vit déjà dans ficheDe : la refaire ici,
+     c'est se donner deux façons de reconnaître le même élève. */
+  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
   return f ? String(f.formation || '') : '';
 }
 
@@ -107,7 +226,7 @@ function elevesMoto(){
 
   /* Les fiches du répertoire : c'est là qu'un élève tout neuf
      existe, avant tout bilan et toute consigne. */
-  (fichesConnues || []).forEach(f => {
+  fichesDuRepertoire().forEach(f => {
     const s = Object.assign({}, suiviDe(f.eleve) || {},
                             { formation: f.formation });
     if(dedans(s)) ajouter(f.eleve, f);
