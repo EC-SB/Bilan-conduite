@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:38 — v941 */
+/* Déployé le 11/09/2026 à 10:46 — v942 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -128,7 +128,22 @@ const SECTIONS = [
   { cle:'bureau_messages',  nom:'📨 Messages internes' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
-  { cle:'stats',            nom:'📈 Taux de réussite' },
+  /* DEUX CASES POUR UN SEUL ÉCRAN — v942.
+
+     Le taux de réussite parle des PERSONNES : c'est la seule
+     statistique de l'outil qui le fasse. David veut choisir, nom
+     par nom, qui voit quoi — « je dois pouvoir choisir ».
+
+     · « stats »       ouvre l'écran entier : l'équipe, les noms,
+       et la correction du moniteur d'un résultat ;
+     · « stats_perso » n'ouvre que son propre taux. Rien des
+       autres, aucune correction.
+
+     Les deux cochées, c'est la première qui l'emporte : elle
+     contient l'autre. Aucun rôle ne donne la seconde par défaut
+     (voir DROITS_ROLE dans le Worker) — elle se coche à la main. */
+  { cle:'stats',            nom:'📈 Taux de réussite de l\'équipe' },
+  { cle:'stats_perso',      nom:'📈 Sa propre réussite (son taux à lui seul)' },
   { cle:'eleves',           nom:'👥 Répertoire des élèves' },
   { cle:'proccorriger',     nom:'📥 Procédures à corriger' },
   /* Les codes de l'espace élève étaient donnés PAR « Procédures à
@@ -173,6 +188,20 @@ const SECTIONS = [
   /* La carrosserie est à part de la flotte : tout le monde y
      déclare une rayure, personne n'y voit les coûts du parc. */
   { cle:'carrosserie',      nom:'🩹 Carrosserie des véhicules' },
+  /* ⚠️ ELLE MANQUAIT ICI DEPUIS SA NAISSANCE — trouvée le 11
+     septembre 2026 par le test des droits, qui compare les deux
+     listes.
+
+     « cbgasoil » était déclarée côté Worker et donnée par tous les
+     rôles, mais absente de cette liste-ci : la case n'apparaissait
+     donc dans AUCUN écran de réglage. Rien ne se voyait, puisque
+     tout le monde l'avait par son rôle — jusqu'au jour où l'on
+     aurait voulu la retirer à quelqu'un, sans case à décocher.
+
+     Le commentaire du Worker prévenait déjà : une section d'un
+     seul côté revient par l'autre bout, sans nom. Le test compare
+     désormais les deux listes à chaque exécution. */
+  { cle:'cbgasoil',         nom:'💳 La CB Gasoil (prise, dépôt, pleins)' },
   { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)' },
   { cle:'incidents',        nom:'🚨 Signalements' },
   { cle:'menage',           nom:'🧹 Ménage des dossiers' },
@@ -300,10 +329,31 @@ function peutModifier(section){ return niveauDroit(section) === 'm'; }
 
    « bureau » n'est pas une section : c'est une carte qui vit tant
    qu'une de ses parties vit. */
+/* ⚠️ UNE CARTE PEUT S'OUVRIR PAR PLUSIEURS DROITS — v942.
+
+   « data-section » portait UN nom. Le jour où deux droits ouvrent
+   le même écran — la Réussite, depuis que « stats » montre
+   l'équipe et « stats_perso » son seul taux — il aurait fallu
+   écrire une exception de plus, comme celle du bureau juste
+   dessous. Deux exceptions, et la troisième s'écrit ailleurs.
+
+   On lit donc une LISTE, séparée par des espaces : « stats
+   stats_perso ». Un seul droit suffit à ouvrir la carte, et le
+   niveau retenu est le plus généreux des deux — sans quoi
+   quelqu'un qui peut tout modifier se retrouverait en lecture
+   seule parce que son voisin, lui, ne peut que regarder. */
+function sectionsDe(s){
+  return String(s || '').trim().split(/\s+/).filter(Boolean);
+}
+
 function sectionVisible(s){
   if(!s) return true;
   if(s === 'bureau') return ['bureau_simu', 'bureau_examblanc'].some(aDroit);
-  return aDroit(s);
+  return sectionsDe(s).some(aDroit);
+}
+
+function sectionModifiable(s){
+  return sectionsDe(s).some(peutModifier);
 }
 
 /* Masque ou passe en lecture seule selon le niveau accordé */
@@ -328,7 +378,8 @@ function appliquerDroits(){
     /* Une vue non sélectionnée reste masquée : les onglets décident */
     if(visible && el.classList.contains('hors-vue')) el.style.display = 'none';
     else el.style.display = visible ? '' : 'none';
-    el.classList.toggle('lecture-seule', visible && s !== 'bureau' && !peutModifier(s));
+    el.classList.toggle('lecture-seule',
+      visible && s !== 'bureau' && !sectionModifiable(s));
   });
 
   /* Le départ d'un élève ne concerne que le bureau */
