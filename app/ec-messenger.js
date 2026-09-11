@@ -1,4 +1,4 @@
-/* Déployé le 19/08/2026 à 16:06 — v449 */
+/* Déployé le 11/09/2026 à 15:13 — v959 */
 /* ============================================================
    ec-messenger.js
    Générateur du message pour le groupe Messenger « jour du permis ».
@@ -326,7 +326,7 @@ function datesPermisAVenir(){
 /* Le message « planning formation avant permis ».
    Deux variantes selon qu'on planifie les 2h de veille ou qu'on
    laisse les élèves choisir : ce sont VOS textes, pris dans
-   « Textes types » avec l'usage « Planning formation avant permis ». */
+   « Modèles messages » avec l'usage « Planning formation avant permis ». */
 function messagesPlanningPermis(){
   const tous = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
     .filter(m => m.usage === 'permis_planning');
@@ -767,7 +767,7 @@ async function afficherMessengerPermis(){
         a.className = 'empty';
         a.style.cssText = 'margin-top:12px;padding:12px;font-size:12px;line-height:1.5;';
         a.innerHTML = 'Aucun message « planning avant permis » enregistré.<br>' +
-          'Crée-le dans <strong>📄 Textes types</strong>, usage ' +
+          'Crée-le dans <strong>📄 Modèles messages</strong>, usage ' +
           '« 🚨 Planning formation avant permis ».';
         zMsg.appendChild(a);
       }
