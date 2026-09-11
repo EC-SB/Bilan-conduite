@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:25 — v940 */
+/* Déployé le 11/09/2026 à 11:41 — v948 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -46,6 +46,19 @@ async function afficherPostExamen(tous){
   });
 
   zone.innerHTML = '';
+  /* ⚠️ LE COMPTEUR SE POSE AVANT LE DÉPART ANTICIPÉ — v948.
+
+     Il était mis à jour APRÈS ce « return » : le jour où le dernier
+     résultat était saisi, le volet continuait d'annoncer « 4 » au-
+     dessus d'un « Aucun résultat en attente ». Un nombre ne doit pas
+     survivre à ce qu'il compte.
+
+     Et depuis la v946 il ne s'agit plus seulement du volet : la
+     tuile « Résultats à saisir » de l'onglet Permis lit ce même
+     compteur. Elle aurait affiché un nombre périmé et ouvert un
+     écran vide. */
+  majVolet('cptPasses', attente.length, attente.length > 0);
+
   if(!attente.length){
     zone.innerHTML = '<div class="empty">Aucun résultat en attente.</div>';
     return;
@@ -79,7 +92,10 @@ async function afficherPostExamen(tous){
     return '';
   };
 
-  majVolet('cptPasses', attente.length, attente.length > 0);
+  /* Le compteur est posé plus haut, avant le départ anticipé : le
+     reposer ici écrirait le même nombre deux fois, et le jour où
+     l'un des deux appels changerait, on ne saurait plus lequel fait
+     foi. */
   attente.forEach(e => {
     const s = suiviDe(e.eleve);
     const iso = e._iso || dateFrVersIso(s.datePermis || '');
@@ -316,6 +332,10 @@ function afficherAttenteBilan(tous){
     zone.appendChild(det);
   }
 
+  /* ⚠️ AVANT LE DÉPART ANTICIPÉ, comme « cptPasses » juste au-dessus.
+     La tuile « Bilans post-permis à faire » lit ce compteur. */
+  majVolet('cptAttente', liste.length, liste.length > 0);
+
   if(!liste.length){
     const v = document.createElement('div');
     v.className = 'empty';
@@ -332,7 +352,6 @@ function afficherAttenteBilan(tous){
     return (sa.bilanExamen ? 1 : 0) - (sb.bilanExamen ? 1 : 0);
   });
 
-  majVolet('cptAttente', liste.length, liste.length > 0);
   liste.forEach(e => {
     const s = suiviDe(e.eleve);
     const aBilan = !!s.bilanExamen;
