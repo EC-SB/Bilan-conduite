@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:56 — v943 */
+/* Déployé le 11/09/2026 à 11:23 — v946 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2388,6 +2388,12 @@ function afficherExamensPermis(tous){
      qu'elles viennent de poser. */
   majFiltresPasPrets();
   afficherAlertePrise(per);
+  /* Et les portes d'entrée des onglets lisent les mêmes compteurs :
+     c'est le même principe, à l'échelle de l'onglet. Ici parce que
+     c'est ici que TOUTES les listes du bureau viennent d'être
+     dessinées — les appeler ailleurs les ferait lire des nombres
+     d'avant. */
+  if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles();
 
   zPer.innerHTML = '';
   /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
