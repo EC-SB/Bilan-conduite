@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:23 — v946 */
+/* Déployé le 11/09/2026 à 11:41 — v948 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -374,6 +374,147 @@ Object.keys(TUILES).forEach(onglet => {
 });
 
 const vueActive = {};
+
+/* ============================================================
+   LES FILTRES D'UNE VUE — ÉTAPE 5 (v948)
+
+   L'étape 2 a transformé « Pas prêts » : quatre volets à ouvrir un
+   par un sont devenus UNE liste de travail, avec des filtres qui
+   portent leur compte. La forme est éprouvée ; il s'agit maintenant
+   de la donner aux autres.
+
+   ⚠️ MAIS PAS EN LA RECOPIANT.
+
+   La barre de « Pas prêts » était écrite pour « Pas prêts » : son
+   nom, son conteneur, sa variable. La donner à « À envisager » et à
+   « Simulateurs » aurait fait trois barres presque identiques —
+   trois endroits à corriger le jour où l'on change une règle, et
+   deux qu'on oublie. C'est exactement la faute que ce projet passe
+   ses semaines à réparer.
+
+   Elle est donc devenue UNE seule barre, qui se branche sur
+   n'importe quelle vue :
+
+   · un conteneur « <div class="filtres-vue" data-vue="…"> » dans la
+     page marque où elle va ;
+   · les volets de cette vue portent « data-famille » ;
+   · le reste se lit sur la page — le titre du volet, son compteur.
+
+   Une cinquième liste ajoutée demain à l'une de ces vues apparaîtra
+   toute seule dans sa barre. Et une vue à qui l'on veut donner la
+   forme n'a besoin que d'un conteneur et de ses « data-famille ».
+
+   ⚠️ ET ELLE NE COMPTE TOUJOURS RIEN. Chaque liste pose son
+   compteur en se dessinant ; la barre le relit. Recompter les
+   lignes à l'écran serait une seconde vérité, et c'est toujours la
+   mauvaise qui gagne.
+   ============================================================ */
+const filtreDeLaVue = {};        /* vue → famille choisie, ou 'tous' */
+
+function voletsDeLaVue(vue){
+  return Array.prototype.slice.call(
+    document.querySelectorAll('details[data-vue="' + vue + '"][data-famille]'));
+}
+
+/* Le titre d'un volet, sans son compteur : « ⏳ Attente bilan
+   post-permis ». */
+function titreDuVolet(v){
+  const s = v.querySelector('summary');
+  if(!s) return v.getAttribute('data-famille') || '';
+  const c = s.querySelector('.compteur');
+  const n = (c && c.textContent) || '';
+  let t = s.textContent || '';
+  if(n) t = t.replace(n, '');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+function familleDuVolet(v){
+  const c = v.querySelector('.compteur');
+  return {
+    cle: v.getAttribute('data-famille'),
+    titre: titreDuVolet(v),
+    n: parseInt((c && c.textContent) || '0', 10) || 0,
+    el: v
+  };
+}
+
+function appliquerFiltreDeVue(vue){
+  const choisi = filtreDeLaVue[vue] || 'tous';
+  voletsDeLaVue(vue).forEach(v => {
+    const sien = (choisi === 'tous' || v.getAttribute('data-famille') === choisi);
+    v.classList.toggle('filtre-off', !sien);
+    /* Choisir un filtre OUVRE la liste : sinon on aurait remplacé
+       quatre clics par un clic et un clic. */
+    if(sien && choisi !== 'tous') v.open = true;
+  });
+}
+
+function majFiltresDeVue(vue){
+  const barre = document.querySelector('.filtres-vue[data-vue="' + vue + '"]');
+  if(!barre) return;
+
+  const fams = voletsDeLaVue(vue).map(familleDuVolet);
+  if(fams.length < 2){ barre.innerHTML = ''; return; }
+
+  const total = fams.reduce((t, f) => t + f.n, 0);
+
+  /* Un filtre dont la liste s'est vidée ne doit pas laisser l'écran
+     vide sans raison : on retombe sur « Tous ». */
+  const choisi = filtreDeLaVue[vue] || 'tous';
+  if(choisi !== 'tous' && !fams.some(f => f.cle === choisi && f.n)){
+    filtreDeLaVue[vue] = 'tous';
+  }
+
+  barre.innerHTML = '';
+
+  const bouton = (cle, titre, n, alerte) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' +
+      ((filtreDeLaVue[vue] || 'tous') === cle ? 'btn-primary' : 'btn-secondary');
+    b.appendChild(document.createTextNode(titre));
+    const s = document.createElement('span');
+    s.className = 'n';
+    s.textContent = String(n);
+    if(alerte) s.style.color = 'var(--red)';
+    b.appendChild(s);
+    b.addEventListener('click', () => {
+      filtreDeLaVue[vue] = cle;
+      majFiltresDeVue(vue);
+    });
+    return b;
+  };
+
+  barre.appendChild(bouton('tous', 'Tous', total, false));
+  /* UN FILTRE À ZÉRO NE S'AFFICHE PAS. Une rangée de boutons qui ne
+     mènent nulle part apprend à ne plus la lire — comme la ligne
+     qui disait que tout allait bien sur chaque carte. */
+  fams.filter(f => f.n > 0)
+      .forEach(f => barre.appendChild(bouton(f.cle, f.titre, f.n, true)));
+
+  /* Rien du tout : on le dit, plutôt que de laisser un « Tous 0 »
+     tout seul au milieu de l'écran. */
+  if(!total){
+    barre.innerHTML = '';
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12.5px;color:var(--accent-text);font-weight:700;' +
+      'padding:4px 2px;';
+    v.textContent = '✅ Rien qui attende dans ces ' + fams.length + ' listes.';
+    barre.appendChild(v);
+  }
+
+  appliquerFiltreDeVue(vue);
+}
+
+/* Toutes les barres de la page, d'un coup. Appelée par le bureau à
+   la fin de son dessin — jamais avant, sinon elle lirait des
+   compteurs vides. */
+function rafraichirLesFiltres(){
+  document.querySelectorAll('.filtres-vue[data-vue]').forEach(b => {
+    majFiltresDeVue(b.getAttribute('data-vue'));
+  });
+}
+
 
 /* ------------------------------------------------------------
    LE DESSIN DES TUILES
