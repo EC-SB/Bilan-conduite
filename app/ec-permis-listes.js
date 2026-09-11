@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:19 — v952 */
+/* Déployé le 11/09/2026 à 13:30 — v953 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1942,7 +1942,174 @@ function statsDesPlaces(prevus){
     }).length;
   }));
 
-  return { parMois: parMois, horsMois: horsMois, parSemaine: parSemaine };
+  const st = { parMois: parMois, horsMois: horsMois, parSemaine: parSemaine };
+
+  /* ⚠️ CE QUI VIENT D'ÊTRE COMPTÉ EST PUBLIÉ, PAS RECOMPTÉ — v953.
+
+     Les tuiles « Places à prendre », « Examens du mois » et
+     « Examens à traiter » ont besoin de ces nombres. Une tuile ne
+     compte rien elle-même : elle lit ce qu'un écran a publié,
+     sinon elle devient une seconde vérité — et c'est toujours la
+     mauvaise qui gagne.
+
+     On publie ici, dans le calcul, et non dans le dessin : les
+     nombres existent dès qu'ils sont justes, même si l'écran des
+     places n'a jamais été ouvert. */
+  etatDesPlaces = st;
+  return st;
+}
+
+/* Ce que le dernier comptage a trouvé. « null » tant qu'il n'a pas
+   tourné — et « null » n'est pas zéro : voir compteDuVolet. */
+let etatDesPlaces = null;
+
+
+/* ============================================================
+   CE QUE LES TUILES DE L'ONGLET PERMIS VONT LIRE — v953
+
+   ⚠️ AUCUNE NE COMPTE QUOI QUE CE SOIT. Elles rassemblent ce que
+   le comptage des places a publié (etatDesPlaces) et ce que les
+   règles existantes savent déjà dire — prochainesPrises pour le
+   jour de la publication, libellePrise pour la phrase. Recalculer
+   ici serait une seconde vérité, et c'est toujours la mauvaise qui
+   finit par s'afficher.
+
+   Trois réponses possibles, et elles diffèrent :
+     · null  — on ne sait pas encore. La tuile dit « pas encore
+               dessinée » au lieu d'inventer un zéro ;
+     · false — on sait, et il n'y a rien à dire. La tuile ne
+               s'affiche pas ;
+     · un objet { n, texte, sous } — la valeur.
+   ============================================================ */
+
+/* Un nombre saisi à la française, ou 0. */
+function nombreDePlaces(v){
+  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+/* Combien de places il reste à prendre à la prochaine publication.
+
+   David : « le reste du mois » — le total des places du mois visé,
+   moins les candidats déjà placés dessus. Et la date vient de
+   dateDePrise, qui connaît déjà la règle (1er et 2e mardi du mois
+   précédent) ET le réglage à la main quand la préfecture décale. */
+function tuilePlacesAPrendre(){
+  if(!etatDesPlaces) return null;
+  if(typeof prochainesPrises !== 'function') return false;
+  if(typeof placesConfig === 'undefined') return false;
+
+  const p = prochainesPrises()[0];
+  if(!p) return false;
+
+  const m = (placesConfig.mois || []).find(x => String(x.mois) === p.moisCible);
+  if(!m) return false;
+
+  const total = nombreDePlaces(m.total);
+  if(!total) return false;               /* mois pas encore réglé */
+
+  const pris = (etatDesPlaces.parMois[p.moisCible] || {}).prevus || 0;
+  const reste = Math.max(0, Math.round(total - pris));
+
+  /* La phrase est composée à UN endroit — libellePrise — et elle
+     rend plusieurs morceaux. La tuile prend le titre : « mardi
+     6 octobre », avec le nombre de jours devant. Le reste (la
+     quinzaine visée, les places saisies) vit dans l'écran, où il y
+     a la place de le lire. */
+  const dit = (typeof libellePrise === 'function') ? libellePrise(p) : null;
+
+  return { n: reste,
+           ton: (dit && dit.urgent) ? 'urgent' : '',
+           sous: (dit && dit.titre) ? dit.titre : '' };
+}
+
+/* Les examens qui demandent une décision : une place à remplacer,
+   une place tenue par un prête-nom. Deux nombres, une tuile —
+   « dans une seule tuile », a répondu David. */
+function tuileExamensATraiter(){
+  if(!etatDesPlaces) return null;
+
+  let rempl = 0, fant = 0;
+  Object.keys(etatDesPlaces.parMois).forEach(k => {
+    rempl += etatDesPlaces.parMois[k].remplacements || 0;
+    fant  += etatDesPlaces.parMois[k].fantomes || 0;
+  });
+  if(!rempl && !fant) return { n: 0 };
+
+  const bouts = [];
+  if(rempl) bouts.push(rempl + ' à remplacer');
+  if(fant)  bouts.push(fant + ' prête-nom' + (fant > 1 ? 's' : ''));
+  return { n: rempl + fant, sous: bouts.join(' · ') };
+}
+
+/* ⚠️ UNE TUILE PAR MOIS OUVERT — David : « quand j'ouvre un
+   nouveau mois une nouvelle tuile se crée et quand je supprime un
+   mois la tuile se supprime ».
+
+   Elles ne sont donc pas dans la table des tuiles : elles naissent
+   de la configuration des places. Et elles s'affichent MEME A
+   ZERO : « 0 / 30 » dit qu'il reste trente places à prendre, ce
+   qui est tout sauf rien. */
+function tuilesDesMoisDePlaces(){
+  if(!etatDesPlaces) return null;
+  if(typeof placesConfig === 'undefined') return false;
+
+  return (placesConfig.mois || []).filter(m => m.mois).map(m => {
+    const total = nombreDePlaces(m.total);
+    const pris = (etatDesPlaces.parMois[m.mois] || {}).prevus || 0;
+    const nom = new Date(m.mois + '-15T12:00:00')
+      .toLocaleDateString('fr-FR', { month: 'long' });
+    /* « Examens d'octobre », pas « de octobre ». */
+    const de = /^[aeiouyâéèêîôû]/i.test(nom) ? "d'" : 'de ';
+    return {
+      cle: 'mois:' + m.mois,
+      lib: 'Examens ' + de + nom,
+      vue: 'sessions',
+      toujours: true,
+      ton: (total && pris > total) ? 'urgent' : '',
+      valeur: () => ({ n: pris, texte: pris + ' / ' + (total || '?') })
+    };
+  });
+}
+
+/* Le taux du mois, emprunté à l'écran Réussite — jamais recalculé. */
+function tuileReussiteDuMois(){
+  if(typeof tauxDuMoisEnCours !== 'function') return null;
+  const t = tauxDuMoisEnCours();
+  if(t === null) return null;
+  if(t === false) return false;
+  return { n: t.taux,
+           texte: (typeof pourcent === 'function') ? pourcent(t.taux)
+                                                   : String(t.taux) + ' %',
+           sous: t.total + ' présenté' + (t.total > 1 ? 's' : '') + ' · ' +
+                 t.reussis + ' reçu' + (t.reussis > 1 ? 's' : '') +
+                 (t.fiable ? '' : ' — trop peu pour conclure') };
+}
+
+
+/* ⚠️ LES RESULTATS SE CHARGENT EN ARRIERE-PLAN — v953.
+
+   David : « en arrière plan ». Tout l'historique des résultats est
+   l'un des appels les plus lourds de l'outil : le mettre sur le
+   chemin de l'ouverture ferait payer à chacun, chaque matin, une
+   tuile qu'il regarde une fois. On ouvre à la vitesse habituelle,
+   et la tuile arrive deux secondes plus tard.
+
+   Une seule fois par session : la tuile parle du mois en cours,
+   elle ne bouge pas d'une minute à l'autre. */
+let reussiteDemandee = false;
+function demanderLaReussiteEnFond(){
+  if(reussiteDemandee) return;
+  if(typeof chargerResultats !== 'function') return;
+  /* Sans le droit d'en voir ne serait-ce que le sien, l'appel ne
+     servirait qu'à peser sur le classeur. */
+  if(typeof aDroit === 'function' &&
+     !aDroit('stats') && !aDroit('stats_perso')) return;
+
+  reussiteDemandee = true;
+  chargerResultats(false)
+    .then(() => { if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles(); })
+    .catch(() => { reussiteDemandee = false; });
 }
 
 /* Les semaines ouvertes par la préfecture.
@@ -2464,6 +2631,7 @@ function afficherExamensPermis(tous){
      dessinées — les appeler ailleurs les ferait lire des nombres
      d'avant. */
   if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles();
+  demanderLaReussiteEnFond();
 
   zPer.innerHTML = '';
   /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
