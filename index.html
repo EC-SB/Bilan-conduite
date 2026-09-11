@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v942
+     VERSION APPLICATION : v943
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 11/09/2026 à 10:46
+     Mis à jour le : 11/09/2026 à 10:56
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -334,6 +334,33 @@
   }
   .history-item .meta strong{overflow-wrap:anywhere;}
   .history-item .arrow{color:var(--orange);font-size:18px;padding-left:10px;}
+
+  /* LA RAISON, ÉCRITE — v943.
+     Elle vivait dans l'infobulle d'un « ⚠️ », donc nulle part sur
+     un téléphone : il n'y a pas de survol sur un écran tactile. */
+  .history-item .raison{
+    margin-top:7px; padding:6px 10px; font-size:12.5px; font-weight:700;
+    line-height:1.45; color:var(--warn-text); background:var(--warn-bg);
+    border-left:4px solid var(--ambre); border-radius:0 8px 8px 0;
+    overflow-wrap:anywhere;
+  }
+
+  /* LES FILTRES DE « PAS PRÊTS » — v943.
+     Ils portent leur compte : on lit la charge de travail sans
+     rien ouvrir. Un filtre à zéro ne s'affiche pas. */
+  #filtresPasPrets{display:flex; gap:6px; flex-wrap:wrap;}
+  #filtresPasPrets button{
+    margin:0; padding:7px 13px; font-size:12.5px; font-weight:700;
+    border-radius:20px; width:auto; flex:0 0 auto;
+  }
+  #filtresPasPrets button .n{
+    font-variant-numeric:tabular-nums; opacity:.75; margin-left:5px;
+  }
+  /* ⚠️ UNE CLASSE, PAS UN STYLE EN LIGNE. « afficherVue » remet
+     « display » à vide sur chaque tiroir quand on revient sur la
+     vue : un style en ligne se serait fait effacer, et le filtre
+     aurait eu l'air de tenir sans rien filtrer. */
+  details.filtre-off{display:none !important;}
 
   body.clair .transcript-box,
   body.clair input[type=text], body.clair input[type=date],
@@ -1485,7 +1512,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=942" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=943" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -2328,12 +2355,25 @@
     <!-- Les semaines ouvertes par la préfecture : c'est ce qu'on
          vient chercher en ouvrant cet écran. -->
 
+    <!-- LA BARRE DE FILTRES DE « PAS PRÊTS » — v943.
+
+         Quatre volets à ouvrir un par un devenaient quatre gestes
+         pour savoir ce qu'il y avait à faire. Les filtres portent
+         leur compte : on lit la charge de travail SANS rien
+         ouvrir, et un filtre à zéro ne s'affiche pas.
+
+         ⚠️ LES COMPTES NE SONT PAS RECALCULÉS ICI. Ils sont lus
+         sur les compteurs que chaque liste a déjà posés. Recompter
+         serait une seconde vérité, et c'est toujours la mauvaise
+         qui gagne. -->
+    <div id="filtresPasPrets" data-onglet="permis" data-vue="pasprets" style="margin:10px 0 4px;"></div>
+
     <div data-section="bureau_places">
       <div id="alertePrise" style="margin-bottom:12px;"></div>
 
       <!-- Ceux qui n'ont pas le niveau : c'est ce qui empêche de
            placer un examen, donc ça vient en premier. -->
-      <details data-vue="pasprets" class="volet-liste" style="margin-bottom:12px;">
+      <details data-vue="pasprets" data-famille="pasniveau" class="volet-liste" style="margin-bottom:12px;">
         <summary>⛔ Examen blanc — pas le niveau
           <span class="compteur" id="cptPasNiveau"></span></summary>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
@@ -2351,13 +2391,26 @@
       </details>
 
     </div>
-    <details data-vue="pasprets" class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
+    <!-- ⚠️ DEUX LISTES ÉTAIENT ENFERMÉES DANS LA PREMIÈRE — v943.
+
+         « 🚫 Examen non planifiable » et « ⛔ Pas de repassage »
+         étaient écrites À L'INTÉRIEUR du volet « ⏳ Attente bilan
+         post-permis ». Il fallait donc ouvrir celui-là, qui ne
+         parle pas du tout de la même chose, rien que pour
+         apprendre qu'elles existaient. Un dossier bloqué par une
+         pièce manquante pouvait attendre là des semaines sans que
+         personne le voie.
+
+         Les trois sont au même niveau, et la barre de filtres
+         au-dessus les compte toutes les quatre. -->
+    <details data-vue="pasprets" data-famille="attente" class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
       <summary>⏳ Attente bilan post-permis <span class="compteur" id="cptAttente"></span></summary>
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
         Élèves ajournés : colle leur bilan puis fixe le rendez-vous post-permis.</div>
       <div id="listeAttenteBilan"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-    <details data-vue="pasprets" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+    <details data-vue="pasprets" data-famille="nonplanif" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
       <summary>🚫 Examen non planifiable <span class="compteur" id="cptNonPlanif"></span></summary>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
           Signalé par le moniteur au questionnaire : ce n'est pas une question de
@@ -2365,12 +2418,11 @@
         <div id="listeNonPlanifiable"><div class="empty">Appuie sur Actualiser.</div></div>
     </details>
 
-    <details data-vue="pasprets" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+    <details data-vue="pasprets" data-famille="pasrepassage" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
       <summary>⛔ Pas de repassage pour le moment <span class="compteur" id="cptPasRep"></span></summary>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
           Reprise des leçons avant de se décider.</div>
         <div id="listePasRepassage"><div class="empty">Appuie sur Actualiser.</div></div>
-    </details>
     </details>
 
     <details data-vue="envisager" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
@@ -3121,76 +3173,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=942"></script>
-<script src="app/ec-modeles.js?v=942"></script>
-<script src="app/ec-consignes.js?v=942"></script>
-<script src="app/ec-noyau.js?v=942"></script>
-<script src="app/ec-vocal.js?v=942"></script>
-<script src="app/ec-reseau.js?v=942"></script>
-<script src="app/ec-manuel.js?v=942"></script>
-<script src="app/ec-fenetres.js?v=942"></script>
-<script src="app/ec-questionnaire.js?v=942"></script>
-<script src="app/ec-permis.js?v=942"></script>
-<script src="app/ec-prepares.js?v=942"></script>
-<script src="app/ec-avant-cours.js?v=942"></script>
-<script src="app/ec-bureau.js?v=942"></script>
-<script src="app/ec-places.js?v=942"></script>
-<script src="app/ec-listes.js?v=942"></script>
-<script src="app/ec-permis-listes.js?v=942"></script>
-<script src="app/ec-postpermis.js?v=942"></script>
-<script src="app/ec-textes.js?v=942"></script>
-<script src="app/ec-correction.js?v=942"></script>
-<script src="app/ec-bilans.js?v=942"></script>
-<script src="app/ec-ecran.js?v=942"></script>
-<script src="app/ec-version.js?v=942"></script>
-<script src="app/ec-paie.js?v=942"></script>
-<script src="app/ec-flotte.js?v=942"></script>
-<script src="app/ec-carrosserie.js?v=942"></script>
-<script src="app/ec-solo.js?v=942"></script>
-<script src="app/ec-handicap-pdf.js?v=942"></script>
-<script src="app/ec-moto.js?v=942"></script>
-<script src="app/ec-remorque.js?v=942"></script>
-<script src="app/ec-arriereplan.js?v=942"></script>
-<script src="app/ec-placesbe.js?v=942"></script>
-<script src="app/ec-codeamenage.js?v=942"></script>
-<script src="app/ec-financements.js?v=942"></script>
-<script src="app/ec-eval-aac.js?v=942"></script>
-<script src="app/ec-postes.js?v=942"></script>
-<script src="app/ec-tarifs.js?v=942"></script>
-<script src="app/ec-caisse.js?v=942"></script>
-<script src="app/ec-menage.js?v=942"></script>
-<script src="app/ec-page-eleve.js?v=942"></script>
-<script src="app/ec-cbgasoil.js?v=942"></script>
-<script src="app/ec-loupe.js?v=942"></script>
-<script src="app/ec-coutsia.js?v=942"></script>
-<script src="app/ec-evaluation.js?v=942"></script>
-<script src="app/ec-paiement.js?v=942"></script>
-<script src="app/ec-handicap.js?v=942"></script>
-<script src="app/ec-code.js?v=942"></script>
-<script src="app/ec-proccorriger.js?v=942"></script>
-<script src="app/ec-sessions.js?v=942"></script>
-<script src="app/ec-aac-cs.js?v=942"></script>
-<script src="app/ec-notifs.js?v=942"></script>
-<script src="app/ec-ecoutes.js?v=942"></script>
-<script src="app/ec-taches.js?v=942"></script>
-<script src="app/ec-memoire.js?v=942"></script>
-<script src="app/ec-historique.js?v=942"></script>
-<script src="app/ec-rappels.js?v=942"></script>
-<script src="app/ec-segments.js?v=942"></script>
-<script src="app/ec-sms.js?v=942"></script>
-<script src="app/ec-encours.js?v=942"></script>
-<script src="app/ec-incidents.js?v=942"></script>
+  <script src="app/ec-etat.js?v=943"></script>
+<script src="app/ec-modeles.js?v=943"></script>
+<script src="app/ec-consignes.js?v=943"></script>
+<script src="app/ec-noyau.js?v=943"></script>
+<script src="app/ec-vocal.js?v=943"></script>
+<script src="app/ec-reseau.js?v=943"></script>
+<script src="app/ec-manuel.js?v=943"></script>
+<script src="app/ec-fenetres.js?v=943"></script>
+<script src="app/ec-questionnaire.js?v=943"></script>
+<script src="app/ec-permis.js?v=943"></script>
+<script src="app/ec-prepares.js?v=943"></script>
+<script src="app/ec-avant-cours.js?v=943"></script>
+<script src="app/ec-bureau.js?v=943"></script>
+<script src="app/ec-places.js?v=943"></script>
+<script src="app/ec-listes.js?v=943"></script>
+<script src="app/ec-permis-listes.js?v=943"></script>
+<script src="app/ec-postpermis.js?v=943"></script>
+<script src="app/ec-textes.js?v=943"></script>
+<script src="app/ec-correction.js?v=943"></script>
+<script src="app/ec-bilans.js?v=943"></script>
+<script src="app/ec-ecran.js?v=943"></script>
+<script src="app/ec-version.js?v=943"></script>
+<script src="app/ec-paie.js?v=943"></script>
+<script src="app/ec-flotte.js?v=943"></script>
+<script src="app/ec-carrosserie.js?v=943"></script>
+<script src="app/ec-solo.js?v=943"></script>
+<script src="app/ec-handicap-pdf.js?v=943"></script>
+<script src="app/ec-moto.js?v=943"></script>
+<script src="app/ec-remorque.js?v=943"></script>
+<script src="app/ec-arriereplan.js?v=943"></script>
+<script src="app/ec-placesbe.js?v=943"></script>
+<script src="app/ec-codeamenage.js?v=943"></script>
+<script src="app/ec-financements.js?v=943"></script>
+<script src="app/ec-eval-aac.js?v=943"></script>
+<script src="app/ec-postes.js?v=943"></script>
+<script src="app/ec-tarifs.js?v=943"></script>
+<script src="app/ec-caisse.js?v=943"></script>
+<script src="app/ec-menage.js?v=943"></script>
+<script src="app/ec-page-eleve.js?v=943"></script>
+<script src="app/ec-cbgasoil.js?v=943"></script>
+<script src="app/ec-loupe.js?v=943"></script>
+<script src="app/ec-coutsia.js?v=943"></script>
+<script src="app/ec-evaluation.js?v=943"></script>
+<script src="app/ec-paiement.js?v=943"></script>
+<script src="app/ec-handicap.js?v=943"></script>
+<script src="app/ec-code.js?v=943"></script>
+<script src="app/ec-proccorriger.js?v=943"></script>
+<script src="app/ec-sessions.js?v=943"></script>
+<script src="app/ec-aac-cs.js?v=943"></script>
+<script src="app/ec-notifs.js?v=943"></script>
+<script src="app/ec-ecoutes.js?v=943"></script>
+<script src="app/ec-taches.js?v=943"></script>
+<script src="app/ec-memoire.js?v=943"></script>
+<script src="app/ec-historique.js?v=943"></script>
+<script src="app/ec-rappels.js?v=943"></script>
+<script src="app/ec-segments.js?v=943"></script>
+<script src="app/ec-sms.js?v=943"></script>
+<script src="app/ec-encours.js?v=943"></script>
+<script src="app/ec-incidents.js?v=943"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=942"></script>
-<script src="app/ec-bandeau.js?v=942"></script>
-<script src="app/ec-stats.js?v=942"></script>
-<script src="app/ec-messenger.js?v=942"></script>
-<script src="app/ec-journal.js?v=942"></script>
-<script src="app/ec-depart.js?v=942"></script>
-<script src="app/ec-onglets.js?v=942"></script>
-<script src="app/ec-demarrage.js?v=942"></script>
+<script src="app/ec-messages-perso.js?v=943"></script>
+<script src="app/ec-bandeau.js?v=943"></script>
+<script src="app/ec-stats.js?v=943"></script>
+<script src="app/ec-messenger.js?v=943"></script>
+<script src="app/ec-journal.js?v=943"></script>
+<script src="app/ec-depart.js?v=943"></script>
+<script src="app/ec-onglets.js?v=943"></script>
+<script src="app/ec-demarrage.js?v=943"></script>
 
 <script>
 /* ============================================================
