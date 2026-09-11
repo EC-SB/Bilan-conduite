@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:41 — v948 */
+/* Déployé le 11/09/2026 à 13:30 — v953 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -336,14 +336,32 @@ const VUES = {
    calculer, seulement à rassembler.
    ============================================================ */
 const TUILES = {
+  /* ⚠️ L'ORDRE EST CELUI DE DAVID, DONNÉ LE 11 SEPTEMBRE 2026 —
+     et il ne se devine pas : il suit sa matinée, de « combien je
+     prends de places » jusqu'à « qu'est-ce qui bloque ». */
   permis: [
-    { cpt:'cptAPlacer',   lib:'Dates à prendre',           vue:'sessions',   ton:'urgent',
-      sous:'la préfecture attend' },
+    { cle:'places',       lib:'Places à prendre',          vue:'sessions',   ton:'urgent',
+      valeur:() => (typeof tuilePlacesAPrendre === 'function')
+        ? tuilePlacesAPrendre() : null },
+    { cpt:'cptAPlacer',   lib:'Dans la liste RDV permis',  vue:'sessions',   ton:'urgent',
+      sous:'élèves en attente d’une date' },
+    { cpt:'cptEBPrevus',  lib:'Examens blancs prévus',     vue:'envisager',  ton:'' },
     { cpt:'cptAPrevoir',  lib:'Prêts, sans date',          vue:'envisager',  ton:'urgent' },
+    { cle:'atraiter',     lib:'Examens à traiter',         vue:'sessions',   ton:'att',
+      valeur:() => (typeof tuileExamensATraiter === 'function')
+        ? tuileExamensATraiter() : null },
+    /* Une tuile par mois ouvert : elles naissent de la
+       configuration des places, pas de cette table. */
+    { listes:() => (typeof tuilesDesMoisDePlaces === 'function')
+        ? tuilesDesMoisDePlaces() : null },
+    { cle:'reussite',     lib:'Réussite du mois',          vue:'stats',      ton:'',
+      onglet:'outils',
+      valeur:() => (typeof tuileReussiteDuMois === 'function')
+        ? tuileReussiteDuMois() : null },
     { cpt:'cptPasses',    lib:'Résultats à saisir',        vue:'resultats',  ton:'att' },
     { cpt:'cptAttente',   lib:'Bilans post-permis à faire',vue:'pasprets',   ton:'att' },
-    { cpt:'cptPasNiveau', lib:'Examens blancs à replacer', vue:'pasprets',   ton:'' },
-    { cpt:'cptNonPlanif', lib:'Dossiers bloqués',          vue:'pasprets',   ton:'urgent',
+    { cpt:'cptPasNiveau', lib:'Examens blancs pas le niveau', vue:'pasprets', ton:'' },
+    { cpt:'cptNonPlanif', lib:'Examens non planifiables',  vue:'pasprets',   ton:'urgent',
       sous:'ANTS, avis médical, pièce manquante' }
   ],
   suivi: [
@@ -364,6 +382,12 @@ const TUILES = {
 Object.keys(TUILES).forEach(onglet => {
   const droits = [];
   TUILES[onglet].forEach(t => {
+    /* ⚠️ UNE TUILE PEUT VISER UN ÉCRAN D'UN AUTRE ONGLET — v953.
+       « Réussite du mois » vit dans Outils : son droit se lit
+       là-bas, pas ici. Mais il n'entre PAS dans le droit d'entrée
+       de la porte : ce n'est pas parce qu'on voit la réussite
+       qu'on a affaire à l'onglet Permis. */
+    if(t.onglet && t.onglet !== onglet) return;
     const v = (VUES[onglet] || []).filter(x => x[0] === t.vue)[0];
     if(!v) return;
     (Array.isArray(v[2]) ? v[2] : [v[2]]).forEach(d => {
@@ -538,18 +562,77 @@ function compteDuVolet(id){
 }
 
 function tuileVisible(onglet, t){
-  const v = (VUES[onglet] || []).filter(x => x[0] === t.vue)[0];
+  /* ⚠️ LE DROIT SE DEMANDE À L'ONGLET QUI PORTE L'ÉCRAN — v953.
+     « Réussite du mois » vise Outils depuis la porte de Permis :
+     chercher sa vue dans VUES.permis la ferait disparaître pour
+     tout le monde. */
+  const ou = t.onglet || onglet;
+  const v = (VUES[ou] || []).filter(x => x[0] === t.vue)[0];
   if(!v) return false;
   const s = v[2];
   if(typeof aDroit !== 'function') return true;
   return Array.isArray(s) ? s.some(aDroit) : aDroit(s);
 }
 
+/* Ouvrir l'écran d'une tuile — le sien, ou celui d'un autre onglet. */
+function ouvrirLaTuile(onglet, t){
+  const ou = t.onglet || onglet;
+  if(ou !== onglet && typeof afficherOnglet === 'function') afficherOnglet(ou);
+  if(typeof afficherVue === 'function') afficherVue(ou, t.vue);
+}
+
+/* ⚠️ CE QU'UNE TUILE VAUT — TROIS RÉPONSES, PAS DEUX — v953.
+
+   Jusqu'ici une tuile lisait un compteur posé par une liste, et
+   « null » voulait dire « cette liste ne s'est pas encore
+   dessinée ». Les tuiles neuves — les places à prendre, les
+   examens du mois, la réussite — ne lisent pas de compteur : elles
+   empruntent un nombre déjà calculé ailleurs. Il leur faut donc la
+   même nuance, et une de plus :
+
+     · null  — on ne sait pas encore ;
+     · false — on sait, et il n'y a rien à dire : la tuile ne
+               s'affiche pas, et elle n'entre pas non plus dans la
+               liste des « pas encore dessinées » ;
+     · { n, texte, sous, ton } — la valeur.
+
+   Un compteur de liste reste lu comme avant : c'est le même
+   vocabulaire, juste écrit une fois pour les deux sortes. */
+function valeurDeLaTuile(t){
+  if(typeof t.valeur === 'function'){
+    const v = t.valeur();
+    if(v === null || v === undefined) return null;
+    if(v === false) return false;
+    return v;
+  }
+  const n = compteDuVolet(t.cpt);
+  return (n === null) ? null : { n: n };
+}
+
+/* Les tuiles d'un onglet, celles de la table et celles qui naissent
+   des données — une par mois ouvert, par exemple. */
+function tuilesDeLOnglet(onglet){
+  const out = [];
+  let inconnue = false;
+
+  (TUILES[onglet] || []).forEach(t => {
+    if(typeof t.listes !== 'function'){ out.push(t); return; }
+    const l = t.listes();
+    /* null : la source n'a pas encore parlé. On ne peut pas nommer
+       des tuiles qu'on ne connaît pas ; on retient seulement qu'il
+       manque quelque chose. */
+    if(l === null || l === undefined){ inconnue = true; return; }
+    if(Array.isArray(l)) l.forEach(x => out.push(x));
+  });
+
+  return { liste: out.filter(t => tuileVisible(onglet, t)), inconnue: inconnue };
+}
+
 function dessinerTuiles(onglet){
   const zone = document.querySelector('[data-vue="coup"][data-onglet="' + onglet + '"] .tuiles');
   if(!zone) return;
 
-  const liste = (TUILES[onglet] || []).filter(t => tuileVisible(onglet, t));
+  const t0 = tuilesDeLOnglet(onglet);
   zone.innerHTML = '';
 
   /* ⚠️ « PAS ENCORE LU » N'EST PAS « RIEN À FAIRE ».
@@ -564,9 +647,11 @@ function dessinerTuiles(onglet){
     return;
   }
 
-  const lues = liste.map(t => ({ t: t, n: compteDuVolet(t.cpt) }));
-  const aVoir = lues.filter(x => x.n > 0);
-  const inconnues = lues.filter(x => x.n === null);
+  const lues = t0.liste.map(t => ({ t: t, v: valeurDeLaTuile(t) }));
+  /* Une tuile à zéro ne s'affiche pas — sauf celles qui le
+     demandent : « 0 / 30 » dit qu'il reste trente places. */
+  const aVoir = lues.filter(x => x.v && (x.v.n > 0 || x.t.toujours));
+  const inconnues = lues.filter(x => x.v === null);
 
   if(!aVoir.length){
     const v = document.createElement('div');
@@ -575,24 +660,28 @@ function dessinerTuiles(onglet){
        liste non dessinée, « rien qui attende » serait une promesse
        qu'on ne peut pas tenir. */
     const plusieurs = inconnues.length > 1;
-    v.textContent = inconnues.length
-      ? '⏳ ' + (plusieurs ? 'Ces listes ne se sont pas encore dessinées'
-                          : 'Cette liste ne s’est pas encore dessinée') +
-        ' : ' + inconnues.map(x => x.t.lib).join(', ') + '. ' +
-        (plusieurs ? 'Ouvre-les' : 'Ouvre-la') +
-        ' une fois pour qu’' + (plusieurs ? 'elles se comptent' : 'elle se compte') +
-        ' ici.'
+    v.textContent = (inconnues.length || t0.inconnue)
+      ? (inconnues.length
+          ? '⏳ ' + (plusieurs ? 'Ces listes ne se sont pas encore dessinées'
+                              : 'Cette liste ne s’est pas encore dessinée') +
+            ' : ' + inconnues.map(x => x.t.lib).join(', ') + '. ' +
+            (plusieurs ? 'Ouvre-les' : 'Ouvre-la') +
+            ' une fois pour qu’' + (plusieurs ? 'elles se comptent' : 'elle se compte') +
+            ' ici.'
+          : '⏳ Les listes ne se sont pas encore dessinées.')
       : '✅ Rien qui attende. Les écrans restent accessibles par les ' +
         'boutons au-dessus.';
     zone.appendChild(v);
     return;
   }
 
-  aVoir.forEach(({ t, n }) => {
+  aVoir.forEach(({ t, v }) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'tuile' + (t.ton ? ' ' + t.ton : '');
+    const ton = v.ton || t.ton;
+    b.className = 'tuile' + (ton ? ' ' + ton : '');
     b.setAttribute('data-vue-tuile', t.vue);
+    if(t.cle) b.setAttribute('data-tuile', t.cle);
 
     const fl = document.createElement('span');
     fl.className = 'fl';
@@ -606,17 +695,21 @@ function dessinerTuiles(onglet){
 
     const val = document.createElement('span');
     val.className = 'v';
-    val.textContent = String(n);
+    /* Le texte quand la tuile en propose un — « 15 / 30 », « 72,4 % » :
+       ces nombres-là ne sont pas des comptes, et les afficher comme
+       tels leur ferait dire autre chose. */
+    val.textContent = v.texte || String(v.n);
     b.appendChild(val);
 
-    if(t.sous){
+    const sous = v.sous || t.sous;
+    if(sous){
       const s = document.createElement('span');
       s.className = 'sous';
-      s.textContent = t.sous;
+      s.textContent = sous;
       b.appendChild(s);
     }
 
-    b.addEventListener('click', () => afficherVue(onglet, t.vue));
+    b.addEventListener('click', () => ouvrirLaTuile(onglet, t));
     zone.appendChild(b);
   });
 }
