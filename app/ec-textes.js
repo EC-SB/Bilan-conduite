@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:46 — v958 */
+/* Déployé le 11/09/2026 à 15:16 — v959 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -35,8 +35,14 @@ const USAGES_MODELE = [
                '{moniteurligne}', '{note}', '{mention48h}'] },
   { cle:'procedure',      nom:'🚦 Procédure de conduite',
     variables:[] },
+  /* ⚠️ {prenom} EST DANS LA LISTE — v959. envoyerFicheParMail le
+     remplit depuis toujours ; il manquait ici, donc il n'était ni
+     proposé au bouton, ni reconnu par l'alerte qui prévient qu'une
+     variable vient d'être retirée. Une liste qui ne dit pas tout ce
+     que l'autre remplit, c'est encore le même fait à deux
+     endroits. */
   { cle:'libre',          nom:'📄 Texte libre',
-    variables:['{eleve}', '{date}'] }
+    variables:['{prenom}', '{eleve}', '{date}'] }
 ];
 
 /* ⚠️ UNE NOUVELLE FICHE EST UN TEXTE LIBRE — v958.
@@ -380,6 +386,116 @@ function toutesLesEtiquettes(){
 }
 
 /* ============================================================
+   L'ORDRE DES FICHES — CELUI DE CHACUN
+
+   David : « je dois aussi pouvoir changer l'ordre des fiches à
+   l'intérieur des catégories par un cliquer-glisser, et que cet
+   ordre soit valable par utilisateur ».
+
+   ⚠️ UN SEUL ORDRE PAR PERSONNE, PAS UN PAR ÉTIQUETTE. Une fiche
+   porte plusieurs étiquettes : un rangement par étiquette lui
+   donnerait plusieurs places à la fois, et la même fiche déplacée
+   dans un carnet n'aurait pas bougé dans l'autre — impossible à
+   comprendre, et deux listes à tenir d'accord. Avec un ordre
+   unique, filtrer un carnet garde l'ordre relatif : ranger à
+   l'intérieur d'une étiquette marche exactement comme il le
+   demande, et le résultat est le même partout.
+
+   Il vit dans les réglages partagés, sous le nom de la personne —
+   la même clé que « Mes tuiles ». Ce n'est pas l'ordre de l'école,
+   c'est le sien.
+   ============================================================ */
+function cleOrdreFiches(){
+  const nom = (typeof ACCES !== 'undefined' && ACCES && ACCES.moniteur)
+    ? String(ACCES.moniteur) : '';
+  const simple = nom.toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ').trim();
+  return simple ? 'fiches:' + simple : '';
+}
+
+let ordreFiches = null;
+
+function decouperIds(txt){
+  return String(txt || '').split('|')
+    .map(x => x.trim()).filter(Boolean)
+    .filter((x, i, t) => t.indexOf(x) === i);
+}
+
+async function chargerOrdreFiches(){
+  if(ordreFiches) return ordreFiches;
+  const cle = cleOrdreFiches();
+  if(!cle || typeof chargerReglagesPartages !== 'function'){
+    ordreFiches = [];
+    return ordreFiches;
+  }
+  try{
+    const r = await chargerReglagesPartages(false);
+    ordreFiches = decouperIds(r[cle]);
+  }catch(e){ ordreFiches = []; }
+  return ordreFiches;
+}
+
+async function enregistrerOrdreFiches(liste){
+  ordreFiches = liste.slice();
+  const cle = cleOrdreFiches();
+  if(!cle || typeof ecrireReglagePartage !== 'function') return;
+  await ecrireReglagePartage(cle, liste.join('|'));
+}
+
+/* Les fiches rangées : celles qu'on a placées d'abord, dans l'ordre
+   voulu ; les autres derrière, par titre. Une fiche neuve ne va donc
+   pas se perdre au milieu, et une fiche supprimée ne laisse pas de
+   trou. */
+function fichesRangees(liste){
+  const rang = {};
+  (ordreFiches || []).forEach((id, i) => { rang[id] = i; });
+
+  return liste.slice().sort((a, b) => {
+    const ra = rang[a.id], rb = rang[b.id];
+    if(ra !== undefined && rb !== undefined) return ra - rb;
+    if(ra !== undefined) return -1;
+    if(rb !== undefined) return 1;
+    return String(a.titre || a.nom).localeCompare(String(b.titre || b.nom), 'fr');
+  });
+}
+
+/* ⚠️ ON RANGE SUR LA LISTE ENTIÈRE, PAS SUR CE QUI EST AFFICHÉ.
+
+   Déplacer une fiche pendant qu'une recherche cache les trois
+   quarts des autres ne doit pas effacer leur place : ce qui est
+   masqué n'a pas déménagé. On part donc de toutes les fiches,
+   rangées comme elles le sont, et on n'y bouge que celle qu'on
+   tient. */
+async function bougerFiche(id, devant){
+  if(!id || !devant || id === devant) return;
+
+  const tout = fichesRangees(modelesTexte || []).map(m => m.id);
+  const de = tout.indexOf(id), vers = tout.indexOf(devant);
+  if(de === -1 || vers === -1 || de === vers) return;
+
+  const [pris] = tout.splice(de, 1);
+  tout.splice(vers, 0, pris);
+
+  ordreFiches = tout;
+  dessinerListeFiches();
+  try{
+    await enregistrerOrdreFiches(tout);
+  }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
+}
+
+/* Le voisin dans ce qui est AFFICHÉ : les flèches du téléphone
+   doivent déplacer d'un cran visible, pas d'un cran invisible. */
+async function glisserFicheDUnCran(m, sens){
+  const vues = fichesAffichees().map(x => x.id);
+  const i = vues.indexOf(m.id);
+  const j = i + sens;
+  if(i === -1 || j < 0 || j >= vues.length) return;
+  await bougerFiche(m.id, vues[j]);
+}
+
+
+/* ============================================================
    CHERCHER PARTOUT
 
    David : « une barre de recherche qui cherche partout ». Le titre,
@@ -519,21 +635,121 @@ function ouvrirCopieMorceau(m){
    appliquerModele est la seule fonction qui sache le faire, et
    elle n'est pas recopiée ici.
    ============================================================ */
-async function envoyerFicheParMail(m){
-  if(typeof choisirEleveConnu !== 'function'){
-    showToast('La liste des élèves n’est pas chargée.');
-    return;
-  }
-  const nom = await choisirEleveConnu('✉️ Envoyer « ' + (m.titre || m.nom) + ' »',
-    'À qui ce message part-il ? Son adresse est reprise de sa fiche.');
-  if(!nom) return;
+/* ⚠️ UNE ADRESSE SE TAPE AUSSI À LA MAIN — v959.
 
-  const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
-  let adresse = (f && f.email) || '';
-  if(typeof confirmerAdresseEleve === 'function'){
-    adresse = await confirmerAdresseEleve(nom, adresse);
-  }
-  if(!adresse) return;
+   David : « dans l'envoi par mail il faut qu'on puisse taper une
+   adresse mail à la main aussi ».
+
+   Avant, il fallait d'abord DÉSIGNER UN ÉLÈVE : l'adresse n'était
+   qu'une conséquence de sa fiche. Un accompagnateur, un financeur,
+   un parent, un collègue — personne d'autre qu'un élève inscrit ne
+   pouvait recevoir une fiche.
+
+   Une seule fenêtre, donc, avec les deux : l'adresse, toujours
+   visible et toujours modifiable, et un bouton qui va la chercher
+   dans la fiche d'un élève quand c'en est un. Le prénom vient avec,
+   parce que c'est lui qui remplit {prenom} — et une adresse tapée
+   à la main sans prénom enverrait « Bonjour , ». */
+function choisirDestinataireMail(titre, propose){
+  return new Promise(resolve => {
+    const fond = document.createElement('div');
+    fond.className = 'overlay show';
+    const boite = document.createElement('div');
+    boite.className = 'modal';
+    boite.style.cssText = 'max-width:min(460px, 94vw);';
+    fond.appendChild(boite);
+
+    boite.insertAdjacentHTML('beforeend',
+      '<h3>' + String(titre || '✉️ Envoyer').replace(/</g, '&lt;') + '</h3>' +
+      '<div style="font-size:13px;color:var(--muted);line-height:1.5;' +
+        'margin-bottom:12px;">Tape l’adresse, ou reprends celle d’un élève.' +
+      '</div>' +
+      '<label for="dmAdresse">Adresse du destinataire</label>' +
+      /* ⚠️ LARGEUR POSÉE ICI : la feuille de style habille les
+         champs texte, pas les champs « email » — celui-ci repartait
+         à la largeur du navigateur, deux fois plus étroit que celui
+         du dessous. */
+      '<input type="email" id="dmAdresse" autocomplete="off" ' +
+        'style="width:100%;" placeholder="prenom.nom@exemple.fr">' +
+      '<label for="dmNom">Son prénom ou son nom <span style="opacity:.6;' +
+        'text-transform:none;font-weight:400;">— remplit {prenom} et ' +
+        '{eleve}</span></label>' +
+      '<input type="text" id="dmNom" autocomplete="off" ' +
+        'placeholder="Facultatif">');
+
+    const g = id => boite.querySelector('#' + id);
+    if(propose) g('dmNom').value = String(propose);
+
+    const bEleve = document.createElement('button');
+    bEleve.type = 'button';
+    bEleve.className = 'btn btn-secondary';
+    bEleve.style.cssText = 'width:100%;padding:9px;font-size:13px;margin:0 0 12px;';
+    bEleve.textContent = '📇 Reprendre l’adresse d’un élève';
+    bEleve.addEventListener('click', async () => {
+      if(typeof choisirEleveConnu !== 'function'){
+        showToast('La liste des élèves n’est pas chargée.');
+        return;
+      }
+      const nom = await choisirEleveConnu('📇 Quel élève ?',
+        'Son adresse est reprise de sa fiche.', g('dmNom').value.trim());
+      if(!nom) return;
+      g('dmNom').value = nom;
+      const f = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+      const mail = (f && f.email) || '';
+      if(mail) g('dmAdresse').value = mail;
+      else showToast('Aucune adresse dans la fiche de ' + nom + ' — tape-la.');
+      g('dmAdresse').focus();
+    });
+    boite.appendChild(bEleve);
+
+    const msg = document.createElement('div');
+    msg.style.cssText = 'font-size:13px;min-height:16px;margin-bottom:4px;';
+    boite.appendChild(msg);
+
+    const rangee = document.createElement('div');
+    rangee.className = 'btn-row';
+    const bAnn = document.createElement('button');
+    bAnn.className = 'btn btn-secondary';
+    bAnn.textContent = 'Annuler';
+    bAnn.addEventListener('click', () => { fermerFond(fond); resolve(null); });
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.textContent = '✉️ Continuer';
+    rangee.appendChild(bAnn); rangee.appendChild(bOk);
+    boite.appendChild(rangee);
+
+    bOk.addEventListener('click', () => {
+      const adresse = g('dmAdresse').value.trim();
+      /* ⚠️ ON REGARDE L'ADRESSE AVANT DE PARTIR. Une faute de frappe
+         part sans erreur visible et n'arrive jamais : c'est le
+         genre de message dont on découvre trois jours plus tard
+         qu'il n'a pas été reçu. */
+      if(!/^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/.test(adresse)){
+        msg.style.color = 'var(--warn-text)';
+        msg.textContent = adresse ? 'Cette adresse ne ressemble pas à une adresse.'
+                                  : 'Il faut une adresse.';
+        g('dmAdresse').focus();
+        return;
+      }
+      fermerFond(fond);
+      resolve({ adresse: adresse, nom: g('dmNom').value.trim() });
+    });
+
+    fond.addEventListener('click', e => {
+      if(e.target === fond){ fermerFond(fond); resolve(null); }
+    });
+
+    document.body.appendChild(fond);
+    setTimeout(() => g('dmAdresse').focus(), 60);
+  });
+}
+
+async function envoyerFicheParMail(m){
+  const qui = await choisirDestinataireMail(
+    '✉️ Envoyer « ' + (m.titre || m.nom) + ' »');
+  if(!qui) return;
+
+  const nom = qui.nom;
 
   /* Le texte, variables remplacées : {prenom}, {eleve}, {date}… */
   const texte = (typeof appliquerModele === 'function')
@@ -546,15 +762,25 @@ async function envoyerFicheParMail(m){
       })
     : (m.contenu || '');
 
+  /* ⚠️ UN « Bonjour , » NE PART PAS SANS QU'ON L'AIT VOULU. Le
+     prénom est facultatif : il faut donc le dire quand le texte en
+     réclame un et qu'il n'y en a pas. */
+  if(!nom && /\{(prenom|eleve)\}/.test(m.contenu || '')){
+    if(!await confirmer('Ce texte attend un prénom, et tu n’en as pas mis : ' +
+        'le message partira avec un blanc à la place.\n\nEnvoyer quand même ?')){
+      return;
+    }
+  }
+
   /* L'objet : la porte commune de saisie, pas une fenêtre de plus. */
-  const sujet = await demander('Objet du message — ce que l’élève verra ' +
-    'comme titre.', (m.titre || m.nom), '✉️ Envoyer la fiche');
+  const sujet = await demander('Objet du message — ce que le destinataire ' +
+    'verra comme titre.', (m.titre || m.nom), '✉️ Envoyer la fiche');
   if(sujet === null) return;
 
   try{
-    await appelPrep({ action: 'mailBilan', to: [adresse],
+    await appelPrep({ action: 'mailBilan', to: [qui.adresse],
                       sujet: sujet || (m.titre || m.nom), texte: texte });
-    showToast('Envoyé à ' + adresse + ' ✅');
+    showToast('Envoyé à ' + qui.adresse + ' ✅');
   }catch(e){
     showToast('Impossible : ' + e.message);
   }
@@ -569,7 +795,8 @@ async function afficherModelesTexte(){
   if(!zone) return;
 
   zone.innerHTML = '<div class="empty">Chargement des fiches…</div>';
-  await Promise.all([chargerModelesTexte(), chargerOrdreEtiquettes()]);
+  await Promise.all([chargerModelesTexte(), chargerOrdreEtiquettes(),
+                     chargerOrdreFiches()]);
   dessinerBibliotheque();
 }
 
@@ -646,7 +873,20 @@ function dessinerRailEtiquettes(){
       dessinerRailEtiquettes();
       dessinerListeFiches();
     });
+    /* ⚠️ LE CRAYON EST DANS LA LIGNE, PAS DERRIÈRE UN GESTE CACHÉ.
+       Un clic long ou un clic droit ne s'invente pas, et ne marche
+       pas pareil sur téléphone. */
     if(rangeable){
+      const cr = document.createElement('span');
+      cr.className = 'etqCrayon';
+      cr.textContent = '✏️';
+      cr.title = 'Renommer cette étiquette';
+      cr.addEventListener('click', e => {
+        e.stopPropagation();
+        renommerEtiquette(cle);
+      });
+      b.appendChild(cr);
+
       b.draggable = true;
       b.dataset.etq = cle;
       b.addEventListener('dragstart', e => {
@@ -680,6 +920,93 @@ function dessinerRailEtiquettes(){
 
 let glisseEtq = '';
 
+/* ============================================================
+   RENOMMER UNE ÉTIQUETTE
+
+   David : « je peux pas renommer une catégorie, il faut que ce
+   soit possible ».
+
+   ⚠️ UNE ÉTIQUETTE N'EXISTE NULLE PART EN PROPRE : elle n'est que
+   le mot écrit sur les fiches qui la portent. La renommer, c'est
+   donc réécrire ces fiches-là — et l'ordre rangé par-dessus. Une
+   seule des deux, et l'ancien nom revient par l'autre bout à la
+   première relecture.
+
+   Les fiches qui ne la portent pas ne sont pas touchées : on ne
+   réécrit que ce qui change.
+   ============================================================ */
+async function renommerEtiquette(ancien){
+  const rep = await demander(
+    'Ce nom sera changé sur toutes les fiches qui le portent.',
+    ancien, '🏷️ Renommer « ' + ancien + ' »');
+  if(rep === null) return;
+
+  const neuf = String(rep).trim();
+  if(!neuf || neuf === ancien) return;
+
+  /* Le point médian sépare les étiquettes dans le classeur : dans un
+     nom, il en fabriquerait deux au rechargement. */
+  if(neuf.indexOf('·') !== -1){
+    showToast('Le « · » sépare les étiquettes : il ne peut pas être dans un nom.');
+    return;
+  }
+
+  const touchees = (modelesTexte || [])
+    .filter(m => etiquettesDe(m).indexOf(ancien) !== -1);
+
+  /* L'ordre d'abord : il se range même si aucune fiche ne la porte
+     encore — une étiquette créée puis renommée avant usage. */
+  const ordre = toutesLesEtiquettes()
+    .map(e => (e === ancien ? neuf : e))
+    .filter((e, i, l) => l.indexOf(e) === i);
+
+  showToast('Renommage… ' + touchees.length + ' fiche' +
+            (touchees.length > 1 ? 's' : ''));
+
+  let rates = 0;
+
+  /* Quatre à la fois : une centaine de fiches à la queue leu leu se
+     compterait en minutes, et toutes d'un coup noierait la porte. */
+  for(let i = 0; i < touchees.length; i += 4){
+    const paquet = touchees.slice(i, i + 4).map(async m => {
+      const liste = etiquettesDe(m)
+        .map(e => (e === ancien ? neuf : e))
+        .filter((e, k, l) => l.indexOf(e) === k);
+      try{
+        /* ⚠️ ON RENVOIE LA FICHE ENTIÈRE : « modeleSet » écrit la
+           ligne complète, et un champ oublié ici s'effacerait dans
+           le classeur. Le titre part sans son ancien préfixe de
+           catégorie — elle est déjà dans la liste ci-dessus. */
+        await appelPrep({
+          action: 'modeleSet', id: m.id, usage: m.usage || 'libre',
+          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ),
+          boite: m.boite || '', ordre: !!m.ordre,
+          consigne: m.consigne || '', bilan: m.bilan || '',
+          contenu: m.contenu || ''
+        });
+        poserModeleEnMemoire(Object.assign({}, m, {
+          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ), categorie: ''
+        }));
+      }catch(e){ rates++; }
+    });
+    await Promise.all(paquet);
+  }
+
+  try{
+    await enregistrerOrdreEtiquettes(ordre);
+  }catch(e){ rates++; }
+
+  if(etiquetteChoisie === ancien) etiquetteChoisie = neuf;
+  perimerModeles();
+  dessinerRailEtiquettes();
+  dessinerListeFiches();
+
+  showToast(rates
+    ? '⚠️ Renommée, sauf ' + rates + ' fiche(s) — droit ou réseau'
+    : '🏷️ Renommée sur ' + touchees.length + ' fiche' +
+      (touchees.length > 1 ? 's' : ''));
+}
+
 /* On déplace, on n'échange pas : glisser la dernière en tête ne
    doit pas envoyer la première tout en bas. */
 async function rangerEtiquette(quoi, devant){
@@ -694,11 +1021,13 @@ async function rangerEtiquette(quoi, devant){
   }catch(e){ showToast('Ordre non enregistré : ' + e.message); }
 }
 
-function dessinerListeFiches(){
-  const zone = document.querySelector('#textesZone .biblioFiches');
-  if(!zone) return;
-  zone.innerHTML = '';
+/* ⚠️ « QUELLES FICHES SONT À L'ÉCRAN » NE S'ÉCRIT QU'ICI — v959.
 
+   Le dessin le savait, les flèches de déplacement avaient besoin
+   de le savoir aussi, et un second filtre aurait fini par ne plus
+   dire la même chose que le premier. C'est le défaut de ce dossier
+   depuis le début. */
+function fichesAffichees(){
   const mots = sansAccents(rechercheFiches).split(/\s+/).filter(Boolean);
   let liste = (modelesTexte || []).filter(m => fichePorte(m, mots));
   if(etiquetteChoisie === '*sans*'){
@@ -706,6 +1035,16 @@ function dessinerListeFiches(){
   }else if(etiquetteChoisie){
     liste = liste.filter(m => etiquettesDe(m).indexOf(etiquetteChoisie) !== -1);
   }
+  return fichesRangees(liste);
+}
+
+function dessinerListeFiches(){
+  const zone = document.querySelector('#textesZone .biblioFiches');
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  const mots = sansAccents(rechercheFiches).split(/\s+/).filter(Boolean);
+  const liste = fichesAffichees();
 
   if(!liste.length){
     const v = document.createElement('div');
@@ -718,15 +1057,55 @@ function dessinerListeFiches(){
     return;
   }
 
-  liste.sort((a, b) => String(a.titre || a.nom)
-    .localeCompare(String(b.titre || b.nom), 'fr'));
-
   liste.forEach(m => zone.appendChild(carteDeFiche(m, mots)));
 }
+
+let glisseFiche = '';
 
 function carteDeFiche(m, mots){
   const d = document.createElement('div');
   d.className = 'ficheTexte';
+
+  /* ⚠️ UN CLIC SUR LA CARTE OUVRE LA FICHE — v959. David : « je veux
+     le texte en entier pour pouvoir changer directement dessus sans
+     avoir forcément à appuyer sur le bouton crayon, il me faut la
+     même chose que Keep ». Le crayon disparaît : c'était un geste de
+     plus, cent fois par jour. Les autres gestes restent en bas de
+     carte, et ils ne doivent pas ouvrir la fiche au passage. */
+  d.tabIndex = 0;
+  d.addEventListener('click', e => {
+    if(e.target.closest('.fgb')) return;
+    ouvrirEditeurModele(m);
+  });
+  d.addEventListener('keydown', e => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); ouvrirEditeurModele(m); }
+  });
+
+  /* ⚠️ ON GLISSE LA CARTE, ET LES FLÈCHES RESTENT POUR LE TÉLÉPHONE
+     — même règle que le rail des étiquettes et que « Mes tuiles » :
+     glisser déplacerait la page sous le doigt. Deux façons d'y
+     toucher, un seul rangement. */
+  d.draggable = true;
+  d.dataset.fiche = m.id;
+  d.addEventListener('dragstart', e => {
+    glisseFiche = m.id; d.classList.add('prise');
+    try{ e.dataTransfer.effectAllowed = 'move'; }catch(err){}
+  });
+  d.addEventListener('dragend', () => {
+    glisseFiche = '';
+    document.querySelectorAll('#textesZone .ficheTexte')
+      .forEach(x => x.classList.remove('prise', 'cible'));
+  });
+  d.addEventListener('dragover', e => {
+    if(!glisseFiche || glisseFiche === m.id) return;
+    e.preventDefault(); d.classList.add('cible');
+  });
+  d.addEventListener('dragleave', () => d.classList.remove('cible'));
+  d.addEventListener('drop', async e => {
+    e.preventDefault(); d.classList.remove('cible');
+    if(!glisseFiche || glisseFiche === m.id) return;
+    await bougerFiche(glisseFiche, m.id);
+  });
 
   const t = document.createElement('div');
   t.className = 'ft';
@@ -770,7 +1149,15 @@ function carteDeFiche(m, mots){
     return b;
   };
 
-  geste('✏️', 'Modifier', () => ouvrirEditeurModele(m));
+  /* Les deux flèches ne s'affichent que sous 760 px : sur un
+     ordinateur, on glisse. */
+  const bHaut = geste('↑', 'Monter cette fiche',
+                      () => glisserFicheDUnCran(m, -1));
+  const bBas = geste('↓', 'Descendre cette fiche',
+                     () => glisserFicheDUnCran(m, 1));
+  bHaut.classList.add('fgTel');
+  bBas.classList.add('fgTel');
+
   geste('📋', 'Copier toute la fiche', async () => {
     const ok = await copierDansLePressePapier(m.contenu || '');
     showToast(ok ? 'Fiche copiée ✅' : 'Copie impossible sur cet appareil');
@@ -778,39 +1165,177 @@ function carteDeFiche(m, mots){
   geste('✂️', 'Copier un morceau', () => ouvrirCopieMorceau(m));
   geste('✉️', 'Envoyer par mail', () => envoyerFicheParMail(m));
 
-  const bSup = geste('✕', 'Supprimer', async () => {
-    if(!await confirmer('Supprimer la fiche « ' + (m.titre || m.nom) + ' » ?')) return;
-    bSup.disabled = true;
-    try{
-      await appelPrep({ action: 'modeleDelete', id: m.id });
-      perimerModeles();
-      showToast('Fiche supprimée');
-      afficherModelesTexte();
-    }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
-  });
-  bSup.classList.add('sup');
+  /* ⚠️ PAS DE SUPPRESSION SUR LA CARTE — v959. David : « enlève le
+     bouton de suppression directement sur la fiche, en petit
+     uniquement quand elle est ouverte, en bas ». Avec cent cartes
+     serrées, une croix rouge à portée de pouce est une fiche perdue
+     un jour ou l'autre ; ouverte, on sait ce qu'on supprime. */
 
   d.appendChild(g);
   return d;
 }
 
+/* ============================================================
+   LA FICHE OUVERTE — ON ÉCRIT DEDANS, COMME DANS KEEP
+
+   David, le 11 septembre : « je veux le texte en entier pour
+   pouvoir changer directement dessus sans avoir forcément à
+   appuyer sur le bouton crayon, il me faut la même chose que
+   Keep ».
+
+   Donc : un clic n'importe où sur la carte ouvre la fiche, le
+   titre et le texte sont des champs qu'on modifie sur place, et
+   fermer enregistre. Pas de bouton « Enregistrer » — il n'y en a
+   pas dans Keep, et c'est un geste de moins cent fois par jour.
+
+   ⚠️ ET C'EST LE MÊME ÉDITEUR QU'AVANT, PAS UN SECOND.
+
+   La tentation était d'ajouter une « ouverture rapide » à côté de
+   l'éditeur existant. Deux écrans pour une même fiche, c'est le
+   péché de ce dossier : celui qu'on oublie de tenir à jour finit
+   par écrire de travers. Les réglages techniques — l'usage, la
+   boîte, les consignes de l'IA, le bilan — sont simplement rangés
+   sous « ⚙️ Réglages », dépliés d'office là où ils comptent.
+   ============================================================ */
+
+/* ⚠️ LA FICHE PORTE SON NUMÉRO AVANT DE PARTIR — v959.
+
+   Une fiche neuve partait sans numéro, et le classeur lui en
+   fabriquait un À CHAQUE FOIS qu'il recevait la demande. Un appel
+   renvoyé après un délai dépassé — ce qui arrivait tout le temps,
+   l'écriture réveillant Apps Script — ajoutait donc une SECONDE
+   ligne. C'est la règle déjà posée pour les liens de cours :
+   reconnaître avant d'écrire. Ici on fait mieux, on donne le nom
+   d'abord : une demande renvoyée se réécrit sur elle-même. */
+function nouvelIdModele(){
+  return 'm' + Date.now() + Math.floor(Math.random() * 1000);
+}
+
+/* Un texte dont l'application se sert toute seule. Les procédures
+   en font partie : elles nourrissent la correction. */
+function estTexteDeLAppli(m){
+  const u = String((m || {}).usage || 'libre');
+  return u !== '' && u !== 'libre';
+}
+
+function peutToucherAuxTextesDeLAppli(){
+  if(typeof peutModifier !== 'function') return true;
+  return peutModifier('textes_appli');
+}
+
+/* ------------------------------------------------------------
+   CE QUI PART DANS LE MESSAGE — ET CE QUI N'Y ARRIVERA JAMAIS
+
+   David : « ma crainte c'est que quelqu'un modifie un texte type
+   qui sert aux rappels et casse les rappels ». Le droit ci-dessus
+   dit QUI peut y toucher ; ces deux fonctions disent ce qui vient
+   d'être cassé, à celui qui a le droit et qui se trompe quand
+   même.
+
+   Une variable retirée ne se voit nulle part : le rappel continue
+   de partir, simplement sans le lien vers le bilan. On le dit
+   AVANT d'enregistrer, en la nommant.
+   ------------------------------------------------------------ */
+function variablesDuTexte(t){
+  return (String(t || '').match(/\{[^{}\s]+\}/g) || [])
+    .filter((x, i, l) => l.indexOf(x) === i);
+}
+
+function variablesConnues(usage){
+  const u = USAGES_MODELE.find(x => x.cle === usage);
+  return u ? u.variables : [];
+}
+
+/* Rend la phrase à montrer, ou '' si rien à signaler. */
+function alerteDesVariables(ancien, neuf, usage){
+  const connues = variablesConnues(usage);
+  const avant = variablesDuTexte(ancien);
+  const apres = variablesDuTexte(neuf);
+
+  const parties = [];
+
+  /* Celles qui étaient là, qui comptent, et qui n'y sont plus. */
+  const perdues = avant.filter(v => connues.indexOf(v) !== -1 &&
+                                    apres.indexOf(v) === -1);
+  if(perdues.length){
+    parties.push('Tu as retiré ' + perdues.join(', ') + ' : ' +
+      (perdues.length > 1 ? 'ces éléments ne seront plus remplis'
+                          : 'cet élément ne sera plus rempli') +
+      ' dans le message envoyé.');
+  }
+
+  /* Une variable inventée ou mal orthographiée part telle quelle :
+     l'élève reçoit « {lein} » au milieu de sa phrase. On ne le dit
+     que là où l'outil remplit lui-même — ailleurs, des accolades
+     dans un texte sont un texte. */
+  if(estTexteDeLAppli({ usage: usage })){
+    const inconnues = apres.filter(v => connues.indexOf(v) === -1);
+    if(inconnues.length){
+      parties.push(inconnues.join(', ') +
+        (inconnues.length > 1 ? ' ne correspondent à rien' : ' ne correspond à rien') +
+        ' : ' + (inconnues.length > 1 ? 'ils partiront' : 'il partira') +
+        ' tels quels dans le message.');
+    }
+  }
+
+  return parties.join('\n\n');
+}
+
+/* ⚠️ APRÈS L'ENREGISTREMENT, ON NE RELIT PAS TOUT — v959.
+
+   La liste est déjà en mémoire et on sait exactement ce qu'on
+   vient d'écrire. Relire les cent fiches pour retrouver celle
+   qu'on tenait dans la main, c'est un aller-retour de plus à
+   chaque frappe d'Enregistrer. */
+function poserModeleEnMemoire(f){
+  const s = separerCategorie(f.nom);
+  const plein = Object.assign({}, f, { categorie: s.categorie, titre: s.titre });
+  const i = (modelesTexte || []).findIndex(x => String(x.id) === String(f.id));
+  if(i === -1) modelesTexte.push(plein);
+  else modelesTexte[i] = Object.assign({}, modelesTexte[i], plein);
+  return plein;
+}
+
+function retirerModeleDeLaMemoire(id){
+  const i = (modelesTexte || []).findIndex(x => String(x.id) === String(id));
+  if(i !== -1) modelesTexte.splice(i, 1);
+}
+
+
 function ouvrirEditeurModele(modele, usageImpose){
   const fond = document.createElement('div');
   fond.className = 'overlay show';
   const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
+  boite.className = 'modal ficheOuverte';
+  boite.style.cssText = 'max-width:min(640px, 96vw);max-height:92vh;overflow-y:auto;';
 
-  const h = document.createElement('h3');
-  h.textContent = modele
-    ? (usageImpose === 'procedure' ? 'Modifier la procédure' : 'Modifier le texte')
-    : (usageImpose === 'procedure' ? '🚦 Nouvelle procédure' : 'Nouveau texte type');
-  boite.appendChild(h);
+  /* Une fiche neuve est libre par construction : c'est le réglage
+     d'usage qui la rendra technique, et il est verrouillé plus bas
+     si la main qui la tient n'en a pas le droit. */
+  const verrou = !peutToucherAuxTextesDeLAppli() &&
+                 (estTexteDeLAppli(modele) || usageImpose === 'procedure');
 
-  /* ⚠️ DES ÉTIQUETTES, PAS UNE CATÉGORIE — v958. On coche celles
-     qu'on veut, on en crée une en la tapant. Une fiche peut en
-     porter plusieurs, et en changer sans être déplacée. */
+  const ech = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
   boite.insertAdjacentHTML('beforeend',
+    (verrou
+      ? '<div class="fiVerrou">🔒 Ce texte est utilisé par l’application. ' +
+        'Tu peux le lire et le copier ; sa modification demande le droit ' +
+        '« ⚙️ Textes de l’application ».</div>'
+      : '') +
+
+    '<input type="text" id="mdNom" class="fiTitre" ' +
+      'placeholder="Titre de la fiche" value="' +
+      ech(modele ? (modele.titre || modele.nom) : '') + '">' +
+
+    '<textarea id="mdContenu" class="fiTexte" rows="12" ' +
+      'placeholder="Écris ton message…"></textarea>' +
+
+    /* ⚠️ DES ÉTIQUETTES, PAS UNE CATÉGORIE — v958. On coche celles
+       qu'on veut, on en crée une en la tapant. Une fiche peut en
+       porter plusieurs, et en changer sans être déplacée. */
     '<label>🏷️ Étiquettes</label>' +
     '<div id="mdEtiq" class="mdEtiq"></div>' +
     '<div style="display:flex;gap:6px;margin:-4px 0 12px;">' +
@@ -819,8 +1344,11 @@ function ouvrirEditeurModele(modele, usageImpose){
       '<button type="button" class="btn btn-secondary" id="mdEtiqAdd" ' +
         'style="width:auto;padding:0 14px;margin:0;font-size:13px;">➕</button>' +
     '</div>' +
-    '<label for="mdNom">Nom de ce texte</label>' +
-    '<input type="text" id="mdNom" placeholder="Ex : Jour du permis — Saint-Brieuc">' +
+
+    /* Les réglages techniques, rangés : on ne tombe plus dessus en
+       venant corriger une faute de frappe. */
+    '<details id="mdPlus" class="fiPlus">' +
+    '<summary>⚙️ Réglages</summary>' +
     '<label for="mdUsage">Où sera-t-il utilisé ?</label>' +
     '<select id="mdUsage">' + optionsUsage(usageImpose) + '</select>' +
     '<div id="mdVars" style="font-size:12px;color:var(--muted);margin:-8px 0 12px;' +
@@ -841,11 +1369,6 @@ function ouvrirEditeurModele(modele, usageImpose){
         'line-height:1.5;">Un élève en remorque ne voit que les ' +
         'procédures BE, et lui seul les voit.</div>' +
     '</div>' +
-    '<label for="mdContenu">Texte du message</label>' +
-    '<textarea id="mdContenu" rows="14" ' +
-      'style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);' +
-      'padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;font-family:inherit;' +
-      'resize:vertical;margin-bottom:12px;"></textarea>' +
 
     /* Comment l'IA doit corriger CELLE-CI.
 
@@ -908,51 +1431,111 @@ function ouvrirEditeurModele(modele, usageImpose){
         'c\'est sa formation qui décide — ce qu\'il faut pour une leçon de ' +
         'conduite ordinaire, et ce qu\'il ne faut pas pour un examen.' +
       '</div>' +
-    '</div>');
+    '</div>' +
+    '</details>');
 
-  const rangee = document.createElement('div');
-  rangee.className = 'btn-row';
-  const bAnn = document.createElement('button');
-  bAnn.className = 'btn btn-secondary';
-  bAnn.textContent = 'Annuler';
-  const bOk = document.createElement('button');
-  bOk.className = 'btn btn-primary';
-  bOk.textContent = '💾 Enregistrer';
-  rangee.appendChild(bAnn); rangee.appendChild(bOk);
-  boite.appendChild(rangee);
+  const g = id => boite.querySelector('#' + id);
+  g('mdContenu').value = (modele && modele.contenu) || '';
 
   const msg = document.createElement('div');
-  msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
+  msg.style.cssText = 'margin-top:4px;font-size:13px;min-height:16px;';
   boite.appendChild(msg);
 
-  /* La boîte et les consignes de correction n'ont de sens que pour
-     une procédure : un texte type ne se récite pas. */
+  /* ---- Les gestes, en pied de fiche ---- */
+  const pied = document.createElement('div');
+  pied.className = 'fiPied';
+  boite.appendChild(pied);
+
+  /* ---- L'état courant, tel qu'il partira ---- */
+  let mesEtiquettes = modele ? etiquettesDe(modele) : [];
+
+  const fichePleine = () => ({
+    id: modele ? modele.id : idDeCetteFiche,
+    usage: g('mdUsage').value,
+    nom: g('mdNom').value.trim(),
+    titre: g('mdNom').value.trim(),
+    etiquettes: mesEtiquettes.join(SEP_ETIQ),
+    boite: (g('mdUsage').value === 'procedure' && g('mdBoite'))
+      ? g('mdBoite').value : '',
+    ordre: (g('mdUsage').value === 'procedure' && g('mdOrdre'))
+      ? g('mdOrdre').checked : false,
+    consigne: (g('mdUsage').value === 'procedure' && g('mdConsigne'))
+      ? g('mdConsigne').value.trim() : '',
+    bilan: (g('mdUsage').value === 'rappel_cours' && g('mdBilan'))
+      ? g('mdBilan').value : '',
+    contenu: g('mdContenu').value.trim()
+  });
+
+  /* Le numéro est posé ICI, une fois, et ne change plus : c'est lui
+     qui rend un appel renvoyé inoffensif. */
+  const idDeCetteFiche = modele ? modele.id : nouvelIdModele();
+
+  const geste = (txt, titre, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'fgb';
+    b.textContent = txt;
+    b.title = titre;
+    b.addEventListener('click', fn);
+    pied.appendChild(b);
+    return b;
+  };
+
+  if(modele){
+    geste('📋', 'Copier toute la fiche', async () => {
+      const ok = await copierDansLePressePapier(g('mdContenu').value);
+      showToast(ok ? 'Fiche copiée ✅' : 'Copie impossible sur cet appareil');
+    });
+    geste('✂️', 'Copier un morceau', () => ouvrirCopieMorceau(fichePleine()));
+    geste('✉️', 'Envoyer par mail', () => envoyerFicheParMail(fichePleine()));
+    if(!verrou){
+      const bSup = geste('✕ Supprimer', 'Supprimer cette fiche', async () => {
+        if(!await confirmer('Supprimer la fiche « ' +
+            (g('mdNom').value.trim() || 'sans titre') + ' » ?')) return;
+        bSup.disabled = true;
+        try{
+          await appelPrep({ action: 'modeleDelete', id: modele.id,
+                            usage: modele.usage || 'libre' });
+          retirerModeleDeLaMemoire(modele.id);
+          perimerModeles();
+          fermerFond(fond);
+          showToast('Fiche supprimée');
+          redessiner();
+        }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
+      });
+      /* Discret et à part : c'est le seul geste qu'on ne rattrape
+         pas, il n'a rien à faire au milieu des autres. */
+      bSup.classList.add('sup', 'fgPetit');
+    }
+  }
+
+  const bFermer = document.createElement('button');
+  bFermer.className = 'btn btn-primary';
+  bFermer.style.cssText = 'width:auto;padding:8px 16px;font-size:13px;margin:0 0 0 auto;';
+  bFermer.textContent = '✓ Fermer';
+  pied.appendChild(bFermer);
+
+  /* ---- Les blocs qui n'ont de sens que pour certains usages ---- */
   const majBoite = () => {
-    const usage = boite.querySelector('#mdUsage').value;
+    const usage = g('mdUsage').value;
     const estProc = (usage === 'procedure');
-    const b = boite.querySelector('#mdBlocBoite');
-    if(b) b.style.display = estProc ? 'block' : 'none';
-    const ia = boite.querySelector('#mdBlocIA');
-    if(ia) ia.style.display = estProc ? 'block' : 'none';
+    if(g('mdBlocBoite')) g('mdBlocBoite').style.display = estProc ? 'block' : 'none';
+    if(g('mdBlocIA')) g('mdBlocIA').style.display = estProc ? 'block' : 'none';
     /* Le bilan à créer n'a de sens que pour un rappel de cours :
        c'est le seul usage qui fabrique un cours. */
-    const bi = boite.querySelector('#mdBlocBilan');
-    if(bi) bi.style.display = (usage === 'rappel_cours') ? 'block' : 'none';
+    if(g('mdBlocBilan')){
+      g('mdBlocBilan').style.display = (usage === 'rappel_cours') ? 'block' : 'none';
+    }
   };
-  boite.querySelector('#mdUsage').addEventListener('change', majBoite);
-  if(modele && modele.boite && boite.querySelector('#mdBoite')){
-    boite.querySelector('#mdBoite').value = modele.boite;
-  }
-  if(modele && boite.querySelector('#mdOrdre')){
-    boite.querySelector('#mdOrdre').checked = !!modele.ordre;
-  }
-  if(modele && boite.querySelector('#mdConsigne')){
-    boite.querySelector('#mdConsigne').value = modele.consigne || '';
-  }
-  if(modele && boite.querySelector('#mdBilan')){
+  g('mdUsage').addEventListener('change', majBoite);
+
+  if(modele && modele.boite && g('mdBoite')) g('mdBoite').value = modele.boite;
+  if(modele && g('mdOrdre')) g('mdOrdre').checked = !!modele.ordre;
+  if(modele && g('mdConsigne')) g('mdConsigne').value = modele.consigne || '';
+  if(modele && g('mdBilan')){
     /* Un bilan disparu du catalogue ne doit pas se transformer en
        « d'après la fiche » sans le dire : le menu le garde, marqué. */
-    const sel = boite.querySelector('#mdBilan');
+    const sel = g('mdBilan');
     const v = String(modele.bilan || '');
     if(v && ![...sel.options].some(o => o.value === v)){
       const o = document.createElement('option');
@@ -965,8 +1548,6 @@ function ouvrirEditeurModele(modele, usageImpose){
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
-
-  const g = id => boite.querySelector('#' + id);
 
   /* Rappel des variables disponibles, avec insertion en un appui */
   const majVars = () => {
@@ -997,7 +1578,7 @@ function ouvrirEditeurModele(modele, usageImpose){
       bd.className = 'btn btn-secondary';
       bd.style.cssText = 'width:100%;padding:8px;font-size:12px;margin:9px 0 0;';
       bd.textContent = '📋 Partir du modèle proposé';
-      bd.title = "Écrit dans la zone ci-dessous le texte utilisé par défaut";
+      bd.title = "Écrit dans la zone ci-dessus le texte utilisé par défaut";
       bd.addEventListener('click', async () => {
         const t = g('mdContenu');
         if(t.value.trim() &&
@@ -1026,43 +1607,25 @@ function ouvrirEditeurModele(modele, usageImpose){
   };
   g('mdUsage').addEventListener('change', majVars);
 
-  if(modele){
-    /* ⚠️ PLUS DE CHAMP « CATÉGORIE » ICI — v958. Il a été remplacé par
-       le choix d'étiquettes ; cette ligne le remplissait encore et
-       faisait tomber l'éditeur dès qu'on ouvrait une fiche
-       existante. Une case qu'on enlève de l'écran, il faut aussi
-       l'enlever de ce qui la remplit. */
-    g('mdNom').value = modele.titre || modele.nom || '';
-    g('mdUsage').value = modele.usage || 'libre';
-    g('mdContenu').value = modele.contenu || '';
-  }
-  /* Depuis le tiroir des procédures, l'usage est déjà connu */
+  /* ⚠️ L'USAGE EST POSÉ AVANT QUE LES BLOCS SOIENT CALCULÉS.
+
+     « Je fais comment pour les rappels qui sont déjà créés ? Je
+     n'ai pas le bouton, et je vais pas m'amuser à tous les
+     recréer. » majBoite() décidait ce qui s'affiche d'après un
+     usage pas encore écrit — donc toujours « libre » — et le menu
+     du bilan restait invisible sur tout texte déjà écrit. */
+  if(modele) g('mdUsage').value = modele.usage || 'libre';
   if(usageImpose){
     g('mdUsage').value = usageImpose;
     g('mdUsage').disabled = true;
     g('mdUsage').style.opacity = '.6';
   }
 
-  /* ⚠️ APRÈS QUE L'USAGE EST POSÉ, ET UNE SEULE FOIS.
+  /* Les réglages s'ouvrent d'office là où ils décident de quelque
+     chose : une fiche libre n'a rien à y régler. */
+  if(g('mdPlus')) g('mdPlus').open = (g('mdUsage').value !== 'libre');
 
-     majBoite() décide quels blocs s'affichent D'APRÈS L'USAGE. Il
-     était appelé plus haut, AVANT que l'usage du modèle qu'on
-     ouvre soit écrit dans le menu — donc toujours sur « libre ».
-     Le rattrapage n'existait que pour le tiroir des procédures, et
-     le commentaire d'alors le disait déjà : « l'affichage a été
-     calculé avant que l'usage soit posé ».
-
-     Résultat : en ouvrant un rappel de cours DÉJÀ ÉCRIT, le menu
-     « 📄 Le bilan que ce rappel doit créer » restait invisible.
-     David : « je fais comment pour les rappels qui sont déjà
-     créés, je n'ai pas le bouton, et je vais pas m'amuser à tous
-     les recréer ». Il avait raison : il n'y avait rien à
-     recréer, c'est l'écran qui ne montrait pas.
-
-     Un seul appel, ici, quand tout est posé. */
   /* ---- Les étiquettes de cette fiche ---- */
-  let mesEtiquettes = modele ? etiquettesDe(modele) : [];
-
   const dessinerEtiq = () => {
     const z = g('mdEtiq');
     if(!z) return;
@@ -1103,54 +1666,124 @@ function ouvrirEditeurModele(modele, usageImpose){
   majBoite();
   majVars();
 
-  bAnn.addEventListener('click', () => fermerFond(fond));
+  /* ⚠️ VERROUILLÉ VEUT DIRE VERROUILLÉ PARTOUT, pas seulement sur
+     le crayon : un champ qu'on peut encore remplir laisse croire
+     que c'est enregistré. */
+  if(verrou){
+    ['mdNom', 'mdContenu', 'mdConsigne'].forEach(k => {
+      if(g(k)) g(k).readOnly = true;
+    });
+    ['mdUsage', 'mdBoite', 'mdOrdre', 'mdBilan', 'mdEtiqNeuve', 'mdEtiqAdd']
+      .forEach(k => { if(g(k)) g(k).disabled = true; });
+    boite.querySelectorAll('.mdEtq').forEach(b => { b.disabled = true; });
+  }
 
-  bOk.addEventListener('click', async () => {
-    const nom = g('mdNom').value.trim();
-    const contenu = g('mdContenu').value.trim();
-    if(!nom){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Donne un nom au modèle.'; return; }
-    if(!contenu){ msg.style.color = 'var(--warn-text)'; msg.textContent = 'Le texte est vide.'; return; }
+  const redessiner = () => {
+    if(usageImpose === 'procedure' && typeof afficherProcedures === 'function'){
+      afficherProcedures();
+    }else{
+      dessinerRailEtiquettes();
+      dessinerListeFiches();
+    }
+  };
 
-    bOk.disabled = true;
-    bOk.textContent = 'Enregistrement…';
+  /* ------------------------------------------------------------
+     FERMER, C'EST ENREGISTRER
+
+     Il n'y a pas de bouton « Enregistrer » : on ferme, et c'est
+     écrit. Rien ne part si rien n'a changé — et une fiche neuve
+     laissée vide n'est pas créée, sans quoi un clic sur ➕ suivi
+     d'un clic à côté fabriquerait une fiche fantôme.
+     ------------------------------------------------------------ */
+  const depart = modele
+    ? JSON.stringify({ n: modele.titre || modele.nom || '', c: modele.contenu || '',
+                       e: etiquettesDe(modele).join(SEP_ETIQ), u: modele.usage || 'libre',
+                       b: modele.boite || '', o: !!modele.ordre,
+                       g: modele.consigne || '', i: modele.bilan || '' })
+    : '';
+
+  const etatActuel = () => {
+    const f = fichePleine();
+    return JSON.stringify({ n: f.nom, c: f.contenu, e: f.etiquettes, u: f.usage,
+                            b: f.boite, o: f.ordre, g: f.consigne, i: f.bilan });
+  };
+
+  let enCours = false;
+
+  async function fermer(){
+    if(enCours) return;
+    if(verrou){ fermerFond(fond); return; }
+
+    const f = fichePleine();
+
+    /* Une fiche neuve sans rien dedans ne se crée pas. */
+    if(!modele && !f.nom && !f.contenu){ fermerFond(fond); return; }
+
+    /* Rien n'a bougé : on ferme sans rien écrire. */
+    if(modele && etatActuel() === depart){ fermerFond(fond); return; }
+
+    if(!f.nom){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Donne un titre à la fiche.';
+      g('mdNom').focus();
+      return;
+    }
+    if(!f.contenu){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Le texte est vide.';
+      g('mdContenu').focus();
+      return;
+    }
+
+    /* ⚠️ CE QUI NE SERA PLUS REMPLI SE DIT AVANT, PAS APRÈS. */
+    const alerte = alerteDesVariables((modele && modele.contenu) || '',
+                                      f.contenu, f.usage);
+    if(alerte && !await confirmer('⚠️ ' + alerte + '\n\nEnregistrer quand même ?')){
+      return;
+    }
+
+    enCours = true;
+    bFermer.disabled = true;
+    bFermer.textContent = 'Enregistrement…';
     try{
-      await appelPrep({
-        action: 'modeleSet',
-        id: modele ? modele.id : '',
-        usage: g('mdUsage').value,
-        /* ⚠️ LE TITRE EST LE TITRE — v958. La catégorie ne s'y range
-           plus : elle est devenue une étiquette, et un titre qui
-           porte son rangement ne se renomme plus sans tout casser. */
-        nom: nom,
-        etiquettes: mesEtiquettes.join(SEP_ETIQ),
-        /* La boîte ne concerne que les procédures */
-        boite: (g('mdUsage').value === 'procedure' && g('mdBoite'))
-          ? g('mdBoite').value : '',
-        /* Comment l'IA doit corriger celle-ci — procédures uniquement */
-        ordre: (g('mdUsage').value === 'procedure' && g('mdOrdre'))
-          ? g('mdOrdre').checked : false,
-        consigne: (g('mdUsage').value === 'procedure' && g('mdConsigne'))
-          ? g('mdConsigne').value.trim() : '',
-        /* Le bilan que ce rappel doit créer — rappels uniquement */
-        bilan: (g('mdUsage').value === 'rappel_cours' && g('mdBilan'))
-          ? g('mdBilan').value : '',
-        contenu: contenu
-      });
+      const r = await appelPrep(Object.assign({ action: 'modeleSet' }, f));
 
-      /* Le texte a changé : le cache n'a plus lieu d'être */
+      /* Le classeur peut avoir fabriqué le numéro lui-même par la
+         voie de secours : c'est le sien qui fait foi. */
+      const enregistree = Object.assign({}, f,
+        { id: (r && r.id) || f.id, maj: horodatageCourt() });
+
+      poserModeleEnMemoire(enregistree);
       perimerModeles();
-
       fermerFond(fond);
       showToast('Enregistré ✅');
-      if(usageImpose === 'procedure') afficherProcedures();
-      else afficherModelesTexte();
+      redessiner();
     }catch(e){
+      enCours = false;
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Erreur : ' + e.message;
-      bOk.disabled = false;
-      bOk.textContent = '💾 Enregistrer';
+      bFermer.disabled = false;
+      bFermer.textContent = '✓ Fermer';
     }
-  });
+  }
+
+  bFermer.addEventListener('click', fermer);
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  fond.addEventListener('keydown', e => { if(e.key === 'Escape') fermer(); });
+
+  setTimeout(() => {
+    const cible = modele ? g('mdContenu') : g('mdNom');
+    if(cible && !verrou) cible.focus();
+  }, 60);
+}
+
+/* La date telle que le classeur l'écrit, pour que la carte
+   n'attende pas une relecture pour se mettre à jour. */
+function horodatageCourt(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() +
+         ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 
 
@@ -1457,7 +2090,12 @@ async function ouvrirImportModeles(){
         /* L'import périme le cache : les nouveaux textes doivent
            paraître aussitôt. */
         perimerModeles();
-        await appelPrep({ action: 'modeleSet', id: '', usage: usage,
+        /* ⚠️ CHAQUE FICHE PORTE SON NUMÉRO AVANT DE PARTIR — v959.
+           Sans lui, un appel renvoyé après un délai dépassé ajoute
+           une seconde ligne ; sur un lot de cent, ça se compte en
+           dizaines de doublons qu'on trie ensuite à la main. */
+        await appelPrep({ action: 'modeleSet', id: nouvelIdModele(),
+                          usage: usage,
                           nom: liste[i].titre,
                           etiquettes: cat,
                           contenu: liste[i].contenu });
