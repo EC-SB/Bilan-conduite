@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:46 — v942 */
+/* Déployé le 11/09/2026 à 13:30 — v953 */
 /* ============================================================
    ec-stats.js
    Taux de réussite : global, par moniteur, par type de permis.
@@ -93,10 +93,27 @@ function bornesStats(){
     return { du: isoDuJourStats(debut), au: auj, titre: 'les douze derniers mois' };
   }
 
-  const mois = (statsPeriode === 'choisi' && statsMois)
-    ? statsMois : auj.slice(0, 7);
-  const an = parseInt(mois.slice(0, 4), 10);
-  const nm = parseInt(mois.slice(5, 7), 10) - 1;
+  return bornesDuMoisStats((statsPeriode === 'choisi' && statsMois)
+    ? statsMois : auj.slice(0, 7));
+}
+
+/* ⚠️ LES BORNES D'UN MOIS, SORTIES DE BORNESSTATS — v953.
+
+   ⚠️ « Stats » dans le nom, et ce n'est pas de la décoration :
+   ec-paie.js a déjà une bornesDuMois à elle, pour la paie. Deux
+   fonctions du même nom dans deux modules chargés ensemble, la
+   seconde écrase la première — c'est exactement ce qui était
+   arrivé à chargerFiches, et test-heures-decalees veille dessus.
+
+   La tuile « Réussite du mois » a besoin du MOIS EN COURS, toujours.
+   bornesStats, elle, suit les réglages de l'écran : le jour où
+   quelqu'un y choisit « les douze derniers mois », la tuile aurait
+   changé de sens sans que personne ne lui demande rien.
+
+   Le calcul reste écrit une seule fois — bornesStats l'appelle. */
+function bornesDuMoisStats(mois){
+  const an = parseInt(String(mois).slice(0, 4), 10);
+  const nm = parseInt(String(mois).slice(5, 7), 10) - 1;
   const premier = new Date(an, nm, 1);
   const dernier = new Date(an, nm + 1, 0);
   return { du: isoDuJourStats(premier), au: isoDuJourStats(dernier),
@@ -132,6 +149,41 @@ async function chargerResultats(force){
   resultatsLus = true;
   return resultatsExamens;
 }
+
+/* ------------------------------------------------------------
+   LE TAUX DU MOIS EN COURS, POUR LA TUILE — v953
+
+   ⚠️ ELLE NE RECALCULE RIEN : elle emprunte les trois briques de
+   l'écran Réussite — les bornes du mois, le tamis des droits, le
+   calcul du taux. Une tuile qui ferait sa propre moyenne finirait
+   par annoncer un chiffre que l'écran contredit.
+
+   Trois réponses, et elles ne veulent pas dire la même chose :
+     · null  — on n'a pas encore lu les résultats. La tuile dit
+               « pas encore » plutôt que d'inventer un zéro ;
+     · false — lus, mais aucun examen ce mois-ci : il n'y a rien à
+               afficher, et surtout pas « 0 % » ;
+     · un objet — le taux, et de quoi il est fait.
+
+   ⚠️ ET LE TAMIS DES DROITS PASSE AVANT LE CALCUL, comme à
+   l'écran : ce qu'on n'a pas le droit de voir ne doit pas entrer
+   dans la moyenne, sinon la tuile contourne un droit réglé exprès.
+   ------------------------------------------------------------ */
+function tauxDuMoisEnCours(){
+  if(typeof resultatsLus === 'undefined' || !resultatsLus) return null;
+
+  const source = (typeof reussiteDeToutLeMonde === 'function' &&
+                  reussiteDeToutLeMonde())
+    ? resultatsExamens
+    : resultatsExamens.filter(r => (typeof memeNom === 'function') &&
+        memeNom(r.moniteur, (typeof monNomDeMoniteur === 'function')
+          ? monNomDeMoniteur() : ''));
+
+  const b = bornesDuMoisStats(jourDuJourStats().slice(0, 7));
+  const st = calculerTaux(source.filter(r => dansLesBornes(r, b)));
+  return st.total ? st : false;
+}
+
 
 /* Un taux n'a de sens qu'au-delà d'un certain nombre de passages */
 const SEUIL_FIABLE = 5;
