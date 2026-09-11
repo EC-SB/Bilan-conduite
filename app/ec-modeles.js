@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 11/09/2026 à 12:40 — v951 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -2087,6 +2087,116 @@ const MODELES = {
     schema: 'prefecture', build: buildPrefecture, manuelSeul: true
   }
 };
+
+/* ============================================================
+   LA COULEUR DU TRAIT, À CÔTÉ DE L'HEURE — v951
+
+   David, le 11 septembre 2026 : pouvoir dire d'un coup d'œil, sur
+   sa journée, quelle séance est laquelle et dans quelle boîte —
+   sans lire la ligne de texte sous chaque nom.
+
+   ⚠️ UNE SEULE RÈGLE, ET ELLE TIENT EN UNE PHRASE : le trait dit
+   LA BOÎTE. Vert pour une manuelle, magenta pour une automatique —
+   partout où l'élève conduit. Trois familles s'en écartent parce
+   qu'elles ne sont pas une leçon ordinaire : le simulateur, avec
+   ses deux jaunes ; l'examen blanc, bleu et rouge ; et les trois
+   séances sans volant, qui n'ont pas de boîte du tout.
+
+   L'AAC, le rendez-vous préalable, l'évaluation et l'examen
+   pratique prennent donc la couleur d'une conduite : ce SONT des
+   conduites. « OUI », dit David.
+
+   ⚠️ ET D'OÙ VIENT LA BOÎTE : du TYPE DE SÉANCE quand il la porte,
+   et lui gagne toujours — « Conduite — Boîte manuelle » posée sur
+   un élève en BEA reste verte, parce que le trait dit ce que le
+   cours EST, pas ce que l'élève conduit d'habitude. C'est la
+   réponse de David, mot pour mot : « le type de séance ».
+
+   Ensuite seulement vient l'élève, et par une porte qui existe
+   déjà : boiteDe() (ec-sessions.js), qui sait lire le suivi, le
+   bureau et la fiche dans cet ordre. En écrire une seconde ici
+   reviendrait à donner deux réponses à une même question — la
+   faute que ce dossier passe son temps à réparer.
+
+   ⚠️ ET SI ON NE SAIT PAS, C'EST GRIS. Jamais une couleur devinée :
+   un trait vert sur un élève en BEA serait pire que pas de trait du
+   tout. Le rendez-vous post-permis porte le MÊME gris, et ce n'est
+   pas une confusion — dans les deux cas la couleur ne dit rien, et
+   deux gris différents feraient croire à deux informations là où il
+   n'y en a aucune.
+
+   Les valeurs sont celles de David. Le jaune du simulateur manuel
+   (#F7C82D) a un contraste de 1,6 sur le thème clair — il sera
+   pâle, et il l'a choisi en connaissance de cause. Les neuf autres
+   passent le seuil de lisibilité sur les deux thèmes.
+   ============================================================ */
+
+/* Les séances sans volant : une couleur chacune, aucune boîte. */
+const TRAIT_FIXE = {
+  'rdv-post':   '#7F8189',
+  'handicap':   '#9B4DE0',
+  'prefecture': '#00838F'
+};
+
+/* Les familles qui ont leur propre paire. Tout le reste prend la
+   paire ordinaire — c'est une leçon en voiture. */
+const TRAIT_PAIRES = {
+  ordinaire:   { BV: '#4E8F00', BEA: '#FF00D4' },
+  simulateur:  { BV: '#F7C82D', BEA: '#8C721A' },
+  examenblanc: { BV: '#2970FF', BEA: '#FF0303' }
+};
+
+/* « La boîte ne dit rien ici » — qu'il n'y en ait pas, ou qu'on ne
+   la connaisse pas. */
+const TRAIT_NEUTRE = '#7F8189';
+
+function familleDuTrait(cle){
+  if(cle === 'examen-blanc') return 'examenblanc';
+  const m = MODELES[cle];
+  if(m && m.groupe === 'Simulateur') return 'simulateur';
+  return 'ordinaire';
+}
+
+/* La boîte de CE cours, dans l'ordre que David a fixé.
+
+   ⚠️ Le libellé du modèle est lu par boiteDeLaFormation, la même
+   fonction que partout ailleurs : « Conduite — Boîte automatique »
+   y répond BEA, « AAC — Rendez-vous pédagogique » n'y répond rien.
+   Un second lecteur de libellés finirait par ne plus dire pareil. */
+function boiteDuTrait(cours){
+  const lire = v => (typeof boiteDeLaFormation === 'function')
+    ? boiteDeLaFormation(v) : '';
+
+  const m = MODELES[String((cours && cours.modele) || '')];
+  const duType = m ? lire(m.label) : '';
+  if(duType) return duType;
+
+  /* La case du questionnaire de ce cours-ci : une main a répondu
+     pour CETTE séance, elle passe avant l'état général de l'élève. */
+  const ctx = (cours && cours.contexte) || {};
+  const duCours = lire(ctx.boite || ctx.formation || '');
+  if(duCours) return duCours;
+
+  return String(((typeof boiteDe === 'function')
+    ? boiteDe(cours && cours.eleve) : '') || '').toUpperCase();
+}
+
+function couleurDuTrait(cours){
+  const cle = String((cours && cours.modele) || '');
+  if(TRAIT_FIXE[cle]) return TRAIT_FIXE[cle];
+
+  /* ⚠️ UNE SÉANCE SANS TYPE NE PREND AUCUNE PAIRE.
+
+     Les trois paires ne se valent pas : un simulateur n'est pas une
+     conduite. Sans type, choisir « ordinaire » parce que c'est le
+     cas le plus fréquent, ce serait deviner la famille — et un
+     simulateur abîmé sortirait en vert. Gris : on ne sait pas de
+     quelle séance il s'agit. */
+  if(!MODELES[cle]) return TRAIT_NEUTRE;
+
+  const paire = TRAIT_PAIRES[familleDuTrait(cle)];
+  return paire[boiteDuTrait(cours)] || TRAIT_NEUTRE;
+}
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
