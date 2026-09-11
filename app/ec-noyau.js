@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:46 — v958 */
+/* Déployé le 11/09/2026 à 15:13 — v959 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -128,6 +128,23 @@ const SECTIONS = [
   { cle:'bureau_messages',  nom:'📨 Messages internes' },
   { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
   { cle:'textes',           nom:'📄 Mes modèles de message' },
+  /* ⚠️ DEUX DROITS POUR UN SEUL ÉCRAN — v959.
+
+     David, le 11 septembre : « ma crainte c'est que quelqu'un
+     modifie un texte type qui sert aux rappels et casse les
+     rappels ».
+
+     · « textes »       → ses propres fiches, celles qu'on copie et
+       qu'on envoie à la main ;
+     · « textes_appli » → les dix emplacements dont l'application se
+       sert toute seule : le rappel de cours par mail, le message du
+       groupe Messenger, le départ…
+
+     Deux cases, parce que ce sont deux métiers. En une seule, il
+     fallait choisir entre « personne ne range ses fiches » et
+     « tout le monde peut réécrire ce que reçoivent les élèves ».
+     Seul le rôle admin donne la seconde par défaut. */
+  { cle:'textes_appli',     nom:"⚙️ Modifier les textes utilisés par l'application" },
   /* DEUX CASES POUR UN SEUL ÉCRAN — v942.
 
      Le taux de réussite parle des PERSONNES : c'est la seule
@@ -396,12 +413,32 @@ function appliquerDroits(){
   $('adminCard').style.display = (aDroit('admin') && ACCES.role === 'admin') ? 'block' : 'none';
 }
 
+/* ⚠️ L'ÂGE DES SECTIONS VOYAGE AVEC LA SESSION — v959.
+
+   Le Worker sait déjà donner une section NÉE APRÈS un réglage de
+   droits : « absente » ne veut pas dire « refusée » quand elle
+   n'avait jamais été soumise (voir VERSION_SECTIONS). Mais il ne le
+   sait qu'AU MOMENT DE LA CONNEXION — et la session, elle, garde
+   sa copie des droits dans le navigateur pendant des jours.
+
+   Sans ce numéro, la naissance de « textes_appli » aurait produit
+   exactement le piège de la v744, une porte plus loin : David
+   aurait ouvert SON texte de rappel et l'aurait trouvé verrouillé,
+   par des droits d'hier qui ne connaissaient pas encore la case.
+   Une reconnexion, une seule, et tout repart du serveur.
+
+   À monter EN MÊME TEMPS que VERSION_SECTIONS dans le Worker.
+   Laisser l'un des deux, c'est soit des sessions qui ne se
+   rafraîchissent pas, soit tout le monde déconnecté pour rien. */
+CONFIG.VERSION_SECTIONS_ATTENDUE = 9;
+
 function memoriserSession(code, moniteur, role, droits, emoji, genre, regles){
   try{
     localStorage.setItem(CLE_SESSION, JSON.stringify({
       code: code, moniteur: moniteur, role: role,
       emoji: emoji || '', genre: genre || '', droits: droits || {},
-      droitsRegles: !!regles, ts: Date.now()
+      droitsRegles: !!regles, ts: Date.now(),
+      sections: CONFIG.VERSION_SECTIONS_ATTENDUE
     }));
   }catch(e){}
 }
@@ -439,6 +476,15 @@ function lireSession(){
        repart du serveur. */
     if(s.droitsRegles === undefined ||
        !s.droits || typeof s.droits !== 'object' || Array.isArray(s.droits)){
+      oublierSession();
+      raisonDeconnexion = 'droits';
+      return null;
+    }
+
+    /* Et une session rangée avant qu'une section n'existe ne se
+       reprend pas non plus : ses droits ne peuvent pas parler d'une
+       case qu'ils n'ont jamais vue. */
+    if(Number(s.sections || 0) !== CONFIG.VERSION_SECTIONS_ATTENDUE){
       oublierSession();
       raisonDeconnexion = 'droits';
       return null;
