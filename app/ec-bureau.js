@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:23 — v946 */
+/* Déployé le 11/09/2026 à 11:56 — v949 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1266,6 +1266,16 @@ function finEnvoi(){ envoisEnCours = Math.max(0, envoisEnCours - 1); }
 /* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
 function bureauOccupe(){
   if(envoisEnCours > 0) return true;
+
+  /* ⚠️ ET LE CLASSEUR EST OCCUPÉ DÈS QU'IL NOUS RÉPOND — v949.
+
+     « envoisEnCours » ne connaît que les envois qui ont pensé à se
+     déclarer. Le compteur d'appelPrep, lui, voit passer TOUT ce qui
+     parle au classeur — les écritures comme les lectures — sans que
+     personne ait à y penser. Empiler un rafraîchissement sur un
+     classeur qui répond déjà, c'est faire attendre celui qui
+     attendait. Voir appelEnCours() dans ec-prepares.js. */
+  if(typeof appelEnCours === 'function' && appelEnCours()) return true;
   const a = document.activeElement;
   if(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName || '')) return true;
   if(document.querySelector('.overlay.show')) return true;
