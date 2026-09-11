@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:12 — v925 */
+/* Déployé le 11/09/2026 à 08:41 — v937 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -406,6 +406,11 @@ function arreterUI(){
   isRecording = false;
   sessionActive = false;
   demarrageEnCours = false;
+  /* ⚠️ LE MICRO S'ARRÊTE, LE COURS CONTINUE — v937. David : « non,
+     on écrit en pause ». La marque doit donc changer de mot au même
+     instant : « EN COURS » sur une dictée à l'arrêt laisserait
+     croire qu'on enregistre encore. */
+  if(typeof rafraichirMarquesDuCours === 'function') rafraichirMarquesDuCours();
   $('etatMicro').textContent = '';
   if($('diagMicro')) $('diagMicro').textContent = '';
   const b = $('recBtn');
@@ -499,6 +504,8 @@ $('recBtn').addEventListener('click', async () => {
 
   isRecording = true;
   dernierMot = Date.now();
+  /* Et la marque repasse de « EN PAUSE » à « EN COURS ». */
+  if(typeof rafraichirMarquesDuCours === 'function') rafraichirMarquesDuCours();
   btn.classList.remove('idle');
   btn.classList.add('recording');
   btn.textContent = '⏺️ Enregistrement — appuie pour mettre en pause';
