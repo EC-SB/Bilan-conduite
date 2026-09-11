@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:36 — v954 */
+/* Déployé le 11/09/2026 à 13:45 — v955 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -652,9 +652,178 @@ const SECTIONS_TUILES = {
   remorque:   '🚚 Remorque'
 };
 
+/* ============================================================
+   MES TUILES — LE RANGEMENT DE CHACUN (v955)
+
+   David, le 11 septembre 2026 : « est-ce que c'est possible de
+   pouvoir les bouger à la main, chacun sur son compte, que ça se
+   sauvegarde par utilisateur, et choisir ce qu'on veut afficher ou
+   non ». Puis : « jusqu'à la couleur avec un liseré vérifié »,
+   « par personne », « par onglet », et « OUI » pour un rangement
+   par défaut imposé à l'équipe.
+
+   ⚠️ ON ENREGISTRE CE QUI A ÉTÉ CHANGÉ, PAS LA LISTE ENTIÈRE.
+
+   C'est la règle qui tient tout le reste. Si l'on gardait « voici
+   mes onze tuiles, dans cet ordre », la douzième — une nouveauté,
+   un mois qu'on vient d'ouvrir — ne serait dans la liste de
+   personne. Cachée par défaut, elle serait invisible pour tous
+   ceux qui ont rangé une fois, et on passerait un an à se demander
+   pourquoi elle ne s'affiche pas.
+
+   Une tuile inconnue du rangement apparaît donc À SA PLACE
+   D'ORIGINE, visible : elle suit la tuile qui la précède dans la
+   table. Et une tuile disparue — un mois supprimé — laisse une
+   ligne morte qu'on ignore, sans jamais la ressusciter.
+
+   ⚠️ MASQUER N'EST PAS UN DROIT. Ce qu'un compte n'a pas le droit
+   de voir n'entre pas dans le panneau : on ne propose pas de
+   masquer ce qu'on ne pouvait pas afficher. Et masquer ne dispense
+   de rien — ça range, c'est tout.
+
+   ⚠️ UNE TUILE MASQUÉE RESTE MASQUÉE, MÊME URGENTE. « C'est un
+   choix, on laisse masquer », a tranché David. Contredire un choix
+   pour attirer l'attention, c'est apprendre à se méfier du
+   rangement.
+   ============================================================ */
+
+/* Les six teintes du liseré. VÉRIFIÉES : chacune passe le seuil de
+   lisibilité sur le thème clair ET sur le sombre — une couleur
+   choisie à la main ne se vérifie pas, et un liseré qu'on ne voit
+   pas n'est pas un repère. Ce sont celles du trait des cours : une
+   seule palette dans l'outil, pas deux. */
+const LISERES_TUILE = [
+  { cle:'vert',    hex:'#4E8F00', nom:'Vert' },
+  { cle:'magenta', hex:'#FF00D4', nom:'Magenta' },
+  { cle:'bleu',    hex:'#2970FF', nom:'Bleu' },
+  { cle:'violet',  hex:'#9B4DE0', nom:'Violet' },
+  { cle:'vertbleu',hex:'#00838F', nom:'Bleu-vert' },
+  { cle:'ambre',   hex:'#C96A00', nom:'Ambre' }
+];
+
+/* La clé d'une tuile : son identifiant propre, ou le compteur
+   qu'elle lit. C'est elle qu'on range, jamais l'intitulé — un
+   libellé se renomme, et le rangement de chacun serait perdu. */
+function cleDeLaTuile(t){ return String((t && (t.cle || t.cpt)) || ''); }
+
+/* Où se range le rangement de cette personne-là. */
+function cleDuRangement(){
+  const nom = (typeof ACCES !== 'undefined' && ACCES.moniteur)
+    ? String(ACCES.moniteur) : '';
+  const simple = nom.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ').trim();
+  return simple ? 'tuiles:' + simple : '';
+}
+
+/* Celui que l'équipe reçoit tant qu'elle n'a rien rangé. */
+const CLE_RANGEMENT_EQUIPE = 'tuiles:equipe';
+
+/* Le rangement en mémoire, par onglet. */
+let rangementDesTuiles = null;
+let rangementEquipe = null;
+
+function rangementDe(onglet){
+  const mien = (rangementDesTuiles || {})[onglet];
+  if(mien) return mien;
+  return (rangementEquipe || {})[onglet] || null;
+}
+
+function lireRangement(brut){
+  try{
+    const o = JSON.parse(brut || '{}');
+    return (o && typeof o === 'object') ? o : {};
+  }catch(e){ return {}; }
+}
+
+/* ⚠️ L'APPAREIL SERT DE FILET, PAS DE MÉMOIRE.
+
+   Le rangement vit dans le classeur, pour suivre la personne d'un
+   écran à l'autre. Mais l'attendre au démarrage ferait clignoter
+   les tuiles : on affiche la copie locale tout de suite, et on la
+   corrige quand le classeur répond. C'est ce que fait déjà la
+   liste des cours préparés. */
+const CLE_RANGEMENT_LOCAL = 'ec_tuiles_rangement';
+
+function rangementDuTelephone(){
+  try{ return JSON.parse(localStorage.getItem(CLE_RANGEMENT_LOCAL) || 'null'); }
+  catch(e){ return null; }
+}
+function garderRangementIci(o){
+  try{ localStorage.setItem(CLE_RANGEMENT_LOCAL, JSON.stringify(o || {})); }
+  catch(e){}
+}
+
+let rangementDemande = false;
+async function chargerRangementDesTuiles(){
+  if(rangementDesTuiles === null) rangementDesTuiles = rangementDuTelephone() || {};
+  if(rangementDemande) return;
+  if(typeof chargerReglagesPartages !== 'function') return;
+  rangementDemande = true;
+
+  try{
+    const r = await chargerReglagesPartages(false);
+    rangementEquipe = lireRangement(r[CLE_RANGEMENT_EQUIPE]);
+    const cle = cleDuRangement();
+    if(cle && r[cle] !== undefined){
+      rangementDesTuiles = lireRangement(r[cle]);
+      garderRangementIci(rangementDesTuiles);
+    }
+    if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles();
+  }catch(e){ rangementDemande = false; }
+}
+
+async function enregistrerRangement(equipe){
+  const cle = equipe ? CLE_RANGEMENT_EQUIPE : cleDuRangement();
+  if(!cle) throw new Error('Sans nom de moniteur, on ne sait pas pour qui ranger.');
+  const quoi = equipe ? (rangementDesTuiles || {}) : rangementDesTuiles;
+  if(!equipe) garderRangementIci(quoi);
+  if(typeof ecrireReglagePartage !== 'function') return;
+  await ecrireReglagePartage(cle, JSON.stringify(quoi || {}));
+  if(equipe) rangementEquipe = JSON.parse(JSON.stringify(quoi || {}));
+}
+
+/* ⚠️ LE RANGEMENT S'APPLIQUE, IL NE REMPLACE PAS LA LISTE.
+
+   Les tuiles que le rangement connaît prennent la place qu'il leur
+   donne. Les autres suivent celle qui les précède par défaut :
+   c'est ainsi qu'une tuile neuve apparaît là où elle a été
+   déclarée, au lieu d'être reléguée à la fin ou cachée. */
+function appliquerLeRangement(onglet, liste){
+  const r = rangementDe(onglet) || {};
+  const ordre = Array.isArray(r.ordre) ? r.ordre : [];
+  const masquees = Array.isArray(r.masquees) ? r.masquees : [];
+  const epinglees = Array.isArray(r.epinglees) ? r.epinglees : [];
+
+  const rang = {};
+  ordre.forEach((c, i) => { rang[c] = i; });
+
+  let dernier = -1, suite = 0;
+  const avecPlace = liste.map(t => {
+    const c = cleDeLaTuile(t);
+    let p;
+    if(rang[c] !== undefined){ dernier = rang[c]; suite = 0; p = dernier; }
+    else { suite++; p = dernier + suite / 1000; }
+    return { t: t, c: c, p: p,
+             epingle: epinglees.indexOf(c) !== -1,
+             masquee: masquees.indexOf(c) !== -1,
+             liseré: (r.liseres || {})[c] || '' };
+  });
+
+  /* Une épingle passe devant, quoi qu'il arrive — et les épinglées
+     gardent leur ordre entre elles. */
+  avecPlace.sort((a, b) => (a.epingle === b.epingle) ? a.p - b.p
+                                                     : (a.epingle ? -1 : 1));
+  return avecPlace;
+}
+
 function dessinerTuiles(onglet){
   const zone = document.querySelector('[data-vue="coup"][data-onglet="' + onglet + '"] .tuiles');
   if(!zone) return;
+
+  /* Le rangement se demande une fois, au premier dessin. */
+  if(typeof chargerRangementDesTuiles === 'function') chargerRangementDesTuiles();
+  poserLeBoutonDesTuiles(onglet);
 
   const t0 = tuilesDeLOnglet(onglet);
   zone.innerHTML = '';
@@ -671,7 +840,13 @@ function dessinerTuiles(onglet){
     return;
   }
 
-  const lues = t0.liste.map(t => ({ t: t, v: valeurDeLaTuile(t) }));
+  /* Le rangement de cette personne-là : l'ordre, les épingles, les
+     masquées, les liserés. Il s'applique AVANT de lire les
+     valeurs — une tuile masquée n'a pas à être comptée. */
+  const rangees = appliquerLeRangement(onglet, t0.liste);
+
+  const lues = rangees.filter(x => !x.masquee)
+    .map(x => ({ t: x.t, liseré: x.liseré, v: valeurDeLaTuile(x.t) }));
   /* Une tuile à zéro ne s'affiche pas — sauf celles qui le
      demandent : « 0 / 30 » dit qu'il reste trente places. */
   const aVoir = lues.filter(x => x.v && (x.v.n > 0 || x.t.toujours));
@@ -725,11 +900,16 @@ function dessinerTuiles(onglet){
     grilleDe[sec] = g;
   });
 
-  aVoir.forEach(({ t, v }) => {
+  aVoir.forEach(({ t, v, liseré }) => {
     const b = document.createElement('button');
     b.type = 'button';
     const ton = v.ton || t.ton;
     b.className = 'tuile' + (ton ? ' ' + ton : '');
+    /* ⚠️ LE LISERÉ S'AJOUTE AU TON, IL NE LE REMPLACE PAS — il se
+       pose à DROITE, le bord gauche disant déjà l'urgence. Le rouge
+       reste le rouge de tout le monde : « regarde la tuile rouge »
+       doit continuer de marcher d'un écran à l'autre. */
+    if(liseré) b.style.setProperty('--liseré', liseré);
     b.setAttribute('data-vue-tuile', t.vue);
     if(t.cle) b.setAttribute('data-tuile', t.cle);
 
@@ -763,6 +943,237 @@ function dessinerTuiles(onglet){
     (grilleDe[t.section || ''] || zone).appendChild(b);
   });
 }
+
+/* ============================================================
+   LE PANNEAU « MES TUILES »
+
+   Glisser sur un écran de bureau, deux flèches sur un téléphone :
+   sur un mobile, glisser déplacerait la page au lieu de la ligne.
+   Les deux écrivent la même liste — une seule règle de rangement,
+   deux façons d'y toucher.
+   ============================================================ */
+function poserLeBoutonDesTuiles(onglet){
+  const carte = document.querySelector('[data-vue="coup"][data-onglet="' + onglet + '"]');
+  if(!carte) return;
+  const titre = carte.querySelector('.section-title');
+  if(!titre || titre.querySelector('.btnMesTuiles')) return;
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btnMesTuiles';
+  b.textContent = '⚙️ Mes tuiles';
+  b.addEventListener('click', e => { e.stopPropagation(); ouvrirMesTuiles(onglet); });
+  titre.appendChild(b);
+}
+
+function ouvrirMesTuiles(onglet){
+  const t0 = tuilesDeLOnglet(onglet);
+  /* ⚠️ CE QU'ON N'A PAS LE DROIT DE VOIR N'EST PAS DANS LA LISTE :
+     tuilesDeLOnglet a déjà passé le tamis des droits. On ne
+     propose pas de masquer une chose qu'on ne pouvait pas
+     afficher. */
+  let lignes = appliquerLeRangement(onglet, t0.liste);
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(460px,94vw);max-height:88vh;overflow-y:auto;';
+  fond.appendChild(boite);
+
+  /* La fermeture passe par la porte commune : une fenêtre fermée à
+     la main finit par ne plus l'être du tout — voir fermerFond. */
+  const fermer = () => { if(typeof fermerFond === 'function') fermerFond(fond); };
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+
+  const dessiner = () => {
+    boite.innerHTML =
+      '<h3 style="margin:0 0 4px;font-size:17px;">⚙️ Mes tuiles</h3>' +
+      '<div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;">' +
+        'Range-les comme tu veux. Décoche pour masquer. 📌 pour garder en tête. ' +
+        'Le rangement est à toi : il te suit d’un appareil à l’autre.</div>';
+
+    const liste = document.createElement('div');
+    liste.className = 'mesTuiles';
+    boite.appendChild(liste);
+
+    lignes.forEach((x, i) => {
+      const l = document.createElement('div');
+      l.className = 'mtLigne' + (x.masquee ? ' off' : '');
+
+      const haut = document.createElement('button');
+      haut.type = 'button'; haut.className = 'mtFleche';
+      haut.textContent = '▲'; haut.disabled = (i === 0);
+      haut.title = 'Monter';
+      haut.addEventListener('click', () => { bouger(i, -1); });
+      l.appendChild(haut);
+
+      const bas = document.createElement('button');
+      bas.type = 'button'; bas.className = 'mtFleche';
+      bas.textContent = '▼'; bas.disabled = (i === lignes.length - 1);
+      bas.title = 'Descendre';
+      bas.addEventListener('click', () => { bouger(i, 1); });
+      l.appendChild(bas);
+
+      const nom = document.createElement('span');
+      nom.className = 'mtNom';
+      nom.textContent = x.t.lib;
+      if(x.liseré) nom.style.borderRight = '5px solid ' + x.liseré;
+      l.appendChild(nom);
+
+      /* Le liseré : six teintes vérifiées, et « aucune ». */
+      const pastilles = document.createElement('span');
+      pastilles.className = 'mtCouleurs';
+      const rien = document.createElement('button');
+      rien.type = 'button'; rien.className = 'mtPastille' + (x.liseré ? '' : ' choisie');
+      rien.title = 'Aucun liseré'; rien.textContent = '∅';
+      rien.addEventListener('click', () => poserLisere(x.c, ''));
+      pastilles.appendChild(rien);
+      LISERES_TUILE.forEach(t => {
+        const c = document.createElement('button');
+        c.type = 'button';
+        c.className = 'mtPastille' + (x.liseré === t.hex ? ' choisie' : '');
+        c.style.background = t.hex;
+        c.title = t.nom;
+        c.addEventListener('click', () => poserLisere(x.c, t.hex));
+        pastilles.appendChild(c);
+      });
+      l.appendChild(pastilles);
+
+      const ep = document.createElement('button');
+      ep.type = 'button';
+      ep.className = 'mtEpingle' + (x.epingle ? ' on' : '');
+      ep.textContent = '📌';
+      ep.title = x.epingle ? 'Ne plus garder en tête' : 'Garder en tête';
+      ep.addEventListener('click', () => basculer('epinglees', x.c));
+      l.appendChild(ep);
+
+      const vu = document.createElement('button');
+      vu.type = 'button';
+      vu.className = 'mtCase' + (x.masquee ? '' : ' on');
+      vu.textContent = x.masquee ? '' : '✓';
+      vu.title = x.masquee ? 'Afficher' : 'Masquer';
+      vu.addEventListener('click', () => basculer('masquees', x.c));
+      l.appendChild(vu);
+
+      liste.appendChild(l);
+    });
+
+    const pied = document.createElement('div');
+    pied.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;';
+
+    const bOk = document.createElement('button');
+    bOk.className = 'btn btn-primary';
+    bOk.style.cssText = 'flex:1;min-width:120px;padding:10px;font-size:13px;margin:0;';
+    bOk.textContent = '💾 Enregistrer';
+    bOk.addEventListener('click', async () => {
+      bOk.disabled = true; bOk.textContent = 'Enregistrement…';
+      try{
+        await enregistrerRangement(false);
+        showToast('Rangement enregistré ✅');
+        fermer();
+        rafraichirLesTuiles();
+      }catch(e){
+        showToast('Rangement non enregistré : ' + e.message);
+        bOk.disabled = false; bOk.textContent = '💾 Enregistrer';
+      }
+    });
+    pied.appendChild(bOk);
+
+    const bRaz = document.createElement('button');
+    bRaz.className = 'btn btn-secondary';
+    bRaz.style.cssText = 'flex:1;min-width:120px;padding:10px;font-size:13px;margin:0;';
+    bRaz.textContent = '↩️ Ordre d’origine';
+    bRaz.addEventListener('click', () => {
+      rangementDesTuiles = rangementDesTuiles || {};
+      delete rangementDesTuiles[onglet];
+      lignes = appliquerLeRangement(onglet, t0.liste);
+      dessiner();
+    });
+    pied.appendChild(bRaz);
+
+    /* ⚠️ LE RANGEMENT DE L'ÉQUIPE : « OUI », a répondu David. Celui
+       que reçoit quelqu'un qui n'a rien rangé — et que chacun peut
+       ensuite modifier pour lui. Réservé aux administrateurs :
+       c'est l'écran de tout le monde qu'on décide. */
+    if(typeof ACCES !== 'undefined' && ACCES.role === 'admin'){
+      const bEq = document.createElement('button');
+      bEq.className = 'btn btn-secondary';
+      bEq.style.cssText = 'flex-basis:100%;padding:9px;font-size:12.5px;margin:0;';
+      bEq.textContent = '👥 En faire le rangement par défaut de l’équipe';
+      bEq.addEventListener('click', async () => {
+        bEq.disabled = true;
+        try{
+          await enregistrerRangement(true);
+          showToast('Rangement par défaut posé pour l’équipe ✅');
+        }catch(e){ showToast('Impossible : ' + e.message); }
+        bEq.disabled = false;
+      });
+      pied.appendChild(bEq);
+    }
+
+    const bFerme = document.createElement('button');
+    bFerme.className = 'btn btn-secondary';
+    bFerme.style.cssText = 'flex-basis:100%;padding:9px;font-size:12.5px;margin:0;';
+    bFerme.textContent = 'Fermer sans enregistrer';
+    bFerme.addEventListener('click', fermer);
+    pied.appendChild(bFerme);
+
+    boite.appendChild(pied);
+  };
+
+  /* Les trois gestes. Ils écrivent dans le rangement en mémoire ;
+     rien ne part au classeur avant « Enregistrer ». */
+  const monRangement = () => {
+    rangementDesTuiles = rangementDesTuiles || {};
+    if(!rangementDesTuiles[onglet]){
+      /* On part de ce qu'on voyait — celui de l'équipe s'il existe —
+         pour ne pas tout remettre à plat au premier geste. */
+      const base = rangementDe(onglet);
+      rangementDesTuiles[onglet] = base
+        ? JSON.parse(JSON.stringify(base))
+        : { ordre: [], masquees: [], epinglees: [], liseres: {} };
+    }
+    const r = rangementDesTuiles[onglet];
+    if(!Array.isArray(r.ordre)) r.ordre = [];
+    if(!Array.isArray(r.masquees)) r.masquees = [];
+    if(!Array.isArray(r.epinglees)) r.epinglees = [];
+    if(!r.liseres) r.liseres = {};
+    return r;
+  };
+
+  const bouger = (i, sens) => {
+    const j = i + sens;
+    if(j < 0 || j >= lignes.length) return;
+    const r = monRangement();
+    /* On fige l'ordre affiché, puis on permute : un ordre partiel
+       ne saurait pas dire où va la ligne déplacée. */
+    const cles = lignes.map(x => x.c);
+    const tmp = cles[i]; cles[i] = cles[j]; cles[j] = tmp;
+    r.ordre = cles;
+    lignes = appliquerLeRangement(onglet, t0.liste);
+    dessiner();
+  };
+
+  const basculer = (quoi, cle) => {
+    const r = monRangement();
+    const i = r[quoi].indexOf(cle);
+    if(i === -1) r[quoi].push(cle); else r[quoi].splice(i, 1);
+    lignes = appliquerLeRangement(onglet, t0.liste);
+    dessiner();
+  };
+
+  const poserLisere = (cle, hex) => {
+    const r = monRangement();
+    if(hex) r.liseres[cle] = hex; else delete r.liseres[cle];
+    lignes = appliquerLeRangement(onglet, t0.liste);
+    dessiner();
+  };
+
+  dessiner();
+  document.body.appendChild(fond);
+}
+
 
 /* Les compteurs viennent d'être posés par les listes : les portes
    d'entrée des onglets concernés se refont. Appelée par le bureau
