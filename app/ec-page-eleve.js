@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:54 — v932 */
+/* Déployé le 11/09/2026 à 14:04 — v956 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2494,7 +2494,7 @@ function ongletPermis(corps, nom){
 
   /* La case « prévenu », celle du bureau, telle quelle. */
   if(typeof casePrevenu === 'function'){
-    const c = casePrevenu({ eleve: nom }, 'simuPrevenu',
+    const c = casePrevenu({ eleve: nom }, 'simu',
       '📣 Message envoyé pour réserver le simulateur');
     c.style.marginLeft = '2px';
     corps.appendChild(c);
@@ -2543,7 +2543,7 @@ function ongletPermis(corps, nom){
   corps.appendChild(lEb);
 
   if(typeof casePrevenu === 'function'){
-    const c = casePrevenu({ eleve: nom }, 'ebPrevenu',
+    const c = casePrevenu({ eleve: nom }, 'examblanc',
       "📣 Message envoyé pour l'examen blanc");
     c.style.marginLeft = '2px';
     corps.appendChild(c);
