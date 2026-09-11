@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:14 — v945 */
+/* Déployé le 11/09/2026 à 11:23 — v946 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -306,7 +306,188 @@ const VUES = {
            ['admin',      '⚙️ Accès',                  'admin',        'L’outil']]
 };
 
+/* ============================================================
+   « EN UN COUP D'ŒIL » — LA PORTE D'ENTRÉE D'UN ONGLET (v946)
+
+   Étape 4 de la refonte. David : « les tuiles sont pour tout le
+   monde », chacun ne voyant que celles des écrans auxquels il a
+   droit.
+
+   Une tuile n'est pas une décoration : C'EST UN BOUTON. Elle
+   ouvre l'écran qu'elle compte. Deux règles, et elles tiennent
+   tout :
+
+   · UNE TUILE À ZÉRO NE S'AFFICHE PAS. Un tableau de bord qui
+     montre huit zéros apprend en trois jours qu'il ne sert à rien,
+     et on cesse de le lire — comme la ligne qui disait que tout
+     allait bien sur chaque carte.
+   · UNE TUILE QUI MÈNE À UN ÉCRAN REFUSÉ N'EXISTE PAS. Elle
+     promettrait une porte qui ne s'ouvre pas.
+
+   ⚠️ ET ELLE NE COMPTE RIEN ELLE-MÊME.
+
+   Chaque liste pose déjà son compteur en se dessinant. Recompter
+   ici serait une seconde vérité, et c'est toujours la mauvaise qui
+   finit par gagner : la tuile dirait « 3 » au-dessus d'une liste
+   vide. On lit ce que les listes ont publié. Si un compte est
+   faux, c'est la liste qu'il faut réparer.
+
+   C'est aussi ce qui rend cette étape bon marché : rien de neuf à
+   calculer, seulement à rassembler.
+   ============================================================ */
+const TUILES = {
+  permis: [
+    { cpt:'cptAPlacer',   lib:'Dates à prendre',           vue:'sessions',   ton:'urgent',
+      sous:'la préfecture attend' },
+    { cpt:'cptAPrevoir',  lib:'Prêts, sans date',          vue:'envisager',  ton:'urgent' },
+    { cpt:'cptPasses',    lib:'Résultats à saisir',        vue:'resultats',  ton:'att' },
+    { cpt:'cptAttente',   lib:'Bilans post-permis à faire',vue:'pasprets',   ton:'att' },
+    { cpt:'cptPasNiveau', lib:'Examens blancs à replacer', vue:'pasprets',   ton:'' },
+    { cpt:'cptNonPlanif', lib:'Dossiers bloqués',          vue:'pasprets',   ton:'urgent',
+      sous:'ANTS, avis médical, pièce manquante' }
+  ],
+  suivi: [
+    { cpt:'cptEB',   lib:'Examens blancs à prévoir', vue:'simu',     ton:'urgent' },
+    { cpt:'cptSimu', lib:'Simulateurs à prévoir',    vue:'simu',     ton:'att' },
+    { cpt:'cptCs',   lib:'Conduite supervisée',      vue:'suivics',  ton:'' },
+    { cpt:'cptAac',  lib:'Suivi AAC',                vue:'suiviaac', ton:'' }
+  ]
+};
+
+/* ⚠️ LES DROITS DE LA PORTE SE DÉDUISENT DE CEUX DES ÉCRANS.
+
+   Les recopier ici aurait fait une seconde liste : le jour où une
+   tuile change d'écran, la porte se serait ouverte — ou fermée —
+   au mauvais moment. On prend l'union des droits des écrans
+   qu'elle résume, et la question « qui voit la porte » répond
+   exactement à « qui voit au moins une tuile ». */
+Object.keys(TUILES).forEach(onglet => {
+  const droits = [];
+  TUILES[onglet].forEach(t => {
+    const v = (VUES[onglet] || []).filter(x => x[0] === t.vue)[0];
+    if(!v) return;
+    (Array.isArray(v[2]) ? v[2] : [v[2]]).forEach(d => {
+      if(d && droits.indexOf(d) === -1) droits.push(d);
+    });
+  });
+  if(droits.length) VUES[onglet].unshift(['coup', '📍 En un coup d’œil', droits, '']);
+});
+
 const vueActive = {};
+
+/* ------------------------------------------------------------
+   LE DESSIN DES TUILES
+   ------------------------------------------------------------ */
+
+/* Le nombre qu'une liste a publié — ou null si elle ne l'a pas
+   encore publié.
+
+   ⚠️ LA DIFFÉRENCE EST TOUT L'ENJEU. Un compteur vide veut dire
+   zéro quand la liste s'est dessinée, et « je n'en sais rien »
+   avant. Les suivis CS et AAC, par exemple, ne se dessinent qu'en
+   ouvrant leur écran : les lire comme des zéros ferait annoncer
+   « rien qui attende » sur des listes jamais lues.
+
+   C'est « majVolet » qui pose la marque, à sa première écriture. */
+function compteDuVolet(id){
+  const el = $(id);
+  if(!el) return null;                       /* l'écran n'est pas dans la page */
+  if(el.dataset.pose !== '1') return null;   /* sa liste ne s'est pas dessinée */
+  return parseInt(el.textContent || '0', 10) || 0;
+}
+
+function tuileVisible(onglet, t){
+  const v = (VUES[onglet] || []).filter(x => x[0] === t.vue)[0];
+  if(!v) return false;
+  const s = v[2];
+  if(typeof aDroit !== 'function') return true;
+  return Array.isArray(s) ? s.some(aDroit) : aDroit(s);
+}
+
+function dessinerTuiles(onglet){
+  const zone = document.querySelector('[data-vue="coup"][data-onglet="' + onglet + '"] .tuiles');
+  if(!zone) return;
+
+  const liste = (TUILES[onglet] || []).filter(t => tuileVisible(onglet, t));
+  zone.innerHTML = '';
+
+  /* ⚠️ « PAS ENCORE LU » N'EST PAS « RIEN À FAIRE ».
+
+     Les compteurs se remplissent quand le bureau a répondu. Avant,
+     ils sont vides — et une porte d'entrée qui annonce « rien à
+     signaler » sur des listes qu'elle n'a pas encore lues ment
+     exactement au moment où on lui fait confiance. */
+  const charge = (typeof bureauDejaCharge === 'undefined') || bureauDejaCharge;
+  if(!charge){
+    zone.innerHTML = '<div class="empty">Lecture des listes…</div>';
+    return;
+  }
+
+  const lues = liste.map(t => ({ t: t, n: compteDuVolet(t.cpt) }));
+  const aVoir = lues.filter(x => x.n > 0);
+  const inconnues = lues.filter(x => x.n === null);
+
+  if(!aVoir.length){
+    const v = document.createElement('div');
+    v.className = 'rienASignaler';
+    /* ⚠️ ON NE DIT « RIEN » QUE SI L'ON A TOUT LU. Avec une seule
+       liste non dessinée, « rien qui attende » serait une promesse
+       qu'on ne peut pas tenir. */
+    const plusieurs = inconnues.length > 1;
+    v.textContent = inconnues.length
+      ? '⏳ ' + (plusieurs ? 'Ces listes ne se sont pas encore dessinées'
+                          : 'Cette liste ne s’est pas encore dessinée') +
+        ' : ' + inconnues.map(x => x.t.lib).join(', ') + '. ' +
+        (plusieurs ? 'Ouvre-les' : 'Ouvre-la') +
+        ' une fois pour qu’' + (plusieurs ? 'elles se comptent' : 'elle se compte') +
+        ' ici.'
+      : '✅ Rien qui attende. Les écrans restent accessibles par les ' +
+        'boutons au-dessus.';
+    zone.appendChild(v);
+    return;
+  }
+
+  aVoir.forEach(({ t, n }) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tuile' + (t.ton ? ' ' + t.ton : '');
+    b.setAttribute('data-vue-tuile', t.vue);
+
+    const fl = document.createElement('span');
+    fl.className = 'fl';
+    fl.textContent = '›';
+    b.appendChild(fl);
+
+    const lib = document.createElement('span');
+    lib.className = 'lib';
+    lib.textContent = t.lib;
+    b.appendChild(lib);
+
+    const val = document.createElement('span');
+    val.className = 'v';
+    val.textContent = String(n);
+    b.appendChild(val);
+
+    if(t.sous){
+      const s = document.createElement('span');
+      s.className = 'sous';
+      s.textContent = t.sous;
+      b.appendChild(s);
+    }
+
+    b.addEventListener('click', () => afficherVue(onglet, t.vue));
+    zone.appendChild(b);
+  });
+}
+
+/* Les compteurs viennent d'être posés par les listes : les portes
+   d'entrée des onglets concernés se refont. Appelée par le bureau
+   à la fin de son dessin — jamais avant, sinon elle lirait des
+   compteurs vides. */
+function rafraichirLesTuiles(){
+  Object.keys(TUILES).forEach(dessinerTuiles);
+}
+
 
 /* ⚠️ « CETTE RANGÉE DÉFILE » NE SE DEVINE PAS.
 
@@ -505,6 +686,11 @@ function afficherVue(onglet, cle){
 /* Chaque module charge ce dont il a besoin en s'affichant */
 function reveillerVue(cle){
   const actions = {
+    /* La porte d'entrée se redessine en arrivant dessus : les
+       compteurs ont pu changer pendant qu'on était ailleurs. Elle
+       ne demande rien au classeur — elle relit ce que les listes
+       ont publié. */
+    coup:       () => dessinerTuiles(ongletActif),
     prepares:   () => aDroit('cours') && afficherPrepares(true, true),
     /* Deux façons de parler à quelqu'un vivent sur cet écran : le
        message attaché à un ÉLÈVE, et celui épinglé à une PERSONNE.
