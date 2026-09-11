@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 08:41 — v937 */
+/* Déployé le 11/09/2026 à 12:05 — v950 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2043,7 +2043,7 @@ function reparTexte(s){
    version de cette réparation corrigeait le contexte mais ratait la
    note — elle déclarait ensuite « rien à corriger » en regardant le
    contexte, pendant que la carte affichait toujours « 159ème ». */
-function numeroLeconDuCours(cours){
+function numeroLeconDuCours(cours, dossier){
   /* LA RÈGLE DE LECTURE N'EST PLUS ÉCRITE ICI.
 
      Elle vit dans rangDansLaNote, à côté du motif qu'elle utilise,
@@ -2059,7 +2059,38 @@ function numeroLeconDuCours(cours){
   if(v) return v;
 
   const n = parseInt((cours.contexte || {}).lecon, 10);
-  return (!isNaN(n) && n > 0) ? n : null;
+  if(!isNaN(n) && n > 0) return n;
+
+  /* ⚠️ ET SI PERSONNE NE L'A ÉCRIT, ON LE DÉDUIT — v950.
+
+     Les deux sources ci-dessus ne lisent que ce qui est DÉJÀ écrit.
+     Sur un cours né d'un rappel, rien ne l'est : la carte restait
+     donc muette et réclamait le questionnaire, pendant que le
+     questionnaire, lui, affichait « 9ème leçon » sans qu'on ait
+     rien saisi. Il le déduisait du dossier ; la carte ne le
+     demandait pas.
+
+     C'est la MÊME porte que le questionnaire — rangConnu, avec ce
+     que le dossier sait. Elle rend null quand le compte n'est pas
+     connu : sans savoir combien de leçons sont faites, avancer un
+     rang serait l'inventer.
+
+     Le « premier cours » se lit sur CE cours-là — son contexte, sa
+     note — jamais sur l'écran de saisie : la carte d'un élève ne
+     doit pas se décider d'après ce qu'on est en train de taper pour
+     un autre. */
+  const d = dossier || ((typeof dossierConnuDe === 'function')
+    ? dossierConnuDe(cours.eleve) : null);
+  if(d && typeof rangConnu === 'function'){
+    const premier = (typeof cestLePremierCours === 'function')
+      ? (cestLePremierCours((cours.contexte || {}).premierCours) ||
+         cestLePremierCours(cours.note))
+      : false;
+    const r = rangConnu(d.lecons, cours.modele, premier, cours.eleve, d);
+    if(r) return r;
+  }
+
+  return null;
 }
 
 /* ------------------------------------------------------------
@@ -2149,15 +2180,26 @@ function noteJusteDuCours(cours, rang, dossier){
     if(dossier.leconsDepuisEB !== undefined) ctx.leconsDepuisEB = dossier.leconsDepuisEB;
     if(dossier.leconsDepuisRdvPost !== undefined) ctx.leconsDepuisRdvPost = dossier.leconsDepuisRdvPost;
     if(dossier.leconsParBoite) ctx.leconsParBoite = dossier.leconsParBoite;
+    /* ⚠️ NE RIEN CONCLURE D'UN COMPTE QU'ON N'A PAS — v950.
+
+       « sansBilan » se posait dès qu'un dossier était fourni, y
+       compris quand il ne connaissait PAS le nombre de leçons :
+       « lecons: null » y devenait « aucun bilan », et la carte
+       réclamait le questionnaire d'un élève qui en a neuf.
+
+       Un dossier partiel — celui que le bureau permet de composer —
+       répond sur ce qu'il sait et se tait sur le reste. Sans le
+       compte, on laisse ce que le cours disait déjà. */
     if(dossier.lecons !== null && dossier.lecons !== undefined){
       ctx.leconsFaites = dossier.lecons;
+
+      /* Le classeur ne porte aucun bilan de cet élève : la note doit
+         le dire au lieu d'inventer « 1ère leçon ». Sauf si le rappel
+         demandait la carte SD — là, c'est vraiment le premier. */
+      ctx.sansBilan = !dossier.lecons &&
+        !((typeof cestLePremierCours === 'function') &&
+          (cestLePremierCours(ctx.premierCours) || cestLePremierCours(cours.note)));
     }
-    /* Le classeur ne porte aucun bilan de cet élève : la note doit
-       le dire au lieu d'inventer « 1ère leçon ». Sauf si le rappel
-       demandait la carte SD — là, c'est vraiment le premier. */
-    ctx.sansBilan = !dossier.lecons &&
-      !((typeof cestLePremierCours === 'function') &&
-        (cestLePremierCours(ctx.premierCours) || cestLePremierCours(cours.note)));
   }
 
   const champDate = $('lessonDate');
