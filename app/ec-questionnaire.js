@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 19:28 — v936 */
+/* Déployé le 11/09/2026 à 10:01 — v938 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2049,6 +2049,27 @@ function profilQuestionnaire(modeleCle){
    Cette table dit quel champ porte quelle réponse. Ce qui n'a pas
    été demandé garde ce qu'il valait.
    ------------------------------------------------------------ */
+
+/* UNE RÉPONSE QUI N'A PAS DE CHAMP À L'ÉCRAN.
+
+   Elle était écrite dans cette table avec une chaîne vide, et une
+   chaîne vide a l'air d'un sélecteur. Elle en est un pour tout le
+   monde sauf pour « querySelector », qui refuse le vide : à la
+   préparation d'un cours — et là seulement, parce que c'est le seul
+   moment où l'on replie les blocs — le questionnaire parcourait
+   cette table, tombait sur elle, et mourait sur « The provided
+   selector is empty ». L'écran restait bloqué derrière un
+   questionnaire à moitié construit, et il n'y avait plus rien à
+   faire que recharger.
+
+   David, le 11 septembre : « Le questionnaire n'a pas pu s'ouvrir…
+   et je suis bloqué après, je ne peux rien faire ».
+
+   Un repère nommé dit ce que le vide ne disait pas, et la seule
+   porte qui traduit cette table en sélecteurs — « selecteursDesReponses »
+   — le laisse dehors. */
+const SANS_CHAMP = null;
+
 const CHAMP_DE_LA_REPONSE = {
   formation:     '#qFormation',
   lecon:         '#qLecon',
@@ -2082,8 +2103,10 @@ const CHAMP_DE_LA_REPONSE = {
   examPermis:    '#qExamPermis',
   examDate:      '#qExamDate',
   examPermisN:   '#qExamPermisN',
-  /* Pas de champ à l'écran : c'est un repère, pas une question. */
-  examPermisNRang: '',
+  /* Pas de champ à l'écran : c'est un repère, pas une question.
+     Son rang se recalcule à la validation et se recopie de lui-même
+     d'un cours au suivant — il n'a rien à protéger ici. */
+  examPermisNRang: SANS_CHAMP,
   nouvelleDate:  '#qNouvelleDate',
   examPassage:   '#qExamPassage',
   pasEcoute:     '#qBlocEcoutes',
@@ -2101,6 +2124,21 @@ const CHAMP_DE_LA_REPONSE = {
   prefecture:    '#qPrefecture',
   problematique: '#qProblematique'
 };
+
+/* LA SEULE PORTE ENTRE CETTE TABLE ET LE DOM.
+
+   Les sélecteurs de la table, une fois par sélecteur, et sans ceux
+   qui n'existent pas. Toute la protection se lit sur la table ;
+   tout ce qui va chercher un élément à l'écran passe par ici. Sans
+   cette porte, chaque nouvel appelant devait se souvenir tout seul
+   qu'une réponse peut n'avoir aucun champ — et une parade posée
+   chez l'appelant est une parade qu'on oublie. */
+function selecteursDesReponses(){
+  return Object.keys(CHAMP_DE_LA_REPONSE)
+    .map(k => CHAMP_DE_LA_REPONSE[k])
+    .filter(sel => typeof sel === 'string' && sel !== '')
+    .filter((x, i, t) => t.indexOf(x) === i);
+}
 
 /* Ce qu'un parcours n'a pas du tout.
 
@@ -2566,7 +2604,10 @@ function appliquerNoteQuestionnaire(nouvelle){
    pas rester suspendu en mémoire. */
 function fermerQuestionnaireOuvert(){
   document.querySelectorAll('.overlay.show').forEach(f => {
-    if(!f.querySelector('#qLecon')) return;      /* pas un questionnaire */
+    /* La marque posée à la création fait foi. « #qLecon » reste
+       accepté pour un questionnaire ouvert avant cette version et
+       resté à l'écran : on ne laisse personne enfermé dehors. */
+    if(f.dataset.questionnaire !== '1' && !f.querySelector('#qLecon')) return;
     if(typeof f.__annuler === 'function'){
       try{ f.__annuler(); }catch(e){}
     }
@@ -2603,6 +2644,15 @@ async function ouvrirQuestionnaireDepart(prec, titre, libelleValider, reduire){
   try{
     return await construireQuestionnaire(prec, titre, libelleValider, reduire);
   }catch(e){
+    /* ON DÉBARRASSE L'ÉCRAN AVANT DE DIRE QU'ON A ÉCHOUÉ.
+
+       Le verrou était relâché, le message s'affichait — et le
+       questionnaire à moitié construit restait par-dessus tout le
+       reste. Le moniteur voyait « OK », appuyait, et se retrouvait
+       devant un écran mort : décrire une panne ne la répare pas.
+       Tant qu'un voile noir couvre l'application, la seule chose
+       utile est de l'enlever. */
+    try{ fermerQuestionnaireOuvert(); }catch(e2){}
     questionnaireOuvert = false;
     console.error('Questionnaire :', e);
     await informer('Le questionnaire n\'a pas pu s\'ouvrir.\n\nDétail : ' + (e && e.message ? e.message : e));
@@ -2827,6 +2877,15 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
   return new Promise(resolve => {
     const fond = document.createElement('div');
     fond.className = 'overlay show';
+    /* SA CARTE D'IDENTITÉ, POSÉE AVANT TOUT LE RESTE.
+
+       On reconnaissait le questionnaire à un champ qu'il contient
+       (« #qLecon »). Un questionnaire qui casse en cours de
+       construction n'a pas forcément ce champ : il n'était donc
+       plus reconnu, donc plus refermable, et il barrait l'écran
+       pour de bon. Une marque posée à la création ne dépend de
+       rien qui puisse manquer. */
+    fond.dataset.questionnaire = '1';
 
     const boite = document.createElement('div');
     boite.className = 'modal';
@@ -3418,9 +3477,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       cequiManqueAuCours(prec, eleve, modeleCle)
         .forEach(q => blocsDuSujetManquant(q).forEach(x => aVoir.push(x)));
 
-      const tous = Object.keys(CHAMP_DE_LA_REPONSE)
-        .map(k => CHAMP_DE_LA_REPONSE[k])
-        .filter((x, i, t) => t.indexOf(x) === i);
+      const tous = selecteursDesReponses();
 
       /* SAUF CE QUI EST LE SUJET MÊME DE LA SÉANCE.
 
