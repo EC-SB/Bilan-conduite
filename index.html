@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v958
+     VERSION APPLICATION : v959
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 11/09/2026 à 14:45
+     Mis à jour le : 11/09/2026 à 15:13
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -1305,11 +1305,75 @@
                      border:1px solid var(--line); color:var(--muted);
                      border-radius:5px; padding:2px 6px; }
   .ficheTexte .fg{ display:flex; gap:5px; flex-wrap:wrap; margin-top:9px; }
-  .ficheTexte .fgb{ font:inherit; font-size:12px; background:var(--navy-deep);
-                    border:1px solid var(--line); border-radius:7px;
-                    padding:4px 8px; color:var(--cream); cursor:pointer; }
-  .ficheTexte .fgb.sup{ color:var(--red); border-color:var(--red);
-                        margin-left:auto; }
+  /* ⚠️ LES GESTES SE DESSINENT PAREIL SUR LA CARTE ET DANS LA FICHE
+     OUVERTE — v959. Cette règle vivait sous « .ficheTexte » : les
+     mêmes boutons, repris en pied de fiche ouverte, y repartaient en
+     boutons gris du navigateur. Une apparence attachée à un endroit
+     plutôt qu'à la chose finit toujours par lui échapper. */
+  .fgb{ font:inherit; font-size:12px; background:var(--navy-deep);
+        border:1px solid var(--line); border-radius:7px;
+        padding:4px 8px; color:var(--cream); cursor:pointer; }
+  .fgb:hover{ border-color:var(--muted); }
+  .fgb.sup{ color:var(--red); border-color:var(--red); margin-left:auto; }
+  /* Dans la fiche ouverte : discret, à gauche, loin de « Fermer ».
+     C'est le seul geste qu'on ne rattrape pas. */
+  .fiPied .fgb.sup{ margin-left:0; }
+  .fgb.fgPetit{ font-size:11px; padding:3px 7px; opacity:.75; }
+  .fgb.fgPetit:hover{ opacity:1; }
+  /* Les flèches de rangement : le geste du téléphone, là où
+     glisser ferait défiler la page. */
+  .fgTel{ display:none; }
+  /* La carte qu'on tient, et celle où on va la poser. */
+  .ficheTexte.prise{ opacity:.4; }
+  .ficheTexte.cible{ border-top:3px solid var(--accent-text); }
+
+  /* ⛔ L'interdiction de David, en haut de l'écran. */
+  .biblioStop{ font-size:12.5px; font-weight:800; line-height:1.45;
+               color:var(--warn-text); background:var(--warn-bg);
+               border:1px solid var(--red); border-radius:10px;
+               padding:9px 11px; margin-bottom:12px; }
+
+  /* Le crayon de renommage, dans la ligne de l'étiquette. */
+  .etqCrayon{ font-size:11px; opacity:.35; padding:0 2px; cursor:pointer;
+              flex-shrink:0; }
+  .etqCrayon:hover{ opacity:1; }
+  .etqLigne.on .etqCrayon{ opacity:.7; }
+
+  /* ============================================================
+     LA FICHE OUVERTE — ON ÉCRIT DEDANS
+
+     Un clic sur la carte ouvre ceci, et fermer enregistre : il n'y
+     a pas de bouton « Enregistrer », comme dans Keep. Le titre et
+     le texte sont donc des CHAMPS, pas des paragraphes — mais
+     dessinés comme du texte, sinon l'écran ressemble à un
+     formulaire et on n'ose plus rien y toucher.
+     ============================================================ */
+  .ficheTexte{ cursor:pointer; }
+  .ficheTexte:hover{ border-color:var(--muted); }
+  .ficheTexte:focus-visible{ outline:2px solid var(--accent-text);
+                             outline-offset:2px; }
+
+  .fiTitre{ font-size:17px !important; font-weight:800 !important;
+            background:none !important; border:none !important;
+            border-bottom:1px solid var(--line) !important;
+            border-radius:0 !important; padding:2px 0 8px !important;
+            margin:0 0 10px !important; color:var(--cream); width:100%; }
+  .fiTexte{ width:100%; background:none; border:none; color:var(--cream);
+            font:inherit; font-size:15px; line-height:1.6; padding:0;
+            margin:0 0 14px; resize:vertical; min-height:180px; }
+  .fiTitre:focus, .fiTexte:focus{ outline:none; }
+  .fiVerrou{ font-size:12px; line-height:1.45; color:var(--warn-text);
+             background:var(--warn-bg); border:1px solid var(--red);
+             border-radius:10px; padding:9px 11px; margin-bottom:12px; }
+  .fiPied{ display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+           margin-top:10px; }
+  .fiPlus{ border-top:1px solid var(--line); padding-top:10px;
+           margin-bottom:6px; }
+  .fiPlus > summary{ font-size:12.5px; font-weight:700; color:var(--muted);
+                     cursor:pointer; list-style:none; padding:2px 0; }
+  .fiPlus > summary::-webkit-details-marker{ display:none; }
+  .fiPlus > summary::before{ content:"▸ "; }
+  .fiPlus[open] > summary::before{ content:"▾ "; }
 
   /* Les étiquettes dans l'éditeur : on coche, on décoche. */
   .mdEtiq{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px; }
@@ -1331,6 +1395,7 @@
     .etqLigne{ width:auto; flex-shrink:0; border-color:var(--line);
                border-radius:20px; padding:6px 12px; }
     .biblioFiches{ grid-template-columns:1fr; }
+    .ficheTexte .fgTel{ display:inline-block; }
   }
 
   .tuiles{
@@ -1845,7 +1910,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=958" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=959" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -3087,8 +3152,17 @@
   </div>
 
   <div class="card" data-section="textes" data-vue="textes" data-onglet="outils">
-    <h2 class="section-title">📄 Textes types</h2>
+    <h2 class="section-title">📄 Modèles messages</h2>
     <div class="contenu-tiroir">
+      <!-- ⛔ L'AVERTISSEMENT DE DAVID, ÉCRIT EN TOUTES LETTRES — v959.
+
+           Il y a déjà deux gardes-fous derrière : le droit
+           « ⚙️ Textes de l'application », et l'alerte qui nomme la
+           variable qu'on vient de retirer. Celui-ci s'adresse à qui
+           A le droit : une phrase lue avant le geste vaut mieux
+           qu'une alerte reçue après. -->
+      <div class="biblioStop">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO
+        DEVANT — SOUS RISQUE DE CASSER L'OUTIL</div>
       <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
         Tous les messages que vous envoyez aux élèves, au même endroit : ceux que
         l'application reprend toute seule (rappel de cours, groupe Messenger du jour
@@ -3558,76 +3632,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=958"></script>
-<script src="app/ec-modeles.js?v=958"></script>
-<script src="app/ec-consignes.js?v=958"></script>
-<script src="app/ec-noyau.js?v=958"></script>
-<script src="app/ec-vocal.js?v=958"></script>
-<script src="app/ec-reseau.js?v=958"></script>
-<script src="app/ec-manuel.js?v=958"></script>
-<script src="app/ec-fenetres.js?v=958"></script>
-<script src="app/ec-questionnaire.js?v=958"></script>
-<script src="app/ec-permis.js?v=958"></script>
-<script src="app/ec-prepares.js?v=958"></script>
-<script src="app/ec-avant-cours.js?v=958"></script>
-<script src="app/ec-bureau.js?v=958"></script>
-<script src="app/ec-places.js?v=958"></script>
-<script src="app/ec-listes.js?v=958"></script>
-<script src="app/ec-permis-listes.js?v=958"></script>
-<script src="app/ec-postpermis.js?v=958"></script>
-<script src="app/ec-textes.js?v=958"></script>
-<script src="app/ec-correction.js?v=958"></script>
-<script src="app/ec-bilans.js?v=958"></script>
-<script src="app/ec-ecran.js?v=958"></script>
-<script src="app/ec-version.js?v=958"></script>
-<script src="app/ec-paie.js?v=958"></script>
-<script src="app/ec-flotte.js?v=958"></script>
-<script src="app/ec-carrosserie.js?v=958"></script>
-<script src="app/ec-solo.js?v=958"></script>
-<script src="app/ec-handicap-pdf.js?v=958"></script>
-<script src="app/ec-moto.js?v=958"></script>
-<script src="app/ec-remorque.js?v=958"></script>
-<script src="app/ec-arriereplan.js?v=958"></script>
-<script src="app/ec-placesbe.js?v=958"></script>
-<script src="app/ec-codeamenage.js?v=958"></script>
-<script src="app/ec-financements.js?v=958"></script>
-<script src="app/ec-eval-aac.js?v=958"></script>
-<script src="app/ec-postes.js?v=958"></script>
-<script src="app/ec-tarifs.js?v=958"></script>
-<script src="app/ec-caisse.js?v=958"></script>
-<script src="app/ec-menage.js?v=958"></script>
-<script src="app/ec-page-eleve.js?v=958"></script>
-<script src="app/ec-cbgasoil.js?v=958"></script>
-<script src="app/ec-loupe.js?v=958"></script>
-<script src="app/ec-coutsia.js?v=958"></script>
-<script src="app/ec-evaluation.js?v=958"></script>
-<script src="app/ec-paiement.js?v=958"></script>
-<script src="app/ec-handicap.js?v=958"></script>
-<script src="app/ec-code.js?v=958"></script>
-<script src="app/ec-proccorriger.js?v=958"></script>
-<script src="app/ec-sessions.js?v=958"></script>
-<script src="app/ec-aac-cs.js?v=958"></script>
-<script src="app/ec-notifs.js?v=958"></script>
-<script src="app/ec-ecoutes.js?v=958"></script>
-<script src="app/ec-taches.js?v=958"></script>
-<script src="app/ec-memoire.js?v=958"></script>
-<script src="app/ec-historique.js?v=958"></script>
-<script src="app/ec-rappels.js?v=958"></script>
-<script src="app/ec-segments.js?v=958"></script>
-<script src="app/ec-sms.js?v=958"></script>
-<script src="app/ec-encours.js?v=958"></script>
-<script src="app/ec-incidents.js?v=958"></script>
+  <script src="app/ec-etat.js?v=959"></script>
+<script src="app/ec-modeles.js?v=959"></script>
+<script src="app/ec-consignes.js?v=959"></script>
+<script src="app/ec-noyau.js?v=959"></script>
+<script src="app/ec-vocal.js?v=959"></script>
+<script src="app/ec-reseau.js?v=959"></script>
+<script src="app/ec-manuel.js?v=959"></script>
+<script src="app/ec-fenetres.js?v=959"></script>
+<script src="app/ec-questionnaire.js?v=959"></script>
+<script src="app/ec-permis.js?v=959"></script>
+<script src="app/ec-prepares.js?v=959"></script>
+<script src="app/ec-avant-cours.js?v=959"></script>
+<script src="app/ec-bureau.js?v=959"></script>
+<script src="app/ec-places.js?v=959"></script>
+<script src="app/ec-listes.js?v=959"></script>
+<script src="app/ec-permis-listes.js?v=959"></script>
+<script src="app/ec-postpermis.js?v=959"></script>
+<script src="app/ec-textes.js?v=959"></script>
+<script src="app/ec-correction.js?v=959"></script>
+<script src="app/ec-bilans.js?v=959"></script>
+<script src="app/ec-ecran.js?v=959"></script>
+<script src="app/ec-version.js?v=959"></script>
+<script src="app/ec-paie.js?v=959"></script>
+<script src="app/ec-flotte.js?v=959"></script>
+<script src="app/ec-carrosserie.js?v=959"></script>
+<script src="app/ec-solo.js?v=959"></script>
+<script src="app/ec-handicap-pdf.js?v=959"></script>
+<script src="app/ec-moto.js?v=959"></script>
+<script src="app/ec-remorque.js?v=959"></script>
+<script src="app/ec-arriereplan.js?v=959"></script>
+<script src="app/ec-placesbe.js?v=959"></script>
+<script src="app/ec-codeamenage.js?v=959"></script>
+<script src="app/ec-financements.js?v=959"></script>
+<script src="app/ec-eval-aac.js?v=959"></script>
+<script src="app/ec-postes.js?v=959"></script>
+<script src="app/ec-tarifs.js?v=959"></script>
+<script src="app/ec-caisse.js?v=959"></script>
+<script src="app/ec-menage.js?v=959"></script>
+<script src="app/ec-page-eleve.js?v=959"></script>
+<script src="app/ec-cbgasoil.js?v=959"></script>
+<script src="app/ec-loupe.js?v=959"></script>
+<script src="app/ec-coutsia.js?v=959"></script>
+<script src="app/ec-evaluation.js?v=959"></script>
+<script src="app/ec-paiement.js?v=959"></script>
+<script src="app/ec-handicap.js?v=959"></script>
+<script src="app/ec-code.js?v=959"></script>
+<script src="app/ec-proccorriger.js?v=959"></script>
+<script src="app/ec-sessions.js?v=959"></script>
+<script src="app/ec-aac-cs.js?v=959"></script>
+<script src="app/ec-notifs.js?v=959"></script>
+<script src="app/ec-ecoutes.js?v=959"></script>
+<script src="app/ec-taches.js?v=959"></script>
+<script src="app/ec-memoire.js?v=959"></script>
+<script src="app/ec-historique.js?v=959"></script>
+<script src="app/ec-rappels.js?v=959"></script>
+<script src="app/ec-segments.js?v=959"></script>
+<script src="app/ec-sms.js?v=959"></script>
+<script src="app/ec-encours.js?v=959"></script>
+<script src="app/ec-incidents.js?v=959"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=958"></script>
-<script src="app/ec-bandeau.js?v=958"></script>
-<script src="app/ec-stats.js?v=958"></script>
-<script src="app/ec-messenger.js?v=958"></script>
-<script src="app/ec-journal.js?v=958"></script>
-<script src="app/ec-depart.js?v=958"></script>
-<script src="app/ec-onglets.js?v=958"></script>
-<script src="app/ec-demarrage.js?v=958"></script>
+<script src="app/ec-messages-perso.js?v=959"></script>
+<script src="app/ec-bandeau.js?v=959"></script>
+<script src="app/ec-stats.js?v=959"></script>
+<script src="app/ec-messenger.js?v=959"></script>
+<script src="app/ec-journal.js?v=959"></script>
+<script src="app/ec-depart.js?v=959"></script>
+<script src="app/ec-onglets.js?v=959"></script>
+<script src="app/ec-demarrage.js?v=959"></script>
 
 <script>
 /* ============================================================
