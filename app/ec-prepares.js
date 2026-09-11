@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 08:41 — v937 */
+/* Déployé le 11/09/2026 à 11:04 — v944 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -32,6 +32,21 @@ function ecrireCachePrepares(liste){
    créerait des doublons. */
 const ACTIONS_LOURDES = { bureauEtat: 25000, elevesImport: 90000,
                           smsList: 25000, resultatList: 25000,
+                          /* ⚠️ LE LIEN DU RAPPEL — v944.
+
+                             Douze secondes, c'était le délai ordinaire, et
+                             il ne tenait pas : cet appel part au milieu d'un
+                             envoi, souvent pendant que le rafraîchissement
+                             du bureau occupe déjà le classeur. Treize
+                             secondes suffisaient à faire croire à une panne
+                             — et le mail partait alors SANS son bouton de
+                             confirmation. David l'a vu plusieurs fois.
+
+                             Vingt-cinq secondes, comme les autres appels qui
+                             attendent derrière le classeur. Et la reprise ne
+                             crée plus un second lien : « creerLienCours »
+                             reconnaît sa propre tentative abandonnée. */
+                          coursLienCreer: 25000,
                           /* Vingt-trois feuilles à relire et à réécrire.
                              À douze secondes, l'application croyait à une
                              panne — voir SANS_REPRISE juste dessous. */
