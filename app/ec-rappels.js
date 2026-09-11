@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 09:27 — v906 */
+/* Déployé le 11/09/2026 à 11:04 — v944 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1770,7 +1770,24 @@ async function journaliserEnvoi(d){
    appelé juste après l'envoi et le range dans le cours. */
 let dernierJetonRappel = '';
 
+/* Le rafraîchissement automatique du bureau se tait pendant TOUT
+   l'envoi : le classeur ne traite qu'une chose à la fois, et le
+   lien du rappel n'a pas à attendre derrière une relecture
+   complète des listes.
+
+   La main se rend dans le « finally » — un envoi qui échoue doit
+   la rendre comme un envoi qui réussit, sinon le bureau cesserait
+   de se rafraîchir jusqu'au rechargement de la page. */
 async function envoyerRappelParMail(nom, r, moniteur){
+  if(typeof debutEnvoi === 'function') debutEnvoi();
+  try{
+    return await envoyerRappelEtSuivre(nom, r, moniteur);
+  }finally{
+    if(typeof finEnvoi === 'function') finEnvoi();
+  }
+}
+
+async function envoyerRappelEtSuivre(nom, r, moniteur){
   const dest = destinatairesRappel(nom);
   const quand = dateEnLettres(dateDuChoix(r.jour));
   const heure = (r.heure || '').replace(':', 'h');
@@ -2621,7 +2638,7 @@ function modeRappel(mode){
    est une voiturette avant d'être un AM. */
 const LIEU_PAR_SEANCE = [
   /* Le simulateur ne se passe pas au volant : l'élève se présente
-     devant la machine, et le message doit le dire. Chrystel le
+     devant la machine, et le message doit le dire. David le
      corrigeait à la main à chaque rappel. */
   { motif: /simu/i,          lieu: 'simulateur' },
   { motif: /th[ée]orique/i,  lieu: 'cours' },
@@ -2846,11 +2863,11 @@ const BILAN_DU_RAPPEL = {
 
    ⚠️ ET QUI PASSE AVANT TOUTE DEVINETTE.
 
-   Les types de séance sont les textes types de Chrystel : l'outil
+   Les types de séance sont les textes types de David : l'outil
    n'en fournit aucun d'origine. Le bilan était donc deviné d'après
-   le TITRE qu'elle avait écrit — « Permis voiture » ne tombait dans
+   le TITRE qu'il avait écrit — « Permis voiture » ne tombait dans
    aucune règle, repartait en conduite ordinaire, et s'affichait en
-   « conduite BEA » d'après la fiche. Elle l'a signalé quinze fois,
+   « conduite BEA » d'après la fiche. Il l'a signalé quinze fois,
    et chaque correction de la devinette en cassait une autre : un
    titre libre ne peut pas porter une règle.
 
