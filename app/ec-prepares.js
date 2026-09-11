@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:04 — v944 */
+/* Déployé le 11/09/2026 à 11:56 — v949 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -27,26 +27,39 @@ function ecrireCachePrepares(liste){
   try{ localStorage.setItem(CLE_CACHE_PREP, JSON.stringify(liste)); }catch(e){}
 }
 
-/* Les actions qui écrivent en masse : plus de temps, et JAMAIS de
-   nouvelle tentative. Relancer un import qui a peut-être abouti
-   créerait des doublons. */
-const ACTIONS_LOURDES = { bureauEtat: 25000, elevesImport: 90000,
-                          smsList: 25000, resultatList: 25000,
-                          /* ⚠️ LE LIEN DU RAPPEL — v944.
+/* ⚠️ LE DÉLAI ORDINAIRE : VINGT-CINQ SECONDES, PAS DOUZE — v949.
 
-                             Douze secondes, c'était le délai ordinaire, et
-                             il ne tenait pas : cet appel part au milieu d'un
-                             envoi, souvent pendant que le rafraîchissement
-                             du bureau occupe déjà le classeur. Treize
-                             secondes suffisaient à faire croire à une panne
-                             — et le mail partait alors SANS son bouton de
-                             confirmation. David l'a vu plusieurs fois.
+   Douze secondes datent du temps où TOUT passait par le classeur :
+   il était donc toujours chaud, et douze secondes suffisaient.
 
-                             Vingt-cinq secondes, comme les autres appels qui
-                             attendent derrière le classeur. Et la reprise ne
-                             crée plus un second lien : « creerLienCours »
-                             reconnaît sa propre tentative abandonnée. */
-                          coursLienCreer: 25000,
+   Depuis, la plupart des lectures sont servies directement par le
+   Worker (voir « ---- Les lectures ---- » dans cloudflare-worker.js) :
+   prepList, bureauEtat, fichesList, cbList, modeleList… Ne restent
+   sur le classeur, pour l'essentiel, que LES ÉCRITURES. Elles le
+   réveillent donc à froid, et paient le démarrage du script en plus
+   de leur propre travail.
+
+   Le symptôme est toujours le même, et il a déjà été soigné deux
+   fois au cas par cas : « Mail parti, mais SANS bouton de
+   confirmation » (v944, coursLienCreer), puis « Modification
+   impossible : pas de réponse après 12 s » (v949, prepAdd) — sur des
+   écritures qui, les deux fois, AVAIENT ABOUTI. Poser une rallonge
+   action par action, c'est attendre la plainte suivante.
+
+   Alors c'est le délai ORDINAIRE qui change, une fois, ici. Il ne
+   coûte rien quand tout va bien — une écriture qui répond en trois
+   secondes répond en trois secondes. Il ne coûte que lorsqu'on
+   allait mentir. Et un réseau vraiment coupé ne l'atteint jamais :
+   il échoue tout de suite, avec « Connexion impossible ». */
+const DELAI_ORDINAIRE = 25000;
+
+/* Les actions qui écrivent en masse : plus de temps ENCORE, et
+   JAMAIS de nouvelle tentative. Relancer un import qui a peut-être
+   abouti créerait des doublons.
+
+   On n'y remet pas celles qui valent le délai ordinaire : le même
+   nombre écrit à deux endroits finit toujours par n'en suivre qu'un. */
+const ACTIONS_LOURDES = { elevesImport: 90000,
                           /* Vingt-trois feuilles à relire et à réécrire.
                              À douze secondes, l'application croyait à une
                              panne — voir SANS_REPRISE juste dessous. */
@@ -64,6 +77,33 @@ const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       'smsLog', 'eleveRetirer', 'eleveRenommer',
                       'consigneEffacerEleve'];
 
+/* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
+   DÉJÀ — v949.
+
+   Le classeur ne traite qu'une chose à la fois. Le rafraîchissement
+   automatique, lui, tombe toutes les quatre-vingt-dix secondes sans
+   regarder si un appel est en cours : une écriture lancée juste
+   avant l'attendait derrière, et dépassait son délai.
+
+   v944 avait posé une parade CHEZ L'APPELANT — debutEnvoi() autour
+   de l'envoi d'un rappel. Elle marche, mais il faut y penser à
+   chaque nouvel appel, et on n'y pense pas : « Modification
+   impossible » est exactement l'appel auquel on n'a pas pensé.
+
+   Le compteur est donc posé ICI, à la porte par laquelle passent les
+   cent soixante-trois actions. Aucun appelant n'a plus rien à se
+   rappeler.
+
+   Un compteur, pas un booléen : deux appels se chevauchent souvent
+   (la liste et les confirmations partent ensemble), et le premier
+   qui finit libérerait le second.
+
+   Ceci ne REMPLACE pas debutEnvoi() : celui-ci couvre un envoi
+   entier — le mail, le lien, le suivi — y compris les blancs ENTRE
+   deux appels, où le rafraîchissement pourrait encore se glisser. */
+let appelsEnCours = 0;
+function appelEnCours(){ return appelsEnCours > 0; }
+
 async function appelPrep(corps){
   /* Se servir de l'application repousse le délai d'inactivité :
      sans cela, la session mourrait 48 h après la connexion même
@@ -71,14 +111,20 @@ async function appelPrep(corps){
   if(typeof rafraichirSession === 'function') rafraichirSession();
 
   const action = (corps && corps.action) || '';
-  const delai = ACTIONS_LOURDES[action] || 12000;
+  const delai = ACTIONS_LOURDES[action] || DELAI_ORDINAIRE;
   const essais = (SANS_REPRISE.indexOf(action) !== -1) ? 0 : 2;
 
-  const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
-  }, delai, essais);
+  appelsEnCours++;
+  let r;
+  try{
+    r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ code: ACCES.code }, corps))
+    }, delai, essais);
+  }finally{
+    appelsEnCours = Math.max(0, appelsEnCours - 1);
+  }
   /* Le message du serveur vaut mieux qu'un code seul : « HTTP 502 »
      ne dit rien, « SMTP 535 : authentification refusée » dit tout. */
   const rep = await r.json().catch(() => ({}));
