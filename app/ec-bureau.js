@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:56 — v949 */
+/* Déployé le 11/09/2026 à 15:34 — v960 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -717,6 +717,13 @@ async function majHeuresRestantes(eleve, valeur, champs, depuis){
 function ligneBureau(e, options){
   const row = document.createElement('div');
   row.className = 'history-item';
+
+  /* ⚠️ LA LIGNE PORTE LE NOM DE LA PERSONNE — v960. C'est ce qui
+     permet d'être emmené SUR elle depuis « Choses à voir
+     aujourd'hui », et pas seulement sur son écran. Posé ici, dans
+     la ligne commune, il vaut pour les quinze listes du bureau à la
+     fois : posé dans chacune, il en manquerait à trois. */
+  row.dataset.eleve = e.eleve || '';
 
   /* Un repassage se repère d'un coup d'œil */
   const sv = suiviDe(e.eleve);
