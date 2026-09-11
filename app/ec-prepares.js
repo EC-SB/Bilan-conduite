@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:56 — v949 */
+/* Déployé le 11/09/2026 à 12:05 — v950 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -582,15 +582,34 @@ function rafraichirNotesPreparees(){
   enOrdre.forEach(cours => {
     if(!cours || !cours.eleve) return;
     try{
-      /* Le rang que la note annonce déjà : on ne le recalcule pas
-         ici, on ne fait que rafraîchir ce qui l'entoure. */
+      /* ⚠️ LA CARTE IGNORAIT CE QUE LE QUESTIONNAIRE SAIT — v950.
+
+         David, le 11 septembre, capture à l'appui : la carte de
+         Mahamadou Samoura annonce « IL FAUT REMPLIR LE
+         QUESTIONNAIRE » et un rang vide ; on ouvre le questionnaire,
+         et il affiche « 9ÈME LEÇON », la frise et la formation. On
+         enregistre sans rien changer, et la carte se corrige.
+
+         Rien ne manquait : la carte ne demandait pas. Elle se
+         refaisait avec « null » à la place du dossier — donc sans
+         le nombre de leçons faites, sans la frise du dernier bilan,
+         et sans de quoi calculer le rang. Le questionnaire, lui,
+         passe par « dossierConnuDe » depuis la v947.
+
+         Deux écrans, une seule question — « qu'est-ce qu'on sait
+         déjà de cet élève ? » — et un seul des deux la posait. */
+      const dossier = (typeof dossierConnuDe === 'function')
+        ? dossierConnuDe(cours.eleve) : null;
+
+      /* Le rang écrit par une main passe avant tout comptage ; à
+         défaut, on le déduit comme le questionnaire le déduit. */
       const ctx = cours.contexte || {};
       const rang = (ctx.lecon !== undefined && ctx.lecon !== '')
         ? ctx.lecon
         : (typeof numeroLeconDuCours === 'function'
-            ? (numeroLeconDuCours(cours) || '') : '');
+            ? (numeroLeconDuCours(cours, dossier) || '') : '');
 
-      const neuve = noteJusteDuCours(cours, rang, null);
+      const neuve = noteJusteDuCours(cours, rang, dossier);
       if(!neuve || neuve === cours.note) return;
       if(noteAppauvrie(cours.note, neuve)) return;
 
