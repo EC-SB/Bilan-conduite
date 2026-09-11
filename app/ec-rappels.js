@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:04 — v944 */
+/* Déployé le 11/09/2026 à 15:13 — v959 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -294,7 +294,7 @@ async function afficherRappels(){
       ? '<br><span style="font-size:12px;color:var(--muted);">Modèle : « ' +
         modelePour('rappel_cours').titre + ' »</span>'
       : '<br><span style="font-size:12px;color:var(--muted);">Aucun modèle enregistré : ' +
-        "texte proposé par l'application. Crée-en un dans « Textes types », usage " +
+        "texte proposé par l'application. Crée-en un dans « Modèles messages », usage " +
         '« Rappel de cours ».</span>');
   zone.appendChild(tete);
 
@@ -602,7 +602,7 @@ async function choisirAutreEleve(c){
    Le message est toujours le même ; seules quelques mentions
    changent d'un élève à l'autre.
    ============================================================ */
-/* Les types de rappel viennent tous de « Textes types ».
+/* Les types de rappel viennent tous de « Modèles messages ».
    L'application n'en propose plus d'elle-même : les vôtres sont
    les bons, et deux listes concurrentes prêtaient à confusion. */
 const TYPES_RAPPEL = [];
@@ -697,7 +697,7 @@ const OPTIONS_RAPPEL = [
 ];
 
 /* Les types disponibles : ceux de l'application, plus les vôtres.
-   Un texte enregistré dans « Textes types » avec l'usage
+   Un texte enregistré dans « Modèles messages » avec l'usage
    « Rappel de cours » devient un type à part entière. */
 function typesDisponibles(){
   const perso = ((typeof modelesTexte !== 'undefined' ? modelesTexte : []) || [])
@@ -727,7 +727,7 @@ function composerRappel(r){
   const tous = typesDisponibles();
   if(!tous.length){
     return "Aucun modèle de rappel enregistré.\n\n" +
-      "Va dans ⚙️ Outils → 📄 Textes types, crée un texte avec l'usage " +
+      "Va dans ⚙️ Outils → 📄 Modèles messages, crée un texte avec l'usage " +
       '« 🔔 Rappel de cours par mail — élève », et il apparaîtra ici.';
   }
   const type = tous.find(x => x.cle === r.type) || tous[0];
@@ -1019,7 +1019,7 @@ async function afficherRappelManuel(){
     v.className = 'empty';
     v.style.cssText = 'padding:16px;line-height:1.6;';
     v.innerHTML = '📄 <strong>Aucun modèle de rappel enregistré.</strong><br>' +
-      '<span style="font-size:12px;">Va dans <strong>📄 Textes types</strong>, ' +
+      '<span style="font-size:12px;">Va dans <strong>📄 Modèles messages</strong>, ' +
       'crée un texte avec l\'usage « 🔔 Rappel de cours par mail — élève », ' +
       'et il apparaîtra ici.<br>' +
       'Le bouton 📥 Importer permet d\'en coller plusieurs d\'un coup.</span>';
@@ -1519,7 +1519,7 @@ const MENTION_48H_FINANCEUR =
   "Rappel des conditions : toute leçon non annulée au moins 48 heures avant " +
   "l'heure prévue est considérée comme due et sera facturée.";
 
-/* Le modèle du financeur se règle dans Textes types, usage
+/* Le modèle du financeur se règle dans Modèles messages, usage
    « Rappel de cours par mail — financeur ». Sans modèle, celui-ci
    sert : un rappel doit pouvoir partir le premier jour. */
 const MODELE_FINANCEUR_DEFAUT =
@@ -2070,7 +2070,7 @@ async function envoyerRappelManuel(){
 
                               Une seule source, celle que le bureau voit. */
                            type: typeChoisiMaintenant(),
-                           /* Vos types viennent des Textes types : leur
+                           /* Vos types viennent des Modèles messages : leur
                               clé est « perso:xxx », qui ne dit rien.
                               C'est le titre qui porte le sens. */
                            titreType: titreDuType(typeChoisiMaintenant()),
@@ -2871,7 +2871,7 @@ const BILAN_DU_RAPPEL = {
    et chaque correction de la devinette en cassait une autre : un
    titre libre ne peut pas porter une règle.
 
-   Le texte le dit maintenant lui-même, dans ⚙️ Textes types. Tant
+   Le texte le dit maintenant lui-même, dans ⚙️ Modèles messages. Tant
    qu'il ne dit rien, la devinette reste — il faut bien que les
    textes déjà écrits continuent de marcher — mais elle ne décide
    plus dès que quelqu'un a répondu.
