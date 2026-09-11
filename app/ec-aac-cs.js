@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:04 — v956 */
+/* Déployé le 11/09/2026 à 15:34 — v960 */
 /* ============================================================
    ec-aac-cs.js
    Le suivi de la conduite supervisée et de la conduite accompagnée.
@@ -955,6 +955,9 @@ function ligneCs(x){
   const row = document.createElement('div');
   row.className = 'history-item';
   row.style.cssText = 'flex-direction:column;align-items:stretch;';
+  /* Le nom, pour être emmené sur cette ligne-là — voir
+     viserLaPersonne. */
+  row.dataset.eleve = x.eleve || '';
 
   const meta = document.createElement('div');
   meta.className = 'meta';
@@ -3604,6 +3607,9 @@ function ligneAac(x){
   const row = document.createElement('div');
   row.className = 'history-item';
   row.style.cssText = 'flex-direction:column;align-items:stretch;';
+  /* Le nom, pour être emmené sur cette ligne-là — voir
+     viserLaPersonne. */
+  row.dataset.eleve = x.eleve || '';
 
   const meta = document.createElement('div');
   meta.className = 'meta';
