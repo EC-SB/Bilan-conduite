@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:41 — v948 */
+/* Déployé le 11/09/2026 à 13:19 — v952 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1190,26 +1190,42 @@ function copierTexte(t, bouton){
    manquait à Romain Kikela le 4 septembre, place tenue et colonne
    vide.
    ------------------------------------------------------------ */
-function dateExamenAVenir(nom){
-  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
-  const aVenir = v => {
-    const iso = (typeof dateFrVersIso === 'function')
-      ? dateFrVersIso(v || '') : '';
-    return !!(iso && (!auj || iso >= auj));
-  };
+/* ⚠️ LES DEUX TRACES, ÉNUMÉRÉES À UN SEUL ENDROIT — v952.
 
-  /* Sa place sur une session : c'est une convocation */
+   Elles l'étaient ici, et le compte des places les redemandait à
+   sa façon — en n'en lisant qu'une. Tant qu'elles sont écrites
+   deux fois, l'une des deux copies finit par en oublier une.
+
+   L'ordre compte : la place d'abord. Une session est une
+   convocation ; la date de la fiche est une copie écrite un jour
+   donné, et qui peut dater. */
+function datesExamenDe(nom){
+  const iso = v => ((typeof dateFrVersIso === 'function')
+    ? (dateFrVersIso(v || '') || '') : '');
+  const out = [];
+
   const pl = (typeof placeEnSessionDe === 'function')
     ? placeEnSessionDe(nom) : null;
-  if(pl && aVenir(pl.date)) return dateCourte(dateFrVersIso(pl.date) || pl.date);
+  if(pl && iso(pl.date)) out.push(iso(pl.date));
 
-  /* Ou la date posée sur sa fiche, sans session connue */
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-  if(aVenir(s.datePermis)){
-    return dateCourte(dateFrVersIso(s.datePermis) || s.datePermis);
-  }
+  if(iso(s.datePermis)) out.push(iso(s.datePermis));
 
-  return '';
+  return out;
+}
+
+/* Sa date d'examen, tout court — celle qui fait foi. */
+function dateExamenDe(nom){
+  return datesExamenDe(nom)[0] || '';
+}
+
+function dateExamenAVenir(nom){
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+  /* ⚠️ « À VENIR » SE CHERCHE DANS LES DEUX, pas seulement dans la
+     première : une session passée et une date de fiche à venir,
+     c'est une date à venir. C'était déjà le cas, et ça le reste. */
+  const f = datesExamenDe(nom).find(d => !auj || d >= auj);
+  return f ? dateCourte(f) : '';
 }
 
 
@@ -1860,6 +1876,75 @@ function joursDuCentre(w, centre){
 
 /* Permis prévus : préparation administrative.
    Renvoie la liste, réutilisée par les examens passés. */
+
+/* ============================================================
+   LE COMPTE DES PLACES — UNE SEULE FOIS, ET LES DEUX TRACES
+
+   David, le 11 septembre 2026 : « le réglage des places
+   disponibles me dit 14 candidats prévus sur 30 alors que j'ai
+   bien 15 candidats de mis sur octobre ».
+
+   ⚠️ DEUX DÉFAUTS EMPILÉS, ET LE MÊME QUE D'HABITUDE.
+
+   1. CE COMPTE ÉTAIT ÉCRIT DEUX FOIS. Ici, et une seconde fois
+      dans afficherPermisPrevus — l'une ventilait par centre
+      d'examen, l'autre non, et c'est l'écran ouvert qui décidait
+      laquelle parlait. Deux réponses pour une question.
+
+   2. IL NE LISAIT QU'UNE DES DEUX TRACES. « Qui a une date
+      d'examen ? » s'écrit à deux endroits qui ne se déduisent pas
+      l'un de l'autre : la place tenue sur une session, et la date
+      posée sur la fiche de suivi. C'est écrit noir sur blanc plus
+      haut, à propos de Romain Kikela le 4 septembre — place tenue,
+      colonne vide. La liste « rendez-vous permis » consulte bien
+      les deux depuis ce jour-là ; ce compte-ci était resté sur la
+      moitié pauvre, et perdait donc tout candidat placé sur une
+      session dont la fiche n'a pas encore été réécrite.
+
+   Une seule fonction, donc, et elle passe par dateExamenDe() —
+   la porte qui répond « quelle est sa date d'examen », sessions
+   comprises.
+   ============================================================ */
+function statsDesPlaces(prevus){
+  const actifs = (prevus || []).filter(e => suiviDe(e.eleve).statut !== 'annule');
+  const moisConnus = placesConfig.mois.map(m => m.mois).filter(Boolean);
+
+  /* La date qui compte pour cet élève. Elle a pu être calculée en
+     amont (_iso) ; sinon on la redemande à la porte unique. */
+  const isoDe = e => e._iso || dateExamenDe(e.eleve);
+
+  const parMois = {};
+  let horsMois = 0;
+
+  actifs.forEach(e => {
+    const k = (isoDe(e) || '').slice(0, 7);
+    if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
+    if(!parMois[k]){
+      parMois[k] = { prevus:0, remplacements:0, fantomes:0, aDonner:0, centres:{} };
+    }
+    const s = suiviDe(e.eleve);
+    parMois[k].prevus++;
+    if(s.aRemplacer === 'oui') parMois[k].remplacements++;
+    if(s.fantome === 'oui') parMois[k].fantomes++;
+    if(s.dateADonner === 'oui') parMois[k].aDonner++;
+    /* La répartition par centre : c'est elle qui dit où placer les suivants */
+    const ce = (s.centre || '').trim() || 'centre à définir';
+    parMois[k].centres[ce] = (parMois[k].centres[ce] || 0) + 1;
+  });
+
+  /* Combien tombent dans chaque semaine ouverte */
+  const parSemaine = {};
+  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
+    if(!w.du || !w.au) return;
+    parSemaine[w.du + '>' + w.au] = actifs.filter(e => {
+      const iso = isoDe(e);
+      return iso && iso >= w.du && iso <= w.au;
+    }).length;
+  }));
+
+  return { parMois: parMois, horsMois: horsMois, parSemaine: parSemaine };
+}
+
 /* Les semaines ouvertes par la préfecture.
 
    C'est ce qu'on vient chercher en ouvrant « Permis et places » :
@@ -1867,60 +1952,68 @@ function joursDuCentre(w, centre){
 function dessinerTableauPlaces(prevus){
   if(typeof afficherPlaces !== 'function') return;
   if(typeof placesConfig === 'undefined') return;
+  afficherPlaces(statsDesPlaces(prevus));
+}
 
-  const actifs = (prevus || []).filter(e =>
-    suiviDe(e.eleve).statut !== 'annule');
 
-  /* Combien d'examens par mois configuré */
-  const moisConnus = placesConfig.mois.map(m => m.mois).filter(Boolean);
-  const parMois = {};
-  let horsMois = 0;
+/* ⚠️ TOUS CEUX QUI ONT UNE DATE D'EXAMEN — LES DEUX TRACES.
 
-  actifs.forEach(e => {
-    const k = e._iso ? e._iso.slice(0, 7) : '';
-    if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
-    if(!parMois[k]){
-      parMois[k] = { prevus:0, remplacements:0, fantomes:0, aDonner:0 };
-    }
-    parMois[k].prevus++;
+   Trois populations, et il faut les trois :
+     · ceux dont un bilan dit « permis prévu » ;
+     · ceux dont la fiche de suivi porte une date, sans bilan qui
+       le dise ;
+     · ceux qui TIENNENT UNE PLACE sur une session, et dont la
+       fiche n'a pas encore été réécrite. Ceux-là manquaient, et
+       c'est le candidat d'octobre que David comptait à la main.
 
-    const s = suiviDe(e.eleve);
-    if(s.aRemplacer === 'oui') parMois[k].remplacements++;
-    if(s.fantome === 'oui') parMois[k].fantomes++;
-    if(s.dateADonner === 'oui') parMois[k].aDonner++;
-  });
+   Un élève qui n'existe que par sa place — ni bilan, ni fiche —
+   entre quand même, avec la fiche minimale que les examens passés
+   emploient déjà. Ne pas le compter, c'est annoncer moins de
+   candidats qu'il n'y en a. */
+function elevesAvecDateExamen(tous){
+  const liste = (tous || []).filter(e => e.etat.permis === 'prevu');
+  const dedans = nom => liste.some(x => normaliserMot(x.eleve) === normaliserMot(nom));
 
-  /* Combien tombent dans chaque semaine ouverte */
-  const parSemaine = {};
-  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
-    if(!w.du || !w.au) return;
-    parSemaine[w.du + '>' + w.au] = actifs.filter(e =>
-      e._iso && e._iso >= w.du && e._iso <= w.au).length;
-  }));
+  const ajouter = nom => {
+    const n = String(nom || '').trim();
+    if(!n || dedans(n)) return;
+    const base = (tous || []).find(x => normaliserMot(x.eleve) === normaliserMot(n));
+    liste.push(base || ((typeof ficheMinimale === 'function')
+      ? ficheMinimale(n) : { eleve: n, etat: {} }));
+  };
 
-  afficherPlaces({ parMois: parMois, horsMois: horsMois,
-                   parSemaine: parSemaine });
+  (etatBureau.suivi || []).forEach(s => { if(s.datePermis) ajouter(s.eleve); });
+
+  try{
+    (typeof sessionsPermis !== 'undefined' ? (sessionsPermis || []) : [])
+      .forEach(se => (se.eleves || []).forEach(p => ajouter(p.eleve)));
+  }catch(err){ /* sans les sessions, on s'en tient au suivi */ }
+
+  return liste;
 }
 
 
 function afficherPermisPrevus(tous){
   const zPP = $('listePermisPrevu');
-  const prevus = tous.filter(e => e.etat.permis === 'prevu');
-  /* Élèves dont seule la fiche de suivi porte une date */
-  etatBureau.suivi.forEach(s => {
-    if(!s.datePermis) return;
-    if(prevus.some(x => normaliserMot(x.eleve) === normaliserMot(s.eleve))) return;
-    const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(s.eleve));
-    if(base) prevus.push(base);
-  });
+  /* Les trois populations, par la porte unique — voir
+     elevesAvecDateExamen. Cette liste-ci ne lisait que le bilan et
+     la fiche : un candidat placé sur une session dont la fiche
+     n'avait pas été réécrite n'y entrait pas, et le compte des
+     places annonçait un candidat de moins qu'il n'y en a. */
+  const prevus = elevesAvecDateExamen(tous);
 
   /* Date et boîte de chaque élève, pour le récapitulatif et les filtres */
   majVolet('cptPrevus', prevus.length);
   prevus.forEach(e => {
     const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
     e._suivi = s || {};
-    e._datePermis = (e.etat.permisDate) || (s && s.datePermis) || '';
-    e._iso = dateFrVersIso(e._datePermis) || '';
+    /* ⚠️ LA DATE VIENT DE LA PORTE UNIQUE — v952. La place tenue
+       sur une session passe devant la fiche : c'est une
+       convocation, l'autre est une copie écrite un jour donné. */
+    e._iso = dateExamenDe(e.eleve) ||
+             dateFrVersIso(e.etat.permisDate || '') || '';
+    e._datePermis = (e.etat.permisDate) || (s && s.datePermis) ||
+                    (e._iso ? dateCourte(e._iso) : '');
     /* Une même date peut compter plusieurs groupes : deux inspecteurs,
        matin et après-midi. Le groupe fait partie de la clé. */
     e._groupe = (s && s.groupePermis) || '';
@@ -1989,36 +2082,13 @@ function afficherPermisPrevus(tous){
   if(fDate) visibles = visibles.filter(e => e._cleJour === fDate);
   visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
 
-  /* Statistiques ventilées par mois d'examen */
-  const actifs = prevus.filter(e => suiviDe(e.eleve).statut !== 'annule');
-  const parMois = {};
-  let horsMois = 0;
-  const moisConnus = placesConfig.mois.map(m => m.mois).filter(Boolean);
+  /* ⚠️ LE COMPTE NE SE REFAIT PAS ICI — v952.
 
-  actifs.forEach(e => {
-    const k = (e._iso || '').slice(0, 7);
-    if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
-    if(!parMois[k]) parMois[k] = { prevus:0, remplacements:0, fantomes:0,
-                                   aDonner:0, centres:{} };
-    const s = suiviDe(e.eleve);
-    parMois[k].prevus++;
-    if(s.aRemplacer === 'oui') parMois[k].remplacements++;
-    if(s.fantome === 'oui') parMois[k].fantomes++;
-    if(s.dateADonner === 'oui') parMois[k].aDonner++;
-    /* La répartition par centre : c'est elle qui dit où placer les suivants */
-    const ce = (s.centre || '').trim() || 'centre à définir';
-    parMois[k].centres[ce] = (parMois[k].centres[ce] || 0) + 1;
-  });
-
-  /* Nombre d'examens tombant dans chaque semaine ouverte */
-  const parSemaine = {};
-  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
-    if(!w.du || !w.au) return;
-    const cle = w.du + '>' + w.au;
-    parSemaine[cle] = actifs.filter(e => e._iso && e._iso >= w.du && e._iso <= w.au).length;
-  }));
-
-  afficherPlaces({ parMois: parMois, horsMois: horsMois, parSemaine: parSemaine });
+     Il était recopié : quarante lignes qui disaient presque la
+     même chose que statsDesPlaces, à un détail près. Le détail
+     suffit à ce que les deux écrans n'annoncent pas le même
+     nombre, et c'est exactement ce qui est arrivé. */
+  afficherPlaces(statsDesPlaces(prevus));
 
   /* La vue d'ensemble reste au-dessus des filtres, quel que soit le filtre */
   const zApercu = $('apercuPermis');
