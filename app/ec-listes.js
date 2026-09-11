@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:56 — v943 */
+/* Déployé le 11/09/2026 à 14:04 — v956 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -40,23 +40,26 @@ async function fixerDateSimu(eleve, iso){
 
 
 /* Une case « prévenu », partagée par les listes qui en ont besoin */
-function casePrevenu(x, champ, libelle){
-  const s = suiviDe(x.eleve);
+/* ⚠️ LA CASE PREND LE SUJET, PLUS LE NOM D'UN CHAMP — v956.
 
+   Elle recevait « ebPrevenu » ou « simuPrevenu » : chaque écran
+   choisissait donc son champ, et c'est ainsi que l'examen blanc a
+   fini avec deux cases qui ne se parlaient pas. Elle reçoit
+   maintenant le SUJET — « examblanc », « simu » — et la porte
+   décide des champs. Voir CHAMPS_PREVENU. */
+function casePrevenu(x, quoi, libelle){
   const lab = document.createElement('label');
   lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
     'font-size:15px;color:var(--cream);margin:0 0 10px;';
 
   const cb = document.createElement('input');
   cb.type = 'checkbox';
-  cb.checked = (s[champ] === 'oui');
+  cb.checked = estPrevenu(x.eleve, quoi);
   cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;';
   cb.addEventListener('change', async () => {
     cb.disabled = true;
     try{
-      const maj = {};
-      maj[champ] = cb.checked ? 'oui' : '';
-      await majSuivi(x.eleve, maj);
+      await majSuivi(x.eleve, majPrevenu(quoi, cb.checked));
       showToast(cb.checked ? 'Noté comme prévenu ✅' : 'À prévenir');
     }catch(err){
       showToast('Erreur : ' + err.message);
@@ -650,6 +653,62 @@ function isoDeDateEcrite(v){
 }
 
 
+/* ============================================================
+   « PRÉVENU » — UNE SEULE RÉPONSE, DEUX TRACES — v956
+
+   David veut le nombre de prévenus sous le nombre d'examens blancs
+   et de simulateurs à prévoir. En allant le chercher, on découvre
+   que « cet élève a-t-il été prévenu ? » a DEUX réponses pour
+   l'examen blanc :
+
+     · « ebMessage », coché depuis la liste elle-même (ici) ;
+     · « ebPrevenu », coché depuis le dossier de l'élève, et c'est
+       celui-là que lit le bandeau du jour pour décider s'il propose
+       de barrer la ligne.
+
+   Deux cases pour un même fait, dans deux écrans : celui qui coche
+   au bureau ne décoche pas la ligne du bandeau, et personne ne
+   comprend pourquoi.
+
+   ⚠️ ON LIT LES DEUX, ET ON ÉCRIT LES DEUX. Lire les deux, c'est ne
+   perdre aucune des cases déjà cochées — il y en a des deux côtés
+   dans le classeur. Écrire les deux, c'est les faire converger
+   d'elles-mêmes : au prochain clic sur l'une ou l'autre, l'élève
+   est prévenu partout.
+
+   Le simulateur, lui, n'a qu'un champ : « simuPrevenu ». */
+const CHAMPS_PREVENU = {
+  examblanc: ['ebPrevenu', 'ebMessage'],
+  simu:      ['simuPrevenu']
+};
+
+function estPrevenu(nom, quoi){
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  return (CHAMPS_PREVENU[quoi] || []).some(c => String(s[c] || '') === 'oui');
+}
+
+/* Ce qu'on écrit quand on coche ou décoche. */
+function majPrevenu(quoi, coche){
+  const maj = {};
+  (CHAMPS_PREVENU[quoi] || []).forEach(c => { maj[c] = coche ? 'oui' : ''; });
+  return maj;
+}
+
+/* ⚠️ CE QUE LES TUILES DU SUIVI VONT LIRE.
+
+   Publié par les deux listes en se dessinant — jamais recompté
+   ailleurs. « null » tant qu'elles ne se sont pas dessinées. */
+let etatDuSuivi = null;
+
+function poserEtatDuSuivi(quoi, liste){
+  etatDuSuivi = etatDuSuivi || {};
+  etatDuSuivi[quoi] = {
+    total: liste.length,
+    prevenus: liste.filter(e => estPrevenu(e.eleve, quoi)).length
+  };
+}
+
+
 function afficherExamensBlancs(tous){
   const zEB = $('listeExamBlanc');
   if(!zEB) return;
@@ -660,12 +719,23 @@ function afficherExamensBlancs(tous){
   eb.sort((a, b) => (a.etat.examBlancN === null ? 99 : a.etat.examBlancN) -
                     (b.etat.examBlancN === null ? 99 : b.etat.examBlancN));
   zEB.innerHTML = '';
+
+  /* ⚠️ LE COMPTEUR SE POSE MÊME À VIDE — v956.
+
+     Il était écrit DANS le « else » : une liste vide ne le posait
+     jamais, et « pas encore dessinée » ne se distingue plus de
+     « rien à faire ». La porte d'entrée de l'onglet annonçait donc
+     « ⏳ ouvre cette liste une fois » les jours où il n'y avait
+     justement rien à ouvrir. C'est la même faute qu'en v943 et
+     v948, sur d'autres listes. */
+  majVolet('cptEB', eb.length);
+  poserEtatDuSuivi('examblanc', eb);
+
   if(!eb.length){
     zEB.innerHTML = '<div class="empty">Aucun examen blanc à prévoir.<br>' +
       '<span style="font-size:12px;">Ceux qui sont réservés n\'apparaissent plus ici.</span></div>';
   }else{
     if(typeof signalerAjout === 'function') signalerAjout(zEB);
-    majVolet('cptEB', eb.length);
   eb.forEach(e => {
       zEB.appendChild(ligneBureau(e, {
         replier: true,
@@ -679,7 +749,7 @@ function afficherExamensBlancs(tous){
         alerte: x => {
           const s = suiviDe(x.eleve);
           if(s.ebDatePrevue && !s.ebMoniteur) return 'Moniteur à désigner';
-          if(!s.ebMessage) return 'Message à envoyer pour réserver';
+          if(!estPrevenu(x.eleve, 'examblanc')) return 'Message à envoyer pour réserver';
           return (x.etat.examBlancN !== null && x.etat.examBlancN <= 1)
                  ? "Plus qu'une leçon avant l'examen blanc" : null;
         },
@@ -692,12 +762,13 @@ function afficherExamensBlancs(tous){
             'font-size:15px;color:var(--cream);margin:0 0 10px;';
           const cb = document.createElement('input');
           cb.type = 'checkbox';
-          cb.checked = (s.ebMessage === 'oui');
+          /* Les deux traces, lues et écrites ensemble — voir estPrevenu. */
+          cb.checked = estPrevenu(x.eleve, 'examblanc');
           cb.style.cssText = 'width:19px;height:19px;flex-shrink:0;';
           cb.addEventListener('change', async () => {
             cb.disabled = true;
             try{
-              await majSuivi(x.eleve, { ebMessage: cb.checked ? 'oui' : '' });
+              await majSuivi(x.eleve, majPrevenu('examblanc', cb.checked));
               showToast(cb.checked ? 'Message noté comme envoyé ✅' : 'Message à renvoyer');
               afficherBureau(true);
             }catch(err){ showToast('Erreur : ' + err.message); cb.checked = !cb.checked; }
@@ -736,12 +807,17 @@ function afficherSimulateurs(tous){
      qu'à ce qui reste à programmer. */
   const sim = tous.filter(e => e.etat.simuNuit === 'aprevoir');
   zSim.innerHTML = '';
+
+  /* Posé même à vide, comme celui des examens blancs — voir la note
+     là-haut : une liste vide n'est pas une liste non lue. */
+  majVolet('cptSimu', sim.length);
+  poserEtatDuSuivi('simu', sim);
+
   if(!sim.length){
     zSim.innerHTML = '<div class="empty">Aucun simulateur nuit et risques à prévoir.<br>' +
       '<span style="font-size:12px;">Ceux dont la date est fixée n\'apparaissent plus ici.</span></div>';
   }else{
     if(typeof signalerAjout === 'function') signalerAjout(zSim);
-    majVolet('cptSimu', sim.length);
   sim.forEach(e => {
       zSim.appendChild(ligneBureau(e, {
         info: x => (x.etat.simuNuit === 'prevu' ? 'Déjà prévu' : 'À prévoir') +
@@ -756,7 +832,7 @@ function afficherSimulateurs(tous){
         actions: (x, zone) => {
           /* Prévenu qu'il doit réserver : sans cette trace, on ne
              sait plus qui a été relancé et qui attend encore. */
-          zone.appendChild(casePrevenu(x, 'simuPrevenu',
+          zone.appendChild(casePrevenu(x, 'simu',
             '📣 Message envoyé pour réserver'));
 
           /* La même porte que la page élève : la date s'enregistre
