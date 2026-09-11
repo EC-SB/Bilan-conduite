@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:46 — v942 */
+/* Déployé le 11/09/2026 à 11:14 — v945 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -102,6 +102,10 @@ function afficherOnglet(cle, memoriser){
   if(VUES[cle]) afficherVue(cle, vueActive[cle] || (VUES[cle][0] || [])[0]);
   else libererOngletsSansVues();
 
+  /* La barre vient de s'afficher : c'est maintenant qu'on peut
+     mesurer si ses rangées débordent. Masquée, elle mesurait zéro. */
+  marquerRangsQuiDebordent();
+
   document.querySelectorAll('#barreOnglets .onglet').forEach(b => {
     const estActif = (b.getAttribute('data-cible') === cle);
     b.classList.toggle('actif', estActif);
@@ -179,13 +183,13 @@ const VUES = {
      permis prévus, places à ouvrir, élèves à qui prendre une date. */
   /* Le parcours d'un élève, dans l'ordre où il le suit : pas
      prêt, à envisager, préparé, suivi, résultat. */
-  permis: [['pasprets',  '⛔ Pas prêts',        'bureau_permis'],
-           ['envisager', '🤔 À envisager',      'bureau_permis'],
-           ['preppermis','📣 Préparation',      'bureau_permis'],
-           ['sessions',  '🎓 Suivi permis',     'bureau_permis'],
-           ['resultats', '🏁 Résultats',        'bureau_permis'],
-           ['moto',      '🏍️ Moto',            'bureau_permis'],
-           ['remorque',  '🚚 Remorque',         'bureau_permis']],
+  permis: [['pasprets',  '⛔ Pas prêts',        'bureau_permis', 'Le parcours B'],
+           ['envisager', '🤔 À envisager',      'bureau_permis', 'Le parcours B'],
+           ['preppermis','📣 Préparation',      'bureau_permis', 'Le parcours B'],
+           ['sessions',  '🎓 Suivi permis',     'bureau_permis', 'Le parcours B'],
+           ['resultats', '🏁 Résultats',        'bureau_permis', 'Le parcours B'],
+           ['moto',      '🏍️ Moto',            'bureau_permis', 'Les autres permis'],
+           ['remorque',  '🚚 Remorque',         'bureau_permis', 'Les autres permis']],
   /* LE SUIVI CS ET LE SUIVI AAC SONT DANS SUIVI, ET SÉPARÉS.
 
      Dans SUIVI, parce que ces élèves-là n'ont pas de date d'examen :
@@ -210,28 +214,45 @@ const VUES = {
      On ne pense pas « quel écran », on pense « Léa ». Les neuf vues
      qui suivent restent : elles font le travail de fond, liste par
      liste. Celle-ci fait le travail par personne. */
-  eleves: [['dossier',    '👤 Dossier élève',         'eleves'],
-           ['recherche',  '📚 Historique des leçons', 'recherche'],
-           ['rappels',    '🔔 Rappels de cours',      'rappels'],
+  /* ⚠️ L'ORDRE EST CELUI DE DAVID, ET LES TITRES AUSSI — v945.
+
+     « Administratif » tout court : le DOSSIER, c'est l'écran d'à
+     côté, et répéter le mot ferait croire à un deuxième. Dedans,
+     l'ordre du parcours d'inscription — on évalue, on finance, on
+     aménage, on inscrit au code.
+
+     Et les PROCÉDURES reviennent « Au quotidien » : c'est un
+     travail de tous les jours, pas une pièce de dossier. */
+  eleves: [['dossier',    '👤 Dossier élève',         'eleves',      'Au quotidien'],
+           ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
+           ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
+           ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
+
+           ['evaluation', '📊 Évaluation',            'evaluation',  'Administratif'],
+           ['financements','💶 Financements',         'financements','Administratif'],
+           ['handicap',   '♿ Handicap',               'handicap',    'Administratif'],
+           ['code',       '🎓 Code',                   'code',        'Administratif'],
+
            /* Le répertoire est devenu ce qu'il restait de lui une
               fois que tout le per-élève est parti dans le dossier :
               l'import, la création, et la liste pour vérifier
               qu'un import a bien atterri. */
-           ['eleves',     '➕ Ajouter des élèves',     'eleves'],
-           ['proccorriger','📥 Procédures',            'proccorriger'],
-           ['code',       '🎓 Code',                   'code'],
-           ['handicap',   '♿ Handicap',               'handicap'],
-           ['evaluation', '📊 Évaluation',            'evaluation'],
-           ['financements','💶 Financements',          'financements'],
-           ['permis',     '🎓 Permis obtenu',         'permis'],
-           ['depart',     '🚪 Départ',                'depart']],
+           ['eleves',     '➕ Ajouter des élèves',     'eleves',      'Entrées et sorties'],
+           ['permis',     '🎓 Permis obtenu',         'permis',      'Entrées et sorties'],
+           ['depart',     '🚪 Départ',                'depart',      'Entrées et sorties']],
   /* Ce qui sert au quotidien pédagogique */
-  outils: [['placesbe',   '🚚 Places BE',              'placesbe'],
-           ['paiement',   '💳 Paiement en plusieurs fois', 'paiement'],
-           ['procedures', '🚦 Procédures',             'procedures'],
-           ['textes',     '📄 Textes types',           'textes'],
-           ['memoire',    "🧠 Mémoire de l'IA",         'memoire'],
-           ['bilans',     '📋 Modèles de bilan',       'bilans'],
+  /* Trois familles : ce qu'on MESURE, ce qu'on ÉCRIT une fois pour
+     toutes, et ce qu'on DEMANDE au-dehors. */
+  outils: [['stats',      '📈 Réussite',               ['stats', 'stats_perso'], 'Mesurer'],
+           ['journal',    '📊 Journal',                'journal',     'Mesurer'],
+
+           ['textes',     '📄 Textes types',           'textes',      'Ce qu’on écrit'],
+           ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
+           ['procedures', '🚦 Procédures',             'procedures',  'Ce qu’on écrit'],
+           ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
+
+           ['placesbe',   '🚚 Places BE',              'placesbe',    'Demandes'],
+           ['paiement',   '💳 Paiement en plusieurs fois', 'paiement', 'Demandes'],
            /* « 📚 Historique des cours » a été retiré.
 
               Ce bouton ne chargeait RIEN : sa vue n'était branchée
@@ -249,18 +270,21 @@ const VUES = {
               Le FICHIER reste : « signalerCoursDemarre » et
               « signalerCoursFini » y vivent, et tout cours
               enregistré passe par elles. */
-           /* ⚠️ DEUX DROITS OUVRENT CE BOUTON, comme pour la Flotte.
-              « stats » montre l'équipe, « stats_perso » ne montre
-              que son propre taux. Le bouton s'affiche à qui a l'un
-              des deux ; c'est l'écran qui décide ensuite de ce
-              qu'il contient. */
-           ['stats',      '📈 Réussite',               ['stats', 'stats_perso']],
-           ['journal',    '📊 Journal',                'journal']],
+           /* ⚠️ DEUX DROITS OUVRENT LE BOUTON « RÉUSSITE », plus haut,
+              comme pour la Flotte : « stats » montre l'équipe,
+              « stats_perso » ne montre que son propre taux. Le
+              bouton s'affiche à qui a l'un des deux ; c'est l'écran
+              qui décide ensuite de ce qu'il contient. */],
 
   /* Ce qui relève de la gestion de l'entreprise */
-  gestion: [['ecran',     '📺 Affichage',               'ecran'],
-           ['notifs',     '🔔 Alertes',                 'notifs'],
-           ['taches',     '✅ Tâches',                  'taches'],
+  /* Quatorze boutons, quatre métiers. L'argent, le parc, l'équipe,
+     l'outil : on ne cherche pas « quel écran », on sait de quoi on
+     s'occupe en ouvrant l'onglet. */
+  gestion: [['caisse',    '🏦 Caisse',                  'caisse',      'Argent'],
+           ['coutsia',    '💸 Coûts IA',                'coutsia',     'Argent'],
+           ['paie',       '💶 Paie',                    'paie',        'Argent'],
+           ['tarifs',     '💰 Tarifs',                 'tarifs',       'Argent'],
+
            /* ⚠️ DEUX DROITS OUVRENT CE BOUTON. La flotte pour ceux
               qui suivent le parc, la carrosserie pour ceux qui n'y
               déclarent qu'une rayure. Chacun n'y voit que sa carte —
@@ -268,20 +292,39 @@ const VUES = {
               un moniteur aurait l'onglet Gestion sans aucun bouton
               pour y entrer : un droit qui ne mène nulle part est
               pire qu'un droit refusé. */
-           ['flotte',     '🚗 Flotte',                  ['flotte', 'carrosserie']],
-           ['paie',       '💶 Paie',                    'paie'],
-           ['caisse',     '🏦 Caisse',                  'caisse'],
-           ['coutsia',    '💸 Coûts IA',                'coutsia'],
-           ['messages',   '📨 Messages internes',      'bureau_messages'],
-           ['sms',        '💬 SMS',                     'sms'],
-           ['encours',    '🩹 Cours non terminés',      'encours'],
-           ['incidents',  '🚨 Signalements',            'incidents'],
-           ['menage',     '🧹 Ménage',                  'menage'],
-           ['tarifs',     '💰 Tarifs',                 'tarifs'],
-           ['admin',      '⚙️ Accès',                  'admin']]
+           ['flotte',     '🚗 Flotte',                  ['flotte', 'carrosserie'], 'Le parc'],
+           ['incidents',  '🚨 Signalements',            'incidents',   'Le parc'],
+
+           ['messages',   '📨 Messages internes',      'bureau_messages', 'L’équipe'],
+           ['sms',        '💬 SMS',                     'sms',         'L’équipe'],
+           ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
+           ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
+
+           ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
+           ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
+           ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
+           ['admin',      '⚙️ Accès',                  'admin',        'L’outil']]
 };
 
 const vueActive = {};
+
+/* ⚠️ « CETTE RANGÉE DÉFILE » NE SE DEVINE PAS.
+
+   Sans repère au bord droit, le dernier bouton visible a l'air
+   d'être le dernier de la famille : on ne fait pas glisser ce
+   qu'on croit entier. Le dégradé ne se pose que sur les rangées
+   qui débordent réellement — mesurées, pas supposées : une rangée
+   entière ne doit pas se faire manger son bord pour rien.
+
+   Une barre masquée mesure zéro, donc on repasse à chaque fois
+   qu'elle s'affiche et à chaque changement de largeur. */
+function marquerRangsQuiDebordent(){
+  document.querySelectorAll('.barre-vues .rang').forEach(r => {
+    r.classList.toggle('deborde', r.scrollWidth > r.clientWidth + 1);
+  });
+}
+
+window.addEventListener('resize', marquerRangsQuiDebordent);
 
 function construireBarresVues(){
   Object.keys(VUES).forEach(onglet => {
@@ -322,19 +365,77 @@ function construireBarresVues(){
     }
     barre.hidden = false;
 
-    dispo.forEach(([cle, libelle]) => {
+    /* ============================================================
+       LE RANGEMENT EN FAMILLES — v945
+
+       David : « le regroupement des sous-onglets — oui parfait ».
+
+       Quatorze boutons dans Gestion, onze dans Élèves : on ne
+       cherchait pas un écran, on le balayait. Les familles ne
+       retirent rien et n'ajoutent aucun clic — elles disent
+       seulement de quoi on s'occupe.
+
+       ⚠️ LA FAMILLE EST ÉCRITE SUR CHAQUE VUE, PAS DANS UNE SECONDE
+       TABLE. Une liste « famille → boutons » posée à côté de VUES
+       aurait été un deuxième endroit à tenir à jour : déplacer un
+       bouton l'aurait laissé dans son ancienne famille, ou dans les
+       deux à la fois. Ici la famille voyage AVEC la vue, et l'ordre
+       du tableau est l'ordre affiché.
+
+       Une famille vidée par les droits ne laisse pas son titre
+       derrière elle : un intitulé sans bouton est pire qu'un bouton
+       absent. C'est ce que fait le « nom !== familleEnCours »
+       appliqué après le filtrage — les familles se forment sur ce
+       qui reste, pas sur ce qui était prévu.
+       ============================================================ */
+    const aDesFamilles = dispo.some(x => x[3]);
+    barre.classList.toggle('groupee', aDesFamilles);
+
+    const bouton = (cle, libelle) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = libelle;
       b.setAttribute('data-vue-cible', cle);
       b.addEventListener('click', () => afficherVue(onglet, cle));
-      barre.appendChild(b);
-    });
+      return b;
+    };
+
+    if(!aDesFamilles){
+      dispo.forEach(([cle, libelle]) => barre.appendChild(bouton(cle, libelle)));
+    }else{
+      let familleEnCours = null;
+      let rang = null;
+      dispo.forEach(([cle, libelle, , famille]) => {
+        const nom = famille || '';
+        if(nom !== familleEnCours){
+          familleEnCours = nom;
+          const grp = document.createElement('div');
+          grp.className = 'grp';
+          if(nom){
+            const t = document.createElement('div');
+            t.className = 'fam';
+            t.textContent = nom;
+            grp.appendChild(t);
+          }
+          rang = document.createElement('div');
+          rang.className = 'rang';
+          grp.appendChild(rang);
+          barre.appendChild(grp);
+        }
+        rang.appendChild(bouton(cle, libelle));
+      });
+    }
 
     if(!vueActive[onglet] || !dispo.some(x => x[0] === vueActive[onglet])){
       vueActive[onglet] = dispo[0][0];
     }
   });
+
+  /* Le dégradé de débordement se pose sur les rangées qui débordent
+     VRAIMENT, mesurées après le dessin. Une barre encore masquée
+     mesure zéro : on repasse quand elle s'affiche (afficherOnglet
+     rappelle « marquerRangsQuiDebordent »). */
+  marquerRangsQuiDebordent();
 
   /* Les boutons viennent d'être refaits : les pastilles déjà
      comptées doivent revenir, sinon un simple changement de droits
