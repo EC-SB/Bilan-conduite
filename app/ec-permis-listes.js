@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 11/09/2026 à 10:56 — v943 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2384,6 +2384,9 @@ function afficherExamensPermis(tous){
   afficherAttenteBilan(tous);
   afficherPasDeRepassage(tous);
   afficherExamenNonPlanifiable(tous);
+  /* APRÈS les quatre, et jamais avant : la barre lit les compteurs
+     qu'elles viennent de poser. */
+  majFiltresPasPrets();
   afficherAlertePrise(per);
 
   zPer.innerHTML = '';
@@ -2940,6 +2943,129 @@ function ouvrirFichePermis(e){
   }, 400);
 }
 
+/* ============================================================
+   LES FILTRES DE « PAS PRÊTS » — v943
+
+   Étape 2 de la refonte : quatre volets à ouvrir un par un
+   deviennent UNE liste de travail, avec des filtres qui portent
+   leur compte.
+
+   Avant, pour savoir ce qu'il y avait à faire, il fallait ouvrir
+   « Examen blanc — pas le niveau », le refermer, ouvrir « Attente
+   bilan post-permis », et ainsi de suite. Quatre gestes pour
+   apprendre qu'il n'y avait rien dans trois d'entre eux.
+
+   ⚠️ ON NE RECOMPTE RIEN ICI.
+
+   Chaque liste pose déjà son compteur en se dessinant. Recompter
+   les lignes à l'écran serait une seconde vérité — et c'est
+   toujours la mauvaise qui finit par gagner. On lit ce que les
+   listes ont publié, et si un compteur est faux, c'est la liste
+   qu'il faut réparer, pas la barre.
+
+   ⚠️ ET LES FAMILLES NE SONT PAS ÉCRITES ICI NON PLUS.
+
+   Elles se lisent sur les volets de la page — « data-famille »,
+   le titre du « summary », le compteur. Une cinquième liste
+   ajoutée demain apparaîtra toute seule dans la barre. Une liste
+   des familles recopiée ici aurait été un endroit de plus à tenir
+   à jour, et donc un endroit de plus à oublier.
+   ============================================================ */
+let filtrePasPrets = 'tous';
+
+function voletsPasPrets(){
+  return Array.prototype.slice.call(
+    document.querySelectorAll('details[data-vue="pasprets"][data-famille]'));
+}
+
+/* Le titre d'un volet, sans son compteur : « ⏳ Attente bilan
+   post-permis ». */
+function titreDuVolet(v){
+  const s = v.querySelector('summary');
+  if(!s) return v.getAttribute('data-famille') || '';
+  const c = s.querySelector('.compteur');
+  const n = (c && c.textContent) || '';
+  let t = s.textContent || '';
+  if(n) t = t.replace(n, '');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+function familleDuVolet(v){
+  const c = v.querySelector('.compteur');
+  return {
+    cle: v.getAttribute('data-famille'),
+    titre: titreDuVolet(v),
+    n: parseInt((c && c.textContent) || '0', 10) || 0,
+    el: v
+  };
+}
+
+function appliquerFiltrePasPrets(){
+  voletsPasPrets().forEach(v => {
+    const sien = (filtrePasPrets === 'tous' ||
+                  v.getAttribute('data-famille') === filtrePasPrets);
+    v.classList.toggle('filtre-off', !sien);
+    /* Choisir un filtre OUVRE la liste : sinon on aurait remplacé
+       quatre clics par un clic et un clic. */
+    if(sien && filtrePasPrets !== 'tous') v.open = true;
+  });
+}
+
+function majFiltresPasPrets(){
+  const barre = $('filtresPasPrets');
+  if(!barre) return;
+
+  const fams = voletsPasPrets().map(familleDuVolet);
+  if(!fams.length){ barre.innerHTML = ''; return; }
+
+  const total = fams.reduce((t, f) => t + f.n, 0);
+
+  /* Un filtre dont la liste s'est vidée ne doit pas laisser l'écran
+     vide sans raison : on retombe sur « Tous ». */
+  const encore = fams.some(f => f.cle === filtrePasPrets && f.n);
+  if(filtrePasPrets !== 'tous' && !encore) filtrePasPrets = 'tous';
+
+  barre.innerHTML = '';
+
+  const bouton = (cle, titre, n, alerte) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (filtrePasPrets === cle ? 'btn-primary' : 'btn-secondary');
+    b.innerHTML = '';
+    b.appendChild(document.createTextNode(titre));
+    const s = document.createElement('span');
+    s.className = 'n';
+    s.textContent = String(n);
+    if(alerte) s.style.color = 'var(--red)';
+    b.appendChild(s);
+    b.addEventListener('click', () => {
+      filtrePasPrets = cle;
+      majFiltresPasPrets();
+    });
+    return b;
+  };
+
+  barre.appendChild(bouton('tous', 'Tous', total, false));
+  /* UN FILTRE À ZÉRO NE S'AFFICHE PAS. Une rangée de boutons qui ne
+     mènent nulle part apprend à ne plus la lire — comme la ligne
+     qui disait que tout allait bien sur chaque carte. */
+  fams.filter(f => f.n > 0)
+      .forEach(f => barre.appendChild(bouton(f.cle, f.titre, f.n, true)));
+
+  /* Rien du tout : on le dit, plutôt que de laisser un « Tous 0 »
+     tout seul au milieu de l'écran. */
+  if(!total){
+    const v = document.createElement('div');
+    v.style.cssText = 'font-size:12.5px;color:var(--accent-text);font-weight:700;' +
+      'padding:4px 2px;';
+    v.textContent = '✅ Personne n’est bloqué : les quatre listes sont vides.';
+    barre.innerHTML = '';
+    barre.appendChild(v);
+  }
+
+  appliquerFiltrePasPrets();
+}
+
 /* ------------------------------------------------------------
    EXAMEN NON PLANIFIABLE
 
@@ -3009,12 +3135,17 @@ function afficherPasDeRepassage(tous){
   });
 
   zone.innerHTML = '';
+  /* ⚠️ AVANT LE DÉPART ANTICIPÉ, comme dans « pas le niveau » : le
+     compteur restait sinon sur son dernier nombre au-dessus d'un
+     « Personne dans ce cas ». Un nombre ne doit pas survivre à ce
+     qu'il compte. */
+  majVolet('cptPasRep', liste.length);
+
   if(!liste.length){
     zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
     return;
   }
 
-  majVolet('cptPasRep', liste.length);
   liste.forEach(e => {
     const s = suiviDe(e.eleve);
     zone.appendChild(ligneBureau(e, {
