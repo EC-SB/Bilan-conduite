@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:38 — v941 */
+/* Déployé le 11/09/2026 à 10:46 — v942 */
 /* ============================================================
    ec-stats.js
    Taux de réussite : global, par moniteur, par type de permis.
@@ -135,6 +135,50 @@ async function chargerResultats(force){
 
 /* Un taux n'a de sens qu'au-delà d'un certain nombre de passages */
 const SEUIL_FIABLE = 5;
+
+/* ------------------------------------------------------------
+   QUI VOIT QUOI — v942
+
+   David : « visible par ceux que j'autorise », et à la question
+   « un moniteur voit-il SON taux quand il n'a pas le droit de voir
+   celui des autres ? » — « Je dois pouvoir choisir ».
+
+   Deux droits, donc, et un seul écran :
+
+   · « stats »       → tout : l'équipe, les noms, la correction du
+     moniteur d'un résultat ;
+   · « stats_perso » → son propre taux, et rien d'autre. Ni les
+     collègues, ni les candidats des autres, ni le crayon.
+
+   ⚠️ CE N'EST PAS UN MASQUAGE D'AFFICHAGE. Les lignes des autres
+   ne sont pas peintes en gris : elles n'entrent pas dans la liste.
+   Un écran qui cache ce qu'il a chargé finit toujours par le
+   laisser passer quelque part — un total, une infobulle, un
+   compte. Ce qu'on n'a pas le droit de voir ne doit pas entrer
+   dans le calcul.
+
+   Le Worker garde la porte de son côté : « resultatMoniteur »
+   demande « stats », jamais « stats_perso ».
+   ------------------------------------------------------------ */
+function reussiteDeToutLeMonde(){
+  if(typeof aDroit !== 'function') return true;
+  return aDroit('stats');
+}
+
+function monNomDeMoniteur(){
+  return (typeof ACCES !== 'undefined' && ACCES)
+    ? String(ACCES.moniteur || '').trim() : '';
+}
+
+/* Deux noms se comparent sans leurs accents ni leur casse : le
+   classeur garde « Maryne », le code d'accès peut porter
+   « maryne ». Comparer brut ferait dire « aucun résultat » à
+   quelqu'un qui en a. */
+function memeNom(a, b){
+  const plat = s => String(s || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return !!plat(a) && plat(a) === plat(b);
+}
 
 /* ⚠️ CE QUI ENTRE DANS UN TAUX, ET CE QUI N'Y ENTRE PAS.
 
@@ -405,14 +449,20 @@ function ligneDuNom(r){
   coeur.appendChild(qui);
   d.appendChild(coeur);
 
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'btn ' + (sans ? 'btn-primary' : 'btn-secondary');
-  b.style.cssText = 'margin:0;padding:7px 11px;font-size:12px;flex-shrink:0;';
-  b.textContent = sans ? '✏️ Renseigner' : '✏️';
-  b.title = 'Qui a présenté ce candidat';
-  b.addEventListener('click', () => renseignerLeMoniteur(r, b));
-  d.appendChild(b);
+  /* LE CRAYON N'EXISTE QU'AVEC LE DROIT COMPLET. Qui ne voit que
+     son propre taux ne réattribue pas un candidat : il pourrait
+     s'en attribuer. Le Worker refuserait l'écriture de toute façon
+     — mais un bouton qui échoue est pire qu'un bouton absent. */
+  if(reussiteDeToutLeMonde()){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn ' + (sans ? 'btn-primary' : 'btn-secondary');
+    b.style.cssText = 'margin:0;padding:7px 11px;font-size:12px;flex-shrink:0;';
+    b.textContent = sans ? '✏️ Renseigner' : '✏️';
+    b.title = 'Qui a présenté ce candidat';
+    b.addEventListener('click', () => renseignerLeMoniteur(r, b));
+    d.appendChild(b);
+  }
 
   return d;
 }
@@ -474,14 +524,19 @@ function blocDesNoms(liste){
   const t = document.createElement('div');
   t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
     'margin-bottom:4px;';
-  t.textContent = '📋 Les candidats présentés';
+  const tout = reussiteDeToutLeMonde();
+  t.textContent = tout ? '📋 Les candidats présentés'
+                       : '📋 Les candidats que tu as présentés';
   d.appendChild(t);
 
   const a = document.createElement('div');
   a.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;';
-  a.textContent = 'Le crayon dit qui a présenté le candidat. Pour défaire un ' +
-    'résultat saisi par erreur, passe par Permis › Résultats : là-bas, le ' +
-    "suivi de l'élève se recrée en même temps.";
+  a.textContent = tout
+    ? 'Le crayon dit qui a présenté le candidat. Pour défaire un résultat ' +
+      'saisi par erreur, passe par Permis › Résultats : là-bas, le suivi ' +
+      "de l'élève se recrée en même temps."
+    : 'Ceux dont tu as signé le bilan d’examen officiel. Si l’un manque ' +
+      'ou n’est pas à toi, dis-le au bureau : c’est lui qui corrige.';
   d.appendChild(a);
 
   const comptes = {
@@ -570,16 +625,38 @@ function dessinerStats(){
 
   const bornes = bornesStats();
   const rang = ($('statsRang') && $('statsRang').value) || 'tous';
+  const tout = reussiteDeToutLeMonde();
+  const moi = monNomDeMoniteur();
 
-  let liste = resultatsExamens.filter(r => dansLesBornes(r, bornes));
+  /* ⚠️ LE TAMIS DES DROITS PASSE EN PREMIER, avant toute période et
+     tout filtre. Ce qu'on n'a pas le droit de voir ne doit pas
+     entrer dans le calcul : un écran qui charge tout et n'en cache
+     qu'une partie finit par le laisser passer quelque part. */
+  const permis = tout
+    ? resultatsExamens
+    : resultatsExamens.filter(r => memeNom(r.moniteur, moi));
+
+  let liste = permis.filter(r => dansLesBornes(r, bornes));
   if(rang === 'premier') liste = premiersPassages(liste);
   if(rang === 'repassage') liste = liste.filter(r => String(r.rang || '1') !== '1');
 
   zone.innerHTML = '';
 
+  if(!tout && !moi){
+    /* Sans nom de moniteur, on ne peut rattacher aucun résultat à
+       personne. On le dit plutôt que d'afficher un zéro, qui se
+       lirait comme « tu n'as fait passer personne ». */
+    zone.innerHTML = '<div class="empty">Ton compte n’a pas de nom de moniteur : ' +
+      'impossible de retrouver tes candidats.<br>' +
+      "<span style='font-size:12px;'>Le bureau peut le renseigner dans ⚙️ Accès.</span></div>";
+    return;
+  }
+
   if(!liste.length){
-    zone.innerHTML = '<div class="empty">Aucun examen passé sur ' + bornes.titre +
-      '.<br>' + "<span style='font-size:12px;'>Les taux se construisent au fil " +
+    zone.innerHTML = '<div class="empty">' +
+      (tout ? 'Aucun examen passé sur ' : 'Tu n’as présenté personne sur ') +
+      bornes.titre + '.<br>' +
+      "<span style='font-size:12px;'>Les taux se construisent au fil " +
       'des saisies dans « Examens passés — résultat à saisir ».</span></div>';
     return;
   }
@@ -595,11 +672,11 @@ function dessinerStats(){
      quand c'est déjà la période choisie. */
   const douze = (statsPeriode === 'douze')
     ? null
-    : calculerTaux(resultatsExamens.filter(r => dansLesBornes(r, bornesDouzeMois())));
+    : calculerTaux(permis.filter(r => dansLesBornes(r, bornesDouzeMois())));
 
   g.innerHTML =
-    '<div style="font-size:13px;color:var(--muted);">Taux de réussite · ' +
-      bornes.titre + '</div>' +
+    '<div style="font-size:13px;color:var(--muted);">' +
+      (tout ? 'Taux de réussite · ' : 'Ta réussite · ') + bornes.titre + '</div>' +
     '<div style="font-size:38px;font-weight:800;line-height:1.2;color:' +
       couleurTaux(global.taux) + ';">' +
       pourcent(global.taux) + '</div>' +
@@ -629,15 +706,21 @@ function dessinerStats(){
 
   /* ---- Par moniteur ----
      ⚠️ Seuls les résultats QUI ONT un moniteur. Les autres sont
-     annoncés juste en dessous, avec de quoi les réparer. */
+     annoncés juste en dessous, avec de quoi les réparer.
+
+     Et ce bloc n'existe pas pour qui ne voit que son propre taux :
+     il n'aurait qu'une ligne, la sienne, déjà écrite en grand
+     au-dessus. Répéter un chiffre ne l'explique pas. */
   const avecNom = liste.filter(aUnMoniteur);
   const sansNom = liste.length - avecNom.length;
 
-  zone.appendChild(blocStats('👤 Par moniteur', grouper(avecNom, r => r.moniteur),
-    'Le moniteur retenu est celui du bilan d’examen officiel, ' +
-    'pas celui qui a saisi le résultat.'));
+  if(tout){
+    zone.appendChild(blocStats('👤 Par moniteur', grouper(avecNom, r => r.moniteur),
+      'Le moniteur retenu est celui du bilan d’examen officiel, ' +
+      'pas celui qui a saisi le résultat.'));
+  }
 
-  if(sansNom){
+  if(sansNom && tout){
     const a = document.createElement('div');
     a.style.cssText = 'border-left:4px solid var(--ambre);background:var(--warn-bg);' +
       'border-radius:0 9px 9px 0;padding:10px 12px;margin:-10px 0 18px;' +
