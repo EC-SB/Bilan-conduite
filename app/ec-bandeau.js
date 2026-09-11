@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:04 — v956 */
+/* Déployé le 11/09/2026 à 15:34 — v960 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -321,7 +321,10 @@ function lignesAacCs(){
           /* Un rendez-vous dépassé passe outre le menu. */
           urgente: !!e.retard,
           croix: 'jour',
-          ou: ['suivi', 'suiviaac']
+          ou: ['suivi', 'suiviaac'],
+          /* Le nom voyage avec la ligne : c'est lui qui fait
+             dérouler l'écran jusqu'à elle. */
+          surLaPersonne: x.eleve
         });
       });
   });
@@ -382,7 +385,17 @@ function lignesDesAlertes(){
         croix: 'notif',
         croixType: n.type,
         croixEleve: n.eleve,
-        ou: ['gestion', 'notifs']
+        /* ⚠️ PLUS DANS « ALERTES DU BUREAU » — v960. David : « est-ce
+           qu'on arrive à l'endroit concerné, sur la bonne personne,
+           et pas dans Alertes du bureau ? » On y arrivait, et c'est
+           l'écran d'où l'on vient : il redit ce que la ligne disait
+           déjà, et le geste n'y est pas.
+
+           Un nombre d'heures qui traîne, le geste c'est de décider
+           s'il part à l'examen : « 🤔 À envisager », déroulé sur sa
+           ligne. */
+        ou: ['permis', 'envisager'],
+        surLaPersonne: n.eleve
       });
       return;
     }
@@ -421,7 +434,16 @@ function lignesDesAlertes(){
          sur un Suivi vide, sans un mot. Un droit qui ne mène nulle
          part est pire qu'un droit refusé — et une ligne d'alerte
          qui n'emmène pas à l'alerte, c'est la même chose. */
-      ou: ['gestion', 'notifs']
+      /* ⚠️ ET ELLE EMMÈNE OÙ LE GESTE SE FAIT — v960.
+
+         « Alertes du bureau » redisait la ligne sans rien offrir de
+         plus. L'examen blanc et le simulateur ont une case
+         « prévenu » : elle vit dans 🌙 Simulateurs et examens
+         blancs. La date de permis, elle, se décide dans
+         « 🤔 À envisager ». Dans les deux cas, déroulé sur sa
+         ligne. */
+      ou: (fam === 'permis') ? ['permis', 'envisager'] : ['suivi', 'simu'],
+      surLaPersonne: n.eleve
     });
   });
   return out;
@@ -1130,11 +1152,24 @@ function ligneBandeau(l, avecTrait){
    règle la chose. */
 function allerDepuisBandeau(l){
   try{
+    /* Une ligne qui parle de la personne elle-même — son
+       anniversaire — ouvre sa fiche : il n'y a pas de liste au bout. */
     if(l.eleve && typeof ouvrirPageEleve === 'function'){
       ouvrirPageEleve(l.eleve);
       return;
     }
     if(!l.ou) return;
+
+    /* ⚠️ ET LES AUTRES EMMÈNENT SUR LA PERSONNE, PAS SEULEMENT SUR
+       L'ÉCRAN — v960. Le nom était écrit dans la ligne depuis
+       toujours ; il n'était transmis à personne, et on arrivait en
+       haut d'une liste de quarante à chercher celui qu'on venait de
+       lire. Une seule porte le fait, pour tout le monde : voir
+       allerSurLaPersonne. */
+    if(typeof allerSurLaPersonne === 'function'){
+      allerSurLaPersonne(l.ou[0], l.ou[1], l.surLaPersonne || '');
+      return;
+    }
     if(typeof afficherOnglet === 'function') afficherOnglet(l.ou[0]);
     if(typeof afficherVue === 'function') afficherVue(l.ou[0], l.ou[1]);
   }catch(e){ console.warn('Bandeau — aller :', e); }
