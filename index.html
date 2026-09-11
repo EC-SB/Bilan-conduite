@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v936
+     VERSION APPLICATION : v937
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 10/09/2026 à 19:28
+     Mis à jour le : 11/09/2026 à 08:41
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -563,6 +563,102 @@
     }
     body.cours-neuf .history-item .actions .plusBtn{ display:none; }
   }
+
+  /* ============================================================
+     LE COURS EN ROUTE — TROIS MARQUES, UN SEUL ÉTAT (v937)
+
+     David a choisi A + C + E : la carte se marque, un bandeau
+     suit partout, et le bouton des autres cartes change de mot.
+     Rien n'est bloqué — « un élève qui ne vient pas, on prend le
+     suivant » — mais on ne peut plus se tromper sans le voir.
+
+     ⚠️ LE ROUGE ICI N'EST PAS UNE ERREUR, C'EST UN ENREGISTREMENT
+     QUI TOURNE. C'est le seul endroit de l'application où il veut
+     dire « ça se passe maintenant », et c'est la couleur que tout
+     le monde lit ainsi sur un appareil qui enregistre.
+     ============================================================ */
+  .pastilleEnRoute{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:800; letter-spacing:.04em;
+    padding:2px 9px; border-radius:999px; white-space:nowrap;
+    background:var(--warn-bg); color:var(--warn-text);
+    border:1px solid var(--red);
+  }
+  .pastilleEnRoute .rond{
+    width:7px; height:7px; border-radius:50%; background:var(--red);
+    flex-shrink:0; animation:battement 2s ease-in-out infinite;
+  }
+  /* En pause, le point ne bat plus : un point qui clignote sur une
+     dictée arrêtée dirait le contraire du mot d'à côté. */
+  .pastilleEnRoute.pause{ border-color:var(--ambre); color:var(--ambre);
+                          background:rgba(201,106,0,.10); }
+  .pastilleEnRoute.pause .rond{ background:var(--ambre); animation:none; }
+  @keyframes battement{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  @media (prefers-reduced-motion: reduce){
+    .pastilleEnRoute .rond{ animation:none; }
+  }
+
+  .history-item.en-route{
+    border-left:5px solid var(--red);
+    background:linear-gradient(90deg, var(--warn-bg), transparent 55%);
+  }
+  .history-item.en-route.en-pause{ border-left-color:var(--ambre); }
+
+  /* Le bouton de la carte en route n'ouvre pas ce qui est ouvert :
+     il y ramène. */
+  .history-item .depart .btnDemarrer.retour{
+    background:var(--red); color:#FFFFFF;
+  }
+  .history-item.en-pause .depart .btnDemarrer.retour{
+    background:var(--ambre); color:var(--sur-ambre);
+  }
+
+  /* ⚠️ LE MOT AVANT LE DOIGT. Sur les AUTRES cartes, le bouton dit
+     ce qui va vraiment se passer — la question de confirmation
+     reste derrière, mais on ne peut plus appuyer sans le savoir. */
+  .history-item .depart .remplace{
+    background:var(--action-main); color:var(--sur-action-main);
+    font-size:15px;
+  }
+  .history-item .depart .raisonRemplace{
+    font-size:11.5px; color:var(--warn-text); line-height:1.4;
+    text-align:center; margin-top:6px;
+  }
+
+  /* ---- LE BANDEAU QUI SUIT ----
+
+     Collé en haut, en dehors de l'onglet : « le bandeau suit ». Sur
+     dix-sept cours, la carte en route peut être trois écrans plus
+     haut — une marque qu'il faut aller chercher ne sert qu'à ceux
+     qui savaient déjà. */
+  .bandeau-en-route{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    background:var(--warn-bg); border:1px solid var(--red);
+    border-radius:11px; padding:9px 11px; margin:0 0 10px;
+    backdrop-filter:saturate(140%) blur(6px);
+  }
+  .bandeau-en-route.pause{ border-color:var(--ambre);
+                           background:rgba(201,106,0,.10); }
+  .bandeau-en-route .txt{
+    flex:1 1 170px; min-width:0; display:flex; align-items:center;
+    gap:8px; flex-wrap:wrap;
+  }
+  .bandeau-en-route .marque{
+    font-size:11px; font-weight:800; letter-spacing:.05em;
+    color:var(--warn-text); white-space:nowrap;
+  }
+  .bandeau-en-route.pause .marque{ color:var(--ambre); }
+  .bandeau-en-route .nom{
+    font-size:13.5px; font-weight:700; color:var(--cream);
+    overflow-wrap:anywhere;
+  }
+  .bandeau-en-route .revenir{
+    flex-shrink:0; background:var(--red); color:#FFFFFF; border:none;
+    border-radius:9px; padding:9px 13px; font-size:13px; font-weight:800;
+    cursor:pointer;
+  }
+  .bandeau-en-route.pause .revenir{ background:var(--ambre); }
 
   /* ---- LE DÉPART, SUR LA CARTE ----
 
@@ -1389,7 +1485,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=936" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=937" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -1530,6 +1626,22 @@
        écran : rien ici ne doit retarder l'ouverture. Vide, il
        disparaît entièrement — voir ec-bandeau.js. -->
   <div id="bandeauJour" style="display:none;"></div>
+
+  <!-- ⚠️ LE COURS EN ROUTE, PARTOUT — v937.
+
+       David : « le bandeau suit ». Il est donc ici, au-dessus des
+       onglets et en dehors de « appView » : Élèves, Suivi, Permis,
+       Outils, Gestion — où qu'on aille, on sait qu'un cours tourne
+       et on peut y revenir d'un geste.
+
+       Il est COLLANT : sur dix-sept cours, la carte du cours en
+       route peut être trois écrans plus haut. Une marque qu'il faut
+       aller chercher ne sert qu'à ceux qui savaient déjà.
+
+       Vide, il disparaît entièrement — un bandeau qui occupe la
+       place en disant « rien à signaler » est une carte de moins à
+       l'écran, sur un téléphone. -->
+  <div id="bandeauCoursEnRoute" style="display:none;"></div>
 
   <!-- ⚠️ LES SIX BARRES DE VUES SONT ENSEMBLE — v922.
 
@@ -3009,76 +3121,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=936"></script>
-<script src="app/ec-modeles.js?v=936"></script>
-<script src="app/ec-consignes.js?v=936"></script>
-<script src="app/ec-noyau.js?v=936"></script>
-<script src="app/ec-vocal.js?v=936"></script>
-<script src="app/ec-reseau.js?v=936"></script>
-<script src="app/ec-manuel.js?v=936"></script>
-<script src="app/ec-fenetres.js?v=936"></script>
-<script src="app/ec-questionnaire.js?v=936"></script>
-<script src="app/ec-permis.js?v=936"></script>
-<script src="app/ec-prepares.js?v=936"></script>
-<script src="app/ec-avant-cours.js?v=936"></script>
-<script src="app/ec-bureau.js?v=936"></script>
-<script src="app/ec-places.js?v=936"></script>
-<script src="app/ec-listes.js?v=936"></script>
-<script src="app/ec-permis-listes.js?v=936"></script>
-<script src="app/ec-postpermis.js?v=936"></script>
-<script src="app/ec-textes.js?v=936"></script>
-<script src="app/ec-correction.js?v=936"></script>
-<script src="app/ec-bilans.js?v=936"></script>
-<script src="app/ec-ecran.js?v=936"></script>
-<script src="app/ec-version.js?v=936"></script>
-<script src="app/ec-paie.js?v=936"></script>
-<script src="app/ec-flotte.js?v=936"></script>
-<script src="app/ec-carrosserie.js?v=936"></script>
-<script src="app/ec-solo.js?v=936"></script>
-<script src="app/ec-handicap-pdf.js?v=936"></script>
-<script src="app/ec-moto.js?v=936"></script>
-<script src="app/ec-remorque.js?v=936"></script>
-<script src="app/ec-arriereplan.js?v=936"></script>
-<script src="app/ec-placesbe.js?v=936"></script>
-<script src="app/ec-codeamenage.js?v=936"></script>
-<script src="app/ec-financements.js?v=936"></script>
-<script src="app/ec-eval-aac.js?v=936"></script>
-<script src="app/ec-postes.js?v=936"></script>
-<script src="app/ec-tarifs.js?v=936"></script>
-<script src="app/ec-caisse.js?v=936"></script>
-<script src="app/ec-menage.js?v=936"></script>
-<script src="app/ec-page-eleve.js?v=936"></script>
-<script src="app/ec-cbgasoil.js?v=936"></script>
-<script src="app/ec-loupe.js?v=936"></script>
-<script src="app/ec-coutsia.js?v=936"></script>
-<script src="app/ec-evaluation.js?v=936"></script>
-<script src="app/ec-paiement.js?v=936"></script>
-<script src="app/ec-handicap.js?v=936"></script>
-<script src="app/ec-code.js?v=936"></script>
-<script src="app/ec-proccorriger.js?v=936"></script>
-<script src="app/ec-sessions.js?v=936"></script>
-<script src="app/ec-aac-cs.js?v=936"></script>
-<script src="app/ec-notifs.js?v=936"></script>
-<script src="app/ec-ecoutes.js?v=936"></script>
-<script src="app/ec-taches.js?v=936"></script>
-<script src="app/ec-memoire.js?v=936"></script>
-<script src="app/ec-historique.js?v=936"></script>
-<script src="app/ec-rappels.js?v=936"></script>
-<script src="app/ec-segments.js?v=936"></script>
-<script src="app/ec-sms.js?v=936"></script>
-<script src="app/ec-encours.js?v=936"></script>
-<script src="app/ec-incidents.js?v=936"></script>
+  <script src="app/ec-etat.js?v=937"></script>
+<script src="app/ec-modeles.js?v=937"></script>
+<script src="app/ec-consignes.js?v=937"></script>
+<script src="app/ec-noyau.js?v=937"></script>
+<script src="app/ec-vocal.js?v=937"></script>
+<script src="app/ec-reseau.js?v=937"></script>
+<script src="app/ec-manuel.js?v=937"></script>
+<script src="app/ec-fenetres.js?v=937"></script>
+<script src="app/ec-questionnaire.js?v=937"></script>
+<script src="app/ec-permis.js?v=937"></script>
+<script src="app/ec-prepares.js?v=937"></script>
+<script src="app/ec-avant-cours.js?v=937"></script>
+<script src="app/ec-bureau.js?v=937"></script>
+<script src="app/ec-places.js?v=937"></script>
+<script src="app/ec-listes.js?v=937"></script>
+<script src="app/ec-permis-listes.js?v=937"></script>
+<script src="app/ec-postpermis.js?v=937"></script>
+<script src="app/ec-textes.js?v=937"></script>
+<script src="app/ec-correction.js?v=937"></script>
+<script src="app/ec-bilans.js?v=937"></script>
+<script src="app/ec-ecran.js?v=937"></script>
+<script src="app/ec-version.js?v=937"></script>
+<script src="app/ec-paie.js?v=937"></script>
+<script src="app/ec-flotte.js?v=937"></script>
+<script src="app/ec-carrosserie.js?v=937"></script>
+<script src="app/ec-solo.js?v=937"></script>
+<script src="app/ec-handicap-pdf.js?v=937"></script>
+<script src="app/ec-moto.js?v=937"></script>
+<script src="app/ec-remorque.js?v=937"></script>
+<script src="app/ec-arriereplan.js?v=937"></script>
+<script src="app/ec-placesbe.js?v=937"></script>
+<script src="app/ec-codeamenage.js?v=937"></script>
+<script src="app/ec-financements.js?v=937"></script>
+<script src="app/ec-eval-aac.js?v=937"></script>
+<script src="app/ec-postes.js?v=937"></script>
+<script src="app/ec-tarifs.js?v=937"></script>
+<script src="app/ec-caisse.js?v=937"></script>
+<script src="app/ec-menage.js?v=937"></script>
+<script src="app/ec-page-eleve.js?v=937"></script>
+<script src="app/ec-cbgasoil.js?v=937"></script>
+<script src="app/ec-loupe.js?v=937"></script>
+<script src="app/ec-coutsia.js?v=937"></script>
+<script src="app/ec-evaluation.js?v=937"></script>
+<script src="app/ec-paiement.js?v=937"></script>
+<script src="app/ec-handicap.js?v=937"></script>
+<script src="app/ec-code.js?v=937"></script>
+<script src="app/ec-proccorriger.js?v=937"></script>
+<script src="app/ec-sessions.js?v=937"></script>
+<script src="app/ec-aac-cs.js?v=937"></script>
+<script src="app/ec-notifs.js?v=937"></script>
+<script src="app/ec-ecoutes.js?v=937"></script>
+<script src="app/ec-taches.js?v=937"></script>
+<script src="app/ec-memoire.js?v=937"></script>
+<script src="app/ec-historique.js?v=937"></script>
+<script src="app/ec-rappels.js?v=937"></script>
+<script src="app/ec-segments.js?v=937"></script>
+<script src="app/ec-sms.js?v=937"></script>
+<script src="app/ec-encours.js?v=937"></script>
+<script src="app/ec-incidents.js?v=937"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=936"></script>
-<script src="app/ec-bandeau.js?v=936"></script>
-<script src="app/ec-stats.js?v=936"></script>
-<script src="app/ec-messenger.js?v=936"></script>
-<script src="app/ec-journal.js?v=936"></script>
-<script src="app/ec-depart.js?v=936"></script>
-<script src="app/ec-onglets.js?v=936"></script>
-<script src="app/ec-demarrage.js?v=936"></script>
+<script src="app/ec-messages-perso.js?v=937"></script>
+<script src="app/ec-bandeau.js?v=937"></script>
+<script src="app/ec-stats.js?v=937"></script>
+<script src="app/ec-messenger.js?v=937"></script>
+<script src="app/ec-journal.js?v=937"></script>
+<script src="app/ec-depart.js?v=937"></script>
+<script src="app/ec-onglets.js?v=937"></script>
+<script src="app/ec-demarrage.js?v=937"></script>
 
 <script>
 /* ============================================================
