@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:30 — v953 */
+/* Déployé le 11/09/2026 à 13:36 — v954 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -362,7 +362,13 @@ const TUILES = {
     { cpt:'cptAttente',   lib:'Bilans post-permis à faire',vue:'pasprets',   ton:'att' },
     { cpt:'cptPasNiveau', lib:'Examens blancs pas le niveau', vue:'pasprets', ton:'' },
     { cpt:'cptNonPlanif', lib:'Examens non planifiables',  vue:'pasprets',   ton:'urgent',
-      sous:'ANTS, avis médical, pièce manquante' }
+      sous:'ANTS, avis médical, pièce manquante' },
+    /* ⚠️ « ENSUITE ON RETRAVAILLERA LE SOUS-ONGLET MOTO CAR TOUT
+       D'AFFILÉE C'EST ILLISIBLE » — David. Les deux autres permis
+       prennent donc leur propre SECTION, sous un titre. Vingt
+       tuiles à la suite, personne ne les lit. */
+    { listes:() => (typeof tuilesMoto === 'function') ? tuilesMoto() : null },
+    { listes:() => (typeof tuilesRemorque === 'function') ? tuilesRemorque() : null }
   ],
   suivi: [
     { cpt:'cptEB',   lib:'Examens blancs à prévoir', vue:'simu',     ton:'urgent' },
@@ -628,6 +634,24 @@ function tuilesDeLOnglet(onglet){
   return { liste: out.filter(t => tuileVisible(onglet, t)), inconnue: inconnue };
 }
 
+/* ⚠️ LES SECTIONS — v954.
+
+   Le titre d'une section n'est pas une décoration : c'est le
+   repère qui dit « ici on change de permis ». Sans lui, les vingt
+   tuiles de l'onglet Permis se lisent comme une seule bouillie —
+   « tout d'affilée c'est illisible », dit David de l'écran Moto.
+
+   ⚠️ ET ON NE TITRE QUE S'IL Y A DE QUOI CHOISIR. Un seul groupe
+   affiché, et son titre ne distingue rien : il ne fait que prendre
+   une ligne. Les titres apparaissent donc à partir de deux
+   sections, et disparaissent toutes seules le jour où l'école
+   n'a plus d'élève moto. */
+const SECTIONS_TUILES = {
+  '':         '🚗 Permis B',
+  moto:       '🏍️ Moto',
+  remorque:   '🚚 Remorque'
+};
+
 function dessinerTuiles(onglet){
   const zone = document.querySelector('[data-vue="coup"][data-onglet="' + onglet + '"] .tuiles');
   if(!zone) return;
@@ -675,6 +699,32 @@ function dessinerTuiles(onglet){
     return;
   }
 
+  /* Les sections, dans l'ordre où elles apparaissent — jamais dans
+     un ordre écrit à part, qui finirait par ne plus correspondre. */
+  const ordre = [];
+  aVoir.forEach(({ t }) => {
+    const sec = t.section || '';
+    if(ordre.indexOf(sec) === -1) ordre.push(sec);
+  });
+  const titrees = ordre.length > 1;
+  zone.classList.toggle('sections', titrees);
+
+  const grilleDe = {};
+  ordre.forEach(sec => {
+    if(!titrees){ grilleDe[sec] = zone; return; }
+    const bloc = document.createElement('div');
+    bloc.className = 'sectionTuiles';
+    const h = document.createElement('div');
+    h.className = 'titre';
+    h.textContent = SECTIONS_TUILES[sec] || sec;
+    bloc.appendChild(h);
+    const g = document.createElement('div');
+    g.className = 'grille';
+    bloc.appendChild(g);
+    zone.appendChild(bloc);
+    grilleDe[sec] = g;
+  });
+
   aVoir.forEach(({ t, v }) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -710,7 +760,7 @@ function dessinerTuiles(onglet){
     }
 
     b.addEventListener('click', () => ouvrirLaTuile(onglet, t));
-    zone.appendChild(b);
+    (grilleDe[t.section || ''] || zone).appendChild(b);
   });
 }
 
