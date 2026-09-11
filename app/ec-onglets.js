@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:45 — v955 */
+/* Déployé le 11/09/2026 à 14:04 — v956 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -371,10 +371,18 @@ const TUILES = {
     { listes:() => (typeof tuilesRemorque === 'function') ? tuilesRemorque() : null }
   ],
   suivi: [
-    { cpt:'cptEB',   lib:'Examens blancs à prévoir', vue:'simu',     ton:'urgent' },
-    { cpt:'cptSimu', lib:'Simulateurs à prévoir',    vue:'simu',     ton:'att' },
-    { cpt:'cptCs',   lib:'Conduite supervisée',      vue:'suivics',  ton:'' },
-    { cpt:'cptAac',  lib:'Suivi AAC',                vue:'suiviaac', ton:'' }
+    /* ⚠️ « TU MET LE NOMBRE ET EN DESSOUS LE NOMBRE DE PRÉVENU » —
+       David. Le sous-titre vient donc du même dessin que la liste,
+       par estPrevenu : la case cochée au bureau et celle du dossier
+       élève disent enfin la même chose. */
+    { cle:'eb',   lib:'Examens blancs à prévoir', vue:'simu', ton:'urgent',
+      valeur:() => tuileAPrevenir('examblanc') },
+    { cle:'simu', lib:'Simulateurs à prévoir',    vue:'simu', ton:'att',
+      valeur:() => tuileAPrevenir('simu') },
+    { cpt:'cptCs',   lib:'Conduite supervisée',   vue:'suivics',  ton:'' },
+    /* Le suivi AAC en trois briques : combien ils sont, ce qui est
+       en retard, ce qu'il reste à organiser. */
+    { listes:() => (typeof tuilesAac === 'function') ? tuilesAac() : null }
   ]
 };
 
@@ -701,6 +709,24 @@ const LISERES_TUILE = [
   { cle:'ambre',   hex:'#C96A00', nom:'Ambre' }
 ];
 
+/* ⚠️ « ET EN DESSOUS LE NOMBRE DE PRÉVENU ».
+
+   Le nombre est celui de la liste, le sous-titre dit combien sont
+   déjà prévenus. Les deux viennent du MÊME dessin — ec-listes les
+   publie en se dessinant — sinon la tuile compterait d'un côté ce
+   que la liste montre de l'autre. */
+function tuileAPrevenir(quoi){
+  const e = (typeof etatDuSuivi !== 'undefined' && etatDuSuivi)
+    ? etatDuSuivi[quoi] : null;
+  if(!e) return null;
+  if(!e.total) return { n: 0 };
+
+  const reste = e.total - e.prevenus;
+  return { n: e.total,
+           sous: e.prevenus + ' prévenu' + (e.prevenus > 1 ? 's' : '') +
+                 (reste ? ' · ' + reste + ' à prévenir' : '') };
+}
+
 /* La clé d'une tuile : son identifiant propre, ou le compteur
    qu'elle lit. C'est elle qu'on range, jamais l'intitulé — un
    libellé se renomme, et le rangement de chacun serait perdu. */
@@ -1001,6 +1027,45 @@ function ouvrirMesTuiles(onglet){
       const l = document.createElement('div');
       l.className = 'mtLigne' + (x.masquee ? ' off' : '');
 
+      /* ⚠️ GLISSER À LA SOURIS, ET LES FLÈCHES POUR LE RESTE — v956.
+
+         Sur un téléphone, un glisser déplacerait la page au lieu de
+         la ligne : les deux flèches restent, et elles écrivent le
+         même ordre. Une seule règle de rangement, deux façons d'y
+         toucher. */
+      l.draggable = true;
+      l.dataset.i = String(i);
+      l.addEventListener('dragstart', e => {
+        glisse = i;
+        l.classList.add('prise');
+        try{ e.dataTransfer.effectAllowed = 'move';
+             e.dataTransfer.setData('text/plain', String(i)); }catch(err){}
+      });
+      l.addEventListener('dragend', () => {
+        glisse = -1;
+        liste.querySelectorAll('.mtLigne').forEach(y =>
+          y.classList.remove('prise', 'cible'));
+      });
+      l.addEventListener('dragover', e => {
+        if(glisse < 0 || glisse === i) return;
+        e.preventDefault();
+        try{ e.dataTransfer.dropEffect = 'move'; }catch(err){}
+        l.classList.add('cible');
+      });
+      l.addEventListener('dragleave', () => l.classList.remove('cible'));
+      l.addEventListener('drop', e => {
+        e.preventDefault();
+        l.classList.remove('cible');
+        if(glisse < 0 || glisse === i) return;
+        deplacer(glisse, i);
+      });
+
+      const poignee = document.createElement('span');
+      poignee.className = 'mtPoignee';
+      poignee.textContent = '⠿';
+      poignee.title = 'Glisser pour ranger';
+      l.appendChild(poignee);
+
       const haut = document.createElement('button');
       haut.type = 'button'; haut.className = 'mtFleche';
       haut.textContent = '▲'; haut.disabled = (i === 0);
@@ -1142,18 +1207,29 @@ function ouvrirMesTuiles(onglet){
     return r;
   };
 
-  const bouger = (i, sens) => {
-    const j = i + sens;
-    if(j < 0 || j >= lignes.length) return;
+  /* La ligne qu'on tient. -1 : aucune. */
+  let glisse = -1;
+
+  /* ⚠️ ON FIGE L'ORDRE AFFICHÉ, PUIS ON DÉPLACE.
+
+     Un ordre partiel ne saurait pas dire où va la ligne déplacée :
+     les tuiles qu'il ne nomme pas s'accrochent à leur voisine
+     d'origine, et le résultat n'aurait rien à voir avec ce qu'on
+     vient de faire à l'écran. */
+  const deplacer = (de, vers) => {
+    if(de === vers || de < 0 || vers < 0) return;
+    if(de >= lignes.length || vers >= lignes.length) return;
     const r = monRangement();
-    /* On fige l'ordre affiché, puis on permute : un ordre partiel
-       ne saurait pas dire où va la ligne déplacée. */
     const cles = lignes.map(x => x.c);
-    const tmp = cles[i]; cles[i] = cles[j]; cles[j] = tmp;
+    const [pris] = cles.splice(de, 1);
+    cles.splice(vers, 0, pris);
     r.ordre = cles;
     lignes = appliquerLeRangement(onglet, t0.liste);
     dessiner();
   };
+
+  /* Les flèches : un déplacement d'un cran, par la même porte. */
+  const bouger = (i, sens) => deplacer(i, i + sens);
 
   const basculer = (quoi, cle) => {
     const r = monRangement();
