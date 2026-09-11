@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 10:33 — v908 */
+/* Déployé le 11/09/2026 à 10:56 — v943 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -847,6 +847,18 @@ function afficherPasNiveau(tous){
   const liste = tous.filter(e => e.etat.ebSuite === 'pasleniveau');
   zone.innerHTML = '';
 
+  /* ⚠️ LE COMPTEUR SE POSE AVANT LE DÉPART ANTICIPÉ — v943.
+
+     Il était mis à jour APRÈS le « return » de la liste vide : le
+     jour où le dernier élève sortait de ce cas, le volet continuait
+     d'annoncer « 3 » au-dessus d'un « Personne dans ce cas ».
+     Le nombre survivait à ce qu'il comptait, jusqu'au rechargement
+     de la page.
+
+     Zéro est une valeur, et c'en est même une bonne : c'est la
+     seule qui dise qu'il n'y a plus rien à faire ici. */
+  majVolet('cptPasNiveau', liste.length, liste.length > 0);
+
   /* Un élève dont l'examen blanc s'est mal passé sans que ce soit
      dans un bilan : le moniteur le signale lui-même. */
   zone.appendChild(boutonPasNiveauManuel());
@@ -859,7 +871,6 @@ function afficherPasNiveau(tous){
     return;
   }
 
-  majVolet('cptPasNiveau', liste.length, liste.length > 0);
   liste.forEach(e => {
     zone.appendChild(ligneBureau(e, {
       info: x => 'Examen blanc du ' + (x.etat.ebDate || '?') + ' — pas le niveau',
