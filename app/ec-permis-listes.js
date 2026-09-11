@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:30 — v953 */
+/* Déployé le 11/09/2026 à 13:36 — v954 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2097,6 +2097,30 @@ function tuileReussiteDuMois(){
 
    Une seule fois par session : la tuile parle du mois en cours,
    elle ne bouge pas d'une minute à l'autre. */
+/* ⚠️ ET LE RÉPERTOIRE, POUR QUE LA MOTO SE COMPTE — v954.
+
+   Les comptes moto et remorque partent des fiches : c'est là qu'un
+   élève tout neuf existe, avant tout bilan. Sans elles, les neuf
+   tuiles de ces deux sections resteraient à « pas encore
+   dessinée » jusqu'à ce que quelqu'un ouvre l'écran Moto — c'est
+   exactement ce qu'on voulait éviter.
+
+   L'appel est servi par le Worker, pas par le classeur : il ne
+   réveille rien. Et il ne part que si personne ne les a déjà
+   chargées — l'écran des cours le fait souvent avant nous. */
+let repertoireDemande = false;
+function demanderLeRepertoireEnFond(){
+  if(repertoireDemande) return;
+  if(typeof chargerFichesMoto !== 'function') return;
+  if(typeof fichesEleves !== 'undefined' && fichesEleves.length) return;
+  if(typeof aDroit === 'function' && !aDroit('bureau_permis')) return;
+
+  repertoireDemande = true;
+  chargerFichesMoto(false)
+    .then(() => { if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles(); })
+    .catch(() => { repertoireDemande = false; });
+}
+
 let reussiteDemandee = false;
 function demanderLaReussiteEnFond(){
   if(reussiteDemandee) return;
@@ -2632,6 +2656,7 @@ function afficherExamensPermis(tous){
      d'avant. */
   if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles();
   demanderLaReussiteEnFond();
+  demanderLeRepertoireEnFond();
 
   zPer.innerHTML = '';
   /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
