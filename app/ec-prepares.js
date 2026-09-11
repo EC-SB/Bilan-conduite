@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 12:05 — v950 */
+/* Déployé le 11/09/2026 à 12:40 — v951 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1067,9 +1067,21 @@ async function afficherPrepares(recharger, silencieux){
     /* Sous l'heure : ce que l'élève a répondu au rappel */
     const presence = etatPresence(cours);
 
+    /* ⚠️ LE TRAIT DIT LA BOÎTE — v951.
+
+       La couleur se décide une fois, ici, et la feuille de style la
+       lit sous le nom « --trait ». Le rail de gauche et la carte de
+       droite sont LE MÊME élément — une seule liste dans le DOM —
+       donc le poser ici les sert tous les deux : ils ne peuvent pas
+       se contredire. La règle, elle, vit dans couleurDuTrait()
+       (ec-modeles.js), à côté de la table des séances. */
+    const trait = (typeof couleurDuTrait === 'function')
+      ? couleurDuTrait(cours) : '';
+
     nom.innerHTML =
       (h ? '<div class="heure" style="font-size:19px;font-weight:800;' +
-           'color:var(--accent-text);line-height:1.2;">' +
+           'color:var(--accent-text);line-height:1.2;' +
+           (trait ? '--trait:' + trait + ';' : '') + '">' +
            h.replace(':', 'h') + '</div>' : '') +
       (presence ? '<div class="presence" data-jeton="' + jetonDuCours(cours) +
            '" style="font-size:12px;font-weight:600;color:' +
@@ -1236,6 +1248,15 @@ async function afficherPrepares(recharger, silencieux){
       /* Les cases sur leur propre ligne, sous la phrase : sur un
          téléphone, quatre éléments côte à côte ne tiennent pas. */
       const ligneCases = document.createElement('div');
+      /* ⚠️ UNE CLASSE, POUR QUE LE RAIL PUISSE CACHER LES CASES SANS
+         CACHER LA PHRASE — v951.
+
+         Le rail masquait « .rang » en entier : la phrase du parcours
+         partait avec les cases de saisie. Il lui donnait pourtant
+         une taille à lui — 12,5 px, gras — une règle qui mettait en
+         forme quelque chose d'invisible depuis le premier jour.
+         Maintenant il ne cache que ce qui se tape. */
+      ligneCases.className = 'casesRang';
       ligneCases.style.cssText = 'display:flex;gap:5px;align-items:center;' +
         'flex-wrap:wrap;flex-basis:100%;';
       ligneCases.appendChild(boite);
