@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:02 — v927 */
+/* Déployé le 11/09/2026 à 08:41 — v937 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1043,6 +1043,11 @@ async function terminerCours(){
   if($('eleveMessenger')) $('eleveMessenger').value = '';
   ['modele','monitorName','studentName','site','lessonDate'].forEach(id => { $(id).disabled = false; });
   $('lessonDate').value = todayLocal();
+  /* ⚠️ ET LE CHRONO S'ARRÊTE ICI — v937. C'est « Terminer » qui
+     termine un cours, et rien d'autre : ni le micro qu'on met en
+     pause, ni l'écran qu'on quitte. Le bandeau et les cartes se
+     décrochent donc au même instant, par la même porte. */
+  if(typeof arreterChronoDuCours === 'function') arreterChronoDuCours();
   $('recBtn').textContent = '🎙️ Démarrer le cours';
   $('status').textContent = "Appuie pour lancer l'enregistrement en début de cours.";
   /* Le bilan du cours précédent et son état d'enregistrement : ils
