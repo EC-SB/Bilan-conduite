@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 12:40 — v951 */
+/* Déployé le 11/09/2026 à 15:13 — v959 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1584,7 +1584,7 @@ const MARQUE_AILLEURS = '🚗';
    celles déjà validées lors des cours précédents. */
 /* Le rappel joint au bilan quand le moniteur signale que l'élève
    ne réserve pas d'écoutes pédagogiques. Texte de l'auto-école,
-   modifiable dans « Textes types » sous l'usage « ecoutes ». */
+   modifiable dans « Modèles messages » sous l'usage « ecoutes ». */
 const RAPPEL_ECOUTES =
 "Tu ne réserves pas d'écoutes pédagogiques 😱\n" +
 "Peut-être n'as-tu pas compris l'intérêt d'économiser de l'argent ? 💰\n" +
