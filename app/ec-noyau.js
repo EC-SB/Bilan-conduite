@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:04 — v944 */
+/* Déployé le 11/09/2026 à 13:45 — v955 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -870,6 +870,49 @@ function showToast(msg){
   clearTimeout(minuteurToast);
   minuteurToast = setTimeout(() => t.classList.remove('show'),
                              souci ? 6000 : 3500);
+}
+
+/* ============================================================
+   LES RÉGLAGES PARTAGÉS, LUS UNE FOIS — v955
+
+   La feuille « Réglages » est une seule liste clé → valeur, servie
+   par le Worker (elle ne réveille pas le classeur). Cinq écrans la
+   demandent aujourd'hui, chacun de son côté et chacun pour une
+   clé : le fond de caisse, les lieux de rendez-vous, les
+   inspecteurs, les minutes de l'affichage, les modèles.
+
+   ⚠️ CINQ APPELS POUR UNE LISTE, et cinq copies qui peuvent dater
+   différemment. On n'en réécrit pas cinq aujourd'hui — chacun a sa
+   logique et ses caches — mais le RANGEMENT DES TUILES, lui, passe
+   par ici, et cette porte est ouverte à qui voudra la rejoindre.
+
+   Le cache se vide dès qu'on écrit un réglage : sans ça, on
+   relirait sa propre valeur d'avant.
+   ============================================================ */
+let reglagesPartages = null;
+
+async function chargerReglagesPartages(force){
+  if(reglagesPartages && !force) return reglagesPartages;
+  try{
+    const d = await appelPrep({ action: 'reglagesList' });
+    reglagesPartages = (d && d.reglages) || {};
+  }catch(e){ reglagesPartages = reglagesPartages || null; }
+  return reglagesPartages || {};
+}
+
+/* Ce qu'on a déjà lu, sans rien demander. « null » veut dire
+   « pas encore lu » — jamais « vide ». */
+function reglagesDejaLus(){ return reglagesPartages; }
+
+async function ecrireReglagePartage(cle, valeur){
+  const r = await appelPrep({ action: 'reglageSet',
+                              cle: String(cle),
+                              valeur: String(valeur),
+                              par: (ACCES && ACCES.moniteur) || '' });
+  /* On tient le cache à jour plutôt que de le jeter : relire
+     coûterait un aller-retour pour une valeur qu'on connaît. */
+  if(reglagesPartages) reglagesPartages[String(cle)] = String(valeur);
+  return r;
 }
 
 /* ---------- Reconnaissance vocale ---------- */
