@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:18 — v957 */
+/* Déployé le 11/09/2026 à 15:13 — v959 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -251,7 +251,7 @@ const VUES = {
   outils: [['stats',      '📈 Réussite',               ['stats', 'stats_perso'], 'Mesurer'],
            ['journal',    '📊 Journal',                'journal',     'Mesurer'],
 
-           ['textes',     '📄 Textes types',           'textes',      'Ce qu’on écrit'],
+           ['textes',     '📄 Modèles messages',           'textes',      'Ce qu’on écrit'],
            ['bilans',     '📋 Modèles de bilan',       'bilans',      'Ce qu’on écrit'],
            ['procedures', '🚦 Procédures',             'procedures',  'Ce qu’on écrit'],
            ['memoire',    "🧠 Mémoire de l'IA",         'memoire',     'Ce qu’on écrit'],
