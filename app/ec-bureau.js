@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:54 — v932 */
+/* Déployé le 11/09/2026 à 10:56 — v943 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -756,14 +756,35 @@ function ligneBureau(e, options){
   }
   haut.appendChild(meta);
 
-  if(options.alerte && options.alerte(e)){
-    const a = document.createElement('div');
-    a.style.cssText = 'font-size:22px;flex-shrink:0;';
-    a.textContent = '⚠️';
-    a.title = options.alerte(e);
-    haut.appendChild(a);
-  }
   row.appendChild(haut);
+
+  /* ⚠️ LA RAISON S'ÉCRIT. ELLE ÉTAIT DANS UNE INFOBULLE — v943.
+
+     Ces lignes affichaient un « ⚠️ » de 22 px et rangeaient la
+     raison dans son attribut « title ». Sur un ordinateur, il faut
+     poser la souris dessus et attendre ; SUR UN TÉLÉPHONE, IL N'Y
+     A PAS DE SURVOL — la raison n'était donc lisible nulle part
+     pour un moniteur, et à peine au bureau.
+
+     Or c'est la première chose qu'on vient chercher dans ces
+     listes : pourquoi cet élève est-il bloqué. Un écran qui le
+     sait et ne le dit pas oblige à rouvrir la fiche pour
+     l'apprendre. Elle se lit maintenant en toutes lettres, sous le
+     nom — et la couleur du bord ne dit jamais seule.
+
+     ⚠️ ET ELLE NE SE RÉPÈTE PAS. Plusieurs listes écrivent déjà la
+     même phrase dans « info » ; la redire dessous ferait une ligne
+     en double. On ne l'ajoute que si elle apporte autre chose. */
+  if(options.alerte){
+    const texte = String(options.alerte(e) || '').trim();
+    const deja = String((options.info && options.info(e)) || '');
+    if(texte && deja.indexOf(texte) === -1){
+      const a = document.createElement('div');
+      a.className = 'raison';
+      a.textContent = '⚠️ ' + texte;
+      row.appendChild(a);
+    }
+  }
 
   if(options.resume){
     const r = options.resume(e);
