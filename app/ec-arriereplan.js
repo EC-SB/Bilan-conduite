@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 15:38 — v920 */
+/* Déployé le 11/09/2026 à 08:41 — v937 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -380,7 +380,14 @@ function reinitialiserDepotBrouillon(){
    ------------------------------------------------------------ */
 let coursSignaleServeur = false;
 
-function marquerCoursSignale(){ coursSignaleServeur = true; }
+/* ⚠️ ET LE CHRONO PART AVEC — v937. « depuis 24 min » se compte à
+   partir d'ici, le seul endroit par où passent les quatre façons de
+   commencer un cours. Un second point de départ, et le bandeau
+   afficherait une durée que la carte ne dirait pas. */
+function marquerCoursSignale(){
+  coursSignaleServeur = true;
+  if(typeof demarrerChronoDuCours === 'function') demarrerChronoDuCours();
+}
 
 function signalerCoursSiBesoin(){
   try{
