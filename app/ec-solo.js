@@ -1,3 +1,4 @@
+/* Déployé le 11/09/2026 à 15:13 — v959 */
 /* ============================================================
    ec-solo.js
    Les messages du permis en solo.
@@ -183,7 +184,7 @@ function soloAucun(){
   d.style.cssText = 'font-size:13px;color:var(--muted);line-height:1.6;';
 
   d.innerHTML = 'Aucun message pour le moment.<br>' +
-    'Écris-les dans <strong>⚙️ Textes types</strong>, en rangeant leur nom ' +
+    'Écris-les dans <strong>⚙️ Modèles messages</strong>, en rangeant leur nom ' +
     'sous la catégorie <strong>' + CAT_SOLO + '</strong>.<br>' +
     'Celui dont le titre commence par <strong>⭐</strong> restera toujours ' +
     'affiché ; les autres iront dans le menu.';
