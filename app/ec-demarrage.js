@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 16:57 — v924 */
+/* Déployé le 11/09/2026 à 08:41 — v937 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -762,6 +762,154 @@ function travailEnCoursMoniteur(){
 
   return false;
 }
+
+/* ============================================================
+   LE COURS EN ROUTE — v937
+
+   David : « quand on a démarré un cours, il faut bloquer les autres
+   boutons qui permettent de démarrer un autre cours dans les
+   prochains cours, pour éviter une mauvaise manipulation ».
+
+   On n'a pas bloqué : un élève qui ne vient pas, on prend le
+   suivant, et un blocage qui gêne un geste légitime finit toujours
+   par se faire contourner. On a fait voir. Trois marques, et UNE
+   SEULE SOURCE pour les trois :
+
+     · la carte du cours en route se marque (A) ;
+     · un bandeau le rappelle où qu'on soit dans l'application (C) ;
+     · et sur les AUTRES cartes, le bouton cesse de dire
+       « Démarrer » pour dire « Remplacer le cours en route » (E).
+
+   ⚠️ TROIS LECTEURS, UNE PORTE. C'est tout l'enjeu. Trois endroits
+   qui décideraient chacun de leur côté s'il y a un cours en route
+   finiraient par ne pas être d'accord — et le jour où le bandeau
+   dirait oui pendant que le bouton dit non, le moniteur ne saurait
+   plus lequel croire. C'est la faute de tout ce dossier ; elle
+   n'aura pas lieu ici.
+
+   ⚠️ ET UN COURS EN PAUSE EST UN COURS EN ROUTE. David : « non, on
+   écrit en pause ». Le micro arrêté ne termine rien : l'élève est
+   toujours dans la voiture, le bilan n'est pas parti. Ce qui
+   termine un cours, c'est « Terminer » — et rien d'autre.
+   ============================================================ */
+
+/* L'instant du départ. En mémoire : c'est l'affaire de cet écran,
+   le temps d'un cours. Un rechargement le perd, et c'est juste — on
+   ne sait alors plus depuis quand, et on ne l'invente pas. */
+let coursDemarreA = 0;
+
+function demarrerChronoDuCours(){
+  if(!coursDemarreA) coursDemarreA = Date.now();
+  if(typeof rafraichirMarquesDuCours === 'function') rafraichirMarquesDuCours();
+}
+
+function arreterChronoDuCours(){
+  coursDemarreA = 0;
+  if(typeof rafraichirMarquesDuCours === 'function') rafraichirMarquesDuCours();
+}
+
+function coursEnRoute(){
+  const eleve = ($('studentName') && $('studentName').value.trim()) || '';
+  if(!eleve) return null;
+
+  /* Deux façons de savoir qu'un cours a commencé, et il en faut
+     deux : le signal envoyé au bureau — qui part dès qu'un cours
+     produit quelque chose — et l'état de l'écran, pour les cours
+     qui n'ont encore rien produit. */
+  const signale = (typeof coursSignaleServeur !== 'undefined') && coursSignaleServeur;
+  if(!signale && !travailEnCoursMoniteur()) return null;
+
+  /* La dictée est-elle en route, ou en pause ? Un bilan qui se
+     remplit à la main n'a pas de pause : on ne lui en invente pas
+     une. */
+  const boite = $('transcriptBox');
+  const vocal = !!(boite && boite.style.display === 'block');
+  const micro = (typeof isRecording !== 'undefined') && isRecording;
+
+  return {
+    eleve: eleve,
+    depuis: coursDemarreA || 0,
+    vocal: vocal,
+    enPause: vocal && !micro
+  };
+}
+
+/* « depuis 24 min » — David : « une information utile qu'il faut
+   mettre ». Sans instant de départ connu, on ne dit rien plutôt
+   que d'inventer une durée. */
+function depuisCombien(debut){
+  if(!debut) return '';
+  const min = Math.floor((Date.now() - debut) / 60000);
+  if(min < 1) return 'à l\'instant';
+  if(min < 60) return 'depuis ' + min + ' min';
+  const h = Math.floor(min / 60);
+  const r = min % 60;
+  return 'depuis ' + h + ' h' + (r ? ' ' + String(r).padStart(2, '0') : '');
+}
+
+/* ------------------------------------------------------------
+   LE BANDEAU, ET LES CARTES, REDESSINÉS ENSEMBLE
+
+   Une seule fonction les remet à jour tous les deux : le bandeau
+   se réécrit ici, les cartes se redessinent par afficherPrepares.
+   Deux rafraîchissements séparés, et l'un des deux retarderait
+   d'un cours sur l'autre.
+   ------------------------------------------------------------ */
+function dessinerBandeauCoursEnRoute(){
+  const z = $('bandeauCoursEnRoute');
+  if(!z) return;
+
+  const c = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
+  if(!c){
+    z.style.display = 'none';
+    z.innerHTML = '';
+    return;
+  }
+
+  const quand = depuisCombien(c.depuis);
+  z.style.display = 'block';
+  z.className = 'bandeau-en-route' + (c.enPause ? ' pause' : '');
+  z.innerHTML = '';
+
+  const txt = document.createElement('div');
+  txt.className = 'txt';
+  const marque = document.createElement('span');
+  marque.className = 'marque';
+  marque.textContent = c.enPause ? '⏸ EN PAUSE' : '⏺ EN COURS';
+  txt.appendChild(marque);
+  const nom = document.createElement('span');
+  nom.className = 'nom';
+  nom.textContent = c.eleve + (quand ? ' · ' + quand : '');
+  txt.appendChild(nom);
+  z.appendChild(txt);
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'revenir';
+  b.textContent = 'Y revenir';
+  b.addEventListener('click', () => {
+    if(typeof afficherOnglet === 'function') afficherOnglet('cours');
+    if(typeof amenerAuCours === 'function') amenerAuCours();
+  });
+  z.appendChild(b);
+}
+
+function rafraichirMarquesDuCours(){
+  dessinerBandeauCoursEnRoute();
+  /* Les cartes portent la même marque : elles se redessinent, mais
+     sans rien redemander au réseau. */
+  if(typeof afficherPrepares === 'function') afficherPrepares(false, true);
+}
+
+/* ⚠️ LA MINUTE QUI PASSE. « depuis 24 min » doit devenir « 25 » tout
+   seul : un chiffre figé est pire qu'aucun chiffre, parce qu'on le
+   croit. On ne redessine QUE le bandeau — redessiner les cartes
+   toutes les minutes ferait clignoter la liste sous les doigts. */
+setInterval(() => {
+  if(typeof coursEnRoute === 'function' && coursEnRoute()){
+    dessinerBandeauCoursEnRoute();
+  }
+}, 60000);
 
 /* ------------------------------------------------------------
    UN SEUL COURS OUVERT À LA FOIS
