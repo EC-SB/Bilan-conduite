@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 13:39 — v904 */
+/* Déployé le 11/09/2026 à 13:36 — v954 */
 /* ============================================================
    ec-remorque.js
    Le parcours du permis remorque (BE).
@@ -21,6 +21,46 @@ const BE_A_PASSER = {
   'complet':     'Examen complet',
   'circulation': '🔁 Circulation seule'
 };
+
+
+/* Les comptes de la remorque, sans dessiner l'écran — v954.
+   Même raison et même forme que comptesMoto : on relit la liste et
+   la table d'étapes de l'écran, on ne recompte rien à part. */
+function comptesRemorque(){
+  if(typeof elevesRemorque !== 'function') return null;
+  if(typeof fichesDuRepertoire === 'function' && !fichesDuRepertoire().length){
+    return null;
+  }
+
+  const c = { total: 0, prevus: 0, repasser: 0, aplacer: 0 };
+
+  elevesRemorque().forEach(e => {
+    const s = (typeof suiviDe === 'function') ? (suiviDe(e.eleve) || {}) : {};
+    c.total++;
+    const et = etapeRemorque(s);
+    if(et === 'prevus')   c.prevus++;
+    if(et === 'repasser') c.repasser++;
+    if(et === 'aplacer')  c.aplacer++;
+  });
+
+  return c;
+}
+
+
+/* Les tuiles de la section Remorque. */
+function tuilesRemorque(){
+  const c = comptesRemorque();
+  if(c === null) return null;
+
+  return [
+    { cle:'be:total', lib:'Élèves remorque', vue:'remorque', section:'remorque',
+      valeur:() => ({ n: c.total }) },
+    { cle:'be:prevus', lib:'Examens prévus', vue:'remorque', section:'remorque',
+      valeur:() => ({ n: c.prevus }) },
+    { cle:'be:repasser', lib:'À repasser', vue:'remorque', section:'remorque',
+      ton:'att', valeur:() => ({ n: c.repasser }) }
+  ];
+}
 
 
 function etapeRemorque(s){
@@ -55,7 +95,9 @@ function elevesRemorque(){
 
   /* Les fiches du répertoire : c'est là qu'un élève tout neuf
      existe, avant tout bilan et toute consigne. */
-  (typeof fichesConnues !== 'undefined' ? (fichesConnues || []) : [])
+  /* La même liste que la moto, et que le reste de l'outil : une
+     seule copie du répertoire — voir chargerFichesMoto (v954). */
+  ((typeof fichesDuRepertoire === 'function') ? fichesDuRepertoire() : [])
     .forEach(f => {
       if(dedans({ formation: f.formation })) ajouter(f.eleve, f);
     });
