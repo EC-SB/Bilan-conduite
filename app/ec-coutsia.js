@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 07:32 — v878 */
+/* Déployé le 11/09/2026 à 10:21 — v939 */
 /* ============================================================
    ec-coutsia.js
    Ce que l'IA coûte à l'auto-école.
@@ -47,6 +47,12 @@ let coutsIa = null;
 let coutsPeriode = 'mois';      /* jour · semaine · mois · libre */
 let coutsDu = '';
 let coutsAu = '';
+
+/* Le même nombre de jours du mois précédent, pour avoir un point de
+   comparaison. Null tant qu'on ne l'a pas demandé ; un nombre —
+   zéro compris — quand on l'a. La différence compte : « rien du
+   tout » et « pas encore demandé » ne s'écrivent pas pareil. */
+let coutsMoisAvant = null;
 
 /* Le tarif de Claude Sonnet 5 au 1er septembre 2026, en dollars par
    million de jetons. Anthropic l'annonçait à 2 $ / 10 $ jusqu'au
@@ -254,7 +260,7 @@ function dollars(v){
 }
 
 /* Le même montant, converti au taux du jour — celui qui est
-   affiché à l'écran, et que Chrystel peut corriger sur son
+   affiché à l'écran, et que David peut corriger sur son
    relevé. */
 /* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « euros »,
    comme celle de ec-paiement.js. Deux fonctions de même nom au niveau
@@ -340,18 +346,67 @@ function regrouperCouts(lignes, cle){
   return Object.keys(par).map(k => par[k]).sort((a, b) => b.cout - a.cout);
 }
 
+/* ⚠️ LES JOURS QUI COMPTENT SONT CEUX QUI SONT PASSÉS.
+
+   « Ce mois-ci » va du 1er au dernier jour du mois — 30 jours le
+   11 septembre, dont dix-neuf qui n'ont pas encore eu lieu. On
+   divisait le total par 30 : la moyenne par jour était trois fois
+   trop basse, et « environ X par mois » rendait exactement le total
+   déjà dépensé. L'écran annonçait donc que le mois coûterait ce
+   qu'il avait déjà coûté, en le présentant comme une projection.
+
+   Un jour qui n'a pas eu lieu n'a pas coûté zéro : il n'a rien à
+   dire. On ne divise que par les jours écoulés. */
+function joursEcoulesDeLaPeriode(du, au){
+  const aujourdhui = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const fin = (au && au > aujourdhui) ? aujourdhui : au;
+  if(!du || !fin || fin < du) return 0;
+  return joursDeLaPeriode(du, fin);
+}
+
+/* Le nombre de jours du mois où tombe cette date — 28, 29, 30 ou
+   31. Projeter sur « 30 jours » se trompait de deux jours en mars
+   et de deux dans l'autre sens en février. */
+function joursDuMoisDe(iso){
+  const d = new Date(String(iso || '') + 'T12:00:00');
+  if(isNaN(d)) return 30;
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+}
+
+/* La période couvre-t-elle un mois civil entier, du 1er au dernier ? */
+function estUnMoisEntier(du, au){
+  if(!du || !au) return false;
+  const d = new Date(du + 'T12:00:00');
+  if(isNaN(d)) return false;
+  const premier = new Date(d.getFullYear(), d.getMonth(), 1);
+  const dernier = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return du === isoDeDate(premier) && au === isoDeDate(dernier);
+}
+
 /* Ce que la période laisse présager sur un mois entier.
 
-   On ne l'annonce QUE si la période couvre assez de jours pour que
-   la moyenne veuille dire quelque chose : projeter un mois à partir
+   On ne l'annonce QUE si assez de jours sont ÉCOULÉS pour que la
+   moyenne veuille dire quelque chose : projeter un mois à partir
    d'une matinée donnerait un chiffre au hasard, et un chiffre au
    hasard sur une facture est pire que pas de chiffre. */
 function projectionMensuelle(lignes, du, au){
-  const jours = joursDeLaPeriode(du, au);
+  const jours = joursEcoulesDeLaPeriode(du, au);
   if(!jours || jours < 3) return null;
   const total = totalDesCouts(lignes);
   if(!total) return null;
-  return { parJour: total / jours, parMois: (total / jours) * 30, jours: jours };
+  const parJour = total / jours;
+  /* Sur un mois civil, on projette sur SA longueur et on le dit ;
+     ailleurs, la lecture reste « à ce rythme, sur trente jours ». */
+  const surUnMois = estUnMoisEntier(du, au);
+  const longueur = surUnMois ? joursDuMoisDe(du) : 30;
+  return {
+    parJour: parJour,
+    parMois: parJour * longueur,
+    jours: jours,
+    longueur: longueur,
+    moisCivil: surUnMois
+  };
 }
 
 /* ⚠️ NOM PROPRE À CE MODULE — v878. Elle s'appelait « joursEntre »,
@@ -603,21 +658,207 @@ function blocMonnaie(){
   return z;
 }
 
+/* LE MÊME NOMBRE DE JOURS DU MOIS PRÉCÉDENT.
+
+   David : « le mois ». Un mois se compare à un mois — mais pas un
+   mois commencé à un mois entier : le 11 septembre contre tout
+   août, la hausse serait inventée. On s'arrête au même jour, et
+   quand le mois précédent est plus court (le 31 mars contre
+   février), au dernier jour qu'il possède. */
+function bornesMoisPrecedentAuMemeJour(du){
+  const d = new Date(String(du || '') + 'T12:00:00');
+  if(isNaN(d)) return null;
+  const aujourdhui = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const auj = new Date(aujourdhui + 'T12:00:00');
+  if(isNaN(auj)) return null;
+  /* Seulement pour le mois EN COURS : ailleurs, « le même jour »
+     ne veut rien dire. */
+  if(auj.getFullYear() !== d.getFullYear() || auj.getMonth() !== d.getMonth()){
+    return null;
+  }
+  const premier = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  const longueur = new Date(d.getFullYear(), d.getMonth(), 0).getDate();
+  const jours = Math.min(auj.getDate(), longueur);
+  const dernier = new Date(premier.getFullYear(), premier.getMonth(), jours);
+  return { du: isoDeDate(premier), au: isoDeDate(dernier), jours: jours };
+}
+
 async function chargerCoutsIa(){
   const z = $('coutsIaListe');
   if(!z) return;
   const b = bornesDeLaPeriode(coutsPeriode, coutsDu, coutsAu);
   z.innerHTML = '<div class="empty">Chargement…</div>';
 
+  /* Les deux lectures partent ENSEMBLE. En série, on attendrait la
+     somme des deux délais pour un chiffre de comparaison ; et si
+     celle du mois précédent échoue, l'écran s'affiche quand même
+     sans elle — une comparaison manquante n'empêche pas de lire
+     son total. */
+  const avant = (coutsPeriode === 'mois') ? bornesMoisPrecedentAuMemeJour(b.du) : null;
+  coutsMoisAvant = null;
+
+  let d, dAvant;
   try{
-    const d = await appelPrep({ action: 'coutIaList', du: b.du, au: b.au });
+    [d, dAvant] = await Promise.all([
+      appelPrep({ action: 'coutIaList', du: b.du, au: b.au }),
+      avant
+        ? appelPrep({ action: 'coutIaList', du: avant.du, au: avant.au })
+            .catch(() => null)
+        : Promise.resolve(null)
+    ]);
     coutsIa = (d && d.lignes) || [];
   }catch(e){
     z.innerHTML = '<div class="empty">Coûts indisponibles : ' +
       String(e.message).replace(/</g, '&lt;') + '</div>';
     return;
   }
+
+  if(avant && dAvant){
+    coutsMoisAvant = {
+      total: totalDesCouts(dAvant.lignes || []),
+      du: avant.du, au: avant.au, jours: avant.jours
+    };
+  }
+
   dessinerCoutsIa(b);
+}
+
+/* CE QU'ON PROJETTE, ET SUR COMBIEN DE JOURS ON L'A DÉDUIT.
+
+   Le nombre de jours écoulés est écrit à côté du chiffre : un
+   chiffre déduit a l'air d'un chiffre su, et celui-ci vaut ce que
+   valent les jours qui l'ont produit. Trois jours de septembre ne
+   promettent pas un mois. */
+function ligneProjection(proj){
+  const style = 'font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;';
+  if(!proj){
+    return '<div style="' + style + '">Trop peu de jours écoulés pour estimer ' +
+           'la fin du mois.</div>';
+  }
+  return '<div style="' + style + '">Soit ' + argent(proj.parJour) +
+    ' par jour sur ' + proj.jours + ' jour' + (proj.jours > 1 ? 's' : '') +
+    ' écoulé' + (proj.jours > 1 ? 's' : '') + ' — <strong>environ ' +
+    argent(proj.parMois) +
+    (proj.moisCivil
+      ? ' sur le mois entier</strong> (' + proj.longueur + ' jours)'
+      : ' sur trente jours</strong>') +
+    ' à ce rythme.</div>';
+}
+
+/* LE MOIS PRÉCÉDENT, AU MÊME JOUR.
+
+   Sans comparaison, un total est un nombre : on ne sait pas s'il
+   est gros. Avec une comparaison mal bornée, c'est pire — un mois
+   commencé contre un mois entier annoncerait une baisse à chaque
+   début de mois. Les deux bornes sont posées par
+   « bornesMoisPrecedentAuMemeJour », et le nombre de jours comparés
+   est écrit. */
+function ligneComparaisonMois(){
+  if(!coutsMoisAvant) return '';
+  const style = 'font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5;';
+  const n = coutsMoisAvant.jours;
+  const combien = n + ' premier' + (n > 1 ? 's' : '') + ' jour' + (n > 1 ? 's' : '');
+
+  if(!coutsMoisAvant.total){
+    return '<div style="' + style + '">Rien de comparable sur les ' + combien +
+           ' du mois précédent.</div>';
+  }
+  const maintenant = totalDesCouts(coutsIa || []);
+  const ecart = maintenant - coutsMoisAvant.total;
+  const pct = Math.round((ecart / coutsMoisAvant.total) * 100);
+  const signe = ecart > 0 ? '+' : (ecart < 0 ? '−' : '');
+  const couleur = ecart > 0 ? 'var(--ambre)' : 'var(--accent-text)';
+  return '<div style="' + style + '">Sur les ' + combien + ' du mois précédent : ' +
+    argent(coutsMoisAvant.total) +
+    (ecart
+      ? ' — <strong style="color:' + couleur + ';">' + signe +
+        argent(Math.abs(ecart)) + ' (' + signe + Math.abs(pct) + ' %)</strong>'
+      : ' — <strong>à l’euro près le même</strong>') +
+    '.</div>';
+}
+
+/* ------------------------------------------------------------
+   LE COÛT PAR JOUR, EN BARRES
+
+   Le tableau « Par jour » donne les nombres ; il ne montre pas
+   qu'un jour a coûté quatre fois les autres. Une seule série, donc
+   aucune légende : le titre la nomme. Une seule échelle, en euros.
+
+   Les jours SANS génération sont dessinés à zéro plutôt que sautés :
+   un creux qui disparaît, c'est une semaine qui a l'air pleine.
+   ------------------------------------------------------------ */
+function joursEntreBornes(du, au){
+  const out = [];
+  if(!du || !au) return out;
+  const d = new Date(du + 'T12:00:00'), f = new Date(au + 'T12:00:00');
+  if(isNaN(d) || isNaN(f)) return out;
+  for(let x = d; x <= f; x.setDate(x.getDate() + 1)) out.push(isoDeDate(x));
+  return out;
+}
+
+function graphiqueParJour(lignes, bornes){
+  const aujourdhui = (typeof todayLocal === 'function')
+    ? todayLocal() : new Date().toISOString().slice(0, 10);
+  const fin = (bornes.au > aujourdhui) ? aujourdhui : bornes.au;
+  const jours = joursEntreBornes(bornes.du, fin);
+  if(jours.length < 3) return null;      /* deux barres ne sont pas un graphique */
+
+  /* ⚠️ ON ACCUMULE LE COÛT BRUT, PAS SON ÉCRITURE.
+     « eurosDuCout » rend « 1,42 € » — du texte. L'additionner
+     donnerait « 0 » ou un collage de chiffres. Le montant se
+     totalise en dollars, comme partout ailleurs dans ce fichier,
+     et ne devient lisible qu'au dernier moment, par « argent ». */
+  const parJour = {};
+  (lignes || []).forEach(l => {
+    const k = String(l.jour || '').slice(0, 10);
+    parJour[k] = (parJour[k] || 0) + (Number(l.cout) || 0);
+  });
+
+  const valeurs = jours.map(j => parJour[j] || 0);
+  const max = Math.max.apply(null, valeurs);
+  if(!max) return null;
+
+  const L = 620, H = 150, base = 118, haut = 96;
+  const pas = L / jours.length;
+  const larg = Math.max(2, pas - 2);     /* 2 px de fond entre deux barres */
+
+  let barres = '';
+  valeurs.forEach((v, i) => {
+    const h = Math.max(v > 0 ? 2 : 0, Math.round(haut * v / max));
+    if(!h) return;
+    barres += '<rect x="' + (i * pas + 1).toFixed(1) + '" y="' + (base - h) +
+      '" width="' + larg.toFixed(1) + '" height="' + h +
+      '" rx="2" fill="var(--bleu)"><title>' + jourLisible(jours[i]) + ' — ' +
+      argent(v) + '</title></rect>';
+  });
+
+  /* Trois repères horizontaux, discrets : ils aident à situer une
+     barre sans prétendre à une graduation précise. */
+  let grille = '';
+  [0, 0.5, 1].forEach(k => {
+    const y = base - haut * k;
+    grille += '<line x1="0" y1="' + y + '" x2="' + L + '" y2="' + y +
+      '" stroke="var(--line)" stroke-width="1"/>';
+  });
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px 13px;margin-bottom:12px;';
+  d.innerHTML =
+    '<div style="font-size:13px;font-weight:800;">📈 Coût par jour</div>' +
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">' +
+      'Le plus cher : ' + argent(max) + '. Les jours sans génération sont à zéro.</div>' +
+    '<svg viewBox="0 0 ' + L + ' ' + H + '" style="width:100%;height:auto;display:block;" ' +
+      'role="img" aria-label="Coût par jour, du ' + jourLisible(bornes.du) +
+      ' au ' + jourLisible(fin) + ', en euros. Le plus cher : ' + argent(max) + '.">' +
+      grille + barres +
+      '<text x="0" y="' + (base + 24) + '" fill="var(--muted)" font-size="12">' +
+        jourLisible(jours[0]) + '</text>' +
+      '<text x="' + L + '" y="' + (base + 24) + '" fill="var(--muted)" font-size="12" ' +
+        'text-anchor="end">' + jourLisible(jours[jours.length - 1]) + '</text>' +
+    '</svg>';
+  return d;
 }
 
 function dessinerCoutsIa(bornes){
@@ -659,14 +900,11 @@ function dessinerCoutsIa(bornes){
       (coutsTTC && tva()
         ? '<br>' + argentHorsTaxes(totalDesCouts(lignes)) + ' HT' : '') +
       '<br>1 $ = ' + String(tauxEuro()).replace('.', ',') + ' €</div>' +
-    (proj
-      ? '<div style="font-size:12px;color:var(--muted);margin-top:6px;' +
-        'line-height:1.5;">Soit ' + argent(proj.parJour) + ' par jour sur ' +
-        proj.jours + ' jours — <strong>environ ' + argent(proj.parMois) +
-        ' par mois</strong> à ce rythme.</div>'
-      : '<div style="font-size:12px;color:var(--muted);margin-top:6px;">' +
-        'Période trop courte pour estimer un mois.</div>');
+    ligneProjection(proj) + ligneComparaisonMois();
   z.appendChild(t);
+
+  const g = graphiqueParJour(lignes, bornes);
+  if(g) z.appendChild(g);
 
   z.appendChild(tableauCouts('👤 Par utilisateur', regrouperCouts(lignes, 'qui')));
   z.appendChild(tableauCouts('🧩 Par type de génération', regrouperCouts(lignes, 'quoi')));
