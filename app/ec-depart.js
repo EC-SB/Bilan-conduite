@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 12:05 — v950 */
+/* Déployé le 11/09/2026 à 16:03 — v962 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1303,6 +1303,262 @@ async function appelAdmin(corps){
   return data;
 }
 
+/* ============================================================
+   LE PANNEAU DES ACCÈS D'UNE PERSONNE
+
+   Trois niveaux, et c'est le milieu qui manquait :
+
+   1. la ligne du compte, avec les onglets qu'il ouvre — la seule
+      question qu'on se pose vraiment, « qu'est-ce que Maryne voit,
+      elle ? », répondue sans rien ouvrir ;
+   2. six blocs par onglet, repliés, avec leur réglage maître ;
+   3. le détail, droit par droit, pour qui veut régler finement.
+
+   ⚠️ ET RIEN NE CHANGE DE CE QUI EST ENREGISTRÉ. Mêmes clés, même
+   table, même contrôle à l'entrée du Worker : c'est l'écran de
+   réglage qui change, pas ce qu'il écrit. Un écran de réglage qui
+   invente son propre format serait un second format à lire.
+   ============================================================ */
+
+/* Ce que cette personne verra de la barre du haut : c'est la
+   phrase que David cherchait en dépliant quarante-sept lignes. */
+function ongletsVus(droits){
+  const d = droits || {};
+  return ONGLETS_DROITS.filter(o =>
+    SECTIONS.some(s => s.onglet === o.cle && d[s.cle]));
+}
+
+function resumeDesOnglets(droits){
+  const vus = ongletsVus(droits).map(o => o.cle);
+  const z = document.createElement('div');
+  z.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
+  ONGLETS_DROITS.forEach((o, i) => {
+    const s = document.createElement('span');
+    s.textContent = o.nom.replace(/^\S+\s+/, '') +
+                    (i < ONGLETS_DROITS.length - 1 ? ' · ' : '');
+    /* ⚠️ « display:inline » EN TOUTES LETTRES — v962. Dans une ligne
+       de liste, « .meta span » est posé en display:block : sans
+       ça, les six onglets s'empilaient l'un sous l'autre, un mot
+       par ligne. Une règle générale qu'on ne voit pas en écrivant
+       le morceau qui la subit. */
+    s.style.cssText = 'display:inline;font-size:12px;' +
+      'opacity:' + ((vus.indexOf(o.cle) !== -1) ? '1' : '.38') + ';';
+    z.appendChild(s);
+  });
+  return z;
+}
+
+function panneauDesAcces(u){
+  /* La table de travail : on ne touche aux droits enregistrés
+     qu'au moment d'enregistrer. */
+  const choisis = Object.assign({}, u.droits || {});
+
+  const det = document.createElement('details');
+  det.style.cssText = 'margin:-6px 0 14px 4px;';
+  const som = document.createElement('summary');
+  som.style.cssText = 'cursor:pointer;font-size:12px;color:var(--muted);';
+  som.textContent = 'Régler ce que ' + u.nom + ' voit';
+  det.appendChild(som);
+
+  const z = document.createElement('div');
+  z.style.cssText = 'padding:10px 0 8px 6px;';
+  det.appendChild(z);
+
+  /* ---- Partir d'un modèle ---- */
+  const mod = document.createElement('div');
+  mod.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;' +
+    'margin-bottom:12px;';
+  const lab = document.createElement('span');
+  lab.style.cssText = 'font-size:12px;color:var(--muted);';
+  lab.textContent = 'Partir de :';
+  mod.appendChild(lab);
+
+  /* ⚠️ LES MODÈLES SONT LES RÔLES, PAS UNE SECONDE LISTE. On demande
+     au Worker ce que le rôle donne : une liste recopiée ici aurait
+     vieilli au premier droit ajouté. */
+  const modeles = [['moniteur', '🚗 Comme un moniteur'],
+                   ['bureau', '🏢 Comme le bureau'],
+                   ['admin', '👑 Comme un administrateur']];
+  modeles.forEach(([role, nom]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;';
+    b.textContent = nom;
+    b.addEventListener('click', async () => {
+      if(!await confirmer('Remplir les accès de ' + u.nom + ' comme « ' +
+          nom.replace(/^\S+\s+/, '') + ' » ?\n\nRien n\'est enregistré : ' +
+          'c\'est un point de départ, tu ajustes ensuite.')) return;
+      b.disabled = true;
+      try{
+        const d = await appelAdmin({ action: 'droitsRole', role: role });
+        Object.keys(choisis).forEach(k => delete choisis[k]);
+        Object.assign(choisis, d.droits || {});
+        redessiner();
+      }catch(e){ messageAdmin(e.message, true); }
+      b.disabled = false;
+    });
+    mod.appendChild(b);
+  });
+  z.appendChild(mod);
+
+  /* ---- Les six blocs ---- */
+  const blocs = document.createElement('div');
+  z.appendChild(blocs);
+
+  /* ---- Ce que ça donnera pour elle ---- */
+  const apercu = document.createElement('div');
+  apercu.style.cssText = 'font-size:12.5px;color:var(--muted);line-height:1.5;' +
+    'margin:10px 0 0;padding:9px 11px;border:1px solid var(--line);' +
+    'border-radius:10px;';
+  z.appendChild(apercu);
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-secondary';
+  bOk.style.cssText = 'padding:9px;font-size:12.5px;margin-top:10px;';
+  bOk.textContent = '💾 Enregistrer les accès';
+  bOk.addEventListener('click', async () => {
+    const net = {};
+    Object.keys(choisis).forEach(k => { if(choisis[k]) net[k] = choisis[k]; });
+    bOk.disabled = true;
+    try{
+      await appelAdmin({ action:'droits', cible:u.code, droits: net });
+      /* Aucun droit coché est un choix, pas un oubli : on le dit */
+      if(!Object.keys(net).length){
+        messageAdmin('Rien de coché pour ' + u.nom +
+          ' : il ne verra que l\'écran d\'accueil.');
+      }
+      messageAdmin('Accès de ' + u.nom + ' enregistrés.');
+      chargerUtilisateurs();
+    }catch(e){ messageAdmin(e.message, true); bOk.disabled = false; }
+  });
+  z.appendChild(bOk);
+
+  /* ------------------------------------------------------------
+     LE DESSIN — refait à chaque changement, depuis la table de
+     travail. Un seul endroit décide de ce qui est affiché : les
+     compteurs, le réglage maître et l'aperçu ne peuvent pas se
+     contredire puisqu'ils lisent tous « choisis ».
+     ------------------------------------------------------------ */
+  function redessiner(){
+    blocs.innerHTML = '';
+
+    ONGLETS_DROITS.forEach(ong => {
+      const dedans = SECTIONS.filter(s => s.onglet === ong.cle);
+      if(!dedans.length) return;
+
+      const donnes = dedans.filter(s => choisis[s.cle]).length;
+      const tous = dedans.length;
+
+      const b = document.createElement('details');
+      b.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
+        'margin-bottom:8px;overflow:hidden;';
+
+      const t = document.createElement('summary');
+      t.style.cssText = 'display:flex;align-items:center;gap:8px;' +
+        'padding:9px 11px;cursor:pointer;font-size:13.5px;font-weight:700;' +
+        'background:var(--navy-deep);';
+      const nom = document.createElement('span');
+      nom.style.flex = '1';
+      nom.textContent = ong.nom;
+      const cpt = document.createElement('span');
+      cpt.style.cssText = 'font-size:11.5px;color:var(--muted);font-weight:700;';
+      cpt.textContent = donnes + ' / ' + tous;
+      t.appendChild(nom);
+      t.appendChild(cpt);
+      b.appendChild(t);
+
+      const corps = document.createElement('div');
+      corps.style.cssText = 'padding:8px 11px 10px;';
+
+      /* Le réglage maître : l'onglet entier en un geste. */
+      const rang = document.createElement('div');
+      rang.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;' +
+        'margin-bottom:10px;';
+      [['', 'Rien'], ['v', '👁️ Tout voir'], ['m', '✏️ Tout modifier']]
+        .forEach(([niveau, libelle]) => {
+          const x = document.createElement('button');
+          x.type = 'button';
+          x.className = 'btn btn-secondary';
+          x.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;';
+          x.textContent = libelle;
+          x.addEventListener('click', async () => {
+            /* ⚠️ L'ARGENT SE CONFIRME. Un onglet entier donné d'un
+               geste, c'est le genre de chose qu'on fait vite et
+               qu'on découvre trois semaines plus tard. */
+            const argent = dedans.filter(s => DROITS_ARGENT.indexOf(s.cle) !== -1);
+            if(niveau && argent.length){
+              const liste = argent.map(s => '• ' + s.nom).join('\n');
+              if(!await confirmer('« ' + libelle + ' » sur ' + ong.nom +
+                  ' donne aussi à ' + u.nom + ' :\n\n' + liste +
+                  '\n\nContinuer ?')) return;
+            }
+            dedans.forEach(s => {
+              if(niveau) choisis[s.cle] = niveau; else delete choisis[s.cle];
+            });
+            redessiner();
+          });
+          rang.appendChild(x);
+        });
+      corps.appendChild(rang);
+
+      dedans.forEach(sec => {
+        const l = document.createElement('div');
+        l.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 6px;';
+        const n = document.createElement('span');
+        n.style.cssText = 'flex:1;font-size:13.5px;color:var(--cream);line-height:1.3;';
+        n.textContent = sec.nom;
+        const sel = document.createElement('select');
+        sel.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:12px;' +
+          'flex-shrink:0;';
+        [['', 'Rien'], ['v', '👁️ Voir'], ['m', '✏️ Modifier']].forEach(([v, lb]) => {
+          const o = document.createElement('option');
+          o.value = v; o.textContent = lb;
+          sel.appendChild(o);
+        });
+        sel.value = choisis[sec.cle] || '';
+        sel.addEventListener('change', () => {
+          if(sel.value) choisis[sec.cle] = sel.value; else delete choisis[sec.cle];
+          redessiner();
+        });
+        l.appendChild(n); l.appendChild(sel);
+        corps.appendChild(l);
+      });
+
+      b.appendChild(corps);
+      blocs.appendChild(b);
+    });
+
+    /* ⚠️ ON DIT CE QUE ÇA DONNE AVANT DE SE CONNECTER AVEC SON
+       COMPTE. Un onglet sans aucun droit disparaît — c'est voulu —
+       mais on ne l'apprenait qu'en ouvrant la session de l'autre. */
+    const vus = ongletsVus(choisis);
+    apercu.innerHTML = '';
+    const tete = document.createElement('div');
+    tete.innerHTML = '👁️ <strong>Ce que ' +
+      String(u.nom).replace(/</g, '&lt;') + ' verra :</strong>';
+    apercu.appendChild(tete);
+    if(!vus.length){
+      const v = document.createElement('div');
+      v.textContent = "aucun onglet — seulement l'écran d'accueil.";
+      apercu.appendChild(v);
+    }else{
+      apercu.appendChild(resumeDesOnglets(choisis));
+      const abs = ONGLETS_DROITS.filter(o => vus.indexOf(o) === -1);
+      if(abs.length){
+        const a = document.createElement('div');
+        a.style.marginTop = '4px';
+        a.textContent = 'Les onglets en gris n’apparaîtront pas dans sa ' +
+          'barre du haut.';
+        apercu.appendChild(a);
+      }
+    }
+  }
+
+  redessiner();
+  return det;
+}
+
 async function chargerUtilisateurs(){
   const zone = $('adminList');
   zone.innerHTML = '<div class="empty">Chargement…</div>';
@@ -1326,6 +1582,20 @@ async function chargerUtilisateurs(){
       sous.textContent = 'Code ' + u.code + (u.principal ? ' · compte principal' : (u.cree ? ' · créé le ' + u.cree : ''));
       meta.appendChild(nom);
       meta.appendChild(sous);
+
+      /* ⚠️ LA SEULE QUESTION QU'ON SE POSE VRAIMENT, RÉPONDUE SANS
+         RIEN OUVRIR — v962 : « qu'est-ce que Maryne voit, elle ? »
+         Il fallait déplier sa fiche et lire quarante-sept lignes
+         pour le savoir. Les onglets en gris sont ceux qu'elle n'a
+         pas. */
+      if(u.principal){
+        const t = document.createElement('span');
+        t.style.cssText = 'font-size:12px;color:var(--muted);';
+        t.textContent = 'tous les onglets';
+        meta.appendChild(t);
+      }else{
+        meta.appendChild(resumeDesOnglets(u.droits));
+      }
       row.appendChild(meta);
 
       const actions = document.createElement('div');
@@ -1442,59 +1712,20 @@ async function chargerUtilisateurs(){
       row.appendChild(actions);
       zone.appendChild(row);
 
-      /* Réglage fin de ce que cette personne voit */
+      /* ⚠️ CE QUE CETTE PERSONNE VOIT, RANGÉ PAR ONGLET — v962.
+
+         Avant : quarante-sept menus à trois choix, à plat, dans
+         l'ordre du code, et les six fiches dépliables sur la même
+         page — près de trois cents menus dessinés d'un coup. David :
+         « c'est indigeste dans l'ensemble […] là je peux plus ».
+
+         Maintenant : six blocs, dans l'ordre des onglets de
+         l'application. Repliés, six lignes ; dépliés, on est au même
+         endroit qu'avant, mais on sait OÙ on est. Le réglage maître
+         d'un bloc donne l'onglet entier en un geste — et se fait
+         confirmer quand l'onglet touche à l'argent. */
       if(!u.principal){
-        const det = document.createElement('details');
-        det.style.cssText = 'margin:-6px 0 10px 4px;';
-        det.innerHTML = '<summary style="cursor:pointer;font-size:12px;color:var(--muted);">' +
-          'Ce que ' + u.nom + ' voit (' + Object.keys(u.droits || {}).length +
-          ' section' + (Object.keys(u.droits || {}).length > 1 ? 's' : '') + ')</summary>';
-        const z = document.createElement('div');
-        z.style.cssText = 'padding:8px 0 8px 6px;';
-        const dr = u.droits || {};
-        SECTIONS.forEach(sec => {
-          const l = document.createElement('div');
-          l.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 6px;';
-          const t = document.createElement('span');
-          t.style.cssText = 'flex:1;font-size:14px;color:var(--cream);line-height:1.3;';
-          t.textContent = sec.nom;
-          const s = document.createElement('select');
-          s.className = 'drt-' + u.code;
-          s.setAttribute('data-cle', sec.cle);
-          s.style.cssText = 'width:auto;margin:0;padding:6px 8px;font-size:12px;flex-shrink:0;';
-          [['', 'Rien'], ['v', '👁️ Voir'], ['m', '✏️ Modifier']].forEach(([v, lab]) => {
-            const o = document.createElement('option');
-            o.value = v; o.textContent = lab;
-            s.appendChild(o);
-          });
-          s.value = dr[sec.cle] || '';
-          l.appendChild(t); l.appendChild(s);
-          z.appendChild(l);
-        });
-        const b = document.createElement('button');
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'padding:8px;font-size:12px;margin-top:6px;';
-        b.textContent = '💾 Enregistrer les accès';
-        b.addEventListener('click', async () => {
-          const choisis = {};
-          document.querySelectorAll('.drt-' + u.code).forEach(x => {
-            if(x.value) choisis[x.getAttribute('data-cle')] = x.value;
-          });
-          b.disabled = true;
-          try{
-            await appelAdmin({ action:'droits', cible:u.code, droits: choisis });
-            /* Aucun droit coché est un choix, pas un oubli : on le dit */
-            if(!Object.keys(choisis).length){
-              messageAdmin('Rien de coché pour ' + u.nom +
-                ' : il ne verra que l\'écran d\'accueil.');
-            }
-            messageAdmin('Accès de ' + u.nom + ' enregistrés.');
-            chargerUtilisateurs();
-          }catch(e){ messageAdmin(e.message, true); b.disabled = false; }
-        });
-        z.appendChild(b);
-        det.appendChild(z);
-        zone.appendChild(det);
+        zone.appendChild(panneauDesAcces(u));
       }
     });
   }catch(e){
