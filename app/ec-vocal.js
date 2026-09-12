@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 13:00 — v974 */
+/* Déployé le 12/09/2026 à 14:58 — v978 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2179,7 +2179,7 @@ async function poserRecitationsDemandees(eleve){
   noms.forEach(n => bouts.push('• ' + n));
   bouts.push('');
   bouts.push('Enregistre-toi dans ton coin révisions :');
-  bouts.push('https://ec-sb.github.io/Bilan-conduite/eleve.html');
+  bouts.push(CONFIG.LIEN_ELEVE);
   bouts.push('Ton nom : ' + eleve);
   bouts.push('Ton code : ' + ((rep && rep.code) || ''));
 
