@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:13 — v959 */
+/* Déployé le 12/09/2026 à 09:48 — v966 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -603,6 +603,88 @@ function emojiMoniteur(){
 }
 
 /* ============================================================
+   LA NOTE D'INSTALLATION, SUR 2 — v966
+
+   David, le 12 septembre, après confirmation d'un moniteur : « les
+   cases installation, passager et voyant : s'il n'y en a qu'un de
+   validé = 0 sur le CEPC, s'il y en a 2 de validé = 1, et si les 3
+   de validé = 2. »
+
+   ⚠️ CELA REMPLACE LA RÈGLE PRÉCÉDENTE. Jusqu'ici la note ne
+   comptait que Passager + Voyants — « l'installation ne compte pas,
+   elle est sur 2 sur le CEPC ». La case Installation compte
+   désormais comme les deux autres : c'est le nombre de ✅ moins un.
+
+   Une case laissée vide compte comme non validée — tranché par
+   David. Mais si AUCUNE des trois n'est remplie, il n'y a pas de
+   note du tout : une fiche qu'on n'a pas encore touchée ne doit pas
+   afficher un zéro qui ressemble à un jugement.
+
+   ⚠️ ET ELLE NE SE CALCULE QU'ICI. Elle s'écrivait à deux endroits
+   — la ligne du CEPC dans ec-manuel.js, et le « Note : /2 » imprimé
+   dans le bilan juste en dessous. Deux fois le même calcul, donc
+   deux occasions de ne plus dire la même chose le jour où la règle
+   bouge. Elle vient de bouger.
+   ============================================================ */
+/* ⚠️ « Manœuvre · » DEVANT LA REMARQUE ET DEVANT L'EXPLICATION —
+   v966. David : « il faut mettre la mention Manœuvre devant la
+   remarque et l'explication en plus, pour qu'on voie que l'erreur
+   est survenue pendant la manœuvre — mais on garde bien la
+   catégorie du CEPC, pas tout en bas à part ».
+
+   L'erreur reste donc rangée sous sa compétence, avec les autres :
+   c'est là qu'un inspecteur la cherche. La mention dit seulement
+   QUAND elle est arrivée. Elle s'écrit ici, une fois, pour les
+   trois endroits qui impriment une remarque. */
+function mentionObs(o){
+  const m = (o && o.mention) ? String(o.mention).trim() : '';
+  return m ? m + ' · ' : '';
+}
+
+/* ⚠️ TOUTES LES REMARQUES D'UNE FICHE, EN UNE SEULE LISTE — v966.
+
+   Le bilan des erreurs range par compétence du CEPC, et David a
+   voulu que les deux nouveaux blocs y entrent comme les autres :
+   « pour autonomie tu mets dans la catégorie Conduite autonome avec
+   le reste s'il y en a d'autres », et manœuvre « doit arriver dans
+   la bonne catégorie […] pas tout en bas à part ».
+
+   Ils ne forment donc AUCUNE section supplémentaire : ils
+   rejoignent la liste, et c'est le rangement qui existe déjà qui
+   s'en occupe. Une deuxième façon de ranger les mêmes erreurs, et
+   les deux bilans finiraient par ne plus les présenter dans le
+   même ordre — c'est écrit noir sur blanc dans buildExamen depuis
+   la v911, et ça vaut aussi pour celles-ci.
+
+   L'autonomie n'a pas de bouton de compétence, et n'en a pas
+   besoin : sa ligne est connue d'avance. Elle entre en « grave »
+   — à reprendre — et non en « moins » : le demi-point ne part que
+   si le moniteur a appuyé sur ➖ 0,5, et c'est le CEPC qui le
+   porte, pas cette liste. */
+function toutesLesRemarques(observations, e){
+  const out = [];
+  const pousser = l => {
+    if(Array.isArray(l)) l.forEach(o => { if(o) out.push(o); });
+  };
+  pousser(observations);
+  pousser(e && e.manoeuvre);
+
+  const a = e && e.autonomie;
+  if(a && txt(a.texte)){
+    out.push({ inspecteur: '', reponse: txt(a.texte),
+               grave: a.ligne || 'Conduite autonome' });
+  }
+  return out;
+}
+
+function noteInstallationSurDeux(installation, passager, voyants){
+  const cases = [installation, passager, voyants];
+  if(!cases.some(v => v)) return '';
+  const valides = cases.filter(v => v === '✅').length;
+  return String(Math.max(0, valides - 1));
+}
+
+/* ============================================================
    LE BILAN DE COMPÉTENCES EN TEXTE
 
    Reproduit la grille de RDV Permis avec des carrés de couleur :
@@ -898,14 +980,11 @@ function buildExamenBlanc(ai, ctx){
   L('━━━━━━━━━━━━━━━━━━');
   L("💡 𝙍𝙖𝙥𝙥𝙚𝙡 : l'examen blanc consiste à se mettre en conditions réelles d'examen ! L'enseignant N'EST PLUS enseignant MAIS inspecteur du permis de conduire 👮");
   L('');
-  /* L'installation : deux cases cochées valent deux points.
-
-     LA CASE « INSTALLATION » N'EN FAIT PAS PARTIE. David :
-     « elle est sur 2 sur le CEPC ». Elle dit ce qui s'est passé,
-     elle ne note pas — la note reste Passager + Voyants. */
-  const nInst = (ex.instPassager || ex.instVoyants)
-    ? ((ex.instPassager === '✅' ? 1 : 0) + (ex.instVoyants === '✅' ? 1 : 0))
-    : '';
+  /* Les trois cases comptent ensemble : voir
+     noteInstallationSurDeux. La règle vit là-bas, et là-bas
+     seulement. */
+  const nInst = noteInstallationSurDeux(ex.instInstallation,
+                                        ex.instPassager, ex.instVoyants);
 
   /* L'ordre du questionnaire, à la ligne près : les trois cases,
      la note, puis la remarque. Le moniteur retrouve sous les yeux
@@ -976,7 +1055,11 @@ function buildExamenBlanc(ai, ctx){
 
   /* Les observations de l'examen blanc vivent sous « examen » :
      c'est là que la fiche les range. */
-  const obsBilan = (ex && ex.observations) || ai.observations;
+  /* La manœuvre et l'autonomie rejoignent les observations : elles
+     se rangent sous leur compétence comme les autres. */
+  const propresBlanc = toutesLesRemarques(ex && ex.observations, ex);
+  const obsBilan = ((ex && Array.isArray(ex.observations)) || propresBlanc.length)
+    ? propresBlanc : ai.observations;
 
   /* ------------------------------------------------------------
      LES TROIS QUESTIONS, UNE SEULE FOIS PAR COMPÉTENCE
@@ -1000,13 +1083,14 @@ function buildExamenBlanc(ai, ctx){
   const ecrireErreur = o => {
     /* L'élimination se signale sur l'erreur : une compétence
        peut porter une éliminatoire et d'autres fautes. */
+    const m = mentionObs(o);
     if(txt(o.inspecteur)){
-      L('👨‍✈️ ' + txt(o.inspecteur) +
+      L('👨‍✈️ ' + m + txt(o.inspecteur) +
         (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
     }else if(o.categorie){
-      L('☠️ Erreur éliminatoire');
+      L('☠️ ' + m + 'Erreur éliminatoire');
     }
-    if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
+    if(txt(o.reponse)) L(emojiMoniteur() + ' ' + m + txt(o.reponse));
   };
 
   const questionsElim = () => {
@@ -1038,8 +1122,9 @@ function buildExamenBlanc(ai, ctx){
 
     if(sansCat.length){
       sansCat.forEach(o => {
-        if(txt(o.inspecteur)) L('👨‍✈️ ' + txt(o.inspecteur));
-        if(txt(o.reponse)) L(emojiMoniteur() + ' ' + txt(o.reponse));
+        const m = mentionObs(o);
+        if(txt(o.inspecteur)) L('👨‍✈️ ' + m + txt(o.inspecteur));
+        if(txt(o.reponse)) L(emojiMoniteur() + ' ' + m + txt(o.reponse));
       });
       questionsElim();
     }
@@ -1133,7 +1218,9 @@ function ligneParLigne(s){
 function buildExamen(ai){
   const a = (ai && ai.avantExamen) || {};
   const e = (ai && ai.examen) || {};
-  const obs = (ai && ai.observations) || [];
+  /* La manœuvre et l'autonomie rejoignent les observations, comme
+     sur l'examen blanc : même liste, même rangement par compétence. */
+  const obs = toutesLesRemarques((ai && ai.observations) || [], e);
   const parts = [
     '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝕆𝔽𝔽𝕀ℂ𝕀𝔼𝕃 👀',
     '',
@@ -1156,7 +1243,14 @@ function buildExamen(ai){
        notent ensemble sur /2, et sans texte la ligne disparaît
        plutôt que de laisser un blanc. */
     ...ligneParLigne(e.installTexte),
-    '𝙉𝙤𝙩𝙚 :  /2 ',
+    /* La même note que sur l'examen blanc, et le même calcul —
+       noteInstallationSurDeux. Cette ligne était imprimée VIDE
+       depuis toujours : la place était réservée, le chiffre ne
+       venait jamais, alors qu'il est posé juste à côté sur le CEPC.
+       Une note affichée à blanc à côté d'une note remplie, c'est
+       l'élève qui choisit laquelle croire. */
+    '𝙉𝙤𝙩𝙚 : ' + (noteInstallationSurDeux(e.installation, e.passager, e.voyants)
+                  || ' ') + ' /2 ',
     '',
     '𝗩𝗲́𝗿𝗶𝗳𝗶𝗰𝗮𝘁𝗶𝗼𝗻𝘀 : 𝗾𝘂𝗲𝘀𝘁𝗶𝗼𝗻 𝗻° ' + txt(e.verifQuestion),
     'Vérification ' + (e.vi ? st(e.vi) : '✅️❌️'),
@@ -1201,13 +1295,24 @@ function buildExamen(ai){
     /* L'élimination se signale sur l'erreur, pas sur le titre :
        une compétence peut porter une éliminatoire et d'autres
        fautes. Même forme que dans le bilan d'examen blanc. */
+    const m = mentionObs(o);
     if(txt(o.inspecteur)){
-      parts.push('👨‍✈️ ' + txt(o.inspecteur) +
+      parts.push('👨‍✈️ ' + m + txt(o.inspecteur) +
                  (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
     }else if(o.categorie){
-      parts.push('☠️ Erreur éliminatoire');
+      parts.push('☠️ ' + m + 'Erreur éliminatoire');
     }
-    if(txt(o.reponse)) parts.push('🦁 ' + txt(o.reponse));
+    /* ⚠️ L'ÉMOJI DU MONITEUR, PAS LE LION — v966. David : « il faut
+       l'émoji du moniteur et pas obligatoirement le lion devant ».
+
+       La fonction existait, et l'examen blanc s'en servait partout
+       — quatre fois. Ici, et ici seulement, le lion était écrit en
+       dur : l'élève d'une monitrice recevait donc un bilan signé
+       d'un lion qui n'était celui de personne. Une valeur par
+       défaut recopiée à la main finit toujours par rester là où le
+       défaut ne s'applique plus. Le lion reste le repli, dans la
+       fonction. */
+    if(txt(o.reponse)) parts.push(emojiMoniteur() + ' ' + m + txt(o.reponse));
   };
 
   erreursParCompetence(obs).forEach(g => {
