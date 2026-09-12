@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:54 — v932 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1156,8 +1156,10 @@ function casesHeuresPermis(nom){
       /* ⚠️ PAR LA PORTE — v908 : elle note qui l'a dit et quand,
          sans quoi l'alerte ⏱️ nommerait le moniteur du dernier
          bilan à la place de celui qui vient de saisir. */
-      : ((typeof champsHeuresRestantes === 'function')
-          ? champsHeuresRestantes(nom, v)
+      : ((typeof champsHeuresDitesMaintenant === 'function')
+          /* ⚠️ ET AVEC LE REPÈRE DU JOUR — v972 : dites ici, elles
+             datent d'ici, pas de la charnière. */
+          ? champsHeuresDitesMaintenant(nom, v)
           : { heuresRestantes: v });
 
     try{
