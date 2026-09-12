@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 10:38 — v941 */
+/* Déployé le 12/09/2026 à 08:40 — v963 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -860,7 +860,25 @@ function dessinerBandeauCoursEnRoute(){
   if(!z) return;
 
   const c = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
-  if(!c){
+  /* ⚠️ IL SE TAIT LÀ OÙ IL NE SERT PAS — v963.
+
+     David : « le bandeau y revenir quand on fait un cours est
+     perturbant car on est sur le cours, on le sait, et là il passe
+     au-dessus. »
+
+     Il avait raison : « Y revenir » propose d'aller là où on est
+     déjà, et il le propose EN RECOUVRANT ce qu'on est en train de
+     faire. Il sert à revenir quand on est ailleurs.
+
+     ⚠️ ET C'EST LE BANDEAU QUI DÉCIDE, PAS LES ÉCRANS. La question
+     « est-ce que je sers, ici ? » s'écrit une fois, ici. La poser
+     depuis l'écran du cours serait une parade posée chez
+     l'appelant : on oublierait de la refaire au premier écran
+     suivant. */
+  const surLeCours = (typeof ongletActif !== 'undefined' && ongletActif === 'cours') &&
+                     (typeof vueActive !== 'undefined' && vueActive.cours === 'cours');
+
+  if(!c || surLeCours){
     z.style.display = 'none';
     z.innerHTML = '';
     return;
