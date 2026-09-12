@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:13 — v959 */
+/* Déployé le 11/09/2026 à 16:03 — v962 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -107,13 +107,56 @@ function eleveDuBureau(nom){
   return trouverParNom(etatBureau.eleves || [], nom);
 }
 
+/* ============================================================
+   OÙ CHAQUE DROIT SE RANGE
+
+   David : « la partie accès dans Gestion, c'est indigeste dans
+   l'ensemble, et ce que chacun voit. Je pense qu'il faut ranger par
+   onglet ce que chacun voit ».
+
+   Quarante-sept droits en une liste plate, dans l'ordre du code :
+   pour donner « tout Suivi », il fallait savoir que ça s'appelle
+   bureau_simu, bureau_examblanc, suivi_aac_cs et ecoutes, puis
+   retrouver ces quatre lignes dispersées dans quarante-sept. On
+   réglait des DROITS en pensant en ÉCRANS.
+
+   ⚠️ L'ONGLET EST ÉCRIT SUR LE DROIT, PAS DANS UNE SECONDE TABLE.
+   Une liste « onglet → droits » posée à côté aurait été un deuxième
+   endroit à tenir d'accord : déplacer un écran l'aurait laissé dans
+   son ancien onglet, ou dans les deux. Ici le rangement voyage avec
+   le droit — comme la famille voyage avec la vue dans VUES.
+
+   Trente-huit de ces droits ouvrent une vue : leur onglet se
+   DÉDUIT, et un test le vérifie (voir test-acces-par-onglet.js).
+   Les neuf autres — les pastilles, les sous-droits, les bouts d'un
+   écran plus grand — n'ouvrent rien à eux seuls : pour ceux-là,
+   l'onglet écrit ici est la seule réponse possible.
+   ============================================================ */
+const ONGLETS_DROITS = [
+  { cle:'cours',   nom:'🎙️ Cours' },
+  { cle:'eleves',  nom:'🔍 Élèves' },
+  { cle:'suivi',   nom:'📓 Suivi' },
+  { cle:'permis',  nom:'🚗 Permis' },
+  { cle:'outils',  nom:'🔨 Outils' },
+  { cle:'gestion', nom:'⚙️ Gestion' }
+];
+
+/* ⚠️ LES DROITS QUI TOUCHENT À L'ARGENT, NOMMÉS UNE FOIS.
+
+   David : « on demande une confirmation ». « Tout modifier » sur
+   Gestion donne dix-neuf droits d'un coup, la caisse et la paie
+   comprises — c'est le genre de geste qu'on fait vite et qu'on
+   découvre trois semaines plus tard. La confirmation les nomme. */
+const DROITS_ARGENT = ['caisse', 'paie', 'coutsia', 'encours', 'tarifs',
+                       'financements', 'paiement'];
+
 /* Sections de l'application soumises à autorisation */
 const SECTIONS = [
-  { cle:'prepares',         nom:'📅 Mes prochains cours' },
-  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan' },
-  { cle:'recherche',        nom:'🔍 Recherche d\'élève' },
-  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques' },
-  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir' },
+  { cle:'prepares',         nom:'📅 Mes prochains cours', onglet:'cours' },
+  { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan', onglet:'cours' },
+  { cle:'recherche',        nom:'🔍 Recherche d\'élève', onglet:'eleves' },
+  { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques', onglet:'suivi' },
+  { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir', onglet:'suivi' },
   /* SON PROPRE DROIT, ET PAS CELUI DES EXAMENS BLANCS.
 
      Les deux suivis y étaient accrochés : un droit nommé « Examens
@@ -121,13 +164,13 @@ const SECTIONS = [
      donner les suivis sans les examens blancs, ni l'inverse. Un
      droit qui n'ouvre pas ce que son nom annonce, on ne peut plus
      s'en servir pour décider. */
-  { cle:'suivi_aac_cs',     nom:'🤝 Suivi AAC et conduite supervisée' },
-  { cle:'ecoutes',          nom:'👂 Écoutes pédagogiques' },
-  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen' },
-  { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)' },
-  { cle:'bureau_messages',  nom:'📨 Messages internes' },
-  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis' },
-  { cle:'textes',           nom:'📄 Mes modèles de message' },
+  { cle:'suivi_aac_cs',     nom:'🤝 Suivi AAC et conduite supervisée', onglet:'suivi' },
+  { cle:'ecoutes',          nom:'👂 Écoutes pédagogiques', onglet:'suivi' },
+  { cle:'bureau_places',    nom:'📊 Réglage des places d\'examen', onglet:'permis' },
+  { cle:'bureau_permis',    nom:'🚗 Suivi permis (listes et message Messenger)', onglet:'permis' },
+  { cle:'bureau_messages',  nom:'📨 Messages internes', onglet:'gestion' },
+  { cle:'permis',           nom:'🎓 Élève ayant obtenu son permis', onglet:'eleves' },
+  { cle:'textes',           nom:'📄 Mes modèles de message', onglet:'outils' },
   /* ⚠️ DEUX DROITS POUR UN SEUL ÉCRAN — v959.
 
      David, le 11 septembre : « ma crainte c'est que quelqu'un
@@ -144,7 +187,7 @@ const SECTIONS = [
      fallait choisir entre « personne ne range ses fiches » et
      « tout le monde peut réécrire ce que reçoivent les élèves ».
      Seul le rôle admin donne la seconde par défaut. */
-  { cle:'textes_appli',     nom:"⚙️ Modifier les textes utilisés par l'application" },
+  { cle:'textes_appli',     nom:"⚙️ Modifier les textes utilisés par l'application", onglet:'outils' },
   /* DEUX CASES POUR UN SEUL ÉCRAN — v942.
 
      Le taux de réussite parle des PERSONNES : c'est la seule
@@ -159,38 +202,38 @@ const SECTIONS = [
      Les deux cochées, c'est la première qui l'emporte : elle
      contient l'autre. Aucun rôle ne donne la seconde par défaut
      (voir DROITS_ROLE dans le Worker) — elle se coche à la main. */
-  { cle:'stats',            nom:'📈 Taux de réussite de l\'équipe' },
-  { cle:'stats_perso',      nom:'📈 Sa propre réussite (son taux à lui seul)' },
-  { cle:'eleves',           nom:'👥 Répertoire des élèves' },
-  { cle:'proccorriger',     nom:'📥 Procédures à corriger' },
+  { cle:'stats',            nom:'📈 Taux de réussite de l\'équipe', onglet:'outils' },
+  { cle:'stats_perso',      nom:'📈 Sa propre réussite (son taux à lui seul)', onglet:'outils' },
+  { cle:'eleves',           nom:'👥 Répertoire des élèves', onglet:'eleves' },
+  { cle:'proccorriger',     nom:'📥 Procédures à corriger', onglet:'eleves' },
   /* Les codes de l'espace élève étaient donnés PAR « Procédures à
      corriger », faute d'avoir un droit à eux. Ouvrir un accès et
      relire le code pour le transmettre à une famille est un
      travail de bureau ; corriger une procédure en est un autre. */
-  { cle:'acces_eleves',     nom:"🔑 Accès à l'espace élève (codes)" },
-  { cle:'code',             nom:'🎓 Code (salle et aménagé)' },
-  { cle:'handicap',         nom:'♿ Suivi handicap' },
-  { cle:'paiement',         nom:'💳 Paiement en plusieurs fois' },
-  { cle:'placesbe',         nom:'🚚 Demande de places BE' },
-  { cle:'evaluation',       nom:'📊 Évaluation de départ' },
-  { cle:'tarifs',           nom:'💰 Prestations et tarifs' },
-  { cle:'financements',     nom:'💶 Financements extérieurs' },
-  { cle:'rappels',          nom:'🔔 Rappels de cours par mail' },
+  { cle:'acces_eleves',     nom:"🔑 Accès à l'espace élève (codes)", onglet:'eleves' },
+  { cle:'code',             nom:'🎓 Code (salle et aménagé)', onglet:'eleves' },
+  { cle:'handicap',         nom:'♿ Suivi handicap', onglet:'eleves' },
+  { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
+  { cle:'placesbe',         nom:'🚚 Demande de places BE', onglet:'outils' },
+  { cle:'evaluation',       nom:'📊 Évaluation de départ', onglet:'eleves' },
+  { cle:'tarifs',           nom:'💰 Prestations et tarifs', onglet:'gestion' },
+  { cle:'financements',     nom:'💶 Financements extérieurs', onglet:'eleves' },
+  { cle:'rappels',          nom:'🔔 Rappels de cours par mail', onglet:'eleves' },
   /* L'envoi de SMS est facturé au segment : il se donne à part,
      et sciemment, plutôt que de suivre le droit aux rappels. */
-  { cle:'sms',              nom:'💬 Envoi de SMS (facturé)' },
-  { cle:'paie',             nom:'💶 Éléments de paie' },
-  { cle:'flotte',           nom:'🚗 Suivi de la flotte' },
-  { cle:'ecran',            nom:'📺 Affichage dynamique' },
-  { cle:'notifs',           nom:'🔔 Alertes du bureau' },
-  { cle:'notif_examblanc',  nom:'🔔 Pastille examens blancs' },
-  { cle:'notif_simu',       nom:'🔔 Pastille simulateurs' },
-  { cle:'notif_permis',     nom:'🔔 Pastille dates de permis' },
-  { cle:'taches',           nom:'✅ Tâches du bureau' },
-  { cle:'memoire',          nom:"🧠 Mémoire de l'IA" },
-  { cle:'bilans',           nom:'📋 Modèles de bilan' },
-  { cle:'procedures',       nom:'🚦 Procédures de conduite' },
-  { cle:'depart',           nom:'🚪 Départ de l\'auto-école' },
+  { cle:'sms',              nom:'💬 Envoi de SMS (facturé)', onglet:'gestion' },
+  { cle:'paie',             nom:'💶 Éléments de paie', onglet:'gestion' },
+  { cle:'flotte',           nom:'🚗 Suivi de la flotte', onglet:'gestion' },
+  { cle:'ecran',            nom:'📺 Affichage dynamique', onglet:'gestion' },
+  { cle:'notifs',           nom:'🔔 Alertes du bureau', onglet:'gestion' },
+  { cle:'notif_examblanc',  nom:'🔔 Pastille examens blancs', onglet:'gestion' },
+  { cle:'notif_simu',       nom:'🔔 Pastille simulateurs', onglet:'gestion' },
+  { cle:'notif_permis',     nom:'🔔 Pastille dates de permis', onglet:'gestion' },
+  { cle:'taches',           nom:'✅ Tâches du bureau', onglet:'gestion' },
+  { cle:'memoire',          nom:"🧠 Mémoire de l'IA", onglet:'outils' },
+  { cle:'bilans',           nom:'📋 Modèles de bilan', onglet:'outils' },
+  { cle:'procedures',       nom:'🚦 Procédures de conduite', onglet:'outils' },
+  { cle:'depart',           nom:'🚪 Départ de l\'auto-école', onglet:'eleves' },
   /* CES QUATRE-LÀ N'ÉTAIENT PAS DONNABLES.
 
      Ils existaient comme écrans sans exister comme droits : on les
@@ -200,11 +243,11 @@ const SECTIONS = [
      refusé. Le piège est traité à la racine côté Worker
      (VERSION_SECTIONS) : ils redeviennent des sections ordinaires,
      et le contournement n'a plus lieu d'être. */
-  { cle:'caisse',           nom:'🏦 Caisse et remises en banque' },
-  { cle:'coutsia',          nom:"💸 Ce que coûte l'IA" },
+  { cle:'caisse',           nom:'🏦 Caisse et remises en banque', onglet:'gestion' },
+  { cle:'coutsia',          nom:"💸 Ce que coûte l'IA", onglet:'gestion' },
   /* La carrosserie est à part de la flotte : tout le monde y
      déclare une rayure, personne n'y voit les coûts du parc. */
-  { cle:'carrosserie',      nom:'🩹 Carrosserie des véhicules' },
+  { cle:'carrosserie',      nom:'🩹 Carrosserie des véhicules', onglet:'gestion' },
   /* ⚠️ ELLE MANQUAIT ICI DEPUIS SA NAISSANCE — trouvée le 11
      septembre 2026 par le test des droits, qui compare les deux
      listes.
@@ -218,11 +261,11 @@ const SECTIONS = [
      Le commentaire du Worker prévenait déjà : une section d'un
      seul côté revient par l'autre bout, sans nom. Le test compare
      désormais les deux listes à chaque exécution. */
-  { cle:'cbgasoil',         nom:'💳 La CB Gasoil (prise, dépôt, pleins)' },
-  { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)' },
-  { cle:'incidents',        nom:'🚨 Signalements' },
-  { cle:'menage',           nom:'🧹 Ménage des dossiers' },
-  { cle:'admin',            nom:'⚙️ Administration des accès' }
+  { cle:'cbgasoil',         nom:'💳 La CB Gasoil (prise, dépôt, pleins)', onglet:'gestion' },
+  { cle:'encours',          nom:'🩹 Cours non terminés (tous moniteurs)', onglet:'gestion' },
+  { cle:'incidents',        nom:'🚨 Signalements', onglet:'gestion' },
+  { cle:'menage',           nom:'🧹 Ménage des dossiers', onglet:'gestion' },
+  { cle:'admin',            nom:'⚙️ Administration des accès', onglet:'gestion' }
   /* ⚠️ « cours_neuf » A ÉTÉ RETIRÉ — v927.
 
      C'était un droit d'essai, temporaire par construction : il
