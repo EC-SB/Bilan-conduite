@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:36 — v954 */
+/* Déployé le 12/09/2026 à 12:12 — v971 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -287,6 +287,41 @@ async function afficherMoto(){
 
   zone.appendChild(boutonAjouterMoto());
 
+  /* ============================================================
+     LA BARRE DES SEPT ÉTAPES — v971
+
+     David, le 12 septembre : « tout est d'affilé, ce n'est pas
+     visible », puis « des boutons en haut pour changer ce que je
+     vois ; faire défiler la page avec tous les tiroirs ouverts,
+     c'est pas possible ».
+
+     Mesuré avant d'y toucher, avec seize élèves : 3 388 px sur
+     ordinateur, 5 280 px sur téléphone — six écrans à faire
+     défiler. Avec la barre, on arrive sur une seule liste : 414 px
+     et 720 px.
+
+     ⚠️ ET C'EST LA BARRE QUI EXISTE DÉJÀ. Celle de « Pas prêts » et
+     « À envisager » dans 🎓 Suivi permis. Le sous-onglet Moto était
+     le seul écran de l'onglet Permis resté en liste d'affilée : il
+     n'y avait rien à inventer, seulement un « data-famille » à
+     poser sur chaque cadre. Elle ne compte rien non plus — chaque
+     cadre pose son compteur en se dessinant, elle le relit.
+
+     « data-defaut » porte l'ordre d'URGENCE, et lui seul : c'est la
+     première étape non vide de cette liste qui s'affiche en
+     arrivant. L'ordre du PARCOURS, lui, reste celui des cadres
+     ci-dessous.
+     ============================================================ */
+  const barre = document.createElement('div');
+  barre.className = 'filtres-vue';
+  barre.setAttribute('data-onglet', 'permis');
+  barre.setAttribute('data-vue', 'moto');
+  barre.setAttribute('data-defaut',
+    'plateaupasse circupassee aplacer circuaprevoir ' +
+    'plateau circuprevue preparation');
+  barre.style.margin = '10px 0 8px';
+  zone.appendChild(barre);
+
   const cadres = [
     ['preparation',   '📋 Préparation du plateau',
      "Dossier, code, évaluation. Quand il est prêt, indique dans " +
@@ -315,6 +350,11 @@ async function afficherMoto(){
   });
 
   zone.appendChild(blocStats2R('moto', '📊 Statistiques moto'));
+
+  /* ⚠️ APRÈS LES CADRES, JAMAIS AVANT : la barre lit les compteurs
+     qu'ils viennent de poser. Appelée trop tôt, elle les lirait
+     vides et n'afficherait aucun bouton. */
+  if(typeof majFiltresDeVue === 'function') majFiltresDeVue('moto');
 }
 
 
@@ -411,6 +451,12 @@ function cadreSemainesMoto(){
 function cadreMoto(cle, titre, aide, liste){
   const d = document.createElement('details');
   d.className = 'volet-liste';
+  /* Les deux marques que la barre des filtres lit — voir
+     majFiltresDeVue dans ec-onglets.js. Le cadre des semaines
+     ouvertes et celui des statistiques ne les portent pas : ils
+     restent visibles quel que soit le bouton choisi. */
+  d.setAttribute('data-vue', 'moto');
+  d.setAttribute('data-famille', cle);
   d.open = (liste.length > 0);
 
   const s = document.createElement('summary');
@@ -510,35 +556,166 @@ function groupesParDateMoto(liste, cle){
    UNE LIGNE
    ============================================================ */
 
+/* ⚠️ LA LIGNE EST CELLE DE TOUTE L'APPLICATION — v971.
+
+   Elle était un bloc écrit à la main, avec ses bordures et ses
+   marges en dur : 148 px sur ordinateur, 255 px sur téléphone, et
+   invisible à la feuille de style. C'est « history-item », comme
+   les listes de l'AAC, du bureau et des préparés — le nom à gauche,
+   les gestes à droite, et la règle du téléphone déjà écrite.
+
+   ⚠️ ET L'ÉTAT N'EST PLUS ÉCRIT DEUX FOIS. La ligne disait « ✅
+   ANTS fait · ✅ Code obtenu · ✅ Évaluation faite », et juste en
+   dessous trois boutons proposaient de faire ces trois choses-là :
+   une phrase qui décrit, une rangée qui agit, pour un seul et même
+   fait. Ce qui est écrit se touche, désormais — voir gestesMoto. */
 function ligneMoto(e, etape){
   const s = suiviDe(e.eleve) || {};
 
   const l = document.createElement('div');
-  l.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-    'padding:11px 12px;margin-bottom:9px;';
+  l.className = 'history-item ligneMoto';
+  /* Le nom, pour être emmené sur cette ligne-là — voir
+     viserLaPersonne. */
+  l.dataset.eleve = e.eleve || '';
 
-  const n = document.createElement('div');
-  n.style.cssText = 'font-size:15px;font-weight:700;margin-bottom:6px;';
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  const n = document.createElement('strong');
   n.textContent = e.eleve;
-  l.appendChild(n);
+  meta.appendChild(n);
 
-  const info = document.createElement('div');
-  info.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.6;' +
-    'margin-bottom:9px;';
-  info.textContent = resumeMoto(s, etape, e.eleve);
-  l.appendChild(info);
+  const txt = resumeMoto(s, etape, e.eleve);
+  if(txt){
+    const info = document.createElement('span');
+    info.textContent = txt;
+    meta.appendChild(info);
+  }
 
-  /* Une note libre qui suit l'élève d'un cadre à l'autre : ce que
-     le bureau veut garder sous les yeux sans chercher où le
-     ranger. */
-  l.appendChild(champRemarqueMoto(e.eleve, s));
+  const gestes = gestesMoto(e.eleve, s, etape);
+  const pastilles = gestes.filter(g => g.ou === 'pastille');
 
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
-  actionsMoto(e.eleve, s, etape).forEach(b => r.appendChild(b));
-  l.appendChild(r);
+  /* ⚠️ LA REMARQUE VIDE EST UN GESTE, LA REMARQUE REMPLIE EST UNE
+     INFORMATION. Seize champs de saisie dessinés à vide, c'était
+     seize barres grises qui ne disaient rien. Vide, elle n'est
+     qu'un crayon parmi les gestes ; remplie, elle se lit dans la
+     ligne. */
+  const remarque = String(s.motoRemarque || '').trim();
 
+  const zoneEtats = document.createElement('span');
+  zoneEtats.className = 'etats';
+  pastilles.forEach(g => zoneEtats.appendChild(pastilleMoto(g)));
+  if(remarque){
+    zoneEtats.appendChild(
+      boutonRemarqueMoto(e.eleve, s, meta, '✏️ ' + remarque, 'note'));
+  }
+  if(zoneEtats.childNodes.length) meta.appendChild(zoneEtats);
+
+  l.appendChild(meta);
+
+  const act = document.createElement('div');
+  act.className = 'actions';
+
+  if(!remarque){
+    act.appendChild(boutonRemarqueMoto(e.eleve, s, meta, '✏️', 'crayon'));
+  }
+
+  gestes.filter(g => g.ou === 'principal').forEach(g => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary' + (g.ton ? ' ' + g.ton : '');
+    b.textContent = g.libelle;
+    b.addEventListener('click', g.action);
+    act.appendChild(b);
+  });
+
+  const autres = gestes.filter(g => g.ou === 'autre');
+  if(autres.length){
+    menuGestesMoto(act, autres).forEach(x => act.appendChild(x));
+  }
+
+  l.appendChild(act);
   return l;
+}
+
+
+/* Une pastille : l'état ET le bouton, en une seule chose. */
+function pastilleMoto(g){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'pastEtat' + (g.etat ? ' ' + g.etat : '');
+  b.textContent = (g.etat === 'on' ? '✅ ' :
+                   g.etat === 'mi' ? '⏳ ' :
+                   g.etat === 'off' ? '⬜ ' : '') + g.libelle;
+  b.title = g.titre || g.libelle;
+  b.addEventListener('click', g.action);
+  return b;
+}
+
+
+/* ⚠️ LE CHAMP DE REMARQUE NE CHANGE PAS, IL SE MONTRE PLUS TARD.
+
+   C'est le même champRemarqueMoto qu'avant, avec son unique
+   enregistrement : on ne fabrique pas une seconde façon d'écrire la
+   même remarque. Seul son moment change — il apparaît quand on
+   appuie sur le crayon, et reste jusqu'au prochain dessin. */
+function boutonRemarqueMoto(nom, s, meta, libelle, genre){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = (genre === 'note')
+    ? 'pastEtat note' : 'btn btn-secondary crayon';
+  b.textContent = libelle;
+  b.title = 'Remarque sur ' + nom;
+  b.addEventListener('click', () => {
+    const champ = champRemarqueMoto(nom, s);
+    champ.style.margin = '6px 0 0';
+    b.remove();
+    meta.appendChild(champ);
+    champ.focus();
+  });
+  return b;
+}
+
+
+/* ⚠️ LE TIROIR ⋯ EXISTE DÉJÀ, ET C'EST LE SIEN QU'ON PREND.
+
+   Je l'avais réécrit avec mes propres classes, et il a disparu à
+   l'écran : « plus » désignait déjà le tiroir des cartes de cours,
+   caché par défaut. Deux conventions pour un même geste, et la
+   seconde perd — c'est la faute que ce dossier passe ses semaines à
+   réparer. Donc les mêmes noms que partout : « plusBtn » pour le
+   bouton, « plus » pour le panneau, « ouvert » posé sur la rangée
+   des gestes.
+
+   ⚠️ UN SEUL TIROIR OUVERT À L'ÉCRAN. Deux panneaux dépliés en même
+   temps, et on ne sait plus lequel appartient à qui — même règle
+   que les palettes de couleur des fiches. */
+function menuGestesMoto(act, autres){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn btn-secondary plusBtn';
+  b.textContent = '⋯';
+  b.title = 'Les autres gestes';
+
+  const z = document.createElement('div');
+  z.className = 'plus';
+  autres.forEach(g => {
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'btn btn-secondary' + (g.ton ? ' ' + g.ton : '');
+    c.textContent = g.libelle;
+    c.addEventListener('click', g.action);
+    z.appendChild(c);
+  });
+
+  b.addEventListener('click', () => {
+    const deja = act.classList.contains('ouvert');
+    document.querySelectorAll('#motoZone .actions.ouvert')
+      .forEach(a => a.classList.remove('ouvert'));
+    if(!deja) act.classList.add('ouvert');
+  });
+
+  return [b, z];
 }
 
 
@@ -609,22 +786,17 @@ function resumeMoto(s, etape, nom){
   const echecPlateau = nb ? phraseEchec2R('moto', nom, 'Plateau') : '';
 
   if(etape === 'preparation'){
-    const ants = s.motoAnts === 'fait' ? '✅ ANTS fait'
-               : s.motoAnts === 'encours' ? '⏳ ANTS en cours'
-               : '⬜ ANTS';
-    const qui = s.motoAntsQui === 'nous' ? ' (par nous)'
-              : s.motoAntsQui === 'eleve' ? " (par l'élève)" : '';
+    /* ⚠️ CE QUE LES PASTILLES DISENT N'EST PLUS DIT ICI — v971.
 
-    bouts.push(ants + qui);
-    bouts.push(s.motoCode === 'obtenu' ? '✅ Code moto obtenu'
-             : s.motoCode === 'encours' ? '⏳ Code en cours' : '⬜ Code');
-    bouts.push(s.motoEval === 'oui' ? '✅ Évaluation faite' : '⬜ Évaluation');
-    bouts.push(s.motoPlateau === 'commence' ? '✅ Plateau commencé'
-                                            : '⬜ Plateau');
+       Cette phrase énumérait l'ANTS, le code, l'évaluation, le
+       plateau commencé et les leçons ; les boutons juste en dessous
+       proposaient de changer ces mêmes cinq choses. Le même fait à
+       deux endroits, et le jour où l'un des deux se trompe, on ne
+       sait plus lequel croire. Les pastilles le disent ET le
+       changent — voir gestesMoto.
 
-    if(String(s.motoLecons || '').trim()){
-      bouts.push('🏍️ Prêt dans ' + s.motoLecons + ' leçon(s)');
-    }
+       Reste ici ce qu'aucune pastille ne porte : les passages déjà
+       faits, et la date du dernier ajournement. */
     if(nb) bouts.push('🔢 ' + nb + ' plateau(x) déjà passé(s)' + echecPlateau);
   }
 
@@ -665,9 +837,8 @@ function resumeMoto(s, etape, nom){
 
   else if(etape === 'circuaprevoir'){
     bouts.push('✅ Plateau obtenu');
-    if(String(s.motoCircuLecons || '').trim()){
-      bouts.push('🛣️ ' + s.motoCircuLecons + ' leçon(s) restantes');
-    }
+    /* Les leçons restantes sont une pastille : elles ne sont plus
+       redites ici. Même règle qu'en préparation. */
     const nc = Number(s.motoCircuPassages) || 0;
     /* Même chose pour l'autre épreuve : un ajournement est un
        ajournement, et le bureau a besoin de la même date. */
@@ -702,80 +873,114 @@ function resumeMoto(s, etape, nom){
    LES GESTES, SELON L'ÉTAPE
    ============================================================ */
 
-function actionsMoto(nom, s, etape){
-  const out = [];
+/* ⚠️ LES GESTES D'UNE ÉTAPE, ET OÙ CHACUN SE POSE — ÉCRIT UNE
+   SEULE FOIS — v971.
 
-  const bouton = (libelle, action, couleur) => {
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'width:auto;padding:9px 12px;font-size:12px;margin:0;' +
-      (couleur ? 'color:' + couleur + ';border-color:' + couleur + ';' : '');
-    b.textContent = libelle;
-    b.addEventListener('click', action);
-    out.push(b);
-  };
+   Trois places, et la règle qui décide tient en une phrase :
+
+   · « pastille » — ce que la ligne AFFICHAIT déjà. L'état et le
+     bouton deviennent la même chose : la pastille dit où l'on en
+     est, et un appui dessus ouvre exactement la fenêtre que le
+     bouton ouvrait. C'est ce qui fait fondre la ligne, pas un
+     rétrécissement de police.
+   · « principal » — ce qui fait AVANCER l'élève d'une étape. Un
+     seul par ligne, deux quand la décision est binaire (obtenu /
+     échoué).
+   · « autre » — ce qui RATTRAPE : changer une date, l'annuler,
+     retirer quelqu'un, saisir des passages faits ailleurs. Derrière
+     le « ⋯ ».
+
+   ⚠️ AUCUN GESTE N'A DISPARU. Les sept listes d'avant sont ici au
+   complet — un test compare les deux, étape par étape. Une place
+   qui se décide à trois endroits finirait par en oublier un.
+   ============================================================ */
+function gestesMoto(nom, s, etape){
+  const g = [];
+  const pastille = (libelle, etat, action, titre) =>
+    g.push({ ou:'pastille', libelle, etat, action, titre });
+  const principal = (libelle, action, ton) =>
+    g.push({ ou:'principal', libelle, action, ton: ton || '' });
+  const autre = (libelle, action, ton) =>
+    g.push({ ou:'autre', libelle, action, ton: ton || '' });
 
   if(etape === 'preparation'){
-    bouton('📄 Dossier ANTS', () => saisirAntsMoto(nom));
-    bouton('🔢 Passages déjà faits', () => saisirPassagesMoto(nom, 'plateau'));
-    bouton('🎓 Code moto', () => saisirCodeMoto(nom));
-    bouton('📝 Évaluation', () => basculerMoto(nom, 'motoEval', 'oui'));
-    bouton('🏍️ Plateau commencé',
-           () => basculerMoto(nom, 'motoPlateau', 'commence'));
-    bouton('✅ Prêt pour le plateau', () => preparerPlateau(nom),
-           'var(--accent-text)');
+    pastille('ANTS' + (s.motoAnts === 'fait'
+              ? (s.motoAntsQui === 'nous' ? ' (nous)'
+               : s.motoAntsQui === 'eleve' ? ' (élève)' : '') : ''),
+             s.motoAnts === 'fait' ? 'on'
+               : s.motoAnts === 'encours' ? 'mi' : 'off',
+             () => saisirAntsMoto(nom), '📄 Dossier ANTS');
+    pastille('Code',
+             s.motoCode === 'obtenu' ? 'on'
+               : s.motoCode === 'encours' ? 'mi' : 'off',
+             () => saisirCodeMoto(nom), '🎓 Code moto');
+    pastille('Éval', s.motoEval === 'oui' ? 'on' : 'off',
+             () => basculerMoto(nom, 'motoEval', 'oui'), '📝 Évaluation');
+    pastille('Plateau commencé',
+             s.motoPlateau === 'commence' ? 'on' : 'off',
+             () => basculerMoto(nom, 'motoPlateau', 'commence'));
+    /* Le nombre de leçons se lisait dans la phrase du haut : il
+       devient la pastille qui le change. */
+    if(String(s.motoLecons || '').trim()){
+      pastille('🏍️ Prêt dans ' + s.motoLecons + ' leçon(s)', '',
+               () => preparerPlateau(nom));
+    }
+    principal('✅ Prêt pour le plateau', () => preparerPlateau(nom), 'oui');
+    autre('🔢 Passages déjà faits', () => saisirPassagesMoto(nom, 'plateau'));
   }
 
   else if(etape === 'aplacer'){
-    bouton('📆 Poser la date du plateau', () => saisirDatePlateau(nom),
-           'var(--accent-text)');
-    bouton('🔢 Passages déjà faits', () => saisirPassagesMoto(nom, 'plateau'));
-    bouton('↩️ Retour préparation',
-           () => majMoto(nom, { motoLecons: '', motoEtape: '' }));
+    principal('📆 Poser la date du plateau',
+              () => saisirDatePlateau(nom), 'oui');
+    autre('🔢 Passages déjà faits', () => saisirPassagesMoto(nom, 'plateau'));
+    autre('↩️ Retour préparation',
+          () => majMoto(nom, { motoLecons: '', motoEtape: '' }));
   }
 
   else if(etape === 'plateau'){
-    bouton('📆 Changer la date', () => saisirDatePlateau(nom));
-    bouton('🗑️ Annuler la date', () => effacerDatePlateau(nom));
     /* Le résultat reste possible avant l'heure : un examen du
        matin se saisit l'après-midi. */
-    bouton('🏁 Saisir le résultat', () => resultatPlateau(nom));
+    principal('🏁 Saisir le résultat', () => resultatPlateau(nom));
+    autre('📆 Changer la date', () => saisirDatePlateau(nom));
+    autre('🗑️ Annuler la date', () => effacerDatePlateau(nom));
   }
 
   else if(etape === 'plateaupasse'){
-    bouton('✅ Plateau obtenu', () => resultatPlateau(nom, true),
-           'var(--accent-text)');
-    bouton('❌ Plateau échoué', () => resultatPlateau(nom, false),
-           'var(--red)');
-    bouton('📆 Changer la date', () => saisirDatePlateau(nom));
+    principal('✅ Plateau obtenu', () => resultatPlateau(nom, true), 'oui');
+    principal('❌ Plateau échoué', () => resultatPlateau(nom, false), 'non');
+    autre('📆 Changer la date', () => saisirDatePlateau(nom));
   }
 
   else if(etape === 'circuaprevoir'){
-    bouton('🛣️ Leçons restantes', () => saisirLeconsCircu(nom));
-    bouton('📆 Poser la date', () => saisirDateExamenMoto(nom),
-           'var(--accent-text)');
-    bouton('🔢 Passages déjà faits',
-           () => saisirPassagesMoto(nom, 'circulation'));
+    pastille(String(s.motoCircuLecons || '').trim()
+               ? '🛣️ ' + s.motoCircuLecons + ' leçon(s) restantes'
+               : '🛣️ Leçons restantes',
+             String(s.motoCircuLecons || '').trim() ? '' : 'off',
+             () => saisirLeconsCircu(nom));
+    principal('📆 Poser la date', () => saisirDateExamenMoto(nom), 'oui');
+    autre('🔢 Passages déjà faits',
+          () => saisirPassagesMoto(nom, 'circulation'));
   }
 
   else if(etape === 'circuprevue'){
-    bouton('📆 Changer la date', () => saisirDateExamenMoto(nom));
-    bouton('🗑️ Annuler la date', () => effacerDateCircu(nom));
-    bouton('🏁 Saisir le résultat', () => resultatCirculation(nom));
+    principal('🏁 Saisir le résultat', () => resultatCirculation(nom));
+    autre('📆 Changer la date', () => saisirDateExamenMoto(nom));
+    autre('🗑️ Annuler la date', () => effacerDateCircu(nom));
   }
 
   else{
-    bouton('🎓 Permis obtenu', () => resultatCirculation(nom, true),
-           'var(--accent-text)');
-    bouton('❌ Circulation échouée', () => resultatCirculation(nom, false),
-           'var(--red)');
-    bouton('📆 Changer la date', () => saisirDateExamenMoto(nom));
+    principal('🎓 Permis obtenu', () => resultatCirculation(nom, true), 'oui');
+    principal('❌ Circulation échouée',
+              () => resultatCirculation(nom, false), 'non');
+    autre('📆 Changer la date', () => saisirDateExamenMoto(nom));
   }
 
-  /* Il part ailleurs : son suivi moto n'a plus d'objet */
-  bouton('🚪 Retirer', () => retirerEleveMoto(nom), 'var(--muted)');
+  /* Il part ailleurs : son suivi moto n'a plus d'objet. Toujours en
+     dernier, et toujours dans le « ⋯ » — une porte de sortie à
+     portée de pouce est un dossier perdu un jour ou l'autre. */
+  autre('🚪 Retirer', () => retirerEleveMoto(nom));
 
-  return out;
+  return g;
 }
 
 
