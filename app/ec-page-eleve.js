@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:04 — v956 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1274,11 +1274,22 @@ function texteHeuresRoute(s){
      leçon plus tard. Sans le repère écrit, on ne peut pas vérifier
      le décompte affiché ailleurs — et un chiffre qu'on ne peut pas
      vérifier finit par se faire retaper par méfiance. */
-  const rang = parseInt((s && s.heuresRang), 10);
+  /* ⚠️ ET LE REPÈRE SE DIT DANS SON UNITÉ — v972. « à partir de la
+     6ᵉ leçon » ne veut rien dire tout seul : 6ᵉ après quoi ? La
+     note compte depuis l'examen blanc, depuis le rendez-vous
+     post-permis ou depuis le dernier ajournement, et ces
+     compteurs-là repartent de un. C'est le couple qui se lit,
+     jamais le nombre seul. */
+  const rep = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang:parseInt((s && s.heuresRang), 10) || 0,
+                             quoi:'eb' };
+  const depuisQuoi = (typeof nomDeLaCharniere === 'function')
+    ? nomDeLaCharniere(rep.quoi) : "l'examen blanc";
+
   if(h !== '0'){
-    t += isNaN(rang) || rang <= 0
-      ? " — depuis l'examen blanc"
-      : ' — à partir de la ' + rang + 'ᵉ leçon après l\'examen blanc';
+    t += (rep.rang <= 0)
+      ? ' — depuis ' + depuisQuoi
+      : ' — à partir de la ' + rep.rang + 'ᵉ leçon après ' + depuisQuoi;
   }
 
   const par = String((s && s.heuresPar) || '').trim();
@@ -1301,9 +1312,19 @@ async function modifierHeuresRoute(nom, s){
      leçon n'a eu lieu depuis l'examen blanc, les deux réponses
      désignent le même instant : une question à réponse unique est
      du bruit, et on ne la pose pas. */
-  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
-  const apres = parseInt((e && e.etat && e.etat.apresEB), 10);
-  const choixPossible = !isNaN(apres) && apres >= 1;
+  /* ⚠️ ET LA QUESTION NE SE POSE QUE POUR L'EXAMEN BLANC — v972.
+
+     « Depuis l'examen blanc » ou « à partir de la prochaine leçon »
+     n'a de sens que là : les heures se PRESCRIVENT à l'examen
+     blanc, donc elles peuvent dater de lui. Après un ajournement ou
+     un post-permis, personne ne prescrit d'heures à la charnière
+     elle-même : un nombre donné aujourd'hui vaut d'aujourd'hui, et
+     poser la question serait une question à réponse unique. */
+  const c = (typeof charniereDeLEleve === 'function')
+    ? charniereDeLEleve(nom) : { quoi:'eb', rang:0 };
+  const choixPossible = (c.quoi === 'eb') && c.rang >= 1;
+  const nomCharniere = (typeof nomDeLaCharniere === 'function')
+    ? nomDeLaCharniere(c.quoi) : "l'examen blanc";
 
   const champs = [{ cle:'h', nom:"Heures avant l'examen", type:'text',
                     exemple:'4', valeur: s.heuresRestantes || '' }];
@@ -1319,10 +1340,13 @@ async function modifierHeuresRoute(nom, s){
     "0 veut dire « plus que les 3h » — il est prêt. Vide veut dire " +
     "qu'on ne sait pas." +
     (choixPossible
-      ? "\n\nIl en est à sa " + apres + "ᵉ leçon depuis l'examen blanc : " +
+      ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis l'examen blanc : " +
         "des heures prescrites à l'examen blanc sont déjà entamées, " +
         "des heures posées aujourd'hui ne le sont pas."
-      : ''),
+      : (c.rang >= 1
+        ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis " + nomCharniere +
+          " : ce nombre se décomptera tout seul au fil de ses leçons."
+        : '')),
     champs);
   if(!r) return;
 
@@ -1332,17 +1356,27 @@ async function modifierHeuresRoute(nom, s){
     return;
   }
 
-  /* Le repère, dans l'unité de la note : combien de leçons après
-     l'examen blanc la réserve était pleine. Vide — donc zéro — veut
-     dire « depuis l'examen blanc », le cas normal. */
-  const depuis = (choixPossible && r.depuis === 'now') ? apres : '';
+  /* Le repère, dans l'unité de la note : combien de leçons après la
+     charnière la réserve était pleine.
 
-  /* La porte commune : c'est elle qui note qui l'a dit, quand, et
-     depuis quel rang — et elle ne resigne pas un nombre qui n'a
-     pas changé. */
+     ⚠️ ET LE DÉFAUT N'EST PAS LE MÊME SELON LA CHARNIÈRE — v972.
+     À l'examen blanc, zéro : les heures s'y prescrivent, elles
+     datent de lui. Après un ajournement ou un post-permis, rien ne
+     se prescrit à la charnière : un nombre donné aujourd'hui vaut
+     d'AUJOURD'HUI, donc du rang du jour. Prendre zéro là aurait
+     décompté d'un coup toutes les leçons déjà faites — Natalia
+     serait passée de 6h à « plus que les 3h » sans avoir conduit
+     une minute. */
+  const depuis = (c.quoi === 'eb')
+    ? ((choixPossible && r.depuis === 'now') ? c.rang : '')
+    : c.rang;
+
+  /* La porte commune : c'est elle qui note qui l'a dit, quand,
+     depuis quel rang et dans quelle unité — et elle ne resigne pas
+     un nombre qui n'a pas changé. */
   await enregistrerRoute(nom,
     (typeof champsHeuresRestantes === 'function')
-      ? champsHeuresRestantes(nom, propre, null, depuis)
+      ? champsHeuresRestantes(nom, propre, null, depuis, c.quoi)
       : { heuresRestantes: propre });
 }
 
