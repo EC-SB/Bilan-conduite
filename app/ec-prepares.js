@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 08:40 — v963 */
+/* Déployé le 12/09/2026 à 09:58 — v967 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1181,7 +1181,9 @@ async function afficherPrepares(recharger, silencieux){
        Deux écrans qui choisiraient chacun leur phrase finiraient
        par ne plus dire la même chose. */
     const pos = (typeof lignePositionDuHaut === 'function')
-      ? lignePositionDuHaut(cours.eleve, partsNote.corps, cours.note)
+      /* Le modèle voyage avec : le jour de l'examen, la phrase est
+         « EXAMEN CE JOUR — 4ÈME PASSAGE », et rien autour. */
+      ? lignePositionDuHaut(cours.eleve, partsNote.corps, cours.note, cours.modele)
       : ((typeof lignePosition === 'function')
           ? lignePosition(partsNote.corps) : '');
 
