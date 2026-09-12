@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 14:38 — v914 */
+/* Déployé le 12/09/2026 à 14:58 — v978 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1424,7 +1424,7 @@ async function afficherEspaceEleve(nom, zone){
   const messageAcces = () =>
     'Bonjour ' + nom.split(' ')[0] + ',\n\n' +
     'Voici ton coin révisions :\n' +
-    'https://ec-sb.github.io/Bilan-conduite/eleve.html\n\n' +
+    CONFIG.LIEN_ELEVE + '\n\n' +
     'Ton nom : ' + nom + '\n' +
     'Ton code : ' + acces.code + '\n\n' +
     'Tu y récites tes procédures et suis tes séances de code.\n' +
