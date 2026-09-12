@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 14:04 — v956 */
+/* Déployé le 12/09/2026 à 15:37 — v979 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -349,13 +349,22 @@ function ouvrirExamBlancManuel(){
   const dejaLa = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
   remplirMoniteurs(dejaLa);
 
-  if(!dejaLa.length){
-    appelPrep({ action: 'moniteurs' })
-      .then(d => {
-        const gens = (d && d.moniteurs) || [];
-        if(typeof moniteursActifs !== 'undefined') moniteursActifs = gens;
-        remplirMoniteurs(gens);
-      })
+  /* ⚠️ ON DEMANDAIT AU CLASSEUR UNE LISTE QU'IL N'A JAMAIS EUE — v979.
+
+     Cet appel partait en « action: 'moniteurs' », par la même porte
+     que tout le reste — et il réveillait donc Apps Script pour dix
+     secondes. Or `apps-script.js` n'a AUCUN handler de ce nom : le
+     réveil se payait, et l'appel repartait les mains vides. Le menu
+     restait vide, sans que rien ne le dise.
+
+     La liste vit dans le Worker, au KV, et il a sa propre route pour
+     la rendre — instantanément. C'est celle que `chargerMoniteurs`
+     emprunte depuis toujours : on l'emprunte aussi, plutôt que d'en
+     ouvrir une seconde. */
+  if(!dejaLa.length && typeof chargerMoniteurs === 'function'){
+    chargerMoniteurs()
+      .then(() => remplirMoniteurs(
+        (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || []))
       .catch(() => {});
   }
 
