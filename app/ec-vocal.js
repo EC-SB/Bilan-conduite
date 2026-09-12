@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 12/09/2026 à 13:00 — v974 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2316,8 +2316,7 @@ async function exporterVersSheets(silencieux){
     if(!await verifierVersionScript(rep)){ marquerExport(false); return false; }
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
-    marquerExport(true);
-    retenirEtatEnregistre(rep && rep.ligne);
+    declarerBilanEcrit(rep && rep.ligne);
     /* Le cours est fait : sa préparation sort de la liste */
     retirerPreparationFaite();
     /* Les ordres dictés rejoignent la mémoire, en attente de validation */
@@ -2366,12 +2365,91 @@ async function exporterVersSheets(silencieux){
     return true;
   }catch(e){
     console.error('Erreur export Sheets:', e);
+
+    /* ⚠️ PAS DE RÉPONSE NE VEUT PAS DIRE PAS ÉCRIT — v974.
+
+       David, le 12 septembre : « son bilan apparaît 4 fois ». Une
+       des quatre venait de là. L'envoi borne son attente ; passé le
+       délai, on annonçait « NON enregistré » — alors que la ligne
+       était peut-être dans le classeur. Le moniteur réappuyait,
+       comme l'écran le lui demandait, et en écrivait une de plus.
+
+       On ne devine plus : on va VOIR. Le bilan est reconnaissable
+       par son élève et son horodatage — celui du cours, pas de
+       l'envoi — et c'est exactement la clé dont le classeur se sert
+       maintenant pour ne pas le doubler. */
+    const vu = await bilanDejaDansLeClasseur();
+    if(vu){
+      declarerBilanEcrit(vu.ligne);
+      if(!silencieux) showToast('Enregistré ✅');
+      return true;
+    }
+
     marquerExport(false);
     if(!silencieux) showToast("Erreur lors de l'enregistrement : " + e.message);
     return false;
   }finally{
     btn.disabled = false;
   }
+}
+
+
+/* ------------------------------------------------------------
+   « LE BILAN EST ÉCRIT » NE SE DIT QU'À UN SEUL ENDROIT — v974
+
+   Deux chemins y mènent maintenant : la réponse du classeur, et la
+   vérification qui suit un silence. Les laisser déclarer chacun de
+   leur côté, c'était deux endroits à corriger le jour où l'on
+   ajoute quelque chose à faire quand un bilan est écrit — et un
+   qu'on oublie.
+
+   Elle dit DEUX choses, et les deux comptent : que le bilan est
+   dans le classeur, et SUR QUELLE LIGNE. Sans la seconde, une
+   correction ultérieure en écrirait une nouvelle au lieu de
+   reprendre celle-là — le doublon qu'on vient de réparer, par
+   l'autre bout.
+   ------------------------------------------------------------ */
+function declarerBilanEcrit(ligne){
+  marquerExport(true);
+  retenirEtatEnregistre(ligne);
+}
+
+
+/* ------------------------------------------------------------
+   LE BILAN EST-IL ARRIVÉ, MALGRÉ LE SILENCE ?
+
+   Rend la ligne trouvée, ou null. Ne lève jamais : on l'appelle
+   déjà depuis un rattrapage d'erreur, et une seconde erreur y
+   ferait perdre le message de la première.
+
+   ⚠️ « leger » : on demande la liste SANS le texte des bilans. Ce
+   qu'on cherche tient dans l'horodatage ; charger les bilans
+   entiers pour comparer une minute coûterait des mégaoctets sur
+   une connexion qui vient déjà de lâcher.
+   ------------------------------------------------------------ */
+async function bilanDejaDansLeClasseur(){
+  const nom = (currentLessonMeta && currentLessonMeta.studentName) ||
+              ($('studentName') ? $('studentName').value.trim() : '');
+  const horo = horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null);
+  if(!nom) return null;
+
+  try{
+    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'search', code: ACCES.code,
+                             eleve: nom, exact: true, leger: true, maxi: 20 })
+    }, 12000, 1);
+    if(!r.ok) return null;
+
+    const d = await r.json().catch(() => ({}));
+    const lignes = (d && d.resultats) || [];
+    for(let i = 0; i < lignes.length; i++){
+      if(String(lignes[i].horodatage || '').trim() === horo) return lignes[i];
+    }
+  }catch(e){ /* toujours pas de réseau : on ne sait pas, on le dit */ }
+
+  return null;
 }
 
 $('exportSheetsBtn').addEventListener('click', () => exporterVersSheets(false));
