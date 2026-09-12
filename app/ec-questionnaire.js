@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:29 — v947 */
+/* Déployé le 12/09/2026 à 09:58 — v967 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -4897,6 +4897,23 @@ function leconsAvantExamenBlancDuJour(q){
   return reste > 0 ? reste : 0;
 }
 
+/* ============================================================
+   ⚠️ « CETTE SÉANCE EST L'EXAMEN » S'ÉCRIT UNE SEULE FOIS — v967
+
+   Deux fonctions ont besoin de le savoir, et pour des raisons
+   opposées : positionDansLaFrise, pour écrire « 🎯 EXAMEN CE
+   JOUR » au lieu d'un rang de leçon ; et lignePositionDuHaut, pour
+   NE PAS emballer cette phrase-là dans un compte à rebours vers le
+   même examen.
+
+   Deux façons de le dire, et un jour l'une annoncerait l'examen
+   pendant que l'autre continuerait de compter les heures qui en
+   séparent — c'est exactement ce que David a vu le 12 septembre.
+   ============================================================ */
+function laSeanceEstLExamen(modele){
+  return String(modele || '') === 'examen-officiel';
+}
+
 function positionDansLaFrise(q){
   /* MAJUSCULES : c'est la ligne qu'on lit en premier sur une carte,
      et elle doit se distinguer sans qu'on la cherche. */
@@ -4915,7 +4932,7 @@ function positionDansLaFrise(q){
     const r = rangMasculin(q.examBlancRang);
     return dire(r ? "C'est le " + r + ' examen blanc' : "C'est l'examen blanc");
   }
-  if(q.modele === 'examen-officiel'){
+  if(laSeanceEstLExamen(q.modele)){
     const p = rangMasculin(numeroDuPassage(q));
     return dire(p ? 'Examen ce jour — ' + p + ' passage' : 'Examen ce jour');
   }
