@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:58 — v967 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3205,6 +3205,42 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           '<option value="5">5e passage ou plus</option>' +
         '</select>' +
       '</div>' +
+      /* ------------------------------------------------------------
+         ⏱️ COMBIEN D'HEURES AVANT L'EXAMEN — v972
+
+         David, le 12 septembre : « j'ai un moniteur qui a mis un
+         nombre d'heures avant un examen pour que les autres le
+         voient DANS AUTRES NOTES, mais je n'ai pas l'info ; il a
+         bien mis examen à prévoir ».
+
+         Il n'avait pas le choix. Ce nombre ne se demandait QUE dans
+         le bloc « Examen blanc », comme conclusion de cette
+         épreuve-là. Sur un élève dont l'examen blanc était déjà
+         enregistré, le bloc restait sur « non évoqué » et la
+         question ne venait jamais — le moniteur l'a donc écrit dans
+         la seule case libre, celle que rien ne lit.
+
+         Elle se pose donc là où le besoin naît : au moment où l'on
+         dit « date à prévoir », parce que c'est exactement ce que
+         le bureau devra savoir pour la poser. Sur « prévu le… »,
+         elle ne s'affiche pas : la date est là, la réserve ne
+         décide plus de rien.
+
+         ⚠️ ET ELLE REPREND CE QU'ON SAIT DÉJÀ. Pré-remplie avec le
+         nombre du suivi — qu'il vienne de l'examen blanc, du bureau
+         ou d'un post-permis. Non touchée, elle ne réécrit rien : la
+         porte commune refuse de resigner un nombre identique.
+         ------------------------------------------------------------ */
+      '<div id="qBlocHeuresPermis" style="display:none;">' +
+        '<label for="qHeuresPermis">Combien d\'heures avant l\'examen ?</label>' +
+        '<input type="text" id="qHeuresPermis" inputmode="decimal" ' +
+          'placeholder="Ex : 6">' +
+        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
+          'line-height:1.5;">Les 3h avant examen viennent en plus. ' +
+          '<strong>0</strong> veut dire « plus que les 3h » — il est prêt. ' +
+          'Laisse vide si tu ne sais pas.</div>' +
+      '</div>' +
+
       '<input type="text" id="qExamPermisN" inputmode="numeric" ' +
       'placeholder="Leçons restantes avant l\'examen" style="display:none;">' +
       '<div id="qLibNouvelleDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;">' +
@@ -4406,6 +4442,13 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     nEP.value = leconsAvantExamen(prec, rangDuJour);
     nvDate.value = prec.nouvelleDate || '';
 
+    /* ⏱️ Ce qu'on sait déjà, repris tel quel : le moniteur corrige
+       ou laisse. Ne pas le reprendre, ce serait lui faire retaper un
+       nombre que quelqu'un a déjà donné — et retaper, c'est risquer
+       d'écraser par un chiffre de mémoire. */
+    const hEP = boite.querySelector('#qHeuresPermis');
+    if(hEP) hEP.value = String(prec.heuresRestantes || '');
+
     selEP.addEventListener('change', () => {
       const v = selEP.value;
       const avecDate = (v === 'prevu' || v === 'annule' || v === 'passe');
@@ -4429,6 +4472,12 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         bp.style.display =
           (v === 'prevu' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
       }
+
+      /* ⏱️ Les heures ne se demandent que sur « date à prévoir » :
+         c'est là que le bureau en a besoin, et nulle part ailleurs.
+         Voir le bloc, plus haut. */
+      const bh = boite.querySelector('#qBlocHeuresPermis');
+      if(bh) bh.style.display = (v === 'aprevoir') ? 'block' : 'none';
       /* « Reprogrammé le … » est une date d'examen déguisée : elle
          suit la même règle. Le moniteur dit « annulé », le bureau
          reprogramme depuis 🎓 Suivi permis. */
@@ -4574,12 +4623,32 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         ebPasse: selEB2 ? selEB2.value : '',
         ebLecons: nEB2 ? nEB2.value.trim() : '',
         /* Les heures avant permis remontent au bureau, qui en a
-           besoin pour placer les dates. */
+           besoin pour placer les dates.
+
+           ⚠️ DEUX SOURCES, UNE SEULE RÉPONSE — v972. La conclusion
+           de l'examen blanc l'emporte quand elle dit quelque chose :
+           c'est la prescription elle-même, et elle date de
+           l'examen blanc. Sinon, la case ⏱️ du bloc « date à
+           prévoir » — et celle-là date d'aujourd'hui. Jamais les
+           deux, jamais l'une par-dessus l'autre en silence. */
         heuresRemontees: (function(){
           const suite = selEB2 ? selEB2.value : '';
           if(suite === '3h') return '0';
           if(suite === 'lecons' && nEB2) return nEB2.value.trim();
-          return '';
+          if(selEP.value !== 'aprevoir') return '';
+          const c = boite.querySelector('#qHeuresPermis');
+          return c ? String(c.value || '').trim().replace(',', '.') : '';
+        })(),
+
+        /* D'où vient ce nombre : prescrit À l'examen blanc, ou dit
+           AUJOURD'HUI. Ce n'est pas la même date de validité, et
+           c'est ce qui décide du repère à partir duquel il se
+           décompte. Sans cette distinction, un nombre donné à la
+           6ᵉ leçon serait rangé comme s'il datait de la charnière,
+           et les six leçons déjà faites l'entameraient d'un coup. */
+        heuresDuJour: (function(){
+          const suite = selEB2 ? selEB2.value : '';
+          return !(suite === '3h' || suite === 'lecons');
         })(),
         examPermisN: nEP.value.trim(),
         /* ⚠️ LE REPÈRE QUI PERMET AU NOMBRE DE DÉCOMPTER — v906.
