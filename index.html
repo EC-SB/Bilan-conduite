@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v968
+     VERSION APPLICATION : v969
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 12/09/2026 à 10:31
+     Mis à jour le : 12/09/2026 à 10:50
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -1608,6 +1608,89 @@
         padding:4px 8px; color:var(--cream); cursor:pointer; }
   .fgb:hover{ border-color:var(--muted); }
   .fgb.sup{ color:var(--red); border-color:var(--red); margin-left:auto; }
+
+  /* ============================================================
+     LES COULEURS PASTEL DES FICHES — COMME KEEP — v969
+
+     David, le 11 puis le 12 septembre : « mettre en place comme
+     Keep sur les fiches de modèles messages des palettes de
+     couleur pour le fond de la fiche, QUE DES COULEURS PASTELS ».
+
+     ⚠️ DEUX JEUX, ET C'EST UNE NÉCESSITÉ. Une teinte pâle est
+     pastel sur le thème clair, où le texte est encre sombre ; sur
+     le thème sombre le texte est blanc, et la même teinte devient
+     illisible. Chaque couleur porte donc le même NOM et deux
+     valeurs. Les seize sont ici, et nulle part ailleurs : la table
+     de ec-textes.js ne connaît que les huit noms.
+
+     Le contraste des seize a été mesuré, pas jugé à l'œil : le
+     plus faible est à 9,2 sur l'aperçu en gris, pour un seuil de
+     lecture confortable de 4,5.
+
+     ⚠️ ET LES PASTILLES ET LES BOUTONS SE POSENT SUR LA COULEUR.
+     Laissés sur leur fond franc, ils font une deuxième nappe qui
+     se dispute avec la première : sur une carte jaune, six carrés
+     blancs. Un voile translucide les garde lisibles quelle que
+     soit la teinte dessous — et il n'y a qu'un voile pour les
+     huit.
+     ============================================================ */
+  .ficheTexte[data-couleur]{ background:var(--fondFiche);
+                             border-color:var(--bordFiche); }
+  .ficheTexte[data-couleur] .fetq,
+  .ficheTexte[data-couleur] .fgb{ background:rgba(255,255,255,.06);
+                                  border-color:var(--bordFiche); }
+  .ficheTexte[data-couleur]:hover{ border-color:var(--muted); }
+
+  /* Le thème sombre est le défaut de l'outil : ses valeurs sont
+     celles de base, et « body.clair » les remplace. */
+  .ficheTexte[data-couleur="jaune"] { --fondFiche:#3A361C; --bordFiche:#4A4527; }
+  .ficheTexte[data-couleur="orange"]{ --fondFiche:#40301C; --bordFiche:#524024; }
+  .ficheTexte[data-couleur="rouge"] { --fondFiche:#452A26; --bordFiche:#583931; }
+  .ficheTexte[data-couleur="rose"]  { --fondFiche:#432B3A; --bordFiche:#573949; }
+  .ficheTexte[data-couleur="violet"]{ --fondFiche:#322B44; --bordFiche:#423A56; }
+  .ficheTexte[data-couleur="bleu"]  { --fondFiche:#253646; --bordFiche:#334759; }
+  .ficheTexte[data-couleur="menthe"]{ --fondFiche:#223B37; --bordFiche:#2F4D48; }
+  .ficheTexte[data-couleur="vert"]  { --fondFiche:#293C24; --bordFiche:#375030; }
+
+  body.clair .ficheTexte[data-couleur] .fetq,
+  body.clair .ficheTexte[data-couleur] .fgb{ background:rgba(255,255,255,.55); }
+  body.clair .ficheTexte[data-couleur="jaune"] { --fondFiche:#FBF4CF; --bordFiche:#E8DFA8; }
+  body.clair .ficheTexte[data-couleur="orange"]{ --fondFiche:#FBE8D2; --bordFiche:#EDD6B6; }
+  body.clair .ficheTexte[data-couleur="rouge"] { --fondFiche:#FBE0DC; --bordFiche:#EFC9C2; }
+  body.clair .ficheTexte[data-couleur="rose"]  { --fondFiche:#F8DFEC; --bordFiche:#E9C3D8; }
+  body.clair .ficheTexte[data-couleur="violet"]{ --fondFiche:#E6E0F3; --bordFiche:#CFC5E4; }
+  body.clair .ficheTexte[data-couleur="bleu"]  { --fondFiche:#DCEAF7; --bordFiche:#BFD6EC; }
+  body.clair .ficheTexte[data-couleur="menthe"]{ --fondFiche:#D9F1EC; --bordFiche:#B8E0D7; }
+  body.clair .ficheTexte[data-couleur="vert"]  { --fondFiche:#E2F3DC; --bordFiche:#C3E2B9; }
+
+  /* ---- La palette, dépliée sous la fiche ---- */
+  .palFiche{ display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+             margin-top:8px; padding:8px 9px; border:1px solid var(--line);
+             border-radius:10px; background:var(--navy-deep); }
+  .ficheTexte[data-couleur] .palFiche{ border-color:var(--bordFiche); }
+  /* La pastille est un bouton de geste, mais ronde et sans texte :
+     c'est la couleur qu'on choisit, pas un mot. */
+  .pastFiche{ width:26px; height:26px; border-radius:50% !important;
+              padding:0 !important; flex-shrink:0;
+              display:flex; align-items:center; justify-content:center;
+              font-size:12px; }
+  .pastFiche.choisie{ outline:2px solid var(--accent-text); outline-offset:2px; }
+  .pastFiche[data-couleur="jaune"] { background:#3A361C !important; border-color:#4A4527 !important; }
+  .pastFiche[data-couleur="orange"]{ background:#40301C !important; border-color:#524024 !important; }
+  .pastFiche[data-couleur="rouge"] { background:#452A26 !important; border-color:#583931 !important; }
+  .pastFiche[data-couleur="rose"]  { background:#432B3A !important; border-color:#573949 !important; }
+  .pastFiche[data-couleur="violet"]{ background:#322B44 !important; border-color:#423A56 !important; }
+  .pastFiche[data-couleur="bleu"]  { background:#253646 !important; border-color:#334759 !important; }
+  .pastFiche[data-couleur="menthe"]{ background:#223B37 !important; border-color:#2F4D48 !important; }
+  .pastFiche[data-couleur="vert"]  { background:#293C24 !important; border-color:#375030 !important; }
+  body.clair .pastFiche[data-couleur="jaune"] { background:#FBF4CF !important; border-color:#E8DFA8 !important; }
+  body.clair .pastFiche[data-couleur="orange"]{ background:#FBE8D2 !important; border-color:#EDD6B6 !important; }
+  body.clair .pastFiche[data-couleur="rouge"] { background:#FBE0DC !important; border-color:#EFC9C2 !important; }
+  body.clair .pastFiche[data-couleur="rose"]  { background:#F8DFEC !important; border-color:#E9C3D8 !important; }
+  body.clair .pastFiche[data-couleur="violet"]{ background:#E6E0F3 !important; border-color:#CFC5E4 !important; }
+  body.clair .pastFiche[data-couleur="bleu"]  { background:#DCEAF7 !important; border-color:#BFD6EC !important; }
+  body.clair .pastFiche[data-couleur="menthe"]{ background:#D9F1EC !important; border-color:#B8E0D7 !important; }
+  body.clair .pastFiche[data-couleur="vert"]  { background:#E2F3DC !important; border-color:#C3E2B9 !important; }
   /* Dans la fiche ouverte : discret, à gauche, loin de « Fermer ».
      C'est le seul geste qu'on ne rattrape pas. */
   .fiPied .fgb.sup{ margin-left:0; }
@@ -2202,7 +2285,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=968" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=969" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -3928,76 +4011,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=968"></script>
-<script src="app/ec-modeles.js?v=968"></script>
-<script src="app/ec-consignes.js?v=968"></script>
-<script src="app/ec-noyau.js?v=968"></script>
-<script src="app/ec-vocal.js?v=968"></script>
-<script src="app/ec-reseau.js?v=968"></script>
-<script src="app/ec-manuel.js?v=968"></script>
-<script src="app/ec-fenetres.js?v=968"></script>
-<script src="app/ec-questionnaire.js?v=968"></script>
-<script src="app/ec-permis.js?v=968"></script>
-<script src="app/ec-prepares.js?v=968"></script>
-<script src="app/ec-avant-cours.js?v=968"></script>
-<script src="app/ec-bureau.js?v=968"></script>
-<script src="app/ec-places.js?v=968"></script>
-<script src="app/ec-listes.js?v=968"></script>
-<script src="app/ec-permis-listes.js?v=968"></script>
-<script src="app/ec-postpermis.js?v=968"></script>
-<script src="app/ec-textes.js?v=968"></script>
-<script src="app/ec-correction.js?v=968"></script>
-<script src="app/ec-bilans.js?v=968"></script>
-<script src="app/ec-ecran.js?v=968"></script>
-<script src="app/ec-version.js?v=968"></script>
-<script src="app/ec-paie.js?v=968"></script>
-<script src="app/ec-flotte.js?v=968"></script>
-<script src="app/ec-carrosserie.js?v=968"></script>
-<script src="app/ec-solo.js?v=968"></script>
-<script src="app/ec-handicap-pdf.js?v=968"></script>
-<script src="app/ec-moto.js?v=968"></script>
-<script src="app/ec-remorque.js?v=968"></script>
-<script src="app/ec-arriereplan.js?v=968"></script>
-<script src="app/ec-placesbe.js?v=968"></script>
-<script src="app/ec-codeamenage.js?v=968"></script>
-<script src="app/ec-financements.js?v=968"></script>
-<script src="app/ec-eval-aac.js?v=968"></script>
-<script src="app/ec-postes.js?v=968"></script>
-<script src="app/ec-tarifs.js?v=968"></script>
-<script src="app/ec-caisse.js?v=968"></script>
-<script src="app/ec-menage.js?v=968"></script>
-<script src="app/ec-page-eleve.js?v=968"></script>
-<script src="app/ec-cbgasoil.js?v=968"></script>
-<script src="app/ec-loupe.js?v=968"></script>
-<script src="app/ec-coutsia.js?v=968"></script>
-<script src="app/ec-evaluation.js?v=968"></script>
-<script src="app/ec-paiement.js?v=968"></script>
-<script src="app/ec-handicap.js?v=968"></script>
-<script src="app/ec-code.js?v=968"></script>
-<script src="app/ec-proccorriger.js?v=968"></script>
-<script src="app/ec-sessions.js?v=968"></script>
-<script src="app/ec-aac-cs.js?v=968"></script>
-<script src="app/ec-notifs.js?v=968"></script>
-<script src="app/ec-ecoutes.js?v=968"></script>
-<script src="app/ec-taches.js?v=968"></script>
-<script src="app/ec-memoire.js?v=968"></script>
-<script src="app/ec-historique.js?v=968"></script>
-<script src="app/ec-rappels.js?v=968"></script>
-<script src="app/ec-segments.js?v=968"></script>
-<script src="app/ec-sms.js?v=968"></script>
-<script src="app/ec-encours.js?v=968"></script>
-<script src="app/ec-incidents.js?v=968"></script>
+  <script src="app/ec-etat.js?v=969"></script>
+<script src="app/ec-modeles.js?v=969"></script>
+<script src="app/ec-consignes.js?v=969"></script>
+<script src="app/ec-noyau.js?v=969"></script>
+<script src="app/ec-vocal.js?v=969"></script>
+<script src="app/ec-reseau.js?v=969"></script>
+<script src="app/ec-manuel.js?v=969"></script>
+<script src="app/ec-fenetres.js?v=969"></script>
+<script src="app/ec-questionnaire.js?v=969"></script>
+<script src="app/ec-permis.js?v=969"></script>
+<script src="app/ec-prepares.js?v=969"></script>
+<script src="app/ec-avant-cours.js?v=969"></script>
+<script src="app/ec-bureau.js?v=969"></script>
+<script src="app/ec-places.js?v=969"></script>
+<script src="app/ec-listes.js?v=969"></script>
+<script src="app/ec-permis-listes.js?v=969"></script>
+<script src="app/ec-postpermis.js?v=969"></script>
+<script src="app/ec-textes.js?v=969"></script>
+<script src="app/ec-correction.js?v=969"></script>
+<script src="app/ec-bilans.js?v=969"></script>
+<script src="app/ec-ecran.js?v=969"></script>
+<script src="app/ec-version.js?v=969"></script>
+<script src="app/ec-paie.js?v=969"></script>
+<script src="app/ec-flotte.js?v=969"></script>
+<script src="app/ec-carrosserie.js?v=969"></script>
+<script src="app/ec-solo.js?v=969"></script>
+<script src="app/ec-handicap-pdf.js?v=969"></script>
+<script src="app/ec-moto.js?v=969"></script>
+<script src="app/ec-remorque.js?v=969"></script>
+<script src="app/ec-arriereplan.js?v=969"></script>
+<script src="app/ec-placesbe.js?v=969"></script>
+<script src="app/ec-codeamenage.js?v=969"></script>
+<script src="app/ec-financements.js?v=969"></script>
+<script src="app/ec-eval-aac.js?v=969"></script>
+<script src="app/ec-postes.js?v=969"></script>
+<script src="app/ec-tarifs.js?v=969"></script>
+<script src="app/ec-caisse.js?v=969"></script>
+<script src="app/ec-menage.js?v=969"></script>
+<script src="app/ec-page-eleve.js?v=969"></script>
+<script src="app/ec-cbgasoil.js?v=969"></script>
+<script src="app/ec-loupe.js?v=969"></script>
+<script src="app/ec-coutsia.js?v=969"></script>
+<script src="app/ec-evaluation.js?v=969"></script>
+<script src="app/ec-paiement.js?v=969"></script>
+<script src="app/ec-handicap.js?v=969"></script>
+<script src="app/ec-code.js?v=969"></script>
+<script src="app/ec-proccorriger.js?v=969"></script>
+<script src="app/ec-sessions.js?v=969"></script>
+<script src="app/ec-aac-cs.js?v=969"></script>
+<script src="app/ec-notifs.js?v=969"></script>
+<script src="app/ec-ecoutes.js?v=969"></script>
+<script src="app/ec-taches.js?v=969"></script>
+<script src="app/ec-memoire.js?v=969"></script>
+<script src="app/ec-historique.js?v=969"></script>
+<script src="app/ec-rappels.js?v=969"></script>
+<script src="app/ec-segments.js?v=969"></script>
+<script src="app/ec-sms.js?v=969"></script>
+<script src="app/ec-encours.js?v=969"></script>
+<script src="app/ec-incidents.js?v=969"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=968"></script>
-<script src="app/ec-bandeau.js?v=968"></script>
-<script src="app/ec-stats.js?v=968"></script>
-<script src="app/ec-messenger.js?v=968"></script>
-<script src="app/ec-journal.js?v=968"></script>
-<script src="app/ec-depart.js?v=968"></script>
-<script src="app/ec-onglets.js?v=968"></script>
-<script src="app/ec-demarrage.js?v=968"></script>
+<script src="app/ec-messages-perso.js?v=969"></script>
+<script src="app/ec-bandeau.js?v=969"></script>
+<script src="app/ec-stats.js?v=969"></script>
+<script src="app/ec-messenger.js?v=969"></script>
+<script src="app/ec-journal.js?v=969"></script>
+<script src="app/ec-depart.js?v=969"></script>
+<script src="app/ec-onglets.js?v=969"></script>
+<script src="app/ec-demarrage.js?v=969"></script>
 
 <script>
 /* ============================================================
