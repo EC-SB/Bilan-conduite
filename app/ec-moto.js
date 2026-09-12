@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:12 — v971 */
+/* Déployé le 12/09/2026 à 13:55 — v976 */
 /* ============================================================
    ec-moto.js
    Le parcours du permis moto.
@@ -13,8 +13,32 @@
    Application Bilan de conduite — Évolution Conduites
    ============================================================ */
 
-/* Les formations qui font entrer dans cette liste */
+/* ⚠️ DEUX LISTES, PARCE QUE CE SONT DEUX QUESTIONS — v976.
+
+   « QUI APPARAÎT DANS CET ÉCRAN » n'est pas « CE QU'ON PROPOSE À LA
+   CRÉATION ». La première regarde en arrière : des élèves portent
+   « Moto A » ou « A1 passerelle » depuis des mois, et ils doivent
+   rester visibles tant que leur parcours n'est pas fini. La seconde
+   regarde devant : David, le 12 septembre — « A1 et A2, c'est
+   tout ». Le A plein ne se passe pas, il s'obtient par la
+   passerelle de 7 h ; la passerelle A1 non plus. Ni l'un ni l'autre
+   n'a de plateau ni de circulation — donc rien à suivre ici.
+
+   Les mettre dans une seule liste obligerait à choisir : ou bien on
+   propose à la création des formations qu'on ne veut plus, ou bien
+   on fait disparaître de l'écran des élèves en cours de parcours.
+
+   ⚠️ ET LA SECONDE EST TOUJOURS COMPRISE DANS LA PREMIÈRE. Proposer
+   à la création une formation qui ne fait pas entrer dans l'écran,
+   ce serait créer un élève qui disparaît à la seconde où on le
+   crée. C'est ce que test-nouvel-eleve-2r.js exécute. */
 const FORMATIONS_MOTO = ['Moto A', 'A1 permis', 'A1 passerelle', 'A2'];
+
+/* ⚠️ LES CLÉS EXACTES DE LA TABLE DU RÉPERTOIRE — voir
+   FORMATIONS_BASE dans ec-fenetres.js. Écrire « A1 » au lieu de
+   « A1 permis » ferait une fiche que le répertoire ne saurait plus
+   nommer, et que cet écran ne reconnaîtrait plus. */
+const FORMATIONS_MOTO_A_CREER = ['A1 permis', 'A2'];
 
 
 /* Où en est l'élève. L'étape se déduit de ce qui est rempli :
@@ -1523,54 +1547,281 @@ async function permisMotoObtenu(nom){
 
 
 /* ============================================================
-   AJOUTER UN ÉLÈVE
+   AJOUTER UN ÉLÈVE — UNE SEULE FENÊTRE, DEUX PARCOURS
 
-   À la main pour le moment. Sa fiche se crée dans le répertoire
-   du même coup, avec sa formation.
+   David, le 12 septembre : « quand on ajoute un élève moto il faut
+   qu'on puisse renseigner son numéro de portable, son adresse mail
+   et le type de formation, car il n'y a pas que A2, et aussi
+   l'ANTS ».
+
+   ⚠️ UNE FENÊTRE, PAS CINQ QUESTIONS. C'était deux questions
+   enchaînées ; à cinq, chaque écran est une occasion d'abandonner —
+   et on ajoute un élève au bord du terrain, pas au bureau. Tout est
+   là, on remplit ce qu'on a sous la main, on valide une fois.
+
+   ⚠️ ET UNE SEULE FENÊTRE POUR LA MOTO ET LA REMORQUE. Les deux
+   écrans avaient leur propre « Ajouter un élève », et celui de la
+   remorque ne demandait même pas la formation. Deux fenêtres à
+   écrire, c'est deux fenêtres à corriger — et c'est toujours la
+   seconde qu'on oublie. Ce qui les distingue tient dans la table
+   ci-dessous ; le reste est commun.
    ============================================================ */
 
+/* ⚠️ CHAQUE PARCOURS DIT LES ÉTATS D'ANTS QU'IL CONNAÎT.
+
+   La moto en a trois — pas commencé, en cours, fait. La remorque
+   n'en a que deux : « beAnts » ne vaut que '' ou 'fait', et sa
+   validation par l'ANTS est une question à part, qui se pose
+   des semaines plus tard. Proposer « en cours » pour une remorque,
+   ce serait offrir un état que l'écran ne sait pas redessiner. */
+const PARCOURS_NOUVEAU_2R = {
+  moto: {
+    titre: '🏍️ Nouvel élève moto',
+    formations: () => FORMATIONS_MOTO_A_CREER,
+    etatsAnts: ['encours', 'fait'],
+    /* Ce que la fenêtre écrit dans le suivi, au départ */
+    depart: { motoEtape: 'preparation' },
+    champsAnts: (etat, qui) => ({ motoAnts: etat, motoAntsQui: qui }),
+    redessiner: () => { if(typeof afficherMoto === 'function') afficherMoto(); }
+  },
+  remorque: {
+    titre: '🚚 Nouvel élève remorque',
+    /* Une seule formation possible : on ne pose pas la question,
+       on l'affiche. Un menu à un seul choix est une question dont
+       on connaît déjà la réponse. */
+    formations: () => [(typeof FORMATION_BE !== 'undefined')
+                         ? FORMATION_BE : 'Permis BE'],
+    etatsAnts: ['fait'],
+    depart: { beAnts: '' },
+    champsAnts: (etat, qui) => ({ beAnts: etat, beAntsQui: qui }),
+    redessiner: () => { if(typeof afficherRemorque === 'function') afficherRemorque(); }
+  }
+};
+
+/* Les libellés du menu ANTS, dans l'ordre où on les lit. La valeur
+   porte l'état ET qui s'en occupe : c'est une seule question posée
+   une seule fois, pas deux écrans l'un après l'autre. */
+const CHOIX_ANTS_2R = [
+  { valeur: '',             nom: '— non renseigné —' },
+  { valeur: 'rien',         nom: '⬜ Pas commencé' },
+  { valeur: 'encours:eleve', nom: "⏳ En cours — par l'élève" },
+  { valeur: 'encours:nous',  nom: '⏳ En cours — par nous' },
+  { valeur: 'fait:eleve',   nom: "✅ Fait — par l'élève" },
+  { valeur: 'fait:nous',    nom: '✅ Fait — par nous' }
+];
+
+
 function boutonAjouterMoto(){
+  return boutonAjouter2R('moto', '➕ Ajouter un élève moto');
+}
+
+function boutonAjouter2R(cle, libelle){
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
   b.style.cssText = 'padding:11px;font-size:13px;margin-bottom:12px;';
-  b.textContent = '➕ Ajouter un élève moto';
-  b.addEventListener('click', ajouterEleveMoto);
+  b.textContent = libelle;
+  b.addEventListener('click', () => ouvrirNouvelEleve2R(cle));
   return b;
 }
 
+/* Gardés : d'autres écrans peuvent encore les appeler par leur nom */
+function ajouterEleveMoto(){ return ouvrirNouvelEleve2R('moto'); }
 
-async function ajouterEleveMoto(){
-  const nom = await demander(
-    "Nom de l'élève\n" +
-    'Sa fiche sera créée dans le répertoire si elle n\'existe pas.',
-    '', 'Nouvel élève moto');
 
-  if(!nom || !String(nom).trim()) return;
-  const propre = String(nom).trim();
+/* Les états d'ANTS que CE parcours sait redessiner, et eux seuls. */
+function choixAntsDuParcours(cle){
+  const p = PARCOURS_NOUVEAU_2R[cle];
+  if(!p) return [];
+  return CHOIX_ANTS_2R.filter(c =>
+    !c.valeur || c.valeur === 'rien' ||
+    p.etatsAnts.indexOf(String(c.valeur).split(':')[0]) >= 0);
+}
 
-  const formation = await fenetre('Quelle formation ?',
-    [{ nom:'Annuler', valeur:'' }].concat(
-      FORMATIONS_MOTO.map((f, i) => ({
-        nom: f, valeur: f, principal: (i === 0)
-      }))),
-    propre);
 
-  if(!formation) return;
+/* ⚠️ CE QUI PART AU CLASSEUR SE DÉCIDE ICI, PAS DANS LA FENÊTRE.
 
-  try{
-    /* Sa fiche du répertoire porte la formation : elle le fera
-       revenir dans cette liste tout seul. */
-    await appelPrep({ action: 'ficheSet', eleve: propre,
-                      formation: formation, par: ACCES.moniteur || '' });
+   La fenêtre ramasse ce qui est tapé ; cette fonction seule dit ce
+   que ça devient — la ligne du répertoire d'un côté, le suivi du
+   parcours de l'autre. Une règle qui ne vit que dans un
+   gestionnaire de clic ne se vérifie qu'à la main, et une règle
+   qu'on ne vérifie qu'à la main ne se vérifie pas.
 
-    /* Et son suivi moto démarre */
-    await majSuivi(propre, { motoEtape: 'preparation' });
+   ⚠️ ET L'ANTS PART DES DEUX CÔTÉS D'UN SEUL COUP. Le répertoire
+   retient QUI s'en occupe, le suivi retient OÙ ÇA EN EST : deux
+   moitiés d'une même réponse. Les laisser se saisir chacune de son
+   côté, c'est se garantir qu'un jour elles se contrediront. */
+function ecrituresNouvelEleve2R(cle, saisie){
+  const p = PARCOURS_NOUVEAU_2R[cle];
+  if(!p) return null;
 
-    showToast(propre + ' ajouté ✅');
-    /* Sa fiche vient d'être créée : on relit le répertoire */
-    await chargerFichesMoto(true);
-    afficherMoto();
-  }catch(e){ showToast('Impossible : ' + e.message); }
+  const s = saisie || {};
+  const nom = String(s.nom || '').trim();
+  if(!nom) return null;
+
+  const bouts = String(s.ants || '').split(':');
+  const etat = bouts[0] || '';
+  const qui  = bouts[1] || '';
+
+  return {
+    fiche: {
+      action: 'ficheSet',
+      eleve: nom,
+      telephone: String(s.telephone || '').trim(),
+      email: String(s.email || '').trim(),
+      formation: String(s.formation || '').trim() || p.formations()[0],
+      ants: qui
+    },
+    /* « Pas commencé » est une réponse, pas un silence : elle vide
+       l'état sans toucher au reste du départ. */
+    suivi: Object.assign({}, p.depart,
+      etat ? p.champsAnts(etat === 'rien' ? '' : etat, qui) : {})
+  };
+}
+
+
+function ouvrirNouvelEleve2R(cle){
+  const p = PARCOURS_NOUVEAU_2R[cle];
+  if(!p) return;
+
+  const formations = p.formations();
+  const choixAnts = choixAntsDuParcours(cle);
+
+  const fond = document.createElement('div');
+  fond.className = 'overlay show';
+  const boite = document.createElement('div');
+  boite.className = 'modal';
+  boite.style.cssText = 'max-width:min(470px, 94vw);max-height:90vh;overflow-y:auto;';
+
+  const opt = (v, n) => '<option value="' + String(v).replace(/"/g, '&quot;') +
+                        '">' + String(n).replace(/</g, '&lt;') + '</option>';
+
+  boite.innerHTML = '<h3>' + p.titre + '</h3>' +
+
+    '<label for="n2Nom">Nom de l’élève</label>' +
+    '<input type="text" id="n2Nom" autocomplete="off" placeholder="Prénom Nom">' +
+    '<div id="n2Deja" style="font-size:11px;color:var(--muted);' +
+      'margin:-8px 0 12px;line-height:1.4;">Sa fiche sera créée dans le ' +
+      'répertoire si elle n’existe pas.</div>' +
+
+    '<label for="n2Tel">📱 Téléphone portable</label>' +
+    '<input type="tel" id="n2Tel" inputmode="tel" autocomplete="off" ' +
+      'placeholder="06 12 34 56 78">' +
+
+    '<label for="n2Mail">✉️ Adresse mail</label>' +
+    '<input type="email" id="n2Mail" inputmode="email" autocomplete="off" ' +
+      'placeholder="prenom.nom@exemple.fr">' +
+
+    /* Une seule formation possible : on l'affiche au lieu de la
+       demander. */
+    (formations.length > 1
+      ? '<label for="n2Form">🎓 Formation</label>' +
+        '<select id="n2Form">' + formations.map(f => opt(f, f)).join('') + '</select>'
+      : '<label>🎓 Formation</label>' +
+        '<div style="font-size:15px;font-weight:700;color:var(--cream);' +
+          'margin:0 0 18px;">' + String(formations[0]).replace(/</g, '&lt;') +
+        '</div>') +
+
+    '<label for="n2Ants">📇 Dossier ANTS</label>' +
+    '<select id="n2Ants">' + choixAnts.map(c => opt(c.valeur, c.nom)).join('') +
+    '</select>' +
+    '<div style="font-size:11px;color:var(--muted);margin:-8px 0 4px;' +
+      'line-height:1.4;">Se retrouve sur sa ligne et dans sa fiche du ' +
+      'répertoire — c’est la même information, dite une fois.</div>';
+
+  const chN = boite.querySelector('#n2Nom');
+  const chT = boite.querySelector('#n2Tel');
+  const chM = boite.querySelector('#n2Mail');
+  const selF = boite.querySelector('#n2Form');
+  const selA = boite.querySelector('#n2Ants');
+  const zDeja = boite.querySelector('#n2Deja');
+
+  /* ⚠️ RECONNAÎTRE AVANT D'ÉCRIRE. Une fiche à ce nom existe peut-
+     être déjà : on le dit tout de suite, plutôt que de laisser
+     croire qu'on en crée une seconde. Rien n'est effacé — un champ
+     laissé vide ne recouvre jamais ce qui est au classeur. */
+  const ficheExistante = n => {
+    const k = normaliserMot(String(n || '').trim());
+    if(!k || typeof fichesEleves === 'undefined') return null;
+    return (fichesEleves || []).find(f =>
+      normaliserMot(f.eleve || '') === k) || null;
+  };
+
+  const direSiDeja = () => {
+    const f = ficheExistante(chN.value);
+    if(!f){
+      zDeja.style.color = 'var(--muted)';
+      zDeja.textContent = 'Sa fiche sera créée dans le répertoire si elle ' +
+        'n’existe pas.';
+      return;
+    }
+    zDeja.style.color = 'var(--warn-text)';
+    zDeja.textContent = 'Déjà au répertoire' +
+      (f.formation ? ' (' + f.formation + ')' : '') +
+      ' — ses informations seront complétées, rien ne sera effacé.';
+    /* Ce qu'on sait déjà de lui remplit les champs : les retaper à
+       l'identique n'apprend rien à personne. */
+    if(!chT.value && f.telephone) chT.value = f.telephone;
+    if(!chM.value && f.email) chM.value = f.email;
+  };
+  chN.addEventListener('input', direSiDeja);
+
+  const r = document.createElement('div');
+  r.className = 'btn-row';
+
+  const bA = document.createElement('button');
+  bA.className = 'btn btn-secondary';
+  bA.textContent = 'Annuler';
+  bA.addEventListener('click', () => fermerFond(fond));
+  r.appendChild(bA);
+
+  const bO = document.createElement('button');
+  bO.className = 'btn btn-primary';
+  bO.textContent = '➕ Créer';
+  bO.addEventListener('click', async () => {
+    const propre = chN.value.trim();
+    if(!propre){ showToast('Donne-lui un nom.'); chN.focus(); return; }
+
+    const mail = chM.value.trim();
+    if(mail && mail.indexOf('@') === -1){
+      showToast('Cette adresse mail n’a pas d’arobase.');
+      chM.focus();
+      return;
+    }
+
+    const quoi = ecrituresNouvelEleve2R(cle, {
+      nom: propre,
+      telephone: chT.value,
+      email: mail,
+      formation: selF ? selF.value : formations[0],
+      ants: selA.value
+    });
+    if(!quoi) return;
+
+    bO.disabled = true;
+    bO.textContent = 'Création…';
+    try{
+      await appelPrep(Object.assign({}, quoi.fiche,
+                                    { par: ACCES.moniteur || '' }));
+      await majSuivi(propre, quoi.suivi);
+
+      fermerFond(fond);
+      showToast(propre + ' ajouté ✅');
+      /* Sa fiche vient d'être créée : on relit le répertoire */
+      await chargerFichesMoto(true);
+      p.redessiner();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bO.disabled = false;
+      bO.textContent = '➕ Créer';
+    }
+  });
+  r.appendChild(bO);
+
+  boite.appendChild(r);
+  fond.appendChild(boite);
+  document.body.appendChild(fond);
+  fond.addEventListener('click', e => { if(e.target === fond) fermerFond(fond); });
+  setTimeout(() => chN.focus(), 50);
 }
 
 
