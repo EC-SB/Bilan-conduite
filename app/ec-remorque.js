@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:36 — v954 */
+/* Déployé le 12/09/2026 à 13:55 — v976 */
 /* ============================================================
    ec-remorque.js
    Le parcours du permis remorque (BE).
@@ -653,39 +653,25 @@ async function resultatBE(nom){
 
 
 /* ============================================================
-   AJOUTER UN ÉLÈVE
+   AJOUTER UN ÉLÈVE — v976
+
+   ⚠️ LA FENÊTRE EST CELLE DE LA MOTO. Elle vit dans ec-moto.js,
+   avec le reste de ce que les deux écrans partagent déjà —
+   fichesDuRepertoire, noterResultat2R, chargerFichesMoto.
+
+   Celle d'ici ne demandait que le nom : ni téléphone, ni mail, ni
+   ANTS, et pas même la formation, qu'elle posait d'office. Deux
+   fenêtres à écrire, c'est deux fenêtres à corriger, et c'est
+   toujours la seconde qu'on oublie. Ce qui distingue la remorque —
+   son unique formation, son ANTS à deux états, son suivi qui
+   démarre sur « beAnts » — tient dans PARCOURS_NOUVEAU_2R.
    ============================================================ */
 
 function boutonAjouterRemorque(){
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'padding:11px;font-size:13px;margin-bottom:12px;';
-  b.textContent = '➕ Ajouter un élève remorque';
-  b.addEventListener('click', ajouterEleveRemorque);
-  return b;
+  return boutonAjouter2R('remorque', '➕ Ajouter un élève remorque');
 }
 
-
-async function ajouterEleveRemorque(){
-  const nom = await demander(
-    "Nom de l'élève\n" +
-    "Sa fiche sera créée dans le répertoire si elle n'existe pas.",
-    '', 'Nouvel élève remorque');
-
-  if(!nom || !String(nom).trim()) return;
-  const propre = String(nom).trim();
-
-  try{
-    await appelPrep({ action: 'ficheSet', eleve: propre,
-                      formation: FORMATION_BE, par: ACCES.moniteur || '' });
-
-    await majSuivi(propre, { beAnts: '' });
-
-    showToast(propre + ' ajouté ✅');
-    if(typeof chargerFichesMoto === 'function') await chargerFichesMoto(true);
-    afficherRemorque();
-  }catch(e){ showToast('Impossible : ' + e.message); }
-}
+function ajouterEleveRemorque(){ return ouvrirNouvelEleve2R('remorque'); }
 
 
 /* Signale que ce module est bien chargé */
