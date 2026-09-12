@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 08:40 — v963 */
+/* Déployé le 12/09/2026 à 13:38 — v975 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -53,6 +53,18 @@
 const FAMILLES_BANDEAU = [
   { cle:'message',  emoji:'📌', nom:'Messages du bureau',
     droit:'',              reglable:false },
+  /* ⚠️ CE QUE L'OUTIL VIENT DE CHANGER — v975.
+
+     Elle se lit une fois et s'en va. La mettre en bas d'un bandeau
+     de huit lignes, ce serait la faire passer inaperçue le seul
+     jour où elle a quelque chose à dire. Elle vient donc juste
+     après les messages du bureau — qui, eux, s'adressent à toi
+     personnellement et passent avant tout.
+
+     Pas de droit : le calcul se garde lui-même, et tout le monde a
+     le droit de savoir ce qui a changé dans son outil. */
+  { cle:'nouveautes', emoji:'🆕', nom:'Nouveautés de l’outil',
+    droit:'',              reglable:true },
   { cle:'prise',    emoji:'📆', nom:'Prise de dates à la préfecture',
     droit:'bureau_places', reglable:true },
   { cle:'aac',      emoji:'🤝', nom:'Rendez-vous AAC et conduite supervisée',
@@ -572,6 +584,7 @@ function decalerJours(iso, n){
 function lignesDuBandeau(){
   const calculs = {
     message:  lignesMessages,
+    nouveautes: (typeof lignesNouveautes === 'function') ? lignesNouveautes : (() => []),
     prise:    lignesPriseDeDates,
     aac:      lignesAacCs,
     aprevoir: lignesAPrevoir,
@@ -1104,9 +1117,26 @@ function ligneBandeau(l, avecTrait){
   puce.textContent = l.emoji;
   d.appendChild(puce);
 
+  /* ⚠️ LA PHRASE FAIT CE QUE FAIT LE BOUTON — v975.
+
+     Au doigt, sur une tablette, c'est la phrase qu'on touche : elle
+     fait trois centimètres de large, le bouton du bout de ligne en
+     fait un. C'était déjà vrai des lignes qui emmènent vers un
+     écran ; ça ne l'était pas de celles qui portent un geste, et on
+     appuyait sur « Lire » sans que rien ne se passe.
+
+     Une seule porte décide où mène la ligne, et les deux façons d'y
+     aller l'empruntent : deux chemins qui se dupliquent finissent
+     par diverger. */
+  const suivreLaLigne = () => {
+    if(l.ou || l.eleve){ allerDepuisBandeau(l); return; }
+    if(typeof l.action === 'function') l.action();
+  };
+  const menePartOu = !!(l.ou || l.eleve) || typeof l.action === 'function';
+
   const txt = document.createElement('div');
   txt.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;' +
-    (l.ou ? 'cursor:pointer;' : '');
+    (menePartOu ? 'cursor:pointer;' : '');
   /* ⚠️ UNE LIGNE QUI S'ADRESSE À TOI SE DIT AUTREMENT.
 
      David : « pour celui qui n'a pas reposé, tu le mets en
@@ -1122,7 +1152,7 @@ function ligneBandeau(l, avecTrait){
     (l.sous ? '<div style="font-size:' + (l.gros ? '14px;font-weight:800;' +
         'color:var(--warn-text);letter-spacing:.02em;' : '12px;color:var(--muted);') +
       '">' + echapper(l.sous) + '</div>' : '');
-  if(l.ou) txt.addEventListener('click', () => allerDepuisBandeau(l));
+  if(menePartOu) txt.addEventListener('click', suivreLaLigne);
   d.appendChild(txt);
 
   /* Le geste, à portée de la phrase qui le demande : lui dire
