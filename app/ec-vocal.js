@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 08:41 — v937 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -590,10 +590,16 @@ $('finishBtn').addEventListener('click', async () => {
          MODELES_SANS_VOCAL. Les heures montent, la conclusion et
          sa date restent où elles sont. Voir le ⚠️ de v879 dans
          ec-manuel.js. */
+      /* ⚠️ LA NOTE PART AVEC — v972. C'est elle qui porte « 6ᵉ leçon
+         après le dernier ajournement », le repère à partir duquel
+         ces heures-là se décompteront. On l'assemble une fois, on
+         la donne, puis on la pose : deux assemblages, ce serait
+         deux notes qui peuvent différer. */
+      const noteDuJour = noteDepuisQuestionnaire(maj);
       await remonterHeuresAuBureau($('studentName').value.trim(),
                                    maj.heuresRemontees,
                                    maj.ebPasse === 'pasleniveau' ? 'non' : 'oui',
-                                   false);
+                                   false, maj.heuresDuJour, noteDuJour);
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
