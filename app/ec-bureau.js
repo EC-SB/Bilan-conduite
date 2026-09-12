@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:34 — v960 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -64,7 +64,7 @@ function analyserNote(note){
               examBlanc:null, examBlancN:null, examBlancDate:null,
               simuNuit:null, simuDate:null, permis:null,
               permisDate:null, permisN:null, lecon:null, leconTotal:null,
-              friseDepassee:false, pasEcoute:false, apresEB:null };
+              friseDepassee:false, pasEcoute:false, apresCharniere:null };
   let m;
 
   if((m = t.match(/Examen blanc passé le ([^—·]+)— pas le niveau/i))){
@@ -242,14 +242,36 @@ function analyserNote(note){
      Ce nombre-là EST le depuis-quand, et il est déjà écrit dans la
      note. On le lit ici, à l'entrée, comme tout le reste.
 
-     ⚠️ SEULEMENT L'EXAMEN BLANC. La note écrit aussi « 2ème leçon
-     après le post-permis » et « après le dernier ajournement » :
-     quand la charnière a avancé, la réserve de l'examen blanc ne
-     gouverne plus rien, et il ne faut surtout pas décompter avec
-     un compteur qui parle d'autre chose. */
-  if((m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)\s+le[çc]ons?\s+apr[èe]s\s+l['\u2019]examen\s+blanc/i))){
+     ⚠️ IL NE LISAIT QUE L'EXAMEN BLANC — élargi en v972.
+
+     Par prudence : la note écrit aussi « 2ème leçon après le
+     post-permis » et « après le dernier ajournement », et
+     décompter avec un compteur qui parle d'autre chose, c'est
+     inventer.
+
+     La prudence était juste, mais elle laissait un trou. Chez un
+     élève dont la charnière a avancé — Natalia, le 12 septembre,
+     « 6ᵉ leçon après le dernier ajournement » — la réserve restait
+     figée, et David : « il faut que ça se mette à jour tout seul au
+     fur et à mesure de ses cours après l'information ».
+
+     On lit donc le compteur ET CE QU'IL COMPTE. La prudence n'est
+     pas abandonnée, elle est déplacée là où elle est vérifiable :
+     c'est « leconsDepuisLaReserve » qui refuse de décompter quand la
+     charnière posée AVEC les heures n'est pas celle d'aujourd'hui.
+     Un compteur et son unité, jamais l'un sans l'autre.
+
+     « l'examen ajourné » est la formulation d'avant qu'on ne
+     reprenne les mots de David : une note déjà écrite doit
+     continuer de se relire. */
+  if((m = t.match(new RegExp(
+      '(\\d+)\\s*(?:ère|ere|ème|eme|e)\\s+le[çc]ons?\\s+apr[èe]s\\s+' +
+      '(l[\'\u2019]examen\\s+blanc|le\\s+post-?permis|' +
+      'le\\s+dernier\\s+ajournement|l[\'\u2019]examen\\s+ajourn[ée])', 'i')))){
     const v = parseInt(m[1], 10);
-    if(v > 0) r.apresEB = v;
+    const quoi = /post/i.test(m[2]) ? 'postpermis'
+               : /ajourn/i.test(m[2]) ? 'ajournement' : 'eb';
+    if(v > 0) r.apresCharniere = { rang: v, quoi: quoi };
   }
 
   /* Le total sur lequel la frise est posée : « 3ème leçon sur 5 ».
@@ -660,7 +682,7 @@ async function majSuivi(eleve, champs){
    date du jour ferait revenir une alerte que quelqu'un venait
    d'écarter, tous les jours, jusqu'à ce qu'on cesse de la lire.
    ============================================================ */
-function champsHeuresRestantes(eleve, valeur, champs, depuis){
+function champsHeuresRestantes(eleve, valeur, champs, depuis, charniere){
   const majs = Object.assign({}, champs || {});
   const propre = String(valeur === undefined || valeur === null ? '' : valeur).trim();
   majs.heuresRestantes = propre;
@@ -683,11 +705,24 @@ function champsHeuresRestantes(eleve, valeur, champs, depuis){
      décompter — et c'est exactement ce qui manquait.
 
      « heuresRang » se compte dans la même unité que la note :
-     combien de leçons après l'examen blanc au moment où la réserve
-     était pleine. Zéro — donc vide — veut dire « depuis l'examen
-     blanc », qui est le cas normal : les heures se prescrivent À
-     l'examen blanc, c'est à ça qu'il sert. L'autre cas, « à partir
-     de la prochaine leçon », se dit en passant le compteur du jour.
+     combien de leçons après la charnière au moment où la réserve
+     était pleine. Zéro — donc vide — veut dire « depuis la
+     charnière elle-même », qui est le cas normal de l'examen
+     blanc : les heures s'y prescrivent, c'est à ça qu'il sert.
+     L'autre cas, « à partir de la prochaine leçon », se dit en
+     passant le compteur du jour.
+
+     ⚠️ ET LE REPÈRE NE VEUT RIEN DIRE SANS SON UNITÉ — v972.
+
+     La note ne compte pas toujours depuis l'examen blanc : elle
+     compte aussi depuis le rendez-vous post-permis et depuis le
+     dernier ajournement, et ces compteurs-là repartent de un. « 6 »
+     ne dit donc rien tout seul — il faut savoir 6 de quoi. La
+     charnière s'écrit donc À CÔTÉ du repère, dans la même écriture,
+     et c'est leur couple qui permet de décompter. Vide veut dire
+     « examen blanc » : c'était le seul compteur lu avant cette
+     version, et les réserves déjà posées n'en connaissaient pas
+     d'autre.
 
      ⚠️ ET LA DATE NE PEUT PAS TENIR CE RÔLE. « heuresLe » dit quand
      le nombre a été posé, pas ce qui a été consommé depuis : ce
@@ -695,9 +730,27 @@ function champsHeuresRestantes(eleve, valeur, champs, depuis){
      leçons peuvent tomber le même jour, trois semaines passer sans
      aucune. Décompter sur la date donnerait un chiffre faux avec
      l'air d'être juste. */
-  majs.heuresRang = (depuis === undefined || depuis === null ||
-                     String(depuis).trim() === '' || String(depuis) === '0')
+  const rang = (depuis === undefined || depuis === null ||
+                String(depuis).trim() === '' || String(depuis) === '0')
     ? '' : String(parseInt(depuis, 10) || '');
+
+  /* ⚠️ LE REPÈRE ET SON UNITÉ TIENNENT DANS LA MÊME CASE — v972.
+
+     « 6 » tout seul veut dire « 6ᵉ leçon après l'examen blanc » :
+     c'était le seul compteur du jour où cette case est née, et
+     c'est ce que valent les repères déjà écrits. Les deux autres
+     charnières s'écrivent « 6:ajournement », « 0:postpermis ».
+
+     Une SECONDE case aurait été une colonne de plus au classeur —
+     donc une version d'Apps Script à redéployer — pour une moitié
+     d'information qui ne veut rien dire sans l'autre. Un rang sans
+     son unité ne se décompte pas, et une unité sans rang ne
+     désigne rien : c'est un seul fait, il tient dans une seule
+     case. */
+  const quoi = String(charniere || '').trim();
+  majs.heuresRang = (quoi && quoi !== 'eb')
+    ? ((rang || '0') + ':' + quoi)
+    : rang;
 
   majs.heuresPar = (typeof ACCES !== 'undefined' && ACCES.moniteur) || '';
   majs.heuresLe  = (typeof todayLocal === 'function')
@@ -707,9 +760,81 @@ function champsHeuresRestantes(eleve, valeur, champs, depuis){
 
 /* Écrit le nombre d'heures, son auteur et sa date — et ce que
    l'appelant veut poser en même temps, dans la même écriture. */
-async function majHeuresRestantes(eleve, valeur, champs, depuis){
+async function majHeuresRestantes(eleve, valeur, champs, depuis, charniere){
   if(typeof majSuivi !== 'function') return;
-  await majSuivi(eleve, champsHeuresRestantes(eleve, valeur, champs, depuis));
+  await majSuivi(eleve,
+    champsHeuresRestantes(eleve, valeur, champs, depuis, charniere));
+}
+
+
+/* ============================================================
+   OÙ EN EST SON COMPTEUR, ET DEPUIS QUOI — v972
+
+   Les quatre écrans qui posent des heures ont tous la même
+   question à se poser : dans quelle unité écrire le repère ? La
+   réponse est la même pour tous — celle de sa note — et elle
+   s'écrit donc ici, une fois.
+
+   Rend toujours un couple lisible : à défaut de note, l'examen
+   blanc au rang zéro, qui est ce que valait le silence avant cette
+   version.
+   ============================================================ */
+/* Le repère écrit dans le suivi, rendu en clair : « 6:ajournement »
+   devient { rang:6, quoi:'ajournement' }, « 6 » devient
+   { rang:6, quoi:'eb' }, et le vide { rang:0, quoi:'eb' }.
+
+   C'est la SEULE façon de lire cette case : deux lectures, et la
+   moins attentive finirait par prendre « 6:ajournement » pour un
+   rang de six leçons après l'examen blanc. */
+function repereDesHeures(s){
+  const brut = String((s && s.heuresRang) || '').trim();
+  const bout = brut.split(':');
+  const rang = parseInt(bout[0], 10);
+  const quoi = String(bout[1] || '').trim() || 'eb';
+  return { rang: isNaN(rang) ? 0 : rang, quoi: quoi };
+}
+
+
+function charniereDeLEleve(nom){
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const c = e && e.etat && e.etat.apresCharniere;
+  const rang = parseInt(c && c.rang, 10);
+  return { quoi: (c && c.quoi) || 'eb',
+           rang: isNaN(rang) ? 0 : rang };
+}
+
+/* Le nom de la charnière, tel qu'on l'écrit à l'élève et au
+   moniteur. Les mots sont ceux de la note — « après l'examen
+   blanc » — pour qu'on reconnaisse de quel compteur on parle. */
+function nomDeLaCharniere(quoi){
+  return (quoi === 'postpermis') ? 'le rendez-vous post-permis'
+       : (quoi === 'ajournement') ? 'le dernier ajournement'
+       : "l'examen blanc";
+}
+
+
+/* ============================================================
+   DES HEURES DITES AUJOURD'HUI DATENT D'AUJOURD'HUI — v972
+
+   Trois écrans posent un nombre d'heures en cours de route : le
+   bouton « ⏱️ Heures à préciser » des listes du bureau, la fenêtre
+   des sessions, et la fiche de route. Aucun ne posait de repère :
+   le nombre était donc rangé comme s'il datait de la charnière, et
+   toutes les leçons déjà faites depuis l'entamaient d'un coup.
+
+   Invisible tant que le compteur ne savait lire que l'examen
+   blanc — chez un élève au-delà, il ne décomptait rien du tout.
+   Dès que le compteur lit les trois charnières, l'oubli devient
+   une réserve qui fond sans que personne ait roulé. C'est la
+   faute jumelle de celle que « examPermisNRang » a réparée pour
+   l'examen officiel, et elle se répare pareil : le rang du jour.
+
+   Une seule fonction pour les trois : trois copies de ce calcul,
+   ce serait trois occasions d'en oublier un.
+   ============================================================ */
+function champsHeuresDitesMaintenant(eleve, valeur, champs){
+  const c = charniereDeLEleve(eleve);
+  return champsHeuresRestantes(eleve, valeur, champs, c.rang, c.quoi);
 }
 
 
