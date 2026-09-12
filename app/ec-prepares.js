@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 12:40 — v951 */
+/* Déployé le 12/09/2026 à 08:40 — v963 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1001,6 +1001,12 @@ async function afficherPrepares(recharger, silencieux){
       const combien = liste.filter(x => x.date === cours.date).length;
 
       tiroir = document.createElement('details');
+      /* ⚠️ LE TIROIR PORTE SA DATE — v963. La mise en page du
+         téléphone doit retrouver CELUI D'AUJOURD'HUI pour en sortir
+         la tête. Le retrouver par son titre — « Aujourd'hui · 2
+         cours » — serait relire un texte qu'on vient d'écrire : la
+         date est la donnée, le titre n'en est que l'affichage. */
+      tiroir.dataset.date = cours.date || '';
       /* Ce que le moniteur a ouvert ou fermé lui-même prime : sans
          ça, chaque redessin rouvrait les tiroirs qu'il venait de
          replier. */
@@ -1058,6 +1064,20 @@ async function afficherPrepares(recharger, silencieux){
     /* L'heure à la suite du nom : c'est ce qu'on cherche en
        ouvrant la liste, avant même le type de bilan. */
     const h = heureDeLaPreparation(cours);
+
+    /* ⚠️ LA CARTE PORTE SON HEURE ET SON ÉLÈVE — v963.
+
+       La tête du jour, sur téléphone, se calcule à partir des
+       cartes elles-mêmes. Elle pourrait relire les notes une
+       deuxième fois pour y retrouver les heures — et ce serait
+       exactement la faute qui revient dans ce dossier depuis le
+       début : le même fait lu à deux endroits finit par ne plus
+       donner la même réponse. L'heure est extraite UNE fois, ici,
+       et déposée sur la carte. Tout ce qui range la journée la
+       relit là. */
+    row.dataset.heure = h || '';
+    row.dataset.eleve = cours.eleve || '';
+
     /* Ce que l'élève apporte : à côté de l'heure, pour le voir sans
        ouvrir le cours. */
     const aApporter = repereDeNote(cours);
@@ -2203,8 +2223,13 @@ async function afficherPrepares(recharger, silencieux){
   /* Les cases handicap se remplissent après coup, en un passage */
   peindreHandicapDesCartes();
 
-  /* Et la mise en page à deux volets, s'il y a lieu */
+  /* Et la mise en page, s'il y a lieu. Les deux se partagent le
+     seuil de 1000 px par ses deux bouts : au-dessus, la journée à
+     gauche et le cours à droite ; en dessous, le cours du moment en
+     haut et le reste dans un tiroir. Une largeur ne peut pas
+     obtenir les deux, ni aucune des deux. */
   mettreEnDeuxVolets(zone);
+  mettreEnTeteEtTiroir(zone);
 }
 
 /* ============================================================
@@ -2368,6 +2393,289 @@ function mettreEnDeuxVolets(zone){
   cadre.appendChild(lecture);
   montrer(choisi);
 }
+
+/* ============================================================
+   LE COURS DU MOMENT EN HAUT, LE RESTE DANS UN TIROIR — v963
+
+   David, capture à l'appui : deux cours seulement, et il fallait
+   TROIS écrans de défilement pour atteindre le bouton de celui de
+   10h00 — alors qu'il était 10h03. Sur un téléphone, la journée
+   entière dépliée met le cours qu'on va faire hors de l'écran.
+
+   ⚠️ LA TÊTE EST CALCULÉE, JAMAIS CHOISIE. C'est toute sa
+   fonction : être, à chaque instant, le cours du moment. Taper une
+   ligne du tiroir ne l'échange pas, ne la renvoie pas dans le
+   tiroir, ne demande rien. La ligne se déplie SUR PLACE et la tête
+   ne bouge pas. David : « est-ce que le plus proche que je dois
+   avoir reste fixe en haut ? » — oui, et c'est la seule règle.
+
+   ⚠️ ET AUCUNE CARTE N'EST CLONÉE NI RECONSTRUITE. La ligne du
+   tiroir EST la carte, réduite par la feuille de style. Pas une
+   copie, pas une deuxième construction : il n'y a rien qui puisse
+   diverger, et la déplier ne fabrique rien — elle enlève une
+   classe.
+   ============================================================ */
+const SEUIL_TETE_ET_TIROIR = '(max-width: 999px)';
+
+/* Dix minutes, tranché par David. Elles ne servent qu'à BASCULER
+   d'un cours au suivant : à 09h50, celui de 10h00 prend la tête
+   même si on termine encore le bilan du précédent. */
+const AVANCE_TETE = 10;
+
+/* Ce que le moniteur a déplié dans le tiroir, par jeton. En
+   mémoire seulement : un redessin les retrouve, un rechargement
+   repart propre — c'est une préférence de lecture, pas une
+   donnée. */
+let lignesDepliees = {};
+
+/* ⚠️ L'HEURE SE LIT PAR LA PORTE QUI EXISTE DÉJÀ.
+
+   J'en avais réécrit une ici — trois lignes, l'air de rien. Deux
+   lectures d'un même « 08h00 » finissent toujours par ne pas
+   tomber d'accord : celle-ci n'acceptait que « HH:MM » quand
+   minutesDeLHeure (ec-textes.js) accepte aussi « 8h » et « 8h30 ».
+   Le jour où heureDeLaPreparation rendrait « 8h », la journée se
+   serait rangée d'un côté et la tête de l'autre.
+
+   minutesDeLHeure rend null quand il n'y a pas d'heure ; c'est ce
+   null qui distingue, partout ici, un cours placé dans la journée
+   d'un cours qui n'y est pas. */
+function aUneHeure(carte){
+  return minutesDeLHeure(carte.dataset.heure) !== null;
+}
+
+function maintenantEnMinutes(quand){
+  const t = quand || new Date();
+  return t.getHours() * 60 + t.getMinutes();
+}
+
+/* ------------------------------------------------------------
+   LA RÈGLE DE LA TÊTE, ÉCRITE UNE FOIS
+
+   « Le cours dont l'heure est la plus proche de maintenant, en
+   comptant dix minutes d'avance. » Les cours du jour sont triés
+   par heure ; on prend le DERNIER dont l'heure est déjà passée —
+   ou qui commence dans moins de dix minutes.
+
+   ⚠️ AUCUNE DURÉE N'EST NÉCESSAIRE, et c'est essentiel : David
+   « comment tu obtiens la durée du cours ? » — on ne l'obtient
+   pas. Un cours préparé n'a ni durée ni colonne d'heure ; son
+   heure est celle que la note porte, et rien d'autre. Une règle
+   qui aurait besoin de la fin du cours serait une règle qu'on ne
+   pourrait pas appliquer.
+
+   Un cours sans heure ne peut pas prendre la tête : on ne saurait
+   pas à quel moment la lui donner. Il part en dernier dans le
+   tiroir.
+
+   Avant le premier cours de la journée, c'est LUI qui prend la
+   tête : à six heures du matin, la question est « quel est mon
+   premier cours », pas « lequel vient de passer ».
+   ------------------------------------------------------------ */
+function teteDuJour(cartes, minutesMaintenant){
+  const avec = cartes.filter(aUneHeure)
+    .sort((a, b) => minutesDeLHeure(a.dataset.heure) -
+                    minutesDeLHeure(b.dataset.heure));
+  if(!avec.length) return null;
+
+  const seuil = minutesMaintenant + AVANCE_TETE;
+  let tete = null;
+  avec.forEach(c => {
+    if(minutesDeLHeure(c.dataset.heure) <= seuil) tete = c;
+  });
+  return tete || avec[0];
+}
+
+/* ⚠️ UN COURS QUI TOURNE TIENT LA TÊTE, QUELLE QUE SOIT L'HEURE.
+   David : « tant qu'un cours tourne, c'est LUI qui tient la
+   tête ». On ne le retrouve pas à l'heure — un cours de 8 h qu'on
+   finit à 10 h 20 est toujours le cours en route — mais au nom,
+   celui que l'écran de cours porte en ce moment. */
+function carteDuCoursEnRoute(cartes){
+  const c = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
+  if(!c || !c.eleve) return null;
+
+  const pareil = (a, b) => (typeof normaliserMot === 'function')
+    ? normaliserMot(a) === normaliserMot(b)
+    : String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+
+  const trouve = cartes.filter(x => x.dataset.eleve &&
+                                    pareil(x.dataset.eleve, c.eleve))[0];
+  return trouve ? { carte: trouve, etat: c } : null;
+}
+
+/* « DANS 10 MIN · 08h00 », « MAINTENANT · 08h00 », et quand un
+   cours tourne « ⏺ EN COURS · depuis 24 min ». Le vocabulaire du
+   temps écoulé est celui du bandeau — depuisCombien() — pour que
+   les deux ne disent jamais la même minute autrement. */
+function libelleDeLaTete(carte, minutesMaintenant, enRoute){
+  const hhmm = String(carte.dataset.heure || '');
+  const heure = hhmm ? hhmm.replace(':', 'h') : '';
+
+  if(enRoute){
+    const q = (typeof depuisCombien === 'function')
+      ? depuisCombien(enRoute.depuis) : '';
+    return '⏺ En cours' + (q ? ' · ' + q : '') + (heure ? ' · ' + heure : '');
+  }
+
+  const m = minutesDeLHeure(hhmm);
+  if(m === null) return 'Aujourd’hui';
+
+  const reste = m - minutesMaintenant;
+  if(reste <= 0) return 'Maintenant · ' + heure;
+  if(reste < 60) return 'Dans ' + reste + ' min · ' + heure;
+
+  const hh = Math.floor(reste / 60);
+  const mm = reste % 60;
+  return 'Dans ' + hh + ' h' + (mm ? ' ' + String(mm).padStart(2, '0') : '') +
+         ' · ' + heure;
+}
+
+function mettreEnTeteEtTiroir(zone){
+  if(!zone) return;
+  /* Le droit d'essai, et la largeur : sans les deux, la liste reste
+     telle qu'elle est. Le seuil est le même que celui des deux
+     volets, pris par l'autre bout — une largeur ne peut pas avoir
+     les deux mises en page, ni aucune des deux. */
+  if(!document.body.classList.contains('cours-neuf')) return;
+  if(!window.matchMedia || !window.matchMedia(SEUIL_TETE_ET_TIROIR).matches) return;
+
+  const auj = todayLocal();
+  const jour = Array.prototype.slice.call(zone.querySelectorAll('details'))
+    .filter(d => d.dataset.date === auj)[0];
+  if(!jour) return;
+
+  const cartes = Array.prototype.slice.call(jour.querySelectorAll('.history-item'));
+  if(cartes.length < 2) return;
+
+  const route = carteDuCoursEnRoute(cartes);
+  const tete = route ? route.carte : teteDuJour(cartes, maintenantEnMinutes());
+  if(!tete) return;
+
+  const cadre = document.createElement('div');
+  cadre.className = 'teteEtTiroir';
+
+  const ruban = document.createElement('div');
+  ruban.className = 'rubanTete';
+
+  const quand = document.createElement('div');
+  quand.className = 'quandTete';
+  quand.textContent = libelleDeLaTete(tete, maintenantEnMinutes(),
+                                      route ? route.etat : null);
+  ruban.appendChild(quand);
+
+  /* La carte elle-même monte en tête, avec ses boutons et ses cases
+     branchés. David : « rien n'est retiré des cartes ». */
+  tete.classList.add('enTete');
+  ruban.appendChild(tete);
+  cadre.appendChild(ruban);
+
+  const reste = document.createElement('details');
+  reste.className = 'resteDuJour';
+  /* Replié à l'arrivée : c'est tout l'objet de la manœuvre. Ce que
+     le moniteur ouvre lui-même prime ensuite, comme pour les
+     tiroirs de journée. */
+  reste.open = !!tiroirsPrepares['reste:' + auj];
+  reste.addEventListener('toggle', () => {
+    tiroirsPrepares['reste:' + auj] = reste.open;
+  });
+
+  const titre = document.createElement('summary');
+  reste.appendChild(titre);
+
+  /* Ce qui n'est pas une carte — les bandeaux de groupe du
+     simulateur — suit dans le tiroir, dans l'ordre où il était. Le
+     titre du jour, lui, ne sert plus : « Aujourd'hui » est déjà dit
+     par le ruban. */
+  Array.prototype.slice.call(jour.childNodes).forEach(el => {
+    if(el === titre) return;
+    if(el.tagName === 'SUMMARY') return;
+    if(el.classList && el.classList.contains('history-item')) return;
+    reste.appendChild(el);
+  });
+
+  /* L'ordre du moniteur continue de décider du tiroir — sauf les
+     cours sans heure, qui vont en dernier. David : « il va dans le
+     tiroir en dernier avec Aujourd'hui · Camille Bery, sans
+     heure ». Leur inventer une place dans la journée serait
+     mentir. */
+  const aRanger = cartes.filter(c => c !== tete);
+  const avecHeure = aRanger.filter(aUneHeure);
+  const sansHeure = aRanger.filter(c => !aUneHeure(c));
+
+  sansHeure.forEach(c => {
+    const t = c.querySelector('.tete');
+    if(!t || t.querySelector('.heureVide')) return;
+    const v = document.createElement('div');
+    v.className = 'heureVide';
+    v.textContent = 'Aujourd’hui';
+    v.title = 'Pas d’heure dans la note de ce cours';
+    t.insertBefore(v, t.firstChild);
+  });
+
+  avecHeure.concat(sansHeure).forEach(c => {
+    c.classList.toggle('pliee', !lignesDepliees[c.dataset.jeton]);
+    reste.appendChild(c);
+  });
+
+  const combien = aRanger.length;
+  titre.innerHTML = 'Le reste de la journée <span class="combien">— ' +
+    combien + ' cours</span>';
+
+  /* Taper une ligne la déplie SUR PLACE ; taper son en-tête la
+     replie. Une seule écoute pour tout le tiroir : une par carte,
+     et la carte qu'on déplie en oublierait une. */
+  reste.addEventListener('click', ev => {
+    const cible = ev.target;
+    if(!cible || !cible.closest) return;
+    const carte = cible.closest('.history-item');
+    if(!carte || !reste.contains(carte)) return;
+
+    if(carte.classList.contains('pliee')){
+      carte.classList.remove('pliee');
+      lignesDepliees[carte.dataset.jeton] = true;
+      return;
+    }
+    /* Dépliée, elle ne se replie que par son en-tête : le reste de
+       la carte est plein de boutons et de cases. */
+    if(cible.closest('.tete')){
+      carte.classList.add('pliee');
+      delete lignesDepliees[carte.dataset.jeton];
+    }
+  });
+
+  jour.replaceWith(cadre);
+  cadre.appendChild(reste);
+}
+
+/* ⚠️ « DANS 4 MIN » DOIT DEVENIR « DANS 3 ». Un chiffre figé est
+   pire qu'aucun chiffre, parce qu'on le croit.
+
+   Et la tête elle-même change d'un cours à l'autre en cours de
+   journée : à 09h50, celui de 10h00 la prend. On ne redessine la
+   liste QUE dans ce cas-là — la réécrire toutes les minutes la
+   ferait clignoter sous les doigts. Le reste du temps, seule la
+   ligne d'en-tête est réécrite. */
+setInterval(() => {
+  const cadre = document.querySelector('.teteEtTiroir');
+  if(!cadre) return;
+
+  const cartes = Array.prototype.slice.call(cadre.querySelectorAll('.history-item'));
+  const actuelle = cadre.querySelector('.history-item.enTete');
+  if(!actuelle) return;
+
+  const route = carteDuCoursEnRoute(cartes);
+  const doit = route ? route.carte : teteDuJour(cartes, maintenantEnMinutes());
+
+  if(doit && doit !== actuelle){
+    if(typeof afficherPrepares === 'function') afficherPrepares(false, true);
+    return;
+  }
+
+  const q = cadre.querySelector('.quandTete');
+  if(q) q.textContent = libelleDeLaTete(actuelle, maintenantEnMinutes(),
+                                        route ? route.etat : null);
+}, 60000);
 
 /* ============================================================
    REMPLIR LES CASES HANDICAP, EN UN SEUL PASSAGE
