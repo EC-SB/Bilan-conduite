@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 16:03 — v962 */
+/* Déployé le 12/09/2026 à 14:58 — v978 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,13 +17,32 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 220;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 221;   /* voir apps-script.js */
 
-/* L'adresse de la page publique d'un cours, déduite de celle de
-   l'application : elle vit dans le même dossier. Écrire l'adresse
-   en dur ici casserait les liens le jour d'un déménagement. */
-CONFIG.LIEN_COURS = location.origin +
-  location.pathname.replace(/[^/]*$/, '') + 'cours.html';
+/* Les pages publiques vivent dans le même dossier que
+   l'application : leur adresse se déduit de la sienne. Écrire une
+   adresse en dur ici casserait les liens le jour d'un déménagement.
+
+   ⚠️ ET LE DÉMÉNAGEMENT A EU LIEU — v978.
+
+   Le 12 septembre, l'application est passée de ec-sb.github.io à
+   app.evolutionconduites.fr. Le lien de cours n'a rien demandé à
+   personne : il se déduisait déjà. Le lien du coin révisions, lui,
+   était recopié à QUATRE endroits, et celui des téléviseurs à un
+   cinquième — cinq fichiers à rouvrir pour un seul fait.
+
+   Une adresse recopiée est une adresse qu'on oubliera de changer.
+   Elles se déduisent donc toutes, ici, et une seule fois. Seul le
+   modèle de mail d'Apps Script garde sa copie : il tourne ailleurs,
+   il ne peut pas lire cette page. */
+function pageVoisine(nom){
+  return location.origin +
+    location.pathname.replace(/[^/]*$/, '') + nom;
+}
+
+CONFIG.LIEN_COURS = pageVoisine('cours.html');
+CONFIG.LIEN_ELEVE = pageVoisine('eleve.html');
+CONFIG.LIEN_ECRAN = pageVoisine('ecran.html');
 
 /* Code d'accès de la session. Mémorisé dans ce téléphone pour ne pas
    le redemander à chaque rafraîchissement, avec une durée de validité. */
