@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:34 — v960 */
+/* Déployé le 11/09/2026 à 16:03 — v962 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -243,7 +243,14 @@ const VUES = {
               l'import, la création, et la liste pour vérifier
               qu'un import a bien atterri. */
            ['eleves',     '➕ Ajouter des élèves',     'eleves',      'Entrées et sorties'],
-           ['permis',     '🎓 Permis obtenu',         'permis',      'Entrées et sorties'],
+           /* ⚠️ 🪪 ET NON 🎓 — v962. « 🎓 Code » portait déjà ce
+              logo-là dans le MÊME rail. Tant que le nom s'écrivait
+              à côté, la confusion se rattrapait ; replié, le rail
+              ne montre plus que le logo, et deux boutons
+              identiques l'un au-dessus de l'autre ne se
+              distinguent plus du tout. La carte qu'on remet, donc,
+              plutôt que le chapeau du diplôme. */
+           ['permis',     '🪪 Permis obtenu',         'permis',      'Entrées et sorties'],
            ['depart',     '🚪 Départ',                'depart',      'Entrées et sorties']],
   /* Ce qui sert au quotidien pédagogique */
   /* Trois familles : ce qu'on MESURE, ce qu'on ÉCRIT une fois pour
@@ -1282,6 +1289,100 @@ function marquerRangsQuiDebordent(){
 
 window.addEventListener('resize', marquerRangsQuiDebordent);
 
+/* ============================================================
+   LE RAIL QUI SE REPLIE
+
+   David : « est-ce qu'on peut mettre en place le fait de replier
+   le rail à gauche ? Tu l'as fait sur cours mais pas sur les
+   autres onglets. Quand c'est replié on ne voit que les logos et
+   au survol de la souris on voit ce que c'est ».
+
+   ⚠️ C'EST UNE LARGEUR D'ÉCRAN, PAS UNE PRÉFÉRENCE DE TRAVAIL.
+   Le choix vit donc dans CE navigateur — comme « ancien / nouvel
+   écran de cours » — et pas dans les réglages partagés : un poste
+   de bureau large et un portable étroit n'ont pas le même besoin,
+   et c'est la même personne devant les deux.
+
+   Et déplié par défaut : personne ne découvre un écran en devinant
+   des logos. Replier est un geste qu'on fait quand on a besoin de
+   largeur, pas un état dans lequel on tombe.
+   ============================================================ */
+const CLE_RAIL_REPLIE = 'ec_rail_replie';
+
+function railReplie(){
+  try{ return localStorage.getItem(CLE_RAIL_REPLIE) === 'oui'; }
+  catch(e){ return false; }
+}
+
+function appliquerRailReplie(){
+  document.body.classList.toggle('rail-replie', railReplie());
+  document.querySelectorAll('.plierRail').forEach(b => {
+    const r = railReplie();
+    b.textContent = r ? '⟩' : '⟨';
+    b.title = r ? 'Déplier le menu' : 'Replier le menu — ne garder que les logos';
+    b.setAttribute('aria-label', b.title);
+  });
+  /* Les rangées ont changé de largeur : ce qui débordait ne
+     déborde plus, et l'inverse. */
+  if(typeof marquerRangsQuiDebordent === 'function') marquerRangsQuiDebordent();
+}
+
+function basculerRail(){
+  try{ localStorage.setItem(CLE_RAIL_REPLIE, railReplie() ? 'non' : 'oui'); }
+  catch(e){}
+  appliquerRailReplie();
+}
+
+/* ⚠️ LA BULLE EST UNE SEULE, POSÉE SUR LA PAGE — v962.
+
+   Écrite en CSS sur chaque bouton, elle aurait été coupée net : le
+   rail défile, donc il a « overflow:auto », et tout ce qui dépasse
+   d'un élément qui défile est rogné. Une bulle par bouton aurait
+   aussi voulu dire quarante-quatre bulles à placer.
+
+   Une seule, sur le corps de la page, placée à la volée en face du
+   bouton survolé. Et une seule écoute, posée une fois sur le
+   document : quarante-quatre écoutes refaites à chaque
+   reconstruction des barres, c'est le genre de chose qui
+   s'accumule sans se voir. */
+let bulleRail = null;
+
+function montrerBulleRail(b){
+  if(!document.body.classList.contains('rail-replie')) return;
+  const nom = b.getAttribute('data-nom');
+  if(!nom) return;
+  if(!bulleRail){
+    bulleRail = document.createElement('div');
+    bulleRail.className = 'bulleRail';
+    document.body.appendChild(bulleRail);
+  }
+  bulleRail.textContent = nom;
+  const r = b.getBoundingClientRect();
+  bulleRail.style.top = Math.round(r.top + r.height / 2) + 'px';
+  bulleRail.style.left = Math.round(r.right + 10) + 'px';
+  bulleRail.classList.add('on');
+}
+
+function cacherBulleRail(){
+  if(bulleRail) bulleRail.classList.remove('on');
+}
+
+document.addEventListener('mouseover', e => {
+  const b = e.target && e.target.closest
+    ? e.target.closest('.barre-vues button[data-nom]') : null;
+  if(b) montrerBulleRail(b); else cacherBulleRail();
+});
+/* Le rail défile sous la souris : la bulle resterait en l'air. */
+document.addEventListener('scroll', cacherBulleRail, true);
+
+function boutonPlierRail(){
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'plierRail';
+  b.addEventListener('click', basculerRail);
+  return b;
+}
+
 function construireBarresVues(){
   Object.keys(VUES).forEach(onglet => {
     const barre = document.querySelector('.barre-vues[data-pour="' + onglet + '"]');
@@ -1347,11 +1448,43 @@ function construireBarresVues(){
     const aDesFamilles = dispo.some(x => x[3]);
     barre.classList.toggle('groupee', aDesFamilles);
 
+    /* ⚠️ LE BOUTON EXISTE DANS LES CINQ BARRES, ET IL COMMANDE LES
+       CINQ — v962. David : « quand c'est replié on ne voit que les
+       logos et au survol on voit ce que c'est ». Un rail replié
+       dans Gestion et déplié dans Élèves, c'est une largeur de
+       contenu qui change d'un onglet à l'autre sans qu'on l'ait
+       demandé : le choix est unique, et il vaut pour l'écran. */
+    barre.appendChild(boutonPlierRail());
+
+    /* ⚠️ LE LOGO ET LE NOM SONT DEUX MORCEAUX — v962. Le rail se
+       replie en ne gardant que le logo : avec un seul texte, il n'y
+       aurait rien à cacher sans tout cacher. Le nom part aussi dans
+       « data-nom », d'où la bulle du survol le reprend — une seule
+       source, pas un libellé recopié dans un attribut. */
     const bouton = (cle, libelle) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = libelle;
       b.setAttribute('data-vue-cible', cle);
+
+      const morceaux = String(libelle).match(/^(\S+)\s+([\s\S]+)$/);
+      const logo = morceaux ? morceaux[1] : '';
+      const nom = morceaux ? morceaux[2] : String(libelle);
+
+      const l = document.createElement('span');
+      l.className = 'logoVue';
+      l.textContent = logo;
+      const t = document.createElement('span');
+      t.className = 'nomVue';
+      t.textContent = nom;
+      b.appendChild(l);
+      b.appendChild(t);
+      b.setAttribute('data-nom', nom);
+      /* ⚠️ PAS DE « title » — la bulle du navigateur apparaîtrait EN
+         PLUS de la nôtre, une seconde après, et pas au même
+         endroit. Le nom reste lisible pour un lecteur d'écran par
+         aria-label, qui n'affiche rien. */
+      b.setAttribute('aria-label', nom);
+
       b.addEventListener('click', () => afficherVue(onglet, cle));
       return b;
     };
@@ -1397,6 +1530,9 @@ function construireBarresVues(){
      comptées doivent revenir, sinon un simple changement de droits
      effacerait des comptes que plus personne ne recalcule. */
   Object.keys(COMPTES_VUE).forEach(c => poserCompteVue(c, COMPTES_VUE[c]));
+
+  /* Les boutons viennent d'être refaits : le repli aussi. */
+  appliquerRailReplie();
 }
 
 /* Un onglet sans vues affiche tous ses blocs. Sans ce ménage, la
