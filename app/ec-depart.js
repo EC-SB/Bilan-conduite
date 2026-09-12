@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 16:03 — v962 */
+/* Déployé le 12/09/2026 à 08:54 — v964 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -1348,20 +1348,90 @@ function resumeDesOnglets(droits){
   return z;
 }
 
+/* ⚠️ UN COMPTEUR NE DIT PAS UN NIVEAU — v964.
+
+   « 1 / 12 » ne répond pas à la question qu'on se pose en lisant la
+   tête d'un bloc : ce 1, est-ce voir, ou modifier ? Le schéma
+   portait l'ÉTAT à côté du nombre — « ✏️ Tout modifier »,
+   « 👁️ Tout voir », « Mélangé », « Rien » — et il avait raison :
+   c'est la seule chose qui se lit sans ouvrir.
+
+   Il se calcule UNE fois, ici. La pastille de la tête et le réglage
+   maître du dedans lisent la même réponse : ils ne peuvent donc pas
+   se contredire, et le jour où la règle change, elle change pour
+   les deux. */
+function etatDuBloc(dedans, choisis){
+  const niveaux = dedans.map(s => choisis[s.cle] || '');
+  const donnes = niveaux.filter(n => n).length;
+  if(!donnes) return { cle:'', libelle:'Rien', donnes:0 };
+  if(donnes === dedans.length && niveaux.every(n => n === 'm'))
+    return { cle:'m', libelle:'✏️ Tout modifier', donnes:donnes };
+  if(donnes === dedans.length && niveaux.every(n => n === 'v'))
+    return { cle:'v', libelle:'👁️ Tout voir', donnes:donnes };
+  return { cle:'?', libelle:'Mélangé', donnes:donnes };
+}
+
+/* ⚠️ UN COMPTE À LA FOIS — v964.
+
+   David, deux captures à l'appui : « le premier ton schéma et le
+   deuxième ce que j'ai, qui n'a pas grand-chose à voir ».
+
+   Il avait raison, et l'écart n'était pas cosmétique. Le schéma
+   promettait TROIS ÉCRANS AU LIEU D'UN MUR : la liste des comptes,
+   puis le panneau d'UNE personne. J'avais livré les six blocs de
+   CHAQUE personne empilés sous sa ligne — cent quarante-quatre
+   menus dessinés d'un coup pour trois comptes. C'est-à-dire le mur,
+   mieux rangé.
+
+   Ici, le panneau est un ÉCRAN : il remplace la liste, il porte le
+   nom de la personne et un retour. On ne règle jamais deux comptes
+   en même temps — et on ne se trompe donc jamais de compte, ce qui
+   était le vrai danger de la page empilée. */
 function panneauDesAcces(u){
   /* La table de travail : on ne touche aux droits enregistrés
-     qu'au moment d'enregistrer. */
-  const choisis = Object.assign({}, u.droits || {});
+     qu'au moment d'enregistrer.
 
-  const det = document.createElement('details');
-  det.style.cssText = 'margin:-6px 0 14px 4px;';
-  const som = document.createElement('summary');
-  som.style.cssText = 'cursor:pointer;font-size:12px;color:var(--muted);';
-  som.textContent = 'Régler ce que ' + u.nom + ' voit';
-  det.appendChild(som);
+     ⚠️ ET ON N'Y LAISSE QUE LES DEUX NIVEAUX QUI EXISTENT. Le
+     Worker n'écrit jamais que « m » ou « v » (nettoyerDroits), mais
+     s'il arrivait autre chose — un vieil enregistrement, une clé
+     tapée à la main — le menu de la ligne s'afficherait VIDE pendant
+     que la pastille du bloc compterait ce droit comme donné : deux
+     lectures de la même valeur, et c'est toujours la plus discrète
+     qui ment. On tranche ici, une fois, à l'entrée. */
+  const choisis = {};
+  Object.keys(u.droits || {}).forEach(k => {
+    const n = u.droits[k];
+    if(n === 'm' || n === 'v') choisis[k] = n;
+  });
+
+  /* Quels blocs sont dépliés. Le panneau se redessine à chaque
+     changement — sans ça, régler une ligne refermait le bloc qu'on
+     était en train de régler. */
+  const blocsOuverts = {};
+
+  const det = document.createElement('div');
+  det.className = 'ecranDUnCompte';
+
+  const tete = document.createElement('div');
+  tete.className = 'teteDuCompte';
+
+  const retour = document.createElement('button');
+  retour.type = 'button';
+  retour.className = 'btn btn-secondary';
+  retour.style.cssText = 'width:auto;margin:0;padding:6px 11px;font-size:12.5px;';
+  retour.textContent = '‹ Tous les comptes';
+  retour.addEventListener('click', () => { compteOuvert = ''; dessinerAcces(); });
+  tete.appendChild(retour);
+
+  const qui = document.createElement('div');
+  qui.className = 'quiDuCompte';
+  qui.textContent = (u.emoji || '👤') + ' ' + u.nom + ' — ce qu’' +
+    (u.genre === 'F' ? 'elle' : 'il') + ' voit';
+  tete.appendChild(qui);
+  det.appendChild(tete);
 
   const z = document.createElement('div');
-  z.style.cssText = 'padding:10px 0 8px 6px;';
+  z.style.cssText = 'padding:10px 0 8px;';
   det.appendChild(z);
 
   /* ---- Partir d'un modèle ---- */
@@ -1429,6 +1499,10 @@ function panneauDesAcces(u){
           ' : il ne verra que l\'écran d\'accueil.');
       }
       messageAdmin('Accès de ' + u.nom + ' enregistrés.');
+      /* On revient à la liste : sa ligne y porte aussitôt les
+         onglets qu'il voit désormais. C'est la preuve que
+         l'enregistrement a pris, et elle se lit sans rien ouvrir. */
+      compteOuvert = '';
       chargerUtilisateurs();
     }catch(e){ messageAdmin(e.message, true); bOk.disabled = false; }
   });
@@ -1441,30 +1515,43 @@ function panneauDesAcces(u){
      contredire puisqu'ils lisent tous « choisis ».
      ------------------------------------------------------------ */
   function redessiner(){
+    /* ⚠️ CE QUI EST DÉPLIÉ SE LIT SUR L'ÉCRAN, juste avant de
+       l'effacer. Je l'avais d'abord noté au vol, sur l'événement
+       « toggle » du bloc — qui arrive APRÈS le tour de boucle : poser
+       un droit refermait le bloc qu'on était en train de régler,
+       parce que la note n'était pas encore prise. L'écran, lui, sait
+       toujours ce qui est ouvert. */
+    Array.prototype.slice.call(blocs.querySelectorAll('details.blocAcces'))
+      .forEach(d => { blocsOuverts[d.dataset.onglet] = d.open; });
     blocs.innerHTML = '';
 
     ONGLETS_DROITS.forEach(ong => {
       const dedans = SECTIONS.filter(s => s.onglet === ong.cle);
       if(!dedans.length) return;
 
-      const donnes = dedans.filter(s => choisis[s.cle]).length;
+      const etat = etatDuBloc(dedans, choisis);
       const tous = dedans.length;
 
       const b = document.createElement('details');
-      b.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-        'margin-bottom:8px;overflow:hidden;';
+      b.className = 'blocAcces';
+      b.dataset.onglet = ong.cle;
+      /* Ce qu'on a ouvert soi-même survit au redessin. */
+      b.open = !!blocsOuverts[ong.cle];
 
       const t = document.createElement('summary');
-      t.style.cssText = 'display:flex;align-items:center;gap:8px;' +
-        'padding:9px 11px;cursor:pointer;font-size:13.5px;font-weight:700;' +
-        'background:var(--navy-deep);';
       const nom = document.createElement('span');
-      nom.style.flex = '1';
+      nom.className = 'nomBloc';
       nom.textContent = ong.nom;
+      /* ⚠️ L'ÉTAT, PAS SEULEMENT LE NOMBRE. « 1 / 12 » ne dit pas si
+         ce 1 est « voir » ou « modifier » ; la pastille le dit. */
+      const past = document.createElement('span');
+      past.className = 'etatBloc' + (etat.cle ? ' donne' : '');
+      past.textContent = etat.libelle;
       const cpt = document.createElement('span');
-      cpt.style.cssText = 'font-size:11.5px;color:var(--muted);font-weight:700;';
-      cpt.textContent = donnes + ' / ' + tous;
+      cpt.className = 'cptBloc';
+      cpt.textContent = etat.donnes + ' / ' + tous;
       t.appendChild(nom);
+      t.appendChild(past);
       t.appendChild(cpt);
       b.appendChild(t);
 
@@ -1479,7 +1566,8 @@ function panneauDesAcces(u){
         .forEach(([niveau, libelle]) => {
           const x = document.createElement('button');
           x.type = 'button';
-          x.className = 'btn btn-secondary';
+          x.className = 'btn btn-secondary' +
+            (etat.cle === niveau ? ' actifAcces' : '');
           x.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;';
           x.textContent = libelle;
           x.addEventListener('click', async () => {
@@ -1559,6 +1647,21 @@ function panneauDesAcces(u){
   return det;
 }
 
+/* ------------------------------------------------------------
+   DEUX ÉCRANS, UNE SEULE LECTURE — v964
+
+   Les comptes sont lus une fois et gardés ici ; « Ouvrir » et
+   « Retour » ne font que changer d'écran. Aller les redemander au
+   Worker à chaque aller-retour ferait attendre une seconde pour
+   afficher ce qu'on a déjà.
+
+   ⚠️ ET UN SEUL DESSIN. La liste et le panneau sortent de la même
+   fonction, à partir de la même liste en mémoire : il n'y a pas
+   d'état « la liste dit une chose, le panneau une autre ».
+   ------------------------------------------------------------ */
+let listeComptes = [];
+let compteOuvert = '';
+
 async function chargerUtilisateurs(){
   const zone = $('adminList');
   zone.innerHTML = '<div class="empty">Chargement…</div>';
@@ -1568,9 +1671,43 @@ async function chargerUtilisateurs(){
       zone.innerHTML = '<div class="unsupported">⚠️ Le stockage KV n\'est pas configuré sur le Worker : impossible d\'enregistrer de nouveaux accès. Vérifie le binding <strong>UTILISATEURS</strong>.</div>';
       return;
     }
-    const liste = data.utilisateurs || [];
-    zone.innerHTML = '';
-    liste.forEach(u => {
+    listeComptes = data.utilisateurs || [];
+    dessinerAcces();
+  }catch(e){
+    zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+  }
+}
+
+/* Le formulaire de création et le ménage n'ont rien à faire sous le
+   panneau d'une personne : on règle un compte, on n'en crée pas un
+   autre en même temps. */
+function montrerLeResteDeLAdmin(oui){
+  ['adminNouveau', 'adminMenage'].forEach(id => {
+    const e = $(id);
+    if(e) e.style.display = oui ? '' : 'none';
+  });
+}
+
+function dessinerAcces(){
+  const zone = $('adminList');
+  if(!zone) return;
+
+  const u = compteOuvert
+    ? listeComptes.filter(x => x.code === compteOuvert)[0] : null;
+  /* Un compte supprimé pendant qu'on le regardait : on retombe sur
+     la liste plutôt que sur un écran vide. */
+  if(compteOuvert && !u) compteOuvert = '';
+
+  zone.innerHTML = '';
+  montrerLeResteDeLAdmin(!u);
+
+  if(u){ zone.appendChild(panneauDesAcces(u)); return; }
+  listeComptes.forEach(x => zone.appendChild(ligneDuCompte(x)));
+}
+
+function ligneDuCompte(u){
+  {
+    {
       const row = document.createElement('div');
       row.className = 'history-item';
 
@@ -1598,8 +1735,14 @@ async function chargerUtilisateurs(){
       }
       row.appendChild(meta);
 
+      /* ⚠️ ELLE PORTE UN NOM POUR POUVOIR SE REPLIER — v964. Habillée
+         à la main, cette colonne était invisible à la feuille de
+         style : sur un téléphone, six boutons côte à côte poussaient
+         la ligne 66 px hors de l'écran, et toute la page se mettait
+         à défiler de côté. On ne peut pas corriger ce qu'on ne peut
+         pas désigner. */
       const actions = document.createElement('div');
-      actions.style.cssText = 'display:flex;gap:6px;flex-shrink:0;';
+      actions.className = 'actionsCompte';
 
       if(!u.principal && u.code !== ACCES.code){
         const selRole = document.createElement('select');
@@ -1709,27 +1852,35 @@ async function chargerUtilisateurs(){
         actions.appendChild(verrou);
       }
 
-      row.appendChild(actions);
-      zone.appendChild(row);
-
-      /* ⚠️ CE QUE CETTE PERSONNE VOIT, RANGÉ PAR ONGLET — v962.
+      /* ⚠️ CE QUE CETTE PERSONNE VOIT, RANGÉ PAR ONGLET — v962,
+         refait en v964.
 
          Avant : quarante-sept menus à trois choix, à plat, dans
-         l'ordre du code, et les six fiches dépliables sur la même
-         page — près de trois cents menus dessinés d'un coup. David :
-         « c'est indigeste dans l'ensemble […] là je peux plus ».
+         l'ordre du code. David : « c'est indigeste dans l'ensemble
+         […] là je peux plus ».
 
-         Maintenant : six blocs, dans l'ordre des onglets de
-         l'application. Repliés, six lignes ; dépliés, on est au même
-         endroit qu'avant, mais on sait OÙ on est. Le réglage maître
-         d'un bloc donne l'onglet entier en un geste — et se fait
-         confirmer quand l'onglet touche à l'argent. */
+         La v962 les avait rangés en six blocs par onglet — mais
+         empilés sous CHAQUE compte, tous en même temps. C'était
+         encore le mur, mieux rangé, et ce n'était pas le schéma.
+         Ici, une ligne mène à un écran : un compte, ses six blocs,
+         et rien d'autre à l'écran. */
       if(!u.principal){
-        zone.appendChild(panneauDesAcces(u));
+        const bOuvrir = document.createElement('button');
+        bOuvrir.type = 'button';
+        bOuvrir.className = 'btn btn-secondary ouvrirAcces';
+        bOuvrir.textContent = 'Régler ses accès';
+        bOuvrir.addEventListener('click', () => {
+          compteOuvert = u.code;
+          dessinerAcces();
+          const c = $('adminCard');
+          if(c && c.scrollIntoView) c.scrollIntoView({ block:'start' });
+        });
+        actions.appendChild(bOuvrir);
       }
-    });
-  }catch(e){
-    zone.innerHTML = '<div class="empty">Erreur : ' + e.message + '</div>';
+
+      row.appendChild(actions);
+      return row;
+    }
   }
 }
 
