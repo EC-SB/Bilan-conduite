@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v963
+     VERSION APPLICATION : v964
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 12/09/2026 à 08:40
+     Mis à jour le : 12/09/2026 à 08:54
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -307,6 +307,88 @@
   @media (prefers-reduced-motion: reduce){
     .vise{ transition:none; }
   }
+  /* ============================================================
+     ⚙️ ACCÈS — DEUX ÉCRANS, PAS UN MUR — v964
+
+     David, deux captures à l'appui : « le premier ton schéma et le
+     deuxième ce que j'ai, qui n'a pas grand-chose à voir ».
+
+     Le schéma promettait la liste des comptes, puis le panneau
+     d'UNE personne. La v962 avait livré les six blocs de CHAQUE
+     personne empilés sous sa ligne — le mur, mieux rangé. Ici, une
+     ligne mène à un écran.
+     ============================================================ */
+  #adminList .history-item{ align-items:center; }
+  .actionsCompte{
+    display:flex; gap:6px; flex-shrink:0; align-items:center; flex-wrap:wrap;
+  }
+  .ouvrirAcces{
+    width:auto !important; margin:0 !important;
+    padding:7px 12px; font-size:12.5px; font-weight:700;
+    border-color:var(--accent-text); color:var(--accent-text);
+  }
+  /* Six boutons côte à côte ne tiennent pas dans un téléphone : la
+     ligne passe en deux étages plutôt que de pousser la page de
+     côté. Un écran qui défile horizontalement est un écran cassé. */
+  @media (max-width: 760px){
+    #adminList .history-item{ flex-direction:column; align-items:stretch; gap:9px; }
+    /* ⚠️ « flex:1 1 190px » posé pour une RANGÉE devient, dans une
+       colonne, « prends toute la hauteur » : la ligne de Chrystel
+       s'étirait sur un écran entier de vide avant son cadenas. Un
+       axe changé change le sens de tout ce qui s'y appuie. */
+    #adminList .history-item > .meta{ flex:0 0 auto; }
+    .actionsCompte{ width:100%; }
+    .actionsCompte > select{ flex:1 1 auto; min-width:0; }
+    .ouvrirAcces{ flex:1 1 100%; }
+  }
+
+  .teteDuCompte{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding-bottom:10px; border-bottom:1px solid var(--line);
+  }
+  .quiDuCompte{
+    flex:1 1 auto; min-width:0;
+    font-size:16px; font-weight:800; color:var(--cream);
+  }
+
+  /* Un bloc = un onglet de l'application. Sa tête se lit sans
+     l'ouvrir : le nom, l'état, le compte. */
+  details.blocAcces{
+    border:1px solid var(--line); border-radius:10px;
+    margin-bottom:8px; overflow:hidden;
+  }
+  details.blocAcces > summary{
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    padding:9px 11px; cursor:pointer;
+    font-size:13.5px; font-weight:700; background:var(--navy-deep);
+    list-style:none;
+  }
+  details.blocAcces > summary::-webkit-details-marker{ display:none; }
+  details.blocAcces > summary::before{ content:'▸'; color:var(--muted); }
+  details.blocAcces[open] > summary::before{ content:'▾'; }
+  details.blocAcces .nomBloc{ flex:1 1 auto; min-width:0; }
+  /* ⚠️ L'ÉTAT, PAS SEULEMENT LE NOMBRE. « 1 / 12 » ne dit pas si ce
+     1 est « voir » ou « modifier » : c'est cette pastille-là qu'on
+     lit, et c'était elle qui manquait. */
+  details.blocAcces .etatBloc{
+    font-size:11.5px; font-weight:700; padding:2px 9px;
+    border:1px solid var(--line); border-radius:999px;
+    color:var(--muted); white-space:nowrap;
+  }
+  details.blocAcces .etatBloc.donne{
+    color:var(--accent-text); border-color:var(--accent-text);
+  }
+  details.blocAcces .cptBloc{
+    font-size:11.5px; color:var(--muted); font-weight:700;
+    min-width:44px; text-align:right;
+  }
+  /* Le réglage maître en cours se voit : sans ça, trois boutons
+     identiques ne disent pas lequel est déjà posé. */
+  .actifAcces{
+    border-color:var(--accent-text) !important;
+    color:var(--accent-text) !important; font-weight:700;
+  }
+
   /* La colonne des boutons porte enfin un nom : elle était habillée
      à la main dans ec-prepares.js, donc invisible à la feuille de
      style — on ne peut pas corriger ce qu'on ne peut pas désigner. */
@@ -2120,7 +2202,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=963" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=964" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -3666,7 +3748,11 @@
     <div class="contenu-tiroir">
     <div id="adminList"><div class="empty">Chargement…</div></div>
 
-    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+    <!-- ⚠️ Il porte un nom pour pouvoir se taire — v964. Quand on
+         règle les accès d'une personne, son panneau prend l'écran :
+         un formulaire de création dessous inviterait à créer un
+         compte au milieu du réglage d'un autre. -->
+    <div id="adminNouveau" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
       <label for="newCode">Nouveau code (6 à 8 chiffres)</label>
       <input type="text" id="newCode" inputmode="numeric" maxlength="8" minlength="6" placeholder="Ex : 573914">
       <label for="newName">Prénom</label>
@@ -3696,7 +3782,7 @@
     <!-- Le ménage occasionnel. Replié, tout en bas, et dans la seule
          carte qu'un moniteur ne peut pas atteindre : ce n'est pas un
          bouton sur lequel on appuie « pour voir ». -->
-    <details style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+    <details id="adminMenage" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
       <summary style="cursor:pointer;color:var(--muted);font-weight:600;font-size:14px;padding:4px 0;">
         🩺 Outils de réparation
       </summary>
@@ -3842,76 +3928,76 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=963"></script>
-<script src="app/ec-modeles.js?v=963"></script>
-<script src="app/ec-consignes.js?v=963"></script>
-<script src="app/ec-noyau.js?v=963"></script>
-<script src="app/ec-vocal.js?v=963"></script>
-<script src="app/ec-reseau.js?v=963"></script>
-<script src="app/ec-manuel.js?v=963"></script>
-<script src="app/ec-fenetres.js?v=963"></script>
-<script src="app/ec-questionnaire.js?v=963"></script>
-<script src="app/ec-permis.js?v=963"></script>
-<script src="app/ec-prepares.js?v=963"></script>
-<script src="app/ec-avant-cours.js?v=963"></script>
-<script src="app/ec-bureau.js?v=963"></script>
-<script src="app/ec-places.js?v=963"></script>
-<script src="app/ec-listes.js?v=963"></script>
-<script src="app/ec-permis-listes.js?v=963"></script>
-<script src="app/ec-postpermis.js?v=963"></script>
-<script src="app/ec-textes.js?v=963"></script>
-<script src="app/ec-correction.js?v=963"></script>
-<script src="app/ec-bilans.js?v=963"></script>
-<script src="app/ec-ecran.js?v=963"></script>
-<script src="app/ec-version.js?v=963"></script>
-<script src="app/ec-paie.js?v=963"></script>
-<script src="app/ec-flotte.js?v=963"></script>
-<script src="app/ec-carrosserie.js?v=963"></script>
-<script src="app/ec-solo.js?v=963"></script>
-<script src="app/ec-handicap-pdf.js?v=963"></script>
-<script src="app/ec-moto.js?v=963"></script>
-<script src="app/ec-remorque.js?v=963"></script>
-<script src="app/ec-arriereplan.js?v=963"></script>
-<script src="app/ec-placesbe.js?v=963"></script>
-<script src="app/ec-codeamenage.js?v=963"></script>
-<script src="app/ec-financements.js?v=963"></script>
-<script src="app/ec-eval-aac.js?v=963"></script>
-<script src="app/ec-postes.js?v=963"></script>
-<script src="app/ec-tarifs.js?v=963"></script>
-<script src="app/ec-caisse.js?v=963"></script>
-<script src="app/ec-menage.js?v=963"></script>
-<script src="app/ec-page-eleve.js?v=963"></script>
-<script src="app/ec-cbgasoil.js?v=963"></script>
-<script src="app/ec-loupe.js?v=963"></script>
-<script src="app/ec-coutsia.js?v=963"></script>
-<script src="app/ec-evaluation.js?v=963"></script>
-<script src="app/ec-paiement.js?v=963"></script>
-<script src="app/ec-handicap.js?v=963"></script>
-<script src="app/ec-code.js?v=963"></script>
-<script src="app/ec-proccorriger.js?v=963"></script>
-<script src="app/ec-sessions.js?v=963"></script>
-<script src="app/ec-aac-cs.js?v=963"></script>
-<script src="app/ec-notifs.js?v=963"></script>
-<script src="app/ec-ecoutes.js?v=963"></script>
-<script src="app/ec-taches.js?v=963"></script>
-<script src="app/ec-memoire.js?v=963"></script>
-<script src="app/ec-historique.js?v=963"></script>
-<script src="app/ec-rappels.js?v=963"></script>
-<script src="app/ec-segments.js?v=963"></script>
-<script src="app/ec-sms.js?v=963"></script>
-<script src="app/ec-encours.js?v=963"></script>
-<script src="app/ec-incidents.js?v=963"></script>
+  <script src="app/ec-etat.js?v=964"></script>
+<script src="app/ec-modeles.js?v=964"></script>
+<script src="app/ec-consignes.js?v=964"></script>
+<script src="app/ec-noyau.js?v=964"></script>
+<script src="app/ec-vocal.js?v=964"></script>
+<script src="app/ec-reseau.js?v=964"></script>
+<script src="app/ec-manuel.js?v=964"></script>
+<script src="app/ec-fenetres.js?v=964"></script>
+<script src="app/ec-questionnaire.js?v=964"></script>
+<script src="app/ec-permis.js?v=964"></script>
+<script src="app/ec-prepares.js?v=964"></script>
+<script src="app/ec-avant-cours.js?v=964"></script>
+<script src="app/ec-bureau.js?v=964"></script>
+<script src="app/ec-places.js?v=964"></script>
+<script src="app/ec-listes.js?v=964"></script>
+<script src="app/ec-permis-listes.js?v=964"></script>
+<script src="app/ec-postpermis.js?v=964"></script>
+<script src="app/ec-textes.js?v=964"></script>
+<script src="app/ec-correction.js?v=964"></script>
+<script src="app/ec-bilans.js?v=964"></script>
+<script src="app/ec-ecran.js?v=964"></script>
+<script src="app/ec-version.js?v=964"></script>
+<script src="app/ec-paie.js?v=964"></script>
+<script src="app/ec-flotte.js?v=964"></script>
+<script src="app/ec-carrosserie.js?v=964"></script>
+<script src="app/ec-solo.js?v=964"></script>
+<script src="app/ec-handicap-pdf.js?v=964"></script>
+<script src="app/ec-moto.js?v=964"></script>
+<script src="app/ec-remorque.js?v=964"></script>
+<script src="app/ec-arriereplan.js?v=964"></script>
+<script src="app/ec-placesbe.js?v=964"></script>
+<script src="app/ec-codeamenage.js?v=964"></script>
+<script src="app/ec-financements.js?v=964"></script>
+<script src="app/ec-eval-aac.js?v=964"></script>
+<script src="app/ec-postes.js?v=964"></script>
+<script src="app/ec-tarifs.js?v=964"></script>
+<script src="app/ec-caisse.js?v=964"></script>
+<script src="app/ec-menage.js?v=964"></script>
+<script src="app/ec-page-eleve.js?v=964"></script>
+<script src="app/ec-cbgasoil.js?v=964"></script>
+<script src="app/ec-loupe.js?v=964"></script>
+<script src="app/ec-coutsia.js?v=964"></script>
+<script src="app/ec-evaluation.js?v=964"></script>
+<script src="app/ec-paiement.js?v=964"></script>
+<script src="app/ec-handicap.js?v=964"></script>
+<script src="app/ec-code.js?v=964"></script>
+<script src="app/ec-proccorriger.js?v=964"></script>
+<script src="app/ec-sessions.js?v=964"></script>
+<script src="app/ec-aac-cs.js?v=964"></script>
+<script src="app/ec-notifs.js?v=964"></script>
+<script src="app/ec-ecoutes.js?v=964"></script>
+<script src="app/ec-taches.js?v=964"></script>
+<script src="app/ec-memoire.js?v=964"></script>
+<script src="app/ec-historique.js?v=964"></script>
+<script src="app/ec-rappels.js?v=964"></script>
+<script src="app/ec-segments.js?v=964"></script>
+<script src="app/ec-sms.js?v=964"></script>
+<script src="app/ec-encours.js?v=964"></script>
+<script src="app/ec-incidents.js?v=964"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=963"></script>
-<script src="app/ec-bandeau.js?v=963"></script>
-<script src="app/ec-stats.js?v=963"></script>
-<script src="app/ec-messenger.js?v=963"></script>
-<script src="app/ec-journal.js?v=963"></script>
-<script src="app/ec-depart.js?v=963"></script>
-<script src="app/ec-onglets.js?v=963"></script>
-<script src="app/ec-demarrage.js?v=963"></script>
+<script src="app/ec-messages-perso.js?v=964"></script>
+<script src="app/ec-bandeau.js?v=964"></script>
+<script src="app/ec-stats.js?v=964"></script>
+<script src="app/ec-messenger.js?v=964"></script>
+<script src="app/ec-journal.js?v=964"></script>
+<script src="app/ec-depart.js?v=964"></script>
+<script src="app/ec-onglets.js?v=964"></script>
+<script src="app/ec-demarrage.js?v=964"></script>
 
 <script>
 /* ============================================================
