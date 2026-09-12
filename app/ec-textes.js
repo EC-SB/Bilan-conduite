@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:45 — v961 */
+/* Déployé le 12/09/2026 à 10:50 — v969 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -470,11 +470,121 @@ function fichesVisibles(){
   return (modelesTexte || []).filter(jePeuxVoir);
 }
 
-/* Les catégories d'une fiche, sans son marqueur privé : « prive:
-   David » n'est pas un carnet de l'école, il ne se range pas et ne
-   se renomme pas. */
+/* ============================================================
+   ⚠️ LES ÉTIQUETTES TECHNIQUES NE SONT PAS DES CARNETS — v969
+
+   Deux étiquettes ne nomment pas un carnet de l'école : « prive:
+   David », qui dit à qui est la fiche, et « couleur:jaune », qui
+   dit de quelle couleur elle est. Elles voyagent dans la même
+   colonne que les autres — c'est tout leur intérêt, il n'y a
+   qu'une liste à tenir — mais elles ne se rangent pas, ne se
+   renomment pas, et n'apparaissent ni sur la carte ni dans le rail
+   des catégories.
+
+   Leurs préfixes sont NOMMÉS ici, une fois. Le marqueur privé
+   avait son filtre écrit à la main ; la couleur en aurait demandé
+   un deuxième, et la troisième un troisième — jusqu'au jour où
+   l'un des trois manquerait quelque part, et où « couleur:jaune »
+   s'afficherait comme un carnet.
+   ============================================================ */
+const PREFIXE_COULEUR = 'couleur:';
+const PREFIXES_TECHNIQUES = [PREFIXE_PRIVE, PREFIXE_COULEUR];
+
+function estEtiquetteTechnique(e){
+  const t = String(e || '');
+  return PREFIXES_TECHNIQUES.some(p => t.indexOf(p) === 0);
+}
+
+/* Les catégories d'une fiche : ses étiquettes, moins les
+   techniques. */
 function categoriesDe(m){
-  return etiquettesDe(m).filter(e => e.indexOf(PREFIXE_PRIVE) !== 0);
+  return etiquettesDe(m).filter(e => !estEtiquetteTechnique(e));
+}
+
+/* ============================================================
+   LA COULEUR DE LA FICHE — COMME KEEP — v969
+
+   David, le 11 puis le 12 septembre : « mettre en place comme Keep
+   sur les fiches de modèles messages des palettes de couleur pour
+   le fond de la fiche, que des couleurs pastels ». Et, le 12, sur
+   le rangement : « A » — la couleur appartient à la fiche, elle est
+   donc la même pour toute l'école.
+
+   ⚠️ HUIT NOMS, PAS SEIZE VALEURS. La table ne contient que les
+   clés : les teintes vivent dans la feuille de style, en deux jeux,
+   un clair et un sombre. Écrire « #FBF4CF » ici en ferait la
+   troisième version de la même couleur — et le jour où le thème
+   sombre change, c'est celle-ci qu'on oublierait.
+   ============================================================ */
+const COULEURS_FICHE = [
+  { cle:'jaune',  nom:'Jaune'  },
+  { cle:'orange', nom:'Orange' },
+  { cle:'rouge',  nom:'Rouge'  },
+  { cle:'rose',   nom:'Rose'   },
+  { cle:'violet', nom:'Violet' },
+  { cle:'bleu',   nom:'Bleu'   },
+  { cle:'menthe', nom:'Menthe' },
+  { cle:'vert',   nom:'Vert'   }
+];
+
+function couleurDeLaFiche(m){
+  const t = etiquettesDe(m).find(e => e.indexOf(PREFIXE_COULEUR) === 0) || '';
+  const cle = t ? t.slice(PREFIXE_COULEUR.length).trim() : '';
+  /* Une couleur qu'on ne connaît pas ne teinte rien : une valeur
+     tapée à la main dans le classeur ne doit pas peindre une fiche
+     d'une couleur qui n'existe pas dans la feuille de style. */
+  return COULEURS_FICHE.some(c => c.cle === cle) ? cle : '';
+}
+
+/* ============================================================
+   ⚠️ ENREGISTRER UNE FICHE — PAR UNE SEULE PORTE — v969
+
+   « modeleSet » écrit la LIGNE ENTIÈRE du classeur : un champ
+   oublié dans la charge utile ne reste pas tel qu'il était, il
+   s'efface. Le commentaire de la boucle de renommage le disait
+   déjà — et pourtant la charge était recopiée à la main à trois
+   endroits. La quatrième copie, c'était la quatrième occasion
+   d'oublier un champ, et cette faute-là ne se voit qu'après, dans
+   le classeur, sur la fiche de quelqu'un d'autre.
+
+   Elle s'écrit donc ici, une fois. Ajouter une colonne au modèle,
+   c'est désormais l'ajouter à UN endroit.
+   ============================================================ */
+async function enregistrerModeleTexte(m){
+  return appelPrep({
+    action: 'modeleSet',
+    id: m.id,
+    usage: m.usage || 'libre',
+    nom: m.titre || m.nom,
+    etiquettes: m.etiquettes || '',
+    boite: m.boite || '',
+    ordre: !!m.ordre,
+    consigne: m.consigne || '',
+    bilan: m.bilan || '',
+    contenu: m.contenu || ''
+  });
+}
+
+/* Poser une couleur, ou la retirer avec une clé vide. La fiche
+   n'en porte jamais deux : on remplace. */
+async function poserCouleurFiche(m, cle){
+  if(!m) return;
+  const garde = etiquettesDe(m).filter(e => e.indexOf(PREFIXE_COULEUR) !== 0);
+  if(cle) garde.push(PREFIXE_COULEUR + cle);
+
+  const avant = m.etiquettes;
+  m.etiquettes = garde.join(SEP_ETIQ);
+
+  try{
+    await enregistrerModeleTexte(m);
+  }catch(e){
+    /* L'écriture a échoué : la fiche reprend sa couleur d'avant.
+       La laisser peinte à l'écran ferait croire que c'est
+       enregistré. */
+    m.etiquettes = avant;
+    if(typeof showToast === 'function') showToast('Couleur non enregistrée');
+    throw e;
+  }
 }
 
 /* ⚠️ L'ORDRE DES ÉTIQUETTES EST RANGÉ, PAS DEVINÉ — David : « j'ai
@@ -1432,16 +1542,13 @@ async function reecrireCategorie(ancien, neuf){
         .filter((e, k, l) => l.indexOf(e) === k);
       try{
         /* ⚠️ ON RENVOIE LA FICHE ENTIÈRE : « modeleSet » écrit la
-           ligne complète, et un champ oublié ici s'effacerait dans
-           le classeur. Le titre part sans son ancien préfixe de
-           catégorie — elle est déjà dans la liste ci-dessus. */
-        await appelPrep({
-          action: 'modeleSet', id: m.id, usage: m.usage || 'libre',
-          nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ),
-          boite: m.boite || '', ordre: !!m.ordre,
-          consigne: m.consigne || '', bilan: m.bilan || '',
-          contenu: m.contenu || ''
-        });
+           ligne complète, et un champ oublié s'effacerait dans le
+           classeur. C'est pour ça que la charge utile s'écrit à un
+           seul endroit — enregistrerModeleTexte. Le titre part sans
+           son ancien préfixe de catégorie : elle est déjà dans la
+           liste ci-dessus. */
+        await enregistrerModeleTexte(
+          Object.assign({}, m, { etiquettes: liste.join(SEP_ETIQ) }));
         poserModeleEnMemoire(Object.assign({}, m, {
           nom: m.titre || m.nom, etiquettes: liste.join(SEP_ETIQ), categorie: ''
         }));
@@ -1500,9 +1607,74 @@ function dessinerListeFiches(){
 
 let glisseFiche = '';
 
+/* ============================================================
+   LA PALETTE — UNE SEULE À L'ÉCRAN, ET ELLE SE REFERME
+
+   Comme dans Keep : la pastille 🎨 des gestes du bas la déplie
+   sous la fiche. Huit couleurs, et un ✕ pour rendre la fiche à son
+   fond d'origine — sans lui, une couleur posée par erreur ne se
+   retire plus.
+
+   ⚠️ ET LA FICHE SE PEINT AVANT QUE LE CLASSEUR RÉPONDE. Attendre
+   l'aller-retour pour voir la couleur, c'est croire qu'on a raté
+   son geste et appuyer une deuxième fois. Si l'écriture échoue,
+   poserCouleurFiche rend la couleur d'avant et le dit.
+   ============================================================ */
+function fermerPalettes(sauf){
+  document.querySelectorAll('#textesZone .palFiche').forEach(p => {
+    if(p !== sauf) p.remove();
+  });
+}
+
+function basculerPalette(carte, m, bouton){
+  const ouverte = carte.querySelector('.palFiche');
+  fermerPalettes();
+  if(ouverte) return;
+
+  const pal = document.createElement('div');
+  pal.className = 'palFiche';
+
+  const actuelle = couleurDeLaFiche(m);
+
+  const pastille = (cle, nom) => {
+    const s = document.createElement('button');
+    s.type = 'button';
+    /* « fgb » aussi : un clic sur la palette ne doit pas ouvrir la
+       fiche — c'est la classe que le clic de la carte regarde. */
+    s.className = 'fgb pastFiche' + (cle === actuelle ? ' choisie' : '');
+    if(cle) s.dataset.couleur = cle;
+    else s.textContent = '✕';
+    s.title = nom;
+    s.addEventListener('click', async () => {
+      fermerPalettes();
+      /* On peint tout de suite, on enregistre ensuite. */
+      if(cle) carte.dataset.couleur = cle; else delete carte.dataset.couleur;
+      try{ await poserCouleurFiche(m, cle); }
+      catch(e){
+        const revenue = couleurDeLaFiche(m);
+        if(revenue) carte.dataset.couleur = revenue;
+        else delete carte.dataset.couleur;
+      }
+    });
+    return s;
+  };
+
+  pal.appendChild(pastille('', 'Aucune couleur'));
+  COULEURS_FICHE.forEach(c => pal.appendChild(pastille(c.cle, c.nom)));
+
+  carte.appendChild(pal);
+  if(bouton && bouton.scrollIntoView){
+    try{ pal.scrollIntoView({ block:'nearest' }); }catch(e){}
+  }
+}
+
 function carteDeFiche(m, mots){
   const d = document.createElement('div');
   d.className = 'ficheTexte';
+  /* La couleur est un NOM, pas une teinte : les seize valeurs —
+     huit couleurs, deux thèmes — vivent dans la feuille de style. */
+  const coul = couleurDeLaFiche(m);
+  if(coul) d.dataset.couleur = coul;
 
   /* ⚠️ UN CLIC SUR LA CARTE OUVRE LA FICHE — v959. David : « je veux
      le texte en entier pour pouvoir changer directement dessus sans
@@ -1626,6 +1798,7 @@ function carteDeFiche(m, mots){
   });
   geste('✂️', 'Copier un morceau', () => ouvrirCopieMorceau(m));
   geste('✉️', 'Envoyer par mail', () => envoyerFicheParMail(m));
+  geste('🎨', 'Couleur de la fiche', ev => basculerPalette(d, m, ev.currentTarget));
 
   /* ⚠️ PAS DE SUPPRESSION SUR LA CARTE — v959. David : « enlève le
      bouton de suppression directement sur la fiche, en petit
