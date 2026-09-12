@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 15:18 — v887 */
+/* Déployé le 12/09/2026 à 14:58 — v978 */
 /* ============================================================
    ec-ecran.js
    Ce qui tourne sur les écrans du bureau et de la vitrine.
@@ -1492,7 +1492,10 @@ function blocAdresses(){
     'l\'affichage : ni bilans, ni élèves, ni réglages.';
   d.appendChild(a);
 
-  const base = 'https://ec-sb.github.io/Bilan-conduite/ecran.html';
+  /* Déduite de l'adresse de la page — voir pageVoisine dans
+     ec-noyau.js. Écrite en dur, elle envoyait les téléviseurs sur
+     l'ancienne adresse après le déménagement du 12 septembre. */
+  const base = CONFIG.LIEN_ECRAN;
   const champs = [];
 
   /* « anonyme=1 » n'a plus lieu d'être dans l'adresse : c'est
@@ -1791,7 +1794,7 @@ function ouvrirEditeurDiapo(d){
       if(t === 'video'){
         lblTexte.textContent = 'Adresse de la vidéo';
         zTexte.rows = 2;
-        zTexte.placeholder = 'https://ec-sb.github.io/Bilan-conduite/videos/ma-video.mp4';
+        zTexte.placeholder = CONFIG.LIEN_ECRAN.replace(/ecran\.html$/, 'videos/ma-video.mp4');
       }else if(t === 'bandeau'){
         lblTexte.textContent = 'Le texte qui défile';
         zTexte.rows = 2;
