@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 10:31 — v968 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1798,7 +1798,24 @@ function remplirFrises(champs, surEcran){
    que de lui faire relire « $('modele') » — une fonction qui va
    chercher son contexte sur l'écran d'à côté finit toujours par
    répondre à la mauvaise question. */
-async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc){
+/* Le repère du jour : le compteur de la note qu'on vient
+   d'écrire, lu avec la règle commune. À défaut de note lisible, on
+   retombe sur le dernier état connu de l'élève — mieux vaut le rang
+   de sa dernière leçon que pas de repère du tout, qui ferait fondre
+   la réserve de toutes les leçons déjà faites. */
+function repereDuJour(eleve, note){
+  const a = (typeof analyserNote === 'function' && note)
+    ? analyserNote(note) : null;
+  const c = a && a.apresCharniere;
+  if(c && c.rang > 0) return { rang: c.rang, quoi: c.quoi };
+
+  return (typeof charniereDeLEleve === 'function')
+    ? charniereDeLEleve(eleve) : null;
+}
+
+
+async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc,
+                                      duJour, note){
   if(!eleve) return;
 
   const h = String(heures || '').trim();
@@ -1826,9 +1843,29 @@ async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc){
          milieu d'un cours ordinaire : le cas exact que David
          décrivait comme tombant aux oubliettes. La porte note qui
          l'a dit et quand, pour que l'alerte ⏱️ puisse le nommer. */
-      const majs = (typeof champsHeuresRestantes === 'function')
-        ? champsHeuresRestantes(eleve, valeur)
-        : { heuresRestantes: valeur };
+      /* ⚠️ DES HEURES DITES AUJOURD'HUI DATENT D'AUJOURD'HUI — v972.
+
+         Prescrites À l'examen blanc, elles datent de lui, et le
+         repère reste vide : c'est le cas normal, celui d'avant.
+         Dites au cours d'une leçon ordinaire — la case ⏱️ du bloc
+         « date à prévoir » — elles datent de CETTE leçon, et le
+         repère est son rang.
+
+         Et ce rang se lit dans LA NOTE QU'ON VIENT D'ÉCRIRE, avec
+         la même règle que partout ailleurs : « 6ᵉ leçon après le
+         dernier ajournement » y est déjà, en toutes lettres. Le
+         calculer autrement — le dernier rang connu, plus un —
+         serait une seconde arithmétique, fausse le jour où deux
+         cours tombent dans la même journée. */
+      const repere = (!estExamenBlanc && duJour)
+        ? repereDuJour(eleve, note) : null;
+
+      const majs = (typeof champsHeuresRestantes !== 'function')
+        ? { heuresRestantes: valeur }
+        : (repere
+            ? champsHeuresRestantes(eleve, valeur, null,
+                                    repere.rang, repere.quoi)
+            : champsHeuresRestantes(eleve, valeur));
 
       /* LA DATE N'APPARTIENT QU'À L'EXAMEN BLANC.
 
@@ -3452,10 +3489,17 @@ async function genererBilanManuel(){
     if(maj.heuresRemontees !== undefined &&
        typeof remonterHeuresAuBureau === 'function' &&
        modeleCle !== 'examen-blanc'){
+      /* ⚠️ LA NOTE PART AVEC — v972. C'est elle qui porte « 6ᵉ leçon
+         après le dernier ajournement », le repère à partir duquel
+         ces heures-là se décompteront. On l'assemble une fois, on
+         la donne, puis on la pose : deux assemblages, ce serait
+         deux notes qui peuvent différer. */
+      const noteDuJour = noteDepuisQuestionnaire(maj);
       await remonterHeuresAuBureau($('studentName').value.trim(),
                                    maj.heuresRemontees,
                                    maj.ebPasse === 'pasleniveau' ? 'non' : 'oui',
-                                   false);  /* cours ordinaire */
+                                   false,           /* cours ordinaire */
+                                   maj.heuresDuJour, noteDuJour);
     }
     appliquerNoteQuestionnaire(noteDepuisQuestionnaire(maj));
   }
