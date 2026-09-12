@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:48 — v966 */
+/* Déployé le 12/09/2026 à 10:31 — v968 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -928,6 +928,71 @@ function buildHandicap(ai, ctx){
 }
 
 
+/* ============================================================
+   LE BLOC « 4 - NIVEAU PERMIS », ÉCRIT UNE SEULE FOIS — v968
+
+   David, le 12 septembre, trois captures à l'appui : « le moniteur
+   veut voir avant de générer le bilan ce que va écrire chaque
+   bouton de cette partie, et pouvoir le modifier avant de
+   générer. »
+
+   Montrer ce texte dans la fiche voulait dire l'écrire quelque
+   part où la fiche puisse le lire. Il était ici, au milieu du
+   constructeur du bilan — inatteignable. Le recopier dans la fiche
+   aurait donné deux versions du même bloc : celle qu'on montre et
+   celle qui part, et le jour où l'une change, l'autre ment.
+
+   Il vit donc dans sa propre fonction. La fiche l'appelle pour
+   l'afficher, le bilan l'appelle pour l'écrire, et c'est
+   littéralement le même texte.
+   ============================================================ */
+function blocNiveauPermis(ai){
+  const P = [];
+  const L = s => P.push(s);
+  ai = ai || {};
+
+  L('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
+  L('');
+  const niveau = ai.niveau || '';
+
+  /* Il pourrait avoir le niveau, mais rien ne permet de chiffrer
+     les heures : c'est à lui de se placer un planning. */
+  if(niveau === 'peut'){
+    L('𝟰-𝟭👉🤔 𝙏𝙐 𝙋𝙊𝙐𝙍𝙍𝘼𝙄𝙎 𝘼𝙑𝙊𝙄𝙍 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐');
+    L("A ce jour tu pourrais avoir le niveau mais je ne peux pas estimer le nombre d'heures qu'il te faut avant un examen. J'en ai aucune idée. Place des heures et des écoutes pédagogiques comme si tu allez passer ton examen, fais toi ton propre planning et préviens nous dès que c'est fait. Car si tu obtiens le niveau tu pourrais avoir une date rapidement.");
+    L('');
+  }else if(niveau === 'non'){
+    L('𝟰-𝟭👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !');
+    L("Continue de travailler, écoutes pédagogiques, groupes de travail et continue tes leçons de conduites. Revoit avec tes moniteurs si ton niveau s'est amélioré pour permettre de re-prévoir un planning de fin de formation. ");
+    L('');
+    L('💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ');
+    L('- tu peux partir en conduite supervisée pour réduire ton nombre d\'heures et améliorer ton niveau, lien explicatif ici : https://m.facebook.com/groups/963972327360861/permalink/1122235844867841/ ');
+    L('- tu peux passer en boite auto si tu es en boite de vitesse et que tu as de gros soucis mécaniques, lien ici : https://m.facebook.com/groups/963972327360861/permalink/1121120328312726/');
+  }else if(niveau === 'oui'){
+    L('𝟰-𝟭👉 𝙊𝙐𝙄 ✅');
+    L('');
+    L("❓ 𝘾𝙤𝙢𝙗𝙞𝙚𝙣 𝙙'𝙝𝙚𝙪𝙧𝙚𝙨 𝙖𝙫𝙖𝙣𝙩 𝙥𝙚𝙧𝙢𝙞𝙨 : " + (txt(ai.heuresAvant) || ' ?') +
+      ' + 3h avant permis (sous réserve de progression). ');
+    L('');
+    L('❓Cela correspond à ta frise chronologique de formation selon ton évaluation ?  : ');
+    L('- avant examen blanc  : ' + (ai.friseAvant === 'oui' ? '✅OUI' : '❌ NON + ' + (txt(ai.friseAvantH) || ' ') + 'h'));
+    L('- post permis : ' + (ai.frisePost === 'oui' ? '✅OUI' : '❌ NON + ' + (txt(ai.frisePostH) || ' ') + 'h'));
+    L('');
+    if(ai.aDate === 'oui'){
+      L('❓𝙏𝙐 𝘼𝙎 𝘿𝙀́𝙅𝘼̀ 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀 👮 :');
+      L('- as-tu planifié tes heures avant permis ? : ' + st(ai.heuresPlanifiees));
+      L('- si tu ne trouves pas de place sur le planning, contacte nous EN URGENCE. ');
+      L("💡𝙍𝙖𝙥𝙥𝙚𝙡 : 𝙨𝙞 𝙩𝙚𝙨 𝙝𝙚𝙪𝙧𝙚𝙨 𝙚𝙩 𝙩𝙤𝙣 𝙥𝙖𝙨𝙨𝙖𝙜𝙚 𝙖̀ 𝙡'𝙚𝙭𝙖𝙢𝙚𝙣 𝙣'𝙤𝙣𝙩 𝙥𝙖𝙨 𝙚́𝙩𝙚́ 𝙖𝙘𝙝𝙚𝙩𝙚́𝙨,  𝘁𝗼𝗻 𝗲𝘅𝗮𝗺𝗲𝗻 𝗱𝘂 𝗽𝗲𝗿𝗺𝗶𝘀 𝗱𝗲 𝗰𝗼𝗻𝗱𝘂𝗶𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗲́𝗰𝗮𝗹𝗲́.");
+    }else{
+      L('❓𝙏𝙐 𝙉\'𝘼𝙎 𝙋𝘼𝙎 𝙀𝙉𝘾𝙊𝙍𝙀 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀⏳  : ');
+      L('- as-tu posé tes heures, en gardant 2 leçons de 2h + 1 leçon de 1h (2+3) pour les planifier au plus proche de ta prochaine date de permis ?  : ' + st(ai.heuresPosees));
+      L('- ton passage à l\'examen a bien été acheté ?');
+    }
+  }
+
+  return P;
+}
+
 function buildExamenBlanc(ai, ctx){
   ai = ai || {};
   const cep = calculerCepc(ai.cepc);
@@ -1151,44 +1216,15 @@ function buildExamenBlanc(ai, ctx){
      champ, d'un autre modèle, alimenté par l'IA sur le rendez-vous
      pédagogique. On n'y touche pas. */
 
-  L('𝟰- 𝗡𝗜𝗩𝗘𝗔𝗨 𝗣𝗘𝗥𝗠𝗜𝗦 ? : ');
-  L('');
-  const niveau = ai.niveau || '';
+  /* ⚠️ CE QUE LE MONITEUR A VU EST CE QUI PART — v968.
 
-  /* Il pourrait avoir le niveau, mais rien ne permet de chiffrer
-     les heures : c'est à lui de se placer un planning. */
-  if(niveau === 'peut'){
-    L('𝟰-𝟭👉🤔 𝙏𝙐 𝙋𝙊𝙐𝙍𝙍𝘼𝙄𝙎 𝘼𝙑𝙊𝙄𝙍 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐');
-    L("A ce jour tu pourrais avoir le niveau mais je ne peux pas estimer le nombre d'heures qu'il te faut avant un examen. J'en ai aucune idée. Place des heures et des écoutes pédagogiques comme si tu allez passer ton examen, fais toi ton propre planning et préviens nous dès que c'est fait. Car si tu obtiens le niveau tu pourrais avoir une date rapidement.");
-    L('');
-  }else if(niveau === 'non'){
-    L('𝟰-𝟭👉𝙉𝙊𝙉❌ 𝙋𝘼𝙎 𝙇𝙀 𝙉𝙄𝙑𝙀𝘼𝙐 : 𝙩𝙪 𝙙𝙤𝙞𝙨 𝙘𝙤𝙣𝙩𝙞𝙣𝙪𝙚𝙧 𝙙𝙚 𝙩𝙧𝙖𝙫𝙖𝙞𝙡𝙡𝙚𝙧 !');
-    L("Continue de travailler, écoutes pédagogiques, groupes de travail et continue tes leçons de conduites. Revoit avec tes moniteurs si ton niveau s'est amélioré pour permettre de re-prévoir un planning de fin de formation. ");
-    L('');
-    L('💡𝙍𝙖𝙥𝙥𝙚𝙡𝙨 : ');
-    L('- tu peux partir en conduite supervisée pour réduire ton nombre d\'heures et améliorer ton niveau, lien explicatif ici : https://m.facebook.com/groups/963972327360861/permalink/1122235844867841/ ');
-    L('- tu peux passer en boite auto si tu es en boite de vitesse et que tu as de gros soucis mécaniques, lien ici : https://m.facebook.com/groups/963972327360861/permalink/1121120328312726/');
-  }else if(niveau === 'oui'){
-    L('𝟰-𝟭👉 𝙊𝙐𝙄 ✅');
-    L('');
-    L("❓ 𝘾𝙤𝙢𝙗𝙞𝙚𝙣 𝙙'𝙝𝙚𝙪𝙧𝙚𝙨 𝙖𝙫𝙖𝙣𝙩 𝙥𝙚𝙧𝙢𝙞𝙨 : " + (txt(ai.heuresAvant) || ' ?') +
-      ' + 3h avant permis (sous réserve de progression). ');
-    L('');
-    L('❓Cela correspond à ta frise chronologique de formation selon ton évaluation ?  : ');
-    L('- avant examen blanc  : ' + (ai.friseAvant === 'oui' ? '✅OUI' : '❌ NON + ' + (txt(ai.friseAvantH) || ' ') + 'h'));
-    L('- post permis : ' + (ai.frisePost === 'oui' ? '✅OUI' : '❌ NON + ' + (txt(ai.frisePostH) || ' ') + 'h'));
-    L('');
-    if(ai.aDate === 'oui'){
-      L('❓𝙏𝙐 𝘼𝙎 𝘿𝙀́𝙅𝘼̀ 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀 👮 :');
-      L('- as-tu planifié tes heures avant permis ? : ' + st(ai.heuresPlanifiees));
-      L('- si tu ne trouves pas de place sur le planning, contacte nous EN URGENCE. ');
-      L("💡𝙍𝙖𝙥𝙥𝙚𝙡 : 𝙨𝙞 𝙩𝙚𝙨 𝙝𝙚𝙪𝙧𝙚𝙨 𝙚𝙩 𝙩𝙤𝙣 𝙥𝙖𝙨𝙨𝙖𝙜𝙚 𝙖̀ 𝙡'𝙚𝙭𝙖𝙢𝙚𝙣 𝙣'𝙤𝙣𝙩 𝙥𝙖𝙨 𝙚́𝙩𝙚́ 𝙖𝙘𝙝𝙚𝙩𝙚́𝙨,  𝘁𝗼𝗻 𝗲𝘅𝗮𝗺𝗲𝗻 𝗱𝘂 𝗽𝗲𝗿𝗺𝗶𝘀 𝗱𝗲 𝗰𝗼𝗻𝗱𝘂𝗶𝗿𝗲 𝘀𝗲𝗿𝗮 𝗱𝗲́𝗰𝗮𝗹𝗲́.");
-    }else{
-      L('❓𝙏𝙐 𝙉\'𝘼𝙎 𝙋𝘼𝙎 𝙀𝙉𝘾𝙊𝙍𝙀 𝙏𝘼 𝘿𝘼𝙏𝙀 𝘿𝙐 𝙋𝙀𝙍𝙈𝙄𝙎 𝘿𝙀 𝘾𝙊𝙉𝘿𝙐𝙄𝙍𝙀⏳  : ');
-      L('- as-tu posé tes heures, en gardant 2 leçons de 2h + 1 leçon de 1h (2+3) pour les planifier au plus proche de ta prochaine date de permis ?  : ' + st(ai.heuresPosees));
-      L('- ton passage à l\'examen a bien été acheté ?');
-    }
-  }
+     La fiche lui montre ce bloc pendant qu'il répond, et il peut y
+     écrire. Son texte gagne donc ici : c'est tout l'objet de
+     l'aperçu. Vide — un vieux brouillon, un rendez-vous pédagogique
+     qui n'a pas le cadre — on écrit le bloc proposé, comme avant. */
+  (txt(ai.niveauTexte)
+    ? String(ai.niveauTexte).split('\n')
+    : blocNiveauPermis(ai)).forEach(L);
   L('');
 
   L('𝟱- 𝙍𝙀𝙁𝘼𝙄𝙎 𝗧𝗢𝗡 𝗕𝗜𝗟𝗔𝗡 𝗔𝗣𝗥𝗘̀𝗦 𝗘𝗫𝗔𝗠𝗘𝗡 𝗕𝗟𝗔𝗡𝗖 𝘼𝙑𝙀𝘾 𝘾𝙊𝙍𝙍𝙀𝘾𝙏𝙄𝙊𝙉 𝘿𝙀 𝙇𝘼 𝙍𝙀𝙎𝙋𝙊𝙉𝙎𝘼𝘽𝙇𝙀 𝙋𝙀́𝘿𝘼𝙂𝙊𝙂𝙄𝙌𝙐𝙀 (𝙜𝙧𝙖𝙩𝙪𝙞𝙩 𝙨𝙪𝙧 𝙢𝙚𝙨𝙨𝙚𝙣𝙜𝙚𝙧) :');
