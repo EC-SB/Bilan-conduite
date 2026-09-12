@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 18:02 — v927 */
+/* Déployé le 12/09/2026 à 09:58 — v967 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -375,9 +375,37 @@ function lignePasLeNiveauAvantExamen(position){
         12 au total) » ;
      3. tout le reste → la ligne 🎯 telle qu'elle est écrite.
    ============================================================ */
-function lignePositionDuHaut(nom, corps, note){
+function lignePositionDuHaut(nom, corps, note, modele){
   const pos = (typeof lignePosition === 'function')
     ? lignePosition(corps || '') : '';
+
+  /* ⚠️ QUAND LA SÉANCE EST L'EXAMEN, ON DIT L'EXAMEN — v967.
+
+     David, deux captures à l'appui : « pourquoi est-ce que pour La
+     Perle et Raphael ça ne met pas juste Examen ce jour et le
+     numéro du passage ? Je ne dois plus voir "plus que les 3h avant
+     examen". »
+
+     Il avait raison, et ses deux captures le montraient côte à
+     côte : Olivier lisait « 🎯 EXAMEN CE JOUR — 4ÈME PASSAGE », La
+     Perle « Plus que les 3h avant examen (EXAMEN CE JOUR — 4ÈME
+     PASSAGE) ». Même jour, même passage, deux phrases — et la
+     différence ne tenait qu'à un détail invisible : la note de La
+     Perle portait le compte à rebours, celle d'Olivier non. Le
+     texte dépendait donc de ce qu'une note contenait par hasard.
+
+     Or le jour de l'examen ce compte à rebours n'a plus d'objet :
+     il compte les heures qui séparent de l'examen qu'on est en
+     train de passer. La ligne 🎯 le dit déjà, et c'est la règle que
+     ce dossier s'était donnée — « le jour de l'examen, on dit
+     l'examen, pas le rang ». L'emballage la défaisait.
+
+     C'est LE MODÈLE DE LA SÉANCE qui tranche, pas le texte : la
+     même réponse que celle qui a écrit « EXAMEN CE JOUR », par la
+     même porte. */
+  if(typeof laSeanceEstLExamen === 'function' && laSeanceEstLExamen(modele)){
+    return pos;
+  }
 
   const etat = (typeof etatQuiFaitFoi === 'function')
     ? (etatQuiFaitFoi(nom) || {}) : {};
@@ -773,7 +801,10 @@ function blocAvantLeCours(nom, res, prep, opts){
   }
 
   /* ── Le rang, en gros ── */
-  const pos = lignePositionDuHaut(nom, corps, brute);
+  /* Le modèle de la séance décide si c'est l'examen lui-même : sans
+     lui, la phrase du haut emballerait « EXAMEN CE JOUR » dans un
+     compte à rebours vers cet examen-là. */
+  const pos = lignePositionDuHaut(nom, corps, brute, prep && prep.modele);
   if(pos){
     const p = document.createElement('div');
     p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.3;' +
