@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:48 — v966 */
+/* Déployé le 12/09/2026 à 10:31 — v968 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -294,7 +294,24 @@ const CHAMPS_MANUELS = {
     { cle:'heuresPlanifiees', type:'ok', siNiveau:'oui',
       nom:'4 · Heures avant permis planifiées', defaut:'' },
     { cle:'heuresPosees',     type:'ok', siNiveau:'oui',
-      nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' }
+      nom:'4 · Heures posées (2×2h + 1×1h)', defaut:'' },
+
+    /* ⚠️ CE QUE CHAQUE BOUTON VA ÉCRIRE, AVANT DE GÉNÉRER — v968.
+
+       David, trois captures à l'appui : « le moniteur veut voir
+       avant de générer le bilan ce que va écrire chaque bouton de
+       cette partie, et pouvoir le modifier avant de générer. »
+
+       Ces huit réponses ne font pas huit textes : elles composent
+       UN bloc, celui qui part sous « 4- NIVEAU PERMIS ? ». Le cadre
+       le montre en entier, tel qu'il sera écrit, et se refait à
+       chaque bouton.
+
+       ⚠️ PAS DE « siNiveau » ICI. Le bloc existe pour les trois
+       réponses — Oui, Pourrait, Pas le niveau — et c'est justement
+       pour les comparer que David veut le voir. */
+    { cle:'niveauTexte', type:'apercuNiveau',
+      nom:'4 · Ce qui partira dans le bilan' }
   ],
   examen: [
     /* Deux moments distincts : le trajet vers le centre, puis
@@ -4088,7 +4105,90 @@ window.EC_MODULES['ec-manuel.js'] = true;
    auraient fini par diverger — c'est toujours le second qu'on
    oublie de corriger.
    ============================================================ */
+/* ⚠️ LA LISTE QUI EST À L'ÉCRAN, RETENUE — v968.
+
+   L'aperçu du bloc « 4 - Niveau permis » doit relire la fiche à
+   chaque bouton, et la relire EXACTEMENT comme la génération la
+   relira : même fonction, même liste de champs. Sans cette
+   mémoire, il lui faudrait aller chercher les valeurs lui-même,
+   champ par champ — un deuxième lecteur, et l'aperçu finirait par
+   montrer autre chose que ce qui part. */
+let champsDessinesCourants = null;
+
+/* ============================================================
+   ⚠️ L'APERÇU SUIT LES RÉPONSES SANS QU'ON LE PRÉVIENNE — v968
+
+   Huit réponses composent le bloc 4 : le niveau, les heures, la
+   date, les deux frises et leurs heures en plus, les heures
+   planifiées, les heures posées. Les prévenir une par une
+   voudrait dire poser huit rappels — et le neuvième champ ajouté
+   n'en aurait pas, sans que rien ne le dise. C'est la parade
+   posée chez l'appelant, celle qu'on oublie de refaire.
+
+   Une seule écoute, sur la fiche entière : ce qui change dedans
+   refait l'aperçu. Le cadre lui-même est exclu — sinon il se
+   réécrirait sous les doigts du moniteur à chaque lettre.
+   ============================================================ */
+function veillerSurLApercuNiveau(zone){
+  if(!zone || !zone.dataset || zone.dataset.veilleApercu === 'oui') return;
+  zone.dataset.veilleApercu = 'oui';
+
+  const suivre = ev => {
+    const c = ev.target && ev.target.closest ? ev.target.closest : null;
+    if(c && (ev.target.closest('.apercuNiveau') ||
+             ev.target.closest('.reprendreApercu'))) return;
+    /* Au tour suivant : le bouton écrit sa réponse d'abord. */
+    setTimeout(() => rafraichirApercuNiveau(), 0);
+  };
+  zone.addEventListener('click', suivre);
+  zone.addEventListener('input', suivre);
+}
+
+/* Le bloc, refait à partir des réponses telles qu'elles sont à
+   l'écran en ce moment.
+
+   ⚠️ ET RELU PAR LE LECTEUR DE LA GÉNÉRATION. On pourrait aller
+   chercher les huit valeurs à la main ; ce serait un deuxième
+   lecteur, et l'aperçu finirait par montrer autre chose que ce qui
+   part. C'est « lireChampsManuels » qui remplit la fiche pour le
+   bilan : c'est lui qu'on rappelle. */
+function rafraichirApercuNiveau(){
+  const t = document.querySelector('.apercuNiveau');
+  if(!t) return;
+  if(typeof blocNiveauPermis !== 'function') return;
+
+  /* Il a écrit dedans : son texte est le bon, on n'y revient pas. */
+  if(t.dataset.intact === 'non') return;
+
+  try{
+    if(typeof lireChampsManuels === 'function'){
+      lireChampsManuels(champsDessinesCourants);
+    }
+  }catch(e){ /* une lecture ratée ne doit pas vider le cadre */ }
+
+  /* Les clés de l'examen blanc sont préfixées dans le rendez-vous
+     pédagogique : le bloc les attend sans préfixe. */
+  const ai = {};
+  const p = prefixeExamenBlanc || '';
+  Object.keys(champsManuels).forEach(k => {
+    if(p && k.indexOf(p) === 0) ai[k.slice(p.length)] = champsManuels[k];
+    else if(!p) ai[k] = champsManuels[k];
+  });
+
+  /* Sans quoi il se lirait lui-même : le bloc doit être REFAIT à
+     partir des réponses, pas repris du cadre. */
+  delete ai.niveauTexte;
+
+  const propose = blocNiveauPermis(ai).join('\n');
+  t.value = propose;
+  t.dataset.propose = propose;
+  t.dataset.intact = 'oui';
+  champsManuels[(prefixeExamenBlanc || '') + 'niveauTexte'] = propose;
+}
+
 function dessinerChampsManuels(champs, zone, modele, dossier){
+  champsDessinesCourants = champs;
+  veillerSurLApercuNiveau(zone);
   champs.forEach(ch => {
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
@@ -5188,6 +5288,74 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
        Un commentaire non fermé ne fait pas d'erreur : il DÉPLACE du
        code. C'est pour ça que ça a tenu treize versions. */
+
+    }else if(ch.type === 'apercuNiveau'){
+      /* ============================================================
+         L'APERÇU DU BLOC 4 — v968
+
+         David, trois captures à l'appui : « le moniteur veut voir
+         avant de générer le bilan ce que va écrire chaque bouton de
+         cette partie, et pouvoir le modifier avant de générer. »
+
+         Ce n'est pas un résumé : c'est LE texte, celui que
+         blocNiveauPermis écrit dans le bilan. Le cadre le montre, le
+         moniteur peut y écrire, et c'est son texte qui part.
+
+         ⚠️ ET DÈS QU'IL Y TOUCHE, ON N'Y REVIENT PLUS. C'est la
+         règle du « 3 · Bilan des erreurs », et pour la même raison :
+         réécrire par-dessus une correction, c'est la perdre sans
+         prévenir. Le bouton ⟳ rend le texte proposé quand il veut
+         repartir d'une réponse qu'il vient de changer — sans lui, un
+         moniteur qui corrige une heure puis change la frise
+         enverrait un bloc qui ne dit plus ce que la fiche dit.
+         ============================================================ */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const aide = document.createElement('div');
+      aide.style.cssText = 'font-size:11px;color:var(--muted);' +
+        'margin:-8px 0 6px;line-height:1.4;';
+      aide.textContent = 'Ce cadre est le texte qui partira dans le bilan. ' +
+        'Il se remplit tout seul selon les boutons ci-dessus — et tu peux ' +
+        'le corriger ou y ajouter ce que tu veux.';
+      bloc.appendChild(aide);
+
+      const t = document.createElement('textarea');
+      t.className = 'apercuNiveau';
+      t.id = idChamp(ch.cle);
+      t.rows = ch.lignes || 12;
+      /* Le même cadre que ses voisins — voir la note du bloc
+         Autonomie sur cette déclaration recopiée. */
+      t.style.cssText = 'width:100%;background:var(--navy);' +
+        'border:1px solid var(--line);color:var(--cream);padding:11px 12px;' +
+        'border-radius:10px;font-size:15px;line-height:1.6;' +
+        'font-family:inherit;resize:vertical;margin:0 0 8px;';
+      /* Ce que l'application a proposé ne compte pas comme une
+         saisie : seul un texte différent en est une. */
+      t.addEventListener('input', () => {
+        if(t.value !== (t.dataset.propose || '')) t.dataset.intact = 'non';
+        champsManuels[ch.cle] = t.value;
+      });
+      bloc.appendChild(t);
+
+      const bReprendre = document.createElement('button');
+      bReprendre.type = 'button';
+      bReprendre.className = 'btn btn-secondary reprendreApercu';
+      bReprendre.style.cssText = 'width:auto;margin:0;padding:8px 12px;' +
+        'font-size:12.5px;';
+      bReprendre.textContent = '⟳ Reprendre le texte proposé';
+      bReprendre.title = 'Efface tes corrections et réécrit le bloc ' +
+        'à partir des réponses du dessus';
+      bReprendre.addEventListener('click', () => {
+        t.dataset.intact = 'oui';
+        rafraichirApercuNiveau();
+      });
+      bloc.appendChild(bReprendre);
+
+      /* Les réponses ne sont pas encore posées quand ce champ se
+         dessine : on remplit au tour suivant. */
+      setTimeout(() => rafraichirApercuNiveau(), 0);
 
     }else if(ch.type === 'autonomie'){
       /* ============================================================
