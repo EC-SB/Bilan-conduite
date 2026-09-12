@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 12/09/2026 à 14:58 — v978 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -19,10 +19,14 @@ let reglagesProc = {};
    en dur se serait périmée dès la première procédure ajoutée. */
 let proceduresConnues = [];
 
-/* L'adresse de l'espace élève, écrite une fois. Elle apparaît
-   aussi dans les messages que le bureau envoie — même adresse,
-   même endroit. */
-const LIEN_ESPACE_ELEVE = 'https://ec-sb.github.io/Bilan-conduite/eleve.html';
+/* L'adresse de l'espace élève. ⚠️ Elle n'est plus écrite ici :
+   elle se déduit de l'adresse de la page, comme le lien de cours —
+   voir pageVoisine dans ec-noyau.js. Écrite en dur, elle l'était à
+   quatre endroits, et le déménagement du 12 septembre a demandé de
+   rouvrir les quatre.
+
+   On garde le nom : trois écrans l'emploient déjà. */
+const LIEN_ESPACE_ELEVE = CONFIG.LIEN_ELEVE;
 
 /* Ce qui reste à corriger, pour la pastille */
 function nbProcACorriger(){
