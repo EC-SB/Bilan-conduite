@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:03 — v965 */
+/* Déployé le 12/09/2026 à 12:12 — v971 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -498,6 +498,36 @@ function appliquerFiltreDeVue(vue){
   });
 }
 
+/* ⚠️ PAR QUOI ON COMMENCE — v971.
+
+   La barre démarre sur « Tous ». C'est ce qu'il faut quand les
+   listes d'une vue tiennent à l'écran ensemble ; ce n'est pas ce
+   qu'il faut pour la moto, où les sept étapes empilées font six
+   écrans de téléphone. David, le 12 septembre : « faire défiler la
+   page avec tous les tiroirs ouverts, c'est pas possible ».
+
+   Le conteneur peut donc porter « data-defaut » : la liste des
+   familles DANS L'ORDRE D'URGENCE, et c'est la première qui n'est
+   pas vide qui s'affiche en arrivant.
+
+   ⚠️ C'EST LE SEUL ENDROIT OÙ CET ORDRE-LÀ EXISTE. L'ordre du
+   PARCOURS reste celui des volets dans la page ; l'ordre de
+   l'URGENCE est écrit sur le conteneur, une fois. Un nom qui ne
+   désigne aucun volet est ignoré — et « tous » reste la réponse
+   quand aucun ne convient, donc une barre sans l'attribut se
+   comporte exactement comme avant. */
+function choixParDefaut(barre, fams){
+  const ordre = String(barre.getAttribute('data-defaut') || '').trim();
+  if(!ordre) return 'tous';
+
+  const noms = ordre.split(/\s+/);
+  for(let i = 0; i < noms.length; i++){
+    const f = fams.find(x => x.cle === noms[i]);
+    if(f && f.n) return f.cle;
+  }
+  return 'tous';
+}
+
 function majFiltresDeVue(vue){
   const barre = document.querySelector('.filtres-vue[data-vue="' + vue + '"]');
   if(!barre) return;
@@ -507,11 +537,17 @@ function majFiltresDeVue(vue){
 
   const total = fams.reduce((t, f) => t + f.n, 0);
 
+  /* Au premier affichage, le choix par défaut de cette barre. */
+  if(filtreDeLaVue[vue] === undefined){
+    filtreDeLaVue[vue] = choixParDefaut(barre, fams);
+  }
+
   /* Un filtre dont la liste s'est vidée ne doit pas laisser l'écran
-     vide sans raison : on retombe sur « Tous ». */
+     vide sans raison : on retombe sur le choix par défaut — « Tous »
+     partout où l'attribut n'est pas posé. */
   const choisi = filtreDeLaVue[vue] || 'tous';
   if(choisi !== 'tous' && !fams.some(f => f.cle === choisi && f.n)){
-    filtreDeLaVue[vue] = 'tous';
+    filtreDeLaVue[vue] = choixParDefaut(barre, fams);
   }
 
   barre.innerHTML = '';
