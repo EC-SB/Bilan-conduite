@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 10:50 — v969 */
+/* Déployé le 12/09/2026 à 11:24 — v970 */
 /* ============================================================
    ec-textes.js
    Bibliothèque de modèles de message, rédigés et modifiables
@@ -587,6 +587,200 @@ async function poserCouleurFiche(m, cle){
   }
 }
 
+/* ============================================================
+   LES IMAGES D'UNE FICHE — v970
+
+   David, le 12 septembre : « images seulement, dans le classeur.
+   On réutilise ce qui existe : ça marche demain, aucun
+   redéploiement. Un PDF collé est refusé avec un message clair. »
+   Plusieurs images par fiche, une vignette dans l'aperçu de la
+   carte, et le mail comme le 📋 ne portent que le TEXTE.
+
+   ⚠️ ON NE CHARGE JAMAIS UNE IMAGE QU'ON NE VA PAS MONTRER.
+
+   Une image pèse jusqu'à 45 Ko. Charger celles de cent fiches à
+   l'ouverture de l'onglet, ce serait plusieurs mégaoctets pour voir
+   trois vignettes — et l'onglet le plus rapide de l'outil
+   deviendrait le plus lent. Trois temps, une seule porte :
+
+     · le RÉPERTOIRE à l'ouverture — qui a des images et combien,
+       quelques kilo-octets, aucune image ;
+     · la PREMIÈRE image des cartes qui arrivent à l'écran, par
+       petits lots ;
+     · TOUTES les images d'une fiche quand on l'ouvre.
+   ============================================================ */
+const MAX_VIGNETTES_CARTE = 2;
+const LOT_VIGNETTES = 6;
+
+/* ⚠️ UNE SEULE PHRASE POUR TOUS LES REFUS. Nommer le PDF et
+   oublier le document Word, c'était deux règles à tenir d'accord.
+   La règle est « ce n'est pas une image », et elle dit la sortie :
+   un refus qui n'indique pas quoi faire fait recommencer trois
+   fois. */
+const REFUS_NON_IMAGE = 'Seules les images se rangent dans une fiche. ' +
+  'Pour un PDF, fais une capture d’écran de la page et colle l’image.';
+
+function estUnFichierImage(f){
+  return !!(f && f.type && String(f.type).indexOf('image/') === 0);
+}
+
+let compteImagesFiches = {};       /* {idFiche: nombre} — le répertoire */
+const imagesRecues = {};           /* {idFiche: [{id, image}]} */
+const ficheToutesImagesLues = {};  /* {idFiche: true} quand on les a toutes */
+
+async function chargerRepertoireImages(){
+  try{
+    const d = await appelPrep({ action: 'ficheImages' });
+    compteImagesFiches = (d && d.compte) || {};
+  }catch(e){
+    /* Une porte muette ne doit pas retenir la bibliothèque : on
+       dessine les fiches sans vignette, et le texte est là. */
+    console.warn('Images des fiches :', e);
+    compteImagesFiches = {};
+  }
+  return compteImagesFiches;
+}
+
+function ficheADesImages(id){
+  return (compteImagesFiches[String(id)] || 0) > 0;
+}
+
+/* « premiere » : une seule image par fiche, celle de la vignette.
+   Sans elle, toutes — ce qu'il faut quand on ouvre la fiche. */
+async function chargerImagesDeFiches(ids, premiere){
+  const voulues = (ids || []).map(x => String(x || '')).filter(x => x);
+  if(!voulues.length) return;
+
+  const d = await appelPrep({ action: 'ficheImages', fiches: voulues,
+                              premiere: !!premiere });
+  if(d && d.compte) compteImagesFiches = d.compte;
+  const recu = (d && d.images) || {};
+
+  voulues.forEach(f => {
+    /* Un lot de vignettes ne doit pas remplacer une fiche déjà lue
+       en entier par sa première image seule. */
+    if(premiere && ficheToutesImagesLues[f]) return;
+    imagesRecues[f] = recu[f] || [];
+    if(!premiere) ficheToutesImagesLues[f] = true;
+  });
+}
+
+async function retirerToutesLesImagesDeLaFiche(id){
+  const f = String(id || '');
+  if(!f || !ficheADesImages(f)) return;
+  try{
+    await chargerImagesDeFiches([f], false);
+    const liste = imagesRecues[f] || [];
+    for(let i = 0; i < liste.length; i++){
+      await appelPrep({ action: 'ficheImageDelete', id: liste[i].id });
+    }
+    delete imagesRecues[f];
+    delete ficheToutesImagesLues[f];
+    delete compteImagesFiches[f];
+  }catch(e){
+    /* Une image orpheline ne se retrouve plus : on le dit. */
+    console.warn('Images de la fiche supprimée :', e);
+  }
+}
+
+/* ------------------------------------------------------------
+   LA BANDE DE VIGNETTES DE LA CARTE
+
+   Elle ne s'affiche que si le répertoire dit qu'il y a quelque
+   chose : une fiche sans image est, au pixel près, la carte
+   d'avant — aucune place vide réservée, aucun ⊕ à vide.
+   ------------------------------------------------------------ */
+function bandeDeVignettes(m){
+  if(!ficheADesImages(m.id)) return null;
+
+  const z = document.createElement('div');
+  z.className = 'ficheVues';
+  z.dataset.fiche = m.id;
+
+  const dessiner = () => {
+    z.innerHTML = '';
+    const liste = imagesRecues[m.id] || [];
+    const total = compteImagesFiches[m.id] || liste.length;
+
+    if(!liste.length){
+      /* La place est gardée pendant que l'image arrive : sans elle,
+         la carte grandit sous le doigt au moment où on appuie. */
+      const c = document.createElement('span');
+      c.className = 'creuxVue';
+      z.appendChild(c);
+      return;
+    }
+
+    liste.slice(0, MAX_VIGNETTES_CARTE).forEach(im => {
+      const i = document.createElement('img');
+      i.src = im.image;
+      i.alt = '';
+      z.appendChild(i);
+    });
+
+    const reste = total - Math.min(liste.length, MAX_VIGNETTES_CARTE);
+    if(reste > 0){
+      const p = document.createElement('span');
+      p.className = 'deplusVue';
+      p.textContent = '+' + reste;
+      z.appendChild(p);
+    }
+  };
+
+  dessiner();
+  z.__redessiner = dessiner;
+  return z;
+}
+
+/* ⚠️ UNE SEULE SENTINELLE, ET UNE DEMANDE PAR LOT.
+
+   Un observateur par carte, c'est cent observateurs ; une demande
+   par carte, c'est cent allers-retours. On regarde ce qui arrive à
+   l'écran, on empile les numéros, et on demande par six. */
+let sentinelleVignettes = null;
+let vignettesAttendues = [];
+let vignettesEnRoute = false;
+
+function veillerSurLesVignettes(){
+  if(typeof IntersectionObserver !== 'function') return;
+
+  if(!sentinelleVignettes){
+    sentinelleVignettes = new IntersectionObserver(entrees => {
+      entrees.forEach(e => {
+        if(!e.isIntersecting) return;
+        sentinelleVignettes.unobserve(e.target);
+        const f = e.target.dataset.fiche;
+        if(f && !imagesRecues[f] && vignettesAttendues.indexOf(f) === -1){
+          vignettesAttendues.push(f);
+        }
+      });
+      viderLaFileDesVignettes();
+    }, { rootMargin: '200px' });
+  }
+
+  document.querySelectorAll('#textesZone .ficheVues').forEach(z => {
+    if(imagesRecues[z.dataset.fiche]) return;
+    sentinelleVignettes.observe(z);
+  });
+}
+
+async function viderLaFileDesVignettes(){
+  if(vignettesEnRoute || !vignettesAttendues.length) return;
+  vignettesEnRoute = true;
+  try{
+    while(vignettesAttendues.length){
+      const lot = vignettesAttendues.splice(0, LOT_VIGNETTES);
+      try{ await chargerImagesDeFiches(lot, true); }
+      catch(e){ console.warn('Vignettes :', e); continue; }
+      lot.forEach(f => {
+        document.querySelectorAll(
+          '#textesZone .ficheVues[data-fiche="' + f + '"]')
+          .forEach(z => { if(z.__redessiner) z.__redessiner(); });
+      });
+    }
+  }finally{ vignettesEnRoute = false; }
+}
+
 /* ⚠️ L'ORDRE DES ÉTIQUETTES EST RANGÉ, PAS DEVINÉ — David : « j'ai
    besoin de modifier l'ordre des catégories aussi par un cliquer
    glisser ». Il vit dans les réglages partagés : c'est l'ordre de
@@ -1055,7 +1249,11 @@ async function afficherModelesTexte(){
 
   zone.innerHTML = '<div class="empty">Chargement des fiches…</div>';
   await Promise.all([chargerModelesTexte(), chargerOrdreEtiquettes(),
-                     chargerOrdreFiches(), chargerAccesCategories()]);
+                     chargerOrdreFiches(), chargerAccesCategories(),
+                     /* Le répertoire des images : quelques kilo-octets,
+                        aucune image. Il dit aux cartes s'il faut garder
+                        la place d'une vignette. */
+                     chargerRepertoireImages()]);
   dessinerBibliotheque();
 }
 
@@ -1603,6 +1801,10 @@ function dessinerListeFiches(){
   }
 
   liste.forEach(m => zone.appendChild(carteDeFiche(m, mots)));
+
+  /* Les vignettes se remplissent quand leur carte arrive à
+     l'écran : la liste ne paie que ce qu'on regarde. */
+  veillerSurLesVignettes();
 }
 
 let glisseFiche = '';
@@ -1745,6 +1947,12 @@ function carteDeFiche(m, mots){
   p.className = 'fp';
   p.innerHTML = surligner(m.contenu || '', mots);
   d.appendChild(p);
+
+  /* ⚠️ SOUS L'APERÇU, AU-DESSUS DES ÉTIQUETTES — v970. Le texte
+     reste ce qu'on lit en premier : l'image l'illustre, elle ne le
+     remplace pas. */
+  const vues = bandeDeVignettes(m);
+  if(vues) d.appendChild(vues);
 
   const etq = categoriesDe(m);
   const proprio = proprietairePrive(m);
@@ -1975,6 +2183,20 @@ function ouvrirEditeurModele(modele, usageImpose){
        depuis le premier jour ; l'écran disait « étiquette ». Deux
        mots pour une seule chose, et une consigne écrite avec l'un
        n'est pas suivie sur l'autre. */
+    /* ⚠️ LES IMAGES, ENTRE LE TEXTE ET LES CATÉGORIES — v970. Elles
+       illustrent le texte : elles se lisent juste après lui, pas
+       après les réglages. */
+    '<label>🖼️ Images</label>' +
+    '<div id="mdGalerie" class="galFiche"></div>' +
+    '<div id="mdColler" class="zCollerFiche" tabindex="0">' +
+      '📋 <strong>Colle une image ici</strong><br>' +
+      '<span style="font-size:11px;">Ctrl+V, ou fais glisser l’image — ' +
+      'ou appuie pour la choisir sur l’appareil</span>' +
+    '</div>' +
+    '<div id="mdEtatImg" class="etatImg"></div>' +
+    '<input type="file" id="mdFichierImg" accept="image/*" multiple ' +
+      'style="display:none;">' +
+
     '<label>🏷️ Catégories</label>' +
     '<div id="mdEtiq" class="mdEtiq"></div>' +
     '<div style="display:flex;gap:6px;margin:-4px 0 12px;">' +
@@ -2133,6 +2355,12 @@ function ouvrirEditeurModele(modele, usageImpose){
             (g('mdNom').value.trim() || 'sans titre') + ' » ?')) return;
         bSup.disabled = true;
         try{
+          /* ⚠️ LES IMAGES PARTENT AVANT LA FICHE — v970. Après, on
+             ne saurait plus lesquelles lui appartenaient : une
+             image sans fiche, personne ne la retrouve jamais pour
+             la retirer. C'est déjà ce qu'on fait des captures quand
+             on supprime le dossier d'un élève. */
+          await retirerToutesLesImagesDeLaFiche(modele.id);
           await appelPrep({ action: 'modeleDelete', id: modele.id,
                             usage: modele.usage || 'libre' });
           retirerModeleDeLaMemoire(modele.id);
@@ -2361,7 +2589,7 @@ function ouvrirEditeurModele(modele, usageImpose){
      laissée vide n'est pas créée, sans quoi un clic sur ➕ suivi
      d'un clic à côté fabriquerait une fiche fantôme.
      ------------------------------------------------------------ */
-  const depart = modele
+  let depart = modele
     ? JSON.stringify({ n: modele.titre || modele.nom || '', c: modele.contenu || '',
                        e: etiquettesDe(modele).join(SEP_ETIQ), u: modele.usage || 'libre',
                        b: modele.boite || '', o: !!modele.ordre,
@@ -2375,6 +2603,60 @@ function ouvrirEditeurModele(modele, usageImpose){
   };
 
   let enCours = false;
+  let ficheEnregistree = !!modele;
+  let quelqueChoseAEteEcrit = false;
+
+  /* ⚠️ ENREGISTRER ET FERMER SONT DEUX GESTES, PAS UN SEUL — v970.
+
+     Coller une image dans une fiche neuve doit d'abord la faire
+     EXISTER : sans quoi l'image se range sous un numéro que le
+     classeur ne connaît pas, et personne ne la retrouve jamais
+     pour la retirer. L'écriture est donc sortie du bouton — mais
+     elle reste LA MÊME, pas une seconde : deux endroits qui
+     enregistrent une fiche, c'est le péché de ce dossier.
+
+     Rend « false » quand la fiche n'est pas en état d'être écrite,
+     et laisse remonter l'erreur quand c'est le classeur qui a
+     refusé — l'appelant sait quoi en dire. */
+  async function enregistrerLaFiche(){
+    const f = fichePleine();
+
+    if(!f.nom){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Donne un titre à la fiche.';
+      g('mdNom').focus();
+      return false;
+    }
+    if(!f.contenu){
+      msg.style.color = 'var(--warn-text)';
+      msg.textContent = 'Le texte est vide.';
+      g('mdContenu').focus();
+      return false;
+    }
+
+    /* ⚠️ CE QUI NE SERA PLUS REMPLI SE DIT AVANT, PAS APRÈS. */
+    const alerte = alerteDesVariables((modele && modele.contenu) || '',
+                                      f.contenu, f.usage);
+    if(alerte && !await confirmer('⚠️ ' + alerte + '\n\nEnregistrer quand même ?')){
+      return false;
+    }
+
+    const r = await appelPrep(Object.assign({ action: 'modeleSet' }, f));
+
+    /* Le classeur peut avoir fabriqué le numéro lui-même par la
+       voie de secours : c'est le sien qui fait foi. */
+    const enregistree = Object.assign({}, f,
+      { id: (r && r.id) || f.id, maj: horodatageCourt() });
+
+    poserModeleEnMemoire(enregistree);
+    perimerModeles();
+    ficheEnregistree = true;
+    quelqueChoseAEteEcrit = true;
+    /* Ce qui vient d'être écrit devient le point de comparaison :
+       refermer sans rien toucher ne réécrira pas. */
+    depart = etatActuel();
+    return true;
+  }
 
   async function fermer(){
     if(enCours) return;
@@ -2383,28 +2665,18 @@ function ouvrirEditeurModele(modele, usageImpose){
     const f = fichePleine();
 
     /* Une fiche neuve sans rien dedans ne se crée pas. */
-    if(!modele && !f.nom && !f.contenu){ fermerFond(fond); return; }
-
-    /* Rien n'a bougé : on ferme sans rien écrire. */
-    if(modele && etatActuel() === depart){ fermerFond(fond); return; }
-
-    if(!f.nom){
-      msg.style.color = 'var(--warn-text)';
-      msg.textContent = 'Donne un titre à la fiche.';
-      g('mdNom').focus();
-      return;
-    }
-    if(!f.contenu){
-      msg.style.color = 'var(--warn-text)';
-      msg.textContent = 'Le texte est vide.';
-      g('mdContenu').focus();
+    if(!ficheEnregistree && !f.nom && !f.contenu){
+      fermerFond(fond);
+      if(quelqueChoseAEteEcrit) redessiner();
       return;
     }
 
-    /* ⚠️ CE QUI NE SERA PLUS REMPLI SE DIT AVANT, PAS APRÈS. */
-    const alerte = alerteDesVariables((modele && modele.contenu) || '',
-                                      f.contenu, f.usage);
-    if(alerte && !await confirmer('⚠️ ' + alerte + '\n\nEnregistrer quand même ?')){
+    /* Rien n'a bougé : on ferme sans rien écrire. Les images, elles,
+       sont déjà parties — la liste doit quand même se redessiner
+       pour montrer la vignette. */
+    if(depart && etatActuel() === depart){
+      fermerFond(fond);
+      if(quelqueChoseAEteEcrit) redessiner();
       return;
     }
 
@@ -2412,15 +2684,12 @@ function ouvrirEditeurModele(modele, usageImpose){
     bFermer.disabled = true;
     bFermer.textContent = 'Enregistrement…';
     try{
-      const r = await appelPrep(Object.assign({ action: 'modeleSet' }, f));
-
-      /* Le classeur peut avoir fabriqué le numéro lui-même par la
-         voie de secours : c'est le sien qui fait foi. */
-      const enregistree = Object.assign({}, f,
-        { id: (r && r.id) || f.id, maj: horodatageCourt() });
-
-      poserModeleEnMemoire(enregistree);
-      perimerModeles();
+      if(!await enregistrerLaFiche()){
+        enCours = false;
+        bFermer.disabled = false;
+        bFermer.textContent = '✓ Fermer';
+        return;
+      }
       fermerFond(fond);
       showToast('Enregistré ✅');
       redessiner();
@@ -2431,6 +2700,186 @@ function ouvrirEditeurModele(modele, usageImpose){
       bFermer.disabled = false;
       bFermer.textContent = '✓ Fermer';
     }
+  }
+
+  /* ------------------------------------------------------------
+     LES IMAGES DE CETTE FICHE — v970
+
+     Trois façons d'en ajouter, ce sont exactement celles du CEPC
+     dans le rendez-vous post-permis : Ctrl+V n'importe où dans la
+     fiche ouverte, glisser-déposer sur la zone en pointillés, et
+     appuyer dessus pour ouvrir le sélecteur de l'appareil — celle
+     du téléphone, où il n'y a ni Ctrl+V ni glisser.
+     ------------------------------------------------------------ */
+  const galerie = g('mdGalerie');
+  const zColler = g('mdColler');
+  const etatImg = g('mdEtatImg');
+  const champImg = g('mdFichierImg');
+
+  const direImg = (txt, couleur) => {
+    if(!etatImg) return;
+    etatImg.style.color = couleur || 'var(--muted)';
+    etatImg.textContent = txt || '';
+  };
+
+  function dessinerGalerie(){
+    if(!galerie) return;
+    const liste = imagesRecues[idDeCetteFiche] || [];
+    galerie.innerHTML = '';
+
+    liste.forEach((im, i) => {
+      const v = document.createElement('div');
+      v.className = 'vigFiche';
+
+      const img = document.createElement('img');
+      img.src = im.image;
+      img.alt = '';
+      img.title = 'Image ' + (i + 1) + ' — appuie pour agrandir';
+      img.addEventListener('click', () => {
+        if(typeof agrandirImage === 'function'){
+          agrandirImage(im.image, g('mdNom').value.trim());
+        }
+      });
+      v.appendChild(img);
+
+      if(!verrou){
+        const x = document.createElement('button');
+        x.type = 'button';
+        x.className = 'xVig';
+        x.textContent = '✕';
+        x.title = 'Retirer cette image';
+        x.addEventListener('click', async ev => {
+          ev.stopPropagation();
+          if(!await confirmer('Retirer cette image ?')) return;
+          try{
+            await appelPrep({ action: 'ficheImageDelete', id: im.id });
+            quelqueChoseAEteEcrit = true;
+            await chargerImagesDeFiches([idDeCetteFiche], false);
+            dessinerGalerie();
+            direImg('');
+          }catch(e){ direImg('Erreur : ' + e.message, 'var(--warn-text)'); }
+        });
+        v.appendChild(x);
+      }
+
+      galerie.appendChild(v);
+    });
+  }
+
+  /* Ce qu'on a déjà — la vignette de la carte — s'affiche tout de
+     suite ; les autres arrivent juste après. */
+  if(ficheADesImages(idDeCetteFiche)){
+    dessinerGalerie();
+    chargerImagesDeFiches([idDeCetteFiche], false)
+      .then(dessinerGalerie)
+      .catch(e => console.warn('Images de la fiche :', e));
+  }
+
+  async function ajouterDesImages(fichiers){
+    const tous = Array.prototype.slice.call(fichiers || []);
+    if(!tous.length) return;
+
+    /* ⚠️ LE REFUS SE FAIT AVANT QUE QUOI QUE CE SOIT PARTE. Rien
+       n'est écrit dans le classeur : il n'y a donc rien à nettoyer.
+       La porte du Worker refuse pareil, de son côté — une parade
+       posée chez le seul appelant est une parade qu'on oublie. */
+    const bonnes = tous.filter(estUnFichierImage);
+    if(bonnes.length !== tous.length) direImg(REFUS_NON_IMAGE, 'var(--warn-text)');
+    if(!bonnes.length) return;
+
+    /* ⚠️ LA FICHE DOIT EXISTER AVANT SON IMAGE. */
+    if(!ficheEnregistree){
+      let ok = false;
+      try{ ok = await enregistrerLaFiche(); }
+      catch(e){ direImg('Erreur : ' + e.message, 'var(--warn-text)'); return; }
+      if(!ok){
+        direImg('Donne un titre et un texte : la fiche s’enregistre, ' +
+                'puis l’image se range dedans.', 'var(--warn-text)');
+        return;
+      }
+    }
+
+    let faites = 0;
+    for(let i = 0; i < bonnes.length; i++){
+      direImg('Image ' + (i + 1) + ' sur ' + bonnes.length + '…');
+      try{
+        const donnees = await compresserImage(bonnes[i]);
+        await appelPrep({ action: 'ficheImageAdd',
+                          fiche: idDeCetteFiche, image: donnees });
+        faites++;
+      }catch(e){
+        direImg('Image ' + (i + 1) + ' : ' + e.message, 'var(--warn-text)');
+      }
+    }
+
+    if(!faites) return;
+    quelqueChoseAEteEcrit = true;
+    try{ await chargerImagesDeFiches([idDeCetteFiche], false); }
+    catch(e){ console.warn('Images de la fiche :', e); }
+    dessinerGalerie();
+    direImg('✅ ' + faites + ' image' + (faites > 1 ? 's' : '') +
+            ' ajoutée' + (faites > 1 ? 's' : ''), 'var(--accent-text)');
+  }
+
+  if(verrou && zColler) zColler.style.display = 'none';
+
+  if(zColler && !verrou){
+    zColler.addEventListener('click', () => { if(champImg) champImg.click(); });
+
+    if(champImg){
+      champImg.addEventListener('change', async () => {
+        await ajouterDesImages(champImg.files);
+        champImg.value = '';
+      });
+    }
+
+    /* ⚠️ UN SEUL ÉCOUTEUR DE COLLAGE À LA FOIS — c'est la faute
+       déjà faite sur le CEPC et déjà corrigée : un écouteur posé
+       sur le document à chaque ouverture de fenêtre, et la
+       troisième image arrivait en trois exemplaires. Celui-ci
+       remplace le précédent, et se sait inutile dès que sa fenêtre
+       n'est plus là. */
+    const surCollage = async ev => {
+      if(!document.body.contains(zColler)) return;
+
+      const items = (ev.clipboardData && ev.clipboardData.items) || [];
+      const fichiers = [];
+      for(let i = 0; i < items.length; i++){
+        if(items[i].kind !== 'file') continue;
+        const f = items[i].getAsFile();
+        if(f) fichiers.push(f);
+      }
+
+      /* Aucun fichier : c'est un collage de TEXTE, et il doit
+         continuer d'arriver dans la zone de saisie. */
+      if(!fichiers.length) return;
+
+      ev.preventDefault();
+      await ajouterDesImages(fichiers);
+    };
+
+    if(window.__ecCollageFiche){
+      document.removeEventListener('paste', window.__ecCollageFiche);
+    }
+    window.__ecCollageFiche = surCollage;
+    document.addEventListener('paste', surCollage);
+
+    ['dragenter', 'dragover'].forEach(n => {
+      zColler.addEventListener(n, ev => {
+        ev.preventDefault();
+        zColler.classList.add('survol');
+      });
+    });
+    ['dragleave', 'drop'].forEach(n => {
+      zColler.addEventListener(n, ev => {
+        ev.preventDefault();
+        zColler.classList.remove('survol');
+      });
+    });
+    zColler.addEventListener('drop', async ev => {
+      const f = (ev.dataTransfer && ev.dataTransfer.files) || [];
+      if(f.length) await ajouterDesImages(f);
+    });
   }
 
   bFermer.addEventListener('click', fermer);
