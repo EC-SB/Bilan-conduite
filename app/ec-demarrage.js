@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 08:40 — v963 */
+/* Déployé le 12/09/2026 à 09:03 — v965 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -855,30 +855,92 @@ function depuisCombien(debut){
    Deux rafraîchissements séparés, et l'un des deux retarderait
    d'un cours sur l'autre.
    ------------------------------------------------------------ */
+/* ============================================================
+   ⚠️ LE BANDEAU DEMANDE À L'ÉCRAN, PAS AU REGISTRE — v965
+
+   David, capture à l'appui : « j'ai encore le bandeau Y revenir
+   quand je suis sur l'onglet cours ». Il avait raison, et la cause
+   est celle qui revient dans ce dossier depuis le début : LE MÊME
+   FAIT ÉCRIT À DEUX ENDROITS.
+
+   En v963, j'avais demandé au REGISTRE — « vueActive.cours ». Or
+   l'onglet Cours n'a pas de vues : il n'est pas dans la table VUES,
+   c'est écrit noir sur blanc dans ec-onglets.js depuis la v927
+   (« l'onglet Cours n'a pas de vues »), et afficherOnglet ne tient
+   donc jamais ce registre-là à jour pour lui. Ma condition
+   attendait une valeur que personne n'écrit : elle n'était jamais
+   vraie, et le bandeau restait posé par-dessus le cours. J'avais
+   interrogé le seul des deux qui pouvait mentir — et, ici, qui ne
+   disait jamais rien.
+
+   #recordView porte data-onglet="cours" : il est masqué dès qu'on
+   est ailleurs, et à l'œil dès qu'on est sur l'onglet Cours. « Est-
+   ce que l'écran du cours est devant lui ? » se lit donc sur
+   l'écran lui-même — une seule question, une seule réponse, vraie
+   quel que soit le chemin par lequel l'écran a été montré.
+
+   ⚠️ ET C'EST TOUJOURS LE BANDEAU QUI DÉCIDE, PAS LES ÉCRANS. La
+   question « est-ce que je sers, ici ? » s'écrit une fois, ici. La
+   poser depuis l'écran du cours serait une parade posée chez
+   l'appelant : on oublierait de la refaire au premier écran
+   suivant.
+   ============================================================ */
+function surLEcranDuCours(){
+  const z = $('recordView');
+  /* « offsetParent » est nul dès qu'un parent est caché, ou que
+     l'élément l'est : c'est ce qui rend la réponse insensible au
+     chemin par lequel l'écran a été montré ou masqué. */
+  return !!(z && z.offsetParent !== null);
+}
+
+/* ⚠️ ET IL LE REMARQUE TOUT SEUL.
+
+   Poser la bonne question ne suffit pas : encore faut-il la reposer
+   quand la réponse change. « Redessiner le bandeau au bon moment »
+   voudrait dire le redessiner à CHAQUE endroit qui montre ou masque
+   l'écran du cours — il y en a huit dans ce dossier, et le neuvième
+   s'écrira sans y penser. C'est la parade posée chez l'appelant,
+   celle qu'on oublie toujours de refaire.
+
+   Le bandeau surveille donc l'écran lui-même. Ce qu'il regarde,
+   c'est exactement ce dont sa réponse dépend — et il n'y a plus
+   rien à retenir ailleurs.
+
+   Il vit hors d'« appView » : se réécrire ne peut pas le réveiller
+   lui-même. */
+let veilleEcranDuCoursPosee = false;
+
+function veillerSurLEcranDuCours(){
+  if(veilleEcranDuCoursPosee) return;
+  const app = $('appView');
+  if(!app || typeof MutationObserver !== 'function') return;
+  veilleEcranDuCoursPosee = true;
+
+  let dernier = surLEcranDuCours();
+  const o = new MutationObserver(() => {
+    const a = surLEcranDuCours();
+    /* Un changement qui ne change pas la réponse ne coûte qu'une
+       lecture : les cinquante cartes qu'afficherVue retouche
+       arrivent groupées en un seul appel. */
+    if(a === dernier) return;
+    dernier = a;
+    dessinerBandeauCoursEnRoute();
+  });
+  o.observe(app, { attributes:true, attributeFilter:['style', 'class'],
+                   subtree:true });
+}
+
 function dessinerBandeauCoursEnRoute(){
   const z = $('bandeauCoursEnRoute');
   if(!z) return;
 
+  /* Posée au premier dessin : la page est alors montée, et on n'a
+     rien à brancher au démarrage qui pourrait être oublié. */
+  veillerSurLEcranDuCours();
+
   const c = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
-  /* ⚠️ IL SE TAIT LÀ OÙ IL NE SERT PAS — v963.
 
-     David : « le bandeau y revenir quand on fait un cours est
-     perturbant car on est sur le cours, on le sait, et là il passe
-     au-dessus. »
-
-     Il avait raison : « Y revenir » propose d'aller là où on est
-     déjà, et il le propose EN RECOUVRANT ce qu'on est en train de
-     faire. Il sert à revenir quand on est ailleurs.
-
-     ⚠️ ET C'EST LE BANDEAU QUI DÉCIDE, PAS LES ÉCRANS. La question
-     « est-ce que je sers, ici ? » s'écrit une fois, ici. La poser
-     depuis l'écran du cours serait une parade posée chez
-     l'appelant : on oublierait de la refaire au premier écran
-     suivant. */
-  const surLeCours = (typeof ongletActif !== 'undefined' && ongletActif === 'cours') &&
-                     (typeof vueActive !== 'undefined' && vueActive.cours === 'cours');
-
-  if(!c || surLeCours){
+  if(!c || surLEcranDuCours()){
     z.style.display = 'none';
     z.innerHTML = '';
     return;
