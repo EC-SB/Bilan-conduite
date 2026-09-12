@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:03 — v965 */
+/* Déployé le 12/09/2026 à 13:38 — v975 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -667,6 +667,18 @@ if($('coursNeufBtn')){
     if(typeof basculerEcranCours === 'function') basculerEcranCours();
     const m = $('plusMenu');
     if(m) m.style.display = 'none';
+  });
+}
+
+/* 🆕 Les nouveautés, depuis le menu ⋯ — v975. Le bandeau les
+   annonce une fois ; ici on les retrouve toujours. C'est le même
+   ouvrirNouveautes que la ligne du bandeau appelle : deux ouvertures
+   différentes finiraient par diverger. */
+if($('nouveautesBtn')){
+  $('nouveautesBtn').addEventListener('click', () => {
+    const m = $('plusMenu');
+    if(m) m.style.display = 'none';
+    if(typeof ouvrirNouveautes === 'function') ouvrirNouveautes();
   });
 }
 
