@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:34 — v960 */
+/* Déployé le 12/09/2026 à 08:40 — v963 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -114,6 +114,30 @@ function lireReglageBandeau(cle, defaut){
 
 function ecrireReglageBandeau(cle, valeur){
   try{ localStorage.setItem(cle, JSON.stringify(valeur)); }catch(e){}
+}
+
+/* ------------------------------------------------------------
+   REPLIÉ PAR DÉFAUT SUR TÉLÉPHONE — v963
+
+   David : « le bandeau des choses à voir, il faut qu'il soit fermé
+   par défaut car Chrystel est sur mobile et du coup elle doit
+   descendre super bas au vu de la liste des choses à voir. »
+
+   Vingt-sept lignes dépliées au-dessus du premier cours, sur un
+   écran de six pouces, c'est la journée repoussée hors de l'écran.
+   Le même bandeau sur une dalle large ne coûte rien : le défaut
+   suit la largeur.
+
+   ⚠️ ET CE N'EST QU'UN DÉFAUT. Le choix du moniteur est écrit dans
+   cet appareil ; dès qu'il a ouvert ou replié une fois, c'est le
+   sien qui décide — lireReglageBandeau ne regarde le défaut que
+   lorsqu'il n'y a rien d'écrit.
+   ------------------------------------------------------------ */
+const SEUIL_BANDEAU_PETIT = '(max-width: 999px)';
+
+function bandeauReplieParDefaut(){
+  if(!window.matchMedia) return false;
+  return window.matchMedia(SEUIL_BANDEAU_PETIT).matches;
 }
 
 /* Les familles éteintes, par leur clé. */
@@ -861,7 +885,8 @@ function dessinerBandeau(){
   if(!lignes.length) return;
 
   const urgent = lignes.some(l => l.urgente);
-  const reduit = !!lireReglageBandeau(CLE_BANDEAU_REDUIT, false);
+  const reduit = !!lireReglageBandeau(CLE_BANDEAU_REDUIT,
+                                      bandeauReplieParDefaut());
 
   /* ⚠️ LE FOND NE CRIE PAS, LE TEXTE SI.
 
