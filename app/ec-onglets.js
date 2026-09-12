@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 08:40 — v963 */
+/* Déployé le 12/09/2026 à 09:03 — v965 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -1665,15 +1665,13 @@ function afficherVue(onglet, cle){
   try{ localStorage.setItem('vue_' + onglet, cle); }catch(e){}
   reveillerVue(cle);
 
-  /* Le bandeau « ⏺ EN COURS · Y revenir » se tait sur l'écran du
-     cours — c'est LUI qui en décide (ec-demarrage.js), et sa
-     réponse change avec l'écran qu'on regarde. Changer de vue,
-     c'est donc la lui redemander : sans ça il resterait affiché
-     par-dessus le cours qu'on vient d'ouvrir jusqu'au prochain
-     rafraîchissement. */
-  if(typeof dessinerBandeauCoursEnRoute === 'function'){
-    dessinerBandeauCoursEnRoute();
-  }
+  /* ⚠️ RIEN À DIRE AU BANDEAU — v965. La v963 le redessinait d'ici
+     pour qu'il se taise sur l'écran du cours. C'était une parade
+     posée chez l'appelant : il aurait fallu la reposer dans les
+     huit autres endroits qui montrent ou masquent cet écran-là, et
+     dans le neuvième, qui s'écrira sans y penser. Le bandeau
+     surveille désormais l'écran lui-même — veillerSurLEcranDuCours,
+     dans ec-demarrage.js. Il n'y a plus rien à retenir ici. */
 }
 
 /* Chaque module charge ce dont il a besoin en s'affichant */
