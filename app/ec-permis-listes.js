@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 13:36 — v954 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3673,7 +3673,10 @@ async function saisirHeuresRestantes(nom){
   }
 
   try{
-    await majHeuresRestantes(nom, propre);
+    /* ⚠️ PAR LA PORTE DU JOUR — v972 : ces heures-là sont dites
+       maintenant, pas à la charnière. Sans repère, toutes les
+       leçons déjà faites depuis les entameraient d'un coup. */
+    await majSuivi(nom, champsHeuresDitesMaintenant(nom, propre));
     showToast(propre === '' ? 'Effacé'
             : propre === '0' ? 'Plus que les 3h ✅'
             : propre + ' + 3h ✅');
