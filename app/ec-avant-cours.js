@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:58 — v967 */
+/* Déployé le 12/09/2026 à 12:38 — v972 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -176,20 +176,44 @@ function resultatExamenBlanc(nom, a){
 
    Le compteur de la note — « 3ème leçon après l'examen blanc » —
    moins le repère posé avec les heures. Repère absent : la réserve
-   était pleine à l'examen blanc, ce qui est le cas normal.
+   était pleine à la charnière, ce qui est le cas normal.
 
    Rien dans la note : on ne décompte pas. Un élève dont la note ne
-   dit pas où il en est depuis l'examen blanc ne doit pas voir son
-   compte fondre au hasard — mieux vaut le stock affiché tel quel,
-   avec son auteur et sa date, que l'invention d'un solde.
+   dit pas où il en est ne doit pas voir son compte fondre au
+   hasard — mieux vaut le stock affiché tel quel, avec son auteur et
+   sa date, que l'invention d'un solde.
+
+   ⚠️ ET ON NE DÉCOMPTE QU'AVEC LE COMPTEUR QUI A SERVI À POSER LA
+   RÉSERVE — v972.
+
+   La note compte les leçons depuis une CHARNIÈRE : l'examen blanc,
+   le rendez-vous post-permis, ou le dernier ajournement. Des heures
+   posées à la 6ᵉ leçon après un ajournement se décomptent avec ce
+   compteur-là et avec aucun autre. Si la charnière a avancé
+   depuis — il a repassé, il a eu son post-permis — le compteur est
+   reparti de un et parle d'autre chose : la réserve ne gouverne
+   plus rien, et on rend le stock plutôt qu'un solde inventé. C'est
+   la prudence d'avant, devenue vérifiable au lieu d'être un refus
+   de lire.
+
+   ⚠️ UNE RÉSERVE POSÉE AVANT v972 N'A PAS DE CHARNIÈRE ÉCRITE — et
+   elle en avait forcément une : l'examen blanc, le seul compteur
+   qui se lisait alors. C'est donc ce que vaut le silence. Sans
+   cela, toutes les réserves déjà en place se mettraient d'un coup à
+   décompter sur des compteurs qui ne les concernent pas.
    ------------------------------------------------------------ */
 function leconsDepuisLaReserve(nom, a){
-  const apres = parseInt((a || {}).apresEB, 10);
+  const c = (a || {}).apresCharniere;
+  const apres = parseInt(c && c.rang, 10);
   if(isNaN(apres)) return 0;
 
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-  const repere = parseInt(s.heuresRang, 10);
-  const faites = apres - (isNaN(repere) ? 0 : repere);
+  const r = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang:parseInt(s.heuresRang, 10) || 0, quoi:'eb' };
+
+  if(r.quoi !== ((c && c.quoi) || 'eb')) return 0;
+
+  const faites = apres - r.rang;
   return faites > 0 ? faites : 0;
 }
 
