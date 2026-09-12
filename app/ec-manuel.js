@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 12/09/2026 à 09:48 — v966 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -177,6 +177,28 @@ const CHAMPS_MANUELS = {
     { cle:'examen.verifRemarque', type:'texte', lignes:3,
       nom:'2-2 · Remarque sur les vérifications',
       aide:'Facultatif : ce qu\'il a su, ce qui a manqué.' },
+
+    /* ⚠️ LA MANŒUVRE ET L'AUTONOMIE, SOUS LES VÉRIFICATIONS — v966.
+
+       David : « sous les vérifications, juste avant 2-3, tu écris
+       MANŒUVRE en majuscules avec les boutons tête de mort et
+       attention, qui font la même chose qu'une remarque ».
+
+       Deux lignes seulement — « met en 2 ». Ce sont de vraies
+       lignes de remarque : mêmes champs, mêmes boutons, même
+       rangement sous la compétence du CEPC que le moniteur choisit.
+       Ce qui change, c'est la mention « Manœuvre » qui les précède
+       dans le bilan, « pour qu'on voie que l'erreur est survenue
+       pendant la manœuvre ». */
+    { cle:'__sManoeuvre', type:'sousTitre', nom:'🅿️ MANŒUVRE' },
+    { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
+      lignes:2, mention:'Manœuvre',
+      nom:'Ce qui s\'est passé pendant la manœuvre' },
+
+    { cle:'__sAutonomie', type:'sousTitre', nom:'🧭 AUTONOMIE' },
+    { cle:'examen.autonomie', type:'autonomie', ligne:'Conduite autonome',
+      nom:'Conduite autonome',
+      aide:'Ce qui a manqué en conduite autonome.' },
 
     /* Vingt paires, comme pour l'examen officiel : la remarque de
        l'inspecteur, puis l'explication du moniteur. */
@@ -360,6 +382,20 @@ const CHAMPS_MANUELS = {
        c'est de leur donner un endroit où atterrir. Le CEPC ci-
        dessous est cet endroit, et buildExamen range désormais les
        remarques sous leur compétence. */
+    /* Les deux mêmes blocs que sur l'examen blanc. David : « sur
+       examen officiel tu le mets juste avant OBSERVATIONS DE
+       L'INSPECTEUR ». Il n'y a pas de repère « 2-3 » ici — c'est
+       ce titre-là qui sert de repère. */
+    { cle:'__sManoeuvreOff', type:'sousTitre', nom:'🅿️ MANŒUVRE' },
+    { cle:'examen.manoeuvre', type:'observations', zone:'obsManoeuvre',
+      lignes:2, mention:'Manœuvre',
+      nom:'Ce qui s\'est passé pendant la manœuvre' },
+
+    { cle:'__sAutonomieOff', type:'sousTitre', nom:'🧭 AUTONOMIE' },
+    { cle:'examen.autonomie', type:'autonomie', ligne:'Conduite autonome',
+      nom:'Conduite autonome',
+      aide:'Ce qui a manqué en conduite autonome.' },
+
     { cle:'observations',type:'observations', nom:'Observations de l\'inspecteur' },
 
     /* Ce qui suit ne part jamais à l'élève : c'est pour nous,
@@ -1083,9 +1119,46 @@ function peindreOuiNon(rangee, valeur){
 }
 
 
+/* ============================================================
+   ⚠️ TOUTES LES LIGNES DE REMARQUE, D'OÙ QU'ELLES VIENNENT — v966
+
+   Une fiche d'examen porte maintenant DEUX zones de remarques :
+   les observations de l'inspecteur, et le bloc MANŒUVRE que David
+   a demandé le 12 septembre — « c'est une demande moniteur de
+   l'avoir en dehors de la liste des remarques ».
+
+   Or quatre endroits comptaient les marques en cherchant
+   « #obsManuel > div » : le CEPC, les points retirés, le bilan des
+   erreurs et l'enregistrement. Quatre endroits à retrouver au
+   prochain bloc ajouté — et celui qu'on oublie ne compte rien,
+   sans rien dire à personne.
+
+   La question « quelles sont les lignes de remarque de cette
+   fiche ? » se pose donc ICI, une fois. Une zone qui porte la
+   classe « zoneObs » est comptée ; c'est tout ce qu'il y a à savoir
+   pour en ajouter une troisième.
+   ============================================================ */
+function lignesObservations(){
+  const out = [];
+  document.querySelectorAll('.zoneObs').forEach(z => {
+    Array.prototype.forEach.call(z.children, d => out.push(d));
+  });
+  return out;
+}
+
 function ajouterObservationManuelle(zone, valeurs){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
+
+  /* ⚠️ LA MENTION SUIT LA LIGNE, PAS LA ZONE. David : « il faut
+     mettre la mention Manœuvre devant la remarque et l'explication
+     en plus, pour qu'on voie que l'erreur est survenue pendant la
+     manœuvre — mais on garde bien la catégorie du CEPC ». Elle est
+     posée sur la ligne au moment où on la crée : le bilan lit des
+     lignes, il n'a pas à savoir de quelle zone elles viennent. */
+  const mention = (valeurs && valeurs.mention) ||
+                  (zone && zone.dataset ? (zone.dataset.mention || '') : '');
+  if(mention) d.dataset.mention = mention;
 
   const insp = document.createElement('input');
   insp.type = 'text';
@@ -1329,8 +1402,8 @@ function ajouterObservationManuelle(zone, valeurs){
    ce qui a été gardé, puis on complète jusqu'à vingt — jamais
    moins, sinon le moniteur repartirait sans place pour écrire.
    ------------------------------------------------------------ */
-function replacerObservationsManuelles(liste){
-  const zone = document.getElementById('obsManuel');
+function replacerObservationsManuelles(liste, ouZone, minimum){
+  const zone = document.getElementById(ouZone || 'obsManuel');
   if(!zone || !Array.isArray(liste) || !liste.length) return 0;
 
   zone.innerHTML = '';
@@ -1340,7 +1413,11 @@ function replacerObservationsManuelles(liste){
     ajouterObservationManuelle(zone, o);
     if(String(o.inspecteur || '').trim() || String(o.reponse || '').trim()) n++;
   });
-  while(zone.children.length < 20) ajouterObservationManuelle(zone);
+  /* Le bloc Manœuvre en garde deux, les observations vingt : on
+     complète jusqu'au nombre que ce bloc-là propose, jamais moins,
+     sinon le moniteur repart sans place pour écrire. */
+  const bas = minimum || 20;
+  while(zone.children.length < bas) ajouterObservationManuelle(zone);
 
   /* Le CEPC et le bilan des erreurs se déduisent de ces marques :
      les reposer sans les recalculer laisserait une grille qui
@@ -1433,7 +1510,7 @@ function majBilanEliminatoires(){
   const par = {};
   const sansCategorie = [];
 
-  document.querySelectorAll('#obsManuel > div').forEach(d => {
+  lignesObservations().forEach(d => {
     if(!d.dataset) return;
 
     const i = d.querySelector('.obsInsp');
@@ -1442,7 +1519,8 @@ function majBilanEliminatoires(){
       inspecteur: i ? i.value.trim() : '',
       reponse: r ? r.value.trim() : '',
       /* L'élimination se signale sur l'erreur, pas sur le titre */
-      elim: !!d.dataset.categorie
+      elim: !!d.dataset.categorie,
+      mention: d.dataset.mention || ''
     };
     if(!o.inspecteur && !o.reponse) return;
 
@@ -1489,13 +1567,14 @@ function majBilanEliminatoires(){
      a expliqué. Sans les questions — elles viennent après le
      groupe. */
   const ecrire = o => {
+    const m = mentionObs(o);
     if(o.inspecteur){
-      bouts.push('👨‍✈️ ' + o.inspecteur +
+      bouts.push('👨‍✈️ ' + m + o.inspecteur +
                  (o.elim ? ' ☠️ Erreur éliminatoire' : ''));
     }else if(o.elim){
-      bouts.push('☠️ Erreur éliminatoire');
+      bouts.push('☠️ ' + m + 'Erreur éliminatoire');
     }
-    if(o.reponse) bouts.push(emojiMoniteur() + ' ' + o.reponse);
+    if(o.reponse) bouts.push(emojiMoniteur() + ' ' + m + o.reponse);
   };
 
   /* Un groupe : ses remarques les unes sous les autres, puis les
@@ -1830,11 +1909,32 @@ function toutesCategoriesCepc(){
 function retirerPointsCepc(){
   const perdus = {};
 
-  document.querySelectorAll('#obsManuel > div').forEach(d => {
+  lignesObservations().forEach(d => {
     const cat = d.dataset ? (d.dataset.moins || '') : '';
     if(!cat) return;
     perdus[cat] = (perdus[cat] || 0) + 1;
   });
+
+  /* ⚠️ LE BOUTON ➖ 0,5 D'AUTONOMIE COMPTE ICI, PAS AILLEURS — v966.
+
+     Il aurait été plus court de lui faire écrire la note dans la
+     ligne « Conduite autonome ». Ç'aurait été faux : cette
+     fonction RECALCULE chaque ligne à partir des marques, et elle
+     tourne à chaque ⚠️ posé n'importe où sur la fiche. Le premier
+     ⚠️ venu aurait effacé le demi-point, sans que rien ne le dise.
+
+     Le bouton pose donc des CRANS, comme une marque, et c'est le
+     même calcul qui les applique. Les deux chemins — ce bouton et
+     un ⚠️ rangé sous « Conduite autonome » — s'additionnent, parce
+     que ce sont bien deux choses différentes : une erreur précise
+     qui a coûté, et l'autonomie du trajet dans son ensemble. */
+  const zAuto = document.querySelector('.zoneAutonomie');
+  if(zAuto && zAuto.dataset.ligne){
+    const crans = Number(zAuto.dataset.moins || 0);
+    if(crans > 0){
+      perdus[zAuto.dataset.ligne] = (perdus[zAuto.dataset.ligne] || 0) + crans;
+    }
+  }
 
   toutesCategoriesCepc().forEach(nom => {
     const champ = document.querySelector('.cepcNiveau[data-comp="' +
@@ -1921,21 +2021,39 @@ function repeindreLigneCepc(champ){
 function reporterNotesCepc(){
   const champ = c => champsManuels[prefixeExamenBlanc + c];
 
-  /* L'installation : deux cases, deux points.
+  /* L'installation : les TROIS cases comptent ensemble depuis la
+     v966 — le nombre de ✅ moins un. La règle elle-même vit dans
+     noteInstallationSurDeux (ec-modeles.js), avec le « Note : /2 »
+     imprimé : deux calculs pour une même note finiraient par ne
+     plus donner le même chiffre, et c'est la grille qu'on aurait
+     crue.
 
      ⚠️ ET LES DEUX ÉCRANS N'APPELLENT PAS LEURS CASES PAREIL —
-     v912. L'examen blanc les nomme « instPassager » / « instVoyants »,
-     l'examen officiel « passager » / « voyants ». Une seule des deux
-     paires existe à la fois, donc on lit celle qui est là. */
-  const p = champ('examen.instPassager') || champ('examen.passager') || '';
-  const v = champ('examen.instVoyants')  || champ('examen.voyants')  || '';
+     v912. L'examen blanc les nomme « instInstallation » /
+     « instPassager » / « instVoyants », l'examen officiel
+     « installation » / « passager » / « voyants ». Une seule des
+     deux familles existe à la fois, donc on lit celle qui est là.
 
-  if(p || v){
-    let n = 0;
-    if(p === '✅') n++;
-    if(v === '✅') n++;
-    poserNoteCepc("Savoir s'installer et assurer la sécurité à bord",
-                  String(n));
+     ⚠️ ET « examen.installation » N'EST PAS UNE CASE PARTOUT. Sur
+     l'examen officiel c'est la case Installation ; sur l'examen
+     blanc, c'est la REMARQUE — trois lignes de texte libre. Prendre
+     l'une pour l'autre ferait apparaître une note sur une fiche où
+     aucune case n'est cochée, simplement parce que le moniteur a
+     écrit une phrase.
+
+     On ne devine donc pas d'après le nom : une case ne vaut que ✅
+     ou ❌, et ce qui n'est ni l'un ni l'autre n'est pas une case. */
+  const uneCase = x => (x === '✅' || x === '❌') ? x : '';
+  const lire = (a, b) => uneCase(champ(a)) || uneCase(champ(b));
+
+  const i = lire('examen.instInstallation', 'examen.installation');
+  const p = lire('examen.instPassager',     'examen.passager');
+  const v = lire('examen.instVoyants',      'examen.voyants');
+
+  const nInst = (typeof noteInstallationSurDeux === 'function')
+    ? noteInstallationSurDeux(i, p, v) : '';
+  if(nInst !== ''){
+    poserNoteCepc("Savoir s'installer et assurer la sécurité à bord", nInst);
   }
 
   /* ⚠️ LES VÉRIFICATIONS SE COMPTENT TOUTES SEULES SUR L'EXAMEN
@@ -3206,9 +3324,27 @@ function lireChampsManuels(champsVoulus){
         champsManuels[i.getAttribute('data-cle')] = i.value.trim();
       });
 
+    }else if(ch.type === 'autonomie'){
+      /* Le texte et le nombre de crans voyagent ensemble : reposer
+         l'un sans l'autre rendrait une fiche qui dit « son autonomie
+         n'y était pas » avec la ligne du CEPC au maximum. */
+      const za = document.querySelector('.zoneAutonomie');
+      const ta = za ? za.querySelector('.autonomieTexte') : null;
+      champsManuels[ch.cle] = {
+        texte: ta ? ta.value.trim() : '',
+        moins: za ? Number(za.dataset.moins || 0) : 0,
+        ligne: za ? (za.dataset.ligne || '') : ''
+      };
+
     }else if(ch.type === 'observations'){
       const obs = [];
-      document.querySelectorAll('#obsManuel > div').forEach(d => {
+      /* ⚠️ CHAQUE BLOC N'ENREGISTRE QUE SES LIGNES. Ici, et ici
+         seulement, on ne veut PAS toutes les zones : les
+         observations de l'inspecteur et les lignes de manœuvre ont
+         chacune leur clé dans le bilan. Les compter ensemble ferait
+         écrire les deux listes dans les deux clés. */
+      const zObs = document.getElementById(ch.zone || 'obsManuel');
+      Array.prototype.forEach.call((zObs && zObs.children) || [], d => {
         const i = d.querySelector('.obsInsp');
         const r = d.querySelector('.obsRep');
         const vi = i ? i.value.trim() : '';
@@ -3218,9 +3354,10 @@ function lireChampsManuels(champsVoulus){
         const cat = d.dataset ? (d.dataset.categorie || '') : '';
         const grave = d.dataset ? (d.dataset.grave || '') : '';
         const moins = d.dataset ? (d.dataset.moins || '') : '';
+        const ment = d.dataset ? (d.dataset.mention || '') : '';
         if(vi || vr){
           obs.push({ inspecteur: vi, reponse: vr, categorie: cat,
-                     grave: grave, moins: moins });
+                     grave: grave, moins: moins, mention: ment });
         }
       });
       champsManuels[ch.cle] = obs;
@@ -3797,6 +3934,17 @@ function reprendreBrouillon(b){
     if(Array.isArray(obs) && obs.length &&
        typeof replacerObservationsManuelles === 'function'){
       n += replacerObservationsManuelles(obs);
+    }
+
+    /* Les lignes de manœuvre reviennent de la même façon, dans leur
+       zone à elles : leurs marques ☠️ ⚠️ vivent sur le bloc de la
+       ligne, comme celles des observations, et se perdraient tout
+       aussi silencieusement. */
+    const man = (b.champs && (b.champs['examen.manoeuvre'] ||
+                              b.champs.manoeuvre)) || null;
+    if(Array.isArray(man) && man.length &&
+       typeof replacerObservationsManuelles === 'function'){
+      n += replacerObservationsManuelles(man, 'obsManoeuvre', 2);
     }
 
     n += replacerSaisiesManuelles(b.saisies);
@@ -5041,24 +5189,141 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
        Un commentaire non fermé ne fait pas d'erreur : il DÉPLACE du
        code. C'est pour ça que ça a tenu treize versions. */
 
+    }else if(ch.type === 'autonomie'){
+      /* ============================================================
+         AUTONOMIE — LE DEMI-POINT, À PORTÉE DE POUCE — v966
+
+         David : « en dessous tu mets Autonomie, qui permet d'enlever
+         des points à la ligne Conduite autonome du CEPC ; tu mets un
+         bouton au bout avec -0.5 » — et « il faut qu'on puisse
+         appuyer 2 fois sur le bouton -0.5 pour arriver à 0 », puis
+         « reste bloqué à 0 ».
+
+         Le ⚠️ sait déjà retirer ce demi-point : il suffit de choisir
+         « Conduite autonome » et de répondre oui au point. Mais il
+         faut d'abord écrire une remarque, l'accrocher à une
+         compétence, et confirmer — trois gestes, et ce n'est pas ce
+         dont on parle ici : l'autonomie du trajet n'est pas une
+         erreur précise que l'inspecteur a relevée. D'où ce bouton,
+         hors de la liste des remarques, « c'est une demande
+         moniteur ».
+
+         ⚠️ ET IL NE POSE PAS LA NOTE, il pose des crans — voir
+         retirerPointsCepc. La ligne affiche donc ce qu'elle vaut
+         VRAIMENT, d'où que vienne le cran : c'est ce qui empêche de
+         retirer deux fois le même demi-point sans s'en apercevoir.
+         ============================================================ */
+      const l = document.createElement('label');
+      l.textContent = ch.nom;
+      bloc.appendChild(l);
+
+      const za = document.createElement('div');
+      za.className = 'zoneAutonomie';
+      za.dataset.ligne = ch.ligne || 'Conduite autonome';
+      za.dataset.moins = '0';
+      bloc.appendChild(za);
+
+      const t = document.createElement('textarea');
+      t.className = 'autonomieTexte';
+      t.rows = ch.lignes || 3;
+      t.placeholder = ch.aide || 'Ce qui a manqué en conduite autonome';
+      /* ⚠️ LE MÊME CADRE QUE SES VOISINS, MOT POUR MOT. Un textarea
+         nu sort en monospace, sans bord ni coins arrondis : il ne
+         ressemblerait à aucun autre champ de la fiche.
+
+         Cette déclaration est écrite à la main à QUATRE endroits
+         dans ce fichier — c'en est une de trop, et c'est noté dans
+         TODO-general.md. Je ne la range pas aujourd'hui : ce serait
+         toucher trois écrans qu'aucun test ne regarde, au milieu
+         d'une livraison. En attendant on recopie celle du voisin,
+         plutôt que d'en inventer une cinquième. */
+      t.style.cssText = 'width:100%;background:var(--navy);' +
+        'border:1px solid var(--line);color:var(--cream);padding:11px 12px;' +
+        'border-radius:10px;font-size:16px;line-height:1.6;' +
+        'font-family:inherit;resize:vertical;margin:0 0 9px;';
+      za.appendChild(t);
+
+      const rang = document.createElement('div');
+      rang.style.cssText = 'display:flex;gap:9px;align-items:center;' +
+        'flex-wrap:wrap;';
+
+      const etat = document.createElement('span');
+      etat.className = 'autonomieEtat';
+      etat.style.cssText = 'flex:1;min-width:0;font-size:12.5px;' +
+        'color:var(--muted);line-height:1.4;';
+
+      const bDemi = document.createElement('button');
+      bDemi.type = 'button';
+      bDemi.className = 'btn btn-secondary autonomieMoins';
+      bDemi.style.cssText = 'width:auto;margin:0;padding:10px 14px;' +
+        'font-size:14px;font-weight:700;flex-shrink:0;';
+      bDemi.textContent = '➖ 0,5';
+      bDemi.title = 'Retirer un demi-point sur « ' + za.dataset.ligne + ' »';
+
+      /* Ce que la ligne vaut MAINTENANT, quelle que soit la main qui
+         l'a fait descendre. Le bouton s'éteint quand elle est à
+         zéro : il n'a plus rien à retirer, et David l'a tranché —
+         « reste bloqué à 0 ». */
+      const majAutonomie = () => {
+        const champ = document.querySelector('.cepcNiveau[data-comp="' +
+          za.dataset.ligne.replace(/"/g, '') + '"]');
+        const max = (typeof maxCepc === 'function') ? maxCepc(za.dataset.ligne) : 1;
+        const vu = champ && champ.value !== '' ? champ.value : String(max);
+        const bas = String(vu) === '0';
+
+        etat.textContent = za.dataset.ligne + ' : ' +
+          String(vu).replace('.', ',') + ' / ' + String(max).replace('.', ',');
+        bDemi.disabled = bas;
+        bDemi.style.opacity = bas ? '.45' : '';
+        bDemi.style.borderColor = (Number(za.dataset.moins) > 0)
+          ? 'var(--warn-text)' : 'var(--line)';
+        bDemi.style.color = (Number(za.dataset.moins) > 0)
+          ? 'var(--warn-text)' : '';
+      };
+
+      bDemi.addEventListener('click', () => {
+        za.dataset.moins = String(Number(za.dataset.moins || 0) + 1);
+        if(typeof retirerPointsCepc === 'function') retirerPointsCepc();
+        majAutonomie();
+      });
+
+      rang.appendChild(etat);
+      rang.appendChild(bDemi);
+      za.appendChild(rang);
+
+      /* La ligne du CEPC est dessinée plus bas dans la fiche : on
+         attend qu'elle soit là pour afficher ce qu'elle vaut. */
+      setTimeout(majAutonomie, 0);
+      za.dataset.pret = 'oui';
+
     }else if(ch.type === 'observations'){
       const l = document.createElement('label');
       l.textContent = ch.nom;
       bloc.appendChild(l);
       const z = document.createElement('div');
-      z.id = 'obsManuel';
+      /* ⚠️ CHAQUE ZONE PORTE SON NOM ET SA CLASSE — v966. Le nom, pour
+         que l'enregistrement sache quelles lignes sont les siennes ;
+         la classe, pour que le CEPC et le bilan des erreurs les
+         comptent toutes sans avoir à connaître aucun nom. */
+      z.id = ch.zone || 'obsManuel';
+      z.className = 'zoneObs';
+      if(ch.mention) z.dataset.mention = ch.mention;
       bloc.appendChild(z);
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'btn btn-secondary';
       b.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;';
-      b.textContent = '➕ Ajouter une observation';
+      b.textContent = ch.mention
+        ? '➕ Ajouter une ligne ' + ch.mention.toLowerCase()
+        : '➕ Ajouter une observation';
       b.addEventListener('click', () => ajouterObservationManuelle(z));
       bloc.appendChild(b);
 
       /* Vingt lignes prêtes : un examen en compte facilement autant,
-         et ajouter une ligne à chaque fois cassait le rythme. */
-      for(let i = 0; i < 20; i++) ajouterObservationManuelle(z);
+         et ajouter une ligne à chaque fois cassait le rythme. Le
+         bloc Manœuvre en demande deux — David : « met en 2 ». */
+      const combien = ch.lignes || 20;
+      for(let i = 0; i < combien; i++) ajouterObservationManuelle(z);
 
     }else{
       /* Texte libre, avec dictée possible */
