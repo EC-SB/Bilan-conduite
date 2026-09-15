@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:45 — v991 */
+/* Déployé le 15/09/2026 à 10:49 — v992 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -977,54 +977,34 @@ function appuyerSurRepere(){
    change, c'est le moniteur qui découvre lequel. Le bloc reste
    donc unique — c'est LUI qui voyage, d'un écran à l'autre.
 
-   ⚠️ ET SUR LE BILAN MANUEL, LA PLACE SE CHERCHE. La rubrique
-   « manœuvres » n'existe pas dans tous les modèles : un examen
-   blanc n'en a pas. Sans elle, le bloc se range en bas des champs
-   plutôt que de disparaître — une place un peu moins bonne vaut
-   mieux qu'un bouton introuvable.
+   ⚠️ ET SUR LE BILAN MANUEL, C'EST AU BOUT DES CHAMPS.
+
+   J'avais d'abord compris « sous la rubrique manœuvres » et je
+   l'insérais DANS les champs, juste après elle. David, dans la
+   foulée : « en fait c'est juste au-dessus de composer le bilan,
+   sous la fiche manœuvre ». C'est-à-dire tout en bas, après la
+   dernière rubrique, avant le bouton.
+
+   Ce n'est pas qu'un déplacement de quelques pixels : les champs
+   du bilan manuel se redessinent en vidant leur zone d'un coup, à
+   chaque changement de modèle et de niveau. Le bloc rangé AU
+   MILIEU d'eux partait avec — et comme il est unique, il ne
+   revenait pas. Il fallait donc le mettre à l'abri avant chaque
+   vidage et le reposer après : deux gardes, un attribut sur
+   chaque champ, et une place qui pouvait manquer selon le modèle.
+
+   La bonne place ne demande rien de tout ça. Elle est HORS de la
+   zone qui se vide, elle existe pour tous les modèles, et il n'y a
+   plus rien à protéger. Tout ce que j'avais écrit pour tenir
+   l'autre a été retiré.
    ============================================================ */
-/* ⚠️ ET LE BLOC NE DOIT PAS ÊTRE EMPORTÉ PAR UN REDESSIN.
-
-   Les champs du bilan manuel se redessinent en vidant leur zone
-   d'un coup (« innerHTML = '' ») : à chaque changement de modèle,
-   à chaque changement de niveau. Le bloc rangé au milieu d'eux
-   partirait avec — et comme il est UNIQUE, il ne reviendrait pas.
-   Le bouton disparaîtrait pour le reste de la session, sans un
-   message, et le moniteur croirait avoir mal vu.
-
-   On le met donc à l'abri AVANT le vidage, dans la place du cours,
-   qui n'est jamais vidée. Il revient ensuite tout seul. */
-function mettreLeBlocTrajetALAbri(){
-  const bloc = (typeof $ === 'function') ? $('blocTrajet') : null;
-  const abri = (typeof $ === 'function') ? $('trajetIciCours') : null;
-  if(!bloc || !abri || !abri.appendChild) return;
-  if(bloc.parentNode !== abri) abri.appendChild(bloc);
-}
-
 function poserLeBlocTrajet(){
   const bloc = (typeof $ === 'function') ? $('blocTrajet') : null;
-  if(!bloc || typeof document === 'undefined') return;
+  if(!bloc) return;
 
-  const manuelOuvert = (() => {
-    const v = $('manuelView');
-    return !!(v && v.style && v.style.display !== 'none');
-  })();
-
-  let place = null;
-
-  if(manuelOuvert){
-    /* Sous les manœuvres, quand il y en a. */
-    const champs = $('manuelChamps');
-    const m = champs && champs.querySelector
-      ? champs.querySelector('[data-champ="manoeuvres"]') : null;
-    if(m && m.parentNode){
-      if(m.nextSibling !== bloc) m.parentNode.insertBefore(bloc, m.nextSibling);
-      return;
-    }
-    place = $('trajetIciManuel');
-  }else{
-    place = $('trajetIciCours');
-  }
+  const manuel = $('manuelView');
+  const ouvert = !!(manuel && manuel.style && manuel.style.display !== 'none');
+  const place = ouvert ? $('trajetIciManuel') : $('trajetIciCours');
 
   /* Rien où le poser — écran pas encore dessiné, ou page réduite :
      on le laisse là où il est plutôt que de le perdre. */
