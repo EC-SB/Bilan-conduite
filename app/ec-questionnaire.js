@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 15/09/2026 à 15:20 — v1005 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2422,6 +2422,12 @@ const ETAT_EB_RIEN      = grasNote("EXAMEN BLANC PAS ENCORE ÉVOQUÉ");
    Écrite ici une seule fois : le questionnaire, le bureau et les
    écrans qui la relisent y puisent tous. */
 const CONSIGNE_PAS_LE_NIVEAU = 'FAIRE LE POINT À CHAQUE LEÇON';
+/* ⚠️ « A LE NIVEAU, HEURES À PRÉCISER » — v1005. Écrite ici, relue
+   par ec-bureau.js. Deux orthographes et la note cesse de se
+   relire : le bureau verrait « examen blanc passé » sans conclusion,
+   et l'élève repartirait sans son niveau. */
+const SUITE_NIVEAU_OK = ' — a le niveau, heures avant examen à préciser';
+
 const SUITE_PAS_LE_NIVEAU = ' — pas le niveau — ' +
   grasNote(CONSIGNE_PAS_LE_NIVEAU);
 
@@ -3145,6 +3151,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<label for="qEBPasse">Résultat de l\'examen blanc</label>' +
         '<select id="qEBPasse">' +
           '<option value="">— à renseigner —</option>' +
+          '<option value="niveauok">✅ A le niveau — heures à préciser</option>' +
           '<option value="3h">✅ Plus que les 3h avant examen</option>' +
           '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
           '<option value="pasleniveau">⛔ Pas le niveau</option>' +
@@ -5760,8 +5767,21 @@ function ajouterSuite(etats, permis, mots, q){
       const k = q.ebLecons;
       etats.push(tete + ' — encore ' + (k || '❓') +
                  ' leçon' + (parseInt(k, 10) > 1 ? 's' : '') + ' avant examen');
-    }else{
+    }else if(q.ebPasse === 'pasleniveau'){
       etats.push(tete + SUITE_PAS_LE_NIVEAU);
+    }else if(q.ebPasse === 'niveauok'){
+      /* ⚠️ A LE NIVEAU, HEURES NON PRÉCISÉES — v1005. Voir le ⚠️ de
+         ec-manuel.js : vide ne veut pas dire zéro. La phrase est
+         relue telle quelle par le lecteur de notes (ec-bureau.js) :
+         les deux vont ensemble ou aucune ne sert. */
+      etats.push(tete + SUITE_NIVEAU_OK);
+    }else{
+      /* ⚠️ ET PLUS JAMAIS « PAS LE NIVEAU » PAR DÉFAUT — v1005. Ce
+         « else » attrapait TOUTE valeur inattendue et écrivait le
+         verdict le plus lourd du logiciel. Une conclusion qu'on ne
+         reconnaît pas ne s'invente pas : on écrit la date, et rien
+         d'autre. */
+      etats.push(tete);
     }
   }else if(q.examBlanc === 'passe'){
     const tete = '🅱️ ' + numero + ETAT_EB_PASSE;
