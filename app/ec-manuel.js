@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:29 — v990 */
+/* Déployé le 15/09/2026 à 10:36 — v990 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3645,10 +3645,25 @@ async function genererBilanManuel(){
   marquerExport(false);
   $('manuelView').style.display = 'none';
   $('resultView').style.display = 'block';
-  /* ⚠️ LE TIROIR DES REPÈRES AUSSI ICI — un bilan rempli à la main
-     n'a pas de dictée, donc aucun titre proposé par l'IA ; ses
-     repères n'en existent pas moins, et c'est ici, et seulement
-     ici, que le moniteur peut les nommer. */
+  /* ⚠️ LE TIROIR DES REPÈRES, OUI. L'IA, NON — ET C'EST UNE
+     DÉCISION, PAS UN OUBLI.
+
+     David, le 15 septembre : « Non pas d'IA dans les bilans
+     manuels ».
+
+     La raison tient en une phrase : l'IA ne nomme pas un repère en
+     devinant, elle lit ce qui a été DIT juste avant la marque
+     « 📍n ». Un bilan rempli à la main n'a pas de dictée — il n'y
+     a donc aucun texte autour des marques. Lui demander un titre
+     quand même, c'est exactement la situation où elle invente, et
+     le titre inventé partirait à l'élève, qui le lirait comme un
+     vrai point de travail.
+
+     Le moniteur a le tiroir avec les champs vides, et le repère
+     avec son heure en face. Il tape, ou il laisse vide.
+
+     ⚠️ NE PAS AJOUTER « proposerLesNomsDesReperes » ICI, même en
+     paraissant rendre service : test-trajet-range.js le refuse. */
   if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
   window.scrollTo(0, 0);
   sauvegarderLocal(true);
