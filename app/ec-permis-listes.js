@@ -1,4254 +1,4401 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
-/* ============================================================
-   ec-permis-listes.js
-   RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
-   Application Bilan de conduite — Évolution Conduites
-   ============================================================ */
+<!DOCTYPE html>
+<!-- ============================================================
+     BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-function ficheSuiviPermis(e){
-  const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(e.eleve)) || {};
+     VERSION APPLICATION : v986
+     VERSION APPS SCRIPT REQUISE : v170
+     Mis à jour le : 15/09/2026 à 09:12
 
-  const d = document.createElement('details');
-  d.style.cssText = 'margin-top:8px;';
-  d.innerHTML = '<summary style="cursor:pointer;color:var(--accent-text);font-weight:600;font-size:14px;">' +
-    '📋 Fiche de préparation' + (s.majLe ? ' — mise à jour le ' + s.majLe : '') + '</summary>';
+     Le numéro affiché en haut de l'application n'est plus recopié :
+     il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
+     plus mentir sur la version réellement chargée. Le numéro écrit
+     dans l'en-tête sert de secours si le script ne tourne pas.
 
-  const f = document.createElement('div');
-  f.className = 'fiche-permis';
-  f.style.cssText = 'margin-top:12px;padding:12px;background:var(--navy);' +
-    'border:1px solid var(--line);border-radius:10px;';
+     Ce commentaire, lui, est à tenir à jour à la main : c'est la
+     seule trace lisible sans ouvrir l'application.
 
-  const id = 'sv' + Math.random().toString(36).slice(2, 8);
-  f.innerHTML =
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
-      'color:var(--accent-text);font-weight:700;margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'ok" style="width:19px;height:19px;">' +
-      '✅ Tout est OK — dossier prêt</label>' +
+     Ce fichier appelle 56 modules dans le dossier app/.
+     S'il en manque un, un bandeau rouge le signale au démarrage.
+     ============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bilan de conduite — Évolution Conduites</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
+<meta name="theme-color" content="#B6FF0E">
+<meta name="description" content="Bilans de conduite — Évolution Conduites, Saint-Brieuc et Loudéac">
+<style>
+  :root{
+    /* Thème sombre (par défaut) */
+    --navy: #000000;          /* fond de page   */
+    --navy-deep: #0B0B0B;     /* fond des cartes */
+    --orange: #B6FF0E;        /* accent (fonds de boutons) */
+    --accent-text: #B6FF0E;   /* accent lisible en texte   */
+    --on-accent: #0B0B0B;     /* texte posé sur l'accent   */
+    --orange-soft: #E4FFA8;
+    --cream: #F4F4F4;         /* texte principal */
+    --soft: #E0E0E0;          /* texte secondaire */
+    --muted: #B5B5B5;         /* texte discret */
+    --ink: #111111;
+    --green: #B6FF0E;
+    --red: #FF5C33;
+    /* Le bleu de « pas de date d'examen » : lisible sur le fond
+       sombre sans venir concurrencer l'accent. */
+    --bleu: #6FB4FF;
+    --warn-text: #FFC9BB;
+    --warn-bg: rgba(255,92,51,.12);
+    /* Le fond du bandeau du jour. Il était en « warn-bg », donc rouge
+       pâle dès qu'une ligne était en retard : « trop agressif ».
+       C'est LE TEXTE qui doit alerter, pas la nappe derrière lui —
+       un fond rouge tous les matins finit par ne plus rien vouloir
+       dire, et fatigue au lieu de prévenir. */
+    --bandeau-bg: #14161B;
+    --line: #262626;
+    --logo-2: #D8FF6E;
+    /* Un vrai orange : --orange est le vert citron de la charte,
+       il ne distingue pas ce bouton des autres. */
+    --ambre: #E8850C;
+    --sur-ambre: #FFFFFF;
 
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;' +
-      'color:var(--warn-text);font-weight:700;margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'point" style="width:19px;height:19px;">' +
-      '❓ Faire le point à la prochaine leçon</label>' +
+    /* ============================================================
+       LE VOCABULAIRE DES ACTIONS — v915
 
-    '<label for="' + id + 'typ">Type d\'examen</label>' +
-    '<select id="' + id + 'typ">' +
-      '<option value="bea">🅰 BEA — boîte automatique</option>' +
-      '<option value="bv">🅑 BV — boîte manuelle</option>' +
-      '<option value="handicap">♿ Handicap</option>' +
-    '</select>' +
+       Quatre couleurs, quatre gestes, et c'est une demande des
+       moniteurs, assumée : ils voulaient distinguer d'un coup d'œil
+       ce qu'ils sont en train de faire. On ne les change pas — on
+       leur donne enfin un nom, parce qu'elles étaient écrites à la
+       main dans la feuille de style ET dans deux attributs
+       « style » du corps de page.
 
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'fan" style="width:19px;height:19px;">' +
-      '👻 Place fantôme — nom posé, repreneur encore inconnu</label>' +
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'rem" style="width:19px;height:19px;">' +
-      'Place à remplacer — à donner à un autre élève</label>' +
-    '<div id="' + id + 'zone" style="display:none;padding:10px;margin-bottom:14px;' +
-      'background:var(--navy-deep);border:1px solid var(--orange);border-radius:10px;">' +
-      '<label for="' + id + 'nouv">Nouveau candidat</label>' +
-      '<input type="text" id="' + id + 'nouv" list="listeEleves" autocomplete="off" ' +
-      'placeholder="Prénom et nom du repreneur">' +
-      '<button class="btn btn-primary" id="' + id + 'trf" style="font-size:14px;padding:11px;">' +
-      '➡️ Transférer la date à ce candidat</button>' +
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4;">' +
-      'La date passe au nouveau candidat et sera transmise à son moniteur au prochain cours.</div>' +
-    '</div>' +
+       ⚠️ UNE COULEUR D'ACTION VEUT DIRE QUELQUE CHOSE, OU ELLE
+       N'EXISTE PAS. Ces quatre-là ne servent plus jamais à décorer :
+       un bouton « Monter » ou « Renommer » n'a droit à aucune, sinon
+       le moniteur qui cherche l'orange du bilan manuel tombe sur
+       autre chose. */
+    --action-vocal:      var(--orange);   /* je parle, l'outil écrit  */
+    --sur-action-vocal:  var(--on-accent);
+    --action-enregistrer:#1F5C99;         /* ça tourne, ne pars pas   */
+    --sur-action-enregistrer:#FFFFFF;
+    --action-main:       var(--ambre);    /* j'écris moi-même         */
+    --sur-action-main:   var(--sur-ambre);
+    --action-terminer:   #9E3B32;         /* c'est fini, ça part      */
+    --sur-action-terminer:#FFFFFF;
+  }
 
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:10px;">' +
-      '<input type="checkbox" id="' + id + 'don" style="width:19px;height:19px;">' +
-      'Date à donner à une autre auto-école</label>' +
-    '<div id="' + id + 'zae" style="display:none;margin-bottom:14px;">' +
-      '<label for="' + id + 'ae">Auto-école destinataire</label>' +
-      '<input type="text" id="' + id + 'ae" placeholder="Nom de l\'auto-école">' +
-    '</div>' +
+  body.clair{
+    /* Thème clair */
+    --navy: #F2F2EC;
+    --navy-deep: #FFFFFF;
+    --orange: #B6FF0E;
+    --accent-text: #3B6900;   /* le vert vif est illisible sur blanc */
+    --on-accent: #0B0B0B;
+    --orange-soft: #EEFFC7;
+    --cream: #14161B;
+    --soft: #2C2F36;
+    --muted: #64655F;
+    --ink: #14161B;
+    --green: #B6FF0E;
+    --red: #C33A12;
+    --bleu: #1350A8;          /* le bleu clair est illisible sur blanc */
+    --warn-text: #8F2E0E;
+    --warn-bg: rgba(195,58,18,.10);
+    /* Un crème plus foncé que la page (#F2F2EC) : le bandeau se
+       détache sans crier. Voir la note du thème sombre. */
+    --bandeau-bg: #E7E7DC;
+    --line: #DCDCD3;
+    --logo-2: #9EDB2A;
+    --ambre: #C96A00;
+    --sur-ambre: #FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--navy);
+    color: var(--cream);
+    min-height:100vh;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 60px;}
+  header{
+    display:flex;align-items:center;gap:12px;
+    padding:8px 0 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom:20px;
+  }
+  .logo{
+    width:44px;height:44px;border-radius:12px;
+    background: linear-gradient(135deg, var(--orange), var(--logo-2));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:var(--navy-deep);font-size:18px;
+    flex-shrink:0;
+  }
+  header h1{font-size:17px;margin:0;line-height:1.3;}
+  header p{margin:2px 0 0;font-size:12px;color:var(--muted);}
 
-    '<label for="' + id + 'pay">Reste à payer</label>' +
-    '<input type="text" id="' + id + 'pay" placeholder="Ex : 240 €">' +
-    '<label for="' + id + 'qd">Paiement prévu le</label>' +
-    '<input type="date" id="' + id + 'qd">' +
-    '<label for="' + id + 'rel">Relancé le</label>' +
-    '<input type="date" id="' + id + 'rel">' +
-
-    '<label for="' + id + 'nat">À faire par l\'élève</label>' +
-    '<select id="' + id + 'nat">' +
-      '<option value="">— rien —</option>' +
-      '<option value="acheter">À acheter</option>' +
-      '<option value="reserver">À réserver</option>' +
-      '<option value="both">À acheter et réserver</option>' +
-    '</select>' +
-    '<label for="' + id + 'l2">Leçons de 2h</label>' +
-    '<input type="text" id="' + id + 'l2" inputmode="numeric" placeholder="Ex : 3">' +
-    '<label for="' + id + 'l1">Leçons d\'1h</label>' +
-    '<input type="text" id="' + id + 'l1" inputmode="numeric" placeholder="Ex : 1">' +
-    '<label style="display:flex;align-items:center;gap:10px;text-transform:none;font-size:15px;color:var(--cream);margin-bottom:14px;">' +
-      '<input type="checkbox" id="' + id + 'acc" style="width:19px;height:19px;">Accompagnement à l\'examen</label>' +
-    '<label for="' + id + 'aut">Autre à prévoir</label>' +
-    '<textarea id="' + id + 'aut" rows="2" style="width:100%;background:var(--navy-deep);' +
-      'border:1px solid var(--line);color:var(--cream);padding:10px;border-radius:10px;' +
-      'font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
-
-    '<div class="pleine-largeur">' +
-    '<label for="' + id + 'res">Réservations faites sur le planning</label>' +
-    '<textarea id="' + id + 'res" rows="2" placeholder="Ex : 10/09 14h-16h et 11/09 9h-12h" ' +
-      'style="width:100%;background:var(--navy-deep);border:1px solid var(--line);color:var(--cream);' +
-      'padding:10px;border-radius:10px;font-size:15px;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>' +
-    '</div>';
-
-  const bEnr = document.createElement('button');
-  bEnr.className = 'btn btn-primary pleine-largeur';
-  bEnr.textContent = '💾 Enregistrer la fiche';
-  f.appendChild(bEnr);
-  const etat = document.createElement('div');
-  etat.className = 'pleine-largeur';
-  etat.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
-  f.appendChild(etat);
-
-  d.appendChild(f);
-
-  /* Valeurs déjà enregistrées */
-  setTimeout(() => {
-    const g = k => document.getElementById(id + k);
-    if(g('rem')) g('rem').checked = (s.aRemplacer === 'oui');
-    if(g('don')) g('don').checked = (s.dateADonner === 'oui');
-    if(g('pay')) g('pay').value = s.resteAPayer || '';
-    if(g('qd')) g('qd').value = s.paiementPrevu || '';
-    if(g('rel')) g('rel').value = s.relanceLe || '';
-    if(g('nat')) g('nat').value = s.nature || '';
-    if(g('l2')) g('l2').value = s.lecons2h || '';
-    if(g('l1')) g('l1').value = s.lecons1h || '';
-    if(g('acc')) g('acc').checked = (s.accompagnement === 'oui');
-    if(g('aut')) g('aut').value = s.autre || '';
-    if(g('res')) g('res').value = s.reservations || '';
-    if(g('typ')) g('typ').value = s.typeExamen ||
-      ((e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase());
-    if(g('ae')) g('ae').value = s.autoEcole || '';
-    if(g('fan')) g('fan').checked = (s.fantome === 'oui');
-    if(g('ok')) g('ok').checked = (s.toutOk === 'oui');
-    if(g('point')) g('point').checked = (s.fairePoint === 'oui');
-  }, 0);
-
-  /* Affichages conditionnels */
-  setTimeout(() => {
-    const cbRem = document.getElementById(id + 'rem');
-    const zn = document.getElementById(id + 'zone');
-    if(cbRem && zn){
-      const maj = () => { zn.style.display = cbRem.checked ? 'block' : 'none'; };
-      cbRem.addEventListener('change', maj);
-      maj();
+  /* Quatre boutons dans l'en-tête, c'est trop pour un téléphone étroit :
+     ils se resserrent, et l'adresse des sites cède la place au numéro de
+     version — la seule chose qu'on lise vraiment là. La marge des boutons
+     est écrite dans leur attribut style, d'où le !important. */
+  @media (max-width:470px){
+    header{gap:8px;flex-wrap:wrap;}
+    header #guideBtn, header #versionBtn,
+    header #logoutBtn, header #themeBtn{
+      width:38px;height:38px;font-size:16px;margin-left:0 !important;
     }
-    const cbDon = document.getElementById(id + 'don');
-    const zae = document.getElementById(id + 'zae');
-    if(cbDon && zae){
-      const majAE = () => { zae.style.display = cbDon.checked ? 'block' : 'none'; };
-      cbDon.addEventListener('change', majAE);
-      majAE();
+    header .ec-lieux{display:none;}
+    /* Le titre prend la place libre : les boutons restent au bord droit,
+       même quand ils ne sont pas tous affichés. */
+    header .ec-titre{flex:1 1 0;min-width:0;}
+    /* Qui est connecté passe sur sa propre ligne : sur 360 px, comprimé
+       à côté des boutons, il ne restait qu'une lettre du prénom. */
+    header #qui{order:5;flex-basis:100%;margin-left:0;text-align:left;}
+    header #quiNom, header #quiRole{display:inline;}
+    header #quiRole::before{content:" · ";}
+  }
+  @media (max-width:380px){
+    header{gap:6px;}
+    header h1{font-size:15px;}
+    header #guideBtn, header #versionBtn,
+    header #logoutBtn, header #themeBtn{width:36px;height:36px;font-size:15px;}
+  }
+
+  .card{
+    background: var(--navy-deep);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+  /* ⚠️ UN CHAMP DE SAISIE S'HABILLE COMME UN CHAMP DE SAISIE — v976.
+
+     La règle n'énumérait que « text » et « date ». Or le
+     répertoire écrit depuis toujours « type=tel » pour le portable
+     et « type=email » pour l'adresse — pour que le téléphone ouvre
+     le bon clavier — et ces deux-là traversaient l'application tout
+     nus : blancs, étroits, illisibles en thème sombre, au milieu de
+     champs corrects. On les voyait dans la fiche de l'élève et dans
+     la fenêtre du nouvel élève moto.
+
+     Les types sont nommés ici parce qu'il ne faut PAS attraper les
+     cases à cocher ni les boutons ; mais tout ce qui est un champ
+     de texte doit y être, pas deux d'entre eux. */
+  input[type=text], input[type=date], input[type=tel], input[type=email],
+  input[type=number], input[type=time], input[type=month], select{
+    width:100%;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:11px 12px;
+    border-radius:10px;
+    font-size:15px;
+    margin-bottom:14px;
+  }
+  input[type=text]:focus, input[type=date]:focus, input[type=tel]:focus,
+  input[type=email]:focus, input[type=number]:focus, input[type=time]:focus,
+  input[type=month]:focus, select:focus, textarea:focus{outline:2px solid var(--orange);outline-offset:1px;}
+  input[type=date]{text-align:center;color-scheme: dark;}
+  select:disabled, input:disabled{opacity:.55;}
+  select optgroup{background: var(--navy-deep); color:var(--muted);}
+  select option{background: var(--navy-deep); color: var(--cream);}
+
+  .rec-btn{
+    width:100%;padding:20px;border:none;border-radius:16px;
+    font-size:17px;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition: background .15s ease;
+  }
+  /* Masquer par une classe plutôt qu'un style en ligne : le
+     « display:flex » de .rec-btn revenait dès qu'un autre passage
+     du code remettait la mise en forme du bouton. */
+  .rec-btn.sans-vocal{ display:none !important; }
+
+  .rec-btn.idle{background: var(--action-vocal); color: var(--sur-action-vocal);}
+  /* Bleu profond pendant la captation. Le rouge reste réservé au
+     bouton de génération, qui est facturé : deux boutons rouges
+     dans le même écran diluent le signal. */
+  .rec-btn.recording{background:var(--action-enregistrer);
+    border-color:var(--action-enregistrer); color:var(--sur-action-enregistrer);
+                     animation: pulse 1.6s infinite;}
+  .rec-btn:disabled{opacity:.5;cursor:not-allowed;animation:none;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(31,92,153,.55);}
+    70%{box-shadow:0 0 0 14px rgba(31,92,153,0);}
+    100%{box-shadow:0 0 0 0 rgba(31,92,153,0);}
+  }
+  .status{text-align:center;font-size:13px;color:var(--muted);margin-top:10px;min-height:18px;}
+  /* ⚠️ « 412 MOTS » ÉTAIT ILLISIBLE EN THÈME CLAIR — trouvé le
+     15 septembre en regardant l'écran de cours au rendu.
+
+     Il était en « --orange », le vert citron de la charte, posé sur
+     la carte blanche : le texte disparaissait. C'est exactement ce
+     que dit le commentaire du thème clair deux cents lignes plus
+     haut — « le vert vif est illisible sur blanc » — et c'est
+     précisément pour ça que « --accent-text » existe. */
+  .compteur{text-align:center;font-size:15px;font-weight:700;color:var(--accent-text);margin-top:8px;display:none;}
+
+  /* ⚠️ LE TRAJET DU COURS — v984, et son bouton.
+
+     Le bouton n'emprunte AUCUNE des quatre couleurs d'action : le
+     vert citron dit « je parle », le bleu « ça tourne », l'ambre
+     « j'écris moi-même », le rouge « c'est fini ». Poser un repère
+     est un cinquième geste, et la règle du vocabulaire des actions
+     est qu'on ne se sert pas d'une de ces couleurs pour décorer.
+     Il se reconnaît à sa taille et à sa place — David, le
+     15 septembre : « laisse-le comme ici pour le moment ». */
+  .trajet-etat{
+    display:flex;align-items:center;justify-content:center;
+    gap:8px;flex-wrap:wrap;
+    font-size:13px;font-weight:700;color:var(--accent-text);
+    margin-top:12px;line-height:1.5;text-align:center;
+  }
+  .trajet-etat .rond{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--accent-text);flex-shrink:0;
+    animation:battement 2s ease-in-out infinite;
+  }
+  .trajet-etat .gris{color:var(--muted);font-weight:400;}
+  /* Un trajet qui s'est coupé le dit tout de suite, en rouge : le
+     découvrir au moment d'envoyer serait deux heures trop tard. */
+  .trajet-etat.perdu{color:var(--warn-text);}
+  .trajet-etat.perdu .rond{display:none;}
+
+  .btn-repere{
+    width:100%;margin-top:12px;
+    padding:26px 18px;border-radius:16px;
+    background:transparent;
+    border:2px solid var(--accent-text);
+    color:var(--accent-text);
+    font-size:19px;font-weight:800;font-family:inherit;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    transition: background .12s ease;
+  }
+  .btn-repere.pose{
+    background:var(--orange);color:var(--on-accent);
+    border-color:var(--orange);
+  }
+  @media (prefers-reduced-motion: reduce){
+    .trajet-etat .rond{animation:none;}
+  }
+
+  .transcript-box{
+    width:100%;
+    display:block;
+    resize:vertical;
+    font-family:inherit;
+    margin-top:14px;
+    min-height:200px;max-height:340px;overflow-y:auto;
+    background: var(--navy);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+    font-size:22px;line-height:1.55;color:var(--cream);
+    white-space:pre-wrap;
+  }
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:13px 18px;border-radius:10px;border:none;
+    font-size:14px;font-weight:700;cursor:pointer;width:100%;
+  }
+  /* ⚠️ --on-accent, ET SURTOUT PAS --navy-deep — v915.
+
+     Mesuré sur cette page en mode clair : fond #B6FF0E, texte
+     #FFFFFF, contraste 1,21:1. Le bouton le plus important de
+     l'application — « Démarrer le cours » — était un aplat citron
+     presque muet, et tout le monde travaille en mode clair.
+
+     La cause tient à une variable qui servait deux rôles :
+     --navy-deep est le FOND DES CARTES. En thème sombre il vaut
+     #0B0B0B, donc de l'encre sur du citron, parfait par accident ;
+     en clair il vaut #FFFFFF. --on-accent existe depuis toujours,
+     vaut #0B0B0B dans les deux thèmes, et ne veut dire qu'une
+     chose : le texte qu'on pose sur l'accent. */
+  .btn-primary{background:var(--orange);color:var(--on-accent);}
+  .btn-secondary{background:transparent;border:1px solid var(--line);color:var(--cream);}
+  .btn-row{display:flex;gap:10px;margin-top:10px;}
+  .btn-row .btn{flex:1;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+
+  textarea.result{
+    width:100%;min-height:460px;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:14px;border-radius:12px;
+    font-size:13px;line-height:1.6;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    white-space:pre-wrap;
+  }
+
+  .spinner{
+    width:20px;height:20px;border-radius:50%;
+    border:3px solid rgba(255,255,255,.25);
+    border-top-color: var(--orange);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 10px;}
+  /* ⚠️ ELLE PASSE À LA LIGNE, SINON ELLE ÉCRASE LE TEXTE — v915.
+
+     David, capture d'un téléphone à l'appui : « 13h00 » écrit à la
+     verticale, une lettre par ligne, et la croix sortie de l'écran.
+
+     Mesuré : les huit boutons réclament 401 px, l'écran en offre
+     358. En « nowrap », avec une colonne d'actions en
+     « flex-shrink:0 », les 43 px manquants étaient pris au TEXTE —
+     qui a min-width:0 et se laisse donc réduire jusqu'à 8 px.
+     Ce n'était pas une carte serrée, c'était une carte cassée.
+
+     Deux déclarations se contredisaient : « ne va pas à la ligne »
+     et « ne rétrécis pas ». L'une des deux devait céder, et ce
+     n'est pas au texte de disparaître pour laisser de la place aux
+     boutons. */
+  .history-item{
+    display:flex;justify-content:space-between;align-items:flex-start;gap:8px;
+    padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;
+    flex-wrap:wrap;
+  }
+  .history-item .meta{ flex:1 1 190px; }
+
+  /* ⚠️ LA LIGNE SUR LAQUELLE ON VIENT D'ÊTRE EMMENÉ — v960.
+
+     Arriver au bon endroit sans savoir LAQUELLE des quarante lignes
+     on est venu voir, c'est arriver à moitié. Le halo dure trois
+     secondes puis s'efface tout seul : il montre, il ne marque pas.
+     Un liseré à gauche plutôt qu'un fond, pour ne pas ressembler à
+     une ligne urgente. */
+  .vise{ border-left:4px solid var(--accent-text);
+         padding-left:10px; border-radius:8px;
+         background:var(--orange-soft);
+         transition:background .6s ease, border-color .6s ease; }
+  @media (prefers-reduced-motion: reduce){
+    .vise{ transition:none; }
+  }
+  /* ============================================================
+     ⚙️ ACCÈS — DEUX ÉCRANS, PAS UN MUR — v964
+
+     David, deux captures à l'appui : « le premier ton schéma et le
+     deuxième ce que j'ai, qui n'a pas grand-chose à voir ».
+
+     Le schéma promettait la liste des comptes, puis le panneau
+     d'UNE personne. La v962 avait livré les six blocs de CHAQUE
+     personne empilés sous sa ligne — le mur, mieux rangé. Ici, une
+     ligne mène à un écran.
+     ============================================================ */
+  #adminList .history-item{ align-items:center; }
+  .actionsCompte{
+    display:flex; gap:6px; flex-shrink:0; align-items:center; flex-wrap:wrap;
+  }
+  .ouvrirAcces{
+    width:auto !important; margin:0 !important;
+    padding:7px 12px; font-size:12.5px; font-weight:700;
+    border-color:var(--accent-text); color:var(--accent-text);
+  }
+  /* Six boutons côte à côte ne tiennent pas dans un téléphone : la
+     ligne passe en deux étages plutôt que de pousser la page de
+     côté. Un écran qui défile horizontalement est un écran cassé. */
+  @media (max-width: 760px){
+    #adminList .history-item{ flex-direction:column; align-items:stretch; gap:9px; }
+    /* ⚠️ « flex:1 1 190px » posé pour une RANGÉE devient, dans une
+       colonne, « prends toute la hauteur » : la ligne de Chrystel
+       s'étirait sur un écran entier de vide avant son cadenas. Un
+       axe changé change le sens de tout ce qui s'y appuie. */
+    #adminList .history-item > .meta{ flex:0 0 auto; }
+    .actionsCompte{ width:100%; }
+    .actionsCompte > select{ flex:1 1 auto; min-width:0; }
+    .ouvrirAcces{ flex:1 1 100%; }
+  }
+
+  .teteDuCompte{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding-bottom:10px; border-bottom:1px solid var(--line);
+  }
+  .quiDuCompte{
+    flex:1 1 auto; min-width:0;
+    font-size:16px; font-weight:800; color:var(--cream);
+  }
+
+  /* Un bloc = un onglet de l'application. Sa tête se lit sans
+     l'ouvrir : le nom, l'état, le compte. */
+  details.blocAcces{
+    border:1px solid var(--line); border-radius:10px;
+    margin-bottom:8px; overflow:hidden;
+  }
+  details.blocAcces > summary{
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    padding:9px 11px; cursor:pointer;
+    font-size:13.5px; font-weight:700; background:var(--navy-deep);
+    list-style:none;
+  }
+  details.blocAcces > summary::-webkit-details-marker{ display:none; }
+  details.blocAcces > summary::before{ content:'▸'; color:var(--muted); }
+  details.blocAcces[open] > summary::before{ content:'▾'; }
+  details.blocAcces .nomBloc{ flex:1 1 auto; min-width:0; }
+  /* ⚠️ L'ÉTAT, PAS SEULEMENT LE NOMBRE. « 1 / 12 » ne dit pas si ce
+     1 est « voir » ou « modifier » : c'est cette pastille-là qu'on
+     lit, et c'était elle qui manquait. */
+  details.blocAcces .etatBloc{
+    font-size:11.5px; font-weight:700; padding:2px 9px;
+    border:1px solid var(--line); border-radius:999px;
+    color:var(--muted); white-space:nowrap;
+  }
+  details.blocAcces .etatBloc.donne{
+    color:var(--accent-text); border-color:var(--accent-text);
+  }
+  details.blocAcces .cptBloc{
+    font-size:11.5px; color:var(--muted); font-weight:700;
+    min-width:44px; text-align:right;
+  }
+  /* Le réglage maître en cours se voit : sans ça, trois boutons
+     identiques ne disent pas lequel est déjà posé. */
+  .actifAcces{
+    border-color:var(--accent-text) !important;
+    color:var(--accent-text) !important; font-weight:700;
+  }
+
+  /* La colonne des boutons porte enfin un nom : elle était habillée
+     à la main dans ec-prepares.js, donc invisible à la feuille de
+     style — on ne peut pas corriger ce qu'on ne peut pas désigner. */
+  .history-item .actions{ flex-wrap:wrap; flex-shrink:1; }
+  @media (max-width: 700px){
+    /* Sous cette largeur, les boutons prennent leur propre ligne :
+       le texte garde la sienne entière. */
+    .history-item .actions{ flex-basis:100%; }
+  }
+  .history-item:last-child{border-bottom:none;}
+  .history-item .meta{min-width:0;}
+  .history-item .meta strong{display:block;font-size:14px;}
+  .history-item .meta{padding-right:8px;}
+  .history-item .meta span{display:block;font-size:12px;color:var(--muted);line-height:1.45;}
+  /* ⚠️ LES MORCEAUX D'UNE NOTE SONT DU TEXTE, PAS DES LIGNES — v933.
+
+     David : « c'est bizarre les écritures là ». Sa carte affichait
+     « EXAMEN BLANC PASS » sur une ligne, « É le vendredi 31 juillet »
+     sur la suivante, puis « FAIRE LE POINT », « À », « CHAQUE LE »,
+     « Ç », « ON » — un mot par ligne.
+
+     Deux règles justes, mises bout à bout, faisaient ça :
+
+     · « colorerNote » découpe la note en <span> pour mettre les
+       libellés en gras et colorer les lignes d'examen ;
+     · la règle du dessus met TOUS les span de la carte en block,
+       parce que les autres — l'heure, le moniteur, la frise — sont
+       bien des lignes.
+
+     Chaque morceau devenait donc sa propre ligne. Et les morceaux
+     sont nombreux : une lettre accentuée n'a pas de forme grasse et
+     coupe le libellé en deux à chaque fois — c'est le É de PASSÉ,
+     le Ç de LEÇON. Le texte était juste ; c'est la mise en page qui
+     le hachait.
+
+     Le gras et la couleur posés par « colorerNote » restent : ils
+     sont en style direct, ils passent devant l'héritage. */
+  .history-item .meta .note span{
+    display:inline; font-size:inherit; color:inherit; line-height:inherit;
+  }
+  .history-item .meta strong{overflow-wrap:anywhere;}
+  .history-item .arrow{color:var(--orange);font-size:18px;padding-left:10px;}
+
+  /* LA RAISON, ÉCRITE — v943.
+     Elle vivait dans l'infobulle d'un « ⚠️ », donc nulle part sur
+     un téléphone : il n'y a pas de survol sur un écran tactile. */
+  .history-item .raison{
+    margin-top:7px; padding:6px 10px; font-size:12.5px; font-weight:700;
+    line-height:1.45; color:var(--warn-text); background:var(--warn-bg);
+    border-left:4px solid var(--ambre); border-radius:0 8px 8px 0;
+    overflow-wrap:anywhere;
+  }
+
+  /* LES FILTRES DE « PAS PRÊTS » — v943.
+     Ils portent leur compte : on lit la charge de travail sans
+     rien ouvrir. Un filtre à zéro ne s'affiche pas. */
+  .filtres-vue{display:flex; gap:6px; flex-wrap:wrap;}
+  .filtres-vue button{
+    margin:0; padding:7px 13px; font-size:12.5px; font-weight:700;
+    border-radius:20px; width:auto; flex:0 0 auto;
+  }
+  .filtres-vue button .n{
+    font-variant-numeric:tabular-nums; opacity:.75; margin-left:5px;
+  }
+  /* ⚠️ UNE CLASSE, PAS UN STYLE EN LIGNE. « afficherVue » remet
+     « display » à vide sur chaque tiroir quand on revient sur la
+     vue : un style en ligne se serait fait effacer, et le filtre
+     aurait eu l'air de tenir sans rien filtrer. */
+  details.filtre-off{display:none !important;}
+
+  /* Le thème clair suit la même liste que la règle du haut : deux
+     listes qui devraient être identiques finissent toujours par ne
+     plus l'être — c'est ainsi que « tel » et « email » ont traversé
+     l'application sans habit. */
+  body.clair .transcript-box,
+  body.clair input[type=text], body.clair input[type=date],
+  body.clair input[type=tel], body.clair input[type=email],
+  body.clair input[type=number], body.clair input[type=time],
+  body.clair input[type=month],
+  body.clair select, body.clair textarea.result{
+    background:#FBFBF7;
+  }
+  body.clair .card{box-shadow:0 1px 2px rgba(0,0,0,.05);}
+  body.clair input[type=date]{color-scheme: light;}
+  body.clair .spinner{border-color:rgba(0,0,0,.15);border-top-color:var(--orange);}
+  body.clair .rec-btn.recording{color:#fff;}
+  /* Au-dessus de la barre d'onglets (z-index 80) et dégagé d'elle :
+     à 20px du bas et en z-index 50, le message passait dessous et
+     restait invisible. */
+  .toast{
+    position:fixed;
+    bottom:calc(78px + env(safe-area-inset-bottom, 0px));
+    left:50%;transform:translateX(-50%);
+    background: var(--green); color:var(--on-accent);
+    padding:12px 20px;border-radius:14px;
+    font-size:14px;font-weight:600;line-height:1.45;
+    opacity:0;pointer-events:none;
+    transition: opacity .2s ease, transform .2s ease;
+    z-index:120;max-width:min(90vw, 460px);text-align:center;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-4px);}
+
+  /* Barre en haut sur grand écran : le message revient en bas,
+     là où rien ne le masque. */
+
+  /* ---- La fiche d'évaluation, en tableau ----
+     Trois colonnes sur écran large ; sur téléphone, les
+     observations passent sous la ligne pour garder de la place
+     où écrire. */
+  .ficheEval{ border:1px solid var(--line); border-radius:12px;
+              overflow:hidden; margin-bottom:14px; }
+
+  .ficheEval .fe-tete{ display:none; }
+
+  .ficheEval .fe-ligne{
+    display:grid; grid-template-columns: 1fr auto;
+    gap:8px; align-items:center;
+    padding:7px 10px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .ficheEval .fe-ligne:last-child{ border-bottom:none; }
+
+  .ficheEval .fe-rubrique{ background:rgba(255,255,255,.04); }
+  .ficheEval .fe-rubrique .fe-nom{ font-weight:700; color:var(--accent-text); }
+
+  .ficheEval .fe-nom{ font-size:14px; line-height:1.4; }
+  .ficheEval .fe-sous .fe-nom{ padding-left:16px; color:var(--cream); }
+
+  .ficheEval .fe-notes{ display:flex; gap:5px; flex-shrink:0; }
+  .ficheEval .fe-notes button{
+    width:auto; padding:8px 12px; font-size:14px; margin:0;
+  }
+
+  /* Sur téléphone : l'observation descend sous la ligne */
+  .ficheEval .fe-obs{ grid-column: 1 / -1; }
+  .ficheEval .fe-obs input{
+    width:100%; margin:0; font-size:13px; padding:8px 10px;
+  }
+
+  @media (min-width: 900px){
+    .ficheEval .fe-tete{
+      display:grid; grid-template-columns: 260px auto 1fr;
+      gap:8px; padding:8px 10px;
+      background:rgba(255,255,255,.05);
+      font-size:12px; font-weight:700; text-align:center;
+    }
+    .ficheEval .fe-tete span:first-child{ text-align:left; }
+
+    .ficheEval .fe-ligne{
+      grid-template-columns: 260px auto 1fr;
+    }
+    .ficheEval .fe-obs{ grid-column: auto; }
+  }
+
+  @media (min-width: 900px){
+    .toast{ bottom:28px; }
+  }
+
+  /* Un souci se lit plus longtemps qu'une confirmation, et se
+     distingue à la couleur. */
+  .toast.souci{
+    background: var(--red, #E5484D);
+    color:#FFFFFF;
+  }
+
+  .unsupported{
+    background: var(--warn-bg);
+    border:1px solid var(--red);
+    color:var(--warn-text);
+    padding:14px;border-radius:12px;
+    font-size:13px;line-height:1.5;margin-bottom:16px;
+  }
+  #noteInterne, #noteResult{
+    width:100%;
+    background: var(--navy);
+    border:1px solid var(--line);
+    color: var(--cream);
+    padding:11px 12px;
+    border-radius:10px;
+    font-size:15px;
+    line-height:1.5;
+    font-family:inherit;
+    resize:vertical;
+    margin-bottom:14px;
+  }
+  #noteInterne:focus, #noteResult:focus{outline:2px solid var(--orange);outline-offset:1px;}
+  body.clair #noteInterne, body.clair #noteResult{background:#FBFBF7;}
+
+  /* Volets par élève dans les listes longues */
+  .history-item details > summary::-webkit-details-marker{display:none;}
+  .history-item details > summary{outline:none;}
+  .history-item details[open] > summary{margin-bottom:6px;}
+
+  /* Repassage : liseré et fond distincts */
+  .history-item.repassage{
+    border-left:4px solid #E8A33D;
+    background:rgba(232,163,61,.07);
+    padding-left:10px;
+  }
+  .history-item.repassage .meta strong::before{
+    content:'🔁 ';
+  }
+
+  .lecture-seule button:not(.raccourci),
+  .lecture-seule input, .lecture-seule select, .lecture-seule textarea{
+    pointer-events:none;
+    opacity:.55;
+  }
+  .lecture-seule::before{
+    content:'👁️ Lecture seule';
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    margin-bottom:6px;
+    letter-spacing:.04em;
+  }
+  .raccourcis{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
+  .raccourci{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--cream);
+    border-radius:999px;
+    padding:7px 12px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .raccourci:active{background:var(--orange);color:var(--on-accent);border-color:var(--orange);}
+  .overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.82);
+    display:none;align-items:center;justify-content:center;
+    padding:20px;z-index:100;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--navy-deep);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:22px;
+    max-width:420px;width:100%;
+  }
+  .modal h3{margin:0 0 14px;font-size:18px;}
+  .recap{
+    background:var(--navy);border:1px solid var(--line);
+    border-radius:12px;padding:14px;margin-bottom:16px;
+    font-size:15px;line-height:1.7;
+  }
+  .recap b{color:var(--orange);}
+
+
+  /* ============================================================
+     L'ONGLET COURS — DEUX MISES EN PAGE, UN SEUL DOM
+     ============================================================
+
+     ⚠️ IL N'Y A PAS DEUX CONSTRUCTEURS DE CARTES, ET IL NE DOIT
+     JAMAIS Y EN AVOIR DEUX.
+
+     David, le 11 septembre 2026 : « je ne veux pas avoir à faire
+     les corrections sur les 2 côtés ». La promesse tient à une
+     seule chose : afficherPrepares construit UNE carte, avec les
+     mêmes données et les mêmes boutons, et tout ce qui suit n'est
+     que de la mise en page accrochée à « body.cours-neuf ».
+
+     Une correction faite dans afficherPrepares vaut donc pour les
+     deux essais, parce qu'il n'y a qu'un endroit à corriger.
+
+     Ce bloc part le jour où l'essai est tranché : soit on garde la
+     nouvelle mise en page et « body.cours-neuf » disparaît des
+     sélecteurs, soit on la retire entièrement. Dans les deux cas,
+     rien à démêler dans le code des cartes. */
+
+  /* ---- Le tiroir ⋯, construit pour tout le monde ---- */
+  /* Par défaut — l'ancienne mise en page — le tiroir est grand
+     ouvert et le ⋯ n'a pas lieu d'être : les huit boutons restent
+     côte à côte, exactement comme avant. */
+  .history-item .actions .plus{ display:contents; }
+  .history-item .actions .plusBtn{ display:none; }
+
+  body.cours-neuf .history-item .actions{ flex-wrap:wrap; }
+  body.cours-neuf .history-item .actions .plusBtn{ display:inline-flex; }
+  body.cours-neuf .history-item .actions .plus{
+    display:none; flex-basis:100%; gap:6px; flex-wrap:wrap; margin-top:6px;
+  }
+  body.cours-neuf .history-item .actions.ouvert .plus{ display:flex; }
+
+  /* ⚠️ LE TIROIR S'ARRÊTE À LA TABLETTE EN PAYSAGE — v927.
+
+     David : « oui, à part à partir de la vue tablette horizontale,
+     car là ça ne me choque pas ». En voiture, sur un téléphone, sept
+     gestes de bureau à côté du départ sont sept occasions de se
+     tromper. Sur la dalle de 1280 px posée sur le bureau, ils
+     tiennent tous sur une ligne et les cacher ne ferait que rajouter
+     un appui à chaque geste.
+
+     C'est le MÊME seuil que le rail vertical : un écran a une
+     largeur, pas deux, et deux seuils voisins finissent par se
+     contredire sur les tailles entre les deux. */
+  @media (min-width: 1280px){
+    body.cours-neuf .history-item .actions .plus{
+      display:contents; margin-top:0;
+    }
+    body.cours-neuf .history-item .actions .plusBtn{ display:none; }
+  }
+
+  /* ============================================================
+     LE COURS EN ROUTE — TROIS MARQUES, UN SEUL ÉTAT (v937)
+
+     David a choisi A + C + E : la carte se marque, un bandeau
+     suit partout, et le bouton des autres cartes change de mot.
+     Rien n'est bloqué — « un élève qui ne vient pas, on prend le
+     suivant » — mais on ne peut plus se tromper sans le voir.
+
+     ⚠️ LE ROUGE ICI N'EST PAS UNE ERREUR, C'EST UN ENREGISTREMENT
+     QUI TOURNE. C'est le seul endroit de l'application où il veut
+     dire « ça se passe maintenant », et c'est la couleur que tout
+     le monde lit ainsi sur un appareil qui enregistre.
+     ============================================================ */
+  .pastilleEnRoute{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:800; letter-spacing:.04em;
+    padding:2px 9px; border-radius:999px; white-space:nowrap;
+    background:var(--warn-bg); color:var(--warn-text);
+    border:1px solid var(--red);
+  }
+  .pastilleEnRoute .rond{
+    width:7px; height:7px; border-radius:50%; background:var(--red);
+    flex-shrink:0; animation:battement 2s ease-in-out infinite;
+  }
+  /* En pause, le point ne bat plus : un point qui clignote sur une
+     dictée arrêtée dirait le contraire du mot d'à côté. */
+  .pastilleEnRoute.pause{ border-color:var(--ambre); color:var(--ambre);
+                          background:rgba(201,106,0,.10); }
+  .pastilleEnRoute.pause .rond{ background:var(--ambre); animation:none; }
+  @keyframes battement{ 0%,100%{opacity:1} 50%{opacity:.35} }
+  @media (prefers-reduced-motion: reduce){
+    .pastilleEnRoute .rond{ animation:none; }
+  }
+
+  .history-item.en-route{
+    border-left:5px solid var(--red);
+    background:linear-gradient(90deg, var(--warn-bg), transparent 55%);
+  }
+  .history-item.en-route.en-pause{ border-left-color:var(--ambre); }
+
+  /* Le bouton de la carte en route n'ouvre pas ce qui est ouvert :
+     il y ramène. */
+  .history-item .depart .btnDemarrer.retour{
+    background:var(--red); color:#FFFFFF;
+  }
+  .history-item.en-pause .depart .btnDemarrer.retour{
+    background:var(--ambre); color:var(--sur-ambre);
+  }
+
+  /* ⚠️ LE MOT AVANT LE DOIGT. Sur les AUTRES cartes, le bouton dit
+     ce qui va vraiment se passer — la question de confirmation
+     reste derrière, mais on ne peut plus appuyer sans le savoir. */
+  .history-item .depart .remplace{
+    background:var(--action-main); color:var(--sur-action-main);
+    font-size:15px;
+  }
+  .history-item .depart .raisonRemplace{
+    font-size:11.5px; color:var(--warn-text); line-height:1.4;
+    text-align:center; margin-top:6px;
+  }
+
+  /* ---- LE BANDEAU QUI SUIT ----
+
+     Collé en haut, en dehors de l'onglet : « le bandeau suit ». Sur
+     dix-sept cours, la carte en route peut être trois écrans plus
+     haut — une marque qu'il faut aller chercher ne sert qu'à ceux
+     qui savaient déjà. */
+  .bandeau-en-route{
+    position:sticky; top:0; z-index:40;
+    display:flex; align-items:center; gap:9px; flex-wrap:wrap;
+    background:var(--warn-bg); border:1px solid var(--red);
+    border-radius:11px; padding:9px 11px; margin:0 0 10px;
+    backdrop-filter:saturate(140%) blur(6px);
+  }
+  .bandeau-en-route.pause{ border-color:var(--ambre);
+                           background:rgba(201,106,0,.10); }
+  .bandeau-en-route .txt{
+    flex:1 1 170px; min-width:0; display:flex; align-items:center;
+    gap:8px; flex-wrap:wrap;
+  }
+  .bandeau-en-route .marque{
+    font-size:11px; font-weight:800; letter-spacing:.05em;
+    color:var(--warn-text); white-space:nowrap;
+  }
+  .bandeau-en-route.pause .marque{ color:var(--ambre); }
+  .bandeau-en-route .nom{
+    font-size:13.5px; font-weight:700; color:var(--cream);
+    overflow-wrap:anywhere;
+  }
+  .bandeau-en-route .revenir{
+    flex-shrink:0; background:var(--red); color:#FFFFFF; border:none;
+    border-radius:9px; padding:9px 13px; font-size:13px; font-weight:800;
+    cursor:pointer;
+  }
+  .bandeau-en-route.pause .revenir{ background:var(--ambre); }
+
+  /* ---- LE DÉPART, SUR LA CARTE ----
+
+     Le nouvel écran n'a plus de « ▶ Ouvrir » : la carte porte les
+     vrais boutons, et ils démarrent vraiment. L'ancienne mise en
+     page fait l'inverse — elle rouvre ▶ Ouvrir et cache ce bloc.
+     Une seule carte construite, deux façons de la montrer. */
+  .history-item .depart{ display:none; }
+  body.cours-neuf .history-item .ouvrirAncien{ display:none; }
+
+  /* ⚠️ SUR UN TÉLÉPHONE, IL N'Y A PAS DE VOLET DE DROITE — et donc
+     aucune carte « choisie ». Sans cette première règle, le nouvel
+     écran n'aurait plus AUCUN bouton pour démarrer sous 1000 px :
+     ▶ Ouvrir caché, et le départ accroché à un état qui n'existe
+     pas. C'est la carte elle-même qui le porte, comme sur le
+     schéma du téléphone. */
+  body.cours-neuf .history-item .depart,
+  body.cours-neuf .history-item.choisi .depart,
+  body.cours-neuf .cours .history-item .depart{
+    display:block; margin-top:12px;
+    padding-top:12px; border-top:1px solid var(--line);
+  }
+  /* Dès qu'il y a deux volets, seule la carte qu'on lit à droite
+     porte son départ : la journée de gauche est un sommaire, on n'y
+     démarre rien. */
+  @media (min-width: 1000px){
+    body.cours-neuf .journee .history-item .depart{ display:none !important; }
+  }
+  body.cours-neuf .history-item.sommaire .depart{ display:none !important; }
+  .history-item .depart .typeCarteLabel{
+    display:block; font-size:11px; text-transform:uppercase;
+    letter-spacing:.04em; color:var(--muted); margin-bottom:4px;
+  }
+  .history-item .depart .typeCarte{
+    width:100%; margin:0 0 12px; padding:11px 12px; font-size:15px;
+  }
+  /* Le bouton de départ garde l'allure qu'il a en bas de l'écran :
+     c'est le même geste, il ne doit pas avoir deux visages. */
+  .history-item .depart .btnDemarrer{
+    width:100%; margin:0; padding:17px; font-size:18px; font-weight:800;
+    background:var(--action-vocal); color:var(--sur-action-vocal);
+    border:none; border-radius:14px;
+  }
+  .history-item .depart .btnMainCarte{
+    width:100%; margin:10px 0 0; padding:15px; font-size:16px; font-weight:700;
+    background:var(--action-main); color:var(--sur-action-main);
+    border:none; border-radius:14px;
+  }
+  /* Seul en piste — un bilan qui ne se dicte pas — il prend la
+     place et la taille de l'action principale. */
+  .history-item .depart .btnMainCarte.seul{
+    margin-top:0; padding:17px; font-size:18px; font-weight:800;
+  }
+
+  /* ---- La carte : l'heure devient un repère, le nom passe devant ---- */
+  /* En voiture, on cherche « c'est lequel maintenant » avant de
+     chercher qui : une colonne d'heures alignées se balaie d'un
+     coup d'œil, sept lignes de texte non. */
+  body.cours-neuf .history-item{ padding:13px 4px; }
+  body.cours-neuf .history-item .tete{
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 11px;
+  }
+  /* ⚠️ LE TRAIT DIT LA BOÎTE — v951.
+
+     Cinq pixels, pas trois : à trois, une couleur foncée sur le
+     thème clair est un fil, pas un repère. « 5 px », a tranché
+     David.
+
+     La couleur vient de « --trait », posé sur l'élément par
+     couleurDuTrait() (ec-modeles.js). Le repli sur --orange n'est
+     pas décoratif : il sert le jour où un cours n'a aucun type, et
+     il garde alors exactement l'aspect d'avant. */
+  body.cours-neuf .history-item .tete .heure{
+    font-size:21px !important; font-weight:900 !important;
+    padding-right:11px; flex-shrink:0;
+    border-right:5px solid var(--trait, var(--orange));
+  }
+  body.cours-neuf .history-item .tete .qui{
+    font-size:17px; font-weight:800; line-height:1.2; min-width:0;
+  }
+  body.cours-neuf .history-item .tete .presence{ flex-basis:100%; }
+
+  /* La phrase du parcours : c'est la première question qu'on se
+     pose en ouvrant sa journée. Elle a droit à sa ligne et à sa
+     taille. */
+  body.cours-neuf .history-item .position{
+    font-size:16px !important; line-height:1.35; margin-top:4px;
+  }
+
+  /* ============================================================
+     LE COURS DU MOMENT EN HAUT, LE RESTE DANS UN TIROIR — v963
+
+     David, capture à l'appui : deux cours seulement, et il fallait
+     trois écrans de défilement pour atteindre le bouton de celui de
+     10h00 — alors qu'il était 10h03.
+
+     ⚠️ LA LIGNE DU TIROIR EST LA CARTE, RÉDUITE ICI. Rien n'est
+     copié, rien n'est reconstruit : la classe « pliee » cache tout
+     sauf l'en-tête — la barre de couleur, l'heure, le nom — et la
+     phrase du parcours. La déplier enlève la classe, et la carte
+     entière est là, branchée, telle qu'elle a été dessinée. Deux
+     constructions pour une même carte finiraient par ne plus dire
+     la même chose ; il n'y en a qu'une.
+
+     Le seuil est celui des deux volets, pris par l'autre bout :
+     au-dessus de 1000 px, la journée à gauche et le cours à
+     droite ; en dessous — tablette en portrait comprise, tranché
+     par David — cette mise en page-ci.
+     ============================================================ */
+  @media (max-width: 999px){
+    /* ⚠️ LE RUBAN SE MARQUE PAR SON LISERÉ, PAS PAR SON FOND.
+
+       Le fond citron pâle est celui du schéma, et il est très bien
+       — sur le thème CLAIR, où le texte de la carte est encre
+       sombre. Sur le thème sombre, ce même texte est blanc : posé
+       sur du citron pâle, la ligne « il manque la formation » en
+       rouge clair devenait illisible. Une carte ne peut pas porter
+       deux fois son fond.
+
+       Ce qui dit « c'est celui-ci », dans les deux thèmes, c'est le
+       liseré et la ligne « MAINTENANT · 08H00 ». Le fond n'est
+       qu'un renfort, et il ne sert que là où il ne gêne pas. */
+    body.cours-neuf .rubanTete{
+      background:var(--navy-deep); border:1.5px solid var(--accent-text);
+      border-radius:16px; padding:12px; margin-bottom:9px;
+    }
+    body.clair.cours-neuf .rubanTete{ background:var(--orange-soft); }
+    body.cours-neuf .rubanTete > .quandTete{
+      font-size:11.5px; font-weight:800; letter-spacing:.05em;
+      color:var(--accent-text); text-transform:uppercase;
+    }
+    /* En tête, la carte n'a plus de voisine : ni trait du bas, ni
+       geste d'ouverture — on y est déjà. */
+    body.cours-neuf .rubanTete > .history-item{
+      border-bottom:0; padding:4px 0 0; cursor:default;
     }
 
-    const bTrf = document.getElementById(id + 'trf');
-    if(bTrf) bTrf.addEventListener('click', async () => {
-      const nouveau = document.getElementById(id + 'nouv').value.trim();
-      if(nouveau.length < 2){ showToast('Saisis le nom du repreneur.'); return; }
-      const dateP = (e.etat && e.etat.permisDate) || s.datePermis || '';
-      if(!dateP){ showToast('Aucune date de permis à transférer.'); return; }
-      if(!await confirmer('Transférer l\'examen du ' + dateP + '\n\nde ' + e.eleve +
-                  '\nvers ' + nouveau + ' ?')) return;
+    body.cours-neuf details.resteDuJour{
+      border:1px solid var(--line); border-radius:13px;
+      padding:10px 11px; background:var(--navy-deep); margin-bottom:9px;
+    }
+    body.cours-neuf details.resteDuJour > summary{
+      font-size:13.5px; font-weight:800; cursor:pointer;
+      list-style:none; padding:2px 0;
+    }
+    body.cours-neuf details.resteDuJour > summary::-webkit-details-marker{
+      display:none;
+    }
+    body.cours-neuf details.resteDuJour > summary::before{
+      content:'▸ ';
+    }
+    body.cours-neuf details.resteDuJour[open] > summary::before{
+      content:'▾ ';
+    }
+    body.cours-neuf details.resteDuJour .combien{
+      color:var(--muted); font-weight:400;
+    }
 
-      bTrf.disabled = true;
-      bTrf.textContent = 'Transfert…';
-      try{
-        /* Le repreneur hérite de la date */
-        await envoyerConsigne(nouveau, 'permis',
-          'Examen du permis fixé au ' + dateP + ' (repris de ' + e.eleve + ')');
-        await appelPrep({ action:'suiviSet', eleve: nouveau, datePermis: dateP,
-                          par: ACCES.moniteur || '' });
+    /* ---- La ligne repliée ---- */
+    body.cours-neuf .history-item.pliee{
+      position:relative; padding:10px 20px 10px 0;
+      border-top:1px solid var(--line); border-bottom:0;
+    }
+    body.cours-neuf .history-item.pliee::after{
+      content:'›'; position:absolute; right:2px; top:50%;
+      transform:translateY(-50%); color:var(--muted); font-size:18px;
+    }
+    body.cours-neuf .history-item.pliee > *{ display:none !important; }
+    body.cours-neuf .history-item.pliee > .meta{ display:block !important; }
+    body.cours-neuf .history-item.pliee .meta > *{ display:none !important; }
+    body.cours-neuf .history-item.pliee .meta > .tete{ display:flex !important; }
+    body.cours-neuf .history-item.pliee .meta > .rang{ display:block !important; }
+    body.cours-neuf .history-item.pliee .rang > *{ display:none !important; }
+    body.cours-neuf .history-item.pliee .rang > .position{
+      display:block !important;
+      font-size:12px !important; font-weight:700; text-transform:uppercase;
+      line-height:1.3; margin-top:2px;
+    }
+    /* La réponse au rappel ne tient pas sur une ligne de tiroir :
+       elle est sur la carte, qu'on déplie d'une touche. */
+    body.cours-neuf .history-item.pliee .tete > .presence{
+      display:none !important;
+    }
+    body.cours-neuf .history-item.pliee .tete > .heure{
+      font-size:14px !important; min-width:52px; padding-right:9px;
+      border-right-width:4px;
+    }
+    body.cours-neuf .history-item.pliee .tete > .qui{ font-size:14px; }
 
-        /* L'élève précédent perd la date */
-        await envoyerConsigne(e.eleve, 'permis',
-          'Examen du ' + dateP + ' redonné à un autre candidat — nouvelle date à prévoir');
-        /* L'ancien candidat perd sa date, pas sa fiche : ses
-           heures, son examen blanc et ses paiements restent. Il
-           retourne chez les élèves à replacer. */
-        await majSuivi(e.eleve, { datePermis: '', centre: '',
-                                  statut: '', toutOk: '',
-                                  aRemplacer: '', aPlanifier: 'oui' });
+    /* Un cours dont la note ne porte pas d'heure : il ne peut pas
+       prendre la tête — on ne saurait pas quand la lui donner — et
+       il le dit plutôt que de laisser un blanc. */
+    body.cours-neuf .history-item .heureVide{
+      font-size:12px; font-weight:800; color:var(--muted);
+      min-width:52px; padding-right:9px; flex-shrink:0;
+      border-right:4px solid var(--line);
+    }
+  }
 
-        showToast('Date transférée à ' + nouveau + ' ✅');
-        redessinerBureau();
-      }catch(err){
-        showToast('Transfert impossible : ' + err.message);
-        bTrf.disabled = false;
-        bTrf.textContent = '➡️ Transférer la date à ce candidat';
+  /* ⚠️ CE QUI MANQUE PREND UN FOND, et c'est le seul de la carte.
+     C'est la ligne qui empêche le bilan d'être juste ; elle était
+     en gras orange au milieu de six autres lignes en gras. */
+  body.cours-neuf .history-item .manque{
+    background:var(--warn-bg); border-left:4px solid var(--red);
+    border-radius:0 8px 8px 0; padding:6px 9px; margin:6px 0 !important;
+  }
+
+  /* Le reste respire, et se range derrière. */
+  body.cours-neuf .history-item .sous{ margin-top:5px; }
+  body.cours-neuf .history-item .note{
+    display:block; margin-top:6px; padding-top:6px;
+    border-top:1px dashed var(--line);
+  }
+
+  /* ---- Deux volets, dès la tablette en paysage ----
+
+     La liste des cartes devient la journée à gauche ; la carte
+     choisie s'ouvre à droite. UNE SEULE liste dans le DOM : les
+     cartes non choisies se réduisent à leur en-tête et à leur
+     phrase, la choisie montre tout. Rien n'est cloné, rien n'est
+     reconstruit — donc rien ne peut diverger.
+
+     ⚠️ « OUVRIR » NE CHANGE PAS DE SENS. David : « continue comme
+     aujourd'hui ». Choisir un cours à gauche le donne à LIRE à
+     droite ; c'est ▶ Ouvrir qui mène à l'écran de cours, ici comme
+     ailleurs. */
+  @media (min-width: 1000px){
+    body.cours-neuf .listeDeuxVolets{
+      display:flex; align-items:flex-start; gap:0;
+      border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    }
+    body.cours-neuf .listeDeuxVolets > .journee{
+      width:33%; min-width:220px; max-width:340px; flex-shrink:0;
+      border-right:1px solid var(--line); background:var(--navy);
+      padding:9px; max-height:70vh; overflow:auto;
+    }
+    body.cours-neuf .listeDeuxVolets > .cours{
+      flex:1; min-width:0; padding:12px 14px;
+    }
+    /* La journée se replie, comme le bandeau du jour. */
+    body.cours-neuf .listeDeuxVolets.repliee > .journee{
+      width:40px; min-width:40px; padding:9px 4px; overflow:hidden;
+    }
+    body.cours-neuf .listeDeuxVolets.repliee > .journee > *:not(.plierJournee){
+      display:none;
+    }
+    .plierJournee{
+      width:100%; background:var(--navy-deep); border:1px solid var(--line);
+      border-radius:8px; color:var(--accent-text); font:inherit;
+      font-size:11px; font-weight:800; cursor:pointer; padding:5px 4px;
+      margin-bottom:8px;
+    }
+    body.cours-neuf .listeDeuxVolets:not(.repliee) .plierJournee{ text-align:left; }
+
+    /* Dans la journée : l'en-tête, la phrase, ce qui manque. Rien
+       d'autre — c'est un sommaire, pas une carte. */
+    body.cours-neuf .journee .history-item{
+      display:block; border:1px solid var(--line); border-radius:9px;
+      padding:7px 9px; margin-bottom:7px; background:var(--navy-deep);
+    }
+    body.cours-neuf .journee .history-item.choisi{
+      border:2px solid var(--orange);
+    }
+    /* ⚠️ LES CASES, PAS LA PHRASE — v951.
+
+       « .rang » était masqué en entier. Il contient deux choses :
+       les cases où l'on tape le numéro de leçon, et la phrase du
+       parcours — « 2ème leçon après le dernier ajournement ». Le
+       rail donnait pourtant à cette phrase une taille à lui, 12,5 px
+       et gras, juste en dessous : une règle qui mettait en forme
+       quelque chose d'invisible, et qui mentait depuis le premier
+       jour.
+
+       David : « la phrase est dans le rail ET sur la carte de
+       droite, c'est juste dans le rail qu'elle est écrite en plus
+       petit ». Les cases, elles, restent sur la carte : le rail est
+       un sommaire, on saisit à droite. */
+    body.cours-neuf .journee .history-item .casesRang,
+    body.cours-neuf .journee .history-item .poste,
+    body.cours-neuf .journee .history-item .sous,
+    body.cours-neuf .journee .history-item .note,
+    body.cours-neuf .journee .history-item .place,
+    body.cours-neuf .journee .history-item .handicapCarte,
+    body.cours-neuf .journee .history-item .actions{ display:none !important; }
+    body.cours-neuf .journee .history-item .tete .heure{ font-size:17px !important; }
+    body.cours-neuf .journee .history-item .tete .qui{ font-size:14px; }
+    body.cours-neuf .journee .history-item .position{
+      font-size:12.5px !important; font-weight:700;
+    }
+    body.cours-neuf .journee .history-item .manque{
+      font-size:11.5px !important; padding:3px 7px;
+    }
+
+    /* À droite, la carte choisie, entière — et les gestes de bureau
+       dépliés d'office : c'est un écran de bureau. */
+    body.cours-neuf .cours .history-item{ border-bottom:none; padding:0; }
+    /* Les gestes passent SOUS le cours, sur toute la largeur : collés
+       à droite ils se retrouvaient à un demi-écran du texte qu'ils
+       concernent, et la carte se lisait en diagonale. */
+    body.cours-neuf .cours .history-item .meta{ flex-basis:100%; padding-right:0; }
+    body.cours-neuf .cours .history-item .actions{
+      flex-basis:100%; margin-top:12px; padding-top:10px;
+      border-top:1px solid var(--line);
+    }
+    body.cours-neuf .cours .history-item .actions .plusBtn{ display:none; }
+    body.cours-neuf .cours .history-item .actions .plus{ display:flex; }
+  }
+
+  /* ---- LE RAIL DES VUES, DÈS LA TABLETTE EN PAYSAGE ----
+
+     David : « c'est magnifique je le veux, et je me demande si on
+     ne le mettrait pas en place plus petit aussi à partir de
+     tablette paysage ».
+
+     Onze vues dans Élèves, quinze dans Gestion. En rangée, elles
+     prennent trois à six lignes AVANT le moindre contenu — sur un
+     téléphone comme sur un écran de bureau, où la largeur, elle,
+     ne sert à rien. En colonne, elles ne mangent plus de hauteur,
+     on les lit toutes d'un coup, et le contenu prend enfin la
+     place.
+
+     ⚠️ EN COLONNE SEULEMENT LÀ OÙ C'EST UN GAIN. Sous 1280 px un
+     rail mangerait la moitié de l'écran : les vues y restent en
+     boutons. Et l'onglet Cours n'a pas de barre du tout — c'est
+     voulu, ses trois blocs tiennent sur une page.
+
+     ⚠️ ET C'EST LA MÊME MISE EN PAGE POUR LES SIX. Aucune barre
+     n'a de règle à elle : elles sont toutes dans « zoneTravail »,
+     elles obéissent toutes à celle-ci. */
+  @media (min-width: 1280px){
+    body.cours-neuf #zoneTravail{
+      display:flex; align-items:flex-start; gap:16px;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues{
+      flex-direction:column; flex-wrap:nowrap;
+      width:212px; flex-shrink:0; margin:0;
+      /* Elle reste sous les yeux pendant qu'on descend dans une
+         liste de deux cents élèves. */
+      position:sticky; top:8px;
+      max-height:calc(100vh - 24px); overflow:auto;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues button{
+      flex:0 0 auto; width:100%; text-align:left;
+    }
+    /* ---- LE RAIL AVEC SES FAMILLES — v945 ----
+       Dans la colonne de gauche, une famille n'a plus besoin de
+       défiler : elle devient un intertitre, et ses boutons
+       s'empilent dessous. Le dégradé de débordement n'a alors plus
+       lieu d'être — il mangerait le bord d'une rangée entière. */
+    body.cours-neuf #zoneTravail > .barre-vues.groupee .rang{
+      flex-direction:column; overflow:visible; gap:4px;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues.groupee .rang.deborde{
+      -webkit-mask-image:none; mask-image:none;
+    }
+    body.cours-neuf #zoneTravail > .barre-vues.groupee .grp{ margin-bottom:12px; }
+    body.cours-neuf #zoneTravail > #appView{
+      flex:1; min-width:0;
+    }
+    /* ⚠️ CETTE RÈGLE-LÀ NE SERVAIT À RIEN, ET ELLE RASSURAIT — v927.
+
+       Elle disait « sans barre, le contenu prend tout », et elle
+       cherchait pour cela « style*="display:none" ». Or le
+       navigateur écrit « display: none », avec une espace : le
+       sélecteur ne s'est jamais appliqué. Et il n'avait de toute
+       façon rien à faire — un élément en display:none ne tient
+       déjà aucune place dans une rangée flex.
+
+       Le vrai défaut était ailleurs : la barre de l'onglet Cours
+       était affichée VIDE, en display:flex, et c'est elle qui
+       poussait la carte de 228 px. Voir afficherOnglet, dans
+       ec-onglets.js.
+
+       Une règle qui a l'air de traiter un cas, qui ne s'applique
+       jamais, et qui porte le commentaire du problème : c'est ce
+       qui a fait chercher ailleurs pendant deux versions. */
+    body.cours-neuf #zoneTravail > .barre-vues[hidden]{ display:none; }
+
+    /* ============================================================
+       LE RAIL REPLIÉ — v962
+
+       David : « quand c'est replié on ne voit que les logos et au
+       survol de la souris on voit ce que c'est ».
+
+       ⚠️ À PARTIR DE 1280 px SEULEMENT, et c'est pour ça que tout
+       ce bloc vit DANS la media query du rail. En dessous, la barre
+       n'est pas une colonne — c'est une rangée de boutons, il n'y a
+       pas de rail, donc rien à replier : un bouton « replier » y
+       serait un bouton qui ne fait rien. */
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues{ width:56px; }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues button{
+      text-align:center; padding-left:0; padding-right:0;
+    }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues .nomVue{
+      display:none;
+    }
+    /* Le compteur d'une vue ne tient plus à côté du logo : il passe
+       en pastille sur le coin, comme sur un onglet. */
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues button{
+      position:relative;
+    }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues .compte-vue{
+      position:absolute; top:1px; right:1px; margin-left:0 !important;
+      min-width:16px !important; line-height:16px !important;
+      font-size:10px !important; padding:0 4px !important;
+    }
+    /* Un intertitre de famille ne tient pas en 56 px : il devient
+       le filet qui sépare deux familles. Le nom revient au survol
+       des boutons, comme le reste. */
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues .fam{
+      font-size:0; height:0; margin:0; padding:0;
+      border-top:1px solid var(--line);
+    }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues.groupee .grp{
+      margin-bottom:8px;
+    }
+  }
+
+  /* Le bouton qui replie : discret, en tête du rail. Sous 1280 px
+     il n'a rien à commander — il n'y a pas de rail. */
+  .plierRail{
+    display:none; font:inherit; font-size:12px; line-height:1;
+    background:none; border:1px solid var(--line); border-radius:7px;
+    color:var(--muted); cursor:pointer; padding:5px 8px;
+    margin:0 0 8px auto; order:-1;
+  }
+  .plierRail:hover{ color:var(--cream); border-color:var(--muted); }
+  @media (min-width: 1280px){
+    body.cours-neuf #zoneTravail > .barre-vues .plierRail{ display:block; }
+    body.cours-neuf.rail-replie #zoneTravail > .barre-vues .plierRail{
+      margin:0 auto 8px; width:100%; text-align:center;
+    }
+  }
+
+  /* La bulle du survol : une seule, posée sur la page, jamais
+     rognée par le rail qui défile. */
+  .bulleRail{
+    position:fixed; z-index:90; transform:translateY(-50%);
+    background:var(--navy-deep); color:var(--cream);
+    border:1px solid var(--line); border-radius:8px;
+    padding:5px 10px; font-size:12.5px; font-weight:700;
+    white-space:nowrap; pointer-events:none;
+    opacity:0; visibility:hidden;
+    box-shadow:0 4px 14px rgba(0,0,0,.22);
+  }
+  .bulleRail.on{ opacity:1; visibility:visible; }
+
+  /* ---- LA PLACE, EN ENTIER ----
+
+     David, capture d'un écran de 1900 px : « tu ne peux pas faire
+     en sorte que ça prenne tout l'écran ? »
+
+     Deux choses le retenaient, et aucune des deux ne se voyait
+     depuis le code des volets :
+
+     · « .wrap » plafonne à 1500 px. Sur un grand écran, quatre
+       cents pixels de chaque côté ne servaient à rien.
+
+     · « #appView » est une GRILLE de deux colonnes depuis 1100 px
+       (trois depuis 1600) — « le travail à gauche, la consultation
+       à droite ». Les deux volets tenaient donc dans UNE de ces
+       colonnes : la journée et le cours se partageaient la moitié
+       de la largeur pendant que l'autre moitié restait vide.
+
+     La carte des prochains cours prend donc toute la grille, et la
+     page toute la fenêtre. Les autres cartes gardent leurs deux
+     colonnes : elles sont faites pour ça, ce sont des cartes
+     courtes qu'on lit côte à côte. */
+  @media (min-width: 1280px){
+    body.cours-neuf .wrap{ max-width:none; padding-left:22px; padding-right:22px; }
+    body.cours-neuf #barreOnglets{ max-width:none; }
+    /* ⚠️ TOUTE LA GRILLE, PAS UNE COLONNE. Sans ceci, les deux
+       volets se serrent dans la moitié d'un écran de bureau. */
+    body.cours-neuf #appView > [data-section="prepares"]{ grid-column:1 / -1; }
+  }
+
+  /* ============================================================
+     NAVIGATION PAR ONGLETS
+     En bas sur téléphone, sur le côté sur grand écran.
+     ============================================================ */
+  #barreOnglets{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    z-index:80;
+    display:flex;
+    padding:4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
+    /* Pas de fond ici : il est porté par la couche du dessous, la
+       seule à être découpée. Un masque posé sur la barre elle-même
+       rognerait aussi les icônes et le cercle. */
+    background:none;
+  }
+
+  #barreOnglets::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:var(--navy-deep, #10131a);
+    border-top:1px solid var(--line);
+    box-shadow:0 -2px 14px rgba(0,0,0,.35);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* La pastille de l'onglet actif : pleine et vive, pas translucide.
+     C'est le contraste qui rend la position lisible d'un coup d'œil,
+     bien plus qu'un fond discret. */
+  #barreOnglets .pastille{
+    position:absolute;
+    top:50%;
+    height:44px;
+    margin-top:-22px;
+    border-radius:22px;
+    background:var(--accent, #B6FF0E);
+    box-shadow:0 0 0 1px rgba(182,255,14,.5),
+               0 4px 18px rgba(182,255,14,.28);
+    pointer-events:none;
+    opacity:0;
+    z-index:1;
+    transition:left .40s cubic-bezier(.32,.72,0,1),
+               width .40s cubic-bezier(.32,.72,0,1),
+               transform .40s cubic-bezier(.32,.72,0,1),
+               opacity .2s ease;
+    will-change:left, width, transform;
+  }
+  /* Étirée pendant le trajet : le mouvement se lit, on voit d'où
+     l'on vient. Elle reprend sa forme à l'arrivée. */
+  #barreOnglets .pastille.file{
+    transform:scaleX(1.10) scaleY(.90);
+  }
+
+  #barreOnglets .onglet{
+    /* Au-dessus du cercle : sans ça l'icône serait recouverte */
+    position:relative;
+    z-index:2;
+    flex:1;
+    min-width:0;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-family:inherit;
+    font-size:11px;
+    font-weight:600;
+    padding:7px 2px 5px;
+    border-radius:10px;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    line-height:1.2;
+    transition:color .15s ease, background .15s ease;
+  }
+  #barreOnglets .onglet span{
+    font-size:19px;
+    line-height:1;
+    transition:transform .42s cubic-bezier(.34,1.56,.64,1);
+  }
+  /* L'icône grossit un peu : le choix se voit, la barre ne bouge pas */
+  #barreOnglets .onglet.actif span{
+    transform:scale(1.14);
+  }
+  #barreOnglets .onglet{
+    position:relative;
+    /* Au-dessus du cercle : sans ça l'icône serait recouverte */
+    z-index:2;
+  }
+  /* Sur fond vert plein, il faut écrire en sombre */
+  #barreOnglets .onglet.actif{
+    color:#0B0B0B;
+    font-weight:800;
+    background:none;
+  }
+  /* Mouvement réduit : on respecte le réglage du système */
+  @media (prefers-reduced-motion: reduce){
+    #barreOnglets .pastille,
+    #barreOnglets .onglet span{ transition:opacity .2s ease; }
+  }
+
+  /* Sur grand écran la barre passe sur le côté : le cercle et
+     l'échancrure n'auraient plus de sens à l'horizontale. */
+  #barreOnglets .onglet[hidden]{ display:none; }
+
+  /* La pastille d'alerte sur un onglet : ce qui attend une action
+     du bureau doit se voir sans ouvrir l'onglet. */
+  #barreOnglets .onglet{ position:relative; }
+  #barreOnglets .alerte{
+    position:absolute;
+    top:2px;
+    left:50%;
+    margin-left:8px;
+    min-width:18px;
+    height:18px;
+    padding:0 5px;
+    border-radius:9px;
+    background:var(--red, #E5484D);
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+    line-height:18px;
+    text-align:center;
+    box-shadow:0 0 0 2px var(--navy-deep, #10131a);
+    z-index:4;
+    pointer-events:none;
+  }
+
+  /* Le contenu ne doit pas passer sous la barre */
+  body.avec-onglets .wrap{ padding-bottom:86px; }
+
+  /* Un bloc qui n'appartient pas à l'onglet courant disparaît */
+  [data-onglet].hors-onglet{ display:none !important; }
+
+  /* ⚠️ 1400, ET PLUS 1100 — v915.
+
+     La tablette des moniteurs fait 1280 px en paysage et 800 px en
+     portrait : elle franchissait le seuil EN TOURNANT. La barre
+     partait en haut, puis revenait en bas, et sur un support de
+     voiture le doigt cherchait un onglet qui avait déménagé.
+
+     1400 la met au-dessus de toutes les tablettes et en dessous
+     d'un écran de bureau : les moniteurs gardent leur barre en bas
+     dans les deux orientations, le bureau garde son habitude. */
+  @media (min-width: 1400px){
+    #barreOnglets{
+      position:sticky;
+      top:0; bottom:auto;
+      max-width:1280px;
+      margin:0 auto 14px;
+      border-top:none;
+      border-bottom:1px solid var(--line);
+      border-radius:0 0 14px 14px;
+      padding:6px;
+      box-shadow:0 2px 14px rgba(0,0,0,.25);
+    }
+    /* ⚠️ ET LE CONTENU SE CENTRE — v973.
+
+       David, capture à l'appui : « quand on est en plein écran, le
+       surlignage vert pour dire dans quel onglet on est doit être
+       centré par rapport au nom de l'onglet ; là on a un alignement
+       gauche ».
+
+       La pastille verte épouse le bouton, et le bouton prend sa
+       part de la barre — deux cents pixels sur un écran de bureau.
+       Passée en rangée, la mise en page change d'axe : « align-items
+       :center », qui centrait le contenu tant que la colonne était
+       verticale, ne règle plus que la hauteur. Il lui manquait son
+       pendant horizontal, et le nom restait collé au bord gauche
+       d'une pastille trois fois plus large que lui.
+
+       Un axe changé change le sens de tout ce qui s'y appuie :
+       c'est la même faute que « flex:1 1 190px » dans la ligne des
+       comptes, qui devenait « prends toute la hauteur » une fois
+       la rangée passée en colonne. */
+    #barreOnglets .onglet{
+      flex-direction:row;
+      justify-content:center;
+      gap:8px;
+      font-size:14px;
+      padding:11px 10px;
+    }
+    /* La pastille d'alerte se posait à « la moitié du bouton, plus
+       huit » : un repère qui visait l'icône quand elle était seule
+       au milieu. Le nom l'a rejointe là ; elle passe donc au bout
+       du bouton, où elle ne recouvre rien. */
+    #barreOnglets .alerte{
+      top:50%;
+      margin-top:-9px;
+      left:auto;
+      right:8px;
+      margin-left:0;
+    }
+    #barreOnglets .onglet span{ font-size:17px; }
+    body.avec-onglets .wrap{ padding-bottom:60px; }
+  }
+
+
+  /* Navigation par boutons à l'intérieur d'un onglet */
+  .barre-vues{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin:0 0 14px;
+  }
+  .barre-vues[hidden]{ display:none; }
+  .barre-vues button{
+    flex:1 1 auto;
+    min-width:0;
+    background:var(--navy);
+    border:1px solid var(--line);
+    color:var(--cream);
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    padding:13px 12px;
+    border-radius:11px;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:border-color .15s ease, color .15s ease, background .15s ease;
+  }
+
+  /* L'onglet Cours sert au volant : ses deux boutons sont plus grands.
+     Plusieurs moniteurs ont une vue diminuée. */
+  .barre-vues[data-pour="cours"]{ gap:10px; margin-bottom:18px; }
+  .barre-vues[data-pour="cours"] button{
+    font-size:18px;
+    font-weight:700;
+    padding:22px 14px;
+    border-radius:14px;
+    border-width:2px;
+    line-height:1.3;
+    white-space:normal;
+  }
+  .barre-vues[data-pour="cours"] button.actif{
+    border-color:var(--orange);
+    background:rgba(182,255,14,.14);
+  }
+  @media (min-width: 700px){
+    .barre-vues[data-pour="cours"] button{ font-size:20px; padding:26px 16px; }
+  }
+  .barre-vues button.actif{
+    border-color:var(--orange);
+    color:var(--accent-text);
+    background:rgba(182,255,14,.09);
+  }
+
+  /* ---- LES FAMILLES DE SOUS-ONGLETS — v945 ----
+
+     Quatorze boutons dans Gestion, onze dans Élèves : on ne
+     cherchait pas un écran, on le balayait.
+
+     Sur téléphone, UNE LIGNE PAR FAMILLE, qui défile latéralement.
+     Quatre lignes courtes valent mieux que six lignes de boutons
+     enroulés : on lit les intitulés, on va droit à la bonne. */
+  .barre-vues.groupee{
+    flex-direction:column;
+    flex-wrap:nowrap;
+    align-items:stretch;
+    gap:0;
+  }
+  .barre-vues.groupee .grp{ margin-bottom:10px; }
+  .barre-vues.groupee .grp:last-child{ margin-bottom:0; }
+  .barre-vues .fam{
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    font-weight:800;
+    color:var(--muted);
+    margin:0 0 5px 2px;
+  }
+  .barre-vues .rang{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:2px;
+    scrollbar-width:thin;
+  }
+  /* On défile plutôt que d'écraser les mots : « Paiement en
+     plusieurs fois » ne doit pas devenir « Paiem… ». */
+  .barre-vues.groupee .rang button{ flex:0 0 auto; }
+
+  /* Une rangée qui défile doit le DIRE : sans ce dégradé, le
+     dernier bouton visible a l'air d'être le dernier, et on ne
+     fait pas glisser ce qu'on croit entier. La classe est posée
+     par ec-onglets.js, et seulement sur les rangées qui débordent
+     VRAIMENT — une rangée entière ne se fait pas manger son bord
+     pour rien. */
+  .barre-vues .rang.deborde{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+    mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+  }
+
+  /* ---- LES TUILES « EN UN COUP D'ŒIL » — v946 ----
+
+     Une tuile est un BOUTON : elle ouvre l'écran qu'elle compte.
+     Le bord gauche coloré dit l'urgence, mais il ne la dit jamais
+     seul — l'intitulé porte le sens, la couleur ne fait que le
+     hiérarchiser. */
+  /* ============================================================
+     LA BIBLIOTHÈQUE DE MESSAGES — v958
+
+     Cent fiches et plus : la liste d'origine était une pile de
+     dossiers dépliables, pensée pour douze. Ici, un rail
+     d'étiquettes à gauche, les fiches en cartes à droite, et une
+     recherche qui surligne ce qu'elle a trouvé — on doit voir
+     POURQUOI une fiche est là.
+     ============================================================ */
+  .biblioBarre{ display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+                margin-bottom:12px; }
+  .biblioBarre input{ flex:1; min-width:160px; margin:0; }
+  .biblioCorps{ display:flex; gap:14px; align-items:flex-start; }
+  .biblioEtiq{ width:196px; flex-shrink:0; display:flex; flex-direction:column;
+               gap:2px; }
+  .biblioFiches{ flex:1; min-width:0; display:grid; gap:10px;
+                 grid-template-columns:repeat(auto-fill, minmax(215px, 1fr)); }
+
+  .etqLigne{ display:flex; align-items:center; gap:7px; width:100%;
+             background:none; border:1px solid transparent; border-radius:9px;
+             padding:7px 9px; font:inherit; font-size:13px; font-weight:700;
+             color:var(--cream); cursor:pointer; text-align:left; }
+  .etqLigne:hover{ border-color:var(--line); }
+  .etqLigne.on{ background:var(--orange-soft); color:var(--ink); }
+  .etqLigne .nom{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
+                  white-space:nowrap; }
+  .etqLigne .n{ font-size:11.5px; color:var(--muted); font-weight:700; }
+  .etqLigne.on .n{ color:var(--ink); }
+  /* Glisser pour ranger : la ligne prise s'efface, la cible se marque. */
+  .etqLigne.prise{ opacity:.4; }
+  .etqLigne.cible{ border-top:3px solid var(--accent-text); }
+
+  /* ⚠️ ON VOIT DE QUEL CÔTÉ LA CARTE VA SE POSER — v961. Un seul
+     trait, toujours au même endroit, laissait croire qu'on posait
+     toujours devant : impossible de comprendre pourquoi la fiche
+     atterrissait une ligne plus haut, et impossible d'en mettre une
+     en dernier. */
+  .ficheTexte.cible{ box-shadow:inset 3px 0 0 var(--accent-text); }
+  .ficheTexte.cibleApres{ box-shadow:inset -3px 0 0 var(--accent-text); }
+  @media (max-width:760px){
+    .ficheTexte.cible{ box-shadow:inset 0 3px 0 var(--accent-text); }
+    .ficheTexte.cibleApres{ box-shadow:inset 0 -3px 0 var(--accent-text); }
+  }
+
+  /* Le cadenas du privé : reconnaissable sans être criard. */
+  .ficheTexte .fetq.prive{ border-color:var(--accent-text);
+                           color:var(--accent-text); }
+  .mdEtq.prive.on{ background:var(--navy-deep); color:var(--accent-text);
+                   border-color:var(--accent-text); }
+
+  .ficheTexte{ border:1px solid var(--line); border-radius:11px; padding:10px 11px;
+               background:var(--navy); display:flex; flex-direction:column; }
+  .ficheTexte .ft{ font-size:13.5px; font-weight:800; line-height:1.25; }
+  .ficheTexte .fu{ font-size:11px; color:var(--muted); margin-top:2px; }
+  /* ⚠️ L'APERÇU S'ARRÊTE SUR DES POINTS DE SUSPENSION, PAS SUR UNE
+     COUPE NETTE — v958. Coupé à la hauteur, un texte long a l'air
+     de finir là où il s'arrête : on croit la fiche incomplète et on
+     l'ouvre pour rien. Cinq lignes, puis « … ». La hauteur reste en
+     secours pour les navigateurs qui ignorent le compte de lignes. */
+  .ficheTexte .fp{ font-size:11.5px; color:var(--soft); line-height:1.45;
+                   margin-top:6px; max-height:84px; overflow:hidden;
+                   white-space:pre-wrap; display:-webkit-box;
+                   -webkit-box-orient:vertical; -webkit-line-clamp:5; }
+  .ficheTexte mark{ background:var(--orange-soft); color:var(--ink);
+                    border-radius:3px; padding:0 2px; }
+  .ficheTexte .fe{ display:flex; gap:4px; flex-wrap:wrap; margin-top:7px; }
+  .ficheTexte .fetq{ font-size:10px; font-weight:700; background:var(--navy-deep);
+                     border:1px solid var(--line); color:var(--muted);
+                     border-radius:5px; padding:2px 6px; }
+  .ficheTexte .fg{ display:flex; gap:5px; flex-wrap:wrap; margin-top:9px; }
+  /* ⚠️ LES GESTES SE DESSINENT PAREIL SUR LA CARTE ET DANS LA FICHE
+     OUVERTE — v959. Cette règle vivait sous « .ficheTexte » : les
+     mêmes boutons, repris en pied de fiche ouverte, y repartaient en
+     boutons gris du navigateur. Une apparence attachée à un endroit
+     plutôt qu'à la chose finit toujours par lui échapper. */
+  .fgb{ font:inherit; font-size:12px; background:var(--navy-deep);
+        border:1px solid var(--line); border-radius:7px;
+        padding:4px 8px; color:var(--cream); cursor:pointer; }
+  .fgb:hover{ border-color:var(--muted); }
+  .fgb.sup{ color:var(--red); border-color:var(--red); margin-left:auto; }
+
+  /* ============================================================
+     LE SOUS-ONGLET MOTO — v971
+
+     David, le 12 septembre : « tout est d'affilé, ce n'est pas
+     visible ». Mesuré avec seize élèves : 5 280 px sur téléphone,
+     six écrans, 74 boutons et seize champs de remarque vides.
+
+     La ligne est désormais « history-item », comme partout
+     ailleurs. Ce qui suit n'habille que ce que la moto ajoute :
+     les pastilles d'état — qui remplacent À LA FOIS la phrase qui
+     décrivait et la rangée de boutons qui agissait — et le panneau
+     du « ⋯ ».
+     ============================================================ */
+  /* ⚠️ « .btn » vaut « width:100% » : dans une rangée de gestes, il
+     faut le dire. C'était fait à la main, en style en ligne, donc
+     invisible à cette feuille — on ne peut pas corriger ce qu'on ne
+     peut pas désigner. */
+  .ligneMoto .actions .btn{
+    width:auto; margin:0; padding:8px 11px; font-size:12px;
+    font-weight:700;
+  }
+  .ligneMoto .actions .btn.oui{ color:var(--accent-text);
+                                border-color:var(--accent-text); }
+  .ligneMoto .actions .btn.non{ color:var(--red); border-color:var(--red); }
+  .ligneMoto .actions .plusBtn,
+  .ligneMoto .actions .crayon{ color:var(--muted); padding:8px 10px; }
+
+  /* ⚠️ LE TIROIR ⋯ EST CELUI DE TOUTE L'APPLICATION — mêmes classes
+     (« plusBtn », « plus », « actions.ouvert ») et MÊME SEUIL de
+     1280 px : sur la dalle du bureau les gestes tiennent sur la
+     ligne, et les cacher n'ajouterait qu'un appui.
+
+     Il ne consulte pas « body.cours-neuf », lui : ce drapeau est
+     l'essai de l'écran de COURS, et un moniteur qui y revient en
+     arrière n'a pas demandé à déplier la moto. Ces règles-ci
+     viennent APRÈS le bloc partagé, à spécificité égale — c'est ce
+     qui les fait gagner sur les lignes de la moto, et seulement
+     sur elles. */
+  .ligneMoto .actions{ flex-wrap:wrap; }
+  body .ligneMoto .actions .plusBtn{ display:inline-flex; }
+  body .ligneMoto .actions .plus{
+    display:none; flex-basis:100%; gap:6px; flex-wrap:wrap;
+    margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);
+  }
+  body .ligneMoto .actions.ouvert .plus{ display:flex; }
+  @media (min-width: 1280px){
+    body .ligneMoto .actions .plus{ display:contents; margin-top:0; }
+    body .ligneMoto .actions .plusBtn{ display:none; }
+  }
+
+  .ligneMoto .meta .etats{ display:flex; gap:5px; flex-wrap:wrap;
+                           margin-top:5px; }
+  .pastEtat{ font:inherit; font-size:11.5px; background:var(--navy);
+             border:1px solid var(--line); border-radius:7px;
+             padding:5px 9px; color:var(--muted); cursor:pointer; }
+  /* Au doigt, une pastille de 24 px se rate une fois sur trois. */
+  @media (max-width:760px){ .pastEtat{ padding:7px 10px; font-size:12px; } }
+  .pastEtat.on{ color:var(--accent-text); border-color:var(--accent-text); }
+  .pastEtat.mi{ color:var(--warn-text); border-color:var(--warn-text); }
+  .pastEtat.note{ color:var(--cream); max-width:100%; overflow:hidden;
+                  text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ============================================================
+     LES IMAGES D'UNE FICHE — v970
+
+     Sur la CARTE : une bande de deux vignettes au plus, puis « +n ».
+     Trois vignettes sur une carte de 188 px, ce n'est plus un
+     aperçu, c'est une galerie.
+
+     Dans la FICHE OUVERTE : les mêmes tailles que la galerie des
+     captures du CEPC — 96 px, la croix en haut à droite.
+     ============================================================ */
+  .ficheVues{ display:flex; gap:5px; margin-top:8px; }
+  .ficheVues img{ width:52px; height:40px; object-fit:cover; border-radius:7px;
+                  border:1px solid var(--line); display:block; flex-shrink:0; }
+  .ficheVues .deplusVue{ min-width:30px; height:40px; border-radius:7px;
+                         border:1px solid var(--line); background:var(--navy-deep);
+                         color:var(--muted); font-size:11px; font-weight:700;
+                         display:flex; align-items:center; justify-content:center;
+                         padding:0 7px; flex-shrink:0; }
+  /* ⚠️ LA PLACE EST GARDÉE PENDANT QUE L'IMAGE ARRIVE. Sans ce
+     creux, la carte grandit sous le doigt au moment où on appuie —
+     et on ouvre la fiche d'à côté. */
+  .ficheVues .creuxVue{ width:52px; height:40px; border-radius:7px;
+                        border:1px dashed var(--muted); opacity:.5;
+                        flex-shrink:0; }
+  /* Posées SUR la couleur, comme les pastilles et les boutons. */
+  .ficheTexte[data-couleur] .ficheVues img,
+  .ficheTexte[data-couleur] .ficheVues .deplusVue{ border-color:var(--bordFiche); }
+  .ficheTexte[data-couleur] .ficheVues .deplusVue{ background:rgba(255,255,255,.06); }
+  body.clair .ficheTexte[data-couleur] .ficheVues .deplusVue{
+    background:rgba(255,255,255,.55); }
+
+  .galFiche{ display:flex; gap:8px; flex-wrap:wrap; }
+  .galFiche:not(:empty){ margin-bottom:8px; }
+  .vigFiche{ position:relative; width:96px; }
+  .vigFiche img{ width:100%; height:96px; object-fit:cover; border-radius:8px;
+                 border:1px solid var(--line); display:block; cursor:zoom-in; }
+  .xVig{ position:absolute; top:2px; right:2px; width:24px; height:24px;
+         border-radius:12px; border:none; background:rgba(0,0,0,.65);
+         color:#fff; font-size:13px; line-height:1; cursor:pointer; }
+  .zCollerFiche{ border:2px dashed var(--line); border-radius:10px;
+                 padding:14px 12px; text-align:center; font-size:13px;
+                 color:var(--muted); cursor:pointer;
+                 transition:border-color .15s, background .15s; }
+  .zCollerFiche strong{ color:var(--cream); }
+  .zCollerFiche.survol{ border-color:var(--accent-text);
+                        background:rgba(182,255,14,.06); }
+  .etatImg{ font-size:11px; color:var(--muted); line-height:1.4;
+            min-height:14px; margin:6px 0 12px; }
+
+  /* ============================================================
+     LES COULEURS PASTEL DES FICHES — COMME KEEP — v969
+
+     David, le 11 puis le 12 septembre : « mettre en place comme
+     Keep sur les fiches de modèles messages des palettes de
+     couleur pour le fond de la fiche, QUE DES COULEURS PASTELS ».
+
+     ⚠️ DEUX JEUX, ET C'EST UNE NÉCESSITÉ. Une teinte pâle est
+     pastel sur le thème clair, où le texte est encre sombre ; sur
+     le thème sombre le texte est blanc, et la même teinte devient
+     illisible. Chaque couleur porte donc le même NOM et deux
+     valeurs. Les seize sont ici, et nulle part ailleurs : la table
+     de ec-textes.js ne connaît que les huit noms.
+
+     Le contraste des seize a été mesuré, pas jugé à l'œil : le
+     plus faible est à 9,2 sur l'aperçu en gris, pour un seuil de
+     lecture confortable de 4,5.
+
+     ⚠️ ET LES PASTILLES ET LES BOUTONS SE POSENT SUR LA COULEUR.
+     Laissés sur leur fond franc, ils font une deuxième nappe qui
+     se dispute avec la première : sur une carte jaune, six carrés
+     blancs. Un voile translucide les garde lisibles quelle que
+     soit la teinte dessous — et il n'y a qu'un voile pour les
+     huit.
+     ============================================================ */
+  .ficheTexte[data-couleur]{ background:var(--fondFiche);
+                             border-color:var(--bordFiche); }
+  .ficheTexte[data-couleur] .fetq,
+  .ficheTexte[data-couleur] .fgb{ background:rgba(255,255,255,.06);
+                                  border-color:var(--bordFiche); }
+  .ficheTexte[data-couleur]:hover{ border-color:var(--muted); }
+
+  /* Le thème sombre est le défaut de l'outil : ses valeurs sont
+     celles de base, et « body.clair » les remplace. */
+  .ficheTexte[data-couleur="jaune"] { --fondFiche:#3A361C; --bordFiche:#4A4527; }
+  .ficheTexte[data-couleur="orange"]{ --fondFiche:#40301C; --bordFiche:#524024; }
+  .ficheTexte[data-couleur="rouge"] { --fondFiche:#452A26; --bordFiche:#583931; }
+  .ficheTexte[data-couleur="rose"]  { --fondFiche:#432B3A; --bordFiche:#573949; }
+  .ficheTexte[data-couleur="violet"]{ --fondFiche:#322B44; --bordFiche:#423A56; }
+  .ficheTexte[data-couleur="bleu"]  { --fondFiche:#253646; --bordFiche:#334759; }
+  .ficheTexte[data-couleur="menthe"]{ --fondFiche:#223B37; --bordFiche:#2F4D48; }
+  .ficheTexte[data-couleur="vert"]  { --fondFiche:#293C24; --bordFiche:#375030; }
+
+  body.clair .ficheTexte[data-couleur] .fetq,
+  body.clair .ficheTexte[data-couleur] .fgb{ background:rgba(255,255,255,.55); }
+  body.clair .ficheTexte[data-couleur="jaune"] { --fondFiche:#FBF4CF; --bordFiche:#E8DFA8; }
+  body.clair .ficheTexte[data-couleur="orange"]{ --fondFiche:#FBE8D2; --bordFiche:#EDD6B6; }
+  body.clair .ficheTexte[data-couleur="rouge"] { --fondFiche:#FBE0DC; --bordFiche:#EFC9C2; }
+  body.clair .ficheTexte[data-couleur="rose"]  { --fondFiche:#F8DFEC; --bordFiche:#E9C3D8; }
+  body.clair .ficheTexte[data-couleur="violet"]{ --fondFiche:#E6E0F3; --bordFiche:#CFC5E4; }
+  body.clair .ficheTexte[data-couleur="bleu"]  { --fondFiche:#DCEAF7; --bordFiche:#BFD6EC; }
+  body.clair .ficheTexte[data-couleur="menthe"]{ --fondFiche:#D9F1EC; --bordFiche:#B8E0D7; }
+  body.clair .ficheTexte[data-couleur="vert"]  { --fondFiche:#E2F3DC; --bordFiche:#C3E2B9; }
+
+  /* ---- La palette, dépliée sous la fiche ---- */
+  .palFiche{ display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+             margin-top:8px; padding:8px 9px; border:1px solid var(--line);
+             border-radius:10px; background:var(--navy-deep); }
+  .ficheTexte[data-couleur] .palFiche{ border-color:var(--bordFiche); }
+  /* La pastille est un bouton de geste, mais ronde et sans texte :
+     c'est la couleur qu'on choisit, pas un mot. */
+  .pastFiche{ width:26px; height:26px; border-radius:50% !important;
+              padding:0 !important; flex-shrink:0;
+              display:flex; align-items:center; justify-content:center;
+              font-size:12px; }
+  .pastFiche.choisie{ outline:2px solid var(--accent-text); outline-offset:2px; }
+  .pastFiche[data-couleur="jaune"] { background:#3A361C !important; border-color:#4A4527 !important; }
+  .pastFiche[data-couleur="orange"]{ background:#40301C !important; border-color:#524024 !important; }
+  .pastFiche[data-couleur="rouge"] { background:#452A26 !important; border-color:#583931 !important; }
+  .pastFiche[data-couleur="rose"]  { background:#432B3A !important; border-color:#573949 !important; }
+  .pastFiche[data-couleur="violet"]{ background:#322B44 !important; border-color:#423A56 !important; }
+  .pastFiche[data-couleur="bleu"]  { background:#253646 !important; border-color:#334759 !important; }
+  .pastFiche[data-couleur="menthe"]{ background:#223B37 !important; border-color:#2F4D48 !important; }
+  .pastFiche[data-couleur="vert"]  { background:#293C24 !important; border-color:#375030 !important; }
+  body.clair .pastFiche[data-couleur="jaune"] { background:#FBF4CF !important; border-color:#E8DFA8 !important; }
+  body.clair .pastFiche[data-couleur="orange"]{ background:#FBE8D2 !important; border-color:#EDD6B6 !important; }
+  body.clair .pastFiche[data-couleur="rouge"] { background:#FBE0DC !important; border-color:#EFC9C2 !important; }
+  body.clair .pastFiche[data-couleur="rose"]  { background:#F8DFEC !important; border-color:#E9C3D8 !important; }
+  body.clair .pastFiche[data-couleur="violet"]{ background:#E6E0F3 !important; border-color:#CFC5E4 !important; }
+  body.clair .pastFiche[data-couleur="bleu"]  { background:#DCEAF7 !important; border-color:#BFD6EC !important; }
+  body.clair .pastFiche[data-couleur="menthe"]{ background:#D9F1EC !important; border-color:#B8E0D7 !important; }
+  body.clair .pastFiche[data-couleur="vert"]  { background:#E2F3DC !important; border-color:#C3E2B9 !important; }
+  /* Dans la fiche ouverte : discret, à gauche, loin de « Fermer ».
+     C'est le seul geste qu'on ne rattrape pas. */
+  .fiPied .fgb.sup{ margin-left:0; }
+  .fgb.fgPetit{ font-size:11px; padding:3px 7px; opacity:.75; }
+  .fgb.fgPetit:hover{ opacity:1; }
+  /* Les flèches de rangement : le geste du téléphone, là où
+     glisser ferait défiler la page. */
+  .fgTel{ display:none; }
+  /* La carte qu'on tient, et celle où on va la poser. */
+  .ficheTexte.prise{ opacity:.4; }
+
+  /* ⛔ L'interdiction de David, en haut de l'écran. */
+  .biblioStop{ font-size:12.5px; font-weight:800; line-height:1.45;
+               color:var(--warn-text); background:var(--warn-bg);
+               border:1px solid var(--red); border-radius:10px;
+               padding:9px 11px; margin-bottom:12px; }
+
+  /* Le crayon de renommage, dans la ligne de l'étiquette. */
+  .etqCrayon{ font-size:11px; opacity:.35; padding:0 2px; cursor:pointer;
+              flex-shrink:0; }
+  .etqCrayon:hover{ opacity:1; }
+  .etqLigne.on .etqCrayon{ opacity:.7; }
+
+  /* ============================================================
+     LA FICHE OUVERTE — ON ÉCRIT DEDANS
+
+     Un clic sur la carte ouvre ceci, et fermer enregistre : il n'y
+     a pas de bouton « Enregistrer », comme dans Keep. Le titre et
+     le texte sont donc des CHAMPS, pas des paragraphes — mais
+     dessinés comme du texte, sinon l'écran ressemble à un
+     formulaire et on n'ose plus rien y toucher.
+     ============================================================ */
+  .ficheTexte{ cursor:pointer; }
+  .ficheTexte:hover{ border-color:var(--muted); }
+  .ficheTexte:focus-visible{ outline:2px solid var(--accent-text);
+                             outline-offset:2px; }
+
+  .fiTitre{ font-size:17px !important; font-weight:800 !important;
+            background:none !important; border:none !important;
+            border-bottom:1px solid var(--line) !important;
+            border-radius:0 !important; padding:2px 0 8px !important;
+            margin:0 0 10px !important; color:var(--cream); width:100%; }
+  .fiTexte{ width:100%; background:none; border:none; color:var(--cream);
+            font:inherit; font-size:15px; line-height:1.6; padding:0;
+            margin:0 0 14px; resize:vertical; min-height:180px; }
+  .fiTitre:focus, .fiTexte:focus{ outline:none; }
+  .fiVerrou{ font-size:12px; line-height:1.45; color:var(--warn-text);
+             background:var(--warn-bg); border:1px solid var(--red);
+             border-radius:10px; padding:9px 11px; margin-bottom:12px; }
+  .fiPied{ display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+           margin-top:10px; }
+  .fiPlus{ border-top:1px solid var(--line); padding-top:10px;
+           margin-bottom:6px; }
+  .fiPlus > summary{ font-size:12.5px; font-weight:700; color:var(--muted);
+                     cursor:pointer; list-style:none; padding:2px 0; }
+  .fiPlus > summary::-webkit-details-marker{ display:none; }
+  .fiPlus > summary::before{ content:"▸ "; }
+  .fiPlus[open] > summary::before{ content:"▾ "; }
+
+  /* Les étiquettes dans l'éditeur : on coche, on décoche. */
+  .mdEtiq{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px; }
+  .mdEtq{ font:inherit; font-size:12px; font-weight:700; border-radius:20px;
+          border:1px solid var(--line); background:var(--navy);
+          color:var(--muted); padding:5px 11px; cursor:pointer; }
+  .mdEtq.on{ background:var(--orange-soft); color:var(--ink);
+             border-color:var(--orange); }
+
+  /* Sous 760 px, le rail devient une rangée qui défile — le geste
+     de Keep sur un téléphone, et il ne mange pas l'écran. */
+  @media (max-width:760px){
+    /* La recherche prend toute la largeur : sinon les deux boutons
+       se partagent mal la ligne et l'import se retrouve seul en bas. */
+    .biblioBarre input{ flex:1 1 100%; }
+    .biblioCorps{ display:block; }
+    .biblioEtiq{ width:auto; flex-direction:row; overflow-x:auto;
+                 padding-bottom:6px; margin-bottom:10px; gap:6px; }
+    .etqLigne{ width:auto; flex-shrink:0; border-color:var(--line);
+               border-radius:20px; padding:6px 12px; }
+    .biblioFiches{ grid-template-columns:1fr; }
+    .ficheTexte .fgTel{ display:inline-block; }
+  }
+
+  .tuiles{
+    display:grid;
+    gap:9px;
+    grid-template-columns:repeat(auto-fit, minmax(158px, 1fr));
+  }
+
+  /* ⚠️ LES SECTIONS — v954.
+
+     Dès qu'un onglet réunit plusieurs permis, les tuiles se rangent
+     sous un titre : « tout d'affilée c'est illisible », dit David
+     de l'écran Moto, et vingt tuiles à la suite auraient le même
+     défaut.
+
+     La grille descend alors d'un cran : le conteneur devient une
+     pile de sections, et c'est chaque section qui grille. Sans ça,
+     les titres seraient des cases de la grille et se glisseraient
+     entre deux tuiles.
+
+     Le titre est discret et en petites capitales : c'est un
+     repère, pas un cri. */
+  .tuiles.sections{ display:block; }
+  .tuiles.sections .sectionTuiles + .sectionTuiles{
+    margin-top:14px; padding-top:12px; border-top:1px solid var(--line);
+  }
+  .tuiles.sections .sectionTuiles .titre{
+    font-size:11.5px; font-weight:800; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:8px;
+  }
+  .tuiles.sections .sectionTuiles .grille{
+    display:grid; gap:9px;
+    grid-template-columns:repeat(auto-fit, minmax(158px, 1fr));
+  }
+
+  /* ============================================================
+     MES TUILES — LE RANGEMENT DE CHACUN (v955)
+     ============================================================ */
+  .section-title .btnMesTuiles{
+    float:right; font:inherit; font-size:12px; font-weight:700;
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:8px; padding:4px 9px; color:var(--accent-text);
+    cursor:pointer;
+  }
+  .mesTuiles{ display:flex; flex-direction:column; }
+  .mtLigne{
+    display:flex; align-items:center; gap:6px; padding:7px 2px;
+    border-bottom:1px solid var(--line); font-size:13.5px;
+  }
+  /* Glisser à la souris : la ligne qu'on tient s'efface, celle où
+     l'on va se marque d'un trait. Sans ces deux repères, on lâche
+     sans savoir où ça tombe. */
+  .mtPoignee{ color:var(--muted); cursor:grab; font-size:14px; flex-shrink:0; }
+  .mtLigne.prise{ opacity:.4; }
+  .mtLigne.cible{ border-top:3px solid var(--accent-text); }
+  .mtLigne:last-child{ border-bottom:0; }
+  .mtLigne.off .mtNom{ color:var(--muted); font-weight:600; }
+  .mtFleche{
+    font:inherit; font-size:11px; background:var(--navy-deep);
+    border:1px solid var(--line); border-radius:6px; color:var(--cream);
+    padding:3px 5px; cursor:pointer; flex-shrink:0;
+  }
+  .mtFleche:disabled{ opacity:.3; cursor:default; }
+  .mtNom{ flex:1; min-width:0; font-weight:700; padding-left:6px; line-height:1.25; }
+  .mtCouleurs{ display:flex; gap:3px; flex-shrink:0; }
+  .mtPastille{
+    width:17px; height:17px; border-radius:5px; border:1px solid var(--line);
+    cursor:pointer; padding:0; font-size:10px; color:var(--muted);
+    background:var(--navy-deep); flex-shrink:0;
+  }
+  .mtPastille.choisie{ outline:2px solid var(--cream); outline-offset:1px; }
+  .mtEpingle{
+    font:inherit; font-size:13px; background:none; border:0; cursor:pointer;
+    opacity:.25; flex-shrink:0; padding:2px 4px;
+  }
+  .mtEpingle.on{ opacity:1; }
+  .mtCase{
+    width:20px; height:20px; border-radius:5px; border:2px solid var(--line);
+    background:none; color:var(--accent-text); font-weight:900; font-size:12px;
+    cursor:pointer; padding:0; flex-shrink:0;
+  }
+  .mtCase.on{ border-color:var(--accent-text); }
+
+  /* Sur un téléphone, les six teintes ne tiennent pas sur la même
+     ligne que le nom : elles passent dessous. Le nom, l'épingle et
+     la case, eux, restent ensemble — ce sont les trois gestes
+     qu'on fait le plus. */
+  @media (max-width:480px){
+    .mtLigne{ flex-wrap:wrap; }
+    .mtNom{ flex:1 1 auto; min-width:0; }
+    .mtCouleurs{ order:9; flex-basis:100%; padding-left:52px; margin-top:2px; }
+  }
+
+  .tuiles .tuile{
+    position:relative;
+    display:block;
+    text-align:left;
+    font-family:inherit;
+    background:var(--navy);
+    border:1px solid var(--line);
+    border-left:5px solid var(--line);
+    border-radius:12px;
+    padding:11px 13px;
+    cursor:pointer;
+    color:var(--cream);
+  }
+  .tuiles .tuile.urgent{ border-left-color:var(--red); }
+  .tuiles .tuile.att{ border-left-color:var(--ambre); }
+
+  /* ⚠️ LE LISERÉ PERSONNEL EST À DROITE, ET C'EST TOUT L'ENJEU.
+
+     Le bord GAUCHE dit déjà quelque chose : rouge pour « la
+     préfecture attend », ambre pour « ça patiente ». Poser la
+     marque de chacun dessus, c'est effacer le seul vocabulaire
+     que l'équipe partage — « regarde la tuile rouge » ne voudrait
+     plus rien dire d'un écran à l'autre.
+
+     À droite, la marque s'ajoute au lieu de remplacer : chacun
+     reconnaît ses tuiles, et le rouge reste le rouge de tout le
+     monde. Les six teintes proposées sont vérifiées sur les deux
+     thèmes — une couleur choisie à la main ne se vérifie pas. */
+  .tuiles .tuile[style*="--liser"]{
+    border-right:6px solid var(--liseré);
+  }
+  .tuiles .tuile .lib{
+    display:block;
+    font-size:12px;
+    font-weight:700;
+    color:var(--muted);
+    line-height:1.3;
+    padding-right:14px;
+  }
+  .tuiles .tuile .v{
+    display:block;
+    font-size:29px;
+    font-weight:900;
+    line-height:1.1;
+    margin-top:2px;
+    font-variant-numeric:tabular-nums;
+  }
+  /* Un sous-titre peut porter deux lignes — « 3 RVP 1 » et
+     « 1 RVP 2 » ne sont pas la même échéance et ne se lisent pas
+     l'un derrière l'autre. */
+  .tuiles .tuile .sous{ white-space:pre-line; }
+  .tuiles .tuile .sous{
+    display:block;
+    font-size:10.5px;
+    color:var(--muted);
+    line-height:1.35;
+  }
+  .tuiles .tuile .fl{
+    position:absolute;
+    top:9px; right:11px;
+    color:var(--accent-text);
+    font-weight:900;
+  }
+  .tuiles .rienASignaler{
+    grid-column:1 / -1;
+    font-size:13px;
+    line-height:1.55;
+    color:var(--accent-text);
+    font-weight:700;
+    padding:4px 2px;
+  }
+
+  [data-vue].hors-vue{ display:none !important; }
+
+
+  /* Préparer un cours : un vrai bouton, pas une ligne discrète.
+     C'est une action fréquente, elle doit se voir. */
+  details.volet-preparer{
+    border:2px solid var(--orange);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  details.volet-preparer > summary{
+    list-style:none;
+    cursor:pointer;
+    padding:20px 16px;
+    font-size:18px;
+    font-weight:700;
+    color:var(--accent-text);
+    background:rgba(182,255,14,.09);
+    text-align:center;
+    user-select:none;
+  }
+  details.volet-preparer > summary::-webkit-details-marker{ display:none; }
+  details.volet-preparer[open] > summary{
+    border-bottom:1px solid var(--line);
+  }
+  details.volet-preparer > *:not(summary){
+    margin:14px;
+  }
+  @media (min-width: 700px){
+    details.volet-preparer > summary{ font-size:20px; padding:24px 18px; }
+  }
+
+  /* Volets des listes, dans le suivi */
+  details.volet-liste{
+    border:1px solid var(--line);
+    border-radius:11px;
+    padding:0;
+    margin-bottom:9px;
+    overflow:hidden;
+  }
+  details.volet-liste > summary{
+    list-style:none;
+    cursor:pointer;
+    padding:12px 14px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-size:14px;
+    font-weight:700;
+    color:var(--cream);
+    user-select:none;
+  }
+  details.volet-liste > summary::-webkit-details-marker{ display:none; }
+  details.volet-liste > summary::after{
+    content:'▾';
+    margin-left:auto;
+    font-size:15px;
+    color:var(--muted);
+    transition:transform .18s ease;
+    flex-shrink:0;
+  }
+  details.volet-liste[open] > summary{
+    border-bottom:1px solid var(--line);
+    color:var(--accent-text);
+  }
+  details.volet-liste[open] > summary::after{ transform:rotate(180deg); }
+  details.volet-liste > *:not(summary){ margin-left:14px; margin-right:14px; }
+  details.volet-liste > *:last-child{ margin-bottom:12px; }
+  details.volet-liste .compteur{
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    background:var(--navy);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:2px 9px;
+    flex-shrink:0;
+  }
+  details.volet-liste .compteur.alerte{
+    color:var(--warn-text);
+    border-color:var(--red);
+  }
+
+  /* ---------- 🆕 L'écran des nouveautés — v975 ----------
+     Ce que l'outil vient de changer, une entrée par changement :
+     un emoji, ce que c'est, comment ça se comporte. Les couleurs
+     sont celles des variables, donc les deux thèmes suivent sans
+     qu'on écrive une seule règle de plus. */
+  .nvTitre{ font-size:18px; font-weight:800; margin:0 0 2px; }
+  .nvDate{ font-size:12px; color:var(--muted); margin-bottom:12px; }
+  .nvItem{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+  }
+  .nvItem:first-of-type{ border-top:none; padding-top:0; }
+  .nvItem .em{ font-size:19px; line-height:1.2; flex-shrink:0; }
+  .nvItem .corps{ flex:1; min-width:0; }
+  .nvItem .quoi{ font-size:14px; font-weight:800; line-height:1.3; }
+  .nvItem .comment{
+    font-size:13px;
+    color:var(--soft);
+    line-height:1.5;
+    margin-top:2px;
+  }
+  .nvPied{ display:flex; gap:8px; align-items:center; margin-top:16px; }
+  .nvPied .btn-primary{
+    width:auto;
+    margin:0 0 0 auto;
+    padding:9px 16px;
+    font-size:13px;
+    font-weight:800;
+  }
+
+  /* ---------- Modules en tiroirs ---------- */
+  details.card{padding:0;overflow:hidden;}
+  details.card > summary{
+    list-style:none;
+    cursor:pointer;
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:15px;
+    font-weight:700;
+    color:var(--cream);
+    user-select:none;
+  }
+  details.card > summary::-webkit-details-marker{display:none;}
+  details.card > summary::after{
+    content:'▾';
+    margin-left:auto;
+    font-size:16px;
+    color:var(--muted);
+    transition:transform .18s ease;
+    flex-shrink:0;
+  }
+  details.card[open] > summary::after{transform:rotate(180deg);}
+  details.card[open] > summary{
+    border-bottom:1px solid var(--line);
+    color:var(--accent-text);
+  }
+  details.card > .contenu-tiroir{padding:16px 18px 18px;}
+  details.card > summary .compteur{
+    font-size:12px;
+    font-weight:600;
+    color:var(--muted);
+    background:var(--navy);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:2px 9px;
+    flex-shrink:0;
+  }
+  @media (min-width: 700px){
+    details.card > summary{padding:18px 22px;font-size:16px;}
+    details.card > .contenu-tiroir{padding:18px 22px 22px;}
+  }
+
+  h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;}
+  /* ⚠️ LA MARGE NÉGATIVE APPARTIENT AU CHAMP, PAS À L'AIDE — v915.
+
+     Ce -8 px remonte l'aide sous un champ posé seul, qui porte sa
+     propre marge basse. Sous une ligne « flex » dont l'input est en
+     margin:0 — le champ du mail et son bouton ✉️ — il n'y a plus
+     rien à rattraper : le -8 px mord dans le champ, et
+     « Saisie une fois, elle est retenue… » s'affichait rayée par
+     la case du dessus.
+
+     On ne remonte donc plus l'aide : c'est le champ qui descend
+     moins. Là où l'aide suit une ligne flex, elle se pose
+     normalement. */
+  .hint{font-size:11px;color:var(--muted);margin:4px 0 14px;line-height:1.4;}
+  /* Le rattrapage ne se déclenche QUE derrière un champ nu, qui est
+     le seul à porter la marge basse qu'il s'agit d'annuler. Derrière
+     une ligne flex — le champ du mail et son bouton ✉️ — il n'y a
+     rien à rattraper, et l'aide se pose normalement. */
+  input + .hint, select + .hint, textarea + .hint{ margin-top:-8px; }
+
+  /* ============================================================
+     ADAPTATION AUX ÉCRANS
+     Téléphone par défaut ; tablette et ordinateur élargissent.
+     ============================================================ */
+
+  /* ---- Tablette : 700 px et plus ---- */
+  @media (min-width: 700px){
+    .wrap{max-width:900px;padding:24px 24px 60px;}
+    header h1{font-size:20px;}
+    .card{padding:22px;}
+
+    /* Les champs courts se placent côte à côte */
+    .duo{display:flex;gap:14px;}
+    .duo > *{flex:1;min-width:0;}
+
+    textarea.result{min-height:520px;font-size:14px;}
+    .transcript-box{max-height:420px;}
+    .modal{max-width:520px !important;}
+  }
+
+  /* ---- Ordinateur : 1100 px et plus ---- */
+  @media (min-width: 1100px){
+    .wrap{max-width:1280px;padding:28px 32px 70px;}
+
+    /* Deux colonnes : le travail à gauche, la consultation à droite */
+    #appView{
+      display:grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap:20px;
+      align-items:start;
+    }
+    /* Les modules larges occupent toute la largeur */
+    #appView > [data-section="bureau"],
+    #appView > [data-section="admin"],
+    #appView > #resultView,
+    #appView > #repriseBanner{
+      grid-column: 1 / -1;
+    }
+
+    /* À l'intérieur du suivi bureau : listes en colonnes */
+    [data-section="bureau"] .grille-bureau{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap:18px;
+      align-items:start;
+    }
+
+    /* Les lignes d'élève deviennent plus compactes */
+    .history-item .meta strong{font-size:15px;}
+    .history-item .meta span{font-size:12.5px;}
+
+    textarea.result{min-height:600px;}
+    .transcript-box{max-height:480px;}
+
+    /* Les boutons pleine largeur n'ont plus de sens sur grand écran */
+    .card > .btn, .btn-row .btn{max-width:100%;}
+    #recBtn{font-size:19px;padding:24px;}
+  }
+
+  /* ---- Très grand écran ---- */
+  @media (min-width: 1600px){
+    .wrap{max-width:1500px;}
+    #appView{grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);}
+    #appView > [data-section="bureau"],
+    #appView > [data-section="admin"],
+    #appView > #resultView,
+    #appView > #repriseBanner{ grid-column: 1 / -1; }
+  }
+
+
+  /* Fiche de préparation permis et réglage des places : en colonnes */
+  @media (min-width: 1100px){
+    .fiche-permis{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap:0 16px;
+      align-items:start;
+    }
+    .fiche-permis > .pleine-largeur{grid-column: 1 / -1;}
+
+    .mois-places{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap:16px;
+      align-items:start;
+    }
+
+    /* Les filtres tiennent sur une ligne */
+    .barre-filtres{display:flex;gap:10px;flex-wrap:wrap;}
+    .barre-filtres > select{flex:1;min-width:180px;margin-bottom:0;}
+  }
+
+  /* Confort au clavier et à la souris */
+  @media (hover: hover){
+    .btn:hover:not(:disabled){filter:brightness(1.08);}
+    .history-item:hover{background:rgba(127,127,127,.06);}
+    .raccourci:hover{border-color:var(--orange);}
+  }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">EC</div>
+    <div class="ec-titre">
+      <h1>Bilan de conduite</h1>
+      <p><span class="ec-lieux">Évolution Conduites — Saint-Brieuc · Loudéac </span><span id="versionAffichee" style="color:var(--accent-text);font-weight:700;">v665</span></p>
+    </div>
+    <div id="qui" style="display:none;margin-left:auto;text-align:right;
+         line-height:1.25;min-width:0;flex-shrink:1;overflow:hidden;">
+      <div id="quiNom" style="font-size:14px;font-weight:700;color:var(--cream);
+           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+      <div id="quiRole" style="font-size:11px;color:var(--muted);
+           white-space:nowrap;"></div>
+    </div>
+    <!-- Les procédures à corriger, sans aller les chercher. Elles
+         attendaient dans Élève > Procédures : il fallait penser à y
+         passer pour découvrir qu'il y avait du travail. Le bouton
+         ne s'affiche que s'il y en a, et que pour les comptes
+         autorisés (réglage dans Élève > Procédures). -->
+    <button id="procRaccourci" title="Procédures à corriger" style="display:none;
+            margin-left:8px;background:transparent;border:1px solid var(--orange);
+            color:var(--orange);border-radius:10px;height:44px;padding:0 11px;
+            font-size:18px;font-weight:800;cursor:pointer;flex-shrink:0;
+            align-items:center;gap:5px;">📥<span id="procRaccourciN"
+            style="font-size:14px;">0</span></button>
+
+    <!-- CHERCHER UN ÉLÈVE, D'OÙ QU'ON SOIT.
+
+         On pense « Léa », pas « quel écran ». L'outil obligeait à
+         traduire : Élèves > Historique pour ses cours, Élèves >
+         Répertoire pour sa fiche. La loupe part du nom.
+
+         Elle cherche DANS LA MÉMOIRE DU TÉLÉPHONE : les noms sont
+         déjà là, aucun appel réseau tant qu'on n'a pas choisi
+         quoi faire. -->
+    <!-- LA CB GASOIL, SOUS LA MAIN.
+
+         David : « on ne mettrait pas un bouton à côté de la loupe
+         en forme de CB, plutôt que d'aller dans les choses à voir
+         aujourd'hui ». Prendre la carte n'est pas une chose à voir
+         le matin : ça tombe à 14h, quand on part faire le plein.
+
+         Sa COULEUR porte l'état — doré si tu en as une, rouge si
+         quelqu'un en a une — et chaque LETTRE prend la couleur de
+         sa propre carte. Le barré, lui, ne sort que quand il n'y a
+         plus rien à prendre. Voir ec-cbgasoil.js. -->
+    <button id="cbBtn" title="La CB Gasoil" style="display:none;
+            margin-left:8px;background:transparent;border:1px solid var(--line);
+            color:var(--cream);border-radius:10px;height:44px;min-width:44px;
+            padding:0 10px;font-size:17px;cursor:pointer;flex-shrink:0;
+            align-items:center;justify-content:center;gap:2px;
+            position:relative;">💳</button>
+
+    <button id="loupeBtn" title="Chercher un élève" style="display:none;
+            margin-left:8px;background:transparent;border:1px solid var(--line);
+            color:var(--cream);border-radius:10px;width:44px;height:44px;
+            font-size:18px;cursor:pointer;flex-shrink:0;">🔍</button>
+
+    <!-- CE QUI NE SERT PAS TOUS LES JOURS PASSE DERRIÈRE UN ⋯.
+
+         Il y avait cinq boutons ici, dont un seul concernait le
+         travail du jour. Le guide, le thème et le contrôle de
+         version s'ouvrent une fois par mois : ils prenaient la
+         place de ce qu'on cherche vraiment. Ils restent à un seul
+         geste, mais ils ne se disputent plus l'espace.
+
+         Les identifiants ne changent pas : tout ce qui les affiche
+         ou les branche ailleurs continue de fonctionner. -->
+    <div id="plusZone" style="position:relative;flex-shrink:0;">
+      <button id="plusBtn" title="Guide, thème, version" style="
+              margin-left:8px;background:transparent;border:1px solid var(--line);
+              color:var(--cream);border-radius:10px;width:44px;height:44px;
+              font-size:20px;cursor:pointer;flex-shrink:0;">⋯</button>
+
+      <!-- ⚠️ PAS D'ATTRIBUT « hidden » ICI.
+
+           Il y en avait un, avec « display:flex » dans le style
+           inline juste à côté. L'inline l'emporte sur le
+           « display:none » que « hidden » applique : le menu ne
+           pouvait pas se fermer, il restait ouvert en permanence.
+
+           Une seule façon de cacher ce bloc : son propre
+           « display ». Deux mécanismes pour une même question, et
+           c'est toujours le mauvais qui gagne. -->
+      <!-- ⚠️ 90, ET PAS 60.
+
+           Sur grand écran — donc en plein écran sur un ordinateur —
+           la barre des onglets passe en haut, collante, à z-index 80.
+           Le menu, lui, était à 60 : il s'ouvrait DERRIÈRE elle.
+           « En plein écran, les trois points en haut passent sous la
+           barre des menus. »
+
+           90 le met au-dessus de la barre (80) et EN DESSOUS des
+           fenêtres (100) : une question posée dans une fenêtre doit
+           toujours recouvrir ce menu, jamais l'inverse. -->
+      <div id="plusMenu" style="display:none;position:absolute;right:0;top:52px;
+           z-index:90;background:var(--navy);border:1px solid var(--line);
+           border-radius:12px;padding:8px;flex-direction:column;
+           gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
+
+        <a id="guideBtn" href="guide.html?v=986" target="_blank" rel="noopener"
+           style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                  border-radius:9px;color:var(--cream);text-decoration:none;
+                  font-size:14px;">📘 <span>Guide d'utilisation</span></a>
+
+        <!-- 🆕 Les nouveautés — v975.
+
+             Une note lue disparaît du bandeau, et elle ne doit pas
+             être perdue pour autant : quelqu'un rentre de congés, ou
+             veut relire comment se comporte le bouton CB. Elle se
+             retrouve ici, juste au-dessus de « Vérifier la
+             version » — c'est le même sujet.
+
+             Elle reste visible avant la connexion, contrairement au
+             guide et à la version : elle ne dit rien de personne, et
+             une entrée qu'il faut penser à afficher est une entrée
+             qu'on oublie d'afficher. -->
+        <button id="nouveautesBtn" style="display:flex;align-items:center;gap:10px;
+                padding:10px 12px;border-radius:9px;background:transparent;
+                border:none;color:var(--cream);font-size:14px;cursor:pointer;
+                text-align:left;width:100%;"><span>🆕</span>
+                <span>Nouveautés de l'outil</span></button>
+
+        <!-- ⚠️ CHAQUE EMOJI A SON PROPRE BLOC, ET UN IDENTIFIANT.
+
+             Tant que ces deux boutons n'étaient qu'un emoji, le code
+             écrivait « bouton.textContent = '⏳' » pour montrer qu'il
+             travaillait. Maintenant qu'ils portent AUSSI un libellé,
+             cette écriture-là effacerait le libellé avec l'emoji — et
+             un menu dont les mots disparaissent au premier clic ne
+             sert plus à rien. Le code n'écrit donc plus que dans le
+             bloc de l'emoji. -->
+        <button id="versionBtn" style="display:flex;align-items:center;gap:10px;
+                padding:10px 12px;border-radius:9px;background:transparent;
+                border:none;color:var(--cream);font-size:14px;cursor:pointer;
+                text-align:left;width:100%;"><span id="versionIcone">🔄</span>
+                <span>Vérifier la version</span></button>
+
+        <!-- ⚠️ LES COMPTES PRINCIPAUX NE REÇOIVENT AUCUN DROIT — v919.
+
+             ⚙️ Accès ne propose le réglage fin que pour les comptes
+             qu'on a créés : les comptes principaux sont marqués 🔒
+             et n'ont pas de panneau du tout. Le droit d'essai posé
+             en v917 était donc INDONNABLE à David, qui est
+             précisément celui qui voulait le regarder.
+
+             D'où cette bascule personnelle : elle vaut pour CE
+             navigateur, elle se pose et se retire d'un clic, et
+             elle n'écrit dans les droits de personne. Un choix posé
+             ici l'emporte sur le droit — c'est ce qui permet aussi
+             à un moniteur à qui on l'a donnée de revenir à l'ancien
+             écran en pleine journée si elle le gêne. -->
+        <button id="coursNeufBtn" style="display:none;align-items:center;gap:10px;
+                padding:10px 12px;border-radius:9px;background:transparent;
+                border:none;color:var(--cream);font-size:14px;cursor:pointer;
+                text-align:left;width:100%;"><span>🆕</span>
+                <span id="coursNeufTexte">Nouvel écran de cours</span></button>
+
+        <button id="themeBtn" style="display:flex;align-items:center;gap:10px;
+                padding:10px 12px;border-radius:9px;background:transparent;
+                border:none;color:var(--cream);font-size:14px;cursor:pointer;
+                text-align:left;width:100%;"><span id="themeIcone">🌙</span>
+                <span>Changer de thème</span></button>
+      </div>
+    </div>
+
+    <!-- La déconnexion reste dehors : c'est le seul geste qu'on
+         cherche parfois en urgence, sur un téléphone qu'on prête. -->
+    <button id="logoutBtn" title="Se déconnecter" style="display:none;
+            margin-left:8px;background:transparent;border:1px solid var(--line);
+            color:var(--cream);border-radius:10px;width:44px;height:44px;
+            font-size:18px;cursor:pointer;flex-shrink:0;">🔓</button>
+  </header>
+
+  <div id="unsupportedBox"></div>
+
+  <!-- ÉCRAN DE DÉVERROUILLAGE -->
+  <div id="lockView">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:34px;margin-bottom:4px;">🔒</div>
+      <h2 class="section-title" style="text-align:center;">Connexion</h2>
+
+      <!-- Deux informations valent mieux qu'une : un code seul finit
+           par se deviner, un couple beaucoup moins. -->
+      <label for="identInput" style="text-align:left;">Ton prénom</label>
+      <input type="text" id="identInput" autocomplete="username"
+             style="text-align:center;font-size:19px;padding:13px;">
+
+      <label for="codeInput" style="text-align:left;">Code</label>
+      <input type="password" id="codeInput" inputmode="numeric"
+             autocomplete="current-password"
+             maxlength="8" placeholder="••••••"
+             style="text-align:center;letter-spacing:.5em;font-size:24px;padding:14px;">
+
+      <button class="btn btn-primary" id="codeBtn">Se connecter</button>
+      <div id="codeMsg" style="margin-top:12px;font-size:13px;min-height:18px;color:var(--muted);"></div>
+    </div>
+  </div>
+
+  <script>
+  /* ============================================================
+     CONNEXION DE SECOURS
+     Le bouton Déverrouiller est branché ici, dans la page même :
+     aucun module défaillant ne peut l'empêcher de fonctionner.
+     ============================================================ */
+  (function(){
+    var bouton = document.getElementById('codeBtn');
+    var champ  = document.getElementById('codeInput');
+    var msg    = document.getElementById('codeMsg');
+    if(!bouton) return;
+
+    function essayer(){
+      if(typeof deverrouiller === 'function'){ deverrouiller(); return; }
+
+      /* Les modules n'ont pas tous été chargés : on dit lesquels */
+      var attendus = ['ec-etat.js','ec-modeles.js','ec-consignes.js','ec-noyau.js',
+        'ec-vocal.js','ec-reseau.js','ec-manuel.js','ec-fenetres.js','ec-questionnaire.js',
+        'ec-permis.js','ec-prepares.js','ec-bureau.js','ec-places.js','ec-listes.js',
+        'ec-permis-listes.js','ec-postpermis.js','ec-textes.js','ec-correction.js',
+        'ec-bilans.js','ec-stats.js','ec-messenger.js','ec-journal.js',
+        'ec-onglets.js','ec-depart.js','ec-aac-cs.js','ec-demarrage.js',
+        'ec-avant-cours.js','ec-nouveautes.js','ec-trajet.js'];
+      var charges = window.EC_MODULES || {};
+      var manque = attendus.filter(function(f){ return !charges[f]; });
+
+      if(msg){
+        msg.style.color = 'var(--warn-text)';
+        msg.innerHTML = manque.length
+          ? '⚠️ Fichier(s) absent(s) sur le serveur :<br><strong>' +
+            manque.join('<br>') + '</strong><br>' +
+            '<span style="font-size:12px;">Vérifie qu\'ils sont bien dans le dossier app/ ' +
+            'sur GitHub, puis recharge la page.</span>'
+          : "⚠️ L'application n'a pas fini de charger. Recharge la page.";
       }
-    });
-  }, 0);
+    }
 
-  bEnr.addEventListener('click', async () => {
-    const g = k => document.getElementById(id + k);
-    bEnr.disabled = true;
-    bEnr.textContent = 'Enregistrement…';
-    try{
-      await appelPrep({
-        action: 'suiviSet',
-        eleve: e.eleve,
-        datePermis: (e.etat && e.etat.permisDate) || s.datePermis || '',
-        aRemplacer: g('rem').checked ? 'oui' : '',
-        dateADonner: g('don').checked ? 'oui' : '',
-        resteAPayer: g('pay').value.trim(),
-        paiementPrevu: g('qd').value,
-        relanceLe: g('rel').value,
-        nature: g('nat').value,
-        lecons2h: g('l2').value.trim(),
-        lecons1h: g('l1').value.trim(),
-        accompagnement: g('acc').checked ? 'oui' : '',
-        autre: g('aut').value.trim(),
-        reservations: g('res').value.trim(),
-        typeExamen: g('typ').value,
-        autoEcole: g('ae').value.trim(),
-        fantome: g('fan').checked ? 'oui' : '',
-        toutOk: g('ok').checked ? 'oui' : '',
-        fairePoint: g('point') && g('point').checked ? 'oui' : '',
-        statut: s.statut || '',
-        aPlanifier: s.aPlanifier || '',
-        semaine: s.semaine || '',
-        moniteurDate: s.moniteurDate || '',
-        par: ACCES.moniteur || ''
+    bouton.addEventListener('click', essayer);
+    if(champ){
+      champ.addEventListener('keydown', function(e){
+        if(e.key === 'Enter') essayer();
       });
-      etat.style.color = 'var(--accent-text)';
-      etat.textContent = '✅ Fiche enregistrée.';
-      await chargerBureau();
-      /* Signal pour la fenêtre, qui se referme d'elle-même */
-      f.dataset.enregistre = 'oui';
-    }catch(err){
-      etat.style.color = 'var(--warn-text)';
-      etat.textContent = 'Erreur : ' + err.message;
-    }finally{
-      bEnr.disabled = false;
-      bEnr.textContent = '💾 Enregistrer la fiche';
     }
-  });
+  })();
+  </script>
 
-  return d;
-}
+    <nav id="barreOnglets" role="tablist" aria-label="Navigation" style="display:none;">
+    <button class="onglet" data-cible="cours"  type="button"><span>🎙️</span>Cours</button>
+    <button class="onglet" data-cible="eleves" type="button"><span>🔍</span>Élèves</button>
+    <button class="onglet" data-cible="suivi"  type="button"><span>📓</span>Suivi</button>
+    <button class="onglet" data-cible="permis" type="button"><span>🚗</span>Permis</button>
+    <button class="onglet" data-cible="outils" type="button"><span>🔨</span>Outils</button>
+    <button class="onglet" data-cible="gestion" type="button"><span>⚙️</span>Gestion</button>
+  </nav>
 
-/* Résumé court de la fiche, affiché sous le nom */
-function resumeSuivi(eleve){
-  const s = etatBureau.suivi.find(x => normaliserMot(x.eleve) === normaliserMot(eleve));
-  if(!s) return '';
-  const bouts = [];
-  /* En premier : c'est une consigne pour le prochain moniteur */
-  if(s.fairePoint === 'oui'){
-    bouts.push('❓ Faire le point à la leçon' +
-               (String(s.fairePointLe || '').trim()
-                 ? ' du ' + s.fairePointLe : ''));
-  }
-  if(s.toutOk === 'oui') bouts.push('✅ tout est OK');
-  if(s.statut === 'annule') bouts.push('❌ examen annulé');
-  if(s.fantome === 'oui') bouts.push('👻 place fantôme');
-  if(s.aRemplacer === 'oui') bouts.push('🔄 place à remplacer');
-  if(s.dateADonner === 'oui'){
-    bouts.push('🏫 date à donner à une autre auto-école' +
-               (s.autoEcole ? ' : ' + s.autoEcole : ''));
-  }
-  /* Le centre d'examen : information de première importance quand
-     on répartit les places entre Saint-Brieuc et Loudéac. */
-  if(s.centre) bouts.push('🏁 ' + s.centre);
-  if(s.resteAPayer) bouts.push('💰 reste ' + s.resteAPayer);
-  if(s.paiementPrevu) bouts.push('paiement ' + dateCourte(s.paiementPrevu));
-  if(s.relanceLe) bouts.push('relancé le ' + dateCourte(s.relanceLe));
-  const nat = { acheter:'à acheter', reserver:'à réserver', both:'à acheter et réserver' }[s.nature];
-  if(nat){
-    const det = [];
-    if(s.lecons2h) det.push(s.lecons2h + '×2h');
-    if(s.lecons1h) det.push(s.lecons1h + '×1h');
-    if(s.accompagnement === 'oui') det.push('accompagnement');
-    if(s.autre) det.push(s.autre);
-    bouts.push(nat + (det.length ? ' : ' + det.join(', ') : ''));
-  }
-  if(s.reservations) bouts.push('📅 ' + s.reservations);
-  return bouts.join(' · ');
-}
+  <!-- LE BANDEAU DU JOUR — au-dessus des onglets, donc visible sur
+       tous les écrans. Il se remplit en fond, après le premier
+       écran : rien ici ne doit retarder l'ouverture. Vide, il
+       disparaît entièrement — voir ec-bandeau.js. -->
+  <div id="bandeauJour" style="display:none;"></div>
+
+  <!-- ⚠️ LE COURS EN ROUTE, PARTOUT — v937.
+
+       David : « le bandeau suit ». Il est donc ici, au-dessus des
+       onglets et en dehors de « appView » : Élèves, Suivi, Permis,
+       Outils, Gestion — où qu'on aille, on sait qu'un cours tourne
+       et on peut y revenir d'un geste.
+
+       Il est COLLANT : sur dix-sept cours, la carte du cours en
+       route peut être trois écrans plus haut. Une marque qu'il faut
+       aller chercher ne sert qu'à ceux qui savaient déjà.
+
+       Vide, il disparaît entièrement — un bandeau qui occupe la
+       place en disant « rien à signaler » est une carte de moins à
+       l'écran, sur un téléphone. -->
+  <div id="bandeauCoursEnRoute" style="display:none;"></div>
+
+  <!-- ⚠️ LES SIX BARRES DE VUES SONT ENSEMBLE — v922.
+
+       Quatre étaient ici et deux — « suivi » et « permis » — vivaient
+       à l'intérieur d'« appView », posées là au fil du temps. Tant
+       qu'une barre n'était qu'une rangée de boutons au-dessus du
+       contenu, ça ne se voyait pas.
+
+       Ça se voit dès qu'on veut en faire une COLONNE : deux barres
+       rangées ailleurs que les autres, ce sont deux mises en page à
+       écrire au lieu d'une. Elles reviennent donc auprès des leurs,
+       et « zoneTravail » les met toutes en rapport avec le contenu
+       qu'elles commandent. Rien ne les cherche par leur place :
+       « construireBarresVues » et « afficherVue » les trouvent par
+       leur « data-pour ». -->
+  <div id="zoneTravail">
+  <div class="barre-vues" data-pour="cours" style="display:none;"></div>
+  <div class="barre-vues" data-pour="eleves" style="display:none;"></div>
+  <div class="barre-vues" data-pour="suivi" style="display:none;"></div>
+  <div class="barre-vues" data-pour="permis" style="display:none;"></div>
+  <div class="barre-vues" data-pour="outils" style="display:none;"></div>
+  <div class="barre-vues" data-pour="gestion" style="display:none;"></div>
+  <div id="appView" style="display:none;">
+
+  <div id="repriseBanner" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">💾 Cours interrompu retrouvé</div>
+    <div id="repriseInfo" style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.5;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="repriseOui">Reprendre</button>
+      <button class="btn btn-secondary" id="repriseNon">🗑️ Supprimer</button>
+    </div>
+  </div>
+
+  <!-- Les cours préparés en premier : c'est par là que passent
+       les moniteurs qui ont préparé leur journée. -->
+  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
+    <h2 class="section-title">📅 Mes prochains cours <span class="compteur" id="cptPrepares"></span></h2>
+    <div class="contenu-tiroir">
+    <label style="display:flex;align-items:center;gap:10px;text-transform:none;
+                  font-size:14px;color:var(--muted);margin-bottom:10px;">
+      <input type="checkbox" id="prepTous" style="width:18px;height:18px;">
+      Voir aussi les cours des autres moniteurs
+    </label>
+    <!-- Le filtre par moniteur n'a de sens qu'avec la case ci-dessus -->
+    <select id="prepQui" style="display:none;margin-bottom:10px;"></select>
+    <div id="listePrepares"></div>
+
+  </div>
+  </div>
+
+  <!-- Préparer un cours : sa propre carte, repliée par défaut.
+       C'est une action occasionnelle, elle ne doit pas s'interposer
+       entre la liste des cours et le démarrage. -->
+  <div class="card" data-section="prepares" data-vue="prepares" data-onglet="cours">
+    <details id="prepTiroir">
+      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;
+                      padding:4px 0;">
+        ➕ Préparer un cours pour plus tard
+      </summary>
+      <div style="margin-top:14px;">
+        <label for="prepDate">Date du cours</label>
+        <input type="date" id="prepDate">
+        <label for="prepHeure">Heure du cours</label>
+        <input type="time" id="prepHeure">
+        <label for="prepEleve">Prénom et nom de l'élève</label>
+        <input type="text" id="prepEleve" list="listeEleves" autocomplete="off"
+               placeholder="Choisis dans la liste ou tape un nom">
+
+        <!-- Pour qui : sans ce choix, un cours préparé restait
+             forcément celui de son auteur. -->
+        <label for="prepPour">Pour quel moniteur</label>
+        <select id="prepPour"></select>
+        <div id="prepInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
+        <div id="prepHistorique" style="display:none;margin-bottom:14px;"></div>
+        <label for="prepModele">Type de bilan</label>
+        <select id="prepModele"></select>
+        <button class="btn btn-primary" id="prepBtn">📝 Préparer les notes</button>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4;">
+          Le questionnaire s'ouvre pour préparer les notes. Le jour du cours,
+          un appui sur « Ouvrir » remplit tout : plus qu'à démarrer l'enregistrement.
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ⚠️ LE TRAJET DU COURS — v986, section d'essai « trajet ».
+
+       Il vit ICI, au-dessus des deux écrans de cours, et pas dans
+       l'un d'eux : le bouton « 📍 Repère ici » doit être le MÊME
+       que le bilan soit dicté ou rempli à la main. Un second
+       bouton dans l'écran manuel, ce serait le même geste écrit à
+       deux endroits — et le jour où l'un des deux change, c'est le
+       moniteur qui découvre lequel.
+
+       Invisible pour qui n'a pas la case cochée dans ⚙️ Accès :
+       ni ligne d'état, ni bouton, ni demande de géolocalisation.
+       Voir ec-trajet.js. -->
+  <div id="blocTrajet" data-onglet="cours" style="display:none;margin-bottom:16px;">
+    <div class="trajet-etat" id="trajetEtat"></div>
+    <button class="btn-repere" type="button" id="repereBtn">📍 Repère ici</button>
+  </div>
+
+  <!-- Le module de cours en dernier : le bouton « Ouvrir » de la
+       liste au-dessus y amène directement. -->
+  <div id="recordView" data-onglet="cours" data-section="cours" data-vue="cours">
+    <div class="card">
+      <h2 class="section-title">🎙️ Démarrer un cours</h2>
+      <div class="contenu-tiroir">
+      <label for="modele">Type de bilan</label>
+      <select id="modele"></select>
+      <div id="alerteBoite" style="display:none;"></div>
+
+      <!-- Le moniteur est celui de la session : le redemander n'a
+           pas de sens et laisse la place aux fautes de frappe.
+           Le champ reste, invisible, car le bilan le transporte. -->
+      <input type="hidden" id="monitorName">
+
+      <label for="studentName">Prénom et nom de l'élève</label>
+      <input type="text" id="studentName" list="listeEleves" autocomplete="off"
+             placeholder="Ex : Pierre Dupont">
+      <div id="studentInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 8px;line-height:1.4;"></div>
+      <div id="historiqueEleve" style="display:none;margin-bottom:14px;"></div>
+      <!-- Ce que le moniteur vient de renseigner au questionnaire.
+           Sa propre zone : celle de la préparation est effacée quand
+           il n'y a pas de préparation, ce qui l'emportait avec. -->
+      <div id="saisieDuJour" style="display:none;margin-bottom:14px;"></div>
+
+      <!-- Le mail, et non plus le Messenger : c'est par là que les
+           moniteurs écrivent aux élèves, et c'est cette adresse
+           qu'il faut pour lui envoyer son bilan. -->
+      <label for="eleveMessenger">✉️ Adresse mail de l'élève</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="email" id="eleveMessenger" inputmode="email" autocomplete="off"
+               placeholder="prenom.nom@exemple.fr — retenue pour la suite"
+               style="flex:1;min-width:0;margin:0;">
+        <a id="eleveMessengerLien" href="#" target="_blank" rel="noopener"
+           class="btn btn-secondary" title="Écrire à l'élève"
+           style="display:none;width:auto;padding:11px 13px;font-size:16px;margin:0;
+                  flex-shrink:0;text-decoration:none;align-items:center;">✉️</a>
+      </div>
+      <div class="hint" id="eleveMessengerEtat">
+        Saisie une fois, elle est retenue : tous les moniteurs la retrouveront ici.
+      </div>
+
+      <div class="duo">
+        <div>
+          <label for="site">Site</label>
+          <select id="site">
+            <option>Saint-Brieuc</option>
+            <option>Loudéac</option>
+          </select>
+        </div>
+        <div>
+          <label for="lessonDate">Date du cours</label>
+          <input type="date" id="lessonDate">
+        </div>
+      </div>
+
+      <!-- La note du moniteur précédent est déjà résumée sous le nom
+           de l'élève : l'afficher deux fois n'apporte rien. Le champ
+           reste présent, invisible, car il porte la note jusqu'à
+           l'enregistrement du bilan. -->
+      <div id="blocNoteInterne" style="display:none;">
+        <label for="noteInterne">🔒 Historique</label>
+        <textarea id="noteInterne" rows="3" maxlength="600"></textarea>
+      </div>
+
+      <!-- Les élèves d'une séance à plusieurs : juste au-dessus du
+           micro, là où la main se trouve déjà. -->
+      <div id="barrePostes" style="display:none;"></div>
+
+      <!-- Le questionnaire ne s'ouvre plus tout seul au départ : il
+           s'ouvre d'ici, quand le moniteur en a besoin. Juste
+           au-dessus du micro, parce que c'est là qu'on regarde
+           avant de lancer le cours, et que le bouton dit en rouge
+           ce qui manque. -->
+      <div class="raccourcis" id="raccourcisNoteCours"></div>
+
+      <!-- ⚠️ LE RÉSUMÉ D'AVANT LE COURS, ICI ET EN GRAND — v931.
+
+           David : « il est trop caché, le bouton cours précédent et
+           fiche véhicule ; mets-le en grand sous Compléter les
+           infos ».
+
+           Il était posé tout en haut, sous le nom de l'élève, sous
+           la forme d'un petit triangle gris : à bout de bras dans
+           une voiture, personne ne le voyait. Il vit maintenant là
+           où la main se trouve déjà — juste au-dessus du bouton de
+           départ, à côté de « Compléter les infos » — et il a la
+           taille d'un bouton, pas d'une ligne d'aide.
+
+           ⚠️ DEUX ENDROITS POSSIBLES, UN SEUL CONTENU. C'est la
+           même fonction qui le dessine, dans l'une ou l'autre zone
+           selon qu'on vient d'une carte ou non ; jamais dans les
+           deux à la fois. Voir chargerHistoriqueEleve. -->
+      <div id="resumeAvantCours"></div>
+
+      <button class="rec-btn idle" id="recBtn">🎙️ Démarrer le cours</button>
+      <div class="status" id="status">Appuie pour lancer l'enregistrement en début de cours.</div>
+
+      <!-- Le bilan manuel : proposé tant que le cours n'a pas
+           démarré. Une fois le micro lancé, il n'a plus lieu d'être
+           et disparaît avec son explication. -->
+      <div id="zoneManuel">
+        <button class="btn" id="manuelBtn"
+                style="margin-top:12px;background:var(--action-main);
+                       color:var(--sur-action-main);">✍️ Bilan à remplir à la main</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
+          Sans micro ni résumé automatique : tu remplis chaque rubrique toi-même,
+          en écrivant ou en dictant champ par champ.
+        </div>
+      </div>
+
+      <!-- Le simulateur à plusieurs : un moniteur, jusqu'à quatre
+           élèves, un bilan chacun. -->
+      <button class="btn btn-secondary" id="postesBtn"
+              style="margin-top:8px;padding:11px;font-size:13px;display:none;">🎮 Plusieurs élèves à la fois</button>
+
+      <div id="etatMicro" style="text-align:center;font-size:26px;font-weight:800;margin-top:14px;line-height:1.3;"></div>
+      <div id="diagMicro" style="text-align:center;font-size:21px;font-weight:700;color:var(--muted);margin-top:8px;line-height:1.35;"></div>
+
+      <!-- Pendant le cours, ce que le moniteur coche vient d'abord :
+           le début du bilan, puis la fiche véhicule. La transcription
+           les suit — on la relit à la fin, on coche en roulant. -->
+      <div id="enteteCours" style="display:none;margin-top:14px;"></div>
+
+      <div id="ficheCours" style="display:none;margin-top:14px;"></div>
+
+      <div class="compteur" id="compteur"></div>
+
+      <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
+      <textarea class="transcript-box" id="transcriptBox" style="display:none;"
+                placeholder="Le texte capté apparaîtra ici. Tu peux le corriger avant de générer le bilan."></textarea>
+
+      <!-- L'examen blanc d'un rendez-vous pédagogique : sous la
+           transcription, on le remplit après avoir dicté le cours. -->
+      <div id="examenBlancCours" style="display:none;margin-top:14px;"></div>
+
+      <div id="transcriptAide" style="display:none;font-size:13px;color:var(--muted);margin-top:6px;text-align:center;">
+        ✏️ Mets en pause pour corriger le texte à la main avant de générer.<br>
+        💾 Sauvegarde automatique dans ce téléphone : en cas de plantage, tout est récupérable.
+      </div>
+    </div>
+    </div>
+
+    <!-- Fond rouge sourd : la génération est facturée, elle ne se
+         déclenche pas par réflexe comme un bouton ordinaire. -->
+    <button class="btn" id="finishBtn"
+            style="display:none;margin-top:46px;padding:20px;font-size:16px;
+                   background:var(--action-terminer);
+                   border:2px solid var(--action-terminer);
+                   color:var(--sur-action-terminer);
+                   font-weight:700;">✅ Terminer et générer le bilan 💶</button>
+  </div>
+
+  <div id="manuelView" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
+    <h2 class="section-title">✍️ Bilan à remplir à la main</h2>
+    <div id="manuelInfo" style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;"></div>
+    <!-- Le même cadre que sur l'écran de cours : le moniteur doit voir
+         ce qu'il vient de renseigner, et sa fiche véhicule. -->
+    <div id="preparationManuel" style="display:none;margin-bottom:16px;"></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
+      <span id="aideManuel">Remplis chaque rubrique.</span>
+    </div>
+    <!-- En premier : on vérifie ce qu'on sait de l'élève AVANT de
+         remplir vingt rubriques, pas après. -->
+    <div class="raccourcis" id="raccourcisNoteManuel"></div>
+
+    <div id="manuelChamps"></div>
+    <button class="btn btn-primary" id="manuelGen">📄 Composer le bilan</button>
+    <button class="btn btn-secondary" id="manuelAnnul">Revenir</button>
+  </div>
+
+  <div id="rdvPostView" data-onglet="cours" class="card" style="display:none;border-color:var(--orange);">
+    <h2 class="section-title">🔁 Rendez-vous post-permis</h2>
+    <div id="rdvPostEleve" style="font-size:16px;font-weight:700;margin-bottom:4px;"></div>
+    <div id="rdvPostInfo" style="font-size:13px;color:var(--muted);margin-bottom:14px;"></div>
+
+    <!-- Ce que le moniteur de l'examen a demandé : il n'est pas
+         forcément celui qui corrige. -->
+    <div id="rdvPostExamen" style="display:none;margin-bottom:14px;
+         padding:10px 12px;border:1px solid var(--orange);border-radius:10px;"></div>
+
+    <div id="rdvPostCepc" style="margin-bottom:14px;"></div>
+
+    <details style="margin-bottom:14px;">
+      <summary style="cursor:pointer;font-size:14px;font-weight:700;color:var(--accent-text);">
+        📄 Bilan d'examen officiel</summary>
+      <textarea id="rdvPostBilan" rows="10"
+                style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
+                       padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
+                       font-family:inherit;resize:vertical;margin-top:8px;"></textarea>
+      <!-- ⚠️ UN TEXTE QUI APPARAÎT TOUT SEUL DIT D'OÙ IL VIENT.
+           Le bilan de l'examen officiel est repris automatiquement
+           depuis les bilans enregistrés de l'élève. Sans cette
+           ligne, le moniteur trouve un texte qu'il n'a pas écrit et
+           le relit avec méfiance — ou pire, le prend pour le sien. -->
+      <div id="rdvPostBilanSource" class="hint"
+           style="display:none;margin-top:6px;color:var(--accent-text);"></div>
+    </details>
+
+    <label for="rdvPostEleveBilan">📝 Bilan écrit par l'élève — corrige-le avec lui</label>
+    <textarea id="rdvPostEleveBilan" rows="10"
+              placeholder="Colle ici ce que l'élève a écrit, ou saisis-le pendant l'entretien."
+              style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
+                     padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
+                     font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+
+    <label for="rdvPostTexte">✍️ Tes remarques et compléments</label>
+    <textarea id="rdvPostTexte" rows="5"
+              placeholder="Ce que tu ajoutes, ce qu'il faut retenir de l'entretien"
+              style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
+                     padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
+                     font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+
+    <label for="rdvPostSuite">Conclusion — que fait-on ensuite ?</label>
+    <select id="rdvPostSuite">
+      <option value="">— à définir —</option>
+    </select>
+
+    <input type="text" id="rdvPostHeures" inputmode="numeric"
+           placeholder="Combien d'heures avant le repassage ?" style="display:none;">
+
+    <label for="rdvPostCom">Commentaire pour le bureau</label>
+    <textarea id="rdvPostCom" rows="3" maxlength="600"
+              placeholder="Ex : progrès nets sur les giratoires, reste les priorités à droite"
+              style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
+                     padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.5;
+                     font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+
+    <button class="btn btn-primary" id="rdvPostEnr">✅ Terminer le rendez-vous</button>
+    <button class="btn btn-secondary" id="rdvPostAnnul">Revenir</button>
+    <div id="rdvPostMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+  </div>
+
+  <div id="generatingView" data-onglet="cours" class="card" style="display:none; text-align:center;">
+    <div class="spinner" style="margin:10px auto;"></div>
+    <div style="margin-top:12px;font-size:15px;color:var(--soft);">Génération du bilan en cours…</div>
+    <div id="progressionGen" style="margin-top:8px;font-size:14px;color:var(--accent-text);font-weight:600;"></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);">Un cours de 2h prend environ une minute.</div>
+
+    <!-- Un élève attend déjà : le bilan se fabrique en arrière-plan
+         pendant qu'on démarre le cours suivant. -->
+    <button class="btn btn-secondary" id="autreCoursBtn"
+            style="display:none;margin-top:16px;padding:12px;font-size:13px;">
+      🚗 Commencer un autre cours
+    </button>
+  </div>
+
+  <!-- La bannière qui annonce un bilan terminé en arrière-plan -->
+  <div id="bilanPretBanner" data-onglet="cours" style="display:none;
+       border:1px solid var(--orange);border-radius:12px;
+       padding:11px 13px;margin-bottom:12px;"></div>
+
+  <div id="resultView" data-onglet="cours" style="display:none;">
+    <div class="card">
+      <div style="background:var(--warn-bg);border:1px solid var(--red);
+           border-radius:12px;padding:14px;margin-bottom:16px;">
+        <label for="noteResult" style="margin-bottom:8px;">🔒 Frise · Examen blanc possible ? · Date d'examen ? — visible uniquement moniteurs</label>
+        <textarea id="noteResult" rows="3" maxlength="600"
+                  placeholder="Note interne — Ex : frise reprise, examen blanc possible, date d'examen à prévoir"
+                  style="margin-bottom:6px;"></textarea>
+        <div class="raccourcis" id="raccourcisNoteResult"></div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px;">
+          Jamais transmise à l'élève. Visible par le moniteur suivant lors d'une recherche.
+          Enregistrée quand tu appuies sur « Copier et enregistrer ».
+        </div>
+      </div>
+      <label>Bilan généré — relis et complète avant envoi</label>
+      <div class="hint">Les cases laissées en ✅❌ / ❓ sont à compléter par toi : notes chiffrées, nombre d'heures, choix de branche.</div>
+      <textarea class="result" id="resultText"></textarea>
+
+      <!-- Ajouter une procédure au bilan, quel qu'il soit : à la
+           voix pendant le cours, à la main ici. -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <select id="ajoutProcedure" style="flex:1;min-width:0;margin:0;">
+          <option value="">📋 Ajouter une procédure…</option>
+        </select>
+        <button class="btn btn-secondary" id="ajoutProcedureBtn"
+                style="width:auto;padding:11px 14px;font-size:13px;margin:0;
+                       flex-shrink:0;">Ajouter</button>
+      </div>
+
+      <!-- Demander à l'élève de réciter, avant de refermer le
+           cours : c'est le moment où le moniteur sait ce qui a
+           manqué. -->
+      <details id="tiroirRecitations" style="display:none;border:1px solid var(--line);
+               border-radius:12px;padding:10px 12px;margin-bottom:12px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;
+                 color:var(--accent-text);">📌 Lui demander de réciter</summary>
+        <div style="font-size:11px;color:var(--muted);margin:8px 0;
+             line-height:1.5;">
+          Coche ce qu'il doit réciter chez lui. Le message sera ajouté
+          en fin de bilan, avec son code d'accès.
+        </div>
+        <div id="listeRecitations"></div>
+      </details>
+
+      <!-- Le cours d'un autre moniteur, repris depuis le bureau :
+           on ne l'enregistre pas à sa place, on le lui renvoie. Il
+           était dans la voiture, lui seul peut valider la correction. -->
+      <button class="btn btn-secondary" id="renvoyerMoniteur"
+              style="display:none;font-size:15px;padding:15px;font-weight:700;
+                     margin-bottom:10px;border-color:var(--bleu);
+                     color:var(--bleu);">📤 Renvoyer au moniteur pour correction</button>
+
+      <button class="btn btn-primary" id="copyBtn"
+              style="font-size:17px;padding:20px;font-weight:700;
+                     border-width:2px;">📋 Copier, enregistrer et terminer</button>
+      <div id="finEtat" style="margin-top:8px;font-size:13px;line-height:1.5;
+           min-height:16px;"></div>
+
+      <!-- Le numéro de leçon se corrige aussi : un moniteur qui
+           découvre l'outil l'oublie souvent la première fois, et
+           toute la frise s'en trouve décalée. -->
+      <div id="corrigerLecon" style="display:none;margin-top:10px;
+           border:1px solid var(--line);border-radius:10px;padding:10px 12px;">
+        <label for="corrLeconN" style="margin:0 0 6px;">Quelle leçon était-ce ?</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" id="corrLeconN" min="1" max="60" placeholder="—"
+                 style="width:88px;font-size:17px;text-align:center;margin:0;">
+          <button class="btn btn-secondary" id="corrLeconBtn"
+                  style="width:auto;padding:11px 14px;font-size:13px;margin:0;">
+            ✏️ Corriger la leçon</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5;">
+          Corrige le numéro dans le bilan et dans ses notes.
+        </div>
+      </div>
+
+      <!-- La fiche d'évaluation handicap : PDF et envoi par mail -->
+      <div id="handicapActions" style="display:none;"></div>
+
+      <button class="btn btn-primary" id="corrigerBtn"
+              style="display:none;margin-top:8px;font-size:14px;padding:13px;">
+        💾 Enregistrer la correction
+      </button>
+
+      <div id="exportEtat" style="display:none;border:1px solid var(--line);border-radius:12px;
+           padding:12px 14px;margin-top:14px;font-size:14px;line-height:1.5;"></div>
+
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:4px 0;">
+          Autres actions</summary>
+        <button class="btn btn-secondary" id="exportSheetsBtn"
+                style="margin-top:8px;font-size:13px;padding:11px;">
+          📊 Enregistrer sans copier</button>
+        <button class="btn btn-secondary" id="correctionBtn"
+                style="margin-top:8px;font-size:13px;padding:11px;">
+          ⚠️ Signaler une erreur du moniteur</button>
+      </details>
+
+      <!-- Quitter sans enregistrer : volontairement discret, pour
+           qu'on ne l'utilise pas à la place du bouton principal. -->
+      <button class="btn btn-secondary" id="newLessonBtn"
+              style="margin-top:20px;padding:12px;font-size:13px;">
+        Quitter sans enregistrer</button>
+    </div>
+  </div>
+
+  <!-- 👤 LE DOSSIER ÉLÈVE
+
+       Un endroit par élève, où l'on voit tout et d'où l'on modifie
+       tout. La carte est vide en HTML : tout se dessine depuis
+       ec-page-eleve.js, parce que son contenu dépend de qui est
+       ouvert ET des droits du compte. -->
+  <div class="card" data-section="eleves" data-vue="dossier" data-onglet="eleves">
+    <h2 class="section-title">👤 Dossier élève</h2>
+    <div class="contenu-tiroir">
+      <div id="pageEleve"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="recherche" data-vue="recherche" data-onglet="eleves">
+    <h2 class="section-title">📚 Historique des leçons</h2>
+    <div class="contenu-tiroir">
+    <label for="searchName">Prénom et nom de l'élève</label>
+    <input type="text" id="searchName" list="listeEleves" autocomplete="off"
+           placeholder="Choisis dans la liste ou tape un nom">
+    <datalist id="listeEleves"></datalist>
+    <div id="eleveInfo" style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;"></div>
+    <div class="duo">
+      <div>
+        <label for="searchMoniteur">Moniteur</label>
+        <select id="searchMoniteur">
+          <option value="">Tous les moniteurs</option>
+        </select>
+      </div>
+      <div>
+        <label for="searchSite">Site</label>
+        <select id="searchSite">
+          <option value="">Tous les sites</option>
+          <option value="Saint-Brieuc">Saint-Brieuc</option>
+          <option value="Loudéac">Loudéac</option>
+        </select>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin:-8px 0 14px;line-height:1.4;">
+      Laisse le nom de l'élève vide et choisis un moniteur pour voir tous ses bilans.
+    </div>
+    <button class="btn btn-secondary" id="searchBtn">🔍 Rechercher</button>
+    <div id="searchResults" style="margin-top:14px;"></div>
+
+    <div id="zoneSuppression" style="display:none;margin-top:18px;padding-top:16px;
+         border-top:1px solid var(--line);">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        🗑️ Permis obtenu ou départ de l'auto-école ? Tu peux effacer définitivement
+        tous les bilans de cet élève. Action irréversible.
+      </div>
+      <button class="btn btn-secondary" id="supprimerEleveBtn"
+              style="color:var(--red);border-color:var(--red);">🗑️ Supprimer tous ses bilans</button>
+      <div id="suppressionMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ============================================================
+       « EN UN COUP D'ŒIL » — LA PORTE D'ENTRÉE DE L'ONGLET (v946)
+
+       Une tuile n'est pas une décoration : c'est un BOUTON, et il
+       ouvre l'écran qu'il compte. Une tuile à zéro ne s'affiche
+       pas, une tuile qui mène à un écran refusé n'existe pas.
+
+       La zone est vide dans la page : c'est ec-onglets.js qui la
+       remplit, en relisant les compteurs que les listes ont déjà
+       posés. Écrire les tuiles ici aurait fait un second endroit
+       où les nombres vivent.
+       ============================================================ -->
+  <div class="card" data-section="bureau" data-vue="coup" data-onglet="suivi">
+    <h2 class="section-title">📍 En un coup d’œil</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        Ce qui attend, et rien d’autre. Chaque tuile ouvre son écran.
+      </div>
+      <div class="tuiles"><div class="empty">Lecture des listes…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="bureau" data-vue="simu" data-onglet="suivi">
+    <h2 class="section-title">🌙 Suivi simulateurs et examens blancs</h2>
+    <div class="contenu-tiroir">
+    <button class="btn btn-secondary" id="bureauBtn">🔄 Actualiser les listes</button>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;">
+      Actualisation automatique toutes les 90 s, sauf pendant une saisie.
+    </div>
+
+    <details style="margin-top:16px;">
+      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;">
+        ➕ Ajouter une date manuellement
+      </summary>
+      <div style="margin-top:14px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+          Pour un élève qui n'apparaît pas dans les listes. La date rejoint
+          directement ses notes internes au prochain cours.
+        </div>
+        <label for="addEleve">Prénom et nom de l'élève</label>
+        <input type="text" id="addEleve" list="listeEleves" autocomplete="off"
+               placeholder="Choisis dans la liste ou tape un nom">
+        <label for="addType">Type</label>
+        <select id="addType">
+          <option value="permis">🚗 Examen du permis</option>
+          <option value="examblanc">📝 Examen blanc</option>
+          <option value="simu">🌙 Simulateur nuit et risques</option>
+        </select>
+        <label for="addEtat">Situation</label>
+        <select id="addEtat">
+          <option value="aprevoir">À prévoir — pas encore de date</option>
+          <option value="date">Date fixée</option>
+        </select>
+        <div id="addZoneDate" style="display:none;">
+          <label for="addDate">Date</label>
+          <input type="date" id="addDate">
+        </div>
+        <label for="addLecons">Leçons restantes (facultatif)</label>
+        <input type="text" id="addLecons" inputmode="numeric" placeholder="Ex : 3">
+        <button class="btn btn-primary" id="addBtn">✅ Enregistrer</button>
+        <div id="addEtatMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+      </div>
+    </details>
+
+    <div class="grille-bureau" style="margin-top:18px;">
+    <details class="volet-liste" data-section="bureau_simu">
+      <summary>🌙 Simulateurs nuit et risques <span class="compteur" id="cptSimu"></span></summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        À faire obligatoirement avant l'examen blanc.</div>
+      <div id="listeSimu"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
+
+    <details class="volet-liste" data-section="bureau_examblanc">
+      <summary>📝 Examens blancs à prévoir <span class="compteur" id="cptEB"></span></summary>
+      <div id="listeExamBlanc"><div class="empty">Appuie sur Actualiser.</div></div>
+
+    </details>
+    </div>
+
+    </div>
+  </div>
 
 
-/* ============================================================
-   RÉPARTITION DES PLACES D'EXAMEN
-   ============================================================ */
-/* Une entrée par mois : on planifie en général sur le mois en cours, M+1 et M+2 */
-/* placesConfig : déclaré dans ec-etat.js */
+  <div class="card" data-section="ecoutes" data-vue="ecoutes" data-onglet="suivi">
+    <h2 class="section-title">👂 Écoutes pédagogiques</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Qui ne réserve pas d'écoutes, et qui réserve sans venir.
+      </div>
+      <div id="ecoutesZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
 
-/* ============================================================
-   LA RÉPARTITION, RANGÉE COMME ON PREND LES PLACES
 
-   « Il y a trop d'info ici, les dates se répètent. Quand on prend
-   les places sur le site des rendez-vous, chaque personne a sa
-   liste. »
+  <!-- ============================================================
+       « EN UN COUP D'ŒIL » — LA PORTE D'ENTRÉE DE L'ONGLET (v946)
 
-   Deux défauts, un seul geste pour les deux :
+       Une tuile n'est pas une décoration : c'est un BOUTON, et il
+       ouvre l'écran qu'il compte. Une tuile à zéro ne s'affiche
+       pas, une tuile qui mène à un écran refusé n'existe pas.
 
-   ① LE RANGEMENT NE SUIVAIT PAS LE TRAVAIL. L'écran groupait par
-      semaine ; le site des rendez-vous, lui, demande une liste par
-      personne. On recomposait donc de tête, à chaque fois.
+       La zone est vide dans la page : c'est ec-onglets.js qui la
+       remplit, en relisant les compteurs que les listes ont déjà
+       posés. Écrire les tuiles ici aurait fait un second endroit
+       où les nombres vivent.
+       ============================================================ -->
+  <div class="card" data-section="bureau_permis" data-vue="coup" data-onglet="permis">
+    <h2 class="section-title">📍 En un coup d’œil</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;">
+        Ce qui attend, et rien d’autre. Chaque tuile ouvre son écran.
+      </div>
+      <div class="tuiles"><div class="empty">Lecture des listes…</div></div>
+    </div>
+  </div>
 
-   ② LA MÊME DATE, QUATRE FOIS. La semaine et le centre étaient
-      écrits en tête du groupe, puis redits sur CHAQUE ligne
-      d'élève. Trois élèves d'une même semaine, et l'œil devait
-      vérifier trois fois que c'était bien la même.
+  <div class="card" data-section="bureau_permis" data-vue="moto" data-onglet="permis">
+    <h2 class="section-title">🏍️ Permis moto</h2>
+    <div class="contenu-tiroir">
+      <button class="btn btn-secondary" id="motoActualiser">🔄 Actualiser</button>
+      <div id="motoZone"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+  </div>
 
-   La ligne d'un élève ne porte donc plus que son nom. La vue par
-   semaine reste, derrière un bouton : c'est elle qui montre qu'une
-   semaine est surchargée.
-   ============================================================ */
-let vuePlaces = 'personne';
+  <div class="card" data-section="bureau_permis" data-vue="remorque" data-onglet="permis">
+    <h2 class="section-title">🚚 Permis remorque</h2>
+    <div class="contenu-tiroir">
+      <button class="btn btn-secondary" id="remorqueActualiser">🔄 Actualiser</button>
+      <div id="remorqueZone"><div class="empty">Appuie sur Actualiser.</div></div>
+    </div>
+  </div>
 
-function tableauAPlacer(liste){
-  const bloc = document.createElement('div');
-  if(!liste.length) return bloc;
+  <!-- ═══ SUIVI CS ═══════════════════════════════════════════
+       Dans SUIVI, et pas dans Permis : ces élèves-là n'ont pas de
+       date d'examen, ils ne sont candidats à rien encore. On les
+       suit, on ne prépare pas leur passage — et la liste débouche sur
+       l'examen blanc, qui est dans la même vue.
 
-  const nb = v => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; };
-  const CENTRES = ['Saint-Brieuc', 'Loudéac'];
+       DEUX SOUS-ONGLETS SÉPARÉS, pas deux tiroirs dans un même écran.
+       Le suivi CS et le suivi AAC ne se ressemblent pas : le premier
+       est un compteur et une question, le second des échéances et
+       trois parcours. Les mettre côte à côte obligeait à replier l'un
+       pour lire l'autre. Voir app/ec-aac-cs.js. -->
+  <div class="card" data-section="suivi_aac_cs" data-vue="suivics" data-onglet="suivi">
+    <h2 class="section-title">🤝 Suivi conduite supervisée</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ceux qui roulent avec leur accompagnateur, et qu'on ne revoit
+        pas toutes les semaines. Le compteur part de leur
+        <strong>rendez-vous préalable</strong>.<br>
+        Leur a-t-on demandé s'ils se sentent prêts pour un examen
+        blanc&nbsp;? Dès qu'ils disent oui, ils partent dans
+        « 📝 Examen blanc à prévoir » et reprennent le chemin habituel.
+      </div>
 
-  /* Les places de chaque semaine, par centre : c'est ce qu'on
-     ajoute au bout de chaque titre. */
-  const joursDe = {};
-  toutesSemaines().forEach(w => {
-    const lib = libelleSemaine(w) +
-      ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-    joursDe[lib] = { 'Saint-Brieuc': nb(w.sb), 'Loudéac': nb(w.lo) };
-  });
+      <div id="reglageCs"></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">
+        <span class="compteur" id="cptCs"></span></div>
+      <div id="listeCs"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
 
-  const det = document.createElement('details');
-  det.open = true;
-  const som = document.createElement('summary');
-  som.style.cssText = 'cursor:pointer;color:var(--accent-text);font-weight:700;' +
-    'font-size:14px;margin-bottom:8px;';
-  som.textContent = '📊 Répartition des places — ' + liste.length + ' élève(s)';
-  det.appendChild(som);
+  <!-- ═══ SUIVI AAC ══════════════════════════════════════════ -->
+  <div class="card" data-section="suivi_aac_cs" data-vue="suiviaac" data-onglet="suivi">
+    <h2 class="section-title">🎓 Suivi conduite accompagnée</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les trois rendez-vous, leurs échéances, et la date à partir de
+        laquelle l'examen est possible — <strong>1 an après le
+        préalable ET 17 ans révolus</strong>, la plus tardive des deux.
+      </div>
 
-  const corps = document.createElement('div');
-  corps.style.cssText = 'margin-bottom:12px;';
+      <div id="filtresAac" style="margin-bottom:10px;"></div>
+      <!-- Où se tiennent les rendez-vous pédagogiques. Modifiable
+           ici, là où on en voit l'effet — pas trois écrans plus
+           loin dans les réglages. -->
+      <div id="lieuxRdvAac"></div>
+      <!-- Les propositions de rendez-vous théorique en cours, avec
+           leur grille de réponses. Au-dessus de la liste : c'est
+           quand elle se remplit qu'on veut la voir. -->
+      <div id="toursRvt"></div>
+      <!-- Les rendez-vous déjà retenus, jusqu'au lendemain :
+           qui vient, et de quoi les rappeler. -->
+      <div id="rvtPrevus"></div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:8px;">
+        <span class="compteur" id="cptAac"></span></div>
+      <div id="listeAac"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
 
-  /* Le bouton de bascule : la vue par personne pour prendre les
-     dates, la vue par semaine pour vérifier qu'aucune ne déborde. */
-  const barre = document.createElement('div');
-  barre.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;';
-  [['personne', '👤 Par personne'], ['semaine', '📅 Par semaine']].forEach(([v, lib]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    /* Mêmes classes que partout : une couleur écrite à la main ici
-       serait la troisième définition du même bouton. */
-    b.className = 'btn ' + (vuePlaces === v ? 'btn-primary' : 'btn-secondary');
-    b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;' +
-      'border-radius:8px;' + (vuePlaces === v ? 'font-weight:700;' : '');
-    b.textContent = lib;
-    b.addEventListener('click', () => { vuePlaces = v; redessinerBureau(); });
-    barre.appendChild(b);
-  });
-  corps.appendChild(barre);
+  <div class="card" data-section="bureau_permis" data-vue="sessions" data-onglet="permis">
+    <!-- Reprendre en une fois ce que disent déjà les notes :
+         examen blanc, sa date et les heures avant permis. -->
+    <details class="volet-liste" style="margin-bottom:14px;">
+      <summary>🔄 Reprendre les examens blancs</summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;
+                  line-height:1.5;">
+        Les notes des bilans portent déjà le résultat de l'examen blanc,
+        sa date et les heures avant permis. Ce bouton les verse dans le
+        suivi, sans toucher à ce qui a été saisi à la main.
+      </div>
+      <button class="btn btn-secondary" id="rattrapageBtn"
+              style="padding:11px;font-size:13px;">
+        🔄 Mettre à jour depuis les notes</button>
+      <div id="rattrapageEtat" style="display:none;margin-top:9px;
+           font-size:13px;color:var(--accent-text);"></div>
+    </details>
 
-  /* ---- Le titre d'un groupe semaine + centre, avec ses places ----
+    <!-- Les semaines ouvertes par la préfecture, au-dessus des
+         sessions qu'elles rendent possibles. -->
+    <div id="blocPlaces" style="margin-bottom:14px;"></div>
+    <h2 class="section-title">🎓 Sessions d'examen</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Une ligne par demi-journée. Appuie pour voir qui passe, puis sur un
+        élève pour son dossier.
+      </div>
+      <div id="sessionsPermis"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
 
-     « Au bout de la ligne, ajoute le nombre de places ouvertes pour
-     le centre et la semaine en question. » C'est le chiffre qui
-     décide si l'on peut encore poser quelqu'un là : il se lit au
-     bout du titre, pas sur une ligne à part. */
-  const titreGroupe = (semaine, centre, combien) => {
-    const t = document.createElement('div');
-    t.style.cssText = 'display:flex;gap:8px;align-items:baseline;margin:8px 0 3px;' +
-      'font-size:13px;font-weight:700;color:var(--accent-text);flex-wrap:wrap;';
+  <div class="card" data-section="bureau_permis" data-vues="pasprets envisager preppermis resultats" data-onglet="permis">
+    <h2 class="section-title">🚗 Permis</h2>
+    <div class="contenu-tiroir">
+    <button class="btn btn-secondary" id="permisBureauBtn">🔄 Actualiser les listes</button>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.4;">
+      Actualisation à l'ouverture, puis toutes les 90 s hors saisie.
+    </div>
 
-    const g = document.createElement('span');
-    g.style.cssText = 'flex:1;min-width:0;';
-    g.textContent = '📍 ' + centre + ' · ' + semaine;
-    t.appendChild(g);
+    <!-- Les semaines ouvertes par la préfecture : c'est ce qu'on
+         vient chercher en ouvrant cet écran. -->
 
-    /* ⚠️ CE SONT DES JOURS OUVERTS, PAS DES PLACES.
+    <!-- LA BARRE DE FILTRES DE « PAS PRÊTS » — v943.
 
-       David : « c'est pas des places qui sont ouvertes sur les
-       semaines, ce sont des jours ». Les PLACES se comptent au
-       mois — le total, la 1ʳᵉ et la 2ᵉ quinzaine. Les JOURS
-       d'examen se comptent à la semaine, par centre.
+         Quatre volets à ouvrir un par un devenaient quatre gestes
+         pour savoir ce qu'il y avait à faire. Les filtres portent
+         leur compte : on lit la charge de travail SANS rien
+         ouvrir, et un filtre à zéro ne s'affiche pas.
 
-       La nuance décide d'une alerte : un jour d'examen accueille
-       PLUSIEURS candidats. Comparer le nombre d'élèves au nombre
-       de jours n'a donc aucun sens, et l'avertissement « plus que
-       de places » aurait crié à tort toutes les semaines. Seul
-       zéro jour ouvert est une vraie alerte : là, personne ne peut
-       passer. */
-    const dispo = joursDe[semaine] ? joursDe[semaine][centre] : undefined;
-    const p = document.createElement('span');
-    p.style.cssText = 'font-size:11.5px;font-weight:700;flex-shrink:0;' +
-      'white-space:nowrap;color:' +
-      (dispo === 0 ? 'var(--red)' : 'var(--muted)');
-    p.textContent = (dispo === undefined)
-      ? combien + ' élève(s)'
-      : combien + ' élève(s) · ' + nbFr(dispo) + ' jour(s) ouvert(s)' +
-        (dispo === 0 ? ' ⚠️ aucun jour ici' : '');
-    t.appendChild(p);
+         ⚠️ LES COMPTES NE SONT PAS RECALCULÉS ICI. Ils sont lus
+         sur les compteurs que chaque liste a déjà posés. Recompter
+         serait une seconde vérité, et c'est toujours la mauvaise
+         qui gagne. -->
+    <div class="filtres-vue" data-onglet="permis" data-vue="pasprets" style="margin:10px 0 4px;"></div>
 
-    return t;
-  };
+    <!-- La même barre, pour « À envisager » : trois volets empilés
+         qui se cachent l'un l'autre. Elle se construit toute seule à
+         partir des « data-famille » des volets — voir
+         majFiltresDeVue dans ec-onglets.js. -->
+    <div class="filtres-vue" data-onglet="permis" data-vue="envisager" style="margin:10px 0 4px;"></div>
 
-  /* ---- Une ligne d'élève : son nom, et rien qu'on ait déjà dit ---- */
-  const ligneEleve = (e, sansMoniteur) => {
-    const s = suiviDe(e.eleve);
-    const l = document.createElement('div');
-    l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:4px 0 4px 16px;';
+    <div data-section="bureau_places">
+      <div id="alertePrise" style="margin-bottom:12px;"></div>
 
-    const nom = document.createElement('span');
-    nom.style.cssText = 'flex:1;color:var(--cream);font-size:14px;min-width:0;';
-    nom.textContent = (s.nbAjournements ? '🔁 ' : '') + e.eleve +
-      (sansMoniteur ? ' · moniteur à définir' : '');
-    l.appendChild(nom);
+      <!-- Ceux qui n'ont pas le niveau : c'est ce qui empêche de
+           placer un examen, donc ça vient en premier. -->
+      <details data-vue="pasprets" data-famille="pasniveau" class="volet-liste" style="margin-bottom:12px;">
+        <summary>⛔ Examen blanc — pas le niveau
+          <span class="compteur" id="cptPasNiveau"></span></summary>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+          Replacer un examen blanc ou fixer un nombre d'heures.</div>
+        <div id="listePasNiveau"><div class="empty">Appuie sur Actualiser.</div></div>
+      </details>
 
-    /* La mention post-permis reste : elle dit qu'il n'est pas encore
-       plaçable, et c'est justement au moment de placer qu'on la lit. */
-    if(s.rdvPostDate && s.rdvPostFait !== 'oui'){
-      const att = document.createElement('span');
-      att.style.cssText = 'flex-shrink:0;font-size:11px;font-weight:700;' +
-        'color:var(--orange);border:1px solid var(--orange);' +
-        'border-radius:999px;padding:2px 8px;white-space:nowrap;';
-      att.textContent = '⏳ attente post-permis';
-      att.title = 'Rendez-vous post-permis prévu le ' +
-        ((typeof dateEnToutesLettres === 'function')
-          ? dateEnToutesLettres(s.rdvPostDate) : s.rdvPostDate) +
-        ". Sa place d'examen se prend après.";
-      l.appendChild(att);
-    }
+      <!-- Les examens blancs déjà datés -->
+      <details data-vue="envisager" data-famille="ebprevus" class="volet-liste" style="margin-bottom:14px;">
+        <summary>📝 Examens blancs prévus
+          <span class="compteur" id="cptEBPrevus"></span></summary>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
+          Ceux dont la date est posée, du plus proche au plus lointain.</div>
+        <div id="listeEBPrevus"><div class="empty">Appuie sur Actualiser.</div></div>
+      </details>
 
-    /* ------------------------------------------------------------
-       ATTRIBUER SANS OUVRIR LA FICHE
+    </div>
+    <!-- ⚠️ DEUX LISTES ÉTAIENT ENFERMÉES DANS LA PREMIÈRE — v943.
 
-       « Quand ils sont là, il faut que je puisse les attribuer. »
+         « 🚫 Examen non planifiable » et « ⛔ Pas de repassage »
+         étaient écrites À L'INTÉRIEUR du volet « ⏳ Attente bilan
+         post-permis ». Il fallait donc ouvrir celui-là, qui ne
+         parle pas du tout de la même chose, rien que pour
+         apprendre qu'elles existaient. Un dossier bloqué par une
+         pièce manquante pouvait attendre là des semaines sans que
+         personne le voie.
 
-       Le groupe « ⚠️ À attribuer » nommait le manque sans donner de
-       quoi le combler : il fallait descendre chercher la fiche
-       détaillée de chacun. Le bouton ouvre la même fenêtre que la
-       fiche — avec les favoris et leurs étoiles — donc un seul
-       endroit décide de qui peut prendre une date.
+         Les trois sont au même niveau, et la barre de filtres
+         au-dessus les compte toutes les quatre. -->
+    <details data-vue="pasprets" data-famille="attente" class="volet-liste" style="margin-top:16px;" data-section="bureau_permis">
+      <summary>⏳ Attente bilan post-permis <span class="compteur" id="cptAttente"></span></summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        Élèves ajournés : colle leur bilan puis fixe le rendez-vous post-permis.</div>
+      <div id="listeAttenteBilan"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-       Il n'apparaît que là où il sert : quand personne n'est
-       désigné, ou dans la vue par semaine, où le groupe ne dit pas
-       qui prend. Dans la vue par personne, le nom est déjà en tête
-       du groupe. */
-    /* Trois réglages, trois boutons, TOUJOURS LÀ.
+    <details data-vue="pasprets" data-famille="nonplanif" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+      <summary>🚫 Examen non planifiable <span class="compteur" id="cptNonPlanif"></span></summary>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+          Signalé par le moniteur au questionnaire : ce n'est pas une question de
+          niveau, c'est un dossier qui bloque — ANTS, avis médical, pièce manquante.</div>
+        <div id="listeNonPlanifiable"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-       « Et pareil quand ils sont déjà attribués. » Un bouton qui
-       n'apparaît qu'au moment où quelque chose manque ne sert
-       qu'une fois : il faut aussi pouvoir CHANGER. Ils sont donc
-       tous les trois sur chaque ligne, en orange quand la réponse
-       manque, discrets quand elle est là. */
-    const reglage = (icone, titre, valeur, ouvrir, champ) => {
-      const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'width:auto;padding:6px 9px;font-size:14px;margin:0;' +
-        'flex-shrink:0;' + (valeur ? '' :
-          'color:var(--orange);border-color:var(--orange);');
-      b.textContent = icone;
-      b.title = valeur ? (titre + ' : ' + valeur + ' — appuie pour changer')
-                       : titre;
-      b.addEventListener('click', async () => {
-        const v = await ouvrir();
-        if(v === null) return;
-        b.disabled = true;
-        try{
-          const maj = {};
-          maj[champ] = v;
-          await majSuivi(e.eleve, maj);
-          await chargerBureau();
-          redessinerBureau();
-        }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
-      });
-      l.appendChild(b);
-    };
+    <details data-vue="pasprets" data-famille="pasrepassage" class="volet-liste" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+      <summary>⛔ Pas de repassage pour le moment <span class="compteur" id="cptPasRep"></span></summary>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+          Reprise des leçons avant de se décider.</div>
+        <div id="listePasRepassage"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-    reglage('👤', 'Qui prend la date', s.moniteurDate || '',
-            () => choisirQuiPrendLaDate(s.moniteurDate || ''), 'moniteurDate');
+    <details data-vue="envisager" data-famille="prets" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+      <summary>🚗 Élèves prêts au permis <span class="compteur" id="cptAPrevoir"></span></summary>
+      <select id="filtrePermis" style="margin-bottom:10px;">
+        <option value="">Tous — par priorité</option>
+        <option value="premier">🆕 Premier passage</option>
+        <option value="repassage">🔁 Repassages</option>
+        <option value="urgent">🔴 Urgents seulement</option>
+        <option value="aprevoir">Date à prévoir</option>
+        <option value="annule">❌ Examens annulés</option>
+        <option value="sansprio">Sans priorité définie</option>
+      </select>
+      <div id="listePermis"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-    reglage('📍', "Centre d'examen", s.centre || '',
-            () => choisirDansUneListe("Centre d'examen",
-              ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
-              s.centre || ''), 'centre');
+    <details data-vue="envisager" data-famille="rdvpermis" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+      <summary>🗓️ Liste RDV PERMIS <span class="compteur" id="cptAPlacer"></span></summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        Cochés depuis la liste précédente. Indique qui prend la date et sur quelle semaine.</div>
+      <div id="listeAPlacer"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-    /* LES SEMAINES, DANS LE MÊME ORDRE QU'AILLEURS.
+    <details data-vue="preppermis" class="volet-liste" style="margin-top:20px;" data-section="bureau_permis">
+      <summary>📣 Message groupe Messenger</summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.4;">
+        Choisis une date : les groupes définis dans « Permis prévus » sont repris,
+        et chaque groupe compose ses messages.</div>
+      <!-- Le contenu est entièrement construit par ec-messenger.js :
+           un menu statique ici ferait doublon avec le sien. -->
+      <div id="messengerZone">
+        <div class="empty">Chargement…</div></div>
+    </details>
 
-       Celles dont la journée d'attribution est passée descendent en
-       bas de la liste — comme dans la fiche. Deux tris différents
-       pour une même question finiraient par proposer deux choses
-       différentes. */
-    reglage('🗓️', 'Semaine à viser', s.semaine || '', () => {
-      const libDe = w => libelleSemaine(w) +
-        ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-      const encore = w => {
-        if(typeof dateDePrise !== 'function') return true;
-        const iso = String(w.du || w.au || '');
-        const m2 = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
-        if(!m2) return true;
-        const d = dateDePrise(m2[1], Number(m2[2]) <= 15 ? 1 : 2);
-        if(!d) return true;
-        return d >= todayLocal();
-      };
-      const toutes = toutesSemaines();
-      const vers = w => ({
-        val: libDe(w),
-        lib: semaineCourte(w) +
-             (joursDuCentre(w, s.centre) ? ' — ' + joursDuCentre(w, s.centre) : '') +
-             (encore(w) ? '' : ' · prise passée')
-      });
-      return choisirDansUneListe('Semaine à viser',
-        toutes.filter(encore).map(vers).concat(toutes.filter(w => !encore(w)).map(vers)),
-        s.semaine || '');
-    }, 'semaine');
+    <!-- Les messages envoyés un par un, pour le permis en solo.
+         Ils viennent des textes types, catégorie « Permis solo ». -->
+    <details data-vue="preppermis" class="volet-liste" data-section="bureau_permis">
+      <summary>✉️ Message permis SOLO</summary>
+      <div id="soloZone">
+        <div class="empty">Chargement…</div></div>
+    </details>
 
-    /* ------------------------------------------------------------
-       LA BOÎTE — DÉDUITE, PUIS ÉCRITE, ET L'ÉCRAN DIT LEQUEL
 
-       David, le 4 septembre : « ici il me manque s'ils sont en BV
-       ou BEA, et la possibilité de changer ».
 
-       C'est plus qu'un affichage : une voiture est manuelle OU
-       automatique, donc c'est la boîte qui décide qui peut passer
-       avec qui. Sans elle sous les yeux, on forme des groupes qui ne
-       tiennent pas dans une voiture.
+    <details data-vue="resultats" class="volet-liste" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);" data-section="bureau_permis">
+      <summary>🏁 Examens passés — résultat à saisir <span class="compteur" id="cptPasses"></span></summary>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4;">
+        Apparaissent automatiquement le lendemain de la date d'examen.</div>
+      <div id="listePostExamen"><div class="empty">Appuie sur Actualiser.</div></div>
+    </details>
 
-       Trois états, et le bouton les distingue :
-         · CREUX  — personne n'a tranché, la boîte vient de sa
-                    formation. C'est une déduction, elle se voit
-                    comme telle.
-         · PLEIN  — quelqu'un a répondu : c'est écrit dans
-                    « typeExamen », et ça vaut partout ailleurs.
-         · le troisième appui rend la case à la formation. Sans ce
-           retour, une erreur de doigt s'écrirait pour toujours.
+    </div>
+  </div>
+  <div class="card" data-section="rappels" data-vue="rappels" data-onglet="eleves">
+    <h2 class="section-title">🔔 Rappels de cours</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Le rappel part <strong>par mail</strong> : à l'élève, et à son financeur
+        quand son adresse est renseignée — lui reçoit une version formelle, qui
+        lui sert de justificatif. C'est gratuit, contrairement au SMS.
+        <br><em>Rien ne part tout seul : tu relis et tu envoies élève par élève.</em>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button class="btn btn-secondary" id="rappelModeManuel"
+                style="flex:1;padding:12px;font-size:14px;margin:0;">✍️ À la main</button>
+        <button class="btn btn-secondary" id="rappelModeHistorique"
+                style="flex:1;padding:12px;font-size:14px;margin:0;">📜 Historique</button>
+      </div>
 
-       ⚠️ Il écrit EXACTEMENT le champ que le menu « Boîte » de la
-       fiche de place remplit déjà. Une seule colonne, deux endroits
-       pour la poser — jamais deux colonnes. */
-    const bBoite = document.createElement('button');
-    bBoite.className = 'btn btn-secondary';
-    const peindreBoite = () => {
-      const ecrit = String(s.typeExamen || '').toLowerCase();
-      const vue = ecrit || (typeof boiteDe === 'function'
-        ? String(boiteDe(e.eleve) || '').toLowerCase() : '');
-      const bea = (vue === 'bea');
-      const teinte = !vue ? 'var(--orange)' : (bea ? '#5DADE2' : 'var(--accent-text)');
-      bBoite.textContent = vue ? vue.toUpperCase() : '？';
-      bBoite.style.cssText = 'width:auto;padding:6px 8px;font-size:11px;' +
-        'font-weight:800;margin:0;flex-shrink:0;letter-spacing:.03em;' +
-        'color:' + teinte + ';border-color:' + teinte + ';' +
-        /* Plein = quelqu'un a répondu. Creux = c'est déduit. */
-        (ecrit ? 'background:' + (bea ? 'rgba(93,173,226,.18)'
-                                      : 'rgba(182,255,14,.14)') + ';' : '');
-      bBoite.title = !vue
-        ? 'Boîte inconnue — appuie pour la choisir'
-        : (ecrit ? 'Boîte : ' + vue.toUpperCase() +
-                   ' (choisie) — appuie pour changer'
-                 : 'Boîte : ' + vue.toUpperCase() +
-                   " (d'après sa formation) — appuie pour la fixer");
-    };
-    peindreBoite();
-    bBoite.addEventListener('click', async () => {
-      const ecrit = String(s.typeExamen || '').toLowerCase();
-      /* bv → bea → d'après sa formation → bv … */
-      const suite = ecrit === 'bv' ? 'bea' : ecrit === 'bea' ? '' : 'bv';
-      bBoite.disabled = true;
-      try{
-        await majSuivi(e.eleve, { typeExamen: suite });
-        await chargerBureau();
-        redessinerBureau();
-      }catch(err){
-        showToast('Erreur : ' + err.message);
-        bBoite.disabled = false;
+      <div id="rappelHistoriqueBloc" style="display:none;">
+        <div id="rappelHistorique"><div class="empty">Chargement…</div></div>
+      </div>
+
+      <div id="rappelManuel">
+        <div id="rappelManuelZone"><div class="empty">Chargement…</div></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <div class="card" data-section="financements" data-vue="financements" data-onglet="eleves">
+    <h2 class="section-title">💶 Financements</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Pôle emploi, Région Bretagne et code aménagé, lus dans le classeur de suivi.
+      </div>
+      <div id="financementsZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="evaluation" data-vue="evaluation" data-onglet="eleves">
+    <h2 class="section-title">📊 Évaluation de départ</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Saisis les heures rendues par le simulateur : le reste se calcule.
+      </div>
+      <div id="evaluationZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="handicap" data-vue="handicap" data-onglet="eleves">
+    <h2 class="section-title">♿ Handicap</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les dossiers de codification et de régularisation, lus dans le classeur de suivi.
+      </div>
+      <div id="handicapZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="code" data-vue="code" data-onglet="eleves">
+    <h2 class="section-title">🎓 Code</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les douze séances d'ETG, lues depuis les formulaires scannés en salle.
+      </div>
+      <div id="codeZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="proccorriger" data-vue="proccorriger" data-onglet="eleves">
+    <h2 class="section-title">📥 Procédures à corriger</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ce que les élèves envoient sur Messenger, en attente de correction.
+      </div>
+      <div id="procCorrigerZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="eleves" data-vue="eleves" data-onglet="eleves">
+    <h2 class="section-title">➕ Ajouter des élèves</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les noms proposés dans les listes viennent des bilans déjà saisis.
+        Un élève qui n'a pas encore de bilan n'apparaît donc nulle part.
+        Colle ici ta liste réelle pour qu'ils soient tous proposés.
+        <br><em>Pour un élève en particulier — sa fiche, ses cours, son permis,
+        son accès aux révisions — passe par <strong>👤 Dossier élève</strong> :
+        appuie sur son nom dans la liste ci-dessous.</em>
+      </div>
+      <!-- Créer un élève à la main : le cas d'un nouvel inscrit,
+           quand on a toutes ses informations sous les yeux. -->
+      <button class="btn btn-primary" id="btnNouvelEleve"
+              style="margin-bottom:16px;padding:13px;font-size:14px;">
+        ➕ Créer un élève</button>
+
+      <label for="importFichier">📄 Depuis un fichier CSV</label>
+      <input type="file" id="importFichier" accept=".csv,.txt,text/csv,text/plain"
+             style="width:100%;background:var(--navy);border:1px solid var(--line);
+                    color:var(--cream);padding:10px;border-radius:10px;font-size:14px;
+                    margin-bottom:6px;">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:16px;line-height:1.4;">
+        L'application repère toute seule les colonnes : nom, téléphone, mail, formation.
+        Elles sont importées ensemble. La liste s'affiche ci-dessous pour relecture.
+      </div>
+
+      <label for="importEleves">Ou colle la liste — un élève par ligne</label>
+      <textarea id="importEleves" rows="10"
+                placeholder="Pierre Dupont&#10;Erika Test&#10;Thomas Morvan"
+                style="width:100%;background:var(--navy);border:1px solid var(--line);color:var(--cream);
+                       padding:11px 12px;border-radius:10px;font-size:15px;line-height:1.6;
+                       font-family:inherit;resize:vertical;margin-bottom:6px;"></textarea>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+        Les virgules et points-virgules font aussi office de séparateurs.
+        Les doublons sont ignorés, rien n'est écrasé.
+      </div>
+      <button class="btn btn-primary" id="importBtn">📥 Importer la liste</button>
+      <div id="importEtat" style="margin-top:10px;font-size:13px;min-height:18px;line-height:1.5;"></div>
+      <div id="repertoireListe" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+
+  <div class="card" data-section="permis" data-vue="permis" data-onglet="eleves">
+    <h2 class="section-title">🎓 Élève ayant obtenu son permis</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les messages se préparent tout seuls quand vous cochez
+        <strong>✅ Permis obtenu</strong> dans « 🏁 Examens passés — résultat à saisir ».
+      </div>
+      <input type="hidden" id="permisNom">
+      <div id="permisResultat">
+        <div class="empty">Aucun élève en cours.<br>
+          <span style="font-size:12px;">Passe par la liste des examens passés,
+          ou saisis un nom ci-dessous si besoin.</span>
+        </div>
+      </div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;font-size:13px;color:var(--muted);">
+          Préparer manuellement pour un élève
+        </summary>
+        <div style="margin-top:10px;">
+          <label for="permisNomManuel">Prénom et nom de l'élève</label>
+          <input type="text" id="permisNomManuel" list="listeEleves" autocomplete="off"
+                 placeholder="Choisis dans la liste ou tape un nom">
+          <button class="btn btn-secondary" id="permisBtn">🎓 Préparer les messages</button>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="card" data-section="depart" data-vue="depart" data-onglet="eleves">
+    <h2 class="section-title">🚪 Départ de l'auto-école</h2>
+    <div class="contenu-tiroir">
+    <div id="blocDepart" style="
+                                ">
+      
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+        Élève qui arrête sa formation ou part ailleurs. Réservé au bureau.
+      </div>
+      <label for="departNom">Prénom et nom de l'élève</label>
+      <input type="text" id="departNom" list="listeEleves" autocomplete="off"
+             placeholder="Choisis dans la liste ou tape un nom">
+      <label for="departMotif">Motif</label>
+      <select id="departMotif">
+        <option value="autre-ae">Transfert vers une autre auto-école</option>
+        <option value="demenagement">Déménagement</option>
+        <option value="arret">Arrêt de la formation</option>
+        <option value="financier">Motif financier</option>
+        <option value="sansnouvelles">Sans nouvelles de l'élève</option>
+        <option value="autre">Autre</option>
+      </select>
+      <label for="departDate">Date du départ</label>
+      <input type="date" id="departDate">
+      <button class="btn btn-primary" id="departBtn">🚪 Préparer le départ</button>
+      <div id="departResultat" style="margin-top:16px;"></div>
+    </div>
+    </div>
+  </div>
+
+  <div class="card" data-section="bureau_messages" data-vue="messages" data-onglet="gestion">
+    <h2 class="section-title">📨 Messages internes <span class="compteur" id="cptMessages"></span></h2>
+    <div class="contenu-tiroir">
+      <!-- LE MESSAGE ÉPINGLÉ EN PREMIER, ET OUVERT.
+
+           Les deux moitiés de cet écran ne se ressemblent pas : le
+           mot épinglé s'affiche TOUT DE SUITE, en tête du bandeau
+           de son destinataire ; celui du dessous attend le prochain
+           cours d'un élève, et peut attendre des jours. C'est le
+           premier qu'on vient écrire quand on ouvre cet écran, donc
+           c'est lui qui est ouvert. -->
+      <div id="msgPersoZone" style="margin-bottom:6px;">
+        <div class="empty">Ouverture…</div>
+      </div>
+
+      <details style="margin-top:18px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);">
+          📨 Message à un moniteur, à propos d'un élève
+        </summary>
+        <div style="margin-top:10px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.4;">
+            S'affichera au moniteur au prochain cours de cet élève, sans avoir à générer de bilan.
+          </div>
+          <label for="msgEleve">Prénom et nom de l'élève</label>
+          <input type="text" id="msgEleve" list="listeEleves" autocomplete="off"
+                 placeholder="Choisis dans la liste ou tape un nom">
+          <label for="msgTexte">Message</label>
+          <textarea id="msgTexte" rows="3" maxlength="400"
+                    placeholder="Ex : examen blanc déplacé au 18/09, prévenir l'élève"
+                    style="width:100%;background:var(--navy);border:1px solid var(--line);
+                           color:var(--cream);padding:11px 12px;border-radius:10px;font-size:15px;
+                           line-height:1.5;font-family:inherit;resize:vertical;margin-bottom:14px;"></textarea>
+          <button class="btn btn-primary" id="msgBtn">📨 Envoyer au moniteur</button>
+          <div id="msgEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+        </div>
+      </details>
+
+      <details style="margin-top:18px;">
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text);">
+          📬 Messages en attente de lecture <span id="nbConsignes"></span>
+        </summary>
+        <div id="listeConsignes" style="margin-top:8px;">
+          <div class="empty">Appuie sur Actualiser.</div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <div class="card" data-section="textes" data-vue="textes" data-onglet="outils">
+    <h2 class="section-title">📄 Modèles messages</h2>
+    <div class="contenu-tiroir">
+      <!-- ⛔ L'AVERTISSEMENT DE DAVID, ÉCRIT EN TOUTES LETTRES — v959.
+
+           Il y a déjà deux gardes-fous derrière : le droit
+           « ⚙️ Textes de l'application », et l'alerte qui nomme la
+           variable qu'on vient de retirer. Celui-ci s'adresse à qui
+           A le droit : une phrase lue avant le geste vaut mieux
+           qu'une alerte reçue après. -->
+      <div class="biblioStop">⛔ INTERDICTION DE MODIFIER LES CATÉGORIES SANS LOGO
+        DEVANT — SOUS RISQUE DE CASSER L'OUTIL</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Tous les messages que vous envoyez aux élèves, au même endroit : ceux que
+        l'application reprend toute seule (rappel de cours, groupe Messenger du jour
+        du permis…) et vos fiches libres, à copier ou à envoyer par mail.
+        Une fiche peut porter plusieurs catégories, et la recherche cherche partout —
+        titre, texte et catégories.
+        <br><em>À ne pas confondre avec « Modèles de bilan », qui concerne la structure
+        des bilans de conduite.</em>
+      </div>
+      <div id="textesZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- DEUX DROITS OUVRENT CETTE CARTE — v942. « stats » montre
+       l'équipe, « stats_perso » ne montre que son propre taux.
+       C'est l'écran qui décide ensuite de ce qu'il affiche. -->
+  <div class="card" data-section="stats stats_perso" data-vue="stats" data-onglet="outils">
+    <h2 class="section-title">📈 Taux de réussite</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Calculés à partir des résultats saisis dans « Examens passés ».
+      </div>
+      <!-- LA PÉRIODE SE CHOISIT EN BOUTONS, ET C'EST ec-stats.js
+           QUI LES CONSTRUIT — v941.
+
+           Elle était figée dans un menu de « derniers jours » :
+           90, 180, 365. David la veut par MOIS — le mois en cours,
+           un mois choisi, ou une période. Écrire les options ici ET
+           la liste des périodes là-bas, ce serait la même chose à
+           deux endroits, et c'est toujours la mauvaise qui gagne. -->
+      <div id="statsReglages"></div>
+      <div>
+        <label for="statsRang">Passages</label>
+        <select id="statsRang">
+          <option value="tous" selected>Tous</option>
+          <option value="premier">Premier passage</option>
+          <option value="repassage">Repassages</option>
+        </select>
+      </div>
+      <div id="statsZone" style="margin-top:14px;">
+        <div class="empty">Chargement…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-section="bilans" data-vue="bilans" data-onglet="outils">
+    <h2 class="section-title">📋 Modèles de bilan</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ce qui structure vos bilans de conduite : les 15 modèles de la liste
+        « Type de bilan », le formulaire que le moniteur remplit à la main,
+        et les consignes données à l'IA en mode vocal. Tout est modifiable,
+        et vous pouvez ajouter vos propres modèles.
+      </div>
+      <div id="bilansZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="paie" data-vue="paie" data-onglet="gestion">
+    <h2 class="section-title">💶 Éléments de paie</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Heures supplémentaires, congés et arrêts, puis le message
+        à transmettre au gestionnaire de paie.
+      </div>
+      <div id="paieZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="flotte" data-vue="flotte" data-onglet="gestion">
+    <h2 class="section-title">🚗 Suivi de la flotte</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Kilomètres, entretiens, contrôles techniques et incidents.
+        Les échéances se calculent d'elles-mêmes.
+      </div>
+      <!-- La CB Gasoil : où elle est, et les pleins du mois.
+           David : « je pense qu'on met juste un historique côté
+           admin dans flotte, sous suivi flotte ». -->
+      <div id="cbFlotteZone"></div>
+      <div id="flotteZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- ⚠️ LA CARROSSERIE EST AVEC LA FLOTTE, PAS DANS LES COURS.
+
+       David, le 9 septembre 2026 : « normalement c'est dans flotte
+       qu'il doit être, il n'a rien à faire dans cours ».
+
+       Elle était dans l'onglet Cours pour une seule raison : c'est
+       le seul qu'un moniteur ait, et il faut qu'il puisse déclarer
+       une rayure. Le prix en était une carte hors sujet au milieu
+       du geste quotidien.
+
+       Elle garde SON droit à elle — « carrosserie » — distinct de
+       « flotte » : un moniteur déclare un choc, il ne voit ni les
+       coûts du parc, ni les entretiens, ni les contrôles
+       techniques. C'est ce droit-là qui lui ouvre l'onglet Gestion,
+       où il ne trouvera que cette carte.
+
+       Repliée par défaut : elle ne sert pas tous les jours. -->
+  <div class="card" data-section="carrosserie" data-vue="flotte" data-onglet="gestion">
+    <details>
+      <summary style="cursor:pointer;color:var(--accent-text);font-weight:700;font-size:15px;
+                      padding:4px 0;">
+        🩹 Carrosserie des véhicules
+      </summary>
+      <div style="margin-top:14px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+          Les rayures, les chocs et les réparations, posés sur le dessin du
+          véhicule. Une rayure signalée le jour même est une rayure qu'on
+          n'impute à personne par erreur.
+        </div>
+        <div id="carrosserieZone"></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" data-section="ecran" data-vue="ecran" data-onglet="gestion">
+    <h2 class="section-title">📺 Affichage dynamique</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ce qui tourne sur l'écran de l'accueil et sur la vitrine.
+      </div>
+      <div id="ecranZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="notifs" data-vue="notifs" data-onglet="gestion">
+    <h2 class="section-title">🔔 Alertes du bureau</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ce qui attend une décision, et qui voit les pastilles.
+      </div>
+      <div id="notifsZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="taches" data-vue="taches" data-onglet="gestion">
+    <h2 class="section-title">✅ Tâches du bureau</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Qui fait quoi, avec quelle urgence. Une tâche terminée est supprimée
+        définitivement : la liste doit rester courte pour rester lue.
+      </div>
+      <div id="tachesZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="memoire" data-vue="memoire" data-onglet="outils">
+    <h2 class="section-title">🧠 Mémoire de l'IA</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les mots que la reconnaissance vocale écrit mal, et ce que les moniteurs
+        ont dicté à l'IA pendant leurs cours.
+      </div>
+      <div id="memoireZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="placesbe" data-vue="placesbe" data-onglet="outils">
+    <h2 class="section-title">🚚 Demande de places BE</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Elle part à la DDTM trois mois à l'avance. Le courrier reprend le modèle de la préfecture.
+      </div>
+      <div id="placesBEZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="paiement" data-vue="paiement" data-onglet="eleves">
+    <h2 class="section-title">💳 Paiement en plusieurs fois</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les frais se règlent à l'auto-école, les mensualités par ALMA.
+      </div>
+      <div id="paiementZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="procedures" data-vue="procedures" data-onglet="outils">
+    <h2 class="section-title">🚦 Procédures de conduite</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les procédures de référence : consultables par tous, modifiables ici.
+        Elles servent aussi à corriger une erreur dans un bilan.
+      </div>
+      <div id="proceduresZone"><div class="empty">Chargement…</div></div>
+    </div>
+  </div>
+
+  <div class="card" id="journalCard" data-vue="journal" data-onglet="outils" style="display:none;">
+    <h2 class="section-title">📊 Journal d'activité</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Qui a fait quoi, et quand. Visible uniquement par les administrateurs.
+      </div>
+
+      <div class="duo">
+        <div>
+          <label for="journalQui">Utilisateur</label>
+          <input type="text" id="journalQui" placeholder="Tous" autocomplete="off">
+        </div>
+        <div>
+          <label for="journalEleve">Élève</label>
+          <input type="text" id="journalEleve" placeholder="Tous" autocomplete="off">
+        </div>
+      </div>
+
+      <label for="journalPeriode">Période</label>
+      <select id="journalPeriode">
+        <option value="1">Aujourd'hui et hier</option>
+        <option value="7" selected>7 derniers jours</option>
+        <option value="30">30 derniers jours</option>
+        <option value="90">90 derniers jours</option>
+        <option value="tout">Tout ce qui est conservé</option>
+      </select>
+
+      <button class="btn btn-primary" id="journalBtn">🔄 Actualiser le journal</button>
+      <div id="journalListe" style="margin-top:14px;">
+        <div class="empty">Appuie sur Actualiser.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-section="sms" data-vue="sms" data-onglet="gestion">
+    <h2 class="section-title">💬 SMS</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les envois urgents, facturés au segment, et le journal de tout
+        ce qui est parti — mails compris.
+      </div>
+      <div id="smsZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="encours" data-vue="encours" data-onglet="gestion">
+    <h2 class="section-title">🩹 Cours non terminés</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Ce que tes moniteurs ont commencé sans le finir. La dictée est déposée
+        sur le serveur au fil du cours : si la génération du bilan a échoué chez
+        eux, tu peux la reprendre ici et enregistrer à leur place.
+      </div>
+      <div id="encoursZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="incidents" data-vue="incidents" data-onglet="gestion">
+    <h2 class="section-title">🚨 Signalements</h2>
+    <div class="contenu-tiroir">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">
+        Les erreurs qui s'affichent sur l'écran de tes moniteurs, remontées ici.
+        Regroupées par problème, avec qui l'a eu, sur quelle version et quel
+        appareil — de quoi savoir si c'est un téléphone ou l'application.
+      </div>
+      <div id="incidentsZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="coutsia" data-vue="coutsia" data-onglet="gestion">
+    <h2 class="section-title">💸 Ce que coûte l'IA</h2>
+    <div class="contenu-tiroir">
+      <div id="coutsIaZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="caisse" data-vue="caisse" data-onglet="gestion">
+    <h2 class="section-title">🏦 Caisse et dépôts en banque</h2>
+    <div class="contenu-tiroir">
+      <div id="caisseZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="menage" data-vue="menage" data-onglet="gestion">
+    <h2 class="section-title">🧹 Ménage des dossiers</h2>
+    <div class="contenu-tiroir">
+      <div id="menageZone"></div>
+    </div>
+  </div>
+
+  <div class="card" data-section="tarifs" data-vue="tarifs" data-onglet="gestion">
+    <h2 class="section-title">💰 Prestations et tarifs</h2>
+    <div class="contenu-tiroir">
+      <div id="tarifsZone"></div>
+    </div>
+  </div>
+
+  <div class="card" id="adminCard" data-vue="admin" data-onglet="gestion" style="display:none;">
+    <h2 class="section-title">⚙️ Administration des accès</h2>
+    <div class="contenu-tiroir">
+    <div id="adminList"><div class="empty">Chargement…</div></div>
+
+    <!-- ⚠️ Il porte un nom pour pouvoir se taire — v964. Quand on
+         règle les accès d'une personne, son panneau prend l'écran :
+         un formulaire de création dessous inviterait à créer un
+         compte au milieu du réglage d'un autre. -->
+    <div id="adminNouveau" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line);">
+      <label for="newCode">Nouveau code (6 à 8 chiffres)</label>
+      <input type="text" id="newCode" inputmode="numeric" maxlength="8" minlength="6" placeholder="Ex : 573914">
+      <label for="newName">Prénom</label>
+      <input type="text" id="newName" placeholder="Ex : David">
+      <label for="newEmoji">Émoji du moniteur</label>
+      <input type="text" id="newEmoji" maxlength="4" placeholder="Ex : 🦁">
+      <label for="newGenre">Genre — pour les accords du bilan</label>
+      <select id="newGenre">
+        <option value="">— non précisé —</option>
+        <option value="F">Féminin (monitrice)</option>
+        <option value="M">Masculin (moniteur)</option>
+      </select>
+      <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;line-height:1.4;">
+        Il signe les manœuvres qu'il fait retravailler à l'élève.
+        La première validation reste une simple coche ✅.
+      </div>
+      <label for="newRole">Rôle</label>
+      <select id="newRole">
+        <option value="moniteur">Moniteur — cours et recherche</option>
+        <option value="bureau">Bureau — recherche, suivi et permis</option>
+        <option value="admin">Administrateur — tout</option>
+      </select>
+      <button class="btn btn-primary" id="createBtn">➕ Créer l'accès</button>
+      <div id="adminMsg" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+    </div>
+
+    <!-- Le ménage occasionnel. Replié, tout en bas, et dans la seule
+         carte qu'un moniteur ne peut pas atteindre : ce n'est pas un
+         bouton sur lequel on appuie « pour voir ». -->
+    <details id="adminMenage" style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <summary style="cursor:pointer;color:var(--muted);font-weight:600;font-size:14px;padding:4px 0;">
+        🩺 Outils de réparation
+      </summary>
+      <div style="margin-top:12px;">
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px;">
+          Recompte les leçons des <strong>cours préparés</strong> et <strong>refait la
+          note</strong> de ceux qui ne collent pas : le bon numéro de leçon, la frise
+          remise d'aplomb, et la consigne 📌 reprise du cours précédent
+          dédoublonnée. L'avant/après s'affiche en entier : rien n'est modifié
+          tant que tu n'as pas confirmé. Les bilans déjà enregistrés ne sont
+          pas touchés — ceux-là se corrigent un par un avec
+          « ✏️ Corriger la leçon », sous le bilan.
+        </div>
+        <button class="btn btn-secondary" id="reparLeconsBtn">🔢 Vérifier les cours préparés</button>
+        <div id="reparLeconsEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+        <div id="reparLeconsListe"></div>
+
+        <div style="font-size:12px;color:var(--muted);margin:18px 0 12px;line-height:1.5;
+                    border-top:1px solid var(--line);padding-top:14px;">
+          Nettoie les <strong>notes internes</strong> : la ligne « examen officiel »
+          est remise à la forme actuelle (majuscules, gras, et la couleur qui va
+          avec — rouge quand la date est posée, bleu quand elle manque), et les
+          lignes <strong>empilées en double</strong> au fil des cours sont retirées.
+          On garde la plus récente de chaque sorte, comme dans les résumés ; les
+          remarques de tes moniteurs ne sont jamais jetées. Seule la note la plus
+          récente de chaque élève est reprise : les bilans plus anciens gardent ce
+          qu'ils disaient. La liste avant/après s'affiche d'abord.
+        </div>
+        <button class="btn btn-secondary" id="reparNotesBtn">🧹 Vérifier les notes internes</button>
+        <div id="reparNotesEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+        <div id="reparNotesListe"></div>
+
+        <div style="font-size:12px;color:var(--muted);margin:18px 0 12px;line-height:1.5;
+                    border-top:1px solid var(--line);padding-top:14px;">
+          Rattache les <strong>cours à venir</strong> au rappel qui les a annoncés :
+          c'est ce lien qui fait apparaître « ✉️ rappel envoyé » puis
+          « ✋ présence confirmée » sous l'heure, dans Mes prochains cours.
+          Le journal des envois garde qui, quand et quel lien ; il suffit de
+          recoller les deux. Rien d'autre ne bouge — ni la note, ni le type de
+          bilan, ni le moniteur.
+          <br><br>
+          Si le bouton répond qu'<strong>aucun envoi ne porte de lien</strong>,
+          c'est que la création du lien de confirmation échoue en amont : les
+          mails partent alors sans bouton, et il n'y a rien à rattacher.
+        </div>
+        <button class="btn btn-secondary" id="reparJetonsBtn">✉️ Rattacher les rappels aux cours</button>
+        <div id="reparJetonsEtat" style="margin-top:10px;font-size:13px;min-height:18px;"></div>
+        <div id="reparJetonsListe"></div>
+      </div>
+    </details>
+  </div>
+  </div>
+
+
+
+
+
+
+
+
+
+  </div><!-- /appView -->
+</div>
+  </div><!-- /zoneTravail -->
+
+<div class="overlay" id="confirmOverlay">
+  <div class="modal">
+    <h3>Générer le bilan ?</h3>
+    <div class="recap" id="confirmRecap"></div>
+    <div id="confirmAlerte" style="font-size:14px;color:var(--warn-text);margin-bottom:14px;display:none;"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="cancelGen">Annuler</button>
+      <button class="btn" id="confirmGen"
+              style="background:var(--action-terminer);
+                     border:2px solid var(--action-terminer);
+                     color:var(--sur-action-terminer);
+                     font-weight:700;">Générer 💶</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+  <script>
+  /* Rapporteur d'erreur : un script qui échoue ne doit pas rester muet.
+     Placé avant tous les autres pour ne rien manquer. */
+  (function(){
+    var vues = [];
+    function montrer(texte){
+      if(vues.indexOf(texte) !== -1) return;
+      vues.push(texte);
+      var z = document.getElementById('rapportErreur');
+      if(!z){
+        z = document.createElement('div');
+        z.id = 'rapportErreur';
+        z.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;' +
+          'background:#B3261E;color:#fff;padding:12px 14px;font:13px/1.5 system-ui,sans-serif;' +
+          'max-height:45vh;overflow:auto;box-shadow:0 -2px 12px rgba(0,0,0,.4);';
+        var t = document.createElement('div');
+        t.style.cssText = 'font-weight:700;margin-bottom:6px;';
+        t.textContent = '⚠️ Erreur au chargement — copie ce texte';
+        z.appendChild(t);
+        var x = document.createElement('button');
+        x.textContent = 'Masquer';
+        x.style.cssText = 'position:absolute;top:8px;right:10px;background:#fff;color:#B3261E;' +
+          'border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;';
+        x.onclick = function(){ z.style.display = 'none'; };
+        z.appendChild(x);
+        (document.body || document.documentElement).appendChild(z);
       }
-    });
-    l.appendChild(bBoite);
-
-    const bCal = document.createElement('button');
-    bCal.className = 'btn btn-secondary';
-    bCal.style.cssText = 'width:auto;padding:6px 9px;font-size:15px;margin:0;flex-shrink:0;';
-    bCal.textContent = '📅';
-    bCal.title = 'Lui donner une place d\'examen';
-    bCal.addEventListener('click', async () => {
-      if(typeof choisirPlaceExamen !== 'function'){
-        showToast("Les sessions d'examen ne sont pas disponibles ici.");
-        return;
-      }
-      const place = await choisirPlaceExamen(e.eleve, s.semaine);
-      if(!place) return;
-      bCal.disabled = true;
-      try{
-        await placerEleveSurPlace(e.eleve, place);
-        showToast('Place prise ✅');
-        redessinerBureau();
-      }catch(err){ showToast('Erreur : ' + err.message); bCal.disabled = false; }
-    });
-    l.appendChild(bCal);
-
-    const bDel = document.createElement('button');
-    bDel.className = 'btn btn-secondary';
-    bDel.style.cssText = 'width:auto;padding:6px 9px;font-size:13px;margin:0;flex-shrink:0;' +
-      'color:var(--red);border-color:var(--red);';
-    bDel.textContent = '✕';
-    bDel.title = 'Retirer de la liste RDV PERMIS';
-    bDel.addEventListener('click', async () => {
-      if(!await confirmer('Retirer ' + e.eleve + ' de la liste RDV PERMIS ?\n\n' +
-          'Son suivi n\'est pas supprimé : il y reviendra si un moniteur ' +
-          'le redemande.')) return;
-      bDel.disabled = true;
-      try{
-        await majSuivi(e.eleve, { aPlanifier: '', retireAPrevoir: 'oui' });
-        showToast('Retiré ✅');
-        redessinerBureau();
-      }catch(err){ showToast('Erreur : ' + err.message); bDel.disabled = false; }
-    });
-    l.appendChild(bDel);
-
-    return l;
-  };
-
-  /* ---- Le rangement : deux niveaux, dans l'ordre qu'on a choisi ---- */
-  const cle1 = e => (vuePlaces === 'personne')
-    ? (suiviDe(e.eleve).moniteurDate || '⚠️ À attribuer')
-    : (suiviDe(e.eleve).semaine || '— semaine à définir —');
-
-  /* ⚠️ LA CLÉ S'ÉCRIT ET SE RELIT DANS LE MÊME ORDRE.
-
-     Elle valait déjà « centre ⟨⟩ semaine » dans les DEUX vues — mais
-     elle était relue avec une condition, et cette condition
-     inversait les deux moitiés en vue « par date ». Le nombre de
-     jours ouverts se cherchait alors sous un nom de centre, ne
-     trouvait jamais rien : « 2 jours » ne s'affichait pas, et
-     « ⚠️ aucun jour ici » ne s'est jamais déclenché dans la vue
-     faite exprès pour le voir.
-
-     Une même chose écrite d'un côté et lue de l'autre. On retire
-     donc la condition des DEUX côtés, au lieu de la corriger d'un
-     seul — sinon elle repoussera. */
-  const centreDe = s => s.centre || '— centre à définir —';
-  const semaineDe = s => s.semaine || '— semaine à définir —';
-
-  const groupes = {};
-  liste.forEach(e => {
-    const s = suiviDe(e.eleve);
-    const g1 = cle1(e);
-    if(!groupes[g1]) groupes[g1] = {};
-    const k = centreDe(s) + ' ⟨⟩ ' + semaineDe(s);
-    if(!groupes[g1][k]) groupes[g1][k] = [];
-    groupes[g1][k].push(e);
-  });
-
-  /* « À attribuer » en dernier : c'est ce qui reste à faire, pas ce
-     qu'on est en train de faire. */
-  Object.keys(groupes).sort((a, b) => {
-    const ia = a.startsWith('⚠️') || a.startsWith('—') ? 1 : 0;
-    const ib = b.startsWith('⚠️') || b.startsWith('—') ? 1 : 0;
-    return ia !== ib ? ia - ib : a.localeCompare(b);
-  }).forEach(g1 => {
-    const bs = document.createElement('div');
-    bs.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-      'border-radius:10px;padding:10px 12px;margin-bottom:8px;';
-
-    let total = 0;
-    Object.keys(groupes[g1]).forEach(k => { total += groupes[g1][k].length; });
-
-    const tete = document.createElement('div');
-    tete.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;';
-
-    const t1 = document.createElement('div');
-    t1.style.cssText = 'flex:1;min-width:0;font-size:14px;font-weight:700;' +
-      'color:var(--cream);';
-    t1.textContent = (vuePlaces === 'personne' ? '👤 ' : '📅 ') + g1 +
-      ' — ' + total + ' élève(s)';
-    tete.appendChild(t1);
-
-    /* ---- COPIER SA LISTE, AU FORMAT DU SITE DES RENDEZ-VOUS ----
-
-       C'est le geste que David décrit : « chaque personne a sa
-       liste ». Le bouton met dans le presse-papier exactement ce
-       qu'elle tape là-bas — un appui, un collage, et plus aucun nom
-       recopié à la main, donc plus aucun nom oublié. */
-    if(vuePlaces === 'personne'){
-      const bCop = document.createElement('button');
-      bCop.type = 'button';
-      bCop.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:11.5px;' +
-        'border-radius:8px;background:var(--navy);color:var(--cream);' +
-        'border:1px solid var(--line);flex-shrink:0;';
-      bCop.textContent = '📋 Copier';
-      bCop.title = 'Copier la liste de ' + g1 + ' pour le site des rendez-vous';
-      bCop.addEventListener('click', () => {
-        const lignes = [g1, ''];
-        Object.keys(groupes[g1]).sort().forEach(k => {
-          const [centre, semaine] = k.split(' ⟨⟩ ');
-          lignes.push('Semaine ' + semaine + ' — ' + centre + ' :');
-          groupes[g1][k].forEach(e => lignes.push(e.eleve));
-          lignes.push('');
-        });
-        copierTexte(lignes.join('\n').trim(), bCop);
-      });
-      tete.appendChild(bCop);
-    }
-
-    bs.appendChild(tete);
-
-    Object.keys(groupes[g1]).sort().forEach(k => {
-      /* Même ordre qu'à l'écriture, sans condition : voir plus haut. */
-      const [centre, semaine] = k.split(' ⟨⟩ ');
-      const lot = groupes[g1][k];
-
-      const t = titreGroupe(semaine, centre, lot.length);
-
-      /* PLUSIEURS À ATTRIBUER AU MÊME ENDROIT : UN SEUL GESTE.
-
-         Une semaine, un centre, trois élèves sans personne pour
-         prendre leurs dates — c'est le cas normal, pas l'exception :
-         celui qui va à la préfecture prend toute la liste d'un
-         coup. Les attribuer un par un ferait trois fois la même
-         fenêtre pour la même réponse. */
-      const sans = lot.filter(e => !suiviDe(e.eleve).moniteurDate);
-      if(sans.length > 1){
-        const bTous = document.createElement('button');
-        bTous.type = 'button';
-        bTous.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:11px;' +
-          'border-radius:7px;background:var(--navy);color:var(--orange);' +
-          'border:1px solid var(--orange);flex-shrink:0;';
-        bTous.textContent = '👤 Attribuer les ' + sans.length;
-        bTous.title = 'Donner ces ' + sans.length + ' élèves à la même personne';
-        bTous.addEventListener('click', async () => {
-          const n = await choisirQuiPrendLaDate('');
-          if(n === null) return;
-          bTous.disabled = true;
-          bTous.textContent = '…';
-          try{
-            /* Une écriture par élève : chacun a sa ligne de suivi, et
-               il n'existe pas d'écriture groupée. On ne relit le
-               bureau qu'UNE fois, à la fin. */
-            for(const e of sans){
-              await majSuivi(e.eleve, { moniteurDate: n });
-            }
-            await chargerBureau();
-            showToast(n ? (sans.length + ' élèves pour ' + n + ' ✅')
-                        : 'Moniteur retiré ✅');
-            redessinerBureau();
-          }catch(err){
-            showToast('Erreur : ' + err.message);
-            bTous.disabled = false;
-            bTous.textContent = '👤 Attribuer les ' + sans.length;
-          }
-        });
-        t.appendChild(bTous);
-      }
-
-      /* ✂️ FAIRE DES GROUPES — voir dessinerGroupesDuLot. */
-      if(lot.length > 1) t.appendChild(boutonFaireGroupes(lot));
-
-      bs.appendChild(t);
-      dessinerGroupesDuLot(bs, lot, ligneEleve);
-    });
-
-    corps.appendChild(bs);
-  });
-
-  det.appendChild(corps);
-  bloc.appendChild(det);
-  return bloc;
-}
-
-/* ============================================================
-   ✂️ LES GROUPES DE LA SEMAINE
-
-   David, le 4 septembre : « à l'intérieur de la semaine, il
-   faudrait que je puisse faire des groupes, mais facilement :
-   pour cette semaine-là je prends un groupe de 2 élèves et un
-   groupe de 3 ».
-
-   ⚠️ UN CHAMP À PART, ET C'EST VOULU. « groupePermis » existe déjà,
-   mais il sert le JOUR de l'examen — « Matin », « Inspecteur A ». Ce
-   sont deux moments et deux découpages : celui qu'on prépare une
-   semaine à l'avance, et celui que la préfecture impose le jour
-   venu. David a tranché : « pour le moment on garde séparé ».
-   D'où « groupeSemaine ».
-
-   Le pont entre les deux se fait dans l'éditeur de session, qui
-   propose les groupes de la semaine au moment de les remplir — pas
-   ici.
-   ============================================================ */
-
-/* Le groupe d'un élève, ou '' — la CLÉ, pas le nom : voir juste en
-   dessous pourquoi les deux ne sont pas la même chose. */
-function groupeSemaineDe(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  return String(s.groupeSemaine || '').trim();
-}
-
-/* ------------------------------------------------------------
-   ⚠️ UN GROUPE EST UNE CHOSE ; SON NOM EN EST UNE AUTRE
-
-   David, le 4 septembre : « il faut que je puisse renommer les
-   groupes pour les retrouver dans sessions examen ; là tu les
-   regroupes par semaine, il ne faut pas — il faut bien garder
-   chaque groupe de liste rendez-vous permis indépendant ».
-
-   Le défaut venait de ce que le groupe N'ÉTAIT que son nom.
-   « ✂️ Faire des groupes » numérote à l'intérieur de chaque semaine :
-   deux semaines produisent chacune un « Groupe 1 », et l'éditeur de
-   session, qui ne voyait que le nom, en faisait UN seul bouton de
-   six élèves. Renommer aurait été le seul moyen de les séparer —
-   c'est-à-dire qu'une faute de frappe aurait fusionné deux groupes.
-
-   La colonne porte donc deux choses séparées par ' ⟨⟩ ' : un
-   identifiant qu'on ne montre jamais, et le nom qu'on affiche. Deux
-   groupes ne peuvent plus se confondre, même appelés pareil, et
-   renommer ne change que le second — sans jamais déplacer personne.
-
-   Les valeurs écrites avant celle-ci (« Groupe 1 » tout court) sont
-   leur propre identifiant : elles continuent de marcher comme
-   avant, et le premier renommage — ou le premier « refaire les
-   groupes » — leur en donne un vrai.
-   ------------------------------------------------------------ */
-const SEP_GROUPE = ' ⟨⟩ ';
-
-function idGroupe(cle){
-  const v = String(cle || '');
-  const i = v.indexOf(SEP_GROUPE);
-  return i === -1 ? v : v.slice(0, i);
-}
-function libelleGroupe(cle){
-  const v = String(cle || '');
-  const i = v.indexOf(SEP_GROUPE);
-  return i === -1 ? v : v.slice(i + SEP_GROUPE.length);
-}
-function cleGroupe(id, libelle){ return id + SEP_GROUPE + libelle; }
-function nouvelIdGroupe(){
-  return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-/* Une clé d'avant n'a pas d'identifiant : on lui en donne un neuf
-   plutôt que de prendre son nom pour un identifiant — sinon deux
-   « Groupe 1 » renommés resteraient collés l'un à l'autre. */
-function idOuNeuf(cle){
-  return String(cle || '').indexOf(SEP_GROUPE) === -1
-    ? nouvelIdGroupe() : idGroupe(cle);
-}
-
-/* La boîte telle qu'on la montre : écrite si quelqu'un a tranché,
-   déduite de la formation sinon. La même règle que le bouton. */
-function boiteVisible(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  const ecrit = String(s.typeExamen || '').toLowerCase();
-  if(ecrit) return ecrit;
-  return (typeof boiteDe === 'function')
-    ? String(boiteDe(nom) || '').toLowerCase() : '';
-}
-
-/* Le découpage proposé : par BOÎTE, parce que c'est la seule
-   contrainte réelle — une voiture est manuelle ou automatique.
-   Ce n'est qu'un point de départ : tout se corrige derrière. */
-function groupesProposes(lot){
-  const paquets = {};
-  (lot || []).forEach(e => {
-    const b = boiteVisible(e.eleve) || 'inconnue';
-    (paquets[b] = paquets[b] || []).push(e.eleve);
-  });
-  const out = [];
-  /* BV d'abord, puis BEA, puis ce qu'on ne sait pas : un ordre
-     stable, sinon les numéros changent à chaque redessin. */
-  ['bv', 'bea', 'inconnue'].forEach(b => {
-    if(paquets[b] && paquets[b].length) out.push(paquets[b]);
-  });
-  Object.keys(paquets).sort().forEach(b => {
-    if(['bv', 'bea', 'inconnue'].indexOf(b) === -1) out.push(paquets[b]);
-  });
-  return out;
-}
-
-function boutonFaireGroupes(lot){
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.style.cssText = 'width:auto;margin:0;padding:4px 9px;font-size:11px;' +
-    'border-radius:7px;background:var(--navy);color:var(--accent-text);' +
-    'border:1px solid var(--line);flex-shrink:0;';
-  const dejaGroupes = lot.some(e => groupeSemaineDe(e.eleve));
-  b.textContent = dejaGroupes ? '✂️ Refaire les groupes' : '✂️ Faire des groupes';
-  b.title = 'Découpe cette semaine par boîte — tu corriges ensuite ' +
-            'en glissant les noms';
-  b.addEventListener('click', async () => {
-    const paquets = groupesProposes(lot);
-    if(dejaGroupes && !await confirmer(
-        'Refaire les groupes de cette semaine ?\n\n' +
-        'Le découpage repart de la boîte de chacun : ' +
-        paquets.map((p, i) => 'Groupe ' + (i + 1) + ' (' + p.length + ')').join(', ') +
-        '.\nCe que tu avais déplacé à la main sera perdu.')) return;
-    b.disabled = true;
-    b.textContent = '…';
-    try{
-      for(let i = 0; i < paquets.length; i++){
-        /* Un identifiant par paquet, partagé par ses élèves : c'est
-           lui qui fait qu'un groupe reste UN groupe, et que le
-           « Groupe 1 » d'une autre semaine ne s'y mêle pas. */
-        const cle = cleGroupe(nouvelIdGroupe(), 'Groupe ' + (i + 1));
-        for(const nom of paquets[i]){
-          await majSuivi(nom, { groupeSemaine: cle });
-        }
-      }
-      await chargerBureau();
-      showToast(paquets.length + ' groupe(s) ✅');
-      redessinerBureau();
-    }catch(err){
-      showToast('Erreur : ' + err.message);
-      b.disabled = false;
-      b.textContent = '✂️ Faire des groupes';
-    }
-  });
-  return b;
-}
-
-/* Ce qu'un groupe contient comme boîtes : « 3 BV », ou le mélange
-   signalé. On SIGNALE SANS INTERDIRE — David, 4 septembre. */
-function resumeBoitesDuGroupe(noms){
-  const compte = {};
-  noms.forEach(n => {
-    const b = boiteVisible(n) || '?';
-    compte[b] = (compte[b] || 0) + 1;
-  });
-  const cles = Object.keys(compte);
-  const lisible = cles.map(b => compte[b] + ' ' + b.toUpperCase()).join(' · ');
-  return { texte: lisible, melange: cles.filter(b => b === 'bv' || b === 'bea').length > 1 };
-}
-
-/* ------------------------------------------------------------
-   LE GLISSER-DÉPOSER
-
-   Demandé le 4 septembre : « est-ce que tu peux faire en sorte que
-   l'on puisse faire un cliquer-glisser pour les déplacer de groupe
-   si besoin ? »
-
-   ⚠️ EN « POINTER EVENTS », PAS EN DRAG AND DROP HTML. Le
-   glisser-déposer natif du navigateur ne marche PAS au doigt : sur
-   téléphone et sur tablette, il ne se passe rien du tout. Les
-   événements de pointeur, eux, couvrent la souris ET le doigt avec
-   le même code.
-
-   Et il reste une sortie sans glisser : appuyer sur la poignée sans
-   bouger ouvre la liste des groupes. Un écran où le seul chemin est
-   un geste précis exclut ceux qui ne peuvent pas le faire.
-   ------------------------------------------------------------ */
-function rendreDeplacable(poignee, ligne, nom, zoneGroupes){
-  let enCours = null;
-
-  const finir = async (cible) => {
-    if(enCours && enCours.fantome && enCours.fantome.parentNode){
-      enCours.fantome.parentNode.removeChild(enCours.fantome);
-    }
-    zoneGroupes.querySelectorAll('[data-groupe]').forEach(z => {
-      z.style.outline = '';
-    });
-    ligne.style.opacity = '';
-    enCours = null;
-    if(!cible) return;
-    const vers = cible.dataset.groupe || '';
-    if(vers === groupeSemaineDe(nom)) return;
-    try{
-      await majSuivi(nom, { groupeSemaine: vers });
-      await chargerBureau();
-      redessinerBureau();
-    }catch(err){ showToast('Erreur : ' + err.message); }
-  };
-
-  poignee.style.cursor = 'grab';
-  /* Sans « touch-action:none », le doigt fait défiler la page au
-     lieu de déplacer le nom : le geste ne démarre jamais. */
-  poignee.style.touchAction = 'none';
-
-  poignee.addEventListener('pointerdown', ev => {
-    ev.preventDefault();
-    poignee.setPointerCapture(ev.pointerId);
-    enCours = { x: ev.clientX, y: ev.clientY, bouge: false, fantome: null };
-  });
-
-  poignee.addEventListener('pointermove', ev => {
-    if(!enCours) return;
-    const d = Math.abs(ev.clientX - enCours.x) + Math.abs(ev.clientY - enCours.y);
-    /* Six pixels : en dessous, c'est un appui, pas un glissement.
-       Sans ce seuil, un simple clic déplacerait l'élève. */
-    if(!enCours.bouge && d < 6) return;
-
-    if(!enCours.bouge){
-      enCours.bouge = true;
-      ligne.style.opacity = '.4';
-      const f = document.createElement('div');
-      f.textContent = nom;
-      f.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;' +
-        'background:var(--navy);border:1px solid var(--accent-text);' +
-        'color:var(--cream);border-radius:8px;padding:5px 10px;' +
-        'font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.45);';
-      document.body.appendChild(f);
-      enCours.fantome = f;
-    }
-    enCours.fantome.style.left = (ev.clientX + 12) + 'px';
-    enCours.fantome.style.top = (ev.clientY - 14) + 'px';
-
-    /* La zone survolée s'allume : sans retour visuel, on lâche au
-       jugé et on découvre le résultat après coup. */
-    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
-    const cible = sous && sous.closest ? sous.closest('[data-groupe]') : null;
-    zoneGroupes.querySelectorAll('[data-groupe]').forEach(z => {
-      z.style.outline = (z === cible) ? '2px solid var(--accent-text)' : '';
-    });
-  });
-
-  const lacher = ev => {
-    if(!enCours) return;
-    if(!enCours.bouge){
-      /* Appui sans glissement : la sortie pour ceux qui ne peuvent
-         pas viser, et pour la souris qui préfère une liste. */
-      finir(null);
-      choisirGroupeSemaine(nom, zoneGroupes);
-      return;
-    }
-    const sous = document.elementFromPoint(ev.clientX, ev.clientY);
-    finir(sous && sous.closest ? sous.closest('[data-groupe]') : null);
-  };
-  poignee.addEventListener('pointerup', lacher);
-  poignee.addEventListener('pointercancel', () => finir(null));
-}
-
-async function choisirGroupeSemaine(nom, zoneGroupes){
-  const noms = [...zoneGroupes.querySelectorAll('[data-groupe]')]
-    .map(z => z.dataset.groupe).filter(Boolean);
-  const uniques = [];
-  noms.forEach(g => { if(uniques.indexOf(g) === -1) uniques.push(g); });
-  /* On choisit un groupe par son NOM et on écrit sa CLÉ : c'est tout
-     l'écart entre ce qui se lit et ce qui s'enregistre. */
-  const choix = uniques.map(g => ({ val: g, lib: libelleGroupe(g) }));
-  choix.push({ val: '➕ Nouveau groupe', lib: '➕ Nouveau groupe' });
-  const v = await choisirDansUneListe('Groupe de ' + nom, choix,
-                                      groupeSemaineDe(nom));
-  if(v === null) return;
-  let vers = v;
-  if(v === '➕ Nouveau groupe'){
-    vers = cleGroupe(nouvelIdGroupe(), 'Groupe ' + (uniques.length + 1));
-  }
-  try{
-    await majSuivi(nom, { groupeSemaine: vers });
-    await chargerBureau();
-    redessinerBureau();
-  }catch(err){ showToast('Erreur : ' + err.message); }
-}
-
-/* Renommer, c'est réécrire le NOM de tous ceux qui sont dedans, et
-   surtout PAS leur identifiant : personne ne change de groupe.
-   David : « il faut que je puisse renommer les groupes pour les
-   retrouver dans sessions examen ». */
-async function renommerGroupeSemaine(cle, noms, bouton){
-  const avant = libelleGroupe(cle);
-  const v = await demander('Nom de ce groupe — c\'est celui que tu ' +
-    'retrouveras en créant la session d\'examen :', avant, '✏️ Renommer le groupe');
-  if(v === null) return;
-  const nom = String(v).trim();
-  if(!nom || nom === avant) return;
-  const vers = cleGroupe(idOuNeuf(cle), nom);
-  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
-  try{
-    for(const n of noms) await majSuivi(n, { groupeSemaine: vers });
-    await chargerBureau();
-    showToast('Groupe renommé « ' + nom + ' » ✅');
-    redessinerBureau();
-  }catch(err){
-    showToast('Erreur : ' + err.message);
-    if(bouton){ bouton.disabled = false; bouton.textContent = '✏️'; }
-  }
-}
-
-/* ------------------------------------------------------------
-   LE DESSIN DES GROUPES
-
-   Sans groupe : la liste telle qu'elle était. Le découpage ne
-   s'impose pas — il arrive quand on le demande.
-   ------------------------------------------------------------ */
-function dessinerGroupesDuLot(bs, lot, ligneEleve){
-  const zone = document.createElement('div');
-  bs.appendChild(zone);
-
-  const parGroupe = {};
-  lot.forEach(e => {
-    const g = groupeSemaineDe(e.eleve);
-    (parGroupe[g] = parGroupe[g] || []).push(e);
-  });
-  /* On range sur ce qui se LIT — le nom — pas sur l'identifiant, qui
-     est fait pour ne jamais se voir. */
-  const groupes = Object.keys(parGroupe).filter(Boolean).sort(
-    (a, b) => libelleGroupe(a).localeCompare(libelleGroupe(b), 'fr',
-                                             { numeric: true }));
-
-  /* Personne n'est groupé : rien ne change à l'écran. */
-  if(!groupes.length){
-    lot.forEach(e => zone.appendChild(
-      ligneEleve(e, !suiviDe(e.eleve).moniteurDate)));
-    return;
-  }
-
-  const bloc = (titre, liste, avecTitre) => {
-    const z = document.createElement('div');
-    z.dataset.groupe = avecTitre ? titre : '';
-    z.style.cssText = 'border-left:3px solid ' +
-      (avecTitre ? 'var(--accent-text)' : 'var(--line)') +
-      ';padding-left:8px;margin:0 0 8px;border-radius:2px;';
-
-    const r = resumeBoitesDuGroupe(liste.map(e => e.eleve));
-    const h = document.createElement('div');
-    h.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;' +
-      'font-size:12px;font-weight:700;margin:2px 0 4px;';
-    h.innerHTML = echapper(avecTitre ? libelleGroupe(titre) : '— sans groupe —') +
-      ' <span style="font-weight:400;color:var(--muted);">' +
-      liste.length + ' élève(s) · ' + r.texte + '</span>' +
-      /* On SIGNALE SANS INTERDIRE : une voiture est manuelle ou
-         automatique, mais c'est David qui sait si deux voitures
-         sortent la même demi-journée. */
-      (r.melange
-        ? ' <span style="font-weight:700;color:var(--warn-text);">' +
-          '⚠️ mélange BV et BEA</span>'
-        : '');
-
-    /* ✏️ RENOMMER — sur l'en-tête, là où le nom se lit. */
-    if(avecTitre){
-      const bRen = document.createElement('button');
-      bRen.type = 'button';
-      bRen.textContent = '✏️';
-      bRen.title = 'Renommer ce groupe — le nom se retrouve à la ' +
-                   'création de la session d\'examen';
-      bRen.style.cssText = 'width:auto;margin:0;padding:1px 6px;font-size:12px;' +
-        'border-radius:6px;background:var(--navy);color:var(--cream);' +
-        'border:1px solid var(--line);flex-shrink:0;';
-      bRen.addEventListener('click',
-        () => renommerGroupeSemaine(titre, liste.map(e => e.eleve), bRen));
-      h.appendChild(bRen);
-    }
-    z.appendChild(h);
-
-    liste.forEach(e => {
-      const l = ligneEleve(e, !suiviDe(e.eleve).moniteurDate);
-      /* La poignée, en tête de ligne : on saisit là, pas n'importe
-         où — sinon un appui sur un bouton déclencherait un
-         déplacement. */
-      const p = document.createElement('span');
-      p.textContent = '⠿';
-      p.title = 'Glisse pour changer de groupe, ou appuie pour choisir';
-      p.style.cssText = 'flex-shrink:0;color:var(--muted);font-size:15px;' +
-        'padding:0 2px;user-select:none;';
-      l.insertBefore(p, l.firstChild);
-      rendreDeplacable(p, l, e.eleve, zone);
+      var l = document.createElement('div');
+      l.style.cssText = 'margin-top:4px;word-break:break-word;';
+      l.textContent = '• ' + texte;
       z.appendChild(l);
-    });
-    return z;
-  };
-
-  groupes.forEach(g => zone.appendChild(bloc(g, parGroupe[g], true)));
-  if(parGroupe['']) zone.appendChild(bloc('', parGroupe[''], false));
-}
-
-
-/* Copier un texte, avec un repli pour les vieux navigateurs. */
-function copierTexte(t, bouton){
-  const fini = ok => {
-    const avant = bouton ? bouton.textContent : '';
-    if(bouton) bouton.textContent = ok ? '✅ Copié' : '⚠️ Impossible';
-    setTimeout(() => { if(bouton) bouton.textContent = avant; }, 2000);
-    if(!ok) showToast('Copie impossible sur cet appareil.');
-  };
-  try{
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(t).then(() => fini(true), () => fini(false));
-      return;
-    }
-  }catch(e){}
-  try{
-    const z = document.createElement('textarea');
-    z.value = t;
-    z.style.cssText = 'position:fixed;left:-9999px;';
-    document.body.appendChild(z);
-    z.select();
-    const ok = document.execCommand('copy');
-    document.body.removeChild(z);
-    fini(ok);
-  }catch(e){ fini(false); }
-}
-
-/* Élèves dont l'examen blanc a montré qu'ils n'avaient pas le niveau */
-/* ------------------------------------------------------------
-   IL A DÉJÀ UNE DATE DEVANT LUI
-
-   David : « quand un élève est sur une session d'examen il faut
-   l'enlever de la liste rendez-vous permis, sinon on risque
-   d'essayer de prendre une place pour cet élève à la publication
-   suivante alors qu'il a déjà une date ».
-
-   ⚠️ « DEVANT LUI », ET C'EST TOUTE LA NUANCE. Un examen PASSÉ ne
-   le retire pas : ajourné hier, il est de nouveau à placer, et le
-   cacher serait pire que de le montrer en double. Seule une date
-   à venir — aujourd'hui compris — veut dire « ne lui en cherchez
-   pas une autre ».
-
-   Deux traces possibles, et il faut les deux : la place tenue sur
-   une session ouverte, et la date écrite sur sa fiche. Elles ne
-   se déduisent pas l'une de l'autre — c'est exactement ce qui
-   manquait à Romain Kikela le 4 septembre, place tenue et colonne
-   vide.
-   ------------------------------------------------------------ */
-/* ⚠️ LES DEUX TRACES, ÉNUMÉRÉES À UN SEUL ENDROIT — v952.
-
-   Elles l'étaient ici, et le compte des places les redemandait à
-   sa façon — en n'en lisant qu'une. Tant qu'elles sont écrites
-   deux fois, l'une des deux copies finit par en oublier une.
-
-   L'ordre compte : la place d'abord. Une session est une
-   convocation ; la date de la fiche est une copie écrite un jour
-   donné, et qui peut dater. */
-function datesExamenDe(nom){
-  const iso = v => ((typeof dateFrVersIso === 'function')
-    ? (dateFrVersIso(v || '') || '') : '');
-  const out = [];
-
-  const pl = (typeof placeEnSessionDe === 'function')
-    ? placeEnSessionDe(nom) : null;
-  if(pl && iso(pl.date)) out.push(iso(pl.date));
-
-  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-  if(iso(s.datePermis)) out.push(iso(s.datePermis));
-
-  return out;
-}
-
-/* Sa date d'examen, tout court — celle qui fait foi. */
-function dateExamenDe(nom){
-  return datesExamenDe(nom)[0] || '';
-}
-
-function dateExamenAVenir(nom){
-  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
-  /* ⚠️ « À VENIR » SE CHERCHE DANS LES DEUX, pas seulement dans la
-     première : une session passée et une date de fiche à venir,
-     c'est une date à venir. C'était déjà le cas, et ça le reste. */
-  const f = datesExamenDe(nom).find(d => !auj || d >= auj);
-  return f ? dateCourte(f) : '';
-}
-
-
-function afficherRdvPermis(tous){
-  const zAP = $('listeAPlacer');
-
-  const demandes = tous.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' &&
-                                    suiviDe(e.eleve).statut !== 'annule');
-
-  /* Le tri se fait ici, tout seul : David n'a pas à retirer à la
-     main ceux qui ont déjà leur date. Rien n'est réécrit dans le
-     classeur — on affiche ce qui fait foi, et la fiche se corrige
-     d'elle-même à la prochaine écriture de sa place. */
-  const dejaDates = [];
-  const aPlacer = demandes.filter(e => {
-    const quand = dateExamenAVenir(e.eleve);
-    if(!quand) return true;
-    dejaDates.push({ eleve: e.eleve, quand: quand });
-    return false;
-  });
-
-  /* Les favoris de « qui prend la date » arrivent des réglages
-     partagés. On les demande une fois par session, sans attendre :
-     les trois noms d'usage s'affichent en attendant. */
-  if(typeof assurerFavorisPrise === 'function') assurerFavorisPrise();
-  zAP.innerHTML = '';
-
-  /* Le compteur suit la liste triée, dans les deux cas : laissé au
-     nombre d'avant, il annoncerait des élèves que le volet ne
-     montre plus. */
-  majVolet('cptAPlacer', aPlacer.length);
-
-  /* ⚠️ ON DIT QUI A ÉTÉ RETIRÉ, ET POURQUOI.
-
-     Un élève qui disparaît d'une liste sans explication se cherche
-     à la main — c'est exactement le travail qu'on voulait éviter.
-     Une ligne discrète, avec sa date : le tri se voit, et il se
-     vérifie. */
-  if(dejaDates.length){
-    const n = document.createElement('div');
-    n.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.6;' +
-      'border:1px solid var(--line);border-radius:10px;padding:9px 11px;' +
-      'margin-bottom:10px;';
-    n.textContent = '🎓 ' + dejaDates.length + ' élève(s) retiré(s) de la ' +
-      'liste : ils ont déjà une date d\'examen — ' +
-      dejaDates
-        .slice()
-        .sort((a, b) => a.eleve.localeCompare(b.eleve))
-        .map(x => x.eleve + ' (' + x.quand + ')')
-        .join(' · ');
-    zAP.appendChild(n);
-  }
-
-  if(!aPlacer.length){
-    zAP.insertAdjacentHTML('beforeend',
-      '<div class="empty">Aucun élève dans la liste RDV PERMIS.</div>');
-  }else{
-    zAP.appendChild(tableauAPlacer(aPlacer));
-
-    /* Seuls les dossiers incomplets méritent une fiche détaillée :
-       les autres se gèrent depuis la synthèse ci-dessus. */
-    const incomplets = aPlacer.filter(e => {
-      const s = suiviDe(e.eleve);
-      return !s.centre || !s.moniteurDate || !s.semaine;
-    });
-
-    if(!incomplets.length){
-      const ok = document.createElement('div');
-      ok.className = 'empty';
-      ok.innerHTML = '✅ Tous les dossiers sont complets.<br>' +
-        '<span style="font-size:12px;">Utilise la synthèse ci-dessus pour saisir les dates obtenues.</span>';
-      zAP.appendChild(ok);
-    }else{
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:13px;font-weight:700;color:var(--warn-text);margin:12px 0 6px;';
-      t.textContent = '⏳ À compléter (' + incomplets.length + ')';
-      zAP.appendChild(t);
     }
 
-    incomplets.forEach(e => {
-      zAP.appendChild(ligneBureau(e, {
-        info: x => {
-          const s = suiviDe(x.eleve);
-          const t = (s.typeExamen === 'bea' ? '🅰 BEA'
-                     : s.typeExamen === 'handicap' ? '♿ Handicap' : '🅑 BV');
-          return t + ' · ' + (s.centre || 'centre à définir') +
-                 (s.moniteurDate ? ' · ' + s.moniteurDate : ' · moniteur à définir') +
-                 /* L'absence se dit : cette fiche ne s'ouvre QUE sur
-                    un dossier incomplet, et c'est justement ce qui
-                    manque qu'on vient y lire. */
-                 (s.semaine ? ' · ' + s.semaine : ' · aucune semaine demandée') +
-                 mentionHeuresRestantes(x.eleve) +
-                 mentionExamenBlanc(x);
-        },
-        resume: x => resumeSuivi(x.eleve),
-        alerte: x => {
-          const s = suiviDe(x.eleve);
-          if(!s.centre) return 'Centre d\'examen non défini';
-          if(!s.moniteurDate) return 'Moniteur non défini';
-          return null;
-        },
-        actions: (x, zone) => {
-          zone.appendChild(boutonHeuresRestantes(x.eleve));
-          zone.appendChild(boutonExamenBlanc(x.eleve));
-          zone.appendChild(boutonEnvoyerVers(x.eleve));
-          const s = suiviDe(x.eleve);
-
-          /* ============================================================
-             TROIS RANGÉES DE BOUTONS, PLUS TROIS MENUS
-
-             « Est-ce qu'on ne peut pas mettre des boutons plutôt que
-             des listes déroulantes ? »
-
-             Un menu déroulant demande deux gestes — ouvrir, choisir —
-             pour deux réponses possibles dans le cas du centre. Et le
-             calendrier des semaines est déjà ouvert à côté : le
-             redemander dans un menu, c'est le fermer pour le rouvrir.
-
-             Les trois réglages s'écrivent aux mêmes endroits qu'avant,
-             sous les mêmes noms : c'est l'écran qui change, pas la
-             donnée. Aucun élève déjà renseigné n'est à reprendre.
-             ============================================================ */
-          zone.appendChild(rangeeBoutons('Centre d\'examen',
-            ['Saint-Brieuc', 'Loudéac'].map(c => ({ val: c, lib: c })),
-            s.centre || '',
-            async val => {
-              await majSuivi(x.eleve, { centre: val });
-              await chargerBureau();
-              redessinerBureau();
-            }));
-
-          /* QUI PREND LA DATE — DES FAVORIS, PAS UNE LISTE EN DUR.
-
-             « Le dur me pose problème, je peux pas mettre des
-             favoris ? » Si, et c'est mieux que les deux options que
-             je proposais : une liste en dur vieillit au premier
-             départ, un classement calculé change d'ordre sous les
-             doigts. Un favori se choisit une fois et ne bouge plus
-             tant que personne ne le change.
-
-             Ils sont RANGÉS AVEC LES RÉGLAGES DU BUREAU, donc partagés :
-             les gens qui prennent les dates sont les mêmes pour tout
-             le monde, et chacun ne doit pas refaire son propre
-             classement. */
-          zone.appendChild(rangeeBoutons('Qui prend la date',
-            favorisPrise().map(n => ({ val: n, lib: n })),
-            s.moniteurDate || '',
-            async val => {
-              await majSuivi(x.eleve, { moniteurDate: val });
-              await chargerBureau();
-              redessinerBureau();
-            },
-            {
-              /* Le fourre-tout : tous les autres, et de quoi épingler */
-              autre: 'Autre…',
-              surAutre: async () => {
-                const n = await choisirQuiPrendLaDate(s.moniteurDate || '');
-                if(n === null) return;
-                await majSuivi(x.eleve, { moniteurDate: n });
-                await chargerBureau();
-                redessinerBureau();
-              }
-            }));
-
-          /* LES SEMAINES, AVEC LES PLACES DU CENTRE CHOISI.
-
-             « 2 SB / 2.5 LO » sur un élève dont on vient de dire
-             qu'il passe à Saint-Brieuc, c'est un chiffre à écarter du
-             regard à chaque lecture. Le centre est choisi juste
-             au-dessus : le bouton n'annonce que ce qui le concerne.
-
-             Trois ou quatre semaines sont ouvertes en même temps,
-             rarement plus — au-delà de cinq, le reste passe derrière
-             « Autres… » pour que la fiche ne devienne pas un mur de
-             boutons. */
-          const libDe = w => libelleSemaine(w) +
-            ((w.sb || w.lo) ? ' (' + (w.sb || 0) + ' SB / ' + (w.lo || 0) + ' LO)' : '');
-
-          /* Une valeur enregistrée avant l'ajout du numéro doit
-             retrouver sa semaine, pas créer une entrée en double. */
-          const semaines = toutesSemaines();
-          const correspond = semaines.find(w => memeSemaine(libDe(w), s.semaine));
-          if(s.semaine && correspond) s.semaine = libDe(correspond);
-
-          /* ⚠️ UNE SEMAINE DONT LES PLACES SONT DÉJÀ PRISES N'EST
-             PLUS UNE SEMAINE À VISER.
-
-             « Là on va prendre les places pour octobre ; une fois
-             les journées d'attribution passées, ça ne sert plus à
-             rien de les voir ici. »
-
-             Exact, et c'est même trompeur : proposer une semaine de
-             septembre le 3 septembre, c'est proposer une date qu'on
-             ne peut plus obtenir. Le moniteur la choisit, le bureau
-             la lit, et personne ne voit qu'elle est morte.
-
-             Les semaines dont la prise est passée ne disparaissent
-             pas pour autant : elles passent DERRIÈRE « Autres… ».
-             Une place se libère parfois, un dossier se reprend — on
-             ne rend jamais quelque chose inatteignable, on cesse
-             seulement de le proposer en premier. */
-          const encoreVisable = w => {
-            if(typeof dateDePrise !== 'function') return true;
-            const iso = String(w.du || w.au || '');
-            const m = iso.match(/^(\d{4}-\d{2})-(\d{2})$/);
-            if(!m) return true;              /* sans date, on ne juge pas */
-            const d = dateDePrise(m[1], Number(m[2]) <= 15 ? 1 : 2);
-            if(!d) return true;              /* prise inconnue : on montre */
-            return d >= todayLocal();
-          };
-
-          const enTete = semaines.filter(encoreVisable);
-          const passees = semaines.filter(w => !encoreVisable(w));
-
-          const versChoix = w => ({
-            val: libDe(w),
-            lib: semaineCourte(w),
-            sous: joursDuCentre(w, s.centre)
-          });
-          const choixSem = enTete.map(versChoix).concat(passees.map(versChoix));
-          /* Une semaine choisie autrefois et depuis refermée reste
-             proposée : sinon elle disparaîtrait de l'écran sans que
-             personne ne l'ait retirée. */
-          if(s.semaine && !choixSem.some(c => c.val === s.semaine)){
-            choixSem.push({ val: s.semaine, lib: s.semaine, sous: '' });
-          }
-
-          /* Le maximum suit ce qui est encore visable : les semaines
-             dont la prise est passée sont derrière « Autres… », pas
-             comptées dans les cinq premières. */
-          zone.appendChild(rangeeBoutons('Semaine à viser', choixSem,
-            s.semaine || '',
-            async val => {
-              await majSuivi(x.eleve, { semaine: val });
-              await chargerBureau();
-              redessinerBureau();
-            },
-            { max: Math.max(1, Math.min(5, enTete.length)), autre: 'Autres…' }));
-
-          zone.appendChild(boutonDate('📅 Date obtenue', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            await majSuivi(x.eleve, { datePermis: dateEnToutesLettres(iso),
-                                      aPlanifier: '', statut: '' });
-            showToast('Date transmise ✅');
-            redessinerBureau();
-          }));
-        }
-      }));
-    });
-  }
-}
-
-
-
-/* ============================================================
-   UNE RANGÉE DE BOUTONS À LA PLACE D'UN MENU
-
-   Écrite une fois, servie trois fois : le centre, qui prend la
-   date, la semaine. Trois rangées écrites séparément auraient fini
-   par ne pas se comporter pareil — l'une se dédisant au second
-   appui, l'autre non.
-
-   Règles communes :
-     • le choix courant est plein, les autres sont creux ;
-     • RAPPUYER SUR LE CHOIX COURANT LE RETIRE. Sans cela, une
-       erreur de doigt ne se rattrape qu'en cherchant un « — aucun — »
-       dans une liste, et il n'y en a plus ;
-     • au-delà de « max », le reste passe derrière « Autres… » ;
-     • pendant l'écriture, toute la rangée se fige : deux appuis
-       rapides écriraient deux fois.
-   ============================================================ */
-function rangeeBoutons(titre, choix, courant, surChoix, opts){
-  const o = opts || {};
-  const bloc = document.createElement('div');
-  bloc.style.cssText = 'margin-bottom:10px;';
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:10.5px;color:var(--muted);text-transform:uppercase;' +
-    'letter-spacing:.08em;margin-bottom:5px;';
-  t.textContent = titre;
-  bloc.appendChild(t);
-
-  const r = document.createElement('div');
-  r.style.cssText = 'display:flex;gap:5px;flex-wrap:wrap;';
-  bloc.appendChild(r);
-
-  /* Ce qui est choisi reste visible même s'il dépasse le maximum :
-     cacher le choix courant derrière « Autres… » ferait croire
-     qu'il n'y a rien de choisi. */
-  let visibles = choix;
-  let caches = [];
-  if(o.max && choix.length > o.max){
-    visibles = choix.slice(0, o.max);
-    caches = choix.slice(o.max);
-    const dedans = caches.find(c => c.val === courant);
-    if(dedans){
-      caches = caches.filter(c => c !== dedans);
-      visibles = visibles.slice(0, o.max - 1).concat([dedans]);
-      caches = choix.filter(c => visibles.indexOf(c) === -1);
-    }
-  }
-
-  const figer = etat => Array.prototype.forEach.call(
-    r.querySelectorAll('button'), b => { b.disabled = etat; });
-
-  const faire = (c) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    const pris = (c.val === courant);
-
-    /* ⚠️ LES CLASSES DE L'APPLICATION, PAS DES COULEURS À MOI.
-
-       J'avais écrit « background:var(--accent) » — une variable qui
-       N'EXISTE PAS : seul « --accent-text » est défini. Le fond
-       restait donc transparent, et le texte prenait
-       « --navy-deep », qui vaut #FFFFFF en thème clair. Résultat :
-       blanc sur blanc. Le choix sélectionné devenait invisible,
-       exactement là où il fallait le voir.
-
-       « btn-primary » et « btn-secondary » existent depuis toujours
-       et sont justes dans les deux thèmes. On les utilise, et la
-       coche dit le reste — une couleur peut se perdre, un ✓ non. */
-    b.className = 'btn ' + (pris ? 'btn-primary' : 'btn-secondary');
-    b.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12.5px;' +
-      'border-radius:8px;line-height:1.25;text-align:center;' +
-      (pris ? 'font-weight:700;' : '');
-    b.innerHTML = (pris ? '✓ ' : '') + String(c.lib).replace(/</g, '&lt;') +
-      (c.sous ? '<div style="font-size:9.5px;font-weight:400;opacity:.75;">' +
-                String(c.sous).replace(/</g, '&lt;') + '</div>' : '');
-    b.title = c.titre || c.lib;
-    b.addEventListener('click', async () => {
-      figer(true);
-      try{
-        /* Rappuyer sur le choix courant le retire */
-        await surChoix(pris ? '' : c.val);
-      }catch(e){ showToast('Erreur : ' + e.message); figer(false); }
-    });
-    return b;
-  };
-
-  visibles.forEach(c => r.appendChild(faire(c)));
-
-  /* « Autre… » : le fourre-tout, en pointillés pour qu'il ne se
-     confonde pas avec un vrai choix. */
-  if(o.autre){
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12.5px;' +
-      'border-radius:8px;background:transparent;color:var(--muted);' +
-      'border:1px dashed var(--line);';
-    b.textContent = o.autre;
-    b.addEventListener('click', async () => {
-      figer(true);
-      try{
-        if(o.surAutre){ await o.surAutre(); return; }
-        const c = await choisirDansUneListe(titre, caches.length ? caches : choix, courant);
-        if(c === null){ figer(false); return; }
-        await surChoix(c);
-      }catch(e){ showToast('Erreur : ' + e.message); figer(false); }
-    });
-    r.appendChild(b);
-  }
-
-  return bloc;
-}
-
-/* ============================================================
-   LE CHOIX LONG, QUAND IL NE TIENT PAS EN BOUTONS
-
-   ⚠️ « Je n'ai pas de bouton pour fermer ça si j'ai missclick. »
-
-   Elle avait raison, et la cause était bête : je passais la liste
-   à « fenetre », qui range TOUS ses boutons dans une même rangée.
-   Prévue pour deux ou trois, elle en recevait huit — les semaines,
-   puis « — aucune — », puis « Annuler ». Les deux derniers
-   partaient hors de la fenêtre, invisibles et donc inatteignables.
-   Un écran dont on ne peut pas sortir est pire qu'un écran qui
-   manque.
-
-   Une vraie fenêtre de liste, donc : les choix défilent, le pied
-   ne bouge pas. Et trois façons d'en sortir — le bouton, la touche
-   Échap, un appui à côté — parce qu'une seule ne suffit jamais
-   quand on s'est trompé de doigt.
-   ============================================================ */
-function choisirDansUneListe(titre, choix, courant){
-  return new Promise(resolve => {
-    const fond = document.createElement('div');
-    fond.className = 'overlay show';
-    const boite = document.createElement('div');
-    boite.className = 'modal';
-    boite.style.cssText = 'max-width:min(440px,94vw);';
-
-    const h = document.createElement('h3');
-    h.textContent = titre;
-    boite.appendChild(h);
-
-    let parti = false;
-    const fermer = v => {
-      if(parti) return;
-      parti = true;
-      document.removeEventListener('keydown', surTouche);
-      if(fond.parentNode) fermerFond(fond);
-      resolve(v);
-    };
-    const surTouche = ev => { if(ev.key === 'Escape') fermer(null); };
-    document.addEventListener('keydown', surTouche);
-
-    /* Les choix défilent : dix semaines ne doivent pas pousser le
-       pied de la fenêtre hors de l'écran. */
-    const liste = document.createElement('div');
-    liste.style.cssText = 'max-height:min(50vh,400px);overflow-y:auto;' +
-      'margin-bottom:12px;display:flex;flex-direction:column;gap:6px;';
-
-    (choix || []).forEach(c => {
-      const pris = (c.val === courant);
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn ' + (pris ? 'btn-primary' : 'btn-secondary');
-      b.style.cssText = 'width:100%;margin:0;padding:11px 13px;font-size:14px;' +
-        'text-align:left;' + (pris ? 'font-weight:700;' : '');
-      b.textContent = (pris ? '✓ ' : '') + (c.lib || c.val);
-      b.addEventListener('click', () => fermer(c.val));
-      liste.appendChild(b);
-    });
-    boite.appendChild(liste);
-
-    const rangee = document.createElement('div');
-    rangee.className = 'btn-row';
-
-    const bAucun = document.createElement('button');
-    bAucun.className = 'btn btn-secondary';
-    bAucun.textContent = '— aucune —';
-    bAucun.title = 'Effacer la réponse';
-    bAucun.addEventListener('click', () => fermer(''));
-    rangee.appendChild(bAucun);
-
-    const bFerm = document.createElement('button');
-    bFerm.className = 'btn btn-secondary';
-    bFerm.textContent = 'Fermer';
-    bFerm.addEventListener('click', () => fermer(null));
-    rangee.appendChild(bFerm);
-
-    boite.appendChild(rangee);
-    fond.appendChild(boite);
-    /* Un appui à côté referme : c'est le geste de celui qui s'est
-       trompé de bouton. */
-    fond.addEventListener('click', ev => { if(ev.target === fond) fermer(null); });
-    document.body.appendChild(fond);
-  });
-}
-
-/* ============================================================
-   LES FAVORIS DE « QUI PREND LA DATE »
-
-   Rangés avec les réglages du bureau, donc PARTAGÉS : les gens qui
-   prennent les dates sont les mêmes pour tout le monde, et chacun
-   n'a pas à refaire son classement.
-
-   Vides au départ, on propose les trois noms d'usage — mais ce
-   sont des favoris, pas une liste en dur : ils s'épinglent et se
-   dépinglent depuis « Autre… », et l'ordre est celui du choix.
-   ============================================================ */
-/* ⚠️ CES TROIS NOMS SONT DE VRAIES PERSONNES, PAS DES ATTRIBUTIONS.
-
-   La correction « Chrystel → David » qui passe dans les commentaires
-   à chaque livraison a effacé Chrystel de cette liste en v908 : deux
-   « David » côte à côte, et une personne de moins dans la rangée de
-   ceux qui prennent les dates. Une donnée n'est pas un commentaire —
-   c'est le test des favoris qui l'a vu, pas moi. */
-const FAVORIS_PRISE_DEPART = ['Chrystel', 'David', 'Maryne'];
-let favorisPriseListe = FAVORIS_PRISE_DEPART.slice();
-let favorisPriseCharges = false;
-
-/* Ils arrivent des réglages partagés, une seule fois par session.
-   En attendant, les trois noms d'usage s'affichent : un écran qui
-   attendrait le réseau pour montrer trois boutons serait pire que
-   trois boutons parfois à revoir. */
-async function assurerFavorisPrise(){
-  if(favorisPriseCharges) return;
-  favorisPriseCharges = true;
-  try{
-    const d = await appelPrep({ action: 'reglagesList' });
-    const g = (d && d.reglages) || {};
-    const brut = String(g.favorisDate || '').trim();
-    if(!brut) return;
-    const lu = brut.split('|').map(x => x.trim()).filter(Boolean);
-    if(lu.join('|') === favorisPriseListe.join('|')) return;
-    favorisPriseListe = lu;
-    /* Ils ont changé depuis l'affichage : on redessine une fois. */
-    if(typeof redessinerBureau === 'function') redessinerBureau();
-  }catch(e){ /* les trois noms d'usage feront l'affaire */ }
-}
-
-function favorisPrise(){
-  /* Un favori qui n'est plus dans l'équipe ne s'affiche plus, mais
-     on ne le retire pas du réglage : un congé n'est pas un départ. */
-  const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
-  if(!gens.length) return favorisPriseListe.slice(0, 4);
-  return favorisPriseListe.filter(n =>
-    gens.some(g => normaliserMot(g) === normaliserMot(n))).slice(0, 4);
-}
-
-async function basculerFavoriPrise(nom){
-  favorisPrise();
-  const i = favorisPriseListe.findIndex(x => normaliserMot(x) === normaliserMot(nom));
-  if(i === -1) favorisPriseListe.push(nom);
-  else favorisPriseListe.splice(i, 1);
-
-  try{
-    await appelPrep({ action: 'reglageSet', cle: 'favorisDate',
-                      valeur: favorisPriseListe.join('|'),
-                      par: ACCES.moniteur || '' });
-  }catch(e){ showToast('Épinglé ici, mais pas enregistré.'); }
-}
-
-/* La fenêtre « Autre… » : tout le monde, avec une étoile pour
-   épingler. Rend le nom choisi, ou null si on ferme. */
-function choisirQuiPrendLaDate(courant){
-  return new Promise(resolve => {
-    const gens = (typeof moniteursActifs !== 'undefined' ? moniteursActifs : []) || [];
-
-    const fond = document.createElement('div');
-    fond.className = 'overlay show';
-    const boite = document.createElement('div');
-    boite.className = 'modal';
-    boite.style.cssText = 'max-width:min(420px,94vw);';
-
-    boite.innerHTML = '<h3>Qui prend la date</h3>' +
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;' +
-        'line-height:1.5;">L\'étoile épingle quelqu\'un dans les boutons, ' +
-        'pour tout le monde.</div>';
-
-    const liste = document.createElement('div');
-    liste.style.cssText = 'max-height:min(52vh,420px);overflow-y:auto;' +
-      'margin-bottom:12px;';
-
-    const fermer = v => {
-      if(fond.parentNode) fermerFond(fond);
-      resolve(v);
-    };
-
-    gens.forEach(n => {
-      const l = document.createElement('div');
-      l.style.cssText = 'display:flex;gap:8px;align-items:center;padding:3px 0;';
-
-      const et = document.createElement('button');
-      et.type = 'button';
-      const estFav = () => favorisPrise().some(x => normaliserMot(x) === normaliserMot(n));
-      et.style.cssText = 'width:auto;margin:0;padding:8px 10px;font-size:16px;' +
-        'background:transparent;border:1px solid var(--line);border-radius:8px;' +
-        'flex-shrink:0;';
-      const majEt = () => { et.textContent = estFav() ? '⭐' : '☆'; };
-      majEt();
-      et.addEventListener('click', async e => {
-        e.stopPropagation();
-        et.disabled = true;
-        await basculerFavoriPrise(n);
-        majEt();
-        et.disabled = false;
-      });
-      l.appendChild(et);
-
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-secondary';
-      b.style.cssText = 'flex:1;margin:0;padding:10px 12px;font-size:14px;' +
-        'text-align:left;' +
-        (normaliserMot(n) === normaliserMot(courant || '')
-          ? 'border-color:var(--accent-text);color:var(--accent-text);' +
-            'font-weight:700;' : '');
-      b.textContent = (normaliserMot(n) === normaliserMot(courant || '')
-        ? '✓ ' : '') + n;
-      b.addEventListener('click', () => fermer(n));
-      l.appendChild(b);
-
-      liste.appendChild(l);
-    });
-    boite.appendChild(liste);
-
-    const rangee = document.createElement('div');
-    rangee.className = 'btn-row';
-    const bAucun = document.createElement('button');
-    bAucun.className = 'btn btn-secondary';
-    bAucun.textContent = '— aucun —';
-    bAucun.addEventListener('click', () => fermer(''));
-    const bAnn = document.createElement('button');
-    bAnn.className = 'btn btn-secondary';
-    bAnn.textContent = 'Fermer';
-    bAnn.addEventListener('click', () => fermer(null));
-    rangee.appendChild(bAucun);
-    rangee.appendChild(bAnn);
-    boite.appendChild(rangee);
-
-    fond.appendChild(boite);
-    /* Trois façons d'en sortir : le bouton, la touche Échap, un
-       appui à côté. Une seule ne suffit jamais quand on s'est
-       trompé de doigt. */
-    fond.addEventListener('click', e => { if(e.target === fond) fermer(null); });
-    const surTouche = ev => {
-      if(ev.key !== 'Escape') return;
-      document.removeEventListener('keydown', surTouche);
-      fermer(null);
-    };
-    document.addEventListener('keydown', surTouche);
-    document.body.appendChild(fond);
-  });
-}
-
-/* « 12→16 oct · S42 » — la semaine en trois mots, pour un bouton */
-function semaineCourte(w){
-  const lib = libelleSemaine(w);
-  const n = numeroSemaine(w.du);
-  const j = iso => {
-    if(!iso) return '?';
-    const d = new Date(iso + 'T12:00:00');
-    return isNaN(d) ? '?' : d.getDate();
-  };
-  const mois = iso => {
-    if(!iso) return '';
-    const d = new Date(iso + 'T12:00:00');
-    return isNaN(d) ? '' : d.toLocaleDateString('fr-FR', { month:'short' });
-  };
-  if(!w.du && !w.au) return lib;
-  return j(w.du) + '→' + j(w.au) + ' ' + mois(w.au) + (n ? ' · S' + n : '');
-}
-
-/* Un nombre à la française : 2,5 et non 2.5 */
-function nbFr(n){
-  return String(n).replace('.', ',');
-}
-
-/* Les JOURS D'EXAMEN ouverts une semaine donnée, dans le centre
-   choisi. Sans centre, on donne les deux — mais dès qu'il est
-   choisi, le chiffre qui ne concerne pas cet élève disparaît.
-
-   ⚠️ Des jours, pas des places : les places se comptent au mois,
-   les jours à la semaine, et un jour reçoit plusieurs candidats. */
-function joursDuCentre(w, centre){
-  const sb = Number(w.sb) || 0;
-  const lo = Number(w.lo) || 0;
-  if(!sb && !lo) return '';
-  if(/brieuc/i.test(centre || '')) return nbFr(sb) + ' jour' + (sb > 1 ? 's' : '');
-  if(/loud/i.test(centre || '')) return nbFr(lo) + ' jour' + (lo > 1 ? 's' : '');
-  return nbFr(sb) + ' SB / ' + nbFr(lo) + ' LO';
-}
-
-
-/* Permis prévus : préparation administrative.
-   Renvoie la liste, réutilisée par les examens passés. */
-
-/* ============================================================
-   LE COMPTE DES PLACES — UNE SEULE FOIS, ET LES DEUX TRACES
-
-   David, le 11 septembre 2026 : « le réglage des places
-   disponibles me dit 14 candidats prévus sur 30 alors que j'ai
-   bien 15 candidats de mis sur octobre ».
-
-   ⚠️ DEUX DÉFAUTS EMPILÉS, ET LE MÊME QUE D'HABITUDE.
-
-   1. CE COMPTE ÉTAIT ÉCRIT DEUX FOIS. Ici, et une seconde fois
-      dans afficherPermisPrevus — l'une ventilait par centre
-      d'examen, l'autre non, et c'est l'écran ouvert qui décidait
-      laquelle parlait. Deux réponses pour une question.
-
-   2. IL NE LISAIT QU'UNE DES DEUX TRACES. « Qui a une date
-      d'examen ? » s'écrit à deux endroits qui ne se déduisent pas
-      l'un de l'autre : la place tenue sur une session, et la date
-      posée sur la fiche de suivi. C'est écrit noir sur blanc plus
-      haut, à propos de Romain Kikela le 4 septembre — place tenue,
-      colonne vide. La liste « rendez-vous permis » consulte bien
-      les deux depuis ce jour-là ; ce compte-ci était resté sur la
-      moitié pauvre, et perdait donc tout candidat placé sur une
-      session dont la fiche n'a pas encore été réécrite.
-
-   Une seule fonction, donc, et elle passe par dateExamenDe() —
-   la porte qui répond « quelle est sa date d'examen », sessions
-   comprises.
-   ============================================================ */
-function statsDesPlaces(prevus){
-  const actifs = (prevus || []).filter(e => suiviDe(e.eleve).statut !== 'annule');
-  const moisConnus = placesConfig.mois.map(m => m.mois).filter(Boolean);
-
-  /* La date qui compte pour cet élève. Elle a pu être calculée en
-     amont (_iso) ; sinon on la redemande à la porte unique. */
-  const isoDe = e => e._iso || dateExamenDe(e.eleve);
-
-  const parMois = {};
-  let horsMois = 0;
-
-  actifs.forEach(e => {
-    const k = (isoDe(e) || '').slice(0, 7);
-    if(!k || moisConnus.indexOf(k) === -1){ horsMois++; return; }
-    if(!parMois[k]){
-      parMois[k] = { prevus:0, remplacements:0, fantomes:0, aDonner:0, centres:{} };
-    }
-    const s = suiviDe(e.eleve);
-    parMois[k].prevus++;
-    if(s.aRemplacer === 'oui') parMois[k].remplacements++;
-    if(s.fantome === 'oui') parMois[k].fantomes++;
-    if(s.dateADonner === 'oui') parMois[k].aDonner++;
-    /* La répartition par centre : c'est elle qui dit où placer les suivants */
-    const ce = (s.centre || '').trim() || 'centre à définir';
-    parMois[k].centres[ce] = (parMois[k].centres[ce] || 0) + 1;
-  });
-
-  /* Combien tombent dans chaque semaine ouverte */
-  const parSemaine = {};
-  placesConfig.mois.forEach(m => (m.semaines || []).forEach(w => {
-    if(!w.du || !w.au) return;
-    parSemaine[w.du + '>' + w.au] = actifs.filter(e => {
-      const iso = isoDe(e);
-      return iso && iso >= w.du && iso <= w.au;
-    }).length;
-  }));
-
-  const st = { parMois: parMois, horsMois: horsMois, parSemaine: parSemaine };
-
-  /* ⚠️ CE QUI VIENT D'ÊTRE COMPTÉ EST PUBLIÉ, PAS RECOMPTÉ — v953.
-
-     Les tuiles « Places à prendre », « Examens du mois » et
-     « Examens à traiter » ont besoin de ces nombres. Une tuile ne
-     compte rien elle-même : elle lit ce qu'un écran a publié,
-     sinon elle devient une seconde vérité — et c'est toujours la
-     mauvaise qui gagne.
-
-     On publie ici, dans le calcul, et non dans le dessin : les
-     nombres existent dès qu'ils sont justes, même si l'écran des
-     places n'a jamais été ouvert. */
-  etatDesPlaces = st;
-  return st;
-}
-
-/* Ce que le dernier comptage a trouvé. « null » tant qu'il n'a pas
-   tourné — et « null » n'est pas zéro : voir compteDuVolet. */
-let etatDesPlaces = null;
-
-
-/* ============================================================
-   CE QUE LES TUILES DE L'ONGLET PERMIS VONT LIRE — v953
-
-   ⚠️ AUCUNE NE COMPTE QUOI QUE CE SOIT. Elles rassemblent ce que
-   le comptage des places a publié (etatDesPlaces) et ce que les
-   règles existantes savent déjà dire — prochainesPrises pour le
-   jour de la publication, libellePrise pour la phrase. Recalculer
-   ici serait une seconde vérité, et c'est toujours la mauvaise qui
-   finit par s'afficher.
-
-   Trois réponses possibles, et elles diffèrent :
-     · null  — on ne sait pas encore. La tuile dit « pas encore
-               dessinée » au lieu d'inventer un zéro ;
-     · false — on sait, et il n'y a rien à dire. La tuile ne
-               s'affiche pas ;
-     · un objet { n, texte, sous } — la valeur.
-   ============================================================ */
-
-/* Un nombre saisi à la française, ou 0. */
-function nombreDePlaces(v){
-  const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
-  return isNaN(n) ? 0 : n;
-}
-
-/* Combien de places il reste à prendre à la prochaine publication.
-
-   David : « le reste du mois » — le total des places du mois visé,
-   moins les candidats déjà placés dessus. Et la date vient de
-   dateDePrise, qui connaît déjà la règle (1er et 2e mardi du mois
-   précédent) ET le réglage à la main quand la préfecture décale. */
-function tuilePlacesAPrendre(){
-  if(!etatDesPlaces) return null;
-  if(typeof prochainesPrises !== 'function') return false;
-  if(typeof placesConfig === 'undefined') return false;
-
-  const p = prochainesPrises()[0];
-  if(!p) return false;
-
-  const m = (placesConfig.mois || []).find(x => String(x.mois) === p.moisCible);
-  if(!m) return false;
-
-  const total = nombreDePlaces(m.total);
-  if(!total) return false;               /* mois pas encore réglé */
-
-  const pris = (etatDesPlaces.parMois[p.moisCible] || {}).prevus || 0;
-  const reste = Math.max(0, Math.round(total - pris));
-
-  /* La phrase est composée à UN endroit — libellePrise — et elle
-     rend plusieurs morceaux. La tuile prend le titre : « mardi
-     6 octobre », avec le nombre de jours devant. Le reste (la
-     quinzaine visée, les places saisies) vit dans l'écran, où il y
-     a la place de le lire. */
-  const dit = (typeof libellePrise === 'function') ? libellePrise(p) : null;
-
-  return { n: reste,
-           ton: (dit && dit.urgent) ? 'urgent' : '',
-           sous: (dit && dit.titre) ? dit.titre : '' };
-}
-
-/* Les examens qui demandent une décision : une place à remplacer,
-   une place tenue par un prête-nom. Deux nombres, une tuile —
-   « dans une seule tuile », a répondu David. */
-function tuileExamensATraiter(){
-  if(!etatDesPlaces) return null;
-
-  let rempl = 0, fant = 0;
-  Object.keys(etatDesPlaces.parMois).forEach(k => {
-    rempl += etatDesPlaces.parMois[k].remplacements || 0;
-    fant  += etatDesPlaces.parMois[k].fantomes || 0;
-  });
-  if(!rempl && !fant) return { n: 0 };
-
-  const bouts = [];
-  if(rempl) bouts.push(rempl + ' à remplacer');
-  if(fant)  bouts.push(fant + ' prête-nom' + (fant > 1 ? 's' : ''));
-  return { n: rempl + fant, sous: bouts.join(' · ') };
-}
-
-/* ⚠️ UNE TUILE PAR MOIS OUVERT — David : « quand j'ouvre un
-   nouveau mois une nouvelle tuile se crée et quand je supprime un
-   mois la tuile se supprime ».
-
-   Elles ne sont donc pas dans la table des tuiles : elles naissent
-   de la configuration des places. Et elles s'affichent MEME A
-   ZERO : « 0 / 30 » dit qu'il reste trente places à prendre, ce
-   qui est tout sauf rien. */
-function tuilesDesMoisDePlaces(){
-  if(!etatDesPlaces) return null;
-  if(typeof placesConfig === 'undefined') return false;
-
-  return (placesConfig.mois || []).filter(m => m.mois).map(m => {
-    const total = nombreDePlaces(m.total);
-    const pris = (etatDesPlaces.parMois[m.mois] || {}).prevus || 0;
-    const nom = new Date(m.mois + '-15T12:00:00')
-      .toLocaleDateString('fr-FR', { month: 'long' });
-    /* « Examens d'octobre », pas « de octobre ». */
-    const de = /^[aeiouyâéèêîôû]/i.test(nom) ? "d'" : 'de ';
-    return {
-      cle: 'mois:' + m.mois,
-      lib: 'Examens ' + de + nom,
-      vue: 'sessions',
-      toujours: true,
-      ton: (total && pris > total) ? 'urgent' : '',
-      valeur: () => ({ n: pris, texte: pris + ' / ' + (total || '?') })
-    };
-  });
-}
-
-/* Le taux du mois, emprunté à l'écran Réussite — jamais recalculé. */
-function tuileReussiteDuMois(){
-  if(typeof tauxDuMoisEnCours !== 'function') return null;
-  const t = tauxDuMoisEnCours();
-  if(t === null) return null;
-  if(t === false) return false;
-  return { n: t.taux,
-           texte: (typeof pourcent === 'function') ? pourcent(t.taux)
-                                                   : String(t.taux) + ' %',
-           sous: t.total + ' présenté' + (t.total > 1 ? 's' : '') + ' · ' +
-                 t.reussis + ' reçu' + (t.reussis > 1 ? 's' : '') +
-                 (t.fiable ? '' : ' — trop peu pour conclure') };
-}
-
-
-/* ⚠️ LES RESULTATS SE CHARGENT EN ARRIERE-PLAN — v953.
-
-   David : « en arrière plan ». Tout l'historique des résultats est
-   l'un des appels les plus lourds de l'outil : le mettre sur le
-   chemin de l'ouverture ferait payer à chacun, chaque matin, une
-   tuile qu'il regarde une fois. On ouvre à la vitesse habituelle,
-   et la tuile arrive deux secondes plus tard.
-
-   Une seule fois par session : la tuile parle du mois en cours,
-   elle ne bouge pas d'une minute à l'autre. */
-/* ⚠️ ET LE RÉPERTOIRE, POUR QUE LA MOTO SE COMPTE — v954.
-
-   Les comptes moto et remorque partent des fiches : c'est là qu'un
-   élève tout neuf existe, avant tout bilan. Sans elles, les neuf
-   tuiles de ces deux sections resteraient à « pas encore
-   dessinée » jusqu'à ce que quelqu'un ouvre l'écran Moto — c'est
-   exactement ce qu'on voulait éviter.
-
-   L'appel est servi par le Worker, pas par le classeur : il ne
-   réveille rien. Et il ne part que si personne ne les a déjà
-   chargées — l'écran des cours le fait souvent avant nous. */
-let repertoireDemande = false;
-function demanderLeRepertoireEnFond(){
-  if(repertoireDemande) return;
-  if(typeof chargerFichesMoto !== 'function') return;
-  if(typeof fichesEleves !== 'undefined' && fichesEleves.length) return;
-  if(typeof aDroit === 'function' && !aDroit('bureau_permis')) return;
-
-  repertoireDemande = true;
-  chargerFichesMoto(false)
-    .then(() => { if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles(); })
-    .catch(() => { repertoireDemande = false; });
-}
-
-let reussiteDemandee = false;
-function demanderLaReussiteEnFond(){
-  if(reussiteDemandee) return;
-  if(typeof chargerResultats !== 'function') return;
-  /* Sans le droit d'en voir ne serait-ce que le sien, l'appel ne
-     servirait qu'à peser sur le classeur. */
-  if(typeof aDroit === 'function' &&
-     !aDroit('stats') && !aDroit('stats_perso')) return;
-
-  reussiteDemandee = true;
-  chargerResultats(false)
-    .then(() => { if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles(); })
-    .catch(() => { reussiteDemandee = false; });
-}
-
-/* Les semaines ouvertes par la préfecture.
-
-   C'est ce qu'on vient chercher en ouvrant « Permis et places » :
-   combien de dates sont disponibles, et combien sont prises. */
-function dessinerTableauPlaces(prevus){
-  if(typeof afficherPlaces !== 'function') return;
-  if(typeof placesConfig === 'undefined') return;
-  afficherPlaces(statsDesPlaces(prevus));
-}
-
-
-/* ⚠️ TOUS CEUX QUI ONT UNE DATE D'EXAMEN — LES DEUX TRACES.
-
-   Trois populations, et il faut les trois :
-     · ceux dont un bilan dit « permis prévu » ;
-     · ceux dont la fiche de suivi porte une date, sans bilan qui
-       le dise ;
-     · ceux qui TIENNENT UNE PLACE sur une session, et dont la
-       fiche n'a pas encore été réécrite. Ceux-là manquaient, et
-       c'est le candidat d'octobre que David comptait à la main.
-
-   Un élève qui n'existe que par sa place — ni bilan, ni fiche —
-   entre quand même, avec la fiche minimale que les examens passés
-   emploient déjà. Ne pas le compter, c'est annoncer moins de
-   candidats qu'il n'y en a. */
-function elevesAvecDateExamen(tous){
-  const liste = (tous || []).filter(e => e.etat.permis === 'prevu');
-  const dedans = nom => liste.some(x => normaliserMot(x.eleve) === normaliserMot(nom));
-
-  const ajouter = nom => {
-    const n = String(nom || '').trim();
-    if(!n || dedans(n)) return;
-    const base = (tous || []).find(x => normaliserMot(x.eleve) === normaliserMot(n));
-    liste.push(base || ((typeof ficheMinimale === 'function')
-      ? ficheMinimale(n) : { eleve: n, etat: {} }));
-  };
-
-  (etatBureau.suivi || []).forEach(s => { if(s.datePermis) ajouter(s.eleve); });
-
-  try{
-    (typeof sessionsPermis !== 'undefined' ? (sessionsPermis || []) : [])
-      .forEach(se => (se.eleves || []).forEach(p => ajouter(p.eleve)));
-  }catch(err){ /* sans les sessions, on s'en tient au suivi */ }
-
-  return liste;
-}
-
-
-function afficherPermisPrevus(tous){
-  const zPP = $('listePermisPrevu');
-  /* Les trois populations, par la porte unique — voir
-     elevesAvecDateExamen. Cette liste-ci ne lisait que le bilan et
-     la fiche : un candidat placé sur une session dont la fiche
-     n'avait pas été réécrite n'y entrait pas, et le compte des
-     places annonçait un candidat de moins qu'il n'y en a. */
-  const prevus = elevesAvecDateExamen(tous);
-
-  /* Date et boîte de chaque élève, pour le récapitulatif et les filtres */
-  majVolet('cptPrevus', prevus.length);
-  prevus.forEach(e => {
-    const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(e.eleve));
-    e._suivi = s || {};
-    /* ⚠️ LA DATE VIENT DE LA PORTE UNIQUE — v952. La place tenue
-       sur une session passe devant la fiche : c'est une
-       convocation, l'autre est une copie écrite un jour donné. */
-    e._iso = dateExamenDe(e.eleve) ||
-             dateFrVersIso(e.etat.permisDate || '') || '';
-    e._datePermis = (e.etat.permisDate) || (s && s.datePermis) ||
-                    (e._iso ? dateCourte(e._iso) : '');
-    /* Une même date peut compter plusieurs groupes : deux inspecteurs,
-       matin et après-midi. Le groupe fait partie de la clé. */
-    e._groupe = (s && s.groupePermis) || '';
-    e._cleJour = (e._iso || e._datePermis || 'Date inconnue') +
-                 (e._groupe ? ' · ' + e._groupe : '');
-    e._boite = ((s && s.typeExamen) || e.boite ||
-                (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
-  });
-
-  /* Le bloc « Permis prévus » a laissé la place aux sessions. La
-     fonction reste, car sa liste sert aux examens passés.
-
-     Le tableau des semaines ouvertes, lui, doit s'afficher : il
-     était resté derrière ce retour et ne se dessinait plus. */
-  if(!zPP){
-    dessinerTableauPlaces(prevus);
-    return prevus;
-  }
-
-  /* Récapitulatif : nombre d'examens par date */
-  const parDate = {};
-  prevus.forEach(e => {
-    /* On regroupe sur la DATE, pas sur son libellé : « 3 septembre »
-       et « 3 septembre avant » sont le même jour et doivent tenir
-       dans le même bloc. */
-    const k = e._cleJour;
-    if(!parDate[k]) parDate[k] = { iso: e._iso, libelle: e._datePermis,
-                                   groupe: e._groupe,
-                                   bv: 0, bea: 0, handicap: 0, total: 0 };
-    parDate[k].total++;
-    if(e._boite === 'bea') parDate[k].bea++;
-    else if(e._boite === 'handicap') parDate[k].handicap++;
-    else parDate[k].bv++;
-  });
-
-  const dates = Object.keys(parDate).sort((a, b) =>
-    (parDate[a].iso || '9999').localeCompare(parDate[b].iso || '9999'));
-
-
-  /* Menu des dates disponibles */
-  const selD = $('filtreDate');
-  const choixD = selD.value;
-  selD.innerHTML = '<option value="">Toutes les dates</option>';
-  dates.forEach(k => {
-    const o = document.createElement('option');
-    o.value = k;
-    /* La clé est la date ISO : on affiche le jour en toutes lettres */
-    o.textContent = (parDate[k].iso ? dateEnToutesLettres(parDate[k].iso)
-                                    : (parDate[k].libelle || k)) +
-                    (parDate[k].groupe ? ' · ' + parDate[k].groupe : '') +
-                    ' (' + parDate[k].total + ')';
-    selD.appendChild(o);
-  });
-  selD.value = choixD;
-
-  /* Application des filtres */
-  const fEtat = $('filtrePP').value;
-  const fDate = selD.value;
-  let visibles = prevus.slice();
-  if(fEtat === 'donner')    visibles = visibles.filter(e => e._suivi.dateADonner === 'oui');
-  if(fEtat === 'remplacer') visibles = visibles.filter(e => e._suivi.aRemplacer === 'oui');
-  if(fEtat === 'fantome')   visibles = visibles.filter(e => e._suivi.fantome === 'oui');
-  if(fEtat === 'ok')        visibles = visibles.filter(e => e._suivi.toutOk === 'oui');
-  if(fEtat === 'pasok')     visibles = visibles.filter(e => e._suivi.toutOk !== 'oui');
-  /* Le filtre porte sur la même clé que le regroupement */
-  if(fDate) visibles = visibles.filter(e => e._cleJour === fDate);
-  visibles.sort((a, b) => (a._iso || '9999').localeCompare(b._iso || '9999'));
-
-  /* ⚠️ LE COMPTE NE SE REFAIT PAS ICI — v952.
-
-     Il était recopié : quarante lignes qui disaient presque la
-     même chose que statsDesPlaces, à un détail près. Le détail
-     suffit à ce que les deux écrans n'annoncent pas le même
-     nombre, et c'est exactement ce qui est arrivé. */
-  afficherPlaces(statsDesPlaces(prevus));
-
-  /* La vue d'ensemble reste au-dessus des filtres, quel que soit le filtre */
-  const zApercu = $('apercuPermis');
-  if(zApercu){
-    zApercu.innerHTML = '';
-    if(prevus.length) zApercu.appendChild(apercuPermisPrevus(prevus));
-    else zApercu.innerHTML = '<div class="empty">Aucun permis prévu.</div>';
-  }
-
-  zPP.innerHTML = '';
-  /* Idem ici : une date connue du bureau seul doit pouvoir entrer */
-  boutonAjoutManuel(zPP, 'prevu');
-
-  /* Un filtre actif se voit et se retire facilement */
-  if(prevus.length && (fEtat || fDate)){
-    const b = document.createElement('div');
-    b.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;' +
-      'background:var(--navy);border:1px solid var(--orange);border-radius:8px;' +
-      'margin-bottom:10px;font-size:13px;';
-    const t = document.createElement('span');
-    t.style.cssText = 'flex:1;min-width:0;color:var(--accent-text);';
-    t.textContent = '🔎 Filtre actif' +
-      (fDate ? ' · ' + (dateEnToutesLettres(fDate) || fDate) : '');
-    b.appendChild(t);
-    const x = document.createElement('button');
-    x.className = 'btn btn-secondary';
-    x.style.cssText = 'width:auto;padding:5px 10px;font-size:12px;margin:0;flex-shrink:0;';
-    x.textContent = '✕ Tout afficher';
-    x.addEventListener('click', () => {
-      if($('filtrePP')) $('filtrePP').value = '';
-      if($('filtreDate')) $('filtreDate').value = '';
-      afficherBureau(true);
-    });
-    b.appendChild(x);
-    zPP.appendChild(b);
-  }
-
-  const vide = t => {
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.textContent = t;
-    zPP.appendChild(v);
-  };
-
-  if(!prevus.length){
-    vide('Aucun permis prévu.');
-  }else if(!fEtat && !fDate){
-    vide("Choisis un filtre ou une date, ou appuie sur un nom dans la vue d'ensemble.");
-  }else if(!visibles.length){
-    vide('Aucun élève ne correspond à ce filtre.');
-  }else{
-    visibles.forEach(e => {
-      const l = ligneBureau(e, {
-        replier: true,
-        info: x => {
-          const sx = suiviDe(x.eleve);
-          /* Ce que le bureau a noté dans « Autre à prévoir » doit se
-             lire sans déplier la fiche : c'est souvent l'essentiel. */
-          const autre = String(sx.autre || '').trim();
-          return emojisPermis(sx) +
-                 (sx.toutOk === 'oui' ? ' ✅ ' : ' ⚠️ ') +
-                 (x._boite === 'bea' ? '🅰 BEA'
-                  : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
-                 ' · Permis le ' + (x._datePermis || 'date inconnue') +
-                 (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '') +
-                 mentionHeuresRestantes(x.eleve) +
-                 mentionExamenBlanc(x) +
-                 (autre ? '\n📝 ' + autre : '');
-        },
-        resume: x => resumeSuivi(x.eleve),
-        alerte: x => {
-          const s = etatBureau.suivi.find(y => normaliserMot(y.eleve) === normaliserMot(x.eleve));
-          if(s && s.aRemplacer === 'oui') return 'Place à remplacer';
-          if(s && s.dateADonner === 'oui') return 'Date à donner à une autre auto-école';
-          return null;
-        },
-        actions: (x, zone) => {
-          zone.appendChild(boutonHeuresRestantes(x.eleve));
-          zone.appendChild(boutonExamenBlanc(x.eleve));
-          zone.appendChild(boutonEnvoyerVers(x.eleve));
-          zone.appendChild(boutonDate('📅 Modifier la date', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            await appelPrep({ action:'suiviSet', eleve:x.eleve,
-                              datePermis: dateEnToutesLettres(iso), par: ACCES.moniteur || '' });
-            showToast('Date transmise ✅');
-            redessinerBureau();
-          }));
-          const rangee = document.createElement('div');
-          rangee.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;';
-
-          const s = suiviDe(x.eleve);
-          const bAnn = document.createElement('button');
-          bAnn.className = 'btn btn-secondary';
-          bAnn.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-          bAnn.textContent = '❌ Annuler l\'examen';
-          bAnn.addEventListener('click', async () => {
-            const annuler = (s.statut !== 'annule');
-            if(annuler && !await confirmer('Annuler l\'examen de ' + x.eleve + ' ?')) return;
-            bAnn.disabled = true;
-            try{
-              if(annuler){
-                /* Les anciennes consignes de date n'ont plus lieu d'être */
-                const obsoletes = (x.enAttente || []).filter(cs =>
-                  /permis|examen/i.test(cs.type + ' ' + cs.texte));
-                for(const cs of obsoletes){
-                  try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
-                }
-                /* L'examen n'existe plus : l'élève retourne dans « à prévoir » */
-                await envoyerConsigne(x.eleve, 'permis',
-                  "Examen du permis annulé — date d'examen à prévoir (bureau)");
-                /* Sa date part, sa fiche reste : heures, examen
-                   blanc et paiements sont encore utiles. */
-                await majSuivi(x.eleve, { datePermis: '', centre: '',
-                                          statut: '', toutOk: '',
-                                          aRemplacer: '' });
-                showToast(x.eleve + ' est repassé en « à prévoir »');
-              }else{
-                await majSuivi(x.eleve, { statut: '' });
-              }
-              redessinerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); bAnn.disabled = false; }
-          });
-          rangee.appendChild(bAnn);
-
-          const bSup = document.createElement('button');
-          bSup.className = 'btn btn-secondary';
-          bSup.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
-            'color:var(--red);border-color:var(--red);';
-          bSup.textContent = '🗑️ Retirer de la liste';
-          bSup.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + x.eleve + ' de cette liste ?\n\n' +
-                        'Sa fiche est conservée : heures, examen blanc, ' +
-                        'paiements. Tu pourras le remettre.')) return;
-            bSup.disabled = true;
-            try{
-              /* On le sort de la liste sans détruire sa fiche */
-              await majSuivi(x.eleve, { retireAPrevoir: 'oui', aPlanifier: '' });
-              showToast('Retiré de la liste ✅');
-              redessinerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); bSup.disabled = false; }
-          });
-          rangee.appendChild(bSup);
-          zone.appendChild(rangee);
-
-          zone.appendChild(ficheSuiviPermis(x));
-        }
-      });
-      zPP.appendChild(l);
-    });
-  }
-  return prevus;
-}
-
-
-/* ------------------------------------------------------------
-   LA PLACE QU'UN ÉLÈVE TIENT DANS UNE SESSION
-
-   Écrite ICI, et lue par les deux écrans qui en dépendent :
-   « dejaPlace » (qui l'écarte de RDV Permis) et les examens passés
-   (qui lui réclament son résultat). Deux lectures séparées, c'est
-   la garantie qu'un jour l'une dira oui et l'autre non — et c'est
-   très exactement ce qui est arrivé.
-   ------------------------------------------------------------ */
-function placeEnSessionDe(nom){
-  const cle = normaliserMot(nom || '');
-  if(!cle) return null;
-  try{
-    if(typeof sessionsPermis === 'undefined' || !sessionsPermis) return null;
-    for(const se of sessionsPermis){
-      for(const p of (se.eleves || [])){
-        if(p.eleve && normaliserMot(p.eleve) === cle){
-          return { session: se, place: p, date: se.date || '' };
-        }
-      }
-    }
-  }catch(err){ /* sans les sessions, on ne sait rien de plus */ }
-  return null;
-}
-
-
-/* ------------------------------------------------------------
-   EXAMENS PASSÉS : RÉSULTAT À SAISIR
-
-   David, le 4 septembre : « il me manque Romain Kikela dans les
-   examens passés ». Il était bien sur la session du 3 septembre,
-   avec deux autres élèves qui, eux, apparaissaient.
-
-   Vérifié dans le classeur : sa ligne de suivi n'a PAS de
-   `datePermis` — la colonne est vide — alors que celle d'Alhassane
-   BAH porte 2026-09-03. Sa dernière écriture de date remonte au
-   12 août, pour une session du 2 septembre qui a bougé depuis.
-
-   Il tombait donc entre deux listes :
-     · `dejaPlace` LIT LES SESSIONS, voyait sa place, et l'écartait
-       de « Élèves prêts au permis » ;
-     · cette liste-ci NE LISAIT QUE LE SUIVI, ne voyait pas de date,
-       et ne le réclamait pas.
-
-   Une place occupée sur une session passée est une convocation,
-   qu'une colonne du suivi le confirme ou non. C'est la session qui
-   dit qui était là ce jour-là — on la lit donc ici aussi, par la
-   même porte que `dejaPlace`.
-
-   ⚠️ Et l'élève peut n'exister QUE là : sans bilan, sans consigne,
-   il est absent de `tous` et l'ancien code le laissait tomber sans
-   un mot. On lui fabrique alors la fiche minimale qui manque
-   plutôt que de faire comme s'il n'existait pas.
-   ------------------------------------------------------------ */
-/* ------------------------------------------------------------
-   ⚠️ LE RÉSULTAT DOIT SURVIVRE À LA FICHE — MA FAUTE DE LA v849
-
-   David, le 4 septembre : « j'ai bien cliqué sur obtenu,
-   supprimer des listes, mais elle est encore là — j'ai eu deux fois
-   le cas ».
-
-   « ✅ Permis obtenu » fait trois choses : il consigne le résultat
-   dans les statistiques, solde les consignes, et SUPPRIME la fiche
-   de suivi. Jusqu'à la v849 l'élève disparaissait, parce que cette
-   liste ne lisait que les fiches.
-
-   Depuis la v849 elle lit AUSSI les places tenues sur une session
-   passée — et cette place, elle, ne bouge pas : c'est la trace que
-   l'élève est bien allé à l'examen ce jour-là. Sans fiche pour
-   porter son résultat, il revenait aussitôt, avec en prime la
-   mention « aucune date sur sa fiche » que je venais d'ajouter.
-
-   J'avais ajouté une source sans ajouter de quoi la refermer.
-
-   La trace qui survit à la suppression de la fiche existe : c'est la
-   feuille des Résultats, celle qui nourrit les taux de réussite. On
-   la lit ici, une fois, gardée cinq minutes.
-
-   ⚠️ On ne libère PAS la place sur la session : elle dit qui est
-   allé à l'examen ce jour-là, et cette histoire ne s'efface pas
-   parce qu'on a saisi une note.
-   ------------------------------------------------------------ */
-let resultatsConnus = null;          /* { ts, parNom } */
-
-async function chargerResultatsConnus(){
-  const MAX_AGE = 300000;            /* cinq minutes */
-  if(resultatsConnus && Date.now() - resultatsConnus.ts < MAX_AGE){
-    return resultatsConnus.parNom;
-  }
-  const parNom = {};
-  try{
-    /* Six mois suffisent : au-delà, personne ne tient plus de place
-       sur une session que cette liste regarde. */
-    const d = new Date();
-    d.setMonth(d.getMonth() - 6);
-    const depuis = d.toISOString().slice(0, 10);
-    const r = await appelPrep({ action:'resultatList', depuis: depuis });
-    ((r && r.resultats) || []).forEach(x => {
-      const k = normaliserMot(x.eleve || '');
-      if(k) parNom[k] = x;
-    });
-  }catch(e){
-    /* Résultats illisibles (droit manquant, réseau) : on ne bloque
-       rien. Un élève réapparaîtra peut-être une fois de trop — c'est
-       moins grave que de le faire disparaître à tort. */
-  }
-  resultatsConnus = { ts: Date.now(), parNom: parNom };
-  return parNom;
-}
-
-/* À oublier dès qu'un résultat vient d'être saisi : sinon le cache
-   de cinq minutes ferait revenir l'élève qu'on vient de sortir —
-   exactement la faute du cache de trente secondes des places. */
-function oublierResultatsConnus(){ resultatsConnus = null; }
-
-
-async function afficherPostExamenDepuisPrevus(tous, prevus){
-  const liste = prevus.slice();
-  const dedans = nom => liste.some(p => normaliserMot(p.eleve) === normaliserMot(nom));
-
-  /* 1. Ceux dont le suivi porte une date */
-  tous.forEach(e => {
-    if(!suiviDe(e.eleve).datePermis || dedans(e.eleve)) return;
-    liste.push(Object.assign({}, e,
-      { _iso: dateFrVersIso(suiviDe(e.eleve).datePermis) }));
-  });
-
-  /* 2. Ceux qui tiennent une place sur une session passée, ET dont
-        le résultat n'est écrit nulle part. */
-  const auj = todayLocal();
-  const dejaConsigne = await chargerResultatsConnus();
-  try{
-    (typeof sessionsPermis !== 'undefined' ? (sessionsPermis || []) : []).forEach(se => {
-      if(!se.date || se.date >= auj) return;
-      (se.eleves || []).forEach(p => {
-        if(!p.eleve || dedans(p.eleve)) return;
-        /* Son résultat est consigné : la question est réglée, même
-           si sa fiche de suivi n'existe plus. */
-        if(dejaConsigne[normaliserMot(p.eleve)]) return;
-        const base = tous.find(x => normaliserMot(x.eleve) === normaliserMot(p.eleve));
-        liste.push(Object.assign({}, base || ficheMinimale(p.eleve), {
-          _iso: se.date,
-          _datePermis: se.date,
-          /* D'où il vient : l'écran le dit, parce qu'un élève qui
-             apparaît sans que sa fiche porte de date mérite qu'on
-             sache pourquoi il est là. */
-          _sansDateDeSuivi: !String(suiviDe(p.eleve).datePermis || '').trim()
-        }));
-      });
-    });
-  }catch(err){ /* sans les sessions, on s'en tient au suivi */ }
-
-  await afficherPostExamen(liste);
-}
-
-
-/* Un élève qui n'existe que par sa place : ni bilan, ni consigne.
-   La fiche a la même forme que celles de `chargerBureau`, sinon
-   les écrans qui la reçoivent tombent sur un champ manquant. */
-function ficheMinimale(nom){
-  return { eleve: nom, note: '', date: '', type: '', horodatage: '',
-           moniteur: '', boite: '', ants: '', lecons: 0,
-           etat: (typeof analyserNote === 'function') ? analyserNote('') : {},
-           enAttente: [], urgence: '' };
-}
-
-
-/* Élèves prêts au permis */
-function afficherExamensPermis(tous){
-  const zPer = $('listePermis');
-  if(!zPer) return;
-
-  /* Un rendez-vous post-permis fixé garde l'élève visible ici : on
-     attend ce rendez-vous pour savoir s'il repasse, et sans ça il
-     disparaissait de toutes les listes entre-temps. */
-  const candidats = tous.filter(e => {
-    /* Une date déjà posée, ou une place dans une session : il
-       n'est plus « à placer », quoi que dise sa note. Celle-ci
-       vient souvent d'un cours antérieur à la date. */
-    if(dejaPlace(e)) return false;
-
-    if(e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') return true;
-    const s = suiviDe(e.eleve);
-    return !!(s.rdvPostDate && s.rdvPostFait !== 'oui');
-  });
-  const masques = candidats.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' ||
-                                        suiviDe(e.eleve).retireAPrevoir === 'oui');
-  let per = candidats.filter(e => suiviDe(e.eleve).aPlanifier !== 'oui' &&
-                                  suiviDe(e.eleve).retireAPrevoir !== 'oui');
-
-  /* Filtre par état */
-  const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
-  if(fPer === 'annule') per = per.filter(e => e.etat.permis === 'annule');
-  else if(fPer === 'aprevoir') per = per.filter(e => e.etat.permis === 'aprevoir');
-  else if(fPer === 'urgent') per = per.filter(e => String(e.urgence || '') >= '4');
-  else if(fPer === 'sansprio') per = per.filter(e => !e.urgence);
-  else if(fPer === 'repassage') per = per.filter(e => suiviDe(e.eleve).nbAjournements);
-  else if(fPer === 'premier') per = per.filter(e => !suiviDe(e.eleve).nbAjournements);
-
-  /* Priorité décroissante, puis demande la plus ancienne */
-  per.sort((a, b) => {
-    const ua = parseInt(a.urgence || '0', 10);
-    const ub = parseInt(b.urgence || '0', 10);
-    if(ub !== ua) return ub - ua;
-    return String(a.date || '').localeCompare(String(b.date || ''));
-  });
-  afficherPasNiveau(tous);
-  afficherAttenteBilan(tous);
-  afficherPasDeRepassage(tous);
-  afficherExamenNonPlanifiable(tous);
-  /* APRÈS les quatre, et jamais avant : la barre lit les compteurs
-     qu'elles viennent de poser. */
-  rafraichirLesFiltres();
-  afficherAlertePrise(per);
-  /* Et les portes d'entrée des onglets lisent les mêmes compteurs :
-     c'est le même principe, à l'échelle de l'onglet. Ici parce que
-     c'est ici que TOUTES les listes du bureau viennent d'être
-     dessinées — les appeler ailleurs les ferait lire des nombres
-     d'avant. */
-  if(typeof rafraichirLesTuiles === 'function') rafraichirLesTuiles();
-  demanderLaReussiteEnFond();
-  demanderLeRepertoireEnFond();
-
-  zPer.innerHTML = '';
-  /* Le bureau peut inscrire quelqu'un sans attendre un moniteur */
-  boutonAjoutManuel(zPer, 'aprevoir');
-
-  /* Un élève écarté par un drapeau doit rester repérable */
-  if(masques.length){
-    const m = document.createElement('div');
-    m.style.cssText = 'font-size:12px;color:var(--muted);padding:8px 10px;margin-bottom:8px;' +
-      'background:var(--navy);border:1px solid var(--line);border-radius:8px;line-height:1.5;';
-    m.innerHTML = 'ℹ️ ' + masques.length + ' élève(s) masqué(s) : ' +
-      masques.map(x => {
-        const s = suiviDe(x.eleve);
-        return x.eleve.replace(/</g,'&lt;') +
-          (s.aPlanifier === 'oui' ? ' (dans RDV PERMIS)' : ' (retiré de la liste)');
-      }).join(' · ');
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'margin-top:8px;padding:8px;font-size:12px;';
-    b.textContent = '↩️ Les remettre dans la liste';
-    b.addEventListener('click', async () => {
-      if(!await confirmer('Remettre ces ' + masques.length +
-                          ' élève(s) dans les examens à prévoir ?')) return;
-      b.disabled = true;
-      try{
-        for(const x of masques){
-          await majSuivi(x.eleve, { aPlanifier: '', retireAPrevoir: '' });
-        }
-        redessinerBureau();
-      }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
-    });
-    m.appendChild(b);
-    zPer.appendChild(m);
-  }
-
-  if(!per.length){
-    const v = document.createElement('div');
-    v.className = 'empty';
-    v.textContent = fPer ? 'Aucun élève ne correspond à ce filtre.'
-                         : 'Aucun élève prêt au permis.';
-    zPer.appendChild(v);
-  }else{
-    const cpt = document.createElement('div');
-    cpt.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
-      'padding:4px 2px 8px;';
-    const nRep = per.filter(x => suiviDe(x.eleve).nbAjournements).length;
-    cpt.textContent = per.length + ' élève(s)' +
-      (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
-    zPer.appendChild(cpt);
-    signalerAjout(zPer);
-    majVolet('cptAPrevoir', per.length);
-  per.forEach(e => {
-      zPer.appendChild(ligneBureau(e, {
-        replier: true,
-        info: x => {
-          const sv = suiviDe(x.eleve);
-          const rep = sv.nbAjournements ? '🔁 ' + mentionAjournements(sv.nbAjournements).replace('🔁 ','') + ' · ' : '🆕 ';
-          const att = (sv.resultat === 'ajourne' && !sv.rdvPostFait)
-            ? (sv.rdvPostDate ? ' · RDV post-permis le ' + dateEnToutesLettres(sv.rdvPostDate)
-                              : ' · en attente du RDV post-permis')
-            : '';
-          const suite = sv.rdvPostFait === 'oui' && sv.suite ? ' · ' + libelleSuite(sv.suite) : '';
-          const dispo = sv.dispoDu ? ' · 📅 à partir du ' + dateEnToutesLettres(sv.dispoDu) : '';
-          const base = rep + ((x.etat.permis === 'annule') ? 'Examen annulé — à reprogrammer'
-                                                          : 'Date à prévoir') + att + suite + dispo;
-          const dem = x.date ? ' · demandé le ' + x.date : '';
-          const lec = (x.etat.permisN !== null) ? ' · ' + x.etat.permisN + ' leçon(s) à prévoir' : '';
-          const u = libelleUrgence(x.urgence);
-          return base + dem + lec + mentionHeuresRestantes(x.eleve) +
-                 mentionExamenBlanc(x) +
-                 (x.urgence ? ' · ' + u.l : '');
-        },
-        alerte: x => (String(x.urgence) >= '4') ? 'Priorité élevée' : null,
-        actions: (x, zone) => {
-          zone.appendChild(boutonHeuresRestantes(x.eleve));
-          zone.appendChild(boutonExamenBlanc(x.eleve));
-          zone.appendChild(boutonEnvoyerVers(x.eleve));
-
-          const sPost = suiviDe(x.eleve);
-
-          /* En attente de son rendez-vous post-permis : le moniteur
-             peut le sortir de la liste s'il a oublié de le faire au
-             moment du rendez-vous. */
-          if(sPost.rdvPostDate && sPost.rdvPostFait !== 'oui'){
-            const bSans = document.createElement('button');
-            bSans.className = 'btn btn-secondary';
-            bSans.style.cssText = 'width:auto;padding:8px 12px;font-size:12px;margin:0 0 10px;';
-            bSans.textContent = '⏸️ Pas de repassage pour le moment';
-            bSans.title = 'Le retire de cette liste sans supprimer son rendez-vous';
-            bSans.addEventListener('click', async () => {
-              if(!await confirmer('Retirer ' + x.eleve + ' des élèves prêts au permis ?\n\n' +
-                  'Son rendez-vous post-permis est conservé.')) return;
-              bSans.disabled = true;
-              try{
-                await majSuivi(x.eleve, { retireAPrevoir: 'oui' });
-                showToast('Retiré de la liste ✅');
-                afficherBureau(true);
-              }catch(e){ showToast('Erreur : ' + e.message); bSans.disabled = false; }
-            });
-            zone.appendChild(bSans);
-          }
-
-          const lab = document.createElement('label');
-          lab.style.cssText = 'display:flex;align-items:center;gap:10px;text-transform:none;' +
-            'font-size:15px;color:var(--cream);margin-bottom:10px;';
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.style.cssText = 'width:19px;height:19px;';
-          cb.checked = (suiviDe(x.eleve).aPlanifier === 'oui');
-          cb.addEventListener('change', async () => {
-            cb.disabled = true;
-            try{
-              await majSuivi(x.eleve, { aPlanifier: cb.checked ? 'oui' : '',
-                                        retireAPrevoir: '' });
-              redessinerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); cb.disabled = false; }
-          });
-          lab.appendChild(cb);
-          lab.appendChild(document.createTextNode('Mettre dans la liste RDV PERMIS'));
-          zone.appendChild(lab);
-
-          const bRet = document.createElement('button');
-          bRet.className = 'btn btn-secondary';
-          bRet.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;margin-right:6px;' +
-            'color:var(--red);border-color:var(--red);';
-          bRet.textContent = '🗑️ Retirer de la liste';
-          bRet.addEventListener('click', async () => {
-            if(!await confirmer('Retirer ' + x.eleve + ' des examens à prévoir ?\n\n' +
-                        'Il y reviendra si un moniteur le signale à nouveau.')) return;
-            bRet.disabled = true;
-            try{
-              /* Les consignes en attente ne doivent plus le faire réapparaître */
-              for(const cs of (x.enAttente || [])){
-                try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
-              }
-              await majSuivi(x.eleve, { retireAPrevoir: 'oui' });
-              redessinerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); bRet.disabled = false; }
-          });
-          zone.appendChild(bRet);
-
-          zone.appendChild(blocDispo(x));
-
-          zone.appendChild(boutonDate('📅 Date de permis', async iso => {
-            await envoyerConsigne(x.eleve, 'permis',
-              'Examen du permis fixé au ' + dateEnToutesLettres(iso) + ' (bureau)');
-            showToast('Date transmise ✅');
-            redessinerBureau();
-          }));
-
-          const sel = document.createElement('select');
-          sel.style.cssText = 'margin-top:8px;margin-bottom:0;';
-          URGENCES.forEach(u => {
-            const o = document.createElement('option');
-            o.value = u.v; o.textContent = u.l;
-            sel.appendChild(o);
-          });
-          sel.value = x.urgence || '';
-          sel.addEventListener('change', async () => {
-            sel.disabled = true;
-            try{
-              await envoyerConsigne(x.eleve, 'urgence', '', sel.value);
-              showToast('Priorité enregistrée ✅');
-              await chargerBureau();
-            }catch(e){ showToast('Erreur : ' + e.message); }
-            sel.disabled = false;
-          });
-          zone.appendChild(sel);
-        }
-      }));
-    });
-  }
-}
-
-async function ajouterDateBureau(){
-  const eleve = $('addEleve').value.trim();
-  const type = $('addType').value;
-  const situation = $('addEtat').value;
-  const iso = $('addDate').value;
-  const nLecons = $('addLecons').value.trim();
-  const etat = $('addEtatMsg');
-
-  if(eleve.length < 2){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = "Saisis le nom de l'élève.";
-    return;
-  }
-  if(situation === 'date' && !iso){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Choisis une date ou passe en « à prévoir ».';
-    return;
-  }
-
-  const suite = nLecons
-    ? ' — encore ' + nLecons + ' leçon' + (parseInt(nLecons, 10) > 1 ? 's' : '')
-    : '';
-
-  let texte;
-  if(situation === 'date'){
-    const quand = dateEnToutesLettres(iso);
-    if(type === 'permis') texte = 'Examen du permis fixé au ' + quand + suite + ' avant (bureau)';
-    else if(type === 'examblanc') texte = 'Examen blanc fixé au ' + quand + suite + ' avant (bureau)';
-    else texte = 'Simulateur nuit et risques fixé au ' + quand + ' (bureau)';
-  }else{
-    if(type === 'permis'){
-      texte = "Date d'examen à prévoir" + (suite ? ' (' + suite.replace(' — ', '') + ')' : '') + ' (bureau)';
-    }else if(type === 'examblanc'){
-      texte = 'Examen blanc à prévoir' +
-              (nLecons ? ' dans ' + nLecons + ' leçon' + (parseInt(nLecons,10) > 1 ? 's' : '') : '') +
-              ' (bureau)';
-    }else{
-      texte = 'Simulateur nuit et risques à prévoir (bureau)';
-    }
-  }
-
-  const btn = $('addBtn');
-  btn.disabled = true;
-  btn.textContent = 'Enregistrement…';
-  try{
-    await envoyerConsigne(eleve, type, texte);
-    etat.style.color = 'var(--accent-text)';
-    etat.textContent = '✅ ' + texte;
-
-    /* Le formulaire repart à vide : on enchaîne souvent plusieurs
-       élèves, et un nom resté en place fait enregistrer deux fois
-       la même personne sans s'en apercevoir. */
-    $('addLecons').value = '';
-    $('addEleve').value = '';
-    if($('addDate')) $('addDate').value = '';
-    if($('addNote')) $('addNote').value = '';
-    $('addEleve').focus();
-
-    /* Rafraîchissement discret : les listes ne se vident pas.
-       Les messages ne sont relus que si leur tiroir est ouvert. */
-    eleveAjouteRecemment = eleve;
-    const travaux = [afficherBureau(true)];
-    if(tiroirOuvert('messages')) travaux.push(afficherConsignesEnAttente());
-    await Promise.all(travaux);
-  }catch(e){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Erreur : ' + e.message;
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '📅 Enregistrer la date';
-  }
-}
-
-/* ============================================================
-   ACTUALISATION AUTOMATIQUE
-   Le suivi bureau et les cours préparés changent sans qu'on le
-   sache : d'autres personnes les modifient. On rafraîchit seul.
-   ============================================================ */
-
-/* On ne rafraîchit jamais pendant une saisie : ce serait perdre le travail */
-function emojisPermis(s){
-  const e = [];
-  if(s.fairePoint === 'oui')  e.push('❓');   /* point à faire au prochain cours */
-  if(doitDeLArgent(s))        e.push('💰');   /* reste à payer */
-  if(aPlanifier(s))           e.push('📆');   /* leçons à poser sur le planning */
-  if(s.aRemplacer === 'oui')  e.push('🔄');   /* place à remplacer */
-  if(s.fantome === 'oui')     e.push('👻');   /* place fantôme */
-  if(s.dateADonner === 'oui') e.push('🏫');   /* à donner à une autre auto-école */
-  if(s.nbAjournements)        e.push('🔁');   /* repassage */
-  return e.join('');
-}
-
-/* Un solde saisi et non nul signifie qu'il reste à payer */
-function doitDeLArgent(s){
-  const v = String(s.resteAPayer || '').trim();
-  if(!v) return false;
-  const n = parseFloat(v.replace(',', '.').replace(/[^\d.\-]/g, ''));
-  if(!isNaN(n)) return n > 0;
-  return !/^(0|non|rien|soldé|solde|ok|à jour|a jour)$/i.test(v);
-}
-
-/* Les réservations ne sont pas encore posées sur le planning */
-function aPlanifier(s){
-  const v = String(s.reservations || '').trim();
-  if(!v) return true;
-  return /à faire|a faire|non|pas encore|à poser|a poser|manque/i.test(v);
-}
-
-function legendePermis(){
-  const d = document.createElement('div');
-  d.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.7;' +
-    'padding:6px 2px 10px;';
-  d.innerHTML = '✅ dossier prêt · ⚠️ il manque quelque chose<br>' +
-    '❓ faire le point · 💰 reste à payer · 📆 leçons à planifier · ' +
-    '🔄 place à remplacer · 👻 fantôme · 🏫 à donner · 🔁 repassage<br>' +
-    'Nom <span style="color:var(--muted);font-weight:700;">gris</span> = fantôme · ' +
-    '<span style="color:#E8A33D;font-weight:700;">orange</span> = à remplacer · ' +
-    '<span style="color:var(--red);font-weight:700;">rouge</span> = à donner';
-  return d;
-}
-
-/* Vue d'ensemble des permis prévus : par date, noms et état */
-function apercuPermisPrevus(prevus){
-  const bloc = document.createElement('div');
-
-  const nOk = prevus.filter(e => suiviDe(e.eleve).toutOk === 'oui').length;
-  const nBV = prevus.filter(e => e._boite !== 'bea' && e._boite !== 'handicap').length;
-  const nBEA = prevus.filter(e => e._boite === 'bea').length;
-  const nHand = prevus.filter(e => e._boite === 'handicap').length;
-
-  const t = document.createElement('div');
-  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);padding:2px 2px 6px;';
-  const nPoint = prevus.filter(e => suiviDe(e.eleve).fairePoint === 'oui').length;
-  const nRempl = prevus.filter(e => suiviDe(e.eleve).aRemplacer === 'oui').length;
-  const nFant  = prevus.filter(e => suiviDe(e.eleve).fantome === 'oui').length;
-  const nDonner = prevus.filter(e => suiviDe(e.eleve).dateADonner === 'oui').length;
-  t.innerHTML = prevus.length + ' permis prévu(s) — ' +
-    '<span style="color:var(--accent-text);">' + nBV + ' BV</span> · ' +
-    '<span style="color:#E8A33D;">' + nBEA + ' BEA</span>' +
-    (nHand ? ' · <span style="color:#7FB3FF;">' + nHand + ' ♿</span>' : '') +
-    '<br><span style="font-weight:600;color:var(--muted);">' +
-    nOk + ' prêt(s), ' + (prevus.length - nOk) + ' à compléter</span>' +
-    (nPoint ? '<br><span style="font-weight:700;color:var(--warn-text);">❓ ' +
-      nPoint + ' point(s) à faire à la prochaine leçon</span>' : '') +
-    /* L'état des places : ce qui reste à caser ou à rendre */
-    ((nRempl || nFant || nDonner)
-      ? '<br><span style="font-weight:600;">' +
-        [nRempl  ? '<span style="color:#E8A33D;">🔄 ' + nRempl + ' à remplacer</span>' : '',
-         nFant   ? '<span style="color:var(--muted);">👻 ' + nFant + ' fantôme(s)</span>' : '',
-         nDonner ? '<span style="color:var(--red);">🏫 ' + nDonner + ' à donner</span>' : '']
-          .filter(Boolean).join(' · ') + '</span>'
-      : '');
-  bloc.appendChild(t);
-  bloc.appendChild(legendePermis());
-
-  /* Regroupement par date réelle, pas par libellé : « 3 septembre »
-     et « 3 septembre avant » désignent le même jour. */
-  const parDate = {};
-  prevus.forEach(e => {
-    const k = e._cleJour;
-    if(!parDate[k]) parDate[k] = [];
-    parDate[k].push(e);
-  });
-
-  Object.keys(parDate).sort((a, b) => {
-    const ia = parDate[a][0]._iso || '9999', ib = parDate[b][0]._iso || '9999';
-    return ia.localeCompare(ib);
-  }).forEach(date => {
-    const groupe = parDate[date];
-
-    const d = document.createElement('div');
-    d.style.cssText = 'background:var(--navy);border:1px solid var(--line);' +
-      'border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13px;line-height:1.6;';
-
-    const bv = groupe.filter(e => e._boite !== 'bea' && e._boite !== 'handicap').length;
-    const bea = groupe.filter(e => e._boite === 'bea').length;
-    const hand = groupe.filter(e => e._boite === 'handicap').length;
-    /* Plusieurs types le même jour : à surveiller pour les véhicules */
-    const mixte = [bv, bea, hand].filter(x => x > 0).length > 1;
-
-    if(mixte){
-      d.style.background = 'var(--warn-bg)';
-      d.style.borderColor = 'var(--red)';
-    }
-
-    const h = document.createElement('div');
-    h.style.cssText = 'font-weight:700;margin-bottom:3px;';
-    /* La clé est une date ISO : on l'affiche en toutes lettres */
-    const gNom = groupe[0]._groupe || '';
-    const libelle = (dateEnToutesLettres(groupe[0]._iso) || groupe[0]._datePermis || date) +
-                    (gNom ? '  ·  ' + gNom : '');
-    h.innerHTML = '📅 ' + String(libelle).replace(/</g, '&lt;') + ' — ' + groupe.length + ' élève(s) · ' +
-      [bv ? bv + ' BV' : '', bea ? bea + ' BEA' : '', hand ? hand + ' ♿' : '']
-        .filter(Boolean).join(' · ') +
-      (mixte ? ' ⚠️' : '');
-    if(mixte) h.title = "Plusieurs types d'examen le même jour";
-    d.appendChild(h);
-
-    groupe.forEach(e => {
-      const s = suiviDe(e.eleve);
-      const l = document.createElement('div');
-      l.style.cssText = 'display:flex;align-items:center;gap:6px;padding:2px 0 2px 8px;';
-
-      const nom = document.createElement('button');
-      nom.type = 'button';
-
-      /* La couleur du nom dit l'état de la place, sans avoir à lire
-         les émojis. Du plus grave au moins grave : une date donnée
-         à une autre auto-école est définitive, une place à remplacer
-         se rattrape, une place fantôme n'est qu'en attente. */
-      let couleur = 'var(--cream)';
-      let pourquoi = 'Ouvrir la fiche de ' + e.eleve;
-      if(s.dateADonner === 'oui'){
-        couleur = 'var(--red)';
-        pourquoi = 'Date à donner à une autre auto-école' +
-                   (s.autoEcole ? ' : ' + s.autoEcole : '');
-      }else if(s.aRemplacer === 'oui'){
-        couleur = '#E8A33D';
-        pourquoi = 'Place à remplacer';
-      }else if(s.fantome === 'oui'){
-        couleur = 'var(--muted)';
-        pourquoi = 'Place fantôme';
-      }
-
-      nom.style.cssText = 'flex:1;min-width:0;text-align:left;background:none;border:none;' +
-        'color:' + couleur + ';font-size:13px;font-family:inherit;padding:2px 0;cursor:pointer;' +
-        'text-decoration:underline;text-decoration-color:var(--line);' +
-        'text-underline-offset:3px;' +
-        (couleur === 'var(--cream)' ? '' : 'font-weight:700;');
-      nom.textContent = (e._boite === 'bea' ? '🅰 ' :
-                         e._boite === 'handicap' ? '♿ ' : '🅑 ') + e.eleve;
-      nom.title = pourquoi + ' — appuie pour ouvrir sa fiche';
-      nom.addEventListener('click', () => ouvrirFichePermis(e));
-      l.appendChild(nom);
-
-      /* La date de relance, là où on la cherche : à côté du nom */
-      if(s.relanceLe){
-        const rl = document.createElement('span');
-        rl.style.cssText = 'flex-shrink:0;font-size:11px;color:var(--muted);';
-        rl.textContent = 'Date de relance : ' + dateCourte(s.relanceLe);
-        rl.title = 'Dernière relance de ' + e.eleve;
-        l.appendChild(rl);
-      }
-
-      /* La note « Autre à prévoir », juste avant les repères */
-      const autreTxt = String(s.autre || '').trim();
-      if(autreTxt){
-        const a = document.createElement('span');
-        a.style.cssText = 'flex-shrink:0;font-size:11px;color:var(--accent-text);' +
-          'max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        a.textContent = '📝 ' + autreTxt;
-        a.title = autreTxt;
-        l.appendChild(a);
-      }
-
-      const rep = document.createElement('span');
-      rep.style.cssText = 'flex-shrink:0;font-size:14px;letter-spacing:1px;';
-      rep.textContent = emojisPermis(s);
-      l.appendChild(rep);
-
-      const etat = document.createElement('span');
-      etat.style.cssText = 'flex-shrink:0;font-size:15px;';
-      etat.textContent = (s.toutOk === 'oui') ? '✅' : '⚠️';
-      etat.title = (s.toutOk === 'oui') ? 'Dossier prêt' : 'Il manque quelque chose';
-      l.appendChild(etat);
-
-      /* Le centre d'examen, réglable sans ouvrir la fiche */
-      const bC = document.createElement('button');
-      bC.className = 'btn btn-secondary';
-      bC.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;' +
-        (s.centre ? '' : 'color:var(--warn-text);border-color:var(--warn-text);');
-      bC.textContent = s.centre ? '🏁 ' + s.centre : '🏁';
-      bC.title = s.centre ? "Centre d'examen : " + s.centre + ' — appuie pour changer'
-                          : "Choisir le centre d'examen de " + e.eleve;
-      bC.addEventListener('click', ev => {
-        ev.stopPropagation();
-        choisirCentreExamen(e.eleve, s.centre);
-      });
-      l.appendChild(bC);
-
-      /* Affecter l'élève à un groupe : deux inspecteurs le même jour */
-      const bG = document.createElement('button');
-      bG.className = 'btn btn-secondary';
-      bG.style.cssText = 'width:auto;padding:3px 8px;font-size:11px;margin:0;flex-shrink:0;';
-      bG.textContent = e._groupe || '👥';
-      bG.title = e._groupe ? 'Groupe : ' + e._groupe + ' — appuie pour changer'
-                           : 'Mettre ' + e.eleve + ' dans un groupe';
-      bG.addEventListener('click', ev => {
-        ev.stopPropagation();
-        choisirGroupePermis(e.eleve, e._iso, e._groupe);
-      });
-      l.appendChild(bG);
-
-      d.appendChild(l);
-    });
-
-    bloc.appendChild(d);
-  });
-
-  const aide = document.createElement('div');
-  aide.style.cssText = 'font-size:11px;color:var(--muted);padding:6px 2px 0;line-height:1.5;';
-  aide.textContent = "Appuie sur un nom pour ouvrir sa fiche. 🏁 règle le centre d'examen, " +
-    "👥 range l'élève dans un groupe : deux inspecteurs le même jour, ou matin et " +
-    'après-midi. Les groupes se retrouvent tels quels dans le message Messenger.';
-  bloc.appendChild(aide);
-
-  return bloc;
-}
-
-/* Ouvre directement la fiche d'un élève depuis le résumé :
-   on filtre sur sa date, puis on déplie son volet. */
-/* Ouvre la fiche d'un élève dans une fenêtre, sans toucher aux filtres */
-function ouvrirFichePermis(e){
-  const fond = document.createElement('div');
-  fond.className = 'overlay show';
-
-  const boite = document.createElement('div');
-  boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(560px, 94vw);max-height:90vh;overflow-y:auto;';
-
-  const s = suiviDe(e.eleve);
-
-  const tete = document.createElement('div');
-  tete.style.cssText = 'display:flex;align-items:flex-start;gap:10px;margin-bottom:4px;';
-
-  const titre = document.createElement('div');
-  titre.style.cssText = 'flex:1;min-width:0;';
-  titre.innerHTML = '<h3 style="margin:0;">' +
-    (e._boite === 'bea' ? '🅰 ' : e._boite === 'handicap' ? '♿ ' : '🅑 ') +
-    e.eleve.replace(/</g, '&lt;') + '</h3>' +
-    '<div style="font-size:13px;color:var(--muted);line-height:1.5;margin-top:2px;">' +
-    '📅 ' + (e._datePermis || 'date inconnue') +
-    (s.centre ? ' · ' + s.centre.replace(/</g, '&lt;') : '') +
-    (s.moniteurDate ? ' · ' + s.moniteurDate.replace(/</g, '&lt;') : '') + '</div>' +
-    (emojisPermis(s)
-      ? '<div style="font-size:16px;margin-top:4px;letter-spacing:2px;">' +
-        emojisPermis(s) + (s.toutOk === 'oui' ? ' ✅' : ' ⚠️') + '</div>'
-      : '<div style="font-size:16px;margin-top:4px;">' +
-        (s.toutOk === 'oui' ? '✅' : '⚠️') + '</div>');
-  tete.appendChild(titre);
-
-  const bX = document.createElement('button');
-  bX.className = 'btn btn-secondary';
-  bX.style.cssText = 'width:auto;padding:8px 12px;font-size:16px;margin:0;flex-shrink:0;';
-  bX.textContent = '✕';
-  bX.title = 'Fermer';
-  bX.addEventListener('click', () => fermer());
-  tete.appendChild(bX);
-
-  boite.appendChild(tete);
-
-  /* La fiche complète, telle qu'elle apparaît dans la liste */
-  const fiche = ficheSuiviPermis(e);
-  fiche.style.marginTop = '10px';
-  boite.appendChild(fiche);
-
-  fond.appendChild(boite);
-  document.body.appendChild(fond);
-
-  /* Un appui hors de la fenêtre la referme */
-  fond.addEventListener('click', ev => { if(ev.target === fond) fermer(); });
-
-  let ferme = false;
-  function fermer(){
-    if(ferme) return;
-    ferme = true;
-    if(fond.parentNode) fermerFond(fond);
-    afficherBureau(true);
-  }
-
-  /* On referme dès que la fiche est enregistrée */
-  const observateur = setInterval(() => {
-    if(!fond.parentNode){ clearInterval(observateur); return; }
-    const etat = fiche.querySelector('div');
-    if(fiche.dataset && fiche.dataset.enregistre === 'oui'){
-      clearInterval(observateur);
-      setTimeout(fermer, 700);
-    }
-  }, 400);
-}
-
-/* ------------------------------------------------------------
-   EXAMEN NON PLANIFIABLE
-
-   Le moniteur l'a signalé depuis le questionnaire : ce n'est pas
-   une question de niveau, c'est un dossier qui bloque. L'élève
-   n'a donc rien à faire dans « pas le niveau », et il ne doit pas
-   non plus disparaître — quelqu'un doit débloquer la situation.
-   ------------------------------------------------------------ */
-function afficherExamenNonPlanifiable(tous){
-  const zone = $('listeNonPlanifiable');
-  if(!zone) return;
-
-  const liste = (tous || []).filter(e =>
-    typeof examenNonPlanifiable === 'function' && examenNonPlanifiable(e.note));
-
-  zone.innerHTML = '';
-  majVolet('cptNonPlanif', liste.length);
-
-  if(!liste.length){
-    zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
-    return;
-  }
-
-  liste.forEach(e => {
-    const motif = (typeof motifNonPlanifiable === 'function')
-      ? motifNonPlanifiable(e.note) : '';
-
-    zone.appendChild(ligneBureau(e, {
-      replier: true,
-      info: () => '🚫 examen non planifiable' + (motif ? ' — ' + motif : ''),
-      resume: () => e.note || '',
-      alerte: () => motif || 'Motif non précisé — à voir avec le moniteur',
-      actions: (x, boite) => {
-        const b = document.createElement('button');
-        b.className = 'btn btn-primary';
-        b.style.cssText = 'padding:10px;font-size:13px;';
-        b.textContent = "✅ C'est débloqué — date d'examen à prévoir";
-        b.addEventListener('click', async () => {
-          if(!await confirmer("Remettre " + x.eleve +
-                              " dans les élèves dont l'examen est à prévoir ?")) return;
-          b.disabled = true;
-          try{
-            /* Une consigne, pas une écriture directe dans la note :
-               c'est le chemin que suit déjà tout ce que le bureau
-               annonce au moniteur, et elle sera reprise au prochain
-               bilan comme les autres. */
-            await envoyerConsigne(x.eleve, 'permis',
-              "Examen de nouveau planifiable — date à prévoir (bureau)");
-            showToast(x.eleve + " : c'est noté");
-            redessinerBureau();
-          }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
-        });
-        boite.appendChild(b);
-      }
-    }));
-  });
-}
-
-/* Élèves pour qui le repassage n'est pas envisageable pour le moment */
-function afficherPasDeRepassage(tous){
-  const zone = $('listePasRepassage');
-  if(!zone) return;
-
-  const liste = tous.filter(e => {
-    const s = suiviDe(e.eleve);
-    return s.rdvPostFait === 'oui' && s.suite === 'impossible';
-  });
-
-  zone.innerHTML = '';
-  /* ⚠️ AVANT LE DÉPART ANTICIPÉ, comme dans « pas le niveau » : le
-     compteur restait sinon sur son dernier nombre au-dessus d'un
-     « Personne dans ce cas ». Un nombre ne doit pas survivre à ce
-     qu'il compte. */
-  majVolet('cptPasRep', liste.length);
-
-  if(!liste.length){
-    zone.innerHTML = '<div class="empty">Personne dans ce cas.</div>';
-    return;
-  }
-
-  liste.forEach(e => {
-    const s = suiviDe(e.eleve);
-    zone.appendChild(ligneBureau(e, {
-      replier: true,
-      info: () => mentionAjournements(s.nbAjournements, s.dateAjournement) +
-                  ' · ⛔ pas de repassage pour le moment',
-      resume: () => s.commentaireMoniteur || '',
-      alerte: () => 'Reprise des leçons à suivre',
-      actions: (x, boite) => {
-        /* Revoir ou compléter le rendez-vous déjà fait */
-        const bRev = document.createElement('button');
-        bRev.className = 'btn btn-secondary';
-        bRev.style.cssText = 'padding:9px;font-size:13px;margin-bottom:8px;';
-        bRev.textContent = '↗️ Revoir le rendez-vous post-permis';
-        bRev.addEventListener('click', () => {
-          const s2 = suiviDe(x.eleve);
-          ouvrirRdvPost({ eleve: x.eleve, date: s2.rdvPostDate,
-                          moniteur: s2.rdvPostMoniteur, note: '', modele: 'rdv-post' });
-        });
-        boite.appendChild(bRev);
-
-        const b = document.createElement('button');
-        b.className = 'btn btn-primary';
-        b.style.cssText = 'padding:10px;font-size:13px;';
-        b.textContent = '✅ Le niveau est revenu — remettre en examen à prévoir';
-        b.addEventListener('click', async () => {
-          if(!await confirmer('Remettre ' + x.eleve +
-                              ' dans les élèves prêts au permis ?')) return;
-          b.disabled = true;
-          try{
-            await majSuivi(x.eleve, { suite: '', retireAPrevoir: '' });
-            await envoyerConsigne(x.eleve, 'permis',
-              "Niveau revenu — date d'examen à prévoir (bureau)");
-            showToast(x.eleve + ' est de retour en « à prévoir »');
-            redessinerBureau();
-          }catch(err){ showToast('Erreur : ' + err.message); b.disabled = false; }
-        });
-        boite.appendChild(b);
-      }
-    }));
-  });
-}
-
-/* Le dernier élève ajouté à la main, pour le retrouver dans la liste */
-let eleveAjouteRecemment = '';
-
-/* Amène l'élève qui vient d'être ajouté sous les yeux */
-function signalerAjout(zone){
-  if(!eleveAjouteRecemment || !zone) return;
-  const cible = normaliserMot(eleveAjouteRecemment);
-  eleveAjouteRecemment = '';
-
-  setTimeout(() => {
-    const lignes = zone.querySelectorAll('.history-item');
-    for(let i = 0; i < lignes.length; i++){
-      const nom = lignes[i].querySelector('.meta strong');
-      if(nom && normaliserMot(nom.textContent) === cible){
-        lignes[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        lignes[i].style.outline = '2px solid var(--orange)';
-        lignes[i].style.outlineOffset = '3px';
-        setTimeout(() => { lignes[i].style.outline = ''; }, 2500);
+    window.addEventListener('error', function(e){
+      if(e.target && e.target.tagName === 'SCRIPT'){
+        montrer('Fichier introuvable : ' + (e.target.src || '?').split('/').pop());
         return;
       }
-    }
-  }, 100);
-}
-
-
-
-/* ============================================================
-   GROUPES D'EXAMEN
-   Une même date peut compter deux inspecteurs, ou une session le
-   matin et une l'après-midi. Le groupe est enregistré sur la fiche
-   de suivi : les listes ET le message Messenger le retrouvent.
-   ============================================================ */
-function groupesConnus(iso){
-  const vus = [];
-  (etatBureau.suivi || []).forEach(s => {
-    const g = (s.groupePermis || '').trim();
-    if(!g || vus.indexOf(g) !== -1) return;
-    /* Seulement ceux de la même date, pour ne pas tout mélanger */
-    if(iso && dateFrVersIso(s.datePermis || '') !== iso) return;
-    vus.push(g);
-  });
-  return vus.sort((a, b) => a.localeCompare(b, 'fr'));
-}
-
-async function choisirGroupePermis(eleve, iso, actuel){
-  const connus = groupesConnus(iso);
-  const choix = connus.slice();
-  if(actuel && choix.indexOf(actuel) === -1) choix.push(actuel);
-  choix.push('➕ Nouveau groupe…');
-  choix.push('— aucun groupe —');
-
-  const v = await choisirDansListe(
-    'Groupe d\'examen de ' + eleve + ' :', choix, actuel || '— aucun groupe —');
-  if(!v) return;
-
-  let nom = v;
-  if(v === '➕ Nouveau groupe…'){
-    const saisi = await demander(
-      'Nom du groupe\n\nEx : « Inspecteur A », « Matin », « David ».\n' +
-      'Les élèves du même nom seront regroupés.', '', 'Groupe');
-    if(saisi === null) return;
-    nom = String(saisi).trim();
-  }else if(v === '— aucun groupe —'){
-    nom = '';
-  }
-
-  try{
-    await majSuivi(eleve, { groupePermis: nom });
-    showToast(nom ? eleve + ' → ' + nom : eleve + ' retiré de son groupe');
-    afficherBureau(true);
-  }catch(e){
-    showToast('Enregistrement impossible : ' + e.message);
-  }
-}
-
-/* Une date lisible : 2026-08-05 devient 05/08/2026.
-   Les champs « date » du navigateur renvoient l'ISO, illisible ici. */
-function dateCourte(v){
-  const t = String(v || '').trim();
-  if(!t) return '';
-  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(iso) return iso[3] + '/' + iso[2] + '/' + iso[1];
-  return t;
-}
-
-/* ============================================================
-   AJOUT MANUEL DANS LES LISTES PERMIS
-   Un élève peut être prêt sans qu'aucun moniteur l'ait signalé :
-   le bureau doit pouvoir l'ajouter lui-même. L'information part
-   en message, donc elle remonte au questionnaire du moniteur.
-   ============================================================ */
-/* Cet élève a-t-il déjà sa date d'examen ?
-
-   Trois traces possibles : la date dans son suivi, celle lue
-   dans ses notes, ou une place dans une session ouverte. */
-function dejaPlace(e){
-  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
-
-  /* Un permis annulé se replace : la date passée ne compte plus */
-  if(e.etat && e.etat.permis === 'annule') return false;
-
-  /* Un rendez-vous post-permis en attente : on attend de savoir
-     s'il repasse avant de le considérer placé. */
-  if(s.rdvPostDate && s.rdvPostFait !== 'oui') return false;
-
-  if(String(s.datePermis || '').trim()) return true;
-  if(e.etat && String(e.etat.permisDate || '').trim()) return true;
-
-  /* Une place dans une session : c'est une date, elle aussi.
-     Même lecture que les examens passés — voir « placeEnSessionDe ».
-     Tant qu'elles étaient écrites deux fois, l'une pouvait le voir
-     placé pendant que l'autre ne lui réclamait pas son résultat. */
-  if(placeEnSessionDe(e.eleve)) return true;
-
-  return false;
-}
-
-
-/* Cet élève a-t-il déjà son permis ?
-
-   Un résultat « obtenu » supprime son suivi : il ne reste que la
-   trace dans ses notes et dans les résultats. */
-function dejaSonPermis(nom){
-  /* Ce que disent ses notes */
-  try{
-    const liste = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
-      ? etatBureau.eleves : [];
-    const e = liste.find(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
-    if(e && e.etat && e.etat.permis === 'obtenu'){
-      return { quand: e.etat.permisDate || '' };
-    }
-  }catch(err){}
-
-  /* Ce que dit son suivi */
-  try{
-    const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-    if(String(s.resultat || '').toLowerCase() === 'obtenu'){
-      return { quand: s.datePermis || '' };
-    }
-  }catch(err){}
-
-  return null;
-}
-
-
-/* Les heures qu'il reste à faire avant l'examen.
-
-   Le bureau les note ici ; le moniteur les voit dans les trois
-   listes. Sans ce repère, on place un élève qui n'est pas prêt. */
-/* Où en est son rendez-vous post-permis.
-
-   Pour un repassage, c'est cette conclusion qui compte : elle
-   date d'après l'examen blanc. */
-function mentionPostPermis(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-
-  const date = String(s.rdvPostDate || '').trim();
-  const fait = (s.rdvPostFait === 'oui');
-  const h = String(s.heuresRepassage || '').trim();
-
-  /* Aucun repassage en vue : rien à dire */
-  if(!date && !fait && !h) return '';
-
-  if(!fait){
-    return date ? '🔁 Post-permis prévu le ' + date
-                : '🔁 Post-permis à fixer';
-  }
-
-  const suite = (typeof libelleSuite === 'function' && s.suite)
-    ? libelleSuite(s.suite) : '';
-
-  return '🔁 Post-permis fait' + (date ? ' le ' + date : '') +
-         (h ? ' — ' + h + ' + 3h' : '') +
-         (!h && suite ? ' — ' + suite : '');
-}
-
-
-/* Les heures qui font foi.
-
-   Après un repassage, celles du post-permis priment : elles sont
-   plus récentes que celles de l'examen blanc. */
-function heuresQuiComptent(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-
-  if(s.rdvPostFait === 'oui'){
-    const h = String(s.heuresRepassage || '').trim();
-    if(h) return { valeur: h, source: 'post-permis' };
-  }
-
-  const h2 = String(s.heuresRestantes || '').trim();
-  if(h2) return { valeur: h2, source: 'examen blanc' };
-
-  return { valeur: '', source: '' };
-}
-
-
-function mentionHeuresRestantes(nom){
-  const r = heuresQuiComptent(nom);
-
-  /* Sans cette information, le bureau ne peut pas placer une
-     date : on la réclame plutôt que de laisser un blanc. */
-  if(r.valeur === '') return ' · ⏱️ heures à préciser';
-  if(r.valeur === '0') return ' · ⏱️ plus que les 3h';
-
-  /* Les 3h avant examen s'ajoutent toujours : « 4 + 3 » */
-  return ' · ⏱️ ' + r.valeur + ' + 3h';
-}
-
-
-/* La fenêtre pour les saisir */
-/* ============================================================
-   REPRENDRE CE QUE DISENT LES NOTES
-
-   L'examen blanc, sa date et les heures sont déjà écrits dans
-   les notes des bilans. Les ressaisir un par un dans le suivi
-   prend des heures : autant les y verser d'un coup.
-   ============================================================ */
-
-async function rattraperExamensBlancs(){
-  if(typeof etatBureau === 'undefined' || !etatBureau.eleves){
-    showToast('Actualise les listes d\'abord.');
-    return;
-  }
-
-  /* Ce qu'on peut reprendre, et pour qui */
-  const aFaire = [];
-
-  etatBureau.eleves.forEach(e => {
-    const s = suiviDe(e.eleve) || {};
-    const t = e.etat || {};
-
-    const majs = {};
-
-    /* Le niveau, quand le suivi ne le porte pas encore. Un
-       « à venir » se laisse tranquille : l examen n a pas eu lieu. */
-    if(!String(s.ebNiveau || '').trim() && t.ebSuite){
-      majs.ebNiveau = (t.ebSuite === 'pasleniveau') ? 'non' : 'oui';
-    }
-
-    if(!String(s.ebDate || '').trim() && t.ebDate){
-      majs.ebDate = t.ebDate;
-    }
-
-    /* Les heures : « plus que les 3h » vaut 0, et chaque leçon
-       annoncée vaut deux heures.
-
-       ⚠️ ET ELLES PASSENT PAR LEUR PORTE — v908, comme les trois
-       autres écrans qui écrivent ce nombre. Ici on RATTRAPE ce que
-       les notes disaient déjà : l'auteur posé est donc celui qui
-       appuie sur le bouton de rattrapage, et c'est honnête — c'est
-       bien lui qui vient de le porter dans la fiche. */
-    let heures;
-    if(!String(s.heuresRestantes || '').trim()){
-      if(t.ebSuite === '3h') heures = '0';
-      else if(t.ebSuite === 'lecons' && t.ebLecons){
-        heures = String(heuresPourLecons(t.ebLecons));
-      }
-    }
-    const tout = (heures !== undefined && typeof champsHeuresRestantes === 'function')
-      ? champsHeuresRestantes(e.eleve, heures, majs)
-      : majs;
-
-    if(Object.keys(tout).length) aFaire.push({ eleve: e.eleve, majs: tout });
-  });
-
-  if(!aFaire.length){
-    showToast('Rien à reprendre : tout est déjà à jour.');
-    return;
-  }
-
-  if(!await confirmer(
-      'Reprendre ' + aFaire.length + ' élève(s) depuis leurs notes ?\n\n' +
-      'Seuls les champs vides seront remplis : ce que le bureau a ' +
-      'saisi à la main ne bouge pas.', 'Mettre à jour')) return;
-
-  const z = $('rattrapageEtat');
-  if(z){ z.style.display = 'block'; }
-
-  let n = 0;
-  for(const x of aFaire){
-    try{
-      await majSuivi(x.eleve, x.majs);
-      n++;
-    }catch(e){ /* on continue : un échec ne doit pas tout arrêter */ }
-
-    if(z) z.textContent = n + ' / ' + aFaire.length + '…';
-  }
-
-  if(z){
-    z.textContent = '✅ ' + n + ' élève(s) mis à jour';
-    setTimeout(() => { z.style.display = 'none'; }, 4000);
-  }
-
-  showToast('✅ ' + n + ' élève(s) repris');
-  redessinerBureau();
-  if(typeof afficherSessionsPermis === 'function'){
-    try{ afficherSessionsPermis(); }catch(e){}
-  }
-}
-
-
-async function saisirHeuresRestantes(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-
-  /* Des cases plutôt qu'une saisie : c'est presque toujours un
-     nombre pair de 0 à 10. */
-  const choix = await fenetre(
-    "Combien d'heures avant l'examen ?\n" +
-    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.',
-    [{ nom:'Annuler', valeur:'' },
-     { nom:'0 — plus que les 3h', valeur:'0' },
-     { nom:'2 + 3h', valeur:'2' },
-     { nom:'4 + 3h', valeur:'4', principal:true },
-     { nom:'6 + 3h', valeur:'6' },
-     { nom:'8 + 3h', valeur:'8' },
-     { nom:'✏️ Autre', valeur:'autre' }],
-    nom);
-
-  if(!choix) return;
-
-  let propre = choix;
-
-  if(choix === 'autre'){
-    const v = await demander(
-      "Combien d'heures avant l'examen ?\n" +
-      'Les 3h avant examen viennent en plus.',
-      String(s.heuresRestantes || ''), nom);
-
-    if(v === null) return;
-    propre = String(v).trim().replace(',', '.');
-  }
-
-  if(propre && isNaN(Number(propre))){
-    showToast('Indique un nombre d\'heures.');
-    return;
-  }
-
-  try{
-    /* ⚠️ PAR LA PORTE DU JOUR — v972 : ces heures-là sont dites
-       maintenant, pas à la charnière. Sans repère, toutes les
-       leçons déjà faites depuis les entameraient d'un coup. */
-    await majSuivi(nom, champsHeuresDitesMaintenant(nom, propre));
-    showToast(propre === '' ? 'Effacé'
-            : propre === '0' ? 'Plus que les 3h ✅'
-            : propre + ' + 3h ✅');
-    redessinerBureau();
-  }catch(e){ showToast('Impossible : ' + e.message); }
-}
-
-
-/* Le bouton qui ouvre la saisie des heures restantes */
-/* Où en est son examen blanc.
-
-   Le bureau donne les dates : savoir si l'élève a le niveau, et
-   depuis quand, change tout. */
-/* ------------------------------------------------------------
-   UNE DATE D'EXAMEN BLANC, TOUJOURS EN JOUR / MOIS / ANNÉE
-
-   David : « le format de la date dans session examen pour les
-   examens blancs n'est pas bon, il est écrit année mois jour ».
-   Il avait raison, et c'était logique : ces dates arrivent de
-   trois écritures différentes — « 2026-09-12 » quand le bureau
-   pose la date prévue, « vendredi 12 septembre 2026 » quand il
-   saisit le passage, « 12/09/2026 » quand la valeur revient du
-   classeur. Elles s'affichaient telles qu'elles arrivaient.
-
-   Ici, elles passent toutes par la même porte et sortent en
-   12/09/2026.
-   ------------------------------------------------------------ */
-function dateEB(v){
-  const t = String(v || '').trim();
-  if(!t) return '';
-  const iso = (typeof dateFrVersIso === 'function') ? dateFrVersIso(t) : '';
-  return dateCourte(iso || t);
-}
-
-
-/* La date de l'examen blanc que le bureau a PRÉVU.
-
-   ⚠️ ELLE NE VIT PAS OÙ ON LA CHERCHAIT. « ebDate » est le jour
-   où l'examen blanc a été FAIT ; le jour où il est PRÉVU
-   s'appelle « ebDatePrevue », et personne ne le lisait ici.
-
-   David, sur Romain Rodriguez : « il a un examen blanc de prévu
-   le 12 septembre, c'est bien noté dans examen blanc prévu, mais
-   dans session examen c'est indiqué pas encore d'examen blanc ».
-   La date existait, elle était juste lue au mauvais endroit. */
-function datePrevueExamenBlanc(nom){
-  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
-  return String(s.ebDatePrevue || '').trim();
-}
-
-
-function mentionExamenBlanc(x){
-  const s = (typeof suiviDe === 'function') ? suiviDe(x.eleve) : {};
-
-  /* Un repassage : le post-permis remplace l'examen blanc, qui
-     date d'avant et n'apprend plus rien. */
-  const post = mentionPostPermis(x.eleve);
-  if(post) return ' · ' + post;
-
-  /* Ce que le bureau a noté à la main prime sur les notes des
-     bilans : il sait ce qu'il a saisi. */
-  if(String(s.ebNiveau || '').trim()){
-    const nom = { oui:'✅ A le niveau', non:'⛔ Pas le niveau',
-                  peut:'🤔 Pourrait avoir le niveau',
-                  avenir:'📅 Examen blanc à venir' }[s.ebNiveau] || s.ebNiveau;
-
-    /* « À venir » se lit « le 12/09/2026 », pas « (12/09/2026) ».
-       Sans date saisie au passage, celle qui était prévue fait
-       l'affaire : c'est le même examen blanc. */
-    const quand = dateEB(s.ebDate || datePrevueExamenBlanc(x.eleve));
-
-    if(s.ebNiveau === 'avenir'){
-      return ' · ' + nom + (quand ? ' le ' + quand : '');
-    }
-
-    return ' · ' + nom + (quand ? ' (' + quand + ')' : '');
-  }
-
-  const e = x.etat || {};
-
-  /* Les lignes d'info sont posées en texte, pas en HTML : une
-     balise y ressortirait telle quelle. */
-  if(e.examBlanc !== 'passe'){
-    /* Rien de saisi, mais une date posée : on la dit. C'est ce
-       qui manquait — « pas encore d'examen blanc » était faux
-       pour un élève qui en avait un dans trois jours. */
-    const prevue = datePrevueExamenBlanc(x.eleve) || e.examBlancDate || '';
-    const isoP = (typeof dateFrVersIso === 'function')
-      ? dateFrVersIso(prevue) : '';
-
-    if(isoP){
-      const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
-      /* Une date dépassée ne se dit plus « prévu » : l'examen a
-         eu lieu, c'est son résultat qui manque. Même règle que
-         etatQuiFaitFoi, qui bascule sur « passé » le lendemain. */
-      return (auj && isoP < auj)
-        ? ' · 🏁 Examen blanc du ' + dateEB(isoP) + ' — résultat à saisir'
-        : ' · 📅 Examen blanc prévu le ' + dateEB(isoP);
-    }
-
-    return " · 📝 pas encore d'examen blanc";
-  }
-
-  const suite = {
-    'pasleniveau': '⛔ Pas le niveau',
-    '3h': '✅ A le niveau',
-    'lecons': '⏳ Encore ' + (e.ebLecons || '?') + ' leçon(s)'
-  }[e.ebSuite] || '📝 Examen blanc passé';
-
-  const quand = dateEB(e.ebDate || datePrevueExamenBlanc(x.eleve));
-  return ' · ' + suite + (quand ? ' (' + quand + ')' : '');
-}
-
-
-/* La saisie du bureau, quand il sait mieux que les notes */
-async function saisirExamenBlanc(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-
-  const quoi = await fenetre(
-    "Où en est l'examen blanc de " + nom + ' ?',
-    [{ nom: 'Annuler', valeur: '' },
-     /* Un examen blanc posé mais pas encore passé : le bureau
-        voit la date sans avoir à inventer un résultat. */
-     { nom: '📅 À venir', valeur: 'avenir' },
-     { nom: '⛔ Pas le niveau', valeur: 'non' },
-     { nom: '🤔 Pourrait', valeur: 'peut' },
-     { nom: '✅ A le niveau', valeur: 'oui', principal: true }],
-    'Examen blanc');
-
-  if(!quoi) return;
-
-  const iso = await choisirDate(
-    (quoi === 'avenir' ? "Date de l'examen blanc — " : 'Date du passage — ') + nom);
-
-  /* La date n'est pas obligatoire, sauf pour un examen à venir :
-     sans elle, « à venir » n'apprendrait rien. */
-  if(quoi === 'avenir' && !iso){
-    showToast('Indique la date de son examen blanc.');
-    return;
-  }
-
-  const date = iso ? dateEnToutesLettres(iso) : (s.ebDate || '');
-
-  try{
-    await majSuivi(nom, { ebNiveau: quoi, ebDate: (date || '').trim() });
-    showToast('Enregistré ✅');
-
-    /* Les sessions affichent la même information : sans ce
-       rafraîchissement, la ligne gardait l'ancienne mention. */
-    redessinerBureau();
-    if(typeof afficherSessionsPermis === 'function'){
-      try{ afficherSessionsPermis(); }catch(e){}
-    }
-  }catch(e){ showToast('Impossible : ' + e.message); }
-}
-
-
-/* Le menu qui demande ce qu'on renseigne.
-
-   Un repassage a deux sources : l'examen blanc, ancien, et le
-   post-permis, plus récent. Le bureau doit savoir laquelle il
-   touche. */
-async function saisirNiveauEleve(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  const repassage = !!(s.rdvPostDate || s.rdvPostFait === 'oui' ||
-                       s.heuresRepassage);
-
-  const quoi = await fenetre(
-    'Que veux-tu renseigner pour ' + nom + ' ?' +
-    (repassage ? '\n\nC\'est un repassage : le post-permis fait foi.' : ''),
-    [{ nom: 'Annuler', valeur: '' },
-     { nom: '📝 Examen blanc', valeur: 'eb', principal: !repassage },
-     { nom: '🔁 Post-permis', valeur: 'post', principal: repassage }],
-    'Que renseigner ?');
-
-  if(!quoi) return;
-  if(quoi === 'eb') return saisirExamenBlanc(nom);
-  return saisirPostPermis(nom);
-}
-
-
-/* Ce que le bureau sait du rendez-vous post-permis */
-async function saisirPostPermis(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-
-  const date = await demander(
-    'Date du rendez-vous post-permis\n' +
-    'Laisse vide s\'il n\'est pas encore fixé.',
-    s.rdvPostDate || '', nom);
-  if(date === null) return;
-
-  const fait = await fenetre(
-    'Le rendez-vous a-t-il eu lieu ?',
-    [{ nom: 'Pas encore', valeur: 'non' },
-     { nom: '✅ Oui, il est fait', valeur: 'oui', principal: true }],
-    nom);
-  if(!fait) return;
-
-  const majs = {
-    rdvPostDate: String(date || '').trim(),
-    rdvPostFait: (fait === 'oui') ? 'oui' : ''
-  };
-
-  /* Les heures ne se décident qu'une fois le rendez-vous fait */
-  if(fait === 'oui'){
-    const h = await demander(
-      "Combien d'heures avant le repassage ?\n" +
-      'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
-      'Mets 0 s\'il ne reste que les 3h.',
-      s.heuresRepassage || '', nom);
-
-    if(h !== null){
-      const propre = String(h).trim().replace(',', '.');
-      if(propre && isNaN(Number(propre))){
-        showToast('Indique un nombre d\'heures.');
+      var msg = e.message || 'erreur';
+      var fic = String(e.filename || '').split('/').pop();
+
+      /* Un « already been declared » veut dire que le fichier est
+         chargé deux fois : le dire, plutôt que le message technique. */
+      if(/already been declared|a déjà été déclaré/i.test(msg)){
+        montrer('Le fichier ' + fic + ' est chargé DEUX FOIS. ' +
+                'Ton index.html contient une balise <script> en double.');
         return;
       }
-      majs.heuresRepassage = propre;
-    }
-  }
-
-  try{
-    await majSuivi(nom, majs);
-    showToast('Enregistré ✅');
-    redessinerBureau();
-    if(typeof afficherSessionsPermis === 'function'){
-      try{ afficherSessionsPermis(); }catch(e){}
-    }
-  }catch(e){ showToast('Impossible : ' + e.message); }
-}
-
-
-function boutonExamenBlanc(nom){
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-  b.textContent = '📝 Niveau';
-  b.title = "Examen blanc ou rendez-vous post-permis";
-  b.addEventListener('click', () => saisirNiveauEleve(nom));
-  return b;
-}
-
-
-/* ============================================================
-   ENVOYER UN ÉLÈVE VERS UNE AUTRE LISTE
-
-   Retirer de tout détruisait sa ligne de suivi — date, heures,
-   examen blanc, paiements. Le déplacer conserve tout : on ne
-   change que sa place dans le parcours.
-   ============================================================ */
-
-/* ------------------------------------------------------------
-   OÙ ENVOYER UN ÉLÈVE
-
-   UNE LISTE-CIBLE DOIT EFFACER CE QUI LE RETENAIT AILLEURS.
-
-   David : « dans "examen passé, résultat à saisir", j'ai des
-   élèves qui n'ont pas passé leur permis. J'ai bien le bouton pour
-   les envoyer dans une autre liste, mais ça ne change rien : elle
-   reste ici alors qu'elle ne devrait pas. »
-
-   Elle a raison. Cette liste-là ne regarde ni `aPlanifier` ni
-   `retireAPrevoir` — les seuls champs que les cibles touchaient.
-   Elle se reconnaît à DEUX choses : une date d'examen passée, et
-   pas de résultat. Tant que la date reste, l'élève reste, quelle
-   que soit la liste qu'on lui a choisie.
-
-   Or aucune de ces cinq destinations ne décrit un élève convoqué :
-   toutes effacent donc la date. C'est déjà ce que fait
-   l'ajournement, et c'est la convention du module — `datePermis`
-   dit « convoqué à cette date », pas « y est allé ce jour-là ».
-
-   Et la date vit à deux endroits : la fiche de suivi ET la note du
-   dernier cours, que le bureau ne peut pas réécrire. D'où
-   `neutralise` : une consigne qui annonce que l'examen est de
-   nouveau à prévoir, et qui prime sur l'annonce précédente
-   puisque c'est la DERNIÈRE qui fait foi. Sans elle, l'élève
-   quittait la fiche de suivi sans quitter la liste.
-   ------------------------------------------------------------ */
-const LISTES_PERMIS = [
-  { cle:'envisager', nom:'🤔 Élèves prêts au permis',
-     champs:{ aPlanifier:'', retireAPrevoir:'', statut:'', datePermis:'' },
-     neutralise:true,
-     note:'Examen blanc passé le {jour} — plus que les 3h avant examen (bureau)' },
-
-  { cle:'rdv',       nom:'🗓️ Liste RDV Permis',
-     champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'', datePermis:'' },
-     neutralise:true },
-
-  { cle:'pasret',    nom:'⛔ Pas le niveau',
-     champs:{ ebNiveau:'non', aPlanifier:'', retireAPrevoir:'', datePermis:'' },
-     neutralise:true,
-     note:'Examen blanc passé le {jour} — pas le niveau (bureau)' },
-
-  /* Cette liste-là ne se reconnaît PAS aux mêmes champs que les
-     autres : elle demande « resultat === ajourne ». Sans lui,
-     l'élève quittait sa liste sans arriver dans celle-ci — la
-     panne corrigée en v764 sur la case d'à côté, restée entière
-     ici parce que je n'avais regardé que celle dont David se
-     plaignait. */
-  { cle:'attente',   nom:'⏳ Attente bilan post-permis',
-     champs:{ resultat:'ajourne', rdvPostFait:'', aPlanifier:'',
-              retireAPrevoir:'', datePermis:'' },
-     neutralise:true },
-
-  { cle:'pause',     nom:'⛔ Ne plus suivre pour le moment',
-     champs:{ retireAPrevoir:'oui', aPlanifier:'', datePermis:'' },
-     neutralise:true }
-];
-
-/* La phrase qui défait une convocation. C'est la dernière annonce
-   de la note qui fait foi (voir analyserNote) : celle-ci remplace
-   donc « Examen du permis fixé au … » sans avoir à la retrouver. */
-const CONSIGNE_EXAMEN_A_REPRENDRE = "Date d'examen à prévoir (bureau)";
-
-
-async function envoyerVersListe(nom){
-  const quoi = await fenetre(
-    'Où envoyer ' + nom + ' ?\n\n' +
-    'Sa fiche est conservée : date, heures, examen blanc, paiements.',
-    [{ nom:'Annuler', valeur:'' }].concat(
-      LISTES_PERMIS.map((l, i) => ({
-        nom: l.nom, valeur: l.cle, principal: (i === 0)
-      }))),
-    'Changer de liste');
-
-  if(!quoi) return;
-
-  const cible = LISTES_PERMIS.find(l => l.cle === quoi);
-  if(!cible) return;
-
-  try{
-    await majSuivi(nom, cible.champs);
-
-    /* Certaines listes se reconnaissent aux notes, pas au suivi :
-       sans la phrase attendue, l'élève quittait sa liste sans
-       arriver dans la nouvelle. */
-    if(cible.note && typeof envoyerConsigne === 'function'){
-      const jour = dateEnToutesLettres(todayLocal()) || todayLocal();
-      await envoyerConsigne(nom, 'examblanc',
-                            cible.note.replace('{jour}', jour));
-    }
-
-    /* Et la convocation elle-même : effacée du suivi ci-dessus,
-       elle vit encore dans la note du dernier cours. */
-    if(cible.neutralise && typeof envoyerConsigne === 'function'){
-      try{
-        await envoyerConsigne(nom, 'permis', CONSIGNE_EXAMEN_A_REPRENDRE);
-      }catch(err){ /* la liste change quand même */ }
-    }
-
-    viderCaches(nom);
-
-    showToast(nom + ' → ' + cible.nom.replace(/^[^ ]+ /, '') + ' ✅');
-    redessinerBureau();
-  }catch(e){ showToast('Impossible : ' + e.message); }
-}
-
-
-/* Le point à refaire lors d'une leçon.
-
-   Il vient du rendez-vous post-permis conclu par « une leçon de
-   2h », ou de la main du bureau. */
-function mentionFairePoint(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  if(s.fairePoint !== 'oui') return '';
-
-  const d = String(s.fairePointLe || '').trim();
-  return '❓ Faire le point à la leçon' + (d ? ' du ' + d : '');
-}
-
-
-async function saisirFairePoint(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-
-  if(s.fairePoint === 'oui'){
-    if(!await confirmer('Le point a-t-il été fait pour ' + nom + ' ?\n\n' +
-        "La mention disparaîtra de sa ligne.", 'Point fait')) return;
-
-    await majSuivi(nom, { fairePoint: '', fairePointLe: '' });
-
-    /* La consigne n'a plus d'objet */
-    try{
-      const e = (typeof etatBureau !== 'undefined' && etatBureau.eleves)
-        ? etatBureau.eleves.find(x => normaliserMot(x.eleve) === normaliserMot(nom))
-        : null;
-
-      for(const cs of ((e && e.enAttente) || [])){
-        if(!/faire le point/i.test(cs.texte || '')) continue;
-        try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+      if(/is not defined/i.test(msg) && /ec-/.test(fic)){
+        montrer(msg + ' — ' + fic + ' ligne ' + (e.lineno || '?') +
+                '  ·  ton index.html ne correspond pas aux modules déployés.');
+        return;
       }
-    }catch(err){}
+      montrer(msg + '  —  ' + fic + ' ligne ' + (e.lineno || '?'));
+    }, true);
 
-    showToast('Point fait ✅');
-    redessinerBureau();
-    if(typeof afficherSessionsPermis === 'function'){
-      try{ afficherSessionsPermis(); }catch(e){}
-    }
-    return;
-  }
+    window.addEventListener('unhandledrejection', function(e){
+      montrer('Promesse rejetée : ' + ((e.reason && e.reason.message) || e.reason));
+    });
+  })();
+  </script>
 
-  const iso = await choisirDate('Leçon où faire le point — ' + nom);
-  if(!iso) return;
+  <script src="app/ec-etat.js?v=986"></script>
+<script src="app/ec-modeles.js?v=986"></script>
+<script src="app/ec-consignes.js?v=986"></script>
+<script src="app/ec-noyau.js?v=986"></script>
+<script src="app/ec-vocal.js?v=986"></script>
+<!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
+     ici » est branché là-bas, et il appelle les fonctions d'ici. -->
+<script src="app/ec-trajet.js?v=986"></script>
+<script src="app/ec-reseau.js?v=986"></script>
+<script src="app/ec-manuel.js?v=986"></script>
+<script src="app/ec-fenetres.js?v=986"></script>
+<script src="app/ec-questionnaire.js?v=986"></script>
+<script src="app/ec-permis.js?v=986"></script>
+<script src="app/ec-prepares.js?v=986"></script>
+<script src="app/ec-avant-cours.js?v=986"></script>
+<script src="app/ec-bureau.js?v=986"></script>
+<script src="app/ec-places.js?v=986"></script>
+<script src="app/ec-listes.js?v=986"></script>
+<script src="app/ec-permis-listes.js?v=986"></script>
+<script src="app/ec-postpermis.js?v=986"></script>
+<script src="app/ec-textes.js?v=986"></script>
+<script src="app/ec-correction.js?v=986"></script>
+<script src="app/ec-bilans.js?v=986"></script>
+<script src="app/ec-ecran.js?v=986"></script>
+<script src="app/ec-version.js?v=986"></script>
+<script src="app/ec-paie.js?v=986"></script>
+<script src="app/ec-flotte.js?v=986"></script>
+<script src="app/ec-carrosserie.js?v=986"></script>
+<script src="app/ec-solo.js?v=986"></script>
+<script src="app/ec-handicap-pdf.js?v=986"></script>
+<script src="app/ec-moto.js?v=986"></script>
+<script src="app/ec-remorque.js?v=986"></script>
+<script src="app/ec-arriereplan.js?v=986"></script>
+<script src="app/ec-placesbe.js?v=986"></script>
+<script src="app/ec-codeamenage.js?v=986"></script>
+<script src="app/ec-financements.js?v=986"></script>
+<script src="app/ec-eval-aac.js?v=986"></script>
+<script src="app/ec-postes.js?v=986"></script>
+<script src="app/ec-tarifs.js?v=986"></script>
+<script src="app/ec-caisse.js?v=986"></script>
+<script src="app/ec-menage.js?v=986"></script>
+<script src="app/ec-page-eleve.js?v=986"></script>
+<script src="app/ec-cbgasoil.js?v=986"></script>
+<script src="app/ec-loupe.js?v=986"></script>
+<script src="app/ec-coutsia.js?v=986"></script>
+<script src="app/ec-evaluation.js?v=986"></script>
+<script src="app/ec-paiement.js?v=986"></script>
+<script src="app/ec-handicap.js?v=986"></script>
+<script src="app/ec-code.js?v=986"></script>
+<script src="app/ec-proccorriger.js?v=986"></script>
+<script src="app/ec-sessions.js?v=986"></script>
+<script src="app/ec-aac-cs.js?v=986"></script>
+<script src="app/ec-notifs.js?v=986"></script>
+<script src="app/ec-ecoutes.js?v=986"></script>
+<script src="app/ec-taches.js?v=986"></script>
+<script src="app/ec-memoire.js?v=986"></script>
+<script src="app/ec-historique.js?v=986"></script>
+<script src="app/ec-rappels.js?v=986"></script>
+<script src="app/ec-segments.js?v=986"></script>
+<script src="app/ec-sms.js?v=986"></script>
+<script src="app/ec-encours.js?v=986"></script>
+<script src="app/ec-incidents.js?v=986"></script>
+<!-- Le bandeau lit ce que les autres calculent : il vient donc
+     APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
+     la seule de ses cinq familles qui vienne du classeur. -->
+<script src="app/ec-messages-perso.js?v=986"></script>
+<!-- Les notes de version. Elles ne lisent rien du classeur — elles
+     voyagent avec la version — mais elles fournissent une famille du
+     bandeau : elles le précèdent, comme ec-messages-perso. -->
+<script src="app/ec-nouveautes.js?v=986"></script>
+<script src="app/ec-bandeau.js?v=986"></script>
+<script src="app/ec-stats.js?v=986"></script>
+<script src="app/ec-messenger.js?v=986"></script>
+<script src="app/ec-journal.js?v=986"></script>
+<script src="app/ec-depart.js?v=986"></script>
+<script src="app/ec-onglets.js?v=986"></script>
+<script src="app/ec-demarrage.js?v=986"></script>
 
-  try{
-    const quand = dateEnToutesLettres(iso);
-
-    await majSuivi(nom, { fairePoint: 'oui', fairePointLe: quand });
-
-    /* Le moniteur ne voit pas le suivi : la consigne, si. Sans
-       elle, il découvrait la demande après son cours. */
-    if(typeof envoyerConsigne === 'function'){
-      try{
-        await envoyerConsigne(nom, 'point',
-          '❓ Faire le point à la leçon du ' + quand + ' (bureau)');
-      }catch(e){}
-    }
-
-    showToast('Noté ✅');
-    redessinerBureau();
-    if(typeof afficherSessionsPermis === 'function'){
-      try{ afficherSessionsPermis(); }catch(e){}
-    }
-  }catch(e){ showToast('Impossible : ' + e.message); }
-}
-
-
-function boutonEnvoyerVers(nom){
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;';
-  b.textContent = '➡️ Envoyer vers…';
-  b.title = 'Changer de liste sans rien perdre';
-  b.addEventListener('click', () => envoyerVersListe(nom));
-  return b;
-}
-
-
-function boutonHeuresRestantes(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  const h = String(s.heuresRestantes || '').trim();
-
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
-    (h === ''
-      /* Manquant : on le signale, c'est ce qui bloque le bureau */
-      ? 'color:var(--warn-text);border-color:var(--warn-text);'
-      : 'color:var(--accent-text);border-color:var(--accent-text);');
-
-  b.textContent = (h === '') ? '⏱️ Heures à préciser'
-                : (h === '0') ? '⏱️ Plus que les 3h'
-                : '⏱️ ' + h + ' + 3h';
-
-  b.addEventListener('click', () => saisirHeuresRestantes(nom));
-  return b;
-}
-
-
-function boutonAjoutManuel(zone, mode){
-  const b = document.createElement('button');
-  b.className = 'btn btn-secondary';
-  b.style.cssText = 'margin-bottom:10px;padding:11px;font-size:13px;';
-  b.textContent = (mode === 'prevu')
-    ? '➕ Ajouter un élève avec sa date de permis'
-    : '➕ Ajouter un élève prêt au permis';
-  b.addEventListener('click', () => ajouterManuellementAuPermis(mode));
-  zone.appendChild(b);
-  return b;
-}
-
-async function ajouterManuellementAuPermis(mode){
-  /* Le sélecteur dit si l'élève existe ou s'il va être créé */
-  const eleve = await choisirEleveConnu(
-    mode === 'prevu' ? 'Ajouter un élève avec sa date de permis'
-                     : 'Ajouter un élève prêt au permis',
-    'Commence à taper : les élèves connus sont proposés.');
-  if(!eleve) return;
-
-  /* Un élève qui a déjà son permis n'a rien à faire dans ces
-     listes : l'y remettre fausse le suivi et lui prendrait une
-     place d'examen. */
-  const obstacle = dejaSonPermis(eleve);
-  if(obstacle){
-    await informer(eleve + ' a déjà obtenu son permis' +
-      (obstacle.quand ? ' le ' + obstacle.quand : '') + '.\n\n' +
-      "Il ne peut pas rejoindre cette liste. S'il s'agit d'une " +
-      'erreur, annule son résultat depuis le journal.',
-      'Permis déjà obtenu');
-    return;
-  }
-
-  /* Une date d'examen se prend sur une place ouverte, plus dans un
-     calendrier : c'est la même porte que le dossier et la liste
-     RDV Permis. */
-  let place = null;
-  if(mode === 'prevu'){
-    if(typeof choisirPlaceExamen !== 'function'){
-      showToast("Les sessions d'examen ne sont pas disponibles ici.");
-      return;
-    }
-    place = await choisirPlaceExamen(eleve, (suiviDe(eleve) || {}).semaine);
-    if(!place) return;
-  }
-
-  try{
-    if(mode === 'prevu'){
-      await placerEleveSurPlace(eleve, place);
-      /* On garde ce que cette liste faisait en propre. */
-      await majSuivi(eleve, { retireAPrevoir: '' });
-      showToast(eleve + ' → permis le ' + dateCourte(place.date) + ' ✅');
-    }else{
-      await envoyerConsigne(eleve, 'permis', "Date d'examen à prévoir (bureau)");
-      await majSuivi(eleve, { retireAPrevoir: '', aPlanifier: '' });
-      showToast(eleve + ' → prêt au permis ✅');
-    }
-    viderCaches(eleve);
-    await afficherBureau(true);
-  }catch(e){
-    await informer('Enregistrement impossible : ' + e.message);
-  }
-}
-
+<script>
 /* ============================================================
-   CENTRE D'EXAMEN, RÉGLABLE DEPUIS LA LISTE
-   Ouvrir la fiche pour un seul champ est fastidieux quand on
-   répartit vingt candidats entre deux centres.
+   LE NUMÉRO DE VERSION AFFICHÉ
+   Il était recopié à la main à côté du titre, en plus des 53 ?v=
+   des modules : à chaque montée de version, c'est la copie qu'on
+   oubliait, et l'écran annonçait alors une version qu'il n'avait
+   pas. On le relit donc dans le ?v= réellement chargé.
+   Le numéro écrit dans l'en-tête reste comme secours si ce script
+   ne tourne pas, et le bouton 🔄 compare la même valeur.
    ============================================================ */
-const CENTRES_EXAMEN = ['Saint-Brieuc', 'Loudéac'];
-
-async function choisirCentreExamen(eleve, actuel){
-  /* Les centres déjà utilisés, en plus des deux habituels */
-  const vus = [];
-  (etatBureau.suivi || []).forEach(s => {
-    const x = (s.centre || '').trim();
-    if(x && CENTRES_EXAMEN.indexOf(x) === -1 && vus.indexOf(x) === -1) vus.push(x);
-  });
-
-  const choix = CENTRES_EXAMEN.concat(vus);
-  choix.push('➕ Autre centre…');
-  choix.push('— non défini —');
-
-  const v = await choisirDansListe('Centre d\'examen de ' + eleve + ' :',
-                                   choix, actuel || '— non défini —');
-  if(!v) return;
-
-  let nom = v;
-  if(v === '➕ Autre centre…'){
-    const saisi = await demander('Nom du centre d\'examen :', '', 'Centre');
-    if(saisi === null) return;
-    nom = String(saisi).trim();
-  }else if(v === '— non défini —'){
-    nom = '';
-  }
-
+(function(){
   try{
-    await majSuivi(eleve, { centre: nom });
-    showToast(nom ? eleve + ' → ' + nom : eleve + ' : centre effacé');
-    afficherBureau(true);
-  }catch(e){
-    showToast('Enregistrement impossible : ' + e.message);
-  }
-}
+    var cible = document.getElementById('versionAffichee');
+    var mod   = document.querySelector('script[src*="app/"][src*="?v="]');
+    if(!cible || !mod) return;
+    var num = (mod.getAttribute('src').match(/[?&]v=(\d+)/) || [])[1];
+    if(num) cible.textContent = 'v' + num;
+  }catch(e){ /* on garde le numéro écrit dans la page */ }
+})();
+</script>
 
-/* Le libellé d'une semaine a gagné son numéro (« · S36 ») en v270.
-   Les valeurs enregistrées avant ne le portent pas : on compare
-   sans lui, pour ne pas se retrouver avec deux entrées. */
-function memeSemaine(a, b){
-  const sansNum = x => String(x || '').replace(/\s*·\s*S\d+(–S\d+)?/g, '').trim();
-  return sansNum(a) === sansNum(b);
-}
-
-/* Signale que ce module est bien chargé */
-window.EC_MODULES = window.EC_MODULES || {};
-window.EC_MODULES['ec-permis-listes.js'] = true;
+</body>
+</html>
