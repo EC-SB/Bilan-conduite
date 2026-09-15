@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 10:31 — v968 */
+/* Déployé le 15/09/2026 à 15:33 — v1006 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1149,13 +1149,27 @@ function buildExamenBlanc(ai, ctx){
     /* L'élimination se signale sur l'erreur : une compétence
        peut porter une éliminatoire et d'autres fautes. */
     const m = mentionObs(o);
+    /* ⚠️ ET LE POINT DE LA CARTE AU BOUT DE LA LIGNE — v1006. La
+       mention sort de ec-trajet.js : trois écrans écrivent cette
+       ligne, et ils disaient déjà la même phrase à trois endroits. */
+    const pt = (typeof mentionDuPoint === 'function' ? mentionDuPoint(o) : '');
     if(txt(o.inspecteur)){
       L('👨‍✈️ ' + m + txt(o.inspecteur) +
-        (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
+        (o.categorie ? ' ☠️ Erreur éliminatoire' : '') + pt);
     }else if(o.categorie){
-      L('☠️ ' + m + 'Erreur éliminatoire');
+      L('☠️ ' + m + 'Erreur éliminatoire' + pt);
     }
-    if(txt(o.reponse)) L(emojiMoniteur() + ' ' + m + txt(o.reponse));
+    /* ⚠️ LE RENVOI SE POSE UNE SEULE FOIS. Sur la ligne de
+       l'inspecteur quand elle existe — c'est ce que David a
+       demandé — et sinon sur celle du moniteur, jamais sur une
+       ligne à lui tout seul : une ligne qui ne dit qu'un numéro
+       n'apprend rien à l'élève. */
+    const posee = txt(o.inspecteur) || o.categorie;
+    if(txt(o.reponse)){
+      L(emojiMoniteur() + ' ' + m + txt(o.reponse) + (posee ? '' : pt));
+    }else if(!posee && pt){
+      L(emojiMoniteur() + ' ' + m + 'à revoir' + pt);
+    }
   };
 
   const questionsElim = () => {
@@ -1332,11 +1346,15 @@ function buildExamen(ai){
        une compétence peut porter une éliminatoire et d'autres
        fautes. Même forme que dans le bilan d'examen blanc. */
     const m = mentionObs(o);
+    /* ⚠️ LE POINT DE LA CARTE AU BOUT DE LA LIGNE — v1006. David,
+       pour l'examen officiel : « au bout de la ligne remarque de
+       l'inspecteur le numéro du point ». */
+    const pt = (typeof mentionDuPoint === 'function' ? mentionDuPoint(o) : '');
     if(txt(o.inspecteur)){
       parts.push('👨‍✈️ ' + m + txt(o.inspecteur) +
-                 (o.categorie ? ' ☠️ Erreur éliminatoire' : ''));
+                 (o.categorie ? ' ☠️ Erreur éliminatoire' : '') + pt);
     }else if(o.categorie){
-      parts.push('☠️ ' + m + 'Erreur éliminatoire');
+      parts.push('☠️ ' + m + 'Erreur éliminatoire' + pt);
     }
     /* ⚠️ L'ÉMOJI DU MONITEUR, PAS LE LION — v966. David : « il faut
        l'émoji du moniteur et pas obligatoirement le lion devant ».
@@ -1348,7 +1366,17 @@ function buildExamen(ai){
        défaut recopiée à la main finit toujours par rester là où le
        défaut ne s'applique plus. Le lion reste le repli, dans la
        fonction. */
-    if(txt(o.reponse)) parts.push(emojiMoniteur() + ' ' + m + txt(o.reponse));
+    /* ⚠️ LE RENVOI SE POSE UNE SEULE FOIS — v1006 : sur la ligne de
+       l'inspecteur quand elle existe, sinon sur celle du moniteur.
+       Jamais sur une ligne à lui tout seul : une ligne qui ne dit
+       qu'un numéro n'apprend rien à l'élève. */
+    const posee = txt(o.inspecteur) || o.categorie;
+    if(txt(o.reponse)){
+      parts.push(emojiMoniteur() + ' ' + m + txt(o.reponse) +
+                 (posee ? '' : pt));
+    }else if(!posee && pt){
+      parts.push(emojiMoniteur() + ' ' + m + 'à revoir' + pt);
+    }
   };
 
   erreursParCompetence(obs).forEach(g => {
