@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 14:54 — v1003 */
+/* Déployé le 15/09/2026 à 15:10 — v1004 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -72,6 +72,12 @@ let trajetRefus = '';         /* le message du navigateur, s'il a REFUSÉ */
    heure de relevé parfait n'est pas un trajet qui ment. */
 let trajetPanne = '';         /* incident passager, effacé au point suivant */
 let carteEnPreparation = null; /* l'image du tracé, lancée d'avance */
+/* ⚠️ UNE IDENTITÉ STABLE POUR CHAQUE POINT — v1004. Le NUMÉRO d'un
+   point est son rang : il change dès qu'on en retire un. Les lignes
+   d'observation d'un examen, elles, doivent continuer de désigner
+   LEUR point — sinon « point 5 sur la carte » finit par montrer le
+   point d'à côté. Le rang s'affiche, l'identité se garde. */
+let trajetCompteur = 0;
 
 /* Un point toutes les cinq secondes suffit à dessiner une route.
    À une seconde, on garde sept fois plus de points pour le même
@@ -342,6 +348,7 @@ function demarrerTrajet(){
   /* Un nouveau cours, une nouvelle carte : l'image préparée pour
      le précédent partirait dans le mail de cet élève-ci. */
   carteEnPreparation = null;
+  trajetCompteur = 0;
 
   try{
     trajetVeille = navigator.geolocation.watchPosition(
@@ -421,6 +428,7 @@ function oublierLeTrajet(){
   trajetRefus = '';
   trajetPanne = '';
   carteEnPreparation = null;
+  trajetCompteur = 0;
 }
 
 function trajetEnCours(){ return trajetVeille !== null; }
@@ -432,7 +440,7 @@ function trajetEnCours(){ return trajetVeille !== null; }
    Un appui, rien d'autre. La voiture roule, l'élève conduit : ce
    n'est pas le moment d'ouvrir un clavier.
    ============================================================ */
-function poserRepere(){
+function poserRepere(type, nom){
   if(!trajetDebut) return 0;
 
   /* ⚠️ L'HEURE ET LA POSITION VIENNENT DU MÊME POINT — v1000.
@@ -449,10 +457,14 @@ function poserRepere(){
      seul recours. */
   const dernier = trajetPoints[trajetPoints.length - 1];
   trajetReperes.push({
+    id: ++trajetCompteur,
     t: dernier ? dernier.t : Date.now(),
     lat: dernier ? dernier.lat : null,
     lon: dernier ? dernier.lon : null,
-    nom: ''
+    nom: String(nom || ''),
+    /* La nature vaut « repere » par défaut : le bouton 📍 n'a pas
+       à la connaître, et tout ce qui existait avant continue. */
+    type: NATURES_DU_POINT[type] ? type : 'repere'
   });
 
   /* ⚠️ ET LA MARQUE ENTRE DANS LA DICTÉE, À L'ENDROIT OÙ ON EN
@@ -464,7 +476,14 @@ function poserRepere(){
      ⚠️ MAIS C'EST LE POINT GPS QUI FAIT FOI. Le moniteur peut
      corriger sa dictée à la main et effacer un « 📍 » : le repère
      existe toujours, il arrive simplement sans nom proposé. */
-  marquerDansLaDictee(trajetReperes.length);
+  /* ⚠️ LA MARQUE DANS LA DICTÉE NE CONCERNE QUE LE 📍 — v1004. Une
+     ☠️ ou un ⚠️ est déjà attaché à SA ligne d'observation, qui dit
+     bien mieux de quoi il s'agit ; l'écrire en plus dans un texte
+     que l'écran d'examen n'affiche pas, ce serait laisser traîner
+     une donnée que personne ne relira. */
+  if((NATURES_DU_POINT[type] ? type : 'repere') === 'repere'){
+    marquerDansLaDictee(trajetReperes.length);
+  }
 
   if(typeof vibrer === 'function') vibrer();
   else if(navigator && navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
@@ -643,7 +662,8 @@ function trajetPourEnvoi(){
     reperes: trajetReperes.map((r, i) => ({
       n: i + 1,
       heure: heure(r.t),
-      nom: String(r.nom || '')
+      nom: String(r.nom || ''),
+      type: r.type || 'repere'
     }))
   };
 }
@@ -702,6 +722,92 @@ function nommerRepere(numero, nom){
 }
 
 /* ============================================================
+   CHANGER LA NATURE D'UN POINT, ET EN RETIRER UN — v1004
+
+   ⚠️ RETIRER LA MARQUE NE RETIRE PAS LE POINT. Le moniteur a
+   appuyé à cet endroit-là : le moment est vrai, seule sa
+   qualification a changé. Un point qui disparaît décale tous les
+   numéros suivants — « regarde le 4 » désignerait le 5 — et la
+   ligne d'observation qui pointait vers lui montrerait autre
+   chose. Une marque retirée redevient donc un point de travail.
+
+   ⚠️ SAUF L'APPUI RATÉ, qui n'a jamais rien voulu dire : celui-là
+   se retire pour de bon, et c'est le seul cas.
+   ============================================================ */
+function changerNatureDuPoint(numero, type, nom){
+  const r = trajetReperes[numero - 1];
+  if(!r) return false;
+  r.type = NATURES_DU_POINT[type] ? type : 'repere';
+  if(nom !== undefined) r.nom = String(nom || '').trim();
+  return true;
+}
+
+function retirerLePoint(numero){
+  if(numero < 1 || numero > trajetReperes.length) return false;
+  trajetReperes.splice(numero - 1, 1);
+  return true;
+}
+
+/* ============================================================
+   LE RANG D'UN POINT, DEPUIS SON IDENTITÉ — v1004
+
+   C'est la seule porte entre « la ligne d'observation d'un examen »
+   et « la pastille sur la carte ». La ligne garde l'IDENTITÉ, qui
+   ne bouge jamais ; elle affiche le RANG, qui se recalcule. Un
+   point retiré renumérote tout le reste, et personne ne montre le
+   mauvais endroit.
+
+   Rend 0 quand le point n'existe plus : la ligne dira qu'elle n'a
+   pas de point, au lieu d'en désigner un faux.
+   ============================================================ */
+function rangDuPoint(id){
+  if(!id) return 0;
+  for(let i = 0; i < trajetReperes.length; i++){
+    if(trajetReperes[i].id === Number(id)) return i + 1;
+  }
+  return 0;
+}
+
+/* ⚠️ POSER LE POINT AU MOMENT DE L'APPUI, PAS APRÈS LA FENÊTRE.
+
+   Le bouton ☠️ ouvre « Quelle catégorie ? », le ⚠️ en ouvre deux.
+   Entre l'appui et la réponse, la voiture a roulé — parfois trois
+   cents mètres. Prendre la position à la fermeture de la fenêtre
+   poserait la faute au carrefour SUIVANT. On la prend ici, tout de
+   suite, et on annule si le moniteur renonce.
+
+   Rend 0 si aucun relevé ne tourne : une ☠️ doit se marquer même
+   sans GPS — c'est la fiche qui compte, la carte est un plus. */
+function poserLePointDUneMarque(type){
+  const n = poserRepere(type);
+  if(!n) return 0;
+  if(typeof dessinerEtatDuTrajet === 'function') dessinerEtatDuTrajet();
+  return trajetReperes[n - 1].id;
+}
+
+/* Le moniteur a fermé la fenêtre sans choisir : le point n'a plus
+   de raison d'être. C'est le dernier posé, donc rien ne bouge. */
+function annulerLePointDUneMarque(id){
+  const rang = rangDuPoint(id);
+  if(rang) retirerLePoint(rang);
+}
+
+/* La marque est retirée de la ligne : le point redevient un point
+   de travail. Il ne disparaît pas — voir le ⚠️ ci-dessus. */
+function rendreLePointAuTravail(id){
+  const rang = rangDuPoint(id);
+  if(rang) changerNatureDuPoint(rang, 'repere', '');
+}
+
+/* La marque est confirmée : le point prend sa nature et son nom,
+   et rend son rang — c'est ce que la ligne affichera. */
+function marquerLePoint(id, type, nom){
+  const rang = rangDuPoint(id);
+  if(rang) changerNatureDuPoint(rang, type, nom);
+  return rang;
+}
+
+/* ============================================================
    CE QUI ENTRE DANS LE BILAN — v986
 
    David, le 15 septembre : « voir comment ça se traduit sur la
@@ -741,7 +847,11 @@ function blocTrajet(){
      portent au moins leur heure — c'est déjà un rendez-vous dans
      le récit du cours. */
   t.reperes.forEach((r) => {
-    out += '\n📍 ' + r.n + ' · ' + r.heure + (r.nom ? ' — ' + r.nom : '');
+    /* ⚠️ L'ICÔNE SORT DE LA TABLE — v1004. C'est la même qui sert
+       sur la carte, dans le mail et dans le tiroir : trois écritures
+       finiraient par ne plus dire la même chose. */
+    out += '\n' + natureDuPoint(r.type).icone + ' ' + r.n + ' · ' + r.heure +
+           (r.nom ? ' — ' + r.nom : '');
   });
 
   return out;
@@ -776,6 +886,34 @@ function blocTrajet(){
    alors d'un cran de zoom, et l'IGN rend des tuiles plus fines.
    L'image est ensuite affichée en 520 px de large dans le mail —
    nette sur un écran de téléphone, et zoomable du doigt. */
+/* ============================================================
+   CE QU'UN POINT PEUT ÊTRE — v1004
+
+   David : « sur les examens blancs et les examens officiels,
+   est-ce que quand on met une tête de mort ça peut faire un point
+   sur la carte, pareil quand on appuie sur le Attention, et que ce
+   soit lié en bas ».
+
+   Un point posé pendant un cours a une NATURE. Elle décide de sa
+   couleur sur la carte, de son icône dans le mail, et de rien
+   d'autre : la position, l'heure et le numéro se calculent pareil
+   pour les trois. Une seule liste, une seule série de numéros —
+   « regarde le 4 » doit désigner le même point partout.
+
+   ⚠️ ET LA TABLE EST ICI, UNE SEULE FOIS. La couleur du canevas,
+   celle de la page « en grand », l'icône du texte et celle du
+   tiroir sortent toutes de ces trois lignes. Écrites quatre fois,
+   elles finiraient par ne plus dire la même chose, et l'élève
+   verrait une pastille rouge en face d'un point de travail. */
+const NATURES_DU_POINT = {
+  repere:    { icone: '📍', couleur: '#3B6900', mot: 'Point de travail' },
+  attention: { icone: '⚠️', couleur: '#C2700B', mot: 'Erreur à reprendre' },
+  elim:      { icone: '☠️', couleur: '#B3261E', mot: 'Erreur éliminatoire' }
+};
+function natureDuPoint(t){
+  return NATURES_DU_POINT[t] || NATURES_DU_POINT.repere;
+}
+
 const CARTE_ECHELLE = 2;
 const CARTE_LARGEUR = 640 * CARTE_ECHELLE;
 const CARTE_HAUTEUR = 400 * CARTE_ECHELLE;
@@ -995,7 +1133,11 @@ async function dessinerLaCarte(){
     const x = carteX(r.lon, z) - gauche;
     const y = carteY(r.lat, z) - haut;
     c.beginPath(); c.arc(x, y, e(14), 0, Math.PI * 2);
-    c.fillStyle = '#3B6900'; c.fill();
+    /* ⚠️ LA COULEUR SORT DE LA TABLE, PAS D'ICI — v1004. Une
+       pastille rouge en face d'un point de travail, ce serait dire
+       à l'élève qu'il a commis une faute là où on a juste
+       travaillé. Voir NATURES_DU_POINT. */
+    c.fillStyle = natureDuPoint(r.type).couleur; c.fill();
     c.strokeStyle = '#FFFFFF'; c.lineWidth = e(2.5); c.stroke();
     c.fillStyle = '#FFFFFF';
     c.font = 'bold ' + e(15) + 'px Arial, sans-serif';
@@ -1109,7 +1251,7 @@ function lienVersLaCarte(t){
       const lat = (p.lat == null) ? '' : Number(p.lat).toFixed(4);
       const lon = (p.lon == null) ? '' : Number(p.lon).toFixed(4);
       return [x.n, x.heure, String(x.nom || '').replace(/[~|]/g, ' '),
-              lat, lon].join('~');
+              lat, lon, x.type || 'repere'].join('~');
     }).join('|');
 
     const base = 'https://app.evolutionconduites.fr/carte.html';
@@ -1222,9 +1364,10 @@ async function carteDuTrajetPourMail(){
   if(t.reperes.length){
     html += '<div style="margin-top:14px;">';
     t.reperes.forEach((r) => {
+      const nat = natureDuPoint(r.type);
       html += '<div style="padding:8px 0;border-top:1px solid #DCDCD3;' +
         'font-size:14px;line-height:1.5;color:#14161B;">' +
-        '<b style="color:#3B6900;">' + r.n + '</b> · ' +
+        nat.icone + ' <b style="color:' + nat.couleur + ';">' + r.n + '</b> · ' +
         '<span style="color:#64655F;font-size:12.5px;">' +
           echapper(r.heure) + '</span>' +
         (r.nom ? ' — ' + echapper(r.nom) : '') +
@@ -1255,7 +1398,8 @@ function listeDesReperes(){
            String(d.getMinutes()).padStart(2, '0');
   };
   return trajetReperes.map((r, i) => ({
-    n: i + 1, heure: heure(r.t), nom: String(r.nom || '')
+    n: i + 1, heure: heure(r.t), nom: String(r.nom || ''),
+    type: r.type || 'repere'
   }));
 }
 
@@ -1541,10 +1685,16 @@ function montrerLeTiroirDesReperes(){
       'padding:6px 0;border-bottom:1px solid var(--line);' +
       'text-transform:none;margin:0;font-size:13px;';
 
+    /* ⚠️ LA NATURE SE VOIT ICI AUSSI — v1004, et elle sort de la
+       MÊME table que la carte et le mail. Un ☠️ posé en roulant
+       doit se reconnaître d'un coup d'œil, sinon le moniteur
+       renomme le mauvais point. */
+    const nat = natureDuPoint(r.type);
     const num = document.createElement('div');
-    num.style.cssText = 'flex-shrink:0;font-weight:700;color:var(--accent-text);' +
-      'min-width:62px;';
-    num.textContent = '📍 ' + r.n + ' · ' + r.heure;
+    num.style.cssText = 'flex-shrink:0;font-weight:700;min-width:74px;' +
+      'color:' + nat.couleur + ';';
+    num.textContent = nat.icone + ' ' + r.n + ' · ' + r.heure;
+    num.title = nat.mot;
     l.appendChild(num);
 
     const champ = document.createElement('input');
@@ -1562,6 +1712,33 @@ function montrerLeTiroirDesReperes(){
       if(ta && ta.value) ta.value = rafraichirBlocTrajet(ta.value);
     });
     l.appendChild(champ);
+
+    /* ⚠️ L'APPUI RATÉ SE RETIRE — v1004, et LUI SEUL. Retirer une
+       marque ☠️ ou ⚠️ la ramène à un point de travail (voir
+       changerNatureDuPoint) ; ici on retire le point entier, parce
+       qu'il n'aurait jamais dû exister. C'est le seul geste qui
+       décale les numéros suivants, et c'est pour ça qu'il vit dans
+       le tiroir, à l'arrêt, avant que le mail parte. */
+    const bX = document.createElement('button');
+    bX.type = 'button';
+    bX.textContent = '✕';
+    bX.title = 'Retirer ce point — appui malencontreux';
+    bX.style.cssText = 'flex-shrink:0;border:1px solid var(--line);' +
+      'background:transparent;color:var(--muted);border-radius:8px;' +
+      'width:30px;height:30px;font-size:13px;cursor:pointer;padding:0;';
+    bX.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      const quoi = nat.icone + ' ' + r.n + (r.nom ? ' — ' + r.nom : '');
+      if(typeof confirmer === 'function' &&
+         !await confirmer('Retirer ' + quoi + ' du trajet ?\n\n' +
+                          'Les points suivants seront renumérotés.',
+                          'Retirer ce point', true)) return;
+      retirerLePoint(r.n);
+      montrerLeTiroirDesReperes();
+      const ta = (typeof $ === 'function') ? $('resultText') : null;
+      if(ta && ta.value) ta.value = rafraichirBlocTrajet(ta.value);
+    });
+    l.appendChild(bX);
 
     zone.appendChild(l);
   });
