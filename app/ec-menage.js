@@ -1,11 +1,17 @@
-/* Déployé le 01/09/2026 à 16:00 — v780 */
+/* Déployé le 15/09/2026 à 10:30 — v990 */
 /* ============================================================
    ec-menage.js
    Ce qu'on garde, et ce qu'on pourrait ne plus garder.
 
    Le second régime de la conservation. Le premier tourne seul la
-   nuit, et ne touche qu'à des feuilles techniques où rien ne se
-   perd. Celui-ci touche à des élèves, alors IL NE FAIT RIEN TOUT
+   nuit : des feuilles techniques où rien ne se perd, et — depuis
+   la v222 — les tracés de trajet, qui sont bien une donnée
+   d'élève et s'effacent pourtant d'eux-mêmes à deux mois. C'est
+   l'exception, et elle est voulue : un relevé de déplacement est
+   la donnée dont la durée doit le moins dépendre de quelqu'un qui
+   pense à appuyer.
+
+   Celui-ci touche à tout le reste, alors IL NE FAIT RIEN TOUT
    SEUL : il propose, il dit pourquoi, et c'est le bureau qui
    appuie.
 
@@ -133,10 +139,16 @@ function enTeteMenage(d){
   note.style.cssText = 'margin-top:10px;padding:9px 11px;border-radius:8px;' +
     'background:var(--navy);font-size:12px;color:var(--muted);line-height:1.6;';
   note.innerHTML =
-    '🧹 Le ménage de nuit ne touche qu\'aux feuilles techniques — liens de ' +
-    'cours, mails manqués, coûts, journal des SMS. <strong>Aucun dossier ' +
-    'd\'élève ne part tout seul</strong> : cette liste est une proposition, ' +
-    'et le seul geste qui efface, c\'est le tien.';
+    /* ⚠️ LA MÊME PHRASE FAUSSE, ÉCRITE UNE SECONDE FOIS — v222.
+       Je l'avais corrigée dans le tableau des durées et laissée
+       ici : le même écran affirmait et démentait. C'est le défaut
+       de la maison, appliqué à une phrase au lieu d'un calcul. */
+    '🧹 Le ménage de nuit touche aux feuilles techniques — liens de ' +
+    'cours, mails manqués, coûts, journal des SMS — <strong>et aux ' +
+    'tracés de trajet, effacés à deux mois</strong>. ' +
+    '<strong>Aucun autre dossier d\'élève ne part tout seul</strong> : ' +
+    'cette liste est une proposition, et le seul geste qui efface, ' +
+    'c\'est le tien.';
   r.appendChild(note);
   return r;
 }
@@ -153,14 +165,35 @@ function enTeteMenage(d){
    inoffensif : avec l'autre, une case effacée par mégarde viderait
    la feuille entière à 4 h du matin.
    ============================================================ */
-const DUREES_AUTO = [
+/* ⚠️ LA LISTE VIENT DU CLASSEUR, ELLE N'EST PLUS RECOPIÉE ICI
+   — v222.
+
+   Elle l'était : six lignes, les mêmes noms que MENAGE_TECHNIQUE
+   dans apps-script.js, et rien pour dire lequel faisait foi. Une
+   feuille ajoutée à la règle de ménage n'apparaissait pas dans
+   l'écran — sa durée devenait donc réglable et invisible, ce qui
+   revient à ne pas être réglable du tout.
+
+   Celle d'en dessous n'est plus que le SECOURS : ce qu'on affiche
+   tant qu'un classeur plus ancien ne dit rien. Le journal des SMS
+   n'est pas dans la table (il se dépouille au lieu de s'effacer),
+   il reste donc écrit ici, à la main et à la fin. */
+const DUREES_AUTO_SECOURS = [
   ['LiensCours',     'Liens de cours envoyés aux élèves'],
   ['MailsEchoues',   'Journal des mails qui ne sont pas partis'],
   ['CoutsIA',        "Comptabilité de l'IA"],
   ['NotifsMasquees', 'Alertes masquées par le bureau'],
-  ['EnCours',        'Cours restés marqués « en route »'],
-  ['sms',            'Journal des SMS — nom, numéro et texte retirés']
+  ['EnCours',        'Cours restés marqués « en route »']
 ];
+
+const DUREE_SMS = ['sms', 'Journal des SMS — nom, numéro et texte retirés'];
+
+function dureesAutomatiques(d){
+  const venues = ((d && d.feuillesAuto) || [])
+    .filter(x => x && x.cle)
+    .map(x => [x.cle, x.libelle || x.cle]);
+  return (venues.length ? venues : DUREES_AUTO_SECOURS).concat([DUREE_SMS]);
+}
 
 const DUREES_REVUE = [
   ['sansCours',   'Proposer un dossier après X mois sans cours'],
@@ -236,10 +269,16 @@ function tableauDurees(d){
     });
   };
 
+  /* ⚠️ « AUCUN DOSSIER D'ÉLÈVE N'EST CONCERNÉ » N'EST PLUS VRAI
+     — v222. Un tracé de trajet EST une donnée personnelle, et c'est
+     précisément pour ça qu'il s'efface tout seul au bout de deux
+     mois. Laisser la phrase d'avant, c'était rassurer à tort sur
+     l'écran même qui sert à tenir la règle. */
   bloc('Ce qui part tout seul, chaque nuit',
-       'Uniquement des feuilles techniques. <strong>Aucun dossier ' +
-       "d'élève n'est concerné.</strong>",
-       DUREES_AUTO, d.durees || {});
+       'Des feuilles techniques, et les <strong>tracés de trajet</strong> ' +
+       "— les seuls dossiers d'élève qui s'effacent d'eux-mêmes. " +
+       'Les bilans, les fiches et les résultats ne sont jamais touchés ici.',
+       dureesAutomatiques(d), d.durees || {});
 
   bloc('Ce qui vous est proposé ici',
        'Ces durées ne suppriment rien : elles décident de ce qui ' +
