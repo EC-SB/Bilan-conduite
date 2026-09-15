@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 15/09/2026 à 09:04 — v985 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -291,18 +291,40 @@ function sessionDeLEleve(nom){
   (sessionsPermis || []).forEach(s => {
     (s.eleves || []).forEach(p => {
       if(normaliserMot(p.eleve || '') !== cle) return;
-      /* La plus proche à venir ; à défaut, la plus récente passée —
-         un examen d'hier reste ce qu'on veut voir aujourd'hui. */
-      if(!trouvee) { trouvee = { session: s, place: p }; return; }
-      const aVenir = x => String(x.session.date || '') >= auj;
-      if(aVenir({session:s}) && !aVenir(trouvee)) trouvee = { session: s, place: p };
-      else if(aVenir({session:s}) === aVenir(trouvee) &&
-              String(s.date) < String(trouvee.session.date) && aVenir({session:s})){
-        trouvee = { session: s, place: p };
-      }
+      const candidat = { session: s, place: p };
+      trouvee = trouvee ? laMeilleureSession(trouvee, candidat, auj) : candidat;
     });
   });
   return trouvee;
+}
+
+/* ⚠️ ENTRE DEUX SESSIONS PASSÉES, C'ÉTAIT TOUJOURS LA PLUS ANCIENNE
+   QUI GAGNAIT — v985, trouvé par David le 15 septembre.
+
+   La règle était écrite juste au-dessus, en toutes lettres : « la
+   plus proche à venir ; à défaut, la plus récente passée ». Mais la
+   branche qui l'aurait appliquée se terminait par « && aVenir(s) » :
+   entre deux dates PASSÉES, elle ne s'exécutait jamais. La première
+   rencontrée restait — et comme la liste est triée par date
+   croissante, c'était forcément la plus vieille.
+
+   La Perle était inscrite sur deux sessions, le 24 août et le
+   14 septembre. Son dossier annonçait « lundi 24 août, passage
+   15:15 » le lendemain de son examen du 14 — la mauvaise date, et
+   la mauvaise heure.
+
+   On exécute donc la règle au lieu de la décrire : à venir bat
+   passé ; entre deux à venir, la plus proche ; entre deux passées,
+   la plus récente. */
+function laMeilleureSession(a, b, auj){
+  const da = String((a.session && a.session.date) || '');
+  const db = String((b.session && b.session.date) || '');
+  const aVenirA = da >= auj;
+  const aVenirB = db >= auj;
+
+  if(aVenirA !== aVenirB) return aVenirA ? a : b;
+  if(aVenirA) return (da <= db) ? a : b;   /* à venir : la plus proche */
+  return (da >= db) ? a : b;               /* passées : la plus récente */
 }
 
 /* PRENDRE LA PLACE, ET LE DIRE PARTOUT.
