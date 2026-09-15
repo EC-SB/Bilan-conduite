@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:29 — v990 */
+/* Déployé le 15/09/2026 à 10:45 — v991 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -962,15 +962,81 @@ function appuyerSurRepere(){
   }, 1500);
 }
 
-/* Montrer ou cacher le bloc, selon le droit et l'état du cours.
+/* ============================================================
+   OÙ SE RANGE LE BLOC « 📍 REPÈRE ICI » — v991
 
-   ⚠️ UN SEUL CONTENEUR, ET IL VIT AU-DESSUS DES DEUX ÉCRANS DE
-   COURS — v986. Le bouton doit être le même que le bilan soit
-   dicté ou rempli à la main : un second bouton dans l'écran
-   manuel, ce serait le même geste écrit à deux endroits. */
+   David, le 15 septembre : « Remets le bouton repère sous le bloc
+   de transcription », puis « et sur le bilan manuel sous
+   manœuvre ».
+
+   ⚠️ DEUX PLACES, MAIS UN SEUL BLOC.
+
+   La solution évidente serait un bouton dans chaque écran. Ce
+   serait le même geste écrit à deux endroits : deux états à tenir
+   d'accord, deux écouteurs de clic, et le jour où l'un des deux
+   change, c'est le moniteur qui découvre lequel. Le bloc reste
+   donc unique — c'est LUI qui voyage, d'un écran à l'autre.
+
+   ⚠️ ET SUR LE BILAN MANUEL, LA PLACE SE CHERCHE. La rubrique
+   « manœuvres » n'existe pas dans tous les modèles : un examen
+   blanc n'en a pas. Sans elle, le bloc se range en bas des champs
+   plutôt que de disparaître — une place un peu moins bonne vaut
+   mieux qu'un bouton introuvable.
+   ============================================================ */
+/* ⚠️ ET LE BLOC NE DOIT PAS ÊTRE EMPORTÉ PAR UN REDESSIN.
+
+   Les champs du bilan manuel se redessinent en vidant leur zone
+   d'un coup (« innerHTML = '' ») : à chaque changement de modèle,
+   à chaque changement de niveau. Le bloc rangé au milieu d'eux
+   partirait avec — et comme il est UNIQUE, il ne reviendrait pas.
+   Le bouton disparaîtrait pour le reste de la session, sans un
+   message, et le moniteur croirait avoir mal vu.
+
+   On le met donc à l'abri AVANT le vidage, dans la place du cours,
+   qui n'est jamais vidée. Il revient ensuite tout seul. */
+function mettreLeBlocTrajetALAbri(){
+  const bloc = (typeof $ === 'function') ? $('blocTrajet') : null;
+  const abri = (typeof $ === 'function') ? $('trajetIciCours') : null;
+  if(!bloc || !abri || !abri.appendChild) return;
+  if(bloc.parentNode !== abri) abri.appendChild(bloc);
+}
+
+function poserLeBlocTrajet(){
+  const bloc = (typeof $ === 'function') ? $('blocTrajet') : null;
+  if(!bloc || typeof document === 'undefined') return;
+
+  const manuelOuvert = (() => {
+    const v = $('manuelView');
+    return !!(v && v.style && v.style.display !== 'none');
+  })();
+
+  let place = null;
+
+  if(manuelOuvert){
+    /* Sous les manœuvres, quand il y en a. */
+    const champs = $('manuelChamps');
+    const m = champs && champs.querySelector
+      ? champs.querySelector('[data-champ="manoeuvres"]') : null;
+    if(m && m.parentNode){
+      if(m.nextSibling !== bloc) m.parentNode.insertBefore(bloc, m.nextSibling);
+      return;
+    }
+    place = $('trajetIciManuel');
+  }else{
+    place = $('trajetIciCours');
+  }
+
+  /* Rien où le poser — écran pas encore dessiné, ou page réduite :
+     on le laisse là où il est plutôt que de le perdre. */
+  if(!place || !place.appendChild) return;
+  if(bloc.parentNode !== place) place.appendChild(bloc);
+}
+
+/* Montrer ou cacher le bloc, selon le droit et l'état du cours. */
 function montrerLeTrajet(oui){
   const bloc = (typeof $ === 'function') ? $('blocTrajet') : null;
   const visible = !!oui && trajetPossible();
+  if(visible) poserLeBlocTrajet();
   if(bloc) bloc.style.display = visible ? 'block' : 'none';
   if(visible) dessinerEtatDuTrajet();
 }
