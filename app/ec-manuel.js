@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:10 — v1004 */
+/* Déployé le 15/09/2026 à 15:20 — v1005 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3584,8 +3584,32 @@ async function genererBilanManuel(){
     if(champsManuels.niveau === 'non'){
       repris.ebPasse = 'pasleniveau';
     }else if(champsManuels.niveau === 'oui'){
+      /* ⚠️ « VIDE » ET « ZÉRO » NE SONT PAS LA MÊME CHOSE — v1005.
+
+         David, le 15 septembre : « de base il se met sur une valeur
+         alors qu'on en sait rien ».
+
+         Les deux étaient traités ensemble : « 0 » et « pas répondu »
+         écrivaient l'un comme l'autre « plus que les 3h » dans le
+         suivi. Or « 0 » est une DÉCISION du moniteur — il ne reste
+         que les 3h avant l'examen — tandis que vide veut dire qu'il
+         n'a rien dit. Le bureau lisait donc une conclusion que
+         personne n'avait prise, et s'en servait pour donner une
+         date d'examen.
+
+         ⚠️ MAIS LE NIVEAU, LUI, DOIT RESTER. « ebPasse » porte DEUX
+         choses à la fois : « a le niveau » et « combien d'heures ».
+         Ne rien écrire du tout aurait fait perdre le « ✅ a le
+         niveau » avec les heures — une information vraie effacée
+         pour en éviter une fausse. D'où « niveauok » : a le niveau,
+         heures non précisées. Les écrans qui lisent « ebSuite » le
+         comprennent déjà sans changement — tout ce qui n'est pas
+         « pasleniveau » vaut « a le niveau », et seuls « 3h » et
+         « lecons » écrivent des heures. */
       const h = String(champsManuels.heuresAvant || '').trim();
-      if(h === '' || h === '0'){
+      if(h === ''){
+        repris.ebPasse = 'niveauok';
+      }else if(h === '0'){
         repris.ebPasse = '3h';
       }else{
         repris.ebPasse = 'lecons';
