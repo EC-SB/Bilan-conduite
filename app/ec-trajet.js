@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:10 — v1004 */
+/* Déployé le 15/09/2026 à 15:33 — v1006 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -462,6 +462,12 @@ function poserRepere(type, nom){
     lat: dernier ? dernier.lat : null,
     lon: dernier ? dernier.lon : null,
     nom: String(nom || ''),
+    /* ⚠️ CE QUE L'ERREUR DIT — v1006. Vide à la pose : le moniteur
+       appuie en roulant, il écrit ses remarques après. Elles sont
+       versées ici au moment où le bilan se compose, c'est-à-dire à
+       l'instant précis où le texte du bilan se fige — les deux
+       disent donc forcément la même chose. */
+    theme: '', insp: '', mon: '',
     /* La nature vaut « repere » par défaut : le bouton 📍 n'a pas
        à la connaître, et tout ce qui existait avant continue. */
     type: NATURES_DU_POINT[type] ? type : 'repere'
@@ -663,7 +669,10 @@ function trajetPourEnvoi(){
       n: i + 1,
       heure: heure(r.t),
       nom: String(r.nom || ''),
-      type: r.type || 'repere'
+      type: r.type || 'repere',
+      theme: String(r.theme || ''),
+      insp: String(r.insp || ''),
+      mon: String(r.mon || '')
     }))
   };
 }
@@ -798,6 +807,73 @@ function rendreLePointAuTravail(id){
   const rang = rangDuPoint(id);
   if(rang) changerNatureDuPoint(rang, 'repere', '');
 }
+
+/* ============================================================
+   CE QUE L'ERREUR DIT, VERSÉ DANS SON POINT — v1006
+
+   David : « pour le GPS examen blanc il faut que ça note dans le
+   bilan des erreurs les points correspondants. Et sur la page voir
+   en grand que ça renote tout pour l'erreur : réflexion de
+   l'inspecteur, remarque du moniteur et les 3 questions du dessous
+   pour le thème complet. » Puis, pour l'officiel : « au bout de la
+   ligne remarque de l'inspecteur le numéro du point, et sur la
+   page que ça reprenne les 2 remarques ».
+
+   ⚠️ LES TEXTES SONT VERSÉS AU MOMENT DE LA COMPOSITION, PAS À LA
+   POSE. Le moniteur appuie sur ☠️ en roulant et écrit sa remarque
+   plus tard : à la pose, il n'y a rien à copier. On les verse donc
+   quand le bilan se compose — le même instant où son texte se
+   fige. Les deux ne peuvent pas diverger, puisqu'ils sont pris
+   ensemble.
+
+   ⚠️ ET LES TROIS QUESTIONS NE VOYAGENT PAS. Elles sont les mêmes
+   pour tout le monde et pour toujours : la page les porte
+   elle-même. Les mettre dans le lien, ce serait les recopier une
+   fois par erreur dans une adresse déjà longue.
+   ============================================================ */
+function decrireLePoint(id, d){
+  const rang = rangDuPoint(id);
+  if(!rang) return false;
+  const r = trajetReperes[rang - 1];
+  const propre = (v) => String(v === undefined || v === null ? '' : v).trim();
+  r.theme = propre(d && d.theme);
+  r.insp  = propre(d && d.insp);
+  r.mon   = propre(d && d.mon);
+  return true;
+}
+
+/* ⚠️ LA MENTION DU POINT DANS LE BILAN — v1006, et UNE SEULE FOIS.
+
+   Trois écrans écrivent la ligne d'une erreur : le bilan d'examen
+   blanc, celui de l'examen officiel, et le cadre qui se remplit en
+   direct pendant l'examen. Ils disaient déjà la même phrase à trois
+   endroits — c'est écrit dans leurs commentaires depuis la v911.
+   La mention du point sort donc d'ici, sinon elle finira par ne
+   plus se dire pareil selon l'écran.
+
+   ⚠️ ET ELLE SE TAIT SI LE TRACÉ NE PART PAS. « Point 4 sur la
+   carte » dans un bilan sans carte envoie l'élève chercher une
+   image qui n'existe pas. */
+function phraseDuPoint(rang){
+  return rang ? ' · point ' + rang + ' sur la carte' : '';
+}
+
+function mentionDuPoint(o){
+  if(!o || !o.point) return '';
+  /* ⚠️ LA PHRASE EST LA MÊME, LA CONDITION NON. Le bilan ne renvoie
+     à un point que si le tracé PART ; la fiche d'examen, elle,
+     l'affiche dès l'appui — le moniteur doit voir tout de suite
+     quel numéro il vient de poser, même si le trajet n'est pas
+     encore assez long pour être envoyé. Deux conditions, une seule
+     écriture : voir phraseDuPoint, et surLaCarte dans ec-manuel.js. */
+  if(!trajetComplet()) return '';
+  return phraseDuPoint(rangDuPoint(o.point));
+}
+
+/* Les trois questions accompagnent-elles ce bilan ? L'examen blanc
+   les pose, l'officiel non — voir buildExamen. */
+let trajetAvecQuestions = false;
+function poserLesQuestionsDuTrajet(oui){ trajetAvecQuestions = !!oui; }
 
 /* La marque est confirmée : le point prend sa nature et son nom,
    et rend son rang — c'est ce que la ligne affichera. */
@@ -1236,31 +1312,63 @@ function rafraichirBlocTrajet(t){
    delà de la limite, on ne met pas de lien : l'image, elle, est
    toujours là.
    ============================================================ */
-const CARTE_LIEN_MAX = 1800;
+/* ⚠️ CE QU'UNE ADRESSE PEUT PORTER — v1006.
+
+   Les navigateurs encaissent bien plus, mais certaines messageries
+   coupent les adresses très longues, et une adresse coupée rend une
+   page vide — pire qu'une absence de lien, parce que l'élève clique
+   quand même.
+
+   Quatre mille caractères tiennent partout où nous envoyons. Une
+   remarque plus longue que deux cents signes est tronquée : le
+   texte entier est de toute façon dans le corps du mail, et la page
+   sert à SITUER l'erreur, pas à remplacer le bilan. */
+const CARTE_LIEN_MAX = 4000;
+const CARTE_REMARQUE_MAX = 200;
 
 function lienVersLaCarte(t){
   try{
     if(!t || !t.polyligne) return '';
 
-    /* Les repères : « numéro~heure~nom~lat~lon », séparés par des
-       barres. Les coordonnées au dix-millième suffisent pour poser
-       une pastille — dix mètres — et raccourcissent l'adresse
-       d'autant. */
-    const r = (t.reperes || []).map((x, i) => {
+    const court = (v) => {
+      const s = String(v || '').replace(/[~|]/g, ' ')
+                               .replace(/\s+/g, ' ').trim();
+      return (s.length > CARTE_REMARQUE_MAX)
+        ? s.slice(0, CARTE_REMARQUE_MAX - 1) + '…' : s;
+    };
+
+    /* Les repères : « numéro~heure~nom~lat~lon~nature~thème~
+       inspecteur~moniteur », séparés par des barres. Les coordonnées
+       au dix-millième suffisent pour poser une pastille — dix
+       mètres — et raccourcissent l'adresse d'autant. */
+    const ecrire = (avecTextes) => (t.reperes || []).map((x, i) => {
       const p = trajetReperes[i] || {};
       const lat = (p.lat == null) ? '' : Number(p.lat).toFixed(4);
       const lon = (p.lon == null) ? '' : Number(p.lon).toFixed(4);
-      return [x.n, x.heure, String(x.nom || '').replace(/[~|]/g, ' '),
-              lat, lon, x.type || 'repere'].join('~');
+      const base = [x.n, x.heure, court(x.nom), lat, lon,
+                    x.type || 'repere'];
+      return avecTextes
+        ? base.concat([court(x.theme), court(x.insp), court(x.mon)]).join('~')
+        : base.join('~');
     }).join('|');
 
-    const base = 'https://app.evolutionconduites.fr/carte.html';
-    const lien = base + '?t=' + encodeURIComponent(t.polyligne) +
+    const monter = (r) =>
+      'https://app.evolutionconduites.fr/carte.html' +
+      '?t=' + encodeURIComponent(t.polyligne) +
       '&km=' + encodeURIComponent(String(t.km).replace('.', ',')) +
       '&min=' + encodeURIComponent(String(t.minutes)) +
+      (trajetAvecQuestions ? '&q=1' : '') +
       (r ? '&r=' + encodeURIComponent(r) : '');
 
-    return (lien.length > CARTE_LIEN_MAX) ? '' : lien;
+    /* ⚠️ ON DÉGRADE, ON N'ABANDONNE PAS. Un bilan très bavard ne
+       doit pas coûter la carte entière à l'élève : s'il ne tient pas
+       avec les remarques, il repart sans elles — les pastilles
+       restent, et le texte est dans le mail juste au-dessus. */
+    const complet = monter(ecrire(true));
+    if(complet.length <= CARTE_LIEN_MAX) return complet;
+
+    const nu = monter(ecrire(false));
+    return (nu.length > CARTE_LIEN_MAX) ? '' : nu;
   }catch(e){
     return '';
   }
