@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 15/09/2026 à 15:10 — v1004 -->
+<!-- Déployé le 15/09/2026 à 15:33 — v1006 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -82,6 +82,11 @@
     display:inline-flex; align-items:center; justify-content:center;
   }
   .heure{ color:var(--gris); font-size:12.5px; flex:0 0 auto; }
+  .detail{ padding:0 16px 12px 48px; font-size:13.5px; line-height:1.55;
+           border-bottom:1px solid var(--bord); }
+  .dit{ color:var(--encre); margin-bottom:3px; }
+  .question{ color:var(--gris); font-size:13px; margin-top:2px; }
+  .question:first-of-type{ margin-top:9px; }
   .nom{ color:var(--encre); }
   .pied{
     padding:11px 16px calc(11px + var(--basDuTel));
@@ -185,8 +190,19 @@ const nature = (t) => NATURES[t] || NATURES.repere;
     const m = bloc.split('~');
     return { n: m[0] || '', heure: m[1] || '', nom: m[2] || '',
              lat: parseFloat(m[3]), lon: parseFloat(m[4]),
-             type: m[5] || 'repere' };
+             type: m[5] || 'repere',
+             theme: m[6] || '', insp: m[7] || '', mon: m[8] || '' };
   });
+
+  /* ⚠️ LES TROIS QUESTIONS SONT ICI, PAS DANS LE LIEN — v1006.
+     Elles sont les mêmes pour tout le monde et pour toujours : les
+     recopier une fois par erreur dans l'adresse, ce serait la
+     rallonger pour rien. Elles doivent dire EXACTEMENT ce que dit
+     le bilan — le test compare les deux listes mot pour mot. */
+  const QUESTIONS = ["- qu'en penses-tu ?",
+                     '- quelles sont TES solutions ?',
+                     '- ce que je te PROPOSE : '];
+  const avecQuestions = (p.get('q') === '1');
 
   const points = trace ? decoderPolyligne(trace) : [];
 
@@ -203,29 +219,97 @@ const nature = (t) => NATURES[t] || NATURES.repere;
   document.getElementById('chiffres').textContent =
     (km ? km + ' km' : '') + (km && min ? ' · ' : '') + (min ? min + ' min' : '');
 
-  const carte = L.map('carte', { attributionControl: false });
+  /* ⚠️ LA BULLE SE CONSTRUIT EN TEXTE, PUIS S'ÉCHAPPE. Leaflet
+     attend du HTML : ces remarques sont tapées par un moniteur, et
+     la moindre balise s'y exécuterait. On échappe les trois
+     caractères qui comptent, une fois, ici. */
+  const ech = (v) => String(v || '').replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;');
+  function bulleDuPoint(r, nat){
+    let h = '<b>' + nat.icone + ' ' + ech(r.theme || r.nom || nat.mot) +
+            '</b>' + (r.heure ? ' · ' + ech(r.heure) : '');
+    if(r.insp) h += '<br>👨‍✈️ ' + ech(r.insp);
+    if(r.mon)  h += '<br>🔱 ' + ech(r.mon);
+    return h;
+  }
 
-  /* ⚠️ LES TUILES PASSENT PAR LE WORKER, comme dans l'application.
-     L'IGN ne pose pas l'en-tête qu'il faut, et surtout : une seule
-     adresse à connaître, une seule à surveiller. */
-  L.tileLayer('https://bilan-proxy.evolutionconduites.workers.dev/tuile?z={z}&x={x}&y={y}',
-              { maxZoom: 18, minZoom: 8 }).addTo(carte);
+  /* ⚠️ LE TEXTE D'ABORD, LA CARTE ENSUITE — v1006.
 
-  const trait = L.polyline(points, { color:'#FFFFFF', weight:9,
-                                     lineJoin:'round', lineCap:'round' })
-                 .addTo(carte);
-  L.polyline(points, { color:'#3B6900', weight:4,
-                       lineJoin:'round', lineCap:'round' }).addTo(carte);
+     La page construisait la carte en premier : si Leaflet ne
+     chargeait pas — réseau coupé, filtre d'entreprise, CDN
+     injoignable — le script mourait sur « L is not defined » et
+     l'élève n'avait NI carte NI erreurs. Or ce qu'il vient lire,
+     ce sont ses erreurs ; la carte les situe.
 
-  const bout = (pos, arrivee) => L.marker(pos, { icon: L.divIcon({
-    className:'', html:'<div class="bout' + (arrivee ? ' arrivee' : '') + '"></div>',
-    iconSize:[15,15], iconAnchor:[7,7] }), keyboard:false }).addTo(carte);
-  bout(points[0], false);
-  bout(points[points.length - 1], true);
+     La liste est donc écrite avant, et la carte est tentée après,
+     sous protection. Ce qui échoue n'emporte que lui-même. */
+  const carte = (typeof L === 'undefined') ? null
+              : L.map('carte', { attributionControl: false });
+  let trait = null;
+
+  if(carte){
+    /* ⚠️ LES TUILES PASSENT PAR LE WORKER, comme dans l'application.
+       L'IGN ne pose pas l'en-tête qu'il faut, et surtout : une seule
+       adresse à connaître, une seule à surveiller. */
+    L.tileLayer('https://bilan-proxy.evolutionconduites.workers.dev/tuile?z={z}&x={x}&y={y}',
+                { maxZoom: 18, minZoom: 8 }).addTo(carte);
+
+    trait = L.polyline(points, { color:'#FFFFFF', weight:9,
+                                 lineJoin:'round', lineCap:'round' })
+             .addTo(carte);
+    L.polyline(points, { color:'#3B6900', weight:4,
+                         lineJoin:'round', lineCap:'round' }).addTo(carte);
+
+    const bout = (pos, arrivee) => L.marker(pos, { icon: L.divIcon({
+      className:'', html:'<div class="bout' + (arrivee ? ' arrivee' : '') + '"></div>',
+      iconSize:[15,15], iconAnchor:[7,7] }), keyboard:false }).addTo(carte);
+    bout(points[0], false);
+    bout(points[points.length - 1], true);
+  }else{
+    const z = document.getElementById('carte');
+    if(z){
+      z.style.flex = '0 0 auto';
+      z.style.padding = '18px 16px';
+      z.style.fontSize = '13px';
+      z.style.color = 'var(--gris)';
+      z.textContent = '🗺️ Le plan n’a pas pu se charger. Tes points sont ' +
+                      'listés ci-dessous, et la carte est aussi dans ton mail.';
+    }
+  }
+
+  /* Une erreur, telle que le bilan la présente : ce que
+     l'inspecteur a dit, ce que le moniteur a répondu, puis les
+     trois questions — et seulement quand le bilan les pose. */
+  function ficheDeLErreur(r){
+    if(!r.insp && !r.mon) return null;
+    const d = document.createElement('div');
+    d.className = 'detail';
+
+    const ligne = (emoji, texte, classe) => {
+      if(!texte) return;
+      const e = document.createElement('div');
+      e.className = classe || 'dit';
+      e.textContent = emoji + ' ' + texte;   /* jamais en HTML */
+      d.appendChild(e);
+    };
+    ligne('👨‍✈️', r.insp);
+    ligne('🔱', r.mon);
+
+    if(avecQuestions){
+      QUESTIONS.forEach(q => {
+        const e = document.createElement('div');
+        e.className = 'question';
+        e.textContent = q;
+        d.appendChild(e);
+      });
+    }
+    return d;
+  }
 
   const liste = document.getElementById('liste');
   reperes.forEach((r) => {
-    if(isFinite(r.lat) && isFinite(r.lon)){
+    if(carte && isFinite(r.lat) && isFinite(r.lon)){
       const nat = nature(r.type);
       L.marker([r.lat, r.lon], { icon: L.divIcon({
         className:'',
@@ -233,8 +317,7 @@ const nature = (t) => NATURES[t] || NATURES.repere;
              '">' + r.n + '</div>',
         iconSize:[26,26], iconAnchor:[13,13] }), keyboard:false })
        .addTo(carte)
-       .bindPopup(nat.icone + ' ' + (r.nom || nat.mot) +
-                  (r.heure ? ' · ' + r.heure : ''));
+       .bindPopup(bulleDuPoint(r, nat));
     }
     const ligne = document.createElement('div');
     ligne.className = 'repere';
@@ -246,16 +329,23 @@ const nature = (t) => NATURES[t] || NATURES.repere;
     const h = document.createElement('span');
     h.className = 'heure'; h.textContent = r.heure;
     const nom = document.createElement('span');
-    /* ⚠️ JAMAIS EN HTML : ce nom est tapé par un moniteur. */
+    /* ⚠️ JAMAIS EN HTML : ces textes sont tapés par un moniteur. */
     nom.className = 'nom';
     nom.textContent = (r.type && r.type !== 'repere' ? nat2.icone + ' ' : '') +
-                      r.nom;
+                      (r.theme || r.nom);
     ligne.appendChild(n); ligne.appendChild(h); ligne.appendChild(nom);
     liste.appendChild(ligne);
+
+    /* ⚠️ ET TOUT CE QUE L'ERREUR DIT, SOUS SA LIGNE — v1006. David :
+       « que ça renote tout pour l'erreur : réflexion de
+       l'inspecteur, remarque du moniteur et les 3 questions du
+       dessous pour le thème complet ». */
+    const detail = ficheDeLErreur(r);
+    if(detail) liste.appendChild(detail);
   });
   if(!reperes.length) liste.style.display = 'none';
 
-  carte.fitBounds(trait.getBounds(), { padding:[28, 28] });
+  if(carte && trait) carte.fitBounds(trait.getBounds(), { padding:[28, 28] });
 })();
 </script>
 </body>
