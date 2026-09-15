@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v985
+     VERSION APPLICATION : v986
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 15/09/2026 à 09:04
+     Mis à jour le : 15/09/2026 à 09:12
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -2536,7 +2536,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=985" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=986" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -2796,6 +2796,23 @@
     </details>
   </div>
 
+  <!-- ⚠️ LE TRAJET DU COURS — v986, section d'essai « trajet ».
+
+       Il vit ICI, au-dessus des deux écrans de cours, et pas dans
+       l'un d'eux : le bouton « 📍 Repère ici » doit être le MÊME
+       que le bilan soit dicté ou rempli à la main. Un second
+       bouton dans l'écran manuel, ce serait le même geste écrit à
+       deux endroits — et le jour où l'un des deux change, c'est le
+       moniteur qui découvre lequel.
+
+       Invisible pour qui n'a pas la case cochée dans ⚙️ Accès :
+       ni ligne d'état, ni bouton, ni demande de géolocalisation.
+       Voir ec-trajet.js. -->
+  <div id="blocTrajet" data-onglet="cours" style="display:none;margin-bottom:16px;">
+    <div class="trajet-etat" id="trajetEtat"></div>
+    <button class="btn-repere" type="button" id="repereBtn">📍 Repère ici</button>
+  </div>
+
   <!-- Le module de cours en dernier : le bouton « Ouvrir » de la
        liste au-dessus y amène directement. -->
   <div id="recordView" data-onglet="cours" data-section="cours" data-vue="cours">
@@ -2924,13 +2941,6 @@
 
       <div class="compteur" id="compteur"></div>
 
-      <!-- ⚠️ LE TRAJET DU COURS — v984, section d'essai « trajet ».
-           Ces deux blocs restent invisibles pour qui n'a pas la
-           case cochée dans ⚙️ Accès : ni ligne d'état, ni bouton,
-           ni demande de géolocalisation. Voir ec-trajet.js. -->
-      <div class="trajet-etat" id="trajetEtat" style="display:none;"></div>
-      <button class="btn-repere" type="button" id="repereBtn"
-              style="display:none;">📍 Repère ici</button>
       <div id="pauseWarn" class="unsupported" style="display:none;margin-top:12px;margin-bottom:0;"></div>
       <textarea class="transcript-box" id="transcriptBox" style="display:none;"
                 placeholder="Le texte capté apparaîtra ici. Tu peux le corriger avant de générer le bilan."></textarea>
@@ -4288,83 +4298,83 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=985"></script>
-<script src="app/ec-modeles.js?v=985"></script>
-<script src="app/ec-consignes.js?v=985"></script>
-<script src="app/ec-noyau.js?v=985"></script>
-<script src="app/ec-vocal.js?v=985"></script>
+  <script src="app/ec-etat.js?v=986"></script>
+<script src="app/ec-modeles.js?v=986"></script>
+<script src="app/ec-consignes.js?v=986"></script>
+<script src="app/ec-noyau.js?v=986"></script>
+<script src="app/ec-vocal.js?v=986"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=985"></script>
-<script src="app/ec-reseau.js?v=985"></script>
-<script src="app/ec-manuel.js?v=985"></script>
-<script src="app/ec-fenetres.js?v=985"></script>
-<script src="app/ec-questionnaire.js?v=985"></script>
-<script src="app/ec-permis.js?v=985"></script>
-<script src="app/ec-prepares.js?v=985"></script>
-<script src="app/ec-avant-cours.js?v=985"></script>
-<script src="app/ec-bureau.js?v=985"></script>
-<script src="app/ec-places.js?v=985"></script>
-<script src="app/ec-listes.js?v=985"></script>
-<script src="app/ec-permis-listes.js?v=985"></script>
-<script src="app/ec-postpermis.js?v=985"></script>
-<script src="app/ec-textes.js?v=985"></script>
-<script src="app/ec-correction.js?v=985"></script>
-<script src="app/ec-bilans.js?v=985"></script>
-<script src="app/ec-ecran.js?v=985"></script>
-<script src="app/ec-version.js?v=985"></script>
-<script src="app/ec-paie.js?v=985"></script>
-<script src="app/ec-flotte.js?v=985"></script>
-<script src="app/ec-carrosserie.js?v=985"></script>
-<script src="app/ec-solo.js?v=985"></script>
-<script src="app/ec-handicap-pdf.js?v=985"></script>
-<script src="app/ec-moto.js?v=985"></script>
-<script src="app/ec-remorque.js?v=985"></script>
-<script src="app/ec-arriereplan.js?v=985"></script>
-<script src="app/ec-placesbe.js?v=985"></script>
-<script src="app/ec-codeamenage.js?v=985"></script>
-<script src="app/ec-financements.js?v=985"></script>
-<script src="app/ec-eval-aac.js?v=985"></script>
-<script src="app/ec-postes.js?v=985"></script>
-<script src="app/ec-tarifs.js?v=985"></script>
-<script src="app/ec-caisse.js?v=985"></script>
-<script src="app/ec-menage.js?v=985"></script>
-<script src="app/ec-page-eleve.js?v=985"></script>
-<script src="app/ec-cbgasoil.js?v=985"></script>
-<script src="app/ec-loupe.js?v=985"></script>
-<script src="app/ec-coutsia.js?v=985"></script>
-<script src="app/ec-evaluation.js?v=985"></script>
-<script src="app/ec-paiement.js?v=985"></script>
-<script src="app/ec-handicap.js?v=985"></script>
-<script src="app/ec-code.js?v=985"></script>
-<script src="app/ec-proccorriger.js?v=985"></script>
-<script src="app/ec-sessions.js?v=985"></script>
-<script src="app/ec-aac-cs.js?v=985"></script>
-<script src="app/ec-notifs.js?v=985"></script>
-<script src="app/ec-ecoutes.js?v=985"></script>
-<script src="app/ec-taches.js?v=985"></script>
-<script src="app/ec-memoire.js?v=985"></script>
-<script src="app/ec-historique.js?v=985"></script>
-<script src="app/ec-rappels.js?v=985"></script>
-<script src="app/ec-segments.js?v=985"></script>
-<script src="app/ec-sms.js?v=985"></script>
-<script src="app/ec-encours.js?v=985"></script>
-<script src="app/ec-incidents.js?v=985"></script>
+<script src="app/ec-trajet.js?v=986"></script>
+<script src="app/ec-reseau.js?v=986"></script>
+<script src="app/ec-manuel.js?v=986"></script>
+<script src="app/ec-fenetres.js?v=986"></script>
+<script src="app/ec-questionnaire.js?v=986"></script>
+<script src="app/ec-permis.js?v=986"></script>
+<script src="app/ec-prepares.js?v=986"></script>
+<script src="app/ec-avant-cours.js?v=986"></script>
+<script src="app/ec-bureau.js?v=986"></script>
+<script src="app/ec-places.js?v=986"></script>
+<script src="app/ec-listes.js?v=986"></script>
+<script src="app/ec-permis-listes.js?v=986"></script>
+<script src="app/ec-postpermis.js?v=986"></script>
+<script src="app/ec-textes.js?v=986"></script>
+<script src="app/ec-correction.js?v=986"></script>
+<script src="app/ec-bilans.js?v=986"></script>
+<script src="app/ec-ecran.js?v=986"></script>
+<script src="app/ec-version.js?v=986"></script>
+<script src="app/ec-paie.js?v=986"></script>
+<script src="app/ec-flotte.js?v=986"></script>
+<script src="app/ec-carrosserie.js?v=986"></script>
+<script src="app/ec-solo.js?v=986"></script>
+<script src="app/ec-handicap-pdf.js?v=986"></script>
+<script src="app/ec-moto.js?v=986"></script>
+<script src="app/ec-remorque.js?v=986"></script>
+<script src="app/ec-arriereplan.js?v=986"></script>
+<script src="app/ec-placesbe.js?v=986"></script>
+<script src="app/ec-codeamenage.js?v=986"></script>
+<script src="app/ec-financements.js?v=986"></script>
+<script src="app/ec-eval-aac.js?v=986"></script>
+<script src="app/ec-postes.js?v=986"></script>
+<script src="app/ec-tarifs.js?v=986"></script>
+<script src="app/ec-caisse.js?v=986"></script>
+<script src="app/ec-menage.js?v=986"></script>
+<script src="app/ec-page-eleve.js?v=986"></script>
+<script src="app/ec-cbgasoil.js?v=986"></script>
+<script src="app/ec-loupe.js?v=986"></script>
+<script src="app/ec-coutsia.js?v=986"></script>
+<script src="app/ec-evaluation.js?v=986"></script>
+<script src="app/ec-paiement.js?v=986"></script>
+<script src="app/ec-handicap.js?v=986"></script>
+<script src="app/ec-code.js?v=986"></script>
+<script src="app/ec-proccorriger.js?v=986"></script>
+<script src="app/ec-sessions.js?v=986"></script>
+<script src="app/ec-aac-cs.js?v=986"></script>
+<script src="app/ec-notifs.js?v=986"></script>
+<script src="app/ec-ecoutes.js?v=986"></script>
+<script src="app/ec-taches.js?v=986"></script>
+<script src="app/ec-memoire.js?v=986"></script>
+<script src="app/ec-historique.js?v=986"></script>
+<script src="app/ec-rappels.js?v=986"></script>
+<script src="app/ec-segments.js?v=986"></script>
+<script src="app/ec-sms.js?v=986"></script>
+<script src="app/ec-encours.js?v=986"></script>
+<script src="app/ec-incidents.js?v=986"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=985"></script>
+<script src="app/ec-messages-perso.js?v=986"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=985"></script>
-<script src="app/ec-bandeau.js?v=985"></script>
-<script src="app/ec-stats.js?v=985"></script>
-<script src="app/ec-messenger.js?v=985"></script>
-<script src="app/ec-journal.js?v=985"></script>
-<script src="app/ec-depart.js?v=985"></script>
-<script src="app/ec-onglets.js?v=985"></script>
-<script src="app/ec-demarrage.js?v=985"></script>
+<script src="app/ec-nouveautes.js?v=986"></script>
+<script src="app/ec-bandeau.js?v=986"></script>
+<script src="app/ec-stats.js?v=986"></script>
+<script src="app/ec-messenger.js?v=986"></script>
+<script src="app/ec-journal.js?v=986"></script>
+<script src="app/ec-depart.js?v=986"></script>
+<script src="app/ec-onglets.js?v=986"></script>
+<script src="app/ec-demarrage.js?v=986"></script>
 
 <script>
 /* ============================================================
