@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 15/09/2026 à 09:51 — v989 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1084,19 +1084,35 @@ async function redessinerBureau(){
 
      Même geste que pour les examens blancs préparés juste
      au-dessus : on dessine tout de suite avec ce qu'on a, et on
-     redessine quand les sessions arrivent. */
+     redessine quand les sessions arrivent.
+
+     ⚠️ ET « REDESSINER », C'EST LES TROIS LISTES, PAS UNE — v989.
+
+     Seule « RDV Permis » était redessinée. Or les examens passés
+     lisent les sessions EUX AUSSI, et pour deux choses : le
+     candidat qui n'existe que par sa place, et la date de l'examen
+     dont on réclame le résultat. Ils étaient dessinés une fois,
+     avec une liste de sessions encore vide, et plus jamais après.
+
+     C'est le défaut que le paragraphe ci-dessus décrit en toutes
+     lettres — « le tri ne se ferait qu'au deuxième passage,
+     c'est-à-dire jamais » — appliqué à une seule des listes qui en
+     souffraient. Les trois passent maintenant par la même porte. */
+  const dessinerCeQuiDependDesSessions = async () => {
+    afficherRdvPermis(tous);
+    const prevus = afficherPermisPrevus(tous);
+    await afficherPostExamenDepuisPrevus(tous, prevus);
+  };
+
+  await dessinerCeQuiDependDesSessions();
+
   if(typeof sessionsPermis !== 'undefined' && !sessionsPermis.length &&
      typeof chargerSessionsPermis === 'function'){
-    afficherRdvPermis(tous);
     chargerSessionsPermis()
-      .then(() => afficherRdvPermis(tous))
+      .then(() => dessinerCeQuiDependDesSessions())
       .catch(() => {});
-  }else{
-    afficherRdvPermis(tous);
   }
 
-  const prevus = afficherPermisPrevus(tous);
-  await afficherPostExamenDepuisPrevus(tous, prevus);
   afficherExamensPermis(tous);
 
   /* Le compte de ce qui attend une décision du bureau */
