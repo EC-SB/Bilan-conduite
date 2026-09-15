@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:51 — v989 */
+/* Déployé le 15/09/2026 à 15:20 — v1005 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -70,6 +70,14 @@ function analyserNote(note){
   if((m = t.match(/Examen blanc passé le ([^—·]+)— pas le niveau/i))){
     r.examBlanc = 'passe';
     r.ebSuite = 'pasleniveau';
+    r.ebDate = m[1].trim();
+  }
+  /* ⚠️ AVANT « plus que les 3h » : la phrase dit « a le niveau »,
+     et une expression trop large les confondrait. Écrite par
+     SUITE_NIVEAU_OK (ec-questionnaire.js) — v1005. */
+  else if((m = t.match(/Examen blanc passé le ([^—·]+)— a le niveau, heures/i))){
+    r.examBlanc = 'passe';
+    r.ebSuite = 'niveauok';
     r.ebDate = m[1].trim();
   }
   else if((m = t.match(/Examen blanc passé le ([^—·]+)— plus que les 3h/i))){
