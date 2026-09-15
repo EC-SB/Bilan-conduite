@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 13:38 — v975 */
+/* Déployé le 15/09/2026 à 08:47 — v984 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -1052,6 +1052,16 @@ function fermerLeCoursOuvert(){
   }
   if(typeof libererEcran === 'function'){
     try{ libererEcran(); }catch(e){}
+  }
+
+  /* ⚠️ ET LE TRAJET S'OUBLIE ICI — v984. Sans ça, le cours suivant
+     hériterait du tracé et des repères du précédent : deux heures
+     de route d'un autre élève, dans le mail de celui-ci. */
+  if(typeof oublierLeTrajet === 'function'){
+    try{ oublierLeTrajet(); }catch(e){}
+  }
+  if(typeof montrerLeTrajet === 'function'){
+    try{ montrerLeTrajet(false); }catch(e){}
   }
 
   if(typeof modeManuel !== 'undefined') modeManuel = false;
