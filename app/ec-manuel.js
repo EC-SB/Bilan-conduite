@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:45 — v991 */
+/* Déployé le 15/09/2026 à 10:49 — v992 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -984,10 +984,9 @@ async function ouvrirBilanManuel(){
   }
 
   const zone = $('manuelChamps');
-  /* ⚠️ LE BLOC « 📍 REPÈRE ICI » EST UNIQUE : vidé avec les champs,
-     il ne reviendrait pas. On le sort d'abord — il revient se
-     ranger sous les manœuvres une fois les champs redessinés. */
-  if(typeof mettreLeBlocTrajetALAbri === 'function') mettreLeBlocTrajetALAbri();
+  /* Le bloc « 📍 Repère ici » vit HORS de cette zone, juste
+     au-dessus de « Composer le bilan » : ce vidage ne peut pas
+     l'emporter, et il n'y a donc rien à mettre à l'abri. */
   zone.innerHTML = '';
 
   /* Chaque saisie sera gardée : une coupure ne doit plus rien
@@ -4283,12 +4282,6 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
   champs.forEach(ch => {
     const bloc = document.createElement('div');
     bloc.style.cssText = 'margin-bottom:16px;';
-    /* ⚠️ CHAQUE CHAMP DIT QUI IL EST. C'est ce qui permet au bloc
-       « 📍 Repère ici » de venir se ranger SOUS LES MANŒUVRES —
-       David, le 15 septembre — sans compter les rubriques ni
-       connaître leur ordre. Le jour où l'ordre change, la place du
-       bouton suit toute seule. */
-    if(ch.cle) bloc.dataset.champ = ch.cle;
 
     /* Certains champs ne servent que si l élève a le niveau :
        les montrer ailleurs fait remplir pour rien. */
@@ -5733,11 +5726,6 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
 
     zone.appendChild(bloc);
   });
-
-  /* ⚠️ ET LE BLOC DU TRAJET REPREND SA PLACE, SOUS LES MANŒUVRES.
-     Ici et pas ailleurs : c'est la seule fonction qui dessine ces
-     champs, donc la seule qui sache quand ils existent. */
-  if(typeof poserLeBlocTrajet === 'function') poserLeBlocTrajet();
 }
 
 
