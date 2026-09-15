@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 08:47 — v984 */
+/* Déployé le 15/09/2026 à 09:38 — v988 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1236,13 +1236,59 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
   const jour = (typeof dateEnToutesLettres === 'function')
     ? (dateEnToutesLettres(dateCours) || dateCours) : dateCours;
 
-  await appelPrep({ action: 'mailBilan', to: mails,
-                    sujet: 'Ton bilan de conduite du ' + (jour || ''),
-                    texte: texte });
+  const corps = { action: 'mailBilan', to: mails,
+                  sujet: 'Ton bilan de conduite du ' + (jour || ''),
+                  texte: texte };
+
+  /* ⚠️ LA CARTE DU TRAJET NE TIENT PAS LE BILAN — v988.
+
+     Elle se dessine ici, dans le téléphone, à partir des tuiles de
+     l'IGN, et part avec le mail comme image montrée DANS le corps
+     du message — voir carteDuTrajetPourMail, et la troisième forme
+     de envoyerMail côté Worker.
+
+     Si elle échoue — tuiles injoignables, canvas refusé, pas de
+     trajet du tout — le mail part SANS elle, et l'élève a son
+     bilan. Un bilan qui n'arriverait pas parce qu'une carte n'a
+     pas pu se dessiner serait une belle image payée très cher. */
+  try{
+    if(typeof carteDuTrajetPourMail === 'function'){
+      const carte = await carteDuTrajetPourMail();
+      if(carte){
+        corps.html = htmlDuBilan(
+          (typeof texteSansBlocTrajet === 'function')
+            ? texteSansBlocTrajet(texte) : texte) + carte.html + '</div>';
+        corps.images = [carte.image];
+      }
+    }
+  }catch(e){
+    console.warn('Carte du trajet non jointe :', e);
+  }
+
+  await appelPrep(corps);
   return mails.length;
 }
 
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-carrosserie.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-page-eleve.js", "ec-loupe.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js", "ec-messages-perso.js", "ec-bandeau.js"];
+/* Le bilan en HTML : le même texte, à l'identique.
+
+   ⚠️ ON NE LE MET PAS EN FORME. Le bilan porte déjà ses emojis, ses
+   titres en gras unicode et ses retours à la ligne : le traduire en
+   balises, ce serait le réécrire, et deux versions du même texte
+   finiraient par diverger. Un bloc qui respecte les blancs rend
+   exactement ce que le moniteur a relu.
+
+   ⚠️ LA BALISE N'EST PAS REFERMÉE ICI : le bloc de la carte vient
+   se glisser dedans, et c'est l'appelant qui ferme. */
+function htmlDuBilan(texte){
+  const t = String(texte || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return '<div style="font-family:-apple-system,BlinkMacSystemFont,' +
+    '\'Segoe UI\',Roboto,Arial,sans-serif;font-size:15px;line-height:1.6;' +
+    'color:#14161B;max-width:560px;">' +
+    '<div style="white-space:pre-wrap;">' + t + '</div>';
+}
+
+const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-carrosserie.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-page-eleve.js", "ec-loupe.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js", "ec-messages-perso.js", "ec-bandeau.js", "ec-trajet.js"];
 
 function verifierModules(){
   const charges = window.EC_MODULES || {};
