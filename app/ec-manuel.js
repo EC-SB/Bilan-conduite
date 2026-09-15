@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:20 — v1005 */
+/* Déployé le 15/09/2026 à 15:33 — v1006 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1579,7 +1579,11 @@ function majBilanEliminatoires(){
       reponse: r ? r.value.trim() : '',
       /* L'élimination se signale sur l'erreur, pas sur le titre */
       elim: !!d.dataset.categorie,
-      mention: d.dataset.mention || ''
+      mention: d.dataset.mention || '',
+      /* Le lien vers le point de la carte — v1006. Sans lui, ce
+         cadre-ci n'afficherait pas le renvoi que le bilan généré
+         affichera : deux textes pour la même erreur. */
+      point: d.dataset.point || ''
     };
     if(!o.inspecteur && !o.reponse) return;
 
@@ -1627,13 +1631,24 @@ function majBilanEliminatoires(){
      groupe. */
   const ecrire = o => {
     const m = mentionObs(o);
+    /* ⚠️ LE MÊME RENVOI QUE DANS LES DEUX BILANS — v1006, et il
+       sort du même endroit : ce cadre-ci doit dire exactement ce
+       que dira le bilan généré. */
+    const pt = (typeof mentionDuPoint === 'function' ? mentionDuPoint(o) : '');
     if(o.inspecteur){
       bouts.push('👨‍✈️ ' + m + o.inspecteur +
-                 (o.elim ? ' ☠️ Erreur éliminatoire' : ''));
+                 (o.elim ? ' ☠️ Erreur éliminatoire' : '') + pt);
     }else if(o.elim){
-      bouts.push('☠️ ' + m + 'Erreur éliminatoire');
+      bouts.push('☠️ ' + m + 'Erreur éliminatoire' + pt);
     }
-    if(o.reponse) bouts.push(emojiMoniteur() + ' ' + m + o.reponse);
+    /* Même règle que dans les deux bilans : le renvoi se pose une
+       seule fois, et jamais sur une ligne à lui tout seul. */
+    const posee = o.inspecteur || o.elim;
+    if(o.reponse){
+      bouts.push(emojiMoniteur() + ' ' + m + o.reponse + (posee ? '' : pt));
+    }else if(!posee && pt){
+      bouts.push(emojiMoniteur() + ' ' + m + 'à revoir' + pt);
+    }
   };
 
   /* Un groupe : ses remarques les unes sous les autres, puis les
@@ -2352,14 +2367,60 @@ function rendreSonPoint(d){
   d.dataset.point = '';
 }
 
+/* ============================================================
+   VERSER LES ERREURS DANS LEURS POINTS — v1006
+
+   Chaque ligne d'observation qui porte une marque porte aussi
+   l'identité de son point. On lit les deux textes tels qu'ils sont
+   À CET INSTANT — le même que celui où le bilan se fige — et on
+   les dépose sur le point. La page « voir en grand » les relira.
+
+   ⚠️ LE THÈME EST CELUI DU CEPC, pas le nom tapé dans le tiroir.
+   C'est sous ce titre que l'erreur est rangée dans le bilan des
+   erreurs : la page doit présenter la même chose, sinon l'élève
+   lit deux classements pour une seule faute.
+
+   ⚠️ ET LES TROIS QUESTIONS SUIVENT LE MODÈLE. L'examen blanc les
+   pose, l'examen officiel non — c'est déjà vrai dans le bilan
+   (voir buildExamen). La page ne doit pas les inventer là où le
+   bilan ne les met pas.
+   ============================================================ */
+function verserLesErreursDansLesPoints(modele){
+  if(typeof decrireLePoint !== 'function') return 0;
+
+  if(typeof poserLesQuestionsDuTrajet === 'function'){
+    poserLesQuestionsDuTrajet(String(modele || '') === 'examen-blanc');
+  }
+
+  let n = 0;
+  lignesObservations().forEach(d => {
+    if(!d.dataset || !d.dataset.point) return;
+    const i = d.querySelector('.obsInsp');
+    const r = d.querySelector('.obsRep');
+    const ok = decrireLePoint(d.dataset.point, {
+      theme: d.dataset.categorie || d.dataset.grave || d.dataset.moins || '',
+      insp: i ? i.value.trim() : '',
+      mon:  r ? r.value.trim() : ''
+    });
+    if(ok) n++;
+  });
+  return n;
+}
+
+
 /* ⚠️ L'ÉTIQUETTE AFFICHE LE RANG, JAMAIS L'IDENTITÉ GARDÉE. Le rang
    se recalcule à chaque fois : un point retiré ailleurs renumérote
    tout, et la ligne doit suivre. Voir rangDuPoint. */
 function surLaCarte(d){
   const id = Number(d.dataset.point || 0);
   if(!id || typeof rangDuPoint !== 'function') return '';
-  const rang = rangDuPoint(id);
-  return rang ? ' · point ' + rang + ' sur la carte' : '';
+  /* ⚠️ LA PHRASE VIENT DE ec-trajet.js — v1006. Elle y était déjà,
+     dans mentionDuPoint, et je l'avais réécrite ici : deux
+     écritures du même texte, et c'est mon propre test qui l'a
+     trouvée. Seule la CONDITION diffère — voir le ⚠️ de
+     mentionDuPoint. */
+  return (typeof phraseDuPoint === 'function')
+    ? phraseDuPoint(rangDuPoint(id)) : '';
 }
 
 
@@ -3563,6 +3624,21 @@ async function genererBilanManuel(){
      !(await signalerLeTrajetAvantDeGenerer())){
     return;
   }
+
+  /* ⚠️ CE QUE LES ERREURS DISENT ENTRE DANS LEURS POINTS — v1006.
+
+     David : « sur la page voir en grand, que ça renote tout pour
+     l'erreur : réflexion de l'inspecteur, remarque du moniteur ».
+
+     C'est ICI que ça se fait, et pas ailleurs : le moniteur a
+     appuyé sur ☠️ en roulant, il a écrit ses remarques après, et le
+     texte du bilan se fige à cet instant même. Les deux sont donc
+     pris ENSEMBLE et ne peuvent pas diverger — la page dira
+     exactement ce que le bilan dit.
+
+     ⚠️ ET AVANT LA CARTE, qui part juste en dessous : c'est avec
+     ces textes-là que son lien se fabrique. */
+  verserLesErreursDansLesPoints($('modele').value);
 
   /* ⚠️ ET LA CARTE PART SE DESSINER TOUT DE SUITE — v1003, comme
      en vocal. Le relevé vient d'être clos juste au-dessus : le
