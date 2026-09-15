@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:12 — v986 */
+/* Déployé le 15/09/2026 à 10:29 — v990 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3645,6 +3645,11 @@ async function genererBilanManuel(){
   marquerExport(false);
   $('manuelView').style.display = 'none';
   $('resultView').style.display = 'block';
+  /* ⚠️ LE TIROIR DES REPÈRES AUSSI ICI — un bilan rempli à la main
+     n'a pas de dictée, donc aucun titre proposé par l'IA ; ses
+     repères n'en existent pas moins, et c'est ici, et seulement
+     ici, que le moniteur peut les nommer. */
+  if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
   window.scrollTo(0, 0);
   sauvegarderLocal(true);
 
