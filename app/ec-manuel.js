@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 15/09/2026 à 09:12 — v986 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1065,6 +1065,17 @@ async function ouvrirBilanManuel(){
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
   $('manuelView').style.display = 'block';
+
+  /* ⚠️ LE TRAJET PART AUSSI D'ICI — v986. Il ne démarrait qu'avec
+     le micro : un moniteur qui remplit son bilan à la main
+     conduisait pourtant, et n'avait ni bouton ni tracé.
+
+     Ne fait rien pour qui n'a pas la section d'essai, ni sur un
+     simulateur. Voir ec-trajet.js. */
+  if(typeof demarrerTrajet === 'function' && demarrerTrajet()){
+    if(typeof montrerLeTrajet === 'function') montrerLeTrajet(true);
+  }
+
   window.scrollTo(0, 0);
 }
 
@@ -3557,6 +3568,18 @@ async function genererBilanManuel(){
     if(typeof unSeulRappelEcoutes === 'function') bilan = unSeulRappelEcoutes(bilan);
     if(typeof blocProcedures === 'function'){
       bilan += blocProcedures(champsManuels.texteDicte || '');
+    }
+
+    /* ⚠️ ET LE TRAJET, EXACTEMENT COMME EN VOCAL — v986. David, le
+       15 septembre : « là pour le moment on a que les bilans
+       généré en vocal ».
+
+       Un bilan rempli à la main n'a pas de dictée : la marque
+       « 📍 » n'a nulle part où se poser, et les repères de ces
+       cours-là n'allaient nulle part. Ce bloc est l'autre moitié
+       du dispositif, et c'est la MÊME fonction qu'en vocal. */
+    if(typeof blocTrajet === 'function'){
+      bilan += blocTrajet();
     }
   }catch(e){
     console.error('Composition du bilan :', e);
