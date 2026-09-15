@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:29 — v990 */
+/* Déployé le 15/09/2026 à 14:54 — v1003 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -578,6 +578,15 @@ $('finishBtn').addEventListener('click', async () => {
      partir d'ici plus personne ne roule, et un point de plus ne
      serait qu'un point de parking. */
   if(typeof arreterTrajet === 'function') arreterTrajet();
+
+  /* ⚠️ ET LA CARTE PART SE DESSINER TOUT DE SUITE — v1003. Le
+     tracé ne bougera plus : ses vingt-quatre tuiles peuvent
+     descendre pendant que l'IA rédige et que le moniteur relit,
+     au lieu de le faire attendre au moment d'envoyer. On n'attend
+     PAS ici : si ce n'est pas prêt, l'envoi attendra pour nous. */
+  if(typeof preparerLaCarteDuTrajet === 'function'){
+    try{ preparerLaCarteDuTrajet(); }catch(e){}
+  }
 
   finalTranscript = $('transcriptBox').value.trim();   /* corrections manuelles prises en compte */
   committedTranscript = finalTranscript;
