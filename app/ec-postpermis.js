@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:19 — v987 */
+/* Déployé le 15/09/2026 à 11:56 — v996 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -276,10 +276,17 @@ async function afficherPostExamen(tous){
           try{
             if(place && place.session && place.place){
               try{
-                await appelPrep({ action:'sessionPlace',
-                                  idSession: place.session.id,
-                                  rang: place.place.rang, eleve: '',
-                                  prevenu: '', dossierOk: '', remarque: '' });
+                /* ⚠️ PAR LA PORTE QUI LIT LA RÉPONSE — v996.
+
+                   Un refus du classeur arrive dans un message par
+                   ailleurs normal. Appelé en direct, il passait
+                   pour une réussite — et le « catch » d'en dessous,
+                   qui dit justement quoi faire, ne servait jamais.
+                   Voir ecrireSurLaPlace dans ec-sessions.js. */
+                await ecrireSurLaPlace({
+                  idSession: place.session.id,
+                  rang: place.place.rang, eleve: '',
+                  prevenu: '', dossierOk: '', remarque: '' });
                 place.place.eleve = '';
                 if(typeof sessionsPermis !== 'undefined') sessionsPermis = [];
               }catch(e2){
