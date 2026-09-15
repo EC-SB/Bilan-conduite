@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:51 — v989 */
+/* Déployé le 15/09/2026 à 15:20 — v1005 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3631,6 +3631,30 @@ function heuresQuiComptent(nom){
     if(h) return { valeur: h, source: 'post-permis' };
   }
 
+  /* ⚠️ UN EXAMEN BLANC QUI N'A PAS EU LIEU NE DIT RIEN — v1005.
+
+     David, le 15 septembre, devant la fiche d'un élève dont
+     l'examen blanc est prévu le 22 : « l'examen blanc n'est pas
+     encore passé, j'ai rajouté la date, mais de base il se met sur
+     une valeur alors qu'on en sait rien ».
+
+     Cette fonction prenait « heuresRestantes » dès qu'il existait
+     et l'annonçait « (examen blanc) » — sans JAMAIS regarder si
+     l'examen blanc avait été passé. Pour un élève en « 📅 à venir »,
+     ce nombre ne peut venir que d'un cycle précédent : il est
+     périmé par construction. L'écran le présentait pourtant comme
+     acquis — bordure grise, case verte — exactement comme un nombre
+     que quelqu'un vient de décider.
+
+     ⚠️ ET CE N'EST PAS UN DÉTAIL D'AFFICHAGE : c'est ce nombre-là
+     que le bureau regarde pour donner une date d'examen. Le montrer
+     à jour quand il ne l'est pas, c'est placer un élève sur la foi
+     d'une information de l'an dernier. « À préciser », en orange,
+     dit la vérité : personne ne sait encore. */
+  if(String(s.ebNiveau || '').trim() === 'avenir'){
+    return { valeur: '', source: '' };
+  }
+
   const h2 = String(s.heuresRestantes || '').trim();
   if(h2) return { valeur: h2, source: 'examen blanc' };
 
@@ -3890,6 +3914,7 @@ function mentionExamenBlanc(x){
   const suite = {
     'pasleniveau': '⛔ Pas le niveau',
     '3h': '✅ A le niveau',
+    'niveauok': '✅ A le niveau — heures à préciser',
     'lecons': '⏳ Encore ' + (e.ebLecons || '?') + ' leçon(s)'
   }[e.ebSuite] || '📝 Examen blanc passé';
 
