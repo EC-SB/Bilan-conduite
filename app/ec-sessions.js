@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:04 — v985 */
+/* Déployé le 15/09/2026 à 11:56 — v996 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -475,6 +475,39 @@ function phraseExamenAnnule(quand){
 }
 
 
+/* ============================================================
+   ÉCRIRE SUR UNE PLACE — ET LIRE LA RÉPONSE
+
+   ⚠️ UN REFUS DU CLASSEUR N'EST PAS UNE RÉUSSITE.
+
+   « majPlaceSession » peut refuser — « Place introuvable. » — et
+   il le dit par « status: 'error' » dans une réponse par ailleurs
+   normale. appelPrep, lui, ne lève que sur une panne HTTP : le
+   refus passait donc sans bruit. TREIZE des seize appels de cet
+   écran ne regardaient jamais le statut ; l'écran, déjà repeint,
+   montrait le geste comme fait, et la place n'avait pas bougé.
+
+   C'est exactement le défaut d'Axel Hinault, le 2 septembre —
+   « Enregistré ✅ » sur une ligne que le classeur n'avait pas
+   écrite — corrigé ce jour-là pour « majSuivi », et jamais pour
+   celui-ci.
+
+   ⚠️ ET LA CORRECTION EST UNE PORTE, PAS TREIZE RUSTINES. Écrire
+   « if(r.status === 'error') » à treize endroits, c'est se donner
+   douze occasions de l'oublier au quatorzième. Ici, une fois : les
+   appelants ont déjà leur « catch » — celui qui remet l'écran
+   comme avant et dit pourquoi — et il se met à servir tout seul.
+   ============================================================ */
+async function ecrireSurLaPlace(champs){
+  const rep = await appelPrep(Object.assign({ action: 'sessionPlace' },
+                                            champs || {}));
+  if(rep && rep.status === 'error'){
+    throw new Error(rep.message || 'Le classeur a refusé cette place.');
+  }
+  return rep;
+}
+
+
 async function placerEleveSurPlace(nom, place){
   if(!nom || !place) return false;
 
@@ -487,10 +520,10 @@ async function placerEleveSurPlace(nom, place){
     await rendreALaListeRdvPermis(place.occupant, place.date || '');
   }
 
-  await appelPrep({ action:'sessionPlace', idSession: place.idSession,
-                    rang: place.rang, eleve: nom,
-                    heure: place.heure || '',
-                    par: ACCES.moniteur || '' });
+  await ecrireSurLaPlace({ idSession: place.idSession,
+                           rang: place.rang, eleve: nom,
+                           heure: place.heure || '',
+                           par: ACCES.moniteur || '' });
 
   const jour = (typeof dateEnToutesLettres === 'function')
     ? (dateEnToutesLettres(place.date) || place.date) : place.date;
@@ -1337,8 +1370,8 @@ function lignePlace(p, sess){
            répond tout de suite, l'appel se fait derrière. */
         p.prevenu = !p.prevenu;
         redessinerSessions();
-        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
-                          prevenu: p.prevenu ? 'oui' : '' });
+        await ecrireSurLaPlace({ idSession: sess.id, rang: p.rang,
+                                 prevenu: p.prevenu ? 'oui' : '' });
       }catch(e){
         /* L'enregistrement a échoué : on remet comme avant */
         p.prevenu = !p.prevenu;
@@ -1503,10 +1536,9 @@ async function echangerDeuxPlaces(depuis, versP, versSess){
   redessinerSessions();
 
   try{
-    await appelPrep({ action: 'sessionPlace',
-                      idSession: depuis.idSession, rang: depuis.rang,
-                      echangeAvec: JSON.stringify({ idSession: versSess.id,
-                                                    rang: versP.rang }) });
+    await ecrireSurLaPlace({ idSession: depuis.idSession, rang: depuis.rang,
+                             echangeAvec: JSON.stringify({ idSession: versSess.id,
+                                                           rang: versP.rang }) });
 
     /* Les fiches suivent — et seulement si la date ou le centre
        change vraiment. */
@@ -1938,8 +1970,9 @@ function ouvrirPlace(p, sess){
         fermerFond(fond);
         showToast('Place vidée ⬜');
         redessinerSessions();
-        await appelPrep({ action: 'sessionPlace', idSession: sess.id, rang: p.rang,
-                          eleve: '', prevenu: '', dossierOk: '', remarque: '' });
+        await ecrireSurLaPlace({ idSession: sess.id, rang: p.rang,
+                                 eleve: '', prevenu: '', dossierOk: '',
+                                 remarque: '' });
         /* Ce que la fenêtre annonce, et que personne ne faisait. */
         await rendreALaListeRdvPermis(nom, sess.date || '');
         redessinerSessions();
@@ -2053,8 +2086,8 @@ function ouvrirPlace(p, sess){
          En série, « suiviSet » trouve Axel déjà sur sa place et
          n'a plus rien à chercher. Une demi-seconde de plus, et la
          date est écrite pour de bon. */
-      appelPrep(Object.assign({ action: 'sessionPlace',
-                               idSession: sess.id, rang: p.rang }, champsPlace))
+      ecrireSurLaPlace(Object.assign({ idSession: sess.id, rang: p.rang },
+                                     champsPlace))
       .then(() => Promise.all([
         (champsSuivi && typeof majSuivi === 'function')
           ? majSuivi(nomSaisi, champsSuivi) : Promise.resolve(),
@@ -2430,19 +2463,41 @@ function ouvrirEditeurSession(sess){
 
       if(idS && noms.some(Boolean)){
         bOk.textContent = 'Inscription des élèves…';
+        /* ⚠️ CE « catch » AVALAIT TOUT, ET C'EST LE PIRE ENDROIT.
+
+           Il rendait « null » sur n'importe quel échec : une panne
+           de réseau comme un refus du classeur. L'élève n'était pas
+           placé, la boucle d'en dessous lui écrivait quand même sa
+           date d'examen — et il se retrouvait avec une date et
+           AUCUNE place. C'est exactement l'état de Romain Kikela le
+           4 septembre : écarté de RDV Permis parce qu'il « avait
+           une date », et réclamé par personne.
+
+           On ne peut pas s'arrêter au premier raté — les autres
+           élèves resteraient en plan. On retient donc qui n'est pas
+           passé, et on le DIT. */
+        const rates = [];
         await Promise.all(noms.map((nom, i) => {
           if(!nom) return Promise.resolve();
-          return appelPrep({ action: 'sessionPlace', idSession: idS, rang: i + 1,
-                             eleve: nom }).catch(() => null);
+          return ecrireSurLaPlace({ idSession: idS, rang: i + 1, eleve: nom })
+            .catch(() => { rates.push(nom); });
         }));
 
         /* Leur date d'examen suit : c'est elle que lisent le bureau
-           et le message Messenger. */
+           et le message Messenger. ⚠️ Seulement pour ceux qui ont
+           VRAIMENT leur place : une date sans place est une fiche
+           qui ment. */
+        const poses = noms.filter(n => n && rates.indexOf(n) < 0);
         if(typeof majSuivi === 'function'){
-          await Promise.all(noms.filter(Boolean).map(nom =>
+          await Promise.all(poses.map(nom =>
             majSuivi(nom, { datePermis: date,
                             centre: boite.querySelector('#seCentre').value.trim() })
               .catch(() => null)));
+        }
+
+        if(rates.length){
+          showToast('⚠️ Pas inscrit(s) : ' + rates.join(', ') +
+                    ' — à replacer à la main.');
         }
       }
 
@@ -2606,9 +2661,9 @@ async function reprendreDatesExistantes(){
                           places: depart + i + 1, moniteur: existe.moniteur,
                           boite: existe.boite, par: ACCES.moniteur || '' });
       }
-      await appelPrep({ action: 'sessionPlace', idSession: idS, rang: rang,
-                        eleve: aPlacer[i].eleve, heure: aPlacer[i].heure,
-                        dossierOk: aPlacer[i].dossierOk ? 'oui' : '' });
+      await ecrireSurLaPlace({ idSession: idS, rang: rang,
+                               eleve: aPlacer[i].eleve, heure: aPlacer[i].heure,
+                               dossierOk: aPlacer[i].dossierOk ? 'oui' : '' });
       places++;
     }
   }
