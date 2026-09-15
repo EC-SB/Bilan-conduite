@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 15/09/2026 à 14:41 — v1002 -->
+<!-- Déployé le 15/09/2026 à 15:10 — v1004 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -158,6 +158,21 @@ function decoderPolyligne(str){
   return pts;
 }
 
+/* ⚠️ LA MÊME TABLE QUE LE MODULE — v1004.
+
+   « NATURES_DU_POINT » vit dans ec-trajet.js ; la voici une seconde
+   fois, parce que cette page ne charge pas l'application. Les deux
+   copies DOIVENT dire la même chose : une pastille rouge ici en
+   face d'un point vert dans le mail, et l'élève ne sait plus
+   laquelle croire. Le test compare les deux tables couleur par
+   couleur — c'est la seule chose qui les tient ensemble. */
+const NATURES = {
+  repere:    { icone: '📍', couleur: '#3B6900', mot: 'Point de travail' },
+  attention: { icone: '⚠️', couleur: '#C2700B', mot: 'Erreur à reprendre' },
+  elim:      { icone: '☠️', couleur: '#B3261E', mot: 'Erreur éliminatoire' }
+};
+const nature = (t) => NATURES[t] || NATURES.repere;
+
 (function(){
   const p = new URLSearchParams(location.search);
   const trace = p.get('t') || '';
@@ -169,7 +184,8 @@ function decoderPolyligne(str){
   const reperes = (p.get('r') || '').split('|').filter(Boolean).map(bloc => {
     const m = bloc.split('~');
     return { n: m[0] || '', heure: m[1] || '', nom: m[2] || '',
-             lat: parseFloat(m[3]), lon: parseFloat(m[4]) };
+             lat: parseFloat(m[3]), lon: parseFloat(m[4]),
+             type: m[5] || 'repere' };
   });
 
   const points = trace ? decoderPolyligne(trace) : [];
@@ -210,20 +226,30 @@ function decoderPolyligne(str){
   const liste = document.getElementById('liste');
   reperes.forEach((r) => {
     if(isFinite(r.lat) && isFinite(r.lon)){
+      const nat = nature(r.type);
       L.marker([r.lat, r.lon], { icon: L.divIcon({
-        className:'', html:'<div class="pastille">' + r.n + '</div>',
+        className:'',
+        html:'<div class="pastille" style="background:' + nat.couleur +
+             '">' + r.n + '</div>',
         iconSize:[26,26], iconAnchor:[13,13] }), keyboard:false })
        .addTo(carte)
-       .bindPopup((r.nom || 'Repère ' + r.n) + (r.heure ? ' · ' + r.heure : ''));
+       .bindPopup(nat.icone + ' ' + (r.nom || nat.mot) +
+                  (r.heure ? ' · ' + r.heure : ''));
     }
     const ligne = document.createElement('div');
     ligne.className = 'repere';
+    const nat2 = nature(r.type);
     const n = document.createElement('span');
     n.className = 'num'; n.textContent = r.n;
+    n.style.background = nat2.couleur;
+    n.title = nat2.mot;
     const h = document.createElement('span');
     h.className = 'heure'; h.textContent = r.heure;
     const nom = document.createElement('span');
-    nom.className = 'nom'; nom.textContent = r.nom;   /* jamais en HTML */
+    /* ⚠️ JAMAIS EN HTML : ce nom est tapé par un moniteur. */
+    nom.className = 'nom';
+    nom.textContent = (r.type && r.type !== 'repere' ? nat2.icone + ' ' : '') +
+                      r.nom;
     ligne.appendChild(n); ligne.appendChild(h); ligne.appendChild(nom);
     liste.appendChild(ligne);
   });
