@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 11:41 — v948 */
+/* Déployé le 15/09/2026 à 09:04 — v985 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -38,11 +38,46 @@ async function afficherPostExamen(tous){
   if(!zone) return;
   const auj = todayLocal();
 
+  /* ⚠️ UN REPASSAGE N'ARRIVAIT JAMAIS ICI — v985, trouvé par David
+     le 15 septembre : « L'élève a passé son examen hier mais je ne
+     l'ai pas dans résultat ? »
+
+     Ce filtre commençait par « if(s.resultat) return false; ». Il
+     écartait donc tout élève dont la fiche portait déjà un
+     résultat — c'est-à-dire TOUS CEUX QUI ONT DÉJÀ ÉTÉ AJOURNÉS UNE
+     FOIS. La Perle portait « ajourne » depuis son premier passage :
+     sa date du 14 septembre était bien là, l'examen bien passé, et
+     elle était écartée avant même qu'on regarde la date. Sa fiche
+     comptait trois ajournements ; la feuille des Résultats n'en
+     avait qu'un.
+
+     ⚠️ ENCORE LE MÊME FAIT LU DE DEUX FAÇONS. Sur la fiche,
+     « resultat » veut dire « l'issue de son DERNIER examen ». Ici,
+     il était lu comme « cet examen-ci a déjà été noté ». Pour un
+     premier passage les deux se confondent ; pour un repassage,
+     jamais — et rien n'efface « resultat » quand une nouvelle date
+     est prise, ni la prise de place ni « 📅 Date obtenue ».
+
+     La règle juste ne parle pas de présence, elle parle de DATES :
+     un examen passé PLUS RÉCENT que le dernier résultat consigné
+     attend son résultat. Et quand on vient de noter quelqu'un, sa
+     date d'examen est effacée : il ne peut pas revenir par ici. */
   const attente = tous.filter(e => {
     const s = suiviDe(e.eleve);
-    if(s.resultat) return false;
     const iso = e._iso || dateFrVersIso(s.datePermis || '');
-    return iso && iso < auj;
+    if(!iso || iso >= auj) return false;
+    if(!s.resultat) return true;
+
+    /* La date du dernier résultat consigné. Elle s'écrit tantôt en
+       ISO, tantôt en 02/09/2026 : on la normalise avant de
+       comparer, sinon « 24/08/2026 » passerait pour plus grand que
+       « 2026-09-14 ». */
+    const note = dateFrVersIso(s.dateAjournement || '');
+
+    /* ⚠️ SANS DATE DE RÉSULTAT, ON MONTRE. Se taire reviendrait à
+       perdre le résultat en silence ; le montrer de trop se corrige
+       d'un coup d'œil. */
+    return !note || iso > note;
   });
 
   zone.innerHTML = '';
