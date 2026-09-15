@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 12:54 — v997 */
+/* Déployé le 15/09/2026 à 13:28 — v998 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -46,7 +46,31 @@ let trajetFin = 0;
 let trajetPerdu = 0;          /* millisecondes passées sans relevé */
 let trajetDernier = 0;        /* horodatage du dernier point retenu */
 let trajetCacheA = 0;         /* quand la page est passée derrière */
-let trajetRefus = '';         /* le message du navigateur, s'il a refusé */
+let trajetRefus = '';         /* le message du navigateur, s'il a REFUSÉ */
+
+/* ⚠️ ET CE N'EST PAS LA MÊME CHOSE QU'UNE PANNE PASSAGÈRE — v998.
+
+   Un refus est DÉFINITIF : la permission n'est pas accordée, et
+   rien de ce cours ne sera relevé. Une panne est PASSAGÈRE : un
+   tunnel, un parking couvert, le hall de l'agence, un capteur qui
+   met dix secondes de plus à répondre. Tous les GPS en font, tout
+   le temps.
+
+   Je traitais les deux avec la même variable, et cette variable
+   n'était jamais effacée. Un seul incident, à n'importe quel
+   moment de l'heure, tuait le trajet entier : les points
+   continuaient d'arriver, la distance restait juste, et
+   « trajetComplet » rendait faux jusqu'à la fin du cours. Prouvé
+   dans un vrai navigateur — un cours de quatorze relevés sur un
+   kilomètre, sans le moindre problème, ressortait « Position
+   indisponible ».
+
+   La panne s'efface donc au premier point retenu, et elle ne
+   décide pas de la validité du trajet : le temps réellement perdu
+   est déjà mesuré par le silence (voir TRAJET_SILENCE), qui est
+   la mesure honnête. Une panne de trente secondes suivie d'une
+   heure de relevé parfait n'est pas un trajet qui ment. */
+let trajetPanne = '';         /* incident passager, effacé au point suivant */
 
 /* Un point toutes les cinq secondes suffit à dessiner une route.
    À une seconde, on garde sept fois plus de points pour le même
@@ -292,6 +316,12 @@ function retenirPoint(pos){
 
   trajetPoints.push(p);
   trajetDernier = t;
+
+  /* ⚠️ ET LA PANNE S'EFFACE ICI — v998. Le capteur vient de
+     répondre : ce qui s'est passé avant est derrière nous. C'est
+     le seul endroit où on peut le savoir, et c'est pour ça que
+     l'effacement est ici et pas chez l'appelant. */
+  trajetPanne = '';
   return '';
 }
 
@@ -307,6 +337,7 @@ function demarrerTrajet(){
   trajetDernier = 0;
   trajetCacheA = 0;
   trajetRefus = '';
+  trajetPanne = '';
 
   try{
     trajetVeille = navigator.geolocation.watchPosition(
@@ -314,13 +345,27 @@ function demarrerTrajet(){
       (err) => {
         /* ⚠️ UN REFUS SE DIT, IL NE SE TAIT PAS. Sans ça, le
            moniteur croit son trajet enregistré pendant deux heures
-           et ne découvre le contraire qu'au moment d'envoyer. */
-        trajetRefus = (err && err.code === 1)
-          ? 'Localisation refusée pour ce site.'
-          : 'Position indisponible.';
+           et ne découvre le contraire qu'au moment d'envoyer.
+
+           ⚠️ MAIS UNE PANNE N'EST PAS UN REFUS — v998. Seul le
+           code 1 (permission refusée) est définitif. Les codes 2
+           et 3 — position indisponible, délai dépassé — arrivent
+           en permanence sur un vrai téléphone : un porche, un
+           parking, un capteur lent. Les ranger avec le refus
+           condamnait l'heure entière pour trois secondes de
+           tunnel. La panne s'efface au premier point suivant. */
+        if(err && err.code === 1){
+          trajetRefus = 'Localisation refusée pour ce site.';
+        }else{
+          trajetPanne = 'Position perdue — le relevé reprend tout seul.';
+        }
         dessinerEtatDuTrajet();
       },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+      /* Le délai reste large : sur une veille, un délai court ne
+         fait qu'émettre des erreurs pendant que le capteur
+         cherche. Le temps réellement perdu est compté par le
+         silence, qui, lui, ne se trompe pas. */
+      { enableHighAccuracy: true, maximumAge: 0, timeout: TRAJET_SILENCE });
   }catch(e){
     trajetRefus = 'Localisation impossible sur cet appareil.';
     return false;
@@ -370,6 +415,7 @@ function oublierLeTrajet(){
   trajetDernier = 0;
   trajetCacheA = 0;
   trajetRefus = '';
+  trajetPanne = '';
 }
 
 function trajetEnCours(){ return trajetVeille !== null; }
@@ -505,7 +551,11 @@ function resumeDuTrajet(){
     debut: trajetDebut,
     fin: trajetFin,
     complet: trajetComplet(),
-    manque: manqueAuTrajet()
+    manque: manqueAuTrajet(),
+    /* L'incident en cours, s'il y en a un. Il se dit à l'écran —
+       le moniteur doit savoir que le capteur cherche — mais il ne
+       condamne PAS le trajet : voir le ⚠️ de la v998. */
+    panne: trajetPanne
   };
 }
 
@@ -1002,7 +1052,11 @@ function dessinerEtatDuTrajet(){
   z.appendChild(rond);
 
   const mot = document.createElement('span');
-  mot.textContent = 'Trajet en cours';
+  /* ⚠️ LA PANNE SE VOIT, MAIS NE CONDAMNE RIEN — v998. Le capteur
+     cherche : le moniteur a le droit de le savoir, et il a aussi
+     le droit qu'on ne lui annonce pas un trajet perdu pour trois
+     secondes sous un porche. Le trajet reste « en cours ». */
+  mot.textContent = r.panne ? '📡 Position cherchée…' : 'Trajet en cours';
   z.appendChild(mot);
 
   const chiffres = document.createElement('span');
