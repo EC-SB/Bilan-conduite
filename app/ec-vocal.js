@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 08:47 — v984 */
+/* Déployé le 15/09/2026 à 09:12 — v986 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -789,6 +789,13 @@ $('confirmGen').addEventListener('click', async () => {
        le reprenait : sur un RVP ou un examen blanc, son travail
        disparaissait au profit du seul résumé de l'IA. */
     bilan += blocTranscription(bilan, aererTexte(coursCorrige));
+
+    /* ⚠️ LE TRAJET ENTRE PAR LA MÊME PORTE QUE POUR UN BILAN
+       MANUEL — v986. La marque « 📍 » posée dans la dictée sert à
+       l'IA, qui saura de quoi parle chaque repère ; ce bloc-ci
+       sert à l'élève, et il est identique des deux côtés. Voir
+       blocTrajet() dans ec-trajet.js. */
+    if(typeof blocTrajet === 'function') bilan += blocTrajet();
 
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
 
