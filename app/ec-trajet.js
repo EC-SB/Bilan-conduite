@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 08:47 — v984 */
+/* Déployé le 15/09/2026 à 09:12 — v986 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -92,6 +92,33 @@ function longueurDuTrajet(points){
   let total = 0;
   for(let i = 1; i < p.length; i++) total += distanceEntre(p[i - 1], p[i]);
   return total;
+}
+
+/* ⚠️ CE N'EST PAS LA DISTANCE PARCOURUE QUI DIT QU'ON A ROULÉ.
+
+   Premier jet : « moins de cinq cents mètres parcourus, pas de
+   trajet ». Rouge au premier essai — et c'est le test qui avait
+   raison. Un GPS à l'arrêt DÉRIVE : deux mètres par-ci, trois
+   par-là, trois cents relevés dans l'heure, et le compteur affiche
+   six cents mètres sans que la voiture ait bougé d'un pouce.
+
+   Ce qui dit qu'on est allé quelque part, c'est l'ÉTENDUE : la
+   distance entre les deux coins du rectangle qui contient tout le
+   tracé. Elle ne grandit pas avec le temps qui passe, seulement
+   avec le chemin fait. */
+function etendueDuTrajet(points){
+  const p = points || [];
+  if(p.length < 2) return 0;
+  let latMin = p[0].lat, latMax = p[0].lat;
+  let lonMin = p[0].lon, lonMax = p[0].lon;
+  for(let i = 1; i < p.length; i++){
+    if(p[i].lat < latMin) latMin = p[i].lat;
+    if(p[i].lat > latMax) latMax = p[i].lat;
+    if(p[i].lon < lonMin) lonMin = p[i].lon;
+    if(p[i].lon > lonMax) lonMax = p[i].lon;
+  }
+  return distanceEntre({ lat: latMin, lon: lonMin },
+                       { lat: latMax, lon: lonMax });
 }
 
 /* La distance d'un point à la droite qui joint deux autres.
@@ -203,10 +230,31 @@ function decoderPolyligne(texte){
    LE RELEVÉ
    ============================================================ */
 
-/* Le trajet ne se propose qu'à qui a la section d'essai, et
-   seulement si le navigateur sait où il est. */
+/* ⚠️ TOUS LES BILANS SAUF LE SIMULATEUR — v986, demandé par David
+   le 15 septembre : « le tracé sur tous les bilans sauf
+   simulateur ».
+
+   Un simulateur ne bouge pas. Relever sa position deux heures
+   durant rendrait un petit tas de points à l'adresse de
+   l'auto-école, et ce tas partirait dans le mail de l'élève comme
+   s'il avait conduit.
+
+   On lit le GROUPE du modèle, pas la liste de ses clés : le jour
+   où un troisième simulateur arrive, il sera exclu sans que
+   personne ait à y penser. */
+function trajetPourCeModele(cle){
+  if(typeof MODELES !== 'object' || !MODELES) return true;
+  const m = MODELES[cle || ''];
+  if(!m) return true;
+  return String(m.groupe || '') !== 'Simulateur';
+}
+
+/* Le trajet ne se propose qu'à qui a la section d'essai, si le
+   navigateur sait où il est, et pas sur un simulateur. */
 function trajetPossible(){
   if(typeof aDroit !== 'function' || !aDroit('trajet')) return false;
+  if(typeof $ === 'function' && $('modele') &&
+     !trajetPourCeModele($('modele').value)) return false;
   return !!(typeof navigator !== 'undefined' && navigator.geolocation);
 }
 
@@ -383,6 +431,18 @@ function trajetComplet(){
     perdu += (t - trajetDernier);
   }
 
+  /* ⚠️ ET UNE VOITURE QUI N'A PAS BOUGÉ N'A PAS DE TRAJET — v986.
+     Un rendez-vous post-permis, une fiche remplie au bureau, un
+     cours annulé au dernier moment : le relevé tourne, les points
+     s'accumulent sur place, et le tracé serait un pâté devant
+     l'auto-école.
+
+     On mesure l'ÉTENDUE, pas la distance parcourue — voir
+     etendueDuTrajet : à l'arrêt, la dérive du capteur fait monter
+     la seconde sans que la première bouge. Trois cents mètres,
+     c'est moins que le tour du pâté de maisons. */
+  if(etendueDuTrajet(trajetPoints) < 300) return false;
+
   /* Un dixième de la leçon sans relevé, et on ne garantit plus
      rien. Un feu rouge sous un porche ne fait pas six minutes. */
   return perdu <= duree * 0.1;
@@ -402,6 +462,9 @@ function manqueAuTrajet(){
   }
   const min = (x) => Math.max(1, Math.round(x / 60000));
   if(trajetPoints.length < 10) return 'Trop peu de relevés pour un tracé.';
+  if(etendueDuTrajet(trajetPoints) < 300){
+    return 'La voiture n’a pas bougé : pas de trajet.';
+  }
   return 'Trajet incomplet : ' + min(duree - perdu) + ' min relevées sur ' +
          min(duree) + '.';
 }
@@ -455,6 +518,52 @@ function nommerRepere(numero, nom){
   if(!r) return false;
   r.nom = String(nom || '').trim();
   return true;
+}
+
+/* ============================================================
+   CE QUI ENTRE DANS LE BILAN — v986
+
+   David, le 15 septembre : « voir comment ça se traduit sur la
+   génération de bilan car là pour le moment on a que les bilans
+   généré en vocal ».
+
+   ⚠️ LA MARQUE DANS LA DICTÉE NE SUFFISAIT PAS, ET NE POUVAIT PAS
+   SUFFIRE. Elle sert à l'IA : elle lui dit à quel moment du récit
+   le repère a été posé, pour qu'elle sache de quoi il parle. Mais
+   un bilan REMPLI À LA MAIN n'a pas de dictée — il n'y a aucun
+   texte où poser une marque. Les repères d'un cours manuel
+   n'allaient donc nulle part.
+
+   Ce bloc-ci est l'autre moitié, et il est la même pour les deux
+   chemins : il s'ajoute au bilan fini, qu'il vienne du micro ou du
+   formulaire. Une seule fonction, appelée aux deux endroits qui
+   assemblent un bilan — comme « blocProcedures » avant lui.
+
+   ⚠️ TOUJOURS AUCUNE VITESSE. Une distance, une durée, des heures
+   de repère. Rien d'autre.
+   ============================================================ */
+function blocTrajet(){
+  if(!trajetComplet()) return '';
+
+  const t = trajetPourEnvoi();
+  if(!t) return '';
+
+  const km = String(t.km).replace('.', ',');
+  const h = Math.floor(t.minutes / 60);
+  const m = t.minutes % 60;
+  const duree = h ? (h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''))
+                  : (m + ' min');
+
+  let out = '\n\n🗺️ 𝗡𝗼𝘁𝗿𝗲 𝘁𝗿𝗮𝗷𝗲𝘁 : ' + km + ' km en ' + duree;
+
+  /* Les repères nommés d'abord ; ceux qui n'ont pas de nom
+     portent au moins leur heure — c'est déjà un rendez-vous dans
+     le récit du cours. */
+  t.reperes.forEach((r) => {
+    out += '\n📍 ' + r.n + ' · ' + r.heure + (r.nom ? ' — ' + r.nom : '');
+  });
+
+  return out;
 }
 
 /* Les repères, pour le tiroir de l'écran de relecture */
@@ -549,13 +658,16 @@ function appuyerSurRepere(){
   }, 1500);
 }
 
-/* Montrer ou cacher le bloc, selon le droit et l'état du cours */
+/* Montrer ou cacher le bloc, selon le droit et l'état du cours.
+
+   ⚠️ UN SEUL CONTENEUR, ET IL VIT AU-DESSUS DES DEUX ÉCRANS DE
+   COURS — v986. Le bouton doit être le même que le bilan soit
+   dicté ou rempli à la main : un second bouton dans l'écran
+   manuel, ce serait le même geste écrit à deux endroits. */
 function montrerLeTrajet(oui){
-  const b = (typeof $ === 'function') ? $('repereBtn') : null;
-  const z = (typeof $ === 'function') ? $('trajetEtat') : null;
+  const bloc = (typeof $ === 'function') ? $('blocTrajet') : null;
   const visible = !!oui && trajetPossible();
-  if(b) b.style.display = visible ? 'flex' : 'none';
-  if(z) z.style.display = visible ? 'flex' : 'none';
+  if(bloc) bloc.style.display = visible ? 'block' : 'none';
   if(visible) dessinerEtatDuTrajet();
 }
 
