@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 14:40 — v1002 */
+/* Déployé le 15/09/2026 à 14:54 — v1003 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -71,6 +71,7 @@ let trajetRefus = '';         /* le message du navigateur, s'il a REFUSÉ */
    la mesure honnête. Une panne de trente secondes suivie d'une
    heure de relevé parfait n'est pas un trajet qui ment. */
 let trajetPanne = '';         /* incident passager, effacé au point suivant */
+let carteEnPreparation = null; /* l'image du tracé, lancée d'avance */
 
 /* Un point toutes les cinq secondes suffit à dessiner une route.
    À une seconde, on garde sept fois plus de points pour le même
@@ -338,6 +339,9 @@ function demarrerTrajet(){
   trajetCacheA = 0;
   trajetRefus = '';
   trajetPanne = '';
+  /* Un nouveau cours, une nouvelle carte : l'image préparée pour
+     le précédent partirait dans le mail de cet élève-ci. */
+  carteEnPreparation = null;
 
   try{
     trajetVeille = navigator.geolocation.watchPosition(
@@ -416,6 +420,7 @@ function oublierLeTrajet(){
   trajetCacheA = 0;
   trajetRefus = '';
   trajetPanne = '';
+  carteEnPreparation = null;
 }
 
 function trajetEnCours(){ return trajetVeille !== null; }
@@ -1119,9 +1124,52 @@ function lienVersLaCarte(t){
   }
 }
 
+/* ============================================================
+   LA CARTE SE DESSINE D'AVANCE — v1003
+
+   David : « l'envoi par mail c'est super long ». Le calcul, lui,
+   ne prend que deux cents millisecondes ; ce qui dure, c'est
+   d'aller chercher vingt-quatre tuiles. Et on les cherchait au
+   moment PRÉCIS où le moniteur appuie sur « envoyer », donc en
+   pleine attente.
+
+   Or le cours est fini bien avant : dès que le relevé s'arrête, le
+   tracé ne bougera plus. On lance donc le dessin à ce moment-là —
+   pendant que l'IA rédige le bilan, pendant que le moniteur relit
+   son texte et nomme ses repères. Quand il appuie, l'image est
+   déjà là.
+
+   ⚠️ ON NE GARDE QUE L'IMAGE, JAMAIS LE BLOC HTML. L'image ne
+   porte que des NUMÉROS ; le bloc, lui, porte les NOMS des repères
+   — et ces noms se tapent APRÈS, dans le tiroir de relecture.
+   Garder le bloc reviendrait à envoyer à l'élève les noms d'avant
+   sa correction : le même fait gardé à deux endroits, et c'est la
+   copie périmée qui gagne. Le bloc se reconstruit donc à chaque
+   envoi, sur les noms du moment.
+
+   ⚠️ ET ELLE NE FAIT JAMAIS ÉCHOUER QUOI QUE CE SOIT. Si le dessin
+   rate, on rend une chaîne vide : le mail part sans carte, et
+   l'élève a son bilan.
+   ============================================================ */
+function preparerLaCarteDuTrajet(){
+  if(carteEnPreparation) return carteEnPreparation;
+  if(!trajetComplet()) return null;
+  carteEnPreparation = dessinerLaCarte().catch((e) => {
+    console.warn('Carte du trajet préparée en vain :', e);
+    return '';
+  });
+  return carteEnPreparation;
+}
+
+/* L'image du trajet : celle préparée d'avance si elle existe, et
+   sinon dessinée maintenant. Une seule porte pour les deux cas. */
+async function imageDuTrajet(){
+  return (await preparerLaCarteDuTrajet()) || '';
+}
+
 /* Ce que le mail reçoit : l'image, et le HTML qui la montre. */
 async function carteDuTrajetPourMail(){
-  const image = await dessinerLaCarte();
+  const image = await imageDuTrajet();
   if(!image) return null;
 
   const t = trajetPourEnvoi();
