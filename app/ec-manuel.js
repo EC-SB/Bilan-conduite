@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:49 — v992 */
+/* Déployé le 15/09/2026 à 12:54 — v997 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3456,6 +3456,20 @@ function lireChampsManuels(champsVoulus){
 async function genererBilanManuel(){
   /* On relève d'abord tout ce que le moniteur a saisi */
   lireChampsManuels();
+
+  /* ⚠️ LE TRAJET SE CLÔT ET SE SIGNALE ICI — v997. Avant tout le
+     reste : le questionnaire de fin dure, et pendant ce temps le
+     relevé continuerait de tourner et d'allonger la durée du
+     cours. C'est la MÊME règle qu'en vocal — un trajet coupé se
+     dit AVANT de générer — et c'est la fonction du module trajet
+     qui la porte, pas une copie ici. Voir ec-trajet.js.
+
+     Elle rend « false » si le moniteur préfère renoncer : on
+     n'écrit rien, rien n'est perdu, il peut revenir. */
+  if(typeof signalerLeTrajetAvantDeGenerer === 'function' &&
+     !(await signalerLeTrajetAvantDeGenerer())){
+    return;
+  }
 
   /* Modifiables : l'examen officiel peut basculer d'une boîte à
      l'autre quand la question est posée au moniteur. */
