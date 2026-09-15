@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 13:28 — v998 */
+/* Déployé le 15/09/2026 à 13:40 — v999 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -484,20 +484,69 @@ function combienDeReperes(){ return trajetReperes.length; }
    bout à l'autre de la ville, et l'élève croira l'avoir conduit.
    Mieux vaut n'envoyer aucun tracé qu'un parcours faux.
    ============================================================ */
+/* ⚠️ COMBIEN DE TEMPS, ET COMBIEN DE PERDU : UNE SEULE RÉPONSE — v999.
+
+   Trois fonctions calculaient la durée et le silence chacune de son
+   côté — « trajetComplet », « manqueAuTrajet » et « trajetPourEnvoi ».
+   Elles n'étaient déjà pas d'accord, et c'est ce désaccord que David
+   a mis au jour : « l'enregistrement du trajet commence bien dès
+   qu'on démarre le cours, il ne faut pas attendre 1 point ? »
+
+   ⚠️ DEUX DURÉES, ET IL FAUT LES DEUX.
+
+   · « duree » court du BOUTON à la fin : c'est le cours. C'est le
+     dénominateur du dixième — la question « qu'est-ce qu'on a
+     manqué » n'a de sens que rapportée au cours entier.
+
+   · « releve » court du PREMIER POINT au dernier : c'est le TRACÉ.
+     C'est lui, et lui seul, qu'on écrit à l'élève. Le bloc disait
+     « 2,9 km en 30 min » quand le capteur avait mis dix minutes à
+     accrocher et que vingt minutes seulement avaient été tracées.
+     Une phrase fausse dans son mail.
+
+   ⚠️ ET LE SILENCE DU DÉBUT COMPTE COMME CELUI DE LA FIN. Le trou
+   d'APRÈS le dernier point était compté, le trou d'AVANT le premier
+   ne l'était pas : la même minute sans relevé valait zéro au départ
+   et pénalisait à l'arrivée. Une asymétrie n'est pas un choix, c'est
+   un oubli. Le seuil d'une minute (TRAJET_SILENCE) laisse passer
+   l'accroche normale d'un GPS, qui prend dix à trente secondes. */
+function mesureDuTrajet(){
+  const fin = trajetFin || Date.now();
+  const premier = trajetPoints.length ? trajetPoints[0].t : 0;
+
+  let perdu = trajetPerdu;
+
+  /* Le trou de tête : le capteur cherchait, la voiture roulait. */
+  if(premier && (premier - trajetDebut) > TRAJET_SILENCE){
+    perdu += (premier - trajetDebut);
+  }
+  /* Le trou de queue : plus rien ne vient, et le cours dure encore. */
+  if(trajetDernier && (fin - trajetDernier) > TRAJET_SILENCE){
+    perdu += (fin - trajetDernier);
+  }
+
+  return {
+    duree: trajetDebut ? (fin - trajetDebut) : 0,   /* le COURS */
+    releve: premier ? (trajetDernier - premier) : 0, /* le TRACÉ */
+    perdu: perdu
+  };
+}
+
 function trajetComplet(){
   if(!trajetDebut) return false;
   if(trajetRefus) return false;
   if(trajetPoints.length < 10) return false;
 
-  const duree = (trajetFin || Date.now()) - trajetDebut;
-  if(duree < 60000) return false;
+  const m = mesureDuTrajet();
+  if(m.duree < 60000) return false;
 
-  /* Le silence accumulé, plus celui qui court encore */
-  let perdu = trajetPerdu;
-  const t = trajetFin || Date.now();
-  if(trajetDernier && (t - trajetDernier) > TRAJET_SILENCE){
-    perdu += (t - trajetDernier);
-  }
+  /* ⚠️ ET LE TRACÉ LUI-MÊME DOIT DURER UNE MINUTE. Un cours d'une
+     heure dont le capteur n'a rendu que quarante secondes au bout
+     n'a pas de trajet à montrer, même si le cours, lui, a duré. */
+  if(m.releve < 60000) return false;
+
+  const perdu = m.perdu;
+  const duree = m.duree;
 
   /* ⚠️ ET UNE VOITURE QUI N'A PAS BOUGÉ N'A PAS DE TRAJET — v986.
      Un rendez-vous post-permis, une fiche remplie au bureau, un
@@ -522,19 +571,14 @@ function manqueAuTrajet(){
   if(!trajetDebut) return 'Trajet non démarré.';
   if(trajetComplet()) return '';
 
-  const duree = (trajetFin || Date.now()) - trajetDebut;
-  let perdu = trajetPerdu;
-  const t = trajetFin || Date.now();
-  if(trajetDernier && (t - trajetDernier) > TRAJET_SILENCE){
-    perdu += (t - trajetDernier);
-  }
+  const m = mesureDuTrajet();
   const min = (x) => Math.max(1, Math.round(x / 60000));
   if(trajetPoints.length < 10) return 'Trop peu de relevés pour un tracé.';
   if(etendueDuTrajet(trajetPoints) < 300){
     return 'La voiture n’a pas bougé : pas de trajet.';
   }
-  return 'Trajet incomplet : ' + min(duree - perdu) + ' min relevées sur ' +
-         min(duree) + '.';
+  return 'Trajet incomplet : ' + min(m.duree - m.perdu) + ' min relevées sur ' +
+         min(m.duree) + '.';
 }
 
 
@@ -575,7 +619,10 @@ function trajetPourEnvoi(){
     polyligne: encoderPolyligne(simple),
     points: simple.length,
     km: Math.round(longueurDuTrajet(trajetPoints) / 100) / 10,
-    minutes: Math.round(((trajetFin || Date.now()) - trajetDebut) / 60000),
+    /* ⚠️ LA DURÉE DU TRACÉ, PAS CELLE DU COURS — v999. C'est cette
+       ligne-là que l'élève lit sous sa carte : elle doit décrire ce
+       qu'elle montre. Voir mesureDuTrajet. */
+    minutes: Math.round(mesureDuTrajet().releve / 60000),
     reperes: trajetReperes.map((r, i) => ({
       n: i + 1,
       heure: heure(r.t),
