@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:49 — v992 */
+/* Déployé le 15/09/2026 à 12:54 — v997 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -325,6 +325,20 @@ function demarrerTrajet(){
     trajetRefus = 'Localisation impossible sur cet appareil.';
     return false;
   }
+
+  /* ⚠️ L'ÉCRAN SE TIENT ICI, PAS CHEZ L'APPELANT — v997.
+
+     Un écran verrouillé ARRÊTE la géolocalisation : iOS comme
+     Android, et sans contournement. Le bilan vocal tenait l'écran
+     — mais pour son micro, et par hasard ; le bilan manuel ne l'a
+     jamais tenu, et le trajet d'un cours rempli à la main était
+     donc structurellement toujours incomplet. David, le 15
+     septembre, après un vrai cours : « je n'ai rien du tout dans
+     le bilan que j'ai reçu ».
+
+     Une parade posée chez l'appelant est une parade qu'on oublie :
+     celle-ci part avec le relevé, pour les deux écrans à la fois. */
+  if(typeof garderEcranAllume === 'function') garderEcranAllume();
   return true;
 }
 
@@ -334,6 +348,14 @@ function arreterTrajet(){
     trajetVeille = null;
   }
   if(trajetDebut && !trajetFin) trajetFin = Date.now();
+
+  /* L'écran pris au démarrage se rend ici — sauf si le micro
+     tourne encore : lui en a besoin jusqu'à sa propre fin, et
+     c'est lui qui le rendra. */
+  if(typeof libererEcran === 'function' &&
+     !(typeof isRecording !== 'undefined' && isRecording)){
+    libererEcran();
+  }
 }
 
 /* On repart de zéro : après un bilan enregistré, après un
@@ -510,6 +532,51 @@ function trajetPourEnvoi(){
       nom: String(r.nom || '')
     }))
   };
+}
+
+/* ============================================================
+   CE QUI SE DIT AVANT DE GÉNÉRER — v997
+
+   ⚠️ UN TRAJET COUPÉ SE SIGNALE AVANT DE GÉNÉRER, PAS AU MOMENT
+   D'ENVOYER. Le bilan vocal appliquait la règle depuis la v986 :
+   sa ligne d'alerte porte « trajet incomplet » à côté des autres
+   soucis, sous les yeux du moniteur, avant qu'il n'appuie.
+
+   Le bilan manuel, lui, ajoutait « blocTrajet() » — qui rend une
+   chaîne VIDE quand le trajet ne vaut rien — et ne disait rien du
+   tout. David, le 15 septembre, après un vrai cours : « j'ai
+   envoyé mon bilan et je n'ai rien du tout dans le bilan que j'ai
+   reçu ni sur ma génération je n'ai pas les points repéré ». Il
+   avait pourtant appuyé sur 📍 plusieurs fois. Une règle que je
+   n'avais écrite que sur un des deux écrans.
+
+   Cette porte-ci est celle du bilan manuel : elle clôt le relevé
+   (la durée du trajet, c'est la durée du cours) et, si le tracé
+   ne partira pas, elle le dit et laisse le choix.
+   ============================================================ */
+async function signalerLeTrajetAvantDeGenerer(){
+  if(!trajetDebut) return true;        /* aucun relevé : rien à dire */
+
+  arreterTrajet();                     /* le cours est fini */
+  if(trajetComplet()) return true;
+
+  const n = trajetReperes.length;
+  const reperes = n
+    ? '\n\n' + n + (n > 1 ? ' repères ont été posés' : ' repère a été posé') +
+      ' pendant ce cours : ' + (n > 1 ? 'ils ne partiront pas' : 'il ne partira pas') +
+      ' non plus.'
+    : '';
+
+  const suite = await confirmer(
+    '⚠️ ' + (manqueAuTrajet() || 'Trajet incomplet.') +
+    '\n\nLe tracé ne sera donc PAS joint à ce bilan.' + reperes +
+    '\n\nLe plus souvent, c\'est l\'écran qui s\'est verrouillé pendant ' +
+    'la conduite : le téléphone doit rester allumé, écran vers le haut, ' +
+    'pendant tout le cours.' +
+    '\n\nGénérer quand même le bilan, sans le trajet ?',
+    'Trajet non joint');
+
+  return suite === true;
 }
 
 /* Nommer un repère depuis l'écran de relecture */
