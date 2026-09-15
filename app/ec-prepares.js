@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 09:58 — v967 */
+/* Déployé le 15/09/2026 à 14:54 — v1003 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -63,7 +63,20 @@ const ACTIONS_LOURDES = { elevesImport: 90000,
                           /* Vingt-trois feuilles à relire et à réécrire.
                              À douze secondes, l'application croyait à une
                              panne — voir SANS_REPRISE juste dessous. */
-                          eleveRenommer: 90000 };
+                          eleveRenommer: 90000,
+                          /* ⚠️ UN MAIL AVEC SA CARTE N'EST PAS UN APPEL
+                             ORDINAIRE — v1003. David : « l'envoi par mail
+                             c'est super long ».
+
+                             Il porte le bilan, le tracé du cours en image
+                             et la liste des repères : deux à trois cents
+                             kilo-octets qui montent depuis un téléphone,
+                             puis une vraie session SMTP avec l'image en
+                             pièce liée. Vingt-cinq secondes, c'est court
+                             pour ça — et abandonner à vingt-cinq secondes
+                             annonçait un échec au moniteur alors que le
+                             mail était PARTI. */
+                          mailBilan: 60000 };
 /* ⚠️ CELLES QU'ON NE RECOMMENCE JAMAIS.
 
    « eleveRenommer » y manquait, et ça s'est vu au premier usage : le
@@ -72,10 +85,22 @@ const ACTIONS_LOURDES = { elevesImport: 90000,
    changé — d'où « Un élève porte déjà ce nom » sur un renommage
    parfaitement réussi. Le classeur a été rendu plus rapide et plus
    tolérant, mais la vraie règle est ici : une écriture en masse ne se
-   rejoue pas, jamais. */
+   rejoue pas, jamais.
+
+   ⚠️⚠️ ET UN MAIL ENCORE MOINS — v1003. « mailBilan » n'y était pas.
+   Un envoi qui dépassait le délai était donc ABANDONNÉ puis REJOUÉ :
+   le moniteur attendait deux fois vingt-cinq secondes — « l'envoi
+   par mail c'est super long » — et surtout la première tentative,
+   abandonnée côté téléphone, continuait très bien sa route côté
+   Worker. L'élève pouvait recevoir son bilan DEUX FOIS.
+
+   Une écriture en masse se rattrape ; un mail parti ne se rattrape
+   pas. C'est la porte unique de TOUS les mails de l'application —
+   bilans, convocations, récapitulatifs — donc la règle vaut pour
+   tous d'un coup. */
 const SANS_REPRISE = ['elevesImport', 'ficheSet', 'bilanMaj', 'bilanModifier',
                       'smsLog', 'eleveRetirer', 'eleveRenommer',
-                      'consigneEffacerEleve'];
+                      'consigneEffacerEleve', 'mailBilan'];
 
 /* ⚠️ NE PAS EMPILER UN RAFRAÎCHISSEMENT SUR UN CLASSEUR QUI RÉPOND
    DÉJÀ — v949.
