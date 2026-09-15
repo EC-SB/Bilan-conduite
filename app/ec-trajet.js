@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:38 — v988 */
+/* Déployé le 15/09/2026 à 10:29 — v990 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -772,14 +772,47 @@ async function dessinerLaCarte(){
    affiche le HTML verrait donc la liste des repères deux fois de
    suite. On le retire de la version riche — et d'elle seulement :
    la version en texte brut le garde, c'est tout ce qu'elle a. */
-function texteSansBlocTrajet(t){
+/* ⚠️ OÙ LE BLOC COMMENCE ET OÙ IL FINIT : UNE SEULE RÉPONSE.
+
+   Deux fonctions en ont besoin — celle qui le retire du mail
+   riche, et celle qui le réécrit quand un repère vient d'être
+   nommé. Écrites séparément, elles finiraient par ne plus couper
+   au même endroit, et le bilan garderait deux blocs de trajet ou
+   perdrait la signature. */
+function ouEstLeBlocTrajet(t){
   const s = String(t || '');
   const i = s.indexOf('\n\n\u{1F5FA}\u{FE0F} ');
-  if(i < 0) return s;
+  if(i < 0) return null;
   /* Le bloc s'arrête au prochain paragraphe : ce qui suit, c'est
      la signature du moniteur, et elle reste. */
   const j = s.indexOf('\n\n', i + 2);
-  return (j < 0) ? s.slice(0, i) : (s.slice(0, i) + s.slice(j));
+  return { debut: i, fin: (j < 0) ? s.length : j };
+}
+
+function texteSansBlocTrajet(t){
+  const s = String(t || '');
+  const ou = ouEstLeBlocTrajet(s);
+  return ou ? (s.slice(0, ou.debut) + s.slice(ou.fin)) : s;
+}
+
+/* ⚠️ UN REPÈRE QU'ON VIENT DE NOMMER DOIT SE VOIR DANS LE BILAN.
+
+   Sans ça, le moniteur tape « Rond-point de la Croix » dans le
+   tiroir, le nom part bien dans le classeur et dans le mail — et
+   le texte qu'il a sous les yeux, celui qu'il va copier sur
+   Messenger, continue d'afficher une heure toute seule. Deux
+   vérités pour le même repère, et c'est celle qu'il voit qui a
+   l'air fausse.
+
+   Le bloc est réécrit à SA place. Si le bilan n'en a pas encore
+   un — bilan repris, écran rechargé — on ne l'invente pas : on
+   ne saurait pas où le mettre, et un bloc collé à la fin
+   passerait après la signature. */
+function rafraichirBlocTrajet(t){
+  const s = String(t || '');
+  const ou = ouEstLeBlocTrajet(s);
+  if(!ou) return s;
+  return s.slice(0, ou.debut) + blocTrajet() + s.slice(ou.fin);
 }
 
 /* Ce que le mail reçoit : l'image, et le HTML qui la montre. */
@@ -940,6 +973,215 @@ function montrerLeTrajet(oui){
   const visible = !!oui && trajetPossible();
   if(bloc) bloc.style.display = visible ? 'block' : 'none';
   if(visible) dessinerEtatDuTrajet();
+}
+
+/* ============================================================
+   LES NOMS DE REPÈRES, PROPOSÉS PAR L'IA — v990, lot 3
+
+   David, le 15 septembre : « l'IA propose le nom des repères
+   d'après la dictée ».
+
+   Un repère sans nom, c'est une heure dans une liste : « 📍 2 ·
+   09h41 ». L'élève ne sait pas de quoi il s'agit. Le moniteur,
+   lui, l'a dit à voix haute au moment où il a appuyé — c'est
+   justement pour ça que la marque « 📍n » est posée DANS la
+   dictée, à l'endroit où on en était.
+
+   ⚠️ UN APPEL À PART, ET PAS UN CHAMP DE PLUS DANS LE BILAN.
+
+   Le premier réflexe serait d'ajouter « reperes » au schéma JSON
+   que l'IA rend déjà pour le bilan. C'est la mauvaise porte :
+   ce schéma peut être ENTIÈREMENT réécrit depuis l'écran des
+   consignes (consignesPersonnalisees), et le jour où l'auto-école
+   réécrit le sien, le champ disparaîtrait sans que personne ne
+   comprenne pourquoi les repères ont cessé d'avoir des noms. Un
+   appel séparé ne peut pas être effacé par une consigne, ne peut
+   pas abîmer le bilan s'il échoue, et coûte trois cents jetons.
+
+   ⚠️ ET LE MONITEUR GARDE LE DERNIER MOT. Ce qui revient est une
+   PROPOSITION, posée dans un tiroir où elle se corrige et s'efface.
+   L'IA lit une transcription automatique de voiture : elle se
+   trompera.
+   ============================================================ */
+const REPERE_NOM_MAX = 40;
+
+function consigneNommerReperes(){
+  return 'Tu lis la transcription automatique d\'un cours de conduite. ' +
+    'Le moniteur y a posé des marques « 📍1 », « 📍2 », etc., en ' +
+    'appuyant sur un bouton au moment précis où il voulait retenir un ' +
+    'endroit ou une situation.\n\n' +
+    'Pour CHAQUE marque, donne un titre très court (deux à cinq mots) ' +
+    'qui dise l\'endroit ou la manœuvre dont il était question JUSTE ' +
+    'AVANT la marque.\n\n' +
+    'RÈGLES ABSOLUES :\n' +
+    '- Tu réponds une ligne par marque, au format « 1 = titre ». Rien ' +
+    'd\'autre : pas de phrase d\'introduction, pas de conclusion, pas ' +
+    'de markdown.\n' +
+    '- Tu n\'inventes RIEN. Si la transcription ne dit rien de clair ' +
+    'autour d\'une marque, tu écris « 1 = » et tu passes à la suivante. ' +
+    'Un titre vide vaut infiniment mieux qu\'un titre inventé : l\'élève ' +
+    'va le lire et croire que c\'est là qu\'il a travaillé.\n' +
+    '- Pas de phrase, pas de verbe conjugué : un lieu ou une manœuvre. ' +
+    '« Rond-point de la Croix », « Créneau rue de Brest », « Insertion ' +
+    'sur la voie rapide ».\n' +
+    '- Aucun jugement sur la conduite de l\'élève, aucune note, aucune ' +
+    'vitesse. Le titre dit OÙ, pas COMMENT.\n' +
+    '- Jamais de nom de personne.\n';
+}
+
+/* « 1 = Rond-point de la Croix » → { 1: 'Rond-point de la Croix' } */
+function lireLesNomsProposes(reponse){
+  const out = {};
+  String(reponse || '').split('\n').forEach((ligne) => {
+    const m = ligne.match(/^\s*(\d{1,2})\s*[=:.\-]\s*(.*)$/);
+    if(!m) return;
+    const n = parseInt(m[1], 10);
+    if(!n) return;
+    /* Une IA bavarde met parfois des guillemets ou une puce */
+    const nom = m[2].replace(/^["'«\s]+|["'»\s.]+$/g, '')
+                    .slice(0, REPERE_NOM_MAX);
+    out[n] = nom;
+  });
+  return out;
+}
+
+/* Demande les noms et les pose. Rend le nombre de repères nommés.
+   Ne lève jamais : un bilan ne se perd pas pour un titre. */
+async function proposerLesNomsDesReperes(transcription){
+  if(!combienDeReperes()) return 0;
+  if(typeof appelBrutIA !== 'function') return 0;
+
+  const texte = String(transcription || '');
+  /* Sans les marques, l'IA n'a aucun point d'ancrage : elle
+     inventerait des titres à partir du cours entier. Mieux vaut
+     des repères sans nom. */
+  if(!/📍\s*\d/.test(texte)) return 0;
+
+  try{
+    const reponse = await appelBrutIA(
+      consigneNommerReperes(),
+      'Transcription du cours :\n"""\n' + texte + '\n"""\n\n' +
+      'Il y a ' + combienDeReperes() + ' marque(s) à nommer.',
+      400, 'Noms des repères du trajet');
+
+    const noms = lireLesNomsProposes(reponse);
+    let poses = 0;
+    for(const n in noms){
+      if(!noms[n]) continue;
+      if(nommerRepere(parseInt(n, 10), noms[n])) poses++;
+    }
+    return poses;
+  }catch(e){
+    console.warn('Noms des repères non proposés :', e);
+    return 0;
+  }
+}
+
+
+/* ============================================================
+   LE TIROIR DES REPÈRES, DANS L'ÉCRAN DE RELECTURE
+
+   Un champ par repère, le titre proposé dedans. Le moniteur
+   corrige, et le bilan qu'il a sous les yeux se réécrit aussitôt
+   — sinon il copierait sur Messenger un texte qui ne dit pas la
+   même chose que le mail de l'élève.
+   ============================================================ */
+function montrerLeTiroirDesReperes(){
+  const tiroir = (typeof $ === 'function') ? $('tiroirReperes') : null;
+  const zone = (typeof $ === 'function') ? $('listeReperes') : null;
+  if(!tiroir || !zone) return;
+
+  const liste = trajetComplet() ? listeDesReperes() : [];
+  if(!liste.length){ tiroir.style.display = 'none'; return; }
+
+  tiroir.style.display = '';
+  zone.innerHTML = '';
+
+  liste.forEach((r) => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;gap:10px;align-items:center;' +
+      'padding:6px 0;border-bottom:1px solid var(--line);' +
+      'text-transform:none;margin:0;font-size:13px;';
+
+    const num = document.createElement('div');
+    num.style.cssText = 'flex-shrink:0;font-weight:700;color:var(--accent-text);' +
+      'min-width:62px;';
+    num.textContent = '📍 ' + r.n + ' · ' + r.heure;
+    l.appendChild(num);
+
+    const champ = document.createElement('input');
+    champ.type = 'text';
+    champ.maxLength = REPERE_NOM_MAX;
+    champ.value = r.nom || '';
+    champ.placeholder = 'Sans titre — l’élève ne verra que l’heure';
+    champ.style.cssText = 'flex:1;min-width:0;';
+    champ.addEventListener('input', () => {
+      nommerRepere(r.n, champ.value);
+      /* ⚠️ LE BILAN AFFICHÉ SE RÉÉCRIT TOUT DE SUITE. Deux vérités
+         pour le même repère, et c'est celle qu'il voit qui aurait
+         l'air fausse. */
+      const ta = (typeof $ === 'function') ? $('resultText') : null;
+      if(ta && ta.value) ta.value = rafraichirBlocTrajet(ta.value);
+    });
+    l.appendChild(champ);
+
+    zone.appendChild(l);
+  });
+}
+
+
+/* ============================================================
+   RANGER LE TRACÉ — v990, lot 3
+
+   ⚠️ AU MOMENT OÙ LA LIGNE DU BILAN EST ÉCRITE, ET PAS AVANT.
+
+   C'est le seul instant qui vaut : avant, le cours peut encore
+   être abandonné ; après, l'écran est remis à zéro et le tracé
+   oublié. C'est exactement le raisonnement qui a déplacé la mort
+   du brouillon à cet endroit-là (voir exporterVersSheets).
+
+   ⚠️ ET ÇA NE TIENT PAS LE BILAN. Si le rangement échoue, le
+   bilan est enregistré quand même : un tracé perdu est un
+   agrément en moins, un bilan perdu est deux heures de travail.
+   ============================================================ */
+async function enregistrerLeTrajet(meta){
+  if(!trajetComplet()) return false;
+  if(typeof appelPrep !== 'function') return false;
+
+  const t = trajetPourEnvoi();
+  if(!t) return false;
+
+  const m = meta || {};
+  try{
+    const r = await appelPrep({
+      action: 'trajetSet',
+      eleve: String(m.eleve || ''),
+      date: String(m.date || ''),
+      moniteur: String(m.moniteur || ''),
+      site: String(m.site || ''),
+      km: t.km,
+      minutes: t.minutes,
+      debut: heureDuTrajet(trajetDebut),
+      fin: heureDuTrajet(trajetFin),
+      trace: t.polyligne,
+      reperes: t.reperes
+    });
+    return !!(r && r.status === 'ok');
+  }catch(e){
+    console.warn('Trajet non enregistré :', e);
+    return false;
+  }
+}
+
+/* Une heure de cours, pour le classeur : 09h14, pas un horodatage
+   à la milliseconde. ⚠️ ON NE RANGE PAS L'HEURE DE CHAQUE POINT —
+   ce serait un journal de déplacement. Deux heures : celle du
+   départ, celle de l'arrivée. */
+function heureDuTrajet(t){
+  if(!t) return '';
+  const d = new Date(t);
+  return String(d.getHours()).padStart(2, '0') + 'h' +
+         String(d.getMinutes()).padStart(2, '0');
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
