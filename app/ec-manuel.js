@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 14:54 — v1003 */
+/* Déployé le 15/09/2026 à 15:10 — v1004 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1249,24 +1249,32 @@ function ajouterObservationManuelle(zone, valeurs){
         etiq.style.cssText = 'font-size:11px;color:var(--red);margin-top:6px;';
         d.appendChild(etiq);
       }
-      etiq.textContent = '☠️ ' + cat;
+      etiq.textContent = '☠️ ' + cat + surLaCarte(d);
     }else if(etiq){
       etiq.remove();
     }
   };
 
   bMort.addEventListener('click', async () => {
-    /* Déjà marquée : un second appui retire la marque */
+    /* Déjà marquée : un second appui retire la marque — et rend
+       son point au trajet, il ne le supprime pas. */
     if(d.dataset.categorie){
       d.dataset.categorie = '';
+      rendreSonPoint(d);
       majMortEtCepc();
       return;
     }
 
+    /* ⚠️ LE POINT SE POSE AVANT LA FENÊTRE — v1004. Voir
+       poserLePointDUneMarque dans ec-trajet.js : entre l'appui et
+       la réponse, la voiture a roulé. */
+    const idPoint = poserSonPoint('elim');
+
     const cat = await choisirCategorieCepc();
-    if(!cat) return;
+    if(!cat){ oublierSonPoint(idPoint); return; }
 
     d.dataset.categorie = cat;
+    poserLeLienDuPoint(d, idPoint, 'elim', cat);
     majMortEtCepc();
   });
 
@@ -1339,7 +1347,8 @@ function ajouterObservationManuelle(zone, valeurs){
         d.appendChild(etiq);
       }
       etiq.style.color = coute ? 'var(--warn-text)' : 'var(--accent-text)';
-      etiq.textContent = '⚠️ ' + cat + (coute ? ' · ➖ 1 point' : '');
+      etiq.textContent = '⚠️ ' + cat + (coute ? ' · ➖ 1 point' : '') +
+                        surLaCarte(d);
     }else if(etiq){
       etiq.remove();
     }
@@ -1352,23 +1361,30 @@ function ajouterObservationManuelle(zone, valeurs){
     if(d.dataset.grave){
       if(d.dataset.moins === d.dataset.grave) d.dataset.moins = '';
       d.dataset.grave = '';
+      rendreSonPoint(d);
       majGrave();
       retirerPointsCepc();
       if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
       return;
     }
 
+    /* ⚠️ LE POINT SE POSE AVANT LES DEUX FENÊTRES — v1004. Celui-ci
+       en ouvre DEUX : la compétence, puis le point du CEPC. C'est
+       encore plus de route entre l'appui et la réponse. */
+    const idPoint = poserSonPoint('attention');
+
     const cat = await choisirCategorieCepc(true, 'grave');
-    if(!cat) return;
+    if(!cat){ oublierSonPoint(idPoint); return; }
 
     /* Puis, et seulement alors, la question du point. Annuler ici
        ne pose rien : on ne marque pas une erreur à moitié parce que
        quelqu'un a hésité sur le point. */
     const point = await demanderPointCepc(cat);
-    if(point === null) return;
+    if(point === null){ oublierSonPoint(idPoint); return; }
 
     d.dataset.grave = cat;
     if(point) d.dataset.moins = cat;
+    poserLeLienDuPoint(d, idPoint, 'attention', cat);
     majGrave();
     retirerPointsCepc();
     if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
@@ -1417,6 +1433,18 @@ function ajouterObservationManuelle(zone, valeurs){
        reprend sa compétence : le point reste compté, et il redevient
        effaçable d'un appui. */
     if(d.dataset.moins && !d.dataset.grave) d.dataset.grave = d.dataset.moins;
+
+    /* ⚠️ ET LE LIEN VERS LE POINT DE LA CARTE SE REPOSE AUSSI —
+       v1004. Il vit sur le BLOC, comme ☠️, ⚠️ et ➖ : oublié ici,
+       une fiche reprise après un plantage garderait ses marques et
+       perdrait ses points, et l'étiquette cesserait d'annoncer le
+       point sans que rien ne l'explique.
+
+       Le trajet, lui, ne survit pas à un rechargement : le rang
+       rendu vaudra 0 et l'étiquette se taira toute seule, ce qui
+       est exactement ce qu'on veut — elle ne désignera jamais un
+       point qui n'existe plus. */
+    d.dataset.point = String(valeurs.point || '');
 
     majMort();
     majGrave();
@@ -2272,6 +2300,66 @@ function categoriesEliminatoires(){
     });
   });
   return out;
+}
+
+
+/* ============================================================
+   ☠️ ET ⚠️ POSENT LEUR POINT SUR LA CARTE — v1004
+
+   David : « sur les examens blancs et les examens officiels,
+   est-ce que quand on met une tête de mort ça peut faire un point
+   sur la carte, pareil quand on appuie sur le Attention, et que ce
+   soit lié en bas — j'appuie sur l'erreur éliminatoire = point
+   tant sur la carte ». Et, sur le geste : « en direct, en
+   roulant ».
+
+   ⚠️ QUATRE PASSERELLES, ET RIEN D'AUTRE ICI. Tout ce qui décide —
+   la couleur, l'icône, le rang, ce qui arrive quand on retire une
+   marque — vit dans ec-trajet.js, qui est le seul à savoir ce
+   qu'est un point. Cet écran-ci ne fait que dire QUAND et POURQUOI.
+   Recopier la moindre de ces règles ici, ce serait deux endroits
+   qui décrivent le même point, et c'est toujours le périmé qui
+   finit par s'afficher.
+
+   ⚠️ ET UNE MARQUE SE POSE MÊME SANS GPS. Si le relevé ne tourne
+   pas — pas de section d'essai, localisation refusée, simulateur —
+   les quatre fonctions ne font rien et la fiche se remplit comme
+   avant. La carte est un plus ; la fiche d'examen, elle, ne dépend
+   de rien.
+   ============================================================ */
+function poserSonPoint(type){
+  return (typeof poserLePointDUneMarque === 'function')
+    ? poserLePointDUneMarque(type) : 0;
+}
+
+function oublierSonPoint(id){
+  if(id && typeof annulerLePointDUneMarque === 'function'){
+    annulerLePointDUneMarque(id);
+  }
+}
+
+function poserLeLienDuPoint(d, id, type, nom){
+  if(!id) return;
+  if(typeof marquerLePoint === 'function') marquerLePoint(id, type, nom);
+  d.dataset.point = String(id);
+}
+
+function rendreSonPoint(d){
+  const id = Number(d.dataset.point || 0);
+  if(id && typeof rendreLePointAuTravail === 'function'){
+    rendreLePointAuTravail(id);
+  }
+  d.dataset.point = '';
+}
+
+/* ⚠️ L'ÉTIQUETTE AFFICHE LE RANG, JAMAIS L'IDENTITÉ GARDÉE. Le rang
+   se recalcule à chaque fois : un point retiré ailleurs renumérote
+   tout, et la ligne doit suivre. Voir rangDuPoint. */
+function surLaCarte(d){
+  const id = Number(d.dataset.point || 0);
+  if(!id || typeof rangDuPoint !== 'function') return '';
+  const rang = rangDuPoint(id);
+  return rang ? ' · point ' + rang + ' sur la carte' : '';
 }
 
 
@@ -3423,9 +3511,14 @@ function lireChampsManuels(champsVoulus){
         const grave = d.dataset ? (d.dataset.grave || '') : '';
         const moins = d.dataset ? (d.dataset.moins || '') : '';
         const ment = d.dataset ? (d.dataset.mention || '') : '';
+        /* ⚠️ ET LE LIEN VERS SON POINT — v1004. Il voyage avec la
+           marque, sinon le brouillon repris ne saurait plus quel
+           point de la carte cette ligne désignait. */
+        const pt = d.dataset ? (d.dataset.point || '') : '';
         if(vi || vr){
           obs.push({ inspecteur: vi, reponse: vr, categorie: cat,
-                     grave: grave, moins: moins, mention: ment });
+                     grave: grave, moins: moins, mention: ment,
+                     point: pt });
         }
       });
       champsManuels[ch.cle] = obs;
