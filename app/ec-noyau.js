@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 14:58 — v978 */
+/* Déployé le 15/09/2026 à 08:47 — v984 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -173,6 +173,29 @@ const DROITS_ARGENT = ['caisse', 'paie', 'coutsia', 'encours', 'tarifs',
 const SECTIONS = [
   { cle:'prepares',         nom:'📅 Mes prochains cours', onglet:'cours' },
   { cle:'cours',            nom:'🎙️ Cours, enregistrement et bilan', onglet:'cours' },
+  /* ⚠️ LA SECTION D'UN ESSAI — v984, demandée par David le
+     15 septembre : « il faut que je puisse décider à qui je le mets
+     en test, entre tous les moniteurs et admin ».
+
+     Elle ouvre le relevé du trajet pendant le cours et le bouton
+     « 📍 Repère ici ». Décochée, il ne se passe RIEN : ni ligne
+     d'état, ni bouton, ni demande de géolocalisation.
+
+     ⚠️ ELLE N'EST PAS DANS « SECTIONS_NEES_EN » CÔTÉ WORKER, ET
+     C'EST VOULU. Une section « jeune » se fait combler par le rôle
+     quand elle manque aux droits enregistrés — décocher ne
+     tiendrait donc pas. Pour un essai, pouvoir la RETIRER compte
+     plus que tout le reste.
+
+     Elle est en revanche inscrite dans DROITS_ROLE.admin, pour une
+     seule raison : un compte principal n'a pas de fiche où cocher
+     quoi que ce soit — le Worker lui donne le rôle tel quel. C'est
+     le seul moyen qu'il l'ait, et David l'a tranché le 15 septembre.
+
+     Comme « cours_neuf » avant elle, elle est temporaire par
+     construction : le jour où l'essai est tranché, elle part — des
+     DEUX côtés à la fois. */
+  { cle:'trajet',           nom:'🗺️ Trajet du cours (en essai)', onglet:'cours' },
   { cle:'recherche',        nom:'🔍 Recherche d\'élève', onglet:'eleves' },
   { cle:'bureau_simu',      nom:'🌙 Simulateurs nuit et risques', onglet:'suivi' },
   { cle:'bureau_examblanc', nom:'📝 Examens blancs à prévoir', onglet:'suivi' },
