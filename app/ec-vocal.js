@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 14:58 — v978 */
+/* Déployé le 15/09/2026 à 08:47 — v984 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -527,6 +527,18 @@ $('recBtn').addEventListener('click', async () => {
                          $('site') ? $('site').value : '');
   }
 
+  /* ⚠️ LE TRAJET PART AVEC LE COURS — v984. Même appui, même
+     permission, même écran maintenu allumé : c'est ce que David a
+     tranché le 15 septembre, et c'est une chose de moins à penser
+     en montant dans la voiture.
+
+     Il ne démarre que pour qui a la section d'essai « trajet ».
+     Pour tous les autres, ces deux lignes ne font rien du tout —
+     pas même une demande de géolocalisation. */
+  if(typeof demarrerTrajet === 'function' && demarrerTrajet()){
+    if(typeof montrerLeTrajet === 'function') montrerLeTrajet(true);
+  }
+
   /* Maintien de l'écran — hors du chemin critique :
      un échec ici ne doit pas passer pour une panne de micro. */
   const ecranTenu = await garderEcranAllume();
@@ -534,6 +546,16 @@ $('recBtn').addEventListener('click', async () => {
     ? 'Écran maintenu allumé. Laisse cette page affichée.'
     : '⚠️ Empêche l\'écran de s\'éteindre et laisse cette page affichée.';
 });
+
+/* ⚠️ LE GROS BOUTON — un appui, et c'est tout. La voiture roule,
+   l'élève conduit : pas de clavier, pas de fenêtre, pas de
+   confirmation. Le nom du repère se donne à l'arrêt, sur l'écran
+   de relecture. */
+if($('repereBtn')){
+  $('repereBtn').addEventListener('click', () => {
+    if(typeof appuyerSurRepere === 'function') appuyerSurRepere();
+  });
+}
 
 /* ---------- Génération ---------- */
 /* Le bouton n'enclenche plus rien directement : il demande confirmation */
@@ -552,6 +574,11 @@ $('finishBtn').addEventListener('click', async () => {
   }
   libererEcran();
 
+  /* Le relevé s'arrête en même temps que l'écran se libère : à
+     partir d'ici plus personne ne roule, et un point de plus ne
+     serait qu'un point de parking. */
+  if(typeof arreterTrajet === 'function') arreterTrajet();
+
   finalTranscript = $('transcriptBox').value.trim();   /* corrections manuelles prises en compte */
   committedTranscript = finalTranscript;
   const mots = finalTranscript.trim().split(/\s+/).filter(Boolean).length;
@@ -561,13 +588,27 @@ $('finishBtn').addEventListener('click', async () => {
     'Type : <b>' + (modele ? modele.label : '—') + '</b><br>' +
     'Élève : <b>' + ($('studentName').value.trim() || '(non renseigné)') + '</b><br>' +
     'Moniteur : <b>' + ($('monitorName').value.trim() || '(non renseigné)') + '</b><br>' +
-    'Mots captés : <b>' + mots + '</b>';
+    'Mots captés : <b>' + mots + '</b>' +
+    /* Le trajet, s'il y en a eu un. La ligne dit la distance et le
+       nombre de repères : c'est ce qui partira avec le bilan. */
+    ((typeof resumeDuTrajet === 'function' && resumeDuTrajet().debut)
+      ? '<br>Trajet : <b>' +
+        String(resumeDuTrajet().km).replace('.', ',') + ' km · ' +
+        resumeDuTrajet().reperes + ' repère' +
+        (resumeDuTrajet().reperes > 1 ? 's' : '') + '</b>'
+      : '');
 
   const alerte = $('confirmAlerte');
   const soucis = [];
   if(!$('studentName').value.trim()) soucis.push("le nom de l'élève n'est pas renseigné");
   if(mots < 60) soucis.push('la transcription est très courte (' + mots + ' mots)');
   if(interruptions > 0) soucis.push("l'enregistrement a été interrompu " + interruptions + ' fois');
+  /* ⚠️ UN TRAJET INTERROMPU EST UN TRAJET QUI MENT, et ça se dit
+     ICI, pas au moment d'envoyer. Le tracé ne partira pas. */
+  if(typeof resumeDuTrajet === 'function'){
+    const tr = resumeDuTrajet();
+    if(tr.debut && tr.manque) soucis.push(tr.manque.toLowerCase().replace(/\.$/, ''));
+  }
 
   if(soucis.length){
     alerte.style.display = 'block';
