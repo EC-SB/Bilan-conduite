@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:12 — v986 */
+/* Déployé le 15/09/2026 à 09:38 — v988 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -564,6 +564,277 @@ function blocTrajet(){
   });
 
   return out;
+}
+
+/* ============================================================
+   LA CARTE — v988
+
+   Le fond vient du « Plan IGN », relayé par le Worker (voir la
+   route « /tuile » : c'est lui qui pose la permission sans
+   laquelle le navigateur refuserait de rendre les pixels du
+   dessin).
+
+   ⚠️ TOUT SE PASSE DANS LE TÉLÉPHONE. Les tuiles arrivent, le
+   tracé se dessine par-dessus, et il en sort UNE image. Rien de ce
+   qui est ici ne repart ailleurs, sinon l'image finie dans le mail
+   de l'élève.
+
+   ⚠️ ET TOUJOURS AUCUNE VITESSE. Un trait, des pastilles, une
+   distance, une durée.
+   ============================================================ */
+const CARTE_LARGEUR = 640;
+const CARTE_HAUTEUR = 400;
+const CARTE_TUILE = 256;
+const CARTE_MARGE = 46;          /* pour que les pastilles tiennent */
+const CARTE_ZOOM_MAX = 17;
+const CARTE_ZOOM_MIN = 8;
+
+/* Web Mercator, la projection des tuiles : une longitude devient
+   une colonne, une latitude devient une ligne. */
+function carteX(lon, z){
+  return (lon + 180) / 360 * Math.pow(2, z) * CARTE_TUILE;
+}
+function carteY(lat, z){
+  const r = lat * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI)
+         / 2 * Math.pow(2, z) * CARTE_TUILE;
+}
+
+/* Le plus gros zoom auquel le trajet entier tient dans l'image.
+   On part du plus précis et on recule : le premier qui rentre est
+   le meilleur. */
+function zoomQuiRentre(points){
+  let latMin = 90, latMax = -90, lonMin = 180, lonMax = -180;
+  (points || []).forEach((p) => {
+    if(p.lat < latMin) latMin = p.lat;
+    if(p.lat > latMax) latMax = p.lat;
+    if(p.lon < lonMin) lonMin = p.lon;
+    if(p.lon > lonMax) lonMax = p.lon;
+  });
+
+  const utileL = CARTE_LARGEUR - CARTE_MARGE * 2;
+  const utileH = CARTE_HAUTEUR - CARTE_MARGE * 2;
+  const centre = (z) => ({
+    z: z,
+    cx: (carteX(lonMin, z) + carteX(lonMax, z)) / 2,
+    cy: (carteY(latMin, z) + carteY(latMax, z)) / 2
+  });
+
+  for(let z = CARTE_ZOOM_MAX; z >= CARTE_ZOOM_MIN; z--){
+    const l = Math.abs(carteX(lonMax, z) - carteX(lonMin, z));
+    const h = Math.abs(carteY(latMin, z) - carteY(latMax, z));
+    if(l <= utileL && h <= utileH) return centre(z);
+  }
+  return centre(CARTE_ZOOM_MIN);
+}
+
+/* Une tuile, demandée au Worker. Elle revient vide plutôt que de
+   tout faire échouer : un carré manquant vaut mieux qu'un mail
+   sans carte. */
+function chargerUneTuile(z, x, y){
+  return new Promise((ok) => {
+    const img = new Image();
+    /* ⚠️ SANS CETTE LIGNE, LE CANVAS EST « SALI » et l'export
+       échoue au dernier moment, avec une erreur de sécurité — au
+       moment précis où le moniteur croit son bilan parti. C'est la
+       route « /tuile » du Worker qui la rend possible. */
+    img.crossOrigin = 'anonymous';
+    img.onload = () => ok(img);
+    img.onerror = () => ok(null);
+    const base = (typeof CONFIG === 'object' && CONFIG && CONFIG.WORKER_URL)
+      ? CONFIG.WORKER_URL : '';
+    img.src = base + '/tuile?z=' + z + '&x=' + x + '&y=' + y;
+    /* Une tuile qui ne répond pas ne doit pas tenir le bilan. */
+    setTimeout(() => ok(null), 8000);
+  });
+}
+
+/* Le dessin, de bout en bout. Rend une image en base64, ou ''. */
+async function dessinerLaCarte(){
+  if(!trajetComplet()) return '';
+  if(typeof document === 'undefined' || !document.createElement) return '';
+
+  const points = simplifierTrajet(trajetPoints);
+  if(points.length < 2) return '';
+
+  const vue = zoomQuiRentre(points);
+  const z = vue.z;
+
+  const toile = document.createElement('canvas');
+  toile.width = CARTE_LARGEUR;
+  toile.height = CARTE_HAUTEUR;
+  const c = toile.getContext('2d');
+  if(!c) return '';
+
+  /* Le fond crème du Plan IGN : ce qu'on voit là où une tuile
+     manque, plutôt qu'un trou noir. */
+  c.fillStyle = '#F7F5F0';
+  c.fillRect(0, 0, CARTE_LARGEUR, CARTE_HAUTEUR);
+
+  /* Le coin haut-gauche de l'image, en pixels du monde entier */
+  const gauche = vue.cx - CARTE_LARGEUR / 2;
+  const haut = vue.cy - CARTE_HAUTEUR / 2;
+
+  const t0x = Math.floor(gauche / CARTE_TUILE);
+  const t0y = Math.floor(haut / CARTE_TUILE);
+  const t1x = Math.floor((gauche + CARTE_LARGEUR) / CARTE_TUILE);
+  const t1y = Math.floor((haut + CARTE_HAUTEUR) / CARTE_TUILE);
+  const max = Math.pow(2, z);
+
+  /* Toutes les tuiles partent ENSEMBLE : demandées l'une après
+     l'autre, neuf allers-retours feraient attendre le moniteur. */
+  const demandes = [];
+  for(let tx = t0x; tx <= t1x; tx++){
+    for(let ty = t0y; ty <= t1y; ty++){
+      if(tx < 0 || ty < 0 || tx >= max || ty >= max) continue;
+      demandes.push({ tx: tx, ty: ty, p: chargerUneTuile(z, tx, ty) });
+    }
+  }
+
+  for(const d of demandes){
+    const img = await d.p;
+    if(!img) continue;
+    c.drawImage(img, d.tx * CARTE_TUILE - gauche, d.ty * CARTE_TUILE - haut,
+                CARTE_TUILE, CARTE_TUILE);
+  }
+
+  /* Le tracé */
+  const chemin = points.map((p) => ({
+    x: carteX(p.lon, z) - gauche,
+    y: carteY(p.lat, z) - haut
+  }));
+
+  const tracer = () => {
+    c.beginPath();
+    chemin.forEach((p, i) => { i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y); });
+  };
+
+  /* ⚠️ UN LISERÉ BLANC SOUS LE TRAIT. Sur un plan, un trait de
+     couleur posé sur des rues de la même valeur se perd : c'est le
+     blanc dessous qui le décolle du fond. */
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  tracer();
+  c.strokeStyle = '#FFFFFF'; c.lineWidth = 11; c.stroke();
+  tracer();
+  c.strokeStyle = '#3B6900'; c.lineWidth = 4; c.stroke();
+
+  /* Le départ : un cercle creux. L'arrivée : un carré plein. */
+  const a = chemin[0], b = chemin[chemin.length - 1];
+  c.beginPath(); c.arc(a.x, a.y, 7, 0, Math.PI * 2);
+  c.fillStyle = '#FFFFFF'; c.fill();
+  c.strokeStyle = '#3B3B3B'; c.lineWidth = 2.5; c.stroke();
+  c.fillStyle = '#14161B';
+  c.fillRect(b.x - 7, b.y - 7, 14, 14);
+
+  /* Les repères, numérotés, cerclés de blanc pour rester lisibles
+     sur n'importe quel fond. */
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  trajetReperes.forEach((r, i) => {
+    if(r.lat == null || r.lon == null) return;
+    const x = carteX(r.lon, z) - gauche;
+    const y = carteY(r.lat, z) - haut;
+    c.beginPath(); c.arc(x, y, 14, 0, Math.PI * 2);
+    c.fillStyle = '#3B6900'; c.fill();
+    c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.stroke();
+    c.fillStyle = '#FFFFFF';
+    c.font = 'bold 15px Arial, sans-serif';
+    c.fillText(String(i + 1), x, y + 1);
+  });
+
+  /* ⚠️ L'ATTRIBUTION EST OBLIGATOIRE, et elle vit DANS l'image :
+     écrite à côté dans le mail, elle disparaîtrait au premier
+     transfert. */
+  const mention = 'Plan IGNV2 — Carte © IGN/Géoportail';
+  c.font = '11px Arial, sans-serif';
+  c.textAlign = 'right';
+  c.textBaseline = 'alphabetic';
+  const l = c.measureText(mention).width + 12;
+  c.fillStyle = 'rgba(255,255,255,.78)';
+  c.fillRect(CARTE_LARGEUR - l, CARTE_HAUTEUR - 18, l, 18);
+  c.fillStyle = '#5A5A5A';
+  c.fillText(mention, CARTE_LARGEUR - 6, CARTE_HAUTEUR - 5);
+
+  try{
+    return toile.toDataURL('image/jpeg', 0.82);
+  }catch(e){
+    /* Le canvas a été sali malgré tout : mieux vaut un mail sans
+       carte qu'un bilan qui ne part pas. */
+    console.warn('Carte du trajet impossible :', e);
+    return '';
+  }
+}
+
+/* ⚠️ ET LE MÊME TRAJET NE SE DIT PAS DEUX FOIS DANS LE MÊME MAIL.
+
+   Le bloc texte de blocTrajet() est DANS le bilan ; la version
+   riche le redit en plus joli, avec la carte. Un client qui
+   affiche le HTML verrait donc la liste des repères deux fois de
+   suite. On le retire de la version riche — et d'elle seulement :
+   la version en texte brut le garde, c'est tout ce qu'elle a. */
+function texteSansBlocTrajet(t){
+  const s = String(t || '');
+  const i = s.indexOf('\n\n\u{1F5FA}\u{FE0F} ');
+  if(i < 0) return s;
+  /* Le bloc s'arrête au prochain paragraphe : ce qui suit, c'est
+     la signature du moniteur, et elle reste. */
+  const j = s.indexOf('\n\n', i + 2);
+  return (j < 0) ? s.slice(0, i) : (s.slice(0, i) + s.slice(j));
+}
+
+/* Ce que le mail reçoit : l'image, et le HTML qui la montre. */
+async function carteDuTrajetPourMail(){
+  const image = await dessinerLaCarte();
+  if(!image) return null;
+
+  const t = trajetPourEnvoi();
+  if(!t) return null;
+
+  const echapper = (s) => String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const km = String(t.km).replace('.', ',');
+  const h = Math.floor(t.minutes / 60);
+  const m = t.minutes % 60;
+  const duree = h ? (h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''))
+                  : (m + ' min');
+
+  let html =
+    '<div style="margin-top:22px;">' +
+    '<h3 style="font-size:15px;font-weight:800;margin:0 0 4px;' +
+      'color:#3B6900;">🗺️ Notre trajet</h3>' +
+    '<div style="font-size:13px;color:#64655F;margin:0 0 14px;">' +
+      km + ' km · ' + duree + '</div>' +
+    '<img src="cid:trajet" alt="Le tracé de notre trajet" ' +
+      'style="display:block;width:100%;max-width:520px;height:auto;' +
+      'border:1px solid #DCDCD3;border-radius:12px;">';
+
+  if(t.reperes.length){
+    html += '<div style="margin-top:14px;">';
+    t.reperes.forEach((r) => {
+      html += '<div style="padding:8px 0;border-top:1px solid #DCDCD3;' +
+        'font-size:14px;line-height:1.5;color:#14161B;">' +
+        '<b style="color:#3B6900;">' + r.n + '</b> · ' +
+        '<span style="color:#64655F;font-size:12.5px;">' +
+          echapper(r.heure) + '</span>' +
+        (r.nom ? ' — ' + echapper(r.nom) : '') +
+        '</div>';
+    });
+    html += '</div>' +
+      '<p style="font-size:11.5px;color:#64655F;line-height:1.6;' +
+      'border-top:1px solid #DCDCD3;padding-top:12px;margin-top:4px;">' +
+      'Les points numérotés sont les endroits que ton moniteur a marqués ' +
+      'pendant le cours : ce sont tes points de travail pour la prochaine ' +
+      'fois. Le tracé est indicatif, il ne dit rien de ta façon de ' +
+      'conduire.</p>';
+  }
+  html += '</div>';
+
+  return {
+    html: html,
+    image: { cid: 'trajet', nom: 'trajet.jpg', type: 'image/jpeg',
+             contenu: image }
+  };
 }
 
 /* Les repères, pour le tiroir de l'écran de relecture */
