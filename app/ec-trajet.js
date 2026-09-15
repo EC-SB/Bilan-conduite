@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 13:54 — v1000 */
+/* Déployé le 15/09/2026 à 14:40 — v1002 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -758,12 +758,49 @@ function blocTrajet(){
    ⚠️ ET TOUJOURS AUCUNE VITESSE. Un trait, des pastilles, une
    distance, une durée.
    ============================================================ */
-const CARTE_LARGEUR = 640;
-const CARTE_HAUTEUR = 400;
+/* ⚠️ LA CARTE EST DESSINÉE EN DOUBLE — v1002.
+
+   David, en regardant la sienne : « je ne suis pas sûr que ce soit
+   assez précis là avec juste une image ». Il avait raison : huit
+   kilomètres étalés sur six cent quarante pixels, ça fait douze
+   mètres par pixel, et les noms de rue sont à peine lisibles.
+
+   Doubler le canevas SEUL n'aurait rien donné : on aurait grossi
+   les mêmes tuiles. Ce qui apporte du détail, c'est que la fenêtre
+   fasse 1280 × 800 pixels de carte : « zoomQuiRentre » descend
+   alors d'un cran de zoom, et l'IGN rend des tuiles plus fines.
+   L'image est ensuite affichée en 520 px de large dans le mail —
+   nette sur un écran de téléphone, et zoomable du doigt. */
+const CARTE_ECHELLE = 2;
+const CARTE_LARGEUR = 640 * CARTE_ECHELLE;
+const CARTE_HAUTEUR = 400 * CARTE_ECHELLE;
 const CARTE_TUILE = 256;
-const CARTE_MARGE = 46;          /* pour que les pastilles tiennent */
-const CARTE_ZOOM_MAX = 17;
+const CARTE_MARGE = 46 * CARTE_ECHELLE;  /* pour que les pastilles tiennent */
+const CARTE_ZOOM_MAX = 18;       /* la borne haute de la route « /tuile » */
 const CARTE_ZOOM_MIN = 8;
+
+/* ⚠️ LES TUILES NE PARTENT PLUS TOUTES ENSEMBLE — v1002.
+
+   David, sur sa première vraie carte : « c'est bizarre ». Elle
+   avait deux bandes de plan et des trous crème au milieu.
+
+   Les vingt-quatre tuiles étaient demandées d'un seul coup, chacune
+   avec huit secondes de patience et AUCUN réessai : celles qui
+   n'arrivaient pas laissaient un carré vide définitif dans le mail
+   de l'élève. Sur un Worker froid et un cache vide — exactement le
+   premier essai après une mise en ligne — la moitié tombait.
+
+   On les demande donc par petits paquets, et une tuile qui rate a
+   droit à une seconde chance : à ce moment-là le Worker est chaud
+   et la tuile voisine est déjà en cache pour un mois.
+
+   ⚠️ MAIS LE BILAN NE SE FAIT JAMAIS ATTENDRE INDÉFINIMENT. Passé
+   le budget global, on dessine avec ce qu'on a. Un bilan qui
+   n'arriverait pas parce qu'une carte n'a pas pu se dessiner
+   serait une belle image payée très cher. */
+const CARTE_TUILES_EN_MEME_TEMPS = 4;
+const CARTE_DELAI_TUILE = 9000;      /* une tentative */
+const CARTE_BUDGET_TUILES = 30000;   /* toutes tentatives confondues */
 
 /* Web Mercator, la projection des tuiles : une longitude devient
    une colonne, une latitude devient une ligne. */
@@ -807,7 +844,7 @@ function zoomQuiRentre(points){
 /* Une tuile, demandée au Worker. Elle revient vide plutôt que de
    tout faire échouer : un carré manquant vaut mieux qu'un mail
    sans carte. */
-function chargerUneTuile(z, x, y){
+function chargerUneTuile(z, x, y, delai){
   return new Promise((ok) => {
     const img = new Image();
     /* ⚠️ SANS CETTE LIGNE, LE CANVAS EST « SALI » et l'export
@@ -815,14 +852,48 @@ function chargerUneTuile(z, x, y){
        moment précis où le moniteur croit son bilan parti. C'est la
        route « /tuile » du Worker qui la rend possible. */
     img.crossOrigin = 'anonymous';
-    img.onload = () => ok(img);
-    img.onerror = () => ok(null);
+    /* Une seule réponse, quoi qu'il arrive : le délai peut tomber
+       pendant que l'image finit d'arriver. */
+    let rendu = false;
+    const rendre = (v) => { if(!rendu){ rendu = true; ok(v); } };
+    img.onload = () => rendre(img);
+    img.onerror = () => rendre(null);
     const base = (typeof CONFIG === 'object' && CONFIG && CONFIG.WORKER_URL)
       ? CONFIG.WORKER_URL : '';
     img.src = base + '/tuile?z=' + z + '&x=' + x + '&y=' + y;
     /* Une tuile qui ne répond pas ne doit pas tenir le bilan. */
-    setTimeout(() => ok(null), 8000);
+    setTimeout(() => rendre(null), delai || CARTE_DELAI_TUILE);
   });
+}
+
+/* Les tuiles, par petits paquets, avec une seconde chance pour
+   celles qui ratent — et un budget qui ne se dépasse pas. */
+async function chargerLesTuiles(demandes, z){
+  const fini = Date.now() + CARTE_BUDGET_TUILES;
+  let prochaine = 0;
+
+  const front = async () => {
+    while(prochaine < demandes.length){
+      const d = demandes[prochaine++];
+      if(Date.now() > fini){ d.img = null; continue; }
+
+      d.img = await chargerUneTuile(z, d.tx, d.ty);
+
+      /* ⚠️ LA SECONDE CHANCE EST CE QUI BOUCHE LES TROUS. Au
+         premier passage le Worker se réveille et le cache est
+         vide ; au second il est chaud, et la tuile voisine a déjà
+         payé l'attente pour tout le monde. */
+      if(!d.img && Date.now() < fini){
+        d.img = await chargerUneTuile(z, d.tx, d.ty);
+      }
+    }
+  };
+
+  const fronts = [];
+  const combien = Math.min(CARTE_TUILES_EN_MEME_TEMPS, demandes.length);
+  for(let i = 0; i < combien; i++) fronts.push(front());
+  await Promise.all(fronts);
+  return demandes.filter(d => !d.img).length;   /* les trous restants */
 }
 
 /* Le dessin, de bout en bout. Rend une image en base64, ou ''. */
@@ -857,22 +928,23 @@ async function dessinerLaCarte(){
   const t1y = Math.floor((haut + CARTE_HAUTEUR) / CARTE_TUILE);
   const max = Math.pow(2, z);
 
-  /* Toutes les tuiles partent ENSEMBLE : demandées l'une après
-     l'autre, neuf allers-retours feraient attendre le moniteur. */
   const demandes = [];
   for(let tx = t0x; tx <= t1x; tx++){
     for(let ty = t0y; ty <= t1y; ty++){
       if(tx < 0 || ty < 0 || tx >= max || ty >= max) continue;
-      demandes.push({ tx: tx, ty: ty, p: chargerUneTuile(z, tx, ty) });
+      demandes.push({ tx: tx, ty: ty, img: null });
     }
   }
 
-  for(const d of demandes){
-    const img = await d.p;
-    if(!img) continue;
-    c.drawImage(img, d.tx * CARTE_TUILE - gauche, d.ty * CARTE_TUILE - haut,
+  const trous = await chargerLesTuiles(demandes, z);
+  if(trous) console.warn('Carte : ' + trous + ' tuile(s) manquante(s) sur ' +
+                         demandes.length);
+
+  demandes.forEach((d) => {
+    if(!d.img) return;
+    c.drawImage(d.img, d.tx * CARTE_TUILE - gauche, d.ty * CARTE_TUILE - haut,
                 CARTE_TUILE, CARTE_TUILE);
-  }
+  });
 
   /* Le tracé */
   const chemin = points.map((p) => ({
@@ -888,19 +960,26 @@ async function dessinerLaCarte(){
   /* ⚠️ UN LISERÉ BLANC SOUS LE TRAIT. Sur un plan, un trait de
      couleur posé sur des rues de la même valeur se perd : c'est le
      blanc dessous qui le décolle du fond. */
+  /* ⚠️ TOUT CE QUI EST DESSINÉ SUIT L'ÉCHELLE — v1002. Un trait de
+     onze pixels sur un canevas deux fois plus grand devient un
+     cheveu : les épaisseurs, les rayons et les textes se
+     multiplient comme la fenêtre, sinon doubler la résolution
+     revient à effacer le tracé. */
+  const e = (n) => n * CARTE_ECHELLE;
+
   c.lineJoin = 'round'; c.lineCap = 'round';
   tracer();
-  c.strokeStyle = '#FFFFFF'; c.lineWidth = 11; c.stroke();
+  c.strokeStyle = '#FFFFFF'; c.lineWidth = e(11); c.stroke();
   tracer();
-  c.strokeStyle = '#3B6900'; c.lineWidth = 4; c.stroke();
+  c.strokeStyle = '#3B6900'; c.lineWidth = e(4); c.stroke();
 
   /* Le départ : un cercle creux. L'arrivée : un carré plein. */
   const a = chemin[0], b = chemin[chemin.length - 1];
-  c.beginPath(); c.arc(a.x, a.y, 7, 0, Math.PI * 2);
+  c.beginPath(); c.arc(a.x, a.y, e(7), 0, Math.PI * 2);
   c.fillStyle = '#FFFFFF'; c.fill();
-  c.strokeStyle = '#3B3B3B'; c.lineWidth = 2.5; c.stroke();
+  c.strokeStyle = '#3B3B3B'; c.lineWidth = e(2.5); c.stroke();
   c.fillStyle = '#14161B';
-  c.fillRect(b.x - 7, b.y - 7, 14, 14);
+  c.fillRect(b.x - e(7), b.y - e(7), e(14), e(14));
 
   /* Les repères, numérotés, cerclés de blanc pour rester lisibles
      sur n'importe quel fond. */
@@ -910,29 +989,34 @@ async function dessinerLaCarte(){
     if(r.lat == null || r.lon == null) return;
     const x = carteX(r.lon, z) - gauche;
     const y = carteY(r.lat, z) - haut;
-    c.beginPath(); c.arc(x, y, 14, 0, Math.PI * 2);
+    c.beginPath(); c.arc(x, y, e(14), 0, Math.PI * 2);
     c.fillStyle = '#3B6900'; c.fill();
-    c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.stroke();
+    c.strokeStyle = '#FFFFFF'; c.lineWidth = e(2.5); c.stroke();
     c.fillStyle = '#FFFFFF';
-    c.font = 'bold 15px Arial, sans-serif';
-    c.fillText(String(i + 1), x, y + 1);
+    c.font = 'bold ' + e(15) + 'px Arial, sans-serif';
+    c.fillText(String(i + 1), x, y + e(1));
   });
 
   /* ⚠️ L'ATTRIBUTION EST OBLIGATOIRE, et elle vit DANS l'image :
      écrite à côté dans le mail, elle disparaîtrait au premier
      transfert. */
   const mention = 'Plan IGNV2 — Carte © IGN/Géoportail';
-  c.font = '11px Arial, sans-serif';
+  c.font = e(11) + 'px Arial, sans-serif';
   c.textAlign = 'right';
   c.textBaseline = 'alphabetic';
-  const l = c.measureText(mention).width + 12;
+  const l = c.measureText(mention).width + e(12);
   c.fillStyle = 'rgba(255,255,255,.78)';
-  c.fillRect(CARTE_LARGEUR - l, CARTE_HAUTEUR - 18, l, 18);
+  c.fillRect(CARTE_LARGEUR - l, CARTE_HAUTEUR - e(18), l, e(18));
   c.fillStyle = '#5A5A5A';
-  c.fillText(mention, CARTE_LARGEUR - 6, CARTE_HAUTEUR - 5);
+  c.fillText(mention, CARTE_LARGEUR - e(6), CARTE_HAUTEUR - e(5));
 
   try{
-    return toile.toDataURL('image/jpeg', 0.82);
+    /* ⚠️ 0,72 ET NON 0,82 — v1002. À résolution double, une
+       compression un peu plus forte rend une image plus nette
+       qu'une compression douce à résolution simple, et le mail
+       reste léger. C'est le nombre de pixels qui fait la finesse,
+       pas la qualité JPEG. */
+    return toile.toDataURL('image/jpeg', 0.72);
   }catch(e){
     /* Le canvas a été sali malgré tout : mieux vaut un mail sans
        carte qu'un bilan qui ne part pas. */
@@ -991,6 +1075,50 @@ function rafraichirBlocTrajet(t){
   return s.slice(0, ou.debut) + blocTrajet() + s.slice(ou.fin);
 }
 
+/* ============================================================
+   LE LIEN « VOIR EN GRAND » — v1002
+
+   ⚠️ IL PORTE SON CONTENU, IL NE DÉSIGNE RIEN. Le tracé et les
+   repères voyagent DANS l'adresse : aucune recherche dans le
+   classeur, aucun identifiant à deviner, rien à stocker, rien à
+   effacer. Voir carte.html.
+
+   ⚠️ ET IL A UNE LIMITE DE LONGUEUR. Certaines messageries coupent
+   les adresses très longues, et une adresse coupée rend une page
+   vide — pire qu'une absence de lien, parce que l'élève clique. Au
+   delà de la limite, on ne met pas de lien : l'image, elle, est
+   toujours là.
+   ============================================================ */
+const CARTE_LIEN_MAX = 1800;
+
+function lienVersLaCarte(t){
+  try{
+    if(!t || !t.polyligne) return '';
+
+    /* Les repères : « numéro~heure~nom~lat~lon », séparés par des
+       barres. Les coordonnées au dix-millième suffisent pour poser
+       une pastille — dix mètres — et raccourcissent l'adresse
+       d'autant. */
+    const r = (t.reperes || []).map((x, i) => {
+      const p = trajetReperes[i] || {};
+      const lat = (p.lat == null) ? '' : Number(p.lat).toFixed(4);
+      const lon = (p.lon == null) ? '' : Number(p.lon).toFixed(4);
+      return [x.n, x.heure, String(x.nom || '').replace(/[~|]/g, ' '),
+              lat, lon].join('~');
+    }).join('|');
+
+    const base = 'https://app.evolutionconduites.fr/carte.html';
+    const lien = base + '?t=' + encodeURIComponent(t.polyligne) +
+      '&km=' + encodeURIComponent(String(t.km).replace('.', ',')) +
+      '&min=' + encodeURIComponent(String(t.minutes)) +
+      (r ? '&r=' + encodeURIComponent(r) : '');
+
+    return (lien.length > CARTE_LIEN_MAX) ? '' : lien;
+  }catch(e){
+    return '';
+  }
+}
+
 /* Ce que le mail reçoit : l'image, et le HTML qui la montre. */
 async function carteDuTrajetPourMail(){
   const image = await dessinerLaCarte();
@@ -1017,6 +1145,31 @@ async function carteDuTrajetPourMail(){
     '<img src="cid:trajet" alt="Le tracé de notre trajet" ' +
       'style="display:block;width:100%;max-width:520px;height:auto;' +
       'border:1px solid #DCDCD3;border-radius:12px;">';
+
+  /* ⚠️ ET LE MÊME TRAJET, EN GRAND — v1002.
+
+     L'image reste : elle se lit sans rien ouvrir, même hors ligne,
+     même dix ans plus tard. Mais elle est figée. Le lien ouvre la
+     page « carte.html », où l'élève zoome jusqu'au nom de sa rue.
+
+     ⚠️ LE LIEN PORTE SON CONTENU, IL NE DÉSIGNE RIEN. Pas
+     d'identifiant, pas de recherche dans le classeur, rien de
+     devinable en changeant un numéro : le tracé est DANS l'adresse.
+     Un lien qui ne pointe sur rien ne peut rien laisser fuir, et il
+     meurt avec le mail qui le portait.
+
+     Si le lien ne peut pas être fabriqué, le mail part sans lui :
+     l'image, elle, est déjà là. */
+  const grand = lienVersLaCarte(t);
+  if(grand){
+    html +=
+      '<div style="margin-top:10px;">' +
+      '<a href="' + echapper(grand) + '" ' +
+        'style="display:inline-block;font-size:13px;font-weight:700;' +
+        'color:#3B6900;text-decoration:none;border:1px solid #DCDCD3;' +
+        'border-radius:9px;padding:9px 14px;">🔍 Voir le trajet en grand</a>' +
+      '</div>';
+  }
 
   if(t.reperes.length){
     html += '<div style="margin-top:14px;">';
