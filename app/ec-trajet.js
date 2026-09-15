@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:33 — v1006 */
+/* Déployé le 15/09/2026 à 16:01 — v1007 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -449,8 +449,9 @@ function poserRepere(type, nom){
      heure sur l'horloge : deux sources pour un même fait. L'écart
      est petit en vrai cours — cinq secondes au plus — mais c'est
      la même faute que partout ailleurs, et elle devient énorme dès
-     qu'on rejoue un parcours (balade d'essai) : tous les repères
-     portaient l'heure de la relecture, pas celle du passage.
+     que les points portent des horodatages plus anciens que
+     l'horloge : tous les repères prendraient alors l'heure de la
+     relecture au lieu de celle du passage.
 
      Un repère est attaché à un endroit ; son heure est celle de
      cet endroit. Sans aucun point encore reçu, l'horloge reste le
@@ -1652,17 +1653,6 @@ function montrerLeTrajet(oui){
   if(visible) poserLeBlocTrajet();
   if(bloc) bloc.style.display = visible ? 'block' : 'none';
   if(visible) dessinerEtatDuTrajet();
-
-  /* ⚠️ LA BALADE NE SE MONTRE QU'AUX COMPTES ADMIN — v1000. Le
-     verrou est ICI, dans le module, et pas dans index.html : c'est
-     ce fichier qui décide de tout ce qui concerne le trajet, et un
-     droit posé dans le gabarit est un droit que personne ne relit. */
-  const bb = (typeof $ === 'function') ? $('baladeBtn') : null;
-  if(bb){
-    const admin = (typeof ACCES !== 'undefined' && ACCES &&
-                   ACCES.role === 'admin');
-    bb.style.display = (visible && admin) ? 'block' : 'none';
-  }
 }
 
 /* ============================================================
@@ -1905,141 +1895,6 @@ function heureDuTrajet(t){
   const d = new Date(t);
   return String(d.getHours()).padStart(2, '0') + 'h' +
          String(d.getMinutes()).padStart(2, '0');
-}
-
-/* ============================================================
-   LA BALADE D'ESSAI — v1000
-
-   David, le 15 septembre : « Est-ce que tu peux me faire une
-   balade fonctionnelle ? Je déplace le GPS pour essayer, je
-   voudrais faire une mise en situation sans aller en voiture, car
-   trop compliqué pour moi là. »
-
-   ⚠️ ELLE ENTRE PAR LA MÊME PORTE QUE LE CAPTEUR. Chaque position
-   passe par « retenirPoint », comme celles du GPS : mêmes rejets
-   (trop tôt, trop imprécis, bond impossible), même calcul de
-   silence, même ligne d'état, mêmes repères, même bloc dans le
-   bilan, même carte dans le mail. Une balade qui se poserait à
-   côté du relevé ne prouverait rien — on validerait un chemin que
-   personne n'emprunte.
-
-   ⚠️ LE COURS EST BACKDATÉ, PAS ACCÉLÉRÉ. On ne touche à aucune
-   règle de durée : le départ est simplement reculé de vingt-cinq
-   minutes, et les positions portent des horodatages répartis sur
-   cette fenêtre. Le relevé voit donc un vrai cours de vingt-cinq
-   minutes ; seul l'affichage défile en quarante secondes, le temps
-   d'appuyer sur 📍 deux ou trois fois.
-
-   ⚠️ ET ELLE NE S'ADRESSE QU'AUX COMPTES ADMIN. Voir
-   montrerLeTrajet : un moniteur ne peut pas la déclencher en plein
-   cours.
-   ============================================================ */
-
-/* Une boucle autour de Saint-Brieuc : le centre, la descente vers
-   la voie rapide, l'est, puis le retour par le nord. Des sommets,
-   que la balade relie — c'est le tracé d'un cours, pas un relevé
-   au mètre près. */
-const BALADE_SAINT_BRIEUC = [
-  [48.5145, -2.7631], [48.5118, -2.7643], [48.5074, -2.7638],
-  [48.5056, -2.7586], [48.5053, -2.7493], [48.5059, -2.7398],
-  [48.5088, -2.7330], [48.5148, -2.7290], [48.5203, -2.7321],
-  [48.5236, -2.7387], [48.5246, -2.7484], [48.5242, -2.7586],
-  [48.5211, -2.7640], [48.5174, -2.7646], [48.5158, -2.7617]
-];
-/* ⚠️ LA BOUCLE NE SE REFERME PAS TOUT À FAIT, ET C'EST VOULU. Le
-   départ est un cercle creux, l'arrivée un carré plein : arrivés
-   au même pixel, le carré recouvre le cercle et on ne voit plus
-   d'où on est parti. On se gare à deux rues de l'agence — c'est
-   d'ailleurs ce qui arrive en vrai. */
-
-/* Les sommets reliés en « combien » positions régulières, avec un
-   très léger tremblement : un tracé parfaitement droit se
-   reconnaît au premier coup d'œil, et ce n'est pas ce qu'on veut
-   voir pour juger la carte. */
-function baladePositions(sommets, combien){
-  const out = [];
-  const n = sommets.length - 1;
-  for(let i = 0; i < combien; i++){
-    const u = (i / (combien - 1)) * n;
-    const k = Math.min(n - 1, Math.floor(u));
-    const f = u - k;
-    const a = sommets[k], b = sommets[k + 1];
-    const frisson = Math.sin(i * 1.7) * 0.00012;
-    out.push([a[0] + (b[0] - a[0]) * f + frisson,
-              a[1] + (b[1] - a[1]) * f + frisson * 1.4]);
-  }
-  return out;
-}
-
-let baladeEnCours = false;
-
-async function lancerLaBalade(minutes, secondesEcran){
-  if(baladeEnCours) return false;
-  if(!trajetPossible()) return false;
-
-  /* Un vrai relevé en cours ne se fait pas écraser sans un mot :
-     la balade repart de zéro, et ce qui était là serait perdu. */
-  if(trajetDebut && trajetPoints.length &&
-     typeof confirmer === 'function'){
-    const ok = await confirmer(
-      'Un trajet est déjà en cours pour ce cours (' +
-      trajetPoints.length + ' relevés).\n\n' +
-      'La balade d’essai le remplace entièrement.\n\nContinuer ?',
-      'Balade d’essai', true);
-    if(!ok) return false;
-  }
-
-  baladeEnCours = true;
-  const bb = (typeof $ === 'function') ? $('baladeBtn') : null;
-  const libelle = bb ? bb.textContent : '';
-  if(bb){ bb.disabled = true; }
-
-  try{
-    oublierLeTrajet();
-
-    const duree = Math.max(2, minutes || 25) * 60000;
-    const positions = baladePositions(BALADE_SAINT_BRIEUC, 90);
-    const pas = Math.round(duree / positions.length);
-
-    /* Le cours a « commencé » il y a vingt-cinq minutes. Rien
-       d'autre n'est truqué : ni le pas minimal entre deux points,
-       ni le silence, ni le dixième perdu. */
-    trajetDebut = Date.now() - duree;
-
-    const attente = Math.max(60,
-      Math.round((secondesEcran || 40) * 1000 / positions.length));
-
-    for(let i = 0; i < positions.length; i++){
-      retenirPoint({
-        coords: { latitude: positions[i][0], longitude: positions[i][1],
-                  accuracy: 8 },
-        timestamp: trajetDebut + i * pas
-      });
-      if(bb) bb.textContent = '🧪 Balade… ' +
-        Math.round((i + 1) / positions.length * 100) + ' %';
-      dessinerEtatDuTrajet();
-      await new Promise(r => setTimeout(r, attente));
-    }
-
-    /* La fin, c'est maintenant : le dernier point vient d'arriver. */
-    trajetFin = Date.now();
-    dessinerEtatDuTrajet();
-    return true;
-  }finally{
-    baladeEnCours = false;
-    if(bb){ bb.disabled = false; bb.textContent = libelle; }
-  }
-}
-
-if(typeof document !== 'undefined' && document.addEventListener &&
-   typeof $ === 'function' && $('baladeBtn')){
-  $('baladeBtn').addEventListener('click', async () => {
-    const fait = await lancerLaBalade(25, 40);
-    if(fait && typeof showToast === 'function'){
-      showToast('Balade terminée — ' +
-                String(resumeDuTrajet().km).replace('.', ',') + ' km ✅');
-    }
-  });
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
