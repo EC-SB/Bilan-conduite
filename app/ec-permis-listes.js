@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:19 — v987 */
+/* Déployé le 15/09/2026 à 09:51 — v989 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -1198,7 +1198,18 @@ function copierTexte(t, bouton){
 
    L'ordre compte : la place d'abord. Une session est une
    convocation ; la date de la fiche est une copie écrite un jour
-   donné, et qui peut dater. */
+   donné, et qui peut dater.
+
+   ⚠️ MAIS « D'ABORD » NE VEUT PAS DIRE « MÊME SI ELLE EST PLUS
+      VIEILLE » — v989.
+
+   Entre une place tenue le 14 septembre et une fiche qui dit
+   21 septembre, c'est le 21 qui fait foi : l'examen d'après n'a
+   pas encore de place, et celui d'avant est passé. La règle est la
+   même que pour choisir entre deux sessions (laMeilleureSession) :
+   la plus proche à VENIR ; à défaut, la plus récente PASSÉE. À
+   dates égales, la place garde son rang, car elle seule porte
+   l'heure de passage. */
 function datesExamenDe(nom){
   const iso = v => ((typeof dateFrVersIso === 'function')
     ? (dateFrVersIso(v || '') || '') : '');
@@ -1211,7 +1222,18 @@ function datesExamenDe(nom){
   const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
   if(iso(s.datePermis)) out.push(iso(s.datePermis));
 
-  return out;
+  const auj = (typeof todayLocal === 'function') ? todayLocal() : '';
+  if(!auj || out.length < 2) return out;
+
+  /* Le tri est stable : deux dates égales gardent leur ordre, donc
+     la place reste devant la fiche. */
+  return out.sort((a, b) => {
+    const aVenirA = a >= auj, aVenirB = b >= auj;
+    if(aVenirA !== aVenirB) return aVenirA ? -1 : 1;
+    if(a === b) return 0;
+    /* à venir : la plus proche · passées : la plus récente */
+    return aVenirA ? (a < b ? -1 : 1) : (a > b ? -1 : 1);
+  });
 }
 
 /* Sa date d'examen, tout court — celle qui fait foi. */
@@ -2443,19 +2465,44 @@ function afficherPermisPrevus(tous){
    (qui lui réclament son résultat). Deux lectures séparées, c'est
    la garantie qu'un jour l'une dira oui et l'autre non — et c'est
    très exactement ce qui est arrivé.
+
+   ⚠️ ET « SA PLACE » N'A JAMAIS VOULU DIRE « LA PREMIÈRE TROUVÉE »
+      — v989, trouvé par David le 15 septembre : « j'ai toujours pas
+      la Perle dans mes résultats de permis à saisir ».
+
+   Cette fonction rendait la première place rencontrée. Or la liste
+   des sessions est triée par date CROISSANTE : pour quelqu'un qui a
+   passé l'examen deux fois, c'était donc toujours la PLUS ANCIENNE.
+
+   La Perle tenait deux places : le 24 août et le 14 septembre. Sa
+   date d'examen était donc lue « 24 août » — un examen déjà noté
+   « ajourné » dans la feuille des Résultats. L'écran demandait « le
+   résultat du 24 août est-il consigné ? », la réponse était oui, et
+   elle disparaissait. La v987 avait eu raison de poser la question
+   sur le COUPLE (élève, examen) ; elle la posait sur le mauvais
+   examen.
+
+   ⚠️ ET CE N'ÉTAIT PAS LA SEULE PORTE. « sessionDeLEleve », dans
+   ec-sessions.js, répond à la même question — et depuis la v985
+   elle y répond BIEN : la plus proche à venir, à défaut la plus
+   récente passée. Deux fonctions pour une question, et c'est la
+   pauvre qui alimentait l'écran des résultats. Le commentaire
+   ci-dessus promettait « écrite ICI » ; elle l'était deux fois.
+
+   Il n'y en a plus qu'une : celle-ci passe par l'autre. Et le
+   bouton « ❌ Absent » libérait, lui aussi, la place de la mauvaise
+   session — celle d'août, à laquelle plus personne ne touchait.
    ------------------------------------------------------------ */
 function placeEnSessionDe(nom){
   const cle = normaliserMot(nom || '');
   if(!cle) return null;
   try{
     if(typeof sessionsPermis === 'undefined' || !sessionsPermis) return null;
-    for(const se of sessionsPermis){
-      for(const p of (se.eleves || [])){
-        if(p.eleve && normaliserMot(p.eleve) === cle){
-          return { session: se, place: p, date: se.date || '' };
-        }
-      }
-    }
+    if(typeof sessionDeLEleve !== 'function') return null;
+    const t = sessionDeLEleve(nom);
+    if(!t) return null;
+    return { session: t.session, place: t.place,
+             date: (t.session && t.session.date) || '' };
   }catch(err){ /* sans les sessions, on ne sait rien de plus */ }
   return null;
 }
