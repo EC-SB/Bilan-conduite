@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<!-- Déployé le 15/09/2026 à 14:41 — v1002 -->
+<!-- ============================================================
+     LE TRAJET DU COURS, EN GRAND — v1002
+
+     David, en regardant la carte de son mail : « je ne suis pas
+     sûr que ce soit assez précis là avec juste une image ».
+
+     Une image tient dans un mail et se lit sans rien ouvrir : elle
+     reste. Mais elle est figée, et huit kilomètres sur six cent
+     quarante pixels font douze mètres par pixel. Cette page-ci est
+     l'autre moitié : le même tracé, mais où l'élève peut zoomer
+     jusqu'au nom de sa rue.
+
+     ⚠️ TOUT EST DANS LE LIEN, RIEN N'EST STOCKÉ ICI.
+
+     Le tracé arrive encodé dans l'adresse. Cette page n'interroge
+     aucun classeur, ne connaît aucun élève, ne pose aucun cookie
+     et n'écrit rien nulle part. Elle ne sait pas de qui est ce
+     trajet — elle n'a qu'une suite de points. Un lien qui porte
+     son contenu meurt avec le mail qui le transportait : rien à
+     effacer, rien à faire fuir, rien à deviner en changeant un
+     numéro dans l'adresse.
+
+     ⚠️ ET « no-referrer », CE N'EST PAS UN DÉTAIL. Sans cette
+     ligne, le navigateur annoncerait l'adresse COMPLÈTE de la page
+     — donc le trajet — à chaque serveur d'où vient un fichier.
+     Une donnée personnelle partirait chez un tiers pour aller
+     chercher une feuille de style.
+
+     ⚠️ AUCUNE VITESSE, ICI NON PLUS. Un trait, des pastilles, une
+     distance, une durée. La CNIL interdit d'utiliser un dispositif
+     de géolocalisation pour contrôler le respect des limitations
+     de vitesse, et cette page ne saurait pas en calculer une : les
+     horodatages des points ne sont pas dans le lien.
+     ============================================================ -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notre trajet — Évolution Conduites</title>
+<style>
+  :root{
+    --vert:#3B6900; --encre:#14161B; --gris:#64655F;
+    --bord:#DCDCD3; --fond:#F6F5F0;
+    --hautDuTel: env(safe-area-inset-top, 0px);
+    --basDuTel: env(safe-area-inset-bottom, 0px);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--fond); color:var(--encre);
+    font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+         Helvetica, Arial, sans-serif;
+    display:flex; flex-direction:column;
+    padding-top:var(--hautDuTel); padding-bottom:var(--basDuTel);
+  }
+  header{
+    padding:14px 16px 12px; border-bottom:1px solid var(--bord);
+    background:#fff; flex:0 0 auto;
+  }
+  h1{ margin:0 0 3px; font-size:16px; font-weight:800; color:var(--vert); }
+  .chiffres{ font-size:13px; color:var(--gris); }
+  /* La carte prend tout ce qui reste : sur un téléphone tenu
+     debout, c'est elle qu'on est venu voir. */
+  #carte{ flex:1 1 auto; min-height:240px; background:var(--fond); }
+  .liste{
+    flex:0 0 auto; max-height:34vh; overflow-y:auto;
+    background:#fff; border-top:1px solid var(--bord);
+  }
+  .repere{
+    display:flex; gap:10px; align-items:baseline;
+    padding:9px 16px; border-bottom:1px solid var(--bord);
+    font-size:14px;
+  }
+  .repere:last-child{ border-bottom:0; }
+  .num{
+    flex:0 0 auto; min-width:22px; height:22px; border-radius:11px;
+    background:var(--vert); color:#fff; font-weight:700; font-size:12px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .heure{ color:var(--gris); font-size:12.5px; flex:0 0 auto; }
+  .nom{ color:var(--encre); }
+  .pied{
+    padding:11px 16px calc(11px + var(--basDuTel));
+    font-size:11.5px; color:var(--gris); line-height:1.55;
+    background:#fff; border-top:1px solid var(--bord); flex:0 0 auto;
+  }
+  .vide{
+    padding:40px 22px; text-align:center; color:var(--gris);
+    font-size:14px; line-height:1.6;
+  }
+  /* Les pastilles du tracé, dessinées par Leaflet */
+  .pastille{
+    background:var(--vert); color:#fff; border:2px solid #fff;
+    border-radius:50%; width:26px; height:26px; font-weight:700;
+    font-size:12px; display:flex; align-items:center;
+    justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,.35);
+  }
+  .bout{
+    border:2.5px solid #3B3B3B; background:#fff; border-radius:50%;
+    width:15px; height:15px; box-shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+  .bout.arrivee{ border-radius:2px; background:#14161B; border-color:#fff; }
+  @media (prefers-color-scheme: dark){
+    :root{ --fond:#1A1C18; --encre:#F2F2EC; --bord:#33352E; --gris:#A3A49C; }
+    header,.liste,.pied{ background:#212319; }
+    .nom{ color:var(--encre); }
+  }
+</style>
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+
+<header>
+  <h1>🗺️ Notre trajet</h1>
+  <div class="chiffres" id="chiffres">—</div>
+</header>
+
+<div id="carte"></div>
+<div class="liste" id="liste"></div>
+
+<div class="pied">
+  Les points numérotés sont les endroits que ton moniteur a marqués pendant
+  le cours : ce sont tes points de travail pour la prochaine fois. Le tracé
+  est indicatif, il ne dit rien de ta façon de conduire.<br>
+  Plan IGNV2 — Carte © IGN/Géoportail.
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* ⚠️ LE DÉCODAGE EST LA COPIE EXACTE DE L'ENCODAGE.
+
+   « encoderPolyligne » vit dans ec-trajet.js et écrit le format
+   polyligne de Google (différences en cinquièmes de degré, base 64
+   par tranches de cinq bits). Si les deux ne disent pas exactement
+   la même chose, le trajet apparaît en Afrique et personne ne
+   comprend pourquoi. Le Worker en a déjà une troisième copie pour
+   ses propres besoins — c'est une dette connue, et c'est pour ça
+   que le test fait écrire l'un et relire l'autre. */
+function decoderPolyligne(str){
+  const pts = [];
+  let i = 0, lat = 0, lon = 0;
+  while(i < str.length){
+    let r = 0, d = 0, b;
+    do { b = str.charCodeAt(i++) - 63; r |= (b & 0x1f) << d; d += 5; }
+    while(b >= 0x20);
+    lat += ((r & 1) ? ~(r >> 1) : (r >> 1));
+    r = 0; d = 0;
+    do { b = str.charCodeAt(i++) - 63; r |= (b & 0x1f) << d; d += 5; }
+    while(b >= 0x20);
+    lon += ((r & 1) ? ~(r >> 1) : (r >> 1));
+    pts.push([lat / 1e5, lon / 1e5]);
+  }
+  return pts;
+}
+
+(function(){
+  const p = new URLSearchParams(location.search);
+  const trace = p.get('t') || '';
+  const km = p.get('km') || '';
+  const min = p.get('min') || '';
+
+  /* Les repères : « numéro~heure~nom », séparés par des barres.
+     Le nom peut manquer — un repère non nommé garde son heure. */
+  const reperes = (p.get('r') || '').split('|').filter(Boolean).map(bloc => {
+    const m = bloc.split('~');
+    return { n: m[0] || '', heure: m[1] || '', nom: m[2] || '',
+             lat: parseFloat(m[3]), lon: parseFloat(m[4]) };
+  });
+
+  const points = trace ? decoderPolyligne(trace) : [];
+
+  if(points.length < 2){
+    document.getElementById('carte').outerHTML =
+      '<div class="vide">Ce lien ne contient pas de trajet.<br><br>' +
+      'Il a peut-être été coupé en chemin : certains messageries ' +
+      'raccourcissent les adresses longues. La carte de ton mail, elle, ' +
+      'reste lisible.</div>';
+    document.getElementById('chiffres').textContent = '—';
+    return;
+  }
+
+  document.getElementById('chiffres').textContent =
+    (km ? km + ' km' : '') + (km && min ? ' · ' : '') + (min ? min + ' min' : '');
+
+  const carte = L.map('carte', { attributionControl: false });
+
+  /* ⚠️ LES TUILES PASSENT PAR LE WORKER, comme dans l'application.
+     L'IGN ne pose pas l'en-tête qu'il faut, et surtout : une seule
+     adresse à connaître, une seule à surveiller. */
+  L.tileLayer('https://bilan-proxy.evolutionconduites.workers.dev/tuile?z={z}&x={x}&y={y}',
+              { maxZoom: 18, minZoom: 8 }).addTo(carte);
+
+  const trait = L.polyline(points, { color:'#FFFFFF', weight:9,
+                                     lineJoin:'round', lineCap:'round' })
+                 .addTo(carte);
+  L.polyline(points, { color:'#3B6900', weight:4,
+                       lineJoin:'round', lineCap:'round' }).addTo(carte);
+
+  const bout = (pos, arrivee) => L.marker(pos, { icon: L.divIcon({
+    className:'', html:'<div class="bout' + (arrivee ? ' arrivee' : '') + '"></div>',
+    iconSize:[15,15], iconAnchor:[7,7] }), keyboard:false }).addTo(carte);
+  bout(points[0], false);
+  bout(points[points.length - 1], true);
+
+  const liste = document.getElementById('liste');
+  reperes.forEach((r) => {
+    if(isFinite(r.lat) && isFinite(r.lon)){
+      L.marker([r.lat, r.lon], { icon: L.divIcon({
+        className:'', html:'<div class="pastille">' + r.n + '</div>',
+        iconSize:[26,26], iconAnchor:[13,13] }), keyboard:false })
+       .addTo(carte)
+       .bindPopup((r.nom || 'Repère ' + r.n) + (r.heure ? ' · ' + r.heure : ''));
+    }
+    const ligne = document.createElement('div');
+    ligne.className = 'repere';
+    const n = document.createElement('span');
+    n.className = 'num'; n.textContent = r.n;
+    const h = document.createElement('span');
+    h.className = 'heure'; h.textContent = r.heure;
+    const nom = document.createElement('span');
+    nom.className = 'nom'; nom.textContent = r.nom;   /* jamais en HTML */
+    ligne.appendChild(n); ligne.appendChild(h); ligne.appendChild(nom);
+    liste.appendChild(ligne);
+  });
+  if(!reperes.length) liste.style.display = 'none';
+
+  carte.fitBounds(trait.getBounds(), { padding:[28, 28] });
+})();
+</script>
+</body>
+</html>
