@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 11:48 — v995 */
+/* Déployé le 15/09/2026 à 12:54 — v997 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -884,6 +884,10 @@ setInterval(() => {
 }, 2500);
 
 async function garderEcranAllume(){
+  /* Déjà tenu : on ne redemande pas. Deux demandes font deux
+     verrous, et « libererEcran » n'en rendrait qu'un — l'écran du
+     moniteur resterait allumé jusqu'à ce qu'il ferme la page. */
+  if(wakeLock) return true;
   try{
     if('wakeLock' in navigator){
       wakeLock = await navigator.wakeLock.request('screen');
@@ -903,21 +907,33 @@ function libererEcran(){
   }
 }
 
-/* Prévient le moniteur si l'enregistrement a été coupé */
+/* Prévient le moniteur si l'enregistrement a été coupé, et
+   reprend l'écran — pour le micro COMME pour le relevé GPS.
+
+   ⚠️ LE NAVIGATEUR REND LE VERROU D'ÉCRAN DÈS QUE LA PAGE PASSE
+   DERRIÈRE. Il faut le redemander au retour, sinon il est perdu
+   pour de bon. Il n'était redemandé que « si isRecording » : un
+   bilan manuel, qui relève pourtant un trajet, repartait sans
+   verrou au premier passage en arrière-plan, l'écran se
+   reverrouillait en roulant, et la géolocalisation s'arrêtait
+   avec lui. Une condition qui gardait deux besoins n'en gardait
+   qu'un. */
 document.addEventListener('visibilitychange', () => {
-  if(!isRecording) return;
+  const releve = (typeof trajetEnCours === 'function') && trajetEnCours();
+  if(!isRecording && !releve) return;
   if(document.hidden){
-    interruptions++;
-  } else {
-    garderEcranAllume();
-    relancerMicro();
-    if(interruptions > 0){
-      const w = $('pauseWarn');
-      w.style.display = 'block';
-      w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
-        (interruptions > 1 ? ' fois' : ' fois') +
-        ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
-    }
+    if(isRecording) interruptions++;
+    return;
+  }
+  garderEcranAllume();
+  if(!isRecording) return;
+  relancerMicro();
+  if(interruptions > 0){
+    const w = $('pauseWarn');
+    w.style.display = 'block';
+    w.textContent = '⚠️ L\'enregistrement a été interrompu ' + interruptions +
+      (interruptions > 1 ? ' fois' : ' fois') +
+      ' (écran éteint ou autre application). Ce qui a été dit pendant ces coupures n\'a pas été capté.';
   }
 });
 
