@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 12:54 — v997 */
+/* Déployé le 15/09/2026 à 14:54 — v1003 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3469,6 +3469,15 @@ async function genererBilanManuel(){
   if(typeof signalerLeTrajetAvantDeGenerer === 'function' &&
      !(await signalerLeTrajetAvantDeGenerer())){
     return;
+  }
+
+  /* ⚠️ ET LA CARTE PART SE DESSINER TOUT DE SUITE — v1003, comme
+     en vocal. Le relevé vient d'être clos juste au-dessus : le
+     tracé ne bougera plus, ses tuiles peuvent descendre pendant
+     que le moniteur remplit son questionnaire de fin. On n'attend
+     pas : si ce n'est pas prêt, l'envoi attendra pour nous. */
+  if(typeof preparerLaCarteDuTrajet === 'function'){
+    try{ preparerLaCarteDuTrajet(); }catch(e){}
   }
 
   /* Modifiables : l'examen officiel peut basculer d'une boîte à
