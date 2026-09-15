@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:12 — v986 */
+/* Déployé le 15/09/2026 à 10:29 — v990 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -795,6 +795,21 @@ $('confirmGen').addEventListener('click', async () => {
        l'IA, qui saura de quoi parle chaque repère ; ce bloc-ci
        sert à l'élève, et il est identique des deux côtés. Voir
        blocTrajet() dans ec-trajet.js. */
+
+    /* ⚠️ LES NOMS AVANT LE BLOC, ET PAS APRÈS — v990.
+
+       L'IA lit la dictée autour de chaque marque « 📍 » et propose
+       un titre. Elle doit l'avoir fait AVANT que le bloc ne soit
+       écrit, sinon le bilan part avec des heures nues et le
+       moniteur n'a plus qu'à tout retaper.
+
+       ⚠️ Et ça ne tient pas le bilan : la fonction ne lève jamais,
+       elle rend zéro. Des repères sans titre valent mieux qu'un
+       bilan qui n'arrive pas. */
+    if(typeof proposerLesNomsDesReperes === 'function'){
+      await proposerLesNomsDesReperes(coursCorrige);
+    }
+
     if(typeof blocTrajet === 'function') bilan += blocTrajet();
 
     if(monitorName) bilan += '\n\n' + monitorName + ' 🚗💨';
@@ -835,6 +850,11 @@ $('confirmGen').addEventListener('click', async () => {
     $('resultView').style.display = 'block';
     /* Les procédures à cocher, prêtes dès l'affichage du bilan */
     if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
+    /* Le tiroir des repères suit le même chemin : c'est l'autre
+       tiroir de cet écran, et il se remplit ou se ferme aux mêmes
+       moments. Une porte oubliée, et le tiroir du cours d'avant
+       resterait ouvert sur le bilan d'un autre élève. */
+    if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
   if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
 
   /* La fiche d'évaluation a ses propres sorties : le PDF pour le
@@ -2365,6 +2385,32 @@ async function exporterVersSheets(silencieux){
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
     declarerBilanEcrit(rep && rep.ligne);
+
+    /* ⚠️ LE TRACÉ SE RANGE ICI, ET NULLE PART AILLEURS — v990.
+
+       C'est le même instant que celui qui tue le brouillon, dix
+       lignes plus bas, et pour la même raison : avant, le cours
+       peut encore être abandonné ; après, l'écran est remis à zéro
+       et le trajet oublié. Et c'est le seul endroit que les DEUX
+       chemins traversent, la dictée comme le bilan manuel.
+
+       ⚠️ ET CE N'EST PAS ATTENDU. Un tracé qui met deux secondes à
+       partir ne doit pas retenir le moniteur devant son écran : le
+       bilan, lui, est déjà écrit. S'il échoue, il échoue seul. */
+    if(typeof enregistrerLeTrajet === 'function'){
+      enregistrerLeTrajet({
+        eleve: (currentLessonMeta && currentLessonMeta.studentName) ||
+               ($('studentName') ? $('studentName').value.trim() : ''),
+        date: (currentLessonMeta &&
+               (currentLessonMeta.dateCourte || currentLessonMeta.dateStr)) ||
+              dateCourteDuJour($('lessonDate') ? $('lessonDate').value : ''),
+        moniteur: (currentLessonMeta && currentLessonMeta.monitorName) ||
+                  ACCES.moniteur || '',
+        site: (currentLessonMeta && currentLessonMeta.site) ||
+              ($('site') ? $('site').value : '')
+      });
+    }
+
     /* Le cours est fait : sa préparation sort de la liste */
     retirerPreparationFaite();
     /* Les ordres dictés rejoignent la mémoire, en attente de validation */
