@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 09:04 — v985 */
+/* Déployé le 15/09/2026 à 09:19 — v987 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -58,26 +58,32 @@ async function afficherPostExamen(tous){
      jamais — et rien n'efface « resultat » quand une nouvelle date
      est prise, ni la prise de place ni « 📅 Date obtenue ».
 
-     La règle juste ne parle pas de présence, elle parle de DATES :
-     un examen passé PLUS RÉCENT que le dernier résultat consigné
-     attend son résultat. Et quand on vient de noter quelqu'un, sa
-     date d'examen est effacée : il ne peut pas revenir par ici. */
+     ⚠️ ET LA PREMIÈRE CORRECTION, EN v985, S'EST TROMPÉE DE TABLE.
+     Elle se rabattait sur « dateAjournement », la date du dernier
+     ajournement de la fiche. Or un élève qui a OBTENU son permis
+     n'en a pas : le filtre le montrait donc à l'infini, et David
+     a vu revenir seuls ceux qu'il venait de sortir.
+
+     La bonne question porte sur un COUPLE — cet élève, cet
+     examen-là — et une seule table le sait : la feuille des
+     Résultats, qui enregistre (élève, date d'examen, résultat).
+     C'est elle que la liste des places passées consulte déjà. Les
+     deux portes lisent désormais la même, par la même fonction.
+     Voir resultatConsignePour dans ec-permis-listes.js. */
+  const dejaConsigne = (typeof chargerResultatsConnus === 'function')
+    ? await chargerResultatsConnus() : {};
+
   const attente = tous.filter(e => {
     const s = suiviDe(e.eleve);
     const iso = e._iso || dateFrVersIso(s.datePermis || '');
     if(!iso || iso >= auj) return false;
-    if(!s.resultat) return true;
 
-    /* La date du dernier résultat consigné. Elle s'écrit tantôt en
-       ISO, tantôt en 02/09/2026 : on la normalise avant de
-       comparer, sinon « 24/08/2026 » passerait pour plus grand que
-       « 2026-09-14 ». */
-    const note = dateFrVersIso(s.dateAjournement || '');
+    /* ⚠️ RÉSULTATS ILLISIBLES : ON MONTRE. Se taire perdrait le
+       résultat en silence ; le montrer de trop se corrige d'un coup
+       d'œil — c'est déjà la règle de chargerResultatsConnus. */
+    if(typeof resultatConsignePour !== 'function') return !s.resultat;
 
-    /* ⚠️ SANS DATE DE RÉSULTAT, ON MONTRE. Se taire reviendrait à
-       perdre le résultat en silence ; le montrer de trop se corrige
-       d'un coup d'œil. */
-    return !note || iso > note;
+    return !resultatConsignePour(dejaConsigne, e.eleve, iso);
   });
 
   zone.innerHTML = '';
