@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 08:54 — v964 */
+/* Déployé le 15/09/2026 à 10:29 — v990 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -853,6 +853,11 @@ async function corrigerAncienBilan(item){
   $('resultView').style.display = 'block';
   /* Les procédures à cocher, prêtes dès l'affichage du bilan */
   if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
+  /* Le tiroir des repères suit le même chemin : c'est l'autre
+     tiroir de cet écran, et il se remplit ou se ferme aux mêmes
+     moments. Une porte oubliée, et le tiroir du cours d'avant
+     resterait ouvert sur le bilan d'un autre élève. */
+  if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
   $('resultView').classList.remove('hors-onglet', 'hors-vue');
   majBoutonCorrection();
   /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt que
@@ -1070,6 +1075,13 @@ async function terminerCours(){
   /* Les récitations cochées appartiennent au cours qui se termine */
   document.querySelectorAll('.recitDemande').forEach(cb => { cb.checked = false; });
   if($('tiroirRecitations')) $('tiroirRecitations').open = false;
+  /* Et celui des repères avec lui : les points de travail
+     appartiennent au cours qui se termine, pas au suivant. */
+  if($('tiroirReperes')){
+    $('tiroirReperes').open = false;
+    $('tiroirReperes').style.display = 'none';
+  }
+  if($('listeReperes')) $('listeReperes').innerHTML = '';
 
   if($('zoneManuel')) $('zoneManuel').style.display = 'block';
 
@@ -1275,6 +1287,11 @@ async function refreshHistory(){
         $('resultView').style.display = 'block';
     /* Les procédures à cocher, prêtes dès l'affichage du bilan */
     if(typeof remplirListeRecitations === 'function') remplirListeRecitations();
+    /* Le tiroir des repères suit le même chemin : c'est l'autre
+       tiroir de cet écran, et il se remplit ou se ferme aux mêmes
+       moments. Une porte oubliée, et le tiroir du cours d'avant
+       resterait ouvert sur le bilan d'un autre élève. */
+    if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
       });
       list.appendChild(row);
     });
