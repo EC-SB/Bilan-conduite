@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 14:58 — v978 */
+/* Déployé le 15/09/2026 à 10:29 — v990 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2085,6 +2085,10 @@ async function supprimerDepuisRepertoire(n, bouton, dire){
       'Tout ce qui concerne ' + n + ' va \u00eatre effac\u00e9 :\n' +
       '\u2022 ses bilans\n\u2022 sa fiche de suivi et ses examens\n' +
       '\u2022 ses cours \u00e0 venir\n\u2022 ses captures de CEPC\n' +
+      /* Les trajets entrent dans le m\u00eame p\u00e9rim\u00e8tre depuis la v222 :
+         ce qu'on annonce doit \u00eatre ce qu'on efface, sinon la liste
+         devient un r\u00e9sum\u00e9 approximatif au lieu d'un engagement. */
+      '\u2022 ses trajets de cours\n' +
       '\u2022 ses messages en attente\n\u2022 sa fiche du r\u00e9pertoire\n\n' +
       "Il n'appara\u00eetra plus nulle part. Cette action est IRR\u00c9VERSIBLE.")) return;
 
