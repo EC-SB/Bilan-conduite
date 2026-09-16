@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:33 — v1006 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3883,7 +3883,7 @@ async function genererBilanManuel(){
 
      ⚠️ NE PAS AJOUTER « proposerLesNomsDesReperes » ICI, même en
      paraissant rendre service : test-trajet-range.js le refuse. */
-  if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
+  if(typeof montrerLeTrajetDansLeBilan === 'function') montrerLeTrajetDansLeBilan();
   window.scrollTo(0, 0);
   sauvegarderLocal(true);
 
