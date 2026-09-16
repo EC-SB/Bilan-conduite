@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:29 — v990 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -397,7 +397,7 @@ function reprendreCours(){
        tiroir de cet écran, et il se remplit ou se ferme aux mêmes
        moments. Une porte oubliée, et le tiroir du cours d'avant
        resterait ouvert sur le bilan d'un autre élève. */
-    if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
+    if(typeof montrerLeTrajetDansLeBilan === 'function') montrerLeTrajetDansLeBilan();
   }
 
   /* Les métadonnées du cours se reconstruisent : sans elles, un
