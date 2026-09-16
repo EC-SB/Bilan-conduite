@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:33 — v1006 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1200,11 +1200,19 @@ function buildExamenBlanc(ai, ctx){
     });
 
     if(sansCat.length){
-      sansCat.forEach(o => {
-        const m = mentionObs(o);
-        if(txt(o.inspecteur)) L('👨‍✈️ ' + m + txt(o.inspecteur));
-        if(txt(o.reponse)) L(emojiMoniteur() + ' ' + m + txt(o.reponse));
-      });
+      /* ⚠️ LA MÊME PLUME QUE LES AUTRES — v1012. Ce bloc réécrivait
+         la ligne d'une erreur à la main : une TROISIÈME écriture de
+         ce que « ecrireErreur » écrit déjà quelques lignes plus
+         haut. Elle a vécu sans se voir, puis la v1006 a ajouté le
+         renvoi au point de la carte dans « ecrireErreur » — et pas
+         ici. Une erreur ⚠️ sans compétence partait donc sans son
+         « · point 3 sur la carte » : le point était bien sur le
+         tracé, mais rien dans le bilan ne disait lequel. David l'a
+         vu le 16 septembre en rouvrant une carte.
+
+         Rien d'autre ne change : sans compétence, « ecrireErreur »
+         écrit exactement les deux mêmes lignes. */
+      sansCat.forEach(ecrireErreur);
       questionsElim();
     }
   }
