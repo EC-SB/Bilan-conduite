@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 14:54 — v1003 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -863,7 +863,7 @@ $('confirmGen').addEventListener('click', async () => {
        tiroir de cet écran, et il se remplit ou se ferme aux mêmes
        moments. Une porte oubliée, et le tiroir du cours d'avant
        resterait ouvert sur le bilan d'un autre élève. */
-    if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
+    if(typeof montrerLeTrajetDansLeBilan === 'function') montrerLeTrajetDansLeBilan();
   if(typeof majBoutonCorrection === 'function') majBoutonCorrection();
 
   /* La fiche d'évaluation a ses propres sorties : le PDF pour le
