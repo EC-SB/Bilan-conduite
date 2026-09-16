@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 15/09/2026 à 15:33 — v1006 -->
+<!-- Déployé le 16/09/2026 à 10:24 — v1012 -->
 <!-- ============================================================
      LE TRAJET DU COURS, EN GRAND — v1002
 
@@ -344,6 +344,34 @@ const nature = (t) => NATURES[t] || NATURES.repere;
     if(detail) liste.appendChild(detail);
   });
   if(!reperes.length) liste.style.display = 'none';
+
+  /* ============================================================
+     ⚠️ DES POINTS SANS PASTILLE SE DISENT — v1012
+
+     David, le 16 septembre, en rouvrant un ancien cours : « je n'ai
+     pas les points d'affichés sur la carte ». Ils étaient bien là,
+     dans la liste ; c'est leur POSITION qui manquait — les trajets
+     rangés avant la v1010 ne la gardaient pas.
+
+     La page montrait donc un trait nu et se taisait, ce qui se lit
+     comme une panne. Une carte qui a perdu ses pastilles doit dire
+     qu'elle en avait : un tampon qui ment est pire qu'un tampon
+     absent.
+
+     ⚠️ ET SEULEMENT QUAND AUCUNE N'A PU SE POSER. Un point isolé
+     sans position, dans un trajet qui en place dix, ne mérite pas
+     un avertissement pour toute la page.
+     ============================================================ */
+  const placables = reperes.filter(r => isFinite(r.lat) && isFinite(r.lon));
+  if(reperes.length && !placables.length){
+    const p = document.createElement('div');
+    p.className = 'pied';
+    p.textContent = 'Les ' + reperes.length + ' points de ce cours sont ' +
+      'listés ci-dessous, mais leur emplacement n’a pas été gardé : ce ' +
+      'trajet est plus ancien que la mise à jour qui enregistre la position ' +
+      'des points. Le tracé, lui, est complet.';
+    liste.parentNode.insertBefore(p, liste);
+  }
 
   if(carte && trait) carte.fitBounds(trait.getBounds(), { padding:[28, 28] });
 })();
