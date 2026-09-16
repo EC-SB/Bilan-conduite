@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 09:49 — v1010 */
+/* Déployé le 16/09/2026 à 09:59 — v1011 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 225;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 226;   /* voir apps-script.js */
 
 /* Les pages publiques vivent dans le même dossier que
    l'application : leur adresse se déduit de la sienne. Écrire une
@@ -1272,7 +1272,43 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
       /* ⚠️ LE NOM PART AVEC — v1009. Sans lui, le module refuse, et
          c'est ce qui empêche le tracé d'un élève d'arriver dans le
          mail d'un autre lors d'un renvoi depuis l'historique. */
-      const carte = await carteDuTrajetPourMail(nom);
+      let carte = await carteDuTrajetPourMail(nom);
+
+      /* ⚠️ ET SI CE N'EST PAS LE COURS OUVERT, ON VA LE CHERCHER —
+         v1011. David : « j'ai renvoyé par mail un cours en manuel
+         […] je ne vois pas la carte », puis, sur ce qu'il veut :
+         « la carte comme au premier envoi ».
+
+         Le relevé n'est plus en mémoire — c'est normal, il ne
+         survit pas au cours suivant. Mais le tracé, lui, est rangé
+         dans le classeur depuis la v990. On le relit, on redessine,
+         et l'élève reçoit ce qu'il aurait reçu le jour même.
+
+         ⚠️ CE N'EST PAS UN CONTOURNEMENT DU GARDE-FOU DE LA v1009 :
+         on demande le trajet DE CET ÉLÈVE-LÀ, à CETTE DATE-LÀ. Le
+         classeur ne rend que le sien.
+
+         ⚠️ ET ÇA NE PEUT PAS TENIR LE MAIL. Si le classeur ne
+         répond pas, ou n'a pas ce cours, le bilan part sans carte —
+         comme avant. */
+      /* ⚠️ UNE DATE QU'ON NE SAIT PAS LIRE NE SE DEVINE PAS.
+         « dateCourteDuJour » rend LA DATE DU JOUR quand elle ne
+         comprend pas son entrée : demander le trajet avec ça, ce
+         serait joindre la carte d'un autre cours. On ne convertit
+         donc que ce qui a vraiment la forme d'une date, et sinon
+         le bilan part sans carte — comme avant. */
+      const brute = String(dateCours || '').trim();
+      const jourCourt = (typeof dateCourteDuJour === 'function' &&
+        /^(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})/.test(brute))
+        ? dateCourteDuJour(brute) : '';
+
+      if(!carte && jourCourt && typeof carteDunTrajetRange === 'function'){
+        try{
+          const rep = await appelPrep({ action: 'trajetGet',
+                                        eleve: nom, date: jourCourt });
+          if(rep && rep.trajet) carte = await carteDunTrajetRange(rep.trajet);
+        }catch(e){ console.warn('Trajet du classeur non relu :', e); }
+      }
       if(carte){
         corps.html = htmlDuBilan(
           (typeof texteSansBlocTrajet === 'function')
