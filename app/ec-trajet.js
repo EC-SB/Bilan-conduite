@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 09:49 — v1010 */
+/* Déployé le 16/09/2026 à 09:59 — v1011 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -1130,11 +1130,24 @@ async function chargerLesTuiles(demandes, z){
 }
 
 /* Le dessin, de bout en bout. Rend une image en base64, ou ''. */
-async function dessinerLaCarte(){
-  if(!trajetComplet()) return '';
+/* ⚠️ LA CARTE NE VIENT PLUS FORCÉMENT DE LA MÉMOIRE — v1011.
+
+   David : « qu'on voit la carte directement dans le bilan » et
+   « le lien de la carte sous le cours dans les anciens cours ».
+   Un ancien cours n'est plus en mémoire : son tracé revient du
+   classeur, décodé. C'est donc le MÊME dessin qui sert aux deux —
+   un second dessinateur pour les anciens cours finirait par ne
+   plus peindre comme celui d'aujourd'hui, et l'élève recevrait
+   deux cartes qui ne se ressemblent pas.
+
+   Sans arguments : le relevé du cours ouvert, comme avant. */
+async function dessinerLaCarte(pointsFournis, reperesFournis){
+  const surMesure = Array.isArray(pointsFournis);
+  if(!surMesure && !trajetComplet()) return '';
   if(typeof document === 'undefined' || !document.createElement) return '';
 
-  const points = simplifierTrajet(trajetPoints);
+  const marques = surMesure ? (reperesFournis || []) : trajetReperes;
+  const points = simplifierTrajet(surMesure ? pointsFournis : trajetPoints);
   if(points.length < 2) return '';
 
   const vue = zoomQuiRentre(points);
@@ -1218,8 +1231,8 @@ async function dessinerLaCarte(){
      sur n'importe quel fond. */
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  trajetReperes.forEach((r, i) => {
-    if(r.lat == null || r.lon == null) return;
+  marques.forEach((r, i) => {
+    if(r.lat == null || r.lon == null || r.lat === '' || r.lon === '') return;
     const x = carteX(r.lon, z) - gauche;
     const y = carteY(r.lat, z) - haut;
     c.beginPath(); c.arc(x, y, e(14), 0, Math.PI * 2);
@@ -1355,10 +1368,16 @@ function lienVersLaCarte(t){
        inspecteur~moniteur », séparés par des barres. Les coordonnées
        au dix-millième suffisent pour poser une pastille — dix
        mètres — et raccourcissent l'adresse d'autant. */
-    const ecrire = (avecTextes) => (t.reperes || []).map((x, i) => {
-      const p = trajetReperes[i] || {};
-      const lat = (p.lat == null) ? '' : Number(p.lat).toFixed(4);
-      const lon = (p.lon == null) ? '' : Number(p.lon).toFixed(4);
+    /* ⚠️ LA POSITION VIENT DU REPÈRE, PLUS DE LA MÉMOIRE — v1011.
+       Elle allait la chercher dans « trajetReperes » par son rang :
+       ça marchait pour le cours ouvert, et rendait une carte sans
+       pastilles pour un cours relu dans le classeur. Le repère
+       porte sa position depuis la v1010 ; on la lit là. */
+    const ecrire = (avecTextes) => (t.reperes || []).map((x) => {
+      const lat = (x.lat === '' || x.lat == null)
+        ? '' : Number(x.lat).toFixed(4);
+      const lon = (x.lon === '' || x.lon == null)
+        ? '' : Number(x.lon).toFixed(4);
       const base = [x.n, x.heure, court(x.nom), lat, lon,
                     x.type || 'repere'];
       return avecTextes
@@ -1462,6 +1481,64 @@ function leTrajetEstDeCeCours(eleve){
   return !!demande && !!ouvert && demande === ouvert;
 }
 
+/* ============================================================
+   UN TRAJET RELU DANS LE CLASSEUR — v1011
+
+   David : « j'ai renvoyé par mail un cours en manuel […] je ne
+   vois pas la carte avec les points », puis, sur ce qu'il veut :
+   « la carte comme au premier envoi ».
+
+   Le classeur rend une ligne : un tracé encodé, des kilomètres,
+   des minutes, et des repères qui portent désormais leur position
+   et leur nature (v1010). On le remet dans la forme que tout le
+   reste attend — celle de « trajetPourEnvoi » — et à partir de là
+   il n'y a plus qu'un seul chemin : le même dessin, le même bloc
+   HTML, le même lien.
+
+   ⚠️ CE QUI MANQUE ET QUI MANQUERA : le thème et les deux
+   remarques ne sont pas rangés dans le classeur (ils sont dans le
+   bilan). La carte d'un renvoi montre donc le trait, les pastilles
+   et les noms — pas les remarques. C'est une perte assumée : les
+   ranger deux fois, c'était garantir qu'une des deux copies serait
+   fausse un jour.
+   ============================================================ */
+function trajetRangeVersPaquet(t){
+  if(!t || !t.trace) return null;
+
+  const points = decoderPolyligne(t.trace);
+  if(points.length < 2) return null;
+
+  const reperes = (t.reperes || []).map((r, i) => ({
+    n: Number(r && r.n) || (i + 1),
+    heure: String((r && r.heure) || ''),
+    nom: String((r && r.nom) || ''),
+    type: String((r && r.type) || 'repere'),
+    lat: (r && r.lat !== '' && r.lat != null) ? Number(r.lat) : '',
+    lon: (r && r.lon !== '' && r.lon != null) ? Number(r.lon) : '',
+    theme: '', insp: '', mon: ''
+  }));
+
+  return {
+    points: points,
+    reperes: reperes,
+    polyligne: String(t.trace),
+    km: Number(String(t.km || '').replace(',', '.')) || 0,
+    minutes: Number(t.minutes) || 0
+  };
+}
+
+/* La carte d'un cours relu : la même que celle du jour même, au
+   thème et aux remarques près. */
+async function carteDunTrajetRange(t){
+  const p = trajetRangeVersPaquet(t);
+  if(!p) return null;
+
+  const image = await dessinerLaCarte(p.points, p.reperes);
+  if(!image) return null;
+
+  return paquetDeLaCarte(p, image);
+}
+
 /* Ce que le mail reçoit : l'image, et le HTML qui la montre.
 
    ⚠️ « eleve » N'EST PAS DÉCORATIF : sans lui, pas de carte. Un
@@ -1475,6 +1552,15 @@ async function carteDuTrajetPourMail(eleve){
 
   const t = trajetPourEnvoi();
   if(!t) return null;
+
+  return paquetDeLaCarte(t, image);
+}
+
+/* ⚠️ LE BLOC DU MAIL, ÉCRIT UNE SEULE FOIS — v1011. Deux chemins y
+   arrivent : le cours du jour et un cours relu. Deux écritures du
+   même bloc, et l'élève recevrait deux mises en page selon qu'on
+   lui renvoie son bilan ou qu'on le lui envoie. */
+function paquetDeLaCarte(t, image){
 
   const echapper = (s) => String(s || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
