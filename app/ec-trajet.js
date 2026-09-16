@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 09:59 — v1011 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -495,6 +495,7 @@ function poserRepere(type, nom){
   if(typeof vibrer === 'function') vibrer();
   else if(navigator && navigator.vibrate){ try{ navigator.vibrate(60); }catch(e){} }
 
+  oublierLaCarteDuTrajet();
   return trajetReperes.length;
 }
 
@@ -762,12 +763,14 @@ function changerNatureDuPoint(numero, type, nom){
   if(!r) return false;
   r.type = NATURES_DU_POINT[type] ? type : 'repere';
   if(nom !== undefined) r.nom = String(nom || '').trim();
+  oublierLaCarteDuTrajet();
   return true;
 }
 
 function retirerLePoint(numero){
   if(numero < 1 || numero > trajetReperes.length) return false;
   trajetReperes.splice(numero - 1, 1);
+  oublierLaCarteDuTrajet();
   return true;
 }
 
@@ -926,10 +929,7 @@ function blocTrajet(){
   if(!t) return '';
 
   const km = String(t.km).replace('.', ',');
-  const h = Math.floor(t.minutes / 60);
-  const m = t.minutes % 60;
-  const duree = h ? (h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''))
-                  : (m + ' min');
+  const duree = dureeDuTrajetEnMots(t.minutes);
 
   let out = '\n\n🗺️ 𝗡𝗼𝘁𝗿𝗲 𝘁𝗿𝗮𝗷𝗲𝘁 : ' + km + ' km en ' + duree;
 
@@ -1451,6 +1451,44 @@ async function imageDuTrajet(){
 }
 
 /* ============================================================
+   ⚠️ L'IMAGE PRÉPARÉE MEURT DÈS QUE LES PASTILLES BOUGENT — v1012
+
+   L'image porte les NUMÉROS et les COULEURS des points. Retirer un
+   point renumérote tout ce qui suit ; changer sa nature le
+   repeint ; en poser un de plus en ajoute un que l'image n'a pas.
+   Garder l'image d'avant, c'est envoyer à l'élève une carte qui
+   désigne le mauvais endroit — un tampon qui ment est pire qu'un
+   tampon absent.
+
+   ⚠️ LES NOMS, EUX, NE PÉRIMENT RIEN : ils ne sont pas dans
+   l'image (voir le ⚠️ de « preparerLaCarteDuTrajet »). Renommer un
+   repère dans le tiroir de relecture ne redessine donc pas — et
+   c'est heureux, sinon chaque lettre tapée relancerait
+   vingt-quatre tuiles.
+
+   Une seule porte, appelée par les trois seules fonctions qui
+   touchent à la composition des repères : « poserRepere »,
+   « changerNatureDuPoint » et « retirerLePoint ». Tout le reste
+   passe par elles.
+   ============================================================ */
+function oublierLaCarteDuTrajet(){
+  carteEnPreparation = null;
+}
+
+/* ⚠️ LA DURÉE S'ÉCRIT UNE SEULE FOIS — v1012. Elle se lit à trois
+   endroits : dans le texte du bilan, sous la carte du mail, et
+   sous la carte de l'écran. Trois écritures du même calcul, et
+   c'est la troisième qui dirait « 65 min » là où les deux autres
+   disent « 1 h 05 ». */
+function dureeDuTrajetEnMots(minutes){
+  const n = Math.max(0, Math.round(Number(minutes) || 0));
+  const h = Math.floor(n / 60);
+  const m = n % 60;
+  return h ? (h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''))
+           : (m + ' min');
+}
+
+/* ============================================================
    ⚠️ LE TRACÉ N'APPARTIENT QU'AU COURS OUVERT — v1009
 
    David, le 16 septembre : « j'ai renvoyé par mail un cours en
@@ -1495,12 +1533,15 @@ function leTrajetEstDeCeCours(eleve){
    il n'y a plus qu'un seul chemin : le même dessin, le même bloc
    HTML, le même lien.
 
-   ⚠️ CE QUI MANQUE ET QUI MANQUERA : le thème et les deux
-   remarques ne sont pas rangés dans le classeur (ils sont dans le
-   bilan). La carte d'un renvoi montre donc le trait, les pastilles
-   et les noms — pas les remarques. C'est une perte assumée : les
-   ranger deux fois, c'était garantir qu'une des deux copies serait
-   fausse un jour.
+   ⚠️ LE THÈME ET LES DEUX REMARQUES NE SONT TOUJOURS PAS RANGÉS
+   DANS LE CLASSEUR — et ils ne le seront pas. Ils sont dans le
+   bilan ; les ranger une seconde fois, c'était garantir qu'une des
+   deux copies serait fausse un jour.
+
+   Ils reviennent quand même sur une carte relue, depuis la v1012 :
+   on les RELIT dans le bilan de ce cours-là, qui est juste à côté
+   dans le classeur. Voir « verserLeBilanDansLesPoints ». Une seule
+   source, aucune copie.
    ============================================================ */
 function trajetRangeVersPaquet(t){
   if(!t || !t.trace) return null;
@@ -1527,16 +1568,127 @@ function trajetRangeVersPaquet(t){
   };
 }
 
-/* La carte d'un cours relu : la même que celle du jour même, au
-   thème et aux remarques près. */
-async function carteDunTrajetRange(t){
-  const p = trajetRangeVersPaquet(t);
+/* La carte d'un cours relu : la même que celle du jour même. Le
+   texte du bilan, quand l'appelant l'a sous la main, lui rend ses
+   remarques — voir « verserLeBilanDansLesPoints ». */
+async function carteDunTrajetRange(t, texte){
+  const p = verserLeBilanDansLesPoints(trajetRangeVersPaquet(t), texte);
   if(!p) return null;
 
   const image = await dessinerLaCarte(p.points, p.reperes);
   if(!image) return null;
 
   return paquetDeLaCarte(p, image);
+}
+
+/* ============================================================
+   CE QUE L'ERREUR DISAIT, RELU DANS LE BILAN — v1012
+
+   David, le 16 septembre, en rouvrant un ancien cours : « je n'ai
+   pas les points affichés sur la carte avec l'explication en
+   dessous ».
+
+   Le thème, la réflexion de l'inspecteur et la remarque du
+   moniteur ne voyagent que dans le lien du mail, monté à l'instant
+   où le bilan se fige. Sur un cours relu, ce lien n'existe plus :
+   il faut les retrouver.
+
+   ⚠️ ON NE LES RANGE PAS UNE DEUXIÈME FOIS. Ils sont déjà dans le
+   classeur — DANS LE BILAN, qui est la seule chose que l'élève a
+   reçue. Les recopier à côté du tracé, ce serait s'engager à
+   corriger deux textes chaque fois qu'on en corrige un, et c'est
+   toujours la copie périmée qui finit par être servie. On relit
+   donc la source.
+
+   ⚠️ ET LE RENVOI SE CHERCHE PAR SA PHRASE, PAS PAR UN LITTÉRAL
+   RECOPIÉ. « phraseDuPoint » écrit « · point 4 sur la carte » ;
+   c'est elle qui fabrique ici le motif qui la reconnaît. Le jour
+   où la phrase change, les deux changent ensemble.
+   ============================================================ */
+function motifDuRenvoiAuPoint(){
+  return new RegExp(
+    phraseDuPoint(1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                    .replace('1', '(\\d+)') + '\\s*$');
+}
+
+function lesPointsDuBilan(texte){
+  const trouve = {};
+  const motif = motifDuRenvoiAuPoint();
+  const clair = (s) => (typeof sansGras === 'function')
+    ? sansGras(String(s || '')) : String(s || '');
+
+  const numero = (l) => {
+    const m = clair(l).match(motif);
+    return m ? Number(m[1]) : 0;
+  };
+  /* La ligne sans son émoji de tête et sans son renvoi : le renvoi
+     serait redit sous une pastille qui le dit déjà. */
+  const nettoyer = (l) => clair(l).replace(motif, '')
+                                  .replace(/^[^\p{L}\p{N}]+/u, '')
+                                  .trim();
+
+  /* ⚠️ L'INSPECTEUR SE RECONNAÎT, LE MONITEUR NON. Son émoji change
+     d'un moniteur à l'autre (emojiMoniteur) : sa ligne se reconnaît
+     donc à sa PLACE — celle qui suit immédiatement l'inspecteur,
+     avant la ligne vide ou les trois questions. */
+  const TETES = ['👨‍✈️', '☠️'];
+
+  let theme = '';
+  let dernier = 0;
+
+  String(texte || '').split('\n').forEach((brute) => {
+    const l = String(brute).trim();
+    if(!l){ dernier = 0; return; }
+
+    if(l.indexOf('👉') === 0){          /* 👉 le titre de compétence */
+      theme = nettoyer(l);
+      dernier = 0;
+      return;
+    }
+    /* ⚠️ AUCUNE GARDE POUR LES TROIS QUESTIONS. Elles sont toujours
+       précédées d'une ligne vide — voir questionsElim — et la ligne
+       vide a rendu la main juste au-dessus. J'en avais posé une :
+       la retirer ne changeait rien à ce que le test lit, donc elle
+       ne gardait rien. Une garde qu'aucun cas ne fait jouer est une
+       garde qu'on croit avoir. */
+    const n = numero(l);
+
+    if(TETES.some(e => l.indexOf(e) === 0)){
+      if(n){ trouve[n] = { theme: theme, insp: nettoyer(l), mon: '' }; dernier = n; }
+      else dernier = 0;
+      return;
+    }
+
+    if(dernier && trouve[dernier]){
+      trouve[dernier].mon = nettoyer(l);
+      dernier = 0;
+      return;
+    }
+    /* Une erreur sans remarque d'inspecteur porte son renvoi sur la
+       ligne du moniteur : elle compte autant. */
+    if(n) trouve[n] = { theme: theme, insp: '', mon: nettoyer(l) };
+    dernier = 0;
+  });
+
+  return trouve;
+}
+
+/* ⚠️ ON COMPLÈTE, ON N'ÉCRASE JAMAIS. Le cours du jour a ses
+   remarques en mémoire, versées à la composition : elles sont plus
+   sûres que ce qu'on relit d'un texte. Le bilan ne parle que là où
+   la mémoire se tait. */
+function verserLeBilanDansLesPoints(p, texte){
+  if(!p || !texte) return p;
+
+  const par = lesPointsDuBilan(texte);
+  (p.reperes || []).forEach((r) => {
+    const d = par[Number(r.n)];
+    if(!d) return;
+    if(!r.theme) r.theme = d.theme;
+    if(!r.insp)  r.insp  = d.insp;
+    if(!r.mon)   r.mon   = d.mon;
+  });
+  return p;
 }
 
 /* Ce que le mail reçoit : l'image, et le HTML qui la montre.
@@ -1566,10 +1718,7 @@ function paquetDeLaCarte(t, image){
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   const km = String(t.km).replace('.', ',');
-  const h = Math.floor(t.minutes / 60);
-  const m = t.minutes % 60;
-  const duree = h ? (h + ' h' + (m ? ' ' + String(m).padStart(2, '0') : ''))
-                  : (m + ' min');
+  const duree = dureeDuTrajetEnMots(t.minutes);
 
   let html =
     '<div style="margin-top:22px;">' +
@@ -1968,7 +2117,10 @@ function montrerLeTiroirDesReperes(){
                           'Les points suivants seront renumérotés.',
                           'Retirer ce point', true)) return;
       retirerLePoint(r.n);
-      montrerLeTiroirDesReperes();
+      /* ⚠️ ET LA CARTE AVEC — v1012. Le point retiré renumérote les
+         suivants : l'image d'avant désignerait le mauvais endroit.
+         « retirerLePoint » l'a déjà oubliée ; ici on la redemande. */
+      montrerLeTrajetDansLeBilan();
       const ta = (typeof $ === 'function') ? $('resultText') : null;
       if(ta && ta.value) ta.value = rafraichirBlocTrajet(ta.value);
     });
@@ -1976,6 +2128,149 @@ function montrerLeTiroirDesReperes(){
 
     zone.appendChild(l);
   });
+}
+
+
+/* ============================================================
+   LA CARTE SOUS LE BILAN GÉNÉRÉ — v1012
+
+   David, le 16 septembre : « est-ce qu'on peut voir la carte dans
+   le bilan généré ou c'est trop compliqué ? »
+
+   ⚠️ SOUS LE BILAN, JAMAIS DEDANS. Le bilan est du TEXTE, et ce
+   texte se copie tel quel dans Messenger, dans un SMS, dans le
+   classeur. Une image n'y entre pas ; y écrire « [carte] » à sa
+   place, ce serait une ligne de plus que l'élève lirait sans rien
+   voir. La carte se pose donc sous la zone de texte, dans l'écran,
+   et le texte reste copiable au caractère près.
+
+   ⚠️ ET C'EST LA MÊME IMAGE QUE CELLE DU MAIL — « imageDuTrajet »,
+   dessinée d'avance depuis la v1003. Pas un second dessin : le
+   moniteur doit voir EXACTEMENT ce que l'élève recevra, sinon il
+   relit une carte et l'élève en reçoit une autre. C'est aussi ce
+   qui rend l'affichage gratuit : l'image est presque toujours déjà
+   prête quand l'écran de relecture s'ouvre.
+
+   ⚠️ LES POINTS NE SONT PAS RÉÉCRITS ICI. Le tiroir juste au-dessus
+   les liste déjà, avec leurs noms modifiables : les redire sous la
+   carte, c'est garder le même fait à deux endroits, et celui d'en
+   bas serait périmé dès la première lettre tapée en haut.
+   ============================================================ */
+let carteDuBilanJeton = 0;
+
+/* ⚠️ CACHER, C'EST AUSSI ANNULER CE QUI EST EN ROUTE. Le jeton
+   avance ici, et pas seulement à l'affichage : sans ça, l'écran
+   remis à zéro pour le cours suivant verrait arriver, trois
+   secondes plus tard, la carte du cours précédent — que le dessin
+   avait commencée avant la remise à zéro. */
+function cacherLaCarteDuBilan(){
+  carteDuBilanJeton++;
+  const z = (typeof $ === 'function') ? $('carteDuBilan') : null;
+  if(!z) return;
+  z.style.display = 'none';
+  z.innerHTML = '';
+}
+
+async function montrerLaCarteDansLeBilan(){
+  const z = (typeof $ === 'function') ? $('carteDuBilan') : null;
+  if(!z) return;
+
+  /* On efface d'abord — ce qui annule la demande précédente — puis
+     on prend le jeton qui vient d'avancer : il est le nôtre. */
+  cacherLaCarteDuBilan();
+  const jeton = carteDuBilanJeton;
+  /* ⚠️ LA CONDITION NE SE TESTE QU'APRÈS LE DESSIN, ET UNE SEULE
+     FOIS. La tester aussi avant ne garderait rien de plus — sans
+     trajet, « imageDuTrajet » rend déjà une chaîne vide — et ce
+     serait une deuxième écriture de la même règle, celle qu'on
+     oublierait de corriger le jour où elle change. */
+  let image = '';
+  try{ image = await imageDuTrajet(); }
+  catch(e){ console.warn('Carte du bilan non dessinée :', e); return; }
+
+  /* ⚠️ LE COURS A PU CHANGER PENDANT LE DESSIN. Les tuiles mettent
+     quelques secondes à venir ; si un autre bilan s'est affiché
+     entre-temps, ou si l'écran a été remis à zéro, l'image qui
+     arrive est celle d'avant.
+
+     Deux filets, parce qu'il y a deux façons de partir : le jeton
+     attrape l'écran qui a changé de bilan, et « trajetPourEnvoi »
+     attrape le cours SUIVANT qui a démarré son relevé pendant que
+     le tracé du précédent finissait de se dessiner — il ne rend
+     plus rien dès qu'il n'y a plus de trajet à envoyer.
+
+     ⚠️ ET C'EST LUI, PAS « trajetComplet ». Les deux répondraient
+     la même chose aujourd'hui ; poser deux fois la même question à
+     deux lignes d'écart, c'est n'en corriger qu'une le jour où la
+     réponse change. On demande ce dont on a besoin : le paquet. */
+  if(jeton !== carteDuBilanJeton) return;
+  if(!image) return;
+
+  const t = trajetPourEnvoi();
+  if(!t) return;
+
+  z.innerHTML = '';
+
+  const titre = document.createElement('div');
+  titre.style.cssText = 'font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);margin-bottom:2px;';
+  titre.textContent = '🗺️ Le trajet du cours';
+  z.appendChild(titre);
+
+  const sous = document.createElement('div');
+  sous.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:8px;';
+  sous.textContent = String(t.km).replace('.', ',') + ' km · ' +
+                     dureeDuTrajetEnMots(t.minutes) +
+                     ' — c\'est cette carte que l\'élève recevra.';
+  z.appendChild(sous);
+
+  const img = document.createElement('img');
+  img.src = image;
+  img.alt = 'Le tracé du trajet du cours';
+  img.style.cssText = 'display:block;width:100%;height:auto;' +
+    'border:1px solid var(--line);border-radius:12px;';
+  z.appendChild(img);
+
+  /* Le même lien que dans le mail, monté par la même fonction : le
+     moniteur ouvre ce que l'élève ouvrira. */
+  const grand = lienVersLaCarte(t);
+  if(grand){
+    const a = document.createElement('a');
+    a.href = grand;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = '🔍 Voir le trajet en grand';
+    a.style.cssText = 'display:inline-block;margin-top:8px;font-size:13px;' +
+      'font-weight:700;color:var(--accent-text);text-decoration:none;' +
+      'border:1px solid var(--line);border-radius:9px;padding:9px 14px;';
+    z.appendChild(a);
+  }
+
+  z.style.display = 'block';
+}
+
+/* ============================================================
+   ⚠️ UNE SEULE PORTE POUR LE TRAJET DANS L'ÉCRAN DE RELECTURE —
+   v1012.
+
+   Le tiroir des repères et la carte parlent du MÊME trajet, vivent
+   dans le MÊME écran et s'ouvrent aux MÊMES instants. Deux portes,
+   et un appelant sur cinq en oublierait une : l'écran montrerait
+   les repères d'un cours et la carte d'un autre. C'est exactement
+   la faute que la v1009 a réparée pour le mail ; on ne la refait
+   pas ici.
+
+   La carte s'affiche sans faire attendre : rien de ce qui suit ne
+   dépend d'elle, et un dessin raté ne doit pas remonter.
+   ============================================================ */
+function montrerLeTrajetDansLeBilan(){
+  montrerLeTiroirDesReperes();
+  try{
+    const p = montrerLaCarteDansLeBilan();
+    if(p && typeof p.catch === 'function') p.catch(() => {});
+  }catch(e){
+    console.warn('Carte du bilan non affichée :', e);
+  }
 }
 
 
