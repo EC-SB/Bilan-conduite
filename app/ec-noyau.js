@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 09:59 — v1011 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1306,7 +1306,11 @@ async function envoyerBilanParMail(eleve, dateCours, texte){
         try{
           const rep = await appelPrep({ action: 'trajetGet',
                                         eleve: nom, date: jourCourt });
-          if(rep && rep.trajet) carte = await carteDunTrajetRange(rep.trajet);
+          /* ⚠️ LE TEXTE DU BILAN PART AVEC — v1012. C'est lui qui
+             porte le thème et les deux remarques de chaque point :
+             ils ne sont rangés nulle part ailleurs, et c'est voulu.
+             Voir verserLeBilanDansLesPoints. */
+          if(rep && rep.trajet) carte = await carteDunTrajetRange(rep.trajet, texte);
         }catch(e){ console.warn('Trajet du classeur non relu :', e); }
       }
       if(carte){
