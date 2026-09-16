@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:29 — v990 */
+/* Déployé le 16/09/2026 à 09:59 — v1011 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -591,6 +591,64 @@ function ligneBilan(item, nomCherche, refaire){
         'margin:0;flex-shrink:0;';
       bMail.textContent = '\u2709\uFE0F';
       bMail.title = 'Renvoyer ce bilan par mail';
+      /* ============================================================
+         🗺️ LE TRAJET DE CE COURS-LÀ — v1011
+
+         David : « est-ce que c'est possible d'avoir le lien de la
+         carte sous le cours dans les anciens cours du dossier
+         élève ».
+
+         ⚠️ LE BOUTON NE PROMET RIEN. On ne sait pas, en dessinant
+         cette ligne, si ce cours a un trajet : le savoir
+         demanderait un appel au classeur pour chaque cours de la
+         liste, à chaque ouverture de l'écran. On demande donc au
+         moment de l'appui, et si ce cours n'a pas de trajet on le
+         dit en une phrase — plutôt que de faire clignoter un
+         bouton qui aurait exigé dix appels pour s'afficher juste.
+         ============================================================ */
+      const bCarte = document.createElement('button');
+      bCarte.className = 'btn btn-secondary';
+      bCarte.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;' +
+        'margin:0;flex-shrink:0;';
+      bCarte.textContent = '\uD83D\uDDFA\uFE0F';
+      bCarte.title = 'Voir le trajet de ce cours';
+      bCarte.addEventListener('click', async ev => {
+        ev.stopPropagation();
+        const libelle = bCarte.textContent;
+        bCarte.disabled = true;
+        bCarte.textContent = '…';
+        try{
+          const rep = await appelPrep({ action: 'trajetGet',
+                                        eleve: item.eleve,
+                                        date: item.date });
+          const t = rep && rep.trajet;
+          if(!t || !t.trace){
+            await informer('Aucun trajet enregistré pour ce cours.\n\n' +
+              'Le relevé GPS n\'était peut-être pas ouvert ce jour-là, ou ' +
+              'le tracé était trop court pour être gardé.');
+            return;
+          }
+
+          /* Le même lien que celui du mail : une seule page, une
+             seule mise en page, et rien de stocké de plus. */
+          const p = (typeof trajetRangeVersPaquet === 'function')
+            ? trajetRangeVersPaquet(t) : null;
+          const lien = (p && typeof lienVersLaCarte === 'function')
+            ? lienVersLaCarte(p) : '';
+
+          if(!lien){
+            await informer('Le tracé de ce cours n\'a pas pu être relu.');
+            return;
+          }
+          window.open(lien, '_blank', 'noopener');
+        }catch(e){
+          await informer('Trajet indisponible : ' + (e && e.message ? e.message : e));
+        }finally{
+          bCarte.disabled = false;
+          bCarte.textContent = libelle;
+        }
+      });
+
       bMail.addEventListener('click', async ev => {
         ev.stopPropagation();
         if(typeof envoyerBilanParMail !== 'function'){
@@ -625,6 +683,7 @@ function ligneBilan(item, nomCherche, refaire){
           showToast('Envoi impossible : ' + e.message);
         }
       });
+      row.appendChild(bCarte);
       row.appendChild(bMail);
     }
 
