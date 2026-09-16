@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 16:01 — v1007 */
+/* Déployé le 16/09/2026 à 09:49 — v1010 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -671,6 +671,19 @@ function trajetPourEnvoi(){
       heure: heure(r.t),
       nom: String(r.nom || ''),
       type: r.type || 'repere',
+      /* ⚠️ LA POSITION DU REPÈRE PART AUSSI — v1010. Sans elle, un
+         trajet relu dans le classeur rend un trait SANS SES
+         PASTILLES : c'est-à-dire exactement ce qu'on vient
+         chercher. Le point est sur le tracé, qui est déjà rangé
+         entier : on n'ajoute pas un lieu, on dit lequel des points
+         déjà écrits porte une marque. */
+      lat: (r.lat == null) ? '' : Math.round(r.lat * 1e5) / 1e5,
+      lon: (r.lon == null) ? '' : Math.round(r.lon * 1e5) / 1e5,
+      /* Le thème et les deux remarques ne servent QUE pour le lien
+         du mail, monté dans la foulée. Ils ne sont pas rangés dans
+         le classeur : ils sont déjà dans le bilan, et le même fait
+         gardé à deux endroits finit par être servi par sa copie
+         périmée. */
       theme: String(r.theme || ''),
       insp: String(r.insp || ''),
       mon: String(r.mon || '')
@@ -1418,8 +1431,45 @@ async function imageDuTrajet(){
   return (await preparerLaCarteDuTrajet()) || '';
 }
 
-/* Ce que le mail reçoit : l'image, et le HTML qui la montre. */
-async function carteDuTrajetPourMail(){
+/* ============================================================
+   ⚠️ LE TRACÉ N'APPARTIENT QU'AU COURS OUVERT — v1009
+
+   David, le 16 septembre : « j'ai renvoyé par mail un cours en
+   manuel, c'était l'examen blanc d'un élève, et je ne vois pas la
+   carte avec les points. »
+
+   La carte manquait, oui — le relevé n'est plus en mémoire quand
+   on renvoie un ancien bilan depuis l'historique. Mais en
+   regardant pourquoi, j'ai trouvé pire : « carteDuTrajetPourMail »
+   ne regardait PAS de qui était le bilan. Elle joignait le tracé
+   présent en mémoire, quel qu'il soit.
+
+   ⚠️ DONC : un moniteur qui a un cours EN COURS, et qui renvoie
+   depuis l'historique le bilan d'un AUTRE élève, lui envoyait le
+   trajet de l'élève assis à côté de lui. Le trajet d'un élève dans
+   le mail d'un autre — exactement ce que « oublierLeTrajet »
+   empêche entre deux cours, et que ce chemin-ci contournait.
+
+   La carte ne part donc que si le tracé est bien celui du cours
+   ouvert, et c'est le MODULE qui le vérifie, pas l'appelant : une
+   parade posée chez l'appelant est une parade qu'on oublie, et il
+   y a déjà deux appelants.
+   ============================================================ */
+function leTrajetEstDeCeCours(eleve){
+  const demande = String(eleve || '').trim().toLowerCase();
+  const ouvert = (typeof $ === 'function' && $('studentName'))
+    ? String($('studentName').value || '').trim().toLowerCase() : '';
+  return !!demande && !!ouvert && demande === ouvert;
+}
+
+/* Ce que le mail reçoit : l'image, et le HTML qui la montre.
+
+   ⚠️ « eleve » N'EST PAS DÉCORATIF : sans lui, pas de carte. Un
+   appelant qui l'oublie n'obtient rien — c'est voulu, et c'est
+   plus sûr que de lui faire confiance. */
+async function carteDuTrajetPourMail(eleve){
+  if(!leTrajetEstDeCeCours(eleve)) return null;
+
   const image = await imageDuTrajet();
   if(!image) return null;
 
