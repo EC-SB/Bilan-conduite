@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 12:54 — v997 */
+/* Déployé le 16/09/2026 à 09:37 — v1008 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,7 +17,7 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 223;   /* voir apps-script.js */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 224;   /* voir apps-script.js */
 
 /* Les pages publiques vivent dans le même dossier que
    l'application : leur adresse se déduit de la sienne. Écrire une
