@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 09:59 — v1011 */
+/* Déployé le 16/09/2026 à 10:24 — v1012 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -630,9 +630,17 @@ function ligneBilan(item, nomCherche, refaire){
           }
 
           /* Le même lien que celui du mail : une seule page, une
-             seule mise en page, et rien de stocké de plus. */
+             seule mise en page, et rien de stocké de plus.
+
+             ⚠️ ET LE BILAN DE CE COURS EST DÉJÀ LÀ — v1012. Il tient
+             le thème et les deux remarques de chaque point ; on les
+             y relit plutôt que de les avoir rangés une deuxième
+             fois à côté du tracé. Voir verserLeBilanDansLesPoints. */
           const p = (typeof trajetRangeVersPaquet === 'function')
             ? trajetRangeVersPaquet(t) : null;
+          if(p && typeof verserLeBilanDansLesPoints === 'function'){
+            verserLeBilanDansLesPoints(p, item.bilan);
+          }
           const lien = (p && typeof lienVersLaCarte === 'function')
             ? lienVersLaCarte(p) : '';
 
@@ -916,7 +924,7 @@ async function corrigerAncienBilan(item){
      tiroir de cet écran, et il se remplit ou se ferme aux mêmes
      moments. Une porte oubliée, et le tiroir du cours d'avant
      resterait ouvert sur le bilan d'un autre élève. */
-  if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
+  if(typeof montrerLeTrajetDansLeBilan === 'function') montrerLeTrajetDansLeBilan();
   $('resultView').classList.remove('hors-onglet', 'hors-vue');
   majBoutonCorrection();
   /* Le bilan est en bas de l'onglet : on y amène l'écran plutôt que
@@ -1141,6 +1149,9 @@ async function terminerCours(){
     $('tiroirReperes').style.display = 'none';
   }
   if($('listeReperes')) $('listeReperes').innerHTML = '';
+  /* Et la carte avec eux — v1012. Un tracé qui resterait affiché,
+     c'est la carte du cours d'avant sous le bilan du suivant. */
+  if(typeof cacherLaCarteDuBilan === 'function') cacherLaCarteDuBilan();
 
   if($('zoneManuel')) $('zoneManuel').style.display = 'block';
 
@@ -1350,7 +1361,7 @@ async function refreshHistory(){
        tiroir de cet écran, et il se remplit ou se ferme aux mêmes
        moments. Une porte oubliée, et le tiroir du cours d'avant
        resterait ouvert sur le bilan d'un autre élève. */
-    if(typeof montrerLeTiroirDesReperes === 'function') montrerLeTiroirDesReperes();
+    if(typeof montrerLeTrajetDansLeBilan === 'function') montrerLeTrajetDansLeBilan();
       });
       list.appendChild(row);
     });
