@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 17/09/2026 à 08:47 — v1013 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -993,18 +993,147 @@ function dessinerBandeauCoursEnRoute(){
 
 function rafraichirMarquesDuCours(){
   dessinerBandeauCoursEnRoute();
+  /* L'écran suit le même état : un cours qui démarre prend toute la
+     place, un cours qui finit la rend. Une seule porte pour les
+     trois — le bandeau, les cartes, l'écran. */
+  majEcranDuCours();
   /* Les cartes portent la même marque : elles se redessinent, mais
      sans rien redemander au réseau. */
   if(typeof afficherPrepares === 'function') afficherPrepares(false, true);
 }
 
+
+/* ============================================================
+   UN SEUL ÉCRAN À LA FOIS — v1013
+
+   David, le 17 septembre : « les moniteurs confondent avec les
+   prochains cours la possibilité de démarrer un cours », et
+   « quand on appuie sur démarrer un cours dans mes prochains
+   cours, ça l'ouvre dans cette partie ».
+
+   Les deux remarques n'en font qu'une. Tant qu'aucun cours ne
+   tourne, la journée et le tiroir cohabitent très bien. Dès qu'un
+   cours démarre, il ne doit plus rien y avoir d'autre : ni liste
+   au-dessus, ni formulaire vide à côté, ni défilement pour
+   atteindre ce qu'on vient d'ouvrir. Le bloc du bas cesse d'être
+   « en dessous » : il DEVIENT l'écran.
+
+   ⚠️ L'ÉTAT EXISTE DÉJÀ, ON NE S'EN INVENTE PAS UN SECOND.
+   « coursEnRoute() » est la vérité de l'application depuis la
+   v937 : c'est elle qui marque les cartes et remplit le bandeau.
+   Un second état — un drapeau posé au départ, retiré à la fin —
+   aurait fini par dire le contraire d'elle un jour de plantage,
+   et c'est l'écran entier qui en aurait dépendu.
+
+   ⚠️ ET « ← Mes cours » NE FERME RIEN. Le cours continue
+   d'enregistrer ; on range son écran, c'est tout. La carte le dit
+   en rouge, le bandeau aussi, et les deux y ramènent.
+   ============================================================ */
+
+/* ⚠️ LE MOT DU REPOS EST CELUI DE LA PAGE, PAS UNE COPIE. Le
+   tiroir porte son titre dans index.html ; l'écrire une seconde
+   fois ici, ce serait deux titres à corriger le jour où il change,
+   et c'est toujours le second qu'on oublie. */
+let motDuTiroirAuRepos = '';
+
+function majEnTeteDuCours(){
+  const mot = (typeof $ === 'function') ? $('tiroirCoursMot') : null;
+  if(!mot) return;
+  if(!motDuTiroirAuRepos) motDuTiroirAuRepos = mot.textContent;
+
+  const c = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
+  if(!c){ mot.textContent = motDuTiroirAuRepos; return; }
+
+  /* Le même vocabulaire que la carte et le bandeau : « en cours »
+     quand ça tourne, « en pause » quand la dictée est arrêtée. */
+  const quand = (typeof depuisCombien === 'function') ? depuisCombien(c.depuis) : '';
+  mot.textContent = (c.enPause ? '⏸ Cours en pause — ' : '⏺ Cours en cours — ') +
+                    c.eleve + (quand ? ' · ' + quand : '');
+}
+
+function majEcranDuCours(){
+  if(typeof document === 'undefined' || !document.body) return;
+  const c = (typeof coursEnRoute === 'function') ? coursEnRoute() : null;
+  const corps = document.body;
+  const tiroir = (typeof $ === 'function') ? $('tiroirCours') : null;
+
+  corps.classList.toggle('cours-ouvert', !!c);
+
+  if(!c){
+    /* Plus de cours : la journée reprend sa place d'elle-même, et
+       le tiroir se referme — sinon le moniteur suivant trouverait
+       le formulaire grand ouvert, ce qui est exactement ce qu'on
+       cherchait à ne plus lui montrer. */
+    corps.classList.remove('journee-visible');
+    if(tiroir) tiroir.open = false;
+  }else if(tiroir){
+    /* ⚠️ SANS CONDITION, ET C'EST VOULU. J'avais écrit « … et si on
+       n'est pas revenu à la journée » : une garde qui ne gardait
+       rien, puisque le tiroir est alors masqué de toute façon. Elle
+       est retirée plutôt que gardée pour la bonne conscience — une
+       garde qu'aucun cas ne fait jouer est une garde qu'on croit
+       avoir. Ce qui protège vraiment le repli du moniteur, c'est
+       que cette fonction ne tourne PAS toutes les minutes : voir
+       l'intervalle plus bas, qui ne touche qu'à l'en-tête. */
+    tiroir.open = true;
+  }
+
+  majEnTeteDuCours();
+}
+
+/* On revient au cours : il reprend l'écran. Appelée par
+   « amenerAuCours », qui est le chemin de tous les retours. */
+function montrerLeCoursOuvert(){
+  if(typeof document === 'undefined' || !document.body) return;
+  document.body.classList.remove('journee-visible');
+  const t = (typeof $ === 'function') ? $('tiroirCours') : null;
+  if(t) t.open = true;
+}
+
+/* On range le cours et on rend la journée. Le cours ne s'arrête
+   pas : il n'est plus affiché. */
+function revenirALaJournee(){
+  if(typeof document === 'undefined' || !document.body) return;
+  document.body.classList.add('journee-visible');
+  const liste = document.querySelector('[data-section="prepares"]');
+  if(liste){
+    setTimeout(() => {
+      try{ liste.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      catch(e){ window.scrollTo(0, Math.max(0, liste.offsetTop - 12)); }
+    }, 40);
+  }
+}
+
+if(typeof document !== 'undefined' && document.addEventListener){
+  document.addEventListener('DOMContentLoaded', () => {
+    const b = document.getElementById('retourJournee');
+    if(!b) return;
+    /* ⚠️ LE BOUTON VIT DANS UN « summary » : sans ces deux lignes,
+       chaque appui replierait le tiroir en même temps qu'il rend la
+       journée — et le moniteur croirait avoir fermé son cours. */
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      revenirALaJournee();
+    });
+    /* ⚠️ ET L'ÉTAT SE POSE AU CHARGEMENT, PAS SEULEMENT AU DÉPART
+       D'UN COURS. Un brouillon repris après un plantage rouvre un
+       cours sans passer par le bouton : sans cette ligne, l'écran
+       montrerait la journée par-dessus une dictée qui tourne. */
+    majEcranDuCours();
+  });
+}
+
 /* ⚠️ LA MINUTE QUI PASSE. « depuis 24 min » doit devenir « 25 » tout
    seul : un chiffre figé est pire qu'aucun chiffre, parce qu'on le
-   croit. On ne redessine QUE le bandeau — redessiner les cartes
-   toutes les minutes ferait clignoter la liste sous les doigts. */
+   croit. On ne redessine QUE le bandeau et l'en-tête du cours —
+   redessiner les cartes toutes les minutes ferait clignoter la
+   liste sous les doigts, et rouvrir le tiroir toutes les minutes
+   déferait ce que le moniteur vient de replier. */
 setInterval(() => {
   if(typeof coursEnRoute === 'function' && coursEnRoute()){
     dessinerBandeauCoursEnRoute();
+    majEnTeteDuCours();
   }
 }, 60000);
 
