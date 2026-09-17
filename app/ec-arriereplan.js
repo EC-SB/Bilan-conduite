@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 13:41 — v1019 */
+/* Déployé le 17/09/2026 à 13:53 — v1020 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -294,6 +294,29 @@ async function deposerBrouillonServeur(extra){
   const quiDepose = ($('studentName') && $('studentName').value.trim()) || '';
   if(typeof depotInterdit === 'function' && depotInterdit(quiDepose)) return;
 
+  /* ⚠️ ET L'ÉTAT DU RELEVÉ GPS AVEC — v1020.
+
+     David : « rajoute dans cours non terminés les infos sur le GPS
+     par cours, pour que je voie si ça bug ». Le TRACÉ, lui, n'est
+     écrit au classeur qu'au moment du bilan : sur un cours non
+     terminé — celui qu'on cherche justement à comprendre — il
+     n'existait nulle part, et le trou se découvrait après coup, sur
+     le bilan reçu, quand il n'y a plus rien à faire.
+
+     ⚠️ DES NOMBRES, PAS DES COORDONNÉES. Combien de points, combien
+     de silence, combien de relances. Rien qui dise OÙ. Le tracé ne
+     part qu'avec le bilan, comme avant : c'est ce que la note de
+     service annonce aux moniteurs, et déposer des positions toutes
+     les cinq minutes en ferait un suivi permanent — exactement ce
+     que la CNIL interdit. */
+  let gps;
+  try{
+    if(typeof releveDuTrajetPourLeDepot === 'function'){
+      const r = releveDuTrajetPourLeDepot();
+      if(r) gps = JSON.stringify(r);
+    }
+  }catch(e){ /* pas de relevé lisible : le dépôt part sans */ }
+
   try{
     await appelPrep(Object.assign({
       action: 'brouillonSet',
@@ -303,7 +326,8 @@ async function deposerBrouillonServeur(extra){
       site: ($('site') && $('site').value) || '',
       transcript: texte,
       note: ($('noteInterne') && $('noteInterne').value) || ''
-    }, (fiche === undefined ? {} : { fiche: fiche }), extra || {}));
+    }, (fiche === undefined ? {} : { fiche: fiche }),
+       (gps === undefined ? {} : { gps: gps }), extra || {}));
   }catch(e){
     /* Le dépôt n'est pas indispensable : la sauvegarde locale
        reste. On ne bloque pas la génération pour autant. */
