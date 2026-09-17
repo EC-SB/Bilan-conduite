@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:20 — v1005 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3626,9 +3626,38 @@ function mentionPostPermis(nom){
 function heuresQuiComptent(nom){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
 
+  /* ============================================================
+     ⚠️ CE QU'IL RESTE, PAS CE QUI A ÉTÉ DÉCIDÉ — v1014
+
+     Ce nombre est consommé par les leçons, exactement comme la
+     réserve de l'examen blanc : c'est ce que dit le compteur du
+     moniteur depuis la v914. Ici, il rendait le nombre brut du
+     rendez-vous — donc le bureau plaçait un examen sur une réserve
+     pleine pendant que le moniteur en voyait la moitié.
+
+     Un même fait affiché à deux endroits avec deux chiffres : la
+     faute que ce dossier répare partout ailleurs. La soustraction
+     passe donc par la MÊME porte que celle du cours, pas par une
+     copie. Sans elle — module non chargé — on rend le nombre brut,
+     comme avant : mieux vaut un chiffre ancien qu'aucun chiffre.
+
+     ⚠️ ET « heuresRepassage » RESTE CE QU'IL EST : la décision du
+     rendez-vous. Elle se lit telle quelle sur la fiche de l'élève.
+     Ce qu'on annonce ici, c'est le solde.
+     ============================================================ */
+  const moinsLesLecons = (brut) => {
+    const h = parseFloat(String(brut).replace(',', '.'));
+    if(isNaN(h) || typeof leconsDepuisLaReserve !== 'function' ||
+       typeof heuresPourLecons !== 'function') return String(brut).trim();
+    const reste = h - heuresPourLecons(leconsDepuisLaReserve(nom, null));
+    /* Zéro n'est pas vide : « plus que les 3h » est une réponse, et
+       c'est la plus utile des deux. Voir mentionHeuresRestantes. */
+    return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
+  };
+
   if(s.rdvPostFait === 'oui'){
     const h = String(s.heuresRepassage || '').trim();
-    if(h) return { valeur: h, source: 'post-permis' };
+    if(h) return { valeur: moinsLesLecons(h), source: 'post-permis' };
   }
 
   /* ⚠️ UN EXAMEN BLANC QUI N'A PAS EU LIEU NE DIT RIEN — v1005.
@@ -3656,7 +3685,7 @@ function heuresQuiComptent(nom){
   }
 
   const h2 = String(s.heuresRestantes || '').trim();
-  if(h2) return { valeur: h2, source: 'examen blanc' };
+  if(h2) return { valeur: moinsLesLecons(h2), source: 'examen blanc' };
 
   return { valeur: '', source: '' };
 }
