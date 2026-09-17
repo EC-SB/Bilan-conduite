@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 10:02 — v894 */
+/* Déployé le 17/09/2026 à 13:41 — v1019 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -108,7 +108,7 @@ async function afficherEnCours(recharger){
      Ces lignes-là ne sont pas en panne : elles sont RANGÉES. Elles
      descendent donc tout en bas, loin de ce qui appelle un geste —
      c'est la liste des sept lignes rouges qui a fait paniquer
-     Chrystel, et une ligne rangée ne doit plus jamais y ressembler.
+     David, et une ligne rangée ne doit plus jamais y ressembler.
      ------------------------------------------------------------ */
   const ecartes = brouillonsTous.filter(b => b.etat === 'ecarte');
 
@@ -353,7 +353,31 @@ function ligneBrouillon(b){
      le MIROIR de la fiche, du texte fabriqué pour être lu par le
      bureau. Le compter en mots de dictée fait chercher une dictée
      qui n'existe pas. */
-  const aFiche = !!String(b.fiche || '').trim();
+  /* ⚠️ ET « IL Y A UNE FICHE » NE VEUT PAS DIRE « ELLE EST
+     REMPLIE » — v1019.
+
+     Ce badge se posait dès que la colonne « fiche » n'était pas
+     vide. Un cours en DICTÉE y déposait un objet sans une seule
+     réponse : l'écran annonçait « fiche remplie à la main »
+     au-dessus d'une heure de parole, et le bureau cherchait une
+     fiche qui n'existait pas.
+
+     ⚠️ LA MÊME RÉPONSE QUE LA REPRISE, PAR LA MÊME FONCTION. Cet
+     écran dit ce que c'est, le bouton décide quoi rouvrir : s'ils
+     ne lisent pas le brouillon de la même façon, l'un annonce une
+     dictée et l'autre ouvre un formulaire. C'est exactement ce qui
+     vient d'arriver. */
+  /* ⚠️ ET PAS DE REPLI SUR L'ANCIENNE LECTURE. J'avais écrit
+     « sinon !!String(b.fiche).trim() » au cas où la fonction ne
+     serait pas chargée : c'est-à-dire remettre la faute du jour
+     dans le seul cas où personne ne la verrait venir. Les deux
+     modules sont chargés ensemble et surveillés par EC_ATTENDUS ;
+     si la question ne peut pas être posée, la réponse est NON —
+     annoncer une dictée sur une vraie fiche fait chercher deux
+     minutes, annoncer une fiche sur une dictée fait perdre le
+     cours. */
+  const aFiche = (typeof ficheDuBrouillon === 'function') &&
+                 !!ficheDuBrouillon(b.fiche);
   const mots = aFiche
     ? 'fiche remplie à la main'
     : (String(b.transcript || '').trim().split(/\s+/).filter(Boolean).length +
