@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 14:54 — v1003 */
+/* Déployé le 17/09/2026 à 08:47 — v1013 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -2229,11 +2229,30 @@ async function afficherPrepares(recharger, silencieux){
             if(typeof amenerAuCours === 'function') amenerAuCours();
           });
         }else{
-          [bGo, bMain].forEach(b => {
+          /* ⚠️ CHAQUE BOUTON DIT CE QU'IL FAIT ENSUITE — v1013.
+
+             Les deux portaient le MÊME texte : « ↪️ Remplacer le
+             cours en route ▸ », l'un sous l'autre. Deux boutons
+             identiques, et plus rien ne disait lequel dicte et
+             lequel se remplit à la main — alors que c'est le seul
+             choix que cette carte propose. Le remplacement n'est
+             que la première moitié du geste ; la seconde moitié
+             était effacée au moment précis où elle devenait un
+             choix à l'aveugle.
+
+             ⚠️ ET LE TEXTE D'AVANT RESTE LA SOURCE. « bMain » ne
+             dit pas la même chose pour un rendez-vous post-permis
+             que pour un bilan manuel (voir majDepart) : on ne
+             réécrit donc pas son verbe, on le préfixe. */
+          const remplacer = (b, verbe) => {
             if(b.style.display === 'none') return;
             b.classList.add('remplace');
-            b.textContent = '↪️ Remplacer le cours en route ▸';
-          });
+            b.textContent = '↪️ Remplacer, puis ' + verbe + ' ▸';
+          };
+          remplacer(bGo, 'dicter');
+          remplacer(bMain, bMain.dataset.rdv
+            ? 'ouvrir le rendez-vous' : 'remplir à la main');
+
           const raison = document.createElement('div');
           raison.className = 'raisonRemplace';
           raison.textContent = enRoute.eleve +
@@ -4206,6 +4225,18 @@ function boutonDuCours(){
 }
 
 function amenerAuCours(){
+  /* ⚠️ ON REVIENT AU COURS, DONC IL DOIT ÊTRE VISIBLE — v1013.
+     Depuis « ← Mes cours », l'écran du cours est rangé derrière la
+     journée : viser un bouton masqué ne ramène personne, et le
+     défilement partirait vers rien.
+
+     C'est ICI et nulle part ailleurs, parce que c'est ici que
+     passent les trois chemins du retour : le bandeau « Y revenir »,
+     la carte « ⏺ Revenir au cours », et chargerPrepare quand on
+     ouvre un autre cours par-dessus. Une parade posée chez chacun
+     des trois est une parade qu'on oublie chez le quatrième. */
+  if(typeof montrerLeCoursOuvert === 'function') montrerLeCoursOuvert();
+
   const viser = () => {
     const b = boutonDuCours();
     if(!b) return false;
