@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:44 — v1018 */
+/* Déployé le 17/09/2026 à 16:00 — v1025 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -6371,7 +6371,44 @@ function recapDuCours(q, eleve, modeleCle, fiche){
     ? vehiculeImposeParLaFormation(formation) : '';
   if(vImp) pose('🚗', 'Véhicule imposé', vImp, false);
 
-  if(imposee === null) pose('📏', 'Frise', frise, !frise);
+  /* ═══ v1025 : QUAND L'EXAMEN EST PRIS, LA FRISE N'EST PLUS LA
+     QUESTION.
+
+     David, le 17 septembre, capture à l'appui : « quand un examen
+     est prévu, mettre uniquement le nombre d'heures restant comme
+     dans la phrase verte ».
+
+     La frise est le PROGRAMME — « 3 leçons de 2 heures + simu nuit
+     et risques + 1 leçon de 2 heures + 1h formation accompagnateur
+     + 2h rendez-vous préalable ». Elle mangeait à elle seule trois
+     lignes de la carte du cours, sur un écran de tablette, pendant
+     un cours. Une fois la date posée, ce que le moniteur cherche
+     des yeux n'est plus le programme : c'est ce qui RESTE.
+
+     ⚠️ ET CE SONT LES MOTS DE LA PHRASE VERTE, PAS LES MIENS.
+     resultatExamenBlanc (ec-avant-cours.js) les écrit déjà en haut
+     du bloc d'avant-cours — « ✅ plus que les 3h avant examen »,
+     « ⏳ encore 2 leçon(s) avant examen », « ⛔ pas le niveau ». En
+     recalculer un second ici, ce serait deux nombres pour une
+     seule question, et le jour où l'un bouge l'autre ment.
+
+     ⚠️ LA NOTE VIDE EST VOLONTAIRE : on demande ce que la FICHE DE
+     SUIVI sait aujourd'hui, pas ce que la note d'un cours d'il y a
+     trois semaines répétait. C'est le même appel que
+     noteAvecResultatExamenBlanc.
+
+     ⚠️ ET SEULEMENT SI ELLE RÉPOND. Sans réserve connue, la frise
+     reste : mieux vaut le programme entier qu'un blanc. */
+  const examDeja = (c.examPermis === 'passe');
+  const jourExamen = (typeof dateCourte === 'function')
+    ? dateCourte(dit(c.examDate)) : dit(c.examDate);
+  const resteAvantExamen = (jourExamen && !examDeja &&
+                            typeof resultatExamenBlanc === 'function')
+    ? resultatExamenBlanc(eleve, {}) : null;
+
+  if(resteAvantExamen){
+    pose(resteAvantExamen.emoji, 'Avant examen', resteAvantExamen.texte, false);
+  }else if(imposee === null) pose('📏', 'Frise', frise, !frise);
   else if(imposee) pose('📏', 'Frise', imposee, false);
 
   if(typeof leconCompteDansLaFrise === 'function' &&
@@ -6396,9 +6433,19 @@ function recapDuCours(q, eleve, modeleCle, fiche){
     /* Un examen déjà passé porte une date lui aussi : sans le mot
        « ajourné », le récapitulatif l'annonçait comme une date à
        venir. */
-    const ep = (c.examPermis === 'passe')
-             ? 'ajourné' + (dit(c.examDate) ? ' le ' + dit(c.examDate) : '')
-             : dit(c.examDate) ? 'le ' + dit(c.examDate)
+    /* ═══ v1025 : « 2026-09-22 » est une date de machine.
+
+       David : « déjà mettre la date dans le bon format ». Elle
+       sortait telle qu'elle arrive de la fiche de suivi, en ISO, au
+       milieu d'une ligne que le moniteur lit en roulant.
+
+       dateCourte (ec-permis-listes.js) fait déjà exactement ça
+       ailleurs, et laisse passer sans y toucher ce qui n'est pas de
+       l'ISO — une date déjà française n'est pas retournée deux
+       fois. Une conversion écrite ici aurait été la deuxième. */
+    const ep = examDeja
+             ? 'ajourné' + (jourExamen ? ' le ' + jourExamen : '')
+             : jourExamen ? 'le ' + jourExamen
              : (c.examPermis === 'non' ? 'pas de date' : dit(c.examPermis));
     pose('📅', 'Examen officiel', ep, !ep);
   }
