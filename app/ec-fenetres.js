@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 10:29 — v990 */
+/* Déployé le 17/09/2026 à 10:06 — v1015 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1072,6 +1072,73 @@ function chercherEleves(q, max){
   });
 
   return max ? vus.slice(0, max) : vus;
+}
+
+
+/* ============================================================
+   LA LIGNE D'UN ÉLÈVE TROUVÉ — ÉCRITE UNE FOIS, POUR LES DEUX
+
+   David, capture de son répertoire à l'appui : « qu'on puisse
+   cliquer sur le nom pour aller directement de le dossier élève
+   plutôt que d'ouvrir un pop et ensuite cliquer sur ouvrir son
+   dossier ».
+
+   La loupe et le champ du dossier cherchaient déjà avec la même
+   règle — chercherEleves() — mais DESSINAIENT le résultat chacune
+   de son côté : la loupe une carte avec un bouton dedans, le
+   dossier un bouton avec du gras dedans. Deux écritures d'une même
+   ligne, et c'est toujours la deuxième qu'on oublie de corriger.
+
+   ⚠️ LA LIGNE EST LE BOUTON. Pas une carte qui contient un bouton :
+   sur un téléphone, une zone cliquable qui en contient une autre,
+   c'est un tap qui tombe à côté une fois sur trois.
+
+   UNE SEULE PASTILLE, D'UNE SEULE COULEUR. La règle de la maison
+   vaut ici aussi : une couleur veut dire quelque chose, ou elle
+   n'existe pas. Colorer les initiales par élève ferait chercher un
+   sens qui n'y est pas.
+   ============================================================ */
+
+/* « Blanchard David » → « BD ». Un seul mot → ses deux premières
+   lettres, plutôt qu'une lettre seule perdue dans un rond. */
+function initialesEleve(nom){
+  const mots = String(nom || '').trim().split(/\s+/).filter(Boolean);
+  if(!mots.length) return '?';
+  if(mots.length === 1) return mots[0].slice(0, 2).toUpperCase();
+  return (mots[0][0] + mots[mots.length - 1][0]).toUpperCase();
+}
+
+function ligneEleveTrouve(nom, quandOnClique){
+  const f = (typeof ficheDe === 'function') ? (ficheDe(nom) || {}) : {};
+
+  const b = document.createElement('button');
+  b.className = 'ligneEleve';
+  b.type = 'button';
+
+  const rond = document.createElement('span');
+  rond.className = 'ligneEleveRond';
+  rond.textContent = initialesEleve(nom);
+  b.appendChild(rond);
+
+  /* textContent, pas innerHTML : un nom saisi à la main peut
+     contenir n'importe quoi, et il n'a rien à dire au navigateur. */
+  const t = document.createElement('span');
+  t.className = 'ligneEleveNom';
+  t.textContent = nom;
+  b.appendChild(t);
+
+  /* La formation à droite, comme la catégorie de permis dans son
+     répertoire. Absente, elle ne laisse pas de trou : c'est une
+     information qui manque, pas une colonne vide. */
+  if(String(f.formation || '').trim()){
+    const c = document.createElement('span');
+    c.className = 'ligneEleveForm';
+    c.textContent = String(f.formation).trim();
+    b.appendChild(c);
+  }
+
+  b.addEventListener('click', () => quandOnClique(nom));
+  return b;
 }
 
 
