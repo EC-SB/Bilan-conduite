@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 13:53 — v1020 */
+/* Déployé le 17/09/2026 à 14:19 — v1022 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -937,16 +937,51 @@ function proposerBrouillonServeur(b, combien){
 
    Rend l'objet quand il y a du contenu, null sinon.
    ============================================================ */
+/* ⚠️ « IL Y A QUELQUE CHOSE DEDANS ? » — ET JE ME SUIS FAIT AVOIR
+   DEUX FOIS PAR LA MÊME QUESTION.
+
+   Première version : « (o.saisies || o.champs) ». Un tableau vide
+   est vrai en JavaScript : ça passait.
+
+   Deuxième version, écrite pour réparer la première :
+   « champs[k] !== '' && !== undefined && !== null ». David a envoyé
+   la vraie cellule de Loubna Harouni :
+
+       "champs": { "resume": "", "manoeuvres": [] }
+
+   « manoeuvres: [] » passe les TROIS tests. Une dictée repartait
+   donc encore en formulaire manuel vide — dans la fonction même
+   que j'avais écrite pour l'empêcher.
+
+   La leçon : « ce n'est pas vide » ne se teste pas par une liste de
+   valeurs interdites. Il n'y en a jamais assez, et on en oublie
+   toujours une. On dit ce qu'on ACCEPTE, une fois, ici. */
+function aQuelqueChoseDedans(v){
+  if(v === null || v === undefined) return false;
+  if(typeof v === 'string') return v.trim() !== '';
+  if(typeof v === 'number') return true;
+  if(typeof v === 'boolean') return v;
+  if(Array.isArray(v)) return v.some(aQuelqueChoseDedans);
+  if(typeof v === 'object'){
+    return Object.keys(v).some(k => aQuelqueChoseDedans(v[k]));
+  }
+  return false;
+}
+
 function ficheDuBrouillon(brut){
   try{
     const o = JSON.parse(brut || 'null');
     if(!o) return null;
 
+    /* ⚠️ « quest » NE COMPTE PAS, ET C'EST TOUTE L'AFFAIRE. Le
+       questionnaire est rempli sur TOUS les cours, dictée comprise :
+       le prendre pour une fiche, c'est précisément la faute qu'on
+       répare depuis ce matin. Seules les réponses de la FICHE font
+       une fiche — les cases de la page, et les boutons ✅/❌ qui ne
+       vivent que dans la mémoire de l'écran. */
     const desSaisies = Array.isArray(o.saisies) &&
-      o.saisies.some(x => x && String(x.valeur || '').trim());
-    const desChamps = !!o.champs && Object.keys(o.champs)
-      .some(k => o.champs[k] !== '' && o.champs[k] !== undefined &&
-                 o.champs[k] !== null);
+      o.saisies.some(x => x && aQuelqueChoseDedans(x.valeur));
+    const desChamps = aQuelqueChoseDedans(o.champs);
 
     return (desSaisies || desChamps) ? o : null;
   }catch(e){ return null; }
