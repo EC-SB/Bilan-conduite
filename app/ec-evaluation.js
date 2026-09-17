@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 17/09/2026 à 12:28 — v1017 */
 /* ============================================================
    ec-evaluation.js
    Le calculateur d'évaluation de départ.
@@ -24,31 +24,28 @@ const AJOUT_BEA = 4;
 /* Les heures de voiture obligatoires, quelle que soit la boîte */
 const HEURES_OBLIGATOIRES = 11;
 
-/* Le devis, ligne à ligne. « simu » et « conduite2h » prennent
-   la valeur calculée ; les autres sont fixes. */
-const LIGNES_DEVIS = [
-  { nom:'Cours théorie de la conduite 1h',            q:3,      pu:37 },
-  { nom:'Simulateur avec moniteur 1h',                q:'simu', pu:45 },
-  { nom:'Conduite 2h',                                q:'c2h',  pu:118 },
-  { nom:'Conduite 1h',                                q:1,      pu:59 },
-  { nom:'Simulateur prévention des risques 1h',       q:1,      pu:45 },
-  { nom:'Simulateur conduite de nuit 1h',             q:1,      pu:45 },
-  { nom:'Vérifications',                              q:1,      pu:24 },
-  { nom:'Examen blanc pratique 1h30',                 q:1,      pu:88.5 },
-  { nom:'Écoute pédagogique 2h',                      q:150,    pu:0.2 },
-  { nom:'Écoute pédagogique 1h30 examen blanc',       q:20,     pu:0 },
-  { nom:'Formation constat amiable',                  q:1,      pu:0 },
-  { nom:'Formation entretien véhicule',               q:1,      pu:0 },
-  { nom:'Accompagnement examen',                      q:1,      pu:59 },
-  { nom:'Disque A',                                   q:1,      pu:5 },
-  { nom:'Abonnement 1 an mail post permis',           q:1,      pu:5 },
-  { nom:"Livret d'apprentissage",                     q:1,      pu:10 },
-  { nom:'Accès compte en ligne',                      q:1,      pu:95 },
-  { nom:'Test de vue / anti-stress / financement',    q:1,      pu:0 },
-  { nom:'30 min post permis',                         q:1,      pu:0 },
-  { nom:'Carte SD',                                   q:1,      pu:15 },
-  { nom:'Accès salle des tablettes',                  q:1,      pu:0 }
-];
+/* ============================================================
+   ⚠️ « LIGNES_DEVIS » N'EXISTE PLUS — v1017
+
+   C'était une SECONDE liste des prestations, écrite ici, à côté de
+   celle de ec-tarifs.js. Le devis s'en servait quand les tarifs
+   n'étaient pas encore chargés.
+
+   Les deux avaient déjà divergé, et pas sur des détails : celle-ci
+   disait « Conduite 2h » là où l'autre dit « Conduite en Audi A3
+   Sportback 2h », « Livret d'apprentissage » là où l'autre dit
+   « Livret d'apprentissage OBLIGATOIRE ». ET SURTOUT elle n'avait
+   AUCUN libellé ni tarif de boîte automatique : un devis BEA calculé
+   sur elle sortait avec les libellés et les prix de la manuelle,
+   sans la moindre erreur à l'écran.
+
+   Une table des prix écrite à deux endroits est la pire des
+   duplications : on corrige le tarif là où on l'a trouvé, et c'est
+   l'autre qui part chez la famille.
+
+   Le repli est maintenant TARIFS_DEFAUT — la même table que tout le
+   reste de l'application.
+   ============================================================ */
 
 
 /* Tout ce qui découle des heures du simulateur */
@@ -90,14 +87,20 @@ function calculEvaluation(heuresBV, heuresBEA){
 
 function devisEvaluation(simu, c2h, auto){
   /* Les tarifs viennent de Gestion : ils changent sans qu'on
-     touche au calcul. */
+     touche au calcul. Et tant qu'ils ne sont pas lus, on retombe
+     sur LA table d'origine — pas sur une deuxième liste. */
   const source = (typeof tarifsPrestations !== 'undefined' && tarifsPrestations)
-    ? tarifsPrestations : LIGNES_DEVIS;
+    ? tarifsPrestations
+    : ((typeof TARIFS_DEFAUT !== 'undefined') ? TARIFS_DEFAUT : []);
 
   const lignes = source.map(l => {
     const variable = (l.q === 'simu' || l.q === 'c2h');
     const q = (l.q === 'simu') ? simu : (l.q === 'c2h') ? c2h : l.q;
-    /* Chaque boîte a son libellé et son tarif */
+    /* Chaque boîte a son libellé et son tarif. Le repli sur la
+       manuelle reste voulu : la plupart des prestations sont les
+       mêmes dans les deux boîtes (la carte SD, le livret). Ce qui
+       ne l'était pas, c'est de replier une liste ENTIÈRE sans
+       aucun libellé automatique — voir completerLesDeuxBoites. */
     const nom = auto ? (l.nomA || l.nom) : l.nom;
     const pu = auto ? ((l.puA !== undefined) ? l.puA : l.pu) : l.pu;
     return { nom: nom, q: q, pu: pu, total: q * pu,
