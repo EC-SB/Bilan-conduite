@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:20 — v1005 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -723,6 +723,39 @@ function defautsDepuisNote(note){
     const n = (note || '').match(/reprogrammé le ([^—·]+)/i);
     if(n){ const iso = dateFrVersIso(n[1]); if(iso) d.nouvelleDate = iso; }
   }
+
+  /* ============================================================
+     ⚠️ L'ANCRE DU DÉCOMPTE, RELUE DANS LA MÊME NOTE — v1014
+
+     David, le 17 septembre : « quand j'ai mis dans leçon restante
+     avant examen sous la case de la date de l'examen officiel, j'ai
+     l'impression que ça ne bouge pas ».
+
+     Le nombre était bien relu ; son ANCRE, jamais. « encore 3
+     leçons » ne veut rien dire tout seul — il faut savoir à quelle
+     leçon il a été dit, sinon on ne peut pas soustraire. Cette
+     ancre ne vivait que dans le contexte JSON du cours préparé, et
+     ce contexte ne se transmet que par la préparation de la veille,
+     laquelle n'est gardée que sept jours. Un élève qui vient tous
+     les quinze jours la perdait à chaque fois — et le questionnaire
+     la reposait alors sur la leçon du jour, avec l'ancien nombre :
+     le compteur repartait pour trois.
+
+     ⚠️ ET ELLE ÉTAIT DÉJÀ DANS LA NOTE, À DEUX LIGNES DE LÀ. La
+     même note dit « 14ème leçon » et « encore 3 leçons + 3h avant
+     examen » : les deux moitiés du fait sont écrites ensemble, par
+     la même fonction, au même instant. Rien à ranger de plus, rien
+     à recopier — il suffisait de les lire ensemble.
+
+     ⚠️ ET LE CONTEXTE GARDE LE DERNIER MOT. Ce qui est relu ici est
+     un DÉFAUT : partout où les deux se rencontrent, le contexte du
+     cours recouvre la note (voir la construction de « prec » et
+     « fusionnerContexte »). Une ancre plus fraîche l'emporte donc
+     toujours sur celle-ci.
+     ============================================================ */
+  if(d.examPermisN !== undefined && a.lecon){
+    d.examPermisNRang = String(a.lecon);
+  }
   const n = String(note || '');
   const aj = analyserNote(n);
   if(aj.repassages){
@@ -821,6 +854,15 @@ function defautsDepuisNote(note){
       const iso = (typeof dateFrVersIso === 'function')
         ? dateFrVersIso(m[1].trim()) : '';
       if(iso) d.examDate = iso;
+      /* ⚠️ ET LES LEÇONS QUI LUI RESTENT DEVANT — v1014. Un ajourné
+         qui reprend a un nombre de leçons à faire avant de
+         repasser, et le moniteur le tape sous la date d'examen. Il
+         n'était écrit nulle part et donc relu nulle part : ce qu'il
+         tapait ne vivait que dans le contexte de ce cours-là. */
+      if(a.permisN !== null && a.permisN !== undefined){
+        d.examPermisN = String(a.permisN);
+        if(a.lecon) d.examPermisNRang = String(a.lecon);
+      }
     }
   }
 
@@ -5899,16 +5941,25 @@ function ajouterSuite(etats, permis, mots, q){
      dernier examen passé. Voir examenDejaPasse(). */
   const examPasse = examenDejaPasse(q);
 
+  /* ⚠️ LES LEÇONS QUI RESTENT, ÉCRITES UNE SEULE FOIS — v1014.
+
+     Deux lignes les portent : l'examen prévu, et l'ajourné qui
+     reprend la conduite. Deux écritures de la même mention, et le
+     lecteur n'en reconnaîtrait qu'une — ce qui était exactement le
+     cas pour les élèves ajournés, dont le nombre n'était écrit
+     nulle part. Une phrase, deux endroits qui l'appellent. */
+  const mentionAvantExamen = (np) => {
+    const s = String(np === undefined || np === null ? '' : np).trim();
+    if(!s) return '';
+    return (parseInt(s, 10) === 0)
+      ? ' — plus que les 3h avant examen'
+      : ' — encore ' + s + ' leçon' + pl(s) + ' + 3h avant examen';
+  };
+
   if(q.examPermis === 'prevu' && q.examDate && !examPasse){
-    let phrase = EXAMEN_PREVU + ' ' +
-                 majusculeNote(dateEnToutesLettres(q.examDate)) + passage;
-    const np = q.examPermisN;
-    if(np){
-      phrase += (parseInt(np, 10) === 0)
-        ? ' — plus que les 3h avant examen'
-        : ' — encore ' + np + ' leçon' + pl(np) + ' + 3h avant examen';
-    }
-    permis.push(phrase);
+    permis.push(EXAMEN_PREVU + ' ' +
+                majusculeNote(dateEnToutesLettres(q.examDate)) + passage +
+                mentionAvantExamen(q.examPermisN));
   }else if(q.examPermis === 'annule'){
     let phrase = EXAMEN_SANS_DATE + passage + (q.examDate
       ? ' — celui du ' + dateEnToutesLettres(q.examDate) + ' est annulé'
@@ -5923,12 +5974,21 @@ function ajouterSuite(etats, permis, mots, q){
        La ligne dit les deux choses que le bureau cherche : quand il
        a été ajourné, et qu'il reprend. Sans la seconde, on lit une
        vieille note ; sans la première, on croit qu'il n'y est
-       jamais allé. */
+       jamais allé.
+
+       ⚠️ ET COMBIEN DE LEÇONS IL LUI RESTE — v1014. Un ajourné qui
+       reprend a lui aussi un nombre de leçons devant lui, et le
+       moniteur le tape sous la date d'examen. Il n'était écrit
+       nulle part : ce qu'il tapait ne vivait que dans le contexte
+       de ce cours-là, et disparaissait au premier cours sans
+       préparation. C'est le cas que David a nommé le 17 septembre —
+       « les élèves en CS qui ont eu un post-permis ». */
     permis.push(EXAMEN_SANS_DATE + passage +
       (q.examDate ? ' — dernier examen le ' + dateEnToutesLettres(q.examDate) +
                     ', ajourné'
                   : ' — déjà passé, ajourné') +
-      ' — reprend la conduite — à reprogrammer');
+      ' — reprend la conduite — à reprogrammer' +
+      mentionAvantExamen(q.examPermisN));
   }else if(q.examPermis === 'nonplanifiable'){
     /* Le bureau le retrouve dans Permis → Pas prêts grâce à cette
        mention : elle est le seul repère, elle doit rester stable. */
