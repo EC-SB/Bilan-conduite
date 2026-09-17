@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 17/09/2026 à 08:47 — v1013 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -756,31 +756,147 @@ function todayLocal(){
 /* Contrôles préalables — sans toucher au micro :
    sur Android, ouvrir puis fermer le micro juste avant la dictée
    empêche la reconnaissance de capter le son. */
-/* Contexte requis pour ENREGISTRER un cours (micro nécessaire) */
-function verifierContexte(){
+/* ============================================================
+   CE QUI MANQUE POUR DÉMARRER — v1013
+
+   ⚠️ UN REFUS DIT AUSSI OÙ IL EST.
+
+   David, le 17 septembre : « comme ils ne mettent pas le nom, ils
+   insistent et s'énervent ». Ils avaient raison d'insister : le
+   bouton ne faisait RIEN de visible. La phrase du refus existait
+   depuis toujours — elle était posée dans la petite ligne grise
+   sous le bouton, celle que personne ne lit à bout de bras dans
+   une voiture.
+
+   Pour la montrer, il ne suffit pas de l'avoir : il faut savoir
+   QUEL champ mettre en rouge. Le texte et le champ sortent donc
+   d'ici ENSEMBLE. Les écrire à deux endroits, c'est s'exposer à
+   montrer le champ du nom pour un refus de date — et un doigt
+   posé sur le mauvais champ est pire qu'aucun doigt.
+
+   · « phrase » — le détail, pour la ligne d'état ;
+   · « court » — ce qui tient sur un bouton ;
+   · « champ » — celui qu'on allume, vide pour ce qui ne se
+     corrige dans aucun champ (un micro absent, par exemple).
+   ============================================================ */
+function cequiManqueAuDepart(){
+  const nom = $('studentName').value.trim();
+  if(nom.length < 2){
+    return { champ: 'studentName', court: "Il manque le nom de l'élève",
+             phrase: "Saisis le nom et le prénom de l'élève avant de démarrer." };
+  }
+  if(nom.split(/\s+/).length < 2){
+    return { champ: 'studentName', court: "Il manque le prénom ou le nom",
+             phrase: "Il faut le nom ET le prénom de l'élève." };
+  }
+  if(!$('modele').value){
+    return { champ: 'modele', court: 'Choisis un type de bilan',
+             phrase: 'Choisis un type de bilan.' };
+  }
+  if(!$('lessonDate').value){
+    return { champ: 'lessonDate', court: 'Choisis la date du cours',
+             phrase: 'Choisis la date du cours.' };
+  }
+  return null;
+}
+
+/* Ce qui empêche de DICTER : le micro d'abord, puis tout ce qui
+   empêche déjà de démarrer. */
+function cequiEmpecheDeDicter(){
   if(!window.isSecureContext){
-    return 'La page doit être ouverte en https:// pour accéder au micro.';
+    return { champ: '', court: 'Micro indisponible',
+             phrase: 'La page doit être ouverte en https:// pour accéder au micro.' };
   }
   if(!SR){
-    return 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.';
+    return { champ: '', court: 'Micro indisponible',
+             phrase: 'Reconnaissance vocale indisponible. Utilise Chrome sur Android.' };
   }
-  return verifierEleve();
+  return cequiManqueAuDepart();
+}
+
+/* ⚠️ LES TROIS ANCIENNES PORTES RESTENT, ET NE SONT PLUS QUE DES
+   VUES. Une dizaine d'appelants attendent une phrase ; leur faire
+   attendre un objet, c'était dix endroits à changer pour une
+   information qu'ils ne demandent pas. Elles ne peuvent plus
+   diverger : elles ne savent plus rien toutes seules. */
+function verifierContexte(){
+  const m = cequiEmpecheDeDicter();
+  return m ? m.phrase : null;
 }
 
 /* Sans élève identifié, le bilan ne peut être rattaché à personne */
 function verifierEleve(){
-  const nom = $('studentName').value.trim();
-  if(nom.length < 2) return "Saisis le nom et le prénom de l'élève avant de démarrer.";
-  if(nom.split(/\s+/).length < 2) return "Il faut le nom ET le prénom de l'élève.";
-  if(!$('modele').value) return 'Choisis un type de bilan.';
-  if(!$('lessonDate').value) return 'Choisis la date du cours.';
-  return null;
+  const m = cequiManqueAuDepart();
+  return m ? m.phrase : null;
 }
 
 /* Contexte requis pour un bilan à remplir à la main : aucun micro,
    donc rien n'empêche de s'en servir sur n'importe quel navigateur. */
 function verifierContexteManuel(){
   return verifierEleve();
+}
+
+/* ============================================================
+   LE REFUS SE VOIT — v1013
+
+   ⚠️ UNE SEULE PORTE POUR LES DEUX BOUTONS. Le bouton vert
+   refusait en silence — une ligne grise sous lui — et l'orange
+   par un toast qui passe. Deux refus pour la même faute, et c'est
+   celui qu'on voit le moins qui sert le plus souvent.
+
+   Trois choses arrivent ensemble, et c'est ce qui les rend
+   lisibles : le champ s'allume en rouge, l'écran y descend, et le
+   bouton dit ce qui manque — puis redevient lui-même.
+
+   ⚠️ LE BOUTON RETROUVE SON PROPRE TEXTE, PAS UN TEXTE CONNU.
+   Le vert dit « Démarrer le cours », l'orange « Bilan à remplir à
+   la main », celui d'une carte dit encore autre chose. Écrire le
+   retour en dur, c'est renommer un bouton sur trois.
+   ============================================================ */
+const REFUS_DUREE = 2200;
+
+function refuserLeDepart(bouton, manque){
+  if(!manque) return false;
+
+  /* La phrase reste où elle a toujours été : c'est elle qui donne
+     le détail, le bouton n'a la place que de l'essentiel. */
+  const ligne = (typeof $ === 'function') ? $('status') : null;
+  if(ligne) ligne.textContent = manque.phrase;
+
+  const champ = (manque.champ && typeof $ === 'function') ? $(manque.champ) : null;
+  if(champ){
+    champ.classList.add('champManquant');
+    /* On amène l'écran AVANT de donner le clavier : sur un
+       téléphone, le focus fait déjà défiler de son côté, et les
+       deux ensemble font sauter la page. */
+    try{ champ.scrollIntoView({ behavior: 'smooth', block: 'center' }); }catch(e){}
+    setTimeout(() => { try{ champ.focus(); }catch(e){} }, 220);
+
+    /* Le rouge s'éteint dès qu'il corrige : le laisser après coup,
+       c'est un champ qui accuse quelqu'un qui a déjà répondu. */
+    const eteindre = () => {
+      champ.classList.remove('champManquant');
+      champ.removeEventListener('input', eteindre);
+      champ.removeEventListener('change', eteindre);
+    };
+    champ.addEventListener('input', eteindre);
+    champ.addEventListener('change', eteindre);
+  }
+
+  if(bouton){
+    if(!bouton.dataset.avantRefus) bouton.dataset.avantRefus = bouton.textContent;
+    bouton.textContent = '⚠️ ' + manque.court;
+    bouton.classList.add('refusDuDepart');
+    clearTimeout(bouton._refus);
+    bouton._refus = setTimeout(() => {
+      bouton.textContent = bouton.dataset.avantRefus || bouton.textContent;
+      delete bouton.dataset.avantRefus;
+      bouton.classList.remove('refusDuDepart');
+    }, REFUS_DUREE);
+  }
+
+  if(typeof vibrer === 'function') vibrer();
+  return true;
 }
 
 /* Démarre la reconnaissance. sessionActive n'est JAMAIS forcé ici :
