@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 17/09/2026 à 15:26 — v1023 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -119,8 +119,13 @@ function ficheSuiviPermis(e){
     if(g('acc')) g('acc').checked = (s.accompagnement === 'oui');
     if(g('aut')) g('aut').value = s.autre || '';
     if(g('res')) g('res').value = s.reservations || '';
-    if(g('typ')) g('typ').value = s.typeExamen ||
-      ((e.boite || (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase());
+    /* ═══ v1023 : LA MÊME RÈGLE QUE PARTOUT AILLEURS.
+       Elle était recopiée ici, et une troisième fois plus bas pour
+       les places. Elle vit maintenant dans boiteConnueDe() — et le
+       « bv » par défaut est écrit en clair, parce que c'est un
+       choix de CET écran : un menu doit bien montrer quelque
+       chose. */
+    if(g('typ')) g('typ').value = boiteConnueDe(e) || 'bv';
     if(g('ae')) g('ae').value = s.autoEcole || '';
     if(g('fan')) g('fan').checked = (s.fantome === 'oui');
     if(g('ok')) g('ok').checked = (s.toutOk === 'oui');
@@ -2232,8 +2237,10 @@ function afficherPermisPrevus(tous){
     e._groupe = (s && s.groupePermis) || '';
     e._cleJour = (e._iso || e._datePermis || 'Date inconnue') +
                  (e._groupe ? ' · ' + e._groupe : '');
-    e._boite = ((s && s.typeExamen) || e.boite ||
-                (/automatique/i.test(e.type || '') ? 'bea' : 'bv')).toLowerCase();
+    /* ═══ v1023 : même porte. Le « bv » par défaut reste, car deux
+       places non renseignées doivent se regrouper ensemble plutôt
+       que de partir chacune dans son coin. */
+    e._boite = boiteConnueDe(e) || 'bv';
   });
 
   /* Le bloc « Permis prévus » a laissé la place aux sessions. La
@@ -2818,6 +2825,11 @@ function afficherExamensPermis(tous){
   per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
         replier: true,
+        /* Demandé par David le 17/09 : la boîte de vitesses se voit
+           à côté du nom, sans ouvrir la fiche. C'est la liste où on
+           place les examens — et une place BEA ne se donne pas à un
+           élève en BV. */
+        barreBoite: true,
         info: x => {
           const sv = suiviDe(x.eleve);
           const rep = sv.nbAjournements ? '🔁 ' + mentionAjournements(sv.nbAjournements).replace('🔁 ','') + ' · ' : '🆕 ';
