@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:06 — v1015 */
+/* Déployé le 17/09/2026 à 12:44 — v1018 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -53,6 +53,85 @@ function actionsLoupeDisponibles(){
     typeof aDroit !== 'function' || aDroit(a.droit));
 }
 
+
+/* ============================================================
+   ELLE CHERCHE AUSSI LES ÉCRANS — v1018
+
+   David : « la loupe ne cherche que des élèves ». Il y a
+   quarante-sept écrans derrière six onglets, et retrouver « les
+   écoutes pédagogiques » demande de savoir qu'elles sont dans
+   Suivi. On pense « écoutes », pas « quel onglet » — c'est
+   exactement la phrase qui a fait naître cette loupe.
+
+   ⚠️ LES ÉCRANS, ET PAS « TOUT ». On aurait pu y mettre les
+   véhicules, les procédures, les sessions. Chacune de ces listes
+   n'est en mémoire QUE si on a déjà ouvert son écran : la loupe
+   trouverait un véhicule le mardi et pas le lundi, sans que
+   personne puisse comprendre pourquoi. Une recherche qui ne trouve
+   que ce qu'on a déjà ouvert est pire qu'une recherche qui ne
+   cherche qu'une chose — elle donne l'air de chercher partout.
+
+   La table VUES, elle, est TOUJOURS là : elle est dans le code,
+   elle porte le droit de chaque écran, et elle ne coûte rien. Et
+   elle reste la seule : un écran ajouté demain est trouvable sans
+   que personne y pense.
+   ============================================================ */
+function ecransTrouvables(q){
+  if(typeof VUES === 'undefined' || !VUES) return [];
+
+  const cible = (typeof normaliserMot === 'function')
+    ? normaliserMot(q) : String(q || '').toLowerCase().trim();
+  if(!cible) return [];
+
+  const noms = (typeof ONGLETS_DROITS !== 'undefined')
+    ? ONGLETS_DROITS.reduce((m, o) => { m[o.cle] = o.nom; return m; }, {})
+    : {};
+
+  const out = [];
+  Object.keys(VUES).forEach(onglet => {
+    (VUES[onglet] || []).forEach(v => {
+      const cle = v[0], nom = v[1], droit = v[2];
+
+      /* Proposer un écran qu'on ne peut pas ouvrir serait pire que
+         de ne rien proposer — la même règle que pour le dossier. */
+      if(typeof aDroit === 'function'){
+        const ok = Array.isArray(droit) ? droit.some(aDroit) : aDroit(droit);
+        if(!ok) return;
+      }
+
+      /* On cherche dans le nom de l'écran ET dans celui de son
+         onglet : « permis » doit rendre les écrans de Permis. */
+      const ongletNom = noms[onglet] || onglet;
+      const dedans = s => ((typeof normaliserMot === 'function')
+        ? normaliserMot(s) : String(s).toLowerCase()).indexOf(cible) !== -1;
+
+      if(dedans(nom) || dedans(ongletNom)){
+        out.push({ onglet: onglet, vue: cle, nom: nom, ou: ongletNom });
+      }
+    });
+  });
+
+  return out.slice(0, 8);
+}
+
+
+/* Y aller. On emprunte la porte des tuiles — elle sait déjà changer
+   d'onglet puis de vue, et une deuxième façon de naviguer serait
+   celle qu'on oublie de corriger. */
+function ouvrirLEcran(x){
+  if(!x) return;
+  if(typeof ouvrirLaTuile === 'function'){
+    /* Un onglet volontairement différent du sien : c'est ce qui
+       déclenche le changement d'onglet dans ouvrirLaTuile. */
+    const depuis = (typeof ongletActif !== 'undefined' && ongletActif !== x.onglet)
+      ? ongletActif : '';
+    ouvrirLaTuile(depuis, { onglet: x.onglet, vue: x.vue });
+    return;
+  }
+  if(typeof afficherOnglet === 'function') afficherOnglet(x.onglet);
+  if(typeof afficherVue === 'function') afficherVue(x.onglet, x.vue);
+}
+
 /* Le bouton ne s'affiche que s'il mène quelque part. Un droit qui
    ne mène nulle part est pire qu'un droit refusé : on croit
    l'avoir donné. */
@@ -104,7 +183,7 @@ function ouvrirLoupe(){
   boite.innerHTML =
     '<div style="position:relative;">' +
       '<input type="text" id="loupeChamp" autocomplete="off" ' +
-        'placeholder="Chercher un élève" ' +
+        'placeholder="Un élève, un écran" ' +
         'style="margin-bottom:6px;padding-right:42px;">' +
       '<span aria-hidden="true" style="position:absolute;right:13px;top:0;' +
       'height:100%;display:flex;align-items:center;font-size:17px;' +
@@ -164,12 +243,59 @@ function ouvrirLoupe(){
      dossier » dedans. */
   const yAller = nom => { fermer(); lancerActionLoupe('dossier', nom); };
 
+  const allerALEcran = x => { fermer(); ouvrirLEcran(x); };
+
+  /* Les écrans qui correspondent, sous les élèves. Écrit une fois,
+     parce que la recherche vide, la recherche fructueuse et la
+     recherche bredouille les posent toutes les trois — et trois
+     copies d'une même liste, c'est la faute de la maison. */
+  const poserLesEcrans = () => {
+    const ecrans = (typeof ecransTrouvables === 'function')
+      ? ecransTrouvables(champ.value) : [];
+    if(!ecrans.length) return 0;
+
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:11px;color:var(--muted);font-weight:700;' +
+      'margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px;';
+    t.textContent = 'Écrans';
+    liste.appendChild(t);
+
+    ecrans.forEach(x => {
+      const b = document.createElement('button');
+      b.className = 'ligneEleve';
+      b.type = 'button';
+
+      const rond = document.createElement('span');
+      rond.className = 'ligneEleveRond';
+      /* L'emoji de l'écran plutôt que des initiales : c'est à lui
+         qu'on le reconnaît dans le menu. */
+      const emoji = (String(x.nom).match(/^\s*(\p{Extended_Pictographic}️?)/u) || [])[1];
+      rond.textContent = emoji || '▸';
+      rond.style.fontSize = '17px';
+      b.appendChild(rond);
+
+      const n = document.createElement('span');
+      n.className = 'ligneEleveNom';
+      n.textContent = String(x.nom).replace(/^\s*\p{Extended_Pictographic}️?\s*/u, '');
+      b.appendChild(n);
+
+      const ou = document.createElement('span');
+      ou.className = 'ligneEleveForm';
+      ou.textContent = x.ou;
+      b.appendChild(ou);
+
+      b.addEventListener('click', () => allerALEcran(x));
+      liste.appendChild(b);
+    });
+    return ecrans.length;
+  };
+
   const dessiner = () => {
     const q = (typeof normaliserMot === 'function')
       ? normaliserMot(champ.value) : champ.value.toLowerCase().trim();
 
     liste.innerHTML = '';
-    if(!tous.length) return;
+    if(!tous.length){ poserLesEcrans(); return; }
 
     /* Le même filtre que le répertoire et le dossier : nom, numéro,
        mail, formation, Messenger. Elle ne cherchait que dans le
@@ -187,11 +313,22 @@ function ouvrirLoupe(){
         }).slice(0, 40);
 
     if(!trouves.length){
-      /* « Rien trouvé » ne doit pas vouloir dire « il n'existe
-         pas » : cette liste est celle de CET appareil. */
-      etat.innerHTML = 'Aucun élève de ce nom <strong>dans la mémoire de ' +
-        'cet appareil</strong>. Il existe peut-être quand même — ' +
-        "cherche-le dans l'historique des leçons.";
+      /* ⚠️ ON N'ANNONCE PAS UN ÉCHEC AU-DESSUS D'UNE RÉPONSE.
+
+         « Rien trouvé » ne doit pas vouloir dire « il n'existe
+         pas » : cette liste est celle de CET appareil, et ces trois
+         lignes-là sont justes... quand on cherchait un élève.
+
+         Quand on tape « écoutes », on ne cherche pas un élève. Les
+         voir s'afficher en gros au-dessus de l'écran qu'on
+         demandait, c'est se faire répondre « non » avant le « oui ».
+         On ne garde alors qu'une ligne, et la réponse dessous. */
+      const combien = poserLesEcrans();
+      etat.innerHTML = combien
+        ? 'Aucun élève de ce nom — mais un écran, oui :'
+        : 'Aucun élève de ce nom <strong>dans la mémoire de ' +
+          'cet appareil</strong>. Il existe peut-être quand même — ' +
+          "cherche-le dans l'historique des leçons.";
       return;
     }
 
@@ -212,6 +349,11 @@ function ouvrirLoupe(){
               return b;
             })());
     });
+
+    /* Les écrans en dessous, jamais au-dessus : on cherche un élève
+       neuf fois sur dix, et ce qu'on cherche le plus doit être sous
+       le pouce sans défiler. */
+    poserLesEcrans();
   };
 
   champ.addEventListener('input', dessiner);
