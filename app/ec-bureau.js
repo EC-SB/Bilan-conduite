@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 15:20 — v1005 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -216,7 +216,21 @@ function analyserNote(note){
 
      Zéro n'est pas « on ne sait pas » : c'est une réponse, et c'est
      la plus importante des deux. */
-  const gN = /Examen prévu le [^·\n\r]*?— (?:encore (\d+) leçon|plus que les 3h)/gi;
+  /* ⚠️ ET UN AJOURNÉ QUI REPREND A LUI AUSSI DES LEÇONS DEVANT LUI —
+     v1014.
+
+     David, le 17 septembre : « pour les élèves qui sont en CS et qui
+     ont eu un post-permis car déjà passé le permis ». Leur ligne ne
+     dit pas « Examen prévu le » — ils n'ont plus de date — elle dit
+     « dernier examen le …, ajourné — reprend la conduite ». Le motif
+     ne s'accrochait qu'à la première : le nombre qu'on tapait sous
+     la date d'examen n'était donc jamais relu pour eux, et il ne
+     pouvait pas décompter.
+
+     Les deux ancres, la même queue : c'est la queue — « + 3h avant
+     examen » — qui distingue cette ligne de celle de l'examen
+     blanc, à un segment de là. */
+  const gN = /(?:Examen prévu le|dernier examen le|ajourné le)[^·\n\r]*?— (?:encore (\d+) leçon|plus que les 3h)/gi;
   let mn, dernierN = null;
   while((mn = gN.exec(t)) !== null){
     dernierN = (mn[1] === undefined) ? 0 : +mn[1];
@@ -696,7 +710,22 @@ function champsHeuresRestantes(eleve, valeur, champs, depuis, charniere){
   majs.heuresRestantes = propre;
 
   const s = suiviDe(eleve) || {};
-  if(String(s.heuresRestantes || '').trim() === propre) return majs;
+  /* ⚠️ « LE MÊME NOMBRE » N'EST LE MÊME QUE SUR LA MÊME CHARNIÈRE —
+     v1014.
+
+     La garde ne comparait que le nombre. Or « 4 heures depuis
+     l'examen blanc » et « 4 heures depuis le rendez-vous
+     post-permis » ne sont pas la même réserve : la seconde est
+     pleine, la première est peut-être déjà consommée. En les
+     confondant, on gardait le vieux repère — et la réserve neuve
+     naissait entamée de toutes les leçons faites depuis.
+
+     Le couple entier fait donc foi, comme partout ailleurs dans ce
+     dossier : un rang sans son unité ne désigne rien. */
+  const repereActuel = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+  const memeCharniere = (String(charniere || 'eb') || 'eb') === repereActuel.quoi;
+  if(String(s.heuresRestantes || '').trim() === propre && memeCharniere) return majs;
 
   /* Effacer n'est pas dire : un nombre retiré n'a plus d'auteur. */
   if(propre === ''){
