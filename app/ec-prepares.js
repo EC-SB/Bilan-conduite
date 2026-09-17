@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 17/09/2026 à 10:47 — v1016 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3723,6 +3723,42 @@ async function reprendreBilanExamen(eleve, opts){
   }
 }
 
+/* ============================================================
+   LE COMPTE RENDU DU RENDEZ-VOUS, TEL QU'ON LE RELIRA
+
+   David, le 17 septembre 2026 : « je ne les retrouve pas dans
+   l'historique des cours ». Il n'y avait rien à retrouver — le
+   rendez-vous ne laissait aucune ligne, seulement des champs
+   éparpillés dans la fiche de suivi.
+
+   ⚠️ LES MÊMES TITRES QU'À L'ÉCRAN. Le moniteur a rempli quatre
+   cases nommées ; six mois plus tard il relit un texte. Si les
+   noms changent en chemin, il ne sait plus laquelle il lit — et
+   rebâtir un vocabulaire pour l'historique serait une deuxième
+   façon de dire les mêmes choses.
+
+   Une partie vide ne laisse pas son titre : un intertitre sans
+   texte dessous fait croire à une réponse perdue.
+
+   Prend un objet simple, rend une chaîne : elle se relit, et elle
+   s'exécute dans un test sans écran.
+   ============================================================ */
+function compteRenduDuRdvPost(c){
+  const bout = (titre, texte) => {
+    const t = String(texte || '').trim();
+    return t ? titre + '\n' + t : '';
+  };
+
+  return [
+    '🏁 RENDEZ-VOUS POST-PERMIS',
+    String((c && c.conclusion) || '').trim(),
+    bout("📄 Bilan d'examen officiel", c && c.bilanExamen),
+    bout("📝 Bilan écrit par l'élève", c && c.bilanEleve),
+    bout('✍️ Remarques et compléments du moniteur', c && c.texteMoniteur),
+    bout('💬 Commentaire pour le bureau', c && c.commentaire)
+  ].filter(x => x).join('\n\n');
+}
+
 async function terminerRdvPost(){
   if(!rdvPostEnCours) return;
   const suite = $('rdvPostSuite').value;
@@ -3797,27 +3833,98 @@ async function terminerRdvPost(){
 
     await majSuivi(eleve, aEnvoyer);
 
-    /* Le compte rendu est dans le suivi : le brouillon du serveur
-       n'a plus lieu d'être, sinon 🩹 Cours non terminés réclamerait
-       un rendez-vous qui est fait. */
-    if(typeof retirerBrouillonServeur === 'function'){
-      retirerBrouillonServeur(eleve);
-    }
-
     /* Le bureau est informé, et la note oriente les listes */
     const conclusion = libelleSuite(suite) +
       (suite !== 'impossible' && heures ? ' — ' + heures + 'h à faire' : '');
 
-    if(suite === 'impossible'){
-      await envoyerConsigne(eleve, 'permis',
-        'Rendez-vous post-permis fait — ⛔ pas de repassage pour le moment. ' +
-        'Reprise des leçons avant de se décider.' +
-        ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
-    }else{
-      await envoyerConsigne(eleve, 'permis',
-        'Rendez-vous post-permis fait — ' + conclusion +
-        " · Date d'examen à prévoir" +
-        ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+    /* ============================================================
+       ⚠️ ET IL LAISSE UNE LIGNE DANS L'HISTOIRE — v1016
+
+       David, le 17 septembre : « les rendez-vous post permis sont
+       encore dans cours non terminés alors qu'ils ont été terminés
+       et je ne les retrouve pas dans l'historique des cours, par
+       contre le résultat remonte bien ».
+
+       Le résultat remontait par le suivi ; le COURS, lui, n'était
+       écrit nulle part. Ce rendez-vous dure une heure, il produit
+       quatre textes et une décision — et il ne laissait aucune
+       trace relisible. Le code le savait déjà, d'ailleurs : « Le
+       rendez-vous post-permis ne laisse AUCUN bilan (…) impossible
+       de le repérer comme une position dans l'historique — il faut
+       compter depuis SA DATE » (ec-questionnaire.js). Il existe même
+       un motif, RE_TYPE_RDV_POST, qui cherche cette ligne depuis
+       toujours. Elle n'avait simplement jamais été écrite.
+
+       ⚠️ ET ELLE NE COMPTE PAS COMME UNE LEÇON. Vérifié des deux
+       côtés : le classeur n'incrémente que sur « Conduite » ou
+       « AAC » (etatEleves), et estUneLecon applique la même règle
+       au libellé. « RDV post-permis » n'est ni l'un ni l'autre —
+       comme l'examen blanc et l'examen officiel, qui ont leur ligne
+       sans faire avancer le compteur.
+
+       ⚠️ ELLE PART AVANT LE BROUILLON, PAS APRÈS. C'est
+       envoyerLigneDeBilan qui dit au serveur que le cours est fini ;
+       si l'envoi échoue, le rendez-vous doit RESTER dans 🩹 Cours
+       non terminés avec sa dictée, pas disparaître des deux listes
+       à la fois.
+       ============================================================ */
+    let ligneEcrite = false;
+    try{
+      const envoi = await envoyerLigneDeBilan({
+        date: (typeof dateCourteDuJour === 'function')
+          ? dateCourteDuJour(rdvPostEnCours.date || '') : (rdvPostEnCours.date || ''),
+        site: rdvPostEnCours.site || ($('site') ? $('site').value : ''),
+        monitorName: ACCES.moniteur || rdvPostEnCours.moniteur || '',
+        studentName: eleve,
+        typeBilan: (MODELES['rdv-post'] || {}).label || 'RDV post-permis',
+        noteInterne: '',
+        boite: '', ants: '', manoeuvres: '',
+        horodatage: (typeof horodatageLisible === 'function')
+          ? horodatageLisible(null) : '',
+        bilan: compteRenduDuRdvPost({
+          conclusion: conclusion,
+          bilanExamen: majs.bilanExamen,
+          bilanEleve: majs.bilanEleve,
+          texteMoniteur: majs.texteMoniteur,
+          commentaire: majs.commentaireMoniteur
+        })
+      });
+      ligneEcrite = !!(envoi && envoi.ok);
+    }catch(e){
+      /* Le suivi est écrit, la décision est prise : on ne perd pas
+         le rendez-vous parce que le classeur n'a pas répondu. On le
+         dit, et la dictée reste là où on peut la reprendre. */
+      console.warn('Ligne du rendez-vous post-permis non écrite :', e);
+    }
+
+    /* Le compte rendu est au classeur ET dans le suivi : le
+       brouillon du serveur n'a plus lieu d'être, sinon 🩹 Cours non
+       terminés réclamerait un rendez-vous qui est fait. Tant que la
+       ligne n'est pas passée, il reste — c'est la seule copie du
+       travail. */
+    if(ligneEcrite && typeof retirerBrouillonServeur === 'function'){
+      retirerBrouillonServeur(eleve);
+    }
+
+    /* ⚠️ UNE SEULE FOIS, MÊME SI ON RÉESSAIE. L'écran reste
+       maintenant ouvert quand la ligne du classeur n'est pas
+       passée, et le moniteur peut rappuyer : le suivi se réécrit
+       par-dessus lui-même sans dommage, mais une consigne, elle,
+       s'EMPILE. Le bureau verrait deux fois le même rendez-vous et
+       croirait à deux rendez-vous. */
+    if(!rdvPostEnCours.consigneEnvoyee){
+      if(suite === 'impossible'){
+        await envoyerConsigne(eleve, 'permis',
+          'Rendez-vous post-permis fait — ⛔ pas de repassage pour le moment. ' +
+          'Reprise des leçons avant de se décider.' +
+          ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+      }else{
+        await envoyerConsigne(eleve, 'permis',
+          'Rendez-vous post-permis fait — ' + conclusion +
+          " · Date d'examen à prévoir" +
+          ($('rdvPostCom').value.trim() ? ' · ' + $('rdvPostCom').value.trim() : ''));
+      }
+      rdvPostEnCours.consigneEnvoyee = true;
     }
 
     /* Le cours préparé n'a plus lieu d'être */
@@ -3825,15 +3932,34 @@ async function terminerRdvPost(){
       try{ await appelPrep({ action: 'prepDelete', id: rdvPostEnCours.id }); }catch(e){}
     }
 
-    msg.style.color = 'var(--accent-text)';
-    msg.textContent = '✅ ' + conclusion + ' — le bureau est informé.';
-    showToast('Rendez-vous terminé ✅');
+    /* ⚠️ ON NE DIT PAS « ENREGISTRÉ » QUAND LA LIGNE N'EST PAS
+       PASSÉE. La décision est prise et le bureau est prévenu — ça,
+       c'est fait. Mais le compte rendu n'est pas au classeur, et le
+       moniteur doit le savoir tout de suite : c'est le seul moment
+       où il a encore ses textes sous les yeux. */
+    msg.style.color = ligneEcrite ? 'var(--accent-text)' : 'var(--warn-text)';
+    msg.textContent = ligneEcrite
+      ? '✅ ' + conclusion + ' — le bureau est informé.'
+      : '⚠️ ' + conclusion + ' — le bureau est informé, mais le compte ' +
+        "rendu n'a pas pu être écrit dans l'historique. Garde cet écran " +
+        'ouvert et réessaie, ou préviens le bureau.';
+    showToast(ligneEcrite ? 'Rendez-vous terminé ✅'
+                          : '⚠️ Compte rendu non écrit à l’historique');
+
+    await afficherPrepares();
+
+    /* ⚠️ UN ÉCRAN QUI SE REFERME SUR UN AVERTISSEMENT EST UN
+       AVERTISSEMENT QU'ON N'A PAS LU. Tant que la ligne n'est pas
+       écrite, on garde l'écran ET la copie de secours : les quatre
+       textes sont encore là, et « réessaie » veut dire quelque
+       chose. Sinon ce serait demander de recommencer un rendez-vous
+       d'une heure. */
+    if(!ligneEcrite) return;
 
     /* Enregistré : la copie de secours n'a plus lieu d'être, et
        elle ne doit pas revenir hanter le prochain rendez-vous. */
     oublierRdvPost();
 
-    await afficherPrepares();
     setTimeout(() => {
       rdvPostEnCours = null;
       $('rdvPostView').style.display = 'none';
