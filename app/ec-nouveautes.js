@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:06 — v1015 */
+/* Déployé le 17/09/2026 à 10:47 — v1016 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -78,6 +78,15 @@ const NOUVEAUTES = [
                'cours. Les erreurs sans compétence ont retrouvé leur ' +
                '« point N sur la carte », qu’elles perdaient dans le mail ' +
                'd’examen blanc.' },
+      { emoji: '🏁',
+        titre: 'Le rendez-vous post-permis laisse sa trace',
+        texte: 'Il restait dans « Cours non terminés » une fois terminé, ' +
+               'et on ne le retrouvait nulle part : seul le résultat ' +
+               'remontait au bureau. Il écrit maintenant son compte rendu ' +
+               "dans l'historique des cours — conclusion, bilan " +
+               "d'examen, ce que l'élève a écrit, tes remarques — et il " +
+               'sort de la liste des cours non terminés. Il ne compte pas ' +
+               'comme une leçon.' },
       { emoji: '🔢',
         titre: 'Le décompte des leçons avance tout seul',
         texte: 'La petite case sous la date d’examen et la phrase verte ' +
