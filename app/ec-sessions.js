@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 11:56 — v996 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1203,19 +1203,30 @@ function casesHeuresPermis(nom){
     choisi = v;
     peindre();
 
-    /* Un élève en repassage a ses heures dans le post-permis :
-       écrire ailleurs ne se verrait pas. */
     const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+
+    /* ⚠️ PAR LA PORTE — v908 : elle note qui l'a dit et quand,
+       sans quoi l'alerte ⏱️ nommerait le moniteur du dernier bilan
+       à la place de celui qui vient de saisir.
+       ⚠️ ET AVEC LE REPÈRE DU JOUR — v972 : dites ici, elles datent
+       d'ici, pas de la charnière. */
+    const avecRepere = (typeof champsHeuresDitesMaintenant === 'function')
+      ? champsHeuresDitesMaintenant(nom, v)
+      : { heuresRestantes: v };
+
+    /* ⚠️ ET LE REPASSAGE PASSE PAR LA MÊME PORTE — v1014.
+
+       Un élève en repassage a ses heures dans le post-permis :
+       elles s'écrivaient là, et SEULEMENT là. Or ce champ-là ne
+       porte aucun repère — le nombre restait donc affiché plein
+       jusqu'au repassage, quelles que soient les leçons faites
+       depuis. Maintenant que le compteur sait lire la réserve du
+       post-permis, il lui faut son repère comme aux autres :
+       « heuresRepassage » dit ce que le rendez-vous a DÉCIDÉ,
+       « heuresRestantes » ce qu'il en reste. */
     const majs = (s.rdvPostFait === 'oui')
-      ? { heuresRepassage: v }
-      /* ⚠️ PAR LA PORTE — v908 : elle note qui l'a dit et quand,
-         sans quoi l'alerte ⏱️ nommerait le moniteur du dernier
-         bilan à la place de celui qui vient de saisir. */
-      : ((typeof champsHeuresDitesMaintenant === 'function')
-          /* ⚠️ ET AVEC LE REPÈRE DU JOUR — v972 : dites ici, elles
-             datent d'ici, pas de la charnière. */
-          ? champsHeuresDitesMaintenant(nom, v)
-          : { heuresRestantes: v });
+      ? Object.assign({}, avecRepere, { heuresRepassage: v })
+      : avecRepere;
 
     try{
       await majSuivi(nom, majs);
