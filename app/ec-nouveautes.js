@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:47 — v1016 */
+/* Déployé le 17/09/2026 à 12:28 — v1017 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -87,6 +87,15 @@ const NOUVEAUTES = [
                "d'examen, ce que l'élève a écrit, tes remarques — et il " +
                'sort de la liste des cours non terminés. Il ne compte pas ' +
                'comme une leçon.' },
+      { emoji: '👨‍👩‍👦',
+        titre: 'Les rendez-vous pédagogiques ne comptent plus comme des leçons',
+        texte: 'Le RVP 1 et le RVP 2 se passent assis, en salle, avec ' +
+               'l’accompagnateur — ce ne sont pas des leçons de conduite. ' +
+               'Le classeur les comptait quand même : un élève en conduite ' +
+               'accompagnée qui avait fait ses deux rendez-vous était ' +
+               'annoncé deux leçons plus loin qu’il ne l’est. Certains ' +
+               'numéros vont donc descendre : c’est le chiffre juste qui ' +
+               'arrive.' },
       { emoji: '🔢',
         titre: 'Le décompte des leçons avance tout seul',
         texte: 'La petite case sous la date d’examen et la phrase verte ' +
