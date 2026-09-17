@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 17/09/2026 à 13:53 — v1020 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -47,6 +47,8 @@ let trajetPerdu = 0;          /* millisecondes passées sans relevé */
 let trajetDernier = 0;        /* horodatage du dernier point retenu */
 let trajetCacheA = 0;         /* quand la page est passée derrière */
 let trajetRefus = '';         /* le message du navigateur, s'il a REFUSÉ */
+let trajetBattement = null;   /* le minuteur qui surveille la veille */
+let trajetRelances = 0;       /* combien de fois la veille a été relancée */
 
 /* ⚠️ ET CE N'EST PAS LA MÊME CHOSE QU'UNE PANNE PASSAGÈRE — v998.
 
@@ -350,6 +352,52 @@ function demarrerTrajet(){
   carteEnPreparation = null;
   trajetCompteur = 0;
 
+  trajetRelances = 0;
+
+  if(!poserLaVeilleDuTrajet()) return false;
+
+  /* ⚠️ L'ÉCRAN SE TIENT ICI, PAS CHEZ L'APPELANT — v997.
+
+     Un écran verrouillé ARRÊTE la géolocalisation : iOS comme
+     Android, et sans contournement. Le bilan vocal tenait l'écran
+     — mais pour son micro, et par hasard ; le bilan manuel ne l'a
+     jamais tenu, et le trajet d'un cours rempli à la main était
+     donc structurellement toujours incomplet. David, le 15
+     septembre, après un vrai cours : « je n'ai rien du tout dans
+     le bilan que j'ai reçu ».
+
+     Une parade posée chez l'appelant est une parade qu'on oublie :
+     celle-ci part avec le relevé, pour les deux écrans à la fois. */
+  if(typeof garderEcranAllume === 'function') garderEcranAllume();
+
+  surveillerLaVeilleDuTrajet();
+  return true;
+}
+
+
+/* ============================================================
+   POSER LA VEILLE — ET POUVOIR LA REPOSER
+
+   David, le 17 septembre : « le dernier cours de Chrystel a
+   1 minute d'enregistrement GPS alors que son cours a duré 2 h ».
+
+   ⚠️ LA VEILLE MOURAIT, ET PERSONNE NE LA RELANÇAIT.
+
+   « watchPosition » n'est pas éternel. Un écran qui se verrouille,
+   un appel qui passe, l'application qu'on quitte trois secondes :
+   iOS suspend la géolocalisation, et très souvent ne la reprend
+   PAS au retour. L'identifiant de la veille, lui, reste posé.
+
+   Or « demarrerTrajet » commence par « si trajetVeille n'est pas
+   nul, on est déjà en route » : la veille morte passait donc pour
+   vivante, et rien, nulle part, ne la recréait. Une minute de
+   relevé pour deux heures de cours, et un tracé qu'on croit avoir.
+
+   La création de la veille vit donc dans SA fonction, que le
+   démarrage et la relance empruntent tous les deux. Elle ne touche
+   à aucun point déjà retenu : relancer n'est pas recommencer.
+   ============================================================ */
+function poserLaVeilleDuTrajet(){
   try{
     trajetVeille = navigator.geolocation.watchPosition(
       (pos) => { retenirPoint(pos); dessinerEtatDuTrajet(); },
@@ -381,24 +429,82 @@ function demarrerTrajet(){
     trajetRefus = 'Localisation impossible sur cet appareil.';
     return false;
   }
-
-  /* ⚠️ L'ÉCRAN SE TIENT ICI, PAS CHEZ L'APPELANT — v997.
-
-     Un écran verrouillé ARRÊTE la géolocalisation : iOS comme
-     Android, et sans contournement. Le bilan vocal tenait l'écran
-     — mais pour son micro, et par hasard ; le bilan manuel ne l'a
-     jamais tenu, et le trajet d'un cours rempli à la main était
-     donc structurellement toujours incomplet. David, le 15
-     septembre, après un vrai cours : « je n'ai rien du tout dans
-     le bilan que j'ai reçu ».
-
-     Une parade posée chez l'appelant est une parade qu'on oublie :
-     celle-ci part avec le relevé, pour les deux écrans à la fois. */
-  if(typeof garderEcranAllume === 'function') garderEcranAllume();
   return true;
 }
 
+
+/* Reposer la veille sans toucher au relevé. On ferme l'ancienne
+   d'abord : deux veilles sur le même capteur, et la seconde
+   n'apporterait que des doublons. */
+function relancerLaVeilleDuTrajet(){
+  if(!trajetDebut || trajetFin) return false;
+  if(trajetRefus) return false;          /* refusé, ce n'est pas une panne */
+
+  if(trajetVeille !== null){
+    try{ navigator.geolocation.clearWatch(trajetVeille); }catch(e){}
+    trajetVeille = null;
+  }
+  trajetRelances++;
+  const ok = poserLaVeilleDuTrajet();
+  /* L'écran aussi a pu être rendu par le navigateur pendant que la
+     page était derrière : on le reprend au même moment. */
+  if(ok && typeof garderEcranAllume === 'function') garderEcranAllume();
+  dessinerEtatDuTrajet();
+  return ok;
+}
+
+
+/* ============================================================
+   LE BATTEMENT — CE QUI MANQUAIT LE PLUS
+
+   ⚠️ RIEN NE REDESSINAIT LA LIGNE D'ÉTAT SANS UN POINT GPS.
+
+   L'état du relevé ne se rafraîchissait que sur un événement du
+   capteur. Quand la veille mourait, il n'y avait donc plus
+   d'événement — donc plus de rafraîchissement, donc l'écran
+   continuait d'afficher le dernier état connu. Le moniteur voyait
+   « relevé en cours » pendant deux heures sur un relevé mort.
+
+   Un silence qui ne se voit pas est un silence qui dure. Ce
+   battement fait deux choses, toutes les trente secondes :
+
+     · il redessine, pour que le silence se VOIE pendant le cours
+       et non au moment d'envoyer le bilan ;
+     · au-delà de RELANCE_APRES, il repose la veille.
+
+   Le seuil est plus long que TRAJET_SILENCE : un tunnel, un
+   parking couvert, un porche se rattrapent seuls en moins d'une
+   minute, et relancer pour ça ne ferait que rallonger l'accroche
+   du capteur. Passé une minute et demie sans un point, ce n'est
+   plus un tunnel.
+   ============================================================ */
+const TRAJET_BATTEMENT = 30000;
+const TRAJET_RELANCE_APRES = 90000;
+
+function surveillerLaVeilleDuTrajet(){
+  clearInterval(trajetBattement);
+  trajetBattement = setInterval(() => {
+    if(!trajetDebut || trajetFin){ clearInterval(trajetBattement); return; }
+    if(trajetRefus){ clearInterval(trajetBattement); return; }
+
+    /* La page est derrière : le navigateur a suspendu le capteur,
+       et c'est normal. On ne relance pas dans le vide — le retour
+       s'en charge. */
+    if(typeof document !== 'undefined' && document.hidden){
+      dessinerEtatDuTrajet();
+      return;
+    }
+
+    const depuis = trajetDernier ? (Date.now() - trajetDernier)
+                                 : (Date.now() - trajetDebut);
+    if(depuis > TRAJET_RELANCE_APRES) relancerLaVeilleDuTrajet();
+    else dessinerEtatDuTrajet();
+  }, TRAJET_BATTEMENT);
+}
+
 function arreterTrajet(){
+  clearInterval(trajetBattement);
+  trajetBattement = null;
   if(trajetVeille !== null){
     try{ navigator.geolocation.clearWatch(trajetVeille); }catch(e){}
     trajetVeille = null;
@@ -573,6 +679,70 @@ function mesureDuTrajet(){
     duree: trajetDebut ? (fin - trajetDebut) : 0,   /* le COURS */
     releve: premier ? (trajetDernier - premier) : 0, /* le TRACÉ */
     perdu: perdu
+  };
+}
+
+
+/* ============================================================
+   L'ÉTAT DU RELEVÉ, EN QUELQUES NOMBRES — v1020
+
+   David, le 17 septembre : « rajoute dans cours non terminés les
+   infos sur le GPS par cours, pour que je voie si ça bug ». Et dans
+   la foulée : « le dernier cours de Chrystel a 1 minute
+   d'enregistrement GPS alors que son cours a duré 2 h ».
+
+   ⚠️ LE BUREAU NE VOYAIT RIEN DU TOUT. Le tracé n'est écrit au
+   classeur qu'au MOMENT DU BILAN : sur un cours non terminé — donc
+   précisément celui qu'on cherche à comprendre — il n'existait
+   nulle part. On découvrait le trou après coup, sur le bilan reçu,
+   quand il n'y avait plus rien à faire.
+
+   Ce résumé part avec chaque dépôt du brouillon, toutes les
+   quelques minutes. Il tient en quelques nombres : pas de points,
+   pas de coordonnées, rien qui dise OÙ. Le tracé, lui, ne part
+   qu'avec le bilan, comme avant — c'est ce que la note de service
+   annonce aux moniteurs, et ce que la CNIL demande.
+
+   « relances » est le nombre qui explique le cas de Chrystel : une
+   veille reposée plusieurs fois, c'est un téléphone qui met la page
+   derrière — et zéro relance sur un long silence, c'est que le
+   battement lui-même ne tourne pas.
+
+   ⚠️ ET ELLE NE S'APPELLE PAS « resumeDuTrajet ». Ce nom-là est
+   DÉJÀ pris, plus bas, par ce que l'écran du moniteur affiche en
+   direct — km, points, panne en cours. Je l'avais repris sans
+   regarder : les deux auraient cohabité dans la même portée, la
+   seconde aurait écrasé la première, et la ligne d'état du cours
+   serait morte sans un mot. C'est très exactement la faute
+   « ajouterDateBureau » réparée ce matin, et c'est le test posé
+   avec elle qui l'a vue.
+
+   Deux noms, parce que ce sont deux choses : l'une parle au
+   moniteur pendant son cours, l'autre au bureau après coup, en
+   secondes et sans coordonnées.
+   ============================================================ */
+function releveDuTrajetPourLeDepot(){
+  if(!trajetDebut) return null;
+
+  const m = mesureDuTrajet();
+  return {
+    points: trajetPoints.length,
+    reperes: trajetReperes.length,
+    /* En secondes : le classeur n'a que faire des millisecondes,
+       et la cellule est plus courte à lire. */
+    duree: Math.round(m.duree / 1000),
+    releve: Math.round(m.releve / 1000),
+    perdu: Math.round(m.perdu / 1000),
+    relances: trajetRelances,
+    /* Depuis combien de temps plus rien ne vient. C'est LE nombre
+       qui dit « c'est en train de rater », pendant le cours. */
+    silence: trajetDernier
+      ? Math.round((Date.now() - trajetDernier) / 1000)
+      : Math.round((Date.now() - trajetDebut) / 1000),
+    refus: trajetRefus || '',
+    panne: trajetPanne || '',
+    fini: !!trajetFin,
+    complet: trajetComplet()
   };
 }
 
@@ -1813,7 +1983,19 @@ if(typeof document !== 'undefined' && document.addEventListener){
     }else if(trajetCacheA){
       trajetPerdu += (Date.now() - trajetCacheA);
       trajetCacheA = 0;
-      dessinerEtatDuTrajet();
+
+      /* ⚠️ ET ON RALLUME LE CAPTEUR — v1020.
+
+         Cet endroit COMPTAIT le temps perdu et s'arrêtait là. Or
+         ce n'est pas une pause : iOS suspend la géolocalisation
+         quand la page passe derrière, et ne la reprend très
+         souvent PAS toute seule. La veille restait posée, donc
+         « en route » pour demarrerTrajet, et morte pour de bon.
+
+         C'est l'histoire du cours de Chrystel : une minute de
+         relevé, deux heures de conduite. On repose la veille au
+         retour, sans toucher aux points déjà pris. */
+      relancerLaVeilleDuTrajet();
     }
   });
 }
