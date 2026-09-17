@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 08:41 — v937 */
+/* Déployé le 17/09/2026 à 13:41 — v1019 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -568,7 +568,7 @@ async function chercherBrouillonsServeur(silencieux){
 
        Il a supprimé sa copie et rangé la ligne : la redonner au
        passage suivant serait exactement le bandeau qui revient
-       tout seul, celui qui a fait paniquer Chrystel. La dictée,
+       tout seul, celui qui a fait paniquer David. La dictée,
        elle, n'a pas bougé — elle attend au bureau, dans
        « Cours non terminés ». */
     const l = ((d && d.brouillons) || []).filter(b => b && b.etat !== 'ecarte');
@@ -881,6 +881,54 @@ function proposerBrouillonServeur(b, combien){
 }
 
 
+/* ============================================================
+   CE BROUILLON PORTE-T-IL UNE VRAIE FICHE ? — v1019
+
+   David, capture à l'appui : « quand je fais reprendre ici ça
+   m'ouvre un cours en manuel VIDE alors que c'était un cours en
+   vocal ».
+
+   ⚠️ UN TABLEAU VIDE EST « VRAI » EN JAVASCRIPT.
+
+   La garde s'écrivait « (o.saisies || o.champs) ». Elle a laissé
+   passer un objet dont « saisies » valait [] et « champs » {} :
+   les deux sont VRAIS. C'est le cousin du piège du -1, et il a
+   fait le même travail — une garde qu'aucun cas ne fait jouer est
+   une garde qu'on croit avoir.
+
+   Résultat sur la dictée d'un cours en vocal : la case de dictée
+   vidée, et un formulaire manuel ouvert sans une ligne dedans.
+
+   La CAUSE est réparée ailleurs — brouillonManuelActuel ne rend
+   plus rien hors du mode manuel. Celle-ci reste, et elle demande
+   désormais du CONTENU : les brouillons déjà déposés avec une
+   fiche vide sont encore sur le serveur, et ils doivent se rouvrir
+   en DICTÉE.
+
+   ⚠️ ÉCRITE UNE FOIS, POUR LES DEUX ÉCRANS. La reprise décide quoi
+   rouvrir, et 🩹 Cours non terminés décide quoi annoncer — « fiche
+   remplie à la main » ou « N mots dictés ». Deux écrans qui
+   répondraient différemment sur un même brouillon, c'est
+   exactement la faute du jour.
+
+   Rend l'objet quand il y a du contenu, null sinon.
+   ============================================================ */
+function ficheDuBrouillon(brut){
+  try{
+    const o = JSON.parse(brut || 'null');
+    if(!o) return null;
+
+    const desSaisies = Array.isArray(o.saisies) &&
+      o.saisies.some(x => x && String(x.valeur || '').trim());
+    const desChamps = !!o.champs && Object.keys(o.champs)
+      .some(k => o.champs[k] !== '' && o.champs[k] !== undefined &&
+                 o.champs[k] !== null);
+
+    return (desSaisies || desChamps) ? o : null;
+  }catch(e){ return null; }
+}
+
+
 async function reprendreBrouillonServeur(b){
   /* UN SEUL COURS OUVERT À LA FOIS — l'autre porte d'entrée de
      l'écran de cours, même règle que « Mes prochains cours ». On
@@ -918,12 +966,7 @@ async function reprendreBrouillonServeur(b){
      deuxième chemin de réouverture finirait par ne pas faire la
      même chose que le premier.
      ============================================================ */
-  const fiche = (function(){
-    try{
-      const o = JSON.parse(b.fiche || 'null');
-      return (o && (o.saisies || o.champs)) ? o : null;
-    }catch(e){ return null; }
-  })();
+  const fiche = ficheDuBrouillon(b.fiche);
 
   if(fiche && typeof reprendreBrouillon === 'function'){
     /* Le bureau doit pouvoir le renvoyer au moniteur : c'est cette
