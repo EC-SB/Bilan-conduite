@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 13:53 — v1020 */
+/* Déployé le 17/09/2026 à 14:11 — v1021 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -49,6 +49,10 @@ let trajetCacheA = 0;         /* quand la page est passée derrière */
 let trajetRefus = '';         /* le message du navigateur, s'il a REFUSÉ */
 let trajetBattement = null;   /* le minuteur qui surveille la veille */
 let trajetRelances = 0;       /* combien de fois la veille a été relancée */
+/* null tant qu'on n'a pas demandé, puis vrai/faux. ⚠️ FAUX veut dire
+   « le navigateur a REFUSÉ de tenir l'écran » — pas « la page est
+   passée derrière », ce qui est normal et se reprend au retour. */
+let trajetEcranTenu = null;
 
 /* ⚠️ ET CE N'EST PAS LA MÊME CHOSE QU'UNE PANNE PASSAGÈRE — v998.
 
@@ -353,6 +357,7 @@ function demarrerTrajet(){
   trajetCompteur = 0;
 
   trajetRelances = 0;
+  trajetEcranTenu = null;
 
   if(!poserLaVeilleDuTrajet()) return false;
 
@@ -368,10 +373,53 @@ function demarrerTrajet(){
 
      Une parade posée chez l'appelant est une parade qu'on oublie :
      celle-ci part avec le relevé, pour les deux écrans à la fois. */
-  if(typeof garderEcranAllume === 'function') garderEcranAllume();
+  tenirLEcranPourLeTrajet();
 
   surveillerLaVeilleDuTrajet();
   return true;
+}
+
+
+/* ============================================================
+   ET ON DIT QUAND L'ÉCRAN N'EST PAS TENU — v1021
+
+   David, le 17 septembre : « on n'a pas moyen de forcer la
+   position GPS quand le moniteur fait autre chose ? » Non — aucune
+   page web n'a de position en arrière-plan, et il l'a tranché
+   lui-même : « qu'il aille ailleurs sur sa tablette, ce n'est pas
+   mon problème, c'est la perte de GPS PENDANT le cours qui me pose
+   problème ».
+
+   Or la perte pendant le cours a une cause dominante, et une
+   seule : l'écran qui se verrouille tout seul au bout de trente
+   secondes. Le verrou d'écran est la seule parade, et elle peut
+   être REFUSÉE — un navigateur trop ancien, un iPhone avant
+   iOS 16.4, un mode économie d'énergie.
+
+   ⚠️ ET ON JETAIT LA RÉPONSE. « garderEcranAllume() » rend vrai ou
+   faux ; le relevé l'appelait deux fois sans jamais la regarder.
+   L'écran de dictée, lui, affiche « ⚠️ Empêche l'écran de
+   s'éteindre » depuis toujours. Sur un bilan rempli à la main —
+   celui qui relève un trajet sans micro — personne n'était prévenu
+   de rien.
+
+   Une parade dont on ne sait pas si elle a pris n'est pas une
+   parade : c'est une espérance.
+   ============================================================ */
+function tenirLEcranPourLeTrajet(){
+  if(typeof garderEcranAllume !== 'function'){
+    trajetEcranTenu = false;
+    return;
+  }
+  try{
+    Promise.resolve(garderEcranAllume()).then(ok => {
+      trajetEcranTenu = !!ok;
+      dessinerEtatDuTrajet();
+    }).catch(() => {
+      trajetEcranTenu = false;
+      dessinerEtatDuTrajet();
+    });
+  }catch(e){ trajetEcranTenu = false; }
 }
 
 
@@ -447,8 +495,9 @@ function relancerLaVeilleDuTrajet(){
   trajetRelances++;
   const ok = poserLaVeilleDuTrajet();
   /* L'écran aussi a pu être rendu par le navigateur pendant que la
-     page était derrière : on le reprend au même moment. */
-  if(ok && typeof garderEcranAllume === 'function') garderEcranAllume();
+     page était derrière : on le reprend au même moment, et on
+     REGARDE s'il a été rendu — c'est le même geste qu'au départ. */
+  if(ok) tenirLEcranPourLeTrajet();
   dessinerEtatDuTrajet();
   return ok;
 }
@@ -734,6 +783,12 @@ function releveDuTrajetPourLeDepot(){
     releve: Math.round(m.releve / 1000),
     perdu: Math.round(m.perdu / 1000),
     relances: trajetRelances,
+    /* ⚠️ LE NOMBRE QUI DÉSIGNE LE COUPABLE LE PLUS FRÉQUENT. Faux
+       ici, c'est un écran qui se verrouille tout seul au bout de
+       trente secondes — et donc un relevé qui s'arrête avec lui.
+       Le bureau le lit sur la ligne du cours et sait quoi dire au
+       moniteur, sans avoir à deviner. */
+    ecran: (trajetEcranTenu === null) ? null : !!trajetEcranTenu,
     /* Depuis combien de temps plus rien ne vient. C'est LE nombre
        qui dit « c'est en train de rater », pendant le cours. */
     silence: trajetDernier
@@ -2022,6 +2077,34 @@ function dessinerEtatDuTrajet(){
     z.className = 'trajet-etat perdu';
     const t = document.createElement('span');
     t.textContent = '⚠️ ' + r.manque;
+    z.appendChild(t);
+    return;
+  }
+
+  /* ============================================================
+     ⚠️ L'ÉCRAN QUI NE TIENT PAS PASSE AVANT TOUT LE RESTE — v1021
+
+     C'est la cause dominante d'un relevé qui s'arrête en plein
+     cours : l'écran se verrouille tout seul au bout de trente
+     secondes, et la géolocalisation s'arrête avec lui. Le verrou
+     d'écran est la seule parade, et le navigateur peut la refuser
+     — trop ancien, iPhone d'avant iOS 16.4, économie d'énergie.
+
+     Quand il refuse, annoncer « trajet en cours » ne sert à rien :
+     il ne le sera plus dans une minute. On dit ce qu'il y a à
+     faire, là où le moniteur regarde — pas dans un toast qui s'en
+     va au bout de trois secondes.
+
+     ⚠️ ET ON DONNE LE GESTE, PAS LE DIAGNOSTIC. « Verrouillage
+     automatique sur Jamais » se fait en dix secondes et règle le
+     cas ; « le verrou d'écran a été refusé » n'aide personne. */
+  if(trajetEcranTenu === false){
+    z.className = 'trajet-etat perdu';
+    const t = document.createElement('span');
+    t.innerHTML = '⚠️ <strong>Ton écran va s’éteindre tout seul — le ' +
+      'relevé s’arrêtera avec lui.</strong> Réglages &gt; Luminosité et ' +
+      'affichage &gt; Verrouillage auto &gt; <strong>Jamais</strong>, et ' +
+      'laisse cette page affichée pendant le cours.';
     z.appendChild(t);
     return;
   }
