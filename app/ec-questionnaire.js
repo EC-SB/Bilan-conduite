@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 17/09/2026 à 12:44 — v1018 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -6228,9 +6228,54 @@ function dossierConnuDe(eleve){
   const frise = (typeof extraireFrise === 'function')
     ? (extraireFrise(b.note) || '') : '';
 
+  /* ============================================================
+     ⚠️ LE DERNIER RANG ÉCRIT PAR UN HUMAIN FAIT LOI — ICI AUSSI
+
+     David, trois fois en deux jours : « le décompte ne se fait pas
+     tout seul ». La cause était ce trou-ci.
+
+     Le dossier COMPLET applique cette règle depuis la v905 : il
+     remonte l'historique, trouve le dernier cours dont la note porte
+     un rang écrit à la main, et repart de là — « corrigé une fois,
+     l'élève est calé pour de bon ».
+
+     Cette fonction-ci, elle, ne recevait du bureau qu'un TOTAL de
+     bilans. Un total ne dit pas à quel moment un chiffre a été
+     écrit : elle rendait donc le compte brut, sans la correction.
+     Le MÊME élève affichait deux numéros différents selon l'écran —
+     celui qui avait chargé son dossier complet disait « 12ème
+     leçon », celui qui n'avait que l'état du bureau disait « 8ème ».
+     La petite case et la phrase verte, exactement.
+
+     Le serveur mesure maintenant cet écart au moment où il compte,
+     dans la seule boucle qui parcourt les lignes DANS L'ORDRE
+     (« ecartRang », voir etatEleves). L'ajouter au total redonne
+     très exactement ce que le dossier complet calcule :
+
+         complet : rang écrit + leçons qui l'ont suivi
+         ici     : total + (rang écrit − (leçons avant + 1))
+                 = rang écrit + leçons qui l'ont suivi
+
+     ⚠️ ET LE CALAGE NE S'AJOUTE PAS PAR-DESSUS. Le dossier complet
+     pose « caleParUnBilan » pour dire exactement ça : un rang écrit
+     dans un bilan est daté d'un cours réel, il vaut plus qu'un
+     calage posé depuis un écran, et les deux additionnés feraient
+     sauter l'élève de quatre leçons d'un coup. On le pose donc ici
+     aussi — sinon la réparation créerait la faute qu'elle répare.
+
+     ⚠️ ABSENT N'EST PAS ZÉRO. Un élève dont aucune note ne porte de
+     rang n'a pas d'« ecartRang », et on ne touche à rien : son
+     compte brut reste la meilleure réponse qu'on ait.
+     ============================================================ */
+  let lecons = (b.lecons === undefined || b.lecons === null) ? null : b.lecons;
+  const ecart = parseInt(b.ecartRang, 10);
+  const caleParUnBilan = !isNaN(ecart) && lecons !== null;
+  if(caleParUnBilan) lecons += ecart;
+
   return {
-    lecons: (b.lecons === undefined || b.lecons === null) ? null : b.lecons,
+    lecons: lecons,
     frise: frise,
+    caleParUnBilan: caleParUnBilan,
     /* Le reste n'est pas connu d'ici : on le laisse absent plutôt
        que de le remplir de valeurs par défaut, qui passeraient pour
        des réponses. */
