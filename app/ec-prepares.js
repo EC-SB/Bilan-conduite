@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 08:47 — v1013 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -626,10 +626,24 @@ function rafraichirNotesPreparees(){
       const dossier = (typeof dossierConnuDe === 'function')
         ? dossierConnuDe(cours.eleve) : null;
 
-      /* Le rang écrit par une main passe avant tout comptage ; à
-         défaut, on le déduit comme le questionnaire le déduit. */
+      /* ⚠️ « UNE MAIN », PAS « UN CHIFFRE DÉJÀ LÀ » — v1014.
+
+         Cette ligne disait « le rang écrit par une main passe avant
+         tout comptage » et gardait TOUT « ctx.lecon », d'où qu'il
+         vienne. Or un cours né d'un rappel en porte un : celui
+         calculé le matin même. La note se refaisait donc avec ce
+         chiffre-là, la carte le relisait dans la note, et le
+         comptage du classeur — qui tournait juste à côté — n'était
+         jamais atteint. Deux leçons enregistrées entre-temps ne
+         changeaient rien.
+
+         « leconMain » dit exactement ce qu'il faut, et il existe
+         depuis la v905 : il est posé par ecrireRangDuCours, et par
+         lui seul. On lui demande. Le reste redescend au classeur,
+         par la même porte que le questionnaire. */
       const ctx = cours.contexte || {};
-      const rang = (ctx.lecon !== undefined && ctx.lecon !== '')
+      const tapeALaMain = String(ctx.leconMain || '') === 'oui';
+      const rang = (tapeALaMain && ctx.lecon !== undefined && ctx.lecon !== '')
         ? ctx.lecon
         : (typeof numeroLeconDuCours === 'function'
             ? (numeroLeconDuCours(cours, dossier) || '') : '');
@@ -3749,7 +3763,39 @@ async function terminerRdvPost(){
       retireAPrevoir: (suite === 'impossible') ? 'oui' : '',
       par: ACCES.moniteur || ''
     };
-    await majSuivi(eleve, majs);
+
+    /* ============================================================
+       ⚠️ LES HEURES PRESCRITES SONT UNE RÉSERVE, ET UNE RÉSERVE A
+       UN REPÈRE — v1014
+
+       David, le 17 septembre : « pour les élèves qui sont en CS et
+       qui ont eu un post-permis car déjà passé le permis », le
+       nombre ne bouge pas.
+
+       Il ne pouvait pas : ces heures-là partaient dans
+       « heuresRepassage » et nulle part ailleurs. Le décompte des
+       réserves existe depuis la v972, il prévoit « postpermis »
+       comme charnière — mais rien ne lui donnait jamais de quoi
+       compter. Une moitié posée, l'autre oubliée.
+
+       ⚠️ ET LE RANG EST ZÉRO, PAS CELUI DU JOUR. Les heures sont
+       prescrites PAR ce rendez-vous : elles datent de la charnière
+       elle-même, et le compteur « Nᵉ leçon après le post-permis »
+       repart de là. Poser le rang du jour reviendrait à dire
+       qu'elles ont été décidées quelques leçons plus tard, et la
+       réserve mettrait d'autant plus de temps à fondre.
+
+       ⚠️ « heuresRepassage » RESTE. C'est ce que le rendez-vous a
+       DÉCIDÉ, et la fiche de l'élève le montre comme tel.
+       « heuresRestantes » est ce qu'il en reste : deux faits, deux
+       champs — et un seul chiffre affiché, celui qui reste.
+       ============================================================ */
+    const aEnvoyer = (typeof champsHeuresRestantes === 'function' &&
+                      majs.heuresRepassage)
+      ? champsHeuresRestantes(eleve, majs.heuresRepassage, majs, 0, 'postpermis')
+      : majs;
+
+    await majSuivi(eleve, aEnvoyer);
 
     /* Le compte rendu est dans le suivi : le brouillon du serveur
        n'a plus lieu d'être, sinon 🩹 Cours non terminés réclamerait
