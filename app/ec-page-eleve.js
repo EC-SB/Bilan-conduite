@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 17/09/2026 à 10:06 — v1015 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1609,23 +1609,18 @@ function dessinerTrouvesEleve(){
     return;
   }
 
+  /* LA MÊME LIGNE QU'À LA LOUPE — ec-fenetres.js.
+
+     Elle était écrite ici une deuxième fois, à la main, et elle
+     avait déjà divergé : gras et numéro de téléphone d'un côté,
+     carte avec un bouton dedans de l'autre. Deux écritures d'une
+     même ligne, et c'est toujours la deuxième qu'on oublie. */
   trouves.forEach(n => {
-    const f = (typeof ficheDe === 'function') ? (ficheDe(n) || {}) : {};
-    const b = document.createElement('button');
-    b.className = 'btn btn-secondary';
-    b.style.cssText = 'width:100%;text-align:left;margin:0 0 6px;' +
-      'padding:10px 12px;font-size:13.5px;line-height:1.45;';
-    b.innerHTML = '<strong>' + n.replace(/</g, '&lt;') + '</strong>' +
-      (f.formation ? ' <span style="font-size:11px;color:var(--accent-text);">' +
-        String(f.formation).replace(/</g, '&lt;') + '</span>' : '') +
-      (f.telephone ? '<br><span style="font-size:11.5px;color:var(--muted);">📱 ' +
-        String(f.telephone).replace(/</g, '&lt;') + '</span>' : '');
-    b.addEventListener('click', () => {
+    zone.appendChild(ligneEleveTrouve(n, nom => {
       champ.value = '';
       champ.blur();
-      ouvrirPageEleve(n);
-    });
-    zone.appendChild(b);
+      ouvrirPageEleve(nom);
+    }));
   });
 
   if(trouves.length === 40){
