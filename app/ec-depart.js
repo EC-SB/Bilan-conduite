@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2523,12 +2523,47 @@ function numeroLeconDuCours(cours, dossier){
 
      Ce qui reste ici est ce que cette fonction seule connaît : le
      contexte du cours, où une main a pu écrire le rang. */
+
+  /* ============================================================
+     ⚠️ UN RANG ÉCRIT N'EST PAS FORCÉMENT UN RANG DÉCIDÉ — v1014
+
+     David, le 17 septembre : « j'ai l'impression que le décompte ne
+     se fait pas tout seul pour les leçons classiques ». Il avait
+     raison, et la faute était ici.
+
+     La note d'abord, le contexte ensuite, le comptage en dernier :
+     l'ordre était juste pour la réparation de la v950, mais il
+     rendait le comptage INATTEIGNABLE. Un cours né d'un rappel
+     porte toujours un rang — celui du matin où le rappel l'a
+     calculé — et la note, refaite à chaque chargement, le reprend
+     du contexte. Le classeur pouvait compter deux leçons de plus,
+     plus personne ne l'écoutait : la carte, la case et la phrase
+     affichaient toutes les trois le même chiffre périmé.
+
+     ⚠️ ET LE MARQUEUR QUI DEVAIT FAIRE LA DIFFÉRENCE EXISTAIT
+     DÉJÀ. « leconMain » est posé par ecrireRangDuCours quand une
+     MAIN tape le rang ; « fusionnerContexte » le respecte depuis la
+     v905. Cette fonction-ci ne le regardait pas, et traitait donc
+     tout rang comme s'il avait été tapé — donc comme intouchable.
+     Le commentaire du dessus disait la bonne règle ; la condition
+     écrite n'était pas celle-là.
+
+     ⚠️ ET UN COURS PASSÉ NE SE RECOMPTE PAS. Son rang est un fait
+     daté : il a eu lieu à ce rang-là, et le comptage d'aujourd'hui
+     n'a rien à y dire. Seuls les cours à venir — ceux dont le
+     numéro sert encore à quelque chose — redescendent au classeur.
+     ============================================================ */
+  const ctx = cours.contexte || {};
+  const tapeALaMain = String(ctx.leconMain || '') === 'oui';
+  const passe = !!(cours.date && typeof todayLocal === 'function' &&
+                   cours.date < todayLocal());
+
   const v = (typeof rangDansLaNote === 'function')
     ? rangDansLaNote(cours.note) : null;
-  if(v) return v;
+  const n = parseInt(ctx.lecon, 10);
+  const ecrit = (v || (!isNaN(n) && n > 0 ? n : null));
 
-  const n = parseInt((cours.contexte || {}).lecon, 10);
-  if(!isNaN(n) && n > 0) return n;
+  if(ecrit && (tapeALaMain || passe)) return ecrit;
 
   /* ⚠️ ET SI PERSONNE NE L'A ÉCRIT, ON LE DÉDUIT — v950.
 
@@ -2558,6 +2593,12 @@ function numeroLeconDuCours(cours, dossier){
     const r = rangConnu(d.lecons, cours.modele, premier, cours.eleve, d);
     if(r) return r;
   }
+
+  /* ⚠️ ET SI LE CLASSEUR SE TAIT, CE QUI ÉTAIT ÉCRIT VAUT MIEUX QUE
+     RIEN — v1014. Hors ligne, ou sur un élève dont on ne sait pas
+     compter les leçons, le rang d'hier reste la meilleure réponse :
+     on ne remplace pas une information vieille par un blanc. */
+  if(ecrit) return ecrit;
 
   return null;
 }
