@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1012
+     VERSION APPLICATION : v1013
      VERSION APPS SCRIPT REQUISE : v170
-     Mis à jour le : 16/09/2026 à 10:24
+     Mis à jour le : 17/09/2026 à 08:47
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -2314,6 +2314,88 @@
     details.card > .contenu-tiroir{padding:18px 22px 22px;}
   }
 
+  /* ============================================================
+     UN SEUL ÉCRAN À LA FOIS — v1013
+
+     David : « les moniteurs confondent avec les prochains cours la
+     possibilité de démarrer un cours ».
+
+     Tant qu'aucun cours ne tourne, les deux cohabitent et c'est
+     très bien : la journée en haut, et en bas le tiroir replié
+     pour ce qui n'y est pas. Dès qu'un cours démarre, il n'y a plus
+     qu'une chose à l'écran — lui. La journée ne disparaît pas :
+     elle est à un bouton, « ← Mes cours », et le cours continue
+     d'enregistrer pendant ce temps.
+
+     ⚠️ UNE CLASSE, PAS UN DEUXIÈME ÉCRAN. Même règle que pour
+     « cours-neuf » : aucun bloc n'est dupliqué, aucun constructeur
+     n'est doublé. La feuille de style montre ou masque, et c'est
+     tout. Voir « majEcranDuCours » dans ec-demarrage.js.
+
+     ⚠️ « !important » EST NÉCESSAIRE ICI, et c'est une exception
+     assumée : « appliquerDroits » et « afficherVue » posent le
+     display EN LIGNE sur ces cartes. Sans lui, la règle perdrait
+     contre l'attribut au moment précis où elle doit gagner.
+     ============================================================ */
+  body.cours-ouvert:not(.journee-visible) #bandeauJour,
+  body.cours-ouvert:not(.journee-visible) [data-section="prepares"]{
+    display:none !important;
+  }
+  /* Et l'inverse : revenu à la journée, c'est le cours qui se
+     range — sans s'arrêter. */
+  body.cours-ouvert.journee-visible #recordView{ display:none !important; }
+
+  /* L'en-tête du tiroir cesse de proposer et annonce. Le rouge est
+     celui du cours en route, partout ailleurs dans l'application. */
+  body.cours-ouvert details.card#tiroirCours[open] > summary,
+  body.cours-ouvert details.card#tiroirCours > summary{
+    color:var(--red);
+  }
+  #retourJournee{
+    margin-left:auto; flex-shrink:0; display:none;
+    background:transparent; border:1px solid var(--line); color:var(--cream);
+    border-radius:10px; padding:7px 11px;
+    font:inherit; font-size:12.5px; font-weight:700; cursor:pointer;
+  }
+  body.cours-ouvert #retourJournee{ display:inline-flex; }
+  /* ⚠️ PAS DE DÉFILEMENT LATÉRAL, JAMAIS. Sur un téléphone, le nom
+     de l'élève et le bouton ne tiennent pas sur la même ligne : le
+     bouton prend la sienne, et le chevron reste au bout du titre —
+     d'où l'ordre imposé. */
+  @media (max-width: 560px){
+    details.card#tiroirCours > summary::after{ order:1; }
+    #retourJournee{ order:2; flex-basis:100%; margin-left:0; margin-top:4px; }
+  }
+  details.card#tiroirCours > summary{ flex-wrap:wrap; }
+  /* ⚠️ LE TITRE CÈDE, LE CHEVRON NON. Sans ces deux propriétés, un
+     titre de deux lignes prend toute la largeur disponible et le
+     chevron se retrouve seul sur la ligne d'après — on croit le
+     tiroir cassé. Le titre se replie sur lui-même ; le chevron
+     reste au bout de sa première ligne. Vu à 390 px. */
+  #tiroirCoursMot{ flex:1 1 0; min-width:0; }
+
+  /* L'aiguillage ne parle qu'à celui qui n'a pas encore démarré :
+     une fois le cours ouvert, il l'enverrait ailleurs pour rien. */
+  #aiguillageCours{
+    background:var(--orange-soft); color:var(--ink);
+    border-radius:10px; padding:9px 11px; margin:0 0 16px;
+    font-size:12.5px; line-height:1.5;
+  }
+  body.cours-ouvert #aiguillageCours{ display:none; }
+
+  /* ---- LE REFUS SE VOIT — v1013 ----
+     Le champ fautif s'allume, et le bouton dit ce qui manque avant
+     de redevenir lui-même. Voir refuserLeDepart (ec-noyau.js). */
+  .champManquant{
+    border-color:var(--red) !important;
+    border-width:2px !important;
+  }
+  .refusDuDepart{
+    background:var(--red) !important;
+    border-color:var(--red) !important;
+    color:#FFFFFF !important;
+  }
+
   h2.section-title{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;}
   /* ⚠️ LA MARGE NÉGATIVE APPARTIENT AU CHAMP, PAS À L'AIDE — v915.
 
@@ -2536,7 +2618,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1012" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1013" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -2821,12 +2903,46 @@
     <button class="btn-repere" type="button" id="repereBtn">📍 Repère ici</button>
   </div>
 
-  <!-- Le module de cours en dernier : le bouton « Ouvrir » de la
-       liste au-dessus y amène directement. -->
+  <!-- ============================================================
+       LE MODULE DE COURS — UN TIROIR, ET L'ÉCRAN DU COURS — v1013
+
+       David, le 17 septembre : « les moniteurs confondent avec les
+       prochains cours la possibilité de démarrer un cours, et comme
+       ils ne mettent pas le nom ils insistent et s'énervent ».
+
+       ⚠️ CE BLOC N'EST PAS « LA FAÇON DE DÉMARRER ». Depuis la
+       v927, la carte de la journée porte DÉJÀ son « 🎙️ Démarrer le
+       cours » : celui-ci est une SECONDE façon, vide, posée sous la
+       vraie. Un formulaire vide sous une liste de cours prêts, ça
+       se lit comme le bon chemin — et il ne l'est que pour un cours
+       qui n'a pas été préparé. Il se replie donc, et il se nomme
+       par ce qu'il sert : ce qui n'est PAS dans la liste.
+
+       ⚠️ ET C'EST AUSSI L'ÉCRAN DU COURS. Le même bloc porte la
+       dictée, la fiche, le compteur et « Terminer ». Dès qu'un
+       cours démarre, son en-tête cesse de proposer et annonce —
+       « ⏺ Cours en cours — Prénom Nom » — et la journée s'efface
+       derrière lui. Voir « majEcranDuCours » dans ec-demarrage.js.
+
+       ⚠️ AUCUN IDENTIFIANT NE CHANGE : #modele, #studentName,
+       #site, #lessonDate, #recBtn, #manuelBtn sont là où ils
+       étaient. Le bouton de la carte appuie dessus (voir partir()
+       dans ec-prepares.js) ; les renommer aurait cassé le vrai
+       chemin pour arranger le faux.
+       ============================================================ -->
   <div id="recordView" data-onglet="cours" data-section="cours" data-vue="cours">
-    <div class="card">
-      <h2 class="section-title">🎙️ Démarrer un cours</h2>
+    <details class="card" id="tiroirCours">
+      <summary id="tiroirCoursTitre">
+        <span id="tiroirCoursMot">➕ Démarrer un cours qui n'est pas dans la liste</span>
+        <button type="button" id="retourJournee" title="Revenir à mes prochains cours — le cours reste ouvert">← Mes cours</button>
+      </summary>
       <div class="contenu-tiroir">
+      <!-- L'aiguillage : il ne parle qu'à celui qui n'a pas encore
+           démarré, et il le renvoie là où tout est déjà rempli. -->
+      <div id="aiguillageCours">
+        Ton cours est déjà dans <b>📅 Mes prochains cours</b> ? Ouvre-le de
+        là-haut : l'élève, le type de bilan et ses infos sont déjà remplis.
+      </div>
       <label for="modele">Type de bilan</label>
       <select id="modele"></select>
       <div id="alerteBoite" style="display:none;"></div>
@@ -2968,7 +3084,7 @@
            ici — voir poserLeBlocTrajet dans ec-trajet.js. -->
       <div id="trajetIciCours" style="margin-top:14px;"></div>
     </div>
-    </div>
+    </details>
 
     <!-- Fond rouge sourd : la génération est facturée, elle ne se
          déclenche pas par réflexe comme un bouton ordinaire. -->
@@ -4342,83 +4458,83 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1012"></script>
-<script src="app/ec-modeles.js?v=1012"></script>
-<script src="app/ec-consignes.js?v=1012"></script>
-<script src="app/ec-noyau.js?v=1012"></script>
-<script src="app/ec-vocal.js?v=1012"></script>
+  <script src="app/ec-etat.js?v=1013"></script>
+<script src="app/ec-modeles.js?v=1013"></script>
+<script src="app/ec-consignes.js?v=1013"></script>
+<script src="app/ec-noyau.js?v=1013"></script>
+<script src="app/ec-vocal.js?v=1013"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1012"></script>
-<script src="app/ec-reseau.js?v=1012"></script>
-<script src="app/ec-manuel.js?v=1012"></script>
-<script src="app/ec-fenetres.js?v=1012"></script>
-<script src="app/ec-questionnaire.js?v=1012"></script>
-<script src="app/ec-permis.js?v=1012"></script>
-<script src="app/ec-prepares.js?v=1012"></script>
-<script src="app/ec-avant-cours.js?v=1012"></script>
-<script src="app/ec-bureau.js?v=1012"></script>
-<script src="app/ec-places.js?v=1012"></script>
-<script src="app/ec-listes.js?v=1012"></script>
-<script src="app/ec-permis-listes.js?v=1012"></script>
-<script src="app/ec-postpermis.js?v=1012"></script>
-<script src="app/ec-textes.js?v=1012"></script>
-<script src="app/ec-correction.js?v=1012"></script>
-<script src="app/ec-bilans.js?v=1012"></script>
-<script src="app/ec-ecran.js?v=1012"></script>
-<script src="app/ec-version.js?v=1012"></script>
-<script src="app/ec-paie.js?v=1012"></script>
-<script src="app/ec-flotte.js?v=1012"></script>
-<script src="app/ec-carrosserie.js?v=1012"></script>
-<script src="app/ec-solo.js?v=1012"></script>
-<script src="app/ec-handicap-pdf.js?v=1012"></script>
-<script src="app/ec-moto.js?v=1012"></script>
-<script src="app/ec-remorque.js?v=1012"></script>
-<script src="app/ec-arriereplan.js?v=1012"></script>
-<script src="app/ec-placesbe.js?v=1012"></script>
-<script src="app/ec-codeamenage.js?v=1012"></script>
-<script src="app/ec-financements.js?v=1012"></script>
-<script src="app/ec-eval-aac.js?v=1012"></script>
-<script src="app/ec-postes.js?v=1012"></script>
-<script src="app/ec-tarifs.js?v=1012"></script>
-<script src="app/ec-caisse.js?v=1012"></script>
-<script src="app/ec-menage.js?v=1012"></script>
-<script src="app/ec-page-eleve.js?v=1012"></script>
-<script src="app/ec-cbgasoil.js?v=1012"></script>
-<script src="app/ec-loupe.js?v=1012"></script>
-<script src="app/ec-coutsia.js?v=1012"></script>
-<script src="app/ec-evaluation.js?v=1012"></script>
-<script src="app/ec-paiement.js?v=1012"></script>
-<script src="app/ec-handicap.js?v=1012"></script>
-<script src="app/ec-code.js?v=1012"></script>
-<script src="app/ec-proccorriger.js?v=1012"></script>
-<script src="app/ec-sessions.js?v=1012"></script>
-<script src="app/ec-aac-cs.js?v=1012"></script>
-<script src="app/ec-notifs.js?v=1012"></script>
-<script src="app/ec-ecoutes.js?v=1012"></script>
-<script src="app/ec-taches.js?v=1012"></script>
-<script src="app/ec-memoire.js?v=1012"></script>
-<script src="app/ec-historique.js?v=1012"></script>
-<script src="app/ec-rappels.js?v=1012"></script>
-<script src="app/ec-segments.js?v=1012"></script>
-<script src="app/ec-sms.js?v=1012"></script>
-<script src="app/ec-encours.js?v=1012"></script>
-<script src="app/ec-incidents.js?v=1012"></script>
+<script src="app/ec-trajet.js?v=1013"></script>
+<script src="app/ec-reseau.js?v=1013"></script>
+<script src="app/ec-manuel.js?v=1013"></script>
+<script src="app/ec-fenetres.js?v=1013"></script>
+<script src="app/ec-questionnaire.js?v=1013"></script>
+<script src="app/ec-permis.js?v=1013"></script>
+<script src="app/ec-prepares.js?v=1013"></script>
+<script src="app/ec-avant-cours.js?v=1013"></script>
+<script src="app/ec-bureau.js?v=1013"></script>
+<script src="app/ec-places.js?v=1013"></script>
+<script src="app/ec-listes.js?v=1013"></script>
+<script src="app/ec-permis-listes.js?v=1013"></script>
+<script src="app/ec-postpermis.js?v=1013"></script>
+<script src="app/ec-textes.js?v=1013"></script>
+<script src="app/ec-correction.js?v=1013"></script>
+<script src="app/ec-bilans.js?v=1013"></script>
+<script src="app/ec-ecran.js?v=1013"></script>
+<script src="app/ec-version.js?v=1013"></script>
+<script src="app/ec-paie.js?v=1013"></script>
+<script src="app/ec-flotte.js?v=1013"></script>
+<script src="app/ec-carrosserie.js?v=1013"></script>
+<script src="app/ec-solo.js?v=1013"></script>
+<script src="app/ec-handicap-pdf.js?v=1013"></script>
+<script src="app/ec-moto.js?v=1013"></script>
+<script src="app/ec-remorque.js?v=1013"></script>
+<script src="app/ec-arriereplan.js?v=1013"></script>
+<script src="app/ec-placesbe.js?v=1013"></script>
+<script src="app/ec-codeamenage.js?v=1013"></script>
+<script src="app/ec-financements.js?v=1013"></script>
+<script src="app/ec-eval-aac.js?v=1013"></script>
+<script src="app/ec-postes.js?v=1013"></script>
+<script src="app/ec-tarifs.js?v=1013"></script>
+<script src="app/ec-caisse.js?v=1013"></script>
+<script src="app/ec-menage.js?v=1013"></script>
+<script src="app/ec-page-eleve.js?v=1013"></script>
+<script src="app/ec-cbgasoil.js?v=1013"></script>
+<script src="app/ec-loupe.js?v=1013"></script>
+<script src="app/ec-coutsia.js?v=1013"></script>
+<script src="app/ec-evaluation.js?v=1013"></script>
+<script src="app/ec-paiement.js?v=1013"></script>
+<script src="app/ec-handicap.js?v=1013"></script>
+<script src="app/ec-code.js?v=1013"></script>
+<script src="app/ec-proccorriger.js?v=1013"></script>
+<script src="app/ec-sessions.js?v=1013"></script>
+<script src="app/ec-aac-cs.js?v=1013"></script>
+<script src="app/ec-notifs.js?v=1013"></script>
+<script src="app/ec-ecoutes.js?v=1013"></script>
+<script src="app/ec-taches.js?v=1013"></script>
+<script src="app/ec-memoire.js?v=1013"></script>
+<script src="app/ec-historique.js?v=1013"></script>
+<script src="app/ec-rappels.js?v=1013"></script>
+<script src="app/ec-segments.js?v=1013"></script>
+<script src="app/ec-sms.js?v=1013"></script>
+<script src="app/ec-encours.js?v=1013"></script>
+<script src="app/ec-incidents.js?v=1013"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1012"></script>
+<script src="app/ec-messages-perso.js?v=1013"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1012"></script>
-<script src="app/ec-bandeau.js?v=1012"></script>
-<script src="app/ec-stats.js?v=1012"></script>
-<script src="app/ec-messenger.js?v=1012"></script>
-<script src="app/ec-journal.js?v=1012"></script>
-<script src="app/ec-depart.js?v=1012"></script>
-<script src="app/ec-onglets.js?v=1012"></script>
-<script src="app/ec-demarrage.js?v=1012"></script>
+<script src="app/ec-nouveautes.js?v=1013"></script>
+<script src="app/ec-bandeau.js?v=1013"></script>
+<script src="app/ec-stats.js?v=1013"></script>
+<script src="app/ec-messenger.js?v=1013"></script>
+<script src="app/ec-journal.js?v=1013"></script>
+<script src="app/ec-depart.js?v=1013"></script>
+<script src="app/ec-onglets.js?v=1013"></script>
+<script src="app/ec-demarrage.js?v=1013"></script>
 
 <script>
 /* ============================================================
