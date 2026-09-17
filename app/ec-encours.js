@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 13:53 — v1020 */
+/* Déployé le 17/09/2026 à 14:11 — v1021 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -386,7 +386,7 @@ function ligneDuGps(b){
   }
 
   /* Le jugement d'abord, les nombres ensuite. */
-  const maigre = (couvert < 70) || (g.points < 10);
+  const maigre = (couvert < 70) || (g.points < 10) || (g.ecran === false);
   bouts.push('🛰️ ' + minutes(g.releve) + ' relevées sur ' + minutes(g.duree) +
              ' de cours (' + couvert + ' %)');
   bouts.push(g.points + ' point' + (g.points > 1 ? 's' : ''));
@@ -396,6 +396,12 @@ function ligneDuGps(b){
      AUCUNE relance sur un long silence, c'est que le battement
      lui-même ne tourne pas. */
   if(g.relances) bouts.push('veille reposée ' + g.relances + '×');
+  /* ⚠️ LE COUPABLE LE PLUS FRÉQUENT, NOMMÉ — v1021. Un écran qui se
+     verrouille tout seul au bout de trente secondes arrête la
+     géolocalisation avec lui. C'est un RÉGLAGE de téléphone, pas
+     une panne de l'outil : le dire évite de chercher ailleurs
+     pendant une semaine. */
+  if(g.ecran === false) bouts.push('📵 écran NON maintenu (réglage du téléphone)');
   if(!g.fini && g.silence > 120) bouts.push('⚠️ rien depuis ' + minutes(g.silence));
 
   return '<br><span style="color:' +
