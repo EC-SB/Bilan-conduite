@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:38 — v972 */
+/* Déployé le 17/09/2026 à 09:30 — v1014 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -159,6 +159,35 @@ function resultatExamenBlanc(nom, a){
     const h = parseFloat(String(heures).replace(',', '.'));
     if(!isNaN(h) && h > 0) reserve = h;
   }
+
+  /* ============================================================
+     ⚠️ ET LE RENDEZ-VOUS POST-PERMIS POSE LUI AUSSI UNE RÉSERVE —
+     v1014
+
+     David, le 17 septembre : « pour les élèves qui sont en CS et
+     qui ont eu un post-permis car déjà passé le permis ».
+
+     Le post-permis prescrit des heures avant le repassage — c'est
+     tout son objet — et ce nombre ne bougeait jamais. Le mécanisme
+     du décompte existait pourtant depuis la v972, et il prévoyait
+     explicitement « postpermis » comme charnière (voir
+     repereDesHeures). Il n'a simplement jamais été branché des deux
+     bouts : l'écran du post-permis écrivait les heures sans poser
+     le repère, et ce compteur-ci ne regardait que l'examen blanc.
+     Une moitié posée, l'autre oubliée.
+
+     ⚠️ ET LE POST-PERMIS PASSE DEVANT. C'est la charnière la plus
+     récente : après un ajournement, la réserve de l'examen blanc
+     appartient à un parcours qui est derrière. Même ordre que
+     « heuresQuiComptent » du côté du bureau — les deux écrans
+     doivent désigner la MÊME réserve, sinon ils affichent deux
+     chiffres pour une seule question.
+     ============================================================ */
+  if(String(s.rdvPostFait || '') === 'oui'){
+    const hp = parseFloat(String(s.heuresRepassage || '').replace(',', '.'));
+    if(!isNaN(hp) && hp > 0) reserve = hp;
+  }
+
   if(reserve === null) return null;
 
   const restant = reserve - heuresPourLecons(leconsDepuisLaReserve(nom, note));
@@ -203,7 +232,21 @@ function resultatExamenBlanc(nom, a){
    décompter sur des compteurs qui ne les concernent pas.
    ------------------------------------------------------------ */
 function leconsDepuisLaReserve(nom, a){
-  const c = (a || {}).apresCharniere;
+  /* ⚠️ ET SANS NOTE, ON DEMANDE À L'ÉLÈVE — v1014.
+
+     Les écrans du bureau — les listes du permis, les sessions —
+     n'ont pas la note du dernier cours sous la main : ils ont un
+     nom. Ils ne pouvaient donc pas décompter, et affichaient la
+     réserve pleine pendant que l'écran du moniteur la montrait
+     entamée. Deux chiffres pour une seule question, et c'est la
+     faute que ce dossier répare partout ailleurs.
+
+     « charniereDeLEleve » dit exactement ce que la note dirait :
+     où il en est, et de quelle charnière on compte. Une seule
+     porte, deux appelants. */
+  const c = ((a || {}).apresCharniere) ||
+            ((typeof charniereDeLEleve === 'function')
+              ? charniereDeLEleve(nom) : null);
   const apres = parseInt(c && c.rang, 10);
   if(isNaN(apres)) return 0;
 
