@@ -1,4 +1,4 @@
-/* Déployé le 09/09/2026 à 11:23 — v895 */
+/* Déployé le 17/09/2026 à 10:06 — v1015 */
 /* ============================================================
    ec-loupe.js
    Chercher un élève, d'où qu'on soit.
@@ -34,12 +34,18 @@
    Choisir entre deux boutons qui mènent au même endroit n'est pas
    un choix, c'est un tap de plus.
 
-   L'action garde son droit : proposer un écran qu'on ne peut pas
-   ouvrir serait pire que de ne rien proposer. */
+   ⚠️ ET DEPUIS LA v1015, LE BOUTON LUI-MÊME A DISPARU. Il restait
+   un « 👤 Ouvrir son dossier » sous chaque nom : le dernier reste
+   du temps où il fallait choisir. Un bouton unique n'est pas un
+   choix non plus — c'est le nom qu'on veut taper. L'entrée garde
+   son ÉMOJI, son TITRE et son DÉTAIL nulle part : ce qui ne
+   s'affiche plus ne se maintient plus.
+
+   Ce qui reste, et c'est tout ce qui comptait : le DROIT. Ouvrir
+   une recherche qui ne mène nulle part serait pire que ne pas
+   l'ouvrir. */
 const ACTIONS_LOUPE = [
-  { cle: 'dossier', droit: 'eleves', emoji: '👤',
-    titre: 'Ouvrir son dossier',
-    detail: 'Fiche, cours, permis, procédures — tout au même endroit' }
+  { cle: 'dossier', droit: 'eleves' }
 ];
 
 function actionsLoupeDisponibles(){
@@ -56,24 +62,57 @@ function majBoutonLoupe(){
   b.style.display = actionsLoupeDisponibles().length ? '' : 'none';
 }
 
+/* ELLE S'OUVRE SUR UNE LISTE, PAS SUR UN CHAMP VIDE.
+
+   « Fait en sorte qu'elle s'ouvre directement quand on appuie
+   dessus. » Elle s'ouvrait déjà — mais sur un titre, un champ
+   éteint et une phrase qui disait de taper. Trois choses à lire
+   avant de pouvoir faire quoi que ce soit.
+
+   Deux corrections, et c'est tout :
+
+   ⚠️ LE FOCUS EST SYNCHRONE. Il était dans un setTimeout de 80 ms.
+   Sur iPhone, le clavier ne monte QUE si le focus part du geste de
+   l'utilisateur ; passé par une minuterie, le lien est rompu et le
+   clavier reste en bas. Le moniteur voyait la fenêtre s'ouvrir et
+   devait taper une deuxième fois DANS le champ. C'est exactement
+   le tap qu'on enlève de l'autre côté.
+
+   LA LISTE EST DÉJÀ REMPLIE. Une recherche vide rendait un compte
+   (« 213 élève(s) connu(s) ») au lieu des élèves. Maintenant elle
+   rend les premiers noms : on peut taper sur quelqu'un sans avoir
+   rien écrit, et le champ ne sert plus qu'à réduire. */
 function ouvrirLoupe(){
   const actions = actionsLoupeDisponibles();
   if(!actions.length) return;
 
   const fond = document.createElement('div');
   fond.className = 'overlay show';
+  /* En haut de l'écran, pas au milieu : la liste pousse vers le
+     bas sous le champ, comme le répertoire du téléphone. Centrée,
+     elle sautait de place à chaque lettre tapée. */
+  fond.style.alignItems = 'flex-start';
+  fond.style.paddingTop = '5vh';
+
   const boite = document.createElement('div');
   boite.className = 'modal';
-  boite.style.cssText = 'max-width:min(460px, 94vw);';
+  boite.style.cssText = 'max-width:min(460px, 94vw);padding:14px;';
 
+  /* La loupe DANS le champ, comme sur sa capture : le titre
+     « 🔍 Chercher un élève » répétait le bouton sur lequel on
+     venait d'appuyer. */
   boite.innerHTML =
-    '<h3>🔍 Chercher un élève</h3>' +
-    '<input type="text" id="loupeChamp" autocomplete="off" ' +
-      'placeholder="Son nom ou son prénom" ' +
-      'style="margin-bottom:4px;">' +
+    '<div style="position:relative;">' +
+      '<input type="text" id="loupeChamp" autocomplete="off" ' +
+        'placeholder="Chercher un élève" ' +
+        'style="margin-bottom:6px;padding-right:42px;">' +
+      '<span aria-hidden="true" style="position:absolute;right:13px;top:0;' +
+      'height:100%;display:flex;align-items:center;font-size:17px;' +
+      'pointer-events:none;opacity:.75;padding-bottom:6px;">🔍</span>' +
+    '</div>' +
     '<div id="loupeEtat" style="font-size:12px;color:var(--muted);' +
-    'line-height:1.5;margin-bottom:10px;"></div>' +
-    '<div id="loupeListe" style="max-height:46vh;overflow-y:auto;"></div>';
+    'line-height:1.5;margin-bottom:8px;"></div>' +
+    '<div id="loupeListe" style="max-height:58vh;overflow-y:auto;"></div>';
 
   const fermer = () => {
     if(fond.parentNode) fermerFond(fond);
@@ -81,6 +120,7 @@ function ouvrirLoupe(){
 
   const rangee = document.createElement('div');
   rangee.className = 'btn-row';
+  rangee.style.marginTop = '10px';
   const bAnn = document.createElement('button');
   bAnn.className = 'btn btn-secondary';
   bAnn.textContent = 'Fermer';
@@ -90,6 +130,17 @@ function ouvrirLoupe(){
 
   fond.appendChild(boite);
   document.body.appendChild(fond);
+
+  /* Un clic à côté et Échap ferment aussi. Une fenêtre de
+     recherche qu'on ouvre par erreur ne doit pas obliger à viser
+     un bouton pour s'en aller. */
+  fond.addEventListener('click', e => { if(e.target === fond) fermer(); });
+  const auClavier = e => {
+    if(e.key !== 'Escape') return;
+    document.removeEventListener('keydown', auClavier);
+    fermer();
+  };
+  document.addEventListener('keydown', auClavier);
 
   const champ = boite.querySelector('#loupeChamp');
   const etat = boite.querySelector('#loupeEtat');
@@ -109,6 +160,10 @@ function ouvrirLoupe(){
       'Ouvre une fois la recherche ou le répertoire, puis reviens ici.';
   }
 
+  /* Y aller. Le nom EST le bouton : plus de carte avec « Ouvrir son
+     dossier » dedans. */
+  const yAller = nom => { fermer(); lancerActionLoupe('dossier', nom); };
+
   const dessiner = () => {
     const q = (typeof normaliserMot === 'function')
       ? normaliserMot(champ.value) : champ.value.toLowerCase().trim();
@@ -116,22 +171,19 @@ function ouvrirLoupe(){
     liste.innerHTML = '';
     if(!tous.length) return;
 
-    if(!q){
-      etat.textContent = tous.length + ' élève(s) connu(s) — tape les ' +
-        'premières lettres.';
-      return;
-    }
-
     /* Le même filtre que le répertoire et le dossier : nom, numéro,
        mail, formation, Messenger. Elle ne cherchait que dans le
        nom — chercher un élève par son numéro marchait deux écrans
-       plus loin, et pas ici. */
+       plus loin, et pas ici.
+
+       ⚠️ ET LA RECHERCHE VIDE REND TOUT LE MONDE. C'est ce qui fait
+       qu'à l'ouverture il y a déjà des noms sous le doigt. */
     const trouves = (typeof chercherEleves === 'function')
       ? chercherEleves(champ.value, 40)
       : tous.filter(n => {
           const c = (typeof normaliserMot === 'function')
             ? normaliserMot(n) : String(n).toLowerCase();
-          return c.indexOf(q) !== -1;
+          return !q || c.indexOf(q) !== -1;
         }).slice(0, 40);
 
     if(!trouves.length){
@@ -143,37 +195,22 @@ function ouvrirLoupe(){
       return;
     }
 
-    etat.textContent = trouves.length + ' trouvé(s)' +
-      (trouves.length === 40 ? ' (40 premiers)' : '');
+    etat.textContent = !q
+      ? tous.length + ' élève(s) — tape les premières lettres pour réduire'
+      : trouves.length + ' trouvé(s)' +
+        (trouves.length === 40 ? ' (40 premiers)' : '');
 
     trouves.forEach(nom => {
-      const d = document.createElement('div');
-      d.style.cssText = 'border:1px solid var(--line);border-radius:10px;' +
-        'padding:9px 11px;margin-bottom:7px;';
-
-      const t = document.createElement('div');
-      t.style.cssText = 'font-size:14px;font-weight:700;margin-bottom:7px;';
-      t.textContent = nom;
-      d.appendChild(t);
-
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
-
-      actions.forEach(a => {
-        const b = document.createElement('button');
-        b.className = 'btn btn-secondary';
-        b.style.cssText = 'width:auto;padding:8px 11px;font-size:13px;margin:0;';
-        b.textContent = a.emoji + ' ' + a.titre;
-        b.title = a.detail;
-        b.addEventListener('click', () => {
-          fermer();
-          lancerActionLoupe(a.cle, nom);
-        });
-        r.appendChild(b);
-      });
-
-      d.appendChild(r);
-      liste.appendChild(d);
+      liste.appendChild(
+        (typeof ligneEleveTrouve === 'function')
+          ? ligneEleveTrouve(nom, yAller)
+          : (() => {
+              const b = document.createElement('button');
+              b.className = 'btn btn-secondary';
+              b.textContent = nom;
+              b.addEventListener('click', () => yAller(nom));
+              return b;
+            })());
     });
   };
 
@@ -183,11 +220,16 @@ function ouvrirLoupe(){
   champ.addEventListener('keydown', e => {
     if(e.key !== 'Enter') return;
     const seul = liste.querySelectorAll('button');
-    if(seul.length === actions.length && actions.length) seul[0].click();
+    if(seul.length === 1) seul[0].click();
   });
 
   dessiner();
-  setTimeout(() => champ.focus(), 80);
+
+  /* ⚠️ SYNCHRONE, PAS DANS UN setTimeout. Le clavier d'iPhone ne
+     monte que si le focus part encore du geste qui a ouvert la
+     fenêtre ; une minuterie, même de 80 ms, rompt le lien et
+     oblige à taper une seconde fois dans le champ. */
+  champ.focus();
 }
 
 /* Ce que fait chaque action. Elle ne réinvente rien : elle emmène
