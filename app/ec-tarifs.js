@@ -1,4 +1,4 @@
-/* Déployé le 10/09/2026 à 17:41 — v926 */
+/* Déployé le 17/09/2026 à 12:28 — v1017 */
 /* ============================================================
    ec-tarifs.js
    Les prestations et leurs tarifs.
@@ -65,6 +65,45 @@ const TARIFS_DEFAUT = [
 let tarifsPrestations = null;
 
 
+/* ============================================================
+   ⚠️ UNE LISTE ENREGISTRÉE AVANT LES DEUX BOÎTES — v1017
+
+   Les tarifs n'ont pas toujours porté un libellé et un prix par
+   boîte : « nomA » et « puA » sont arrivés après. Une liste
+   enregistrée dans Gestion avant ce jour-là n'en a AUCUN — et elle
+   est relue telle quelle à chaque ouverture, parce qu'elle est plus
+   récente que celle du code.
+
+   Le devis retombe alors, ligne par ligne, sur le libellé et le
+   tarif de la MANUELLE. Ce repli est voulu pour la carte SD ou le
+   livret, qui sont les mêmes dans les deux boîtes. Il ne l'est pas
+   pour « Conduite en Audi A3 Sportback 2h », qui devient le devis
+   automatique d'un élève BEA — sans la moindre erreur à l'écran.
+
+   On complète donc chaque ligne depuis la table d'origine, par son
+   nom. C'est une réparation, pas un écrasement : un tarif que tu as
+   modifié dans Gestion reste le tien, on ne pose QUE ce qui manque.
+   ============================================================ */
+function completerLesDeuxBoites(liste){
+  if(!Array.isArray(liste)) return liste;
+
+  return liste.map(l => {
+    const x = Object.assign({}, l);
+    if(x.nomA !== undefined && x.puA !== undefined) return x;
+
+    const origine = TARIFS_DEFAUT.find(o => o.nom === x.nom);
+    /* Une prestation que tu as ajoutée toi-même n'est dans aucune
+       table d'origine : sa colonne automatique reprend la manuelle,
+       ce qui est le bon défaut pour une prestation qui vient
+       d'être créée. */
+    if(x.nomA === undefined) x.nomA = (origine && origine.nomA) || x.nom;
+    if(x.puA === undefined)  x.puA  = (origine && origine.puA !== undefined)
+                                        ? origine.puA : x.pu;
+    return x;
+  });
+}
+
+
 /* La liste en vigueur. L'évaluation l'appelle avant de calculer. */
 async function chargerTarifs(){
   if(tarifsPrestations !== null) return tarifsPrestations;
@@ -74,7 +113,7 @@ async function chargerTarifs(){
     const g = (d && d.reglages) || {};
     if(g.tarifsPrestations){
       const l = JSON.parse(g.tarifsPrestations);
-      if(Array.isArray(l) && l.length) tarifsPrestations = l;
+      if(Array.isArray(l) && l.length) tarifsPrestations = completerLesDeuxBoites(l);
     }
   }catch(e){ /* on garde les tarifs d'origine */ }
 
@@ -141,16 +180,32 @@ async function afficherTarifs(){
     iN.addEventListener('input', () => { tarifsPrestations[i].nom = iN.value; });
     tdN.appendChild(iN);
 
-    /* Le libellé automatique, quand il n'est pas le même */
-    if((l.nomA || l.nom) !== l.nom || auto){
-      const iA = document.createElement('input');
-      iA.type = 'text';
-      iA.value = l.nomA || l.nom;
-      iA.style.cssText = 'width:100%;padding:4px;font-size:11px;margin:0;' +
-        'background:transparent;border:none;color:var(--muted);';
-      iA.addEventListener('input', () => { tarifsPrestations[i].nomA = iA.value; });
-      tdN.appendChild(iA);
-    }
+    /* ⚠️ LE LIBELLÉ AUTOMATIQUE EST TOUJOURS LÀ — v1017.
+
+       Il ne s'affichait QUE s'il différait déjà du manuel (ou sur
+       les deux lignes à quantité calculée). Autrement dit : une
+       prestation dont le nom BEA aurait dû être différent ne pouvait
+       JAMAIS le devenir — il n'y avait pas de case pour l'écrire.
+       Le seul moyen était de passer par le classeur.
+
+       Une case qu'on ne peut pas remplir est une règle qu'on ne peut
+       pas appliquer. Elle est donc toujours ouverte, en gris, sous
+       le libellé manuel : identique, elle ne dérange personne ;
+       différente, elle se voit. */
+    const iA = document.createElement('input');
+    iA.type = 'text';
+    iA.value = l.nomA || l.nom;
+    iA.title = "Le libellé du devis en boîte automatique";
+    iA.style.cssText = 'width:100%;padding:4px;font-size:11px;margin:0;' +
+      'background:transparent;border:none;' +
+      'color:' + (((l.nomA || l.nom) !== l.nom)
+                    ? 'var(--accent-text)' : 'var(--muted)') + ';';
+    iA.addEventListener('input', () => {
+      tarifsPrestations[i].nomA = iA.value;
+      iA.style.color = (iA.value !== tarifsPrestations[i].nom)
+        ? 'var(--accent-text)' : 'var(--muted)';
+    });
+    tdN.appendChild(iA);
     tr.appendChild(tdN);
 
     /* La quantité : calculée pour deux lignes, saisie pour le reste */
