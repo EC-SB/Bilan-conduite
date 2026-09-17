@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 17/09/2026 à 12:28 — v1017 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1351,71 +1351,29 @@ async function afficherConsignesEnAttente(){
 }
 
 
-/* Ajout manuel d'une date depuis le bureau, hors des listes */
-async function ajouterDateBureau(){
-  const eleve = $('addEleve').value.trim();
-  const type = $('addType').value;
-  const situation = $('addEtat').value;
-  const iso = $('addDate').value;
-  const nLecons = $('addLecons').value.trim();
-  const etat = $('addEtatMsg');
+/* ============================================================
+   ⚠️ « ajouterDateBureau » N'EST PLUS ICI — v1017
 
-  if(eleve.length < 2){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = "Saisis le nom de l'élève.";
-    return;
-  }
-  if(situation === 'date' && !iso){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Choisis une date ou passe en « à prévoir ».';
-    return;
-  }
+   Elle y était, ET dans ec-permis-listes.js. Deux fonctions du même
+   nom, à la même portée : il n'y a pas de modules dans cette
+   application, et index.html charge ec-permis-listes.js APRÈS
+   ec-bureau.js. La seconde écrasait donc la première au chargement,
+   et celle d'ici n'a jamais été exécutée une seule fois.
 
-  const suite = nLecons
-    ? ' — encore ' + nLecons + ' leçon' + (parseInt(nLecons, 10) > 1 ? 's' : '')
-    : '';
+   Elles avaient déjà divergé, et pas au détriment de la vivante :
+   celle d'ici ne vidait pas la note, ne posait pas
+   « eleveAjouteRecemment », et rafraîchissait par afficherBureau()
+   au lieu de afficherBureau(true) — donc en vidant les listes.
 
-  let texte;
-  if(situation === 'date'){
-    const quand = dateEnToutesLettres(iso);
-    if(type === 'permis') texte = 'Examen du permis fixé au ' + quand + suite + ' avant (bureau)';
-    else if(type === 'examblanc') texte = 'Examen blanc fixé au ' + quand + suite + ' avant (bureau)';
-    else texte = 'Simulateur nuit et risques fixé au ' + quand + ' (bureau)';
-  }else{
-    if(type === 'permis'){
-      texte = "Date d'examen à prévoir" + (suite ? ' (' + suite.replace(' — ', '') + ')' : '') + ' (bureau)';
-    }else if(type === 'examblanc'){
-      texte = 'Examen blanc à prévoir' +
-              (nLecons ? ' dans ' + nLecons + ' leçon' + (parseInt(nLecons,10) > 1 ? 's' : '') : '') +
-              ' (bureau)';
-    }else{
-      texte = 'Simulateur nuit et risques à prévoir (bureau)';
-    }
-  }
+   ⚠️ CE QUE ÇA COÛTE, ET QUI EST PIRE QUE LE CODE MORT : on corrige
+   l'écran ici, on recharge, rien ne change, et on ne comprend pas
+   pourquoi. C'est une demi-journée perdue à chercher un bug qui
+   n'existe pas.
 
-  const btn = $('addBtn');
-  btn.disabled = true;
-  btn.textContent = 'Enregistrement…';
-  try{
-    await envoyerConsigne(eleve, type, texte);
-    etat.style.color = 'var(--accent-text)';
-    etat.textContent = '✅ ' + texte;
-    /* Le formulaire repart à vide : on enchaîne souvent plusieurs élèves. */
-    $('addLecons').value = '';
-    $('addEleve').value = '';
-    if($('addDate')) $('addDate').value = '';
-    $('addEleve').focus();
-
-    await afficherConsignesEnAttente();
-    await afficherBureau();
-  }catch(e){
-    etat.style.color = 'var(--warn-text)';
-    etat.textContent = 'Erreur : ' + e.message;
-  }finally{
-    btn.disabled = false;
-    btn.textContent = '📅 Enregistrer la date';
-  }
-}
+   La vivante reste dans ec-permis-listes.js, avec le formulaire
+   qu'elle sert. test-une-seule-fonction-par-nom.js refuse désormais
+   que deux fichiers de app/ déclarent la même fonction globale.
+   ============================================================ */
 
 /* ============================================================
    ACTUALISATION AUTOMATIQUE
