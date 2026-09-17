@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 17/09/2026 à 08:47 — v1013 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -882,18 +882,22 @@ function majTotalCepc(){
 
 /* Construit le formulaire du bilan manuel */
 async function ouvrirBilanManuel(){
-  const probleme = verifierContexteManuel();
-  if(probleme){ showToast(probleme); return; }
+  /* ⚠️ LE MÊME REFUS QUE LE BOUTON VERT — v1013. Celui-ci passait
+     par un toast : il s'en va au bout de trois secondes, il ne dit
+     pas QUEL champ manque, et il ne laisse rien derrière lui. Une
+     seule porte pour les deux boutons, voir refuserLeDepart. */
+  const manque = cequiManqueAuDepart();
+  if(manque){ refuserLeDepart($('manuelBtn'), manque); return; }
 
   /* Modifiables : l'examen officiel peut basculer d'une boîte à
      l'autre quand la question est posée au moniteur. */
   let modeleCle = $('modele').value;
   let modele = MODELES[modeleCle];
 
-  /* Le rendez-vous post-permis a son propre écran */
+  /* Le rendez-vous post-permis a son propre écran. Le nom est déjà
+     garanti par le refus ci-dessus : il ne se revérifie pas ici. */
   if(modeleCle === 'rdv-post'){
     const nom = $('studentName').value.trim();
-    if(nom.length < 2){ showToast("Saisis le nom de l'élève."); return; }
     ouvrirRdvPost({ eleve: nom, date: $('lessonDate').value,
                     moniteur: ACCES.moniteur || '', note: '', modele: 'rdv-post' });
     return;
