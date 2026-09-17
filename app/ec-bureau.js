@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:28 — v1017 */
+/* Déployé le 17/09/2026 à 15:26 — v1023 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -875,6 +875,71 @@ function champsHeuresDitesMaintenant(eleve, valeur, champs){
 }
 
 
+/* ============================================================
+   LA BOÎTE DE VITESSES D'UN ÉLÈVE, LUE À UN SEUL ENDROIT — v1023
+
+   David, le 17/09 : « dans la liste des élèves prêts au permis,
+   mets la barre verte à côté du nom quand ils sont en BV et la
+   violette quand ils sont en BEA ».
+
+   ⚠️ LA RÈGLE ÉTAIT DÉJÀ ÉCRITE DEUX FOIS, dans ec-permis-listes.js
+   — une fois pour remplir le menu « Type d'examen », une fois pour
+   grouper les places d'examen. Deux copies, donc deux occasions de
+   corriger l'une en oubliant l'autre. En ajouter une troisième pour
+   la barre aurait été la faute qu'on se répète depuis des mois.
+
+   ⚠️ ET ELLE REND « » QUAND ON NE SAIT PAS. Les deux copies
+   retombaient sur « bv » dès que le libellé ne contenait pas
+   « automatique » : un examen blanc, un rendez-vous post-permis,
+   une fiche handicap devenaient tous des boîtes manuelles. Pour
+   grouper des places ça passait ; pour PEINDRE UNE BARRE À CÔTÉ
+   D'UN NOM, non — une barre verte qui se trompe est pire qu'une
+   barre absente. Les appelants qui ont besoin d'une valeur par
+   défaut la posent eux-mêmes, en clair, avec « || 'bv' ».
+
+   Trois sources, de la plus sûre à la plus faible :
+     1. le type d'examen posé par le bureau (il a tranché) ;
+     2. la boîte écrite sur ses bilans (colonne I) ;
+     3. le libellé du dernier cours — « Conduite — Boîte manuelle ».
+   « handicap » n'est ni BV ni BEA : il ressort « », donc sans
+   barre.
+   ============================================================ */
+function boiteConnueDe(e){
+  if(!e) return '';
+  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : null;
+  const pistes = [
+    s && s.typeExamen,
+    e.boite,
+    (typeof boiteDuType === 'function') ? boiteDuType(e.type) : ''
+  ];
+  for(let i = 0; i < pistes.length; i++){
+    const b = String(pistes[i] || '').trim().toLowerCase();
+    if(b === 'bv' || b === 'bea') return b;
+  }
+  return '';
+}
+
+const BARRE_BOITE = {
+  bv:  { ton: 'var(--boite-bv)',  quoi: 'BV — boîte manuelle' },
+  bea: { ton: 'var(--boite-bea)', quoi: 'BEA — boîte automatique' }
+};
+
+/* La barre elle-même, ou rien. « Rien » est une réponse : voir la
+   note ci-dessus. */
+function barreDeLaBoite(e){
+  const c = BARRE_BOITE[boiteConnueDe(e)];
+  if(!c) return null;
+  const b = document.createElement('span');
+  b.className = 'barreBoite';
+  b.style.background = c.ton;
+  /* La couleur ne dit jamais seule : au survol et pour un lecteur
+     d'écran, elle s'écrit en toutes lettres. */
+  b.title = c.quoi;
+  b.setAttribute('aria-label', c.quoi);
+  return b;
+}
+
+
 /* Fiche de préparation administrative d'un passage au permis */
 function ligneBureau(e, options){
   const row = document.createElement('div');
@@ -902,7 +967,21 @@ function ligneBureau(e, options){
   meta.className = 'meta';
   const nom = document.createElement('strong');
   nom.textContent = e.eleve;
-  meta.appendChild(nom);
+
+  /* La barre de la boîte, seulement dans les listes qui la
+     demandent — « Élèves prêts au permis » aujourd'hui. Posée ici
+     pour les quinze listes d'un coup le jour où tu en veux
+     ailleurs ; pas allumée partout sans qu'on l'ait décidé. */
+  const barre = options.barreBoite ? barreDeLaBoite(e) : null;
+  if(barre){
+    const titre = document.createElement('div');
+    titre.className = 'ligneAvecBoite';
+    titre.appendChild(barre);
+    titre.appendChild(nom);
+    meta.appendChild(titre);
+  }else{
+    meta.appendChild(nom);
+  }
 
   const info = document.createElement('span');
   info.textContent = options.info(e);
