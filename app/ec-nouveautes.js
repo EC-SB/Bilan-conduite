@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:28 — v1017 */
+/* Déployé le 17/09/2026 à 12:44 — v1018 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -53,7 +53,7 @@ const NOUVEAUTES = [
   {
     version: 1015,
     date: 'Jeudi 17 septembre 2026',
-    resume: 'Le tiroir « Démarrer un cours », la loupe, le trajet dans le bilan',
+    resume: 'Le tiroir « Démarrer un cours », la loupe, le numéro de leçon',
     quoi: [
       { emoji: '➕',
         titre: 'Démarrer un cours est rangé dans un tiroir',
@@ -70,7 +70,9 @@ const NOUVEAUTES = [
         texte: 'On appuie dessus : le clavier est là et les noms sont déjà ' +
                'affichés. On tape sur un nom, on est dans son dossier — plus ' +
                'de bouton « Ouvrir son dossier » à viser derrière. La ' +
-               'formation est indiquée à droite de chaque nom.' },
+               'formation est indiquée à droite de chaque nom. Elle trouve ' +
+               'aussi les ÉCRANS : tape « écoutes », « remorque », « caisse » ' +
+               '— elle t’y emmène, et elle te dit dans quel onglet c’était.' },
       { emoji: '🗺️',
         titre: 'Le trajet se revoit dans le bilan rangé',
         texte: 'Le bouton du dossier élève rouvre la carte AVEC ses points ' +
@@ -87,22 +89,25 @@ const NOUVEAUTES = [
                "d'examen, ce que l'élève a écrit, tes remarques — et il " +
                'sort de la liste des cours non terminés. Il ne compte pas ' +
                'comme une leçon.' },
-      { emoji: '👨‍👩‍👦',
-        titre: 'Les rendez-vous pédagogiques ne comptent plus comme des leçons',
-        texte: 'Le RVP 1 et le RVP 2 se passent assis, en salle, avec ' +
-               'l’accompagnateur — ce ne sont pas des leçons de conduite. ' +
-               'Le classeur les comptait quand même : un élève en conduite ' +
-               'accompagnée qui avait fait ses deux rendez-vous était ' +
-               'annoncé deux leçons plus loin qu’il ne l’est. Certains ' +
-               'numéros vont donc descendre : c’est le chiffre juste qui ' +
-               'arrive.' },
       { emoji: '🔢',
-        titre: 'Le décompte des leçons avance tout seul',
+        titre: 'Le numéro de leçon, enfin le même partout',
         texte: 'La petite case sous la date d’examen et la phrase verte ' +
-               '« encore N leçons » disent enfin le même chiffre, et il ' +
-               'descend à chaque cours. Les élèves en conduite supervisée et ' +
-               'ceux qui ont déjà passé le permis comptent sur leurs heures ' +
-               'de repassage, pas sur celles d’avant.' }
+               '« encore N leçons » disent le même chiffre, et il descend à ' +
+               'chaque cours. Un rang que tu as corrigé à la main TIENT : ' +
+               'l’outil repart de lui et compte les leçons qui ont suivi, ' +
+               'sur tous les écrans — avant, le même élève pouvait afficher ' +
+               'deux numéros différents selon l’écran ouvert. Les élèves en ' +
+               'conduite supervisée et ceux qui ont déjà passé le permis ' +
+               'comptent sur leurs heures de repassage, pas sur celles ' +
+               'd’avant.' },
+      { emoji: '👨‍👩‍👦',
+        titre: '⚠️ Certains numéros vont descendre, et c’est voulu',
+        texte: 'Le RVP 1 et le RVP 2 se passent assis, en salle, avec ' +
+               'l’accompagnateur : ce ne sont pas des leçons de conduite. Le ' +
+               'classeur les comptait quand même. Un élève en conduite ' +
+               'accompagnée qui a fait ses deux rendez-vous était annoncé ' +
+               'deux leçons plus loin qu’il ne l’est. C’est le chiffre juste ' +
+               'qui arrive, rien ne s’est perdu.' }
     ]
   },
   {
