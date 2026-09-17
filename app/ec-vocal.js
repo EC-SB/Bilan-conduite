@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 08:47 — v1013 */
+/* Déployé le 17/09/2026 à 10:47 — v1016 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2359,45 +2359,40 @@ async function exporterVersSheets(silencieux){
   btn.disabled = true;
   btn.textContent = 'Export en cours…';
   try{
-    const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'append',
-        code: ACCES.code,
-        /* Les champs de l'écran servent de secours : si les
-           métadonnées du cours manquent — bilan repris, écran
-           rechargé — la ligne partait avec des colonnes vides. */
-        data: {
-          date: (currentLessonMeta &&
-                 (currentLessonMeta.dateCourte || currentLessonMeta.dateStr)) ||
-                dateCourteDuJour($('lessonDate') ? $('lessonDate').value : ''),
-          site: (currentLessonMeta && currentLessonMeta.site) ||
-                ($('site') ? $('site').value : ''),
-          monitorName: (currentLessonMeta && currentLessonMeta.monitorName) ||
-                       ACCES.moniteur || '',
-          studentName: (currentLessonMeta && currentLessonMeta.studentName) ||
-                       ($('studentName') ? $('studentName').value.trim() : ''),
-          typeBilan: (currentLessonMeta && currentLessonMeta.modeleLabel) ||
-                     ((MODELES[$('modele') ? $('modele').value : ''] || {}).label || ''),
-          noteInterne: $('noteResult').value.trim(),
-          boite: contexteDepart ? (contexteDepart.boite || '') : '',
-          ants: contexteDepart ? (contexteDepart.ants || '') : '',
-          manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | '),
-          horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
-          bilan: $('resultText').value
-        }
-      })
+    /* ⚠️ L'ÉCRITURE ET LE SIGNAL DE FIN VIVENT ENSEMBLE, DANS
+       ec-historique.js — v1016.
+
+       Ils étaient ici, au milieu de cette fonction, et cet écran
+       n'est traversé que par DEUX des trois chemins : le rendez-vous
+       post-permis a le sien et ne passait jamais par là. Il ne
+       laissait donc aucune ligne au classeur, et ne disait jamais
+       que son cours était fini. Voir envoyerLigneDeBilan. */
+    const envoi = await envoyerLigneDeBilan({
+      /* Les champs de l'écran servent de secours : si les
+         métadonnées du cours manquent — bilan repris, écran
+         rechargé — la ligne partait avec des colonnes vides. */
+      date: (currentLessonMeta &&
+             (currentLessonMeta.dateCourte || currentLessonMeta.dateStr)) ||
+            dateCourteDuJour($('lessonDate') ? $('lessonDate').value : ''),
+      site: (currentLessonMeta && currentLessonMeta.site) ||
+            ($('site') ? $('site').value : ''),
+      monitorName: (currentLessonMeta && currentLessonMeta.monitorName) ||
+                   ACCES.moniteur || '',
+      studentName: (currentLessonMeta && currentLessonMeta.studentName) ||
+                   ($('studentName') ? $('studentName').value.trim() : ''),
+      typeBilan: (currentLessonMeta && currentLessonMeta.modeleLabel) ||
+                 ((MODELES[$('modele') ? $('modele').value : ''] || {}).label || ''),
+      noteInterne: $('noteResult').value.trim(),
+      boite: contexteDepart ? (contexteDepart.boite || '') : '',
+      ants: contexteDepart ? (contexteDepart.ants || '') : '',
+      manoeuvres: manoeuvresDejaFaites($('resultText').value).join(' | '),
+      horodatage: horodatageLisible(currentLessonMeta ? currentLessonMeta.ts : null),
+      bilan: $('resultText').value
     });
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const rep = await r.json().catch(() => ({}));
-    /* Le await manquait : la fonction est asynchrone, et une promesse
-       est toujours vraie. Le garde-fou ne s'est jamais déclenché — un
-       bilan enregistré sans sa note passait pour enregistré. */
-    if(!await verifierVersionScript(rep)){ marquerExport(false); return false; }
+    if(!envoi.ok){ marquerExport(false); return false; }
     const avecNote = $('noteResult').value.trim();
     showToast(avecNote ? 'Enregistré avec la note 🔒 ✅' : 'Enregistré dans Sheets ✅');
-    declarerBilanEcrit(rep && rep.ligne);
+    declarerBilanEcrit(envoi.ligne);
 
     /* ⚠️ LE TRACÉ SE RANGE ICI, ET NULLE PART AILLEURS — v990.
 
@@ -2429,7 +2424,10 @@ async function exporterVersSheets(silencieux){
     /* Les ordres dictés rejoignent la mémoire, en attente de validation */
     retenirConsignesIA($('transcriptBox').value,
                        currentLessonMeta && currentLessonMeta.studentName);
-    if(typeof signalerCoursFini === 'function') signalerCoursFini();
+    /* Le signal de fin est parti avec la ligne, dans
+       envoyerLigneDeBilan : le dire deux fois n'ajouterait rien, et
+       le dire ici rendait le rendez-vous post-permis incapable de
+       le dire du tout. */
 
     /* ------------------------------------------------------------
        LE BROUILLON MEURT ICI, ET PAS AILLEURS
