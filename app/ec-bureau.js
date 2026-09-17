@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 15:26 — v1023 */
+/* Déployé le 17/09/2026 à 15:35 — v1024 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -920,18 +920,44 @@ function boiteConnueDe(e){
 }
 
 const BARRE_BOITE = {
-  bv:  { ton: 'var(--boite-bv)',  quoi: 'BV — boîte manuelle' },
-  bea: { ton: 'var(--boite-bea)', quoi: 'BEA — boîte automatique' }
+  bv:  { cle: 'BV',  quoi: 'BV — boîte manuelle' },
+  bea: { cle: 'BEA', quoi: 'BEA — boîte automatique' }
 };
+
+/* ⚠️ LES COULEURS SONT CELLES DES PROCHAINS COURS, PAS LES MIENNES.
+
+   David, le 17/09 : « je voulais dire les mêmes couleurs que dans
+   mes prochains cours ». J'avais inventé un vert et un violet à
+   moi, et posé deux variables de thème pour les porter. Deux jeux
+   de couleurs pour une même information — la boîte de vitesses —
+   c'est une information qui change de sens d'un écran à l'autre.
+
+   On lit donc la table qui peint déjà les traits des cartes de
+   « Mes prochains cours » : TRAIT_PAIRES.ordinaire, dans
+   ec-modeles.js. Le jour où il change son magenta, la barre change
+   avec, sans que personne n'y pense. RECOPIER LES DEUX CODES
+   HEXADÉCIMAUX ICI AURAIT MARCHÉ AUJOURD'HUI ET MENTI DEMAIN.
+
+   Une leçon de conduite, donc la paire « ordinaire » : c'est de la
+   boîte de l'ÉLÈVE qu'on parle ici, pas du type d'une séance. */
+function tonDeLaBoite(cle){
+  if(typeof TRAIT_PAIRES === 'undefined') return '';
+  const paire = TRAIT_PAIRES.ordinaire || {};
+  return paire[cle] || '';
+}
 
 /* La barre elle-même, ou rien. « Rien » est une réponse : voir la
    note ci-dessus. */
 function barreDeLaBoite(e){
   const c = BARRE_BOITE[boiteConnueDe(e)];
   if(!c) return null;
+  const ton = tonDeLaBoite(c.cle);
+  /* Sans couleur, pas de barre : une barre grise dirait « on ne
+     sait pas » alors qu'on sait. */
+  if(!ton) return null;
   const b = document.createElement('span');
   b.className = 'barreBoite';
-  b.style.background = c.ton;
+  b.style.background = ton;
   /* La couleur ne dit jamais seule : au survol et pour un lecteur
      d'écran, elle s'écrit en toutes lettres. */
   b.title = c.quoi;
