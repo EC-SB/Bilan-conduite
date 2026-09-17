@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 13:38 — v975 */
+/* Déployé le 17/09/2026 à 10:06 — v1015 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,43 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1015,
+    date: 'Jeudi 17 septembre 2026',
+    resume: 'Le tiroir « Démarrer un cours », la loupe, le trajet dans le bilan',
+    quoi: [
+      { emoji: '➕',
+        titre: 'Démarrer un cours est rangé dans un tiroir',
+        texte: 'Il était sous « Mes prochains cours » et se confondait avec ' +
+               'eux : on tapait dedans sans mettre le nom. Il est maintenant ' +
+               'fermé, et il s’appelle « Démarrer un cours qui n’est pas ' +
+               'dans la liste ». Ton cours EST dans la liste ? Démarre-le de ' +
+               'là : il s’ouvre en plein écran, avec un « ← Mes cours » pour ' +
+               'revenir. Et s’il manque le nom, le prénom, le type de bilan ' +
+               'ou la date, le bouton te montre lequel au lieu de ne rien ' +
+               'faire.' },
+      { emoji: '🔍',
+        titre: 'La loupe s’ouvre sur la liste des élèves',
+        texte: 'On appuie dessus : le clavier est là et les noms sont déjà ' +
+               'affichés. On tape sur un nom, on est dans son dossier — plus ' +
+               'de bouton « Ouvrir son dossier » à viser derrière. La ' +
+               'formation est indiquée à droite de chaque nom.' },
+      { emoji: '🗺️',
+        titre: 'Le trajet se revoit dans le bilan rangé',
+        texte: 'Le bouton du dossier élève rouvre la carte AVEC ses points ' +
+               'numérotés et l’explication sous chacun, comme au moment du ' +
+               'cours. Les erreurs sans compétence ont retrouvé leur ' +
+               '« point N sur la carte », qu’elles perdaient dans le mail ' +
+               'd’examen blanc.' },
+      { emoji: '🔢',
+        titre: 'Le décompte des leçons avance tout seul',
+        texte: 'La petite case sous la date d’examen et la phrase verte ' +
+               '« encore N leçons » disent enfin le même chiffre, et il ' +
+               'descend à chaque cours. Les élèves en conduite supervisée et ' +
+               'ceux qui ont déjà passé le permis comptent sur leurs heures ' +
+               'de repassage, pas sur celles d’avant.' }
+    ]
+  },
   {
     version: 974,
     date: 'Vendredi 12 septembre 2026',
