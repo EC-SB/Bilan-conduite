@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 08:47 — v1013 */
+/* Déployé le 17/09/2026 à 13:40 — v1019 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -2763,6 +2763,44 @@ function effacerBrouillonDe(eleve){
 function brouillonManuelActuel(){
   const zone = $('manuelChamps');
   if(!zone) return null;
+
+  /* ============================================================
+     ⚠️ PAS DE FICHE OUVERTE, PAS DE FICHE — v1019
+
+     David, le 17 septembre, capture à l'appui : « quand je fais
+     reprendre ici ça m'ouvre un cours en manuel VIDE alors que
+     c'était un cours en vocal ».
+
+     Cette fonction rendait un objet même quand AUCUNE fiche
+     manuelle n'était ouverte. Le refus écrit plus bas — « rien de
+     saisi, inutile de proposer une reprise vide » — laisse passer
+     dès que le QUESTIONNAIRE est rempli. Or un cours en dictée
+     remplit son questionnaire comme les autres : « contexteDepart »
+     est posé, le refus ne joue pas, et un objet part.
+
+     La suite est mécanique, et elle a coûté un cours à David :
+
+       · le dépôt colle cet objet dans « fiche » ;
+       · 🩹 Cours non terminés voit une « fiche » et annonce
+         « fiche remplie à la main » sur une dictée ;
+       · « ↩️ Reprendre ici » voit une fiche, VIDE la case de
+         dictée et ouvre un formulaire manuel sans une ligne.
+
+     La dictée, elle, n'a jamais quitté le serveur — c'est l'écran
+     qui s'est vidé. Mais devant un moniteur, un écran vide et un
+     travail perdu, c'est la même chose.
+
+     ⚠️ « modeManuel », ET NON « LA ZONE EXISTE ». #manuelChamps
+     est écrit dans index.html : la zone existe TOUJOURS, même en
+     pleine dictée. C'est le drapeau du mode qui dit la vérité — il
+     est posé par ouvrirBilanManuel et retombe à la fermeture du
+     cours.
+
+     Le questionnaire d'une dictée n'est pas perdu pour autant : il
+     voyage avec elle, par son propre chemin. Il n'a jamais eu à
+     voyager dans une fiche manuelle.
+     ============================================================ */
+  if(typeof modeManuel !== 'undefined' && !modeManuel) return null;
 
   /* ⚠️ ON RELIT L'ÉCRAN AVANT DE GARDER.
 
