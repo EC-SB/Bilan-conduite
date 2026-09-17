@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 13:41 — v1019 */
+/* Déployé le 17/09/2026 à 13:53 — v1020 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -337,6 +337,73 @@ function carte(){
   return d;
 }
 
+/* ============================================================
+   L'ÉTAT DU RELEVÉ GPS, SUR LA LIGNE DU COURS — v1020
+
+   David, le 17 septembre : « rajoute dans cours non terminés les
+   infos sur le GPS par cours, pour que je voie si ça bug ». Puis,
+   dans la foulée : « le dernier cours de Chrystel a 1 minute
+   d'enregistrement GPS alors que son cours a duré 2 h ».
+
+   ⚠️ LE BUREAU NE POUVAIT RIEN VOIR. Le tracé n'arrive au classeur
+   qu'avec le BILAN : sur un cours non terminé, il n'existait nulle
+   part. Le trou se découvrait après coup, sur le bilan reçu, quand
+   il n'y a plus rien à faire.
+
+   Le résumé part maintenant avec chaque dépôt (voir resumeDuTrajet).
+   Il tient en quelques nombres — aucune coordonnée : le tracé, lui,
+   ne voyage qu'avec le bilan.
+
+   ⚠️ ET LA LIGNE DIT « ÇA RATE », PAS « VOICI DES CHIFFRES ». Un
+   relevé qui couvre son cours se résume en une ligne verte qu'on ne
+   lit pas ; c'est le trou qui doit sauter aux yeux. Le rapport
+   relevé/durée est ce qui a fait voir le cas de Chrystel : 1 minute
+   sur 120, ça ne se discute pas.
+   ============================================================ */
+function minutes(secondes){
+  const s = Math.max(0, Math.round(Number(secondes) || 0));
+  if(s < 60) return s + ' s';
+  const m = Math.round(s / 60);
+  if(m < 60) return m + ' min';
+  return Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0');
+}
+
+function ligneDuGps(b){
+  let g = null;
+  try{ g = JSON.parse(b.gps || 'null'); }catch(e){ g = null; }
+
+  /* Pas de relevé : ce n'est pas une panne. Un examen officiel, un
+     simulateur, un cours d'avant la v1020 n'en ont pas, et une
+     ligne « aucun GPS » sur chacun ferait du bruit pour rien. */
+  if(!g || !g.duree) return '';
+
+  const couvert = g.duree ? Math.round((g.releve / g.duree) * 100) : 0;
+  const bouts = [];
+
+  if(g.refus){
+    return '<br><span style="color:var(--red);">🛰️ localisation REFUSÉE — ' +
+           'aucun tracé pour ce cours</span>';
+  }
+
+  /* Le jugement d'abord, les nombres ensuite. */
+  const maigre = (couvert < 70) || (g.points < 10);
+  bouts.push('🛰️ ' + minutes(g.releve) + ' relevées sur ' + minutes(g.duree) +
+             ' de cours (' + couvert + ' %)');
+  bouts.push(g.points + ' point' + (g.points > 1 ? 's' : ''));
+  if(g.perdu) bouts.push(minutes(g.perdu) + ' sans signal');
+  /* ⚠️ LE NOMBRE QUI EXPLIQUE. Des relances, c'est un téléphone qui
+     met la page derrière — l'écran se verrouille, un appel passe.
+     AUCUNE relance sur un long silence, c'est que le battement
+     lui-même ne tourne pas. */
+  if(g.relances) bouts.push('veille reposée ' + g.relances + '×');
+  if(!g.fini && g.silence > 120) bouts.push('⚠️ rien depuis ' + minutes(g.silence));
+
+  return '<br><span style="color:' +
+         (maigre ? 'var(--warn-text)' : 'var(--muted)') + ';">' +
+         (maigre ? '⚠️ ' : '') + bouts.join(' · ') + '</span>';
+}
+
+
 function ligneBrouillon(b){
   const d = carte();
   const age = depuisQuand(b.deposeLe);
@@ -398,6 +465,7 @@ function ligneBrouillon(b){
   })();
 
   const fait = bilanExistant(b);
+  const gps = ligneDuGps(b);
 
   d.innerHTML =
     '<div style="font-size:14px;font-weight:700;">' +
@@ -425,6 +493,7 @@ function ligneBrouillon(b){
           (b.ecarteLe ? ' le ' + String(b.ecarteLe).replace(/</g, '&lt;') : '') +
           ' — la dictée est gardée ici</span>'
         : '') +
+      gps +
       (b.etat === 'en-generation'
         ? (depuisDepot(b) < 30
             ? '<br><span style="color:var(--accent-text);">⚙️ génération ' +
