@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 17/09/2026 à 08:47 — v1013 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -430,9 +430,13 @@ $('recBtn').addEventListener('click', async () => {
   }
 
   const btn = $('recBtn');
-  const probleme = verifierContexte();
-  if(probleme){
-    $('status').textContent = probleme;
+  /* ⚠️ LE REFUS SE VOIT — v1013. Il était posé dans « status », la
+     petite ligne grise sous le bouton : le moniteur appuyait, et
+     rien ne bougeait à l'écran — d'où les appuis répétés. La porte
+     est la même que celle du bouton orange. Voir refuserLeDepart. */
+  const manque = cequiEmpecheDeDicter();
+  if(manque){
+    refuserLeDepart(btn, manque);
     return;
   }
 
