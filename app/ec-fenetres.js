@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:06 — v1015 */
+/* Déployé le 18/09/2026 à 09:38 — v1026 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1291,9 +1291,23 @@ function ligneFicheEleve(nom){
    ce qu'il y trouve.
    ============================================================ */
 
+/* ⚠️ CES CASES NE COMMANDAIENT RIEN JUSQU'À LA v1026.
+
+   Le bureau les cochait, le classeur les enregistrait (colonne G
+   de ElevesAcces), le serveur les renvoyait à la connexion — et
+   eleve.html ne les lisait nulle part. Le mot « modules »
+   n'apparaissait pas une fois dans ses 803 lignes.
+
+   David, le 17 septembre : « que je puisse activer ou non ce que
+   l'élève voit ». C'est maintenant le cas des deux côtés : la page
+   n'affiche que ce qui est ouvert, et surtout LE SERVEUR NE REMPLIT
+   QUE CE QUI EST OUVERT — une carte cachée resterait une donnée
+   envoyée. */
 const MODULES_ELEVE = [
   { cle:'proccorriger', nom:'📋 Réciter des procédures' },
-  { cle:'code',         nom:'🎓 Suivi du code en salle' }
+  { cle:'code',         nom:'🎓 Suivi du code en salle' },
+  { cle:'rappel',       nom:'📅 Son prochain cours' },
+  { cle:'historique',   nom:'📖 L\'historique de ses leçons' }
 ];
 
 /* Le financement extérieur, en lecture seule.
@@ -1445,7 +1459,13 @@ async function afficherEspaceEleve(nom, zone){
   zm.style.cssText = 'margin-top:10px;padding-top:9px;' +
     'border-top:1px solid rgba(255,255,255,.08);';
 
-  const ouverts = String(acces.modules || 'proccorriger').split(',')
+  /* ⚠️ PAS DE REPLI ICI — v1026. Le serveur rend la liste DÉJÀ
+     résolue : une cellule vide d'avant la v1026 lui est revenue en
+     « proccorriger », et un accès fermé lui revient vide. Remettre
+     un « || 'proccorriger' » ici rallumerait la case d'un élève à
+     qui on vient justement de tout fermer — la même faute que
+     celle qu'on retire du serveur, un étage plus haut. */
+  const ouverts = String(acces.modules || '').split(',')
     .map(x => x.trim()).filter(Boolean);
 
   MODULES_ELEVE.forEach(m => {
