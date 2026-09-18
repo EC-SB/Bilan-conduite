@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:14 — v1030 */
+/* Déployé le 18/09/2026 à 15:34 — v1039 */
 /* ============================================================
    ec-version.js
    Rester à jour sans jamais interrompre un cours.
@@ -171,7 +171,7 @@ function poserBandeauVersion(nouvelle, forcer){
   const b = document.createElement('div');
   b.id = 'bandeauVersion';
   b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9998;' +
-    'background:var(--orange);color:var(--navy-deep);' +
+    'background:var(--orange);color:var(--on-accent);' +
     'padding:12px 14px;display:flex;gap:10px;align-items:center;' +
     'font-size:13px;line-height:1.4;box-shadow:0 -2px 12px rgba(0,0,0,.3);' +
     'padding-bottom:calc(12px + env(safe-area-inset-bottom));';
@@ -195,7 +195,10 @@ function poserBandeauVersion(nouvelle, forcer){
   const bMaj = document.createElement('button');
   bMaj.textContent = '↻ Installer';
   bMaj.style.cssText = 'flex-shrink:0;padding:9px 13px;border-radius:8px;' +
-    'border:none;background:var(--navy-deep);color:var(--orange);' +
+    /* ⚠️ var(--navy-deep) EST LE FOND DES CARTES : blanc en thème
+       clair. Ce bouton est posé DANS le bandeau d'accent — il y
+       écrivait du vert vif sur du blanc, contraste 1,21. */
+    'border:none;background:var(--on-accent);color:var(--orange);' +
     'font-size:13px;font-weight:700;cursor:pointer;';
   bMaj.addEventListener('click', async () => {
     /* Même ici on prévient : le moniteur peut avoir oublié */
