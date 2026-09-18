@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/09/2026 à 14:54 — v1037 -->
+<!-- Déployé le 18/09/2026 à 15:12 — v1038 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -334,6 +334,16 @@
   }
   .onglets button.ici .pastille{ background:var(--navy-deep); color:var(--orange); }
 
+  /* 📣 Une annonce — v1038 */
+  .annonce{
+    border-left:3px solid var(--accent-text); padding:2px 0 2px 11px;
+    margin-bottom:14px;
+  }
+  .annonce:last-child{ margin-bottom:0; }
+  .annonce .dit{ font-size:14.5px; line-height:1.6; white-space:pre-wrap; }
+  .annonce .sig{ font-size:11px; color:var(--muted); margin-top:5px; }
+  .annonce.pourmoi{ border-left-color:var(--orange); }
+
   .cache{ display:none !important; }
 </style>
 </head>
@@ -384,6 +394,13 @@
     <div class="onglets" id="lesOnglets"></div>
 
     <div id="ongletAccueil">
+    <!-- 📣 Les annonces — v1038, étape 6. En TÊTE de l'accueil :
+         « le bureau sera fermé samedi » est exactement ce qu'on veut
+         voir en ouvrant l'application, pas au bas d'un défilement. -->
+    <div class="card" id="carteAnnonces" style="display:none;">
+      <div id="mesAnnonces"></div>
+    </div>
+
     <div class="card prochain" id="carteProchain" style="display:none;">
       <div class="section-title">📅 Mon prochain cours</div>
       <div id="monProchain"></div>
@@ -619,6 +636,45 @@
   }
 
 
+  /* ===== 📣 LES ANNONCES — v1038, étape 6 =====
+
+     ⚠️ ELLES NE DÉPENDENT D'AUCUN INTERRUPTEUR. « Le bureau sera
+     fermé samedi » s'adresse à tout le monde, y compris à celui à
+     qui l'on n'a ouvert que les procédures. Le tri de QUI les reçoit
+     est fait dans le classeur — la page ne fait que les montrer.
+
+     ⚠️ ET ELLE NE SAIT PAS QUI D'AUTRE LES A REÇUES. Le classeur
+     n'envoie pas la liste des destinataires : ce serait un carnet
+     d'adresses distribué à deux cents personnes. Il dit seulement si
+     l'annonce est pour lui seul. */
+  var mesAnnonces = [];
+
+  function dessinerAnnonces(){
+    var z = $('mesAnnonces');
+    if(!z) return;
+    if(!mesAnnonces.length){ montrer('carteAnnonces', false); return; }
+    montrer('carteAnnonces', true);
+
+    z.innerHTML = mesAnnonces.map(function(a){
+      return '<div class="annonce' + (a.pourLui ? ' pourmoi' : '') + '">' +
+        '<div class="dit">' +
+          (a.pourLui ? '📣 ' + echapper(prenomDeMoi()) + ', pour toi'
+                     : '📣 Une annonce') +
+        '</div>' +
+        '<div class="dit" style="margin-top:5px;">' +
+          echapper(a.texte) + '</div>' +
+        '<div class="sig">Publié le ' + echapper(a.publieLe) +
+          (a.par ? ' par ' + echapper(a.par) : '') +
+          (a.pourLui ? ' · pour toi seul' : ' · pour tous les élèves') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function prenomDeMoi(){
+    return String(moi.nom || '').split(' ')[0];
+  }
+
+
   /* ===== LES ONGLETS — v1037 =====
 
      David : « dans la partie élève il faut faire des onglets :
@@ -642,7 +698,8 @@
       /* Son prochain cours, ce qu'on lui demande, ses leçons, son
          code : tout ce qui se lit sans rien faire. */
       quand: function(){ return ouvert('rappel') || ouvert('historique') ||
-                                ouvert('code') || demandes.length > 0; } },
+                                ouvert('code') || demandes.length > 0 ||
+                                mesAnnonces.length > 0; } },
     { cle:'reviser', nom:'🎬 Réviser', zone:'ongletReviser',
       quand: function(){ return ouvert('parcours'); } },
     { cle:'reciter', nom:'📋 Réciter', zone:'ongletReciter',
@@ -932,10 +989,16 @@
   /* ===== SON PROCHAIN COURS ET SES LEÇONS ===== */
 
   function chargerDossier(){
-    if(!ouvert('rappel') && !ouvert('historique')) return;
-
+    /* ⚠️ ON DEMANDE TOUJOURS — v1038. Cette porte rapporte aussi les
+       annonces, qui ne dépendent d'aucun interrupteur : s'en passer
+       quand ni le prochain cours ni l'historique ne sont ouverts,
+       c'était priver de « bureau fermé samedi » précisément ceux à
+       qui l'on n'a ouvert que les procédures. */
     appeler({ action: 'eleveDossier', eleve: moi.nom, code: moi.code })
       .then(function(d){
+        mesAnnonces = (d && d.annonces) || [];
+        dessinerAnnonces();
+        dessinerLesOnglets();
         if(ouvert('rappel')) dessinerProchain(d.prochain);
         if(ouvert('historique')) dessinerLecons(d.lecons || []);
       })
