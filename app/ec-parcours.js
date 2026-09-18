@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 14:54 — v1037 */
+/* Déployé le 18/09/2026 à 15:12 — v1038 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1482,6 +1482,319 @@ function jourCourtIso(iso){
   const t = String(iso || '').trim();
   if(!/^\d{4}-\d{2}-\d{2}/.test(t)) return t;
   return t.slice(8, 10) + '/' + t.slice(5, 7);
+}
+
+/* ============================================================
+   📣 LES ANNONCES — v1038, étape 6
+
+   David : le groupe généraliste, c'est « un groupe dans lequel on
+   met des informations ». Il n'a pas de guides, il a des annonces.
+
+   Trois précautions, et elles ne sont pas décoratives :
+
+   ⚠️ LE NOMBRE EST ÉCRIT SUR LE BOUTON. « Publier pour 14 élèves »
+   se relit avant d'appuyer ; « Publier » ne se relit pas. On ne
+   publie jamais à un nombre qu'on n'a pas lu.
+
+   ⚠️ LES FILTRES COCHENT, ILS NE VERROUILLENT PAS. Après avoir
+   filtré sur AAC, on peut encore décocher quelqu'un à la main. Un
+   filtre qui décide à ta place finit par envoyer à quelqu'un que tu
+   n'avais pas vu.
+
+   ⚠️ ET UNE DATE DE RETRAIT. Une annonce sans fin devient un décor :
+   au bout de trois semaines plus personne ne la lit, et la suivante
+   non plus.
+   ============================================================ */
+let annoncesBureau = [];
+let elevesPourAnnonce = [];
+let choisisPourAnnonce = {};
+
+async function afficherAnnonces(){
+  const zone = $('annoncesZone');
+  if(!zone) return;
+  zone.innerHTML = '<div class="empty">Lecture des annonces…</div>';
+  try{
+    const d = await appelPrep({ action: 'annoncesList' });
+    annoncesBureau = (d && d.annonces) || [];
+    elevesPourAnnonce = (d && d.eleves) || [];
+  }catch(e){
+    zone.innerHTML = '<div class="message erreur">Lecture impossible : ' +
+      String(e.message).replace(/</g, '&lt;') + '</div>';
+    return;
+  }
+  dessinerAnnonces();
+}
+
+/* ⚠️ ON FILTRE SUR DES MOTS, PAS SUR LA FORMATION ENTIÈRE.
+
+   « AAC BV » et « BEA AAC » sont deux formations différentes, et
+   pourtant « AAC » doit attraper les deux — c'est bien ce que disait
+   le schéma : BV, BEA, AAC, CS, Moto, BE. Filtrer sur le libellé
+   complet donnait un bouton par formation, et « AAC » ne cochait que
+   ceux dont la fiche dit exactement « AAC BV ».
+
+   ⚠️ ET LES MOTS VIENNENT DU RÉPERTOIRE, pas d'une liste écrite ici.
+   Le jour où tu ajoutes une formation, son mot apparaît tout seul —
+   une liste en dur, c'est une formation ajoutée d'un côté et
+   introuvable de l'autre.
+
+   Les sites ne sont pas proposés : le répertoire ne dit pas où un
+   élève prend ses cours, c'est le bilan qui le dit. */
+function motsDeFormation(texte){
+  return String(texte || '').split(/[\s|,;]+/)
+    .map(x => x.trim()).filter(Boolean);
+}
+
+function filtresDAnnonce(){
+  const vus = [];
+  elevesPourAnnonce.forEach(e => {
+    motsDeFormation(e.formation).forEach(t => {
+      if(vus.indexOf(t) === -1) vus.push(t);
+    });
+  });
+  return vus.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+function dessinerAnnonces(){
+  const zone = $('annoncesZone');
+  if(!zone) return;
+  zone.innerHTML = '';
+  zone.appendChild(cadreNouvelleAnnonce());
+  zone.appendChild(listeDesAnnonces());
+}
+
+function cadreNouvelleAnnonce(){
+  const c = document.createElement('div');
+  c.style.cssText = 'border:1px solid var(--orange);border-radius:14px;' +
+    'padding:14px;max-width:620px;margin-bottom:16px;';
+
+  c.innerHTML =
+    '<div style="font-size:14px;font-weight:700;margin-bottom:12px;">' +
+      '📣 Nouvelle annonce</div>' +
+    '<label for="anTexte">Le texte</label>' +
+    '<textarea id="anTexte" rows="3" placeholder="Le bureau sera fermé le ' +
+      'samedi 27 septembre…" style="font-family:inherit;font-size:13.5px;' +
+      'line-height:1.6;"></textarea>' +
+    '<label for="anRetrait">Retirer automatiquement le</label>' +
+    '<input type="date" id="anRetrait" style="margin-bottom:13px;">' +
+    '<div style="font-size:11px;color:var(--muted);margin:-9px 0 13px;' +
+      'line-height:1.5;">Une annonce sans fin devient un décor : au bout ' +
+      'de trois semaines plus personne ne la lit.</div>' +
+    '<label>À qui</label>' +
+    '<div id="anQui" style="display:flex;gap:6px;margin-bottom:11px;' +
+      'flex-wrap:wrap;"></div>' +
+    '<div id="anSelection"></div>';
+
+  choisisPourAnnonce = {};
+  let tousLesEleves = true;
+
+  const qui = c.querySelector('#anQui');
+  const zoneSel = c.querySelector('#anSelection');
+
+  const bPub = document.createElement('button');
+  bPub.className = 'btn btn-primary';
+  bPub.style.cssText = 'padding:11px;font-size:13px;margin-top:12px;';
+
+  const compte = () => Object.keys(choisisPourAnnonce)
+    .filter(n => choisisPourAnnonce[n]).length;
+
+  /* ⚠️ LE NOMBRE EST ÉCRIT SUR LE BOUTON. */
+  const redireBouton = () => {
+    const n = tousLesEleves ? elevesPourAnnonce.length : compte();
+    bPub.textContent = '📣 Publier pour ' + n + ' élève' + (n > 1 ? 's' : '');
+    bPub.disabled = (n === 0);
+  };
+
+  const dessinerSelection = () => {
+    zoneSel.innerHTML = '';
+    if(tousLesEleves){
+      const m = document.createElement('div');
+      m.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.5;';
+      m.textContent = 'Elle s\'affichera chez les ' +
+        elevesPourAnnonce.length + ' élèves qui ont un coin révisions ouvert.';
+      zoneSel.appendChild(m);
+      redireBouton();
+      return;
+    }
+
+    /* Les filtres : ils COCHENT, ils ne verrouillent pas. */
+    const zf = document.createElement('div');
+    zf.style.cssText = 'display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px;';
+    filtresDAnnonce().forEach(f => {
+      const b = document.createElement('button');
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:11.5px;';
+      b.textContent = f;
+      b.addEventListener('click', () => {
+        elevesPourAnnonce.forEach(e => {
+          /* ⚠️ MOT ENTIER, pas « contient ». « BV » se trouve dans
+             « B78>BV » comme dans « AAC BV » : chercher un morceau
+             cocherait des élèves d'une autre formation. */
+          if(motsDeFormation(e.formation).indexOf(f) !== -1){
+            choisisPourAnnonce[e.eleve] = true;
+          }
+        });
+        dessinerSelection();
+      });
+      zf.appendChild(b);
+    });
+    zoneSel.appendChild(zf);
+
+    const zt = document.createElement('div');
+    zt.style.cssText = 'font-size:11.5px;color:var(--muted);margin-bottom:8px;';
+    zt.innerHTML = '<span data-tout style="cursor:pointer;' +
+      'color:var(--accent-text);">Tout cocher</span> · ' +
+      '<span data-rien style="cursor:pointer;color:var(--accent-text);">' +
+      'Tout décocher</span>';
+    zt.querySelector('[data-tout]').addEventListener('click', () => {
+      elevesPourAnnonce.forEach(e => { choisisPourAnnonce[e.eleve] = true; });
+      dessinerSelection();
+    });
+    zt.querySelector('[data-rien]').addEventListener('click', () => {
+      choisisPourAnnonce = {};
+      dessinerSelection();
+    });
+    zoneSel.appendChild(zt);
+
+    const liste = document.createElement('div');
+    liste.style.cssText = 'max-height:260px;overflow-y:auto;' +
+      'border:1px solid var(--line);border-radius:10px;padding:8px;';
+    elevesPourAnnonce.forEach(e => {
+      const l = document.createElement('label');
+      l.style.cssText = 'display:flex;align-items:center;gap:9px;' +
+        'text-transform:none;font-size:13px;color:var(--cream);' +
+        'margin:0 0 5px;font-weight:400;';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!choisisPourAnnonce[e.eleve];
+      cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;margin:0;';
+      cb.addEventListener('change', () => {
+        choisisPourAnnonce[e.eleve] = cb.checked;
+        redireBouton();
+      });
+      l.appendChild(cb);
+      const n = document.createElement('span');
+      n.style.cssText = 'flex:1;min-width:0;';
+      n.textContent = e.eleve;
+      l.appendChild(n);
+      if(e.formation){
+        const f = document.createElement('span');
+        f.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+        f.textContent = e.formation;
+        l.appendChild(f);
+      }
+      liste.appendChild(l);
+    });
+    zoneSel.appendChild(liste);
+    redireBouton();
+  };
+
+  [['Tout le monde', true], ['Une sélection', false]].forEach(([nom, tous]) => {
+    const b = document.createElement('button');
+    b.className = tous ? 'btn btn-primary' : 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:8px 13px;font-size:12.5px;';
+    b.textContent = nom;
+    b.addEventListener('click', () => {
+      tousLesEleves = tous;
+      [...qui.children].forEach((x, i) => {
+        x.className = 'btn ' + ((i === 0) === tous ? 'btn-primary' : 'btn-secondary');
+      });
+      dessinerSelection();
+    });
+    qui.appendChild(b);
+  });
+
+  bPub.addEventListener('click', async () => {
+    const t = c.querySelector('#anTexte').value.trim();
+    if(!t){ showToast('Écris le texte de l\'annonce.'); return; }
+    const noms = tousLesEleves ? []
+      : Object.keys(choisisPourAnnonce).filter(n => choisisPourAnnonce[n]);
+    if(!tousLesEleves && !noms.length){
+      showToast('Choisis au moins un élève.'); return;
+    }
+    bPub.disabled = true;
+    try{
+      await appelPrep({
+        action: 'annonceSet',
+        /* L'identifiant vient de l'écran : l'envoi réessaie tout
+           seul, et une annonce publiée deux fois s'affiche deux
+           fois. Même règle que les guides. */
+        id: idProposeParLEcran('an'),
+        texte: t,
+        pour: tousLesEleves ? 'tous' : '',
+        noms: noms,
+        retirerLe: c.querySelector('#anRetrait').value || '',
+        par: (typeof ACCES !== 'undefined' && ACCES.moniteur) || ''
+      });
+      showToast('Annonce publiée ✅');
+      afficherAnnonces();
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      bPub.disabled = false;
+    }
+  });
+
+  c.appendChild(bPub);
+  dessinerSelection();
+  return c;
+}
+
+function listeDesAnnonces(){
+  const z = document.createElement('div');
+  if(!annoncesBureau.length){
+    z.innerHTML = '<div class="empty">Aucune annonce pour l\'instant.</div>';
+    return z;
+  }
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;margin-bottom:8px;';
+  t.textContent = '📋 Les annonces';
+  z.appendChild(t);
+
+  annoncesBureau.forEach(a => {
+    const l = document.createElement('div');
+    l.className = 'history-item';
+    if(!a.enCours) l.style.opacity = '.5';
+
+    const m = document.createElement('div');
+    m.className = 'meta';
+
+    const txt = document.createElement('strong');
+    txt.style.cssText = 'white-space:pre-wrap;line-height:1.5;';
+    txt.textContent = a.texte;
+    m.appendChild(txt);
+
+    const s = document.createElement('span');
+    s.textContent = 'Publiée le ' + a.publieLe + (a.par ? ' par ' + a.par : '') +
+      ' · ' + (a.tous ? 'pour tous les élèves'
+                      : 'pour ' + a.noms.length + ' élève' +
+                        (a.noms.length > 1 ? 's' : '')) +
+      (a.retirerLe ? ' · retrait le ' + jourCourtIso(a.retirerLe) : '') +
+      (a.retireLe ? ' · RETIRÉE le ' + a.retireLe
+                  : (a.enCours ? '' : ' · terminée'));
+    m.appendChild(s);
+    l.appendChild(m);
+
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;padding:6px 10px;font-size:12px;margin:0;' +
+      'flex-shrink:0;';
+    b.textContent = a.retireLe ? '↩️ Remettre' : '🗑️ Retirer';
+    b.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      b.disabled = true;
+      try{
+        await appelPrep({ action: 'annonceRetirer', id: a.id,
+                          remettre: a.retireLe ? 'oui' : 'non' });
+        showToast(a.retireLe ? 'Remise ✅' : 'Retirée ✅');
+        afficherAnnonces();
+      }catch(e){ showToast('Impossible : ' + e.message); b.disabled = false; }
+    });
+    l.appendChild(b);
+
+    z.appendChild(l);
+  });
+  return z;
 }
 
 /* Signale que ce module est bien chargé */
