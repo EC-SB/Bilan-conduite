@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:10 — v1029 */
+/* Déployé le 18/09/2026 à 11:11 — v1034 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -17,6 +17,12 @@ CONFIG.IA_URL = CONFIG.WORKER_URL + '/ia';
 CONFIG.SHEETS_PROXY_URL = CONFIG.WORKER_URL + '/sheets';
 CONFIG.ADMIN_URL = CONFIG.WORKER_URL + '/admin';
 CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
+/* Les fichiers des guides — v1034. Deux portes à part de /sheets :
+   un morceau de vidéo monte en BRUT — encodé en JSON il pèserait un
+   tiers de plus et se lirait en mémoire d'un bloc — et un fichier
+   redescend derrière un lien signé, appelé par une balise <video>
+   qui ne sait présenter aucun code. */
+CONFIG.PARCOURS_MORCEAU_URL = CONFIG.WORKER_URL + '/parcours/morceau';
 CONFIG.VERSION_SCRIPT_ATTENDUE = 226;   /* voir apps-script.js */
 
 /* Les pages publiques vivent dans le même dossier que
