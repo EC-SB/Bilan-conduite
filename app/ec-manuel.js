@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 13:40 — v1019 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1881,8 +1881,22 @@ async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc,
 
   const h = String(heures || '').trim();
 
-  /* Pas le niveau : les heures n'ont pas de sens, on les efface */
-  const valeur = (niveau === 'oui' && h && h !== '0') ? h : '';
+  /* ⚠️ ZÉRO N'EST PAS VIDE — corrigé en v1041.
+
+     Cette ligne écartait « 0 » comme si c'était une case laissée
+     blanche : un moniteur qui concluait « plus que la leçon de
+     veille » — c'est-à-dire « elle est prête » — faisait EFFACER la
+     réserve, et le bureau relisait « heures à préciser » sur une
+     élève dont on venait de dire qu'elle était prête.
+
+     La règle était pourtant déjà écrite en toutes lettres à trois
+     mètres d'ici, dans ec-permis-listes : « Zéro n'est pas vide :
+     "plus que les 3h" est une réponse, et c'est la plus utile des
+     deux. » Elle était appliquée à la LECTURE et pas à l'ÉCRITURE.
+
+     Pas le niveau, en revanche, efface bien : un nombre d'heures
+     n'a alors plus de sens. */
+  const valeur = (niveau === 'oui' && h) ? h : '';
 
   if(niveau !== 'oui' && !valeur) return;      /* rien à dire */
 
