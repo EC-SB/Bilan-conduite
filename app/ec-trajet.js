@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:14 — v1030 */
+/* Déployé le 18/09/2026 à 10:23 — v1031 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -333,8 +333,14 @@ function retenirPoint(pos){
   /* ⚠️ ET LA PANNE S'EFFACE ICI — v998. Le capteur vient de
      répondre : ce qui s'est passé avant est derrière nous. C'est
      le seul endroit où on peut le savoir, et c'est pour ça que
-     l'effacement est ici et pas chez l'appelant. */
+     l'effacement est ici et pas chez l'appelant.
+
+     ⚠️ LE REFUS AUSSI, DEPUIS LA v1031. Un point reçu est la preuve
+     que la localisation est rendue : maintenir « refusée » à
+     l'écran alors que le relevé repart serait un écran qui ment. Et
+     c'est la seule chose qui puisse rouvrir la porte. */
   trajetPanne = '';
+  trajetRefus = '';
   return '';
 }
 
@@ -486,7 +492,10 @@ function poserLaVeilleDuTrajet(){
    n'apporterait que des doublons. */
 function relancerLaVeilleDuTrajet(){
   if(!trajetDebut || trajetFin) return false;
-  if(trajetRefus) return false;          /* refusé, ce n'est pas une panne */
+  /* ⚠️ ON RELANCE MÊME APRÈS UN REFUS — v1031. Voir la note du
+     battement : le code 1 n'est pas toujours définitif, et la porte
+     était à sens unique. Le message reste à l'écran tant que le
+     capteur ne répond pas ; il s'efface au premier point. */
 
   if(trajetVeille !== null){
     try{ navigator.geolocation.clearWatch(trajetVeille); }catch(e){}
@@ -534,7 +543,21 @@ function surveillerLaVeilleDuTrajet(){
   clearInterval(trajetBattement);
   trajetBattement = setInterval(() => {
     if(!trajetDebut || trajetFin){ clearInterval(trajetBattement); return; }
-    if(trajetRefus){ clearInterval(trajetBattement); return; }
+    /* ⚠️ LE REFUS N'ARRÊTE PLUS LE BATTEMENT — v1031.
+
+       Il l'arrêtait : « refusé, c'est définitif ». Un vrai refus
+       l'est. Mais le code 1 ne veut pas seulement dire « l'utilisateur
+       a dit non » : iOS le rend quand la permission de session
+       expire pendant que la page est derrière, Android quand la
+       localisation du téléphone est coupée puis rallumée. Dans ces
+       cas-là, le capteur revient — et personne n'était plus là pour
+       le reprendre.
+
+       Le prix des deux erreurs n'est pas le même. Réessayer sur un
+       vrai refus coûte un appel qui échoue en silence toutes les
+       quatre-vingt-dix secondes, et le navigateur ne redemande rien.
+       Ne pas réessayer sur un refus passager coûte le reste du
+       cours, sans que rien ne le dise. */
 
     /* La page est derrière : le navigateur a suspendu le capteur,
        et c'est normal. On ne relance pas dans le vide — le retour
