@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/09/2026 à 09:38 — v1026 -->
+<!-- Déployé le 18/09/2026 à 11:43 — v1036 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -214,6 +214,91 @@
     border-top:1px solid var(--line);
   }
 
+  /* ===== 🎓 Son parcours — v1036 =====
+     Une étape = un guide. Les suivantes sont grisées : une seule est
+     ouverte à la fois. */
+  .barre{
+    height:6px; border-radius:4px; background:var(--line);
+    overflow:hidden; margin:2px 0 12px;
+  }
+  .barre > div{
+    height:100%; width:0; background:var(--accent-text);
+    transition:width .35s;
+  }
+  .etape{ border:1px solid var(--line); border-radius:12px; margin-bottom:8px; }
+  .etape > .tete{
+    padding:12px 13px; display:flex; gap:10px; align-items:baseline;
+    font-size:14px;
+  }
+  .etape .num{
+    flex-shrink:0; width:22px; height:22px; border-radius:50%;
+    background:var(--line); color:var(--muted); font-size:12px;
+    display:inline-flex; align-items:center; justify-content:center;
+    align-self:center;
+  }
+  .etape .nom{ flex:1; min-width:0; font-weight:700; }
+  .etape .quand{ font-size:11px; color:var(--muted); flex-shrink:0; }
+  /* ⚠️ LE FOND DE CARTE COMME ENCRE, pas « --on-accent ». En thème
+     clair, l'accent devient un vert foncé et « --on-accent » reste
+     noir : noir sur vert foncé ne se lit pas. « --navy-deep » est
+     blanc en clair et presque noir en sombre — il s'oppose à
+     l'accent dans les deux thèmes. */
+  .etape.faite .num{ background:var(--accent-text); color:var(--navy-deep); }
+  .etape.faite .nom{ color:var(--muted); font-weight:400; }
+  .etape.ouverte{ border-color:var(--accent-text); }
+  /* ⚠️ GRISÉE, PAS CACHÉE. Il doit voir ce qui l'attend — c'est ce
+     qui donne envie de finir celle d'avant. */
+  .etape.attend{ opacity:.45; }
+  .etape .dedans{
+    padding:0 13px 13px; border-top:1px solid var(--line);
+    padding-top:12px;
+  }
+  .etape .dedans p{
+    margin:0 0 11px; font-size:13.5px; line-height:1.7;
+    white-space:pre-wrap; color:var(--soft);
+  }
+  .etape video, .etape img{
+    width:100%; border-radius:10px; margin:0 0 11px; background:#000;
+    display:block;
+  }
+  .etape .fichier{
+    display:inline-block; margin:0 0 11px; font-size:13.5px;
+    color:var(--accent-text); text-decoration:none;
+  }
+  /* ⚠️ « label » est en majuscules dans toute cette page — c'est le
+     style des libellés de formulaire. Ici c'est une PHRASE qu'on lit,
+     pas l'étiquette d'un champ : « J'AI VU CE GUIDE » crie. */
+  .etape .coche{
+    display:flex; align-items:center; gap:10px; font-size:14px;
+    cursor:pointer; padding:9px 0 0; border-top:1px solid var(--line);
+    margin-top:4px;
+    text-transform:none; letter-spacing:normal; color:var(--cream);
+    margin-bottom:0;
+  }
+  .etape .coche input{ width:20px; height:20px; flex-shrink:0; margin:0; }
+
+  /* Le carrousel d'images — v1036. On glisse au doigt ; les points
+     disent seulement où l'on en est. */
+  .carrousel{ margin:0 0 11px; }
+  .carrousel .bande{
+    display:flex; overflow-x:auto; scroll-snap-type:x mandatory;
+    gap:0; border-radius:10px; -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .carrousel .bande::-webkit-scrollbar{ display:none; }
+  .carrousel .bande img{
+    width:100%; flex:0 0 100%; scroll-snap-align:center;
+    margin:0; border-radius:10px; display:block;
+  }
+  .carrousel .points{
+    display:flex; gap:6px; justify-content:center; margin-top:8px;
+  }
+  .carrousel .points span{
+    width:7px; height:7px; border-radius:50%; background:var(--line);
+    transition:background .2s;
+  }
+  .carrousel .points span.ici{ background:var(--accent-text); }
+
   .cache{ display:none !important; }
 </style>
 </head>
@@ -269,6 +354,17 @@
     <div class="card" id="carteDemandes" style="display:none;">
       <div class="section-title">📌 Ce qu'on te demande</div>
       <div id="mesDemandes"></div>
+    </div>
+
+    <!-- 🎓 Son parcours — v1036, étape 4.
+         Une seule étape ouverte à la fois : les suivantes attendent.
+         C'est ce que faisait déjà un groupe Facebook où l'on ajoute
+         l'élève au fur et à mesure — sans l'ajouter à la main. -->
+    <div class="card" id="carteParcours" style="display:none;">
+      <div class="section-title">🎓 Mon parcours
+        <span id="cptParcours" style="font-weight:400;color:var(--muted);
+              font-size:12px;"></span></div>
+      <div id="monParcours"></div>
     </div>
 
     <div class="card" id="carteReciter">
@@ -468,12 +564,221 @@
     montrerDemandes();
     if(ouvert('proccorriger')) chargerEnvois();
     chargerDossier();
+    chargerParcours();
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
        sans savoir pourquoi. */
     if(!mesModules.length) dire('msgEnvoi',
       "Ton accès est créé, mais l'auto-école ne t'a encore rien ouvert. " +
       'Signale-le au bureau.', 'attente');
+  }
+
+
+  /* ===== 🎓 SON PARCOURS — v1036, étape 4 =====
+
+     David, le 17 septembre : « la coche est à l'élève ». On
+     enregistre qui, quoi et quand. Ça ne prouve pas qu'il a
+     regardé — un groupe Facebook ne le prouvait pas davantage —
+     mais la barre de progression, elle, ne ment pas.
+
+     ⚠️ UNE SEULE ÉTAPE OUVERTE À LA FOIS. Les suivantes sont
+     grisées, pas cachées : il doit voir ce qui l'attend, c'est ce
+     qui donne envie de finir celle d'avant.
+
+     ⚠️ ET RIEN N'ARRIVE ICI QUI NE SOIT OUVERT. Le classeur ne
+     remplit la réponse que si le module « parcours » est coché, et
+     il ne met que les groupes qu'on lui a ouverts. Cacher une carte
+     ne suffirait pas : elle se rouvre avec deux clics. */
+  var mesEtapes = [];
+  /* L'échéance du moment : gardée pour redessiner après une coche
+     sans redemander la page entière au classeur. */
+  var dernierAvant = null;
+
+  function chargerParcours(){
+    if(!ouvert('parcours')) return;
+    appeler({ action: 'eleveParcours', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        mesEtapes = (d && d.etapes) || [];
+        dernierAvant = (d && d.avant) || null;
+        dessinerParcours(dernierAvant);
+      })
+      .catch(function(){ montrer('carteParcours', false); });
+  }
+
+  function dessinerParcours(avant){
+    var z = $('monParcours');
+    if(!z) return;
+    montrer('carteParcours', true);
+
+    if(!mesEtapes.length){
+      z.innerHTML = '<div class="empty">Ton parcours arrive bientôt.<br>' +
+        "C'est l'auto-école qui l'ouvre.</div>";
+      var c0 = $('cptParcours');
+      if(c0) c0.textContent = '';
+      return;
+    }
+
+    var faits = 0;
+    for(var i = 0; i < mesEtapes.length; i++){
+      if(mesEtapes[i].vuLe) faits++;
+    }
+    /* La première non faite : c'est elle qui s'ouvre. */
+    var courante = -1;
+    for(var j = 0; j < mesEtapes.length; j++){
+      if(!mesEtapes[j].vuLe){ courante = j; break; }
+    }
+
+    var reste = mesEtapes.length - faits;
+    var c = $('cptParcours');
+    if(c){
+      c.textContent = ' · ' + faits + ' étape' + (faits > 1 ? 's' : '') +
+        ' sur ' + mesEtapes.length +
+        (reste && avant
+          ? ' · ' + reste + ' à voir avant le ' + jourCourt(avant)
+          : '');
+    }
+
+    var html = '<div class="barre"><div style="width:' +
+      Math.round((faits / mesEtapes.length) * 100) + '%"></div></div>';
+
+    for(var k = 0; k < mesEtapes.length; k++){
+      html += blocEtape(mesEtapes[k], k, courante);
+    }
+    z.innerHTML = html;
+
+    /* La coche, branchée après coup : innerHTML efface les écouteurs. */
+    var cases = z.querySelectorAll('input[data-guide]');
+    for(var m = 0; m < cases.length; m++){
+      cases[m].addEventListener('change', cocherEtape);
+    }
+    brancherLesCarrousels(z);
+  }
+
+  function blocEtape(e, i, courante){
+    var fait = !!e.vuLe;
+    var ouverte = (i === courante);
+    var classe = 'etape' + (fait ? ' faite' : '') +
+                 (ouverte ? ' ouverte' : (fait ? '' : ' attend'));
+
+    var h = '<div class="' + classe + '">' +
+      '<div class="tete">' +
+        '<span class="num">' + (fait ? '✓' : (i + 1)) + '</span>' +
+        '<span class="nom">' + echapper(e.titre || 'Étape') + '</span>' +
+        (fait ? '<span class="quand">' + echapper(e.vuLe) + '</span>' : '') +
+      '</div>';
+
+    /* Seule l'étape ouverte montre son contenu : c'est ce qui la
+       rend ouverte. */
+    if(ouverte){
+      h += '<div class="dedans">';
+      var blocs = e.blocs || [];
+      for(var n = 0; n < blocs.length; n++){
+        h += rendreBloc(blocs[n]);
+      }
+      h += '<label class="coche"><input type="checkbox" data-guide="' +
+             echapper(e.id) + '"><span>J\'ai vu ce guide</span></label>';
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+
+  /* ⚠️ AUCUN LIEN N'EST FABRIQUÉ ICI. Le relais signe les adresses
+     avant de les envoyer, et une adresse signée expire. Un bloc dont
+     le fichier n'a pas été déposé n'a pas de lien : on n'affiche
+     rien plutôt qu'un cadre vide. */
+  function rendreBloc(b){
+    var t = String((b && b.type) || '');
+    var titre = String((b && b.titre) || '');
+    if(t === 'texte'){
+      var txt = String((b && b.texte) || '').trim();
+      return txt ? '<p>' + echapper(txt) + '</p>' : '';
+    }
+    /* Un bloc porte une LISTE depuis la v1036 : une vidéo, un PDF,
+       ou plusieurs images qui font un carrousel. */
+    var liens = (b && b.liens && b.liens.length)
+      ? b.liens : ((b && b.lien) ? [b.lien] : []);
+    liens = liens.filter(function(x){ return x; });
+    if(!liens.length) return '';
+
+    var lu = titre ? '<p>' + echapper(titre) + '</p>' : '';
+
+    if(t === 'video'){
+      return '<video controls playsinline preload="metadata" src="' +
+             echapper(liens[0]) + '"></video>' + lu;
+    }
+    if(t === 'image'){
+      /* ⚠️ UNE SEULE IMAGE N'EST PAS UN CARROUSEL. Des points et une
+         bande qui défile sous une image unique, c'est une mécanique
+         qui promet quelque chose qui n'existe pas. */
+      if(liens.length === 1){
+        return '<img src="' + echapper(liens[0]) + '" alt="' +
+               echapper(titre) + '">' + lu;
+      }
+      /* ⚠️ ON GLISSE, ON NE CLIQUE PAS. Des flèches de 30 px sur un
+         téléphone se ratent une fois sur trois ; le défilement par
+         accroche est le geste que tout le monde connaît déjà. Les
+         points disent seulement où l'on en est. */
+      var bande = liens.map(function(x){
+        return '<img src="' + echapper(x) + '" alt="">';
+      }).join('');
+      var points = liens.map(function(x, i){
+        return '<span' + (i === 0 ? ' class="ici"' : '') + '></span>';
+      }).join('');
+      return '<div class="carrousel"><div class="bande">' + bande +
+             '</div><div class="points">' + points + '</div></div>' + lu;
+    }
+    return liens.map(function(x, i){
+      return '<a class="fichier" href="' + echapper(x) +
+             '" target="_blank" rel="noopener">📄 ' +
+             echapper(titre || 'Ouvrir le document') +
+             (liens.length > 1 ? ' (' + (i + 1) + ')' : '') + '</a>';
+    }).join('') + (titre && liens.length > 1 ? '' : '');
+  }
+
+  /* Les points suivent le doigt. Branché après chaque dessin, comme
+     les cases à cocher : innerHTML efface les écouteurs. */
+  function brancherLesCarrousels(zone){
+    var cs = zone.querySelectorAll('.carrousel');
+    for(var i = 0; i < cs.length; i++){
+      (function(c){
+        var bande = c.querySelector('.bande');
+        var pts = c.querySelectorAll('.points span');
+        if(!bande || !pts.length) return;
+        bande.addEventListener('scroll', function(){
+          var n = Math.round(bande.scrollLeft / Math.max(1, bande.clientWidth));
+          for(var k = 0; k < pts.length; k++){
+            pts[k].className = (k === n) ? 'ici' : '';
+          }
+        });
+      })(cs[i]);
+    }
+  }
+
+  function cocherEtape(ev){
+    var cb = ev.target;
+    var id = cb.getAttribute('data-guide');
+    cb.disabled = true;
+    appeler({ action: 'eleveParcoursVu', eleve: moi.nom, code: moi.code,
+              guide: id, vu: 'oui' })
+      .then(function(d){
+        for(var i = 0; i < mesEtapes.length; i++){
+          if(mesEtapes[i].id === id) mesEtapes[i].vuLe = (d && d.quand) || 'à l’instant';
+        }
+        dessinerParcours(dernierAvant);
+      })
+      .catch(function(e){
+        cb.disabled = false;
+        cb.checked = false;
+        dire('msgEnvoi', 'La coche n’est pas partie : ' + e.message, 'erreur');
+      });
+  }
+
+  /* « 2026-09-22 » → « 22/09 ». Dans une ligne de compteur, le jour
+     et le mois suffisent. */
+  function jourCourt(iso){
+    var t = String(iso || '').trim();
+    if(!/^\d{4}-\d{2}-\d{2}/.test(t)) return t;
+    return t.slice(8, 10) + '/' + t.slice(5, 7);
   }
 
 
