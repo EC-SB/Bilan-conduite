@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/09/2026 à 11:43 — v1036 -->
+<!-- Déployé le 18/09/2026 à 14:54 — v1037 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -299,6 +299,41 @@
   }
   .carrousel .points span.ici{ background:var(--accent-text); }
 
+  /* ===== Les onglets — v1037 =====
+
+     David : « dans la partie élève il faut faire des onglets :
+     l'accueil avec mon prochain cours et l'historique des leçons, un
+     onglet réviser avec tout le parcours, et un onglet réciter mes
+     procédures ».
+
+     ⚠️ PAS DE DÉFILEMENT, ET LES ONGLETS SE PLIENT. La règle de
+     l'application : les boutons s'adaptent à l'écran et se mettent
+     les uns sous les autres au besoin. Un élève sur un vieux
+     téléphone ne doit pas avoir à faire glisser une barre pour
+     trouver « Réviser ». */
+  .onglets{
+    display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;
+  }
+  .onglets button{
+    flex:1 1 auto; min-width:104px; margin:0;
+    padding:11px 12px; border-radius:11px;
+    border:1px solid var(--line); background:transparent;
+    color:var(--muted); font-family:inherit; font-size:13.5px;
+    font-weight:700; cursor:pointer;
+  }
+  .onglets button.ici{
+    background:var(--orange); color:var(--navy-deep);
+    border-color:var(--orange);
+  }
+  /* La pastille de ce qui attend : elle ne dit pas « regarde-moi »,
+     elle dit COMBIEN. */
+  .onglets .pastille{
+    display:inline-block; min-width:18px; padding:0 5px; margin-left:6px;
+    border-radius:9px; background:var(--red); color:#fff;
+    font-size:11px; line-height:18px; text-align:center;
+  }
+  .onglets button.ici .pastille{ background:var(--navy-deep); color:var(--orange); }
+
   .cache{ display:none !important; }
 </style>
 </head>
@@ -346,6 +381,9 @@
       <button class="theme" id="btTheme2" title="Changer de thème">🌙</button>
     </div>
 
+    <div class="onglets" id="lesOnglets"></div>
+
+    <div id="ongletAccueil">
     <div class="card prochain" id="carteProchain" style="display:none;">
       <div class="section-title">📅 Mon prochain cours</div>
       <div id="monProchain"></div>
@@ -356,6 +394,21 @@
       <div id="mesDemandes"></div>
     </div>
 
+    <div class="card" id="carteLecons" style="display:none;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <strong style="flex:1;min-width:0;font-size:15px;">📖 Mes leçons</strong>
+        <span id="cptLecons" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="mesLecons"></div>
+    </div>
+
+    <div class="card" id="carteDrivup">
+      <button class="btn btn-secondary" id="btDrivup">🚗 Drivup</button>
+      <div id="zoneDrivup" style="display:none;margin-top:12px;"></div>
+    </div>
+    </div><!-- /ongletAccueil -->
+
+    <div id="ongletReviser" class="cache">
     <!-- 🎓 Son parcours — v1036, étape 4.
          Une seule étape ouverte à la fois : les suivantes attendent.
          C'est ce que faisait déjà un groupe Facebook où l'on ajoute
@@ -367,6 +420,9 @@
       <div id="monParcours"></div>
     </div>
 
+    </div><!-- /ongletReviser -->
+
+    <div id="ongletReciter" class="cache">
     <div class="card" id="carteReciter">
       <div id="zoneBoite" style="display:none;">
         <label for="chBoite">🚗 Ta boîte de vitesses</label>
@@ -410,19 +466,7 @@
       </div>
       <div id="mesEnvois"></div>
     </div>
-
-    <div class="card" id="carteLecons" style="display:none;">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-        <strong style="flex:1;min-width:0;font-size:15px;">📖 Mes leçons</strong>
-        <span id="cptLecons" style="font-size:12px;color:var(--muted);"></span>
-      </div>
-      <div id="mesLecons"></div>
-    </div>
-
-    <div class="card" id="carteDrivup">
-      <button class="btn btn-secondary" id="btDrivup">🚗 Drivup</button>
-      <div id="zoneDrivup" style="display:none;margin-top:12px;"></div>
-    </div>
+    </div><!-- /ongletReciter -->
 
     <button class="btn btn-secondary" id="btSortir">Se déconnecter</button>
   </div>
@@ -562,6 +606,7 @@
     montrerBoite();
     montrerLangue();
     montrerDemandes();
+    dessinerLesOnglets();
     if(ouvert('proccorriger')) chargerEnvois();
     chargerDossier();
     chargerParcours();
@@ -571,6 +616,106 @@
     if(!mesModules.length) dire('msgEnvoi',
       "Ton accès est créé, mais l'auto-école ne t'a encore rien ouvert. " +
       'Signale-le au bureau.', 'attente');
+  }
+
+
+  /* ===== LES ONGLETS — v1037 =====
+
+     David : « dans la partie élève il faut faire des onglets :
+     l'accueil avec mon prochain cours et l'historique des leçons, un
+     onglet réviser avec tout le parcours, et un onglet réciter mes
+     procédures ».
+
+     ⚠️ UN ONGLET VIDE NE S'AFFICHE PAS. Les cinq interrupteurs du
+     bureau décident déjà de ce qui arrive ; un onglet « Réviser »
+     présent chez un élève sans parcours serait une porte qui ne mène
+     nulle part — exactement ce que l'outil promettait avant la v1026,
+     quand les cases ne commandaient rien.
+
+     ⚠️ ET UN SEUL ONGLET N'EN EST PAS UN. Un élève à qui l'on n'a
+     ouvert que les procédures voit sa page comme avant, sans barre :
+     une barre à un seul bouton demande de choisir entre une chose et
+     rien.
+     ===================================================== */
+  var ONGLETS = [
+    { cle:'accueil', nom:'🏠 Accueil', zone:'ongletAccueil',
+      /* Son prochain cours, ce qu'on lui demande, ses leçons, son
+         code : tout ce qui se lit sans rien faire. */
+      quand: function(){ return ouvert('rappel') || ouvert('historique') ||
+                                ouvert('code') || demandes.length > 0; } },
+    { cle:'reviser', nom:'🎬 Réviser', zone:'ongletReviser',
+      quand: function(){ return ouvert('parcours'); } },
+    { cle:'reciter', nom:'📋 Réciter', zone:'ongletReciter',
+      quand: function(){ return ouvert('proccorriger'); } }
+  ];
+  var ongletIci = '';
+
+  function ongletsVisibles(){
+    return ONGLETS.filter(function(o){ return o.quand(); });
+  }
+
+  function dessinerLesOnglets(){
+    var barre = $('lesOnglets');
+    if(!barre) return;
+    var vus = ongletsVisibles();
+
+    /* ⚠️ CE QUI RESTE À FAIRE SE COMPTE, ET SE VOIT SANS OUVRIR. Un
+       élève qui arrive sur l'accueil doit savoir qu'il a deux étapes
+       à regarder avant son cours — sinon l'onglet « Réviser » ne
+       s'ouvre que par curiosité. */
+    var restant = {
+      reviser: mesEtapes.filter(function(e){ return !e.vuLe; }).length,
+      /* En ATTENTE, pas toutes : une procédure déjà récitée n'est
+         plus quelque chose à faire. */
+      reciter: demandes.filter(function(x){ return x.etat !== 'fait'; }).length
+    };
+
+    barre.innerHTML = '';
+    if(vus.length < 2){
+      /* Un seul onglet : pas de barre, et sa zone reste ouverte. */
+      ONGLETS.forEach(function(o){
+        montrer(o.zone, !!vus.length && o.cle === vus[0].cle);
+        var z = $(o.zone);
+        if(z) z.className = (!!vus.length && o.cle === vus[0].cle) ? '' : 'cache';
+      });
+      ongletIci = vus.length ? vus[0].cle : '';
+      return;
+    }
+
+    /* L'onglet courant doit rester valable : un module refermé entre
+       deux visites ne doit pas laisser la page sur une zone vide. */
+    if(!vus.some(function(o){ return o.cle === ongletIci; })){
+      ongletIci = vus[0].cle;
+    }
+
+    vus.forEach(function(o){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = o.nom;
+      if(o.cle === ongletIci) b.className = 'ici';
+      var n = restant[o.cle] || 0;
+      if(n){
+        var pa = document.createElement('span');
+        pa.className = 'pastille';
+        pa.textContent = n;
+        b.appendChild(pa);
+      }
+      b.addEventListener('click', function(){ allerAOnglet(o.cle); });
+      barre.appendChild(b);
+    });
+
+    ONGLETS.forEach(function(o){
+      var z = $(o.zone);
+      if(z) z.className = (o.cle === ongletIci) ? '' : 'cache';
+    });
+  }
+
+  function allerAOnglet(cle){
+    ongletIci = cle;
+    dessinerLesOnglets();
+    /* On remonte : un onglet ouvert au milieu d'un long défilement
+       donne l'impression que rien ne s'est passé. */
+    try{ window.scrollTo(0, 0); }catch(e){}
   }
 
 
@@ -652,6 +797,8 @@
       cases[m].addEventListener('change', cocherEtape);
     }
     brancherLesCarrousels(z);
+    /* Le compte de ce qui reste a changé : la barre le dit. */
+    dessinerLesOnglets();
   }
 
   function blocEtape(e, i, courante){
@@ -952,8 +1099,16 @@
           }
         }
         if(!trouve && x.idProcedure){ sel.value = x.idProcedure; }
-        $('chTexte').focus();
-        $('chProc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        /* ⚠️ LA CARTE VIT SUR L'ACCUEIL, LE MICRO DANS « RÉCITER » —
+           v1037. Sans ce saut, l'appui choisissait bien la procédure
+           et amenait le regard sur un écran caché : rien ne se
+           passait, et il fallait deviner qu'il y avait un onglet à
+           ouvrir. */
+        allerAOnglet('reciter');
+        var sc = $('chProc');
+        if(sc) sc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var ct = $('chTexte');
+        if(ct) ct.focus();
       });
 
       z.appendChild(l);
@@ -1091,7 +1246,13 @@
 
     appeler({ action: 'eleveRecitations', eleve: moi.nom, code: moi.code })
       .then(function(d){
-        if(d.demandes){ demandes = d.demandes; montrerDemandes(); }
+        if(d.demandes){
+          demandes = d.demandes;
+          montrerDemandes();
+          /* Une demande soldée retire sa pastille : la barre le dit
+             tout de suite, pas au prochain chargement. */
+          dessinerLesOnglets();
+        }
         var liste = d.recitations || [];
         if(!liste.length){
           z.innerHTML = '<div class="empty">Rien d\'envoyé pour l\'instant.<br>' +
