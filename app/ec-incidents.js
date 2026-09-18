@@ -1,4 +1,4 @@
-/* Déployé le 03/09/2026 à 07:52 — v820 */
+/* Déployé le 18/09/2026 à 15:34 — v1039 */
 /* ============================================================
    ec-incidents.js
    Quand ça casse chez un moniteur, le bureau doit le savoir.
@@ -288,7 +288,7 @@ function barreDatesIncidents(){
     x.className = 'btn btn-secondary';
     x.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:7px 12px;' +
       'font-size:12px;border-radius:999px;white-space:nowrap;' +
-      (actif ? 'background:var(--orange);color:var(--navy-deep);' +
+      (actif ? 'background:var(--orange);color:var(--on-accent);' +
                'border-color:var(--orange);font-weight:700;' : '');
     x.textContent = p.nom;
     x.addEventListener('click', () => {
