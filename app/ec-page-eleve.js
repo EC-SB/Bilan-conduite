@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:06 — v1015 */
+/* Déployé le 18/09/2026 à 15:34 — v1039 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1818,7 +1818,7 @@ function barreOngletsEleve(onglets){
     x.dataset.ongletEleve = o.cle;
     x.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:8px 12px;' +
       'font-size:13px;border-radius:999px;white-space:nowrap;' +
-      (actif ? 'background:var(--orange);color:var(--navy-deep);' +
+      (actif ? 'background:var(--orange);color:var(--on-accent);' +
                'border-color:var(--orange);font-weight:700;' : '');
     x.textContent = o.emoji + ' ' + o.titre;
     x.addEventListener('click', () => choisirOngletEleve(o.cle));
