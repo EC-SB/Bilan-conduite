@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 12:12 — v971 */
+/* Déployé le 18/09/2026 à 10:08 — v1029 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -47,7 +47,7 @@ const SECTIONS_ONGLET = {
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'carrosserie', 'paie',
             'caisse', 'coutsia',
             'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs',
-            'menage', 'admin']
+            'parcours', 'menage', 'admin']
 };
 
 let ongletActif = '';
@@ -311,6 +311,7 @@ const VUES = {
            ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
            ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
 
+           ['parcours',   '🎬 Groupes et guides',       'parcours',    'L’outil'],
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
            ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
@@ -1780,6 +1781,7 @@ function reveillerVue(cle){
     evaluation: () => afficherEvaluation(),
     financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
+    parcours:   () => afficherParcours(),
     caisse:     () => afficherCaisse(),
     menage:     () => afficherMenage(),
     coutsia:    () => afficherCoutsIa(),
