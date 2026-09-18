@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:47 — v1016 */
+/* Déployé le 18/09/2026 à 10:53 — v1033 */
 /* ============================================================
    ec-historique.js
    Le cours en train de se faire : on le dit, et on dit qu'il est
@@ -93,6 +93,43 @@ async function signalerCoursFini(){
    Rend { ok, ligne } — le numéro de ligne quand le classeur le dit.
    ============================================================ */
 async function envoyerLigneDeBilan(data){
+  /* ============================================================
+     ⚠️ L'ÉTAT DU RELEVÉ GPS PART AVEC LA LIGNE — v1033
+
+     David, le 18 septembre : « le relevé GPS sur la ligne du bilan —
+     pour que la prochaine fois on n'ait plus à se dépêcher de
+     regarder avant de valider ».
+
+     Il courait contre la montre, et c'était notre faute. Les nombres
+     du 🛰️ ne vivaient que dans le brouillon, et valider SUPPRIME le
+     brouillon. Le seul moment où on pouvait lire le diagnostic d'un
+     cours était donc avant de le ranger — après, il était muet.
+
+     ⚠️ ET ÇA SE POSE ICI, PAS CHEZ LES APPELANTS. Trois chemins
+     écrivent une ligne de bilan : la dictée, le bilan manuel, le
+     rendez-vous post-permis. Poser le relevé dans chacun, c'est la
+     garantie qu'il en manquera un — c'est très exactement la faute
+     du signal de fin de cours, réparée en v1016 en amenant le geste
+     ICI, dans la seule fonction que les trois traversent. On ne la
+     refait pas deux versions plus loin.
+
+     ⚠️ ET UN APPELANT QUI SAIT GARDE LA MAIN. Si data.gps est déjà
+     renseigné — une reprise qui rejoue un relevé d'avant — on n'y
+     touche pas. Ce n'est pas une politesse : c'est ce qui empêche
+     cette ligne d'écraser un diagnostic plus juste que le sien.
+     ============================================================ */
+  if(data && data.gps === undefined &&
+     typeof releveDuTrajetPourLeDepot === 'function'){
+    try{
+      const releve = releveDuTrajetPourLeDepot();
+      /* Pas de relevé : on n'envoie RIEN. Un examen officiel, un
+         cours au bureau, une reprise — écrire « {} » ferait une
+         colonne pleine de cases qui ne disent rien, et la ligne 🛰️
+         apparaîtrait sous des cours qui n'ont jamais eu de GPS. */
+      if(releve) data.gps = JSON.stringify(releve);
+    }catch(e){ /* pas de relevé lisible : la ligne part sans */ }
+  }
+
   const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
