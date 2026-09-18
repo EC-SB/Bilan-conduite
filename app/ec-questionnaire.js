@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 16:00 — v1025 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1283,6 +1283,12 @@ const FAMILLE_DU_CHAMP = {
   avantEB: 'avantEB',
   examPermis: 'examenPermis', examDate: 'examenPermis',
   examPermisN: 'examenPermis', examPermisNRang: 'examenPermis',
+  /* ⚠️ LE NOUVEAU NOMBRE EMPORTE LA MÊME FAMILLE — v1041. Sans ce
+     pont, un profil qui retire la question laisserait la phrase
+     « encore 4h + 3h avant examen » écrite dans la note sans plus
+     rien pour la porter. Le test de la régularisation l'a dit tout
+     de suite, et c'est à ça qu'il sert. */
+  heuresRestantesDuJour: 'examenPermis',
   nouvelleDate: 'examenPermis',
   examPassage: 'examenPermis',
   pasEcoute: 'ecoutes',
@@ -1799,6 +1805,7 @@ const PARCOURS_FORMATION = [
                'avantEB',
                'pasEcoute', 'simuNuit',
                'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'heuresRestantesDuJour',
                'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
@@ -1813,6 +1820,7 @@ const PARCOURS_FORMATION = [
                'avantEB',
                'pasEcoute', 'simuNuit',
                'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'heuresRestantesDuJour',
                'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
@@ -1867,6 +1875,7 @@ const PARCOURS_FORMATION = [
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
                'avantEB', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'heuresRestantesDuJour',
                'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
@@ -1877,6 +1886,7 @@ const PARCOURS_FORMATION = [
                'examBlancDate', 'ebPasse', 'ebLecons', 'ebImpossibleLe',
                'avantEB', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'heuresRestantesDuJour',
                'nouvelleDate',
                'examPassage',
                'rdvPostFait', 'rdvPostDate', 'rdvPostAPrevoir',
@@ -1886,6 +1896,7 @@ const PARCOURS_FORMATION = [
     sansObjet:['frise', 'examBlanc', 'examBlancN', 'examBlancRang', 'examBlancDate',
                'ebPasse', 'ebLecons', 'ebImpossibleLe', 'avantEB', 'pasEcoute',
                'examPermis', 'examDate', 'examPermisN', 'examPermisNRang',
+               'heuresRestantesDuJour',
                'nouvelleDate',
                'examPassage',
                /* Un rendez-vous post-permis suit un ajournement.
@@ -2144,11 +2155,10 @@ const CHAMP_DE_LA_REPONSE = {
   ebLecons:      '#qEBLecons',
   examPermis:    '#qExamPermis',
   examDate:      '#qExamDate',
-  examPermisN:   '#qExamPermisN',
-  /* Pas de champ à l'écran : c'est un repère, pas une question.
-     Son rang se recalcule à la validation et se recopie de lui-même
-     d'un cours au suivant — il n'a rien à protéger ici. */
-  examPermisNRang: SANS_CHAMP,
+  /* ⚠️ « examPermisN » a quitté cette table avec son champ — v1041.
+     Le questionnaire ne l'écrit plus ; ce qu'il écrit, ce sont les
+     heures, et elles vivent derrière le bouton. */
+  heuresRestantesDuJour: '#qHeuresPermis',
   nouvelleDate:  '#qNouvelleDate',
   examPassage:   '#qExamPassage',
   pasEcoute:     '#qBlocEcoutes',
@@ -2558,7 +2568,17 @@ const FAMILLES_NOTE = [
     motif:/encore \d+\s+le[çc]ons?\s+avant\s+l['’]?\s*exam(?:en)?\s+blanc/i },
   { cle:'examenBlanc', motif:/examen blanc/i, intention:/à\s*prévoir/i },
   { cle:'examenPermis', motif: RE_FAMILLE_EXAMEN, intention:/—\s*à\s*prévoir\s*$/i },
-  { cle:'trois_h',     motif:/plus que les 3h avant examen/i },
+  /* ⚠️ ON RECONNAÎT LES DEUX FORMULATIONS, POUR TOUJOURS — v1041.
+
+     « plus que les 3h avant examen » est devenu « plus que la leçon
+     de veille de l'examen ». Ce qui S'ÉCRIT a changé ; ce qui
+     RECONNAÎT ne peut pas : toutes les notes déjà écrites de tous
+     les élèves portent les anciens mots, et c'est par ce motif que
+     l'application sait où chacun en est. Le restreindre aux
+     nouveaux, c'est faire repasser tout le monde à « heures à
+     préciser » du jour au lendemain. */
+  { cle:'trois_h',
+    motif:/plus que (?:les 3h avant examen|la le[çc]on de veille)/i },
   { cle:'ecoutes',     motif:/^Pas d'écoutes pédagogiques/i },
   { cle:'simuNuit',    motif:/simulateur nuit et risques/i, intention:/à\s*prévoir/i },
   { cle:'formAccomp',  motif:/^Formation accompagnateur/i, intention:/à\s*prévoir/i },
@@ -3194,7 +3214,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<select id="qEBPasse">' +
           '<option value="">— à renseigner —</option>' +
           '<option value="niveauok">✅ A le niveau — heures à préciser</option>' +
-          '<option value="3h">✅ Plus que les 3h avant examen</option>' +
+          '<option value="3h">✅ Plus que la leçon de veille</option>' +
           '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
           '<option value="pasleniveau">⛔ Pas le niveau</option>' +
         '</select>' +
@@ -3280,18 +3300,47 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
          ou d'un post-permis. Non touchée, elle ne réécrit rien : la
          porte commune refuse de resigner un nombre identique.
          ------------------------------------------------------------ */
-      '<div id="qBlocHeuresPermis" style="display:none;">' +
-        '<label for="qHeuresPermis">Combien d\'heures avant l\'examen ?</label>' +
-        '<input type="text" id="qHeuresPermis" inputmode="decimal" ' +
-          'placeholder="Ex : 6">' +
-        '<div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;' +
-          'line-height:1.5;">Les 3h avant examen viennent en plus. ' +
-          '<strong>0</strong> veut dire « plus que les 3h » — il est prêt. ' +
-          'Laisse vide si tu ne sais pas.</div>' +
-      '</div>' +
+      /* ═══ v1041 — UN SEUL BOUTON, DANS LES TROIS ÉTATS.
 
-      '<input type="text" id="qExamPermisN" inputmode="numeric" ' +
-      'placeholder="Leçons restantes avant l\'examen" style="display:none;">' +
+         Il y avait ICI DEUX CHAMPS JUMEAUX qui posaient la même
+         question dans deux unités, et qui ne se croisaient jamais :
+
+           · « Combien d'heures avant l'examen ? », en HEURES, visible
+             seulement sur « date à prévoir » ;
+           · « Leçons restantes avant l'examen », en LEÇONS, visible
+             seulement sur « prévu le… ».
+
+         Le même élève affichait donc « ⏱️ 4 + 3h » chez le bureau —
+         4 heures — et « encore 4 leçons + 3h » dans sa note : le
+         DOUBLE. Et la monitrice de David, devant la date déjà posée,
+         ne voyait que le mot « restantes », qu'elle lisait comme
+         « celles déjà prévues au planning » — elle n'en avait
+         aucune. Elle a donc écrit sa demande dans « Signaler au
+         bureau », la case qui sert à dire que la DATE ne va pas.
+
+         Un seul bouton, donc, en heures, celui de 🎓 Suivi permis —
+         mêmes mots, même fenêtre, même porte. Et il s'affiche dans
+         les TROIS états où la question se pose : à prévoir, prévu
+         le…, et déjà passé à reprogrammer. Ma raison de le cacher
+         sur « prévu le… » — « la date est là, la réserve ne décide
+         plus de rien » — était à l'envers : une fois la date posée,
+         c'est là que quelqu'un doit réserver ces heures.
+
+         Le champ reste dans la page, caché : c'est lui que la
+         validation relit, et toute la plomberie qui porte ce nombre
+         jusqu'au bureau continue de marcher sans rien savoir du
+         bouton. */
+      '<div id="qBlocHeuresPermis" style="display:none;">' +
+        '<label for="qHeuresBouton">Heures restantes avant l\'examen</label>' +
+        '<input type="hidden" id="qHeuresPermis">' +
+        '<button type="button" id="qHeuresBouton" class="btn btn-secondary" ' +
+          'style="width:auto;margin:0 0 6px;padding:9px 12px;font-size:13px;">' +
+          '⏱️ Heures à préciser</button>' +
+        '<div style="font-size:11px;color:var(--muted);margin:2px 0 14px;' +
+          'line-height:1.5;">La leçon de veille de l\'examen (3h) vient en ' +
+          'plus. <strong>0</strong> veut dire « plus que la leçon de ' +
+          'veille » — il est prêt.</div>' +
+      '</div>' +
       '<div id="qLibNouvelleDate" style="display:none;font-size:12px;color:var(--muted);margin:-8px 0 4px;">' +
       'Nouvelle date (laisse vide si en attente)</div>' +
       '<input type="date" id="qNouvelleDate" style="display:none;">' +
@@ -3514,7 +3563,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         /* La fiche d'évaluation : tout part, sauf les leçons
            avant la préfecture. */
         ? ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qExamPermis',
-           '#qExamDate', '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate',
+           '#qExamDate', '#qBlocHeuresPermis', '#qNouvelleDate', '#qLibExamDate',
            '#qLibNouvelleDate', '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs',
            '#qFriseClassique', '#qFriseFixe', '#qEtapesRN',
            '#qFormation', '#qFormationEffet', '#qBlocEcoutes',
@@ -3525,7 +3574,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            '#qSimuNuit', '#qBlocAacCs', '#qFriseClassique', '#qFriseFixe',
            '#qEtapesRN']
         : ['#qLecon', '#qLeconDepuis', '#qExamBlanc', '#qExamBlancN', '#qExamPermis', '#qExamDate',
-           '#qExamPermisN', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
+           '#qBlocHeuresPermis', '#qNouvelleDate', '#qLibExamDate', '#qLibNouvelleDate',
            '#qFinirFiche', '#qSimuNuit', '#qBlocAacCs'];
 
       champsMasques = aMasquer;
@@ -4463,40 +4512,100 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       setTimeout(majEB2, 0);
     }
 
-    const nEP = boite.querySelector('#qExamPermisN');
     const nvDate = boite.querySelector('#qNouvelleDate');
     const libDate = boite.querySelector('#qLibExamDate');
     const libNv = boite.querySelector('#qLibNouvelleDate');
-    /* ⚠️ LE NOMBRE DE LEÇONS AVANT L'EXAMEN DÉCOMPTE TOUT SEUL — v906.
-
-       David, le 10 septembre : « le nombre de leçons restantes avant
-       l'examen ne se met pas à jour tout seul ? » Non. Il était
-       recopié tel quel d'un cours au suivant : « encore 2 leçons +
-       3h » restait à 2 pendant six leçons, jusqu'à ce qu'un moniteur
-       le retape.
-
-       C'était d'autant plus visible que TOUT LE RESTE avance seul —
-       le rang, la position dans la frise. Seul ce compteur-là était
-       figé, parce que c'est un nombre libre tapé par un humain.
-
-       Il décompte maintenant depuis le RANG auquel il a été dit :
-       « encore 2, à la 10ème » vaut 1 à la 11ème et 0 à la 12ème.
-       Une soustraction, pas une érosion — un cours annulé ou deux
-       préparations pour la même leçon ne le font pas descendre.
-
-       ⚠️ ET IL NE PASSE PAS SOUS ZÉRO. Zéro veut dire « plus que les
-       3h avant examen », et c'est une réponse. En dessous, il n'y a
-       rien à dire de plus : la frise est dépassée, et c'est la ligne
-       🎯 qui le signale, pas ce compteur. */
-    nEP.value = leconsAvantExamen(prec, rangDuJour);
     nvDate.value = prec.nouvelleDate || '';
 
-    /* ⏱️ Ce qu'on sait déjà, repris tel quel : le moniteur corrige
-       ou laisse. Ne pas le reprendre, ce serait lui faire retaper un
-       nombre que quelqu'un a déjà donné — et retaper, c'est risquer
-       d'écraser par un chiffre de mémoire. */
+    /* ⏱️ CE QU'ON SAIT DÉJÀ, REPRIS TEL QUEL — et c'est la réponse à
+       la question de David : « ça prend bien les infos de l'examen
+       blanc ou de ce qu'on a renseigné, et ça met à renseigner que
+       si l'info n'est pas connue ? » Oui. La réserve arrive de la
+       conclusion de l'examen blanc, du bureau ou d'un post-permis ;
+       le bouton ne dit « à préciser » que quand personne ne sait.
+
+       ⚠️ ET ELLE ARRIVE DÉCOMPTÉE. « prec.heuresRestantes » est le
+       nombre BRUT, celui qu'on a décidé un jour ; ce qu'on montre,
+       c'est ce qu'il en RESTE — les leçons faites depuis l'ont
+       entamé. C'est exactement le décompte que faisait « leçons
+       restantes avant l'examen » (v906), et il vit maintenant à un
+       seul endroit pour les deux écrans. */
     const hEP = boite.querySelector('#qHeuresPermis');
-    if(hEP) hEP.value = String(prec.heuresRestantes || '');
+    const bH = boite.querySelector('#qHeuresBouton');
+
+    const reserveDuJour = () => {
+      const brut = String(prec.heuresRestantes || '').trim();
+      if(typeof estPasLeNiveau === 'function' && estPasLeNiveau(brut)){
+        return brut;
+      }
+      /* ⚠️ LE PONT AVEC LES ANCIENNES NOTES — v1041. Un élève dont
+         la seule trace est « encore 4 leçons + 3h avant examen »
+         n'a pas de réserve en heures : elle vivait en LEÇONS, dans
+         examPermisN. On la convertit — une leçon vaut deux heures —
+         en la faisant d'abord décompter par sa propre règle, celle
+         de la v906. Sans ce pont, il repasserait à « heures à
+         préciser » pour avoir été écrit avant aujourd'hui. */
+      if(!brut && typeof leconsAvantExamen === 'function'){
+        const l = leconsAvantExamen(prec, rangDuJour);
+        if(l !== '' && typeof heuresPourLecons === 'function'){
+          const hh = heuresPourLecons(l);
+          if(hh !== null) return String(hh);
+        }
+      }
+      const h = parseFloat(brut.replace(',', '.'));
+      if(isNaN(h)) return '';
+      if(typeof leconsDepuisLaReserve !== 'function' ||
+         typeof heuresPourLecons !== 'function') return brut;
+      const reste = h - heuresPourLecons(
+        leconsDepuisLaReserve(($('studentName') || {}).value, prec));
+      /* Zéro n'est pas vide : « plus que la leçon de veille » est
+         une réponse, et c'est la plus utile des deux. */
+      return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
+    };
+
+    const direLaReserve = (v) => {
+      if(hEP) hEP.value = String(v === undefined ? reserveDuJour() : v);
+      if(!bH) return;
+      const val = hEP ? hEP.value : '';
+      bH.textContent = (typeof motsDeLaReserve === 'function')
+        ? motsDeLaReserve(val, true)
+        : (val === '' ? '⏱️ Heures à préciser' : '⏱️ ' + val + ' + 3h');
+      const c = (typeof couleurDeLaReserve === 'function')
+        ? couleurDeLaReserve(val) : 'var(--muted)';
+      bH.style.color = c;
+      bH.style.borderColor = c;
+    };
+    direLaReserve();
+
+    /* ⚠️ LA MÊME FENÊTRE QUE LE BUREAU, pas une deuxième qui lui
+       ressemble. Elle n'écrit rien ici : elle rend le choix, et
+       c'est la validation du bilan qui le porte au bureau, par la
+       porte qui date et signe ce nombre. */
+    if(bH){
+      bH.addEventListener('click', async () => {
+        if(typeof fenetre !== 'function' ||
+           typeof choixDeLaReserve !== 'function'){
+          showToast('Indisponible depuis cet écran.'); return;
+        }
+        const nom = ($('studentName') && $('studentName').value.trim()) || '';
+        const choix = await fenetre(TITRE_RESERVE, choixDeLaReserve(),
+                                    nom || 'Heures avant examen');
+        if(choix === undefined || choix === null) return;
+        let v = choix;
+        if(choix === 'autre'){
+          const t = await demander(
+            "Combien d'heures avant l'examen ?\n" +
+            "La leçon de veille de l'examen (3h) vient en plus.",
+            String(hEP ? hEP.value : ''), nom || 'Heures avant examen');
+          if(t === null) return;
+          v = String(t).trim().replace(',', '.');
+        }
+        if(v && !estPasLeNiveau(v) && isNaN(Number(v))){
+          showToast('Indique un nombre d\'heures.'); return;
+        }
+        direLaReserve(v);
+      });
+    }
 
     selEP.addEventListener('change', () => {
       const v = selEP.value;
@@ -4512,7 +4621,6 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       /* Et surtout PAS la date du jour en cadeau : proposer une date
          revenait à la faire dire au moniteur. */
 
-      nEP.style.display = (v === 'prevu') ? 'block' : 'none';
       /* Le rang du passage vaut pour un examen à venir COMME pour
          celui qu'on vient de rater : « c'est le combientième
          examen ? » se pose dans les deux sens. */
@@ -4522,11 +4630,23 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           (v === 'prevu' || v === 'aprevoir' || v === 'passe') ? 'block' : 'none';
       }
 
-      /* ⏱️ Les heures ne se demandent que sur « date à prévoir » :
-         c'est là que le bureau en a besoin, et nulle part ailleurs.
-         Voir le bloc, plus haut. */
+      /* ⏱️ LES TROIS ÉTATS OÙ LA QUESTION SE POSE — v1041.
+
+         Elle ne se posait que sur « date à prévoir », au motif que
+         « la date est là, la réserve ne décide plus de rien ». C'est
+         l'inverse : une fois la date posée, c'est justement là que
+         quelqu'un doit réserver ces heures — et c'est le cas que la
+         monitrice de David avait sous les yeux. « Passé, à
+         reprogrammer » aussi : un ajourné qui reprend a lui aussi un
+         nombre d'heures devant lui.
+
+         Non planifiable, en revanche, ne la pose pas : c'est le
+         dossier qui bloque, pas le niveau. */
       const bh = boite.querySelector('#qBlocHeuresPermis');
-      if(bh) bh.style.display = (v === 'aprevoir') ? 'block' : 'none';
+      if(bh){
+        bh.style.display =
+          (v === 'aprevoir' || v === 'prevu' || v === 'passe') ? 'block' : 'none';
+      }
       /* « Reprogrammé le … » est une date d'examen déguisée : elle
          suit la même règle. Le moniteur dit « annulé », le bureau
          reprogramme depuis 🎓 Suivi permis. */
@@ -4684,7 +4804,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           const suite = selEB2 ? selEB2.value : '';
           if(suite === '3h') return '0';
           if(suite === 'lecons' && nEB2) return nEB2.value.trim();
-          if(selEP.value !== 'aprevoir') return '';
+          /* ⚠️ DANS LES TROIS ÉTATS — v1041. Ce « return '' » gardait
+             la réserve pour le seul « date à prévoir » : sur un
+             examen déjà posé, ce que le moniteur venait de décider
+             n'atteignait jamais le bureau. C'est le cas exact que la
+             monitrice de David avait sous les yeux. */
           const c = boite.querySelector('#qHeuresPermis');
           return c ? String(c.value || '').trim().replace(',', '.') : '';
         })(),
@@ -4699,23 +4823,21 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
           const suite = selEB2 ? selEB2.value : '';
           return !(suite === '3h' || suite === 'lecons');
         })(),
-        examPermisN: nEP.value.trim(),
-        /* ⚠️ LE REPÈRE QUI PERMET AU NOMBRE DE DÉCOMPTER — v906.
+        /* ⚠️ « examPermisN » NE S'ÉCRIT PLUS — v1041. C'était le
+           second nombre, en LEÇONS, que le questionnaire tenait à
+           côté de celui du bureau, en HEURES. Le même élève affichait
+           « 4 + 3h » d'un côté et « encore 4 leçons + 3h » de
+           l'autre : le double, pour un seul fait.
 
-           David, le 10 septembre : « le nombre de leçons restantes
-           avant l'examen ne se met pas à jour tout seul ? » Non : il
-           était recopié tel quel d'un cours au suivant, et restait à
-           « encore 2 » pendant six leçons.
-
-           Décompter à l'aveugle — un de moins à chaque cours —
-           finirait par mentir dans l'autre sens : deux cours préparés
-           pour la même leçon, un cours annulé, et le compte descend
-           sans que personne ait roulé. On garde donc LE RANG auquel
-           le nombre a été dit, et le reste se déduit : c'est une
-           soustraction, pas une érosion. */
-        examPermisNRang: (rangDuJour !== null && rangDuJour !== undefined &&
-                          String(nEP.value).trim() !== '')
-          ? String(rangDuJour) : (prec.examPermisNRang || ''),
+           On continue de le RELIRE — les notes déjà écrites le
+           portent, et reserveDuJour() en fait le pont — mais plus
+           personne ne l'écrit. Le repère de son décompte (v906) part
+           avec lui : c'est « heuresRang », posé par la porte du
+           bureau, qui le remplace pour les deux écrans. */
+        heuresRestantesDuJour: (function(){
+          const c = boite.querySelector('#qHeuresPermis');
+          return c ? String(c.value || '').trim() : '';
+        })(),
         examPassage: passEP ? passEP.value : '',
         nouvelleDate: nvDate.value,
         formAccomp: boite.querySelector('#qFormAccomp').value,
@@ -5804,7 +5926,7 @@ function ajouterSuite(etats, permis, mots, q){
       : dateEnToutesLettres($('lessonDate').value || todayLocal());
     const tete = '🅱️ ' + numero + ETAT_EB_PASSE + ' le ' + jour;
     if(q.ebPasse === '3h'){
-      etats.push(tete + ' — plus que les 3h avant examen');
+      etats.push(tete + ' — plus que la leçon de veille de l\'examen');
     }else if(q.ebPasse === 'lecons'){
       const k = q.ebLecons;
       etats.push(tete + ' — encore ' + (k || '❓') +
@@ -5878,7 +6000,7 @@ function ajouterSuite(etats, permis, mots, q){
        ne disait rien de plus que « PASSÉ ». */
     const conclusion =
         (String(q.ebNiveau || '') === 'non') ? SUITE_PAS_LE_NIVEAU
-      : (hEB === '0')                        ? ' — plus que les 3h avant examen'
+      : (hEB === '0')                        ? ' — plus que la leçon de veille de l\'examen'
       : hEB                                  ? ' — ' + hEB + ' + 3h'
       : '';
     etats.push(tete + jourEB + conclusion);
@@ -5948,18 +6070,47 @@ function ajouterSuite(etats, permis, mots, q){
      lecteur n'en reconnaîtrait qu'une — ce qui était exactement le
      cas pour les élèves ajournés, dont le nombre n'était écrit
      nulle part. Une phrase, deux endroits qui l'appellent. */
+  /* ⚠️ EN HEURES, ET AVEC « PAS LE NIVEAU » — v1041.
+
+     Elle écrivait des LEÇONS, parce que le questionnaire tenait son
+     propre nombre dans cette unité-là. Il n'y en a plus qu'un, en
+     heures, et c'est celui du bureau : la ligne le dit donc dans la
+     même unité que le bouton qui l'a posé. Écrire « 4 leçons » sous
+     un bouton qui dit « 4 + 3h », c'était promettre le double.
+
+     Et la troisième réponse n'est pas un nombre : un élève qui
+     n'aura pas le niveau pour sa date doit se lire d'un coup d'œil
+     dans la note, en capitales — c'est la seule ligne qui demande à
+     quelqu'un de faire quelque chose aujourd'hui. */
   const mentionAvantExamen = (np) => {
     const s = String(np === undefined || np === null ? '' : np).trim();
-    if(!s) return '';
-    return (parseInt(s, 10) === 0)
-      ? ' — plus que les 3h avant examen'
-      : ' — encore ' + s + ' leçon' + pl(s) + ' + 3h avant examen';
+
+    /* ⚠️ UN CONTEXTE D'AVANT N'A PAS D'HEURES — et absent n'est pas
+       vide. Une note relue d'un ancien bilan porte son nombre en
+       LEÇONS, dans examPermisN. La réécrire sans sa mention, ce
+       serait effacer en la relisant ce qu'un moniteur avait dit. On
+       garde alors ses mots à lui, tels qu'il les a écrits. */
+    if(!s){
+      const vieux = String(q.examPermisN === undefined ||
+                           q.examPermisN === null ? '' : q.examPermisN).trim();
+      if(!vieux) return '';
+      return (parseInt(vieux, 10) === 0)
+        ? ' — plus que les 3h avant examen'
+        : ' — encore ' + vieux + ' leçon' + pl(vieux) + ' + 3h avant examen';
+    }
+
+    if(typeof estPasLeNiveau === 'function' && estPasLeNiveau(s)){
+      return ' — ⛔ PAS LE NIVEAU POUR CET EXAMEN — élève à changer';
+    }
+    return (parseFloat(s.replace(',', '.')) === 0)
+      ? " — plus que la leçon de veille de l'examen"
+      : ' — encore ' + s + 'h + 3h avant examen';
   };
 
   if(q.examPermis === 'prevu' && q.examDate && !examPasse){
     permis.push(EXAMEN_PREVU + ' ' +
                 majusculeNote(dateEnToutesLettres(q.examDate)) + passage +
-                mentionAvantExamen(q.examPermisN));
+                mentionAvantExamen(q.heuresRestantesDuJour));
   }else if(q.examPermis === 'annule'){
     let phrase = EXAMEN_SANS_DATE + passage + (q.examDate
       ? ' — celui du ' + dateEnToutesLettres(q.examDate) + ' est annulé'
@@ -5988,7 +6139,7 @@ function ajouterSuite(etats, permis, mots, q){
                     ', ajourné'
                   : ' — déjà passé, ajourné') +
       ' — reprend la conduite — à reprogrammer' +
-      mentionAvantExamen(q.examPermisN));
+      mentionAvantExamen(q.heuresRestantesDuJour));
   }else if(q.examPermis === 'nonplanifiable'){
     /* Le bureau le retrouve dans Permis → Pas prêts grâce à cette
        mention : elle est le seul repère, elle doit rester stable. */
