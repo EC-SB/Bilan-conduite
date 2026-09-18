@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/09/2026 à 15:12 — v1038 -->
+<!-- Déployé le 18/09/2026 à 15:34 — v1039 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -121,7 +121,7 @@
     font-size:14px; font-weight:700; cursor:pointer; width:100%;
     font-family:inherit; margin-bottom:10px;
   }
-  .btn-primary{ background: var(--orange); color: var(--navy-deep); }
+  .btn-primary{ background: var(--orange); color: var(--on-accent); }
   .btn-secondary{
     background:transparent; border:1px solid var(--line); color: var(--cream);
   }
@@ -132,7 +132,7 @@
     width:100%; padding:20px; border:none; border-radius:16px;
     font-size:17px; font-weight:700; cursor:pointer;
     display:flex; align-items:center; justify-content:center; gap:10px;
-    background: var(--orange); color: var(--navy-deep);
+    background: var(--orange); color: var(--on-accent);
     font-family:inherit; margin-bottom:10px;
     transition: background .15s ease;
   }
@@ -322,7 +322,7 @@
     font-weight:700; cursor:pointer;
   }
   .onglets button.ici{
-    background:var(--orange); color:var(--navy-deep);
+    background:var(--orange); color:var(--on-accent);
     border-color:var(--orange);
   }
   /* La pastille de ce qui attend : elle ne dit pas « regarde-moi »,
@@ -332,7 +332,31 @@
     border-radius:9px; background:var(--red); color:#fff;
     font-size:11px; line-height:18px; text-align:center;
   }
-  .onglets button.ici .pastille{ background:var(--navy-deep); color:var(--orange); }
+  .onglets button.ici .pastille{ background:var(--on-accent); color:var(--orange); }
+
+  /* Les sous-onglets des groupes — v1039. Mêmes règles que la barre
+     du haut : ils se plient, ils ne défilent pas. */
+  .sousonglets{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:12px; }
+  .sousonglets button{
+    flex:0 1 auto; margin:0; padding:8px 11px; border-radius:9px;
+    border:1px solid var(--line); background:transparent;
+    color:var(--muted); font-family:inherit; font-size:12.5px;
+    font-weight:700; cursor:pointer;
+  }
+  .sousonglets button.ici{
+    /* ⚠️ L'ONGLET CHOISI DOIT SE VOIR. Il portait var(--navy) :
+       en thème clair, #F2F2EC sur une carte blanche — le bouton
+       choisi ne se distinguait plus de ses voisins. Il porte
+       maintenant un écho pâle de l'accent, et l'encre posée sur
+       l'accent est var(--on-accent), noire dans les deux thèmes. */
+    background:var(--orange-soft); color:var(--on-accent);
+    border-color:var(--orange);
+  }
+  .sousonglets .pastille{
+    display:inline-block; min-width:16px; padding:0 4px; margin-left:5px;
+    border-radius:8px; background:var(--red); color:#fff;
+    font-size:10.5px; line-height:16px; text-align:center;
+  }
 
   /* 📣 Une annonce — v1038 */
   .annonce{
@@ -626,7 +650,6 @@
     dessinerLesOnglets();
     if(ouvert('proccorriger')) chargerEnvois();
     chargerDossier();
-    chargerParcours();
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
        sans savoir pourquoi. */
@@ -796,15 +819,41 @@
      sans redemander la page entière au classeur. */
   var dernierAvant = null;
 
-  function chargerParcours(){
-    if(!ouvert('parcours')) return;
-    appeler({ action: 'eleveParcours', eleve: moi.nom, code: moi.code })
-      .then(function(d){
-        mesEtapes = (d && d.etapes) || [];
-        dernierAvant = (d && d.avant) || null;
-        dessinerParcours(dernierAvant);
-      })
-      .catch(function(){ montrer('carteParcours', false); });
+  /* ⚠️ LE PARCOURS ARRIVE AVEC LE DOSSIER — v1039. Il faisait un
+     SECOND appel, et chaque appel réveille le classeur : l'élève
+     attendait deux fois pour une seule page. */
+  function poserLeParcours(p){
+    mesEtapes = (p && p.etapes) || [];
+    dernierAvant = (p && p.avant) || null;
+    dessinerParcours(dernierAvant);
+  }
+
+  /* ⚠️ UN SOUS-ONGLET PAR GROUPE — v1039.
+
+     David : « si on fait plusieurs groupes on doit pouvoir choisir
+     lequel on regarde ; là c'est bloqué, je dois voir le guide 1 du
+     groupe théorie mais si je veux réviser mes vérifications avant,
+     je peux pas ».
+
+     Les étapes de tous les groupes étaient mises À PLAT, et une
+     seule était ouverte dans toute la pile : l'élève ne pouvait
+     jamais atteindre le premier guide d'un autre groupe. Chaque
+     groupe a maintenant sa propre progression et sa propre étape
+     ouverte — ce sont des matières différentes, pas une file. */
+  var groupeIci = '';
+
+  function lesGroupes(){
+    var vus = [], parId = {};
+    mesEtapes.forEach(function(e){
+      var id = e.groupe || '';
+      if(!parId[id]){
+        parId[id] = { id: id, nom: e.groupeNom || 'Mon parcours',
+                      icone: e.groupeIcone || '', etapes: [] };
+        vus.push(parId[id]);
+      }
+      parId[id].etapes.push(e);
+    });
+    return vus;
   }
 
   function dessinerParcours(avant){
@@ -820,16 +869,23 @@
       return;
     }
 
+    var groupes = lesGroupes();
+    if(!groupes.some(function(g){ return g.id === groupeIci; })){
+      /* On arrive sur le premier groupe qui n'est pas fini : c'est
+         celui qui l'attend. */
+      var aFaire = groupes.filter(function(g){
+        return g.etapes.some(function(e){ return !e.vuLe; }); });
+      groupeIci = (aFaire[0] || groupes[0]).id;
+    }
+    var ici = groupes.filter(function(g){ return g.id === groupeIci; })[0];
+
+    /* Le compteur du HAUT parle de TOUT le parcours : c'est lui qui
+       dit ce qui reste avant le prochain cours, tous groupes
+       confondus. */
     var faits = 0;
     for(var i = 0; i < mesEtapes.length; i++){
       if(mesEtapes[i].vuLe) faits++;
     }
-    /* La première non faite : c'est elle qui s'ouvre. */
-    var courante = -1;
-    for(var j = 0; j < mesEtapes.length; j++){
-      if(!mesEtapes[j].vuLe){ courante = j; break; }
-    }
-
     var reste = mesEtapes.length - faits;
     var c = $('cptParcours');
     if(c){
@@ -840,13 +896,42 @@
           : '');
     }
 
-    var html = '<div class="barre"><div style="width:' +
-      Math.round((faits / mesEtapes.length) * 100) + '%"></div></div>';
+    var html = '';
+    /* Les sous-onglets : un par groupe, avec ce qui lui reste. */
+    if(groupes.length > 1){
+      html += '<div class="sousonglets">' + groupes.map(function(g){
+        var r = g.etapes.filter(function(e){ return !e.vuLe; }).length;
+        return '<button data-groupe="' + echapper(g.id) + '"' +
+          (g.id === groupeIci ? ' class="ici"' : '') + '>' +
+          echapper((g.icone ? g.icone + ' ' : '') + g.nom) +
+          (r ? '<span class="pastille">' + r + '</span>' : ' ✓') +
+          '</button>';
+      }).join('') + '</div>';
+    }
 
-    for(var k = 0; k < mesEtapes.length; k++){
-      html += blocEtape(mesEtapes[k], k, courante);
+    var siennes = ici.etapes;
+    var faitsIci = siennes.filter(function(e){ return !!e.vuLe; }).length;
+    /* La première non faite DE CE GROUPE : c'est elle qui s'ouvre. */
+    var courante = -1;
+    for(var j = 0; j < siennes.length; j++){
+      if(!siennes[j].vuLe){ courante = j; break; }
+    }
+
+    html += '<div class="barre"><div style="width:' +
+      Math.round((faitsIci / siennes.length) * 100) + '%"></div></div>';
+
+    for(var k = 0; k < siennes.length; k++){
+      html += blocEtape(siennes[k], k, courante);
     }
     z.innerHTML = html;
+
+    var bs = z.querySelectorAll('[data-groupe]');
+    for(var b = 0; b < bs.length; b++){
+      bs[b].addEventListener('click', function(){
+        groupeIci = this.getAttribute('data-groupe');
+        dessinerParcours(dernierAvant);
+      });
+    }
 
     /* La coche, branchée après coup : innerHTML efface les écouteurs. */
     var cases = z.querySelectorAll('input[data-guide]');
@@ -999,6 +1084,7 @@
         mesAnnonces = (d && d.annonces) || [];
         dessinerAnnonces();
         dessinerLesOnglets();
+        if(ouvert('parcours')) poserLeParcours(d.parcours);
         if(ouvert('rappel')) dessinerProchain(d.prochain);
         if(ouvert('historique')) dessinerLecons(d.lecons || []);
       })
