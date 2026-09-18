@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -121,7 +121,7 @@ function resultatExamenBlanc(nom, a){
              couleur:'var(--red)', gras:true };
   }
   if(note.ebSuite === '3h' || (niveau === 'oui' && heures === '0')){
-    return { cle:'3h', emoji:'✅', texte:'plus que les 3h avant examen',
+    return { cle:'3h', emoji:'✅', texte:"plus que la leçon de veille de l'examen",
              couleur:'var(--accent-text)' };
   }
 
@@ -192,7 +192,7 @@ function resultatExamenBlanc(nom, a){
 
   const restant = reserve - heuresPourLecons(leconsDepuisLaReserve(nom, note));
   if(restant <= 0){
-    return { cle:'3h', emoji:'✅', texte:'plus que les 3h avant examen',
+    return { cle:'3h', emoji:'✅', texte:"plus que la leçon de veille de l'examen",
              couleur:'var(--accent-text)' };
   }
   return { cle:'lecons', emoji:'⏳',
@@ -305,7 +305,9 @@ function noteAvecResultatExamenBlanc(nom, note){
     '([^·\n\r]*)', 'i');
 
   /* Une suite déjà écrite ne se double pas. */
-  const DEJA = /pas le niveau|plus que les 3h|encore \d+\s*le[çc]on/i;
+  /* ⚠️ Les deux formulations — v1041 : « plus que les 3h » sur les
+     notes déjà écrites, « la leçon de veille » sur les neuves. */
+  const DEJA = /pas le niveau|plus que (?:les 3h|la le[çc]on de veille)|encore \d+\s*le[çc]on/i;
 
   return t.replace(motif, (tout, tete, suite) => {
     const clair = (typeof sansGras === 'function') ? sansGras(tout) : tout;
