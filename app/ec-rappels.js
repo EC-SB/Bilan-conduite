@@ -1,4 +1,4 @@
-/* Déployé le 11/09/2026 à 15:13 — v959 */
+/* Déployé le 18/09/2026 à 09:45 — v1027 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -705,6 +705,42 @@ function typesDisponibles(){
     .map(m => ({ cle: 'perso:' + m.id, titre: m.titre || m.nom,
                  contenu: m.contenu, perso: true }));
   return TYPES_RAPPEL.concat(perso);
+}
+
+/* ============================================================
+   LE TYPE SUR LEQUEL ON REVIENT APRÈS UN ENVOI — v1027
+
+   David, le 18 septembre : « quand je fais un rappel d'évaluation
+   tous les prochains cours se mettent en type bilan évaluation ».
+
+   ⚠️ C'EST LA MÊME PANNE QU'EN v880, ET ELLE N'AVAIT ÉTÉ RÉPARÉE
+   QU'À MOITIÉ. Le 7 septembre, il signalait déjà : « j'ai fait un
+   rappel examen blanc et tous les prochains cours avec les rappels
+   d'après se sont mis en examen blanc ». On avait alors retiré le
+   type des réglages MÉMORISÉS (voir memoriserChoixRappel) — donc
+   il ne survivait plus à un rechargement de page. Mais le MENU, à
+   l'écran, gardait le type d'un envoi à l'autre. Dans une série de
+   rappels, où l'on n'a aucune raison de recharger la page, rien
+   n'avait changé.
+
+   Une porte fermée, l'autre laissée ouverte. Onze jours plus tard,
+   la même erreur ressort — avec l'évaluation cette fois.
+
+   ⚠️ ET ON NE REVIENT PAS « AU PREMIER DE LA LISTE » : ce serait
+   troquer une devinette contre une autre, et le premier type
+   pourrait très bien être un examen blanc. On revient au premier
+   qui N'IMPOSE AUCUN BILAN — celui qui laisse la fiche de l'élève
+   décider, c'est-à-dire un cours de conduite ordinaire. C'est une
+   règle, pas un rang.
+
+   Aucun type neutre dans sa liste : on garde le premier, comme
+   avant. Mieux vaut le comportement d'hier qu'un menu vide. */
+function typeNeutreParDefaut(){
+  const tous = typesDisponibles();
+  if(!tous.length) return '';
+  const neutre = tous.find(t =>
+    !modeleDuTypeDeRappel(t.titre || t.nom || '', t.cle));
+  return (neutre || tous[0]).cle;
 }
 
 /* Le titre lisible d'un type de rappel.
@@ -2118,6 +2154,22 @@ async function envoyerRappelManuel(){
       document.querySelectorAll('.optionRappel').forEach(cb => {
         cb.checked = false;
       });
+
+      /* ⚠️ ET LE TYPE DE SÉANCE — v1027. Il décrit CE cours-là lui
+         aussi, et il ne choisit pas seulement le texte du SMS :
+         c'est lui qui choisit LE BILAN du cours créé derrière. Laissé
+         en place, il fabriquait une évaluation pour chaque rappel
+         envoyé après une évaluation, sans que rien à l'écran ne le
+         dise. Voir typeNeutreParDefaut. */
+      const typeNeutre = typeNeutreParDefaut();
+      if($('rapType')) $('rapType').value = typeNeutre;
+      /* ⚠️ LES DEUX, PAS SEULEMENT LE MENU. typeChoisiMaintenant()
+         retombe sur choixRappel quand le menu est vide : n'en
+         nettoyer qu'un laisserait l'ancien type ressortir par
+         l'autre porte. */
+      if(typeof choixRappel !== 'undefined' && choixRappel){
+        choixRappel.type = typeNeutre;
+      }
 
       /* Le moniteur et le jour restent : ils ne changent pas
          d'un élève à l'autre dans une série de rappels. */
