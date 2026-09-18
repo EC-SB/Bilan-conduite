@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 09:52 — v1028 */
+/* Déployé le 18/09/2026 à 11:11 — v1034 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -84,7 +84,19 @@ function fenetre(contenu, boutons, titre){
     }
     const t = document.createElement('div');
     t.style.cssText = 'font-size:15px;line-height:1.6;white-space:pre-wrap;margin-bottom:16px;';
-    t.textContent = contenu;
+    /* ⚠️ DU TEXTE, OU UN MORCEAU D'ÉCRAN — v1034.
+
+       Cette fenêtre ne savait dire que du texte. Vérifier une vidéo
+       déposée demande de la JOUER : un lecteur, pas la description
+       d'un lecteur. On accepte donc aussi un élément déjà construit
+       — et on l'ACCROCHE, sans jamais passer par innerHTML : ce qui
+       entre ici vient parfois du classeur. */
+    if(contenu && typeof contenu === 'object' && contenu.nodeType === 1){
+      t.style.whiteSpace = 'normal';
+      t.appendChild(contenu);
+    }else{
+      t.textContent = contenu;
+    }
     boite.appendChild(t);
 
     const zone = document.createElement('div');
