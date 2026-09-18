@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 11:11 — v1034 */
+/* Déployé le 18/09/2026 à 11:43 — v1036 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1318,9 +1318,129 @@ function ligneFicheEleve(nom){
 const MODULES_ELEVE = [
   { cle:'proccorriger', nom:'📋 Réciter des procédures' },
   { cle:'code',         nom:'🎓 Suivi du code en salle' },
+  /* ⚠️ Son parcours — v1036. Fermé comme les autres tant que
+     personne ne l'ouvre : un groupe neuf n'arrive chez personne. */
+  { cle:'parcours',     nom:'🎬 Son parcours — vidéos et guides' },
   { cle:'rappel',       nom:'📅 Son prochain cours' },
   { cle:'historique',   nom:'📖 L\'historique de ses leçons' }
 ];
+
+/* ============================================================
+   🧩 LES GROUPES D'UN ÉLÈVE — v1036, étape 4 du parcours
+
+   ⚠️ SA FORMATION PROPOSE, ELLE N'OUVRE PAS. Le bouton coche ce que
+   sa formation prévoit ; David vérifie et enregistre. C'est la règle
+   du 17 septembre, et elle ne souffre pas d'exception : un groupe
+   qui s'ouvrirait tout seul arriverait chez deux cents élèves d'un
+   coup.
+
+   ⚠️ ET UN GROUPE FERMÉ NE SE PROPOSE PLUS. Il reste coché chez ceux
+   qui l'avaient — on ne leur retire rien — mais il n'apparaît pas
+   dans la liste de ceux qu'on peut ouvrir.
+   ============================================================ */
+async function dessinerGroupesDeLEleve(nom, acces, zone){
+  if(!zone) return;
+  zone.innerHTML = '<div style="font-size:11.5px;color:var(--muted);">' +
+    'Lecture des groupes…</div>';
+
+  let groupes = [];
+  try{
+    const d = await appelPrep({ action: 'parcoursList' });
+    groupes = (d && d.groupes) || [];
+  }catch(e){
+    zone.innerHTML = '';
+    return;
+  }
+
+  const ouverts = ((acces && acces.groupes) || []).slice();
+  /* Un groupe fermé qu'il avait reste affiché : le retirer de la
+     liste donnerait l'impression qu'on le lui a enlevé. */
+  const visibles = groupes.filter(g => !g.fermeLe || ouverts.indexOf(g.id) !== -1);
+
+  zone.innerHTML = '';
+  if(!visibles.length){
+    zone.innerHTML = '<div style="font-size:11.5px;color:var(--muted);">' +
+      '🧩 Aucun groupe créé pour l\'instant.</div>';
+    return;
+  }
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:12.5px;font-weight:700;margin-bottom:3px;';
+  t.textContent = '🧩 Ses groupes';
+  zone.appendChild(t);
+
+  const fiche = (typeof ficheDe === 'function') ? ficheDe(nom) : null;
+  const formation = String((fiche && fiche.formation) || '').trim();
+
+  const s = document.createElement('div');
+  s.style.cssText = 'font-size:11px;color:var(--muted);margin-bottom:7px;' +
+    'line-height:1.5;';
+  s.textContent = ouverts.length
+    ? ''
+    : 'Aucun n\'est ouvert de base. C\'est toi qui ouvres.';
+  zone.appendChild(s);
+
+  const cases = {};
+  visibles.forEach(g => {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
+      'text-transform:none;font-size:13.5px;color:var(--cream);' +
+      'margin:0 0 6px;font-weight:400;';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = (ouverts.indexOf(g.id) !== -1);
+    cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    cases[g.id] = cb;
+    l.appendChild(cb);
+
+    const n = document.createElement('span');
+    n.style.cssText = 'flex:1;min-width:0;';
+    n.textContent = (g.icone ? g.icone + ' ' : '') + g.nom +
+                    (g.fermeLe ? '  (groupe fermé)' : '');
+    if(g.fermeLe) n.style.color = 'var(--muted)';
+    l.appendChild(n);
+
+    zone.appendChild(l);
+  });
+
+  /* Le bouton qui PROPOSE — il coche, il n'enregistre pas. */
+  const prevus = formation
+    ? visibles.filter(g => !g.fermeLe && (g.formations || [])
+        .some(f => normaliserMot(f) === normaliserMot(formation)))
+    : [];
+
+  if(prevus.length){
+    const bProp = document.createElement('button');
+    bProp.className = 'btn btn-secondary';
+    bProp.style.cssText = 'padding:8px;font-size:12px;margin:4px 0 0;';
+    bProp.textContent = '🧩 Cocher ce que prévoit sa formation (' +
+                        formation + ') — ' + prevus.length + ' groupe(s)';
+    bProp.addEventListener('click', () => {
+      prevus.forEach(g => { if(cases[g.id]) cases[g.id].checked = true; });
+      showToast('Coché — vérifie, puis enregistre');
+    });
+    zone.appendChild(bProp);
+  }
+
+  const bOk = document.createElement('button');
+  bOk.className = 'btn btn-primary';
+  bOk.style.cssText = 'padding:9px;font-size:12.5px;margin:6px 0 0;';
+  bOk.textContent = '✅ Enregistrer ses groupes';
+  bOk.addEventListener('click', async () => {
+    bOk.disabled = true;
+    const liste = Object.keys(cases).filter(id => cases[id].checked);
+    try{
+      await appelPrep({ action: 'accesEleveSet', eleve: nom,
+                        groupes: liste.join('|') });
+      showToast(liste.length
+        ? liste.length + ' groupe(s) ouvert(s) ✅'
+        : 'Tous ses groupes sont fermés ✅');
+    }catch(e){ showToast('Impossible : ' + e.message); }
+    bOk.disabled = false;
+  });
+  zone.appendChild(bOk);
+}
 
 /* Le financement extérieur, en lecture seule.
 
@@ -1599,6 +1719,30 @@ async function afficherEspaceEleve(nom, zone){
   });
 
   carte.appendChild(zm);
+
+  /* ============================================================
+     🧩 SES GROUPES DU PARCOURS — v1036
+
+     David, le 17 septembre : « attention il ne faut pas que les
+     accès soient ouverts de base, c'est nous qui ouvrons à la
+     main », et « il faudra aussi que je puisse activer ou non ce
+     que l'élève voit ».
+
+     ⚠️ RIEN N'EST OUVERT DE BASE, ET RIEN NE S'OUVRE TOUT SEUL. Sa
+     formation ne fait que PROPOSER : le bouton coche, David
+     vérifie, David enregistre. Un groupe neuf qui s'ouvrirait de
+     lui-même arriverait chez deux cents élèves d'un coup.
+
+     ⚠️ ET C'EST ICI, PAS DANS UN ÉCRAN DE PLUS. L'onglet 🔑 est
+     déjà l'endroit où l'on décide ce que l'élève voit ; poser les
+     groupes ailleurs, ce serait deux endroits à penser pour une
+     seule décision.
+     ============================================================ */
+  const zg = document.createElement('div');
+  zg.style.cssText = 'margin-top:11px;padding-top:9px;' +
+    'border-top:1px solid rgba(255,255,255,.08);';
+  carte.appendChild(zg);
+  dessinerGroupesDeLEleve(nom, acces, zg);
 
   /* Le code se montre à la demande, jamais d'office */
   const zCode = carte.querySelector('[data-code]');
