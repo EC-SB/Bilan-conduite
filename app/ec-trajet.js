@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 14:11 — v1021 */
+/* Déployé le 18/09/2026 à 10:14 — v1030 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -587,6 +587,24 @@ function oublierLeTrajet(){
 }
 
 function trajetEnCours(){ return trajetVeille !== null; }
+
+/* ============================================================
+   UN RELEVÉ COMMENCÉ ET PAS TERMINÉ — v1030
+
+   ⚠️ CE N'EST PAS LA MÊME QUESTION QUE trajetEnCours().
+
+   Celle-là ne regarde que le capteur : elle répond « non » pendant
+   une panne, un tunnel, un écran qui s'est verrouillé — c'est-à-dire
+   exactement aux moments où il ne faut surtout pas croire que le
+   cours est fini.
+
+   Celle-ci regarde le COURS : commencé, pas terminé. C'est elle
+   qu'il faut interroger avant de faire quoi que ce soit qui efface
+   la mémoire de la page.
+   ============================================================ */
+function releveEnCours(){
+  return !!trajetDebut && !trajetFin;
+}
 
 
 /* ============================================================
