@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 09:38 — v1026 */
+/* Déployé le 18/09/2026 à 09:52 — v1028 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1391,6 +1391,79 @@ async function afficherFinancementEleve(nom, zone){
 }
 
 
+/* ============================================================
+   LE CODE D'UN ÉLÈVE, ET LE MESSAGE QUI LE PORTE — v1028
+
+   David, le 18 septembre, capture du mail à l'appui :
+   « quand je passe par la fiche élève je reçois un code undefined,
+     quand je passe par Élèves > Procédures > Codes ça fonctionne ».
+
+   ⚠️ ET IL AVAIT REÇU CE MAIL. « Ton code : undefined » est parti
+   chez un élève.
+
+   D'où ça vient : la liste des accès NE REND PLUS LES CODES. Elle
+   les rendait tous en clair d'un seul appel — c'était une fuite,
+   corrigée depuis, et l'écran des Codes a été refait pour les
+   demander UN PAR UN (accesEleveCode), ce qui laisse en plus une
+   trace au journal.
+
+   L'onglet 🔑 de la fiche élève, lui, n'a pas suivi : il lisait
+   toujours « acces.code », qui n'existe plus. Un champ disparu ne
+   fait pas d'erreur en JavaScript — il vaut « undefined », et il
+   s'écrit tel quel dans un mail.
+
+   ⚠️ ET LE MESSAGE ÉTAIT ÉCRIT DEUX FOIS, mot pour mot, dans deux
+   fichiers. C'est exactement ce qui a permis à l'un d'être réparé
+   et à l'autre de continuer à mentir pendant des semaines. Il n'y
+   en a plus qu'un, ici, et les deux écrans s'en servent.
+   ============================================================ */
+const codesElevesSus = {};
+
+function cleCodeEleve(nom){
+  return (typeof normaliserMot === 'function')
+    ? normaliserMot(nom) : String(nom || '').trim().toLowerCase();
+}
+
+/* Un code qu'on vient de créer : le serveur nous l'a rendu, inutile
+   de le redemander. */
+function retenirCodeEleve(nom, code){
+  const c = String(code || '').trim();
+  if(c) codesElevesSus[cleCodeEleve(nom)] = c;
+}
+
+/* ⚠️ À APPELER DÈS QU'UN CODE CHANGE OU DISPARAÎT. Un code régénéré
+   et un souvenir gardé, c'est l'ancien code envoyé à la famille —
+   et personne ne comprend pourquoi il ne marche pas. */
+function oublierCodeEleve(nom){
+  delete codesElevesSus[cleCodeEleve(nom)];
+}
+
+async function codeDeLEleve(nom){
+  const cle = cleCodeEleve(nom);
+  if(codesElevesSus[cle]) return codesElevesSus[cle];
+  const d = await appelPrep({ action: 'accesEleveCode', eleve: nom });
+  const code = String((d && d.code) || '');
+  if(!code) throw new Error('code introuvable');
+  codesElevesSus[cle] = code;
+  return code;
+}
+
+/* Le message d'accès, à un seul endroit. */
+async function messageDeLAcces(nom){
+  const code = await codeDeLEleve(nom);
+  return 'Bonjour ' + String(nom || '').split(' ')[0] + ',\n\n' +
+    'Voici ton coin révisions :\n' +
+    CONFIG.LIEN_ELEVE + '\n\n' +
+    'Ton nom : ' + nom + '\n' +
+    'Ton code : ' + code + '\n\n' +
+    'Tu y récites tes procédures et suis tes séances de code.\n' +
+    'Ce n\'est pas le site pour réserver tes cours.\n\n' +
+    'Garde ce code, il te servira à chaque fois.\n\n' +
+    'À bientôt !\n' +
+    'Évolution Conduites';
+}
+
+
 async function afficherEspaceEleve(nom, zone){
   if(!zone || !nom) return;
 
@@ -1428,7 +1501,10 @@ async function afficherEspaceEleve(nom, zone){
       b.disabled = true;
       try{
         const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom });
-        showToast('Code créé : ' + (rep.code || '') + ' ✅');
+        /* Le serveur vient de nous le rendre : on le garde plutôt
+           que de le redemander à l'écran suivant. */
+        retenirCodeEleve(nom, rep && rep.code);
+        showToast('Code créé : ' + ((rep && rep.code) || '') + ' ✅');
         /* On redessine : le bouton d'envoi apparaît avec le code */
         await afficherEspaceEleve(nom, zone);
       }catch(e){
@@ -1451,8 +1527,13 @@ async function afficherEspaceEleve(nom, zone){
           : 'jamais venu') +
         (acces.langue ? ' · 🌍 ' + acces.langue.replace(/</g, '&lt;') : '') +
       '</div></span>' +
-    '<code style="font-size:16px;letter-spacing:.12em;color:var(--accent-text);' +
-      'font-weight:700;flex-shrink:0;">' + acces.code + '</code></div>';
+    /* ⚠️ MASQUÉ, RÉVÉLÉ AU CLIC — comme dans l'écran des Codes. Le
+       code ne voyage plus avec la liste : il se demande pour
+       l'élève qu'on veut prévenir, et la demande laisse une trace
+       au journal. */
+    '<code data-code style="font-size:16px;letter-spacing:.12em;' +
+      'color:var(--accent-text);font-weight:700;flex-shrink:0;' +
+      'cursor:pointer;" title="Afficher le code">••••••</code></div>';
 
   /* Ce qu'il trouve dans son espace */
   const zm = document.createElement('div');
@@ -1507,18 +1588,15 @@ async function afficherEspaceEleve(nom, zone){
 
   carte.appendChild(zm);
 
-  /* Lui transmettre son accès : par mail, ou à copier */
-  const messageAcces = () =>
-    'Bonjour ' + nom.split(' ')[0] + ',\n\n' +
-    'Voici ton coin révisions :\n' +
-    CONFIG.LIEN_ELEVE + '\n\n' +
-    'Ton nom : ' + nom + '\n' +
-    'Ton code : ' + acces.code + '\n\n' +
-    'Tu y récites tes procédures et suis tes séances de code.\n' +
-    'Ce n\'est pas le site pour réserver tes cours.\n\n' +
-    'Garde ce code, il te servira à chaque fois.\n\n' +
-    'À bientôt !\n' +
-    'Évolution Conduites';
+  /* Le code se montre à la demande, jamais d'office */
+  const zCode = carte.querySelector('[data-code]');
+  if(zCode){
+    zCode.addEventListener('click', async () => {
+      try{
+        zCode.textContent = await codeDeLEleve(nom);
+      }catch(e){ showToast('Code illisible : ' + e.message); }
+    });
+  }
 
   const rEnvoi = document.createElement('div');
   rEnvoi.style.cssText = 'display:flex;gap:6px;margin-top:8px;';
@@ -1545,7 +1623,7 @@ async function afficherEspaceEleve(nom, zone){
         action: 'mailBilan',
         to: [adresse],
         sujet: 'Ton coin révisions — Évolution Conduites',
-        texte: messageAcces()
+        texte: await messageDeLAcces(nom)
       });
       bMail.textContent = '✅ Envoyé';
       showToast('Envoyé à ' + adresse + ' ✅');
@@ -1565,7 +1643,7 @@ async function afficherEspaceEleve(nom, zone){
   bCop.title = 'Copier le message';
   bCop.addEventListener('click', async () => {
     try{
-      await navigator.clipboard.writeText(messageAcces());
+      await navigator.clipboard.writeText(await messageDeLAcces(nom));
       showToast('Message copié ✅');
     }catch(e){ showToast('Copie impossible'); }
   });
