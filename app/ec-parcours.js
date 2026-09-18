@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:34 — v1039 */
+/* Déployé le 18/09/2026 à 16:01 — v1040 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1362,6 +1362,13 @@ function apercuDuGuide(titre, blocs){
    tout. Rien à l'écran ne le disait — ni chez lui, ni ici.
    ============================================================ */
 let suiviParcours = [];
+/* Le catalogue des guides — titre, groupe, icône — rangé par
+   identifiant. Il arrive UNE fois avec le suivi plutôt que recopié
+   chez chacun des deux cents élèves. */
+let guidesDuSuivi = {};
+/* L'élève dont le détail est déplié. Un seul à la fois : deux
+   panneaux ouverts sur une liste qu'on parcourt, ça se referme mal. */
+let detailDuSuivi = '';
 
 async function afficherSuiviParcours(){
   const zone = $('parcoursSuiviZone');
@@ -1371,6 +1378,7 @@ async function afficherSuiviParcours(){
   try{
     const d = await appelPrep({ action: 'parcoursSuivi' });
     suiviParcours = (d && d.lignes) || [];
+    guidesDuSuivi = (d && d.guides) || {};
   }catch(e){
     zone.innerHTML = '<div class="message erreur">Lecture impossible : ' +
       String(e.message).replace(/</g, '&lt;') + '</div>';
@@ -1509,16 +1517,106 @@ function ligneDuSuiviParcours(l){
     meta.appendChild(w);
   }
 
+  /* ⚠️ CE QU'IL A VU, GUIDE PAR GUIDE — v1040.
+
+     David : « dans parcours des élèves je n'ai pas le détail de ce
+     que l'élève a vu ». La ligne disait « 3 étapes sur 7 » — un
+     nombre ne dit pas LESQUELLES, et c'est lesquelles qu'on regarde
+     avant un cours. */
+  const deplie = (detailDuSuivi === l.eleve);
+  if(deplie) meta.appendChild(detailDuParcours(l));
+
   row.appendChild(meta);
 
   /* Ouvrir sa fiche : c'est là qu'on ouvre ou qu'on ferme, sans
-     quitter l'écran pour un autre. */
-  row.addEventListener('click', () => {
+     quitter l'écran pour un autre. ⚠️ ELLE PASSE SUR UN BOUTON À
+     ELLE : la ligne entière sert maintenant à déplier, et une ligne
+     qui fait deux choses selon l'endroit où l'on clique finit par
+     faire la mauvaise. */
+  const bFiche = document.createElement('button');
+  bFiche.className = 'btn btn-secondary';
+  bFiche.style.cssText = 'width:auto;margin:6px 0 0;padding:5px 10px;' +
+    'font-size:11.5px;';
+  bFiche.textContent = '🔑 Sa fiche';
+  bFiche.addEventListener('click', (ev) => {
+    ev.stopPropagation();
     if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(l.eleve);
     else showToast('Fiche indisponible depuis cet écran.');
   });
+  meta.appendChild(bFiche);
+
+  row.addEventListener('click', () => {
+    detailDuSuivi = deplie ? '' : l.eleve;
+    dessinerSuiviParcours();
+  });
 
   return row;
+}
+
+/* Le détail d'un élève : ses guides, rangés par groupe, avec la date
+   pour ceux qu'il a vus. ⚠️ LES TITRES VIENNENT DU CATALOGUE — la
+   ligne de l'élève ne porte que des identifiants. */
+function detailDuParcours(l){
+  const d = document.createElement('div');
+  d.style.cssText = 'margin:8px 0 2px;padding:9px 11px;border-radius:9px;' +
+    'background:var(--navy);border:1px solid var(--line);';
+
+  const liste = (l.liste || []);
+  if(!liste.length){
+    d.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
+      'Ses groupes n\'ont aucun guide publié.</div>';
+    return d;
+  }
+
+  /* Rangés par groupe, dans l'ordre où ils lui arrivent. */
+  const groupes = [];
+  const parId = {};
+  liste.forEach(id => {
+    const g = guidesDuSuivi[id] || {};
+    const cle = g.groupe || '';
+    if(!parId[cle]){
+      parId[cle] = { nom: g.groupeNom || 'Son parcours',
+                     icone: g.groupeIcone || '', ids: [] };
+      groupes.push(parId[cle]);
+    }
+    parId[cle].ids.push(id);
+  });
+
+  const vus = l.vus || {};
+  groupes.forEach(g => {
+    const t = document.createElement('div');
+    t.style.cssText = 'font-size:11.5px;font-weight:700;margin:6px 0 4px;' +
+      'color:var(--accent-text);';
+    t.textContent = (g.icone ? g.icone + ' ' : '') + g.nom;
+    d.appendChild(t);
+
+    g.ids.forEach(id => {
+      const g2 = guidesDuSuivi[id] || {};
+      const vu = vus[id] || '';
+      const li = document.createElement('div');
+      li.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
+        'font-size:12px;margin:0 0 3px;' +
+        (vu ? '' : 'color:var(--muted);');
+      const marque = document.createElement('span');
+      marque.style.cssText = 'flex-shrink:0;width:14px;';
+      marque.textContent = vu ? '✓' : '·';
+      li.appendChild(marque);
+      const nom = document.createElement('span');
+      nom.style.cssText = 'flex:1;min-width:0;';
+      /* ⚠️ UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON
+         IDENTIFIANT : une ligne vide ferait croire à un guide sans
+         titre plutôt qu'à un guide dépublié. */
+      nom.textContent = g2.titre || ('(guide ' + id + ')');
+      li.appendChild(nom);
+      const q = document.createElement('span');
+      q.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+      q.textContent = vu ? vu : 'pas encore';
+      li.appendChild(q);
+      d.appendChild(li);
+    });
+  });
+
+  return d;
 }
 
 /* « 2026-09-22 » → « 22/09 ». */
@@ -1569,34 +1667,48 @@ async function afficherAnnonces(){
   dessinerAnnonces();
 }
 
-/* ⚠️ ON FILTRE SUR DES MOTS, PAS SUR LA FORMATION ENTIÈRE.
+/* ⚠️ UN BOUTON PAR FORMATION ENTIÈRE — corrigé en v1040.
 
-   « AAC BV » et « BEA AAC » sont deux formations différentes, et
-   pourtant « AAC » doit attraper les deux — c'est bien ce que disait
-   le schéma : BV, BEA, AAC, CS, Moto, BE. Filtrer sur le libellé
-   complet donnait un bouton par formation, et « AAC » ne cochait que
-   ceux dont la fiche dit exactement « AAC BV ».
+   David : « les filtres ne sont pas bons, tu as pris un mot par un
+   mot : "NE PAS UTILISER OLD" met quatre boutons, "Remise à niveau"
+   trois ».
 
-   ⚠️ ET LES MOTS VIENNENT DU RÉPERTOIRE, pas d'une liste écrite ici.
-   Le jour où tu ajoutes une formation, son mot apparaît tout seul —
-   une liste en dur, c'est une formation ajoutée d'un côté et
-   introuvable de l'autre.
+   Il a raison, et ma raison d'alors était mauvaise. Je découpais
+   pour qu'« AAC » attrape « AAC BV » ET « BEA AAC ». Mais un
+   libellé n'est pas une phrase : le découper fabrique « à »,
+   « niveau », « PAS », « UTILISER » — des boutons qui ne veulent
+   rien dire et qui cochent n'importe qui.
 
-   Les sites ne sont pas proposés : le répertoire ne dit pas où un
-   élève prend ses cours, c'est le bilan qui le dit. */
-function motsDeFormation(texte){
-  return String(texte || '').split(/[\s|,;]+/)
-    .map(x => x.trim()).filter(Boolean);
-}
+   La formation entière, donc, telle que le répertoire l'écrit. Pour
+   attraper tous les AAC on clique les deux boutons qui contiennent
+   AAC : les filtres s'ajoutent, ils ne se remplacent pas.
 
-function filtresDAnnonce(){
+   ⚠️ ET ILS BASCULENT. Un filtre qui ne fait qu'ajouter est une
+   porte à sens unique : cliqué par erreur, il ne se reprend pas.
+   Un deuxième clic retire exactement ce que le premier avait mis. */
+function formationsDAnnonce(){
   const vus = [];
   elevesPourAnnonce.forEach(e => {
-    motsDeFormation(e.formation).forEach(t => {
-      if(vus.indexOf(t) === -1) vus.push(t);
-    });
+    const f = String(e.formation || '').trim();
+    if(f && vus.indexOf(f) === -1) vus.push(f);
   });
   return vus.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+/* Les rangs des élèves d'une formation. ⚠️ ON RAISONNE SUR LE RANG,
+   PAS SUR LE NOM — voir choisisPourAnnonce. */
+function rangsDeLaFormation(f){
+  const out = [];
+  elevesPourAnnonce.forEach((e, i) => {
+    if(String(e.formation || '').trim() === f) out.push(i);
+  });
+  return out;
+}
+
+/* « Jean-Luc DÉBÉ » se trouve en tapant « debe ». */
+function sansAccent(t){
+  return String(t || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 function dessinerAnnonces(){
@@ -1629,8 +1741,19 @@ function cadreNouvelleAnnonce(){
       'flex-wrap:wrap;"></div>' +
     '<div id="anSelection"></div>';
 
+  /* ⚠️ LA SÉLECTION SE RANGE PAR RANG, PAS PAR NOM — corrigé en v1040.
+
+     David : « quand on décoche une sélection ça n'enlève pas tous les
+     élèves ». Reproduit : la sélection était rangée sous le NOM de
+     l'élève. Deux homonymes dans un répertoire de cent vingt, ça
+     arrive — et ils partageaient alors une seule case. Cocher l'un
+     cochait l'autre au redessin suivant, et le compteur du bouton,
+     qui comptait les NOMS retenus, annonçait un nombre différent de
+     ce qui était coché à l'écran. Une fiche sans nom les rassemblait
+     tous. On compte des rangs : il y en a autant que de lignes. */
   choisisPourAnnonce = {};
   let tousLesEleves = true;
+  let recherche = '';
 
   const qui = c.querySelector('#anQui');
   const zoneSel = c.querySelector('#anSelection');
@@ -1639,8 +1762,21 @@ function cadreNouvelleAnnonce(){
   bPub.className = 'btn btn-primary';
   bPub.style.cssText = 'padding:11px;font-size:13px;margin-top:12px;';
 
-  const compte = () => Object.keys(choisisPourAnnonce)
-    .filter(n => choisisPourAnnonce[n]).length;
+  const estChoisi = (i) => !!choisisPourAnnonce[i];
+  const rangsChoisis = () => Object.keys(choisisPourAnnonce)
+    .filter(i => choisisPourAnnonce[i]).map(Number);
+  const compte = () => rangsChoisis().length;
+
+  /* Les rangs que la recherche laisse voir. */
+  const rangsVisibles = () => {
+    const q = sansAccent(recherche).trim();
+    const out = [];
+    elevesPourAnnonce.forEach((e, i) => {
+      if(!q || sansAccent(e.eleve).indexOf(q) !== -1 ||
+         sansAccent(e.formation).indexOf(q) !== -1) out.push(i);
+    });
+    return out;
+  };
 
   /* ⚠️ LE NOMBRE EST ÉCRIT SUR LE BOUTON. */
   const redireBouton = () => {
@@ -1648,6 +1784,12 @@ function cadreNouvelleAnnonce(){
     bPub.textContent = '📣 Publier pour ' + n + ' élève' + (n > 1 ? 's' : '');
     bPub.disabled = (n === 0);
   };
+
+  /* ⚠️ RAFRAÎCHIR SANS TOUT REDESSINER. Redessiner cent vingt lignes
+     à chaque case cochée, c'est ce qui rendait l'écran poussif — et
+     c'est aussi ce qui replaçait la liste en haut au milieu d'un
+     défilement. */
+  let majEtat = () => {};
 
   const dessinerSelection = () => {
     zoneSel.innerHTML = '';
@@ -1657,80 +1799,151 @@ function cadreNouvelleAnnonce(){
       m.textContent = 'Elle s\'affichera chez les ' +
         elevesPourAnnonce.length + ' élèves qui ont un coin révisions ouvert.';
       zoneSel.appendChild(m);
+      majEtat = () => {};
       redireBouton();
       return;
     }
 
-    /* Les filtres : ils COCHENT, ils ne verrouillent pas. */
+    /* Les filtres : une formation entière chacun, et ils basculent. */
     const zf = document.createElement('div');
     zf.style.cssText = 'display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px;';
-    filtresDAnnonce().forEach(f => {
+    const puces = [];
+    formationsDAnnonce().forEach(f => {
+      const rangs = rangsDeLaFormation(f);
       const b = document.createElement('button');
-      b.className = 'btn btn-secondary';
       b.style.cssText = 'width:auto;margin:0;padding:6px 10px;font-size:11.5px;';
-      b.textContent = f;
+      b.textContent = f + ' (' + rangs.length + ')';
+      b.setAttribute('data-formation', f);
       b.addEventListener('click', () => {
-        elevesPourAnnonce.forEach(e => {
-          /* ⚠️ MOT ENTIER, pas « contient ». « BV » se trouve dans
-             « B78>BV » comme dans « AAC BV » : chercher un morceau
-             cocherait des élèves d'une autre formation. */
-          if(motsDeFormation(e.formation).indexOf(f) !== -1){
-            choisisPourAnnonce[e.eleve] = true;
-          }
+        /* Tous cochés → on retire. Sinon → on complète. */
+        const tousMis = rangs.every(estChoisi);
+        rangs.forEach(i => {
+          if(tousMis) delete choisisPourAnnonce[i];
+          else choisisPourAnnonce[i] = true;
         });
-        dessinerSelection();
+        majEtat();
       });
+      puces.push([b, rangs]);
       zf.appendChild(b);
     });
     zoneSel.appendChild(zf);
 
+    /* ⚠️ UNE BARRE DE RECHERCHE — David, v1040. Chercher un nom dans
+       cent vingt à la molette, c'est une liste qu'on n'utilise pas.
+       Elle cache des lignes, elle ne décoche rien : ce qui est choisi
+       le reste, et le compteur du bas le dit. */
+    const ch = document.createElement('input');
+    ch.type = 'search';
+    ch.placeholder = '🔎 Chercher un élève…';
+    ch.value = recherche;
+    ch.style.cssText = 'margin:0 0 8px;font-size:13px;padding:8px 10px;';
+    zoneSel.appendChild(ch);
+
     const zt = document.createElement('div');
-    zt.style.cssText = 'font-size:11.5px;color:var(--muted);margin-bottom:8px;';
+    zt.style.cssText = 'font-size:11.5px;color:var(--muted);margin-bottom:8px;' +
+      'line-height:1.6;';
     zt.innerHTML = '<span data-tout style="cursor:pointer;' +
-      'color:var(--accent-text);">Tout cocher</span> · ' +
-      '<span data-rien style="cursor:pointer;color:var(--accent-text);">' +
-      'Tout décocher</span>';
-    zt.querySelector('[data-tout]').addEventListener('click', () => {
-      elevesPourAnnonce.forEach(e => { choisisPourAnnonce[e.eleve] = true; });
-      dessinerSelection();
-    });
-    zt.querySelector('[data-rien]').addEventListener('click', () => {
-      choisisPourAnnonce = {};
-      dessinerSelection();
-    });
+      'color:var(--accent-text);font-weight:700;"></span> · ' +
+      '<span data-rien style="cursor:pointer;color:var(--accent-text);' +
+      'font-weight:700;"></span><br><span data-compte></span>';
     zoneSel.appendChild(zt);
 
     const liste = document.createElement('div');
     liste.style.cssText = 'max-height:260px;overflow-y:auto;' +
       'border:1px solid var(--line);border-radius:10px;padding:8px;';
-    elevesPourAnnonce.forEach(e => {
-      const l = document.createElement('label');
-      l.style.cssText = 'display:flex;align-items:center;gap:9px;' +
-        'text-transform:none;font-size:13px;color:var(--cream);' +
-        'margin:0 0 5px;font-weight:400;';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.checked = !!choisisPourAnnonce[e.eleve];
-      cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;margin:0;';
-      cb.addEventListener('change', () => {
-        choisisPourAnnonce[e.eleve] = cb.checked;
-        redireBouton();
-      });
-      l.appendChild(cb);
-      const n = document.createElement('span');
-      n.style.cssText = 'flex:1;min-width:0;';
-      n.textContent = e.eleve;
-      l.appendChild(n);
-      if(e.formation){
-        const f = document.createElement('span');
-        f.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-        f.textContent = e.formation;
-        l.appendChild(f);
-      }
-      liste.appendChild(l);
-    });
     zoneSel.appendChild(liste);
-    redireBouton();
+
+    const cases = {};
+
+    const dessinerLignes = () => {
+      liste.innerHTML = '';
+      const vus = rangsVisibles();
+      for(const k in cases) delete cases[k];
+      if(!vus.length){
+        const v = document.createElement('div');
+        v.style.cssText = 'font-size:12px;color:var(--muted);padding:6px;';
+        v.textContent = 'Personne ne correspond à « ' + recherche + ' ».';
+        liste.appendChild(v);
+        return;
+      }
+      vus.forEach(i => {
+        const e = elevesPourAnnonce[i];
+        const l = document.createElement('label');
+        l.style.cssText = 'display:flex;align-items:center;gap:9px;' +
+          'text-transform:none;font-size:13px;color:var(--cream);' +
+          'margin:0 0 5px;font-weight:400;';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        /* ⚠️ CE N'EST PAS ICI QU'ON DIT SI ELLE EST COCHÉE. majEtat()
+           le fait, juste après, pour toutes : l'écrire aux deux
+           endroits, c'est s'assurer qu'un jour l'un des deux sera
+           corrigé sans l'autre. */
+        cb.setAttribute('data-rang', String(i));
+        cb.style.cssText = 'width:17px;height:17px;flex-shrink:0;margin:0;';
+        cb.addEventListener('change', () => {
+          if(cb.checked) choisisPourAnnonce[i] = true;
+          else delete choisisPourAnnonce[i];
+          majEtat();
+        });
+        cases[i] = cb;
+        l.appendChild(cb);
+        const n = document.createElement('span');
+        n.style.cssText = 'flex:1;min-width:0;';
+        n.textContent = e.eleve || '(fiche sans nom)';
+        l.appendChild(n);
+        if(e.formation){
+          const f = document.createElement('span');
+          f.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+          f.textContent = e.formation;
+          l.appendChild(f);
+        }
+        liste.appendChild(l);
+      });
+    };
+
+    /* ⚠️ CE QUI EST CHOISI ET CACHÉ SE DIT EN TOUTES LETTRES. Sans
+       ça, la recherche fabrique exactement le défaut que David
+       décrivait : un compteur qui ne correspond pas à l'écran. */
+    majEtat = () => {
+      const vus = rangsVisibles();
+      const n = compte();
+      const caches = rangsChoisis().filter(i => vus.indexOf(i) === -1).length;
+      zt.querySelector('[data-tout]').textContent =
+        'Cocher les ' + vus.length + ' affichés';
+      zt.querySelector('[data-rien]').textContent =
+        recherche ? 'Tout décocher (' + n + ')' : 'Tout décocher';
+      zt.querySelector('[data-compte]').textContent = n
+        ? n + ' élève' + (n > 1 ? 's' : '') + ' choisi' + (n > 1 ? 's' : '') +
+          (caches ? ' · dont ' + caches + ' que la recherche ne montre pas'
+                  : '')
+        : 'Personne de choisi pour l\'instant.';
+      puces.forEach(([b, rangs]) => {
+        const tousMis = rangs.length && rangs.every(estChoisi);
+        b.className = 'btn ' + (tousMis ? 'btn-primary' : 'btn-secondary');
+      });
+      for(const i in cases) cases[i].checked = estChoisi(Number(i));
+      redireBouton();
+    };
+
+    ch.addEventListener('input', () => {
+      recherche = ch.value;
+      dessinerLignes();
+      majEtat();
+    });
+    zt.querySelector('[data-tout]').addEventListener('click', () => {
+      rangsVisibles().forEach(i => { choisisPourAnnonce[i] = true; });
+      majEtat();
+    });
+    /* ⚠️ TOUT DÉCOCHER DÉCOCHE TOUT, y compris ce que la recherche
+       cache. C'est l'inverse de « cocher les affichés », et c'est
+       voulu : on publie à qui est coché, pas à qui est visible. */
+    zt.querySelector('[data-rien]').addEventListener('click', () => {
+      choisisPourAnnonce = {};
+      majEtat();
+    });
+
+    dessinerLignes();
+    majEtat();
   };
 
   [['Tout le monde', true], ['Une sélection', false]].forEach(([nom, tous]) => {
@@ -1752,7 +1965,8 @@ function cadreNouvelleAnnonce(){
     const t = c.querySelector('#anTexte').value.trim();
     if(!t){ showToast('Écris le texte de l\'annonce.'); return; }
     const noms = tousLesEleves ? []
-      : Object.keys(choisisPourAnnonce).filter(n => choisisPourAnnonce[n]);
+      : rangsChoisis().map(i => (elevesPourAnnonce[i] || {}).eleve)
+          .filter(x => x);
     if(!tousLesEleves && !noms.length){
       showToast('Choisis au moins un élève.'); return;
     }
