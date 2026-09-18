@@ -1,4 +1,4 @@
-/* Déployé le 01/09/2026 à 16:49 — v784 */
+/* Déployé le 18/09/2026 à 10:14 — v1030 */
 /* ============================================================
    ec-version.js
    Rester à jour sans jamais interrompre un cours.
@@ -72,6 +72,27 @@ function dansUnCreneau(){
    bilan non enregistré, une fenêtre ouverte. Chacun seul
    suffirait à faire perdre du travail. */
 function travailEnCours(){
+  /* ⚠️ LE RELEVÉ DU TRAJET D'ABORD — v1030.
+
+     David, le 18 septembre : « le suivi GPS a coupé au bout d'une
+     heure alors que le moniteur n'a pas quitté la page pendant 2h,
+     au bout d'une heure un recompte à 0 ».
+
+     Il n'a pas quitté la page : la page est partie toute seule.
+     Un rechargement de version emporte TOUT ce que le relevé garde
+     en mémoire — les points, les repères, l'heure de départ — et
+     le compteur repart de zéro sans que rien ne le dise. Les cinq
+     verrous existants surveillaient le micro, la transcription, le
+     bilan, les fenêtres et le nom de l'élève. Aucun ne regardait le
+     trajet, qui est pourtant ce qu'on perd le plus en rechargeant :
+     le reste est écrit quelque part, lui non.
+
+     ⚠️ ET ON DEMANDE « releveEnCours », PAS « trajetEnCours ». La
+     seconde ne regarde que le capteur : elle répond « non » pendant
+     un tunnel ou un écran verrouillé, c'est-à-dire précisément au
+     moment où recharger ferait le plus de dégâts. */
+  if(typeof releveEnCours === 'function' && releveEnCours()) return true;
+
   /* Le micro tourne */
   if(typeof isRecording !== 'undefined' && isRecording) return true;
 
