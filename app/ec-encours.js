@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 14:11 — v1021 */
+/* Déployé le 18/09/2026 à 10:53 — v1033 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -368,45 +368,96 @@ function minutes(secondes){
   return Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0');
 }
 
-function ligneDuGps(b){
+/* ============================================================
+   LE MÊME JUGEMENT AUX DEUX ENDROITS — v1033
+
+   David : « le relevé GPS sur la ligne du bilan — pour que la
+   prochaine fois on n'ait plus à se dépêcher de regarder avant de
+   valider ». Le relevé survit maintenant à la validation : il est
+   rangé colonne L du bilan, et se relit sous chaque cours du dossier
+   de l'élève.
+
+   ⚠️ DEUX ÉCRANS, UN SEUL JUGEMENT. La tentation était de recopier
+   ces quinze lignes dans l'historique : c'est exactement ce qui a
+   produit « Ton code : undefined » — un message écrit deux fois, dont
+   une moitié réparée et l'autre qui mentait depuis des semaines. Le
+   seuil de 70 %, le « écran NON maintenu », le ⚠️ : tout se décide
+   ici, une fois.
+
+   ⚠️ ET TOUT CE QUI SORT D'ICI PART EN innerHTML. Les nombres sont
+   donc forcés en nombres avant d'être collés : « panne » et « refus »
+   portent le message brut du capteur du téléphone, et une cellule du
+   classeur n'est jamais une source sûre. Aucun des deux n'est
+   recopié dans la phrase — seule leur PRÉSENCE se lit.
+   ============================================================ */
+function lireLeReleveGps(gps){
   let g = null;
-  try{ g = JSON.parse(b.gps || 'null'); }catch(e){ g = null; }
+  try{ g = JSON.parse(gps || 'null'); }catch(e){ g = null; }
 
   /* Pas de relevé : ce n'est pas une panne. Un examen officiel, un
      simulateur, un cours d'avant la v1020 n'en ont pas, et une
      ligne « aucun GPS » sur chacun ferait du bruit pour rien. */
-  if(!g || !g.duree) return '';
+  if(!g) return null;
 
-  const couvert = g.duree ? Math.round((g.releve / g.duree) * 100) : 0;
-  const bouts = [];
+  const nb = (x) => Math.max(0, Math.round(Number(x) || 0));
+  const duree = nb(g.duree);
+  if(!duree) return null;
 
   if(g.refus){
-    return '<br><span style="color:var(--red);">🛰️ localisation REFUSÉE — ' +
-           'aucun tracé pour ce cours</span>';
+    return { refus: true, maigre: true,
+             texte: '🛰️ localisation REFUSÉE — aucun tracé pour ce cours' };
   }
 
+  const releve = nb(g.releve);
+  const points = nb(g.points);
+  const couvert = Math.round((releve / duree) * 100);
+  const bouts = [];
+
   /* Le jugement d'abord, les nombres ensuite. */
-  const maigre = (couvert < 70) || (g.points < 10) || (g.ecran === false);
-  bouts.push('🛰️ ' + minutes(g.releve) + ' relevées sur ' + minutes(g.duree) +
+  const maigre = (couvert < 70) || (points < 10) || (g.ecran === false);
+  bouts.push('🛰️ ' + minutes(releve) + ' relevées sur ' + minutes(duree) +
              ' de cours (' + couvert + ' %)');
-  bouts.push(g.points + ' point' + (g.points > 1 ? 's' : ''));
-  if(g.perdu) bouts.push(minutes(g.perdu) + ' sans signal');
+  bouts.push(points + ' point' + (points > 1 ? 's' : ''));
+  if(nb(g.perdu)) bouts.push(minutes(nb(g.perdu)) + ' sans signal');
   /* ⚠️ LE NOMBRE QUI EXPLIQUE. Des relances, c'est un téléphone qui
      met la page derrière — l'écran se verrouille, un appel passe.
      AUCUNE relance sur un long silence, c'est que le battement
      lui-même ne tourne pas. */
-  if(g.relances) bouts.push('veille reposée ' + g.relances + '×');
+  if(nb(g.relances)) bouts.push('veille reposée ' + nb(g.relances) + '×');
   /* ⚠️ LE COUPABLE LE PLUS FRÉQUENT, NOMMÉ — v1021. Un écran qui se
      verrouille tout seul au bout de trente secondes arrête la
      géolocalisation avec lui. C'est un RÉGLAGE de téléphone, pas
      une panne de l'outil : le dire évite de chercher ailleurs
      pendant une semaine. */
   if(g.ecran === false) bouts.push('📵 écran NON maintenu (réglage du téléphone)');
-  if(!g.fini && g.silence > 120) bouts.push('⚠️ rien depuis ' + minutes(g.silence));
+  /* ⚠️ SEULEMENT TANT QUE LE COURS TOURNE. « rien depuis 3 h » sous
+     un cours rangé la semaine dernière ne veut rien dire : le silence
+     se compte depuis le dernier point, et il grandit tout seul une
+     fois le cours fini. */
+  if(!g.fini && nb(g.silence) > 120){
+    bouts.push('⚠️ rien depuis ' + minutes(nb(g.silence)));
+  }
 
-  return '<br><span style="color:' +
-         (maigre ? 'var(--warn-text)' : 'var(--muted)') + ';">' +
-         (maigre ? '⚠️ ' : '') + bouts.join(' · ') + '</span>';
+  return { refus: false, maigre: maigre, couvert: couvert,
+           texte: bouts.join(' · ') };
+}
+
+/* Le morceau d'HTML seul, sans saut de ligne : c'est ce que
+   l'historique des cours accroche sous son bilan. */
+function spanDuReleveGps(gps){
+  const r = lireLeReleveGps(gps);
+  if(!r) return '';
+  if(r.refus){
+    return '<span style="color:var(--red);">' + r.texte + '</span>';
+  }
+  return '<span style="color:' +
+         (r.maigre ? 'var(--warn-text)' : 'var(--muted)') + ';">' +
+         (r.maigre ? '⚠️ ' : '') + r.texte + '</span>';
+}
+
+function ligneDuGps(b){
+  const s = spanDuReleveGps(b && b.gps);
+  return s ? '<br>' + s : '';
 }
 
 
