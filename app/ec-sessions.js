@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1231,7 +1231,8 @@ function casesHeuresPermis(nom){
     try{
       await majSuivi(nom, majs);
       t.textContent = '⏱️ Heures avant permis' +
-        (v === '0' ? ' — plus que les 3h' : v ? ' — ' + v + ' + 3h' : '');
+        (v === '0' ? ' — plus que la leçon de veille'
+                   : v ? ' — ' + v + ' + 3h' : '');
       t.style.color = 'var(--muted)';
       d.style.borderColor = 'var(--line)';
       redessinerSessions();
@@ -1245,7 +1246,7 @@ function casesHeuresPermis(nom){
     b.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;';
     b.textContent = v;
     b.setAttribute('data-val', v);
-    b.title = (v === '0') ? 'Plus que les 3h' : v + ' + 3h';
+    b.title = (v === '0') ? 'Plus que la leçon de veille' : v + ' + 3h';
     b.addEventListener('click', () => {
       champ.value = '';
       poser(v);
@@ -1333,7 +1334,9 @@ function lignePlace(p, sess){
 
     /* Le post-permis dit déjà « — 2 + 3h » : répéter les heures
        juste après faisait lire deux fois la même chose. */
-    const dejaDites = post && / \+ 3h| les 3h/.test(post);
+    /* ⚠️ Les deux formulations — v1041 : les notes déjà écrites
+       disent « les 3h », les neuves « la leçon de veille ». */
+    const dejaDites = post && / \+ 3h| les 3h|le[çc]on de veille/.test(post);
 
     const quoi = post || m.replace(/^ · /, '');
     const manque = (!post && /pas encore/.test(m)) ||
