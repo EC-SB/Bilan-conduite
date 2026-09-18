@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:34 — v1039 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1077,7 +1077,8 @@ function texteExamenBlancRoute(nom, s, e){
   if(niv) bouts.push(niv);
 
   const h = String((s && s.heuresRestantes) || '').trim();
-  if(h) bouts.push(h === '0' ? 'plus que les 3h' : h + 'h avant examen');
+  if(h) bouts.push(h === '0' ? 'plus que la leçon de veille'
+                             : h + 'h avant examen');
 
   if(bouts.length) return 'Examen blanc : ' + bouts.join(' · ');
 
@@ -1119,7 +1120,9 @@ async function modifierExamenBlancRoute(nom, s, e){
         valeur: isoDeRoute(datePasseeExamenBlancRoute(nom, e)) },
       { cle:'niveau',  nom:'Résultat',  type:'choix', valeur: s.ebNiveau || '',
         options: NIVEAUX_ROUTE },
-      { cle:'heures',  nom:"Heures de conduite avant l'examen (0 = plus que les 3h)",
+      { cle:'heures',
+        nom:"Heures de conduite avant l'examen "
+            + "(0 = plus que la leçon de veille)",
         type:'text', exemple:'4', valeur: s.heuresRestantes || '' }
     ]);
   if(!r) return;
@@ -1167,7 +1170,8 @@ function phraseExamenBlancRoute(r){
     const h = parseInt(String(r.heures || '').trim(), 10);
     if(String(r.heures || '').trim() !== '' && !isNaN(h)){
       if(h <= 0){
-        return 'Examen blanc passé le ' + jourPasse + ' — plus que les 3h avant examen';
+        return 'Examen blanc passé le ' + jourPasse +
+               " — plus que la leçon de veille de l'examen";
       }
       /* Le bureau raisonne en leçons de deux heures. La conversion
          a une seule porte — ce commentaire disait déjà qu'elle
