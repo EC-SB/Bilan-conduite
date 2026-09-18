@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 11:43 — v1036 */
+/* Déployé le 18/09/2026 à 15:12 — v1038 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1719,6 +1719,73 @@ async function afficherEspaceEleve(nom, zone){
   });
 
   carte.appendChild(zm);
+
+  /* ============================================================
+     🚪 IL A QUITTÉ L'AUTO-ÉCOLE — v1038, étape 7
+
+     David : « c'est quand permis obtenu ET départ de l'auto-école
+     aussi qu'il faut lui enlever les accès ».
+
+     Le permis se lit tout seul dans les Résultats. Un DÉPART, rien
+     ne l'enregistrait : l'élève restait au répertoire jusqu'à la
+     suppression de son dossier, et gardait ses vidéos entre-temps.
+
+     ⚠️ ÇA FERME, ÇA N'EFFACE PAS. Son dossier, sa progression et ses
+     récitations restent — c'est la suppression RGPD qui les efface,
+     plus tard, et c'est un autre geste. Rouvrir est donc possible,
+     et c'est un geste à part : un élève qui revient n'est pas un
+     élève qui n'est jamais parti.
+     ============================================================ */
+  if(acces && acces.sorti === 'permis'){
+    /* Fermé par le permis : rien à faire ici, et surtout pas un
+       bouton qui laisserait croire qu'on peut rouvrir. */
+    const f = document.createElement('div');
+    f.style.cssText = 'margin-top:11px;padding-top:9px;font-size:12px;' +
+      'color:var(--accent-text);line-height:1.5;' +
+      'border-top:1px solid rgba(255,255,255,.08);';
+    f.textContent = '🏁 Il a son permis : son coin révisions s\'est fermé ' +
+      'tout seul.';
+    carte.appendChild(f);
+  }else{
+    const zd = document.createElement('div');
+    zd.style.cssText = 'margin-top:11px;padding-top:9px;' +
+      'border-top:1px solid rgba(255,255,255,.08);';
+
+    const parti = (acces && acces.sorti === 'parti');
+    if(parti){
+      const q = document.createElement('div');
+      q.style.cssText = 'font-size:12px;color:var(--warn-text);' +
+        'margin-bottom:7px;line-height:1.5;';
+      q.textContent = '🚪 Il a quitté l\'auto-école : son coin révisions ' +
+        'est fermé. Son dossier, lui, est intact.';
+      zd.appendChild(q);
+    }
+
+    const bD = document.createElement('button');
+    bD.className = 'btn btn-secondary';
+    bD.style.cssText = 'padding:9px;font-size:12.5px;margin:0;' +
+      (parti ? '' : 'color:var(--red);border-color:var(--red);');
+    bD.textContent = parti ? '↩️ Il est revenu' : '🚪 Il a quitté l\'auto-école';
+    bD.addEventListener('click', async () => {
+      if(!parti && !await confirmer(
+          'Noter que ' + nom + ' a quitté l\'auto-école ?\n\n' +
+          'Son coin révisions se ferme tout de suite : plus de parcours, ' +
+          'plus de procédures, plus d\'historique.\n\n' +
+          'Son dossier et sa progression RESTENT — ça se défait.')) return;
+      bD.disabled = true;
+      try{
+        await appelPrep({ action: 'eleveDepart', eleve: nom,
+                          parti: parti ? 'non' : 'oui' });
+        showToast(parti ? 'Son accès est rouvert ✅' : 'Départ noté ✅');
+        await afficherEspaceEleve(nom, zone);
+      }catch(e){
+        showToast('Impossible : ' + e.message);
+        bD.disabled = false;
+      }
+    });
+    zd.appendChild(bD);
+    carte.appendChild(zd);
+  }
 
   /* ============================================================
      🧩 SES GROUPES DU PARCOURS — v1036
