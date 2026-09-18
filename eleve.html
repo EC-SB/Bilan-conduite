@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 17/09/2026 à 15:26 — v1023 -->
+<!-- Déployé le 18/09/2026 à 09:38 — v1026 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -191,6 +191,29 @@
     display:flex; align-items:center; justify-content:center;
   }
 
+  /* Son prochain cours */
+  .prochain .quand{ font-size:17px; font-weight:800; color:var(--accent-text);
+                    line-height:1.35; }
+  .prochain .ou{ font-size:13px; color:var(--soft); margin-top:6px;
+                 line-height:1.65; }
+
+  /* Une leçon de son historique. Repliée : on en voit dix d'un coup.
+     Dépliée : le compte rendu entier, celui qu'il a déjà reçu. */
+  .lecon{ border:1px solid var(--line); border-radius:12px; margin-bottom:8px; }
+  .lecon summary{
+    cursor:pointer; list-style:none; padding:12px 13px;
+    display:flex; gap:9px; align-items:baseline; font-size:14px;
+  }
+  .lecon summary::-webkit-details-marker{ display:none; }
+  .lecon .jour{ flex:1; min-width:0; font-weight:700; }
+  .lecon .qui{ font-size:11px; color:var(--muted); flex-shrink:0; }
+  .lecon[open] summary .jour{ color:var(--accent-text); }
+  .lecon .texte{
+    margin:0; padding:11px 13px 13px; font-size:13.5px; line-height:1.7;
+    white-space:pre-wrap; color:var(--soft);
+    border-top:1px solid var(--line);
+  }
+
   .cache{ display:none !important; }
 </style>
 </head>
@@ -238,12 +261,17 @@
       <button class="theme" id="btTheme2" title="Changer de thème">🌙</button>
     </div>
 
+    <div class="card prochain" id="carteProchain" style="display:none;">
+      <div class="section-title">📅 Mon prochain cours</div>
+      <div id="monProchain"></div>
+    </div>
+
     <div class="card" id="carteDemandes" style="display:none;">
       <div class="section-title">📌 Ce qu'on te demande</div>
       <div id="mesDemandes"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="carteReciter">
       <div id="zoneBoite" style="display:none;">
         <label for="chBoite">🚗 Ta boîte de vitesses</label>
         <select id="chBoite">
@@ -278,7 +306,7 @@
       <div id="msgEnvoi"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="carteEnvois">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
         <strong style="flex:1;min-width:0;font-size:15px;">Mes envois</strong>
         <button class="btn btn-secondary" id="btMaj"
@@ -287,7 +315,15 @@
       <div id="mesEnvois"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="carteLecons" style="display:none;">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+        <strong style="flex:1;min-width:0;font-size:15px;">📖 Mes leçons</strong>
+        <span id="cptLecons" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div id="mesLecons"></div>
+    </div>
+
+    <div class="card" id="carteDrivup">
       <button class="btn btn-secondary" id="btDrivup">🚗 Drivup</button>
       <div id="zoneDrivup" style="display:none;margin-top:12px;"></div>
     </div>
@@ -310,6 +346,10 @@
   var maBoite = '';
   var boiteFigee = false;
   var languesDispo = [];
+  /* Ce que le bureau lui a ouvert, coché par coché, dans l'onglet
+     🔑 de sa fiche. Vide = rien : on n'invente pas de repli ici,
+     le classeur a déjà répondu. */
+  var mesModules = [];
 
   function $(id){ return document.getElementById(id); }
   function echapper(t){
@@ -323,6 +363,31 @@
     if(!texte){ z.innerHTML = ''; return; }
     z.innerHTML = '<div class="message ' + (genre || '') + '">' +
                   echapper(texte) + '</div>';
+  }
+
+  function ouvert(cle){ return mesModules.indexOf(cle) !== -1; }
+
+  function montrer(id, oui){
+    var z = $(id);
+    if(z) z.style.display = oui ? '' : 'none';
+  }
+
+  function lireModules(d){
+    mesModules = String((d && d.modules) || '').split(',')
+      .map(function(x){ return String(x || '').trim(); })
+      .filter(function(x){ return x; });
+  }
+
+  /* « 2026-09-22 » → « mardi 22 septembre ». L'année ne sert à rien
+     pour un cours de la semaine prochaine, et elle allonge la ligne
+     sur un téléphone. */
+  function jourEnClair(iso){
+    var t = String(iso || '').trim();
+    if(!/^\d{4}-\d{2}-\d{2}/.test(t)) return t;
+    var d = new Date(t.slice(0, 10) + 'T12:00:00');
+    if(isNaN(d.getTime())) return t;
+    return d.toLocaleDateString('fr-FR',
+      { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
   function appeler(corps){
@@ -361,6 +426,7 @@
         languesDispo = d.langues || [];
         maBoite = d.boite || '';
         boiteFigee = !!d.boiteFigee;
+        lireModules(d);
 
         /* Le code reste sur l'appareil : le retaper à chaque fois
            découragerait de s'entraîner. */
@@ -389,10 +455,96 @@
         }).join('')
       : '<option value="">Aucune procédure disponible</option>';
 
+    /* ⚠️ CE QUI EST FERMÉ NE S'AFFICHE PAS — ET N'ARRIVE PAS.
+       Cacher une carte ne suffirait pas : elle se rouvre avec deux
+       clics. Le serveur ne remplit que ce qui est ouvert ; ce qui
+       suit ne fait qu'éviter de montrer des cartes vides. */
+    montrer('carteReciter', ouvert('proccorriger'));
+    montrer('carteEnvois', ouvert('proccorriger'));
+    montrer('carteDrivup', ouvert('code'));
+
     montrerBoite();
     montrerLangue();
     montrerDemandes();
-    chargerEnvois();
+    if(ouvert('proccorriger')) chargerEnvois();
+    chargerDossier();
+
+    /* Rien d'ouvert : il ne doit pas rester devant une page nue
+       sans savoir pourquoi. */
+    if(!mesModules.length) dire('msgEnvoi',
+      "Ton accès est créé, mais l'auto-école ne t'a encore rien ouvert. " +
+      'Signale-le au bureau.', 'attente');
+  }
+
+
+  /* ===== SON PROCHAIN COURS ET SES LEÇONS ===== */
+
+  function chargerDossier(){
+    if(!ouvert('rappel') && !ouvert('historique')) return;
+
+    appeler({ action: 'eleveDossier', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        if(ouvert('rappel')) dessinerProchain(d.prochain);
+        if(ouvert('historique')) dessinerLecons(d.lecons || []);
+      })
+      .catch(function(){
+        /* Le reste de la page marche : on ne la bloque pas pour
+           deux cartes de plus. */
+        montrer('carteProchain', false);
+        montrer('carteLecons', false);
+      });
+  }
+
+  function dessinerProchain(p){
+    var z = $('monProchain');
+    if(!z) return;
+    montrer('carteProchain', true);
+
+    if(!p || !p.jour){
+      z.innerHTML = '<div class="empty">Aucun cours de prévu pour le moment.<br>' +
+        "C'est l'auto-école qui les pose.</div>";
+      return;
+    }
+
+    var suite = [];
+    if(p.moniteur) suite.push('Avec ' + echapper(p.moniteur));
+    if(p.lieu) suite.push(echapper(p.lieu));
+
+    z.innerHTML =
+      '<div class="quand">' + echapper(jourEnClair(p.jour)) +
+        (p.heure ? ' · ' + echapper(p.heure) : '') + '</div>' +
+      (suite.length || p.vehicule
+        ? '<div class="ou">' + suite.join(' · ') +
+          (p.vehicule ? (suite.length ? '<br>' : '') + echapper(p.vehicule) : '') +
+          '</div>'
+        : '');
+  }
+
+  function dessinerLecons(liste){
+    var z = $('mesLecons');
+    if(!z) return;
+    montrer('carteLecons', true);
+
+    var c = $('cptLecons');
+    if(c) c.textContent = liste.length
+      ? liste.length + ' cours' : '';
+
+    if(!liste.length){
+      z.innerHTML = '<div class="empty">Ton premier compte rendu ' +
+        "apparaîtra ici après ta prochaine leçon.</div>";
+      return;
+    }
+
+    z.innerHTML = liste.map(function(l){
+      return '<details class="lecon">' +
+        '<summary>' +
+          '<span class="jour">' + echapper(l.date || '') + '</span>' +
+          '<span class="qui">' + echapper(l.moniteur || '') +
+            (l.type ? ' · ' + echapper(l.type) : '') + '</span>' +
+        '</summary>' +
+        '<div class="texte">' + echapper(l.bilan || '') + '</div>' +
+      '</details>';
+    }).join('');
   }
 
 
@@ -461,7 +613,7 @@
     var z = $('mesDemandes');
     var attente = demandes.filter(function(x){ return x.etat !== 'fait'; });
 
-    if(!attente.length){
+    if(!ouvert('proccorriger') || !attente.length){
       carte.style.display = 'none';
       return;
     }
@@ -793,6 +945,7 @@
           languesDispo = d.langues || [];
           maBoite = d.boite || '';
           boiteFigee = !!d.boiteFigee;
+          lireModules(d);
           entrer();
         })
         .catch(function(){ sortir(); });
