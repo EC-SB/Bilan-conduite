@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 14:54 — v1037 */
+/* Déployé le 18/09/2026 à 15:12 — v1038 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -228,7 +228,11 @@ const VUES = {
               montre plus que les emojis : 🎓 est déjà pris par le
               suivi AAC, juste au-dessus. */
            ['parcours',      '🎬 Groupes et guides',         'parcours'],
-           ['parcourssuivi', '👥 Parcours des élèves',       'parcours']],
+           ['parcourssuivi', '👥 Parcours des élèves',       'parcours'],
+           /* 📣 Les annonces — v1038, étape 6. C'est le groupe
+              généraliste qu'elles remplacent : il n'avait pas de
+              guides, il avait des informations. */
+           ['annonces',      '📣 Annonces',                  'parcours']],
   /* LE DOSSIER EN PREMIER, ET C'EST TOUT LE POINT.
 
      On ne pense pas « quel écran », on pense « Léa ». Les neuf vues
@@ -1802,6 +1806,7 @@ function reveillerVue(cle){
     tarifs:     () => afficherTarifs(),
     parcours:   () => afficherParcours(),
     parcourssuivi: () => afficherSuiviParcours(),
+    annonces:   () => afficherAnnonces(),
     caisse:     () => afficherCaisse(),
     menage:     () => afficherMenage(),
     coutsia:    () => afficherCoutsIa(),
