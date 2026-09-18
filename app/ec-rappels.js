@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 09:45 — v1027 */
+/* Déployé le 18/09/2026 à 11:20 — v1035 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -358,9 +358,8 @@ async function afficherRappels(){
              faits, et le bureau doit voir les deux.
              ------------------------------------------------ */
           try{
-            await preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour, cr.moniteur,
-                                 { type: typeDeLaLigne(cr),
-                                   titreType: titreDuType(typeDeLaLigne(cr)) });
+            await preparerDepuisRappel(cr.choisi || cr.eleve, cr.jour,
+                                       cr.moniteur, detailsDuRappel(cr));
           }catch(ep){
             nonPrepares.push((cr.choisi || cr.eleve) + ' : ' + ep.message);
           }
@@ -455,9 +454,7 @@ function ligneRappel(c, i){
          le planning. Attendu, et signalé s'il rate : un élève
          prévenu dont le cours n'existe nulle part, c'est le
          moniteur qui le découvre au volant. */
-      preparerDepuisRappel(qui, c.jour, c.moniteur,
-                           { type: typeDeLaLigne(c),
-                             titreType: titreDuType(typeDeLaLigne(c)) })
+      preparerDepuisRappel(qui, c.jour, c.moniteur, detailsDuRappel(c))
         .catch(ep => {
           showToast('⚠️ ' + qui + ' prévenu, mais cours non préparé : ' +
                     ep.message);
@@ -1422,6 +1419,55 @@ function typeDeLaLigne(ligne){
   return (ligne && ligne.type) ? ligne.type : '';
 }
 
+/* ============================================================
+   CE QU'UN RAPPEL DIT DU COURS — v1035
+
+   David, le 18 septembre : « l'affichage ne prend plus la voiture et
+   son emplacement depuis les rappels ».
+
+   ⚠️ QUATRE CHEMINS ENVOIENT UN RAPPEL, ET TROIS AVAIENT OUBLIÉ.
+
+   L'écran de composition, lui, transmettait bien la voiture et le
+   lieu : ils étaient écrits à la main dans SON appel, au milieu d'un
+   objet de quinze lignes. Les trois autres — l'envoi en série de la
+   liste, le 💬 d'une ligne, et « 📅 Créer les cours » — ne passaient
+   que le type de séance. Le cours se créait, l'affichage restait nu,
+   et il fallait ressaisir la voiture une par une.
+
+   ⚠️ ET PERSONNE NE POUVAIT LE VOIR. preparerDepuisRappel n'appelle
+   ecranLigneSet que si le détail porte quelque chose ; sans voiture,
+   sans lieu et sans heure, elle ne fait rien — sans erreur, sans
+   message. Une parade posée chez l'appelant est une parade qu'on
+   oublie, et ici on l'avait oubliée trois fois sur quatre.
+
+   Le détail se compose donc ICI, une fois, pour tout le monde. Les
+   lignes de la liste et l'écran de composition portent les mêmes
+   noms — voiture, emplacement, heure, type — parce que
+   lireChoixRappel rend exactement la forme d'une ligne.
+   ============================================================ */
+function lieuPourLEcran(emplacement){
+  const e = String(emplacement || '');
+  /* ⚠️ « rue » est un reste d'un ancien vocabulaire : la liste des
+     emplacements ne connaît plus que « devant ». On le traduit
+     quand même — un réglage gardé sur un vieux poste peut encore
+     porter l'ancien mot — mais à UN SEUL endroit. */
+  return (e === 'rue') ? 'devant' : e;
+}
+
+function detailsDuRappel(ligne, extra){
+  const r = ligne || {};
+  const t = typeDeLaLigne(r);
+  return Object.assign({
+    /* Le type décide du BILAN du cours créé derrière, pas seulement
+       du texte du SMS. */
+    type: t,
+    titreType: titreDuType(t),
+    heure: r.heure || '',
+    vehicule: r.voiture || '',
+    lieu: lieuPourLEcran(r.emplacement)
+  }, extra || {});
+}
+
 function lireChoixRappel(){
   const options = [];
   document.querySelectorAll('.optionRappel').forEach(cb => {
@@ -2087,43 +2133,42 @@ async function envoyerRappelManuel(){
     }
 
     /* Le cours annoncé rejoint « Mes prochains cours » du moniteur */
+    /* ⚠️ LE MÊME DÉTAIL QUE LES TROIS AUTRES CHEMINS — v1035.
+
+       Cet appel-ci écrivait la voiture, le lieu et l'heure à la main,
+       au milieu d'un objet de quinze lignes. Les trois autres envois
+       de rappel ne les écrivaient pas du tout, et personne ne
+       pouvait s'en apercevoir : sans voiture, sans lieu et sans
+       heure, preparerDepuisRappel ne pose simplement pas de ligne
+       d'écran — sans erreur, sans message.
+
+       lireChoixRappel() rend exactement la forme d'une ligne de la
+       liste : voiture, emplacement, heure, type. Le détail se
+       compose donc au même endroit pour les quatre. */
     preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
-                         $('rapMoniteur') ? $('rapMoniteur').value : '',
-                         {
-                           /* Le type de séance décide du bilan : sans
-                              lui, un examen blanc devenait un cours
-                              de conduite ordinaire. */
-                           /* LE TYPE SE LIT À L'ÉCRAN, PAS EN MÉMOIRE.
+      $('rapMoniteur') ? $('rapMoniteur').value : '',
+      detailsDuRappel(lireChoixRappel(), {
+        /* ⚠️ LE TYPE SE LIT À L'ÉCRAN, PAS EN MÉMOIRE — v1027.
 
-                              Il se lisait dans `choixRappel`, un objet
-                              rafraîchi une seule fois — au dessin de
-                              l'écran. Le MESSAGE, lui, part de
-                              `lireChoixRappel()`, qui lit le menu.
-                              Changer le type puis envoyer donnait donc
-                              le bon mail et le cours du type PRÉCÉDENT :
-                              le bilan était en retard d'un rappel, à
-                              chaque fois.
-
-                              Une seule source, celle que le bureau voit. */
-                           type: typeChoisiMaintenant(),
-                           /* Vos types viennent des Modèles messages : leur
-                              clé est « perso:xxx », qui ne dit rien.
-                              C'est le titre qui porte le sens. */
-                           titreType: titreDuType(typeChoisiMaintenant()),
-                           heure: $('rapHeure') ? $('rapHeure').value : '',
-                           /* Ce que l'élève doit apporter : le moniteur
-                              le voit dans ses prochains cours, sans
-                              rouvrir le SMS. */
-                           options: [...document.querySelectorAll('.optionRappel')]
-                                      .filter(x => x.checked).map(x => x.value),
-                           vehicule: $('rapVoiture') ? $('rapVoiture').value : '',
-                           /* « rue » côté SMS, « devant » côté écran :
-                              c'est le même endroit, dit autrement. */
-                           lieu: ($('rapEmpl') && $('rapEmpl').value === 'rue') ? 'devant'
-                               : ($('rapEmpl') ? $('rapEmpl').value : ''),
-                           /* Le lien de confirmation suit le cours */
-                           jeton: dernierJetonRappel
-                         });
+           Il se lisait dans `choixRappel`, un objet rafraîchi une
+           seule fois, au dessin de l'écran. Le MESSAGE, lui, part de
+           `lireChoixRappel()`, qui lit le menu. Changer le type puis
+           envoyer donnait donc le bon mail et le cours du type
+           PRÉCÉDENT : le bilan était en retard d'un rappel, à chaque
+           fois. On garde donc la source explicite ici — une seule,
+           celle que le bureau voit. */
+        type: typeChoisiMaintenant(),
+        /* Vos types viennent des Modèles messages : leur clé est
+           « perso:xxx », qui ne dit rien. C'est le titre qui porte
+           le sens. */
+        titreType: titreDuType(typeChoisiMaintenant()),
+        /* Ce que l'élève doit apporter : le moniteur le voit dans
+           ses prochains cours, sans rouvrir le SMS. */
+        options: [...document.querySelectorAll('.optionRappel')]
+                   .filter(x => x.checked).map(x => x.value),
+        /* Le lien de confirmation suit le cours */
+        jeton: dernierJetonRappel
+      }));
 
     /* On passe à l'élève suivant. Ce qui vaut pour lui seul est
        remis à zéro : une mention oubliée d'un rappel à l'autre
@@ -2436,7 +2481,10 @@ async function ouvrirRattrapageCours(liste){
       d.appendChild(s);
 
       zListe.appendChild(d);
-      lignes.push({ eleve: r.eleve, cb: cb, heure: h, sel: s });
+      /* ⚠️ LA LIGNE D'ORIGINE RESTE ACCROCHÉE — v1035. Sans elle,
+         ce dialogue ne savait rien de la voiture ni du lieu : il
+         créait des cours que l'affichage montrait nus. */
+      lignes.push({ eleve: r.eleve, ligne: r, cb: cb, heure: h, sel: s });
     });
   };
 
@@ -2476,8 +2524,10 @@ async function ouvrirRattrapageCours(liste){
         /* Le même chemin que l'envoi d'un rappel : mêmes règles,
            même contexte, même ligne d'écran. Refaire un chemin
            parallèle, c'est se garantir deux comportements. */
+        /* L'heure de CE dialogue l'emporte : c'est celle que le
+           bureau vient de corriger à l'écran. */
         const ok = await preparerDepuisRappel(l.eleve, iso, l.sel.value,
-                                             { heure: l.heure.value || '' });
+          detailsDuRappel(l.ligne, { heure: l.heure.value || '' }));
         if(ok) faits++;
         else deja.push(l.eleve);
       }catch(e){ rates.push(l.eleve + ' : ' + e.message); }
@@ -3329,18 +3379,31 @@ async function preparerDepuisRappel(eleve, jourTexte, moniteur, details){
        du bureau : sans ça, il fallait les ressaisir un par un. */
     if(details && (details.vehicule || details.lieu || details.heure)){
       try{
-        await appelPrep({
+        /* ⚠️ ABSENT N'EST PAS VIDE — v1035.
+
+           Le bureau pose parfois la voiture à la main sur l'écran,
+           pour un cours qu'un rappel a créé sans elle. Un rappel
+           renvoyé derrière, avec une case voiture vide, réécrivait
+           la ligne ENTIÈRE et effaçait ce travail — sans rien dire.
+
+           On n'envoie donc que ce qu'on sait. Une case vide qui
+           n'est pas envoyée laisse l'ancienne valeur ; l'écran de
+           l'affichage, lui, envoie toujours ses trois champs et
+           garde donc le pouvoir de les vider. C'est la règle du
+           masque, mot pour mot. */
+        const ligne = {
           action: 'ecranLigneSet',
           idPrep: (r && r.id) || '',
           jour: iso,
           eleve: eleve,
           moniteur: qui,
-          heure: details.heure || '',
-          vehicule: details.vehicule || '',
-          lieu: details.lieu || '',
           ordre: 0,
           par: ACCES.moniteur || ''
-        });
+        };
+        if(details.heure)    ligne.heure = details.heure;
+        if(details.vehicule) ligne.vehicule = details.vehicule;
+        if(details.lieu)     ligne.lieu = details.lieu;
+        await appelPrep(ligne);
       }catch(e){ console.warn('Détails d\'affichage non transmis :', e); }
     }
 
