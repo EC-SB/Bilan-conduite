@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 14:58 — v978 */
+/* Déployé le 18/09/2026 à 09:53 — v1028 */
 /* ============================================================
    ec-proccorriger.js
    Les procédures que les élèves envoient sur Messenger.
@@ -1640,17 +1640,13 @@ async function ouvrirCodesEleves(){
            demande maintenant un par un, pour l'élève qu'on veut
            prévenir, et la demande laisse une trace au journal.
 
-           Il est gardé le temps de la fenêtre : les deux boutons
-           d'envoi et l'affichage s'en servent, et un aller-retour
-           par bouton n'apprendrait rien de plus. */
-        let codeSu = '';
-        const codeDe = async () => {
-          if(codeSu) return codeSu;
-          const d = await appelPrep({ action: 'accesEleveCode', eleve: a.eleve });
-          codeSu = String((d && d.code) || '');
-          if(!codeSu) throw new Error('code introuvable');
-          return codeSu;
-        };
+           ⚠️ ET LA DEMANDE VIT AILLEURS DEPUIS LA v1028 —
+           codeDeLEleve, dans ec-fenetres.js. Cet écran-ci avait été
+           réparé, l'onglet 🔑 de la fiche élève ne l'avait pas été :
+           il lisait toujours un champ qui n'existe plus, et envoyait
+           « Ton code : undefined » à des familles. Deux copies, une
+           réparée, une oubliée. Il n'y en a plus qu'une. */
+        const codeDe = () => codeDeLEleve(a.eleve);
 
         const zCode = l.querySelector('[data-code]');
         if(zCode && a.aUnCode){
@@ -1661,18 +1657,11 @@ async function ouvrirCodesEleves(){
           });
         }
 
-        /* Le message d'accès, une fois pour les deux boutons */
-        const messageAcces = async () =>
-          'Bonjour ' + a.eleve.split(' ')[0] + ',\n\n' +
-          'Voici ton coin révisions :\n' +
-          LIEN_ESPACE_ELEVE + '\n\n' +
-          'Ton nom : ' + a.eleve + '\n' +
-          'Ton code : ' + (await codeDe()) + '\n\n' +
-          'Tu y récites tes procédures et suis tes séances de code.\n' +
-          'Ce n\'est pas le site pour réserver tes cours.\n\n' +
-          'Garde ce code, il te servira à chaque fois.\n\n' +
-          'À bientôt !\n' +
-          'Évolution Conduites';
+        /* ⚠️ LE MESSAGE AUSSI EST ÉCRIT AILLEURS — messageDeLAcces.
+           Il l'était mot pour mot dans les deux fichiers : c'est
+           pour ça que l'un a pu se mettre à écrire « undefined »
+           sans que l'autre bouge. */
+        const messageAcces = () => messageDeLAcces(a.eleve);
 
         /* Lui envoyer par mail, sur l'adresse de sa fiche */
         const bMail = document.createElement('button');
@@ -1758,7 +1747,12 @@ async function ouvrirCodesEleves(){
           try{
             const rep = await appelPrep({ action: 'accesEleveSet', eleve: a.eleve,
                                           nouveauCode: 'oui' });
-            showToast('Nouveau code : ' + (rep.code || '') + ' ✅');
+            /* ⚠️ LE SOUVENIR SUIT LE CODE. Gardé tel quel, c'est
+               l'ANCIEN code qui partirait à la famille au bouton
+               suivant — et personne ne comprendrait pourquoi il ne
+               marche pas. */
+            retenirCodeEleve(a.eleve, rep && rep.code);
+            showToast('Nouveau code : ' + ((rep && rep.code) || '') + ' ✅');
             dessiner();
           }catch(e){ showToast('Impossible : ' + e.message); }
         });
@@ -1773,6 +1767,7 @@ async function ouvrirCodesEleves(){
           if(!await confirmer('Retirer l\'accès de ' + a.eleve + ' ?')) return;
           try{
             await appelPrep({ action: 'accesEleveDelete', eleve: a.eleve });
+            oublierCodeEleve(a.eleve);
             showToast('Accès retiré ✅');
             dessiner();
           }catch(e){ showToast('Impossible : ' + e.message); }
@@ -1805,6 +1800,7 @@ async function ouvrirCodesEleves(){
     try{
       const rep = await appelPrep({ action: 'accesEleveSet', eleve: nom,
                                     langue: selL.value });
+      retenirCodeEleve(nom, rep && rep.code);
       boite.querySelector('#ceMsg').innerHTML =
         '<span style="color:var(--accent-text);">Code de ' +
         nom.replace(/</g, '&lt;') + ' : <strong style="letter-spacing:.12em;">' +
@@ -1975,7 +1971,7 @@ function pourquoiPasCorrigeeDoffice(r){
 
      Ce message-là disait « elle aurait dû être corrigée toute
      seule » à quelqu'un qui n'avait simplement pas attendu.
-     Chrystel a cliqué sur ✨ et a payé une seconde génération pour
+     David a cliqué sur ✨ et a payé une seconde génération pour
      une correction qui arrivait. On ne l'accuse plus tant que le
      délai n'est pas écoulé, et on le dit franchement. */
   const minutes = minutesDepuis(r.envoyeLe);
@@ -2018,10 +2014,10 @@ function minutesDepuis(horodatage){
    La correction d'office, elle, arrive une trentaine de secondes
    après l'envoi de l'élève. Entre les deux, la fiche ouverte
    affiche une récitation SANS correction — alors qu'elle est
-   arrivée, et que Chrystel l'a même reçue par mail.
+   arrivée, et que David l'a même reçue par mail.
 
-   Elle a donc cliqué sur ✨ et payé une seconde génération pour
-   une correction qu'elle avait déjà. Un appel de plus avant
+   Il a donc cliqué sur ✨ et payé une seconde génération pour
+   une correction qu'il avait déjà. Un appel de plus avant
    d'ouvrir coûte une fraction de seconde ; une génération de plus
    coûte six centimes. */
 async function relireRecitation(r){
@@ -2542,9 +2538,9 @@ async function corrigerRecitation(r){
 
      On ne gardait que les blocs « text », et une réponse sans bloc
      de ce type ressortait vide. Le bouton remplissait alors la
-     case avec RIEN en annonçant « proposition de l'IA » : Chrystel
-     s'est retrouvée devant un cadre vide, sans savoir si l'IA
-     avait échoué ou si elle-même avait mal cliqué. */
+     case avec RIEN en annonçant « proposition de l'IA » : David
+     s'est retrouvé devant un cadre vide, sans savoir si l'IA
+     avait échoué ou s'il avait mal cliqué. */
   const blocs = Array.isArray(d.content) ? d.content : [];
   const texte = blocs.filter(x => x && x.type === 'text')
                      .map(x => String(x.text || '')).join('\n').trim()
