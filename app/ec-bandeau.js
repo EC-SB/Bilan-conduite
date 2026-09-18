@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 13:38 — v975 */
+/* Déployé le 18/09/2026 à 15:34 — v1039 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -1061,7 +1061,7 @@ function bandeauReduit(combien, teinte){
     'border-color:' + teinte.bord + ';background:' + teinte.fond + ';';
   p.innerHTML = '<span>⚠️</span><span>' + combien + ' chose' +
     (combien > 1 ? 's' : '') + ' à voir aujourd\'hui</span>' +
-    '<span style="background:var(--orange);color:var(--navy-deep);' +
+    '<span style="background:var(--orange);color:var(--on-accent);' +
     'font-weight:700;border-radius:999px;padding:1px 8px;font-size:12px;">' +
     combien + '</span><span style="font-size:11px;">▾</span>';
   p.addEventListener('click', () => {
