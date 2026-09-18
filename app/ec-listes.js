@@ -1,4 +1,4 @@
-/* Déployé le 12/09/2026 à 15:37 — v979 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -578,11 +578,11 @@ function boutonsSuiteExamBlanc(e, zone){
   const b3h = document.createElement('button');
   b3h.className = 'btn btn-secondary';
   b3h.style.cssText = 'padding:10px;font-size:13px;';
-  b3h.textContent = '✅ Plus que les 3h';
+  b3h.textContent = '✅ Plus que la leçon de veille';
   b3h.addEventListener('click', async () => {
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
-        'Examen blanc passé le ' + jour() + ' — plus que les 3h avant examen');
+        'Examen blanc passé le ' + jour() + ' — plus que la leçon de veille de l\'examen');
       await noterExamenBlanc(e.eleve, 'oui', jour(), '0');
       showToast('Prêt au permis ✅');
       redessinerBureau();
@@ -910,7 +910,8 @@ async function passerSansExamenBlanc(x){
     const jourDit = dateEnToutesLettres(todayLocal()) || todayLocal();
 
     await envoyerConsigne(x.eleve, 'examblanc',
-      'Examen blanc passé le ' + jourDit + ' — plus que les 3h avant examen' +
+      'Examen blanc passé le ' + jourDit +
+      " — plus que la leçon de veille de l'examen" +
       " (sans repasser d'examen blanc, bureau)");
 
     /* Les heures décidées, dans une seconde note */
