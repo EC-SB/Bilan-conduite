@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:12 — v1038 */
+/* Déployé le 18/09/2026 à 15:34 — v1039 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1381,6 +1381,64 @@ async function dessinerGroupesDeLEleve(nom, acces, zone){
   zone.appendChild(s);
 
   const cases = {};
+  const etat = document.createElement('div');
+  etat.style.cssText = 'font-size:11.5px;margin-top:6px;min-height:16px;';
+
+  /* ============================================================
+     ⚠️ COCHER, C'EST OUVRIR — v1039
+
+     David : « on coche les groupes, peu importe d'où, et ça doit
+     ouvrir directement les droits et s'enregistrer partout ».
+
+     Avant, il fallait : cocher 🎬 Son parcours, enregistrer les
+     groupes à vide, enregistrer en bas, revenir, cocher les groupes,
+     enregistrer les groupes, enregistrer en bas. Sept gestes pour un
+     seul geste réel — parce que le module et les groupes étaient
+     DEUX enregistrements, et que l'écran ne se redessinait pas.
+
+     ⚠️ ET LE MODULE SUIT LE GROUPE, PAS L'INVERSE. Un groupe ouvert
+     chez quelqu'un dont le parcours est fermé, c'est un accès qui ne
+     montre rien : c'est le cas le plus silencieux, et l'écran de
+     suivi le dénonçait déjà. Autant ne plus le fabriquer.
+     ============================================================ */
+  const enregistrer = async () => {
+    const liste = Object.keys(cases).filter(id => cases[id].checked);
+    etat.style.color = 'var(--muted)';
+    etat.textContent = '⏳ Enregistrement…';
+
+    /* Les modules cochés à l'écran, plus « parcours » dès qu'un
+       groupe est ouvert. On lit l'écran, pas un souvenir. */
+    const caseDuModule = (cle) => zone.parentNode
+      ? zone.parentNode.querySelector('[data-module="' + cle + '"]') : null;
+
+    const mods = MODULES_ELEVE
+      .filter(x => { const c = caseDuModule(x.cle); return c && c.checked; })
+      .map(x => x.cle);
+    if(liste.length && mods.indexOf('parcours') === -1) mods.push('parcours');
+
+    try{
+      await appelPrep({ action: 'accesEleveSet', eleve: nom,
+                        groupes: liste.join('|'),
+                        modules: mods.join(',') });
+      etat.style.color = 'var(--accent-text)';
+      etat.textContent = liste.length
+        ? '✅ ' + liste.length + ' groupe' + (liste.length > 1 ? 's' : '') +
+          ' ouvert' + (liste.length > 1 ? 's' : '') +
+          (mods.indexOf('parcours') !== -1 ? ' · 🎬 Son parcours ouvert' : '')
+        : '✅ Tous ses groupes sont fermés';
+      /* La case du module suit, tout de suite : sans ça l'écran
+         montre une case décochée pour un droit qu'on vient
+         d'ouvrir. */
+      MODULES_ELEVE.forEach(x => {
+        const c = caseDuModule(x.cle);
+        if(c) c.checked = (mods.indexOf(x.cle) !== -1);
+      });
+    }catch(e){
+      etat.style.color = 'var(--red)';
+      etat.textContent = '❌ ' + e.message;
+    }
+  };
+
   visibles.forEach(g => {
     const l = document.createElement('label');
     l.style.cssText = 'display:flex;align-items:center;gap:10px;' +
@@ -1391,6 +1449,8 @@ async function dessinerGroupesDeLEleve(nom, acces, zone){
     cb.type = 'checkbox';
     cb.checked = (ouverts.indexOf(g.id) !== -1);
     cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
+    /* ⚠️ UN CLIC SUFFIT : plus de bouton « Enregistrer ses groupes ». */
+    cb.addEventListener('change', enregistrer);
     cases[g.id] = cb;
     l.appendChild(cb);
 
@@ -1404,7 +1464,9 @@ async function dessinerGroupesDeLEleve(nom, acces, zone){
     zone.appendChild(l);
   });
 
-  /* Le bouton qui PROPOSE — il coche, il n'enregistre pas. */
+  /* Le bouton qui PROPOSE — il coche, et comme cocher enregistre,
+     il enregistre. Sa formation propose, David vérifie ce qui vient
+     d'être coché, et décoche s'il n'est pas d'accord. */
   const prevus = formation
     ? visibles.filter(g => !g.fermeLe && (g.formations || [])
         .some(f => normaliserMot(f) === normaliserMot(formation)))
@@ -1414,32 +1476,16 @@ async function dessinerGroupesDeLEleve(nom, acces, zone){
     const bProp = document.createElement('button');
     bProp.className = 'btn btn-secondary';
     bProp.style.cssText = 'padding:8px;font-size:12px;margin:4px 0 0;';
-    bProp.textContent = '🧩 Cocher ce que prévoit sa formation (' +
+    bProp.textContent = '🧩 Ouvrir ce que prévoit sa formation (' +
                         formation + ') — ' + prevus.length + ' groupe(s)';
-    bProp.addEventListener('click', () => {
+    bProp.addEventListener('click', async () => {
       prevus.forEach(g => { if(cases[g.id]) cases[g.id].checked = true; });
-      showToast('Coché — vérifie, puis enregistre');
+      await enregistrer();
     });
     zone.appendChild(bProp);
   }
 
-  const bOk = document.createElement('button');
-  bOk.className = 'btn btn-primary';
-  bOk.style.cssText = 'padding:9px;font-size:12.5px;margin:6px 0 0;';
-  bOk.textContent = '✅ Enregistrer ses groupes';
-  bOk.addEventListener('click', async () => {
-    bOk.disabled = true;
-    const liste = Object.keys(cases).filter(id => cases[id].checked);
-    try{
-      await appelPrep({ action: 'accesEleveSet', eleve: nom,
-                        groupes: liste.join('|') });
-      showToast(liste.length
-        ? liste.length + ' groupe(s) ouvert(s) ✅'
-        : 'Tous ses groupes sont fermés ✅');
-    }catch(e){ showToast('Impossible : ' + e.message); }
-    bOk.disabled = false;
-  });
-  zone.appendChild(bOk);
+  zone.appendChild(etat);
 }
 
 /* Le financement extérieur, en lecture seule.
@@ -1690,11 +1736,18 @@ async function afficherEspaceEleve(nom, zone){
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = (ouverts.indexOf(m.cle) !== -1);
+    /* ⚠️ LA CASE PORTE SON NOM — v1039. Les groupes, juste en
+       dessous, ont besoin de cocher « parcours » quand on en ouvre
+       un : les retrouver en COMPTANT les cases de la carte marchait
+       tant que personne n'en ajoutait une ailleurs. Un repère qui
+       dépend de l'ordre du DOM est un repère qui casse au prochain
+       bouton. */
+    cb.dataset.module = m.cle;
     cb.style.cssText = 'width:18px;height:18px;flex-shrink:0;margin:0;';
     cb.addEventListener('change', async () => {
       const liste = MODULES_ELEVE
-        .filter((x, i) => {
-          const c2 = zm.querySelectorAll('input[type="checkbox"]')[i];
+        .filter(x => {
+          const c2 = zm.querySelector('[data-module="' + x.cle + '"]');
           return c2 && c2.checked;
         })
         .map(x => x.cle);
