@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:12 — v1038 */
+/* Déployé le 18/09/2026 à 15:34 — v1039 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -846,7 +846,7 @@ function liensDuBloc(b){
 /* ⚠️ VOIR CE QU'ON A DÉPOSÉ, PAS LIRE « ✅ Fichier déposé ». Sur un
    guide de six blocs, la phrase ne disait pas LEQUEL : il fallait
    ouvrir chacun pour savoir si on avait mis la bonne vidéo. */
-function dessinerLesVignettes(zone, genre, cles, liens, retirer){
+function dessinerLesVignettes(zone, genre, cles, liens, retirer, deplacer){
   if(!zone) return;
   zone.innerHTML = '';
   if(!cles.length) return;
@@ -910,6 +910,42 @@ function dessinerLesVignettes(zone, genre, cles, liens, retirer){
         'font-size:14px;cursor:pointer;';
       x.addEventListener('click', (e) => { e.stopPropagation(); retirer(i); });
       c.appendChild(x);
+    }
+
+    /* ⚠️ L'ORDRE DU CARROUSEL SE CHOISIT — v1039.
+
+       David : « je dois pouvoir choisir l'ordre du carrousel ». Les
+       images partaient dans l'ordre où elles avaient été déposées, et
+       douze panneaux pris au hasard d'un explorateur de fichiers, ce
+       n'est pas un ordre.
+
+       ⚠️ DES FLÈCHES, PAS UN GLISSER-DÉPOSER. Le doigt sur une
+       vignette de 88 px, c'est le geste qui accroche — et c'est déjà
+       la raison pour laquelle les blocs ont gardé leurs ▲▼. */
+    if(typeof deplacer === 'function' && cles.length > 1){
+      const fl = document.createElement('div');
+      fl.style.cssText = 'position:absolute;left:0;right:0;bottom:0;' +
+        'display:flex;justify-content:space-between;' +
+        'background:rgba(0,0,0,.55);';
+      [['\u25C0', -1, 'Vers la gauche'], ['\u25B6', 1, 'Vers la droite']]
+        .forEach(function(t){
+          const b = document.createElement('span');
+          b.textContent = t[0];
+          b.title = t[2];
+          const bloque = (t[1] < 0 && i === 0) ||
+                         (t[1] > 0 && i === cles.length - 1);
+          b.style.cssText = 'flex:1;text-align:center;font-size:11px;' +
+            'line-height:16px;color:' + (bloque ? '#666' : '#fff') + ';' +
+            (bloque ? '' : 'cursor:pointer;');
+          if(!bloque){
+            b.addEventListener('click', (e) => {
+              e.stopPropagation();
+              deplacer(i, i + t[1]);
+            });
+          }
+          fl.appendChild(b);
+        });
+      c.appendChild(fl);
     }
 
     zone.appendChild(c);
@@ -1142,6 +1178,14 @@ function ligneDeBloc(b, i){
       dessinerLesVignettes(galerie, b.type, cles, liens, (i) => {
         cles.splice(i, 1);
         liens.splice(i, 1);
+        redire();
+      }, (de, vers) => {
+        if(vers < 0 || vers >= cles.length) return;
+        /* ⚠️ LES DEUX LISTES BOUGENT ENSEMBLE. Déplacer la clé sans
+           son adresse signée afficherait la vignette de la voisine —
+           et on publierait le carrousel en croyant l'avoir rangé. */
+        cles.splice(vers, 0, cles.splice(de, 1)[0]);
+        liens.splice(vers, 0, liens.splice(de, 1)[0]);
         redire();
       });
 
