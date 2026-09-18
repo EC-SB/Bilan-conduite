@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 11:11 — v1034 */
+/* Déployé le 18/09/2026 à 11:43 — v1036 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -39,6 +39,45 @@ const BLOCS_PARCOURS = [
 
 function blocConnu(type){
   return BLOCS_PARCOURS.find(b => b.type === type) || BLOCS_PARCOURS[0];
+}
+
+/* ============================================================
+   UN GUIDE NE S'ÉCRIT PAS DEUX FOIS — v1036
+
+   David, le 18 septembre : « quand j'enregistre le brouillon d'un
+   guide, le guide se duplique ».
+
+   ⚠️ C'EST LA PANNE DU BILAN EN QUATRE EXEMPLAIRES, À L'IDENTIQUE.
+
+   L'envoi borne son attente à douze secondes et RÉESSAIE UNE FOIS
+   (voir fetchFiable). Écrire un guide passe par le classeur, et
+   réveiller le classeur mange à lui seul ces douze secondes : la
+   première tentative expire, la seconde part — et comme un guide
+   neuf s'envoyait SANS identifiant, le classeur en créait un second.
+   Deux guides, un seul appui, et rien pour le dire.
+
+   ⚠️ ET LES BOUTONS DU GUIDE NE SE VERROUILLAIENT PAS. Deux appuis
+   sur une tablette qui ne répond pas tout de suite, c'était deux
+   guides de plus. Ceux du groupe, eux, se verrouillaient déjà : une
+   moitié posée, l'autre oubliée.
+
+   La correction est celle de la v974 : L'ÉCRITURE SE RECONNAÎT.
+   L'identifiant est décidé ICI, une seule fois, quand l'éditeur
+   s'ouvre — pas par le classeur à la réception. Le rejeu retrouve
+   alors SA ligne et la corrige au lieu d'en semer une seconde.
+
+   Même alphabet et même forme que idNeuf, côté classeur, pour qu'un
+   identifiant se lise pareil d'où qu'il vienne. Les quatre
+   caractères tirés au sort évitent que deux postes qui enregistrent
+   dans la même milliseconde se marchent dessus.
+   ============================================================ */
+function idProposeParLEcran(prefixe){
+  const lettres = 'abcdefghijkmnopqrstuvwxyz23456789';
+  let queue = '';
+  for(let i = 0; i < 4; i++){
+    queue += lettres[Math.floor(Math.random() * lettres.length)];
+  }
+  return prefixe + Date.now() + '-' + queue;
 }
 
 
@@ -287,6 +326,10 @@ async function ouvrirLeGroupe(g){
   if(!zone) return;
 
   const neuf = !g;
+  /* ⚠️ DÉCIDÉ À L'OUVERTURE, PAS À LA RÉCEPTION — v1036. Voir
+     idProposeParLEcran : c'est ce qui fait qu'un envoi rejoué
+     retrouve SA ligne au lieu d'en créer une seconde. */
+  const idPose = (g && g.id) || idProposeParLEcran('g');
   const cadre = document.createElement('div');
   cadre.style.cssText = 'border:1px solid var(--orange);border-radius:14px;' +
     'padding:14px;max-width:460px;';
@@ -381,7 +424,7 @@ async function ouvrirLeGroupe(g){
     try{
       const rep = await appelPrep({
         action: 'parcoursGroupeSet',
-        id: (g && g.id) || '',
+        id: idPose,
         nom: nom,
         icone: cadre.querySelector('#pgIcone').value.trim(),
         formations: choisies,
@@ -511,6 +554,14 @@ async function ouvrirLeGuide(x, groupe){
   let titre = '';
   let etat = 'brouillon';
   const idGroupe = neuf ? groupe.id : x.groupe;
+  /* ⚠️ L'IDENTIFIANT EST DÉCIDÉ ICI, UNE FOIS — v1036.
+
+     C'est LA correction de « le guide se duplique » : un guide neuf
+     partait sans identifiant, et le classeur en créait donc un
+     nouveau à chaque envoi reçu. Or l'envoi réessaie tout seul au
+     bout de douze secondes, et réveiller le classeur mange ces douze
+     secondes à lui seul. Voir idProposeParLEcran. */
+  const idPose = (x && x.id) || idProposeParLEcran('gd');
 
   if(!neuf){
     zone.innerHTML = '<div class="empty">Lecture du guide…</div>';
@@ -592,6 +643,30 @@ async function ouvrirLeGuide(x, groupe){
         'font-size:12px;border-style:dashed;';
       b.textContent = t.emoji + ' ' + t.nom;
       b.addEventListener('click', () => {
+        /* ⚠️ ON RELIT L'ÉCRAN AVANT D'AJOUTER — v1036.
+
+           David, le 18 septembre : « quand je rajoute un bloc dans un
+           guide, ça supprime ce que je viens de mettre ».
+
+           C'était exact, et c'est cette ligne qui manquait. dessiner()
+           reconstruit TOUTE la pile depuis le tableau « blocs » ; ce
+           qui est tapé dans les cases ne rejoint ce tableau que par
+           relireLesBlocs. Sans cet appel, ajouter un bloc redessinait
+           l'écran à partir d'un tableau resté au dernier état connu —
+           et tout ce qui avait été tapé depuis disparaissait.
+
+           ⚠️ ET ÇA NE PERDAIT PAS QUE DU TEXTE. La clé d'un fichier
+           tout juste déposé vit elle aussi dans une case de l'écran :
+           ajouter un bloc après avoir déposé une vidéo de 180 Mo la
+           perdait, silencieusement. Il fallait la redéposer sans
+           jamais savoir pourquoi.
+
+           ⚠️ TROIS GESTES SUR QUATRE LE FAISAIENT DÉJÀ — retirer un
+           bloc, le monter, le descendre. Seul « ajouter » ne le
+           faisait pas. Une moitié posée, l'autre oubliée. */
+        relireLesBlocs(cadre, blocs);
+        /* En FIN de pile : un bloc s'ajoute à la suite de ce qu'on
+           vient d'écrire, et se déplace ensuite au doigt. */
         blocs.push({ type:t.type, texte:'', fichier:'', titre:'', duree:0 });
         dessiner();
       });
@@ -602,8 +677,13 @@ async function ouvrirLeGuide(x, groupe){
     bVoir.className = 'btn btn-secondary';
     bVoir.style.cssText = 'padding:10px;font-size:13px;';
     bVoir.textContent = '👁️ Voir comme l\'élève';
-    bVoir.addEventListener('click', () => apercuDuGuide(
-      cadre.querySelector('#pdTitre').value.trim(), blocs));
+    /* ⚠️ L'APERÇU AUSSI RELIT L'ÉCRAN. Montrer « comme l'élève le
+       verra » à partir d'un tableau périmé, c'est montrer autre chose
+       que ce qui sera publié — et c'est pire que ne rien montrer. */
+    bVoir.addEventListener('click', () => {
+      relireLesBlocs(cadre, blocs);
+      apercuDuGuide(cadre.querySelector('#pdTitre').value.trim(), blocs);
+    });
     cadre.appendChild(bVoir);
 
     const bBr = document.createElement('button');
@@ -647,7 +727,15 @@ async function ouvrirLeGuide(x, groupe){
     cadre.appendChild(bAnn);
   };
 
+  /* ⚠️ UN SEUL ENREGISTREMENT À LA FOIS — v1036. Les boutons du
+     guide ne se verrouillaient pas : deux appuis sur une tablette
+     qui ne répond pas tout de suite, c'étaient deux guides. Ceux du
+     groupe, eux, se verrouillaient déjà — une moitié posée, l'autre
+     oubliée. */
+  let enregistrementEnCours = false;
+
   const enregistrer = async (quelEtat) => {
+    if(enregistrementEnCours) return;
     const t = cadre.querySelector('#pdTitre').value.trim();
     if(!t){ showToast('Donne un titre au guide.'); return; }
     /* Ce qui est tapé dans les cases l'emporte : on relit l'écran
@@ -671,10 +759,12 @@ async function ouvrirLeGuide(x, groupe){
           'Publier quand même ?')) return;
     }
 
+    enregistrementEnCours = true;
+    cadre.querySelectorAll('button').forEach(b => { b.disabled = true; });
     try{
       await appelPrep({
         action: 'parcoursGuideSet',
-        id: (x && x.id) || '',
+        id: idPose,
         groupe: idGroupe,
         titre: t,
         etat: quelEtat,
@@ -684,7 +774,13 @@ async function ouvrirLeGuide(x, groupe){
       showToast(quelEtat === 'publie' ? 'Guide publié ✅' : 'Brouillon gardé ✅');
       parcoursGroupeOuvert = idGroupe;
       afficherParcours();
-    }catch(e){ showToast('Impossible : ' + e.message); }
+    }catch(e){
+      showToast('Impossible : ' + e.message);
+      /* L'écran reprend la main : le guide n'est pas parti, il faut
+         pouvoir réessayer sans tout retaper. */
+      enregistrementEnCours = false;
+      cadre.querySelectorAll('button').forEach(b => { b.disabled = false; });
+    }
   };
 
   zone.innerHTML = '';
@@ -714,6 +810,110 @@ async function ouvrirLeGuide(x, groupe){
    ============================================================ */
 function estUneCleDeFichier(v){
   return /^guides\/[A-Za-z0-9]{22}\.[a-z0-9]{1,5}$/.test(String(v || ''));
+}
+
+/* ============================================================
+   UN BLOC MÉDIA PORTE UNE LISTE — v1036
+
+   David : « pour les images il faut la possibilité de mettre un
+   carrousel d'images ».
+
+   ⚠️ UNE SEULE FORME POUR LES TROIS TYPES. Un bloc 🎬 ou 📄 tient une
+   liste d'UN fichier ; un bloc 🖼️ en tient autant qu'on veut. Deux
+   formes selon le type auraient fait deux chemins de lecture, deux
+   chemins de dépôt, et un des deux aurait fini par oublier quelque
+   chose — c'est toujours comme ça que ça se passe.
+
+   ⚠️ ET LES GUIDES D'AVANT CONTINUENT DE SE LIRE. « fichier » portait
+   une clé seule : elle devient une liste d'un élément. Un nom tapé à
+   la main d'avant la v1034 n'est pas une clé — il ne devient rien du
+   tout, et le bloc se signale comme « à déposer ».
+   ============================================================ */
+function clesDuBloc(b){
+  return String((b && b.fichier) || '').split('|')
+    .map(x => x.trim())
+    .filter(estUneCleDeFichier);
+}
+
+/* Les adresses signées que le relais a jointes au guide, dans le
+   même ordre que les clés. */
+function liensDuBloc(b){
+  if(!b) return [];
+  if(Array.isArray(b.liens)) return b.liens.slice();
+  return b.lien ? [b.lien] : [];
+}
+
+/* ⚠️ VOIR CE QU'ON A DÉPOSÉ, PAS LIRE « ✅ Fichier déposé ». Sur un
+   guide de six blocs, la phrase ne disait pas LEQUEL : il fallait
+   ouvrir chacun pour savoir si on avait mis la bonne vidéo. */
+function dessinerLesVignettes(zone, genre, cles, liens, retirer){
+  if(!zone) return;
+  zone.innerHTML = '';
+  if(!cles.length) return;
+
+  cles.forEach((cle, i) => {
+    const lien = liens[i] || '';
+    const c = document.createElement('div');
+    c.style.cssText = 'position:relative;width:88px;height:64px;' +
+      'border:1px solid var(--line);border-radius:8px;overflow:hidden;' +
+      'background:var(--navy);flex-shrink:0;display:flex;' +
+      'align-items:center;justify-content:center;font-size:22px;' +
+      'cursor:pointer;';
+
+    if(!lien){
+      /* Déposé, mais sans adresse signée — un guide relu par la voie
+         de secours. On le dit plutôt que de montrer un carré vide. */
+      c.textContent = (genre === 'video') ? '🎬'
+                    : (genre === 'image') ? '🖼️' : '📄';
+      c.title = 'Déposé — aperçu indisponible';
+    }else if(genre === 'image'){
+      const im = document.createElement('img');
+      im.src = lien;
+      im.alt = '';
+      im.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      c.appendChild(im);
+    }else if(genre === 'video'){
+      /* ⚠️ « preload=metadata » SUFFIT POUR LA PREMIÈRE IMAGE, et ne
+         télécharge pas les 180 Mo. Une vignette qui charge la vidéo
+         entière rendrait l'écran plus lent que ce qu'on répare. */
+      const v = document.createElement('video');
+      v.src = lien;
+      v.preload = 'metadata';
+      v.muted = true;
+      v.playsInline = true;
+      v.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      c.appendChild(v);
+      const p = document.createElement('span');
+      p.textContent = '▶';
+      p.style.cssText = 'position:absolute;left:50%;top:50%;' +
+        'transform:translate(-50%,-50%);color:#fff;font-size:20px;' +
+        'text-shadow:0 0 6px rgba(0,0,0,.8);pointer-events:none;';
+      c.appendChild(p);
+    }else{
+      c.textContent = '📄';
+    }
+
+    /* Ouvrir en grand : c'est la vérification d'avant, posée au même
+       endroit que la vignette. */
+    c.addEventListener('click', async () => {
+      try{ await montrerLeFichier(genre, cle, '', lien); }
+      catch(e){ showToast('Impossible : ' + e.message); }
+    });
+
+    if(typeof retirer === 'function'){
+      const x = document.createElement('span');
+      x.textContent = '×';
+      x.title = 'Retirer';
+      x.style.cssText = 'position:absolute;top:1px;right:3px;' +
+        'color:#fff;background:rgba(0,0,0,.55);border-radius:50%;' +
+        'width:18px;height:18px;line-height:17px;text-align:center;' +
+        'font-size:14px;cursor:pointer;';
+      x.addEventListener('click', (e) => { e.stopPropagation(); retirer(i); });
+      c.appendChild(x);
+    }
+
+    zone.appendChild(c);
+  });
 }
 
 function poidsLisible(octets){
@@ -840,12 +1040,31 @@ function ligneDeBloc(b, i){
     ta.value = b.texte || '';
     l.appendChild(ta);
   }else{
-    /* La clé du fichier déposé : elle ne se tape pas, elle se gagne
-       en déposant. Cachée, mais relue comme les autres cases. */
+    /* ============================================================
+       UN BLOC MÉDIA PORTE UNE LISTE — v1036
+
+       David : « pour les images il faut la possibilité de mettre un
+       carrousel d'images ».
+
+       ⚠️ UNE SEULE FORME POUR LES TROIS TYPES. Un bloc 🎬 ou 📄 tient
+       une liste d'UN fichier ; un bloc 🖼️ en tient autant qu'on veut.
+       Deux formes — « fichier » pour les uns, « fichiers » pour les
+       autres — auraient fait deux chemins de lecture, deux chemins de
+       dépôt, et un des deux aurait fini par oublier quelque chose.
+
+       ⚠️ ET LES GUIDES D'AVANT CONTINUENT DE SE LIRE : un « fichier »
+       seul devient une liste d'un élément. Voir clesDuBloc.
+       ============================================================ */
+    let cles = clesDuBloc(b);
+    let liens = liensDuBloc(b);
+    const plusieurs = (b.type === 'image');
+
+    /* Les clés, rangées dans une case cachée : elles ne se tapent
+       pas, elles se gagnent en déposant. */
     const f = document.createElement('input');
     f.type = 'hidden';
     f.dataset.champ = 'fichier';
-    f.value = estUneCleDeFichier(b.fichier) ? b.fichier : '';
+    f.value = cles.join('|');
     l.appendChild(f);
 
     /* Le nom que l'élève lira sous le bloc. Il reste modifiable :
@@ -856,13 +1075,30 @@ function ligneDeBloc(b, i){
     nom.style.cssText = 'margin:8px 0 0;font-size:13px;width:100%;' +
       'font-family:inherit;';
     nom.placeholder = (b.type === 'video') ? 'Le créneau, vu de l’intérieur'
-                    : (b.type === 'image') ? 'Le panneau à reconnaître'
+                    : plusieurs ? 'Les panneaux à reconnaître'
                     : 'La fiche à imprimer';
     /* ⚠️ LES GUIDES D'AVANT LA v1034 PORTENT UN NOM TAPÉ À LA MAIN
        DANS « fichier ». On ne le jette pas : il devient le nom
        affiché, et le bloc se signale comme « à déposer ». */
-    nom.value = b.titre || (estUneCleDeFichier(b.fichier) ? '' : (b.fichier || ''));
+    nom.value = b.titre ||
+      (estUneCleDeFichier(b.fichier) ? '' : String(b.fichier || ''));
     l.appendChild(nom);
+
+    /* ⚠️ DES VIGNETTES, PAS UNE PHRASE — v1036.
+
+       David : « j'ai besoin d'un aperçu de ce que j'ai déposé, pour
+       les images une miniature, et pour les vidéos aussi, comme pour
+       les pdf ». « ✅ Fichier déposé » ne dit PAS lequel : sur un
+       guide de six blocs, il fallait ouvrir chacun pour savoir si on
+       avait mis la bonne vidéo.
+
+       ⚠️ ET LES LIENS ARRIVENT AVEC LE GUIDE. Le relais les signe en
+       même temps qu'il rend les blocs : sans ça, il faudrait un appel
+       par vignette — une lecture rapide suivie de six lentes. */
+    const galerie = document.createElement('div');
+    galerie.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;' +
+      'margin-top:8px;';
+    l.appendChild(galerie);
 
     const etat = document.createElement('div');
     etat.style.cssText = 'font-size:11.5px;margin-top:6px;line-height:1.5;';
@@ -884,76 +1120,90 @@ function ligneDeBloc(b, i){
     const choix = document.createElement('input');
     choix.type = 'file';
     choix.style.display = 'none';
+    /* Plusieurs d'un coup pour un carrousel : douze panneaux ne se
+       déposent pas douze fois. */
+    if(plusieurs) choix.multiple = true;
     choix.accept = (b.type === 'video') ? 'video/mp4'
-                 : (b.type === 'image') ? 'image/jpeg,image/png,image/webp'
+                 : plusieurs ? 'image/jpeg,image/png,image/webp'
                  : 'application/pdf';
     l.appendChild(choix);
 
     const redire = () => {
-      const pose = !!f.value;
-      etat.style.color = pose ? 'var(--accent-text)' : 'var(--warn-text)';
-      etat.textContent = pose
-        ? '✅ Fichier déposé' + (b.poids ? ' — ' + poidsLisible(b.poids) : '')
+      f.value = cles.join('|');
+      b.lien = liens[0] || '';
+      etat.style.color = cles.length ? 'var(--accent-text)' : 'var(--warn-text)';
+      etat.textContent = cles.length
+        ? (plusieurs
+            ? '✅ ' + cles.length + ' image' + (cles.length > 1 ? 's' : '')
+            : '✅ Fichier déposé' +
+              (b.poids ? ' — ' + poidsLisible(b.poids) : ''))
         : '⚠️ Aucun fichier déposé : ce bloc ne montrera rien à l’élève.';
-      boutons.innerHTML = '';
 
+      dessinerLesVignettes(galerie, b.type, cles, liens, (i) => {
+        cles.splice(i, 1);
+        liens.splice(i, 1);
+        redire();
+      });
+
+      boutons.innerHTML = '';
       const bDep = document.createElement('button');
       bDep.className = 'btn btn-secondary';
       bDep.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12px;';
-      bDep.textContent = pose ? '🔄 Remplacer' : '📤 Déposer le fichier';
+      bDep.textContent = plusieurs
+        ? (cles.length ? '➕ Ajouter des images' : '📤 Déposer des images')
+        : (cles.length ? '🔄 Remplacer' : '📤 Déposer le fichier');
       bDep.addEventListener('click', () => choix.click());
       boutons.appendChild(bDep);
-
-      if(pose){
-        const bVoir = document.createElement('button');
-        bVoir.className = 'btn btn-secondary';
-        bVoir.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12px;';
-        bVoir.textContent = '👁️ Vérifier';
-        bVoir.addEventListener('click', async () => {
-          bVoir.disabled = true;
-          try{ await montrerLeFichier(b.type, f.value, nom.value); }
-          catch(e){ showToast('Impossible : ' + e.message); }
-          finally{ bVoir.disabled = false; }
-        });
-        boutons.appendChild(bVoir);
-      }
     };
 
     choix.addEventListener('change', async () => {
-      const fic = choix.files && choix.files[0];
+      const fics = choix.files ? Array.prototype.slice.call(choix.files) : [];
       choix.value = '';
-      if(!fic) return;
+      if(!fics.length) return;
+      /* Un bloc à un seul fichier remplace ; un carrousel ajoute. */
+      const aFaire = plusieurs ? fics : fics.slice(0, 1);
 
       boutons.innerHTML = '';
       barre.style.display = 'block';
-      dedans.style.width = '0';
       etat.style.color = 'var(--muted)';
-      etat.textContent = '📤 Dépôt de ' + fic.name + ' (' +
-                         poidsLisible(fic.size) + ')…';
-      try{
-        const cle = await deposerUnFichier(b.type, fic, (p) => {
-          dedans.style.width = p + '%';
-          etat.textContent = '📤 Dépôt… ' + p + ' %';
-        });
-        f.value = cle;
-        b.poids = fic.size;
-        /* Le nom d'origine sert de proposition, jamais d'écrasement :
-           un titre déjà écrit à la main vaut mieux que « IMG_4417 ». */
-        if(!nom.value.trim()) nom.value = fic.name.replace(/\.[^.]+$/, '');
-        showToast('Fichier déposé ✅');
-      }catch(e){
-        etat.style.color = 'var(--red)';
-        etat.textContent = '❌ ' + (e.message || 'dépôt impossible');
-        showToast('Dépôt impossible : ' + e.message);
-      }finally{
-        barre.style.display = 'none';
-        redire();
+
+      for(let n = 0; n < aFaire.length; n++){
+        const fic = aFaire[n];
+        const rang = aFaire.length > 1 ? ' (' + (n + 1) + '/' + aFaire.length + ')' : '';
+        dedans.style.width = '0';
+        etat.textContent = '📤 Dépôt de ' + fic.name + ' (' +
+                           poidsLisible(fic.size) + ')' + rang + '…';
+        try{
+          const cle = await deposerUnFichier(b.type, fic, (pc) => {
+            dedans.style.width = pc + '%';
+            etat.textContent = '📤 Dépôt' + rang + '… ' + pc + ' %';
+          });
+          let lien = '';
+          /* La vignette du fichier qu'on vient de déposer : une
+             adresse signée, demandée une fois, pour CE fichier. */
+          try{ lien = await lienDuFichierDeGuide(cle); }catch(e){ lien = ''; }
+
+          if(plusieurs){ cles.push(cle); liens.push(lien); }
+          else{ cles = [cle]; liens = [lien]; b.poids = fic.size; }
+
+          /* Le nom d'origine sert de proposition, jamais
+             d'écrasement : un titre écrit à la main vaut mieux que
+             « IMG_4417 ». */
+          if(!nom.value.trim()) nom.value = fic.name.replace(/\.[^.]+$/, '');
+        }catch(e){
+          etat.style.color = 'var(--red)';
+          etat.textContent = '❌ ' + (e.message || 'dépôt impossible');
+          showToast('Dépôt impossible : ' + e.message);
+          break;
+        }
       }
+      barre.style.display = 'none';
+      redire();
+      showToast('Dépôt terminé ✅');
     });
 
     redire();
   }
-
   return l;
 }
 
@@ -961,8 +1211,11 @@ function ligneDeBloc(b, i){
    ici en carré noir — et c'est exactement le cas de deux vidéos du
    NAS. Le voir maintenant coûte dix secondes ; le voir par un élève
    qui écrit « ça marche pas » coûte une semaine. */
-async function montrerLeFichier(genre, cle, nom){
-  const lien = await lienDuFichierDeGuide(cle);
+async function montrerLeFichier(genre, cle, nom, dejaLa){
+  /* Le lien arrive avec le guide depuis la v1036 : on ne redemande
+     que s'il manque — un fichier déposé à l'instant, ou un guide lu
+     par la voie de secours. */
+  const lien = dejaLa || await lienDuFichierDeGuide(cle);
   const boite = document.createElement('div');
   boite.style.cssText = 'max-width:100%;';
 
@@ -1019,7 +1272,7 @@ function relireLesBlocs(cadre, blocs){
    le dit avant. */
 function blocsSansFichier(blocs){
   return (blocs || []).filter(b => b.type !== 'texte' &&
-                                   !estUneCleDeFichier(b.fichier));
+                                   clesDuBloc(b).length === 0);
 }
 
 /* ⚠️ VOIR AVANT DE PUBLIER. Composer à l'aveugle, c'est publier
@@ -1036,10 +1289,11 @@ function apercuDuGuide(titre, blocs){
       /* ⚠️ ON MONTRE CE QUE L'ÉLÈVE VERRA, pas la clé du fichier.
          « guides/xK3p… » ne veut rien dire pour personne, et un
          aperçu qui ment sur ce point ne sert à rien. */
-      const pose = estUneCleDeFichier(b.fichier);
+      const combien = clesDuBloc(b).length;
       bouts.push(t.emoji + ' ' + (b.titre || t.nom) +
-                 (pose ? '' : '  ⚠️ AUCUN FICHIER DÉPOSÉ — ce bloc ' +
-                              'sera vide chez l\'élève'));
+                 (combien > 1 ? '  (' + combien + ' images)' : '') +
+                 (combien ? '' : '  ⚠️ AUCUN FICHIER DÉPOSÉ — ce bloc ' +
+                                 'sera vide chez l\'élève'));
     }
     bouts.push('');
   });
