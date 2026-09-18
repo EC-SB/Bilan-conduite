@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:08 — v1029 */
+/* Déployé le 18/09/2026 à 14:54 — v1037 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -29,7 +29,16 @@ const SECTIONS_ONGLET = {
      refusé. */
   cours:  ['prepares', 'cours'],
   eleves: ['recherche', 'rappels', 'eleves', 'proccorriger', 'code', 'handicap', 'evaluation', 'financements', 'permis', 'depart'],
-  suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes'],
+  /* ⚠️ « parcours » VIT DANS SUIVI, ET DANS SUIVI SEULEMENT — v1037.
+
+     Il était dans Gestion tant qu'il n'y avait que l'atelier. Le
+     suivi arrivé, les deux écrans devaient se retrouver : un même
+     droit dans deux onglets fait un bouton de rail qui mène au
+     hasard — voir le test des sections. David a tranché : les deux
+     dans Suivi, parce que « qui arrive au cours sans rien avoir vu »
+     est du suivi quotidien, pas du réglage. */
+  suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes',
+           'parcours'],
   permis: ['bureau_permis', 'bureau_places'],
   /* « historique » a été retiré le 1er septembre : voir la barre
      de vues plus bas. */
@@ -47,7 +56,7 @@ const SECTIONS_ONGLET = {
   gestion: ['ecran', 'notifs', 'taches', 'flotte', 'carrosserie', 'paie',
             'caisse', 'coutsia',
             'bureau_messages', 'sms', 'encours', 'incidents', 'tarifs',
-            'parcours', 'menage', 'admin']
+            'menage', 'admin']
 };
 
 let ongletActif = '';
@@ -208,7 +217,18 @@ const VUES = {
   suivi:  [['simu',     '🌙 Simulateurs et examens blancs', 'bureau_simu'],
            ['suivics',  '🤝 Suivi CS',                      'suivi_aac_cs'],
            ['suiviaac', '🎓 Suivi AAC',                     'suivi_aac_cs'],
-           ['ecoutes',  '👂 Écoutes pédagogiques',          'ecoutes']],
+           ['ecoutes',  '👂 Écoutes pédagogiques',          'ecoutes'],
+           /* ⚠️ LES DEUX ÉCRANS DU PARCOURS SONT ICI — v1037.
+              L'atelier, où l'on compose, et le suivi, où l'on regarde
+              qui avance. Deux gestes différents, deux écrans, le même
+              droit — et donc le même onglet, sans quoi le bouton du
+              rail mènerait au hasard.
+
+              ⚠️ ET PAS DEUX FOIS LE MÊME LOGO. Replié, le rail ne
+              montre plus que les emojis : 🎓 est déjà pris par le
+              suivi AAC, juste au-dessus. */
+           ['parcours',      '🎬 Groupes et guides',         'parcours'],
+           ['parcourssuivi', '👥 Parcours des élèves',       'parcours']],
   /* LE DOSSIER EN PREMIER, ET C'EST TOUT LE POINT.
 
      On ne pense pas « quel écran », on pense « Léa ». Les neuf vues
@@ -311,7 +331,6 @@ const VUES = {
            ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
            ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
 
-           ['parcours',   '🎬 Groupes et guides',       'parcours',    'L’outil'],
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
            ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
@@ -1782,6 +1801,7 @@ function reveillerVue(cle){
     financements: () => afficherFinancements(),
     tarifs:     () => afficherTarifs(),
     parcours:   () => afficherParcours(),
+    parcourssuivi: () => afficherSuiviParcours(),
     caisse:     () => afficherCaisse(),
     menage:     () => afficherMenage(),
     coutsia:    () => afficherCoutsIa(),
