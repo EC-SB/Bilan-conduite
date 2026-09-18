@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 11:11 — v1034 */
+/* Déployé le 18/09/2026 à 14:54 — v1037 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -267,7 +267,11 @@ const SECTIONS = [
   { cle:'tarifs',           nom:'💰 Prestations et tarifs', onglet:'gestion' },
   /* Le parcours d'apprentissage : composer les groupes et leurs
      guides. C'est ce qui remplace les groupes Facebook privés. */
-  { cle:'parcours',         nom:'🎬 Groupes et guides (parcours)', onglet:'gestion' },
+  /* ⚠️ DANS SUIVI DEPUIS LA v1037 : le droit ouvre DEUX écrans —
+     l'atelier et le suivi — et ils vivent tous les deux là. Un droit
+     rangé dans un onglet dont l'écran est ailleurs, c'est une case
+     cochée qui n'ouvre rien. */
+  { cle:'parcours',         nom:'🎬 Parcours (guides et suivi)', onglet:'suivi' },
   { cle:'financements',     nom:'💶 Financements extérieurs', onglet:'eleves' },
   { cle:'rappels',          nom:'🔔 Rappels de cours par mail', onglet:'eleves' },
   /* L'envoi de SMS est facturé au segment : il se donne à part,
