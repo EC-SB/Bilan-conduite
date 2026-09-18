@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:08 — v1029 */
+/* Déployé le 18/09/2026 à 11:11 — v1034 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -653,6 +653,24 @@ async function ouvrirLeGuide(x, groupe){
     /* Ce qui est tapé dans les cases l'emporte : on relit l'écran
        avant d'envoyer, sinon la dernière frappe se perdrait. */
     relireLesBlocs(cadre, blocs);
+
+    /* ⚠️ PUBLIER UN BLOC VIDE, C'EST PUBLIER UN TROU — v1034.
+
+       Un bloc 🎬 sans fichier déposé ne montre rien chez l'élève, et
+       plus rien ne le signale une fois le guide publié : il faut
+       rouvrir le guide pour s'en apercevoir. On le dit ici, une fois,
+       et on laisse le choix — garder en brouillon un guide dont il
+       manque une vidéo est parfaitement légitime. */
+    if(quelEtat === 'publie'){
+      const manquants = blocsSansFichier(blocs);
+      if(manquants.length && !await confirmer(
+          manquants.length + ' bloc(s) n\'ont pas de fichier déposé :\n' +
+          manquants.map(m => '· ' + blocConnu(m.type).emoji + ' ' +
+                             (m.titre || blocConnu(m.type).nom)).join('\n') +
+          '\n\nPublié tel quel, l\'élève verra ces blocs VIDES.\n\n' +
+          'Publier quand même ?')) return;
+    }
+
     try{
       await appelPrep({
         action: 'parcoursGuideSet',
@@ -672,6 +690,103 @@ async function ouvrirLeGuide(x, groupe){
   zone.innerHTML = '';
   zone.appendChild(cadre);
   dessiner();
+}
+
+/* ============================================================
+   DÉPOSER UN FICHIER — v1034, étape 2 du parcours
+
+   Avant : on TAPAIT le nom du fichier à la main, et une note disait
+   « le fichier se déposera sur Cloudflare ». Le fichier n'allait
+   nulle part. Un guide publié avec trois vidéos nommées à la main
+   n'aurait rien montré à personne, et rien ne l'aurait dit.
+
+   ⚠️ ET ÇA NE MONTE PAS EN UNE FOIS. Le corps d'une requête est
+   plafonné à 100 Mo chez Cloudflare, et les vidéos du NAS montent à
+   180 Mo. Le fichier part donc en morceaux de la taille que le
+   Worker annonce — jamais une taille décidée ici : R2 refuse une
+   découpe irrégulière, et il la refuse À LA FIN, quand tout est
+   monté.
+
+   ⚠️ UN DÉPÔT QUI ÉCHOUE SE RANGE DERRIÈRE LUI. Les morceaux déjà
+   montés restent facturés tant que l'envoi n'est ni refermé ni
+   abandonné. On abandonne donc, même quand c'est le réseau qui a
+   lâché — surtout quand c'est le réseau qui a lâché.
+   ============================================================ */
+function estUneCleDeFichier(v){
+  return /^guides\/[A-Za-z0-9]{22}\.[a-z0-9]{1,5}$/.test(String(v || ''));
+}
+
+function poidsLisible(octets){
+  const o = Number(octets) || 0;
+  if(o < 1024) return o + ' o';
+  if(o < 1048576) return Math.round(o / 1024) + ' Ko';
+  return (Math.round(o / 104857.6) / 10) + ' Mo';
+}
+
+async function deposerUnFichier(genre, fichier, avance){
+  const ouvert = await appelPrep({
+    action: 'parcoursDepotOuvrir',
+    genre: genre,
+    nom: fichier.name,
+    taille: fichier.size
+  });
+  if(!ouvert || !ouvert.cle) throw new Error('Dépôt refusé');
+
+  const taille = Number(ouvert.morceau) || 0;
+  if(!(taille > 0)) throw new Error('Taille de morceau non annoncée');
+  const total = Math.max(1, Math.ceil(fichier.size / taille));
+  const morceaux = [];
+
+  try{
+    for(let n = 1; n <= total; n++){
+      const debut = (n - 1) * taille;
+      const bout = fichier.slice(debut, Math.min(debut + taille, fichier.size));
+      const adresse = CONFIG.PARCOURS_MORCEAU_URL +
+        '?cle=' + encodeURIComponent(ouvert.cle) +
+        '&envoi=' + encodeURIComponent(ouvert.envoi) +
+        '&jusqua=' + encodeURIComponent(ouvert.jusqua) +
+        '&billet=' + encodeURIComponent(ouvert.billet) +
+        '&n=' + n;
+      /* ⚠️ PAS « fetchFiable » ICI. Elle rejoue l'appel quand le
+         réseau tousse : un morceau de 8 Mio rejoué en aveugle, c'est
+         le même numéro de morceau envoyé deux fois, et R2 garde le
+         dernier. Ça marche — sauf que la boucle, elle, a déjà pris
+         l'étiquette du premier. Le recollage échoue alors tout à la
+         fin, sur un message que personne ne sait lire. */
+      const r = await fetch(adresse, { method: 'POST', body: bout });
+      if(!r.ok){
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || ('morceau ' + n + ' refusé (HTTP ' + r.status + ')'));
+      }
+      const d = await r.json();
+      morceaux.push({ n: d.n, etag: d.etag });
+      if(avance) avance(Math.round((n / total) * 100));
+    }
+
+    const fini = await appelPrep({
+      action: 'parcoursDepotFermer',
+      cle: ouvert.cle, envoi: ouvert.envoi, morceaux: morceaux
+    });
+    if(!fini || fini.status !== 'ok') throw new Error('Recollage refusé');
+    return ouvert.cle;
+
+  }catch(e){
+    /* On range derrière soi avant de remonter l'erreur. */
+    try{
+      await appelPrep({ action: 'parcoursDepotAnnuler',
+                        cle: ouvert.cle, envoi: ouvert.envoi });
+    }catch(_){ /* le ménage de R2 s'en chargera */ }
+    throw e;
+  }
+}
+
+/* Le lien signé, demandé au moment de regarder — jamais gardé : il
+   expire, et un lien périmé dans une page ouverte depuis deux heures
+   ne montrerait qu'un carré noir. */
+async function lienDuFichierDeGuide(cle){
+  const d = await appelPrep({ action: 'parcoursFichierLien', cle: cle });
+  if(!d || !d.lien) throw new Error('Lien indisponible');
+  return CONFIG.WORKER_URL + d.lien;
 }
 
 function ligneDeBloc(b, i){
@@ -725,26 +840,159 @@ function ligneDeBloc(b, i){
     ta.value = b.texte || '';
     l.appendChild(ta);
   }else{
+    /* La clé du fichier déposé : elle ne se tape pas, elle se gagne
+       en déposant. Cachée, mais relue comme les autres cases. */
     const f = document.createElement('input');
-    f.type = 'text';
+    f.type = 'hidden';
     f.dataset.champ = 'fichier';
-    f.style.cssText = 'margin:8px 0 0;font-size:13px;width:100%;' +
-      'font-family:inherit;';
-    f.placeholder = (b.type === 'video') ? 'nom-de-la-video.mp4'
-                  : (b.type === 'image') ? 'nom-de-l-image.jpg'
-                  : 'nom-du-fichier.pdf';
-    f.value = b.fichier || '';
+    f.value = estUneCleDeFichier(b.fichier) ? b.fichier : '';
     l.appendChild(f);
 
-    const a = document.createElement('div');
-    a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
-      'line-height:1.5;';
-    a.textContent = 'Le fichier se déposera sur Cloudflare ; ici on note ' +
-      'son nom. Pour un texte sous ce bloc, ajoute un bloc 📝 juste après.';
-    l.appendChild(a);
+    /* Le nom que l'élève lira sous le bloc. Il reste modifiable :
+       « IMG_4417.mp4 » ne dit rien à personne. */
+    const nom = document.createElement('input');
+    nom.type = 'text';
+    nom.dataset.champ = 'titre';
+    nom.style.cssText = 'margin:8px 0 0;font-size:13px;width:100%;' +
+      'font-family:inherit;';
+    nom.placeholder = (b.type === 'video') ? 'Le créneau, vu de l’intérieur'
+                    : (b.type === 'image') ? 'Le panneau à reconnaître'
+                    : 'La fiche à imprimer';
+    /* ⚠️ LES GUIDES D'AVANT LA v1034 PORTENT UN NOM TAPÉ À LA MAIN
+       DANS « fichier ». On ne le jette pas : il devient le nom
+       affiché, et le bloc se signale comme « à déposer ». */
+    nom.value = b.titre || (estUneCleDeFichier(b.fichier) ? '' : (b.fichier || ''));
+    l.appendChild(nom);
+
+    const etat = document.createElement('div');
+    etat.style.cssText = 'font-size:11.5px;margin-top:6px;line-height:1.5;';
+    l.appendChild(etat);
+
+    const barre = document.createElement('div');
+    barre.style.cssText = 'display:none;height:5px;border-radius:3px;' +
+      'background:var(--line);margin-top:6px;overflow:hidden;';
+    const dedans = document.createElement('div');
+    dedans.style.cssText = 'height:100%;width:0;background:var(--orange);' +
+      'transition:width .2s;';
+    barre.appendChild(dedans);
+    l.appendChild(barre);
+
+    const boutons = document.createElement('div');
+    boutons.style.cssText = 'display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;';
+    l.appendChild(boutons);
+
+    const choix = document.createElement('input');
+    choix.type = 'file';
+    choix.style.display = 'none';
+    choix.accept = (b.type === 'video') ? 'video/mp4'
+                 : (b.type === 'image') ? 'image/jpeg,image/png,image/webp'
+                 : 'application/pdf';
+    l.appendChild(choix);
+
+    const redire = () => {
+      const pose = !!f.value;
+      etat.style.color = pose ? 'var(--accent-text)' : 'var(--warn-text)';
+      etat.textContent = pose
+        ? '✅ Fichier déposé' + (b.poids ? ' — ' + poidsLisible(b.poids) : '')
+        : '⚠️ Aucun fichier déposé : ce bloc ne montrera rien à l’élève.';
+      boutons.innerHTML = '';
+
+      const bDep = document.createElement('button');
+      bDep.className = 'btn btn-secondary';
+      bDep.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12px;';
+      bDep.textContent = pose ? '🔄 Remplacer' : '📤 Déposer le fichier';
+      bDep.addEventListener('click', () => choix.click());
+      boutons.appendChild(bDep);
+
+      if(pose){
+        const bVoir = document.createElement('button');
+        bVoir.className = 'btn btn-secondary';
+        bVoir.style.cssText = 'width:auto;margin:0;padding:7px 11px;font-size:12px;';
+        bVoir.textContent = '👁️ Vérifier';
+        bVoir.addEventListener('click', async () => {
+          bVoir.disabled = true;
+          try{ await montrerLeFichier(b.type, f.value, nom.value); }
+          catch(e){ showToast('Impossible : ' + e.message); }
+          finally{ bVoir.disabled = false; }
+        });
+        boutons.appendChild(bVoir);
+      }
+    };
+
+    choix.addEventListener('change', async () => {
+      const fic = choix.files && choix.files[0];
+      choix.value = '';
+      if(!fic) return;
+
+      boutons.innerHTML = '';
+      barre.style.display = 'block';
+      dedans.style.width = '0';
+      etat.style.color = 'var(--muted)';
+      etat.textContent = '📤 Dépôt de ' + fic.name + ' (' +
+                         poidsLisible(fic.size) + ')…';
+      try{
+        const cle = await deposerUnFichier(b.type, fic, (p) => {
+          dedans.style.width = p + '%';
+          etat.textContent = '📤 Dépôt… ' + p + ' %';
+        });
+        f.value = cle;
+        b.poids = fic.size;
+        /* Le nom d'origine sert de proposition, jamais d'écrasement :
+           un titre déjà écrit à la main vaut mieux que « IMG_4417 ». */
+        if(!nom.value.trim()) nom.value = fic.name.replace(/\.[^.]+$/, '');
+        showToast('Fichier déposé ✅');
+      }catch(e){
+        etat.style.color = 'var(--red)';
+        etat.textContent = '❌ ' + (e.message || 'dépôt impossible');
+        showToast('Dépôt impossible : ' + e.message);
+      }finally{
+        barre.style.display = 'none';
+        redire();
+      }
+    });
+
+    redire();
   }
 
   return l;
+}
+
+/* ⚠️ VÉRIFIER AVANT DE PUBLIER. Un .mp4 qui contient du VP9 s'ouvre
+   ici en carré noir — et c'est exactement le cas de deux vidéos du
+   NAS. Le voir maintenant coûte dix secondes ; le voir par un élève
+   qui écrit « ça marche pas » coûte une semaine. */
+async function montrerLeFichier(genre, cle, nom){
+  const lien = await lienDuFichierDeGuide(cle);
+  const boite = document.createElement('div');
+  boite.style.cssText = 'max-width:100%;';
+
+  if(genre === 'video'){
+    const v = document.createElement('video');
+    v.controls = true;
+    v.playsInline = true;
+    v.preload = 'metadata';
+    v.src = lien;
+    v.style.cssText = 'width:100%;max-height:60vh;border-radius:10px;' +
+      'background:#000;';
+    boite.appendChild(v);
+  }else if(genre === 'image'){
+    const im = document.createElement('img');
+    im.src = lien;
+    im.alt = nom || '';
+    im.style.cssText = 'width:100%;border-radius:10px;';
+    boite.appendChild(im);
+  }else{
+    const a = document.createElement('a');
+    a.href = lien;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = '📄 Ouvrir ' + (nom || 'le PDF');
+    a.style.cssText = 'color:var(--accent-text);font-size:14px;';
+    boite.appendChild(a);
+  }
+
+  await fenetre(boite, [{ nom: 'Fermer', valeur: true }],
+                '👁️ ' + (nom || 'Le fichier'));
 }
 
 /* Ce que l'écran porte, reversé dans la pile avant l'envoi. */
@@ -753,10 +1001,25 @@ function relireLesBlocs(cadre, blocs){
   for(let i = 0; i < lignes.length && i < blocs.length; i++){
     const ta = lignes[i].querySelector('[data-champ="texte"]');
     const f = lignes[i].querySelector('[data-champ="fichier"]');
+    const n = lignes[i].querySelector('[data-champ="titre"]');
     if(ta) blocs[i].texte = ta.value;
     if(f) blocs[i].fichier = f.value.trim();
+    /* ⚠️ LE NOM SE RELIT AUSSI — v1034. Il était absent de cette
+       boucle : le titre tapé sous une vidéo se serait perdu à
+       l'enregistrement, sans une erreur, sans un mot. C'est le même
+       oubli que la fiche du brouillon, et il ne se voit jamais au
+       moment où on le commet. */
+    if(n) blocs[i].titre = n.value.trim();
   }
   return blocs;
+}
+
+/* ⚠️ CE QUI EMPÊCHE DE PUBLIER. Un bloc média sans fichier déposé
+   ne montre RIEN chez l'élève, et rien ne le dit une fois publié. On
+   le dit avant. */
+function blocsSansFichier(blocs){
+  return (blocs || []).filter(b => b.type !== 'texte' &&
+                                   !estUneCleDeFichier(b.fichier));
 }
 
 /* ⚠️ VOIR AVANT DE PUBLIER. Composer à l'aveugle, c'est publier
@@ -770,12 +1033,18 @@ function apercuDuGuide(titre, blocs){
     if(b.type === 'texte'){
       bouts.push(String(b.texte || '').trim() || '(texte vide)');
     }else{
-      bouts.push(t.emoji + ' ' + (b.fichier || '(fichier à déposer)'));
+      /* ⚠️ ON MONTRE CE QUE L'ÉLÈVE VERRA, pas la clé du fichier.
+         « guides/xK3p… » ne veut rien dire pour personne, et un
+         aperçu qui ment sur ce point ne sert à rien. */
+      const pose = estUneCleDeFichier(b.fichier);
+      bouts.push(t.emoji + ' ' + (b.titre || t.nom) +
+                 (pose ? '' : '  ⚠️ AUCUN FICHIER DÉPOSÉ — ce bloc ' +
+                              'sera vide chez l\'élève'));
     }
     bouts.push('');
   });
   fenetre(bouts.join('\n').trim() || 'Ce guide est vide.',
-          [{ texte: 'Fermer', valeur: true }],
+          [{ nom: 'Fermer', valeur: true }],
           '👁️ Comme l\'élève le verra');
 }
 
