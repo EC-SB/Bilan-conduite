@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 15:35 — v1024 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -80,7 +80,9 @@ function analyserNote(note){
     r.ebSuite = 'niveauok';
     r.ebDate = m[1].trim();
   }
-  else if((m = t.match(/Examen blanc passé le ([^—·]+)— plus que les 3h/i))){
+  /* ⚠️ Les deux formulations — v1041. */
+  else if((m = t.match(
+      /Examen blanc passé le ([^—·]+)— plus que (?:les 3h|la le[çc]on de veille)/i))){
     r.examBlanc = 'passe';
     r.ebSuite = '3h';
     r.ebDate = m[1].trim();
@@ -230,10 +232,21 @@ function analyserNote(note){
      Les deux ancres, la même queue : c'est la queue — « + 3h avant
      examen » — qui distingue cette ligne de celle de l'examen
      blanc, à un segment de là. */
-  const gN = /(?:Examen prévu le|dernier examen le|ajourné le)[^·\n\r]*?— (?:encore (\d+) leçon|plus que les 3h)/gi;
+  /* ⚠️ Les deux formulations — v1041 : ce motif dit où en est CHAQUE
+     élève déjà suivi. Le restreindre aux mots neufs les remettrait
+     tous à zéro du jour au lendemain. */
+  const gN = /(?:Examen prévu le|dernier examen le|ajourné le)[^·\n\r]*?— (?:encore (\d+) leçon|encore (\d+)h|plus que (?:les 3h|la le[çc]on de veille))/gi;
   let mn, dernierN = null;
   while((mn = gN.exec(t)) !== null){
-    dernierN = (mn[1] === undefined) ? 0 : +mn[1];
+    /* ⚠️ DEUX GROUPES, PAS UN — v1041. Le motif a gagné une branche
+       pour la phrase en heures (« encore 4h + 3h »), et cette ligne
+       ne lisait que la première : « encore 4h » se relisait comme
+       zéro, c'est-à-dire « il est prêt ». Un moniteur posait quatre
+       heures et, au cours suivant, l'élève était annoncé prêt au
+       permis. Ajouter une branche à un motif sans regarder qui lit
+       ses groupes, c'est poser une moitié. */
+    dernierN = (mn[1] !== undefined) ? +mn[1]
+             : (mn[2] !== undefined) ? +mn[2] : 0;
   }
   if(dernierN !== null) r.permisN = dernierN;
 
