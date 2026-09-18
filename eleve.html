@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/09/2026 à 15:34 — v1039 -->
+<!-- Déployé le 18/09/2026 à 16:01 — v1040 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -238,6 +238,12 @@
   }
   .etape .nom{ flex:1; min-width:0; font-weight:700; }
   .etape .quand{ font-size:11px; color:var(--muted); flex-shrink:0; }
+  /* « 👀 Revoir » — v1040. Un guide fini se replie ; il doit pouvoir
+     se rouvrir, sinon la coche efface le contenu. */
+  .etape .revoir{
+    font-size:11px; font-weight:700; color:var(--accent-text);
+    flex-shrink:0; white-space:nowrap;
+  }
   /* ⚠️ LE FOND DE CARTE COMME ENCRE, pas « --on-accent ». En thème
      clair, l'accent devient un vert foncé et « --on-accent » reste
      noir : noir sur vert foncé ne se lit pas. « --navy-deep » est
@@ -841,6 +847,9 @@
      groupe a maintenant sa propre progression et sa propre étape
      ouverte — ce sont des matières différentes, pas une file. */
   var groupeIci = '';
+  /* Le rang, DANS LE GROUPE REGARDÉ, d'une étape déjà faite que
+     l'élève a rouverte pour la revoir. -1 : aucune. */
+  var revoirIci = -1;
 
   function lesGroupes(){
     var vus = [], parId = {};
@@ -921,7 +930,7 @@
       Math.round((faitsIci / siennes.length) * 100) + '%"></div></div>';
 
     for(var k = 0; k < siennes.length; k++){
-      html += blocEtape(siennes[k], k, courante);
+      html += blocEtape(siennes[k], k, courante, revoirIci);
     }
     z.innerHTML = html;
 
@@ -929,6 +938,25 @@
     for(var b = 0; b < bs.length; b++){
       bs[b].addEventListener('click', function(){
         groupeIci = this.getAttribute('data-groupe');
+        /* On change de matière : ce qu'on avait rouvert dans l'autre
+           ne nous suit pas. */
+        revoirIci = -1;
+        dessinerParcours(dernierAvant);
+      });
+    }
+
+    /* ⚠️ ON PEUT REVOIR UN GUIDE DÉJÀ VU — v1040.
+
+       David : « quand on a fini un guide il faut qu'on puisse revoir
+       ce qu'on a envie une fois que c'est vu ». Une étape cochée se
+       repliait et ne se rouvrait plus jamais : la coche effaçait le
+       contenu. C'est le contraire de ce qu'on veut d'un parcours de
+       révision — on y revient la veille de l'examen, justement. */
+    var rv = z.querySelectorAll('[data-revoir]');
+    for(var r2 = 0; r2 < rv.length; r2++){
+      rv[r2].addEventListener('click', function(){
+        var i = Number(this.getAttribute('data-revoir'));
+        revoirIci = (revoirIci === i) ? -1 : i;
         dessinerParcours(dernierAvant);
       });
     }
@@ -943,17 +971,24 @@
     dessinerLesOnglets();
   }
 
-  function blocEtape(e, i, courante){
+  function blocEtape(e, i, courante, revoir){
     var fait = !!e.vuLe;
-    var ouverte = (i === courante);
+    /* ⚠️ DEUX FAÇONS D'ÊTRE OUVERTE — v1040. Celle qui l'attend, et
+       celle qu'il a rouverte pour la revoir. */
+    var rouverte = fait && (i === revoir);
+    var ouverte = (i === courante) || rouverte;
     var classe = 'etape' + (fait ? ' faite' : '') +
                  (ouverte ? ' ouverte' : (fait ? '' : ' attend'));
 
     var h = '<div class="' + classe + '">' +
-      '<div class="tete">' +
+      '<div class="tete"' +
+        (fait ? ' data-revoir="' + i + '" style="cursor:pointer;"' : '') + '>' +
         '<span class="num">' + (fait ? '✓' : (i + 1)) + '</span>' +
         '<span class="nom">' + echapper(e.titre || 'Étape') + '</span>' +
-        (fait ? '<span class="quand">' + echapper(e.vuLe) + '</span>' : '') +
+        (fait ? '<span class="quand">' + echapper(e.vuLe) + '</span>' +
+                '<span class="revoir">' +
+                (rouverte ? '▲ Replier' : '👀 Revoir') + '</span>'
+              : '') +
       '</div>';
 
     /* Seule l'étape ouverte montre son contenu : c'est ce qui la
@@ -964,8 +999,12 @@
       for(var n = 0; n < blocs.length; n++){
         h += rendreBloc(blocs[n]);
       }
+      /* ⚠️ LA COCHE RESTE, ET ELLE EST COCHÉE. Une étape rouverte
+         sans sa coche donnerait à croire qu'on a perdu le travail ;
+         la décocher est un geste que l'élève garde. */
       h += '<label class="coche"><input type="checkbox" data-guide="' +
-             echapper(e.id) + '"><span>J\'ai vu ce guide</span></label>';
+             echapper(e.id) + '"' + (fait ? ' checked' : '') + '><span>' +
+             (fait ? 'Je l\'ai vu' : 'J\'ai vu ce guide') + '</span></label>';
       h += '</div>';
     }
     return h + '</div>';
@@ -1046,18 +1085,29 @@
   function cocherEtape(ev){
     var cb = ev.target;
     var id = cb.getAttribute('data-guide');
+    /* ⚠️ LA COCHE VA DANS LES DEUX SENS — v1040. Depuis qu'on peut
+       rouvrir un guide déjà vu, sa case est cochée : la décocher doit
+       vouloir dire quelque chose, sinon c'est une case qui ment. Le
+       classeur sait déjà le faire (colonne « Décoché le »). */
+    var avant = cb.checked;
     cb.disabled = true;
     appeler({ action: 'eleveParcoursVu', eleve: moi.nom, code: moi.code,
-              guide: id, vu: 'oui' })
+              guide: id, vu: avant ? 'oui' : 'non' })
       .then(function(d){
         for(var i = 0; i < mesEtapes.length; i++){
-          if(mesEtapes[i].id === id) mesEtapes[i].vuLe = (d && d.quand) || 'à l’instant';
+          if(mesEtapes[i].id === id){
+            mesEtapes[i].vuLe = avant
+              ? ((d && d.quand) || 'à l’instant') : '';
+          }
         }
+        /* Décochée, elle redevient l'étape qui l'attend : on la laisse
+           ouverte plutôt que de la replier sous ses yeux. */
+        if(!avant) revoirIci = -1;
         dessinerParcours(dernierAvant);
       })
       .catch(function(e){
         cb.disabled = false;
-        cb.checked = false;
+        cb.checked = !avant;
         dire('msgEnvoi', 'La coche n’est pas partie : ' + e.message, 'erreur');
       });
   }
