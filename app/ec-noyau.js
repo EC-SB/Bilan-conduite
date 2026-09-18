@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 08:47 — v1013 */
+/* Déployé le 18/09/2026 à 10:10 — v1029 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -259,6 +259,9 @@ const SECTIONS = [
   { cle:'placesbe',         nom:'🚚 Demande de places BE', onglet:'outils' },
   { cle:'evaluation',       nom:'📊 Évaluation de départ', onglet:'eleves' },
   { cle:'tarifs',           nom:'💰 Prestations et tarifs', onglet:'gestion' },
+  /* Le parcours d'apprentissage : composer les groupes et leurs
+     guides. C'est ce qui remplace les groupes Facebook privés. */
+  { cle:'parcours',         nom:'🎬 Groupes et guides (parcours)', onglet:'gestion' },
   { cle:'financements',     nom:'💶 Financements extérieurs', onglet:'eleves' },
   { cle:'rappels',          nom:'🔔 Rappels de cours par mail', onglet:'eleves' },
   /* L'envoi de SMS est facturé au segment : il se donne à part,
@@ -515,7 +518,7 @@ function appliquerDroits(){
    À monter EN MÊME TEMPS que VERSION_SECTIONS dans le Worker.
    Laisser l'un des deux, c'est soit des sessions qui ne se
    rafraîchissent pas, soit tout le monde déconnecté pour rien. */
-CONFIG.VERSION_SECTIONS_ATTENDUE = 9;
+CONFIG.VERSION_SECTIONS_ATTENDUE = 10;
 
 function memoriserSession(code, moniteur, role, droits, emoji, genre, regles){
   try{
