@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 15:26 — v1023 */
+/* Déployé le 18/09/2026 à 16:52 — v1041 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3667,6 +3667,16 @@ function heuresQuiComptent(nom){
     return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
   };
 
+  /* ⚠️ « PAS LE NIVEAU » PASSE DEVANT TOUT — v1041.
+
+     C'est le moniteur qui vient de le dire, pour l'examen qui est
+     posé. Ni le solde d'un rendez-vous post-permis, ni la règle du
+     « pas encore passé » plus bas ne doivent l'effacer : elles
+     parlent d'un nombre périmé, pas d'une réponse d'aujourd'hui. */
+  if(estPasLeNiveau(s.heuresRestantes)){
+    return { valeur: RESERVE_PAS_LE_NIVEAU, source: 'moniteur' };
+  }
+
   if(s.rdvPostFait === 'oui'){
     const h = String(s.heuresRepassage || '').trim();
     if(h) return { valeur: moinsLesLecons(h), source: 'post-permis' };
@@ -3703,16 +3713,43 @@ function heuresQuiComptent(nom){
 }
 
 
+/* ⚠️ LA RÉSERVE N'EST PAS TOUJOURS UN NOMBRE — v1041.
+
+   « pas le niveau » est une réponse comme une autre, et c'est celle
+   qui compte le plus : l'élève a une place d'examen qu'il faut lui
+   retirer. Un nombre d'heures serait faux — le problème n'est pas
+   la quantité. Trois réponses possibles, donc, et « absent » n'en
+   est pas une quatrième : c'est l'absence de réponse. */
+const RESERVE_PAS_LE_NIVEAU = 'niveau';
+
+function estPasLeNiveau(v){
+  return String(v || '').trim().toLowerCase() === RESERVE_PAS_LE_NIVEAU;
+}
+
+/* Les mots de la réserve, écrits À UN SEUL ENDROIT. Ils s'affichent
+   sur un bouton, dans une ligne de liste, dans une pastille de
+   session et dans une note : cinq recopies, ce serait cinq occasions
+   d'en corriger quatre. */
+function motsDeLaReserve(valeur, court){
+  if(estPasLeNiveau(valeur)){
+    return court ? '⛔ Pas le niveau — à changer'
+                 : '⛔ pas le niveau — élève à changer';
+  }
+  if(String(valeur) === '') return court ? '⏱️ Heures à préciser'
+                                         : '⏱️ heures à préciser';
+  /* ⚠️ « LA LEÇON DE VEILLE DE L'EXAMEN » — David, v1041. C'est le
+     nom de la chose ; « les 3h » n'en était que la durée. */
+  if(String(valeur) === '0'){
+    return court ? '⏱️ Plus que la leçon de veille'
+                 : '⏱️ plus que la leçon de veille';
+  }
+  /* La leçon de veille s'ajoute toujours : « 4 + 3 » */
+  return '⏱️ ' + valeur + ' + 3h';
+}
+
 function mentionHeuresRestantes(nom){
   const r = heuresQuiComptent(nom);
-
-  /* Sans cette information, le bureau ne peut pas placer une
-     date : on la réclame plutôt que de laisser un blanc. */
-  if(r.valeur === '') return ' · ⏱️ heures à préciser';
-  if(r.valeur === '0') return ' · ⏱️ plus que les 3h';
-
-  /* Les 3h avant examen s'ajoutent toujours : « 4 + 3 » */
-  return ' · ⏱️ ' + r.valeur + ' + 3h';
+  return ' · ' + motsDeLaReserve(r.valeur, false);
 }
 
 
@@ -3808,22 +3845,45 @@ async function rattraperExamensBlancs(){
 }
 
 
-async function saisirHeuresRestantes(nom){
+/* ⚠️ LA MÊME FENÊTRE POUR LES DEUX ÉCRANS — v1041.
+
+   Elle s'ouvrait depuis 🎓 Suivi permis ; elle s'ouvre maintenant
+   aussi depuis le questionnaire du moniteur, où la question se pose
+   au moment exact où l'on constate le niveau de l'élève. Une seule
+   fenêtre, les mêmes mots, le même ordre : deux copies, ce serait
+   deux occasions d'en corriger une.
+
+   ⚠️ ET « ANNULER » EST EN BAS. Depuis que la rangée se plie, le
+   mettre en premier le laissait seul sur sa ligne, étalé sur toute
+   la largeur — un bouton d'échappement qui ressemble au choix
+   principal. En bas, il se lit comme une fermeture. */
+function choixDeLaReserve(){
+  return [
+    { nom:'0 — plus que la leçon de veille', valeur:'0' },
+    { nom:'2 + 3h', valeur:'2' },
+    { nom:'4 + 3h', valeur:'4', principal:true },
+    { nom:'6 + 3h', valeur:'6' },
+    { nom:'8 + 3h', valeur:'8' },
+    { nom:'✏️ Autre', valeur:'autre' },
+    { nom:'Annuler', valeur:'' },
+    /* David, v1041 : « on ajoute une case pas le niveau, élève à
+       changer pour le permis ». Ce n'est pas un nombre d'heures —
+       d'où le rouge, et la ligne à part. */
+    { nom:'⛔ Pas le niveau — élève à changer',
+      valeur: RESERVE_PAS_LE_NIVEAU, danger:true }
+  ];
+}
+
+const TITRE_RESERVE = "Combien d'heures avant l'examen ?\n" +
+  "La leçon de veille de l'examen (3h) vient en plus : « 4 » " +
+  'signifie 4 + 3.';
+
+async function saisirHeuresRestantes(nom, apres){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
 
   /* Des cases plutôt qu'une saisie : c'est presque toujours un
      nombre pair de 0 à 10. */
-  const choix = await fenetre(
-    "Combien d'heures avant l'examen ?\n" +
-    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.',
-    [{ nom:'Annuler', valeur:'' },
-     { nom:'0 — plus que les 3h', valeur:'0' },
-     { nom:'2 + 3h', valeur:'2' },
-     { nom:'4 + 3h', valeur:'4', principal:true },
-     { nom:'6 + 3h', valeur:'6' },
-     { nom:'8 + 3h', valeur:'8' },
-     { nom:'✏️ Autre', valeur:'autre' }],
-    nom);
+  const choix = await fenetre(TITRE_RESERVE, choixDeLaReserve(), nom);
 
   if(!choix) return;
 
@@ -3832,14 +3892,14 @@ async function saisirHeuresRestantes(nom){
   if(choix === 'autre'){
     const v = await demander(
       "Combien d'heures avant l'examen ?\n" +
-      'Les 3h avant examen viennent en plus.',
+      "La leçon de veille de l'examen (3h) vient en plus.",
       String(s.heuresRestantes || ''), nom);
 
     if(v === null) return;
     propre = String(v).trim().replace(',', '.');
   }
 
-  if(propre && isNaN(Number(propre))){
+  if(propre && !estPasLeNiveau(propre) && isNaN(Number(propre))){
     showToast('Indique un nombre d\'heures.');
     return;
   }
@@ -3849,11 +3909,42 @@ async function saisirHeuresRestantes(nom){
        maintenant, pas à la charnière. Sans repère, toutes les
        leçons déjà faites depuis les entameraient d'un coup. */
     await majSuivi(nom, champsHeuresDitesMaintenant(nom, propre));
+
+    /* ⚠️ « PAS LE NIVEAU » DEMANDE QUELQUE CHOSE AU BUREAU, et une
+       case cochée ne demande rien : il faut que quelqu'un retire
+       l'élève de sa place d'examen. Le message part donc écrit,
+       dans les messages en attente — c'est exactement celui que la
+       monitrice de David a dû composer à la main dans « Signaler au
+       bureau », une case prévue pour dire que la DATE ne va pas. */
+    if(estPasLeNiveau(propre)) await signalerPasLeNiveau(nom);
+
     showToast(propre === '' ? 'Effacé'
-            : propre === '0' ? 'Plus que les 3h ✅'
+            : estPasLeNiveau(propre) ? 'Pas le niveau — signalé au bureau ⛔'
+            : propre === '0' ? 'Plus que la leçon de veille ✅'
             : propre + ' + 3h ✅');
-    redessinerBureau();
+    if(typeof apres === 'function') apres(propre);
+    else redessinerBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
+}
+
+/* La phrase envoyée au bureau, et la date de l'examen dedans quand
+   on la connaît : « à changer » sans dire de quelle place, c'est
+   une recherche de plus pour celui qui lit. */
+async function signalerPasLeNiveau(nom){
+  if(typeof envoyerConsigne !== 'function') return;
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+  const e = (typeof eleveDuBureau === 'function') ? eleveDuBureau(nom) : null;
+  const jour = String((e && e.etat && e.etat.permisDate) ||
+                      s.datePermis || '').trim();
+
+  const qui = (typeof ACCES !== 'undefined' && ACCES.moniteur)
+    ? ACCES.moniteur : 'Un moniteur';
+
+  await envoyerConsigne(nom, 'message',
+    '⛔ ' + qui + ' signale : ' + nom + " n'aura pas le niveau pour son " +
+    'examen' + (jour ? ' du ' + jour : '') +
+    ' — élève à changer sur cette place.');
 }
 
 
@@ -4133,7 +4224,8 @@ const LISTES_PERMIS = [
   { cle:'envisager', nom:'🤔 Élèves prêts au permis',
      champs:{ aPlanifier:'', retireAPrevoir:'', statut:'', datePermis:'' },
      neutralise:true,
-     note:'Examen blanc passé le {jour} — plus que les 3h avant examen (bureau)' },
+     note:'Examen blanc passé le {jour} — plus que la leçon de veille ' +
+          "de l'examen (bureau)" },
 
   { cle:'rdv',       nom:'🗓️ Liste RDV Permis',
      champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'', datePermis:'' },
@@ -4288,21 +4380,40 @@ function boutonEnvoyerVers(nom){
 }
 
 
+/* La couleur d'une réserve, à un seul endroit elle aussi : rouge
+   quand il n'aura pas le niveau, orange quand personne ne sait,
+   verte quand c'est réglé. */
+function couleurDeLaReserve(valeur){
+  if(estPasLeNiveau(valeur)) return 'var(--red)';
+  /* Manquant : on le signale, c'est ce qui bloque le bureau */
+  return (String(valeur) === '') ? 'var(--warn-text)' : 'var(--accent-text)';
+}
+
 function boutonHeuresRestantes(nom){
-  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
-  const h = String(s.heuresRestantes || '').trim();
+  /* ⚠️ LE BOUTON LIT CE QUE LE TEXTE LIT — corrigé en v1041.
+
+     Il lisait « heuresRestantes » BRUT pendant que la mention posée
+     juste à côté de lui, sur la même ligne, lisait heuresQuiComptent
+     — c'est-à-dire le nombre décompté des leçons faites depuis, et
+     vérifié. Deux chiffres pour un seul fait, à trois centimètres
+     l'un de l'autre :
+
+       · une réserve de 4h posée à la 18ᵉ leçon, relue à la 20ᵉ :
+         la mention disait « plus que les 3h », le bouton « 4 + 3h » ;
+       · un examen blanc PAS ENCORE PASSÉ : la mention disait « heures
+         à préciser » — la règle de la v1005 — et le bouton affichait
+         en VERT un chiffre du cycle précédent, périmé par
+         construction. C'est exactement le défaut que la v1005 avait
+         corrigé : une moitié posée, l'autre oubliée. */
+  const r = heuresQuiComptent(nom);
 
   const b = document.createElement('button');
   b.className = 'btn btn-secondary';
   b.style.cssText = 'width:auto;padding:9px 12px;font-size:13px;' +
-    (h === ''
-      /* Manquant : on le signale, c'est ce qui bloque le bureau */
-      ? 'color:var(--warn-text);border-color:var(--warn-text);'
-      : 'color:var(--accent-text);border-color:var(--accent-text);');
+    'color:' + couleurDeLaReserve(r.valeur) + ';' +
+    'border-color:' + couleurDeLaReserve(r.valeur) + ';';
 
-  b.textContent = (h === '') ? '⏱️ Heures à préciser'
-                : (h === '0') ? '⏱️ Plus que les 3h'
-                : '⏱️ ' + h + ' + 3h';
+  b.textContent = motsDeLaReserve(r.valeur, true);
 
   b.addEventListener('click', () => saisirHeuresRestantes(nom));
   return b;
