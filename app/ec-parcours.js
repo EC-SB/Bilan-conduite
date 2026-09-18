@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 11:43 — v1036 */
+/* Déployé le 18/09/2026 à 14:54 — v1037 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1300,6 +1300,188 @@ function apercuDuGuide(titre, blocs){
   fenetre(bouts.join('\n').trim() || 'Ce guide est vide.',
           [{ nom: 'Fermer', valeur: true }],
           '👁️ Comme l\'élève le verra');
+}
+
+/* ============================================================
+   🎓 SUIVI > PARCOURS — v1037, étape 5
+
+   David : « tu vois qui avance, qui arrive au cours sans rien avoir
+   vu, et tu ouvres ou fermes sans quitter la fiche ».
+
+   ⚠️ LE SECOND EST LE SEUL QUI COMPTE VRAIMENT. « 3 sur 6 » ne dit
+   rien tout seul ; c'est « elle a cours jeudi et n'a rien regardé »
+   qui fait décrocher le téléphone. La liste est donc rangée par
+   URGENCE, pas par nom.
+
+   ⚠️ ET LE CAS LE PLUS SILENCIEUX PASSE EN PREMIER : un élève à qui
+   on a coché des groupes SANS ouvrir son module ne voit rien du
+   tout. Rien à l'écran ne le disait — ni chez lui, ni ici.
+   ============================================================ */
+let suiviParcours = [];
+
+async function afficherSuiviParcours(){
+  const zone = $('parcoursSuiviZone');
+  if(!zone) return;
+  zone.innerHTML = '<div class="empty">Lecture des parcours…</div>';
+
+  try{
+    const d = await appelPrep({ action: 'parcoursSuivi' });
+    suiviParcours = (d && d.lignes) || [];
+  }catch(e){
+    zone.innerHTML = '<div class="message erreur">Lecture impossible : ' +
+      String(e.message).replace(/</g, '&lt;') + '</div>';
+    return;
+  }
+  dessinerSuiviParcours();
+}
+
+/* ⚠️ L'URGENCE SE CALCULE, ELLE NE SE DEVINE PAS À L'ŒIL. Trois
+   degrés, et ils se lisent dans cet ordre :
+     1. le module fermé alors qu'on lui a coché des groupes ;
+     2. un cours qui approche avec des étapes non vues ;
+     3. le reste. */
+function urgenceDuParcours(l){
+  if(!l.ouvert && l.groupes) return 3;
+  if(l.reste && l.prochain){
+    const j = joursAvantLeCours(l.prochain);
+    if(j !== null && j <= 2) return 2;
+    return 1;
+  }
+  return 0;
+}
+
+/* ⚠️ PAS « joursAvant » : ce nom est DÉJÀ pris par ec-postpermis.js.
+   Sans modules, le dernier fichier chargé écrase l'autre — et on
+   passe la journée à corriger un fichier que le navigateur n'exécute
+   jamais. Le test des doublons l'a vu tout de suite. */
+function joursAvantLeCours(iso){
+  const t = String(iso || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}/.test(t)) return null;
+  const d = new Date(t.slice(0, 10) + 'T12:00:00');
+  if(isNaN(d.getTime())) return null;
+  const auj = new Date();
+  auj.setHours(12, 0, 0, 0);
+  return Math.round((d - auj) / 86400000);
+}
+
+function dessinerSuiviParcours(){
+  const zone = $('parcoursSuiviZone');
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  if(!suiviParcours.length){
+    zone.innerHTML = '<div class="empty">Aucun élève n\'a de parcours ouvert. ' +
+      'Ça se fait dans l\'onglet 🔑 de sa fiche.</div>';
+    return;
+  }
+
+  const rangees = suiviParcours.slice().sort((a, b) => {
+    const ua = urgenceDuParcours(a), ub = urgenceDuParcours(b);
+    if(ua !== ub) return ub - ua;
+    /* À urgence égale, le cours le plus proche d'abord ; sans cours,
+       le plus en retard. */
+    if(a.prochain !== b.prochain){
+      if(!a.prochain) return 1;
+      if(!b.prochain) return -1;
+      return a.prochain < b.prochain ? -1 : 1;
+    }
+    if(a.reste !== b.reste) return b.reste - a.reste;
+    return String(a.eleve).localeCompare(String(b.eleve), 'fr');
+  });
+
+  const muets = rangees.filter(x => urgenceDuParcours(x) === 3).length;
+  const presses = rangees.filter(x => urgenceDuParcours(x) === 2).length;
+
+  const chapeau = document.createElement('div');
+  chapeau.style.cssText = 'font-size:12.5px;color:var(--muted);' +
+    'margin-bottom:11px;line-height:1.6;';
+  /* ⚠️ LE PLURIEL S'ACCORDE. « 1 ne voi(en)t rien » sur l'écran qu'on
+     lit tous les matins, c'est une phrase qui dit qu'on n'a pas
+     regardé ce qu'on écrivait. */
+  const sPluriel = (n) => (n > 1) ? 's' : '';
+  chapeau.innerHTML = rangees.length + ' élève' + sPluriel(rangees.length) +
+    ' avec un parcours' +
+    (muets ? ' · <b style="color:var(--red);">' + muets +
+             (muets > 1 ? ' ne voient rien' : ' ne voit rien') + '</b>' : '') +
+    (presses ? ' · <b style="color:var(--warn-text);">' + presses +
+               (presses > 1 ? ' ont cours' : ' a cours') +
+               ' dans deux jours ou moins</b>' : '');
+  zone.appendChild(chapeau);
+
+  rangees.forEach(l => zone.appendChild(ligneDuSuiviParcours(l)));
+}
+
+function ligneDuSuiviParcours(l){
+  const u = urgenceDuParcours(l);
+  const row = document.createElement('div');
+  row.className = 'history-item';
+  row.style.cursor = 'pointer';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+
+  const t = document.createElement('strong');
+  t.textContent = l.eleve || '(sans nom)';
+  meta.appendChild(t);
+
+  /* ⚠️ LA BARRE DIT LA PROGRESSION SANS QU'ON LISE LES CHIFFRES. */
+  const pc = l.total ? Math.round((l.faits / l.total) * 100) : 0;
+  const barre = document.createElement('div');
+  barre.style.cssText = 'height:5px;border-radius:3px;background:var(--line);' +
+    'overflow:hidden;margin:5px 0 4px;max-width:220px;';
+  const dedans = document.createElement('div');
+  dedans.style.cssText = 'height:100%;width:' + pc + '%;background:' +
+    (u >= 2 ? 'var(--red)' : 'var(--accent-text)') + ';';
+  barre.appendChild(dedans);
+  meta.appendChild(barre);
+
+  const s = document.createElement('span');
+  s.textContent = l.total
+    ? l.faits + ' étape' + ((l.faits > 1) ? 's' : '') + ' sur ' + l.total +
+      (l.reste ? ' · ' + l.reste + ' à voir' : ' · à jour')
+    : (l.groupes ? 'Ses groupes n\'ont aucun guide publié'
+                 : 'Aucun groupe ouvert');
+  meta.appendChild(s);
+
+  if(l.prochain){
+    const j = joursAvantLeCours(l.prochain);
+    const q = document.createElement('span');
+    q.style.cssText = 'font-size:11.5px;color:' +
+      (u >= 2 ? 'var(--warn-text)' : 'var(--muted)') + ';';
+    q.textContent = '📅 Cours le ' +
+      ((typeof jourCourtIso === 'function') ? jourCourtIso(l.prochain)
+                                            : l.prochain) +
+      (l.prochainHeure ? ' à ' + l.prochainHeure : '') +
+      (j === 0 ? ' — aujourd’hui' : (j === 1 ? ' — demain' : ''));
+    meta.appendChild(q);
+  }
+
+  /* ⚠️ LE CAS MUET, DIT EN TOUTES LETTRES. */
+  if(u === 3){
+    const w = document.createElement('span');
+    w.style.cssText = 'color:var(--red);font-size:12px;';
+    w.textContent = '⚠️ Ses groupes sont cochés mais 🎬 Son parcours est ' +
+      'FERMÉ : il ne voit rien.';
+    meta.appendChild(w);
+  }
+
+  row.appendChild(meta);
+
+  /* Ouvrir sa fiche : c'est là qu'on ouvre ou qu'on ferme, sans
+     quitter l'écran pour un autre. */
+  row.addEventListener('click', () => {
+    if(typeof ouvrirFicheEleve === 'function') ouvrirFicheEleve(l.eleve);
+    else showToast('Fiche indisponible depuis cet écran.');
+  });
+
+  return row;
+}
+
+/* « 2026-09-22 » → « 22/09 ». */
+function jourCourtIso(iso){
+  const t = String(iso || '').trim();
+  if(!/^\d{4}-\d{2}-\d{2}/.test(t)) return t;
+  return t.slice(8, 10) + '/' + t.slice(5, 7);
 }
 
 /* Signale que ce module est bien chargé */
