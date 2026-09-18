@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 09:30 — v1014 */
+/* Déployé le 18/09/2026 à 10:53 — v1033 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -570,6 +570,38 @@ function ligneBilan(item, nomCherche, refaire){
     meta.appendChild(t);
     meta.appendChild(s);
     if(item.horodatage) meta.appendChild(h);
+
+    /* ============================================================
+       🛰️ L'ÉTAT DU RELEVÉ GPS DE CE COURS-LÀ — v1033
+
+       David, le 18 septembre : « le relevé GPS sur la ligne du bilan
+       — pour que la prochaine fois on n'ait plus à se dépêcher de
+       regarder avant de valider ».
+
+       Les nombres ne vivaient que dans le brouillon, et valider
+       détruit le brouillon : le diagnostic mourait au moment précis
+       où le cours entrait à l'historique. Il est maintenant rangé
+       colonne L du bilan, et se relit ici, des mois plus tard.
+
+       ⚠️ ET LA PHRASE SE COMPOSE DANS ec-encours.js, PAS ICI. C'est
+       le même jugement que dans 🩹 Cours non terminés — même seuil,
+       même ⚠️. Recopié, l'un des deux aurait fini par mentir : c'est
+       l'histoire de « Ton code : undefined », réparée il y a cinq
+       versions.
+
+       Rien ne s'affiche sur un cours sans relevé — un examen
+       officiel, une reprise au bureau, un bilan d'avant la v1033.
+       Une ligne « aucun GPS » sur chacun ferait du bruit pour rien.
+       ============================================================ */
+    if(item.gps && typeof spanDuReleveGps === 'function'){
+      const vu = spanDuReleveGps(item.gps);
+      if(vu){
+        const gps = document.createElement('span');
+        gps.innerHTML = vu;
+        meta.appendChild(gps);
+      }
+    }
+
     row.appendChild(meta);
 
     /* ------------------------------------------------------------
