@@ -1,4 +1,4 @@
-/* Déployé le 27/08/2026 à 10:25 — v596 */
+/* Déployé le 19/09/2026 à 08:03 — v1045 */
 /* ============================================================
    ec-permis.js
    Élève ayant obtenu son permis
@@ -310,6 +310,13 @@ async function nettoyerDossierPermis(nom, toutEffacer, bouton, nbBilans){
       const d = await appelPrep({ action:'prepList' });
       const siens = ((d && d.preparations) || [])
         .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
+      /* ⚠️ PAS « supprimerPreparation » ICI, ET C'EST VOULU — v1045.
+         Cette porte-là libère un rendez-vous post-permis annulé en
+         vidant sa date dans la fiche de suivi. Ici on efface l'élève
+         ENTIER : « suiviDelete » suit quelques lignes plus bas et
+         emporte la fiche. Écrire dedans juste avant serait un
+         aller-retour pour rien — et, selon l'ordre, une fiche
+         recréée à l'instant même où on la supprime. */
       for(const pr of siens){
         try{ await appelPrep({ action:'prepDelete', id: pr.id }); }catch(e){}
       }
