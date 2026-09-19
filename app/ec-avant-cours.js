@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:41 — v1051 */
+/* Déployé le 19/09/2026 à 11:05 — v1052 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -575,7 +575,10 @@ function lignePositionDuHaut(nom, corps, note, modele){
   let reste = a.permisHeures;
   let cEstLaVeille = false;
   if(typeof heuresQuiComptent === 'function'){
-    const q = heuresQuiComptent(nom) || {};
+    /* ⚠️ ON LUI DONNE L'ÉTAT DU JOUR — v1052. « a » porte
+       « apresCharniere », c'est-à-dire le rang tel que CE cours le
+       connaît, et c'est lui qu'on vient de changer sur la carte. */
+    const q = heuresQuiComptent(nom, a) || {};
     cEstLaVeille = !!q.depasse;
     const su = String(q.valeur === undefined || q.valeur === null
       ? '' : q.valeur).trim();
