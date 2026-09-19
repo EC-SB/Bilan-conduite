@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 09:48 — v1048 */
+/* Déployé le 19/09/2026 à 10:00 — v1049 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3903,6 +3903,67 @@ function motsDeLaReserve(valeur, court){
 function mentionHeuresRestantes(nom){
   const r = heuresQuiComptent(nom);
   return ' · ' + motsDeLaReserve(r.valeur, false);
+}
+
+
+/* ============================================================
+   D'OÙ VIENT CE NOMBRE — v1049
+
+   David, le 19 septembre : « comme on ne voit pas l'info de ce qui
+   a été dit à l'examen blanc ou au post-permis, on est perdu
+   aussi ».
+
+   L'écran annonçait un solde sans jamais dire de quoi il était le
+   solde. Devant « ⏱️ 2 + 3h », impossible de savoir si quelqu'un
+   avait prescrit 6 heures au rendez-vous post-permis et qu'il en
+   reste deux, ou si un moniteur avait tapé « 2 » la veille. Le
+   bureau devait rouvrir la fiche, puis les notes, pour retrouver
+   une phrase écrite un mois plus tôt.
+
+   On rend donc les décisions elles-mêmes, avec leurs dates, et
+   SANS les décompter : c'est le solde qui bouge, pas ce qui a été
+   décidé ce jour-là. Rien de neuf n'est calculé — ces champs
+   existent depuis toujours, ils n'étaient montrés nulle part
+   ensemble.
+   ============================================================ */
+function prescriptionsDeLaReserve(nom){
+  const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  const out = [];
+
+  const dire = (d) => {
+    const j = String(d || '').trim();
+    if(!j) return '';
+    return ' du ' + ((typeof dateEnToutesLettres === 'function')
+      ? (dateEnToutesLettres(j) || j) : j);
+  };
+  const sansHorloge = (h) => motsDeLaReserve(h, true).replace(/^⏱️ /, '');
+
+  /* « Pas le niveau » passe devant : c'est une réponse d'aujourd'hui,
+     et elle rend les nombres sans objet. Même ordre que
+     « heuresQuiComptent » — deux ordres, ce serait deux vérités. */
+  if(estPasLeNiveau(s.heuresRestantes)){
+    return [{ cle: 'niveau', mot: motsDeLaReserve(s.heuresRestantes, false) }];
+  }
+
+  if(s.rdvPostFait === 'oui'){
+    const h = String(s.heuresRepassage || '').trim();
+    if(h) out.push({ cle: 'postpermis',
+      mot: '🏁 Au rendez-vous post-permis' + dire(s.rdvPostDate) +
+           ' : ' + sansHorloge(h) });
+  }
+
+  const eb = String(s.heuresRestantes || '').trim();
+  if(eb && String(s.ebNiveau || '').trim() !== 'avenir'){
+    out.push({ cle: 'examenblanc',
+      mot: '🅱️ À l\'examen blanc' + dire(s.ebDate) + ' : ' + sansHorloge(eb) });
+  }
+
+  return out;
+}
+
+/* La même chose en une ligne, pour les écrans qui n'en ont qu'une. */
+function mentionDesPrescriptions(nom){
+  return prescriptionsDeLaReserve(nom).map(x => x.mot).join(' · ');
 }
 
 
