@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:00 — v1049 */
+/* Déployé le 19/09/2026 à 10:41 — v1051 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -885,6 +885,38 @@ async function majHeuresRestantes(eleve, valeur, champs, depuis, charniere){
    rang de six leçons après l'examen blanc. */
 function repereDesHeures(s){
   const brut = String((s && s.heuresRang) || '').trim();
+
+  /* ============================================================
+     ⚠️ UN REPÈRE ABSENT N'EST PAS UN REPÈRE « EXAMEN BLANC » — v1051
+
+     David, le 19 septembre, devant la carte d'Ambre Guillebon :
+     « c'est la 3ème après son post-permis, donc il ne reste plus
+     6 + 3 avant examen ».
+
+     Son rendez-vous post-permis date du 11 août : il a prescrit
+     6 + 3, mais il est ANTÉRIEUR à la case « heuresRang », qui
+     n'existait pas encore. Sa colonne est donc vide — et vide se
+     lisait « examen blanc ». Le décompte comparait alors ce repère
+     à la charnière du jour, « post-permis », voyait deux compteurs
+     différents, et refusait de compter : la réserve restait pleine
+     à 6 pendant qu'Ambre en avait consommé trois leçons.
+
+     Or on SAIT d'où datent ces heures-là quand c'est le rendez-vous
+     qui les a prescrites : de lui, au rang zéro. C'est la règle que
+     « terminerRdvPost » écrit depuis la v1014 — « les heures sont
+     prescrites PAR ce rendez-vous : elles datent de la charnière
+     elle-même ». On la relit ici pour les dossiers d'avant, au lieu
+     de retomber sur un défaut qui, lui, n'a jamais rien su.
+
+     ⚠️ ET SEULEMENT QUAND LE REPÈRE MANQUE. Dès qu'il est écrit, il
+     fait foi : c'est lui qui porte la vérité d'une réserve posée
+     depuis, au cours d'une leçon ordinaire.
+     ============================================================ */
+  if(!brut && s && s.rdvPostFait === 'oui' &&
+     String(s.heuresRepassage || '').trim()){
+    return { rang: 0, quoi: 'postpermis' };
+  }
+
   const bout = brut.split(':');
   const rang = parseInt(bout[0], 10);
   const quoi = String(bout[1] || '').trim() || 'eb';
