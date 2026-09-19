@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 11:20 — v1035 */
+/* Déployé le 19/09/2026 à 10:15 — v1050 */
 /* ============================================================
    ec-rappels.js
    Rappels de cours par SMS.
@@ -1405,6 +1405,38 @@ function typeChoisiMaintenant(){
     ? choixRappel.type : '';
 }
 
+/* ============================================================
+   LE JOUR, DEMANDÉ À L'ÉCRAN LUI AUSSI — v1050
+
+   David, le 19 septembre : « j'ai fait un rappel pour demain
+   dimanche et ensuite d'autres pour lundi, et ça a mis les suivants
+   à demain au lieu de lundi ».
+
+   Le MESSAGE partait bien pour lundi — il se compose depuis
+   « lireChoixRappel() », qui lit le menu. Le COURS PRÉPARÉ, lui,
+   était posé d'après « choixRappel.jour », le souvenir : un objet
+   rempli au dessin de l'écran, que changer le menu ne touche pas.
+   Le mail annonçait donc lundi pendant que le cours atterrissait
+   dimanche, dans la liste du moniteur.
+
+   ⚠️ C'EST LE MÊME DÉFAUT QUE LE TYPE, SUR LA MÊME LIGNE. La v1027
+   l'avait réparé pour le type — « tout ce qui décide du BILAN doit
+   passer par ici » — en laissant le jour juste à côté, dans le même
+   appel, sur la même ligne. Une moitié posée, l'autre oubliée.
+
+   ⚠️ ET LE SOUVENIR RESTE. Reporter le jour d'un rappel à l'autre
+   fait gagner du temps, et il SE VOIT dans le menu : c'est la règle
+   de la v880, qui n'avait retiré que ce qui ne se voyait pas. Ce
+   qu'on répare ici n'est pas qu'on s'en souvienne — c'est qu'on le
+   relise alors que l'écran, lui, dit autre chose.
+   ============================================================ */
+function jourChoisiMaintenant(){
+  const m = $('rapJour');
+  if(m && m.value) return m.value;
+  return (typeof choixRappel !== 'undefined' && choixRappel && choixRappel.jour)
+    ? choixRappel.jour : '';
+}
+
 /* LE TYPE D'UNE LIGNE DU PLANNING.
 
    Les lignes lues sur le planning ne portent pas de type. Elles
@@ -2145,7 +2177,10 @@ async function envoyerRappelManuel(){
        lireChoixRappel() rend exactement la forme d'une ligne de la
        liste : voiture, emplacement, heure, type. Le détail se
        compose donc au même endroit pour les quatre. */
-    preparerDepuisRappel(nom, choixRappel && choixRappel.jour,
+    /* ⚠️ LE JOUR SE LIT À L'ÉCRAN, PAS EN MÉMOIRE — v1050. Voir
+       « jourChoisiMaintenant » : le mail annonçait lundi pendant que
+       le cours atterrissait dimanche. */
+    preparerDepuisRappel(nom, jourChoisiMaintenant(),
       $('rapMoniteur') ? $('rapMoniteur').value : '',
       detailsDuRappel(lireChoixRappel(), {
         /* ⚠️ LE TYPE SE LIT À L'ÉCRAN, PAS EN MÉMOIRE — v1027.
