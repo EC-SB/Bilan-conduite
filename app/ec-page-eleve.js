@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 18/09/2026 à 17:08 — v1042 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1267,8 +1267,8 @@ function texteHeuresRoute(s){
      avant examen », c'est-à-dire « il est prêt » — écrit « 0h », on
      lit exactement le contraire. Même règle que le questionnaire et
      que l'alerte du bandeau. */
-  let t = (h === '0') ? 'Plus que les 3h avant examen'
-                      : h + 'h + les 3h avant examen';
+  let t = (h === '0') ? "Plus que la leçon de veille de l'examen"
+                      : h + 'h + la leçon de veille';
 
   /* ⚠️ DEPUIS QUAND, ET PAS SEULEMENT PAR QUI — v914.
 
@@ -1341,7 +1341,8 @@ async function modifierHeuresRoute(nom, s){
 
   const r = await formulaireRoute("⏱️ Les heures de " + nom,
     "Ce qu'il lui reste à conduire avant l'examen, en heures. " +
-    "0 veut dire « plus que les 3h » — il est prêt. Vide veut dire " +
+    '0 veut dire « plus que la leçon de veille » — il est prêt. ' +
+    'Vide veut dire ' +
     "qu'on ne sait pas." +
     (choixPossible
       ? "\n\nIl en est à sa " + c.rang + "ᵉ leçon depuis l'examen blanc : " +
