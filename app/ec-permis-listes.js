@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:48 — v1047 */
+/* Déployé le 19/09/2026 à 09:48 — v1048 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2373,7 +2373,11 @@ function afficherPermisPrevus(tous){
                  (x._boite === 'bea' ? '🅰 BEA'
                   : x._boite === 'handicap' ? '♿ Handicap' : '🅑 BV') +
                  ' · Permis le ' + (x._datePermis || 'date inconnue') +
-                 (x.etat.permisN !== null ? ' · encore ' + x.etat.permisN + ' leçon(s)' : '') +
+                 /* ⚠️ EN HEURES, avec les mots de l'application — v1048.
+                    C'était « encore N leçon(s) » sur un nombre d'HEURES :
+                    le double du vrai. Voir « permisHeures », ec-bureau.js. */
+                 (x.etat.permisHeures !== null
+                   ? ' · ' + motsDeLaReserve(String(x.etat.permisHeures), true) : '') +
                  mentionHeuresRestantes(x.eleve) +
                  mentionExamenBlanc(x) +
                  (autre ? '\n📝 ' + autre : '');
@@ -2955,7 +2959,9 @@ function afficherExamensPermis(tous){
           const base = rep + ((x.etat.permis === 'annule') ? 'Examen annulé — à reprogrammer'
                                                           : 'Date à prévoir') + att + suite + dispo;
           const dem = x.date ? ' · demandé le ' + x.date : '';
-          const lec = (x.etat.permisN !== null) ? ' · ' + x.etat.permisN + ' leçon(s) à prévoir' : '';
+          /* ⚠️ EN HEURES — v1048, même défaut qu'au-dessus. */
+          const lec = (x.etat.permisHeures !== null)
+            ? ' · ' + motsDeLaReserve(String(x.etat.permisHeures), true) + ' à prévoir' : '';
           const u = libelleUrgence(x.urgence);
           return base + dem + lec + mentionHeuresRestantes(x.eleve) +
                  mentionExamenBlanc(x) +
