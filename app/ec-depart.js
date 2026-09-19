@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:53 — v1033 */
+/* Déployé le 19/09/2026 à 09:48 — v1048 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -473,7 +473,9 @@ function etapesEleve(note, consignes, leconsConnues){
 
   if(a.permis === 'prevu'){
     etapes.push({ ok:true, txt:'Examen du permis prévu' + (a.permisDate ? ' le ' + a.permisDate : '') +
-      (a.permisN !== null ? ' — encore ' + a.permisN + ' leçon(s)' : '') });
+      /* ⚠️ EN HEURES — v1048. Voir « permisHeures », ec-bureau.js. */
+      (a.permisHeures !== null
+        ? ' — ' + motsDeLaReserve(String(a.permisHeures), true) : '') });
   }
   else if(a.permis === 'annule') etapes.push({ ok:false, txt:'Examen du permis annulé' });
   else if(a.permis === 'aprevoir') etapes.push({ ok:false, txt:'Date d\'examen à prévoir' });
