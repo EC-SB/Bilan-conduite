@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:03 — v1045 */
+/* Déployé le 19/09/2026 à 08:25 — v1046 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2747,26 +2747,81 @@ function ficheMinimale(nom){
    leçon ait eu lieu. Seul « ⛔ pas de repassage » tient à l'écart,
    et celui-là se voit déjà à « retireAPrevoir ».
    ============================================================ */
-function estPretAuPermis(e){
-  if(!e) return false;
+/* ⚠️ ET LA MÊME FONCTION SAIT DIRE POURQUOI — v1046.
+
+   David, le 19 septembre : « Sandra Poccechi, quand je l'ajoute à
+   la main, ça me met le message comme quoi elle est mise, mais elle
+   n'est pas dans la liste des prêts ».
+
+   Le bouton annonçait « ✅ » sans jamais regarder le résultat. Il y
+   a au moins cinq raisons de ne pas entrer dans cette liste — une
+   date déjà posée, une place tenue sur une session, un masque du
+   bureau, une conclusion « pas de repassage », ou rien qui annonce
+   quoi que ce soit — et aucune ne se voyait : l'élève ne s'affichait
+   simplement pas, avec un ✅ au-dessus.
+
+   ⚠️ UNE SEULE RÈGLE, DEUX USAGES. La raison et la question fermée
+   sortent de la MÊME fonction : « estPretAuPermis » n'est plus que
+   « pourquoiPasPret(e) === null ». Écrire les raisons à côté du
+   filtre aurait recréé exactement ce qu'on vient de réparer entre
+   la liste et la fiche — deux règles pour une même question, qui
+   finissent par ne plus dire la même chose. */
+function pourquoiPasPret(e){
+  if(!e) return { cle: 'inconnu',
+    mot: "Cet élève n'apparaît dans aucune liste du bureau : il n'a ni " +
+         'bilan récent, ni message en attente.' };
+
+  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
+  const et = e.etat || {};
 
   /* Une date déjà posée, ou une place dans une session : il n'est
      plus « à placer », quoi que dise sa note. Celle-ci vient
      souvent d'un cours antérieur à la date. */
-  if(dejaPlace(e)) return false;
+  if(dejaPlace(e)){
+    const d = String(s.datePermis || '').trim();
+    if(d) return { cle: 'date',
+      mot: "Sa date d'examen est déjà posée (" + d + '). Il est dans ' +
+           '« 🎓 Examens prévus », pas chez les élèves à placer.' };
+    const dn = String(et.permisDate || '').trim();
+    if(dn) return { cle: 'annonce',
+      mot: "Sa dernière note annonce déjà une date d'examen (" + dn +
+           '). Tant qu\'elle est là, il compte comme placé.' };
 
-  const et = e.etat || {};
-  if(et.permis === 'aprevoir' || et.permis === 'annule') return true;
+    /* ⚠️ ON DÉDUIT, ON NE RELIT PAS LA SESSION. Ni date de fiche, ni
+       date dans la note, et pourtant « déjà placé » : il ne reste
+       qu'une place tenue sur une session. La relire ici ferait de
+       cette fonction un TROISIÈME lecteur de « placeEnSessionDe » —
+       il n'y en a que deux d'autorisés, et c'est en ajouter un qui
+       avait faussé le compte des places. Un test l'a rappelé dans
+       la minute. En déduisant, le message suit « dejaPlace » même si
+       ses règles changent un jour. */
+    return { cle: 'place',
+      mot: "Il occupe déjà une place d'examen sur une session ouverte." };
+  }
 
-  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
+  if(et.permis === 'aprevoir' || et.permis === 'annule') return null;
 
   /* Un rendez-vous post-permis fixé garde l'élève visible ici : on
      attend ce rendez-vous pour savoir s'il repasse, et sans ça il
      disparaissait de toutes les listes entre-temps. */
-  if(s.rdvPostDate && s.rdvPostFait !== 'oui') return true;
+  if(s.rdvPostDate && s.rdvPostFait !== 'oui') return null;
 
   /* … et une fois qu'il a eu lieu, c'est sa conclusion qui parle. */
-  return !!(s.rdvPostFait === 'oui' && s.suite && s.suite !== 'impossible');
+  if(s.rdvPostFait === 'oui' && s.suite && s.suite !== 'impossible') return null;
+
+  if(s.rdvPostFait === 'oui' && s.suite === 'impossible')
+    return { cle: 'impossible',
+      mot: 'Son rendez-vous post-permis a conclu « ⛔ pas de repassage ' +
+           'pour le moment ». Il est dans ce tiroir-là.' };
+
+  return { cle: 'rien',
+    mot: "Rien n'annonce qu'il attend une date d'examen : ni sa dernière " +
+         'note, ni un message du bureau en attente, ni un rendez-vous ' +
+         'post-permis.' };
+}
+
+function estPretAuPermis(e){
+  return pourquoiPasPret(e) === null;
 }
 
 /* Prêt, mais rangé ailleurs par une décision du bureau. On le
@@ -4534,13 +4589,71 @@ async function ajouterManuellementAuPermis(mode){
     }else{
       await envoyerConsigne(eleve, 'permis', "Date d'examen à prévoir (bureau)");
       await majSuivi(eleve, { retireAPrevoir: '', aPlanifier: '' });
-      showToast(eleve + ' → prêt au permis ✅');
     }
     viderCaches(eleve);
     await afficherBureau(true);
+
+    /* ⚠️ ON REGARDE AVANT DE DIRE QUE C'EST FAIT — v1046.
+
+       David : « quand je l'ajoute à la main, ça me met le message
+       comme quoi elle est mise, mais elle n'est pas dans la liste
+       des prêts ». Le « ✅ » partait AVANT le rechargement, et sans
+       jamais regarder la liste. Il annonçait donc une réussite qu'il
+       n'avait pas vérifiée — et quand l'élève n'y était pas, rien
+       à l'écran ne disait pourquoi.
+
+       C'est la règle déjà écrite dans « majSuivi » : mieux vaut un
+       écran qui réclame qu'un écran qui ment. */
+    if(mode === 'prevu'){
+      showToast(eleve + ' → permis le ' + dateCourte(place.date) + ' ✅');
+      return;
+    }
+    await direOuEstPasseLEleve(eleve);
   }catch(e){
     await informer('Enregistrement impossible : ' + e.message);
   }
+}
+
+/* Après un ajout à la main : ou bien il est là, ou bien on dit ce
+   qui le retient — et on propose le geste qui débloque. */
+async function direOuEstPasseLEleve(eleve){
+  const e = (typeof trouverParNom === 'function')
+    ? trouverParNom(etatBureau.eleves, eleve) : null;
+
+  const raison = pourquoiPasPret(e);
+  const masque = e && masquePretAuPermis(e);
+
+  /* Un filtre laissé sur la liste cache l'élève qu'on vient d'y
+     mettre : la liste a raison, c'est l'écran qui ne le montre pas.
+     On ne le compte pas comme un échec — on lève le filtre. */
+  const f = $('filtrePermis');
+  if(!raison && !masque && f && f.value){
+    f.value = '';
+    afficherBureau(true);
+    showToast(eleve + ' → prêt au permis ✅ (filtre de la liste levé)');
+    return;
+  }
+
+  if(!raison && !masque){ showToast(eleve + ' → prêt au permis ✅'); return; }
+
+  if(masque){
+    await informer(
+      eleve + " est enregistré, mais il n'apparaît pas dans la liste :\n\n" +
+      'le bureau l\'a rangé ailleurs (⏸️ mis de côté, ou 🗓️ RDV Permis).\n\n' +
+      'Tu le récupères depuis le bandeau « ℹ️ élève(s) masqué(s) », en ' +
+      'haut de la liste des prêts.', 'Enregistré, mais rangé ailleurs');
+    return;
+  }
+
+  await informer(
+    eleve + " est enregistré, mais il n'apparaît pas dans la liste des " +
+    'élèves prêts au permis :\n\n' + raison.mot +
+    (raison.cle === 'rien'
+      ? "\n\nSi le message du bureau vient d'être écrit, il peut mettre " +
+        'quelques secondes à revenir du classeur : réessaie dans un ' +
+        'instant, ou rouvre l\'onglet.'
+      : ''),
+    "Enregistré, mais pas dans la liste");
 }
 
 /* ============================================================
