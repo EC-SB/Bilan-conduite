@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 18/09/2026 à 17:08 — v1042 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -4148,8 +4148,9 @@ async function saisirPostPermis(nom){
   if(fait === 'oui'){
     const h = await demander(
       "Combien d'heures avant le repassage ?\n" +
-      'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
-      'Mets 0 s\'il ne reste que les 3h.',
+      "La leçon de veille de l'examen (3h) vient en plus : « 4 » " +
+      'signifie 4 + 3.\n' +
+      "Mets 0 s'il ne reste que la leçon de veille.",
       s.heuresRepassage || '', nom);
 
     if(h !== null){
