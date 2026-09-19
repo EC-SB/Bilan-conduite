@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:05 — v1052 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -3327,7 +3327,7 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
         '<select id="qEBPasse">' +
           '<option value="">— à renseigner —</option>' +
           '<option value="niveauok">✅ A le niveau — heures à préciser</option>' +
-          '<option value="3h">✅ Plus que la leçon de veille</option>' +
+          '<option value="3h">✅ ' + motDuZeroEnTete() + '</option>' +
           '<option value="lecons">⏳ Encore des leçons avant examen</option>' +
           '<option value="pasleniveau">⛔ Pas le niveau</option>' +
         '</select>' +
@@ -6029,7 +6029,8 @@ function ajouterSuite(etats, permis, mots, q){
       : dateEnToutesLettres($('lessonDate').value || todayLocal());
     const tete = '🅱️ ' + numero + ETAT_EB_PASSE + ' le ' + jour;
     if(q.ebPasse === '3h'){
-      etats.push(tete + ' — plus que la leçon de veille de l\'examen');
+      /* Les mots du zéro viennent de leur porte — v1053. */
+      etats.push(tete + suiteReserveSoldee());
     }else if(q.ebPasse === 'lecons'){
       const k = q.ebLecons;
       etats.push(tete + ' — encore ' + (k || '❓') +
@@ -6103,7 +6104,7 @@ function ajouterSuite(etats, permis, mots, q){
        ne disait rien de plus que « PASSÉ ». */
     const conclusion =
         (String(q.ebNiveau || '') === 'non') ? SUITE_PAS_LE_NIVEAU
-      : (hEB === '0')                        ? ' — plus que la leçon de veille de l\'examen'
+      : (hEB === '0')                        ? suiteReserveSoldee()
       : hEB                                  ? ' — ' + hEB + ' + 3h'
       : '';
     etats.push(tete + jourEB + conclusion);
@@ -6206,7 +6207,7 @@ function ajouterSuite(etats, permis, mots, q){
       return ' — ⛔ PAS LE NIVEAU POUR CET EXAMEN — élève à changer';
     }
     return (parseFloat(s.replace(',', '.')) === 0)
-      ? " — plus que la leçon de veille de l'examen"
+      ? suiteReserveSoldee()
       : ' — encore ' + s + 'h + 3h avant examen';
   };
 
@@ -7010,8 +7011,14 @@ async function chargerHistoriqueEleve(){
     const depuisCarte = (typeof ecranCoursNeuf === 'function') && ecranCoursNeuf() &&
                         (typeof coursOuvertDepuisCarte !== 'undefined') &&
                         coursOuvertDepuisCarte;
+    /* ⚠️ LE JOUR DU COURS, DEPUIS L'ÉCRAN QUI LE PORTE — v1053.
+       C'est « lessonDate » qui fait foi ici : la préparation peut
+       manquer, la date du cours ouvert, non. Sans elle, la règle de
+       la veille retombe sur le compteur — c'est-à-dire sur le seul
+       cas où il se trompe. */
     const bloc = blocAvantLeCours(nom, res, prep,
-                                  { avecDernierBilan: true, resume: depuisCarte });
+                                  { avecDernierBilan: true, resume: depuisCarte,
+                                    jour: $('lessonDate') ? $('lessonDate').value : '' });
 
     /* ⚠️ DEUX ENDROITS POSSIBLES, JAMAIS LES DEUX À LA FOIS — v931.
 
@@ -7318,7 +7325,10 @@ async function chargerHistoriquePrep(){
     const carte = blocAvantLeCours(nom, res,
       (typeof preparationDuCours === 'function')
         ? preparationDuCours(nom, $('prepDate') ? $('prepDate').value : '') : null,
-      { avecDernierBilan: false });
+      /* Même règle qu'à l'ouverture du cours — v1053 : sur l'écran de
+         préparation, c'est « prepDate » qui porte le jour du cours. */
+      { avecDernierBilan: false,
+        jour: $('prepDate') ? $('prepDate').value : '' });
 
     zone.appendChild(carte);
   }catch(e){
