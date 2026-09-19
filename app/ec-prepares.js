@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:25 — v1046 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1222,7 +1222,11 @@ async function afficherPrepares(recharger, silencieux){
     const pos = (typeof lignePositionDuHaut === 'function')
       /* Le modèle voyage avec : le jour de l'examen, la phrase est
          « EXAMEN CE JOUR — 4ÈME PASSAGE », et rien autour. */
-      ? lignePositionDuHaut(cours.eleve, partsNote.corps, cours.note, cours.modele)
+      /* … et le JOUR DU COURS aussi — v1053 : c'est lui qui dit si
+         l'examen est le lendemain, et cette carte-là est justement
+         celle que David lit en préparant sa journée. */
+      ? lignePositionDuHaut(cours.eleve, partsNote.corps, cours.note,
+                            cours.modele, cours.date)
       : ((typeof lignePosition === 'function')
           ? lignePosition(partsNote.corps) : '');
 
