@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:47 — v1016 */
+/* Déployé le 19/09/2026 à 07:28 — v1043 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3288,7 +3288,62 @@ function blocCepcInterneRdvPost(eleve){
 }
 
 
-function ouvrirRdvPost(cours){
+async function ouvrirRdvPost(cours){
+  /* ⚠️ UN SEUL COURS OUVERT À LA FOIS — corrigé en v1043.
+
+     David : « quand un moniteur finit un post-permis, ça fait un
+     truc bizarre : ça l'enregistre bien dans l'historique des cours,
+     mais il reste ouvert avec un bloc vocal, et quand on change
+     d'écran il demande d'y revenir ».
+
+     Le rendez-vous s'ouvrait PAR-DESSUS le cours en route. Les deux
+     autres portes de l'écran de cours — ouvrirCoursPrepare et
+     reprendreBrouillonServeur — posent ce garde-fou depuis
+     longtemps ; celle-ci ne l'avait pas, et trois de ses quatre
+     appelants l'appellent en direct, sans passer par la première.
+     La dictée du cours d'avant restait donc dessous, vivante, et
+     réapparaissait à la fermeture du rendez-vous.
+
+     ⚠️ LE GARDE-FOU VIT ICI, PAS CHEZ LES APPELANTS. Une parade
+     posée chez l'appelant est une parade qu'on oublie au quatrième :
+     c'est exactement ce qui vient d'arriver. */
+  if(typeof travailEnCoursMoniteur === 'function' && travailEnCoursMoniteur()){
+    const ouvert = ($('studentName') && $('studentName').value.trim()) || 'Un autre';
+    if(!await confirmer(
+        'Le cours de ' + ouvert + ' est encore ouvert.\n\n' +
+        ((typeof ouOnRetrouveLeCoursOuvert === 'function')
+          ? ouOnRetrouveLeCoursOuvert() : '') +
+        ' Ouvrir le rendez-vous post-permis de ' +
+        (cours.eleve || 'cet élève') + ' à la place ?',
+        'Ouvrir quand même')) return;
+
+    /* Le dernier instant où la dictée de l'autre est encore
+       lisible à l'écran : après, elle est fermée. */
+    if(typeof deposerBrouillonServeur === 'function'){
+      try{ await deposerBrouillonServeur(); }catch(e){}
+    }
+    if(typeof fermerLeCoursOuvert === 'function') fermerLeCoursOuvert();
+
+    /* ⚠️ ET LA DICTÉE D'AVANT NE RESTE PAS VIVANTE DESSOUS.
+       « fermerLeCoursOuvert » ne touche pas au bloc de dictée : les
+       deux autres portes ouvrent un cours juste après, qui l'efface
+       en s'installant. Le rendez-vous, lui, a son propre écran et
+       n'efface rien — le texte de l'autre restait donc à l'écran
+       derrière, et « un cours est ouvert » avec lui. Elle vient
+       d'être déposée : on l'efface de l'écran, pas de la mémoire. */
+    if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+    if(typeof committedTranscript !== 'undefined') committedTranscript = '';
+    if($('transcriptBox')){
+      $('transcriptBox').value = '';
+      $('transcriptBox').style.display = 'none';
+    }
+    if($('transcriptAide')) $('transcriptAide').style.display = 'none';
+    if($('compteur')) $('compteur').style.display = 'none';
+    if($('finishBtn')) $('finishBtn').style.display = 'none';
+    if($('studentName')) $('studentName').value = '';
+    if(typeof arreterChronoDuCours === 'function') arreterChronoDuCours();
+  }
+
   rdvPostEnCours = cours;
   const s = suiviDe(cours.eleve) || {};
 
@@ -3960,10 +4015,30 @@ async function terminerRdvPost(){
        elle ne doit pas revenir hanter le prochain rendez-vous. */
     oublierRdvPost();
 
-    setTimeout(() => {
+    setTimeout(async () => {
       rdvPostEnCours = null;
       $('rdvPostView').style.display = 'none';
-      $('recordView').style.display = 'block';
+
+      /* ⚠️ UN RENDEZ-VOUS TERMINÉ EST UN COURS TERMINÉ — v1043.
+
+         Ces trois lignes ne faisaient que DÉCOUVRIR l'écran de
+         cours : « recordView » redevenait visible avec ce qu'il y
+         avait dessous — le nom de l'élève, sa dictée, son bandeau
+         « cours en cours ». Le rendez-vous était enregistré et
+         l'application continuait d'annoncer un cours ouvert, et de
+         demander d'y revenir à chaque changement d'écran.
+
+         C'est « terminerCours » qui termine un cours, et c'est la
+         même porte pour tous : elle arrête le chrono, efface la
+         dictée, le bilan, le trajet et le nom, et rend l'écran au
+         suivant. Recopier sa dernière ligne — « recordView à
+         block » — c'était en prendre la façade sans le travail. */
+      if(typeof terminerCours === 'function'){
+        try{ await terminerCours(); }
+        catch(e){ $('recordView').style.display = 'block'; }
+      }else{
+        $('recordView').style.display = 'block';
+      }
       if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
     }, 1400);
   }catch(e){
