@@ -1,4 +1,4 @@
-/* Déployé le 16/09/2026 à 10:24 — v1012 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -1635,6 +1635,49 @@ function extraireFrise(note){
       l'arrondi : la règle est commune, la question ne l'est pas.
    ============================================================ */
 const HEURES_PAR_LECON = 2;
+
+/* ============================================================
+   LE MOT DU ZÉRO — v1053
+
+   « Il ne reste plus que la leçon de veille » : un bouton, une
+   pastille, une conclusion de note, une option de menu, un message
+   de confirmation, l'espace élève, une alerte du bandeau. Sept
+   formes, une seule décision — et donc UN SEUL endroit où le mot
+   s'écrit.
+
+   ⚠️ POURQUOI ICI, ET PAS À CÔTÉ DE « motsDeLaReserve ». Parce que
+   ec-modeles est le premier module chargé, comme HEURES_PAR_LECON
+   juste au-dessus : tout le monde peut donc le demander SANS
+   « typeof … !== 'undefined' ». Et c'est le fond de l'affaire —
+   un repli « sinon, dire <la phrase> » est une recopie déguisée.
+   Il y en avait dix-huit, et elles auraient toutes survécu au
+   prochain renommage, silencieusement, exactement comme les huit
+   que la v1041 avait oubliées.
+
+   ⚠️ LA PHRASE QUI EXPLIQUE LA RÈGLE N'EN EST PAS. « La leçon de
+   veille de l'examen (3h) vient en plus » apprend au moniteur ce
+   que « 4 » veut dire ; elle n'annonce l'état de personne, et elle
+   reste écrite là où l'on demande un nombre.
+
+   ⚠️ ET LES NOTES DÉJÀ ÉCRITES SE RELISENT. Les motifs qui relisent
+   cette conclusion acceptent les deux formulations — « les 3h » et
+   « la leçon de veille » — depuis la v1041. Reconnaître l'ancien
+   vocabulaire, ce n'est pas le garder, c'est le traduire.
+   ============================================================ */
+const CONCLUSION_RESERVE_SOLDEE = 'plus que les 3h avant examen';
+
+/* Prête à coller derrière une date : « … le 12 mai — plus que les
+   3h avant examen ». */
+function suiteReserveSoldee(){
+  return ' — ' + CONCLUSION_RESERVE_SOLDEE;
+}
+
+/* La même, majuscule en tête : un bouton, un titre, une phrase qui
+   commence. */
+function motDuZeroEnTete(){
+  return CONCLUSION_RESERVE_SOLDEE.charAt(0).toUpperCase() +
+         CONCLUSION_RESERVE_SOLDEE.slice(1);
+}
 
 /* Un nombre écrit à la main peut arriver avec une virgule, ou
    collé à son unité (« 4h ») : on lit le nombre en tête, comme le
