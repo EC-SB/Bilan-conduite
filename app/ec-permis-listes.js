@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 08:03 — v1045 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2716,28 +2716,76 @@ function ficheMinimale(nom){
 }
 
 
+/* ============================================================
+   EST-IL PRÊT AU PERMIS ? — UNE SEULE PORTE — v1045
+
+   David, le 19 septembre : « Sandra qui a fait son rendez-vous
+   post-permis hier, sur sa fiche élève c'est noté qu'elle est dans
+   la liste des élèves prêts, sauf qu'elle n'y est pas ».
+
+   Les deux écrans ne répondaient pas à la même question. La LISTE
+   demandait à la note ce qu'elle annonçait ; la FICHE regardait
+   quatre colonnes du suivi et, si elles étaient vides, concluait
+   « prêt ». Deux règles pour une même question finissent toujours
+   par ne plus dire la même chose — ici il aura fallu une journée.
+
+   ⚠️ ET CE QUI FAIT ENTRER NE POUVAIT PAS DURER. L'appartenance de
+   Sandra tenait à une seule chose : la consigne « Rendez-vous
+   post-permis fait — … · Date d'examen à prévoir », que
+   « chargerBureau » relit dans l'état de l'élève TANT QU'ELLE N'EST
+   PAS TRAITÉE. Le jour où le bureau la coche — c'est-à-dire le
+   lendemain — l'annonce s'efface. Et comme « rdvPostFait » venait
+   de passer à « oui », la voie de secours d'en dessous était
+   fermée le même jour : Sandra sortait de la liste sans qu'une
+   seule case de son suivi ait bougé.
+
+   Un fait durable ne peut pas reposer sur un message qu'on classe.
+   Le rendez-vous post-permis EST fait, sa conclusion EST écrite :
+   c'est cela qu'on lit désormais. David, le 19 septembre : une
+   conclusion « 🚗 une leçon de 2h pour refaire le point » rend prêt
+   TOUT DE SUITE — la place d'examen se prend sans attendre que la
+   leçon ait eu lieu. Seul « ⛔ pas de repassage » tient à l'écart,
+   et celui-là se voit déjà à « retireAPrevoir ».
+   ============================================================ */
+function estPretAuPermis(e){
+  if(!e) return false;
+
+  /* Une date déjà posée, ou une place dans une session : il n'est
+     plus « à placer », quoi que dise sa note. Celle-ci vient
+     souvent d'un cours antérieur à la date. */
+  if(dejaPlace(e)) return false;
+
+  const et = e.etat || {};
+  if(et.permis === 'aprevoir' || et.permis === 'annule') return true;
+
+  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
+
+  /* Un rendez-vous post-permis fixé garde l'élève visible ici : on
+     attend ce rendez-vous pour savoir s'il repasse, et sans ça il
+     disparaissait de toutes les listes entre-temps. */
+  if(s.rdvPostDate && s.rdvPostFait !== 'oui') return true;
+
+  /* … et une fois qu'il a eu lieu, c'est sa conclusion qui parle. */
+  return !!(s.rdvPostFait === 'oui' && s.suite && s.suite !== 'impossible');
+}
+
+/* Prêt, mais rangé ailleurs par une décision du bureau. On le
+   distingue de « pas prêt » : un élève masqué se récupère d'un
+   bouton, un élève absent ne se cherche nulle part. */
+function masquePretAuPermis(e){
+  const s = (typeof suiviDe === 'function') ? suiviDe(e.eleve) : {};
+  return s.aPlanifier === 'oui' || s.retireAPrevoir === 'oui';
+}
+
+
 /* Élèves prêts au permis */
 function afficherExamensPermis(tous){
   const zPer = $('listePermis');
   if(!zPer) return;
 
-  /* Un rendez-vous post-permis fixé garde l'élève visible ici : on
-     attend ce rendez-vous pour savoir s'il repasse, et sans ça il
-     disparaissait de toutes les listes entre-temps. */
-  const candidats = tous.filter(e => {
-    /* Une date déjà posée, ou une place dans une session : il
-       n'est plus « à placer », quoi que dise sa note. Celle-ci
-       vient souvent d'un cours antérieur à la date. */
-    if(dejaPlace(e)) return false;
-
-    if(e.etat.permis === 'aprevoir' || e.etat.permis === 'annule') return true;
-    const s = suiviDe(e.eleve);
-    return !!(s.rdvPostDate && s.rdvPostFait !== 'oui');
-  });
-  const masques = candidats.filter(e => suiviDe(e.eleve).aPlanifier === 'oui' ||
-                                        suiviDe(e.eleve).retireAPrevoir === 'oui');
-  let per = candidats.filter(e => suiviDe(e.eleve).aPlanifier !== 'oui' &&
-                                  suiviDe(e.eleve).retireAPrevoir !== 'oui');
+  const candidats = tous.filter(e => estPretAuPermis(e));
+  const masques = candidats.filter(e => masquePretAuPermis(e));
+  let per = candidats.filter(e => !masquePretAuPermis(e));
 
   /* Filtre par état */
   const fPer = $('filtrePermis') ? $('filtrePermis').value : '';
@@ -2806,6 +2854,17 @@ function afficherExamensPermis(tous){
     zPer.appendChild(m);
   }
 
+  /* ⚠️ LE COMPTEUR SE POSE DANS TOUS LES CAS — v1045.
+
+     Il était écrit dans la branche « la liste n'est pas vide ». Quand
+     elle se vidait, personne ne le réécrivait : il gardait la valeur
+     du dessin précédent. La tuile « En un coup d'œil » annonçait donc
+     « 1 élève prêt », on ouvrait, et la liste disait « Aucun élève
+     prêt au permis ». C'est ce qui rendait la disparition de Sandra
+     si difficile à voir : l'écran d'accueil continuait de la
+     compter. Un compteur n'a pas le droit de décrire l'avant. */
+  majVolet('cptAPrevoir', per.length);
+
   if(!per.length){
     const v = document.createElement('div');
     v.className = 'empty';
@@ -2821,7 +2880,6 @@ function afficherExamensPermis(tous){
       (nRep ? ' · dont ' + nRep + ' repassage(s)' : '');
     zPer.appendChild(cpt);
     signalerAjout(zPer);
-    majVolet('cptAPrevoir', per.length);
   per.forEach(e => {
       zPer.appendChild(ligneBureau(e, {
         replier: true,
