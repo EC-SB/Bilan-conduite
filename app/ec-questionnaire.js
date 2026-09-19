@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 09:48 — v1048 */
+/* Déployé le 19/09/2026 à 10:00 — v1049 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1606,6 +1606,41 @@ function calageDe(nom, quoi){
     const n = parseInt(s['decal' + quoi], 10);
     return isNaN(n) ? 0 : n;
   }catch(e){ return 0; }
+}
+
+
+/* ============================================================
+   D'OÙ VIENT CE NOMBRE, SOUS LE BOUTON — v1049
+
+   David : « comme on ne voit pas l'info de ce qui a été dit à
+   l'examen blanc ou au post-permis, on est perdu aussi ». Le bouton
+   annonçait un solde sans jamais dire de quoi il était le solde.
+
+   Les décisions — 6 + 3 au rendez-vous post-permis du 11 août,
+   4 + 3 à l'examen blanc — viennent de la porte qui les connaît
+   déjà, « prescriptionsDeLaReserve ». Les reconstruire ici à partir
+   du suivi, ce serait une deuxième lecture des mêmes cases : celle
+   qui finit par ne plus dire comme le bouton juste en dessous.
+
+   ⚠️ ET C'EST UNE FONCTION, PAS UN BLOC PERDU DANS LA FENÊTRE. Elle
+   vivait en closure au milieu de quatre cents lignes : une mutation
+   qui la neutralisait ne se voyait nulle part, faute de pouvoir
+   l'exécuter seule. Ce qu'on ne peut pas appeler, on ne peut pas le
+   vérifier.
+   ============================================================ */
+function direDOuVientLaReserve(zone, nom){
+  if(!zone) return 0;
+  zone.innerHTML = '';
+  zone.style.display = 'none';
+  if(typeof prescriptionsDeLaReserve !== 'function') return 0;
+
+  const p = prescriptionsDeLaReserve(nom) || [];
+  if(!p.length) return 0;
+
+  zone.innerHTML = p.map(x =>
+    '<div>' + String(x.mot).replace(/</g, '&lt;') + '</div>').join('');
+  zone.style.display = 'block';
+  return p.length;
 }
 
 
@@ -3359,6 +3394,14 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       '<div id="qBlocHeuresPermis" style="display:none;">' +
         '<label for="qHeuresBouton">Heures restantes avant l\'examen</label>' +
         '<input type="hidden" id="qHeuresPermis">' +
+        /* ⚠️ D'OÙ VIENT CE NOMBRE — v1049. David : « comme on ne voit
+           pas l'info de ce qui a été dit à l'examen blanc ou au
+           post-permis, on est perdu aussi ». Le bouton annonçait un
+           solde sans jamais dire de quoi il était le solde. Les
+           décisions se lisent AU-DESSUS de lui, parce qu'on les lit
+           avant de décider, pas après. */
+        '<div id="qHeuresDOu" style="display:none;font-size:11.5px;' +
+          'color:var(--accent-text);line-height:1.6;margin:-2px 0 7px;"></div>' +
         '<button type="button" id="qHeuresBouton" class="btn btn-secondary" ' +
           'style="width:auto;margin:0 0 6px;padding:9px 12px;font-size:13px;">' +
           '⏱️ Heures à préciser</button>' +
@@ -4602,6 +4645,11 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
       bH.style.borderColor = c;
     };
     direLaReserve();
+
+    /* ⚠️ ET ON DIT DE QUOI C'EST LE SOLDE — v1049. Voir
+       « direDOuVientLaReserve », juste en dessous de la fenêtre. */
+    direDOuVientLaReserve(boite.querySelector('#qHeuresDOu'),
+                          ($('studentName') || {}).value);
 
     /* ⚠️ LA MÊME FENÊTRE QUE LE BUREAU, pas une deuxième qui lui
        ressemble. Elle n'écrit rien ici : elle rend le choix, et
