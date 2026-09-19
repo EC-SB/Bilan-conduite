@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 07:42 — v1044 */
+/* Déployé le 19/09/2026 à 08:03 — v1045 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1934,7 +1934,7 @@ async function afficherPrepares(recharger, silencieux){
         bFait.disabled = true;
         bFait.textContent = '…';
         try{
-          await appelPrep({ action: 'prepDelete', id: cours.id });
+          await supprimerPreparation(cours);
           showToast('Retiré ✅');
           afficherPrepares();
         }catch(e){
@@ -2030,7 +2030,7 @@ async function afficherPrepares(recharger, silencieux){
                         ? ' et a été préparé par ' + cours.preparePar : '') + '.'))) return;
         bSupp.disabled = true;
         try{
-          const r = await appelPrep({ action: 'prepDelete', id: cours.id });
+          const r = await supprimerPreparation(cours);
           if(r && r.status === 'error'){ showToast(r.message); bSupp.disabled = false; return; }
           afficherPrepares();
         }catch(e){
@@ -2786,6 +2786,80 @@ async function peindreHandicapDesCartes(){
   });
 }
 
+/* ============================================================
+   SUPPRIMER UNE PRÉPARATION — UNE SEULE PORTE — v1045
+
+   David, le 19 septembre : « j'ai voulu préparer un post-permis,
+   sauf que je me suis trompé d'élève, j'ai enregistré, il s'est mis
+   dans les prochains cours du moniteur, je l'ai enlevé des prochains
+   cours et je ne le vois plus dans attente post-permis ».
+
+   Préparer un rendez-vous post-permis écrit à DEUX ENDROITS SANS
+   LIEN : trois colonnes du suivi — rdvPostDate, rdvPostMoniteur,
+   bilanExamen, ce dernier se pré-remplissant tout seul depuis les
+   cours enregistrés — et une ligne dans les préparations. Le tiroir
+   « ⏳ Attente bilan post-permis » tient le dossier pour organisé dès
+   que les trois colonnes sont pleines, et le replie sous « ✅ N
+   rendez-vous déjà organisé(s) », compteur vide.
+
+   Or « prepDelete » ne touche QUE la feuille des préparations — des
+   deux côtés du serveur, c'est une suppression de ligne et rien de
+   plus. Les trois colonnes restaient donc pleines : l'élève était
+   classé « rendez-vous organisé » alors qu'aucun cours n'existait
+   plus nulle part. Une moitié posée, l'autre oubliée.
+
+   ⚠️ LA PARADE VIT DANS LA PORTE, PAS CHEZ LES APPELANTS. Ils sont
+   quatre à supprimer une préparation — le ✕ du bureau, le « ✓ Fait »
+   d'un cours passé, le retrait automatique après un cours, et la fin
+   du rendez-vous lui-même. Posée chez eux, elle manquerait au
+   cinquième ; c'est exactement l'histoire du garde-fou de la v1043.
+
+   ⚠️ ET ON NE LIBÈRE QUE CE QUI N'A PAS EU LIEU. « rdvPostFait ===
+   oui » veut dire que le rendez-vous s'est tenu : sa date est alors
+   un fait d'histoire, pas une réservation. C'est aussi ce qui laisse
+   « terminerRdvPost » passer ici sans précaution — il pose « oui »
+   avant de supprimer, donc il ne s'efface pas lui-même.
+   ============================================================ */
+async function supprimerPreparation(prep){
+  const id = prep && (prep.id || prep.prepId);
+  if(!id) return { status: 'error', message: 'Préparation sans identifiant.' };
+
+  const r = await appelPrep({ action: 'prepDelete', id: id });
+  if(r && r.status === 'error') return r;
+
+  try{ await libererRdvPostAnnule(prep); }
+  catch(e){ console.warn('Rendez-vous post-permis non libéré :', e); }
+
+  return r;
+}
+
+/* Un rendez-vous post-permis dont le cours disparaît redevient à
+   organiser. Le bilan de l'examen, lui, RESTE : il a été récupéré
+   auprès de l'inspecteur, il n'a pas à l'être une deuxième fois. */
+async function libererRdvPostAnnule(prep){
+  if(!prep || prep.modele !== 'rdv-post') return false;
+  const nom = prep.eleve || '';
+  if(!nom || typeof majSuivi !== 'function') return false;
+
+  /* ⚠️ ABSENT N'EST PAS VIDE. Côté moniteur, les fiches de suivi ne
+     sont pas forcément chargées : « aucune date » se lirait alors
+     comme « pas de rendez-vous », et on ne libérerait rien. On va
+     chercher l'état avant de conclure. */
+  let s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
+  if(!s.rdvPostDate && !s.rdvPostMoniteur && !s.rdvPostFait &&
+     typeof chargerBureau === 'function'){
+    try{ await chargerBureau(true); s = suiviDe(nom); }
+    catch(e){ return false; }
+  }
+
+  if(s.rdvPostFait === 'oui') return false;
+  if(!s.rdvPostDate && !s.rdvPostMoniteur) return false;
+
+  await majSuivi(nom, { rdvPostDate: '', rdvPostMoniteur: '' });
+  return true;
+}
+
+
 /* Retire de la liste la préparation du cours qui vient d'être fait.
    Ciblée : les autres cours du même élève sont conservés. */
 async function retirerPreparationFaite(){
@@ -2818,7 +2892,7 @@ async function retirerPreparationFaite(){
   if(!cible) return;
 
   try{
-    await appelPrep({ action: 'prepDelete', id: cible.id });
+    await supprimerPreparation(cible);
     prepareEnCours = null;
     afficherPrepares();
   }catch(e){
@@ -4060,7 +4134,7 @@ async function terminerRdvPost(){
 
     /* Le cours préparé n'a plus lieu d'être */
     if(rdvPostEnCours.id){
-      try{ await appelPrep({ action: 'prepDelete', id: rdvPostEnCours.id }); }catch(e){}
+      try{ await supprimerPreparation(rdvPostEnCours); }catch(e){}
     }
 
     /* ⚠️ ON NE DIT PAS « ENREGISTRÉ » QUAND LA LIGNE N'EST PAS
