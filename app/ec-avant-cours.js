@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 09:48 — v1048 */
+/* Déployé le 19/09/2026 à 10:00 — v1049 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -532,7 +532,45 @@ function lignePositionDuHaut(nom, corps, note, modele){
   const jourDit = (typeof dateEnToutesLettres === 'function')
     ? (dateEnToutesLettres(dateExam) || dateExam) : dateExam;
 
-  return ligneRestantAvantExamen(pos, a.permisHeures, jourDit);
+  /* ============================================================
+     ⚠️ CE QUI RESTE SE DEMANDE À LA PORTE, PAS À LA NOTE — v1049
+
+     David, le 19 septembre : « en 2 étapes je clique dessus pour
+     mettre ce qu'il reste, car il ne se met pas à jour tout seul ».
+
+     Il avait raison, et c'était encore deux règles pour une même
+     question. La FENÊTRE du crayon décompte : elle part de ce qui a
+     été prescrit — au rendez-vous post-permis ou à l'examen blanc —
+     et retire les leçons faites depuis. La CARTE, elle, relisait la
+     phrase figée dans la note du dernier bilan : elle ne pouvait
+     donc pas bouger tant que personne ne la réécrivait à la main.
+     D'où les deux étapes de David, à chaque fois.
+
+     « heuresQuiComptent » est cette porte — c'est déjà elle qui
+     nourrit le bouton du bureau et la fenêtre du moniteur. La carte
+     l'appelle maintenant aussi : trois écrans, un seul calcul.
+
+     ⚠️ ET SI ELLE NE SAIT RIEN, ON GARDE LA NOTE. Les fiches de
+     suivi ne sont pas chargées partout ; « je ne sais pas » y est
+     indiscernable de « il ne reste rien ». Absent n'est pas vide :
+     mieux vaut la phrase d'hier que pas de phrase du tout.
+     ============================================================ */
+  let reste = a.permisHeures;
+  if(typeof heuresQuiComptent === 'function'){
+    const q = heuresQuiComptent(nom) || {};
+    const su = String(q.valeur === undefined || q.valeur === null
+      ? '' : q.valeur).trim();
+    /* ⚠️ UN SEUL FILTRE, PAS DEUX. La première écriture écartait
+       « pas le niveau » par son nom AVANT de vérifier que c'est un
+       nombre — mais « niveau » n'est pas un nombre, et le second
+       filtre l'écartait déjà. Une mutation l'a montré : retirer le
+       premier ne changeait rien. Une garde qui ne garde rien fait
+       croire qu'elle protège, et c'est elle qu'on oublie de
+       corriger le jour où elle compterait vraiment. */
+    if(su !== '' && !isNaN(parseFloat(su))) reste = parseFloat(su);
+  }
+
+  return ligneRestantAvantExamen(pos, reste, jourDit);
 }
 
 /* ------------------------------------------------------------
