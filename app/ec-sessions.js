@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-sessions.js
    Les sessions d'examen, place par place.
@@ -1231,7 +1231,7 @@ function casesHeuresPermis(nom){
     try{
       await majSuivi(nom, majs);
       t.textContent = '⏱️ Heures avant permis' +
-        (v === '0' ? ' — plus que la leçon de veille'
+        (v === '0' ? suiteReserveSoldee()
                    : v ? ' — ' + v + ' + 3h' : '');
       t.style.color = 'var(--muted)';
       d.style.borderColor = 'var(--line)';
@@ -1246,7 +1246,8 @@ function casesHeuresPermis(nom){
     b.style.cssText = 'width:auto;padding:9px 13px;font-size:14px;margin:0;';
     b.textContent = v;
     b.setAttribute('data-val', v);
-    b.title = (v === '0') ? 'Plus que la leçon de veille' : v + ' + 3h';
+    /* Le mot du zéro vient de sa porte — v1053. */
+    b.title = (v === '0') ? motDuZeroEnTete() : v + ' + 3h';
     b.addEventListener('click', () => {
       champ.value = '';
       poser(v);
