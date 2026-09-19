@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:00 — v1049 */
+/* Déployé le 19/09/2026 à 10:41 — v1051 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3810,11 +3810,27 @@ function heuresQuiComptent(nom){
      rendez-vous. Elle se lit telle quelle sur la fiche de l'élève.
      Ce qu'on annonce ici, c'est le solde.
      ============================================================ */
+  /* ⚠️ ET LE DÉPASSEMENT SE DIT, IL NE SE RABOTE PAS — v1051.
+
+     David, le 19 septembre : « puisque 3 après post-permis, il était
+     prévu 6 + 3, donc 4 leçons ». Six heures font trois leçons de
+     deux, et la leçon de veille vient en quatrième. Le compte à
+     rebours annonce ce qu'il restera APRÈS le cours qu'on ouvre :
+     à la 3ᵉ, « plus que les 3h » ; à la 4ᵉ seulement, « c'est la
+     leçon de veille ».
+
+     Ces deux phrases se confondaient parce que le solde était raboté
+     à zéro : à zéro, on ne pouvait plus distinguer « la réserve est
+     tout juste épuisée » de « on est allé au-delà ». Le zéro reste —
+     tout ce qui le lit continue de le lire — et le dépassement part
+     à côté, pour qui sait quoi en faire. */
+  let depasse = false;
   const moinsLesLecons = (brut) => {
     const h = parseFloat(String(brut).replace(',', '.'));
     if(isNaN(h) || typeof leconsDepuisLaReserve !== 'function' ||
        typeof heuresPourLecons !== 'function') return String(brut).trim();
     const reste = h - heuresPourLecons(leconsDepuisLaReserve(nom, null));
+    if(reste < 0) depasse = true;
     /* Zéro n'est pas vide : « plus que les 3h » est une réponse, et
        c'est la plus utile des deux. Voir mentionHeuresRestantes. */
     return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
@@ -3832,7 +3848,46 @@ function heuresQuiComptent(nom){
 
   if(s.rdvPostFait === 'oui'){
     const h = String(s.heuresRepassage || '').trim();
-    if(h) return { valeur: moinsLesLecons(h), source: 'post-permis' };
+    if(h){
+      /* ============================================================
+         ⚠️ CE QU'ON VIENT DE DIRE PASSE DEVANT CE QUI A ÉTÉ PRESCRIT
+         — v1051
+
+         David, le 19 septembre : « le bouton heures restantes avant
+         l'examen ne se met pas à jour, je mets qu'il reste que les
+         3h avant examen mais ça ne sauvegarde pas ! »
+
+         Ça sauvegardait. Son « 0 » partait bien dans
+         « heuresRestantes », avec son auteur et sa date — mais
+         personne ne le relisait JAMAIS : dès qu'un rendez-vous
+         post-permis avait prescrit des heures, « heuresRepassage »
+         gagnait, quoi qu'on pose ensuite. Reproduit à l'identique :
+         poser 0 puis 4 laissait l'écran sur 6 les deux fois. Un
+         geste sans effet se lit comme un geste perdu, et on le
+         refait — c'est ce que David a fait.
+
+         La règle manquante tient en une phrase : entre deux
+         décisions, la PLUS RÉCENTE l'emporte. Le rendez-vous a parlé
+         le 11 août ; quelqu'un qui pose un nombre aujourd'hui en
+         sait plus que lui. Les deux dates sont là — « rdvPostDate »
+         et « heuresLe », posée par « champsHeuresRestantes » — il
+         suffisait de les comparer.
+
+         ⚠️ ET « heuresRepassage » NE BOUGE PAS. C'est ce que le
+         rendez-vous a DÉCIDÉ, et la fiche de l'élève le montre comme
+         tel. Ce qui change, c'est seulement lequel des deux on
+         annonce comme solde.
+         ============================================================ */
+      const hDit = String(s.heuresRestantes || '').trim();
+      const leDit = String(s.heuresLe || '').trim();
+      const lePost = String(s.rdvPostDate || '').trim();
+      if(hDit !== '' && leDit && lePost && leDit >= lePost){
+        const v1 = moinsLesLecons(hDit);
+        return { valeur: v1, source: 'moniteur', depasse: depasse };
+      }
+      const v2 = moinsLesLecons(h);
+      return { valeur: v2, source: 'post-permis', depasse: depasse };
+    }
   }
 
   /* ⚠️ UN EXAMEN BLANC QUI N'A PAS EU LIEU NE DIT RIEN — v1005.
@@ -3860,7 +3915,10 @@ function heuresQuiComptent(nom){
   }
 
   const h2 = String(s.heuresRestantes || '').trim();
-  if(h2) return { valeur: moinsLesLecons(h2), source: 'examen blanc' };
+  if(h2){
+    const v3 = moinsLesLecons(h2);
+    return { valeur: v3, source: 'examen blanc', depasse: depasse };
+  }
 
   return { valeur: '', source: '' };
 }
