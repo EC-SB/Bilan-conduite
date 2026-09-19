@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:23 — v1031 */
+/* Déployé le 19/09/2026 à 12:17 — v1055 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -2602,11 +2602,50 @@ async function enregistrerLeTrajet(meta){
   if(!t) return false;
 
   const m = meta || {};
+
+  /* ============================================================
+     ⚠️ LA DATE EN JJ/MM/AAAA, ET C'EST ICI QU'ON S'EN ASSURE — v1055
+
+     David, le 19 septembre : son cours du 19/09 annonçait « 1084
+     points » et le bouton 🗺️ répondait « Aucun trajet enregistré
+     pour ce cours ».
+
+     Le tracé était bien rangé — sous « 2026-09-19 ». La relecture,
+     elle, demande « 19/09/2026 », et le Worker compare les deux
+     chaînes à l'identique. Deux formats, aucune rencontre.
+
+     D'où venait l'ISO : « currentLessonMeta » se construit à cinq
+     endroits, et la dictée est la seule à poser « dateCourte ». Le
+     bilan manuel ne la pose pas ; on retombait donc sur « dateStr »
+     — la valeur brute d'un <input type="date">, donc ISO.
+
+     ⚠️ ET LA PARADE NE SE POSE PAS CHEZ LES CINQ APPELANTS. C'est
+     la leçon que ce dossier vient de repayer sur « colorerNote » :
+     une parade posée chez l'appelant est une parade qu'on oublie,
+     et il suffit d'en oublier un. Le format est une exigence de
+     CETTE écriture — le Worker le dit en toutes lettres, « EN
+     JJ/MM/AAAA, et pas autrement » — c'est donc elle qui l'impose.
+
+     ⚠️ ET CE N'ÉTAIT PAS QU'UN BOUTON MUET. Le ménage des vieux
+     tracés compare les dates en JJ/MM/AAAA : une ligne écrite en
+     ISO lui paraît « sans date », et une ligne sans date ne
+     s'efface jamais. Ces trajets-là s'accumulaient — des relevés
+     GPS gardés au-delà des deux mois de la note de service.
+
+     ⚠️ ET SANS DATE DU TOUT, ON PREND CELLE DU JOUR. C'est ce que
+     fait « dateCourteDuJour », et c'est juste ici : ce tracé vient
+     d'être relevé, il date d'aujourd'hui. Une chaîne vide, elle, ne
+     se retrouve jamais et ne s'efface jamais.
+     ============================================================ */
+  const jour = (typeof dateCourteDuJour === 'function')
+    ? dateCourteDuJour(String(m.date || ''))
+    : String(m.date || '');
+
   try{
     const r = await appelPrep({
       action: 'trajetSet',
       eleve: String(m.eleve || ''),
-      date: String(m.date || ''),
+      date: jour,
       moniteur: String(m.moniteur || ''),
       site: String(m.site || ''),
       km: t.km,
