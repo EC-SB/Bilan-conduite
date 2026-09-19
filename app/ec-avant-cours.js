@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 18/09/2026 à 17:08 — v1042 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -381,17 +381,34 @@ function positionAbregee(pos){
 /* La phrase du haut quand une date d'examen est prise et qu'on sait
    ce qu'il reste. « reste » vaut null quand on ne sait pas : on
    rend alors la position telle quelle, sans rien inventer. */
-function ligneRestantAvantExamen(position, reste){
+function ligneRestantAvantExamen(position, reste, dateExam){
   const pos = String(position || '').trim();
   const n = (reste === null || reste === undefined || reste === '')
     ? null : parseInt(reste, 10);
 
   if(n === null || isNaN(n)) return pos;
 
-  /* À zéro, ce sont les mots du questionnaire : « plus que les 3h
-     avant examen ». Pas « 0 leçon ». */
+  /* ⚠️ À ZÉRO, CE COURS-CI EST LA LEÇON DE VEILLE — David, v1042.
+
+     Devant la carte de Lucille Xardel : « il manque "c'est la leçon
+     de veille de l'examen". Pour elle c'était prévu 6+3, c'est la
+     4ᵉ après examen blanc, donc c'est la leçon de veille. Le
+     marqueur "Prendre CI" est aussi un indice : on prend la CI la
+     veille de l'examen. »
+
+     La ligne disait « Plus que les 3h avant examen » — ce qui RESTE
+     à faire. Mais quand la réserve est soldée et qu'une date est
+     prise, ce qui reste à faire, c'est précisément le cours qu'on
+     est en train d'ouvrir : il n'y a plus d'heures prescrites
+     devant. Le moniteur ne lit donc pas un solde, il lit ce qu'est
+     sa leçon d'aujourd'hui — et ça change ce qu'il y fait.
+
+     La date part avec, parce qu'elle est la seule chose qui peut
+     démentir la phrase : si l'examen est encore loin, le moniteur
+     le voit d'un coup d'œil au lieu de croire l'application. */
   const tete = (n === 0)
-    ? 'Plus que les 3h avant examen'
+    ? ("C'est la leçon de veille de l'examen" +
+       (dateExam ? ' du ' + dateExam : ''))
     : 'Reste encore ' + n + ' leçon' + (n > 1 ? 's' : '') + ' + 3h';
 
   const court = positionAbregee(pos);
@@ -499,7 +516,12 @@ function lignePositionDuHaut(nom, corps, note, modele){
     return lignePasLeNiveauAvantExamen(pos);
   }
 
-  return ligneRestantAvantExamen(pos, a.permisN);
+  /* La date en toutes lettres, comme partout ailleurs : « 21/09/2026 »
+     est une date de machine. */
+  const jourDit = (typeof dateEnToutesLettres === 'function')
+    ? (dateEnToutesLettres(dateExam) || dateExam) : dateExam;
+
+  return ligneRestantAvantExamen(pos, a.permisN, jourDit);
 }
 
 /* ------------------------------------------------------------
