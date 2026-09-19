@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:25 — v1046 */
+/* Déployé le 19/09/2026 à 08:48 — v1047 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3679,7 +3679,41 @@ function dejaPlace(e){
      Même lecture que les examens passés — voir « placeEnSessionDe ».
      Tant qu'elles étaient écrites deux fois, l'une pouvait le voir
      placé pendant que l'autre ne lui réclamait pas son résultat. */
-  if(placeEnSessionDe(e.eleve)) return true;
+  const pl = placeEnSessionDe(e.eleve);
+  if(pl){
+    /* ============================================================
+       ⚠️ UNE PLACE CONSOMMÉE N'EST PLUS UNE RÉSERVATION — v1047
+
+       David, le 19 septembre : « Sandra n'a pas de date de prévue,
+       je dois la voir dans la liste prêt au permis. Après un post-
+       permis, l'élève doit aller dans la liste prêt s'il n'a pas de
+       date de prévue ».
+
+       Sa fiche disait « 📅 Date d'examen : à prévoir » ET « sa
+       session d'examen : mercredi 19 août 2026 ». Les deux étaient
+       vraies : la date de sa fiche avait bien été effacée à
+       l'ajournement, mais sa PLACE du 19 août, elle, était restée —
+       c'est la trace de l'examen qu'elle a passé ce jour-là, pas
+       d'un examen à venir. Et « déjà placé » la lisait comme une
+       date, donc Sandra ne pouvait entrer dans aucune liste : ni
+       chez les prêts, ni nulle part ailleurs. Un mois durant.
+
+       ⚠️ ET ON NE LIBÈRE QUE CE QUI EST VRAIMENT SOLDÉ. Une place
+       passée dont le résultat n'est PAS saisi doit continuer de
+       compter : l'élève est alors dans « examens passés, résultat à
+       saisir », et l'en sortir le ferait disparaître de là aussi.
+       Le rendez-vous post-permis fait est la preuve que le tour est
+       joué : on ne le tient que sur un examen manqué, et il vient
+       forcément après. Une nouvelle place à venir reprend la main
+       d'elle-même — « sessionDeLEleve » rend la plus proche à venir
+       avant toute passée.
+       ============================================================ */
+    const auj = (typeof todayLocal === 'function')
+      ? todayLocal() : new Date().toISOString().slice(0, 10);
+    const passee = !!(pl.date && String(pl.date) < auj);
+    const soldee = passee && s.rdvPostFait === 'oui';
+    if(!soldee) return true;
+  }
 
   return false;
 }
