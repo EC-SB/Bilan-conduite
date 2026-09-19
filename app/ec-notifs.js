@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-notifs.js
    Ce qui attend une décision du bureau.
@@ -87,8 +87,9 @@ function alerteHeures(nom, foi){
    fiche de route et dans le questionnaire. */
 function texteAlerteHeures(x){
   const h = String((x && x.heures) || '');
-  const combien = (h === '0') ? "plus que la leçon de veille"
-                : h + 'h + la leçon de veille';
+  /* Le mot du zéro vient de sa porte — v1053. */
+  const combien = (h === '0') ? CONCLUSION_RESERVE_SOLDEE
+                              : h + 'h + la leçon de veille';
   return combien + (x && x.post ? ' — après son post-permis' : '');
 }
 
@@ -357,9 +358,9 @@ function ligneMasquee(x){
   z.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.5;';
   z.innerHTML = '<strong>' + x.eleve.replace(/</g, '&lt;') + '</strong> — ' +
     (t ? t.nom : x.type) +
-    (combien !== '' ? ' (' + (combien === '0'
-                                ? 'plus que la leçon de veille'
-                                : combien + 'h') + ')' : '') +
+    /* Les mots du zéro viennent de leur porte — v1053. */
+    (combien !== '' ? ' (' + (combien === '0' ? CONCLUSION_RESERVE_SOLDEE
+                                              : combien + 'h') + ')' : '') +
     '<div style="font-size:11px;color:var(--muted);">masquée le ' + x.quand +
     (x.par ? ' par ' + x.par.replace(/</g, '&lt;') : '') + '</div>';
   d.appendChild(z);
