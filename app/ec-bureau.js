@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 09:48 — v1048 */
+/* Déployé le 19/09/2026 à 10:00 — v1049 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -144,8 +144,27 @@ function analyserNote(note){
     }
   };
 
+  /* ============================================================
+     ⚠️ « EXAMEN OFFICIEL PRÉVU LE » — LA PHRASE QU'ON ÉCRIT — v1049
+
+     Trouvé en reproduisant le cas d'Ambre Guillebon. Le
+     questionnaire écrit « EXAMEN OFFICIEL PRÉVU LE MERCREDI 30
+     SEPTEMBRE 2026 » — c'est EXAMEN_PREVU_CLAIR, ec-questionnaire —
+     et ces motifs-ci cherchaient « Examen prévu le ». Le mot
+     « officiel » au milieu suffisait à ce qu'ils ne se rencontrent
+     jamais : ni l'état « examen prévu », ni le compte à rebours qui
+     le suit n'étaient relus dans les notes d'aujourd'hui.
+
+     Ce qui l'a caché si longtemps : les tests — les miens compris —
+     écrivaient « Examen prévu le », une phrase que l'application
+     n'écrit nulle part. Un test qui invente son entrée ne teste que
+     lui-même, et il reste vert pendant que l'écran se tait.
+
+     « officiel » est donc facultatif : l'ancienne forme vit encore
+     dans des centaines de notes, et on continue de la reconnaître.
+     ============================================================ */
   noter(/Examen du permis fixé au ([^—·(]+)/, 'prevu', true);
-  noter(/Examen prévu le ([^—·]+)/, 'prevu', true);
+  noter(/Examen(?: officiel)? prévu le ([^—·]+)/, 'prevu', true);
   noter(/(?:date d'examen|examen(?: du permis)?)\s*(?:est\s*)?à pr[ée]voir/, 'aprevoir', false);
   noter(/[Ee]xamen (?:du permis )?(?:du [^—·]+ )?annulé/, 'annule', false);
 
@@ -236,7 +255,11 @@ function analyserNote(note){
   /* ⚠️ Les deux formulations — v1041 : ce motif dit où en est CHAQUE
      élève déjà suivi. Le restreindre aux mots neufs les remettrait
      tous à zéro du jour au lendemain. */
-  const gN = /(?:Examen prévu le|dernier examen le|ajourné le)[^·\n\r]*?— (?:encore (\d+) leçon|encore (\d+)h|plus que (?:les 3h|la le[çc]on de veille))/gi;
+  /* ⚠️ « officiel » ICI AUSSI — v1049, même cause qu'au-dessus : la
+     note dit « EXAMEN OFFICIEL PRÉVU LE », ce motif attendait
+     « Examen prévu le », et le compte à rebours restait donc
+     introuvable dans toutes les notes écrites par le questionnaire. */
+  const gN = /(?:Examen(?: officiel)? prévu le|dernier examen le|ajourné le)[^·\n\r]*?— (?:encore (\d+) leçon|encore (\d+)h|plus que (?:les 3h|la le[çc]on de veille))/gi;
   let mn, dernierN = null;
   while((mn = gN.exec(t)) !== null){
     /* ⚠️ DEUX GROUPES, PAS UN — v1041. Le motif a gagné une branche
