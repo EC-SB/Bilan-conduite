@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:41 — v1051 */
+/* Déployé le 19/09/2026 à 11:58 — v1054 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -782,10 +782,46 @@ function champsHeuresRestantes(eleve, valeur, champs, depuis, charniere){
 
      Le couple entier fait donc foi, comme partout ailleurs dans ce
      dossier : un rang sans son unité ne désigne rien. */
+  /* ============================================================
+     ⚠️ … NI QUE SUR LE MÊME RANG — v1054
+
+     David, le 19 septembre, sur Henedi Ahmed : « dans le suivi elle
+     devait faire un point sur la leçon d'hier, je veux mettre 4 + 3
+     en appuyant sur le bouton mais il remet à 0 et écrit plus que la
+     leçon de veille — et c'est bien écrit dans son dossier élève que
+     j'ai mis 4 + 3 hier ».
+
+     Il avait mis 4 le 18 septembre, DEPUIS L'EXAMEN BLANC, c'est-à-
+     dire au rang zéro. Sept leçons plus tard, cette réserve-là est
+     évidemment consommée — et c'est bien ce que le bouton annonçait.
+     Seulement David ne LISAIT pas le bouton : il s'en SERVAIT pour
+     dire, aujourd'hui, qu'il reste 4 + 3. Le nombre étant le même et
+     la charnière aussi, la garde sortait ici, sans écrire le repère.
+     La réserve neuve gardait donc l'ancre de l'examen blanc, les
+     sept leçons se retiraient d'elle, et l'écran revenait à zéro.
+     Un geste sans effet se lit comme un geste perdu, et on le refait
+     — c'est exactement ce que David a fait, trois fois.
+
+     La v1014 avait déjà corrigé cette garde, pour la charnière, en
+     écrivant « le couple entier fait donc foi ». Il ne l'était pas :
+     le RANG en fait partie, et il était resté dehors. Une moitié
+     posée, l'autre oubliée, sur la ligne même qui annonçait le
+     contraire.
+
+     ⚠️ ET LA RÈGLE DE LA v908 TIENT TOUJOURS. « Le même nombre ne se
+     resigne pas » protège l'alerte ⏱️ : la redater chaque jour la
+     ferait revenir après qu'on l'a écartée. Mais un nombre reposé
+     AILLEURS DANS LE PARCOURS n'est pas le même fait — c'est une
+     réserve neuve qui vaut à partir d'ici. Ce qui ne se resigne pas,
+     c'est le fait entier : le nombre, sa charnière ET son rang.
+     ============================================================ */
   const repereActuel = (typeof repereDesHeures === 'function')
     ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
   const memeCharniere = (String(charniere || 'eb') || 'eb') === repereActuel.quoi;
-  if(String(s.heuresRestantes || '').trim() === propre && memeCharniere) return majs;
+  const rangNeuf = parseInt(depuis, 10);
+  const memeRang = (isNaN(rangNeuf) ? 0 : rangNeuf) === repereActuel.rang;
+  if(String(s.heuresRestantes || '').trim() === propre &&
+     memeCharniere && memeRang) return majs;
 
   /* Effacer n'est pas dire : un nombre retiré n'a plus d'auteur. */
   if(propre === ''){
