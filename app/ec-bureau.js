@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 19/09/2026 à 08:03 — v1045 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1707,6 +1707,11 @@ function boutonMenage(eleve, zoneParente){
         const d = await appelPrep({ action: 'prepList' });
         const siens = ((d && d.preparations) || [])
           .filter(x => normaliserMot(x.eleve || '') === normaliserMot(eleve));
+        /* ⚠️ PAS « supprimerPreparation » ICI, ET C'EST VOULU — v1045.
+           Cette porte-là libère un rendez-vous post-permis annulé en
+           vidant sa date dans la fiche de suivi. Ici on efface
+           l'élève ENTIER : « suiviDelete » suit juste en dessous et
+           emporte la fiche. */
         for(const pr of siens){
           try{ await appelPrep({ action: 'prepDelete', id: pr.id }); }catch(e){}
         }
