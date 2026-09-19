@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:03 — v1045 */
+/* Déployé le 19/09/2026 à 09:48 — v1048 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -63,7 +63,8 @@ function analyserNote(note){
               ebSuite:null, ebDate:null, ebLecons:null,
               examBlanc:null, examBlancN:null, examBlancDate:null,
               simuNuit:null, simuDate:null, permis:null,
-              permisDate:null, permisN:null, lecon:null, leconTotal:null,
+              /* « permisHeures » : des HEURES, jamais des leçons — v1048 */
+              permisDate:null, permisHeures:null, lecon:null, leconTotal:null,
               friseDepassee:false, pasEcoute:false, apresCharniere:null };
   let m;
 
@@ -245,10 +246,33 @@ function analyserNote(note){
        heures et, au cours suivant, l'élève était annoncé prêt au
        permis. Ajouter une branche à un motif sans regarder qui lit
        ses groupes, c'est poser une moitié. */
-    dernierN = (mn[1] !== undefined) ? +mn[1]
-             : (mn[2] !== undefined) ? +mn[2] : 0;
+    /* ============================================================
+       ⚠️ ET LES DEUX BRANCHES NE PARLENT PAS LA MÊME LANGUE — v1048
+
+       David, le 19 septembre, devant la carte d'Ambre Guillebon :
+       elle annonçait « Reste encore 2 leçons + 3h » alors que sa
+       note disait « encore 2h + 3h ». Deux heures, c'est UNE leçon.
+       Le nombre affiché était le DOUBLE du vrai, pour tous les
+       élèves suivis depuis la v1041 — c'est-à-dire tous ceux dont
+       les heures sont écrites en heures.
+
+       La cause : « encore 4 leçons » et « encore 4h » tombaient
+       dans la même variable, et quatre écrans la relisaient en
+       écrivant « leçon(s) ». La v1041 avait corrigé QUI lisait les
+       groupes du motif, pas dans QUELLE UNITÉ. Une moitié posée,
+       l'autre oubliée — deux fois sur le même motif.
+
+       Une variable, une unité : ce sont des HEURES, et le nom le
+       dit maintenant. Les anciennes notes en leçons se convertissent
+       ici, à l'entrée, par la règle commune — reconnaître l'ancien
+       vocabulaire, ce n'est pas le garder, c'est le traduire.
+       ============================================================ */
+    dernierN = (mn[1] !== undefined)
+      ? ((typeof heuresPourLecons === 'function')
+          ? heuresPourLecons(+mn[1]) : (+mn[1]) * 2)
+      : (mn[2] !== undefined) ? +mn[2] : 0;
   }
-  if(dernierN !== null) r.permisN = dernierN;
+  if(dernierN !== null) r.permisHeures = dernierN;
 
   /* ⚠️ LE RANG SE LIT AVEC LA RÈGLE COMMUNE, PAS AVEC UN MOTIF À
      SOI. Celui d'ici ignorait la charnière (« 1ère leçon APRÈS
