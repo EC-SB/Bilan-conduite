@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -578,11 +578,12 @@ function boutonsSuiteExamBlanc(e, zone){
   const b3h = document.createElement('button');
   b3h.className = 'btn btn-secondary';
   b3h.style.cssText = 'padding:10px;font-size:13px;';
-  b3h.textContent = '✅ Plus que la leçon de veille';
+  /* Le mot du zéro vient de sa porte — v1053. */
+  b3h.textContent = '✅ ' + motDuZeroEnTete();
   b3h.addEventListener('click', async () => {
     try{
       await envoyerConsigne(e.eleve, 'examblanc',
-        'Examen blanc passé le ' + jour() + ' — plus que la leçon de veille de l\'examen');
+        'Examen blanc passé le ' + jour() + suiteReserveSoldee());
       await noterExamenBlanc(e.eleve, 'oui', jour(), '0');
       showToast('Prêt au permis ✅');
       redessinerBureau();
@@ -882,8 +883,9 @@ async function passerSansExamenBlanc(x){
 
   if(!await confirmer(
       x.eleve + ' part à l\'examen sans repasser d\'examen blanc ?\n\n' +
+      /* Les mots du zéro viennent de leur porte — v1053. */
       (propre ? 'Il lui reste ' + propre + ' + 3h.'
-              : "Plus que la leçon de veille de l'examen.") + '\n' +
+              : motDuZeroEnTete() + '.') + '\n' +
       'Il rejoindra les élèves prêts au permis.', 'Prêt au permis')) return;
 
   try{
@@ -911,8 +913,7 @@ async function passerSansExamenBlanc(x){
     const jourDit = dateEnToutesLettres(todayLocal()) || todayLocal();
 
     await envoyerConsigne(x.eleve, 'examblanc',
-      'Examen blanc passé le ' + jourDit +
-      " — plus que la leçon de veille de l'examen" +
+      'Examen blanc passé le ' + jourDit + suiteReserveSoldee() +
       " (sans repasser d'examen blanc, bureau)");
 
     /* Les heures décidées, dans une seconde note */
