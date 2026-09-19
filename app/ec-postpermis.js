@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 07:42 — v1044 */
+/* Déployé le 19/09/2026 à 08:48 — v1047 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -404,6 +404,57 @@ async function afficherPostExamen(tous){
 }
 
 
+/* Défaire un rendez-vous post-permis organisé : la date, le
+   moniteur, et le cours préparé s'il en reste un. Le dossier
+   retombe dans « ⏳ Attente bilan post-permis », à réorganiser.
+
+   ⚠️ ON PASSE PAR LA PORTE DE SUPPRESSION quand un cours existe :
+   c'est elle qui sait libérer un rendez-vous annulé (v1045), et
+   c'est comme ça qu'un seul endroit continue de décider. Quand il
+   n'y a plus de cours — le cas de David, qui l'avait retiré des
+   prochains cours — on écrit les deux champs directement. */
+async function annulerRdvPostOrganise(nom, bouton){
+  const s = suiviDe(nom) || {};
+  if(!await confirmer(
+      'Annuler le rendez-vous post-permis de ' + nom + ' ?\n\n' +
+      (s.rdvPostDate ? 'Prévu le ' + dateEnToutesLettres(s.rdvPostDate) +
+        (s.rdvPostMoniteur ? ' avec ' + s.rdvPostMoniteur : '') + '.\n\n' : '') +
+      "La date et le moniteur sont effacés, le cours préparé est retiré, " +
+      "et le dossier revient à organiser. Le bilan de l'examen est conservé.",
+      'Annuler le rendez-vous')) return;
+
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  try{
+    let prep = null;
+    try{
+      const d = await appelPrep({ action: 'prepList' });
+      prep = ((d && d.preparations) || []).find(x =>
+        normaliserMot(x.eleve || '') === normaliserMot(nom) &&
+        x.modele === 'rdv-post') || null;
+    }catch(err){ /* sans la liste, on nettoie au moins la fiche */ }
+
+    if(prep && typeof supprimerPreparation === 'function'){
+      await supprimerPreparation(prep);
+    }
+    /* ⚠️ ET ON VÉRIFIE PLUTÔT QUE DE SUPPOSER. Si la porte a bien
+       libéré, ces deux champs sont déjà vides ; sinon on les écrit.
+       Supposer que l'autre l'a fait est exactement la façon dont une
+       moitié reste posée et l'autre oubliée. */
+    const apres = suiviDe(nom) || {};
+    if(apres.rdvPostDate || apres.rdvPostMoniteur){
+      await majSuivi(nom, { rdvPostDate: '', rdvPostMoniteur: '' });
+    }
+
+    showToast(nom + ' — rendez-vous annulé, à réorganiser');
+    viderCaches(nom);
+    await afficherBureau(true);
+  }catch(err){
+    await informer("Annulation impossible : " + err.message);
+    if(bouton){ bouton.disabled = false; bouton.textContent = '✖️ Annuler'; }
+  }
+}
+
+
 /* ============================================================
    2. EN ATTENTE DU BILAN D'EXAMEN
    Ajournés dont le bilan ou le rendez-vous manque encore.
@@ -444,16 +495,37 @@ function afficherAttenteBilan(tous){
                       ' avec ' + s.rdvPostMoniteur;
       ligne.appendChild(t);
 
-      /* Reprendre le rendez-vous, s'il a été interrompu */
+      /* ============================================================
+         ⚠️ CE BOUTON REND LE DOSSIER, IL NE L'OUVRE PAS — v1047
+
+         David, le 19 septembre : « le bouton reprendre un post-
+         permis me l'ouvre directement, je ne veux pas. Je veux qu'il
+         réapparaisse dans la liste en dessous et que je puisse
+         enlever la date du rendez-vous et avec qui, pour repartir au
+         propre. »
+
+         « ↗️ Reprendre » ouvrait l'entretien — le geste du moniteur,
+         pas celui du bureau. Or on n'arrive dans ce repli que pour
+         une raison : un rendez-vous a été organisé de travers, et on
+         veut le défaire. Le bureau n'a rien à faire dans l'écran
+         d'entretien, et s'y retrouver sans l'avoir demandé fait
+         perdre le fil.
+
+         Ce que fait le bouton maintenant : il efface la date et le
+         moniteur, retire le cours préparé s'il en reste un, et
+         l'élève retombe dans la liste juste en dessous, à
+         réorganiser. Le bilan de l'examen, lui, reste.
+
+         ⚠️ ET L'ENTRETIEN RESTE OUVRABLE là où il doit l'être : dans
+         les cours préparés du moniteur à qui il est attribué.
+         ============================================================ */
       const b = document.createElement('button');
       b.className = 'btn btn-secondary';
-      b.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;flex-shrink:0;';
-      b.textContent = '↗️ Reprendre';
-      b.title = 'Rouvrir le rendez-vous post-permis';
-      b.addEventListener('click', () => {
-        ouvrirRdvPost({ eleve: e.eleve, date: s.rdvPostDate,
-                        moniteur: s.rdvPostMoniteur, note: '', modele: 'rdv-post' });
-      });
+      b.style.cssText = 'width:auto;padding:5px 9px;font-size:12px;margin:0;' +
+        'flex-shrink:0;color:var(--red);border-color:var(--red);';
+      b.textContent = '✖️ Annuler';
+      b.title = 'Enlever la date et le moniteur — le dossier revient à organiser';
+      b.addEventListener('click', () => annulerRdvPostOrganise(e.eleve, b));
       ligne.appendChild(b);
 
       l.appendChild(ligne);
