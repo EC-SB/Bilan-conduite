@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 09:48 — v1048 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -715,7 +715,16 @@ function defautsDepuisNote(note){
     d.examPermis = 'prevu';
     const iso = dateFrVersIso(a.permisDate);
     if(iso) d.examDate = iso;
-    if(a.permisN !== null) d.examPermisN = String(a.permisN);
+    /* ⚠️ « examPermisN » RESTE EN LEÇONS — v1048. « permisHeures » est
+       en heures depuis aujourd'hui, mais ce champ-ci a toute une
+       plomberie derrière lui qui compte en leçons : « leconsAvantExamen »
+       décompte une leçon par rang, et « mentionAvantExamen » réécrit
+       « encore N leçons » quand personne n'a rien dit de neuf. Y verser
+       des heures, c'était doubler le nombre à CHAQUE bilan. Un test l'a
+       arrêté dans la minute — on convertit ici, à la frontière. */
+    if(a.permisHeures !== null && typeof leconsPourHeures === 'function'){
+      d.examPermisN = String(leconsPourHeures(a.permisHeures));
+    }
   }else if(a.permis === 'annule'){
     d.examPermis = 'annule';
     const m = (note || '').match(/Examen du permis du ([^—·]+?) annulé/i);
@@ -859,8 +868,10 @@ function defautsDepuisNote(note){
          repasser, et le moniteur le tape sous la date d'examen. Il
          n'était écrit nulle part et donc relu nulle part : ce qu'il
          tapait ne vivait que dans le contexte de ce cours-là. */
-      if(a.permisN !== null && a.permisN !== undefined){
-        d.examPermisN = String(a.permisN);
+      if(a.permisHeures !== null && a.permisHeures !== undefined &&
+         typeof leconsPourHeures === 'function'){
+        /* ⚠️ EN LEÇONS ICI AUSSI — v1048, voir le dossier plus haut. */
+        d.examPermisN = String(leconsPourHeures(a.permisHeures));
         if(a.lecon) d.examPermisNRang = String(a.lecon);
       }
     }
