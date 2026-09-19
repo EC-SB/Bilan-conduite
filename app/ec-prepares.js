@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 07:28 — v1043 */
+/* Déployé le 19/09/2026 à 07:42 — v1044 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3497,32 +3497,25 @@ async function ouvrirRdvPost(cours){
   });
 
   const sel = $('rdvPostSuite');
-  sel.innerHTML = '<option value="">— à définir —</option>';
-  SUITES_POST.forEach(x => {
-    const o = document.createElement('option');
-    o.value = x.cle; o.textContent = x.nom;
-    sel.appendChild(o);
-  });
-  /* ⚠️ CE QUE LE MONITEUR DE L'EXAMEN A DÉJÀ DIT — v912. Même règle
-     que pour les heures juste dessous : on part de ce qu'il a
-     demandé, et le moniteur du rendez-vous garde le dernier mot.
-     Sa propre réponse, si elle existe, passe devant. */
-  sel.value = s.suite ||
-    ((memo && memo.sansRepassage) ? 'impossible' : '');
-
-  /* Le nombre d'heures ne se demande que si un repassage est envisagé.
-     On part de ce qu'avait demandé le moniteur de l'examen : le
-     moniteur du rendez-vous garde le dernier mot. */
   const hh = $('rdvPostHeures');
-  hh.value = s.heuresRepassage || (memo ? memo.heures : '') || '';
-  const majH = () => {
-    /* « Une leçon de 2h » porte déjà sa durée : demander des
-       heures en plus n'a pas de sens. */
-    hh.style.display = (sel.value && sel.value !== 'impossible' &&
-                        sel.value !== '2h') ? 'block' : 'none';
-  };
-  sel.onchange = majH;
-  majH();
+
+  /* ⚠️ CE QUE LE MONITEUR DE L'EXAMEN A DÉJÀ DIT — v912. On part de
+     ce qu'il a demandé, et le moniteur du rendez-vous garde le
+     dernier mot. Sa propre réponse, si elle existe, passe devant.
+
+     ⚠️ ET CE QU'IL AVAIT COMMENCÉ À DIRE PASSE ENCORE DEVANT —
+     v1044. La copie de secours écrit ces deux champs comme les
+     autres, quelques lignes plus haut… et ces deux lignes-ci les
+     écrasaient aussitôt avec ce que porte le classeur. Les quatre
+     textes revenaient d'un rendez-vous interrompu, la conclusion
+     non : le moniteur retrouvait son entretien et devait
+     reprendre la seule réponse qui décide de la suite. */
+  sel.value = (garde && garde.rdvPostSuite) || s.suite ||
+    ((memo && memo.sansRepassage) ? 'impossible' : '');
+  hh.value = (garde && garde.rdvPostHeures) ||
+    s.heuresRepassage || (memo ? memo.heures : '') || '';
+
+  dessinerConclusionPost();
 
   $('rdvPostCom').value = s.commentaireMoniteur || '';
   $('rdvPostMsg').textContent = '';
@@ -3553,6 +3546,89 @@ async function ouvrirRdvPost(cours){
 const CLE_RDV_POST = 'rdv_post_en_cours';
 const CHAMPS_RDV_POST = ['rdvPostBilan', 'rdvPostEleveBilan',
                          'rdvPostTexte', 'rdvPostHeures', 'rdvPostSuite'];
+
+/* ============================================================
+   LA CONCLUSION, EN BOUTONS — v1044
+
+   David : « mets-moi des boutons comme on a mis hier : 0+3, 2+3,
+   4+3, 6+3, 8+3, une leçon de 2h pour refaire le point, et pas de
+   repassage possible pour le moment — et que l'info continue de
+   circuler ».
+
+   Elle circule, et sans rien savoir de ce changement : les boutons
+   ne font qu'écrire dans les deux champs d'avant, « suite » et
+   « heuresRepassage », devenus invisibles. L'enregistrement, la
+   copie de secours, la fiche de l'élève, la note, la consigne au
+   bureau et la réserve qui se décompte lisent exactement la même
+   chose qu'hier.
+
+   ⚠️ ET C'EST LA RANGÉE DE BOUTONS DE L'APPLICATION, pas une
+   deuxième qui lui ressemble : la même que 🎓 Suivi permis, avec sa
+   coche, ses classes et son « ✏️ Autre ». Une seconde rangée
+   écrite ici finirait par ne plus se comporter comme l'autre.
+   ============================================================ */
+function dessinerConclusionPost(){
+  const zone = $('rdvPostConclusion');
+  const sel = $('rdvPostSuite');
+  const hh = $('rdvPostHeures');
+  if(!zone || !sel || !hh) return;
+
+  const courant = (typeof valeurConclusionPost === 'function')
+    ? valeurConclusionPost(sel.value, hh.value) : '';
+
+  const poser = (suite, heures) => {
+    sel.value = suite || '';
+    hh.value = (suite === '3h') ? String(heures === undefined ? '' : heures) : '';
+    if(typeof garderRdvPost === 'function') garderRdvPost();
+    dessinerConclusionPost();
+  };
+
+  zone.innerHTML = '';
+  if(typeof rangeeBoutons !== 'function' ||
+     typeof choixConclusionPost !== 'function'){
+    /* Sortie de secours : sans la rangée, on ne laisse pas un écran
+       muet — le moniteur doit pouvoir conclure. */
+    zone.textContent = 'Conclusion indisponible sur cet écran.';
+    return;
+  }
+
+  zone.appendChild(rangeeBoutons('', choixConclusionPost(), courant,
+    (val) => {
+      const c = lireConclusionPost(val);
+      poser(c.suite, c.heures);
+    },
+    { autre: '✏️ Autre',
+      surAutre: async () => {
+        const v = await demander(
+          "Combien d'heures avant le repassage ?\n" +
+          "La leçon de veille de l'examen (3h) vient en plus.",
+          String(hh.value || ''), 'Heures avant le repassage');
+        if(v === null){ dessinerConclusionPost(); return; }
+        const propre = String(v).trim().replace(',', '.');
+        if(propre === '' || isNaN(Number(propre))){
+          showToast('Indique un nombre d\'heures.');
+          dessinerConclusionPost();
+          return;
+        }
+        poser('3h', propre);
+      } }));
+
+  /* ⚠️ CE QUI EST CHOISI SE RELIT EN TOUTES LETTRES. Un bouton coché
+     dans une rangée se perd du regard ; la phrase, elle, se relit
+     avant d'appuyer sur « Terminer » — la même précaution que le
+     nombre écrit sur le bouton de publication des annonces. */
+  const dit = $('rdvPostConclusionDit');
+  if(dit){
+    const s = sel.value;
+    dit.textContent = !s
+      ? 'À définir : personne n\'a encore dit ce qu\'on fait ensuite.'
+      : (s === '3h' && String(hh.value).trim() !== '' &&
+         HEURES_CONCLUSION_POST.indexOf(String(hh.value).trim()) === -1)
+        ? '✏️ ' + libelleConclusionPost('3h', hh.value)
+        : libelleConclusionPost(s, hh.value);
+    dit.style.color = s ? 'var(--accent-text)' : 'var(--muted)';
+  }
+}
 
 function garderRdvPost(){
   if(!rdvPostEnCours) return;
