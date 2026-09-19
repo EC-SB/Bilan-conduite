@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 08:03 — v1045 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2665,7 +2665,7 @@ function ongletPermis(corps, nom){
 
   /* LA LISTE. envoyerVersListe fait déjà tout : les champs de la
      fiche, la consigne qui va avec, le vidage des caches. */
-  const lListe = ligneDossier('🗂️ Liste', libelleListePermis(s),
+  const lListe = ligneDossier('🗂️ Liste', libelleListePermis(s, nom),
     'var(--cream)');
   if(typeof envoyerVersListe === 'function'){
     actionDossier(lListe, '🔀 Changer', async () => {
@@ -2876,13 +2876,49 @@ async function zoneSessionEleve(corps, nom){
 }
 
 
-/* Dans quelle liste il tombe, d'après sa fiche de suivi. C'est
-   LISTES_PERMIS qui décide, pas une deuxième règle écrite ici :
-   on cherche la première liste dont tous les champs collent. */
-function libelleListePermis(s){
+/* ============================================================
+   DANS QUELLE LISTE IL TOMBE — ON LE DEMANDE À LA LISTE — v1045
+
+   David, le 19 septembre : « Sandra qui a fait son rendez-vous
+   post-permis hier, sur sa fiche élève c'est noté qu'elle est dans
+   la liste des élèves prêts, sauf qu'elle n'y est pas ».
+
+   Cette fonction croyait interroger LISTES_PERMIS. En réalité elle
+   ne pouvait répondre qu'une chose : « 🤔 Élèves prêts au permis »
+   n'exige que QUATRE CASES VIDES — aPlanifier, retireAPrevoir,
+   statut, datePermis — et c'est la première entrée du tableau.
+   Elle attrapait donc tout le monde, y compris des élèves que la
+   vraie liste ne retient pas, et masquait au passage toutes les
+   entrées suivantes : « ⏳ Attente bilan post-permis », dont les
+   colonnes sont un sur-ensemble des quatre, était inatteignable
+   depuis le premier jour.
+
+   ⚠️ ON DEMANDE À LA LISTE ELLE-MÊME. « estPretAuPermis » est la
+   fonction qui remplit l'écran des prêts ; c'est elle qui répond
+   ici. Les deux vues ne peuvent plus se contredire, parce qu'il
+   n'y a plus deux règles — il n'y en a qu'une, et l'autre écran
+   l'appelle.
+
+   Les autres listes, elles, se reconnaissent bien à leurs colonnes :
+   elles en exigent de non vides, donc elles ne collent que sur ceux
+   qui y sont vraiment.
+   ============================================================ */
+function libelleListePermis(s, nom){
   if(typeof LISTES_PERMIS === 'undefined') return 'Listes non chargées';
 
-  const colle = LISTES_PERMIS.find(l =>
+  const e = (nom && typeof trouverParNom === 'function' &&
+             typeof etatBureau !== 'undefined')
+    ? trouverParNom(etatBureau.eleves, nom) : null;
+
+  if(e && typeof estPretAuPermis === 'function' &&
+          typeof masquePretAuPermis === 'function'){
+    if(estPretAuPermis(e) && !masquePretAuPermis(e)){
+      const l = LISTES_PERMIS.find(x => x.cle === 'envisager');
+      return l ? l.nom : '🤔 Élèves prêts au permis';
+    }
+  }
+
+  const colle = LISTES_PERMIS.find(l => l.cle !== 'envisager' &&
     Object.keys(l.champs).every(k =>
       String(s[k] || '') === String(l.champs[k] || '')));
 
