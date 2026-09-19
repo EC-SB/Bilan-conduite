@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:03 — v1045 */
+/* Déployé le 19/09/2026 à 08:25 — v1046 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3593,6 +3593,51 @@ async function ouvrirRdvPost(cours){
 
   $('rdvPostCom').value = s.commentaireMoniteur || '';
   $('rdvPostMsg').textContent = '';
+
+  /* ============================================================
+     ⚠️ ET ON VA JUSQU'À L'ONGLET OÙ CET ÉCRAN VIT — v1046
+
+     David, le 19 septembre : « je n'arrive pas à reprendre mon élève
+     pour qui je me suis trompé dans post-permis, j'ai besoin de
+     reprendre Alhassane Bah ».
+
+     Le bouton « ↗️ Reprendre » marchait parfaitement : il posait
+     bien « rdvPostView » à « block ». Seulement cet écran porte
+     « data-onglet="cours" », et on appuie dessus depuis 🎓 Permis —
+     donc il gardait la classe « hors-onglet », et restait invisible.
+     Rien ne se passait, rien ne le disait.
+
+     Les quatre autres appelants partaient tous de l'écran des cours,
+     où l'onglet est déjà le bon : le défaut ne pouvait se voir que
+     depuis le bureau, c'est-à-dire exactement là où on récupère un
+     rendez-vous préparé par erreur.
+
+     ⚠️ ON BASCULE, PUIS ON REGARDE — ET ON N'INTERDIT RIEN.
+
+     La première écriture refusait d'ouvrir quand « cours » n'était
+     pas dans les onglets disponibles. Mais cette liste est vide tant
+     que les droits ne sont pas chargés : absent n'est pas vide, et
+     le banc d'essai du rendez-vous l'a montré aussitôt en refusant
+     d'ouvrir ce qui s'ouvrait très bien la veille.
+
+     On ne présume donc de rien : on ne touche à l'onglet QUE s'il y
+     en a un de posé — sinon rien ne masque —, on demande la bascule,
+     et on juge sur ce qui s'est passé. Prévenir quand ça n'a pas
+     marché est utile ; empêcher d'ouvrir ne l'est jamais.
+     ============================================================ */
+  if(typeof ongletActif !== 'undefined' && ongletActif &&
+     ongletActif !== 'cours' && typeof afficherOnglet === 'function'){
+    afficherOnglet('cours');
+    /* ⚠️ ON JUGE SUR CE QUI S'EST PASSÉ, PAS SUR CE QU'ON A DEMANDÉ.
+       « afficherOnglet » retombe sur le premier onglet accessible
+       quand celui qu'on vise ne l'est pas : c'est là, et là
+       seulement, qu'il y a quelque chose à dire. */
+    if(ongletActif !== 'cours'){
+      showToast("Le rendez-vous s'ouvre dans l'onglet 🚗 Cours, " +
+                "auquel tu n'as pas accès.");
+    }
+  }
+  if(typeof afficherVue === 'function') afficherVue('cours', 'cours');
 
   $('recordView').style.display = 'none';
   $('resultView').style.display = 'none';
