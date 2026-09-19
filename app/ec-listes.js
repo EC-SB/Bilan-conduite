@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 18/09/2026 à 17:08 — v1042 */
 /* ============================================================
    ec-listes.js
    Simulateurs nuit et risques, examens blancs, pas le niveau.
@@ -596,8 +596,8 @@ function boutonsSuiteExamBlanc(e, zone){
   bLec.style.cssText = 'padding:10px;font-size:13px;';
   bLec.textContent = '✅ Encore N leçons';
   bLec.addEventListener('click', async () => {
-    const n = await demander('Combien de leçons avant l\'examen ?\n' +
-                             '(les 3h s\'ajoutent ensuite)', '2',
+    const n = await demander("Combien de leçons avant l'examen ?\n" +
+                             "(la leçon de veille s'ajoute ensuite)", '2',
                              'Examen blanc de ' + e.eleve);
     if(n === null) return;
 
@@ -867,8 +867,9 @@ function afficherSimulateurs(tous){
 async function passerSansExamenBlanc(x){
   const h = await demander(
     "Combien d'heures avant l'examen ?\n" +
-    'Les 3h avant examen viennent en plus : « 4 » signifie 4 + 3.\n' +
-    'Mets 0 s\'il ne reste que les 3h.',
+    "La leçon de veille de l'examen (3h) vient en plus : « 4 » " +
+    'signifie 4 + 3.\n' +
+    "Mets 0 s'il ne reste que la leçon de veille.",
     '', x.eleve);
 
   if(h === null) return;
@@ -882,7 +883,7 @@ async function passerSansExamenBlanc(x){
   if(!await confirmer(
       x.eleve + ' part à l\'examen sans repasser d\'examen blanc ?\n\n' +
       (propre ? 'Il lui reste ' + propre + ' + 3h.'
-              : 'Plus que les 3h avant examen.') + '\n' +
+              : "Plus que la leçon de veille de l'examen.") + '\n' +
       'Il rejoindra les élèves prêts au permis.', 'Prêt au permis')) return;
 
   try{
