@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 18/09/2026 à 17:08 — v1042 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -5401,7 +5401,7 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       a.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
         'line-height:1.5;';
       a.textContent = 'Ce qu\'il faudra avant de le représenter. ' +
-        '4 + 3 = deux leçons de 2h, puis les 3h avant examen.';
+        "4 + 3 = deux leçons de 2h, puis la leçon de veille de l'examen.";
       bloc.appendChild(a);
 
       /* ⚠️ « PAS DE REPASSAGE POUR LE MOMENT » — v912.
