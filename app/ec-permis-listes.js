@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:41 — v1051 */
+/* Déployé le 19/09/2026 à 11:05 — v1052 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -3788,7 +3788,21 @@ function mentionPostPermis(nom){
 
    Après un repassage, celles du post-permis priment : elles sont
    plus récentes que celles de l'examen blanc. */
-function heuresQuiComptent(nom){
+/* ⚠️ ET ELLE ACCEPTE L'ÉTAT DU JOUR — v1052.
+
+   David, le 19 septembre : « quand je change le numéro de leçon
+   après post-permis, la phrase ne se met pas à jour non plus ».
+
+   Le rang se change sur la carte, et il est écrit dans le CONTEXTE
+   du cours. Le décompte, lui, le demandait à « charniereDeLEleve »,
+   qui le lit dans l'état du bureau — rafraîchi par un autre chemin,
+   et donc encore sur l'ancien chiffre. La carte se redessinait avec
+   le nouveau rang et la phrase au-dessus gardait l'ancien.
+
+   « leconsDepuisLaReserve » savait déjà prendre un état : elle
+   regarde « apresCharniere » avant d'aller le chercher elle-même.
+   Il suffisait de le lui passer — et c'est l'appelant qui l'a. */
+function heuresQuiComptent(nom, etatDuJour){
   const s = (typeof suiviDe === 'function') ? suiviDe(nom) : {};
 
   /* ============================================================
@@ -3829,7 +3843,8 @@ function heuresQuiComptent(nom){
     const h = parseFloat(String(brut).replace(',', '.'));
     if(isNaN(h) || typeof leconsDepuisLaReserve !== 'function' ||
        typeof heuresPourLecons !== 'function') return String(brut).trim();
-    const reste = h - heuresPourLecons(leconsDepuisLaReserve(nom, null));
+    const reste = h - heuresPourLecons(
+      leconsDepuisLaReserve(nom, etatDuJour || null));
     if(reste < 0) depasse = true;
     /* Zéro n'est pas vide : « plus que les 3h » est une réponse, et
        c'est la plus utile des deux. Voir mentionHeuresRestantes. */
@@ -3916,8 +3931,61 @@ function heuresQuiComptent(nom){
 
   const h2 = String(s.heuresRestantes || '').trim();
   if(h2){
+    /* ============================================================
+       ⚠️ UNE RÉSERVE D'AVANT LA DERNIÈRE CHARNIÈRE EST PÉRIMÉE
+       — v1052
+
+       David, le 19 septembre, sur Lilly Attoumane Madi : « c'est la
+       veille du permis et ça ne se met pas à jour ; il me laisse
+       4 + 3 alors que c'est la veille, j'ai beau mettre 0, il remet
+       4 + 3 après ».
+
+       Son examen blanc du 18 mars avait prescrit 4 + 3. Un
+       rendez-vous post-permis a eu lieu le 22 avril — une nouvelle
+       charnière, à partir de laquelle tout se recompte — et il n'a
+       prescrit AUCUNE heure. Le solde de mars n'avait donc plus
+       d'objet ; on l'annonçait quand même, et pire : PLEIN, parce
+       que le décompte, voyant deux compteurs différents, refusait de
+       compter. Un nombre périmé montré à quatre heures près, sur une
+       élève qui passe son examen demain.
+
+       C'est la règle de la v1005 — « un examen blanc qui n'a pas eu
+       lieu ne dit rien » — appliquée à l'autre bout : un nombre
+       prescrit AVANT la charnière d'aujourd'hui ne parle pas
+       d'aujourd'hui.
+
+       ⚠️ ET ON NE SE TAIT PAS POUR AUTANT. La note, elle, porte ce
+       que quelqu'un a écrit en toutes lettres — « plus que la leçon
+       de veille de l'examen », sur la carte de Lilly. C'est le
+       dernier recours, et il vaut mieux que « à préciser » sur une
+       information qu'on a sous les yeux.
+       ============================================================ */
+    const rep = (typeof repereDesHeures === 'function')
+      ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+    const ch = ((etatDuJour || {}).apresCharniere) ||
+               ((typeof charniereDeLEleve === 'function')
+                 ? charniereDeLEleve(nom) : null);
+    const chQuoi = (ch && ch.quoi) || 'eb';
+
+    if(rep.quoi !== chQuoi){
+      const note = (etatDuJour || {}).permisHeures;
+      if(note !== null && note !== undefined && !isNaN(parseFloat(note))){
+        return { valeur: String(note), source: 'note', depasse: false };
+      }
+      return { valeur: '', source: '' };
+    }
+
     const v3 = moinsLesLecons(h2);
     return { valeur: v3, source: 'examen blanc', depasse: depasse };
+  }
+
+  /* … et si rien n'est prescrit, la note reste la dernière chose
+     que quelqu'un ait écrite. */
+  {
+    const note = (etatDuJour || {}).permisHeures;
+    if(note !== null && note !== undefined && !isNaN(parseFloat(note))){
+      return { valeur: String(note), source: 'note', depasse: false };
+    }
   }
 
   return { valeur: '', source: '' };
