@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 19/09/2026 à 12:17 — v1055 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -5725,6 +5725,37 @@ function colorerNote(el, note){
     if(x.debut < i) return;
     if(x.debut > i) el.appendChild(document.createTextNode(t.slice(i, x.debut)));
     const s = document.createElement('span');
+    /* ============================================================
+       ⚠️ UN MORCEAU DE PHRASE EST DU TEXTE, PAS UNE LIGNE — v1055
+
+       David, le 19 septembre, capture du dossier d'un élève :
+       « EXAMEN BLANC PAS ENCORE » / « É » / « VOQU » / « É », quatre
+       lignes pour cinq mots. Et sa note, dans le classeur, tient sur
+       une seule — c'est bien la mise en page qui la hachait.
+
+       C'est EXACTEMENT le défaut de la v933 : « c'est bizarre les
+       écritures là », « FAIRE LE POINT », « À », « CHAQUE LE »,
+       « Ç », « ON ». La carte met tous ses <span> en block, parce
+       que les siens sont des lignes ; ceux d'ici sont des morceaux
+       de phrase. Une lettre accentuée n'ayant pas de forme grasse,
+       elle coupe le libellé en deux à chaque fois — le É de PASSÉ,
+       le Ç de LEÇON — et chaque morceau prenait sa ligne. Mesuré
+       sur la vraie carte : douze lignes pour une note qui en a six.
+
+       ⚠️ LA v933 AVAIT POSÉ LA PARADE CHEZ L'APPELANT — une classe
+       « note » que le CSS excepte. Un seul des deux appelants la
+       met. Une parade posée chez l'appelant est une parade qu'on
+       oublie, et celle-ci l'a été dès la fonction suivante.
+
+       Elle se pose donc ICI, en style direct, à côté du gras et de
+       la couleur — qui, eux, ont toujours tenu, et pour cette raison
+       précise. Ces span-là sont fabriqués ici : c'est ici de dire ce
+       qu'ils sont, et aucun écran n'a plus à le savoir.
+
+       La règle CSS de la v933 reste : elle ne gêne pas, et elle
+       couvre ce que cette fonction ne fabrique pas.
+       ============================================================ */
+    s.style.display = 'inline';
     s.style.fontWeight = '800';
     if(x.couleur) s.style.color = x.couleur;
     s.textContent = t.slice(x.debut, x.fin);
