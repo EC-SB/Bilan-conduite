@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:00 — v1049 */
+/* Déployé le 19/09/2026 à 10:41 — v1051 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -381,7 +381,7 @@ function positionAbregee(pos){
 /* La phrase du haut quand une date d'examen est prise et qu'on sait
    ce qu'il reste. « reste » vaut null quand on ne sait pas : on
    rend alors la position telle quelle, sans rien inventer. */
-function ligneRestantAvantExamen(position, reste, dateExam){
+function ligneRestantAvantExamen(position, reste, dateExam, cEstLaVeille){
   const pos = String(position || '').trim();
   const n = (reste === null || reste === undefined || reste === '')
     ? null : parseInt(reste, 10);
@@ -417,10 +417,27 @@ function ligneRestantAvantExamen(position, reste, dateExam){
      Les mots viennent de « motsDeLaReserve », la phrase de
      l'application depuis la v1041 — les réécrire ici, c'est
      s'engager à les corriger deux fois. */
-  const tete = (n === 0)
+  /* ⚠️ TROIS ÉTATS, PAS DEUX — v1051.
+
+     David, le 19 septembre : « puisque 3 après post-permis, il était
+     prévu 6 + 3, donc 4 leçons ». Six heures font trois leçons de
+     deux ; la leçon de veille vient en QUATRIÈME. Et le compte à
+     rebours annonce ce qu'il restera APRÈS le cours qu'on ouvre.
+
+     À la 3ᵉ, la réserve est tout juste épuisée : il ne reste que les
+     3h — mais ce cours-ci n'est pas encore la veille. La v1042 avait
+     fusionné les deux phrases sur le seul zéro, et annonçait donc la
+     veille une leçon trop tôt : le moniteur préparait la veille d'un
+     examen qui était encore à deux cours de là.
+
+     Le dépassement — être allé AU-DELÀ de la réserve — est ce qui
+     les sépare, et il vient de la même porte que le solde. */
+  const tete = cEstLaVeille
     ? ("C'est la leçon de veille de l'examen" +
        (dateExam ? ' du ' + dateExam : ''))
-    : 'Reste encore ' + n + 'h + 3h avant examen';
+    : (n === 0)
+      ? 'Plus que les 3h avant examen'
+      : 'Reste encore ' + n + 'h + 3h avant examen';
 
   const court = positionAbregee(pos);
   return court ? tete + ' (' + court + ')' : tete;
@@ -556,8 +573,10 @@ function lignePositionDuHaut(nom, corps, note, modele){
      mieux vaut la phrase d'hier que pas de phrase du tout.
      ============================================================ */
   let reste = a.permisHeures;
+  let cEstLaVeille = false;
   if(typeof heuresQuiComptent === 'function'){
     const q = heuresQuiComptent(nom) || {};
+    cEstLaVeille = !!q.depasse;
     const su = String(q.valeur === undefined || q.valeur === null
       ? '' : q.valeur).trim();
     /* ⚠️ UN SEUL FILTRE, PAS DEUX. La première écriture écartait
@@ -570,7 +589,7 @@ function lignePositionDuHaut(nom, corps, note, modele){
     if(su !== '' && !isNaN(parseFloat(su))) reste = parseFloat(su);
   }
 
-  return ligneRestantAvantExamen(pos, reste, jourDit);
+  return ligneRestantAvantExamen(pos, reste, jourDit, cEstLaVeille);
 }
 
 /* ------------------------------------------------------------
