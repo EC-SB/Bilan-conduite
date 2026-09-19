@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:05 — v1052 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -121,7 +121,8 @@ function resultatExamenBlanc(nom, a){
              couleur:'var(--red)', gras:true };
   }
   if(note.ebSuite === '3h' || (niveau === 'oui' && heures === '0')){
-    return { cle:'3h', emoji:'✅', texte:"plus que la leçon de veille de l'examen",
+    /* Les mots du zéro viennent de leur porte — v1053. */
+    return { cle:'3h', emoji:'✅', texte:CONCLUSION_RESERVE_SOLDEE,
              couleur:'var(--accent-text)' };
   }
 
@@ -192,7 +193,8 @@ function resultatExamenBlanc(nom, a){
 
   const restant = reserve - heuresPourLecons(leconsDepuisLaReserve(nom, note));
   if(restant <= 0){
-    return { cle:'3h', emoji:'✅', texte:"plus que la leçon de veille de l'examen",
+    /* Les mots du zéro viennent de leur porte — v1053. */
+    return { cle:'3h', emoji:'✅', texte:CONCLUSION_RESERVE_SOLDEE,
              couleur:'var(--accent-text)' };
   }
   return { cle:'lecons', emoji:'⏳',
@@ -305,8 +307,10 @@ function noteAvecResultatExamenBlanc(nom, note){
     '([^·\n\r]*)', 'i');
 
   /* Une suite déjà écrite ne se double pas. */
-  /* ⚠️ Les deux formulations — v1041 : « plus que les 3h » sur les
-     notes déjà écrites, « la leçon de veille » sur les neuves. */
+  /* ⚠️ Les deux formulations — v1041, puis v1053 : les notes portent
+     « la leçon de veille » ou « les 3h » selon la version qui les a
+     écrites. Ce motif accepte les deux, et c'est ce qui permet de
+     renommer sans remettre tous les élèves à zéro. */
   const DEJA = /pas le niveau|plus que (?:les 3h|la le[çc]on de veille)|encore \d+\s*le[çc]on/i;
 
   return t.replace(motif, (tout, tete, suite) => {
@@ -381,10 +385,62 @@ function positionAbregee(pos){
 /* La phrase du haut quand une date d'examen est prise et qu'on sait
    ce qu'il reste. « reste » vaut null quand on ne sait pas : on
    rend alors la position telle quelle, sans rien inventer. */
+/* ============================================================
+   LA VEILLE SE LIT SUR LE CALENDRIER, PAS SUR LE COMPTEUR — v1053
+
+   David, le 19 septembre, devant la carte de Lilly Attoumane Madi :
+   « pourquoi, quand je change le bouton en 0 — plus que la leçon de
+   veille, ça écrit plus que les 3h avant examen au lieu d'écrire
+   que c'est la leçon de veille ? »
+
+   Son cours est le lundi 21, son examen le mardi 22. C'est la
+   veille, et rien ne peut le démentir. L'application, elle, ne
+   savait le dire que par le compteur : la phrase sortait quand la
+   réserve était DÉPASSÉE — c'est-à-dire, comme David l'avait
+   tranché en v1051, « ce qui reste APRÈS ce cours ». Or poser 0 le
+   jour même laisse le solde à zéro, pas en dessous : le compteur
+   annonçait donc « il reste la leçon de veille à faire » et
+   désignait le PROCHAIN cours… alors qu'il n'y en a pas, puisque
+   l'examen est demain.
+
+   Le compteur et le calendrier se contredisaient, et c'est le
+   calendrier qui a raison : il ne dépend d'aucune saisie. On ne
+   retire rien pour autant — le dépassement continue de dire la
+   veille pour les élèves dont l'examen est encore à quelques jours.
+   Cette règle-ci ne fait qu'ajouter la certitude par-dessus
+   l'estimation.
+
+   ⚠️ DEUX DATES DE MACHINE, COMPARÉES EN UTC. Passer par un
+   « new Date(...) » local ferait basculer d'un jour les nuits de
+   changement d'heure — et le seul jour qui compte ici est
+   précisément celui d'avant.
+   ============================================================ */
+function cEstLaVeilleDeLExamen(jourDuCours, dateExam){
+  const jour = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(jourDuCours || '').trim());
+  const exam = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateExam || '').trim());
+  if(!jour || !exam) return false;
+
+  const j = Date.UTC(+jour[1], +jour[2] - 1, +jour[3]);
+  const x = Date.UTC(+exam[1], +exam[2] - 1, +exam[3]);
+  return (x - j) === 86400000;
+}
+
 function ligneRestantAvantExamen(position, reste, dateExam, cEstLaVeille){
   const pos = String(position || '').trim();
   const n = (reste === null || reste === undefined || reste === '')
     ? null : parseInt(reste, 10);
+
+  /* ⚠️ ET LA VEILLE NE S'ARRÊTE PAS AU SEUIL DU COMPTEUR — v1053.
+     Elle se lit sur deux dates ; elle n'a donc pas besoin qu'on
+     sache ce qu'il reste. Sous la garde, elle disparaissait dès
+     qu'aucune réserve n'était posée — c'est-à-dire précisément chez
+     les élèves dont personne n'a tenu le compte. */
+  if(cEstLaVeille){
+    const tete = "C'est la leçon de veille de l'examen" +
+                 (dateExam ? ' du ' + dateExam : '');
+    const abrege = positionAbregee(pos);
+    return abrege ? tete + ' (' + abrege + ')' : tete;
+  }
 
   if(n === null || isNaN(n)) return pos;
 
@@ -432,12 +488,9 @@ function ligneRestantAvantExamen(position, reste, dateExam, cEstLaVeille){
 
      Le dépassement — être allé AU-DELÀ de la réserve — est ce qui
      les sépare, et il vient de la même porte que le solde. */
-  const tete = cEstLaVeille
-    ? ("C'est la leçon de veille de l'examen" +
-       (dateExam ? ' du ' + dateExam : ''))
-    : (n === 0)
-      ? 'Plus que les 3h avant examen'
-      : 'Reste encore ' + n + 'h + 3h avant examen';
+  const tete = (n === 0)
+    ? motDuZeroEnTete()
+    : 'Reste encore ' + n + 'h + 3h avant examen';
 
   const court = positionAbregee(pos);
   return court ? tete + ' (' + court + ')' : tete;
@@ -489,7 +542,7 @@ function lignePasLeNiveauAvantExamen(position){
         12 au total) » ;
      3. tout le reste → la ligne 🎯 telle qu'elle est écrite.
    ============================================================ */
-function lignePositionDuHaut(nom, corps, note, modele){
+function lignePositionDuHaut(nom, corps, note, modele, jourDuCours){
   const pos = (typeof lignePosition === 'function')
     ? lignePosition(corps || '') : '';
 
@@ -573,13 +626,20 @@ function lignePositionDuHaut(nom, corps, note, modele){
      mieux vaut la phrase d'hier que pas de phrase du tout.
      ============================================================ */
   let reste = a.permisHeures;
-  let cEstLaVeille = false;
+
+  /* ⚠️ LA CERTITUDE D'ABORD — v1053. Deux dates suffisent à trancher,
+     et aucune saisie ne peut les démentir. Le compteur, lui, reste
+     là pour les élèves dont l'examen n'est pas demain : il ne perd
+     rien, il cesse seulement d'avoir le dernier mot le seul jour où
+     il se trompe. */
+  let cEstLaVeille = cEstLaVeilleDeLExamen(jourDuCours, dateExam);
+
   if(typeof heuresQuiComptent === 'function'){
     /* ⚠️ ON LUI DONNE L'ÉTAT DU JOUR — v1052. « a » porte
        « apresCharniere », c'est-à-dire le rang tel que CE cours le
        connaît, et c'est lui qu'on vient de changer sur la carte. */
     const q = heuresQuiComptent(nom, a) || {};
-    cEstLaVeille = !!q.depasse;
+    if(q.depasse) cEstLaVeille = true;
     const su = String(q.valeur === undefined || q.valeur === null
       ? '' : q.valeur).trim();
     /* ⚠️ UN SEUL FILTRE, PAS DEUX. La première écriture écartait
@@ -852,6 +912,8 @@ function ficheVehiculeAvantCours(res, ctx){
    « prep » : le cours préparé, ou null.
    « opts » : { avecDernierBilan } — le bouton « 👁️ Voir le dernier
               bilan » n'a de sens que sur l'écran de cours.
+              { jour } — la date DU COURS, pour la règle de la veille
+              (v1053). L'écran la connaît ; le bloc, non.
    ------------------------------------------------------------ */
 function blocAvantLeCours(nom, res, prep, opts){
   const o = opts || {};
@@ -966,7 +1028,12 @@ function blocAvantLeCours(nom, res, prep, opts){
   /* Le modèle de la séance décide si c'est l'examen lui-même : sans
      lui, la phrase du haut emballerait « EXAMEN CE JOUR » dans un
      compte à rebours vers cet examen-là. */
-  const pos = lignePositionDuHaut(nom, corps, brute, prep && prep.modele);
+  /* ⚠️ ET LE JOUR DU COURS VOYAGE AVEC — v1053. « prep.date » EST la
+     date du cours : c'est par elle que « preparationDuCours » la
+     retrouve. L'écran, quand il la connaît mieux, la donne. */
+  const jourDuCours = String(o.jour || (prep && prep.date) || '').trim();
+  const pos = lignePositionDuHaut(nom, corps, brute, prep && prep.modele,
+                                  jourDuCours);
   if(pos){
     const p = document.createElement('div');
     p.style.cssText = 'font-size:15px;font-weight:800;line-height:1.3;' +
