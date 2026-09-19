@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 09:48 — v1048 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1896,7 +1896,31 @@ async function remonterHeuresAuBureau(eleve, heures, niveau, estExamenBlanc,
 
      Pas le niveau, en revanche, efface bien : un nombre d'heures
      n'a alors plus de sens. */
-  const valeur = (niveau === 'oui' && h) ? h : '';
+
+  /* ============================================================
+     ⚠️ ET VIDE VEUT DIRE « JE N'AI RIEN DIT » — v1048
+
+     David, le 19 septembre : « quand je rappuie sur le crayon pour
+     modifier, ça s'enlève, heures restantes ».
+
+     C'est ici. Un bilan enregistré alors que la case des heures
+     n'a pas été touchée — parce que le bloc était caché, ou parce
+     que le moniteur n'avait rien à en dire — arrivait avec « h »
+     vide, et la ligne du dessous écrivait une réserve VIDE.
+     Autrement dit : chaque cours ordinaire pouvait effacer les
+     heures prescrites à l'examen blanc ou au rendez-vous
+     post-permis. Ambre avait 6 + 3 au post-permis ; il n'en restait
+     plus trace.
+
+     La v1041 avait pourtant écrit la règle trois lignes plus haut :
+     « zéro n'est pas vide ». Elle l'avait appliquée à « 0 » et pas
+     à « rien ». Ce sont les deux faces de la même chose — une
+     réponse qu'on n'a pas donnée ne vaut pas zéro, et elle
+     n'autorise surtout pas à effacer celle d'avant.
+     ============================================================ */
+  if(!h) return;                               /* rien n'a été dit */
+
+  const valeur = (niveau === 'oui') ? h : '';
 
   if(niveau !== 'oui' && !valeur) return;      /* rien à dire */
 
