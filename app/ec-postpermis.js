@@ -1,4 +1,4 @@
-/* Déployé le 15/09/2026 à 11:56 — v996 */
+/* Déployé le 19/09/2026 à 07:42 — v1044 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -18,6 +18,88 @@ const SUITES_POST = [
 function libelleSuite(cle){
   const s = SUITES_POST.find(x => x.cle === cle);
   return s ? s.nom : '';
+}
+
+/* ============================================================
+   LA CONCLUSION EN BOUTONS — v1044
+
+   David : « dans un rendez-vous post-permis, mets-moi des boutons
+   comme on a mis hier : 0+3, 2+3, 4+3, 6+3, 8+3, une leçon de 2h
+   pour refaire le point, et pas de repassage possible pour le
+   moment ».
+
+   Il fallait AVANT deux gestes et deux endroits : choisir « ➕ 3h
+   avant repassage » dans un menu déroulant, puis taper le nombre
+   d'heures dans une case qui apparaissait en dessous. Or c'est une
+   seule décision, et elle tient en un appui — c'est presque toujours
+   un nombre pair de 0 à 10, exactement comme la réserve d'avant
+   examen qu'on a mise en boutons hier.
+
+   ⚠️ CE QUI EST RANGÉ NE CHANGE PAS. « suite » et « heuresRepassage »
+   restent ce qu'ils étaient : le bouton ne fait que les poser tous
+   les deux d'un coup. Tout ce qui lit ces deux-là — la fiche de
+   l'élève, la note, la consigne au bureau, la réserve qui se
+   décompte, les listes du permis — continue de lire la même chose,
+   sans savoir que l'écran a changé.
+
+   ⚠️ ET LES MOTS DES NOMBRES VIENNENT DE « motsDeLaReserve ».
+   « 0 » ne s'écrit pas « 0 » mais « plus que la leçon de veille » :
+   c'est la phrase de l'application depuis la v1041, et la recopier
+   ici serait s'engager à la corriger deux fois.
+   ============================================================ */
+const HEURES_CONCLUSION_POST = ['0', '2', '4', '6', '8'];
+
+/* ⚠️ PAS DE SECOURS QUI RECOPIE LA PHRASE. La première écriture en
+   portait un : « si motsDeLaReserve manque, dire ⏱️ Plus que la leçon
+   de veille ». Ce secours-là ne protégeait de rien — ec-permis-listes
+   est chargé juste avant ec-postpermis, sur la seule page qui les
+   utilise, et ce sont des déclarations de fonctions : au moment du
+   clic, elle est toujours là. Il ne faisait qu'installer une deuxième
+   copie des mots, dans le fichier même dont le dossier ci-dessus dit
+   que les recopier serait s'engager à les corriger deux fois. Une
+   mutation l'a montré : remplacer l'appel par le secours ne changeait
+   rien à l'écran — deux portes qui disent la même chose aujourd'hui,
+   et plus la même le jour où David fera changer les mots.          */
+function libelleConclusionPost(suite, heures){
+  if(suite === '3h'){
+    const h = String(heures === undefined || heures === null ? '' : heures).trim();
+    if(h === '') return libelleSuite('3h');
+    return motsDeLaReserve(h, true);
+  }
+  return libelleSuite(suite);
+}
+
+/* Les choix de l'écran, dans l'ordre où ils se lisent. « val »
+   porte les DEUX réponses à la fois — c'est tout l'objet de ce
+   dossier : un appui, une décision. */
+function choixConclusionPost(){
+  const out = HEURES_CONCLUSION_POST.map(h => ({
+    val: '3h:' + h, suite: '3h', heures: h,
+    lib: libelleConclusionPost('3h', h)
+  }));
+  SUITES_POST.filter(x => x.cle !== '3h').forEach(x => {
+    out.push({ val: x.cle, suite: x.cle, heures: '', lib: x.nom });
+  });
+  return out;
+}
+
+/* « 3h:4 » → { suite:'3h', heures:'4' } ; « 2h » → { suite:'2h' }.
+   Une seule lecture pour les deux sens, sinon l'écran et ce qui
+   l'enregistre finiraient par ne plus se comprendre. */
+function lireConclusionPost(val){
+  const v = String(val || '');
+  if(!v) return { suite: '', heures: '' };
+  const i = v.indexOf(':');
+  return (i === -1) ? { suite: v, heures: '' }
+                    : { suite: v.slice(0, i), heures: v.slice(i + 1) };
+}
+
+function valeurConclusionPost(suite, heures){
+  const s = String(suite || '');
+  if(!s) return '';
+  if(s !== '3h') return s;
+  const h = String(heures === undefined || heures === null ? '' : heures).trim();
+  return h === '' ? '' : ('3h:' + h);
 }
 
 /* Mention du repassage, telle qu'elle apparaît dans les notes */
