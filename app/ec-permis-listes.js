@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:05 — v1052 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -4016,15 +4016,38 @@ function motsDeLaReserve(valeur, court){
   }
   if(String(valeur) === '') return court ? '⏱️ Heures à préciser'
                                          : '⏱️ heures à préciser';
-  /* ⚠️ « LA LEÇON DE VEILLE DE L'EXAMEN » — David, v1041. C'est le
-     nom de la chose ; « les 3h » n'en était que la durée. */
+  /* ============================================================
+     ⚠️ UN SEUL MOT POUR LE ZÉRO — David, v1053
+
+     « Pourquoi, quand je change le bouton en 0 — plus que la leçon
+     de veille, ça ne change toujours pas le bouton et ça écrit plus
+     que les 3h avant examen ? »
+
+     Ça changeait : le bouton affichait bien « Plus que la leçon de
+     veille ». Mais la carte, elle, appelait ce même zéro « Plus que
+     les 3h avant examen » — et deux noms pour une seule valeur se
+     lisent comme deux valeurs. David a relu son geste comme un
+     geste perdu, et l'a refait.
+
+     La v1041 avait choisi « la leçon de veille » parce que c'est le
+     nom de la chose et que « les 3h » n'en est que la durée. Elle
+     avait raison sur le fond — mais elle n'a renommé qu'un écran
+     sur deux, et c'est le désaccord qui coûte, pas le mot. David
+     tranche pour « les 3h avant examen », qui est la phrase de la
+     carte, celle qu'on lit en premier le matin.
+
+     ⚠️ ET LES NOTES DÉJÀ ÉCRITES SE RELISENT. Les trois motifs qui
+     relisent cette phrase — ec-bureau (deux) et ec-avant-cours —
+     acceptent les deux formulations depuis la v1041. Reconnaître
+     l'ancien vocabulaire, ce n'est pas le garder, c'est le traduire.
+     ============================================================ */
   if(String(valeur) === '0'){
-    return court ? '⏱️ Plus que la leçon de veille'
-                 : '⏱️ plus que la leçon de veille';
+    return '⏱️ ' + (court ? motDuZeroEnTete() : CONCLUSION_RESERVE_SOLDEE);
   }
   /* La leçon de veille s'ajoute toujours : « 4 + 3 » */
   return '⏱️ ' + valeur + ' + 3h';
 }
+
 
 function mentionHeuresRestantes(nom){
   const r = heuresQuiComptent(nom);
@@ -4199,7 +4222,11 @@ async function rattraperExamensBlancs(){
    principal. En bas, il se lit comme une fermeture. */
 function choixDeLaReserve(){
   return [
-    { nom:'0 — plus que la leçon de veille', valeur:'0' },
+    /* ⚠️ LE NOM VIENT DE LA PORTE — v1053. Recopié ici, il aurait
+       survécu au renommage : c'est exactement ce qui s'était passé
+       entre le bouton et la carte. */
+    { nom:'0 — ' + motsDeLaReserve('0', false).replace(/^⏱️ /, ''),
+      valeur:'0' },
     { nom:'2 + 3h', valeur:'2' },
     { nom:'4 + 3h', valeur:'4', principal:true },
     { nom:'6 + 3h', valeur:'6' },
@@ -4258,10 +4285,11 @@ async function saisirHeuresRestantes(nom, apres){
        bureau », une case prévue pour dire que la DATE ne va pas. */
     if(estPasLeNiveau(propre)) await signalerPasLeNiveau(nom);
 
+    /* ⚠️ ET LE MESSAGE AUSSI VIENT DE LA PORTE — v1053 : c'est le
+       troisième endroit qui écrivait ces mots à la main. */
     showToast(propre === '' ? 'Effacé'
             : estPasLeNiveau(propre) ? 'Pas le niveau — signalé au bureau ⛔'
-            : propre === '0' ? 'Plus que la leçon de veille ✅'
-            : propre + ' + 3h ✅');
+            : motsDeLaReserve(propre, true).replace(/^⏱️ /, '') + ' ✅');
     if(typeof apres === 'function') apres(propre);
     else redessinerBureau();
   }catch(e){ showToast('Impossible : ' + e.message); }
@@ -4565,8 +4593,10 @@ const LISTES_PERMIS = [
   { cle:'envisager', nom:'🤔 Élèves prêts au permis',
      champs:{ aPlanifier:'', retireAPrevoir:'', statut:'', datePermis:'' },
      neutralise:true,
-     note:'Examen blanc passé le {jour} — plus que la leçon de veille ' +
-          "de l'examen (bureau)" },
+     /* Les mots du zéro, v1053 — le motif qui relit cette note
+        (ec-bureau) accepte les deux formulations. */
+     note:'Examen blanc passé le {jour}' + suiteReserveSoldee() +
+          ' (bureau)' },
 
   { cle:'rdv',       nom:'🗓️ Liste RDV Permis',
      champs:{ aPlanifier:'oui', retireAPrevoir:'', statut:'', datePermis:'' },
