@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 17:08 — v1042 */
+/* Déployé le 19/09/2026 à 09:48 — v1048 */
 /* ============================================================
    ec-avant-cours.js
    Ce qu'on doit savoir avant de monter en voiture — UNE fois.
@@ -406,10 +406,21 @@ function ligneRestantAvantExamen(position, reste, dateExam){
      La date part avec, parce qu'elle est la seule chose qui peut
      démentir la phrase : si l'examen est encore loin, le moniteur
      le voit d'un coup d'œil au lieu de croire l'application. */
+  /* ⚠️ ET CE NOMBRE EST DES HEURES, PAS DES LEÇONS — v1048.
+
+     David, devant la carte d'Ambre Guillebon : elle annonçait
+     « Reste encore 2 leçons + 3h » pendant que sa note disait
+     « encore 2h ». Deux heures, c'est UNE leçon : le moniteur
+     lisait le double de ce qui restait vraiment, et préparait deux
+     cours là où il n'en restait qu'un.
+
+     Les mots viennent de « motsDeLaReserve », la phrase de
+     l'application depuis la v1041 — les réécrire ici, c'est
+     s'engager à les corriger deux fois. */
   const tete = (n === 0)
     ? ("C'est la leçon de veille de l'examen" +
        (dateExam ? ' du ' + dateExam : ''))
-    : 'Reste encore ' + n + ' leçon' + (n > 1 ? 's' : '') + ' + 3h';
+    : 'Reste encore ' + n + 'h + 3h avant examen';
 
   const court = positionAbregee(pos);
   return court ? tete + ' (' + court + ')' : tete;
@@ -521,7 +532,7 @@ function lignePositionDuHaut(nom, corps, note, modele){
   const jourDit = (typeof dateEnToutesLettres === 'function')
     ? (dateEnToutesLettres(dateExam) || dateExam) : dateExam;
 
-  return ligneRestantAvantExamen(pos, a.permisN, jourDit);
+  return ligneRestantAvantExamen(pos, a.permisHeures, jourDit);
 }
 
 /* ------------------------------------------------------------
