@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 16:52 — v1041 */
+/* Déployé le 18/09/2026 à 17:08 — v1042 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -2474,6 +2474,21 @@ const ETAT_EB_RIEN      = grasNote("EXAMEN BLANC PAS ENCORE ÉVOQUÉ");
    Écrite ici une seule fois : le questionnaire, le bureau et les
    écrans qui la relisent y puisent tous. */
 const CONSIGNE_PAS_LE_NIVEAU = 'FAIRE LE POINT À CHAQUE LEÇON';
+
+/* ⚠️ LES MOTS D'AVANT, À UN SEUL ENDROIT — v1042.
+
+   « plus que les 3h avant examen » est devenu « plus que la leçon de
+   veille de l'examen » en v1041. Ce qui S'ÉCRIT a changé partout ;
+   reste UN cas où l'application doit encore produire les anciens
+   mots : quand elle réécrit la note d'un bilan d'avant, dont le
+   nombre vivait en leçons. Lui coller les mots neufs reviendrait à
+   récrire l'histoire d'un moniteur qui n'a pas dit ça.
+
+   Cette constante est la seule maison autorisée de l'ancienne
+   phrase. Ailleurs, un test l'interdit — parce que ma passe
+   « partout » de la v1041 en avait oublié huit, et qu'on ne
+   retrouve pas huit oublis en relisant. */
+const MOTS_ANCIENS_3H = 'plus que les 3h avant examen';
 /* ⚠️ « A LE NIVEAU, HEURES À PRÉCISER » — v1005. Écrite ici, relue
    par ec-bureau.js. Deux orthographes et la note cesse de se
    relire : le bureau verrait « examen blanc passé » sans conclusion,
@@ -6095,7 +6110,7 @@ function ajouterSuite(etats, permis, mots, q){
                            q.examPermisN === null ? '' : q.examPermisN).trim();
       if(!vieux) return '';
       return (parseInt(vieux, 10) === 0)
-        ? ' — plus que les 3h avant examen'
+        ? ' — ' + MOTS_ANCIENS_3H
         : ' — encore ' + vieux + ' leçon' + pl(vieux) + ' + 3h avant examen';
     }
 
