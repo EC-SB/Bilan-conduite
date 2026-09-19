@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:03 — v1045 */
+/* Déployé le 19/09/2026 à 11:51 — v1053 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -1077,7 +1077,8 @@ function texteExamenBlancRoute(nom, s, e){
   if(niv) bouts.push(niv);
 
   const h = String((s && s.heuresRestantes) || '').trim();
-  if(h) bouts.push(h === '0' ? 'plus que la leçon de veille'
+  /* Les mots du zéro viennent de leur porte — v1053. */
+  if(h) bouts.push(h === '0' ? CONCLUSION_RESERVE_SOLDEE
                              : h + 'h avant examen');
 
   if(bouts.length) return 'Examen blanc : ' + bouts.join(' · ');
@@ -1122,7 +1123,7 @@ async function modifierExamenBlancRoute(nom, s, e){
         options: NIVEAUX_ROUTE },
       { cle:'heures',
         nom:"Heures de conduite avant l'examen "
-            + "(0 = plus que la leçon de veille)",
+            + '(0 = ' + CONCLUSION_RESERVE_SOLDEE + ')',
         type:'text', exemple:'4', valeur: s.heuresRestantes || '' }
     ]);
   if(!r) return;
@@ -1170,8 +1171,7 @@ function phraseExamenBlancRoute(r){
     const h = parseInt(String(r.heures || '').trim(), 10);
     if(String(r.heures || '').trim() !== '' && !isNaN(h)){
       if(h <= 0){
-        return 'Examen blanc passé le ' + jourPasse +
-               " — plus que la leçon de veille de l'examen";
+        return 'Examen blanc passé le ' + jourPasse + suiteReserveSoldee();
       }
       /* Le bureau raisonne en leçons de deux heures. La conversion
          a une seule porte — ce commentaire disait déjà qu'elle
@@ -1267,7 +1267,7 @@ function texteHeuresRoute(s){
      avant examen », c'est-à-dire « il est prêt » — écrit « 0h », on
      lit exactement le contraire. Même règle que le questionnaire et
      que l'alerte du bandeau. */
-  let t = (h === '0') ? "Plus que la leçon de veille de l'examen"
+  let t = (h === '0') ? motDuZeroEnTete()
                       : h + 'h + la leçon de veille';
 
   /* ⚠️ DEPUIS QUAND, ET PAS SEULEMENT PAR QUI — v914.
@@ -1341,7 +1341,7 @@ async function modifierHeuresRoute(nom, s){
 
   const r = await formulaireRoute("⏱️ Les heures de " + nom,
     "Ce qu'il lui reste à conduire avant l'examen, en heures. " +
-    '0 veut dire « plus que la leçon de veille » — il est prêt. ' +
+    '0 veut dire « ' + CONCLUSION_RESERVE_SOLDEE + ' » — il est prêt. ' +
     'Vide veut dire ' +
     "qu'on ne sait pas." +
     (choixPossible
