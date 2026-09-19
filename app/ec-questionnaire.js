@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 10:00 — v1049 */
+/* Déployé le 19/09/2026 à 11:05 — v1052 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1628,6 +1628,58 @@ function calageDe(nom, quoi){
    l'exécuter seule. Ce qu'on ne peut pas appeler, on ne peut pas le
    vérifier.
    ============================================================ */
+/* ============================================================
+   CE QU'IL RESTE, POUR LA FENÊTRE DU MONITEUR — v1052
+
+   La fenêtre avait SA lecture : elle ne regardait que
+   « heuresRestantes ». Quand la réserve vient du rendez-vous
+   post-permis, elle vit dans « heuresRepassage » — que ce calcul
+   n'a jamais regardé. Pour tout élève passé par un post-permis, la
+   fenêtre a donc toujours dit « à préciser » sur un nombre
+   parfaitement connu, sous une ligne qui annonçait « 6 + 3 ».
+
+   C'était la TROISIÈME lecture de la même question : la carte, le
+   bouton du bureau, et celle-ci. Les deux premières passaient déjà
+   par « heuresQuiComptent ».
+
+   ⚠️ ET C'EST UNE FONCTION, PAS UNE CLOSURE. Elle vivait au milieu
+   de quatre cents lignes : une mutation qui la neutralisait ne se
+   voyait nulle part, faute de pouvoir l'appeler seule. Ce qu'on ne
+   peut pas appeler, on ne peut pas le vérifier.
+   ============================================================ */
+function reserveQueLaFenetreAffiche(nom, prec, rangDuJour){
+  const brut = String((prec && prec.heuresRestantes) || '').trim();
+  if(typeof estPasLeNiveau === 'function' && estPasLeNiveau(brut)) return brut;
+
+  if(typeof heuresQuiComptent === 'function'){
+    const q = heuresQuiComptent(nom, prec) || {};
+    const su = String(q.valeur === undefined || q.valeur === null
+      ? '' : q.valeur).trim();
+    if(su !== '') return su;
+  }
+
+  /* ⚠️ LE PONT AVEC LES ANCIENNES NOTES — v1041. Un élève dont la
+     seule trace est « encore 4 leçons + 3h » n'a pas de réserve en
+     heures : elle vivait en LEÇONS, dans examPermisN. */
+  if(!brut && typeof leconsAvantExamen === 'function'){
+    const l = leconsAvantExamen(prec, rangDuJour);
+    if(l !== '' && typeof heuresPourLecons === 'function'){
+      const hh = heuresPourLecons(l);
+      if(hh !== null) return String(hh);
+    }
+  }
+
+  const h = parseFloat(brut.replace(',', '.'));
+  if(isNaN(h)) return '';
+  if(typeof leconsDepuisLaReserve !== 'function' ||
+     typeof heuresPourLecons !== 'function') return brut;
+  const reste = h - heuresPourLecons(leconsDepuisLaReserve(nom, prec));
+  /* Zéro n'est pas vide : « plus que la leçon de veille » est une
+     réponse, et c'est la plus utile des deux. */
+  return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
+}
+
+
 function direDOuVientLaReserve(zone, nom){
   if(!zone) return 0;
   zone.innerHTML = '';
@@ -4602,35 +4654,12 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
     const hEP = boite.querySelector('#qHeuresPermis');
     const bH = boite.querySelector('#qHeuresBouton');
 
-    const reserveDuJour = () => {
-      const brut = String(prec.heuresRestantes || '').trim();
-      if(typeof estPasLeNiveau === 'function' && estPasLeNiveau(brut)){
-        return brut;
-      }
-      /* ⚠️ LE PONT AVEC LES ANCIENNES NOTES — v1041. Un élève dont
-         la seule trace est « encore 4 leçons + 3h avant examen »
-         n'a pas de réserve en heures : elle vivait en LEÇONS, dans
-         examPermisN. On la convertit — une leçon vaut deux heures —
-         en la faisant d'abord décompter par sa propre règle, celle
-         de la v906. Sans ce pont, il repasserait à « heures à
-         préciser » pour avoir été écrit avant aujourd'hui. */
-      if(!brut && typeof leconsAvantExamen === 'function'){
-        const l = leconsAvantExamen(prec, rangDuJour);
-        if(l !== '' && typeof heuresPourLecons === 'function'){
-          const hh = heuresPourLecons(l);
-          if(hh !== null) return String(hh);
-        }
-      }
-      const h = parseFloat(brut.replace(',', '.'));
-      if(isNaN(h)) return '';
-      if(typeof leconsDepuisLaReserve !== 'function' ||
-         typeof heuresPourLecons !== 'function') return brut;
-      const reste = h - heuresPourLecons(
-        leconsDepuisLaReserve(($('studentName') || {}).value, prec));
-      /* Zéro n'est pas vide : « plus que la leçon de veille » est
-         une réponse, et c'est la plus utile des deux. */
-      return String(reste > 0 ? Math.round(reste * 10) / 10 : 0);
-    };
+    /* ⚠️ LA MÊME PORTE QUE LES DEUX AUTRES ÉCRANS — v1052.
+       Voir « reserveQueLaFenetreAffiche », plus haut : ce calcul
+       vivait ici, en closure, et ne regardait que « heuresRestantes ». */
+    const reserveDuJour = () =>
+      reserveQueLaFenetreAffiche(($('studentName') || {}).value,
+                                 prec, rangDuJour);
 
     const direLaReserve = (v) => {
       if(hEP) hEP.value = String(v === undefined ? reserveDuJour() : v);
