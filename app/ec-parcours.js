@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 12:55 — v1056 */
+/* Déployé le 05/10/2026 à 09:20 — v1057 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -27,83 +27,18 @@ let parcoursGuides = [];
 let parcoursGroupeOuvert = '';
 let parcoursCharge = false;
 
-/* Les cinq types de blocs, et rien d'autre. Un bloc = une chose :
+/* Les quatre types de blocs, et rien d'autre. Un bloc = une chose :
    c'est ce qui rend l'ordre totalement libre, parce que rien n'est
    accroché à rien. */
-/* ============================================================
-   ⚠️ LE CINQUIÈME TYPE : « TITRE », CELUI QUI DÉCOUPE — v1056
-
-   David, le 19 septembre : « l'élève ne valide pas un guide complet,
-   c'est segment par segment — je veux comme les guides sur Facebook :
-   un bloc avec un titre, du texte, du texte et une image, du texte et
-   une vidéo ».
-
-   Un segment n'est pas une nouvelle sorte d'objet à ranger : c'est un
-   TITRE, et tout ce qui le suit jusqu'au titre suivant. Le guide
-   reste une pile de blocs ; le découpage se lit dedans.
-
-   ⚠️ ET LES GUIDES DÉJÀ ÉCRITS NE BOUGENT PAS. Un guide sans aucun
-   bloc « titre » est un segment unique, qui porte le titre du guide
-   — exactement ce qu'il affiche aujourd'hui. Rien à reprendre à la
-   main : on ajoute des titres quand on veut, guide par guide.
-   ============================================================ */
 const BLOCS_PARCOURS = [
-  { type:'titre', emoji:'🔖', nom:'Titre' },
   { type:'texte', emoji:'📝', nom:'Texte' },
   { type:'video', emoji:'🎬', nom:'Vidéo' },
   { type:'image', emoji:'🖼️', nom:'Image' },
   { type:'pdf',   emoji:'📄', nom:'PDF' }
 ];
 
-/* ⚠️ ET « INCONNU » RETOMBE SUR LE TEXTE, PAS SUR LE PREMIER DE LA
-   LISTE — v1056. Cette fonction rendait BLOCS_PARCOURS[0], ce qui
-   était le texte par hasard : le jour où l'on a mis « titre » en
-   tête, tout bloc d'un type inconnu serait devenu un titre, donc une
-   coupure de segment. On nomme le repli au lieu de le compter. */
-/* Les types qui portent un fichier — et c'est la seule liste qui en
-   décide. Décrire les autres « en creux » (« tout ce qui n'est pas du
-   texte ») se défait au premier type ajouté. */
-const PORTENT_UN_FICHIER = ['video', 'image', 'pdf'];
-
 function blocConnu(type){
-  return BLOCS_PARCOURS.find(b => b.type === type) ||
-         BLOCS_PARCOURS.find(b => b.type === 'texte');
-}
-
-/* ============================================================
-   UN SEGMENT A BESOIN D'UN IDENTIFIANT QUI NE BOUGE PAS — v1056
-
-   Si on numérotait un segment par sa position, insérer un titre au
-   milieu décalerait tous les suivants — et ce que les élèves ont
-   déjà vu se retrouverait attribué au mauvais segment. On ne s'en
-   apercevrait pas : la feuille resterait pleine, avec les bonnes
-   dates sur les mauvaises lignes.
-
-   Chaque bloc « titre » reçoit donc un identifiant à sa création et
-   le garde ensuite, quoi qu'il arrive. Réordonner, insérer,
-   renommer : rien ne change ce qui a été vu.
-
-   ⚠️ ET IL SE POSE À LA CRÉATION, PAS À LA PUBLICATION. Un
-   identifiant donné au moment de publier changerait à chaque
-   publication — c'est-à-dire exactement ce qu'on veut éviter.
-   ============================================================ */
-function idDeSegment(){
-  return 's' + Date.now().toString(36) +
-         Math.floor(Math.random() * 46656).toString(36);
-}
-
-/* ⚠️ ET UN TITRE SANS IDENTIFIANT EN REÇOIT UN, UNE SEULE FOIS. Un
-   titre écrit avant cette version n'en a pas ; le nommer par son
-   rang le ferait changer de nom au premier réordonnancement. On pose
-   donc l'identifiant manquant à la première ouverture du guide, et
-   il ne bouge plus. */
-function segmentsAvecIdentifiant(blocs){
-  (blocs || []).forEach(b => {
-    if(b && b.type === 'titre' && !String(b.id || '').trim()){
-      b.id = idDeSegment();
-    }
-  });
-  return blocs || [];
+  return BLOCS_PARCOURS.find(b => b.type === type) || BLOCS_PARCOURS[0];
 }
 
 /* ============================================================
@@ -607,9 +542,8 @@ function resumeDesBlocs(compte){
 /* ============================================================
    L'ÉDITEUR EN BLOCS
 
-   Un guide est une pile. Un bloc = une chose. Cinq types, et
-   l'ordre est libre parce que rien n'est accroché à rien — le
-   cinquième, « titre », ne porte rien : il coupe (v1056).
+   Un guide est une pile. Un bloc = une chose. Quatre types, et
+   l'ordre est libre parce que rien n'est accroché à rien.
    ============================================================ */
 async function ouvrirLeGuide(x, groupe){
   const zone = $('parcoursZone');
@@ -634,9 +568,7 @@ async function ouvrirLeGuide(x, groupe){
     try{
       const d = await appelPrep({ action: 'parcoursGuide', id: x.id });
       const g = (d && d.guide) || {};
-      /* ⚠️ Les titres écrits avant la v1056 n'ont pas d'identifiant :
-         on le leur pose ici, une fois, et il ne bouge plus. */
-      blocs = segmentsAvecIdentifiant((g.blocs || []).slice());
+      blocs = (g.blocs || []).slice();
       titre = g.titre || '';
       etat = g.etat || 'brouillon';
     }catch(e){
@@ -735,12 +667,7 @@ async function ouvrirLeGuide(x, groupe){
         relireLesBlocs(cadre, blocs);
         /* En FIN de pile : un bloc s'ajoute à la suite de ce qu'on
            vient d'écrire, et se déplace ensuite au doigt. */
-        /* ⚠️ L'IDENTIFIANT D'UN SEGMENT SE POSE ICI, À LA CRÉATION.
-           Plus tard, il changerait à chaque publication — et ce que
-           les élèves ont vu suivrait le mauvais segment. */
-        const neufBloc = { type:t.type, texte:'', fichier:'', titre:'', duree:0 };
-        if(t.type === 'titre') neufBloc.id = idDeSegment();
-        blocs.push(neufBloc);
+        blocs.push({ type:t.type, texte:'', fichier:'', titre:'', duree:0 });
         dessiner();
       });
       za.appendChild(b);
@@ -1136,34 +1063,7 @@ function ligneDeBloc(b, i){
 
   l.appendChild(tete);
 
-  /* ============================================================
-     ⚠️ UN TITRE N'A QU'UNE LIGNE — v1056
-
-     C'est le nom du segment : celui que l'élève voit en tête, et
-     celui que le bureau lit dans son suivi. Une seule case, donc,
-     et pas de zone de texte — un titre sur trois lignes n'est plus
-     un titre, et la colonne du suivi ne saurait plus l'afficher.
-
-     ⚠️ ET SON IDENTIFIANT SE VOIT, EN PETIT. Il ne se tape pas et ne
-     se change pas : il est montré parce qu'un identifiant caché est
-     un identifiant qu'on croit pouvoir bouger.
-     ============================================================ */
-  if(b.type === 'titre'){
-    const t = document.createElement('input');
-    t.type = 'text';
-    t.dataset.champ = 'titre';
-    t.style.cssText = 'margin:8px 0 0;font-size:14px;width:100%;' +
-      'font-weight:700;';
-    t.placeholder = 'Le nom de ce segment — « Partie 1 : arriver au carrefour »';
-    t.value = b.titre || '';
-    l.appendChild(t);
-
-    const petit = document.createElement('div');
-    petit.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;';
-    petit.textContent = 'Tout ce qui suit ce titre fait partie de ce segment, ' +
-      'jusqu\'au titre suivant. · repère ' + (b.id || '—');
-    l.appendChild(petit);
-  }else if(b.type === 'texte'){
+  if(b.type === 'texte'){
     const ta = document.createElement('textarea');
     ta.dataset.champ = 'texte';
     ta.rows = 3;
@@ -1415,14 +1315,7 @@ function relireLesBlocs(cadre, blocs){
    ne montre RIEN chez l'élève, et rien ne le dit une fois publié. On
    le dit avant. */
 function blocsSansFichier(blocs){
-  /* ⚠️ « TITRE » NON PLUS N'A RIEN À DÉPOSER — v1056. Cette liste
-     disait « tout ce qui n'est pas du texte », ce qui était vrai
-     tant que les trois autres types portaient un fichier. Le jour
-     du cinquième, elle aurait refusé de publier tout guide
-     découpé, en annonçant un fichier manquant sur un bloc qui n'en
-     attend aucun. On nomme ce qui PORTE un fichier, au lieu de
-     nommer ce qui n'en porte pas. */
-  return (blocs || []).filter(b => PORTENT_UN_FICHIER.indexOf(b.type) !== -1 &&
+  return (blocs || []).filter(b => b.type !== 'texte' &&
                                    clesDuBloc(b).length === 0);
 }
 
@@ -1434,12 +1327,7 @@ function apercuDuGuide(titre, blocs){
   bouts.push('');
   (blocs || []).forEach(b => {
     const t = blocConnu(b.type);
-    if(b.type === 'titre'){
-      /* Une coupure se VOIT dans l'aperçu : c'est tout l'objet du
-         bloc, et un aperçu qui l'aplatit ne montre pas le guide. */
-      bouts.push('──────────');
-      bouts.push('🔖 ' + (String(b.titre || '').trim() || '(segment sans nom)'));
-    }else if(b.type === 'texte'){
+    if(b.type === 'texte'){
       bouts.push(String(b.texte || '').trim() || '(texte vide)');
     }else{
       /* ⚠️ ON MONTRE CE QUE L'ÉLÈVE VERRA, pas la clé du fichier.
@@ -1506,13 +1394,7 @@ async function afficherSuiviParcours(){
      3. le reste. */
 function urgenceDuParcours(l){
   if(!l.ouvert && l.groupes) return 3;
-  /* ⚠️ « CE QUI RESTE » SE COMPTE EN SEGMENTS — v1056. Un élève qui a
-     cours demain et qui a vu cinq segments sur douze d'un SEUL guide
-     avait « reste = 1 » : il passait pour presque à jour alors qu'il
-     lui manquait sept septièmes de son travail. Le champ d'avant
-     reste le repli, pour un écran qui n'aurait pas été déployé. */
-  const resteU = (l.segmentsReste === undefined) ? l.reste : l.segmentsReste;
-  if(resteU && l.prochain){
+  if(l.reste && l.prochain){
     const j = joursAvantLeCours(l.prochain);
     if(j !== null && j <= 2) return 2;
     return 1;
@@ -1555,10 +1437,7 @@ function dessinerSuiviParcours(){
       if(!b.prochain) return -1;
       return a.prochain < b.prochain ? -1 : 1;
     }
-    /* Le plus en retard d'abord — en SEGMENTS depuis la v1056. */
-    const ra = (a.segmentsReste === undefined) ? a.reste : a.segmentsReste;
-    const rb = (b.segmentsReste === undefined) ? b.reste : b.segmentsReste;
-    if(ra !== rb) return rb - ra;
+    if(a.reste !== b.reste) return b.reste - a.reste;
     return String(a.eleve).localeCompare(String(b.eleve), 'fr');
   });
 
@@ -1598,14 +1477,7 @@ function ligneDuSuiviParcours(l){
   meta.appendChild(t);
 
   /* ⚠️ LA BARRE DIT LA PROGRESSION SANS QU'ON LISE LES CHIFFRES. */
-  /* ⚠️ LA BARRE COMPTE DES SEGMENTS — v1056. « 1 guide sur 2 » sur un
-     guide de six segments dont il en a vu cinq ne dit rien de ce
-     qu'il a fait. Les champs d'avant restent : un écran qui n'aurait
-     pas été déployé continue de lire les siens. */
-  const totalS = (l.segmentsTotal === undefined) ? l.total : l.segmentsTotal;
-  const faitsS = (l.segmentsFaits === undefined) ? l.faits : l.segmentsFaits;
-  const resteS = (l.segmentsReste === undefined) ? l.reste : l.segmentsReste;
-  const pc = totalS ? Math.round((faitsS / totalS) * 100) : 0;
+  const pc = l.total ? Math.round((l.faits / l.total) * 100) : 0;
   const barre = document.createElement('div');
   barre.style.cssText = 'height:5px;border-radius:3px;background:var(--line);' +
     'overflow:hidden;margin:5px 0 4px;max-width:220px;';
@@ -1616,9 +1488,9 @@ function ligneDuSuiviParcours(l){
   meta.appendChild(barre);
 
   const s = document.createElement('span');
-  s.textContent = totalS
-    ? faitsS + ' segment' + ((faitsS > 1) ? 's' : '') + ' sur ' + totalS +
-      (resteS ? ' · ' + resteS + ' à voir' : ' · à jour')
+  s.textContent = l.total
+    ? l.faits + ' étape' + ((l.faits > 1) ? 's' : '') + ' sur ' + l.total +
+      (l.reste ? ' · ' + l.reste + ' à voir' : ' · à jour')
     : (l.groupes ? 'Ses groupes n\'ont aucun guide publié'
                  : 'Aucun groupe ouvert');
   meta.appendChild(s);
@@ -1720,75 +1592,27 @@ function detailDuParcours(l){
 
     g.ids.forEach(id => {
       const g2 = guidesDuSuivi[id] || {};
-      /* ⚠️ « vus[id] » EST DEVENU UNE FICHE PAR SEGMENT — v1056 :
-         { vuLe, revuLe, vues }. La clé vide est le guide entier,
-         c'est-à-dire ce qu'ont posé les élèves d'avant. */
-      const fiches = vus[id] || {};
-      const toutLeGuide = !!(fiches[''] && fiches[''].vuLe);
-
-      /* ============================================================
-         LE TITRE DU GUIDE, PUIS SES SEGMENTS — v1056
-
-         David : « j'ai besoin d'un vrai suivi de voir exactement ce
-         qu'il a vu ». Un guide découpé en six segments dont il en a
-         vu cinq ne se dit pas « pas encore » : ça se dit segment par
-         segment, avec la première fois et les fois d'après.
-
-         ⚠️ ET UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON
+      const vu = vus[id] || '';
+      const li = document.createElement('div');
+      li.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
+        'font-size:12px;margin:0 0 3px;' +
+        (vu ? '' : 'color:var(--muted);');
+      const marque = document.createElement('span');
+      marque.style.cssText = 'flex-shrink:0;width:14px;';
+      marque.textContent = vu ? '✓' : '·';
+      li.appendChild(marque);
+      const nom = document.createElement('span');
+      nom.style.cssText = 'flex:1;min-width:0;';
+      /* ⚠️ UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON
          IDENTIFIANT : une ligne vide ferait croire à un guide sans
          titre plutôt qu'à un guide dépublié. */
-      const segs = (g2.segments && g2.segments.length)
-        ? g2.segments : [{ id: '', titre: g2.titre || ('(guide ' + id + ')') }];
-
-      const tg = document.createElement('div');
-      tg.style.cssText = 'font-size:12px;font-weight:700;margin:7px 0 3px;';
-      const combien = segs.filter(sg =>
-        toutLeGuide || (fiches[sg.id] && fiches[sg.id].vuLe)).length;
-      tg.textContent = (g2.titre || ('(guide ' + id + ')')) +
-        '  ·  ' + combien + ' / ' + segs.length;
-      tg.style.color = (combien === segs.length)
-        ? 'var(--accent-text)' : 'var(--cream)';
-      d.appendChild(tg);
-
-      segs.forEach(sg => {
-        const f = toutLeGuide ? fiches[''] : (fiches[sg.id] || null);
-        const vu = !!(f && f.vuLe);
-        const li = document.createElement('div');
-        li.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
-          'font-size:12px;margin:0 0 3px;padding-left:6px;' +
-          (vu ? '' : 'color:var(--muted);');
-
-        const marque = document.createElement('span');
-        marque.style.cssText = 'flex-shrink:0;width:14px;';
-        marque.textContent = vu ? '✓' : '·';
-        li.appendChild(marque);
-
-        const nom = document.createElement('span');
-        nom.style.cssText = 'flex:1;min-width:0;';
-        nom.textContent = sg.titre || 'Segment sans nom';
-        li.appendChild(nom);
-
-        const q = document.createElement('span');
-        q.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-        q.textContent = vu ? f.vuLe : 'pas encore';
-        li.appendChild(q);
-
-        /* ⚠️ « REVU », SÉPARÉMENT DE LA PREMIÈRE FOIS. C'est
-           exactement ce que David a demandé : « j'ai juste besoin de
-           l'information s'il l'a revu et quand ». Un segment vu une
-           seule fois ne dit rien de plus — écrire « 1 fois » partout
-           ferait du bruit sur toutes les lignes. */
-        const n = (f && Number(f.vues)) || 0;
-        if(vu && (n > 1 || (f && f.revuLe))){
-          const r = document.createElement('span');
-          r.style.cssText = 'font-size:11px;color:var(--accent-text);' +
-            'flex-shrink:0;';
-          r.textContent = (n > 1 ? n + ' fois' : 'revu') +
-            (f.revuLe ? ' · le ' + f.revuLe : '');
-          li.appendChild(r);
-        }
-        d.appendChild(li);
-      });
+      nom.textContent = g2.titre || ('(guide ' + id + ')');
+      li.appendChild(nom);
+      const q = document.createElement('span');
+      q.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
+      q.textContent = vu ? vu : 'pas encore';
+      li.appendChild(q);
+      d.appendChild(li);
     });
   });
 
