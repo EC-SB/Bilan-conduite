@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 18/09/2026 à 16:01 — v1040 -->
+<!-- Déployé le 19/09/2026 à 12:55 — v1056 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -252,9 +252,61 @@
   .etape.faite .num{ background:var(--accent-text); color:var(--navy-deep); }
   .etape.faite .nom{ color:var(--muted); font-weight:400; }
   .etape.ouverte{ border-color:var(--accent-text); }
-  /* ⚠️ GRISÉE, PAS CACHÉE. Il doit voir ce qui l'attend — c'est ce
-     qui donne envie de finir celle d'avant. */
-  .etape.attend{ opacity:.45; }
+  /* ⚠️ PLUS RIEN N'EST GRISÉ — v1056. David : « tout est lisible tout
+     de suite ». Le verrouillage venait du groupe Facebook, où l'on
+     ajoutait l'élève au fur et à mesure ; ici il révise, et il
+     révise dans l'ordre qu'il veut — souvent la veille de l'examen,
+     en cherchant une chose précise. La règle reste écrite pour les
+     écrans qui la demanderaient encore. */
+  .etape.attend{ opacity:1; }
+
+  /* ===== 🔖 Les segments d'un guide — v1056 =====
+
+     David : « je veux comme les guides sur Facebook, un bloc avec un
+     titre du texte, du texte et une image ». Un guide n'est plus une
+     page avec une case au bout : c'est une suite de segments qu'on
+     descend un par un. */
+  .seg{ border-top:1px solid var(--line); }
+  .seg:first-child{ border-top:0; }
+  .seg > .stete{
+    padding:11px 0 11px; display:flex; gap:9px; align-items:center;
+    font-size:13.5px; cursor:pointer;
+  }
+  .seg .spuce{
+    flex-shrink:0; width:19px; height:19px; border-radius:50%;
+    background:var(--line); color:var(--muted); font-size:11px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .seg.vu .spuce{ background:var(--accent-text); color:var(--navy-deep); }
+  .seg .snom{ flex:1; min-width:0; font-weight:700; }
+  .seg.vu .snom{ color:var(--muted); font-weight:400; }
+  .seg .squand{ font-size:11px; color:var(--muted); flex-shrink:0; }
+  .seg .sfleche{ font-size:11px; color:var(--accent-text); flex-shrink:0; }
+  .seg .sdedans{ padding:0 0 12px; }
+
+  /* La ligne qui dit à l'élève que son avancement est partagé.
+     Mesurer ce qu'il regarde est une donnée de plus : ça se dit. */
+  /* ✋ La présence, confirmable depuis l'espace — v1056 */
+  .btpres{
+    display:block; width:100%; margin:12px 0 0; padding:13px;
+    font-size:15px; font-weight:700; border-radius:11px; border:0;
+    background:var(--accent-text); color:var(--navy-deep); cursor:pointer;
+  }
+  .btpres[disabled]{ opacity:.55; cursor:default; }
+  .presok{
+    margin:12px 0 0; padding:12px; border-radius:11px;
+    background:var(--line); color:var(--accent-text);
+    font-size:14.5px; font-weight:700; text-align:center;
+  }
+  .presmot{
+    margin:8px 0 0; font-size:11.5px; color:var(--muted); line-height:1.6;
+  }
+
+  .ditpartage{
+    font-size:11.5px; color:var(--muted); line-height:1.6;
+    margin:0 0 12px; padding:9px 11px; border-radius:9px;
+    background:var(--line);
+  }
   .etape .dedans{
     padding:0 13px 13px; border-top:1px solid var(--line);
     padding-top:12px;
@@ -283,27 +335,65 @@
   }
   .etape .coche input{ width:20px; height:20px; flex-shrink:0; margin:0; }
 
-  /* Le carrousel d'images — v1036. On glisse au doigt ; les points
-     disent seulement où l'on en est. */
-  .carrousel{ margin:0 0 11px; }
+  /* ===== Le carrousel — v1036, réparé en v1056 =====
+
+     David : « côté élève le carrousel d'images ne fonctionne pas ».
+
+     ⚠️ CE QUE J'AI MESURÉ, PLUTÔT QUE SUPPOSÉ. Rejoué dans un
+     navigateur à 390 px et à 1000 px : la bande défile, les points
+     suivent. Mais zéro flèche, zéro point cliquable, et la barre de
+     défilement est masquée EXPRÈS (scrollbar-width:none). Sur un
+     ordinateur à la souris, il n'existait donc AUCUN moyen d'avancer
+     — la molette fait défiler la page, pas la bande. C'est ça,
+     « il ne fonctionne pas ». Sur téléphone le glissement marchait,
+     mais rien ne disait qu'il y avait autre chose à voir.
+
+     ⚠️ ET L'IMAGE SUIVANTE DÉPASSE DE 12 %. L'œil comprend qu'on
+     peut glisser sans qu'on ait besoin de l'écrire. */
+  .carrousel{ margin:0 0 11px; position:relative; }
   .carrousel .bande{
     display:flex; overflow-x:auto; scroll-snap-type:x mandatory;
-    gap:0; border-radius:10px; -webkit-overflow-scrolling:touch;
+    gap:8px; border-radius:10px; -webkit-overflow-scrolling:touch;
     scrollbar-width:none;
   }
   .carrousel .bande::-webkit-scrollbar{ display:none; }
   .carrousel .bande img{
-    width:100%; flex:0 0 100%; scroll-snap-align:center;
+    width:88%; flex:0 0 88%; scroll-snap-align:center;
     margin:0; border-radius:10px; display:block;
   }
+  .carrousel.seul .bande img{ width:100%; flex:0 0 100%; }
   .carrousel .points{
-    display:flex; gap:6px; justify-content:center; margin-top:8px;
+    display:flex; gap:7px; justify-content:center; margin-top:8px;
   }
+  /* ⚠️ 9 px ET CLIQUABLES. À 7 px on ne vise pas, et ils ne
+     servaient qu'à dire où l'on en est : on peut maintenant sauter
+     à la troisième fiche sans passer par la deuxième. */
   .carrousel .points span{
-    width:7px; height:7px; border-radius:50%; background:var(--line);
-    transition:background .2s;
+    width:9px; height:9px; border-radius:50%; background:var(--line);
+    transition:background .2s; cursor:pointer;
   }
   .carrousel .points span.ici{ background:var(--accent-text); }
+  /* ⚠️ LES FLÈCHES DISPARAISSENT QUAND IL N'Y A QU'UNE IMAGE. Une
+     mécanique qui promet ce qui n'existe pas est pire que pas de
+     mécanique. */
+  .carrousel .fl{
+    position:absolute; top:50%; transform:translateY(-50%);
+    width:34px; height:34px; border-radius:50%; border:0;
+    background:rgba(0,0,0,.55); color:#fff; font-size:19px;
+    line-height:1; cursor:pointer; display:flex;
+    align-items:center; justify-content:center; padding:0;
+    z-index:2;
+  }
+  .carrousel .fl.g{ left:6px; }
+  .carrousel .fl.d{ right:6px; }
+  .carrousel .fl[disabled]{ opacity:.3; cursor:default; }
+  .carrousel.seul .fl, .carrousel.seul .points{ display:none; }
+  .carrousel .compte{
+    position:absolute; top:7px; right:9px; z-index:2;
+    background:rgba(0,0,0,.55); color:#fff; font-size:11px;
+    padding:3px 8px; border-radius:999px;
+  }
+  .carrousel.seul .compte{ display:none; }
 
   /* ===== Les onglets — v1037 =====
 
@@ -750,7 +840,13 @@
        à regarder avant son cours — sinon l'onglet « Réviser » ne
        s'ouvre que par curiosité. */
     var restant = {
-      reviser: mesEtapes.filter(function(e){ return !e.vuLe; }).length,
+      /* Le même compte qu'en tête du parcours : des SEGMENTS (v1056).
+         Deux réponses à « combien me reste-t-il » sur un même écran,
+         c'est une de trop. */
+      reviser: (function(){
+        var x = compterLesSegments(mesEtapes);
+        return x.total - x.vus;
+      })(),
       /* En ATTENTE, pas toutes : une procédure déjà récitée n'est
          plus quelque chose à faire. */
       reciter: demandes.filter(function(x){ return x.etat !== 'fait'; }).length
@@ -847,9 +943,46 @@
      groupe a maintenant sa propre progression et sa propre étape
      ouverte — ce sont des matières différentes, pas une file. */
   var groupeIci = '';
-  /* Le rang, DANS LE GROUPE REGARDÉ, d'une étape déjà faite que
-     l'élève a rouverte pour la revoir. -1 : aucune. */
-  var revoirIci = -1;
+
+  /* ============================================================
+     CE QUI EST DÉPLIÉ, PAR SEGMENT — v1056
+
+     La clé est « guide::segment » : deux guides peuvent porter des
+     segments de même nom, et un identifiant de segment seul les
+     confondrait.
+
+     ⚠️ TROIS ÉTATS, PAS DEUX. « true » veut dire qu'il l'a rouvert,
+     « false » qu'il l'a replié, et ABSENT veut dire « je n'ai rien
+     demandé » — auquel cas la règle de David s'applique : un
+     segment vu naît replié, un segment neuf naît ouvert. Avec un
+     simple booléen, tous les segments neufs seraient nés repliés,
+     et l'élève aurait trouvé un guide vide. Absent n'est pas faux.
+     ============================================================ */
+  var segmentsOuverts = {};
+
+  /* ============================================================
+     COMBIEN DE SEGMENTS, ET COMBIEN DE VUS — v1056, À UN ENDROIT
+
+     Trois écrans posent cette question : le compteur du haut, la
+     pastille de l'onglet « Réviser », et la barre du groupe. Trois
+     boucles écrites séparément auraient fini par ne plus rendre le
+     même nombre — et c'est précisément la faute que ce dossier
+     répare partout ailleurs.
+
+     ⚠️ ET UN GUIDE SANS SEGMENT COMPTE POUR UN. C'est un guide qu'on
+     n'a pas découpé : il vaut un segment, celui qui porte son titre.
+     Le sauter ferait disparaître du total tous les guides d'avant.
+     ============================================================ */
+  function compterLesSegments(etapes){
+    var total = 0, vus = 0;
+    (etapes || []).forEach(function(e){
+      var sg = (e.segments && e.segments.length) ? e.segments
+             : [{ vuLe: e.vuLe || '' }];
+      total += sg.length;
+      sg.forEach(function(x){ if(x.vuLe) vus++; });
+    });
+    return { total: total, vus: vus };
+  }
 
   function lesGroupes(){
     var vus = [], parId = {};
@@ -891,15 +1024,15 @@
     /* Le compteur du HAUT parle de TOUT le parcours : c'est lui qui
        dit ce qui reste avant le prochain cours, tous groupes
        confondus. */
-    var faits = 0;
-    for(var i = 0; i < mesEtapes.length; i++){
-      if(mesEtapes[i].vuLe) faits++;
-    }
-    var reste = mesEtapes.length - faits;
+    /* ⚠️ LE COMPTEUR DU HAUT PARLE DE SEGMENTS — v1056, comme tout
+       le reste. Deux comptes différents à deux endroits de la même
+       page, c'est le défaut que ce dossier répare partout ailleurs. */
+    var cpt = compterLesSegments(mesEtapes);
+    var faits = cpt.vus, reste = cpt.total - cpt.vus;
     var c = $('cptParcours');
     if(c){
-      c.textContent = ' · ' + faits + ' étape' + (faits > 1 ? 's' : '') +
-        ' sur ' + mesEtapes.length +
+      c.textContent = ' · ' + faits + ' segment' + (faits > 1 ? 's' : '') +
+        ' sur ' + cpt.total +
         (reste && avant
           ? ' · ' + reste + ' à voir avant le ' + jourCourt(avant)
           : '');
@@ -909,7 +1042,10 @@
     /* Les sous-onglets : un par groupe, avec ce qui lui reste. */
     if(groupes.length > 1){
       html += '<div class="sousonglets">' + groupes.map(function(g){
-        var r = g.etapes.filter(function(e){ return !e.vuLe; }).length;
+        /* La pastille compte des SEGMENTS, comme tout le reste
+           de cette page — v1056. */
+        var cg = compterLesSegments(g.etapes);
+        var r = cg.total - cg.vus;
         return '<button data-groupe="' + echapper(g.id) + '"' +
           (g.id === groupeIci ? ' class="ici"' : '') + '>' +
           echapper((g.icone ? g.icone + ' ' : '') + g.nom) +
@@ -919,18 +1055,36 @@
     }
 
     var siennes = ici.etapes;
-    var faitsIci = siennes.filter(function(e){ return !!e.vuLe; }).length;
-    /* La première non faite DE CE GROUPE : c'est elle qui s'ouvre. */
-    var courante = -1;
-    for(var j = 0; j < siennes.length; j++){
-      if(!siennes[j].vuLe){ courante = j; break; }
-    }
+    /* ⚠️ LA BARRE COMPTE DES SEGMENTS — v1056. « 1 guide sur 2 » sur
+       un guide de six segments dont il en a vu cinq ne dit rien de
+       ce qu'il a fait. David : « 5 segments sur 7 ». */
+    var ct = compterLesSegments(siennes);
+    var faitsIci = ct.vus, totalIci = ct.total;
+    /* ⚠️ PLUS D'« ÉTAPE COURANTE » — v1056. David : « tout est
+       lisible tout de suite ». Le verrouillage venait du groupe
+       Facebook, où l'on ajoutait l'élève au fur et à mesure ; ici il
+       révise, et il révise dans l'ordre qu'il veut — souvent la
+       veille de l'examen, en cherchant une chose précise. Tous les
+       guides s'ouvrent, et ce sont les SEGMENTS déjà vus qui se
+       replient. */
+
+    /* ============================================================
+       ⚠️ IL DOIT SAVOIR QU'ON MESURE — v1056
+
+       Mesurer ce qu'un élève regarde, et combien de fois, c'est une
+       donnée personnelle de plus que ce qu'on collectait hier. Ce
+       suivi est légitime — c'est le suivi de sa formation — mais il
+       doit être VISIBLE PAR LUI. C'est la même ligne de conduite que
+       le relevé GPS des moniteurs, et ça coûte une phrase.
+       ============================================================ */
+    html += '<div class="ditpartage">👁️ Ton avancement est partagé avec ' +
+            'ton moniteur : il voit quels segments tu as vus, et quand.</div>';
 
     html += '<div class="barre"><div style="width:' +
-      Math.round((faitsIci / siennes.length) * 100) + '%"></div></div>';
+      Math.round((faitsIci / Math.max(1, totalIci)) * 100) + '%"></div></div>';
 
     for(var k = 0; k < siennes.length; k++){
-      html += blocEtape(siennes[k], k, courante, revoirIci);
+      html += blocEtape(siennes[k], k);
     }
     z.innerHTML = html;
 
@@ -938,76 +1092,126 @@
     for(var b = 0; b < bs.length; b++){
       bs[b].addEventListener('click', function(){
         groupeIci = this.getAttribute('data-groupe');
-        /* On change de matière : ce qu'on avait rouvert dans l'autre
-           ne nous suit pas. */
-        revoirIci = -1;
+        /* On change de matière : ce qu'on avait déplié dans l'autre
+           ne nous suit pas — v1056. */
+        segmentsOuverts = {};
         dessinerParcours(dernierAvant);
       });
     }
 
-    /* ⚠️ ON PEUT REVOIR UN GUIDE DÉJÀ VU — v1040.
-
-       David : « quand on a fini un guide il faut qu'on puisse revoir
-       ce qu'on a envie une fois que c'est vu ». Une étape cochée se
-       repliait et ne se rouvrait plus jamais : la coche effaçait le
-       contenu. C'est le contraire de ce qu'on veut d'un parcours de
-       révision — on y revient la veille de l'examen, justement. */
-    var rv = z.querySelectorAll('[data-revoir]');
-    for(var r2 = 0; r2 < rv.length; r2++){
-      rv[r2].addEventListener('click', function(){
-        var i = Number(this.getAttribute('data-revoir'));
-        revoirIci = (revoirIci === i) ? -1 : i;
+    /* ⚠️ ON PEUT REVOIR CE QU'ON A DÉJÀ VU — v1040, par segment
+       depuis la v1056. Un segment coché se repliait et ne se
+       rouvrait plus : la coche effaçait le contenu. C'est le
+       contraire de ce qu'on veut d'un parcours de révision — on y
+       revient la veille de l'examen, justement. */
+    var plis = z.querySelectorAll('[data-plier]');
+    for(var r2 = 0; r2 < plis.length; r2++){
+      plis[r2].addEventListener('click', function(ev){
+        /* Un appui sur la coche, qui vit dans le segment, ne doit
+           pas replier ce qu'on vient de cocher. */
+        if(ev.target && ev.target.closest && ev.target.closest('.coche')) return;
+        var cle = this.getAttribute('data-plier');
+        var seg = this.parentNode;
+        var estVu = seg && seg.className.indexOf('vu') !== -1;
+        var ouvertLa = estVu ? (segmentsOuverts[cle] === true)
+                             : (segmentsOuverts[cle] !== false);
+        segmentsOuverts[cle] = !ouvertLa;
         dessinerParcours(dernierAvant);
       });
     }
 
     /* La coche, branchée après coup : innerHTML efface les écouteurs. */
-    var cases = z.querySelectorAll('input[data-guide]');
+    var cases = z.querySelectorAll('input[data-coche]');
     for(var m = 0; m < cases.length; m++){
-      cases[m].addEventListener('change', cocherEtape);
+      cases[m].addEventListener('change', cocherSegment);
     }
     brancherLesCarrousels(z);
+    brancherLeTracker(z);
     /* Le compte de ce qui reste a changé : la barre le dit. */
     dessinerLesOnglets();
   }
 
-  function blocEtape(e, i, courante, revoir){
-    var fait = !!e.vuLe;
-    /* ⚠️ DEUX FAÇONS D'ÊTRE OUVERTE — v1040. Celle qui l'attend, et
-       celle qu'il a rouverte pour la revoir. */
-    var rouverte = fait && (i === revoir);
-    var ouverte = (i === courante) || rouverte;
-    var classe = 'etape' + (fait ? ' faite' : '') +
-                 (ouverte ? ' ouverte' : (fait ? '' : ' attend'));
+  /* ============================================================
+     UN GUIDE, UNE SUITE DE SEGMENTS — v1056
 
-    var h = '<div class="' + classe + '">' +
-      '<div class="tete"' +
-        (fait ? ' data-revoir="' + i + '" style="cursor:pointer;"' : '') + '>' +
-        '<span class="num">' + (fait ? '✓' : (i + 1)) + '</span>' +
+     David : « l'élève ne valide pas un guide complet, c'est segment
+     par segment — je veux comme les guides sur Facebook ».
+
+     ⚠️ TROIS RÈGLES, TOUTES LES TROIS DE DAVID :
+       · tout est lisible tout de suite — plus de verrouillage ;
+       · un segment déjà vu se replie sur son titre ;
+       · la coche reste, EN PLUS de la mesure.
+
+     ⚠️ ET LA DÉCOUPE NE SE CALCULE PAS ICI. Le classeur envoie des
+     BORNES — « du bloc 3 au bloc 7 » — parce qu'une règle de
+     découpage écrite des deux côtés finit par ne plus compter
+     pareil, et personne ne sait alors lequel des deux chiffres
+     croire. Voir segmentsDuGuide, dans apps-script.
+     ============================================================ */
+  function blocEtape(e, i){
+    var segs = (e.segments && e.segments.length) ? e.segments
+      : [{ id: '', titre: e.titre || 'Le guide', de: 0,
+           a: ((e.blocs || []).length - 1), vuLe: e.vuLe || '' }];
+    var blocs = e.blocs || [];
+    var faits = 0;
+    for(var f = 0; f < segs.length; f++) if(segs[f].vuLe) faits++;
+    var tout = (faits === segs.length);
+
+    var h = '<div class="etape' + (tout ? ' faite' : '') + ' ouverte">' +
+      '<div class="tete">' +
+        '<span class="num">' + (tout ? '✓' : (i + 1)) + '</span>' +
         '<span class="nom">' + echapper(e.titre || 'Étape') + '</span>' +
-        (fait ? '<span class="quand">' + echapper(e.vuLe) + '</span>' +
-                '<span class="revoir">' +
-                (rouverte ? '▲ Replier' : '👀 Revoir') + '</span>'
-              : '') +
-      '</div>';
+        '<span class="quand">' + faits + ' / ' + segs.length + '</span>' +
+      '</div><div class="dedans">';
 
-    /* Seule l'étape ouverte montre son contenu : c'est ce qui la
-       rend ouverte. */
-    if(ouverte){
-      h += '<div class="dedans">';
-      var blocs = e.blocs || [];
-      for(var n = 0; n < blocs.length; n++){
-        h += rendreBloc(blocs[n]);
+    for(var k = 0; k < segs.length; k++){
+      var sg = segs[k];
+      /* ⚠️ « replié » N'EST PAS « fermé à clé ». Un segment vu se
+         replie sur son titre — la page reste courte et la
+         progression se voit d'un coup d'œil — mais il se rouvre
+         d'un appui, parce qu'on révise en y revenant. */
+      var vu = !!sg.vuLe;
+      var cle = e.id + '::' + sg.id;
+      var ouvert = vu ? (segmentsOuverts[cle] === true)
+                      : (segmentsOuverts[cle] !== false);
+
+      h += '<div class="seg' + (vu ? ' vu' : '') + '"' +
+           ' data-seg="' + echapper(cle) + '"' +
+           ' data-guide="' + echapper(e.id) + '"' +
+           ' data-segid="' + echapper(sg.id) + '">' +
+           '<div class="stete" data-plier="' + echapper(cle) + '">' +
+             '<span class="spuce">' + (vu ? '✓' : (k + 1)) + '</span>' +
+             '<span class="snom">' + echapper(sg.titre || 'Segment') + '</span>' +
+             (vu ? '<span class="squand">vu le ' +
+                     echapper(courtJourHeure(sg.vuLe)) + '</span>' : '') +
+             '<span class="sfleche">' + (ouvert ? '▲' : '▼') + '</span>' +
+           '</div>';
+
+      if(ouvert){
+        h += '<div class="sdedans">';
+        for(var n = sg.de; n <= sg.a && n < blocs.length; n++){
+          h += rendreBloc(blocs[n]);
+        }
+        /* ⚠️ LA COCHE RESTE, EN PLUS DE LA MESURE — David : « on le
+           garde en plus ». La mesure dit ce qu'il a regardé ; la
+           coche lui laisse dire « c'est bon, j'ai fini ». */
+        h += '<label class="coche"><input type="checkbox" data-coche="' +
+               echapper(cle) + '"' + (vu ? ' checked' : '') + '><span>' +
+               (vu ? 'Je l\'ai vu' : 'J\'ai vu ce segment') + '</span></label>';
+        h += '</div>';
       }
-      /* ⚠️ LA COCHE RESTE, ET ELLE EST COCHÉE. Une étape rouverte
-         sans sa coche donnerait à croire qu'on a perdu le travail ;
-         la décocher est un geste que l'élève garde. */
-      h += '<label class="coche"><input type="checkbox" data-guide="' +
-             echapper(e.id) + '"' + (fait ? ' checked' : '') + '><span>' +
-             (fait ? 'Je l\'ai vu' : 'J\'ai vu ce guide') + '</span></label>';
       h += '</div>';
     }
-    return h + '</div>';
+
+    return h + '</div></div>';
+  }
+
+  /* « 18/09/2026 20:14 » → « 18/09 à 20:14 ». Dans une ligne de
+     segment, l'année n'apprend rien. */
+  function courtJourHeure(t){
+    var m = String(t || '').match(/^(\d{2}\/\d{2})\/\d{4}(?:\s+(\d{1,2}:\d{2}))?/);
+    if(!m) return String(t || '');
+    return m[1] + (m[2] ? ' à ' + m[2] : '');
   }
 
   /* ⚠️ AUCUN LIEN N'EST FABRIQUÉ ICI. Le relais signe les adresses
@@ -1042,17 +1246,27 @@
         return '<img src="' + echapper(liens[0]) + '" alt="' +
                echapper(titre) + '">' + lu;
       }
-      /* ⚠️ ON GLISSE, ON NE CLIQUE PAS. Des flèches de 30 px sur un
-         téléphone se ratent une fois sur trois ; le défilement par
-         accroche est le geste que tout le monde connaît déjà. Les
-         points disent seulement où l'on en est. */
+      /* ⚠️ ON GLISSE, MAIS PAS SEULEMENT — v1056. « Des flèches de
+         30 px se ratent une fois sur trois » était vrai du doigt, et
+         c'est pour ça que le glissement reste. Mais à la souris il
+         n'existait AUCUN moyen d'avancer : la molette fait défiler
+         la page, pas la bande, et la barre de défilement est masquée
+         exprès. On ajoute donc ce qui manquait — sans rien retirer
+         de ce qui marchait. */
       var bande = liens.map(function(x){
         return '<img src="' + echapper(x) + '" alt="">';
       }).join('');
       var points = liens.map(function(x, i){
-        return '<span' + (i === 0 ? ' class="ici"' : '') + '></span>';
+        return '<span data-va="' + i + '"' +
+               (i === 0 ? ' class="ici"' : '') + '></span>';
       }).join('');
-      return '<div class="carrousel"><div class="bande">' + bande +
+      return '<div class="carrousel"><div class="compte">1 / ' +
+             liens.length + '</div>' +
+             '<button type="button" class="fl g" data-pas="-1" ' +
+             'aria-label="Image précédente" disabled>‹</button>' +
+             '<button type="button" class="fl d" data-pas="1" ' +
+             'aria-label="Image suivante">›</button>' +
+             '<div class="bande">' + bande +
              '</div><div class="points">' + points + '</div></div>' + lu;
     }
     return liens.map(function(x, i){
@@ -1071,45 +1285,243 @@
       (function(c){
         var bande = c.querySelector('.bande');
         var pts = c.querySelectorAll('.points span');
+        var imgs = c.querySelectorAll('.bande img');
+        var cpt = c.querySelector('.compte');
+        var fg = c.querySelector('.fl.g');
+        var fd = c.querySelector('.fl.d');
         if(!bande || !pts.length) return;
-        bande.addEventListener('scroll', function(){
-          var n = Math.round(bande.scrollLeft / Math.max(1, bande.clientWidth));
+
+        var ou = 0;
+        /* ⚠️ ON MESURE LA PREMIÈRE IMAGE, ON NE DIVISE PAS PAR LA
+           LARGEUR DE LA BANDE — v1056. Depuis qu'une image occupe
+           88 % et que les voisines dépassent, les deux ne sont plus
+           égales : diviser par la bande aurait sauté une image sur
+           huit, et les points auraient désigné la mauvaise. */
+        function pas(){
+          return (imgs[0] ? imgs[0].getBoundingClientRect().width : 0) +
+                 8 || Math.max(1, bande.clientWidth);
+        }
+        function peindre(){
           for(var k = 0; k < pts.length; k++){
-            pts[k].className = (k === n) ? 'ici' : '';
+            pts[k].className = (k === ou) ? 'ici' : '';
           }
+          if(cpt) cpt.textContent = (ou + 1) + ' / ' + pts.length;
+          /* ⚠️ LES FLÈCHES SE DÉSACTIVENT AUX EXTRÉMITÉS. Une flèche
+             qui ne mène nulle part se clique quand même, et c'est
+             l'élève qui croit que l'écran est cassé. */
+          if(fg) fg.disabled = (ou <= 0);
+          if(fd) fd.disabled = (ou >= pts.length - 1);
+        }
+        function aller(n){
+          ou = Math.max(0, Math.min(pts.length - 1, n));
+          bande.scrollTo({ left: ou * pas(), behavior: 'smooth' });
+          peindre();
+        }
+
+        bande.addEventListener('scroll', function(){
+          var n = Math.round(bande.scrollLeft / pas());
+          if(n === ou) return;
+          ou = Math.max(0, Math.min(pts.length - 1, n));
+          peindre();
         });
+
+        for(var d = 0; d < pts.length; d++){
+          (function(n){
+            pts[n].addEventListener('click', function(){ aller(n); });
+          })(d);
+        }
+        if(fg) fg.addEventListener('click', function(){ aller(ou - 1); });
+        if(fd) fd.addEventListener('click', function(){ aller(ou + 1); });
+
+        peindre();
       })(cs[i]);
     }
   }
 
-  function cocherEtape(ev){
+  /* ============================================================
+     ON MESURE LA LECTURE, PAS LA DÉCLARATION — v1056
+
+     David : « de notre côté on doit voir quel segment il a vu même
+     s'il n'a pas cliqué sur le bouton, il faut un vrai tracker de ce
+     qui a été vu ».
+
+     Un segment se marque vu sans qu'on clique sur rien : il est
+     compté lu quand il est resté à l'écran, à plus de la MOITIÉ,
+     pendant au moins DEUX SECONDES.
+
+     ⚠️ POURQUOI DEUX SECONDES ET LA MOITIÉ DE L'ÉCRAN. Sans durée,
+     faire défiler la page d'un coup marquerait tout comme vu. Avec
+     une durée trop longue, un élève qui lit vite et remonte serait
+     compté absent. Deux secondes, c'est le temps qu'on ne passe pas
+     sur ce qu'on saute.
+
+     ⚠️ ET UNE VIDÉO SE MESURE AUTREMENT. Un segment qui tient une
+     vidéo n'est pas lu parce qu'on l'a eu sous les yeux : il l'est
+     quand la vidéo a VRAIMENT été regardée. David : « pour la vidéo
+     90 % de vu valide ».
+
+     ⚠️ ET ON N'ENVOIE QU'UNE FOIS PAR SÉANCE. Le compteur du
+     classeur dit combien de fois il y est repassé ; le faire monter
+     à chaque va-et-vient de la page rendrait ce nombre absurde.
+     ============================================================ */
+  var SECONDES_POUR_VU = 2;
+  var PART_A_L_ECRAN = 0.5;
+  var PART_DE_VIDEO = 0.9;
+
+  /* Ce qui a déjà été envoyé pendant cette séance : la clé
+     « guide::segment », comme partout ailleurs. */
+  var dejaEnvoye = {};
+  var guetteur = null;
+  var minuteries = {};
+
+  function brancherLeTracker(zone){
+    /* ⚠️ UN GUETTEUR, PAS UN PAR SEGMENT. La page se redessine à
+       chaque pli : en créer un nouveau sans arrêter l'ancien en
+       laisserait des dizaines à tourner, tous en train de compter
+       les mêmes segments. */
+    if(guetteur){ guetteur.disconnect(); guetteur = null; }
+    for(var k in minuteries){ clearTimeout(minuteries[k]); }
+    minuteries = {};
+
+    /* ⚠️ SANS OBSERVATEUR, LE TRACKER SE TAIT — et la coche reste.
+       Un vieux navigateur ne doit pas perdre le parcours : il perd
+       la mesure, ce qui est exactement ce que la coche répare. */
+    if(typeof IntersectionObserver !== 'function') return;
+
+    guetteur = new IntersectionObserver(function(entrees){
+      entrees.forEach(function(en){
+        var el = en.target;
+        var cle = el.getAttribute('data-seg') || '';
+        if(!cle) return;
+
+        if(!en.isIntersecting || en.intersectionRatio < PART_A_L_ECRAN){
+          if(minuteries[cle]){ clearTimeout(minuteries[cle]); delete minuteries[cle]; }
+          return;
+        }
+        if(minuteries[cle] || dejaEnvoye[cle]) return;
+
+        /* ⚠️ UN SEGMENT REPLIÉ N'EST PAS UN SEGMENT LU — v1056.
+
+           Un segment déjà vu s'affiche replié sur son titre : ce qui
+           est à l'écran, c'est la ligne, pas le contenu. Le compter
+           ferait monter « Nb vues » à chaque fois que l'élève
+           descend la page, et le bureau lirait « revu 7 fois » d'un
+           élève qui n'a fait que passer devant. Le nombre aurait eu
+           l'air d'être juste, ce qui est le pire des cas.
+
+           Quand il le REDÉPLIE, en revanche, il le revoit — et là
+           c'est exactement ce que David demande. */
+        if(!el.querySelector('.sdedans')) return;
+
+        /* Un segment qui porte une vidéo attend SA vidéo. */
+        if(el.querySelector('video')) return;
+
+        minuteries[cle] = setTimeout(function(){
+          delete minuteries[cle];
+          noterVu(el, 'lu');
+        }, SECONDES_POUR_VU * 1000);
+      });
+    }, { threshold: [0, PART_A_L_ECRAN, 1] });
+
+    var segs = zone.querySelectorAll('[data-seg]');
+    for(var i = 0; i < segs.length; i++) guetteur.observe(segs[i]);
+
+    /* Les vidéos : 90 % de la durée, et pas une seconde de moins. */
+    var vids = zone.querySelectorAll('.seg video');
+    for(var v = 0; v < vids.length; v++){
+      (function(vid){
+        vid.addEventListener('timeupdate', function(){
+          var duree = Number(vid.duration) || 0;
+          if(!duree) return;
+          if((Number(vid.currentTime) || 0) / duree < PART_DE_VIDEO) return;
+          var seg = vid.closest ? vid.closest('[data-seg]') : null;
+          if(seg) noterVu(seg, 'video');
+        });
+      })(vids[v]);
+    }
+  }
+
+  /* La porte unique : mesure ou coche, c'est la même écriture. */
+  function noterVu(el, pourquoi){
+    var cle = el.getAttribute('data-seg') || '';
+    if(!cle || dejaEnvoye[cle]) return;
+    dejaEnvoye[cle] = true;
+    envoyerLaCoche(el.getAttribute('data-guide'),
+                   el.getAttribute('data-segid'), true, null, pourquoi);
+  }
+
+  function cocherSegment(ev){
     var cb = ev.target;
-    var id = cb.getAttribute('data-guide');
+    var cle = cb.getAttribute('data-coche') || '';
+    var seg = cb.closest ? cb.closest('[data-seg]') : null;
+    if(!seg) return;
     /* ⚠️ LA COCHE VA DANS LES DEUX SENS — v1040. Depuis qu'on peut
-       rouvrir un guide déjà vu, sa case est cochée : la décocher doit
-       vouloir dire quelque chose, sinon c'est une case qui ment. Le
-       classeur sait déjà le faire (colonne « Décoché le »). */
+       rouvrir un segment déjà vu, sa case est cochée : la décocher
+       doit vouloir dire quelque chose, sinon c'est une case qui
+       ment. Le classeur sait déjà le faire (colonne « Décoché le »). */
     var avant = cb.checked;
     cb.disabled = true;
-    appeler({ action: 'eleveParcoursVu', eleve: moi.nom, code: moi.code,
-              guide: id, vu: avant ? 'oui' : 'non' })
+    /* Décocher rend le segment de nouveau mesurable : sinon il
+       resterait « déjà envoyé » et la mesure ne le reprendrait
+       jamais. */
+    if(avant) dejaEnvoye[cle] = true; else delete dejaEnvoye[cle];
+    envoyerLaCoche(seg.getAttribute('data-guide'),
+                   seg.getAttribute('data-segid'), avant, cb, 'coche');
+  }
+
+  function envoyerLaCoche(guide, segment, vu, cb, pourquoi){
+    return appeler({ action: 'eleveParcoursVu', eleve: moi.nom, code: moi.code,
+                     guide: guide, segment: segment || '',
+                     vu: vu ? 'oui' : 'non' })
       .then(function(d){
-        for(var i = 0; i < mesEtapes.length; i++){
-          if(mesEtapes[i].id === id){
-            mesEtapes[i].vuLe = avant
-              ? ((d && d.quand) || 'à l’instant') : '';
-          }
+        mesEtapes.forEach(function(e){
+          if(e.id !== guide) return;
+          (e.segments || []).forEach(function(sg){
+            if(sg.id !== String(segment || '')) return;
+            sg.vuLe = vu ? ((d && d.quand) || 'à l’instant') : '';
+            if(d && d.revu) sg.revuLe = d.revu;
+            if(d && d.vues) sg.vues = d.vues;
+          });
+          /* Le guide est vu quand tous ses segments le sont : la même
+             question, posée d'un cran au-dessus. */
+          var tous = (e.segments || []);
+          e.vuLe = (tous.length && tous.every(function(sg){ return !!sg.vuLe; }))
+            ? (tous[tous.length - 1].vuLe || 'à l’instant') : '';
+        });
+        /* ⚠️ UNE MESURE NE REPLIE RIEN SOUS SES YEUX. Elle marque, et
+           l'élève continue de lire ; c'est au prochain passage que le
+           segment s'ouvrira replié. Une coche, elle, est un geste :
+           on redessine. */
+        if(pourquoi === 'coche'){
+          if(!vu) delete segmentsOuverts[guide + '::' + (segment || '')];
+          dessinerParcours(dernierAvant);
+        }else{
+          majPuceDuSegment(guide, segment);
         }
-        /* Décochée, elle redevient l'étape qui l'attend : on la laisse
-           ouverte plutôt que de la replier sous ses yeux. */
-        if(!avant) revoirIci = -1;
-        dessinerParcours(dernierAvant);
       })
       .catch(function(e){
-        cb.disabled = false;
-        cb.checked = !avant;
+        if(cb){ cb.disabled = false; cb.checked = !vu; }
+        delete dejaEnvoye[guide + '::' + (segment || '')];
         dire('msgEnvoi', 'La coche n’est pas partie : ' + e.message, 'erreur');
       });
+  }
+
+  /* ⚠️ LA PUCE PASSE AU VERT SANS REDESSINER. Redessiner pendant
+     qu'il lit lui ferait sauter la page sous les doigts — et c'est
+     précisément ce que la mesure existe pour éviter : qu'il ait à
+     faire quelque chose. */
+  function majPuceDuSegment(guide, segment){
+    var z = $('monParcours');
+    if(!z) return;
+    var el = z.querySelector('[data-seg="' +
+      String(guide + '::' + (segment || '')).replace(/"/g, '\\"') + '"]');
+    if(!el) return;
+    if(el.className.indexOf('vu') === -1) el.className += ' vu';
+    var p = el.querySelector('.spuce');
+    if(p) p.textContent = '✓';
+    var c = el.querySelector('input[data-coche]');
+    if(c) c.checked = true;
+    dessinerLesOnglets();
   }
 
   /* « 2026-09-22 » → « 22/09 ». Dans une ligne de compteur, le jour
@@ -1161,6 +1573,35 @@
     if(p.moniteur) suite.push('Avec ' + echapper(p.moniteur));
     if(p.lieu) suite.push(echapper(p.lieu));
 
+    /* ============================================================
+       LA PRÉSENCE, CONFIRMABLE D'ICI — v1056
+
+       David : « il faut le bouton qui indique sa présence comme le
+       mail ; s'il a cliqué sur le mail ça indique présence
+       confirmée, s'il n'a pas confirmé sur le mail il peut confirmer
+       directement de son espace ».
+
+       ⚠️ C'EST LA MÊME CONFIRMATION, écrite au même endroit — la
+       colonne « Confirmé le » de LiensCours. S'il a cliqué dans le
+       mail, son espace le sait et affiche la date ; s'il confirme
+       ici, le mail devient inutile.
+
+       ⚠️ ET LA PHRASE DES 48 HEURES RESTE. Elle est dans le mail
+       depuis toujours : la retirer ici ferait de l'espace un endroit
+       où l'on s'engage sans savoir à quoi.
+       ============================================================ */
+    var deja = String(p.confirmeLe || '').trim();
+    var bas = deja
+      ? '<div class="presok">✅ Présence confirmée le ' +
+          echapper(courtJourHeure(deja)) + '</div>' +
+        '<div class="presmot">Si tu as un empêchement, préviens-nous au ' +
+          'moins 48 heures à l\'avance.</div>'
+      : '<button type="button" id="btPresence" class="btpres">' +
+          '✋ Je serai présent</button>' +
+        '<div class="presmot">Si tu as un empêchement, préviens-nous au ' +
+          'moins 48 heures à l\'avance : passé ce délai, la leçon est due ' +
+          'et sera facturée.</div>';
+
     z.innerHTML =
       '<div class="quand">' + echapper(jourEnClair(p.jour)) +
         (p.heure ? ' · ' + echapper(p.heure) : '') + '</div>' +
@@ -1168,7 +1609,27 @@
         ? '<div class="ou">' + suite.join(' · ') +
           (p.vehicule ? (suite.length ? '<br>' : '') + echapper(p.vehicule) : '') +
           '</div>'
-        : '');
+        : '') + bas;
+
+    var bp = $('btPresence');
+    if(bp) bp.addEventListener('click', function(){
+      bp.disabled = true;
+      bp.textContent = 'Envoi…';
+      appeler({ action: 'elevePresence', eleve: moi.nom, code: moi.code })
+        .then(function(d){
+          /* On réécrit la carte avec ce que le classeur vient de
+             dire : la date vient de LUI, pas d'une horloge locale
+             qui pourrait ne pas être à l'heure. */
+          p.confirmeLe = (d && d.confirmeLe) || '';
+          dessinerProchain(p);
+        })
+        .catch(function(e){
+          bp.disabled = false;
+          bp.textContent = '✋ Je serai présent';
+          dire('msgEnvoi', 'La confirmation n’est pas partie : ' + e.message,
+               'erreur');
+        });
+    });
   }
 
   function dessinerLecons(liste){
