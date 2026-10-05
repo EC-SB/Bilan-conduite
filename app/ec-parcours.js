@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 11:30 — v1060 */
+/* Déployé le 05/10/2026 à 12:10 — v1061 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1743,7 +1743,14 @@ function quandCourtParcours(texte){
   return m[1] + '/' + m[2] + (m[3] ? ' à ' + m[3] : '');
 }
 
-function detailDuParcours(l){
+function detailDuParcours(l, catalogue){
+  /* ⚠️ LE CATALOGUE SE PASSE, IL NE SE DEVINE PLUS — v1061. L'écran
+     « Parcours des élèves » a le sien en mémoire ; le dossier d'un
+     élève, lui, reçoit le sien avec sa réponse à lui. Lire la
+     variable du module dans les deux cas, c'était écraser celle de
+     l'écran de suivi en ouvrant une fiche — et retrouver, en y
+     revenant, des guides sans titre. */
+  const cat = catalogue || guidesDuSuivi || {};
   const d = document.createElement('div');
   d.style.cssText = 'margin:8px 0 2px;padding:9px 11px;border-radius:9px;' +
     'background:var(--navy);border:1px solid var(--line);';
@@ -1755,11 +1762,32 @@ function detailDuParcours(l){
     return d;
   }
 
+  /* ⚠️ CE QUE LA DONNÉE SAIT, ET CE QU'ELLE NE SAIT PAS — v1061.
+
+     L'élève coche une ÉTAPE, jamais un bloc : ParcoursVu enregistre
+     Élève · Guide · Segment, et il n'y a pas de colonne « bloc ».
+     Les choses listées sous une étape sont donc ce qu'elle CONTIENT,
+     pas ce qui a été lu une par une.
+
+     Écrire un ✓ devant chacune serait afficher une précision que
+     personne ne détient — et c'est exactement le doute de David :
+     « je ne suis pas sûr qu'il ait vu le bloc texte TESTE ». La
+     phrase ci-dessous dit la règle, et le remède : un titre d'étape
+     devant un bloc en fait une étape à lui, donc une coche à lui. */
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.45;' +
+    'margin-bottom:6px;';
+  note.innerHTML = 'Le ✓ porte sur l\'<b>étape</b> : ce qui est listé ' +
+    'dessous est son contenu, pas des coches séparées. Pour suivre une ' +
+    'chose en particulier, mets-lui un 🏷️ <b>Titre d\'étape</b> devant ' +
+    'dans le guide.';
+  d.appendChild(note);
+
   /* Rangés par groupe, dans l'ordre où ils lui arrivent. */
   const groupes = [];
   const parId = {};
   liste.forEach(id => {
-    const g = guidesDuSuivi[id] || {};
+    const g = cat[id] || {};
     const cle = g.groupe || '';
     if(!parId[cle]){
       parId[cle] = { nom: g.groupeNom || 'Son parcours',
@@ -1777,7 +1805,7 @@ function detailDuParcours(l){
     d.appendChild(t);
 
     g.ids.forEach(id => {
-      const g2 = guidesDuSuivi[id] || {};
+      const g2 = cat[id] || {};
       const segs = g2.segments || [];
       const fiches = fichesDuGuide(l, id);
       const tout = !!(fiches[''] && fiches[''].vuLe);
@@ -1862,11 +1890,177 @@ function detailDuParcours(l){
         }
         ls.appendChild(q2);
         d.appendChild(ls);
+
+        /* ---- Et tout ce que l'étape contient — v1061. ----
+           Absent d'une réponse plus ancienne : on n'affiche alors
+           rien de plus, au lieu de n'afficher rien du tout. */
+        (sg.blocs || []).forEach(b => d.appendChild(blocDuSuivi(b, vu)));
       });
     });
   });
 
   return d;
+}
+
+
+/* ============================================================
+   UNE CHOSE DANS UNE ÉTAPE
+
+   Une image se reconnaît à son image, le reste à son nom. C'est la
+   demande, mot pour mot : « avec une image ou le titre ».
+
+   ⚠️ LA VIGNETTE SE DEMANDE AU MOMENT OÙ ON LA REGARDE. Le lien
+   d'un fichier est signé et il expire : le préparer à l'avance, pour
+   deux cents élèves, ce serait signer des milliers d'adresses dont
+   on n'ouvrira pas trois. On le demande donc quand le panneau d'un
+   élève s'ouvre, et pour lui seul.
+   ============================================================ */
+const EMOJI_DU_BLOC = { video: '🎬', image: '🖼️', pdf: '📄', texte: '📝' };
+const NOM_DU_BLOC = { video: 'Vidéo', image: 'Image', pdf: 'PDF' };
+
+function blocDuSuivi(b, vu){
+  const li = document.createElement('div');
+  li.style.cssText = 'display:flex;gap:7px;align-items:center;font-size:11.5px;' +
+    'margin:0 0 3px;padding-left:36px;' +
+    (vu ? 'color:var(--soft);' : 'color:var(--muted);');
+
+  if(b.type === 'texte'){
+    const e = document.createElement('span');
+    e.style.cssText = 'flex-shrink:0;';
+    e.textContent = EMOJI_DU_BLOC.texte;
+    li.appendChild(e);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;overflow:hidden;' +
+      'text-overflow:ellipsis;white-space:nowrap;font-style:italic;';
+    t.textContent = '« ' + (String(b.apercu || '').trim() || 'texte vide') + ' »';
+    li.appendChild(t);
+    return li;
+  }
+
+  const cles = b.cles || [];
+
+  /* Trois vignettes au plus : au-delà, c'est une galerie, et on
+     affiche le compte. */
+  if(b.type === 'image' && cles.length){
+    const bande = document.createElement('span');
+    bande.style.cssText = 'display:flex;gap:3px;flex-shrink:0;';
+    cles.slice(0, 3).forEach(cle => bande.appendChild(vignetteDuSuivi(cle)));
+    li.appendChild(bande);
+  }else{
+    const e = document.createElement('span');
+    e.style.cssText = 'flex-shrink:0;';
+    e.textContent = EMOJI_DU_BLOC[b.type] || '📎';
+    li.appendChild(e);
+  }
+
+  const n = document.createElement('span');
+  n.style.cssText = 'flex:1;min-width:0;overflow:hidden;' +
+    'text-overflow:ellipsis;white-space:nowrap;';
+  n.textContent = String(b.titre || '').trim() ||
+                  (NOM_DU_BLOC[b.type] || 'Fichier');
+  li.appendChild(n);
+
+  /* ⚠️ UN BLOC MÉDIA SANS FICHIER NE MONTRE RIEN CHEZ L'ÉLÈVE, et
+     l'éditeur refuse de publier ainsi. En retrouver un ici veut dire
+     que le guide a été publié avant ce garde-fou : on le dit. */
+  if(!cles.length){
+    const v = document.createElement('span');
+    v.style.cssText = 'flex-shrink:0;font-size:10.5px;color:var(--warn-text);';
+    v.textContent = 'aucun fichier';
+    li.appendChild(v);
+  }else if(cles.length > 1){
+    const c = document.createElement('span');
+    c.style.cssText = 'flex-shrink:0;font-size:10.5px;';
+    c.textContent = cles.length + ' images';
+    li.appendChild(c);
+  }
+
+  return li;
+}
+
+function vignetteDuSuivi(cle){
+  const z = document.createElement('span');
+  z.style.cssText = 'display:inline-block;width:34px;height:26px;' +
+    'border-radius:4px;border:1px solid var(--line);' +
+    'background:var(--navy-deep);overflow:hidden;flex-shrink:0;';
+
+  if(typeof lienDuFichierDeGuide !== 'function') return z;
+
+  /* ⚠️ UNE VIGNETTE QUI NE VIENT PAS NE DIT RIEN DE PLUS QU'UN
+     CADRE VIDE. Le détail reste lisible sans elle : on ne fait
+     échouer ni la ligne, ni le panneau. */
+  lienDuFichierDeGuide(cle).then(url => {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    z.appendChild(img);
+  }).catch(() => { /* le cadre reste vide */ });
+
+  return z;
+}
+
+
+/* ============================================================
+   LE PARCOURS D'UN SEUL ÉLÈVE — pour son dossier
+
+   David : « j'ai le suivi dans parcours élèves de tous les élèves
+   mais pas dans le dossier élève de chacun ; il me le faut aussi
+   dans Accès, en dessous ».
+
+   ⚠️ C'EST LE MÊME BLOC QUE DANS L'ÉCRAN DE SUIVI, et ça ne doit
+   jamais devenir deux. Le jour où une colonne s'ajoute, elle doit
+   s'ajouter une fois — sinon un des deux écrans l'aura et l'autre
+   non, et c'est celui qu'on regarde le moins qui mentira.
+
+   ⚠️ ET ON NE DEMANDE QUE LUI. « parcoursSuivi » sans nom calcule
+   les deux cents élèves et renvoie le catalogue entier : l'appeler
+   à chaque ouverture de fiche, ce serait payer deux cents pour en
+   afficher un. Le paramètre « eleve » existe depuis la v227 du
+   classeur ; avec un script plus ancien il est simplement ignoré,
+   et on filtre ici — l'écran marche dans les deux cas, il est juste
+   plus lent avec l'ancien.
+   ============================================================ */
+async function blocParcoursDeLEleve(nom){
+  const d = await appelPrep({ action: 'parcoursSuivi', eleve: nom });
+  const lignes = (d && d.lignes) || [];
+  const cat = (d && d.guides) || {};
+
+  const cible = String(nom || '').trim().toLowerCase();
+  const sien = lignes.find(x =>
+    String(x.eleve || '').trim().toLowerCase() === cible) || null;
+
+  const z = document.createElement('div');
+
+  if(!sien){
+    z.innerHTML = '<div style="font-size:12.5px;color:var(--muted);' +
+      'line-height:1.5;">Aucun groupe du parcours ne lui est ouvert. ' +
+      'Ça se coche juste au-dessus, puis il faut ouvrir son ' +
+      '🎬 coin révisions.</div>';
+    return z;
+  }
+
+  const e = etapesDuSuiviParcours(sien);
+  const tete = document.createElement('div');
+  tete.style.cssText = 'font-size:13px;font-weight:700;margin-bottom:6px;';
+  tete.textContent = e.total
+    ? e.faits + ' étape' + ((e.faits > 1) ? 's' : '') + ' sur ' + e.total +
+      (e.reste ? ' · ' + e.reste + ' à voir' : ' · à jour')
+    : 'Ses groupes n\'ont aucun guide publié';
+  z.appendChild(tete);
+
+  if(!sien.ouvert && sien.groupes){
+    const w = document.createElement('div');
+    w.style.cssText = 'color:var(--red);font-size:12px;margin-bottom:6px;';
+    w.textContent = '⚠️ Ses groupes sont cochés mais son parcours est ' +
+      'FERMÉ : il ne voit rien.';
+    z.appendChild(w);
+  }
+
+  z.appendChild(detailDuParcours(sien, cat));
+  return z;
 }
 
 /* « 2026-09-22 » → « 22/09 ». */
