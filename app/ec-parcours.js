@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 10:40 — v1059 */
+/* Déployé le 05/10/2026 à 11:30 — v1060 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -27,18 +27,62 @@ let parcoursGuides = [];
 let parcoursGroupeOuvert = '';
 let parcoursCharge = false;
 
-/* Les quatre types de blocs, et rien d'autre. Un bloc = une chose :
-   c'est ce qui rend l'ordre totalement libre, parce que rien n'est
-   accroché à rien. */
+/* ============================================================
+   LES TYPES DE BLOCS — ET CELUI QUI MANQUAIT
+
+   Un bloc = une chose : c'est ce qui rend l'ordre totalement libre,
+   parce que rien n'est accroché à rien.
+
+   ⚠️ LE BLOC « TITRE » EXISTAIT PARTOUT SAUF ICI, ET ÇA A COÛTÉ
+   TOUTE LA v1056.
+
+   Le classeur découpe un guide en ÉTAPES sur ses blocs de type
+   « titre » — c'est segmentsDuGuide, et c'est ce qui permet à
+   l'élève de cocher partie par partie au lieu de cocher le guide
+   entier. Le type était déclaré là-bas (TYPES_DE_BLOC), le
+   découpage écrit, le comptage des étapes fait, l'écran du bureau
+   prêt à les afficher.
+
+   Mais la palette de l'éditeur n'en proposait que quatre, et pas
+   celui-là. Aucun guide n'a donc jamais contenu de titre : tous
+   retombaient sur l'étape unique de repli, l'élève cochait une
+   seule case pour tout, et David — le 5 octobre 2026 — ne pouvait
+   pas savoir si le bloc de texte du bas avait été lu. « Je ne peux
+   pas mettre de titre supplémentaire dans mon guide. »
+
+   Une mécanique complète, du classeur jusqu'à l'écran, rendue
+   inatteignable par un bouton absent. Elle ne tombait pas en
+   panne — elle ne démarrait jamais.
+
+   ⚠️ IL EST EN TÊTE DE LISTE, et c'est voulu : c'est lui qui donne
+   sa structure au guide, et il doit se voir en premier.
+
+   ⚠️ ET LE REPLI DE blocConnu NE SUIT PLUS LE PREMIER DE LA LISTE.
+   Il rendait « BLOCS_PARCOURS[0] » : un type inconnu — un guide
+   d'une version future, une cellule abîmée — serait devenu un
+   titre, donc une coupure d'étape, donc un découpage faux chez tous
+   les élèves de ce groupe. Le repli nomme désormais « texte », qui
+   ne structure rien et n'abîme rien.
+   ============================================================ */
 const BLOCS_PARCOURS = [
+  { type:'titre', emoji:'🏷️', nom:'Titre d\'étape' },
   { type:'texte', emoji:'📝', nom:'Texte' },
   { type:'video', emoji:'🎬', nom:'Vidéo' },
   { type:'image', emoji:'🖼️', nom:'Image' },
   { type:'pdf',   emoji:'📄', nom:'PDF' }
 ];
 
+/* Les blocs qui ne portent aucun fichier : ils s'écrivent, ils ne
+   se déposent pas. Nommés une fois — « tout sauf texte » était
+   écrit à trois endroits, et le titre serait devenu un média sans
+   fichier dans les trois. */
+function blocEcrit(type){
+  return type === 'texte' || type === 'titre';
+}
+
 function blocConnu(type){
-  return BLOCS_PARCOURS.find(b => b.type === type) || BLOCS_PARCOURS[0];
+  return BLOCS_PARCOURS.find(b => b.type === type) ||
+         BLOCS_PARCOURS.find(b => b.type === 'texte');
 }
 
 /* ============================================================
@@ -1063,7 +1107,34 @@ function ligneDeBloc(b, i){
 
   l.appendChild(tete);
 
-  if(b.type === 'texte'){
+  if(b.type === 'titre'){
+    /* ⚠️ UNE LIGNE, PAS UN PAVÉ. Un titre d'étape est ce que l'élève
+       verra en tête de la partie, et ce que le bureau lira dans le
+       suivi : « Les vérifications intérieures ». Un textarea
+       inviterait à y écrire un paragraphe, et le paragraphe
+       deviendrait le nom de l'étape partout.
+
+       ⚠️ ET LE CHAMP S'APPELLE « titre », comme sous une vidéo :
+       c'est relireLesBlocs qui le range dans b.titre, et c'est
+       b.titre que segmentsDuGuide lit côté classeur. Un autre nom
+       de champ, et l'étape s'appellerait « Segment sans nom ». */
+    const it = document.createElement('input');
+    it.type = 'text';
+    it.dataset.champ = 'titre';
+    it.style.cssText = 'margin:8px 0 0;font-size:14px;font-weight:700;' +
+      'width:100%;';
+    it.placeholder = 'Ex : Les vérifications intérieures';
+    it.value = b.titre || '';
+    l.appendChild(it);
+
+    const aide = document.createElement('div');
+    aide.style.cssText = 'font-size:11px;color:var(--muted);margin-top:5px;' +
+      'line-height:1.45;';
+    aide.textContent = 'Coupe le guide en étapes : tout ce qui suit ce ' +
+      'titre, jusqu\'au prochain, fait une étape que l\'élève coche ' +
+      'séparément. Sans aucun titre, le guide ne fait qu\'une seule étape.';
+    l.appendChild(aide);
+  }else if(b.type === 'texte'){
     const ta = document.createElement('textarea');
     ta.dataset.champ = 'texte';
     ta.rows = 3;
@@ -1315,7 +1386,7 @@ function relireLesBlocs(cadre, blocs){
    ne montre RIEN chez l'élève, et rien ne le dit une fois publié. On
    le dit avant. */
 function blocsSansFichier(blocs){
-  return (blocs || []).filter(b => b.type !== 'texte' &&
+  return (blocs || []).filter(b => !blocEcrit(b.type) &&
                                    clesDuBloc(b).length === 0);
 }
 
@@ -1327,7 +1398,12 @@ function apercuDuGuide(titre, blocs){
   bouts.push('');
   (blocs || []).forEach(b => {
     const t = blocConnu(b.type);
-    if(b.type === 'texte'){
+    if(b.type === 'titre'){
+      /* L'aperçu doit montrer la COUPURE, pas une ligne de plus :
+         c'est elle qu'on vient vérifier avant de publier. */
+      bouts.push('── ' + (String(b.titre || '').trim() ||
+                          '(étape sans nom)').toUpperCase() + ' ──');
+    }else if(b.type === 'texte'){
       bouts.push(String(b.texte || '').trim() || '(texte vide)');
     }else{
       /* ⚠️ ON MONTRE CE QUE L'ÉLÈVE VERRA, pas la clé du fichier.
