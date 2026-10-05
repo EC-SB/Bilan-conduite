@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 14:54 — v1037 */
+/* Déployé le 05/10/2026 à 09:20 — v1057 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1476,24 +1476,96 @@ function htmlDuBilan(texte){
     '<div style="white-space:pre-wrap;">' + t + '</div>';
 }
 
-const EC_ATTENDUS = ["ec-etat.js", "ec-modeles.js", "ec-consignes.js", "ec-noyau.js", "ec-vocal.js", "ec-reseau.js", "ec-manuel.js", "ec-fenetres.js", "ec-questionnaire.js", "ec-permis.js", "ec-prepares.js", "ec-bureau.js", "ec-places.js", "ec-listes.js", "ec-permis-listes.js", "ec-postpermis.js", "ec-textes.js", "ec-correction.js", "ec-bilans.js", "ec-version.js", "ec-paie.js", "ec-flotte.js", "ec-carrosserie.js", "ec-solo.js", "ec-handicap-pdf.js", "ec-moto.js", "ec-remorque.js", "ec-arriereplan.js", "ec-placesbe.js", "ec-codeamenage.js", "ec-financements.js", "ec-eval-aac.js", "ec-postes.js", "ec-tarifs.js", "ec-caisse.js", "ec-menage.js", "ec-page-eleve.js", "ec-loupe.js", "ec-coutsia.js", "ec-evaluation.js", "ec-paiement.js", "ec-handicap.js", "ec-code.js", "ec-proccorriger.js", "ec-ecran.js", "ec-sessions.js", "ec-notifs.js", "ec-ecoutes.js", "ec-taches.js", "ec-memoire.js", "ec-historique.js", "ec-rappels.js", "ec-stats.js", "ec-messenger.js", "ec-journal.js", "ec-onglets.js", "ec-depart.js", "ec-demarrage.js", "ec-messages-perso.js", "ec-bandeau.js", "ec-trajet.js"];
+/* ============================================================
+   LE GARDE-FOU DES MODULES — v1057
+
+   ⚠️ LA LISTE DES MODULES N'EST PLUS RECOPIÉE ICI, ET C'EST TOUT
+   L'ENJEU.
+
+   Elle l'était : un tableau « EC_ATTENDUS » de soixante et un noms,
+   tenu à la main, pendant qu'index.html en chargeait soixante-dix et
+   que son écran de connexion de secours en listait trente. Trois
+   listes pour une seule vérité, et elles n'étaient déjà plus
+   d'accord — neuf modules chargés n'étaient surveillés par personne.
+
+   Le 5 octobre 2026, ça s'est payé. « app/ec-parcours.js », en
+   ligne, contenait le code Apps Script au lieu du module : il y
+   déclarait « MOIS_FR » et « LIEN_ESPACE_ELEVE », que
+   ec-questionnaire.js et ec-proccorriger.js déclarent aussi. Les
+   deux ont refusé de se parser, ec-demarrage.js est mort sur
+   « creerRaccourcis », et le bandeau a annoncé trois fichiers
+   manquants — dont deux qui étaient bel et bien en ligne — sans
+   jamais nommer le seul fichier fautif.
+
+   LA LISTE DES MODULES, C'EST LA LISTE DES BALISES <script> DE LA
+   PAGE. Il n'y a pas d'autre source et il ne peut pas y en avoir
+   d'autre : on lit le DOM. Ajouter un module à index.html suffit
+   désormais à le faire surveiller ; il n'y a plus rien à recopier,
+   donc plus rien à oublier.
+
+   Et la même lecture répond à la seconde question : un fichier
+   appelé DEUX FOIS se voit dans ses balises, et non plus de biais,
+   par l'erreur qu'il finit par provoquer.
+   ============================================================ */
+
+/* Les modules que cette page demande, dans l'ordre, tels quels. */
+function modulesDeLaPage(){
+  const noms = [];
+  const balises = document.querySelectorAll('script[src]');
+  for(let i = 0; i < balises.length; i++){
+    const m = String(balises[i].getAttribute('src') || '')
+                .match(/(?:^|\/)app\/([\w.-]+\.js)/);
+    if(m) noms.push(m[1]);
+  }
+  return noms;
+}
+/* L'écran de connexion de secours s'en sert aussi : lui n'a pas le
+   droit de dépendre d'un module, mais il a le droit de l'utiliser
+   quand il est là. */
+window.modulesDeLaPage = modulesDeLaPage;
 
 function verifierModules(){
-  const charges = window.EC_MODULES || {};
-  const manquants = EC_ATTENDUS.filter(function(m){ return !charges[m]; });
-  if(!manquants.length) return;
+  const demandes = modulesDeLaPage();
+  const charges  = window.EC_MODULES || {};
+
+  /* Demandé, mais jamais arrivé au bout : absent du serveur, ou
+     tombé en route avant sa dernière ligne. */
+  const manquants = [];
+  /* Demandé deux fois : la seconde copie refusera de se parser dès
+     que le fichier déclare un const, un let ou une class. */
+  const doubles = [];
+  const vus = {};
+
+  demandes.forEach(function(n){
+    vus[n] = (vus[n] || 0) + 1;
+    if(vus[n] === 2) doubles.push(n);
+    if(vus[n] === 1 && !charges[n]) manquants.push(n);
+  });
+
+  if(!manquants.length && !doubles.length) return;
+
+  let dit = '';
+  if(doubles.length){
+    dit += doubles.length + ' fichier(s) appelé(s) DEUX FOIS par index.html :<br>' +
+      '<strong>' + doubles.join(', ') + '</strong><br>' +
+      '<span style="font-size:12px;opacity:.9;">Retire la balise ' +
+      '&lt;script&gt; en trop.</span>' + (manquants.length ? '<br><br>' : '');
+  }
+  if(manquants.length){
+    dit += manquants.length + ' fichier(s) demandé(s) mais non chargé(s) dans ' +
+      '<code>app/</code> :<br><strong>' + manquants.join(', ') + '</strong><br>' +
+      '<span style="font-size:12px;opacity:.9;">Soit le fichier n\'est pas en ' +
+      'ligne, soit il s\'est arrêté sur une erreur avant sa dernière ligne — ' +
+      'le bandeau du bas la nomme. Certaines fonctions ne répondront pas.</span>';
+  }
 
   const z = document.createElement('div');
   z.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:9999;' +
     'background:#B3261E;color:#fff;padding:14px 16px;font-size:14px;line-height:1.5;' +
     'font-family:inherit;box-shadow:0 2px 12px rgba(0,0,0,.4);';
-  z.innerHTML = '<strong>⚠️ Application incomplète</strong><br>' +
-    manquants.length + ' fichier(s) manquant(s) dans le dossier <code>app/</code> :<br>' +
-    manquants.join(', ') + '<br>' +
-    '<span style="font-size:12px;opacity:.9;">Certaines fonctions ne répondront pas ' +
-    'tant que ces fichiers ne sont pas en ligne.</span>';
+  z.innerHTML = '<strong>⚠️ Application incomplète</strong><br>' + dit;
   document.body.insertBefore(z, document.body.firstChild);
-  console.error('Modules manquants :', manquants);
+  console.error('Modules non chargés :', manquants, '— appelés deux fois :', doubles);
 }
 
 /* On laisse le temps aux derniers scripts d'arriver */
