@@ -1,4 +1,4 @@
-/* Déployé le 05/09/2026 à 10:30 — v883 */
+/* Déployé le 05/10/2026 à 10:05 — v1058 */
 /* ============================================================
    ec-paie.js
    Ce qu'on transmet au gestionnaire de paie.
@@ -224,19 +224,7 @@ async function afficherPaie(sansRelire){
     }, 60);
   });
 
-  const barre = document.createElement('div');
-  barre.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:12px;';
-  barre.innerHTML = '<label for="paieMois" style="margin:0;flex-shrink:0;' +
-    'text-transform:none;font-size:13px;">Mois</label>';
-
-  const chMois = document.createElement('input');
-  chMois.type = 'month';
-  chMois.id = 'paieMois';
-  chMois.value = moisPaie;
-  chMois.style.cssText = 'flex:1;min-width:0;margin:0;';
-  chMois.addEventListener('change', () => { moisPaie = chMois.value; afficherPaie(); });
-  barre.appendChild(chMois);
-  zone.appendChild(barre);
+  zone.appendChild(blocSelecteurMois());
 
   if(!salariesPaie.length){
     const b = document.createElement('button');
@@ -291,6 +279,12 @@ async function afficherPaie(sansRelire){
      absence saisie ne pouvait plus être corrigée. */
   zone.appendChild(blocAbsencesPaie());
 
+  /* Ce qui est déjà parti chez le gestionnaire. Tout en bas : on
+     ne le consulte pas tous les jours, mais quand on le cherche on
+     le cherche vraiment — « qu'est-ce que je lui ai envoyé en
+     juillet ». */
+  zone.appendChild(blocHistoriquePaie());
+
   const inactifs = salariesPaie.filter(s => !s.actif);
   if(inactifs.length){
     const d = document.createElement('div');
@@ -304,6 +298,27 @@ async function afficherPaie(sansRelire){
 
 /* Les deux soldes d'une semaine. Ils se calculent depuis les heures
    faites, sauf si le bureau les a corrigés à la main. */
+/* La miniature d'une semaine : « 8,75N 5↑ ».
+
+   ⚠️ ÉCRITE ICI, ET UNE SEULE FOIS. Le tableau du mois et
+   l'historique des mois transmis montrent exactement la même
+   chose. Deux écritures de la même miniature finiraient par
+   diverger — et c'est une divergence qu'on ne voit pas : deux
+   écrans qui disent la même paie avec deux mises en forme, on
+   croit qu'ils disent deux choses différentes.
+
+   Les couleurs portent du sens, elles ne décorent pas : le rouge
+   dit que le solde est NÉGATIF — c'est le salarié qui doit ces
+   heures-là — et l'accent marque les heures à 25 %. */
+function miniatureSoldes(so){
+  return '<span style="color:' +
+      (so.normal < 0 ? 'var(--red)' : 'var(--muted)') + ';">' +
+      (so.normal ? String(so.normal).replace('.', ',') : '0') + 'N</span>' +
+    ' <span style="color:' +
+      (so.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
+      (so.majore ? String(so.majore).replace('.', ',') : '0') + '\u2191</span>';
+}
+
 function soldesSemaine(w, s){
   if(!w) return { normal: 0, majore: 0, calcule: false, vide: true };
 
@@ -330,7 +345,7 @@ function soldesSemaine(w, s){
 /* ============================================================
    LES JOURS FÉRIÉS NE SE SAISISSENT PAS : ILS SE CALCULENT
 
-   Chrystel : « avec le calendrier des jours fériés tu peux le
+   David : « avec le calendrier des jours fériés tu peux le
    mettre automatiquement si ça tombe sur un jour travaillé, sans
    que j'aie besoin d'aller indiquer que ce salarié a un jour
    férié ». Le calendrier est fixe et les onze dates se déduisent
@@ -338,7 +353,7 @@ function soldesSemaine(w, s){
    QUELS jours chacun travaille : c'est ce que porte désormais sa
    fiche.
 
-   Deux garde-fous, décidés avec elle :
+   Deux garde-fous, décidés avec lui :
    — un férié déjà saisi en absence gagne : la main l'emporte, et
      rien ne se compte deux fois ;
    — une fiche qui ne dit pas quels jours sont travaillés ne se
@@ -1045,6 +1060,372 @@ function blocAbsencesPaie(){
   return d;
 }
 
+/* ============================================================
+   LE SÉLECTEUR DE MOIS
+
+   David : « un vrai sélecteur de mois, affiché en français —
+   septembre 2026, pas 2026-09 — avec des flèches pour reculer ou
+   avancer d'un mois ».
+
+   C'était un <input type="month">. Il écrit « 2026-09 » sur la
+   moitié des navigateurs, il ouvre un calendrier de jours — dont on
+   n'a que faire ici — sur l'autre moitié, et il se tape au clavier
+   alors qu'on ne veut jamais que trois choses : le mois d'avant, le
+   mois d'après, ou un mois de l'année qu'on regarde.
+
+   ⚠️ CE QUI S'AFFICHE CHANGE, CE QUI CIRCULE NE CHANGE PAS.
+   « moisPaie » reste de la forme « 2026-09 », parce que c'est ce
+   que contient la colonne « Mois » de PaieCloture et ce que lisent
+   paieCloturerMois et paieRouvrirMois. Changer la forme stockée
+   ferait repartir de zéro TOUS les mois déjà clôturés : ils ne se
+   retrouveraient plus, et les compteurs de report avec eux.
+   « moisEnToutesLettres » ne sert qu'à l'écran, et il existait
+   déjà.
+
+   ⚠️ ET CE N'EST PLUS UN CHAMP DE SAISIE. Trois boutons : on ne
+   peut plus y écrire un mois qui n'existe pas. C'est aussi pour ça
+   que changer de mois ne relit plus le classeur — « paieList »
+   ramène TOUTES les semaines et TOUTES les clôtures, pas celles
+   d'un mois : tout est déjà en mémoire, et une flèche doit répondre
+   au doigt, pas à la seconde.
+   ============================================================ */
+
+/* Un mois décalé de n crans. Passer par une vraie date évite
+   d'écrire soi-même « décembre + 1 = janvier de l'année d'après »,
+   qui est exactement le genre de ligne qu'on oublie de tester.
+
+   ⚠️ « …Paie » DANS LE NOM, ET CE N'EST PAS DE LA COQUETTERIE.
+   « decalerMois » existe déjà dans ec-aac-cs.js, et il attend une
+   DATE complète (2026-09-14), pas un mois. Les deux fichiers sont
+   chargés par la même page, ec-aac-cs.js APRÈS la paie : sa
+   fonction aurait écrasé celle-ci sans un mot, les flèches lui
+   auraient passé « 2026-09 », elle aurait rendu une chaîne vide, et
+   le mois affiché serait devenu vide au premier clic. Deux
+   fonctions de même nom ne font pas d'erreur — elles font un
+   silence. */
+function decalerMoisPaie(mois, pas){
+  const [an, m] = String(mois || '').split('-').map(Number);
+  if(!an || !m) return mois;
+  const d = new Date(an, m - 1 + pas, 1, 12);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+/* Les douze noms courts. Nommés « …_PAIE » exprès : « MOIS_FR »
+   existe déjà dans ec-questionnaire.js, et deux const du même nom
+   dans deux fichiers chargés par la même page, c'est une
+   SyntaxError qui emporte le second — la panne du 5 octobre 2026,
+   précisément. */
+const MOIS_COURTS_PAIE = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+                          'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+function blocSelecteurMois(){
+  const d = document.createElement('div');
+  d.style.cssText = 'margin-bottom:12px;';
+
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:6px;align-items:stretch;';
+
+  function fleche(signe, titre, pas){
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.title = titre;
+    b.setAttribute('aria-label', titre);
+    b.textContent = signe;
+    b.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:11px 16px;' +
+      'font-size:18px;font-weight:800;line-height:1;';
+    b.addEventListener('click', () => {
+      moisPaie = decalerMoisPaie(moisPaie, pas);
+      afficherPaie(true);
+    });
+    return b;
+  }
+
+  barre.appendChild(fleche('\u2039', 'Mois précédent', -1));
+
+  const titre = document.createElement('button');
+  titre.type = 'button';
+  titre.className = 'btn btn-secondary';
+  titre.title = 'Choisir un autre mois';
+  titre.style.cssText = 'flex:1;min-width:0;margin:0;padding:11px 8px;' +
+    'font-size:15px;font-weight:800;';
+  titre.innerHTML = (moisEnToutesLettres(moisPaie) || moisPaie) +
+    '<span style="margin-left:7px;color:var(--muted);font-weight:400;">\u25BE</span>';
+  barre.appendChild(titre);
+
+  barre.appendChild(fleche('\u203A', 'Mois suivant', 1));
+  d.appendChild(barre);
+
+  /* ---- Le panneau des douze mois ----
+     Il ne se referme pas tout seul au clic sur un mois : le choix
+     redessine l'écran, et le panneau repart avec lui. */
+  const panneau = document.createElement('div');
+  panneau.style.cssText = 'display:none;margin-top:8px;border:1px solid var(--line);' +
+    'border-radius:12px;padding:10px;background:var(--navy);';
+  d.appendChild(panneau);
+
+  let anneeVue = Number(String(moisPaie || '').slice(0, 4)) ||
+                 new Date().getFullYear();
+
+  function dessinerPanneau(){
+    panneau.innerHTML = '';
+
+    const tete = document.createElement('div');
+    tete.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:9px;';
+
+    function flecheAn(signe, pas, titre){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.textContent = signe;
+      b.title = titre;
+      b.setAttribute('aria-label', titre);
+      b.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:7px 13px;' +
+        'font-size:15px;font-weight:800;line-height:1;';
+      b.addEventListener('click', () => { anneeVue += pas; dessinerPanneau(); });
+      return b;
+    }
+
+    tete.appendChild(flecheAn('\u2039', -1, 'Année précédente'));
+    const an = document.createElement('div');
+    an.style.cssText = 'flex:1;text-align:center;font-size:15px;font-weight:800;';
+    an.textContent = anneeVue;
+    tete.appendChild(an);
+    tete.appendChild(flecheAn('\u203A', 1, 'Année suivante'));
+    panneau.appendChild(tete);
+
+    const grille = document.createElement('div');
+    grille.style.cssText = 'display:grid;grid-template-columns:repeat(3, 1fr);gap:6px;';
+
+    MOIS_COURTS_PAIE.forEach((nom, i) => {
+      const m = anneeVue + '-' + String(i + 1).padStart(2, '0');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:10px 4px;font-size:13px;' +
+        'font-weight:700;';
+      /* Le ✓ dit ce qui est déjà validé : on retrouve un mois clos
+         sans l'ouvrir pour s'en apercevoir. */
+      b.innerHTML = nom + (moisEstClos(m)
+        ? ' <span style="color:var(--accent-text);">\u2713</span>' : '');
+      if(m === moisPaie){
+        b.style.borderColor = 'var(--accent-text)';
+        b.style.color = 'var(--accent-text)';
+      }
+      b.addEventListener('click', () => { moisPaie = m; afficherPaie(true); });
+      grille.appendChild(b);
+    });
+    panneau.appendChild(grille);
+
+    const auj = new Date();
+    const moisAuj = auj.getFullYear() + '-' +
+                    String(auj.getMonth() + 1).padStart(2, '0');
+    if(moisAuj !== moisPaie){
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary';
+      b.style.cssText = 'width:100%;margin:8px 0 0;padding:9px;font-size:12.5px;';
+      b.textContent = '\u21BA Revenir à ' + moisEnToutesLettres(moisAuj);
+      b.addEventListener('click', () => { moisPaie = moisAuj; afficherPaie(true); });
+      panneau.appendChild(b);
+    }
+  }
+
+  titre.addEventListener('click', () => {
+    const ouvert = panneau.style.display === 'block';
+    if(ouvert){ panneau.style.display = 'none'; return; }
+    anneeVue = Number(String(moisPaie || '').slice(0, 4)) || anneeVue;
+    dessinerPanneau();
+    panneau.style.display = 'block';
+  });
+
+  return d;
+}
+
+
+/* ============================================================
+   L'HISTORIQUE DES MOIS TRANSMIS
+
+   David : « la liste des mois déjà envoyés au gestionnaire de
+   paie, qu'on déplie — et dans chacun, le découpage semaine par
+   semaine avec les heures par moniteur et le total du mois en
+   bas ».
+
+   ⚠️ CE QUI FAIT QU'UN MOIS EST « TRANSMIS », C'EST SA CLÔTURE.
+   Il n'y a pas de colonne « envoyé » dans le classeur, et il ne
+   faut pas en créer une : un deuxième état à tenir d'accord avec le
+   premier finirait par dire le contraire. Un mois validé est un
+   mois dont les chiffres sont figés, donc un mois parti. C'est la
+   même vérité, lue là où elle est déjà écrite — PaieCloture.
+
+   ⚠️ ET LES SEMAINES NE SONT PAS RECOUPÉES ICI. Elles sont
+   demandées à « lundisDuMois », qui applique la règle du jeudi et
+   les rattachements choisis à la main. Une semaine à cheval tombe
+   donc du même côté dans l'historique et dans le tableau du mois —
+   si ce bloc recalculait son propre découpage, les deux écrans
+   finiraient par ne plus raconter la même paie.
+
+   ⚠️ ON AFFICHE LES HEURES FAITES, celles qui ont été saisies
+   semaine par semaine, et le détail normales / majorées dessous.
+   C'est ce que David indique à la main chaque semaine : c'est donc
+   ça qu'il doit retrouver.
+   ============================================================ */
+
+/* « lun. 31 août → dim. 6 sept. » */
+function semaineEnBref(lundi){
+  const l = new Date(lundi + 'T12:00:00');
+  const f = new Date(l);
+  f.setDate(f.getDate() + 6);
+  const dit = x => x.getDate() + ' ' + MOIS_COURTS_PAIE[x.getMonth()];
+  return 'lun. ' + dit(l) + ' \u2192 dim. ' + dit(f);
+}
+
+function blocHistoriquePaie(){
+  const d = document.createElement('details');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:10px 12px;margin-top:14px;';
+
+  const mois = Array.from(new Set((cloturesPaie || [])
+    .map(c => String(c.mois || '')).filter(Boolean))).sort().reverse();
+
+  d.innerHTML = '<summary style="cursor:pointer;font-size:13px;font-weight:700;' +
+    'color:var(--accent-text);">\uD83D\uDCDC Mois déjà transmis au gestionnaire — ' +
+    mois.length + '</summary>';
+
+  const z = document.createElement('div');
+  z.style.marginTop = '10px';
+
+  if(!mois.length){
+    z.innerHTML = '<div style="font-size:12px;color:var(--muted);line-height:1.5;">' +
+      'Aucun mois validé pour l\'instant.<br>Un mois apparaît ici dès que sa ' +
+      'clôture est validée, en bas de l\'écran.</div>';
+    d.appendChild(z);
+    return d;
+  }
+
+  mois.forEach(m => z.appendChild(moisTransmis(m)));
+  d.appendChild(z);
+  return d;
+}
+
+function moisTransmis(m){
+  const decisions = (cloturesPaie || []).filter(c => String(c.mois) === m);
+  const valide = decisions.map(c => c.valideLe).filter(Boolean).sort().pop() || '';
+  const lundis = lundisDuMois(m);
+
+  /* ⚠️ LES SALARIÉS DE CE MOIS-LÀ, PAS LES ACTIFS D'AUJOURD'HUI.
+     Quelqu'un qui a quitté l'effectif depuis doit rester dans les
+     mois où il a travaillé : un historique qui efface les partants
+     ne raconte plus ce qui a été envoyé. */
+  const gens = salariesPaie.filter(s =>
+    lundis.some(l => !!semaineDe(s.id, l)) ||
+    decisions.some(c => String(c.idSalarie) === String(s.id)));
+
+  const totaux = {};
+  let total = 0;
+  gens.forEach(s => { totaux[s.id] = 0; });
+  lundis.forEach(l => gens.forEach(s => {
+    const w = semaineDe(s.id, l);
+    const h = w ? (Number(w.heures) || 0) : 0;
+    totaux[s.id] += h;
+    total += h;
+  }));
+
+  const det = document.createElement('details');
+  det.style.cssText = 'border-top:1px solid rgba(255,255,255,.07);padding:9px 0;';
+  det.innerHTML = '<summary style="cursor:pointer;font-size:13.5px;' +
+    'font-weight:700;line-height:1.5;">' +
+    (moisEnToutesLettres(m) || m) +
+    '<span style="display:block;font-size:11px;font-weight:400;' +
+    'color:var(--muted);">' +
+    (valide ? 'validé le ' + valide : 'validé') +
+    ' \u00B7 ' + lundis.length + ' semaine(s) \u00B7 ' + enHeures(total) +
+    ' au total</span></summary>';
+
+  const corps = document.createElement('div');
+  corps.style.marginTop = '8px';
+
+  if(!gens.length || !lundis.length){
+    corps.innerHTML = '<div style="font-size:12px;color:var(--muted);">' +
+      'Aucune semaine saisie sur ce mois.</div>';
+    det.appendChild(corps);
+    return det;
+  }
+
+  lundis.forEach(l => {
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'margin-bottom:9px;';
+
+    /* Une semaine qui n'est pas ici par sa règle par défaut le dit :
+       c'est une décision du bureau, elle doit se voir. */
+    const deplacee = moisParDefaut(l) !== m;
+
+    const tete = document.createElement('div');
+    tete.style.cssText = 'font-size:11.5px;font-weight:800;color:var(--accent-text);' +
+      'letter-spacing:.03em;margin-bottom:3px;';
+    tete.innerHTML = semaineEnBref(l) + (deplacee
+      ? ' <span style="color:var(--muted);font-weight:400;">\u00B7 rattachée ' +
+        'ici à la main</span>' : '');
+    bloc.appendChild(tete);
+
+    gens.forEach(s => {
+      const w = semaineDe(s.id, l);
+      const h = w ? (Number(w.heures) || 0) : 0;
+      const so = soldesSemaine(w, s);
+
+      const li = document.createElement('div');
+      li.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
+        'font-size:12.5px;padding:2px 0 2px 10px;';
+      li.innerHTML =
+        '<span style="flex:1;min-width:0;overflow:hidden;' +
+          'text-overflow:ellipsis;white-space:nowrap;">' +
+          String(s.nom || '').replace(/</g, '&lt;') + '</span>' +
+        '<span style="flex-shrink:0;font-weight:700;font-variant-numeric:tabular-nums;">' +
+          (w ? enHeures(h) : '<span style="color:var(--muted);font-weight:400;">—</span>') +
+        '</span>' +
+        '<span style="flex-shrink:0;font-size:11px;' +
+          'min-width:76px;text-align:right;">' +
+          (w ? miniatureSoldes(so) : '') +
+        '</span>';
+      bloc.appendChild(li);
+    });
+
+    corps.appendChild(bloc);
+  });
+
+  /* Le total du mois, en bas — c'est la demande, et c'est aussi le
+     nombre qu'on recopie. */
+  const pied = document.createElement('div');
+  pied.style.cssText = 'border-top:1px solid var(--line);margin-top:6px;padding-top:7px;';
+  pied.innerHTML = '<div style="font-size:11.5px;font-weight:800;' +
+    'color:var(--muted);letter-spacing:.03em;margin-bottom:3px;">' +
+    'TOTAL DU MOIS</div>';
+
+  gens.forEach(s => {
+    const li = document.createElement('div');
+    li.style.cssText = 'display:flex;gap:8px;font-size:13px;padding:2px 0 2px 10px;';
+    li.innerHTML =
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;' +
+        'white-space:nowrap;">' + String(s.nom || '').replace(/</g, '&lt;') + '</span>' +
+      '<span style="flex-shrink:0;font-weight:800;' +
+        'font-variant-numeric:tabular-nums;">' + enHeures(totaux[s.id]) + '</span>';
+    pied.appendChild(li);
+  });
+
+  const grand = document.createElement('div');
+  grand.style.cssText = 'display:flex;gap:8px;font-size:13.5px;font-weight:800;' +
+    'padding:6px 0 0 10px;margin-top:4px;border-top:1px dashed var(--line);' +
+    'color:var(--accent-text);';
+  grand.innerHTML = '<span style="flex:1;">Ensemble</span>' +
+    '<span style="font-variant-numeric:tabular-nums;">' + enHeures(total) + '</span>';
+  pied.appendChild(grand);
+
+  corps.appendChild(pied);
+  det.appendChild(corps);
+  return det;
+}
+
+
 /* Le mois auquel une semaine appartient par défaut : celui de son
    jeudi, comme la norme des semaines. Une semaine à cheval tombe
    ainsi d'un seul côté, jamais des deux. */
@@ -1599,11 +1980,7 @@ function tableauPaie(){
           jAbs + ' j abs.</span>' + mentionFerie;
       }else{
         bDet.innerHTML =
-          '<span style="color:' + (so.normal < 0 ? 'var(--red)' : 'var(--muted)') + ';">' +
-            (so.normal ? String(so.normal).replace('.', ',') : '0') + 'N</span>' +
-          ' <span style="color:' +
-            (so.majore < 0 ? 'var(--red)' : 'var(--accent-text)') + ';">' +
-            (so.majore ? String(so.majore).replace('.', ',') : '0') + '↑</span>' +
+          miniatureSoldes(so) +
           (jAbs ? '<br><span style="color:var(--muted);">' + jAbs + ' j abs.</span>' : '') +
           mentionFerie +
           (so.force ? '<br><span style="color:var(--warn-text);">forcé</span>' : '');
