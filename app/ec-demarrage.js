@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 08:47 — v1013 */
+/* Déployé le 05/10/2026 à 09:20 — v1057 */
 /* ============================================================
    ec-demarrage.js
    Sauvegarde locale, tiroirs et démarrage de l'application
@@ -1436,24 +1436,69 @@ function adapterAuModele(){
 }
 
 
+/* ============================================================
+   L'INIT — UN DÉMARRAGE NE TOMBE PAS EN ENTIER POUR UNE LIGNE
+
+   ⚠️ CE BLOC DÉPEND DE CINQ AUTRES MODULES, et il ne s'en doutait
+   pas. « reprendreSession » et « refreshHistory » vivent dans
+   ec-depart.js, « todayLocal » et « remplirModeles » dans
+   ec-noyau.js, « creerRaccourcis » dans ec-questionnaire.js,
+   « verifierBoiteModele » dans ec-manuel.js. Un seul de ces
+   fichiers absent, et tout ce qui suivait la ligne fautive
+   disparaissait avec elle — y compris la déclaration du module,
+   trois lignes plus bas, qui faisait alors passer ec-demarrage.js
+   pour manquant alors qu'il était là.
+
+   Le 5 octobre 2026 : « app/ec-parcours.js », en ligne, contenait
+   le code Apps Script. ec-questionnaire.js a refusé de se parser,
+   « creerRaccourcis » a disparu, et UN fichier cassé en a fait
+   paraître TROIS. Les modèles de bilan, l'adaptation au modèle et
+   l'historique étaient par terre en prime.
+
+   Chaque étape est donc tentée pour elle-même. Ce qui tombe se dit
+   dans la console et s'arrête là ; le reste du démarrage continue.
+
+   ⚠️ CE N'EST PAS UNE FAÇON DE TAIRE LES PANNES. L'erreur est
+   écrite en clair, nommée par l'étape qui l'a produite, et le
+   rapporteur du bas de page la montre. On refuse seulement qu'une
+   erreur en cache cinq autres.
+
+   ⚠️ ET CHAQUE ÉTAPE EST UNE FONCTION, PAS UNE RÉFÉRENCE. Écrire
+   « etapeDuDemarrage('session', reprendreSession) » irait chercher le nom
+   AVANT d'entrer dans le try : un module absent jetterait depuis
+   l'argument, hors de toute protection. C'est exactement le défaut
+   qu'on corrige, il ne faut pas le réintroduire par la porte de
+   derrière.
+   ============================================================ */
+function etapeDuDemarrage(quoi, faire){
+  try{ faire(); }
+  catch(e){ console.error('Démarrage — « ' + quoi + ' » a échoué :', e); }
+}
+
 /* ---------- Init ---------- */
-reprendreSession();
-$('prepDate').value = todayLocal();
-$('addDate').value = todayLocal();
-creerRaccourcis('raccourcisNoteResult', 'noteResult');
+etapeDuDemarrage('reprise de la session', () => reprendreSession());
+etapeDuDemarrage('date de préparation',   () => { $('prepDate').value = todayLocal(); });
+etapeDuDemarrage('date d\'ajout',         () => { $('addDate').value = todayLocal(); });
+
 /* Le même bouton sur l'écran de cours et sur le bilan manuel : le
    questionnaire ne s'ouvrant plus au départ, il faut pouvoir
    l'ouvrir de là où on est. */
-creerRaccourcis('raccourcisNoteCours', 'noteInterne');
-creerRaccourcis('raccourcisNoteManuel', 'noteInterne');
-remplirModeles();
-adapterAuModele();
-$('modele').addEventListener('change', () => {
-  verifierBoiteModele(derniereBoiteEleve);
-  adapterAuModele();
+etapeDuDemarrage('raccourcis des notes', () => {
+  creerRaccourcis('raccourcisNoteResult', 'noteResult');
+  creerRaccourcis('raccourcisNoteCours', 'noteInterne');
+  creerRaccourcis('raccourcisNoteManuel', 'noteInterne');
 });
-$('lessonDate').value = todayLocal();
-refreshHistory();
+
+etapeDuDemarrage('liste des modèles',      () => remplirModeles());
+etapeDuDemarrage('adaptation au modèle',   () => adapterAuModele());
+etapeDuDemarrage('écoute du choix de modèle', () => {
+  $('modele').addEventListener('change', () => {
+    verifierBoiteModele(derniereBoiteEleve);
+    adapterAuModele();
+  });
+});
+etapeDuDemarrage('date du cours',  () => { $('lessonDate').value = todayLocal(); });
+etapeDuDemarrage('historique',     () => refreshHistory());
 
 /* Signale que ce module est bien chargé */
 window.EC_MODULES = window.EC_MODULES || {};
