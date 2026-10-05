@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 09:20 — v1057 */
+/* Déployé le 05/10/2026 à 10:40 — v1059 */
 /* ============================================================
    ec-parcours.js
    Le parcours d'apprentissage : les groupes et leurs guides.
@@ -1394,7 +1394,7 @@ async function afficherSuiviParcours(){
      3. le reste. */
 function urgenceDuParcours(l){
   if(!l.ouvert && l.groupes) return 3;
-  if(l.reste && l.prochain){
+  if(etapesDuSuiviParcours(l).reste && l.prochain){
     const j = joursAvantLeCours(l.prochain);
     if(j !== null && j <= 2) return 2;
     return 1;
@@ -1477,7 +1477,8 @@ function ligneDuSuiviParcours(l){
   meta.appendChild(t);
 
   /* ⚠️ LA BARRE DIT LA PROGRESSION SANS QU'ON LISE LES CHIFFRES. */
-  const pc = l.total ? Math.round((l.faits / l.total) * 100) : 0;
+  const e = etapesDuSuiviParcours(l);
+  const pc = e.total ? Math.round((e.faits / e.total) * 100) : 0;
   const barre = document.createElement('div');
   barre.style.cssText = 'height:5px;border-radius:3px;background:var(--line);' +
     'overflow:hidden;margin:5px 0 4px;max-width:220px;';
@@ -1488,9 +1489,16 @@ function ligneDuSuiviParcours(l){
   meta.appendChild(barre);
 
   const s = document.createElement('span');
-  s.textContent = l.total
-    ? l.faits + ' étape' + ((l.faits > 1) ? 's' : '') + ' sur ' + l.total +
-      (l.reste ? ' · ' + l.reste + ' à voir' : ' · à jour')
+  s.textContent = e.total
+    ? e.faits + ' étape' + ((e.faits > 1) ? 's' : '') + ' sur ' + e.total +
+      (e.reste ? ' · ' + e.reste + ' à voir' : ' · à jour') +
+      /* ⚠️ L'ACCORD SUIT LE NOMBRE DE GUIDES TERMINÉS, pas le
+         total : « 1/3 guides terminé » était faux des deux côtés à
+         la fois. Même exigence que le pluriel du chapeau juste
+         au-dessus — une phrase bancale sur l'écran qu'on lit tous
+         les matins dit qu'on n'a pas regardé ce qu'on écrivait. */
+      (l.total ? ' · ' + l.faits + ' guide' + ((l.faits > 1) ? 's' : '') +
+                 ' terminé' + ((l.faits > 1) ? 's' : '') + ' sur ' + l.total : '')
     : (l.groupes ? 'Ses groupes n\'ont aucun guide publié'
                  : 'Aucun groupe ouvert');
   meta.appendChild(s);
@@ -1553,9 +1561,112 @@ function ligneDuSuiviParcours(l){
   return row;
 }
 
-/* Le détail d'un élève : ses guides, rangés par groupe, avec la date
-   pour ceux qu'il a vus. ⚠️ LES TITRES VIENNENT DU CATALOGUE — la
-   ligne de l'élève ne porte que des identifiants. */
+/* ============================================================
+   LE DÉTAIL D'UN ÉLÈVE — TOUT, ÉTAPE PAR ÉTAPE
+
+   David : « dans le suivi du parcours des élèves on avait dit qu'il
+   fallait le détail de tout ».
+
+   ⚠️ ET « [object Object] » ÉTAIT ÉCRIT À DROITE DE CHAQUE GUIDE.
+   Ce n'était pas une faute d'affichage, c'était un contrat changé
+   d'un seul côté : la v1056 du classeur a fait passer l'élève de
+   « je coche un guide » à « je valide segment par segment », et
+   « vus » a cessé de porter une DATE pour porter une FICHE PAR
+   SEGMENT — { vuLe, revuLe, vues }. L'écran, lui, posait toujours
+   cette valeur dans un textContent : un objet s'y écrit
+   « [object Object] », sans erreur, sans rien dans la console.
+
+   Un contrat qui change d'un côté et pas de l'autre ne fait pas de
+   bruit. C'est pour ça qu'il faut l'écrire ici.
+
+   ⚠️ LES DEUX FORMES SONT ACCEPTÉES. Apps Script et le Worker
+   répondent tous les deux à « parcoursSuivi », et rien ne garantit
+   qu'ils soient déployés à la même minute. Un écran qui ne sait
+   lire qu'une des deux réponses se casse pendant le déploiement —
+   c'est-à-dire précisément quand on le regarde.
+
+   ⚠️ ET LA RÈGLE DU « GUIDE VU » EST CELLE DU CLASSEUR, MOT POUR
+   MOT. Un guide est vu quand tous ses segments le sont, ou quand la
+   coche du guide entier a été posée — ce qu'ont fait les élèves
+   d'avant la v1056, et qui ne doit pas les faire repartir de zéro.
+   Si cet écran comptait autrement, il annoncerait un compte et le
+   classeur un autre.
+   ============================================================ */
+
+/* Le compte qui parle : des ÉTAPES — les segments que l'élève coche
+   un par un — et plus des guides entiers. Un guide de six segments
+   dont il en a vu cinq n'est pas « 0 sur 1 ».
+
+   Repli sur le compte des guides si la réponse vient d'une version
+   plus ancienne du classeur : l'écran affiche alors ce qu'il
+   affichait avant, au lieu de n'afficher rien.
+
+   ⚠️ « …DuSuiviParcours », PAS « …DuParcours » : ce dernier nom est
+   DÉJÀ pris par ec-questionnaire.js, chargé APRÈS ce fichier. Sa
+   fonction aurait écrasé celle-ci sans un mot, et le compte des
+   étapes aurait tranquillement affiché autre chose. Deux fonctions
+   de même nom ne font pas d'erreur — elles font un silence. */
+function etapesDuSuiviParcours(l){
+  const total = (l.segmentsTotal === undefined || l.segmentsTotal === null)
+    ? (l.total || 0) : l.segmentsTotal;
+  const faits = (l.segmentsFaits === undefined || l.segmentsFaits === null)
+    ? (l.faits || 0) : l.segmentsFaits;
+  return { total: total, faits: faits, reste: Math.max(0, total - faits) };
+}
+
+/* Les fiches d'un guide, ramenées à une seule forme : la clé est
+   l'identifiant du segment, la clé vide étant le guide entier. */
+function fichesDuGuide(l, id){
+  const v = (l.vus || {})[id];
+  if(!v) return {};
+  /* La forme d'avant la v1056 : une date, pour le guide entier. */
+  if(typeof v === 'string') return v ? { '': { vuLe: v, revuLe: '', vues: 1 } } : {};
+  const out = {};
+  Object.keys(v).forEach(k => {
+    const f = v[k];
+    if(typeof f === 'string'){ if(f) out[k] = { vuLe: f, revuLe: '', vues: 1 }; }
+    else if(f && (f.vuLe || f.revuLe || f.vues)) out[k] = f;
+  });
+  return out;
+}
+
+/* « 18/09/2026 20:14 » → « 2026-09-18 20:14 ». La règle de
+   jourEtHeureComparables dans Apps Script, à l'identique : deux
+   dates se comparent en texte, sans créer d'objets. */
+function horodateDuParcours(texte){
+  const m = String(texte || '')
+    .match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}:\d{2}))?/);
+  if(!m) return '';
+  return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) +
+         ' ' + (m[4] || '00:00');
+}
+
+/* La même règle que « guideVuLe » côté classeur. */
+function vuLeDuGuide(segments, fiches){
+  const f = fiches || {};
+  if(f[''] && f[''].vuLe) return f[''].vuLe;
+  const segs = segments || [];
+  if(!segs.length) return '';
+  let dernier = '';
+  for(let i = 0; i < segs.length; i++){
+    const fi = f[segs[i].id];
+    if(!fi || !fi.vuLe) return '';
+    if(!dernier || horodateDuParcours(fi.vuLe) > horodateDuParcours(dernier)){
+      dernier = fi.vuLe;
+    }
+  }
+  return dernier;
+}
+
+/* « 18/09/2026 20:14 » → « 18/09 à 20:14 ». L'année n'apprend rien
+   sur un écran qu'on lit le matin même. */
+function quandCourtParcours(texte){
+  const m = String(texte || '')
+    .match(/(\d{1,2})\/(\d{1,2})\/\d{4}(?:\s+(\d{1,2}:\d{2}))?/);
+  if(!m) return String(texte || '');
+  return m[1] + '/' + m[2] + (m[3] ? ' à ' + m[3] : '');
+}
+
 function detailDuParcours(l){
   const d = document.createElement('div');
   d.style.cssText = 'margin:8px 0 2px;padding:9px 11px;border-radius:9px;' +
@@ -1582,37 +1693,100 @@ function detailDuParcours(l){
     parId[cle].ids.push(id);
   });
 
-  const vus = l.vus || {};
   groupes.forEach(g => {
     const t = document.createElement('div');
-    t.style.cssText = 'font-size:11.5px;font-weight:700;margin:6px 0 4px;' +
+    t.style.cssText = 'font-size:11.5px;font-weight:700;margin:8px 0 4px;' +
       'color:var(--accent-text);';
     t.textContent = (g.icone ? g.icone + ' ' : '') + g.nom;
     d.appendChild(t);
 
     g.ids.forEach(id => {
       const g2 = guidesDuSuivi[id] || {};
-      const vu = vus[id] || '';
+      const segs = g2.segments || [];
+      const fiches = fichesDuGuide(l, id);
+      const tout = !!(fiches[''] && fiches[''].vuLe);
+      const vuLe = vuLeDuGuide(segs, fiches);
+
+      const totalSeg = segs.length || 1;
+      const faitsSeg = segs.length
+        ? (tout ? segs.length
+                : segs.filter(sg => fiches[sg.id] && fiches[sg.id].vuLe).length)
+        : (tout ? 1 : 0);
+
+      /* ---- La ligne du guide ---- */
       const li = document.createElement('div');
       li.style.cssText = 'display:flex;gap:8px;align-items:baseline;' +
-        'font-size:12px;margin:0 0 3px;' +
-        (vu ? '' : 'color:var(--muted);');
+        'font-size:12.5px;margin:5px 0 2px;' + (vuLe ? '' : 'color:var(--muted);');
+
       const marque = document.createElement('span');
-      marque.style.cssText = 'flex-shrink:0;width:14px;';
-      marque.textContent = vu ? '✓' : '·';
+      marque.style.cssText = 'flex-shrink:0;width:14px;' +
+        (vuLe ? 'color:var(--accent-text);'
+              : (faitsSeg ? 'color:var(--warn-text);' : ''));
+      /* Trois états, parce qu'il y en a trois : rien, en cours, fini.
+         Deux seulement, et « en cours » se lit comme « rien ». */
+      marque.textContent = vuLe ? '✓' : (faitsSeg ? '◐' : '·');
       li.appendChild(marque);
+
       const nom = document.createElement('span');
-      nom.style.cssText = 'flex:1;min-width:0;';
+      nom.style.cssText = 'flex:1;min-width:0;font-weight:700;';
       /* ⚠️ UN GUIDE QUE LE CATALOGUE NE CONNAÎT PAS GARDE SON
          IDENTIFIANT : une ligne vide ferait croire à un guide sans
          titre plutôt qu'à un guide dépublié. */
       nom.textContent = g2.titre || ('(guide ' + id + ')');
       li.appendChild(nom);
+
       const q = document.createElement('span');
       q.style.cssText = 'font-size:11px;color:var(--muted);flex-shrink:0;';
-      q.textContent = vu ? vu : 'pas encore';
+      q.textContent = segs.length
+        ? faitsSeg + '/' + totalSeg
+        : (vuLe ? quandCourtParcours(vuLe) : 'pas encore');
       li.appendChild(q);
       d.appendChild(li);
+
+      /* ---- Et chaque étape dessous, c'est ça « le détail de tout ».
+         Un guide dépublié dont on ne connaît plus le découpage n'a
+         rien à montrer ici : sa ligne porte déjà sa date. ---- */
+      if(!segs.length) return;
+
+      segs.forEach(sg => {
+        const f = tout ? (fiches[sg.id] || fiches['']) : fiches[sg.id];
+        const vu = !!(f && f.vuLe) || tout;
+
+        const ls = document.createElement('div');
+        ls.style.cssText = 'display:flex;gap:7px;align-items:baseline;' +
+          'font-size:11.5px;margin:0 0 2px;padding-left:22px;' +
+          (vu ? '' : 'color:var(--muted);');
+
+        const m2 = document.createElement('span');
+        m2.style.cssText = 'flex-shrink:0;width:12px;' +
+          (vu ? 'color:var(--accent-text);' : '');
+        m2.textContent = vu ? '✓' : '·';
+        ls.appendChild(m2);
+
+        const n2 = document.createElement('span');
+        n2.style.cssText = 'flex:1;min-width:0;';
+        n2.textContent = sg.titre || '(étape sans titre)';
+        ls.appendChild(n2);
+
+        const q2 = document.createElement('span');
+        q2.style.cssText = 'font-size:10.5px;color:var(--muted);flex-shrink:0;' +
+          'text-align:right;';
+        if(f && f.vuLe){
+          const n = Number(f.vues) || 1;
+          /* Combien de fois, et quand la dernière : c'est ce qui
+             distingue « il a ouvert une fois en diagonale » de « il
+             y est revenu trois fois ». */
+          q2.innerHTML = quandCourtParcours(f.vuLe) +
+            (n > 1 ? '<br><span style="color:var(--accent-text);">' + n +
+                     ' fois</span>' : '') +
+            (f.revuLe && f.revuLe !== f.vuLe
+              ? '<br>revu ' + quandCourtParcours(f.revuLe) : '');
+        }else{
+          q2.textContent = vu ? '(guide entier)' : 'pas encore';
+        }
+        ls.appendChild(q2);
+        d.appendChild(ls);
+      });
     });
   });
 
