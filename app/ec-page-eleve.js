@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 12:10 — v1061 */
+/* Déployé le 05/10/2026 à 18:05 — v1062 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -85,7 +85,17 @@ const ONGLETS_ELEVE = [
      Corriger une procédure et redonner son code à une famille sont
      deux métiers différents : c'est pour cela qu'ils ont été
      séparés en v818. */
-  { cle:'acces',    emoji:'🔑', titre:'Accès',       section:'acces_eleves' },
+  /* ⚠️ « Coin révisions », ET PLUS « Accès » — v1062. David : « tu
+     peux changer le nom accès en coin révisions ». C'est le nom que
+     l'outil emploie partout ailleurs — dans la carte elle-même, dans
+     les messages à la famille, dans l'espace de l'élève. « Accès »
+     était le seul endroit qui parlait une autre langue.
+
+     ⚠️ LA CLÉ, ELLE, NE BOUGE PAS. C'est elle qui est retenue quand
+     on rouvre un dossier sur le même onglet ; la renommer rouvrirait
+     tout le monde sur la fiche. On change l'étiquette, pas le nom
+     interne. */
+  { cle:'acces',    emoji:'🔑', titre:'Coin révisions', section:'acces_eleves' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
   /* En lecture seule — voir la note ci-dessus. Il suit le droit du
      cours : qui peut lire un bilan peut lire ce qui l'a produit. */
@@ -2190,12 +2200,30 @@ function ongletFiche(corps, nom){
 
 
 /* ============================================================
-   🔑 ACCÈS — SON COIN RÉVISIONS
+   🔑 SON COIN RÉVISIONS
 
    afficherEspaceEleve() sait déjà tout faire : lire son code, le
    lui créer, choisir ce qu'il trouve dans son espace, et le lui
    envoyer. Elle vivait au fond de la fenêtre de modification, où
    il fallait savoir qu'elle était.
+
+   ⚠️ DEUX ZONES, ET PAS UN SEUL CORPS — v1062, et c'est la
+   réparation du parcours qui ne s'affichait pas.
+
+   David, le 5 octobre : « je ne vois pas son parcours ». Le code
+   était bon, l'ordre des gestes ne l'était pas :
+   « afficherEspaceEleve » est ASYNCHRONE. Elle écrit « Lecture de
+   son accès… », part demander la liste des accès au serveur, et à
+   son retour fait « zone.innerHTML = '' » pour dessiner sa carte.
+   Or la zone qu'on lui donnait était le corps ENTIER de l'onglet :
+   ce vidage-là emportait le cadre du parcours, posé un instant plus
+   tôt et déjà en train de se remplir. Le parcours arrivait bien —
+   dans un cadre qui n'était plus dans la page.
+
+   Chacune a donc son propre div maintenant, et personne ne vide le
+   travail de l'autre. C'est d'ailleurs ce que fait depuis toujours
+   la fenêtre de modification, qui lui passe « zEspace » et non son
+   corps — une règle tenue d'un côté, oubliée de l'autre.
    ============================================================ */
 function ongletAcces(corps, nom){
   if(typeof afficherEspaceEleve !== 'function'){
@@ -2203,7 +2231,10 @@ function ongletAcces(corps, nom){
       "Le coin révisions n'est pas disponible sur cet écran."));
     return;
   }
-  afficherEspaceEleve(nom, corps);
+
+  const zEspace = document.createElement('div');
+  corps.appendChild(zEspace);
+  afficherEspaceEleve(nom, zEspace);
 
   /* ⚠️ ET SON PARCOURS, JUSTE EN DESSOUS — v1061.
 
