@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 05/10/2026 à 12:10 — v1061 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -2204,6 +2204,56 @@ function ongletAcces(corps, nom){
     return;
   }
   afficherEspaceEleve(nom, corps);
+
+  /* ⚠️ ET SON PARCOURS, JUSTE EN DESSOUS — v1061.
+
+     David : « j'ai le suivi dans parcours élèves de tous les élèves
+     mais pas dans le dossier élève de chacun des élèves ; il me le
+     faut aussi dans Accès, en dessous ».
+
+     C'est le bon endroit : on coche ses groupes ici, et on voit
+     dans la foulée ce qu'il en a fait. Les deux gestes se suivaient
+     déjà dans la tête ; ils se suivent maintenant à l'écran.
+
+     ⚠️ LE BLOC EST CELUI DE L'ÉCRAN DE SUIVI, pas une seconde
+     écriture — voir blocParcoursDeLEleve dans ec-parcours.js. Deux
+     affichages du même parcours finiraient par ne plus dire la même
+     chose, et c'est celui qu'on regarde le moins qui mentirait.
+
+     ⚠️ ET IL NE FAIT PAS ÉCHOUER L'ONGLET. Le coin révisions est
+     déjà dessiné quand on arrive ici : si le parcours ne répond
+     pas, on le dit dans son cadre et le reste de l'onglet continue
+     de servir. */
+  posterLeParcoursDuDossier(corps, nom);
+}
+
+async function posterLeParcoursDuDossier(corps, nom){
+  if(typeof blocParcoursDeLEleve !== 'function') return;
+
+  const cadre = document.createElement('div');
+  cadre.style.cssText = 'margin-top:16px;padding-top:14px;' +
+    'border-top:1px solid var(--line);';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'font-size:13px;font-weight:700;color:var(--accent-text);' +
+    'margin-bottom:8px;';
+  t.textContent = '🎓 Son parcours — ce qu\'il a vu';
+  cadre.appendChild(t);
+
+  const zone = document.createElement('div');
+  zone.innerHTML = '<div class="empty">Lecture de son parcours…</div>';
+  cadre.appendChild(zone);
+  corps.appendChild(cadre);
+
+  try{
+    const bloc = await blocParcoursDeLEleve(nom);
+    zone.innerHTML = '';
+    zone.appendChild(bloc);
+  }catch(e){
+    zone.innerHTML = '';
+    zone.appendChild(vidDossier('⚠️ Parcours illisible : ' +
+      String((e && e.message) || e)));
+  }
 }
 
 
