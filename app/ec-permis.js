@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 11:30 — v1063 */
+/* Déployé le 06/10/2026 à 16:05 — v1065 */
 /* ============================================================
    ec-permis.js
    Élève ayant obtenu son permis
@@ -88,7 +88,14 @@ async function preparerPermis(){
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom, leger: true })
+      /* ⚠️ « exact », SANS QUOI UN HOMONYME COMPTE — v1065. Cette
+         recherche décide du nombre de leçons affiché et de la boîte
+         retenue, donc de la proposition de passerelle BEA → BV.
+         Pour « Marie Martin », les bilans de « Marie Martinez »
+         entraient dans le compte. Le dossier élève exige le nom
+         exact depuis toujours ; cet écran-ci ne le demandait pas. */
+      body: JSON.stringify({ action: 'search', code: ACCES.code, eleve: nom,
+                             exact: true, leger: true })
     });
     if(r.ok){
       const data = await r.json().catch(() => ({}));
