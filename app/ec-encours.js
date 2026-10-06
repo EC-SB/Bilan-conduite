@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 10:53 — v1033 */
+/* Déployé le 06/10/2026 à 22:15 — v1068 */
 /* ============================================================
    ec-encours.js
    Les cours qui n'ont pas abouti, chez tout le monde.
@@ -419,6 +419,21 @@ function lireLeReleveGps(gps){
              ' de cours (' + couvert + ' %)');
   bouts.push(points + ' point' + (points > 1 ? 's' : ''));
   if(nb(g.perdu)) bouts.push(minutes(nb(g.perdu)) + ' sans signal');
+  /* ⚠️ ET SI LE TRACÉ EST TROUÉ, ON LE DIT ICI — v1068.
+
+     Cette ligne annonçait « 35 min relevées sur 38 min (93 %) · 367
+     points » et avait l'air d'une réussite. Le tracé, lui, venait
+     d'être JETÉ : plus d'un dixième du cours sans signal. Deux
+     seuils, deux verdicts, sur le même cours — et c'est celui qui
+     ne s'affichait nulle part qui décidait.
+
+     Le tracé est gardé depuis la v1068, et joint avec sa mention.
+     Reste à ce que le bilan dise la même chose que la carte : la
+     règle du dixième est écrite dans trajetComplet, et c'est la
+     même ici. */
+  if(nb(g.perdu) > duree * 0.1){
+    bouts.push('🧩 tracé PARTIEL (gardé et joint, avec la mention)');
+  }
   /* ⚠️ LE NOMBRE QUI EXPLIQUE. Des relances, c'est un téléphone qui
      met la page derrière — l'écran se verrouille, un appel passe.
      AUCUNE relance sur un long silence, c'est que le battement
