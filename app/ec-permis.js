@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:03 — v1045 */
+/* Déployé le 06/10/2026 à 11:30 — v1063 */
 /* ============================================================
    ec-permis.js
    Élève ayant obtenu son permis
@@ -201,7 +201,30 @@ function afficherPermis(nom, dossier){
     });
     contenu.appendChild(bloc);
 
-    /* Clôture du dossier, une fois tout envoyé */
+    /* ============================================================
+       🏁 CLÔTURER LE DOSSIER — UN SEUL BOUTON, v1063
+
+       David, le 6 octobre : « c'est pas clair ce qui se passe après
+       retirer de toutes les listes et supprimer toutes ses fiches,
+       il faut simplifier ».
+
+       Il y en avait deux, et rien ne disait ce qui restait après
+       l'un ou après l'autre. Le premier retirait du suivi en
+       gardant les bilans ; le second effaçait tout — et le ménage
+       proposait une TROISIÈME fois la même chose. Trois chemins
+       pour une décision qui n'en a qu'un : « quand l'élève a son
+       permis, on supprime tout », c'est la règle de la maison, et
+       elle est déjà écrite en toutes lettres dans l'écran Ménage.
+
+       ⚠️ ET UN SEUL APPEL, PAS SEPT. Cet écran faisait sa propre
+       tournée — messages, cours préparés, fiche de suivi, captures,
+       puis les bilans : cinq allers-retours et autant d'occasions
+       d'en oublier un. C'était le QUATRIÈME écran à tenir sa propre
+       liste de ce qu'il faut effacer, celui qu'on avait manqué le
+       jour où les trois autres ont été ramenés à « supprimerEleve ».
+       Il y mène maintenant comme eux, par supprimerEleveComplet :
+       ce qui s'efface vit dans le classeur, à un seul endroit.
+       ============================================================ */
     const fin = document.createElement('div');
     fin.style.cssText = 'margin-top:20px;padding-top:16px;border-top:2px solid var(--line);';
 
@@ -210,35 +233,27 @@ function afficherPermis(nom, dossier){
     t.textContent = '🏁 Clôturer le dossier';
     fin.appendChild(t);
 
+    /* ⚠️ CE QUI PART ET CE QUI RESTE, ÉCRIT AVANT LE BOUTON. Le
+       bureau doit pouvoir décider sans cliquer pour voir. */
     const a = document.createElement('div');
     a.style.cssText = 'font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5;';
-    a.textContent = "Une fois les messages envoyés et les tâches faites, " +
-      "retire l'élève de toutes les listes.";
+    a.innerHTML = 'Une fois les messages envoyés et les tâches faites. ' +
+      '<strong style="color:var(--cream);">Tout son dossier est effacé</strong> : ' +
+      'ses bilans, sa fiche, ses captures du CEPC, ses cours préparés, ' +
+      'ses messages au bureau, son accès au coin révisions, son parcours, ' +
+      "sa place d'examen.<br>" +
+      '<strong style="color:var(--accent-text);">Son résultat reste, sans son nom</strong> — ' +
+      'ton taux de réussite ne bouge pas.';
     fin.appendChild(a);
 
-    const bFiches = document.createElement('button');
-    bFiches.className = 'btn btn-secondary';
-    bFiches.style.cssText = 'padding:10px;font-size:13px;';
-    bFiches.textContent = '🧹 Retirer de toutes les listes';
-    bFiches.title = 'Fiche de suivi, messages en attente, cours préparés. Les bilans sont conservés.';
-    bFiches.addEventListener('click', () => nettoyerDossierPermis(nom, false, bFiches));
-    fin.appendChild(bFiches);
-
-    /* Suppression totale.
-
-       Ici, l'élève a son permis : son dossier n'a plus d'objet.
-       Chacun peut donc le clore, ce n'est pas une manœuvre
-       risquée à ce stade. */
-    {
-      const bTout = document.createElement('button');
-      bTout.className = 'btn btn-secondary';
-      bTout.style.cssText = 'margin-top:8px;padding:10px;font-size:13px;' +
-        'color:var(--red);border-color:var(--red);';
-      bTout.textContent = '🗑️ Supprimer toutes ses fiches' +
-        (dossier.nb ? ' et ses ' + dossier.nb + ' bilan(s)' : '');
-      bTout.addEventListener('click', () => nettoyerDossierPermis(nom, true, bTout, dossier.nb));
-      fin.appendChild(bTout);
-    }
+    const bTout = document.createElement('button');
+    bTout.className = 'btn btn-secondary';
+    bTout.style.cssText = 'padding:10px;font-size:13px;' +
+      'color:var(--red);border-color:var(--red);';
+    bTout.textContent = '🏁 Clôturer le dossier de ' + nom +
+      (dossier.nb ? ' et ses ' + dossier.nb + ' bilan(s)' : '');
+    bTout.addEventListener('click', () => cloturerDossierPermis(nom, bTout, dossier.nb));
+    fin.appendChild(bTout);
 
     const etat = document.createElement('div');
     etat.id = 'permisNettoyage';
@@ -257,10 +272,21 @@ function afficherPermis(nom, dossier){
 
 
 /* ============================================================
-   CLÔTURE DU DOSSIER
-   Deux niveaux : retirer des listes, ou tout effacer.
+   CLÔTURE DU DOSSIER — v1063
+
+   ⚠️ UN SEUL APPEL, ET IL N'EST PAS ÉCRIT ICI.
+
+   « supprimerEleveComplet » est la porte commune des trois autres
+   écrans qui suppriment un dossier — le répertoire, Préparer le
+   départ, le Ménage. Elle appelle « supprimerEleve » dans le
+   classeur, qui efface les vingt-quatre feuilles où un nom d'élève
+   est écrit, vide sa place d'examen et anonymise sa ligne de
+   résultat ; elle rend ce qui a été fait ET ce qui a raté.
+
+   Cet écran-ci recopiait la tournée à sa façon et en faisait moins.
+   Une règle, un seul endroit : il emprunte celui qui existe.
    ============================================================ */
-async function nettoyerDossierPermis(nom, toutEffacer, bouton, nbBilans){
+async function cloturerDossierPermis(nom, bouton, nbBilans){
   const etat = $('permisNettoyage');
   const dire = (t, couleur) => {
     if(!etat) return;
@@ -268,94 +294,47 @@ async function nettoyerDossierPermis(nom, toutEffacer, bouton, nbBilans){
     etat.textContent = t;
   };
 
-  if(toutEffacer){
-    if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
-        'Tout ce qui concerne ' + nom + ' va être effacé :\n' +
-        (nbBilans ? '• ses ' + nbBilans + ' bilan(s)\n' : '') +
-        '• sa fiche de suivi\n• ses captures de CEPC\n' +
-        '• ses cours préparés et messages en attente\n\n' +
-        'Cette action est IRRÉVERSIBLE. Continuer ?')) return;
+  if(!await confirmer('⚠️ SUPPRESSION DÉFINITIVE\n\n' +
+      'Tout le dossier de ' + nom + ' va être effacé :\n' +
+      (nbBilans ? '• ses ' + nbBilans + ' bilan(s)\n' : '') +
+      '• sa fiche du répertoire et sa fiche de suivi\n' +
+      '• ses captures de CEPC, ses cours préparés, ses messages\n' +
+      '• son accès au coin révisions et son parcours\n' +
+      "• sa place d'examen\n\n" +
+      'Son résultat est conservé SANS son nom : ton taux de ' +
+      'réussite ne bouge pas.\n\n' +
+      'Cette action est IRRÉVERSIBLE. Continuer ?')) return;
 
-    const saisi = await demander("Pour confirmer, recopie exactement le nom de l'élève :\n\n" + nom);
-    if(saisi === null) return;
-    if(normaliserMot(saisi) !== normaliserMot(nom)){
-      await informer('Le nom saisi ne correspond pas. Suppression annulée.');
-      return;
-    }
-  }else{
-    if(!await confirmer('Retirer ' + nom + ' de toutes les listes de suivi ?\n\n' +
-                        'Ses bilans et ses captures sont conservés.')) return;
+  /* ⚠️ LE NOM SE RECOPIE À LA MAIN, ET ON LE GARDE. Deux boutons se
+     sont fondus en un ; celui qui reste est le plus lourd des deux.
+     Une confirmation qui se clique sans lire n'en est pas une. */
+  const saisi = await demander("Pour confirmer, recopie exactement le nom de l'élève :\n\n" + nom);
+  if(saisi === null) return;
+  if(normaliserMot(saisi) !== normaliserMot(nom)){
+    await informer('Le nom saisi ne correspond pas. Clôture annulée.');
+    return;
   }
 
   bouton.disabled = true;
   const texteInitial = bouton.textContent;
-  bouton.textContent = 'Nettoyage…';
+  bouton.textContent = 'Clôture…';
 
-  let faits = [];
   try{
-    /* Les messages en attente ne doivent plus le faire réapparaître */
-    dire('Messages en attente…');
-    try{
-      const d = await appelPrep({ action:'consigneList', eleve: nom });
-      const enAttente = ((d && d.consignes) || []).filter(x => x.traite !== 'oui');
-      for(const cs of enAttente){
-        try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(e){}
-      }
-      if(enAttente.length) faits.push(enAttente.length + ' message(s) soldé(s)');
-    }catch(e){}
+    const r = await supprimerEleveComplet(nom, t => dire(t));
 
-    /* Les cours préparés à son nom */
-    dire('Cours préparés…');
-    try{
-      const d = await appelPrep({ action:'prepList' });
-      const siens = ((d && d.preparations) || [])
-        .filter(x => normaliserMot(x.eleve || '') === normaliserMot(nom));
-      /* ⚠️ PAS « supprimerPreparation » ICI, ET C'EST VOULU — v1045.
-         Cette porte-là libère un rendez-vous post-permis annulé en
-         vidant sa date dans la fiche de suivi. Ici on efface l'élève
-         ENTIER : « suiviDelete » suit quelques lignes plus bas et
-         emporte la fiche. Écrire dedans juste avant serait un
-         aller-retour pour rien — et, selon l'ordre, une fiche
-         recréée à l'instant même où on la supprime. */
-      for(const pr of siens){
-        try{ await appelPrep({ action:'prepDelete', id: pr.id }); }catch(e){}
-      }
-      if(siens.length) faits.push(siens.length + ' cours préparé(s) retiré(s)');
-    }catch(e){}
-
-    /* La fiche de suivi */
-    dire('Fiche de suivi…');
-    try{
-      await appelPrep({ action:'suiviDelete', eleve: nom });
-      faits.push('fiche de suivi supprimée');
-    }catch(e){}
-
-    if(toutEffacer){
-      /* Les captures du CEPC */
-      dire('Captures du CEPC…');
-      try{
-        const d = await appelPrep({ action:'captureList', eleve: nom });
-        const caps = (d && d.captures) || [];
-        for(const cap of caps){
-          try{ await appelPrep({ action:'captureDelete', id: cap.id }); }catch(e){}
-        }
-        if(caps.length) faits.push(caps.length + ' capture(s) supprimée(s)');
-      }catch(e){}
-
-      /* Les bilans */
-      dire('Bilans…');
-      try{
-        const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: nom })
-        }, 25000, 2);
-        if(r.ok) faits.push('bilans supprimés');
-      }catch(e){}
+    /* ⚠️ CE QUI A RATÉ SE DIT AUSSI, et avant ce qui a marché. Un
+       effacement partiel n'est pas un effacement : il faut le savoir
+       pour recommencer. */
+    if(r.rates && r.rates.length){
+      dire('⚠️ ' + nom + ' — PAS totalement effacé. N\'ont pas pu partir : ' +
+           r.rates.join(', ') + '. Recommence.', 'var(--warn-text)');
+      bouton.disabled = false;
+      bouton.textContent = texteInitial;
+      return;
     }
 
-    viderCaches(nom);
-    dire('✅ ' + nom + ' — ' + (faits.join(' · ') || 'rien à retirer'), 'var(--accent-text)');
+    dire('✅ ' + nom + ' — ' + (r.faits.join(' · ') || 'rien à effacer'),
+         'var(--accent-text)');
 
     /* Le module se remet à zéro : le dossier est clos */
     setTimeout(() => {
