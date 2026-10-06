@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 09:48 — v1048 */
+/* Déployé le 06/10/2026 à 17:30 — v1066 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -610,6 +610,26 @@ function dicterDans(champ, bouton){
     const base = depart ? depart + (depart.endsWith('\n') ? '' : ' ') : '';
     champ.value = base + terminerPhrase(texteSession);
     champ.scrollTop = champ.scrollHeight;
+
+    /* ⚠️ ET ON PRÉVIENT CE QUI ÉCOUTE LE CHAMP — v1066.
+
+       Écrire dans « value » ne déclenche aucun événement : le
+       navigateur ne signale que ce qu'un humain tape. Tout ce qui
+       suit un champ à la saisie restait donc aveugle à la dictée —
+       le récapitulatif des remarques d'examen, qui se réécrit à
+       chaque frappe ; la case à cocher d'une phrase toute faite ;
+       le bilan des éliminatoires, qui se fige dès que le moniteur y
+       touche et qui ne se figeait pas quand il le DICTAIT.
+
+       Ça ne se voyait pas tant que les micros étaient posés sur des
+       champs que personne n'écoutait. Le premier micro posé sur un
+       champ écouté — celui des remarques, ci-dessous — l'aurait
+       révélé par un bilan qui oublie ce qu'on vient de dicter.
+
+       Un événement qui remonte, comme une vraie frappe : les
+       écouteurs ne font pas la différence, et c'est tout ce qu'on
+       leur demande. */
+    champ.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
   const arreter = () => {
@@ -1181,6 +1201,38 @@ function lignesObservations(){
   return out;
 }
 
+/* ============================================================
+   LE MICRO D'UNE LIGNE DE REMARQUE — v1066
+
+   ⚠️ IL REND TOUJOURS QUELQUE CHOSE, MÊME SANS DICTÉE. Un navigateur
+   qui ne sait pas dicter rend un écarteur vide, de la largeur exacte
+   du bouton : sans lui, les deux lignes d'une même remarque
+   n'auraient pas la même longueur utile, et le champ du bas
+   dépasserait celui du haut. Un « if » chez l'appelant aurait marché
+   aussi — jusqu'au jour où l'on en oublie un.
+
+   ⚠️ ET LE BOUTON EST LE MÊME QUE PARTOUT AILLEURS : même classe,
+   même emoji, même « dicterDans ». Trois micros dessinés à trois
+   endroits différents, c'est trois micros qui finissent par ne plus
+   se ressembler.
+   ============================================================ */
+function microDObservation(champ, quoi){
+  if(!dicteePossible()){
+    const vide = document.createElement('span');
+    vide.style.cssText = 'width:45px;flex-shrink:0;';
+    return vide;
+  }
+  const mic = document.createElement('button');
+  mic.type = 'button';
+  mic.className = 'btn btn-secondary';
+  mic.style.cssText = 'width:auto;padding:10px 13px;font-size:17px;' +
+    'margin:0;flex-shrink:0;';
+  mic.textContent = '🎙️';
+  mic.title = 'Dicter ' + quoi;
+  mic.addEventListener('click', () => dicterDans(champ, mic));
+  return mic;
+}
+
 function ajouterObservationManuelle(zone, valeurs){
   const d = document.createElement('div');
   d.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;';
@@ -1195,14 +1247,29 @@ function ajouterObservationManuelle(zone, valeurs){
                   (zone && zone.dataset ? (zone.dataset.mention || '') : '');
   if(mention) d.dataset.mention = mention;
 
+  /* ⚠️ LA REMARQUE EST SUR UNE LIGNE, MAINTENANT — v1066.
+
+     David, le 6 octobre : « tu peux ajouter des boutons micro au
+     bout des lignes remarques de l'inspecteur et explication ou
+     correction ». Le champ occupait toute la largeur ; il lui faut
+     une ligne pour porter son micro à côté.
+
+     ⚠️ ET LA MARGE A CHANGÉ DE PORTEUR : elle était sur le champ,
+     elle est sur la ligne. Laissée sur le champ, elle décalerait le
+     micro vers le haut d'un demi-cran — le genre de détail qu'on ne
+     voit qu'une fois en voiture. */
+  const ligneInsp = document.createElement('div');
+  ligneInsp.style.cssText = 'display:flex;gap:6px;align-items:center;' +
+    'margin-bottom:6px;';
+
   const insp = document.createElement('input');
   insp.type = 'text';
   insp.className = 'obsInsp';
   insp.placeholder = "Remarque de l'inspecteur";
   /* Deux fonds distincts : ce que dit l'inspecteur et ce que
      répond le moniteur ne se confondent plus d'un coup d'œil. */
-  insp.style.cssText = 'margin-bottom:6px;background:rgba(46,124,196,.14);' +
-    'border-color:rgba(46,124,196,.4);';
+  insp.style.cssText = 'flex:1;min-width:0;margin:0;' +
+    'background:rgba(46,124,196,.14);border-color:rgba(46,124,196,.4);';
   /* Le récapitulatif suit ce qui s'écrit */
   /* La remarque alimente le bilan, mais seulement quand le
      moniteur a fini de taper : réécrire à chaque lettre coupait
@@ -1215,7 +1282,9 @@ function ajouterObservationManuelle(zone, valeurs){
     }, 900);
   };
   insp.addEventListener('input', surSaisie);
-  d.appendChild(insp);
+  ligneInsp.appendChild(insp);
+  ligneInsp.appendChild(microDObservation(insp, "la remarque de l'inspecteur"));
+  d.appendChild(ligneInsp);
 
   /* L'explication, avec de quoi marquer une erreur éliminatoire */
   const r = document.createElement('div');
@@ -1394,6 +1463,13 @@ function ajouterObservationManuelle(zone, valeurs){
     if(typeof majBilanEliminatoires === 'function') majBilanEliminatoires();
   });
   r.appendChild(bGrave);
+
+  /* ⚠️ LE MICRO EN DERNIER, ET DANS LES DEUX LIGNES AU MÊME ENDROIT
+     — v1066. Mis avant ☠️ et ⚠️, il aurait été à hauteur du champ
+     sur une ligne et au milieu des boutons sur l'autre : deux micros
+     qui ne tombent pas l'un sous l'autre, dans une voiture, c'est un
+     appui raté sur ☠️. */
+  r.appendChild(microDObservation(rep, "l'explication"));
 
   /* ⚠️ LE BOUTON ➖ A ÉTÉ RETIRÉ — v909. David : « il faut enlever le
      bouton ➖ en bout de ligne ». Le point se demande maintenant
