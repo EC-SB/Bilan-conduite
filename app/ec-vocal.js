@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 10:47 — v1016 */
+/* Déployé le 06/10/2026 à 19:15 — v1067 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -539,7 +539,11 @@ $('recBtn').addEventListener('click', async () => {
      Il ne démarre que pour qui a la section d'essai « trajet ».
      Pour tous les autres, ces deux lignes ne font rien du tout —
      pas même une demande de géolocalisation. */
-  if(typeof demarrerTrajet === 'function' && demarrerTrajet()){
+  /* ⚠️ AVEC LE NOM DE L'ÉLÈVE — v1067 : un relevé appartient à
+     quelqu'un, et celui d'un autre ne se poursuit pas ici. Voir
+     demarrerTrajet. */
+  if(typeof demarrerTrajet === 'function' &&
+     demarrerTrajet($('studentName') ? $('studentName').value.trim() : '')){
     if(typeof montrerLeTrajet === 'function') montrerLeTrajet(true);
   }
 
