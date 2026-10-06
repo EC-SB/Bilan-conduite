@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 17:30 — v1066 */
+/* Déployé le 06/10/2026 à 19:15 — v1067 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1099,7 +1099,12 @@ async function ouvrirBilanManuel(){
 
      Ne fait rien pour qui n'a pas la section d'essai, ni sur un
      simulateur. Voir ec-trajet.js. */
-  if(typeof demarrerTrajet === 'function' && demarrerTrajet()){
+  /* ⚠️ ET LE RELEVÉ SAIT POUR QUI IL TOURNE — v1067. Ce bouton est
+     celui par lequel passent tous les examens d'une journée, l'un
+     après l'autre, et il n'a aucun garde-fou « un cours est encore
+     ouvert » : sans ce nom, le deuxième examen héritait du relevé du
+     premier. Voir demarrerTrajet. */
+  if(typeof demarrerTrajet === 'function' && demarrerTrajet(eleve)){
     if(typeof montrerLeTrajet === 'function') montrerLeTrajet(true);
   }
 
