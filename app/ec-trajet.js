@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 19:15 — v1067 */
+/* Déployé le 06/10/2026 à 21:30 — v1068 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -909,6 +909,61 @@ function releveDuTrajetPourLeDepot(){
   };
 }
 
+/* ============================================================
+   DEUX QUESTIONS, ET PLUS UNE SEULE — v1068
+
+   David, le 6 octobre : « garder et joindre en précisant ».
+
+   Une seule règle décidait de DEUX choses : faut-il joindre la
+   carte au mail de l'élève, et faut-il garder le tracé. Le prix,
+   il l'a payé le jour de l'examen d'Henedi : 4 minutes sans signal
+   sur 38, un dixième dépassé d'un cheveu, et le tracé a été JETÉ —
+   pendant que la ligne du bilan annonçait « 93 % » comme une
+   réussite. Le relevé avait pourtant tourné, les 367 points étaient
+   là, et il n'y avait plus rien à revoir.
+
+   Ce sont deux questions différentes :
+
+     · « ce tracé vaut-il quelque chose ? » — assez de points, la
+       voiture a bougé, le capteur a rendu plus d'une minute. Si
+       oui, on le GARDE : il ne coûte qu'une ligne, et c'est la
+       seule copie qui existera jamais de ce cours-là.
+
+     · « ce tracé est-il complet ? » — moins d'un dixième du cours
+       sans signal. S'il ne l'est pas, on le garde quand même, on
+       le joint quand même, et ON LE DIT : sur le bilan, sur la
+       carte, et dans le mail de l'élève.
+
+   ⚠️ ET LA MENTION N'EST PAS UNE POLITESSE. Le trait relie les
+   points connus : là où le signal manquait, il coupe tout droit et
+   peut faire croire à un passage qui n'a pas eu lieu. C'est la
+   seule chose qui empêche de mal lire la carte, et c'est pour ça
+   qu'elle est écrite À CÔTÉ du tracé, pas en bas de page.
+   ============================================================ */
+function trajetUtilisable(){
+  if(!trajetDebut) return false;
+  if(trajetRefus) return false;
+  if(trajetPoints.length < 10) return false;
+
+  const m = mesureDuTrajet();
+  if(m.duree < 60000) return false;
+  if(m.releve < 60000) return false;
+  /* Une voiture qui n'a pas bougé n'a pas de trajet — voir le ⚠️
+     ci-dessous, la règle n'a pas changé de sens. */
+  if(etendueDuTrajet(trajetPoints) < 300) return false;
+  return true;
+}
+
+/* Le tracé est-il TROUÉ ? Rend le nombre de minutes perdues, ou 0
+   quand il n'y a rien à signaler. C'est ce que lisent la carte, le
+   mail et le bilan — un seul calcul pour les trois. */
+function trouDuTrajet(){
+  const m = mesureDuTrajet();
+  if(!m.duree) return 0;
+  if(m.perdu <= m.duree * 0.1) return 0;
+  return Math.max(1, Math.round(m.perdu / 60000));
+}
+
 function trajetComplet(){
   if(!trajetDebut) return false;
   if(trajetRefus) return false;
@@ -983,7 +1038,10 @@ function resumeDuTrajet(){
 /* Le paquet rangé avec le bilan. Rien de plus : pas de vitesse,
    pas d'adresse, pas d'horaire autre que ceux des repères. */
 function trajetPourEnvoi(){
-  if(!trajetComplet()) return null;
+  /* ⚠️ UTILISABLE, ET PLUS « COMPLET » — v1068. Un tracé troué se
+     garde et se joint ; il part seulement avec sa mention. Voir
+     trajetUtilisable. */
+  if(!trajetUtilisable()) return null;
 
   const simple = simplifierTrajet(trajetPoints);
   const heure = (t) => {
@@ -1000,6 +1058,13 @@ function trajetPourEnvoi(){
        ligne-là que l'élève lit sous sa carte : elle doit décrire ce
        qu'elle montre. Voir mesureDuTrajet. */
     minutes: Math.round(mesureDuTrajet().releve / 60000),
+    /* ⚠️ LA DURÉE DU COURS VOYAGE AUSSI — v1068. C'est elle, en face
+       du relevé, qui permet de dire « 35 min sur 38 » sur un tracé
+       relu des mois plus tard, SANS rien ranger de neuf dans le
+       classeur : les deux nombres y sont déjà. */
+    minutesCours: Math.round(mesureDuTrajet().duree / 60000),
+    /* Les minutes perdues, ou 0 : la mention se décide avec. */
+    trou: trouDuTrajet(),
     reperes: trajetReperes.map((r, i) => ({
       n: i + 1,
       heure: heure(r.t),
@@ -1050,6 +1115,29 @@ async function signalerLeTrajetAvantDeGenerer(){
 
   arreterTrajet();                     /* le cours est fini */
   if(trajetComplet()) return true;
+
+  /* ⚠️ UN TRACÉ TROUÉ PART QUAND MÊME, ET ON LE DIT — v1068.
+
+     Cette fenêtre annonçait « le tracé ne sera donc PAS joint » et
+     demandait s'il fallait générer quand même. Au mieux le moniteur
+     renonçait à son bilan ; au pire — et c'est ce qui s'est passé —
+     il passait outre sans savoir qu'il perdait le tracé pour de
+     bon. Maintenant le tracé est gardé et joint : il n'y a plus de
+     décision à prendre, seulement une chose à savoir. */
+  if(trajetUtilisable()){
+    const t = trouDuTrajet();
+    if(t && typeof informer === 'function'){
+      try{
+        await informer('Le relevé a eu ' + t + ' min sans signal : le tracé ' +
+          'est PARTIEL.\n\nIl est gardé et joint au bilan quand même, avec ' +
+          'la mention — là où le signal manquait, le trait coupe tout droit.' +
+          '\n\nLe plus souvent c\'est l\'écran qui s\'est verrouillé : le ' +
+          'téléphone doit rester allumé, écran vers le haut, pendant tout le ' +
+          'cours.', 'Tracé partiel');
+      }catch(e){}
+    }
+    return true;
+  }
 
   const n = trajetReperes.length;
   const reperes = n
@@ -1897,8 +1985,69 @@ function trajetRangeVersPaquet(t){
     reperes: reperes,
     polyligne: String(t.trace),
     km: Number(String(t.km || '').replace(',', '.')) || 0,
-    minutes: Number(t.minutes) || 0
+    minutes: Number(t.minutes) || 0,
+    /* ⚠️ LE TROU SE RETROUVE SANS RIEN RANGER DE NEUF — v1068.
+
+       « minutes » est la durée du TRACÉ ; « debut » et « fin » sont
+       les bornes du COURS. Les deux sont rangés depuis la v990 : la
+       différence dit ce qui manque, et aucune colonne n'a besoin
+       d'être ajoutée au classeur pour ça.
+
+       ⚠️ ET ON NE RANGE TOUJOURS AUCUN HORAIRE POINT PAR POINT.
+       C'est une mesure de la QUALITÉ du relevé, pas un journal de
+       déplacement : elle dit qu'il manque quatre minutes, jamais
+       lesquelles ni où. */
+    minutesCours: coursDUnTrajetRange(t),
+    /* ⚠️ LA COLONNE D'ABORD, LA DÉDUCTION EN SECOURS — v1068. Les
+       lignes d'avant cette version n'ont pas de colonne : pour
+       elles, on retombe sur ce que disent les deux heures rangées.
+       C'est moins fin — ça ne voit pas les trous du milieu — mais
+       c'est tout ce qu'on a, et ça ne se trompe jamais dans l'autre
+       sens : ça n'invente pas de trou. */
+    trou: (t && String(t.trou || '').trim() !== '')
+      ? (parseInt(t.trou, 10) || 0)
+      : trouDUnTrajetRange(t)
   };
+}
+
+/* La durée du cours d'un trajet rangé, en minutes : ses deux
+   heures, qui sont les bornes du cours. */
+function coursDUnTrajetRange(t){
+  const enMinutes = (h) => {
+    const m = String(h || '').match(/^(\d{1,2})h(\d{2})$/);
+    return m ? (Number(m[1]) * 60 + Number(m[2])) : -1;
+  };
+  const d = enMinutes(t && t.debut), f = enMinutes(t && t.fin);
+  return (d < 0 || f < 0 || f <= d) ? 0 : (f - d);
+}
+
+function trouDUnTrajetRange(t){
+  const enMinutes = (h) => {
+    const m = String(h || '').match(/^(\d{1,2})h(\d{2})$/);
+    return m ? (Number(m[1]) * 60 + Number(m[2])) : -1;
+  };
+  const d = enMinutes(t && t.debut), f = enMinutes(t && t.fin);
+  if(d < 0 || f < 0) return 0;
+  const cours = f - d;
+  if(cours <= 0) return 0;
+  const releve = Number(t && t.minutes) || 0;
+  const perdu = cours - releve;
+  if(perdu <= cours * 0.1) return 0;
+  return Math.max(1, Math.round(perdu));
+}
+
+/* La mention d'un tracé troué, pour un mail ou pour une page. Rend
+   une chaîne VIDE quand il n'y a rien à dire : l'appelant la pose
+   sans se demander s'il doit. */
+function mentionDuTrou(p, couleur){
+  const t = (p && p.trou) || 0;
+  if(!t) return '';
+  return '<div style="font-size:12.5px;line-height:1.55;color:' +
+    (couleur || '#64655F') + ';margin:0 0 12px;">' +
+    '⚠️ Relevé partiel : ' + t + ' min sans signal' +
+    ((p && p.minutesCours) ? ' sur ' + p.minutesCours : '') +
+    '. Là où le signal manquait, le trait coupe tout droit — ' +
+    'il ne dit pas par où la voiture est passée.</div>';
 }
 
 /* La carte d'un cours relu : la même que celle du jour même. Le
@@ -2059,6 +2208,11 @@ function paquetDeLaCarte(t, image){
       'color:#3B6900;">🗺️ Notre trajet</h3>' +
     '<div style="font-size:13px;color:#64655F;margin:0 0 14px;">' +
       km + ' km · ' + duree + '</div>' +
+    /* ⚠️ LA MENTION EST AU-DESSUS DE L'IMAGE, PAS EN BAS DE PAGE —
+       v1068. C'est le trait lui-même qu'elle corrige : là où le
+       signal manquait, il coupe tout droit. Lue après la carte, elle
+       arriverait trop tard. */
+    mentionDuTrou(t, '#64655F') +
     '<img src="cid:trajet" alt="Le tracé de notre trajet" ' +
       'style="display:block;width:100%;max-width:520px;height:auto;' +
       'border:1px solid #DCDCD3;border-radius:12px;">';
@@ -2662,7 +2816,10 @@ function montrerLeTrajetDansLeBilan(){
    agrément en moins, un bilan perdu est deux heures de travail.
    ============================================================ */
 async function enregistrerLeTrajet(meta){
-  if(!trajetComplet()) return false;
+  /* ⚠️ ON RANGE DÈS QUE ÇA VAUT QUELQUE CHOSE — v1068. « complet »
+     décidait de l'écriture : un tracé à 89 % partait à la poubelle
+     sans que personne ne le sache. Voir trajetUtilisable. */
+  if(!trajetUtilisable()) return false;
   if(typeof appelPrep !== 'function') return false;
 
   const t = trajetPourEnvoi();
@@ -2756,13 +2913,59 @@ async function enregistrerLeTrajet(meta){
       debut: heureDuTrajet(trajetDebut),
       fin: heureDuTrajet(trajetFin),
       trace: t.polyligne,
-      reperes: t.reperes
+      reperes: t.reperes,
+      /* ⚠️ ET LE TROU PART AVEC — v1068. Il est rangé dans sa colonne
+         plutôt que redevné à la relecture : les deux heures du cours
+         ne voient pas les trous du MILIEU, et un tracé marqué partiel
+         le jour même redevenait propre trois mois plus tard. */
+      trou: t.trou || 0
     });
-    return !!(r && r.status === 'ok');
+    if(r && r.status === 'ok') return true;
+    await direQueLeTraceNestPasParti(m.eleve,
+      (r && r.message) || 'Le classeur a répondu sans confirmer.');
+    return false;
   }catch(e){
-    console.warn('Trajet non enregistré :', e);
+    await direQueLeTraceNestPasParti(m.eleve, (e && e.message) ? e.message : String(e));
     return false;
   }
+}
+
+/* ============================================================
+   ⚠️ UN TRACÉ QUI NE PART PAS SE DIT — v1068
+
+   David, le 6 octobre : « je ne peux pas revoir le tracé ». Le
+   bilan annonçait pourtant « 35 min relevées sur 38 min (93 %) ·
+   367 points » — donc le relevé avait bien tourné.
+
+   Ces deux choses ne s'écrivent PAS au même endroit, et c'est le
+   piège : le diagnostic part avec le bilan, dans sa colonne ; le
+   tracé part dans un second appel, qui n'est pas attendu et dont
+   l'échec n'allait qu'en console. Un moniteur peut donc lire
+   « 100 % relevées » sur un cours dont le tracé n'a jamais été
+   rangé, et ne l'apprendre que des semaines plus tard, en appuyant
+   sur 🗺️.
+
+   ⚠️ ÇA NE TIENT TOUJOURS PAS LE BILAN. C'est la règle de la v990
+   et elle ne bouge pas : un tracé perdu est un agrément en moins,
+   un bilan perdu est deux heures de travail. On ne bloque rien —
+   on le DIT, au moment où ça se produit, pendant que le moniteur
+   est encore devant son écran et peut noter le cours.
+
+   C'est mot pour mot le raisonnement de « Résultat non consigné »
+   dans ec-postpermis.js : ce qui ne se rattrape pas tout seul doit
+   se dire tout de suite.
+   ============================================================ */
+async function direQueLeTraceNestPasParti(eleve, detail){
+  console.warn('Trajet non enregistré :', detail);
+  if(typeof informer !== 'function') return;
+  try{
+    await informer('Le tracé GPS de ' + (eleve || 'ce cours') +
+      " n'a PAS été enregistré.\n\n" +
+      'Détail : ' + detail + '\n\n' +
+      'Le bilan, lui, est bien enregistré — et le relevé a bien eu ' +
+      'lieu. C\'est le rangement du tracé qui a échoué : le bouton 🗺️ ' +
+      'ne le retrouvera pas pour ce cours.', 'Tracé non enregistré');
+  }catch(e){ /* l'écran a changé : le bilan prime, de toute façon */ }
 }
 
 /* Une heure de cours, pour le classeur : 09h14, pas un horodatage
