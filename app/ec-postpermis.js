@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 08:48 — v1047 */
+/* Déployé le 06/10/2026 à 16:05 — v1065 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -242,11 +242,24 @@ async function afficherPostExamen(tous){
           bOk.disabled = true;
           try{
             await consignerResultat(x, 'obtenu', iso);
-            /* Il sort de toutes les listes de suivi */
-            for(const cs of (x.enAttente || [])){
-              try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
-            }
-            await appelPrep({ action:'suiviDelete', eleve: x.eleve });
+
+            /* ⚠️ TOUT CE QUI SUIT PART ENSEMBLE — v1065.
+
+               David : « c'est très long à s'ouvrir ». Ces appels
+               s'attendaient les uns les autres sans aucune raison :
+               solder un message et effacer la fiche de suivi ne se
+               commandent pas, ils se constatent. Un élève avec cinq
+               messages en attente, c'était six allers-retours en
+               file indienne — maintenant un seul temps d'attente.
+
+               ⚠️ ET LE RÉSULTAT, LUI, RESTE DEVANT. Il s'écrit AVANT,
+               seul : c'est la seule écriture de ce geste qui ne se
+               rattrape pas, et elle ne doit pas partir en même temps
+               que des effacements qui, eux, se refont. */
+            const aFaire = (x.enAttente || []).map(cs =>
+              appelPrep({ action:'consigneDone', id: cs.id }).catch(() => {}));
+            aFaire.push(appelPrep({ action:'suiviDelete', eleve: x.eleve }));
+            await Promise.all(aFaire);
 
             $('permisNom').value = x.eleve;
             if(typeof afficherOnglet === 'function'){
