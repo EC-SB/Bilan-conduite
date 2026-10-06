@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 06/10/2026 à 11:30 — v1063 */
 /* ============================================================
    ec-permis-listes.js
    RDV PERMIS, permis prévus, examens à prévoir, vue d'ensemble.
@@ -2687,6 +2687,33 @@ async function afficherPostExamenDepuisPrevus(tous, prevus){
       if(!se.date || se.date >= auj) return;
       (se.eleves || []).forEach(p => {
         if(!p.eleve || dedans(p.eleve)) return;
+        /* ⚠️ UNE PLACE SANS DOSSIER N'EST PLUS UNE QUESTION — v1063.
+
+           David, le 6 octobre : « je supprime toutes ses fiches et
+           les élèves reviennent dans les résultats à saisir ».
+
+           C'était vrai, et c'était la suppression qui les ramenait :
+           son nom restait sur la place de la session passée pendant
+           que sa ligne de résultat venait d'être anonymisée — donc
+           « une place sans résultat », donc un retour. Et un clic de
+           plus sur « Permis obtenu » écrivait une SECONDE ligne de
+           résultat, qui gonflait le taux de réussite.
+
+           Le classeur libère maintenant la place (voir
+           OU_LE_NOM_EST_ECRIT). Ceci est la deuxième serrure, pour
+           les places déjà écrites avant cette version : demander son
+           résultat à quelqu'un dont le dossier n'existe plus n'a
+           aucun sens.
+
+           ⚠️ ET ON NE FILTRE QUE SI L'ON SAIT. Une liste d'élèves
+           vide — pas encore chargée, hors ligne — ferait disparaître
+           TOUS les résultats à saisir d'un coup. Se taire perdrait
+           un résultat en silence ; en montrer un de trop se corrige
+           d'un coup d'œil. C'est déjà la règle de
+           chargerResultatsConnus. */
+        const connus = (typeof elevesConnus !== 'undefined') ? (elevesConnus || []) : [];
+        if(connus.length &&
+           !connus.some(x => normaliserMot(x) === normaliserMot(p.eleve))) return;
         /* Le résultat DE CET EXAMEN-LÀ est consigné : la question
            est réglée, même si sa fiche de suivi n'existe plus.
            ⚠️ De cet examen-là, pas d'un autre — voir
