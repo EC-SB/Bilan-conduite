@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 12:17 — v1055 */
+/* Déployé le 06/10/2026 à 19:15 — v1067 */
 /* ============================================================
    ec-trajet.js
    Le trajet du cours, et les repères posés en route
@@ -41,6 +41,10 @@
 let trajetPoints = [];        /* { lat, lon, t } — t en millisecondes */
 let trajetReperes = [];       /* { t, lat, lon, nom } */
 let trajetVeille = null;      /* l'identifiant de watchPosition */
+/* ⚠️ À QUI EST CE RELEVÉ — v1067, et c'est la réparation du
+   6 octobre. Voir demarrerTrajet : sans ce nom, un relevé resté
+   ouvert était hérité par l'élève suivant. */
+let trajetEleve = '';
 let trajetDebut = 0;
 let trajetFin = 0;
 let trajetPerdu = 0;          /* millisecondes passées sans relevé */
@@ -344,10 +348,72 @@ function retenirPoint(pos){
   return '';
 }
 
-function demarrerTrajet(){
-  if(trajetVeille !== null) return true;      /* déjà en route */
+/* Le nom d'un élève, comparable : c'est la règle de tout le reste
+   de l'application, et elle ne se réécrit pas ici. */
+function cleDuTrajet(nom){
+  const t = String(nom || '').trim();
+  if(!t) return '';
+  return (typeof normaliserMot === 'function') ? normaliserMot(t) : t.toLowerCase();
+}
+
+/* ============================================================
+   ⚠️ UN RELEVÉ APPARTIENT À UN ÉLÈVE — v1067
+
+   David, le 6 octobre : « quand il y a plusieurs examens, le GPS
+   prend des points complets pour le premier élève en conduite et
+   j'ai l'impression qu'il continue à enregistrer pour les autres ».
+   Sur sa capture : « 5 h 23 relevées sur 5 h 23 de cours · 2443
+   points » pour une élève qui avait fait UNE heure le matin et son
+   examen l'après-midi.
+
+   Il avait raison, et la faute tient en une ligne : « si la veille
+   est posée, c'est que c'est déjà en route ». Cette question-là
+   porte sur le CAPTEUR, pas sur le COURS. Elle ne pouvait pas
+   savoir que le relevé posé appartenait à quelqu'un d'autre.
+
+   Il suffisait donc qu'un relevé reste ouvert — une fiche manuelle
+   ouverte puis abandonnée, une génération jamais faite — pour que
+   l'élève suivant en hérite : son cours démarrait sur le
+   « trajetDebut » du matin, avec les points de l'autre dans le
+   tableau. Et « ouvrirBilanManuel » n'a aucun garde-fou « un cours
+   est encore ouvert » : c'est le bouton par lequel passent tous les
+   examens, l'un après l'autre.
+
+   Le relevé porte maintenant le nom de celui pour qui il tourne.
+   Un autre nom, et on repart de zéro.
+
+   ⚠️ LE MÊME ÉLÈVE, LUI, GARDE SON RELEVÉ. Rouvrir sa fiche au
+   milieu du cours — pour corriger une case, pour poser un repère —
+   ne doit pas effacer la route déjà faite. C'est précisément ce que
+   l'ancien test réussissait, et c'est la seule chose qu'il
+   réussissait.
+
+   ⚠️ ET SANS NOM, ON NE DEVINE PAS. Un appelant qui n'en donne pas
+   retombe sur l'ancien comportement pour ce seul cas : mieux vaut
+   un relevé hérité qu'un relevé effacé au milieu d'un cours parce
+   qu'un écran a oublié de dire pour qui il appelait.
+   ============================================================ */
+function demarrerTrajet(eleve){
+  const qui = cleDuTrajet(eleve);
+
+  /* Un relevé en mémoire qui n'est pas le sien : il n'a rien à
+     faire dans ce cours-ci. On l'oublie AVANT de repartir — le
+     tracé de l'autre est déjà parti avec son bilan, ou il est
+     perdu de toute façon. */
+  if(qui && trajetDebut && trajetEleve && trajetEleve !== qui){
+    oublierLeTrajet();
+  }
+
+  if(trajetVeille !== null){
+    /* Déjà en route — et maintenant on sait pour qui. Un relevé
+       anonyme d'avant cette version se rattache au premier élève
+       qui se présente, plutôt que de rester sans propriétaire. */
+    if(qui && !trajetEleve) trajetEleve = qui;
+    return true;
+  }
   if(!trajetPossible()) return false;
 
+  trajetEleve = qui;
   trajetPoints = [];
   trajetReperes = [];
   trajetDebut = Date.now();
@@ -596,6 +662,7 @@ function arreterTrajet(){
    abandon. Sans ça, le cours suivant hériterait du précédent. */
 function oublierLeTrajet(){
   arreterTrajet();
+  trajetEleve = '';
   trajetPoints = [];
   trajetReperes = [];
   trajetDebut = 0;
@@ -2602,6 +2669,42 @@ async function enregistrerLeTrajet(meta){
   if(!t) return false;
 
   const m = meta || {};
+
+  /* ============================================================
+     ⚠️ UN TRACÉ NE PART PAS CHEZ UN AUTRE — v1067, et c'est la
+     ceinture de sécurité de la réparation d'à côté.
+
+     « demarrerTrajet » empêche désormais d'hériter du relevé d'un
+     autre élève. Mais cette règle-là est posée à l'OUVERTURE d'une
+     fiche, et il y a plusieurs portes pour ouvrir un cours — c'est
+     exactement ce qui a produit la faute : une porte sans garde-fou.
+     Celle-ci est posée à l'ÉCRITURE, le dernier endroit par lequel
+     tout passe.
+
+     Un relevé qui ne porte pas le nom du bilan qu'on enregistre ne
+     s'écrit pas, et on le DIT : un tracé muet qui disparaît
+     ressemble trop à un tracé qui n'a jamais existé — c'est le
+     reproche que ce dossier a déjà entendu.
+
+     ⚠️ UN RELEVÉ SANS NOM S'ÉCRIT, LUI. C'est le cas d'un cours
+     commencé avant cette version, encore ouvert à la mise à jour :
+     refuser son tracé perdrait un vrai relevé pour une règle neuve.
+     Il ne peut pas se tromper d'élève — il n'en a jamais eu. */
+  const sien = cleDuTrajet(m.eleve);
+  if(trajetEleve && sien && trajetEleve !== sien){
+    console.warn('Tracé non enregistré : il est au nom de « ' + trajetEleve +
+                 ' », pas de « ' + sien + ' ».');
+    if(typeof informer === 'function'){
+      try{
+        await informer('Le tracé GPS en mémoire est celui d\'un AUTRE cours : ' +
+          'il n\'a pas été joint au bilan de ' + (m.eleve || 'cet élève') + '.\n\n' +
+          'Le bilan, lui, est bien enregistré.\n\n' +
+          'Ça arrive quand une fiche est restée ouverte derrière : ' +
+          'le relevé suivant repart proprement.', 'Tracé non joint');
+      }catch(e){}
+    }
+    return false;
+  }
 
   /* ============================================================
      ⚠️ LA DATE EN JJ/MM/AAAA, ET C'EST ICI QU'ON S'EN ASSURE — v1055
