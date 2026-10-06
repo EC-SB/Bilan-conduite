@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 09:20 — v1057 */
+/* Déployé le 06/10/2026 à 11:30 — v1063 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -1327,6 +1327,12 @@ function resumeEffacement(d){
   if(a.consignes)    bouts.push(a.consignes + ' message(s) au bureau');
   if(a.suivi)        bouts.push('sa fiche de suivi');
   if(a.ailleurs)     bouts.push(a.ailleurs + ' ligne(s) ailleurs');
+  /* ⚠️ SA PLACE D'EXAMEN — v1063. Elle n'était effacée nulle part :
+     son nom restait sur la session passée après la suppression du
+     dossier, et l'écran des résultats le ramenait d'entre les
+     morts. Le classeur la libère maintenant ; il faut le DIRE, sinon
+     personne ne saura que c'est réparé. */
+  if(a.places)       bouts.push(a.places + ' place(s) d\'examen libérée(s)');
   if(a.resultats)    bouts.push(a.resultats + ' résultat(s) anonymisé(s)');
   return bouts;
 }
