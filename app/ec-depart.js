@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 09:48 — v1048 */
+/* Déployé le 06/10/2026 à 20:40 — v1068 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -657,9 +657,36 @@ function ligneBilan(item, nomCherche, refaire){
                                         date: item.date });
           const t = rep && rep.trajet;
           if(!t || !t.trace){
-            await informer('Aucun trajet enregistré pour ce cours.\n\n' +
-              'Le relevé GPS n\'était peut-être pas ouvert ce jour-là, ou ' +
-              'le tracé était trop court pour être gardé.');
+            /* ============================================================
+               ⚠️ ON DIT CE QU'ON A TROUVÉ, PAS SEULEMENT CE QU'ON N'A PAS
+               — v1068.
+
+               « Aucun trajet enregistré pour ce cours » ne distingue pas
+               les deux seules choses qui peuvent s'être passées : le
+               relevé n'a jamais été rangé, ou il l'a été sous une autre
+               date. Elles se réparent autrement, et on ne pouvait
+               trancher qu'en ouvrant le classeur à la main — c'est ce
+               qu'a coûté la soirée du 6 octobre.
+
+               Le serveur rend maintenant les jours où CET élève-là a un
+               tracé. Trois cas, trois phrases. */
+            const jours = (rep && rep.sesJours) || [];
+            let dit;
+            if(!jours.length){
+              dit = 'Aucun tracé n\'a jamais été rangé pour ' +
+                (item.eleve || 'cet élève') + '.\n\n' +
+                'Le relevé GPS n\'était pas ouvert ce jour-là, ou le tracé ' +
+                'était trop court pour être gardé.';
+            }else{
+              dit = 'Aucun tracé au ' + (item.date || 'cette date') + '.\n\n' +
+                (item.eleve || 'Cet élève') + ' en a un le ' +
+                jours.slice(0, 3).join(', le ') +
+                (jours.length > 3 ? ' (et d\'autres avant)' : '') + '.\n\n' +
+                'Si l\'un de ces jours est bien celui de ce cours, c\'est la ' +
+                'date du bilan qui ne correspond pas à celle du tracé : ' +
+                'dis-le, ça se répare.';
+            }
+            await informer(dit);
             return;
           }
 
