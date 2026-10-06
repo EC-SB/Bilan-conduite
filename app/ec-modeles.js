@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 07/10/2026 à 09:30 — v1069 */
 /* ============================================================
    ec-modeles.js
    Modèles de bilan, blocs fixes, CEPC et définition des 14 modèles
@@ -691,7 +691,15 @@ function noteInstallationSurDeux(installation, passager, voyants){
    elle part dans le bilan lui-même, sans image à envoyer à part.
    La note retenue est en bleu, une faute éliminatoire en rouge.
    ============================================================ */
-function construireCepcTexte(cepc, observations, c){
+/* ⚠️ LA MENTION D'UN EXAMEN ARRÊTÉ, ÉCRITE UNE SEULE FOIS — v1069.
+
+   Elle part dans trois textes : le CEPC imprimé, le bilan de
+   l'examen blanc et celui de l'examen officiel. Trois copies
+   auraient fini par ne plus dire la même chose — et c'est
+   justement la phrase qu'un élève gardera. */
+const MENTION_NON_MENE = '⛔ 𝗘𝗫𝗔𝗠𝗘𝗡 𝗡𝗢𝗡 𝗠𝗘𝗡𝗘́ 𝗔̀ 𝗦𝗢𝗡 𝗧𝗘𝗥𝗠𝗘';
+
+function construireCepcTexte(cepc, observations, c, nonMene){
   const out = [];
   const P = s => out.push(s);
 
@@ -722,7 +730,14 @@ function construireCepcTexte(cepc, observations, c){
   });
 
   P('━━━━━━━━━━━━━━━━━━');
-  if(c.elimine){
+  /* ⚠️ LA MENTION PREND LA PLACE DU TOTAL — v1069, et c'est la même
+     règle qu'à l'écran (voir majTotalCepc). Un total calculé sur une
+     grille vierge dirait « INSUFFISANT » : un jugement sur un examen
+     qui n'a pas eu lieu, et l'élève le lirait comme un échec. */
+  if(nonMene){
+    P(MENTION_NON_MENE);
+    P('Grille vierge — aucune note n\'a été portée.');
+  }else if(c.elimine){
     P('❌ 𝗘́𝗟𝗜𝗠𝗜𝗡𝗔𝗧𝗢𝗜𝗥𝗘 — Total : E');
     c.eliminatoires.forEach(e => P('   🟥 ' + e));
   }else{
@@ -738,7 +753,9 @@ function construireCepcTexte(cepc, observations, c){
   }
 
   P('');
-  P('💡 Il faut 20 points minimum et aucune faute éliminatoire.');
+  /* Sur un examen arrêté, le barème ne s'applique à rien : le
+     rappeler reviendrait à mesurer ce qui n'a pas été passé. */
+  if(!nonMene) P('💡 Il faut 20 points minimum et aucune faute éliminatoire.');
 
   return out.join('\n');
 }
@@ -1012,10 +1029,20 @@ function buildExamenBlanc(ai, ctx){
     L('👋 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 𝔻𝕌 ℝ𝔼ℕ𝔻𝔼ℤ-𝕍𝕆𝕌𝕊 👀');
     L('━━━━━━━━━━━━━━━━━━');
     L('');
+    /* Le même en-tête, l'autre porte : l'examen blanc glissé dans un
+       rendez-vous pédagogique doit le dire aussi. */
+    if(ai.nonMene){ L(MENTION_NON_MENE); L(''); }
   }else{
 
   L('👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝔹𝕃𝔸ℕℂ 👀');
   L('');
+  /* ⚠️ EN PREMIER, AVANT TOUT LE RESTE — v1069. C'est la seule
+     information qui change le sens de tout ce qui suit : lue en bas
+     de page, elle arriverait après que l'élève a compté ses points. */
+  if(ai.nonMene){
+    L(MENTION_NON_MENE);
+    L('');
+  }
   L('𝟭 - 𝗔𝗩𝗔𝗡𝗧 𝗟\'𝗘𝗫𝗔𝗠𝗘𝗡');
   L('━━━━━━━━━━━━━━━━━━');
   L('');
@@ -1088,7 +1115,7 @@ function buildExamenBlanc(ai, ctx){
   L('');
 
   /* ---- Le bilan de compétences, en tableau ---- */
-  L(construireCepcTexte(ai.cepc, ai.observations, cep));
+  L(construireCepcTexte(ai.cepc, ai.observations, cep, !!ai.nonMene));
 
   /* ⚠️ LE 2-5 « FAUTES ÉLIMINATOIRES RELEVÉES » A ÉTÉ RETIRÉ — v890.
 
@@ -1282,6 +1309,26 @@ function buildExamen(ai){
   const parts = [
     '👋𝔹𝕀𝕃𝔸ℕ 𝔻𝔼 𝕋𝕆ℕ 𝔼𝕏𝔸𝕄𝔼ℕ 𝕆𝔽𝔽𝕀ℂ𝕀𝔼𝕃 👀',
     '',
+    /* ⚠️ EN PREMIER, ET ELLE PART À L'ÉLÈVE — v1069.
+
+       La case se coche sous « 🔒 Pour nous seulement », et tout ce
+       qui vit sous ce titre reste à l'équipe : notre CEPC, la note
+       pour le rendez-vous post-permis, l'inspecteur. Celle-ci est
+       l'exception, et David l'a dit en toutes lettres : « ça indique
+       pour nous ET pour l'élève ». Un candidat dont l'examen a été
+       interrompu est le premier concerné — et sans cette ligne, son
+       bilan ressemblerait à un examen passé et raté.
+
+       Les trois lignes vides qui suivent ne sont pas là par hasard :
+       elles isolent la mention du 1-AVANT EXAMEN, pour qu'elle ne se
+       lise pas comme un titre de section. */
+    ...(ai && ai.nonMene ? [
+      MENTION_NON_MENE,
+      "L'inspecteur a mis un terme à l'examen. C'est ton enseignant qui a " +
+        'ramené le véhicule au centre d\'examen.',
+      'Aucune note n\'a été portée au bilan de compétences.',
+      ''
+    ] : []),
     '𝟭-𝗔𝗩𝗔𝗡𝗧 𝗘𝗫𝗔𝗠𝗘𝗡  : ',
     '𝗜𝗻𝘀𝘁𝗮𝗹𝗹𝗮𝘁𝗶𝗼𝗻 ' + st(a.installation),
     'https://www.facebook.com/groups/963972327360861/permalink/969918630099564/',
