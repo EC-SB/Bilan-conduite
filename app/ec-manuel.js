@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 19:15 — v1067 */
+/* Déployé le 07/10/2026 à 09:30 — v1069 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -208,6 +208,15 @@ const CHAMPS_MANUELS = {
     /* Le CEPC clôt le point 2 : il résume l'examen qui vient de se
        dérouler, il n'a rien à faire dans le bilan des erreurs. */
     { cle:'cepc',        type:'cepc',  nom:'🧾 CEPC — bilan des compétences' },
+
+    /* ⚠️ SOUS LE CEPC, ET GROS — v1069. David, le 7 octobre :
+       « assez gros pour que ce soit visible ». C'est le plus gros
+       élément de la fiche après les titres, et c'est voulu : il se
+       coche au retour d'un examen interrompu, dans la voiture,
+       au milieu d'une fiche qu'on vient de remplir pour rien. */
+    { cle:'nonMene', type:'nonMene', nom:'Examen non mené à son terme',
+      aide:'La grille se vide et se met en retrait. Un second appui la ' +
+           'rend telle qu\'elle était.' },
 
     { cle:'observations',type:'texte', lignes:12,
       nom:'2-4 · Observations',
@@ -441,6 +450,15 @@ const CHAMPS_MANUELS = {
        remplit pas est une grille qui ment. */
     { cle:'cepc', type:'cepc',
       nom:'🧾 Notre CEPC — pour nous, jamais pour l\'élève' },
+
+    /* ⚠️ ET LA MÊME CASE QU'À L'EXAMEN BLANC, AU MÊME ENDROIT — v1069.
+       Celle-ci, en revanche, PART À L'ÉLÈVE : elle est la seule
+       chose de ce bloc « pour nous » à franchir la porte, parce
+       qu'un examen interrompu le concerne au premier chef. Voir
+       buildExamen. */
+    { cle:'nonMene', type:'nonMene', nom:'Examen non mené à son terme',
+      aide:'L\'inspecteur a interrompu l\'examen ; l\'enseignant a ramené ' +
+           'le véhicule au centre.' },
 
     { cle:'inspecteur',  type:'inspecteur', nom:'Inspecteur' },
     { cle:'repassage',   type:'repassage',  nom:'Heures avant repassage' },
@@ -869,9 +887,141 @@ function ligneCepc(nom, valeurs, rang){
   return l;
 }
 
+/* ============================================================
+   EXAMEN NON MENÉ À SON TERME — v1069
+
+   David, le 7 octobre : « l'inspecteur a mis un terme à l'examen et
+   c'est l'enseignant qui a ramené le véhicule au centre d'examen,
+   le CEPC est vierge sans aucune note ».
+
+   Une seule case commande trois choses, et c'est pour ça qu'elles
+   vivent ici plutôt que dans le dessin du bouton :
+
+     · la grille se VIDE et passe en retrait — mais rien n'est
+       verrouillé : « on ne verrouille rien », les cases restent
+       touchables, parce qu'un examen interrompu peut avoir eu ses
+       vérifications avant l'arrêt ;
+     · la ligne du bas — « Total général », celle qui dit
+       FAVORABLE 23 / 31 — est remplacée par la mention en rouge :
+       un total calculé sur une grille vierge dirait INSUFFISANT,
+       c'est-à-dire un jugement sur un examen qui n'a pas eu lieu ;
+     · sur l'examen blanc seulement, le point 4 se pose sur
+       « Pas le niveau ». Modifiable : c'est un point de départ,
+       pas une décision.
+
+   ⚠️ ET DÉCOCHER REND LA GRILLE TELLE QU'ELLE ÉTAIT. On garde une
+   copie au moment de cocher, et on la repose. Repartir du maximum
+   serait plus simple et faux : le moniteur a pu noter trois lignes
+   avant que l'inspecteur n'arrête tout, et une case cochée par
+   erreur lui coûterait son travail.
+   ============================================================ */
+let cleNonMeneCourante = 'nonMene';
+
+function examenNonMene(){
+  return String(champsManuels[cleNonMeneCourante] || '') === 'oui';
+}
+
+/* Le texte de la case du bas, quand l'examen s'est arrêté. Il
+   remplace le total : voir majTotalCepc, son seul appelant. */
+function mentionCepcNonMene(){
+  return '<span style="display:block;text-align:center;color:#E5322D;' +
+    'font-size:17px;font-weight:800;line-height:1.3;">' +
+    'EXAMEN NON MENÉ À SON TERME</span>' +
+    '<span style="display:block;text-align:center;color:#8A94A0;' +
+    'font-size:10.5px;font-weight:400;margin-top:5px;line-height:1.4;">' +
+    'Grille vierge — aucune note n\'a été portée</span>';
+}
+
+/* La grille en retrait, ou rendue. On ne touche QUE l'opacité :
+   les boutons restent cliquables, c'est la demande. */
+function grisailleDuCepc(mettre){
+  const z = document.getElementById('cepcTotal');
+  const cadre = z ? z.parentNode : null;
+  if(!cadre) return;
+  Array.prototype.forEach.call(cadre.children, (el) => {
+    /* Le titre « Résultat » et la case du total gardent leur
+       lisibilité : c'est là que la mention s'écrit. */
+    if(el === z || el.id === 'cepcTotal') return;
+    if(el.previousSibling === null) return;          /* l'en-tête */
+    el.style.opacity = mettre ? '.4' : '';
+  });
+}
+
+function basculerNonMene(bouton){
+  const avant = examenNonMene();
+  const apres = !avant;
+  champsManuels[cleNonMeneCourante] = apres ? 'oui' : '';
+
+  const champs = document.querySelectorAll('.cepcNiveau');
+
+  if(apres){
+    /* La copie de ce qui était noté, pour pouvoir le rendre. */
+    const copie = {};
+    champs.forEach((c) => {
+      copie[c.getAttribute('data-comp')] = {
+        valeur: c.value, parDefaut: c.dataset.parDefaut || ''
+      };
+      c.value = '';
+      c.dataset.parDefaut = '';
+      if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(c);
+    });
+    bouton._cepcAvant = copie;
+
+    /* ⚠️ LE POINT 4, SUR L'EXAMEN BLANC SEULEMENT. L'examen officiel
+       n'en a pas : le bouton n'existe pas, et on ne va pas le
+       chercher. */
+    const g = document.getElementById('ouinon_' + cleNiveauCourante);
+    const bNon = g ? g.querySelector('[data-val="non"]') : null;
+    if(bNon) bNon.click();
+  }else{
+    const copie = bouton._cepcAvant || null;
+    champs.forEach((c) => {
+      const d = copie ? copie[c.getAttribute('data-comp')] : null;
+      if(!d) return;
+      c.value = d.valeur;
+      c.dataset.parDefaut = d.parDefaut;
+      if(typeof repeindreLigneCepc === 'function') repeindreLigneCepc(c);
+    });
+    bouton._cepcAvant = null;
+  }
+
+  peindreNonMene(bouton, apres);
+  grisailleDuCepc(apres);
+  majTotalCepc();
+}
+
+/* Le bouton lui-même : coché, il est rouge et plein. */
+function peindreNonMene(b, mis){
+  b.style.borderColor = mis ? 'var(--red)' : 'var(--line)';
+  b.style.background = mis ? 'rgba(255,92,51,.12)' : 'transparent';
+  const coche = b.querySelector('.nonMeneCoche');
+  const mot = b.querySelector('.nonMeneMot');
+  if(coche){
+    coche.style.borderColor = mis ? 'var(--red)' : 'var(--muted)';
+    coche.style.color = mis ? 'var(--red)' : 'transparent';
+  }
+  if(mot){
+    mot.style.color = mis ? 'var(--red)' : 'var(--soft)';
+    mot.style.fontWeight = mis ? '800' : '700';
+  }
+}
+
 function majTotalCepc(){
   const z = document.getElementById('cepcTotal');
   if(!z) return;
+
+  /* ⚠️ LA MENTION PREND LA PLACE DU TOTAL, ET C'EST ICI QU'ELLE SE
+     POSE — v1069. Une dizaine d'endroits appellent cette fonction :
+     chaque appui sur une case, chaque point retiré, chaque reprise
+     de brouillon. Poser la mention ailleurs, c'est la voir
+     disparaître au premier de ces appels. */
+  if(examenNonMene()){
+    z.style.display = 'block';
+    z.innerHTML = mentionCepcNonMene();
+    return;
+  }
+  z.style.display = 'flex';
+
   const c = {};
   document.querySelectorAll('.cepcNiveau').forEach(s => {
     if(s.value) c[s.getAttribute('data-comp')] = s.value;
@@ -3759,8 +3909,15 @@ function lireChampsManuels(champsVoulus){
       const t = document.getElementById('manEval_' + ch.cle.split('.').join('_'));
       if(t) champsManuels[ch.cle + '.commentaire'] = t.value.trim();
 
+    /* ⚠️ « nonMene » EST DANS CETTE LISTE, ET IL DOIT Y ÊTRE. Sa
+       valeur vit dans « champsManuels », posée au clic — comme les
+       ✅/❌ et les boutons de niveau. La lecture générique
+       ci-dessous prend « .value » de l'élément qui porte l'id : sur
+       un <button>, c'est la chaîne vide, et elle effacerait la case
+       à chaque relecture de la fiche. */
     }else if(ch.type !== 'ok' && ch.type !== 'photo' &&
-             ch.type !== 'niveau' && ch.type !== 'ouinon'){
+             ch.type !== 'niveau' && ch.type !== 'ouinon' &&
+             ch.type !== 'nonMene'){
       const t = document.getElementById(idChamp(ch.cle));
       if(t) champsManuels[ch.cle] = t.value.trim();
     }
@@ -5409,6 +5566,71 @@ function dessinerChampsManuels(champs, zone, modele, dossier){
       z.appendChild(tot);
       bloc.appendChild(z);
       setTimeout(majTotalCepc, 0);
+
+    }else if(ch.type === 'nonMene'){
+      /* ⚠️ C'EST CE CHAMP-LÀ QUE « examenNonMene » INTERROGE. Glissé
+         dans un rendez-vous pédagogique, sa clé devient
+         « examenBlanc.nonMene » : on retient celle qui a été
+         dessinée, comme « cleNiveauCourante » le fait juste à
+         côté. */
+      cleNonMeneCourante = ch.cle;
+
+      /* Le groupe porte « data-champ » : c'est ce que
+         repeindreBoutonsManuels cherche pour rallumer la case
+         quand un brouillon est repris. */
+      const g = document.createElement('div');
+      g.setAttribute('data-champ', ch.cle);
+      g.style.cssText = 'margin-top:12px;';
+
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.id = idChamp(ch.cle);
+      b.setAttribute('data-val', 'oui');
+      b.style.cssText = 'display:flex;align-items:center;gap:12px;width:100%;' +
+        'text-align:left;border:2px solid var(--line);border-radius:12px;' +
+        'padding:14px;background:transparent;font-family:inherit;margin:0;' +
+        'cursor:pointer;';
+
+      const coche = document.createElement('span');
+      coche.className = 'nonMeneCoche';
+      coche.style.cssText = 'width:26px;height:26px;border-radius:6px;' +
+        'border:2px solid var(--muted);display:flex;align-items:center;' +
+        'justify-content:center;flex-shrink:0;font-size:17px;font-weight:800;' +
+        'color:transparent;background:transparent;';
+      coche.textContent = '✔';
+      b.appendChild(coche);
+
+      const d = document.createElement('span');
+      d.style.cssText = 'flex:1;min-width:0;';
+      const mot = document.createElement('span');
+      mot.className = 'nonMeneMot';
+      mot.style.cssText = 'display:block;font-size:16px;font-weight:700;' +
+        'color:var(--soft);line-height:1.3;';
+      mot.textContent = ch.nom;
+      d.appendChild(mot);
+      if(ch.aide){
+        const a2 = document.createElement('span');
+        a2.style.cssText = 'display:block;font-size:11.5px;color:var(--muted);' +
+          'font-weight:400;margin-top:3px;line-height:1.45;';
+        a2.textContent = ch.aide;
+        d.appendChild(a2);
+      }
+      b.appendChild(d);
+
+      b.addEventListener('click', () => basculerNonMene(b));
+      g.appendChild(b);
+      bloc.appendChild(g);
+
+      /* Une fiche rouverte retrouve sa case allumée, et sa grille
+         en retrait avec elle. Après le dessin du CEPC, qui vient
+         juste au-dessus. */
+      if(examenNonMene()){
+        setTimeout(() => {
+          peindreNonMene(b, true);
+          grisailleDuCepc(true);
+          majTotalCepc();
+        }, 0);
+      }
 
     }else if(ch.type === 'photo'){
       const l = document.createElement('label');
