@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:51 — v1053 */
+/* Déployé le 06/10/2026 à 16:05 — v1065 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3809,12 +3809,33 @@ async function dernierExamenOfficielDe(eleve){
   const nom = String(eleve || '').trim();
   if(nom.length < 2) return null;
 
-  const d = await appelPrep({ action: 'search', eleve: nom });
+  /* ⚠️ SANS LE TEXTE DES BILANS, ET SUR CE SEUL ÉLÈVE — v1065.
+
+     David : « quand j'appuie sur permis obtenu c'est très long ».
+     Cette lecture-ci en était une bonne part : « search » sans
+     « leger » rapporte la colonne E — le texte ENTIER de chaque
+     bilan de l'école, des mégaoctets — pour lire un nom de moniteur
+     dans la colonne C.
+
+     ⚠️ ET « exact », SANS QUOI « Marie Martin » RAMÈNE LES EXAMENS
+     DE « Marie Martinez ». Le dossier élève le demande depuis
+     toujours ; cet appel-ci ne le demandait pas, et il décide de qui
+     est crédité d'une réussite.
+
+     ⚠️ LA CONDITION A CHANGÉ, ET C'EST ASSUMÉ. On retenait les
+     examens officiels « dont le bilan n'est pas vide » ; on retient
+     maintenant ceux QUI PORTENT UN MONITEUR. C'est la même intention
+     — écarter une ligne d'examen jamais remplie — posée sur ce que
+     l'on vient réellement chercher. Et c'est la seule question à
+     laquelle cette fonction répond : sans nom, elle rend le vide, et
+     le résultat reste hors de tout taux jusqu'au rattrapage. */
+  const d = await appelPrep({ action: 'search', eleve: nom,
+                              exact: true, leger: true });
   const res = (d && d.resultats) || [];
 
   const examens = res.filter(x =>
     /examen officiel/i.test(String((x && x.type) || '')) &&
-    String((x && x.bilan) || '').trim());
+    String((x && x.moniteur) || '').trim());
   if(!examens.length) return null;
 
   examens.sort((a, b) => (Number(b.ligne) || 0) - (Number(a.ligne) || 0));
