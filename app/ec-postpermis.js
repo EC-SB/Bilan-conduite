@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 20:15 — v1081 */
+/* Déployé le 07/10/2026 à 19:40 — v1093 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -752,6 +752,101 @@ async function lireEtValiderLeBilan(nom){
 
 
 /* Préparation d'un rendez-vous post-permis pour un ajourné */
+/* ============================================================
+   🔁 LE RENDEZ-VOUS POST-PERMIS ET LE COURS DU RAPPEL — v1093
+
+   David, le 7 octobre : « le cours préparé vient du rappel et pas du
+   post-permis, c'est ça aussi qu'il faut que l'on règle ».
+
+   Deux chemins créent un cours préparé, et ils s'ignoraient :
+
+   · LE RAPPEL DU MATIN lit le planning et pose les cours de la
+     journée. Il ne connaît pas les rendez-vous post-permis — aucun
+     type de séance ne leur correspond — donc il pose un cours
+     ORDINAIRE.
+   · CE BOUTON-CI pose un cours « 🔁 Rendez-vous post-permis ».
+
+   Résultat sur Yacouba Barry : le cours du rappel est celui que le
+   moniteur voit et ouvre, et c'est un cours ordinaire — sans le
+   CEPC, sans le bilan de l'examen, sans le bilan de l'élève, sans
+   rien de ce que le rendez-vous apporte. Le bon écran existait, et
+   personne ne pouvait y arriver.
+
+   On reprend donc LE COURS DÉJÀ LÀ plutôt que d'en poser un second :
+   même identifiant, donc la même ligne réécrite, et il garde son
+   heure et sa place dans la journée.
+
+   ⚠️ MAIS ON NE TRANSFORME PAS UN COURS SANS DEMANDER. Un élève peut
+   très bien avoir sa leçon à 14 h et son rendez-vous à 16 h :
+   convertir d'office effacerait la leçon. Le bureau tranche, et il
+   voit l'heure et le type pour trancher.
+   ============================================================ */
+
+/* Les cours déjà préparés pour cet élève ce jour-là. La liste est
+   déjà en mémoire — c'est celle qui dessine « Mes prochains cours ».
+
+   ⚠️ ABSENTE N'EST PAS VIDE. Si les cours préparés ne sont pas
+   chargés, on ne conclut pas « il n'y en a pas » : on rend null, et
+   l'appelant garde l'ancien comportement plutôt que d'en poser un
+   second à l'aveugle. */
+function coursPreparesDuJour(eleve, iso){
+  if(typeof prepares === 'undefined' || !Array.isArray(prepares)) return null;
+  const nom = normaliserMot(eleve || '');
+  const jour = String(iso || '').slice(0, 10);
+  if(!nom || !jour) return null;
+  return prepares.filter(p => p && normaliserMot(p.eleve || '') === nom &&
+                              String(p.date || '').slice(0, 10) === jour);
+}
+
+/* Comment ce cours se présente au bureau qui doit choisir : son
+   heure s'il en a une, son type, et à qui il est attribué. */
+function libelleDuCoursPrepare(p){
+  const h = (typeof heureDeLaPreparation === 'function')
+    ? heureDeLaPreparation(p) : '';
+  return (h ? '🕐 ' + h.replace(':', 'h') + ' — ' : '') +
+         (p.modeleLabel || p.modele || 'Cours') +
+         (p.moniteur ? ' (' + p.moniteur + ')' : '');
+}
+
+/* ⚠️ LA QUESTION SE POSE UNE FOIS, ET ELLE SE LIT.
+
+   Trois réponses, parce qu'il y a vraiment trois situations : c'est
+   ce cours-là, c'en est un autre, ou je me suis trompé de date. Une
+   question à deux réponses aurait forcé le bureau à annuler puis à
+   tout retaper pour corriger une date. */
+async function quelCoursPourLeRdvPost(eleve, iso, liste){
+  const deja = liste.filter(p => p.modele === 'rdv-post');
+  /* Il en existe déjà un : c'est lui, sans rien demander. Réécrire
+     sa ligne ne change rien pour personne. */
+  if(deja.length) return deja[0];
+
+  if(!liste.length) return null;
+
+  if(typeof fenetre !== 'function') return null;
+
+  const lignes = liste.map(p => '  · ' + libelleDuCoursPrepare(p)).join('\n');
+  const rep = await fenetre(
+    (eleve || 'Cet élève') + ' a déjà ' +
+    (liste.length > 1 ? liste.length + ' cours préparés' : 'un cours préparé') +
+    ' le ' + dateEnToutesLettres(iso) + ' :\n\n' + lignes +
+    '\n\nEst-ce que c’est le rendez-vous post-permis ?\n\n' +
+    'Si oui, ce cours DEVIENT le rendez-vous : le moniteur ouvrira le ' +
+    'bon écran, avec le CEPC et les bilans. Sinon, j’en ajoute un ' +
+    'second à côté.',
+    liste.length === 1
+      ? [{ nom: 'Annuler', valeur: 'non' },
+         { nom: 'Non, en ajouter un autre', valeur: 'nouveau' },
+         { nom: 'Oui, c’est celui-là', valeur: 'reprendre', principal: true }]
+      : [{ nom: 'Annuler', valeur: 'non' },
+         { nom: 'Non, en ajouter un autre', valeur: 'nouveau', principal: true }],
+    '🔁 Rendez-vous post-permis');
+
+  if(rep === 'non') return 'annule';
+  if(rep === 'reprendre') return liste[0];
+  return null;
+}
+
+
 function blocRdvPost(e){
   const s = suiviDe(e.eleve);
   const id = 'rp' + Math.random().toString(36).slice(2, 8);
@@ -800,7 +895,26 @@ function blocRdvPost(e){
 
   const bEnr = document.createElement('button');
   bEnr.className = 'btn btn-primary';
-  bEnr.textContent = '💾 Enregistrer et préparer le cours';
+  /* ⚠️ UN BOUTON DIT CE QU'IL VA FAIRE — v1093. « Enregistrer et
+     préparer le cours » sur un rendez-vous DÉJÀ organisé annonce un
+     travail qui n'a pas lieu d'être : on vient corriger un bilan, pas
+     reposer un cours. Et il renvoyait, au passage, une consigne que
+     le bureau avait déjà reçue. */
+  /* ⚠️ ET IL LE REDIT QUAND LA RÉPONSE CHANGE. Posé une fois à
+     l'ouverture, il annonçait « Enregistrer » sur un rendez-vous qu'on
+     venait de confier à quelqu'un d'autre — donc sur un cours qui, lui,
+     allait bel et bien être préparé. */
+  function majLibelleDuBouton(){
+    const g = k => document.getElementById(id + k);
+    const d = g('d') ? g('d').value : '';
+    const m = g('m') ? g('m').value : '';
+    const rien = !d || !m ||
+      (s.rdvPostDate === d &&
+       normaliserMot(s.rdvPostMoniteur || '') === normaliserMot(m));
+    bEnr.textContent = rien ? '💾 Enregistrer'
+                            : '💾 Enregistrer et préparer le cours';
+  }
+  bEnr.textContent = '💾 Enregistrer';
   f.appendChild(bEnr);
   const msg = document.createElement('div');
   msg.style.cssText = 'margin-top:8px;font-size:13px;min-height:16px;';
@@ -836,6 +950,15 @@ function blocRdvPost(e){
     }
     if(g('b')) g('b').value = s.bilanExamen || '';
     if(g('e')) g('e').value = s.bilanEleve || '';
+
+    /* Le bouton dit ce qu'il va faire, et il le redit à chaque fois
+       que la date ou le moniteur change. */
+    ['d', 'm'].forEach(k => {
+      const el = g(k);
+      if(el) ['change', 'input'].forEach(ev =>
+        el.addEventListener(ev, majLibelleDuBouton));
+    });
+    majLibelleDuBouton();
 
     /* ⚠️ LE BILAN DE L'EXAMEN, REPRIS ICI AUSSI — v931.
 
@@ -873,11 +996,27 @@ function blocRdvPost(e){
     const bilan = g('b').value.trim();
     const bilanEl = g('e').value.trim();
 
+    /* ⚠️ UN BILAN COLLÉ PAR LE BUREAU EST UN BILAN REÇU — v1093.
+
+       Le texte se collait sans que rien ne change d'état : la ligne
+       continuait d'annoncer « bilan élève pas encore envoyé », et le
+       dossier ne pouvait jamais être complet. Il passe donc à « reçu
+       — à valider », qui est exactement ce qu'il est : le bureau l'a
+       recopié de Messenger, il reste à le lire et à le valider.
+
+       ⚠️ ET ON NE DÉCLASSE JAMAIS UN BILAN DÉJÀ VALIDÉ. « valide »
+       porte qui et quand, posés par le serveur : le repasser en
+       attente parce qu'on a corrigé une virgule effacerait une trace
+       opposable. */
+    const etats = {};
+    if(bilanEl && !etatDuBilanEleve(s)){ etats.bilanEleveEtat = 'attente'; }
+
     /* On enregistre ce qui est là ; le rendez-vous peut venir après */
     if(!date || !mon){
       bEnr.disabled = true;
       try{
-        await majSuivi(e.eleve, { bilanExamen: bilan, bilanEleve: bilanEl });
+        await majSuivi(e.eleve, Object.assign(
+          { bilanExamen: bilan, bilanEleve: bilanEl }, etats));
         msg.style.color = 'var(--accent-text)';
         msg.textContent = '✅ Enregistré. Ajoute la date et le moniteur pour préparer le cours.';
         afficherBureau();
@@ -888,40 +1027,115 @@ function blocRdvPost(e){
       return;
     }
 
+    /* ① LE COURS QUI EXISTE DÉJÀ CE JOUR-LÀ. La question se pose
+       AVANT d'enregistrer quoi que ce soit : on n'écrit rien tant
+       que le bureau n'a pas tranché. */
+    const duJour = coursPreparesDuJour(e.eleve, date);
+    let reprendre = null;
+    if(duJour && duJour.length){
+      const rep = await quelCoursPourLeRdvPost(e.eleve, date, duJour);
+      if(rep === 'annule'){ msg.textContent = ''; return; }
+      reprendre = rep;
+    }
+
+    /* ⚠️ CE QUI A CHANGÉ SE LIT AVANT D'ÉCRIRE — v1093. « majSuivi »
+       pose la nouvelle fiche en mémoire, et « s » est cette fiche-là :
+       comparé après, le rendez-vous est toujours « le même », et la
+       consigne ne part jamais. Le banc l'a montré en changeant le
+       moniteur. */
+    const memeRdv = (s.rdvPostDate === date) &&
+      (normaliserMot(s.rdvPostMoniteur || '') === normaliserMot(mon));
+
     bEnr.disabled = true;
+    const libelleBouton = bEnr.textContent;
     bEnr.textContent = 'Enregistrement…';
     try{
-      await majSuivi(e.eleve, { rdvPostDate: date, rdvPostMoniteur: mon,
-                                bilanExamen: bilan, bilanEleve: bilanEl });
+      await majSuivi(e.eleve, Object.assign(
+        { rdvPostDate: date, rdvPostMoniteur: mon,
+          bilanExamen: bilan, bilanEleve: bilanEl }, etats));
+
+      /* ② CE QUE LE MONITEUR A NOTÉ À LA SORTIE DE L'EXAMEN — et
+         plus le bilan entier.
+
+         David, le 7 octobre, capture à l'appui : la carte du cours
+         déroulait les vingt lignes du rapport de l'inspecteur. « Ça
+         ne sert à rien là, il faut remplacer par ce qu'a mis le
+         moniteur à la sortie de l'examen ». Il a raison deux fois :
+         le bilan, l'écran du rendez-vous va le chercher tout seul ;
+         et ce qui manque sur la carte, c'est justement l'inspecteur,
+         les heures demandées et le mot pour l'équipe.
+
+         ⚠️ ET ÇA SERT AUSSI À L'ÉCRAN. « mentionDeLExamen » lit la
+         note du cours EN PREMIER : posée là, la sortie d'examen
+         s'affiche à l'ouverture, sans attendre le classeur. */
+      let sortie = '';
+      try{
+        const ex = await dernierExamenOfficielDe(e.eleve, false);
+        const memo = ex ? lireMentionExamen(ex.note) : null;
+        if(memo && memo.brut) sortie = '\n' + memo.brut;
+      }catch(err){ /* sans elle, la carte dit juste moins de choses */ }
 
       const n = parseInt(s.nbAjournements, 10) || 1;
-      const note = '🔁 RENDEZ-VOUS POST-PERMIS · ' +
-                   mentionAjournements(n, s.dateAjournement) +
-                   (bilan ? "\n\nBILAN DE L'EXAMEN OFFICIEL :\n" + bilan : '');
-      await appelPrep({
+      /* ⚠️ L'HEURE DU COURS REPRIS NE SE PERD PAS. Elle ne vit que
+         dans la note, en tête : réécrire la note sans elle, c'est
+         une carte qui remonte en haut de la journée. */
+      const heure = reprendre && typeof heureDeLaPreparation === 'function'
+        ? heureDeLaPreparation(reprendre) : '';
+      const note = (heure ? '🕐 ' + heure.replace(':', 'h') + '\n' : '') +
+                   '🔁 RENDEZ-VOUS POST-PERMIS · ' +
+                   mentionAjournements(n, s.dateAjournement) + sortie;
+
+      await appelPrep(Object.assign({
         action: 'prepAdd',
         date: date,
         eleve: e.eleve,
         modele: 'rdv-post',
         modeleLabel: '🔁 Rendez-vous post-permis',
-        site: '',
+        site: (reprendre && reprendre.site) || '',
         note: note,
         contexte: JSON.stringify({ rdvPost: true, eleve: e.eleve }),
         moniteur: mon
-      });
+        /* Avec un identifiant, le serveur RÉÉCRIT cette ligne-là :
+           c'est le cours du rappel qui devient le rendez-vous. */
+      }, reprendre ? { id: reprendre.id } : {}));
 
-      await envoyerConsigne(e.eleve, 'permis',
-        'Rendez-vous post-permis le ' + dateEnToutesLettres(date) + ' avec ' + mon + ' (bureau)');
+      /* La liste en mémoire suit, sans tout relire : le serveur
+         vient de confirmer. */
+      if(reprendre && typeof prepares !== 'undefined' && Array.isArray(prepares)){
+        const dans = prepares.find(x => String(x.id) === String(reprendre.id));
+        if(dans){
+          dans.modele = 'rdv-post';
+          dans.modeleLabel = '🔁 Rendez-vous post-permis';
+          dans.note = note;
+          dans.moniteur = mon;
+          dans.contexte = { rdvPost: true, eleve: e.eleve };
+        }
+      }
+
+      /* ③ UNE CONSIGNE DÉJÀ ENVOYÉE NE SE RENVOIE PAS. Les consignes
+         s'empilent — c'est la leçon de la v1043 — et le bureau
+         croirait à deux rendez-vous. On ne prévient que si quelque
+         chose a vraiment changé. */
+      if(!memeRdv){
+        await envoyerConsigne(e.eleve, 'permis',
+          'Rendez-vous post-permis le ' + dateEnToutesLettres(date) +
+          ' avec ' + mon + ' (bureau)');
+      }
 
       msg.style.color = 'var(--accent-text)';
-      msg.textContent = '✅ Cours préparé pour ' + mon + ' le ' + dateEnToutesLettres(date);
+      msg.textContent = memeRdv
+        ? '✅ Enregistré.'
+        : (reprendre
+            ? '✅ Le cours de ' + mon + ' du ' + dateEnToutesLettres(date) +
+              ' devient le rendez-vous post-permis.'
+            : '✅ Cours préparé pour ' + mon + ' le ' + dateEnToutesLettres(date));
       afficherBureau();
     }catch(err){
       msg.style.color = 'var(--warn-text)';
       msg.textContent = 'Erreur : ' + err.message;
     }finally{
       bEnr.disabled = false;
-      bEnr.textContent = '💾 Enregistrer et préparer le cours';
+      bEnr.textContent = libelleBouton;
     }
   });
 
