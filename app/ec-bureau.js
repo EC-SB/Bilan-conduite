@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 17:05 — v1079 */
+/* Déployé le 07/10/2026 à 21:10 — v1094 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1177,26 +1177,52 @@ function ligneBureau(e, options){
      ⚠️ ET ELLE NE SE RÉPÈTE PAS. Plusieurs listes écrivent déjà la
      même phrase dans « info » ; la redire dessous ferait une ligne
      en double. On ne l'ajoute que si elle apporte autre chose. */
-  if(options.alerte){
-    const texte = String(options.alerte(e) || '').trim();
-    const deja = String((options.info && options.info(e)) || '');
-    if(texte && deja.indexOf(texte) === -1){
-      const a = document.createElement('div');
-      a.className = 'raison';
-      a.textContent = '⚠️ ' + texte;
-      row.appendChild(a);
+  /* ============================================================
+     ⚠️ UNE LIGNE QUI PEUT SE REDIRE SANS QU'ON REDESSINE TOUT — v1094
+
+     Ces trois phrases — ce que la ligne annonce, ce qu'elle résume,
+     ce qu'elle alerte — étaient écrites une fois pour toutes au
+     moment du dessin. Quand la donnée changeait sous elles, le seul
+     moyen de les remettre d'accord était de redessiner la liste
+     entière… ce qui REFERME les fiches ouvertes. Le bureau qui a un
+     bloc déplié sous les yeux le voyait se refermer tout seul.
+
+     Les trois zones existent donc toujours — vides et masquées quand
+     il n'y a rien à dire — et « rafraichirLigne » les redemande à
+     celui qui sait. Rien d'autre ne bouge à l'écran.
+     ============================================================ */
+  const zoneAlerte = document.createElement('div');
+  zoneAlerte.className = 'raison';
+  if(options.alerte) row.appendChild(zoneAlerte);
+
+  const zoneResume = document.createElement('span');
+  zoneResume.style.cssText = 'display:block;font-size:12px;color:var(--muted);' +
+    'line-height:1.5;margin-top:4px;';
+  if(options.resume) meta.appendChild(zoneResume);
+
+  function redireLaLigne(){
+    info.textContent = options.info(e);
+
+    if(options.resume){
+      const r = String(options.resume(e) || '');
+      zoneResume.textContent = r;
+      zoneResume.style.display = r ? 'block' : 'none';
+    }
+
+    /* ⚠️ ET ELLE NE SE RÉPÈTE PAS. Plusieurs listes écrivent déjà la
+       même phrase dans « info » ; la redire dessous ferait une ligne
+       en double. On ne la montre que si elle apporte autre chose. */
+    if(options.alerte){
+      const texte = String(options.alerte(e) || '').trim();
+      const deja = String((options.info && options.info(e)) || '');
+      const montrer = !!texte && deja.indexOf(texte) === -1;
+      zoneAlerte.textContent = montrer ? '⚠️ ' + texte : '';
+      zoneAlerte.style.display = montrer ? '' : 'none';
     }
   }
 
-  if(options.resume){
-    const r = options.resume(e);
-    if(r){
-      const rr = document.createElement('span');
-      rr.style.cssText = 'display:block;font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px;';
-      rr.textContent = r;
-      meta.appendChild(rr);
-    }
-  }
+  redireLaLigne();
+  row.rafraichirLigne = redireLaLigne;
 
   const actions = document.createElement('div');
   actions.style.cssText = 'margin-top:10px;';
