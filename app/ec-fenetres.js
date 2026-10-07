@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:34 — v1039 */
+/* Déployé le 07/10/2026 à 18:10 — v1070 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -2515,7 +2515,7 @@ function pageDossier(d){
    dont la recopie du nom — est écrit ici une seule fois : c'est le
    geste le plus irréversible de l'outil, il n'aura jamais deux
    versions. */
-async function supprimerDepuisRepertoire(n, bouton, dire){
+async function supprimerDepuisRepertoire(n, bouton, dire, rgpd){
   const ecrire = (texte, couleur) => {
     if(typeof dire === 'function') return dire(texte, couleur);
     const etat = $('importEtat');
@@ -2542,7 +2542,8 @@ async function supprimerDepuisRepertoire(n, bouton, dire){
 
   if(bouton) bouton.disabled = true;
   try{
-    const r = await supprimerEleveComplet(n, t => ecrire(n + ' \u2014 ' + t));
+    const r = await supprimerEleveComplet(n, t => ecrire(n + ' \u2014 ' + t),
+                                          { rgpd: !!rgpd });
 
     const bilan = (r && r.faits) ? r : { faits: [], rates: [] };
     if(bilan.rates.length){
@@ -2573,7 +2574,7 @@ async function supprimerDepuisRepertoire(n, bouton, dire){
    captures, cours à venir, messages, répertoire.
    Sert au ménage depuis le répertoire.
    ============================================================ */
-async function supprimerEleveComplet(nom, rapporter){
+async function supprimerEleveComplet(nom, rapporter, options){
   const dire = t => { if(typeof rapporter === 'function') rapporter(t); };
   const faits = [];
   /* ------------------------------------------------------------
@@ -2610,13 +2611,22 @@ async function supprimerEleveComplet(nom, rapporter){
     const r = await fetchFiable(CONFIG.SHEETS_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: nom })
+      /* « rgpd » ne change RIEN au périmètre effacé : il ne décide
+         que du sort des messages de groupe (nom gardé, ou auteur
+         remplacé par « Élève supprimé »). Voir la porte de
+         suppression dans le Worker. */
+      body: JSON.stringify({ action: 'supprimerEleve', code: ACCES.code, eleve: nom,
+                             rgpd: (options && options.rgpd) ? '1' : '' })
     }, 25000, 2);
     if(r.ok){
       const d = await r.json().catch(() => ({}));
       /* Le classeur dit ce qu'il a fait : on le reprend mot pour
          mot plutôt que de le supposer. */
       resumeEffacement(d).forEach(x => faits.push(x));
+      /* Ce que la messagerie a effacé s'ajoute au résumé du
+         classeur : sans ça l'écran annoncerait un effacement plus
+         petit que la réalité. */
+      ((d && d.messagerie) || []).forEach(x => faits.push(x));
     }else{
       rates.push('les bilans (HTTP ' + r.status + ')');
     }
