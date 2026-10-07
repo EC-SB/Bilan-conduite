@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 09:30 — v1069 */
+/* Déployé le 08/10/2026 à 13:10 — v1076 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3008,6 +3008,24 @@ function effacerBrouillonDe(eleve){
   const reste = tousLesBrouillons()
     .filter(x => normaliserMot(x.eleve || '') !== normaliserMot(eleve));
   rangerBrouillons(reste);
+
+  /* ⚠️ ET L'ANCIENNE CLÉ AVEC, QUAND ELLE EST À LUI — v1076.
+
+     « bilan_manuel_en_cours » est le vestige d'avant les fiches
+     multiples, et la bannière le lit ENCORE (voir brouillonManuel).
+     On effaçait la liste et on laissait le vestige : le cours
+     revenait donc en « interrompu » par la petite porte, pour un
+     bilan enregistré.
+
+     Seulement s'il porte le nom qu'on efface : un autre examen de
+     la matinée peut être la fiche en cours, et la lui retirer
+     reviendrait à lui faire perdre son filet. */
+  try{
+    const v = JSON.parse(localStorage.getItem('bilan_manuel_en_cours') || 'null');
+    if(v && normaliserMot(v.eleve || '') === normaliserMot(eleve)){
+      localStorage.removeItem('bilan_manuel_en_cours');
+    }
+  }catch(e){ /* clé illisible : elle ne servira à personne */ }
 }
 
 /* ============================================================
@@ -3162,6 +3180,33 @@ function brouillonManuelActuel(){
 /* La sauvegarde sur l'appareil : immédiate, et c'est elle qui
    tient entre deux dépôts. */
 function sauvegarderManuel(){
+  /* ⚠️ UN BILAN ENREGISTRÉ NE SE REDÉPOSE PAS — v1076.
+
+     David, le 8 octobre : « quand il finit un bilan rempli à la
+     main, qu'il est envoyé par mail et qu'il revient à l'accueil,
+     ça lui met cours interrompu retrouvé alors qu'il a bien été
+     envoyé et enregistré ». Et il l'a confirmé : il appuie bien sur
+     Copier-enregistrer, et le bilan EST dans l'historique.
+
+     L'export efface tout ce qu'il faut — la sauvegarde de
+     l'appareil, le brouillon du serveur. Mais la fiche manuelle
+     reste à l'écran, remplie, et « modeManuel » reste vrai jusqu'à
+     la fermeture. Les deux filets de sécurité de la fiche — le
+     « pagehide » et la mise en veille — se déclenchent donc APRÈS
+     l'enregistrement et REFABRIQUENT le brouillon qu'on venait
+     d'effacer. Sur une tablette, basculer vers la messagerie pour
+     envoyer le mail suffit à les réveiller.
+
+     C'est mot pour mot le défaut déjà corrigé pour la DICTÉE —
+     « le moindre mot corrigé, ou la simple mise en veille,
+     redéposait un brouillon PAR-DESSUS un cours terminé » (voir
+     deposerSiChange, ec-arriereplan.js). Le filet de la fiche
+     manuelle n'avait jamais reçu la même garde.
+
+     Le filet reste entier tant que le bilan n'est pas enregistré :
+     c'est exactement là qu'il sert. */
+  if(typeof bilanEnregistre !== 'undefined' && bilanEnregistre) return;
+
   const brouillon = brouillonManuelActuel();
   if(!brouillon) return;
 
@@ -3584,6 +3629,13 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
      n'existe que si « modeManuel » est vrai. Avec une zone, c'est
      un écran qui se garde lui-même — le rendez-vous post-permis. */
   if(!quelleZone && !modeManuel) return;
+
+  /* ⚠️ MÊME GARDE QUE « sauvegarderManuel » — v1076, et pour la
+     même raison : un cours enregistré n'a plus rien à déposer dans
+     « 🩹 Cours non terminés ». Le rendez-vous post-permis, lui, se
+     garde toujours : il n'a pas de bilan à enregistrer, et son
+     « quelleZone » le distingue. */
+  if(!quelleZone && typeof bilanEnregistre !== 'undefined' && bilanEnregistre) return;
 
   const maintenant = Date.now();
   const reste = SECONDES_ENTRE_DEUX_DEPOTS * 1000 - (maintenant - dernierDepotManuel);
