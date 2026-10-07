@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1093 */
+/* Déployé le 07/10/2026 à 21:10 — v1094 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4121,16 +4121,16 @@ async function reprendreBilanExamen(eleve, opts){
        telle quelle : il l'a demandée AVEC le texte, et la relire
        serait relire tout l'historique de l'élève une seconde fois. */
     const ex = o.examen || await dernierExamenOfficielDe(eleve, true);
-    if(!ex) return;
+    if(!ex) return '';
     /* Entre-temps le moniteur a pu écrire, ou changer d'élève. */
-    if(champ.value.trim()) return;
+    if(champ.value.trim()) return '';
 
     /* Toujours au même élève, et sur un écran toujours là. La
        recherche relit tout l'historique : elle met plusieurs
        secondes, et l'écran a pu se refermer entre-temps. */
     const encoreLa = o.encoreLa
       || (() => !!rdvPostEnCours && rdvPostEnCours.eleve === eleve);
-    if(!encoreLa()) return;
+    if(!encoreLa()) return '';
 
     const texte = String(ex.bilan || '').trim();
     const quand = (ex.date ? ' du ' + ex.date : '') +
@@ -4156,7 +4156,7 @@ async function reprendreBilanExamen(eleve, opts){
         zone.textContent = "⚠️ Son examen officiel" + quand +
           " n'a pas de bilan rempli. À coller à la main.";
       }
-      return;
+      return '';
     }
 
     champ.value = texte;
@@ -4168,6 +4168,13 @@ async function reprendreBilanExamen(eleve, opts){
       zone.textContent = "↩️ Repris de son bilan d'examen officiel" + quand +
         '. Tu peux le corriger.';
     }
+
+    /* ⚠️ ELLE REND CE QU'ELLE VIENT DE POSER — v1094. L'appelant du
+       bureau le range dans la fiche de suivi ; sans ce retour, il
+       devrait relire le champ, et il rangerait alors ce que le
+       bureau a pu taper dedans entre-temps. On rend CE QU'ON A
+       ÉCRIT, pas ce qui se trouve à l'écran. */
+    return texte;
   }catch(e){
     /* Pas le droit de chercher, ou le réseau : le champ reste vide
        et le moniteur fait comme avant. Ce n'est pas une panne, c'est
