@@ -579,6 +579,10 @@ async function ouvrirLeFil(id, viser){
 function fermerLeFil(){
   fermerLeSelecteurDeReaction();
   fermerLePanneauEmoji();
+  /* ⚠️ ET LA PHOTO EN GRAND, qui vit dans le <body> et non dans la
+     zone : « innerHTML = '' » ne l'emporte pas. Sans ça, revenir à la
+     liste laisse une image plein écran par-dessus tout. */
+  fermerLaPhotoEnGrand();
   empreinteReacEC = '';
   filOuvertEC = null;
   arreterLaVeilleDuFil();
@@ -970,7 +974,16 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(mo);
   }
 
-  b.appendChild(document.createTextNode(m.texte || ''));
+  /* 📷 La photo vient AVANT le texte — v1088. Le mot joint commente
+     l'image : le lire après, c'est l'ordre dans lequel on les a
+     écrits. */
+  const image = imageDuMessage(m);
+  if(image){
+    b.classList.add('photo');
+    b.appendChild(image);
+  }
+
+  if(m.texte) b.appendChild(document.createTextNode(m.texte));
 
   /* ⚠️ L'HEURE EST POSÉE APRÈS LE TEXTE, et c'est ce qui la met au
      bout de la DERNIÈRE ligne. Un flottant rencontré après trois
@@ -1025,6 +1038,21 @@ function zoneDEcritureDuFil(id){
      bouton devant le champ, ce retrait décollait l'icône du bord et
      la barre semblait mal centrée. */
   l.className = 'msgBarre aOutils';
+
+  /* 📷 Envoyer une photo — v1088. Devant 🙂 : c'est le geste le moins
+     fréquent des deux, mais le plus visible — on le cherche des yeux
+     quand on a quelque chose à montrer. */
+  const pho = document.createElement('button');
+  pho.type = 'button';
+  pho.id = 'msgElvPhoto';
+  pho.className = 'msgOutil';
+  pho.textContent = '📷';
+  pho.title = 'Envoyer une photo';
+  pho.addEventListener('click', ev => {
+    ev.stopPropagation();
+    choisirUnePhoto();
+  });
+  l.appendChild(pho);
 
   /* 🙂 Le panneau des émoticônes — v1086. */
   const emo = document.createElement('button');
@@ -2875,6 +2903,223 @@ async function compterLesObjets(){
 function objetDuFil(f){
   if(!f || !f.conv || f.conv.genre !== 'oubli') return null;
   return objetsEC.find(o => o.conversation === f.conv.id) || null;
+}
+
+
+/* ============================================================
+   📷 ENVOYER UNE PHOTO — v1088
+
+   David, le 9 octobre : « la possibilité d'envoyer des images », et
+   « tout le monde » peut en envoyer, élèves compris.
+
+   ⚠️ LA PHOTO EST REDESSINÉE AVANT DE PARTIR, ET C'EST LE CŒUR DE
+   CETTE BRIQUE. Une photo de téléphone fait huit mégaoctets ;
+   redessinée à 1 600 pixels en JPEG, elle en fait trois cents
+   kilo-octets. Sans ça, l'envoi depuis la 4G d'une voiture-école ne
+   finit pas — et une messagerie qui n'envoie pas est une messagerie
+   qu'on quitte.
+
+   ⚠️ ET LE REDESSIN EFFACE LES EXIF. Une photo prise au téléphone
+   porte les COORDONNÉES GPS du lieu de la prise de vue, parfois le
+   modèle de l'appareil et l'heure exacte. Passer par un canvas ne
+   recopie que les PIXELS : tout le reste disparaît, et c'est la
+   seule façon propre de s'en débarrasser côté navigateur. Un élève
+   qui photographie son écharpe depuis chez lui nous enverrait son
+   adresse, et nous la garderions — à ranger à côté de la règle
+   « aucune vitesse, aucun horodatage par point » du GPS.
+   ============================================================ */
+
+const PHOTO_COTE_MAX = 1600;        /* le plus grand côté, après réduction */
+const PHOTO_QUALITE = 0.82;
+const PHOTO_SOURCE_MAX = 25 * 1024 * 1024;   /* refusé avant même de lire */
+
+let envoiPhotoEC = false;
+
+/* ⚠️ « createImageBitmap » SAIT REDRESSER UNE PHOTO DE TÉLÉPHONE,
+   PAS « new Image() ». Un portrait pris à l'horizontale est stocké
+   couché, avec une étiquette EXIF qui dit de le tourner ; le canvas
+   ignore l'étiquette. Sans « imageOrientation: 'from-image' », une
+   photo sur deux arriverait de travers — et comme on efface les EXIF
+   au passage, personne ne pourrait plus la redresser ensuite. */
+async function lireLImage(fichier){
+  if(typeof createImageBitmap === 'function'){
+    try{
+      return await createImageBitmap(fichier, { imageOrientation: 'from-image' });
+    }catch(e){ /* vieux navigateur : on retombe plus bas */ }
+  }
+  return await new Promise((bon, mauvais) => {
+    const u = URL.createObjectURL(fichier);
+    const i = new Image();
+    i.onload = () => { URL.revokeObjectURL(u); bon(i); };
+    i.onerror = () => { URL.revokeObjectURL(u); mauvais(new Error('Image illisible.')); };
+    i.src = u;
+  });
+}
+
+/* Rend { data, l, h } — ou lève. */
+async function reduireLaPhoto(fichier){
+  if(!fichier) throw new Error('Aucune photo.');
+  if(!/^image\//.test(fichier.type || '')){
+    throw new Error('Ce fichier n’est pas une image.');
+  }
+  if(fichier.size > PHOTO_SOURCE_MAX){
+    throw new Error('Cette image est trop lourde (25 Mo au plus).');
+  }
+
+  const img = await lireLImage(fichier);
+  const l0 = img.width || img.naturalWidth;
+  const h0 = img.height || img.naturalHeight;
+  if(!l0 || !h0) throw new Error('Image illisible.');
+
+  const f = Math.min(1, PHOTO_COTE_MAX / Math.max(l0, h0));
+  const l = Math.max(1, Math.round(l0 * f));
+  const h = Math.max(1, Math.round(h0 * f));
+
+  const toile = document.createElement('canvas');
+  toile.width = l;
+  toile.height = h;
+  const c = toile.getContext('2d');
+  /* Un fond blanc : un PNG transparent devient noir sur noir sans
+     lui, et c'est exactement ce qu'on reçoit d'une capture d'écran. */
+  c.fillStyle = '#FFFFFF';
+  c.fillRect(0, 0, l, h);
+  c.drawImage(img, 0, 0, l, h);
+  if(img.close) try{ img.close(); }catch(e){}
+
+  const data = toile.toDataURL('image/jpeg', PHOTO_QUALITE);
+  if(!data || data.length < 100) throw new Error('Réduction impossible.');
+  return { data: data, l: l, h: h };
+}
+
+/* ------------------------------------------------------------
+   LE BOUTON
+   ------------------------------------------------------------ */
+function choisirUnePhoto(){
+  if(envoiPhotoEC) return;
+  const z = document.createElement('input');
+  z.type = 'file';
+  /* ⚠️ PAS DE « capture » : sur un téléphone, l'attribut force
+     l'appareil photo et retire l'accès à la galerie. Le bureau
+     envoie surtout des photos déjà prises. */
+  z.accept = 'image/*';
+  z.style.display = 'none';
+  document.body.appendChild(z);
+  z.addEventListener('change', () => {
+    const f = z.files && z.files[0];
+    document.body.removeChild(z);
+    if(f) envoyerUnePhotoDansLeFil(f);
+  });
+  z.click();
+}
+
+async function envoyerUnePhotoDansLeFil(fichier){
+  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
+  if(envoiPhotoEC) return;
+  envoiPhotoEC = true;
+
+  const id = filOuvertEC.conv.id;
+  const bouton = $('msgElvPhoto');
+  if(bouton){ bouton.disabled = true; bouton.textContent = '⏳'; }
+
+  try{
+    const p = await reduireLaPhoto(fichier);
+    /* Le mot tapé part avec la photo : c'est un seul message, et
+       c'est ce qu'on attend quand on écrit avant de joindre. */
+    const champ = $('msgElvTexte');
+    const texte = champ ? champ.value.trim() : '';
+
+    await appelPrep({ action: 'convPhoto', id: id, photo: p.data,
+                      l: p.l, h: p.h, texte: texte });
+
+    if(champ){ champ.value = ''; delete brouillonsMessagerie[id]; }
+    await rafraichirLeFil();
+  }catch(e){
+    if(typeof showToast === 'function'){
+      showToast('La photo n’est pas partie : ' + (e.message || e));
+    }
+  }
+  envoiPhotoEC = false;
+  if(bouton){ bouton.disabled = false; bouton.textContent = '📷'; }
+}
+
+/* ------------------------------------------------------------
+   LA PHOTO DANS LA BULLE
+   ------------------------------------------------------------ */
+
+function adresseDeLaPiece(piece){
+  if(!piece || !piece.lien) return '';
+  /* Le Worker rend un chemin : l'application est servie par GitHub
+     Pages, un chemin seul y pointerait sur la mauvaise machine. */
+  const base = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '';
+  return base + piece.lien;
+}
+
+function imageDuMessage(m){
+  const p = m && m.piece;
+  if(!p) return null;
+  if(!p.lien){
+    const d = document.createElement('div');
+    d.className = 'msgImgAbs';
+    d.textContent = '📷 Photo indisponible';
+    return d;
+  }
+  const i = document.createElement('img');
+  i.className = 'msgImg';
+  i.alt = 'Photo';
+  i.loading = 'lazy';
+  /* ⚠️ LES DIMENSIONS SONT POSÉES AVANT LE CHARGEMENT. Sans elles la
+     bulle fait zéro pixel de haut, puis saute à sa taille quand
+     l'image arrive : le fil se déplace sous les doigts au moment
+     précis où l'on allait appuyer. */
+  if(p.l && p.h){
+    i.width = p.l;
+    i.height = p.h;
+    i.style.aspectRatio = p.l + ' / ' + p.h;
+  }
+  i.src = adresseDeLaPiece(p);
+  i.addEventListener('click', ev => {
+    ev.stopPropagation();
+    ouvrirLaPhotoEnGrand(i.src);
+  });
+  return i;
+}
+
+/* ⚠️ EN GRAND, PAS DANS UN ONGLET. Un lien signé ouvert dans un
+   onglet reste dans l'historique du navigateur et dans la barre
+   d'adresse d'une tablette partagée. Une couche par-dessus se ferme
+   et ne laisse rien. */
+let photoEnGrandEC = null;
+
+function fermerLaPhotoEnGrand(){
+  if(photoEnGrandEC && photoEnGrandEC.parentNode){
+    photoEnGrandEC.parentNode.removeChild(photoEnGrandEC);
+  }
+  photoEnGrandEC = null;
+}
+
+function ouvrirLaPhotoEnGrand(src){
+  fermerLaPhotoEnGrand();
+  const v = document.createElement('div');
+  v.className = 'msgVoilePhoto';
+  const i = document.createElement('img');
+  i.src = src;
+  i.alt = 'Photo';
+  v.appendChild(i);
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'msgVoileX';
+  x.textContent = '✕';
+  v.appendChild(x);
+  v.addEventListener('click', fermerLaPhotoEnGrand);
+  document.body.appendChild(v);
+  photoEnGrandEC = v;
+
+  const echap = (ev) => {
+    if(ev.key !== 'Escape') return;
+    document.removeEventListener('keydown', echap);
+    fermerLaPhotoEnGrand();
+  };
+  document.addEventListener('keydown', echap);
 }
 
 
