@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 19:15 — v1067 */
+/* Déployé le 08/10/2026 à 13:10 — v1076 */
 /* ============================================================
    ec-vocal.js
    Reconnaissance vocale, vocabulaire métier, ponctuation, correction
@@ -2466,6 +2466,24 @@ async function exporterVersSheets(silencieux){
        contenu. Le moniteur garde son bilan sous les yeux pour le
        coller sur Messenger. */
     if(typeof effacerSauvegarde === 'function') effacerSauvegarde();
+
+    /* ⚠️ ET LES BROUILLONS DE FICHE MANUELLE AVEC — v1076.
+
+       Trois mémoires gardent un cours en cours, et l'export n'en
+       effaçait que deux : celle du serveur et celle de la dictée.
+       La troisième — les fiches manuelles de la journée, une par
+       élève — restait, et la bannière la proposait comme un cours
+       interrompu pour un bilan pourtant enregistré.
+
+       Les gardes posées dans ec-manuel.js empêchent désormais d'en
+       refabriquer une ; celle-ci efface celle qui existe déjà. Les
+       deux comptent : la garde pour l'avenir, l'effacement pour le
+       présent. Et seul le brouillon de CET élève part — les autres
+       examens de la matinée restent. */
+    if(typeof effacerBrouillonDe === 'function'){
+      effacerBrouillonDe((currentLessonMeta && currentLessonMeta.studentName) ||
+                         ($('studentName') ? $('studentName').value.trim() : ''));
+    }
 
     viderCaches(currentLessonMeta && currentLessonMeta.studentName);
     chargerEleves();          /* un nouvel élève peut venir d'apparaître */
