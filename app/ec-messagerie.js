@@ -137,6 +137,15 @@ function dessinerLaListeMessagerie(){
     zone.appendChild(barreDeRechercheMessagerie());
     zone.appendChild(barreDesGenresMessagerie());
     if(chercheMessagerie){ return; }   /* la recherche a pris la place */
+
+    /* 🔔 Le réglage des notifications de CET appareil — étape 3. La
+       zone est posée vide : elle se remplit toute seule quand on
+       sait si le serveur a des clés, et reste invisible sinon. */
+    const zp = document.createElement('div');
+    zp.id = 'msgPoussee';
+    zone.appendChild(zp);
+    dessinerLaPoussee();
+    preparerLaPoussee();
   }
 
   /* ⚠️ LA SUPERVISION N'EST DANS AUCUNE AUTRE VUE — v1082.
@@ -2283,6 +2292,25 @@ async function compterLaMessagerie(){
      héritait du bouton du premier. Cacher est une décision autant
      que montrer : elle se prend dans tous les cas. */
   montrerLeBoutonMessagerie();
+
+  /* 🔔 Une fois connecté, et une seule fois : on réenregistre
+     l'abonnement de cet appareil s'il en a déjà un — étape 3. C'est
+     muet, ça ne demande rien à personne, et ça répare la seule panne
+     qu'on ne verrait jamais autrement : un point d'arrivée que le
+     navigateur a remplacé dans son coin. */
+  if(!pousseeRepriseFaite && typeof aDroit === 'function' && aDroit('messagerie') &&
+     typeof ACCES !== 'undefined' && ACCES.code){
+    pousseeRepriseFaite = true;
+    reprendreLaPoussee();
+    const filDemande = filDemandeParLAdresse();
+    if(filDemande){
+      /* La page s'ouvre POUR une notification : on va droit au fil,
+         sans passer par la liste. */
+      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      ouvrirLeFil(filDemande);
+    }
+  }
+
   if(typeof aDroit === 'function' && !aDroit('messagerie')){
     poserPastilleMessagerie(0);
     return;
@@ -2630,6 +2658,305 @@ function objetDuFil(f){
 
 
 /* ============================================================
+   🔔 ÊTRE PRÉVENU SUR SON TÉLÉPHONE — étape 3
+
+   David, le 7 octobre : « je veux un vrai systeme de messagerie
+   instantané comme messenger ». Le sondage et le direct ne servent
+   qu'à celui qui regarde l'écran. Ceci sert à celui qui ne le
+   regarde pas — et c'est la seule raison pour laquelle on peut
+   demander à un élève de quitter Messenger.
+
+   ⚠️ TOUT CE BLOC EST FACULTATIF, DE BOUT EN BOUT. Pas de clés VAPID
+   sur le Worker, pas de service worker dans le navigateur, un
+   iPhone qui n'a pas ajouté la page à l'écran d'accueil, une
+   autorisation refusée : dans tous les cas rien ne s'affiche, rien
+   ne casse, et la messagerie marche exactement comme avant. Une
+   fonctionnalité qui empêcherait de lire ses messages le jour où
+   elle tombe en panne ne vaudrait pas d'être écrite.
+
+   ⚠️ ET ON NE DEMANDE JAMAIS L'AUTORISATION TOUT SEUL. Un navigateur
+   qui voit une demande de notification arriver sans qu'on ait rien
+   cliqué la refuse définitivement, et il n'y a ensuite plus aucun
+   moyen de revenir en arrière depuis la page. La demande part donc
+   d'un clic sur un bouton qui dit ce qu'il fait, et jamais d'un
+   démarrage.
+   ============================================================ */
+
+let clePousseeEC = '';            /* la clé publique VAPID du Worker */
+let pousseeEtatEC = '';           /* '' | 'absent' | 'off' | 'on' | 'refuse' */
+let pousseeEnCoursEC = false;
+
+function pousseePossible(){
+  return typeof navigator !== 'undefined' &&
+         'serviceWorker' in navigator &&
+         typeof window !== 'undefined' &&
+         'PushManager' in window &&
+         typeof Notification !== 'undefined';
+}
+
+/* La clé publique du Worker, une seule fois par session. Pas de
+   clé : l'étape 3 n'est pas réglée, et l'écran n'en parle pas. */
+async function clePoussee(){
+  if(clePousseeEC) return clePousseeEC;
+  try{
+    const d = await appelPrep({ action: 'poussCle' });
+    clePousseeEC = (d && d.branche && d.cle) ? d.cle : '';
+  }catch(e){ clePousseeEC = ''; }
+  return clePousseeEC;
+}
+
+/* ⚠️ LA CLÉ VOYAGE EN BASE 64 D'URL, ET LE NAVIGATEUR VEUT DES
+   OCTETS. C'est la conversion que tout le monde rate une fois : les
+   « - » et les « _ » remplacent les « + » et les « / », et le
+   bourrage final a disparu. */
+function clePousseeEnOctets(t){
+  const propre = String(t || '').replace(/-/g, '+').replace(/_/g, '/');
+  const bourre = propre + '='.repeat((4 - (propre.length % 4)) % 4);
+  const brut = atob(bourre);
+  const out = new Uint8Array(brut.length);
+  for(let i = 0; i < brut.length; i++) out[i] = brut.charCodeAt(i);
+  return out;
+}
+
+function abonnementEnClair(ab){
+  const j = ab.toJSON ? ab.toJSON() : {};
+  const c = j.keys || {};
+  return { endpoint: ab.endpoint, p256dh: c.p256dh || '', auth: c.auth || '' };
+}
+
+async function serviceWorkerPret(){
+  try{
+    /* ⚠️ LE CHEMIN EST RELATIF, ET IL DOIT L'ÊTRE. L'application vit
+       dans un sous-dossier sur GitHub Pages : « /sw.js » chercherait
+       à la racine du domaine, où il n'y a rien, et la portée du
+       service worker déborderait sur les autres pages du compte. */
+    return await navigator.serviceWorker.register('sw.js');
+  }catch(e){
+    return null;
+  }
+}
+
+/* ------------------------------------------------------------
+   AU DÉMARRAGE : ON NE DEMANDE RIEN, ON RÉPARE
+
+   ⚠️ UN ABONNEMENT SE PÉRIME TOUT SEUL. Le navigateur le remplace
+   quand il veut, et le nôtre, dans la base, pointe alors vers un
+   point d'arrivée mort. On le réenregistre donc à chaque démarrage
+   quand l'autorisation est DÉJÀ donnée — c'est muet, ça ne demande
+   rien à personne, et ça répare la seule panne qu'on ne verrait
+   jamais autrement : des notifications qui s'arrêtent sans rien
+   dire.
+   ------------------------------------------------------------ */
+async function reprendreLaPoussee(){
+  if(!pousseePossible()) return;
+  if(Notification.permission !== 'granted') return;
+  if(!await clePoussee()) return;
+
+  const reg = await serviceWorkerPret();
+  if(!reg) return;
+  try{
+    const dejà = await reg.pushManager.getSubscription();
+    const ab = dejà || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: clePousseeEnOctets(clePousseeEC)
+    });
+    await appelPrep(Object.assign({ action: 'poussAbonner' }, abonnementEnClair(ab)));
+    pousseeEtatEC = 'on';
+  }catch(e){ /* muet : on réessaiera au prochain démarrage */ }
+}
+
+/* ------------------------------------------------------------
+   LE CLIC
+
+   Deux temps, et c'est volontaire : le navigateur demande
+   l'autorisation, puis on s'abonne. Si l'autorisation est refusée,
+   on s'arrête là et on le dit — insister ne sert à rien, la décision
+   est dans les réglages du téléphone à partir de ce moment.
+   ------------------------------------------------------------ */
+async function demanderLaPoussee(bouton){
+  if(pousseeEnCoursEC) return;
+  pousseeEnCoursEC = true;
+  if(bouton) bouton.disabled = true;
+
+  try{
+    const cle = await clePoussee();
+    if(!cle) throw new Error('Les notifications ne sont pas réglées sur le serveur.');
+
+    const rep = await Notification.requestPermission();
+    if(rep !== 'granted'){
+      pousseeEtatEC = 'refuse';
+      dessinerLaPoussee();
+      return;
+    }
+
+    const reg = await serviceWorkerPret();
+    if(!reg) throw new Error('Le navigateur a refusé le service de notification.');
+    /* ⚠️ ON ATTEND QU'IL SOIT PRÊT. Juste après « register », le
+       service worker est en train de s'installer : s'abonner tout de
+       suite échoue une fois sur deux, et l'erreur n'a aucun sens
+       pour celui qui la lit. */
+    await navigator.serviceWorker.ready;
+
+    const ab = await reg.pushManager.getSubscription() ||
+      await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: clePousseeEnOctets(cle)
+      });
+
+    await appelPrep(Object.assign({ action: 'poussAbonner' }, abonnementEnClair(ab)));
+    pousseeEtatEC = 'on';
+    if(typeof showToast === 'function'){
+      showToast('🔔 Tu seras prévenu sur cet appareil.');
+    }
+  }catch(e){
+    if(typeof showToast === 'function'){
+      showToast('Notifications impossibles : ' + (e.message || e));
+    }
+  }
+  pousseeEnCoursEC = false;
+  if(bouton) bouton.disabled = false;
+  dessinerLaPoussee();
+}
+
+async function arreterLaPoussee(bouton){
+  if(pousseeEnCoursEC) return;
+  pousseeEnCoursEC = true;
+  if(bouton) bouton.disabled = true;
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const ab = reg && await reg.pushManager.getSubscription();
+    if(ab){
+      /* ⚠️ ON PRÉVIENT LE SERVEUR AVANT DE SE DÉSABONNER. Dans
+         l'autre ordre, un échec réseau laisse une ligne morte dans la
+         base qu'on relancera à chaque message jusqu'au cinquième
+         échec. */
+      await appelPrep({ action: 'poussOublier', endpoint: ab.endpoint });
+      await ab.unsubscribe();
+    }
+    pousseeEtatEC = 'off';
+    if(typeof showToast === 'function') showToast('Notifications arrêtées sur cet appareil.');
+  }catch(e){
+    if(typeof showToast === 'function'){
+      showToast('Impossible d’arrêter : ' + (e.message || e));
+    }
+  }
+  pousseeEnCoursEC = false;
+  if(bouton) bouton.disabled = false;
+  dessinerLaPoussee();
+}
+
+/* ------------------------------------------------------------
+   LA LIGNE DANS L'ÉCRAN
+
+   ⚠️ ELLE N'EST PAS DANS LE TIROIR. Le tiroir sert à répondre vite à
+   un message qu'on vient de recevoir ; un réglage d'appareil se fait
+   une fois, assis, dans l'onglet.
+   ------------------------------------------------------------ */
+async function preparerLaPoussee(){
+  /* Une seule fois par session : l'état ne change qu'au clic, et la
+     liste des conversations se redessine toutes les quatre
+     secondes. */
+  if(pousseeEtatEC) return;
+  if(!pousseePossible()){ pousseeEtatEC = 'absent'; return; }
+  if(!await clePoussee()){ pousseeEtatEC = 'absent'; return; }
+
+  if(Notification.permission === 'denied'){ pousseeEtatEC = 'refuse'; }
+  else if(Notification.permission === 'granted'){
+    try{
+      const reg = await navigator.serviceWorker.getRegistration();
+      const ab = reg && await reg.pushManager.getSubscription();
+      pousseeEtatEC = ab ? 'on' : 'off';
+    }catch(e){ pousseeEtatEC = 'off'; }
+  }else pousseeEtatEC = 'off';
+
+  dessinerLaPoussee();
+}
+
+function dessinerLaPoussee(){
+  const zone = (typeof $ === 'function') ? $('msgPoussee') : null;
+  if(!zone) return;
+  zone.innerHTML = '';
+  if(pousseeEtatEC === 'absent' || !pousseeEtatEC) return;
+
+  const ligne = document.createElement('div');
+  ligne.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' +
+    'padding:9px 12px;border-radius:12px;margin-bottom:10px;' +
+    'background:var(--navy-deep);border:1px solid var(--line);';
+
+  const texte = document.createElement('div');
+  texte.style.cssText = 'flex:1;min-width:170px;font-size:12.5px;line-height:1.45;' +
+    'color:var(--soft);';
+
+  if(pousseeEtatEC === 'refuse'){
+    texte.innerHTML = '🔕 Les notifications sont bloquées pour ce site.<br>' +
+      '<span style="color:var(--muted);font-size:11.5px;">' +
+      'Ça se débloque dans les réglages du navigateur, pas ici.</span>';
+    ligne.appendChild(texte);
+  }else if(pousseeEtatEC === 'on'){
+    texte.innerHTML = '🔔 Tu es prévenu sur cet appareil.<br>' +
+      '<span style="color:var(--muted);font-size:11.5px;">' +
+      'La notification dit qui écrit, jamais ce qui est écrit.</span>';
+    ligne.appendChild(texte);
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 12px;font-size:12px;';
+    b.textContent = 'Arrêter';
+    b.addEventListener('click', () => arreterLaPoussee(b));
+    ligne.appendChild(b);
+  }else{
+    texte.innerHTML = '🔔 Être prévenu des nouveaux messages sur cet appareil.<br>' +
+      '<span style="color:var(--muted);font-size:11.5px;">' +
+      'À faire une fois par téléphone ou par tablette.</span>';
+    ligne.appendChild(texte);
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.style.cssText = 'width:auto;margin:0;padding:6px 14px;font-size:12px;' +
+      'background:var(--orange);color:var(--on-accent);font-weight:700;';
+    b.textContent = 'Activer';
+    b.addEventListener('click', () => demanderLaPoussee(b));
+    ligne.appendChild(b);
+  }
+
+  zone.appendChild(ligne);
+}
+
+/* ------------------------------------------------------------
+   ON CLIQUE SUR LA NOTIFICATION
+
+   Le service worker nous dit quel fil ouvrir plutôt que de recharger
+   la page : l'application est peut-être déjà ouverte sur tout autre
+   chose, et la recharger ferait perdre ce qui est en train d'être
+   tapé ailleurs.
+   ------------------------------------------------------------ */
+function ecouterLeServiceWorker(){
+  if(!pousseePossible() || !navigator.serviceWorker) return;
+  navigator.serviceWorker.addEventListener('message', function(ev){
+    const d = ev && ev.data;
+    if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
+    try{
+      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      ouvrirLeFil(d.fil);
+    }catch(e){}
+  });
+}
+
+/* Et le cas de la page qui s'ouvre POUR la notification : le fil
+   demandé est dans l'adresse. On la nettoie derrière nous — un
+   rechargement ne doit pas rouvrir le même fil trois jours plus
+   tard. */
+function filDemandeParLAdresse(){
+  try{
+    const u = new URL(window.location.href);
+    const fil = u.searchParams.get('fil');
+    if(!fil) return '';
+    u.searchParams.delete('fil');
+    window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+    return fil;
+  }catch(e){ return ''; }
+}
+
+
+/* ============================================================
    📡 LE FIL EN DIRECT — étape 2
 
    David, le 7 octobre : « je veux un vrai systeme de messagerie
@@ -2657,6 +2984,8 @@ function objetDuFil(f){
 const PAS_DIRECT_PING = 45000;     /* un mot pour tenir la ligne ouverte */
 const PAS_DIRECT_MUET = 20000;     /* sans réponse après ça, elle est morte */
 const PAS_SONDAGE_LENT = 30000;    /* le filet, quand le direct répond */
+
+let pousseeRepriseFaite = false;
 
 let socketDuFil = null;
 let pingDuFil = null;
@@ -2865,6 +3194,11 @@ function brancherLeTiroirMessagerie(){
      qu'on regarde, celui-ci fait quelque chose de neuf. */
   const n = $('msgElvNeuf');
   if(n) n.addEventListener('click', () => ecranNouvelleConversation());
+
+  /* 🔔 Le service worker nous dira quel fil ouvrir quand on cliquera
+     sur une notification — étape 3. Aucun appel réseau ici : on
+     branche une oreille, c'est tout. */
+  ecouterLeServiceWorker();
 
   veillerLeCompteMessagerie();
 
