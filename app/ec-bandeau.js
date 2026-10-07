@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 21:30 — v1082 */
+/* Déployé le 10/10/2026 à 09:30 — v1090 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -432,6 +432,11 @@ function lignesPriseDeDates(){
       sous: lib.periode + ' — ' + lib.places +
             (lib.reglee ? ' · 📌 date réglée à la main' : ''),
       urgente: lib.urgent,
+      /* La ligne sait combien de jours restent : elle tranche
+         elle-même plutôt que de laisser la table de familles
+         répondre « cette semaine » pour une prise dans trois
+         semaines. */
+      groupe: (lib.jours <= 0) ? 'auj' : (lib.jours <= 7 ? 'sem' : 'attente'),
       croix: 'jour',
       ou: ['permis', 'preppermis']
     });
@@ -554,6 +559,32 @@ function lignesDesAlertes(){
 
     const prevenu = !FAMILLES_AVEC_PREVENU[fam] ||
       ((typeof estPrevenu === 'function') ? estPrevenu(n.eleve, fam) : true);
+
+    /* ⚠️ COCHÉE, LA CASE « PRÉVENU » SUFFIT : LA LIGNE NE MONTE PLUS.
+
+       David, le 10 octobre : « quand les élèves sont prévenus et que
+       la case est cochée dans le suivi il faut que ça disparaisse
+       automatiquement du bandeau, pas que je sois obligé de le barrer
+       manuellement ».
+
+       Il a raison, et la croix était une erreur de conception de ma
+       part : j'avais écrit qu'« il reste une étape à la main ». Il
+       n'en reste pas. La case cochée DIT déjà « je lui ai dit, je
+       n'ai plus rien à faire » — demander un second geste pour
+       redire la même chose, c'est une liste qui ne se vide que si
+       quelqu'un pense à la vider. Et personne n'y pense.
+
+       ⚠️ ET SEULEMENT POUR LES FAMILLES QUI ONT CETTE CASE. Pour
+       « permis », FAMILLES_AVEC_PREVENU vaut false, donc « prevenu »
+       est VRAI D'OFFICE — deux lignes plus haut, c'est le
+       « !FAMILLES_AVEC_PREVENU[fam] » qui le rend vrai. Sans ce
+       garde-fou, toute la famille des dates de permis à envisager
+       disparaîtrait du bandeau d'un coup, et rien ne le dirait.
+
+       La ligne reste visible dans 🌙 Simulateurs et examens blancs,
+       où la case se coche, et dans 🔔 Alertes. Elle ne quitte que le
+       bandeau. */
+    if(FAMILLES_AVEC_PREVENU[fam] && prevenu) return;
 
     out.push({
       id: 'aprevoir:' + normaliserMot(n.eleve) + ':' + n.type,
@@ -711,16 +742,31 @@ function lignesDuBandeau(){
     objet:    lignesObjetsOublies
   };
 
+  /* ② Ce qui est à moi — v1090. Calculé UNE fois pour tout le
+     bandeau : le relire par famille, c'est dix parcours de la liste
+     des cours préparés pour la même réponse. */
+  const miens = bandeauVoitToutLEcole() ? null : mesElevesDuBandeau();
+
   let out = [];
   FAMILLES_BANDEAU.forEach(f => {
     try{
       (calculs[f.cle]() || []).forEach(l => {
         if(!familleVisible(l.famille, l.urgente)) return;
         if(ligneEnSourdine(l.id)) return;
+        /* ⚠️ UNE LIGNE SANS PERSONNE EST À TOUT LE MONDE. Les
+           nouveautés de l'outil, la prise de dates, la CB gasoil, un
+           message du bureau : ils ne parlent de personne en
+           particulier. Et les anniversaires non plus — David, le
+           9 octobre : « toute l'équipe ». */
+        if(miens && l.surLaPersonne && l.famille !== 'anniv' &&
+           !miens[normaliserMot(l.surLaPersonne)]) return;
         out.push(l);
       });
     }catch(e){ console.warn('Bandeau — ' + f.cle + ' :', e); }
   });
+
+  /* ③ Une ligne par élève — v1090. */
+  out = regrouperParEleveBandeau(out);
 
   /* Ce qui presse en haut, et l'ordre des familles ensuite : le
      regard descend, il doit rencontrer le plus urgent d'abord. */
@@ -982,6 +1028,267 @@ async function relireMessagesAuRetour(battement){
 
 
 /* ============================================================
+   🗂️ TROIS GROUPES, MES ÉLÈVES, UNE LIGNE PAR PERSONNE — v1090
+
+   David, le 9 octobre, capture à l'appui : 47 lignes au-dessus du
+   premier cours de la journée, et le bandeau refermé depuis des
+   semaines. Trois familles en faisaient 45.
+
+   Quatre corrections, et une seule idée derrière : LE BANDEAU DISAIT
+   TOUT, DONC IL NE DISAIT RIEN.
+
+   ① Les lignes se rangent par ÉCHÉANCE, pas seulement par famille.
+      Le bandeau ouvre sur « Aujourd'hui » ; le reste est à un clic,
+      avec son compte. Rien n'est caché — ce qui est caché, on finit
+      par l'oublier, et c'est précisément ce qu'un bandeau ne doit
+      pas faire.
+
+   ② Chacun ne voit que SES élèves — ceux de ses prochains cours.
+      C'est déjà la règle de « 📅 Mes prochains cours », et c'est la
+      bonne : un moniteur n'a rien à faire des heures à poser d'un
+      élève qu'il ne conduit jamais. Le bureau, lui, voit tout.
+
+   ③ UNE LIGNE PAR ÉLÈVE, pas par chose à faire. Dix élèves avaient
+      deux lignes — « examen blanc à prévoir » et « simulateur nuit
+      et risques à prévoir ». Vingt lignes pour dix personnes, qu'on
+      appelle UNE fois.
+
+   ④ Ce qui est déjà fait sort de la liste de ce qui reste à faire.
+      Cinq lignes disaient « prévenu — à barrer » : le travail est
+      terminé, il ne reste qu'un clic de ménage.
+
+   ⚠️ ET LES RENDEZ-VOUS AAC RESTENT DANS « AUJOURD'HUI ». Je les
+   avais mis en attente — un retard de dix mois ne se règle pas ce
+   matin — et David a tranché l'inverse : « je vais les voir dans
+   aujourd'hui ». C'est son école ; ce sont des rendez-vous qu'il
+   relance lui-même, et les sortir du haut, c'était les enterrer.
+   ============================================================ */
+
+const GROUPES_BANDEAU = [
+  { cle:'auj',     nom:'Aujourd’hui' },
+  { cle:'sem',     nom:'Cette semaine' },
+  { cle:'attente', nom:'En attente' }
+];
+
+/* ⚠️ IL N'Y A PLUS DE GROUPE « C'EST FAIT ». J'en avais prévu un, pour
+   y ranger les lignes « prévenu — à barrer » ; David a tranché mieux
+   le 10 octobre : elles ne doivent plus apparaître du tout. Un groupe
+   qui ne contiendrait jamais rien est un bouton qui pose une
+   question à laquelle personne ne répond. */
+
+/* ⚠️ LA FAMILLE DIT LE GROUPE PAR DÉFAUT, LA LIGNE PEUT TRANCHER.
+   Une prise de dates dans six jours n'est pas « aujourd'hui » ; la
+   même, le jour J, l'est. C'est la ligne qui sait, et elle pose
+   « groupe » quand elle sait. Sans elle, cette table répond. */
+const GROUPE_DE_LA_FAMILLE = {
+  message:    'auj',
+  nouveautes: 'auj',
+  conv:       'auj',
+  cbgasoil:   'auj',
+  anniv:      'auj',
+  /* Décision de David, 9 octobre. */
+  aac:        'auj',
+  prise:      'sem',
+  objet:      'attente',
+  aprevoir:   'attente',
+  heures:     'attente'
+};
+
+function groupeDeLaLigne(l){
+  return (l && l.groupe) || GROUPE_DE_LA_FAMILLE[l && l.famille] || 'attente';
+}
+
+/* ⚠️ LE GROUPE CHOISI NE SE RETIENT PAS D'UN JOUR À L'AUTRE, pour la
+   même raison que le filtre des familles : un réglage gardé dans le
+   navigateur, et un matin l'anniversaire du jour n'existe plus pour
+   toi sans que rien ne te le dise. Il vit en mémoire, et chaque
+   ouverture repart d'« Aujourd'hui ». */
+let groupeChoisiBandeau = 'auj';
+
+/* ------------------------------------------------------------
+   ② CE QUI EST À MOI
+
+   « Mes élèves » = ceux de mes prochains cours. C'est déjà la
+   définition de « 📅 Mes prochains cours », et c'est la seule qui
+   se tienne : on s'occupe de qui on va voir.
+
+   ⚠️ RIEN À FILTRER N'EST UNE RÉPONSE, PAS UN FILTRE VIDE. Si les
+   cours préparés ne sont pas encore chargés — c'est le cas pendant
+   les deux premières secondes — ou si le moniteur n'en a aucun, on
+   NE FILTRE PAS. Filtrer sur une liste vide viderait le bandeau, et
+   un bandeau vide se lit « rien à faire » : le pire des mensonges.
+   ------------------------------------------------------------ */
+function mesElevesDuBandeau(){
+  if(typeof prepares === 'undefined' || !Array.isArray(prepares)) return null;
+  if(!prepares.length) return null;
+  const moi = (typeof ACCES !== 'undefined') ? normaliserMot(ACCES.moniteur || '') : '';
+  if(!moi) return null;
+
+  const out = {};
+  let combien = 0;
+  prepares.forEach(p => {
+    if(!p || !p.eleve) return;
+    if(normaliserMot(p.moniteur || '') !== moi) return;
+    const k = normaliserMot(p.eleve);
+    if(!out[k]){ out[k] = true; combien++; }
+  });
+  return combien ? out : null;
+}
+
+/* Le bureau voit toute l'école : c'est son travail. Les autres
+   peuvent le demander, le temps de la page. */
+let toutLEcoleBandeau = false;
+
+function bandeauDuBureau(){
+  if(typeof ACCES === 'undefined') return true;
+  return ACCES.role === 'admin' || ACCES.role === 'bureau';
+}
+
+function bandeauVoitToutLEcole(){
+  return bandeauDuBureau() || toutLEcoleBandeau;
+}
+
+/* ------------------------------------------------------------
+   ③ UNE LIGNE PAR ÉLÈVE
+
+   ⚠️ ON NE REGROUPE QUE CE QUI SE FAIT D'UN SEUL GESTE. « Examen
+   blanc à prévoir » et « simulateur à prévoir » pour le même élève,
+   c'est un appel ; ses heures à poser, c'est une décision d'examen,
+   et ça ne se mélange pas. On regroupe donc À L'INTÉRIEUR d'une
+   famille, et seulement quand le groupe est le même : un élève
+   prévenu pour l'un et pas pour l'autre garde ses deux lignes, parce
+   que les deux appellent deux gestes différents.
+   ------------------------------------------------------------ */
+const FAMILLES_REGROUPEES = { aprevoir: true };
+
+function quoiSansLaFin(texte){
+  /* « Henedi Ahmed — Examen blanc à prévoir » → « examen blanc » */
+  const apres = String(texte || '').split(' — ').slice(1).join(' — ');
+  return apres.replace(/\s+à prévoir\s*$/i, '').trim();
+}
+
+function regrouperParEleveBandeau(lignes){
+  const ordre = [];
+  const par = {};
+  const out = [];
+
+  lignes.forEach(l => {
+    if(!FAMILLES_REGROUPEES[l.famille] || !l.surLaPersonne){ out.push(l); return; }
+    /* ⚠️ ET LA DESTINATION FAIT PARTIE DE LA CLÉ. Le banc a attrapé
+       « Nolwenn Boennec — Examen blanc + date de permis à envisager
+       à prévoir » : deux lignes de la MÊME famille « aprevoir », pour
+       le même élève, mais qui mènent l'une à 🌙 Simulateurs et
+       l'autre à 🤔 À envisager. Une ligne fusionnée qui n'emmène
+       qu'à un seul des deux endroits perd l'autre en silence — et la
+       phrase ne veut plus rien dire. On ne regroupe que ce qui se
+       fait d'un seul geste, AU MÊME ENDROIT. */
+    const k = l.famille + '|' + groupeDeLaLigne(l) + '|' +
+              ((l.ou || []).join('/')) + '|' +
+              normaliserMot(l.surLaPersonne);
+    if(!par[k]){ par[k] = []; ordre.push(k); }
+    par[k].push(l);
+  });
+
+  ordre.forEach(k => {
+    const g = par[k];
+    if(g.length === 1){ out.push(g[0]); return; }
+
+    const morceaux = g.map(x => quoiSansLaFin(x.texte)).filter(x => x);
+    /* La première garde sa majuscule, les suivantes non : c'est une
+       phrase, pas une liste de titres. */
+    const quoi = morceaux.map((m, i) =>
+      i === 0 ? m : (m.charAt(0).toLowerCase() + m.slice(1))).join(' + ');
+
+    /* ⚠️ « à prévoir » NE SE RAJOUTE QUE SI TOUTES LE DISAIENT. Une
+       seule qui ne finissait pas ainsi, et la phrase devient « …
+       à envisager à prévoir ». La clé ci-dessus rend ce cas
+       impossible aujourd'hui ; cette ligne fait que le jour où une
+       famille change, on obtient une phrase correcte au lieu d'une
+       phrase absurde. */
+    const toutesAPrevoir = g.every(x => /\s+à prévoir\s*$/i.test(x.texte));
+
+    out.push(Object.assign({}, g[0], {
+      id: g[0].id + '+' + (g.length - 1),
+      texte: g[0].surLaPersonne + ' — ' + quoi + (toutesAPrevoir ? ' à prévoir' : ''),
+      /* ⚠️ LA CROIX DOIT BARRER LES DEUX. Une ligne qui en représente
+         deux et qui n'en barre qu'une laisserait l'autre réapparaître
+         seule au prochain chargement — et on la rebarrerait, tous les
+         jours, sans comprendre. */
+      croixTypes: g.map(x => x.croixType).filter(x => x),
+      _combien: g.length
+    }));
+  });
+
+  return out;
+}
+
+/* ------------------------------------------------------------
+   LA BARRE DES GROUPES
+   ------------------------------------------------------------ */
+function comptesParGroupe(lignes){
+  const n = { auj:0, sem:0, attente:0 };
+  (lignes || []).forEach(l => { n[groupeDeLaLigne(l)] = (n[groupeDeLaLigne(l)] || 0) + 1; });
+  return n;
+}
+
+function barreGroupesBandeau(lignes){
+  const n = comptesParGroupe(lignes);
+  const presents = GROUPES_BANDEAU.filter(g => n[g.cle] > 0);
+  /* Un seul groupe : la barre ne dirait rien que le titre ne dise. */
+  if(presents.length < 2 && bandeauVoitToutLEcole()) return null;
+
+  const z = document.createElement('div');
+  z.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;align-items:center;' +
+    'padding:9px 0 3px;border-bottom:1px solid var(--line);margin-bottom:2px;';
+
+  presents.forEach(g => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    const on = (groupeChoisiBandeau === g.cle);
+    b.style.cssText = 'width:auto;margin:0;padding:4px 11px;font-size:12.5px;' +
+      'border-radius:999px;' +
+      (on ? 'background:var(--orange);border-color:var(--orange);' +
+            'color:var(--on-accent);font-weight:700;' : '');
+    b.textContent = g.nom + ' ' + n[g.cle];
+    b.addEventListener('click', () => {
+      groupeChoisiBandeau = g.cle;
+      /* Changer de groupe remet le filtre de famille à zéro : les
+         familles d'un groupe ne sont pas celles de l'autre, et un
+         filtre qui survit montre une liste vide sans dire pourquoi. */
+      familleChoisieBandeau = '';
+      dessinerBandeau();
+    });
+    z.appendChild(b);
+  });
+
+  /* ⚠️ « TOUTE L'ÉCOLE » RESTE À UN CLIC. Un moniteur qui ne voit
+     que ses élèves doit pouvoir regarder le reste — sinon on a
+     remplacé une liste illisible par une liste incomplète, et
+     personne ne sait ce qui manque. Le bureau, lui, voit déjà tout :
+     le bouton ne lui servirait à rien. */
+  if(!bandeauDuBureau()){
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'btn btn-secondary';
+    t.style.cssText = 'width:auto;margin:0 0 0 auto;padding:4px 11px;' +
+      'font-size:12px;border-radius:999px;';
+    t.textContent = toutLEcoleBandeau ? '👤 Mes élèves' : '🏫 Toute l’école';
+    t.title = toutLEcoleBandeau
+      ? 'Ne montrer que les élèves de mes prochains cours'
+      : 'Montrer aussi les élèves des autres moniteurs';
+    t.addEventListener('click', () => {
+      toutLEcoleBandeau = !toutLEcoleBandeau;
+      dessinerBandeau();
+    });
+    z.appendChild(t);
+  }
+
+  return z;
+}
+
+
+/* ============================================================
    LE DESSIN
    ============================================================ */
 
@@ -1015,7 +1322,22 @@ function dessinerBandeau(){
   if(rappel) zone.appendChild(rappel);
   if(!lignes.length) return;
 
-  const urgent = lignes.some(l => l.urgente);
+  /* ⚠️ LE GROUPE OUVERT NE DOIT JAMAIS ÊTRE VIDE. « Aujourd'hui »
+     est le défaut, et c'est le bon ; mais un jour sans rien à faire
+     ouvrirait sur une liste vide au-dessus de trente lignes qu'on ne
+     verrait pas. On glisse alors sur le premier groupe qui a quelque
+     chose — sans toucher au choix de celui qui a cliqué. */
+  const comptes = comptesParGroupe(lignes);
+  if(!comptes[groupeChoisiBandeau]){
+    const premier = GROUPES_BANDEAU.filter(g => comptes[g.cle] > 0)[0];
+    if(premier) groupeChoisiBandeau = premier.cle;
+  }
+  const duGroupe = lignes.filter(l => groupeDeLaLigne(l) === groupeChoisiBandeau);
+
+  /* ⚠️ L'URGENCE SE LIT SUR CE QU'ON REGARDE. Le liseré rouge
+     décidé par les trente lignes en attente serait rouge tous les
+     jours, y compris sur un « Aujourd'hui » parfaitement calme. */
+  const urgent = duGroupe.some(l => l.urgente);
   const reduit = !!lireReglageBandeau(CLE_BANDEAU_REDUIT,
                                       bandeauReplieParDefaut());
 
@@ -1035,7 +1357,12 @@ function dessinerBandeau(){
                    fond: 'var(--bandeau-bg)' };
 
   if(reduit){
-    zone.appendChild(bandeauReduit(lignes.length, teinte));
+    /* ⚠️ LA PASTILLE DIT « AUJOURD'HUI », ET ELLE DOIT DIRE VRAI.
+       Elle annonçait 47 « choses à voir aujourd'hui » alors que 45
+       d'entre elles n'étaient pas pour aujourd'hui : c'est ce
+       chiffre-là qui a fait refermer le bandeau et ne plus le
+       rouvrir. */
+    zone.appendChild(bandeauReduit(comptes.auj || 0, lignes.length, teinte));
     return;
   }
 
@@ -1045,6 +1372,11 @@ function dessinerBandeau(){
     'padding:10px 12px;margin-bottom:10px;';
 
   b.appendChild(enteteBandeau(lignes.length));
+
+  /* 🗂️ La barre des groupes — v1090, avant celle des familles : on
+     choisit d'abord QUAND, ensuite QUOI. */
+  const bg = barreGroupesBandeau(lignes);
+  if(bg) b.appendChild(bg);
 
   /* ⚠️ LE SOUS-ONGLET DU BANDEAU — v908.
 
@@ -1065,12 +1397,15 @@ function dessinerBandeau(){
      Il vit donc en mémoire, le temps de la page — et chaque
      ouverture repart de « Tout ». Ce qu'on veut éteindre POUR DE BON
      se décoche dans le ⚙️, où c'est un choix et non un oubli. */
-  const fams = famillesPresentes(lignes);
-  if(fams.length > 1) b.appendChild(barreFamillesBandeau(fams, lignes));
+  /* Les familles, elles, sont celles DU GROUPE ouvert : proposer
+     « 🤝 6 » sous « En attente » quand les six sont dans
+     « Aujourd'hui », c'est un bouton qui ne montre rien. */
+  const fams = famillesPresentes(duGroupe);
+  if(fams.length > 1) b.appendChild(barreFamillesBandeau(fams, duGroupe));
 
   const vues = (familleChoisieBandeau && fams.indexOf(familleChoisieBandeau) !== -1)
-    ? lignes.filter(l => l.famille === familleChoisieBandeau)
-    : lignes;
+    ? duGroupe.filter(l => l.famille === familleChoisieBandeau)
+    : duGroupe;
 
   /* Sous « Tout » : un titre par famille. Sous un filtre : la barre
      dit déjà de quoi on parle, un titre serait une redite. */
@@ -1171,14 +1506,23 @@ function titreFamilleBandeau(cle, combien, avecEspace){
   return t;
 }
 
-function bandeauReduit(combien, teinte){
+function bandeauReduit(aujourdhui, total, teinte){
+  /* ⚠️ « RIEN POUR AUJOURD'HUI » N'EST PAS « RIEN ». S'il ne reste
+     que des choses en attente, la pastille doit le dire — sinon elle
+     disparaîtrait, et trente lignes avec elle. */
+  const combien = aujourdhui;
   const p = document.createElement('button');
   p.className = 'btn btn-secondary';
   p.style.cssText = 'width:auto;margin:0 0 10px;padding:7px 13px;font-size:13px;' +
     'border-radius:999px;display:flex;align-items:center;gap:9px;' +
     'border-color:' + teinte.bord + ';background:' + teinte.fond + ';';
-  p.innerHTML = '<span>⚠️</span><span>' + combien + ' chose' +
-    (combien > 1 ? 's' : '') + ' à voir aujourd\'hui</span>' +
+  const reste = Math.max(0, Number(total || 0) - combien);
+  const phrase = combien
+    ? (combien + ' chose' + (combien > 1 ? 's' : '') + ' à voir aujourd\'hui')
+    : 'Rien pour aujourd\'hui';
+  p.innerHTML = '<span>' + (combien ? '⚠️' : '✅') + '</span><span>' + phrase +
+    (reste ? ' · <span style="color:var(--muted);">' + reste +
+             ' en attente</span>' : '') + '</span>' +
     '<span style="background:var(--orange);color:var(--on-accent);' +
     'font-weight:700;border-radius:999px;padding:1px 8px;font-size:12px;">' +
     combien + '</span><span style="font-size:11px;">▾</span>';
@@ -1197,8 +1541,12 @@ function enteteBandeau(combien){
 
   const titre = document.createElement('div');
   titre.style.cssText = 'flex:1;font-weight:700;font-size:13px;color:var(--cream);';
-  titre.textContent = combien + ' chose' + (combien > 1 ? 's' : '') +
-    ' à voir aujourd\'hui';
+  /* ⚠️ LE TITRE DIT LE TOTAL, LES GROUPES DISENT QUAND — v1090.
+     Laissé tel quel, il annonçait « 30 choses à voir AUJOURD'HUI »
+     au-dessus du groupe « En attente », c'est-à-dire exactement le
+     contraire de ce que le groupe disait. Un seul des deux peut
+     parler du jour. */
+  titre.textContent = combien + ' chose' + (combien > 1 ? 's' : '') + ' à voir';
   t.appendChild(titre);
 
   const reg = document.createElement('button');
@@ -1354,8 +1702,16 @@ async function barrerLigneBandeau(l, bouton){
        un seul endroit, et se défait au même endroit. */
     bouton.disabled = true;
     try{
-      await appelPrep({ action: 'notifMasquer', eleve: l.croixEleve,
-                        type: l.croixType, par: ACCES.moniteur || '' });
+      /* ⚠️ UNE LIGNE QUI EN REPRÉSENTE DEUX EN BARRE DEUX — v1090.
+         N'en barrer qu'une, c'est voir l'autre réapparaître seule au
+         prochain chargement, et la rebarrer tous les jours sans
+         comprendre pourquoi elle revient. */
+      const types = (l.croixTypes && l.croixTypes.length)
+        ? l.croixTypes : [l.croixType];
+      for(const t of types){
+        await appelPrep({ action: 'notifMasquer', eleve: l.croixEleve,
+                          type: t, par: ACCES.moniteur || '' });
+      }
       if(typeof chargerNotifsMasquees === 'function') await chargerNotifsMasquees(true);
       showToast('Barré ✅ — réaffichable dans 🔔 Alertes');
     }catch(e){
