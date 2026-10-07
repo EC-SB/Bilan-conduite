@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:10 — v1077 */
+/* Déployé le 08/10/2026 à 20:15 — v1081 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -23,7 +23,11 @@ CONFIG.MONITEURS_URL = CONFIG.WORKER_URL + '/moniteurs';
    redescend derrière un lien signé, appelé par une balise <video>
    qui ne sait présenter aucun code. */
 CONFIG.PARCOURS_MORCEAU_URL = CONFIG.WORKER_URL + '/parcours/morceau';
-CONFIG.VERSION_SCRIPT_ATTENDUE = 226;   /* voir apps-script.js */
+/* ⚠️ 234 DEPUIS L'ÉTAPE 1d : les six colonnes du bilan élève. Un
+   script plus ancien écrit 107 colonnes là où la feuille en attend
+   113 — et c'est la plus courte qui gagne. Mieux vaut l'alerte au
+   démarrage que cent fiches décalées en silence. */
+CONFIG.VERSION_SCRIPT_ATTENDUE = 234;   /* voir apps-script.js */
 
 /* Les pages publiques vivent dans le même dossier que
    l'application : leur adresse se déduit de la sienne. Écrire une
