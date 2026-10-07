@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 09:20 — v1074 */
+/* Déployé le 08/10/2026 à 11:10 — v1077 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -163,7 +163,7 @@ function dessinerLaListeMessagerie(){
     b.className = 'btn btn-secondary';
     b.style.cssText = 'margin-top:12px;padding:10px;font-size:13px;';
     b.textContent = '👥 Nouvelle conversation';
-    b.addEventListener('click', ecranNouvelleConversation);
+    b.addEventListener('click', () => ecranNouvelleConversation());
     zone.appendChild(b);
   }
 }
@@ -895,9 +895,15 @@ function barreDesActionsDuFil(f){
   const peutGerer = typeof aDroit !== 'function' ||
                     aDroit('messagerie_bureau') || aDroit('messagerie_admin');
 
+  /* ⚠️ « PARTICIPANTS », PAS « AJOUTER ». David, le 8 octobre :
+     « il faut que l'on puisse le rajouter et enlever à la main dans
+     des groupes ». Le bouton d'avant ne savait qu'ajouter, et il
+     demandait le nom au clavier — il ouvre maintenant le sélecteur,
+     où l'on voit qui est dedans et où l'on retire d'une croix. */
   if(peutGerer){
-    petit('➕ Ajouter quelqu’un',
-          'Son arrivée s’écrira dans le fil', () => ajouterAuFil(f));
+    petit('👥 Participants',
+          'Voir qui est dedans, ajouter, retirer',
+          () => ecranMembresDuFil(f));
   }
 
   petit('📤 Exporter', 'Le fil entier en texte, à copier', () => exporterLeFil(f));
@@ -915,28 +921,6 @@ function barreDesActionsDuFil(f){
   }
 
   return l;
-}
-
-async function ajouterAuFil(f){
-  const qui = await demander('Qui veux-tu ajouter ?\n\n' +
-    'Écris son nom exactement comme il figure dans l’outil.\n' +
-    'Son arrivée sera inscrite dans le fil.');
-  if(qui === null) return;
-  const nom = String(qui).trim();
-  if(nom.length < 2) return;
-
-  /* Un nom qui n'est ni un utilisateur ni un élève connu partirait
-     dans la base sans jamais pouvoir se connecter : on le dit
-     avant, pas après. */
-  const estUser = (typeof moniteursActifs !== 'undefined' &&
-                   Array.isArray(moniteursActifs))
-    ? moniteursActifs.some(m => normaliserMessagerie(m.nom || m) ===
-                                normaliserMessagerie(nom))
-    : true;
-
-  await appelPrep(Object.assign({ action: 'convMembres', id: f.conv.id },
-    estUser ? { users: JSON.stringify([nom]) } : { eleves: JSON.stringify([nom]) }));
-  await ouvrirLeFil(f.conv.id);
 }
 
 async function exporterLeFil(f){
@@ -957,15 +941,465 @@ async function exporterLeFil(f){
   }
 }
 
+/* ============================================================
+   👥 LE SÉLECTEUR DE PARTICIPANTS
+
+   David, le 8 octobre : « met moi des listes deroulantes pour
+   choisir avec qui on discute plutôt que des cases dans lesquel il
+   faut rentrer les noms au hasard ». Et : « il faut que l'on puisse
+   le rajouter et enlever à la main dans des groupes ».
+
+   ⚠️ CE N'ÉTAIT PAS UNE QUESTION DE LAIDEUR. L'écran d'avant
+   demandait un nom qui devait correspondre AU CARACTÈRE PRÈS, et ma
+   propre phrase d'aide l'avouait : « un nom approximatif ouvre une
+   conversation que personne ne retrouvera ». J'avais écrit un
+   avertissement là où il fallait un empêchement. Ici on ne peut
+   choisir qu'un nom qui existe — la faute devient impossible, et la
+   phrase d'aide disparaît avec elle.
+
+   ⚠️ UN SEUL SÉLECTEUR POUR LES DEUX ÉCRANS. Il sert à ouvrir une
+   conversation ET à modifier les participants d'un groupe déjà
+   ouvert. Deux copies, c'était deux listes à tenir d'accord, et la
+   deuxième aurait pris du retard dès la première correction.
+
+   ⚠️ UN GROUPE AJOUTÉ EST FIGÉ, et David l'a tranché : « il n'entre
+   pas tout seul il faut que l'on puisse le rajouter et enlever à la
+   main ». Le raccourci « examen du 14/10 » pose les six noms AU
+   MOMENT DU CLIC, et on les voit en pastilles. Un septième inscrit
+   la semaine suivante n'entre pas dans la conversation — c'est la
+   règle des accès élèves, dans l'autre sens : rien ne s'ouvre sans
+   qu'une main l'ait fait.
+   ============================================================ */
+
+/* Ce que le sélecteur tient pendant qu'on le remplit : deux listes
+   de NOMS, sans doublon, dans l'ordre d'ajout. */
+let choixUsers = [];
+let choixEleves = [];
+
+/* Les raccourcis de groupe, calculés une fois à l'ouverture de
+   l'écran : une session d'examen, une formation. Chacun porte ses
+   noms — c'est ce qui permet de poser six élèves d'un clic et de
+   les voir ensuite un par un. */
+let raccourcisEleves = [];
+
+function ajouterAuChoix(liste, nom){
+  const propre = String(nom || '').trim();
+  if(!propre) return false;
+  const cle = normaliserMessagerie(propre);
+  if(liste.some(x => normaliserMessagerie(x) === cle)) return false;
+  liste.push(propre);
+  return true;
+}
+
+function retirerDuChoix(liste, nom){
+  const cle = normaliserMessagerie(nom);
+  const i = liste.findIndex(x => normaliserMessagerie(x) === cle);
+  if(i >= 0) liste.splice(i, 1);
+}
+
+/* ------------------------------------------------------------
+   D'OÙ VIENNENT LES LISTES
+
+   ⚠️ COMPTES ET ÉLÈVES SONT DÉJÀ EN MÉMOIRE AU DÉMARRAGE. Les
+   proposer ne coûte rien. Les sessions d'examen, elles, ne sont
+   lues qu'en ouvrant 🎓 Suivi permis : on va les chercher une fois,
+   et seulement si on ne les a pas. Et si un chargement manque, on
+   ne bloque pas l'écran — on perd un raccourci, pas l'écran.
+
+   ⚠️ DEUX LISTES CÔTÉ SERVEUR, DEUX FORMES. « moniteursActifs »
+   est une liste de noms — ceux qui donnent des cours. « comptesActifs »
+   est une liste d'objets { nom, role, cours } — TOUT LE MONDE. On
+   veut tout le monde : le bureau n'enseigne pas et doit pouvoir
+   être mis dans un groupe.
+   ------------------------------------------------------------ */
+function lesComptesDeLEquipe(){
+  const vus = {};
+  const out = [];
+  const poser = n => {
+    const propre = String((n && n.nom) || n || '').trim();
+    if(!propre) return;
+    const cle = normaliserMessagerie(propre);
+    if(!cle || vus[cle]) return;
+    vus[cle] = true;
+    out.push(propre);
+  };
+  if(typeof comptesActifs !== 'undefined') (comptesActifs || []).forEach(poser);
+  if(typeof moniteursActifs !== 'undefined') (moniteursActifs || []).forEach(poser);
+  return out.sort((a, b) => a.localeCompare(b, 'fr'));
+}
+
+function tousLesElevesConnus(){
+  return (typeof elevesConnus !== 'undefined' ? (elevesConnus || []) : [])
+    .slice().sort((a, b) => String(a).localeCompare(String(b), 'fr'));
+}
+
+async function preparerLesListesDuSelecteur(){
+  /* Les comptes : sans eux la liste déroulante « Nous » serait vide
+     et on ne pourrait mettre personne. */
+  try{
+    if(!lesComptesDeLEquipe().length && typeof chargerMoniteurs === 'function'){
+      await chargerMoniteurs();
+    }
+  }catch(e){ /* on dessinera avec ce qu'on a */ }
+
+  /* Les élèves : c'est la liste qui VALIDE le nom tapé. Vide, elle
+     refuserait tous les noms — c'est le seul chargement dont on ne
+     peut pas se passer. */
+  try{
+    if(!tousLesElevesConnus().length && typeof chargerEleves === 'function'){
+      await chargerEleves();
+    }
+  }catch(e){ /* le champ dira « pas dans la liste » : c'est honnête */ }
+
+  raccourcisEleves = [];
+
+  /* Les sessions d'examen : chacune porte ses places, et chaque
+     place porte son élève — ou rien, si la place est vide. */
+  try{
+    if(typeof sessionsPermis === 'undefined' || !sessionsPermis.length){
+      if(typeof chargerSessionsPermis === 'function') await chargerSessionsPermis();
+    }
+    (typeof sessionsPermis !== 'undefined' ? (sessionsPermis || []) : []).forEach(s => {
+      const noms = (s.eleves || []).map(p => String((p && p.eleve) || '').trim())
+                                   .filter(Boolean);
+      if(!noms.length) return;
+      raccourcisEleves.push({
+        cle: 'session:' + s.id,
+        nom: '🎓 Examen du ' + jourCourtMessagerie(s.date) +
+             (s.centre ? ' — ' + s.centre : '') + ' (' + noms.length + ')',
+        noms: noms
+      });
+    });
+  }catch(e){ /* sessions injoignables : les formations suffiront */ }
+
+  /* Les formations : elles viennent des fiches du répertoire. */
+  try{
+    if(typeof fichesEleves !== 'undefined' && !fichesEleves.length &&
+       typeof chargerFiches === 'function'){
+      await chargerFiches();
+    }
+    const parFormation = {};
+    (typeof fichesEleves !== 'undefined' ? (fichesEleves || []) : []).forEach(f => {
+      const nom = String((f && f.eleve) || '').trim();
+      const fo = String((f && f.formation) || '').trim();
+      if(!nom || !fo) return;
+      (parFormation[fo] = parFormation[fo] || []).push(nom);
+    });
+    Object.keys(parFormation).sort((a, b) => a.localeCompare(b, 'fr')).forEach(fo => {
+      raccourcisEleves.push({
+        cle: 'formation:' + fo,
+        nom: '📚 ' + fo + ' (' + parFormation[fo].length + ')',
+        noms: parFormation[fo]
+      });
+    });
+  }catch(e){ /* répertoire non chargé : les sessions suffiront */ }
+
+  return raccourcisEleves;
+}
+
+function jourCourtMessagerie(iso){
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || '');
+}
+
+/* ------------------------------------------------------------
+   LE DESSIN
+
+   Deux blocs — « Nous » et « Les élèves » — qui ne diffèrent que
+   par ce qu'ils proposent. Le premier est une liste déroulante :
+   vous êtes cinq. Le second est un champ qui FILTRE : vous avez
+   deux cents élèves, et une liste déroulante de deux cents lignes
+   sur une tablette, c'est un ascenseur qu'on fait défiler au pouce
+   pendant dix secondes. David, le 8 octobre : « Oui le champ qui
+   filtre ».
+   ------------------------------------------------------------ */
+
+function blocChoixEquipe(surChangement){
+  const z = document.createElement('div');
+
+  const lab = document.createElement('label');
+  lab.setAttribute('for', 'msgElvQui');
+  lab.textContent = 'Nous';
+  z.appendChild(lab);
+
+  const sel = document.createElement('select');
+  sel.id = 'msgElvQui';
+  sel.style.cssText = 'margin-bottom:10px;';
+
+  const refaire = () => {
+    const restants = lesComptesDeLEquipe().filter(n =>
+      !choixUsers.some(x => normaliserMessagerie(x) === normaliserMessagerie(n)));
+    sel.innerHTML = '<option value="">＋ Ajouter quelqu’un de l’équipe…</option>' +
+      (restants.length > 1
+        ? '<option value="*">— Toute l’équipe (' + restants.length + ')</option>'
+        : '') +
+      restants.map(n => '<option value="' + echapper(n) + '">' +
+                        echapper(n) + '</option>').join('');
+    sel.disabled = !restants.length;
+  };
+  refaire();
+
+  sel.addEventListener('change', () => {
+    const v = sel.value;
+    sel.value = '';
+    if(!v) return;
+    /* ⚠️ « TOUTE L'ÉQUIPE » POSE LES NOMS, ELLE N'EST PAS UN GROUPE.
+       David l'a demandée — « Oui » — et elle suit la même règle que
+       les raccourcis d'élèves : les comptes entrent un par un,
+       visibles en pastilles, et se retirent un par un. Un « tout le
+       monde » qui resterait vivant ferait entrer le prochain
+       embauché dans des conversations d'il y a six mois. */
+    if(v === '*') lesComptesDeLEquipe().forEach(n => ajouterAuChoix(choixUsers, n));
+    else ajouterAuChoix(choixUsers, v);
+    refaire();
+    surChangement();
+  });
+  z.appendChild(sel);
+
+  const past = document.createElement('div');
+  past.id = 'msgElvPastillesQui';
+  z.appendChild(past);
+
+  z._refaire = refaire;
+  return z;
+}
+
+function blocChoixEleves(surChangement){
+  const z = document.createElement('div');
+
+  const lab = document.createElement('label');
+  lab.setAttribute('for', 'msgElvCherchEleve');
+  lab.textContent = 'Les élèves';
+  z.appendChild(lab);
+
+  /* ⚠️ LA MÊME LISTE QUE LE CHAMP « ÉLÈVE » DE L'ÉCRAN DE COURS.
+     « listeEleves » est le <datalist> que remplit chargerEleves :
+     tous les noms, déjà en mémoire du navigateur. On tape trois
+     lettres, la liste se réduit ; on ne peut donc pas inventer un
+     nom, et ça ne coûte aucun appel. */
+  const ch = document.createElement('input');
+  ch.type = 'text';
+  ch.id = 'msgElvCherchEleve';
+  ch.setAttribute('list', 'listeEleves');
+  ch.setAttribute('autocomplete', 'off');
+  ch.placeholder = '🔍 Tape trois lettres de son nom…';
+  ch.style.cssText = 'margin-bottom:10px;';
+
+  const poser = () => {
+    const nom = ch.value.trim();
+    if(!nom) return;
+    const exact = tousLesElevesConnus().find(x =>
+      normaliserMessagerie(x) === normaliserMessagerie(nom));
+    if(!exact){
+      /* On ne refuse pas sèchement : on dit ce qui ne va pas, et on
+         laisse ce qui est tapé pour qu'il puisse corriger. */
+      if(typeof showToast === 'function'){
+        showToast('« ' + nom + ' » n’est pas dans la liste des élèves.');
+      }
+      return;
+    }
+    ajouterAuChoix(choixEleves, exact);
+    ch.value = '';
+    surChangement();
+  };
+  ch.addEventListener('change', poser);
+  ch.addEventListener('keydown', ev => {
+    if(ev.key === 'Enter'){ ev.preventDefault(); poser(); }
+  });
+  z.appendChild(ch);
+
+  if(raccourcisEleves.length){
+    const sel = document.createElement('select');
+    sel.id = 'msgElvGroupes';
+    sel.style.cssText = 'margin-bottom:10px;';
+    sel.innerHTML = '<option value="">＋ Ajouter un groupe entier…</option>' +
+      raccourcisEleves.map(r => '<option value="' + echapper(r.cle) + '">' +
+                                echapper(r.nom) + '</option>').join('');
+    sel.addEventListener('change', () => {
+      const r = raccourcisEleves.find(x => x.cle === sel.value);
+      sel.value = '';
+      if(!r) return;
+      /* Les noms entrent UN PAR UN, et se voient. Le raccourci est
+         un geste, pas un lien : voir le ⚠️ en tête de ce bloc. */
+      r.noms.forEach(n => ajouterAuChoix(choixEleves, n));
+      surChangement();
+    });
+    z.appendChild(sel);
+  }
+
+  const past = document.createElement('div');
+  past.id = 'msgElvPastillesEleves';
+  z.appendChild(past);
+
+  return z;
+}
+
+/* Une pastille par personne choisie, avec sa croix. C'est le seul
+   endroit où l'on voit QUI sera dans la conversation — un compte
+   sans les noms ne se vérifie pas. */
+function dessinerLesPastilles(){
+  [[$('msgElvPastillesQui'), choixUsers, false],
+   [$('msgElvPastillesEleves'), choixEleves, true]
+  ].forEach(([zone, liste, estEleve]) => {
+    if(!zone) return;
+    zone.innerHTML = '';
+    zone.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;';
+
+    if(!liste.length){
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12.5px;color:var(--muted);font-style:italic;';
+      v.textContent = estEleve ? 'Aucun élève pour l’instant.'
+                               : 'Personne de l’équipe pour l’instant.';
+      zone.appendChild(v);
+      return;
+    }
+
+    liste.forEach(nom => {
+      const p = document.createElement('span');
+      /* ⚠️ --on-accent SUR UN FOND D'ACCENT, ET RIEN D'AUTRE.
+         La leçon est écrite en toutes lettres dans index.html depuis
+         la v915 — « Démarrer le cours » en blanc sur citron, 1,21:1
+         de contraste — et je l'ai refaite ici : les pastilles de
+         l'équipe héritaient du texte clair de la page sur un fond
+         --orange-soft, qui est un citron pâle dans LES DEUX thèmes.
+         --on-accent vaut #0B0B0B partout et ne veut dire qu'une
+         chose : le texte qu'on pose sur l'accent. */
+      p.style.cssText = 'display:inline-flex;align-items:center;gap:7px;' +
+        'padding:7px 11px;border-radius:999px;font-size:13px;font-family:inherit;' +
+        (estEleve
+          ? 'border:1px solid var(--line);background:transparent;color:var(--cream);'
+          : 'border:1px solid var(--orange);background:var(--orange-soft);' +
+            'color:var(--on-accent);font-weight:700;');
+      p.appendChild(document.createTextNode(nom));
+
+      const x = document.createElement('span');
+      x.textContent = '✕';
+      x.title = 'Retirer';
+      x.style.cssText = 'font-weight:700;cursor:pointer;font-size:14px;line-height:1;' +
+        'opacity:.6;' + (estEleve ? 'color:var(--cream);' : 'color:var(--on-accent);');
+      x.addEventListener('click', () => {
+        retirerDuChoix(liste, nom);
+        dessinerLesPastilles();
+        majAvisDeLaConversation();
+        const zq = $('msgElvQui');
+        if(zq && zq.parentNode && zq.parentNode._refaire) zq.parentNode._refaire();
+      });
+      p.appendChild(x);
+      zone.appendChild(p);
+    });
+  });
+
+  const c = $('msgElvCompte');
+  if(c){
+    const bouts = [];
+    if(choixEleves.length) bouts.push(choixEleves.length + ' élève' +
+                                      (choixEleves.length > 1 ? 's' : ''));
+    if(choixUsers.length) bouts.push(choixUsers.length + ' de l’équipe');
+    c.textContent = bouts.join(' · ');
+  }
+}
+
 /* ------------------------------------------------------------
    OUVRIR UNE CONVERSATION
    ------------------------------------------------------------ */
 
-function ecranNouvelleConversation(){
+/* Le fil dont on modifie les participants. Null quand on en ouvre
+   un neuf — c'est ce qui distingue les deux usages du même écran. */
+let filEnModification = null;
+
+/* ⚠️ UN JETON, PAS UNE COMPARAISON D'ÉTAT. L'écran attend les
+   listes avant de se dessiner ; pendant cette attente, un clic
+   ailleurs peut avoir peint autre chose dans la même zone. On
+   compte les tours : si le nôtre n'est plus le dernier, on ne
+   repeint pas par-dessus ce qui est arrivé après nous. */
+let tourDesParticipants = 0;
+
+async function ecranNouvelleConversation(){
+  filEnModification = null;
+  choixUsers = [];
+  choixEleves = [];
+
+  /* Celui qui ouvre est dedans : un groupe créé et pas rejoint est
+     un groupe qu'on ne verra jamais se remplir. */
+  ajouterAuChoix(choixUsers, (typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+
+  await dessinerEcranParticipants({
+    titre: '👥 Nouvelle conversation',
+    avecSorte: true,
+    bouton: '👥 Ouvrir la conversation',
+    faire: creerUnGroupe
+  });
+}
+
+/* ------------------------------------------------------------
+   MODIFIER LES PARTICIPANTS D'UN FIL EXISTANT
+
+   David, le 8 octobre : « il faut que l'on puisse le rajouter et
+   enlever à la main dans des groupes ».
+
+   ⚠️ C'EST LE MÊME ÉCRAN, ET C'EST VOULU. Il y avait ici une
+   fenêtre qui demandait d'écrire un nom au clavier — la même faute
+   que l'écran de création, au même endroit du geste. Deux écrans
+   pour choisir des gens, c'était deux occasions de se tromper de
+   nom ; il n'y en a plus qu'un.
+   ------------------------------------------------------------ */
+async function ecranMembresDuFil(f){
+  if(!f || !f.conv) return;
+  filEnModification = f;
+
+  /* On part de l'existant : on ajoute, on retire, et on enregistre
+     la liste telle qu'on la voit. */
+  choixUsers = (f.membres || []).filter(m => m.genre === 'user').map(m => m.qui);
+  choixEleves = (f.membres || []).filter(m => m.genre === 'eleve').map(m => m.qui);
+
+  await dessinerEcranParticipants({
+    titre: '👥 Participants — ' +
+           titreDuFil(Object.assign({}, f.conv, { membres: f.membres })),
+    avecSorte: false,
+    avecBoite: (f.membres || []).some(m => m.genre === 'boite'),
+    bouton: '💾 Enregistrer les participants',
+    faire: enregistrerLesParticipants
+  });
+}
+
+async function dessinerEcranParticipants(opt){
   const zone = zoneDeLaMessagerie();
   if(!zone) return;
+
+  /* Le fil au moment du dessin : le bouton ← doit revenir là d'où
+     l'on vient, même si la variable change entre-temps. */
+  const depuis = filEnModification;
+  const tour = ++tourDesParticipants;
+
+  /* ⚠️ ON ÉTEINT LE BATTEMENT DU FIL, ET ON LÂCHE LE FIL OUVERT.
+
+     Sans ça, l'écran des participants vivait quatre secondes : le
+     sondage de « veillerLeFil » rappelait « dessinerLeFil », qui
+     repeint la MÊME zone, et la liste déroulante disparaissait sous
+     le fil au milieu d'un choix. Lâcher « filOuvertEC » est l'autre
+     moitié de la même précaution : « afficherMessagerie » et
+     « rafraichirLeFil » le relisent tous les deux pour décider s'ils
+     ont le droit de repeindre. On le rouvre proprement au retour. */
+  arreterLaVeilleDuFil();
+  filOuvertEC = null;
+
+  zone.innerHTML = (typeof htmlAttente === 'function')
+    ? htmlAttente('Lecture des listes…')
+    : '<div class="empty">Lecture des listes…</div>';
+
+  /* Les comptes, les élèves, les sessions et les formations — une
+     fois, AVANT de dessiner : une liste déroulante qui se remplit
+     après coup fait choisir dans le vide. */
+  try{ await preparerLesListesDuSelecteur(); }
+  catch(e){ raccourcisEleves = []; }
+
+  /* L'écran a pu changer pendant l'attente (il a refermé le tiroir,
+     ouvert un fil) : on ne repeint pas par-dessus. */
+  if(tour !== tourDesParticipants || zoneDeLaMessagerie() !== zone) return;
+
   zone.innerHTML = '';
 
+  /* --- l'en-tête --- */
   const tete = document.createElement('div');
   tete.style.cssText = 'display:flex;gap:10px;align-items:center;' +
     'padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;';
@@ -973,52 +1407,72 @@ function ecranNouvelleConversation(){
   retour.className = 'btn btn-secondary';
   retour.style.cssText = 'width:auto;margin:0;padding:8px 12px;font-size:14px;';
   retour.textContent = '←';
-  retour.addEventListener('click', () => afficherMessagerie(true));
+  retour.addEventListener('click', () => {
+    if(depuis && depuis.conv){ ouvrirLeFil(depuis.conv.id); return; }
+    /* ⚠️ ON REVIENT À LA LISTE, PAS À UNE RECHERCHE À MOITIÉ
+       EFFACÉE. « dessinerLaListeMessagerie » s'arrête net quand un
+       mot cherché traîne encore — c'est ce qui protège les
+       trouvailles du battement de 90 secondes. Vu d'ici, ça laissait
+       l'écran des participants en place : le ← ne faisait rien.
+       Revenir en arrière, c'est sortir de la recherche aussi. */
+    chercheMessagerie = '';
+    afficherMessagerie(true);
+  });
   tete.appendChild(retour);
   const t = document.createElement('div');
   t.style.cssText = 'flex:1;min-width:0;font-size:15px;font-weight:800;';
-  t.textContent = '👥 Nouvelle conversation';
+  t.textContent = opt.titre;
   tete.appendChild(t);
   zone.appendChild(tete);
 
-  const form = document.createElement('div');
-  form.innerHTML =
-    '<label for="msgElvGenre">Quelle sorte</label>' +
-    '<select id="msgElvGenre">' +
-      '<option value="interne">🏠 Entre nous — entre utilisateurs de l’outil</option>' +
-      '<option value="groupe">👥 Groupe — élèves et utilisateurs mélangés</option>' +
-      '<option value="bureau">🏢 Avec un élève, au nom du bureau</option>' +
-    '</select>' +
-    '<div id="msgElvZoneTitre">' +
-      '<label for="msgElvTitre">Nom du groupe</label>' +
-      '<input type="text" id="msgElvTitre" placeholder="Ex : Permis du 14 octobre">' +
-    '</div>' +
-    '<div id="msgElvZoneMode">' +
-      '<label>Comment ça marche</label>' +
-      '<label style="display:flex;align-items:center;gap:9px;font-size:13.5px;' +
-        'text-transform:none;letter-spacing:normal;color:var(--cream);' +
-        'margin-bottom:7px;cursor:pointer;">' +
-        '<input type="radio" name="msgElvMode" value="discussion" checked ' +
-          'style="width:19px;height:19px;flex-shrink:0;margin:0;">' +
-        '<span>💬 Discussion — tout le monde écrit et se voit</span></label>' +
-      '<label style="display:flex;align-items:center;gap:9px;font-size:13.5px;' +
-        'text-transform:none;letter-spacing:normal;color:var(--cream);' +
-        'margin-bottom:12px;cursor:pointer;">' +
-        '<input type="radio" name="msgElvMode" value="annonce" ' +
-          'style="width:19px;height:19px;flex-shrink:0;margin:0;">' +
-        '<span>📣 Annonce — seule l’école écrit ; les élèves ne se voient ' +
-          'pas entre eux</span></label>' +
-    '</div>' +
-    '<label for="msgElvUsers">Nous — un nom par ligne</label>' +
-    '<textarea id="msgElvUsers" rows="3" placeholder="Maryne&#10;Erika"></textarea>' +
-    '<label for="msgElvEleves">Les élèves — un nom par ligne</label>' +
-    '<textarea id="msgElvEleves" rows="4" ' +
-      'placeholder="Henedi Ahmed&#10;Lucie Morvan"></textarea>' +
-    '<div class="hint">Écris les noms exactement comme ils figurent dans l’outil : ' +
-      'le nom est la clé du dossier, et un nom approximatif ouvre une conversation ' +
-      'que personne ne retrouvera.</div>';
-  zone.appendChild(form);
+  /* --- la sorte, le nom du groupe, le mode --- */
+  if(opt.avecSorte){
+    const h = document.createElement('div');
+    h.innerHTML =
+      '<label for="msgElvGenre">Quelle sorte</label>' +
+      '<select id="msgElvGenre">' +
+        '<option value="groupe">👥 Un groupe — élèves et collègues mélangés</option>' +
+        '<option value="interne">🏠 Entre nous — entre utilisateurs de l’outil</option>' +
+        '<option value="bureau">🏢 Avec un élève, au nom du bureau</option>' +
+      '</select>' +
+      '<div id="msgElvZoneTitre">' +
+        '<label for="msgElvTitre">Nom du groupe</label>' +
+        '<input type="text" id="msgElvTitre" placeholder="Ex : Permis du 14 octobre">' +
+      '</div>' +
+      '<div id="msgElvZoneMode">' +
+        '<label>Comment ça marche</label>' +
+        '<div id="msgElvModes" style="display:flex;gap:7px;margin-bottom:14px;' +
+             'flex-wrap:wrap;"></div>' +
+      '</div>';
+    zone.appendChild(h);
+    poserLesModes();
+  }
 
+  /* --- les deux sélecteurs --- */
+  const bouger = () => { dessinerLesPastilles(); majAvisDeLaConversation(); };
+  zone.appendChild(blocChoixEquipe(bouger));
+  zone.appendChild(blocChoixEleves(bouger));
+
+  const cpt = document.createElement('div');
+  cpt.id = 'msgElvCompte';
+  cpt.style.cssText = 'font-size:11.5px;color:var(--muted);margin:-6px 0 12px;';
+  zone.appendChild(cpt);
+
+  /* ⚠️ LA BOÎTE DU BUREAU NE SE RETIRE PAS D'ICI. Elle n'est pas
+     une personne : c'est un droit. La retirer à la main ferait
+     croire qu'on a fermé une porte que le droit « Boîte du bureau »
+     réouvre aussitôt. */
+  if(opt.avecBoite){
+    const b = document.createElement('div');
+    b.style.cssText = 'font-size:12px;color:var(--muted);margin:0 0 12px;' +
+      'line-height:1.5;';
+    b.textContent = '🏢 La boîte du bureau fait partie de cette conversation. ' +
+      'Elle ne se retire pas d’ici : c’est le droit « Boîte du bureau » qui ' +
+      'décide qui en est.';
+    zone.appendChild(b);
+  }
+
+  /* --- l'avertissement --- */
   const avis = document.createElement('div');
   avis.id = 'msgElvAvis';
   avis.style.cssText = 'font-size:12.5px;line-height:1.55;padding:11px 13px;' +
@@ -1026,78 +1480,214 @@ function ecranNouvelleConversation(){
     'color:var(--muted);';
   zone.appendChild(avis);
 
+  /* --- le bouton --- */
   const b = document.createElement('button');
   b.className = 'btn btn-primary';
-  b.textContent = '👥 Ouvrir la conversation';
-  b.addEventListener('click', () => creerUnGroupe(b));
+  b.id = 'msgElvValider';
+  b.textContent = opt.bouton;
+  b.addEventListener('click', () => opt.faire(b));
   zone.appendChild(b);
 
-  const majAvis = () => {
-    const genre = $('msgElvGenre').value;
-    const mode = (document.querySelector('input[name="msgElvMode"]:checked') || {}).value;
-    const combien = lignesDuChamp('msgElvEleves').length;
-    $('msgElvZoneTitre').style.display = (genre === 'groupe') ? '' : 'none';
-    $('msgElvZoneMode').style.display = (genre === 'interne') ? 'none' : '';
-    /* ⚠️ CE QUE LES ÉLÈVES VERRONT LES UNS DES AUTRES SE DIT AU
-       MOMENT OÙ ON DÉCIDE, pas dans une documentation. Dans un
-       groupe en discussion, chaque élève apprend le nom et la
-       présence des autres. Ça se fait très bien — mais ça se
-       choisit. */
-    avis.textContent = (genre !== 'interne' && mode === 'discussion' && combien > 1)
-      ? 'En mode discussion, ces ' + combien + ' élèves verront les noms et les ' +
-        'messages des autres élèves du groupe. En mode annonce, non.'
-      : (genre === 'interne'
-          ? 'Entre nous : aucun élève n’y a accès.'
-          : 'Le bureau fait partie de la conversation : elle ne disparaît pas ' +
-            'avec la personne qui l’ouvre.');
-  };
-  $('msgElvGenre').addEventListener('change', majAvis);
-  document.querySelectorAll('input[name="msgElvMode"]').forEach(
-    r => r.addEventListener('change', majAvis));
-  $('msgElvEleves').addEventListener('input', majAvis);
-  majAvis();
+  if(opt.avecSorte){
+    $('msgElvGenre').addEventListener('change', () => {
+      poserLesModes();
+      majAvisDeLaConversation();
+    });
+  }
+
+  dessinerLesPastilles();
+  majAvisDeLaConversation();
 }
 
-function lignesDuChamp(id){
-  const z = $(id);
-  if(!z) return [];
-  return z.value.split('\n').map(x => x.trim()).filter(Boolean);
+/* Deux boutons plutôt que deux ronds à cocher : c'est la forme de
+   tous les autres choix de l'outil, et elle se vise au doigt. */
+let modeChoisi = 'discussion';
+
+function poserLesModes(){
+  const z = $('msgElvModes');
+  const zt = $('msgElvZoneTitre');
+  const zm = $('msgElvZoneMode');
+  const genre = $('msgElvGenre') ? $('msgElvGenre').value : 'groupe';
+
+  if(zt) zt.style.display = (genre === 'groupe') ? '' : 'none';
+  if(zm) zm.style.display = (genre === 'interne') ? 'none' : '';
+  if(!z) return;
+
+  /* Entre nous, « annonce » n'a pas de sens : personne à qui
+     interdire la parole. */
+  if(genre === 'interne') modeChoisi = 'discussion';
+
+  z.innerHTML = '';
+  [['discussion', '💬 Discussion', 'tout le monde écrit et se voit'],
+   ['annonce', '📣 Annonce', 'seule l’école écrit ; les élèves ne se voient pas']
+  ].forEach(([cle, nom, fin]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const on = (modeChoisi === cle);
+    /* ⚠️ LE BOUTON NON CHOISI PORTE LA CLASSE DE LA MAISON, pas un
+       fond posé à la main. « btn-secondary » dit déjà transparent +
+       liseré + --cream, dans les deux thèmes, et c'est la forme de
+       tous les autres choix de l'outil. Le bouton choisi, lui, prend
+       l'accent — et sur l'accent on écrit en --on-accent, jamais en
+       --cream : c'est la leçon de la v915, écrite dans index.html,
+       que je venais de refaire ici. */
+    b.className = on ? '' : 'btn btn-secondary';
+    /* « display:block », parce que .btn est un flex centré : sans
+       lui, le bouton non choisi posait sa phrase d'explication À
+       CÔTÉ du titre, et les deux boutons n'avaient plus la même
+       forme. */
+    b.style.cssText = 'display:block;flex:1 1 180px;width:auto;margin:0;' +
+      'padding:11px 13px;font-size:13px;border-radius:10px;font-family:inherit;' +
+      'font-weight:700;cursor:pointer;text-align:left;' +
+      (on ? 'background:var(--orange-soft);border:1px solid var(--orange);' +
+            'color:var(--on-accent);'
+          : '');
+    b.innerHTML = echapper(nom) +
+      '<span style="display:block;font-size:11px;font-weight:400;margin-top:2px;' +
+      'line-height:1.4;' +
+      (on ? 'color:var(--on-accent);opacity:.72;' : 'color:var(--muted);') +
+      '">' + echapper(fin) + '</span>';
+    b.addEventListener('click', () => {
+      modeChoisi = cle;
+      poserLesModes();
+      majAvisDeLaConversation();
+    });
+    z.appendChild(b);
+  });
+}
+
+/* ⚠️ CE QUE LES ÉLÈVES VERRONT LES UNS DES AUTRES SE DIT AU MOMENT
+   OÙ ON DÉCIDE, pas dans une documentation. Dans un groupe en
+   discussion, chaque élève apprend le nom et la présence des
+   autres. Ça se fait très bien — mais ça se choisit. */
+function majAvisDeLaConversation(){
+  const z = $('msgElvAvis');
+  if(!z) return;
+
+  const genre = $('msgElvGenre') ? $('msgElvGenre').value
+              : ((filEnModification && filEnModification.conv.genre) || 'groupe');
+  const mode = filEnModification ? (filEnModification.conv.mode || 'discussion')
+                                 : modeChoisi;
+
+  if(genre === 'interne'){
+    z.textContent = 'Entre nous : aucun élève n’y a accès.';
+    return;
+  }
+  if(choixEleves.length > 1 && mode === 'discussion'){
+    z.textContent = 'En mode discussion, ces ' + choixEleves.length +
+      ' élèves verront les noms et les messages des autres élèves du groupe. ' +
+      'En mode annonce, non.';
+    return;
+  }
+  if(choixEleves.length > 1 && mode === 'annonce'){
+    z.textContent = 'En mode annonce, ces ' + choixEleves.length +
+      ' élèves ne se voient pas entre eux et ne peuvent pas répondre.';
+    return;
+  }
+  z.textContent = filEnModification
+    ? 'Les arrivées et les départs s’inscrivent dans le fil : personne n’entre ' +
+      'en silence dans une conversation déjà commencée.'
+    : 'Le bureau fait partie de la conversation : elle ne disparaît pas avec ' +
+      'la personne qui l’ouvre.';
 }
 
 async function creerUnGroupe(bouton){
   const genre = $('msgElvGenre').value;
   const titre = (($('msgElvTitre') || {}).value || '').trim();
-  const mode = (document.querySelector('input[name="msgElvMode"]:checked') || {}).value;
-  const users = lignesDuChamp('msgElvUsers');
-  const eleves = lignesDuChamp('msgElvEleves');
 
   if(genre === 'groupe' && titre.length < 2){
     if(typeof showToast === 'function') showToast('Donne un nom au groupe.');
     return;
   }
-  if(genre === 'bureau' && eleves.length !== 1){
+  if(genre === 'bureau' && choixEleves.length !== 1){
     if(typeof showToast === 'function'){
       showToast('Une conversation au nom du bureau porte sur UN élève.');
     }
     return;
   }
-  if(!eleves.length && users.length < 1){
-    if(typeof showToast === 'function') showToast('Il faut au moins un participant.');
+  if(genre === 'interne' && choixUsers.length < 2){
+    if(typeof showToast === 'function'){
+      showToast('Ajoute au moins une deuxième personne de l’équipe.');
+    }
+    return;
+  }
+  if(genre !== 'interne' && !choixEleves.length){
+    if(typeof showToast === 'function') showToast('Ajoute au moins un élève.');
     return;
   }
 
   if(bouton){ bouton.disabled = true; bouton.textContent = 'Ouverture…'; }
   try{
     const d = await appelPrep({
-      action: 'convCreer', genre: genre, mode: mode, titre: titre,
-      users: JSON.stringify(users), eleves: JSON.stringify(eleves),
+      action: 'convCreer', genre: genre, mode: modeChoisi, titre: titre,
+      users: JSON.stringify(choixUsers), eleves: JSON.stringify(choixEleves),
       avecBureau: (genre !== 'interne') ? '1' : ''
     });
     conversationsEC = [];
+    filEnModification = null;
     await ouvrirLeFil(d.id);
   }catch(e){
     if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e));
-    if(bouton){ bouton.disabled = false; bouton.textContent = '👥 Ouvrir la conversation'; }
+    if(bouton){
+      bouton.disabled = false;
+      bouton.textContent = '👥 Ouvrir la conversation';
+    }
+  }
+}
+
+/* ⚠️ ON ENVOIE LA DIFFÉRENCE, PAS LA LISTE. Le serveur sait ajouter
+   et retirer ; lui envoyer la liste entière l'obligerait à deviner
+   qui est parti, et une ligne de système « untel rejoint la
+   conversation » apparaîtrait à chaque enregistrement pour des gens
+   déjà là depuis trois mois. */
+async function enregistrerLesParticipants(bouton){
+  const f = filEnModification;
+  if(!f || !f.conv) return;
+
+  const avantUsers = (f.membres || []).filter(m => m.genre === 'user').map(m => m.qui);
+  const avantEleves = (f.membres || []).filter(m => m.genre === 'eleve').map(m => m.qui);
+  const dans = (liste, nom) =>
+    liste.some(x => normaliserMessagerie(x) === normaliserMessagerie(nom));
+
+  const usersAjoutes = choixUsers.filter(n => !dans(avantUsers, n));
+  const elevesAjoutes = choixEleves.filter(n => !dans(avantEleves, n));
+  const retires = avantUsers.filter(n => !dans(choixUsers, n))
+    .concat(avantEleves.filter(n => !dans(choixEleves, n)));
+
+  if(!usersAjoutes.length && !elevesAjoutes.length && !retires.length){
+    if(typeof showToast === 'function') showToast('Rien n’a changé.');
+    await ouvrirLeFil(f.conv.id);
+    return;
+  }
+
+  /* ⚠️ UNE CONVERSATION SANS PERSONNE N'EST PLUS LISIBLE PAR
+     PERSONNE. La boîte du bureau et la supervision la rouvriraient,
+     mais le moniteur qui se retire lui-même en dernier perdrait
+     l'accès sans l'avoir demandé : on le dit avant. */
+  if(!choixUsers.length && !choixEleves.length){
+    if(typeof showToast === 'function'){
+      showToast('Il faut laisser au moins une personne dans la conversation.');
+    }
+    return;
+  }
+
+  if(bouton){ bouton.disabled = true; bouton.textContent = 'Enregistrement…'; }
+  try{
+    await appelPrep({
+      action: 'convMembres', id: f.conv.id,
+      users: JSON.stringify(usersAjoutes),
+      eleves: JSON.stringify(elevesAjoutes),
+      retirer: JSON.stringify(retires)
+    });
+    conversationsEC = [];
+    filEnModification = null;
+    await ouvrirLeFil(f.conv.id);
+  }catch(e){
+    if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e));
+    if(bouton){
+      bouton.disabled = false;
+      bouton.textContent = '💾 Enregistrer les participants';
+    }
   }
 }
 
