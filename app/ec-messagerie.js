@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:20 — v1078 */
+/* Déployé le 08/10/2026 à 17:05 — v1079 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -249,8 +249,24 @@ function ligneConversation(c){
 
 /* Le titre se compose, il ne se lit pas : un élève renommé doit
    voir son nouveau nom sur l'ancien fil. */
+/* ⚠️ LE TITRE EST CELUI DE L'AUTRE, JAMAIS LE MIEN — v1079.
+
+   David, capture à l'appui : « David ↔ Hery », et juste dessous
+   « David, Hery ». Son propre nom, deux fois, dans sa propre
+   conversation. Sa réponse du 8 octobre : « oui l'autre personne ».
+
+   Le défaut venait de la dernière ligne, qui joignait TOUS les
+   membres sans savoir qui lisait. */
 function titreDuFil(c){
   if(c.titre) return c.titre;
+  if(c.genre === 'interne'){
+    const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+    const autres = (c.membres || []).filter(x => x.genre === 'user' &&
+      normaliserMessagerie(x.qui) !== moi).map(x => x.qui);
+    /* Seul dans un fil « entre nous » — tous les autres en sont
+       sortis : on ne rend pas une chaîne vide, on le dit. */
+    return autres.length ? autres.join(', ') : 'Conversation (seul)';
+  }
   if(c.genre === 'bureau')   return (c.eleve || '?') + ' ↔ le bureau';
   if(c.genre === 'moniteur'){
     const m = (c.membres || []).filter(x => x.genre === 'user')
@@ -504,11 +520,15 @@ function dessinerLeFil(){
   const c = f.conv || {};
 
   zone.innerHTML = '';
+  /* ⚠️ C'EST LE CODE QUI DIT « ÉTROIT », PAS LA FEUILLE DE STYLE.
+     Le tiroir fait 400 px sur un écran de 1 400 : une requête de
+     média sur la fenêtre y afficherait la rangée d'actions qui n'y
+     tient pas. */
+  zone.classList.toggle('msgEtroit', dansLeTiroir());
 
   /* --- l'en-tête --- */
   const tete = document.createElement('div');
-  tete.style.cssText = 'display:flex;gap:10px;align-items:center;flex-wrap:wrap;' +
-    'padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:12px;';
+  tete.className = 'msgTete';
 
   const retour = document.createElement('button');
   retour.className = 'btn btn-secondary';
@@ -518,20 +538,43 @@ function dessinerLeFil(){
   retour.addEventListener('click', fermerLeFil);
   tete.appendChild(retour);
 
-  const titres = document.createElement('div');
-  titres.style.cssText = 'flex:1;min-width:0;';
-  titres.innerHTML =
-    '<div style="font-size:15px;font-weight:800;">' +
-      echapper(titreDuFil(Object.assign({}, c, { membres: f.membres }))) + '</div>' +
-    '<div style="font-size:11.5px;color:var(--muted);">' +
-      echapper(phraseDesMembres(f)) + '</div>';
-  tete.appendChild(titres);
+  const rond = rondDuFil(f);
+  const r = document.createElement('div');
+  r.className = 'msgRond' + (rond.gris ? ' gris' : '');
+  r.textContent = rond.texte;
+  tete.appendChild(r);
+
+  const noms = document.createElement('div');
+  noms.className = 'msgNoms';
+  const na = document.createElement('div');
+  na.className = 'a';
+  na.textContent = titreDuFilCourt(f);
+  const nb = document.createElement('div');
+  nb.className = 'b';
+  nb.textContent = sousTitreDuFil(f);
+  noms.appendChild(na);
+  noms.appendChild(nb);
+  tete.appendChild(noms);
+
+  /* Le ⋯ et son menu : les mêmes actions que la rangée, construites
+     une seule fois par barreDesActionsDuFil. */
+  const boite = document.createElement('div');
+  boite.className = 'msgMenuBoite';
+  const pts = document.createElement('button');
+  pts.className = 'msgPts';
+  pts.type = 'button';
+  pts.textContent = '⋯';
+  pts.title = 'Participants, exporter, fermer';
+  pts.addEventListener('click', ev => { ev.stopPropagation(); basculerLeMenuDuFil(boite, f); });
+  boite.appendChild(pts);
+  tete.appendChild(boite);
+
   zone.appendChild(tete);
 
   if(f.enSupervision){
     const s = document.createElement('div');
     s.className = 'hint';
-    s.style.cssText = 'font-size:12px;color:var(--warn-text);line-height:1.5;margin:0 0 12px;';
+    s.style.cssText = 'font-size:12px;color:var(--warn-text);line-height:1.5;margin:10px 0 0;';
     s.textContent = '🔒 Tu lis en supervision : tu n’es pas dans cette ' +
       'conversation, et cette lecture est inscrite au journal. Pour y répondre, ' +
       'ajoute-toi — ton arrivée s’écrira dans le fil.';
@@ -541,9 +584,7 @@ function dessinerLeFil(){
   /* --- le fil --- */
   const fil = document.createElement('div');
   fil.id = 'msgElvFil';
-  fil.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
-    'background:var(--navy);padding:12px;margin-bottom:12px;' +
-    'max-height:52vh;overflow-y:auto;';
+  fil.className = 'msgFil';
 
   if(f.encore){
     const plus = document.createElement('button');
@@ -555,22 +596,31 @@ function dessinerLeFil(){
     fil.appendChild(plus);
   }
 
+  /* ⚠️ LE GROUPEMENT SE DÉCIDE SUR TROIS MESSAGES À LA FOIS : le
+     précédent dit s'il faut répéter la signature, le suivant dit
+     s'il faut poser la pointe et l'heure. Trois messages d'affilée
+     ne font plus trois pavés identiques. */
+  const msgs = (f.messages || []);
   let jourPose = '';
-  (f.messages || []).forEach(m => {
+  msgs.forEach((m, i) => {
     const jour = String(m.envoyeLe || '').slice(0, 10);
-    if(jour && jour !== jourPose){
+    const neuf = jour && jour !== jourPose;
+    if(neuf){
       jourPose = jour;
       const j = document.createElement('div');
-      j.style.cssText = 'text-align:center;font-size:10.5px;letter-spacing:.07em;' +
-        'text-transform:uppercase;color:var(--muted);font-weight:700;margin:6px 0 10px;';
-      j.textContent = jourLisibleMessagerie(jour);
+      j.className = 'msgJour';
+      j.innerHTML = '<span></span>';
+      j.firstChild.textContent = jourLisibleMessagerie(jour);
       fil.appendChild(j);
     }
-    fil.appendChild(bulleDuMessage(m));
+    const avant = neuf ? null : (msgs[i - 1] || null);
+    const apres = msgs[i + 1] || null;
+    fil.appendChild(bulleDuMessage(m, avant,
+      (apres && String(apres.envoyeLe || '').slice(0, 10) === jour) ? apres : null));
     if(Number(m.rang || 0) > rangLuEC) rangLuEC = Number(m.rang || 0);
   });
 
-  if(!(f.messages || []).length){
+  if(!msgs.length){
     const v = document.createElement('div');
     v.className = 'empty';
     v.textContent = 'Rien d’écrit encore. Le premier message est pour toi.';
@@ -585,7 +635,7 @@ function dessinerLeFil(){
     normaliserMessagerie(x.qui) !== normaliserMessagerie(ACCES.moniteur || ''));
   if(lus.length){
     const l = document.createElement('div');
-    l.style.cssText = 'font-size:11.5px;color:var(--muted);margin:-6px 0 12px;';
+    l.className = 'msgLu';
     l.textContent = '✅ Lu par ' + lus.map(x => x.qui).join(', ');
     zone.appendChild(l);
   }
@@ -612,6 +662,119 @@ function dessinerLeFil(){
     else fil.scrollTop = fil.scrollHeight;
   }, 0);
 }
+
+/* ⚠️ LE ROND N'EST PAS UNE DÉCORATION : c'est ce qui permet de
+   reconnaître un fil sans lire son titre, et de distinguer d'un
+   coup d'œil un élève d'un collègue dans la liste. Une initiale
+   pour une personne, l'emoji du genre pour tout le reste. */
+function rondDuFil(f){
+  const c = (f && f.conv) || {};
+  if(c.genre === 'groupe')   return { texte: '👥', gris: true };
+  if(c.genre === 'bureau')   return { texte: '🏢', gris: true };
+  if(c.genre === 'retard')   return { texte: '⏰', gris: true };
+  if(c.genre === 'annul')    return { texte: '🚫', gris: true };
+  if(c.genre === 'oubli')    return { texte: '🧤', gris: true };
+
+  const lettre = String(titreDuFilCourt(f) || '?').trim().charAt(0).toUpperCase() || '?';
+  /* Le citron pour quelqu'un de l'équipe, le gris pour un élève :
+     la couleur de la maison reste celle de la maison. */
+  return { texte: lettre, gris: c.genre === 'moniteur' };
+}
+
+/* ⚠️ LE NOM COURT EST POUR L'EN-TÊTE, PAS POUR LA LISTE. Dans la
+   liste, « Henedi Ahmed ↔ le bureau » distingue d'un coup d'œil le
+   fil du bureau de celui de son moniteur. Dans l'en-tête, la nature
+   est écrite juste en dessous : la répéter dans le titre, c'est la
+   faute qu'on vient de corriger, dans l'autre sens. */
+function titreDuFilCourt(f){
+  const c = (f && f.conv) || {};
+  if(c.titre) return c.titre;
+  if((c.genre === 'bureau' || c.genre === 'moniteur') && c.eleve) return c.eleve;
+  return titreDuFil(Object.assign({}, c, { membres: (f && f.membres) || [] }));
+}
+
+/* La nature du fil, sous son nom. Elle remplace la liste des
+   membres qui répétait le titre mot pour mot — et dans une
+   conversation à deux, répétait AUSSI le nom de celui qui lit. */
+function sousTitreDuFil(f){
+  const c = (f && f.conv) || {};
+  const m = (f && f.membres) || [];
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  const autres = m.filter(x => x.genre === 'user' &&
+                               normaliserMessagerie(x.qui) !== moi).map(x => x.qui);
+  const el = m.filter(x => x.genre === 'eleve').map(x => x.qui);
+  const boite = m.some(x => x.genre === 'boite');
+  const annonce = (c.mode === 'annonce') ? 'mode annonce' : '';
+
+  if(c.genre === 'interne'){
+    return ['Entre nous', autres.length > 1 ? autres.join(', ') : ''].filter(Boolean)
+      .join(' · ');
+  }
+  if(c.genre === 'bureau'){
+    return ['Au nom du bureau', autres.length ? autres.join(', ') : '', annonce]
+      .filter(Boolean).join(' · ');
+  }
+  if(c.genre === 'moniteur'){
+    return ['Avec ' + (autres.join(', ') || 'toi'), boite ? 'et le bureau' : '']
+      .filter(Boolean).join(' · ');
+  }
+  if(c.genre === 'groupe'){
+    return [el.length ? (el.length > 3 ? el.length + ' élèves' : el.join(', ')) : '',
+            autres.join(', '), boite ? 'le bureau' : '', annonce]
+      .filter(Boolean).join(' · ');
+  }
+  /* Les fils d'action rapide : leur titre porte déjà le cours, le
+     sous-titre porte l'élève et qui est prévenu. */
+  return [c.eleve || '', autres.join(', '), boite ? 'le bureau' : '']
+    .filter(Boolean).join(' · ');
+}
+
+/* ------------------------------------------------------------
+   LE MENU ⋯
+
+   ⚠️ IL NE REFAIT PAS LES ACTIONS, IL LES DÉPLACE. barreDesActionsDuFil
+   reste la seule à décider ce qui existe et qui y a droit ; le menu
+   reprend ses boutons tels quels. Deux listes d'actions, c'en est
+   une qui prendrait du retard sur l'autre dès la correction
+   suivante — et dans une messagerie, « Fermer » qui existe ici et
+   pas là est le genre d'écart qu'on découvre un jour de litige.
+   ------------------------------------------------------------ */
+let fermerMenuDuFil = null;
+
+function basculerLeMenuDuFil(boite, f){
+  if(fermerMenuDuFil){
+    const etait = boite.querySelector('.msgMenu');
+    fermerMenuDuFil();
+    if(etait) return;
+  }
+
+  const menu = document.createElement('div');
+  menu.className = 'msgMenu';
+  /* Les boutons de la rangée, repris un par un : même libellé,
+     même titre, même action. */
+  Array.prototype.slice.call(barreDesActionsDuFil(f).children).forEach(b => {
+    b.className = '';
+    b.removeAttribute('style');
+    menu.appendChild(b);
+  });
+  if(!menu.children.length) return;
+  menu.addEventListener('click', () => fermerMenuDuFil && fermerMenuDuFil());
+  boite.appendChild(menu);
+
+  const dehors = () => fermerMenuDuFil && fermerMenuDuFil();
+  const echap = ev => { if(ev.key === 'Escape') dehors(); };
+  fermerMenuDuFil = () => {
+    document.removeEventListener('click', dehors);
+    document.removeEventListener('keydown', echap);
+    if(menu.parentNode) menu.parentNode.removeChild(menu);
+    fermerMenuDuFil = null;
+  };
+  setTimeout(() => {
+    document.addEventListener('click', dehors);
+    document.addEventListener('keydown', echap);
+  }, 0);
+}
+
 
 function phraseDesMembres(f){
   const m = f.membres || [];
@@ -645,55 +808,85 @@ function jourLisibleMessagerie(jour){
    UNE BULLE
    ------------------------------------------------------------ */
 
-function bulleDuMessage(m){
+function bulleDuMessage(m, avant, apres){
   const moi = normaliserMessagerie(ACCES.moniteur || '');
   const sienne = (m.auteurGenre !== 'systeme') &&
                  normaliserMessagerie(m.auteur) === moi;
 
-  const b = document.createElement('div');
-  b.setAttribute('data-rang', String(m.rang || 0));
-
   /* ⚠️ UNE LIGNE DE SYSTÈME N'EST PAS UNE BULLE. Arrivée de
      quelqu'un, départ, changement d'état d'un objet oublié : la
      conversation raconte ce qui s'est passé, et personne ne le
-     saisit deux fois. Elle se distingue par son pointillé — qu'elle
-     ressemble à un message rendrait les deux douteux. */
+     saisit deux fois. Qu'elle ressemble à un message rendrait les
+     deux douteux. */
   if(m.auteurGenre === 'systeme'){
-    b.style.cssText = 'max-width:100%;border:1px dashed var(--line);border-radius:14px;' +
-      'padding:7px 12px;margin-bottom:9px;font-size:12.5px;color:var(--muted);' +
-      'text-align:center;';
-    b.textContent = m.texte + (m.auteur ? ' — ' + m.auteur : '');
-    return b;
+    const s = document.createElement('div');
+    s.className = 'msgSys';
+    s.setAttribute('data-rang', String(m.rang || 0));
+    const d = document.createElement('span');
+    d.textContent = m.texte +
+      (m.auteur ? ' — ' + m.auteur : '') +
+      (m.envoyeLe ? ' · ' + String(m.envoyeLe).slice(11) : '');
+    s.appendChild(d);
+    return s;
   }
 
-  b.style.cssText = 'max-width:82%;border-radius:14px;padding:9px 12px;' +
-    'margin-bottom:9px;font-size:14px;line-height:1.55;white-space:pre-wrap;' +
-    'word-break:break-word;' +
-    (sienne
-      ? 'background:var(--orange-soft);border:1px solid var(--orange);margin-left:auto;'
-      : 'background:var(--navy-deep);border:1px solid var(--line);margin-right:auto;');
+  /* Deux messages se suivent quand ils sont du même auteur, du même
+     côté, et qu'aucune ligne de système ne s'est glissée entre eux :
+     une arrivée au milieu coupe la suite, et c'est juste — ce qui
+     est dit avant et après n'a pas le même public. */
+  const memeQue = (x) => !!x && x.auteurGenre !== 'systeme' &&
+    normaliserMessagerie(x.auteur) === normaliserMessagerie(m.auteur) &&
+    x.auteurGenre === m.auteurGenre;
+  const suite = memeQue(avant);
+  const encore = memeQue(apres);
 
-  let h = '';
-  /* La signature n'est pas sur ses propres bulles : il sait qui il
-     est, et la répéter vole une ligne sur un téléphone. */
-  if(!sienne){
-    h += '<span style="display:block;font-size:10.5px;color:var(--muted);' +
-         'margin-bottom:3px;font-weight:700;">' + echapper(m.auteur || '') +
-         (m.auteurGenre === 'eleve' ? ' · élève' : '') + '</span>';
+  const ligne = document.createElement('div');
+  ligne.className = 'msgRang' + (sienne ? ' moi' : '') + (encore ? '' : ' fin');
+  ligne.setAttribute('data-rang', String(m.rang || 0));
+
+  const b = document.createElement('div');
+  b.className = 'msgB' + (sienne ? ' moi' : ' lui') +
+                (suite ? ' suite' : '') + (encore ? '' : ' pointe');
+
+  /* La signature ne se répète pas dans une suite, et jamais sur ses
+     propres bulles : il sait qui il est, et la répéter vole une
+     ligne sur un téléphone. */
+  if(!sienne && !suite){
+    const sig = document.createElement('span');
+    sig.className = 'sig';
+    sig.textContent = (m.auteur || '') + (m.auteurGenre === 'eleve' ? ' · élève' : '');
+    b.appendChild(sig);
   }
   if(m.motif && GENRES_MESSAGERIE[m.motif]){
-    h += '<span style="display:block;font-size:10.5px;color:var(--warn-text);' +
-         'margin-bottom:3px;font-weight:800;">' +
-         GENRES_MESSAGERIE[m.motif].rond + ' ' +
-         echapper(GENRES_MESSAGERIE[m.motif].quoi) + '</span>';
+    const mo = document.createElement('span');
+    mo.className = 'motif';
+    mo.textContent = GENRES_MESSAGERIE[m.motif].rond + ' ' +
+                     GENRES_MESSAGERIE[m.motif].quoi;
+    b.appendChild(mo);
   }
-  h += echapper(m.texte || '');
-  h += '<span style="display:block;font-size:10.5px;color:var(--muted);' +
-       'margin-top:4px;text-align:right;">' +
-       echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
 
-  b.innerHTML = h;
-  return b;
+  b.appendChild(document.createTextNode(m.texte || ''));
+
+  /* ⚠️ L'HEURE EST POSÉE APRÈS LE TEXTE, et c'est ce qui la met au
+     bout de la DERNIÈRE ligne. Un flottant rencontré après trois
+     lignes de texte se range sur la troisième s'il y tient, et sur
+     une quatrième sinon — jamais sur la première. Posée avant, elle
+     se collait en haut à droite de la bulle, à côté du début de la
+     phrase, ce qui se lit comme une étiquette et pas comme une
+     heure d'envoi.
+
+     Seule la dernière d'une suite la porte : trois heures à la
+     minute près sur trois lignes consécutives ne disent rien de
+     plus qu'une seule. */
+  if(!encore){
+    const h = document.createElement('span');
+    h.className = 'h';
+    h.textContent = String(m.envoyeLe || '').slice(11) || m.envoyeLe || '';
+    b.appendChild(h);
+  }
+
+  ligne.appendChild(b);
+  return ligne;
 }
 
 function normaliserMessagerie(v){
@@ -707,36 +900,56 @@ function normaliserMessagerie(v){
 
 function zoneDEcritureDuFil(id){
   const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:8px;align-items:flex-end;';
+  l.className = 'msgBarre';
 
   const t = document.createElement('textarea');
   t.id = 'msgElvTexte';
-  t.rows = 2;
+  t.rows = 1;
   t.placeholder = 'Écris ton message…';
   t.value = brouillonsMessagerie[id] || '';
-  t.style.cssText = 'flex:1;min-width:0;margin:0;resize:vertical;';
-  /* Ce qu'on a tapé sans envoyer survit au redessin du battement :
-     perdre trois lignes parce qu'un message est arrivé pendant
-     qu'on écrivait serait la première chose qu'on reprocherait à
-     cette messagerie. */
-  t.addEventListener('input', () => { brouillonsMessagerie[id] = t.value; });
+  l.appendChild(t);
+
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.id = 'msgElvEnvoyer';
+  b.className = 'msgEnv';
+  b.textContent = '➤';
+  b.title = 'Envoyer (Ctrl + Entrée)';
+  b.addEventListener('click', ecrireDansLeFil);
+  l.appendChild(b);
+
+  /* ⚠️ LE CHAMP GRANDIT, IL NE DÉFILE PAS. Deux lignes figées
+     obligeaient à faire défiler un message de cinq lignes dans une
+     fenêtre de deux — on ne relit pas ce qu'on vient d'écrire, et
+     c'est comme ça qu'on envoie une phrase coupée. Au-delà de six
+     lignes (140 px, posés dans la feuille de style), c'est le champ
+     qui défile : plus haut, le fil disparaîtrait de l'écran. */
+  const ajuster = () => {
+    t.style.height = 'auto';
+    /* ⚠️ UN PLANCHER, PARCE QUE « scrollHeight » PEUT VALOIR ZÉRO.
+       Sur un élément qui n'a pas encore sa mise en page — le tiroir
+       qui s'ouvre, l'onglet caché, un redessin déclenché avant
+       l'affichage — il rend 0, et le champ se refermait sur
+       lui-même : une barre vide où l'on ne pouvait plus écrire.
+       Une ligne au minimum, six au maximum. */
+    t.style.height = Math.max(36, Math.min(t.scrollHeight, 140)) + 'px';
+    b.classList.toggle('eteint', !t.value.trim());
+  };
+
+  t.addEventListener('input', () => {
+    brouillonsMessagerie[id] = t.value;
+    ajuster();
+  });
   t.addEventListener('keydown', ev => {
     if(ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)){
       ev.preventDefault();
       ecrireDansLeFil();
     }
   });
-  l.appendChild(t);
 
-  const b = document.createElement('button');
-  b.className = 'btn btn-primary';
-  b.id = 'msgElvEnvoyer';
-  b.style.cssText = 'width:auto;flex:0 0 auto;margin:0;padding:12px 16px;';
-  b.textContent = '📨';
-  b.title = 'Envoyer (Ctrl + Entrée)';
-  b.addEventListener('click', ecrireDansLeFil);
-  l.appendChild(b);
-
+  /* La hauteur se calcule sur un élément posé dans la page :
+     « scrollHeight » vaut zéro tant qu'il n'y est pas. */
+  setTimeout(ajuster, 0);
   return l;
 }
 
@@ -872,9 +1085,14 @@ async function marquerLuLeFil(){
    ------------------------------------------------------------ */
 
 function barreDesActionsDuFil(f){
+  /* ⚠️ LA CLASSE, PAS UN STYLE EN LIGNE — v1079. C'est elle qui
+     décide « rangée sur écran large, cachée ailleurs », et c'est
+     aussi elle que le banc lit pour vérifier que le menu ⋯ porte
+     exactement les mêmes actions. Un style en ligne aurait gagné
+     contre la requête de média et la rangée serait restée visible
+     dans le tiroir de 400 px. */
   const l = document.createElement('div');
-  l.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;' +
-    'padding-top:10px;border-top:1px solid var(--line);';
+  l.className = 'msgActions';
 
   const petit = (libelle, titre, faire) => {
     const b = document.createElement('button');
@@ -1841,10 +2059,6 @@ async function compterLaMessagerie(){
   }
   if(typeof ACCES === 'undefined' || !ACCES.code) return;
 
-  /* Les objets voyagent sur le même battement : voir la note en
-     tête de compterLesObjets. */
-  compterLesObjets();
-
   try{
     const d = await appelPrep({ action: 'convList' });
     conversationsEC = (d && d.conversations) || [];
@@ -1852,6 +2066,64 @@ async function compterLaMessagerie(){
     if(typeof poserCompteVue === 'function') poserCompteVue('messagerie', n);
     poserPastilleMessagerie(n);
   }catch(e){ /* la pastille attendra le prochain passage */ }
+}
+
+/* ============================================================
+   ⏱️ « J'AI 2 MINUTES AVANT D'AVOIR LA NOTIFICATION » — v1079
+
+   David, le 8 octobre. Il a raison et le chiffre est exact : le
+   compteur voyageait sur le SEUL battement de 90 secondes du
+   bureau, qui porte aussi des lectures du classeur. Deux messages
+   reçus coup sur coup pouvaient donc attendre une minute et demie,
+   et davantage si l'onglet venait d'être masqué.
+
+   ⚠️ UN BATTEMENT À LUI, PARCE QU'IL NE COÛTE PAS LA MÊME CHOSE.
+   Celui de 90 secondes interroge le classeur, dont les soixante
+   lectures par minute sont partagées par toute l'école. Celui-ci ne
+   touche que D1 : une requête qui lit une poignée de lignes, sur un
+   quota de cinq millions par jour. Vingt-cinq secondes y tiennent
+   sans discussion — et les objets oubliés, eux, restent sur les
+   90 secondes : une écharpe ne se retrouve pas trois fois par
+   minute.
+
+   ⚠️ ET SURTOUT : ON RECOMPTE EN REVENANT DEVANT L'ÉCRAN. C'est le
+   vrai moment où il regarde. Une tablette posée sur son support
+   pendant un cours ne compte rien du tout — « document.hidden » —
+   et retrouve son chiffre à la seconde où on la reprend. C'est ce
+   qui fait passer « deux minutes » à « tout de suite », bien plus
+   que le raccourcissement du battement.
+
+   L'étape 2 (le Durable Object) supprimera les deux : le fil ouvert
+   recevra au lieu de demander. D'ici là, voilà ce qu'on peut faire
+   sans rien dépenser.
+   ============================================================ */
+const PAS_COMPTE_MESSAGERIE = 25000;
+let battementCompteMessagerie = null;
+let dernierCompteMessagerie = 0;
+
+async function compterSiBesoin(force){
+  const t = Date.now();
+  /* Un retour d'écran suit souvent un clic : sans ce garde-fou,
+     reprendre la tablette lancerait trois appels d'affilée. */
+  if(!force && t - dernierCompteMessagerie < 5000) return;
+  dernierCompteMessagerie = t;
+  await compterLaMessagerie();
+}
+
+function veillerLeCompteMessagerie(){
+  if(battementCompteMessagerie) return;
+  battementCompteMessagerie = setInterval(() => {
+    if(document.hidden) return;
+    if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
+    /* Un fil ouvert a déjà son battement de quatre secondes : le
+       doubler serait payer deux fois la même information. */
+    if(unFilEstOuvert() && veilleDuFilEnCours()) return;
+    compterSiBesoin(true);
+  }, PAS_COMPTE_MESSAGERIE);
+
+  const revenu = () => { if(!document.hidden) compterSiBesoin(false); };
+  document.addEventListener('visibilitychange', revenu);
+  window.addEventListener('focus', revenu);
 }
 
 /* ⚠️ LE BOUTON RESTE, LA PASTILLE PART — v1074.
@@ -2201,6 +2473,23 @@ function brancherLeTiroirMessagerie(){
   if(v) v.addEventListener('click', fermerTiroirMessagerie);
   const g = $('msgElvGrand');
   if(g) g.addEventListener('click', ouvrirLaMessagerieEnGrand);
+
+  /* ⚠️ ÉCRIRE SE FAIT DEPUIS LE TIROIR — v1079.
+
+     David : « dans la barre latérale quand on appuie en haut il faut
+     que l'on puisse ouvrir une nouvelle discussion rapidement ».
+
+     J'avais écrit en v1074 que « chercher et créer sont des gestes
+     qu'on fait assis » et retiré le bouton du tiroir. C'était une
+     décision de trop : on ouvre le tiroir justement parce qu'on veut
+     écrire à quelqu'un. Le bouton remonte donc dans l'en-tête, où il
+     ne coûte aucune place à la liste, et il est le seul des trois à
+     porter l'accent — les deux autres referment ou déplacent ce
+     qu'on regarde, celui-ci fait quelque chose de neuf. */
+  const n = $('msgElvNeuf');
+  if(n) n.addEventListener('click', () => ecranNouvelleConversation());
+
+  veillerLeCompteMessagerie();
 
   /* Échap referme : c'est le geste qu'on fait sans y penser devant
      un panneau qui s'est ouvert par-dessus. */
