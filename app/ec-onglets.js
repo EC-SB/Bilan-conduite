@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 09:20 — v1074 */
+/* Déployé le 08/10/2026 à 15:20 — v1078 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -363,11 +363,14 @@ const VUES = {
      pour accueillir un rail de dix boutons. Les objets oubliés
      (étape 1c) viendront s'y ranger à côté.
 
-     ⚠️ UN ONGLET À UNE SEULE VUE N'EST PAS UNE ERREUR ICI. La règle
-     du projet dit qu'un droit ne doit pas mener nulle part ; elle ne
-     dit pas qu'un onglet doit avoir plusieurs écrans. Celui-ci en
-     aura deux dans quelques jours. */
-  messagerie: [['messagerie', '💬 Conversations', 'messagerie', 'Écrire']]
+     ⚠️ LA DEUXIÈME VUE EST ARRIVÉE — v1078, étape 1c. Les objets
+     oubliés sont une LISTE AVEC UN ÉTAT, pas une conversation : les
+     laisser dans le fil des messages, c'était les perdre au bout de
+     trois jours sous les retards du matin. Son droit est
+     « messagerie_bureau » et pas « messagerie » : décider qu'une
+     écharpe est rendue engage l'école. */
+  messagerie: [['messagerie', '💬 Conversations',    'messagerie',        'Écrire'],
+               ['oublis',     '🧤 Objets oubliés',   'messagerie_bureau', 'Écrire']]
 };
 
 /* ============================================================
@@ -1796,6 +1799,12 @@ function reveillerVue(cle){
        arrivé pendant l'absence : afficherMessagerie relit, et
        rouvre le fil s'il y en avait un. */
     messagerie: () => (typeof afficherMessagerie === 'function') && afficherMessagerie(),
+    /* Une vue branchée nulle part reste sur « Chargement… » pour
+       toujours. Celle-ci relit à chaque arrivée : un objet rendu
+       par quelqu'un d'autre il y a deux minutes doit avoir disparu
+       de l'écran quand on y revient. */
+    oublis:     () => (typeof afficherObjetsOublies === 'function') &&
+                      afficherObjetsOublies(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
     /* Une vue branchée nulle part reste sur « Chargement… » pour
