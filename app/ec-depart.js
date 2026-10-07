@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 20:40 — v1068 */
+/* Déployé le 07/10/2026 à 19:40 — v1071 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2150,7 +2150,15 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
      apparaître ». Ils n'attendent rien d'autre : une seule lecture,
      déjà filtrée par le classeur. Le reste du bandeau se réveille à
      4,2 s comme avant, et se pose en dessous. */
+  /* ⚠️ LA MESSAGERIE SE COMPTE AVANT QUE LE BANDEAU NE LA LISE —
+     v1071. Le bandeau et la mention « ⏰ sera en retard » relisent
+     tous les deux « conversationsEC » sans rien redemander au
+     serveur. Encore faut-il que quelqu'un l'ait rempli : sans cette
+     ligne, la première journée n'affichait ses messages qu'au
+     premier battement de 90 secondes. Posée à 2,2 s, donc avant le
+     bandeau de 4,2 s. */
   [[600,  'reveillerMessagesDuBandeau'],
+   [2200, 'compterLaMessagerie'],
    [2500, 'verifierAPrevoirEnFond'],
    [3200, 'chargerProcEnFond'],
    [3200, 'compterTachesEnFond'],
