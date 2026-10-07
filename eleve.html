@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 09/10/2026 à 00:40 — v1084 -->
+<!-- Déployé le 09/10/2026 à 16:30 — v1086 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -527,12 +527,98 @@
               margin-top:4px; text-align:right; }
   .bulle.eux{ background:var(--navy-deep); border:1px solid var(--line);
               margin-right:auto; }
+  /* ⚠️ « --on-accent » SUR UN FOND D'ACCENT, JAMAIS « --cream ».
+
+     C'est la leçon de la v915, et elle dormait ici depuis le premier
+     jour : cette bulle n'avait pas de couleur de texte du tout, donc
+     elle héritait de --cream. En mode clair --cream est presque noir
+     et personne n'a rien vu ; en mode sombre il vaut #F4F4F4, posé
+     sur un citron pâle — l'élève ne relit plus ce qu'il a écrit.
+     David garde le mode sombre « pour l'hiver » : c'est le genre de
+     panne qui serait apparue en janvier, sans que rien n'ait changé
+     entre-temps. */
   .bulle.moi{ background:var(--orange-soft); border:1px solid var(--orange);
-              margin-left:auto; }
+              color:var(--on-accent); margin-left:auto; }
+  .bulle.moi .sig, .bulle.moi .hh{ color:var(--on-accent); opacity:.6; }
+  .bulle.eux .motif{ color:var(--warn-text); opacity:1; }
+  .bulle.moi .motif{ color:var(--on-accent); opacity:.75; }
   .bulle.systeme{
     max-width:100%; background:transparent; border:1px dashed var(--line);
     color:var(--muted); font-size:12.5px; text-align:center;
   }
+  /* 😊 Les réactions — v1086.
+
+     ⚠️ SOUS LA BULLE, PAS DESSUS. Messenger pose la pastille à cheval
+     sur le bord ; sur une bulle d'une seule ligne elle recouvre le
+     texte, et un téléphone tenu à bout de bras ne pardonne pas. */
+  .bulle{ position:relative; }
+  /* ⚠️ MÊME CREUX QUE CÔTÉ BUREAU : l'heure est en bas à droite, la
+     pastille à cheval sur le même bord. Sans ces dix-huit pixels,
+     elle recouvre l'heure dès que le texte remplit la largeur — et
+     sur un téléphone, le texte remplit toujours la largeur. */
+  .bulle.aReac{ margin-bottom:17px; padding-bottom:20px; }
+  .bulle.vise{ outline:2px solid var(--orange); outline-offset:2px; }
+  .reacs{
+    position:absolute; bottom:-11px; display:flex; gap:3px; pointer-events:none;
+  }
+  .bulle.eux .reacs{ left:9px; }
+  .bulle.moi .reacs{ right:9px; }
+  .reac{
+    display:inline-flex; align-items:center; gap:3px;
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:999px; padding:1px 7px; font-size:12px; line-height:1.5;
+    color:var(--cream); white-space:nowrap;
+  }
+  .reac b{ font-size:10.5px; font-weight:800; color:var(--muted); }
+  .reac.mien{ border-color:var(--orange); background:var(--orange-soft);
+              color:var(--on-accent); }
+  .reac.mien b{ color:var(--on-accent); opacity:.65; }
+
+  /* Le sélecteur prend sa propre ligne, rangé du côté de la bulle
+     visée : posé à côté, il pousserait la bulle hors de l'écran. */
+  .reacChoix{
+    display:flex; gap:2px; width:max-content; margin:0 auto 5px 0;
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:999px; padding:4px 5px;
+    box-shadow:0 8px 22px rgba(0,0,0,.25);
+  }
+  .reacChoix.moi{ margin:0 0 5px auto; }
+  .reacChoix button{
+    border:none; background:transparent; cursor:pointer; margin:0; padding:0;
+    width:40px; height:40px; border-radius:50%; font-size:21px; line-height:1;
+  }
+  .reacChoix button.on{ background:var(--orange-soft); }
+
+  /* Le panneau des émoticônes */
+  .emoBoite{
+    border:1px solid var(--line); border-radius:14px; background:var(--navy-deep);
+    padding:8px; margin-bottom:10px;
+  }
+  .emoFam{
+    display:flex; gap:4px; padding-bottom:7px; margin-bottom:6px;
+    border-bottom:1px solid var(--line);
+  }
+  .emoFam button{
+    border:none; background:transparent; cursor:pointer; margin:0; padding:0;
+    width:36px; height:32px; border-radius:9px; font-size:17px; line-height:1;
+  }
+  .emoFam button.on{ background:var(--orange-soft); }
+  .emoGrille{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(40px, 1fr));
+    gap:1px; max-height:160px; overflow-y:auto;
+  }
+  .emoGrille button{
+    border:none; background:transparent; cursor:pointer; margin:0; padding:0;
+    height:40px; border-radius:9px; font-size:21px; line-height:1;
+  }
+  .emoOutil{
+    flex:0 0 auto; width:42px; height:42px; border-radius:50%;
+    border:1px solid var(--line); background:transparent;
+    font-size:19px; cursor:pointer; padding:0; margin:0;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .emoOutil.on{ background:var(--orange-soft); border-color:var(--orange); }
+
   .zoneEcrire{ display:flex; gap:8px; align-items:flex-end; }
   .zoneEcrire textarea{ margin:0; }
   .zoneEcrire button{ width:auto; flex:0 0 auto; margin:0; padding:12px 15px; }
@@ -2679,6 +2765,8 @@
        écran qu'on vient de quitter, c'est la batterie d'un téléphone
        dépensée pour rien. */
     couperDirectEl();
+    fermerLeSelecteurEl();
+    fermerLesEmojiEl();
     filEl = null;
     $('zoneEcrireEcole').innerHTML = '';
     $('cartesEcrireEcole').classList.remove('cache');
@@ -2726,6 +2814,13 @@
 
   function dessinerFilEleve(){
     if(!filEl || !filEl.conv) return;
+    /* ⚠️ CE QUI FLOTTE MEURT AVEC LE DESSIN — v1086. Le sélecteur et
+       le panneau vivent dans la zone qu'on va remplacer : sans ça
+       leurs variables pointeraient sur des éléments détachés, et le
+       prochain clic sur 🙂 croirait le panneau ouvert alors qu'il
+       n'est plus nulle part. */
+    fermerLeSelecteurEl();
+    fermerLesEmojiEl();
     var c = filEl.conv;
     var id = c.id;
 
@@ -2758,6 +2853,8 @@
 
     if(filEl.peutEcrire){
       h += '<div class="zoneEcrire">' +
+        '<button type="button" class="emoOutil" id="btFilEmo" ' +
+          'title="Émoticônes">🙂</button>' +
         '<textarea id="chFilTexte" rows="2" placeholder="Écris ton message…">' +
           echapper(brouillonsEl[id] || '') + '</textarea>' +
         '<button type="button" class="btn btn-primary" id="btFilEnvoyer">📨</button>' +
@@ -2778,10 +2875,30 @@
       /* Ce qu'il a tapé sans envoyer survit au battement : perdre
          trois lignes parce qu'une réponse est arrivée pendant qu'on
          écrivait, c'est la première chose qu'on nous reprocherait. */
-      t.addEventListener('input', function(){ brouillonsEl[id] = t.value; });
+      t.addEventListener('input', function(){
+        brouillonsEl[id] = t.value;
+        majBoutonEnvoiEl();
+      });
     }
     var b = $('btFilEnvoyer');
-    if(b) b.addEventListener('click', envoyerDansLeFil);
+    /* 👍 LE POUCE — v1086. Ce n'est pas un bouton de plus : c'est
+       celui-ci qui change de visage tant qu'il n'y a rien à envoyer.
+       Sur un téléphone, un bouton de plus c'est une ligne de texte en
+       moins. */
+    if(b) b.addEventListener('click', function(){
+      var c = $('chFilTexte');
+      if(c && c.value.trim()) envoyerDansLeFil();
+      else envoyerLePouceEl();
+    });
+    var e = $('btFilEmo');
+    if(e) e.addEventListener('click', function(ev){
+      /* Sans ça le clic remonte au document et referme le panneau
+         dans la foulée de son ouverture. */
+      ev.stopPropagation();
+      basculerLesEmojiEl();
+    });
+    majBoutonEnvoiEl();
+    brancherLesReactionsEl();
     var p = $('btPlusVieux');
     if(p) p.addEventListener('click', function(){ chargerPlusVieux(p); });
 
@@ -2794,12 +2911,23 @@
       return '<div class="bulle systeme">' + echapper(m.texte) + '</div>';
     }
     var mien = (m.de === 'moi');
-    var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + '">';
+    /* ⚠️ LA BULLE PORTE SON IDENTIFIANT — v1086. Pour réagir à un
+       message il faut savoir lequel ; et c'est aussi par là que
+       l'appui long se branche après le dessin. */
+    var aReac = (m.reacs || []).length ? ' aReac' : '';
+    var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + aReac +
+            '" data-msg="' + echapper(m.id || '') + '">';
     if(!mien && m.auteur){
       h += '<span class="sig">' + echapper(m.auteur) + '</span>';
     }
     if(m.motif && RONDS_FIL[m.motif]){
-      h += '<span class="sig" style="color:var(--warn-text);">' +
+      /* ⚠️ LA COULEUR SE DÉCIDE DANS LA FEUILLE, PAS ICI — v1086. En
+         ligne, elle gagnait contre la règle qui habille sa propre
+         bulle : le motif restait rose pâle sur le citron de l'élève,
+         illisible en mode sombre. Même correction que la bulle
+         elle-même, et c'est exactement ce que fait déjà l'écran du
+         bureau. */
+      h += '<span class="sig motif">' +
            RONDS_FIL[m.motif] + ' ' +
            ({ retard:'Retard annoncé', annul:'Annulation demandée',
               oubli:'Objet oublié' }[m.motif] || '') + '</span>';
@@ -2807,6 +2935,7 @@
     h += echapper(m.texte || '');
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
+    h += pastillesEl(m);
     return h + '</div>';
   }
 
@@ -2850,6 +2979,285 @@
         bouton.textContent = '↑ Messages plus anciens';
       });
   }
+
+  /* ============================================================
+     😊 RÉACTIONS, ÉMOTICÔNES ET POUCE — v1086
+
+     David, le 9 octobre. Mêmes gestes que côté bureau, mais ici tout
+     se passe sur un téléphone tenu à une main : l'appui long est le
+     seul geste disponible, et le panneau d'émoticônes ne doit pas
+     manger l'écran.
+
+     ⚠️ L'ÉLÈVE NE VOIT PAS QUI A RÉAGI. Le serveur ne lui rend que
+     l'emoji et « est-ce la mienne ». Dans un groupe en mode annonce
+     il ne connaît pas les autres élèves : lui rendre les noms par
+     les pastilles, ce serait lui rendre par la fenêtre la liste
+     qu'on lui cache à la porte.
+     ============================================================ */
+
+  var REACTIONS_EL = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+  /* On groupe par emoji : six pouces font « 👍 6 », pas six pastilles. */
+  function groupeReacEl(liste){
+    var ordre = [], par = {};
+    (liste || []).forEach(function(x){
+      var e = x && x.emoji;
+      if(!e) return;
+      if(!par[e]){ par[e] = { emoji:e, combien:0, mien:false }; ordre.push(e); }
+      par[e].combien++;
+      if(x.mien) par[e].mien = true;
+    });
+    return ordre.map(function(e){ return par[e]; });
+  }
+
+  function pastillesEl(m){
+    var g = groupeReacEl(m && m.reacs);
+    if(!g.length) return '';
+    return '<span class="reacs">' + g.map(function(x){
+      return '<span class="reac' + (x.mien ? ' mien' : '') + '">' +
+        echapper(x.emoji) +
+        (x.combien > 1 ? '<b>' + x.combien + '</b>' : '') + '</span>';
+    }).join('') + '</span>';
+  }
+
+  /* ------------------------------------------------------------
+     LE SÉLECTEUR, SUR APPUI LONG
+     ------------------------------------------------------------ */
+  var fermerReacEl = null;
+
+  function fermerLeSelecteurEl(){
+    if(fermerReacEl){ fermerReacEl(); fermerReacEl = null; }
+  }
+
+  function ouvrirLeSelecteurEl(bulle, m){
+    fermerLeSelecteurEl();
+    if(!filEl || !filEl.peutEcrire) return;
+
+    var mien = groupeReacEl(m.reacs).filter(function(x){ return x.mien; })[0];
+    var boite = document.createElement('div');
+    boite.className = 'reacChoix' + (m.de === 'moi' ? ' moi' : '');
+    REACTIONS_EL.forEach(function(e){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = e;
+      if(mien && mien.emoji === e) b.className = 'on';
+      b.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        fermerLeSelecteurEl();
+        reagirEl(m.id, e);
+      });
+      boite.appendChild(b);
+    });
+    bulle.parentNode.insertBefore(boite, bulle);
+    bulle.classList.add('vise');
+
+    var dehors = function(){ fermerLeSelecteurEl(); };
+    setTimeout(function(){ document.addEventListener('click', dehors); }, 0);
+    fermerReacEl = function(){
+      document.removeEventListener('click', dehors);
+      bulle.classList.remove('vise');
+      if(boite.parentNode) boite.parentNode.removeChild(boite);
+    };
+  }
+
+  /* ⚠️ UN DOIGT POSÉ POUR FAIRE DÉFILER RESTE IMMOBILE UNE DEMI-
+     SECONDE avant de bouger. Sans le garde-fou sur le mouvement, le
+     sélecteur s'ouvrirait chaque fois qu'on remonte la conversation —
+     et sur un téléphone, remonter la conversation est le geste le
+     plus fréquent de tous. */
+  function brancherAppuiLongEl(bulle, m){
+    var minuteur = null, depart = null;
+    var annuler = function(){
+      if(minuteur){ clearTimeout(minuteur); minuteur = null; }
+    };
+    bulle.addEventListener('pointerdown', function(ev){
+      if(ev.button === 2) return;
+      depart = { x: ev.clientX, y: ev.clientY };
+      annuler();
+      minuteur = setTimeout(function(){
+        minuteur = null;
+        ouvrirLeSelecteurEl(bulle, m);
+      }, 480);
+    });
+    bulle.addEventListener('pointermove', function(ev){
+      if(!minuteur || !depart) return;
+      if(Math.abs(ev.clientX - depart.x) > 9 || Math.abs(ev.clientY - depart.y) > 9){
+        annuler();
+      }
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function(q){
+      bulle.addEventListener(q, annuler);
+    });
+    bulle.addEventListener('contextmenu', function(ev){
+      ev.preventDefault();
+      annuler();
+      ouvrirLeSelecteurEl(bulle, m);
+    });
+  }
+
+  function brancherLesReactionsEl(){
+    if(!filEl) return;
+    var parId = {};
+    (filEl.messages || []).forEach(function(m){ parId[m.id] = m; });
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#leFilEleve .bulle[data-msg]'), function(b){
+        var m = parId[b.getAttribute('data-msg')];
+        if(m) brancherAppuiLongEl(b, m);
+      });
+  }
+
+  /* ⚠️ LA PASTILLE SE POSE AVANT LA RÉPONSE DU SERVEUR. Sur la 4G
+     d'un trajet, l'aller-retour prend deux secondes : une bulle qui
+     ne bouge pas, c'est un geste qu'on refait. On remet d'équerre si
+     ça échoue. */
+  function reagirEl(idMsg, emoji){
+    if(!filEl) return;
+    var m = (filEl.messages || []).filter(function(x){ return x.id === idMsg; })[0];
+    var avant = m ? (m.reacs || []).slice() : null;
+    if(m){
+      var sans = (m.reacs || []).filter(function(x){ return !x.mien; });
+      var mien = (m.reacs || []).filter(function(x){ return x.mien; })[0];
+      m.reacs = (mien && mien.emoji === emoji)
+        ? sans
+        : sans.concat([{ emoji: emoji, mien: true }]);
+      dessinerFilEleve();
+    }
+    appeler({ action:'eleveReagir', eleve: moi.nom, code: moi.code,
+              message: idMsg, emoji: emoji })
+      .then(function(){ return rafraichirLeFilEleve(true); })
+      .catch(function(e){
+        if(m){ m.reacs = avant; dessinerFilEleve(); }
+        dire('msgFil', e.message || 'La réaction n\'est pas passée.', 'erreur');
+      });
+  }
+
+  /* ------------------------------------------------------------
+     LES ÉMOTICÔNES
+
+     ⚠️ TROIS FAMILLES ET PAS QUATRE : l'élève n'a rien à dire du
+     travail du bureau. Une liste écrite à la main plutôt qu'une
+     bibliothèque — celles du commerce pèsent des centaines de
+     kilo-octets et vont chercher des images ailleurs.
+     ------------------------------------------------------------ */
+  var FAMILLES_EL = [
+    { rond:'🙂', liste:
+      ('😀 😃 😄 😁 😆 😅 😂 🤣 😊 🙂 😉 😍 🥰 😘 😋 😎 🤗 🤔 😐 😶 🙄 😏 😣 😥 ' +
+       '😮 😯 😪 😴 😌 😛 😜 😔 😕 🙁 😞 😟 😤 😢 😭 😨 😰 😱 😳 🥺 😠 😡 🤯 😬 ' +
+       '🥳 🤩 😇 🫡 🙃').split(' ') },
+    { rond:'👍', liste:
+      ('👍 👎 👌 ✌️ 🤞 🤝 👏 🙌 🙏 💪 👋 ✋ 👉 ☝️ 🤙 ✊ 👊 ❤️ 🧡 💛 💚 💙 💜 🖤 ' +
+       '💔 💯 🔥 ✨ ⭐ 🎉 🎊 🎁 🏆 🥇 👀 🫶').split(' ') },
+    { rond:'🚗', liste:
+      ('🚗 🚙 🏍️ 🛵 🚲 🚦 🚧 ⚠️ 🛑 ⛽ 🅿️ 🧭 📍 🚸 🏁 🔑 🪪 📅 🕐 ⏰ ⏳ 📞 📱 ✉️ ' +
+       '✅ ❌ ❓ ❗ 💬 🎓 📚 ✏️ 🧤 🌧️ ☀️ ❄️ 🌫️').split(' ') }
+  ];
+
+  var familleEl = 0;
+  var panneauEl = null;
+
+  function fermerLesEmojiEl(){
+    if(panneauEl && panneauEl.parentNode) panneauEl.parentNode.removeChild(panneauEl);
+    panneauEl = null;
+    var b = $('btFilEmo');
+    if(b) b.classList.remove('on');
+  }
+
+  function basculerLesEmojiEl(){
+    if(panneauEl){ fermerLesEmojiEl(); return; }
+    var zone = document.querySelector('#zoneEcrireEcole .zoneEcrire');
+    if(!zone) return;
+    var b = $('btFilEmo');
+    if(b) b.classList.add('on');
+
+    var z = document.createElement('div');
+    z.className = 'emoBoite';
+    var fams = document.createElement('div');
+    fams.className = 'emoFam';
+    var grille = document.createElement('div');
+    grille.className = 'emoGrille';
+
+    var peindre = function(){
+      Array.prototype.forEach.call(fams.children, function(x, i){
+        x.className = (i === familleEl) ? 'on' : '';
+      });
+      grille.innerHTML = '';
+      FAMILLES_EL[familleEl].liste.forEach(function(e){
+        var t = document.createElement('button');
+        t.type = 'button';
+        t.textContent = e;
+        t.addEventListener('click', function(){ glisserEmojiEl(e); });
+        grille.appendChild(t);
+      });
+    };
+    FAMILLES_EL.forEach(function(f, i){
+      var t = document.createElement('button');
+      t.type = 'button';
+      t.textContent = f.rond;
+      t.addEventListener('click', function(){ familleEl = i; peindre(); });
+      fams.appendChild(t);
+    });
+    z.appendChild(fams);
+    z.appendChild(grille);
+    peindre();
+    zone.parentNode.insertBefore(z, zone);
+    panneauEl = z;
+  }
+
+  /* L'emoji se pose au curseur, pas à la fin : on revient souvent au
+     milieu d'une phrase. */
+  function glisserEmojiEl(e){
+    var t = $('chFilTexte');
+    if(!t) return;
+    var a = (typeof t.selectionStart === 'number') ? t.selectionStart : t.value.length;
+    var b = (typeof t.selectionEnd === 'number') ? t.selectionEnd : a;
+    t.value = t.value.slice(0, a) + e + t.value.slice(b);
+    var apres = a + e.length;
+    try{ t.setSelectionRange(apres, apres); }catch(err){}
+    t.focus();
+    t.dispatchEvent(new Event('input', { bubbles:true }));
+  }
+
+  /* ------------------------------------------------------------
+     LE POUCE — le bouton d'envoi tant qu'il n'y a rien à envoyer
+     ------------------------------------------------------------ */
+  function majBoutonEnvoiEl(){
+    var t = $('chFilTexte');
+    var b = $('btFilEnvoyer');
+    if(!t || !b) return;
+    var vide = !t.value.trim();
+    b.textContent = vide ? '👍' : '📨';
+    b.title = vide ? 'Envoyer un pouce' : 'Envoyer';
+  }
+
+  function envoyerLePouceEl(){
+    if(!filEl || !filEl.conv || !filEl.peutEcrire) return;
+    var b = $('btFilEnvoyer');
+    if(b) b.disabled = true;
+    appeler({ action:'eleveEcrire', eleve: moi.nom, code: moi.code,
+              id: filEl.conv.id, texte: '👍' })
+      .then(function(){ return rafraichirLeFilEleve(true); })
+      .catch(function(e){
+        dire('msgFil', e.message || 'Le pouce n\'est pas parti.', 'erreur');
+      })
+      .then(function(){ if(b) b.disabled = false; });
+  }
+
+  /* ⚠️ UNE RÉACTION NE CHANGE NI LE NOMBRE DE MESSAGES NI LE DERNIER
+     RANG : sans cette empreinte, le battement de quatre secondes ne
+     redessinerait jamais, et une pastille posée par le bureau
+     n'apparaîtrait qu'au message suivant. */
+  function empreinteReacEl(d){
+    var e = '';
+    (((d && d.messages) || [])).forEach(function(m){
+      var r = m.reacs || [];
+      if(!r.length) return;
+      e += m.id + ':' + r.map(function(x){
+        return (x.emoji || '') + (x.mien ? '~moi' : '');
+      }).join(',') + ';';
+    });
+    return e;
+  }
+
 
   /* ============================================================
      🔔 ÊTRE PRÉVENU SUR SON TÉLÉPHONE — étape 3
@@ -3262,6 +3670,7 @@
     var id = filEl.conv.id;
     var avant = (filEl.messages || []).length;
     var dernier = avant ? filEl.messages[avant - 1].rang : 0;
+    var empreinteAvant = empreinteReacEl(filEl);
 
     return appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
       .then(function(d){
@@ -3272,7 +3681,12 @@
            toutes les quatre secondes ferait sauter le défilement et
            reprendrait le curseur du champ : la conversation
            deviendrait impossible à tenir. */
-        if(liste.length !== avant || neuf !== dernier){
+        /* ⚠️ ET UNE RÉACTION NE CHANGE NI L'UN NI L'AUTRE — v1086. Les
+           deux repères ci-dessus l'auraient laissée invisible jusqu'au
+           message suivant : on aurait livré des pastilles qui
+           n'arrivent jamais. */
+        if(liste.length !== avant || neuf !== dernier ||
+           empreinteReacEl(d) !== empreinteAvant){
           filEl = d;
           dessinerFilEleve();
         }
