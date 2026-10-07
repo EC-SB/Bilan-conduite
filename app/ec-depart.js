@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1071 */
+/* Déployé le 08/10/2026 à 15:20 — v1078 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2159,6 +2159,10 @@ function ouvrirSession(code, moniteur, role, saluer, droits, emoji, genre,
      bandeau de 4,2 s. */
   [[600,  'reveillerMessagesDuBandeau'],
    [2200, 'compterLaMessagerie'],
+   /* Les objets du bandeau viennent d'ici aussi : sans cette ligne,
+      la famille 🧤 restait vide jusqu'au premier battement de
+      90 secondes. Posée juste après, et avant le bandeau. */
+   [2300, 'compterLesObjets'],
    [2500, 'verifierAPrevoirEnFond'],
    [3200, 'chargerProcEnFond'],
    [3200, 'compterTachesEnFond'],
