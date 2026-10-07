@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 20:15 — v1081 -->
+<!-- Déployé le 08/10/2026 à 23:10 — v1083 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -2642,6 +2642,10 @@
 
   function fermerPleinEcran(){
     arreterLeFil();
+    /* La prise se ferme avec le fil : une connexion ouverte sur un
+       écran qu'on vient de quitter, c'est la batterie d'un téléphone
+       dépensée pour rien. */
+    couperDirectEl();
     filEl = null;
     $('zoneEcrireEcole').innerHTML = '';
     $('cartesEcrireEcole').classList.remove('cache');
@@ -2674,6 +2678,9 @@
         filEl = d || null;
         dessinerFilEleve();
         veillerLeFil();
+        /* Après le premier dessin : le direct accélère ce qui vient
+           ensuite, il ne retarde pas l'ouverture. */
+        brancherDirectEl(id);
       })
       .catch(function(e){
         $('zoneEcrireEcole').innerHTML = '<div class="card">' +
@@ -2811,17 +2818,120 @@
       });
   }
 
+  /* ============================================================
+     📡 SON FIL EN DIRECT — étape 2
+
+     ⚠️ MÊME RÈGLE QUE CÔTÉ ÉCOLE : le direct est un ACCÉLÉRATEUR,
+     pas un mécanisme. Le sondage ne disparaît pas, il passe de
+     quatre à trente secondes quand la connexion répond, et revient
+     à quatre dès qu'elle se tait. Un élève sur un réseau de collège
+     qui bloque les WebSockets doit voir sa messagerie marcher
+     exactement comme avant, sans rien savoir de tout ça.
+
+     ⚠️ ET SON CODE NE PASSE PAS DANS L'ADRESSE. On l'échange contre
+     un billet à usage unique de soixante secondes : une adresse se
+     retrouve dans les journaux et dans l'historique, et son code
+     ouvre son dossier.
+     ============================================================ */
+  var PAS_DIRECT_PING_EL = 45000;
+  var PAS_DIRECT_MUET_EL = 20000;
+  var PAS_FIL_LENT = 30000;
+
+  var socketEl = null, pingEl = null, muetEl = null, repriseEl = null;
+  var essaisEl = 0, filDirectEl = '';
+
+  function directElBranche(){
+    return !!(socketEl && socketEl.readyState === 1);
+  }
+
+  function brancherDirectEl(id){
+    couperDirectEl();
+    if(!id || typeof WebSocket === 'undefined') return;
+    filDirectEl = id;
+
+    appeler({ action: 'eleveDirect', eleve: moi.nom, code: moi.code, id: id })
+      .then(function(d){
+        var billet = (d && d.billet) || '';
+        if(!billet || filDirectEl !== id) return;
+        var ws;
+        try{ ws = new WebSocket(RELAIS.replace(/^http/, 'ws') +
+                                '/ws?b=' + encodeURIComponent(billet)); }
+        catch(e){ return; }
+        socketEl = ws;
+
+        ws.onopen = function(){
+          if(socketEl !== ws) return;
+          essaisEl = 0;
+          veillerLeFil();          /* le sondage passe au ralenti */
+          if(pingEl) clearInterval(pingEl);
+          pingEl = setInterval(function(){
+            if(!directElBranche()) return perdreDirectEl();
+            try{ socketEl.send('ping'); }catch(e){ return perdreDirectEl(); }
+            armerSilenceEl();
+          }, PAS_DIRECT_PING_EL);
+        };
+        ws.onmessage = function(ev){
+          if(socketEl !== ws) return;
+          armerSilenceEl();
+          if(String(ev.data) === 'pong') return;
+          rafraichirLeFilEleve(true);
+        };
+        ws.onclose = function(){ if(socketEl === ws) perdreDirectEl(); };
+        ws.onerror = function(){ if(socketEl === ws) perdreDirectEl(); };
+      })
+      .catch(function(){
+        /* Pas de direct sur ce Worker, ou appel refusé : le sondage
+           de quatre secondes fait son travail et personne ne voit la
+           différence. On ne réessaie pas en boucle. */
+      });
+  }
+
+  /* Une connexion peut mourir sans le dire : l'absence de réponse
+     au « ping » est la seule preuve qu'on puisse en avoir. */
+  function armerSilenceEl(){
+    if(muetEl) clearTimeout(muetEl);
+    muetEl = setTimeout(perdreDirectEl, PAS_DIRECT_MUET_EL);
+  }
+
+  function perdreDirectEl(){
+    var id = filDirectEl;
+    couperDirectEl(true);
+    if(!id || !filEl || !filEl.conv || filEl.conv.id !== id) return;
+    veillerLeFil();                /* retour aux quatre secondes */
+    essaisEl++;
+    if(essaisEl > 4) return;
+    repriseEl = setTimeout(function(){
+      if(filEl && filEl.conv && filEl.conv.id === id) brancherDirectEl(id);
+    }, Math.min(60000, 3000 * Math.pow(2, essaisEl - 1)));
+  }
+
+  function couperDirectEl(garder){
+    if(pingEl){ clearInterval(pingEl); pingEl = null; }
+    if(muetEl){ clearTimeout(muetEl); muetEl = null; }
+    if(repriseEl){ clearTimeout(repriseEl); repriseEl = null; }
+    if(socketEl){
+      var x = socketEl;
+      socketEl = null;
+      try{ x.onopen = x.onmessage = x.onclose = x.onerror = null; }catch(e){}
+      try{ x.close(); }catch(e){}
+    }
+    if(!garder){ essaisEl = 0; filDirectEl = ''; }
+  }
+
   /* ---------- Le battement ---------- */
 
   function veillerLeFil(){
     arreterLeFil();
+    /* Quatre secondes, ou trente si le direct répond : voir la note
+       en tête du bloc du direct. */
+    var pas = directElBranche() ? PAS_FIL_LENT : PAS_FIL;
     battementEl = setInterval(function(){
       if(!filEl) return arreterLeFil();
       /* Personne devant l'écran : relire ne servirait qu'à vider la
          batterie. */
       if(document.hidden) return;
       rafraichirLeFilEleve(true);
-    }, PAS_FIL);
+    }, pas);
   }
 
   function arreterLeFil(){
