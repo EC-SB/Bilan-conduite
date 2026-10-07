@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:12 — v1038 */
+/* Déployé le 07/10/2026 à 18:10 — v1070 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -248,6 +248,11 @@ const VUES = {
      Et les PROCÉDURES reviennent « Au quotidien » : c'est un
      travail de tous les jours, pas une pièce de dossier. */
   eleves: [['dossier',    '👤 Dossier élève',         'eleves',      'Au quotidien'],
+           /* Juste après le dossier, et dans le même groupe : on ne
+              pense pas « quel écran », on pense « Léa ». Le fil est
+              dans son dossier ; cet écran-ci est la vue d'ensemble,
+              pour ne pas laisser une question sans réponse. */
+           ['messagerie', '💬 Messagerie',             'messagerie',  'Au quotidien'],
            ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
@@ -1762,6 +1767,11 @@ function reveillerVue(cle){
        branchée nulle part reste sur « Chargement… » pour toujours —
        c'est ce qui est arrivé à « Historique des cours ». */
     dossier:    () => (typeof dessinerPageEleve === 'function') && dessinerPageEleve(),
+    /* ⚠️ ELLE SE REDESSINE EN ARRIVANT, ET SANS « true ». Un fil
+       ouvert qu'on retrouve en revenant doit montrer ce qui est
+       arrivé pendant l'absence : afficherMessagerie relit, et
+       rouvre le fil s'il y en avait un. */
+    messagerie: () => (typeof afficherMessagerie === 'function') && afficherMessagerie(),
     rappels:    () => modeRappel('manuel'),
     sessions:   () => afficherSessionsPermis(),
     /* Une vue branchée nulle part reste sur « Chargement… » pour
