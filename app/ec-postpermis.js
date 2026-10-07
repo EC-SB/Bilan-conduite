@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 16:05 — v1065 */
+/* Déployé le 08/10/2026 à 20:15 — v1081 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -242,24 +242,11 @@ async function afficherPostExamen(tous){
           bOk.disabled = true;
           try{
             await consignerResultat(x, 'obtenu', iso);
-
-            /* ⚠️ TOUT CE QUI SUIT PART ENSEMBLE — v1065.
-
-               David : « c'est très long à s'ouvrir ». Ces appels
-               s'attendaient les uns les autres sans aucune raison :
-               solder un message et effacer la fiche de suivi ne se
-               commandent pas, ils se constatent. Un élève avec cinq
-               messages en attente, c'était six allers-retours en
-               file indienne — maintenant un seul temps d'attente.
-
-               ⚠️ ET LE RÉSULTAT, LUI, RESTE DEVANT. Il s'écrit AVANT,
-               seul : c'est la seule écriture de ce geste qui ne se
-               rattrape pas, et elle ne doit pas partir en même temps
-               que des effacements qui, eux, se refont. */
-            const aFaire = (x.enAttente || []).map(cs =>
-              appelPrep({ action:'consigneDone', id: cs.id }).catch(() => {}));
-            aFaire.push(appelPrep({ action:'suiviDelete', eleve: x.eleve }));
-            await Promise.all(aFaire);
+            /* Il sort de toutes les listes de suivi */
+            for(const cs of (x.enAttente || [])){
+              try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
+            }
+            await appelPrep({ action:'suiviDelete', eleve: x.eleve });
 
             $('permisNom').value = x.eleve;
             if(typeof afficherOnglet === 'function'){
@@ -306,7 +293,25 @@ async function afficherPostExamen(tous){
               datePermis: '', aPlanifier: '', retireAPrevoir: '',
               toutOk: '', aRemplacer: '', dateADonner: '', fantome: '',
               rdvPostDate: '', rdvPostMoniteur: '', rdvPostFait: '',
-              bilanExamen: '', suite: '', commentaireMoniteur: ''
+              bilanExamen: '', suite: '', commentaireMoniteur: '',
+              /* ⚠️ LE BILAN DE L'ÉLÈVE PART AUSSI — étape 1d.
+
+                 Il ne partait pas. La remise à zéro effaçait le bilan
+                 d'examen, le rendez-vous, la suite, le commentaire du
+                 moniteur… et laissait « bilanEleve » intact. Un élève
+                 ajourné une DEUXIÈME fois arrivait donc avec le bilan
+                 qu'il avait écrit la première, et l'écran le comptait
+                 comme reçu : on lui accordait le rendez-vous sans
+                 qu'il ait rien écrit sur l'examen qu'il venait de
+                 rater.
+
+                 Le défaut était inoffensif tant que personne ne
+                 regardait cette colonne. Elle commande maintenant
+                 l'accès au rendez-vous : il devient une porte
+                 ouverte. */
+              bilanEleve: '', bilanEleveEtat: '', bilanEleveLe: '',
+              bilanEleveValidePar: '', bilanEleveValideLe: '',
+              bilanEleveRetour: '', bilanEleveJson: ''
             });
             for(const cs of (x.enAttente || [])){
               try{ await appelPrep({ action:'consigneDone', id: cs.id }); }catch(err){}
@@ -481,9 +486,15 @@ function afficherAttenteBilan(tous){
     return s.resultat === 'ajourne' && s.rdvPostFait !== 'oui';
   });
 
-  /* Dossier complet : bilan reçu, date et moniteur fixés.
-     Il n'y a plus rien à faire ici, le cours est préparé. */
-  const complet = s => !!(s.bilanExamen && s.rdvPostDate && s.rdvPostMoniteur);
+  /* Dossier complet : bilan d'examen reçu, bilan de l'élève VALIDÉ,
+     date et moniteur fixés. Il n'y a plus rien à faire ici.
+
+     ⚠️ LE BILAN DE L'ÉLÈVE ENTRE DANS LA CONDITION — étape 1d. La
+     règle que David envoie déjà lui-même — « PAS DE BILAN COMPLET =
+     PAS DE RDV POST PERMIS = PAS DE REPASSAGE » — ne tenait que par
+     la mémoire du bureau. Un dossier ne se boucle plus sans lui. */
+  const complet = s => !!(s.bilanExamen && s.rdvPostDate && s.rdvPostMoniteur &&
+                          s.bilanEleveEtat === 'valide');
   const liste = ajournes.filter(e => !complet(suiviDe(e.eleve)));
   const prets = ajournes.filter(e => complet(suiviDe(e.eleve)));
 
@@ -581,12 +592,162 @@ function afficherAttenteBilan(tous){
                           ' avec ' + s.rdvPostMoniteur
                         : ' · bilan reçu, rendez-vous à fixer')
                     : " · bilan d'examen à récupérer"),
-      resume: () => '',
-      alerte: () => aBilan ? (aRdv ? null : 'Rendez-vous à fixer')
-                           : "Bilan d'examen manquant",
-      actions: (x, boite) => { boite.appendChild(blocRdvPost(x)); }
+      /* ⚠️ LE BILAN DE L'ÉLÈVE SE LIT SUR LA LIGNE, SANS DÉPLIER —
+         étape 1d. C'est la seule façon de voir d'un coup d'œil qui
+         doit être relancé : trois élèves en attente, et il faut
+         savoir lequel n'a rien écrit sans ouvrir trois blocs. */
+      resume: () => phraseDuBilanEleve(s),
+      /* L'alerte dit CE QUI MANQUE EN PREMIER. Le bilan d'examen
+         vient du bureau, celui de l'élève vient de lui : il ne sert
+         à rien de réclamer les deux le même jour. */
+      alerte: () => !aBilan ? "Bilan d'examen manquant"
+                  : (s.bilanEleveEtat === 'attente' ? 'Bilan élève à valider'
+                  : (s.bilanEleveEtat !== 'valide' ? 'Bilan élève à relancer'
+                  : (aRdv ? null : 'Rendez-vous à fixer'))),
+      actions: (x, boite) => {
+        /* ⚠️ LE BOUTON N'APPARAÎT QUE S'IL Y A QUELQUE CHOSE À LIRE.
+           Un « 👁️ Lire et valider » sur un bilan vide est un bouton
+           qui dit « il n'a rien envoyé » après le clic — autant le
+           dire avant, et ne pas le mettre. */
+        const sx = suiviDe(x.eleve);
+        if(String(sx.bilanEleve || '').trim()){
+          const b = document.createElement('button');
+          b.className = 'btn btn-secondary';
+          b.style.cssText = 'width:auto;margin:0 0 10px;padding:8px 13px;font-size:13px;';
+          b.textContent = (sx.bilanEleveEtat === 'valide')
+            ? '👁️ Relire son bilan' : '👁️ Lire et valider son bilan';
+          b.addEventListener('click', () => lireEtValiderLeBilan(x.eleve));
+          boite.appendChild(b);
+        }
+        boite.appendChild(blocRdvPost(x));
+      }
     }));
   });
+}
+
+
+/* ============================================================
+   📝 LE BILAN ÉCRIT PAR L'ÉLÈVE — étape 1d, côté bureau
+
+   David, le 7 octobre : « Le bilan post permis ça ok juste il faut
+   trouvé ou on a l'information pour le validé ».
+
+   Quatre états, une phrase par état sous le nom de l'élève, et une
+   fenêtre pour lire et décider. Le TEXTE, lui, n'est pas nouveau :
+   c'est la colonne « Bilan élève » que le bureau recopiait de
+   Messenger à la main, et que les deux écrans du rendez-vous
+   affichent déjà.
+   ============================================================ */
+
+const ETATS_BILAN_ELEVE = {
+  '':       { rond: '⏳', mot: 'pas encore envoyé' },
+  attente:  { rond: '📝', mot: 'reçu — à valider' },
+  arefaire: { rond: '↩️', mot: 'complément demandé' },
+  valide:   { rond: '✅', mot: 'validé' }
+};
+
+function etatDuBilanEleve(s){
+  return String((s && s.bilanEleveEtat) || '');
+}
+
+/* La phrase qui tient sur une ligne, sous le nom de l'élève. */
+function phraseDuBilanEleve(s){
+  const etat = etatDuBilanEleve(s);
+  const e = ETATS_BILAN_ELEVE[etat] || ETATS_BILAN_ELEVE[''];
+  const jour = (v) => String(v || '').slice(0, 10);
+
+  if(etat === 'valide'){
+    return e.rond + ' bilan élève validé' +
+      (s.bilanEleveValidePar ? ' par ' + s.bilanEleveValidePar : '') +
+      (s.bilanEleveValideLe ? ' le ' + jour(s.bilanEleveValideLe) : '');
+  }
+  if(etat === 'attente'){
+    return e.rond + ' bilan élève reçu' +
+      (s.bilanEleveLe ? ' le ' + jour(s.bilanEleveLe) : '') + ' — à valider';
+  }
+  if(etat === 'arefaire'){
+    return e.rond + ' complément demandé — on attend qu’il le renvoie';
+  }
+  return e.rond + ' bilan élève pas encore envoyé';
+}
+
+/* ⚠️ C'EST UNE FENÊTRE, PAS UN ÉCRAN. On arrive depuis la liste
+   d'attente, on lit, on décide, on revient. Un écran à soi, c'était
+   un endroit de plus à retrouver pour un geste qui dure vingt
+   secondes. */
+async function lireEtValiderLeBilan(nom){
+  const s = suiviDe(nom);
+  const texte = String(s.bilanEleve || '').trim();
+  if(!texte){
+    showToast('Il n’a encore rien envoyé.');
+    return;
+  }
+
+  const boite = document.createElement('div');
+
+  const h = document.createElement('div');
+  h.style.cssText = 'font-size:12.5px;color:var(--muted);margin-bottom:10px;' +
+    'line-height:1.5;';
+  h.textContent = 'Reçu' + (s.bilanEleveLe ? ' le ' + s.bilanEleveLe : '') +
+    ' depuis son espace élève.' +
+    (s.bilanEleveRetour
+      ? ' Dernier complément demandé : « ' + s.bilanEleveRetour + ' »' : '');
+  boite.appendChild(h);
+
+  /* Le texte tel qu'il l'a écrit, et tel que le moniteur le relira
+     dans « 📝 Bilan écrit par l'élève » : la même chaîne, au même
+     endroit, sans rien recopier. C'est tout l'exercice. */
+  const t = document.createElement('div');
+  t.style.cssText = 'white-space:pre-wrap;line-height:1.6;font-size:14px;' +
+    'background:var(--navy);border:1px solid var(--line);border-radius:12px;' +
+    'padding:12px 14px;max-height:44vh;overflow-y:auto;margin-bottom:12px;' +
+    'text-align:left;';
+  t.textContent = texte;
+  boite.appendChild(t);
+
+  const mot = document.createElement('textarea');
+  mot.rows = 2;
+  mot.placeholder = 'Ce qu’il doit compléter (seulement si tu lui redemandes)';
+  mot.style.cssText = 'width:100%;background:var(--navy);border:1px solid var(--line);' +
+    'color:var(--cream);padding:10px;border-radius:10px;font-size:14px;' +
+    'line-height:1.5;font-family:inherit;resize:vertical;';
+  boite.appendChild(mot);
+
+  const quoi = await fenetre(boite, [
+    { nom: 'Fermer', valeur: '' },
+    { nom: '↩️ Demander de compléter', valeur: 'arefaire' },
+    { nom: '✅ Valider', valeur: 'valide', principal: true }
+  ], '📝 Bilan écrit par ' + nom);
+
+  if(!quoi) return;
+
+  /* ⚠️ LA PHRASE EST LUE AVANT QUE LA FENÊTRE NE PARTE. « fenetre »
+     retire son contenu du document en se refermant : lire la zone de
+     texte après coup rendrait toujours une chaîne vide, et le
+     complément serait demandé sans dire quoi compléter. */
+  const phrase = mot.value.trim();
+  if(quoi === 'arefaire' && !phrase){
+    await informer('Dis-lui ce qu’il doit compléter : sans ça, il relit le même ' +
+                   'formulaire sans savoir quoi changer.');
+    return lireEtValiderLeBilan(nom);
+  }
+
+  try{
+    await appelPrep({ action: 'bilanEleveValider', eleve: nom,
+                      etat: quoi, phrase: phrase });
+    /* ⚠️ ON RELIT LE SUIVI, ON NE DEVINE PAS. « validé par » et
+       « validé le » sont écrits PAR LE SERVEUR : les poser de
+       mémoire ici, ce serait afficher une validation que le classeur
+       n'a peut-être pas écrite — la faute d'Axel Hinault, le
+       2 septembre. */
+    await chargerBureau(true);
+    showToast(quoi === 'valide'
+      ? '✅ Bilan validé — le rendez-vous peut avoir lieu'
+      : '↩️ Complément demandé à ' + nom);
+    afficherBureau();
+  }catch(e){
+    await informer('Impossible : ' + (e.message || e));
+  }
 }
 
 
