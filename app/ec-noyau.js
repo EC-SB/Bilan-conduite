@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:10 — v1070 */
+/* Déployé le 08/10/2026 à 09:20 — v1074 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -162,6 +162,15 @@ const ONGLETS_DROITS = [
   { cle:'eleves',  nom:'🔍 Élèves' },
   { cle:'suivi',   nom:'📓 Suivi' },
   { cle:'permis',  nom:'🚗 Permis' },
+  /* ⚠️ UN ONGLET À ELLE, ET PAS UNE VUE D'ÉLÈVES — v1074.
+
+     David, le 8 octobre : « tu as placé l'onglet dans élèves je ne
+     veux pas, je veux qu'il soit dans un onglet tout seul avant
+     outils ». Il a raison, et pour une raison qui se voit à
+     l'usage : les vues d'Élèves se consultent élève par élève,
+     quand on cherche quelqu'un. La messagerie, elle, s'ouvre quand
+     QUELQU'UN NOUS PARLE — ce n'est pas la même façon d'arriver. */
+  { cle:'messagerie', nom:'💬 Messagerie' },
   { cle:'outils',  nom:'🔨 Outils' },
   { cle:'gestion', nom:'⚙️ Gestion' }
 ];
