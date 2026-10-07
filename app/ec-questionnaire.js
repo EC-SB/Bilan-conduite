@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 20:30 — v1072 */
+/* Déployé le 08/10/2026 à 11:40 — v1075 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -583,6 +583,21 @@ function etatQuiFaitFoi(nom){
       res !== 'ajourne' && res !== 'obtenu' &&
       !String(s.rdvPostDate || '').trim() &&
       String(s.rdvPostFait || '') !== 'oui';
+
+    /* ⚠️ UN COMPTEUR N'EST PAS UN ÉVÉNEMENT — v1075.
+
+       « avantExamRate » est le nombre de leçons faites AVANT
+       l'examen raté. C'est un nombre, pas une preuve — et il servait
+       pourtant, à lui seul, à déclarer qu'il y avait eu un
+       ajournement. Un nombre resté d'une saisie d'avant suffisait
+       donc à écrire « 1ÈRE LEÇON APRÈS LE DERNIER AJOURNEMENT » sur
+       une élève qui n'a jamais passé l'examen.
+
+       Le classeur répond donc à la question directement, et dans
+       LES DEUX SENS : « oui » ou « non », jamais le silence. C'est
+       le même principe que l'effacement juste en dessous — une clé
+       absente ne corrige rien. */
+    d.ajourneAvere = jamaisAlle ? '' : 'oui';
 
     if(jamaisAlle){
       /* Trois clés, et les trois comptent. « examPermis » commande
@@ -5235,7 +5250,29 @@ function charniereDuCours(etat, note){
      bureau qui inscrit l'élève en session fait repasser examPermis
      à « prévu », et sans `avantExamRate` le décompte retomberait
      sur l'examen blanc d'il y a un an. */
-  if(e.examPermis === 'passe' || e.avantExamRate || examenDejaPasse(e)){
+  /* ⚠️ « ANNULÉ » N'EST PAS « PASSÉ » — v1075.
+
+     David, le 8 octobre, sur Mackenzie Leroy : « pourquoi ça me met
+     1ère leçon après le dernier ajournement alors que la date a été
+     annulée ». Sa ligne d'examen disait juste — « celui du mardi
+     22 septembre est annulé » — et son rang disait le contraire,
+     deux lignes plus haut.
+
+     Un examen annulé est un examen qui N'A PAS EU LIEU. Il ne peut
+     donc pas y avoir de « depuis le dernier ajournement » à
+     compter : c'est vrai par définition, quoi que porte le reste de
+     la fiche. Ce premier test-là tranche avant tous les autres.
+
+     Et le compteur ne prouve plus rien à lui seul : il ne compte
+     que si le classeur confirme l'ajournement. Quand le classeur
+     ne s'est pas prononcé — fiche non chargée — « ajourneAvere »
+     est « undefined » et l'ancien comportement vaut : on ne
+     conclut pas d'un silence, dans un sens comme dans l'autre. */
+  if(e.examPermis === 'annule') return null;
+
+  if(e.examPermis === 'passe' ||
+     (e.avantExamRate && e.ajourneAvere !== '') ||
+     examenDejaPasse(e)){
     return { cle: 'avantExamRate', nom: 'le dernier ajournement',
              court: 'dernier ajournement' };
   }
@@ -5476,7 +5513,11 @@ function positionDansLaFrise(q){
      porte pas les leçons faites avant l'outil, et l'élève a pu en
      faire ailleurs. C'est le moniteur qui le dit, dans la deuxième
      case ; sans lui, on annonce la reprise sans inventer de rang. */
-  if(q.examPermis === 'passe' || q.avantExamRate){
+  /* Même règle qu'au-dessus, et pour la même raison : un examen
+     annulé n'a pas eu lieu, et un compteur n'est pas un événement.
+     Voir charniereDuCours. */
+  if(q.examPermis !== 'annule' &&
+     (q.examPermis === 'passe' || (q.avantExamRate && q.ajourneAvere !== ''))){
     const dit2 = rangDepuisLaCharniere(q, n, 'avantExamRate');
     if(dit2 !== null){
       return dire(rangLecon(dit2) + ' leçon après le dernier ajournement' +
