@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1093 */
+/* Déployé le 07/10/2026 à 21:10 — v1094 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -579,31 +579,45 @@ function afficherAttenteBilan(tous){
   });
 
   liste.forEach(e => {
-    const s = suiviDe(e.eleve);
-    const aBilan = !!s.bilanExamen;
-    const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
+    /* ⚠️ LA LIGNE RELIT LA FICHE, ELLE NE LA RETIENT PAS — v1094.
+
+       « aBilan » et « aRdv » étaient calculés une fois, à la
+       construction, et les trois phrases de la ligne les gardaient
+       dans leur poche. Le bilan rangé une seconde plus tard ne
+       changeait donc rien à ce qui était écrit : « bilan d'examen
+       manquant » restait affiché au-dessus du bilan. */
+    const fiche = () => suiviDe(e.eleve) || {};
 
     zone.appendChild(ligneBureau(e, {
       replier: true,
-      info: () => mentionAjournements(s.nbAjournements, s.dateAjournement) +
+      info: () => {
+        const s = fiche();
+        const aBilan = !!s.bilanExamen;
+        const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
+        return mentionAjournements(s.nbAjournements, s.dateAjournement) +
                   (aBilan
                     ? (aRdv
                         ? ' · rendez-vous le ' + dateEnToutesLettres(s.rdvPostDate) +
                           ' avec ' + s.rdvPostMoniteur
                         : ' · bilan reçu, rendez-vous à fixer')
-                    : " · bilan d'examen à récupérer"),
+                    : " · bilan d'examen à récupérer");
+      },
       /* ⚠️ LE BILAN DE L'ÉLÈVE SE LIT SUR LA LIGNE, SANS DÉPLIER —
          étape 1d. C'est la seule façon de voir d'un coup d'œil qui
          doit être relancé : trois élèves en attente, et il faut
          savoir lequel n'a rien écrit sans ouvrir trois blocs. */
-      resume: () => phraseDuBilanEleve(s),
+      resume: () => phraseDuBilanEleve(fiche()),
       /* L'alerte dit CE QUI MANQUE EN PREMIER. Le bilan d'examen
          vient du bureau, celui de l'élève vient de lui : il ne sert
          à rien de réclamer les deux le même jour. */
-      alerte: () => !aBilan ? "Bilan d'examen manquant"
-                  : (s.bilanEleveEtat === 'attente' ? 'Bilan élève à valider'
-                  : (s.bilanEleveEtat !== 'valide' ? 'Bilan élève à relancer'
-                  : (aRdv ? null : 'Rendez-vous à fixer'))),
+      alerte: () => {
+        const s = fiche();
+        const aRdv = !!(s.rdvPostDate && s.rdvPostMoniteur);
+        return !s.bilanExamen ? "Bilan d'examen manquant"
+             : (s.bilanEleveEtat === 'attente' ? 'Bilan élève à valider'
+             : (s.bilanEleveEtat !== 'valide' ? 'Bilan élève à relancer'
+             : (aRdv ? null : 'Rendez-vous à fixer')));
+      },
       actions: (x, boite) => {
         /* ⚠️ LE BOUTON N'APPARAÎT QUE S'IL Y A QUELQUE CHOSE À LIRE.
            Un « 👁️ Lire et valider » sur un bilan vide est un bouton
@@ -847,6 +861,66 @@ async function quelCoursPourLeRdvPost(eleve, iso, liste){
 }
 
 
+/* ============================================================
+   ⚠️ UN BILAN REPRIS ET JAMAIS RANGÉ SE REPREND TOUS LES JOURS
+   — v1094
+
+   David, le 7 octobre, capture à l'appui : « dans permis, attente
+   bilan post-permis, j'ai encore "bilan d'examen manquant" alors
+   qu'il est là ». Il est là, en effet — dans le champ juste en
+   dessous, repris tout seul des cours de l'élève depuis la v931.
+
+   Mais il n'était là QU'À L'ÉCRAN. La fiche de suivi, elle, restait
+   vide, et c'est elle que la ligne lit pour dire ce qui manque.
+   Deux conséquences, et la seconde est pire que la première :
+
+   · la ligne annonçait un bilan manquant au-dessus du bilan — et un
+     écran qui dit le contraire de ce qu'il montre, on finit par ne
+     plus croire ni l'un ni l'autre ;
+   · comme rien n'était rangé, la recherche repartait À CHAQUE
+     ouverture de l'écran, pour CHAQUE élève ajourné. Et c'est la
+     lecture lourde, celle qui rapporte le texte entier des bilans —
+     celle-là même qui rendait « ✅ Permis obtenu » très long (v1065).
+
+   On range donc ce qu'on vient de trouver. C'est exactement ce que
+   le bureau ferait en appuyant sur « 💾 Enregistrer », et ça ne se
+   fait qu'une fois : la fois d'après, le champ part de la fiche et
+   plus personne ne cherche.
+
+   ⚠️ ET ON N'ÉCRASE RIEN. Si la fiche porte déjà un bilan, on ne
+   touche à rien : le bureau a pu le corriger à la main, et une
+   correction ne se fait pas remplacer par la version du classeur.
+   ============================================================ */
+async function rangerLeBilanRepris(eleve, texte){
+  const t = String(texte || '').trim();
+  if(!t || !eleve || typeof majSuivi !== 'function') return false;
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(eleve) || {}) : {};
+  if(String(s.bilanExamen || '').trim()) return false;
+
+  try{
+    await majSuivi(eleve, { bilanExamen: t });
+  }catch(err){
+    /* Pas le droit d'écrire, ou le réseau : le texte reste à
+       l'écran et le bouton d'enregistrement fait le reste. Ce
+       n'est pas une panne, c'est un rangement remis à plus tard. */
+    return false;
+  }
+
+  /* ⚠️ LA LIGNE SE REDIT, LA LISTE NE SE REDESSINE PAS. Le bureau a
+     peut-être cette fiche ouverte sous les yeux — il vient de
+     l'ouvrir, c'est ce qui a déclenché la recherche — et un
+     redessin la refermerait sous son doigt. */
+  const zone = document.getElementById('listeAttenteBilan');
+  const ligne = zone
+    ? zone.querySelector('[data-eleve="' +
+        String(eleve).replace(/["\\]/g, '') + '"]')
+    : null;
+  if(ligne && typeof ligne.rafraichirLigne === 'function') ligne.rafraichirLigne();
+  return true;
+}
+
+
 function blocRdvPost(e){
   const s = suiviDe(e.eleve);
   const id = 'rp' + Math.random().toString(36).slice(2, 8);
@@ -985,7 +1059,7 @@ function blocRdvPost(e){
         /* L'écran a pu se refermer pendant la recherche : on ne
            pose rien dans un champ qui n'est plus à l'écran. */
         encoreLa: () => document.body.contains(champB)
-      });
+      }).then(texte => { if(texte) rangerLeBilanRepris(e.eleve, texte); });
     }
   }, 0);
 
