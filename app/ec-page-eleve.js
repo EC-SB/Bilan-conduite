@@ -1,4 +1,4 @@
-/* Déployé le 05/10/2026 à 18:05 — v1062 */
+/* Déployé le 07/10/2026 à 18:10 — v1070 */
 /* ============================================================
    ec-page-eleve.js
    Un endroit par élève, où l'on voit tout.
@@ -95,6 +95,11 @@ const ONGLETS_ELEVE = [
      on rouvre un dossier sur le même onglet ; la renommer rouvrirait
      tout le monde sur la fiche. On change l'étiquette, pas le nom
      interne. */
+  /* ⚠️ APRÈS « COURS » ET AVANT « PERMIS » — v1070. C'est la
+     réponse à « je ne retrouve plus ce qu'un élève m'a dit il y'a
+     3 mois » : ses conversations sont rangées dans son dossier, à
+     côté de ses leçons, et cherchables. */
+  { cle:'messages', emoji:'💬', titre:'Messages',     section:'messagerie' },
   { cle:'acces',    emoji:'🔑', titre:'Coin révisions', section:'acces_eleves' },
   { cle:'proc',     emoji:'📄', titre:'Procédures',  section:'proccorriger' },
   /* En lecture seule — voir la note ci-dessus. Il suit le droit du
@@ -1853,6 +1858,7 @@ function remplirOngletEleve(corps, nom, cle){
   if(cle === 'fiche')       return ongletFiche(corps, nom);
   if(cle === 'cours')       return ongletCours(corps, nom);
   if(cle === 'permis')      return ongletPermis(corps, nom);
+  if(cle === 'messages')    return ongletMessagesEleve(corps, nom);
   if(cle === 'acces')       return ongletAcces(corps, nom);
   if(cle === 'proc')        return ongletProcedures(corps, nom);
   if(cle === 'quest')       return ongletQuestionnaire(corps, nom);
@@ -2340,7 +2346,17 @@ function ongletRgpd(corps, nom){
       showToast("La suppression n'est pas disponible sur cet écran.");
       return;
     }
-    const bilan = await supprimerDepuisRepertoire(nom, null, dire);
+    /* ⚠️ LE QUATRIÈME ARGUMENT DIT « C'EST LA PORTE RGPD » — v1070.
+
+       Les deux portes aboutissent à la même fonction, et c'est
+       voulu : un seul effacement, un seul périmètre. Mais elles ne
+       traitent pas pareil les messages de GROUPE d'un élève
+       supprimé. David, le 7 octobre : la clôture d'un dossier garde
+       ses messages sous son nom ; une demande d'effacement, elle,
+       remplace l'auteur par « Élève supprimé ». Garder le nom d'un
+       ancien élève qui a demandé son effacement n'est pas tenable —
+       et cet onglet promet « tout ce qu'on détient à son nom ». */
+    const bilan = await supprimerDepuisRepertoire(nom, null, dire, true);
     /* On NE REFERME PAS la page tout de suite, et c'est voulu : le
        compte rendu dit ce qui a été effacé — et, le cas échéant, ce
        qui a raté. L'escamoter au bout d'une seconde reviendrait à
