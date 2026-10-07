@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 09/10/2026 à 16:30 — v1086 -->
+<!-- Déployé le 09/10/2026 à 21:00 — v1088 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -546,6 +546,42 @@
     max-width:100%; background:transparent; border:1px dashed var(--line);
     color:var(--muted); font-size:12.5px; text-align:center;
   }
+  /* 📷 Une photo dans une bulle — v1088.
+
+     ⚠️ LA BULLE PERD SON REMBOURRAGE : une photo collée à ses bords
+     est une photo, une photo dans un cadre est une pièce jointe. Et
+     elle se plafonne, sinon elle mange le fil — une photo de
+     téléphone en hauteur ferait 400 px dans une zone qui en compte
+     bien moins, et chasserait toute la conversation hors de
+     l'écran. */
+  .bulle.photo{ padding:4px 4px 6px; max-width:min(78%, 260px); }
+  .bulle.photo .sig{ margin:4px 0 4px 8px; }
+  .bulle.photo .hh{ margin:4px 8px 0 0; }
+  .bulle.photo .motAvec{ display:block; padding:6px 8px 2px; }
+  .imgFil{
+    display:block; width:100%; height:auto; max-height:340px;
+    object-fit:cover; border-radius:11px; background:var(--line);
+    cursor:zoom-in;
+  }
+  .imgAbs{
+    display:block; padding:16px 12px; border-radius:11px;
+    background:var(--line); color:var(--muted); font-size:12.5px;
+    text-align:center;
+  }
+  /* ⚠️ UNE COUCHE, PAS UN ONGLET : un lien signé ouvert dans un
+     onglet reste dans l'historique du téléphone. */
+  .voilePhoto{
+    position:fixed; inset:0; z-index:900; background:rgba(0,0,0,.9);
+    display:flex; align-items:center; justify-content:center; padding:18px;
+    cursor:zoom-out;
+  }
+  .voilePhoto img{ max-width:100%; max-height:100%; border-radius:10px; }
+  .voileX{
+    position:absolute; top:14px; right:16px; width:44px; height:44px;
+    border-radius:50%; border:none; cursor:pointer; font-size:18px;
+    background:rgba(255,255,255,.16); color:#FFFFFF; padding:0; margin:0;
+  }
+
   /* 😊 Les réactions — v1086.
 
      ⚠️ SOUS LA BULLE, PAS DESSUS. Messenger pose la pastille à cheval
@@ -2767,6 +2803,10 @@
     couperDirectEl();
     fermerLeSelecteurEl();
     fermerLesEmojiEl();
+    /* ⚠️ ET LA PHOTO EN GRAND, qui vit dans le <body> : vider la zone
+       ne l'emporte pas, et revenir à la liste laisserait une image
+       plein écran par-dessus tout. */
+    fermerLaPhotoEl();
     filEl = null;
     $('zoneEcrireEcole').innerHTML = '';
     $('cartesEcrireEcole').classList.remove('cache');
@@ -2853,6 +2893,8 @@
 
     if(filEl.peutEcrire){
       h += '<div class="zoneEcrire">' +
+        '<button type="button" class="emoOutil" id="btFilPhoto" ' +
+          'title="Envoyer une photo">📷</button>' +
         '<button type="button" class="emoOutil" id="btFilEmo" ' +
           'title="Émoticônes">🙂</button>' +
         '<textarea id="chFilTexte" rows="2" placeholder="Écris ton message…">' +
@@ -2897,8 +2939,14 @@
       ev.stopPropagation();
       basculerLesEmojiEl();
     });
+    var ph = $('btFilPhoto');
+    if(ph) ph.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      choisirUnePhotoEl();
+    });
     majBoutonEnvoiEl();
     brancherLesReactionsEl();
+    brancherLesPhotosEl();
     var p = $('btPlusVieux');
     if(p) p.addEventListener('click', function(){ chargerPlusVieux(p); });
 
@@ -2915,7 +2963,8 @@
        message il faut savoir lequel ; et c'est aussi par là que
        l'appui long se branche après le dessin. */
     var aReac = (m.reacs || []).length ? ' aReac' : '';
-    var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + aReac +
+    var aPhoto = (m.piece ? ' photo' : '');
+    var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + aReac + aPhoto +
             '" data-msg="' + echapper(m.id || '') + '">';
     if(!mien && m.auteur){
       h += '<span class="sig">' + echapper(m.auteur) + '</span>';
@@ -2932,7 +2981,14 @@
            ({ retard:'Retard annoncé', annul:'Annulation demandée',
               oubli:'Objet oublié' }[m.motif] || '') + '</span>';
     }
-    h += echapper(m.texte || '');
+    /* 📷 La photo vient avant le texte — v1088 : le mot joint commente
+       l'image, c'est l'ordre dans lequel on les a écrits. */
+    h += imageDuMessageEl(m);
+    if(m.texte){
+      h += m.piece
+        ? '<span class="motAvec">' + echapper(m.texte) + '</span>'
+        : echapper(m.texte);
+    }
     h += '<span class="hh">' +
          echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
     h += pastillesEl(m);
@@ -2979,6 +3035,189 @@
         bouton.textContent = '↑ Messages plus anciens';
       });
   }
+
+  /* ============================================================
+     📷 ENVOYER UNE PHOTO — v1088
+
+     David, le 9 octobre, à la question « qui peut en envoyer ? » :
+     « tout le monde ». Un élève qui photographie son écharpe sur la
+     banquette ou sa convocation, c'est une conversation de moins.
+
+     ⚠️ LA PHOTO EST REDESSINÉE AVANT DE PARTIR. Huit mégaoctets
+     deviennent trois cents kilo-octets : sans ça, l'envoi depuis un
+     téléphone en 4G ne finit pas, et une messagerie qui n'envoie pas
+     est une messagerie qu'on quitte.
+
+     ⚠️ ET LE REDESSIN EFFACE LES EXIF — c'est la raison la plus
+     importante de le faire ici. Une photo de téléphone porte les
+     COORDONNÉES GPS du lieu de la prise de vue. Un élève qui
+     photographie son écharpe depuis chez lui nous enverrait son
+     adresse, et nous la garderions. Passer par un canvas ne recopie
+     que les pixels.
+     ============================================================ */
+
+  var PHOTO_COTE_MAX_EL = 1600;
+  var PHOTO_QUALITE_EL = 0.82;
+  var PHOTO_SOURCE_MAX_EL = 25 * 1024 * 1024;
+  var envoiPhotoEl = false;
+
+  /* ⚠️ « createImageBitmap » REDRESSE, « new Image() » NON. Un
+     portrait pris à l'horizontale est stocké couché avec une
+     étiquette EXIF qui dit de le tourner, et le canvas ignore
+     l'étiquette. Sans « from-image », une photo sur deux arriverait
+     de travers — et comme on efface les EXIF au passage, plus
+     personne ne pourrait la redresser ensuite. */
+  function lireLImageEl(fichier){
+    if(typeof createImageBitmap === 'function'){
+      return createImageBitmap(fichier, { imageOrientation:'from-image' })
+        .catch(function(){ return lireParBalise(fichier); });
+    }
+    return lireParBalise(fichier);
+  }
+
+  function lireParBalise(fichier){
+    return new Promise(function(bon, mauvais){
+      var u = URL.createObjectURL(fichier);
+      var i = new Image();
+      i.onload = function(){ URL.revokeObjectURL(u); bon(i); };
+      i.onerror = function(){ URL.revokeObjectURL(u);
+                              mauvais(new Error('Image illisible.')); };
+      i.src = u;
+    });
+  }
+
+  function reduireLaPhotoEl(fichier){
+    if(!fichier) return Promise.reject(new Error('Aucune photo.'));
+    if(!/^image\//.test(fichier.type || '')){
+      return Promise.reject(new Error('Ce fichier n\'est pas une image.'));
+    }
+    if(fichier.size > PHOTO_SOURCE_MAX_EL){
+      return Promise.reject(new Error('Cette image est trop lourde.'));
+    }
+    return lireLImageEl(fichier).then(function(img){
+      var l0 = img.width || img.naturalWidth;
+      var h0 = img.height || img.naturalHeight;
+      if(!l0 || !h0) throw new Error('Image illisible.');
+      var f = Math.min(1, PHOTO_COTE_MAX_EL / Math.max(l0, h0));
+      var l = Math.max(1, Math.round(l0 * f));
+      var h = Math.max(1, Math.round(h0 * f));
+
+      var toile = document.createElement('canvas');
+      toile.width = l; toile.height = h;
+      var c = toile.getContext('2d');
+      /* Un fond blanc : un PNG transparent — une capture d'écran —
+         deviendrait noir sur noir sans lui. */
+      c.fillStyle = '#FFFFFF';
+      c.fillRect(0, 0, l, h);
+      c.drawImage(img, 0, 0, l, h);
+      if(img.close){ try{ img.close(); }catch(e){} }
+
+      var data = toile.toDataURL('image/jpeg', PHOTO_QUALITE_EL);
+      if(!data || data.length < 100) throw new Error('Réduction impossible.');
+      return { data: data, l: l, h: h };
+    });
+  }
+
+  function choisirUnePhotoEl(){
+    if(envoiPhotoEl) return;
+    var z = document.createElement('input');
+    z.type = 'file';
+    /* ⚠️ PAS DE « capture » : l'attribut force l'appareil photo et
+       retire l'accès à la galerie. L'élève photographie souvent après
+       coup, pas pendant. */
+    z.accept = 'image/*';
+    z.style.display = 'none';
+    document.body.appendChild(z);
+    z.addEventListener('change', function(){
+      var f = z.files && z.files[0];
+      document.body.removeChild(z);
+      if(f) envoyerUnePhotoEl(f);
+    });
+    z.click();
+  }
+
+  function envoyerUnePhotoEl(fichier){
+    if(!filEl || !filEl.conv || !filEl.peutEcrire || envoiPhotoEl) return;
+    envoiPhotoEl = true;
+    var id = filEl.conv.id;
+    var b = $('btFilPhoto');
+    if(b){ b.disabled = true; b.textContent = '⏳'; }
+    dire('msgFil', 'Envoi de la photo…', 'attente');
+
+    reduireLaPhotoEl(fichier).then(function(p){
+      var t = $('chFilTexte');
+      var texte = t ? t.value.trim() : '';
+      return appeler({ action:'elevePhoto', eleve: moi.nom, code: moi.code,
+                       id: id, photo: p.data, l: p.l, h: p.h, texte: texte })
+        .then(function(){
+          if(t){ t.value = ''; delete brouillonsEl[id]; }
+          dire('msgFil', '', '');
+          return rafraichirLeFilEleve(true);
+        });
+    }).catch(function(e){
+      dire('msgFil', e.message || 'La photo n\'est pas partie.', 'erreur');
+    }).then(function(){
+      envoiPhotoEl = false;
+      var x = $('btFilPhoto');
+      if(x){ x.disabled = false; x.textContent = '📷'; }
+    });
+  }
+
+  /* ------------------------------------------------------------
+     LA PHOTO DANS LA BULLE
+     ------------------------------------------------------------ */
+  function imageDuMessageEl(m){
+    var p = m && m.piece;
+    if(!p) return '';
+    if(!p.lien){
+      return '<span class="imgAbs">📷 Photo indisponible</span>';
+    }
+    /* Le Worker rend un chemin ; l'espace est servi par GitHub Pages,
+       un chemin seul y pointerait sur la mauvaise machine. */
+    var src = RELAIS + p.lien;
+    /* ⚠️ LES DIMENSIONS SONT POSÉES AVANT LE CHARGEMENT, sinon la
+       bulle fait zéro pixel puis saute à sa taille : le fil se
+       déplace sous le doigt au moment où l'on allait appuyer. */
+    var dim = (p.l && p.h)
+      ? ' width="' + p.l + '" height="' + p.h + '"' +
+        ' style="aspect-ratio:' + p.l + ' / ' + p.h + ';"'
+      : '';
+    return '<img class="imgFil" loading="lazy" alt="Photo" src="' +
+           echapper(src) + '"' + dim + '>';
+  }
+
+  /* ⚠️ EN GRAND, PAS DANS UN ONGLET : un lien signé ouvert dans un
+     onglet reste dans l'historique du téléphone. */
+  var voilePhotoEl = null;
+
+  function fermerLaPhotoEl(){
+    if(voilePhotoEl && voilePhotoEl.parentNode){
+      voilePhotoEl.parentNode.removeChild(voilePhotoEl);
+    }
+    voilePhotoEl = null;
+  }
+
+  function ouvrirLaPhotoEl(src){
+    fermerLaPhotoEl();
+    var v = document.createElement('div');
+    v.className = 'voilePhoto';
+    v.innerHTML = '<img src="' + echapper(src) + '" alt="Photo">' +
+                  '<button type="button" class="voileX">✕</button>';
+    v.addEventListener('click', fermerLaPhotoEl);
+    document.body.appendChild(v);
+    voilePhotoEl = v;
+  }
+
+  function brancherLesPhotosEl(){
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#leFilEleve .imgFil'), function(i){
+        i.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          ouvrirLaPhotoEl(i.src);
+        });
+      });
+  }
+
 
   /* ============================================================
      😊 RÉACTIONS, ÉMOTICÔNES ET POUCE — v1086
@@ -3685,6 +3924,11 @@
            deux repères ci-dessus l'auraient laissée invisible jusqu'au
            message suivant : on aurait livré des pastilles qui
            n'arrivent jamais. */
+        /* Une photo arrive avec son message : le nombre change, le
+           repère suffit. Mais un LIEN resigné à la même seconde ne
+           doit PAS déclencher un redessin — sinon l'image se
+           recharge toutes les quatre secondes et clignote. C'est
+           pour ça que l'empreinte ne regarde que les réactions. */
         if(liste.length !== avant || neuf !== dernier ||
            empreinteReacEl(d) !== empreinteAvant){
           filEl = d;
