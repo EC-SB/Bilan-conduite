@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1073
+     VERSION APPLICATION : v1074
      VERSION APPS SCRIPT REQUISE : v233
-     Mis à jour le : 07/10/2026 à 21:05
+     Mis à jour le : 08/10/2026 à 09:20
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -2651,6 +2651,30 @@
          quelqu'un en a une — et chaque LETTRE prend la couleur de
          sa propre carte. Le barré, lui, ne sort que quand il n'y a
          plus rien à prendre. Voir ec-cbgasoil.js. -->
+    <!-- 💬 LA MESSAGERIE, SOUS LA MAIN — v1074
+
+         David : « qu'il y ait un logo en haut avant l'emplacement de
+         la CB qui ouvre la messagerie sous forme de bandeau
+         vertical ».
+
+         ⚠️ IL NE SE CACHE PAS QUAND IL N'Y A RIEN, contrairement à
+         la CB et aux procédures juste à côté. Celles-là ne servent
+         qu'à PRENDRE ce qui est arrivé ; la messagerie sert aussi à
+         ÉCRIRE. Un bouton qui disparaît quand la boîte est vide,
+         c'est un bouton qu'on ne trouve pas le jour où l'on veut
+         s'en servir le premier.
+
+         La pastille, elle, ne sort que s'il y a du non-lu. -->
+    <button id="msgElvBtn" title="La messagerie" style="display:none;
+            margin-left:8px;background:transparent;border:1px solid var(--line);
+            color:var(--cream);border-radius:10px;height:44px;min-width:44px;
+            padding:0 10px;font-size:17px;cursor:pointer;flex-shrink:0;
+            align-items:center;justify-content:center;
+            position:relative;">💬<span id="msgElvBtnN" style="display:none;
+            position:absolute;top:-6px;right:-6px;min-width:18px;padding:0 5px;
+            border-radius:9px;background:var(--red);color:#fff;font-size:11px;
+            line-height:18px;font-weight:700;text-align:center;"></span></button>
+
     <button id="cbBtn" title="La CB Gasoil" style="display:none;
             margin-left:8px;background:transparent;border:1px solid var(--line);
             color:var(--cream);border-radius:10px;height:44px;min-width:44px;
@@ -2705,7 +2729,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1073" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1074" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -2870,6 +2894,7 @@
     <button class="onglet" data-cible="eleves" type="button"><span>🔍</span>Élèves</button>
     <button class="onglet" data-cible="suivi"  type="button"><span>📓</span>Suivi</button>
     <button class="onglet" data-cible="permis" type="button"><span>🚗</span>Permis</button>
+    <button class="onglet" data-cible="messagerie" type="button"><span>💬</span>Messagerie</button>
     <button class="onglet" data-cible="outils" type="button"><span>🔨</span>Outils</button>
     <button class="onglet" data-cible="gestion" type="button"><span>⚙️</span>Gestion</button>
   </nav>
@@ -2879,6 +2904,44 @@
        écran : rien ici ne doit retarder l'ouverture. Vide, il
        disparaît entièrement — voir ec-bandeau.js. -->
   <div id="bandeauJour" style="display:none;"></div>
+
+  <!-- =====================================================
+       💬 LE TIROIR — un bandeau vertical, par-dessus l'écran
+
+       David : « sous forme de bandeau vertical », et « par-dessus ».
+       Il glisse depuis le bord droit, prend toute la hauteur, et
+       laisse l'écran en place derrière lui : on répond à un élève
+       sans quitter sa liste de cours.
+
+       ⚠️ IL VIT HORS DES ONGLETS, ET C'EST TOUT L'INTÉRÊT. Posé dans
+       une carte « data-onglet », il se serait éteint dès qu'on change
+       d'onglet — alors qu'on l'ouvre justement pour ne pas changer
+       d'onglet.
+
+       ⚠️ z-index 1000 : au-dessus de la barre des onglets (80) et du
+       menu ⋯ (90). En dessous, il s'ouvrirait DERRIÈRE la barre
+       collante du grand écran — la faute déjà faite une fois avec
+       le menu des trois points.
+       ===================================================== -->
+  <div id="msgElvVoile" style="display:none;position:fixed;inset:0;
+       background:rgba(0,0,0,.35);z-index:999;"></div>
+  <aside id="msgElvTiroir" aria-label="Messagerie" style="position:fixed;
+         top:0;right:0;height:100%;width:min(400px,100vw);z-index:1000;
+         background:var(--navy-deep);border-left:1px solid var(--line);
+         box-shadow:-8px 0 24px rgba(0,0,0,.18);
+         transform:translateX(100%);transition:transform .22s ease;
+         display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;
+         border-bottom:1px solid var(--line);flex-shrink:0;">
+      <strong style="flex:1;min-width:0;font-size:15px;">💬 Messagerie</strong>
+      <button id="msgElvGrand" class="btn btn-secondary" title="Ouvrir l'écran complet"
+              style="width:auto;margin:0;padding:7px 10px;font-size:12px;">↗️</button>
+      <button id="msgElvFermer" class="btn btn-secondary" title="Fermer"
+              style="width:auto;margin:0;padding:7px 11px;font-size:14px;">✕</button>
+    </div>
+    <div id="msgElvTiroirCorps" style="flex:1;min-height:0;overflow-y:auto;
+         padding:14px;"></div>
+  </aside>
 
   <!-- ⚠️ LE COURS EN ROUTE, PARTOUT — v937.
 
@@ -3448,7 +3511,7 @@
        ec-page-eleve.js, parce que son contenu dépend de qui est
        ouvert ET des droits du compte. -->
   <!-- 💬 LA MESSAGERIE — v1070 -->
-  <div class="card" data-section="messagerie" data-vue="messagerie" data-onglet="eleves">
+  <div class="card" data-section="messagerie" data-vue="messagerie" data-onglet="messagerie">
     <h2 class="section-title">💬 Messagerie</h2>
     <div id="messagerieZone"></div>
   </div>
@@ -4629,85 +4692,85 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1073"></script>
-<script src="app/ec-modeles.js?v=1073"></script>
-<script src="app/ec-consignes.js?v=1073"></script>
-<script src="app/ec-noyau.js?v=1073"></script>
-<script src="app/ec-vocal.js?v=1073"></script>
+  <script src="app/ec-etat.js?v=1074"></script>
+<script src="app/ec-modeles.js?v=1074"></script>
+<script src="app/ec-consignes.js?v=1074"></script>
+<script src="app/ec-noyau.js?v=1074"></script>
+<script src="app/ec-vocal.js?v=1074"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1073"></script>
-<script src="app/ec-reseau.js?v=1073"></script>
-<script src="app/ec-manuel.js?v=1073"></script>
-<script src="app/ec-fenetres.js?v=1073"></script>
-<script src="app/ec-parcours.js?v=1073"></script>
-<script src="app/ec-questionnaire.js?v=1073"></script>
-<script src="app/ec-permis.js?v=1073"></script>
-<script src="app/ec-prepares.js?v=1073"></script>
-<script src="app/ec-avant-cours.js?v=1073"></script>
-<script src="app/ec-bureau.js?v=1073"></script>
-<script src="app/ec-places.js?v=1073"></script>
-<script src="app/ec-listes.js?v=1073"></script>
-<script src="app/ec-permis-listes.js?v=1073"></script>
-<script src="app/ec-postpermis.js?v=1073"></script>
-<script src="app/ec-textes.js?v=1073"></script>
-<script src="app/ec-correction.js?v=1073"></script>
-<script src="app/ec-bilans.js?v=1073"></script>
-<script src="app/ec-ecran.js?v=1073"></script>
-<script src="app/ec-version.js?v=1073"></script>
-<script src="app/ec-paie.js?v=1073"></script>
-<script src="app/ec-flotte.js?v=1073"></script>
-<script src="app/ec-carrosserie.js?v=1073"></script>
-<script src="app/ec-solo.js?v=1073"></script>
-<script src="app/ec-handicap-pdf.js?v=1073"></script>
-<script src="app/ec-moto.js?v=1073"></script>
-<script src="app/ec-remorque.js?v=1073"></script>
-<script src="app/ec-arriereplan.js?v=1073"></script>
-<script src="app/ec-placesbe.js?v=1073"></script>
-<script src="app/ec-codeamenage.js?v=1073"></script>
-<script src="app/ec-financements.js?v=1073"></script>
-<script src="app/ec-eval-aac.js?v=1073"></script>
-<script src="app/ec-postes.js?v=1073"></script>
-<script src="app/ec-tarifs.js?v=1073"></script>
-<script src="app/ec-caisse.js?v=1073"></script>
-<script src="app/ec-menage.js?v=1073"></script>
-<script src="app/ec-page-eleve.js?v=1073"></script>
-<script src="app/ec-messagerie.js?v=1073"></script>
-<script src="app/ec-cbgasoil.js?v=1073"></script>
-<script src="app/ec-loupe.js?v=1073"></script>
-<script src="app/ec-coutsia.js?v=1073"></script>
-<script src="app/ec-evaluation.js?v=1073"></script>
-<script src="app/ec-paiement.js?v=1073"></script>
-<script src="app/ec-handicap.js?v=1073"></script>
-<script src="app/ec-code.js?v=1073"></script>
-<script src="app/ec-proccorriger.js?v=1073"></script>
-<script src="app/ec-sessions.js?v=1073"></script>
-<script src="app/ec-aac-cs.js?v=1073"></script>
-<script src="app/ec-notifs.js?v=1073"></script>
-<script src="app/ec-ecoutes.js?v=1073"></script>
-<script src="app/ec-taches.js?v=1073"></script>
-<script src="app/ec-memoire.js?v=1073"></script>
-<script src="app/ec-historique.js?v=1073"></script>
-<script src="app/ec-rappels.js?v=1073"></script>
-<script src="app/ec-segments.js?v=1073"></script>
-<script src="app/ec-sms.js?v=1073"></script>
-<script src="app/ec-encours.js?v=1073"></script>
-<script src="app/ec-incidents.js?v=1073"></script>
+<script src="app/ec-trajet.js?v=1074"></script>
+<script src="app/ec-reseau.js?v=1074"></script>
+<script src="app/ec-manuel.js?v=1074"></script>
+<script src="app/ec-fenetres.js?v=1074"></script>
+<script src="app/ec-parcours.js?v=1074"></script>
+<script src="app/ec-questionnaire.js?v=1074"></script>
+<script src="app/ec-permis.js?v=1074"></script>
+<script src="app/ec-prepares.js?v=1074"></script>
+<script src="app/ec-avant-cours.js?v=1074"></script>
+<script src="app/ec-bureau.js?v=1074"></script>
+<script src="app/ec-places.js?v=1074"></script>
+<script src="app/ec-listes.js?v=1074"></script>
+<script src="app/ec-permis-listes.js?v=1074"></script>
+<script src="app/ec-postpermis.js?v=1074"></script>
+<script src="app/ec-textes.js?v=1074"></script>
+<script src="app/ec-correction.js?v=1074"></script>
+<script src="app/ec-bilans.js?v=1074"></script>
+<script src="app/ec-ecran.js?v=1074"></script>
+<script src="app/ec-version.js?v=1074"></script>
+<script src="app/ec-paie.js?v=1074"></script>
+<script src="app/ec-flotte.js?v=1074"></script>
+<script src="app/ec-carrosserie.js?v=1074"></script>
+<script src="app/ec-solo.js?v=1074"></script>
+<script src="app/ec-handicap-pdf.js?v=1074"></script>
+<script src="app/ec-moto.js?v=1074"></script>
+<script src="app/ec-remorque.js?v=1074"></script>
+<script src="app/ec-arriereplan.js?v=1074"></script>
+<script src="app/ec-placesbe.js?v=1074"></script>
+<script src="app/ec-codeamenage.js?v=1074"></script>
+<script src="app/ec-financements.js?v=1074"></script>
+<script src="app/ec-eval-aac.js?v=1074"></script>
+<script src="app/ec-postes.js?v=1074"></script>
+<script src="app/ec-tarifs.js?v=1074"></script>
+<script src="app/ec-caisse.js?v=1074"></script>
+<script src="app/ec-menage.js?v=1074"></script>
+<script src="app/ec-page-eleve.js?v=1074"></script>
+<script src="app/ec-messagerie.js?v=1074"></script>
+<script src="app/ec-cbgasoil.js?v=1074"></script>
+<script src="app/ec-loupe.js?v=1074"></script>
+<script src="app/ec-coutsia.js?v=1074"></script>
+<script src="app/ec-evaluation.js?v=1074"></script>
+<script src="app/ec-paiement.js?v=1074"></script>
+<script src="app/ec-handicap.js?v=1074"></script>
+<script src="app/ec-code.js?v=1074"></script>
+<script src="app/ec-proccorriger.js?v=1074"></script>
+<script src="app/ec-sessions.js?v=1074"></script>
+<script src="app/ec-aac-cs.js?v=1074"></script>
+<script src="app/ec-notifs.js?v=1074"></script>
+<script src="app/ec-ecoutes.js?v=1074"></script>
+<script src="app/ec-taches.js?v=1074"></script>
+<script src="app/ec-memoire.js?v=1074"></script>
+<script src="app/ec-historique.js?v=1074"></script>
+<script src="app/ec-rappels.js?v=1074"></script>
+<script src="app/ec-segments.js?v=1074"></script>
+<script src="app/ec-sms.js?v=1074"></script>
+<script src="app/ec-encours.js?v=1074"></script>
+<script src="app/ec-incidents.js?v=1074"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1073"></script>
+<script src="app/ec-messages-perso.js?v=1074"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1073"></script>
-<script src="app/ec-bandeau.js?v=1073"></script>
-<script src="app/ec-stats.js?v=1073"></script>
-<script src="app/ec-messenger.js?v=1073"></script>
-<script src="app/ec-journal.js?v=1073"></script>
-<script src="app/ec-depart.js?v=1073"></script>
-<script src="app/ec-onglets.js?v=1073"></script>
-<script src="app/ec-demarrage.js?v=1073"></script>
+<script src="app/ec-nouveautes.js?v=1074"></script>
+<script src="app/ec-bandeau.js?v=1074"></script>
+<script src="app/ec-stats.js?v=1074"></script>
+<script src="app/ec-messenger.js?v=1074"></script>
+<script src="app/ec-journal.js?v=1074"></script>
+<script src="app/ec-depart.js?v=1074"></script>
+<script src="app/ec-onglets.js?v=1074"></script>
+<script src="app/ec-demarrage.js?v=1074"></script>
 
 <script>
 /* ============================================================
