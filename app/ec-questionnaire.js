@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 12:17 — v1055 */
+/* Déployé le 07/10/2026 à 20:30 — v1072 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -532,6 +532,69 @@ function etatQuiFaitFoi(nom){
     const jour = (typeof dateDeSessionDe === 'function') ? dateDeSessionDe(nom) : '';
     if(jour){ d.examDate = jour; d.examPermis = 'prevu'; }
   }catch(e){ /* sessions non chargées : idem */ }
+
+  /* ============================================================
+     ⚠️ RETIRER UNE DATE N'EST PAS LA LAISSER VIDE — v1072
+
+     David, le 7 octobre, capture à l'appui, sur Mackenzie Leroy :
+     « on a enlevé sa date d'examen du 22/09 et elle ressort comme
+     ça, ce n'est pas normal, elle n'a pas été ajournée ». Sa carte
+     annonçait « PAS DE DATE D'EXAMEN OFFICIEL — dernier examen le
+     mardi 22 septembre 2026, ajourné — reprend la conduite » et sa
+     leçon « 1ÈRE LEÇON APRÈS LE DERNIER AJOURNEMENT », pendant que
+     sa fiche de route disait, elle, « Aucun ajournement » et « Pas
+     de date d'examen ». Deux phrases contradictoires sur le même
+     écran.
+
+     LA CAUSE. Tout ce qui précède POSE des valeurs, et rien n'en
+     RETIRE. La note d'un cours préparé se refait par un
+     Object.assign dont ce bloc-ci est le dernier mot (voir
+     noteJusteDuCours) — mais Object.assign ne sait qu'écraser une
+     clé qu'on lui donne. Une clé absente laisse la précédente
+     intacte : le « examPermis: 'passe' » et le « examDate:
+     2026-09-22 » figés dans le contexte du cours survivaient à la
+     suppression de la date, et la phrase qu'ils produisaient se
+     relisait ensuite comme un état (ec-bureau, apresCharniere) —
+     une note qui se ressème elle-même.
+
+     LA RÈGLE. Le classeur fait foi dans LES DEUX SENS. Quand il dit
+     positivement que cet élève n'est jamais allé à l'examen — pas
+     de date, pas de session, aucun ajournement, aucun résultat,
+     aucun rendez-vous post-permis — il efface, explicitement.
+
+     ⚠️ ET SEULEMENT DANS CE CAS. Les six conditions sont réunies
+     pour une raison : un ajourné a « datePermis » vidée, lui aussi,
+     par le bouton ❌ Ajourné. C'est « nbAjournements », « resultat »
+     et « dateAjournement » qui le distinguent d'un élève qui n'y
+     est jamais allé. En effacer un seul de moins, et on effacerait
+     la charnière de tous les ajournés de l'école.
+     ============================================================ */
+  try{
+    const s = (typeof suiviDe === 'function') ? (suiviDe(nom) || {}) : {};
+    const session = (typeof dateDeSessionDe === 'function')
+      ? String(dateDeSessionDe(nom) || '').trim() : '';
+    const res = String(s.resultat || '').trim();
+
+    const jamaisAlle =
+      !String(s.datePermis || '').trim() &&
+      !session &&
+      !(parseInt(s.nbAjournements, 10) > 0) &&
+      !String(s.dateAjournement || '').trim() &&
+      res !== 'ajourne' && res !== 'obtenu' &&
+      !String(s.rdvPostDate || '').trim() &&
+      String(s.rdvPostFait || '') !== 'oui';
+
+    if(jamaisAlle){
+      /* Trois clés, et les trois comptent. « examPermis » commande
+         la phrase « dernier examen le …, ajourné » ; « examDate »
+         lui donne sa date ; « avantExamRate » commande le compteur
+         « Nème leçon après le dernier ajournement ». Laisser la
+         troisième, c'était corriger la phrase et garder le rang. */
+      d.examPermis = '';
+      d.examDate = '';
+      d.avantExamRate = '';
+    }
+  }catch(e){ /* suivi non chargé : on ne conclut rien, et surtout on n'efface rien */ }
 
   /* La formation du répertoire : c'est elle qui dit le parcours, et
      donc la frise. Sans cela, un élève en AAC gardait la frise
