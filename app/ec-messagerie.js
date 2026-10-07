@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 21:30 — v1082 */
+/* Déployé le 08/10/2026 à 23:10 — v1083 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -560,11 +560,15 @@ async function ouvrirLeFil(id, viser){
   dessinerLeFil();
   marquerLuLeFil();
   veillerLeFil();
+  /* Le direct se branche APRÈS le premier dessin : il accélère ce
+     qui vient ensuite, il ne retarde pas l'ouverture. */
+  if(typeof brancherLeDirect === 'function') brancherLeDirect(id);
 }
 
 function fermerLeFil(){
   filOuvertEC = null;
   arreterLaVeilleDuFil();
+  if(typeof couperLeDirect === 'function') couperLeDirect();
   afficherMessagerie(true);
 }
 
@@ -1043,6 +1047,14 @@ async function ecrireDansLeFil(){
 
 function veillerLeFil(){
   arreterLaVeilleDuFil();
+  /* ⚠️ QUATRE SECONDES, OU TRENTE SI LE DIRECT RÉPOND — étape 2.
+     Le sondage ne disparaît jamais : il devient le FILET. Une
+     connexion peut mourir sans le dire, un Worker peut être déployé
+     sans sa liaison Durable Object — et une messagerie qui ne
+     marche que si le temps réel marche serait plus fragile que
+     celle d'hier. */
+  const pas = (typeof leDirectEstBranche === 'function' && leDirectEstBranche())
+    ? PAS_SONDAGE_LENT : PAS_MESSAGERIE;
   battementMessagerie = setInterval(() => {
     if(!filOuvertEC) return arreterLaVeilleDuFil();
     /* Personne devant l'écran : relire ne servirait qu'à consommer
@@ -1050,7 +1062,7 @@ function veillerLeFil(){
     if(document.hidden) return;
     if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
     rafraichirLeFil(true);
-  }, PAS_MESSAGERIE);
+  }, pas);
 }
 
 function arreterLaVeilleDuFil(){
@@ -1804,6 +1816,7 @@ async function dessinerEcranParticipants(opt){
      « rafraichirLeFil » le relisent tous les deux pour décider s'ils
      ont le droit de repeindre. On le rouvre proprement au retour. */
   arreterLaVeilleDuFil();
+  if(typeof couperLeDirect === 'function') couperLeDirect();
   filOuvertEC = null;
 
   zone.innerHTML = (typeof htmlAttente === 'function')
@@ -2617,6 +2630,150 @@ function objetDuFil(f){
 
 
 /* ============================================================
+   📡 LE FIL EN DIRECT — étape 2
+
+   David, le 7 octobre : « je veux un vrai systeme de messagerie
+   instantané ». L'étape 1 tenait la promesse par un sondage de
+   quatre secondes ; celle-ci la tient vraiment — le fil ouvert ne
+   demande plus, il reçoit.
+
+   ⚠️ LE DIRECT EST UN ACCÉLÉRATEUR, PAS UN MÉCANISME. Tout ce qui
+   suit peut échouer — liaison Durable Object absente du Worker,
+   WebSocket bloqué par le réseau d'un hôtel, connexion coupée en
+   silence par un routeur — et la messagerie doit continuer de
+   marcher exactement comme avant. Le sondage ne disparaît donc
+   jamais : il PASSE DE QUATRE À TRENTE SECONDES quand le direct
+   répond, et revient à quatre dès qu'il se tait. Une messagerie qui
+   ne marche que si le temps réel marche est une messagerie plus
+   fragile que celle d'hier.
+
+   ⚠️ ET LE CODE D'ACCÈS NE PASSE PAS DANS L'ADRESSE. Un navigateur
+   ne peut pas poser d'en-têtes sur une connexion WebSocket : on
+   échange donc le code, par un appel normal, contre un billet à
+   usage unique valable soixante secondes et pour UNE conversation.
+   Voir « poserUnBillet » côté Worker.
+   ============================================================ */
+
+const PAS_DIRECT_PING = 45000;     /* un mot pour tenir la ligne ouverte */
+const PAS_DIRECT_MUET = 20000;     /* sans réponse après ça, elle est morte */
+const PAS_SONDAGE_LENT = 30000;    /* le filet, quand le direct répond */
+
+let socketDuFil = null;
+let pingDuFil = null;
+let muetDuFil = null;
+let repriseDuDirect = null;
+let essaisDuDirect = 0;
+let filDuDirect = '';              /* la conversation branchée */
+
+function leDirectEstBranche(){
+  return !!(socketDuFil && socketDuFil.readyState === 1);
+}
+
+function adresseDuDirect(billet){
+  const base = (typeof CONFIG !== 'undefined' && CONFIG.WORKER_URL) || '';
+  return base.replace(/^http/, 'ws') + '/ws?b=' + encodeURIComponent(billet);
+}
+
+async function brancherLeDirect(id){
+  couperLeDirect();
+  if(!id || typeof WebSocket === 'undefined') return;
+  filDuDirect = id;
+
+  let billet = '';
+  try{
+    const d = await appelPrep({ action: 'convDirect', id: id });
+    billet = (d && d.billet) || '';
+  }catch(e){
+    /* Pas de Durable Object branché sur le Worker, ou appel refusé :
+       on ne réessaie pas en boucle. Le sondage de quatre secondes
+       fait son travail, et personne ne voit la différence. */
+    return;
+  }
+  if(!billet || filDuDirect !== id) return;
+
+  let ws;
+  try{ ws = new WebSocket(adresseDuDirect(billet)); }
+  catch(e){ return; }
+  socketDuFil = ws;
+
+  ws.onopen = () => {
+    if(socketDuFil !== ws) return;
+    essaisDuDirect = 0;
+    /* Le sondage passe au ralenti : il reste le filet, il n'est
+       plus le mécanisme. */
+    veillerLeFil();
+    battreLeDirect();
+  };
+
+  ws.onmessage = (ev) => {
+    if(socketDuFil !== ws) return;
+    /* ⚠️ TOUT MESSAGE PROUVE QUE LA LIGNE EST VIVANTE, « pong »
+       compris : on repart donc du silence à chaque fois. */
+    armerLeSilence();
+    if(String(ev.data) === 'pong') return;
+    /* Le haut-parleur ne porte jamais le contenu — il dit qu'il y a
+       du nouveau. On relit D1 par le chemin habituel : une seule
+       vérité, et pas deux à tenir d'accord. */
+    rafraichirLeFil(true);
+  };
+
+  ws.onclose = () => { if(socketDuFil === ws) perdreLeDirect(); };
+  ws.onerror = () => { if(socketDuFil === ws) perdreLeDirect(); };
+}
+
+/* ⚠️ UNE CONNEXION PEUT MOURIR SANS LE DIRE. Un réseau mobile qui
+   bascule, un routeur qui coupe une ligne silencieuse : la prise
+   reste « ouverte » côté navigateur et plus rien n'arrive. Le mot
+   toutes les quarante-cinq secondes sert à ça, et l'absence de
+   réponse en vingt secondes est la seule preuve qu'on puisse avoir. */
+function battreLeDirect(){
+  if(pingDuFil) clearInterval(pingDuFil);
+  pingDuFil = setInterval(() => {
+    if(!leDirectEstBranche()) return perdreLeDirect();
+    try{ socketDuFil.send('ping'); }catch(e){ return perdreLeDirect(); }
+    armerLeSilence();
+  }, PAS_DIRECT_PING);
+}
+
+function armerLeSilence(){
+  if(muetDuFil) clearTimeout(muetDuFil);
+  muetDuFil = setTimeout(() => perdreLeDirect(), PAS_DIRECT_MUET);
+}
+
+/* On perd la ligne : le sondage rapide reprend immédiatement, et on
+   retente plus tard — en espaçant, pour ne pas marteler un Worker
+   qui n'a tout simplement pas de Durable Object. */
+function perdreLeDirect(){
+  const id = filDuDirect;
+  couperLeDirect(true);
+  if(!id || !unFilEstOuvert() || !filOuvertEC || filOuvertEC.conv.id !== id) return;
+
+  veillerLeFil();            /* retour aux quatre secondes */
+  essaisDuDirect++;
+  if(essaisDuDirect > 4) return;
+  const attente = Math.min(60000, 3000 * Math.pow(2, essaisDuDirect - 1));
+  repriseDuDirect = setTimeout(() => {
+    if(unFilEstOuvert() && filOuvertEC && filOuvertEC.conv.id === id){
+      brancherLeDirect(id);
+    }
+  }, attente);
+}
+
+function couperLeDirect(garderLeCompte){
+  if(pingDuFil){ clearInterval(pingDuFil); pingDuFil = null; }
+  if(muetDuFil){ clearTimeout(muetDuFil); muetDuFil = null; }
+  if(repriseDuDirect){ clearTimeout(repriseDuDirect); repriseDuDirect = null; }
+  if(socketDuFil){
+    const s = socketDuFil;
+    socketDuFil = null;
+    try{ s.onopen = s.onmessage = s.onclose = s.onerror = null; }catch(e){}
+    try{ s.close(); }catch(e){}
+  }
+  if(!garderLeCompte){ essaisDuDirect = 0; filDuDirect = ''; }
+}
+
+
+/* ============================================================
    💬 LE TIROIR — un bandeau vertical, par-dessus l'écran
 
    David, le 8 octobre : « un logo en haut avant l'emplacement de la
@@ -2655,6 +2812,9 @@ function fermerTiroirMessagerie(){
      c'est la batterie d'une tablette posée sur son support toute la
      journée. */
   arreterLaVeilleDuFil();
+  /* Et la connexion en direct avec lui : une prise ouverte sur un
+     tiroir fermé, c'est la même batterie dépensée pour rien. */
+  if(typeof couperLeDirect === 'function') couperLeDirect();
 
   tiroirOuvertEC = false;
   t.style.transform = 'translateX(100%)';
