@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:10 — v1070 */
+/* Déployé le 08/10/2026 à 17:05 — v1079 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1751,6 +1751,13 @@ function lancerActualisationAuto(){
        !(typeof unFilEstOuvert === 'function' && unFilEstOuvert())){
       compterLaMessagerie();
     }
+    /* ⚠️ LES OBJETS RESTENT ICI, ET PAS SUR LE BATTEMENT COURT DE
+       LA MESSAGERIE — v1079. Une écharpe oubliée ne change pas
+       d'état trois fois par minute ; le compteur des messages, lui,
+       est passé à 25 secondes parce que David attendait deux
+       minutes sa notification. Les mettre ensemble, c'était doubler
+       un appel pour une liste qui ne bouge pas. */
+    if(typeof compterLesObjets === 'function') compterLesObjets();
   }, 90000);   /* toutes les 90 secondes */
 }
 
