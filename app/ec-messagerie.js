@@ -209,8 +209,7 @@ function dessinerLaListeMessagerie(){
     }
   }
 
-  if(!dansLeTiroir() && typeof aDroit === 'function' &&
-     (aDroit('messagerie_bureau') || aDroit('messagerie_admin'))){
+  if(!dansLeTiroir() && peutOuvrirUneConversation()){
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
     b.style.cssText = 'margin-top:12px;padding:10px;font-size:13px;';
@@ -1777,6 +1776,36 @@ const SORTES_CONVERSATION = [
 
 let sorteChoisie = 'direct';
 
+/* ⚠️ OUVRIR UNE CONVERSATION DEMANDE « 💬 Messagerie : Modifier »,
+   ET RIEN DE PLUS — v1087.
+
+   David, le 9 octobre : « je dois mettre l'accès sur superviser pour
+   qu'un moniteur puisse créer une conversation, sauf que là il voit
+   les conversations des autres alors qu'il ne doit pas ». Il a cru
+   qu'il manquait un droit. Il manquait une correction.
+
+   Depuis la v1080 — sa demande : « il faut aussi qu'un moniteur
+   puisse envoyer en direct à l'élève et pas au nom du bureau » — le
+   SERVEUR dit : ouvrir une conversation en son nom demande
+   « messagerie » en modification ; un GROUPE ou une conversation AU
+   NOM DU BUREAU demandent en plus la boîte du bureau. L'écran, lui,
+   était resté sur la règle d'avant et cachait le bouton à tous ceux
+   qui n'étaient pas du bureau. Pour le leur rendre il fallait donc
+   leur donner la supervision — c'est-à-dire les conversations de
+   toute l'école en échange d'un bouton. Un contrôle d'écran plus
+   strict que celui du serveur ne protège rien : il pousse à ouvrir
+   bien plus grand que nécessaire.
+
+   ⚠️ ET CE CONTRÔLE-CI NE DÉCIDE QUE D'UNE CHOSE : peut-on en ouvrir
+   une, du tout. Le réglage fin est juste en dessous, dans
+   « sortesPermises » — c'est lui qui ne propose « au nom du bureau »
+   et « un groupe » qu'à qui y a droit. Deux questions, deux
+   endroits ; les mêler est exactement ce qui a produit ce bug. */
+function peutOuvrirUneConversation(){
+  if(typeof peutModifier !== 'function') return true;
+  return peutModifier('messagerie');
+}
+
 /* ⚠️ L'ÉCRAN NE PROPOSE QUE CE QU'ON A LE DROIT DE FAIRE. Un
    moniteur ne voit qu'un bouton, et c'est mieux qu'un refus après
    coup : un écran qui laisse choisir puis dit non est un écran qui
@@ -2524,9 +2553,28 @@ function veillerLeCompteMessagerie(){
    veut s'en servir en premier. */
 function montrerLeBoutonMessagerie(){
   const b = $('msgElvBtn');
-  if(!b) return;
-  const ouvert = (typeof aDroit !== 'function') || aDroit('messagerie');
-  b.style.display = ouvert ? 'inline-flex' : 'none';
+  if(b){
+    const ouvert = (typeof aDroit !== 'function') || aDroit('messagerie');
+    b.style.display = ouvert ? 'inline-flex' : 'none';
+  }
+
+  /* ✏️ LE CRAYON DU TIROIR SE DÉCIDE ICI AUSSI — v1087, ET IL NE
+     L'AVAIT JAMAIS FAIT.
+
+     Il était posé dans l'en-tête du tiroir sans aucun contrôle :
+     quelqu'un en LECTURE SEULE le voyait, cliquait, remplissait
+     l'écran des participants, et se faisait refuser par le serveur au
+     moment d'ouvrir. Le bouton de la liste, lui, était trop strict.
+     Deux boutons qui font la même chose et qui répondaient
+     différemment à la même question — c'est toujours comme ça que ça
+     commence.
+
+     Et c'est bien ici qu'il faut le décider, avec son voisin : sur
+     une tablette partagée, un moniteur se déconnecte et un autre se
+     connecte. Décidé une seule fois au chargement de la page, le
+     second héritait des boutons du premier. */
+  const n = $('msgElvNeuf');
+  if(n) n.style.display = peutOuvrirUneConversation() ? '' : 'none';
 }
 
 /* ============================================================
@@ -3692,6 +3740,10 @@ function brancherLeTiroirMessagerie(){
      qu'on regarde, celui-ci fait quelque chose de neuf. */
   const n = $('msgElvNeuf');
   if(n) n.addEventListener('click', () => ecranNouvelleConversation());
+
+  /* Posé tout de suite dans son état d'avant connexion — il
+     réapparaîtra au premier comptage, une fois les droits connus. */
+  montrerLeBoutonMessagerie();
 
   /* 🔔 Le service worker nous dira quel fil ouvrir quand on cliquera
      sur une notification — étape 3. Aucun appel réseau ici : on
