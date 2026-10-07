@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 09:20 — v1074 */
+/* Déployé le 08/10/2026 à 15:20 — v1078 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -79,6 +79,14 @@ const FAMILLES_BANDEAU = [
      le battement de 90 secondes rapporte déjà pour la pastille. */
   { cle:'conv',     emoji:'💬', nom:'Messages des élèves',
     droit:'messagerie',    reglable:true },
+  /* ⚠️ LES OBJETS ONT QUITTÉ LA FAMILLE 💬 — v1078, étape 1c. Ils y
+     étaient en attendant d'avoir un état ; ils en ont un
+     maintenant, et une écharpe signalée il y a trois semaines n'est
+     pas « un message à lire », c'est un travail en cours. Mélangées,
+     elles disparaissaient sous les retards du matin — exactement la
+     douleur que cette étape répare. */
+  { cle:'objet',    emoji:'🧤', nom:'Objets oubliés',
+    droit:'messagerie_bureau', reglable:true },
   { cle:'aprevoir', emoji:'📝', nom:'Examens blancs et simulateurs à prévoir',
     droit:'',              reglable:true },
   /* ⚠️ LES HEURES ONT LEUR FAMILLE À ELLES — v908.
@@ -268,7 +276,9 @@ function lignesMessagesEleves(){
 
   return conversationsEC
     .filter(c => !Number(c.fermee || 0))
-    .filter(c => c.nonLus > 0 || urgents[c.genre] || c.genre === 'oubli')
+    /* Les 🧤 ont leur famille : ils ne passent plus par ici, sauf
+       quand l'élève y a écrit quelque chose qu'on n'a pas lu. */
+    .filter(c => c.nonLus > 0 || urgents[c.genre])
     .map(c => {
       const urgente = !!urgents[c.genre];
       const qui = c.eleve || c.titre || 'Un élève';
@@ -293,6 +303,47 @@ function lignesMessagesEleves(){
           if(typeof ouvrirLeFil === 'function') ouvrirLeFil(c.id);
         },
         actionTexte: 'Lire'
+      };
+    });
+}
+
+/* ============================================================
+   🧤 LES OBJETS OUBLIÉS DANS LE BANDEAU — v1078, étape 1c
+
+   ⚠️ PAS DE CROIX, ET POUR UNE AUTRE RAISON QUE LES MESSAGES.
+   Celle de la famille 💬 part quand on a LU. Celle-ci ne part que
+   quand on a DIT ce qu'est devenu l'objet — c'est tout le
+   mécanisme : « les objets oubliés se perdent » parce que rien
+   n'oblige personne à conclure. Une croix rendrait la ligne
+   masquable, et on aurait reconstruit le problème.
+
+   Elle ne coûte aucun appel : « objetsEC » est rempli par le même
+   battement de 90 secondes que la pastille de la messagerie.
+   ============================================================ */
+function lignesObjetsOublies(){
+  if(typeof objetsEC === 'undefined' || !Array.isArray(objetsEC)) return [];
+
+  return objetsEC
+    .filter(o => o.etat === 'signale' || o.etat === 'retrouve')
+    .map(o => {
+      const e = (typeof ETATS_OBJET_EC !== 'undefined' && ETATS_OBJET_EC[o.etat]) ||
+                { emoji: '🧤', sous: '' };
+      return {
+        id: 'objet:' + o.id,
+        famille: 'objet',
+        emoji: e.emoji,
+        texte: (o.quoi || 'Un objet oublié') +
+               (o.vehicule ? ' — ' + o.vehicule : '') +
+               (o.eleve ? ' · ' + o.eleve : ''),
+        sous: [o.signaleLe ? 'signalé le ' + o.signaleLe : '',
+               (o.etat === 'retrouve' && o.majPar)
+                 ? 'retrouvé par ' + o.majPar
+                 : e.sous].filter(Boolean).join(' · '),
+        urgente: false,
+        action: () => {
+          if(typeof afficherVue === 'function') afficherVue('messagerie', 'oublis');
+        },
+        actionTexte: 'Traiter'
       };
     });
 }
@@ -650,7 +701,8 @@ function lignesDuBandeau(){
     heures:   lignesHeuresExamen,
     anniv:    lignesAnniversaires,
     cbgasoil: (typeof lignesCbGasoil === 'function') ? lignesCbGasoil : (() => []),
-    conv:     lignesMessagesEleves
+    conv:     lignesMessagesEleves,
+    objet:    lignesObjetsOublies
   };
 
   let out = [];
