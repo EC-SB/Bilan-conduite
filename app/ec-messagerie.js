@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 17:05 — v1079 */
+/* Déployé le 08/10/2026 à 18:40 — v1080 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -1539,6 +1539,130 @@ function dessinerLesPastilles(){
   }
 }
 
+/* ============================================================
+   CE QUE TU VEUX ÉCRIRE — v1080
+
+   David, le 8 octobre : « je ne comprends pas l'utilité de la case
+   quelle sorte juste soit un groupe ou là on met les utilisateurs
+   et les élèves et le titre du groupe, soit à quelqu'un directement
+   en mon nom, soit à quelqu'un au nom du bureau ».
+
+   ⚠️ IL AVAIT RAISON, ET LA FAUTE A UN NOM : le mot « sorte »
+   venait de la base de données. Un fil porte un « genre » — utile
+   au serveur — et je l'avais recopié tel quel dans l'écran. On
+   demandait donc de choisir un mot technique (« interne ») au lieu
+   de choisir ce qu'on veut faire. Ses trois phrases sont les
+   bonnes, et le genre se déduit tout seul : « à quelqu'un » devient
+   « interne » si c'est un collègue, « moniteur » si c'est un élève.
+
+   ⚠️ ET « À QUELQU'UN, EN MON NOM » EST NOUVEAU POUR LES MONITEURS.
+   Jusqu'ici, ouvrir une conversation demandait « Boîte du bureau » :
+   un moniteur pouvait répondre partout où on l'avait mis, et
+   n'ouvrir nulle part. Sa deuxième demande du 8 octobre : « il faut
+   aussi qu'un moniteur puisse envoyer en direct à l'élève et pas au
+   nom du bureau ». La boîte du bureau n'est donc PAS membre de ce
+   fil — c'est tout le sens de « en mon nom » — et la supervision le
+   voit quand même, avec sa ligne de journal. Sa réponse : « tu as
+   raison le bureau non la supervision oui ».
+   ============================================================ */
+
+const SORTES_CONVERSATION = [
+  { cle: 'direct', emoji: '👤', nom: 'À quelqu’un, en mon nom',
+    sous: 'Un collègue ou un élève. C’est signé de toi, et c’est entre vous.',
+    droit: 'messagerie' },
+  { cle: 'bureau', emoji: '🏢', nom: 'À un élève, au nom du bureau',
+    sous: 'La boîte du bureau est dedans : tous ceux qui en sont le voient ' +
+          'et peuvent répondre.',
+    droit: 'bureau' },
+  { cle: 'groupe', emoji: '👥', nom: 'Un groupe',
+    sous: 'Un nom, des collègues, des élèves. Discussion ou annonce.',
+    droit: 'bureau' }
+];
+
+let sorteChoisie = 'direct';
+
+/* ⚠️ L'ÉCRAN NE PROPOSE QUE CE QU'ON A LE DROIT DE FAIRE. Un
+   moniteur ne voit qu'un bouton, et c'est mieux qu'un refus après
+   coup : un écran qui laisse choisir puis dit non est un écran qui
+   ment. */
+function sortesPermises(){
+  const bureau = (typeof aDroit !== 'function') ||
+                 aDroit('messagerie_bureau') || aDroit('messagerie_admin');
+  return SORTES_CONVERSATION.filter(s => s.droit !== 'bureau' || bureau);
+}
+
+/* Le genre, côté serveur, se DÉDUIT de la sorte et de qui on a
+   choisi. Plus personne ne le tape. */
+function genreDeLaSorte(){
+  if(sorteChoisie === 'groupe') return 'groupe';
+  if(sorteChoisie === 'bureau') return 'bureau';
+  return choixEleves.length ? 'moniteur' : 'interne';
+}
+
+function poserLesSortes(){
+  const z = $('msgElvSortes');
+  const zt = $('msgElvZoneTitre');
+  const zm = $('msgElvZoneMode');
+
+  if(zt) zt.style.display = (sorteChoisie === 'groupe') ? '' : 'none';
+  if(zm) zm.style.display = (sorteChoisie === 'groupe') ? '' : 'none';
+
+  /* ⚠️ « AJOUTER UN GROUPE ENTIER » N'A PAS DE SENS À UNE PERSONNE.
+     Poser six élèves d'un clic dans une conversation qui n'en
+     accepte qu'un, c'est proposer un geste qu'on refusera juste
+     après. Le raccourci ne sert qu'au groupe. */
+  const zg = $('msgElvGroupes');
+  if(zg) zg.style.display = (sorteChoisie === 'groupe') ? '' : 'none';
+
+  if(!z) return;
+
+  z.innerHTML = '';
+  sortesPermises().forEach(s => {
+    const on = (sorteChoisie === s.cle);
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = on ? '' : 'btn btn-secondary';
+    b.style.cssText = 'display:flex;gap:12px;align-items:flex-start;width:100%;' +
+      'margin:0 0 9px;padding:13px 14px;border-radius:13px;text-align:left;' +
+      'font-family:inherit;cursor:pointer;' +
+      (on ? 'background:var(--orange-soft);border:1px solid var(--orange);' +
+            'color:var(--on-accent);' : '');
+
+    const e = document.createElement('span');
+    e.style.cssText = 'font-size:20px;flex:0 0 auto;line-height:1.2;';
+    e.textContent = s.emoji;
+    b.appendChild(e);
+
+    const t = document.createElement('span');
+    t.style.cssText = 'flex:1;min-width:0;';
+    const t1 = document.createElement('span');
+    t1.style.cssText = 'display:block;font-size:14.5px;font-weight:800;line-height:1.3;';
+    t1.textContent = s.nom;
+    const t2 = document.createElement('span');
+    /* ⚠️ « font-weight:400 » EXPLICITE. La classe .btn pose 700 sur
+       le bouton entier : sans ça, la phrase d'explication sortait en
+       gras et aussi noire que le titre — deux titres, aucune
+       explication. */
+    t2.style.cssText = 'display:block;font-size:12px;margin-top:3px;line-height:1.45;' +
+      'font-weight:400;' +
+      (on ? 'color:var(--on-accent);opacity:.75;' : 'color:var(--muted);');
+    t2.textContent = s.sous;
+    t.appendChild(t1);
+    t.appendChild(t2);
+    b.appendChild(t);
+
+    b.addEventListener('click', () => {
+      if(sorteChoisie === s.cle) return;
+      sorteChoisie = s.cle;
+      poserLesSortes();
+      poserLesModes();
+      majAvisDeLaConversation();
+    });
+    z.appendChild(b);
+  });
+}
+
+
 /* ------------------------------------------------------------
    OUVRIR UNE CONVERSATION
    ------------------------------------------------------------ */
@@ -1558,6 +1682,10 @@ async function ecranNouvelleConversation(){
   filEnModification = null;
   choixUsers = [];
   choixEleves = [];
+  /* La première sorte permise : pour un moniteur c'est la seule, et
+     pour le bureau c'est celle qu'on fait le plus souvent. */
+  sorteChoisie = (sortesPermises()[0] || {}).cle || 'direct';
+  modeChoisi = 'discussion';
 
   /* Celui qui ouvre est dedans : un groupe créé et pas rejoint est
      un groupe qu'on ne verra jamais se remplir. */
@@ -1669,12 +1797,8 @@ async function dessinerEcranParticipants(opt){
   if(opt.avecSorte){
     const h = document.createElement('div');
     h.innerHTML =
-      '<label for="msgElvGenre">Quelle sorte</label>' +
-      '<select id="msgElvGenre">' +
-        '<option value="groupe">👥 Un groupe — élèves et collègues mélangés</option>' +
-        '<option value="interne">🏠 Entre nous — entre utilisateurs de l’outil</option>' +
-        '<option value="bureau">🏢 Avec un élève, au nom du bureau</option>' +
-      '</select>' +
+      '<label>Tu veux écrire…</label>' +
+      '<div id="msgElvSortes" style="margin-bottom:14px;"></div>' +
       '<div id="msgElvZoneTitre">' +
         '<label for="msgElvTitre">Nom du groupe</label>' +
         '<input type="text" id="msgElvTitre" placeholder="Ex : Permis du 14 octobre">' +
@@ -1685,6 +1809,7 @@ async function dessinerEcranParticipants(opt){
              'flex-wrap:wrap;"></div>' +
       '</div>';
     zone.appendChild(h);
+    poserLesSortes();
     poserLesModes();
   }
 
@@ -1728,12 +1853,13 @@ async function dessinerEcranParticipants(opt){
   b.addEventListener('click', () => opt.faire(b));
   zone.appendChild(b);
 
-  if(opt.avecSorte){
-    $('msgElvGenre').addEventListener('change', () => {
-      poserLesModes();
-      majAvisDeLaConversation();
-    });
-  }
+  /* ⚠️ UNE DEUXIÈME FOIS, ET C'EST VOULU. « poserLesSortes » cache
+     aussi le raccourci « ajouter un groupe entier », qui n'existe
+     pas encore au moment du premier appel : les deux sélecteurs
+     sont posés après l'en-tête. Appeler une fois de plus coûte
+     trois boutons redessinés ; l'autre solution était de couper la
+     fonction en deux pour une ligne. */
+  if(opt.avecSorte) poserLesSortes();
 
   dessinerLesPastilles();
   majAvisDeLaConversation();
@@ -1743,19 +1869,15 @@ async function dessinerEcranParticipants(opt){
    tous les autres choix de l'outil, et elle se vise au doigt. */
 let modeChoisi = 'discussion';
 
+/* ⚠️ LE MODE N'EXISTE QUE POUR UN GROUPE — v1080. « Annonce » veut
+   dire « seule l'école écrit, et les élèves ne se voient pas entre
+   eux » : dans une conversation à deux, les deux phrases sont
+   vides de sens. L'écran ne pose donc plus la question là où elle
+   n'en est pas une. */
 function poserLesModes(){
   const z = $('msgElvModes');
-  const zt = $('msgElvZoneTitre');
-  const zm = $('msgElvZoneMode');
-  const genre = $('msgElvGenre') ? $('msgElvGenre').value : 'groupe';
-
-  if(zt) zt.style.display = (genre === 'groupe') ? '' : 'none';
-  if(zm) zm.style.display = (genre === 'interne') ? 'none' : '';
+  if(sorteChoisie !== 'groupe') modeChoisi = 'discussion';
   if(!z) return;
-
-  /* Entre nous, « annonce » n'a pas de sens : personne à qui
-     interdire la parole. */
-  if(genre === 'interne') modeChoisi = 'discussion';
 
   z.innerHTML = '';
   [['discussion', '💬 Discussion', 'tout le monde écrit et se voit'],
@@ -1804,11 +1926,25 @@ function majAvisDeLaConversation(){
   const z = $('msgElvAvis');
   if(!z) return;
 
-  const genre = $('msgElvGenre') ? $('msgElvGenre').value
-              : ((filEnModification && filEnModification.conv.genre) || 'groupe');
+  const genre = filEnModification
+    ? (filEnModification.conv.genre || 'groupe')
+    : (($('msgElvSortes') ? genreDeLaSorte() : 'groupe'));
   const mode = filEnModification ? (filEnModification.conv.mode || 'discussion')
                                  : modeChoisi;
 
+  /* ⚠️ CE QUE « EN MON NOM » VEUT DIRE SE DIT ICI, pas dans une
+     documentation. C'est la seule phrase qui apprend au moniteur
+     que le bureau ne lira pas — et à David que lui, si. */
+  if(!filEnModification && sorteChoisie === 'direct'){
+    const qui = choixEleves[0] || choixUsers.filter(n =>
+      normaliserMessagerie(n) !==
+      normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || ''))[0];
+    z.textContent = choixEleves.length
+      ? 'Ce fil est entre ' + (qui || 'l’élève') + ' et toi. La boîte du bureau ' +
+        'ne le voit pas ; la supervision le voit, et sa lecture est inscrite au journal.'
+      : 'Entre vous deux. Aucun élève n’y a accès.';
+    return;
+  }
   if(genre === 'interne'){
     z.textContent = 'Entre nous : aucun élève n’y a accès.';
     return;
@@ -1832,36 +1968,62 @@ function majAvisDeLaConversation(){
 }
 
 async function creerUnGroupe(bouton){
-  const genre = $('msgElvGenre').value;
+  const genre = genreDeLaSorte();
   const titre = (($('msgElvTitre') || {}).value || '').trim();
+  const moi = normaliserMessagerie((typeof ACCES !== 'undefined' && ACCES.moniteur) || '');
+  const autres = choixUsers.filter(n => normaliserMessagerie(n) !== moi);
 
-  if(genre === 'groupe' && titre.length < 2){
-    if(typeof showToast === 'function') showToast('Donne un nom au groupe.');
-    return;
+  /* ⚠️ LES RÈGLES SUIVENT CE QU'IL A CHOISI DE FAIRE, pas le genre
+     que le serveur enregistrera. « À quelqu'un » veut dire UNE
+     personne : deux noms dans une conversation à deux, c'est un
+     groupe sans nom — et un groupe sans nom est introuvable six
+     mois plus tard. */
+  if(sorteChoisie === 'direct'){
+    const combien = autres.length + choixEleves.length;
+    if(combien === 0){
+      if(typeof showToast === 'function') showToast('Choisis à qui tu écris.');
+      return;
+    }
+    if(combien > 1){
+      if(typeof showToast === 'function'){
+        showToast('« À quelqu’un » porte sur UNE personne. ' +
+                  'Pour écrire à plusieurs, ouvre un groupe.');
+      }
+      return;
+    }
   }
-  if(genre === 'bureau' && choixEleves.length !== 1){
+
+  if(sorteChoisie === 'bureau' && choixEleves.length !== 1){
     if(typeof showToast === 'function'){
       showToast('Une conversation au nom du bureau porte sur UN élève.');
     }
     return;
   }
-  if(genre === 'interne' && choixUsers.length < 2){
-    if(typeof showToast === 'function'){
-      showToast('Ajoute au moins une deuxième personne de l’équipe.');
+
+  if(sorteChoisie === 'groupe'){
+    if(titre.length < 2){
+      if(typeof showToast === 'function') showToast('Donne un nom au groupe.');
+      return;
     }
-    return;
-  }
-  if(genre !== 'interne' && !choixEleves.length){
-    if(typeof showToast === 'function') showToast('Ajoute au moins un élève.');
-    return;
+    if(autres.length + choixEleves.length < 2){
+      if(typeof showToast === 'function'){
+        showToast('Un groupe, c’est au moins deux personnes avec toi.');
+      }
+      return;
+    }
   }
 
   if(bouton){ bouton.disabled = true; bouton.textContent = 'Ouverture…'; }
   try{
     const d = await appelPrep({
-      action: 'convCreer', genre: genre, mode: modeChoisi, titre: titre,
+      action: 'convCreer', genre: genre, mode: modeChoisi,
+      titre: (sorteChoisie === 'groupe') ? titre : '',
       users: JSON.stringify(choixUsers), eleves: JSON.stringify(choixEleves),
-      avecBureau: (genre !== 'interne') ? '1' : ''
+      /* ⚠️ LA BOÎTE DU BUREAU N'ENTRE QUE SI ON L'A DEMANDÉ. C'est
+         toute la différence entre « en mon nom » et « au nom du
+         bureau », et David l'a tranché : « le bureau non, la
+         supervision oui ». */
+      avecBureau: (sorteChoisie === 'direct') ? '' : '1'
     });
     conversationsEC = [];
     filEnModification = null;
