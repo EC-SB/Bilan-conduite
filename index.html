@@ -2,9 +2,9 @@
 <!-- ============================================================
      BILAN DE CONDUITE — Évolution Conduites (Saint-Brieuc / Loudéac)
 
-     VERSION APPLICATION : v1085
+     VERSION APPLICATION : v1086
      VERSION APPS SCRIPT REQUISE : v234
-     Mis à jour le : 09/10/2026 à 14:05
+     Mis à jour le : 09/10/2026 à 16:30
 
      Le numéro affiché en haut de l'application n'est plus recopié :
      il est relu dans le ?v= des modules ci-dessous. Il ne peut donc
@@ -2554,6 +2554,114 @@
      allumé ne dit plus rien. */
   .msgEnv.eteint{ background:var(--bandeau-bg); color:var(--muted); cursor:default; }
 
+
+  /* ============================================================
+     😊 👍 LES RÉACTIONS, LES ÉMOTICÔNES ET LE POUCE — v1086
+
+     David, le 9 octobre : « ajouter des émoticones dans les
+     conversations, avoir une action rapide type pouce comme
+     messenger, la réaction sur un message directement comme
+     imessage ou messenger ».
+     ============================================================ */
+
+  /* --- les réactions sous une bulle --- */
+  /* ⚠️ SOUS LA BULLE, PAS DESSUS. Messenger pose la pastille À CHEVAL
+     sur le bord : sur une bulle d'une seule ligne elle recouvre le
+     texte, et sur une tablette posée sur un tableau de bord c'est
+     illisible. Elle se range donc en dessous, du même côté. */
+  /* ⚠️ LA BULLE SE CREUSE DU BAS QUAND ELLE PORTE DES PASTILLES.
+     L'heure est posée en bas à droite ; la pastille straddle le bord
+     inférieur, au même endroit. Sur une bulle large ça ne se voyait
+     pas — l'heure tenait au bout de la dernière ligne — mais dans le
+     tiroir de 400 px, où le texte remplit la largeur, la pastille
+     recouvrait l'heure. Dix-huit pixels de creux, et chacun a sa
+     place à toutes les largeurs. */
+  .msgB.aReac{ margin-bottom:13px; padding-bottom:18px; position:relative; }
+  .msgReacs{
+    position:absolute; bottom:-11px; display:flex; gap:3px;
+    pointer-events:none;
+  }
+  .msgB.lui .msgReacs{ left:9px; }
+  .msgB.moi .msgReacs{ right:9px; }
+  .msgReac{
+    display:inline-flex; align-items:center; gap:3px;
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:999px; padding:1px 7px; font-size:12px; line-height:1.5;
+    color:var(--cream); white-space:nowrap;
+  }
+  .msgReac b{ font-size:10.5px; font-weight:800; color:var(--muted); }
+  /* La mienne se reconnaît sans qu'on compte : c'est la seule chose
+     qu'on cherche en regardant une pastille. */
+  .msgReac.mien{ border-color:var(--orange); background:var(--orange-soft);
+                 color:var(--on-accent); }
+  .msgReac.mien b{ color:var(--on-accent); opacity:.65; }
+
+  /* --- le sélecteur, sur appui long --- */
+  .msgB.vise{ outline:2px solid var(--orange); outline-offset:2px; }
+  /* ⚠️ AU-DESSUS DE LA BULLE, PAS À CÔTÉ. Posé sur la même ligne, le
+     sélecteur pousse la bulle — et dans le tiroir de 400 px il ne
+     reste plus rien pour le texte. Il prend donc sa propre ligne,
+     rangée du même côté que la bulle visée. */
+  .msgReacChoix{
+    display:flex; gap:2px; margin:0 0 5px;
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:999px; padding:4px 5px;
+    box-shadow:0 8px 22px rgba(0,0,0,.18);
+  }
+  .msgReacChoix button{
+    border:none; background:transparent; cursor:pointer; margin:0;
+    width:38px; height:38px; border-radius:50%; font-size:20px;
+    padding:0; line-height:1;
+  }
+  .msgReacChoix button:hover{ background:var(--navy); }
+  .msgReacChoix button.on{ background:var(--orange-soft); }
+
+  /* --- les deux outils de la barre d'écriture --- */
+  .msgOutil{
+    flex:0 0 auto; width:34px; height:34px; border-radius:50%;
+    border:none; background:transparent; color:var(--muted);
+    font-size:17px; cursor:pointer; padding:0; margin:0 0 2px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .msgOutil:hover{ background:var(--bandeau-bg); }
+  .msgOutil.on{ background:var(--orange-soft); }
+  /* ⚠️ LA BARRE REPREND SON RETRAIT DE GAUCHE. Avec deux boutons
+     devant le champ, les 15 px de padding faisaient décoller les
+     icônes du bord. */
+  .msgBarre.aOutils{ padding-left:5px; }
+
+  /* --- le pouce : le bouton d'envoi quand il n'y a rien à envoyer --- */
+  /* ⚠️ CE N'EST PAS UN BOUTON DE PLUS, C'EST LE MÊME. Messenger ne
+     pose pas un pouce à côté de l'avion : l'avion DEVIENT un pouce
+     tant que le champ est vide. Un bouton de plus sur une barre de
+     400 px, c'est une icône de moins pour le texte. */
+  .msgEnv.pouce{ background:var(--orange-soft); color:var(--on-accent);
+                 font-size:17px; }
+
+  /* --- le panneau des émoticônes --- */
+  .msgEmo{
+    border:1px solid var(--line); border-radius:16px; background:var(--navy-deep);
+    padding:8px; margin-bottom:8px;
+  }
+  .msgEmoFam{
+    display:flex; gap:4px; padding-bottom:7px; margin-bottom:6px;
+    border-bottom:1px solid var(--line);
+  }
+  .msgEmoFam button{
+    border:none; background:transparent; cursor:pointer; margin:0; padding:0;
+    width:34px; height:30px; border-radius:9px; font-size:16px; line-height:1;
+  }
+  .msgEmoFam button.on{ background:var(--orange-soft); }
+  .msgEmoGrille{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(38px, 1fr));
+    gap:1px; max-height:168px; overflow-y:auto;
+  }
+  .msgEmoGrille button{
+    border:none; background:transparent; cursor:pointer; margin:0; padding:0;
+    height:38px; border-radius:9px; font-size:20px; line-height:1;
+  }
+  .msgEmoGrille button:hover{ background:var(--navy); }
+
   /* --- les actions : rangée sur écran large, ⋯ sinon --- */
   /* David : « ⋯ sur téléphone et dans le tiroir, rangée visible sur
      écran large ». La largeur de la FENÊTRE ne dit rien du tiroir,
@@ -2900,7 +3008,7 @@
            border-radius:12px;padding:8px;flex-direction:column;
            gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:210px;">
 
-        <a id="guideBtn" href="guide.html?v=1085" target="_blank" rel="noopener"
+        <a id="guideBtn" href="guide.html?v=1086" target="_blank" rel="noopener"
            style="display:flex;align-items:center;gap:10px;padding:10px 12px;
                   border-radius:9px;color:var(--cream);text-decoration:none;
                   font-size:14px;">📘 <span>Guide d'utilisation</span></a>
@@ -4882,85 +4990,85 @@
   })();
   </script>
 
-  <script src="app/ec-etat.js?v=1085"></script>
-<script src="app/ec-modeles.js?v=1085"></script>
-<script src="app/ec-consignes.js?v=1085"></script>
-<script src="app/ec-noyau.js?v=1085"></script>
-<script src="app/ec-vocal.js?v=1085"></script>
+  <script src="app/ec-etat.js?v=1086"></script>
+<script src="app/ec-modeles.js?v=1086"></script>
+<script src="app/ec-consignes.js?v=1086"></script>
+<script src="app/ec-noyau.js?v=1086"></script>
+<script src="app/ec-vocal.js?v=1086"></script>
 <!-- ⚠️ APRÈS ec-vocal.js, ET C'EST VOULU : le bouton « 📍 Repère
      ici » est branché là-bas, et il appelle les fonctions d'ici. -->
-<script src="app/ec-trajet.js?v=1085"></script>
-<script src="app/ec-reseau.js?v=1085"></script>
-<script src="app/ec-manuel.js?v=1085"></script>
-<script src="app/ec-fenetres.js?v=1085"></script>
-<script src="app/ec-parcours.js?v=1085"></script>
-<script src="app/ec-questionnaire.js?v=1085"></script>
-<script src="app/ec-permis.js?v=1085"></script>
-<script src="app/ec-prepares.js?v=1085"></script>
-<script src="app/ec-avant-cours.js?v=1085"></script>
-<script src="app/ec-bureau.js?v=1085"></script>
-<script src="app/ec-places.js?v=1085"></script>
-<script src="app/ec-listes.js?v=1085"></script>
-<script src="app/ec-permis-listes.js?v=1085"></script>
-<script src="app/ec-postpermis.js?v=1085"></script>
-<script src="app/ec-textes.js?v=1085"></script>
-<script src="app/ec-correction.js?v=1085"></script>
-<script src="app/ec-bilans.js?v=1085"></script>
-<script src="app/ec-ecran.js?v=1085"></script>
-<script src="app/ec-version.js?v=1085"></script>
-<script src="app/ec-paie.js?v=1085"></script>
-<script src="app/ec-flotte.js?v=1085"></script>
-<script src="app/ec-carrosserie.js?v=1085"></script>
-<script src="app/ec-solo.js?v=1085"></script>
-<script src="app/ec-handicap-pdf.js?v=1085"></script>
-<script src="app/ec-moto.js?v=1085"></script>
-<script src="app/ec-remorque.js?v=1085"></script>
-<script src="app/ec-arriereplan.js?v=1085"></script>
-<script src="app/ec-placesbe.js?v=1085"></script>
-<script src="app/ec-codeamenage.js?v=1085"></script>
-<script src="app/ec-financements.js?v=1085"></script>
-<script src="app/ec-eval-aac.js?v=1085"></script>
-<script src="app/ec-postes.js?v=1085"></script>
-<script src="app/ec-tarifs.js?v=1085"></script>
-<script src="app/ec-caisse.js?v=1085"></script>
-<script src="app/ec-menage.js?v=1085"></script>
-<script src="app/ec-page-eleve.js?v=1085"></script>
-<script src="app/ec-messagerie.js?v=1085"></script>
-<script src="app/ec-cbgasoil.js?v=1085"></script>
-<script src="app/ec-loupe.js?v=1085"></script>
-<script src="app/ec-coutsia.js?v=1085"></script>
-<script src="app/ec-evaluation.js?v=1085"></script>
-<script src="app/ec-paiement.js?v=1085"></script>
-<script src="app/ec-handicap.js?v=1085"></script>
-<script src="app/ec-code.js?v=1085"></script>
-<script src="app/ec-proccorriger.js?v=1085"></script>
-<script src="app/ec-sessions.js?v=1085"></script>
-<script src="app/ec-aac-cs.js?v=1085"></script>
-<script src="app/ec-notifs.js?v=1085"></script>
-<script src="app/ec-ecoutes.js?v=1085"></script>
-<script src="app/ec-taches.js?v=1085"></script>
-<script src="app/ec-memoire.js?v=1085"></script>
-<script src="app/ec-historique.js?v=1085"></script>
-<script src="app/ec-rappels.js?v=1085"></script>
-<script src="app/ec-segments.js?v=1085"></script>
-<script src="app/ec-sms.js?v=1085"></script>
-<script src="app/ec-encours.js?v=1085"></script>
-<script src="app/ec-incidents.js?v=1085"></script>
+<script src="app/ec-trajet.js?v=1086"></script>
+<script src="app/ec-reseau.js?v=1086"></script>
+<script src="app/ec-manuel.js?v=1086"></script>
+<script src="app/ec-fenetres.js?v=1086"></script>
+<script src="app/ec-parcours.js?v=1086"></script>
+<script src="app/ec-questionnaire.js?v=1086"></script>
+<script src="app/ec-permis.js?v=1086"></script>
+<script src="app/ec-prepares.js?v=1086"></script>
+<script src="app/ec-avant-cours.js?v=1086"></script>
+<script src="app/ec-bureau.js?v=1086"></script>
+<script src="app/ec-places.js?v=1086"></script>
+<script src="app/ec-listes.js?v=1086"></script>
+<script src="app/ec-permis-listes.js?v=1086"></script>
+<script src="app/ec-postpermis.js?v=1086"></script>
+<script src="app/ec-textes.js?v=1086"></script>
+<script src="app/ec-correction.js?v=1086"></script>
+<script src="app/ec-bilans.js?v=1086"></script>
+<script src="app/ec-ecran.js?v=1086"></script>
+<script src="app/ec-version.js?v=1086"></script>
+<script src="app/ec-paie.js?v=1086"></script>
+<script src="app/ec-flotte.js?v=1086"></script>
+<script src="app/ec-carrosserie.js?v=1086"></script>
+<script src="app/ec-solo.js?v=1086"></script>
+<script src="app/ec-handicap-pdf.js?v=1086"></script>
+<script src="app/ec-moto.js?v=1086"></script>
+<script src="app/ec-remorque.js?v=1086"></script>
+<script src="app/ec-arriereplan.js?v=1086"></script>
+<script src="app/ec-placesbe.js?v=1086"></script>
+<script src="app/ec-codeamenage.js?v=1086"></script>
+<script src="app/ec-financements.js?v=1086"></script>
+<script src="app/ec-eval-aac.js?v=1086"></script>
+<script src="app/ec-postes.js?v=1086"></script>
+<script src="app/ec-tarifs.js?v=1086"></script>
+<script src="app/ec-caisse.js?v=1086"></script>
+<script src="app/ec-menage.js?v=1086"></script>
+<script src="app/ec-page-eleve.js?v=1086"></script>
+<script src="app/ec-messagerie.js?v=1086"></script>
+<script src="app/ec-cbgasoil.js?v=1086"></script>
+<script src="app/ec-loupe.js?v=1086"></script>
+<script src="app/ec-coutsia.js?v=1086"></script>
+<script src="app/ec-evaluation.js?v=1086"></script>
+<script src="app/ec-paiement.js?v=1086"></script>
+<script src="app/ec-handicap.js?v=1086"></script>
+<script src="app/ec-code.js?v=1086"></script>
+<script src="app/ec-proccorriger.js?v=1086"></script>
+<script src="app/ec-sessions.js?v=1086"></script>
+<script src="app/ec-aac-cs.js?v=1086"></script>
+<script src="app/ec-notifs.js?v=1086"></script>
+<script src="app/ec-ecoutes.js?v=1086"></script>
+<script src="app/ec-taches.js?v=1086"></script>
+<script src="app/ec-memoire.js?v=1086"></script>
+<script src="app/ec-historique.js?v=1086"></script>
+<script src="app/ec-rappels.js?v=1086"></script>
+<script src="app/ec-segments.js?v=1086"></script>
+<script src="app/ec-sms.js?v=1086"></script>
+<script src="app/ec-encours.js?v=1086"></script>
+<script src="app/ec-incidents.js?v=1086"></script>
 <!-- Le bandeau lit ce que les autres calculent : il vient donc
      APRÈS eux. ec-messages-perso le précède, puisqu'il lui fournit
      la seule de ses cinq familles qui vienne du classeur. -->
-<script src="app/ec-messages-perso.js?v=1085"></script>
+<script src="app/ec-messages-perso.js?v=1086"></script>
 <!-- Les notes de version. Elles ne lisent rien du classeur — elles
      voyagent avec la version — mais elles fournissent une famille du
      bandeau : elles le précèdent, comme ec-messages-perso. -->
-<script src="app/ec-nouveautes.js?v=1085"></script>
-<script src="app/ec-bandeau.js?v=1085"></script>
-<script src="app/ec-stats.js?v=1085"></script>
-<script src="app/ec-messenger.js?v=1085"></script>
-<script src="app/ec-journal.js?v=1085"></script>
-<script src="app/ec-depart.js?v=1085"></script>
-<script src="app/ec-onglets.js?v=1085"></script>
-<script src="app/ec-demarrage.js?v=1085"></script>
+<script src="app/ec-nouveautes.js?v=1086"></script>
+<script src="app/ec-bandeau.js?v=1086"></script>
+<script src="app/ec-stats.js?v=1086"></script>
+<script src="app/ec-messenger.js?v=1086"></script>
+<script src="app/ec-journal.js?v=1086"></script>
+<script src="app/ec-depart.js?v=1086"></script>
+<script src="app/ec-onglets.js?v=1086"></script>
+<script src="app/ec-demarrage.js?v=1086"></script>
 
 <script>
 /* ============================================================
