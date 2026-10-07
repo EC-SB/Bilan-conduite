@@ -79,6 +79,7 @@ let conversationsEC = [];
 let filOuvertEC = null;          /* { conv, messages, membres, … } */
 let battementMessagerie = null;
 let rangLuEC = 0;                /* le plus haut rang déjà affiché */
+let empreinteReacEC = '';        /* l'état des réactions déjà dessinées */
 let filtreMessagerie = '';       /* '' | un genre */
 let chercheMessagerie = '';
 let brouillonsMessagerie = {};   /* ce qu'on a tapé sans envoyer, par fil */
@@ -577,6 +578,9 @@ async function ouvrirLeFil(id, viser){
 }
 
 function fermerLeFil(){
+  fermerLeSelecteurDeReaction();
+  fermerLePanneauEmoji();
+  empreinteReacEC = '';
   filOuvertEC = null;
   arreterLaVeilleDuFil();
   if(typeof couperLeDirect === 'function') couperLeDirect();
@@ -588,6 +592,14 @@ function dessinerLeFil(){
   if(!zone || !filOuvertEC) return;
   const f = filOuvertEC;
   const c = f.conv || {};
+
+  /* ⚠️ CE QUI FLOTTE MEURT AVEC LE DESSIN — v1086. Le sélecteur de
+     réaction et le panneau des émoticônes vivent DANS cette zone :
+     après « innerHTML = '' » leurs variables pointeraient sur des
+     éléments détachés, et le prochain clic sur 🙂 croirait le panneau
+     ouvert alors qu'il n'est plus nulle part. */
+  fermerLeSelecteurDeReaction();
+  fermerLePanneauEmoji();
 
   zone.innerHTML = '';
   /* ⚠️ C'EST LE CODE QUI DIT « ÉTROIT », PAS LA FEUILLE DE STYLE.
@@ -689,6 +701,15 @@ function dessinerLeFil(){
       (apres && String(apres.envoyeLe || '').slice(0, 10) === jour) ? apres : null));
     if(Number(m.rang || 0) > rangLuEC) rangLuEC = Number(m.rang || 0);
   });
+
+  /* ⚠️ L'EMPREINTE SE NOTE OÙ L'ON DESSINE, comme « rangLuEC » juste
+     au-dessus — v1086. Notée seulement dans le battement, elle
+     restait vide après l'ouverture du fil : le premier battement
+     redessinait donc TOUJOURS, quatre secondes après l'ouverture,
+     en pleine frappe. Et quand on pose soi-même une réaction, le
+     dessin anticipé note ce qu'il a peint : si le serveur confirme
+     exactement ça, on ne redessine pas une deuxième fois. */
+  empreinteReacEC = empreinteDesReactions(f);
 
   if(!msgs.length){
     const v = document.createElement('div');
@@ -874,6 +895,21 @@ function jourLisibleMessagerie(jour){
   return jours[d.getDay()] + ' ' + (+m[1]) + ' ' + mois[+m[2] - 1];
 }
 
+/* ⚠️ L'EMPREINTE PORTE L'EMOJI *ET* LA PERSONNE. Compter les
+   pastilles ne suffirait pas : si David retire son pouce à la
+   seconde où Hery en pose un, le compte est le même et l'écran ne
+   bougerait pas. */
+function empreinteDesReactions(d){
+  let e = '';
+  ((d && d.messages) || []).forEach(m => {
+    const r = m.reacs || [];
+    if(!r.length) return;
+    e += m.id + ':' + r.map(x =>
+      (x.emoji || '') + '~' + (x.cle || x.qui || (x.mien ? 'moi' : ''))).join(',') + ';';
+  });
+  return e;
+}
+
 /* ------------------------------------------------------------
    UNE BULLE
    ------------------------------------------------------------ */
@@ -955,6 +991,22 @@ function bulleDuMessage(m, avant, apres){
     b.appendChild(h);
   }
 
+  /* 😊 Les réactions — v1086.
+
+     ⚠️ LA BULLE PORTE SON IDENTIFIANT. Pour réagir à un message il
+     faut savoir LEQUEL : c'est la ligne qui rend tout le reste
+     possible, et elle ne coûte rien. */
+  b.setAttribute('data-msg', m.id || '');
+  const pastilles = zoneDesReactions(m);
+  if(pastilles){
+    /* « aReac » pose le position:relative dont les pastilles ont
+       besoin, et le peu de place sous la bulle pour qu'elles ne
+       chevauchent pas la suivante. */
+    b.classList.add('aReac');
+    b.appendChild(pastilles);
+  }
+  brancherLAppuiLong(b, m);
+
   ligne.appendChild(b);
   return ligne;
 }
@@ -970,7 +1022,25 @@ function normaliserMessagerie(v){
 
 function zoneDEcritureDuFil(id){
   const l = document.createElement('div');
-  l.className = 'msgBarre';
+  /* ⚠️ « aOutils » REPREND LES 15 px DE RETRAIT À GAUCHE. Avec un
+     bouton devant le champ, ce retrait décollait l'icône du bord et
+     la barre semblait mal centrée. */
+  l.className = 'msgBarre aOutils';
+
+  /* 🙂 Le panneau des émoticônes — v1086. */
+  const emo = document.createElement('button');
+  emo.type = 'button';
+  emo.id = 'msgElvEmo';
+  emo.className = 'msgOutil';
+  emo.textContent = '🙂';
+  emo.title = 'Émoticônes';
+  emo.addEventListener('click', ev => {
+    /* Sans ça, le clic remonte jusqu'au document et referme le
+       panneau dans la foulée de son ouverture. */
+    ev.stopPropagation();
+    basculerLePanneauEmoji(l);
+  });
+  l.appendChild(emo);
 
   const t = document.createElement('textarea');
   t.id = 'msgElvTexte';
@@ -985,7 +1055,16 @@ function zoneDEcritureDuFil(id){
   b.className = 'msgEnv';
   b.textContent = '➤';
   b.title = 'Envoyer (Ctrl + Entrée)';
-  b.addEventListener('click', ecrireDansLeFil);
+  /* 👍 LE POUCE — v1086. David : « une action rapide type pouce comme
+     messenger ». Ce n'est pas un bouton de plus : c'est celui-ci qui
+     change de visage tant qu'il n'y a rien à envoyer. */
+  b.addEventListener('click', () => {
+    if(($('msgElvTexte') || {}).value && $('msgElvTexte').value.trim()){
+      ecrireDansLeFil();
+    }else{
+      envoyerLePouce();
+    }
+  });
   l.appendChild(b);
 
   /* ⚠️ LE CHAMP GRANDIT, IL NE DÉFILE PAS. Deux lignes figées
@@ -1003,7 +1082,16 @@ function zoneDEcritureDuFil(id){
        lui-même : une barre vide où l'on ne pouvait plus écrire.
        Une ligne au minimum, six au maximum. */
     t.style.height = Math.max(36, Math.min(t.scrollHeight, 140)) + 'px';
-    b.classList.toggle('eteint', !t.value.trim());
+
+    /* ⚠️ « ÉTEINT » A DISPARU — v1086, et c'est voulu. Le bouton
+       était gris tant qu'il n'y avait rien à envoyer ; maintenant il
+       y a toujours quelque chose à envoyer, un pouce au minimum. Un
+       bouton éteint qui marche quand même serait le pire des deux. */
+    const vide = !t.value.trim();
+    b.classList.remove('eteint');
+    b.classList.toggle('pouce', vide);
+    b.textContent = vide ? '👍' : '➤';
+    b.title = vide ? 'Envoyer un pouce' : 'Envoyer (Ctrl + Entrée)';
   };
 
   t.addEventListener('input', () => {
@@ -1127,7 +1215,17 @@ async function rafraichirLeFil(silencieux){
      reprendrait le focus du champ à chaque fois : la messagerie
      deviendrait impossible à utiliser à deux. */
   const dernier = combien ? d.messages[combien - 1].rang : 0;
-  if(combien !== avant || dernier !== rangLuEC || viser){
+
+  /* ⚠️ ET UNE RÉACTION NE CHANGE NI LE NOMBRE DE MESSAGES NI LE
+     DERNIER RANG — v1086. Les deux repères ci-dessus l'auraient donc
+     laissée invisible jusqu'au prochain message : on aurait livré
+     des réactions qui n'apparaissent qu'au suivant. Il faut un
+     troisième repère, et il doit tenir compte de QUI a réagi : deux
+     personnes qui échangent leurs emoji ne changent pas le nombre de
+     pastilles. */
+  const bouge = (empreinteDesReactions(d) !== empreinteReacEC);
+
+  if(combien !== avant || dernier !== rangLuEC || bouge || viser){
     filOuvertEC.viser = viser || 0;
     dessinerLeFil();
     marquerLuLeFil();
@@ -2729,6 +2827,331 @@ async function compterLesObjets(){
 function objetDuFil(f){
   if(!f || !f.conv || f.conv.genre !== 'oubli') return null;
   return objetsEC.find(o => o.conversation === f.conv.id) || null;
+}
+
+
+/* ============================================================
+   😊 LES RÉACTIONS, LES ÉMOTICÔNES, LE POUCE — v1086
+
+   David, le 9 octobre : « ajouter des émoticones dans les
+   conversations, avoir une action rapide type pouce comme messenger,
+   la réaction sur un message directement comme imessage ou
+   messenger ».
+
+   ⚠️ TROIS AJOUTS, UN SEUL ÉCRAN, ET AUCUN BOUTON DE PLUS QUE
+   NÉCESSAIRE. La barre d'écriture fait 400 px dans le tiroir : c'est
+   la contrainte qui décide. Le pouce n'est donc pas un quatrième
+   bouton, c'est le bouton d'envoi qui change de visage tant qu'il
+   n'y a rien à envoyer — exactement ce que fait Messenger.
+   ============================================================ */
+
+/* Les six, décidés par David le 9 octobre : « laisse ceux-là ».
+   ⚠️ CETTE LISTE EST RECOPIÉE DU WORKER, et c'est la seule copie
+   qu'on s'autorise : le serveur REFUSE tout ce qui n'y est pas, donc
+   une divergence ne produit pas une faille, seulement un bouton qui
+   ne marche pas — et le banc compare les deux listes. */
+const REACTIONS_EC = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+/* ------------------------------------------------------------
+   LES PASTILLES SOUS UNE BULLE
+   ------------------------------------------------------------ */
+
+/* ⚠️ ON GROUPE PAR EMOJI, ON NE LISTE PAS LES GENS. Six personnes
+   qui posent un pouce, c'est « 👍 6 » et pas six pastilles. La
+   sienne se reconnaît à la bordure : c'est la seule chose qu'on
+   cherche en regardant une pastille. */
+function groupeDesReactions(liste){
+  const moi = normaliserMessagerie(ACCES.moniteur || '');
+  const ordre = [];
+  const par = {};
+  (liste || []).forEach(x => {
+    const e = x && x.emoji;
+    if(!e) return;
+    if(!par[e]){ par[e] = { emoji: e, combien: 0, mien: false, qui: [] }; ordre.push(e); }
+    par[e].combien++;
+    if(x.qui) par[e].qui.push(x.qui);
+    /* Le serveur de l'élève rend « mien » tout cuit ; celui du bureau
+       rend les clés, et on compare. Les deux chemins mènent ici. */
+    if(x.mien || (x.cle && x.cle === moi)) par[e].mien = true;
+  });
+  return ordre.map(e => par[e]);
+}
+
+function zoneDesReactions(m){
+  const groupes = groupeDesReactions(m && m.reacs);
+  if(!groupes.length) return null;
+  const d = document.createElement('div');
+  d.className = 'msgReacs';
+  groupes.forEach(g => {
+    const p = document.createElement('span');
+    p.className = 'msgReac' + (g.mien ? ' mien' : '');
+    p.textContent = g.emoji;
+    if(g.combien > 1){
+      const n = document.createElement('b');
+      n.textContent = String(g.combien);
+      p.appendChild(n);
+    }
+    /* Au survol, qui a réagi — sur une tablette personne ne survole,
+       mais au bureau c'est la question qu'on se pose. */
+    if(g.qui.length) p.title = g.qui.join(', ');
+    d.appendChild(p);
+  });
+  return d;
+}
+
+/* ------------------------------------------------------------
+   LE SÉLECTEUR
+
+   ⚠️ APPUI LONG SUR UNE TABLETTE, CLIC DROIT AU BUREAU. Les
+   moniteurs travaillent sur une tablette posée sur un support : il
+   n'y a pas de survol, et un bouton « réagir » visible sur chaque
+   bulle rendrait le fil illisible. L'appui long est le geste que
+   tout le monde connaît de Messenger.
+   ------------------------------------------------------------ */
+
+let reacOuverteEC = null;        /* la fonction qui referme le sélecteur ouvert */
+
+function fermerLeSelecteurDeReaction(){
+  if(reacOuverteEC){ reacOuverteEC(); reacOuverteEC = null; }
+}
+
+function ouvrirLeSelecteurDeReaction(bulle, m){
+  fermerLeSelecteurDeReaction();
+  if(!filOuvertEC || !filOuvertEC.peutEcrire) return;
+
+  const ligne = bulle.parentNode;
+  if(!ligne || !ligne.parentNode) return;
+
+  const mien = groupeDesReactions(m.reacs).filter(g => g.mien)[0];
+  const rang = document.createElement('div');
+  rang.className = 'msgRang' + (ligne.classList.contains('moi') ? ' moi' : '');
+
+  const boite = document.createElement('div');
+  boite.className = 'msgReacChoix';
+  REACTIONS_EC.forEach(e => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e;
+    if(mien && mien.emoji === e) b.className = 'on';
+    b.addEventListener('click', ev => {
+      ev.stopPropagation();
+      fermerLeSelecteurDeReaction();
+      reagirDansLeFil(m.id, e);
+    });
+    boite.appendChild(b);
+  });
+  rang.appendChild(boite);
+  ligne.parentNode.insertBefore(rang, ligne);
+  bulle.classList.add('vise');
+
+  /* Un clic ailleurs referme — et il ne doit pas aussi rouvrir le
+     sélecteur de la bulle sur laquelle on vient de cliquer. */
+  const dehors = () => fermerLeSelecteurDeReaction();
+  setTimeout(() => document.addEventListener('click', dehors), 0);
+
+  reacOuverteEC = () => {
+    document.removeEventListener('click', dehors);
+    bulle.classList.remove('vise');
+    if(rang.parentNode) rang.parentNode.removeChild(rang);
+  };
+}
+
+/* ⚠️ L'APPUI LONG NE DOIT PAS SE DÉCLENCHER PENDANT UN DÉFILEMENT.
+   Un doigt posé sur une bulle pour faire défiler le fil reste
+   immobile une demi-seconde avant de bouger : sans le garde-fou sur
+   le mouvement, le sélecteur s'ouvrirait à chaque fois qu'on remonte
+   la conversation. */
+function brancherLAppuiLong(bulle, m){
+  let minuteur = null;
+  let depart = null;
+
+  const annuler = () => { if(minuteur){ clearTimeout(minuteur); minuteur = null; } };
+
+  bulle.addEventListener('pointerdown', ev => {
+    if(ev.button === 2) return;             /* le clic droit a son propre chemin */
+    depart = { x: ev.clientX, y: ev.clientY };
+    annuler();
+    minuteur = setTimeout(() => {
+      minuteur = null;
+      ouvrirLeSelecteurDeReaction(bulle, m);
+    }, 480);
+  });
+  bulle.addEventListener('pointermove', ev => {
+    if(!minuteur || !depart) return;
+    if(Math.abs(ev.clientX - depart.x) > 9 || Math.abs(ev.clientY - depart.y) > 9){
+      annuler();
+    }
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(q =>
+    bulle.addEventListener(q, annuler));
+
+  bulle.addEventListener('contextmenu', ev => {
+    ev.preventDefault();
+    annuler();
+    ouvrirLeSelecteurDeReaction(bulle, m);
+  });
+}
+
+/* ------------------------------------------------------------
+   POSER LA RÉACTION
+   ------------------------------------------------------------ */
+
+async function reagirDansLeFil(idMsg, emoji){
+  if(!filOuvertEC) return;
+
+  /* ⚠️ ON POSE LA PASTILLE AVANT LA RÉPONSE DU SERVEUR. Un aller-
+     retour prend deux cents millisecondes sur une bonne ligne et
+     trois secondes sur la 4G d'une voiture-école : laisser la bulle
+     inerte pendant ce temps-là, c'est un geste qu'on refait deux
+     fois. On remet l'écran d'équerre si ça échoue. */
+  const m = (filOuvertEC.messages || []).filter(x => x.id === idMsg)[0];
+  const avant = m ? (m.reacs || []).slice() : null;
+  if(m){
+    const moi = normaliserMessagerie(ACCES.moniteur || '');
+    const sans = (m.reacs || []).filter(x => !(x.mien || (x.cle && x.cle === moi)));
+    const mien = (m.reacs || []).filter(x => x.mien || (x.cle && x.cle === moi))[0];
+    m.reacs = (mien && mien.emoji === emoji)
+      ? sans                                   /* le même : on retire */
+      : sans.concat([{ emoji: emoji, qui: ACCES.moniteur || '', cle: moi }]);
+    dessinerLeFil();
+  }
+
+  try{
+    await appelPrep({ action: 'convReagir', message: idMsg, emoji: emoji });
+  }catch(e){
+    if(m) m.reacs = avant;
+    dessinerLeFil();
+    if(typeof showToast === 'function'){
+      showToast('La réaction n’est pas passée : ' + (e.message || e));
+    }
+    return;
+  }
+  /* Et on relit : c'est le serveur qui a raison sur ce que les autres
+     ont posé entre-temps. */
+  rafraichirLeFil(true);
+}
+
+/* ------------------------------------------------------------
+   LE PANNEAU DES ÉMOTICÔNES
+
+   ⚠️ UNE LISTE ÉCRITE À LA MAIN, PAS UNE BIBLIOTHÈQUE. Les
+   sélecteurs d'emoji du commerce pèsent plusieurs centaines de
+   kilo-octets et vont chercher des images sur un serveur tiers.
+   Cent cinquante émoji rangés en quatre familles tiennent en
+   quelques lignes, se chargent avec la page, et couvrent tout ce
+   qu'on écrit dans une auto-école.
+   ------------------------------------------------------------ */
+
+const FAMILLES_EMOJI = [
+  { rond: '🙂', nom: 'Visages', liste:
+    ('😀 😃 😄 😁 😆 😅 😂 🤣 😊 🙂 😉 😍 🥰 😘 😋 😎 🤗 🤔 🤨 😐 😶 🙄 😏 😣 ' +
+     '😥 😮 😯 😪 😴 😌 😛 😜 🤐 🥴 😔 😕 🙁 😖 😞 😟 😤 😢 😭 😦 😨 😰 😱 😳 ' +
+     '🥺 😠 😡 🤯 😬 🥳 🤩 😇 🤫 🤭 🫡 🙃').split(' ') },
+  { rond: '👍', nom: 'Gestes', liste:
+    ('👍 👎 👌 ✌️ 🤞 🤝 👏 🙌 🙏 💪 👋 🤚 ✋ 👉 👈 👆 👇 ☝️ 🤙 ✊ 👊 🤟 ❤️ 🧡 ' +
+     '💛 💚 💙 💜 🖤 🤍 💔 ❣️ 💯 🔥 ✨ ⭐ 🎉 🎊 🎁 🏆 🥇 👀 🫶').split(' ') },
+  { rond: '🚗', nom: 'La route', liste:
+    ('🚗 🚙 🚕 🏍️ 🛵 🚲 🚚 🚛 🚐 🅿️ ⛽ 🛣️ 🛤️ 🚦 🚥 🚧 ⚠️ 🛑 ↩️ ↪️ ⬅️ ➡️ ⬆️ ⬇️ ' +
+     '🔄 🧭 🗺️ 📍 🚸 🚹 🏁 🔑 🪪 📋 📝 🚓 🚑 🚒 ⏱️ 🧊 🌧️ ☀️ 🌫️ ❄️').split(' ') },
+  { rond: '✅', nom: 'Le travail', liste:
+    ('✅ ❌ ⭕ ❓ ❗ ‼️ 📅 📆 🕐 ⏰ ⏳ 📞 📱 ✉️ 📧 📨 📤 📥 📎 🔗 📌 📊 📈 📉 ' +
+     '💰 💶 💳 🧾 🏢 🏫 👨‍🏫 👩‍🏫 🎓 📚 📖 ✏️ 🖊️ 🔍 🔔 🔕 💬 💡 🚩 🧤').split(' ') }
+];
+
+let familleEmojiEC = 0;
+let panneauEmojiEC = null;
+
+function fermerLePanneauEmoji(){
+  if(panneauEmojiEC && panneauEmojiEC.parentNode){
+    panneauEmojiEC.parentNode.removeChild(panneauEmojiEC);
+  }
+  panneauEmojiEC = null;
+  const b = $('msgElvEmo');
+  if(b) b.classList.remove('on');
+}
+
+function basculerLePanneauEmoji(barre){
+  if(panneauEmojiEC){ fermerLePanneauEmoji(); return; }
+  const b = $('msgElvEmo');
+  if(b) b.classList.add('on');
+
+  const z = document.createElement('div');
+  z.className = 'msgEmo';
+
+  const fams = document.createElement('div');
+  fams.className = 'msgEmoFam';
+  const grille = document.createElement('div');
+  grille.className = 'msgEmoGrille';
+
+  const peindre = () => {
+    Array.prototype.forEach.call(fams.children, (x, i) => {
+      x.className = (i === familleEmojiEC) ? 'on' : '';
+    });
+    grille.innerHTML = '';
+    FAMILLES_EMOJI[familleEmojiEC].liste.forEach(e => {
+      const t = document.createElement('button');
+      t.type = 'button';
+      t.textContent = e;
+      t.addEventListener('click', () => glisserLEmoji(e));
+      grille.appendChild(t);
+    });
+  };
+
+  FAMILLES_EMOJI.forEach((f, i) => {
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.textContent = f.rond;
+    t.title = f.nom;
+    t.addEventListener('click', () => { familleEmojiEC = i; peindre(); });
+    fams.appendChild(t);
+  });
+
+  z.appendChild(fams);
+  z.appendChild(grille);
+  peindre();
+  barre.parentNode.insertBefore(z, barre);
+  panneauEmojiEC = z;
+}
+
+/* ⚠️ L'EMOJI SE POSE LÀ OÙ EST LE CURSEUR, pas à la fin. On tape une
+   phrase, on revient au milieu, on pose un emoji : l'envoyer au bout
+   serait le poser ailleurs que là où on regarde. Et le panneau reste
+   ouvert — on en met souvent deux. */
+function glisserLEmoji(e){
+  const t = $('msgElvTexte');
+  if(!t) return;
+  const a = (typeof t.selectionStart === 'number') ? t.selectionStart : t.value.length;
+  const b = (typeof t.selectionEnd === 'number') ? t.selectionEnd : a;
+  t.value = t.value.slice(0, a) + e + t.value.slice(b);
+  const apres = a + e.length;
+  try{ t.setSelectionRange(apres, apres); }catch(err){}
+  t.focus();
+  /* « input » fait son travail habituel : le brouillon, la hauteur du
+     champ, et le pouce qui redevient un avion. */
+  t.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/* ------------------------------------------------------------
+   LE POUCE
+
+   ⚠️ CE N'EST PAS UN BOUTON DE PLUS. Le bouton d'envoi devient un
+   pouce tant que le champ est vide, et redevient un avion dès qu'on
+   tape. Sur la barre de 400 px du tiroir, un bouton de plus c'est
+   une icône de moins pour écrire.
+   ------------------------------------------------------------ */
+async function envoyerLePouce(){
+  if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.peutEcrire) return;
+  const b = $('msgElvEnvoyer');
+  if(b) b.disabled = true;
+  try{
+    await appelPrep({ action: 'convEcrire', id: filOuvertEC.conv.id, texte: '👍' });
+    await rafraichirLeFil();
+  }catch(e){
+    if(typeof showToast === 'function'){
+      showToast('Le pouce n’est pas parti : ' + (e.message || e));
+    }
+  }
+  if(b) b.disabled = false;
 }
 
 
