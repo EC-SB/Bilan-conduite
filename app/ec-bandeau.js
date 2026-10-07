@@ -1,4 +1,4 @@
-/* Déployé le 18/09/2026 à 15:34 — v1039 */
+/* Déployé le 07/10/2026 à 19:40 — v1071 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -69,6 +69,16 @@ const FAMILLES_BANDEAU = [
     droit:'bureau_places', reglable:true },
   { cle:'aac',      emoji:'🤝', nom:'Rendez-vous AAC et conduite supervisée',
     droit:'suivi_aac_cs',  reglable:true },
+  /* ⚠️ LA PREMIÈRE FAMILLE DU BANDEAU À AVOIR UNE VRAIE URGENCE —
+     v1071. Un retard annoncé à 8h42 pour un cours de 9h30 n'attend
+     pas demain ; un examen blanc à prévoir, si. C'est elle qui rend
+     enfin utile le tri par échéance dont on parlait pour la refonte
+     du bandeau — et c'est pour ça qu'elle passe en tête.
+
+     Elle ne coûte aucun appel : elle relit « conversationsEC », que
+     le battement de 90 secondes rapporte déjà pour la pastille. */
+  { cle:'conv',     emoji:'💬', nom:'Messages des élèves',
+    droit:'messagerie',    reglable:true },
   { cle:'aprevoir', emoji:'📝', nom:'Examens blancs et simulateurs à prévoir',
     droit:'',              reglable:true },
   /* ⚠️ LES HEURES ONT LEUR FAMILLE À ELLES — v908.
@@ -236,6 +246,55 @@ function lignesMessages(){
       /* Ni croix ni sourdine : un bouton qui écrit au classeur. */
       vu: m.id
     }));
+}
+
+/* ============================================================
+   💬 LES MESSAGES DES ÉLÈVES — v1071
+
+   Trois sortes de lignes, et trois urgences différentes :
+   · un retard ou une annulation → urgent, en rouge, et nommé ;
+   · un fil du bureau ou d'un moniteur avec du non-lu → ordinaire ;
+   · un objet oublié pas encore traité → ordinaire, mais il reste
+     tant que personne ne l'a refermé, et c'est tout l'objet.
+
+   ⚠️ UNE LIGNE PAR FIL, PAS PAR MESSAGE. Un élève bavard aurait
+   rempli le bandeau à lui seul, et c'est exactement ce que David
+   nous reproche sur les quarante-six lignes actuelles.
+   ============================================================ */
+function lignesMessagesEleves(){
+  if(typeof conversationsEC === 'undefined' || !Array.isArray(conversationsEC)) return [];
+
+  const urgents = { retard:'⏰', annul:'🚫' };
+
+  return conversationsEC
+    .filter(c => !Number(c.fermee || 0))
+    .filter(c => c.nonLus > 0 || urgents[c.genre] || c.genre === 'oubli')
+    .map(c => {
+      const urgente = !!urgents[c.genre];
+      const qui = c.eleve || c.titre || 'Un élève';
+      return {
+        id: 'conv:' + c.id,
+        famille: 'conv',
+        emoji: urgents[c.genre] || (c.genre === 'oubli' ? '🧤' : '💬'),
+        texte: urgente
+          ? (c.titre || qui)
+          : (c.genre === 'oubli'
+              ? (c.titre || 'Un objet oublié') + ' — ' + qui
+              : qui + ' a écrit' + (c.nonLus > 1 ? ' (' + c.nonLus + ' messages)' : '')),
+        sous: [c.dernierApercu,
+               c.dernierLe ? 'le ' + c.dernierLe : ''].filter(Boolean).join(' · '),
+        urgente: urgente,
+        /* ⚠️ PAS DE CROIX, ET C'EST VOULU. Barrer la ligne d'un
+           élève qui attend une réponse, c'est perdre la réponse. La
+           ligne s'en va quand on a LU le fil — pas quand on a
+           décidé de ne plus la voir. */
+        action: () => {
+          if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
+          if(typeof ouvrirLeFil === 'function') ouvrirLeFil(c.id);
+        },
+        actionTexte: 'Lire'
+      };
+    });
 }
 
 /* Les messages importants, en gros cadre. Le même dessin que le
@@ -590,7 +649,8 @@ function lignesDuBandeau(){
     aprevoir: lignesAPrevoir,
     heures:   lignesHeuresExamen,
     anniv:    lignesAnniversaires,
-    cbgasoil: (typeof lignesCbGasoil === 'function') ? lignesCbGasoil : (() => [])
+    cbgasoil: (typeof lignesCbGasoil === 'function') ? lignesCbGasoil : (() => []),
+    conv:     lignesMessagesEleves
   };
 
   let out = [];
