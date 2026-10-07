@@ -1,4 +1,4 @@
-/* Déployé le 19/09/2026 à 11:58 — v1054 */
+/* Déployé le 07/10/2026 à 18:10 — v1070 */
 /* ============================================================
    ec-bureau.js
    Lecture des notes, état du suivi, ligne d'élève, actualisation.
@@ -1736,6 +1736,21 @@ function lancerActualisationAuto(){
        n'a rien ouvert du tout. C'est justement à lui qu'il faut dire
        qu'elle vient de partir. */
     if(typeof rafraichirCbAuto === 'function') rafraichirCbAuto();
+
+    /* ⚠️ LA MESSAGERIE SE COMPTE ICI, ET PAS DANS SON PROPRE
+       BATTEMENT — v1070.
+
+       Une messagerie fermée doit coûter ZÉRO appel de plus : c'est
+       la condition qu'on s'est fixée en sortant du classeur. Le
+       chiffre de la pastille voyage donc sur ce battement-là, qui
+       existe depuis toujours et qui sait déjà se taire quand
+       personne ne regarde. Le fil OUVERT, lui, a son propre
+       battement de quatre secondes — et seulement tant qu'il est
+       ouvert. Voir compterLaMessagerie. */
+    if(typeof compterLaMessagerie === 'function' &&
+       !(typeof unFilEstOuvert === 'function' && unFilEstOuvert())){
+      compterLaMessagerie();
+    }
   }, 90000);   /* toutes les 90 secondes */
 }
 
