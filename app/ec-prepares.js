@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 16:05 — v1065 */
+/* Déployé le 07/10/2026 à 19:40 — v1071 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -794,6 +794,46 @@ function jetonDuCours(cours){
 
 /* Ce qu'on écrit sous l'heure. Rien du tout si le cours n'est pas
    né d'un rappel : il n'y a alors aucune réponse à attendre. */
+/* ============================================================
+   ⏰ UN RETARD ANNONCÉ, SUR LA LIGNE DU COURS — v1071
+
+   David, le 7 octobre : « un élève dit qu'il sera en retard il faut
+   que ça apparaisse sur le prochain cours du moniteur ».
+
+   ⚠️ ELLE NE COÛTE AUCUN APPEL. Le fil du retard est déjà dans
+   « conversationsEC », que le battement de 90 secondes rapporte
+   pour la pastille de la messagerie. On ne redemande rien : on
+   relit ce qui est là.
+
+   ⚠️ ET L'APPARIEMENT SE FAIT SUR « cours.id », PAS SUR LE JETON.
+   Le jeton n'existe que si le cours est né d'un rappel ; l'id est
+   toujours là. Un appariement sur (date + heure + élève) se serait
+   trompé le jour où un élève a deux cours.
+   ============================================================ */
+function etatRetard(cours){
+  if(typeof conversationsEC === 'undefined' || !Array.isArray(conversationsEC)) return null;
+  const id = String((cours && cours.id) || '');
+  if(!id) return null;
+
+  const fil = conversationsEC.find(c => c.genre === 'retard' &&
+                                        String(c.coursId || '') === id &&
+                                        !Number(c.fermee || 0));
+  if(!fil) return null;
+
+  /* Les minutes vivent dans la phrase que l'élève a envoyée. Si on
+     ne les y trouve pas, on ne les invente pas : « a annoncé un
+     retard » est vrai, « 10 min » ne le serait pas forcément. */
+  const m = String(fil.dernierApercu || '').match(/retard d['’]environ (\d+)/i);
+  const quand = String(fil.dernierLe || '').slice(11);
+
+  return {
+    texte: '⏰ ' + (m ? 'sera en retard de ' + m[1] + ' min' : 'a annoncé un retard') +
+           (quand ? ' — dit à ' + quand.replace(':', 'h') : ''),
+    titre: 'Ouvrir la conversation',
+    fil: fil.id
+  };
+}
+
 function etatPresence(cours){
   const j = jetonDuCours(cours);
   if(!j) return null;
@@ -1117,6 +1157,17 @@ async function afficherPrepares(recharger, silencieux){
     row.dataset.heure = h || '';
     row.dataset.eleve = cours.eleve || '';
 
+    /* Le clic sur la mention ouvre le fil, et ne déclenche pas le
+       clic de la ligne — qui, lui, ouvre le cours. */
+    if(retard){
+      const z = nom.querySelector('[data-filretard]');
+      if(z) z.addEventListener('click', ev => {
+        ev.stopPropagation();
+        if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
+        if(typeof ouvrirLeFil === 'function') ouvrirLeFil(retard.fil);
+      });
+    }
+
     /* Ce que l'élève apporte : à côté de l'heure, pour le voir sans
        ouvrir le cours. */
     const aApporter = repereDeNote(cours);
@@ -1137,6 +1188,8 @@ async function afficherPrepares(recharger, silencieux){
     const trait = (typeof couleurDuTrait === 'function')
       ? couleurDuTrait(cours) : '';
 
+    const retard = (typeof etatRetard === 'function') ? etatRetard(cours) : null;
+
     nom.innerHTML =
       (h ? '<div class="heure" style="font-size:19px;font-weight:800;' +
            'color:var(--accent-text);line-height:1.2;' +
@@ -1146,6 +1199,14 @@ async function afficherPrepares(recharger, silencieux){
            '" style="font-size:12px;font-weight:600;color:' +
            presence.couleur + ';line-height:1.5;" title="' +
            presence.titre + '">' + presence.texte + '</div>' : '') +
+      /* ⚠️ MÊME PLACE ET MÊME FORME QUE LA PRÉSENCE, et c'est le
+         point : les deux disent LA MÊME CHOSE — ce que l'élève a
+         répondu. En « --warn-text », sur sa propre ligne, et
+         cliquable pour ouvrir le fil. */
+      (retard ? '<div class="presence" data-filretard="' + retard.fil +
+           '" style="font-size:12.5px;font-weight:800;color:var(--warn-text);' +
+           'line-height:1.5;cursor:pointer;" title="' + retard.titre + '">' +
+           retard.texte + '</div>' : '') +
       '<div class="qui">' + (cours.eleve || '(sans nom)').replace(/</g, '&lt;') +
       (aApporter ? ' <span style="font-size:15px;" title="' +
         aApporter.titre + '">' + aApporter.emojis +
