@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 19/09/2026 à 12:55 — v1056 -->
+<!-- Déployé le 07/10/2026 à 19:40 — v1071 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -464,6 +464,99 @@
   .annonce .sig{ font-size:11px; color:var(--muted); margin-top:5px; }
   .annonce.pourmoi{ border-left-color:var(--orange); }
 
+  /* =====================================================
+     💬 ÉCRIRE À L'ÉCOLE — v1071
+
+     Rien de neuf en couleur : les tuiles reprennent le contour de
+     « .demande », les bulles reprennent « --orange-soft » pour les
+     siennes et « --navy-deep » bordé pour celles de l'école. Deux
+     variables qui existent déjà — une messagerie n'a pas besoin
+     d'une palette à elle.
+     ===================================================== */
+  .motifs{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:4px; }
+  .motifs button{
+    flex:1 1 calc(50% - 4px); min-width:150px; margin:0;
+    display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+    padding:13px 14px; border-radius:12px;
+    border:1px solid var(--line); background:transparent; color:var(--cream);
+    font-family:inherit; cursor:pointer; text-align:left;
+  }
+  .motifs button .gros{ font-size:14px; font-weight:700; }
+  .motifs button .fin{ font-size:11.5px; color:var(--muted); line-height:1.45;
+                       font-weight:400; }
+  .motifs button.urg{ border-color:var(--red); }
+  .motifs button.urg .gros{ color:var(--warn-text); }
+
+  .minutes{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px; }
+  .minutes button{
+    width:auto; flex:0 1 auto; margin:0; padding:9px 14px; border-radius:10px;
+    border:1px solid var(--line); background:transparent; color:var(--cream);
+    font-family:inherit; font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .minutes button.ici{ background:var(--orange); border-color:var(--orange);
+                       color:var(--on-accent); }
+
+  /* Un fil. Il défile dans sa boîte, pas dans la page : sur un
+     téléphone, un fil qui pousse la page fait perdre le champ de
+     saisie à chaque message. */
+  .fil{
+    border:1px solid var(--line); border-radius:12px; background:var(--navy);
+    padding:12px; margin-bottom:12px; max-height:58vh; overflow-y:auto;
+  }
+  .jourFil{
+    text-align:center; font-size:10.5px; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--muted); font-weight:700;
+    margin:6px 0 10px;
+  }
+  .bulle{
+    max-width:82%; border-radius:14px; padding:9px 12px; margin-bottom:9px;
+    font-size:14px; line-height:1.55; white-space:pre-wrap; word-break:break-word;
+  }
+  .bulle .sig{ display:block; font-size:10.5px; color:var(--muted);
+               margin-bottom:3px; font-weight:700; }
+  .bulle .hh{ display:block; font-size:10.5px; color:var(--muted);
+              margin-top:4px; text-align:right; }
+  .bulle.eux{ background:var(--navy-deep); border:1px solid var(--line);
+              margin-right:auto; }
+  .bulle.moi{ background:var(--orange-soft); border:1px solid var(--orange);
+              margin-left:auto; }
+  .bulle.systeme{
+    max-width:100%; background:transparent; border:1px dashed var(--line);
+    color:var(--muted); font-size:12.5px; text-align:center;
+  }
+  .zoneEcrire{ display:flex; gap:8px; align-items:flex-end; }
+  .zoneEcrire textarea{ margin:0; }
+  .zoneEcrire button{ width:auto; flex:0 0 auto; margin:0; padding:12px 15px; }
+
+  /* Une conversation dans la liste */
+  .convo{
+    display:flex; gap:11px; align-items:flex-start; padding:11px 2px;
+    border-bottom:1px solid var(--line); cursor:pointer;
+  }
+  .convo:last-child{ border-bottom:none; }
+  .convo .rond{
+    flex-shrink:0; width:38px; height:38px; border-radius:50%;
+    background:var(--line); color:var(--muted);
+    display:flex; align-items:center; justify-content:center; font-size:17px;
+  }
+  .convo.nonlu .rond{ background:var(--orange); color:var(--on-accent); }
+  .convo .mi{ flex:1; min-width:0; }
+  .convo .qui{ font-size:14px; font-weight:700; display:flex; gap:8px;
+               align-items:baseline; }
+  .convo .qui .q{ flex:1; min-width:0; overflow:hidden;
+                  text-overflow:ellipsis; white-space:nowrap; }
+  .convo .qui .h{ font-size:11px; color:var(--muted); font-weight:400;
+                  flex-shrink:0; }
+  .convo .ap{ font-size:12.5px; color:var(--muted); line-height:1.45;
+              margin-top:2px; overflow:hidden; text-overflow:ellipsis;
+              white-space:nowrap; }
+  .convo.nonlu .ap{ color:var(--cream); font-weight:700; }
+  .convo .cpt{
+    flex-shrink:0; min-width:20px; padding:0 6px; border-radius:10px;
+    background:var(--red); color:#fff; font-size:11px; line-height:20px;
+    text-align:center; font-weight:700;
+  }
+
   .cache{ display:none !important; }
 </style>
 </head>
@@ -605,6 +698,66 @@
     </div>
     </div><!-- /ongletReciter -->
 
+    <!-- =====================================================
+         💬 ÉCRIRE À L'ÉCOLE — v1071
+
+         Deux cartes : les trois actions rapides, qui sont des
+         formulaires, et ses conversations, qui sont une messagerie.
+         Le reste de l'écran — un fil ouvert, un formulaire de
+         retard — se dessine dans #zoneEcrireEcole et remplace les
+         deux cartes le temps qu'il dure : deux écrans qui se
+         disputent la même place, sur un téléphone, n'en font aucun.
+         ===================================================== -->
+    <div id="ongletMessages" class="cache">
+      <div id="zoneEcrireEcole"></div>
+
+      <div id="cartesEcrireEcole">
+        <div class="card">
+          <div class="section-title">⚡ En deux clics</div>
+          <div class="motifs">
+            <button type="button" class="urg" data-motif="retard">
+              <span class="gros">⏰ Je serai en retard</span>
+              <span class="fin">Ton moniteur et le bureau le voient tout de suite</span>
+            </button>
+            <button type="button" class="urg" data-motif="annul">
+              <span class="gros">🚫 Je dois annuler ou décaler</span>
+              <span class="fin">Le bureau te rappelle</span>
+            </button>
+            <button type="button" data-motif="oubli">
+              <span class="gros">🧤 J'ai oublié quelque chose</span>
+              <span class="fin">Dans la voiture — on regarde et on te dit</span>
+            </button>
+          </div>
+          <div class="presmot">
+            Pour une urgence dans l'heure, appelle le bureau : ici, personne
+            ne décroche la nuit.
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <strong style="flex:1;min-width:0;font-size:15px;">💬 Mes conversations</strong>
+            <button class="btn btn-secondary" id="btMajMessages"
+              style="width:auto;padding:8px 12px;font-size:13px;margin:0;">↻</button>
+          </div>
+          <div id="mesConversations"></div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;">
+            <button class="btn btn-secondary" id="btEcrireBureau"
+              style="width:auto;flex:1 1 auto;margin:0;padding:11px 13px;font-size:13px;">
+              🏢 Écrire au bureau</button>
+            <button class="btn btn-secondary" id="btEcrireMoniteur"
+              style="width:auto;flex:1 1 auto;margin:0;padding:11px 13px;font-size:13px;
+                     display:none;">
+              👤 Écrire à mon moniteur</button>
+          </div>
+          <div class="ditpartage" style="margin:12px 0 0;">
+            Tout ce qui s'écrit ici est rangé dans ton dossier, et le responsable
+            de l'école peut le consulter. Réponse sous 48 heures ouvrées.
+          </div>
+        </div>
+      </div>
+    </div><!-- /ongletMessages -->
+
     <button class="btn btn-secondary" id="btSortir">Se déconnecter</button>
   </div>
 
@@ -745,6 +898,7 @@
     montrerDemandes();
     dessinerLesOnglets();
     if(ouvert('proccorriger')) chargerEnvois();
+    if(ouvert('messages')) demarrerMessages();
     chargerDossier();
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
@@ -822,7 +976,15 @@
     { cle:'reviser', nom:'🎬 Réviser', zone:'ongletReviser',
       quand: function(){ return ouvert('parcours'); } },
     { cle:'reciter', nom:'📋 Réciter', zone:'ongletReciter',
-      quand: function(){ return ouvert('proccorriger'); } }
+      quand: function(){ return ouvert('proccorriger'); } },
+    /* ⚠️ LA PASTILLE NE COMPTE QUE LES RÉPONSES NON LUES — v1071.
+
+       Pas ses propres messages en attente : un chiffre qui ne
+       redescend jamais à zéro cesse d'être lu au bout de deux
+       jours. Le serveur le calcule en excluant ce qu'il a écrit
+       lui-même. */
+    { cle:'messages', nom:'💬 Écrire', zone:'ongletMessages',
+      quand: function(){ return ouvert('messages'); } }
   ];
   var ongletIci = '';
 
@@ -849,7 +1011,10 @@
       })(),
       /* En ATTENTE, pas toutes : une procédure déjà récitée n'est
          plus quelque chose à faire. */
-      reciter: demandes.filter(function(x){ return x.etat !== 'fait'; }).length
+      reciter: demandes.filter(function(x){ return x.etat !== 'fait'; }).length,
+      /* Les réponses qu'il n'a pas lues, et elles seules : le serveur
+         exclut ses propres messages du compte. */
+      messages: nonLusMessages
     };
 
     barre.innerHTML = '';
@@ -2046,7 +2211,535 @@
   $('btEnvoyer').addEventListener('click', envoyer);
   $('btMaj').addEventListener('click', chargerEnvois);
   $('btDrivup').addEventListener('click', ouvrirDrivup);
+  /* =====================================================
+     💬 ÉCRIRE À L'ÉCOLE — v1071
+
+     Trois actions rapides, qui sont des formulaires, et des
+     conversations, qui sont une messagerie. Les trois actions
+     n'écrivent pas dans la conversation du bureau : chacune ouvre
+     SON fil, court et titré, avec le bureau et le moniteur du cours
+     dedans. Un sujet, un fil — c'est ce qui permet de retrouver
+     « l'écharpe du 6 octobre » dans six mois.
+
+     ⚠️ AUCUN SMS NE PART D'ICI. Les moniteurs ont leur tablette
+     ouverte toute la journée : le retard s'affiche sur la ligne du
+     cours, et c'est mieux qu'un SMS parce que c'est au bon endroit.
+     Ce qu'on promet à l'élève est donc exactement ce qui se passe —
+     pas plus.
+     ===================================================== */
+  var nonLusMessages = 0;
+  var conversationsEl = [];
+  var filEl = null;
+  var battementEl = null;
+  var contexteEl = null;
+  var brouillonsEl = {};
+
+  /* Quatre secondes sur le fil ouvert, et rien du tout sinon. */
+  var PAS_FIL = 4000;
+
+  function demarrerMessages(){
+    chargerContexteEleve();
+    chargerConversationsEleve();
+  }
+
+  /* Son cours du jour et son moniteur : de quoi préremplir les
+     actions rapides sans rien lui redemander. */
+  function chargerContexteEleve(){
+    appeler({ action: 'eleveContexte', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        contexteEl = d || null;
+        var b = $('btEcrireMoniteur');
+        if(b) b.style.display = (d && d.sonMoniteur) ? '' : 'none';
+        if(b && d && d.sonMoniteur) b.textContent = '👤 Écrire à ' + d.sonMoniteur;
+      })
+      .catch(function(){ contexteEl = null; });
+  }
+
+  function chargerConversationsEleve(){
+    var z = $('mesConversations');
+    if(z && !conversationsEl.length) z.innerHTML = '<div class="empty">Chargement…</div>';
+
+    return appeler({ action: 'eleveMessagerie', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        conversationsEl = (d && d.conversations) || [];
+        nonLusMessages = (d && d.nonLusTotal) || 0;
+        dessinerConversationsEleve();
+        dessinerLesOnglets();
+      })
+      .catch(function(e){
+        if(z) z.innerHTML = '<div class="message erreur">' +
+          echapper(e.message || 'Lecture impossible.') + '</div>';
+      });
+  }
+
+  var RONDS_FIL = { bureau:'🏢', moniteur:'👤', groupe:'👥', interne:'🏠',
+                    retard:'⏰', annul:'🚫', oubli:'🧤' };
+
+  function dessinerConversationsEleve(){
+    var z = $('mesConversations');
+    if(!z) return;
+
+    if(!conversationsEl.length){
+      z.innerHTML = '<div class="empty">Rien pour l\'instant.<br>' +
+        'Écris au bureau, ou utilise un des trois boutons du haut.</div>';
+      return;
+    }
+
+    z.innerHTML = conversationsEl.map(function(c){
+      return '<div class="convo' + (c.nonLus ? ' nonlu' : '') +
+          '" data-fil="' + echapper(c.id) + '">' +
+        '<div class="rond">' + (RONDS_FIL[c.genre] || '💬') + '</div>' +
+        '<div class="mi">' +
+          '<div class="qui"><span class="q">' + echapper(c.qui) + '</span>' +
+            '<span class="h">' + echapper(heureCourteEl(c.dernierLe)) + '</span></div>' +
+          '<div class="ap">' +
+            (c.dernierApercu
+              ? (c.dernierPar && c.dernierPar !== moi.nom
+                  ? echapper(prenomDe(c.dernierPar)) + ' : ' : '') +
+                echapper(c.dernierApercu)
+              : 'Pas encore de message.') +
+          '</div>' +
+        '</div>' +
+        (c.nonLus ? '<span class="cpt">' + c.nonLus + '</span>' : '') +
+      '</div>';
+    }).join('');
+
+    Array.prototype.forEach.call(z.querySelectorAll('[data-fil]'), function(el){
+      el.addEventListener('click', function(){
+        ouvrirFilEleve(el.getAttribute('data-fil'));
+      });
+    });
+  }
+
+  function prenomDe(nom){
+    return String(nom || '').split(' ')[0] || nom;
+  }
+
+  /* « 10:14 » aujourd'hui, « hier », le jour de la semaine, puis la
+     date. Un horodatage complet sur chaque ligne noierait la liste. */
+  function heureCourteEl(quand){
+    var t = String(quand || '').trim();
+    var m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?$/);
+    if(!m) return t;
+    var d = new Date(+m[3], +m[2] - 1, +m[1]);
+    var auj = new Date();
+    var hier = new Date(); hier.setDate(hier.getDate() - 1);
+    if(d.toDateString() === auj.toDateString()) return m[4] ? m[4] + ':' + m[5] : "aujourd'hui";
+    if(d.toDateString() === hier.toDateString()) return 'hier';
+    var ecart = (auj - d) / 86400000;
+    if(ecart > 0 && ecart < 7){
+      return ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'][d.getDay()];
+    }
+    return m[1] + '/' + m[2];
+  }
+
+  function jourClairEl(jour){
+    var m = String(jour || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if(!m) return jour;
+    var d = new Date(+m[3], +m[2] - 1, +m[1]);
+    var auj = new Date();
+    if(d.toDateString() === auj.toDateString()) return "Aujourd'hui";
+    var hier = new Date(); hier.setDate(hier.getDate() - 1);
+    if(d.toDateString() === hier.toDateString()) return 'Hier';
+    var jours = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    var mois = ['janvier','février','mars','avril','mai','juin','juillet',
+                'août','septembre','octobre','novembre','décembre'];
+    return jours[d.getDay()] + ' ' + (+m[1]) + ' ' + mois[+m[2] - 1];
+  }
+
+  /* ---------- Le plein écran : un fil, ou un formulaire ---------- */
+
+  function ouvrirPleinEcran(html){
+    $('cartesEcrireEcole').classList.add('cache');
+    var z = $('zoneEcrireEcole');
+    z.innerHTML = html;
+    try{ window.scrollTo(0, 0); }catch(e){}
+    return z;
+  }
+
+  function fermerPleinEcran(){
+    arreterLeFil();
+    filEl = null;
+    $('zoneEcrireEcole').innerHTML = '';
+    $('cartesEcrireEcole').classList.remove('cache');
+    chargerConversationsEleve();
+  }
+
+  function enteteRetour(titre, sous){
+    return '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">' +
+      '<button type="button" class="btn btn-secondary" id="btRetourEcole" ' +
+        'style="width:auto;margin:0;padding:8px 12px;font-size:14px;">←</button>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:15px;font-weight:700;">' + echapper(titre) + '</div>' +
+        (sous ? '<div style="font-size:11.5px;color:var(--muted);">' +
+                echapper(sous) + '</div>' : '') +
+      '</div></div>';
+  }
+
+  function brancherRetour(){
+    var b = $('btRetourEcole');
+    if(b) b.addEventListener('click', fermerPleinEcran);
+  }
+
+  /* ---------- Un fil ---------- */
+
+  function ouvrirFilEleve(id){
+    ouvrirPleinEcran('<div class="card"><div class="empty">Ouverture…</div></div>');
+
+    appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
+      .then(function(d){
+        filEl = d || null;
+        dessinerFilEleve();
+        veillerLeFil();
+      })
+      .catch(function(e){
+        $('zoneEcrireEcole').innerHTML = '<div class="card">' +
+          enteteRetour('Conversation') +
+          '<div class="message erreur">' + echapper(e.message || 'Lecture impossible.') +
+          '</div></div>';
+        brancherRetour();
+      });
+  }
+
+  function dessinerFilEleve(){
+    if(!filEl || !filEl.conv) return;
+    var c = filEl.conv;
+    var id = c.id;
+
+    var h = '<div class="card">' +
+      enteteRetour(c.qui || 'Conversation',
+        c.genre === 'bureau' || c.genre === 'moniteur'
+          ? 'Réponse sous 48 heures ouvrées' : '');
+
+    h += '<div class="fil" id="leFilEleve">';
+    if(filEl.encore){
+      h += '<button type="button" class="btn btn-secondary" id="btPlusVieux" ' +
+           'style="width:auto;margin:0 auto 10px;display:block;padding:6px 12px;' +
+           'font-size:12px;border-radius:999px;">↑ Messages plus anciens</button>';
+    }
+
+    var jourPose = '';
+    (filEl.messages || []).forEach(function(m){
+      var jour = String(m.envoyeLe || '').slice(0, 10);
+      if(jour && jour !== jourPose){
+        jourPose = jour;
+        h += '<div class="jourFil">' + echapper(jourClairEl(jour)) + '</div>';
+      }
+      h += bulleEleve(m);
+    });
+
+    if(!(filEl.messages || []).length){
+      h += '<div class="empty">Rien encore. Écris ton message en dessous.</div>';
+    }
+    h += '</div>';
+
+    if(filEl.peutEcrire){
+      h += '<div class="zoneEcrire">' +
+        '<textarea id="chFilTexte" rows="2" placeholder="Écris ton message…">' +
+          echapper(brouillonsEl[id] || '') + '</textarea>' +
+        '<button type="button" class="btn btn-primary" id="btFilEnvoyer">📨</button>' +
+      '</div><div id="msgFil"></div>';
+    }else{
+      h += '<div class="empty">' +
+        (c.mode === 'annonce'
+          ? "C'est une annonce de l'école : on n'y répond pas. Écris au bureau si tu as une question."
+          : 'Cette conversation est fermée. Elle reste lisible.') + '</div>';
+    }
+
+    h += '</div>';
+    $('zoneEcrireEcole').innerHTML = h;
+    brancherRetour();
+
+    var t = $('chFilTexte');
+    if(t){
+      /* Ce qu'il a tapé sans envoyer survit au battement : perdre
+         trois lignes parce qu'une réponse est arrivée pendant qu'on
+         écrivait, c'est la première chose qu'on nous reprocherait. */
+      t.addEventListener('input', function(){ brouillonsEl[id] = t.value; });
+    }
+    var b = $('btFilEnvoyer');
+    if(b) b.addEventListener('click', envoyerDansLeFil);
+    var p = $('btPlusVieux');
+    if(p) p.addEventListener('click', function(){ chargerPlusVieux(p); });
+
+    var f = $('leFilEleve');
+    if(f) f.scrollTop = f.scrollHeight;
+  }
+
+  function bulleEleve(m){
+    if(m.de === 'systeme'){
+      return '<div class="bulle systeme">' + echapper(m.texte) + '</div>';
+    }
+    var mien = (m.de === 'moi');
+    var h = '<div class="bulle ' + (mien ? 'moi' : 'eux') + '">';
+    if(!mien && m.auteur){
+      h += '<span class="sig">' + echapper(m.auteur) + '</span>';
+    }
+    if(m.motif && RONDS_FIL[m.motif]){
+      h += '<span class="sig" style="color:var(--warn-text);">' +
+           RONDS_FIL[m.motif] + ' ' +
+           ({ retard:'Retard annoncé', annul:'Annulation demandée',
+              oubli:'Objet oublié' }[m.motif] || '') + '</span>';
+    }
+    h += echapper(m.texte || '');
+    h += '<span class="hh">' +
+         echapper(String(m.envoyeLe || '').slice(11) || m.envoyeLe || '') + '</span>';
+    return h + '</div>';
+  }
+
+  function envoyerDansLeFil(){
+    if(!filEl || !filEl.conv) return;
+    var id = filEl.conv.id;
+    var t = $('chFilTexte');
+    var b = $('btFilEnvoyer');
+    var texte = t ? t.value.trim() : '';
+    if(!texte) return;
+
+    b.disabled = true;
+    dire('msgFil', 'Envoi…', 'attente');
+    appeler({ action: 'eleveEcrire', eleve: moi.nom, code: moi.code,
+              id: id, texte: texte })
+      .then(function(){
+        if(t) t.value = '';
+        delete brouillonsEl[id];
+        dire('msgFil', '');
+        return rafraichirLeFilEleve();
+      })
+      .catch(function(e){
+        dire('msgFil', e.message || "Le message n'est pas parti.", 'erreur');
+      })
+      .then(function(){ if(b) b.disabled = false; });
+  }
+
+  function chargerPlusVieux(bouton){
+    if(!filEl || !(filEl.messages || []).length) return;
+    bouton.disabled = true;
+    bouton.textContent = 'Lecture…';
+    appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code,
+              id: filEl.conv.id, avant: filEl.messages[0].rang })
+      .then(function(d){
+        filEl.messages = ((d && d.messages) || []).concat(filEl.messages);
+        filEl.encore = !!(d && d.encore);
+        dessinerFilEleve();
+      })
+      .catch(function(){
+        bouton.disabled = false;
+        bouton.textContent = '↑ Messages plus anciens';
+      });
+  }
+
+  /* ---------- Le battement ---------- */
+
+  function veillerLeFil(){
+    arreterLeFil();
+    battementEl = setInterval(function(){
+      if(!filEl) return arreterLeFil();
+      /* Personne devant l'écran : relire ne servirait qu'à vider la
+         batterie. */
+      if(document.hidden) return;
+      rafraichirLeFilEleve(true);
+    }, PAS_FIL);
+  }
+
+  function arreterLeFil(){
+    if(battementEl){ clearInterval(battementEl); battementEl = null; }
+  }
+
+  function rafraichirLeFilEleve(silencieux){
+    if(!filEl || !filEl.conv) return Promise.resolve();
+    var id = filEl.conv.id;
+    var avant = (filEl.messages || []).length;
+    var dernier = avant ? filEl.messages[avant - 1].rang : 0;
+
+    return appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
+      .then(function(d){
+        if(!filEl || !filEl.conv || filEl.conv.id !== id) return;
+        var liste = (d && d.messages) || [];
+        var neuf = liste.length ? liste[liste.length - 1].rang : 0;
+        /* ⚠️ ON NE REDESSINE QUE SI QUELQUE CHOSE A CHANGÉ. Redessiner
+           toutes les quatre secondes ferait sauter le défilement et
+           reprendrait le curseur du champ : la conversation
+           deviendrait impossible à tenir. */
+        if(liste.length !== avant || neuf !== dernier){
+          filEl = d;
+          dessinerFilEleve();
+        }
+      })
+      .catch(function(e){
+        if(!silencieux) dire('msgFil', e.message || 'Lecture impossible.', 'erreur');
+      });
+  }
+
+  /* ---------- Les trois actions rapides ---------- */
+
+  function phraseDuCours(){
+    var c = contexteEl && contexteEl.cours;
+    if(!c) return '';
+    return [jourClairEl(c.date) + (c.heure ? ' à ' + c.heure.replace(':', 'h') : ''),
+            c.site, c.moniteur ? 'avec ' + c.moniteur : ''
+           ].filter(Boolean).join(' · ');
+  }
+
+  var MINUTES_RETARD = ['5', '10', '15', '20', '30', '?'];
+
+  function ecranMotif(motif){
+    var cours = phraseDuCours();
+    var h;
+
+    if(motif === 'retard'){
+      h = '<div class="card">' + enteteRetour('⏰ Je serai en retard') +
+        (cours
+          ? '<div class="message attente">Ton cours : <b>' + echapper(cours) + '</b></div>'
+          : '<div class="message attente">Je ne trouve pas de cours préparé pour toi ' +
+            "aujourd'hui. Ton message partira au bureau, sans être rattaché à un cours." +
+            '</div>') +
+        '<label>De combien, à peu près ?</label>' +
+        '<div class="minutes" id="lesMinutes">' +
+          MINUTES_RETARD.map(function(m){
+            return '<button type="button" data-min="' + m + '">' +
+                   (m === '?' ? 'Je ne sais pas' : m + ' min') + '</button>';
+          }).join('') +
+        '</div>' +
+        '<label for="chMotif">Tu veux préciser quelque chose ?</label>' +
+        '<textarea id="chMotif" rows="3" placeholder="Facultatif — le bus, un imprévu…"></textarea>' +
+        '<button type="button" class="btn btn-primary" id="btMotif">📨 Prévenir maintenant</button>' +
+        '<div class="presmot">Ça ne dispense pas la leçon : préviens-nous aussi par ' +
+        'téléphone si tu dépasses la demi-heure.</div>' +
+        '<div id="msgMotif"></div></div>';
+
+    }else if(motif === 'annul'){
+      h = '<div class="card">' + enteteRetour('🚫 Je dois annuler ou décaler') +
+        '<div class="message erreur">⚠️ Si ton cours est dans moins de 48 heures, ' +
+        'la leçon est due et sera facturée. Préviens quand même : on verra ce qu\'on ' +
+        'peut faire.</div>' +
+        (cours ? '<div class="message attente">Le cours concerné : <b>' +
+                 echapper(cours) + '</b></div>' : '') +
+        '<label for="chJour">Quel jour (si ce n\'est pas celui-ci)</label>' +
+        '<input type="date" id="chJour">' +
+        '<label for="chMotif">Pourquoi, en deux mots</label>' +
+        '<textarea id="chMotif" rows="3" placeholder="Un examen, un empêchement…"></textarea>' +
+        '<button type="button" class="btn btn-primary" id="btMotif">📨 Prévenir le bureau</button>' +
+        '<div id="msgMotif"></div></div>';
+
+    }else{
+      var c = contexteEl && contexteEl.cours;
+      h = '<div class="card">' + enteteRetour('🧤 J\'ai oublié quelque chose') +
+        '<label for="chQuoi">Qu\'est-ce que tu as oublié ?</label>' +
+        '<input type="text" id="chQuoi" placeholder="Une écharpe grise, mes lunettes…">' +
+        '<label for="chVehicule">Dans quelle voiture (si tu sais)</label>' +
+        '<input type="text" id="chVehicule" placeholder="208, Clio…">' +
+        '<label for="chJour">Quel jour de cours</label>' +
+        '<input type="date" id="chJour">' +
+        '<label for="chMotif">Autre chose à dire ?</label>' +
+        '<textarea id="chMotif" rows="2" placeholder="Facultatif"></textarea>' +
+        '<button type="button" class="btn btn-primary" id="btMotif">📨 Signaler l\'oubli</button>' +
+        '<div class="presmot">On regarde dans la voiture et on te répond ici. ' +
+        'Tu verras l\'état changer sans avoir à redemander.</div>' +
+        '<div id="msgMotif"></div></div>';
+    }
+
+    ouvrirPleinEcran(h);
+    brancherRetour();
+
+    var choisi = '';
+    var zm = $('lesMinutes');
+    if(zm){
+      Array.prototype.forEach.call(zm.querySelectorAll('[data-min]'), function(b){
+        b.addEventListener('click', function(){
+          choisi = b.getAttribute('data-min');
+          Array.prototype.forEach.call(zm.querySelectorAll('[data-min]'), function(x){
+            x.className = (x === b) ? 'ici' : '';
+          });
+        });
+      });
+    }
+
+    $('btMotif').addEventListener('click', function(){
+      envoyerActionRapide(motif, choisi, this);
+    });
+  }
+
+  function envoyerActionRapide(motif, minutes, bouton){
+    var corps = { action: 'eleveActionRapide', eleve: moi.nom, code: moi.code,
+                  motif: motif,
+                  texte: ($('chMotif') ? $('chMotif').value.trim() : '') };
+
+    if(motif === 'retard'){
+      if(!minutes){
+        dire('msgMotif', 'Dis de combien, même approximativement.', 'erreur');
+        return;
+      }
+      corps.minutes = minutes;
+    }
+    if(motif === 'annul' || motif === 'oubli'){
+      corps.jour = $('chJour') ? $('chJour').value : '';
+    }
+    if(motif === 'oubli'){
+      corps.quoi = $('chQuoi') ? $('chQuoi').value.trim() : '';
+      corps.vehicule = $('chVehicule') ? $('chVehicule').value.trim() : '';
+      if(!corps.quoi){
+        dire('msgMotif', 'Dis ce que tu as oublié.', 'erreur');
+        return;
+      }
+    }
+
+    bouton.disabled = true;
+    dire('msgMotif', 'Envoi…', 'attente');
+
+    appeler(corps)
+      .then(function(d){
+        /* On l'emmène dans le fil qui vient de s'ouvrir : il voit son
+           message parti, et il peut ajouter un mot. Mieux qu'un
+           « c'est envoyé » qui le laisse devant un écran vide. */
+        nonLusMessages = 0;
+        conversationsEl = [];
+        ouvrirFilEleve(d.id);
+        setTimeout(function(){
+          dire('msgFil', (d && d.promesse) || 'C\'est envoyé.', 'ok');
+        }, 60);
+      })
+      .catch(function(e){
+        bouton.disabled = false;
+        dire('msgMotif', e.message || "Ce n'est pas parti.", 'erreur');
+      });
+  }
+
+  /* ---------- Écrire au bureau, ou à son moniteur ---------- */
+
+  function ouvrirVers(vers, bouton){
+    if(bouton) bouton.disabled = true;
+    appeler({ action: 'eleveOuvrirFil', eleve: moi.nom, code: moi.code, vers: vers })
+      .then(function(d){ ouvrirFilEleve(d.id); })
+      .catch(function(e){
+        dire('msgEnvoi', e.message || 'Impossible pour le moment.', 'erreur');
+      })
+      .then(function(){ if(bouton) bouton.disabled = false; });
+  }
+
+
   $('btSortir').addEventListener('click', sortir);
+
+  /* 💬 Écrire à l'école — v1071 */
+  Array.prototype.forEach.call(
+    document.querySelectorAll('#ongletMessages [data-motif]'), function(b){
+      b.addEventListener('click', function(){ ecranMotif(b.getAttribute('data-motif')); });
+    });
+  $('btMajMessages').addEventListener('click', chargerConversationsEleve);
+  $('btEcrireBureau').addEventListener('click', function(){
+    ouvrirVers('bureau', this);
+  });
+  $('btEcrireMoniteur').addEventListener('click', function(){
+    ouvrirVers('moniteur', this);
+  });
+  /* ⚠️ LE BATTEMENT S'ARRÊTE QUAND ON SORT, et pas seulement quand
+     on referme le fil : un onglet laissé ouvert sur un téléphone
+     rangé dans une poche interrogerait le serveur toutes les quatre
+     secondes jusqu'à la nuit. */
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) return;
+    if(filEl) rafraichirLeFilEleve(true);
+    else if(ouvert('messages')) chargerConversationsEleve();
+  });
 
   ['btTheme1', 'btTheme2'].forEach(function(id){
     var b = $(id);
