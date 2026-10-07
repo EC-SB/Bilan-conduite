@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:30 — v1092 */
+/* Déployé le 07/10/2026 à 19:40 — v1093 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3048,8 +3048,23 @@ async function chargerPrepareInterne(cours, modeleForce){
     if(typeof fermerLeCoursOuvert === 'function') fermerLeCoursOuvert();
   }
 
-  /* Un rendez-vous post-permis ne passe pas par l'enregistrement */
-  if(cours.modele === 'rdv-post'){
+  /* ⚠️ UN RENDEZ-VOUS POST-PERMIS NE PASSE PAS PAR L'ENREGISTREMENT.
+
+     ⚠️ ET LE TYPE CHOISI SUR LA CARTE COMPTE AUTANT QUE CELUI DU
+     COURS — v1093.
+
+     Le bouton de la carte s'intitule « 📋 Ouvrir le rendez-vous
+     post-permis » dès qu'on choisit ce type dans la liste déroulante.
+     Il ne l'ouvrait pas : cette ligne-ci ne regardait que le type
+     ENREGISTRÉ du cours, et « modeleForce » n'est posé que vingt
+     lignes plus bas. On repartait donc sur un bilan manuel vide, sous
+     un bouton qui annonçait l'inverse.
+
+     Ça se voit sur le cas de David du 7 octobre : le cours de Yacouba
+     vient du RAPPEL du matin, qui ne connaît pas les rendez-vous
+     post-permis et pose un cours ordinaire. Le moniteur n'avait
+     aucune façon d'arriver au bon écran depuis sa carte. */
+  if((modeleForce || cours.modele) === 'rdv-post'){
     ouvrirRdvPost(cours);
     return;
   }
@@ -3338,6 +3353,12 @@ function lireMentionExamen(texte){
   return {
     texte: lignes[i].replace('🔒 EXAMEN OFFICIEL · ', ''),
     note: notes.join('\n'),
+    /* ⚠️ ET LES LIGNES TELLES QUELLES — v1093. Le bureau les recopie
+       dans la note du cours préparé pour que le moniteur les ait sur
+       sa carte : les RECOMPOSER à partir des morceaux ci-dessus, ce
+       serait une deuxième écriture du même format, et un jour deux
+       formats. On rend ce qu'on a lu. */
+    brut: lignes.slice(i, i + 1 + notes.length).join('\n'),
     heures: m ? m[1] : '',
     /* ⚠️ « PAS DE REPASSAGE » VOYAGE AUSSI — v912. Le moniteur de
        l'examen peut maintenant le dire ; sans cette lecture, sa
@@ -3600,11 +3621,23 @@ async function ouvrirRdvPost(cours){
      à ce moment-là — le moniteur peut avoir commencé à écrire, et
      ce qu'il tape ne se fait jamais remplacer.
      ------------------------------------------------------------ */
-  const note = String(cours.note || '');
-  const sep = "BILAN DE L'EXAMEN À CORRIGER :";
-  const i = note.indexOf(sep);
-  $('rdvPostBilan').value = (i !== -1) ? note.slice(i + sep.length).trim()
-                                       : (s.bilanExamen || '');
+  /* ⚠️ LE BILAN NE VOYAGE PLUS DANS LA NOTE — v1093.
+
+     Il y avait ici la lecture d'un séparateur « BILAN DE L'EXAMEN À
+     CORRIGER : » que PERSONNE n'écrit — ni l'application, ni le
+     classeur, ni le Worker. Elle n'a jamais rien rendu, et c'est le
+     commentaire de la v924 qui le disait déjà.
+
+     Ce qui s'écrivait bien dans la note, c'était le bilan ENTIER sous
+     « BILAN DE L'EXAMEN OFFICIEL : », posé par le bureau — et que
+     personne ne relisait non plus. David, le 7 octobre : « j'ai tout
+     le bilan qui apparaît ici, ça ne sert à rien ». Vingt lignes de
+     rapport d'inspecteur sur une carte de cours, pour une information
+     que cet écran va de toute façon chercher lui-même.
+
+     Le champ part donc de la fiche de suivi, et se complète depuis le
+     classeur juste en dessous. */
+  $('rdvPostBilan').value = s.bilanExamen || '';
   /* La provenance d'un rendez-vous ne vaut pas pour le suivant :
      elle repart à zéro à chaque ouverture. */
   const zSrc = $('rdvPostBilanSource');
