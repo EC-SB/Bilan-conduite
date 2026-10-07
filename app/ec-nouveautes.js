@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 17:30 — v1091 */
+/* Déployé le 07/10/2026 à 18:30 — v1092 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -115,6 +115,18 @@ const NOUVEAUTES = [
                'avec le bilan du jour de l’examen, et la ligne dit de quel ' +
                'examen et de quel moniteur il vient. S’il n’y a rien à ' +
                'reprendre, elle le dit au lieu de faire semblant.' },
+      { emoji: '🏁',
+        titre: 'Et ce que tu as noté à la sortie de l’examen aussi',
+        texte: 'L’inspecteur, les heures avant repassage, la case « pas de ' +
+               'repassage pour le moment » et ta note pour l’équipe : tout ' +
+               'cela s’affiche maintenant en haut du rendez-vous post-permis, ' +
+               'sous « 🏁 À la sortie de l’examen ». Le cadre existait, mais ' +
+               'il cherchait ces informations là où elles ne sont pas : elles ' +
+               'voyagent dans la note du bilan d’examen, et c’est de là ' +
+               'qu’elles arrivent désormais. Les heures demandées et le ' +
+               '« pas de repassage » se posent même tout seuls dans la ' +
+               'conclusion — tu gardes le dernier mot, ce que tu as choisi ' +
+               'n’est jamais écrasé.' },
       { emoji: '🗂️',
         titre: 'Le bandeau ne dit plus tout d’un coup',
         texte: 'Il affichait quarante-sept lignes au-dessus du premier ' +
