@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 07/10/2026 à 19:40 — v1071 -->
+<!-- Déployé le 08/10/2026 à 20:15 — v1081 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -758,6 +758,15 @@
       </div>
     </div><!-- /ongletMessages -->
 
+    <!-- ============================================================
+         📝 MON BILAN APRÈS L'EXAMEN — étape 1d.
+         Il n'apparaît que si l'école en attend un : voir
+         « bilanAttendu » et la liste ONGLETS. -->
+    <div id="ongletBilan" class="cache">
+      <div id="msgBilan"></div>
+      <div id="zoneMonBilan"></div>
+    </div><!-- /ongletBilan -->
+
     <button class="btn btn-secondary" id="btSortir">Se déconnecter</button>
   </div>
 
@@ -834,6 +843,263 @@
   }
 
 
+  /* ============================================================
+     📝 MON BILAN APRÈS L'EXAMEN — étape 1d
+
+     David, le 7 octobre : « Le bilan post permis ça ok juste il
+     faut trouvé ou on a l'information pour le validé ». Jusqu'ici
+     l'élève l'écrivait sur Messenger et le bureau le recopiait à la
+     main dans sa fiche. Ici, il l'écrit une fois, au bon endroit.
+
+     ⚠️ CETTE LISTE N'EST PAS LA GRILLE DU CEPC, ET C'EST VOULU.
+     « Savoir s'installer et assurer la sécurité à bord »,
+     « Maintenir les espaces de sécurité » : ce sont les mots de
+     l'inspecteur, pas ceux d'un élève de dix-huit ans qui vient de
+     rater. Recopier CEPC_BLOCS ici aurait en plus créé une
+     deuxième liste à tenir d'accord avec la première — la faute qui
+     nous a coûté le plus cher cette semaine. Ce sont deux listes
+     pour deux usages, et personne n'a à les aligner : ce qu'il
+     coche part en TEXTE dans sa fiche, sous le libellé qu'il a lu.
+     ============================================================ */
+  var POINTS_BILAN = [
+    'M’installer et vérifier avant de partir',
+    'Utiliser les commandes de la voiture',
+    'Regarder loin et prendre les informations',
+    'Adapter ma vitesse aux circonstances',
+    'Respecter la signalisation et les règles',
+    'Communiquer avec les autres usagers',
+    'Partager la route (vélos, piétons, bus)',
+    'Garder mes distances de sécurité',
+    'Repérer les situations à risque',
+    'M’adapter quand ça ne se passe pas comme prévu',
+    'Conduire en autonomie, suivre une direction',
+    'Rester calme et courtois'
+  ];
+
+  var monBilan = null;        /* ce que le serveur dit de mon bilan */
+  var mesReponses = [];       /* [{ nom, ok, compris, pourquoi, solution }] */
+
+  function bilanAttendu(){ return !!(monBilan && monBilan.attendu); }
+
+  function chargerMonBilan(){
+    return appeler({ action: 'eleveBilan', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        monBilan = d || null;
+        mesReponses = [];
+        /* ⚠️ « IL COMPLÈTE, IL NE RECOMMENCE PAS ». Ce qu'il avait
+           déjà écrit revient tel quel : un formulaire de douze
+           points à retaper pour corriger une phrase est un
+           formulaire qu'on ne renvoie jamais. */
+        var avant = {};
+        try{
+          (JSON.parse(String((d && d.reponses) || '[]')) || []).forEach(function(r){
+            if(r && r.nom) avant[r.nom] = r;
+          });
+        }catch(e){ avant = {}; }
+
+        POINTS_BILAN.forEach(function(nom){
+          var a = avant[nom] || {};
+          mesReponses.push({
+            nom: nom,
+            ok: (a.ok === true || a.ok === false) ? a.ok : null,
+            compris: String(a.compris || ''),
+            pourquoi: String(a.pourquoi || ''),
+            solution: String(a.solution || '')
+          });
+        });
+        dessinerLesOnglets();
+        dessinerMonBilan();
+      })
+      .catch(function(){ monBilan = null; });
+  }
+
+  function cequilManque(){
+    var n = 0;
+    mesReponses.forEach(function(r){
+      if(r.ok === null){ n++; return; }
+      if(r.ok === false &&
+         (!r.compris.trim() || !r.pourquoi.trim() || !r.solution.trim())) n++;
+    });
+    return n;
+  }
+
+  function dessinerMonBilan(){
+    var z = $('zoneMonBilan');
+    if(!z) return;
+    z.innerHTML = '';
+    if(!bilanAttendu()) return;
+
+    var etat = String((monBilan && monBilan.etat) || '');
+
+    /* ⚠️ CE QU'ON LUI DEMANDE DE COMPLÉTER S'AFFICHE AU-DESSUS DU
+       FORMULAIRE, pas dans un message à aller chercher. Il doit le
+       lire au moment exact où il reprend son texte. */
+    if(etat === 'arefaire' && monBilan.retour){
+      var r = document.createElement('div');
+      r.className = 'card';
+      r.style.cssText = 'border-color:var(--orange);';
+      r.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">' +
+        '↩️ L’école te demande de compléter</div>';
+      var p = document.createElement('div');
+      p.style.cssText = 'font-size:14.5px;line-height:1.6;white-space:pre-wrap;';
+      p.textContent = monBilan.retour;
+      r.appendChild(p);
+      z.appendChild(r);
+    }
+
+    if(etat === 'attente'){
+      var a = document.createElement('div');
+      a.className = 'card';
+      a.innerHTML = '<div style="font-weight:800;margin-bottom:6px;">' +
+        '📝 Ton bilan est parti</div>' +
+        '<div style="font-size:14px;line-height:1.6;color:var(--muted);">' +
+        'Envoyé le ' + echapper(monBilan.envoyeLe || '') + '. ' +
+        'L’école le lit, et ton rendez-vous sera fixé ensuite. ' +
+        'Tu peux encore le modifier tant qu’il n’est pas validé.</div>';
+      z.appendChild(a);
+    }
+
+    var carte = document.createElement('div');
+    carte.className = 'card';
+
+    var tete = document.createElement('div');
+    tete.innerHTML = '<div class="section-title">📝 Mon bilan après l’examen</div>' +
+      '<div style="font-size:14px;line-height:1.6;margin-bottom:14px;">' +
+      'Pour chaque point, dis si ça allait ou si tu as eu du mal. ' +
+      'Pour ce qui n’allait pas, on te demande trois choses — c’est ce ' +
+      'dont ton moniteur partira au rendez-vous.</div>';
+    carte.appendChild(tete);
+
+    mesReponses.forEach(function(rep, i){
+      carte.appendChild(ligneDuBilan(rep, i));
+    });
+
+    var cpt = document.createElement('div');
+    cpt.id = 'compteBilan';
+    cpt.style.cssText = 'font-size:13px;color:var(--muted);margin:4px 0 12px;';
+    carte.appendChild(cpt);
+
+    var b = document.createElement('button');
+    b.className = 'btn btn-primary';
+    b.id = 'btEnvoyerBilan';
+    b.textContent = '📨 Envoyer mon bilan';
+    b.addEventListener('click', envoyerMonBilan);
+    carte.appendChild(b);
+
+    var d = document.createElement('div');
+    d.className = 'ditpartage';
+    d.style.cssText = 'margin-top:12px;';
+    d.textContent = 'Ce bilan est rangé dans ton dossier. Ton moniteur le lit ' +
+      'avant le rendez-vous, et vous le reprenez ensemble.';
+    carte.appendChild(d);
+
+    z.appendChild(carte);
+    majCompteBilan();
+  }
+
+  function ligneDuBilan(rep, i){
+    var l = document.createElement('div');
+    l.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+      'padding:11px 13px;margin-bottom:9px;';
+
+    var t = document.createElement('div');
+    t.style.cssText = 'font-size:14.5px;font-weight:700;line-height:1.35;' +
+      'margin-bottom:9px;';
+    t.textContent = (i + 1) + '. ' + rep.nom;
+    l.appendChild(t);
+
+    var deux = document.createElement('div');
+    deux.style.cssText = 'display:flex;gap:7px;flex-wrap:wrap;';
+    [[true, '✅ Ça allait'], [false, '❌ J’ai eu du mal']].forEach(function(paire){
+      var val = paire[0];
+      var b = document.createElement('button');
+      b.type = 'button';
+      var on = (rep.ok === val);
+      /* ⚠️ LA CLASSE DE LA MAISON POUR L'ÉTAT NON CHOISI, pas un fond
+         posé à la main. « btn-secondary » porte déjà transparent +
+         liseré + --cream, dans les deux thèmes — et surtout, un
+         bouton nu prend le fond gris clair du navigateur, sur lequel
+         --cream est invisible en thème sombre. Le bouton choisi, lui,
+         prend l'accent, et sur l'accent on écrit en --on-accent :
+         c'est la leçon de la v915. */
+      b.className = on ? '' : 'btn btn-secondary';
+      b.style.cssText = 'display:block;flex:1 1 140px;width:auto;margin:0;' +
+        'padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:700;' +
+        'font-family:inherit;cursor:pointer;' +
+        (on ? 'background:var(--orange-soft);border:1px solid var(--orange);' +
+              'color:var(--on-accent);' : '');
+      b.textContent = paire[1];
+      b.addEventListener('click', function(){
+        rep.ok = val;
+        dessinerMonBilan();
+      });
+      deux.appendChild(b);
+    });
+    l.appendChild(deux);
+
+    /* Les trois questions n'apparaissent QUE sur ce qui n'allait
+       pas : douze points fois trois questions, c'est un formulaire
+       que personne ne remplit. */
+    if(rep.ok === false){
+      [['compris', 'Est-ce que tu as compris pourquoi ?'],
+       ['pourquoi', 'Pourquoi tu as fait cette faute ?'],
+       ['solution', 'Quelle solution pour ne plus jamais la refaire ?']
+      ].forEach(function(q){
+        var lab = document.createElement('div');
+        lab.style.cssText = 'font-size:12.5px;color:var(--muted);margin:10px 0 4px;';
+        lab.textContent = q[1];
+        l.appendChild(lab);
+
+        var ta = document.createElement('textarea');
+        ta.rows = 2;
+        ta.value = rep[q[0]];
+        ta.style.cssText = 'width:100%;background:var(--navy);border:1px solid ' +
+          'var(--line);color:var(--cream);padding:9px 10px;border-radius:10px;' +
+          'font-size:14px;line-height:1.5;font-family:inherit;resize:vertical;';
+        ta.addEventListener('input', function(){
+          rep[q[0]] = ta.value;
+          majCompteBilan();
+        });
+        l.appendChild(ta);
+      });
+    }
+
+    return l;
+  }
+
+  /* ⚠️ LE COMPTE SE MET À JOUR SANS REDESSINER. Redessiner à chaque
+     lettre tapée reprendrait le focus du champ : on ne pourrait
+     plus écrire une phrase entière. */
+  function majCompteBilan(){
+    var c = $('compteBilan');
+    var b = $('btEnvoyerBilan');
+    var n = cequilManque();
+    if(c){
+      c.textContent = n
+        ? 'Il reste ' + n + ' point(s) à remplir — le bilan ne part que complet.'
+        : 'Tout est rempli. Tu peux l’envoyer.';
+    }
+    if(b) b.disabled = (n > 0);
+  }
+
+  function envoyerMonBilan(){
+    var n = cequilManque();
+    if(n){ dire('msgBilan', 'Il reste ' + n + ' point(s) à remplir.'); return; }
+    var b = $('btEnvoyerBilan');
+    if(b){ b.disabled = true; b.textContent = 'Envoi…'; }
+    appeler({ action: 'eleveBilanEnvoyer', eleve: moi.nom, code: moi.code,
+              reponses: JSON.stringify(mesReponses) })
+      .then(function(){
+        dire('msgBilan', '📝 Ton bilan est parti. L’école te répond ensuite.', 'ok');
+        return chargerMonBilan();
+      })
+      .catch(function(e){
+        dire('msgBilan', e.message || 'Envoi impossible.', 'erreur');
+        if(b){ b.disabled = false; b.textContent = '📨 Envoyer mon bilan'; }
+      });
+  }
+
+
   /* ===== CONNEXION ===== */
 
   function connecter(){
@@ -899,6 +1165,10 @@
     dessinerLesOnglets();
     if(ouvert('proccorriger')) chargerEnvois();
     if(ouvert('messages')) demarrerMessages();
+    /* ⚠️ APPELÉ POUR TOUT LE MONDE, et c'est la réponse qui tranche.
+       Un élève qui a son permis reçoit « attendu: false » et ne voit
+       jamais l'onglet ; l'appel coûte une lecture de sa ligne. */
+    chargerMonBilan();
     chargerDossier();
 
     /* Rien d'ouvert : il ne doit pas rester devant une page nue
@@ -984,7 +1254,20 @@
        jours. Le serveur le calcule en excluant ce qu'il a écrit
        lui-même. */
     { cle:'messages', nom:'💬 Écrire', zone:'ongletMessages',
-      quand: function(){ return ouvert('messages'); } }
+      quand: function(){ return ouvert('messages'); } },
+    /* ⚠️ CELUI-CI NE DÉPEND D'AUCUNE CASE À COCHER — étape 1d.
+
+       Les quatre autres onglets sont des SERVICES que l'école ouvre
+       élève par élève : réviser, réciter, écrire. Le bilan
+       post-permis n'en est pas un — c'est l'étape que l'école EXIGE
+       avant d'accorder le rendez-vous, et la phrase que David envoie
+       déjà lui-même le dit : « PAS DE BILAN COMPLET = PAS DE RDV
+       POST PERMIS ». La demander à un ajourné et découvrir qu'une
+       case n'a pas été cochée, ce serait lui reprocher un oubli du
+       bureau. C'est donc la DONNÉE qui décide : il a été ajourné, et
+       son bilan n'est pas encore validé. */
+    { cle:'bilan', nom:'📝 Mon bilan', zone:'ongletBilan',
+      quand: function(){ return bilanAttendu(); } }
   ];
   var ongletIci = '';
 
