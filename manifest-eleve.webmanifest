@@ -1,0 +1,17 @@
+{
+  "name": "Mon coin révisions — Évolution Conduites",
+  "short_name": "Révisions",
+  "description": "Ton espace : tes procédures, ton suivi et tes messages avec l'auto-école.",
+  "start_url": "eleve.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#B6FF0E",
+  "lang": "fr",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
