@@ -103,9 +103,11 @@ async function afficherMessagerie(silencieux){
     const d = await appelPrep({ action: 'convList',
       fermees: (filtreMessagerie === 'clos' || filtreMessagerie === 'supervision') });
     conversationsEC = (d && d.conversations) || [];
-    if(typeof poserCompteVue === 'function'){
-      poserCompteVue('messagerie', (d && d.nonLusTotal) || 0);
-    }
+    /* ⚠️ LES DEUX, PAS UN SEUL — v1085. Celui-ci ne posait que le
+       compte de l'onglet. En refermant un fil qu'on vient de lire, on
+       passe par ici : le rond de l'en-tête gardait donc son chiffre
+       d'avant la lecture. */
+    poserLesComptesMessagerie((d && d.nonLusTotal) || 0);
   }catch(e){
     zone.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
     return;
@@ -1151,9 +1153,29 @@ async function chargerPlusDuFil(bouton){
 
 async function marquerLuLeFil(){
   if(!filOuvertEC || !filOuvertEC.conv || !filOuvertEC.estMembre) return;
+  const id = filOuvertEC.conv.id;
   try{
-    await appelPrep({ action: 'convLu', id: filOuvertEC.conv.id });
-  }catch(e){ /* la pastille se corrigera au prochain passage */ }
+    await appelPrep({ action: 'convLu', id: id });
+  }catch(e){
+    return;                      /* la pastille se corrigera au prochain passage */
+  }
+
+  /* ⚠️ LA PASTILLE TOMBE ICI — v1085. C'est le seul endroit où l'on
+     SAIT qu'un fil vient d'être lu, et c'est l'instant où l'autre
+     voit apparaître « Lu par ». Attendre un battement pour le dire
+     de son côté, c'est afficher pendant vingt-cinq secondes un
+     message non lu que l'expéditeur voit déjà comme lu.
+
+     ⚠️ ET ON NE DEVINE PAS LE NOUVEAU TOTAL : on retire CE fil-là de
+     l'addition. Poser zéro serait effacer les autres conversations
+     qui attendent vraiment. */
+  const c = conversationsEC.find(x => x && x.id === id);
+  /* Un fil ouvert depuis le bandeau ou une notification, sans que la
+     liste ait jamais été lue : on ne touche à rien plutôt que de
+     compter à partir d'une liste vide. */
+  if(!c || !Number(c.nonLus || 0)) return;
+  c.nonLus = 0;
+  poserLesComptesMessagerie(compterLesNonLusEC());
 }
 
 /* ------------------------------------------------------------
@@ -2321,8 +2343,7 @@ async function compterLaMessagerie(){
     const d = await appelPrep({ action: 'convList' });
     conversationsEC = (d && d.conversations) || [];
     const n = (d && d.nonLusTotal) || 0;
-    if(typeof poserCompteVue === 'function') poserCompteVue('messagerie', n);
-    poserPastilleMessagerie(n);
+    poserLesComptesMessagerie(n);
   }catch(e){ /* la pastille attendra le prochain passage */ }
 }
 
@@ -2373,9 +2394,20 @@ function veillerLeCompteMessagerie(){
   battementCompteMessagerie = setInterval(() => {
     if(document.hidden) return;
     if(typeof reseauEnPause === 'function' && reseauEnPause()) return;
-    /* Un fil ouvert a déjà son battement de quatre secondes : le
-       doubler serait payer deux fois la même information. */
-    if(unFilEstOuvert() && veilleDuFilEnCours()) return;
+    /* ⚠️ ON NE SAUTE PLUS QUAND UN FIL EST OUVERT — v1085.
+
+       Le commentaire d'avant disait « un fil ouvert a déjà son
+       battement de quatre secondes, le doubler serait payer deux
+       fois la même information ». C'était faux : ce battement-là
+       demande « convFil », qui rend UN fil et rien d'autre. Il ne
+       rapporte aucun compte global. Pendant qu'on lisait une
+       conversation, un message arrivé dans une AUTRE ne faisait donc
+       bouger aucune pastille — et la lecture en cours n'en effaçait
+       aucune non plus.
+
+       C'est une requête de plus toutes les vingt-cinq secondes, sur
+       D1, qui n'a pas le quota de soixante lectures par minute des
+       classeurs. C'est ce qu'elle coûte, et ça les vaut. */
     compterSiBesoin(true);
   }, PAS_COMPTE_MESSAGERIE);
 
@@ -2397,6 +2429,49 @@ function montrerLeBoutonMessagerie(){
   if(!b) return;
   const ouvert = (typeof aDroit !== 'function') || aDroit('messagerie');
   b.style.display = ouvert ? 'inline-flex' : 'none';
+}
+
+/* ============================================================
+   🔴 LES DEUX PASTILLES, ET UNE SEULE VÉRITÉ — v1085
+
+   David, le 9 octobre : « il ouvre le message et le 1 sur messagerie
+   reste alors que j'ai la notification de lecture ».
+
+   ⚠️ IL Y A DEUX PASTILLES, ET ELLES NE SE METTAIENT PAS À JOUR AU
+   MÊME MOMENT. Le rond rouge de l'en-tête (le bouton 💬) ne se
+   recalculait QUE dans « compterLaMessagerie », au battement de
+   vingt-cinq secondes. Le compte de l'onglet, lui, se recalculait
+   aussi à chaque lecture de la liste. Deux chemins pour un seul
+   chiffre : il suffisait que l'un soit emprunté et pas l'autre pour
+   qu'ils se contredisent.
+
+   ⚠️ ET LE BATTEMENT ÉTAIT SAUTÉ QUAND UN FIL ÉTAIT OUVERT —
+   c'est-à-dire exactement au moment où l'on vient de lire. « Un fil
+   ouvert a déjà son battement de quatre secondes », disait le
+   commentaire : c'est vrai, mais ce battement-là ne demande QUE le
+   fil, jamais la liste. Il ne rapporte donc aucun compte global.
+   Pendant qu'on lisait, plus rien ne corrigeait le rond ; en le
+   refermant, « afficherMessagerie » corrigeait l'onglet et pas le
+   rond. Le 1 restait jusqu'à ce que le hasard d'un battement passe.
+
+   Trois corrections, et une seule idée : un seul chiffre, posé au
+   même endroit, recalculé partout où il peut changer.
+   ============================================================ */
+function poserLesComptesMessagerie(total){
+  const n = Number(total || 0);
+  if(typeof poserCompteVue === 'function') poserCompteVue('messagerie', n);
+  poserPastilleMessagerie(n);
+}
+
+/* ⚠️ LA SUPERVISION NE COMPTE PAS, ICI NON PLUS. C'est la règle de
+   la v1082 : un fil qu'on surveille n'est pas un message qui nous
+   attend. Le serveur l'exclut déjà de « nonLusTotal » ; quand on
+   recompte à la main il faut l'exclure pareil, sinon le chiffre
+   change selon le chemin qui l'a produit. */
+function compterLesNonLusEC(){
+  return conversationsEC
+    .filter(c => c && !c.enSupervision)
+    .reduce((somme, c) => somme + Number(c.nonLus || 0), 0);
 }
 
 function poserPastilleMessagerie(combien){
