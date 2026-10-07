@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:10 — v1070 */
+/* Déployé le 08/10/2026 à 09:20 — v1074 */
 /* ============================================================
    ec-onglets.js
    Navigation par onglets.
@@ -40,6 +40,11 @@ const SECTIONS_ONGLET = {
   suivi:  ['bureau_simu', 'bureau_examblanc', 'suivi_aac_cs', 'ecoutes',
            'parcours'],
   permis: ['bureau_permis', 'bureau_places'],
+  /* ⚠️ SANS CETTE LIGNE, L'ONGLET N'APPARAÎT JAMAIS — v1074. C'est
+     cette table qui dit quel droit ouvre quel onglet : un onglet
+     déclaré dans ONGLETS_DROITS mais absent d'ici existe dans le
+     code et nulle part à l'écran. */
+  messagerie: ['messagerie'],
   /* « historique » a été retiré le 1er septembre : voir la barre
      de vues plus bas. */
   outils:  ['placesbe', 'paiement', 'procedures', 'textes', 'memoire', 'bilans',
@@ -247,12 +252,10 @@ const VUES = {
 
      Et les PROCÉDURES reviennent « Au quotidien » : c'est un
      travail de tous les jours, pas une pièce de dossier. */
+  /* ⚠️ LA MESSAGERIE EST PARTIE DANS SON PROPRE ONGLET — v1074.
+     Elle était ici, juste après le dossier. Voir la clé
+     « messagerie » plus bas, et ONGLETS_DROITS. */
   eleves: [['dossier',    '👤 Dossier élève',         'eleves',      'Au quotidien'],
-           /* Juste après le dossier, et dans le même groupe : on ne
-              pense pas « quel écran », on pense « Léa ». Le fil est
-              dans son dossier ; cet écran-ci est la vue d'ensemble,
-              pour ne pas laisser une question sans réponse. */
-           ['messagerie', '💬 Messagerie',             'messagerie',  'Au quotidien'],
            ['recherche',  '📚 Historique des leçons', 'recherche',   'Au quotidien'],
            ['rappels',    '🔔 Rappels de cours',      'rappels',     'Au quotidien'],
            ['proccorriger','📥 Procédures',           'proccorriger','Au quotidien'],
@@ -336,14 +339,35 @@ const VUES = {
            ['incidents',  '🚨 Signalements',            'incidents',   'Le parc'],
 
            ['messages',   '📨 Messages internes',      'bureau_messages', 'L’équipe'],
-           ['sms',        '💬 SMS',                     'sms',         'L’équipe'],
+           /* ⚠️ 📱 ET NON 💬 — v1074. David : « je préfère celui-là
+              pour la messagerie et mets un autre pour le SMS ». Deux
+              💬 dans la même application, c'est deux boutons qu'on ne
+              distingue plus une fois le rail replié — exactement la
+              raison qui avait fait passer « Permis obtenu » de 🎓 à
+              🪪. Et 📱 dit mieux ce que c'est : un texto sur un
+              téléphone. */
+           ['sms',        '📱 SMS',                     'sms',         'L’équipe'],
            ['taches',     '✅ Tâches',                  'taches',      'L’équipe'],
            ['notifs',     '🔔 Alertes',                 'notifs',      'L’équipe'],
 
            ['ecran',      '📺 Affichage',               'ecran',       'L’outil'],
            ['encours',    '🩹 Cours non terminés',      'encours',     'L’outil'],
            ['menage',     '🧹 Ménage',                  'menage',      'L’outil'],
-           ['admin',      '⚙️ Accès',                  'admin',        'L’outil']]
+           ['admin',      '⚙️ Accès',                  'admin',        'L’outil']],
+
+  /* ============================================================
+     💬 LA MESSAGERIE — son onglet, v1074
+
+     Une seule vue pour l'instant, et c'est assez : l'onglet existe
+     pour qu'elle ait sa place à elle dans la barre du haut, pas
+     pour accueillir un rail de dix boutons. Les objets oubliés
+     (étape 1c) viendront s'y ranger à côté.
+
+     ⚠️ UN ONGLET À UNE SEULE VUE N'EST PAS UNE ERREUR ICI. La règle
+     du projet dit qu'un droit ne doit pas mener nulle part ; elle ne
+     dit pas qu'un onglet doit avoir plusieurs écrans. Celui-ci en
+     aura deux dans quelques jours. */
+  messagerie: [['messagerie', '💬 Conversations', 'messagerie', 'Écrire']]
 };
 
 /* ============================================================
