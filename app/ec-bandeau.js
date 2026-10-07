@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1071 */
+/* Déployé le 08/10/2026 à 09:20 — v1074 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -289,7 +289,7 @@ function lignesMessagesEleves(){
            ligne s'en va quand on a LU le fil — pas quand on a
            décidé de ne plus la voir. */
         action: () => {
-          if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
+          if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
           if(typeof ouvrirLeFil === 'function') ouvrirLeFil(c.id);
         },
         actionTexte: 'Lire'
