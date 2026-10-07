@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:20 — v1078 */
+/* Déployé le 08/10/2026 à 21:30 — v1082 */
 /* ============================================================
    ec-bandeau.js
    Ce qu'on doit voir sans le chercher.
@@ -275,6 +275,12 @@ function lignesMessagesEleves(){
   const urgents = { retard:'⏰', annul:'🚫' };
 
   return conversationsEC
+    /* ⚠️ PAS CE QU'ON SUPERVISE — v1082. Le bandeau dit ce qu'il y a
+       à faire AUJOURD'HUI ; une conversation entre un élève et son
+       moniteur n'attend rien de celui qui la supervise. Sans ce
+       filtre, le bandeau de David portait les messages de toute
+       l'école. */
+    .filter(c => !c.enSupervision)
     .filter(c => !Number(c.fermee || 0))
     /* Les 🧤 ont leur famille : ils ne passent plus par ici, sauf
        quand l'élève y a écrit quelque chose qu'on n'a pas lu. */
