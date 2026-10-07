@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:10 — v1077 */
+/* Déployé le 08/10/2026 à 15:20 — v1078 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -894,6 +894,28 @@ function barreDesActionsDuFil(f){
 
   const peutGerer = typeof aDroit !== 'function' ||
                     aDroit('messagerie_bureau') || aDroit('messagerie_admin');
+
+  /* ⚠️ L'ÉTAT DE L'OBJET SE CHANGE OÙ ON LIT LA DEMANDE. Le bureau
+     ouvre le fil 🧤 pour savoir de quoi il s'agit : l'envoyer dans
+     un autre écran pour cliquer « Retrouvé » est un aller-retour
+     qu'on ne fait pas, et donc un objet qui reste « signalé »
+     pendant trois semaines. La liste 🧤 reste la vue d'ensemble ;
+     ici, c'est le geste. */
+  if(peutGerer && (f.conv || {}).genre === 'oubli'){
+    const o = (typeof objetDuFil === 'function') ? objetDuFil(f) : null;
+    const etat = (o && o.etat) || 'signale';
+    ((typeof SUITES_OBJET !== 'undefined' && SUITES_OBJET[etat]) || [])
+      .forEach(suite => {
+        const se = ETATS_OBJET_EC[suite];
+        petit(se.emoji + ' ' + se.nom, 'L’élève reçoit la réponse ici même',
+          async () => {
+            await appelPrep({ action: 'objetEtat', conversation: f.conv.id,
+                              etat: suite });
+            if(typeof compterLesObjets === 'function') await compterLesObjets();
+            await ouvrirLeFil(f.conv.id);
+          });
+      });
+  }
 
   /* ⚠️ « PARTICIPANTS », PAS « AJOUTER ». David, le 8 octobre :
      « il faut que l'on puisse le rajouter et enlever à la main dans
@@ -1818,6 +1840,11 @@ async function compterLaMessagerie(){
     return;
   }
   if(typeof ACCES === 'undefined' || !ACCES.code) return;
+
+  /* Les objets voyagent sur le même battement : voir la note en
+     tête de compterLesObjets. */
+  compterLesObjets();
+
   try{
     const d = await appelPrep({ action: 'convList' });
     conversationsEC = (d && d.conversations) || [];
@@ -1849,6 +1876,256 @@ function poserPastilleMessagerie(combien){
   p.style.display = n ? 'block' : 'none';
   p.textContent = n > 99 ? '99+' : String(n);
 }
+
+/* ============================================================
+   🧤 LES OBJETS OUBLIÉS — l'écran du bureau, étape 1c
+
+   David, le 7 octobre : « les objets oubliés se perdent ».
+
+   ⚠️ UNE LISTE QUI SE VIDE, PAS UNE CONVERSATION DE PLUS. C'est
+   tout le mécanisme, et il tient en une phrase : l'objet ne
+   disparaît de l'écran que parce que quelqu'un a cliqué pour dire
+   ce qu'il est devenu. Une liste qui se vide toute seule au bout de
+   quinze jours, c'est une écharpe perdue sans que personne ne
+   l'ait décidé.
+
+   ⚠️ ET CHAQUE CLIC RÉPOND À L'ÉLÈVE. La phrase part du serveur et
+   s'écrit dans SON fil : il voit où ça en est sans redemander, et
+   le bureau n'a pas de deuxième chose à écrire. C'est la seule
+   raison pour laquelle cet écran n'est pas un tableau de plus à
+   tenir à jour.
+   ============================================================ */
+
+/* Les quatre états, vus de l'écran. Les PHRASES envoyées à l'élève,
+   elles, sont côté Worker et nulle part ailleurs : recopiées ici,
+   elles auraient fini par dire autre chose que ce qu'il reçoit. */
+const ETATS_OBJET_EC = {
+  signale:     { emoji: '🧤', nom: 'Signalé',
+                 sous: 'personne n’a encore regardé', couleur: 'var(--warn-text)' },
+  retrouve:    { emoji: '✅', nom: 'Retrouvé',
+                 sous: 'à récupérer au bureau', couleur: 'var(--accent-text)' },
+  rendu:       { emoji: '🤝', nom: 'Rendu',
+                 sous: 'c’est réglé', couleur: 'var(--muted)' },
+  introuvable: { emoji: '🙈', nom: 'Introuvable',
+                 sous: 'cherché, pas retrouvé', couleur: 'var(--muted)' }
+};
+
+/* Ce que chaque état propose comme suite. On ne montre jamais le
+   bouton de l'état courant : un bouton qui ne fait rien use la
+   confiance dans tous les autres. */
+const SUITES_OBJET = {
+  signale:     ['retrouve', 'introuvable'],
+  retrouve:    ['rendu', 'introuvable'],
+  rendu:       ['retrouve'],
+  introuvable: ['retrouve', 'rendu']
+};
+
+let objetsEC = [];
+let objetsToutEC = false;        /* false : seulement ce qui n'est pas fini */
+
+function zoneDesObjets(){ return $('objetsZone'); }
+
+async function afficherObjetsOublies(silencieux){
+  const zone = zoneDesObjets();
+  if(!zone) return;
+
+  if(!silencieux && !objetsEC.length){
+    zone.innerHTML = (typeof htmlAttente === 'function')
+      ? htmlAttente('Lecture des objets signalés…')
+      : '<div class="empty">Lecture des objets signalés…</div>';
+  }
+
+  try{
+    const d = await appelPrep({ action: 'objetList', tout: objetsToutEC ? '1' : '' });
+    objetsEC = (d && d.objets) || [];
+    if(typeof poserCompteVue === 'function'){
+      poserCompteVue('oublis', (d && d.aTraiter) || 0);
+    }
+  }catch(e){
+    zone.innerHTML = '<div class="empty">⚠️ ' + echapper(e.message || e) + '</div>';
+    return;
+  }
+
+  dessinerLaListeObjets();
+}
+
+function dessinerLaListeObjets(){
+  const zone = zoneDesObjets();
+  if(!zone) return;
+  zone.innerHTML = '';
+
+  /* Deux boutons, pas une liste déroulante : il n'y a que deux
+     façons de regarder cette liste. */
+  const barre = document.createElement('div');
+  barre.style.cssText = 'display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;';
+  [[false, '🧤 À traiter'], [true, '🗄️ Tout l’historique']].forEach(([val, nom]) => {
+    const b = document.createElement('button');
+    const on = (objetsToutEC === val);
+    b.className = on ? '' : 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:7px 13px;font-size:12.5px;' +
+      'border-radius:999px;font-family:inherit;font-weight:700;cursor:pointer;' +
+      (on ? 'background:var(--orange-soft);border:1px solid var(--orange);' +
+            'color:var(--on-accent);' : '');
+    b.textContent = nom;
+    b.addEventListener('click', () => {
+      if(objetsToutEC === val) return;
+      objetsToutEC = val;
+      objetsEC = [];
+      afficherObjetsOublies();
+    });
+    barre.appendChild(b);
+  });
+  zone.appendChild(barre);
+
+  if(!objetsEC.length){
+    const v = document.createElement('div');
+    v.className = 'empty';
+    v.innerHTML = objetsToutEC
+      ? 'Aucun objet n’a jamais été signalé.'
+      : 'Rien en attente — tout est rendu.<br>' +
+        'Les objets arrivent ici quand un élève les signale depuis son espace.';
+    zone.appendChild(v);
+    return;
+  }
+
+  /* Ce qui attend un geste d'abord. Un objet rendu en mars n'a rien
+     à faire au-dessus d'une écharpe signalée hier. */
+  const vifs = objetsEC.filter(o => o.etat === 'signale' || o.etat === 'retrouve');
+  const finis = objetsEC.filter(o => o.etat === 'rendu' || o.etat === 'introuvable');
+
+  if(vifs.length){
+    zone.appendChild(sousTitreMessagerie(
+      'Pas encore rendus · ' + vifs.length, 'var(--warn-text)'));
+    vifs.forEach(o => zone.appendChild(carteObjet(o)));
+  }
+  if(finis.length){
+    zone.appendChild(sousTitreMessagerie('Réglés · ' + finis.length));
+    finis.forEach(o => zone.appendChild(carteObjet(o)));
+  }
+}
+
+function carteObjet(o){
+  const e = ETATS_OBJET_EC[o.etat] || ETATS_OBJET_EC.signale;
+
+  const d = document.createElement('div');
+  d.style.cssText = 'border:1px solid var(--line);border-radius:12px;' +
+    'padding:11px 13px;margin-bottom:9px;';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'display:flex;gap:9px;align-items:baseline;flex-wrap:wrap;';
+
+  const t = document.createElement('div');
+  t.style.cssText = 'flex:1;min-width:0;font-size:15px;font-weight:800;' +
+    'line-height:1.3;word-break:break-word;';
+  t.textContent = (o.quoi || 'Un objet') + (o.vehicule ? ' — ' + o.vehicule : '');
+  h.appendChild(t);
+
+  const p = document.createElement('span');
+  p.style.cssText = 'flex:0 0 auto;font-size:11.5px;font-weight:700;' +
+    'padding:3px 9px;border-radius:999px;border:1px solid var(--line);' +
+    'color:' + e.couleur + ';';
+  p.textContent = e.emoji + ' ' + e.nom;
+  h.appendChild(p);
+  d.appendChild(h);
+
+  /* ⚠️ LE NOM DE L'ÉLÈVE, LE JOUR DU COURS, ET QUI A TOUCHÉ À
+     L'ÉTAT. Sans la dernière, deux personnes du bureau cherchent la
+     même écharpe dans la même voiture. */
+  const s = document.createElement('div');
+  s.style.cssText = 'font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.5;';
+  s.textContent = [
+    o.eleve || '',
+    o.jour ? 'cours du ' + jourCourtMessagerie(o.jour) : '',
+    o.signaleLe ? 'signalé le ' + o.signaleLe : '',
+    (o.etat !== 'signale' && o.majPar)
+      ? e.nom.toLowerCase() + ' par ' + o.majPar + (o.majLe ? ' le ' + o.majLe : '')
+      : e.sous
+  ].filter(Boolean).join(' · ');
+  d.appendChild(s);
+
+  const l = document.createElement('div');
+  l.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;';
+
+  (SUITES_OBJET[o.etat] || []).forEach(suite => {
+    const se = ETATS_OBJET_EC[suite];
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;';
+    b.textContent = se.emoji + ' ' + se.nom;
+    b.title = 'L’élève reçoit la réponse dans son fil';
+    b.addEventListener('click', () => changerEtatObjet(o, suite, b));
+    l.appendChild(b);
+  });
+
+  /* Le fil d'origine : c'est là qu'est le texte exact de sa
+     demande, et c'est là qu'on lui écrit si on a une question. */
+  if(o.conversation){
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.cssText = 'width:auto;margin:0;padding:7px 12px;font-size:12.5px;';
+    b.textContent = '💬 Son message';
+    b.addEventListener('click', () => {
+      if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+      if(typeof ouvrirLeFil === 'function') ouvrirLeFil(o.conversation);
+    });
+    l.appendChild(b);
+  }
+
+  d.appendChild(l);
+  return d;
+}
+
+async function changerEtatObjet(o, etat, bouton){
+  const se = ETATS_OBJET_EC[etat];
+  if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
+  try{
+    await appelPrep({ action: 'objetEtat', id: o.id, etat: etat });
+    o.etat = etat;
+    if(typeof showToast === 'function'){
+      showToast(se.emoji + ' ' + se.nom + ' — ' + (o.eleve || 'l’élève') +
+                ' reçoit la réponse.');
+    }
+    /* ⚠️ ON RELIT, ON NE DEVINE PAS. Le serveur a aussi touché au
+       fil et au compteur : redessiner de mémoire laisserait la
+       pastille du bandeau sur l'ancien chiffre. */
+    objetsEC = [];
+    await afficherObjetsOublies(true);
+    if(typeof compterLaMessagerie === 'function') compterLaMessagerie();
+  }catch(e){
+    if(typeof showToast === 'function') showToast('Impossible : ' + (e.message || e));
+    if(bouton){ bouton.disabled = false; bouton.textContent = se.emoji + ' ' + se.nom; }
+  }
+}
+
+/* ⚠️ LE COMPTEUR VOYAGE SUR LE BATTEMENT QUI EXISTE DÉJÀ. Les
+   objets changent trois fois par semaine : leur donner un battement
+   à eux serait un appel toutes les quatre secondes pour une liste
+   qui ne bouge pas. Il suit celui de 90 secondes de la messagerie,
+   et seulement chez qui a le droit d'en faire quelque chose. */
+async function compterLesObjets(){
+  if(typeof aDroit === 'function' &&
+     !aDroit('messagerie_bureau') && !aDroit('messagerie_admin')){
+    objetsEC = [];
+    if(typeof poserCompteVue === 'function') poserCompteVue('oublis', 0);
+    return;
+  }
+  if(typeof ACCES === 'undefined' || !ACCES.code) return;
+  try{
+    const d = await appelPrep({ action: 'objetList', tout: objetsToutEC ? '1' : '' });
+    objetsEC = (d && d.objets) || [];
+    if(typeof poserCompteVue === 'function'){
+      poserCompteVue('oublis', (d && d.aTraiter) || 0);
+    }
+  }catch(e){ /* la liste attendra le prochain passage */ }
+}
+
+/* L'objet d'un fil 🧤, pour poser ses boutons dans la conversation
+   elle-même : le bureau lit la demande et répond au même endroit. */
+function objetDuFil(f){
+  if(!f || !f.conv || f.conv.genre !== 'oubli') return null;
+  return objetsEC.find(o => o.conversation === f.conv.id) || null;
+}
+
 
 /* ============================================================
    💬 LE TIROIR — un bandeau vertical, par-dessus l'écran
