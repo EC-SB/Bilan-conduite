@@ -3881,7 +3881,7 @@ async function fermerRdvPost(){
    bilans s'ajoutent à la suite — c'est le seul ordre qui ne dépend
    d'aucune écriture.
    ============================================================ */
-async function dernierExamenOfficielDe(eleve){
+async function dernierExamenOfficielDe(eleve, avecTexte){
   const nom = String(eleve || '').trim();
   if(nom.length < 2) return null;
 
@@ -3905,8 +3905,32 @@ async function dernierExamenOfficielDe(eleve){
      l'on vient réellement chercher. Et c'est la seule question à
      laquelle cette fonction répond : sans nom, elle rend le vide, et
      le résultat reste hors de tout taux jusqu'au rattrapage. */
+  /* ⚠️ « leger » RETIRE LE TEXTE DES BILANS, ET DEUX APPELANTS N'ONT
+     PAS LE MÊME BESOIN — correction du 9 octobre, v1089.
+
+     David, deux captures à l'appui : dans « Attente bilan
+     post-permis » le champ du bilan d'examen reste vide, alors que la
+     ligne en dessous annonce « ↩️ Repris de son bilan d'examen
+     officiel du 2026-10-06 — Hery », et que le bilan est bien là dans
+     « Mes prochains cours ».
+
+     C'est MOI qui ai cassé ça en v1065, en voulant accélérer
+     « ✅ Permis obtenu » : « leger: true » ne rapporte plus la colonne
+     E. Pour « moniteurQuiAPresente », qui ne lit qu'un nom, c'était
+     juste et ça reste juste. Pour « reprendreBilanExamen », qui vient
+     chercher le TEXTE, c'était tout retirer — et la panne était
+     muette, parce que la ligne « Repris de… » s'affichait quand
+     même.
+
+     ⚠️ ET ON NE REVIENT PAS EN ARRIÈRE POUR TOUT LE MONDE. Lire la
+     colonne E, c'est rapporter le texte entier de chaque bilan de
+     l'école — des mégaoctets — et c'est exactement ce qui rendait
+     « Permis obtenu » très long. On le fait pour CELUI QUI EN A
+     BESOIN, et pour lui seul : une fois, quand le bureau déplie un
+     rendez-vous post-permis, en arrière-plan, sur un écran où une
+     seconde ne se voit pas. */
   const d = await appelPrep({ action: 'search', eleve: nom,
-                              exact: true, leger: true });
+                              exact: true, leger: !avecTexte });
   const res = (d && d.resultats) || [];
 
   const examens = res.filter(x =>
@@ -4043,7 +4067,10 @@ async function reprendreBilanExamen(eleve, opts){
   const champ = o.champ || $('rdvPostBilan');
   if(!champ) return;
   try{
-    const ex = await dernierExamenOfficielDe(eleve);
+    /* ⚠️ « true » : ON VIENT CHERCHER LE TEXTE. Sans lui, la recherche
+       rend le nom du moniteur et la date — ce qu'il fallait pour
+       « Permis obtenu », et rien de ce qu'il faut ici. */
+    const ex = await dernierExamenOfficielDe(eleve, true);
     if(!ex) return;
     /* Entre-temps le moniteur a pu écrire, ou changer d'élève. */
     if(champ.value.trim()) return;
@@ -4055,16 +4082,40 @@ async function reprendreBilanExamen(eleve, opts){
       || (() => !!rdvPostEnCours && rdvPostEnCours.eleve === eleve);
     if(!encoreLa()) return;
 
-    champ.value = String(ex.bilan || '').trim();
+    const texte = String(ex.bilan || '').trim();
+    const quand = (ex.date ? ' du ' + ex.date : '') +
+                  (ex.moniteur ? ' — ' + ex.moniteur : '');
+    const zone = o.source || $('rdvPostBilanSource');
+
+    /* ⚠️ ON NE DIT PAS « REPRIS » QUAND ON N'A RIEN REPRIS — v1089.
+
+       C'est ce qui a rendu la panne de la v1065 invisible pendant
+       trois jours : le champ restait vide, et juste en dessous une
+       ligne affirmait que le bilan venait d'être repris. David a
+       cherché l'erreur dans l'examen de l'élève, pas dans le code —
+       et il avait raison de le faire, l'écran le lui disait.
+
+       Un écran qui annonce ce qu'il n'a pas fait coûte plus cher que
+       le manque lui-même : le manque, on le voit ; le mensonge, on le
+       croit. Quand l'examen est là mais sans bilan rempli, on le dit
+       aussi — c'est l'information utile, et elle envoie le bureau au
+       bon endroit. */
+    if(!texte){
+      if(zone){
+        zone.style.display = 'block';
+        zone.textContent = "⚠️ Son examen officiel" + quand +
+          " n'a pas de bilan rempli. À coller à la main.";
+      }
+      return;
+    }
+
+    champ.value = texte;
     /* Le texte vient d'arriver tout seul : on le montre, sinon il
        n'a servi à rien. */
-    if(!o.champ) ouvrirTiroirDuBilanExamen(champ.value.trim());
-    const zone = o.source || $('rdvPostBilanSource');
+    if(!o.champ) ouvrirTiroirDuBilanExamen(texte);
     if(zone){
       zone.style.display = 'block';
-      zone.textContent = "↩️ Repris de son bilan d'examen officiel" +
-        (ex.date ? ' du ' + ex.date : '') +
-        (ex.moniteur ? ' — ' + ex.moniteur : '') +
+      zone.textContent = "↩️ Repris de son bilan d'examen officiel" + quand +
         '. Tu peux le corriger.';
     }
   }catch(e){
