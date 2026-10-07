@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:30 — v1092 */
+/* Déployé le 07/10/2026 à 19:40 — v1093 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -126,7 +126,11 @@ const NOUVEAUTES = [
                'qu’elles arrivent désormais. Les heures demandées et le ' +
                '« pas de repassage » se posent même tout seuls dans la ' +
                'conclusion — tu gardes le dernier mot, ce que tu as choisi ' +
-               'n’est jamais écrasé.' },
+               'n’est jamais écrasé. La carte du cours, elle, porte ces ' +
+               'mêmes lignes à la place du rapport d’examen entier qui s’y ' +
+               'déroulait — et quand le bureau fixe le rendez-vous, c’est ' +
+               'TON cours de ce jour-là qui devient le rendez-vous, au lieu ' +
+               'd’un deuxième cours posé à côté.' },
       { emoji: '🗂️',
         titre: 'Le bandeau ne dit plus tout d’un coup',
         texte: 'Il affichait quarante-sept lignes au-dessus du premier ' +
