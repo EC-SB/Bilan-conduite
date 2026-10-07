@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 23:10 — v1083 -->
+<!-- Déployé le 09/10/2026 à 00:40 — v1084 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -8,6 +8,15 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
 <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiNCNkZGMEUiLz48dGV4dCB4PSIzMiIgeT0iNDMiIGZvbnQtZmFtaWx5PSJIZWx2ZXRpY2EsQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIzMCIgZm9udC13ZWlnaHQ9IjcwMCIgZmlsbD0iIzBCMEIwQiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+RUM8L3RleHQ+PC9zdmc+">
 <title>Mon coin révisions — Évolution Conduites</title>
+<!-- 🔔 Étape 3 : installable sur l'écran d'accueil, ce qui est la
+     CONDITION des notifications sur iPhone — Safari ne les donne
+     qu'aux pages installées, et c'est la moitié des élèves. -->
+<link rel="manifest" href="manifest-eleve.webmanifest">
+<meta name="theme-color" content="#B6FF0E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Révisions">
 
 <!-- =========================================================
      ESPACE ÉLÈVE — Évolution Conduites
@@ -750,6 +759,12 @@
                      display:none;">
               👤 Écrire à mon moniteur</button>
           </div>
+          <!-- 🔔 Étape 3 : le réglage des notifications de CET
+               appareil. Il se remplit tout seul, et reste vide si le
+               serveur n'a pas de clés ou si le navigateur ne sait pas
+               faire — rien ne doit apparaître qui ne marche pas. -->
+          <div id="poussEl"></div>
+
           <div class="ditpartage" style="margin:12px 0 0;">
             Tout ce qui s'écrit ici est rangé dans ton dossier, et le responsable
             de l'école peut le consulter. Réponse sous 48 heures ouvrées.
@@ -2523,6 +2538,24 @@
   function demarrerMessages(){
     chargerContexteEleve();
     chargerConversationsEleve();
+
+    /* 🔔 Étape 3. « preparerPousseeEl » ne demande RIEN à personne :
+       elle regarde si c'est possible, et dessine un bouton ou rien.
+       « reprendrePousseeEl » ne fait quelque chose que si
+       l'autorisation est déjà donnée — c'est la réparation muette
+       d'un abonnement que le navigateur aurait remplacé. */
+    preparerPousseeEl();
+    if(!poussRepriseEl){
+      poussRepriseEl = true;
+      reprendrePousseeEl();
+      var demande = filDeLAdresseEl();
+      if(demande){
+        /* L'espace s'ouvre POUR une notification : on va droit au
+           fil, sans passer par la liste. */
+        allerAOnglet('messages');
+        ouvrirFilEleve(demande);
+      }
+    }
   }
 
   /* Son cours du jour et son moniteur : de quoi préremplir les
@@ -2817,6 +2850,292 @@
         bouton.textContent = '↑ Messages plus anciens';
       });
   }
+
+  /* ============================================================
+     🔔 ÊTRE PRÉVENU SUR SON TÉLÉPHONE — étape 3
+
+     David, le 7 octobre : « je veux un vrai systeme de messagerie
+     instantané comme messenger ». C'est ici que ça se joue. Un élève
+     qui écrit au bureau à vingt heures et qui n'a aucun moyen de
+     savoir si quelqu'un l'a vu rouvre Messenger le lendemain — et
+     tout ce qu'on a construit depuis une semaine n'aura servi à
+     rien. Le téléphone doit sonner.
+
+     ⚠️ TOUT CE BLOC EST FACULTATIF, DE BOUT EN BOUT. Pas de clés sur
+     le serveur, un vieux navigateur, un iPhone qui n'a pas ajouté la
+     page à l'écran d'accueil, une autorisation refusée : rien ne
+     s'affiche, rien ne casse, et l'espace marche exactement comme
+     avant.
+
+     ⚠️ ET ON NE DEMANDE JAMAIS L'AUTORISATION TOUT SEUL. Un
+     navigateur qui voit la demande arriver sans qu'on ait rien
+     cliqué la refuse pour toujours, et plus rien depuis la page ne
+     peut revenir en arrière. Elle part donc d'un clic sur un bouton
+     qui dit ce qu'il fait.
+     ============================================================ */
+
+  var cleEl = '';
+  var poussEtatEl = '';        /* '' | 'absent' | 'off' | 'on' | 'refuse' | 'ecran' */
+  var poussOccupeEl = false;
+  var poussRepriseEl = false;
+
+  function poussPossibleEl(){
+    return typeof navigator !== 'undefined' && 'serviceWorker' in navigator &&
+           typeof window !== 'undefined' && 'PushManager' in window &&
+           typeof Notification !== 'undefined';
+  }
+
+  /* ⚠️ SUR IPHONE, IL FAUT AVOIR AJOUTÉ LA PAGE À L'ÉCRAN D'ACCUEIL.
+     Safari ne donne les notifications qu'aux pages installées, et
+     c'est la moitié de nos élèves. Un bouton « Activer » qui échoue
+     silencieusement chez eux serait pire que pas de bouton : on leur
+     dit le geste à faire, en toutes lettres. */
+  function iphoneNonInstalle(){
+    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+    if(!ios) return false;
+    var pose = (window.navigator.standalone === true) ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    return !pose;
+  }
+
+  function cleEnOctetsEl(t){
+    var propre = String(t || '').replace(/-/g, '+').replace(/_/g, '/');
+    var bourre = propre + new Array((4 - (propre.length % 4)) % 4 + 1).join('=');
+    var brut = atob(bourre);
+    var out = new Uint8Array(brut.length);
+    for(var i = 0; i < brut.length; i++) out[i] = brut.charCodeAt(i);
+    return out;
+  }
+
+  function abonnementClairEl(ab){
+    var j = ab.toJSON ? ab.toJSON() : {};
+    var c = j.keys || {};
+    return { endpoint: ab.endpoint, p256dh: c.p256dh || '', auth: c.auth || '' };
+  }
+
+  function clePousseeEl(){
+    if(cleEl) return Promise.resolve(cleEl);
+    return appeler({ action: 'elevePousseCle', eleve: moi.nom, code: moi.code })
+      .then(function(d){
+        cleEl = (d && d.branche && d.cle) ? d.cle : '';
+        return cleEl;
+      })
+      .catch(function(){ cleEl = ''; return ''; });
+  }
+
+  /* ⚠️ LE CHEMIN EST RELATIF. L'espace vit dans un sous-dossier :
+     « /sw.js » chercherait à la racine du domaine, où il n'y a
+     rien. */
+  function swPretEl(){
+    return navigator.serviceWorker.register('sw.js')
+      .catch(function(){ return null; });
+  }
+
+  /* Au démarrage : on ne demande rien, on répare. Un abonnement se
+     périme tout seul, et la seule panne qu'on ne verrait jamais
+     autrement est un téléphone qui a cessé de sonner sans rien
+     dire. */
+  function reprendrePousseeEl(){
+    if(!poussPossibleEl() || Notification.permission !== 'granted') return;
+    clePousseeEl().then(function(cle){
+      if(!cle) return;
+      return swPretEl().then(function(reg){
+        if(!reg) return;
+        return reg.pushManager.getSubscription().then(function(dejà){
+          return dejà || reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: cleEnOctetsEl(cle)
+          });
+        }).then(function(ab){
+          var c = abonnementClairEl(ab);
+          c.action = 'elevePousseAbonner';
+          c.eleve = moi.nom; c.code = moi.code;
+          return appeler(c);
+        }).then(function(){ poussEtatEl = 'on'; dessinerPousseeEl(); });
+      });
+    }).catch(function(){ /* muet : la prochaine ouverture réessaiera */ });
+  }
+
+  function demanderPousseeEl(){
+    if(poussOccupeEl) return;
+    poussOccupeEl = true;
+    dessinerPousseeEl();
+
+    clePousseeEl().then(function(cle){
+      if(!cle) throw new Error('Les notifications ne sont pas réglées.');
+      return Notification.requestPermission().then(function(rep){
+        if(rep !== 'granted'){ poussEtatEl = 'refuse'; return null; }
+        return swPretEl().then(function(reg){
+          if(!reg) throw new Error('Ton navigateur a refusé.');
+          /* ⚠️ ON ATTEND QU'IL SOIT PRÊT : juste après
+             l'enregistrement il s'installe encore, et s'abonner tout
+             de suite échoue une fois sur deux. */
+          return navigator.serviceWorker.ready.then(function(){
+            return reg.pushManager.getSubscription().then(function(d){
+              return d || reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: cleEnOctetsEl(cle)
+              });
+            });
+          });
+        }).then(function(ab){
+          if(!ab) return;
+          var c = abonnementClairEl(ab);
+          c.action = 'elevePousseAbonner';
+          c.eleve = moi.nom; c.code = moi.code;
+          return appeler(c).then(function(){ poussEtatEl = 'on'; });
+        });
+      });
+    }).catch(function(e){
+      /* ⚠️ ON RAPPORTE LE SOUCI, ON NE L'AFFICHE PAS ICI. Le dessin
+         qui suit vide la zone : un message posé avant lui
+         disparaîtrait aussitôt, et le bouton semblerait n'avoir rien
+         fait du tout. */
+      return String(e.message || 'Notifications impossibles.');
+    }).then(function(souci){
+      poussOccupeEl = false;
+      dessinerPousseeEl();
+      if(souci) alerterPousseeEl(souci);
+    });
+  }
+
+  function arreterPousseeEl(){
+    if(poussOccupeEl) return;
+    poussOccupeEl = true;
+    dessinerPousseeEl();
+
+    navigator.serviceWorker.getRegistration().then(function(reg){
+      if(!reg) return null;
+      return reg.pushManager.getSubscription();
+    }).then(function(ab){
+      if(!ab) return null;
+      /* ⚠️ ON PRÉVIENT LE SERVEUR AVANT DE SE DÉSABONNER : dans
+         l'autre ordre, une coupure réseau laisse une ligne morte
+         qu'on relancerait à chaque message. */
+      return appeler({ action: 'elevePousseOublier', endpoint: ab.endpoint,
+                       eleve: moi.nom, code: moi.code })
+        .then(function(){ return ab.unsubscribe(); });
+    }).then(function(){ poussEtatEl = 'off'; })
+      .catch(function(){ poussEtatEl = 'off'; })
+      .then(function(){ poussOccupeEl = false; dessinerPousseeEl(); });
+  }
+
+  function preparerPousseeEl(){
+    if(poussEtatEl) return;                       /* une fois par session */
+    if(!poussPossibleEl()){
+      poussEtatEl = iphoneNonInstalle() ? 'ecran' : 'absent';
+      dessinerPousseeEl();
+      return;
+    }
+    if(iphoneNonInstalle()){
+      poussEtatEl = 'ecran';
+      dessinerPousseeEl();
+      return;
+    }
+    clePousseeEl().then(function(cle){
+      if(!cle){ poussEtatEl = 'absent'; dessinerPousseeEl(); return; }
+      if(Notification.permission === 'denied'){
+        poussEtatEl = 'refuse'; dessinerPousseeEl(); return;
+      }
+      if(Notification.permission !== 'granted'){
+        poussEtatEl = 'off'; dessinerPousseeEl(); return;
+      }
+      navigator.serviceWorker.getRegistration().then(function(reg){
+        return reg ? reg.pushManager.getSubscription() : null;
+      }).then(function(ab){
+        poussEtatEl = ab ? 'on' : 'off';
+        dessinerPousseeEl();
+      }).catch(function(){ poussEtatEl = 'off'; dessinerPousseeEl(); });
+    });
+  }
+
+  /* Le message d'échec se pose DANS la zone 🔔, pas ailleurs : c'est
+     là qu'on vient de cliquer, et un message qui apparaît à l'autre
+     bout de l'écran passe inaperçu sur un téléphone. */
+  function alerterPousseeEl(texte){
+    var z = $('poussEl');
+    if(!z) return;
+    var d = document.createElement('div');
+    d.className = 'message erreur';
+    d.style.marginTop = '10px';
+    d.textContent = texte;
+    z.appendChild(d);
+  }
+
+  function dessinerPousseeEl(){
+    var z = $('poussEl');
+    if(!z) return;
+    if(poussEtatEl === 'absent' || !poussEtatEl){ z.innerHTML = ''; return; }
+
+    if(poussEtatEl === 'ecran'){
+      z.innerHTML = '<div class="ditpartage" style="margin:12px 0 0;">' +
+        '🔔 Pour être prévenu quand on te répond : touche le bouton ' +
+        'Partager de Safari, puis « Sur l\'écran d\'accueil ». ' +
+        'Ouvre ensuite l\'espace depuis cette icône.</div>';
+      return;
+    }
+    if(poussEtatEl === 'refuse'){
+      z.innerHTML = '<div class="ditpartage" style="margin:12px 0 0;">' +
+        '🔕 Les notifications sont bloquées pour ce site. ' +
+        'Ça se débloque dans les réglages de ton navigateur.</div>';
+      return;
+    }
+
+    var occupe = poussOccupeEl ? ' disabled' : '';
+    if(poussEtatEl === 'on'){
+      z.innerHTML = '<div style="display:flex;gap:9px;align-items:center;' +
+        'flex-wrap:wrap;margin-top:12px;">' +
+        '<span style="flex:1;min-width:150px;font-size:12.5px;color:var(--soft);' +
+        'line-height:1.45;">🔔 Tu es prévenu sur cet appareil.<br>' +
+        '<span style="color:var(--muted);font-size:11.5px;">La notification dit ' +
+        'qu\'on t\'a écrit, jamais ce qui est écrit.</span></span>' +
+        '<button class="btn btn-secondary" id="btPoussOff"' + occupe +
+        ' style="width:auto;margin:0;padding:8px 12px;font-size:12.5px;">' +
+        'Arrêter</button></div>';
+      var o = $('btPoussOff');
+      if(o) o.addEventListener('click', arreterPousseeEl);
+      return;
+    }
+
+    z.innerHTML = '<div style="display:flex;gap:9px;align-items:center;' +
+      'flex-wrap:wrap;margin-top:12px;">' +
+      '<span style="flex:1;min-width:150px;font-size:12.5px;color:var(--soft);' +
+      'line-height:1.45;">🔔 Être prévenu quand l\'école te répond.<br>' +
+      '<span style="color:var(--muted);font-size:11.5px;">À faire une fois sur ' +
+      'ce téléphone.</span></span>' +
+      '<button class="btn btn-primary" id="btPoussOn"' + occupe +
+      ' style="width:auto;margin:0;padding:8px 14px;font-size:12.5px;">' +
+      'Activer</button></div>';
+    var b = $('btPoussOn');
+    if(b) b.addEventListener('click', demanderPousseeEl);
+  }
+
+  /* On clique sur la notification : le service worker dit quel fil
+     ouvrir plutôt que de recharger la page — l'espace est peut-être
+     ouvert sur une procédure à moitié dictée. */
+  function ecouterSwEl(){
+    if(!poussPossibleEl() || !navigator.serviceWorker) return;
+    navigator.serviceWorker.addEventListener('message', function(ev){
+      var d = ev && ev.data;
+      if(!d || d.quoi !== 'ouvrirFil' || !d.fil) return;
+      try{ allerAOnglet('messages'); ouvrirFilEleve(d.fil); }catch(e){}
+    });
+  }
+
+  /* Et la page qui s'ouvre POUR une notification : le fil est dans
+     l'adresse. On la nettoie derrière nous — un rechargement trois
+     jours plus tard ne doit pas rouvrir le même fil. */
+  function filDeLAdresseEl(){
+    try{
+      var u = new URL(window.location.href);
+      var fil = u.searchParams.get('fil');
+      if(!fil) return '';
+      u.searchParams.delete('fil');
+      window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+      return fil;
+    }catch(e){ return ''; }
+  }
+
 
   /* ============================================================
      📡 SON FIL EN DIRECT — étape 2
@@ -3118,6 +3437,10 @@
       b.addEventListener('click', function(){ ecranMotif(b.getAttribute('data-motif')); });
     });
   $('btMajMessages').addEventListener('click', chargerConversationsEleve);
+
+  /* 🔔 L'oreille du service worker : au clic sur une notification, il
+     dira quel fil ouvrir. Aucun appel réseau ici. */
+  ecouterSwEl();
   $('btEcrireBureau').addEventListener('click', function(){
     ouvrirVers('bureau', this);
   });
