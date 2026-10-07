@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 18:10 — v1070 */
+/* Déployé le 07/10/2026 à 19:40 — v1071 */
 /* ============================================================
    ec-fenetres.js
    Cache et fenêtres de dialogue
@@ -1322,7 +1322,22 @@ const MODULES_ELEVE = [
      personne ne l'ouvre : un groupe neuf n'arrive chez personne. */
   { cle:'parcours',     nom:'🎬 Son parcours — vidéos et guides' },
   { cle:'rappel',       nom:'📅 Son prochain cours' },
-  { cle:'historique',   nom:'📖 L\'historique de ses leçons' }
+  { cle:'historique',   nom:'📖 L\'historique de ses leçons' },
+  /* ⚠️ LES DEUX CASES DE LA MESSAGERIE — v1071.
+
+     Elles sont le DOUBLE VERROU validé par David le 7 octobre, côté
+     élève. La première ouvre la rubrique 💬 et le fil du bureau ; la
+     seconde ajoute son moniteur — et elle ne suffit pas à elle
+     seule : il faut EN PLUS que le droit 💬 Messagerie soit coché
+     sur le compte de ce moniteur-là. Deux cases dans deux écrans
+     différents, et c'est voulu : l'une dit « cet élève peut
+     écrire », l'autre « ce moniteur est joignable ».
+
+     Fermées par défaut, comme tout cet onglet depuis le
+     17 septembre : un accès qui s'ouvrirait tout seul arriverait
+     chez deux cents élèves d'un coup. */
+  { cle:'messages',          nom:'💬 Écrire à l\'école (le bureau)' },
+  { cle:'messages_moniteur', nom:'💬 … et à son moniteur' }
 ];
 
 /* ============================================================
