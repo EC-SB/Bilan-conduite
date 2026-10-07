@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 21:10 — v1094 */
+/* Déployé le 07/10/2026 à 22:30 — v1095 */
 /* ============================================================
    ec-postpermis.js
    Après l'examen : résultat, repassage, rendez-vous post-permis.
@@ -912,12 +912,56 @@ async function rangerLeBilanRepris(eleve, texte){
      l'ouvrir, c'est ce qui a déclenché la recherche — et un
      redessin la refermerait sous son doigt. */
   const zone = document.getElementById('listeAttenteBilan');
-  const ligne = zone
-    ? zone.querySelector('[data-eleve="' +
-        String(eleve).replace(/["\\]/g, '') + '"]')
-    : null;
+  /* Le nom entre guillemets dans un sélecteur : on en retire les
+     guillemets et les barres obliques inverses plutôt que de les
+     échapper. Un nom d'élève n'en contient pas, et un sélecteur
+     qu'on bricole est un sélecteur qui casse un jour. */
+  const propre = String(eleve).split('"').join('').split('\\').join('');
+  const ligne = zone ? zone.querySelector('[data-eleve="' + propre + '"]') : null;
   if(ligne && typeof ligne.rafraichirLigne === 'function') ligne.rafraichirLigne();
   return true;
+}
+
+
+/* ============================================================
+   ✅ COLLER UN BILAN, C'EST LE VALIDER — v1095
+
+   David, le 7 octobre : « je n'ai pas besoin de la phrase "bilan
+   élève à relancer" car il est là, je l'ai collé, c'est trompeur ».
+
+   La validation existe pour le bilan que L'ÉLÈVE envoie depuis son
+   espace : quelqu'un du bureau doit l'avoir lu avant que le
+   rendez-vous ait lieu. Quand c'est le bureau lui-même qui le colle
+   depuis Messenger, cette lecture a déjà eu lieu — il vient de le
+   relire mot à mot pour le copier.
+
+   ⚠️ MAIS ELLE PASSE PAR LA MÊME PORTE. « validé par » et « validé
+   le » sont écrits PAR LE SERVEUR, jamais depuis le navigateur :
+   c'est ce qui rend la validation opposable, et c'est la leçon
+   d'Axel Hinault, le 2 septembre — un écran qui affiche
+   « Enregistré ✅ » sur une ligne que le classeur n'a pas écrite.
+
+   ⚠️ ET UN ÉCHEC S'ENTEND. Si la validation ne passe pas, le texte,
+   lui, est enregistré : on le dit, et on repose l'état sur « reçu —
+   à valider » pour que le bouton « 👁️ Lire et valider » reste la
+   sortie de secours. Le pire serait de laisser croire que c'est fait.
+   ============================================================ */
+async function validerLeBilanColle(eleve){
+  try{
+    await appelPrep({ action: 'bilanEleveValider', eleve: eleve,
+                      etat: 'valide', phrase: '' });
+    /* ⚠️ ON RELIT LE SUIVI, ON NE DEVINE PAS : c'est le serveur qui
+       vient d'écrire qui et quand. */
+    if(typeof chargerBureau === 'function') await chargerBureau(true);
+    return true;
+  }catch(err){
+    try{ await majSuivi(eleve, { bilanEleveEtat: 'attente' }); }catch(e2){}
+    if(typeof showToast === 'function'){
+      showToast('Bilan enregistré, mais pas validé : ' +
+                ((err && err.message) ? err.message : err));
+    }
+    return false;
+  }
 }
 
 
@@ -1070,27 +1114,37 @@ function blocRdvPost(e){
     const bilan = g('b').value.trim();
     const bilanEl = g('e').value.trim();
 
-    /* ⚠️ UN BILAN COLLÉ PAR LE BUREAU EST UN BILAN REÇU — v1093.
+    /* ⚠️ CELUI QUI COLLE LE BILAN L'A DÉJÀ LU — v1095.
 
-       Le texte se collait sans que rien ne change d'état : la ligne
-       continuait d'annoncer « bilan élève pas encore envoyé », et le
-       dossier ne pouvait jamais être complet. Il passe donc à « reçu
-       — à valider », qui est exactement ce qu'il est : le bureau l'a
-       recopié de Messenger, il reste à le lire et à le valider.
+       David, le 7 octobre : « je n'ai pas besoin de la phrase "bilan
+       élève à relancer", il est là, je l'ai collé, c'est trompeur ».
 
-       ⚠️ ET ON NE DÉCLASSE JAMAIS UN BILAN DÉJÀ VALIDÉ. « valide »
-       porte qui et quand, posés par le serveur : le repasser en
-       attente parce qu'on a corrigé une virgule effacerait une trace
-       opposable. */
-    const etats = {};
-    if(bilanEl && !etatDuBilanEleve(s)){ etats.bilanEleveEtat = 'attente'; }
+       Il a raison, et la v1093 n'allait qu'à mi-chemin : elle posait
+       « reçu — à valider », ce qui demandait un second geste sur un
+       texte que le bureau venait de relire mot à mot pour le coller
+       depuis Messenger. Relancer l'élève pour un bilan qu'on a sous
+       les yeux, c'est l'écran qui fait perdre du temps au lieu d'en
+       faire gagner.
+
+       Coller, c'est donc valider — et le reste ne bouge pas : ça
+       passe par LA MÊME PORTE que le bouton « ✅ Valider », celle qui
+       fait écrire « validé par » et « validé le » PAR LE SERVEUR. Les
+       poser depuis le navigateur, ce serait afficher une validation
+       que le classeur n'a peut-être pas écrite — la faute d'Axel
+       Hinault, le 2 septembre.
+
+       ⚠️ ET ON NE REVALIDE PAS CE QUI L'EST. Une virgule corrigée sur
+       un bilan déjà validé ne doit pas réécrire qui l'a validé ni
+       quand : la trace est opposable, elle appartient au premier
+       geste. */
+    const aValider = !!bilanEl && etatDuBilanEleve(s) !== 'valide';
 
     /* On enregistre ce qui est là ; le rendez-vous peut venir après */
     if(!date || !mon){
       bEnr.disabled = true;
       try{
-        await majSuivi(e.eleve, Object.assign(
-          { bilanExamen: bilan, bilanEleve: bilanEl }, etats));
+        await majSuivi(e.eleve, { bilanExamen: bilan, bilanEleve: bilanEl });
+        if(aValider) await validerLeBilanColle(e.eleve);
         msg.style.color = 'var(--accent-text)';
         msg.textContent = '✅ Enregistré. Ajoute la date et le moniteur pour préparer le cours.';
         afficherBureau();
@@ -1124,9 +1178,10 @@ function blocRdvPost(e){
     const libelleBouton = bEnr.textContent;
     bEnr.textContent = 'Enregistrement…';
     try{
-      await majSuivi(e.eleve, Object.assign(
+      await majSuivi(e.eleve,
         { rdvPostDate: date, rdvPostMoniteur: mon,
-          bilanExamen: bilan, bilanEleve: bilanEl }, etats));
+          bilanExamen: bilan, bilanEleve: bilanEl });
+      if(aValider) await validerLeBilanColle(e.eleve);
 
       /* ② CE QUE LE MONITEUR A NOTÉ À LA SORTIE DE L'EXAMEN — et
          plus le bilan entier.
