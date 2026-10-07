@@ -1,4 +1,4 @@
-/* Déployé le 06/10/2026 à 11:30 — v1063 */
+/* Déployé le 07/10/2026 à 18:10 — v1070 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -259,6 +259,27 @@ const SECTIONS = [
      relire le code pour le transmettre à une famille est un
      travail de bureau ; corriger une procédure en est un autre. */
   { cle:'acces_eleves',     nom:"🔑 Accès à l'espace élève (codes)", onglet:'eleves' },
+  /* ⚠️ LES TROIS DROITS DE LA MESSAGERIE — v1070.
+
+     Ils sont volontairement séparés, parce qu'ils répondent à trois
+     questions différentes que David a posées le 7 octobre.
+
+     · « messagerie » — participer. Sur un MONITEUR, c'est la moitié
+       du double verrou : elle le rend JOIGNABLE par ses élèves.
+       L'autre moitié est l'autorisation posée dans la fiche de
+       l'élève ; il faut les deux.
+     · « messagerie_bureau » — être DANS la boîte du bureau. C'est
+       « je décide qui voit cette conversation » : un élève qui écrit
+       au bureau écrit à la boîte, pas à une personne. Décocher,
+       c'est en sortir — et perdre l'accès à l'historique, comme
+       David l'a tranché.
+     · « messagerie_admin » — tout voir, y compris moniteur ↔ élève,
+       et ouvrir des groupes. Chaque lecture d'un fil dont on n'est
+       pas membre s'inscrit au journal. */
+  { cle:'messagerie',       nom:'💬 Messagerie', onglet:'eleves' },
+  { cle:'messagerie_bureau', nom:'💬 Boîte du bureau (voir ce qu\'on écrit au bureau)',
+    onglet:'eleves' },
+  { cle:'messagerie_admin', nom:'💬 Superviser toutes les conversations', onglet:'eleves' },
   { cle:'code',             nom:'🎓 Code (salle et aménagé)', onglet:'eleves' },
   { cle:'handicap',         nom:'♿ Suivi handicap', onglet:'eleves' },
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
