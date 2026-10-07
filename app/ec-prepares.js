@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 09:20 — v1074 */
+/* Déployé le 07/10/2026 à 18:30 — v1092 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3312,6 +3312,47 @@ async function preparerNouveauCours(){
 
    Il n'est pas forcément celui qui fait le rendez-vous, d'où ce
    rappel en tête d'écran. */
+/* ⚠️ UN SEUL ANALYSEUR, ET IL LIT UN TEXTE — v1092.
+
+   Il vivait enfermé dans la boucle des trois sources locales. Or la
+   source qui compte — la note interne du bilan d'examen, dans le
+   classeur — n'en fait pas partie, et il a fallu l'en sortir pour
+   l'atteindre. En écrire un second pour le classeur, c'était deux
+   lectures du même format, donc un jour deux réponses. */
+function lireMentionExamen(texte){
+  const lignes = String(texte || '').split('\n');
+  const i = lignes.findIndex(x => x.indexOf('🔒 EXAMEN OFFICIEL') !== -1);
+  if(i === -1) return null;
+
+  /* « Demandé : 4 + 3 heures » — on ne retient que le premier */
+  const m = lignes[i].match(/Demandé\s*:\s*(\d+)/i);
+
+  /* Les lignes 🔒 qui suivent : ce que le moniteur a écrit
+     pour l'équipe. */
+  const notes = [];
+  for(let k = i + 1; k < lignes.length; k++){
+    if(lignes[k].trim().indexOf('🔒') !== 0) break;
+    notes.push(lignes[k].replace(/^\s*🔒\s*/, ''));
+  }
+
+  return {
+    texte: lignes[i].replace('🔒 EXAMEN OFFICIEL · ', ''),
+    note: notes.join('\n'),
+    heures: m ? m[1] : '',
+    /* ⚠️ « PAS DE REPASSAGE » VOYAGE AUSSI — v912. Le moniteur de
+       l'examen peut maintenant le dire ; sans cette lecture, sa
+       phrase s'afficherait dans le mémo et le menu de la suite
+       repartirait quand même à « — à définir ». Une information
+       qu'on affiche sans s'en servir, c'est une information qu'on
+       retape. */
+    sansRepassage: /Pas de repassage pour le moment/i.test(lignes[i])
+  };
+}
+
+/* Les trois endroits où la mention peut déjà être, sans rien
+   demander à personne : la note du cours préparé, celle de la fiche
+   de suivi, les remarques de la fiche élève. Le classeur, lui, se
+   lit à part — voir completerDepuisLExamenOfficiel. */
 function mentionDeLExamen(cours, suivi){
   const sources = [
     String((cours && cours.note) || ''),
@@ -3321,33 +3362,8 @@ function mentionDeLExamen(cours, suivi){
   ];
 
   for(const t of sources){
-    const lignes = t.split('\n');
-    const i = lignes.findIndex(x => x.indexOf('🔒 EXAMEN OFFICIEL') !== -1);
-    if(i === -1) continue;
-
-    /* « Demandé : 4 + 3 heures » — on ne retient que le premier */
-    const m = lignes[i].match(/Demandé\s*:\s*(\d+)/i);
-
-    /* Les lignes 🔒 qui suivent : ce que le moniteur a écrit
-       pour l'équipe. */
-    const notes = [];
-    for(let k = i + 1; k < lignes.length; k++){
-      if(lignes[k].trim().indexOf('🔒') !== 0) break;
-      notes.push(lignes[k].replace(/^\s*🔒\s*/, ''));
-    }
-
-    return {
-      texte: lignes[i].replace('🔒 EXAMEN OFFICIEL · ', ''),
-      note: notes.join('\n'),
-      heures: m ? m[1] : '',
-      /* ⚠️ « PAS DE REPASSAGE » VOYAGE AUSSI — v912. Le moniteur de
-         l'examen peut maintenant le dire ; sans cette lecture, sa
-         phrase s'afficherait dans le mémo et le menu de la suite
-         repartirait quand même à « — à définir ». Une information
-         qu'on affiche sans s'en servir, c'est une information qu'on
-         retape. */
-      sansRepassage: /Pas de repassage pour le moment/i.test(lignes[i])
-    };
+    const m = lireMentionExamen(t);
+    if(m) return m;
   }
   return null;
 }
@@ -3528,24 +3544,11 @@ async function ouvrirRdvPost(cours){
      forcément celui qui corrige : sans ce rappel, l'information
      se perdait entre les deux. */
   const memo = mentionDeLExamen(cours, s);
-  const zm = $('rdvPostExamen');
-  if(zm){
-    if(memo){
-      zm.style.display = 'block';
-      zm.innerHTML = '<div style="font-size:11px;color:var(--muted);' +
-        'margin-bottom:3px;">🏁 À la sortie de l\'examen</div>' +
-        '<div style="font-size:14px;line-height:1.6;">' +
-        memo.texte.replace(/</g, '&lt;') + '</div>' +
-        (memo.note
-          ? '<div style="font-size:14px;line-height:1.6;margin-top:7px;' +
-            'padding-top:7px;border-top:1px solid rgba(255,255,255,.08);' +
-            'white-space:pre-wrap;">' +
-            memo.note.replace(/</g, '&lt;') + '</div>'
-          : '');
-    }else{
-      zm.style.display = 'none';
-    }
-  }
+  /* ⚠️ UNE SEULE PORTE POUR CE CADRE — v1092. Il se dessine ici avec
+     ce qu'on a déjà, et une ou deux secondes plus tard avec ce que le
+     classeur rapporte. Deux dessins écrits à deux endroits, et un
+     jour l'un des deux oublie la note de l'équipe. */
+  poserLaSortieDExamen(memo);
 
   /* ⚠️ NOTRE CEPC AU-DESSUS DE CELUI DE L'INSPECTEUR — v910.
 
@@ -3624,7 +3627,16 @@ async function ouvrirRdvPost(cours){
      tiroir que s'il y a quelque chose dedans : ouvrir un tiroir
      vide serait une place prise pour rien. */
   ouvrirTiroirDuBilanExamen($('rdvPostBilan').value.trim());
-  if(!$('rdvPostBilan').value.trim()) reprendreBilanExamen(cours.eleve);
+
+  /* ⚠️ CE QUI MANQUE SE DEMANDE EN UNE FOIS — v1092. Le bilan de
+     l'examen et la sortie d'examen sont sur LA MÊME LIGNE du
+     classeur : deux lectures, c'est deux fois l'attente pour la même
+     ligne. Et rien du tout quand les deux sont déjà là. */
+  const bilanAChercher = !$('rdvPostBilan').value.trim();
+  if(bilanAChercher || !memo){
+    completerDepuisLExamenOfficiel(cours.eleve,
+      { bilan: bilanAChercher, sortie: !memo });
+  }
 
   /* Ce que l'élève a écrit, et ce que le moniteur ajoute */
   $('rdvPostEleveBilan').value = s.bilanEleve || '';
@@ -4069,8 +4081,13 @@ async function reprendreBilanExamen(eleve, opts){
   try{
     /* ⚠️ « true » : ON VIENT CHERCHER LE TEXTE. Sans lui, la recherche
        rend le nom du moniteur et la date — ce qu'il fallait pour
-       « Permis obtenu », et rien de ce qu'il faut ici. */
-    const ex = await dernierExamenOfficielDe(eleve, true);
+       « Permis obtenu », et rien de ce qu'il faut ici.
+
+       ⚠️ SAUF SI ON NOUS LA DONNE — v1092. L'appelant qui vient de
+       lire cette ligne pour en tirer la sortie d'examen la passe
+       telle quelle : il l'a demandée AVEC le texte, et la relire
+       serait relire tout l'historique de l'élève une seconde fois. */
+    const ex = o.examen || await dernierExamenOfficielDe(eleve, true);
     if(!ex) return;
     /* Entre-temps le moniteur a pu écrire, ou changer d'élève. */
     if(champ.value.trim()) return;
@@ -4124,6 +4141,127 @@ async function reprendreBilanExamen(eleve, opts){
        un confort en moins. */
   }
 }
+
+/* ------------------------------------------------------------
+   🏁 À LA SORTIE DE L'EXAMEN — CE QUE LE MONITEUR A DIT CE JOUR-LÀ
+
+   David, le 7 octobre, captures à l'appui : « quand on ouvre un
+   rendez-vous post-permis j'ai bien le CEPC qui a été rempli par le
+   moniteur, le bilan d'examen officiel et le bilan écrit par
+   l'élève, mais il me manque les informations qu'a mises le moniteur
+   pendant l'examen officiel : inspecteur, heures avant repassage, si
+   la case "pas de repassage pour le moment" est cochée, et la note
+   pour l'équipe ».
+
+   ⚠️ LE CADRE EXISTAIT DEPUIS LA v912, ET IL NE TROUVAIT RIEN.
+
+   Ces quatre réponses partent toutes dans la NOTE INTERNE du bilan
+   d'examen — colonne G du classeur, écrite par « mentionExamen ».
+   Cet écran, lui, les cherchait dans trois endroits qui ne la
+   contiennent pas : la note du cours préparé, la note de la fiche de
+   suivi, les remarques de la fiche élève. Sur un rendez-vous QUI
+   SUIT UN AJOURNEMENT — c'est-à-dire sur tous — il n'y avait rien à
+   trouver, et le cadre restait simplement caché. Pas de message, pas
+   de trou visible : la place qu'il aurait prise n'existait pas.
+
+   C'est mot pour mot la panne du bilan d'examen réparée en v924, au
+   même endroit et pour la même raison : on lisait une convention que
+   personne n'écrit, au lieu d'aller là où l'information est rangée.
+   ------------------------------------------------------------ */
+function poserLaSortieDExamen(memo){
+  const zm = $('rdvPostExamen');
+  if(!zm) return false;
+
+  if(!memo){
+    zm.style.display = 'none';
+    zm.innerHTML = '';
+    return false;
+  }
+
+  zm.style.display = 'block';
+  zm.innerHTML = '<div style="font-size:11px;color:var(--muted);' +
+    'margin-bottom:3px;">🏁 À la sortie de l\'examen</div>' +
+    '<div style="font-size:14px;line-height:1.6;">' +
+    String(memo.texte || '').replace(/</g, '&lt;') + '</div>' +
+    (memo.note
+      ? '<div style="font-size:14px;line-height:1.6;margin-top:7px;' +
+        'padding-top:7px;border-top:1px solid var(--line);' +
+        'white-space:pre-wrap;">' +
+        String(memo.note).replace(/</g, '&lt;') + '</div>'
+      : '');
+  return true;
+}
+
+/* ⚠️ ET LE DERNIER MOT RESTE AU MONITEUR DU RENDEZ-VOUS.
+
+   Quand la sortie d'examen arrive du classeur, elle arrive UNE OU
+   DEUX SECONDES APRÈS l'écran : il a pu, pendant ce temps, choisir
+   lui-même la suite. On ne remplit donc que ce qui est encore vide —
+   c'est la règle déjà posée pour le bilan d'examen, et c'est la même
+   raison : ce qu'un moniteur vient de taper ne se fait jamais
+   remplacer par ce que le classeur rapporte. */
+function conclusionDepuisLaSortieDExamen(memo){
+  if(!memo) return;
+  const sel = $('rdvPostSuite');
+  const hh = $('rdvPostHeures');
+  let bouge = false;
+
+  if(sel && !sel.value && memo.sansRepassage){ sel.value = 'impossible'; bouge = true; }
+  if(hh && !hh.value && memo.heures){ hh.value = memo.heures; bouge = true; }
+
+  if(bouge && typeof dessinerConclusionPost === 'function') dessinerConclusionPost();
+}
+
+/* ============================================================
+   CE QUE LE CLASSEUR SAIT ET QUE L'ÉCRAN N'A PAS — v1092
+
+   Deux manques, une seule ligne du classeur : le bilan de l'examen
+   officiel (colonne E) et la sortie d'examen (colonne G) sont sur
+   LA MÊME LIGNE, celle du dernier examen officiel de l'élève.
+
+   ⚠️ DONC UNE SEULE LECTURE. « dernierExamenOfficielDe » relit tout
+   l'historique de l'élève : la demander deux fois, c'est deux fois
+   l'attente et deux fois la facture pour la même ligne. Et c'est
+   ainsi qu'on finit avec deux façons de choisir « le dernier examen
+   officiel », donc un jour avec deux réponses.
+
+   ⚠️ ET ON NE DEMANDE QUE CE QUI MANQUE. « bilan » commande la
+   colonne E — le texte entier des bilans, des mégaoctets, c'est ce
+   qui rendait « ✅ Permis obtenu » très long (v1065). Quand seule la
+   sortie d'examen manque, la lecture reste légère : la note, elle,
+   arrive de toute façon.
+   ============================================================ */
+async function completerDepuisLExamenOfficiel(eleve, besoins){
+  const b = besoins || {};
+  if(!b.bilan && !b.sortie) return;
+
+  try{
+    const ex = await dernierExamenOfficielDe(eleve, !!b.bilan);
+    if(!ex) return;
+
+    /* L'écran a pu se refermer, ou passer à un autre élève : la
+       lecture met plusieurs secondes. */
+    if(!rdvPostEnCours || rdvPostEnCours.eleve !== eleve) return;
+
+    /* Le bilan d'abord : c'est lui qu'on attend en regardant
+       l'écran, et il a sa propre fonction depuis la v931. On lui
+       passe la ligne déjà lue plutôt que de la relire. */
+    if(b.bilan) await reprendreBilanExamen(eleve, { examen: ex });
+
+    if(b.sortie){
+      const memo = lireMentionExamen(ex.note);
+      if(memo){
+        poserLaSortieDExamen(memo);
+        conclusionDepuisLaSortieDExamen(memo);
+      }
+    }
+  }catch(e){
+    /* Pas le droit de chercher, ou le réseau : l'écran reste ce
+       qu'il était avant. Ce n'est pas une panne, c'est un confort
+       en moins — exactement comme pour le bilan. */
+  }
+}
+
 
 /* ============================================================
    LE COMPTE RENDU DU RENDEZ-VOUS, TEL QU'ON LE RELIRA
