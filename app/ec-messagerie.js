@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1071 */
+/* Déployé le 08/10/2026 à 09:20 — v1074 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -53,6 +53,28 @@ const GENRES_MESSAGERIE = {
   oubli:    { rond: '🧤', quoi: 'Objet oublié' }
 };
 
+/* ⚠️ DEUX ENDROITS POUR LE MÊME ÉCRAN, ET UNE SEULE FONCTION QUI
+   DESSINE — v1074.
+
+   La messagerie s'affiche à deux endroits : dans son onglet, en
+   grand, et dans le tiroir vertical qu'ouvre le bouton 💬 de
+   l'en-tête. Deux fonctions de dessin, c'était deux mises en page à
+   tenir d'accord — et la deuxième aurait pris du retard dès la
+   première correction. Une seule dessine donc, et demande d'abord
+   OÙ : voir zoneDeLaMessagerie.
+
+   Ce qui diffère entre les deux n'est pas le dessin, c'est ce qu'on
+   y met. David : « le bandeau pour répondre vite, l'onglet pour
+   travailler ». Le tiroir n'a donc ni recherche, ni filtres, ni
+   bouton de création — ils sont à un clic, derrière ↗️. */
+let tiroirOuvertEC = false;
+
+function zoneDeLaMessagerie(){
+  return tiroirOuvertEC ? $('msgElvTiroirCorps') : $('messagerieZone');
+}
+
+function dansLeTiroir(){ return tiroirOuvertEC; }
+
 let conversationsEC = [];
 let filOuvertEC = null;          /* { conv, messages, membres, … } */
 let battementMessagerie = null;
@@ -66,7 +88,7 @@ let brouillonsMessagerie = {};   /* ce qu'on a tapé sans envoyer, par fil */
    ------------------------------------------------------------ */
 
 async function afficherMessagerie(silencieux){
-  const zone = $('messagerieZone');
+  const zone = zoneDeLaMessagerie();
   if(!zone) return;
 
   if(!silencieux && !conversationsEC.length){
@@ -93,14 +115,17 @@ async function afficherMessagerie(silencieux){
 }
 
 function dessinerLaListeMessagerie(){
-  const zone = $('messagerieZone');
+  const zone = zoneDeLaMessagerie();
   if(!zone) return;
   zone.innerHTML = '';
 
-  zone.appendChild(barreDeRechercheMessagerie());
-  zone.appendChild(barreDesGenresMessagerie());
-
-  if(chercheMessagerie){ return; }   /* la recherche a pris la place */
+  /* Dans le tiroir : la liste, et rien d'autre. Chercher et créer
+     sont des gestes qu'on fait assis, pas entre deux cours. */
+  if(!dansLeTiroir()){
+    zone.appendChild(barreDeRechercheMessagerie());
+    zone.appendChild(barreDesGenresMessagerie());
+    if(chercheMessagerie){ return; }   /* la recherche a pris la place */
+  }
 
   const liste = conversationsEC.filter(c =>
     !filtreMessagerie || filtreMessagerie === 'clos' || c.genre === filtreMessagerie);
@@ -132,7 +157,7 @@ function dessinerLaListeMessagerie(){
     }
   }
 
-  if(typeof aDroit === 'function' &&
+  if(!dansLeTiroir() && typeof aDroit === 'function' &&
      (aDroit('messagerie_bureau') || aDroit('messagerie_admin'))){
     const b = document.createElement('button');
     b.className = 'btn btn-secondary';
@@ -300,7 +325,7 @@ async function lancerLaRecherche(mots){
     return;
   }
   chercheMessagerie = propre;
-  const zone = $('messagerieZone');
+  const zone = zoneDeLaMessagerie();
   if(!zone) return;
 
   zone.innerHTML = '';
@@ -443,7 +468,7 @@ function barreDesGenresMessagerie(){
    ------------------------------------------------------------ */
 
 async function ouvrirLeFil(id, viser){
-  const zone = $('messagerieZone');
+  const zone = zoneDeLaMessagerie();
   if(!zone) return;
 
   zone.innerHTML = (typeof htmlAttente === 'function')
@@ -473,7 +498,7 @@ function fermerLeFil(){
 }
 
 function dessinerLeFil(){
-  const zone = $('messagerieZone');
+  const zone = zoneDeLaMessagerie();
   if(!zone || !filOuvertEC) return;
   const f = filOuvertEC;
   const c = f.conv || {};
@@ -778,6 +803,13 @@ function unFilEstOuvert(){
   return !!filOuvertEC;
 }
 
+/* Le battement tourne-t-il ? « unFilEstOuvert » ne répond pas à
+   cette question-là : un fil reste en mémoire quand on referme le
+   tiroir, exprès, pour le retrouver en le rouvrant. */
+function veilleDuFilEnCours(){
+  return battementMessagerie !== null;
+}
+
 async function rafraichirLeFil(silencieux){
   if(!filOuvertEC || !filOuvertEC.conv) return;
   const id = filOuvertEC.conv.id;
@@ -930,7 +962,7 @@ async function exporterLeFil(f){
    ------------------------------------------------------------ */
 
 function ecranNouvelleConversation(){
-  const zone = $('messagerieZone');
+  const zone = zoneDeLaMessagerie();
   if(!zone) return;
   zone.innerHTML = '';
 
@@ -1161,7 +1193,7 @@ async function ongletMessagesEleve(corps, nom){
         /* Le fil s'ouvre dans l'écran complet : un fil de discussion
            dans un onglet de dossier, c'est deux écrans qui se
            disputent la même place. */
-        if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
+        if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
         ouvrirLeFil(c.id);
       });
       l.appendChild(b);
@@ -1182,15 +1214,140 @@ async function ongletMessagesEleve(corps, nom){
    dessine rien : elle pose un chiffre, et se tait si la messagerie
    n'est pas ouverte à cette personne. */
 async function compterLaMessagerie(){
-  if(typeof aDroit === 'function' && !aDroit('messagerie')) return;
+  /* ⚠️ LE BOUTON SE DÉCIDE AVANT LE DÉPART ANTICIPÉ — v1074.
+
+     Il était décidé APRÈS : chez quelqu'un qui n'a pas le droit, la
+     fonction repartait sans jamais passer par là, et le bouton
+     gardait l'état d'avant. Sur une tablette partagée — un moniteur
+     qui se déconnecte, un autre qui se connecte — le second
+     héritait du bouton du premier. Cacher est une décision autant
+     que montrer : elle se prend dans tous les cas. */
+  montrerLeBoutonMessagerie();
+  if(typeof aDroit === 'function' && !aDroit('messagerie')){
+    poserPastilleMessagerie(0);
+    return;
+  }
   if(typeof ACCES === 'undefined' || !ACCES.code) return;
   try{
     const d = await appelPrep({ action: 'convList' });
     conversationsEC = (d && d.conversations) || [];
-    if(typeof poserCompteVue === 'function'){
-      poserCompteVue('messagerie', (d && d.nonLusTotal) || 0);
-    }
+    const n = (d && d.nonLusTotal) || 0;
+    if(typeof poserCompteVue === 'function') poserCompteVue('messagerie', n);
+    poserPastilleMessagerie(n);
   }catch(e){ /* la pastille attendra le prochain passage */ }
+}
+
+/* ⚠️ LE BOUTON RESTE, LA PASTILLE PART — v1074.
+
+   La CB et les procédures, ses deux voisins dans l'en-tête, se
+   cachent quand il n'y a rien à prendre. Celui-ci non, et David l'a
+   tranché : ces deux-là ne servent qu'à PRENDRE ce qui est arrivé,
+   la messagerie sert aussi à ÉCRIRE. Un bouton qui disparaît quand
+   la boîte est vide, c'est un bouton introuvable le jour où l'on
+   veut s'en servir en premier. */
+function montrerLeBoutonMessagerie(){
+  const b = $('msgElvBtn');
+  if(!b) return;
+  const ouvert = (typeof aDroit !== 'function') || aDroit('messagerie');
+  b.style.display = ouvert ? 'inline-flex' : 'none';
+}
+
+function poserPastilleMessagerie(combien){
+  const p = $('msgElvBtnN');
+  if(!p) return;
+  const n = Number(combien || 0);
+  p.style.display = n ? 'block' : 'none';
+  p.textContent = n > 99 ? '99+' : String(n);
+}
+
+/* ============================================================
+   💬 LE TIROIR — un bandeau vertical, par-dessus l'écran
+
+   David, le 8 octobre : « un logo en haut avant l'emplacement de la
+   CB qui ouvre la messagerie sous forme de bandeau vertical », et
+   « par dessus ».
+
+   Il garde le fil ouvert d'un passage à l'autre : on le referme
+   pour regarder un cours, on le rouvre, et la conversation est
+   toujours là. C'est tout ce qu'on lui demande — répondre vite,
+   sans perdre sa place.
+   ============================================================ */
+function ouvrirTiroirMessagerie(){
+  const t = $('msgElvTiroir');
+  const v = $('msgElvVoile');
+  if(!t || !v) return;
+
+  tiroirOuvertEC = true;
+  v.style.display = 'block';
+  t.style.transform = 'translateX(0)';
+
+  /* Un fil déjà ouvert se redessine dans le tiroir ; sinon, la
+     liste. Dans les deux cas on relit : le tiroir s'ouvre pour voir
+     ce qui vient d'arriver. */
+  if(filOuvertEC && filOuvertEC.conv){ dessinerLeFil(); veillerLeFil(); }
+  else dessinerLaListeMessagerie();
+  afficherMessagerie(true);
+}
+
+function fermerTiroirMessagerie(){
+  const t = $('msgElvTiroir');
+  const v = $('msgElvVoile');
+  if(!t || !v) return;
+
+  /* ⚠️ LE BATTEMENT S'ARRÊTE AVEC LE TIROIR. Un tiroir refermé qui
+     continue d'interroger le serveur toutes les quatre secondes,
+     c'est la batterie d'une tablette posée sur son support toute la
+     journée. */
+  arreterLaVeilleDuFil();
+
+  tiroirOuvertEC = false;
+  t.style.transform = 'translateX(100%)';
+  v.style.display = 'none';
+
+  /* L'onglet, s'il est ouvert derrière, reprend la main sur le
+     dessin : sans ça il garderait l'écran d'avant l'ouverture. */
+  const z = $('messagerieZone');
+  if(z && z.offsetParent !== null) afficherMessagerie(true);
+}
+
+function basculerTiroirMessagerie(){
+  if(tiroirOuvertEC) fermerTiroirMessagerie();
+  else ouvrirTiroirMessagerie();
+}
+
+/* Le tiroir pour répondre, l'onglet pour travailler : ↗️ emmène de
+   l'un à l'autre en gardant le fil ouvert. */
+function ouvrirLaMessagerieEnGrand(){
+  const garde = filOuvertEC;
+  fermerTiroirMessagerie();
+  if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
+  if(garde && garde.conv) ouvrirLeFil(garde.conv.id);
+  else afficherMessagerie(true);
+}
+
+function brancherLeTiroirMessagerie(){
+  const b = $('msgElvBtn');
+  if(b) b.addEventListener('click', basculerTiroirMessagerie);
+  const f = $('msgElvFermer');
+  if(f) f.addEventListener('click', fermerTiroirMessagerie);
+  const v = $('msgElvVoile');
+  if(v) v.addEventListener('click', fermerTiroirMessagerie);
+  const g = $('msgElvGrand');
+  if(g) g.addEventListener('click', ouvrirLaMessagerieEnGrand);
+
+  /* Échap referme : c'est le geste qu'on fait sans y penser devant
+     un panneau qui s'est ouvert par-dessus. */
+  document.addEventListener('keydown', ev => {
+    if(ev.key === 'Escape' && tiroirOuvertEC) fermerTiroirMessagerie();
+  });
+}
+
+/* Branché au chargement : le bouton vit dans l'en-tête, il n'attend
+   l'ouverture d'aucun onglet. */
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', brancherLeTiroirMessagerie);
+}else{
+  brancherLeTiroirMessagerie();
 }
 
 window.EC_MODULES = window.EC_MODULES || {};
