@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 18:40 — v1080 */
+/* Déployé le 08/10/2026 à 21:30 — v1082 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -98,7 +98,10 @@ async function afficherMessagerie(silencieux){
   }
 
   try{
-    const d = await appelPrep({ action: 'convList', fermees: filtreMessagerie === 'clos' });
+    /* La supervision montre tout, ouvert comme fermé : on y va pour
+       chercher quelque chose, pas pour suivre le courant du jour. */
+    const d = await appelPrep({ action: 'convList',
+      fermees: (filtreMessagerie === 'clos' || filtreMessagerie === 'supervision') });
     conversationsEC = (d && d.conversations) || [];
     if(typeof poserCompteVue === 'function'){
       poserCompteVue('messagerie', (d && d.nonLusTotal) || 0);
@@ -119,6 +122,15 @@ function dessinerLaListeMessagerie(){
   if(!zone) return;
   zone.innerHTML = '';
 
+  /* ⚠️ LE TIROIR NE MONTRE JAMAIS LA SUPERVISION — v1082. David :
+     « qu'ils soient invisibles quand on clique en haut sur la
+     bulle ». Le tiroir s'ouvre pour répondre vite à ce qui nous est
+     adressé ; y mêler les conversations des autres, c'est le rendre
+     inutilisable le jour où il y en a quarante. Le filtre y est
+     donc forcé, et la barre des genres n'y est de toute façon pas
+     dessinée. */
+  if(dansLeTiroir() && filtreMessagerie === 'supervision') filtreMessagerie = '';
+
   /* Dans le tiroir : la liste, et rien d'autre. Chercher et créer
      sont des gestes qu'on fait assis, pas entre deux cours. */
   if(!dansLeTiroir()){
@@ -127,8 +139,19 @@ function dessinerLaListeMessagerie(){
     if(chercheMessagerie){ return; }   /* la recherche a pris la place */
   }
 
-  const liste = conversationsEC.filter(c =>
-    !filtreMessagerie || filtreMessagerie === 'clos' || c.genre === filtreMessagerie);
+  /* ⚠️ LA SUPERVISION N'EST DANS AUCUNE AUTRE VUE — v1082.
+
+     David : « uniquement visible dans le sous onglet messagerie
+     après celui fermées ». Ce n'est pas un filtre de plus à côté des
+     autres : c'est une liste À PART. Un fil qu'on supervise
+     n'apparaît ni dans « Tout », ni dans « 🏢 », ni dans
+     « Fermées » — seulement là, et seulement quand on va le
+     chercher. */
+  const liste = (filtreMessagerie === 'supervision')
+    ? conversationsEC.filter(c => c.enSupervision)
+    : conversationsEC.filter(c => !c.enSupervision &&
+        (!filtreMessagerie || filtreMessagerie === 'clos' ||
+         c.genre === filtreMessagerie));
 
   if(!liste.length){
     const v = document.createElement('div');
@@ -144,6 +167,23 @@ function dessinerLaListeMessagerie(){
        lecture de vendredi. */
     const chauds = liste.filter(c => c.nonLus > 0);
     const froids = liste.filter(c => !c.nonLus);
+
+    /* Dans la supervision, « pas encore lu » n'a pas de sens : ce ne
+       sont pas des messages qui t'attendent. Un seul titre, qui dit
+       ce qu'on regarde et ce que ça engage. */
+    if(filtreMessagerie === 'supervision'){
+      zone.appendChild(sousTitreMessagerie(
+        '🔒 Supervision · ' + liste.length, 'var(--muted)'));
+      liste.forEach(c => zone.appendChild(ligneConversation(c)));
+      const d = document.createElement('div');
+      d.style.cssText = 'font-size:11.5px;color:var(--muted);line-height:1.5;' +
+        'margin-top:10px;';
+      d.textContent = 'Les conversations auxquelles tu n’appartiens pas. ' +
+        'Chaque ouverture est inscrite au journal — c’est ce qui distingue ' +
+        'un droit de supervision d’un droit d’espionnage.';
+      zone.appendChild(d);
+      return;
+    }
 
     if(chauds.length){
       zone.appendChild(sousTitreMessagerie('Pas encore lu · ' + chauds.length,
@@ -450,8 +490,12 @@ function barreDesGenresMessagerie(){
   const b = document.createElement('div');
   b.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
 
+  /* ⚠️ « TOUT 14 » NE DOIT PAS COMPTER CE QU'ON SUPERVISE : le
+     chiffre du bouton et le nombre de lignes en dessous doivent
+     dire la même chose, sinon on cherche les quatre qui manquent. */
+  const aMoi = conversationsEC.filter(c => !c.enSupervision);
   const comptes = {};
-  conversationsEC.forEach(c => { comptes[c.genre] = (comptes[c.genre] || 0) + 1; });
+  aMoi.forEach(c => { comptes[c.genre] = (comptes[c.genre] || 0) + 1; });
 
   const bouton = (cle, libelle, combien) => {
     const x = document.createElement('button');
@@ -464,17 +508,28 @@ function barreDesGenresMessagerie(){
     x.textContent = libelle + (combien === null ? '' : ' ' + combien);
     x.addEventListener('click', () => {
       filtreMessagerie = on ? '' : cle;
-      if(filtreMessagerie === 'clos' || on) afficherMessagerie(true);
-      else dessinerLaListeMessagerie();
+      /* Ces deux-là changent ce que le SERVEUR doit rendre : il faut
+         relire. Les autres ne font que trier ce qu'on a déjà. */
+      if(filtreMessagerie === 'clos' || filtreMessagerie === 'supervision' || on){
+        afficherMessagerie(true);
+      }else dessinerLaListeMessagerie();
     });
     b.appendChild(x);
   };
 
-  bouton('', 'Tout', conversationsEC.length);
+  bouton('', 'Tout', aMoi.length);
   Object.keys(GENRES_MESSAGERIE).forEach(cle => {
     if(comptes[cle]) bouton(cle, GENRES_MESSAGERIE[cle].rond, comptes[cle]);
   });
   bouton('clos', '🗄️ Fermées', null);
+
+  /* ⚠️ APRÈS « FERMÉES », ET SEULEMENT POUR QUI SUPERVISE — v1082.
+     C'est la place que David a demandée, et elle est juste : les
+     trois premiers boutons trient ce qui est à moi, les deux
+     derniers ouvrent autre chose. */
+  if(typeof aDroit !== 'function' || aDroit('messagerie_admin')){
+    bouton('supervision', '🔒 Supervision', null);
+  }
 
   return b;
 }
