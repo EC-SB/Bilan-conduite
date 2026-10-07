@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 21:05 — v1073 */
+/* Déployé le 08/10/2026 à 09:20 — v1074 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1225,7 +1225,7 @@ async function afficherPrepares(recharger, silencieux){
       const zoneRetard = nom.querySelector('[data-filretard]');
       if(zoneRetard) zoneRetard.addEventListener('click', ev => {
         ev.stopPropagation();
-        if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
+        if(typeof afficherVue === 'function') afficherVue('messagerie', 'messagerie');
         if(typeof ouvrirLeFil === 'function') ouvrirLeFil(retard.fil);
       });
     }
