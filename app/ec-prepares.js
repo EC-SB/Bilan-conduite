@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 19:40 — v1071 */
+/* Déployé le 07/10/2026 à 21:05 — v1073 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -1157,17 +1157,6 @@ async function afficherPrepares(recharger, silencieux){
     row.dataset.heure = h || '';
     row.dataset.eleve = cours.eleve || '';
 
-    /* Le clic sur la mention ouvre le fil, et ne déclenche pas le
-       clic de la ligne — qui, lui, ouvre le cours. */
-    if(retard){
-      const z = nom.querySelector('[data-filretard]');
-      if(z) z.addEventListener('click', ev => {
-        ev.stopPropagation();
-        if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
-        if(typeof ouvrirLeFil === 'function') ouvrirLeFil(retard.fil);
-      });
-    }
-
     /* Ce que l'élève apporte : à côté de l'heure, pour le voir sans
        ouvrir le cours. */
     const aApporter = repereDeNote(cours);
@@ -1215,6 +1204,32 @@ async function afficherPrepares(recharger, silencieux){
             ' ' + aApporter.texte + '</span>' : '') +
         '</span>' : '') +
       '</div>';
+
+    /* ⚠️ APRÈS « nom.innerHTML », ET PAS AVANT — v1072.
+
+       Ce branchement était posé cinquante lignes plus haut, à côté
+       des « row.dataset », donc AVANT la déclaration de « retard » :
+       « Cannot access 'retard' before initialization », et toute la
+       liste des cours s'arrêtait là. Un « const » ne se hisse pas —
+       il laisse une zone morte entre le début du bloc et sa ligne, et
+       le lire dedans lève au lieu de rendre « undefined ».
+
+       Il a sa place ici pour deux raisons, et pas seulement pour
+       éviter la panne : « retard » est connu, et le morceau de HTML
+       que querySelector va chercher vient d'être écrit. Posé avant,
+       il ne trouvait rien de toute façon.
+
+       Le clic ouvre le fil et n'ouvre PAS le cours : d'où le
+       stopPropagation. */
+    if(retard){
+      const zoneRetard = nom.querySelector('[data-filretard]');
+      if(zoneRetard) zoneRetard.addEventListener('click', ev => {
+        ev.stopPropagation();
+        if(typeof afficherVue === 'function') afficherVue('eleves', 'messagerie');
+        if(typeof ouvrirLeFil === 'function') ouvrirLeFil(retard.fil);
+      });
+    }
+
     const sous = document.createElement('span');
     sous.className = 'sous';
     /* Un cours dont la date est passée n'a pas été enregistré :
