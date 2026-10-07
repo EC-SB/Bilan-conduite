@@ -1,4 +1,4 @@
-/* Déployé le 17/09/2026 à 12:44 — v1018 */
+/* Déployé le 07/10/2026 à 17:30 — v1091 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,86 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1090,
+    date: 'Mercredi 7 octobre 2026',
+    resume: 'Les notifications, les réactions, les photos, le bandeau refait',
+    quoi: [
+      { emoji: '🔔',
+        titre: 'Ton téléphone te prévient des nouveaux messages',
+        texte: 'À faire UNE fois par appareil : onglet « 💬 Messagerie », ' +
+               'la bande en haut, bouton « Activer ». Ensuite ton téléphone ' +
+               'sonne quand on t’écrit, même application fermée — et quand ' +
+               'quelqu’un réagit à ce que tu as écrit. La notification dit ' +
+               'QUI écrit, jamais ce qui est écrit : un téléphone posé sur ' +
+               'une table ne doit pas raconter la conversation. On appuie ' +
+               'dessus, le bon fil s’ouvre. Et pour l’avoir comme une vraie ' +
+               'application, « Ajouter à l’écran d’accueil » depuis le ' +
+               'navigateur — sur iPhone c’est obligatoire pour que les ' +
+               'notifications arrivent.' },
+      { emoji: '👍',
+        titre: 'Les réactions sur un message',
+        texte: 'Appui long sur une bulle : les six émoji de Messenger ' +
+               'apparaissent — 👍 ❤️ 😂 😮 😢 🙏. On appuie, c’est posé, et la ' +
+               'personne est prévenue sur son téléphone. On réappuie sur le ' +
+               'même, c’est retiré. Les pastilles se comptent sous la ' +
+               'bulle : « 👍 6 », pas six pouces à la file. Les élèves y ont ' +
+               'droit aussi, depuis leur page.' },
+      { emoji: '✈️',
+        titre: 'Le bouton d’envoi devient un pouce quand tu n’écris rien',
+        texte: 'Champ vide : le bouton montre 👍 et envoie un pouce d’un ' +
+               'seul geste — « c’est noté », sans taper. Dès que tu tapes ' +
+               'une lettre, il redevient un avion. À côté, 🙂 ouvre les ' +
+               'émoticônes, rangées par familles, qui s’insèrent là où est ' +
+               'le curseur et pas à la fin du texte.' },
+      { emoji: '📷',
+        titre: 'Les photos dans la messagerie',
+        texte: 'Le bouton 📷 à côté du champ : appareil photo ou galerie. ' +
+               'La photo est réduite SUR TON TÉLÉPHONE avant de partir — ' +
+               'elle arrive vite même en 4G, et ça lui retire au passage le ' +
+               'lieu où elle a été prise, qui voyage normalement avec. On ' +
+               'tape dessus pour la voir en grand. Les élèves peuvent en ' +
+               'envoyer aussi : un permis, un justificatif, un papier ' +
+               'd’auto-école — dix par jour au maximum, pour que la ' +
+               'messagerie ne devienne pas un album.' },
+      { emoji: '🔢',
+        titre: 'Le « 1 » de la messagerie s’en va quand tu as lu',
+        texte: 'Il restait collé sur l’onglet alors que le message était ' +
+               'ouvert et que l’expéditeur voyait déjà l’accusé de lecture. ' +
+               'Il se recompte maintenant à chaque fil ouvert, y compris ' +
+               'quand tu lis depuis le tiroir.' },
+      { emoji: '🔐',
+        titre: 'Ouvrir une conversation sans voir celles des autres',
+        texte: 'Pour écrire à quelqu’un, « Messagerie : Modifier » suffit ' +
+               'désormais — le bouton ✏️ est là, dans la liste comme dans le ' +
+               'tiroir. Avant, il fallait mettre « Superviser », qui donne ' +
+               'en plus la lecture des conversations de toute l’école : ce ' +
+               'n’était pas le même droit, et ça n’a plus rien à voir. ' +
+               '« Superviser » reste réservé à ceux qui doivent vraiment ' +
+               'tout lire.' },
+      { emoji: '📄',
+        titre: 'Le bilan de l’examen officiel revient tout seul',
+        texte: 'Dans « Attente bilan post-permis », le champ « Bilan de ' +
+               'l’examen officiel » arrivait vide alors que la ligne en ' +
+               'dessous affirmait l’avoir repris : il est de nouveau rempli ' +
+               'avec le bilan du jour de l’examen, et la ligne dit de quel ' +
+               'examen et de quel moniteur il vient. S’il n’y a rien à ' +
+               'reprendre, elle le dit au lieu de faire semblant.' },
+      { emoji: '🗂️',
+        titre: 'Le bandeau ne dit plus tout d’un coup',
+        texte: 'Il affichait quarante-sept lignes au-dessus du premier ' +
+               'cours de la journée, et plus personne ne l’ouvrait. ' +
+               'Maintenant : « Aujourd’hui » d’abord, « Cette semaine » et ' +
+               '« En attente » à un clic avec leur compte — rien n’est ' +
+               'caché, c’est juste rangé. Tu ne vois que TES élèves, ceux de ' +
+               'tes prochains cours, avec un bouton « 🏫 Toute l’école » ' +
+               'quand tu veux regarder le reste ; le bureau voit tout. Un ' +
+               'élève qui a deux choses à prévoir fait UNE ligne, pas deux. ' +
+               'Et une fois la case « prévenu » cochée dans le suivi, la ' +
+               'ligne disparaît toute seule — plus besoin de la barrer à la ' +
+               'main.' }
+    ]
+  },
   {
     version: 1015,
     date: 'Jeudi 17 septembre 2026',
