@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 09:20 — v1074 */
+/* Déployé le 08/10/2026 à 11:10 — v1077 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -284,11 +284,23 @@ const SECTIONS = [
        David l'a tranché.
      · « messagerie_admin » — tout voir, y compris moniteur ↔ élève,
        et ouvrir des groupes. Chaque lecture d'un fil dont on n'est
-       pas membre s'inscrit au journal. */
-  { cle:'messagerie',       nom:'💬 Messagerie', onglet:'eleves' },
+       pas membre s'inscrit au journal.
+
+     ⚠️ ILS SONT DANS LEUR PROPRE GROUPE — v1077. Ils étaient posés
+     « onglet:'eleves' », par habitude, du temps où la messagerie
+     vivait dans l'onglet Élèves. L'onglet est parti tout seul en
+     v1074 et les droits sont restés : ⚙️ Accès dessine un bloc par
+     entrée de ONGLETS_DROITS, mais il saute celui dont aucune
+     section ne porte le nom (« if(!dedans.length) return »). Le
+     groupe « 💬 Messagerie » existait donc dans la liste et ne
+     s'affichait nulle part — David : « Ou est ce que j'ouvre l'accès
+     à la messagerie ? ». C'était la bonne question : on ne pouvait
+     pas. */
+  { cle:'messagerie',       nom:'💬 Messagerie', onglet:'messagerie' },
   { cle:'messagerie_bureau', nom:'💬 Boîte du bureau (voir ce qu\'on écrit au bureau)',
-    onglet:'eleves' },
-  { cle:'messagerie_admin', nom:'💬 Superviser toutes les conversations', onglet:'eleves' },
+    onglet:'messagerie' },
+  { cle:'messagerie_admin', nom:'💬 Superviser toutes les conversations',
+    onglet:'messagerie' },
   { cle:'code',             nom:'🎓 Code (salle et aménagé)', onglet:'eleves' },
   { cle:'handicap',         nom:'♿ Suivi handicap', onglet:'eleves' },
   { cle:'paiement',         nom:'💳 Paiement en plusieurs fois', onglet:'eleves' },
