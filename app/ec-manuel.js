@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 13:10 — v1076 */
+/* Déployé le 08/10/2026 à 08:40 — v1097 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -3729,7 +3729,11 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
     }catch(e){ /* la fiche voyage si elle peut ; le miroir part toujours */ }
   }
 
-  appelPrep({
+  /* ⚠️ CE DÉPÔT-CI EST CELUI QUI REVENAIT — v1097. Il part une
+     seconde après la dernière frappe, donc parfois une seconde
+     avant « Terminer » : la suppression doit l'attendre, sans quoi
+     il se range après elle. Voir « suivreLeDepot ». */
+  const envoiDuDepot = appelPrep({
     action: 'brouillonSet',
     eleve: eleve,
     dateCours: info.date || ($('lessonDate') && $('lessonDate').value) || '',
@@ -3738,7 +3742,9 @@ function deposerFicheManuelle(force, quelleZone, quiEtQuoi){
     transcript: texte,
     fiche: fiche,
     note: ($('noteInterne') && $('noteInterne').value) || ''
-  }).catch(() => {});
+  });
+  if(typeof suivreLeDepot === 'function') suivreLeDepot(envoiDuDepot);
+  envoiDuDepot.catch(() => {});
 }
 
 /* Ce qui a été saisi et jamais terminé */
