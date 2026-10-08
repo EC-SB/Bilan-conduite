@@ -1,4 +1,4 @@
-/* Déployé le 07/10/2026 à 21:10 — v1094 */
+/* Déployé le 08/10/2026 à 08:40 — v1097 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -4482,8 +4482,14 @@ async function terminerRdvPost(){
        terminés réclamerait un rendez-vous qui est fait. Tant que la
        ligne n'est pas passée, il reste — c'est la seule copie du
        travail. */
+    /* ⚠️ ON ATTEND LA SUPPRESSION — v1097. Sans « await », la suite
+       de la fonction — la consigne, la suppression du cours préparé,
+       le redessin — partait pendant que le brouillon était encore
+       là, et le dépôt en vol avait tout le temps d'arriver après.
+       Elle attend elle-même les dépôts en cours : voir
+       « retirerBrouillonServeur ». */
     if(ligneEcrite && typeof retirerBrouillonServeur === 'function'){
-      retirerBrouillonServeur(eleve);
+      await retirerBrouillonServeur(eleve);
     }
 
     /* ⚠️ UNE SEULE FOIS, MÊME SI ON RÉESSAIE. L'écran reste
