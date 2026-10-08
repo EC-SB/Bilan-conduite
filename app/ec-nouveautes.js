@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:10 — v1101 */
+/* Déployé le 08/10/2026 à 11:55 — v1102 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,33 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1102,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Deux cours à venir ne portent plus le même numéro de leçon',
+    quoi: [
+      { emoji: '🔢',
+        titre: 'Un cours qui attend son bilan compte quand même',
+        texte: 'Le compte des leçons vient des bilans. Tant qu’un cours n’a ' +
+               'pas été fait, il n’a pas de bilan — et deux cours à venir ' +
+               'pour le même élève recevaient donc le même chiffre : ' +
+               'Mackenzie annonçait « 16ème » à 13h ET à 17h. Chaque cours ' +
+               'déjà préparé devant celui qu’on regarde compte maintenant ' +
+               'pour une leçon : 16 à 13h, 17 à 17h, et la 1ère puis la 2ème ' +
+               'après l’examen blanc. Deux leçons le même jour sont deux ' +
+               'leçons.' },
+      { emoji: '⏱️',
+        titre: 'Et les heures avant l’examen se décomptent enfin',
+        texte: '« 6h + 3h » prescrites au rendez-vous post-permis, c’est une ' +
+               'réserve, et une réserve se consomme : à la 1ère leçon après ' +
+               'il reste 4h + 3h, à la 2ème 2h + 3h, à la 3ème plus que les ' +
+               '3h. C’était la règle depuis des semaines — la fonction qui ' +
+               'devait faire la soustraction n’avait jamais été écrite, et ' +
+               'la carte repartait de la réserve pleine tous les matins. ' +
+               'Quand le repère et la charnière ne parlent pas de la même ' +
+               'chose, rien n’est décompté plutôt qu’un chiffre inventé.' }
+    ]
+  },
   {
     version: 1101,
     date: 'Jeudi 8 octobre 2026',
