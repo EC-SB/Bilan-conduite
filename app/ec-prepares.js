@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:55 — v1102 */
+/* Déployé le 08/10/2026 à 15:05 — v1106 */
 /* ============================================================
    ec-prepares.js
    Cours préparés à l'avance
@@ -3381,6 +3381,14 @@ async function preparerNouveauCours(){
       id: (r && r.id) || String(Date.now()),
       contexte: rep
     }));
+    /* ⚠️ LA RÉPONSE SUR LE DÉPART DES HEURES PART AVEC — v1106.
+       Une préparation n'écrit que son contexte, et le contexte
+       n'est lu par personne du côté du suivi. Sans cette ligne, le
+       choix fait dans le questionnaire restait dans le cours. */
+    if(typeof reancrerLaReserve === 'function'){
+      await reancrerLaReserve(eleve, rep, nouveau.note);
+    }
+
     await afficherPrepares(false);
     showToast('Cours préparé ✅');
   }catch(e){
@@ -4780,6 +4788,13 @@ async function modifierPreparation(cours, titre, valider){
       dans.note = noteRefaite;
       dans.contexte = rep;
     }
+    /* ⚠️ ET LA RÉPONSE SUR LE DÉPART DES HEURES AUSSI — v1106.
+       C'est le chemin de David : le crayon depuis « mes prochains
+       cours ». Voir reancrerLaReserve. */
+    if(typeof reancrerLaReserve === 'function'){
+      await reancrerLaReserve(cours.eleve, rep, noteRefaite);
+    }
+
     showToast((titre === 'Compléter les infos')
       ? 'Infos complétées ✅' : 'Préparation modifiée ✅');
     await afficherPrepares(false);
