@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 08:40 — v1097 */
+/* Déployé le 08/10/2026 à 12:30 — v1103 */
 /* ============================================================
    ec-arriereplan.js
    Le bilan qui se fabrique pendant qu'on enchaîne.
@@ -81,16 +81,21 @@ async function commencerAutreCours(){
 
   /* L'écran du cours revient, vide et prêt */
   if($('generatingView')) $('generatingView').style.display = 'none';
-  if(typeof repartirDeZero === 'function'){
-    repartirDeZero();
-  }else{
-    /* Le minimum : vider ce qui appartient au cours précédent */
-    if($('studentName')) $('studentName').value = '';
-    if($('transcriptBox')) $('transcriptBox').value = '';
-    if($('noteInterne')) $('noteInterne').value = '';
-    if(typeof finalTranscript !== 'undefined') finalTranscript = '';
-    if(typeof committedTranscript !== 'undefined') committedTranscript = '';
-  }
+  /* ⚠️ « repartirDeZero » N'A JAMAIS EXISTÉ — v1103.
+
+     Ces lignes essayaient d'abord une fonction écrite nulle part,
+     et retombaient sur « le minimum » juste en dessous. Le minimum
+     était donc le seul chemin, depuis toujours, et il faisait le
+     travail : personne ne s'en est aperçu, et c'est exactement ce
+     qui rend ce genre de repli dangereux ailleurs.
+
+     Ce qui restait n'est plus un repli : c'est ce que fait l'outil.
+     On vide ce qui appartient au cours précédent, et on le dit. */
+  if($('studentName')) $('studentName').value = '';
+  if($('transcriptBox')) $('transcriptBox').value = '';
+  if($('noteInterne')) $('noteInterne').value = '';
+  if(typeof finalTranscript !== 'undefined') finalTranscript = '';
+  if(typeof committedTranscript !== 'undefined') committedTranscript = '';
 
   if($('recordView')) $('recordView').style.display = 'block';
   window.scrollTo(0, 0);
