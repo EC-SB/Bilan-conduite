@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:05 — v1106 */
+/* Déployé le 08/10/2026 à 16:00 — v1107 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1107,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'La pastille rouge sur l’icône de l’application',
+    quoi: [
+      { emoji: '🔴',
+        titre: 'Le nombre de messages non lus sur l’icône',
+        texte: 'L’icône de l’application sur l’écran d’accueil porte ' +
+               'maintenant le nombre de messages qui t’attendent. Il monte à ' +
+               'chaque notification reçue application fermée, et il se remet ' +
+               'au bon chiffre dès que tu ouvres — même si tu as lu les ' +
+               'messages ailleurs entre-temps. Il disparaît quand tout est lu.' },
+      { emoji: '📱',
+        titre: '⚠️ Sur iPhone et sur ordinateur seulement',
+        texte: 'Android ne sait pas faire : le système y met un point tout ' +
+               'seul tant qu’une notification n’est pas lue dans le volet, et ' +
+               'ce point part dès qu’on la balaie. Ce n’est pas une panne et ' +
+               'il n’y a rien à régler — aucun navigateur Android ne propose ' +
+               'de compteur. Sur iPhone, il faut que l’application soit ' +
+               'ajoutée à l’écran d’accueil et les notifications autorisées.' }
+    ]
+  },
   {
     version: 1106,
     date: 'Jeudi 8 octobre 2026',
