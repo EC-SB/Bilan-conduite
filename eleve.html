@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Déployé le 08/10/2026 à 20:15 — v1110 -->
+<!-- Déployé le 08/10/2026 à 16:35 — v1111 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -3006,7 +3006,27 @@
     if(r && typeof r.resteVideos === 'number') resteVideosEl = r.resteVideos;
   }
 
+  /* Le fil qui n'existe que sur ce téléphone. Il a tout d'un vrai —
+     son titre, sa barre d'écriture — sauf une ligne dans la base.
+     « neufEl » porte le genre à créer ; il est remis à null dès que
+     le serveur nous rend un identifiant. */
+  var neufEl = null;
+
+  function ouvrirFilNeufEleve(d){
+    neufEl = { genre: String(d.neuf || 'bureau'),
+               moniteur: String(d.moniteur || '') };
+    filEl = {
+      conv: { id: '', genre: neufEl.genre, mode: 'discussion',
+              qui: d.qui || (neufEl.genre === 'moniteur'
+                               ? neufEl.moniteur : 'Le bureau') },
+      messages: [], encore: false, peutEcrire: true
+    };
+    ouvrirPleinEcran('');
+    dessinerFilEleve();
+  }
+
   function ouvrirFilEleve(id){
+    neufEl = null;
     ouvrirPleinEcran('<div class="card"><div class="empty">Ouverture…</div></div>');
 
     appeler({ action: 'eleveFil', eleve: moi.nom, code: moi.code, id: id })
@@ -3063,7 +3083,15 @@
     });
 
     if(!(filEl.messages || []).length){
-      h += '<div class="empty">Rien encore. Écris ton message en dessous.</div>';
+      /* Un fil neuf et un fil vidé ne disent pas la même chose : le
+         premier n'existe pas encore, et c'est une bonne nouvelle à
+         dire — rien n'est parti tant qu'on n'a pas envoyé. */
+      h += '<div class="empty">' + (neufEl
+        ? 'Écris ton premier message ' +
+          (neufEl.genre === 'moniteur'
+             ? 'à ' + echapper(neufEl.moniteur) : 'au bureau') +
+          '.<br>Tant que tu n\'as rien envoyé, rien n\'est parti.'
+        : 'Rien encore. Écris ton message en dessous.') + '</div>';
     }
     h += '</div>';
 
@@ -3238,6 +3266,34 @@
     return h + '</div>';
   }
 
+  /* ============================================================
+     LE FIL QUI N'EXISTE PAS ENCORE : LES DEUX MOITIÉS
+
+     avecLeFilNeuf() ajoute à une demande d'envoi le GENRE à créer ;
+     adopterLeFilNe() recueille l'identifiant que le serveur vient
+     de fabriquer. Les quatre envois — texte, photo, vocal, vidéo —
+     passent par ces deux-là : un envoi qui oublierait la première
+     serait refusé, un envoi qui oublierait la seconde créerait un
+     DEUXIÈME fil au message suivant.
+     ============================================================ */
+  function avecLeFilNeuf(demande){
+    if(neufEl && !demande.id){
+      demande.neuf = neufEl.genre;
+      demande.moniteur = neufEl.moniteur;
+    }
+    return demande;
+  }
+
+  function adopterLeFilNe(d){
+    if(!d || !d.conversation || !filEl || !filEl.conv) return;
+    if(filEl.conv.id) return;
+    filEl.conv.id = d.conversation;
+    neufEl = null;
+    /* Maintenant qu'il existe, il se surveille comme les autres. */
+    veillerLeFil();
+    brancherDirectEl(filEl.conv.id);
+  }
+
   function envoyerDansLeFil(){
     if(!filEl || !filEl.conv) return;
     var id = filEl.conv.id;
@@ -3248,12 +3304,13 @@
 
     b.disabled = true;
     dire('msgFil', 'Envoi…', 'attente');
-    appeler({ action: 'eleveEcrire', eleve: moi.nom, code: moi.code,
-              id: id, texte: texte })
-      .then(function(){
+    appeler(avecLeFilNeuf({ action: 'eleveEcrire', eleve: moi.nom,
+                            code: moi.code, id: id, texte: texte }))
+      .then(function(d){
         if(t) t.value = '';
         delete brouillonsEl[id];
         dire('msgFil', '');
+        adopterLeFilNe(d);
         return rafraichirLeFilEleve();
       })
       .catch(function(e){
@@ -3390,9 +3447,11 @@
     reduireLaPhotoEl(fichier).then(function(p){
       var t = $('chFilTexte');
       var texte = t ? t.value.trim() : '';
-      return appeler({ action:'elevePhoto', eleve: moi.nom, code: moi.code,
-                       id: id, photo: p.data, l: p.l, h: p.h, texte: texte })
-        .then(function(){
+      return appeler(avecLeFilNeuf({ action:'elevePhoto', eleve: moi.nom,
+                       code: moi.code, id: id, photo: p.data, l: p.l,
+                       h: p.h, texte: texte }))
+        .then(function(d){
+          adopterLeFilNe(d);
           if(t){ t.value = ''; delete brouillonsEl[id]; }
           dire('msgFil', '', '');
           return rafraichirLeFilEleve(true);
@@ -3587,10 +3646,12 @@
 
     dureeDUnFichierVideoEl(fichier).then(function(sec){
       return lireEnBase64El(fichier).then(function(data){
-        return appeler({ action: 'eleveVideo', eleve: moi.nom, code: moi.code,
-                         id: filEl.conv.id, video: data, duree: sec, texte: '' });
+        return appeler(avecLeFilNeuf({ action: 'eleveVideo', eleve: moi.nom,
+                         code: moi.code, id: filEl.conv.id, video: data,
+                         duree: sec, texte: '' }));
       });
     }).then(function(r){
+      adopterLeFilNe(r);
       if(r && typeof r.reste === 'number') resteVideosEl = r.reste;
       return rafraichirLeFilEleve(true);
     }).catch(function(e){
@@ -3820,9 +3881,11 @@
       if(e){ e.disabled = true; e.textContent = '…'; }
 
       return lireEnBase64El(blob).then(function(data){
-        return appeler({ action: 'eleveVideo', eleve: moi.nom, code: moi.code,
-                         id: v.fil, video: data, duree: sec, texte: '' });
+        return appeler(avecLeFilNeuf({ action: 'eleveVideo', eleve: moi.nom,
+                         code: moi.code, id: v.fil, video: data,
+                         duree: sec, texte: '' }));
       }).then(function(r){
+        adopterLeFilNe(r);
         if(r && typeof r.reste === 'number') resteVideosEl = r.reste;
         rendreLaBarreVideoEl();
         rafraichirLeFilEleve(true);
@@ -4193,10 +4256,11 @@
 
       var l = new FileReader();
       l.onload = function(){
-        appeler({ action: 'eleveVocal', eleve: moi.nom, code: moi.code,
-                  id: v.fil, son: String(l.result || ''),
-                  duree: sec, texte: mots })
+        appeler(avecLeFilNeuf({ action: 'eleveVocal', eleve: moi.nom,
+                  code: moi.code, id: v.fil, son: String(l.result || ''),
+                  duree: sec, texte: mots }))
           .then(function(r){
+            adopterLeFilNe(r);
             if(r && typeof r.reste === 'number') resteVocauxEl = r.reste;
             rendre();
             rafraichirLeFilEleve(true);
@@ -5018,6 +5082,9 @@
 
   function rafraichirLeFilEleve(silencieux){
     if(!filEl || !filEl.conv) return Promise.resolve();
+    /* Un fil qui n'a pas encore d'identifiant n'a rien à relire :
+       il n'existe que sur ce téléphone. */
+    if(!filEl.conv.id) return Promise.resolve();
     var id = filEl.conv.id;
     var avant = (filEl.messages || []).length;
     var dernier = avant ? filEl.messages[avant - 1].rang : 0;
@@ -5189,10 +5256,24 @@
 
   /* ---------- Écrire au bureau, ou à son moniteur ---------- */
 
+  /* ⚠️ UN FIL QUI N'EXISTE PAS ENCORE S'OUVRE QUAND MÊME — v1111.
+
+     David, le 8 octobre : « j'ai appuyé côté élève pour écrire un
+     message et de notre côté je vois une conversation ouverte entre
+     l'élève et le bureau mais il n'y a rien d'écrit ».
+
+     Le serveur ne crée plus rien à l'ouverture : il rend « id: "" »
+     et le GENRE à ouvrir. On dessine alors un fil qui n'est que sur
+     ce téléphone — vide, avec sa barre d'écriture — et c'est le
+     premier envoi qui le fait naître. Tant que l'élève n'a rien
+     dit, le bureau ne voit rien, parce qu'il n'y a rien. */
   function ouvrirVers(vers, bouton){
     if(bouton) bouton.disabled = true;
     appeler({ action: 'eleveOuvrirFil', eleve: moi.nom, code: moi.code, vers: vers })
-      .then(function(d){ ouvrirFilEleve(d.id); })
+      .then(function(d){
+        if(d && d.id) ouvrirFilEleve(d.id);
+        else ouvrirFilNeufEleve(d || {});
+      })
       .catch(function(e){
         dire('msgEnvoi', e.message || 'Impossible pour le moment.', 'erreur');
       })
