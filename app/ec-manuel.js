@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 08:40 — v1097 */
+/* Déployé le 08/10/2026 à 10:37 — v1100 */
 /* ============================================================
    ec-manuel.js
    Bilan à remplir à la main
@@ -1972,12 +1972,15 @@ function leconsFaites(){
   const n = parseInt(d.leconNum, 10);
   if(!isNaN(n) && n > 0) return n;
 
+  /* ⚠️ PAR LA PORTE COMMUNE — v1100. Le motif était écrit ici, en
+     clair, et c'était le quatrième. Il ne connaissait pas « au
+     total » (sur « 2ÈME LEÇON APRÈS LE POST-PERMIS (24ÈME AU
+     TOTAL) » il rendait 2) et il acceptait le pluriel (« 5 leçons
+     de 2h » dans une frise lui faisait dire 5). Voir
+     rangDansLaNote : la règle y vit, et tout le monde l'appelle. */
   const t = ($('noteInterne') && $('noteInterne').value) || '';
-  const m = t.match(/(\d+)\s*(?:ère|ere|ème|eme|e)?\s*le[çc]on/i);
-  if(m){
-    const v = parseInt(m[1], 10);
-    if(!isNaN(v) && v > 0) return v;
-  }
+  const v = (typeof rangDansLaNote === 'function') ? rangDansLaNote(t) : null;
+  if(v > 0) return v;
 
   const c = Number(d.lecons);
   return c > 0 ? c : null;
