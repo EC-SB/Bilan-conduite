@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 17:10 — v1108 */
+/* Déployé le 08/10/2026 à 18:40 — v1109 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,34 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1109,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Les vidéos dans la messagerie',
+    quoi: [
+      { emoji: '🎥',
+        titre: 'Filmer une manœuvre et l’envoyer',
+        texte: 'Le bouton 🎥, à côté du micro, demande d’abord : filmer, ou ' +
+               'choisir une vidéo déjà prise. On filme avec la caméra ' +
+               'arrière et le compte à rebours sous les yeux — ❚❚ met en ' +
+               'pause, ■ arrête sans envoyer, on se regarde, puis ➤. À 30 ' +
+               'secondes ça s’arrête tout seul, sans envoyer.' },
+      { emoji: '📶',
+        titre: 'Réglée pour partir d’un bord de route',
+        texte: '640×480 et un débit bridé : trente secondes font environ ' +
+               '3 Mo, ça passe en 4G de voiture-école. Une vidéo choisie ' +
+               'dans la galerie est refusée au-delà de 12 Mo — le téléphone ' +
+               'l’a filmée trop grande, il faut la refaire depuis ' +
+               'l’application.' },
+      { emoji: '🎓',
+        titre: 'Les élèves aussi, cinq par jour',
+        texte: 'Même bouton dans leur espace, avec leur propre compte — une ' +
+               'vidéo n’entame pas leur quota de vocaux. Dans la bulle, la ' +
+               'vidéo se lit sur place avec sa durée, et ⤢ en haut à droite ' +
+               'l’ouvre en grand. Le doigt sur l’image met en pause, comme ' +
+               'partout.' }
+    ]
+  },
   {
     version: 1108,
     date: 'Jeudi 8 octobre 2026',
