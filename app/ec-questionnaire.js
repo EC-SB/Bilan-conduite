@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 14:10 — v1105 */
+/* Déployé le 08/10/2026 à 15:05 — v1106 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -1841,6 +1841,84 @@ function poserLeDepartDesHeures(boite, nom){
   sel.value = depuisLaCharniere ? 'charniere' : 'now';
   bloc.style.display = '';
   return c.rang;
+}
+
+/* ============================================================
+   RÉANCRER LA RÉSERVE DEPUIS UNE PRÉPARATION — v1106
+
+   David, le 8 octobre : « ça ne fonctionne pas depuis le
+   questionnaire, par contre ça fonctionne depuis le dossier
+   élève ». Il avait raison, et le trou est net : la v1105 a posé
+   la question dans le questionnaire, et PERSONNE ne portait la
+   réponse jusqu'au suivi quand on vient d'une préparation.
+
+   « remonterHeuresAuBureau » n'est appelée que par les deux fins
+   de cours — ec-manuel et ec-vocal. Une préparation, elle, ne
+   fait qu'écrire son contexte : la réponse restait dans le
+   contexte du cours, où rien ne la lit.
+
+   ⚠️ ET ON NE RÉÉCRIT PAS LE NOMBRE QUAND ON DIT « DEPUIS LA
+   CHARNIÈRE ». C'est la différence avec la fiche de route, et elle
+   est essentielle : la fiche montre le nombre DÉCIDÉ, le
+   questionnaire montre ce qu'il en RESTE (v1052). Renvoyer le
+   reste en le datant de la charnière, ce serait le décompter une
+   seconde fois — 6h devenues 4h redeviendraient 4h moins trois
+   leçons. On corrige donc le repère, et le nombre décidé ne bouge
+   pas : c'est exactement « d'où il part » qu'on vient changer.
+
+   « À partir d'aujourd'hui » est l'autre cas : là, le nombre
+   affiché EST une mesure prise maintenant, et il s'écrit avec le
+   rang du jour. C'est ce que fait déjà la fin de cours.
+   ============================================================ */
+async function reancrerLaReserve(eleve, rep, note){
+  if(!eleve || !rep || rep.heuresDepuisRepondu !== true) return;
+  if(typeof majSuivi !== 'function' ||
+     typeof champsHeuresRestantes !== 'function') return;
+
+  const s = (typeof suiviDe === 'function') ? (suiviDe(eleve) || {}) : {};
+  const c = (typeof charniereDeLEleve === 'function')
+    ? charniereDeLEleve(eleve) : { quoi: 'eb', rang: 0 };
+
+  let depuis = '';
+  let valeur = String(s.heuresRestantes || '').trim();
+
+  if(rep.heuresDuJour){
+    const r = (typeof repereDuJour === 'function')
+      ? repereDuJour(eleve, note) : null;
+    depuis = r ? r.rang : c.rang;
+    valeur = String(rep.heuresRemontees || '').trim();
+  }
+
+  /* Rien de décidé à redater : une réserve prescrite à la
+     charnière y est déjà rattachée toute seule (repereDesHeures,
+     v1051), et écrire un vide effacerait son auteur. */
+  if(valeur === '') return;
+
+  /* ⚠️ RIEN DE NEUF NE S'ÉCRIT. La porte commune refuse déjà de
+     RESIGNER un nombre inchangé, mais elle rend quand même le
+     nombre : on repartirait donc écrire à chaque enregistrement de
+     préparation, et chaque écriture est une occasion de se
+     tromper. On compare ici ce qui changerait vraiment — le
+     nombre décidé et son repère — et on se tait si c'est pareil. */
+  const rep0 = (typeof repereDesHeures === 'function')
+    ? repereDesHeures(s) : { rang: 0, quoi: 'eb' };
+  const rangVoulu = (depuis === '' || depuis === null || depuis === undefined)
+    ? 0 : (parseInt(depuis, 10) || 0);
+  if(String(s.heuresRestantes || '').trim() === valeur &&
+     String(rep0.quoi || 'eb') === String(c.quoi || 'eb') &&
+     (parseInt(rep0.rang, 10) || 0) === rangVoulu) return;
+
+  const majs = champsHeuresRestantes(eleve, valeur, null, depuis, c.quoi);
+  if(!majs || !Object.keys(majs).length) return;   /* rien n'a changé */
+
+  try{
+    await majSuivi(eleve, majs);
+  }catch(e){
+    if(typeof showToast === 'function'){
+      showToast("⚠️ Le départ des heures de " + eleve + " n'a pas atteint " +
+                'le bureau. Reprends-le depuis sa fiche.');
+    }
+  }
 }
 
 function direDOuVientLaReserve(zone, nom){
@@ -5131,6 +5209,21 @@ async function construireQuestionnaire(prec, titre, libelleValider, reduire){
            Elle reste le défaut quand la question ne se pose pas :
            avant la première leçon depuis la charnière, les deux
            réponses désignent le même instant. */
+        /* ⚠️ ET ON DIT SI LA QUESTION A ÉTÉ POSÉE — v1106.
+
+           « heuresDuJour » répond toujours quelque chose : par la
+           réponse quand la question était à l'écran, par la
+           devinette sinon. L'appelant, lui, doit faire la
+           différence — réancrer une réserve sur une devinette
+           serait écrire une décision que personne n'a prise. */
+        heuresDepuisRepondu: (function(){
+          const section = boite.querySelector('#qBlocHeuresPermis');
+          const bloc = boite.querySelector('#qBlocHeuresDepuis');
+          return !!(section && bloc &&
+                    section.style.display !== 'none' &&
+                    bloc.style.display !== 'none');
+        })(),
+
         heuresDuJour: (function(){
           /* ⚠️ LES DEUX BLOCS, PAS UN. Le champ des heures est
              prérempli même quand sa section est cachée — c'est lui
