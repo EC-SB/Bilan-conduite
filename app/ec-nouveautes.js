@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 10:37 — v1100 */
+/* Déployé le 08/10/2026 à 11:10 — v1101 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,35 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1101,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Les vocaux : on peut enfin s’arrêter sans envoyer',
+    quoi: [
+      { emoji: '⏹',
+        titre: 'Arrêter, s’écouter, puis décider',
+        texte: 'Il n’y avait que deux sorties — jeter, ou envoyer. ■ arrête ' +
+               'maintenant l’enregistrement sans rien envoyer : le micro se ' +
+               'coupe, le vocal s’écoute sur place, le texte se corrige, et ' +
+               'il ne part que si tu appuies sur ➤. À deux minutes (une pour ' +
+               'un élève) c’est pareil : ça s’arrête, ça n’envoie plus tout ' +
+               'seul.' },
+      { emoji: '⏸',
+        titre: 'Et une pause, quand on est coupé en plein milieu',
+        texte: '❚❚ met en pause, ▶ reprend — le compteur s’arrête vraiment, ' +
+               'une pause de trente secondes ne mange plus trente secondes de ' +
+               'ton temps de parole. Le point rouge s’éteint et l’onde se ' +
+               'couche : on voit que rien ne s’enregistre.' },
+      { emoji: '🖼️',
+        titre: 'Plus de vignette « Photo » cassée au-dessus des vocaux',
+        texte: 'Un vocal s’affichait avec une image cassée par-dessus le ' +
+               'lecteur, et c’est elle qui déclenchait le bandeau rouge ' +
+               '« Erreur au chargement » en bas de l’écran. Les deux ont ' +
+               'disparu. Au passage, ce bandeau ne s’affiche plus pour une ' +
+               'photo qui met du temps à venir — seulement quand quelque ' +
+               'chose est vraiment cassé.' }
+    ]
+  },
   {
     version: 1100,
     date: 'Jeudi 8 octobre 2026',
