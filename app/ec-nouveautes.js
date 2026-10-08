@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:55 — v1102 */
+/* Déployé le 08/10/2026 à 12:30 — v1103 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,29 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1103,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Le téléphone vibre quand un départ est refusé',
+    quoi: [
+      { emoji: '📳',
+        titre: 'Un départ refusé se sent, en plus de se voir',
+        texte: 'Trois signes le disaient déjà à l’écran — le champ qui ' +
+               'rougit, l’écran qui y descend, le bouton qui dit ce qui ' +
+               'manque. Mais le téléphone est souvent sur son support et les ' +
+               'yeux sur la route : il vibre maintenant, deux impulsions ' +
+               'courtes. Une seule, plus franche, quand un repère est posé ' +
+               'pendant le trajet — un refus et une réussite ne doivent pas ' +
+               'se sentir pareil.' },
+      { emoji: '💾',
+        titre: 'Le bilan des éliminatoires se sauve tout de suite',
+        texte: 'Quand l’outil compose tout seul le bilan des éliminatoires ' +
+               'd’un examen blanc, il attendait la sauvegarde suivante — et ' +
+               'si le moniteur ne touchait plus à rien, elle ne venait pas. ' +
+               'Un onglet fermé entre-temps emportait le texte. Il part ' +
+               'maintenant à la seconde où il est écrit.' }
+    ]
+  },
   {
     version: 1102,
     date: 'Jeudi 8 octobre 2026',
