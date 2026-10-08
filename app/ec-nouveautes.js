@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 18:40 — v1109 */
+/* Déployé le 08/10/2026 à 20:15 — v1110 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,31 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1110,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Supprimer un message, et vider les conversations fermées',
+    quoi: [
+      { emoji: '🗑️',
+        titre: 'Retirer un message qu’on vient d’envoyer',
+        texte: 'Appui long sur ta bulle, puis 🗑️. Le message part, sa photo ' +
+               'ou son vocal sont effacés du stockage, et il sort de la ' +
+               'recherche. Il reste une ligne « 🚫 Message supprimé » — sans ' +
+               'elle, les réponses d’après ne voudraient plus rien dire. ' +
+               '⚠️ Chacun ne retire que LES SIENS, et un élève ne peut pas ' +
+               'retirer ce qu’il a écrit : c’est souvent ce qui compte le ' +
+               'jour d’un désaccord avec une famille. Pas de délai.' },
+      { emoji: '🧹',
+        titre: 'Vider les conversations fermées, pour de bon',
+        texte: 'Sur l’onglet 🗄️ Fermées, un bouton « Tout supprimer » pour ' +
+               'les administrateurs. Il COMPTE d’abord — combien de ' +
+               'conversations, de messages, de fichiers — et il les nomme, ' +
+               'avant de demander confirmation. Ensuite tout part : les ' +
+               'messages, les lectures, les participants, les objets ' +
+               'oubliés, et les photos, vocaux et vidéos du stockage. ' +
+               '⚠️ Rien ne se retrouve après.' }
+    ]
+  },
   {
     version: 1109,
     date: 'Jeudi 8 octobre 2026',
