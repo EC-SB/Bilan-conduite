@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 20:15 — v1081 */
+/* Déployé le 08/10/2026 à 12:30 — v1103 */
 /* ============================================================
    ec-noyau.js
    Configuration, session, droits, utilitaires communs
@@ -713,6 +713,41 @@ const CLES_TRAVAIL = [
   'ec_postes_simu'
 ];
 
+/* ============================================================
+   LE RETOUR DANS LA MAIN — v1103
+
+   Deux endroits la demandaient ; elle n'était écrite nulle part.
+   Celui du trajet avait un repli en clair juste en dessous et
+   vibrait donc quand même ; celui du refus de départ n'en avait
+   pas, et restait muet depuis toujours.
+
+   ⚠️ C'EST LÀ QU'ELLE SERT LE PLUS. Un départ refusé se voit par
+   trois signes à l'écran — le champ qui rougit, l'écran qui y
+   descend, le bouton qui dit ce qui manque. Mais le téléphone est
+   souvent dans une poche ou sur un support, et le moniteur a les
+   yeux sur la route : la seule chose qui traverse, c'est la main.
+
+   DEUX MOTS, PAS UN. « C'est fait » est une impulsion courte ; « ça
+   n'est pas parti » en est deux, parce qu'un refus doit se
+   distinguer d'une réussite sans qu'on regarde. Un seul motif pour
+   les deux, et on apprend à ne plus y faire attention.
+
+   Un appareil qui ne sait pas vibrer — un ordinateur de bureau,
+   un iPhone — se tait sans que rien ne casse : c'est un confort,
+   jamais une information à lui seul.
+   ============================================================ */
+const MOTIFS_VIBRATION = {
+  ok:    60,
+  refus: [40, 70, 40]
+};
+
+function vibrer(quoi){
+  try{
+    if(!navigator || typeof navigator.vibrate !== 'function') return false;
+    return !!navigator.vibrate(MOTIFS_VIBRATION[quoi] || MOTIFS_VIBRATION.ok);
+  }catch(e){ return false; }
+}
+
 /* ------------------------------------------------------------
    ÉCHAPPER, UNE FOIS POUR TOUTES
 
@@ -954,7 +989,8 @@ function refuserLeDepart(bouton, manque){
     }, REFUS_DUREE);
   }
 
-  if(typeof vibrer === 'function') vibrer();
+  /* ⚠️ DEUX IMPULSIONS, PAS UNE : c'est un refus. Voir « vibrer ». */
+  vibrer('refus');
   return true;
 }
 
