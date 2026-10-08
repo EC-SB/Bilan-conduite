@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 16:00 — v1107 */
+/* Déployé le 08/10/2026 à 17:10 — v1108 */
 /* ============================================================
    ec-nouveautes.js
    Ce que l'outil vient de changer, dit à ceux qui s'en servent.
@@ -50,6 +50,28 @@
      et comment ça se comporte.
    ============================================================ */
 const NOUVEAUTES = [
+  {
+    version: 1108,
+    date: 'Jeudi 8 octobre 2026',
+    resume: 'Copier un message, coller une capture d’écran',
+    quoi: [
+      { emoji: '📋',
+        titre: 'Copier le texte d’un message',
+        texte: 'L’appui long sur une bulle ouvre le menu des émoticônes, et ' +
+               '📋 s’y ajoute tout au bout : le texte part dans le ' +
+               'presse-papiers. ⚠️ C’est ce menu qui empêchait de copier — ' +
+               'l’appui long et le clic droit sont les deux gestes par ' +
+               'lesquels on sélectionne du texte, et les réactions les ' +
+               'avaient pris. Ça marche aussi sur la transcription d’un ' +
+               'vocal, et dans un fil qu’on ne fait que surveiller.' },
+      { emoji: '🖼️',
+        titre: 'Et coller une capture d’écran dans le champ',
+        texte: 'Une image copiée (Ctrl+V, ou « Coller » sur téléphone) part ' +
+               'directement comme photo. Plus besoin de l’enregistrer sur le ' +
+               'disque pour la rouvrir ensuite par 📷. Le texte, lui, se ' +
+               'collait déjà tout seul.' }
+    ]
+  },
   {
     version: 1107,
     date: 'Jeudi 8 octobre 2026',
