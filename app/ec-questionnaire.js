@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 11:40 — v1075 */
+/* Déployé le 08/10/2026 à 10:37 — v1100 */
 /* ============================================================
    ec-questionnaire.js
    Questionnaire de début et de fin de cours
@@ -181,16 +181,56 @@ async function chargerDossierEleve(nomEleve){
        compte les leçons qui l'ont suivi. Corrigé une fois, l'élève
        est calé pour de bon.
        ---------------------------------------------------------- */
+    /* ⚠️ LU PAR LA PORTE COMMUNE, ET SUR TOUTE LA PILE — v1100.
+
+       Deux fautes tenaient dans ces huit lignes, et elles ont vécu
+       côte à côte pendant des semaines.
+
+       ① Le motif. « RE_NUM_LECON » ne connaît pas « au total » : sur
+       « 2ÈME LEÇON APRÈS LE POST-PERMIS (24ÈME AU TOTAL) » il
+       attrapait le 2. Le commentaire de rangDansLaNote dit depuis la
+       v1014 que la règle vit là-bas « et les deux écrans
+       l'appellent » — celui-ci ne l'appelait pas. Une règle écrite
+       une fois et lue depuis deux endroits, dont un seul passe par
+       la porte : c'est la même faute que « deux listes pour une
+       action », appliquée à un chiffre.
+
+       ② Le « break ». On s'arrêtait au PREMIER bilan portant un
+       rang, en tenant pour acquis qu'un rang ne recule jamais. Il
+       ne recule effectivement jamais dans la vraie vie — donc un
+       rang plus bas qu'un bilan plus ancien n'annonce pas un
+       rattrapage, il annonce un bilan abîmé, et le break lui
+       donnait raison. Mackenzie, le 26 septembre : « REPRISE APRÈS
+       LE DERNIER AJOURNEMENT (1ÈRE AU TOTAL) » après un
+       « (14ÈME AU TOTAL) ». Son examen avait été annulé, pas ajourné ;
+       la faute d'affichage est corrigée, mais ce qui est écrit reste
+       écrit — et ce « 1ère » la ramenait de sa 15ᵉ leçon à sa 2ᵉ.
+
+       On parcourt donc TOUTE la pile et on garde le plus grand.
+       Chaque candidat vaut « rang écrit + leçons qui l'ont suivi » :
+       un PLANCHER du vrai compte, jamais un plafond — le classeur ne
+       peut qu'avoir manqué des leçons, pas en avoir inventé. Le plus
+       haut plancher est le plus près de la vérité.
+
+       ⚠️ CE QUE ÇA COÛTE : un rang tapé TROP HAUT par erreur dans un
+       vieux bilan ne se rattrape plus tout seul. Il faut corriger ce
+       bilan-là, ou taper le rang à la main sur la carte — ce qui
+       l'emporte sur tout (leconMain, règle de la v1014). */
     let caleParUnBilan = false;
+    let leMieuxDit = null;
+    let depuis = 0;
     for(let k = 0; k < res.length; k++){
       if(!estUneLecon(res[k].type)) continue;
-      const m = String(res[k].note || '').match(RE_NUM_LECON);
-      if(!m) continue;
-      const dit = parseInt(String(m[0]), 10);
-      if(isNaN(dit) || dit <= 0) break;
-      let depuis = 0;
-      for(let q = 0; q < k; q++) if(estUneLecon(res[q].type)) depuis++;
-      lecons = dit + depuis;
+      const dit = (typeof rangDansLaNote === 'function')
+        ? rangDansLaNote(res[k].note) : null;
+      if(dit > 0){
+        const total = dit + depuis;
+        if(leMieuxDit === null || total > leMieuxDit) leMieuxDit = total;
+      }
+      depuis++;
+    }
+    if(leMieuxDit !== null){
+      lecons = leMieuxDit;
       /* ⚠️ ET ON LE DIT — v905.
 
          Ce rang-là est écrit dans un BILAN : il est daté d'un cours
@@ -202,7 +242,6 @@ async function chargerDossierEleve(nomEleve){
          dossier depuis le début. Ici, la plus forte gagne, et on
          sait laquelle parce qu'on le note. */
       caleParUnBilan = true;
-      break;
     }
 
     /* Où l'élève en est dans SA moitié de frise.
