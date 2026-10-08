@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 20:15 — v1110 */
+/* Déployé le 08/10/2026 à 16:35 — v1111 */
 /* ============================================================
    💬 LA MESSAGERIE — étape 1a, côté école
 
@@ -81,6 +81,13 @@ let battementMessagerie = null;
 let rangLuEC = 0;                /* le plus haut rang déjà affiché */
 let empreinteReacEC = '';        /* l'état des réactions déjà dessinées */
 let filtreMessagerie = '';       /* '' | un genre */
+
+/* ☑️ LE MODE CHOIX — v1111. Il ne survit pas à un changement de
+   filtre ni à un rechargement : une sélection qu'on retrouve en
+   revenant, c'est une sélection qu'on croit vide et qu'on
+   supprime. Elle se refait, elle ne se garde pas. */
+let modeChoixMessagerie = false;
+const choixMessagerie = new Set();
 let chercheMessagerie = '';
 let brouillonsMessagerie = {};   /* ce qu'on a tapé sans envoyer, par fil */
 
@@ -165,6 +172,18 @@ function dessinerLaListeMessagerie(){
         (!filtreMessagerie || filtreMessagerie === 'clos' ||
          c.genre === filtreMessagerie));
 
+  /* ⚠️ LA SÉLECTION NE GARDE QUE CE QUI EST ENCORE À L'ÉCRAN. On
+     change de filtre, une ligne cochée disparaît de la vue : la
+     garder cochée, c'est supprimer plus tard quelque chose qu'on
+     ne voyait plus au moment de confirmer. */
+  if(modeChoixMessagerie){
+    const ici = new Set(liste.map(c => c.id));
+    Array.from(choixMessagerie).forEach(id => {
+      if(!ici.has(id)) choixMessagerie.delete(id);
+    });
+    if(!dansLeTiroir()) zone.appendChild(barreDuChoixMessagerie(liste));
+  }
+
   if(!liste.length){
     const v = document.createElement('div');
     v.className = 'empty';
@@ -237,6 +256,49 @@ function ligneConversation(c){
     'border-bottom:1px solid var(--line);cursor:pointer;';
   d.title = 'Ouvrir la conversation';
 
+  /* ============================================================
+     ☑️ LA CASE DU MODE CHOIX — v1111
+
+     David, le 8 octobre : « je n'ai que le bouton pour tout
+     supprimer, je dois pouvoir choisir quelles conversations une
+     par une ou toutes ou une sélection ».
+
+     ⚠️ LA CASE REMPLACE LE CLIC D'OUVERTURE, elle ne s'ajoute pas
+     à côté. En mode choix, toucher n'importe où sur la ligne coche
+     ou décoche : une liste où le doigt ouvre parfois et coche
+     parfois, selon qu'on a visé un carré de dix-huit pixels, finit
+     par ouvrir ce qu'on voulait supprimer.
+     ============================================================ */
+  if(modeChoixMessagerie){
+    const ca = document.createElement('div');
+    const pris = choixMessagerie.has(c.id);
+    ca.style.cssText = 'flex-shrink:0;width:22px;height:22px;border-radius:6px;' +
+      'margin-top:8px;display:flex;align-items:center;justify-content:center;' +
+      'font-size:14px;font-weight:700;border:2px solid ' +
+      (pris ? 'var(--red);background:var(--red);color:#fff;'
+            : 'var(--line);color:transparent;');
+    ca.textContent = '✓';
+    d.appendChild(ca);
+    d.style.cursor = 'pointer';
+    d.title = pris ? 'Retirer de la sélection' : 'Ajouter à la sélection';
+    if(pris) d.style.background = 'var(--warn-bg)';
+    d.addEventListener('click', () => {
+      if(choixMessagerie.has(c.id)) choixMessagerie.delete(c.id);
+      else choixMessagerie.add(c.id);
+      dessinerLaListeMessagerie();
+    });
+    /* Le reste de la ligne se dessine pareil, pour qu'on reconnaisse
+       ce qu'on coche — mais elle ne s'ouvre plus. */
+    ligneConversationCorps(c, d, true);
+    return d;
+  }
+
+  ligneConversationCorps(c, d, false);
+  d.addEventListener('click', () => ouvrirLeFil(c.id));
+  return d;
+}
+
+function ligneConversationCorps(c, d, enChoix){
   const rond = document.createElement('div');
   const g = GENRES_MESSAGERIE[c.genre] || { rond: '💬' };
   rond.style.cssText = 'flex-shrink:0;width:38px;height:38px;border-radius:50%;' +
@@ -294,8 +356,16 @@ function ligneConversation(c){
     d.appendChild(cpt);
   }
 
-  d.addEventListener('click', () => ouvrirLeFil(c.id));
-  return d;
+  /* Une conversation fermée se dit, parce qu'en mode choix on peut
+     désormais en supprimer qui ne le sont pas. */
+  if(enChoix && !Number(c.fermee || 0)){
+    const o = document.createElement('span');
+    o.style.cssText = 'flex-shrink:0;align-self:center;font-size:10.5px;' +
+      'padding:2px 7px;border-radius:999px;background:var(--orange-soft);' +
+      'color:var(--accent-text);font-weight:700;';
+    o.textContent = 'ouverte';
+    d.appendChild(o);
+  }
 }
 
 /* Le titre se compose, il ne se lit pas : un élève renommé doit
@@ -560,17 +630,104 @@ function barreDesGenresMessagerie(){
      plus ici que rien ne se rattrape. Le serveur rend les chiffres
      au premier appel, et n'efface qu'au second.
      ============================================================ */
-  if(filtreMessagerie === 'clos' &&
-     (typeof ACCES === 'undefined' || ACCES.role === 'admin')){
-    const vid = document.createElement('button');
-    vid.className = 'btn btn-secondary';
-    vid.style.cssText = 'width:auto;margin:0 0 0 auto;padding:4px 10px;' +
-      'font-size:12px;border-radius:999px;color:var(--red);' +
-      'border-color:var(--red);';
-    vid.textContent = '🗑️ Tout supprimer';
-    vid.title = 'Supprimer définitivement les conversations fermées';
-    vid.addEventListener('click', () => viderLesFilsFermes(vid));
-    b.appendChild(vid);
+  if(peutSupprimerDesConversations()){
+    /* ⚠️ « CHOISIR » EST PARTOUT, « TOUT SUPPRIMER » RESTE SUR
+       FERMÉES — v1111.
+
+       David voulait pouvoir supprimer « une par une ou toute ou une
+       sélection », et il a tranché la portée : partout, y compris
+       les conversations ouvertes, mais une ouverte est signalée
+       dans la confirmation. Le bouton de MASSE, lui, ne bouge pas
+       de l'onglet Fermées : « tout » n'a de sens que là où l'on est
+       venu regarder ce qu'on jette, et « tout » depuis « Tout »
+       voudrait dire l'école entière. */
+    const chx = document.createElement('button');
+    chx.className = 'btn btn-secondary';
+    chx.style.cssText = 'width:auto;margin:0 0 0 auto;padding:4px 10px;' +
+      'font-size:12px;border-radius:999px;' +
+      (modeChoixMessagerie
+        ? 'background:var(--orange);border-color:var(--orange);' +
+          'color:#0B0B0B;font-weight:700;' : '');
+    chx.textContent = modeChoixMessagerie ? '✕ Annuler' : '☑️ Choisir';
+    chx.title = 'Cocher des conversations pour les supprimer';
+    chx.addEventListener('click', () => {
+      modeChoixMessagerie = !modeChoixMessagerie;
+      choixMessagerie.clear();
+      dessinerLaListeMessagerie();
+    });
+    b.appendChild(chx);
+
+    if(filtreMessagerie === 'clos' && !modeChoixMessagerie){
+      const vid = document.createElement('button');
+      vid.className = 'btn btn-secondary';
+      vid.style.cssText = 'width:auto;margin:0;padding:4px 10px;' +
+        'font-size:12px;border-radius:999px;color:var(--red);' +
+        'border-color:var(--red);';
+      vid.textContent = '🗑️ Tout supprimer';
+      vid.title = 'Supprimer définitivement les conversations fermées';
+      vid.addEventListener('click', () => viderLesFilsFermes(vid, null));
+      b.appendChild(vid);
+    }
+  }
+
+  return b;
+}
+
+/* Un seul endroit décide. Deux conditions recopiées — une pour le
+   bouton, une pour la barre — finissent par se contredire, et on
+   voit alors une barre d'action sans le bouton qui l'ouvre. */
+function peutSupprimerDesConversations(){
+  return (typeof ACCES === 'undefined' || ACCES.role === 'admin');
+}
+
+/* ============================================================
+   LA BARRE DU MODE CHOIX
+
+   Elle ne s'affiche qu'en mode choix, et elle dit TOUJOURS combien
+   sont cochées — y compris zéro. Une barre qui n'apparaît qu'à
+   partir d'une case cochée laisse croire, tant qu'on n'a rien
+   coché, qu'on s'est trompé de bouton.
+   ============================================================ */
+function barreDuChoixMessagerie(liste){
+  const b = document.createElement('div');
+  b.style.cssText = 'display:flex;gap:7px;align-items:center;flex-wrap:wrap;' +
+    'padding:9px 11px;margin-bottom:10px;border-radius:11px;' +
+    'background:var(--warn-bg);border:1px solid var(--red);';
+
+  const n = choixMessagerie.size;
+  const t = document.createElement('span');
+  t.style.cssText = 'flex:1;min-width:120px;font-size:12.5px;font-weight:700;' +
+    'color:var(--warn-text);';
+  t.textContent = n
+    ? n + ' conversation' + (n > 1 ? 's' : '') + ' cochée' + (n > 1 ? 's' : '')
+    : 'Coche les conversations à supprimer';
+  b.appendChild(t);
+
+  const petit = (texte, agir, rouge) => {
+    const x = document.createElement('button');
+    x.className = 'btn btn-secondary';
+    x.style.cssText = 'width:auto;margin:0;padding:4px 10px;font-size:12px;' +
+      'border-radius:999px;' +
+      (rouge ? 'color:var(--red);border-color:var(--red);font-weight:700;' : '');
+    x.textContent = texte;
+    x.addEventListener('click', agir);
+    b.appendChild(x);
+    return x;
+  };
+
+  /* « Tout cocher » ne coche que CE QUI EST À L'ÉCRAN. Cocher ce
+     qu'un filtre cache serait la plus silencieuse des façons de
+     supprimer ce qu'on n'a pas vu. */
+  const tous = liste.every(c => choixMessagerie.has(c.id));
+  petit(tous ? 'Tout décocher' : 'Tout cocher (' + liste.length + ')', () => {
+    if(tous) liste.forEach(c => choixMessagerie.delete(c.id));
+    else liste.forEach(c => choixMessagerie.add(c.id));
+    dessinerLaListeMessagerie();
+  });
+
+  if(n){
+    const s = petit('🗑️ Supprimer (' + n + ')',
+      () => viderLesFilsFermes(s, Array.from(choixMessagerie)), true);
   }
 
   return b;
@@ -581,19 +738,28 @@ function barreDesGenresMessagerie(){
    « confirme ». Entre les deux, on montre à l'écran ce qui va
    disparaître : des conversations, des messages, des fichiers. Un
    chiffre qu'on a lu, ce n'est plus la même suppression. */
-async function viderLesFilsFermes(bouton){
+/* « ids » vaut null pour « toutes les fermées » — le geste de la
+   v1110 — ou la liste des cochées. Les deux passent par la même
+   porte et le même double appel : deux chemins de suppression,
+   c'est un des deux qui oubliera de compter avant. */
+async function viderLesFilsFermes(bouton, ids){
+  const titre = ids ? '🗑️ Supprimer (' + ids.length + ')' : '🗑️ Tout supprimer';
+  const demande = ids ? { action: 'convsSupprimer', ids: ids }
+                      : { action: 'convsSupprimer' };
+
   if(bouton){ bouton.disabled = true; bouton.textContent = '…'; }
   let vu = null;
   try{
-    vu = await appelPrep({ action: 'convsSupprimer' });
+    vu = await appelPrep(demande);
   }catch(e){
     showToast('Impossible de compter : ' + ((e && e.message) || e));
   }
-  if(bouton){ bouton.disabled = false; bouton.textContent = '🗑️ Tout supprimer'; }
+  if(bouton){ bouton.disabled = false; bouton.textContent = titre; }
   if(!vu) return;
 
   if(!vu.conversations){
-    showToast('Aucune conversation fermée à supprimer.');
+    showToast(ids ? 'Rien de sélectionné à supprimer.'
+                  : 'Aucune conversation fermée à supprimer.');
     return;
   }
 
@@ -609,20 +775,36 @@ async function viderLesFilsFermes(bouton){
         ? '\n· … et ' + (vu.conversations - noms.length) + ' autre(s)' : '')
     : '';
 
+  /* ⚠️ LES OUVERTES SE DISENT À PART, ET AVANT LE RESTE. C'est
+     l'arbitrage de David : on peut supprimer un fil encore vivant,
+     mais jamais sans l'avoir lu. Noyée dans la liste commune,
+     l'information serait là sans être vue. */
+  const ouv = Number(vu.ouvertes || 0);
+  const alerte = ouv
+    ? '⚠️ ' + ouv + ' de ces conversations ' + (ouv > 1 ? 'sont' : 'est') +
+      ' ENCORE OUVERTE' + (ouv > 1 ? 'S' : '') + ' :\n' +
+      (vu.nomsOuverts || []).slice(0, 8).map(n => '· ' + n).join('\n') +
+      (ouv > 8 ? '\n· … et ' + (ouv - 8) + ' autre(s)' : '') + '\n\n'
+    : '';
+
   if(typeof confirmer === 'function' &&
-     !await confirmer('Vont être effacés définitivement :\n\n' + quoi + liste +
+     !await confirmer(alerte + 'Vont être effacés définitivement :\n\n' +
+                      quoi + liste +
                       '\n\nRien ne pourra être retrouvé — ni les messages, ' +
                       'ni les fichiers joints.',
-                      'Vider les conversations fermées', true)) return;
+                      ids ? 'Supprimer la sélection'
+                          : 'Vider les conversations fermées', true)) return;
 
   if(bouton){ bouton.disabled = true; bouton.textContent = 'Suppression…'; }
   try{
-    const r = await appelPrep({ action: 'convsSupprimer', confirme: 'oui' });
+    const r = await appelPrep(Object.assign({ confirme: 'oui' }, demande));
     showToast((r.conversations || 0) + ' conversation(s) supprimée(s) ✅');
+    modeChoixMessagerie = false;
+    choixMessagerie.clear();
     await afficherMessagerie(true);
   }catch(e){
     showToast('Suppression impossible : ' + ((e && e.message) || e));
-    if(bouton){ bouton.disabled = false; bouton.textContent = '🗑️ Tout supprimer'; }
+    if(bouton){ bouton.disabled = false; bouton.textContent = titre; }
   }
 }
 
