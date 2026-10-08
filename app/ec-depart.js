@@ -1,4 +1,4 @@
-/* Déployé le 08/10/2026 à 15:20 — v1078 */
+/* Déployé le 08/10/2026 à 10:37 — v1100 */
 /* ============================================================
    ec-depart.js
    Départ de l'auto-école et administration des accès
@@ -2434,10 +2434,13 @@ function majBoutonCorrection(){
    qu'ailleurs, donc la même expression, écrite une seule fois. */
 function leconDuBilan(){
   const t = ($('resultText') && $('resultText').value) || '';
-  const m = t.match(RE_NUM_LECON);
-  if(!m) return '';
-  const n = String(m[0]).match(/\d+/);
-  return n ? n[0] : '';
+  /* ⚠️ PAR LA PORTE COMMUNE — v1100. Le motif seul attrapait le
+     rang DEPUIS la charnière : sur « 2e leçon après le post-permis
+     (24e au total) » il rendait 2, et la correction proposée
+     ramenait l'élève de sa 24ᵉ leçon à sa 2ᵉ. rangDansLaNote lit le
+     total d'abord, et se tait quand la ligne n'en porte pas. */
+  const v = (typeof rangDansLaNote === 'function') ? rangDansLaNote(t) : null;
+  return v > 0 ? String(v) : '';
 }
 
 
